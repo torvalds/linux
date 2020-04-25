@@ -22,8 +22,6 @@
 
 #include "charlcd.h"
 
-#define LCD_MINOR		156
-
 #define DEFAULT_LCD_BWIDTH      40
 #define DEFAULT_LCD_HWIDTH      64
 
@@ -88,7 +86,7 @@ struct charlcd_priv {
 		int len;
 	} esc_seq;
 
-	unsigned long long drvdata[0];
+	unsigned long long drvdata[];
 };
 
 #define charlcd_to_priv(p)	container_of(p, struct charlcd_priv, lcd)

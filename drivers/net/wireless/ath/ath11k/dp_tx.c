@@ -7,6 +7,7 @@
 #include "dp_tx.h"
 #include "debug.h"
 #include "hw.h"
+#include "peer.h"
 
 /* NOTE: Any of the mapped ring id value must not exceed DP_TCL_NUM_RING_MAX */
 static const u8
@@ -46,7 +47,7 @@ static u8 ath11k_dp_tx_get_tid(struct sk_buff *skb)
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 }
 
-static enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
+enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
 {
 	switch (cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:

@@ -2141,7 +2141,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	int ret;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		break;
 	case VFL_TYPE_VBI:
@@ -2789,7 +2789,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	}
 
 	/* register v4l2 video video_device */
-	ret = video_register_device(&v4l2->vdev, VFL_TYPE_GRABBER,
+	ret = video_register_device(&v4l2->vdev, VFL_TYPE_VIDEO,
 				    video_nr[dev->devno]);
 	if (ret) {
 		dev_err(&dev->intf->dev,

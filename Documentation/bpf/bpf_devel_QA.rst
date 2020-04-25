@@ -20,11 +20,11 @@ Reporting bugs
 Q: How do I report bugs for BPF kernel code?
 --------------------------------------------
 A: Since all BPF kernel development as well as bpftool and iproute2 BPF
-loader development happens through the netdev kernel mailing list,
+loader development happens through the bpf kernel mailing list,
 please report any found issues around BPF to the following mailing
 list:
 
- netdev@vger.kernel.org
+ bpf@vger.kernel.org
 
 This may also include issues related to XDP, BPF tracing, etc.
 
@@ -46,17 +46,12 @@ Submitting patches
 
 Q: To which mailing list do I need to submit my BPF patches?
 ------------------------------------------------------------
-A: Please submit your BPF patches to the netdev kernel mailing list:
+A: Please submit your BPF patches to the bpf kernel mailing list:
 
- netdev@vger.kernel.org
-
-Historically, BPF came out of networking and has always been maintained
-by the kernel networking community. Although these days BPF touches
-many other subsystems as well, the patches are still routed mainly
-through the networking community.
+ bpf@vger.kernel.org
 
 In case your patch has changes in various different subsystems (e.g.
-tracing, security, etc), make sure to Cc the related kernel mailing
+networking, tracing, security, etc), make sure to Cc the related kernel mailing
 lists and maintainers from there as well, so they are able to review
 the changes and provide their Acked-by's to the patches.
 
@@ -168,7 +163,7 @@ a BPF point of view.
 Be aware that this is not a final verdict that the patch will
 automatically get accepted into net or net-next trees eventually:
 
-On the netdev kernel mailing list reviews can come in at any point
+On the bpf kernel mailing list reviews can come in at any point
 in time. If discussions around a patch conclude that they cannot
 get included as-is, we will either apply a follow-up fix or drop
 them from the trees entirely. Therefore, we also reserve to rebase
@@ -494,15 +489,15 @@ A: You need cmake and gcc-c++ as build requisites for LLVM. Once you have
 that set up, proceed with building the latest LLVM and clang version
 from the git repositories::
 
-     $ git clone http://llvm.org/git/llvm.git
-     $ cd llvm/tools
-     $ git clone --depth 1 http://llvm.org/git/clang.git
-     $ cd ..; mkdir build; cd build
-     $ cmake .. -DLLVM_TARGETS_TO_BUILD="BPF;X86" \
+     $ git clone https://github.com/llvm/llvm-project.git
+     $ mkdir -p llvm-project/llvm/build/install
+     $ cd llvm-project/llvm/build
+     $ cmake .. -G "Ninja" -DLLVM_TARGETS_TO_BUILD="BPF;X86" \
+                -DLLVM_ENABLE_PROJECTS="clang"    \
                 -DBUILD_SHARED_LIBS=OFF           \
                 -DCMAKE_BUILD_TYPE=Release        \
                 -DLLVM_BUILD_RUNTIME=OFF
-     $ make -j $(getconf _NPROCESSORS_ONLN)
+     $ ninja
 
 The built binaries can then be found in the build/bin/ directory, where
 you can point the PATH variable to.

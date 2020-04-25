@@ -24,6 +24,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/dma-mapping.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
@@ -37,6 +38,42 @@
 #include "amdgpu_ras.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
+
+static int psp_sysfs_init(struct amdgpu_device *adev);
+static void psp_sysfs_fini(struct amdgpu_device *adev);
+
+/*
+ * Due to DF Cstate management centralized to PMFW, the firmware
+ * loading sequence will be updated as below:
+ *   - Load KDB
+ *   - Load SYS_DRV
+ *   - Load tOS
+ *   - Load PMFW
+ *   - Setup TMR
+ *   - Load other non-psp fw
+ *   - Load ASD
+ *   - Load XGMI/RAS/HDCP/DTM TA if any
+ *
+ * This new sequence is required for
+ *   - Arcturus
+ *   - Navi12 and onwards
+ */
+static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	psp->pmfw_centralized_cstate_management = false;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
+
+	if (adev->flags & AMD_IS_APU)
+		return;
+
+	if ((adev->asic_type == CHIP_ARCTURUS) ||
+	    (adev->asic_type >= CHIP_NAVI12))
+		psp->pmfw_centralized_cstate_management = true;
+}
 
 static int psp_early_init(void *handle)
 {
@@ -75,6 +112,8 @@ static int psp_early_init(void *handle)
 
 	psp->adev = adev;
 
+	psp_check_pmfw_centralized_cstate_management(psp);
+
 	return 0;
 }
 
@@ -101,6 +140,13 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
+	if (adev->asic_type == CHIP_NAVI10) {
+		ret= psp_sysfs_init(adev);
+		if (ret) {
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -117,6 +163,10 @@ static int psp_sw_fini(void *handle)
 		release_firmware(adev->psp.ta_fw);
 		adev->psp.ta_fw = NULL;
 	}
+
+	if (adev->asic_type == CHIP_NAVI10)
+		psp_sysfs_fini(adev);
+
 	return 0;
 }
 
@@ -150,6 +200,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int ret;
 	int index;
 	int timeout = 2000;
+	bool ras_intr = false;
 
 	mutex_lock(&psp->mutex);
 
@@ -174,7 +225,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		 * because gpu reset thread triggered and lock resource should
 		 * be released for psp resume sequence.
 		 */
-		if (amdgpu_ras_intr_triggered())
+		ras_intr = amdgpu_ras_intr_triggered();
+		if (ras_intr)
 			break;
 		msleep(1);
 		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
@@ -187,7 +239,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	 * during psp initialization to avoid breaking hw_init and it doesn't
 	 * return -EINVAL.
 	 */
-	if (psp->cmd_buf_mem->resp.status || !timeout) {
+	if ((psp->cmd_buf_mem->resp.status || !timeout) && !ras_intr) {
 		if (ucode)
 			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
@@ -558,7 +610,7 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	return psp_ta_invoke(psp, ta_cmd_id, psp->xgmi_context.session_id);
 }
 
-static int psp_xgmi_terminate(struct psp_context *psp)
+int psp_xgmi_terminate(struct psp_context *psp)
 {
 	int ret;
 
@@ -579,7 +631,7 @@ static int psp_xgmi_terminate(struct psp_context *psp)
 	return 0;
 }
 
-static int psp_xgmi_initialize(struct psp_context *psp)
+int psp_xgmi_initialize(struct psp_context *psp)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -766,7 +818,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_ras_ucode_size ||
 	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_warn(psp->adev->dev, "RAS: ras ta ucode is not available\n");
+		dev_info(psp->adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
 	}
 
@@ -850,7 +902,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_hdcp_ucode_size ||
 	    !psp->adev->psp.ta_hdcp_start_addr) {
-		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
+		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is not available\n");
 		return 0;
 	}
 
@@ -996,7 +1048,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 
 	if (!psp->adev->psp.ta_dtm_ucode_size ||
 	    !psp->adev->psp.ta_dtm_start_addr) {
-		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
+		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is not available\n");
 		return 0;
 	}
 
@@ -1081,7 +1133,7 @@ static int psp_hw_start(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
+	if (!amdgpu_sriov_vf(adev)) {
 		if (psp->kdb_bin_size &&
 		    (psp->funcs->bootloader_load_kdb != NULL)) {
 			ret = psp_bootloader_load_kdb(psp);
@@ -1116,10 +1168,17 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	ret = psp_tmr_load(psp);
-	if (ret) {
-		DRM_ERROR("PSP load tmr failed!\n");
-		return ret;
+	/*
+	 * For those ASICs with DF Cstate management centralized
+	 * to PMFW, TMR setup should be performed after PMFW
+	 * loaded and before other non-psp firmware loaded.
+	 */
+	if (!psp->pmfw_centralized_cstate_management) {
+		ret = psp_tmr_load(psp);
+		if (ret) {
+			DRM_ERROR("PSP load tmr failed!\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1316,14 +1375,23 @@ static int psp_np_fw_load(struct psp_context *psp)
 	struct amdgpu_firmware_info *ucode;
 	struct amdgpu_device* adev = psp->adev;
 
-	if (psp->autoload_supported) {
+	if (psp->autoload_supported ||
+	    psp->pmfw_centralized_cstate_management) {
 		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
-		if (!ucode->fw)
+		if (!ucode->fw || amdgpu_sriov_vf(adev))
 			goto out;
 
 		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
 			return ret;
+	}
+
+	if (psp->pmfw_centralized_cstate_management) {
+		ret = psp_tmr_load(psp);
+		if (ret) {
+			DRM_ERROR("PSP load tmr failed!\n");
+			return ret;
+		}
 	}
 
 out:
@@ -1333,7 +1401,9 @@ out:
 			continue;
 
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
-		    (psp_smu_reload_quirk(psp) || psp->autoload_supported))
+		    (psp_smu_reload_quirk(psp) ||
+		     psp->autoload_supported ||
+		     psp->pmfw_centralized_cstate_management))
 			continue;
 
 		if (amdgpu_sriov_vf(adev) &&
@@ -1444,16 +1514,6 @@ skip_memalloc:
 		return ret;
 	}
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		ret = psp_xgmi_initialize(psp);
-		/* Warning the XGMI seesion initialize failure
-		 * Instead of stop driver initialization
-		 */
-		if (ret)
-			dev_err(psp->adev->dev,
-				"XGMI: Failed to initialize XGMI session\n");
-	}
-
 	if (psp->adev->psp.ta_fw) {
 		ret = psp_ras_initialize(psp);
 		if (ret)
@@ -1517,10 +1577,6 @@ static int psp_hw_fini(void *handle)
 	struct psp_context *psp = &adev->psp;
 	void *tmr_buf;
 	void **pptr;
-
-	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
-	    psp->xgmi_context.initialized == 1)
-                psp_xgmi_terminate(psp);
 
 	if (psp->adev->psp.ta_fw) {
 		psp_ras_terminate(psp);
@@ -1777,6 +1833,97 @@ static int psp_set_powergating_state(void *handle,
 	return 0;
 }
 
+static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t fw_ver;
+	int ret;
+
+	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
+		DRM_INFO("PSP block is not ready yet.");
+		return -EBUSY;
+	}
+
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_read_usbc_pd_fw(&adev->psp, &fw_ver);
+	mutex_unlock(&adev->psp.mutex);
+
+	if (ret) {
+		DRM_ERROR("Failed to read USBC PD FW, err = %d", ret);
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%x\n", fw_ver);
+}
+
+static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
+						       struct device_attribute *attr,
+						       const char *buf,
+						       size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	void *cpu_addr;
+	dma_addr_t dma_addr;
+	int ret;
+	char fw_name[100];
+	const struct firmware *usbc_pd_fw;
+
+	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
+		DRM_INFO("PSP block is not ready yet.");
+		return -EBUSY;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s", buf);
+	ret = request_firmware(&usbc_pd_fw, fw_name, adev->dev);
+	if (ret)
+		goto fail;
+
+	/* We need contiguous physical mem to place the FW  for psp to access */
+	cpu_addr = dma_alloc_coherent(adev->dev, usbc_pd_fw->size, &dma_addr, GFP_KERNEL);
+
+	ret = dma_mapping_error(adev->dev, dma_addr);
+	if (ret)
+		goto rel_buf;
+
+	memcpy_toio(cpu_addr, usbc_pd_fw->data, usbc_pd_fw->size);
+
+	/*
+	 * x86 specific workaround.
+	 * Without it the buffer is invisible in PSP.
+	 *
+	 * TODO Remove once PSP starts snooping CPU cache
+	 */
+#ifdef CONFIG_X86
+	clflush_cache_range(cpu_addr, (usbc_pd_fw->size & ~(L1_CACHE_BYTES - 1)));
+#endif
+
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_load_usbc_pd_fw(&adev->psp, dma_addr);
+	mutex_unlock(&adev->psp.mutex);
+
+rel_buf:
+	dma_free_coherent(adev->dev, usbc_pd_fw->size, cpu_addr, dma_addr);
+	release_firmware(usbc_pd_fw);
+
+fail:
+	if (ret) {
+		DRM_ERROR("Failed to load USBC PD FW, err = %d", ret);
+		return ret;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,
+		   psp_usbc_pd_fw_sysfs_read,
+		   psp_usbc_pd_fw_sysfs_write);
+
+
+
 const struct amd_ip_funcs psp_ip_funcs = {
 	.name = "psp",
 	.early_init = psp_early_init,
@@ -1794,6 +1941,21 @@ const struct amd_ip_funcs psp_ip_funcs = {
 	.set_clockgating_state = psp_set_clockgating_state,
 	.set_powergating_state = psp_set_powergating_state,
 };
+
+static int psp_sysfs_init(struct amdgpu_device *adev)
+{
+	int ret = device_create_file(adev->dev, &dev_attr_usbc_pd_fw);
+
+	if (ret)
+		DRM_ERROR("Failed to create USBC PD FW control file!");
+
+	return ret;
+}
+
+static void psp_sysfs_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_usbc_pd_fw);
+}
 
 static const struct amdgpu_psp_funcs psp_funcs = {
 	.check_fw_loading_status = psp_check_fw_loading_status,

@@ -303,11 +303,8 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 		VM_BUG_ON(!node_state(nid, N_ONLINE));
 	}
 
-	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
-		if (!pfn_present(pfn))
-			continue;
+	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION)
 		fail = init_section_page_ext(pfn, nid);
-	}
 	if (!fail)
 		return 0;
 

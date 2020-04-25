@@ -119,6 +119,9 @@ enum pmbus_regs {
 	PMBUS_MFR_DATE			= 0x9D,
 	PMBUS_MFR_SERIAL		= 0x9E,
 
+	PMBUS_IC_DEVICE_ID		= 0xAD,
+	PMBUS_IC_DEVICE_REV		= 0xAE,
+
 /*
  * Virtual registers.
  * Useful to support attributes which are not supported by standard PMBus
@@ -359,6 +362,7 @@ enum pmbus_sensor_classes {
 };
 
 #define PMBUS_PAGES	32	/* Per PMBus specification */
+#define PMBUS_PHASES	8	/* Maximum number of phases per page */
 
 /* Functionality bit mask */
 #define PMBUS_HAVE_VIN		BIT(0)
@@ -385,13 +389,15 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_PWM34	BIT(21)
 #define PMBUS_HAVE_SAMPLES	BIT(22)
 
-#define PMBUS_PAGE_VIRTUAL	BIT(31)
+#define PMBUS_PHASE_VIRTUAL	BIT(30)	/* Phases on this page are virtual */
+#define PMBUS_PAGE_VIRTUAL	BIT(31)	/* Page is virtual */
 
 enum pmbus_data_format { linear = 0, direct, vid };
 enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
+	u8 phases[PMBUS_PAGES];	/* Number of phases per page */
 	enum pmbus_data_format format[PSC_NUM_CLASSES];
 	enum vrm_version vrm_version[PMBUS_PAGES]; /* vrm version per page */
 	/*
@@ -403,6 +409,7 @@ struct pmbus_driver_info {
 	int R[PSC_NUM_CLASSES];	/* exponent */
 
 	u32 func[PMBUS_PAGES];	/* Functionality, per page */
+	u32 pfunc[PMBUS_PHASES];/* Functionality, per phase */
 	/*
 	 * The following functions map manufacturing specific register values
 	 * to PMBus standard register values. Specify only if mapping is
@@ -415,7 +422,8 @@ struct pmbus_driver_info {
 	 * the standard register.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
-	int (*read_word_data)(struct i2c_client *client, int page, int reg);
+	int (*read_word_data)(struct i2c_client *client, int page, int phase,
+			      int reg);
 	int (*write_word_data)(struct i2c_client *client, int page, int reg,
 			       u16 word);
 	int (*write_byte)(struct i2c_client *client, int page, u8 value);
@@ -454,9 +462,11 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
-int pmbus_set_page(struct i2c_client *client, int page);
-int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg);
-int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg, u16 word);
+int pmbus_set_page(struct i2c_client *client, int page, int phase);
+int pmbus_read_word_data(struct i2c_client *client, int page, int phase,
+			 u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg,
+			  u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,

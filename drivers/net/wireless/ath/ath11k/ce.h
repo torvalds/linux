@@ -161,6 +161,7 @@ struct ath11k_ce_pipe {
 	struct ath11k_ce_ring *src_ring;
 	struct ath11k_ce_ring *dest_ring;
 	struct ath11k_ce_ring *status_ring;
+	u64 timestamp;
 };
 
 struct ath11k_ce {

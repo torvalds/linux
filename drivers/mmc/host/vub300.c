@@ -95,7 +95,7 @@ struct sd_response_header {
 	u8 port_number;
 	u8 command_type;
 	u8 command_index;
-	u8 command_response[0];
+	u8 command_response[];
 } __packed;
 
 struct sd_status_header {
@@ -1363,7 +1363,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 	int retval;
 	for (n = 0; n < sdio_funcs; n++) {
 		struct sdio_func *sf = card->sdio_func[n];
-		l += snprintf(vub300->vub_name + l,
+		l += scnprintf(vub300->vub_name + l,
 			      sizeof(vub300->vub_name) - l, "_%04X%04X",
 			      sf->vendor, sf->device);
 	}

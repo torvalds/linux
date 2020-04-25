@@ -1529,6 +1529,7 @@
 			};
 		};
 
+		/* Unused DSS L4 access, see L3 instead */
 		target-module@40000 {			/* 0x48040000, ap 13 0a.0 */
 			compatible = "ti,sysc";
 			status = "disabled";

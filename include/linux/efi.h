@@ -379,8 +379,8 @@ typedef union {
 
 typedef struct {
 	efi_guid_t guid;
-	const char *name;
 	unsigned long *ptr;
+	const char name[16];
 } efi_config_table_type_t;
 
 #define EFI_SYSTEM_TABLE_SIGNATURE ((u64)0x5453595320494249ULL)
@@ -1242,5 +1242,7 @@ struct linux_efi_memreserve {
 
 #define EFI_MEMRESERVE_COUNT(size) (((size) - sizeof(struct linux_efi_memreserve)) \
 	/ sizeof(((struct linux_efi_memreserve *)0)->entry[0]))
+
+void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size);
 
 #endif /* _LINUX_EFI_H */

@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(xenbus_grant_ring);
  * error, the device will switch to XenbusStateClosing, and the error will be
  * saved in the store.
  */
-int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port)
+int xenbus_alloc_evtchn(struct xenbus_device *dev, evtchn_port_t *port)
 {
 	struct evtchn_alloc_unbound alloc_unbound;
 	int err;
@@ -414,7 +414,7 @@ EXPORT_SYMBOL_GPL(xenbus_alloc_evtchn);
 /**
  * Free an existing event channel. Returns 0 on success or -errno on error.
  */
-int xenbus_free_evtchn(struct xenbus_device *dev, int port)
+int xenbus_free_evtchn(struct xenbus_device *dev, evtchn_port_t port)
 {
 	struct evtchn_close close;
 	int err;
@@ -423,7 +423,7 @@ int xenbus_free_evtchn(struct xenbus_device *dev, int port)
 
 	err = HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
 	if (err)
-		xenbus_dev_error(dev, err, "freeing event channel %d", port);
+		xenbus_dev_error(dev, err, "freeing event channel %u", port);
 
 	return err;
 }
@@ -448,7 +448,14 @@ EXPORT_SYMBOL_GPL(xenbus_free_evtchn);
 int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 			   unsigned int nr_grefs, void **vaddr)
 {
-	return ring_ops->map(dev, gnt_refs, nr_grefs, vaddr);
+	int err;
+
+	err = ring_ops->map(dev, gnt_refs, nr_grefs, vaddr);
+	/* Some hypervisors are buggy and can return 1. */
+	if (err > 0)
+		err = GNTST_general_error;
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_map_ring_valloc);
 
@@ -510,6 +517,48 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 	for (i = 0; i < j; i++) {
 		if (unmap[i].status != GNTST_okay) {
 			*leaked = true;
+			break;
+		}
+	}
+
+	return err;
+}
+
+/**
+ * xenbus_unmap_ring
+ * @dev: xenbus device
+ * @handles: grant handle array
+ * @nr_handles: number of handles in the array
+ * @vaddrs: addresses to unmap
+ *
+ * Unmap memory in this domain that was imported from another domain.
+ * Returns 0 on success and returns GNTST_* on error
+ * (see xen/include/interface/grant_table.h).
+ */
+static int xenbus_unmap_ring(struct xenbus_device *dev, grant_handle_t *handles,
+			     unsigned int nr_handles, unsigned long *vaddrs)
+{
+	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_GRANTS];
+	int i;
+	int err;
+
+	if (nr_handles > XENBUS_MAX_RING_GRANTS)
+		return -EINVAL;
+
+	for (i = 0; i < nr_handles; i++)
+		gnttab_set_unmap_op(&unmap[i], vaddrs[i],
+				    GNTMAP_host_map, handles[i]);
+
+	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
+		BUG();
+
+	err = GNTST_okay;
+	for (i = 0; i < nr_handles; i++) {
+		if (unmap[i].status != GNTST_okay) {
+			xenbus_dev_error(dev, unmap[i].status,
+					 "unmapping page at handle %d error %d",
+					 handles[i], unmap[i].status);
+			err = unmap[i].status;
 			break;
 		}
 	}
@@ -607,45 +656,6 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	kfree(node);
 	return err;
 }
-
-
-/**
- * xenbus_map_ring
- * @dev: xenbus device
- * @gnt_refs: grant reference array
- * @nr_grefs: number of grant reference
- * @handles: pointer to grant handle to be filled
- * @vaddrs: addresses to be mapped to
- * @leaked: fail to clean up a failed map, caller should not free vaddr
- *
- * Map pages of memory into this domain from another domain's grant table.
- * xenbus_map_ring does not allocate the virtual address space (you must do
- * this yourself!). It only maps in the pages to the specified address.
- * Returns 0 on success, and GNTST_* (see xen/include/interface/grant_table.h)
- * or -ENOMEM / -EINVAL on error. If an error is returned, device will switch to
- * XenbusStateClosing and the first error message will be saved in XenStore.
- * Further more if we fail to map the ring, caller should check @leaked.
- * If @leaked is not zero it means xenbus_map_ring fails to clean up, caller
- * should not free the address space of @vaddr.
- */
-int xenbus_map_ring(struct xenbus_device *dev, grant_ref_t *gnt_refs,
-		    unsigned int nr_grefs, grant_handle_t *handles,
-		    unsigned long *vaddrs, bool *leaked)
-{
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
-	int i;
-
-	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
-		return -EINVAL;
-
-	for (i = 0; i < nr_grefs; i++)
-		phys_addrs[i] = (unsigned long)vaddrs[i];
-
-	return __xenbus_map_ring(dev, gnt_refs, nr_grefs, handles,
-				 phys_addrs, GNTMAP_host_map, leaked);
-}
-EXPORT_SYMBOL_GPL(xenbus_map_ring);
-
 
 /**
  * xenbus_unmap_ring_vfree
@@ -857,51 +867,6 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 	kfree(node);
 	return rv;
 }
-
-/**
- * xenbus_unmap_ring
- * @dev: xenbus device
- * @handles: grant handle array
- * @nr_handles: number of handles in the array
- * @vaddrs: addresses to unmap
- *
- * Unmap memory in this domain that was imported from another domain.
- * Returns 0 on success and returns GNTST_* on error
- * (see xen/include/interface/grant_table.h).
- */
-int xenbus_unmap_ring(struct xenbus_device *dev,
-		      grant_handle_t *handles, unsigned int nr_handles,
-		      unsigned long *vaddrs)
-{
-	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_GRANTS];
-	int i;
-	int err;
-
-	if (nr_handles > XENBUS_MAX_RING_GRANTS)
-		return -EINVAL;
-
-	for (i = 0; i < nr_handles; i++)
-		gnttab_set_unmap_op(&unmap[i], vaddrs[i],
-				    GNTMAP_host_map, handles[i]);
-
-	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
-		BUG();
-
-	err = GNTST_okay;
-	for (i = 0; i < nr_handles; i++) {
-		if (unmap[i].status != GNTST_okay) {
-			xenbus_dev_error(dev, unmap[i].status,
-					 "unmapping page at handle %d error %d",
-					 handles[i], unmap[i].status);
-			err = unmap[i].status;
-			break;
-		}
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(xenbus_unmap_ring);
-
 
 /**
  * xenbus_read_driver_state

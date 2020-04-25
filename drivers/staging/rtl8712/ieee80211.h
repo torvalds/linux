@@ -535,7 +535,7 @@ struct ieee80211_info_element_hdr {
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /*
@@ -597,7 +597,7 @@ struct ieee80211_txb {
 	u16 reserved;
 	u16 frag_size;
 	u16 payload_size;
-	struct sk_buff *fragments[0];
+	struct sk_buff *fragments[];
 };
 
 /* SWEEP TABLE ENTRIES NUMBER*/

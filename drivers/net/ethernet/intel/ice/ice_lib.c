@@ -9,11 +9,11 @@
 
 /**
  * ice_vsi_type_str - maps VSI type enum to string equivalents
- * @type: VSI type enum
+ * @vsi_type: VSI type enum
  */
-const char *ice_vsi_type_str(enum ice_vsi_type type)
+const char *ice_vsi_type_str(enum ice_vsi_type vsi_type)
 {
-	switch (type) {
+	switch (vsi_type) {
 	case ICE_VSI_PF:
 		return "ICE_VSI_PF";
 	case ICE_VSI_VF:
@@ -26,16 +26,26 @@ const char *ice_vsi_type_str(enum ice_vsi_type type)
 }
 
 /**
- * ice_vsi_ctrl_rx_rings - Start or stop a VSI's Rx rings
+ * ice_vsi_ctrl_all_rx_rings - Start or stop a VSI's Rx rings
  * @vsi: the VSI being configured
  * @ena: start or stop the Rx rings
+ *
+ * First enable/disable all of the Rx rings, flush any remaining writes, and
+ * then verify that they have all been enabled/disabled successfully. This will
+ * let all of the register writes complete when enabling/disabling the Rx rings
+ * before waiting for the change in hardware to complete.
  */
-static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
+static int ice_vsi_ctrl_all_rx_rings(struct ice_vsi *vsi, bool ena)
 {
 	int i, ret = 0;
 
+	for (i = 0; i < vsi->num_rxq; i++)
+		ice_vsi_ctrl_one_rx_ring(vsi, ena, i, false);
+
+	ice_flush(&vsi->back->hw);
+
 	for (i = 0; i < vsi->num_rxq; i++) {
-		ret = ice_vsi_ctrl_rx_ring(vsi, ena, i);
+		ret = ice_vsi_wait_one_rx_ring(vsi, ena, i);
 		if (ret)
 			break;
 	}
@@ -111,7 +121,6 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 {
 	switch (vsi->type) {
 	case ICE_VSI_PF:
-		/* fall through */
 	case ICE_VSI_LB:
 		vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
 		vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
@@ -169,12 +178,12 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vf = &pf->vf[vsi->vf_id];
 		vsi->alloc_txq = vf->num_vf_qs;
 		vsi->alloc_rxq = vf->num_vf_qs;
-		/* pf->num_vf_msix includes (VF miscellaneous vector +
+		/* pf->num_msix_per_vf includes (VF miscellaneous vector +
 		 * data queue interrupts). Since vsi->num_q_vectors is number
 		 * of queues vectors, subtract 1 (ICE_NONQ_VECS_VF) from the
 		 * original vector count
 		 */
-		vsi->num_q_vectors = pf->num_vf_msix - ICE_NONQ_VECS_VF;
+		vsi->num_q_vectors = pf->num_msix_per_vf - ICE_NONQ_VECS_VF;
 		break;
 	case ICE_VSI_LB:
 		vsi->alloc_txq = 1;
@@ -341,13 +350,13 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 /**
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
- * @type: type of VSI
+ * @vsi_type: type of VSI
  * @vf_id: ID of the VF being configured
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
 static struct ice_vsi *
-ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
+ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type, u16 vf_id)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi = NULL;
@@ -368,13 +377,13 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 	if (!vsi)
 		goto unlock_pf;
 
-	vsi->type = type;
+	vsi->type = vsi_type;
 	vsi->back = pf;
 	set_bit(__ICE_DOWN, vsi->state);
 
 	vsi->idx = pf->next_vsi;
 
-	if (type == ICE_VSI_VF)
+	if (vsi_type == ICE_VSI_VF)
 		ice_vsi_set_num_qs(vsi, vf_id);
 	else
 		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
@@ -433,7 +442,7 @@ static int ice_vsi_get_qs(struct ice_vsi *vsi)
 		.scatter_count = ICE_MAX_SCATTER_TXQS,
 		.vsi_map = vsi->txq_map,
 		.vsi_map_offset = 0,
-		.mapping_mode = vsi->tx_mapping_mode
+		.mapping_mode = ICE_VSI_MAP_CONTIG
 	};
 	struct ice_qs_cfg rx_qs_cfg = {
 		.qs_mutex = &pf->avail_q_mutex,
@@ -443,18 +452,21 @@ static int ice_vsi_get_qs(struct ice_vsi *vsi)
 		.scatter_count = ICE_MAX_SCATTER_RXQS,
 		.vsi_map = vsi->rxq_map,
 		.vsi_map_offset = 0,
-		.mapping_mode = vsi->rx_mapping_mode
+		.mapping_mode = ICE_VSI_MAP_CONTIG
 	};
-	int ret = 0;
-
-	vsi->tx_mapping_mode = ICE_VSI_MAP_CONTIG;
-	vsi->rx_mapping_mode = ICE_VSI_MAP_CONTIG;
+	int ret;
 
 	ret = __ice_vsi_get_qs(&tx_qs_cfg);
-	if (!ret)
-		ret = __ice_vsi_get_qs(&rx_qs_cfg);
+	if (ret)
+		return ret;
+	vsi->tx_mapping_mode = tx_qs_cfg.mapping_mode;
 
-	return ret;
+	ret = __ice_vsi_get_qs(&rx_qs_cfg);
+	if (ret)
+		return ret;
+	vsi->rx_mapping_mode = rx_qs_cfg.mapping_mode;
+
+	return 0;
 }
 
 /**
@@ -559,12 +571,11 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF;
 		break;
 	case ICE_VSI_VF:
-		/* VF VSI will gets a small RSS table
-		 * For VSI_LUT, LUT size should be set to 64 bytes
+		/* VF VSI will get a small RSS table.
+		 * For VSI_LUT, LUT size should be set to 64 bytes.
 		 */
 		vsi->rss_table_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
-		vsi->rss_size = min_t(int, num_online_cpus(),
-				      BIT(cap->rss_table_entry_width));
+		vsi->rss_size = ICE_MAX_RSS_QS_PER_VF;
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI;
 		break;
 	case ICE_VSI_LB:
@@ -672,7 +683,7 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 			if (vsi->type == ICE_VSI_PF)
 				max_rss = ICE_MAX_LG_RSS_QS;
 			else
-				max_rss = ICE_MAX_SMALL_RSS_QS;
+				max_rss = ICE_MAX_RSS_QS_PER_VF;
 			qcount_rx = min_t(int, rx_numq_tc, max_rss);
 			if (!vsi->req_rxq)
 				qcount_rx = min_t(int, qcount_rx,
@@ -804,7 +815,6 @@ static int ice_vsi_init(struct ice_vsi *vsi, bool init_vsi)
 	ctxt->info = vsi->info;
 	switch (vsi->type) {
 	case ICE_VSI_LB:
-		/* fall through */
 	case ICE_VSI_PF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_PF;
 		break;
@@ -897,6 +907,109 @@ out:
 }
 
 /**
+ * ice_free_res - free a block of resources
+ * @res: pointer to the resource
+ * @index: starting index previously returned by ice_get_res
+ * @id: identifier to track owner
+ *
+ * Returns number of resources freed
+ */
+int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id)
+{
+	int count = 0;
+	int i;
+
+	if (!res || index >= res->end)
+		return -EINVAL;
+
+	id |= ICE_RES_VALID_BIT;
+	for (i = index; i < res->end && res->list[i] == id; i++) {
+		res->list[i] = 0;
+		count++;
+	}
+
+	return count;
+}
+
+/**
+ * ice_search_res - Search the tracker for a block of resources
+ * @res: pointer to the resource
+ * @needed: size of the block needed
+ * @id: identifier to track owner
+ *
+ * Returns the base item index of the block, or -ENOMEM for error
+ */
+static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
+{
+	int start = 0, end = 0;
+
+	if (needed > res->end)
+		return -ENOMEM;
+
+	id |= ICE_RES_VALID_BIT;
+
+	do {
+		/* skip already allocated entries */
+		if (res->list[end++] & ICE_RES_VALID_BIT) {
+			start = end;
+			if ((start + needed) > res->end)
+				break;
+		}
+
+		if (end == (start + needed)) {
+			int i = start;
+
+			/* there was enough, so assign it to the requestor */
+			while (i != end)
+				res->list[i++] = id;
+
+			return start;
+		}
+	} while (end < res->end);
+
+	return -ENOMEM;
+}
+
+/**
+ * ice_get_free_res_count - Get free count from a resource tracker
+ * @res: Resource tracker instance
+ */
+static u16 ice_get_free_res_count(struct ice_res_tracker *res)
+{
+	u16 i, count = 0;
+
+	for (i = 0; i < res->end; i++)
+		if (!(res->list[i] & ICE_RES_VALID_BIT))
+			count++;
+
+	return count;
+}
+
+/**
+ * ice_get_res - get a block of resources
+ * @pf: board private structure
+ * @res: pointer to the resource
+ * @needed: size of the block needed
+ * @id: identifier to track owner
+ *
+ * Returns the base item index of the block, or negative for error
+ */
+int
+ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id)
+{
+	if (!res || !pf)
+		return -EINVAL;
+
+	if (!needed || needed > res->num_entries || id >= ICE_RES_VALID_BIT) {
+		dev_err(ice_pf_to_dev(pf), "param err: needed=%d, num_entries = %d id=0x%04x\n",
+			needed, res->num_entries, id);
+		return -EINVAL;
+	}
+
+	return ice_search_res(res, needed, id);
+}
+
+/**
  * ice_vsi_setup_vector_base - Set up the base vector for the given VSI
  * @vsi: ptr to the VSI
  *
@@ -928,8 +1041,9 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 	vsi->base_vector = ice_get_res(pf, pf->irq_tracker, num_q_vectors,
 				       vsi->idx);
 	if (vsi->base_vector < 0) {
-		dev_err(dev, "Failed to get tracking for %d vectors for VSI %d, err=%d\n",
-			num_q_vectors, vsi->vsi_num, vsi->base_vector);
+		dev_err(dev, "%d MSI-X interrupts available. %s %d failed to get %d MSI-X vectors\n",
+			ice_get_free_res_count(pf->irq_tracker),
+			ice_vsi_type_str(vsi->type), vsi->idx, num_q_vectors);
 		return -ENOENT;
 	}
 	pf->num_avail_sw_msix -= num_q_vectors;
@@ -1348,7 +1462,9 @@ int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 	list_add(&tmp->list_entry, &tmp_add_list);
 
 	status = ice_add_vlan(&pf->hw, &tmp_add_list);
-	if (status) {
+	if (!status) {
+		vsi->num_vlan++;
+	} else {
 		err = -ENODEV;
 		dev_err(dev, "Failure Adding VLAN %d on VSI %i\n", vid,
 			vsi->vsi_num);
@@ -1390,10 +1506,12 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	list_add(&list->list_entry, &tmp_add_list);
 
 	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
-	if (status == ICE_ERR_DOES_NOT_EXIST) {
+	if (!status) {
+		vsi->num_vlan--;
+	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
 		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist, status: %d\n",
 			vid, vsi->vsi_num, status);
-	} else if (status) {
+	} else {
 		dev_err(dev, "Error removing VLAN %d on vsi %i error: %d\n",
 			vid, vsi->vsi_num, status);
 		err = -EIO;
@@ -1678,25 +1796,25 @@ out:
 }
 
 /**
- * ice_vsi_start_rx_rings - start VSI's Rx rings
- * @vsi: the VSI whose rings are to be started
+ * ice_vsi_start_all_rx_rings - start/enable all of a VSI's Rx rings
+ * @vsi: the VSI whose rings are to be enabled
  *
  * Returns 0 on success and a negative value on error
  */
-int ice_vsi_start_rx_rings(struct ice_vsi *vsi)
+int ice_vsi_start_all_rx_rings(struct ice_vsi *vsi)
 {
-	return ice_vsi_ctrl_rx_rings(vsi, true);
+	return ice_vsi_ctrl_all_rx_rings(vsi, true);
 }
 
 /**
- * ice_vsi_stop_rx_rings - stop VSI's Rx rings
- * @vsi: the VSI
+ * ice_vsi_stop_all_rx_rings - stop/disable all of a VSI's Rx rings
+ * @vsi: the VSI whose rings are to be disabled
  *
  * Returns 0 on success and a negative value on error
  */
-int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
+int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi)
 {
-	return ice_vsi_ctrl_rx_rings(vsi, false);
+	return ice_vsi_ctrl_all_rx_rings(vsi, false);
 }
 
 /**
@@ -1753,6 +1871,20 @@ ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi)
 {
 	return ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0, vsi->xdp_rings);
+}
+
+/**
+ * ice_vsi_is_vlan_pruning_ena - check if VLAN pruning is enabled or not
+ * @vsi: VSI to check whether or not VLAN pruning is enabled.
+ *
+ * returns true if Rx VLAN pruning is enabled and false otherwise.
+ */
+bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi)
+{
+	if (!vsi)
+		return false;
+
+	return (vsi->info.sw_flags2 & ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA);
 }
 
 /**
@@ -1952,7 +2084,7 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
  * @pi: pointer to the port_info instance
- * @type: VSI type
+ * @vsi_type: VSI type
  * @vf_id: defines VF ID to which this VSI connects. This field is meant to be
  *         used only for ICE_VSI_VF VSI type. For other VSI types, should
  *         fill-in ICE_INVAL_VFID as input.
@@ -1964,7 +2096,7 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
  */
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type type, u16 vf_id)
+	      enum ice_vsi_type vsi_type, u16 vf_id)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct device *dev = ice_pf_to_dev(pf);
@@ -1972,10 +2104,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	struct ice_vsi *vsi;
 	int ret, i;
 
-	if (type == ICE_VSI_VF)
-		vsi = ice_vsi_alloc(pf, type, vf_id);
+	if (vsi_type == ICE_VSI_VF)
+		vsi = ice_vsi_alloc(pf, vsi_type, vf_id);
 	else
-		vsi = ice_vsi_alloc(pf, type, ICE_INVAL_VFID);
+		vsi = ice_vsi_alloc(pf, vsi_type, ICE_INVAL_VFID);
 
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
@@ -2024,6 +2156,17 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
 			goto unroll_vector_base;
+
+		/* Always add VLAN ID 0 switch rule by default. This is needed
+		 * in order to allow all untagged and 0 tagged priority traffic
+		 * if Rx VLAN pruning is enabled. Also there are cases where we
+		 * don't get the call to add VLAN 0 via ice_vlan_rx_add_vid()
+		 * so this handles those cases (i.e. adding the PF to a bridge
+		 * without the 8021q module loaded).
+		 */
+		ret = ice_vsi_add_vlan(vsi, 0);
+		if (ret)
+			goto unroll_clear_rings;
 
 		ice_vsi_map_rings_to_vectors(vsi);
 
@@ -2104,6 +2247,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 	return vsi;
 
+unroll_clear_rings:
+	ice_vsi_clear_rings(vsi);
 unroll_vector_base:
 	/* reclaim SW interrupts back to the common pool */
 	ice_free_res(pf->irq_tracker, vsi->base_vector, vsi->idx);
@@ -2296,94 +2441,6 @@ void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
 			ice_vsi_close(vsi);
 		}
 	}
-}
-
-/**
- * ice_free_res - free a block of resources
- * @res: pointer to the resource
- * @index: starting index previously returned by ice_get_res
- * @id: identifier to track owner
- *
- * Returns number of resources freed
- */
-int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id)
-{
-	int count = 0;
-	int i;
-
-	if (!res || index >= res->end)
-		return -EINVAL;
-
-	id |= ICE_RES_VALID_BIT;
-	for (i = index; i < res->end && res->list[i] == id; i++) {
-		res->list[i] = 0;
-		count++;
-	}
-
-	return count;
-}
-
-/**
- * ice_search_res - Search the tracker for a block of resources
- * @res: pointer to the resource
- * @needed: size of the block needed
- * @id: identifier to track owner
- *
- * Returns the base item index of the block, or -ENOMEM for error
- */
-static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
-{
-	int start = 0, end = 0;
-
-	if (needed > res->end)
-		return -ENOMEM;
-
-	id |= ICE_RES_VALID_BIT;
-
-	do {
-		/* skip already allocated entries */
-		if (res->list[end++] & ICE_RES_VALID_BIT) {
-			start = end;
-			if ((start + needed) > res->end)
-				break;
-		}
-
-		if (end == (start + needed)) {
-			int i = start;
-
-			/* there was enough, so assign it to the requestor */
-			while (i != end)
-				res->list[i++] = id;
-
-			return start;
-		}
-	} while (end < res->end);
-
-	return -ENOMEM;
-}
-
-/**
- * ice_get_res - get a block of resources
- * @pf: board private structure
- * @res: pointer to the resource
- * @needed: size of the block needed
- * @id: identifier to track owner
- *
- * Returns the base item index of the block, or negative for error
- */
-int
-ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id)
-{
-	if (!res || !pf)
-		return -EINVAL;
-
-	if (!needed || needed > res->num_entries || id >= ICE_RES_VALID_BIT) {
-		dev_err(ice_pf_to_dev(pf), "param err: needed=%d, num_entries = %d id=0x%04x\n",
-			needed, res->num_entries, id);
-		return -EINVAL;
-	}
-
-	return ice_search_res(res, needed, id);
 }
 
 /**

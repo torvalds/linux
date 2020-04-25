@@ -123,12 +123,11 @@ patternProperties:
           sign.
         allOf:
           - $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        minItems: 3
+        maxItems: 64
         items:
-          minItems: 3
-          maxItems: 64
-          items:
-            minItems: 2
-            maxItems: 2
+          minItems: 2
+          maxItems: 2
 
   "^diode@":
     type: object
@@ -328,12 +327,11 @@ patternProperties:
           78 and 79.
         allOf:
           - $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        minItems: 3
+        maxItems: 64
         items:
-          minItems: 3
-          maxItems: 64
-          items:
-            minItems: 2
-            maxItems: 2
+          minItems: 2
+          maxItems: 2
 
       adi,custom-steinhart:
         description:
@@ -397,6 +395,8 @@ required:
   - compatible
   - reg
   - interrupts
+
+additionalProperties: false
 
 examples:
   - |
@@ -463,16 +463,16 @@ examples:
                         adi,sensor-type = <9>; //custom thermocouple
                         adi,single-ended;
                         adi,custom-thermocouple = /bits/ 64
-                                 <(-50220000) 0
-                                  (-30200000) 99100000
-                                  (-5300000) 135400000
-                                  0 273150000
-                                  40200000 361200000
-                                  55300000 522100000
-                                  88300000 720300000
-                                  132200000 811200000
-                                  188700000 922500000
-                                  460400000 1000000000>; //10 pairs
+                                 <(-50220000) 0>,
+                                 <(-30200000) 99100000>,
+                                 <(-5300000) 135400000>,
+                                 <0 273150000>,
+                                 <40200000 361200000>,
+                                 <55300000 522100000>,
+                                 <88300000 720300000>,
+                                 <132200000 811200000>,
+                                 <188700000 922500000>,
+                                 <460400000 1000000000>; //10 pairs
                };
 
         };

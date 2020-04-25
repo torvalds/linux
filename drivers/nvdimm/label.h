@@ -62,7 +62,7 @@ struct nd_namespace_index {
 	__le16 major;
 	__le16 minor;
 	__le64 checksum;
-	u8 free[0];
+	u8 free[];
 };
 
 /**

@@ -410,7 +410,7 @@ verified:
  * Read the bitmap for a given block_group,and validate the
  * bits for block/inode/inode tables are set in the bitmaps
  *
- * Return buffer_head on success or NULL in case of failure.
+ * Return buffer_head on success or an ERR_PTR in case of failure.
  */
 struct buffer_head *
 ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
@@ -502,7 +502,7 @@ out:
 	return ERR_PTR(err);
 }
 
-/* Returns 0 on success, 1 on error */
+/* Returns 0 on success, -errno on error */
 int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 			   struct buffer_head *bh)
 {
@@ -516,10 +516,9 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	wait_on_buffer(bh);
 	ext4_simulate_fail_bh(sb, bh, EXT4_SIM_BBITMAP_EIO);
 	if (!buffer_uptodate(bh)) {
-		ext4_set_errno(sb, EIO);
-		ext4_error(sb, "Cannot read block bitmap - "
-			   "block_group = %u, block_bitmap = %llu",
-			   block_group, (unsigned long long) bh->b_blocknr);
+		ext4_error_err(sb, EIO, "Cannot read block bitmap - "
+			       "block_group = %u, block_bitmap = %llu",
+			       block_group, (unsigned long long) bh->b_blocknr);
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
 					EXT4_GROUP_INFO_BBITMAP_CORRUPT);
 		return -EIO;

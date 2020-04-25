@@ -241,23 +241,18 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	switch (type) {
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		if ((type == KFD_QUEUE_TYPE_SDMA && dev->dqm->sdma_queue_count
-			>= get_num_sdma_queues(dev->dqm)) ||
-			(type == KFD_QUEUE_TYPE_SDMA_XGMI &&
-			dev->dqm->xgmi_sdma_queue_count
-			>= get_num_xgmi_sdma_queues(dev->dqm))) {
-			pr_debug("Over-subscription is not allowed for SDMA.\n");
-			retval = -EPERM;
-			goto err_create_queue;
-		}
-
+		/* SDMA queues are always allocated statically no matter
+		 * which scheduler mode is used. We also do not need to
+		 * check whether a SDMA queue can be allocated here, because
+		 * allocate_sdma_queue() in create_queue() has the
+		 * corresponding check logic.
+		 */
 		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
 		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
-		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
 
@@ -266,7 +261,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		if ((dev->dqm->sched_policy ==
 		     KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
 		((dev->dqm->processes_count >= dev->vm_info.vmid_num_kfd) ||
-		(dev->dqm->queue_count >= get_queues_num(dev->dqm)))) {
+		(dev->dqm->active_queue_count >= get_cp_queues_num(dev->dqm)))) {
 			pr_debug("Over-subscription is not allowed when amdkfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;
@@ -278,7 +273,6 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		pqn->q = q;
 		pqn->kq = NULL;
 		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
-		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
@@ -299,7 +293,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	if (retval != 0) {
-		pr_err("Pasid 0x%x DQM create queue %d failed. ret %d\n",
+		pr_err("Pasid 0x%x DQM create queue type %d failed. ret %d\n",
 			pqm->process->pasid, type, retval);
 		goto err_create_queue;
 	}
@@ -322,12 +316,16 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	if (q) {
 		pr_debug("PQM done creating queue\n");
+		kfd_procfs_add_queue(q);
 		print_queue_properties(&q->properties);
 	}
 
 	return retval;
 
 err_create_queue:
+	uninit_queue(q);
+	if (kq)
+		kernel_queue_uninit(kq, false);
 	kfree(pqn);
 err_allocate_pqn:
 	/* check if queues list is empty unregister process from device */
@@ -378,6 +376,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	}
 
 	if (pqn->q) {
+		kfd_procfs_del_queue(pqn->q);
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {

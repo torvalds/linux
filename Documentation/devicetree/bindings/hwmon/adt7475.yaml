@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/adt7475.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ADT7475 hwmon sensor
+
+maintainers:
+  - Jean Delvare <jdelvare@suse.com>
+
+description: |
+  The ADT7473, ADT7475, ADT7476, and ADT7490 are thermal monitors and multiple
+  PWN fan controllers.
+
+  They support monitoring and controlling up to four fans (the ADT7490 can only
+  control up to three). They support reading a single on chip temperature
+  sensor and two off chip temperature sensors (the ADT7490 additionally
+  supports measuring up to three current external temperature sensors with
+  series resistance cancellation (SRC)).
+
+  Datasheets:
+  https://www.onsemi.com/pub/Collateral/ADT7473-D.PDF
+  https://www.onsemi.com/pub/Collateral/ADT7475-D.PDF
+  https://www.onsemi.com/pub/Collateral/ADT7476-D.PDF
+  https://www.onsemi.com/pub/Collateral/ADT7490-D.PDF
+
+  Description taken from onsemiconductors specification sheets, with minor
+  rephrasing.
+
+properties:
+  compatible:
+    enum:
+      - adi,adt7473
+      - adi,adt7475
+      - adi,adt7476
+      - adi,adt7490
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^adi,bypass-attenuator-in[0-4]$":
+    description: |
+      Configures bypassing the individual voltage input attenuator. If
+      set to 1 the attenuator is bypassed if set to 0 the attenuator is
+      not bypassed. If the property is absent then the attenuator
+      retains it's configuration from the bios/bootloader.
+    allOf:
+     - $ref: /schemas/types.yaml#/definitions/uint32
+     - enum: [0, 1]
+
+  "^adi,pwm-active-state$":
+    description: |
+      Integer array, represents the active state of the pwm outputs If set to 0
+      the pwm uses a logic low output for 100% duty cycle. If set to 1 the pwm
+      uses a logic high output for 100% duty cycle.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+      - minItems: 3
+        maxItems: 3
+        items:
+          enum: [0, 1]
+          default: 1
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      hwmon@2e {
+        compatible = "adi,adt7476";
+        reg = <0x2e>;
+        adi,bypass-attenuator-in0 = <1>;
+        adi,bypass-attenuator-in1 = <0>;
+        adi,pwm-active-state = <1 0 1>;
+      };
+    };
+

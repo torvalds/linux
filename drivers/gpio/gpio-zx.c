@@ -226,13 +226,11 @@ static int zx_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->base))
 		return PTR_ERR(chip->base);
 
-	raw_spin_lock_init(&chip->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
-		chip->gc.request = gpiochip_generic_request;
-		chip->gc.free = gpiochip_generic_free;
-	}
-
 	id = of_alias_get_id(dev->of_node, "gpio");
+
+	raw_spin_lock_init(&chip->lock);
+	chip->gc.request = gpiochip_generic_request;
+	chip->gc.free = gpiochip_generic_free;
 	chip->gc.direction_input = zx_direction_input;
 	chip->gc.direction_output = zx_direction_output;
 	chip->gc.get = zx_get_value;

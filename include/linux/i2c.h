@@ -39,6 +39,14 @@ enum i2c_slave_event;
 typedef int (*i2c_slave_cb_t)(struct i2c_client *client,
 			      enum i2c_slave_event event, u8 *val);
 
+/* I2C Frequency Modes */
+#define I2C_MAX_STANDARD_MODE_FREQ	100000
+#define I2C_MAX_FAST_MODE_FREQ		400000
+#define I2C_MAX_FAST_MODE_PLUS_FREQ	1000000
+#define I2C_MAX_TURBO_MODE_FREQ		1400000
+#define I2C_MAX_HIGH_SPEED_MODE_FREQ	3400000
+#define I2C_MAX_ULTRA_FAST_MODE_FREQ	5000000
+
 struct module;
 struct property_entry;
 
@@ -453,12 +461,6 @@ i2c_new_scanned_device(struct i2c_adapter *adap,
 		       unsigned short const *addr_list,
 		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));
 
-struct i2c_client *
-i2c_new_probed_device(struct i2c_adapter *adap,
-		       struct i2c_board_info *info,
-		       unsigned short const *addr_list,
-		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));
-
 /* Common custom probe functions */
 int i2c_probe_func_quick_read(struct i2c_adapter *adap, unsigned short addr);
 
@@ -506,7 +508,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @smbus_xfer_atomic: same as @smbus_xfer. Yet, only using atomic context
  *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
- *   from the I2C_FUNC_* flags.
+ *   from the ``I2C_FUNC_*`` flags.
  * @reg_slave: Register given client to I2C slave mode of this adapter
  * @unreg_slave: Unregister given client from I2C slave mode of this adapter
  *
@@ -515,7 +517,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
  *
- * The return codes from the @master_xfer{_atomic} fields should indicate the
+ * The return codes from the ``master_xfer{_atomic}`` fields should indicate the
  * type of error code that occurred during the transfer, as documented in the
  * Kernel Documentation file Documentation/i2c/fault-codes.rst.
  */

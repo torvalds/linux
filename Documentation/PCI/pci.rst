@@ -239,7 +239,7 @@ from the PCI device config space. Use the values in the pci_dev structure
 as the PCI "bus address" might have been remapped to a "host physical"
 address by the arch/chip-set specific kernel support.
 
-See Documentation/io-mapping.txt for how to access device registers
+See Documentation/driver-api/io-mapping.rst for how to access device registers
 or device memory.
 
 The device driver needs to call pci_request_region() to verify

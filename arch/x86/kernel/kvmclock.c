@@ -159,12 +159,19 @@ bool kvm_check_and_clear_guest_paused(void)
 	return ret;
 }
 
+static int kvm_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VDSO_CLOCKMODE_PVCLOCK);
+	return 0;
+}
+
 struct clocksource kvm_clock = {
 	.name	= "kvm-clock",
 	.read	= kvm_clock_get_cycles,
 	.rating	= 400,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.enable	= kvm_cs_enable,
 };
 EXPORT_SYMBOL_GPL(kvm_clock);
 
@@ -272,7 +279,7 @@ static int __init kvm_setup_vsyscall_timeinfo(void)
 	if (!(flags & PVCLOCK_TSC_STABLE_BIT))
 		return 0;
 
-	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
+	kvm_clock.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
 #endif
 
 	kvmclock_init_mem();

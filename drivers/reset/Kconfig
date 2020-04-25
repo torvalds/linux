@@ -51,6 +51,7 @@ config RESET_BRCMSTB
 
 config RESET_BRCMSTB_RESCAL
 	bool "Broadcom STB RESCAL reset controller"
+	depends on HAS_IOMEM
 	default ARCH_BRCMSTB || COMPILE_TEST
 	help
 	  This enables the RESCAL reset controller for SATA, PCIe0, or PCIe1 on
@@ -73,7 +74,7 @@ config RESET_IMX7
 
 config RESET_INTEL_GW
 	bool "Intel Reset Controller Driver"
-	depends on OF
+	depends on OF && HAS_IOMEM
 	select REGMAP_MMIO
 	help
 	  This enables the reset controller driver for Intel Gateway SoCs.

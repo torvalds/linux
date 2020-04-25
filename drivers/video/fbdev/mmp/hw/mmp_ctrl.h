@@ -1406,7 +1406,7 @@ struct mmphw_ctrl {
 
 	/*pathes*/
 	int path_num;
-	struct mmphw_path_plat path_plats[0];
+	struct mmphw_path_plat path_plats[];
 };
 
 static inline int overlay_is_vid(struct mmp_overlay *overlay)

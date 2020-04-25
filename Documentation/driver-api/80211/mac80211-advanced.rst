@@ -272,8 +272,8 @@ STA information lifetime rules
 .. kernel-doc:: net/mac80211/sta_info.c
    :doc: STA information lifetime rules
 
-Aggregation
-===========
+Aggregation Functions
+=====================
 
 .. kernel-doc:: net/mac80211/sta_info.h
    :functions: sta_ampdu_mlme
@@ -284,8 +284,8 @@ Aggregation
 .. kernel-doc:: net/mac80211/sta_info.h
    :functions: tid_ampdu_rx
 
-Synchronisation
-===============
+Synchronisation Functions
+=========================
 
 TBD
 

@@ -33,10 +33,10 @@
 #include <linux/uaccess.h>
 #include <net/compat.h>
 
-int get_compat_msghdr(struct msghdr *kmsg,
-		      struct compat_msghdr __user *umsg,
-		      struct sockaddr __user **save_addr,
-		      struct iovec **iov)
+int __get_compat_msghdr(struct msghdr *kmsg,
+			struct compat_msghdr __user *umsg,
+			struct sockaddr __user **save_addr,
+			compat_uptr_t *ptr, compat_size_t *len)
 {
 	struct compat_msghdr msg;
 	ssize_t err;
@@ -79,10 +79,26 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
+	*ptr = msg.msg_iov;
+	*len = msg.msg_iovlen;
+	return 0;
+}
 
-	err = compat_import_iovec(save_addr ? READ : WRITE,
-				   compat_ptr(msg.msg_iov), msg.msg_iovlen,
-				   UIO_FASTIOV, iov, &kmsg->msg_iter);
+int get_compat_msghdr(struct msghdr *kmsg,
+		      struct compat_msghdr __user *umsg,
+		      struct sockaddr __user **save_addr,
+		      struct iovec **iov)
+{
+	compat_uptr_t ptr;
+	compat_size_t len;
+	ssize_t err;
+
+	err = __get_compat_msghdr(kmsg, umsg, save_addr, &ptr, &len);
+	if (err)
+		return err;
+
+	err = compat_import_iovec(save_addr ? READ : WRITE, compat_ptr(ptr),
+				   len, UIO_FASTIOV, iov, &kmsg->msg_iter);
 	return err < 0 ? err : 0;
 }
 

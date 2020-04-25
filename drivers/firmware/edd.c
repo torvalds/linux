@@ -341,7 +341,7 @@ edd_show_legacy_max_cylinder(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_max_cylinder);
+	p += scnprintf(p, left, "%u\n", info->legacy_max_cylinder);
 	return (p - buf);
 }
 
@@ -356,7 +356,7 @@ edd_show_legacy_max_head(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_max_head);
+	p += scnprintf(p, left, "%u\n", info->legacy_max_head);
 	return (p - buf);
 }
 
@@ -371,7 +371,7 @@ edd_show_legacy_sectors_per_track(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_sectors_per_track);
+	p += scnprintf(p, left, "%u\n", info->legacy_sectors_per_track);
 	return (p - buf);
 }
 

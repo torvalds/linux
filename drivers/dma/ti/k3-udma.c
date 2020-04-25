@@ -149,6 +149,7 @@ struct udma_dev {
 
 	struct udma_chan *channels;
 	u32 psil_base;
+	u32 atype;
 };
 
 struct udma_desc {
@@ -192,6 +193,7 @@ struct udma_chan_config {
 	u32 hdesc_size; /* Size of a packet descriptor in packet mode */
 	bool notdpkt; /* Suppress sending TDC packet */
 	int remote_thread_id;
+	u32 atype;
 	u32 src_thread;
 	u32 dst_thread;
 	enum psil_endpoint_type ep_type;
@@ -1569,7 +1571,8 @@ err_rflow:
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CHAN_TYPE_VALID |		\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_TX_SUPR_TDPKT_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_FETCH_SIZE_VALID |		\
-	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID)
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID |		\
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID)
 
 #define TISCI_RCHAN_VALID_PARAMS (				\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_PAUSE_ON_ERR_VALID |	\
@@ -1579,7 +1582,8 @@ err_rflow:
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_SHORT_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_LONG_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_START_VALID |	\
-	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID)
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID |	\
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID)
 
 static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 {
@@ -1601,6 +1605,7 @@ static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 	req_tx.tx_chan_type = TI_SCI_RM_UDMAP_CHAN_TYPE_3RDP_BCOPY_PBRR;
 	req_tx.tx_fetch_size = sizeof(struct cppi5_desc_hdr_t) >> 2;
 	req_tx.txcq_qnum = tc_ring;
+	req_tx.tx_atype = ud->atype;
 
 	ret = tisci_ops->tx_ch_cfg(tisci_rm->tisci, &req_tx);
 	if (ret) {
@@ -1614,6 +1619,7 @@ static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 	req_rx.rx_fetch_size = sizeof(struct cppi5_desc_hdr_t) >> 2;
 	req_rx.rxcq_qnum = tc_ring;
 	req_rx.rx_chan_type = TI_SCI_RM_UDMAP_CHAN_TYPE_3RDP_BCOPY_PBRR;
+	req_rx.rx_atype = ud->atype;
 
 	ret = tisci_ops->rx_ch_cfg(tisci_rm->tisci, &req_rx);
 	if (ret)
@@ -1649,6 +1655,7 @@ static int udma_tisci_tx_channel_config(struct udma_chan *uc)
 	req_tx.tx_supr_tdpkt = uc->config.notdpkt;
 	req_tx.tx_fetch_size = fetch_size >> 2;
 	req_tx.txcq_qnum = tc_ring;
+	req_tx.tx_atype = uc->config.atype;
 
 	ret = tisci_ops->tx_ch_cfg(tisci_rm->tisci, &req_tx);
 	if (ret)
@@ -1685,6 +1692,7 @@ static int udma_tisci_rx_channel_config(struct udma_chan *uc)
 	req_rx.rx_fetch_size =  fetch_size >> 2;
 	req_rx.rxcq_qnum = rx_ring;
 	req_rx.rx_chan_type = mode;
+	req_rx.rx_atype = uc->config.atype;
 
 	ret = tisci_ops->rx_ch_cfg(tisci_rm->tisci, &req_rx);
 	if (ret) {
@@ -3063,13 +3071,18 @@ static void udma_free_chan_resources(struct dma_chan *chan)
 
 static struct platform_driver udma_driver;
 
+struct udma_filter_param {
+	int remote_thread_id;
+	u32 atype;
+};
+
 static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 {
 	struct udma_chan_config *ucc;
 	struct psil_endpoint_config *ep_config;
+	struct udma_filter_param *filter_param;
 	struct udma_chan *uc;
 	struct udma_dev *ud;
-	u32 *args;
 
 	if (chan->device->dev->driver != &udma_driver.driver)
 		return false;
@@ -3077,9 +3090,16 @@ static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 	uc = to_udma_chan(chan);
 	ucc = &uc->config;
 	ud = uc->ud;
-	args = param;
+	filter_param = param;
 
-	ucc->remote_thread_id = args[0];
+	if (filter_param->atype > 2) {
+		dev_err(ud->dev, "Invalid channel atype: %u\n",
+			filter_param->atype);
+		return false;
+	}
+
+	ucc->remote_thread_id = filter_param->remote_thread_id;
+	ucc->atype = filter_param->atype;
 
 	if (ucc->remote_thread_id & K3_PSIL_DST_THREAD_ID_OFFSET)
 		ucc->dir = DMA_MEM_TO_DEV;
@@ -3092,6 +3112,7 @@ static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 			ucc->remote_thread_id);
 		ucc->dir = DMA_MEM_TO_MEM;
 		ucc->remote_thread_id = -1;
+		ucc->atype = 0;
 		return false;
 	}
 
@@ -3130,13 +3151,20 @@ static struct dma_chan *udma_of_xlate(struct of_phandle_args *dma_spec,
 {
 	struct udma_dev *ud = ofdma->of_dma_data;
 	dma_cap_mask_t mask = ud->ddev.cap_mask;
+	struct udma_filter_param filter_param;
 	struct dma_chan *chan;
 
-	if (dma_spec->args_count != 1)
+	if (dma_spec->args_count != 1 && dma_spec->args_count != 2)
 		return NULL;
 
-	chan = __dma_request_channel(&mask, udma_dma_filter_fn,
-				     &dma_spec->args[0], ofdma->of_node);
+	filter_param.remote_thread_id = dma_spec->args[0];
+	if (dma_spec->args_count == 2)
+		filter_param.atype = dma_spec->args[1];
+	else
+		filter_param.atype = 0;
+
+	chan = __dma_request_channel(&mask, udma_dma_filter_fn, &filter_param,
+				     ofdma->of_node);
 	if (!chan) {
 		dev_err(ud->dev, "get channel fail in %s.\n", __func__);
 		return ERR_PTR(-EINVAL);
@@ -3473,6 +3501,66 @@ static int udma_setup_rx_flush(struct udma_dev *ud)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void udma_dbg_summary_show_chan(struct seq_file *s,
+				       struct dma_chan *chan)
+{
+	struct udma_chan *uc = to_udma_chan(chan);
+	struct udma_chan_config *ucc = &uc->config;
+
+	seq_printf(s, " %-13s| %s", dma_chan_name(chan),
+		   chan->dbg_client_name ?: "in-use");
+	seq_printf(s, " (%s, ", dmaengine_get_direction_text(uc->config.dir));
+
+	switch (uc->config.dir) {
+	case DMA_MEM_TO_MEM:
+		seq_printf(s, "chan%d pair [0x%04x -> 0x%04x], ", uc->tchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	case DMA_DEV_TO_MEM:
+		seq_printf(s, "rchan%d [0x%04x -> 0x%04x], ", uc->rchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	case DMA_MEM_TO_DEV:
+		seq_printf(s, "tchan%d [0x%04x -> 0x%04x], ", uc->tchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	default:
+		seq_printf(s, ")\n");
+		return;
+	}
+
+	if (ucc->ep_type == PSIL_EP_NATIVE) {
+		seq_printf(s, "PSI-L Native");
+		if (ucc->metadata_size) {
+			seq_printf(s, "[%s", ucc->needs_epib ? " EPIB" : "");
+			if (ucc->psd_size)
+				seq_printf(s, " PSDsize:%u", ucc->psd_size);
+			seq_printf(s, " ]");
+		}
+	} else {
+		seq_printf(s, "PDMA");
+		if (ucc->enable_acc32 || ucc->enable_burst)
+			seq_printf(s, "[%s%s ]",
+				   ucc->enable_acc32 ? " ACC32" : "",
+				   ucc->enable_burst ? " BURST" : "");
+	}
+
+	seq_printf(s, ", %s)\n", ucc->pkt_mode ? "Packet mode" : "TR mode");
+}
+
+static void udma_dbg_summary_show(struct seq_file *s,
+				  struct dma_device *dma_dev)
+{
+	struct dma_chan *chan;
+
+	list_for_each_entry(chan, &dma_dev->channels, device_node) {
+		if (chan->client_count)
+			udma_dbg_summary_show_chan(s, chan);
+	}
+}
+#endif /* CONFIG_DEBUG_FS */
+
 #define TI_UDMAC_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
@@ -3519,6 +3607,12 @@ static int udma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = of_property_read_u32(navss_node, "ti,udma-atype", &ud->atype);
+	if (!ret && ud->atype > 2) {
+		dev_err(dev, "Invalid atype: %u\n", ud->atype);
+		return -EINVAL;
+	}
+
 	ud->tisci_rm.tisci_udmap_ops = &ud->tisci_rm.tisci->ops.rm_udmap_ops;
 	ud->tisci_rm.tisci_psil_ops = &ud->tisci_rm.tisci->ops.rm_psil_ops;
 
@@ -3553,6 +3647,9 @@ static int udma_probe(struct platform_device *pdev)
 	ud->ddev.device_resume = udma_resume;
 	ud->ddev.device_terminate_all = udma_terminate_all;
 	ud->ddev.device_synchronize = udma_synchronize;
+#ifdef CONFIG_DEBUG_FS
+	ud->ddev.dbg_summary_show = udma_dbg_summary_show;
+#endif
 
 	ud->ddev.device_free_chan_resources = udma_free_chan_resources;
 	ud->ddev.src_addr_widths = TI_UDMAC_BUSWIDTHS;

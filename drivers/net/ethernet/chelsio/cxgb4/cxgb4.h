@@ -640,6 +640,7 @@ enum {                                 /* adapter flags */
 enum {
 	ULP_CRYPTO_LOOKASIDE = 1 << 0,
 	ULP_CRYPTO_IPSEC_INLINE = 1 << 1,
+	ULP_CRYPTO_KTLS_INLINE  = 1 << 3,
 };
 
 struct rx_sw_desc;
@@ -1485,9 +1486,8 @@ static inline unsigned int qtimer_val(const struct adapter *adap,
 	return idx < SGE_NTIMERS ? adap->sge.timer_val[idx] : 0;
 }
 
-/* driver version & name used for ethtool_drvinfo */
+/* driver name used for ethtool_drvinfo */
 extern char cxgb4_driver_name[];
-extern const char cxgb4_driver_version[];
 
 void t4_os_portmod_changed(struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);

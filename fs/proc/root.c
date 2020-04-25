@@ -196,6 +196,13 @@ static void proc_kill_sb(struct super_block *sb)
 	if (ns->proc_thread_self)
 		dput(ns->proc_thread_self);
 	kill_anon_super(sb);
+
+	/* Make the pid namespace safe for the next mount of proc */
+	ns->proc_self = NULL;
+	ns->proc_thread_self = NULL;
+	ns->pid_gid = GLOBAL_ROOT_GID;
+	ns->hide_pid = 0;
+
 	put_pid_ns(ns);
 }
 
@@ -292,39 +299,3 @@ struct proc_dir_entry proc_root = {
 	.subdir		= RB_ROOT,
 	.name		= "/proc",
 };
-
-int pid_ns_prepare_proc(struct pid_namespace *ns)
-{
-	struct proc_fs_context *ctx;
-	struct fs_context *fc;
-	struct vfsmount *mnt;
-
-	fc = fs_context_for_mount(&proc_fs_type, SB_KERNMOUNT);
-	if (IS_ERR(fc))
-		return PTR_ERR(fc);
-
-	if (fc->user_ns != ns->user_ns) {
-		put_user_ns(fc->user_ns);
-		fc->user_ns = get_user_ns(ns->user_ns);
-	}
-
-	ctx = fc->fs_private;
-	if (ctx->pid_ns != ns) {
-		put_pid_ns(ctx->pid_ns);
-		get_pid_ns(ns);
-		ctx->pid_ns = ns;
-	}
-
-	mnt = fc_mount(fc);
-	put_fs_context(fc);
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
-
-	ns->proc_mnt = mnt;
-	return 0;
-}
-
-void pid_ns_release_proc(struct pid_namespace *ns)
-{
-	kern_unmount(ns->proc_mnt);
-}

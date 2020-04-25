@@ -55,7 +55,6 @@ static struct pwm_lookup nb0916_pwm_lookup[] = {
 static struct platform_pwm_backlight_data nb0916_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.enable_gpio	= -1,
 };
 
 static struct gpio_keys_button nb0916_gpio_keys[] = {

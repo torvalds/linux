@@ -79,7 +79,7 @@ static DEFINE_IDA(event_ida);
 struct ec_event {
 	u16 size;
 	u16 type;
-	u16 event[0];
+	u16 event[];
 } __packed;
 
 #define ec_event_num_words(ev) (ev->size - 1)
@@ -96,7 +96,7 @@ struct ec_event_queue {
 	int capacity;
 	int head;
 	int tail;
-	struct ec_event *entries[0];
+	struct ec_event *entries[];
 };
 
 /* Maximum number of events to store in ec_event_queue */

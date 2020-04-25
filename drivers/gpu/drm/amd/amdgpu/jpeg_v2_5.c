@@ -477,7 +477,7 @@ static int jpeg_v2_5_set_clockgating_state(void *handle,
 			continue;
 
 		if (enable) {
-			if (jpeg_v2_5_is_idle(handle))
+			if (!jpeg_v2_5_is_idle(handle))
 				return -EBUSY;
 			jpeg_v2_5_enable_clock_gating(adev, i);
 		} else {

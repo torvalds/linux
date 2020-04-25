@@ -9,6 +9,7 @@ Required properties:
   - "nvidia,tegra132-pwm", "nvidia,tegra20-pwm": for Tegra132
   - "nvidia,tegra210-pwm", "nvidia,tegra20-pwm": for Tegra210
   - "nvidia,tegra186-pwm": for Tegra186
+  - "nvidia,tegra194-pwm": for Tegra194
 - reg: physical base address and length of the controller's registers
 - #pwm-cells: should be 2. See pwm.yaml in this directory for a description of
   the cells format.

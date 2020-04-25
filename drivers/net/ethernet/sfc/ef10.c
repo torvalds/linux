@@ -2853,10 +2853,23 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	}
 
 	/* Transmit timestamps are only available for 8XXX series. They result
-	 * in three events per packet. These occur in order, and are:
-	 *  - the normal completion event
+	 * in up to three events per packet. These occur in order, and are:
+	 *  - the normal completion event (may be omitted)
 	 *  - the low part of the timestamp
 	 *  - the high part of the timestamp
+	 *
+	 * It's possible for multiple completion events to appear before the
+	 * corresponding timestamps. So we can for example get:
+	 *  COMP N
+	 *  COMP N+1
+	 *  TS_LO N
+	 *  TS_HI N
+	 *  TS_LO N+1
+	 *  TS_HI N+1
+	 *
+	 * In addition it's also possible for the adjacent completions to be
+	 * merged, so we may not see COMP N above. As such, the completion
+	 * events are not very useful here.
 	 *
 	 * Each part of the timestamp is itself split across two 16 bit
 	 * fields in the event.
@@ -2865,17 +2878,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 
 	switch (tx_ev_type) {
 	case TX_TIMESTAMP_EVENT_TX_EV_COMPLETION:
-		/* In case of Queue flush or FLR, we might have received
-		 * the previous TX completion event but not the Timestamp
-		 * events.
-		 */
-		if (tx_queue->completed_desc_ptr != tx_queue->ptr_mask)
-			efx_xmit_done(tx_queue, tx_queue->completed_desc_ptr);
-
-		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event,
-						 ESF_DZ_TX_DESCR_INDX);
-		tx_queue->completed_desc_ptr =
-					tx_ev_desc_ptr & tx_queue->ptr_mask;
+		/* Ignore this event - see above. */
 		break;
 
 	case TX_TIMESTAMP_EVENT_TX_EV_TSTAMP_LO:
@@ -2887,8 +2890,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		ts_part = efx_ef10_extract_event_ts(event);
 		tx_queue->completed_timestamp_major = ts_part;
 
-		efx_xmit_done(tx_queue, tx_queue->completed_desc_ptr);
-		tx_queue->completed_desc_ptr = tx_queue->ptr_mask;
+		efx_xmit_done_single(tx_queue);
 		break;
 
 	default:

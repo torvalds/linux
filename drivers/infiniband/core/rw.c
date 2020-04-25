@@ -391,13 +391,13 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		return -EINVAL;
 	}
 
-	ret = ib_dma_map_sg(dev, sg, sg_cnt, dir);
+	ret = rdma_rw_map_sg(dev, sg, sg_cnt, dir);
 	if (!ret)
 		return -ENOMEM;
 	sg_cnt = ret;
 
 	if (prot_sg_cnt) {
-		ret = ib_dma_map_sg(dev, prot_sg, prot_sg_cnt, dir);
+		ret = rdma_rw_map_sg(dev, prot_sg, prot_sg_cnt, dir);
 		if (!ret) {
 			ret = -ENOMEM;
 			goto out_unmap_sg;
@@ -466,9 +466,9 @@ out_free_ctx:
 	kfree(ctx->reg);
 out_unmap_prot_sg:
 	if (prot_sg_cnt)
-		ib_dma_unmap_sg(dev, prot_sg, prot_sg_cnt, dir);
+		rdma_rw_unmap_sg(dev, prot_sg, prot_sg_cnt, dir);
 out_unmap_sg:
-	ib_dma_unmap_sg(dev, sg, sg_cnt, dir);
+	rdma_rw_unmap_sg(dev, sg, sg_cnt, dir);
 	return ret;
 }
 EXPORT_SYMBOL(rdma_rw_ctx_signature_init);
@@ -628,9 +628,9 @@ void rdma_rw_ctx_destroy_signature(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	ib_mr_pool_put(qp, &qp->sig_mrs, ctx->reg->mr);
 	kfree(ctx->reg);
 
-	ib_dma_unmap_sg(qp->pd->device, sg, sg_cnt, dir);
 	if (prot_sg_cnt)
-		ib_dma_unmap_sg(qp->pd->device, prot_sg, prot_sg_cnt, dir);
+		rdma_rw_unmap_sg(qp->pd->device, prot_sg, prot_sg_cnt, dir);
+	rdma_rw_unmap_sg(qp->pd->device, sg, sg_cnt, dir);
 }
 EXPORT_SYMBOL(rdma_rw_ctx_destroy_signature);
 

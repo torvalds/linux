@@ -5,6 +5,7 @@
 #ifndef _ASM_POWERPC_SWITCH_TO_H
 #define _ASM_POWERPC_SWITCH_TO_H
 
+#include <linux/sched.h>
 #include <asm/reg.h>
 
 struct thread_struct;
@@ -21,6 +22,16 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 extern int emulate_altivec(struct pt_regs *);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void restore_math(struct pt_regs *regs);
+#else
+static inline void restore_math(struct pt_regs *regs)
+{
+}
+#endif
+
+void restore_tm_state(struct pt_regs *regs);
 
 extern void flush_all_to_thread(struct task_struct *);
 extern void giveup_all(struct task_struct *);

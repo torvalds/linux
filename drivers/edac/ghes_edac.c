@@ -201,7 +201,6 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 
 void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 {
-	enum hw_event_mc_err_type type;
 	struct edac_raw_error_desc *e;
 	struct mem_ctl_info *mci;
 	struct ghes_edac_pvt *pvt;
@@ -240,17 +239,17 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 
 	switch (sev) {
 	case GHES_SEV_CORRECTED:
-		type = HW_EVENT_ERR_CORRECTED;
+		e->type = HW_EVENT_ERR_CORRECTED;
 		break;
 	case GHES_SEV_RECOVERABLE:
-		type = HW_EVENT_ERR_UNCORRECTED;
+		e->type = HW_EVENT_ERR_UNCORRECTED;
 		break;
 	case GHES_SEV_PANIC:
-		type = HW_EVENT_ERR_FATAL;
+		e->type = HW_EVENT_ERR_FATAL;
 		break;
 	default:
 	case GHES_SEV_NO:
-		type = HW_EVENT_ERR_INFO;
+		e->type = HW_EVENT_ERR_INFO;
 	}
 
 	edac_dbg(1, "error validation_bits: 0x%08llx\n",
@@ -356,11 +355,8 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 				     mem_err->mem_dev_handle);
 
 		index = get_dimm_smbios_index(mci, mem_err->mem_dev_handle);
-		if (index >= 0) {
+		if (index >= 0)
 			e->top_layer = index;
-			e->enable_per_layer_report = true;
-		}
-
 	}
 	if (p > e->location)
 		*(p - 1) = '\0';
@@ -442,7 +438,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	if (p > pvt->other_detail)
 		*(p - 1) = '\0';
 
-	edac_raw_mc_handle_error(type, mci, e);
+	edac_raw_mc_handle_error(e);
 
 unlock:
 	spin_unlock_irqrestore(&ghes_lock, flags);

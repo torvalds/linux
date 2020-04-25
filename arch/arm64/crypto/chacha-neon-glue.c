@@ -55,10 +55,10 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 			break;
 		}
 		chacha_4block_xor_neon(state, dst, src, nrounds, l);
-		bytes -= CHACHA_BLOCK_SIZE * 5;
-		src += CHACHA_BLOCK_SIZE * 5;
-		dst += CHACHA_BLOCK_SIZE * 5;
-		state[12] += 5;
+		bytes -= l;
+		src += l;
+		dst += l;
+		state[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
 	}
 }
 

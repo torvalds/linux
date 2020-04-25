@@ -110,7 +110,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 
 	/* Add FDT entries for EFI runtime services in chosen node. */
 	node = fdt_subnode_offset(fdt, 0, "chosen");
-	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table());
+	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table);
 
 	status = fdt_setprop_var(fdt, node, "linux,uefi-system-table", fdt_val64);
 	if (status)
@@ -310,11 +310,11 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
 
-		if (novamap())
+		if (efi_novamap)
 			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
-		svam = efi_system_table()->runtime->set_virtual_address_map;
+		svam = efi_system_table->runtime->set_virtual_address_map;
 		status = svam(runtime_entry_count * desc_size, desc_size,
 			      desc_ver, runtime_map);
 
@@ -348,7 +348,7 @@ fail_free_new_fdt:
 	efi_free(MAX_FDT_SIZE, *new_fdt_addr);
 
 fail:
-	efi_system_table()->boottime->free_pool(runtime_map);
+	efi_system_table->boottime->free_pool(runtime_map);
 
 	return EFI_LOAD_ERROR;
 }

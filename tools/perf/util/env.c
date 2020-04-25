@@ -6,6 +6,7 @@
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 #include "bpf-event.h"
+#include "cgroup.h"
 #include <errno.h>
 #include <sys/utsname.h>
 #include <bpf/libbpf.h>
@@ -168,6 +169,7 @@ void perf_env__exit(struct perf_env *env)
 	int i;
 
 	perf_env__purge_bpf(env);
+	perf_env__purge_cgroups(env);
 	zfree(&env->hostname);
 	zfree(&env->os_release);
 	zfree(&env->version);
@@ -343,11 +345,11 @@ static const char *normalize_arch(char *arch)
 
 const char *perf_env__arch(struct perf_env *env)
 {
-	struct utsname uts;
 	char *arch_name;
 
 	if (!env || !env->arch) { /* Assume local operation */
-		if (uname(&uts) < 0)
+		static struct utsname uts = { .machine[0] = '\0', };
+		if (uts.machine[0] == '\0' && uname(&uts) < 0)
 			return NULL;
 		arch_name = uts.machine;
 	} else

@@ -128,6 +128,12 @@ static inline struct rtable *__ip_route_output_key(struct net *net,
 
 struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
 				    const struct sock *sk);
+struct rtable *ip_route_output_tunnel(struct sk_buff *skb,
+				      struct net_device *dev,
+				      struct net *net, __be32 *saddr,
+				      const struct ip_tunnel_info *info,
+				      u8 protocol, bool use_cache);
+
 struct dst_entry *ipv4_blackhole_route(struct net *net,
 				       struct dst_entry *dst_orig);
 
@@ -225,7 +231,7 @@ int ip_rt_ioctl(struct net *, unsigned int cmd, struct rtentry *rt);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 struct rtable *rt_dst_alloc(struct net_device *dev,
 			     unsigned int flags, u16 type,
-			     bool nopolicy, bool noxfrm, bool will_cache);
+			     bool nopolicy, bool noxfrm);
 struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt);
 
 struct in_ifaddr;

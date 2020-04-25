@@ -2234,6 +2234,19 @@ use_vmalloc
     buffers.  If mmap is used on such architectures, turn off this
     option, so that the DMA-coherent buffers are allocated and used
     instead.
+delayed_register
+    The option is needed for devices that have multiple streams
+    defined in multiple USB interfaces.  The driver may invoke
+    registrations multiple times (once per interface) and this may
+    lead to the insufficient device enumeration.
+    This option receives an array of strings, and you can pass
+    ID:INTERFACE like ``0123abcd:4`` for performing the delayed
+    registration to the given device.  In this example, when a USB
+    device 0123:abcd is probed, the driver waits the registration
+    until the USB interface 4 gets probed.
+    The driver prints a message like "Found post-registration device
+    assignment: 1234abcd:04" for such a device, so that user can
+    notice the need.
 
 This module supports multiple devices, autoprobe and hotplugging.
 

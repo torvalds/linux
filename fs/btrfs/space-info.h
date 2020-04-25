@@ -54,6 +54,13 @@ struct btrfs_space_info {
 	struct list_head ro_bgs;
 	struct list_head priority_tickets;
 	struct list_head tickets;
+
+	/*
+	 * Size of space that needs to be reclaimed in order to satisfy pending
+	 * tickets
+	 */
+	u64 reclaim_size;
+
 	/*
 	 * tickets_id just indicates the next ticket will be handled, so note
 	 * it's not stored per ticket.

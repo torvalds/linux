@@ -175,28 +175,20 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	struct mlx5e_tir *tir = priv->indir_tir;
 	struct mlx5_flow_destination dest = {};
 	MLX5_DECLARE_FLOW_ACT(flow_act);
-	struct mlx5_flow_spec *spec;
 	enum mlx5e_traffic_types tt;
 	int err = 0;
-
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec) {
-		err = -ENOMEM;
-		goto out;
-	}
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	tt = arfs_get_tt(type);
 	if (tt == -EINVAL) {
 		netdev_err(priv->netdev, "%s: bad arfs_type: %d\n",
 			   __func__, type);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	dest.tir_num = tir[tt].tirn;
 
-	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, spec,
+	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, NULL,
 						   &flow_act,
 						   &dest, 1);
 	if (IS_ERR(arfs_t->default_rule)) {
@@ -205,8 +197,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 		netdev_err(priv->netdev, "%s: add rule failed, arfs type=%d\n",
 			   __func__, type);
 	}
-out:
-	kvfree(spec);
+
 	return err;
 }
 

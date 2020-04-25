@@ -24,7 +24,6 @@
 #include <linux/platform_data/eth-ep93xx.h>
 
 #define DRV_MODULE_NAME		"ep93xx-eth"
-#define DRV_MODULE_VERSION	"0.1"
 
 #define RX_QUEUE_ENTRIES	64
 #define TX_QUEUE_ENTRIES	8
@@ -691,7 +690,6 @@ static int ep93xx_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void ep93xx_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int ep93xx_get_link_ksettings(struct net_device *dev,

@@ -45,6 +45,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -56,6 +57,7 @@ struct srf04_data {
 	struct device		*dev;
 	struct gpio_desc	*gpiod_trig;
 	struct gpio_desc	*gpiod_echo;
+	struct gpio_desc	*gpiod_power;
 	struct mutex		lock;
 	int			irqnr;
 	ktime_t			ts_rising;
@@ -63,6 +65,7 @@ struct srf04_data {
 	struct completion	rising;
 	struct completion	falling;
 	const struct srf04_cfg	*cfg;
+	int			startup_time_ms;
 };
 
 static const struct srf04_cfg srf04_cfg = {
@@ -97,6 +100,9 @@ static int srf04_read(struct srf04_data *data)
 	u64 dt_ns;
 	u32 time_ns, distance_mm;
 
+	if (data->gpiod_power)
+		pm_runtime_get_sync(data->dev);
+
 	/*
 	 * just one read-echo-cycle can take place at a time
 	 * ==> lock against concurrent reading calls
@@ -109,6 +115,11 @@ static int srf04_read(struct srf04_data *data)
 	gpiod_set_value(data->gpiod_trig, 1);
 	udelay(data->cfg->trigger_pulse_us);
 	gpiod_set_value(data->gpiod_trig, 0);
+
+	if (data->gpiod_power) {
+		pm_runtime_mark_last_busy(data->dev);
+		pm_runtime_put_autosuspend(data->dev);
+	}
 
 	/* it should not take more than 20 ms until echo is rising */
 	ret = wait_for_completion_killable_timeout(&data->rising, HZ/50);
@@ -268,6 +279,22 @@ static int srf04_probe(struct platform_device *pdev)
 		return PTR_ERR(data->gpiod_echo);
 	}
 
+	data->gpiod_power = devm_gpiod_get_optional(dev, "power",
+								GPIOD_OUT_LOW);
+	if (IS_ERR(data->gpiod_power)) {
+		dev_err(dev, "failed to get power-gpios: err=%ld\n",
+						PTR_ERR(data->gpiod_power));
+		return PTR_ERR(data->gpiod_power);
+	}
+	if (data->gpiod_power) {
+
+		if (of_property_read_u32(dev->of_node, "startup-time-ms",
+						&data->startup_time_ms))
+			data->startup_time_ms = 100;
+		dev_dbg(dev, "using power gpio: startup-time-ms=%d\n",
+							data->startup_time_ms);
+	}
+
 	if (gpiod_cansleep(data->gpiod_echo)) {
 		dev_err(data->dev, "cansleep-GPIOs not supported\n");
 		return -ENODEV;
@@ -296,14 +323,81 @@ static int srf04_probe(struct platform_device *pdev)
 	indio_dev->channels = srf04_chan_spec;
 	indio_dev->num_channels = ARRAY_SIZE(srf04_chan_spec);
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(data->dev, "iio_device_register: %d\n", ret);
+		return ret;
+	}
+
+	if (data->gpiod_power) {
+		pm_runtime_set_autosuspend_delay(data->dev, 1000);
+		pm_runtime_use_autosuspend(data->dev);
+
+		ret = pm_runtime_set_active(data->dev);
+		if (ret) {
+			dev_err(data->dev, "pm_runtime_set_active: %d\n", ret);
+			iio_device_unregister(indio_dev);
+		}
+
+		pm_runtime_enable(data->dev);
+		pm_runtime_idle(data->dev);
+	}
+
+	return ret;
 }
+
+static int srf04_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
+
+	iio_device_unregister(indio_dev);
+
+	if (data->gpiod_power) {
+		pm_runtime_disable(data->dev);
+		pm_runtime_set_suspended(data->dev);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused srf04_pm_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev,
+						struct platform_device, dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
+
+	gpiod_set_value(data->gpiod_power, 0);
+
+	return 0;
+}
+
+static int __maybe_unused srf04_pm_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev,
+						struct platform_device, dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct srf04_data *data = iio_priv(indio_dev);
+
+	gpiod_set_value(data->gpiod_power, 1);
+	msleep(data->startup_time_ms);
+
+	return 0;
+}
+
+static const struct dev_pm_ops srf04_pm_ops = {
+	SET_RUNTIME_PM_OPS(srf04_pm_runtime_suspend,
+				srf04_pm_runtime_resume, NULL)
+};
 
 static struct platform_driver srf04_driver = {
 	.probe		= srf04_probe,
+	.remove		= srf04_remove,
 	.driver		= {
 		.name		= "srf04-gpio",
 		.of_match_table	= of_srf04_match,
+		.pm		= &srf04_pm_ops,
 	},
 };
 

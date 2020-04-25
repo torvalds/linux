@@ -3254,13 +3254,16 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 	struct p80211_rxmeta *rxmeta;
 	u16 data_len;
 	u16 fc;
+	u16 status;
 
 	/* Byte order convert once up front. */
 	le16_to_cpus(&usbin->rxfrm.desc.status);
 	le32_to_cpus(&usbin->rxfrm.desc.time);
 
 	/* Now handle frame based on port# */
-	switch (HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status)) {
+	status = HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status);
+
+	switch (status) {
 	case 0:
 		fc = le16_to_cpu(usbin->rxfrm.desc.frame_control);
 
@@ -3317,8 +3320,9 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		break;
 
 	default:
-		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
-			    HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status));
+		netdev_warn(hw->wlandev->netdev,
+			    "Received frame on unsupported port=%d\n",
+			    status);
 		break;
 	}
 }
@@ -3372,6 +3376,8 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	     WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)) {
 		pr_debug("overlen frm: len=%zd\n",
 			 skblen - sizeof(struct p80211_caphdr));
+
+		return;
 	}
 
 	skb = dev_alloc_skb(skblen);

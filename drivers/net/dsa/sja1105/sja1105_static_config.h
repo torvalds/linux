@@ -230,6 +230,7 @@ struct sja1105_l2_policing_entry {
 };
 
 struct sja1105_avb_params_entry {
+	u64 cas_master;
 	u64 destmeta;
 	u64 srcmeta;
 };

@@ -25,22 +25,32 @@
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
-#ifdef CONFIG_ARM
-#define __efistub_global	__section(.data)
-#else
-#define __efistub_global
+extern bool efi_nochunk;
+extern bool efi_nokaslr;
+extern bool efi_noinitrd;
+extern bool efi_quiet;
+extern bool efi_novamap;
+
+extern const efi_system_table_t *efi_system_table;
+
+#ifndef efi_bs_call
+#define efi_bs_call(func, ...)	efi_system_table->boottime->func(__VA_ARGS__)
+#endif
+#ifndef efi_rt_call
+#define efi_rt_call(func, ...)	efi_system_table->runtime->func(__VA_ARGS__)
+#endif
+#ifndef efi_is_native
+#define efi_is_native()		(true)
+#endif
+#ifndef efi_table_attr
+#define efi_table_attr(inst, attr)	(inst->attr)
+#endif
+#ifndef efi_call_proto
+#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
 #endif
 
-extern bool __pure nochunk(void);
-extern bool __pure nokaslr(void);
-extern bool __pure noinitrd(void);
-extern bool __pure is_quiet(void);
-extern bool __pure novamap(void);
-
-extern __pure efi_system_table_t  *efi_system_table(void);
-
 #define pr_efi(msg)		do {			\
-	if (!is_quiet()) efi_printk("EFI stub: "msg);	\
+	if (!efi_quiet) efi_printk("EFI stub: "msg);	\
 } while (0)
 
 #define pr_efi_err(msg) efi_printk("EFI stub: ERROR: "msg)
@@ -298,8 +308,10 @@ typedef union efi_graphics_output_protocol efi_graphics_output_protocol_t;
 
 union efi_graphics_output_protocol {
 	struct {
-		void *query_mode;
-		void *set_mode;
+		efi_status_t (__efiapi *query_mode)(efi_graphics_output_protocol_t *,
+						    u32, unsigned long *,
+						    efi_graphics_output_mode_info_t **);
+		efi_status_t (__efiapi *set_mode)  (efi_graphics_output_protocol_t *, u32);
 		void *blt;
 		efi_graphics_output_protocol_mode_t *mode;
 	};
@@ -621,23 +633,11 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len,
 
 efi_status_t efi_get_memory_map(struct efi_boot_memmap *map);
 
-efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
-				 unsigned long *addr, unsigned long min);
-
-static inline
-efi_status_t efi_low_alloc(unsigned long size, unsigned long align,
-			   unsigned long *addr)
-{
-	/*
-	 * Don't allocate at 0x0. It will confuse code that
-	 * checks pointers against NULL. Skip the first 8
-	 * bytes so we start at a nice even number.
-	 */
-	return efi_low_alloc_above(size, align, addr, 0x8);
-}
-
 efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 				unsigned long max);
+
+efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
+					unsigned long max, unsigned long align);
 
 efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
@@ -648,18 +648,40 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 
 efi_status_t efi_parse_options(char const *cmdline);
 
+void efi_parse_option_graphics(char *option);
+
 efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 			   unsigned long size);
 
-efi_status_t efi_load_dtb(efi_loaded_image_t *image,
-			  unsigned long *load_addr,
-			  unsigned long *load_size);
+efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
+				  const efi_char16_t *optstr,
+				  int optstr_size,
+				  unsigned long soft_limit,
+				  unsigned long hard_limit,
+				  unsigned long *load_addr,
+				  unsigned long *load_size);
 
-efi_status_t efi_load_initrd(efi_loaded_image_t *image,
-			     unsigned long *load_addr,
-			     unsigned long *load_size,
-			     unsigned long soft_limit,
-			     unsigned long hard_limit);
+
+static inline efi_status_t efi_load_dtb(efi_loaded_image_t *image,
+					unsigned long *load_addr,
+					unsigned long *load_size)
+{
+	return handle_cmdline_files(image, L"dtb=", sizeof(L"dtb=") - 2,
+				    ULONG_MAX, ULONG_MAX, load_addr, load_size);
+}
+
+static inline efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+					   unsigned long *load_addr,
+					   unsigned long *load_size,
+					   unsigned long soft_limit,
+					   unsigned long hard_limit)
+{
+	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER))
+		return EFI_SUCCESS;
+
+	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
+				    soft_limit, hard_limit, load_addr, load_size);
+}
 
 efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 				      unsigned long *load_size,

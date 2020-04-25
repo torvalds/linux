@@ -192,11 +192,15 @@ static void cacheline_release(struct intel_timeline_cacheline *cl)
 
 static void cacheline_free(struct intel_timeline_cacheline *cl)
 {
+	if (!i915_active_acquire_if_busy(&cl->active)) {
+		__idle_cacheline_free(cl);
+		return;
+	}
+
 	GEM_BUG_ON(ptr_test_bit(cl->vaddr, CACHELINE_FREE));
 	cl->vaddr = ptr_set_bit(cl->vaddr, CACHELINE_FREE);
 
-	if (i915_active_is_idle(&cl->active))
-		__idle_cacheline_free(cl);
+	i915_active_release(&cl->active);
 }
 
 int intel_timeline_init(struct intel_timeline *timeline,
@@ -308,7 +312,7 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	if (atomic_add_unless(&tl->pin_count, 1, 0))
 		return 0;
 
-	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(tl->hwsp_ggtt, 0, PIN_HIGH);
 	if (err)
 		return err;
 
@@ -406,6 +410,8 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	void *vaddr;
 	int err;
 
+	might_lock(&tl->gt->ggtt->vm.mutex);
+
 	/*
 	 * If there is an outstanding GPU reference to this cacheline,
 	 * such as it being sampled by a HW semaphore on another timeline,
@@ -431,7 +437,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 		goto err_rollback;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(vma, 0, PIN_HIGH);
 	if (err) {
 		__idle_hwsp_free(vma->private, cacheline);
 		goto err_rollback;

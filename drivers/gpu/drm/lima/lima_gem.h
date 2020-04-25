@@ -7,12 +7,15 @@
 #include <drm/drm_gem_shmem_helper.h>
 
 struct lima_submit;
+struct lima_vm;
 
 struct lima_bo {
 	struct drm_gem_shmem_object base;
 
 	struct mutex lock;
 	struct list_head va;
+
+	size_t heap_size;
 };
 
 static inline struct lima_bo *
@@ -31,6 +34,7 @@ static inline struct dma_resv *lima_bo_resv(struct lima_bo *bo)
 	return bo->base.base.resv;
 }
 
+int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm);
 struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t size);
 int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 			   u32 size, u32 flags, u32 *handle);

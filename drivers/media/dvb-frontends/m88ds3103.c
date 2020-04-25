@@ -65,6 +65,92 @@ err:
 }
 
 /*
+ * m88ds3103b demod has an internal device related to clocking. First the i2c
+ * gate must be opened, for one transaction, then writes will be allowed.
+ */
+static int m88ds3103b_dt_write(struct m88ds3103_dev *dev, int reg, int data)
+{
+	struct i2c_client *client = dev->client;
+	u8 buf[] = {reg, data};
+	u8 val;
+	int ret;
+	struct i2c_msg msg = {
+		.addr = dev->dt_addr, .flags = 0, .buf = buf, .len = 2
+	};
+
+	m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
+
+	val = 0x11;
+	ret = regmap_write(dev->regmap, 0x03, val);
+	if (ret)
+		dev_dbg(&client->dev, "fail=%d\n", ret);
+
+	ret = i2c_transfer(dev->dt_client->adapter, &msg, 1);
+	if (ret != 1) {
+		dev_err(&client->dev, "0x%02x (ret=%i, reg=0x%02x, value=0x%02x)\n",
+			dev->dt_addr, ret, reg, data);
+
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+		return -EREMOTEIO;
+	}
+	m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
+	dev_dbg(&client->dev, "0x%02x reg 0x%02x, value 0x%02x\n",
+		dev->dt_addr, reg, data);
+
+	return 0;
+}
+
+/*
+ * m88ds3103b demod has an internal device related to clocking. First the i2c
+ * gate must be opened, for two transactions, then reads will be allowed.
+ */
+static int m88ds3103b_dt_read(struct m88ds3103_dev *dev, u8 reg)
+{
+	struct i2c_client *client = dev->client;
+	int ret;
+	u8 val;
+	u8 b0[] = { reg };
+	u8 b1[] = { 0 };
+	struct i2c_msg msg[] = {
+		{
+			.addr = dev->dt_addr,
+			.flags = 0,
+			.buf = b0,
+			.len = 1
+		},
+		{
+			.addr = dev->dt_addr,
+			.flags = I2C_M_RD,
+			.buf = b1,
+			.len = 1
+		}
+	};
+
+	m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
+
+	val = 0x12;
+	ret = regmap_write(dev->regmap, 0x03, val);
+	if (ret)
+		dev_dbg(&client->dev, "fail=%d\n", ret);
+
+	ret = i2c_transfer(dev->dt_client->adapter, msg, 2);
+	if (ret != 2) {
+		dev_err(&client->dev, "0x%02x (ret=%d, reg=0x%02x)\n",
+			dev->dt_addr, ret, reg);
+
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+		return -EREMOTEIO;
+	}
+	m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
+	dev_dbg(&client->dev, "0x%02x reg 0x%02x, value 0x%02x\n",
+		dev->dt_addr, reg, b1[0]);
+
+	return b1[0];
+}
+
+/*
  * Get the demodulator AGC PWM voltage setting supplied to the tuner.
  */
 int m88ds3103_get_agc_pwm(struct dvb_frontend *fe, u8 *_agc_pwm)
@@ -288,6 +374,251 @@ err:
 	return ret;
 }
 
+static int m88ds3103b_select_mclk(struct m88ds3103_dev *dev)
+{
+	struct i2c_client *client = dev->client;
+	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	u32 adc_Freq_MHz[3] = {96, 93, 99};
+	u8  reg16_list[3] = {96, 92, 100}, reg16, reg15;
+	u32 offset_MHz[3];
+	u32 max_offset = 0;
+	u32 old_setting = dev->mclk;
+	u32 tuner_freq_MHz = c->frequency / 1000;
+	u8 i;
+	char big_symbol = 0;
+
+	big_symbol = (c->symbol_rate > 45010000) ? 1 : 0;
+
+	if (big_symbol) {
+		reg16 = 115;
+	} else {
+		reg16 = 96;
+
+		/* TODO: IS THIS NECESSARY ? */
+		for (i = 0; i < 3; i++) {
+			offset_MHz[i] = tuner_freq_MHz % adc_Freq_MHz[i];
+
+			if (offset_MHz[i] > (adc_Freq_MHz[i] / 2))
+				offset_MHz[i] = adc_Freq_MHz[i] - offset_MHz[i];
+
+			if (offset_MHz[i] > max_offset) {
+				max_offset = offset_MHz[i];
+				reg16 = reg16_list[i];
+				dev->mclk = adc_Freq_MHz[i] * 1000 * 1000;
+
+				if (big_symbol)
+					dev->mclk /= 2;
+
+				dev_dbg(&client->dev, "modifying mclk %u -> %u\n",
+					old_setting, dev->mclk);
+			}
+		}
+	}
+
+	if (dev->mclk == 93000000)
+		regmap_write(dev->regmap, 0xA0, 0x42);
+	else if (dev->mclk == 96000000)
+		regmap_write(dev->regmap, 0xA0, 0x44);
+	else if (dev->mclk == 99000000)
+		regmap_write(dev->regmap, 0xA0, 0x46);
+	else if (dev->mclk == 110250000)
+		regmap_write(dev->regmap, 0xA0, 0x4E);
+	else
+		regmap_write(dev->regmap, 0xA0, 0x44);
+
+	reg15 = m88ds3103b_dt_read(dev, 0x15);
+
+	m88ds3103b_dt_write(dev, 0x05, 0x40);
+	m88ds3103b_dt_write(dev, 0x11, 0x08);
+
+	if (big_symbol)
+		reg15 |= 0x02;
+	else
+		reg15 &= ~0x02;
+
+	m88ds3103b_dt_write(dev, 0x15, reg15);
+	m88ds3103b_dt_write(dev, 0x16, reg16);
+
+	usleep_range(5000, 5500);
+
+	m88ds3103b_dt_write(dev, 0x05, 0x00);
+	m88ds3103b_dt_write(dev, 0x11, (u8)(big_symbol ? 0x0E : 0x0A));
+
+	usleep_range(5000, 5500);
+
+	return 0;
+}
+
+static int m88ds3103b_set_mclk(struct m88ds3103_dev *dev, u32 mclk_khz)
+{
+	u8 reg11 = 0x0A, reg15, reg16, reg1D, reg1E, reg1F, tmp;
+	u8 sm, f0 = 0, f1 = 0, f2 = 0, f3 = 0;
+	u16 pll_div_fb, N;
+	u32 div;
+
+	reg15 = m88ds3103b_dt_read(dev, 0x15);
+	reg16 = m88ds3103b_dt_read(dev, 0x16);
+	reg1D = m88ds3103b_dt_read(dev, 0x1D);
+
+	if (dev->cfg->ts_mode != M88DS3103_TS_SERIAL) {
+		if (reg16 == 92)
+			tmp = 93;
+		else if (reg16 == 100)
+			tmp = 99;
+		else
+			tmp = 96;
+
+		mclk_khz *= tmp;
+		mclk_khz /= 96;
+	}
+
+	pll_div_fb = (reg15 & 0x01) << 8;
+	pll_div_fb += reg16;
+	pll_div_fb += 32;
+
+	div = 9000 * pll_div_fb * 4;
+	div /= mclk_khz;
+
+	if (dev->cfg->ts_mode == M88DS3103_TS_SERIAL) {
+		reg11 |= 0x02;
+
+		if (div <= 32) {
+			N = 2;
+
+			f0 = 0;
+			f1 = div / N;
+			f2 = div - f1;
+			f3 = 0;
+		} else if (div <= 34) {
+			N = 3;
+
+			f0 = div / N;
+			f1 = (div - f0) / (N - 1);
+			f2 = div - f0 - f1;
+			f3 = 0;
+		} else if (div <= 64) {
+			N = 4;
+
+			f0 = div / N;
+			f1 = (div - f0) / (N - 1);
+			f2 = (div - f0 - f1) / (N - 2);
+			f3 = div - f0 - f1 - f2;
+		} else {
+			N = 4;
+
+			f0 = 16;
+			f1 = 16;
+			f2 = 16;
+			f3 = 16;
+		}
+
+		if (f0 == 16)
+			f0 = 0;
+		else if ((f0 < 8) && (f0 != 0))
+			f0 = 8;
+
+		if (f1 == 16)
+			f1 = 0;
+		else if ((f1 < 8) && (f1 != 0))
+			f1 = 8;
+
+		if (f2 == 16)
+			f2 = 0;
+		else if ((f2 < 8) && (f2 != 0))
+			f2 = 8;
+
+		if (f3 == 16)
+			f3 = 0;
+		else if ((f3 < 8) && (f3 != 0))
+			f3 = 8;
+	} else {
+		reg11 &= ~0x02;
+
+		if (div <= 32) {
+			N = 2;
+
+			f0 = 0;
+			f1 = div / N;
+			f2 = div - f1;
+			f3 = 0;
+		} else if (div <= 48) {
+			N = 3;
+
+			f0 = div / N;
+			f1 = (div - f0) / (N - 1);
+			f2 = div - f0 - f1;
+			f3 = 0;
+		} else if (div <= 64) {
+			N = 4;
+
+			f0 = div / N;
+			f1 = (div - f0) / (N - 1);
+			f2 = (div - f0 - f1) / (N - 2);
+			f3 = div - f0 - f1 - f2;
+		} else {
+			N = 4;
+
+			f0 = 16;
+			f1 = 16;
+			f2 = 16;
+			f3 = 16;
+		}
+
+		if (f0 == 16)
+			f0 = 0;
+		else if ((f0 < 9) && (f0 != 0))
+			f0 = 9;
+
+		if (f1 == 16)
+			f1 = 0;
+		else if ((f1 < 9) && (f1 != 0))
+			f1 = 9;
+
+		if (f2 == 16)
+			f2 = 0;
+		else if ((f2 < 9) && (f2 != 0))
+			f2 = 9;
+
+		if (f3 == 16)
+			f3 = 0;
+		else if ((f3 < 9) && (f3 != 0))
+			f3 = 9;
+	}
+
+	sm = N - 1;
+
+	/* Write to registers */
+	//reg15 &= 0x01;
+	//reg15 |= (pll_div_fb >> 8) & 0x01;
+
+	//reg16 = pll_div_fb & 0xFF;
+
+	reg1D &= ~0x03;
+	reg1D |= sm;
+	reg1D |= 0x80;
+
+	reg1E = ((f3 << 4) + f2) & 0xFF;
+	reg1F = ((f1 << 4) + f0) & 0xFF;
+
+	m88ds3103b_dt_write(dev, 0x05, 0x40);
+	m88ds3103b_dt_write(dev, 0x11, 0x08);
+	m88ds3103b_dt_write(dev, 0x1D, reg1D);
+	m88ds3103b_dt_write(dev, 0x1E, reg1E);
+	m88ds3103b_dt_write(dev, 0x1F, reg1F);
+
+	m88ds3103b_dt_write(dev, 0x17, 0xc1);
+	m88ds3103b_dt_write(dev, 0x17, 0x81);
+
+	usleep_range(5000, 5500);
+
+	m88ds3103b_dt_write(dev, 0x05, 0x00);
+	m88ds3103b_dt_write(dev, 0x11, 0x0A);
+
+	usleep_range(5000, 5500);
+
+	return 0;
+}
+
 static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 {
 	struct m88ds3103_dev *dev = fe->demodulator_priv;
@@ -298,7 +629,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	u8 u8tmp, u8tmp1 = 0, u8tmp2 = 0; /* silence compiler warning */
 	u8 buf[3];
 	u16 u16tmp;
-	u32 tuner_frequency_khz, target_mclk;
+	u32 tuner_frequency_khz, target_mclk, u32tmp;
 	s32 s32tmp;
 	static const struct reg_sequence reset_buf[] = {
 		{0x07, 0x80}, {0x07, 0x00}
@@ -321,6 +652,20 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 
 	/* Disable demod clock path */
 	if (dev->chip_id == M88RS6000_CHIP_ID) {
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+			ret = regmap_read(dev->regmap, 0xb2, &u32tmp);
+			if (ret)
+				goto err;
+			if (u32tmp == 0x01) {
+				ret = regmap_write(dev->regmap, 0x00, 0x00);
+				if (ret)
+					goto err;
+				ret = regmap_write(dev->regmap, 0xb2, 0x00);
+				if (ret)
+					goto err;
+			}
+		}
+
 		ret = regmap_write(dev->regmap, 0x06, 0xe0);
 		if (ret)
 			goto err;
@@ -346,7 +691,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		tuner_frequency_khz = c->frequency;
 	}
 
-	/* select M88RS6000 demod main mclk and ts mclk from tuner die. */
+	/* set M88RS6000/DS3103B demod main mclk and ts mclk from tuner die */
 	if (dev->chip_id == M88RS6000_CHIP_ID) {
 		if (c->symbol_rate > 45010000)
 			dev->mclk = 110250000;
@@ -357,6 +702,11 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			target_mclk = 96000000;
 		else
 			target_mclk = 144000000;
+
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+			m88ds3103b_select_mclk(dev);
+			m88ds3103b_set_mclk(dev, target_mclk / 1000);
+		}
 
 		/* Enable demod clock path */
 		ret = regmap_write(dev->regmap, 0x06, 0x00);
@@ -469,12 +819,42 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		ret = m88ds3103_update_bits(dev, 0x9d, 0x08, 0x08);
 		if (ret)
 			goto err;
+
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+			buf[0] = m88ds3103b_dt_read(dev, 0x15);
+			buf[1] = m88ds3103b_dt_read(dev, 0x16);
+
+			if (c->symbol_rate > 45010000) {
+				buf[0] &= ~0x03;
+				buf[0] |= 0x02;
+				buf[0] |= ((147 - 32) >> 8) & 0x01;
+				buf[1] = (147 - 32) & 0xFF;
+
+				dev->mclk = 110250 * 1000;
+			} else {
+				buf[0] &= ~0x03;
+				buf[0] |= ((128 - 32) >> 8) & 0x01;
+				buf[1] = (128 - 32) & 0xFF;
+
+				dev->mclk = 96000 * 1000;
+			}
+			m88ds3103b_dt_write(dev, 0x15, buf[0]);
+			m88ds3103b_dt_write(dev, 0x16, buf[1]);
+
+			regmap_read(dev->regmap, 0x30, &u32tmp);
+			u32tmp &= ~0x80;
+			regmap_write(dev->regmap, 0x30, u32tmp & 0xff);
+		}
+
 		ret = regmap_write(dev->regmap, 0xf1, 0x01);
 		if (ret)
 			goto err;
-		ret = m88ds3103_update_bits(dev, 0x30, 0x80, 0x80);
-		if (ret)
-			goto err;
+
+		if (dev->chiptype != M88DS3103_CHIPTYPE_3103B) {
+			ret = m88ds3103_update_bits(dev, 0x30, 0x80, 0x80);
+			if (ret)
+				goto err;
+		}
 	}
 
 	switch (dev->cfg->ts_mode) {
@@ -488,6 +868,10 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		break;
 	case M88DS3103_TS_PARALLEL:
 		u8tmp = 0x02;
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+			u8tmp = 0x01;
+			u8tmp1 = 0x01;
+		}
 		break;
 	case M88DS3103_TS_CI:
 		u8tmp = 0x03;
@@ -516,6 +900,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		u8tmp1 = 0x3f;
 		u8tmp2 = 0x3f;
 		break;
+	case M88DS3103_TS_PARALLEL:
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+			ret = m88ds3103_update_bits(dev, 0x29, 0x01, u8tmp1);
+			if (ret)
+				goto err;
+		}
+		/* fall through */
 	default:
 		u16tmp = DIV_ROUND_UP(target_mclk, dev->cfg->ts_clk);
 		u8tmp1 = u16tmp / 2 - 1;
@@ -542,6 +933,9 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		u8tmp = 0x10;
 	else
 		u8tmp = 0x06;
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
+		m88ds3103b_set_mclk(dev, target_mclk / 1000);
 
 	ret = regmap_write(dev->regmap, 0xc3, 0x08);
 	if (ret)
@@ -577,6 +971,16 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	ret = regmap_write(dev->regmap, 0x33, dev->cfg->agc);
 	if (ret)
 		goto err;
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		/* enable/disable 192M LDPC clock */
+		ret = m88ds3103_update_bits(dev, 0x29, 0x10,
+				(c->delivery_system == SYS_DVBS) ? 0x10 : 0x0);
+		if (ret)
+			goto err;
+
+		ret = m88ds3103_update_bits(dev, 0xc9, 0x08, 0x08);
+	}
 
 	dev_dbg(&client->dev, "carrier offset=%d\n",
 		(tuner_frequency_khz - c->frequency));
@@ -642,7 +1046,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	if (utmp)
 		goto warm;
 
-	/* global reset, global diseqc reset, golbal fec reset */
+	/* global reset, global diseqc reset, global fec reset */
 	ret = regmap_write(dev->regmap, 0x07, 0xe0);
 	if (ret)
 		goto err;
@@ -652,12 +1056,15 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 
 	/* cold state - try to download firmware */
 	dev_info(&client->dev, "found a '%s' in cold state\n",
-		 m88ds3103_ops.info.name);
+		 dev->fe.ops.info.name);
 
-	if (dev->chip_id == M88RS6000_CHIP_ID)
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
+		name = M88DS3103B_FIRMWARE;
+	else if (dev->chip_id == M88RS6000_CHIP_ID)
 		name = M88RS6000_FIRMWARE;
 	else
 		name = M88DS3103_FIRMWARE;
+
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
@@ -700,10 +1107,16 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	}
 
 	dev_info(&client->dev, "found a '%s' in warm state\n",
-		 m88ds3103_ops.info.name);
+		 dev->fe.ops.info.name);
 	dev_info(&client->dev, "firmware version: %X.%X\n",
 		 (utmp >> 4) & 0xf, (utmp >> 0 & 0xf));
 
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		m88ds3103b_dt_write(dev, 0x21, 0x92);
+		m88ds3103b_dt_write(dev, 0x15, 0x6C);
+		m88ds3103b_dt_write(dev, 0x17, 0xC1);
+		m88ds3103b_dt_write(dev, 0x17, 0x81);
+	}
 warm:
 	/* warm state */
 	dev->warm = true;
@@ -1393,6 +1806,8 @@ static int m88ds3103_probe(struct i2c_client *client,
 		goto err_kfree;
 
 	dev->chip_id = utmp >> 1;
+	dev->chiptype = (u8)id->driver_data;
+
 	dev_dbg(&client->dev, "chip_id=%02x\n", dev->chip_id);
 
 	switch (dev->chip_id) {
@@ -1459,7 +1874,10 @@ static int m88ds3103_probe(struct i2c_client *client,
 
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &m88ds3103_ops, sizeof(struct dvb_frontend_ops));
-	if (dev->chip_id == M88RS6000_CHIP_ID)
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
+		strscpy(dev->fe.ops.info.name, "Montage Technology M88DS3103B",
+			sizeof(dev->fe.ops.info.name));
+	else if (dev->chip_id == M88RS6000_CHIP_ID)
 		strscpy(dev->fe.ops.info.name, "Montage Technology M88RS6000",
 			sizeof(dev->fe.ops.info.name));
 	if (!pdata->attach_in_use)
@@ -1470,6 +1888,26 @@ static int m88ds3103_probe(struct i2c_client *client,
 	/* setup callbacks */
 	pdata->get_dvb_frontend = m88ds3103_get_dvb_frontend;
 	pdata->get_i2c_adapter = m88ds3103_get_i2c_adapter;
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		/* enable i2c repeater for tuner */
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
+		/* get frontend address */
+		ret = regmap_read(dev->regmap, 0x29, &utmp);
+		if (ret)
+			goto err_kfree;
+		dev->dt_addr = ((utmp & 0x80) == 0) ? 0x42 >> 1 : 0x40 >> 1;
+		dev_err(&client->dev, "dt addr is 0x%02x", dev->dt_addr);
+
+		dev->dt_client = i2c_new_dummy_device(client->adapter,
+						      dev->dt_addr);
+		if (!dev->dt_client) {
+			ret = -ENODEV;
+			goto err_kfree;
+		}
+	}
+
 	return 0;
 err_kfree:
 	kfree(dev);
@@ -1484,6 +1922,9 @@ static int m88ds3103_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
+	if (dev->dt_client)
+		i2c_unregister_device(dev->dt_client);
+
 	i2c_mux_del_adapters(dev->muxc);
 
 	kfree(dev);
@@ -1491,7 +1932,9 @@ static int m88ds3103_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id m88ds3103_id_table[] = {
-	{"m88ds3103", 0},
+	{"m88ds3103",  M88DS3103_CHIPTYPE_3103},
+	{"m88rs6000",  M88DS3103_CHIPTYPE_RS6000},
+	{"m88ds3103b", M88DS3103_CHIPTYPE_3103B},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, m88ds3103_id_table);
@@ -1513,3 +1956,4 @@ MODULE_DESCRIPTION("Montage Technology M88DS3103 DVB-S/S2 demodulator driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(M88DS3103_FIRMWARE);
 MODULE_FIRMWARE(M88RS6000_FIRMWARE);
+MODULE_FIRMWARE(M88DS3103B_FIRMWARE);
