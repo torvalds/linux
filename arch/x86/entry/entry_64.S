@@ -511,7 +511,7 @@ SYM_CODE_END(spurious_entries_start)
  * +----------------------------------------------------+
  */
 SYM_CODE_START(interrupt_entry)
-	UNWIND_HINT_FUNC
+	UNWIND_HINT_IRET_REGS offset=16
 	ASM_CLAC
 	cld
 
@@ -543,9 +543,9 @@ SYM_CODE_START(interrupt_entry)
 	pushq	5*8(%rdi)		/* regs->eflags */
 	pushq	4*8(%rdi)		/* regs->cs */
 	pushq	3*8(%rdi)		/* regs->ip */
+	UNWIND_HINT_IRET_REGS
 	pushq	2*8(%rdi)		/* regs->orig_ax */
 	pushq	8(%rdi)			/* return address */
-	UNWIND_HINT_FUNC
 
 	movq	(%rdi), %rdi
 	jmp	2f
