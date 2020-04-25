@@ -157,12 +157,10 @@ static int mscc_twi_set_sda_hold_time(struct dw_i2c_dev *dev)
 static int dw_i2c_of_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	struct resource *mem;
 
 	switch (dev->flags & MODEL_MASK) {
 	case MODEL_MSCC_OCELOT:
-		mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->ext = devm_ioremap_resource(&pdev->dev, mem);
+		dev->ext = devm_platform_ioremap_resource(pdev, 1);
 		if (!IS_ERR(dev->ext))
 			dev->set_sda_hold_time = mscc_twi_set_sda_hold_time;
 		break;
@@ -241,7 +239,6 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct dw_i2c_dev *dev;
 	struct i2c_timings *t;
 	u32 acpi_speed;
-	struct resource *mem;
 	int i, irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
@@ -252,8 +249,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 
