@@ -676,10 +676,23 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC,
-				   pfhwdev, nic_mgmt_msg_handler);
+	err = hinic_func_to_func_init(hwdev);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
+		return err;
+	}
+
+	if (!HINIC_IS_VF(hwif))
+		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					   HINIC_MOD_L2NIC, pfhwdev,
+					   nic_mgmt_msg_handler);
+	else
+		hinic_register_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC,
+					  nic_mgmt_msg_handler);
 
 	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
+
 	return 0;
 }
 
@@ -693,7 +706,13 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 
 	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
 
-	hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC);
+	if (!HINIC_IS_VF(hwdev->hwif))
+		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					     HINIC_MOD_L2NIC);
+	else
+		hinic_unregister_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC);
+
+	hinic_func_to_func_free(hwdev);
 
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }

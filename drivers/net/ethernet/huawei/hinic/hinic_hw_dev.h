@@ -16,6 +16,7 @@
 #include "hinic_hw_mgmt.h"
 #include "hinic_hw_qp.h"
 #include "hinic_hw_io.h"
+#include "hinic_hw_mbox.h"
 
 #define HINIC_MAX_QPS   32
 
@@ -225,6 +226,7 @@ struct hinic_hwdev {
 
 	struct hinic_aeqs               aeqs;
 	struct hinic_func_to_io         func_to_io;
+	struct hinic_mbox_func_to_func  *func_to_func;
 
 	struct hinic_cap                nic_cap;
 };

@@ -60,6 +60,7 @@ enum hinic_cfg_cmd {
 };
 
 enum hinic_comm_cmd {
+	HINIC_COMM_CMD_START_FLR          = 0x1,
 	HINIC_COMM_CMD_IO_STATUS_GET    = 0x3,
 
 	HINIC_COMM_CMD_CMDQ_CTXT_SET    = 0x10,

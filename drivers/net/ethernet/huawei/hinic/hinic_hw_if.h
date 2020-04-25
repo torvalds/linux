@@ -35,6 +35,7 @@
 #define HINIC_FA0_FUNC_IDX_SHIFT                                0
 #define HINIC_FA0_PF_IDX_SHIFT                                  10
 #define HINIC_FA0_PCI_INTF_IDX_SHIFT                            14
+#define HINIC_FA0_VF_IN_PF_SHIFT				16
 /* reserved members - off 16 */
 #define HINIC_FA0_FUNC_TYPE_SHIFT                               24
 
@@ -42,6 +43,7 @@
 #define HINIC_FA0_PF_IDX_MASK                                   0xF
 #define HINIC_FA0_PCI_INTF_IDX_MASK                             0x3
 #define HINIC_FA0_FUNC_TYPE_MASK                                0x1
+#define HINIC_FA0_VF_IN_PF_MASK					0xFF
 
 #define HINIC_FA0_GET(val, member)                              \
 	(((val) >> HINIC_FA0_##member##_SHIFT) & HINIC_FA0_##member##_MASK)
@@ -63,6 +65,12 @@
 
 #define HINIC_FA1_GET(val, member)                              \
 	(((val) >> HINIC_FA1_##member##_SHIFT) & HINIC_FA1_##member##_MASK)
+
+#define HINIC_FA2_GLOBAL_VF_ID_OF_PF_SHIFT	16
+#define HINIC_FA2_GLOBAL_VF_ID_OF_PF_MASK	0x3FF
+
+#define HINIC_FA2_GET(val, member)				\
+	(((val) >> HINIC_FA2_##member##_SHIFT) & HINIC_FA2_##member##_MASK)
 
 #define HINIC_FA4_OUTBOUND_STATE_SHIFT                          0
 #define HINIC_FA4_DB_STATE_SHIFT                                1
@@ -140,6 +148,7 @@
 #define HINIC_HWIF_PPF_IDX(hwif)        ((hwif)->attr.ppf_idx)
 
 #define HINIC_FUNC_TYPE(hwif)           ((hwif)->attr.func_type)
+#define HINIC_IS_VF(hwif)               (HINIC_FUNC_TYPE(hwif) == HINIC_VF)
 #define HINIC_IS_PF(hwif)               (HINIC_FUNC_TYPE(hwif) == HINIC_PF)
 #define HINIC_IS_PPF(hwif)              (HINIC_FUNC_TYPE(hwif) == HINIC_PPF)
 
@@ -173,6 +182,7 @@ enum hinic_pcie_tph {
 
 enum hinic_func_type {
 	HINIC_PF        = 0,
+	HINIC_VF	    = 1,
 	HINIC_PPF       = 2,
 };
 
@@ -223,6 +233,8 @@ struct hinic_func_attr {
 	u8                      num_ceqs;
 
 	u8                      num_dma_attr;
+
+	u16						global_vf_id_of_pf;
 };
 
 struct hinic_hwif {
@@ -270,6 +282,12 @@ enum hinic_db_state hinic_db_state_get(struct hinic_hwif *hwif);
 
 void hinic_db_state_set(struct hinic_hwif *hwif,
 			enum hinic_db_state db_state);
+
+u16 hinic_glb_pf_vf_offset(struct hinic_hwif *hwif);
+
+u16 hinic_global_func_id_hw(struct hinic_hwif *hwif);
+
+u16 hinic_pf_id_of_vf_hw(struct hinic_hwif *hwif);
 
 int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev);
 

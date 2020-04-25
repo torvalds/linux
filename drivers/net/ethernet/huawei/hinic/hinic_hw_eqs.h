@@ -143,8 +143,9 @@ enum hinic_eq_type {
 };
 
 enum hinic_aeq_type {
+	HINIC_MBX_FROM_FUNC = 1,
 	HINIC_MSG_FROM_MGMT_CPU = 2,
-
+	HINIC_MBX_SEND_RSLT = 5,
 	HINIC_MAX_AEQ_EVENTS,
 };
 
