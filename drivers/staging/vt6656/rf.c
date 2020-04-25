@@ -763,7 +763,6 @@ int vnt_rf_table_download(struct vnt_private *priv)
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
 	u16 length, value;
-	u8 array[256];
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
@@ -810,10 +809,8 @@ int vnt_rf_table_download(struct vnt_private *priv)
 	}
 
 	/* Init Table */
-	memcpy(array, addr1, length1);
-
 	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-			      MESSAGE_REQUEST_RF_INIT, length1, array);
+			      MESSAGE_REQUEST_RF_INIT, length1, addr1);
 	if (ret)
 		goto end;
 
@@ -825,10 +822,8 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		else
 			length = length2;
 
-		memcpy(array, addr2, length);
-
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
-				      MESSAGE_REQUEST_RF_CH0, length, array);
+				      MESSAGE_REQUEST_RF_CH0, length, addr2);
 		if (ret)
 			goto end;
 
@@ -845,10 +840,8 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		else
 			length = length3;
 
-		memcpy(array, addr3, length);
-
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
-				      MESSAGE_REQUEST_RF_CH1, length, array);
+				      MESSAGE_REQUEST_RF_CH1, length, addr3);
 		if (ret)
 			goto end;
 
@@ -863,11 +856,9 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		addr1 = &al7230_init_table_amode[0][0];
 		addr2 = &al7230_channel_table2[0][0];
 
-		memcpy(array, addr1, length1);
-
 		/* Init Table 2 */
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-				      MESSAGE_REQUEST_RF_INIT2, length1, array);
+				      MESSAGE_REQUEST_RF_INIT2, length1, addr1);
 		if (ret)
 			goto end;
 
@@ -879,11 +870,9 @@ int vnt_rf_table_download(struct vnt_private *priv)
 			else
 				length = length2;
 
-			memcpy(array, addr2, length);
-
 			ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
 					      MESSAGE_REQUEST_RF_CH2, length,
-					      array);
+					      addr2);
 			if (ret)
 				goto end;
 
