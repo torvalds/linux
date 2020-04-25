@@ -327,8 +327,8 @@ static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
 	return (u16)(hdr_pos - head);
 }
 
-static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
-			       struct vnt_tx_datahead_g *buf)
+static void vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
+				struct vnt_tx_datahead_g *buf)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct ieee80211_hdr *hdr =
@@ -349,12 +349,10 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 						   priv->top_cck_basic_rate);
 
 	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
-
-	return le16_to_cpu(buf->duration_a);
 }
 
-static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
-				struct vnt_tx_datahead_ab *buf)
+static void vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
+				 struct vnt_tx_datahead_ab *buf)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct ieee80211_hdr *hdr =
@@ -371,12 +369,10 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
 	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
-
-	return le16_to_cpu(buf->duration);
 }
 
-static int vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
-				  struct ieee80211_rts *rts, __le16 duration)
+static void vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
+				   struct ieee80211_rts *rts, __le16 duration)
 {
 	struct ieee80211_hdr *hdr =
 				(struct ieee80211_hdr *)tx_context->skb->data;
@@ -387,12 +383,10 @@ static int vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
 
 	ether_addr_copy(rts->ra, hdr->addr1);
 	ether_addr_copy(rts->ta, hdr->addr2);
-
-	return 0;
 }
 
-static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
-			       struct vnt_rts_g *buf)
+static void vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
+				struct vnt_rts_g *buf)
 {
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
@@ -415,11 +409,11 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration_aa);
 
-	return vnt_rxtx_datahead_g(tx_context, &buf->data_head);
+	vnt_rxtx_datahead_g(tx_context, &buf->data_head);
 }
 
-static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
-				struct vnt_rts_ab *buf)
+static void vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
+				 struct vnt_rts_ab *buf)
 {
 	struct vnt_private *priv = tx_context->priv;
 	u16 current_rate = tx_context->tx_rate;
@@ -434,11 +428,11 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
 
-	return vnt_rxtx_datahead_ab(tx_context, &buf->data_head);
+	vnt_rxtx_datahead_ab(tx_context, &buf->data_head);
 }
 
-static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
-			     union vnt_tx_data_head *head)
+static void vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
+			      union vnt_tx_data_head *head)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_cts *buf = &head->cts_g;
@@ -460,11 +454,11 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 
 	ether_addr_copy(buf->data.ra, priv->current_net_addr);
 
-	return vnt_rxtx_datahead_g(tx_context, &buf->data_head);
+	vnt_rxtx_datahead_g(tx_context, &buf->data_head);
 }
 
-static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
-			union vnt_tx_head *tx_head, bool need_mic)
+static void vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
+			 union vnt_tx_head *tx_head, bool need_mic)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_rrv_time_rts *buf = &tx_head->tx_rts.rts;
@@ -489,11 +483,11 @@ static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
 	if (need_mic)
 		head = &tx_head->tx_rts.tx.mic.head;
 
-	return vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
+	vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
 }
 
-static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
-			union vnt_tx_head *tx_head, bool need_mic)
+static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
+			 union vnt_tx_head *tx_head, bool need_mic)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
@@ -513,11 +507,12 @@ static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 	if (need_mic)
 		head = &tx_head->tx_cts.tx.mic.head;
 
-	return vnt_fill_cts_head(tx_context, head);
+	vnt_fill_cts_head(tx_context, head);
 }
 
-static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
-		       union vnt_tx_head *tx_head, bool need_rts, bool need_mic)
+static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
+			union vnt_tx_head *tx_head,
+			bool need_rts, bool need_mic)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_rrv_time_ab *buf = &tx_head->tx_ab.ab;
@@ -540,16 +535,18 @@ static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 			buf->rts_rrv_time = vnt_get_rtscts_rsvtime_le(priv, 2,
 				tx_context->pkt_type, frame_len, current_rate);
 
-		return vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
+		vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
+
+		return;
 	}
 
-	return vnt_rxtx_datahead_ab(tx_context, &head->data_head_ab);
+	vnt_rxtx_datahead_ab(tx_context, &head->data_head_ab);
 }
 
-static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
-				     struct vnt_tx_buffer *tx_buffer,
-				     struct vnt_mic_hdr **mic_hdr, u32 need_mic,
-				     bool need_rts)
+static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
+				      struct vnt_tx_buffer *tx_buffer,
+				      struct vnt_mic_hdr **mic_hdr,
+				      u32 need_mic, bool need_rts)
 {
 	if (tx_context->pkt_type == PK_TYPE_11GB ||
 	    tx_context->pkt_type == PK_TYPE_11GA) {
@@ -558,20 +555,23 @@ static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 				*mic_hdr =
 					&tx_buffer->tx_head.tx_rts.tx.mic.hdr;
 
-			return vnt_rxtx_rts(tx_context, &tx_buffer->tx_head,
-					    need_mic);
+			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head, need_mic);
+
+			return;
 		}
 
 		if (need_mic)
 			*mic_hdr = &tx_buffer->tx_head.tx_cts.tx.mic.hdr;
 
-		return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, need_mic);
+		vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, need_mic);
+
+		return;
 	}
 
 	if (need_mic)
 		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
 
-	return vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts, need_mic);
+	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts, need_mic);
 }
 
 static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
@@ -658,7 +658,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct vnt_tx_fifo_head *tx_buffer_head;
 	struct vnt_usb_send_context *tx_context;
 	unsigned long flags;
-	u16 tx_bytes, tx_header_size, tx_body_size, duration_id;
+	u16 tx_bytes, tx_header_size, tx_body_size;
 	u8 pkt_type;
 	bool need_rts = false;
 	bool need_mic = false;
@@ -772,8 +772,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
-	duration_id = vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
-						need_mic, need_rts);
+	vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
+				  need_mic, need_rts);
 
 	tx_header_size = tx_context->tx_hdr_size;
 	if (!tx_header_size) {
