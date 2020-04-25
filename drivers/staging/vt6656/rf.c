@@ -759,7 +759,7 @@ void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 
 int vnt_rf_table_download(struct vnt_private *priv)
 {
-	int ret = 0;
+	int ret;
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
 	u16 length, value;
@@ -812,7 +812,7 @@ int vnt_rf_table_download(struct vnt_private *priv)
 	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 			      MESSAGE_REQUEST_RF_INIT, length1, addr1);
 	if (ret)
-		goto end;
+		return ret;
 
 	/* Channel Table 0 */
 	value = 0;
@@ -825,7 +825,7 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
 				      MESSAGE_REQUEST_RF_CH0, length, addr2);
 		if (ret)
-			goto end;
+			return ret;
 
 		length2 -= length;
 		value += length;
@@ -843,7 +843,7 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
 				      MESSAGE_REQUEST_RF_CH1, length, addr3);
 		if (ret)
-			goto end;
+			return ret;
 
 		length3 -= length;
 		value += length;
@@ -860,7 +860,7 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 				      MESSAGE_REQUEST_RF_INIT2, length1, addr1);
 		if (ret)
-			goto end;
+			return ret;
 
 		/* Channel Table 0 */
 		value = 0;
@@ -874,7 +874,7 @@ int vnt_rf_table_download(struct vnt_private *priv)
 					      MESSAGE_REQUEST_RF_CH2, length,
 					      addr2);
 			if (ret)
-				goto end;
+				return ret;
 
 			length2 -= length;
 			value += length;
@@ -882,6 +882,5 @@ int vnt_rf_table_download(struct vnt_private *priv)
 		}
 	}
 
-end:
-	return ret;
+	return 0;
 }
