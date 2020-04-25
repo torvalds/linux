@@ -38,8 +38,8 @@
 #define HINIC_SQ_WQEBB_SIZE                     64
 #define HINIC_RQ_WQEBB_SIZE                     32
 
-#define HINIC_SQ_PAGE_SIZE                      SZ_4K
-#define HINIC_RQ_PAGE_SIZE                      SZ_4K
+#define HINIC_SQ_PAGE_SIZE                      SZ_256K
+#define HINIC_RQ_PAGE_SIZE                      SZ_256K
 
 #define HINIC_SQ_DEPTH                          SZ_4K
 #define HINIC_RQ_DEPTH                          SZ_4K

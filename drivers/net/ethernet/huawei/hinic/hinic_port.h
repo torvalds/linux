@@ -148,9 +148,9 @@ struct hinic_port_link_status {
 	u8      version;
 	u8      rsvd0[6];
 
-	u16     rsvd1;
+	u16     func_id;
 	u8      link;
-	u8      rsvd2;
+	u8      port_id;
 };
 
 struct hinic_port_func_state_cmd {

@@ -172,7 +172,7 @@ struct hinic_eq_work {
 
 struct hinic_eq {
 	struct hinic_hwif       *hwif;
-
+	struct hinic_hwdev      *hwdev;
 	enum hinic_eq_type      type;
 	int                     q_id;
 	u32                     q_len;
@@ -220,7 +220,7 @@ struct hinic_ceq_cb {
 
 struct hinic_ceqs {
 	struct hinic_hwif       *hwif;
-
+	struct hinic_hwdev		*hwdev;
 	struct hinic_eq         ceq[HINIC_MAX_CEQS];
 	int                     num_ceqs;
 

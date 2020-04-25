@@ -29,6 +29,7 @@
 #include "hinic_tx.h"
 #include "hinic_rx.h"
 #include "hinic_dev.h"
+#include "hinic_sriov.h"
 
 MODULE_AUTHOR("Huawei Technologies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
@@ -46,6 +47,7 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 #define HINIC_DEV_ID_DUAL_PORT_100GE        0x0200
 #define HINIC_DEV_ID_DUAL_PORT_100GE_MEZZ   0x0205
 #define HINIC_DEV_ID_QUAD_PORT_25GE_MEZZ    0x0210
+#define HINIC_DEV_ID_VF    0x375e
 
 #define HINIC_WQ_NAME                   "hinic_dev"
 
@@ -64,6 +66,8 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 
 #define rx_mode_work_to_nic_dev(rx_mode_work) \
 		container_of(rx_mode_work, struct hinic_dev, rx_mode_work)
+
+#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
 
 static int change_mac_addr(struct net_device *netdev, const u8 *addr);
 
@@ -423,8 +427,9 @@ static int hinic_open(struct net_device *netdev)
 		goto err_func_port_state;
 	}
 
-	/* Wait up to 3 sec between port enable to link state */
-	msleep(3000);
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		/* Wait up to 3 sec between port enable to link state */
+		msleep(3000);
 
 	down(&nic_dev->mgmt_lock);
 
@@ -433,6 +438,9 @@ static int hinic_open(struct net_device *netdev)
 		netif_err(nic_dev, drv, netdev, "Failed to get link state\n");
 		goto err_port_link;
 	}
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, link_state);
 
 	if (link_state == HINIC_LINK_STATE_UP)
 		nic_dev->flags |= HINIC_LINK_UP;
@@ -496,6 +504,9 @@ static int hinic_close(struct net_device *netdev)
 	update_nic_stats(nic_dev);
 
 	up(&nic_dev->mgmt_lock);
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev, 0);
 
 	err = hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_DISABLE);
 	if (err) {
@@ -685,7 +696,7 @@ static int hinic_vlan_rx_add_vid(struct net_device *netdev,
 	}
 
 	err = hinic_port_add_mac(nic_dev, netdev->dev_addr, vid);
-	if (err) {
+	if (err && err != HINIC_PF_SET_VF_ALREADY) {
 		netif_err(nic_dev, drv, netdev, "Failed to set mac\n");
 		goto err_add_mac;
 	}
@@ -736,8 +747,6 @@ static void set_rx_mode(struct work_struct *work)
 {
 	struct hinic_rx_mode_work *rx_mode_work = work_to_rx_mode_work(work);
 	struct hinic_dev *nic_dev = rx_mode_work_to_nic_dev(rx_mode_work);
-
-	netif_info(nic_dev, drv, nic_dev->netdev, "set rx mode work\n");
 
 	hinic_port_set_rx_mode(nic_dev, rx_mode_work->rx_mode);
 
@@ -896,6 +905,10 @@ static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 		netif_info(nic_dev, drv, nic_dev->netdev, "HINIC_Link is DOWN\n");
 	}
 
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_notify_all_vfs_link_changed(nic_dev->hwdev,
+						  link_status->link);
+
 	ret_link_status = buf_out;
 	ret_link_status->status = 0;
 
@@ -969,7 +982,9 @@ static int nic_dev_init(struct pci_dev *pdev)
 	}
 
 	hinic_set_ethtool_ops(netdev);
+
 	netdev->netdev_ops = &hinic_netdev_ops;
+
 	netdev->max_mtu = ETH_MAX_MTU;
 
 	nic_dev = netdev_priv(netdev);
@@ -981,6 +996,8 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->rxqs = NULL;
 	nic_dev->tx_weight = tx_weight;
 	nic_dev->rx_weight = rx_weight;
+	nic_dev->sriov_info.hwdev = hwdev;
+	nic_dev->sriov_info.pdev = pdev;
 
 	sema_init(&nic_dev->mgmt_lock, 1);
 
@@ -1007,11 +1024,25 @@ static int nic_dev_init(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, netdev);
 
 	err = hinic_port_get_mac(nic_dev, netdev->dev_addr);
-	if (err)
-		dev_warn(&pdev->dev, "Failed to get mac address\n");
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get mac address\n");
+		goto err_get_mac;
+	}
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
+			dev_err(&pdev->dev, "Invalid MAC address\n");
+			err = -EIO;
+			goto err_add_mac;
+		}
+
+		dev_info(&pdev->dev, "Invalid MAC address %pM, using random\n",
+			 netdev->dev_addr);
+		eth_hw_addr_random(netdev);
+	}
 
 	err = hinic_port_add_mac(nic_dev, netdev->dev_addr, 0);
-	if (err) {
+	if (err && err != HINIC_PF_SET_VF_ALREADY) {
 		dev_err(&pdev->dev, "Failed to add mac\n");
 		goto err_add_mac;
 	}
@@ -1053,6 +1084,7 @@ err_set_features:
 	cancel_work_sync(&rx_mode_work->work);
 
 err_set_mtu:
+err_get_mac:
 err_add_mac:
 	pci_set_drvdata(pdev, NULL);
 	destroy_workqueue(nic_dev->workq);
@@ -1126,11 +1158,36 @@ err_pci_regions:
 	return err;
 }
 
+#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
+
+static void wait_sriov_cfg_complete(struct hinic_dev *nic_dev)
+{
+	struct hinic_sriov_info *sriov_info = &nic_dev->sriov_info;
+	u32 loop_cnt = 0;
+
+	set_bit(HINIC_FUNC_REMOVE, &sriov_info->state);
+	usleep_range(9900, 10000);
+
+	while (loop_cnt < HINIC_WAIT_SRIOV_CFG_TIMEOUT) {
+		if (!test_bit(HINIC_SRIOV_ENABLE, &sriov_info->state) &&
+		    !test_bit(HINIC_SRIOV_DISABLE, &sriov_info->state))
+			return;
+
+		usleep_range(9900, 10000);
+		loop_cnt++;
+	}
+}
+
 static void hinic_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_rx_mode_work *rx_mode_work;
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
+		wait_sriov_cfg_complete(nic_dev);
+		hinic_pci_sriov_disable(pdev);
+	}
 
 	unregister_netdev(netdev);
 
@@ -1143,6 +1200,8 @@ static void hinic_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 
 	destroy_workqueue(nic_dev->workq);
+
+	hinic_vf_func_free(nic_dev->hwdev);
 
 	hinic_free_hwdev(nic_dev->hwdev);
 
@@ -1164,6 +1223,7 @@ static const struct pci_device_id hinic_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_100GE), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_100GE_MEZZ), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_QUAD_PORT_25GE_MEZZ), 0},
+	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_VF), 0},
 	{ 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, hinic_pci_table);
@@ -1174,6 +1234,7 @@ static struct pci_driver hinic_driver = {
 	.probe          = hinic_probe,
 	.remove         = hinic_remove,
 	.shutdown       = hinic_shutdown,
+	.sriov_configure = hinic_pci_sriov_configure,
 };
 
 module_pci_driver(hinic_driver);
