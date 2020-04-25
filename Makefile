@@ -1657,10 +1657,6 @@ _emodinst_post: _emodinst_
 clean-dirs := $(KBUILD_EXTMOD)
 clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps
 
-PHONY += /
-/:
-	@echo >&2 '"$(MAKE) /" is no longer supported. Please use "$(MAKE) ./" instead.'
-
 PHONY += help
 help:
 	@echo  '  Building external modules.'
