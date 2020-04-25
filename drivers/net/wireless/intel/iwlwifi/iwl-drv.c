@@ -85,7 +85,7 @@
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
+MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1774,7 +1774,6 @@ static int __init iwl_drv_init(void)
 		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
 
 	pr_info(DRV_DESCRIPTION "\n");
-	pr_info(DRV_COPYRIGHT "\n");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the root of iwlwifi debugfs subsystem. */
