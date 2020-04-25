@@ -25,7 +25,9 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 	int i;
 
 	read_lock(&op->volume->servers_lock);
-	op->server_list = afs_get_serverlist(op->volume->servers);
+	op->server_list = afs_get_serverlist(
+		rcu_dereference_protected(op->volume->servers,
+					  lockdep_is_held(&op->volume->servers_lock)));
 	read_unlock(&op->volume->servers_lock);
 
 	op->untried = (1UL << op->server_list->nr_servers) - 1;
@@ -173,7 +175,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			/* If the server list didn't change, then assume that
 			 * it's the fileserver having trouble.
 			 */
-			if (op->volume->servers == op->server_list) {
+			if (rcu_access_pointer(op->volume->servers) == op->server_list) {
 				op->error = -EREMOTEIO;
 				goto next_server;
 			}
@@ -263,7 +265,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 *
 			 * TODO: Retry a few times with sleeps.
 			 */
-			if (op->volume->servers == op->server_list) {
+			if (rcu_access_pointer(op->volume->servers) == op->server_list) {
 				op->error = -ENOMEDIUM;
 				goto failed;
 			}

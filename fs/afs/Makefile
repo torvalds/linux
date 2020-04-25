@@ -31,6 +31,7 @@ kafs-y := \
 	server_list.o \
 	super.o \
 	vlclient.o \
+	vl_alias.o \
 	vl_list.o \
 	vl_probe.o \
 	vl_rotate.o \

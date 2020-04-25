@@ -269,6 +269,7 @@ struct afs_net {
 	struct timer_list	cells_timer;
 	atomic_t		cells_outstanding;
 	seqlock_t		cells_lock;
+	struct mutex		cells_alias_lock;
 
 	struct mutex		proc_cells_lock;
 	struct hlist_head	proc_cells;
@@ -342,8 +343,10 @@ enum afs_cell_state {
  * for authentication and encryption.  The cell name is not typically used in
  * the protocol.
  *
- * There is no easy way to determine if two cells are aliases or one is a
- * subset of another.
+ * Two cells are determined to be aliases if they have an explicit alias (YFS
+ * only), share any VL servers in common or have at least one volume in common.
+ * "In common" means that the address list of the VL servers or the fileservers
+ * share at least one endpoint.
  */
 struct afs_cell {
 	union {
@@ -351,6 +354,8 @@ struct afs_cell {
 		struct rb_node	net_node;	/* Node in net->cells */
 	};
 	struct afs_net		*net;
+	struct afs_cell		*alias_of;	/* The cell this is an alias of */
+	struct afs_volume	*root_volume;	/* The root.cell volume if there is one */
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct work_struct	manager;	/* Manager for init/deinit/dns */
 	struct hlist_node	proc_link;	/* /proc cell list link */
@@ -363,6 +368,7 @@ struct afs_cell {
 	unsigned long		flags;
 #define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
 #define AFS_CELL_FL_DO_LOOKUP	1		/* DNS lookup requested */
+#define AFS_CELL_FL_CHECK_ALIAS	2		/* Need to check for aliases */
 	enum afs_cell_state	state;
 	short			error;
 	enum dns_record_source	dns_source:8;	/* Latest source of data from lookup */
@@ -584,7 +590,7 @@ struct afs_volume {
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
-	struct afs_server_list	*servers;	/* List of servers on which volume resides */
+	struct afs_server_list __rcu *servers;	/* List of servers on which volume resides */
 	rwlock_t		servers_lock;	/* Lock for ->servers */
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
 
@@ -1375,6 +1381,11 @@ extern struct afs_call *afs_vl_get_capabilities(struct afs_net *, struct afs_add
 						struct key *, struct afs_vlserver *, unsigned int);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
 extern char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *);
+
+/*
+ * vl_alias.c
+ */
+extern int afs_cell_detect_alias(struct afs_cell *, struct key *);
 
 /*
  * vl_probe.c

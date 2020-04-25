@@ -38,7 +38,7 @@ static int afs_proc_cells_show(struct seq_file *m, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		/* display header on line 1 */
-		seq_puts(m, "USE    TTL SV NAME\n");
+		seq_puts(m, "USE    TTL SV ST NAME\n");
 		return 0;
 	}
 
@@ -46,10 +46,11 @@ static int afs_proc_cells_show(struct seq_file *m, void *v)
 	vllist = rcu_dereference(cell->vl_servers);
 
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%3u %6lld %2u %s\n",
+	seq_printf(m, "%3u %6lld %2u %2u %s\n",
 		   atomic_read(&cell->usage),
 		   cell->dns_expiry - ktime_get_real_seconds(),
 		   vllist->nr_servers,
+		   cell->state,
 		   cell->name);
 	return 0;
 }

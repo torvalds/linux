@@ -1,0 +1,235 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/* AFS cell alias detection
+ *
+ * Copyright (C) 2020 Red Hat, Inc. All Rights Reserved.
+ * Written by David Howells (dhowells@redhat.com)
+ */
+
+#include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/namei.h>
+#include <keys/rxrpc-type.h>
+#include "internal.h"
+
+/*
+ * Sample a volume.
+ */
+static struct afs_volume *afs_sample_volume(struct afs_cell *cell, struct key *key,
+					    const char *name, unsigned int namelen)
+{
+	struct afs_volume *volume;
+	struct afs_fs_context fc = {
+		.type		= 0, /* Explicitly leave it to the VLDB */
+		.volnamesz	= namelen,
+		.volname	= name,
+		.net		= cell->net,
+		.cell		= cell,
+		.key		= key, /* This might need to be something */
+	};
+
+	volume = afs_create_volume(&fc);
+	_leave(" = %px", volume);
+	return volume;
+}
+
+/*
+ * Compare two addresses.
+ */
+static int afs_compare_addrs(const struct sockaddr_rxrpc *srx_a,
+			     const struct sockaddr_rxrpc *srx_b)
+{
+	short port_a, port_b;
+	int addr_a, addr_b, diff;
+
+	diff = (short)srx_a->transport_type - (short)srx_b->transport_type;
+	if (diff)
+		goto out;
+
+	switch (srx_a->transport_type) {
+	case AF_INET: {
+		const struct sockaddr_in *a = &srx_a->transport.sin;
+		const struct sockaddr_in *b = &srx_b->transport.sin;
+		addr_a = ntohl(a->sin_addr.s_addr);
+		addr_b = ntohl(b->sin_addr.s_addr);
+		diff = addr_a - addr_b;
+		if (diff == 0) {
+			port_a = ntohs(a->sin_port);
+			port_b = ntohs(b->sin_port);
+			diff = port_a - port_b;
+		}
+		break;
+	}
+
+	case AF_INET6: {
+		const struct sockaddr_in6 *a = &srx_a->transport.sin6;
+		const struct sockaddr_in6 *b = &srx_b->transport.sin6;
+		diff = memcmp(&a->sin6_addr, &b->sin6_addr, 16);
+		if (diff == 0) {
+			port_a = ntohs(a->sin6_port);
+			port_b = ntohs(b->sin6_port);
+			diff = port_a - port_b;
+		}
+		break;
+	}
+
+	default:
+		BUG();
+	}
+
+out:
+	return diff;
+}
+
+/*
+ * Compare the address lists of a pair of fileservers.
+ */
+static int afs_compare_fs_alists(const struct afs_server *server_a,
+				 const struct afs_server *server_b)
+{
+	const struct afs_addr_list *la, *lb;
+	int a = 0, b = 0, addr_matches = 0;
+
+	la = rcu_dereference(server_a->addresses);
+	lb = rcu_dereference(server_b->addresses);
+
+	while (a < la->nr_addrs && b < lb->nr_addrs) {
+		const struct sockaddr_rxrpc *srx_a = &la->addrs[a];
+		const struct sockaddr_rxrpc *srx_b = &lb->addrs[b];
+		int diff = afs_compare_addrs(srx_a, srx_b);
+
+		if (diff < 0) {
+			a++;
+		} else if (diff > 0) {
+			b++;
+		} else {
+			addr_matches++;
+			a++;
+			b++;
+		}
+	}
+
+	return addr_matches;
+}
+
+/*
+ * Compare the fileserver lists of two volumes.  The server lists are sorted in
+ * order of ascending UUID.
+ */
+static int afs_compare_volume_slists(const struct afs_volume *vol_a,
+				     const struct afs_volume *vol_b)
+{
+	const struct afs_server_list *la, *lb;
+	int i, a = 0, b = 0, uuid_matches = 0, addr_matches = 0;
+
+	la = rcu_dereference(vol_a->servers);
+	lb = rcu_dereference(vol_b->servers);
+
+	for (i = 0; i < AFS_MAXTYPES; i++)
+		if (la->vids[i] != lb->vids[i])
+			return 0;
+
+	while (a < la->nr_servers && b < lb->nr_servers) {
+		const struct afs_server *server_a = la->servers[a].server;
+		const struct afs_server *server_b = lb->servers[b].server;
+		int diff = memcmp(&server_a->uuid, &server_b->uuid, sizeof(uuid_t));
+
+		if (diff < 0) {
+			a++;
+		} else if (diff > 0) {
+			b++;
+		} else {
+			uuid_matches++;
+			addr_matches += afs_compare_fs_alists(server_a, server_b);
+			a++;
+			b++;
+		}
+	}
+
+	_leave(" = %d [um %d]", addr_matches, uuid_matches);
+	return addr_matches;
+}
+
+/*
+ * Compare root.cell volumes.
+ */
+static int afs_compare_cell_roots(struct afs_cell *cell)
+{
+	struct afs_cell *p;
+
+	_enter("");
+
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(p, &cell->net->proc_cells, proc_link) {
+		if (p == cell || p->alias_of)
+			continue;
+		if (!p->root_volume)
+			continue; /* Ignore cells that don't have a root.cell volume. */
+
+		if (afs_compare_volume_slists(cell->root_volume, p->root_volume) != 0)
+			goto is_alias;
+	}
+
+	rcu_read_unlock();
+	_leave(" = 0");
+	return 0;
+
+is_alias:
+	rcu_read_unlock();
+	cell->alias_of = afs_get_cell(p);
+	return 1;
+}
+
+static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
+{
+	struct afs_volume *root_volume;
+
+	_enter("%s", cell->name);
+
+	/* Try and get the root.cell volume for comparison with other cells */
+	root_volume = afs_sample_volume(cell, key, "root.cell", 9);
+	if (!IS_ERR(root_volume)) {
+		cell->root_volume = root_volume;
+		return afs_compare_cell_roots(cell);
+	}
+
+	if (PTR_ERR(root_volume) != -ENOMEDIUM)
+		return PTR_ERR(root_volume);
+
+	/* Okay, this cell doesn't have an root.cell volume.  We need to
+	 * locate some other random volume and use that to check.
+	 */
+	return -ENOMEDIUM;
+}
+
+/*
+ * Check to see if a new cell is an alias of a cell we already have.  At this
+ * point we have the cell's volume server list.
+ *
+ * Returns 0 if we didn't detect an alias, 1 if we found an alias and an error
+ * if we had problems gathering the data required.  In the case the we did
+ * detect an alias, cell->alias_of is set to point to the assumed master.
+ */
+int afs_cell_detect_alias(struct afs_cell *cell, struct key *key)
+{
+	struct afs_net *net = cell->net;
+	int ret;
+
+	if (mutex_lock_interruptible(&net->cells_alias_lock) < 0)
+		return -ERESTARTSYS;
+
+	if (test_bit(AFS_CELL_FL_CHECK_ALIAS, &cell->flags)) {
+		ret = afs_do_cell_detect_alias(cell, key);
+		if (ret >= 0)
+			clear_bit_unlock(AFS_CELL_FL_CHECK_ALIAS, &cell->flags);
+	} else {
+		ret = cell->alias_of ? 1 : 0;
+	}
+
+	mutex_unlock(&net->cells_alias_lock);
+
+	if (ret == 1)
+		pr_notice("kAFS: Cell %s is an alias of %s\n",
+			  cell->name, cell->alias_of->name);
+	return ret;
+}

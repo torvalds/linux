@@ -352,7 +352,9 @@ static int afs_validate_fc(struct fs_context *fc)
 {
 	struct afs_fs_context *ctx = fc->fs_private;
 	struct afs_volume *volume;
+	struct afs_cell *cell;
 	struct key *key;
+	int ret;
 
 	if (!ctx->dyn_root) {
 		if (ctx->no_cell) {
@@ -365,6 +367,7 @@ static int afs_validate_fc(struct fs_context *fc)
 			return -EDESTADDRREQ;
 		}
 
+	reget_key:
 		/* We try to do the mount securely. */
 		key = afs_request_key(ctx->cell);
 		if (IS_ERR(key))
@@ -375,6 +378,21 @@ static int afs_validate_fc(struct fs_context *fc)
 		if (ctx->volume) {
 			afs_put_volume(ctx->net, ctx->volume);
 			ctx->volume = NULL;
+		}
+
+		if (test_bit(AFS_CELL_FL_CHECK_ALIAS, &ctx->cell->flags)) {
+			ret = afs_cell_detect_alias(ctx->cell, key);
+			if (ret < 0)
+				return ret;
+			if (ret == 1) {
+				_debug("switch to alias");
+				key_put(ctx->key);
+				ctx->key = NULL;
+				cell = afs_get_cell(ctx->cell->alias_of);
+				afs_put_cell(ctx->net, ctx->cell);
+				ctx->cell = cell;
+				goto reget_key;
+			}
 		}
 
 		volume = afs_create_volume(ctx);
@@ -518,7 +536,8 @@ static void afs_kill_super(struct super_block *sb)
 	 * deactivating the superblock.
 	 */
 	if (as->volume)
-		afs_clear_callback_interests(net, as->volume->servers);
+		afs_clear_callback_interests(
+			net, rcu_access_pointer(as->volume->servers));
 	kill_anon_super(sb);
 	if (as->volume)
 		afs_deactivate_volume(as->volume);

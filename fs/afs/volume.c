@@ -51,7 +51,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	}
 
 	refcount_set(&slist->usage, 1);
-	volume->servers = slist;
+	rcu_assign_pointer(volume->servers, slist);
 	return volume;
 
 error_1:
@@ -156,7 +156,7 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 	ASSERTCMP(volume->cache, ==, NULL);
 #endif
 
-	afs_put_serverlist(net, volume->servers);
+	afs_put_serverlist(net, rcu_access_pointer(volume->servers));
 	afs_put_cell(net, volume->cell);
 	kfree(volume);
 
@@ -256,10 +256,11 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 	write_lock(&volume->servers_lock);
 
 	discard = new;
-	old = volume->servers;
+	old = rcu_dereference_protected(volume->servers,
+					lockdep_is_held(&volume->servers_lock));
 	if (afs_annotate_server_list(new, old)) {
 		new->seq = volume->servers_seq + 1;
-		volume->servers = new;
+		rcu_assign_pointer(volume->servers, new);
 		smp_wmb();
 		volume->servers_seq++;
 		discard = old;
