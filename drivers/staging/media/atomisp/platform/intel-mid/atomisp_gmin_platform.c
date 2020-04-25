@@ -269,6 +269,15 @@ static struct gmin_cfg_var i8880_vars[] = {
 	{},
 };
 
+static struct gmin_cfg_var asus_vars[] = {
+	{"OVTI2680:00_CsiPort", "1"},
+	{"OVTI2680:00_CsiLanes", "1"},
+	{"OVTI2680:00_CsiFmt", "15"},
+	{"OVTI2680:00_CsiBayer", "0"},
+	{"OVTI2680:00_CamClk", "0"},
+	{},
+};
+
 static const struct dmi_system_id gmin_vars[] = {
 	{
 		.ident = "BYT-T FFD8",
@@ -305,6 +314,13 @@ static const struct dmi_system_id gmin_vars[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "VTA0803"),
 		},
 		.driver_data = i8880_vars,
+	},
+	{
+		.ident = "T101HA",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "T101HA"),
+		},
+		.driver_data = asus_vars,
 	},
 	{}
 };
