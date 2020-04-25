@@ -1400,7 +1400,17 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 		if (tid == IEEE80211_NUM_TIDS)
 			tid = IWL_MAX_TID_COUNT;
 
-		iwl_mvm_sta_alloc_queue(mvm, txq->sta, txq->ac, tid);
+		/*
+		 * We can't really do much here, but if this fails we can't
+		 * transmit anyway - so just don't transmit the frame etc.
+		 * and let them back up ... we've tried our best to allocate
+		 * a queue in the function itself.
+		 */
+		if (iwl_mvm_sta_alloc_queue(mvm, txq->sta, txq->ac, tid)) {
+			list_del_init(&mvmtxq->list);
+			continue;
+		}
+
 		list_del_init(&mvmtxq->list);
 		local_bh_disable();
 		iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
