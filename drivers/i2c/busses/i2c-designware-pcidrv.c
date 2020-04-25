@@ -46,19 +46,13 @@ struct dw_scl_sda_cfg {
 
 struct dw_pci_controller {
 	u32 bus_num;
-	u32 bus_cfg;
 	u32 tx_fifo_depth;
 	u32 rx_fifo_depth;
 	u32 clk_khz;
-	u32 functionality;
 	u32 flags;
 	struct dw_scl_sda_cfg *scl_sda_cfg;
 	int (*setup)(struct pci_dev *pdev, struct dw_pci_controller *c);
 };
-
-#define INTEL_MID_STD_CFG  (DW_IC_CON_MASTER |			\
-				DW_IC_CON_SLAVE_DISABLE |	\
-				DW_IC_CON_RESTART_EN)
 
 /* Merrifield HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg mrfld_config = {
@@ -88,10 +82,11 @@ static struct dw_scl_sda_cfg hsw_config = {
 
 static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 {
+	struct dw_i2c_dev *dev = dev_get_drvdata(&pdev->dev);
+
 	switch (pdev->device) {
 	case 0x0817:
-		c->bus_cfg &= ~DW_IC_CON_SPEED_MASK;
-		c->bus_cfg |= DW_IC_CON_SPEED_STD;
+		dev->timings.bus_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
 		/* fall through */
 	case 0x0818:
 	case 0x0819:
@@ -128,53 +123,41 @@ static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 static struct dw_pci_controller dw_pci_controllers[] = {
 	[medfield] = {
 		.bus_num = -1,
-		.bus_cfg   = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.clk_khz      = 25000,
 		.setup = mfld_setup,
 	},
 	[merrifield] = {
 		.bus_num = -1,
-		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 64,
 		.rx_fifo_depth = 64,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &mrfld_config,
 		.setup = mrfld_setup,
 	},
 	[baytrail] = {
 		.bus_num = -1,
-		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &byt_config,
 	},
 	[haswell] = {
 		.bus_num = -1,
-		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &hsw_config,
 	},
 	[cherrytrail] = {
 		.bus_num = -1,
-		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.flags = MODEL_CHERRYTRAIL,
 		.scl_sda_cfg = &byt_config,
 	},
 	[elkhartlake] = {
 		.bus_num = -1,
-		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
-		.functionality = I2C_FUNC_10BIT_ADDR,
 		.clk_khz = 100000,
 	},
 };
@@ -250,13 +233,15 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	if (r < 0)
 		return r;
 
-	dev->clk = NULL;
 	dev->controller = controller;
 	dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
+	dev->timings.bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
 	dev->irq = pci_irq_vector(pdev, 0);
 	dev->flags |= controller->flags;
+
+	pci_set_drvdata(pdev, dev);
 
 	if (controller->setup) {
 		r = controller->setup(pdev, controller);
@@ -266,10 +251,8 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
-	dev->functionality = controller->functionality |
-				DW_IC_DEFAULT_FUNCTIONALITY;
+	i2c_dw_configure_master(dev);
 
-	dev->master_cfg = controller->bus_cfg;
 	if (controller->scl_sda_cfg) {
 		cfg = controller->scl_sda_cfg;
 		dev->ss_hcnt = cfg->ss_hcnt;
@@ -278,8 +261,6 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		dev->fs_lcnt = cfg->fs_lcnt;
 		dev->sda_hold_time = cfg->sda_hold;
 	}
-
-	pci_set_drvdata(pdev, dev);
 
 	dev->tx_fifo_depth = controller->tx_fifo_depth;
 	dev->rx_fifo_depth = controller->rx_fifo_depth;
