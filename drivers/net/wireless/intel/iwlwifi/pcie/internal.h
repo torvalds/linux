@@ -556,6 +556,7 @@ struct iwl_trans_pcie {
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
 	struct iwl_dma_ptr kw;
+	struct dma_pool *bc_pool;
 
 	struct iwl_txq *txq_memory;
 	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];

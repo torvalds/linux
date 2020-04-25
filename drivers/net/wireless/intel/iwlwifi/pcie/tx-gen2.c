@@ -1224,7 +1224,9 @@ void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
 	}
 
 	kfree(txq->entries);
-	iwl_pcie_free_dma_ptr(trans, &txq->bc_tbl);
+	if (txq->bc_tbl.addr)
+		dma_pool_free(trans_pcie->bc_pool, txq->bc_tbl.addr,
+			      txq->bc_tbl.dma);
 	kfree(txq);
 }
 
@@ -1272,6 +1274,7 @@ int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
 				     struct iwl_txq **intxq, int size,
 				     unsigned int timeout)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t bc_tbl_size, bc_tbl_entries;
 	struct iwl_txq *txq;
 	int ret;
@@ -1290,8 +1293,10 @@ int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
 		return -ENOMEM;
-	ret = iwl_pcie_alloc_dma_ptr(trans, &txq->bc_tbl, bc_tbl_size);
-	if (ret) {
+
+	txq->bc_tbl.addr = dma_pool_alloc(trans_pcie->bc_pool, GFP_KERNEL,
+					  &txq->bc_tbl.dma);
+	if (!txq->bc_tbl.addr) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
 		kfree(txq);
 		return -ENOMEM;
