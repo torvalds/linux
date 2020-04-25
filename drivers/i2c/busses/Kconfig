@@ -527,6 +527,16 @@ config I2C_DAVINCI
 config I2C_DESIGNWARE_CORE
 	tristate
 
+config I2C_DESIGNWARE_SLAVE
+	bool "Synopsys DesignWare Slave"
+	select I2C_SLAVE
+	help
+	  If you say yes to this option, support will be included for the
+	  Synopsys DesignWare I2C slave adapter.
+
+	  This is not a standalone module, this module compiles together with
+	  i2c-designware-core.
+
 config I2C_DESIGNWARE_PLATFORM
 	tristate "Synopsys DesignWare Platform"
 	select I2C_DESIGNWARE_CORE
@@ -537,17 +547,6 @@ config I2C_DESIGNWARE_PLATFORM
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
-
-config I2C_DESIGNWARE_SLAVE
-	bool "Synopsys DesignWare Slave"
-	select I2C_SLAVE
-	depends on I2C_DESIGNWARE_PLATFORM
-	help
-	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C slave adapter.
-
-	  This is not a standalone module, this module compiles together with
-	  i2c-designware-core.
 
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
