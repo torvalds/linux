@@ -38,7 +38,6 @@ properties:
         allOf:
           - $ref: regulator.yaml#
 
-      additionalProperties: false
     additionalProperties: false
 
 required:
