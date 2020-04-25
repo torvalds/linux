@@ -2210,9 +2210,14 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			rc = do_chaninfo_ioctl(dev, &it);
 		break;
 	}
-	case COMEDI_RANGEINFO:
-		rc = do_rangeinfo_ioctl(dev, (void __user *)arg);
+	case COMEDI_RANGEINFO: {
+		struct comedi_rangeinfo it;
+		if (copy_from_user(&it, (void __user *)arg, sizeof(it)))
+			rc = -EFAULT;
+		else
+			rc = do_rangeinfo_ioctl(dev, &it);
 		break;
+	}
 	case COMEDI_BUFINFO:
 		rc = do_bufinfo_ioctl(dev,
 				      (struct comedi_bufinfo __user *)arg,
@@ -2900,32 +2905,22 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_RANGEINFO ioctl. */
 static int compat_rangeinfo(struct file *file, unsigned long arg)
 {
-	struct comedi_rangeinfo __user *rangeinfo;
-	struct comedi32_rangeinfo_struct __user *rangeinfo32;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi32_rangeinfo_struct rangeinfo32;
+	struct comedi_rangeinfo rangeinfo;
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
 
-	rangeinfo32 = compat_ptr(arg);
-	rangeinfo = compat_alloc_user_space(sizeof(*rangeinfo));
-
-	/* Copy rangeinfo structure. */
-	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32)) ||
-	    !access_ok(rangeinfo, sizeof(*rangeinfo)))
+	if (copy_from_user(&rangeinfo32, compat_ptr(arg), sizeof(rangeinfo32)))
 		return -EFAULT;
+	memset(&rangeinfo, 0, sizeof(rangeinfo));
+	rangeinfo.range_type = rangeinfo32.range_type;
+	rangeinfo.range_ptr = compat_ptr(rangeinfo32.range_ptr);
 
-	err = 0;
-	err |= __get_user(temp.uint, &rangeinfo32->range_type);
-	err |= __put_user(temp.uint, &rangeinfo->range_type);
-	err |= __get_user(temp.uptr, &rangeinfo32->range_ptr);
-	err |= __put_user(compat_ptr(temp.uptr), &rangeinfo->range_ptr);
-	if (err)
-		return -EFAULT;
-
-	return comedi_unlocked_ioctl(file, COMEDI_RANGEINFO,
-				(unsigned long)rangeinfo);
+	mutex_lock(&dev->mutex);
+	err = do_rangeinfo_ioctl(dev, &rangeinfo);
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
