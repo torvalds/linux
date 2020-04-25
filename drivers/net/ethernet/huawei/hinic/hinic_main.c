@@ -779,8 +779,26 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 static void hinic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 sw_pi, hw_ci, sw_ci;
+	struct hinic_sq *sq;
+	u16 num_sqs, q_id;
+
+	num_sqs = hinic_hwdev_num_qps(nic_dev->hwdev);
 
 	netif_err(nic_dev, drv, netdev, "Tx timeout\n");
+
+	for (q_id = 0; q_id < num_sqs; q_id++) {
+		if (!netif_xmit_stopped(netdev_get_tx_queue(netdev, q_id)))
+			continue;
+
+		sq = hinic_hwdev_get_sq(nic_dev->hwdev, q_id);
+		sw_pi = atomic_read(&sq->wq->prod_idx) & sq->wq->mask;
+		hw_ci = be16_to_cpu(*(u16 *)(sq->hw_ci_addr)) & sq->wq->mask;
+		sw_ci = atomic_read(&sq->wq->cons_idx) & sq->wq->mask;
+		netif_err(nic_dev, drv, netdev, "Txq%d: sw_pi: %d, hw_ci: %d, sw_ci: %d, napi->state: 0x%lx\n",
+			  q_id, sw_pi, hw_ci, sw_ci,
+			  nic_dev->txqs[q_id].napi.state);
+	}
 }
 
 static void hinic_get_stats64(struct net_device *netdev,
@@ -833,6 +851,26 @@ static netdev_features_t hinic_fix_features(struct net_device *netdev,
 }
 
 static const struct net_device_ops hinic_netdev_ops = {
+	.ndo_open = hinic_open,
+	.ndo_stop = hinic_close,
+	.ndo_change_mtu = hinic_change_mtu,
+	.ndo_set_mac_address = hinic_set_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_vlan_rx_add_vid = hinic_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = hinic_vlan_rx_kill_vid,
+	.ndo_set_rx_mode = hinic_set_rx_mode,
+	.ndo_start_xmit = hinic_xmit_frame,
+	.ndo_tx_timeout = hinic_tx_timeout,
+	.ndo_get_stats64 = hinic_get_stats64,
+	.ndo_fix_features = hinic_fix_features,
+	.ndo_set_features = hinic_set_features,
+	.ndo_set_vf_mac	= hinic_ndo_set_vf_mac,
+	.ndo_set_vf_vlan = hinic_ndo_set_vf_vlan,
+	.ndo_get_vf_config = hinic_ndo_get_vf_config,
+	.ndo_set_vf_trust = hinic_ndo_set_vf_trust,
+};
+
+static const struct net_device_ops hinicvf_netdev_ops = {
 	.ndo_open = hinic_open,
 	.ndo_stop = hinic_close,
 	.ndo_change_mtu = hinic_change_mtu,
@@ -983,7 +1021,10 @@ static int nic_dev_init(struct pci_dev *pdev)
 
 	hinic_set_ethtool_ops(netdev);
 
-	netdev->netdev_ops = &hinic_netdev_ops;
+	if (!HINIC_IS_VF(hwdev->hwif))
+		netdev->netdev_ops = &hinic_netdev_ops;
+	else
+		netdev->netdev_ops = &hinicvf_netdev_ops;
 
 	netdev->max_mtu = ETH_MAX_MTU;
 

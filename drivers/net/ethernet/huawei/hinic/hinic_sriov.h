@@ -52,6 +52,19 @@ struct hinic_register_vf {
 	u8	rsvd0[6];
 };
 
+struct hinic_port_mac_update {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	vlan_id;
+	u16	rsvd1;
+	u8	old_mac[ETH_ALEN];
+	u16	rsvd2;
+	u8	new_mac[ETH_ALEN];
+};
+
 struct hinic_vf_vlan_config {
 	u8 status;
 	u8 version;
@@ -62,6 +75,16 @@ struct hinic_vf_vlan_config {
 	u8  qos;
 	u8  rsvd1[7];
 };
+
+int hinic_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac);
+
+int hinic_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
+			  __be16 vlan_proto);
+
+int hinic_ndo_get_vf_config(struct net_device *netdev,
+			    int vf, struct ifla_vf_info *ivi);
+
+int hinic_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting);
 
 void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 				       u8 link_status);
