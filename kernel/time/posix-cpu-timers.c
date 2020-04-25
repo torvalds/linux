@@ -81,36 +81,36 @@ static struct task_struct *lookup_task(const pid_t pid, bool thread,
 }
 
 static struct task_struct *__get_task_for_clock(const clockid_t clock,
-						bool getref, bool gettime)
+						bool gettime)
 {
 	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
 	const pid_t pid = CPUCLOCK_PID(clock);
-	struct task_struct *p;
 
 	if (CPUCLOCK_WHICH(clock) >= CPUCLOCK_MAX)
 		return NULL;
 
-	rcu_read_lock();
-	p = lookup_task(pid, thread, gettime);
-	if (p && getref)
-		get_task_struct(p);
-	rcu_read_unlock();
-	return p;
+	return lookup_task(pid, thread, gettime);
 }
 
 static inline struct task_struct *get_task_for_clock(const clockid_t clock)
 {
-	return __get_task_for_clock(clock, true, false);
+	return __get_task_for_clock(clock, false);
 }
 
 static inline struct task_struct *get_task_for_clock_get(const clockid_t clock)
 {
-	return __get_task_for_clock(clock, true, true);
+	return __get_task_for_clock(clock, true);
 }
 
 static inline int validate_clock_permissions(const clockid_t clock)
 {
-	return __get_task_for_clock(clock, false, false) ? 0 : -EINVAL;
+	int ret;
+
+	rcu_read_lock();
+	ret = __get_task_for_clock(clock, false) ? 0 : -EINVAL;
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline enum pid_type cpu_timer_pid_type(struct k_itimer *timer)
@@ -368,15 +368,18 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 	struct task_struct *tsk;
 	u64 t;
 
+	rcu_read_lock();
 	tsk = get_task_for_clock_get(clock);
-	if (!tsk)
+	if (!tsk) {
+		rcu_read_unlock();
 		return -EINVAL;
+	}
 
 	if (CPUCLOCK_PERTHREAD(clock))
 		t = cpu_clock_sample(clkid, tsk);
 	else
 		t = cpu_clock_sample_group(clkid, tsk, false);
-	put_task_struct(tsk);
+	rcu_read_unlock();
 
 	*tp = ns_to_timespec64(t);
 	return 0;
@@ -389,19 +392,19 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
  */
 static int posix_cpu_timer_create(struct k_itimer *new_timer)
 {
-	struct task_struct *p = get_task_for_clock(new_timer->it_clock);
+	struct task_struct *p;
 
-	if (!p)
+	rcu_read_lock();
+	p = get_task_for_clock(new_timer->it_clock);
+	if (!p) {
+		rcu_read_unlock();
 		return -EINVAL;
+	}
 
 	new_timer->kclock = &clock_posix_cpu;
 	timerqueue_init(&new_timer->it.cpu.node);
 	new_timer->it.cpu.pid = get_task_pid(p, cpu_timer_pid_type(new_timer));
-	/*
-	 * get_task_for_clock() took a reference on @p. Drop it as the timer
-	 * holds a reference on the pid of @p.
-	 */
-	put_task_struct(p);
+	rcu_read_unlock();
 	return 0;
 }
 
