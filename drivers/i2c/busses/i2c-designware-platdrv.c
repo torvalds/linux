@@ -331,11 +331,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	if (dev->mode == DW_IC_SLAVE)
-		ret = i2c_dw_probe_slave(dev);
-	else
-		ret = i2c_dw_probe(dev);
-
+	ret = i2c_dw_probe(dev);
 	if (ret)
 		goto exit_probe;
 

@@ -315,7 +315,7 @@ static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
 void __i2c_dw_disable(struct dw_i2c_dev *dev);
 
 extern void i2c_dw_configure_master(struct dw_i2c_dev *dev);
-extern int i2c_dw_probe(struct dw_i2c_dev *dev);
+extern int i2c_dw_probe_master(struct dw_i2c_dev *dev);
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_SLAVE)
 extern void i2c_dw_configure_slave(struct dw_i2c_dev *dev);
@@ -324,6 +324,19 @@ extern int i2c_dw_probe_slave(struct dw_i2c_dev *dev);
 static inline void i2c_dw_configure_slave(struct dw_i2c_dev *dev) { }
 static inline int i2c_dw_probe_slave(struct dw_i2c_dev *dev) { return -EINVAL; }
 #endif
+
+static inline int i2c_dw_probe(struct dw_i2c_dev *dev)
+{
+	switch (dev->mode) {
+	case DW_IC_SLAVE:
+		return i2c_dw_probe_slave(dev);
+	case DW_IC_MASTER:
+		return i2c_dw_probe_master(dev);
+	default:
+		dev_err(dev->dev, "Wrong operation mode: %d\n", dev->mode);
+		return -EINVAL;
+	}
+}
 
 static inline void i2c_dw_configure(struct dw_i2c_dev *dev)
 {
