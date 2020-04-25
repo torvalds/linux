@@ -125,8 +125,8 @@ config EFI_ARMSTUB_DTB_LOADER
 	  this option is necessary.
 
 config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
-	bool "Enable the command line initrd loader"
-	depends on EFI_GENERIC_STUB
+	bool "Enable the command line initrd loader" if !X86
+	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
 	default y
 	help
 	  Select this config option to add support for the initrd= command
