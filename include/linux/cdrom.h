@@ -94,6 +94,9 @@ struct cdrom_device_ops {
 			       struct packet_command *);
 };
 
+int cdrom_read_tocentry(struct cdrom_device_info *cdi,
+		struct cdrom_tocentry *entry);
+
 /* the general block_device operations structure: */
 extern int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
 			fmode_t mode);
