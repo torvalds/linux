@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1272,17 +1272,25 @@ int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
 				     struct iwl_txq **intxq, int size,
 				     unsigned int timeout)
 {
+	size_t bc_tbl_size, bc_tbl_entries;
+	struct iwl_txq *txq;
 	int ret;
 
-	struct iwl_txq *txq;
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
+		bc_tbl_entries = bc_tbl_size / sizeof(u16);
+	} else {
+		bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
+		bc_tbl_entries = bc_tbl_size / sizeof(u16);
+	}
+
+	if (WARN_ON(size > bc_tbl_entries))
+		return -EINVAL;
+
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
 		return -ENOMEM;
-	ret = iwl_pcie_alloc_dma_ptr(trans, &txq->bc_tbl,
-				     (trans->trans_cfg->device_family >=
-				      IWL_DEVICE_FAMILY_AX210) ?
-				     sizeof(struct iwl_gen3_bc_tbl) :
-				     sizeof(struct iwlagn_scd_bc_tbl));
+	ret = iwl_pcie_alloc_dma_ptr(trans, &txq->bc_tbl, bc_tbl_size);
 	if (ret) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
 		kfree(txq);
