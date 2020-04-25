@@ -538,26 +538,19 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 
 static u8 vnt_rf_addpower(struct vnt_private *priv)
 {
+	int base;
 	s32 rssi = -priv->current_rssi;
 
 	if (!rssi)
 		return 7;
 
-	if (priv->rf_type == RF_VT3226D0) {
-		if (rssi < -70)
-			return 9;
-		else if (rssi < -65)
-			return 7;
-		else if (rssi < -60)
-			return 5;
-	} else {
-		if (rssi < -80)
-			return 9;
-		else if (rssi < -75)
-			return 7;
-		else if (rssi < -70)
-			return 5;
-	}
+	if (priv->rf_type == RF_VT3226D0)
+		base = -60;
+	else
+		base = -70;
+
+	if (rssi < base)
+		return ((rssi - base + 1) / -5) * 2 + 5;
 
 	return 0;
 }
