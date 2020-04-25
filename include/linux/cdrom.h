@@ -94,6 +94,8 @@ struct cdrom_device_ops {
 			       struct packet_command *);
 };
 
+int cdrom_multisession(struct cdrom_device_info *cdi,
+		struct cdrom_multisession *info);
 int cdrom_read_tocentry(struct cdrom_device_info *cdi,
 		struct cdrom_tocentry *entry);
 
