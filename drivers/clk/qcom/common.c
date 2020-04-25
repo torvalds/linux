@@ -272,6 +272,10 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
+	ret = clk_vdd_proxy_vote(&pdev->dev, desc);
+	if (ret)
+		return ret;
+
 	if (desc->num_resets) {
 		ret = devm_reset_controller_register(dev, &reset->rcdev);
 		if (ret)
@@ -363,6 +367,8 @@ void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
 {
 	dev_info(dev, "sync-state\n");
 	clk_sync_state(dev);
+
+	clk_vdd_proxy_unvote(dev, desc);
 }
 EXPORT_SYMBOL(qcom_cc_sync_state);
 

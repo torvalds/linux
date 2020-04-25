@@ -200,3 +200,41 @@ int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
 	return 0;
 }
 
+int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc)
+{
+	struct clk_vdd_class_data vdd_data;
+	struct clk_vdd_class *vdd_class;
+	u32 i;
+	int ret = 0;
+
+	for (i = 0; i < desc->num_clk_regulators; i++) {
+		vdd_data.vdd_class = vdd_class = desc->clk_regulators[i];
+
+		ret = clk_vote_vdd_level(&vdd_data,
+					 vdd_class->num_levels - 1);
+		if (ret)
+			WARN(ret, "%s failed, ret=%d\n", __func__, ret);
+	}
+
+	return ret;
+}
+
+int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc)
+{
+	struct clk_vdd_class_data vdd_data;
+	struct clk_vdd_class *vdd_class;
+	u32 i;
+	int ret = 0;
+
+	for (i = 0; i < desc->num_clk_regulators; i++) {
+		vdd_data.vdd_class = vdd_class = desc->clk_regulators[i];
+
+		ret = clk_unvote_vdd_level(&vdd_data,
+					   vdd_class->num_levels - 1);
+		if (ret)
+			WARN(ret, "clk_unvote_vdd_level failed ret=%d\n", ret);
+	}
+
+	return ret;
+}
+
