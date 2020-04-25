@@ -24,6 +24,7 @@ static struct var_t vars[] = {
 	{ PAUSE, .u.s = {"PAUSE\n"} },
 	{ RATE, .u.n = {"RATE %d\n", 8, 1, 16, 0, 0, NULL } },
 	{ PITCH, .u.n = {"PITCH %d\n", 8, 0, 16, 0, 0, NULL } },
+	{ INFLECTION, .u.n = {"INFLECTION %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ VOL, .u.n = {"VOL %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ TONE, .u.n = {"TONE %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
@@ -39,6 +40,8 @@ static struct kobj_attribute caps_stop_attribute =
 	__ATTR(caps_stop, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute inflection_attribute =
+	__ATTR(inflection, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
 	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
@@ -65,6 +68,7 @@ static struct attribute *synth_attrs[] = {
 	&caps_start_attribute.attr,
 	&caps_stop_attribute.attr,
 	&pitch_attribute.attr,
+	&inflection_attribute.attr,
 	&rate_attribute.attr,
 	&tone_attribute.attr,
 	&vol_attribute.attr,
