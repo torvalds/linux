@@ -2083,8 +2083,9 @@ static void tls_data_ready(struct sock *sk)
 	strp_data_ready(&ctx->strp);
 
 	psock = sk_psock_get(sk);
-	if (psock && !list_empty(&psock->ingress_msg)) {
-		ctx->saved_data_ready(sk);
+	if (psock) {
+		if (!list_empty(&psock->ingress_msg))
+			ctx->saved_data_ready(sk);
 		sk_psock_put(sk, psock);
 	}
 }
