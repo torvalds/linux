@@ -910,6 +910,12 @@ config SPI_ZYNQMP_GQSPI
 	help
 	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
 
+config SPI_AMD
+	tristate "AMD SPI controller"
+	depends on SPI_MASTER || COMPILE_TEST
+	help
+	  Enables SPI controller driver for AMD SoC.
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
