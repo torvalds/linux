@@ -383,10 +383,7 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 static void pca954x_cleanup(struct i2c_mux_core *muxc)
 {
 	struct pca954x *data = i2c_mux_priv(muxc);
-	struct i2c_client *client = data->client;
 	int c, irq;
-
-	device_remove_file(&client->dev, &dev_attr_idle_state);
 
 	if (data->irq) {
 		for (c = 0; c < data->chip->nchans; c++) {
@@ -530,6 +527,8 @@ fail_cleanup:
 static int pca954x_remove(struct i2c_client *client)
 {
 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+
+	device_remove_file(&client->dev, &dev_attr_idle_state);
 
 	pca954x_cleanup(muxc);
 	return 0;
