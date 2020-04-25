@@ -38,10 +38,8 @@ static __inline__ __wsum csum_and_copy_to_user
 {
 	sum = csum_partial(src, len, sum);
 
-	if (access_ok(dst, len)) {
-		if (copy_to_user(dst, src, len) == 0)
-			return sum;
-	}
+	if (copy_to_user(dst, src, len) == 0)
+		return sum;
 	if (len)
 		*err_ptr = -EFAULT;
 
