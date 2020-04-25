@@ -1049,31 +1049,28 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
  *	array of range table lengths to chaninfo->range_table_list if requested
  */
 static int do_chaninfo_ioctl(struct comedi_device *dev,
-			     struct comedi_chaninfo __user *arg)
+			     struct comedi_chaninfo *it)
 {
 	struct comedi_subdevice *s;
-	struct comedi_chaninfo it;
 
 	lockdep_assert_held(&dev->mutex);
-	if (copy_from_user(&it, arg, sizeof(it)))
-		return -EFAULT;
 
-	if (it.subdev >= dev->n_subdevices)
+	if (it->subdev >= dev->n_subdevices)
 		return -EINVAL;
-	s = &dev->subdevices[it.subdev];
+	s = &dev->subdevices[it->subdev];
 
-	if (it.maxdata_list) {
+	if (it->maxdata_list) {
 		if (s->maxdata || !s->maxdata_list)
 			return -EINVAL;
-		if (copy_to_user(it.maxdata_list, s->maxdata_list,
+		if (copy_to_user(it->maxdata_list, s->maxdata_list,
 				 s->n_chan * sizeof(unsigned int)))
 			return -EFAULT;
 	}
 
-	if (it.flaglist)
+	if (it->flaglist)
 		return -EINVAL;	/* flaglist not supported */
 
-	if (it.rangelist) {
+	if (it->rangelist) {
 		int i;
 
 		if (!s->range_table_list)
@@ -1081,9 +1078,9 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 		for (i = 0; i < s->n_chan; i++) {
 			int x;
 
-			x = (dev->minor << 28) | (it.subdev << 24) | (i << 16) |
+			x = (dev->minor << 28) | (it->subdev << 24) | (i << 16) |
 			    (s->range_table_list[i]->length);
-			if (put_user(x, it.rangelist + i))
+			if (put_user(x, it->rangelist + i))
 				return -EFAULT;
 		}
 	}
@@ -2205,9 +2202,14 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				       (struct comedi_subdinfo __user *)arg,
 				       file);
 		break;
-	case COMEDI_CHANINFO:
-		rc = do_chaninfo_ioctl(dev, (void __user *)arg);
+	case COMEDI_CHANINFO: {
+		struct comedi_chaninfo it;
+		if (copy_from_user(&it, (void __user *)arg, sizeof(it)))
+			rc = -EFAULT;
+		else
+			rc = do_chaninfo_ioctl(dev, &it);
 		break;
+	}
 	case COMEDI_RANGEINFO:
 		rc = do_rangeinfo_ioctl(dev, (void __user *)arg);
 		break;
@@ -2874,35 +2876,25 @@ struct comedi32_insnlist_struct {
 /* Handle 32-bit COMEDI_CHANINFO ioctl. */
 static int compat_chaninfo(struct file *file, unsigned long arg)
 {
-	struct comedi_chaninfo __user *chaninfo;
-	struct comedi32_chaninfo_struct __user *chaninfo32;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi32_chaninfo_struct chaninfo32;
+	struct comedi_chaninfo chaninfo;
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
 
-	chaninfo32 = compat_ptr(arg);
-	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
-
-	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(chaninfo32, sizeof(*chaninfo32)) ||
-	    !access_ok(chaninfo, sizeof(*chaninfo)))
+	if (copy_from_user(&chaninfo32, compat_ptr(arg), sizeof(chaninfo32)))
 		return -EFAULT;
 
-	err = 0;
-	err |= __get_user(temp.uint, &chaninfo32->subdev);
-	err |= __put_user(temp.uint, &chaninfo->subdev);
-	err |= __get_user(temp.uptr, &chaninfo32->maxdata_list);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->maxdata_list);
-	err |= __get_user(temp.uptr, &chaninfo32->flaglist);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->flaglist);
-	err |= __get_user(temp.uptr, &chaninfo32->rangelist);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->rangelist);
-	if (err)
-		return -EFAULT;
+	memset(&chaninfo, 0, sizeof(chaninfo));
+	chaninfo.subdev = chaninfo32.subdev;
+	chaninfo.maxdata_list = compat_ptr(chaninfo32.maxdata_list);
+	chaninfo.flaglist = compat_ptr(chaninfo32.flaglist);
+	chaninfo.rangelist = compat_ptr(chaninfo32.rangelist);
 
-	return comedi_unlocked_ioctl(file, COMEDI_CHANINFO, (unsigned long)chaninfo);
+	mutex_lock(&dev->mutex);
+	err = do_chaninfo_ioctl(dev, &chaninfo);
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
 /* Handle 32-bit COMEDI_RANGEINFO ioctl. */
