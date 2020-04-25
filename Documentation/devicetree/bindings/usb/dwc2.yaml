@@ -78,6 +78,9 @@ properties:
   phy-names:
     const: usb2-phy
 
+  power-domains:
+    maxItems: 1
+
   vbus-supply:
     description: reference to the VBUS regulator. Depending on the current mode
       this is enabled (in "host" mode") or disabled (in "peripheral" mode). The
