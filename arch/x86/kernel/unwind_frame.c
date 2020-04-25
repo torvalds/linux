@@ -344,6 +344,9 @@ bad_address:
 	if (IS_ENABLED(CONFIG_X86_32))
 		goto the_end;
 
+	if (state->task != current)
+		goto the_end;
+
 	if (state->regs) {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
