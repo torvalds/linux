@@ -246,7 +246,8 @@ static int mv3310_power_up(struct phy_device *phydev)
 	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
 				 MV_V2_PORT_CTRL_PWRDOWN);
 
-	if (priv->firmware_ver < 0x00030000)
+	if (phydev->drv->phy_id != MARVELL_PHY_ID_88X3310 ||
+	    priv->firmware_ver < 0x00030000)
 		return ret;
 
 	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
