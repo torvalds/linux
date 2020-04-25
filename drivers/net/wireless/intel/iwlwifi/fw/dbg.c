@@ -2760,7 +2760,7 @@ void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 				       struct iwl_fw_dbg_params *params,
 				       bool stop)
 {
-	int ret = 0;
+	int ret __maybe_unused = 0;
 
 	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status))
 		return;
