@@ -23,6 +23,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include "device.h"
 #include "mac.h"
@@ -367,21 +368,22 @@ int vnt_set_short_slot_time(struct vnt_private *priv)
 
 	ret = vnt_control_in_u8(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
 	if (ret)
-		goto end;
+		return ret;
 
 	if (bb_vga == priv->bb_vga[0])
 		priv->bb_rx_conf |= 0x20;
 
-	ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a,
-				 priv->bb_rx_conf);
-
-end:
-	return ret;
+	return vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a,
+				  priv->bb_rx_conf);
 }
 
-void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
+int vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 {
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
+	int ret;
+
+	ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
+	if (ret)
+		return ret;
 
 	/* patch for 3253B0 Baseband with Cardbus module */
 	if (priv->short_slot_time)
@@ -389,7 +391,8 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 	else
 		priv->bb_rx_conf |= 0x20; /* 0010 0000 */
 
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->bb_rx_conf);
+	return vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a,
+				  priv->bb_rx_conf);
 }
 
 /*
@@ -430,12 +433,13 @@ int vnt_exit_deep_sleep(struct vnt_private *priv)
 	return vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0x01);
 }
 
-void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
+int vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 {
 	const struct vnt_threshold *threshold = NULL;
 	u8 length;
 	u8 cr_201, cr_206;
 	u8 ed_inx;
+	int ret;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
@@ -458,7 +462,7 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	}
 
 	if (!threshold)
-		return;
+		return -EINVAL;
 
 	for (ed_inx = scanning ? 0 : length - 1; ed_inx > 0; ed_inx--) {
 		if (priv->bb_pre_ed_rssi <= threshold[ed_inx].bb_pre_ed_rssi)
@@ -469,14 +473,17 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	cr_206 = threshold[ed_inx].cr_206;
 
 	if (ed_inx == priv->bb_pre_ed_index && !scanning)
-		return;
+		return 0;
 
 	priv->bb_pre_ed_index = ed_inx;
 
 	dev_dbg(&priv->usb->dev, "%s bb_pre_ed_rssi %d\n",
 		__func__, priv->bb_pre_ed_rssi);
 
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xc9, cr_201);
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xce, cr_206);
+	ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xc9, cr_201);
+	if (ret)
+		return ret;
+
+	return vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xce, cr_206);
 }
 

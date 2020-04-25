@@ -27,6 +27,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/errno.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -55,10 +56,12 @@ static const u16 cw_rxbcntsf_off[MAX_RATE] = {
  *  Out:
  *      none
  */
-void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
+int vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
+	int ret;
+
 	if (connection_channel > CB_MAX_CHANNEL || !connection_channel)
-		return;
+		return -EINVAL;
 
 	/* clear NAV */
 	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
@@ -67,11 +70,13 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL,
 			     (BIT(7) | BIT(5) | BIT(4)));
 
-	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNEL,
-			connection_channel, 0, 0, NULL);
+	ret = vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNEL,
+			      connection_channel, 0, 0, NULL);
+	if (ret)
+		return ret;
 
-	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
-			   (u8)(connection_channel | 0x80));
+	return vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
+				  (u8)(connection_channel | 0x80));
 }
 
 static const u8 vnt_rspinf_b_short_table[] = {
@@ -107,10 +112,11 @@ static const u8 vnt_rspinf_gb_table[] = {
  *
  */
 
-void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
+int vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 {
 	const u8 *data;
 	u16 len;
+	int ret;
 
 	if (priv->preamble_type) {
 		data = vnt_rspinf_b_short_table;
@@ -121,8 +127,10 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	}
 
 	 /* RSPINF_b_1 to RSPINF_b_11 */
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_RSPINF_B_1,
-			MESSAGE_REQUEST_MACREG, len, data);
+	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_RSPINF_B_1,
+			      MESSAGE_REQUEST_MACREG, len, data);
+	if (ret)
+		return ret;
 
 	if (bb_type == BB_TYPE_11A) {
 		data = vnt_rspinf_a_table;
@@ -133,8 +141,8 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	}
 
 	/* RSPINF_a_6 to RSPINF_a_72 */
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_RSPINF_A_6,
-			MESSAGE_REQUEST_MACREG, len, data);
+	return vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_RSPINF_A_6,
+			       MESSAGE_REQUEST_MACREG, len, data);
 }
 
 /*
@@ -149,10 +157,11 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
  * Return Value: None.
  *
  */
-void vnt_update_ifs(struct vnt_private *priv)
+int vnt_update_ifs(struct vnt_private *priv)
 {
 	u8 max_min = 0;
 	u8 data[4];
+	int ret;
 
 	if (priv->packet_type == PK_TYPE_11A) {
 		priv->slot = C_SLOT_SHORT;
@@ -212,13 +221,15 @@ void vnt_update_ifs(struct vnt_private *priv)
 	data[2] = (u8)priv->eifs;
 	data[3] = (u8)priv->slot;
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
-			MESSAGE_REQUEST_MACREG, 4, &data[0]);
+	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
+			      MESSAGE_REQUEST_MACREG, 4, &data[0]);
+	if (ret)
+		return ret;
 
 	max_min |= 0xa0;
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
-			MESSAGE_REQUEST_MACREG, 1, &max_min);
+	return vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
+			       MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
 void vnt_update_top_rates(struct vnt_private *priv)
@@ -281,8 +292,8 @@ u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
  * Return Value: none
  *
  */
-void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
-		    u64 time_stamp, u64 local_tsf)
+int vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
+		   u64 time_stamp, u64 local_tsf)
 {
 	u64 tsf_offset = 0;
 	u8 data[8];
@@ -298,8 +309,8 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
 	data[6] = (u8)(tsf_offset >> 48);
 	data[7] = (u8)(tsf_offset >> 56);
 
-	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-			MESSAGE_REQUEST_TSF, 0, 8, data);
+	return vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
+			       MESSAGE_REQUEST_TSF, 0, 8, data);
 }
 
 /*
@@ -388,7 +399,7 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
  * Return Value: none
  *
  */
-void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
+int vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
 {
 	u64 next_tbtt = 0;
 	u8 data[8];
@@ -406,8 +417,8 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
 	data[6] = (u8)(next_tbtt >> 48);
 	data[7] = (u8)(next_tbtt >> 56);
 
-	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-			MESSAGE_REQUEST_TBTT, 0, 8, data);
+	return vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
+			       MESSAGE_REQUEST_TBTT, 0, 8, data);
 }
 
 /*
@@ -425,10 +436,11 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
  * Return Value: none
  *
  */
-void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
-			  u16 beacon_interval)
+int vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
+			 u16 beacon_interval)
 {
 	u8 data[8];
+	int ret;
 
 	tsf = vnt_get_next_tbtt(tsf, beacon_interval);
 
@@ -441,10 +453,13 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
 	data[6] = (u8)(tsf >> 48);
 	data[7] = (u8)(tsf >> 56);
 
-	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-			MESSAGE_REQUEST_TBTT, 0, 8, data);
+	ret = vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
+			      MESSAGE_REQUEST_TBTT, 0, 8, data);
+	if (ret)
+		return ret;
 
 	dev_dbg(&priv->usb->dev, "%s TBTT: %8llx\n", __func__, tsf);
+	return 0;
 }
 
 /*
@@ -533,8 +548,10 @@ int vnt_radio_power_on(struct vnt_private *priv)
 	return vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 }
 
-void vnt_set_bss_mode(struct vnt_private *priv)
+int vnt_set_bss_mode(struct vnt_private *priv)
 {
+	int ret = 0;
+
 	if (priv->rf_type == RF_AIROHA7230 && priv->bb_type == BB_TYPE_11A)
 		vnt_mac_set_bb_type(priv, BB_TYPE_11G);
 	else
@@ -543,11 +560,16 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 	priv->packet_type = vnt_get_pkt_type(priv);
 
 	if (priv->bb_type == BB_TYPE_11A)
-		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
+		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+					 0x88, 0x03);
 	else if (priv->bb_type == BB_TYPE_11B)
-		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
+		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+					 0x88, 0x02);
 	else if (priv->bb_type == BB_TYPE_11G)
-		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
+		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+					 0x88, 0x08);
+	if (ret)
+		return ret;
 
 	vnt_update_ifs(priv);
 	vnt_set_rspinf(priv, (u8)priv->bb_type);
@@ -556,8 +578,10 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 		if (priv->rf_type == RF_AIROHA7230) {
 			priv->bb_vga[0] = 0x20;
 
-			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					   0xe7, priv->bb_vga[0]);
+			ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+						 0xe7, priv->bb_vga[0]);
+			if (ret)
+				return ret;
 		}
 
 		priv->bb_vga[2] = 0x10;
@@ -566,8 +590,10 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 		if (priv->rf_type == RF_AIROHA7230) {
 			priv->bb_vga[0] = 0x1c;
 
-			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					   0xe7, priv->bb_vga[0]);
+			ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+						 0xe7, priv->bb_vga[0]);
+			if (ret)
+				return ret;
 		}
 
 		priv->bb_vga[2] = 0x0;
@@ -575,4 +601,5 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 	}
 
 	vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
+	return 0;
 }
