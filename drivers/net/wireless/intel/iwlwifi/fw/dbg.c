@@ -1958,6 +1958,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
 	u32 num_of_cfg_names = 0;
+	u32 hw_type;
 
 	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		size += sizeof(*cfg_name);
@@ -1986,7 +1987,26 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
 
 	dump->hw_step = cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
-	dump->hw_type = cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
+
+	/*
+	 * Several HWs all have type == 0x42, so we'll override this value
+	 * according to the detected HW
+	 */
+	hw_type = CSR_HW_REV_TYPE(fwrt->trans->hw_rev);
+	if (hw_type == IWL_AX210_HW_TYPE) {
+		u32 prph_val = iwl_read_prph(fwrt->trans, WFPM_OTP_CFG1_ADDR);
+		u32 is_jacket = !!(prph_val & WFPM_OTP_CFG1_IS_JACKET_BIT);
+		u32 is_cdb = !!(prph_val & WFPM_OTP_CFG1_IS_CDB_BIT);
+		u32 masked_bits = is_jacket | (is_cdb << 1);
+
+		/*
+		 * The HW type depends on certain bits in this case, so add
+		 * these bits to the HW type. We won't have collisions since we
+		 * add these bits after the highest possible bit in the mask.
+		 */
+		hw_type |= masked_bits << IWL_AX210_HW_TYPE_ADDITION_SHIFT;
+	}
+	dump->hw_type = cpu_to_le32(hw_type);
 
 	dump->rf_id_flavor =
 		cpu_to_le32(CSR_HW_RFID_FLAVOR(fwrt->trans->hw_rf_id));
