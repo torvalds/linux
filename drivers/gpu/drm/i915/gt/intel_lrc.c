@@ -2438,8 +2438,8 @@ done:
 		clear_ports(port + 1, last_port - port);
 
 		WRITE_ONCE(execlists->yield, -1);
-		execlists_submit_ports(engine);
 		set_preempt_timeout(engine, *active);
+		execlists_submit_ports(engine);
 	} else {
 skip_submit:
 		ring_set_paused(engine, 0);
