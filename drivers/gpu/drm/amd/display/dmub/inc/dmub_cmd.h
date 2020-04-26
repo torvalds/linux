@@ -262,6 +262,7 @@ struct dmub_cmd_abm_set_pipe_data {
 	uint32_t ramping_boundary;
 	uint32_t otg_inst;
 	uint32_t panel_inst;
+	uint32_t set_pipe_option;
 };
 
 struct dmub_rb_cmd_abm_set_pipe {
