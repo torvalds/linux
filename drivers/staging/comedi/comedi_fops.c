@@ -1856,49 +1856,39 @@ cleanup:
  *	possibly modified comedi_cmd structure
  */
 static int do_cmdtest_ioctl(struct comedi_device *dev,
-			    struct comedi_cmd __user *arg, void *file)
+			    struct comedi_cmd *cmd, bool *copy, void *file)
 {
-	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
 	unsigned int __user *user_chanlist;
 	int ret;
 
 	lockdep_assert_held(&dev->mutex);
 
-	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		return -EFAULT;
-	}
-
-	/* get the user's cmd and do some simple validation */
-	ret = __comedi_get_user_cmd(dev, &cmd);
+	/* do some simple cmd validation */
+	ret = __comedi_get_user_cmd(dev, cmd);
 	if (ret)
 		return ret;
 
 	/* save user's chanlist pointer so it can be restored later */
-	user_chanlist = (unsigned int __user *)cmd.chanlist;
+	user_chanlist = (unsigned int __user *)cmd->chanlist;
 
-	s = &dev->subdevices[cmd.subdev];
+	s = &dev->subdevices[cmd->subdev];
 
 	/* user_chanlist can be NULL for COMEDI_CMDTEST ioctl */
 	if (user_chanlist) {
 		/* load channel/gain list */
-		ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &cmd);
+		ret = __comedi_get_user_chanlist(dev, s, user_chanlist, cmd);
 		if (ret)
 			return ret;
 	}
 
-	ret = s->do_cmdtest(dev, s, &cmd);
+	ret = s->do_cmdtest(dev, s, cmd);
 
-	kfree(cmd.chanlist);	/* free kernel copy of user chanlist */
+	kfree(cmd->chanlist);	/* free kernel copy of user chanlist */
 
 	/* restore chanlist pointer before copying back */
-	cmd.chanlist = (unsigned int __force *)user_chanlist;
-
-	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		ret = -EFAULT;
-	}
+	cmd->chanlist = (unsigned int __force *)user_chanlist;
+	*copy = true;
 
 	return ret;
 }
@@ -2220,10 +2210,19 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	case COMEDI_CMD:
 		rc = do_cmd_ioctl(dev, (struct comedi_cmd __user *)arg, file);
 		break;
-	case COMEDI_CMDTEST:
-		rc = do_cmdtest_ioctl(dev, (struct comedi_cmd __user *)arg,
-				      file);
+	case COMEDI_CMDTEST: {
+		struct comedi_cmd cmd;
+		bool copy = false;
+
+		if (copy_from_user(&cmd, (void __user *)arg, sizeof(cmd))) {
+			rc = -EFAULT;
+			break;
+		}
+		rc = do_cmdtest_ioctl(dev, &cmd, &copy, file);
+		if (copy && copy_to_user((void __user *)arg, &cmd, sizeof(cmd)))
+			rc = -EFAULT;
 		break;
+	}
 	case COMEDI_INSNLIST: {
 		struct comedi_insnlist insnlist;
 		struct comedi_insn *insns = NULL;
