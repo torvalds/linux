@@ -301,8 +301,8 @@ static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
 	sclk_rate = (u64)dclk_rate * dst->vdisplay * dst->htotal;
 	do_div(sclk_rate, src->vdisplay * src->htotal);
 	sclk_rate = div_u64(sclk_rate, 1000);
+	dst->clock = sclk_rate;
 	sclk_rate = sclk_rate * 1000;
-	dst->clock = div_u64(sclk_rate, 1000);
 	scl->bridge->driver_private = dst;
 
 	DRM_DEV_INFO(scl->dev, "src=%s, dst=%s\n", src->name, dst->name);
