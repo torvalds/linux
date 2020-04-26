@@ -3845,7 +3845,6 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 {
 	rtl_unlock_config_regs(tp);
 
-	tp->cp_cmd &= CPCMD_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
@@ -5424,7 +5423,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->mac_version = chipset;
 
-	tp->cp_cmd = RTL_R16(tp, CPlusCmd);
+	tp->cp_cmd = RTL_R16(tp, CPlusCmd) & CPCMD_MASK;
 
 	if (sizeof(dma_addr_t) > 4 && tp->mac_version >= RTL_GIGA_MAC_VER_18 &&
 	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
