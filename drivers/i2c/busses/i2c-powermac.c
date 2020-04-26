@@ -315,7 +315,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 {
 	struct i2c_client *newdev;
 	struct device_node *node;
-	bool found_onyx = 0;
+	bool found_onyx = false;
 
 	/*
 	 * In some cases we end up with the via-pmu node itself, in this
