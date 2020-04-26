@@ -388,10 +388,12 @@ enum rtl_register_content {
 	/* rx_mode_bits */
 	AcceptErr	= 0x20,
 	AcceptRunt	= 0x10,
+#define RX_CONFIG_ACCEPT_ERR_MASK	0x30
 	AcceptBroadcast	= 0x08,
 	AcceptMulticast	= 0x04,
 	AcceptMyPhys	= 0x02,
 	AcceptAllPhys	= 0x01,
+#define RX_CONFIG_ACCEPT_OK_MASK	0x0f
 #define RX_CONFIG_ACCEPT_MASK		0x3f
 
 	/* TxConfigBits */
@@ -1497,19 +1499,15 @@ static netdev_features_t rtl8169_fix_features(struct net_device *dev,
 	return features;
 }
 
-static int rtl8169_set_features(struct net_device *dev,
-				netdev_features_t features)
+static void rtl_set_rx_config_features(struct rtl8169_private *tp,
+				       netdev_features_t features)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	u32 rx_config;
+	u32 rx_config = RTL_R32(tp, RxConfig);
 
-	rtl_lock_work(tp);
-
-	rx_config = RTL_R32(tp, RxConfig);
 	if (features & NETIF_F_RXALL)
-		rx_config |= (AcceptErr | AcceptRunt);
+		rx_config |= RX_CONFIG_ACCEPT_ERR_MASK;
 	else
-		rx_config &= ~(AcceptErr | AcceptRunt);
+		rx_config &= ~RX_CONFIG_ACCEPT_ERR_MASK;
 
 	if (rtl_is_8125(tp)) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -1519,6 +1517,16 @@ static int rtl8169_set_features(struct net_device *dev,
 	}
 
 	RTL_W32(tp, RxConfig, rx_config);
+}
+
+static int rtl8169_set_features(struct net_device *dev,
+				netdev_features_t features)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	rtl_lock_work(tp);
+
+	rtl_set_rx_config_features(tp, features);
 
 	if (features & NETIF_F_RXCSUM)
 		tp->cp_cmd |= RxChkSum;
@@ -2395,8 +2403,6 @@ static void rtl_pll_power_up(struct rtl8169_private *tp)
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
 {
-	u32 vlan;
-
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
 	case RTL_GIGA_MAC_VER_10 ... RTL_GIGA_MAC_VER_17:
@@ -2411,9 +2417,7 @@ static void rtl_init_rxcfg(struct rtl8169_private *tp)
 		RTL_W32(tp, RxConfig, RX128_INT_EN | RX_MULTI_EN | RX_DMA_BURST | RX_EARLY_OFF);
 		break;
 	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_61:
-		/* VLAN flags are controlled by NETIF_F_HW_VLAN_CTAG_RX */
-		vlan = RTL_R32(tp, RxConfig) & RX_VLAN_8125;
-		RTL_W32(tp, RxConfig, vlan | RX_FETCH_DFLT_8125 | RX_DMA_BURST);
+		RTL_W32(tp, RxConfig, RX_FETCH_DFLT_8125 | RX_DMA_BURST);
 		break;
 	default:
 		RTL_W32(tp, RxConfig, RX128_INT_EN | RX_DMA_BURST);
@@ -2680,14 +2684,11 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		}
 	}
 
-	if (dev->features & NETIF_F_RXALL)
-		rx_mode |= (AcceptErr | AcceptRunt);
-
 	RTL_W32(tp, MAR0 + 4, mc_filter[1]);
 	RTL_W32(tp, MAR0 + 0, mc_filter[0]);
 
 	tmp = RTL_R32(tp, RxConfig);
-	RTL_W32(tp, RxConfig, (tmp & ~RX_CONFIG_ACCEPT_MASK) | rx_mode);
+	RTL_W32(tp, RxConfig, (tmp & ~RX_CONFIG_ACCEPT_OK_MASK) | rx_mode);
 }
 
 DECLARE_RTL_COND(rtl_csiar_cond)
@@ -3866,6 +3867,7 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
 	rtl_init_rxcfg(tp);
 	rtl_set_tx_config_registers(tp);
+	rtl_set_rx_config_features(tp, tp->dev->features);
 	rtl_set_rx_mode(tp->dev);
 	rtl_irq_enable(tp);
 }
