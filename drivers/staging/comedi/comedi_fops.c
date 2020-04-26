@@ -2931,155 +2931,106 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
-static int get_compat_cmd(struct comedi_cmd __user *cmd,
+static int get_compat_cmd(struct comedi_cmd *cmd,
 			  struct comedi32_cmd_struct __user *cmd32)
 {
-	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
+	struct comedi32_cmd_struct v32;
 
-	/* Copy cmd structure. */
-	if (!access_ok(cmd32, sizeof(*cmd32)) ||
-	    !access_ok(cmd, sizeof(*cmd)))
+	if (copy_from_user(&v32, cmd32, sizeof(v32)))
 		return -EFAULT;
 
-	err = 0;
-	err |= __get_user(temp.uint, &cmd32->subdev);
-	err |= __put_user(temp.uint, &cmd->subdev);
-	err |= __get_user(temp.uint, &cmd32->flags);
-	err |= __put_user(temp.uint, &cmd->flags);
-	err |= __get_user(temp.uint, &cmd32->start_src);
-	err |= __put_user(temp.uint, &cmd->start_src);
-	err |= __get_user(temp.uint, &cmd32->start_arg);
-	err |= __put_user(temp.uint, &cmd->start_arg);
-	err |= __get_user(temp.uint, &cmd32->scan_begin_src);
-	err |= __put_user(temp.uint, &cmd->scan_begin_src);
-	err |= __get_user(temp.uint, &cmd32->scan_begin_arg);
-	err |= __put_user(temp.uint, &cmd->scan_begin_arg);
-	err |= __get_user(temp.uint, &cmd32->convert_src);
-	err |= __put_user(temp.uint, &cmd->convert_src);
-	err |= __get_user(temp.uint, &cmd32->convert_arg);
-	err |= __put_user(temp.uint, &cmd->convert_arg);
-	err |= __get_user(temp.uint, &cmd32->scan_end_src);
-	err |= __put_user(temp.uint, &cmd->scan_end_src);
-	err |= __get_user(temp.uint, &cmd32->scan_end_arg);
-	err |= __put_user(temp.uint, &cmd->scan_end_arg);
-	err |= __get_user(temp.uint, &cmd32->stop_src);
-	err |= __put_user(temp.uint, &cmd->stop_src);
-	err |= __get_user(temp.uint, &cmd32->stop_arg);
-	err |= __put_user(temp.uint, &cmd->stop_arg);
-	err |= __get_user(temp.uptr, &cmd32->chanlist);
-	err |= __put_user((unsigned int __force *)compat_ptr(temp.uptr),
-			  &cmd->chanlist);
-	err |= __get_user(temp.uint, &cmd32->chanlist_len);
-	err |= __put_user(temp.uint, &cmd->chanlist_len);
-	err |= __get_user(temp.uptr, &cmd32->data);
-	err |= __put_user(compat_ptr(temp.uptr), &cmd->data);
-	err |= __get_user(temp.uint, &cmd32->data_len);
-	err |= __put_user(temp.uint, &cmd->data_len);
-	return err ? -EFAULT : 0;
+	cmd->subdev = v32.subdev;
+	cmd->flags = v32.flags;
+	cmd->start_src = v32.start_src;
+	cmd->start_arg = v32.start_arg;
+	cmd->scan_begin_src = v32.scan_begin_src;
+	cmd->scan_begin_arg = v32.scan_begin_arg;
+	cmd->convert_src = v32.convert_src;
+	cmd->convert_arg = v32.convert_arg;
+	cmd->scan_end_src = v32.scan_end_src;
+	cmd->scan_end_arg = v32.scan_end_arg;
+	cmd->stop_src = v32.stop_src;
+	cmd->stop_arg = v32.stop_arg;
+	cmd->chanlist = compat_ptr(v32.chanlist);
+	cmd->chanlist_len = v32.chanlist_len;
+	cmd->data = compat_ptr(v32.data);
+	cmd->data_len = v32.data_len;
+	return 0;
 }
 
 /* Copy native cmd structure to 32-bit cmd structure. */
 static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
-			  struct comedi_cmd __user *cmd)
+			  struct comedi_cmd *cmd)
 {
-	int err;
-	unsigned int temp;
+	struct comedi32_cmd_struct v32;
 
-	/*
-	 * Copy back most of cmd structure.
-	 *
-	 * Assume the pointer values are already valid.
-	 * (Could use ptr_to_compat() to set them.)
-	 */
-	if (!access_ok(cmd, sizeof(*cmd)) ||
-	    !access_ok(cmd32, sizeof(*cmd32)))
-		return -EFAULT;
-
-	err = 0;
-	err |= __get_user(temp, &cmd->subdev);
-	err |= __put_user(temp, &cmd32->subdev);
-	err |= __get_user(temp, &cmd->flags);
-	err |= __put_user(temp, &cmd32->flags);
-	err |= __get_user(temp, &cmd->start_src);
-	err |= __put_user(temp, &cmd32->start_src);
-	err |= __get_user(temp, &cmd->start_arg);
-	err |= __put_user(temp, &cmd32->start_arg);
-	err |= __get_user(temp, &cmd->scan_begin_src);
-	err |= __put_user(temp, &cmd32->scan_begin_src);
-	err |= __get_user(temp, &cmd->scan_begin_arg);
-	err |= __put_user(temp, &cmd32->scan_begin_arg);
-	err |= __get_user(temp, &cmd->convert_src);
-	err |= __put_user(temp, &cmd32->convert_src);
-	err |= __get_user(temp, &cmd->convert_arg);
-	err |= __put_user(temp, &cmd32->convert_arg);
-	err |= __get_user(temp, &cmd->scan_end_src);
-	err |= __put_user(temp, &cmd32->scan_end_src);
-	err |= __get_user(temp, &cmd->scan_end_arg);
-	err |= __put_user(temp, &cmd32->scan_end_arg);
-	err |= __get_user(temp, &cmd->stop_src);
-	err |= __put_user(temp, &cmd32->stop_src);
-	err |= __get_user(temp, &cmd->stop_arg);
-	err |= __put_user(temp, &cmd32->stop_arg);
+	memset(&v32, 0, sizeof(v32));
+	v32.subdev = cmd->subdev;
+	v32.flags = cmd->flags;
+	v32.start_src = cmd->start_src;
+	v32.start_arg = cmd->start_arg;
+	v32.scan_begin_src = cmd->scan_begin_src;
+	v32.scan_begin_arg = cmd->scan_begin_arg;
+	v32.convert_src = cmd->convert_src;
+	v32.convert_arg = cmd->convert_arg;
+	v32.scan_end_src = cmd->scan_end_src;
+	v32.scan_end_arg = cmd->scan_end_arg;
+	v32.stop_src = cmd->stop_src;
+	v32.stop_arg = cmd->stop_arg;
 	/* Assume chanlist pointer is unchanged. */
-	err |= __get_user(temp, &cmd->chanlist_len);
-	err |= __put_user(temp, &cmd32->chanlist_len);
-	/* Assume data pointer is unchanged. */
-	err |= __get_user(temp, &cmd->data_len);
-	err |= __put_user(temp, &cmd32->data_len);
-	return err ? -EFAULT : 0;
+	v32.chanlist = ptr_to_compat(cmd->chanlist);
+	v32.chanlist_len = cmd->chanlist_len;
+	v32.data = ptr_to_compat(cmd->data);
+	v32.data_len = cmd->data_len;
+	return copy_to_user(cmd32, &v32, sizeof(v32));
 }
 
 /* Handle 32-bit COMEDI_CMD ioctl. */
 static int compat_cmd(struct file *file, unsigned long arg)
 {
-	struct comedi_cmd __user *cmd;
-	struct comedi32_cmd_struct __user *cmd32;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi_cmd cmd;
+	bool copy = false;
 	int rc, err;
 
-	cmd32 = compat_ptr(arg);
-	cmd = compat_alloc_user_space(sizeof(*cmd));
-
-	rc = get_compat_cmd(cmd, cmd32);
+	rc = get_compat_cmd(&cmd, compat_ptr(arg));
 	if (rc)
 		return rc;
 
-	rc = comedi_unlocked_ioctl(file, COMEDI_CMD, (unsigned long)cmd);
-	if (rc == -EAGAIN) {
+	mutex_lock(&dev->mutex);
+	rc = do_cmd_ioctl(dev, &cmd, &copy, file);
+	mutex_unlock(&dev->mutex);
+	if (copy) {
 		/* Special case: copy cmd back to user. */
-		err = put_compat_cmd(cmd32, cmd);
+		err = put_compat_cmd(compat_ptr(arg), &cmd);
 		if (err)
 			rc = err;
 	}
-
 	return rc;
 }
 
 /* Handle 32-bit COMEDI_CMDTEST ioctl. */
 static int compat_cmdtest(struct file *file, unsigned long arg)
 {
-	struct comedi_cmd __user *cmd;
-	struct comedi32_cmd_struct __user *cmd32;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi_cmd cmd;
+	bool copy = false;
 	int rc, err;
 
-	cmd32 = compat_ptr(arg);
-	cmd = compat_alloc_user_space(sizeof(*cmd));
-
-	rc = get_compat_cmd(cmd, cmd32);
+	rc = get_compat_cmd(&cmd, compat_ptr(arg));
 	if (rc)
 		return rc;
 
-	rc = comedi_unlocked_ioctl(file, COMEDI_CMDTEST, (unsigned long)cmd);
-	if (rc < 0)
-		return rc;
-
-	err = put_compat_cmd(cmd32, cmd);
-	if (err)
-		rc = err;
-
+	mutex_lock(&dev->mutex);
+	rc = do_cmdtest_ioctl(dev, &cmd, &copy, file);
+	mutex_unlock(&dev->mutex);
+	if (copy) {
+		err = put_compat_cmd(compat_ptr(arg), &cmd);
+		if (err)
+			rc = err;
+	}
 	return rc;
 }
 
