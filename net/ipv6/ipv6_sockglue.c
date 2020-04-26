@@ -976,6 +976,34 @@ int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case MCAST_JOIN_GROUP:
 	case MCAST_LEAVE_GROUP:
+	{
+		struct compat_group_req __user *gr32 = (void __user *)optval;
+		struct group_req greq;
+		struct sockaddr_in6 *psin6 = (struct sockaddr_in6 *)&greq.gr_group;
+
+		if (optlen < sizeof(struct compat_group_req))
+			return -EINVAL;
+
+		if (get_user(greq.gr_interface, &gr32->gr_interface) ||
+		    copy_from_user(&greq.gr_group, &gr32->gr_group,
+				sizeof(greq.gr_group)))
+			return -EFAULT;
+
+		if (greq.gr_group.ss_family != AF_INET6)
+			return -EADDRNOTAVAIL;
+
+		rtnl_lock();
+		lock_sock(sk);
+		if (optname == MCAST_JOIN_GROUP)
+			err = ipv6_sock_mc_join(sk, greq.gr_interface,
+						 &psin6->sin6_addr);
+		else
+			err = ipv6_sock_mc_drop(sk, greq.gr_interface,
+						 &psin6->sin6_addr);
+		release_sock(sk);
+		rtnl_unlock();
+		return err;
+	}
 	case MCAST_JOIN_SOURCE_GROUP:
 	case MCAST_LEAVE_SOURCE_GROUP:
 	case MCAST_BLOCK_SOURCE:
