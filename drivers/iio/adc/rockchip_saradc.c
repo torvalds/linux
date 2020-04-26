@@ -402,7 +402,21 @@ static struct platform_driver rockchip_saradc_driver = {
 	},
 };
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init rockchip_saradc_driver_init(void)
+{
+	return platform_driver_register(&rockchip_saradc_driver);
+}
+fs_initcall(rockchip_saradc_driver_init);
+
+static void __exit rockchip_saradc_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_saradc_driver);
+}
+module_exit(rockchip_saradc_driver_exit);
+#else
 module_platform_driver(rockchip_saradc_driver);
+#endif
 
 MODULE_AUTHOR("Heiko Stuebner <heiko@sntech.de>");
 MODULE_DESCRIPTION("Rockchip SARADC driver");
