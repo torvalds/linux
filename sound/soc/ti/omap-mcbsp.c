@@ -1185,7 +1185,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	default:
 		return -EINVAL;
 	}
-	if (inv_fs == true)
+	if (inv_fs)
 		regs->pcr0 ^= FSXP | FSRP;
 
 	return 0;
