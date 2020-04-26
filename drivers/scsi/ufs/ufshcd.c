@@ -4137,7 +4137,7 @@ static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 {
 	int i;
 	int err;
-	bool flag_res = 1;
+	bool flag_res = true;
 
 	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
 		QUERY_FLAG_IDN_FDEVICEINIT, NULL);
