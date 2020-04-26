@@ -2005,7 +2005,7 @@ int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl)
 
 static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 {
-	u32 offset = 0, override_addr = 0, flag = 0;
+	u32 offset = 0, override_addr = 0, flag = FW_START_DLYCAL;
 	const struct mt7663_fw_trailer *hdr;
 	const struct mt7663_fw_buf *buf;
 	const struct firmware *fw;
@@ -2061,14 +2061,11 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 		}
 	}
 
-	if (is_mt7663(&dev->mt76)) {
-		flag |= FW_START_DLYCAL;
-		if (override_addr)
-			flag |= FW_START_OVERRIDE;
+	if (override_addr)
+		flag |= FW_START_OVERRIDE;
 
-		dev_info(dev->mt76.dev, "override_addr = 0x%08x, option = %d\n",
-			 override_addr, flag);
-	}
+	dev_info(dev->mt76.dev, "override_addr = 0x%08x, option = %d\n",
+		 override_addr, flag);
 
 	ret = mt7615_mcu_start_firmware(dev, override_addr, flag);
 	if (ret) {
