@@ -56,24 +56,43 @@ const uint32_t
 
 static void umc_v6_1_enable_umc_index_mode(struct amdgpu_device *adev)
 {
-	WREG32_FIELD15(RSMU, 0, RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
+	uint32_t rsmu_umc_addr, rsmu_umc_val;
+
+	rsmu_umc_addr = SOC15_REG_OFFSET(RSMU, 0,
+			mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
+	rsmu_umc_val = RREG32_PCIE(rsmu_umc_addr * 4);
+
+	rsmu_umc_val = REG_SET_FIELD(rsmu_umc_val,
+			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
 			RSMU_UMC_INDEX_MODE_EN, 1);
+
+	WREG32_PCIE(rsmu_umc_addr * 4, rsmu_umc_val);
 }
 
 static void umc_v6_1_disable_umc_index_mode(struct amdgpu_device *adev)
 {
-	WREG32_FIELD15(RSMU, 0, RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
+	uint32_t rsmu_umc_addr, rsmu_umc_val;
+
+	rsmu_umc_addr = SOC15_REG_OFFSET(RSMU, 0,
+			mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
+	rsmu_umc_val = RREG32_PCIE(rsmu_umc_addr * 4);
+
+	rsmu_umc_val = REG_SET_FIELD(rsmu_umc_val,
+			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
 			RSMU_UMC_INDEX_MODE_EN, 0);
+
+	WREG32_PCIE(rsmu_umc_addr * 4, rsmu_umc_val);
 }
 
 static uint32_t umc_v6_1_get_umc_index_mode_state(struct amdgpu_device *adev)
 {
-	uint32_t rsmu_umc_index;
+	uint32_t rsmu_umc_addr, rsmu_umc_val;
 
-	rsmu_umc_index = RREG32_SOC15(RSMU, 0,
+	rsmu_umc_addr = SOC15_REG_OFFSET(RSMU, 0,
 			mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
+	rsmu_umc_val = RREG32_PCIE(rsmu_umc_addr * 4);
 
-	return REG_GET_FIELD(rsmu_umc_index,
+	return REG_GET_FIELD(rsmu_umc_val,
 			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
 			RSMU_UMC_INDEX_MODE_EN);
 }
