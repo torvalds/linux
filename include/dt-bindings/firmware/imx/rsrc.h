@@ -547,4 +547,55 @@
 #define IMX_SC_R_ATTESTATION		545
 #define IMX_SC_R_LAST			546
 
+/*
+ * Defines for SC CONTROL
+ */
+#define IMX_SC_C_TEMP				0
+#define IMX_SC_C_TEMP_HI			1
+#define IMX_SC_C_TEMP_LOW			2
+#define IMX_SC_C_PXL_LINK_MST1_ADDR		3
+#define IMX_SC_C_PXL_LINK_MST2_ADDR		4
+#define IMX_SC_C_PXL_LINK_MST_ENB		5
+#define IMX_SC_C_PXL_LINK_MST1_ENB		6
+#define IMX_SC_C_PXL_LINK_MST2_ENB		7
+#define IMX_SC_C_PXL_LINK_SLV1_ADDR		8
+#define IMX_SC_C_PXL_LINK_SLV2_ADDR		9
+#define IMX_SC_C_PXL_LINK_MST_VLD		10
+#define IMX_SC_C_PXL_LINK_MST1_VLD		11
+#define IMX_SC_C_PXL_LINK_MST2_VLD		12
+#define IMX_SC_C_SINGLE_MODE			13
+#define IMX_SC_C_ID				14
+#define IMX_SC_C_PXL_CLK_POLARITY		15
+#define IMX_SC_C_LINESTATE			16
+#define IMX_SC_C_PCIE_G_RST			17
+#define IMX_SC_C_PCIE_BUTTON_RST		18
+#define IMX_SC_C_PCIE_PERST			19
+#define IMX_SC_C_PHY_RESET			20
+#define IMX_SC_C_PXL_LINK_RATE_CORRECTION	21
+#define IMX_SC_C_PANIC				22
+#define IMX_SC_C_PRIORITY_GROUP			23
+#define IMX_SC_C_TXCLK				24
+#define IMX_SC_C_CLKDIV				25
+#define IMX_SC_C_DISABLE_50			26
+#define IMX_SC_C_DISABLE_125			27
+#define IMX_SC_C_SEL_125			28
+#define IMX_SC_C_MODE				29
+#define IMX_SC_C_SYNC_CTRL0			30
+#define IMX_SC_C_KACHUNK_CNT			31
+#define IMX_SC_C_KACHUNK_SEL			32
+#define IMX_SC_C_SYNC_CTRL1			33
+#define IMX_SC_C_DPI_RESET			34
+#define IMX_SC_C_MIPI_RESET			35
+#define IMX_SC_C_DUAL_MODE			36
+#define IMX_SC_C_VOLTAGE			37
+#define IMX_SC_C_PXL_LINK_SEL			38
+#define IMX_SC_C_OFS_SEL			39
+#define IMX_SC_C_OFS_AUDIO			40
+#define IMX_SC_C_OFS_PERIPH			41
+#define IMX_SC_C_OFS_IRQ			42
+#define IMX_SC_C_RST0				43
+#define IMX_SC_C_RST1				44
+#define IMX_SC_C_SEL0				45
+#define IMX_SC_C_LAST				46
+
 #endif /* __DT_BINDINGS_RSCRC_IMX_H */
