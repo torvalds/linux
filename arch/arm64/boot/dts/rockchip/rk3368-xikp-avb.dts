@@ -33,3 +33,107 @@
 &chosen {
 	bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 androidboot.selinux=permissive init=/init kpti=0";
 };
+
+&i2c3 {
+	status = "okay";
+
+	gc2145: gc2145@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru SCLK_VIP_OUT>;
+		clock-names = "xvclk";
+
+		power-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&isp_dvp_in>;
+			};
+		};
+	};
+
+	ov8858: ov8858@36 {
+		compatible = "ovti,ov8858";
+		reg = <0x36>;
+		clocks = <&cru SCLK_VIP_OUT>;
+		clock-names = "xvclk";
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan-9569A2";
+		power-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+		port {
+			ov8858_out: endpoint {
+				remote-endpoint = <&mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+};
+
+&isp {
+	status = "disabled";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov8858_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_mipi_in>;
+			};
+		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&isp_dvp_d2d9 &isp_dvp_d10d11 &cif_clkout>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_dvp_in: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&gc2145_out>;
+		};
+
+		isp_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx_out>;
+		};
+	};
+};
