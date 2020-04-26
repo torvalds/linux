@@ -16,18 +16,27 @@
 #include "hinic_hw_mgmt.h"
 #include "hinic_hw_qp.h"
 #include "hinic_hw_io.h"
+#include "hinic_hw_mbox.h"
 
 #define HINIC_MAX_QPS   32
 
 #define HINIC_MGMT_NUM_MSG_CMD  (HINIC_MGMT_MSG_CMD_MAX - \
 				 HINIC_MGMT_MSG_CMD_BASE)
 
+#define HINIC_PF_SET_VF_ALREADY				0x4
+#define HINIC_MGMT_STATUS_EXIST				0x6
+
 struct hinic_cap {
 	u16     max_qps;
 	u16     num_qps;
+	u8		max_vf;
+	u16     max_vf_qps;
 };
 
 enum hinic_port_cmd {
+	HINIC_PORT_CMD_VF_REGISTER = 0x0,
+	HINIC_PORT_CMD_VF_UNREGISTER = 0x1,
+
 	HINIC_PORT_CMD_CHANGE_MTU       = 2,
 
 	HINIC_PORT_CMD_ADD_VLAN         = 3,
@@ -83,9 +92,17 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_GLOBAL_QPN   = 102,
 
+	HINIC_PORT_CMD_SET_VF_VLAN	= 106,
+
+	HINIC_PORT_CMD_CLR_VF_VLAN,
+
 	HINIC_PORT_CMD_SET_TSO          = 112,
 
 	HINIC_PORT_CMD_SET_RQ_IQ_MAP	= 115,
+
+	HINIC_PORT_CMD_LINK_STATUS_REPORT = 160,
+
+	HINIC_PORT_CMD_UPDATE_MAC = 164,
 
 	HINIC_PORT_CMD_GET_CAP          = 170,
 
@@ -191,6 +208,17 @@ struct hinic_cmd_set_res_state {
 	u32     rsvd2;
 };
 
+struct hinic_ceq_ctrl_reg {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u16 func_id;
+	u16 q_id;
+	u32 ctrl0;
+	u32 ctrl1;
+};
+
 struct hinic_cmd_base_qpn {
 	u8      status;
 	u8      version;
@@ -225,6 +253,7 @@ struct hinic_hwdev {
 
 	struct hinic_aeqs               aeqs;
 	struct hinic_func_to_io         func_to_io;
+	struct hinic_mbox_func_to_func  *func_to_func;
 
 	struct hinic_cap                nic_cap;
 };
@@ -244,6 +273,25 @@ struct hinic_pfhwdev {
 	struct hinic_pf_to_mgmt         pf_to_mgmt;
 
 	struct hinic_nic_cb             nic_cb[HINIC_MGMT_NUM_MSG_CMD];
+};
+
+struct hinic_dev_cap {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u8      rsvd1[5];
+	u8      intr_type;
+	u8	max_cos_id;
+	u8	er_id;
+	u8	port_id;
+	u8      max_vf;
+	u8      rsvd2[62];
+	u16     max_sqs;
+	u16	max_rqs;
+	u16	max_vf_sqs;
+	u16     max_vf_rqs;
+	u8      rsvd3[204];
 };
 
 void hinic_hwdev_cb_register(struct hinic_hwdev *hwdev,

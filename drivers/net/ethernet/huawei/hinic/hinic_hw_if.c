@@ -115,8 +115,12 @@ int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index)
  **/
 void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action)
 {
-	u32 attr5 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR);
+	u32 attr5;
 
+	if (HINIC_IS_VF(hwif))
+		return;
+
+	attr5 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR);
 	attr5 = HINIC_FA5_CLEAR(attr5, PF_ACTION);
 	attr5 |= HINIC_FA5_SET(action, PF_ACTION);
 
@@ -203,7 +207,8 @@ static int hwif_ready(struct hinic_hwif *hwif)
  * @attr0: the first attribute that was read from the hw
  * @attr1: the second attribute that was read from the hw
  **/
-static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
+static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1,
+			  u32 attr2)
 {
 	hwif->attr.func_idx     = HINIC_FA0_GET(attr0, FUNC_IDX);
 	hwif->attr.pf_idx       = HINIC_FA0_GET(attr0, PF_IDX);
@@ -214,6 +219,8 @@ static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
 	hwif->attr.num_ceqs = BIT(HINIC_FA1_GET(attr1, CEQS_PER_FUNC));
 	hwif->attr.num_irqs = BIT(HINIC_FA1_GET(attr1, IRQS_PER_FUNC));
 	hwif->attr.num_dma_attr = BIT(HINIC_FA1_GET(attr1, DMA_ATTR_PER_FUNC));
+	hwif->attr.global_vf_id_of_pf = HINIC_FA2_GET(attr2,
+						      GLOBAL_VF_ID_OF_PF);
 }
 
 /**
@@ -222,7 +229,7 @@ static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
  **/
 static void read_hwif_attr(struct hinic_hwif *hwif)
 {
-	u32 addr, attr0, attr1;
+	u32 addr, attr0, attr1, attr2;
 
 	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
 	attr0  = hinic_hwif_read_reg(hwif, addr);
@@ -230,7 +237,10 @@ static void read_hwif_attr(struct hinic_hwif *hwif)
 	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
 	attr1  = hinic_hwif_read_reg(hwif, addr);
 
-	set_hwif_attr(hwif, attr0, attr1);
+	addr   = HINIC_CSR_FUNC_ATTR2_ADDR;
+	attr2  = hinic_hwif_read_reg(hwif, addr);
+
+	set_hwif_attr(hwif, attr0, attr1, attr2);
 }
 
 /**
@@ -307,6 +317,34 @@ static void dma_attr_init(struct hinic_hwif *hwif)
 	set_dma_attr(hwif, PCIE_ATTR_ENTRY, HINIC_PCIE_ST_DISABLE,
 		     HINIC_PCIE_AT_DISABLE, HINIC_PCIE_PH_DISABLE,
 		     HINIC_PCIE_SNOOP, HINIC_PCIE_TPH_DISABLE);
+}
+
+u16 hinic_glb_pf_vf_offset(struct hinic_hwif *hwif)
+{
+	if (!hwif)
+		return 0;
+
+	return hwif->attr.global_vf_id_of_pf;
+}
+
+u16 hinic_global_func_id_hw(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+
+	return HINIC_FA0_GET(attr0, FUNC_IDX);
+}
+
+u16 hinic_pf_id_of_vf_hw(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+
+	return HINIC_FA0_GET(attr0, PF_IDX);
 }
 
 /**
