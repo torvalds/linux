@@ -548,6 +548,23 @@
 #define IMX_SC_R_LAST			546
 
 /*
+ * Defines for SC PM CLK
+ */
+#define IMX_SC_PM_CLK_SLV_BUS		0	/* Slave bus clock */
+#define IMX_SC_PM_CLK_MST_BUS		1	/* Master bus clock */
+#define IMX_SC_PM_CLK_PER		2	/* Peripheral clock */
+#define IMX_SC_PM_CLK_PHY		3	/* Phy clock */
+#define IMX_SC_PM_CLK_MISC		4	/* Misc clock */
+#define IMX_SC_PM_CLK_MISC0		0	/* Misc 0 clock */
+#define IMX_SC_PM_CLK_MISC1		1	/* Misc 1 clock */
+#define IMX_SC_PM_CLK_MISC2		2	/* Misc 2 clock */
+#define IMX_SC_PM_CLK_MISC3		3	/* Misc 3 clock */
+#define IMX_SC_PM_CLK_MISC4		4	/* Misc 4 clock */
+#define IMX_SC_PM_CLK_CPU		2	/* CPU clock */
+#define IMX_SC_PM_CLK_PLL		4	/* PLL */
+#define IMX_SC_PM_CLK_BYPASS		4	/* Bypass clock */
+
+/*
  * Defines for SC CONTROL
  */
 #define IMX_SC_C_TEMP				0
@@ -596,6 +613,22 @@
 #define IMX_SC_C_RST0				43
 #define IMX_SC_C_RST1				44
 #define IMX_SC_C_SEL0				45
-#define IMX_SC_C_LAST				46
+#define IMX_SC_C_CALIB0				46
+#define IMX_SC_C_CALIB1				47
+#define IMX_SC_C_CALIB2				48
+#define IMX_SC_C_IPG_DEBUG			49
+#define IMX_SC_C_IPG_DOZE			50
+#define IMX_SC_C_IPG_WAIT			51
+#define IMX_SC_C_IPG_STOP			52
+#define IMX_SC_C_IPG_STOP_MODE			53
+#define IMX_SC_C_IPG_STOP_ACK			54
+#define IMX_SC_C_SYNC_CTRL			55
+#define IMX_SC_C_OFS_AUDIO_ALT			56
+#define IMX_SC_C_DSP_BYP			57
+#define IMX_SC_C_CLK_GEN_EN			58
+#define IMX_SC_C_INTF_SEL			59
+#define IMX_SC_C_RXC_DLY			60
+#define IMX_SC_C_TIMER_SEL			61
+#define IMX_SC_C_LAST				62
 
 #endif /* __DT_BINDINGS_RSCRC_IMX_H */
