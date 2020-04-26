@@ -1060,16 +1060,28 @@ static int rk817_reboot_notifier_handler(struct notifier_block *nb,
 
 	regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE0,
 		    &power_en_active0);
-	regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE1,
-		    &power_en_active1);
-	value = power_en_active0 & 0x0f;
-	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(0), value | 0xf0);
-	value = (power_en_active0 & 0xf0) >> 4;
-	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(1), value | 0xf0);
-	value = power_en_active1 & 0x0f;
-	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(2), value | 0xf0);
-	value = (power_en_active1 & 0xf0) >> 4;
-	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(3), value | 0xf0);
+	if (power_en_active0 != 0) {
+		regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE1,
+			    &power_en_active1);
+		value = power_en_active0 & 0x0f;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(0),
+			     value | 0xf0);
+		value = (power_en_active0 & 0xf0) >> 4;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(1),
+			     value | 0xf0);
+		value = power_en_active1 & 0x0f;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(2),
+			     value | 0xf0);
+		value = (power_en_active1 & 0xf0) >> 4;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(3),
+			     value | 0xf0);
+	} else {
+		dev_info(dev, "reboot: not restore POWER_EN\n");
+	}
 
 	if (action != SYS_RESTART)
 		return NOTIFY_OK;
