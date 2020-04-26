@@ -1049,7 +1049,7 @@ static inline void rm7k_erratum31(void)
 			"cache\t%1, 0x3000(%0)\n\t"
 			".set pop\n"
 			:
-			: "r" (addr), "i" (Index_Store_Tag_I), "i" (Fill));
+			: "r" (addr), "i" (Index_Store_Tag_I), "i" (Fill_I));
 	}
 }
 

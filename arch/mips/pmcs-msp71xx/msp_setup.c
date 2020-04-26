@@ -55,7 +55,7 @@ void msp7120_reset(void)
 
 	for (iptr = (void *)((unsigned int)start & ~(L1_CACHE_BYTES - 1));
 	     iptr < end; iptr += L1_CACHE_BYTES)
-		cache_op(Fill, iptr);
+		cache_op(Fill_I, iptr);
 
 	__asm__ __volatile__ (
 		"startpoint:					\n"
