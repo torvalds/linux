@@ -365,11 +365,13 @@ struct amdgpu_psp_funcs {
 extern const struct amd_ip_funcs psp_ip_funcs;
 
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
+extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v13_0_ip_block;
+
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
-
-extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
-extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
@@ -400,7 +402,6 @@ int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_rlc_autoload_start(struct psp_context *psp);
 
-extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 		uint32_t value);
 int psp_ring_cmd_submit(struct psp_context *psp,
