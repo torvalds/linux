@@ -1748,6 +1748,13 @@
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 
+	initrdmem=	[KNL] Specify a physical address and size from which to
+			load the initrd. If an initrd is compiled in or
+			specified in the bootparams, it takes priority over this
+			setting.
+			Format: ss[KMG],nn[KMG]
+			Default is 0, 0
+
 	init_on_alloc=	[MM] Fill newly allocated pages and heap objects with
 			zeroes.
 			Format: 0 | 1
