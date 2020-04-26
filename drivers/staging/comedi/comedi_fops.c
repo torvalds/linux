@@ -1741,9 +1741,8 @@ static int __comedi_get_user_chanlist(struct comedi_device *dev,
  *	possibly modified comedi_cmd structure (when -EAGAIN returned)
  */
 static int do_cmd_ioctl(struct comedi_device *dev,
-			struct comedi_cmd __user *arg, void *file)
+			struct comedi_cmd *cmd, bool *copy, void *file)
 {
-	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	unsigned int __user *user_chanlist;
@@ -1751,20 +1750,15 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	lockdep_assert_held(&dev->mutex);
 
-	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		return -EFAULT;
-	}
-
-	/* get the user's cmd and do some simple validation */
-	ret = __comedi_get_user_cmd(dev, &cmd);
+	/* do some simple cmd validation */
+	ret = __comedi_get_user_cmd(dev, cmd);
 	if (ret)
 		return ret;
 
 	/* save user's chanlist pointer so it can be restored later */
-	user_chanlist = (unsigned int __user *)cmd.chanlist;
+	user_chanlist = (unsigned int __user *)cmd->chanlist;
 
-	s = &dev->subdevices[cmd.subdev];
+	s = &dev->subdevices[cmd->subdev];
 	async = s->async;
 
 	/* are we locked? (ioctl lock) */
@@ -1780,13 +1774,13 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	}
 
 	/* make sure channel/gain list isn't too short */
-	if (cmd.chanlist_len < 1) {
+	if (cmd->chanlist_len < 1) {
 		dev_dbg(dev->class_dev, "channel/gain list too short %u < 1\n",
-			cmd.chanlist_len);
+			cmd->chanlist_len);
 		return -EINVAL;
 	}
 
-	async->cmd = cmd;
+	async->cmd = *cmd;
 	async->cmd.data = NULL;
 
 	/* load channel/gain list */
@@ -1798,15 +1792,11 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	if (async->cmd.flags & CMDF_BOGUS || ret) {
 		dev_dbg(dev->class_dev, "test returned %d\n", ret);
-		cmd = async->cmd;
+		*cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
-		cmd.chanlist = (unsigned int __force *)user_chanlist;
-		cmd.data = NULL;
-		if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-			dev_dbg(dev->class_dev, "fault writing cmd\n");
-			ret = -EFAULT;
-			goto cleanup;
-		}
+		cmd->chanlist = (unsigned int __force *)user_chanlist;
+		cmd->data = NULL;
+		*copy = true;
 		ret = -EAGAIN;
 		goto cleanup;
 	}
@@ -2207,9 +2197,19 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	case COMEDI_CANCEL:
 		rc = do_cancel_ioctl(dev, arg, file);
 		break;
-	case COMEDI_CMD:
-		rc = do_cmd_ioctl(dev, (struct comedi_cmd __user *)arg, file);
+	case COMEDI_CMD: {
+		struct comedi_cmd cmd;
+		bool copy = false;
+
+		if (copy_from_user(&cmd, (void __user *)arg, sizeof(cmd))) {
+			rc = -EFAULT;
+			break;
+		}
+		rc = do_cmd_ioctl(dev, &cmd, &copy, file);
+		if (copy && copy_to_user((void __user *)arg, &cmd, sizeof(cmd)))
+			rc = -EFAULT;
 		break;
+	}
 	case COMEDI_CMDTEST: {
 		struct comedi_cmd cmd;
 		bool copy = false;
