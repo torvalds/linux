@@ -576,15 +576,6 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 	writel(value, reg_addr + reg);
 }
 
-static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
-{
-	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET ||
-			   ae_dev->reset_type == HNAE3_FLR_RESET ||
-			   ae_dev->reset_type == HNAE3_VF_FUNC_RESET ||
-			   ae_dev->reset_type == HNAE3_VF_FULL_RESET ||
-			   ae_dev->reset_type == HNAE3_VF_PF_FUNC_RESET));
-}
-
 #define hns3_read_dev(a, reg) \
 	hns3_read_reg((a)->io_base, (reg))
 
@@ -658,6 +649,7 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
+void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
 
 #ifdef CONFIG_HNS3_DCB
 void hns3_dcbnl_setup(struct hnae3_handle *handle);

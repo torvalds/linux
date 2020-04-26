@@ -1441,6 +1441,49 @@ static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
 	hclge_dbg_dump_qs_shaper_single(hdev, qsid);
 }
 
+static int hclge_dbg_dump_mac_list(struct hclge_dev *hdev, const char *cmd_buf,
+				   bool is_unicast)
+{
+	struct hclge_mac_node *mac_node, *tmp;
+	struct hclge_vport *vport;
+	struct list_head *list;
+	u32 func_id;
+	int ret;
+
+	ret = kstrtouint(cmd_buf, 0, &func_id);
+	if (ret < 0) {
+		dev_err(&hdev->pdev->dev,
+			"dump mac list: bad command string, ret = %d\n", ret);
+		return -EINVAL;
+	}
+
+	if (func_id >= hdev->num_alloc_vport) {
+		dev_err(&hdev->pdev->dev,
+			"function id(%u) is out of range(0-%u)\n", func_id,
+			hdev->num_alloc_vport - 1);
+		return -EINVAL;
+	}
+
+	vport = &hdev->vport[func_id];
+
+	list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
+
+	dev_info(&hdev->pdev->dev, "vport %u %s mac list:\n",
+		 func_id, is_unicast ? "uc" : "mc");
+	dev_info(&hdev->pdev->dev, "mac address              state\n");
+
+	spin_lock_bh(&vport->mac_list_lock);
+
+	list_for_each_entry_safe(mac_node, tmp, list, node) {
+		dev_info(&hdev->pdev->dev, "%pM         %d\n",
+			 mac_node->mac_addr, mac_node->state);
+	}
+
+	spin_unlock_bh(&vport->mac_list_lock);
+
+	return 0;
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
 #define DUMP_REG	"dump reg"
@@ -1485,6 +1528,14 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
+	} else if (strncmp(cmd_buf, "dump uc mac list", 16) == 0) {
+		hclge_dbg_dump_mac_list(hdev,
+					&cmd_buf[sizeof("dump uc mac list")],
+					true);
+	} else if (strncmp(cmd_buf, "dump mc mac list", 16) == 0) {
+		hclge_dbg_dump_mac_list(hdev,
+					&cmd_buf[sizeof("dump mc mac list")],
+					false);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

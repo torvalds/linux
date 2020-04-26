@@ -233,7 +233,6 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	unsigned long hw_err_reset_req;
-	enum hnae3_reset_type reset_type;
 	void *priv;
 };
 
@@ -270,6 +269,8 @@ struct hnae3_ae_dev {
  *   Set loopback
  * set_promisc_mode
  *   Set promisc mode
+ * request_update_promisc_mode
+ *   request to hclge(vf) to update promisc mode
  * set_mtu()
  *   set mtu
  * get_pauseparam()
@@ -354,8 +355,6 @@ struct hnae3_ae_dev {
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
  *   Set vlan filter config of vf
- * restore_vlan_table()
- *   Restore vlan filter entries after reset
  * enable_hw_strip_rxvtag()
  *   Enable/disable hardware strip vlan tag of packets received
  * set_gro_en
@@ -408,6 +407,7 @@ struct hnae3_ae_ops {
 
 	int (*set_promisc_mode)(struct hnae3_handle *handle, bool en_uc_pmc,
 				bool en_mc_pmc);
+	void (*request_update_promisc_mode)(struct hnae3_handle *handle);
 	int (*set_mtu)(struct hnae3_handle *handle, int new_mtu);
 
 	void (*get_pauseparam)(struct hnae3_handle *handle,
@@ -525,7 +525,6 @@ struct hnae3_ae_ops {
 				struct ethtool_rxnfc *cmd);
 	int (*get_fd_all_rules)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
-	int (*restore_fd_rules)(struct hnae3_handle *handle);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
@@ -539,7 +538,6 @@ struct hnae3_ae_ops {
 	void (*set_timer_task)(struct hnae3_handle *handle, bool enable);
 	int (*mac_connect_phy)(struct hnae3_handle *handle);
 	void (*mac_disconnect_phy)(struct hnae3_handle *handle);
-	void (*restore_vlan_table)(struct hnae3_handle *handle);
 	int (*get_vf_config)(struct hnae3_handle *handle, int vf,
 			     struct ifla_vf_info *ivf);
 	int (*set_vf_link_state)(struct hnae3_handle *handle, int vf,

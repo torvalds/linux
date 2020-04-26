@@ -148,6 +148,7 @@ enum hclgevf_states {
 	HCLGEVF_STATE_MBX_HANDLING,
 	HCLGEVF_STATE_CMD_DISABLE,
 	HCLGEVF_STATE_LINK_UPDATING,
+	HCLGEVF_STATE_PROMISC_CHANGED,
 	HCLGEVF_STATE_RST_FAIL,
 };
 
@@ -234,6 +235,29 @@ struct hclgevf_rst_stats {
 	u32 rst_fail_cnt;		/* the number of VF reset fail */
 };
 
+enum HCLGEVF_MAC_ADDR_TYPE {
+	HCLGEVF_MAC_ADDR_UC,
+	HCLGEVF_MAC_ADDR_MC
+};
+
+enum HCLGEVF_MAC_NODE_STATE {
+	HCLGEVF_MAC_TO_ADD,
+	HCLGEVF_MAC_TO_DEL,
+	HCLGEVF_MAC_ACTIVE
+};
+
+struct hclgevf_mac_addr_node {
+	struct list_head node;
+	enum HCLGEVF_MAC_NODE_STATE state;
+	u8 mac_addr[ETH_ALEN];
+};
+
+struct hclgevf_mac_table_cfg {
+	spinlock_t mac_list_lock; /* protect mac address need to add/detele */
+	struct list_head uc_mac_list;
+	struct list_head mc_mac_list;
+};
+
 struct hclgevf_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
@@ -281,6 +305,8 @@ struct hclgevf_dev {
 	int *vector_irq;
 
 	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
+
+	struct hclgevf_mac_table_cfg mac_table;
 
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
