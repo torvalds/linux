@@ -706,28 +706,21 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 			       enum ia_css_shading_correction_type type,		/* [in] */
 			       unsigned int required_bds_factor,			/* [in] */
 			       const struct ia_css_stream_config *stream_config,	/* [in] */
-#ifndef ISP2401
-			       struct ia_css_shading_info *info)			/* [out] */
-#else
 			       struct ia_css_shading_info *shading_info,		/* [out] */
 			       struct ia_css_pipe_config *pipe_config)			/* [out] */
-#endif
 {
 	enum ia_css_err err;
 
 	assert(binary);
-#ifndef ISP2401
-	assert(info);
-#else
 	assert(shading_info);
 
 	IA_CSS_ENTER_PRIVATE("binary=%p, type=%d, required_bds_factor=%d, stream_config=%p",
 			     binary, type, required_bds_factor, stream_config);
-#endif
 
 	if (type == IA_CSS_SHADING_CORRECTION_TYPE_1)
 #ifndef ISP2401
-		err = ia_css_binary_get_shading_info_type_1(binary, required_bds_factor, stream_config, info);
+		err = ia_css_binary_get_shading_info_type_1(binary, required_bds_factor, stream_config,
+							    shading_info);
 #else
 		err = ia_css_binary_get_shading_info_type_1(binary, required_bds_factor, stream_config,
 			shading_info, pipe_config);

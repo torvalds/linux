@@ -182,11 +182,10 @@ struct ia_css_pipe_info {
 	     pixels normally used to initialize the ISP filters.
 	     This is why the raw output resolution should normally be set to
 	     the input resolution - 8x8. */
-#ifdef ISP2401
+	/* ISP2401 */
 	struct ia_css_resolution output_system_in_res_info;
 	/** For IPU3 only. Info about output system in resolution which is considered
 	     as gdc out resolution. */
-#endif
 	struct ia_css_shading_info shading_info;
 	/** After an image pipe is created, this field will contain the info
 	     for the shading correction. */

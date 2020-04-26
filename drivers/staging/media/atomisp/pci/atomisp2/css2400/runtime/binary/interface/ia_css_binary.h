@@ -219,12 +219,8 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,
 			       enum ia_css_shading_correction_type type,
 			       unsigned int required_bds_factor,
 			       const struct ia_css_stream_config *stream_config,
-#ifndef ISP2401
-			       struct ia_css_shading_info *info);
-#else
 			       struct ia_css_shading_info *shading_info,
 			       struct ia_css_pipe_config *pipe_config);
-#endif
 
 enum ia_css_err
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,

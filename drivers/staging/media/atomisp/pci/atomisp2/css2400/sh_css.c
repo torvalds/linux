@@ -5507,23 +5507,12 @@ static enum ia_css_err sh_css_pipe_configure_output(
 
 static enum ia_css_err
 sh_css_pipe_get_shading_info(struct ia_css_pipe *pipe,
-#ifndef ISP2401
-			     struct ia_css_shading_info *info)
-#else
 			     struct ia_css_shading_info *shading_info,
 			     struct ia_css_pipe_config *pipe_config)
-#endif
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_binary *binary = NULL;
 
-	assert(pipe);
-#ifndef ISP2401
-	assert(info);
-#else
-	assert(shading_info);
-	assert(pipe_config);
-#endif
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_pipe_get_shading_info() enter:\n");
 
@@ -5535,11 +5524,8 @@ sh_css_pipe_get_shading_info(struct ia_css_pipe *pipe,
 						     IA_CSS_SHADING_CORRECTION_TYPE_1,
 						     pipe->required_bds_factor,
 						     (const struct ia_css_stream_config *)&pipe->stream->config,
-#ifndef ISP2401
-						     info);
-#else
 						     shading_info, pipe_config);
-#endif
+
 		/* Other function calls can be added here when other shading correction types will be added
 		 * in the future.
 		 */
@@ -5550,11 +5536,7 @@ sh_css_pipe_get_shading_info(struct ia_css_pipe *pipe,
 		 * information. It is not a error case, and then
 		 * this function should return IA_CSS_SUCCESS.
 		 */
-#ifndef ISP2401
-		memset(info, 0, sizeof(*info));
-#else
 		memset(shading_info, 0, sizeof(*shading_info));
-#endif
 	}
 	return err;
 }
@@ -9951,16 +9933,18 @@ EXIT:
 				if (err != IA_CSS_SUCCESS)
 					goto ERR;
 			}
-#ifdef ISP2401
-			pipe_info->output_system_in_res_info = curr_pipe->config.output_system_in_res;
-#endif
+
+			if (atomisp_hw_is_isp2401)
+				pipe_info->output_system_in_res_info = curr_pipe->config.output_system_in_res;
+
 			if (!spcopyonly) {
-				err = sh_css_pipe_get_shading_info(curr_pipe,
-#ifndef ISP2401
-								   &pipe_info->shading_info);
-#else
-								   & pipe_info->shading_info, &curr_pipe->config);
-#endif
+				if (!atomisp_hw_is_isp2401)
+					err = sh_css_pipe_get_shading_info(curr_pipe,
+									   &pipe_info->shading_info, NULL);
+				else
+					err = sh_css_pipe_get_shading_info(curr_pipe,
+									   &pipe_info->shading_info, &curr_pipe->config);
+
 				if (err != IA_CSS_SUCCESS)
 					goto ERR;
 				err = sh_css_pipe_get_grid_info(curr_pipe,
