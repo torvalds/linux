@@ -1615,22 +1615,19 @@ error:
  *	data (for reads) to insn->data pointer
  */
 static int do_insn_ioctl(struct comedi_device *dev,
-			 struct comedi_insn __user *arg, void *file)
+			 struct comedi_insn *insn, void *file)
 {
-	struct comedi_insn insn;
 	unsigned int *data = NULL;
 	unsigned int n_data = MIN_SAMPLES;
 	int ret = 0;
 
 	lockdep_assert_held(&dev->mutex);
-	if (copy_from_user(&insn, arg, sizeof(insn)))
-		return -EFAULT;
 
-	n_data = max(n_data, insn.n);
+	n_data = max(n_data, insn->n);
 
 	/* This is where the behavior of insn and insnlist deviate. */
-	if (insn.n > MAX_SAMPLES) {
-		insn.n = MAX_SAMPLES;
+	if (insn->n > MAX_SAMPLES) {
+		insn->n = MAX_SAMPLES;
 		n_data = MAX_SAMPLES;
 	}
 
@@ -1640,26 +1637,26 @@ static int do_insn_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
-	if (insn.insn & INSN_MASK_WRITE) {
+	if (insn->insn & INSN_MASK_WRITE) {
 		if (copy_from_user(data,
-				   insn.data,
-				   insn.n * sizeof(unsigned int))) {
+				   insn->data,
+				   insn->n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}
 	}
-	ret = parse_insn(dev, &insn, data, file);
+	ret = parse_insn(dev, insn, data, file);
 	if (ret < 0)
 		goto error;
-	if (insn.insn & INSN_MASK_READ) {
-		if (copy_to_user(insn.data,
+	if (insn->insn & INSN_MASK_READ) {
+		if (copy_to_user(insn->data,
 				 data,
-				 insn.n * sizeof(unsigned int))) {
+				 insn->n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}
 	}
-	ret = insn.n;
+	ret = insn->n;
 
 error:
 	kfree(data);
@@ -2244,10 +2241,14 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				       (struct comedi_insnlist __user *)arg,
 				       file);
 		break;
-	case COMEDI_INSN:
-		rc = do_insn_ioctl(dev, (struct comedi_insn __user *)arg,
-				   file);
+	case COMEDI_INSN: {
+		struct comedi_insn insn;
+		if (copy_from_user(&insn, (void __user *)arg, sizeof(insn)))
+			rc = -EFAULT;
+		else
+			rc = do_insn_ioctl(dev, &insn, file);
 		break;
+	}
 	case COMEDI_POLL:
 		rc = do_poll_ioctl(dev, arg, file);
 		break;
@@ -3077,7 +3078,25 @@ static int compat_cmdtest(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit insn structure to native insn structure. */
-static int get_compat_insn(struct comedi_insn __user *insn,
+static int get_compat_insn(struct comedi_insn *insn,
+			   struct comedi32_insn_struct __user *insn32)
+{
+	struct comedi32_insn_struct v32;
+
+	/* Copy insn structure.  Ignore the unused members. */
+	if (copy_from_user(&v32, insn32, sizeof(v32)))
+		return -EFAULT;
+	memset(insn, 0, sizeof(*insn));
+	insn->insn = v32.insn;
+	insn->n = v32.n;
+	insn->data = compat_ptr(v32.data);
+	insn->subdev = v32.subdev;
+	insn->chanspec = v32.chanspec;
+	return 0;
+}
+
+/* Copy 32-bit insn structure to native insn structure. */
+static int __get_compat_insn(struct comedi_insn __user *insn,
 			   struct comedi32_insn_struct __user *insn32)
 {
 	int err;
@@ -3146,7 +3165,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 
 	/* Copy insn structures. */
 	for (n = 0; n < n_insns; n++) {
-		rc = get_compat_insn(&s->insn[n], &insn32[n]);
+		rc = __get_compat_insn(&s->insn[n], &insn32[n]);
 		if (rc)
 			return rc;
 	}
@@ -3158,18 +3177,19 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_INSN ioctl. */
 static int compat_insn(struct file *file, unsigned long arg)
 {
-	struct comedi_insn __user *insn;
-	struct comedi32_insn_struct __user *insn32;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi_insn insn;
 	int rc;
 
-	insn32 = compat_ptr(arg);
-	insn = compat_alloc_user_space(sizeof(*insn));
-
-	rc = get_compat_insn(insn, insn32);
+	rc = get_compat_insn(&insn, (void __user *)arg);
 	if (rc)
 		return rc;
 
-	return comedi_unlocked_ioctl(file, COMEDI_INSN, (unsigned long)insn);
+	mutex_lock(&dev->mutex);
+	rc = do_insn_ioctl(dev, &insn, file);
+	mutex_unlock(&dev->mutex);
+	return rc;
 }
 
 /*
