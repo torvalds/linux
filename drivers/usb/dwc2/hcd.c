@@ -2648,10 +2648,13 @@ static void dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 	}
 }
 
-static int dwc2_alloc_split_dma_aligned_buf(struct dwc2_hsotg *hsotg,
-					    struct dwc2_qh *qh,
-					    struct dwc2_host_chan *chan)
+static int dwc2_alloc_qh_dma_aligned_buf(struct dwc2_hsotg *hsotg,
+					 struct dwc2_qh *qh,
+					 struct dwc2_qtd *qtd,
+					 struct dwc2_host_chan *chan)
 {
+	u32 offset;
+
 	if (!hsotg->unaligned_cache ||
 	    chan->max_packet > DWC2_KMEM_UNALIGNED_BUF_SIZE)
 		return -ENOMEM;
@@ -2661,6 +2664,18 @@ static int dwc2_alloc_split_dma_aligned_buf(struct dwc2_hsotg *hsotg,
 						    GFP_ATOMIC | GFP_DMA);
 		if (!qh->dw_align_buf)
 			return -ENOMEM;
+	}
+
+	if (!chan->ep_is_in) {
+		if (qh->do_split) {
+			offset = chan->xfer_dma - qtd->urb->dma;
+			memcpy(qh->dw_align_buf, (u8 *)qtd->urb->buf + offset,
+			       (chan->xfer_len > 188 ? 188 : chan->xfer_len));
+		} else {
+			offset = chan->xfer_dma - qtd->urb->dma;
+			memcpy(qh->dw_align_buf, (u8 *)qtd->urb->buf + offset,
+			       chan->xfer_len);
+		}
 	}
 
 	qh->dw_align_buf_dma = dma_map_single(hsotg->dev, qh->dw_align_buf,
@@ -2867,10 +2882,10 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	dwc2_hc_init_xfer(hsotg, chan, qtd);
 
 	/* For non-dword aligned buffers */
-	if (hsotg->params.host_dma && qh->do_split &&
-	    chan->ep_is_in && (chan->xfer_dma & 0x3)) {
+	if (hsotg->params.host_dma && (chan->xfer_dma & 0x3) &&
+	    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
 		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
-		if (dwc2_alloc_split_dma_aligned_buf(hsotg, qh, chan)) {
+		if (dwc2_alloc_qh_dma_aligned_buf(hsotg, qh, qtd, chan)) {
 			dev_err(hsotg->dev,
 				"Failed to allocate memory to handle non-aligned buffer\n");
 			/* Add channel back to free list */
@@ -2884,8 +2899,8 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		}
 	} else {
 		/*
-		 * We assume that DMA is always aligned in non-split
-		 * case or split out case. Warn if not.
+		 * We assume that DMA is always aligned in other case,
+		 * Warn if not.
 		 */
 		WARN_ON_ONCE(hsotg->params.host_dma &&
 			     (chan->xfer_dma & 0x3));
