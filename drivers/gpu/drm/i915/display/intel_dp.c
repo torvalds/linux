@@ -2517,9 +2517,6 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 				 intel_crtc_has_type(pipe_config,
 						     INTEL_OUTPUT_DP_MST));
 
-	intel_dp->regs.dp_tp_ctl = DP_TP_CTL(port);
-	intel_dp->regs.dp_tp_status = DP_TP_STATUS(port);
-
 	/*
 	 * There are four kinds of DP registers:
 	 *
@@ -7836,6 +7833,8 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;
+	intel_dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);
+	intel_dig_port->dp.regs.dp_tp_status = DP_TP_STATUS(port);
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);
