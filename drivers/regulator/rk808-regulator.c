@@ -1690,7 +1690,21 @@ static struct platform_driver rk808_regulator_driver = {
 	},
 };
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init rk808_regulator_driver_init(void)
+{
+	return platform_driver_register(&rk808_regulator_driver);
+}
+subsys_initcall(rk808_regulator_driver_init);
+
+static void __exit rk808_regulator_driver_exit(void)
+{
+	platform_driver_unregister(&rk808_regulator_driver);
+}
+module_exit(rk808_regulator_driver_exit);
+#else
 module_platform_driver(rk808_regulator_driver);
+#endif
 
 MODULE_DESCRIPTION("regulator driver for the RK805/RK808/RK816/RK818 series PMICs");
 MODULE_AUTHOR("Tony xie <tony.xie@rock-chips.com>");
