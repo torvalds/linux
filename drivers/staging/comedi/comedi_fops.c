@@ -1649,17 +1649,11 @@ error:
 }
 
 static int __comedi_get_user_cmd(struct comedi_device *dev,
-				 struct comedi_cmd __user *arg,
 				 struct comedi_cmd *cmd)
 {
 	struct comedi_subdevice *s;
 
 	lockdep_assert_held(&dev->mutex);
-	if (copy_from_user(cmd, arg, sizeof(*cmd))) {
-		dev_dbg(dev->class_dev, "bad cmd address\n");
-		return -EFAULT;
-	}
-
 	if (cmd->subdev >= dev->n_subdevices) {
 		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd->subdev);
 		return -ENODEV;
@@ -1757,8 +1751,13 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	lockdep_assert_held(&dev->mutex);
 
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
+		dev_dbg(dev->class_dev, "bad cmd address\n");
+		return -EFAULT;
+	}
+
 	/* get the user's cmd and do some simple validation */
-	ret = __comedi_get_user_cmd(dev, arg, &cmd);
+	ret = __comedi_get_user_cmd(dev, &cmd);
 	if (ret)
 		return ret;
 
@@ -1866,8 +1865,13 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 
 	lockdep_assert_held(&dev->mutex);
 
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
+		dev_dbg(dev->class_dev, "bad cmd address\n");
+		return -EFAULT;
+	}
+
 	/* get the user's cmd and do some simple validation */
-	ret = __comedi_get_user_cmd(dev, arg, &cmd);
+	ret = __comedi_get_user_cmd(dev, &cmd);
 	if (ret)
 		return ret;
 
