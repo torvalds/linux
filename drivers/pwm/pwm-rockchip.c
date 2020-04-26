@@ -463,7 +463,21 @@ static struct platform_driver rockchip_pwm_driver = {
 	.probe = rockchip_pwm_probe,
 	.remove = rockchip_pwm_remove,
 };
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init rockchip_pwm_driver_init(void)
+{
+	return platform_driver_register(&rockchip_pwm_driver);
+}
+subsys_initcall(rockchip_pwm_driver_init);
+
+static void __exit rockchip_pwm_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_pwm_driver);
+}
+module_exit(rockchip_pwm_driver_exit);
+#else
 module_platform_driver(rockchip_pwm_driver);
+#endif
 
 MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Rockchip SoC PWM driver");
