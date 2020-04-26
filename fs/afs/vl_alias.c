@@ -180,6 +180,94 @@ is_alias:
 	return 1;
 }
 
+/*
+ * Query the new cell for a volume from a cell we're already using.
+ */
+static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
+				   struct afs_cell *p)
+{
+	struct afs_volume *volume, *pvol = NULL;
+	int ret;
+
+	/* Arbitrarily pick the first volume in the list. */
+	read_lock(&p->proc_lock);
+	if (!list_empty(&p->proc_volumes))
+		pvol = afs_get_volume(list_first_entry(&p->proc_volumes,
+						       struct afs_volume, proc_link));
+	read_unlock(&p->proc_lock);
+	if (!pvol)
+		return 0;
+
+	_enter("%s:%s", cell->name, pvol->name);
+
+	/* And see if it's in the new cell. */
+	volume = afs_sample_volume(cell, key, pvol->name, pvol->name_len);
+	if (IS_ERR(volume)) {
+		afs_put_volume(cell->net, pvol);
+		if (PTR_ERR(volume) != -ENOMEDIUM)
+			return PTR_ERR(volume);
+		/* That volume is not in the new cell, so not an alias */
+		return 0;
+	}
+
+	/* The new cell has a like-named volume also - compare volume ID,
+	 * server and address lists.
+	 */
+	ret = 0;
+	if (pvol->vid == volume->vid) {
+		rcu_read_lock();
+		if (afs_compare_volume_slists(volume, pvol))
+			ret = 1;
+		rcu_read_unlock();
+	}
+
+	afs_put_volume(cell->net, volume);
+	afs_put_volume(cell->net, pvol);
+	return ret;
+}
+
+/*
+ * Query the new cell for volumes we know exist in cells we're already using.
+ */
+static int afs_query_for_alias(struct afs_cell *cell, struct key *key)
+{
+	struct afs_cell *p;
+
+	_enter("%s", cell->name);
+
+	if (mutex_lock_interruptible(&cell->net->proc_cells_lock) < 0)
+		return -ERESTARTSYS;
+
+	hlist_for_each_entry(p, &cell->net->proc_cells, proc_link) {
+		if (p == cell || p->alias_of)
+			continue;
+		if (list_empty(&p->proc_volumes))
+			continue;
+		if (p->root_volume)
+			continue; /* Ignore cells that have a root.cell volume. */
+		afs_get_cell(p);
+		mutex_unlock(&cell->net->proc_cells_lock);
+
+		if (afs_query_for_alias_one(cell, key, p) != 0)
+			goto is_alias;
+
+		if (mutex_lock_interruptible(&cell->net->proc_cells_lock) < 0) {
+			afs_put_cell(cell->net, p);
+			return -ERESTARTSYS;
+		}
+
+		afs_put_cell(cell->net, p);
+	}
+
+	mutex_unlock(&cell->net->proc_cells_lock);
+	_leave(" = 0");
+	return 0;
+
+is_alias:
+	cell->alias_of = p; /* Transfer our ref */
+	return 1;
+}
+
 static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
 {
 	struct afs_volume *root_volume;
@@ -199,7 +287,7 @@ static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
 	/* Okay, this cell doesn't have an root.cell volume.  We need to
 	 * locate some other random volume and use that to check.
 	 */
-	return -ENOMEDIUM;
+	return afs_query_for_alias(cell, key);
 }
 
 /*
