@@ -7227,8 +7227,7 @@ static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
 		return ret;
 	}
 
-	if (allocated_size)
-		*allocated_size = le32_to_cpu(desc.data[1]);
+	*allocated_size = le32_to_cpu(desc.data[1]);
 
 	return 0;
 }
