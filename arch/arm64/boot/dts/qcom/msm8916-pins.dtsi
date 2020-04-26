@@ -262,6 +262,30 @@
 		};
 	};
 
+	i2c1_default: i2c1_default {
+		pinmux {
+			function = "blsp_i2c1";
+			pins = "gpio2", "gpio3";
+		};
+		pinconf {
+			pins = "gpio2", "gpio3";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	i2c1_sleep: i2c1_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio2", "gpio3";
+		};
+		pinconf {
+			pins = "gpio2", "gpio3";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
 	i2c2_default: i2c2_default {
 		pinmux {
 			function = "blsp_i2c2";
