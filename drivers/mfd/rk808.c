@@ -1438,7 +1438,21 @@ static struct i2c_driver rk808_i2c_driver = {
 	.shutdown = rk8xx_shutdown,
 };
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init rk808_i2c_driver_init(void)
+{
+	return i2c_add_driver(&rk808_i2c_driver);
+}
+subsys_initcall(rk808_i2c_driver_init);
+
+static void __exit rk808_i2c_driver_exit(void)
+{
+	i2c_del_driver(&rk808_i2c_driver);
+}
+module_exit(rk808_i2c_driver_exit);
+#else
 module_i2c_driver(rk808_i2c_driver);
+#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
