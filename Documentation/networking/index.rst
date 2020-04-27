@@ -48,6 +48,7 @@ Contents:
    cdc_mbim
    cops
    cxacru
+   dccp
 
 .. only::  subproject and html
 

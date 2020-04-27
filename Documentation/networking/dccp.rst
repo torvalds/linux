@@ -1,16 +1,18 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=============
 DCCP protocol
 =============
 
 
-Contents
-========
-- Introduction
-- Missing features
-- Socket options
-- Sysctl variables
-- IOCTLs
-- Other tunables
-- Notes
+.. Contents
+   - Introduction
+   - Missing features
+   - Socket options
+   - Sysctl variables
+   - IOCTLs
+   - Other tunables
+   - Notes
 
 
 Introduction
@@ -38,6 +40,7 @@ The Linux DCCP implementation does not currently support all the features that a
 specified in RFCs 4340...42.
 
 The known bugs are at:
+
 	http://www.linuxfoundation.org/collaborate/workgroups/networking/todo#DCCP
 
 For more up-to-date versions of the DCCP implementation, please consider using
@@ -54,7 +57,8 @@ defined: the "simple" policy (DCCPQ_POLICY_SIMPLE), which does nothing special,
 and a priority-based variant (DCCPQ_POLICY_PRIO). The latter allows to pass an
 u32 priority value as ancillary data to sendmsg(), where higher numbers indicate
 a higher packet priority (similar to SO_PRIORITY). This ancillary data needs to
-be formatted using a cmsg(3) message header filled in as follows:
+be formatted using a cmsg(3) message header filled in as follows::
+
 	cmsg->cmsg_level = SOL_DCCP;
 	cmsg->cmsg_type	 = DCCP_SCM_PRIORITY;
 	cmsg->cmsg_len	 = CMSG_LEN(sizeof(uint32_t));	/* or CMSG_LEN(4) */
@@ -94,7 +98,7 @@ must be registered on the socket before calling connect() or listen().
 
 DCCP_SOCKOPT_TX_CCID is read/write. It returns the current CCID (if set) or sets
 the preference list for the TX CCID, using the same format as DCCP_SOCKOPT_CCID.
-Please note that the getsockopt argument type here is `int', not uint8_t.
+Please note that the getsockopt argument type here is ``int``, not uint8_t.
 
 DCCP_SOCKOPT_RX_CCID is analogous to DCCP_SOCKOPT_TX_CCID, but for the RX CCID.
 
@@ -113,6 +117,7 @@ be enabled at the receiver, too with suitable choice of CsCov.
 DCCP_SOCKOPT_SEND_CSCOV sets the sender checksum coverage. Values in the
 	range 0..15 are acceptable. The default setting is 0 (full coverage),
 	values between 1..15 indicate partial coverage.
+
 DCCP_SOCKOPT_RECV_CSCOV is for the receiver and has a different meaning: it
 	sets a threshold, where again values 0..15 are acceptable. The default
 	of 0 means that all packets with a partial coverage will be discarded.
@@ -123,11 +128,13 @@ DCCP_SOCKOPT_RECV_CSCOV is for the receiver and has a different meaning: it
 
 The following two options apply to CCID 3 exclusively and are getsockopt()-only.
 In either case, a TFRC info struct (defined in <linux/tfrc.h>) is returned.
+
 DCCP_SOCKOPT_CCID_RX_INFO
-	Returns a `struct tfrc_rx_info' in optval; the buffer for optval and
+	Returns a ``struct tfrc_rx_info`` in optval; the buffer for optval and
 	optlen must be set to at least sizeof(struct tfrc_rx_info).
+
 DCCP_SOCKOPT_CCID_TX_INFO
-	Returns a `struct tfrc_tx_info' in optval; the buffer for optval and
+	Returns a ``struct tfrc_tx_info`` in optval; the buffer for optval and
 	optlen must be set to at least sizeof(struct tfrc_tx_info).
 
 On unidirectional connections it is useful to close the unused half-connection
@@ -182,7 +189,7 @@ sync_ratelimit = 125 ms
 IOCTLS
 ======
 FIONREAD
-	Works as in udp(7): returns in the `int' argument pointer the size of
+	Works as in udp(7): returns in the ``int`` argument pointer the size of
 	the next pending datagram in bytes, or 0 when no datagram is pending.
 
 
@@ -191,10 +198,12 @@ Other tunables
 Per-route rto_min support
 	CCID-2 supports the RTAX_RTO_MIN per-route setting for the minimum value
 	of the RTO timer. This setting can be modified via the 'rto_min' option
-	of iproute2; for example:
+	of iproute2; for example::
+
 		> ip route change 10.0.0.0/24   rto_min 250j dev wlan0
 		> ip route add    10.0.0.254/32 rto_min 800j dev wlan0
 		> ip route show dev wlan0
+
 	CCID-3 also supports the rto_min setting: it is used to define the lower
 	bound for the expiry of the nofeedback timer. This can be useful on LANs
 	with very low RTTs (e.g., loopback, Gbit ethernet).
