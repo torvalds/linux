@@ -5878,18 +5878,7 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 
 	qp_init_attr->cap	     = qp_attr->cap;
 
-	qp_init_attr->create_flags = 0;
-	if (qp->flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
-		qp_init_attr->create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
-
-	if (qp->flags & IB_QP_CREATE_CROSS_CHANNEL)
-		qp_init_attr->create_flags |= IB_QP_CREATE_CROSS_CHANNEL;
-	if (qp->flags & IB_QP_CREATE_MANAGED_SEND)
-		qp_init_attr->create_flags |= IB_QP_CREATE_MANAGED_SEND;
-	if (qp->flags & IB_QP_CREATE_MANAGED_RECV)
-		qp_init_attr->create_flags |= IB_QP_CREATE_MANAGED_RECV;
-	if (qp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)
-		qp_init_attr->create_flags |= MLX5_IB_QP_CREATE_SQPN_QP1;
+	qp_init_attr->create_flags = qp->flags;
 
 	qp_init_attr->sq_sig_type = qp->sq_signal_bits & MLX5_WQE_CTRL_CQ_UPDATE ?
 		IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;

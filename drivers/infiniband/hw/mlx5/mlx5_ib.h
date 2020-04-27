@@ -443,6 +443,7 @@ struct mlx5_ib_qp {
 	/* serialize qp state modifications
 	 */
 	struct mutex		mutex;
+	/* cached variant of create_flags from struct ib_qp_init_attr */
 	u32			flags;
 	u8			port;
 	u8			state;
