@@ -280,6 +280,10 @@ static int hif_error_indication(struct wfx_dev *wdev,
 		dev_err(wdev->dev, "asynchronous error: out-of-range overvoltage: %#.8x\n",
 			*pStatus);
 		break;
+	case HIF_ERROR_OOR_TEMPERATURE:
+		dev_err(wdev->dev, "asynchronous error: out-of-range temperature: %#.8x\n",
+			*pStatus);
+		break;
 	case HIF_ERROR_PDS_VERSION:
 		dev_err(wdev->dev,
 			"asynchronous error: wrong PDS payload or version: %#.8x\n",
