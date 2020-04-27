@@ -95,12 +95,10 @@ config CLK_R8A7779
 config CLK_R8A7790
 	bool "R-Car H2 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN2_CPG
-	select CLK_RENESAS_DIV6
 
 config CLK_R8A7791
 	bool "R-Car M2-W/N clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN2_CPG
-	select CLK_RENESAS_DIV6
 
 config CLK_R8A7792
 	bool "R-Car V2H clock support" if COMPILE_TEST
@@ -109,7 +107,6 @@ config CLK_R8A7792
 config CLK_R8A7794
 	bool "R-Car E2 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN2_CPG
-	select CLK_RENESAS_DIV6
 
 config CLK_R8A7795
 	bool "R-Car H3 clock support" if COMPILE_TEST
