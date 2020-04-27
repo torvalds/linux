@@ -3931,6 +3931,9 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 	 * reset the value in the HWSP.
 	 */
 	intel_timeline_reset_seqno(engine->kernel_context->timeline);
+
+	/* And scrub the dirty cachelines for the HWSP */
+	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
 }
 
 static void enable_error_interrupt(struct intel_engine_cs *engine)

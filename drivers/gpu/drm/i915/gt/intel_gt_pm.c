@@ -198,11 +198,12 @@ int intel_gt_resume(struct intel_gt *gt)
 	 * Only the kernel contexts should remain pinned over suspend,
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
+	gt_sanitize(gt, true);
+
 	intel_gt_pm_get(gt);
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
-	gt_sanitize(gt, true);
 	if (intel_gt_is_wedged(gt)) {
 		err = -EIO;
 		goto out_fw;
