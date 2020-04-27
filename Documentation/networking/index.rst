@@ -45,6 +45,7 @@ Contents:
    ax25
    baycom
    bonding
+   cdc_mbim
 
 .. only::  subproject and html
 
