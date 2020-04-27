@@ -63,8 +63,35 @@ int scs_prepare(struct task_struct *tsk, int node)
 	task_scs(tsk) = s;
 	task_scs_offset(tsk) = 0;
 	scs_account(tsk, 1);
-
 	return 0;
+}
+
+static void scs_check_usage(struct task_struct *tsk)
+{
+	static unsigned long highest;
+
+	unsigned long *p, prev, curr = highest, used = 0;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_STACK_USAGE))
+		return;
+
+	for (p = task_scs(tsk); p < __scs_magic(tsk); ++p) {
+		if (!READ_ONCE_NOCHECK(*p))
+			break;
+		used++;
+	}
+
+	while (used > curr) {
+		prev = cmpxchg_relaxed(&highest, curr, used);
+
+		if (prev == curr) {
+			pr_info("%s (%d): highest shadow stack usage: %lu bytes\n",
+				tsk->comm, task_pid_nr(tsk), used);
+			break;
+		}
+
+		curr = prev;
+	}
 }
 
 void scs_release(struct task_struct *tsk)
@@ -75,6 +102,7 @@ void scs_release(struct task_struct *tsk)
 		return;
 
 	WARN(scs_corrupted(tsk), "corrupted shadow stack detected when freeing task\n");
+	scs_check_usage(tsk);
 	scs_account(tsk, -1);
 	scs_free(s);
 }
