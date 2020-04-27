@@ -49,6 +49,7 @@ Contents:
    cops
    cxacru
    dccp
+   dctcp
 
 .. only::  subproject and html
 
