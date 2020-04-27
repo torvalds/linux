@@ -1,12 +1,20 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====
+IPsec
+=====
+
 
 Here documents known IPsec corner cases which need to be keep in mind when
 deploy various IPsec configuration in real world production environment.
 
-1. IPcomp: Small IP packet won't get compressed at sender, and failed on
+1. IPcomp:
+	   Small IP packet won't get compressed at sender, and failed on
 	   policy check on receiver.
 
-Quote from RFC3173:
-2.2. Non-Expansion Policy
+Quote from RFC3173::
+
+  2.2. Non-Expansion Policy
 
    If the total size of a compressed payload and the IPComp header, as
    defined in section 3, is not smaller than the size of the original

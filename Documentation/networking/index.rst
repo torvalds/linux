@@ -68,6 +68,7 @@ Contents:
    ipddp
    ip_dynaddr
    iphase
+   ipsec
 
 .. only::  subproject and html
 
