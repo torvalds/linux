@@ -24,6 +24,7 @@ algorithms work.
    splice
    locking
    directory-locking
+   devpts
 
    automount-support
 
