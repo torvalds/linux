@@ -1542,6 +1542,10 @@ console_out:
 	register_console(&state->console);
 	fiq_debugger_tty_init_one(state);
 #endif
+
+	/* switch to cpu0 default */
+	fiq_debugger_switch_cpu(state, 0);
+
 	return 0;
 
 err_register_irq:
