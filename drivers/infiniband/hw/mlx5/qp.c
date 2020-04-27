@@ -2581,7 +2581,6 @@ static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 
 	MLX5_SET(create_dct_in, qp->dct.in, uid, to_mpd(pd)->uid);
 	dctc = MLX5_ADDR_OF(create_dct_in, qp->dct.in, dct_context_entry);
-	qp->qp_sub_type = MLX5_IB_QPT_DCT;
 	MLX5_SET(dctc, dctc, pd, to_mpd(pd)->pdn);
 	MLX5_SET(dctc, dctc, srqn_xrqn, to_msrq(attr->srq)->msrq.srqn);
 	MLX5_SET(dctc, dctc, cqn, to_mcq(attr->recv_cq)->mcq.cqn);
@@ -2765,7 +2764,9 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				err = -EINVAL;
 				goto free_qp;
 			}
+			qp->qp_sub_type = MLX5_IB_QPT_DCI;
 		} else {
+			qp->qp_sub_type = MLX5_IB_QPT_DCT;
 			return mlx5_ib_create_dct(pd, qp, init_attr, &ucmd,
 						  udata);
 		}
@@ -2788,9 +2789,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		qp->ibqp.qp_num = qp->trans_qp.base.mqp.qpn;
 
 	qp->trans_qp.xrcdn = xrcdn;
-
-	if (verbs_init_attr->qp_type == IB_QPT_DRIVER)
-		qp->qp_sub_type = init_attr->qp_type;
 
 	return &qp->ibqp;
 
