@@ -760,10 +760,7 @@ static int to_mlx5_st(enum ib_qp_type type)
 	case IB_QPT_SMI:		return MLX5_QP_ST_QP0;
 	case MLX5_IB_QPT_HW_GSI:	return MLX5_QP_ST_QP1;
 	case MLX5_IB_QPT_DCI:		return MLX5_QP_ST_DCI;
-	case IB_QPT_RAW_IPV6:		return MLX5_QP_ST_RAW_IPV6;
-	case IB_QPT_RAW_PACKET:
-	case IB_QPT_RAW_ETHERTYPE:	return MLX5_QP_ST_RAW_ETHERTYPE;
-	case IB_QPT_MAX:
+	case IB_QPT_RAW_PACKET:		return MLX5_QP_ST_RAW_ETHERTYPE;
 	default:		return -EINVAL;
 	}
 }
@@ -2282,14 +2279,10 @@ static void get_cqs(enum ib_qp_type qp_type,
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 	case IB_QPT_UD:
-	case IB_QPT_RAW_IPV6:
-	case IB_QPT_RAW_ETHERTYPE:
 	case IB_QPT_RAW_PACKET:
 		*send_cq = ib_send_cq ? to_mcq(ib_send_cq) : NULL;
 		*recv_cq = ib_recv_cq ? to_mcq(ib_recv_cq) : NULL;
 		break;
-
-	case IB_QPT_MAX:
 	default:
 		*send_cq = NULL;
 		*recv_cq = NULL;
@@ -2434,9 +2427,6 @@ static int check_qp_type(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr)
 	case IB_QPT_DRIVER:
 	case IB_QPT_GSI:
 		return 0;
-	case IB_QPT_RAW_IPV6:
-	case IB_QPT_RAW_ETHERTYPE:
-	case IB_QPT_MAX:
 	default:
 		goto out;
 	}
