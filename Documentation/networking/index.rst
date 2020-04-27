@@ -40,6 +40,7 @@ Contents:
    6pack
    altera_tse
    arcnet-hardware
+   arcnet
 
 .. only::  subproject and html
 
