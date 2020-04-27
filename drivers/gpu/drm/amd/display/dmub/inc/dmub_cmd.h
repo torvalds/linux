@@ -36,6 +36,9 @@
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 #define REG_SET_MASK 0xFFFF
 
+#define SET_ABM_PIPE_GRADUALLY_DISABLE           0
+#define SET_ABM_PIPE_IMMEDIATELY_DISABLE         255
+#define SET_ABM_PIPE_NORMAL                      1
 
 /*
  * Command IDs should be treated as stable ABI.
@@ -272,6 +275,7 @@ struct dmub_rb_cmd_abm_set_pipe {
 
 struct dmub_cmd_abm_set_backlight_data {
 	uint32_t frame_ramp;
+	uint32_t backlight_user_level;
 };
 
 struct dmub_rb_cmd_abm_set_backlight {

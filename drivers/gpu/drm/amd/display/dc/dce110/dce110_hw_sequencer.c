@@ -2767,6 +2767,16 @@ void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 		panel_cntl->funcs->store_backlight_level(panel_cntl);
 }
 
+void dce110_set_pipe(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst + 1;
+
+	if (abm && panel_cntl)
+		abm->funcs->set_pipe(abm, otg_inst, panel_cntl->inst);
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
@@ -2804,6 +2814,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_cursor_attribute = dce110_set_cursor_attribute,
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
+	.set_pipe = dce110_set_pipe,
 };
 
 static const struct hwseq_private_funcs dce110_private_funcs = {

@@ -203,6 +203,8 @@ struct hw_sequencer_funcs {
 
 	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
 
+	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
+
 
 };
 
