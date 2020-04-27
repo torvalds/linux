@@ -887,6 +887,7 @@ mt7615_mcu_wtbl_generic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct wtbl_generic *generic;
 	struct wtbl_rx *rx;
+	struct wtbl_spe *spe;
 	struct tlv *tlv;
 
 	tlv = mt7615_mcu_add_nested_tlv(skb, WTBL_GENERIC, sizeof(*generic),
@@ -914,6 +915,11 @@ mt7615_mcu_wtbl_generic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	rx->rca1 = sta ? vif->type != NL80211_IFTYPE_AP : 1;
 	rx->rca2 = 1;
 	rx->rv = 1;
+
+	tlv = mt7615_mcu_add_nested_tlv(skb, WTBL_SPE, sizeof(*spe),
+					wtbl_tlv, sta_wtbl);
+	spe = (struct wtbl_spe *)tlv;
+	spe->spe_idx = 24;
 }
 
 static void

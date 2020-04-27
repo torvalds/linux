@@ -639,7 +639,8 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(MT_TXD3_NO_ACK);
 
 	txwi[7] = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
-		  FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
+		  FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
+		  FIELD_PREP(MT_TXD7_SPE_IDX, 0x18);
 	if (is_usb)
 		txwi[8] = FIELD_PREP(MT_TXD8_L_TYPE, fc_type) |
 			  FIELD_PREP(MT_TXD8_L_SUB_TYPE, fc_stype);
