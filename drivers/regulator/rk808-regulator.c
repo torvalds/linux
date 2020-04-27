@@ -134,9 +134,9 @@
 	_vmask, _ereg, _emask, 0, 0, _etime, &rk808_reg_ops)
 
 #define RK817_DESC(_id, _match, _supply, _min, _max, _step, _vreg,	\
-	_vmask, _ereg, _emask, _disval, _etime)				\
+	_vmask, _ereg, _emask, _enval, _disval, _etime)			\
 	RK8XX_DESC_COM(_id, _match, _supply, _min, _max, _step, _vreg,	\
-	_vmask, _ereg, _emask, _emask, _disval, _etime, &rk817_reg_ops)
+	_vmask, _ereg, _emask, _enval, _disval, _etime, &rk817_reg_ops)
 
 #define RKXX_DESC_SWITCH_COM(_id, _match, _supply, _ereg, _emask,	\
 	_enval, _disval, _ops)						\
@@ -155,10 +155,10 @@
 		.ops		= _ops					\
 	}
 
-#define RK817_DESC_SWITCH(_id, _match, _supply, _ereg, _emask,		\
+#define RK817_DESC_SWITCH(_id, _match, _supply, _ereg, _emask, _enval,	\
 	_disval)							\
 	RKXX_DESC_SWITCH_COM(_id, _match, _supply, _ereg, _emask,	\
-	_emask, _disval, &rk817_switch_ops)
+	_enval, _disval, &rk817_switch_ops)
 
 #define RK8XX_DESC_SWITCH(_id, _match, _supply, _ereg, _emask)		\
 	RKXX_DESC_SWITCH_COM(_id, _match, _supply, _ereg, _emask,	\
@@ -751,6 +751,22 @@ static unsigned int rk8xx_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_NORMAL;
 }
 
+static int rk8xx_enabled_wmsk_regmap(struct regulator_dev *rdev)
+{
+	return regmap_update_bits(rdev->regmap,
+				  rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  rdev->desc->enable_mask);
+}
+
+static int rk8xx_disabled_wmsk_regmap(struct regulator_dev *rdev)
+{
+	return regmap_update_bits(rdev->regmap,
+				  rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  rdev->desc->disable_val);
+}
+
 static int rk8xx_is_enabled_wmsk_regmap(struct regulator_dev *rdev)
 {
 	unsigned int val;
@@ -760,17 +776,7 @@ static int rk8xx_is_enabled_wmsk_regmap(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 
-	/* add write mask bit */
-	val |= (rdev->desc->enable_mask & 0xf0);
-	val &= rdev->desc->enable_mask;
-
-	if (rdev->desc->enable_is_inverted) {
-		if (rdev->desc->enable_val)
-			return val != rdev->desc->enable_val;
-		return (val == 0);
-	}
-	if (rdev->desc->enable_val)
-		return val == rdev->desc->enable_val;
+	val &= rdev->desc->enable_val;
 	return val != 0;
 }
 
@@ -868,8 +874,8 @@ static const struct regulator_ops rk809_buck5_ops_range = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= rk8xx_enabled_wmsk_regmap,
+	.disable		= rk8xx_disabled_wmsk_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_suspend_voltage	= rk808_set_suspend_voltage_range,
 	.set_suspend_enable	= rk817_set_suspend_enable,
@@ -881,8 +887,8 @@ static const struct regulator_ops rk817_reg_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= rk8xx_enabled_wmsk_regmap,
+	.disable		= rk8xx_disabled_wmsk_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_suspend_voltage	= rk808_set_suspend_voltage,
 	.set_suspend_enable	= rk817_set_suspend_enable,
@@ -894,8 +900,8 @@ static const struct regulator_ops rk817_boost_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= rk8xx_enabled_wmsk_regmap,
+	.disable		= rk8xx_disabled_wmsk_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_suspend_enable	= rk817_set_suspend_enable,
 	.set_suspend_disable	= rk817_set_suspend_disable,
@@ -907,8 +913,8 @@ static const struct regulator_ops rk817_buck_ops_range = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= rk8xx_enabled_wmsk_regmap,
+	.disable		= rk8xx_disabled_wmsk_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_mode		= rk8xx_set_mode,
 	.get_mode		= rk8xx_get_mode,
@@ -920,8 +926,8 @@ static const struct regulator_ops rk817_buck_ops_range = {
 };
 
 static const struct regulator_ops rk817_switch_ops = {
-	.enable			= regulator_enable_regmap,
-	.disable		= regulator_disable_regmap,
+	.enable			= rk8xx_enabled_wmsk_regmap,
+	.disable		= rk8xx_disabled_wmsk_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_suspend_enable	= rk817_set_suspend_enable,
 	.set_suspend_disable	= rk817_set_suspend_disable,
@@ -1218,7 +1224,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.vsel_mask = RK817_BUCK_VSEL_MASK,
 		.enable_reg = RK817_POWER_EN_REG(0),
 		.enable_mask = ENABLE_MASK(RK817_ID_DCDC1),
-		.enable_val = ENABLE_MASK(RK817_ID_DCDC1),
+		.enable_val = BIT(RK817_ID_DCDC1),
 		.disable_val = DISABLE_VAL(RK817_ID_DCDC1),
 		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
@@ -1237,7 +1243,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.vsel_mask = RK817_BUCK_VSEL_MASK,
 		.enable_reg = RK817_POWER_EN_REG(0),
 		.enable_mask = ENABLE_MASK(RK817_ID_DCDC2),
-		.enable_val = ENABLE_MASK(RK817_ID_DCDC2),
+		.enable_val = BIT(RK817_ID_DCDC2),
 		.disable_val = DISABLE_VAL(RK817_ID_DCDC2),
 		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
@@ -1256,7 +1262,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.vsel_mask = RK817_BUCK_VSEL_MASK,
 		.enable_reg = RK817_POWER_EN_REG(0),
 		.enable_mask = ENABLE_MASK(RK817_ID_DCDC3),
-		.enable_val = ENABLE_MASK(RK817_ID_DCDC3),
+		.enable_val = BIT(RK817_ID_DCDC3),
 		.disable_val = DISABLE_VAL(RK817_ID_DCDC3),
 		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
@@ -1275,7 +1281,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.vsel_mask = RK817_BUCK_VSEL_MASK,
 		.enable_reg = RK817_POWER_EN_REG(0),
 		.enable_mask = ENABLE_MASK(RK817_ID_DCDC4),
-		.enable_val = ENABLE_MASK(RK817_ID_DCDC4),
+		.enable_val = BIT(RK817_ID_DCDC4),
 		.disable_val = DISABLE_VAL(RK817_ID_DCDC4),
 		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
@@ -1295,52 +1301,52 @@ static const struct regulator_desc rk809_reg[] = {
 		.vsel_mask = RK809_BUCK5_VSEL_MASK,
 		.enable_reg = RK817_POWER_EN_REG(3),
 		.enable_mask = ENABLE_MASK(1),
-		.enable_val = ENABLE_MASK(1),
+		.enable_val = BIT(1),
 		.disable_val = DISABLE_VAL(1),
 		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
 	},
 	RK817_DESC(RK817_ID_LDO1, "LDO_REG1", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(0), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_DESC(RK817_ID_LDO2, "LDO_REG2", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(1), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(1),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(1), BIT(1),
 		   DISABLE_VAL(1), 400),
 	RK817_DESC(RK817_ID_LDO3, "LDO_REG3", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(2), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(2),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(2), BIT(2),
 		   DISABLE_VAL(2), 400),
 	RK817_DESC(RK817_ID_LDO4, "LDO_REG4", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(3), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(3),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(3), BIT(3),
 		   DISABLE_VAL(3), 400),
 	RK817_DESC(RK817_ID_LDO5, "LDO_REG5", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(4), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_DESC(RK817_ID_LDO6, "LDO_REG6", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(5), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(1),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(1), BIT(1),
 		   DISABLE_VAL(1), 400),
 	RK817_DESC(RK817_ID_LDO7, "LDO_REG7", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(6), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(2),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(2), BIT(2),
 		   DISABLE_VAL(2), 400),
 	RK817_DESC(RK817_ID_LDO8, "LDO_REG8", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(7), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(3),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(3), BIT(3),
 		   DISABLE_VAL(3), 400),
 	RK817_DESC(RK817_ID_LDO9, "LDO_REG9", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(8), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(3), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(3), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_DESC_SWITCH(RK809_ID_SW1, "SWITCH_REG1", "vcc9",
-			  RK817_POWER_EN_REG(3), ENABLE_MASK(2),
+			  RK817_POWER_EN_REG(3), ENABLE_MASK(2), BIT(2),
 			  DISABLE_VAL(2)),
 	RK817_DESC_SWITCH(RK809_ID_SW2, "SWITCH_REG2", "vcc8",
-			  RK817_POWER_EN_REG(3), ENABLE_MASK(3),
+			  RK817_POWER_EN_REG(3), ENABLE_MASK(3), BIT(3),
 			  DISABLE_VAL(3)),
 };
 
@@ -1424,46 +1430,46 @@ static const struct regulator_desc rk817_reg[] = {
 	},
 	RK817_DESC(RK817_ID_LDO1, "LDO_REG1", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(0), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_DESC(RK817_ID_LDO2, "LDO_REG2", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(1), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(1),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(1), BIT(1),
 		   DISABLE_VAL(1), 400),
 	RK817_DESC(RK817_ID_LDO3, "LDO_REG3", "vcc5", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(2), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(2),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(2), BIT(2),
 		   DISABLE_VAL(2), 400),
 	RK817_DESC(RK817_ID_LDO4, "LDO_REG4", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(3), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(1), ENABLE_MASK(3),
+		   RK817_POWER_EN_REG(1), ENABLE_MASK(3), BIT(3),
 		   DISABLE_VAL(3), 400),
 	RK817_DESC(RK817_ID_LDO5, "LDO_REG5", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(4), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_DESC(RK817_ID_LDO6, "LDO_REG6", "vcc6", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(5), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(1),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(1), BIT(1),
 		   DISABLE_VAL(1), 400),
 	RK817_DESC(RK817_ID_LDO7, "LDO_REG7", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(6), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(2),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(2), BIT(2),
 		   DISABLE_VAL(2), 400),
 	RK817_DESC(RK817_ID_LDO8, "LDO_REG8", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(7), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(2), ENABLE_MASK(3),
+		   RK817_POWER_EN_REG(2), ENABLE_MASK(3), BIT(3),
 		   DISABLE_VAL(3), 400),
 	RK817_DESC(RK817_ID_LDO9, "LDO_REG9", "vcc7", 600, 3400, 25,
 		   RK817_LDO_ON_VSEL_REG(8), RK817_LDO_VSEL_MASK,
-		   RK817_POWER_EN_REG(3), ENABLE_MASK(0),
+		   RK817_POWER_EN_REG(3), ENABLE_MASK(0), BIT(0),
 		   DISABLE_VAL(0), 400),
 	RK817_BOOST_DESC(RK817_ID_BOOST, "BOOST", "vcc8", 4700, 5400, 100,
 			 RK817_BOOST_OTG_CFG, RK817_BOOST_VSEL_MASK,
-			 RK817_POWER_EN_REG(3), ENABLE_MASK(1), ENABLE_MASK(1),
+			 RK817_POWER_EN_REG(3), ENABLE_MASK(1), BIT(1),
 		   DISABLE_VAL(1), 400, 3500 - 5400),
 	RK817_DESC_SWITCH(RK817_ID_BOOST_OTG_SW, "OTG_SWITCH", "vcc9",
-			  RK817_POWER_EN_REG(3), ENABLE_MASK(2),
+			  RK817_POWER_EN_REG(3), ENABLE_MASK(2), BIT(2),
 			  DISABLE_VAL(2)),
 };
 
