@@ -325,6 +325,10 @@ static struct test generic_tests[] = {
 		.func = test__maps__merge_in,
 	},
 	{
+		.desc = "Demangle Java",
+		.func = test__demangle_java,
+	},
+	{
 		.func = NULL,
 	},
 };
