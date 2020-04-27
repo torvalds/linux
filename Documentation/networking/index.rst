@@ -39,6 +39,7 @@ Contents:
    6lowpan
    6pack
    altera_tse
+   arcnet-hardware
 
 .. only::  subproject and html
 
