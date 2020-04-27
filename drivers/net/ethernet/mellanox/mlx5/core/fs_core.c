@@ -1595,11 +1595,12 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 		return true;
 
 	if (ignore_level) {
-		if (ft->type != FS_FT_FDB)
+		if (ft->type != FS_FT_FDB &&
+		    ft->type != FS_FT_NIC_RX)
 			return false;
 
 		if (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
-		    dest->ft->type != FS_FT_FDB)
+		    ft->type != dest->ft->type)
 			return false;
 	}
 
