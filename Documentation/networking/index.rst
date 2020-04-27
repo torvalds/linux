@@ -15,6 +15,7 @@ Contents:
    device_drivers/index
    dsa/index
    devlink/index
+   caif/index
    ethtool-netlink
    ieee802154
    j1939

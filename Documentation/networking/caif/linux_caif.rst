@@ -1,12 +1,19 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+==========
 Linux CAIF
-===========
-copyright (C) ST-Ericsson AB 2010
-Author: Sjur Brendeland/ sjur.brandeland@stericsson.com
-License terms: GNU General Public License (GPL) version 2
+==========
+
+Copyright |copy| ST-Ericsson AB 2010
+
+:Author: Sjur Brendeland/ sjur.brandeland@stericsson.com
+:License terms: GNU General Public License (GPL) version 2
 
 
 Introduction
-------------
+============
+
 CAIF is a MUX protocol used by ST-Ericsson cellular modems for
 communication between Modem and host. The host processes can open virtual AT
 channels, initiate GPRS Data connections, Video channels and Utility Channels.
@@ -16,13 +23,16 @@ ST-Ericsson modems support a number of transports between modem
 and host. Currently, UART and Loopback are available for Linux.
 
 
-Architecture:
-------------
+Architecture
+============
+
 The implementation of CAIF is divided into:
+
 * CAIF Socket Layer and GPRS IP Interface.
 * CAIF Core Protocol Implementation
 * CAIF Link Layer, implemented as NET devices.
 
+::
 
   RTNL
    !
@@ -46,12 +56,12 @@ The implementation of CAIF is divided into:
 
 
 
-I M P L E M E N T A T I O N
-===========================
+Implementation
+==============
 
 
 CAIF Core Protocol Layer
-=========================================
+------------------------
 
 CAIF Core layer implements the CAIF protocol as defined by ST-Ericsson.
 It implements the CAIF protocol stack in a layered approach, where
@@ -59,8 +69,11 @@ each layer described in the specification is implemented as a separate layer.
 The architecture is inspired by the design patterns "Protocol Layer" and
 "Protocol Packet".
 
-== CAIF structure ==
+CAIF structure
+^^^^^^^^^^^^^^
+
 The Core CAIF implementation contains:
+
       -	Simple implementation of CAIF.
       -	Layered architecture (a la Streams), each layer in the CAIF
 	specification is implemented in a separate c-file.
@@ -73,7 +86,8 @@ The Core CAIF implementation contains:
 	to the called function (except for framing layers' receive function)
 
 Layered Architecture
---------------------
+====================
+
 The CAIF protocol can be divided into two parts: Support functions and Protocol
 Implementation. The support functions include:
 
@@ -112,7 +126,7 @@ The CAIF Protocol implementation contains:
       - CFSERL CAIF Serial layer. Handles concatenation/split of frames
 	into CAIF Frames with correct length.
 
-
+::
 
 		    +---------+
 		    | Config  |
@@ -143,18 +157,24 @@ The CAIF Protocol implementation contains:
 
 
 In this layered approach the following "rules" apply.
+
       - All layers embed the same structure "struct cflayer"
       - A layer does not depend on any other layer's private data.
-      - Layers are stacked by setting the pointers
+      - Layers are stacked by setting the pointers::
+
 		  layer->up , layer->dn
-      -	In order to send data upwards, each layer should do
+
+      -	In order to send data upwards, each layer should do::
+
 		 layer->up->receive(layer->up, packet);
-      - In order to send data downwards, each layer should do
+
+      - In order to send data downwards, each layer should do::
+
 		 layer->dn->transmit(layer->dn, packet);
 
 
 CAIF Socket and IP interface
-===========================
+============================
 
 The IP interface and CAIF socket API are implemented on top of the
 CAIF Core protocol. The IP Interface and CAIF socket have an instance of
