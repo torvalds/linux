@@ -53,6 +53,7 @@ Contents:
    decnet
    defza
    dns_resolver
+   driver
 
 .. only::  subproject and html
 

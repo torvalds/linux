@@ -1,4 +1,8 @@
-Document about softnet driver issues
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================
+Softnet Driver Issues
+=====================
 
 Transmit path guidelines:
 
@@ -8,7 +12,7 @@ Transmit path guidelines:
    transmit function will become busy.
 
    Instead it must maintain the queue properly.  For example,
-   for a driver implementing scatter-gather this means:
+   for a driver implementing scatter-gather this means::
 
 	static netdev_tx_t drv_hard_start_xmit(struct sk_buff *skb,
 					       struct net_device *dev)
@@ -38,25 +42,25 @@ Transmit path guidelines:
 		return NETDEV_TX_OK;
 	}
 
-   And then at the end of your TX reclamation event handling:
+   And then at the end of your TX reclamation event handling::
 
 	if (netif_queue_stopped(dp->dev) &&
-            TX_BUFFS_AVAIL(dp) > (MAX_SKB_FRAGS + 1))
+	    TX_BUFFS_AVAIL(dp) > (MAX_SKB_FRAGS + 1))
 		netif_wake_queue(dp->dev);
 
-   For a non-scatter-gather supporting card, the three tests simply become:
+   For a non-scatter-gather supporting card, the three tests simply become::
 
 		/* This is a hard error log it. */
 		if (TX_BUFFS_AVAIL(dp) <= 0)
 
-   and:
+   and::
 
 		if (TX_BUFFS_AVAIL(dp) == 0)
 
-   and:
+   and::
 
 	if (netif_queue_stopped(dp->dev) &&
-            TX_BUFFS_AVAIL(dp) > 0)
+	    TX_BUFFS_AVAIL(dp) > 0)
 		netif_wake_queue(dp->dev);
 
 2) An ndo_start_xmit method must not modify the shared parts of a
@@ -86,7 +90,7 @@ Close/stop guidelines:
 
 1) After the ndo_stop routine has been called, the hardware must
    not receive or transmit any data.  All in flight packets must
-   be aborted. If necessary, poll or wait for completion of 
+   be aborted. If necessary, poll or wait for completion of
    any reset commands.
 
 2) The ndo_stop routine will be called by unregister_netdevice
