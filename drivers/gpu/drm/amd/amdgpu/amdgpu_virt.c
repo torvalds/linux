@@ -321,6 +321,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
+	case CHIP_SIENNA_CICHLID:
 	case CHIP_ARCTURUS:
 		reg = RREG32(mmRCC_IOV_FUNC_IDENTIFIER);
 		break;
