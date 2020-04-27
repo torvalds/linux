@@ -1372,7 +1372,7 @@ static int am65_cpsw_nuss_init_tx_chns(struct am65_cpsw_common *common)
 err:
 	i = devm_add_action(dev, am65_cpsw_nuss_free_tx_chns, common);
 	if (i) {
-		dev_err(dev, "failed to add free_tx_chns action %d", i);
+		dev_err(dev, "Failed to add free_tx_chns action %d\n", i);
 		return i;
 	}
 
@@ -1481,7 +1481,7 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 err:
 	i = devm_add_action(dev, am65_cpsw_nuss_free_rx_chns, common);
 	if (i) {
-		dev_err(dev, "failed to add free_rx_chns action %d", i);
+		dev_err(dev, "Failed to add free_rx_chns action %d\n", i);
 		return i;
 	}
 
@@ -1691,7 +1691,7 @@ static int am65_cpsw_nuss_init_ndev_2g(struct am65_cpsw_common *common)
 	ret = devm_add_action_or_reset(dev, am65_cpsw_pcpu_stats_free,
 				       ndev_priv->stats);
 	if (ret) {
-		dev_err(dev, "failed to add percpu stat free action %d", ret);
+		dev_err(dev, "Failed to add percpu stat free action %d\n", ret);
 		return ret;
 	}
 

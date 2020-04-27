@@ -178,6 +178,8 @@ struct bpf_capabilities {
 	__u32 array_mmap:1;
 	/* BTF_FUNC_GLOBAL is supported */
 	__u32 btf_func_global:1;
+	/* kernel support for expected_attach_type in BPF_PROG_LOAD */
+	__u32 exp_attach_type:1;
 };
 
 enum reloc_type {
@@ -194,6 +196,22 @@ struct reloc_desc {
 	int sym_off;
 };
 
+struct bpf_sec_def;
+
+typedef struct bpf_link *(*attach_fn_t)(const struct bpf_sec_def *sec,
+					struct bpf_program *prog);
+
+struct bpf_sec_def {
+	const char *sec;
+	size_t len;
+	enum bpf_prog_type prog_type;
+	enum bpf_attach_type expected_attach_type;
+	bool is_exp_attach_type_optional;
+	bool is_attachable;
+	bool is_attach_btf;
+	attach_fn_t attach_fn;
+};
+
 /*
  * bpf_prog should be a better name but it has been used in
  * linux/filter.h.
@@ -204,6 +222,7 @@ struct bpf_program {
 	char *name;
 	int prog_ifindex;
 	char *section_name;
+	const struct bpf_sec_def *sec_def;
 	/* section_name with / replaced by _; makes recursive pinning
 	 * in bpf_object__pin_programs easier
 	 */
@@ -3316,6 +3335,37 @@ static int bpf_object__probe_array_mmap(struct bpf_object *obj)
 }
 
 static int
+bpf_object__probe_exp_attach_type(struct bpf_object *obj)
+{
+	struct bpf_load_program_attr attr;
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int fd;
+
+	memset(&attr, 0, sizeof(attr));
+	/* use any valid combination of program type and (optional)
+	 * non-zero expected attach type (i.e., not a BPF_CGROUP_INET_INGRESS)
+	 * to see if kernel supports expected_attach_type field for
+	 * BPF_PROG_LOAD command
+	 */
+	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
+	attr.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+
+	fd = bpf_load_program_xattr(&attr, NULL, 0);
+	if (fd >= 0) {
+		obj->caps.exp_attach_type = 1;
+		close(fd);
+		return 1;
+	}
+	return 0;
+}
+
+static int
 bpf_object__probe_caps(struct bpf_object *obj)
 {
 	int (*probe_fn[])(struct bpf_object *obj) = {
@@ -3325,6 +3375,7 @@ bpf_object__probe_caps(struct bpf_object *obj)
 		bpf_object__probe_btf_func_global,
 		bpf_object__probe_btf_datasec,
 		bpf_object__probe_array_mmap,
+		bpf_object__probe_exp_attach_type,
 	};
 	int i, ret;
 
@@ -4861,7 +4912,12 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 
 	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = prog->type;
-	load_attr.expected_attach_type = prog->expected_attach_type;
+	/* old kernels might not support specifying expected_attach_type */
+	if (!prog->caps->exp_attach_type && prog->sec_def &&
+	    prog->sec_def->is_exp_attach_type_optional)
+		load_attr.expected_attach_type = 0;
+	else
+		load_attr.expected_attach_type = prog->expected_attach_type;
 	if (prog->caps->name)
 		load_attr.name = prog->name;
 	load_attr.insns = insns;
@@ -5062,6 +5118,8 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	return 0;
 }
 
+static const struct bpf_sec_def *find_sec_def(const char *sec_name);
+
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   const struct bpf_object_open_opts *opts)
@@ -5117,24 +5175,17 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	bpf_object__elf_finish(obj);
 
 	bpf_object__for_each_program(prog, obj) {
-		enum bpf_prog_type prog_type;
-		enum bpf_attach_type attach_type;
-
-		if (prog->type != BPF_PROG_TYPE_UNSPEC)
-			continue;
-
-		err = libbpf_prog_type_by_name(prog->section_name, &prog_type,
-					       &attach_type);
-		if (err == -ESRCH)
+		prog->sec_def = find_sec_def(prog->section_name);
+		if (!prog->sec_def)
 			/* couldn't guess, but user might manually specify */
 			continue;
-		if (err)
-			goto out;
 
-		bpf_program__set_type(prog, prog_type);
-		bpf_program__set_expected_attach_type(prog, attach_type);
-		if (prog_type == BPF_PROG_TYPE_TRACING ||
-		    prog_type == BPF_PROG_TYPE_EXT)
+		bpf_program__set_type(prog, prog->sec_def->prog_type);
+		bpf_program__set_expected_attach_type(prog,
+				prog->sec_def->expected_attach_type);
+
+		if (prog->sec_def->prog_type == BPF_PROG_TYPE_TRACING ||
+		    prog->sec_def->prog_type == BPF_PROG_TYPE_EXT)
 			prog->attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
 	}
 
@@ -6223,23 +6274,32 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_IMPL(string, ptype, eatype, is_attachable, btf, atype) \
-	{ string, sizeof(string) - 1, ptype, eatype, is_attachable, btf, atype }
+#define BPF_PROG_SEC_IMPL(string, ptype, eatype, eatype_optional,	    \
+			  attachable, attach_btf)			    \
+	{								    \
+		.sec = string,						    \
+		.len = sizeof(string) - 1,				    \
+		.prog_type = ptype,					    \
+		.expected_attach_type = eatype,				    \
+		.is_exp_attach_type_optional = eatype_optional,		    \
+		.is_attachable = attachable,				    \
+		.is_attach_btf = attach_btf,				    \
+	}
 
 /* Programs that can NOT be attached. */
 #define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 0, 0)
 
 /* Programs that can be attached. */
 #define BPF_APROG_SEC(string, ptype, atype) \
-	BPF_PROG_SEC_IMPL(string, ptype, 0, 1, 0, atype)
+	BPF_PROG_SEC_IMPL(string, ptype, atype, true, 1, 0)
 
 /* Programs that must specify expected attach type at load time. */
 #define BPF_EAPROG_SEC(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, 1, 0, eatype)
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, false, 1, 0)
 
 /* Programs that use BTF to identify attach point */
 #define BPF_PROG_BTF(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, 0, 1, 0)
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, false, 0, 1)
 
 /* Programs that can be attached but attach type can't be identified by section
  * name. Kept for backward compatibility.
@@ -6253,11 +6313,6 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	__VA_ARGS__							    \
 }
 
-struct bpf_sec_def;
-
-typedef struct bpf_link *(*attach_fn_t)(const struct bpf_sec_def *sec,
-					struct bpf_program *prog);
-
 static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 				      struct bpf_program *prog);
 static struct bpf_link *attach_tp(const struct bpf_sec_def *sec,
@@ -6268,17 +6323,6 @@ static struct bpf_link *attach_trace(const struct bpf_sec_def *sec,
 				     struct bpf_program *prog);
 static struct bpf_link *attach_lsm(const struct bpf_sec_def *sec,
 				   struct bpf_program *prog);
-
-struct bpf_sec_def {
-	const char *sec;
-	size_t len;
-	enum bpf_prog_type prog_type;
-	enum bpf_attach_type expected_attach_type;
-	bool is_attachable;
-	bool is_attach_btf;
-	enum bpf_attach_type attach_type;
-	attach_fn_t attach_fn;
-};
 
 static const struct bpf_sec_def section_defs[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
@@ -6713,7 +6757,7 @@ int libbpf_attach_type_by_name(const char *name,
 			continue;
 		if (!section_defs[i].is_attachable)
 			return -EINVAL;
-		*attach_type = section_defs[i].attach_type;
+		*attach_type = section_defs[i].expected_attach_type;
 		return 0;
 	}
 	pr_debug("failed to guess attach type based on ELF section name '%s'\n", name);
@@ -7542,7 +7586,6 @@ static struct bpf_link *attach_lsm(const struct bpf_sec_def *sec,
 struct bpf_link *
 bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd)
 {
-	const struct bpf_sec_def *sec_def;
 	enum bpf_attach_type attach_type;
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
@@ -7561,11 +7604,6 @@ bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd)
 	link->detach = &bpf_link__detach_fd;
 
 	attach_type = bpf_program__get_expected_attach_type(prog);
-	if (!attach_type) {
-		sec_def = find_sec_def(bpf_program__title(prog, false));
-		if (sec_def)
-			attach_type = sec_def->attach_type;
-	}
 	link_fd = bpf_link_create(prog_fd, cgroup_fd, attach_type, NULL);
 	if (link_fd < 0) {
 		link_fd = -errno;

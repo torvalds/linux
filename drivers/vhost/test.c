@@ -49,7 +49,7 @@ static void handle_vq(struct vhost_test *n)
 	void *private;
 
 	mutex_lock(&vq->mutex);
-	private = vq->private_data;
+	private = vhost_vq_get_backend(vq);
 	if (!private) {
 		mutex_unlock(&vq->mutex);
 		return;
@@ -120,7 +120,7 @@ static int vhost_test_open(struct inode *inode, struct file *f)
 	vqs[VHOST_TEST_VQ] = &n->vqs[VHOST_TEST_VQ];
 	n->vqs[VHOST_TEST_VQ].handle_kick = handle_vq_kick;
 	vhost_dev_init(dev, vqs, VHOST_TEST_VQ_MAX, UIO_MAXIOV,
-		       VHOST_TEST_PKT_WEIGHT, VHOST_TEST_WEIGHT);
+		       VHOST_TEST_PKT_WEIGHT, VHOST_TEST_WEIGHT, NULL);
 
 	f->private_data = n;
 
@@ -133,8 +133,8 @@ static void *vhost_test_stop_vq(struct vhost_test *n,
 	void *private;
 
 	mutex_lock(&vq->mutex);
-	private = vq->private_data;
-	vq->private_data = NULL;
+	private = vhost_vq_get_backend(vq);
+	vhost_vq_set_backend(vq, NULL);
 	mutex_unlock(&vq->mutex);
 	return private;
 }
@@ -198,8 +198,8 @@ static long vhost_test_run(struct vhost_test *n, int test)
 		priv = test ? n : NULL;
 
 		/* start polling new socket */
-		oldpriv = vq->private_data;
-		vq->private_data = priv;
+		oldpriv = vhost_vq_get_backend(vq);
+		vhost_vq_set_backend(vq, priv);
 
 		r = vhost_vq_init_access(&n->vqs[index]);
 
@@ -225,7 +225,7 @@ static long vhost_test_reset_owner(struct vhost_test *n)
 {
 	void *priv = NULL;
 	long err;
-	struct vhost_umem *umem;
+	struct vhost_iotlb *umem;
 
 	mutex_lock(&n->dev.mutex);
 	err = vhost_dev_check_owner(&n->dev);

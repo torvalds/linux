@@ -3,11 +3,11 @@
  * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  */
 
-#ifndef _ASM_MODULE_H
-#define _ASM_MODULE_H
+#ifndef _ASM_VERMAGIC_H
+#define _ASM_VERMAGIC_H
 
-#include <asm-generic/module.h>
+#include <linux/stringify.h>
 
 #define MODULE_ARCH_VERMAGIC __stringify(PROCESSOR_MODEL_NAME) " "
 
-#endif
+#endif /* _ASM_VERMAGIC_H */

@@ -423,7 +423,7 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 			memset(&template, 0, sizeof(template));
 			template.reg = e->reg;
-			template.mask = e->mask << e->shift_l;
+			template.mask = e->mask;
 			template.shift = e->shift_l;
 			template.off_val = snd_soc_enum_item_to_val(e, 0);
 			template.on_val = template.off_val;
@@ -546,8 +546,22 @@ static bool dapm_kcontrol_set_value(const struct snd_kcontrol *kcontrol,
 	if (data->value == value)
 		return false;
 
-	if (data->widget)
-		data->widget->on_val = value;
+	if (data->widget) {
+		switch (dapm_kcontrol_get_wlist(kcontrol)->widgets[0]->id) {
+		case snd_soc_dapm_switch:
+		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
+			data->widget->on_val = value & data->widget->mask;
+			break;
+		case snd_soc_dapm_demux:
+		case snd_soc_dapm_mux:
+			data->widget->on_val = value >> data->widget->shift;
+			break;
+		default:
+			data->widget->on_val = value;
+			break;
+		}
+	}
 
 	data->value = value;
 
@@ -4165,6 +4179,8 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card,
 	w = snd_soc_dapm_new_control_unlocked(&card->dapm, &template);
 	if (IS_ERR(w)) {
 		ret = PTR_ERR(w);
+		dev_err(rtd->dev, "ASoC: Failed to create %s widget: %d\n",
+			link_name, ret);
 		goto outfree_kcontrol_news;
 	}
 
@@ -4283,52 +4299,58 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 	return 0;
 }
 
-static void dapm_add_valid_dai_widget(struct snd_soc_card *card,
-				      struct snd_soc_pcm_runtime *rtd,
-				      struct snd_soc_dai *codec_dai,
-				      struct snd_soc_dai *cpu_dai)
+static void dapm_connect_dai_routes(struct snd_soc_dapm_context *dapm,
+				    struct snd_soc_dai *src_dai,
+				    struct snd_soc_dapm_widget *src,
+				    struct snd_soc_dapm_widget *dai,
+				    struct snd_soc_dai *sink_dai,
+				    struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_dapm_widget *playback = NULL, *capture = NULL;
-	struct snd_soc_dapm_widget *codec, *playback_cpu, *capture_cpu;
+	dev_dbg(dapm->dev, "connected DAI link %s:%s -> %s:%s\n",
+		src_dai->component->name, src->name,
+		sink_dai->component->name, sink->name);
+
+	if (dai) {
+		snd_soc_dapm_add_path(dapm, src, dai, NULL, NULL);
+		src = dai;
+	}
+
+	snd_soc_dapm_add_path(dapm, src, sink, NULL, NULL);
+}
+
+static void dapm_connect_dai_pair(struct snd_soc_card *card,
+				  struct snd_soc_pcm_runtime *rtd,
+				  struct snd_soc_dai *codec_dai,
+				  struct snd_soc_dai *cpu_dai)
+{
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+	struct snd_soc_dapm_widget *dai, *codec, *playback_cpu, *capture_cpu;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_str *streams = rtd->pcm->streams;
 
-	if (rtd->dai_link->params) {
+	if (dai_link->params) {
 		playback_cpu = cpu_dai->capture_widget;
 		capture_cpu = cpu_dai->playback_widget;
 	} else {
-		playback = cpu_dai->playback_widget;
-		capture = cpu_dai->capture_widget;
-		playback_cpu = playback;
-		capture_cpu = capture;
+		playback_cpu = cpu_dai->playback_widget;
+		capture_cpu = cpu_dai->capture_widget;
 	}
 
 	/* connect BE DAI playback if widgets are valid */
 	codec = codec_dai->playback_widget;
 
 	if (playback_cpu && codec) {
-		if (!playback) {
+		if (dai_link->params && !dai_link->playback_widget) {
 			substream = streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-			playback = snd_soc_dapm_new_dai(card, substream,
-							"playback");
-			if (IS_ERR(playback)) {
-				dev_err(rtd->dev,
-					"ASoC: Failed to create DAI %s: %ld\n",
-					codec_dai->name,
-					PTR_ERR(playback));
+			dai = snd_soc_dapm_new_dai(card, substream, "playback");
+			if (IS_ERR(dai))
 				goto capture;
-			}
-
-			snd_soc_dapm_add_path(&card->dapm, playback_cpu,
-					      playback, NULL, NULL);
+			dai_link->playback_widget = dai;
 		}
 
-		dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-			cpu_dai->component->name, playback_cpu->name,
-			codec_dai->component->name, codec->name);
-
-		snd_soc_dapm_add_path(&card->dapm, playback, codec,
-				      NULL, NULL);
+		dapm_connect_dai_routes(&card->dapm, cpu_dai, playback_cpu,
+					dai_link->playback_widget,
+					codec_dai, codec);
 	}
 
 capture:
@@ -4336,50 +4358,18 @@ capture:
 	codec = codec_dai->capture_widget;
 
 	if (codec && capture_cpu) {
-		if (!capture) {
+		if (dai_link->params && !dai_link->capture_widget) {
 			substream = streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-			capture = snd_soc_dapm_new_dai(card, substream,
-						       "capture");
-			if (IS_ERR(capture)) {
-				dev_err(rtd->dev,
-					"ASoC: Failed to create DAI %s: %ld\n",
-					codec_dai->name,
-					PTR_ERR(capture));
+			dai = snd_soc_dapm_new_dai(card, substream, "capture");
+			if (IS_ERR(dai))
 				return;
-			}
-
-			snd_soc_dapm_add_path(&card->dapm, capture,
-					      capture_cpu, NULL, NULL);
+			dai_link->capture_widget = dai;
 		}
 
-		dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-			codec_dai->component->name, codec->name,
-			cpu_dai->component->name, capture_cpu->name);
-
-		snd_soc_dapm_add_path(&card->dapm, codec, capture,
-				      NULL, NULL);
+		dapm_connect_dai_routes(&card->dapm, codec_dai, codec,
+					dai_link->capture_widget,
+					cpu_dai, capture_cpu);
 	}
-}
-
-static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
-					  struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *codec_dai;
-	int i;
-
-	if (rtd->num_cpus == 1) {
-		for_each_rtd_codec_dais(rtd, i, codec_dai)
-			dapm_add_valid_dai_widget(card, rtd, codec_dai,
-						  rtd->cpu_dais[0]);
-	} else if (rtd->num_codecs == rtd->num_cpus) {
-		for_each_rtd_codec_dais(rtd, i, codec_dai)
-			dapm_add_valid_dai_widget(card, rtd, codec_dai,
-						  rtd->cpu_dais[i]);
-	} else {
-		dev_err(card->dev,
-			"N cpus to M codecs link is not supported yet\n");
-	}
-
 }
 
 static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
@@ -4422,6 +4412,8 @@ static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
+	int i;
 
 	/* for each BE DAI link... */
 	for_each_card_rtds(card, rtd)  {
@@ -4432,7 +4424,18 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 		if (rtd->dai_link->dynamic)
 			continue;
 
-		dapm_connect_dai_link_widgets(card, rtd);
+		if (rtd->num_cpus == 1) {
+			for_each_rtd_codec_dais(rtd, i, codec_dai)
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      rtd->cpu_dais[0]);
+		} else if (rtd->num_codecs == rtd->num_cpus) {
+			for_each_rtd_codec_dais(rtd, i, codec_dai)
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      rtd->cpu_dais[i]);
+		} else {
+			dev_err(card->dev,
+				"N cpus to M codecs link is not supported yet\n");
+		}
 	}
 }
 

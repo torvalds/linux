@@ -37,7 +37,6 @@ examples:
     dsi {
         #address-cells = <1>;
         #size-cells = <0>;
-        reg = <0xff450000 0x1000>;
 
         panel@0 {
             compatible = "xinpeng,xpp055c272";
