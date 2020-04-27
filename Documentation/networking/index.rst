@@ -41,6 +41,7 @@ Contents:
    altera_tse
    arcnet-hardware
    arcnet
+   atm
 
 .. only::  subproject and html
 
