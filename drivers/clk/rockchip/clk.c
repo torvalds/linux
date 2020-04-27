@@ -213,6 +213,16 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 		}
 
 		if (*parent_rate < rate * 20) {
+			/*
+			 * Fractional frequency divider to do
+			 * integer frequency divider does not
+			 * need 20 times the limit.
+			 */
+			if (!(*parent_rate % rate)) {
+				*m = 1;
+				*n = *parent_rate / rate;
+				return;
+			}
 			pr_warn("%s p_rate(%ld) is low than rate(%ld)*20, use integer or half-div\n",
 				clk_hw_get_name(hw), *parent_rate, rate);
 			*m = 0;
