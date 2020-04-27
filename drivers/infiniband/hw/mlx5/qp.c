@@ -41,9 +41,6 @@
 #include "cmd.h"
 #include "qp.h"
 
-/* not supported currently */
-static int wq_signature;
-
 enum {
 	MLX5_IB_ACK_REQ_FREQ	= 8,
 };
@@ -392,17 +389,26 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 		cap->max_recv_wr = 0;
 		cap->max_recv_sge = 0;
 	} else {
+		int wq_sig = !!(qp->flags_en & MLX5_QP_FLAG_SIGNATURE);
+
 		if (ucmd) {
 			qp->rq.wqe_cnt = ucmd->rq_wqe_count;
 			if (ucmd->rq_wqe_shift > BITS_PER_BYTE * sizeof(ucmd->rq_wqe_shift))
 				return -EINVAL;
 			qp->rq.wqe_shift = ucmd->rq_wqe_shift;
-			if ((1 << qp->rq.wqe_shift) / sizeof(struct mlx5_wqe_data_seg) < qp->wq_sig)
+			if ((1 << qp->rq.wqe_shift) /
+				    sizeof(struct mlx5_wqe_data_seg) <
+			    wq_sig)
 				return -EINVAL;
-			qp->rq.max_gs = (1 << qp->rq.wqe_shift) / sizeof(struct mlx5_wqe_data_seg) - qp->wq_sig;
+			qp->rq.max_gs =
+				(1 << qp->rq.wqe_shift) /
+					sizeof(struct mlx5_wqe_data_seg) -
+				wq_sig;
 			qp->rq.max_post = qp->rq.wqe_cnt;
 		} else {
-			wqe_size = qp->wq_sig ? sizeof(struct mlx5_wqe_signature_seg) : 0;
+			wqe_size =
+				wq_sig ? sizeof(struct mlx5_wqe_signature_seg) :
+					 0;
 			wqe_size += cap->max_recv_sge * sizeof(struct mlx5_wqe_data_seg);
 			wqe_size = roundup_pow_of_two(wqe_size);
 			wq_size = roundup_pow_of_two(cap->max_recv_wr) * wqe_size;
@@ -416,7 +422,10 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 				return -EINVAL;
 			}
 			qp->rq.wqe_shift = ilog2(wqe_size);
-			qp->rq.max_gs = (1 << qp->rq.wqe_shift) / sizeof(struct mlx5_wqe_data_seg) - qp->wq_sig;
+			qp->rq.max_gs =
+				(1 << qp->rq.wqe_shift) /
+					sizeof(struct mlx5_wqe_data_seg) -
+				wq_sig;
 			qp->rq.max_post = qp->rq.wqe_cnt;
 		}
 	}
@@ -2008,7 +2017,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			return err;
 
-		qp->wq_sig = !!(ucmd->flags & MLX5_QP_FLAG_SIGNATURE);
+		if (ucmd->flags & MLX5_QP_FLAG_SIGNATURE)
+			qp->flags_en |= MLX5_QP_FLAG_SIGNATURE;
 		if (MLX5_CAP_GEN(dev->mdev, sctr_data_cqe))
 			qp->scat_cqe =
 				!!(ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE);
@@ -2045,8 +2055,6 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			}
 			qp->flags_en |= MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE;
 		}
-	} else {
-		qp->wq_sig = !!wq_signature;
 	}
 
 	if (qp->flags & IB_QP_CREATE_SOURCE_QPN)
@@ -2115,7 +2123,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, latency_sensitive, 1);
 
 
-	if (qp->wq_sig)
+	if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE)
 		MLX5_SET(qpc, qpc, wq_signature, 1);
 
 	if (qp->flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
@@ -4997,7 +5005,7 @@ static void finish_wqe(struct mlx5_ib_qp *qp,
 					     mlx5_opcode | ((u32)opmod << 24));
 	ctrl->qpn_ds = cpu_to_be32(size | (qp->trans_qp.base.mqp.qpn << 8));
 	ctrl->fm_ce_se |= fence;
-	if (unlikely(qp->wq_sig))
+	if (unlikely(qp->flags_en & MLX5_QP_FLAG_SIGNATURE))
 		ctrl->signature = wq_sig(ctrl);
 
 	qp->sq.wrid[idx] = wr_id;
@@ -5449,7 +5457,7 @@ static int _mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		}
 
 		scat = mlx5_frag_buf_get_wqe(&qp->rq.fbc, ind);
-		if (qp->wq_sig)
+		if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE)
 			scat++;
 
 		for (i = 0; i < wr->num_sge; i++)
@@ -5461,7 +5469,7 @@ static int _mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 			scat[i].addr       = 0;
 		}
 
-		if (qp->wq_sig) {
+		if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE) {
 			sig = (struct mlx5_rwqe_sig *)scat;
 			set_sig_seg(sig, (qp->rq.max_gs + 1) << 2);
 		}

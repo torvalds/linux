@@ -1190,7 +1190,7 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 	struct mlx5_ib_wq *wq = &qp->rq;
 	int wqe_size = 1 << wq->wqe_shift;
 
-	if (qp->wq_sig) {
+	if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE) {
 		mlx5_ib_err(dev, "ODP fault with WQE signatures is not supported\n");
 		return -EFAULT;
 	}
