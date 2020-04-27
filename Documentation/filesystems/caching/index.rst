@@ -8,6 +8,7 @@ Filesystem Caching
 
    fscache
    object
+   backend-api
    cachefiles
    netfs-api
    operations

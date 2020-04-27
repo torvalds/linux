@@ -295,7 +295,7 @@ static void fscache_object_work_func(struct work_struct *work)
  *
  * Initialise a cache object description to its basic values.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 void fscache_object_init(struct fscache_object *object,

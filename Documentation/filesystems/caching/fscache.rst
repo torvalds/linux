@@ -187,7 +187,7 @@ The netfs API to FS-Cache can be found in:
 
 The cache backend API to FS-Cache can be found in:
 
-	Documentation/filesystems/caching/backend-api.txt
+	Documentation/filesystems/caching/backend-api.rst
 
 A description of the internal representations and object state machine can be
 found in:
