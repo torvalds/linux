@@ -2673,7 +2673,11 @@ static void sof_dai_set_format(struct snd_soc_tplg_hw_config *hw_config,
 	}
 }
 
-/* set config for all DAI's with name matching the link name */
+/*
+ * Send IPC and set the same config for all DAIs with name matching the link
+ * name. Note that the function can only be used for the case that all DAIs
+ * have a common DAI config for now.
+ */
 static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			      struct snd_soc_dai_link *link,
 			      struct sof_ipc_dai_config *config)
@@ -2686,6 +2690,19 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			continue;
 
 		if (strcmp(link->name, dai->name) == 0) {
+			struct sof_ipc_reply reply;
+			int ret;
+
+			/* send message to DSP */
+			ret = sof_ipc_tx_message(sdev->ipc,
+						 config->hdr.cmd, config, size,
+						 &reply, sizeof(reply));
+
+			if (ret < 0) {
+				dev_err(sdev->dev, "error: failed to set DAI config for %s index %d\n",
+					dai->name, config->dai_index);
+				return ret;
+			}
 			dai->dai_config = kmemdup(config, size, GFP_KERNEL);
 			if (!dai->dai_config)
 				return -ENOMEM;
@@ -2718,7 +2735,6 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
 	int ret;
 
@@ -2767,17 +2783,6 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
-
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: failed to set DAI config for SSP%d\n",
-			config->dai_index);
-		return ret;
-	}
-
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
@@ -2795,7 +2800,6 @@ static int sof_link_sai_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
 	int ret;
 
@@ -2835,17 +2839,6 @@ static int sof_link_sai_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
-
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: failed to set DAI config for SAI%d\n",
-			config->dai_index);
-		return ret;
-	}
-
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
@@ -2863,7 +2856,6 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
 	int ret;
 
@@ -2904,16 +2896,6 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: failed to set DAI config for ESAI%d\n",
-			config->dai_index);
-		return ret;
-	}
-
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
@@ -2931,7 +2913,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
 	size_t size = sizeof(*config);
@@ -3006,17 +2987,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	 */
 	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1))
 		config->dmic.fifo_bits_b = config->dmic.fifo_bits;
-
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, size,
-				 &reply, sizeof(reply));
-
-	if (ret < 0) {
-		dev_err(scomp->dev,
-			"error: failed to set DAI config for DMIC%d\n",
-			config->dai_index);
-		goto err;
-	}
 
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
@@ -3142,7 +3112,6 @@ static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
 	int ret;
 
@@ -3157,20 +3126,6 @@ static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
 
 	/* init IPC */
 	config->hdr.size = size;
-
-	dev_dbg(scomp->dev, "ALH config rate %d channels %d\n",
-		config->alh.rate, config->alh.channels);
-
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
-
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: failed to set DAI config for ALH %d\n",
-			config->dai_index);
-		return ret;
-	}
 
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
