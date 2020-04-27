@@ -15,7 +15,7 @@
 #include "core_acl_flex_keys.h"
 
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_acl_block *block,
+					 struct mlxsw_sp_flow_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
 					 struct flow_action *flow_action,
 					 struct netlink_ext_ack *extack)
@@ -53,11 +53,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		case FLOW_ACTION_DROP: {
 			bool ingress;
 
-			if (mlxsw_sp_acl_block_is_mixed_bound(block)) {
+			if (mlxsw_sp_flow_block_is_mixed_bound(block)) {
 				NL_SET_ERR_MSG_MOD(extack, "Drop action is not supported when block is bound to ingress and egress");
 				return -EOPNOTSUPP;
 			}
-			ingress = mlxsw_sp_acl_block_is_ingress_bound(block);
+			ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress,
 							  act->cookie, extack);
 			if (err) {
@@ -106,7 +106,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct mlxsw_sp_fid *fid;
 			u16 fid_index;
 
-			if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+			if (mlxsw_sp_flow_block_is_egress_bound(block)) {
 				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
 				return -EOPNOTSUPP;
 			}
@@ -190,7 +190,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_flower_parse_meta(struct mlxsw_sp_acl_rule_info *rulei,
 				      struct flow_cls_offload *f,
-				      struct mlxsw_sp_acl_block *block)
+				      struct mlxsw_sp_flow_block *block)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -371,7 +371,7 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_block *block,
+				 struct mlxsw_sp_flow_block *block,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct flow_cls_offload *f)
 {
@@ -460,7 +460,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 		struct flow_match_vlan match;
 
 		flow_rule_match_vlan(rule, &match);
-		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+		if (mlxsw_sp_flow_block_is_egress_bound(block)) {
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
@@ -505,7 +505,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 }
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
+			    struct mlxsw_sp_flow_block *block,
 			    struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_rule_info *rulei;
@@ -552,7 +552,7 @@ err_rule_create:
 }
 
 void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_acl_block *block,
+			     struct mlxsw_sp_flow_block *block,
 			     struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -574,7 +574,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
-			  struct mlxsw_sp_acl_block *block,
+			  struct mlxsw_sp_flow_block *block,
 			  struct flow_cls_offload *f)
 {
 	enum flow_action_hw_stats used_hw_stats = FLOW_ACTION_HW_STATS_DISABLED;
@@ -611,7 +611,7 @@ err_rule_get_stats:
 }
 
 int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_block *block,
+				 struct mlxsw_sp_flow_block *block,
 				 struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -632,7 +632,7 @@ int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 }
 
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_block *block,
+				   struct mlxsw_sp_flow_block *block,
 				   struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
