@@ -16,6 +16,7 @@
 #define RV1126_GRF_SOC_STATUS0		0x10
 
 #define RV1126_FRAC_MAX_PRATE		1200000000
+#define RV1126_CSIOUT_FRAC_MAX_PRATE	300000000
 
 enum rv1126_pmu_plls {
 	gpll,
@@ -991,7 +992,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_MIPICSI_OUT_FRACDIV, "clk_mipicsi_out2io_fracdiv", "clk_mipicsi_out2io_div", CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(74), 0,
 			RV1126_CLKGATE_CON(23), 6, GFLAGS,
-			&rv1126_mipicsi_out2io_fracmux, RV1126_FRAC_MAX_PRATE),
+			&rv1126_mipicsi_out2io_fracmux, RV1126_CSIOUT_FRAC_MAX_PRATE),
 	GATE(CLK_MIPICSI_OUT, "clk_mipicsi_out2io", "clk_mipicsi_out2io_mux", 0,
 			RV1126_CLKGATE_CON(23), 7, GFLAGS),
 	GATE(PCLK_CSIHOST, "pclk_csihost", "pclk_pdvi", 0,
