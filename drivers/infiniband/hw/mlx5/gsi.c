@@ -123,15 +123,6 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 	const int num_qps = mlx5_ib_deth_sqpn_cap(dev) ? num_pkeys : 0;
 	int ret;
 
-	mlx5_ib_dbg(dev, "creating GSI QP\n");
-
-	if (port_num > ARRAY_SIZE(dev->devr.ports) || port_num < 1) {
-		mlx5_ib_warn(dev,
-			     "invalid port number %d during GSI QP creation\n",
-			     port_num);
-		return ERR_PTR(-EINVAL);
-	}
-
 	gsi = kzalloc(sizeof(*gsi), GFP_KERNEL);
 	if (!gsi)
 		return ERR_PTR(-ENOMEM);
