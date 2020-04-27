@@ -478,13 +478,14 @@ config HW_RANDOM_CCTRNG
 	tristate "Arm CryptoCell True Random Number Generator support"
 	depends on HAS_IOMEM && OF
 	help
-	  This driver provides support for the True Random Number
-	  Generator available in Arm TrustZone CryptoCell.
-
-	  To compile this driver as a module, choose M here: the module
+	  Say 'Y' to enable the True Random Number Generator driver for the
+	  Arm TrustZone CryptoCell family of processors.
+	  Currently the CryptoCell 713 and 703 are supported.
+	  The driver is supported only in SoC where Trusted Execution
+	  Environment is not used.
+	  Choose 'M' to compile this driver as a module. The module
 	  will be called cctrng.
-
-	  If unsure, say Y.
+	  If unsure, say 'N'.
 
 endif # HW_RANDOM
 
