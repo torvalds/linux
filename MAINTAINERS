@@ -3192,7 +3192,7 @@ Q:	https://patchwork.ozlabs.org/project/netdev/list/?delegate=77147
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git
 F:	Documentation/bpf/
-F:	Documentation/networking/filter.txt
+F:	Documentation/networking/filter.rst
 F:	arch/*/net/*
 F:	include/linux/bpf*
 F:	include/linux/filter.h

@@ -56,6 +56,7 @@ Contents:
    driver
    eql
    fib_trie
+   filter
 
 .. only::  subproject and html
 
