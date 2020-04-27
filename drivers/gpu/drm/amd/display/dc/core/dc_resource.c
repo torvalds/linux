@@ -532,6 +532,24 @@ static inline void get_vp_scan_direction(
 		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
+int get_num_mpc_splits(struct pipe_ctx *pipe)
+{
+	int mpc_split_count = 0;
+	struct pipe_ctx *other_pipe = pipe->bottom_pipe;
+
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->bottom_pipe;
+	}
+	other_pipe = pipe->top_pipe;
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->top_pipe;
+	}
+
+	return mpc_split_count;
+}
+
 int get_num_odm_splits(struct pipe_ctx *pipe)
 {
 	int odm_split_count = 0;
@@ -556,15 +574,10 @@ static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *spli
 		/*Check for mpc split*/
 		struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
 
+		*split_count = get_num_mpc_splits(pipe_ctx);
 		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
 			(*split_idx)++;
-			(*split_count)++;
 			split_pipe = split_pipe->top_pipe;
-		}
-		split_pipe = pipe_ctx->bottom_pipe;
-		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
-			(*split_count)++;
-			split_pipe = split_pipe->bottom_pipe;
 		}
 	} else {
 		/*Get odm split index*/
