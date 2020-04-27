@@ -52,6 +52,7 @@ Contents:
    dctcp
    decnet
    defza
+   dns_resolver
 
 .. only::  subproject and html
 

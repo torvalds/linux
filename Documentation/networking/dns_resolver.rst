@@ -1,8 +1,10 @@
-			     ===================
-			     DNS Resolver Module
-			     ===================
+.. SPDX-License-Identifier: GPL-2.0
 
-Contents:
+===================
+DNS Resolver Module
+===================
+
+.. Contents:
 
  - Overview.
  - Compilation.
@@ -12,8 +14,7 @@ Contents:
  - Debugging.
 
 
-========
-OVERVIEW
+Overview
 ========
 
 The DNS resolver module provides a way for kernel services to make DNS queries
@@ -33,50 +34,50 @@ It does not yet support the following AFS features:
 This code is extracted from the CIFS filesystem.
 
 
-===========
-COMPILATION
+Compilation
 ===========
 
-The module should be enabled by turning on the kernel configuration options:
+The module should be enabled by turning on the kernel configuration options::
 
 	CONFIG_DNS_RESOLVER	- tristate "DNS Resolver support"
 
 
-==========
-SETTING UP
+Setting up
 ==========
 
 To set up this facility, the /etc/request-key.conf file must be altered so that
 /sbin/request-key can appropriately direct the upcalls.  For example, to handle
 basic dname to IPv4/IPv6 address resolution, the following line should be
-added:
+added::
+
 
 	#OP	TYPE		DESC	CO-INFO	PROGRAM ARG1 ARG2 ARG3 ...
 	#======	============	=======	=======	==========================
 	create	dns_resolver  	*	*	/usr/sbin/cifs.upcall %k
 
 To direct a query for query type 'foo', a line of the following should be added
-before the more general line given above as the first match is the one taken.
+before the more general line given above as the first match is the one taken::
 
 	create	dns_resolver  	foo:*	*	/usr/sbin/dns.foo %k
 
 
-=====
-USAGE
+Usage
 =====
 
 To make use of this facility, one of the following functions that are
-implemented in the module can be called after doing:
+implemented in the module can be called after doing::
 
 	#include <linux/dns_resolver.h>
 
- (1) int dns_query(const char *type, const char *name, size_t namelen,
-		   const char *options, char **_result, time_t *_expiry);
+     ::
+
+	int dns_query(const char *type, const char *name, size_t namelen,
+		     const char *options, char **_result, time_t *_expiry);
 
      This is the basic access function.  It looks for a cached DNS query and if
      it doesn't find it, it upcalls to userspace to make a new DNS query, which
      may then be cached.  The key description is constructed as a string of the
-     form:
+     form::
 
 		[<type>:]<name>
 
@@ -107,16 +108,14 @@ This can be cleared by any process that has the CAP_SYS_ADMIN capability by
 the use of KEYCTL_KEYRING_CLEAR on the keyring ID.
 
 
-===============================
-READING DNS KEYS FROM USERSPACE
+Reading DNS Keys from Userspace
 ===============================
 
 Keys of dns_resolver type can be read from userspace using keyctl_read() or
 "keyctl read/print/pipe".
 
 
-=========
-MECHANISM
+Mechanism
 =========
 
 The dnsresolver module registers a key type called "dns_resolver".  Keys of
@@ -147,11 +146,10 @@ See <file:Documentation/security/keys/request-key.rst> for further
 information about request-key function.
 
 
-=========
-DEBUGGING
+Debugging
 =========
 
 Debugging messages can be turned on dynamically by writing a 1 into the
-following file:
+following file::
 
-        /sys/module/dnsresolver/parameters/debug
+	/sys/module/dnsresolver/parameters/debug
