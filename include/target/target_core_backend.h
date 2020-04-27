@@ -24,6 +24,7 @@ struct target_backend_ops {
 	struct module *owner;
 
 	u8 transport_flags_default;
+	u8 transport_flags_changeable;
 
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);

@@ -2617,6 +2617,8 @@ static struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.owner			= THIS_MODULE,
 	.transport_flags_default = TRANSPORT_FLAG_PASSTHROUGH,
+	.transport_flags_changeable = TRANSPORT_FLAG_PASSTHROUGH_PGR |
+				      TRANSPORT_FLAG_PASSTHROUGH_ALUA,
 	.attach_hba		= tcmu_attach_hba,
 	.detach_hba		= tcmu_detach_hba,
 	.alloc_device		= tcmu_alloc_device,

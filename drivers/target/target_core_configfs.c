@@ -1105,6 +1105,32 @@ static ssize_t alua_support_show(struct config_item *item, char *page)
 			flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ? 0 : 1);
 }
 
+static ssize_t alua_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_ALUA)) {
+		pr_err("dev[%p]: Unable to change SE Device alua_support:"
+			" alua_support has fixed value\n", dev);
+		return -EINVAL;
+	}
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	return count;
+}
+
 static ssize_t pgr_support_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = to_attrib(item);
@@ -1112,6 +1138,32 @@ static ssize_t pgr_support_show(struct config_item *item, char *page)
 
 	return snprintf(page, PAGE_SIZE, "%d\n",
 			flags & TRANSPORT_FLAG_PASSTHROUGH_PGR ? 0 : 1);
+}
+
+static ssize_t pgr_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
+		pr_err("dev[%p]: Unable to change SE Device pgr_support:"
+			" pgr_support has fixed value\n", dev);
+		return -EINVAL;
+	}
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	return count;
 }
 
 CONFIGFS_ATTR(, emulate_model_alias);
@@ -1146,8 +1198,8 @@ CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
 CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
-CONFIGFS_ATTR_RO(, alua_support);
-CONFIGFS_ATTR_RO(, pgr_support);
+CONFIGFS_ATTR(, alua_support);
+CONFIGFS_ATTR(, pgr_support);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
