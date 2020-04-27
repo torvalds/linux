@@ -324,7 +324,7 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 
 	if (isp_stat & RAW0_WR_FRAME) {
 		if (luma_vdev->ystat_isrcnt[0] != RKISP_LUMA_YSTAT_ISR_NUM) {
-			v4l2_warn(luma_vdev->vnode.vdev.v4l2_dev,
+			v4l2_dbg(1, rkisp_debug, luma_vdev->vnode.vdev.v4l2_dev,
 				 "missing raw0 y state isr, %d\n",
 				 luma_vdev->ystat_isrcnt[0]);
 			luma_vdev->ystat_isrcnt[0] = RKISP_LUMA_YSTAT_ISR_NUM;
@@ -333,7 +333,7 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 
 	if (isp_stat & RAW1_WR_FRAME) {
 		if (luma_vdev->ystat_isrcnt[1] != RKISP_LUMA_YSTAT_ISR_NUM) {
-			v4l2_warn(luma_vdev->vnode.vdev.v4l2_dev,
+			v4l2_dbg(1, rkisp_debug, luma_vdev->vnode.vdev.v4l2_dev,
 				 "missing raw1 y state isr, %d\n",
 				 luma_vdev->ystat_isrcnt[1]);
 			luma_vdev->ystat_isrcnt[1] = RKISP_LUMA_YSTAT_ISR_NUM;
@@ -342,7 +342,7 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 
 	if (isp_stat & RAW2_WR_FRAME) {
 		if (luma_vdev->ystat_isrcnt[2] != RKISP_LUMA_YSTAT_ISR_NUM) {
-			v4l2_warn(luma_vdev->vnode.vdev.v4l2_dev,
+			v4l2_dbg(1, rkisp_debug, luma_vdev->vnode.vdev.v4l2_dev,
 				 "missing raw2 y state isr, %d\n",
 				 luma_vdev->ystat_isrcnt[2]);
 			luma_vdev->ystat_isrcnt[2] = RKISP_LUMA_YSTAT_ISR_NUM;
