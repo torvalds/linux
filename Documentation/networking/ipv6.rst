@@ -1,9 +1,15 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====
+IPv6
+====
+
 
 Options for the ipv6 module are supplied as parameters at load time.
 
 Module options may be given as command line arguments to the insmod
 or modprobe command, but are usually specified in either
-/etc/modules.d/*.conf configuration files, or in a distro-specific
+``/etc/modules.d/*.conf`` configuration files, or in a distro-specific
 configuration file.
 
 The available ipv6 module parameters are listed below.  If a parameter

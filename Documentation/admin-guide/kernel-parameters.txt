@@ -356,7 +356,7 @@
 			      shot down by NMI
 
 	autoconf=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	show_lapic=	[APIC,X86] Advanced Programmable Interrupt Controller
 			Limit apic dumping. The parameter defines the maximal
@@ -872,7 +872,7 @@
 			miss to occur.
 
 	disable=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	hardened_usercopy=
                         [KNL] Under CONFIG_HARDENED_USERCOPY, whether
@@ -912,7 +912,7 @@
 			to workaround buggy firmware.
 
 	disable_ipv6=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	disable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous

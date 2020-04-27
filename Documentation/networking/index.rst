@@ -70,6 +70,7 @@ Contents:
    iphase
    ipsec
    ip-sysctl
+   ipv6
 
 .. only::  subproject and html
 
