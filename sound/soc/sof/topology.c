@@ -2693,6 +2693,14 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			struct sof_ipc_reply reply;
 			int ret;
 
+			/*
+			 * the same dai config will be applied to all DAIs in
+			 * the same dai link. We have to ensure that the ipc
+			 * dai config's dai_index match to the component's
+			 * dai_index.
+			 */
+			config->dai_index = dai->comp_dai.dai_index;
+
 			/* send message to DSP */
 			ret = sof_ipc_tx_message(sdev->ipc,
 						 config->hdr.cmd, config, size,
