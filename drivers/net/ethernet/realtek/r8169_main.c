@@ -5197,7 +5197,8 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 		/* Most chip versions fail with the genphy driver.
 		 * Therefore ensure that the dedicated PHY driver is loaded.
 		 */
-		dev_err(&pdev->dev, "realtek.ko not loaded, maybe it needs to be added to initramfs?\n");
+		dev_err(&pdev->dev, "no dedicated PHY driver found for PHY ID 0x%08x, maybe realtek.ko needs to be added to initramfs?\n",
+			tp->phydev->phy_id);
 		return -EUNATCH;
 	}
 
