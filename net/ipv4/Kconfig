@@ -384,6 +384,7 @@ config INET_ESPINTCP
 	depends on XFRM && INET_ESP
 	select STREAM_PARSER
 	select NET_SOCK_MSG
+	select XFRM_ESPINTCP
 	help
 	  Support for RFC 8229 encapsulation of ESP and IKE over
 	  TCP/IPv4 sockets.

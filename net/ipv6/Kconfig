@@ -88,6 +88,18 @@ config INET6_ESP_OFFLOAD
 
 	  If unsure, say N.
 
+config INET6_ESPINTCP
+	bool "IPv6: ESP in TCP encapsulation (RFC 8229)"
+	depends on XFRM && INET6_ESP
+	select STREAM_PARSER
+	select NET_SOCK_MSG
+	select XFRM_ESPINTCP
+	help
+	  Support for RFC 8229 encapsulation of ESP and IKE over
+	  TCP/IPv6 sockets.
+
+	  If unsure, say N.
+
 config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
 	select INET6_XFRM_TUNNEL
