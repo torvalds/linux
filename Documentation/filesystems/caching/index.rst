@@ -8,5 +8,6 @@ Filesystem Caching
 
    fscache
    object
+   cachefiles
    netfs-api
    operations

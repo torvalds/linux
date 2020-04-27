@@ -3731,7 +3731,7 @@ CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
 L:	linux-cachefs@redhat.com (moderated for non-subscribers)
 S:	Supported
-F:	Documentation/filesystems/caching/cachefiles.txt
+F:	Documentation/filesystems/caching/cachefiles.rst
 F:	fs/cachefiles/
 
 CADENCE MIPI-CSI2 BRIDGES
