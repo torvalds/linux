@@ -73,6 +73,7 @@ Contents:
    ipv6
    ipvlan
    ipvs-sysctl
+   kcm
 
 .. only::  subproject and html
 

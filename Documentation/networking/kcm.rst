@@ -1,35 +1,38 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=============================
 Kernel Connection Multiplexor
------------------------------
+=============================
 
 Kernel Connection Multiplexor (KCM) is a mechanism that provides a message based
 interface over TCP for generic application protocols. With KCM an application
 can efficiently send and receive application protocol messages over TCP using
 datagram sockets.
 
-KCM implements an NxM multiplexor in the kernel as diagrammed below:
+KCM implements an NxM multiplexor in the kernel as diagrammed below::
 
-+------------+   +------------+   +------------+   +------------+
-| KCM socket |   | KCM socket |   | KCM socket |   | KCM socket |
-+------------+   +------------+   +------------+   +------------+
-      |                 |               |                |
-      +-----------+     |               |     +----------+
-                  |     |               |     |
-               +----------------------------------+
-               |           Multiplexor            |
-               +----------------------------------+
-                 |   |           |           |  |
-       +---------+   |           |           |  ------------+
-       |             |           |           |              |
-+----------+  +----------+  +----------+  +----------+ +----------+
-|  Psock   |  |  Psock   |  |  Psock   |  |  Psock   | |  Psock   |
-+----------+  +----------+  +----------+  +----------+ +----------+
-      |              |           |            |             |
-+----------+  +----------+  +----------+  +----------+ +----------+
-| TCP sock |  | TCP sock |  | TCP sock |  | TCP sock | | TCP sock |
-+----------+  +----------+  +----------+  +----------+ +----------+
+    +------------+   +------------+   +------------+   +------------+
+    | KCM socket |   | KCM socket |   | KCM socket |   | KCM socket |
+    +------------+   +------------+   +------------+   +------------+
+	|                 |               |                |
+	+-----------+     |               |     +----------+
+		    |     |               |     |
+		+----------------------------------+
+		|           Multiplexor            |
+		+----------------------------------+
+		    |   |           |           |  |
+	+---------+   |           |           |  ------------+
+	|             |           |           |              |
+    +----------+  +----------+  +----------+  +----------+ +----------+
+    |  Psock   |  |  Psock   |  |  Psock   |  |  Psock   | |  Psock   |
+    +----------+  +----------+  +----------+  +----------+ +----------+
+	|              |           |            |             |
+    +----------+  +----------+  +----------+  +----------+ +----------+
+    | TCP sock |  | TCP sock |  | TCP sock |  | TCP sock | | TCP sock |
+    +----------+  +----------+  +----------+  +----------+ +----------+
 
 KCM sockets
------------
+===========
 
 The KCM sockets provide the user interface to the multiplexor. All the KCM sockets
 bound to a multiplexor are considered to have equivalent function, and I/O
@@ -37,7 +40,7 @@ operations in different sockets may be done in parallel without the need for
 synchronization between threads in userspace.
 
 Multiplexor
------------
+===========
 
 The multiplexor provides the message steering. In the transmit path, messages
 written on a KCM socket are sent atomically on an appropriate TCP socket.
@@ -45,14 +48,14 @@ Similarly, in the receive path, messages are constructed on each TCP socket
 (Psock) and complete messages are steered to a KCM socket.
 
 TCP sockets & Psocks
---------------------
+====================
 
 TCP sockets may be bound to a KCM multiplexor. A Psock structure is allocated
 for each bound TCP socket, this structure holds the state for constructing
 messages on receive as well as other connection specific information for KCM.
 
 Connected mode semantics
-------------------------
+========================
 
 Each multiplexor assumes that all attached TCP connections are to the same
 destination and can use the different connections for load balancing when
@@ -60,7 +63,7 @@ transmitting. The normal send and recv calls (include sendmmsg and recvmmsg)
 can be used to send and receive messages from the KCM socket.
 
 Socket types
-------------
+============
 
 KCM supports SOCK_DGRAM and SOCK_SEQPACKET socket types.
 
@@ -110,23 +113,23 @@ User interface
 Creating a multiplexor
 ----------------------
 
-A new multiplexor and initial KCM socket is created by a socket call:
+A new multiplexor and initial KCM socket is created by a socket call::
 
   socket(AF_KCM, type, protocol)
 
-  - type is either SOCK_DGRAM or SOCK_SEQPACKET
-  - protocol is KCMPROTO_CONNECTED
+- type is either SOCK_DGRAM or SOCK_SEQPACKET
+- protocol is KCMPROTO_CONNECTED
 
 Cloning KCM sockets
 -------------------
 
 After the first KCM socket is created using the socket call as described
 above, additional sockets for the multiplexor can be created by cloning
-a KCM socket. This is accomplished by an ioctl on a KCM socket:
+a KCM socket. This is accomplished by an ioctl on a KCM socket::
 
   /* From linux/kcm.h */
   struct kcm_clone {
-        int fd;
+	int fd;
   };
 
   struct kcm_clone info;
@@ -142,11 +145,11 @@ Attach transport sockets
 ------------------------
 
 Attaching of transport sockets to a multiplexor is performed by calling an
-ioctl on a KCM socket for the multiplexor. e.g.:
+ioctl on a KCM socket for the multiplexor. e.g.::
 
   /* From linux/kcm.h */
   struct kcm_attach {
-        int fd;
+	int fd;
 	int bpf_fd;
   };
 
@@ -160,18 +163,19 @@ ioctl on a KCM socket for the multiplexor. e.g.:
   ioctl(kcmfd, SIOCKCMATTACH, &info);
 
 The kcm_attach structure contains:
-  fd: file descriptor for TCP socket being attached
-  bpf_prog_fd: file descriptor for compiled BPF program downloaded
+
+  - fd: file descriptor for TCP socket being attached
+  - bpf_prog_fd: file descriptor for compiled BPF program downloaded
 
 Unattach transport sockets
 --------------------------
 
 Unattaching a transport socket from a multiplexor is straightforward. An
-"unattach" ioctl is done with the kcm_unattach structure as the argument:
+"unattach" ioctl is done with the kcm_unattach structure as the argument::
 
   /* From linux/kcm.h */
   struct kcm_unattach {
-        int fd;
+	int fd;
   };
 
   struct kcm_unattach info;
@@ -190,7 +194,7 @@ When receive is disabled, any pending messages in the socket's
 receive buffer are moved to other sockets. This feature is useful
 if an application thread knows that it will be doing a lot of
 work on a request and won't be able to service new messages for a
-while. Example use:
+while. Example use::
 
   int val = 1;
 
@@ -200,7 +204,7 @@ BFP programs for message delineation
 ------------------------------------
 
 BPF programs can be compiled using the BPF LLVM backend. For example,
-the BPF program for parsing Thrift is:
+the BPF program for parsing Thrift is::
 
   #include "bpf.h" /* for __sk_buff */
   #include "bpf_helpers.h" /* for load_word intrinsic */
@@ -250,6 +254,7 @@ based on groups, or batches of messages, can be beneficial for performance.
 
 On transmit, there are three ways an application can batch (pipeline)
 messages on a KCM socket.
+
   1) Send multiple messages in a single sendmmsg.
   2) Send a group of messages each with a sendmsg call, where all messages
      except the last have MSG_BATCH in the flags of sendmsg call.
