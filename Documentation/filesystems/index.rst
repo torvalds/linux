@@ -26,6 +26,7 @@ algorithms work.
    directory-locking
    devpts
    dnotify
+   fiemap
 
    automount-support
 
