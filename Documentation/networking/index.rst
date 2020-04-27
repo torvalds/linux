@@ -63,6 +63,7 @@ Contents:
    generic_netlink
    gen_stats
    gtp
+   hinic
 
 .. only::  subproject and html
 

@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+============================================================
 Linux Kernel Driver for Huawei Intelligent NIC(HiNIC) family
 ============================================================
 
@@ -110,7 +113,7 @@ hinic_dev - de/constructs the Logical Tx and Rx Queues.
 (hinic_main.c, hinic_dev.h)
 
 
-Miscellaneous:
+Miscellaneous
 =============
 
 Common functions that are used by HW and Logical Device.
