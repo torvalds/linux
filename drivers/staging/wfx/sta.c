@@ -384,9 +384,8 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	spin_lock_init(&sta_priv->lock);
 	sta_priv->vif_id = wvif->id;
 
-	// FIXME: in station mode, the current API interprets new link-id as a
-	// tdls peer.
-	if (vif->type == NL80211_IFTYPE_STATION)
+	// In station mode, the firmware interprets new link-id as a TDLS peer.
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		return 0;
 	sta_priv->link_id = ffz(wvif->link_id_map);
 	wvif->link_id_map |= BIT(sta_priv->link_id);
@@ -408,8 +407,8 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (sta_priv->buffered[i])
 			dev_warn(wvif->wdev->dev, "release station while %d pending frame on queue %d",
 				 sta_priv->buffered[i], i);
-	// FIXME: see note in wfx_sta_add()
-	if (vif->type == NL80211_IFTYPE_STATION)
+	// See note in wfx_sta_add()
+	if (!sta_priv->link_id)
 		return 0;
 	// FIXME add a mutex?
 	hif_map_link(wvif, sta->addr, 1, sta_priv->link_id);
