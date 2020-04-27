@@ -49,7 +49,7 @@ config IP_ADVANCED_ROUTER
 
 	  Note that some distributions enable it in startup scripts.
 	  For details about rp_filter strict and loose mode read
-	  <file:Documentation/networking/ip-sysctl.txt>.
+	  <file:Documentation/networking/ip-sysctl.rst>.
 
 	  If unsure, say N here.
 

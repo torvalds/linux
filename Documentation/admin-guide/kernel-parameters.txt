@@ -4910,7 +4910,7 @@
 			Set the number of tcp_metrics_hash slots.
 			Default value is 8192 or 16384 depending on total
 			ram pages. This is used to specify the TCP metrics
-			cache size. See Documentation/networking/ip-sysctl.txt
+			cache size. See Documentation/networking/ip-sysctl.rst
 			"tcp_no_metrics_save" section for more details.
 
 	tdfx=		[HW,DRM]

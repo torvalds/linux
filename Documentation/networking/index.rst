@@ -69,6 +69,7 @@ Contents:
    ip_dynaddr
    iphase
    ipsec
+   ip-sysctl
 
 .. only::  subproject and html
 
