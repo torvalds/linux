@@ -60,6 +60,7 @@ Contents:
    fore200e
    framerelay
    generic-hdlc
+   generic_netlink
 
 .. only::  subproject and html
 
