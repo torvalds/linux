@@ -2570,36 +2570,6 @@ static int create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	return 0;
 }
 
-static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
-			   struct ib_qp_init_attr *init_attr,
-			   struct mlx5_ib_create_qp *ucmd,
-			   struct ib_udata *udata)
-{
-	enum { MLX_QP_FLAGS = MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI };
-	int err;
-
-	if (udata->inlen < sizeof(*ucmd)) {
-		mlx5_ib_dbg(dev, "create_qp user command is smaller than expected\n");
-		return -EINVAL;
-	}
-	err = ib_copy_from_udata(ucmd, udata, sizeof(*ucmd));
-	if (err)
-		return err;
-
-	if ((ucmd->flags & MLX_QP_FLAGS) == MLX5_QP_FLAG_TYPE_DCI) {
-		init_attr->qp_type = MLX5_IB_QPT_DCI;
-	} else {
-		if ((ucmd->flags & MLX_QP_FLAGS) == MLX5_QP_FLAG_TYPE_DCT) {
-			init_attr->qp_type = MLX5_IB_QPT_DCT;
-		} else {
-			mlx5_ib_dbg(dev, "Invalid QP flags\n");
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
 static int check_qp_type(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr)
 {
 	if (attr->qp_type == IB_QPT_DRIVER && !MLX5_CAP_GEN(dev->mdev, dct))
@@ -2691,6 +2661,24 @@ static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 }
 
+static int process_vendor_flags(struct mlx5_ib_qp *qp,
+				struct ib_qp_init_attr *attr,
+				struct mlx5_ib_create_qp *ucmd)
+{
+	switch (ucmd->flags & (MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI)) {
+	case MLX5_QP_FLAG_TYPE_DCI:
+		qp->qp_sub_type = MLX5_IB_QPT_DCI;
+		break;
+	case MLX5_QP_FLAG_TYPE_DCT:
+		qp->qp_sub_type = MLX5_IB_QPT_DCT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int create_driver_qp(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 			    struct ib_qp_init_attr *attr,
 			    struct mlx5_ib_create_qp *ucmd,
@@ -2707,6 +2695,9 @@ static int create_driver_qp(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 		ret = create_dct(pd, qp, attr, ucmd, udata);
 		break;
 	case MLX5_IB_QPT_DCI:
+		if (attr->cap.max_recv_wr || attr->cap.max_recv_sge)
+			goto out;
+
 		ret = create_qp_common(mdev, pd, attr, udata, qp);
 		break;
 	default:
@@ -2716,8 +2707,16 @@ static int create_driver_qp(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 out:	return ret;
 }
 
+static size_t process_udata_size(struct ib_qp_init_attr *attr,
+				 struct ib_udata *udata)
+{
+	size_t ucmd = sizeof(struct mlx5_ib_create_qp);
+
+	return (udata->inlen < ucmd) ? 0 : ucmd;
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *verbs_init_attr,
+				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
 {
 	struct mlx5_ib_create_qp ucmd = {};
@@ -2725,8 +2724,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	struct mlx5_ib_qp *qp;
 	u16 xrcdn = 0;
 	int err;
-	struct ib_qp_init_attr mlx_init_attr;
-	struct ib_qp_init_attr *init_attr = verbs_init_attr;
 
 	dev = pd ? to_mdev(pd->device) :
 		   to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
@@ -2745,28 +2742,26 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	if (init_attr->qp_type == IB_QPT_GSI)
 		return mlx5_ib_gsi_create_qp(pd, init_attr);
 
+	if (udata && init_attr->qp_type == IB_QPT_DRIVER) {
+		size_t inlen =
+			process_udata_size(init_attr, udata);
+
+		if (!inlen)
+			return ERR_PTR(-EINVAL);
+
+		err = ib_copy_from_udata(&ucmd, udata, inlen);
+		if (err)
+			return ERR_PTR(err);
+	}
+
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 
 	if (init_attr->qp_type == IB_QPT_DRIVER) {
-		init_attr = &mlx_init_attr;
-		memcpy(init_attr, verbs_init_attr, sizeof(*verbs_init_attr));
-		err = set_mlx_qp_type(dev, init_attr, &ucmd, udata);
+		err = process_vendor_flags(qp, init_attr, &ucmd);
 		if (err)
 			goto free_qp;
-
-		if (init_attr->qp_type == MLX5_IB_QPT_DCI) {
-			if (init_attr->cap.max_recv_wr ||
-			    init_attr->cap.max_recv_sge) {
-				mlx5_ib_dbg(dev, "DCI QP requires zero size receive queue\n");
-				err = -EINVAL;
-				goto free_qp;
-			}
-			qp->qp_sub_type = MLX5_IB_QPT_DCI;
-		} else {
-			qp->qp_sub_type = MLX5_IB_QPT_DCT;
-		}
 	}
 
 	if (init_attr->qp_type == IB_QPT_XRC_TGT)
