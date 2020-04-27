@@ -1,18 +1,26 @@
-SPU_CREATE(2)              Linux Programmer's Manual             SPU_CREATE(2)
+.. SPDX-License-Identifier: GPL-2.0
 
+==========
+spu_create
+==========
 
-
-NAME
+Name
+====
        spu_create - create a new spu context
 
 
-SYNOPSIS
-       #include <sys/types.h>
-       #include <sys/spu.h>
+Synopsis
+========
 
-       int spu_create(const char *pathname, int flags, mode_t mode);
+       ::
 
-DESCRIPTION
+         #include <sys/types.h>
+         #include <sys/spu.h>
+
+         int spu_create(const char *pathname, int flags, mode_t mode);
+
+Description
+===========
        The  spu_create  system call is used on PowerPC machines that implement
        the Cell Broadband Engine Architecture in order to  access  Synergistic
        Processor  Units (SPUs). It creates a new logical context for an SPU in
@@ -43,13 +51,15 @@ DESCRIPTION
        possible mode values.
 
 
-RETURN VALUE
+Return Value
+============
        spu_create  returns a new file descriptor. It may return -1 to indicate
        an error condition and set errno to  one  of  the  error  codes  listed
        below.
 
 
-ERRORS
+Errors
+======
        EACCES
               The  current  user does not have write access on the spufs mount
               point.
@@ -87,33 +97,35 @@ ERRORS
 
 
 
-NOTES
+Notes
+=====
        spu_create  is  meant  to  be used from libraries that implement a more
        abstract interface to SPUs, not to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
 
-FILES
+Files
+=====
        pathname must point to a location beneath the mount point of spufs.  By
        convention, it gets mounted in /spu.
 
 
-CONFORMING TO
+Conforming to
+=============
        This call is Linux specific and only implemented by the ppc64 architec-
        ture. Programs using this system call are not portable.
 
 
-BUGS
+Bugs
+====
        The code does not yet fully implement all features lined out here.
 
 
-AUTHOR
+Author
+======
        Arnd Bergmann <arndb@de.ibm.com>
 
-SEE ALSO
+See Also
+========
        capabilities(7), close(2), spu_run(2), spufs(7)
-
-
-
-Linux                             2005-09-28                     SPU_CREATE(2)

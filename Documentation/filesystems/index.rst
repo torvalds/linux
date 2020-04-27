@@ -105,6 +105,7 @@ Documentation for filesystem implementations.
    ramfs-rootfs-initramfs
    relay
    romfs
+   spufs/index
    squashfs
    sysfs
    sysv-fs
