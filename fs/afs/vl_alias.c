@@ -268,11 +268,69 @@ is_alias:
 	return 1;
 }
 
+/*
+ * Look up a VLDB record for a volume.
+ */
+static char *afs_vl_get_cell_name(struct afs_cell *cell, struct key *key)
+{
+	struct afs_vl_cursor vc;
+	char *cell_name = ERR_PTR(-EDESTADDRREQ);
+	bool skipped = false, not_skipped = false;
+	int ret;
+
+	if (!afs_begin_vlserver_operation(&vc, cell, key))
+		return ERR_PTR(-ERESTARTSYS);
+
+	while (afs_select_vlserver(&vc)) {
+		if (!test_bit(AFS_VLSERVER_FL_IS_YFS, &vc.server->flags)) {
+			vc.ac.error = -EOPNOTSUPP;
+			skipped = true;
+			continue;
+		}
+		not_skipped = true;
+		cell_name = afs_yfsvl_get_cell_name(&vc);
+	}
+
+	ret = afs_end_vlserver_operation(&vc);
+	if (skipped && !not_skipped)
+		ret = -EOPNOTSUPP;
+	return ret < 0 ? ERR_PTR(ret) : cell_name;
+}
+
+static int yfs_check_canonical_cell_name(struct afs_cell *cell, struct key *key)
+{
+	struct afs_cell *master;
+	char *cell_name;
+
+	cell_name = afs_vl_get_cell_name(cell, key);
+	if (IS_ERR(cell_name))
+		return PTR_ERR(cell_name);
+
+	if (strcmp(cell_name, cell->name) == 0) {
+		kfree(cell_name);
+		return 0;
+	}
+
+	master = afs_lookup_cell(cell->net, cell_name, strlen(cell_name),
+				 NULL, false);
+	kfree(cell_name);
+	if (IS_ERR(master))
+		return PTR_ERR(master);
+
+	cell->alias_of = master; /* Transfer our ref */
+	return 1;
+}
+
 static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
 {
 	struct afs_volume *root_volume;
+	int ret;
 
 	_enter("%s", cell->name);
+
+	ret = yfs_check_canonical_cell_name(cell, key);
+	if (ret != -EOPNOTSUPP)
+		return ret;
 
 	/* Try and get the root.cell volume for comparison with other cells */
 	root_volume = afs_sample_volume(cell, key, "root.cell", 9);
