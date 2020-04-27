@@ -1570,7 +1570,6 @@ void ql_dump_qdev(struct ql_adapter *qdev)
 	int i;
 
 	DUMP_QDEV_FIELD(qdev, "%lx", flags);
-	DUMP_QDEV_FIELD(qdev, "%p", vlgrp);
 	DUMP_QDEV_FIELD(qdev, "%p", pdev);
 	DUMP_QDEV_FIELD(qdev, "%p", ndev);
 	DUMP_QDEV_FIELD(qdev, "%d", chip_rev_id);
