@@ -1613,6 +1613,7 @@ static void destroy_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *q
 struct mlx5_create_qp_params {
 	struct ib_udata *udata;
 	size_t inlen;
+	size_t outlen;
 	void *ucmd;
 	u8 is_rss_raw : 1;
 	struct ib_qp_init_attr *attr;
@@ -1638,14 +1639,8 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	void *hfso;
 	u32 selected_fields = 0;
 	u32 outer_l4;
-	size_t min_resp_len;
 	u32 tdn = mucontext->tdn;
 	u8 lb_flag = 0;
-
-	min_resp_len =
-		offsetof(typeof(resp), bfreg_index) + sizeof(resp.bfreg_index);
-	if (udata->outlen < min_resp_len)
-		return -EINVAL;
 
 	if (ucmd->comp_mask) {
 		mlx5_ib_dbg(dev, "invalid comp mask\n");
@@ -2780,26 +2775,43 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	return (create_flags) ? -EINVAL : 0;
 }
 
-static size_t process_udata_size(struct ib_qp_init_attr *attr,
-				 struct ib_udata *udata)
+static int process_udata_size(struct mlx5_ib_dev *dev,
+			      struct mlx5_create_qp_params *params)
 {
 	size_t ucmd = sizeof(struct mlx5_ib_create_qp);
+	struct ib_qp_init_attr *attr = params->attr;
+	struct ib_udata *udata = params->udata;
+	size_t outlen = udata->outlen;
 	size_t inlen = udata->inlen;
 
-	if (attr->qp_type == IB_QPT_DRIVER)
-		return (inlen < ucmd) ? 0 : ucmd;
+	params->outlen = min(outlen, sizeof(struct mlx5_ib_create_qp_resp));
+	if (attr->qp_type == IB_QPT_DRIVER) {
+		params->inlen = (inlen < ucmd) ? 0 : ucmd;
+		goto out;
+	}
 
-	if (!attr->rwq_ind_tbl)
-		return ucmd;
+	if (!params->is_rss_raw) {
+		params->inlen = ucmd;
+		goto out;
+	}
 
+	/* RSS RAW QP */
 	if (inlen < offsetofend(struct mlx5_ib_create_qp_rss, flags))
-		return 0;
+		return -EINVAL;
+
+	if (outlen < offsetofend(struct mlx5_ib_create_qp_resp, bfreg_index))
+		return -EINVAL;
 
 	ucmd = sizeof(struct mlx5_ib_create_qp_rss);
 	if (inlen > ucmd && !ib_is_udata_cleared(udata, ucmd, inlen - ucmd))
-		return 0;
+		return -EINVAL;
 
-	return min(ucmd, inlen);
+	params->inlen = min(ucmd, inlen);
+out:
+	if (!params->inlen)
+		mlx5_ib_dbg(dev, "udata is too small or not cleared\n");
+
+	return (params->inlen) ? 0 : -EINVAL;
 }
 
 static int create_raw_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
@@ -2883,9 +2895,9 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	params.is_rss_raw = !!attr->rwq_ind_tbl;
 
 	if (udata) {
-		params.inlen = process_udata_size(attr, udata);
-		if (!params.inlen)
-			return ERR_PTR(-EINVAL);
+		err = process_udata_size(dev, &params);
+		if (err)
+			return ERR_PTR(err);
 
 		params.ucmd = kzalloc(params.inlen, GFP_KERNEL);
 		if (!params.ucmd)
