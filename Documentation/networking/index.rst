@@ -47,6 +47,7 @@ Contents:
    bonding
    cdc_mbim
    cops
+   cxacru
 
 .. only::  subproject and html
 

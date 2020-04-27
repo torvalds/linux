@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+========================
+ATM cxacru device driver
+========================
+
 Firmware is required for this device: http://accessrunner.sourceforge.net/
 
 While it is capable of managing/maintaining the ADSL connection without the
@@ -19,29 +25,35 @@ several sysfs attribute files for retrieving device statistics:
 
 * adsl_headend
 * adsl_headend_environment
-	Information about the remote headend.
+
+	- Information about the remote headend.
 
 * adsl_config
-	Configuration writing interface.
-	Write parameters in hexadecimal format <index>=<value>,
-	separated by whitespace, e.g.:
+
+	- Configuration writing interface.
+	- Write parameters in hexadecimal format <index>=<value>,
+	  separated by whitespace, e.g.:
+
 		"1=0 a=5"
-	Up to 7 parameters at a time will be sent and the modem will restart
-	the ADSL connection when any value is set. These are logged for future
-	reference.
+
+	- Up to 7 parameters at a time will be sent and the modem will restart
+	  the ADSL connection when any value is set. These are logged for future
+	  reference.
 
 * downstream_attenuation (dB)
 * downstream_bits_per_frame
 * downstream_rate (kbps)
 * downstream_snr_margin (dB)
-	Downstream stats.
+
+	- Downstream stats.
 
 * upstream_attenuation (dB)
 * upstream_bits_per_frame
 * upstream_rate (kbps)
 * upstream_snr_margin (dB)
 * transmitter_power (dBm/Hz)
-	Upstream stats.
+
+	- Upstream stats.
 
 * downstream_crc_errors
 * downstream_fec_errors
@@ -49,48 +61,56 @@ several sysfs attribute files for retrieving device statistics:
 * upstream_crc_errors
 * upstream_fec_errors
 * upstream_hec_errors
-	Error counts.
+
+	- Error counts.
 
 * line_startable
-	Indicates that ADSL support on the device
-	is/can be enabled, see adsl_start.
+
+	- Indicates that ADSL support on the device
+	  is/can be enabled, see adsl_start.
 
 * line_status
-	"initialising"
-	"down"
-	"attempting to activate"
-	"training"
-	"channel analysis"
-	"exchange"
-	"waiting"
-	"up"
+
+	 - "initialising"
+	 - "down"
+	 - "attempting to activate"
+	 - "training"
+	 - "channel analysis"
+	 - "exchange"
+	 - "waiting"
+	 - "up"
 
 	Changes between "down" and "attempting to activate"
 	if there is no signal.
 
 * link_status
-	"not connected"
-	"connected"
-	"lost"
+
+	 - "not connected"
+	 - "connected"
+	 - "lost"
 
 * mac_address
 
 * modulation
-	"" (when not connected)
-	"ANSI T1.413"
-	"ITU-T G.992.1 (G.DMT)"
-	"ITU-T G.992.2 (G.LITE)"
+
+	 - "" (when not connected)
+	 - "ANSI T1.413"
+	 - "ITU-T G.992.1 (G.DMT)"
+	 - "ITU-T G.992.2 (G.LITE)"
 
 * startup_attempts
-	Count of total attempts to initialise ADSL.
+
+	- Count of total attempts to initialise ADSL.
 
 To enable/disable ADSL, the following can be written to the adsl_state file:
-	"start"
-	"stop
-	"restart" (stops, waits 1.5s, then starts)
-	"poll" (used to resume status polling if it was disabled due to failure)
 
-Changes in adsl/line state are reported via kernel log messages:
+	 - "start"
+	 - "stop
+	 - "restart" (stops, waits 1.5s, then starts)
+	 - "poll" (used to resume status polling if it was disabled due to failure)
+
+Changes in adsl/line state are reported via kernel log messages::
+
 	[4942145.150704] ATM dev 0: ADSL state: running
 	[4942243.663766] ATM dev 0: ADSL line: down
 	[4942249.665075] ATM dev 0: ADSL line: attempting to activate
