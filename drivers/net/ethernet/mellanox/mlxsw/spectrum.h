@@ -654,15 +654,7 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int counter_index;
 };
 
-struct mlxsw_sp_flow_block;
-struct mlxsw_sp_acl_ruleset;
-
-/* spectrum_acl.c */
-enum mlxsw_sp_acl_profile {
-	MLXSW_SP_ACL_PROFILE_FLOWER,
-	MLXSW_SP_ACL_PROFILE_MR,
-};
-
+/* spectrum_flow.c */
 struct mlxsw_sp_flow_block {
 	struct list_head binding_list;
 	struct mlxsw_sp_acl_ruleset *ruleset_zero;
@@ -676,7 +668,12 @@ struct mlxsw_sp_flow_block {
 	struct net *net;
 };
 
-struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
+struct mlxsw_sp_flow_block_binding {
+	struct list_head list;
+	struct net_device *dev;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	bool ingress;
+};
 
 static inline struct mlxsw_sp *
 mlxsw_sp_flow_block_mlxsw_sp(struct mlxsw_sp_flow_block *block)
@@ -740,6 +737,23 @@ int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_flow_block *block,
 			       struct mlxsw_sp_port *mlxsw_sp_port,
 			       bool ingress);
+
+/* spectrum_acl.c */
+struct mlxsw_sp_acl_ruleset;
+
+enum mlxsw_sp_acl_profile {
+	MLXSW_SP_ACL_PROFILE_FLOWER,
+	MLXSW_SP_ACL_PROFILE_MR,
+};
+
+struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
+
+int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_flow_block *block,
+			      struct mlxsw_sp_flow_block_binding *binding);
+void mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_flow_block *block,
+				 struct mlxsw_sp_flow_block_binding *binding);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_flow_block *block, u32 chain_index,
