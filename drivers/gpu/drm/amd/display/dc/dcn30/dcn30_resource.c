@@ -1875,19 +1875,57 @@ static bool init_soc_bounding_box(struct dc *dc,
 	return true;
 }
 
-bool dcn30_build_params_mpc_split(struct pipe_ctx *primary_pipe)
+static bool dcn30_split_stream_for_mpc_or_odm(
+		const struct dc *dc,
+		struct resource_context *res_ctx,
+		struct pipe_ctx *pri_pipe,
+		struct pipe_ctx *sec_pipe,
+		bool odm)
 {
-	struct pipe_ctx *current_pipe = primary_pipe;
+	int pipe_idx = sec_pipe->pipe_idx;
+	const struct resource_pool *pool = dc->res_pool;
 
-	while (current_pipe) {
-		if (!resource_build_scaling_params(current_pipe))
-			return false;
-		current_pipe = current_pipe->bottom_pipe;
+	*sec_pipe = *pri_pipe;
+
+	sec_pipe->pipe_idx = pipe_idx;
+	sec_pipe->plane_res.mi = pool->mis[pipe_idx];
+	sec_pipe->plane_res.hubp = pool->hubps[pipe_idx];
+	sec_pipe->plane_res.ipp = pool->ipps[pipe_idx];
+	sec_pipe->plane_res.xfm = pool->transforms[pipe_idx];
+	sec_pipe->plane_res.dpp = pool->dpps[pipe_idx];
+	sec_pipe->plane_res.mpcc_inst = pool->dpps[pipe_idx]->inst;
+	sec_pipe->stream_res.dsc = NULL;
+	if (odm) {
+		if (pri_pipe->next_odm_pipe) {
+			ASSERT(pri_pipe->next_odm_pipe != sec_pipe);
+			sec_pipe->next_odm_pipe = pri_pipe->next_odm_pipe;
+			sec_pipe->next_odm_pipe->prev_odm_pipe = sec_pipe;
+		}
+		pri_pipe->next_odm_pipe = sec_pipe;
+		sec_pipe->prev_odm_pipe = pri_pipe;
+		ASSERT(sec_pipe->top_pipe == NULL);
+
+		sec_pipe->stream_res.opp = pool->opps[pipe_idx];
+		if (sec_pipe->stream->timing.flags.DSC == 1) {
+			dcn20_acquire_dsc(dc, res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
+			ASSERT(sec_pipe->stream_res.dsc);
+			if (sec_pipe->stream_res.dsc == NULL)
+				return false;
+		}
+	} else {
+		if (pri_pipe->bottom_pipe) {
+			ASSERT(pri_pipe->bottom_pipe != sec_pipe);
+			sec_pipe->bottom_pipe = pri_pipe->bottom_pipe;
+			sec_pipe->bottom_pipe->top_pipe = sec_pipe;
+		}
+		pri_pipe->bottom_pipe = sec_pipe;
+		sec_pipe->top_pipe = pri_pipe;
+
+		ASSERT(pri_pipe->plane_state);
 	}
 
 	return true;
 }
-
 static bool dcn30_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
@@ -1945,7 +1983,7 @@ static bool dcn30_fast_validate_bw(
 			continue;
 
 		/* We only support full screen mpo with ODM */
-		if (vba->ODMCombineEnabled[pipe_idx] != dm_odm_combine_mode_disabled
+		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
 				&& pipe->plane_state && mpo_pipe
 				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
 						&pipe->plane_res.scl_data.recout,
@@ -1966,10 +2004,13 @@ static bool dcn30_fast_validate_bw(
 		if (!merge[i])
 			continue;
 
-		/* if ODM merge we ignore mpc tree, mpo pipes will have their own flags
-		 */
+		/* if ODM merge we ignore mpc tree, mpo pipes will have their own flags */
 		if (pipe->prev_odm_pipe) {
 			/*split off odm pipe*/
+			pipe->prev_odm_pipe->next_odm_pipe = pipe->next_odm_pipe;
+			if (pipe->next_odm_pipe)
+				pipe->next_odm_pipe->prev_odm_pipe = pipe->prev_odm_pipe;
+
 			pipe->bottom_pipe = NULL;
 			pipe->next_odm_pipe = NULL;
 			pipe->plane_state = NULL;
@@ -1980,15 +2021,11 @@ static bool dcn30_fast_validate_bw(
 				dcn20_release_dsc(&context->res_ctx, dc->res_pool, &pipe->stream_res.dsc);
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
-		} else if (pipe->next_odm_pipe) {
-			/*initial odm pipe*/
-			pipe->next_odm_pipe = NULL;
-		} else {
+		} else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
 			struct pipe_ctx *top_pipe = pipe->top_pipe;
 			struct pipe_ctx *bottom_pipe = pipe->bottom_pipe;
 
-			if (top_pipe)
-				top_pipe->bottom_pipe = bottom_pipe;
+			top_pipe->bottom_pipe = bottom_pipe;
 			if (bottom_pipe)
 				bottom_pipe->top_pipe = top_pipe;
 
@@ -1998,8 +2035,63 @@ static bool dcn30_fast_validate_bw(
 			pipe->stream = NULL;
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
-		}
+		} else
+			ASSERT(0); /* Should never try to merge master pipe */
 
+	}
+
+	for (i = 0, pipe_idx = -1; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *hsplit_pipe = NULL;
+		bool odm;
+
+		if (!pipe->stream || newly_split[i])
+			continue;
+
+		pipe_idx++;
+		odm = vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled;
+
+		if (!pipe->plane_state && !odm)
+			continue;
+
+		if (split[i]) {
+			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			ASSERT(hsplit_pipe);
+			if (!hsplit_pipe)
+				goto validate_fail;
+
+			if (!dcn30_split_stream_for_mpc_or_odm(
+					dc, &context->res_ctx,
+					pipe, hsplit_pipe, odm))
+				goto validate_fail;
+
+			newly_split[hsplit_pipe->pipe_idx] = true;
+			repopulate_pipes = true;
+		}
+		if (split[i] == 4) {
+			struct pipe_ctx *pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+
+			ASSERT(pipe_4to1);
+			if (!pipe_4to1)
+				goto validate_fail;
+			if (!dcn30_split_stream_for_mpc_or_odm(
+					dc, &context->res_ctx,
+					pipe, pipe_4to1, odm))
+				goto validate_fail;
+			newly_split[pipe_4to1->pipe_idx] = true;
+
+			pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			ASSERT(pipe_4to1);
+			if (!pipe_4to1)
+				goto validate_fail;
+			if (!dcn30_split_stream_for_mpc_or_odm(
+					dc, &context->res_ctx,
+					hsplit_pipe, pipe_4to1, odm))
+				goto validate_fail;
+			newly_split[pipe_4to1->pipe_idx] = true;
+		}
+		if (odm)
+			dcn20_build_mapped_resource(dc, context, pipe->stream);
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2011,128 +2103,9 @@ static bool dcn30_fast_validate_bw(
 		}
 	}
 
-	for (i = 0, pipe_idx = -1; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *hsplit_pipe = NULL;
-
-		if (!pipe->stream || newly_split[i])
-			continue;
-
-		pipe_idx++;
-
-		if (!pipe->top_pipe && !pipe->plane_state && split[i] != 0
-				&& vba->ODMCombineEnabled[pipe_idx] != dm_odm_combine_mode_disabled) {
-			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-			ASSERT(hsplit_pipe);
-			if (!hsplit_pipe)
-				goto validate_fail;
-			if (!dcn20_split_stream_for_odm(
-					dc, &context->res_ctx,
-					pipe, hsplit_pipe))
-				goto validate_fail;
-			newly_split[hsplit_pipe->pipe_idx] = true;
-			if (vba->ODMCombineEnabled[pipe_idx] == dm_odm_combine_mode_4to1) {
-				struct pipe_ctx *pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-
-				ASSERT(pipe_4to1);
-				if (!dcn20_split_stream_for_odm(
-						dc, &context->res_ctx,
-						pipe, pipe_4to1))
-					goto validate_fail;
-				newly_split[pipe_4to1->pipe_idx] = true;
-
-				pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-				ASSERT(pipe_4to1);
-				if (!dcn20_split_stream_for_odm(
-						dc, &context->res_ctx,
-						hsplit_pipe, pipe_4to1))
-					goto validate_fail;
-				newly_split[pipe_4to1->pipe_idx] = true;
-			}
-			dcn20_build_mapped_resource(dc, context, pipe->stream);
-			repopulate_pipes = true;
-		}
-
-		if (!pipe->plane_state)
-			continue;
-
-		if (split[i] == 2) {
-			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-			ASSERT(hsplit_pipe);
-			if (!hsplit_pipe)
-				goto validate_fail;
-
-			if (vba->ODMCombineEnabled[pipe_idx] != dm_odm_combine_mode_disabled) {
-				if (!dcn20_split_stream_for_odm(
-						dc, &context->res_ctx,
-						pipe, hsplit_pipe))
-					goto validate_fail;
-				if (vba->ODMCombineEnabled[pipe_idx] == dm_odm_combine_mode_4to1) {
-					struct pipe_ctx *pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-
-					ASSERT(pipe_4to1);
-					if (!pipe_4to1)
-						goto validate_fail;
-					if (!dcn20_split_stream_for_odm(
-							dc, &context->res_ctx,
-							pipe, pipe_4to1))
-						goto validate_fail;
-					newly_split[pipe_4to1->pipe_idx] = true;
-
-					pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-					ASSERT(pipe_4to1);
-					if (!pipe_4to1)
-						goto validate_fail;
-					if (!dcn20_split_stream_for_odm(
-							dc, &context->res_ctx,
-							hsplit_pipe, pipe_4to1))
-						goto validate_fail;
-					newly_split[pipe_4to1->pipe_idx] = true;
-				}
-				dcn20_build_mapped_resource(dc, context, pipe->stream);
-			} else {
-				/* Going from 2 pipe split to 4 pipe split case */
-				if (dcn20_find_previous_split_count(pipe) == 2) {
-					dcn20_split_stream_for_mpc(
-						&context->res_ctx, dc->res_pool,
-						pipe, hsplit_pipe);
-					newly_split[hsplit_pipe->pipe_idx] = true;
-					hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-					dcn20_split_stream_for_mpc(
-						&context->res_ctx, dc->res_pool,
-						pipe, hsplit_pipe);
-					if (!dcn30_build_params_mpc_split(pipe))
-						goto validate_fail;
-				} else {
-					dcn20_split_stream_for_mpc(
-						&context->res_ctx, dc->res_pool,
-						pipe, hsplit_pipe);
-					if (!resource_build_scaling_params(pipe) || !resource_build_scaling_params(hsplit_pipe))
-						goto validate_fail;
-				}
-			}
-			newly_split[hsplit_pipe->pipe_idx] = true;
-			repopulate_pipes = true;
-		}
-		if (split[i] == 4) {
-			struct pipe_ctx *pipe_4to1;
-
-			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-			for (i = 0; i < 3; i++) {
-				pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
-				ASSERT(pipe_4to1);
-				dcn20_split_stream_for_mpc(&context->res_ctx, dc->res_pool, pipe, pipe_4to1);
-				newly_split[pipe_4to1->pipe_idx] = true;
-			}
-			if (!dcn30_build_params_mpc_split(pipe))
-				goto validate_fail;
-			repopulate_pipes = true;
-		}
-	}
 	/* Actual dsc count per stream dsc validation*/
 	if (!dcn20_validate_dsc(dc, context)) {
-		context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states] =
-				DML_FAIL_DSC_VALIDATION_FAILURE;
+		vba->ValidationStatus[vba->soc.num_states] = DML_FAIL_DSC_VALIDATION_FAILURE;
 		goto validate_fail;
 	}
 
