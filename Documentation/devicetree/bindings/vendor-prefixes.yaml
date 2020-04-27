@@ -490,7 +490,7 @@ patternProperties:
   "^issi,.*":
     description: Integrated Silicon Solutions Inc.
   "^ite,.*":
-    description: ITE Tech, Inc.
+    description: ITE Tech. Inc.
   "^itead,.*":
     description: ITEAD Intelligent Systems Co.Ltd
   "^iwave,.*":
