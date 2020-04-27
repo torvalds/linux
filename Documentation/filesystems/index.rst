@@ -28,6 +28,7 @@ algorithms work.
    dnotify
    fiemap
    files
+   locks
 
    automount-support
 
