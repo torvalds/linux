@@ -61,19 +61,26 @@ const char *get_reg_name(unsigned long id)
 
 static int wfx_counters_show(struct seq_file *seq, void *v)
 {
-	int ret;
+	int ret, i;
 	struct wfx_dev *wdev = seq->private;
-	struct hif_mib_extended_count_table counters;
+	struct hif_mib_extended_count_table counters[3];
 
-	ret = hif_get_counters_table(wdev, &counters);
-	if (ret < 0)
-		return ret;
-	if (ret > 0)
-		return -EIO;
+	for (i = 0; i < ARRAY_SIZE(counters); i++) {
+		ret = hif_get_counters_table(wdev, i, counters + i);
+		if (ret < 0)
+			return ret;
+		if (ret > 0)
+			return -EIO;
+	}
+
+	seq_printf(seq, "%-24s %12s %12s %12s\n",
+		   "", "global", "iface 0", "iface 1");
 
 #define PUT_COUNTER(name) \
-	seq_printf(seq, "%24s %d\n", #name ":",\
-		   le32_to_cpu(counters.count_##name))
+	seq_printf(seq, "%-24s %12d %12d %12d\n", #name, \
+		   le32_to_cpu(counters[2].count_##name), \
+		   le32_to_cpu(counters[0].count_##name), \
+		   le32_to_cpu(counters[1].count_##name))
 
 	PUT_COUNTER(tx_packets);
 	PUT_COUNTER(tx_multicast_frames);

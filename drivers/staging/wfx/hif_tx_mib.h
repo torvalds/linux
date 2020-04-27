@@ -20,7 +20,7 @@ int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 				 unsigned int listen_interval);
 int hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
 				int rssi_thold, int rssi_hyst);
-int hif_get_counters_table(struct wfx_dev *wdev,
+int hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
 			   struct hif_mib_extended_count_table *arg);
 int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac);
 int hif_set_rx_filter(struct wfx_vif *wvif,

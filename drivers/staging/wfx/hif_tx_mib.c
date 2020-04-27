@@ -64,16 +64,16 @@ int hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
 			     HIF_MIB_ID_RCPI_RSSI_THRESHOLD, &arg, sizeof(arg));
 }
 
-int hif_get_counters_table(struct wfx_dev *wdev,
+int hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
 			   struct hif_mib_extended_count_table *arg)
 {
 	if (wfx_api_older_than(wdev, 1, 3)) {
 		// extended_count_table is wider than count_table
 		memset(arg, 0xFF, sizeof(*arg));
-		return hif_read_mib(wdev, 0, HIF_MIB_ID_COUNTERS_TABLE,
+		return hif_read_mib(wdev, vif_id, HIF_MIB_ID_COUNTERS_TABLE,
 				    arg, sizeof(struct hif_mib_count_table));
 	} else {
-		return hif_read_mib(wdev, 0,
+		return hif_read_mib(wdev, vif_id,
 				    HIF_MIB_ID_EXTENDED_COUNTERS_TABLE, arg,
 				sizeof(struct hif_mib_extended_count_table));
 	}
