@@ -117,4 +117,5 @@ Documentation for filesystem implementations.
    udf
    virtiofs
    vfat
+   xfs-delayed-logging-design
    zonefs
