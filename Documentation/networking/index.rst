@@ -62,6 +62,7 @@ Contents:
    generic-hdlc
    generic_netlink
    gen_stats
+   gtp
 
 .. only::  subproject and html
 

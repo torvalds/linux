@@ -1,12 +1,18 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================
 The Linux kernel GTP tunneling module
-======================================================================
-Documentation by Harald Welte <laforge@gnumonks.org> and
-                 Andreas Schultz <aschultz@tpip.net>
+=====================================
+
+Documentation by
+		 Harald Welte <laforge@gnumonks.org> and
+		 Andreas Schultz <aschultz@tpip.net>
 
 In 'drivers/net/gtp.c' you are finding a kernel-level implementation
 of a GTP tunnel endpoint.
 
-== What is GTP ==
+What is GTP
+===========
 
 GTP is the Generic Tunnel Protocol, which is a 3GPP protocol used for
 tunneling User-IP payload between a mobile station (phone, modem)
@@ -41,7 +47,8 @@ publicly via the 3GPP website at http://www.3gpp.org/DynaReport/29060.htm
 A direct PDF link to v13.6.0 is provided for convenience below:
 http://www.etsi.org/deliver/etsi_ts/129000_129099/129060/13.06.00_60/ts_129060v130600p.pdf
 
-== The Linux GTP tunnelling module ==
+The Linux GTP tunnelling module
+===============================
 
 The module implements the function of a tunnel endpoint, i.e. it is
 able to decapsulate tunneled IP packets in the uplink originated by
@@ -70,7 +77,8 @@ Userspace :)
 The official homepage of the module is at
 https://osmocom.org/projects/linux-kernel-gtp-u/wiki
 
-== Userspace Programs with Linux Kernel GTP-U support ==
+Userspace Programs with Linux Kernel GTP-U support
+==================================================
 
 At the time of this writing, there are at least two Free Software
 implementations that implement GTP-C and can use the netlink interface
@@ -82,7 +90,8 @@ to make use of the Linux kernel GTP-U support:
 * ergw (GGSN + P-GW in Erlang):
   https://github.com/travelping/ergw
 
-== Userspace Library / Command Line Utilities ==
+Userspace Library / Command Line Utilities
+==========================================
 
 There is a userspace library called 'libgtpnl' which is based on
 libmnl and which implements a C-language API towards the netlink
@@ -90,7 +99,8 @@ interface provided by the Kernel GTP module:
 
 http://git.osmocom.org/libgtpnl/
 
-== Protocol Versions ==
+Protocol Versions
+=================
 
 There are two different versions of GTP-U: v0 [GSM TS 09.60] and v1
 [3GPP TS 29.281].  Both are implemented in the Kernel GTP module.
@@ -105,7 +115,8 @@ doesn't implement GTP-C, we don't have to worry about this.  It's the
 responsibility of the control plane implementation in userspace to
 implement that.
 
-== IPv6 ==
+IPv6
+====
 
 The 3GPP specifications indicate either IPv4 or IPv6 can be used both
 on the inner (user) IP layer, or on the outer (transport) layer.
@@ -114,22 +125,25 @@ Unfortunately, the Kernel module currently supports IPv6 neither for
 the User IP payload, nor for the outer IP layer.  Patches or other
 Contributions to fix this are most welcome!
 
-== Mailing List ==
+Mailing List
+============
 
-If yo have questions regarding how to use the Kernel GTP module from
+If you have questions regarding how to use the Kernel GTP module from
 your own software, or want to contribute to the code, please use the
 osmocom-net-grps mailing list for related discussion. The list can be
 reached at osmocom-net-gprs@lists.osmocom.org and the mailman
 interface for managing your subscription is at
 https://lists.osmocom.org/mailman/listinfo/osmocom-net-gprs
 
-== Issue Tracker ==
+Issue Tracker
+=============
 
 The Osmocom project maintains an issue tracker for the Kernel GTP-U
 module at
 https://osmocom.org/projects/linux-kernel-gtp-u/issues
 
-== History / Acknowledgements ==
+History / Acknowledgements
+==========================
 
 The Module was originally created in 2012 by Harald Welte, but never
 completed.  Pablo came in to finish the mess Harald left behind.  But
@@ -139,9 +153,11 @@ In 2015, Andreas Schultz came to the rescue and fixed lots more bugs,
 extended it with new features and finally pushed all of us to get it
 mainline, where it was merged in 4.7.0.
 
-== Architectural Details ==
+Architectural Details
+=====================
 
-=== Local GTP-U entity and tunnel identification ===
+Local GTP-U entity and tunnel identification
+--------------------------------------------
 
 GTP-U uses UDP for transporting PDU's. The receiving UDP port is 2152
 for GTPv1-U and 3386 for GTPv0-U.
@@ -164,15 +180,15 @@ Therefore:
     destination IP and the tunnel endpoint id. The source IP and port
     have no meaning and can change at any time.
 
-[3GPP TS 29.281] Section 4.3.0 defines this so:
+[3GPP TS 29.281] Section 4.3.0 defines this so::
 
-> The TEID in the GTP-U header is used to de-multiplex traffic
-> incoming from remote tunnel endpoints so that it is delivered to the
-> User plane entities in a way that allows multiplexing of different
-> users, different packet protocols and different QoS levels.
-> Therefore no two remote GTP-U endpoints shall send traffic to a
-> GTP-U protocol entity using the same TEID value except
-> for data forwarding as part of mobility procedures.
+  The TEID in the GTP-U header is used to de-multiplex traffic
+  incoming from remote tunnel endpoints so that it is delivered to the
+  User plane entities in a way that allows multiplexing of different
+  users, different packet protocols and different QoS levels.
+  Therefore no two remote GTP-U endpoints shall send traffic to a
+  GTP-U protocol entity using the same TEID value except
+  for data forwarding as part of mobility procedures.
 
 The definition above only defines that two remote GTP-U endpoints
 *should not* send to the same TEID, it *does not* forbid or exclude
@@ -183,7 +199,8 @@ multiple or unknown peers.
 Therefore, the receiving side identifies tunnels exclusively based on
 TEIDs, not based on the source IP!
 
-== APN vs. Network Device ==
+APN vs. Network Device
+======================
 
 The GTP-U driver creates a Linux network device for each Gi/SGi
 interface.
@@ -201,29 +218,33 @@ number of Gi/SGi interfaces implemented by a GGSN/P-GW.
 
 [3GPP TS 29.061] Section 11.3 makes it clear that the selection of a
 specific Gi/SGi interfaces is made through the Access Point Name
-(APN):
+(APN)::
 
-> 2. each private network manages its own addressing. In general this
->    will result in different private networks having overlapping
->    address ranges. A logically separate connection (e.g. an IP in IP
->    tunnel or layer 2 virtual circuit) is used between the GGSN/P-GW
->    and each private network.
->
->    In this case the IP address alone is not necessarily unique.  The
->    pair of values, Access Point Name (APN) and IPv4 address and/or
->    IPv6 prefixes, is unique.
+  2. each private network manages its own addressing. In general this
+     will result in different private networks having overlapping
+     address ranges. A logically separate connection (e.g. an IP in IP
+     tunnel or layer 2 virtual circuit) is used between the GGSN/P-GW
+     and each private network.
+
+     In this case the IP address alone is not necessarily unique.  The
+     pair of values, Access Point Name (APN) and IPv4 address and/or
+     IPv6 prefixes, is unique.
 
 In order to support the overlapping address range use case, each APN
 is mapped to a separate Gi/SGi interface (network device).
 
-NOTE: The Access Point Name is purely a control plane (GTP-C) concept.
-At the GTP-U level, only Tunnel Endpoint Identifiers are present in
-GTP-U packets and network devices are known
+.. note::
+
+   The Access Point Name is purely a control plane (GTP-C) concept.
+   At the GTP-U level, only Tunnel Endpoint Identifiers are present in
+   GTP-U packets and network devices are known
 
 Therefore for a given UE the mapping in IP to PDN network is:
+
   * network device + MS IP -> Peer IP + Peer TEID,
 
 and from PDN to IP network:
+
   * local GTP-U IP + TEID  -> network device
 
 Furthermore, before a received T-PDU is injected into the network
