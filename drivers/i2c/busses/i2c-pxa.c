@@ -286,13 +286,14 @@ struct bits {
 static inline void
 decode_bits(const char *prefix, const struct bits *bits, int num, u32 val)
 {
-	printk("%s %08x: ", prefix, val);
+	printk("%s %08x:", prefix, val);
 	while (num--) {
 		const char *str = val & bits->mask ? bits->set : bits->unset;
 		if (str)
-			printk("%s ", str);
+			pr_cont(" %s", str);
 		bits++;
 	}
+	pr_cont("\n");
 }
 
 static const struct bits isr_bits[] = {
@@ -312,7 +313,6 @@ static const struct bits isr_bits[] = {
 static void decode_ISR(unsigned int val)
 {
 	decode_bits(KERN_DEBUG "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
-	printk("\n");
 }
 
 static const struct bits icr_bits[] = {
@@ -337,7 +337,6 @@ static const struct bits icr_bits[] = {
 static void decode_ICR(unsigned int val)
 {
 	decode_bits(KERN_DEBUG "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
-	printk("\n");
 }
 #endif
 
