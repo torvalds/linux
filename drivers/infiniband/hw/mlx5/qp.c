@@ -1634,13 +1634,13 @@ static void destroy_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *q
 			     to_mpd(qp->ibqp.pd)->uid);
 }
 
-static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-				 struct ib_pd *pd,
+static int create_rss_raw_qp_tir(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata)
 {
 	struct mlx5_ib_ucontext *mucontext = rdma_udata_to_drv_context(
 		udata, struct mlx5_ib_ucontext, ibucontext);
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_qp_resp resp = {};
 	int inlen;
 	int outlen;
@@ -1995,9 +1995,6 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				     qp->qp_sub_type);
 	if (mlx5_st < 0)
 		return -EINVAL;
-
-	if (init_attr->rwq_ind_tbl)
-		return create_rss_raw_qp_tir(dev, qp, pd, init_attr, udata);
 
 	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
 		if (!MLX5_CAP_GEN(mdev, block_lb_mc)) {
@@ -2712,6 +2709,18 @@ static size_t process_udata_size(struct ib_qp_init_attr *attr,
 	return ucmd;
 }
 
+static int create_raw_qp(struct ib_pd *pd, struct mlx5_ib_qp *qp,
+			 struct ib_qp_init_attr *attr,
+			 struct mlx5_ib_create_qp *ucmd, struct ib_udata *udata)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+
+	if (attr->rwq_ind_tbl)
+		return create_rss_raw_qp_tir(pd, qp, attr, udata);
+
+	return create_qp_common(dev, pd, attr, ucmd, udata, qp);
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
@@ -2767,6 +2776,9 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	switch (init_attr->qp_type) {
 	case IB_QPT_DRIVER:
 		err = create_driver_qp(pd, qp, init_attr, &ucmd, udata);
+		break;
+	case IB_QPT_RAW_PACKET:
+		err = create_raw_qp(pd, qp, init_attr, &ucmd, udata);
 		break;
 	default:
 		err = create_qp_common(dev, pd, init_attr,
