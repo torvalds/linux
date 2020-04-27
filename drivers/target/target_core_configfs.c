@@ -1203,6 +1203,7 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_hw_block_size,
 	&attr_hw_max_sectors,
 	&attr_hw_queue_depth,
+	&attr_emulate_pr,
 	&attr_alua_support,
 	&attr_pgr_support,
 	NULL,
