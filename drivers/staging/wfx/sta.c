@@ -641,6 +641,8 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
+	if (notify_cmd != STA_NOTIFY_AWAKE)
+		return;
 	WARN(!wfx_tx_queues_has_cab(wvif), "incorrect sequence");
 	WARN(wvif->after_dtim_tx_allowed, "incorrect sequence");
 	wvif->after_dtim_tx_allowed = true;
