@@ -43,6 +43,7 @@ Contents:
    arcnet
    atm
    ax25
+   baycom
 
 .. only::  subproject and html
 
