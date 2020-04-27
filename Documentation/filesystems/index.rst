@@ -31,6 +31,7 @@ algorithms work.
    locks
    mandatory-locking
    mount_api
+   quota
 
    automount-support
 

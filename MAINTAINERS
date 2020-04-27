@@ -5010,7 +5010,7 @@ W:	http://www.win.tue.nl/~aeb/partitions/partition_types-1.html
 DISKQUOTA
 M:	Jan Kara <jack@suse.com>
 S:	Maintained
-F:	Documentation/filesystems/quota.txt
+F:	Documentation/filesystems/quota.rst
 F:	fs/quota/
 F:	include/linux/quota*.h
 F:	include/uapi/linux/quota*.h
