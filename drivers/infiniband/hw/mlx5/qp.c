@@ -1666,9 +1666,6 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	size_t required_cmd_sz;
 	u8 lb_flag = 0;
 
-	if (init_attr->qp_type != IB_QPT_RAW_PACKET)
-		return -EOPNOTSUPP;
-
 	if (init_attr->create_flags || init_attr->send_cq)
 		return -EINVAL;
 
@@ -2032,13 +2029,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (mlx5_st < 0)
 		return -EINVAL;
 
-	if (init_attr->rwq_ind_tbl) {
-		if (!udata)
-			return -ENOSYS;
-
-		err = create_rss_raw_qp_tir(dev, qp, pd, init_attr, udata);
-		return err;
-	}
+	if (init_attr->rwq_ind_tbl)
+		return create_rss_raw_qp_tir(dev, qp, pd, init_attr, udata);
 
 	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
 		if (!MLX5_CAP_GEN(mdev, block_lb_mc)) {
@@ -2565,39 +2557,6 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base, udata);
 }
 
-static const char *ib_qp_type_str(enum ib_qp_type type)
-{
-	switch (type) {
-	case IB_QPT_SMI:
-		return "IB_QPT_SMI";
-	case IB_QPT_GSI:
-		return "IB_QPT_GSI";
-	case IB_QPT_RC:
-		return "IB_QPT_RC";
-	case IB_QPT_UC:
-		return "IB_QPT_UC";
-	case IB_QPT_UD:
-		return "IB_QPT_UD";
-	case IB_QPT_RAW_IPV6:
-		return "IB_QPT_RAW_IPV6";
-	case IB_QPT_RAW_ETHERTYPE:
-		return "IB_QPT_RAW_ETHERTYPE";
-	case IB_QPT_XRC_INI:
-		return "IB_QPT_XRC_INI";
-	case IB_QPT_XRC_TGT:
-		return "IB_QPT_XRC_TGT";
-	case IB_QPT_RAW_PACKET:
-		return "IB_QPT_RAW_PACKET";
-	case MLX5_IB_QPT_REG_UMR:
-		return "MLX5_IB_QPT_REG_UMR";
-	case IB_QPT_DRIVER:
-		return "IB_QPT_DRIVER";
-	case IB_QPT_MAX:
-	default:
-		return "Invalid QP type";
-	}
-}
-
 static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
 					struct ib_qp_init_attr *attr,
 					struct mlx5_ib_create_qp *ucmd,
@@ -2654,9 +2613,6 @@ static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
 {
 	enum { MLX_QP_FLAGS = MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI };
 	int err;
-
-	if (!udata)
-		return -EINVAL;
 
 	if (udata->inlen < sizeof(*ucmd)) {
 		mlx5_ib_dbg(dev, "create_qp user command is smaller than expected\n");
@@ -2715,6 +2671,62 @@ out:
 	return -EOPNOTSUPP;
 }
 
+static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
+			    struct ib_qp_init_attr *attr,
+			    struct ib_udata *udata)
+{
+	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
+
+	if (!udata) {
+		/* Kernel create_qp callers */
+		if (attr->rwq_ind_tbl)
+			return -EOPNOTSUPP;
+
+		switch (attr->qp_type) {
+		case IB_QPT_RAW_PACKET:
+		case IB_QPT_DRIVER:
+			return -EOPNOTSUPP;
+		default:
+			return 0;
+		}
+	}
+
+	/* Userspace create_qp callers */
+	if (attr->qp_type == IB_QPT_RAW_PACKET && !ucontext->cqe_version) {
+		mlx5_ib_dbg(dev,
+			"Raw Packet QP is only supported for CQE version > 0\n");
+		return -EINVAL;
+	}
+
+	if (attr->qp_type != IB_QPT_RAW_PACKET && attr->rwq_ind_tbl) {
+		mlx5_ib_dbg(dev,
+			    "Wrong QP type %d for the RWQ indirect table\n",
+			    attr->qp_type);
+		return -EINVAL;
+	}
+
+	switch (attr->qp_type) {
+	case IB_QPT_SMI:
+	case MLX5_IB_QPT_HW_GSI:
+	case MLX5_IB_QPT_REG_UMR:
+	case IB_QPT_GSI:
+		mlx5_ib_dbg(dev, "Kernel doesn't support QP type %d\n",
+			    attr->qp_type);
+		return -EINVAL;
+	default:
+		break;
+	}
+
+	/*
+	 * We don't need to see this warning, it means that kernel code
+	 * missing ib_pd. Placed here to catch developer's mistakes.
+	 */
+	WARN_ONCE(!pd && attr->qp_type != IB_QPT_XRC_TGT,
+		  "There is a missing PD pointer assignment\n");
+	return 0;
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *verbs_init_attr,
 				struct ib_udata *udata)
@@ -2725,8 +2737,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	int err;
 	struct ib_qp_init_attr mlx_init_attr;
 	struct ib_qp_init_attr *init_attr = verbs_init_attr;
-	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
-		udata, struct mlx5_ib_ucontext, ibucontext);
 
 	dev = pd ? to_mdev(pd->device) :
 		   to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
@@ -2738,25 +2748,9 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-	if (pd) {
-		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
-			if (!ucontext) {
-				mlx5_ib_dbg(dev, "Raw Packet QP is not supported for kernel consumers\n");
-				return ERR_PTR(-EINVAL);
-			} else if (!ucontext->cqe_version) {
-				mlx5_ib_dbg(dev, "Raw Packet QP is only supported for CQE version > 0\n");
-				return ERR_PTR(-EINVAL);
-			}
-		}
-	} else {
-		/* being cautious here */
-		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
-		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
-			pr_warn("%s: no PD for transport %s\n", __func__,
-				ib_qp_type_str(init_attr->qp_type));
-			return ERR_PTR(-EINVAL);
-		}
-	}
+	err = check_valid_flow(dev, pd, init_attr, udata);
+	if (err)
+		return ERR_PTR(err);
 
 	if (init_attr->qp_type == IB_QPT_DRIVER) {
 		struct mlx5_ib_create_qp ucmd;
