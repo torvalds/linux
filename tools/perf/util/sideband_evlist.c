@@ -4,6 +4,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/mmap.h"
+#include "util/perf_api_probe.h"
 #include <perf/mmap.h>
 #include <linux/perf_event.h>
 #include <limits.h>
@@ -80,6 +81,19 @@ static void *perf_evlist__poll_thread(void *arg)
 	return NULL;
 }
 
+void evlist__set_cb(struct evlist *evlist, perf_evsel__sb_cb_t cb, void *data)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		evsel->core.attr.sample_id_all    = 1;
+		evsel->core.attr.watermark        = 1;
+		evsel->core.attr.wakeup_watermark = 1;
+		evsel->side_band.cb   = cb;
+		evsel->side_band.data = data;
+      }
+}
+
 int perf_evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 {
 	struct evsel *counter;
@@ -89,6 +103,15 @@ int perf_evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 
 	if (perf_evlist__create_maps(evlist, target))
 		goto out_delete_evlist;
+
+	if (evlist->core.nr_entries > 1) {
+		bool can_sample_identifier = perf_can_sample_identifier();
+
+		evlist__for_each_entry(evlist, counter)
+			perf_evsel__set_sample_id(counter, can_sample_identifier);
+
+		perf_evlist__set_id_pos(evlist);
+	}
 
 	evlist__for_each_entry(evlist, counter) {
 		if (evsel__open(counter, evlist->core.cpus, evlist->core.threads) < 0)
