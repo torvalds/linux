@@ -1847,7 +1847,7 @@ xlog_recover_reorder_trans(
 	LIST_HEAD(cancel_list);
 	LIST_HEAD(buffer_list);
 	LIST_HEAD(inode_buffer_list);
-	LIST_HEAD(inode_list);
+	LIST_HEAD(item_list);
 
 	list_splice_init(&trans->r_itemq, &sort_list);
 	list_for_each_entry_safe(item, n, &sort_list, ri_list) {
@@ -1883,7 +1883,7 @@ xlog_recover_reorder_trans(
 		case XFS_LI_BUD:
 			trace_xfs_log_recover_item_reorder_tail(log,
 							trans, item, pass);
-			list_move_tail(&item->ri_list, &inode_list);
+			list_move_tail(&item->ri_list, &item_list);
 			break;
 		default:
 			xfs_warn(log->l_mp,
@@ -1904,8 +1904,8 @@ out:
 	ASSERT(list_empty(&sort_list));
 	if (!list_empty(&buffer_list))
 		list_splice(&buffer_list, &trans->r_itemq);
-	if (!list_empty(&inode_list))
-		list_splice_tail(&inode_list, &trans->r_itemq);
+	if (!list_empty(&item_list))
+		list_splice_tail(&item_list, &trans->r_itemq);
 	if (!list_empty(&inode_buffer_list))
 		list_splice_tail(&inode_buffer_list, &trans->r_itemq);
 	if (!list_empty(&cancel_list))
