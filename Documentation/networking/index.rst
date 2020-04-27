@@ -59,6 +59,7 @@ Contents:
    filter
    fore200e
    framerelay
+   generic-hdlc
 
 .. only::  subproject and html
 
