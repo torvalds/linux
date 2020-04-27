@@ -30,7 +30,7 @@ config 6PACK
 
 	  Note that this driver is still experimental and might cause
 	  problems. For details about the features and the usage of the
-	  driver, read <file:Documentation/networking/6pack.txt>.
+	  driver, read <file:Documentation/networking/6pack.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 6pack.
