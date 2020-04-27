@@ -11,25 +11,6 @@
 	compatible = "rockchip,rk3368-808-evb", "rockchip,rk3368";
 };
 
-&firmware_android {
-	compatible = "android,firmware";
-	boot_devices = "ff0f0000.dwmmc,ff400000.nandc";
-	vbmeta {
-		compatible = "android,vbmeta";
-		parts = "vbmeta,dtbo";
-	};
-	fstab {
-		compatible = "android,fstab";
-		vendor {
-			compatible = "android,vendor";
-			dev = "/dev/block/by-name/vendor";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait,avb";
-		};
-	};
-};
-
 &chosen {
 	bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 androidboot.selinux=permissive init=/init kpti=0";
 };
