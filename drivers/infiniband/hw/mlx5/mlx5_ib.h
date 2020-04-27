@@ -337,24 +337,12 @@ struct mlx5_ib_rwq {
 	struct ib_umem		*umem;
 	size_t			buf_size;
 	unsigned int		page_shift;
-	int			create_type;
 	struct mlx5_db		db;
 	u32			user_index;
 	u32			wqe_count;
 	u32			wqe_shift;
 	int			wq_sig;
 	u32			create_flags; /* Use enum mlx5_ib_wq_flags */
-};
-
-enum {
-	MLX5_QP_USER,
-	MLX5_QP_KERNEL,
-	MLX5_QP_EMPTY
-};
-
-enum {
-	MLX5_WQ_USER,
-	MLX5_WQ_KERNEL
 };
 
 struct mlx5_ib_rwq_ind_table {
@@ -456,8 +444,6 @@ struct mlx5_ib_qp {
 	 * we have it from the bf object
 	 */
 	int			bfregn;
-
-	int			create_type;
 
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
