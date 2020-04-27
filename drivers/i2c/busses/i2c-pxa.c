@@ -716,16 +716,6 @@ static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
  * PXA I2C Master mode
  */
 
-static inline unsigned int i2c_pxa_addr_byte(struct i2c_msg *msg)
-{
-	unsigned int addr = (msg->addr & 0x7f) << 1;
-
-	if (msg->flags & I2C_M_RD)
-		addr |= 1;
-
-	return addr;
-}
-
 static inline void i2c_pxa_start_message(struct pxa_i2c *i2c)
 {
 	u32 icr;
@@ -733,8 +723,8 @@ static inline void i2c_pxa_start_message(struct pxa_i2c *i2c)
 	/*
 	 * Step 1: target slave address into IDBR
 	 */
-	writel(i2c_pxa_addr_byte(i2c->msg), _IDBR(i2c));
-	i2c->req_slave_addr = i2c_pxa_addr_byte(i2c->msg);
+	i2c->req_slave_addr = i2c_8bit_addr_from_msg(i2c->msg);
+	writel(i2c->req_slave_addr, _IDBR(i2c));
 
 	/*
 	 * Step 2: initiate the write.
@@ -1047,8 +1037,8 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		/*
 		 * Write the next address.
 		 */
-		writel(i2c_pxa_addr_byte(i2c->msg), _IDBR(i2c));
-		i2c->req_slave_addr = i2c_pxa_addr_byte(i2c->msg);
+		i2c->req_slave_addr = i2c_8bit_addr_from_msg(i2c->msg);
+		writel(i2c->req_slave_addr, _IDBR(i2c));
 
 		/*
 		 * And trigger a repeated start, and send the byte.
