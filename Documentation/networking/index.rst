@@ -58,6 +58,7 @@ Contents:
    fib_trie
    filter
    fore200e
+   framerelay
 
 .. only::  subproject and html
 

@@ -1,4 +1,10 @@
-Frame Relay (FR) support for linux is built into a two tiered system of device 
+.. SPDX-License-Identifier: GPL-2.0
+
+================
+Frame Relay (FR)
+================
+
+Frame Relay (FR) support for linux is built into a two tiered system of device
 drivers.  The upper layer implements RFC1490 FR specification, and uses the
 Data Link Connection Identifier (DLCI) as its hardware address.  Usually these
 are assigned by your network supplier, they give you the number/numbers of
@@ -7,18 +13,18 @@ the Virtual Connections (VC) assigned to you.
 Each DLCI is a point-to-point link between your machine and a remote one.
 As such, a separate device is needed to accommodate the routing.  Within the
 net-tools archives is 'dlcicfg'.  This program will communicate with the
-base "DLCI" device, and create new net devices named 'dlci00', 'dlci01'... 
+base "DLCI" device, and create new net devices named 'dlci00', 'dlci01'...
 The configuration script will ask you how many DLCIs you need, as well as
 how many DLCIs you want to assign to each Frame Relay Access Device (FRAD).
 
 The DLCI uses a number of function calls to communicate with the FRAD, all
-of which are stored in the FRAD's private data area.  assoc/deassoc, 
+of which are stored in the FRAD's private data area.  assoc/deassoc,
 activate/deactivate and dlci_config.  The DLCI supplies a receive function
 to the FRAD to accept incoming packets.
 
 With this initial offering, only 1 FRAD driver is available.  With many thanks
-to Sangoma Technologies, David Mandelstam & Gene Kozin, the S502A, S502E & 
-S508 are supported.  This driver is currently set up for only FR, but as 
+to Sangoma Technologies, David Mandelstam & Gene Kozin, the S502A, S502E &
+S508 are supported.  This driver is currently set up for only FR, but as
 Sangoma makes more firmware modules available, it can be updated to provide
 them as well.
 
@@ -32,8 +38,7 @@ an initial configuration.
 Additional FRAD device drivers can be added as hardware is available.
 
 At this time, the dlcicfg and fradcfg programs have not been incorporated into
-the net-tools distribution.  They can be found at ftp.invlogic.com, in 
+the net-tools distribution.  They can be found at ftp.invlogic.com, in
 /pub/linux.  Note that with OS/2 FTPD, you end up in /pub by default, so just
-use 'cd linux'.  v0.10 is for use on pre-2.0.3 and earlier, v0.15 is for 
+use 'cd linux'.  v0.10 is for use on pre-2.0.3 and earlier, v0.15 is for
 pre-2.0.4 and later.
-

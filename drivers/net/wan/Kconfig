@@ -336,7 +336,7 @@ config DLCI
 
 	  To use frame relay, you need supporting hardware (called FRAD) and
 	  certain programs from the net-tools package as explained in
-	  <file:Documentation/networking/framerelay.txt>.
+	  <file:Documentation/networking/framerelay.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dlci.
@@ -361,7 +361,7 @@ config SDLA
 
 	  These are multi-protocol cards, but only Frame Relay is supported
 	  by the driver at this time. Please read
-	  <file:Documentation/networking/framerelay.txt>.
+	  <file:Documentation/networking/framerelay.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdla.
