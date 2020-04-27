@@ -157,6 +157,14 @@ config GKI_HIDDEN_GPU_CONFIGS
 	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_IRQ_CONFIGS
+	bool "Hidden IRQ configuration needed for GKI"
+	select GENERIC_IRQ_CHIP
+	help
+	  Dummy config option used to enable GENERIC_IRQ_CHIP hidden
+	  config, required by various SoC platforms. This is usually
+	  selected by ARCH_*.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -181,6 +189,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_SOC_BUS_CONFIGS
 	select GKI_HIDDEN_RPMSG_CONFIGS
 	select GKI_HIDDEN_GPU_CONFIGS
+	select GKI_HIDDEN_IRQ_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
