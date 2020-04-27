@@ -501,7 +501,7 @@
 	.result = REJECT
 },
 {
-	"bounds check mixed 32bit and 64bit arithmatic. test1",
+	"bounds check mixed 32bit and 64bit arithmetic. test1",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_MOV64_IMM(BPF_REG_1, -1),
@@ -520,7 +520,7 @@
 	.result = ACCEPT
 },
 {
-	"bounds check mixed 32bit and 64bit arithmatic. test2",
+	"bounds check mixed 32bit and 64bit arithmetic. test2",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_MOV64_IMM(BPF_REG_1, -1),

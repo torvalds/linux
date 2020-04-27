@@ -40,7 +40,7 @@ cros_sensorhub_send_sample(struct cros_ec_sensorhub *sensorhub,
 	int id = sample->sensor_id;
 	struct iio_dev *indio_dev;
 
-	if (id > sensorhub->sensor_num)
+	if (id >= sensorhub->sensor_num)
 		return -EINVAL;
 
 	cb = sensorhub->push_data[id].push_data_cb;
@@ -820,7 +820,7 @@ static void cros_ec_sensorhub_ring_handler(struct cros_ec_sensorhub *sensorhub)
 	if (fifo_info->count > sensorhub->fifo_size ||
 	    fifo_info->size != sensorhub->fifo_size) {
 		dev_warn(sensorhub->dev,
-			 "Mismatch EC data: count %d, size %d - expected %d",
+			 "Mismatch EC data: count %d, size %d - expected %d\n",
 			 fifo_info->count, fifo_info->size,
 			 sensorhub->fifo_size);
 		goto error;
@@ -851,14 +851,14 @@ static void cros_ec_sensorhub_ring_handler(struct cros_ec_sensorhub *sensorhub)
 		}
 		if (number_data > fifo_info->count - i) {
 			dev_warn(sensorhub->dev,
-				 "Invalid EC data: too many entry received: %d, expected %d",
+				 "Invalid EC data: too many entry received: %d, expected %d\n",
 				 number_data, fifo_info->count - i);
 			break;
 		}
 		if (out + number_data >
 		    sensorhub->ring + fifo_info->count) {
 			dev_warn(sensorhub->dev,
-				 "Too many samples: %d (%zd data) to %d entries for expected %d entries",
+				 "Too many samples: %d (%zd data) to %d entries for expected %d entries\n",
 				 i, out - sensorhub->ring, i + number_data,
 				 fifo_info->count);
 			break;

@@ -670,11 +670,16 @@ int dsa_port_link_register_of(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct device_node *phy_np;
+	int port = dp->index;
 
 	if (!ds->ops->adjust_link) {
 		phy_np = of_parse_phandle(dp->dn, "phy-handle", 0);
-		if (of_phy_is_fixed_link(dp->dn) || phy_np)
+		if (of_phy_is_fixed_link(dp->dn) || phy_np) {
+			if (ds->ops->phylink_mac_link_down)
+				ds->ops->phylink_mac_link_down(ds, port,
+					MLO_AN_FIXED, PHY_INTERFACE_MODE_NA);
 			return dsa_port_phylink_register(dp);
+		}
 		return 0;
 	}
 

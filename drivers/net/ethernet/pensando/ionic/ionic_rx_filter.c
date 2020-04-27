@@ -2,6 +2,7 @@
 /* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
 
 #include <linux/netdevice.h>
+#include <linux/dynamic_debug.h>
 #include <linux/etherdevice.h>
 
 #include "ionic.h"
@@ -17,17 +18,49 @@ void ionic_rx_filter_free(struct ionic_lif *lif, struct ionic_rx_filter *f)
 	devm_kfree(dev, f);
 }
 
-int ionic_rx_filter_del(struct ionic_lif *lif, struct ionic_rx_filter *f)
+void ionic_rx_filter_replay(struct ionic_lif *lif)
 {
-	struct ionic_admin_ctx ctx = {
-		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
-		.cmd.rx_filter_del = {
-			.opcode = IONIC_CMD_RX_FILTER_DEL,
-			.filter_id = cpu_to_le32(f->filter_id),
-		},
-	};
+	struct ionic_rx_filter_add_cmd *ac;
+	struct ionic_admin_ctx ctx;
+	struct ionic_rx_filter *f;
+	struct hlist_head *head;
+	struct hlist_node *tmp;
+	unsigned int i;
+	int err;
 
-	return ionic_adminq_post_wait(lif, &ctx);
+	ac = &ctx.cmd.rx_filter_add;
+
+	for (i = 0; i < IONIC_RX_FILTER_HLISTS; i++) {
+		head = &lif->rx_filters.by_id[i];
+		hlist_for_each_entry_safe(f, tmp, head, by_id) {
+			ctx.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work);
+			memcpy(ac, &f->cmd, sizeof(f->cmd));
+			dev_dbg(&lif->netdev->dev, "replay filter command:\n");
+			dynamic_hex_dump("cmd ", DUMP_PREFIX_OFFSET, 16, 1,
+					 &ctx.cmd, sizeof(ctx.cmd), true);
+
+			err = ionic_adminq_post_wait(lif, &ctx);
+			if (err) {
+				switch (le16_to_cpu(ac->match)) {
+				case IONIC_RX_FILTER_MATCH_VLAN:
+					netdev_info(lif->netdev, "Replay failed - %d: vlan %d\n",
+						    err,
+						    le16_to_cpu(ac->vlan.vlan));
+					break;
+				case IONIC_RX_FILTER_MATCH_MAC:
+					netdev_info(lif->netdev, "Replay failed - %d: mac %pM\n",
+						    err, ac->mac.addr);
+					break;
+				case IONIC_RX_FILTER_MATCH_MAC_VLAN:
+					netdev_info(lif->netdev, "Replay failed - %d: vlan %d mac %pM\n",
+						    err,
+						    le16_to_cpu(ac->vlan.vlan),
+						    ac->mac.addr);
+					break;
+				}
+			}
+		}
+	}
 }
 
 int ionic_rx_filters_init(struct ionic_lif *lif)
