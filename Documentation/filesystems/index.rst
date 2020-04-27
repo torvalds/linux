@@ -63,6 +63,7 @@ Documentation for filesystem implementations.
    btrfs
    cifs/cifsroot
    ceph
+   coda
    cramfs
    debugfs
    dlmfs

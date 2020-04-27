@@ -4203,7 +4203,7 @@ M:	coda@cs.cmu.edu
 L:	codalist@coda.cs.cmu.edu
 S:	Maintained
 W:	http://www.coda.cs.cmu.edu/
-F:	Documentation/filesystems/coda.txt
+F:	Documentation/filesystems/coda.rst
 F:	fs/coda/
 F:	include/linux/coda*.h
 F:	include/uapi/linux/coda*.h
