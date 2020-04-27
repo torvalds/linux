@@ -708,15 +708,8 @@ mlxsw_sp_flow_block_is_mixed_bound(const struct mlxsw_sp_flow_block *block)
 struct mlxsw_sp_flow_block *mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp,
 						       struct net *net);
 void mlxsw_sp_flow_block_destroy(struct mlxsw_sp_flow_block *block);
-int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_flow_block *block,
-			     struct mlxsw_sp_port *mlxsw_sp_port,
-			     bool ingress,
-			     struct netlink_ext_ack *extack);
-int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
-			       struct mlxsw_sp_flow_block *block,
-			       struct mlxsw_sp_port *mlxsw_sp_port,
-			       bool ingress);
+int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct flow_block_offload *f);
 
 /* spectrum_acl.c */
 struct mlxsw_sp_acl_ruleset;
