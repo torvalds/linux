@@ -16,6 +16,7 @@ enum mlxsw_sp_mall_action_type {
 };
 
 struct mlxsw_sp_mall_mirror_entry {
+	const struct net_device *to_dev;
 	int span_id;
 	bool ingress;
 };
@@ -43,32 +44,34 @@ mlxsw_sp_mall_entry_find(struct mlxsw_sp_port *port, unsigned long cookie)
 
 static int
 mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct mlxsw_sp_mall_mirror_entry *mirror,
-			      const struct flow_action_entry *act,
+			      struct mlxsw_sp_mall_entry *mall_entry,
 			      bool ingress)
 {
 	enum mlxsw_sp_span_type span_type;
 
-	if (!act->dev) {
+	if (!mall_entry->mirror.to_dev) {
 		netdev_err(mlxsw_sp_port->dev, "Could not find requested device\n");
 		return -EINVAL;
 	}
 
-	mirror->ingress = ingress;
-	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, act->dev, span_type,
-					true, &mirror->span_id);
+	mall_entry->mirror.ingress = ingress;
+	span_type = mall_entry->mirror.ingress ? MLXSW_SP_SPAN_INGRESS :
+						 MLXSW_SP_SPAN_EGRESS;
+	return mlxsw_sp_span_mirror_add(mlxsw_sp_port,
+					mall_entry->mirror.to_dev,
+					span_type, true,
+					&mall_entry->mirror.span_id);
 }
 
 static void
 mlxsw_sp_mall_port_mirror_del(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct mlxsw_sp_mall_mirror_entry *mirror)
+			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	enum mlxsw_sp_span_type span_type;
 
-	span_type = mirror->ingress ? MLXSW_SP_SPAN_INGRESS :
-				      MLXSW_SP_SPAN_EGRESS;
-	mlxsw_sp_span_mirror_del(mlxsw_sp_port, mirror->span_id,
+	span_type = mall_entry->mirror.ingress ? MLXSW_SP_SPAN_INGRESS :
+						 MLXSW_SP_SPAN_EGRESS;
+	mlxsw_sp_span_mirror_del(mlxsw_sp_port, mall_entry->mirror.span_id,
 				 span_type, true);
 }
 
@@ -148,11 +151,9 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	act = &f->rule->action.entries[0];
 
 	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
-		struct mlxsw_sp_mall_mirror_entry *mirror;
-
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
-		mirror = &mall_entry->mirror;
-		err = mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mirror, act,
+		mall_entry->mirror.to_dev = act->dev;
+		err = mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry,
 						    ingress);
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
@@ -188,8 +189,7 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	switch (mall_entry->type) {
 	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
-		mlxsw_sp_mall_port_mirror_del(mlxsw_sp_port,
-					      &mall_entry->mirror);
+		mlxsw_sp_mall_port_mirror_del(mlxsw_sp_port, mall_entry);
 		break;
 	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
 		mlxsw_sp_mall_port_sample_del(mlxsw_sp_port);
