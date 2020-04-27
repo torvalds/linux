@@ -446,7 +446,6 @@ struct mlx5_ib_qp {
 	u32			flags;
 	u8			port;
 	u8			state;
-	int			scat_cqe;
 	int			max_inline_data;
 	struct mlx5_bf	        bf;
 	u8			has_rq:1;

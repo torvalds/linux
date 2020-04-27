@@ -2019,9 +2019,10 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 		if (ucmd->flags & MLX5_QP_FLAG_SIGNATURE)
 			qp->flags_en |= MLX5_QP_FLAG_SIGNATURE;
-		if (MLX5_CAP_GEN(dev->mdev, sctr_data_cqe))
-			qp->scat_cqe =
-				!!(ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE);
+		if (ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE &&
+		    MLX5_CAP_GEN(dev->mdev, sctr_data_cqe))
+			qp->flags_en |= MLX5_QP_FLAG_SCATTER_CQE;
+
 		if (ucmd->flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS) {
 			if (init_attr->qp_type != IB_QPT_RAW_PACKET ||
 			    !tunnel_offload_supported(mdev)) {
@@ -2137,8 +2138,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, cd_slave_receive, 1);
 	if (qp->flags_en & MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE)
 		MLX5_SET(qpc, qpc, req_e2e_credit_mode, 1);
-	if (qp->scat_cqe && (init_attr->qp_type == IB_QPT_RC ||
-			     init_attr->qp_type == IB_QPT_UC)) {
+	if ((qp->flags_en & MLX5_QP_FLAG_SCATTER_CQE) &&
+	    (init_attr->qp_type == IB_QPT_RC ||
+	     init_attr->qp_type == IB_QPT_UC)) {
 		int rcqe_sz = rcqe_sz =
 			mlx5_ib_get_cqe_size(init_attr->recv_cq);
 
@@ -2146,8 +2148,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			 rcqe_sz == 128 ? MLX5_RES_SCAT_DATA64_CQE :
 					  MLX5_RES_SCAT_DATA32_CQE);
 	}
-	if (qp->scat_cqe && (qp->qp_sub_type == MLX5_IB_QPT_DCI ||
-			     init_attr->qp_type == IB_QPT_RC))
+	if ((qp->flags_en & MLX5_QP_FLAG_SCATTER_CQE) &&
+	    (qp->qp_sub_type == MLX5_IB_QPT_DCI ||
+	     init_attr->qp_type == IB_QPT_RC))
 		configure_requester_scat_cqe(dev, init_attr, ucmd, qpc);
 
 	if (qp->rq.wqe_cnt) {
