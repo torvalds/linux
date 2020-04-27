@@ -1300,10 +1300,9 @@ xfs_mod_fdblocks(
 		spin_unlock(&mp->m_sb_lock);
 		return 0;
 	}
-	printk_once(KERN_WARNING
-		"Filesystem \"%s\": reserve blocks depleted! "
-		"Consider increasing reserve pool size.",
-		mp->m_super->s_id);
+	xfs_warn_once(mp,
+"Reserve blocks depleted! Consider increasing reserve pool size.");
+
 fdblocks_enospc:
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
