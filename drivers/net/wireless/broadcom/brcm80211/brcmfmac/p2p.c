@@ -1491,6 +1491,7 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 {
 	struct brcmf_pub *drvr = p2p->cfg->pub;
 	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_p2p_action_frame *p2p_af;
 	s32 err = 0;
 	s32 timeout = 0;
 
@@ -1500,7 +1501,13 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 	clear_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status);
 	clear_bit(BRCMF_P2P_STATUS_ACTION_TX_NOACK, &p2p->status);
 
-	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	/* check if it is a p2p_presence response */
+	p2p_af = (struct brcmf_p2p_action_frame *)af_params->action_frame.data;
+	if (p2p_af->subtype == P2P_AF_PRESENCE_RSP)
+		vif = p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif;
+	else
+		vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+
 	err = brcmf_fil_bsscfg_data_set(vif->ifp, "actframe", af_params,
 					sizeof(*af_params));
 	if (err) {
