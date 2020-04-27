@@ -67,10 +67,6 @@ int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *,
 				     unsigned char *, int);
 
-int compat_mc_setsockopt(struct sock *, int, int, char __user *, unsigned int,
-			 int (*)(struct sock *, int, int, char __user *,
-				 unsigned int));
-
 struct compat_group_req {
 	__u32				 gr_interface;
 	struct __kernel_sockaddr_storage gr_group
