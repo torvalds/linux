@@ -8934,7 +8934,7 @@ L:	lvs-devel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/ipvs-next.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/ipvs.git
-F:	Documentation/networking/ipvs-sysctl.txt
+F:	Documentation/networking/ipvs-sysctl.rst
 F:	include/net/ip_vs.h
 F:	include/uapi/linux/ip_vs.h
 F:	net/netfilter/ipvs/

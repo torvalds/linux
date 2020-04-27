@@ -72,6 +72,7 @@ Contents:
    ip-sysctl
    ipv6
    ipvlan
+   ipvs-sysctl
 
 .. only::  subproject and html
 
