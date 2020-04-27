@@ -59,6 +59,12 @@
 	/delete-node/ opp-1512000000;
 };
 
+&cru {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-rates;
+	/delete-property/ assigned-clock-parents;
+};
+
 &ddr_timing {
 	status = "disabled";
 };
