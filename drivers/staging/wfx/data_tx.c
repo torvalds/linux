@@ -229,6 +229,7 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 	int tid = ieee80211_get_tid(hdr);
 
 	if (sta) {
+		tx_priv->has_sta = true;
 		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 		spin_lock_bh(&sta_priv->lock);
 		sta_priv->buffered[tid]++;
@@ -478,7 +479,8 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-static void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
+static void wfx_skb_dtor(struct wfx_dev *wdev,
+			 struct sk_buff *skb, bool has_sta)
 {
 	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
@@ -489,7 +491,8 @@ static void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
-	wfx_notify_buffered_tx(wvif, skb);
+	if (has_sta)
+		wfx_notify_buffered_tx(wvif, skb);
 	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }
@@ -502,6 +505,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	struct ieee80211_tx_rate *rate;
 	struct ieee80211_tx_info *tx_info;
 	const struct wfx_tx_priv *tx_priv;
+	bool has_sta;
 
 	skb = wfx_pending_get(wvif->wdev, arg->packet_id);
 	if (!skb) {
@@ -512,6 +516,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	}
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
+	has_sta = tx_priv->has_sta;
 	_trace_tx_stats(arg, skb,
 			wfx_pending_get_pkt_us_delay(wvif->wdev, skb));
 
@@ -572,12 +577,13 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		}
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 	}
-	wfx_skb_dtor(wvif->wdev, skb);
+	wfx_skb_dtor(wvif->wdev, skb, has_sta);
 }
 
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       u32 queues, bool drop)
 {
+	const struct wfx_tx_priv *tx_priv;
 	struct wfx_dev *wdev = hw->priv;
 	struct sk_buff_head dropped;
 	struct wfx_queue *queue;
@@ -605,7 +611,9 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wfx_tx_flush(wdev);
 	if (wdev->chip_frozen)
 		wfx_pending_drop(wdev, &dropped);
-	while ((skb = skb_dequeue(&dropped)) != NULL)
-		wfx_skb_dtor(wdev, skb);
+	while ((skb = skb_dequeue(&dropped)) != NULL) {
+		tx_priv = wfx_skb_tx_priv(skb);
+		wfx_skb_dtor(wdev, skb, tx_priv->has_sta);
+	}
 }
 
