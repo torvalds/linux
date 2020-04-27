@@ -614,16 +614,18 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			ret = clk_set_rate(data->ext_clk, ext_clk_value);
 			if (ret)
 				LOG("%s: set ref clk error!\n", __func__);
-			ret = clk_prepare_enable(data->ext_clk);
-			if (ret)
-				LOG("%s: enable ref clk error!\n", __func__);
-			/* WIFI clock (REF_CLKOUT) output enable.
-			 * 1'b0: drive disable
-			 * 1'b1: output enable
-			 */
-			if (of_machine_is_compatible("rockchip,rk3308"))
-				regmap_write(data->grf, 0x0314, 0x00020002);
 		}
+
+		ret = clk_prepare_enable(data->ext_clk);
+		if (ret)
+			LOG("%s: enable ref clk error!\n", __func__);
+
+		/* WIFI clock (REF_CLKOUT) output enable.
+		 * 1'b0: drive disable
+		 * 1'b1: output enable
+		 */
+		if (of_machine_is_compatible("rockchip,rk3308"))
+			regmap_write(data->grf, 0x0314, 0x00020002);
 	}
 
 	return 0;
