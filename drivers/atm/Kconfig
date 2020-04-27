@@ -336,7 +336,7 @@ config ATM_FORE200E
 	  on PCI and SBUS hosts. Say Y (or M to compile as a module
 	  named fore_200e) here if you have one of these ATM adapters.
 
-	  See the file <file:Documentation/networking/fore200e.txt> for
+	  See the file <file:Documentation/networking/fore200e.rst> for
 	  further details.
 
 config ATM_FORE200E_USE_TASKLET

@@ -1,6 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+=============================================
 FORE Systems PCA-200E/SBA-200E ATM NIC driver
----------------------------------------------
+=============================================
 
 This driver adds support for the FORE Systems 200E-series ATM adapters
 to the Linux operating system. It is based on the earlier PCA-200E driver
@@ -27,8 +29,8 @@ in the linux/drivers/atm directory for details and restrictions.
 Firmware Updates
 ----------------
 
-The FORE Systems 200E-series driver is shipped with firmware data being 
-uploaded to the ATM adapters at system boot time or at module loading time. 
+The FORE Systems 200E-series driver is shipped with firmware data being
+uploaded to the ATM adapters at system boot time or at module loading time.
 The supplied firmware images should work with all adapters.
 
 However, if you encounter problems (the firmware doesn't start or the driver

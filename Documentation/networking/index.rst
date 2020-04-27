@@ -57,6 +57,7 @@ Contents:
    eql
    fib_trie
    filter
+   fore200e
 
 .. only::  subproject and html
 
