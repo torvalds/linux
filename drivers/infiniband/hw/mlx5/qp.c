@@ -1430,13 +1430,6 @@ static void destroy_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	mlx5_core_destroy_rq_tracked(dev, &rq->base.mqp);
 }
 
-static bool tunnel_offload_supported(struct mlx5_core_dev *dev)
-{
-	return  (MLX5_CAP_ETH(dev, tunnel_stateless_vxlan) ||
-		 MLX5_CAP_ETH(dev, tunnel_stateless_gre) ||
-		 MLX5_CAP_ETH(dev, tunnel_stateless_geneve_rx));
-}
-
 static void destroy_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 				      struct mlx5_ib_rq *rq,
 				      u32 qp_flags_en,
@@ -1693,27 +1686,20 @@ static int create_rss_raw_qp_tir(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-	if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS &&
-	    !tunnel_offload_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "tunnel offloads isn't supported\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_INNER &&
 	    !(ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)) {
 		mlx5_ib_dbg(dev, "Tunnel offloads must be set for inner RSS\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC || dev->is_rep) {
-		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+	if (dev->is_rep)
 		qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC;
-	}
 
-	if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC) {
+	if (qp->flags_en & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC)
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+
+	if (qp->flags_en & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC)
 		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
-		qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC;
-	}
 
 	err = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
 	if (err) {
@@ -1959,11 +1945,6 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 	return atomic_mode;
 }
 
-static inline bool check_flags_mask(uint64_t input, uint64_t supported)
-{
-	return (input & ~supported) == 0;
-}
-
 static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct mlx5_ib_create_qp *ucmd,
@@ -1999,63 +1980,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
 
 	if (udata) {
-		if (!check_flags_mask(ucmd->flags,
-				      MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
-				      MLX5_QP_FLAG_BFREG_INDEX |
-				      MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE |
-				      MLX5_QP_FLAG_SCATTER_CQE |
-				      MLX5_QP_FLAG_SIGNATURE |
-				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC |
-				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
-				      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
-				      MLX5_QP_FLAG_UAR_PAGE_INDEX |
-				      MLX5_QP_FLAG_TYPE_DCI |
-				      MLX5_QP_FLAG_TYPE_DCT))
-			return -EINVAL;
-
 		err = get_qp_user_index(ucontext, ucmd, udata->inlen, &uidx);
 		if (err)
 			return err;
-
-		if (ucmd->flags & MLX5_QP_FLAG_SIGNATURE)
-			qp->flags_en |= MLX5_QP_FLAG_SIGNATURE;
-		if (ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE &&
-		    MLX5_CAP_GEN(dev->mdev, sctr_data_cqe))
-			qp->flags_en |= MLX5_QP_FLAG_SCATTER_CQE;
-
-		if (ucmd->flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS) {
-			if (init_attr->qp_type != IB_QPT_RAW_PACKET ||
-			    !tunnel_offload_supported(mdev)) {
-				mlx5_ib_dbg(dev, "Tunnel offload isn't supported\n");
-				return -EOPNOTSUPP;
-			}
-			qp->flags_en |= MLX5_QP_FLAG_TUNNEL_OFFLOADS;
-		}
-
-		if (ucmd->flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC) {
-			if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
-				mlx5_ib_dbg(dev, "Self-LB UC isn't supported\n");
-				return -EOPNOTSUPP;
-			}
-			qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC;
-		}
-
-		if (ucmd->flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC) {
-			if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
-				mlx5_ib_dbg(dev, "Self-LB UM isn't supported\n");
-				return -EOPNOTSUPP;
-			}
-			qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC;
-		}
-
-		if (ucmd->flags & MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE) {
-			if (init_attr->qp_type != IB_QPT_RC ||
-				!MLX5_CAP_GEN(dev->mdev, qp_packet_based)) {
-				mlx5_ib_dbg(dev, "packet based credit mode isn't supported\n");
-				return -EOPNOTSUPP;
-			}
-			qp->flags_en |= MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE;
-		}
 	}
 
 	if (qp->flags & IB_QP_CREATE_SOURCE_QPN)
@@ -2474,7 +2401,7 @@ static int create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	MLX5_SET64(dctc, dctc, dc_access_key, ucmd->access_key);
 	MLX5_SET(dctc, dctc, user_index, uidx);
 
-	if (ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE) {
+	if (qp->flags_en & MLX5_QP_FLAG_SCATTER_CQE) {
 		int rcqe_sz = mlx5_ib_get_cqe_size(attr->recv_cq);
 
 		if (rcqe_sz == 128)
@@ -2577,22 +2504,81 @@ static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 }
 
-static int process_vendor_flags(struct mlx5_ib_qp *qp,
+static void process_vendor_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
+				bool cond, struct mlx5_ib_qp *qp)
+{
+	if (!(*flags & flag))
+		return;
+
+	if (cond) {
+		qp->flags_en |= flag;
+		*flags &= ~flag;
+		return;
+	}
+
+	if (flag == MLX5_QP_FLAG_SCATTER_CQE) {
+		/*
+		 * We don't return error if this flag was provided,
+		 * and mlx5 doesn't have right capability.
+		 */
+		*flags &= ~MLX5_QP_FLAG_SCATTER_CQE;
+		return;
+	}
+	mlx5_ib_dbg(dev, "Vendor create QP flag 0x%X is not supported\n", flag);
+}
+
+static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				struct ib_qp_init_attr *attr,
 				struct mlx5_ib_create_qp *ucmd)
 {
-	switch (ucmd->flags & (MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI)) {
+	struct mlx5_core_dev *mdev = dev->mdev;
+	int flags = ucmd->flags;
+	bool cond;
+
+	switch (flags & (MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI)) {
 	case MLX5_QP_FLAG_TYPE_DCI:
 		qp->qp_sub_type = MLX5_IB_QPT_DCI;
 		break;
 	case MLX5_QP_FLAG_TYPE_DCT:
 		qp->qp_sub_type = MLX5_IB_QPT_DCT;
-		break;
+		fallthrough;
 	default:
-		return -EINVAL;
+		break;
 	}
 
-	return 0;
+	if (attr->qp_type == IB_QPT_DRIVER && !qp->qp_sub_type)
+		return -EINVAL;
+
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCI, true, qp);
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCT, true, qp);
+
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_SIGNATURE, true, qp);
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_SCATTER_CQE,
+			    MLX5_CAP_GEN(mdev, sctr_data_cqe), qp);
+
+	if (attr->qp_type == IB_QPT_RAW_PACKET) {
+		cond = MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan) ||
+		       MLX5_CAP_ETH(mdev, tunnel_stateless_gre) ||
+		       MLX5_CAP_ETH(mdev, tunnel_stateless_geneve_rx);
+		process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TUNNEL_OFFLOADS,
+				    cond, qp);
+		process_vendor_flag(dev, &flags,
+				    MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC, true,
+				    qp);
+		process_vendor_flag(dev, &flags,
+				    MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC, true,
+				    qp);
+	}
+
+	if (attr->qp_type == IB_QPT_RC)
+		process_vendor_flag(dev, &flags,
+				    MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE,
+				    MLX5_CAP_GEN(mdev, qp_packet_based), qp);
+
+	if (flags)
+		mlx5_ib_dbg(dev, "udata has unsupported flags 0x%X\n", flags);
+
+	return (flags) ? -EINVAL : 0;
 }
 
 static void process_create_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
@@ -2774,8 +2760,8 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 
-	if (init_attr->qp_type == IB_QPT_DRIVER) {
-		err = process_vendor_flags(qp, init_attr, &ucmd);
+	if (udata) {
+		err = process_vendor_flags(dev, qp, init_attr, &ucmd);
 		if (err)
 			goto free_qp;
 	}
