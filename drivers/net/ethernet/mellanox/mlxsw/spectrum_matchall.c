@@ -29,6 +29,7 @@ struct mlxsw_sp_mall_entry {
 		struct mlxsw_sp_mall_mirror_entry mirror;
 		struct mlxsw_sp_port_sample sample;
 	};
+	struct rcu_head rcu;
 };
 
 static struct mlxsw_sp_mall_entry *
@@ -90,17 +91,11 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	int err;
 
-	if (!mlxsw_sp_port->sample)
-		return -EOPNOTSUPP;
-	if (rtnl_dereference(mlxsw_sp_port->sample->psample_group)) {
+	if (rtnl_dereference(mlxsw_sp_port->sample)) {
 		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
 		return -EEXIST;
 	}
-	rcu_assign_pointer(mlxsw_sp_port->sample->psample_group,
-			   mall_entry->sample.psample_group);
-	mlxsw_sp_port->sample->truncate = mall_entry->sample.truncate;
-	mlxsw_sp_port->sample->trunc_size = mall_entry->sample.trunc_size;
-	mlxsw_sp_port->sample->rate = mall_entry->sample.rate;
+	rcu_assign_pointer(mlxsw_sp_port->sample, &mall_entry->sample);
 
 	err = mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true,
 					    mall_entry->sample.rate);
@@ -109,7 +104,7 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 
 err_port_sample_set:
-	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
+	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
 	return err;
 }
 
@@ -120,7 +115,7 @@ mlxsw_sp_mall_port_sample_del(struct mlxsw_sp_port *mlxsw_sp_port)
 		return;
 
 	mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, false, 1);
-	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
+	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
 }
 
 static int
@@ -221,5 +216,5 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
 
 	list_del(&mall_entry->list);
-	kfree(mall_entry);
+	kfree_rcu(mall_entry, rcu); /* sample RX packets may be in-flight */
 }

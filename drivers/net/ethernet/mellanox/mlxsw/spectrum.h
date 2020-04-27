@@ -192,7 +192,7 @@ struct mlxsw_sp_port_pcpu_stats {
 };
 
 struct mlxsw_sp_port_sample {
-	struct psample_group __rcu *psample_group;
+	struct psample_group *psample_group;
 	u32 trunc_size;
 	u32 rate;
 	bool truncate;
@@ -262,7 +262,7 @@ struct mlxsw_sp_port {
 		struct mlxsw_sp_port_xstats xstats;
 		struct delayed_work update_dw;
 	} periodic_hw_stats;
-	struct mlxsw_sp_port_sample *sample;
+	struct mlxsw_sp_port_sample __rcu *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_port_vlan *default_vlan;
 	struct mlxsw_sp_qdisc_state *qdisc;

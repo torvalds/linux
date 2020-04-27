@@ -3527,13 +3527,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_alloc_stats;
 	}
 
-	mlxsw_sp_port->sample = kzalloc(sizeof(*mlxsw_sp_port->sample),
-					GFP_KERNEL);
-	if (!mlxsw_sp_port->sample) {
-		err = -ENOMEM;
-		goto err_alloc_sample;
-	}
-
 	INIT_DELAYED_WORK(&mlxsw_sp_port->periodic_hw_stats.update_dw,
 			  &update_stats_cache);
 
@@ -3720,8 +3713,6 @@ err_dev_addr_init:
 err_port_swid_set:
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 err_port_module_map:
-	kfree(mlxsw_sp_port->sample);
-err_alloc_sample:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	free_netdev(dev);
@@ -3749,7 +3740,6 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
-	kfree(mlxsw_sp_port->sample);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vlans_list));
 	free_netdev(mlxsw_sp_port->dev);
@@ -4236,7 +4226,7 @@ static void mlxsw_sp_rx_listener_sample_func(struct sk_buff *skb, u8 local_port,
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
-	struct psample_group *psample_group;
+	struct mlxsw_sp_port_sample *sample;
 	u32 size;
 
 	if (unlikely(!mlxsw_sp_port)) {
@@ -4244,22 +4234,14 @@ static void mlxsw_sp_rx_listener_sample_func(struct sk_buff *skb, u8 local_port,
 				     local_port);
 		goto out;
 	}
-	if (unlikely(!mlxsw_sp_port->sample)) {
-		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received on unsupported port\n",
-				     local_port);
-		goto out;
-	}
-
-	size = mlxsw_sp_port->sample->truncate ?
-		  mlxsw_sp_port->sample->trunc_size : skb->len;
 
 	rcu_read_lock();
-	psample_group = rcu_dereference(mlxsw_sp_port->sample->psample_group);
-	if (!psample_group)
+	sample = rcu_dereference(mlxsw_sp_port->sample);
+	if (!sample)
 		goto out_unlock;
-	psample_sample_packet(psample_group, skb, size,
-			      mlxsw_sp_port->dev->ifindex, 0,
-			      mlxsw_sp_port->sample->rate);
+	size = sample->truncate ? sample->trunc_size : skb->len;
+	psample_sample_packet(sample->psample_group, skb, size,
+			      mlxsw_sp_port->dev->ifindex, 0, sample->rate);
 out_unlock:
 	rcu_read_unlock();
 out:
