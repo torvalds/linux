@@ -10,3 +10,4 @@ SPU Filesystem
 
    spufs
    spu_create
+   spu_run

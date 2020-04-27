@@ -1,17 +1,26 @@
-SPU_RUN(2)                 Linux Programmer's Manual                SPU_RUN(2)
+.. SPDX-License-Identifier: GPL-2.0
+
+=======
+spu_run
+=======
 
 
-
-NAME
+Name
+====
        spu_run - execute an spu context
 
 
-SYNOPSIS
-       #include <sys/spu.h>
+Synopsis
+========
 
-       int spu_run(int fd, unsigned int *npc, unsigned int *event);
+       ::
 
-DESCRIPTION
+	    #include <sys/spu.h>
+
+	    int spu_run(int fd, unsigned int *npc, unsigned int *event);
+
+Description
+===========
        The  spu_run system call is used on PowerPC machines that implement the
        Cell Broadband Engine Architecture in order to access Synergistic  Pro-
        cessor  Units  (SPUs).  It  uses the fd that was returned from spu_cre-
@@ -45,24 +54,31 @@ DESCRIPTION
        If NULL is passed as the event argument, these errors will result in  a
        signal delivered to the calling process.
 
-RETURN VALUE
+Return Value
+============
        spu_run  returns the value of the spu_status register or -1 to indicate
        an error and set errno to one of the error  codes  listed  below.   The
        spu_status  register  value  contains  a  bit  mask of status codes and
        optionally a 14 bit code returned from the stop-and-signal  instruction
        on the SPU. The bit masks for the status codes are:
 
-       0x02   SPU was stopped by stop-and-signal.
+       0x02
+	      SPU was stopped by stop-and-signal.
 
-       0x04   SPU was stopped by halt.
+       0x04
+	      SPU was stopped by halt.
 
-       0x08   SPU is waiting for a channel.
+       0x08
+	      SPU is waiting for a channel.
 
-       0x10   SPU is in single-step mode.
+       0x10
+	      SPU is in single-step mode.
 
-       0x20   SPU has tried to execute an invalid instruction.
+       0x20
+	      SPU has tried to execute an invalid instruction.
 
-       0x40   SPU has tried to access an invalid channel.
+       0x40
+	      SPU has tried to access an invalid channel.
 
        0x3fff0000
               The  bits  masked with this value contain the code returned from
@@ -71,7 +87,8 @@ RETURN VALUE
        There are always one or more of the lower eight bits set  or  an  error
        code is returned from spu_run.
 
-ERRORS
+Errors
+======
        EAGAIN or EWOULDBLOCK
               fd is in non-blocking mode and spu_run would block.
 
@@ -93,29 +110,29 @@ ERRORS
               not loaded.
 
 
-NOTES
+Notes
+=====
        spu_run  is  meant  to  be  used  from  libraries that implement a more
        abstract interface to SPUs, not to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
 
-CONFORMING TO
+Conforming to
+=============
        This call is Linux specific and only implemented by the ppc64 architec-
        ture. Programs using this system call are not portable.
 
 
-BUGS
+Bugs
+====
        The code does not yet fully implement all features lined out here.
 
 
-AUTHOR
+Author
+======
        Arnd Bergmann <arndb@de.ibm.com>
 
-SEE ALSO
+See Also
+========
        capabilities(7), close(2), spu_create(2), spufs(7)
-
-
-
-
-Linux                             2005-09-28                        SPU_RUN(2)
