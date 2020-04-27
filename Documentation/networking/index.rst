@@ -66,6 +66,7 @@ Contents:
    hinic
    ila
    ipddp
+   ip_dynaddr
 
 .. only::  subproject and html
 
