@@ -29,6 +29,7 @@ algorithms work.
    fiemap
    files
    locks
+   mandatory-locking
 
    automount-support
 

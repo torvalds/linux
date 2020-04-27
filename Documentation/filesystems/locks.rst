@@ -58,7 +58,7 @@ fcntl(), with all the problems that implies.
 ---------------------------------------
 
 Mandatory locking, as described in
-'Documentation/filesystems/mandatory-locking.txt' was prior to this release a
+'Documentation/filesystems/mandatory-locking.rst' was prior to this release a
 general configuration option that was valid for all mounted filesystems.  This
 had a number of inherent dangers, not the least of which was the ability to
 freeze an NFS server by asking it to read a file for which a mandatory lock
