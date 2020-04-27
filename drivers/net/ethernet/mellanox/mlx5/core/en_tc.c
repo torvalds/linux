@@ -68,6 +68,7 @@
 #include "lib/fs_chains.h"
 #include "diag/en_tc_tracepoint.h"
 
+#define nic_chains(priv) ((priv)->fs.tc.chains)
 #define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)
 
 struct mlx5_nic_flow_attr {
@@ -170,7 +171,7 @@ struct mlx5e_tc_flow_parse_attr {
 };
 
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
-#define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(16)
+#define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(18)
 
 struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 	[CHAIN_TO_REG] = {
@@ -898,6 +899,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_flow_context *flow_context = &parse_attr->spec.flow_context;
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
+	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
@@ -948,35 +950,19 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	mutex_lock(&priv->fs.tc.t_lock);
-	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
-		struct mlx5_flow_table_attr ft_attr = {};
-		int tc_grp_size, tc_tbl_size, tc_num_grps;
-		u32 max_flow_counter;
+	mutex_lock(&tc->t_lock);
+	if (IS_ERR_OR_NULL(tc->t)) {
+		/* Create the root table here if doesn't exist yet */
+		tc->t =
+			mlx5_chains_get_table(nic_chains(priv), 0, 1, MLX5E_TC_FT_LEVEL);
 
-		max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
-				    MLX5_CAP_GEN(dev, max_flow_counter_15_0);
-
-		tc_grp_size = min_t(int, max_flow_counter, MLX5E_TC_TABLE_MAX_GROUP_SIZE);
-
-		tc_tbl_size = min_t(int, tc_grp_size * MLX5E_TC_TABLE_NUM_GROUPS,
-				    BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev, log_max_ft_size)));
-		tc_num_grps = MLX5E_TC_TABLE_NUM_GROUPS;
-
-		ft_attr.prio = MLX5E_TC_PRIO;
-		ft_attr.max_fte = tc_tbl_size;
-		ft_attr.level = MLX5E_TC_FT_LEVEL;
-		ft_attr.autogroup.max_num_groups = tc_num_grps;
-		priv->fs.tc.t =
-			mlx5_create_auto_grouped_flow_table(priv->fs.ns,
-							    &ft_attr);
-		if (IS_ERR(priv->fs.tc.t)) {
-			mutex_unlock(&priv->fs.tc.t_lock);
+		if (IS_ERR(tc->t)) {
+			mutex_unlock(&tc->t_lock);
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to create tc offload table");
 			netdev_err(priv->netdev,
 				   "Failed to create tc offload table\n");
-			return PTR_ERR(priv->fs.tc.t);
+			return PTR_ERR(tc->t);
 		}
 	}
 
@@ -994,6 +980,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
+	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	struct mlx5_fc *counter = NULL;
 
 	counter = attr->counter;
@@ -1002,8 +989,9 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	mlx5_fc_destroy(priv->mdev, counter);
 
 	mutex_lock(&priv->fs.tc.t_lock);
-	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) && priv->fs.tc.t) {
-		mlx5_destroy_flow_table(priv->fs.tc.t);
+	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) &&
+	    !IS_ERR_OR_NULL(tc->t)) {
+		mlx5_chains_put_table(nic_chains(priv), 0, 1, MLX5E_TC_FT_LEVEL);
 		priv->fs.tc.t = NULL;
 	}
 	mutex_unlock(&priv->fs.tc.t_lock);
@@ -4951,9 +4939,27 @@ static int mlx5e_tc_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int mlx5e_tc_nic_get_ft_size(struct mlx5_core_dev *dev)
+{
+	int tc_grp_size, tc_tbl_size;
+	u32 max_flow_counter;
+
+	max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
+			    MLX5_CAP_GEN(dev, max_flow_counter_15_0);
+
+	tc_grp_size = min_t(int, max_flow_counter, MLX5E_TC_TABLE_MAX_GROUP_SIZE);
+
+	tc_tbl_size = min_t(int, tc_grp_size * MLX5E_TC_TABLE_NUM_GROUPS,
+			    BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev, log_max_ft_size)));
+
+	return tc_tbl_size;
+}
+
 int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct mlx5_core_dev *dev = priv->mdev;
+	struct mlx5_chains_attr attr = {};
 	int err;
 
 	mlx5e_mod_hdr_tbl_init(&tc->mod_hdr);
@@ -4965,6 +4971,17 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	if (err)
 		return err;
 
+	attr.ns = MLX5_FLOW_NAMESPACE_KERNEL;
+	attr.max_ft_sz = mlx5e_tc_nic_get_ft_size(dev);
+	attr.max_grp_num = MLX5E_TC_TABLE_NUM_GROUPS;
+	attr.default_ft = priv->fs.vlan.ft.t;
+
+	tc->chains = mlx5_chains_create(dev, &attr);
+	if (IS_ERR(tc->chains)) {
+		err = PTR_ERR(tc->chains);
+		goto err_chains;
+	}
+
 	tc->netdevice_nb.notifier_call = mlx5e_tc_netdev_event;
 	err = register_netdevice_notifier_dev_net(priv->netdev,
 						  &tc->netdevice_nb,
@@ -4972,8 +4989,15 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	if (err) {
 		tc->netdevice_nb.notifier_call = NULL;
 		mlx5_core_warn(priv->mdev, "Failed to register netdev notifier\n");
+		goto err_reg;
 	}
 
+	return 0;
+
+err_reg:
+	mlx5_chains_destroy(tc->chains);
+err_chains:
+	rhashtable_destroy(&tc->ht);
 	return err;
 }
 
@@ -4998,13 +5022,15 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	mlx5e_mod_hdr_tbl_destroy(&tc->mod_hdr);
 	mutex_destroy(&tc->hairpin_tbl_lock);
 
-	rhashtable_destroy(&tc->ht);
+	rhashtable_free_and_destroy(&tc->ht, _mlx5e_tc_del_flow, NULL);
 
 	if (!IS_ERR_OR_NULL(tc->t)) {
-		mlx5_destroy_flow_table(tc->t);
+		mlx5_chains_put_table(tc->chains, 0, 1, MLX5E_TC_FT_LEVEL);
 		tc->t = NULL;
 	}
 	mutex_destroy(&tc->t_lock);
+
+	mlx5_chains_destroy(tc->chains);
 }
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht)

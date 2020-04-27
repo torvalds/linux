@@ -12,9 +12,12 @@ enum {
 };
 
 struct mlx5e_tc_table {
-	/* protects flow table */
+	/* Protects the dynamic assignment of the t parameter
+	 * which is the nic tc root table.
+	 */
 	struct mutex			t_lock;
 	struct mlx5_flow_table		*t;
+	struct mlx5_fs_chains           *chains;
 
 	struct rhashtable               ht;
 
