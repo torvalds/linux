@@ -205,7 +205,10 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
 	    wvif->vif->type != NL80211_IFTYPE_AP) {
 		ps = true;
-		ps_timeout = 0;
+		if (wvif->bss_not_support_ps_poll)
+			ps_timeout = 30;
+		else
+			ps_timeout = 0;
 	}
 
 	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
@@ -213,6 +216,14 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
 	return hif_set_pm(wvif, ps, ps_timeout);
+}
+
+static void wfx_update_pm_work(struct work_struct *work)
+{
+	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
+					    update_pm_work);
+
+	wfx_update_pm(wvif);
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -293,6 +304,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_tx_unlock(wvif->wdev);
+	wvif->bss_not_support_ps_poll = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
 
@@ -453,6 +465,7 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_tx_policy_init(wvif);
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+	wvif->bss_not_support_ps_poll = false;
 }
 
 static void wfx_join_finalize(struct wfx_vif *wvif,
@@ -737,6 +750,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
+	INIT_WORK(&wvif->update_pm_work, wfx_update_pm_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	mutex_init(&wvif->scan_lock);

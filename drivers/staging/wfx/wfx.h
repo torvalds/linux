@@ -89,6 +89,8 @@ struct wfx_vif {
 	bool			scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
+	bool			bss_not_support_ps_poll;
+	struct work_struct	update_pm_work;
 	struct completion	set_pm_mode_complete;
 };
 

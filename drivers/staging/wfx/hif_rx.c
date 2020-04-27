@@ -176,7 +176,13 @@ static int hif_event_indication(struct wfx_dev *wdev,
 		dev_dbg(wdev->dev, "ignore BSSREGAINED indication\n");
 		break;
 	case HIF_EVENT_IND_PS_MODE_ERROR:
-		dev_warn(wdev->dev, "error while processing power save request\n");
+		dev_warn(wdev->dev, "error while processing power save request: %d\n",
+			 body->event_data.ps_mode_error);
+		if (body->event_data.ps_mode_error ==
+		    HIF_PS_ERROR_AP_NOT_RESP_TO_POLL) {
+			wvif->bss_not_support_ps_poll = true;
+			schedule_work(&wvif->update_pm_work);
+		}
 		break;
 	default:
 		dev_warn(wdev->dev, "unhandled event indication: %.2x\n",
