@@ -337,6 +337,7 @@ enum st_lsm6dsx_fifo_mode {
  * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @watermark: Sensor watermark level.
+ * @decimator: Sensor decimation factor.
  * @sip: Number of samples in a given pattern.
  * @ts_ref: Sensor timestamp reference for hw one.
  * @ext_info: Sensor settings if it is connected to i2c controller
@@ -350,11 +351,13 @@ struct st_lsm6dsx_sensor {
 	u32 odr;
 
 	u16 watermark;
+	u8 decimator;
 	u8 sip;
 	s64 ts_ref;
 
 	struct {
 		const struct st_lsm6dsx_ext_dev_settings *settings;
+		u32 slv_odr;
 		u8 addr;
 	} ext_info;
 };

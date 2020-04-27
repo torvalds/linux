@@ -296,7 +296,6 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 	struct vdpa_callback cb;
 	struct vhost_virtqueue *vq;
 	struct vhost_vring_state s;
-	u8 status;
 	u32 idx;
 	long r;
 
@@ -309,8 +308,6 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 
 	idx = array_index_nospec(idx, v->nvqs);
 	vq = &v->vqs[idx];
-
-	status = ops->get_status(vdpa);
 
 	if (cmd == VHOST_VDPA_SET_VRING_ENABLE) {
 		if (copy_from_user(&s, argp, sizeof(s)))
@@ -678,8 +675,6 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 	int nvqs, i, r, opened;
 
 	v = container_of(inode->i_cdev, struct vhost_vdpa, cdev);
-	if (!v)
-		return -ENODEV;
 
 	opened = atomic_cmpxchg(&v->opened, 0, 1);
 	if (opened)

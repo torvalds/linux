@@ -1035,8 +1035,8 @@ int nf_nat_inet_register_fn(struct net *net, const struct nf_hook_ops *ops)
 	ret = nf_nat_register_fn(net, NFPROTO_IPV4, ops, nf_nat_ipv4_ops,
 				 ARRAY_SIZE(nf_nat_ipv4_ops));
 	if (ret)
-		nf_nat_ipv6_unregister_fn(net, ops);
-
+		nf_nat_unregister_fn(net, NFPROTO_IPV6, ops,
+					ARRAY_SIZE(nf_nat_ipv6_ops));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_inet_register_fn);

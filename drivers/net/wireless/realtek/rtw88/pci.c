@@ -1338,22 +1338,17 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 	rtw_pci_link_cfg(rtwdev);
 }
 
-#ifdef CONFIG_PM
-static int rtw_pci_suspend(struct device *dev)
+static int __maybe_unused rtw_pci_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int rtw_pci_resume(struct device *dev)
+static int __maybe_unused rtw_pci_resume(struct device *dev)
 {
 	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(rtw_pm_ops, rtw_pci_suspend, rtw_pci_resume);
-#define RTW_PM_OPS (&rtw_pm_ops)
-#else
-#define RTW_PM_OPS NULL
-#endif
 
 static int rtw_pci_claim(struct rtw_dev *rtwdev, struct pci_dev *pdev)
 {
@@ -1582,7 +1577,7 @@ static struct pci_driver rtw_pci_driver = {
 	.id_table = rtw_pci_id_table,
 	.probe = rtw_pci_probe,
 	.remove = rtw_pci_remove,
-	.driver.pm = RTW_PM_OPS,
+	.driver.pm = &rtw_pm_ops,
 };
 module_pci_driver(rtw_pci_driver);
 
