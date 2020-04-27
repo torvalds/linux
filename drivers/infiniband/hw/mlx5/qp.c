@@ -1645,9 +1645,6 @@ static int create_rss_raw_qp_tir(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	size_t required_cmd_sz;
 	u8 lb_flag = 0;
 
-	if (init_attr->send_cq)
-		return -EINVAL;
-
 	min_resp_len = offsetof(typeof(resp), bfreg_index) + sizeof(resp.bfreg_index);
 	if (udata->outlen < min_resp_len)
 		return -EINVAL;
@@ -2692,6 +2689,9 @@ static int check_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		ret = (attr->cap.max_recv_wr || attr->cap.max_recv_sge) ?
 			      -EINVAL :
 			      0;
+		break;
+	case IB_QPT_RAW_PACKET:
+		ret = (attr->rwq_ind_tbl && attr->send_cq) ? -EINVAL : 0;
 		break;
 	default:
 		break;
