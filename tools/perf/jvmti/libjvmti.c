@@ -246,8 +246,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	char *class_sign = NULL;
 	char *func_name = NULL;
 	char *func_sign = NULL;
-	char *file_name = NULL;
-	char fn[PATH_MAX];
 	uint64_t addr = (uint64_t)(uintptr_t)code_addr;
 	jvmtiError ret;
 	int nr_lines = 0; /* in line_tab[] */
@@ -282,12 +280,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 		}
 	}
 
-	ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
-	if (ret != JVMTI_ERROR_NONE) {
-		print_error(jvmti, "GetSourceFileName", ret);
-		goto error;
-	}
-
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class,
 					  &class_sign, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
@@ -301,8 +293,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 		print_error(jvmti, "GetMethodName", ret);
 		goto error;
 	}
-
-	copy_class_filename(class_sign, file_name, fn, PATH_MAX);
 
 	/*
 	 * write source line info record if we have it
@@ -323,7 +313,6 @@ error:
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_name);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_sign);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)class_sign);
-	(*jvmti)->Deallocate(jvmti, (unsigned char *)file_name);
 	free(line_tab);
 	while (line_file_names && (nr_lines > 0)) {
 	    if (line_file_names[nr_lines - 1]) {
