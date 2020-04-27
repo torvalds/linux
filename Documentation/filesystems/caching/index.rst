@@ -6,4 +6,5 @@ Filesystem Caching
 .. toctree::
    :maxdepth: 2
 
+   fscache
    object
