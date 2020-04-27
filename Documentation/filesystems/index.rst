@@ -25,6 +25,7 @@ algorithms work.
    locking
    directory-locking
    devpts
+   dnotify
 
    automount-support
 
