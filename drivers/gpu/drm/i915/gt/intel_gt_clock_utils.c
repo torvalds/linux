@@ -7,9 +7,9 @@
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
 
+#define MHZ_12   12000000 /* 12MHz (24MHz/2), 83.333ns */
+#define MHZ_12_5 12500000 /* 12.5MHz (25MHz/2), 80ns */
 #define MHZ_19_2 19200000 /* 19.2MHz, 52.083ns */
-#define MHZ_24 24000000 /* 24MHz, 83.333ns */
-#define MHZ_25 25000000 /* 25MHz, 80ns */
 
 static u32 read_clock_frequency(const struct intel_gt *gt)
 {
@@ -21,19 +21,19 @@ static u32 read_clock_frequency(const struct intel_gt *gt)
 		config >>= GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
 
 		switch (config) {
-		case 0: return MHZ_24;
+		case 0: return MHZ_12;
 		case 1:
 		case 2: return MHZ_19_2;
 		default:
-		case 3: return MHZ_25;
+		case 3: return MHZ_12_5;
 		}
 	} else if (INTEL_GEN(gt->i915) >= 9) {
 		if (IS_GEN9_LP(gt->i915))
 			return MHZ_19_2;
 		else
-			return MHZ_24;
+			return MHZ_12;
 	} else {
-		return MHZ_25;
+		return MHZ_12_5;
 	}
 }
 

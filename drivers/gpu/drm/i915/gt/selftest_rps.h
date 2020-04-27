@@ -7,6 +7,7 @@
 #define SELFTEST_RPS_H
 
 int live_rps_control(void *arg);
+int live_rps_clock_interval(void *arg);
 int live_rps_frequency_cs(void *arg);
 int live_rps_frequency_srm(void *arg);
 int live_rps_power(void *arg);

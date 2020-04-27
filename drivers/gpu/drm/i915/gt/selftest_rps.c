@@ -208,6 +208,145 @@ static void show_pstate_limits(struct intel_rps *rps)
 	}
 }
 
+int live_rps_clock_interval(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_rps *rps = &gt->rps;
+	void (*saved_work)(struct work_struct *wrk);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct igt_spinner spin;
+	int err = 0;
+
+	if (!rps->enabled)
+		return 0;
+
+	if (igt_spinner_init(&spin, gt))
+		return -ENOMEM;
+
+	intel_gt_pm_wait_for_idle(gt);
+	saved_work = rps->work.func;
+	rps->work.func = dummy_rps_work;
+
+	intel_gt_pm_get(gt);
+	intel_rps_disable(&gt->rps);
+
+	intel_gt_check_clock_frequency(gt);
+
+	for_each_engine(engine, gt, id) {
+		unsigned long saved_heartbeat;
+		struct i915_request *rq;
+		ktime_t dt;
+		u32 cycles;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		saved_heartbeat = engine_heartbeat_disable(engine);
+
+		rq = igt_spinner_create_request(&spin,
+						engine->kernel_context,
+						MI_NOOP);
+		if (IS_ERR(rq)) {
+			engine_heartbeat_enable(engine, saved_heartbeat);
+			err = PTR_ERR(rq);
+			break;
+		}
+
+		i915_request_add(rq);
+
+		if (!igt_wait_for_spinner(&spin, rq)) {
+			pr_err("%s: RPS spinner did not start\n",
+			       engine->name);
+			igt_spinner_end(&spin);
+			engine_heartbeat_enable(engine, saved_heartbeat);
+			intel_gt_set_wedged(engine->gt);
+			err = -EIO;
+			break;
+		}
+
+		intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+
+		intel_uncore_write_fw(gt->uncore, GEN6_RP_CUR_UP_EI, 0);
+
+		/* Set the evaluation interval to infinity! */
+		intel_uncore_write_fw(gt->uncore,
+				      GEN6_RP_UP_EI, 0xffffffff);
+		intel_uncore_write_fw(gt->uncore,
+				      GEN6_RP_UP_THRESHOLD, 0xffffffff);
+
+		intel_uncore_write_fw(gt->uncore, GEN6_RP_CONTROL,
+				      GEN6_RP_ENABLE | GEN6_RP_UP_BUSY_AVG);
+
+		if (wait_for(intel_uncore_read_fw(gt->uncore,
+						  GEN6_RP_CUR_UP_EI),
+			     10)) {
+			/* Just skip the test; assume lack of HW support */
+			pr_notice("%s: rps evalution interval not ticking\n",
+				  engine->name);
+			err = -ENODEV;
+		} else {
+			preempt_disable();
+			dt = ktime_get();
+			cycles = -intel_uncore_read_fw(gt->uncore,
+						       GEN6_RP_CUR_UP_EI);
+			udelay(1000);
+			dt = ktime_sub(ktime_get(), dt);
+			cycles += intel_uncore_read_fw(gt->uncore,
+						       GEN6_RP_CUR_UP_EI);
+			preempt_enable();
+		}
+
+		intel_uncore_write_fw(gt->uncore, GEN6_RP_CONTROL, 0);
+		intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
+
+		igt_spinner_end(&spin);
+		engine_heartbeat_enable(engine, saved_heartbeat);
+
+		if (err == 0) {
+			u64 time = intel_gt_pm_interval_to_ns(gt, cycles);
+			u32 expected =
+				intel_gt_ns_to_pm_interval(gt, ktime_to_ns(dt));
+
+			pr_info("%s: rps counted %d C0 cycles [%lldns] in %lldns [%d cycles], using GT clock frequency of %uKHz\n",
+				engine->name, cycles, time, ktime_to_ns(dt), expected,
+				gt->clock_frequency / 1000);
+
+			if (10 * time < 9 * ktime_to_ns(dt) ||
+			    10 * time > 11 * ktime_to_ns(dt)) {
+				pr_err("%s: rps clock time does not match walltime!\n",
+				       engine->name);
+				err = -EINVAL;
+			}
+
+			if (10 * expected < 9 * cycles ||
+			    10 * expected > 11 * cycles) {
+				pr_err("%s: walltime does not match rps clock ticks!\n",
+				       engine->name);
+				err = -EINVAL;
+			}
+		}
+
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
+
+		break; /* once is enough */
+	}
+
+	intel_rps_enable(&gt->rps);
+	intel_gt_pm_put(gt);
+
+	igt_spinner_fini(&spin);
+
+	intel_gt_pm_wait_for_idle(gt);
+	rps->work.func = saved_work;
+
+	if (err == -ENODEV) /* skipped, don't report a fail */
+		err = 0;
+
+	return err;
+}
+
 int live_rps_control(void *arg)
 {
 	struct intel_gt *gt = arg;
