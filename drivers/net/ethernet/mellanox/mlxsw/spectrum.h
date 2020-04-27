@@ -677,12 +677,57 @@ struct mlxsw_sp_acl_block {
 };
 
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
-struct mlxsw_sp *mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block);
-unsigned int
-mlxsw_sp_acl_block_rule_count(const struct mlxsw_sp_acl_block *block);
-void mlxsw_sp_acl_block_disable_inc(struct mlxsw_sp_acl_block *block);
-void mlxsw_sp_acl_block_disable_dec(struct mlxsw_sp_acl_block *block);
-bool mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block);
+
+static inline struct mlxsw_sp *
+mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block)
+{
+	return block->mlxsw_sp;
+}
+
+static inline unsigned int
+mlxsw_sp_acl_block_rule_count(const struct mlxsw_sp_acl_block *block)
+{
+	return block ? block->rule_count : 0;
+}
+
+static inline void
+mlxsw_sp_acl_block_disable_inc(struct mlxsw_sp_acl_block *block)
+{
+	if (block)
+		block->disable_count++;
+}
+
+static inline void
+mlxsw_sp_acl_block_disable_dec(struct mlxsw_sp_acl_block *block)
+{
+	if (block)
+		block->disable_count--;
+}
+
+static inline bool
+mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block)
+{
+	return block->disable_count;
+}
+
+static inline bool
+mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->egress_binding_count;
+}
+
+static inline bool
+mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count;
+}
+
+static inline bool
+mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count && block->egress_binding_count;
+}
+
 struct mlxsw_sp_acl_block *mlxsw_sp_acl_block_create(struct mlxsw_sp *mlxsw_sp,
 						     struct net *net);
 void mlxsw_sp_acl_block_destroy(struct mlxsw_sp_acl_block *block);
@@ -695,9 +740,6 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_block *block,
 			      struct mlxsw_sp_port *mlxsw_sp_port,
 			      bool ingress);
-bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block);
-bool mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block);
-bool mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block, u32 chain_index,
