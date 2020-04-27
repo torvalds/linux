@@ -67,6 +67,7 @@ Contents:
    ila
    ipddp
    ip_dynaddr
+   iphase
 
 .. only::  subproject and html
 

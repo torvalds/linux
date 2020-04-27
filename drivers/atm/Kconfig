@@ -306,7 +306,7 @@ config ATM_IA
 	  for more info about the cards. Say Y (or M to compile as a module
 	  named iphase) here if you have one of these cards.
 
-	  See the file <file:Documentation/networking/iphase.txt> for further
+	  See the file <file:Documentation/networking/iphase.rst> for further
 	  details.
 
 config ATM_IA_DEBUG
