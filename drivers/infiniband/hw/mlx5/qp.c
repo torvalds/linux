@@ -2771,14 +2771,8 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		}
 	}
 
-	if (init_attr->qp_type == IB_QPT_XRC_TGT) {
-		init_attr->recv_cq = NULL;
+	if (init_attr->qp_type == IB_QPT_XRC_TGT)
 		xrcdn = to_mxrcd(init_attr->xrcd)->xrcdn;
-		init_attr->send_cq = NULL;
-	}
-
-	if (init_attr->qp_type == IB_QPT_XRC_INI)
-		init_attr->recv_cq = NULL;
 
 	err = create_qp_common(dev, pd, init_attr, udata, qp);
 	if (err) {
