@@ -117,6 +117,9 @@
 #define PPSMC_MSG_GmiPwrDnControl                0x3D
 #define PPSMC_Message_Count                      0x3E
 
+#define PPSMC_MSG_ReadSerialNumTop32		 0x40
+#define PPSMC_MSG_ReadSerialNumBottom32		 0x41
+
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;
 #pragma pack(pop)
