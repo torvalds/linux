@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================================
 File management in the Linux kernel
------------------------------------
+===================================
 
 This document describes how locking for files (struct file)
 and file descriptor table (struct files) works.
@@ -34,7 +37,7 @@ appear atomic. Here are the locking rules for
 the fdtable structure -
 
 1. All references to the fdtable must be done through
-   the files_fdtable() macro :
+   the files_fdtable() macro::
 
 	struct fdtable *fdt;
 
@@ -61,7 +64,8 @@ the fdtable structure -
 4. To look up the file structure given an fd, a reader
    must use either fcheck() or fcheck_files() APIs. These
    take care of barrier requirements due to lock-free lookup.
-   An example :
+
+   An example::
 
 	struct file *file;
 
@@ -77,7 +81,7 @@ the fdtable structure -
    of the fd (fget()/fget_light()) are lock-free, it is possible
    that look-up may race with the last put() operation on the
    file structure. This is avoided using atomic_long_inc_not_zero()
-   on ->f_count :
+   on ->f_count::
 
 	rcu_read_lock();
 	file = fcheck_files(files, fd);
@@ -106,7 +110,8 @@ the fdtable structure -
    holding files->file_lock. If ->file_lock is dropped, then
    another thread expand the files thereby creating a new
    fdtable and making the earlier fdtable pointer stale.
-   For example :
+
+   For example::
 
 	spin_lock(&files->file_lock);
 	fd = locate_fd(files, file, start);

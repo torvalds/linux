@@ -27,6 +27,7 @@ algorithms work.
    devpts
    dnotify
    fiemap
+   files
 
    automount-support
 
