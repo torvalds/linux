@@ -1,4 +1,10 @@
-Notes on the DEC FDDIcontroller 700 (DEFZA-xx) driver v.1.1.4.
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================================
+Notes on the DEC FDDIcontroller 700 (DEFZA-xx) driver
+=====================================================
+
+:Version: v.1.1.4
 
 
 DEC FDDIcontroller 700 is DEC's first-generation TURBOchannel FDDI

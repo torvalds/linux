@@ -51,6 +51,7 @@ Contents:
    dccp
    dctcp
    decnet
+   defza
 
 .. only::  subproject and html
 
