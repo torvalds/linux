@@ -46,6 +46,7 @@ Contents:
    baycom
    bonding
    cdc_mbim
+   cops
 
 .. only::  subproject and html
 
