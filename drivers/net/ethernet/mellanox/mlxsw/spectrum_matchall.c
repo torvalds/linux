@@ -18,13 +18,13 @@ enum mlxsw_sp_mall_action_type {
 struct mlxsw_sp_mall_mirror_entry {
 	const struct net_device *to_dev;
 	int span_id;
-	bool ingress;
 };
 
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
 	enum mlxsw_sp_mall_action_type type;
+	bool ingress;
 	union {
 		struct mlxsw_sp_mall_mirror_entry mirror;
 		struct mlxsw_sp_port_sample sample;
@@ -45,8 +45,7 @@ mlxsw_sp_mall_entry_find(struct mlxsw_sp_port *port, unsigned long cookie)
 
 static int
 mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct mlxsw_sp_mall_entry *mall_entry,
-			      bool ingress)
+			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	enum mlxsw_sp_span_type span_type;
 
@@ -55,9 +54,8 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -EINVAL;
 	}
 
-	mall_entry->mirror.ingress = ingress;
-	span_type = mall_entry->mirror.ingress ? MLXSW_SP_SPAN_INGRESS :
-						 MLXSW_SP_SPAN_EGRESS;
+	span_type = mall_entry->ingress ? MLXSW_SP_SPAN_INGRESS :
+					  MLXSW_SP_SPAN_EGRESS;
 	return mlxsw_sp_span_mirror_add(mlxsw_sp_port,
 					mall_entry->mirror.to_dev,
 					span_type, true,
@@ -70,8 +68,8 @@ mlxsw_sp_mall_port_mirror_del(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	enum mlxsw_sp_span_type span_type;
 
-	span_type = mall_entry->mirror.ingress ? MLXSW_SP_SPAN_INGRESS :
-						 MLXSW_SP_SPAN_EGRESS;
+	span_type = mall_entry->ingress ? MLXSW_SP_SPAN_INGRESS :
+					  MLXSW_SP_SPAN_EGRESS;
 	mlxsw_sp_span_mirror_del(mlxsw_sp_port, mall_entry->mirror.span_id,
 				 span_type, true);
 }
@@ -142,14 +140,14 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;
+	mall_entry->ingress = ingress;
 
 	act = &f->rule->action.entries[0];
 
 	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
-		err = mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry,
-						    ingress);
+		err = mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry);
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
 		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
