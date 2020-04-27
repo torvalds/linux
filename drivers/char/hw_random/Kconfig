@@ -477,7 +477,6 @@ config HW_RANDOM_KEYSTONE
 config HW_RANDOM_CCTRNG
 	tristate "Arm CryptoCell True Random Number Generator support"
 	depends on HAS_IOMEM && OF
-	default HW_RANDOM
 	help
 	  This driver provides support for the True Random Number
 	  Generator available in Arm TrustZone CryptoCell.
