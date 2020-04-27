@@ -400,8 +400,8 @@ static int ines_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	ines_write32(port, ts_stat_rx, ts_stat_rx);
 	ines_write32(port, ts_stat_tx, ts_stat_tx);
 
-	port->rxts_enabled = ts_stat_rx == TS_ENABLE ? true : false;
-	port->txts_enabled = ts_stat_tx == TS_ENABLE ? true : false;
+	port->rxts_enabled = ts_stat_rx == TS_ENABLE;
+	port->txts_enabled = ts_stat_tx == TS_ENABLE;
 
 	spin_unlock_irqrestore(&port->lock, flags);
 

@@ -464,7 +464,7 @@ static struct class mdio_bus_class = {
 
 /**
  * mdio_find_bus - Given the name of a mdiobus, find the mii_bus.
- * @mdio_bus_np: Pointer to the mii_bus.
+ * @mdio_name: The name of a mdiobus.
  *
  * Returns a reference to the mii_bus, or NULL if none found.  The
  * embedded struct device will have its reference count incremented,

@@ -147,7 +147,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	*((volatile u32 *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) = 0;
 }
 
-static void init_freq_invariance(void);
+static void init_freq_invariance(bool secondary);
 
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
@@ -185,7 +185,7 @@ static void smp_callin(void)
 	 */
 	set_cpu_sibling_map(raw_smp_processor_id());
 
-	init_freq_invariance();
+	init_freq_invariance(true);
 
 	/*
 	 * Get our bogomips.
@@ -1341,7 +1341,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	set_sched_topology(x86_topology);
 
 	set_cpu_sibling_map(0);
-	init_freq_invariance();
+	init_freq_invariance(false);
 	smp_sanity_check();
 
 	switch (apic_intr_mode) {
@@ -1877,9 +1877,6 @@ static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
 	int err, i;
 	u64 msr;
 
-	if (!x86_match_cpu(has_knl_turbo_ratio_limits))
-		return false;
-
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
@@ -1945,18 +1942,23 @@ static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
 
 static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 {
+	u64 msr;
 	int err;
 
 	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, turbo_freq);
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
 	if (err)
 		return false;
 
-	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
-	*turbo_freq = (*turbo_freq >> 24) & 0xFF;   /* 4C turbo    */
+	*base_freq = (*base_freq >> 8) & 0xFF;    /* max P state */
+	*turbo_freq = (msr >> 24) & 0xFF;         /* 4C turbo    */
+
+	/* The CPU may have less than 4 cores */
+	if (!*turbo_freq)
+		*turbo_freq = msr & 0xFF;         /* 1C turbo    */
 
 	return true;
 }
@@ -1972,7 +1974,8 @@ static bool intel_set_max_freq_ratio(void)
 	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
 		goto out;
 
-	if (knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
+	if (x86_match_cpu(has_knl_turbo_ratio_limits) &&
+	    knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
 		goto out;
 
 	if (x86_match_cpu(has_skx_turbo_ratio_limits) &&
@@ -1985,13 +1988,22 @@ static bool intel_set_max_freq_ratio(void)
 	return false;
 
 out:
+	/*
+	 * Some hypervisors advertise X86_FEATURE_APERFMPERF
+	 * but then fill all MSR's with zeroes.
+	 */
+	if (!base_freq) {
+		pr_debug("Couldn't determine cpu base frequency, necessary for scale-invariant accounting.\n");
+		return false;
+	}
+
 	arch_turbo_freq_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE,
 					base_freq);
 	arch_set_max_freq_ratio(turbo_disabled());
 	return true;
 }
 
-static void init_counter_refs(void *arg)
+static void init_counter_refs(void)
 {
 	u64 aperf, mperf;
 
@@ -2002,18 +2014,25 @@ static void init_counter_refs(void *arg)
 	this_cpu_write(arch_prev_mperf, mperf);
 }
 
-static void init_freq_invariance(void)
+static void init_freq_invariance(bool secondary)
 {
 	bool ret = false;
 
-	if (smp_processor_id() != 0 || !boot_cpu_has(X86_FEATURE_APERFMPERF))
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
 		return;
+
+	if (secondary) {
+		if (static_branch_likely(&arch_scale_freq_key)) {
+			init_counter_refs();
+		}
+		return;
+	}
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
 		ret = intel_set_max_freq_ratio();
 
 	if (ret) {
-		on_each_cpu(init_counter_refs, NULL, 1);
+		init_counter_refs();
 		static_branch_enable(&arch_scale_freq_key);
 	} else {
 		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");

@@ -24,7 +24,7 @@ struct ionic_rx_filters {
 };
 
 void ionic_rx_filter_free(struct ionic_lif *lif, struct ionic_rx_filter *f);
-int ionic_rx_filter_del(struct ionic_lif *lif, struct ionic_rx_filter *f);
+void ionic_rx_filter_replay(struct ionic_lif *lif);
 int ionic_rx_filters_init(struct ionic_lif *lif);
 void ionic_rx_filters_deinit(struct ionic_lif *lif);
 int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
