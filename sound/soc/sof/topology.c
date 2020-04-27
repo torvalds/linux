@@ -3111,9 +3111,17 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	if (!link->no_pcm) {
 		link->nonatomic = true;
 
-		/* set trigger order */
-		link->trigger[0] = SND_SOC_DPCM_TRIGGER_POST;
-		link->trigger[1] = SND_SOC_DPCM_TRIGGER_POST;
+		/*
+		 * set default trigger order for all links. Exceptions to
+		 * the rule will be handled in sof_pcm_dai_link_fixup()
+		 * For playback, the sequence is the following: start FE,
+		 * start BE, stop BE, stop FE; for Capture the sequence is
+		 * inverted start BE, start FE, stop FE, stop BE
+		 */
+		link->trigger[SNDRV_PCM_STREAM_PLAYBACK] =
+					SND_SOC_DPCM_TRIGGER_PRE;
+		link->trigger[SNDRV_PCM_STREAM_CAPTURE] =
+					SND_SOC_DPCM_TRIGGER_POST;
 
 		/* nothing more to do for FE dai links */
 		return 0;
