@@ -35,6 +35,7 @@ algorithms work.
    seq_file
    sharedsubtree
    sysfs-pci
+   sysfs-tagging
 
    automount-support
 
