@@ -1,8 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+============================
 XFS Self Describing Metadata
-----------------------------
+============================
 
 Introduction
-------------
+============
 
 The largest scalability problem facing XFS is not one of algorithmic
 scalability, but of verification of the filesystem structure. Scalabilty of the
@@ -34,7 +37,7 @@ required for basic forensic analysis of the filesystem structure.
 
 
 Self Describing Metadata
-------------------------
+========================
 
 One of the problems with the current metadata format is that apart from the
 magic number in the metadata block, we have no other way of identifying what it
@@ -142,7 +145,7 @@ modification occurred between the corruption being written and when it was
 detected.
 
 Runtime Validation
-------------------
+==================
 
 Validation of self-describing metadata takes place at runtime in two places:
 
@@ -183,18 +186,18 @@ error occurs during this process, the buffer is again marked with a EFSCORRUPTED
 error for the higher layers to catch.
 
 Structures
-----------
+==========
 
-A typical on-disk structure needs to contain the following information:
+A typical on-disk structure needs to contain the following information::
 
-struct xfs_ondisk_hdr {
-        __be32  magic;		/* magic number */
-        __be32  crc;		/* CRC, not logged */
-        uuid_t  uuid;		/* filesystem identifier */
-        __be64  owner;		/* parent object */
-        __be64  blkno;		/* location on disk */
-        __be64  lsn;		/* last modification in log, not logged */
-};
+    struct xfs_ondisk_hdr {
+	    __be32  magic;		/* magic number */
+	    __be32  crc;		/* CRC, not logged */
+	    uuid_t  uuid;		/* filesystem identifier */
+	    __be64  owner;		/* parent object */
+	    __be64  blkno;		/* location on disk */
+	    __be64  lsn;		/* last modification in log, not logged */
+    };
 
 Depending on the metadata, this information may be part of a header structure
 separate to the metadata contents, or may be distributed through an existing
@@ -214,24 +217,24 @@ level of information is generally provided. For example:
 	  well. hence the additional metadata headers change the overall format
 	  of the metadata.
 
-A typical buffer read verifier is structured as follows:
+A typical buffer read verifier is structured as follows::
 
-#define XFS_FOO_CRC_OFF		offsetof(struct xfs_ondisk_hdr, crc)
+    #define XFS_FOO_CRC_OFF		offsetof(struct xfs_ondisk_hdr, crc)
 
-static void
-xfs_foo_read_verify(
-	struct xfs_buf	*bp)
-{
-       struct xfs_mount *mp = bp->b_mount;
+    static void
+    xfs_foo_read_verify(
+	    struct xfs_buf	*bp)
+    {
+	struct xfs_mount *mp = bp->b_mount;
 
-        if ((xfs_sb_version_hascrc(&mp->m_sb) &&
-             !xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-					XFS_FOO_CRC_OFF)) ||
-            !xfs_foo_verify(bp)) {
-                XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-                xfs_buf_ioerror(bp, EFSCORRUPTED);
-        }
-}
+	    if ((xfs_sb_version_hascrc(&mp->m_sb) &&
+		!xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
+					    XFS_FOO_CRC_OFF)) ||
+		!xfs_foo_verify(bp)) {
+		    XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		    xfs_buf_ioerror(bp, EFSCORRUPTED);
+	    }
+    }
 
 The code ensures that the CRC is only checked if the filesystem has CRCs enabled
 by checking the superblock of the feature bit, and then if the CRC verifies OK
@@ -239,83 +242,83 @@ by checking the superblock of the feature bit, and then if the CRC verifies OK
 
 The verifier function will take a couple of different forms, depending on
 whether the magic number can be used to determine the format of the block. In
-the case it can't, the code is structured as follows:
+the case it can't, the code is structured as follows::
 
-static bool
-xfs_foo_verify(
-	struct xfs_buf		*bp)
-{
-        struct xfs_mount	*mp = bp->b_mount;
-        struct xfs_ondisk_hdr	*hdr = bp->b_addr;
+    static bool
+    xfs_foo_verify(
+	    struct xfs_buf		*bp)
+    {
+	    struct xfs_mount	*mp = bp->b_mount;
+	    struct xfs_ondisk_hdr	*hdr = bp->b_addr;
 
-        if (hdr->magic != cpu_to_be32(XFS_FOO_MAGIC))
-                return false;
+	    if (hdr->magic != cpu_to_be32(XFS_FOO_MAGIC))
+		    return false;
 
-        if (!xfs_sb_version_hascrc(&mp->m_sb)) {
-		if (!uuid_equal(&hdr->uuid, &mp->m_sb.sb_uuid))
-			return false;
-		if (bp->b_bn != be64_to_cpu(hdr->blkno))
-			return false;
-		if (hdr->owner == 0)
-			return false;
-	}
+	    if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+		    if (!uuid_equal(&hdr->uuid, &mp->m_sb.sb_uuid))
+			    return false;
+		    if (bp->b_bn != be64_to_cpu(hdr->blkno))
+			    return false;
+		    if (hdr->owner == 0)
+			    return false;
+	    }
 
-	/* object specific verification checks here */
+	    /* object specific verification checks here */
 
-        return true;
-}
+	    return true;
+    }
 
 If there are different magic numbers for the different formats, the verifier
-will look like:
+will look like::
 
-static bool
-xfs_foo_verify(
-	struct xfs_buf		*bp)
-{
-        struct xfs_mount	*mp = bp->b_mount;
-        struct xfs_ondisk_hdr	*hdr = bp->b_addr;
+    static bool
+    xfs_foo_verify(
+	    struct xfs_buf		*bp)
+    {
+	    struct xfs_mount	*mp = bp->b_mount;
+	    struct xfs_ondisk_hdr	*hdr = bp->b_addr;
 
-        if (hdr->magic == cpu_to_be32(XFS_FOO_CRC_MAGIC)) {
-		if (!uuid_equal(&hdr->uuid, &mp->m_sb.sb_uuid))
-			return false;
-		if (bp->b_bn != be64_to_cpu(hdr->blkno))
-			return false;
-		if (hdr->owner == 0)
-			return false;
-	} else if (hdr->magic != cpu_to_be32(XFS_FOO_MAGIC))
-		return false;
+	    if (hdr->magic == cpu_to_be32(XFS_FOO_CRC_MAGIC)) {
+		    if (!uuid_equal(&hdr->uuid, &mp->m_sb.sb_uuid))
+			    return false;
+		    if (bp->b_bn != be64_to_cpu(hdr->blkno))
+			    return false;
+		    if (hdr->owner == 0)
+			    return false;
+	    } else if (hdr->magic != cpu_to_be32(XFS_FOO_MAGIC))
+		    return false;
 
-	/* object specific verification checks here */
+	    /* object specific verification checks here */
 
-        return true;
-}
+	    return true;
+    }
 
 Write verifiers are very similar to the read verifiers, they just do things in
-the opposite order to the read verifiers. A typical write verifier:
+the opposite order to the read verifiers. A typical write verifier::
 
-static void
-xfs_foo_write_verify(
-	struct xfs_buf	*bp)
-{
-	struct xfs_mount	*mp = bp->b_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+    static void
+    xfs_foo_write_verify(
+	    struct xfs_buf	*bp)
+    {
+	    struct xfs_mount	*mp = bp->b_mount;
+	    struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
-	if (!xfs_foo_verify(bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-		return;
-	}
+	    if (!xfs_foo_verify(bp)) {
+		    XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		    xfs_buf_ioerror(bp, EFSCORRUPTED);
+		    return;
+	    }
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return;
+	    if (!xfs_sb_version_hascrc(&mp->m_sb))
+		    return;
 
 
-	if (bip) {
-		struct xfs_ondisk_hdr	*hdr = bp->b_addr;
-		hdr->lsn = cpu_to_be64(bip->bli_item.li_lsn);
-	}
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_FOO_CRC_OFF);
-}
+	    if (bip) {
+		    struct xfs_ondisk_hdr	*hdr = bp->b_addr;
+		    hdr->lsn = cpu_to_be64(bip->bli_item.li_lsn);
+	    }
+	    xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_FOO_CRC_OFF);
+    }
 
 This will verify the internal structure of the metadata before we go any
 further, detecting corruptions that have occurred as the metadata has been
@@ -324,7 +327,7 @@ update the LSN field (when it was last modified) and calculate the CRC on the
 metadata. Once this is done, we can issue the IO.
 
 Inodes and Dquots
------------------
+=================
 
 Inodes and dquots are special snowflakes. They have per-object CRC and
 self-identifiers, but they are packed so that there are multiple objects per
@@ -347,4 +350,3 @@ XXX: inode unlinked list modification doesn't recalculate the inode CRC! None of
 the unlinked list modifications check or update CRCs, neither during unlink nor
 log recovery. So, it's gone unnoticed until now. This won't matter immediately -
 repair will probably complain about it - but it needs to be fixed.
-

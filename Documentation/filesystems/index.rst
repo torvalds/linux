@@ -118,4 +118,5 @@ Documentation for filesystem implementations.
    virtiofs
    vfat
    xfs-delayed-logging-design
+   xfs-self-describing-metadata
    zonefs
