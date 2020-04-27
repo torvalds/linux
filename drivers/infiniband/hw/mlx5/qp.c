@@ -914,13 +914,12 @@ static int adjust_bfregn(struct mlx5_ib_dev *dev,
 
 static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct mlx5_ib_qp *qp, struct ib_udata *udata,
-			  struct ib_qp_init_attr *attr,
-			  u32 **in,
+			  struct ib_qp_init_attr *attr, u32 **in,
 			  struct mlx5_ib_create_qp_resp *resp, int *inlen,
-			  struct mlx5_ib_qp_base *base)
+			  struct mlx5_ib_qp_base *base,
+			  struct mlx5_ib_create_qp *ucmd)
 {
 	struct mlx5_ib_ucontext *context;
-	struct mlx5_ib_create_qp ucmd;
 	struct mlx5_ib_ubuffer *ubuffer = &base->ubuffer;
 	int page_shift = 0;
 	int uar_index = 0;
@@ -934,24 +933,18 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	u16 uid;
 	u32 uar_flags;
 
-	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
-	if (err) {
-		mlx5_ib_dbg(dev, "copy failed\n");
-		return err;
-	}
-
 	context = rdma_udata_to_drv_context(udata, struct mlx5_ib_ucontext,
 					    ibucontext);
-	uar_flags = ucmd.flags & (MLX5_QP_FLAG_UAR_PAGE_INDEX |
-				  MLX5_QP_FLAG_BFREG_INDEX);
+	uar_flags = qp->flags_en &
+		    (MLX5_QP_FLAG_UAR_PAGE_INDEX | MLX5_QP_FLAG_BFREG_INDEX);
 	switch (uar_flags) {
 	case MLX5_QP_FLAG_UAR_PAGE_INDEX:
-		uar_index = ucmd.bfreg_index;
+		uar_index = ucmd->bfreg_index;
 		bfregn = MLX5_IB_INVALID_BFREG;
 		break;
 	case MLX5_QP_FLAG_BFREG_INDEX:
 		uar_index = bfregn_to_uar_index(dev, &context->bfregi,
-						ucmd.bfreg_index, true);
+						ucmd->bfreg_index, true);
 		if (uar_index < 0)
 			return uar_index;
 		bfregn = MLX5_IB_INVALID_BFREG;
@@ -976,12 +969,12 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
 	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
 
-	err = set_user_buf_size(dev, qp, &ucmd, base, attr);
+	err = set_user_buf_size(dev, qp, ucmd, base, attr);
 	if (err)
 		goto err_bfreg;
 
-	if (ucmd.buf_addr && ubuffer->buf_size) {
-		ubuffer->buf_addr = ucmd.buf_addr;
+	if (ucmd->buf_addr && ubuffer->buf_size) {
+		ubuffer->buf_addr = ucmd->buf_addr;
 		err = mlx5_ib_umem_get(dev, udata, ubuffer->buf_addr,
 				       ubuffer->buf_size, &ubuffer->umem,
 				       &npages, &page_shift, &ncont, &offset);
@@ -1018,7 +1011,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		resp->bfreg_index = MLX5_IB_INVALID_BFREG;
 	qp->bfregn = bfregn;
 
-	err = mlx5_ib_db_map_user(context, udata, ucmd.db_addr, &qp->db);
+	err = mlx5_ib_db_map_user(context, udata, ucmd->db_addr, &qp->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map failed\n");
 		goto err_free;
@@ -1991,7 +1984,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				return -EINVAL;
 			}
 			err = create_user_qp(dev, pd, qp, udata, init_attr, &in,
-					     &resp, &inlen, base);
+					     &resp, &inlen, base, ucmd);
 			if (err)
 				mlx5_ib_dbg(dev, "err %d\n", err);
 		} else {
@@ -2549,6 +2542,9 @@ static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		process_vendor_flag(dev, &flags,
 				    MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE,
 				    MLX5_CAP_GEN(mdev, qp_packet_based), qp);
+
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_BFREG_INDEX, true, qp);
+	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_UAR_PAGE_INDEX, true, qp);
 
 	if (flags)
 		mlx5_ib_dbg(dev, "udata has unsupported flags 0x%X\n", flags);
