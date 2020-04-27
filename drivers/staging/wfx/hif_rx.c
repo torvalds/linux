@@ -253,51 +253,6 @@ static int hif_suspend_resume_indication(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_error_indication(struct wfx_dev *wdev,
-				const struct hif_msg *hif, const void *buf)
-{
-	const struct hif_ind_error *body = buf;
-	u8 *pRollback = (u8 *) body->data;
-	u32 *pStatus = (u32 *) body->data;
-
-	switch (body->type) {
-	case HIF_ERROR_FIRMWARE_ROLLBACK:
-		dev_err(wdev->dev,
-			"asynchronous error: firmware rollback error %d\n",
-			*pRollback);
-		break;
-	case HIF_ERROR_FIRMWARE_DEBUG_ENABLED:
-		dev_err(wdev->dev, "asynchronous error: firmware debug feature enabled\n");
-		break;
-	case HIF_ERROR_OUTDATED_SESSION_KEY:
-		dev_err(wdev->dev, "asynchronous error: secure link outdated key: %#.8x\n",
-			*pStatus);
-		break;
-	case HIF_ERROR_INVALID_SESSION_KEY:
-		dev_err(wdev->dev, "asynchronous error: invalid session key\n");
-		break;
-	case HIF_ERROR_OOR_VOLTAGE:
-		dev_err(wdev->dev, "asynchronous error: out-of-range overvoltage: %#.8x\n",
-			*pStatus);
-		break;
-	case HIF_ERROR_OOR_TEMPERATURE:
-		dev_err(wdev->dev, "asynchronous error: out-of-range temperature: %#.8x\n",
-			*pStatus);
-		break;
-	case HIF_ERROR_PDS_VERSION:
-		dev_err(wdev->dev,
-			"asynchronous error: wrong PDS payload or version: %#.8x\n",
-			*pStatus);
-		break;
-	default:
-		dev_err(wdev->dev, "asynchronous error: unknown (%d)\n",
-			body->type);
-		break;
-	}
-	wdev->chip_frozen = true;
-	return 0;
-}
-
 static int hif_generic_indication(struct wfx_dev *wdev,
 				  const struct hif_msg *hif, const void *buf)
 {
@@ -327,6 +282,75 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 		return -EIO;
 	}
 }
+
+static const struct {
+	int val;
+	const char *str;
+	bool has_param;
+} hif_errors[] = {
+	{ HIF_ERROR_FIRMWARE_ROLLBACK,
+		"rollback status" },
+	{ HIF_ERROR_FIRMWARE_DEBUG_ENABLED,
+		"debug feature enabled" },
+	{ HIF_ERROR_PDS_PAYLOAD,
+		"PDS version is not supported" },
+	{ HIF_ERROR_PDS_TESTFEATURE,
+		"PDS ask for an unknown test mode" },
+	{ HIF_ERROR_OOR_VOLTAGE,
+		"out-of-range power supply voltage", true },
+	{ HIF_ERROR_OOR_TEMPERATURE,
+		"out-of-range temperature", true },
+	{ HIF_ERROR_SLK_REQ_DURING_KEY_EXCHANGE,
+		"secure link does not expect request during key exchange" },
+	{ HIF_ERROR_SLK_SESSION_KEY,
+		"secure link session key is invalid" },
+	{ HIF_ERROR_SLK_OVERFLOW,
+		"secure link overflow" },
+	{ HIF_ERROR_SLK_WRONG_ENCRYPTION_STATE,
+		"secure link messages list does not match message encryption" },
+	{ HIF_ERROR_HIF_BUS_FREQUENCY_TOO_LOW,
+		"bus clock is too slow (<1kHz)" },
+	{ HIF_ERROR_HIF_RX_DATA_TOO_LARGE,
+		"HIF message too large" },
+	// Following errors only exists in old firmware versions:
+	{ HIF_ERROR_HIF_TX_QUEUE_FULL,
+		"HIF messages queue is full" },
+	{ HIF_ERROR_HIF_BUS,
+		"HIF bus" },
+	{ HIF_ERROR_SLK_MULTI_TX_UNSUPPORTED,
+		"secure link does not support multi-tx confirmations" },
+	{ HIF_ERROR_SLK_OUTDATED_SESSION_KEY,
+		"secure link session key is outdated" },
+	{ HIF_ERROR_SLK_DECRYPTION,
+		"secure link params (nonce or tag) mismatch" },
+};
+
+static int hif_error_indication(struct wfx_dev *wdev,
+				const struct hif_msg *hif, const void *buf)
+{
+	const struct hif_ind_error *body = buf;
+	int type = le32_to_cpu(body->type);
+	int param = (s8)body->data[0];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hif_errors); i++)
+		if (type == hif_errors[i].val)
+			break;
+	if (i < ARRAY_SIZE(hif_errors))
+		if (hif_errors[i].has_param)
+			dev_err(wdev->dev, "asynchronous error: %s: %d\n",
+				hif_errors[i].str, param);
+		else
+			dev_err(wdev->dev, "asynchronous error: %s\n",
+				hif_errors[i].str);
+	else
+		dev_err(wdev->dev, "asynchronous error: unknown: %08x\n", type);
+	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
+		       16, 1, hif, hif->len, false);
+	wdev->chip_frozen = true;
+
+	return 0;
+};
 
 static int hif_exception_indication(struct wfx_dev *wdev,
 				    const struct hif_msg *hif, const void *buf)
