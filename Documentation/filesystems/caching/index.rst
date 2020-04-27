@@ -8,3 +8,4 @@ Filesystem Caching
 
    fscache
    object
+   netfs-api

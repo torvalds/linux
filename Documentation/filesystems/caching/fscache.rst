@@ -183,7 +183,7 @@ reside in one cache.
 
 The netfs API to FS-Cache can be found in:
 
-	Documentation/filesystems/caching/netfs-api.txt
+	Documentation/filesystems/caching/netfs-api.rst
 
 The cache backend API to FS-Cache can be found in:
 
