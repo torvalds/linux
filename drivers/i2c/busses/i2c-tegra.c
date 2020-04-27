@@ -996,13 +996,14 @@ tegra_i2c_poll_completion_timeout(struct tegra_i2c_dev *i2c_dev,
 	do {
 		u32 status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
-		if (status)
+		if (status) {
 			tegra_i2c_isr(i2c_dev->irq, i2c_dev);
 
-		if (completion_done(complete)) {
-			s64 delta = ktime_ms_delta(ktimeout, ktime);
+			if (completion_done(complete)) {
+				s64 delta = ktime_ms_delta(ktimeout, ktime);
 
-			return msecs_to_jiffies(delta) ?: 1;
+				return msecs_to_jiffies(delta) ?: 1;
+			}
 		}
 
 		ktime = ktime_get();
@@ -1029,18 +1030,14 @@ tegra_i2c_wait_completion_timeout(struct tegra_i2c_dev *i2c_dev,
 		disable_irq(i2c_dev->irq);
 
 		/*
-		 * Under some rare circumstances (like running KASAN +
-		 * NFS root) CPU, which handles interrupt, may stuck in
-		 * uninterruptible state for a significant time.  In this
-		 * case we will get timeout if I2C transfer is running on
-		 * a sibling CPU, despite of IRQ being raised.
-		 *
-		 * In order to handle this rare condition, the IRQ status
-		 * needs to be checked after timeout.
+		 * There is a chance that completion may happen after IRQ
+		 * synchronization, which is done by disable_irq().
 		 */
-		if (ret == 0)
-			ret = tegra_i2c_poll_completion_timeout(i2c_dev,
-								complete, 0);
+		if (ret == 0 && completion_done(complete)) {
+			dev_warn(i2c_dev->dev,
+				 "completion done after timeout\n");
+			ret = 1;
+		}
 	}
 
 	return ret;
