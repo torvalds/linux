@@ -123,6 +123,37 @@ mlxsw_sp_mall_port_sample_del(struct mlxsw_sp_port *mlxsw_sp_port)
 	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
 }
 
+static int
+mlxsw_sp_mall_port_rule_add(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_mall_entry *mall_entry)
+{
+	switch (mall_entry->type) {
+	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
+		return mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry);
+	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
+		return mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, mall_entry);
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
+static void
+mlxsw_sp_mall_port_rule_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_mall_entry *mall_entry)
+{
+	switch (mall_entry->type) {
+	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
+		mlxsw_sp_mall_port_mirror_del(mlxsw_sp_port, mall_entry);
+		break;
+	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
+		mlxsw_sp_mall_port_sample_del(mlxsw_sp_port);
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
 int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_cls_matchall_offload *f, bool ingress)
 {
@@ -147,7 +178,6 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
-		err = mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry);
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
 		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
@@ -160,11 +190,12 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 		mall_entry->sample.truncate = act->sample.truncate;
 		mall_entry->sample.trunc_size = act->sample.trunc_size;
 		mall_entry->sample.rate = act->sample.rate;
-		err = mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, mall_entry);
 	} else {
 		err = -EOPNOTSUPP;
+		goto errout;
 	}
 
+	err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
 	if (err)
 		goto errout;
 
@@ -186,18 +217,9 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 		netdev_dbg(mlxsw_sp_port->dev, "tc entry not found on port\n");
 		return;
 	}
+
+	mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
+
 	list_del(&mall_entry->list);
-
-	switch (mall_entry->type) {
-	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
-		mlxsw_sp_mall_port_mirror_del(mlxsw_sp_port, mall_entry);
-		break;
-	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
-		mlxsw_sp_mall_port_sample_del(mlxsw_sp_port);
-		break;
-	default:
-		WARN_ON(1);
-	}
-
 	kfree(mall_entry);
 }
