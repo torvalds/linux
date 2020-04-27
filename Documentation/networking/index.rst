@@ -42,6 +42,7 @@ Contents:
    arcnet-hardware
    arcnet
    atm
+   ax25
 
 .. only::  subproject and html
 
