@@ -109,25 +109,6 @@ struct mlxsw_sp_mid {
 	unsigned long *ports_in_mid; /* bits array */
 };
 
-enum mlxsw_sp_port_mall_action_type {
-	MLXSW_SP_PORT_MALL_MIRROR,
-	MLXSW_SP_PORT_MALL_SAMPLE,
-};
-
-struct mlxsw_sp_port_mall_mirror_tc_entry {
-	int span_id;
-	bool ingress;
-};
-
-struct mlxsw_sp_port_mall_tc_entry {
-	struct list_head list;
-	unsigned long cookie;
-	enum mlxsw_sp_port_mall_action_type type;
-	union {
-		struct mlxsw_sp_port_mall_mirror_tc_entry mirror;
-	};
-};
-
 struct mlxsw_sp_sb;
 struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
@@ -274,8 +255,7 @@ struct mlxsw_sp_port {
 					       * the same localport can have
 					       * different mapping.
 					       */
-	/* TC handles */
-	struct list_head mall_tc_list;
+	struct list_head mall_list;
 	struct {
 		#define MLXSW_HW_STATS_UPDATE_TIME HZ
 		struct rtnl_link_stats64 stats;
@@ -912,6 +892,12 @@ extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
+
+/* spectrum_matchall.c */
+int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct tc_cls_matchall_offload *f, bool ingress);
+void mlxsw_sp_mall_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
+			   struct tc_cls_matchall_offload *f);
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
