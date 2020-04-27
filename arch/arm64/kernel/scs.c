@@ -13,3 +13,8 @@
 	DEFINE_PER_CPU(unsigned long [SCS_SIZE/sizeof(long)], name)	\
 
 DEFINE_SCS(irq_shadow_call_stack);
+
+#ifdef CONFIG_ARM_SDE_INTERFACE
+DEFINE_SCS(sdei_shadow_call_stack_normal);
+DEFINE_SCS(sdei_shadow_call_stack_critical);
+#endif
