@@ -32,6 +32,56 @@
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/slab.h>
 
+/* I2C register field definitions */
+#define ICR_START	(1 << 0)	   /* start bit */
+#define ICR_STOP	(1 << 1)	   /* stop bit */
+#define ICR_ACKNAK	(1 << 2)	   /* send ACK(0) or NAK(1) */
+#define ICR_TB		(1 << 3)	   /* transfer byte bit */
+#define ICR_MA		(1 << 4)	   /* master abort */
+#define ICR_SCLE	(1 << 5)	   /* master clock enable */
+#define ICR_IUE		(1 << 6)	   /* unit enable */
+#define ICR_GCD		(1 << 7)	   /* general call disable */
+#define ICR_ITEIE	(1 << 8)	   /* enable tx interrupts */
+#define ICR_IRFIE	(1 << 9)	   /* enable rx interrupts */
+#define ICR_BEIE	(1 << 10)	   /* enable bus error ints */
+#define ICR_SSDIE	(1 << 11)	   /* slave STOP detected int enable */
+#define ICR_ALDIE	(1 << 12)	   /* enable arbitration interrupt */
+#define ICR_SADIE	(1 << 13)	   /* slave address detected int enable */
+#define ICR_UR		(1 << 14)	   /* unit reset */
+#define ICR_FM		(1 << 15)	   /* fast mode */
+#define ICR_HS		(1 << 16)	   /* High Speed mode */
+#define ICR_A3700_FM	(1 << 16)	   /* fast mode for armada-3700 */
+#define ICR_A3700_HS	(1 << 17)	   /* high speed mode for armada-3700 */
+#define ICR_GPIOEN	(1 << 19)	   /* enable GPIO mode for SCL in HS */
+
+#define ISR_RWM		(1 << 0)	   /* read/write mode */
+#define ISR_ACKNAK	(1 << 1)	   /* ack/nak status */
+#define ISR_UB		(1 << 2)	   /* unit busy */
+#define ISR_IBB		(1 << 3)	   /* bus busy */
+#define ISR_SSD		(1 << 4)	   /* slave stop detected */
+#define ISR_ALD		(1 << 5)	   /* arbitration loss detected */
+#define ISR_ITE		(1 << 6)	   /* tx buffer empty */
+#define ISR_IRF		(1 << 7)	   /* rx buffer full */
+#define ISR_GCAD	(1 << 8)	   /* general call address detected */
+#define ISR_SAD		(1 << 9)	   /* slave address detected */
+#define ISR_BED		(1 << 10)	   /* bus error no ACK/NAK */
+
+#define ILCR_SLV_SHIFT		0
+#define ILCR_SLV_MASK		(0x1FF << ILCR_SLV_SHIFT)
+#define ILCR_FLV_SHIFT		9
+#define ILCR_FLV_MASK		(0x1FF << ILCR_FLV_SHIFT)
+#define ILCR_HLVL_SHIFT		18
+#define ILCR_HLVL_MASK		(0x1FF << ILCR_HLVL_SHIFT)
+#define ILCR_HLVH_SHIFT		27
+#define ILCR_HLVH_MASK		(0x1F << ILCR_HLVH_SHIFT)
+
+#define IWCR_CNT_SHIFT		0
+#define IWCR_CNT_MASK		(0x1F << IWCR_CNT_SHIFT)
+#define IWCR_HS_CNT1_SHIFT	5
+#define IWCR_HS_CNT1_MASK	(0x1F << IWCR_HS_CNT1_SHIFT)
+#define IWCR_HS_CNT2_SHIFT	10
+#define IWCR_HS_CNT2_MASK	(0x1F << IWCR_HS_CNT2_SHIFT)
+
 struct pxa_reg_layout {
 	u32 ibmr;
 	u32 idbr;
@@ -52,12 +102,7 @@ enum pxa_i2c_types {
 	REGS_A3700,
 };
 
-#define ICR_BUSMODE_FM	(1 << 16)	   /* shifted fast mode for armada-3700 */
-#define ICR_BUSMODE_HS	(1 << 17)	   /* shifted high speed mode for armada-3700 */
-
-/*
- * I2C registers definitions
- */
+/* I2C register layout definitions */
 static struct pxa_reg_layout pxa_reg_layout[] = {
 	[REGS_PXA2XX] = {
 		.ibmr =	0x00,
@@ -95,8 +140,8 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.icr =	0x08,
 		.isr =	0x0c,
 		.isar =	0x10,
-		.fm = ICR_BUSMODE_FM,
-		.hs = ICR_BUSMODE_HS,
+		.fm = ICR_A3700_FM,
+		.hs = ICR_A3700_HS,
 	},
 };
 
@@ -109,58 +154,6 @@ static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
-
-/*
- * I2C bit definitions
- */
-
-#define ICR_START	(1 << 0)	   /* start bit */
-#define ICR_STOP	(1 << 1)	   /* stop bit */
-#define ICR_ACKNAK	(1 << 2)	   /* send ACK(0) or NAK(1) */
-#define ICR_TB		(1 << 3)	   /* transfer byte bit */
-#define ICR_MA		(1 << 4)	   /* master abort */
-#define ICR_SCLE	(1 << 5)	   /* master clock enable */
-#define ICR_IUE		(1 << 6)	   /* unit enable */
-#define ICR_GCD		(1 << 7)	   /* general call disable */
-#define ICR_ITEIE	(1 << 8)	   /* enable tx interrupts */
-#define ICR_IRFIE	(1 << 9)	   /* enable rx interrupts */
-#define ICR_BEIE	(1 << 10)	   /* enable bus error ints */
-#define ICR_SSDIE	(1 << 11)	   /* slave STOP detected int enable */
-#define ICR_ALDIE	(1 << 12)	   /* enable arbitration interrupt */
-#define ICR_SADIE	(1 << 13)	   /* slave address detected int enable */
-#define ICR_UR		(1 << 14)	   /* unit reset */
-#define ICR_FM		(1 << 15)	   /* fast mode */
-#define ICR_HS		(1 << 16)	   /* High Speed mode */
-#define ICR_GPIOEN	(1 << 19)	   /* enable GPIO mode for SCL in HS */
-
-#define ISR_RWM		(1 << 0)	   /* read/write mode */
-#define ISR_ACKNAK	(1 << 1)	   /* ack/nak status */
-#define ISR_UB		(1 << 2)	   /* unit busy */
-#define ISR_IBB		(1 << 3)	   /* bus busy */
-#define ISR_SSD		(1 << 4)	   /* slave stop detected */
-#define ISR_ALD		(1 << 5)	   /* arbitration loss detected */
-#define ISR_ITE		(1 << 6)	   /* tx buffer empty */
-#define ISR_IRF		(1 << 7)	   /* rx buffer full */
-#define ISR_GCAD	(1 << 8)	   /* general call address detected */
-#define ISR_SAD		(1 << 9)	   /* slave address detected */
-#define ISR_BED		(1 << 10)	   /* bus error no ACK/NAK */
-
-/* bit field shift & mask */
-#define ILCR_SLV_SHIFT		0
-#define ILCR_SLV_MASK		(0x1FF << ILCR_SLV_SHIFT)
-#define ILCR_FLV_SHIFT		9
-#define ILCR_FLV_MASK		(0x1FF << ILCR_FLV_SHIFT)
-#define ILCR_HLVL_SHIFT		18
-#define ILCR_HLVL_MASK		(0x1FF << ILCR_HLVL_SHIFT)
-#define ILCR_HLVH_SHIFT		27
-#define ILCR_HLVH_MASK		(0x1F << ILCR_HLVH_SHIFT)
-
-#define IWCR_CNT_SHIFT		0
-#define IWCR_CNT_MASK		(0x1F << IWCR_CNT_SHIFT)
-#define IWCR_HS_CNT1_SHIFT	5
-#define IWCR_HS_CNT1_MASK	(0x1F << IWCR_HS_CNT1_SHIFT)
-#define IWCR_HS_CNT2_SHIFT	10
-#define IWCR_HS_CNT2_MASK	(0x1F << IWCR_HS_CNT2_SHIFT)
 
 struct pxa_i2c {
 	spinlock_t		lock;
