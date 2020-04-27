@@ -3243,6 +3243,10 @@ out:
 
 fix_extent_len:
 	ex->ee_len = orig_ex.ee_len;
+	/*
+	 * Ignore ext4_ext_dirty return value since we are already in error path
+	 * and err is a non-zero error code.
+	 */
 	ext4_ext_dirty(handle, inode, path + path->p_depth);
 	return err;
 }
@@ -3502,7 +3506,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	}
 	if (allocated) {
 		/* Mark the block containing both extents as dirty */
-		ext4_ext_dirty(handle, inode, path + depth);
+		err = ext4_ext_dirty(handle, inode, path + depth);
 
 		/* Update path to point to the right extent */
 		path[depth].p_ext = abut_ex;
