@@ -235,12 +235,20 @@ static int hif_suspend_resume_indication(struct wfx_dev *wdev,
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	const struct hif_ind_suspend_resume_tx *body = buf;
 
-	WARN_ON(!wvif);
-	WARN(!body->suspend_resume_flags.bc_mc_only, "unsupported suspend/resume notification");
-	if (body->suspend_resume_flags.resume)
-		wfx_suspend_resume_mc(wvif, STA_NOTIFY_AWAKE);
-	else
-		wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
+	if (body->suspend_resume_flags.bc_mc_only) {
+		WARN_ON(!wvif);
+		if (body->suspend_resume_flags.resume)
+			wfx_suspend_resume_mc(wvif, STA_NOTIFY_AWAKE);
+		else
+			wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
+	} else {
+		WARN(body->peer_sta_set, "misunderstood indication");
+		WARN(hif->interface != 2, "misunderstood indication");
+		if (body->suspend_resume_flags.resume)
+			wfx_suspend_hot_dev(wdev, STA_NOTIFY_AWAKE);
+		else
+			wfx_suspend_hot_dev(wdev, STA_NOTIFY_SLEEP);
+	}
 
 	return 0;
 }

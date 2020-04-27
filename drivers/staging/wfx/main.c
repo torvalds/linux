@@ -341,6 +341,8 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	mutex_init(&wdev->conf_mutex);
 	mutex_init(&wdev->rx_stats_lock);
 	init_completion(&wdev->firmware_ready);
+	INIT_DELAYED_WORK(&wdev->cooling_timeout_work,
+			  wfx_cooling_timeout_work);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
 	wfx_tx_queues_init(wdev);
 

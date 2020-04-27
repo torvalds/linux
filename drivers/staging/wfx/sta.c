@@ -38,6 +38,29 @@ u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 	return ret;
 }
 
+void wfx_cooling_timeout_work(struct work_struct *work)
+{
+	struct wfx_dev *wdev = container_of(to_delayed_work(work),
+					    struct wfx_dev,
+					    cooling_timeout_work);
+
+	wdev->chip_frozen = true;
+	wfx_tx_unlock(wdev);
+}
+
+void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd)
+{
+	if (cmd == STA_NOTIFY_AWAKE) {
+		// Device recover normal temperature
+		if (cancel_delayed_work(&wdev->cooling_timeout_work))
+			wfx_tx_unlock(wdev);
+	} else {
+		// Device is too hot
+		schedule_delayed_work(&wdev->cooling_timeout_work, 10 * HZ);
+		wfx_tx_lock(wdev);
+	}
+}
+
 static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
 	const struct hif_ie_table_entry filter_ies[] = {

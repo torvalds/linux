@@ -45,6 +45,7 @@ struct wfx_dev {
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
 	struct sl_context	sl;
+	struct delayed_work	cooling_timeout_work;
 	bool			chip_frozen;
 	struct mutex		conf_mutex;
 
