@@ -319,9 +319,6 @@ static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		if (!kvm_emulate_instruction(vcpu, EMULTYPE_SKIP))
 			return 0;
 	} else {
-		if (svm->next_rip - kvm_rip_read(vcpu) > MAX_INST_SIZE)
-			pr_err("%s: ip 0x%lx next 0x%llx\n",
-			       __func__, kvm_rip_read(vcpu), svm->next_rip);
 		kvm_rip_write(vcpu, svm->next_rip);
 	}
 	svm_set_interrupt_shadow(vcpu, 0);
