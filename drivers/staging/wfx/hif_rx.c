@@ -331,10 +331,16 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 static int hif_exception_indication(struct wfx_dev *wdev,
 				    const struct hif_msg *hif, const void *buf)
 {
-	size_t len = hif->len - 4; // drop header
+	const struct hif_ind_exception *body = buf;
+	int type = le32_to_cpu(body->type);
 
-	dev_err(wdev->dev, "firmware exception\n");
-	print_hex_dump_bytes("Dump: ", DUMP_PREFIX_NONE, buf, len);
+	if (type == 4)
+		dev_err(wdev->dev, "firmware assert %d\n",
+			le32_to_cpup((__le32 *)body->data));
+	else
+		dev_err(wdev->dev, "firmware exception\n");
+	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
+		       16, 1, hif, hif->len, false);
 	wdev->chip_frozen = true;
 
 	return -1;
