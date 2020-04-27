@@ -831,7 +831,7 @@
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
-			See also Documentation/networking/decnet.txt.
+			See also Documentation/networking/decnet.rst.
 
 	default_hugepagesz=
 			[same as hugepagesz=] The size of the default

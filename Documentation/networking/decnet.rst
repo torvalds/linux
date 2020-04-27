@@ -1,26 +1,31 @@
-                    Linux DECnet Networking Layer Information
-                   ===========================================
+.. SPDX-License-Identifier: GPL-2.0
 
-1) Other documentation....
+=========================================
+Linux DECnet Networking Layer Information
+=========================================
 
-   o Project Home Pages
-       http://www.chygwyn.com/                      	    - Kernel info
-       http://linux-decnet.sourceforge.net/                - Userland tools
-       http://www.sourceforge.net/projects/linux-decnet/   - Status page
+1. Other documentation....
+==========================
 
-2) Configuring the kernel
+   - Project Home Pages
+     - http://www.chygwyn.com/				   - Kernel info
+     - http://linux-decnet.sourceforge.net/                - Userland tools
+     - http://www.sourceforge.net/projects/linux-decnet/   - Status page
+
+2. Configuring the kernel
+=========================
 
 Be sure to turn on the following options:
 
-    CONFIG_DECNET (obviously)
-    CONFIG_PROC_FS (to see what's going on)
-    CONFIG_SYSCTL (for easy configuration)
+    - CONFIG_DECNET (obviously)
+    - CONFIG_PROC_FS (to see what's going on)
+    - CONFIG_SYSCTL (for easy configuration)
 
 if you want to try out router support (not properly debugged yet)
 you'll need the following options as well...
 
-    CONFIG_DECNET_ROUTER (to be able to add/delete routes)
-    CONFIG_NETFILTER (will be required for the DECnet routing daemon)
+    - CONFIG_DECNET_ROUTER (to be able to add/delete routes)
+    - CONFIG_NETFILTER (will be required for the DECnet routing daemon)
 
 Don't turn on SIOCGIFCONF support for DECnet unless you are really sure
 that you need it, in general you won't and it can cause ifconfig to
@@ -29,7 +34,7 @@ malfunction.
 Run time configuration has changed slightly from the 2.4 system. If you
 want to configure an endnode, then the simplified procedure is as follows:
 
- o Set the MAC address on your ethernet card before starting _any_ other
+ - Set the MAC address on your ethernet card before starting _any_ other
    network protocols.
 
 As soon as your network card is brought into the UP state, DECnet should
@@ -37,7 +42,8 @@ start working. If you need something more complicated or are unsure how
 to set the MAC address, see the next section. Also all configurations which
 worked with 2.4 will work under 2.5 with no change.
 
-3) Command line options
+3. Command line options
+=======================
 
 You can set a DECnet address on the kernel command line for compatibility
 with the 2.4 configuration procedure, but in general it's not needed any more.
@@ -56,7 +62,7 @@ interface then you won't see any entries in /proc/net/neigh for the local
 host until such time as you start a connection. This doesn't affect the
 operation of the local communications in any other way though.
 
-The kernel command line takes options looking like the following:
+The kernel command line takes options looking like the following::
 
     decnet.addr=1,2
 
@@ -82,7 +88,7 @@ address of the node in order for it to be autoconfigured (and then appear in
 FTP sites called dn2ethaddr which can compute the correct ethernet
 address to use. The address can be set by ifconfig either before or
 at the time the device is brought up. If you are using RedHat you can
-add the line:
+add the line::
 
     MACADDR=AA:00:04:00:03:04
 
@@ -95,7 +101,7 @@ verify with iproute2).
 The default device for routing can be set through the /proc filesystem
 by setting /proc/sys/net/decnet/default_device to the
 device you want DECnet to route packets out of when no specific route
-is available. Usually this will be eth0, for example:
+is available. Usually this will be eth0, for example::
 
     echo -n "eth0" >/proc/sys/net/decnet/default_device
 
@@ -106,7 +112,9 @@ confirm that by looking in the default_device file of course.
 There is a list of what the other files under /proc/sys/net/decnet/ do
 on the kernel patch web site (shown above).
 
-4) Run time kernel configuration
+4. Run time kernel configuration
+================================
+
 
 This is either done through the sysctl/proc interface (see the kernel web
 pages for details on what the various options do) or through the iproute2
@@ -122,20 +130,21 @@ since its the _only_ way to add and delete routes currently. Eventually
 there will be a routing daemon to send and receive routing messages for
 each interface and update the kernel routing tables accordingly. The
 routing daemon will use netfilter to listen to routing packets, and
-rtnetlink to update the kernels routing tables. 
+rtnetlink to update the kernels routing tables.
 
 The DECnet raw socket layer has been removed since it was there purely
 for use by the routing daemon which will now use netfilter (a much cleaner
 and more generic solution) instead.
 
-5) How can I tell if its working ?
+5. How can I tell if its working?
+=================================
 
 Here is a quick guide of what to look for in order to know if your DECnet
 kernel subsystem is working.
 
    - Is the node address set (see /proc/sys/net/decnet/node_address)
-   - Is the node of the correct type 
-                             (see /proc/sys/net/decnet/conf/<dev>/forwarding)
+   - Is the node of the correct type
+     (see /proc/sys/net/decnet/conf/<dev>/forwarding)
    - Is the Ethernet MAC address of each Ethernet card set to match
      the DECnet address. If in doubt use the dn2ethaddr utility available
      at the ftp archive.
@@ -160,7 +169,8 @@ kernel subsystem is working.
      network, and see if you can obtain the same results.
    - At this point you are on your own... :-)
 
-6) How to send a bug report
+6. How to send a bug report
+===========================
 
 If you've found a bug and want to report it, then there are several things
 you can do to help me work out exactly what it is that is wrong. Useful
@@ -175,18 +185,19 @@ information (_most_ of which _is_ _essential_) includes:
  - How much data was being transferred ?
  - Was the network congested ?
  - How can the problem be reproduced ?
- - Can you use tcpdump to get a trace ? (N.B. Most (all?) versions of 
+ - Can you use tcpdump to get a trace ? (N.B. Most (all?) versions of
    tcpdump don't understand how to dump DECnet properly, so including
    the hex listing of the packet contents is _essential_, usually the -x flag.
    You may also need to increase the length grabbed with the -s flag. The
    -e flag also provides very useful information (ethernet MAC addresses))
 
-7) MAC FAQ
+7. MAC FAQ
+==========
 
 A quick FAQ on ethernet MAC addresses to explain how Linux and DECnet
-interact and how to get the best performance from your hardware. 
+interact and how to get the best performance from your hardware.
 
-Ethernet cards are designed to normally only pass received network frames 
+Ethernet cards are designed to normally only pass received network frames
 to a host computer when they are addressed to it, or to the broadcast address.
 
 Linux has an interface which allows the setting of extra addresses for
@@ -197,8 +208,8 @@ significant processor time and bus bandwidth can be used up on a busy
 network (see the NAPI documentation for a longer explanation of these
 effects).
 
-DECnet makes use of this interface to allow running DECnet on an ethernet 
-card which has already been configured using TCP/IP (presumably using the 
+DECnet makes use of this interface to allow running DECnet on an ethernet
+card which has already been configured using TCP/IP (presumably using the
 built in MAC address of the card, as usual) and/or to allow multiple DECnet
 addresses on each physical interface. If you do this, be aware that if your
 ethernet card doesn't support perfect hashing in its MAC address filter
@@ -210,7 +221,8 @@ to gain the best efficiency. Better still is to use a card which supports
 NAPI as well.
 
 
-8) Mailing list
+8. Mailing list
+===============
 
 If you are keen to get involved in development, or want to ask questions
 about configuration, or even just report bugs, then there is a mailing
@@ -218,7 +230,8 @@ list that you can join, details are at:
 
 http://sourceforge.net/mail/?group_id=4993
 
-9) Legal Info
+9. Legal Info
+=============
 
 The Linux DECnet project team have placed their code under the GPL. The
 software is provided "as is" and without warranty express or implied.

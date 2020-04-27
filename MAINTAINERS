@@ -4728,7 +4728,7 @@ DECnet NETWORK LAYER
 L:	linux-decnet-user@lists.sourceforge.net
 S:	Orphan
 W:	http://linux-decnet.sourceforge.net
-F:	Documentation/networking/decnet.txt
+F:	Documentation/networking/decnet.rst
 F:	net/decnet/
 
 DECSTATION PLATFORM SUPPORT

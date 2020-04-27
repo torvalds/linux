@@ -50,6 +50,7 @@ Contents:
    cxacru
    dccp
    dctcp
+   decnet
 
 .. only::  subproject and html
 
