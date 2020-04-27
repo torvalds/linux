@@ -624,6 +624,49 @@ Eaddrnotavail:
 	return -EADDRNOTAVAIL;
 }
 
+static int do_mcast_group_source(struct sock *sk, int optname,
+				 struct group_source_req *greqs)
+{
+	struct ip_mreq_source mreqs;
+	struct sockaddr_in *psin;
+	int omode, add, err;
+
+	if (greqs->gsr_group.ss_family != AF_INET ||
+	    greqs->gsr_source.ss_family != AF_INET)
+		return -EADDRNOTAVAIL;
+
+	psin = (struct sockaddr_in *)&greqs->gsr_group;
+	mreqs.imr_multiaddr = psin->sin_addr.s_addr;
+	psin = (struct sockaddr_in *)&greqs->gsr_source;
+	mreqs.imr_sourceaddr = psin->sin_addr.s_addr;
+	mreqs.imr_interface = 0; /* use index for mc_source */
+
+	if (optname == MCAST_BLOCK_SOURCE) {
+		omode = MCAST_EXCLUDE;
+		add = 1;
+	} else if (optname == MCAST_UNBLOCK_SOURCE) {
+		omode = MCAST_EXCLUDE;
+		add = 0;
+	} else if (optname == MCAST_JOIN_SOURCE_GROUP) {
+		struct ip_mreqn mreq;
+
+		psin = (struct sockaddr_in *)&greqs->gsr_group;
+		mreq.imr_multiaddr = psin->sin_addr;
+		mreq.imr_address.s_addr = 0;
+		mreq.imr_ifindex = greqs->gsr_interface;
+		err = ip_mc_join_group_ssm(sk, &mreq, MCAST_INCLUDE);
+		if (err && err != -EADDRINUSE)
+			return err;
+		greqs->gsr_interface = mreq.imr_ifindex;
+		omode = MCAST_INCLUDE;
+		add = 1;
+	} else /* MCAST_LEAVE_SOURCE_GROUP */ {
+		omode = MCAST_INCLUDE;
+		add = 0;
+	}
+	return ip_mc_source(add, omode, sk, &mreqs, greqs->gsr_interface);
+}
+
 static int do_ip_setsockopt(struct sock *sk, int level,
 			    int optname, char __user *optval, unsigned int optlen)
 {
@@ -1066,9 +1109,6 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case MCAST_UNBLOCK_SOURCE:
 	{
 		struct group_source_req greqs;
-		struct ip_mreq_source mreqs;
-		struct sockaddr_in *psin;
-		int omode, add;
 
 		if (optlen != sizeof(struct group_source_req))
 			goto e_inval;
@@ -1076,42 +1116,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			err = -EFAULT;
 			break;
 		}
-		if (greqs.gsr_group.ss_family != AF_INET ||
-		    greqs.gsr_source.ss_family != AF_INET) {
-			err = -EADDRNOTAVAIL;
-			break;
-		}
-		psin = (struct sockaddr_in *)&greqs.gsr_group;
-		mreqs.imr_multiaddr = psin->sin_addr.s_addr;
-		psin = (struct sockaddr_in *)&greqs.gsr_source;
-		mreqs.imr_sourceaddr = psin->sin_addr.s_addr;
-		mreqs.imr_interface = 0; /* use index for mc_source */
-
-		if (optname == MCAST_BLOCK_SOURCE) {
-			omode = MCAST_EXCLUDE;
-			add = 1;
-		} else if (optname == MCAST_UNBLOCK_SOURCE) {
-			omode = MCAST_EXCLUDE;
-			add = 0;
-		} else if (optname == MCAST_JOIN_SOURCE_GROUP) {
-			struct ip_mreqn mreq;
-
-			psin = (struct sockaddr_in *)&greqs.gsr_group;
-			mreq.imr_multiaddr = psin->sin_addr;
-			mreq.imr_address.s_addr = 0;
-			mreq.imr_ifindex = greqs.gsr_interface;
-			err = ip_mc_join_group_ssm(sk, &mreq, MCAST_INCLUDE);
-			if (err && err != -EADDRINUSE)
-				break;
-			greqs.gsr_interface = mreq.imr_ifindex;
-			omode = MCAST_INCLUDE;
-			add = 1;
-		} else /* MCAST_LEAVE_SOURCE_GROUP */ {
-			omode = MCAST_INCLUDE;
-			add = 0;
-		}
-		err = ip_mc_source(add, omode, sk, &mreqs,
-				   greqs.gsr_interface);
+		err = do_mcast_group_source(sk, optname, &greqs);
 		break;
 	}
 	case MCAST_MSFILTER:
