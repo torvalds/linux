@@ -34,6 +34,7 @@ algorithms work.
    quota
    seq_file
    sharedsubtree
+   sysfs-pci
 
    automount-support
 
