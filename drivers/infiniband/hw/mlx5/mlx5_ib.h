@@ -450,7 +450,8 @@ struct mlx5_ib_qp {
 	int			scat_cqe;
 	int			max_inline_data;
 	struct mlx5_bf	        bf;
-	int			has_rq;
+	u8			has_rq:1;
+	u8			is_rss:1;
 
 	/* only for user space QPs. For kernel
 	 * we have it from the bf object
@@ -479,24 +480,6 @@ struct mlx5_ib_cq_buf {
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
-};
-
-enum mlx5_ib_qp_flags {
-	MLX5_IB_QP_LSO                          = IB_QP_CREATE_IPOIB_UD_LSO,
-	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
-	MLX5_IB_QP_CROSS_CHANNEL            = IB_QP_CREATE_CROSS_CHANNEL,
-	MLX5_IB_QP_MANAGED_SEND             = IB_QP_CREATE_MANAGED_SEND,
-	MLX5_IB_QP_MANAGED_RECV             = IB_QP_CREATE_MANAGED_RECV,
-	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
-	/* QP uses 1 as its source QP number */
-	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
-	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
-	MLX5_IB_QP_RSS				= 1 << 8,
-	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
-	MLX5_IB_QP_UNDERLAY			= 1 << 10,
-	MLX5_IB_QP_PCI_WRITE_END_PADDING	= 1 << 11,
-	MLX5_IB_QP_TUNNEL_OFFLOAD		= 1 << 12,
-	MLX5_IB_QP_PACKET_BASED_CREDIT		= 1 << 13,
 };
 
 struct mlx5_umr_wr {

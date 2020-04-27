@@ -142,7 +142,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 			return -EINVAL;
 
 		mqp = to_mqp(qp);
-		if (mqp->flags & MLX5_IB_QP_RSS)
+		if (mqp->is_rss)
 			dest_id = mqp->rss_qp.tirn;
 		else
 			dest_id = mqp->raw_packet_qp.rq.tirn;

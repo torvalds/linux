@@ -615,7 +615,7 @@ static bool devx_is_valid_obj_id(struct uverbs_attr_bundle *attrs,
 		enum ib_qp_type	qp_type = qp->ibqp.qp_type;
 
 		if (qp_type == IB_QPT_RAW_PACKET ||
-		    (qp->flags & MLX5_IB_QP_UNDERLAY)) {
+		    (qp->flags & IB_QP_CREATE_SOURCE_QPN)) {
 			struct mlx5_ib_raw_packet_qp *raw_packet_qp =
 							 &qp->raw_packet_qp;
 			struct mlx5_ib_rq *rq = &raw_packet_qp->rq;
