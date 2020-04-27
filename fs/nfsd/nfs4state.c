@@ -3485,6 +3485,45 @@ __be32 nfsd4_backchannel_ctl(struct svc_rqst *rqstp,
 	return nfs_ok;
 }
 
+static struct nfsd4_conn *__nfsd4_find_conn(struct svc_xprt *xpt, struct nfsd4_session *s)
+{
+	struct nfsd4_conn *c;
+
+	list_for_each_entry(c, &s->se_conns, cn_persession) {
+		if (c->cn_xprt == xpt) {
+			return c;
+		}
+	}
+	return NULL;
+}
+
+static __be32 nfsd4_match_existing_connection(struct svc_rqst *rqst,
+				struct nfsd4_session *session, u32 req)
+{
+	struct nfs4_client *clp = session->se_client;
+	struct svc_xprt *xpt = rqst->rq_xprt;
+	struct nfsd4_conn *c;
+	__be32 status;
+
+	/* Following the last paragraph of RFC 5661 Section 18.34.3: */
+	spin_lock(&clp->cl_lock);
+	c = __nfsd4_find_conn(xpt, session);
+	if (!c)
+		status = nfserr_noent;
+	else if (req == c->cn_flags)
+		status = nfs_ok;
+	else if (req == NFS4_CDFC4_FORE_OR_BOTH &&
+				c->cn_flags != NFS4_CDFC4_BACK)
+		status = nfs_ok;
+	else if (req == NFS4_CDFC4_BACK_OR_BOTH &&
+				c->cn_flags != NFS4_CDFC4_FORE)
+		status = nfs_ok;
+	else
+		status = nfserr_inval;
+	spin_unlock(&clp->cl_lock);
+	return status;
+}
+
 __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
 		     union nfsd4_op_u *u)
@@ -3505,6 +3544,9 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		goto out_no_session;
 	status = nfserr_wrong_cred;
 	if (!nfsd4_mach_creds_match(session->se_client, rqstp))
+		goto out;
+	status = nfsd4_match_existing_connection(rqstp, session, bcts->dir);
+	if (status == nfs_ok || status == nfserr_inval)
 		goto out;
 	status = nfsd4_map_bcts_dir(&bcts->dir);
 	if (status)
@@ -3569,18 +3611,6 @@ out_client_lock:
 	spin_unlock(&nn->client_lock);
 out:
 	return status;
-}
-
-static struct nfsd4_conn *__nfsd4_find_conn(struct svc_xprt *xpt, struct nfsd4_session *s)
-{
-	struct nfsd4_conn *c;
-
-	list_for_each_entry(c, &s->se_conns, cn_persession) {
-		if (c->cn_xprt == xpt) {
-			return c;
-		}
-	}
-	return NULL;
 }
 
 static __be32 nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_session *ses)
