@@ -97,12 +97,7 @@ static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 	if (likely(!__mptcp_needs_tcp_fallback(msk)))
 		return NULL;
 
-	if (msk->subflow) {
-		release_sock((struct sock *)msk);
-		return msk->subflow;
-	}
-
-	return NULL;
+	return msk->subflow;
 }
 
 static bool __mptcp_can_create_subflow(const struct mptcp_sock *msk)
@@ -734,9 +729,10 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			goto out;
 	}
 
+fallback:
 	ssock = __mptcp_tcp_fallback(msk);
 	if (unlikely(ssock)) {
-fallback:
+		release_sock(sk);
 		pr_debug("fallback passthrough");
 		ret = sock_sendmsg(ssock, msg);
 		return ret >= 0 ? ret + copied : (copied ? copied : ret);
@@ -769,8 +765,14 @@ fallback:
 		if (ret < 0)
 			break;
 		if (ret == 0 && unlikely(__mptcp_needs_tcp_fallback(msk))) {
+			/* Can happen for passive sockets:
+			 * 3WHS negotiated MPTCP, but first packet after is
+			 * plain TCP (e.g. due to middlebox filtering unknown
+			 * options).
+			 *
+			 * Fall back to TCP.
+			 */
 			release_sock(ssk);
-			ssock = __mptcp_tcp_fallback(msk);
 			goto fallback;
 		}
 
@@ -883,6 +885,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	ssock = __mptcp_tcp_fallback(msk);
 	if (unlikely(ssock)) {
 fallback:
+		release_sock(sk);
 		pr_debug("fallback-read subflow=%p",
 			 mptcp_subflow_ctx(ssock->sk));
 		copied = sock_recvmsg(ssock, msg, flags);
@@ -1329,7 +1332,9 @@ static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 }
 #endif
 
-struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
+struct sock *mptcp_sk_clone(const struct sock *sk,
+			    const struct tcp_options_received *opt_rx,
+			    struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
@@ -1352,26 +1357,30 @@ struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 	msk->subflow = NULL;
 
 	if (unlikely(mptcp_token_new_accept(subflow_req->token, nsk))) {
+		nsk->sk_state = TCP_CLOSE;
 		bh_unlock_sock(nsk);
 
 		/* we can't call into mptcp_close() here - possible BH context
-		 * free the sock directly
+		 * free the sock directly.
+		 * sk_clone_lock() sets nsk refcnt to two, hence call sk_free()
+		 * too.
 		 */
-		nsk->sk_prot->destroy(nsk);
+		sk_common_release(nsk);
 		sk_free(nsk);
 		return NULL;
 	}
 
 	msk->write_seq = subflow_req->idsn + 1;
 	atomic64_set(&msk->snd_una, msk->write_seq);
-	if (subflow_req->remote_key_valid) {
+	if (opt_rx->mptcp.mp_capable) {
 		msk->can_ack = true;
-		msk->remote_key = subflow_req->remote_key;
+		msk->remote_key = opt_rx->mptcp.sndr_key;
 		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
 		ack_seq++;
 		msk->ack_seq = ack_seq;
 	}
 
+	sock_reset_flag(nsk, SOCK_RCU_FREE);
 	/* will be fully established after successful MPC subflow creation */
 	inet_sk_state_store(nsk, TCP_SYN_RECV);
 	bh_unlock_sock(nsk);
@@ -1428,6 +1437,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
+		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
 		bh_unlock_sock(new_mptcp_sock);
 
@@ -1467,11 +1477,10 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_tcp_fallback(msk);
+	release_sock(sk);
 	if (ssock)
 		return tcp_setsockopt(ssock->sk, level, optname, optval,
 				      optlen);
-
-	release_sock(sk);
 
 	return -EOPNOTSUPP;
 }
@@ -1492,11 +1501,10 @@ static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_tcp_fallback(msk);
+	release_sock(sk);
 	if (ssock)
 		return tcp_getsockopt(ssock->sk, level, optname, optval,
 				      option);
-
-	release_sock(sk);
 
 	return -EOPNOTSUPP;
 }
@@ -1773,6 +1781,8 @@ static int mptcp_listen(struct socket *sock, int backlog)
 		err = PTR_ERR(ssock);
 		goto unlock;
 	}
+
+	sock_set_flag(sock->sk, SOCK_RCU_FREE);
 
 	err = ssock->ops->listen(ssock, backlog);
 	inet_sk_state_store(sock->sk, inet_sk_state_load(ssock->sk));

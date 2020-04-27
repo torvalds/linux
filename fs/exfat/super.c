@@ -49,6 +49,7 @@ static void exfat_put_super(struct super_block *sb)
 		sync_blockdev(sb->s_bdev);
 	exfat_set_vol_flags(sb, VOL_CLEAN);
 	exfat_free_bitmap(sbi);
+	brelse(sbi->pbr_bh);
 	mutex_unlock(&sbi->s_lock);
 
 	call_rcu(&sbi->rcu, exfat_delayed_free);
@@ -100,7 +101,7 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct pbr64 *bpb;
+	struct pbr64 *bpb = (struct pbr64 *)sbi->pbr_bh->b_data;
 	bool sync = 0;
 
 	/* flags are not changed */
@@ -115,15 +116,6 @@ int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 	if (sb_rdonly(sb))
 		return 0;
 
-	if (!sbi->pbr_bh) {
-		sbi->pbr_bh = sb_bread(sb, 0);
-		if (!sbi->pbr_bh) {
-			exfat_msg(sb, KERN_ERR, "failed to read boot sector");
-			return -ENOMEM;
-		}
-	}
-
-	bpb = (struct pbr64 *)sbi->pbr_bh->b_data;
 	bpb->bsx.vol_flags = cpu_to_le16(new_flag);
 
 	if (new_flag == VOL_DIRTY && !buffer_dirty(sbi->pbr_bh))
@@ -159,7 +151,6 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",iocharset=utf8");
 	else if (sbi->nls_io)
 		seq_printf(m, ",iocharset=%s", sbi->nls_io->charset);
-	seq_printf(m, ",bps=%ld", sb->s_blocksize);
 	if (opts->errors == EXFAT_ERRORS_CONT)
 		seq_puts(m, ",errors=continue");
 	else if (opts->errors == EXFAT_ERRORS_PANIC)
@@ -351,14 +342,15 @@ static int exfat_read_root(struct inode *inode)
 	exfat_save_attr(inode, ATTR_SUBDIR);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = ei->i_crtime =
 		current_time(inode);
+	exfat_truncate_atime(&inode->i_atime);
 	exfat_cache_init_inode(inode);
 	return 0;
 }
 
-static struct pbr *exfat_read_pbr_with_logical_sector(struct super_block *sb,
-		struct buffer_head **prev_bh)
+static struct pbr *exfat_read_pbr_with_logical_sector(struct super_block *sb)
 {
-	struct pbr *p_pbr = (struct pbr *) (*prev_bh)->b_data;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	struct pbr *p_pbr = (struct pbr *) (sbi->pbr_bh)->b_data;
 	unsigned short logical_sect = 0;
 
 	logical_sect = 1 << p_pbr->bsx.f64.sect_size_bits;
@@ -378,26 +370,23 @@ static struct pbr *exfat_read_pbr_with_logical_sector(struct super_block *sb,
 	}
 
 	if (logical_sect > sb->s_blocksize) {
-		struct buffer_head *bh = NULL;
-
-		__brelse(*prev_bh);
-		*prev_bh = NULL;
+		brelse(sbi->pbr_bh);
+		sbi->pbr_bh = NULL;
 
 		if (!sb_set_blocksize(sb, logical_sect)) {
 			exfat_msg(sb, KERN_ERR,
 				"unable to set blocksize %u", logical_sect);
 			return NULL;
 		}
-		bh = sb_bread(sb, 0);
-		if (!bh) {
+		sbi->pbr_bh = sb_bread(sb, 0);
+		if (!sbi->pbr_bh) {
 			exfat_msg(sb, KERN_ERR,
 				"unable to read boot sector (logical sector size = %lu)",
 				sb->s_blocksize);
 			return NULL;
 		}
 
-		*prev_bh = bh;
-		p_pbr = (struct pbr *) bh->b_data;
+		p_pbr = (struct pbr *)sbi->pbr_bh->b_data;
 	}
 	return p_pbr;
 }
@@ -408,21 +397,20 @@ static int __exfat_fill_super(struct super_block *sb)
 	int ret;
 	struct pbr *p_pbr;
 	struct pbr64 *p_bpb;
-	struct buffer_head *bh;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
 	/* set block size to read super block */
 	sb_min_blocksize(sb, 512);
 
 	/* read boot sector */
-	bh = sb_bread(sb, 0);
-	if (!bh) {
+	sbi->pbr_bh = sb_bread(sb, 0);
+	if (!sbi->pbr_bh) {
 		exfat_msg(sb, KERN_ERR, "unable to read boot sector");
 		return -EIO;
 	}
 
 	/* PRB is read */
-	p_pbr = (struct pbr *)bh->b_data;
+	p_pbr = (struct pbr *)sbi->pbr_bh->b_data;
 
 	/* check the validity of PBR */
 	if (le16_to_cpu((p_pbr->signature)) != PBR_SIGNATURE) {
@@ -433,7 +421,7 @@ static int __exfat_fill_super(struct super_block *sb)
 
 
 	/* check logical sector size */
-	p_pbr = exfat_read_pbr_with_logical_sector(sb, &bh);
+	p_pbr = exfat_read_pbr_with_logical_sector(sb);
 	if (!p_pbr) {
 		ret = -EIO;
 		goto free_bh;
@@ -514,7 +502,7 @@ free_alloc_bitmap:
 free_upcase_table:
 	exfat_free_upcase_table(sbi);
 free_bh:
-	brelse(bh);
+	brelse(sbi->pbr_bh);
 	return ret;
 }
 
@@ -531,17 +519,18 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (opts->discard) {
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 
-		if (!blk_queue_discard(q))
+		if (!blk_queue_discard(q)) {
 			exfat_msg(sb, KERN_WARNING,
 				"mounting with \"discard\" option, but the device does not support discard");
-		opts->discard = 0;
+			opts->discard = 0;
+		}
 	}
 
 	sb->s_flags |= SB_NODIRATIME;
 	sb->s_magic = EXFAT_SUPER_MAGIC;
 	sb->s_op = &exfat_sops;
 
-	sb->s_time_gran = 1;
+	sb->s_time_gran = 10 * NSEC_PER_MSEC;
 	sb->s_time_min = EXFAT_MIN_TIMESTAMP_SECS;
 	sb->s_time_max = EXFAT_MAX_TIMESTAMP_SECS;
 
@@ -605,6 +594,7 @@ put_inode:
 free_table:
 	exfat_free_upcase_table(sbi);
 	exfat_free_bitmap(sbi);
+	brelse(sbi->pbr_bh);
 
 check_nls_io:
 	unload_nls(sbi->nls_io);
@@ -717,6 +707,7 @@ static void __exit exit_exfat_fs(void)
 module_init(init_exfat_fs);
 module_exit(exit_exfat_fs);
 
+MODULE_ALIAS_FS("exfat");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("exFAT filesystem support");
 MODULE_AUTHOR("Samsung Electronics Co., Ltd.");

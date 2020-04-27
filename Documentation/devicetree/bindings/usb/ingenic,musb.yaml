@@ -56,7 +56,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/jz4740-cgu.h>
-    usb_phy: usb-phy@0 {
+    usb_phy: usb-phy {
       compatible = "usb-nop-xceiv";
       #phy-cells = <0>;
     };

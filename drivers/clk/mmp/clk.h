@@ -238,13 +238,6 @@ void mmp_register_pll_clks(struct mmp_clk_unit *unit,
 			struct mmp_param_pll_clk *clks,
 			void __iomem *base, int size);
 
-extern struct clk *mmp_clk_register_pll(char *name,
-			unsigned long default_rate,
-			void __iomem *enable_reg, u32 enable,
-			void __iomem *reg, u8 shift,
-			unsigned long input_rate,
-			void __iomem *postdiv_reg, u8 postdiv_shift);
-
 #define DEFINE_MIX_REG_INFO(w_d, s_d, w_m, s_m, fc)	\
 {							\
 	.width_div = (w_d),				\

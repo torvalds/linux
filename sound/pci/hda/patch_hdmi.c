@@ -38,6 +38,10 @@ static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
 MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
+static bool enable_acomp = true;
+module_param(enable_acomp, bool, 0444);
+MODULE_PARM_DESC(enable_acomp, "Enable audio component binding (default=yes)");
+
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
 	int assigned;
@@ -2504,6 +2508,11 @@ static void generic_acomp_init(struct hda_codec *codec,
 			       int (*port2pin)(struct hda_codec *, int))
 {
 	struct hdmi_spec *spec = codec->spec;
+
+	if (!enable_acomp) {
+		codec_info(codec, "audio component disabled by module option\n");
+		return;
+	}
 
 	spec->port2pin = port2pin;
 	setup_drm_audio_ops(codec, ops);
