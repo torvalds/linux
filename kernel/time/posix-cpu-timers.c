@@ -113,14 +113,14 @@ static inline int validate_clock_permissions(const clockid_t clock)
 	return ret;
 }
 
-static inline enum pid_type cpu_timer_pid_type(struct k_itimer *timer)
+static inline enum pid_type clock_pid_type(const clockid_t clock)
 {
-	return CPUCLOCK_PERTHREAD(timer->it_clock) ? PIDTYPE_PID : PIDTYPE_TGID;
+	return CPUCLOCK_PERTHREAD(clock) ? PIDTYPE_PID : PIDTYPE_TGID;
 }
 
 static inline struct task_struct *cpu_timer_task_rcu(struct k_itimer *timer)
 {
-	return pid_task(timer->it.cpu.pid, cpu_timer_pid_type(timer));
+	return pid_task(timer->it.cpu.pid, clock_pid_type(timer->it_clock));
 }
 
 /*
@@ -403,7 +403,7 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
 
 	new_timer->kclock = &clock_posix_cpu;
 	timerqueue_init(&new_timer->it.cpu.node);
-	new_timer->it.cpu.pid = get_task_pid(p, cpu_timer_pid_type(new_timer));
+	new_timer->it.cpu.pid = get_task_pid(p, clock_pid_type(new_timer->it_clock));
 	rcu_read_unlock();
 	return 0;
 }
