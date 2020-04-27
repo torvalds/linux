@@ -507,6 +507,7 @@ static int stm32_hash_hmac_dma_send(struct stm32_hash_dev *hdev)
 static int stm32_hash_dma_init(struct stm32_hash_dev *hdev)
 {
 	struct dma_slave_config dma_conf;
+	struct dma_chan *chan;
 	int err;
 
 	memset(&dma_conf, 0, sizeof(dma_conf));
@@ -518,11 +519,11 @@ static int stm32_hash_dma_init(struct stm32_hash_dev *hdev)
 	dma_conf.dst_maxburst = hdev->dma_maxburst;
 	dma_conf.device_fc = false;
 
-	hdev->dma_lch = dma_request_chan(hdev->dev, "in");
-	if (IS_ERR(hdev->dma_lch)) {
-		dev_err(hdev->dev, "Couldn't acquire a slave DMA channel.\n");
-		return PTR_ERR(hdev->dma_lch);
-	}
+	chan = dma_request_chan(hdev->dev, "in");
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	hdev->dma_lch = chan;
 
 	err = dmaengine_slave_config(hdev->dma_lch, &dma_conf);
 	if (err) {
@@ -1498,8 +1499,15 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hdev);
 
 	ret = stm32_hash_dma_init(hdev);
-	if (ret)
+	switch (ret) {
+	case 0:
+		break;
+	case -ENOENT:
 		dev_dbg(dev, "DMA mode not available\n");
+		break;
+	default:
+		goto err_dma;
+	}
 
 	spin_lock(&stm32_hash.lock);
 	list_add_tail(&hdev->list, &stm32_hash.dev_list);
@@ -1537,7 +1545,7 @@ err_engine:
 	spin_lock(&stm32_hash.lock);
 	list_del(&hdev->list);
 	spin_unlock(&stm32_hash.lock);
-
+err_dma:
 	if (hdev->dma_lch)
 		dma_release_channel(hdev->dma_lch);
 err_reset:
