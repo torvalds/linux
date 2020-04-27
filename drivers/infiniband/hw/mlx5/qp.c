@@ -1916,18 +1916,16 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct mlx5_ib_create_qp *ucmd,
-			    struct ib_udata *udata, struct mlx5_ib_qp *qp)
+			    struct ib_udata *udata, struct mlx5_ib_qp *qp,
+			    u32 uidx)
 {
 	struct mlx5_ib_resources *devr = &dev->devr;
 	int inlen = MLX5_ST_SZ_BYTES(create_qp_in);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_ib_create_qp_resp resp = {};
-	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
-		udata, struct mlx5_ib_ucontext, ibucontext);
 	struct mlx5_ib_cq *send_cq;
 	struct mlx5_ib_cq *recv_cq;
 	unsigned long flags;
-	u32 uidx = MLX5_IB_DEFAULT_UIDX;
 	struct mlx5_ib_qp_base *base;
 	int mlx5_st;
 	void *qpc;
@@ -1944,12 +1942,6 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
-
-	if (udata) {
-		err = get_qp_user_index(ucontext, ucmd, udata->inlen, &uidx);
-		if (err)
-			return err;
-	}
 
 	if (qp->flags & IB_QP_CREATE_SOURCE_QPN)
 		qp->underlay_qpn = init_attr->source_qpn;
@@ -2329,17 +2321,9 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 static int create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 		      struct ib_qp_init_attr *attr,
-		      struct mlx5_ib_create_qp *ucmd, struct ib_udata *udata)
+		      struct mlx5_ib_create_qp *ucmd, u32 uidx)
 {
-	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
-		udata, struct mlx5_ib_ucontext, ibucontext);
-	int err = 0;
-	u32 uidx = MLX5_IB_DEFAULT_UIDX;
 	void *dctc;
-
-	err = get_qp_user_index(ucontext, ucmd, sizeof(*ucmd), &uidx);
-	if (err)
-		return err;
 
 	qp->dct.in = kzalloc(MLX5_ST_SZ_BYTES(create_dct_in), GFP_KERNEL);
 	if (!qp->dct.in)
@@ -2651,14 +2635,14 @@ static size_t process_udata_size(struct ib_qp_init_attr *attr,
 
 static int create_raw_qp(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 			 struct ib_qp_init_attr *attr, void *ucmd,
-			 struct ib_udata *udata)
+			 struct ib_udata *udata, u32 uidx)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 
 	if (attr->rwq_ind_tbl)
 		return create_rss_raw_qp_tir(pd, qp, attr, ucmd, udata);
 
-	return create_qp_common(dev, pd, attr, ucmd, udata, qp);
+	return create_qp_common(dev, pd, attr, ucmd, udata, qp, uidx);
 }
 
 static int check_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
@@ -2688,10 +2672,24 @@ static int check_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	return ret;
 }
 
+static int get_qp_uidx(struct mlx5_ib_qp *qp, struct ib_udata *udata,
+		       struct mlx5_ib_create_qp *ucmd,
+		       struct ib_qp_init_attr *attr, u32 *uidx)
+{
+	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
+
+	if (attr->rwq_ind_tbl)
+		return 0;
+
+	return get_qp_user_index(ucontext, ucmd, sizeof(*ucmd), uidx);
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
 {
+	u32 uidx = MLX5_IB_DEFAULT_UIDX;
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;
 	enum ib_qp_type type;
@@ -2743,6 +2741,10 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		err = process_vendor_flags(dev, qp, ucmd, init_attr);
 		if (err)
 			goto free_qp;
+
+		err = get_qp_uidx(qp, udata, ucmd, init_attr, &uidx);
+		if (err)
+			goto free_qp;
 	}
 	err = process_create_flags(dev, qp, init_attr);
 	if (err)
@@ -2757,13 +2759,14 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 
 	switch (qp->type) {
 	case IB_QPT_RAW_PACKET:
-		err = create_raw_qp(pd, qp, init_attr, ucmd, udata);
+		err = create_raw_qp(pd, qp, init_attr, ucmd, udata, uidx);
 		break;
 	case MLX5_IB_QPT_DCT:
-		err = create_dct(pd, qp, init_attr, ucmd, udata);
+		err = create_dct(pd, qp, init_attr, ucmd, uidx);
 		break;
 	default:
-		err = create_qp_common(dev, pd, init_attr, ucmd, udata, qp);
+		err = create_qp_common(dev, pd, init_attr, ucmd, udata, qp,
+				       uidx);
 	}
 	if (err) {
 		mlx5_ib_dbg(dev, "create_qp_common failed\n");
