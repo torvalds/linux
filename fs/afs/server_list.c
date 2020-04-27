@@ -46,6 +46,9 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 	refcount_set(&slist->usage, 1);
 	rwlock_init(&slist->lock);
 
+	for (i = 0; i < AFS_MAXTYPES; i++)
+		slist->vids[i] = vldb->vid[i];
+
 	/* Make sure a records exists for each server in the list. */
 	for (i = 0; i < vldb->nr_servers; i++) {
 		if (!(vldb->fs_mask[i] & type_mask))

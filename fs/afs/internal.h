@@ -546,7 +546,7 @@ struct afs_cb_interest {
 };
 
 /*
- * Replaceable server list.
+ * Replaceable volume server list.
  */
 struct afs_server_entry {
 	struct afs_server	*server;
@@ -554,6 +554,7 @@ struct afs_server_entry {
 };
 
 struct afs_server_list {
+	afs_volid_t		vids[AFS_MAXTYPES]; /* Volume IDs */
 	refcount_t		usage;
 	unsigned char		nr_servers;
 	unsigned char		preferred;	/* Preferred server */
