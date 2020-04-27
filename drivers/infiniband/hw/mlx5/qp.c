@@ -1232,22 +1232,13 @@ static void destroy_qp_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
 {
 	if (attr->srq || (attr->qp_type == IB_QPT_XRC_TGT) ||
-	    (attr->qp_type == MLX5_IB_QPT_DCI) ||
+	    (qp->qp_sub_type == MLX5_IB_QPT_DCI) ||
 	    (attr->qp_type == IB_QPT_XRC_INI))
 		return MLX5_SRQ_RQ;
 	else if (!qp->has_rq)
 		return MLX5_ZERO_LEN_RQ;
 	else
 		return MLX5_NON_ZERO_RQ;
-}
-
-static int is_connected(enum ib_qp_type qp_type)
-{
-	if (qp_type == IB_QPT_RC || qp_type == IB_QPT_UC ||
-	    qp_type == MLX5_IB_QPT_DCI)
-		return 1;
-
-	return 0;
 }
 
 static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
@@ -1897,32 +1888,13 @@ err:
 	return err;
 }
 
-static void configure_responder_scat_cqe(struct ib_qp_init_attr *init_attr,
-					 void *qpc)
-{
-	int rcqe_sz;
-
-	if (init_attr->qp_type == MLX5_IB_QPT_DCI)
-		return;
-
-	rcqe_sz = mlx5_ib_get_cqe_size(init_attr->recv_cq);
-
-	MLX5_SET(qpc, qpc, cs_res,
-		 rcqe_sz == 128 ? MLX5_RES_SCAT_DATA64_CQE :
-				  MLX5_RES_SCAT_DATA32_CQE);
-}
-
 static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 					 struct ib_qp_init_attr *init_attr,
 					 struct mlx5_ib_create_qp *ucmd,
 					 void *qpc)
 {
-	enum ib_qp_type qpt = init_attr->qp_type;
 	int scqe_sz;
 	bool allow_scat_cqe = false;
-
-	if (qpt == IB_QPT_UC || qpt == IB_QPT_UD)
-		return;
 
 	if (ucmd)
 		allow_scat_cqe = ucmd->flags & MLX5_QP_FLAG_ALLOW_SCATTER_CQE;
@@ -2018,7 +1990,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 
-	mlx5_st = to_mlx5_st(init_attr->qp_type);
+	mlx5_st = to_mlx5_st((init_attr->qp_type != IB_QPT_DRIVER) ?
+				     init_attr->qp_type :
+				     qp->qp_sub_type);
 	if (mlx5_st < 0)
 		return -EINVAL;
 
@@ -2240,12 +2214,20 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, cd_slave_receive, 1);
 	if (qp->flags & MLX5_IB_QP_PACKET_BASED_CREDIT)
 		MLX5_SET(qpc, qpc, req_e2e_credit_mode, 1);
-	if (qp->scat_cqe && is_connected(init_attr->qp_type)) {
-		configure_responder_scat_cqe(init_attr, qpc);
+	if (qp->scat_cqe && (init_attr->qp_type == IB_QPT_RC ||
+			     init_attr->qp_type == IB_QPT_UC)) {
+		int rcqe_sz = rcqe_sz =
+			mlx5_ib_get_cqe_size(init_attr->recv_cq);
+
+		MLX5_SET(qpc, qpc, cs_res,
+			 rcqe_sz == 128 ? MLX5_RES_SCAT_DATA64_CQE :
+					  MLX5_RES_SCAT_DATA32_CQE);
+	}
+	if (qp->scat_cqe && (qp->qp_sub_type == MLX5_IB_QPT_DCI ||
+			     init_attr->qp_type == IB_QPT_RC))
 		configure_requester_scat_cqe(dev, init_attr,
 					     udata ? &ucmd : NULL,
 					     qpc);
-	}
 
 	if (qp->rq.wqe_cnt) {
 		MLX5_SET(qpc, qpc, log_rq_stride, qp->rq.wqe_shift - 4);
