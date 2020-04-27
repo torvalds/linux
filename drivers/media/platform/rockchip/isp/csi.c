@@ -539,7 +539,7 @@ void rkisp_csi_sof(struct rkisp_device *dev, u8 id)
 	default:
 		return;
 	}
-	dev->csi_dev.filt_state[CSI_F_VS] = 1;
+
 	rkisp_isp_queue_event_sof(&dev->isp_sdev);
 }
 

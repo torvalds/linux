@@ -2023,7 +2023,6 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		/* filt v_sync when frame read back mode */
 		if (dev->csi_dev.filt_state[CSI_F_VS]) {
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
-			dev->csi_dev.filt_state[CSI_F_VS]--;
 			goto vs_skip;
 		}
 		if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
