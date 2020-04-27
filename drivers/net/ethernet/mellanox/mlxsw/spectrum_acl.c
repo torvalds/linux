@@ -704,14 +704,13 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 
 	block->egress_blocker_rule_count -= rule->rulei->egress_bind_blocker;
 	block->ingress_blocker_rule_count -= rule->rulei->ingress_bind_blocker;
-	ruleset->ht_key.block->rule_count--;
+	block->rule_count--;
 	mutex_lock(&mlxsw_sp->acl->rules_lock);
 	list_del(&rule->list);
 	mutex_unlock(&mlxsw_sp->acl->rules_lock);
 	if (!ruleset->ht_key.chain_index &&
 	    mlxsw_sp_acl_ruleset_is_singular(ruleset))
-		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset,
-						  ruleset->ht_key.block);
+		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset, block);
 	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);
