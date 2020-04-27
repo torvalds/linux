@@ -55,6 +55,7 @@ Contents:
    dns_resolver
    driver
    eql
+   fib_trie
 
 .. only::  subproject and html
 

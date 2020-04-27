@@ -1,8 +1,12 @@
-			LC-trie implementation notes.
+.. SPDX-License-Identifier: GPL-2.0
+
+============================
+LC-trie implementation notes
+============================
 
 Node types
 ----------
-leaf 
+leaf
 	An end node with data. This has a copy of the relevant key, along
 	with 'hlist' with routing table entries sorted by prefix length.
 	See struct leaf and struct leaf_info.
@@ -13,7 +17,7 @@ trie node or tnode
 
 A few concepts explained
 ------------------------
-Bits (tnode) 
+Bits (tnode)
 	The number of bits in the key segment used for indexing into the
 	child array - the "child index". See Level Compression.
 
@@ -23,7 +27,7 @@ Pos (tnode)
 
 Path Compression / skipped bits
 	Any given tnode is linked to from the child array of its parent, using
-	a segment of the key specified by the parent's "pos" and "bits" 
+	a segment of the key specified by the parent's "pos" and "bits"
 	In certain cases, this tnode's own "pos" will not be immediately
 	adjacent to the parent (pos+bits), but there will be some bits
 	in the key skipped over because they represent a single path with no
@@ -56,8 +60,8 @@ full_children
 Comments
 ---------
 
-We have tried to keep the structure of the code as close to fib_hash as 
-possible to allow verification and help up reviewing. 
+We have tried to keep the structure of the code as close to fib_hash as
+possible to allow verification and help up reviewing.
 
 fib_find_node()
 	A good start for understanding this code. This function implements a
