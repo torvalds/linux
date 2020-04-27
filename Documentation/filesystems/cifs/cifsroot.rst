@@ -1,7 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================================
 Mounting root file system via SMB (cifs.ko)
 ===========================================
 
 Written 2019 by Paulo Alcantara <palcantara@suse.de>
+
 Written 2019 by Aurelien Aptel <aaptel@suse.com>
 
 The CONFIG_CIFS_ROOT option enables experimental root file system
@@ -32,7 +36,7 @@ Server configuration
 ====================
 
 To enable SMB1+UNIX extensions you will need to set these global
-settings in Samba smb.conf:
+settings in Samba smb.conf::
 
     [global]
     server min protocol = NT1
@@ -41,12 +45,16 @@ settings in Samba smb.conf:
 Kernel command line
 ===================
 
-root=/dev/cifs
+::
+
+    root=/dev/cifs
 
 This is just a virtual device that basically tells the kernel to mount
 the root file system via SMB protocol.
 
-cifsroot=//<server-ip>/<share>[,options]
+::
+
+    cifsroot=//<server-ip>/<share>[,options]
 
 Enables the kernel to mount the root file system via SMB that are
 located in the <server-ip> and <share> specified in this option.
@@ -65,33 +73,33 @@ options
 Examples
 ========
 
-Export root file system as a Samba share in smb.conf file.
+Export root file system as a Samba share in smb.conf file::
 
-...
-[linux]
-	path = /path/to/rootfs
-	read only = no
-	guest ok = yes
-	force user = root
-	force group = root
-	browseable = yes
-	writeable = yes
-	admin users = root
-	public = yes
-	create mask = 0777
-	directory mask = 0777
-...
+    ...
+    [linux]
+	    path = /path/to/rootfs
+	    read only = no
+	    guest ok = yes
+	    force user = root
+	    force group = root
+	    browseable = yes
+	    writeable = yes
+	    admin users = root
+	    public = yes
+	    create mask = 0777
+	    directory mask = 0777
+    ...
 
-Restart smb service.
+Restart smb service::
 
-# systemctl restart smb
+    # systemctl restart smb
 
 Test it under QEMU on a kernel built with CONFIG_CIFS_ROOT and
-CONFIG_IP_PNP options enabled.
+CONFIG_IP_PNP options enabled::
 
-# qemu-system-x86_64 -enable-kvm -cpu host -m 1024 \
-  -kernel /path/to/linux/arch/x86/boot/bzImage -nographic \
-  -append "root=/dev/cifs rw ip=dhcp cifsroot=//10.0.2.2/linux,username=foo,password=bar console=ttyS0 3"
+    # qemu-system-x86_64 -enable-kvm -cpu host -m 1024 \
+    -kernel /path/to/linux/arch/x86/boot/bzImage -nographic \
+    -append "root=/dev/cifs rw ip=dhcp cifsroot=//10.0.2.2/linux,username=foo,password=bar console=ttyS0 3"
 
 
 1: https://wiki.samba.org/index.php/UNIX_Extensions

@@ -59,6 +59,7 @@ Documentation for filesystem implementations.
    befs
    bfs
    btrfs
+   cifs/cifsroot
    ceph
    cramfs
    debugfs
