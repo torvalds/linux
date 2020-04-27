@@ -1544,23 +1544,23 @@ static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int
-mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_acl_block *acl_block,
+mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_flow_block *flow_block,
 			     struct flow_cls_offload *f)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_acl_block_mlxsw_sp(acl_block);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_flow_block_mlxsw_sp(flow_block);
 
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
-		return mlxsw_sp_flower_replace(mlxsw_sp, acl_block, f);
+		return mlxsw_sp_flower_replace(mlxsw_sp, flow_block, f);
 	case FLOW_CLS_DESTROY:
-		mlxsw_sp_flower_destroy(mlxsw_sp, acl_block, f);
+		mlxsw_sp_flower_destroy(mlxsw_sp, flow_block, f);
 		return 0;
 	case FLOW_CLS_STATS:
-		return mlxsw_sp_flower_stats(mlxsw_sp, acl_block, f);
+		return mlxsw_sp_flower_stats(mlxsw_sp, flow_block, f);
 	case FLOW_CLS_TMPLT_CREATE:
-		return mlxsw_sp_flower_tmplt_create(mlxsw_sp, acl_block, f);
+		return mlxsw_sp_flower_tmplt_create(mlxsw_sp, flow_block, f);
 	case FLOW_CLS_TMPLT_DESTROY:
-		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, acl_block, f);
+		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, flow_block, f);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -1607,16 +1607,16 @@ static int mlxsw_sp_setup_tc_block_cb_matchall_eg(enum tc_setup_type type,
 static int mlxsw_sp_setup_tc_block_cb_flower(enum tc_setup_type type,
 					     void *type_data, void *cb_priv)
 {
-	struct mlxsw_sp_acl_block *acl_block = cb_priv;
+	struct mlxsw_sp_flow_block *flow_block = cb_priv;
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
 		return 0;
 	case TC_SETUP_CLSFLOWER:
-		if (mlxsw_sp_acl_block_disabled(acl_block))
+		if (mlxsw_sp_flow_block_disabled(flow_block))
 			return -EOPNOTSUPP;
 
-		return mlxsw_sp_setup_tc_cls_flower(acl_block, type_data);
+		return mlxsw_sp_setup_tc_cls_flower(flow_block, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1624,9 +1624,9 @@ static int mlxsw_sp_setup_tc_block_cb_flower(enum tc_setup_type type,
 
 static void mlxsw_sp_tc_block_flower_release(void *cb_priv)
 {
-	struct mlxsw_sp_acl_block *acl_block = cb_priv;
+	struct mlxsw_sp_flow_block *flow_block = cb_priv;
 
-	mlxsw_sp_acl_block_destroy(acl_block);
+	mlxsw_sp_flow_block_destroy(flow_block);
 }
 
 static LIST_HEAD(mlxsw_sp_block_cb_list);
@@ -1636,7 +1636,7 @@ mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 			            struct flow_block_offload *f, bool ingress)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_acl_block *acl_block;
+	struct mlxsw_sp_flow_block *flow_block;
 	struct flow_block_cb *block_cb;
 	bool register_block = false;
 	int err;
@@ -1645,31 +1645,31 @@ mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 					mlxsw_sp_setup_tc_block_cb_flower,
 					mlxsw_sp);
 	if (!block_cb) {
-		acl_block = mlxsw_sp_acl_block_create(mlxsw_sp, f->net);
-		if (!acl_block)
+		flow_block = mlxsw_sp_flow_block_create(mlxsw_sp, f->net);
+		if (!flow_block)
 			return -ENOMEM;
 		block_cb = flow_block_cb_alloc(mlxsw_sp_setup_tc_block_cb_flower,
-					       mlxsw_sp, acl_block,
+					       mlxsw_sp, flow_block,
 					       mlxsw_sp_tc_block_flower_release);
 		if (IS_ERR(block_cb)) {
-			mlxsw_sp_acl_block_destroy(acl_block);
+			mlxsw_sp_flow_block_destroy(flow_block);
 			err = PTR_ERR(block_cb);
 			goto err_cb_register;
 		}
 		register_block = true;
 	} else {
-		acl_block = flow_block_cb_priv(block_cb);
+		flow_block = flow_block_cb_priv(block_cb);
 	}
 	flow_block_cb_incref(block_cb);
-	err = mlxsw_sp_acl_block_bind(mlxsw_sp, acl_block,
-				      mlxsw_sp_port, ingress, f->extack);
+	err = mlxsw_sp_flow_block_bind(mlxsw_sp, flow_block,
+				       mlxsw_sp_port, ingress, f->extack);
 	if (err)
 		goto err_block_bind;
 
 	if (ingress)
-		mlxsw_sp_port->ing_acl_block = acl_block;
+		mlxsw_sp_port->ing_flow_block = flow_block;
 	else
-		mlxsw_sp_port->eg_acl_block = acl_block;
+		mlxsw_sp_port->eg_flow_block = flow_block;
 
 	if (register_block) {
 		flow_block_cb_add(block_cb, f);
@@ -1687,10 +1687,11 @@ err_cb_register:
 
 static void
 mlxsw_sp_setup_tc_block_flower_unbind(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct flow_block_offload *f, bool ingress)
+				      struct flow_block_offload *f,
+				      bool ingress)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_acl_block *acl_block;
+	struct mlxsw_sp_flow_block *flow_block;
 	struct flow_block_cb *block_cb;
 	int err;
 
@@ -1701,13 +1702,13 @@ mlxsw_sp_setup_tc_block_flower_unbind(struct mlxsw_sp_port *mlxsw_sp_port,
 		return;
 
 	if (ingress)
-		mlxsw_sp_port->ing_acl_block = NULL;
+		mlxsw_sp_port->ing_flow_block = NULL;
 	else
-		mlxsw_sp_port->eg_acl_block = NULL;
+		mlxsw_sp_port->eg_flow_block = NULL;
 
-	acl_block = flow_block_cb_priv(block_cb);
-	err = mlxsw_sp_acl_block_unbind(mlxsw_sp, acl_block,
-					mlxsw_sp_port, ingress);
+	flow_block = flow_block_cb_priv(block_cb);
+	err = mlxsw_sp_flow_block_unbind(mlxsw_sp, flow_block,
+					 mlxsw_sp_port, ingress);
 	if (!err && !flow_block_cb_decref(block_cb)) {
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
@@ -1797,17 +1798,17 @@ static int mlxsw_sp_feature_hw_tc(struct net_device *dev, bool enable)
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	if (!enable) {
-		if (mlxsw_sp_acl_block_rule_count(mlxsw_sp_port->ing_acl_block) ||
-		    mlxsw_sp_acl_block_rule_count(mlxsw_sp_port->eg_acl_block) ||
+		if (mlxsw_sp_flow_block_rule_count(mlxsw_sp_port->ing_flow_block) ||
+		    mlxsw_sp_flow_block_rule_count(mlxsw_sp_port->eg_flow_block) ||
 		    !list_empty(&mlxsw_sp_port->mall_tc_list)) {
 			netdev_err(dev, "Active offloaded tc filters, can't turn hw_tc_offload off\n");
 			return -EINVAL;
 		}
-		mlxsw_sp_acl_block_disable_inc(mlxsw_sp_port->ing_acl_block);
-		mlxsw_sp_acl_block_disable_inc(mlxsw_sp_port->eg_acl_block);
+		mlxsw_sp_flow_block_disable_inc(mlxsw_sp_port->ing_flow_block);
+		mlxsw_sp_flow_block_disable_inc(mlxsw_sp_port->eg_flow_block);
 	} else {
-		mlxsw_sp_acl_block_disable_dec(mlxsw_sp_port->ing_acl_block);
-		mlxsw_sp_acl_block_disable_dec(mlxsw_sp_port->eg_acl_block);
+		mlxsw_sp_flow_block_disable_dec(mlxsw_sp_port->ing_flow_block);
+		mlxsw_sp_flow_block_disable_dec(mlxsw_sp_port->eg_flow_block);
 	}
 	return 0;
 }

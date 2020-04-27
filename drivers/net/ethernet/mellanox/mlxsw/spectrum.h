@@ -287,8 +287,8 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_vlan *default_vlan;
 	struct mlxsw_sp_qdisc_state *qdisc;
 	unsigned acl_rule_count;
-	struct mlxsw_sp_acl_block *ing_acl_block;
-	struct mlxsw_sp_acl_block *eg_acl_block;
+	struct mlxsw_sp_flow_block *ing_flow_block;
+	struct mlxsw_sp_flow_block *eg_flow_block;
 	struct {
 		struct delayed_work shaper_dw;
 		struct hwtstamp_config hwtstamp_config;
@@ -654,7 +654,7 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int counter_index;
 };
 
-struct mlxsw_sp_acl_block;
+struct mlxsw_sp_flow_block;
 struct mlxsw_sp_acl_ruleset;
 
 /* spectrum_acl.c */
@@ -663,7 +663,7 @@ enum mlxsw_sp_acl_profile {
 	MLXSW_SP_ACL_PROFILE_MR,
 };
 
-struct mlxsw_sp_acl_block {
+struct mlxsw_sp_flow_block {
 	struct list_head binding_list;
 	struct mlxsw_sp_acl_ruleset *ruleset_zero;
 	struct mlxsw_sp *mlxsw_sp;
@@ -679,74 +679,74 @@ struct mlxsw_sp_acl_block {
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
 
 static inline struct mlxsw_sp *
-mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_mlxsw_sp(struct mlxsw_sp_flow_block *block)
 {
 	return block->mlxsw_sp;
 }
 
 static inline unsigned int
-mlxsw_sp_acl_block_rule_count(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_rule_count(const struct mlxsw_sp_flow_block *block)
 {
 	return block ? block->rule_count : 0;
 }
 
 static inline void
-mlxsw_sp_acl_block_disable_inc(struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_disable_inc(struct mlxsw_sp_flow_block *block)
 {
 	if (block)
 		block->disable_count++;
 }
 
 static inline void
-mlxsw_sp_acl_block_disable_dec(struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_disable_dec(struct mlxsw_sp_flow_block *block)
 {
 	if (block)
 		block->disable_count--;
 }
 
 static inline bool
-mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_disabled(const struct mlxsw_sp_flow_block *block)
 {
 	return block->disable_count;
 }
 
 static inline bool
-mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_is_egress_bound(const struct mlxsw_sp_flow_block *block)
 {
 	return block->egress_binding_count;
 }
 
 static inline bool
-mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_is_ingress_bound(const struct mlxsw_sp_flow_block *block)
 {
 	return block->ingress_binding_count;
 }
 
 static inline bool
-mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_flow_block_is_mixed_bound(const struct mlxsw_sp_flow_block *block)
 {
 	return block->ingress_binding_count && block->egress_binding_count;
 }
 
-struct mlxsw_sp_acl_block *mlxsw_sp_acl_block_create(struct mlxsw_sp *mlxsw_sp,
-						     struct net *net);
-void mlxsw_sp_acl_block_destroy(struct mlxsw_sp_acl_block *block);
-int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
-			    struct mlxsw_sp_port *mlxsw_sp_port,
-			    bool ingress,
-			    struct netlink_ext_ack *extack);
-int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
-			      struct mlxsw_sp_acl_block *block,
-			      struct mlxsw_sp_port *mlxsw_sp_port,
-			      bool ingress);
+struct mlxsw_sp_flow_block *mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp,
+						       struct net *net);
+void mlxsw_sp_flow_block_destroy(struct mlxsw_sp_flow_block *block);
+int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_flow_block *block,
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     bool ingress,
+			     struct netlink_ext_ack *extack);
+int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_flow_block *block,
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       bool ingress);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block, u32 chain_index,
+			    struct mlxsw_sp_flow_block *block, u32 chain_index,
 			    enum mlxsw_sp_acl_profile profile);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
-			 struct mlxsw_sp_acl_block *block, u32 chain_index,
+			 struct mlxsw_sp_flow_block *block, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile,
 			 struct mlxsw_afk_element_usage *tmplt_elusage);
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
@@ -778,7 +778,7 @@ int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei,
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
-				  struct mlxsw_sp_acl_block *block,
+				  struct mlxsw_sp_flow_block *block,
 				  struct net_device *out_dev,
 				  struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
@@ -901,19 +901,19 @@ extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
+			    struct mlxsw_sp_flow_block *block,
 			    struct flow_cls_offload *f);
 void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_acl_block *block,
+			     struct mlxsw_sp_flow_block *block,
 			     struct flow_cls_offload *f);
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
-			  struct mlxsw_sp_acl_block *block,
+			  struct mlxsw_sp_flow_block *block,
 			  struct flow_cls_offload *f);
 int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_block *block,
+				 struct mlxsw_sp_flow_block *block,
 				 struct flow_cls_offload *f);
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_block *block,
+				   struct mlxsw_sp_flow_block *block,
 				   struct flow_cls_offload *f);
 
 /* spectrum_qdisc.c */

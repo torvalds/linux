@@ -40,7 +40,7 @@ struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl)
 	return acl->afk;
 }
 
-struct mlxsw_sp_acl_block_binding {
+struct mlxsw_sp_flow_block_binding {
 	struct list_head list;
 	struct net_device *dev;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -48,7 +48,7 @@ struct mlxsw_sp_acl_block_binding {
 };
 
 struct mlxsw_sp_acl_ruleset_ht_key {
-	struct mlxsw_sp_acl_block *block;
+	struct mlxsw_sp_flow_block *block;
 	u32 chain_index;
 	const struct mlxsw_sp_acl_profile_ops *ops;
 };
@@ -103,8 +103,8 @@ mlxsw_sp_acl_ruleset_is_singular(const struct mlxsw_sp_acl_ruleset *ruleset)
 
 static int
 mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
-			  struct mlxsw_sp_acl_block *block,
-			  struct mlxsw_sp_acl_block_binding *binding)
+			  struct mlxsw_sp_flow_block *block,
+			  struct mlxsw_sp_flow_block_binding *binding)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = block->ruleset_zero;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
@@ -115,8 +115,8 @@ mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 
 static void
 mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
-			    struct mlxsw_sp_acl_block_binding *binding)
+			    struct mlxsw_sp_flow_block *block,
+			    struct mlxsw_sp_flow_block_binding *binding)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = block->ruleset_zero;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
@@ -126,7 +126,7 @@ mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 }
 
 static bool
-mlxsw_sp_acl_ruleset_block_bound(const struct mlxsw_sp_acl_block *block)
+mlxsw_sp_acl_ruleset_block_bound(const struct mlxsw_sp_flow_block *block)
 {
 	return block->ruleset_zero;
 }
@@ -134,9 +134,9 @@ mlxsw_sp_acl_ruleset_block_bound(const struct mlxsw_sp_acl_block *block)
 static int
 mlxsw_sp_acl_ruleset_block_bind(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_ruleset *ruleset,
-				struct mlxsw_sp_acl_block *block)
+				struct mlxsw_sp_flow_block *block)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 	int err;
 
 	block->ruleset_zero = ruleset;
@@ -159,19 +159,19 @@ rollback:
 static void
 mlxsw_sp_acl_ruleset_block_unbind(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_ruleset *ruleset,
-				  struct mlxsw_sp_acl_block *block)
+				  struct mlxsw_sp_flow_block *block)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 
 	list_for_each_entry(binding, &block->binding_list, list)
 		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, block, binding);
 	block->ruleset_zero = NULL;
 }
 
-struct mlxsw_sp_acl_block *mlxsw_sp_acl_block_create(struct mlxsw_sp *mlxsw_sp,
-						     struct net *net)
+struct mlxsw_sp_flow_block *
+mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp, struct net *net)
 {
-	struct mlxsw_sp_acl_block *block;
+	struct mlxsw_sp_flow_block *block;
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
@@ -182,17 +182,17 @@ struct mlxsw_sp_acl_block *mlxsw_sp_acl_block_create(struct mlxsw_sp *mlxsw_sp,
 	return block;
 }
 
-void mlxsw_sp_acl_block_destroy(struct mlxsw_sp_acl_block *block)
+void mlxsw_sp_flow_block_destroy(struct mlxsw_sp_flow_block *block)
 {
 	WARN_ON(!list_empty(&block->binding_list));
 	kfree(block);
 }
 
-static struct mlxsw_sp_acl_block_binding *
-mlxsw_sp_acl_block_lookup(struct mlxsw_sp_acl_block *block,
-			  struct mlxsw_sp_port *mlxsw_sp_port, bool ingress)
+static struct mlxsw_sp_flow_block_binding *
+mlxsw_sp_flow_block_lookup(struct mlxsw_sp_flow_block *block,
+			   struct mlxsw_sp_port *mlxsw_sp_port, bool ingress)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 
 	list_for_each_entry(binding, &block->binding_list, list)
 		if (binding->mlxsw_sp_port == mlxsw_sp_port &&
@@ -201,16 +201,16 @@ mlxsw_sp_acl_block_lookup(struct mlxsw_sp_acl_block *block,
 	return NULL;
 }
 
-int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
-			    struct mlxsw_sp_port *mlxsw_sp_port,
-			    bool ingress,
-			    struct netlink_ext_ack *extack)
+int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_flow_block *block,
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     bool ingress,
+			     struct netlink_ext_ack *extack)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 	int err;
 
-	if (WARN_ON(mlxsw_sp_acl_block_lookup(block, mlxsw_sp_port, ingress)))
+	if (WARN_ON(mlxsw_sp_flow_block_lookup(block, mlxsw_sp_port, ingress)))
 		return -EEXIST;
 
 	if (ingress && block->ingress_blocker_rule_count) {
@@ -247,14 +247,14 @@ err_ruleset_bind:
 	return err;
 }
 
-int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
-			      struct mlxsw_sp_acl_block *block,
-			      struct mlxsw_sp_port *mlxsw_sp_port,
-			      bool ingress)
+int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_flow_block *block,
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       bool ingress)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 
-	binding = mlxsw_sp_acl_block_lookup(block, mlxsw_sp_port, ingress);
+	binding = mlxsw_sp_flow_block_lookup(block, mlxsw_sp_port, ingress);
 	if (!binding)
 		return -ENOENT;
 
@@ -274,7 +274,7 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 
 static struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block, u32 chain_index,
+			    struct mlxsw_sp_flow_block *block, u32 chain_index,
 			    const struct mlxsw_sp_acl_profile_ops *ops,
 			    struct mlxsw_afk_element_usage *tmplt_elusage)
 {
@@ -345,7 +345,7 @@ static void mlxsw_sp_acl_ruleset_ref_dec(struct mlxsw_sp *mlxsw_sp,
 
 static struct mlxsw_sp_acl_ruleset *
 __mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp_acl *acl,
-			      struct mlxsw_sp_acl_block *block, u32 chain_index,
+			      struct mlxsw_sp_flow_block *block, u32 chain_index,
 			      const struct mlxsw_sp_acl_profile_ops *ops)
 {
 	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
@@ -360,7 +360,7 @@ __mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp_acl *acl,
 
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block, u32 chain_index,
+			    struct mlxsw_sp_flow_block *block, u32 chain_index,
 			    enum mlxsw_sp_acl_profile profile)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops;
@@ -378,7 +378,7 @@ mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
-			 struct mlxsw_sp_acl_block *block, u32 chain_index,
+			 struct mlxsw_sp_flow_block *block, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile,
 			 struct mlxsw_afk_element_usage *tmplt_elusage)
 {
@@ -541,11 +541,11 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
-				  struct mlxsw_sp_acl_block *block,
+				  struct mlxsw_sp_flow_block *block,
 				  struct net_device *out_dev,
 				  struct netlink_ext_ack *extack)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_flow_block_binding *binding;
 	struct mlxsw_sp_port *in_port;
 
 	if (!list_is_singular(&block->binding_list)) {
@@ -553,7 +553,7 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 	binding = list_first_entry(&block->binding_list,
-				   struct mlxsw_sp_acl_block_binding, list);
+				   struct mlxsw_sp_flow_block_binding, list);
 	in_port = binding->mlxsw_sp_port;
 
 	return mlxsw_afa_block_append_mirror(rulei->act_block,
@@ -775,7 +775,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
-	struct mlxsw_sp_acl_block *block = ruleset->ht_key.block;
+	struct mlxsw_sp_flow_block *block = ruleset->ht_key.block;
 	int err;
 
 	err = ops->rule_add(mlxsw_sp, ruleset->priv, rule->priv, rule->rulei);
@@ -819,7 +819,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
-	struct mlxsw_sp_acl_block *block = ruleset->ht_key.block;
+	struct mlxsw_sp_flow_block *block = ruleset->ht_key.block;
 
 	block->egress_blocker_rule_count -= rule->rulei->egress_bind_blocker;
 	block->ingress_blocker_rule_count -= rule->rulei->ingress_bind_blocker;
