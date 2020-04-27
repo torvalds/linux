@@ -106,7 +106,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
 		.mcs = {
 			.rx_mask = { 0xFF }, // MCS0 to MCS7
-			.rx_highest = 65,
+			.rx_highest = cpu_to_le16(72),
 			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
 		},
 	},
