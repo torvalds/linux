@@ -1,6 +1,12 @@
-       Altera Triple-Speed Ethernet MAC driver
+.. SPDX-License-Identifier: GPL-2.0
 
-Copyright (C) 2008-2014 Altera Corporation
+.. include:: <isonum.txt>
+
+=======================================
+Altera Triple-Speed Ethernet MAC driver
+=======================================
+
+Copyright |copy| 2008-2014 Altera Corporation
 
 This is the driver for the Altera Triple-Speed Ethernet (TSE) controllers
 using the SGDMA and MSGDMA soft DMA IP components. The driver uses the
@@ -46,23 +52,33 @@ Jumbo frames are not supported at this time.
 The driver limits PHY operations to 10/100Mbps, and has not yet been fully
 tested for 1Gbps. This support will be added in a future maintenance update.
 
-1) Kernel Configuration
+1. Kernel Configuration
+=======================
+
 The kernel configuration option is ALTERA_TSE:
+
  Device Drivers ---> Network device support ---> Ethernet driver support --->
  Altera Triple-Speed Ethernet MAC support (ALTERA_TSE)
 
-2) Driver parameters list:
-	debug: message level (0: no output, 16: all);
-	dma_rx_num: Number of descriptors in the RX list (default is 64);
-	dma_tx_num: Number of descriptors in the TX list (default is 64).
+2. Driver parameters list
+=========================
 
-3) Command line options
-Driver parameters can be also passed in command line by using:
+	- debug: message level (0: no output, 16: all);
+	- dma_rx_num: Number of descriptors in the RX list (default is 64);
+	- dma_tx_num: Number of descriptors in the TX list (default is 64).
+
+3. Command line options
+=======================
+
+Driver parameters can be also passed in command line by using::
+
 	altera_tse=dma_rx_num:128,dma_tx_num:512
 
-4) Driver information and notes
+4. Driver information and notes
+===============================
 
-4.1) Transmit process
+4.1. Transmit process
+---------------------
 When the driver's transmit routine is called by the kernel, it sets up a
 transmit descriptor by calling the underlying DMA transmit routine (SGDMA or
 MSGDMA), and initiates a transmit operation. Once the transmit is complete, an
@@ -70,7 +86,8 @@ interrupt is driven by the transmit DMA logic. The driver handles the transmit
 completion in the context of the interrupt handling chain by recycling
 resource required to send and track the requested transmit operation.
 
-4.2) Receive process
+4.2. Receive process
+--------------------
 The driver will post receive buffers to the receive DMA logic during driver
 initialization. Receive buffers may or may not be queued depending upon the
 underlying DMA logic (MSGDMA is able queue receive buffers, SGDMA is not able
@@ -79,34 +96,39 @@ received, the DMA logic generates an interrupt. The driver handles a receive
 interrupt by obtaining the DMA receive logic status, reaping receive
 completions until no more receive completions are available.
 
-4.3) Interrupt Mitigation
+4.3. Interrupt Mitigation
+-------------------------
 The driver is able to mitigate the number of its DMA interrupts
 using NAPI for receive operations. Interrupt mitigation is not yet supported
 for transmit operations, but will be added in a future maintenance release.
 
 4.4) Ethtool support
+--------------------
 Ethtool is supported. Driver statistics and internal errors can be taken using:
 ethtool -S ethX command. It is possible to dump registers etc.
 
 4.5) PHY Support
+----------------
 The driver is compatible with PAL to work with PHY and GPHY devices.
 
 4.7) List of source files:
- o Kconfig
- o Makefile
- o altera_tse_main.c: main network device driver
- o altera_tse_ethtool.c: ethtool support
- o altera_tse.h: private driver structure and common definitions
- o altera_msgdma.h: MSGDMA implementation function definitions
- o altera_sgdma.h: SGDMA implementation function definitions
- o altera_msgdma.c: MSGDMA implementation
- o altera_sgdma.c: SGDMA implementation
- o altera_sgdmahw.h: SGDMA register and descriptor definitions
- o altera_msgdmahw.h: MSGDMA register and descriptor definitions
- o altera_utils.c: Driver utility functions
- o altera_utils.h: Driver utility function definitions
+--------------------------
+ - Kconfig
+ - Makefile
+ - altera_tse_main.c: main network device driver
+ - altera_tse_ethtool.c: ethtool support
+ - altera_tse.h: private driver structure and common definitions
+ - altera_msgdma.h: MSGDMA implementation function definitions
+ - altera_sgdma.h: SGDMA implementation function definitions
+ - altera_msgdma.c: MSGDMA implementation
+ - altera_sgdma.c: SGDMA implementation
+ - altera_sgdmahw.h: SGDMA register and descriptor definitions
+ - altera_msgdmahw.h: MSGDMA register and descriptor definitions
+ - altera_utils.c: Driver utility functions
+ - altera_utils.h: Driver utility function definitions
 
-5) Debug Information
+5. Debug Information
+====================
 
 The driver exports debug information such as internal statistics,
 debug information, MAC and DMA registers etc.
@@ -118,17 +140,18 @@ or sees the MAC registers: e.g. using: ethtool -d ethX
 The developer can also use the "debug" module parameter to get
 further debug information.
 
-6) Statistics Support
+6. Statistics Support
+=====================
 
 The controller and driver support a mix of IEEE standard defined statistics,
 RFC defined statistics, and driver or Altera defined statistics. The four
 specifications containing the standard definitions for these statistics are
 as follows:
 
- o IEEE 802.3-2012 - IEEE Standard for Ethernet.
- o RFC 2863 found at http://www.rfc-editor.org/rfc/rfc2863.txt.
- o RFC 2819 found at http://www.rfc-editor.org/rfc/rfc2819.txt.
- o Altera Triple Speed Ethernet User Guide, found at http://www.altera.com
+ - IEEE 802.3-2012 - IEEE Standard for Ethernet.
+ - RFC 2863 found at http://www.rfc-editor.org/rfc/rfc2863.txt.
+ - RFC 2819 found at http://www.rfc-editor.org/rfc/rfc2819.txt.
+ - Altera Triple Speed Ethernet User Guide, found at http://www.altera.com
 
 The statistics supported by the TSE and the device driver are as follows:
 

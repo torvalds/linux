@@ -38,6 +38,7 @@ Contents:
    nfc
    6lowpan
    6pack
+   altera_tse
 
 .. only::  subproject and html
 
