@@ -18,6 +18,7 @@ mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp, struct net *net)
 	if (!block)
 		return NULL;
 	INIT_LIST_HEAD(&block->binding_list);
+	INIT_LIST_HEAD(&block->mall_list);
 	block->mlxsw_sp = mlxsw_sp;
 	block->net = net;
 	return block;
@@ -70,9 +71,15 @@ int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 
+	err = mlxsw_sp_mall_port_bind(block, mlxsw_sp_port);
+	if (err)
+		return err;
+
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
-	if (!binding)
-		return -ENOMEM;
+	if (!binding) {
+		err = -ENOMEM;
+		goto err_binding_alloc;
+	}
 	binding->mlxsw_sp_port = mlxsw_sp_port;
 	binding->ingress = ingress;
 
@@ -91,6 +98,9 @@ int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 
 err_ruleset_bind:
 	kfree(binding);
+err_binding_alloc:
+	mlxsw_sp_mall_port_unbind(block, mlxsw_sp_port);
+
 	return err;
 }
 
@@ -116,5 +126,8 @@ int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, block, binding);
 
 	kfree(binding);
+
+	mlxsw_sp_mall_port_unbind(block, mlxsw_sp_port);
+
 	return 0;
 }

@@ -33,11 +33,11 @@ struct mlxsw_sp_mall_entry {
 };
 
 static struct mlxsw_sp_mall_entry *
-mlxsw_sp_mall_entry_find(struct mlxsw_sp_port *port, unsigned long cookie)
+mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie)
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	list_for_each_entry(mall_entry, &port->mall_list, list)
+	list_for_each_entry(mall_entry, &block->mall_list, list)
 		if (mall_entry->cookie == cookie)
 			return mall_entry;
 
@@ -149,16 +149,27 @@ mlxsw_sp_mall_port_rule_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
-int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
-			  struct tc_cls_matchall_offload *f, bool ingress)
+int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
+			  struct tc_cls_matchall_offload *f)
 {
+	struct mlxsw_sp_flow_block_binding *binding;
 	struct mlxsw_sp_mall_entry *mall_entry;
 	__be16 protocol = f->common.protocol;
 	struct flow_action_entry *act;
 	int err;
 
 	if (!flow_offload_has_one_action(&f->rule->action)) {
-		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
+		NL_SET_ERR_MSG(f->common.extack, "Only singular actions are supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (f->common.chain_index) {
+		NL_SET_ERR_MSG(f->common.extack, "Only chain 0 is supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (mlxsw_sp_flow_block_is_mixed_bound(block)) {
+		NL_SET_ERR_MSG(f->common.extack, "Only not mixed bound blocks are supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -166,7 +177,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;
-	mall_entry->ingress = ingress;
+	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
 	act = &f->rule->action.entries[0];
 
@@ -176,7 +187,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
 		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
-			netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
+			NL_SET_ERR_MSG(f->common.extack, "Sample rate not supported");
 			err = -EOPNOTSUPP;
 			goto errout;
 		}
@@ -190,31 +201,78 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 		goto errout;
 	}
 
-	err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
-	if (err)
-		goto errout;
+	list_for_each_entry(binding, &block->binding_list, list) {
+		err = mlxsw_sp_mall_port_rule_add(binding->mlxsw_sp_port,
+						  mall_entry);
+		if (err)
+			goto rollback;
+	}
 
-	list_add_tail(&mall_entry->list, &mlxsw_sp_port->mall_list);
+	block->rule_count++;
+	if (mall_entry->ingress)
+		block->egress_blocker_rule_count++;
+	else
+		block->ingress_blocker_rule_count++;
+	list_add_tail(&mall_entry->list, &block->mall_list);
 	return 0;
 
+rollback:
+	list_for_each_entry_continue_reverse(binding, &block->binding_list,
+					     list)
+		mlxsw_sp_mall_port_rule_del(binding->mlxsw_sp_port, mall_entry);
 errout:
 	kfree(mall_entry);
 	return err;
 }
 
-void mlxsw_sp_mall_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
+void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 			   struct tc_cls_matchall_offload *f)
 {
+	struct mlxsw_sp_flow_block_binding *binding;
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	mall_entry = mlxsw_sp_mall_entry_find(mlxsw_sp_port, f->cookie);
+	mall_entry = mlxsw_sp_mall_entry_find(block, f->cookie);
 	if (!mall_entry) {
-		netdev_dbg(mlxsw_sp_port->dev, "tc entry not found on port\n");
+		NL_SET_ERR_MSG(f->common.extack, "Entry not found");
 		return;
 	}
 
-	mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
-
 	list_del(&mall_entry->list);
+	if (mall_entry->ingress)
+		block->egress_blocker_rule_count--;
+	else
+		block->ingress_blocker_rule_count--;
+	block->rule_count--;
+	list_for_each_entry(binding, &block->binding_list, list)
+		mlxsw_sp_mall_port_rule_del(binding->mlxsw_sp_port, mall_entry);
 	kfree_rcu(mall_entry, rcu); /* sample RX packets may be in-flight */
+}
+
+int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
+			    struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_mall_entry *mall_entry;
+	int err;
+
+	list_for_each_entry(mall_entry, &block->mall_list, list) {
+		err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
+		if (err)
+			goto rollback;
+	}
+	return 0;
+
+rollback:
+	list_for_each_entry_continue_reverse(mall_entry, &block->mall_list,
+					     list)
+		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
+	return err;
+}
+
+void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
+			       struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_mall_entry *mall_entry;
+
+	list_for_each_entry(mall_entry, &block->mall_list, list)
+		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
 }
