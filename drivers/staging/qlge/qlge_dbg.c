@@ -1757,8 +1757,6 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	       rx_ring->lbq.prod_idx_db_reg);
 	pr_err("rx_ring->lbq.next_to_use = %d\n", rx_ring->lbq.next_to_use);
 	pr_err("rx_ring->lbq.next_to_clean = %d\n", rx_ring->lbq.next_to_clean);
-	pr_err("rx_ring->lbq_clean_idx = %d\n", rx_ring->lbq_clean_idx);
-	pr_err("rx_ring->lbq_free_cnt = %d\n", rx_ring->lbq_free_cnt);
 
 	pr_err("rx_ring->sbq.base = %p\n", rx_ring->sbq.base);
 	pr_err("rx_ring->sbq.base_dma = %llx\n",
