@@ -2677,12 +2677,42 @@ static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
 		}
 	}
 
-	if (!MLX5_CAP_GEN(dev->mdev, dct)) {
-		mlx5_ib_dbg(dev, "DC transport is not supported\n");
-		return -EOPNOTSUPP;
+	return 0;
+}
+
+static int check_qp_type(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr)
+{
+	if (attr->qp_type == IB_QPT_DRIVER && !MLX5_CAP_GEN(dev->mdev, dct))
+		goto out;
+
+	switch (attr->qp_type) {
+	case IB_QPT_XRC_TGT:
+	case IB_QPT_XRC_INI:
+		if (!MLX5_CAP_GEN(dev->mdev, xrc))
+			goto out;
+		fallthrough;
+	case IB_QPT_RAW_PACKET:
+	case IB_QPT_RC:
+	case IB_QPT_UC:
+	case IB_QPT_UD:
+	case IB_QPT_SMI:
+	case MLX5_IB_QPT_HW_GSI:
+	case MLX5_IB_QPT_REG_UMR:
+	case IB_QPT_DRIVER:
+	case IB_QPT_GSI:
+		return 0;
+	case IB_QPT_RAW_IPV6:
+	case IB_QPT_RAW_ETHERTYPE:
+	case IB_QPT_MAX:
+	default:
+		goto out;
 	}
 
 	return 0;
+
+out:
+	mlx5_ib_dbg(dev, "Unsupported QP type %d\n", attr->qp_type);
+	return -EOPNOTSUPP;
 }
 
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
@@ -2698,9 +2728,17 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct mlx5_ib_ucontext, ibucontext);
 
-	if (pd) {
-		dev = to_mdev(pd->device);
+	dev = pd ? to_mdev(pd->device) :
+		   to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 
+	err = check_qp_type(dev, init_attr);
+	if (err) {
+		mlx5_ib_dbg(dev, "Unsupported QP type %d\n",
+			    init_attr->qp_type);
+		return ERR_PTR(err);
+	}
+
+	if (pd) {
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
 			if (!ucontext) {
 				mlx5_ib_dbg(dev, "Raw Packet QP is not supported for kernel consumers\n");
@@ -2718,7 +2756,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				ib_qp_type_str(init_attr->qp_type));
 			return ERR_PTR(-EINVAL);
 		}
-		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 	}
 
 	if (init_attr->qp_type == IB_QPT_DRIVER) {
@@ -2741,67 +2778,37 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		}
 	}
 
-	switch (init_attr->qp_type) {
-	case IB_QPT_XRC_TGT:
-	case IB_QPT_XRC_INI:
-		if (!MLX5_CAP_GEN(dev->mdev, xrc)) {
-			mlx5_ib_dbg(dev, "XRC not supported\n");
-			return ERR_PTR(-ENOSYS);
-		}
-		init_attr->recv_cq = NULL;
-		if (init_attr->qp_type == IB_QPT_XRC_TGT) {
-			xrcdn = to_mxrcd(init_attr->xrcd)->xrcdn;
-			init_attr->send_cq = NULL;
-		}
-
-		/* fall through */
-	case IB_QPT_RAW_PACKET:
-	case IB_QPT_RC:
-	case IB_QPT_UC:
-	case IB_QPT_UD:
-	case IB_QPT_SMI:
-	case MLX5_IB_QPT_HW_GSI:
-	case MLX5_IB_QPT_REG_UMR:
-	case MLX5_IB_QPT_DCI:
-		qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-		if (!qp)
-			return ERR_PTR(-ENOMEM);
-
-		err = create_qp_common(dev, pd, init_attr, udata, qp);
-		if (err) {
-			mlx5_ib_dbg(dev, "create_qp_common failed\n");
-			kfree(qp);
-			return ERR_PTR(err);
-		}
-
-		if (is_qp0(init_attr->qp_type))
-			qp->ibqp.qp_num = 0;
-		else if (is_qp1(init_attr->qp_type))
-			qp->ibqp.qp_num = 1;
-		else
-			qp->ibqp.qp_num = qp->trans_qp.base.mqp.qpn;
-
-		mlx5_ib_dbg(dev, "ib qpnum 0x%x, mlx qpn 0x%x, rcqn 0x%x, scqn 0x%x\n",
-			    qp->ibqp.qp_num, qp->trans_qp.base.mqp.qpn,
-			    init_attr->recv_cq ? to_mcq(init_attr->recv_cq)->mcq.cqn : -1,
-			    init_attr->send_cq ? to_mcq(init_attr->send_cq)->mcq.cqn : -1);
-
-		qp->trans_qp.xrcdn = xrcdn;
-
-		break;
-
-	case IB_QPT_GSI:
+	if (init_attr->qp_type == IB_QPT_GSI)
 		return mlx5_ib_gsi_create_qp(pd, init_attr);
 
-	case IB_QPT_RAW_IPV6:
-	case IB_QPT_RAW_ETHERTYPE:
-	case IB_QPT_MAX:
-	default:
-		mlx5_ib_dbg(dev, "unsupported qp type %d\n",
-			    init_attr->qp_type);
-		/* Don't support raw QPs */
-		return ERR_PTR(-EOPNOTSUPP);
+	if (init_attr->qp_type == IB_QPT_XRC_TGT) {
+		init_attr->recv_cq = NULL;
+		xrcdn = to_mxrcd(init_attr->xrcd)->xrcdn;
+		init_attr->send_cq = NULL;
 	}
+
+	if (init_attr->qp_type == IB_QPT_XRC_INI)
+		init_attr->recv_cq = NULL;
+
+	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	if (!qp)
+		return ERR_PTR(-ENOMEM);
+
+	err = create_qp_common(dev, pd, init_attr, udata, qp);
+	if (err) {
+		mlx5_ib_dbg(dev, "create_qp_common failed\n");
+		kfree(qp);
+		return ERR_PTR(err);
+	}
+
+	if (is_qp0(init_attr->qp_type))
+		qp->ibqp.qp_num = 0;
+	else if (is_qp1(init_attr->qp_type))
+		qp->ibqp.qp_num = 1;
+	else
+		qp->ibqp.qp_num = qp->trans_qp.base.mqp.qpn;
+
+	qp->trans_qp.xrcdn = xrcdn;
 
 	if (verbs_init_attr->qp_type == IB_QPT_DRIVER)
 		qp->qp_sub_type = init_attr->qp_type;
