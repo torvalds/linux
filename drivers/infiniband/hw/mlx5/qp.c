@@ -1907,13 +1907,6 @@ static void configure_responder_scat_cqe(struct ib_qp_init_attr *init_attr,
 
 	rcqe_sz = mlx5_ib_get_cqe_size(init_attr->recv_cq);
 
-	if (init_attr->qp_type == MLX5_IB_QPT_DCT) {
-		if (rcqe_sz == 128)
-			MLX5_SET(dctc, qpc, cs_res, MLX5_RES_SCAT_DATA64_CQE);
-
-		return;
-	}
-
 	MLX5_SET(qpc, qpc, cs_res,
 		 rcqe_sz == 128 ? MLX5_RES_SCAT_DATA64_CQE :
 				  MLX5_RES_SCAT_DATA32_CQE);
@@ -2583,8 +2576,12 @@ static int create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	MLX5_SET64(dctc, dctc, dc_access_key, ucmd->access_key);
 	MLX5_SET(dctc, dctc, user_index, uidx);
 
-	if (ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE)
-		configure_responder_scat_cqe(attr, dctc);
+	if (ucmd->flags & MLX5_QP_FLAG_SCATTER_CQE) {
+		int rcqe_sz = mlx5_ib_get_cqe_size(attr->recv_cq);
+
+		if (rcqe_sz == 128)
+			MLX5_SET(dctc, dctc, cs_res, MLX5_RES_SCAT_DATA64_CQE);
+	}
 
 	qp->state = IB_QPS_RESET;
 
