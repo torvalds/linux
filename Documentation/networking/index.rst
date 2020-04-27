@@ -54,6 +54,7 @@ Contents:
    defza
    dns_resolver
    driver
+   eql
 
 .. only::  subproject and html
 
