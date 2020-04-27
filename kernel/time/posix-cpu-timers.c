@@ -47,59 +47,44 @@ void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 /*
  * Functions for validating access to tasks.
  */
-static struct task_struct *lookup_task(const pid_t pid, bool thread,
-				       bool gettime)
+static struct pid *pid_for_clock(const clockid_t clock, bool gettime)
 {
-	struct task_struct *p;
+	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
+	const pid_t upid = CPUCLOCK_PID(clock);
+	struct pid *pid;
+
+	if (CPUCLOCK_WHICH(clock) >= CPUCLOCK_MAX)
+		return NULL;
 
 	/*
 	 * If the encoded PID is 0, then the timer is targeted at current
 	 * or the process to which current belongs.
 	 */
+	if (upid == 0)
+		return thread ? task_pid(current) : task_tgid(current);
+
+	pid = find_vpid(upid);
 	if (!pid)
-		return thread ? current : current->group_leader;
-
-	p = find_task_by_vpid(pid);
-	if (!p)
-		return p;
-
-	if (thread)
-		return same_thread_group(p, current) ? p : NULL;
-
-	/*
-	 * For clock_gettime(PROCESS) the task does not need to be
-	 * the actual group leader. task->signal gives
-	 * access to the group's clock.
-	 */
-	if (gettime && (p == current))
-		return p;
-
-	/*
-	 * For processes require that p is group leader.
-	 */
-	return thread_group_leader(p) ? p : NULL;
-}
-
-static struct task_struct *__get_task_for_clock(const clockid_t clock,
-						bool gettime)
-{
-	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
-	const pid_t pid = CPUCLOCK_PID(clock);
-
-	if (CPUCLOCK_WHICH(clock) >= CPUCLOCK_MAX)
 		return NULL;
 
-	return lookup_task(pid, thread, gettime);
-}
+	if (thread) {
+		struct task_struct *tsk = pid_task(pid, PIDTYPE_PID);
+		return (tsk && same_thread_group(tsk, current)) ? pid : NULL;
+	}
 
-static inline struct task_struct *get_task_for_clock(const clockid_t clock)
-{
-	return __get_task_for_clock(clock, false);
-}
+	/*
+	 * For clock_gettime(PROCESS) allow finding the process by
+	 * with the pid of the current task.  The code needs the tgid
+	 * of the process so that pid_task(pid, PIDTYPE_TGID) can be
+	 * used to find the process.
+	 */
+	if (gettime && (pid == task_pid(current)))
+		return task_tgid(current);
 
-static inline struct task_struct *get_task_for_clock_get(const clockid_t clock)
-{
-	return __get_task_for_clock(clock, true);
+	/*
+	 * For processes require that pid identifies a process.
+	 */
+	return pid_has_task(pid, PIDTYPE_TGID) ? pid : NULL;
 }
 
 static inline int validate_clock_permissions(const clockid_t clock)
@@ -107,7 +92,7 @@ static inline int validate_clock_permissions(const clockid_t clock)
 	int ret;
 
 	rcu_read_lock();
-	ret = __get_task_for_clock(clock, false) ? 0 : -EINVAL;
+	ret = pid_for_clock(clock, false) ? 0 : -EINVAL;
 	rcu_read_unlock();
 
 	return ret;
@@ -369,7 +354,7 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 	u64 t;
 
 	rcu_read_lock();
-	tsk = get_task_for_clock_get(clock);
+	tsk = pid_task(pid_for_clock(clock, true), clock_pid_type(clock));
 	if (!tsk) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -392,18 +377,18 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
  */
 static int posix_cpu_timer_create(struct k_itimer *new_timer)
 {
-	struct task_struct *p;
+	struct pid *pid;
 
 	rcu_read_lock();
-	p = get_task_for_clock(new_timer->it_clock);
-	if (!p) {
+	pid = pid_for_clock(new_timer->it_clock, false);
+	if (!pid) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
 
 	new_timer->kclock = &clock_posix_cpu;
 	timerqueue_init(&new_timer->it.cpu.node);
-	new_timer->it.cpu.pid = get_task_pid(p, clock_pid_type(new_timer->it_clock));
+	new_timer->it.cpu.pid = get_pid(pid);
 	rcu_read_unlock();
 	return 0;
 }
