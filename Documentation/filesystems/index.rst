@@ -30,6 +30,7 @@ algorithms work.
    files
    locks
    mandatory-locking
+   mount_api
 
    automount-support
 
