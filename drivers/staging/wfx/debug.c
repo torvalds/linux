@@ -112,6 +112,12 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 
 #undef PUT_COUNTER
 
+	for (i = 0; i < ARRAY_SIZE(counters[0].reserved); i++)
+		seq_printf(seq, "reserved[%02d]%12s %12d %12d %12d\n", i, "",
+			   le32_to_cpu(counters[2].reserved[i]),
+			   le32_to_cpu(counters[0].reserved[i]),
+			   le32_to_cpu(counters[1].reserved[i]));
+
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(wfx_counters);
