@@ -76,6 +76,7 @@ Documentation for filesystem implementations.
    cifs/cifsroot
    ceph
    coda
+   configfs
    cramfs
    debugfs
    dlmfs
