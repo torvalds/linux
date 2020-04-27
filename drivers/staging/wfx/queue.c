@@ -52,7 +52,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 			 wdev->hif.tx_buffers_used);
 		wfx_pending_dump_old_frames(wdev, 3000);
 		// FIXME: drop pending frames here
-		wdev->chip_frozen = 1;
+		wdev->chip_frozen = true;
 	}
 	mutex_unlock(&wdev->hif_cmd.lock);
 	wfx_tx_unlock(wdev);

@@ -316,7 +316,7 @@ static int hif_exception_indication(struct wfx_dev *wdev,
 
 	dev_err(wdev->dev, "firmware exception\n");
 	print_hex_dump_bytes("Dump: ", DUMP_PREFIX_NONE, buf, len);
-	wdev->chip_frozen = 1;
+	wdev->chip_frozen = true;
 
 	return -1;
 }
