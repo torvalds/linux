@@ -61,6 +61,7 @@ Contents:
    framerelay
    generic-hdlc
    generic_netlink
+   gen_stats
 
 .. only::  subproject and html
 
