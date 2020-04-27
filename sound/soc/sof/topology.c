@@ -3008,66 +3008,6 @@ err:
 	return ret;
 }
 
-/*
- * for hda link, playback and capture are supported by different dai
- * in FW. Here get the dai_index, set dma channel of each dai
- * and send config to FW. In FW, each dai sets config by dai_index
- */
-static int sof_link_hda_process(struct snd_sof_dev *sdev,
-				struct snd_soc_dai_link *link,
-				struct sof_ipc_dai_config *config)
-{
-	struct sof_ipc_reply reply;
-	u32 size = sizeof(*config);
-	struct snd_sof_dai *sof_dai;
-	int found = 0;
-	int ret;
-
-	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
-		if (!sof_dai->name)
-			continue;
-
-		if (strcmp(link->name, sof_dai->name) == 0) {
-			config->dai_index = sof_dai->comp_dai.dai_index;
-			found = 1;
-
-			config->hda.link_dma_ch = DMA_CHAN_INVALID;
-
-			/* save config in dai component */
-			sof_dai->dai_config = kmemdup(config, size, GFP_KERNEL);
-			if (!sof_dai->dai_config)
-				return -ENOMEM;
-
-			sof_dai->cpu_dai_name = link->cpus->dai_name;
-
-			/* send message to DSP */
-			ret = sof_ipc_tx_message(sdev->ipc,
-						 config->hdr.cmd, config, size,
-						 &reply, sizeof(reply));
-
-			if (ret < 0) {
-				dev_err(sdev->dev, "error: failed to set DAI config for direction:%d of HDA dai %d\n",
-					sof_dai->comp_dai.direction,
-					config->dai_index);
-
-				return ret;
-			}
-		}
-	}
-
-	/*
-	 * machine driver may define a dai link with playback and capture
-	 * dai enabled, but the dai link in topology would support both, one
-	 * or none of them. Here print a warning message to notify user
-	 */
-	if (!found) {
-		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
-			 link->name);
-	}
-
-	return 0;
-}
-
 static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 			     struct snd_soc_dai_link *link,
 			     struct snd_soc_tplg_link_config *cfg,
@@ -3104,7 +3044,9 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	ret = sof_link_hda_process(sdev, link, config);
+	config->hda.link_dma_ch = DMA_CHAN_INVALID;
+
+	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
 		dev_err(scomp->dev, "error: failed to process hda dai link %s",
 			link->name);
