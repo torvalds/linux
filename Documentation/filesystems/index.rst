@@ -32,6 +32,7 @@ algorithms work.
    mandatory-locking
    mount_api
    quota
+   seq_file
 
    automount-support
 
