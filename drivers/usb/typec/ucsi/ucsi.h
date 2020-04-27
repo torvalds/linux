@@ -341,7 +341,7 @@ int ucsi_resume(struct ucsi *ucsi);
 int ucsi_register_port_psy(struct ucsi_connector *con);
 void ucsi_unregister_port_psy(struct ucsi_connector *con);
 #else
-static inline int ucsi_register_port(struct ucsi_connector *con) { return 0; }
+static inline int ucsi_register_port_psy(struct ucsi_connector *con) { return 0; }
 static inline void ucsi_unregister_port_psy(struct ucsi_connector *con) { }
 #endif /* CONFIG_POWER_SUPPLY */
 
