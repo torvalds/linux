@@ -1,7 +1,12 @@
-Text file for ipddp.c:
-	AppleTalk-IP Decapsulation and AppleTalk-IP Encapsulation
+.. SPDX-License-Identifier: GPL-2.0
 
-This text file is written by Jay Schulist <jschlst@samba.org>
+=========================================================
+AppleTalk-IP Decapsulation and AppleTalk-IP Encapsulation
+=========================================================
+
+Documentation ipddp.c
+
+This file is written by Jay Schulist <jschlst@samba.org>
 
 Introduction
 ------------
@@ -21,7 +26,7 @@ kernel AppleTalk layer and drivers are available.
 Each mode requires its own user space software.
 
 Compiling AppleTalk-IP Decapsulation/Encapsulation
-=================================================
+==================================================
 
 AppleTalk-IP decapsulation needs to be compiled into your kernel. You
 will need to turn on AppleTalk-IP driver support. Then you will need to

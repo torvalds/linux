@@ -65,6 +65,7 @@ Contents:
    gtp
    hinic
    ila
+   ipddp
 
 .. only::  subproject and html
 

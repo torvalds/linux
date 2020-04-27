@@ -99,7 +99,7 @@ treat the LocalTalk device like an ordinary Ethernet device, even if
 that's what it looks like to Netatalk.
 
 Instead, you follow the same procedure as for doing IP in EtherTalk.
-See Documentation/networking/ipddp.txt for more information about the
+See Documentation/networking/ipddp.rst for more information about the
 kernel driver and userspace tools needed.
 
 --------------------------------------
