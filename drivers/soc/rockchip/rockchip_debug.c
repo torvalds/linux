@@ -62,6 +62,9 @@
 #define EDLAR				0xfb0
 #define EDLAR_UNLOCK			0xc5acce55
 
+#define EDPRSR				0x314
+#define EDPRSR_PU			0x1
+
 #define NUM_CPU_SAMPLES			100
 #define NUM_SAMPLES_TO_PRINT		32
 
@@ -71,14 +74,22 @@ static void __iomem *rockchip_cpu_debug[16];
 int rockchip_debug_dump_pcsr(struct fiq_debugger_output *output)
 {
 	unsigned long dbgpcsr;
-	int i = 0, j;
+	int i = 0, j = 0;
 	void *pc = NULL;
 	void *prev_pc = NULL;
 	int printed = 0;
 	void __iomem *base;
+	u32 pu = 0;
 
 	while (rockchip_cpu_debug[i]) {
 		base = rockchip_cpu_debug[i];
+
+		pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
+
+		if (pu != EDPRSR_PU) {
+			i++;
+			continue;
+		}
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
@@ -123,6 +134,7 @@ static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 	void *prev_pc = NULL;
 	int printed = 0;
 	void __iomem *base;
+	u32 pu = 0;
 
 	/*
 	 * The panic handler will try to shut down the other CPUs.
@@ -133,6 +145,13 @@ static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 
 	while (rockchip_cpu_debug[i]) {
 		base = rockchip_cpu_debug[i];
+
+		pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
+
+		if (pu != EDPRSR_PU) {
+			i++;
+			continue;
+		}
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
