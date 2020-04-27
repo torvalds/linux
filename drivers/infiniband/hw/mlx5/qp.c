@@ -1015,16 +1015,7 @@ static int _create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err_free;
 	}
 
-	err = ib_copy_to_udata(udata, resp, min(udata->outlen, sizeof(*resp)));
-	if (err) {
-		mlx5_ib_dbg(dev, "copy failed\n");
-		goto err_unmap;
-	}
-
 	return 0;
-
-err_unmap:
-	mlx5_ib_db_unmap_user(context, &qp->db);
 
 err_free:
 	kvfree(*in);
@@ -1551,14 +1542,8 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	qp->trans_qp.base.mqp.qpn = qp->sq.wqe_cnt ? sq->base.mqp.qpn :
 						     rq->base.mqp.qpn;
-	err = ib_copy_to_udata(udata, resp, min(udata->outlen, sizeof(*resp)));
-	if (err)
-		goto err_destroy_tir;
-
 	return 0;
 
-err_destroy_tir:
-	destroy_raw_packet_qp_tir(dev, rq, qp->flags_en, pd);
 err_destroy_rq:
 	destroy_raw_packet_qp_rq(dev, rq);
 err_destroy_sq:
@@ -1618,6 +1603,7 @@ struct mlx5_create_qp_params {
 	u8 is_rss_raw : 1;
 	struct ib_qp_init_attr *attr;
 	u32 uidx;
+	struct mlx5_ib_create_qp_resp resp;
 };
 
 static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
@@ -1629,7 +1615,6 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	struct ib_udata *udata = params->udata;
 	struct mlx5_ib_ucontext *mucontext = rdma_udata_to_drv_context(
 		udata, struct mlx5_ib_ucontext, ibucontext);
-	struct mlx5_ib_create_qp_resp resp = {};
 	int inlen;
 	int outlen;
 	int err;
@@ -1661,12 +1646,6 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (qp->flags_en & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC)
 		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
-
-	err = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
-	if (err) {
-		mlx5_ib_dbg(dev, "copy failed\n");
-		return -EINVAL;
-	}
 
 	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
 	outlen = MLX5_ST_SZ_BYTES(create_tir_out);
@@ -1803,25 +1782,23 @@ create_tir:
 		goto err;
 
 	if (mucontext->devx_uid) {
-		resp.comp_mask |= MLX5_IB_CREATE_QP_RESP_MASK_TIRN;
-		resp.tirn = qp->rss_qp.tirn;
+		params->resp.comp_mask |= MLX5_IB_CREATE_QP_RESP_MASK_TIRN;
+		params->resp.tirn = qp->rss_qp.tirn;
 		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, sw_owner)) {
-			resp.tir_icm_addr =
+			params->resp.tir_icm_addr =
 				MLX5_GET(create_tir_out, out, icm_address_31_0);
-			resp.tir_icm_addr |= (u64)MLX5_GET(create_tir_out, out,
-							   icm_address_39_32)
-					     << 32;
-			resp.tir_icm_addr |= (u64)MLX5_GET(create_tir_out, out,
-							   icm_address_63_40)
-					     << 40;
-			resp.comp_mask |=
+			params->resp.tir_icm_addr |=
+				(u64)MLX5_GET(create_tir_out, out,
+					      icm_address_39_32)
+				<< 32;
+			params->resp.tir_icm_addr |=
+				(u64)MLX5_GET(create_tir_out, out,
+					      icm_address_63_40)
+				<< 40;
+			params->resp.comp_mask |=
 				MLX5_IB_CREATE_QP_RESP_MASK_TIR_ICM_ADDR;
 		}
 	}
-
-	err = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
-	if (err)
-		goto err_copy;
 
 	kvfree(in);
 	/* qpn is reserved for that QP */
@@ -1829,8 +1806,6 @@ create_tir:
 	qp->is_rss = true;
 	return 0;
 
-err_copy:
-	mlx5_cmd_destroy_tir(dev->mdev, qp->rss_qp.tirn, mucontext->devx_uid);
 err:
 	kvfree(in);
 	return err;
@@ -1995,7 +1970,6 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	struct mlx5_ib_resources *devr = &dev->devr;
 	int inlen = MLX5_ST_SZ_BYTES(create_qp_in);
 	struct mlx5_core_dev *mdev = dev->mdev;
-	struct mlx5_ib_create_qp_resp resp = {};
 	struct mlx5_ib_cq *send_cq;
 	struct mlx5_ib_cq *recv_cq;
 	unsigned long flags;
@@ -2038,8 +2012,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (ucmd->sq_wqe_count > (1 << MLX5_CAP_GEN(mdev, log_max_qp_sz)))
 		return -EINVAL;
 
-	err = _create_user_qp(dev, pd, qp, udata, init_attr, &in, &resp, &inlen,
-			      base, ucmd);
+	err = _create_user_qp(dev, pd, qp, udata, init_attr, &in, &params->resp,
+			      &inlen, base, ucmd);
 	if (err)
 		return err;
 
@@ -2139,7 +2113,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		qp->raw_packet_qp.sq.ubuffer.buf_addr = ucmd->sq_buf_addr;
 		raw_packet_qp_copy_info(qp, &qp->raw_packet_qp);
 		err = create_raw_packet_qp(dev, qp, in, inlen, pd, udata,
-					   &resp);
+					   &params->resp);
 	} else
 		err = mlx5_core_create_qp(dev, &base->mqp, in, inlen);
 
@@ -2865,6 +2839,25 @@ static int get_qp_uidx(struct mlx5_ib_qp *qp,
 	return get_qp_user_index(ucontext, ucmd, sizeof(*ucmd), &params->uidx);
 }
 
+static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
+{
+	struct mlx5_ib_dev *dev = to_mdev(mqp->ibqp.device);
+
+	if (mqp->state == IB_QPS_RTR) {
+		int err;
+
+		err = mlx5_core_destroy_dct(dev, &mqp->dct.mdct);
+		if (err) {
+			mlx5_ib_warn(dev, "failed to destroy DCT %d\n", err);
+			return err;
+		}
+	}
+
+	kfree(mqp->dct.in);
+	kfree(mqp);
+	return 0;
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 				struct ib_udata *udata)
 {
@@ -2955,6 +2948,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	}
 
 	kfree(params.ucmd);
+	params.ucmd = NULL;
 
 	if (is_qp0(attr->qp_type))
 		qp->ibqp.qp_num = 0;
@@ -2965,32 +2959,29 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 
 	qp->trans_qp.xrcdn = xrcdn;
 
+	if (udata)
+		/*
+		 * It is safe to copy response for all user create QP flows,
+		 * including MLX5_IB_QPT_DCT, which doesn't need it.
+		 * In that case, resp will be filled with zeros.
+		 */
+		err = ib_copy_to_udata(udata, &params.resp, params.outlen);
+	if (err)
+		goto destroy_qp;
+
 	return &qp->ibqp;
 
+destroy_qp:
+	if (qp->type == MLX5_IB_QPT_DCT)
+		mlx5_ib_destroy_dct(qp);
+	else
+		destroy_qp_common(dev, qp, udata);
+	qp = NULL;
 free_qp:
 	kfree(qp);
 free_ucmd:
 	kfree(params.ucmd);
 	return ERR_PTR(err);
-}
-
-static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
-{
-	struct mlx5_ib_dev *dev = to_mdev(mqp->ibqp.device);
-
-	if (mqp->state == IB_QPS_RTR) {
-		int err;
-
-		err = mlx5_core_destroy_dct(dev, &mqp->dct.mdct);
-		if (err) {
-			mlx5_ib_warn(dev, "failed to destroy DCT %d\n", err);
-			return err;
-		}
-	}
-
-	kfree(mqp->dct.in);
-	kfree(mqp);
-	return 0;
 }
 
 int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
