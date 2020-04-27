@@ -71,6 +71,7 @@ Contents:
    ipsec
    ip-sysctl
    ipv6
+   ipvlan
 
 .. only::  subproject and html
 
