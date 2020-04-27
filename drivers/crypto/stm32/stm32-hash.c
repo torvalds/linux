@@ -1482,7 +1482,12 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	hdev->rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(hdev->rst)) {
+	if (IS_ERR(hdev->rst)) {
+		if (PTR_ERR(hdev->rst) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_reset;
+		}
+	} else {
 		reset_control_assert(hdev->rst);
 		udelay(2);
 		reset_control_deassert(hdev->rst);
@@ -1535,7 +1540,7 @@ err_engine:
 
 	if (hdev->dma_lch)
 		dma_release_channel(hdev->dma_lch);
-
+err_reset:
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
 
