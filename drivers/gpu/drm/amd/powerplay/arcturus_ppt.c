@@ -2262,6 +2262,37 @@ static void arcturus_i2c_eeprom_control_fini(struct i2c_adapter *control)
 	i2c_del_adapter(control);
 }
 
+static void arcturus_get_unique_id(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t top32, bottom32, smu_version, size;
+	char sn[16];
+	uint64_t id;
+
+	if (smu_get_smc_version(smu, NULL, &smu_version)) {
+		pr_warn("Failed to get smu version, cannot get unique_id or serial_number\n");
+		return;
+	}
+
+	/* PPSMC_MSG_ReadSerial* is supported by 54.23.0 and onwards */
+	if (smu_version < 0x361700) {
+		pr_warn("ReadSerial is only supported by PMFW 54.23.0 and onwards\n");
+		return;
+	}
+
+	/* Get the SN to turn into a Unique ID */
+	smu_send_smc_msg(smu, SMU_MSG_ReadSerialNumTop32, &top32);
+	smu_send_smc_msg(smu, SMU_MSG_ReadSerialNumBottom32, &bottom32);
+
+	id = ((uint64_t)bottom32 << 32) | top32;
+	adev->unique_id = id;
+	/* For Arcturus-and-later, unique_id == serial_number, so convert it to a
+	 * 16-digit HEX string for convenience and backwards-compatibility
+	 */
+	size = sprintf(sn, "%llx", id);
+	memcpy(adev->serial, &sn, size);
+}
+
 static bool arcturus_is_baco_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -2416,6 +2447,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.dpm_set_uvd_enable = arcturus_dpm_set_uvd_enable,
 	.i2c_eeprom_init = arcturus_i2c_eeprom_control_init,
 	.i2c_eeprom_fini = arcturus_i2c_eeprom_control_fini,
+	.get_unique_id = arcturus_get_unique_id,
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
 	.init_smc_tables = smu_v11_0_init_smc_tables,
