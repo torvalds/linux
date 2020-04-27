@@ -64,6 +64,7 @@ Contents:
    gen_stats
    gtp
    hinic
+   ila
 
 .. only::  subproject and html
 
