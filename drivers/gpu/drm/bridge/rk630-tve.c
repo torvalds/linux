@@ -15,7 +15,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
+#include <drm/drm_probe_helper.h>
 
 #include "../rockchip/rockchip_drm_drv.h"
 
@@ -24,12 +24,12 @@ static const struct drm_display_mode rk630_tve_mode[2] = {
 		   816, 864, 0, 576, 580, 586, 625, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
-		   .vrefresh = 50, 0, },
+		   0, },
 	{ DRM_MODE("720x480i", DRM_MODE_TYPE_DRIVER, 13500, 720, 753,
 		   815, 858, 0, 480, 483, 489, 525, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
-		   .vrefresh = 60, 0, },
+		   0, },
 };
 
 struct rk630_tve {
@@ -59,6 +59,7 @@ struct env_config {
 };
 
 static struct env_config ntsc_bt656_config[] = {
+	{ BT656_DECODER_CTRL, 0x00000001 },
 	{ BT656_DECODER_CROP, 0x00000000 },
 	{ BT656_DECODER_SIZE, 0x01e002d0 },
 	{ BT656_DECODER_HTOTAL_HS_END, 0x035a003e },
@@ -66,7 +67,6 @@ static struct env_config ntsc_bt656_config[] = {
 	{ BT656_DECODER_VTOTAL_VS_END, 0x020d0003 },
 	{ BT656_DECODER_VS_ST_END_F1, 0x01060109 },
 	{ BT656_DECODER_DBG_REG, 0x024002d0 },
-	{ BT656_DECODER_CTRL, 0x00000001 },
 };
 
 static struct env_config ntsc_tve_config[] = {
@@ -100,6 +100,7 @@ static struct env_config ntsc_tve_config[] = {
 };
 
 static struct env_config pal_bt656_config[] = {
+	{ BT656_DECODER_CTRL, 0x00000001 },
 	{ BT656_DECODER_CROP, 0x00000000 },
 	{ BT656_DECODER_SIZE, 0x024002d0 },
 	{ BT656_DECODER_HTOTAL_HS_END, 0x0360003f },
@@ -107,7 +108,6 @@ static struct env_config pal_bt656_config[] = {
 	{ BT656_DECODER_VTOTAL_VS_END, 0x02710003 },
 	{ BT656_DECODER_VS_ST_END_F1, 0x0138013b },
 	{ BT656_DECODER_DBG_REG, 0x024002d0 },
-	{ BT656_DECODER_CTRL, 0x00000001 },
 };
 
 static struct env_config pal_tve_config[] = {
@@ -375,8 +375,8 @@ static const struct drm_connector_funcs rk630_tve_connector_funcs = {
 
 static void
 rk630_tve_bridge_mode_set(struct drm_bridge *bridge,
-		       struct drm_display_mode *mode,
-		       struct drm_display_mode *adjusted_mode)
+			  const struct drm_display_mode *mode,
+			  const struct drm_display_mode *adjusted_mode)
 {
 	struct rk630_tve *tve;
 
@@ -407,7 +407,8 @@ static void rk630_tve_bridge_disable(struct drm_bridge *bridge)
 	rk630_tve_disable(tve);
 }
 
-static int rk630_tve_bridge_attach(struct drm_bridge *bridge)
+static int rk630_tve_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
 {
 	struct rk630_tve *tve = bridge_to_tve(bridge);
 	int ret;

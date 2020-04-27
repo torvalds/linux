@@ -126,6 +126,14 @@ config DRM_PARADE_PS8640
 	  The PS8640 is a high-performance and low-power
 	  MIPI DSI to eDP converter
 
+config DRM_RK630_TVE
+	tristate "ROCKCHIP RK630 TVE bridge"
+	depends on OF
+	depends on MFD_RK630
+	select DRM_KMS_HELPER
+	help
+	  ROCKCHIP TVE bridge chip RK630 driver.
+
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
