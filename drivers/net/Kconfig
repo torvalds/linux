@@ -50,7 +50,7 @@ config BONDING
 	  The driver supports multiple bonding modes to allow for both high
 	  performance and high availability operation.
 
-	  Refer to <file:Documentation/networking/bonding.txt> for more
+	  Refer to <file:Documentation/networking/bonding.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module

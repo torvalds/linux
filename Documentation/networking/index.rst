@@ -44,6 +44,7 @@ Contents:
    atm
    ax25
    baycom
+   bonding
 
 .. only::  subproject and html
 
