@@ -1887,7 +1887,6 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			     struct mlx5_create_qp_params *params)
 {
 	struct ib_qp_init_attr *attr = params->attr;
-	struct ib_udata *udata = params->udata;
 	u32 uidx = params->uidx;
 	struct mlx5_ib_resources *devr = &dev->devr;
 	int inlen = MLX5_ST_SZ_BYTES(create_qp_in);
@@ -1944,10 +1943,8 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	base = &qp->trans_qp.base;
 	err = mlx5_core_create_qp(dev, &base->mqp, in, inlen);
 	kvfree(in);
-	if (err) {
-		destroy_qp(dev, qp, base, udata);
+	if (err)
 		return err;
-	}
 
 	base->container_mibqp = qp;
 	base->mqp.event = mlx5_ib_qp_event;
