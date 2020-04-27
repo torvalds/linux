@@ -465,8 +465,12 @@ struct mlx5_ib_qp {
 	struct mlx5_rate_limit	rl;
 	u32                     underlay_qpn;
 	u32			flags_en;
-	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
-	enum ib_qp_type		qp_sub_type;
+	/*
+	 * IB/core doesn't store low-level QP types, so
+	 * store both MLX and IBTA types in the field below.
+	 * IB_QPT_DRIVER will be break to DCI/DCT subtypes.
+	 */
+	enum ib_qp_type		type;
 	/* A flag to indicate if there's a new counter is configured
 	 * but not take effective
 	 */
