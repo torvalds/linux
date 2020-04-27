@@ -2174,6 +2174,15 @@ struct wmi_tlv_peer_stats_info {
 	__le32 peer_rssi_per_chain[WMI_TLV_MAX_CHAINS];
 } __packed;
 
+#define HW_RATECODE_PREAM_V1_MASK GENMASK(10, 8)
+#define WMI_TLV_GET_HW_RC_PREAM_V1(rc) FIELD_GET(HW_RATECODE_PREAM_V1_MASK, rc)
+
+#define HW_RATECODE_NSS_V1_MASK GENMASK(7, 5)
+#define WMI_TLV_GET_HW_RC_NSS_V1(rc) FIELD_GET(HW_RATECODE_NSS_V1_MASK, rc)
+
+#define HW_RATECODE_RATE_V1_MASK GENMASK(4, 0)
+#define WMI_TLV_GET_HW_RC_RATE_V1(rc) FIELD_GET(HW_RATECODE_RATE_V1_MASK, rc)
+
 struct wmi_tlv_p2p_noa_ev {
 	__le32 vdev_id;
 } __packed;

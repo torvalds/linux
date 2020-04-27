@@ -149,6 +149,26 @@ static inline u32 host_interest_item_address(u32 item_offset)
 	return QCA988X_HOST_INTEREST_ADDRESS + item_offset;
 }
 
+enum ath10k_phy_mode {
+	ATH10K_PHY_MODE_LEGACY = 0,
+	ATH10K_PHY_MODE_HT = 1,
+	ATH10K_PHY_MODE_VHT = 2,
+};
+
+/* Data rate 100KBPS based on IE Index */
+struct ath10k_index_ht_data_rate_type {
+	u8   beacon_rate_index;
+	u16  supported_rate[4];
+};
+
+/* Data rate 100KBPS based on IE Index */
+struct ath10k_index_vht_data_rate_type {
+	u8   beacon_rate_index;
+	u16  supported_VHT80_rate[2];
+	u16  supported_VHT40_rate[2];
+	u16  supported_VHT20_rate[2];
+};
+
 struct ath10k_bmi {
 	bool done_sent;
 };
