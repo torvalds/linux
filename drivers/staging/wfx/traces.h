@@ -104,8 +104,10 @@ hif_msg_list_enum
 	hif_mib_name(ARP_KEEP_ALIVE_PERIOD)          \
 	hif_mib_name(BEACON_FILTER_ENABLE)           \
 	hif_mib_name(BEACON_FILTER_TABLE)            \
+	hif_mib_name(BEACON_STATS)                   \
 	hif_mib_name(BEACON_WAKEUP_PERIOD)           \
 	hif_mib_name(BLOCK_ACK_POLICY)               \
+	hif_mib_name(CCA_CONFIG)                     \
 	hif_mib_name(CONFIG_DATA_FILTER)             \
 	hif_mib_name(COUNTERS_TABLE)                 \
 	hif_mib_name(CURRENT_TX_POWER_LEVEL)         \
@@ -114,29 +116,32 @@ hif_msg_list_enum
 	hif_mib_name(DOT11_MAX_TRANSMIT_MSDU_LIFETIME) \
 	hif_mib_name(DOT11_RTS_THRESHOLD)            \
 	hif_mib_name(DOT11_WEP_DEFAULT_KEY_ID)       \
+	hif_mib_name(ETHERTYPE_DATAFRAME_CONDITION)  \
+	hif_mib_name(EXTENDED_COUNTERS_TABLE)        \
 	hif_mib_name(GL_BLOCK_ACK_INFO)              \
 	hif_mib_name(GL_OPERATIONAL_POWER_MODE)      \
 	hif_mib_name(GL_SET_MULTI_MSG)               \
+	hif_mib_name(GRP_SEQ_COUNTER)                \
 	hif_mib_name(INACTIVITY_TIMER)               \
 	hif_mib_name(INTERFACE_PROTECTION)           \
 	hif_mib_name(IPV4_ADDR_DATAFRAME_CONDITION)  \
 	hif_mib_name(IPV6_ADDR_DATAFRAME_CONDITION)  \
 	hif_mib_name(KEEP_ALIVE_PERIOD)              \
 	hif_mib_name(MAC_ADDR_DATAFRAME_CONDITION)   \
+	hif_mib_name(MAGIC_DATAFRAME_CONDITION)      \
+	hif_mib_name(MAX_TX_POWER_LEVEL)             \
 	hif_mib_name(NON_ERP_PROTECTION)             \
 	hif_mib_name(NS_IP_ADDRESSES_TABLE)          \
 	hif_mib_name(OVERRIDE_INTERNAL_TX_RATE)      \
+	hif_mib_name(PORT_DATAFRAME_CONDITION)       \
 	hif_mib_name(PROTECTED_MGMT_POLICY)          \
-	hif_mib_name(RX_FILTER)                      \
 	hif_mib_name(RCPI_RSSI_THRESHOLD)            \
+	hif_mib_name(RX_FILTER)                      \
 	hif_mib_name(SET_ASSOCIATION_MODE)           \
 	hif_mib_name(SET_DATA_FILTERING)             \
-	hif_mib_name(ETHERTYPE_DATAFRAME_CONDITION)  \
 	hif_mib_name(SET_HT_PROTECTION)              \
-	hif_mib_name(MAGIC_DATAFRAME_CONDITION)      \
 	hif_mib_name(SET_TX_RATE_RETRY_POLICY)       \
 	hif_mib_name(SET_UAPSD_INFORMATION)          \
-	hif_mib_name(PORT_DATAFRAME_CONDITION)       \
 	hif_mib_name(SLOT_TIME)                      \
 	hif_mib_name(STATISTICS_TABLE)               \
 	hif_mib_name(TEMPLATE_FRAME)                 \
