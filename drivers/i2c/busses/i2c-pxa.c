@@ -33,6 +33,9 @@
 #include <linux/slab.h>
 
 /* I2C register field definitions */
+#define IBMR_SDAS	(1 << 0)
+#define IBMR_SCLS	(1 << 1)
+
 #define ICR_START	(1 << 0)	   /* start bit */
 #define ICR_STOP	(1 << 1)	   /* stop bit */
 #define ICR_ACKNAK	(1 << 2)	   /* send ACK(0) or NAK(1) */
@@ -334,7 +337,7 @@ static void i2c_pxa_abort(struct pxa_i2c *i2c)
 		return;
 	}
 
-	while ((i > 0) && (readl(_IBMR(i2c)) & 0x1) == 0) {
+	while ((i > 0) && (readl(_IBMR(i2c)) & IBMR_SDAS) == 0) {
 		unsigned long icr = readl(_ICR(i2c));
 
 		icr &= ~ICR_START;
@@ -389,7 +392,8 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 		 * quick check of the i2c lines themselves to ensure they've
 		 * gone high...
 		 */
-		if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) == 0 && readl(_IBMR(i2c)) == 3) {
+		if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) == 0 &&
+		    readl(_IBMR(i2c)) == (IBMR_SCLS | IBMR_SDAS)) {
 			if (i2c_debug > 0)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
@@ -584,7 +588,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 	timeout = 0x10000;
 
 	while (1) {
-		if ((readl(_IBMR(i2c)) & 2) == 2)
+		if ((readl(_IBMR(i2c)) & IBMR_SCLS) == IBMR_SCLS)
 			break;
 
 		timeout--;
@@ -679,7 +683,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 	timeout = 0x10000;
 
 	while (1) {
-		if ((readl(_IBMR(i2c)) & 2) == 2)
+		if ((readl(_IBMR(i2c)) & IBMR_SCLS) == IBMR_SCLS)
 			break;
 
 		timeout--;
