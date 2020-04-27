@@ -117,11 +117,8 @@ out:
 	       (unsigned int)rtt, ret);
 
 	have_result |= afs_fs_probe_done(server);
-	if (have_result) {
-		server->probe.have_result = true;
-		wake_up_var(&server->probe.have_result);
+	if (have_result)
 		wake_up_all(&server->probe_wq);
-	}
 }
 
 /*

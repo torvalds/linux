@@ -120,12 +120,10 @@ out:
 static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
 					     int new_state)
 {
-	unsigned long flags;
-
 	/* This function can be called from both rx (interrupt context) and tx
 	 * queue contexts.
 	 */
-	spin_lock_irqsave(&tx_info->lock, flags);
+	spin_lock_bh(&tx_info->lock);
 	switch (tx_info->connection_state) {
 	case KTLS_CONN_CLOSED:
 		tx_info->connection_state = new_state;
@@ -169,7 +167,7 @@ static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
 		pr_err("unknown KTLS connection state\n");
 		break;
 	}
-	spin_unlock_irqrestore(&tx_info->lock, flags);
+	spin_unlock_bh(&tx_info->lock);
 
 	return tx_info->connection_state;
 }
