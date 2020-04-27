@@ -1652,13 +1652,6 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		return -EOPNOTSUPP;
 	}
 
-	if (ucmd->flags & ~(MLX5_QP_FLAG_TUNNEL_OFFLOADS |
-			   MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
-			   MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC)) {
-		mlx5_ib_dbg(dev, "invalid flags\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (ucmd->rx_hash_fields_mask & MLX5_RX_HASH_INNER &&
 	    !(ucmd->flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)) {
 		mlx5_ib_dbg(dev, "Tunnel offloads must be set for inner RSS\n");
@@ -2687,11 +2680,20 @@ static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_BFREG_INDEX, true, qp);
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_UAR_PAGE_INDEX, true, qp);
 
+	cond = qp->flags_en & ~(MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+				MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
+				MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC);
+	if (attr->rwq_ind_tbl && cond) {
+		mlx5_ib_dbg(dev, "RSS RAW QP has unsupported flags 0x%X\n",
+			    cond);
+		return -EINVAL;
+	}
+
 	if (flags)
 		mlx5_ib_dbg(dev, "udata has unsupported flags 0x%X\n", flags);
 
 	return (flags) ? -EINVAL : 0;
-}
+	}
 
 static void process_create_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 				bool cond, struct mlx5_ib_qp *qp)
