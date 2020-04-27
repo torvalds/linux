@@ -33,6 +33,7 @@ algorithms work.
    mount_api
    quota
    seq_file
+   sharedsubtree
 
    automount-support
 
