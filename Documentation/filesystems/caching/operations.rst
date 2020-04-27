@@ -1,10 +1,12 @@
-		       ================================
-		       ASYNCHRONOUS OPERATIONS HANDLING
-		       ================================
+.. SPDX-License-Identifier: GPL-2.0
+
+================================
+Asynchronous Operations Handling
+================================
 
 By: David Howells <dhowells@redhat.com>
 
-Contents:
+.. Contents:
 
  (*) Overview.
 
@@ -17,8 +19,7 @@ Contents:
  (*) Asynchronous callback.
 
 
-========
-OVERVIEW
+Overview
 ========
 
 FS-Cache has an asynchronous operations handling facility that it uses for its
@@ -33,11 +34,10 @@ backend for completion.
 To make use of this facility, <linux/fscache-cache.h> should be #included.
 
 
-===============================
-OPERATION RECORD INITIALISATION
+Operation Record Initialisation
 ===============================
 
-An operation is recorded in an fscache_operation struct:
+An operation is recorded in an fscache_operation struct::
 
 	struct fscache_operation {
 		union {
@@ -50,7 +50,7 @@ An operation is recorded in an fscache_operation struct:
 	};
 
 Someone wanting to issue an operation should allocate something with this
-struct embedded in it.  They should initialise it by calling:
+struct embedded in it.  They should initialise it by calling::
 
 	void fscache_operation_init(struct fscache_operation *op,
 				    fscache_operation_release_t release);
@@ -67,8 +67,7 @@ FSCACHE_OP_WAITING may be set in op->flags prior to each submission of the
 operation and waited for afterwards.
 
 
-==========
-PARAMETERS
+Parameters
 ==========
 
 There are a number of parameters that can be set in the operation record's flag
@@ -87,7 +86,7 @@ operations:
 
      If this option is to be used, FSCACHE_OP_WAITING must be set in op->flags
      before submitting the operation, and the operating thread must wait for it
-     to be cleared before proceeding:
+     to be cleared before proceeding::
 
 		wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
 			    TASK_UNINTERRUPTIBLE);
@@ -101,7 +100,7 @@ operations:
      page to a netfs page after the backing fs has read the page in.
 
      If this option is used, op->fast_work and op->processor must be
-     initialised before submitting the operation:
+     initialised before submitting the operation::
 
 		INIT_WORK(&op->fast_work, do_some_work);
 
@@ -114,7 +113,7 @@ operations:
      pages that have just been fetched from a remote server.
 
      If this option is used, op->slow_work and op->processor must be
-     initialised before submitting the operation:
+     initialised before submitting the operation::
 
 		fscache_operation_init_slow(op, processor)
 
@@ -132,8 +131,7 @@ Furthermore, operations may be one of two types:
      operations running at the same time.
 
 
-=========
-PROCEDURE
+Procedure
 =========
 
 Operations are used through the following procedure:
@@ -143,7 +141,7 @@ Operations are used through the following procedure:
      generic op embedded within.
 
  (2) The submitting thread must then submit the operation for processing using
-     one of the following two functions:
+     one of the following two functions::
 
 	int fscache_submit_op(struct fscache_object *object,
 			      struct fscache_operation *op);
@@ -164,7 +162,7 @@ Operations are used through the following procedure:
      operation of conflicting exclusivity is in progress on the object.
 
      If the operation is asynchronous, the manager will retain a reference to
-     it, so the caller should put their reference to it by passing it to:
+     it, so the caller should put their reference to it by passing it to::
 
 	void fscache_put_operation(struct fscache_operation *op);
 
@@ -179,12 +177,12 @@ Operations are used through the following procedure:
  (4) The operation holds an effective lock upon the object, preventing other
      exclusive ops conflicting until it is released.  The operation can be
      enqueued for further immediate asynchronous processing by adjusting the
-     CPU time provisioning option if necessary, eg:
+     CPU time provisioning option if necessary, eg::
 
 	op->flags &= ~FSCACHE_OP_TYPE;
 	op->flags |= ~FSCACHE_OP_FAST;
 
-     and calling:
+     and calling::
 
 	void fscache_enqueue_operation(struct fscache_operation *op)
 
@@ -192,13 +190,12 @@ Operations are used through the following procedure:
      pools.
 
 
-=====================
-ASYNCHRONOUS CALLBACK
+Asynchronous Callback
 =====================
 
 When used in asynchronous mode, the worker thread pool will invoke the
 processor method with a pointer to the operation.  This should then get at the
-container struct by using container_of():
+container struct by using container_of()::
 
 	static void fscache_write_op(struct fscache_operation *_op)
 	{
