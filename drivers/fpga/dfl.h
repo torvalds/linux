@@ -197,12 +197,14 @@ struct dfl_feature_driver {
  *		    feature dev (platform device)'s reources.
  * @ioaddr: mapped mmio resource address.
  * @ops: ops of this sub feature.
+ * @priv: priv data of this feature.
  */
 struct dfl_feature {
 	u64 id;
 	int resource_index;
 	void __iomem *ioaddr;
 	const struct dfl_feature_ops *ops;
+	void *priv;
 };
 
 #define DEV_STATUS_IN_USE	0
