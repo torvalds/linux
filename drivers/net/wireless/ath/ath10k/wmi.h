@@ -940,6 +940,7 @@ struct wmi_cmd_map {
 	u32 vdev_spectral_scan_configure_cmdid;
 	u32 vdev_spectral_scan_enable_cmdid;
 	u32 request_stats_cmdid;
+	u32 request_peer_stats_info_cmdid;
 	u32 set_arp_ns_offload_cmdid;
 	u32 network_list_offload_config_cmdid;
 	u32 gtk_offload_cmdid;
@@ -4578,6 +4579,13 @@ struct wmi_request_stats_cmd {
 	/* Instantaneous RSSI arguments */
 	struct wlan_inst_rssi_args inst_rssi_args;
 } __packed;
+
+enum wmi_peer_stats_info_request_type {
+	/* request stats of one specified peer */
+	WMI_REQUEST_ONE_PEER_STATS_INFO = 0x01,
+	/* request stats of all peers belong to specified VDEV */
+	WMI_REQUEST_VDEV_ALL_PEER_STATS_INFO = 0x02,
+};
 
 /* Suspend option */
 enum {

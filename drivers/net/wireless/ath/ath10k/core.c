@@ -190,6 +190,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.uart_pin_workaround = true,
 		.tx_stats_over_pktlog = false,
 		.bmi_large_size_download = true,
+		.supports_peer_stats_info = true,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -3277,6 +3278,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->thermal.wmi_sync);
 	init_completion(&ar->bss_survey_done);
 	init_completion(&ar->peer_delete_done);
+	init_completion(&ar->peer_stats_info_complete);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 

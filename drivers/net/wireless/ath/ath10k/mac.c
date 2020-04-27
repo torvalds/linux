@@ -8305,6 +8305,44 @@ static void ath10k_mac_op_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 			peer->removed = true;
 }
 
+static void ath10k_mac_sta_get_peer_stats_info(struct ath10k *ar,
+					       struct ieee80211_sta *sta,
+					       struct station_info *sinfo)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k_peer *peer;
+	unsigned long time_left;
+	int ret;
+
+	if (!(ar->hw_params.supports_peer_stats_info &&
+	      arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA))
+		return;
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find(ar, arsta->arvif->vdev_id, sta->addr);
+	spin_unlock_bh(&ar->data_lock);
+	if (!peer)
+		return;
+
+	reinit_completion(&ar->peer_stats_info_complete);
+
+	ret = ath10k_wmi_request_peer_stats_info(ar,
+						 arsta->arvif->vdev_id,
+						 WMI_REQUEST_ONE_PEER_STATS_INFO,
+						 arsta->arvif->bssid,
+						 0);
+	if (ret && ret != -EOPNOTSUPP) {
+		ath10k_warn(ar, "could not request peer stats info: %d\n", ret);
+		return;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->peer_stats_info_complete, 3 * HZ);
+	if (time_left == 0) {
+		ath10k_warn(ar, "timed out waiting peer stats info\n");
+		return;
+	}
+}
+
 static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta,
@@ -8340,6 +8378,8 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->tx_failed = arsta->tx_failed;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 	}
+
+	ath10k_mac_sta_get_peer_stats_info(ar, sta, sinfo);
 }
 
 static const struct ieee80211_ops ath10k_ops = {

@@ -504,6 +504,8 @@ struct ath10k_sta {
 	u32 tx_failed;
 	u32 last_tx_bitrate;
 
+	u32 rx_rate_code;
+	u32 rx_bitrate_kbps;
 	struct work_struct update_wk;
 	u64 rx_duration;
 	struct ath10k_htt_tx_stats *tx_stats;
@@ -1089,6 +1091,7 @@ struct ath10k {
 	int last_wmi_vdev_start_status;
 	struct completion vdev_setup_done;
 	struct completion vdev_delete_done;
+	struct completion peer_stats_info_complete;
 
 	struct workqueue_struct *workqueue;
 	/* Auxiliary workqueue */
