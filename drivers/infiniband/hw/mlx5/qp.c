@@ -1038,25 +1038,36 @@ err_bfreg:
 	return err;
 }
 
-static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
-			    struct mlx5_ib_qp *qp, struct mlx5_ib_qp_base *base,
-			    struct ib_udata *udata)
+static void destroy_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
+		       struct mlx5_ib_qp_base *base, struct ib_udata *udata)
 {
-	struct mlx5_ib_ucontext *context =
-		rdma_udata_to_drv_context(
-			udata,
-			struct mlx5_ib_ucontext,
-			ibucontext);
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
 
-	mlx5_ib_db_unmap_user(context, &qp->db);
-	ib_umem_release(base->ubuffer.umem);
+	if (udata) {
+		/* User QP */
+		mlx5_ib_db_unmap_user(context, &qp->db);
+		ib_umem_release(base->ubuffer.umem);
 
-	/*
-	 * Free only the BFREGs which are handled by the kernel.
-	 * BFREGs of UARs allocated dynamically are handled by user.
-	 */
-	if (qp->bfregn != MLX5_IB_INVALID_BFREG)
-		mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
+		/*
+		 * Free only the BFREGs which are handled by the kernel.
+		 * BFREGs of UARs allocated dynamically are handled by user.
+		 */
+		if (qp->bfregn != MLX5_IB_INVALID_BFREG)
+			mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
+		return;
+	}
+
+	/* Kernel QP */
+	kvfree(qp->sq.wqe_head);
+	kvfree(qp->sq.w_list);
+	kvfree(qp->sq.wrid);
+	kvfree(qp->sq.wr_data);
+	kvfree(qp->rq.wrid);
+	if (qp->db.db)
+		mlx5_db_free(dev->mdev, &qp->db);
+	if (qp->buf.frags)
+		mlx5_frag_buf_free(dev->mdev, &qp->buf);
 }
 
 /* get_sq_edge - Get the next nearby edge.
@@ -1200,19 +1211,6 @@ err_free:
 err_buf:
 	mlx5_frag_buf_free(dev->mdev, &qp->buf);
 	return err;
-}
-
-static void destroy_qp_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
-{
-	kvfree(qp->sq.wqe_head);
-	kvfree(qp->sq.w_list);
-	kvfree(qp->sq.wrid);
-	kvfree(qp->sq.wr_data);
-	kvfree(qp->rq.wrid);
-	if (qp->db.db)
-		mlx5_db_free(dev->mdev, &qp->db);
-	if (qp->buf.frags)
-		mlx5_frag_buf_free(dev->mdev, &qp->buf);
 }
 
 static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
@@ -1972,7 +1970,7 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev,
 	err = mlx5_core_create_qp(dev, &base->mqp, in, inlen);
 	kvfree(in);
 	if (err) {
-		destroy_qp_user(dev, NULL, qp, base, udata);
+		destroy_qp(dev, qp, base, udata);
 		return err;
 	}
 
@@ -2170,10 +2168,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_create:
-	if (udata)
-		destroy_qp_user(dev, pd, qp, base, udata);
-	else
-		destroy_qp_kernel(dev, qp);
+	destroy_qp(dev, qp, base, udata);
 	return err;
 }
 
@@ -2300,7 +2295,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_create:
-	destroy_qp_kernel(dev, qp);
+	destroy_qp(dev, qp, base, NULL);
 	return err;
 }
 
@@ -2470,10 +2465,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				     base->mqp.qpn);
 	}
 
-	if (udata)
-		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base, udata);
-	else
-		destroy_qp_kernel(dev, qp);
+	destroy_qp(dev, qp, base, udata);
 }
 
 static int create_dct(struct ib_pd *pd, struct mlx5_ib_qp *qp,
