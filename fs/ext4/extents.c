@@ -816,7 +816,7 @@ ext4_ext_binsearch(struct inode *inode,
 
 }
 
-int ext4_ext_tree_init(handle_t *handle, struct inode *inode)
+void ext4_ext_tree_init(handle_t *handle, struct inode *inode)
 {
 	struct ext4_extent_header *eh;
 
@@ -826,7 +826,6 @@ int ext4_ext_tree_init(handle_t *handle, struct inode *inode)
 	eh->eh_magic = EXT4_EXT_MAGIC;
 	eh->eh_max = cpu_to_le16(ext4_ext_space_root(inode, 0));
 	ext4_mark_inode_dirty(handle, inode);
-	return 0;
 }
 
 struct ext4_ext_path *
@@ -1319,7 +1318,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 		  ext4_idx_pblock(EXT_FIRST_INDEX(neh)));
 
 	le16_add_cpu(&neh->eh_depth, 1);
-	ext4_mark_inode_dirty(handle, inode);
+	err = ext4_mark_inode_dirty(handle, inode);
 out:
 	brelse(bh);
 
@@ -4363,7 +4362,7 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	struct inode *inode = file_inode(file);
 	handle_t *handle;
 	int ret = 0;
-	int ret2 = 0;
+	int ret2 = 0, ret3 = 0;
 	int retries = 0;
 	int depth = 0;
 	struct ext4_map_blocks map;
@@ -4423,10 +4422,11 @@ retry:
 			if (ext4_update_inode_size(inode, epos) & 0x1)
 				inode->i_mtime = inode->i_ctime;
 		}
-		ext4_mark_inode_dirty(handle, inode);
+		ret2 = ext4_mark_inode_dirty(handle, inode);
 		ext4_update_inode_fsync_trans(handle, inode, 1);
-		ret2 = ext4_journal_stop(handle);
-		if (ret2)
+		ret3 = ext4_journal_stop(handle);
+		ret2 = ret3 ? ret3 : ret2;
+		if (unlikely(ret2))
 			break;
 	}
 	if (ret == -ENOSPC &&
@@ -4575,7 +4575,9 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	if (new_size)
 		ext4_update_inode_size(inode, new_size);
-	ext4_mark_inode_dirty(handle, inode);
+	ret = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(ret))
+		goto out_handle;
 
 	/* Zero out partial block at the edges of the range */
 	ret = ext4_zero_partial_blocks(handle, inode, offset, len);
@@ -4585,6 +4587,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	if (file->f_flags & O_SYNC)
 		ext4_handle_sync(handle);
 
+out_handle:
 	ext4_journal_stop(handle);
 out_mutex:
 	inode_unlock(inode);
@@ -4696,8 +4699,7 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 				   loff_t offset, ssize_t len)
 {
 	unsigned int max_blocks;
-	int ret = 0;
-	int ret2 = 0;
+	int ret = 0, ret2 = 0, ret3 = 0;
 	struct ext4_map_blocks map;
 	unsigned int blkbits = inode->i_blkbits;
 	unsigned int credits = 0;
@@ -4730,9 +4732,13 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 				     "ext4_ext_map_blocks returned %d",
 				     inode->i_ino, map.m_lblk,
 				     map.m_len, ret);
-		ext4_mark_inode_dirty(handle, inode);
-		if (credits)
-			ret2 = ext4_journal_stop(handle);
+		ret2 = ext4_mark_inode_dirty(handle, inode);
+		if (credits) {
+			ret3 = ext4_journal_stop(handle);
+			if (unlikely(ret3))
+				ret2 = ret3;
+		}
+
 		if (ret <= 0 || ret2)
 			break;
 	}
@@ -5269,7 +5275,7 @@ static int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
+	ret = ext4_mark_inode_dirty(handle, inode);
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 
 out_stop:
