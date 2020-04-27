@@ -276,6 +276,7 @@ static int hif_error_indication(struct wfx_dev *wdev,
 			body->type);
 		break;
 	}
+	wdev->chip_frozen = true;
 	return 0;
 }
 
