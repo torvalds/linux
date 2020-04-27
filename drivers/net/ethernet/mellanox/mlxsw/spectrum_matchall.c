@@ -27,6 +27,7 @@ struct mlxsw_sp_mall_entry {
 	enum mlxsw_sp_mall_action_type type;
 	union {
 		struct mlxsw_sp_mall_mirror_entry mirror;
+		struct mlxsw_sp_port_sample sample;
 	};
 };
 
@@ -87,8 +88,7 @@ static int mlxsw_sp_mall_port_sample_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int
 mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct tc_cls_matchall_offload *cls,
-			      const struct flow_action_entry *act, bool ingress)
+			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	int err;
 
@@ -98,19 +98,14 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
 		return -EEXIST;
 	}
-	if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
-		netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
-		return -EOPNOTSUPP;
-	}
-
 	rcu_assign_pointer(mlxsw_sp_port->sample->psample_group,
-			   act->sample.psample_group);
-	mlxsw_sp_port->sample->truncate = act->sample.truncate;
-	mlxsw_sp_port->sample->trunc_size = act->sample.trunc_size;
-	mlxsw_sp_port->sample->rate = act->sample.rate;
+			   mall_entry->sample.psample_group);
+	mlxsw_sp_port->sample->truncate = mall_entry->sample.truncate;
+	mlxsw_sp_port->sample->trunc_size = mall_entry->sample.trunc_size;
+	mlxsw_sp_port->sample->rate = mall_entry->sample.rate;
 
 	err = mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true,
-					    act->sample.rate);
+					    mall_entry->sample.rate);
 	if (err)
 		goto err_port_sample_set;
 	return 0;
@@ -157,20 +152,28 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 						    ingress);
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
+		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
+			netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_SAMPLE;
-		err = mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, f, act,
-						    ingress);
+		mall_entry->sample.psample_group = act->sample.psample_group;
+		mall_entry->sample.truncate = act->sample.truncate;
+		mall_entry->sample.trunc_size = act->sample.trunc_size;
+		mall_entry->sample.rate = act->sample.rate;
+		err = mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, mall_entry);
 	} else {
 		err = -EOPNOTSUPP;
 	}
 
 	if (err)
-		goto err_add_action;
+		goto errout;
 
 	list_add_tail(&mall_entry->list, &mlxsw_sp_port->mall_list);
 	return 0;
 
-err_add_action:
+errout:
 	kfree(mall_entry);
 	return err;
 }
