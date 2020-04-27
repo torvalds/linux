@@ -1186,8 +1186,8 @@ int mpp_translate_reg_address(struct mpp_session *session,
 
 		mem_region = mpp_task_attach_fd(task, usr_fd);
 		if (IS_ERR(mem_region)) {
-			mpp_debug(DEBUG_IOMMU, "reg[%3d]: %08x fd %d failed\n",
-				  tbl[i], reg[tbl[i]], usr_fd);
+			mpp_err("reg[%3d]: 0x%08x fd %d failed\n",
+				tbl[i], reg[tbl[i]], usr_fd);
 			return PTR_ERR(mem_region);
 		}
 		mpp_debug(DEBUG_IOMMU,
@@ -1333,24 +1333,16 @@ int mpp_task_finalize(struct mpp_session *session,
 	return 0;
 }
 
-static int mpp_iommu_handle(struct iommu_domain *iommu,
-			    struct device *iommu_dev,
-			    unsigned long iova,
-			    int status, void *arg)
+int mpp_task_dump_mem_region(struct mpp_dev *mpp,
+			     struct mpp_task *task)
 {
-	u32 i, s, e;
 	struct mpp_mem_region *mem = NULL, *n;
-	struct mpp_dev *mpp = (struct mpp_dev *)arg;
-	struct mpp_task *task = mpp->cur_task;
-
-	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
 
 	if (!task)
 		return -EIO;
 
+	mpp_err("--- dump mem region ---\n");
 	if (!list_empty(&task->mem_region_list)) {
-		/* dump mem region */
-		mpp_err("--- dump mem region ---\n");
 		list_for_each_entry_safe(mem, n,
 					 &task->mem_region_list,
 					 reg_link) {
@@ -1361,15 +1353,56 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 		dev_err(mpp->dev, "no memory region mapped\n");
 	}
 
-	/* dump register */
-	s = mpp->var->hw_info->reg_start;
-	e = mpp->var->hw_info->reg_end;
+	return 0;
+}
+
+int mpp_task_dump_reg(struct mpp_dev *mpp,
+		      struct mpp_task *task)
+{
+	u32 i, s, e;
+
+	if (!task)
+		return -EIO;
+
+	mpp_err("--- dump register ---\n");
+	if (task->reg) {
+		s = task->hw_info->reg_start;
+		e = task->hw_info->reg_end;
+		for (i = s; i <= e; i++) {
+			u32 reg = i * sizeof(u32);
+
+			mpp_err("reg[%03d]: %04x: 0x%08x\n",
+				i, reg, task->reg[i]);
+		}
+	}
+
+	return 0;
+}
+
+static int mpp_iommu_handle(struct iommu_domain *iommu,
+			    struct device *iommu_dev,
+			    unsigned long iova,
+			    int status, void *arg)
+{
+	u32 i, s, e;
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct mpp_task *task = mpp->cur_task;
+
+	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
+
+	if (!task)
+		return -EIO;
+
+	mpp_task_dump_mem_region(mpp, task);
+
+	s = task->hw_info->reg_start;
+	e = task->hw_info->reg_end;
 	mpp_err("--- dump register ---\n");
 	for (i = s; i <= e; i++) {
 		u32 reg = i * sizeof(u32);
 
-		mpp_err("reg[%3d]: %08x\n",
-			i, readl_relaxed(mpp->reg_base + reg));
+		mpp_err("reg[%03d]: %04x: 0x%08x\n",
+			i, reg, readl_relaxed(mpp->reg_base + reg));
 	}
 
 	if (mpp->iommu_info->hdl)

@@ -248,6 +248,9 @@ struct mpp_task {
 
 	/* record context running start time */
 	struct timeval start;
+	/* hardware info for current task */
+	struct mpp_hw_info *hw_info;
+	u32 *reg;
 };
 
 struct mpp_taskqueue {
@@ -378,6 +381,10 @@ int mpp_task_finish(struct mpp_session *session,
 		    struct mpp_task *task);
 int mpp_task_finalize(struct mpp_session *session,
 		      struct mpp_task *task);
+int mpp_task_dump_mem_region(struct mpp_dev *mpp,
+			     struct mpp_task *task);
+int mpp_task_dump_reg(struct mpp_dev *mpp,
+		      struct mpp_task *task);
 
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
@@ -407,7 +414,8 @@ static inline int mpp_write(struct mpp_dev *mpp, u32 reg, u32 val)
 {
 	int idx = reg / sizeof(u32);
 
-	mpp_debug(DEBUG_SET_REG, "write reg[%3d]: %08x: %08x\n", idx, reg, val);
+	mpp_debug(DEBUG_SET_REG,
+		  "write reg[%03d]: %04x: 0x%08x\n", idx, reg, val);
 	writel(val, mpp->reg_base + reg);
 
 	return 0;
@@ -417,7 +425,8 @@ static inline int mpp_write_relaxed(struct mpp_dev *mpp, u32 reg, u32 val)
 {
 	int idx = reg / sizeof(u32);
 
-	mpp_debug(DEBUG_SET_REG, "write reg[%3d]: %08x: %08x\n", idx, reg, val);
+	mpp_debug(DEBUG_SET_REG,
+		  "write reg[%03d]: %04x: 0x%08x\n", idx, reg, val);
 	writel_relaxed(val, mpp->reg_base + reg);
 
 	return 0;
@@ -429,7 +438,8 @@ static inline u32 mpp_read(struct mpp_dev *mpp, u32 reg)
 	int idx = reg / sizeof(u32);
 
 	val = readl(mpp->reg_base + reg);
-	mpp_debug(DEBUG_GET_REG, "read reg[%3d]: %08x: %08x\n", idx, reg, val);
+	mpp_debug(DEBUG_GET_REG,
+		  "read reg[%03d]: %04x: 0x%08x\n", idx, reg, val);
 
 	return val;
 }
@@ -440,7 +450,8 @@ static inline u32 mpp_read_relaxed(struct mpp_dev *mpp, u32 reg)
 	int idx = reg / sizeof(u32);
 
 	val = readl_relaxed(mpp->reg_base + reg);
-	mpp_debug(DEBUG_GET_REG, "read reg[%3d] %08x: %08x\n", idx, reg, val);
+	mpp_debug(DEBUG_GET_REG,
+		  "read reg[%03d] %04x: 0x%08x\n", idx, reg, val);
 
 	return val;
 }

@@ -209,12 +209,14 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	attach = dma_buf_attach(buffer->dmabuf, dma->dev);
 	if (IS_ERR(attach)) {
+		mpp_err("dma_buf_attach fd %d failed\n", fd);
 		ret = PTR_ERR(attach);
 		goto fail_attach;
 	}
 
 	sgt = dma_buf_map_attachment(attach, buffer->dir);
 	if (IS_ERR(sgt)) {
+		mpp_err("dma_buf_map_attachment fd %d failed\n", fd);
 		ret = PTR_ERR(sgt);
 		goto fail_map;
 	}

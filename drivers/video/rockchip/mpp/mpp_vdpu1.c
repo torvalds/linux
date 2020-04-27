@@ -97,7 +97,6 @@ enum VPUD1_HW_ID {
 
 struct vdpu_task {
 	struct mpp_task mpp_task;
-	struct mpp_hw_info *hw_info;
 	/* enable of post process */
 	bool pp_enable;
 
@@ -285,6 +284,7 @@ static int vdpu_extract_task_msg(struct vdpu_task *task,
 	int ret;
 	struct mpp_request *req;
 	struct reg_offset_info *off_inf = &task->off_inf;
+	struct mpp_hw_info *hw_info = task->mpp_task.hw_info;
 
 	for (i = 0; i < msgs->req_cnt; i++) {
 		u32 off_s, off_e;
@@ -295,8 +295,8 @@ static int vdpu_extract_task_msg(struct vdpu_task *task,
 
 		switch (req->cmd) {
 		case MPP_CMD_SET_REG_WRITE: {
-			off_s = task->hw_info->reg_start * sizeof(u32);
-			off_e = task->hw_info->reg_end * sizeof(u32);
+			off_s = hw_info->reg_start * sizeof(u32);
+			off_e = hw_info->reg_end * sizeof(u32);
 			ret = mpp_check_req(req, 0, sizeof(task->reg),
 					    off_s, off_e);
 			if (ret)
@@ -310,8 +310,8 @@ static int vdpu_extract_task_msg(struct vdpu_task *task,
 			       req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_READ: {
-			off_s = task->hw_info->reg_start * sizeof(u32);
-			off_e = task->hw_info->reg_end * sizeof(u32);
+			off_s = hw_info->reg_start * sizeof(u32);
+			off_e = hw_info->reg_end * sizeof(u32);
 			ret = mpp_check_req(req, 0, sizeof(task->reg),
 					    off_s, off_e);
 			if (ret)
@@ -348,7 +348,8 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 			     struct mpp_task_msgs *msgs)
 {
 	int ret;
-	struct vdpu_task *task;
+	struct mpp_task *mpp_task = NULL;
+	struct vdpu_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
 
 	mpp_debug_enter();
@@ -357,14 +358,15 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 	if (!task)
 		return NULL;
 
-	mpp_task_init(session, &task->mpp_task);
-
+	mpp_task = &task->mpp_task;
+	mpp_task_init(session, mpp_task);
 	if (session->device_type == MPP_DEVICE_VDPU1_PP) {
 		task->pp_enable = true;
-		task->hw_info = &vdpu_pp_v1_hw_info;
+		mpp_task->hw_info = &vdpu_pp_v1_hw_info;
 	} else {
-		task->hw_info = mpp->var->hw_info;
+		mpp_task->hw_info = mpp->var->hw_info;
 	}
+	mpp_task->reg = task->reg;
 	/* extract reqs for current task */
 	ret = vdpu_extract_task_msg(task, msgs);
 	if (ret)
@@ -379,10 +381,12 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 
 	mpp_debug_leave();
 
-	return &task->mpp_task;
+	return mpp_task;
 
 fail:
-	mpp_task_finalize(session, &task->mpp_task);
+	mpp_task_dump_mem_region(mpp, mpp_task);
+	mpp_task_dump_reg(mpp, mpp_task);
+	mpp_task_finalize(session, mpp_task);
 	kfree(task);
 	return NULL;
 }
@@ -405,7 +409,7 @@ static int vdpu_run(struct mpp_dev *mpp,
 	/* clear cache */
 	mpp_write_relaxed(mpp, VDPU1_REG_CLR_CACHE_BASE, 1);
 	/* set registers for hardware */
-	reg_en = task->hw_info->reg_en;
+	reg_en = mpp_task->hw_info->reg_en;
 	for (i = 0; i < task->w_req_cnt; i++) {
 		struct mpp_request *req = &task->w_reqs[i];
 		int s = req->offset / sizeof(u32);

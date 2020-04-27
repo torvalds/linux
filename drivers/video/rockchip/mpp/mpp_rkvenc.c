@@ -118,7 +118,6 @@ enum RKVENC_MODE {
 
 struct rkvenc_task {
 	struct mpp_task mpp_task;
-	struct mpp_hw_info *hw_info;
 
 	int link_flags;
 	int fmt;
@@ -294,8 +293,8 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
 	int ret;
-
-	struct rkvenc_task *task;
+	struct mpp_task *mpp_task = NULL;
+	struct rkvenc_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
 
 	mpp_debug_enter();
@@ -304,9 +303,10 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	if (!task)
 		return NULL;
 
-	mpp_task_init(session, &task->mpp_task);
-	task->hw_info = mpp->var->hw_info;
-
+	mpp_task = &task->mpp_task;
+	mpp_task_init(session, mpp_task);
+	mpp_task->hw_info = mpp->var->hw_info;
+	mpp_task->reg = task->reg;
 	/* extract reqs for current task */
 	ret = rkvenc_extract_task_msg(task, msgs);
 	if (ret)
@@ -314,21 +314,23 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	/* process fd in register */
 	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
 		ret = mpp_translate_reg_address(session,
-						&task->mpp_task, task->fmt,
+						mpp_task, task->fmt,
 						task->reg, &task->off_inf);
 		if (ret)
 			goto fail;
-		mpp_translate_reg_offset_info(&task->mpp_task,
+		mpp_translate_reg_offset_info(mpp_task,
 					      &task->off_inf, task->reg);
 	}
 	task->link_mode = RKVENC_MODE_ONEFRAME;
 
 	mpp_debug_leave();
 
-	return &task->mpp_task;
+	return mpp_task;
 
 fail:
-	mpp_task_finalize(session, &task->mpp_task);
+	mpp_task_dump_mem_region(mpp, mpp_task);
+	mpp_task_dump_reg(mpp, mpp_task);
+	mpp_task_finalize(session, mpp_task);
 	kfree(task);
 	return NULL;
 }
@@ -380,7 +382,7 @@ static int rkvenc_run(struct mpp_dev *mpp,
 	case RKVENC_MODE_ONEFRAME: {
 		int i;
 		struct mpp_request *req;
-		u32 reg_en = task->hw_info->reg_en;
+		u32 reg_en = mpp_task->hw_info->reg_en;
 
 		/*
 		 * Tips: ensure osd plt clock is 0 before setting register,

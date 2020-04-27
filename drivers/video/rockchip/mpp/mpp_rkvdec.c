@@ -136,7 +136,6 @@ enum RKVDEC_HW_ID {
 
 struct rkvdec_task {
 	struct mpp_task mpp_task;
-	struct mpp_hw_info *hw_info;
 
 	unsigned long aclk_freq;
 	unsigned long clk_core_freq;
@@ -745,6 +744,7 @@ static int rkvdec_extract_task_msg(struct rkvdec_task *task,
 	int ret;
 	struct mpp_request *req;
 	struct reg_offset_info *off_inf = &task->off_inf;
+	struct mpp_hw_info *hw_info = task->mpp_task.hw_info;
 
 	for (i = 0; i < msgs->req_cnt; i++) {
 		u32 off_s, off_e;
@@ -755,8 +755,8 @@ static int rkvdec_extract_task_msg(struct rkvdec_task *task,
 
 		switch (req->cmd) {
 		case MPP_CMD_SET_REG_WRITE: {
-			off_s = task->hw_info->reg_start * sizeof(u32);
-			off_e = task->hw_info->reg_end * sizeof(u32);
+			off_s = hw_info->reg_start * sizeof(u32);
+			off_e = hw_info->reg_end * sizeof(u32);
 			ret = mpp_check_req(req, 0, sizeof(task->reg),
 					    off_s, off_e);
 			if (ret)
@@ -770,8 +770,8 @@ static int rkvdec_extract_task_msg(struct rkvdec_task *task,
 			       req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_READ: {
-			off_s = task->hw_info->reg_start * sizeof(u32);
-			off_e = task->hw_info->reg_end * sizeof(u32);
+			off_s = hw_info->reg_start * sizeof(u32);
+			off_e = hw_info->reg_end * sizeof(u32);
 			ret = mpp_check_req(req, 0, sizeof(task->reg),
 					    off_s, off_e);
 			if (ret)
@@ -808,6 +808,7 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
 	int ret;
+	struct mpp_task *mpp_task = NULL;
 	struct rkvdec_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
 
@@ -817,8 +818,10 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 	if (!task)
 		return NULL;
 
-	mpp_task_init(session, &task->mpp_task);
-	task->hw_info = mpp->var->hw_info;
+	mpp_task = &task->mpp_task;
+	mpp_task_init(session, mpp_task);
+	mpp_task->hw_info = mpp->var->hw_info;
+	mpp_task->reg = task->reg;
 	/* extract reqs for current task */
 	ret = rkvdec_extract_task_msg(task, msgs);
 	if (ret)
@@ -839,10 +842,12 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 
 	mpp_debug_leave();
 
-	return &task->mpp_task;
+	return mpp_task;
 
 fail:
-	mpp_task_finalize(session, &task->mpp_task);
+	mpp_task_dump_mem_region(mpp, mpp_task);
+	mpp_task_dump_reg(mpp, mpp_task);
+	mpp_task_finalize(session, mpp_task);
 	kfree(task);
 	return NULL;
 }
@@ -874,7 +879,7 @@ static int rkvdec_run(struct mpp_dev *mpp,
 
 	dec = to_rkvdec_dev(mpp);
 	task = to_rkvdec_task(mpp_task);
-	reg_en = task->hw_info->reg_en;
+	reg_en = mpp_task->hw_info->reg_en;
 	switch (dec->state) {
 	case RKVDEC_STATE_NORMAL: {
 		u32 reg;
