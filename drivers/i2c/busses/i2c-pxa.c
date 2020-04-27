@@ -113,6 +113,8 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.icr =	0x10,
 		.isr =	0x18,
 		.isar =	0x20,
+		.fm = ICR_FM,
+		.hs = ICR_HS,
 	},
 	[REGS_PXA3XX] = {
 		.ibmr =	0x00,
@@ -120,6 +122,8 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.icr =	0x08,
 		.isr =	0x0c,
 		.isar =	0x10,
+		.fm = ICR_FM,
+		.hs = ICR_HS,
 	},
 	[REGS_CE4100] = {
 		.ibmr =	0x14,
@@ -127,6 +131,8 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.icr =	0x00,
 		.isr =	0x04,
 		/* no isar register */
+		.fm = ICR_FM,
+		.hs = ICR_HS,
 	},
 	[REGS_PXA910] = {
 		.ibmr = 0x00,
@@ -136,6 +142,8 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.isar = 0x20,
 		.ilcr = 0x28,
 		.iwcr = 0x30,
+		.fm = ICR_FM,
+		.hs = ICR_HS,
 	},
 	[REGS_A3700] = {
 		.ibmr =	0x00,
@@ -1279,8 +1287,8 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->reg_idbr = i2c->reg_base + pxa_reg_layout[i2c_type].idbr;
 	i2c->reg_icr = i2c->reg_base + pxa_reg_layout[i2c_type].icr;
 	i2c->reg_isr = i2c->reg_base + pxa_reg_layout[i2c_type].isr;
-	i2c->fm_mask = pxa_reg_layout[i2c_type].fm ? : ICR_FM;
-	i2c->hs_mask = pxa_reg_layout[i2c_type].hs ? : ICR_HS;
+	i2c->fm_mask = pxa_reg_layout[i2c_type].fm;
+	i2c->hs_mask = pxa_reg_layout[i2c_type].hs;
 
 	if (i2c_type != REGS_CE4100)
 		i2c->reg_isar = i2c->reg_base + pxa_reg_layout[i2c_type].isar;
