@@ -676,7 +676,7 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	 */
 	if ((sched->timeout != MAX_SCHEDULE_TIMEOUT &&
 	    !cancel_delayed_work(&sched->work_tdr)) ||
-	    __kthread_should_park(sched->thread))
+	    kthread_should_park())
 		return NULL;
 
 	spin_lock(&sched->job_list_lock);
