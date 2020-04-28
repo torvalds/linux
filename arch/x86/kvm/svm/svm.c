@@ -2893,8 +2893,7 @@ static void svm_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 	*info2 = control->exit_info_2;
 }
 
-static int handle_exit(struct kvm_vcpu *vcpu,
-	enum exit_fastpath_completion exit_fastpath)
+static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_run *kvm_run = vcpu->run;
@@ -2952,10 +2951,10 @@ static int handle_exit(struct kvm_vcpu *vcpu,
 		       __func__, svm->vmcb->control.exit_int_info,
 		       exit_code);
 
-	if (exit_fastpath == EXIT_FASTPATH_SKIP_EMUL_INS) {
-		kvm_skip_emulated_instruction(vcpu);
+	if (exit_fastpath != EXIT_FASTPATH_NONE)
 		return 1;
-	} else if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
+
+	if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
 	    || !svm_exit_handlers[exit_code]) {
 		vcpu_unimpl(vcpu, "svm: unexpected exit reason 0x%x\n", exit_code);
 		dump_vmcb(vcpu);
@@ -3324,7 +3323,7 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 	svm_complete_interrupts(svm);
 }
 
-static enum exit_fastpath_completion svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
+static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 {
 	if (!is_guest_mode(vcpu) &&
 	    to_svm(vcpu)->vmcb->control.exit_code == SVM_EXIT_MSR &&
@@ -3336,9 +3335,9 @@ static enum exit_fastpath_completion svm_exit_handlers_fastpath(struct kvm_vcpu 
 
 void __svm_vcpu_run(unsigned long vmcb_pa, unsigned long *regs);
 
-static enum exit_fastpath_completion svm_vcpu_run(struct kvm_vcpu *vcpu)
+static fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
-	enum exit_fastpath_completion exit_fastpath;
+	fastpath_t exit_fastpath;
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
