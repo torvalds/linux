@@ -331,7 +331,7 @@ struct drm_display_mode {
 	 * Addressable size of the output in mm, projectors should set this to
 	 * 0.
 	 */
-	int width_mm;
+	u16 width_mm;
 
 	/**
 	 * @height_mm:
@@ -339,7 +339,7 @@ struct drm_display_mode {
 	 * Addressable size of the output in mm, projectors should set this to
 	 * 0.
 	 */
-	int height_mm;
+	u16 height_mm;
 
 	/**
 	 * @crtc_clock:
