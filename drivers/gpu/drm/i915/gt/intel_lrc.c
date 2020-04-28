@@ -1239,13 +1239,17 @@ __execlists_schedule_in(struct i915_request *rq)
 
 	if (ce->tag) {
 		/* Use a fixed tag for OA and friends */
+		GEM_BUG_ON(ce->tag <= BITS_PER_LONG);
 		ce->lrc.ccid = ce->tag;
 	} else {
 		/* We don't need a strict matching tag, just different values */
-		ce->lrc.ccid =
-			(++engine->context_tag % NUM_CONTEXT_TAG) <<
-			(GEN11_SW_CTX_ID_SHIFT - 32);
-		BUILD_BUG_ON(NUM_CONTEXT_TAG > GEN12_MAX_CONTEXT_HW_ID);
+		unsigned int tag = ffs(engine->context_tag);
+
+		GEM_BUG_ON(tag == 0 || tag >= BITS_PER_LONG);
+		clear_bit(tag - 1, &engine->context_tag);
+		ce->lrc.ccid = tag << (GEN11_SW_CTX_ID_SHIFT - 32);
+
+		BUILD_BUG_ON(BITS_PER_LONG > GEN12_MAX_CONTEXT_HW_ID);
 	}
 
 	ce->lrc.ccid |= engine->execlists.ccid;
@@ -1289,7 +1293,8 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 
 static inline void
 __execlists_schedule_out(struct i915_request *rq,
-			 struct intel_engine_cs * const engine)
+			 struct intel_engine_cs * const engine,
+			 unsigned int ccid)
 {
 	struct intel_context * const ce = rq->context;
 
@@ -1306,6 +1311,14 @@ __execlists_schedule_out(struct i915_request *rq,
 	if (list_is_last_rcu(&rq->link, &ce->timeline->requests) &&
 	    i915_request_completed(rq))
 		intel_engine_add_retire(engine, ce->timeline);
+
+	ccid >>= GEN11_SW_CTX_ID_SHIFT - 32;
+	ccid &= GEN12_MAX_CONTEXT_HW_ID;
+	if (ccid < BITS_PER_LONG) {
+		GEM_BUG_ON(ccid == 0);
+		GEM_BUG_ON(test_bit(ccid - 1, &engine->context_tag));
+		set_bit(ccid - 1, &engine->context_tag);
+	}
 
 	intel_context_update_runtime(ce);
 	intel_engine_context_out(engine);
@@ -1332,15 +1345,17 @@ execlists_schedule_out(struct i915_request *rq)
 {
 	struct intel_context * const ce = rq->context;
 	struct intel_engine_cs *cur, *old;
+	u32 ccid;
 
 	trace_i915_request_out(rq);
 
+	ccid = rq->context->lrc.ccid;
 	old = READ_ONCE(ce->inflight);
 	do
 		cur = ptr_unmask_bits(old, 2) ? ptr_dec(old) : NULL;
 	while (!try_cmpxchg(&ce->inflight, &old, cur));
 	if (!cur)
-		__execlists_schedule_out(rq, old);
+		__execlists_schedule_out(rq, old, ccid);
 
 	i915_request_put(rq);
 }
@@ -3556,7 +3571,7 @@ static void enable_execlists(struct intel_engine_cs *engine)
 
 	enable_error_interrupt(engine);
 
-	engine->context_tag = 0;
+	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
 }
 
 static bool unexpected_starting_state(struct intel_engine_cs *engine)
