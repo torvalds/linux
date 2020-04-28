@@ -141,6 +141,7 @@ then
 	cpu_count=$TORTURE_ALLOTED_CPUS
 fi
 qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"
+qemu_args="`specify_qemu_net "$qemu_args"`"
 
 # Generate architecture-specific and interaction-specific qemu arguments
 qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$resdir/console.log"`"
