@@ -223,57 +223,6 @@ enum drm_mode_status {
  */
 struct drm_display_mode {
 	/**
-	 * @head:
-	 *
-	 * struct list_head for mode lists.
-	 */
-	struct list_head head;
-
-	/**
-	 * @name:
-	 *
-	 * Human-readable name of the mode, filled out with drm_mode_set_name().
-	 */
-	char name[DRM_DISPLAY_MODE_LEN];
-
-	/**
-	 * @status:
-	 *
-	 * Status of the mode, used to filter out modes not supported by the
-	 * hardware. See enum &drm_mode_status.
-	 */
-	enum drm_mode_status status;
-
-	/**
-	 * @type:
-	 *
-	 * A bitmask of flags, mostly about the source of a mode. Possible flags
-	 * are:
-	 *
-	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
-	 *    resolution of an LCD panel. There should only be one preferred
-	 *    mode per connector at any given time.
-	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
-	 *    them really. Drivers must set this bit for all modes they create
-	 *    and expose to userspace.
-	 *  - DRM_MODE_TYPE_USERDEF: Mode defined or selected via the kernel
-	 *    command line.
-	 *
-	 * Plus a big list of flags which shouldn't be used at all, but are
-	 * still around since these flags are also used in the userspace ABI.
-	 * We no longer accept modes with these types though:
-	 *
-	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
-	 *    Use DRM_MODE_TYPE_DRIVER instead.
-	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
-	 *    DRM_MODE_TYPE_PREFERRED instead.
-	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
-	 *    which are stuck around for hysterical raisins only. No one has an
-	 *    idea what they were meant for. Don't use.
-	 */
-	u8 type;
-
-	/**
 	 * @clock:
 	 *
 	 * Pixel clock in kHz.
@@ -326,22 +275,6 @@ struct drm_display_mode {
 	u32 flags;
 
 	/**
-	 * @width_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	u16 width_mm;
-
-	/**
-	 * @height_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	u16 height_mm;
-
-	/**
 	 * @crtc_clock:
 	 *
 	 * Actual pixel or dot clock in the hardware. This differs from the
@@ -372,6 +305,51 @@ struct drm_display_mode {
 	u16 crtc_vtotal;
 
 	/**
+	 * @width_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	u16 width_mm;
+
+	/**
+	 * @height_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	u16 height_mm;
+
+	/**
+	 * @type:
+	 *
+	 * A bitmask of flags, mostly about the source of a mode. Possible flags
+	 * are:
+	 *
+	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
+	 *    resolution of an LCD panel. There should only be one preferred
+	 *    mode per connector at any given time.
+	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
+	 *    them really. Drivers must set this bit for all modes they create
+	 *    and expose to userspace.
+	 *  - DRM_MODE_TYPE_USERDEF: Mode defined or selected via the kernel
+	 *    command line.
+	 *
+	 * Plus a big list of flags which shouldn't be used at all, but are
+	 * still around since these flags are also used in the userspace ABI.
+	 * We no longer accept modes with these types though:
+	 *
+	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
+	 *    Use DRM_MODE_TYPE_DRIVER instead.
+	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
+	 *    DRM_MODE_TYPE_PREFERRED instead.
+	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
+	 *    which are stuck around for hysterical raisins only. No one has an
+	 *    idea what they were meant for. Don't use.
+	 */
+	u8 type;
+
+	/**
 	 * @private_flags:
 	 *
 	 * Driver private flags. private_flags can only be used for mode
@@ -382,11 +360,11 @@ struct drm_display_mode {
 	int private_flags;
 
 	/**
-	 * @picture_aspect_ratio:
+	 * @head:
 	 *
-	 * Field for setting the HDMI picture aspect ratio of a mode.
+	 * struct list_head for mode lists.
 	 */
-	enum hdmi_picture_aspect picture_aspect_ratio;
+	struct list_head head;
 
 	/**
 	 * @export_head:
@@ -400,6 +378,29 @@ struct drm_display_mode {
 	 * avoid overhead of protecting it by mode_config.mutex.
 	 */
 	struct list_head export_head;
+
+	/**
+	 * @name:
+	 *
+	 * Human-readable name of the mode, filled out with drm_mode_set_name().
+	 */
+	char name[DRM_DISPLAY_MODE_LEN];
+
+	/**
+	 * @status:
+	 *
+	 * Status of the mode, used to filter out modes not supported by the
+	 * hardware. See enum &drm_mode_status.
+	 */
+	enum drm_mode_status status;
+
+	/**
+	 * @picture_aspect_ratio:
+	 *
+	 * Field for setting the HDMI picture aspect ratio of a mode.
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
+
 };
 
 /**
