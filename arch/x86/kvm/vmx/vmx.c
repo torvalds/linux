@@ -3936,7 +3936,8 @@ static int vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
 	if (pi_test_and_set_on(&vmx->pi_desc))
 		return 0;
 
-	if (!kvm_vcpu_trigger_posted_interrupt(vcpu, false))
+	if (vcpu != kvm_get_running_vcpu() &&
+	    !kvm_vcpu_trigger_posted_interrupt(vcpu, false))
 		kvm_vcpu_kick(vcpu);
 
 	return 0;
@@ -6812,6 +6813,8 @@ reenter_guest:
 			 * but it would incur the cost of a retpoline for now.
 			 * Revisit once static calls are available.
 			 */
+			if (vcpu->arch.apicv_active)
+				vmx_sync_pir_to_irr(vcpu);
 			goto reenter_guest;
 		}
 		exit_fastpath = EXIT_FASTPATH_EXIT_HANDLED;
