@@ -306,7 +306,7 @@ struct thread_struct {
 }
 #endif
 
-#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.regs)
+#define task_pt_regs(tsk)	((tsk)->thread.regs)
 
 unsigned long get_wchan(struct task_struct *p);
 
