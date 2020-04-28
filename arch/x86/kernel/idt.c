@@ -51,6 +51,9 @@ struct idt_data {
 #define TSKG(_vector, _gdt)				\
 	G(_vector, NULL, DEFAULT_STACK, GATE_TASK, DPL0, _gdt << 3)
 
+
+static bool idt_setup_done __initdata;
+
 /*
  * Early traps running on the DEFAULT_STACK because the other interrupt
  * stacks work only after cpu_init().
@@ -323,6 +326,7 @@ void __init idt_setup_apic_and_irq_gates(void)
 		set_intr_gate(i, entry);
 	}
 #endif
+	idt_setup_done = true;
 }
 
 /**
@@ -352,6 +356,7 @@ void idt_invalidate(void *addr)
 	load_idt(&idt);
 }
 
+/* This goes away once ASYNC_PF is sanitized */
 void __init update_intr_gate(unsigned int n, const void *addr)
 {
 	if (WARN_ON_ONCE(!test_bit(n, system_vectors)))
@@ -359,9 +364,14 @@ void __init update_intr_gate(unsigned int n, const void *addr)
 	set_intr_gate(n, addr);
 }
 
-void alloc_intr_gate(unsigned int n, const void *addr)
+void __init alloc_intr_gate(unsigned int n, const void *addr)
 {
-	BUG_ON(n < FIRST_SYSTEM_VECTOR);
-	if (!test_and_set_bit(n, system_vectors))
+	if (WARN_ON(n < FIRST_SYSTEM_VECTOR))
+		return;
+
+	if (WARN_ON(idt_setup_done))
+		return;
+
+	if (!WARN_ON(test_and_set_bit(n, system_vectors)))
 		set_intr_gate(n, addr);
 }
