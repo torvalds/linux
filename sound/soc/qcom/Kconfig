@@ -140,6 +140,10 @@ config SND_SOC_QDSP6
 	 audio drivers. This includes q6asm, q6adm,
 	 q6afe interfaces to DSP using apr.
 
+config SND_SOC_QDSP6_Q6VOICE
+	tristate "QDSP6 Q6Voice audio driver"
+	depends on SND_SOC_QDSP6
+
 config SND_SOC_MSM8996
 	tristate "SoC Machine driver for MSM8996 and APQ8096 boards"
 	depends on QCOM_APR
