@@ -20,26 +20,6 @@
 #include "system_api.h"
 #include "hive_types.h"
 
-#define hrt_int_type_of_char   char
-#define hrt_int_type_of_uchar  unsigned char
-#define hrt_int_type_of_short  short
-#define hrt_int_type_of_ushort unsigned short
-#define hrt_int_type_of_int    int
-#define hrt_int_type_of_uint   unsigned int
-#define hrt_int_type_of_long   long
-#define hrt_int_type_of_ulong  unsigned long
-#define hrt_int_type_of_ptr    unsigned int
-
-#define hrt_host_type_of_char   char
-#define hrt_host_type_of_uchar  unsigned char
-#define hrt_host_type_of_short  short
-#define hrt_host_type_of_ushort unsigned short
-#define hrt_host_type_of_int    int
-#define hrt_host_type_of_uint   unsigned int
-#define hrt_host_type_of_long   long
-#define hrt_host_type_of_ulong  unsigned long
-#define hrt_host_type_of_ptr    void*
-
 #define HRT_TYPE_BYTES(cell, type) (HRT_TYPE_BITS(cell, type) / 8)
 #define HRT_HOST_TYPE(cell_type)   HRTCAT(hrt_host_type_of_, cell_type)
 #define HRT_INT_TYPE(type)         HRTCAT(hrt_int_type_of_, type)
