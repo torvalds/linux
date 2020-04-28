@@ -5,6 +5,8 @@
 #ifndef _SFC_NAND_MTD_H
 #define _SFC_NAND_MTD_H
 
+#define CONFIG_MTD_NAND_BBT_USING_FLASH
+
 #ifndef nand_bbt_block_status
 /* BBT related functions */
 enum nand_bbt_block_status {
