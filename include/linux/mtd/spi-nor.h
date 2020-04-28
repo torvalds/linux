@@ -302,7 +302,7 @@ struct spi_nor;
  * @read:		read data from the SPI NOR.
  * @write:		write data to the SPI NOR.
  * @erase:		erase a sector of the SPI NOR at the offset @offs; if
- *			not provided by the driver, spi-nor will send the erase
+ *			not provided by the driver, SPI NOR will send the erase
  *			opcode via write_reg().
  */
 struct spi_nor_controller_ops {
@@ -336,7 +336,7 @@ struct spi_nor_flash_parameter;
  *                      layer is not DMA-able
  * @bouncebuf_size:	size of the bounce buffer
  * @info:		SPI NOR part JEDEC MFR ID and other info
- * @manufacturer:	spi-nor manufacturer
+ * @manufacturer:	SPI NOR manufacturer
  * @page_size:		the page size of the SPI NOR
  * @addr_width:		number of address bytes
  * @erase_opcode:	the opcode for erasing a sector
@@ -344,12 +344,12 @@ struct spi_nor_flash_parameter;
  * @read_dummy:		the dummy needed by the read operation
  * @program_opcode:	the program opcode
  * @sst_write_second:	used by the SST write operation
- * @flags:		flag options for the current SPI-NOR (SNOR_F_*)
+ * @flags:		flag options for the current SPI NOR (SNOR_F_*)
  * @read_proto:		the SPI protocol for read operations
  * @write_proto:	the SPI protocol for write operations
  * @reg_proto:		the SPI protocol for read_reg/write_reg/erase operations
  * @controller_ops:	SPI NOR controller driver specific operations.
- * @params:		[FLASH-SPECIFIC] SPI-NOR flash parameters and settings.
+ * @params:		[FLASH-SPECIFIC] SPI NOR flash parameters and settings.
  *                      The structure includes legacy flash parameters and
  *                      settings that can be overwritten by the spi_nor_fixups
  *                      hooks, or dynamically when parsing the SFDP tables.

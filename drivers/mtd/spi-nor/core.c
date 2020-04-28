@@ -2469,7 +2469,7 @@ static int spi_nor_select_read(struct spi_nor *nor,
 	nor->read_proto = read->proto;
 
 	/*
-	 * In the spi-nor framework, we don't need to make the difference
+	 * In the SPI NOR framework, we don't need to make the difference
 	 * between mode clock cycles and wait state clock cycles.
 	 * Indeed, the value of the mode clock cycles is used by a QSPI
 	 * flash memory to know whether it should enter or leave its 0-4-4
@@ -3126,7 +3126,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	/*
 	 * Make sure the XSR_RDY flag is set before calling
 	 * spi_nor_wait_till_ready(). Xilinx S3AN share MFR
-	 * with Atmel spi-nor
+	 * with Atmel SPI NOR.
 	 */
 	if (info->flags & SPI_NOR_XSR_RDY)
 		nor->flags |=  SNOR_F_READY_XSR_RDY;
