@@ -461,7 +461,7 @@ u32 sfc_nand_erase_block(u8 cs, u32 addr)
 	return ret;
 }
 
-static u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
+u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	int ret;
 	u32 plane;
@@ -523,7 +523,7 @@ u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)
 	return ret;
 }
 
-static u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
+u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	int ret;
 	u32 plane;

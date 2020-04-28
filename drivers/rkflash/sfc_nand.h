@@ -131,6 +131,8 @@ u32 sfc_nand_ecc_status_sp5(void);
 u32 sfc_nand_erase_block(u8 cs, u32 addr);
 u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
+u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf);
+u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf);
 u32 sfc_nand_check_bad_block(u8 cs, u32 addr);
 u32 sfc_nand_mark_bad_block(u8 cs, u32 addr);
 void sfc_nand_ftl_ops_init(void);
