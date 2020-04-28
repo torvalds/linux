@@ -1612,9 +1612,12 @@ static __maybe_unused bool
 assert_pending_valid(const struct intel_engine_execlists *execlists,
 		     const char *msg)
 {
+	struct intel_engine_cs *engine =
+		container_of(execlists, typeof(*engine), execlists);
 	struct i915_request * const *port, *rq;
 	struct intel_context *ce = NULL;
 	bool sentinel = false;
+	u32 ccid = -1;
 
 	trace_ports(execlists, msg, execlists->pending);
 
@@ -1623,13 +1626,14 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		return true;
 
 	if (!execlists->pending[0]) {
-		GEM_TRACE_ERR("Nothing pending for promotion!\n");
+		GEM_TRACE_ERR("%s: Nothing pending for promotion!\n",
+			      engine->name);
 		return false;
 	}
 
 	if (execlists->pending[execlists_num_ports(execlists)]) {
-		GEM_TRACE_ERR("Excess pending[%d] for promotion!\n",
-			      execlists_num_ports(execlists));
+		GEM_TRACE_ERR("%s: Excess pending[%d] for promotion!\n",
+			      engine->name, execlists_num_ports(execlists));
 		return false;
 	}
 
@@ -1641,12 +1645,22 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		GEM_BUG_ON(!i915_request_is_active(rq));
 
 		if (ce == rq->context) {
-			GEM_TRACE_ERR("Dup context:%llx in pending[%zd]\n",
+			GEM_TRACE_ERR("%s: Dup context:%llx in pending[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
 		ce = rq->context;
+
+		if (ccid == ce->lrc.ccid) {
+			GEM_TRACE_ERR("%s: Dup ccid:%x context:%llx in pending[%zd]\n",
+				      engine->name,
+				      ccid, ce->timeline->fence_context,
+				      port - execlists->pending);
+			return false;
+		}
+		ccid = ce->lrc.ccid;
 
 		/*
 		 * Sentinels are supposed to be lonely so they flush the
@@ -1654,7 +1668,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		 * only request in the pending submission.
 		 */
 		if (sentinel) {
-			GEM_TRACE_ERR("context:%llx after sentinel in pending[%zd]\n",
+			GEM_TRACE_ERR("%s: context:%llx after sentinel in pending[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
@@ -1662,7 +1677,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 
 		sentinel = i915_request_has_sentinel(rq);
 		if (sentinel && port != execlists->pending) {
-			GEM_TRACE_ERR("sentinel context:%llx not in prime position[%zd]\n",
+			GEM_TRACE_ERR("%s: sentinel context:%llx not in prime position[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
@@ -1677,7 +1693,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 
 		if (i915_active_is_idle(&ce->active) &&
 		    !intel_context_is_barrier(ce)) {
-			GEM_TRACE_ERR("Inactive context:%llx in pending[%zd]\n",
+			GEM_TRACE_ERR("%s: Inactive context:%llx in pending[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			ok = false;
@@ -1685,7 +1702,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		}
 
 		if (!i915_vma_is_pinned(ce->state)) {
-			GEM_TRACE_ERR("Unpinned context:%llx in pending[%zd]\n",
+			GEM_TRACE_ERR("%s: Unpinned context:%llx in pending[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			ok = false;
@@ -1693,7 +1711,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		}
 
 		if (!i915_vma_is_pinned(ce->ring->vma)) {
-			GEM_TRACE_ERR("Unpinned ring:%llx in pending[%zd]\n",
+			GEM_TRACE_ERR("%s: Unpinned ring:%llx in pending[%zd]\n",
+				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			ok = false;
