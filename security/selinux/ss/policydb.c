@@ -3405,14 +3405,6 @@ static int genfs_write(struct policydb *p, void *fp)
 	return 0;
 }
 
-static int hashtab_cnt(void *key, void *data, void *ptr)
-{
-	int *cnt = ptr;
-	*cnt = *cnt + 1;
-
-	return 0;
-}
-
 static int range_write_helper(void *key, void *data, void *ptr)
 {
 	__le32 buf[2];
@@ -3444,19 +3436,13 @@ static int range_write_helper(void *key, void *data, void *ptr)
 static int range_write(struct policydb *p, void *fp)
 {
 	__le32 buf[1];
-	int rc, nel;
+	int rc;
 	struct policy_data pd;
 
 	pd.p = p;
 	pd.fp = fp;
 
-	/* count the number of entries in the hashtab */
-	nel = 0;
-	rc = hashtab_map(p->range_tr, hashtab_cnt, &nel);
-	if (rc)
-		return rc;
-
-	buf[0] = cpu_to_le32(nel);
+	buf[0] = cpu_to_le32(p->range_tr->nel);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
