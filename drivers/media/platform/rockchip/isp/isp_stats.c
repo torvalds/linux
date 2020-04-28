@@ -146,12 +146,13 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkisp_buffer *stats_buf = to_rkisp_buffer(vbuf);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp_isp_stats_vdev *stats_dev = vq->drv_priv;
+	unsigned long flags;
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
 
-	spin_lock_bh(&stats_dev->rd_lock);
+	spin_lock_irqsave(&stats_dev->rd_lock, flags);
 	list_add_tail(&stats_buf->queue, &stats_dev->stat);
-	spin_unlock_bh(&stats_dev->rd_lock);
+	spin_unlock_irqrestore(&stats_dev->rd_lock, flags);
 }
 
 static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
@@ -168,7 +169,7 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 
 	tasklet_disable(&stats_vdev->rd_tasklet);
 
-	spin_lock_bh(&stats_vdev->rd_lock);
+	spin_lock_irqsave(&stats_vdev->rd_lock, flags);
 	for (i = 0; i < RKISP_ISP_STATS_REQ_BUFS_MAX; i++) {
 		if (list_empty(&stats_vdev->stat))
 			break;
@@ -177,7 +178,7 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-	spin_unlock_bh(&stats_vdev->rd_lock);
+	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 }
 
 static int

@@ -1418,14 +1418,18 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		work.isp3a_ris = temp_isp3a_ris | iq_3a_mask;
 		work.timestamp = ktime_get_ns();
 
-		if (!kfifo_is_full(&stats_vdev->rd_kfifo))
-			kfifo_in(&stats_vdev->rd_kfifo,
-				 &work, sizeof(work));
-		else
-			v4l2_err(stats_vdev->vnode.vdev.v4l2_dev,
-				 "stats kfifo is full\n");
+		if (!IS_HDR_RDBK(dev->hdr.op_mode)) {
+			if (!kfifo_is_full(&stats_vdev->rd_kfifo))
+				kfifo_in(&stats_vdev->rd_kfifo,
+					 &work, sizeof(work));
+			else
+				v4l2_err(stats_vdev->vnode.vdev.v4l2_dev,
+					 "stats kfifo is full\n");
 
-		tasklet_schedule(&stats_vdev->rd_tasklet);
+			tasklet_schedule(&stats_vdev->rd_tasklet);
+		} else {
+			rkisp_stats_send_meas_v2x(stats_vdev, &work);
+		}
 	}
 
 	/*
