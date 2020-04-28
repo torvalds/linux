@@ -11,13 +11,7 @@
 
 #include "rkflash_blk.h"
 #include "rkflash_debug.h"
-
-struct snand_mtd_dev {
-	struct SFNAND_DEV *snand;
-	struct mutex	*lock; /* to lock this object */
-	struct mtd_info mtd;
-	u8 *dma_buf;
-};
+#include "sfc_nand_mtd.h"
 
 static struct mtd_partition nand_parts[MAX_PART_COUNT];
 
@@ -142,10 +136,34 @@ static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 static int sfc_nand_isbad_mtd(struct mtd_info *mtd, loff_t ofs)
 {
 	int ret;
+	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
 
 	rkflash_print_dio("%s %llx\n", __func__, ofs);
 	if (ofs & mtd->writesize_mask)
 		return -EINVAL;
+
+	if (snanddev_bbt_is_initialized(p_dev)) {
+		unsigned int entry;
+		int status;
+
+		entry = snanddev_bbt_pos_to_entry(p_dev, ofs);
+		status = snanddev_bbt_get_block_status(p_dev, entry);
+		/* Lazy block status retrieval */
+		if (status == NAND_BBT_BLOCK_STATUS_UNKNOWN) {
+			if ((int)sfc_nand_check_bad_block(0, ofs >> mtd->writesize_shift))
+				status = NAND_BBT_BLOCK_FACTORY_BAD;
+			else
+				status = NAND_BBT_BLOCK_GOOD;
+
+			snanddev_bbt_set_block_status(p_dev, entry, status);
+		}
+
+		if (status == NAND_BBT_BLOCK_WORN ||
+		    status == NAND_BBT_BLOCK_FACTORY_BAD)
+			return true;
+
+		return false;
+	}
 
 	ret = (int)sfc_nand_check_bad_block(0, ofs >> mtd->writesize_shift);
 	if (ret)
@@ -157,6 +175,8 @@ static int sfc_nand_isbad_mtd(struct mtd_info *mtd, loff_t ofs)
 static int sfc_nand_markbad_mtd(struct mtd_info *mtd, loff_t ofs)
 {
 	u32 ret;
+	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
+	unsigned int entry;
 
 	rkflash_print_error("%s %llx\n", __func__, ofs);
 	if (ofs & mtd->erasesize_mask)
@@ -177,6 +197,16 @@ static int sfc_nand_markbad_mtd(struct mtd_info *mtd, loff_t ofs)
 		rkflash_print_error("%s mark fail ofs 0x%llx ret=%d\n",
 				    __func__, ofs, ret);
 
+	if (!snanddev_bbt_is_initialized(p_dev))
+		goto out;
+
+	entry = snanddev_bbt_pos_to_entry(p_dev, ofs);
+	ret = snanddev_bbt_set_block_status(p_dev, entry, NAND_BBT_BLOCK_WORN);
+	if (ret)
+		goto out;
+
+	ret = snanddev_bbt_update(p_dev);
+out:
 	/* Mark bad recheck */
 	if (sfc_nand_check_bad_block(0, ofs >> mtd->writesize_shift)) {
 		mtd->ecc_stats.badblocks++;
@@ -190,9 +220,12 @@ static int sfc_nand_markbad_mtd(struct mtd_info *mtd, loff_t ofs)
 	return ret;
 }
 
+#include "sfc_nand_mtd_bbt.c"
+
 static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
+	struct snand_mtd_dev *nand = mtd_to_snanddev(mtd);
 	u64 addr, remaining;
 	int ret = 0;
 
@@ -206,6 +239,16 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	while (remaining) {
+		ret = snanddev_bbt_get_block_status(nand, addr >> mtd->erasesize_shift);
+		if (ret == NAND_BBT_BLOCK_WORN ||
+		    ret == NAND_BBT_BLOCK_FACTORY_BAD) {
+			pr_warn("attempt to erase a bad/reserved block @%llx\n",
+				addr >> mtd->erasesize_shift);
+			addr += mtd->erasesize;
+			remaining -= mtd->erasesize;
+			continue;
+		}
+
 		ret = sfc_nand_erase_mtd(mtd, addr);
 		if (ret) {
 			rkflash_print_error("%s fail addr 0x%llx ret=%d\n",
@@ -301,40 +344,48 @@ int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev, struct mutex *lock)
 {
 	int ret, i, part_num = 0;
 	int capacity;
-	struct snand_mtd_dev *priv_dev = kzalloc(sizeof(*priv_dev), GFP_KERNEL);
+	struct snand_mtd_dev *nand = kzalloc(sizeof(*nand), GFP_KERNEL);
 
-	if (!priv_dev) {
+	if (!nand) {
 		rkflash_print_error("%s %d alloc failed\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	priv_dev->snand = p_dev;
+	nand->snand = p_dev;
 	capacity = (1 << p_dev->capacity) << 9;
-	priv_dev->mtd.name = "spi-nand0";
-	priv_dev->mtd.type = MTD_NANDFLASH;
-	priv_dev->mtd.writesize = p_dev->page_size * SFC_NAND_SECTOR_SIZE;
-	priv_dev->mtd.flags = MTD_CAP_NANDFLASH;
-	priv_dev->mtd.size = capacity;
-	priv_dev->mtd._erase = sfc_erase_mtd;
-	priv_dev->mtd._read = sfc_read_mtd;
-	priv_dev->mtd._write = sfc_write_mtd;
-	priv_dev->mtd._block_isbad = sfc_isbad_mtd;
-	priv_dev->mtd._block_markbad = sfc_markbad_mtd;
-	priv_dev->mtd.oobsize = 16 * p_dev->page_size;
-	priv_dev->mtd.bitflip_threshold = 2;
-	priv_dev->mtd.erasesize = p_dev->block_size * SFC_NAND_SECTOR_SIZE;
-	priv_dev->mtd.writebufsize = p_dev->page_size * SFC_NAND_SECTOR_SIZE;
-	priv_dev->mtd.erasesize_shift = ffs(priv_dev->mtd.erasesize) - 1;
-	priv_dev->mtd.erasesize_mask = (1 << priv_dev->mtd.erasesize_shift) - 1;
-	priv_dev->mtd.writesize_shift = ffs(priv_dev->mtd.writesize) - 1;
-	priv_dev->mtd.writesize_mask = (1 << priv_dev->mtd.writesize_shift) - 1;
-	priv_dev->mtd.bitflip_threshold = 1;
-	priv_dev->lock = lock;
-	priv_dev->dma_buf = kmalloc(SFC_NAND_PAGE_MAX_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!priv_dev->dma_buf) {
+	nand->mtd.name = "spi-nand0";
+	nand->mtd.type = MTD_NANDFLASH;
+	nand->mtd.writesize = p_dev->page_size * SFC_NAND_SECTOR_SIZE;
+	nand->mtd.flags = MTD_CAP_NANDFLASH;
+	nand->mtd.size = capacity;
+	nand->mtd._erase = sfc_erase_mtd;
+	nand->mtd._read = sfc_read_mtd;
+	nand->mtd._write = sfc_write_mtd;
+	nand->mtd._block_isbad = sfc_isbad_mtd;
+	nand->mtd._block_markbad = sfc_markbad_mtd;
+	nand->mtd.oobsize = 16 * p_dev->page_size;
+	nand->mtd.bitflip_threshold = 2;
+	nand->mtd.erasesize = p_dev->block_size * SFC_NAND_SECTOR_SIZE;
+	nand->mtd.writebufsize = p_dev->page_size * SFC_NAND_SECTOR_SIZE;
+	nand->mtd.erasesize_shift = ffs(nand->mtd.erasesize) - 1;
+	nand->mtd.erasesize_mask = (1 << nand->mtd.erasesize_shift) - 1;
+	nand->mtd.writesize_shift = ffs(nand->mtd.writesize) - 1;
+	nand->mtd.writesize_mask = (1 << nand->mtd.writesize_shift) - 1;
+	nand->mtd.bitflip_threshold = 1;
+	nand->mtd.priv = nand;
+	nand->lock = lock;
+	nand->dma_buf = kmalloc(SFC_NAND_PAGE_MAX_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!nand->dma_buf) {
 		rkflash_print_error("%s dma_buf alloc failed\n", __func__);
 		ret = -ENOMEM;
 		goto error_out;
+	}
+
+	nand->bbt.option |= NANDDEV_BBT_USE_FLASH;
+	ret = snanddev_bbt_init(nand);
+	if (ret) {
+		rkflash_print_error("snanddev_bbt_init failed, ret= %d\n", ret);
+		return ret;
 	}
 
 	part_num = ARRAY_SIZE(def_nand_part);
@@ -352,7 +403,7 @@ int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev, struct mutex *lock)
 		nand_parts[i].mask_flags = 0;
 	}
 
-	ret = mtd_device_register(&priv_dev->mtd, nand_parts, part_num);
+	ret = mtd_device_register(&nand->mtd, nand_parts, part_num);
 	if (ret) {
 		pr_err("%s register mtd fail %d\n", __func__, ret);
 	} else {
@@ -361,9 +412,9 @@ int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev, struct mutex *lock)
 		return 0;
 	}
 
-	kfree(priv_dev->dma_buf);
+	kfree(nand->dma_buf);
 error_out:
-	kfree(priv_dev);
+	kfree(nand);
 
 	return ret;
 }
