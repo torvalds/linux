@@ -428,7 +428,8 @@ static const char * const chan_name_ain[] = {
 	"AIN7",
 };
 
-static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
+static int tiadc_channel_init(struct device *dev, struct iio_dev *indio_dev,
+			      int channels)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	struct iio_chan_spec *chan_array;
@@ -436,7 +437,8 @@ static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 	int i;
 
 	indio_dev->num_channels = channels;
-	chan_array = kcalloc(channels, sizeof(*chan_array), GFP_KERNEL);
+	chan_array = devm_kcalloc(dev, channels, sizeof(*chan_array),
+				  GFP_KERNEL);
 	if (chan_array == NULL)
 		return -ENOMEM;
 
@@ -457,11 +459,6 @@ static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 	indio_dev->channels = chan_array;
 
 	return 0;
-}
-
-static void tiadc_channels_remove(struct iio_dev *indio_dev)
-{
-	kfree(indio_dev->channels);
 }
 
 static int tiadc_read_raw(struct iio_dev *indio_dev,
@@ -634,7 +631,7 @@ static int tiadc_probe(struct platform_device *pdev)
 	tiadc_writel(adc_dev, REG_FIFO1THR, FIFO1_THRESHOLD);
 	mutex_init(&adc_dev->fifo1_lock);
 
-	err = tiadc_channel_init(indio_dev, adc_dev->channels);
+	err = tiadc_channel_init(&pdev->dev, indio_dev, adc_dev->channels);
 	if (err < 0)
 		return err;
 
@@ -665,7 +662,6 @@ err_dma:
 err_buffer_unregister:
 	tiadc_iio_buffered_hardware_remove(indio_dev);
 err_free_channels:
-	tiadc_channels_remove(indio_dev);
 	return err;
 }
 
@@ -683,7 +679,6 @@ static int tiadc_remove(struct platform_device *pdev)
 	}
 	iio_device_unregister(indio_dev);
 	tiadc_iio_buffered_hardware_remove(indio_dev);
-	tiadc_channels_remove(indio_dev);
 
 	step_en = get_adc_step_mask(adc_dev);
 	am335x_tsc_se_clr(adc_dev->mfd_tscadc, step_en);
