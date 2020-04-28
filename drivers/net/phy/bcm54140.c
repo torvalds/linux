@@ -660,7 +660,7 @@ static int bcm54140_config_init(struct phy_device *phydev)
 				  BCM54140_RDB_C_PWR_ISOLATE, 0);
 }
 
-int bcm54140_did_interrupt(struct phy_device *phydev)
+static int bcm54140_did_interrupt(struct phy_device *phydev)
 {
 	int ret;
 
@@ -669,7 +669,7 @@ int bcm54140_did_interrupt(struct phy_device *phydev)
 	return (ret < 0) ? 0 : ret;
 }
 
-int bcm54140_ack_intr(struct phy_device *phydev)
+static int bcm54140_ack_intr(struct phy_device *phydev)
 {
 	int reg;
 
@@ -681,7 +681,7 @@ int bcm54140_ack_intr(struct phy_device *phydev)
 	return 0;
 }
 
-int bcm54140_config_intr(struct phy_device *phydev)
+static int bcm54140_config_intr(struct phy_device *phydev)
 {
 	struct bcm54140_priv *priv = phydev->priv;
 	static const u16 port_to_imr_bit[] = {
