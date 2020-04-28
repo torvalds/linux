@@ -2924,6 +2924,20 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	}
 }
 
+static inline bool
+nvkm_device_endianness(void __iomem *pri)
+{
+	u32 boot1 = ioread32_native(pri + 0x000004) & 0x01000001;
+#ifdef __BIG_ENDIAN
+	if (!boot1)
+		return false;
+#else
+	if (boot1)
+		return false;
+#endif
+	return true;
+}
+
 int
 nvkm_device_ctor(const struct nvkm_device_func *func,
 		 const struct nvkm_device_quirk *quirk,
@@ -2973,13 +2987,15 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	/* identify the chipset, and determine classes of subdev/engines */
 	if (detect) {
 		/* switch mmio to cpu's native endianness */
-#ifndef __BIG_ENDIAN
-		if (ioread32_native(map + 0x000004) != 0x00000000) {
-#else
-		if (ioread32_native(map + 0x000004) == 0x00000000) {
-#endif
+		if (!nvkm_device_endianness(map)) {
 			iowrite32_native(0x01000001, map + 0x000004);
 			ioread32_native(map);
+			if (!nvkm_device_endianness(map)) {
+				nvdev_error(device,
+					    "GPU not supported on big-endian\n");
+				ret = -ENOSYS;
+				goto done;
+			}
 		}
 
 		/* read boot0 and strapping information */
