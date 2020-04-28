@@ -72,7 +72,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);;
+		return PTR_ERR(priv->clk);
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
