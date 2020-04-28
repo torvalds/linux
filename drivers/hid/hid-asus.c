@@ -42,6 +42,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define T100_TPAD_INTF 2
 #define MEDION_E1239T_TPAD_INTF 1
 
+#define E1239T_TP_TOGGLE_REPORT_ID 0x05
 #define T100CHI_MOUSE_REPORT_ID 0x06
 #define FEATURE_REPORT_ID 0x0d
 #define INPUT_REPORT_ID 0x5d
@@ -111,6 +112,7 @@ struct asus_drvdata {
 	unsigned long quirks;
 	struct hid_device *hdev;
 	struct input_dev *input;
+	struct input_dev *tp_kbd_input;
 	struct asus_kbd_leds *kbd_backlight;
 	const struct asus_touchpad_info *tp;
 	bool enable_backlight;
@@ -275,6 +277,34 @@ static int asus_report_input(struct asus_drvdata *drvdat, u8 *data, int size)
 	return 1;
 }
 
+static int asus_e1239t_event(struct asus_drvdata *drvdat, u8 *data, int size)
+{
+	if (size != 3)
+		return 0;
+
+	/* Handle broken mute key which only sends press events */
+	if (!drvdat->tp &&
+	    data[0] == 0x02 && data[1] == 0xe2 && data[2] == 0x00) {
+		input_report_key(drvdat->input, KEY_MUTE, 1);
+		input_sync(drvdat->input);
+		input_report_key(drvdat->input, KEY_MUTE, 0);
+		input_sync(drvdat->input);
+		return 1;
+	}
+
+	/* Handle custom touchpad toggle key which only sends press events */
+	if (drvdat->tp_kbd_input &&
+	    data[0] == 0x05 && data[1] == 0x02 && data[2] == 0x28) {
+		input_report_key(drvdat->tp_kbd_input, KEY_F21, 1);
+		input_sync(drvdat->tp_kbd_input);
+		input_report_key(drvdat->tp_kbd_input, KEY_F21, 0);
+		input_sync(drvdat->tp_kbd_input);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
@@ -298,6 +328,9 @@ static int asus_raw_event(struct hid_device *hdev,
 
 	if (drvdata->tp && data[0] == INPUT_REPORT_ID)
 		return asus_report_input(drvdata, data, size);
+
+	if (drvdata->quirks & QUIRK_MEDION_E1239T)
+		return asus_e1239t_event(drvdata, data, size);
 
 	return 0;
 }
@@ -633,6 +666,21 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	    hi->report->id != T100CHI_MOUSE_REPORT_ID)
 		return 0;
 
+	/* Handle MULTI_INPUT on E1239T mouse/touchpad USB interface */
+	if (drvdata->tp && (drvdata->quirks & QUIRK_MEDION_E1239T)) {
+		switch (hi->report->id) {
+		case E1239T_TP_TOGGLE_REPORT_ID:
+			input_set_capability(input, EV_KEY, KEY_F21);
+			input->name = "Asus Touchpad Keys";
+			drvdata->tp_kbd_input = input;
+			return 0;
+		case INPUT_REPORT_ID:
+			break; /* Touchpad report, handled below */
+		default:
+			return 0; /* Ignore other reports */
+		}
+	}
+
 	if (drvdata->tp) {
 		int ret;
 
@@ -793,6 +841,16 @@ static int asus_input_mapping(struct hid_device *hdev,
 		}
 	}
 
+	/*
+	 * The mute button is broken and only sends press events, we
+	 * deal with this in our raw_event handler, so do not map it.
+	 */
+	if ((drvdata->quirks & QUIRK_MEDION_E1239T) &&
+	    usage->hid == (HID_UP_CONSUMER | 0xe2)) {
+		input_set_capability(hi->input, EV_KEY, KEY_MUTE);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -895,6 +953,8 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			to_usb_interface(hdev->dev.parent)->altsetting;
 
 		if (alt->desc.bInterfaceNumber == MEDION_E1239T_TPAD_INTF) {
+			/* For separate input-devs for tp and tp toggle key */
+			hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 			drvdata->quirks |= QUIRK_SKIP_INPUT_MAPPING;
 			drvdata->tp = &medion_e1239t_tp;
 		}
