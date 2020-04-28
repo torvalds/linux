@@ -440,6 +440,23 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 	}
 }
 
+static inline int bio_queue_enter(struct bio *bio)
+{
+	struct request_queue *q = bio->bi_disk->queue;
+	bool nowait = bio->bi_opf & REQ_NOWAIT;
+	int ret;
+
+	ret = blk_queue_enter(q, nowait ? BLK_MQ_REQ_NOWAIT : 0);
+	if (unlikely(ret)) {
+		if (nowait && !blk_queue_dying(q))
+			bio_wouldblock_error(bio);
+		else
+			bio_io_error(bio);
+	}
+
+	return ret;
+}
+
 void blk_queue_exit(struct request_queue *q)
 {
 	percpu_ref_put(&q->q_usage_counter);
@@ -1049,10 +1066,8 @@ blk_qc_t generic_make_request(struct bio *bio)
 	current->bio_list = bio_list_on_stack;
 	do {
 		struct request_queue *q = bio->bi_disk->queue;
-		blk_mq_req_flags_t flags = bio->bi_opf & REQ_NOWAIT ?
-			BLK_MQ_REQ_NOWAIT : 0;
 
-		if (likely(blk_queue_enter(q, flags) == 0)) {
+		if (likely(bio_queue_enter(bio) == 0)) {
 			struct bio_list lower, same;
 
 			/* Create a fresh bio_list for all subordinate requests */
@@ -1079,12 +1094,6 @@ blk_qc_t generic_make_request(struct bio *bio)
 			bio_list_merge(&bio_list_on_stack[0], &lower);
 			bio_list_merge(&bio_list_on_stack[0], &same);
 			bio_list_merge(&bio_list_on_stack[0], &bio_list_on_stack[1]);
-		} else {
-			if (unlikely(!blk_queue_dying(q) &&
-					(bio->bi_opf & REQ_NOWAIT)))
-				bio_wouldblock_error(bio);
-			else
-				bio_io_error(bio);
 		}
 		bio = bio_list_pop(&bio_list_on_stack[0]);
 	} while (bio);
@@ -1106,30 +1115,19 @@ EXPORT_SYMBOL(generic_make_request);
 blk_qc_t direct_make_request(struct bio *bio)
 {
 	struct request_queue *q = bio->bi_disk->queue;
-	bool nowait = bio->bi_opf & REQ_NOWAIT;
 	blk_qc_t ret;
 
-	if (WARN_ON_ONCE(q->make_request_fn))
-		goto io_error;
+	if (WARN_ON_ONCE(q->make_request_fn)) {
+		bio_io_error(bio);
+		return BLK_QC_T_NONE;
+	}
 	if (!generic_make_request_checks(bio))
 		return BLK_QC_T_NONE;
-
-	if (unlikely(blk_queue_enter(q, nowait ? BLK_MQ_REQ_NOWAIT : 0))) {
-		if (nowait && !blk_queue_dying(q))
-			goto would_block;
-		goto io_error;
-	}
-
+	if (unlikely(bio_queue_enter(bio)))
+		return BLK_QC_T_NONE;
 	ret = blk_mq_make_request(q, bio);
 	blk_queue_exit(q);
 	return ret;
-
-would_block:
-	bio_wouldblock_error(bio);
-	return BLK_QC_T_NONE;
-io_error:
-	bio_io_error(bio);
-	return BLK_QC_T_NONE;
 }
 EXPORT_SYMBOL_GPL(direct_make_request);
 
