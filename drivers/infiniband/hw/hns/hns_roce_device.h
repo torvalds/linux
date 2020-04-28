@@ -1079,6 +1079,8 @@ static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, int idx)
 		return buf->page_list[idx].map;
 }
 
+#define hr_hw_page_align(x)		ALIGN(x, 1 << PAGE_ADDR_SHIFT)
+
 static inline u64 to_hr_hw_page_addr(u64 addr)
 {
 	return addr >> PAGE_ADDR_SHIFT;
@@ -1087,6 +1089,29 @@ static inline u64 to_hr_hw_page_addr(u64 addr)
 static inline u32 to_hr_hw_page_shift(u32 page_shift)
 {
 	return page_shift - PAGE_ADDR_SHIFT;
+}
+
+static inline u32 to_hr_hem_hopnum(u32 hopnum, u32 count)
+{
+	if (count > 0)
+		return hopnum == HNS_ROCE_HOP_NUM_0 ? 0 : hopnum;
+
+	return 0;
+}
+
+static inline u32 to_hr_hem_entries_size(u32 count, u32 buf_shift)
+{
+	return hr_hw_page_align(count << buf_shift);
+}
+
+static inline u32 to_hr_hem_entries_count(u32 count, u32 buf_shift)
+{
+	return hr_hw_page_align(count << buf_shift) >> buf_shift;
+}
+
+static inline u32 to_hr_hem_entries_shift(u32 count, u32 buf_shift)
+{
+	return ilog2(to_hr_hem_entries_count(count, buf_shift));
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *dev);
