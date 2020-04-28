@@ -327,41 +327,35 @@ static const struct iio_info cm32181_info = {
 
 static int cm32181_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct cm32181_chip *cm32181;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*cm32181));
-	if (!indio_dev) {
-		dev_err(&client->dev, "devm_iio_device_alloc failed\n");
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm32181));
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	cm32181 = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	cm32181->client = client;
 
 	mutex_init(&cm32181->lock);
-	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.parent = dev;
 	indio_dev->channels = cm32181_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm32181_channels);
 	indio_dev->info = &cm32181_info;
-	indio_dev->name = dev_name(&client->dev);
+	indio_dev->name = dev_name(dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = cm32181_reg_init(cm32181);
 	if (ret) {
-		dev_err(&client->dev,
-			"%s: register init failed\n",
-			__func__);
+		dev_err(dev, "%s: register init failed\n", __func__);
 		return ret;
 	}
 
-	ret = devm_iio_device_register(&client->dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret) {
-		dev_err(&client->dev,
-			"%s: regist device failed\n",
-			__func__);
+		dev_err(dev, "%s: regist device failed\n", __func__);
 		return ret;
 	}
 
