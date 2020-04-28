@@ -70,6 +70,7 @@ struct rockchip_pvtm {
 	struct list_head node;
 	struct device *dev;
 	struct regmap *grf;
+	void __iomem *base;
 	int num_clks;
 	struct clk_bulk_data *clks;
 	struct reset_control *rst;
@@ -526,7 +527,7 @@ static int rockchip_pvtm_get_index(const struct rockchip_pvtm_data *data,
 static struct rockchip_pvtm *
 rockchip_pvtm_init(struct device *dev, struct device_node *node,
 		   const struct rockchip_pvtm_data *data,
-		   struct regmap *grf)
+		   struct regmap *grf, void __iomem *base)
 {
 	struct rockchip_pvtm *pvtm;
 	const char *tz_name;
@@ -547,6 +548,7 @@ rockchip_pvtm_init(struct device *dev, struct device_node *node,
 
 	pvtm->dev = dev;
 	pvtm->grf = grf;
+	pvtm->base = base;
 	pvtm->con = data->con;
 	pvtm->sta = data->sta;
 	pvtm->ops = &data->ops;
@@ -608,7 +610,8 @@ static int rockchip_pvtm_probe(struct platform_device *pdev)
 	struct device_node *node;
 	const struct of_device_id *match;
 	struct rockchip_pvtm *pvtm;
-	struct regmap *grf;
+	struct regmap *grf = NULL;
+	void __iomem *base = NULL;
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	if (!match || !match->data) {
@@ -616,14 +619,18 @@ static int rockchip_pvtm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!dev->parent || !dev->parent->of_node)
-		return -EINVAL;
-	grf = syscon_node_to_regmap(dev->parent->of_node);
-	if (IS_ERR(grf))
-		return PTR_ERR(grf);
+	if (dev->parent && dev->parent->of_node) {
+		grf = syscon_node_to_regmap(dev->parent->of_node);
+		if (IS_ERR(grf))
+			return PTR_ERR(grf);
+	} else {
+		base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+	}
 
 	for_each_available_child_of_node(np, node) {
-		pvtm = rockchip_pvtm_init(dev, node, match->data, grf);
+		pvtm = rockchip_pvtm_init(dev, node, match->data, grf, base);
 		if (!pvtm) {
 			dev_err(dev, "failed to handle node %s\n", node->name);
 			goto error;
