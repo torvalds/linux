@@ -279,16 +279,16 @@ struct drm_display_mode {
 	 * Pixel clock in kHz.
 	 */
 	int clock;		/* in kHz */
-	int hdisplay;
-	int hsync_start;
-	int hsync_end;
-	int htotal;
-	int hskew;
-	int vdisplay;
-	int vsync_start;
-	int vsync_end;
-	int vtotal;
-	int vscan;
+	u16 hdisplay;
+	u16 hsync_start;
+	u16 hsync_end;
+	u16 htotal;
+	u16 hskew;
+	u16 vdisplay;
+	u16 vsync_start;
+	u16 vsync_end;
+	u16 vtotal;
+	u16 vscan;
 	/**
 	 * @flags:
 	 *
@@ -357,19 +357,19 @@ struct drm_display_mode {
 	 * difference is exactly a factor of 10.
 	 */
 	int crtc_clock;
-	int crtc_hdisplay;
-	int crtc_hblank_start;
-	int crtc_hblank_end;
-	int crtc_hsync_start;
-	int crtc_hsync_end;
-	int crtc_htotal;
-	int crtc_hskew;
-	int crtc_vdisplay;
-	int crtc_vblank_start;
-	int crtc_vblank_end;
-	int crtc_vsync_start;
-	int crtc_vsync_end;
-	int crtc_vtotal;
+	u16 crtc_hdisplay;
+	u16 crtc_hblank_start;
+	u16 crtc_hblank_end;
+	u16 crtc_hsync_start;
+	u16 crtc_hsync_end;
+	u16 crtc_htotal;
+	u16 crtc_hskew;
+	u16 crtc_vdisplay;
+	u16 crtc_vblank_start;
+	u16 crtc_vblank_end;
+	u16 crtc_vsync_start;
+	u16 crtc_vsync_end;
+	u16 crtc_vtotal;
 
 	/**
 	 * @private_flags:
