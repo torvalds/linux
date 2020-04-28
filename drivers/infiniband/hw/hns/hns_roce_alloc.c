@@ -283,49 +283,6 @@ done:
 	return total;
 }
 
-void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
-			      int offset, int buf_cnt)
-{
-	if (hopnum == HNS_ROCE_HOP_NUM_0)
-		region->hopnum = 0;
-	else
-		region->hopnum = hopnum;
-
-	region->offset = offset;
-	region->count = buf_cnt;
-}
-
-void hns_roce_free_buf_list(dma_addr_t **bufs, int region_cnt)
-{
-	int i;
-
-	for (i = 0; i < region_cnt; i++) {
-		kfree(bufs[i]);
-		bufs[i] = NULL;
-	}
-}
-
-int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
-			    dma_addr_t **bufs, int region_cnt)
-{
-	struct hns_roce_buf_region *r;
-	int i;
-
-	for (i = 0; i < region_cnt; i++) {
-		r = &regions[i];
-		bufs[i] = kcalloc(r->count, sizeof(dma_addr_t), GFP_KERNEL);
-		if (!bufs[i])
-			goto err_alloc;
-	}
-
-	return 0;
-
-err_alloc:
-	hns_roce_free_buf_list(bufs, i);
-
-	return -ENOMEM;
-}
-
 void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev)
 {
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)

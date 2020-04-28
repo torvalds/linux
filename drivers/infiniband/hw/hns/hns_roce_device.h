@@ -222,13 +222,6 @@ enum {
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
 };
 
-enum hns_roce_mtt_type {
-	MTT_TYPE_WQE,
-	MTT_TYPE_CQE,
-	MTT_TYPE_SRQWQE,
-	MTT_TYPE_IDX
-};
-
 #define HNS_ROCE_DB_TYPE_COUNT			2
 #define HNS_ROCE_DB_UNIT_SIZE			4
 
@@ -267,8 +260,6 @@ enum {
 #define HNS_ROCE_PORT_DOWN			0
 #define HNS_ROCE_PORT_UP			1
 
-#define HNS_ROCE_MTT_ENTRY_PER_SEG		8
-
 #define PAGE_ADDR_SHIFT				12
 
 /* The minimum page count for hardware access page directly. */
@@ -303,22 +294,6 @@ struct hns_roce_bitmap {
 	unsigned long		*table;
 };
 
-/* Order bitmap length -- bit num compute formula: 1 << (max_order - order) */
-/* Order = 0: bitmap is biggest, order = max bitmap is least (only a bit) */
-/* Every bit repesent to a partner free/used status in bitmap */
-/*
- * Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
- * Bit = 1 represent to idle and available; bit = 0: not available
- */
-struct hns_roce_buddy {
-	/* Members point to every order level bitmap */
-	unsigned long **bits;
-	/* Represent to avail bits of the order level bitmap */
-	u32            *num_free;
-	int             max_order;
-	spinlock_t      lock;
-};
-
 /* For Hardware Entry Memory */
 struct hns_roce_hem_table {
 	/* HEM type: 0 = qpc, 1 = mtt, 2 = cqc, 3 = srq, 4 = other */
@@ -337,13 +312,6 @@ struct hns_roce_hem_table {
 	dma_addr_t	*bt_l1_dma_addr;
 	u64		**bt_l0;
 	dma_addr_t	*bt_l0_dma_addr;
-};
-
-struct hns_roce_mtt {
-	unsigned long		first_seg;
-	int			order;
-	int			page_shift;
-	enum hns_roce_mtt_type	mtt_type;
 };
 
 struct hns_roce_buf_region {
@@ -418,15 +386,7 @@ struct hns_roce_mr {
 
 struct hns_roce_mr_table {
 	struct hns_roce_bitmap		mtpt_bitmap;
-	struct hns_roce_buddy		mtt_buddy;
-	struct hns_roce_hem_table	mtt_table;
 	struct hns_roce_hem_table	mtpt_table;
-	struct hns_roce_buddy		mtt_cqe_buddy;
-	struct hns_roce_hem_table	mtt_cqe_table;
-	struct hns_roce_buddy		mtt_srqwqe_buddy;
-	struct hns_roce_hem_table	mtt_srqwqe_table;
-	struct hns_roce_buddy		mtt_idx_buddy;
-	struct hns_roce_hem_table	mtt_idx_table;
 };
 
 struct hns_roce_wq {
@@ -1141,21 +1101,6 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
-int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
-		      struct hns_roce_mtt *mtt);
-void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev,
-			  struct hns_roce_mtt *mtt);
-int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
-			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf);
-
-void hns_roce_mtr_init(struct hns_roce_mtr *mtr, int bt_pg_shift,
-		       int buf_pg_shift);
-int hns_roce_mtr_attach(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			dma_addr_t **bufs, struct hns_roce_buf_region *regions,
-			int region_cnt);
-void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
-			  struct hns_roce_mtr *mtr);
-
 /* hns roce hw need current block and next block addr from mtt */
 #define MTT_MIN_COUNT	 2
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
@@ -1227,15 +1172,6 @@ int hns_roce_dealloc_mw(struct ib_mw *ibmw);
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf);
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift);
-
-int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
-
-void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
-			      int offset, int buf_cnt);
-int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
-			    dma_addr_t **bufs, int count);
-void hns_roce_free_buf_list(dma_addr_t **bufs, int count);
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct hns_roce_buf *buf);

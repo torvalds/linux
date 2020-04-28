@@ -115,12 +115,6 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_hem_table *table, unsigned long obj,
 			  dma_addr_t *dma_handle);
-int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_hem_table *table,
-			     unsigned long start, unsigned long end);
-void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_hem_table *table,
-			      unsigned long start, unsigned long end);
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,
