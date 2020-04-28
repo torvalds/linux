@@ -347,18 +347,6 @@ Contact: Sean Paul
 
 Level: Starter
 
-Remove drm_display_mode.hsync
------------------------------
-
-We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
-shouldn't/don't use this, remove this member to avoid any temptations to use it
-in the future. If there is any debug code using drm_display_mode.hsync, convert
-it to use drm_mode_hsync() instead.
-
-Contact: Sean Paul
-
-Level: Starter
-
 connector register/unregister fixes
 -----------------------------------
 
