@@ -10046,7 +10046,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 {
 	/* Still write protect RO slot */
 	if (new->flags & KVM_MEM_READONLY) {
-		kvm_mmu_slot_remove_write_access(kvm, new, PT_PAGE_TABLE_LEVEL);
+		kvm_mmu_slot_remove_write_access(kvm, new, PG_LEVEL_4K);
 		return;
 	}
 
@@ -10086,7 +10086,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 		} else {
 			int level =
 				kvm_dirty_log_manual_protect_and_init_set(kvm) ?
-				PT_DIRECTORY_LEVEL : PT_PAGE_TABLE_LEVEL;
+				PG_LEVEL_2M : PG_LEVEL_4K;
 
 			/*
 			 * If we're with initial-all-set, we don't need

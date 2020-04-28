@@ -8011,11 +8011,11 @@ static __init int hardware_setup(void)
 	if (!enable_ept)
 		ept_lpage_level = 0;
 	else if (cpu_has_vmx_ept_1g_page())
-		ept_lpage_level = PT_PDPE_LEVEL;
+		ept_lpage_level = PG_LEVEL_1G;
 	else if (cpu_has_vmx_ept_2m_page())
-		ept_lpage_level = PT_DIRECTORY_LEVEL;
+		ept_lpage_level = PG_LEVEL_2M;
 	else
-		ept_lpage_level = PT_PAGE_TABLE_LEVEL;
+		ept_lpage_level = PG_LEVEL_4K;
 	kvm_configure_mmu(enable_ept, ept_lpage_level);
 
 	/*
