@@ -271,7 +271,7 @@ struct drm_display_mode {
 	 *    which are stuck around for hysterical raisins only. No one has an
 	 *    idea what they were meant for. Don't use.
 	 */
-	unsigned int type;
+	u8 type;
 
 	/**
 	 * @clock:
