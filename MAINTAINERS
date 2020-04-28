@@ -8765,6 +8765,12 @@ S:	Supported
 F:	drivers/infiniband/hw/i40iw/
 F:	include/uapi/rdma/i40iw-abi.h
 
+INTEL SCU DRIVERS
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+S:	Maintained
+F:	arch/x86/include/asm/intel_scu_ipc.h
+F:	drivers/platform/x86/intel_scu_*
+
 INTEL SPEED SELECT TECHNOLOGY
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
