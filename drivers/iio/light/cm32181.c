@@ -46,11 +46,11 @@
 #define CM32181_CMD_ALS_SM_MASK		(0x03 << CM32181_CMD_ALS_SM_SHIFT)
 #define CM32181_CMD_ALS_SM_DEFAULT	(0x01 << CM32181_CMD_ALS_SM_SHIFT)
 
-#define CM32181_MLUX_PER_BIT		5	/* ALS_SM=01 IT=800ms */
-#define CM32181_MLUX_PER_BIT_BASE_IT	800000	/* Based on IT=800ms */
-#define	CM32181_CALIBSCALE_DEFAULT	1000
-#define CM32181_CALIBSCALE_RESOLUTION	1000
-#define MLUX_PER_LUX			1000
+#define CM32181_LUX_PER_BIT		500	/* ALS_SM=01 IT=800ms */
+#define CM32181_LUX_PER_BIT_RESOLUTION	100000
+#define CM32181_LUX_PER_BIT_BASE_IT	800000	/* Based on IT=800ms */
+#define CM32181_CALIBSCALE_DEFAULT	100000
+#define CM32181_CALIBSCALE_RESOLUTION	100000
 
 #define SMBUS_ALERT_RESPONSE_ADDRESS	0x0c
 
@@ -205,15 +205,15 @@ static int cm32181_get_lux(struct cm32181_chip *cm32181)
 	struct i2c_client *client = cm32181->client;
 	int ret;
 	int als_it;
-	unsigned long lux;
+	u64 lux;
 
 	ret = cm32181_read_als_it(cm32181, &als_it);
 	if (ret < 0)
 		return -EINVAL;
 
-	lux = CM32181_MLUX_PER_BIT;
-	lux *= CM32181_MLUX_PER_BIT_BASE_IT;
-	lux /= als_it;
+	lux = CM32181_LUX_PER_BIT;
+	lux *= CM32181_LUX_PER_BIT_BASE_IT;
+	lux = div_u64(lux, als_it);
 
 	ret = i2c_smbus_read_word_data(client, CM32181_REG_ADDR_ALS);
 	if (ret < 0)
@@ -221,8 +221,8 @@ static int cm32181_get_lux(struct cm32181_chip *cm32181)
 
 	lux *= ret;
 	lux *= cm32181->calibscale;
-	lux /= CM32181_CALIBSCALE_RESOLUTION;
-	lux /= MLUX_PER_LUX;
+	lux = div_u64(lux, CM32181_CALIBSCALE_RESOLUTION);
+	lux = div_u64(lux, CM32181_LUX_PER_BIT_RESOLUTION);
 
 	if (lux > 0xFFFF)
 		lux = 0xFFFF;
