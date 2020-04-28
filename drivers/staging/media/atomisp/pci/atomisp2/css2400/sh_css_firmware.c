@@ -47,7 +47,6 @@ struct fw_param {
 	const void *buffer;
 };
 
-/* Warning: same order as SH_CSS_BINARY_ID_* */
 static struct firmware_header *firmware_header;
 
 /* The string STR is a place holder
