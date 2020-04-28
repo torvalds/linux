@@ -15,6 +15,7 @@ Contents:
    device_drivers/index
    dsa/index
    devlink/index
+   caif/index
    ethtool-netlink
    ieee802154
    j1939
@@ -36,6 +37,43 @@ Contents:
    tls-offload
    nfc
    6lowpan
+   6pack
+   altera_tse
+   arcnet-hardware
+   arcnet
+   atm
+   ax25
+   baycom
+   bonding
+   cdc_mbim
+   cops
+   cxacru
+   dccp
+   dctcp
+   decnet
+   defza
+   dns_resolver
+   driver
+   eql
+   fib_trie
+   filter
+   fore200e
+   framerelay
+   generic-hdlc
+   generic_netlink
+   gen_stats
+   gtp
+   hinic
+   ila
+   ipddp
+   ip_dynaddr
+   iphase
+   ipsec
+   ip-sysctl
+   ipv6
+   ipvlan
+   ipvs-sysctl
+   kcm
 
 .. only::  subproject and html
 

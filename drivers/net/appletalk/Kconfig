@@ -59,7 +59,7 @@ config COPS
 	  package. This driver is experimental, which means that it may not
 	  work. This driver will only work if you choose "AppleTalk DDP"
 	  networking support, above.
-	  Please read the file <file:Documentation/networking/cops.txt>.
+	  Please read the file <file:Documentation/networking/cops.rst>.
 
 config COPS_DAYNA
 	bool "Dayna firmware support"
@@ -86,7 +86,7 @@ config IPDDP
 	  box is stuck on an AppleTalk only network) or decapsulate (e.g. if
 	  you want your Linux box to act as an Internet gateway for a zoo of
 	  AppleTalk connected Macs). Please see the file
-	  <file:Documentation/networking/ipddp.txt> for more information.
+	  <file:Documentation/networking/ipddp.rst> for more information.
 
 	  If you say Y here, the AppleTalk-IP support will be compiled into
 	  the kernel. In this case, you can either use encapsulation or
@@ -107,4 +107,4 @@ config IPDDP_ENCAP
 	  IP packets inside AppleTalk frames; this is useful if your Linux box
 	  is stuck on an AppleTalk network (which hopefully contains a
 	  decapsulator somewhere). Please see
-	  <file:Documentation/networking/ipddp.txt> for more information.
+	  <file:Documentation/networking/ipddp.rst> for more information.

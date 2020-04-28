@@ -86,7 +86,7 @@ config INET
 	  "Sysctl support" below, you can change various aspects of the
 	  behavior of the TCP/IP code by writing to the (virtual) files in
 	  /proc/sys/net/ipv4/*; the options are explained in the file
-	  <file:Documentation/networking/ip-sysctl.txt>.
+	  <file:Documentation/networking/ip-sysctl.rst>.
 
 	  Short answer: say Y.
 

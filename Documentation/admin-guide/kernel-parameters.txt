@@ -356,7 +356,7 @@
 			      shot down by NMI
 
 	autoconf=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	show_lapic=	[APIC,X86] Advanced Programmable Interrupt Controller
 			Limit apic dumping. The parameter defines the maximal
@@ -831,7 +831,7 @@
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
-			See also Documentation/networking/decnet.txt.
+			See also Documentation/networking/decnet.rst.
 
 	default_hugepagesz=
 			[same as hugepagesz=] The size of the default
@@ -872,7 +872,7 @@
 			miss to occur.
 
 	disable=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	hardened_usercopy=
                         [KNL] Under CONFIG_HARDENED_USERCOPY, whether
@@ -912,7 +912,7 @@
 			to workaround buggy firmware.
 
 	disable_ipv6=	[IPV6]
-			See Documentation/networking/ipv6.txt.
+			See Documentation/networking/ipv6.rst.
 
 	disable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous
@@ -4910,7 +4910,7 @@
 			Set the number of tcp_metrics_hash slots.
 			Default value is 8192 or 16384 depending on total
 			ram pages. This is used to specify the TCP metrics
-			cache size. See Documentation/networking/ip-sysctl.txt
+			cache size. See Documentation/networking/ip-sysctl.rst
 			"tcp_no_metrics_save" section for more details.
 
 	tdfx=		[HW,DRM]

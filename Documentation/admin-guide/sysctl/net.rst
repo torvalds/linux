@@ -353,8 +353,8 @@ socket's buffer. It will not take effect unless PF_UNIX flag is specified.
 
 3. /proc/sys/net/ipv4 - IPV4 settings
 -------------------------------------
-Please see: Documentation/networking/ip-sysctl.txt and ipvs-sysctl.txt for
-descriptions of these entries.
+Please see: Documentation/networking/ip-sysctl.rst and
+Documentation/admin-guide/sysctl/net.rst for descriptions of these entries.
 
 
 4. Appletalk

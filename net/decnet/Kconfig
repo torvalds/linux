@@ -15,7 +15,7 @@ config DECNET
 	  <http://linux-decnet.sourceforge.net/>.
 
 	  More detailed documentation is available in
-	  <file:Documentation/networking/decnet.txt>.
+	  <file:Documentation/networking/decnet.rst>.
 
 	  Be sure to say Y to "/proc file system support" and "Sysctl support"
 	  below when using DECnet, since you will need sysctl support to aid
@@ -40,4 +40,4 @@ config DECNET_ROUTER
 	  filtering" option will be required for the forthcoming routing daemon
 	  to work.
 
-	  See <file:Documentation/networking/decnet.txt> for more information.
+	  See <file:Documentation/networking/decnet.rst> for more information.

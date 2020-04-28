@@ -30,7 +30,7 @@ config 6PACK
 
 	  Note that this driver is still experimental and might cause
 	  problems. For details about the features and the usage of the
-	  driver, read <file:Documentation/networking/6pack.txt>.
+	  driver, read <file:Documentation/networking/6pack.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 6pack.
@@ -127,7 +127,7 @@ config BAYCOM_SER_FDX
 	  your serial interface chip. To configure the driver, use the sethdlc
 	  utility available in the standard ax25 utilities package. For
 	  information on the modems, see <http://www.baycom.de/> and
-	  <file:Documentation/networking/baycom.txt>.
+	  <file:Documentation/networking/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_ser_fdx.  This is recommended.
@@ -145,7 +145,7 @@ config BAYCOM_SER_HDX
 	  the driver, use the sethdlc utility available in the standard ax25
 	  utilities package. For information on the modems, see
 	  <http://www.baycom.de/> and
-	  <file:Documentation/networking/baycom.txt>.
+	  <file:Documentation/networking/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_ser_hdx.  This is recommended.
@@ -160,7 +160,7 @@ config BAYCOM_PAR
 	  par96 designs. To configure the driver, use the sethdlc utility
 	  available in the standard ax25 utilities package. For information on
 	  the modems, see <http://www.baycom.de/> and the file
-	  <file:Documentation/networking/baycom.txt>.
+	  <file:Documentation/networking/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_par.  This is recommended.
@@ -175,7 +175,7 @@ config BAYCOM_EPP
 	  designs. To configure the driver, use the sethdlc utility available
 	  in the standard ax25 utilities package. For information on the
 	  modems, see <http://www.baycom.de/> and the file
-	  <file:Documentation/networking/baycom.txt>.
+	  <file:Documentation/networking/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_epp.  This is recommended.

@@ -50,7 +50,7 @@ config BONDING
 	  The driver supports multiple bonding modes to allow for both high
 	  performance and high availability operation.
 
-	  Refer to <file:Documentation/networking/bonding.txt> for more
+	  Refer to <file:Documentation/networking/bonding.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -126,7 +126,7 @@ config EQUALIZER
 	  Linux driver or with a Livingston Portmaster 2e.
 
 	  Say Y if you want this and read
-	  <file:Documentation/networking/eql.txt>.  You may also want to read
+	  <file:Documentation/networking/eql.rst>.  You may also want to read
 	  section 6.2 of the NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 

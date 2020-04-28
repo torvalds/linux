@@ -3192,7 +3192,7 @@ Q:	https://patchwork.ozlabs.org/project/netdev/list/?delegate=77147
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git
 F:	Documentation/bpf/
-F:	Documentation/networking/filter.txt
+F:	Documentation/networking/filter.rst
 F:	arch/*/net/*
 F:	include/linux/bpf*
 F:	include/linux/filter.h
@@ -4728,7 +4728,7 @@ DECnet NETWORK LAYER
 L:	linux-decnet-user@lists.sourceforge.net
 S:	Orphan
 W:	http://linux-decnet.sourceforge.net
-F:	Documentation/networking/decnet.txt
+F:	Documentation/networking/decnet.rst
 F:	net/decnet/
 
 DECSTATION PLATFORM SUPPORT
@@ -7815,7 +7815,7 @@ HUAWEI ETHERNET DRIVER
 M:	Aviad Krawczyk <aviad.krawczyk@huawei.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/hinic.txt
+F:	Documentation/networking/hinic.rst
 F:	drivers/net/ethernet/huawei/hinic/
 
 HUGETLB FILESYSTEM
@@ -8934,7 +8934,7 @@ L:	lvs-devel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/ipvs-next.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/ipvs.git
-F:	Documentation/networking/ipvs-sysctl.txt
+F:	Documentation/networking/ipvs-sysctl.rst
 F:	include/net/ip_vs.h
 F:	include/uapi/linux/ip_vs.h
 F:	net/netfilter/ipvs/
