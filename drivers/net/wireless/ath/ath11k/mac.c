@@ -3793,15 +3793,30 @@ static void ath11k_mgmt_over_wmi_tx_work(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&ar->wmi_mgmt_tx_queue)) != NULL) {
 		info = IEEE80211_SKB_CB(skb);
-		arvif = ath11k_vif_to_arvif(info->control.vif);
-
-		ret = ath11k_mac_mgmt_tx_wmi(ar, arvif, skb);
-		if (ret) {
-			ath11k_warn(ar->ab, "failed to transmit management frame %d\n",
-				    ret);
+		if (!info->control.vif) {
+			ath11k_warn(ar->ab, "no vif found for mgmt frame, flags 0x%x\n",
+				    info->control.flags);
 			ieee80211_free_txskb(ar->hw, skb);
+			continue;
+		}
+
+		arvif = ath11k_vif_to_arvif(info->control.vif);
+		if (ar->allocated_vdev_map & (1LL << arvif->vdev_id) &&
+		    arvif->is_started) {
+			ret = ath11k_mac_mgmt_tx_wmi(ar, arvif, skb);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to tx mgmt frame, vdev_id %d :%d\n",
+					    arvif->vdev_id, ret);
+				ieee80211_free_txskb(ar->hw, skb);
+			} else {
+				atomic_inc(&ar->num_pending_mgmt_tx);
+			}
 		} else {
-			atomic_inc(&ar->num_pending_mgmt_tx);
+			ath11k_warn(ar->ab,
+				    "dropping mgmt frame for vdev %d, flags 0x%x is_started %d\n",
+				    arvif->vdev_id, info->control.flags,
+				    arvif->is_started);
+			ieee80211_free_txskb(ar->hw, skb);
 		}
 	}
 }
