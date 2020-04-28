@@ -128,9 +128,9 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "led_pins";
-		pinctrl-0 = <&led_pins>;
+		pinctrl-0 = <&blue_led_pin>;
 
-		led-0 {
+		blue_led: led-0 {
 			label = "blue:heartbeat";
 			gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
@@ -528,7 +528,7 @@
 	};
 
 	leds {
-		led_pins: led-pins {
+		blue_led_pin: blue-led-pin {
 			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
