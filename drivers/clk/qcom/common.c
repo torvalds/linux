@@ -11,12 +11,14 @@
 #include <linux/clk-provider.h>
 #include <linux/reset-controller.h>
 #include <linux/of.h>
+#include <linux/clk/qcom.h>
 
 #include "common.h"
 #include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "reset.h"
 #include "gdsc.h"
+#include "vdd-level.h"
 
 struct qcom_cc {
 	struct qcom_reset_controller reset;
@@ -356,5 +358,23 @@ void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
 	clk_sync_state(dev);
 }
 EXPORT_SYMBOL(qcom_cc_sync_state);
+
+int qcom_clk_get_voltage(struct clk *clk, unsigned long rate)
+{
+	struct clk_regmap *rclk;
+	struct clk_hw *hw = __clk_get_hw(clk);
+	int vdd_level;
+
+	if (!clk_is_regmap_clk(hw))
+		return -EINVAL;
+
+	rclk = to_clk_regmap(hw);
+	vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, rate);
+	if (vdd_level < 0)
+		return vdd_level;
+
+	return rclk->vdd_data.vdd_class->vdd_uv[vdd_level];
+}
+EXPORT_SYMBOL(qcom_clk_get_voltage);
 
 MODULE_LICENSE("GPL v2");

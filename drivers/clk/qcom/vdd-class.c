@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved. */
 
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
@@ -146,6 +146,9 @@ int clk_find_vdd_level(struct clk_hw *hw,
 				unsigned long rate)
 {
 	int level;
+
+	if (!vdd_data->num_rate_max)
+		return -ENODATA;
 
 	/*
 	 * For certain PLLs, due to the limitation in the bits allocated for
