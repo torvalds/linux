@@ -15,12 +15,14 @@
 
 /* clobbers r5 register */
 .macro DSP_EARLY_INIT
+#ifdef CONFIG_ISA_ARCV2
 	lr	r5, [ARC_AUX_DSP_BUILD]
 	bmsk	r5, r5, 7
 	breq    r5, 0, 1f
 	mov	r5, DSP_CTRL_DISABLED_ALL
 	sr	r5, [ARC_AUX_DSP_CTRL]
 1:
+#endif
 .endm
 
 /* clobbers r10, r11 registers pair */
