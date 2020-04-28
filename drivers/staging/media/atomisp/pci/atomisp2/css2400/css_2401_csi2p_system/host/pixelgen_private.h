@@ -15,7 +15,6 @@
 #ifndef __PIXELGEN_PRIVATE_H_INCLUDED__
 #define __PIXELGEN_PRIVATE_H_INCLUDED__
 #include "pixelgen_public.h"
-#include "hive_isp_css_host_ids_hrt.h"
 #include "PixelGen_SysBlock_defs.h"
 #include "device_access.h"	/* ia_css_device_load_uint32 */
 #include "assert_support.h" /* assert */

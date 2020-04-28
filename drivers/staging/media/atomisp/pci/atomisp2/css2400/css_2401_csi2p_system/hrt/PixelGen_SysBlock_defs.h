@@ -15,17 +15,6 @@
 #ifndef _PixelGen_SysBlock_defs_h
 #define _PixelGen_SysBlock_defs_h
 
-#ifdef ISYS2401_PXG_A
-#else
-#ifdef ISYS2401_PXG_B
-#else
-#ifdef ISYS2401_PXG_C
-#else
-#include <mipi_backend/hrt/include/mipi_backend_defs.h>
-#endif
-#endif
-#endif
-
 /* Parematers and User_Parameters for HSS */
 #define _PXG_PPC                       Ppc
 #define _PXG_PIXEL_BITS                PixelWidth
