@@ -775,7 +775,7 @@ static void dump_threads(void)
 		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
 		node = rb_next(node);
 		thread__put(t);
-	};
+	}
 }
 
 static void dump_map(void)
