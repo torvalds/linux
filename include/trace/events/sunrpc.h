@@ -1173,22 +1173,19 @@ TRACE_EVENT(svc_xprt_do_enqueue,
 	TP_ARGS(xprt, rqst),
 
 	TP_STRUCT__entry(
-		__field(struct svc_xprt *, xprt)
 		__field(int, pid)
 		__field(unsigned long, flags)
 		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xprt = xprt;
 		__entry->pid = rqst? rqst->rq_task->pid : 0;
 		__entry->flags = xprt->xpt_flags;
 		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=%p addr=%s pid=%d flags=%s",
-			__entry->xprt, __get_str(addr),
-			__entry->pid, show_svc_xprt_flags(__entry->flags))
+	TP_printk("addr=%s pid=%d flags=%s", __get_str(addr),
+		__entry->pid, show_svc_xprt_flags(__entry->flags))
 );
 
 DECLARE_EVENT_CLASS(svc_xprt_event,
@@ -1197,20 +1194,17 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 	TP_ARGS(xprt),
 
 	TP_STRUCT__entry(
-		__field(struct svc_xprt *, xprt)
 		__field(unsigned long, flags)
 		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xprt = xprt;
 		__entry->flags = xprt->xpt_flags;
 		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=%p addr=%s flags=%s",
-			__entry->xprt, __get_str(addr),
-			show_svc_xprt_flags(__entry->flags))
+	TP_printk("addr=%s flags=%s", __get_str(addr),
+		show_svc_xprt_flags(__entry->flags))
 );
 
 DEFINE_EVENT(svc_xprt_event, svc_xprt_no_write_space,
@@ -1223,24 +1217,20 @@ TRACE_EVENT(svc_xprt_dequeue,
 	TP_ARGS(rqst),
 
 	TP_STRUCT__entry(
-		__field(struct svc_xprt *, xprt)
 		__field(unsigned long, flags)
 		__field(unsigned long, wakeup)
 		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xprt = rqst->rq_xprt;
 		__entry->flags = rqst->rq_xprt->xpt_flags;
 		__entry->wakeup = ktime_to_us(ktime_sub(ktime_get(),
 							rqst->rq_qtime));
 		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=%p addr=%s flags=%s wakeup-us=%lu",
-			__entry->xprt, __get_str(addr),
-			show_svc_xprt_flags(__entry->flags),
-			__entry->wakeup)
+	TP_printk("addr=%s flags=%s wakeup-us=%lu", __get_str(addr),
+		show_svc_xprt_flags(__entry->flags), __entry->wakeup)
 );
 
 TRACE_EVENT(svc_wake_up,
@@ -1265,21 +1255,18 @@ TRACE_EVENT(svc_handle_xprt,
 	TP_ARGS(xprt, len),
 
 	TP_STRUCT__entry(
-		__field(struct svc_xprt *, xprt)
 		__field(int, len)
 		__field(unsigned long, flags)
 		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xprt = xprt;
 		__entry->len = len;
 		__entry->flags = xprt->xpt_flags;
 		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=%p addr=%s len=%d flags=%s",
-		__entry->xprt, __get_str(addr),
+	TP_printk("addr=%s len=%d flags=%s", __get_str(addr),
 		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 
