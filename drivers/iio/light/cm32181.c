@@ -344,9 +344,18 @@ static const struct of_device_id cm32181_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cm32181_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cm32181_acpi_match[] = {
+	{ "CPLM3218", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cm32181_acpi_match);
+#endif
+
 static struct i2c_driver cm32181_driver = {
 	.driver = {
 		.name	= "cm32181",
+		.acpi_match_table = ACPI_PTR(cm32181_acpi_match),
 		.of_match_table = cm32181_of_match,
 	},
 	.probe_new	= cm32181_probe,
