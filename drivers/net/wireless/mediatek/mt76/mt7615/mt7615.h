@@ -42,8 +42,10 @@
 #define MT7615_FIRMWARE_V2		2
 #define MT7615_FIRMWARE_V3		3
 
-#define MT7663_ROM_PATCH		"mediatek/mt7663pr2h.bin"
-#define MT7663_FIRMWARE_N9              "mediatek/mt7663_n9_v3.bin"
+#define MT7663_OFFLOAD_ROM_PATCH	"mediatek/mt7663pr2h.bin"
+#define MT7663_OFFLOAD_FIRMWARE_N9	"mediatek/mt7663_n9_v3.bin"
+#define MT7663_ROM_PATCH		"mediatek/mt7663pr2h_rebb.bin"
+#define MT7663_FIRMWARE_N9		"mediatek/mt7663_n9_rebb.bin"
 
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
