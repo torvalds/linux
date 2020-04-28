@@ -472,7 +472,7 @@ struct hns_roce_cq {
 
 struct hns_roce_idx_que {
 	struct hns_roce_mtr		mtr;
-	int				entry_sz;
+	int				entry_shift;
 	unsigned long			*bitmap;
 };
 
