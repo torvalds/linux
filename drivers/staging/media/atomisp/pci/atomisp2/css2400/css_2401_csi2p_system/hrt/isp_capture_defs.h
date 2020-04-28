@@ -21,10 +21,6 @@
 #define _ISP_CAPTURE_BYTES_PER_WORD               32		/* 256/8 */
 #define _ISP_CAPTURE_ELEM_PER_WORD                _ISP_CAPTURE_BYTES_PER_WORD / _ISP_CAPTURE_BYTES_PER_ELEM
 
-//#define CAPT_RCV_ACK                              1
-//#define CAPT_WRT_ACK                              2
-//#define CAPT_IRQ_ACK                              3
-
 /* --------------------------------------------------*/
 
 #define NOF_IRQS                                  2
@@ -57,10 +53,6 @@
 
 // Register width
 #define CAPT_START_MODE_REG_WIDTH                 1
-//#define CAPT_START_ADDR_REG_WIDTH                 9
-//#define CAPT_MEM_REGION_SIZE_REG_WIDTH            9
-//#define CAPT_NUM_MEM_REGIONS_REG_WIDTH            9
-#define CAPT_INIT_REG_WIDTH                       (22 + 4)
 
 #define CAPT_START_REG_WIDTH                      1
 #define CAPT_STOP_REG_WIDTH                       1
@@ -76,13 +68,9 @@
 #define CAPT_RECEIVED_SHORT_PACKETS_REG_WIDTH     32
 #define CAPT_RECEIVED_LONG_PACKETS_REG_WIDTH      32
 #define CAPT_LAST_COMMAND_REG_WIDTH               32
-/* #define CAPT_NEXT_COMMAND_REG_WIDTH               32 */
 #define CAPT_LAST_ACKNOWLEDGE_REG_WIDTH           32
 #define CAPT_NEXT_ACKNOWLEDGE_REG_WIDTH           32
 #define CAPT_FSM_STATE_INFO_REG_WIDTH             ((CAPT_WRITE2MEM_FSM_STATE_BITS * 3) + (CAPT_SYNCHRONIZER_FSM_STATE_BITS * 3))
-
-//#define CAPT_INIT_RESTART_MEM_ADDR_WIDTH          9
-//#define CAPT_INIT_RESTART_MEM_REGION_WIDTH        9
 
 /* register reset value */
 #define CAPT_START_MODE_REG_RSTVAL                0
@@ -110,9 +98,6 @@
 #define CAPT_INIT_RESYNC_BIT                      2
 #define CAPT_INIT_RESTART_BIT                     3
 #define CAPT_INIT_RESTART_MEM_ADDR_LSB            4
-#define CAPT_INIT_RESTART_MEM_ADDR_MSB            14
-#define CAPT_INIT_RESTART_MEM_REGION_LSB          15
-#define CAPT_INIT_RESTART_MEM_REGION_MSB          25
 
 #define CAPT_INIT_RST_REG_IDX                     CAPT_INIT_RST_REG_BIT
 #define CAPT_INIT_RST_REG_BITS                    1
@@ -123,9 +108,6 @@
 #define CAPT_INIT_RESTART_IDX                     CAPT_INIT_RESTART_BIT
 #define CAPT_INIT_RESTART_BITS									1
 #define CAPT_INIT_RESTART_MEM_ADDR_IDX            CAPT_INIT_RESTART_MEM_ADDR_LSB
-#define CAPT_INIT_RESTART_MEM_ADDR_BITS           (CAPT_INIT_RESTART_MEM_ADDR_MSB - CAPT_INIT_RESTART_MEM_ADDR_LSB + 1)
-#define CAPT_INIT_RESTART_MEM_REGION_IDX          CAPT_INIT_RESTART_MEM_REGION_LSB
-#define CAPT_INIT_RESTART_MEM_REGION_BITS         (CAPT_INIT_RESTART_MEM_REGION_MSB - CAPT_INIT_RESTART_MEM_REGION_LSB + 1)
 
 /* --------------------------------------------------*/
 /* TOKEN INFO */
