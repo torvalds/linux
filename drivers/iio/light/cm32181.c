@@ -70,6 +70,8 @@ struct cm32181_chip {
 	u16 conf_regs[CM32181_CONF_REG_NUM];
 	unsigned long init_regs_bitmap;
 	int calibscale;
+	int lux_per_bit;
+	int lux_per_bit_base_it;
 	int num_als_it;
 	const int *als_it_bits;
 	const int *als_it_values;
@@ -115,6 +117,8 @@ static int cm32181_reg_init(struct cm32181_chip *cm32181)
 			CM32181_CMD_ALS_IT_DEFAULT | CM32181_CMD_ALS_SM_DEFAULT;
 	cm32181->init_regs_bitmap = BIT(CM32181_REG_ADDR_CMD);
 	cm32181->calibscale = CM32181_CALIBSCALE_DEFAULT;
+	cm32181->lux_per_bit = CM32181_LUX_PER_BIT;
+	cm32181->lux_per_bit_base_it = CM32181_LUX_PER_BIT_BASE_IT;
 
 	/* Initialize registers*/
 	for_each_set_bit(i, &cm32181->init_regs_bitmap, CM32181_CONF_REG_NUM) {
@@ -211,8 +215,8 @@ static int cm32181_get_lux(struct cm32181_chip *cm32181)
 	if (ret < 0)
 		return -EINVAL;
 
-	lux = CM32181_LUX_PER_BIT;
-	lux *= CM32181_LUX_PER_BIT_BASE_IT;
+	lux = cm32181->lux_per_bit;
+	lux *= cm32181->lux_per_bit_base_it;
 	lux = div_u64(lux, als_it);
 
 	ret = i2c_smbus_read_word_data(client, CM32181_REG_ADDR_ALS);
