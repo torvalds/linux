@@ -945,6 +945,8 @@ static int sienna_cichlid_force_dpm_limit_value(struct smu_context *smu, bool hi
 
 	enum smu_clk_type clks[] = {
 		SMU_GFXCLK,
+		SMU_MCLK,
+		SMU_SOCCLK,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
@@ -970,6 +972,8 @@ static int sienna_cichlid_unforce_dpm_levels(struct smu_context *smu)
 
 	enum smu_clk_type clks[] = {
 		SMU_GFXCLK,
+		SMU_MCLK,
+		SMU_SOCCLK,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
