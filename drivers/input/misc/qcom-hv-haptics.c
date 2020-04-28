@@ -1628,6 +1628,9 @@ static int haptics_store_cl_brake_settings(struct haptics_chip *chip)
 	int rc = 0;
 	u8 val;
 
+	if (!chip->cl_brake_nvmem)
+		return 0;
+
 	val = MOD_STATUS_SEL_BRAKE_CAL_RNAT_RCAL_VAL;
 	rc = haptics_write(chip, chip->cfg_addr_base,
 			HAP_CFG_MOD_STATUS_SEL_REG, &val, 1);
