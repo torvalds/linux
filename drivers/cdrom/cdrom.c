@@ -3631,7 +3631,7 @@ static void cdrom_update_settings(void)
 }
 
 static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	
