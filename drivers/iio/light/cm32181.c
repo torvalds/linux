@@ -4,6 +4,7 @@
  * Author: Kevin Tsai <ktsai@capellamicro.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -54,6 +55,15 @@
 
 #define SMBUS_ALERT_RESPONSE_ADDRESS	0x0c
 
+/* CPM0 Index 0: device-id (3218 or 32181), 1: Unknown, 2: init_regs_bitmap */
+#define CPM0_REGS_BITMAP		2
+#define CPM0_HEADER_SIZE		3
+
+/* CPM1 Index 0: lux_per_bit, 1: calibscale, 2: resolution (100000) */
+#define CPM1_LUX_PER_BIT		0
+#define CPM1_CALIBSCALE			1
+#define CPM1_SIZE			3
+
 /* CM3218 Family */
 static const int cm3218_als_it_bits[] = { 0, 1, 2, 3 };
 static const int cm3218_als_it_values[] = { 100000, 200000, 400000, 800000 };
@@ -66,6 +76,7 @@ static const int cm32181_als_it_values[] = {
 
 struct cm32181_chip {
 	struct i2c_client *client;
+	struct device *dev;
 	struct mutex lock;
 	u16 conf_regs[CM32181_CONF_REG_NUM];
 	unsigned long init_regs_bitmap;
@@ -76,6 +87,92 @@ struct cm32181_chip {
 	const int *als_it_bits;
 	const int *als_it_values;
 };
+
+static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val2);
+
+#ifdef CONFIG_ACPI
+/**
+ * cm32181_acpi_get_cpm() - Get CPM object from ACPI
+ * @client	pointer of struct i2c_client.
+ * @obj_name	pointer of ACPI object name.
+ * @count	maximum size of return array.
+ * @vals	pointer of array for return elements.
+ *
+ * Convert ACPI CPM table to array.
+ *
+ * Return: -ENODEV for fail.  Otherwise is number of elements.
+ */
+static int cm32181_acpi_get_cpm(struct device *dev, char *obj_name,
+				u64 *values, int count)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *cpm, *elem;
+	acpi_handle handle;
+	acpi_status status;
+	int i;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return -ENODEV;
+
+	status = acpi_evaluate_object(handle, obj_name, NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "object %s not found\n", obj_name);
+		return -ENODEV;
+	}
+
+	cpm = buffer.pointer;
+	if (cpm->package.count > count)
+		dev_warn(dev, "%s table contains %u values, only using first %d values\n",
+			 obj_name, cpm->package.count, count);
+
+	count = min_t(int, cpm->package.count, count);
+	for (i = 0; i < count; i++) {
+		elem = &(cpm->package.elements[i]);
+		values[i] = elem->integer.value;
+	}
+
+	kfree(buffer.pointer);
+
+	return count;
+}
+
+static void cm32181_acpi_parse_cpm_tables(struct cm32181_chip *cm32181)
+{
+	u64 vals[CPM0_HEADER_SIZE + CM32181_CONF_REG_NUM];
+	struct device *dev = cm32181->dev;
+	int i, count;
+
+	count = cm32181_acpi_get_cpm(dev, "CPM0", vals, ARRAY_SIZE(vals));
+	if (count <= CPM0_HEADER_SIZE)
+		return;
+
+	count -= CPM0_HEADER_SIZE;
+
+	cm32181->init_regs_bitmap = vals[CPM0_REGS_BITMAP];
+	cm32181->init_regs_bitmap &= GENMASK(count - 1, 0);
+	for_each_set_bit(i, &cm32181->init_regs_bitmap, count)
+		cm32181->conf_regs[i] =	vals[CPM0_HEADER_SIZE + i];
+
+	count = cm32181_acpi_get_cpm(dev, "CPM1", vals, ARRAY_SIZE(vals));
+	if (count != CPM1_SIZE)
+		return;
+
+	cm32181->lux_per_bit = vals[CPM1_LUX_PER_BIT];
+
+	/* Check for uncalibrated devices */
+	if (vals[CPM1_CALIBSCALE] == CM32181_CALIBSCALE_DEFAULT)
+		return;
+
+	cm32181->calibscale = vals[CPM1_CALIBSCALE];
+	/* CPM1 lux_per_bit is for the current it value */
+	cm32181_read_als_it(cm32181, &cm32181->lux_per_bit_base_it);
+}
+#else
+static void cm32181_acpi_parse_cpm_tables(struct cm32181_chip *cm32181)
+{
+}
+#endif /* CONFIG_ACPI */
 
 /**
  * cm32181_reg_init() - Initialize CM32181 registers
@@ -119,6 +216,9 @@ static int cm32181_reg_init(struct cm32181_chip *cm32181)
 	cm32181->calibscale = CM32181_CALIBSCALE_DEFAULT;
 	cm32181->lux_per_bit = CM32181_LUX_PER_BIT;
 	cm32181->lux_per_bit_base_it = CM32181_LUX_PER_BIT_BASE_IT;
+
+	if (ACPI_HANDLE(cm32181->dev))
+		cm32181_acpi_parse_cpm_tables(cm32181);
 
 	/* Initialize registers*/
 	for_each_set_bit(i, &cm32181->init_regs_bitmap, CM32181_CONF_REG_NUM) {
@@ -362,6 +462,7 @@ static int cm32181_probe(struct i2c_client *client)
 
 	cm32181 = iio_priv(indio_dev);
 	cm32181->client = client;
+	cm32181->dev = dev;
 
 	mutex_init(&cm32181->lock);
 	indio_dev->dev.parent = dev;
