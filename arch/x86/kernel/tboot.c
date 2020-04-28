@@ -35,8 +35,7 @@
 #include "../realmode/rm/wakeup.h"
 
 /* Global pointer to shared data; NULL means no measured launch. */
-struct tboot *tboot __read_mostly;
-EXPORT_SYMBOL(tboot);
+static struct tboot *tboot __read_mostly;
 
 /* timeout for APs (in secs) to enter wait-for-SIPI state during shutdown */
 #define AP_WAIT_TIMEOUT		1
@@ -45,6 +44,11 @@ EXPORT_SYMBOL(tboot);
 #define pr_fmt(fmt)	"tboot: " fmt
 
 static u8 tboot_uuid[16] __initdata = TBOOT_UUID;
+
+bool tboot_enabled(void)
+{
+	return tboot != NULL;
+}
 
 void __init tboot_probe(void)
 {
