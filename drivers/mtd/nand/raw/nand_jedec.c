@@ -16,6 +16,8 @@
 
 #include "internals.h"
 
+#define JEDEC_PARAM_PAGES 3
+
 /*
  * Check if the NAND chip is JEDEC compliant, returns 1 if it is, 0 otherwise.
  */
@@ -47,7 +49,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 		goto free_jedec_param_page;
 	}
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < JEDEC_PARAM_PAGES; i++) {
 		ret = nand_read_data_op(chip, p, sizeof(*p), true);
 		if (ret) {
 			ret = 0;
@@ -59,7 +61,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 			break;
 	}
 
-	if (i == 3) {
+	if (i == JEDEC_PARAM_PAGES) {
 		pr_err("Could not find valid JEDEC parameter page; aborting\n");
 		goto free_jedec_param_page;
 	}
