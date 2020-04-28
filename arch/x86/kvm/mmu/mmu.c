@@ -3678,37 +3678,43 @@ static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
 	return ret;
 }
 
-static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
+static hpa_t mmu_alloc_root(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+			    u8 level, bool direct)
 {
 	struct kvm_mmu_page *sp;
+
+	spin_lock(&vcpu->kvm->mmu_lock);
+
+	if (make_mmu_pages_available(vcpu)) {
+		spin_unlock(&vcpu->kvm->mmu_lock);
+		return INVALID_PAGE;
+	}
+	sp = kvm_mmu_get_page(vcpu, gfn, gva, level, direct, ACC_ALL);
+	++sp->root_count;
+
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	return __pa(sp->spt);
+}
+
+static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
+{
+	u8 shadow_root_level = vcpu->arch.mmu->shadow_root_level;
+	hpa_t root;
 	unsigned i;
 
-	if (vcpu->arch.mmu->shadow_root_level >= PT64_ROOT_4LEVEL) {
-		spin_lock(&vcpu->kvm->mmu_lock);
-		if(make_mmu_pages_available(vcpu) < 0) {
-			spin_unlock(&vcpu->kvm->mmu_lock);
+	if (shadow_root_level >= PT64_ROOT_4LEVEL) {
+		root = mmu_alloc_root(vcpu, 0, 0, shadow_root_level, true);
+		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		}
-		sp = kvm_mmu_get_page(vcpu, 0, 0,
-				vcpu->arch.mmu->shadow_root_level, 1, ACC_ALL);
-		++sp->root_count;
-		spin_unlock(&vcpu->kvm->mmu_lock);
-		vcpu->arch.mmu->root_hpa = __pa(sp->spt);
-	} else if (vcpu->arch.mmu->shadow_root_level == PT32E_ROOT_LEVEL) {
+		vcpu->arch.mmu->root_hpa = root;
+	} else if (shadow_root_level == PT32E_ROOT_LEVEL) {
 		for (i = 0; i < 4; ++i) {
-			hpa_t root = vcpu->arch.mmu->pae_root[i];
+			MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->pae_root[i]));
 
-			MMU_WARN_ON(VALID_PAGE(root));
-			spin_lock(&vcpu->kvm->mmu_lock);
-			if (make_mmu_pages_available(vcpu) < 0) {
-				spin_unlock(&vcpu->kvm->mmu_lock);
+			root = mmu_alloc_root(vcpu, i << (30 - PAGE_SHIFT),
+					      i << 30, PT32_ROOT_LEVEL, true);
+			if (!VALID_PAGE(root))
 				return -ENOSPC;
-			}
-			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
-					i << 30, PT32_ROOT_LEVEL, 1, ACC_ALL);
-			root = __pa(sp->spt);
-			++sp->root_count;
-			spin_unlock(&vcpu->kvm->mmu_lock);
 			vcpu->arch.mmu->pae_root[i] = root | PT_PRESENT_MASK;
 		}
 		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
@@ -3723,9 +3729,9 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 {
-	struct kvm_mmu_page *sp;
 	u64 pdptr, pm_mask;
 	gfn_t root_gfn, root_pgd;
+	hpa_t root;
 	int i;
 
 	root_pgd = vcpu->arch.mmu->get_guest_pgd(vcpu);
@@ -3739,20 +3745,12 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * write-protect the guests page table root.
 	 */
 	if (vcpu->arch.mmu->root_level >= PT64_ROOT_4LEVEL) {
-		hpa_t root = vcpu->arch.mmu->root_hpa;
+		MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->root_hpa));
 
-		MMU_WARN_ON(VALID_PAGE(root));
-
-		spin_lock(&vcpu->kvm->mmu_lock);
-		if (make_mmu_pages_available(vcpu) < 0) {
-			spin_unlock(&vcpu->kvm->mmu_lock);
+		root = mmu_alloc_root(vcpu, root_gfn, 0,
+				      vcpu->arch.mmu->shadow_root_level, false);
+		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		}
-		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				vcpu->arch.mmu->shadow_root_level, 0, ACC_ALL);
-		root = __pa(sp->spt);
-		++sp->root_count;
-		spin_unlock(&vcpu->kvm->mmu_lock);
 		vcpu->arch.mmu->root_hpa = root;
 		goto set_root_pgd;
 	}
@@ -3767,9 +3765,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		pm_mask |= PT_ACCESSED_MASK | PT_WRITABLE_MASK | PT_USER_MASK;
 
 	for (i = 0; i < 4; ++i) {
-		hpa_t root = vcpu->arch.mmu->pae_root[i];
-
-		MMU_WARN_ON(VALID_PAGE(root));
+		MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->pae_root[i]));
 		if (vcpu->arch.mmu->root_level == PT32E_ROOT_LEVEL) {
 			pdptr = vcpu->arch.mmu->get_pdptr(vcpu, i);
 			if (!(pdptr & PT_PRESENT_MASK)) {
@@ -3780,17 +3776,11 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 			if (mmu_check_root(vcpu, root_gfn))
 				return 1;
 		}
-		spin_lock(&vcpu->kvm->mmu_lock);
-		if (make_mmu_pages_available(vcpu) < 0) {
-			spin_unlock(&vcpu->kvm->mmu_lock);
-			return -ENOSPC;
-		}
-		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30, PT32_ROOT_LEVEL,
-				      0, ACC_ALL);
-		root = __pa(sp->spt);
-		++sp->root_count;
-		spin_unlock(&vcpu->kvm->mmu_lock);
 
+		root = mmu_alloc_root(vcpu, root_gfn, i << 30,
+				      PT32_ROOT_LEVEL, false);
+		if (!VALID_PAGE(root))
+			return -ENOSPC;
 		vcpu->arch.mmu->pae_root[i] = root | pm_mask;
 	}
 	vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
