@@ -291,11 +291,6 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				soc_crit: soc-crit {
-					temperature = <115000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
 			};
 
 			cooling-maps {
