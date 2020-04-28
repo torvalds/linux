@@ -330,6 +330,12 @@ create_chain_restore(struct fs_chain *chain)
 			err = PTR_ERR(chain->restore_rule);
 			goto err_rule;
 		}
+	} else if (chains->ns == MLX5_FLOW_NAMESPACE_KERNEL) {
+		/* For NIC RX we don't need a restore rule
+		 * since we write the metadata to reg_b
+		 * that is passed to SW directly.
+		 */
+		chain_to_reg = NIC_CHAIN_TO_REG;
 	} else {
 		err = -EINVAL;
 		goto err_rule;
@@ -447,7 +453,10 @@ mlx5_chains_add_miss_rule(struct fs_chain *chain,
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act act = {};
 
-	act.flags  = FLOW_ACT_IGNORE_FLOW_LEVEL | FLOW_ACT_NO_APPEND;
+	act.flags  = FLOW_ACT_NO_APPEND;
+	if (mlx5_chains_ignore_flow_level_supported(chain->chains))
+		act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+
 	act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dest.type  = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = next_ft;
