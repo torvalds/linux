@@ -141,6 +141,7 @@ struct rockchip_usb2phy_port_cfg {
  * @clks: array of input clocks
  * @num_clks: number of input clocks.
  * @phy_tuning: phy default parameters tuning.
+ * @phy_lowpower: phy low power mode.
  * @clkout_ctl: keep on/turn off output clk of phy.
  * @port_cfgs: ports register configuration, assigned by driver data.
  * @chg_det: charger detection registers.
@@ -152,6 +153,7 @@ struct rockchip_usb2phy_cfg {
 	const struct	clk_bulk_data *clks;
 	int		num_clks;
 	int		(*phy_tuning)(struct rockchip_usb2phy *rphy);
+	int		(*phy_lowpower)(struct rockchip_usb2phy *rphy, bool en);
 	struct		usb2phy_reg clkout_ctl;
 	const struct	rockchip_usb2phy_port_cfg port_cfgs[USB2PHY_NUM_PORTS];
 	const struct	rockchip_chg_det_reg chg_det;
@@ -1378,6 +1380,18 @@ out:
 	return ret;
 }
 
+static int rv1126_usb2phy_low_power(struct rockchip_usb2phy *rphy, bool en)
+{
+	unsigned int reg;
+
+	reg = readl(rphy->base + 0x20);
+	/* bypass or enable bc detect */
+	reg = en ? reg | BIT(5) : reg & ~BIT(5);
+	writel(reg, rphy->base + 0x20);
+
+	return 0;
+}
+
 static const struct clk_bulk_data rv1126_clks[] = {
 	{ .id = "phyclk" },
 	{ .id = "pclk" },
@@ -1433,6 +1447,10 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			enable_irq_wake(rport->ls_irq);
 	}
 
+	/* enter low power state */
+	if (rphy->phy_cfg->phy_lowpower)
+		ret = rphy->phy_cfg->phy_lowpower(rphy, true);
+
 	return ret;
 }
 
@@ -1448,8 +1466,9 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 	if (device_may_wakeup(rphy->dev))
 		wakeup_enable = true;
 
-	if (rphy->phy_cfg->phy_tuning)
-		ret = rphy->phy_cfg->phy_tuning(rphy);
+	/* exit low power state */
+	if (rphy->phy_cfg->phy_lowpower)
+		ret = rphy->phy_cfg->phy_lowpower(rphy, false);
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -1512,6 +1531,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 		.reg		= 0xff4c0000,
 		.num_ports	= 1,
 		.phy_tuning	= rv1126_usb2phy_tuning,
+		.phy_lowpower	= rv1126_usb2phy_low_power,
 		.num_clks	= 2,
 		.clks		= rv1126_clks,
 		.clkout_ctl	= { 0x10230, 14, 14, 0, 1 },
@@ -1557,6 +1577,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 		.reg		= 0xff4c8000,
 		.num_ports	= 1,
 		.phy_tuning	= rv1126_usb2phy_tuning,
+		.phy_lowpower	= rv1126_usb2phy_low_power,
 		.num_clks	= 2,
 		.clks		= rv1126_clks,
 		.clkout_ctl	= { 0x10238, 9, 9, 0, 1 },
