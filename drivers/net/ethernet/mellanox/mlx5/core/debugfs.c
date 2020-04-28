@@ -202,18 +202,23 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev)
 static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 			 int index, int *is_str)
 {
-	u32 out[MLX5_ST_SZ_BYTES(query_qp_out)] = {};
+	int outlen = MLX5_ST_SZ_BYTES(query_qp_out);
 	u32 in[MLX5_ST_SZ_DW(query_qp_in)] = {};
 	u64 param = 0;
+	u32 *out;
 	int state;
 	u32 *qpc;
 	int err;
+
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!out)
+		return 0;
 
 	MLX5_SET(query_qp_in, in, opcode, MLX5_CMD_OP_QUERY_QP);
 	MLX5_SET(query_qp_in, in, qpn, qp->qpn);
 	err = mlx5_cmd_exec_inout(dev, query_qp, in, out);
 	if (err)
-		return 0;
+		goto out;
 
 	*is_str = 0;
 
@@ -269,7 +274,8 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		param = MLX5_GET(qpc, qpc, remote_qpn);
 		break;
 	}
-
+out:
+	kfree(out);
 	return param;
 }
 
