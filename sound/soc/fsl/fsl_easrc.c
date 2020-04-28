@@ -1997,8 +1997,7 @@ static int fsl_easrc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int fsl_easrc_runtime_suspend(struct device *dev)
+static __maybe_unused int fsl_easrc_runtime_suspend(struct device *dev)
 {
 	struct fsl_asrc *easrc = dev_get_drvdata(dev);
 	struct fsl_easrc_priv *easrc_priv = easrc->private;
@@ -2015,7 +2014,7 @@ static int fsl_easrc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int fsl_easrc_runtime_resume(struct device *dev)
+static __maybe_unused int fsl_easrc_runtime_resume(struct device *dev)
 {
 	struct fsl_asrc *easrc = dev_get_drvdata(dev);
 	struct fsl_easrc_priv *easrc_priv = easrc->private;
@@ -2094,7 +2093,6 @@ disable_mem_clk:
 	clk_disable_unprepare(easrc->mem_clk);
 	return ret;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops fsl_easrc_pm_ops = {
 	SET_RUNTIME_PM_OPS(fsl_easrc_runtime_suspend,
