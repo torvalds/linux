@@ -58,7 +58,7 @@
 #include "ia_css_types.h"
 #include "ia_css_stream.h"
 #include "error_support.h"
-#include "hrt/bits.h"
+#include "bits.h"
 
 /* We should never need to run the flash for more than 2 frames.
  * At 15fps this means 133ms. We set the timeout a bit longer.

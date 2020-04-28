@@ -17,7 +17,7 @@
 
 #define IS_TIMED_CTRL_VERSION_1
 
-#include <timed_controller_defs.h>
+#include "timed_controller_defs.h"
 
 /**
  * Order of the input bits for the timed controller taken from

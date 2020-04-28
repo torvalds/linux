@@ -25,12 +25,12 @@
 
 #include "system_global.h"
 
-/* HRT assumes 32 by default (see Linux/include/hrt/hive_types.h), overrule it in case it is different */
+/* HRT assumes 32 by default (see Linux/include/hive_types.h), overrule it in case it is different */
 #undef HRT_ADDRESS_WIDTH
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
 
 /* This interface is deprecated */
-#include "hrt/hive_types.h"
+#include "hive_types.h"
 
 /*
  * Cell specific address maps

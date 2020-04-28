@@ -28,7 +28,7 @@
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
 
 /* This interface is deprecated */
-#include "hrt/hive_types.h"
+#include "hive_types.h"
 
 /*
  * Cell specific address maps

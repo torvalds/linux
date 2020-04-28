@@ -17,7 +17,7 @@
 #include <type_support.h>
 #include "device_access.h"
 
-#include <hrt/bits.h>
+#include <bits.h>
 
 #include "gp_device.h"
 

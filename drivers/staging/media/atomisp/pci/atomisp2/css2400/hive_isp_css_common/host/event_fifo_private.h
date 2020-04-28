@@ -21,7 +21,7 @@
 
 #include "assert_support.h"
 
-#include <hrt/bits.h>			/* _hrt_get_bits() */
+#include <bits.h>			/* _hrt_get_bits() */
 
 STORAGE_CLASS_EVENT_C void event_wait_for(const event_ID_t ID)
 {
