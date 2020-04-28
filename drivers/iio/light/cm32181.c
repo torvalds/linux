@@ -52,6 +52,8 @@
 #define CM32181_CALIBSCALE_RESOLUTION	1000
 #define MLUX_PER_LUX			1000
 
+#define SMBUS_ALERT_RESPONSE_ADDRESS	0x0c
+
 static const u8 cm32181_reg[CM32181_CONF_REG_NUM] = {
 	CM32181_REG_ADDR_CMD,
 };
@@ -335,6 +337,26 @@ static int cm32181_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm32181));
 	if (!indio_dev)
 		return -ENOMEM;
+
+	/*
+	 * Some ACPI systems list 2 I2C resources for the CM3218 sensor, the
+	 * SMBus Alert Response Address (ARA, 0x0c) and the actual I2C address.
+	 * Detect this and take the following step to deal with it:
+	 * 1. When a SMBus Alert capable sensor has an Alert asserted, it will
+	 *    not respond on its actual I2C address. Read a byte from the ARA
+	 *    to clear any pending Alerts.
+	 * 2. Create a "dummy" client for the actual I2C address and
+	 *    use that client to communicate with the sensor.
+	 */
+	if (ACPI_HANDLE(dev) && client->addr == SMBUS_ALERT_RESPONSE_ADDRESS) {
+		struct i2c_board_info board_info = { .type = "dummy" };
+
+		i2c_smbus_read_byte(client);
+
+		client = i2c_acpi_new_device(dev, 1, &board_info);
+		if (IS_ERR(client))
+			return PTR_ERR(client);
+	}
 
 	cm32181 = iio_priv(indio_dev);
 	cm32181->client = client;
