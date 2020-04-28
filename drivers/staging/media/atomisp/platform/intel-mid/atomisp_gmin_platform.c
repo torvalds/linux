@@ -405,8 +405,11 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		gmin_subdevs[i].gpio1 = NULL;
 
 	if (pmic_id == PMIC_REGULATOR) {
-		gmin_subdevs[i].v1p8_reg = regulator_get(dev, "V1P8SX");
-		gmin_subdevs[i].v2p8_reg = regulator_get(dev, "V2P8SX");
+		/* Those regulators may have different names depending on the BIOS */
+		gmin_subdevs[i].v1p8_reg = regulator_get_optional(dev, "V1P8SX");
+		gmin_subdevs[i].v2p8_reg = regulator_get_optional(dev, "V2P8SX");
+
+
 		gmin_subdevs[i].v1p2_reg = regulator_get(dev, "V1P2A");
 		gmin_subdevs[i].v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
 
