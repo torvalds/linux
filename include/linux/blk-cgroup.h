@@ -607,12 +607,14 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 		u64_stats_update_begin(&bis->sync);
 
 		/*
-		 * If the bio is flagged with BIO_QUEUE_ENTERED it means this
-		 * is a split bio and we would have already accounted for the
-		 * size of the bio.
+		 * If the bio is flagged with BIO_CGROUP_ACCT it means this is a
+		 * split bio and we would have already accounted for the size of
+		 * the bio.
 		 */
-		if (!bio_flagged(bio, BIO_QUEUE_ENTERED))
+		if (!bio_flagged(bio, BIO_CGROUP_ACCT)) {
+			bio_set_flag(bio, BIO_CGROUP_ACCT);
 			bis->cur.bytes[rwd] += bio->bi_iter.bi_size;
+		}
 		bis->cur.ios[rwd]++;
 
 		u64_stats_update_end(&bis->sync);
