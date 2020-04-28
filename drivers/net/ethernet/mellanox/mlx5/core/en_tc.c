@@ -891,39 +891,31 @@ static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 	flow->hpe = NULL;
 }
 
-static int
-mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
-		      struct mlx5e_tc_flow_parse_attr *parse_attr,
-		      struct mlx5e_tc_flow *flow,
-		      struct netlink_ext_ack *extack)
+struct mlx5_flow_handle *
+mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
+			     struct mlx5_flow_spec *spec,
+			     struct mlx5_nic_flow_attr *attr)
 {
-	struct mlx5_flow_context *flow_context = &parse_attr->spec.flow_context;
-	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
+	struct mlx5_flow_context *flow_context = &spec->flow_context;
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
-	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
 		.flags    = FLOW_ACT_NO_APPEND,
 	};
-	struct mlx5_fc *counter = NULL;
-	int err, dest_ix = 0;
+	struct mlx5_flow_handle *rule;
+	int dest_ix = 0;
 
 	flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
 	flow_context->flow_tag = attr->flow_tag;
 
-	if (flow_flag_test(flow, HAIRPIN)) {
-		err = mlx5e_hairpin_flow_add(priv, flow, parse_attr, extack);
-		if (err)
-			return err;
-
-		if (flow_flag_test(flow, HAIRPIN_RSS)) {
-			dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-			dest[dest_ix].ft = attr->hairpin_ft;
-		} else {
-			dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-			dest[dest_ix].tir_num = attr->hairpin_tirn;
-		}
+	if (attr->hairpin_ft) {
+		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		dest[dest_ix].ft = attr->hairpin_ft;
+		dest_ix++;
+	} else if (attr->hairpin_tirn) {
+		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+		dest[dest_ix].tir_num = attr->hairpin_tirn;
 		dest_ix++;
 	} else if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
@@ -931,24 +923,14 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		dest_ix++;
 	}
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(dev, true);
-		if (IS_ERR(counter))
-			return PTR_ERR(counter);
-
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest[dest_ix].counter_id = mlx5_fc_id(counter);
+		dest[dest_ix].counter_id = mlx5_fc_id(attr->counter);
 		dest_ix++;
-		attr->counter = counter;
 	}
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_hdr = attr->modify_hdr;
-		dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
-		if (err)
-			return err;
-	}
 
 	mutex_lock(&tc->t_lock);
 	if (IS_ERR_OR_NULL(tc->t)) {
@@ -958,22 +940,66 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 		if (IS_ERR(tc->t)) {
 			mutex_unlock(&tc->t_lock);
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Failed to create tc offload table");
 			netdev_err(priv->netdev,
 				   "Failed to create tc offload table\n");
-			return PTR_ERR(tc->t);
+			return ERR_CAST(tc->t);
 		}
 	}
+	mutex_unlock(&tc->t_lock);
 
 	if (attr->match_level != MLX5_MATCH_NONE)
-		parse_attr->spec.match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
+		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
-	flow->rule[0] = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
-					    &flow_act, dest, dest_ix);
-	mutex_unlock(&priv->fs.tc.t_lock);
+	rule = mlx5_add_flow_rules(tc->t, spec,
+				   &flow_act, dest, dest_ix);
+	if (IS_ERR(rule))
+		return ERR_CAST(rule);
+
+	return rule;
+}
+
+static int
+mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
+		      struct mlx5e_tc_flow_parse_attr *parse_attr,
+		      struct mlx5e_tc_flow *flow,
+		      struct netlink_ext_ack *extack)
+{
+	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
+	struct mlx5_core_dev *dev = priv->mdev;
+	struct mlx5_fc *counter = NULL;
+	int err;
+
+	if (flow_flag_test(flow, HAIRPIN)) {
+		err = mlx5e_hairpin_flow_add(priv, flow, parse_attr, extack);
+		if (err)
+			return err;
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		counter = mlx5_fc_create(dev, true);
+		if (IS_ERR(counter))
+			return PTR_ERR(counter);
+
+		attr->counter = counter;
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
+		dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
+		if (err)
+			return err;
+	}
+
+	flow->rule[0] = mlx5e_add_offloaded_nic_rule(priv, &parse_attr->spec,
+						     attr);
 
 	return PTR_ERR_OR_ZERO(flow->rule[0]);
+}
+
+void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
+				  struct mlx5_flow_handle *rule)
+{
+	mlx5_del_flow_rules(rule);
 }
 
 static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
@@ -981,12 +1007,10 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
-	struct mlx5_fc *counter = NULL;
 
-	counter = attr->counter;
 	if (!IS_ERR_OR_NULL(flow->rule[0]))
-		mlx5_del_flow_rules(flow->rule[0]);
-	mlx5_fc_destroy(priv->mdev, counter);
+		mlx5e_del_offloaded_nic_rule(priv, flow->rule[0]);
+	mlx5_fc_destroy(priv->mdev, attr->counter);
 
 	mutex_lock(&priv->fs.tc.t_lock);
 	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) &&
