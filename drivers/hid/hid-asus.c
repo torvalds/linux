@@ -102,6 +102,7 @@ struct asus_touchpad_info {
 	int res_y;
 	int contact_size;
 	int max_contacts;
+	int report_size;
 };
 
 struct asus_drvdata {
@@ -126,6 +127,7 @@ static const struct asus_touchpad_info asus_i2c_tp = {
 	.max_y = 1758,
 	.contact_size = 5,
 	.max_contacts = 5,
+	.report_size = 28 /* 2 byte header + 5 * 5 + 1 byte footer */,
 };
 
 static const struct asus_touchpad_info asus_t100ta_tp = {
@@ -135,6 +137,7 @@ static const struct asus_touchpad_info asus_t100ta_tp = {
 	.res_y = 27, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
+	.report_size = 28 /* 2 byte header + 5 * 5 + 1 byte footer */,
 };
 
 static const struct asus_touchpad_info asus_t100ha_tp = {
@@ -144,6 +147,7 @@ static const struct asus_touchpad_info asus_t100ha_tp = {
 	.res_y = 29, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
+	.report_size = 28 /* 2 byte header + 5 * 5 + 1 byte footer */,
 };
 
 static const struct asus_touchpad_info asus_t200ta_tp = {
@@ -153,6 +157,7 @@ static const struct asus_touchpad_info asus_t200ta_tp = {
 	.res_y = 28, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
+	.report_size = 28 /* 2 byte header + 5 * 5 + 1 byte footer */,
 };
 
 static const struct asus_touchpad_info asus_t100chi_tp = {
@@ -162,6 +167,7 @@ static const struct asus_touchpad_info asus_t100chi_tp = {
 	.res_y = 29, /* units/mm */
 	.contact_size = 3,
 	.max_contacts = 4,
+	.report_size = 15 /* 2 byte header + 3 * 4 + 1 byte footer */,
 };
 
 static void asus_report_contact_down(struct asus_drvdata *drvdat,
@@ -229,7 +235,7 @@ static int asus_report_input(struct asus_drvdata *drvdat, u8 *data, int size)
 	int i, toolType = MT_TOOL_FINGER;
 	u8 *contactData = data + 2;
 
-	if (size != 3 + drvdat->tp->contact_size * drvdat->tp->max_contacts)
+	if (size != drvdat->tp->report_size)
 		return 0;
 
 	for (i = 0; i < drvdat->tp->max_contacts; i++) {
