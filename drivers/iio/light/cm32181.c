@@ -56,15 +56,24 @@ static const u8 cm32181_reg[CM32181_CONF_REG_NUM] = {
 	CM32181_REG_ADDR_CMD,
 };
 
-static const int als_it_bits[] = {12, 8, 0, 1, 2, 3};
-static const int als_it_value[] = {25000, 50000, 100000, 200000, 400000,
-	800000};
+/* CM3218 Family */
+static const int cm3218_als_it_bits[] = { 0, 1, 2, 3 };
+static const int cm3218_als_it_values[] = { 100000, 200000, 400000, 800000 };
+
+/* CM32181 Family */
+static const int cm32181_als_it_bits[] = { 12, 8, 0, 1, 2, 3 };
+static const int cm32181_als_it_values[] = {
+	25000, 50000, 100000, 200000, 400000, 800000
+};
 
 struct cm32181_chip {
 	struct i2c_client *client;
 	struct mutex lock;
 	u16 conf_regs[CM32181_CONF_REG_NUM];
 	int calibscale;
+	int num_als_it;
+	const int *als_it_bits;
+	const int *als_it_values;
 };
 
 /**
@@ -86,8 +95,21 @@ static int cm32181_reg_init(struct cm32181_chip *cm32181)
 		return ret;
 
 	/* check device ID */
-	if ((ret & 0xFF) != 0x81)
+	switch (ret & 0xFF) {
+	case 0x18: /* CM3218 */
+		cm32181->num_als_it = ARRAY_SIZE(cm3218_als_it_bits);
+		cm32181->als_it_bits = cm3218_als_it_bits;
+		cm32181->als_it_values = cm3218_als_it_values;
+		break;
+	case 0x81: /* CM32181 */
+	case 0x82: /* CM32182, fully compat. with CM32181 */
+		cm32181->num_als_it = ARRAY_SIZE(cm32181_als_it_bits);
+		cm32181->als_it_bits = cm32181_als_it_bits;
+		cm32181->als_it_values = cm32181_als_it_values;
+		break;
+	default:
 		return -ENODEV;
+	}
 
 	/* Default Values */
 	cm32181->conf_regs[CM32181_REG_ADDR_CMD] =
@@ -122,9 +144,9 @@ static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val2)
 	als_it = cm32181->conf_regs[CM32181_REG_ADDR_CMD];
 	als_it &= CM32181_CMD_ALS_IT_MASK;
 	als_it >>= CM32181_CMD_ALS_IT_SHIFT;
-	for (i = 0; i < ARRAY_SIZE(als_it_bits); i++) {
-		if (als_it == als_it_bits[i]) {
-			*val2 = als_it_value[i];
+	for (i = 0; i < cm32181->num_als_it; i++) {
+		if (als_it == cm32181->als_it_bits[i]) {
+			*val2 = cm32181->als_it_values[i];
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
 	}
@@ -147,14 +169,14 @@ static int cm32181_write_als_it(struct cm32181_chip *cm32181, int val)
 	u16 als_it;
 	int ret, i, n;
 
-	n = ARRAY_SIZE(als_it_value);
+	n = cm32181->num_als_it;
 	for (i = 0; i < n; i++)
-		if (val <= als_it_value[i])
+		if (val <= cm32181->als_it_values[i])
 			break;
 	if (i >= n)
 		i = n - 1;
 
-	als_it = als_it_bits[i];
+	als_it = cm32181->als_it_bits[i];
 	als_it <<= CM32181_CMD_ALS_IT_SHIFT;
 
 	mutex_lock(&cm32181->lock);
@@ -266,11 +288,12 @@ static int cm32181_write_raw(struct iio_dev *indio_dev,
 static ssize_t cm32181_get_it_available(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
+	struct cm32181_chip *cm32181 = iio_priv(dev_to_iio_dev(dev));
 	int i, n, len;
 
-	n = ARRAY_SIZE(als_it_value);
+	n = cm32181->num_als_it;
 	for (i = 0, len = 0; i < n; i++)
-		len += sprintf(buf + len, "0.%06u ", als_it_value[i]);
+		len += sprintf(buf + len, "0.%06u ", cm32181->als_it_values[i]);
 	return len + sprintf(buf + len, "\n");
 }
 
@@ -346,6 +369,7 @@ static int cm32181_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id cm32181_of_match[] = {
+	{ .compatible = "capella,cm3218" },
 	{ .compatible = "capella,cm32181" },
 	{ }
 };
