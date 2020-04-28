@@ -22,32 +22,36 @@
  * @err: error number
  */
 static void crypto_finalize_request(struct crypto_engine *engine,
-			     struct crypto_async_request *req, int err)
+				    struct crypto_async_request *req, int err)
 {
 	unsigned long flags;
-	bool finalize_cur_req = false;
+	bool finalize_req = false;
 	int ret;
 	struct crypto_engine_ctx *enginectx;
 
-	spin_lock_irqsave(&engine->queue_lock, flags);
-	if (engine->cur_req == req)
-		finalize_cur_req = true;
-	spin_unlock_irqrestore(&engine->queue_lock, flags);
+	/*
+	 * If hardware cannot enqueue more requests
+	 * and retry mechanism is not supported
+	 * make sure we are completing the current request
+	 */
+	if (!engine->retry_support) {
+		spin_lock_irqsave(&engine->queue_lock, flags);
+		if (engine->cur_req == req) {
+			finalize_req = true;
+			engine->cur_req = NULL;
+		}
+		spin_unlock_irqrestore(&engine->queue_lock, flags);
+	}
 
-	if (finalize_cur_req) {
+	if (finalize_req || engine->retry_support) {
 		enginectx = crypto_tfm_ctx(req->tfm);
-		if (engine->cur_req_prepared &&
+		if (enginectx->op.prepare_request &&
 		    enginectx->op.unprepare_request) {
 			ret = enginectx->op.unprepare_request(engine, req);
 			if (ret)
 				dev_err(engine->dev, "failed to unprepare request\n");
 		}
-		spin_lock_irqsave(&engine->queue_lock, flags);
-		engine->cur_req = NULL;
-		engine->cur_req_prepared = false;
-		spin_unlock_irqrestore(&engine->queue_lock, flags);
 	}
-
 	req->complete(req, err);
 
 	kthread_queue_work(engine->kworker, &engine->pump_requests);
@@ -74,7 +78,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
 	/* Make sure we are not already running a request */
-	if (engine->cur_req)
+	if (!engine->retry_support && engine->cur_req)
 		goto out;
 
 	/* If another context is idling then defer */
@@ -108,13 +112,21 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		goto out;
 	}
 
+start_request:
 	/* Get the fist request from the engine queue to handle */
 	backlog = crypto_get_backlog(&engine->queue);
 	async_req = crypto_dequeue_request(&engine->queue);
 	if (!async_req)
 		goto out;
 
-	engine->cur_req = async_req;
+	/*
+	 * If hardware doesn't support the retry mechanism,
+	 * keep track of the request we are processing now.
+	 * We'll need it on completion (crypto_finalize_request).
+	 */
+	if (!engine->retry_support)
+		engine->cur_req = async_req;
+
 	if (backlog)
 		backlog->complete(backlog, -EINPROGRESS);
 
@@ -130,7 +142,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		ret = engine->prepare_crypt_hardware(engine);
 		if (ret) {
 			dev_err(engine->dev, "failed to prepare crypt hardware\n");
-			goto req_err;
+			goto req_err_2;
 		}
 	}
 
@@ -141,28 +153,81 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		if (ret) {
 			dev_err(engine->dev, "failed to prepare request: %d\n",
 				ret);
-			goto req_err;
+			goto req_err_2;
 		}
-		engine->cur_req_prepared = true;
 	}
 	if (!enginectx->op.do_one_request) {
 		dev_err(engine->dev, "failed to do request\n");
 		ret = -EINVAL;
-		goto req_err;
+		goto req_err_1;
 	}
-	ret = enginectx->op.do_one_request(engine, async_req);
-	if (ret) {
-		dev_err(engine->dev, "Failed to do one request from queue: %d\n", ret);
-		goto req_err;
-	}
-	return;
 
-req_err:
-	crypto_finalize_request(engine, async_req, ret);
+	ret = enginectx->op.do_one_request(engine, async_req);
+
+	/* Request unsuccessfully executed by hardware */
+	if (ret < 0) {
+		/*
+		 * If hardware queue is full (-ENOSPC), requeue request
+		 * regardless of backlog flag.
+		 * If hardware throws any other error code,
+		 * requeue only backlog requests.
+		 * Otherwise, unprepare and complete the request.
+		 */
+		if (!engine->retry_support ||
+		    ((ret != -ENOSPC) &&
+		    !(async_req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))) {
+			dev_err(engine->dev,
+				"Failed to do one request from queue: %d\n",
+				ret);
+			goto req_err_1;
+		}
+		/*
+		 * If retry mechanism is supported,
+		 * unprepare current request and
+		 * enqueue it back into crypto-engine queue.
+		 */
+		if (enginectx->op.unprepare_request) {
+			ret = enginectx->op.unprepare_request(engine,
+							      async_req);
+			if (ret)
+				dev_err(engine->dev,
+					"failed to unprepare request\n");
+		}
+		spin_lock_irqsave(&engine->queue_lock, flags);
+		/*
+		 * If hardware was unable to execute request, enqueue it
+		 * back in front of crypto-engine queue, to keep the order
+		 * of requests.
+		 */
+		crypto_enqueue_request_head(&engine->queue, async_req);
+
+		kthread_queue_work(engine->kworker, &engine->pump_requests);
+		goto out;
+	}
+
+	goto retry;
+
+req_err_1:
+	if (enginectx->op.unprepare_request) {
+		ret = enginectx->op.unprepare_request(engine, async_req);
+		if (ret)
+			dev_err(engine->dev, "failed to unprepare request\n");
+	}
+
+req_err_2:
+	async_req->complete(async_req, ret);
+
+retry:
+	/* If retry mechanism is supported, send new requests to engine */
+	if (engine->retry_support) {
+		spin_lock_irqsave(&engine->queue_lock, flags);
+		goto start_request;
+	}
 	return;
 
 out:
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
+	return;
 }
 
 static void crypto_pump_work(struct kthread_work *work)
@@ -386,15 +451,20 @@ int crypto_engine_stop(struct crypto_engine *engine)
 EXPORT_SYMBOL_GPL(crypto_engine_stop);
 
 /**
- * crypto_engine_alloc_init - allocate crypto hardware engine structure and
- * initialize it.
+ * crypto_engine_alloc_init_and_set - allocate crypto hardware engine structure
+ * and initialize it by setting the maximum number of entries in the software
+ * crypto-engine queue.
  * @dev: the device attached with one hardware engine
+ * @retry_support: whether hardware has support for retry mechanism
  * @rt: whether this queue is set to run as a realtime task
+ * @qlen: maximum size of the crypto-engine queue
  *
  * This must be called from context that can sleep.
  * Return: the crypto engine structure on success, else NULL.
  */
-struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
+struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
+						       bool retry_support,
+						       bool rt, int qlen)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct crypto_engine *engine;
@@ -411,12 +481,12 @@ struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 	engine->running = false;
 	engine->busy = false;
 	engine->idling = false;
-	engine->cur_req_prepared = false;
+	engine->retry_support = retry_support;
 	engine->priv_data = dev;
 	snprintf(engine->name, sizeof(engine->name),
 		 "%s-engine", dev_name(dev));
 
-	crypto_init_queue(&engine->queue, CRYPTO_ENGINE_MAX_QLEN);
+	crypto_init_queue(&engine->queue, qlen);
 	spin_lock_init(&engine->queue_lock);
 
 	engine->kworker = kthread_create_worker(0, "%s", engine->name);
@@ -432,6 +502,22 @@ struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 	}
 
 	return engine;
+}
+EXPORT_SYMBOL_GPL(crypto_engine_alloc_init_and_set);
+
+/**
+ * crypto_engine_alloc_init - allocate crypto hardware engine structure and
+ * initialize it.
+ * @dev: the device attached with one hardware engine
+ * @rt: whether this queue is set to run as a realtime task
+ *
+ * This must be called from context that can sleep.
+ * Return: the crypto engine structure on success, else NULL.
+ */
+struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
+{
+	return crypto_engine_alloc_init_and_set(dev, false, rt,
+						CRYPTO_ENGINE_MAX_QLEN);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_alloc_init);
 
