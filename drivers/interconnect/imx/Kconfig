@@ -8,6 +8,10 @@ config INTERCONNECT_IMX8MM
 	tristate "i.MX8MM interconnect driver"
 	depends on INTERCONNECT_IMX
 
+config INTERCONNECT_IMX8MN
+	tristate "i.MX8MN interconnect driver"
+	depends on INTERCONNECT_IMX
+
 config INTERCONNECT_IMX8MQ
 	tristate "i.MX8MQ interconnect driver"
 	depends on INTERCONNECT_IMX
