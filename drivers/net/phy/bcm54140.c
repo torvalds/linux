@@ -862,6 +862,7 @@ static struct phy_driver bcm54140_drivers[] = {
 		.probe		= bcm54140_probe,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.soft_reset	= genphy_soft_reset,
 		.get_tunable	= bcm54140_get_tunable,
 		.set_tunable	= bcm54140_set_tunable,
 	},
