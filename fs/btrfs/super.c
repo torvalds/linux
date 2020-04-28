@@ -90,6 +90,15 @@ const char * __attribute_const__ btrfs_decode_error(int errno)
 	case -EROFS:		/* -30 */
 		errstr = "Readonly filesystem";
 		break;
+	case -EOPNOTSUPP:	/* -95 */
+		errstr = "Operation not supported";
+		break;
+	case -EUCLEAN:		/* -117 */
+		errstr = "Filesystem corrupted";
+		break;
+	case -EDQUOT:		/* -122 */
+		errstr = "Quota exceeded";
+		break;
 	}
 
 	return errstr;
