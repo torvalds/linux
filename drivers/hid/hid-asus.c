@@ -677,20 +677,13 @@ static int asus_input_mapping(struct hid_device *hdev,
 	 * This avoids a bunch of non-functional hid_input devices getting
 	 * created because of the T100CHI using HID_QUIRK_MULTI_INPUT.
 	 */
-	if (drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) {
-		if (field->application == (HID_UP_GENDESK | 0x0080) ||
-		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0024) ||
-		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0025) ||
-		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0026))
-			return -1;
-		/*
-		 * We use the hid_input for the mouse report for the touchpad,
-		 * keep the left button, to avoid the core removing it.
-		 */
-		if (field->application == HID_GD_MOUSE &&
-		    usage->hid != (HID_UP_BUTTON | 1))
-			return -1;
-	}
+	if ((drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) &&
+	    (field->application == (HID_UP_GENDESK | 0x0080) ||
+	     field->application == HID_GD_MOUSE ||
+	     usage->hid == (HID_UP_GENDEVCTRLS | 0x0024) ||
+	     usage->hid == (HID_UP_GENDEVCTRLS | 0x0025) ||
+	     usage->hid == (HID_UP_GENDEVCTRLS | 0x0026)))
+		return -1;
 
 	/* ASUS-specific keyboard hotkeys */
 	if ((usage->hid & HID_USAGE_PAGE) == 0xff310000) {
