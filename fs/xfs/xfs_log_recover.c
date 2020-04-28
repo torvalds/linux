@@ -1913,65 +1913,6 @@ out:
 	return error;
 }
 
-/*
- * Build up the table of buf cancel records so that we don't replay
- * cancelled data in the second pass.  For buffer records that are
- * not cancel records, there is nothing to do here so we just return.
- *
- * If we get a cancel record which is already in the table, this indicates
- * that the buffer was cancelled multiple times.  In order to ensure
- * that during pass 2 we keep the record in the table until we reach its
- * last occurrence in the log, we keep a reference count in the cancel
- * record in the table to tell us how many times we expect to see this
- * record during the second pass.
- */
-STATIC int
-xlog_recover_buffer_pass1(
-	struct xlog			*log,
-	struct xlog_recover_item	*item)
-{
-	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
-	struct list_head	*bucket;
-	struct xfs_buf_cancel	*bcp;
-
-	if (!xfs_buf_log_check_iovec(&item->ri_buf[0])) {
-		xfs_err(log->l_mp, "bad buffer log item size (%d)",
-				item->ri_buf[0].i_len);
-		return -EFSCORRUPTED;
-	}
-
-	/*
-	 * If this isn't a cancel buffer item, then just return.
-	 */
-	if (!(buf_f->blf_flags & XFS_BLF_CANCEL)) {
-		trace_xfs_log_recover_buf_not_cancel(log, buf_f);
-		return 0;
-	}
-
-	/*
-	 * Insert an xfs_buf_cancel record into the hash table of them.
-	 * If there is already an identical record, bump its reference count.
-	 */
-	bucket = XLOG_BUF_CANCEL_BUCKET(log, buf_f->blf_blkno);
-	list_for_each_entry(bcp, bucket, bc_list) {
-		if (bcp->bc_blkno == buf_f->blf_blkno &&
-		    bcp->bc_len == buf_f->blf_len) {
-			bcp->bc_refcount++;
-			trace_xfs_log_recover_buf_cancel_ref_inc(log, buf_f);
-			return 0;
-		}
-	}
-
-	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
-	bcp->bc_blkno = buf_f->blf_blkno;
-	bcp->bc_len = buf_f->blf_len;
-	bcp->bc_refcount = 1;
-	list_add_tail(&bcp->bc_list, bucket);
-
-	trace_xfs_log_recover_buf_cancel_add(log, buf_f);
-	return 0;
-}
-
 static struct xfs_buf_cancel *
 xlog_find_buffer_cancelled(
 	struct xlog		*log,
@@ -1991,6 +1932,35 @@ xlog_find_buffer_cancelled(
 	}
 
 	return NULL;
+}
+
+static bool
+xlog_add_buffer_cancelled(
+	struct xlog		*log,
+	xfs_daddr_t		blkno,
+	uint			len)
+{
+	struct xfs_buf_cancel	*bcp;
+
+	/*
+	 * If we find an existing cancel record, this indicates that the buffer
+	 * was cancelled multiple times.  To ensure that during pass 2 we keep
+	 * the record in the table until we reach its last occurrence in the
+	 * log, a reference count is kept to tell how many times we expect to
+	 * see this record during the second pass.
+	 */
+	bcp = xlog_find_buffer_cancelled(log, blkno, len);
+	if (bcp) {
+		bcp->bc_refcount++;
+		return false;
+	}
+
+	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
+	bcp->bc_blkno = blkno;
+	bcp->bc_len = len;
+	bcp->bc_refcount = 1;
+	list_add_tail(&bcp->bc_list, XLOG_BUF_CANCEL_BUCKET(log, blkno));
+	return true;
 }
 
 /*
@@ -2043,6 +2013,32 @@ xlog_buf_readahead(
 {
 	if (!xlog_is_buffer_cancelled(log, blkno, len))
 		xfs_buf_readahead(log->l_mp->m_ddev_targp, blkno, len, ops);
+}
+
+/*
+ * Build up the table of buf cancel records so that we don't replay cancelled
+ * data in the second pass.
+ */
+static int
+xlog_recover_buffer_pass1(
+	struct xlog			*log,
+	struct xlog_recover_item	*item)
+{
+	struct xfs_buf_log_format	*bf = item->ri_buf[0].i_addr;
+
+	if (!xfs_buf_log_check_iovec(&item->ri_buf[0])) {
+		xfs_err(log->l_mp, "bad buffer log item size (%d)",
+				item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
+
+	if (!(bf->blf_flags & XFS_BLF_CANCEL))
+		trace_xfs_log_recover_buf_not_cancel(log, bf);
+	else if (xlog_add_buffer_cancelled(log, bf->blf_blkno, bf->blf_len))
+		trace_xfs_log_recover_buf_cancel_add(log, bf);
+	else
+		trace_xfs_log_recover_buf_cancel_ref_inc(log, bf);
+	return 0;
 }
 
 /*
