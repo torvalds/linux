@@ -607,7 +607,7 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 							CX231XX_VMUX_COMPOSITE1,
 							INPUT(input)->vmux);
 			break;
-		};
+		}
 
 		break;
 	default:
