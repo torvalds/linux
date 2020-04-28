@@ -78,6 +78,15 @@
 		default-brightness-level = <200>;
 	};
 
+	cam_ircut0: cam_ircut {
+		status = "okay";
+		compatible = "rockchip,ircut";
+		ircut-open-gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
 	dummy_codec: dummy-codec {
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
@@ -451,7 +460,6 @@
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			#address-cells = <1>;
@@ -463,7 +471,6 @@
 				data-lanes = <1 2 3 4>;
 			};
 		};
-
 		port@1 {
 			reg = <1>;
 			#address-cells = <1>;
@@ -812,6 +819,7 @@
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT1607-FV1";
 		rockchip,camera-module-lens-name = "M12-4IR-4MP-F16";
+		ir-cut = <&cam_ircut0>;
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
