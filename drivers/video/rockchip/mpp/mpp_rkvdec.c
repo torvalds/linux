@@ -1613,7 +1613,7 @@ static struct mpp_hw_ops rkvdec_3368_hw_ops = {
 	.get_freq = rkvdec_3368_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
-	.reset = rkvdec_sip_reset,
+	.reset = rkvdec_reset,
 };
 
 static struct mpp_dev_ops rkvdec_v1_dev_ops = {
