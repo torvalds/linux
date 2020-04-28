@@ -288,7 +288,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	cb = hl_cb_get(hdev, &hpriv->cb_mgr, handle);
 	if (!cb) {
 		dev_err(hdev->dev,
-			"CB mmap failed, no match to handle %d\n", handle);
+			"CB mmap failed, no match to handle 0x%x\n", handle);
 		return -EINVAL;
 	}
 
@@ -357,7 +357,7 @@ struct hl_cb *hl_cb_get(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	if (!cb) {
 		spin_unlock(&mgr->cb_lock);
 		dev_warn(hdev->dev,
-			"CB get failed, no match to handle %d\n", handle);
+			"CB get failed, no match to handle 0x%x\n", handle);
 		return NULL;
 	}
 
