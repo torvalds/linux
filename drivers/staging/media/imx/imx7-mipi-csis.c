@@ -1017,33 +1017,14 @@ static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
-static int mipi_csis_debugfs_init(struct csi_state *state)
+static void mipi_csis_debugfs_init(struct csi_state *state)
 {
-	struct dentry *d;
-
-	if (!debugfs_initialized())
-		return -ENODEV;
-
 	state->debugfs_root = debugfs_create_dir(dev_name(state->dev), NULL);
-	if (!state->debugfs_root)
-		return -ENOMEM;
 
-	d = debugfs_create_bool("debug_enable", 0600, state->debugfs_root,
-				&state->debug);
-	if (!d)
-		goto remove_debugfs;
-
-	d = debugfs_create_file("dump_regs", 0600, state->debugfs_root,
-				state, &mipi_csis_dump_regs_fops);
-	if (!d)
-		goto remove_debugfs;
-
-	return 0;
-
-remove_debugfs:
-	debugfs_remove_recursive(state->debugfs_root);
-
-	return -ENOMEM;
+	debugfs_create_bool("debug_enable", 0600, state->debugfs_root,
+			    &state->debug);
+	debugfs_create_file("dump_regs", 0600, state->debugfs_root, state,
+			    &mipi_csis_dump_regs_fops);
 }
 
 static void mipi_csis_debugfs_exit(struct csi_state *state)
