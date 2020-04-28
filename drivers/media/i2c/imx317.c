@@ -7,6 +7,7 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
+ * V0.0X01.0X04 adjust exposue and gain control issues.
  */
 
 #include <linux/clk.h>
@@ -26,20 +27,25 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-#define IMX317_LINK_FREQ_360MHZ		360000000
+#define MIPI_FREQ			360000000U
+
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-#define IMX317_PIXEL_RATE		(IMX317_LINK_FREQ_360MHZ * 2 * 2 / 10)
+#define IMX317_PIXEL_RATE		(MIPI_FREQ * 2LL * 4LL / 10LL)
+
 #define IMX317_XVCLK_FREQ		24000000
 
-#define CHIP_ID				0x03
-#define IMX317_REG_CHIP_ID		0x3004
+#define CHIP_ID				0x00
+#define IMX317_REG_CHIP_ID		0x0000
 
 #define IMX317_REG_CTRL_MODE		0x3000
 #define IMX317_MODE_SW_STANDBY		0x12
@@ -56,10 +62,11 @@
 #define IMX317_GAIN_H_MASK		0x07
 #define IMX317_GAIN_H_SHIFT		8
 #define IMX317_GAIN_L_MASK		0xFF
-#define IMX317_GAIN_MIN			0x0800
-#define IMX317_GAIN_MAX			0xFFFF
+
+#define IMX317_GAIN_MIN			0x80
+#define IMX317_GAIN_MAX			(22U * IMX317_GAIN_MIN)
 #define IMX317_GAIN_STEP		1
-#define IMX317_GAIN_DEFAULT		0x0BDF
+#define IMX317_GAIN_DEFAULT		(20U * IMX317_GAIN_MIN)
 
 #define IMX317_REG_VTS_H		0x30FA
 #define IMX317_REG_VTS_M		0x30F9
@@ -79,6 +86,9 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define IMX317_NAME			"imx317"
+#define IMX317_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
+
+static const struct regval *imx317_global_regs;
 
 static const char * const imx317_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -108,6 +118,7 @@ struct imx317 {
 	struct clk		*xvclk;
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
+	struct gpio_desc	*power_gpio;
 	struct regulator_bulk_data supplies[IMX317_NUM_SUPPLIES];
 
 	struct pinctrl		*pinctrl;
@@ -117,6 +128,7 @@ struct imx317 {
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl	*link_freq;
 	struct v4l2_ctrl	*exposure;
 	struct v4l2_ctrl	*anal_gain;
 	struct v4l2_ctrl	*digi_gain;
@@ -127,6 +139,9 @@ struct imx317 {
 	bool			streaming;
 	bool			power_on;
 	const struct imx317_mode *cur_mode;
+	unsigned int		lane_num;
+	unsigned int		cfg_num;
+	unsigned int		pixel_rate;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
@@ -138,17 +153,7 @@ struct imx317 {
 /*
  * Xclk 24Mhz
  */
-static const struct regval imx317_global_regs[] = {
-	{REG_NULL, 0x00},
-};
-
-/*
- * Xclk 24Mhz
- * max_framerate 30fps
- * mipi_datarate per lane 720Mbps
- * 4 lane
- */
-static const struct regval imx317_1932x1094_regs[] = {
+static const struct regval imx317_global_regs_2lane[] = {
 	{0x3000, 0x1f},
 	{0x303E, 0x02},
 	{0x3120, 0xF0},
@@ -191,10 +196,10 @@ static const struct regval imx317_1932x1094_regs[] = {
 	{0x366F, 0x00},
 	{0x3670, 0x00},
 	{0x3671, 0x00},
-	{0x3004, 0x02},
-	{0x3005, 0x21},
+	{0x3004, 0x01},
+	{0x3005, 0x01},
 	{0x3006, 0x00},
-	{0x3007, 0x11},
+	{0x3007, 0x02},
 	{0x300E, 0x00},
 	{0x300F, 0x00},
 	{0x3037, 0x00},
@@ -207,24 +212,24 @@ static const struct regval imx317_1932x1094_regs[] = {
 	{0x30DF, 0x00},
 	{0x30E0, 0x00},
 	{0x30E1, 0x00},
-	{0x30E2, 0x02},
-	{0x30F6, 0x1e},
-	{0x30F7, 0x01},
-	{0x30F8, 0xD0},
-	{0x30F9, 0x20},
+	{0x30E2, 0x01},
+	{0x30F6, 0xE0},
+	{0x30F7, 0x04},
+	{0x30F8, 0xDA},
+	{0x30F9, 0x16},
 	{0x30FA, 0x00},
-	{0x3130, 0x4e},
-	{0x3131, 0x04},
-	{0x3132, 0x46},
-	{0x3133, 0x04},
-	{0x3a54, 0x8c},
-	{0x3a55, 0x07},
-	{0x3342, 0x0a},
+	{0x3130, 0x86},
+	{0x3131, 0x08},
+	{0x3132, 0x7E},
+	{0x3133, 0x08},
+	{0x3A54, 0x18},
+	{0x3A55, 0x0F},
+	{0x3342, 0x0A},
 	{0x3343, 0x00},
-	{0x3344, 0x1a},
+	{0x3344, 0x16},
 	{0x3345, 0x00},
 	{0x3528, 0x0E},
-	{0x3554, 0x00},
+	{0x3554, 0x1F},
 	{0x3555, 0x01},
 	{0x3556, 0x01},
 	{0x3557, 0x01},
@@ -260,6 +265,7 @@ static const struct regval imx317_1932x1094_regs[] = {
 	{0x3A85, 0x03},
 	{0x3A86, 0x47},
 	{0x3A87, 0x00},
+	{0x3A43, 0x01},
 	{REG_DELAY, 0x10},
 	{0x303E, 0x02},
 	{REG_DELAY, 0x07},
@@ -269,7 +275,10 @@ static const struct regval imx317_1932x1094_regs[] = {
 	{0x300b, 0x02},
 	{0x300c, 0x0c},
 	{0x300d, 0x00},
+	{0x312e, 0x01}, //CSI_LANE_MODE
+	{0x3aa2, 0x01}, //PHYSICAL_LANE_NUM
 	{0x3001, 0x10},
+
 	{REG_NULL, 0x00},
 };
 
@@ -277,9 +286,76 @@ static const struct regval imx317_1932x1094_regs[] = {
  * Xclk 24Mhz
  * max_framerate 30fps
  * mipi_datarate per lane 720Mbps
- * 4 lane
+ * 2 lane
  */
-static const struct regval imx317_3864x2174_regs[] = {
+static const struct regval imx317_1932x1094_regs_2lane[] = {
+	{0x3000, 0x1f},
+	{0x3004, 0x02},
+	{0x3005, 0x21},
+	{0x3006, 0x00},
+	{0x3007, 0x11},
+	/* crop and scale*/
+	{0x3037, 0x01},
+	{0x3038, 0x00},
+	{0x3039, 0x00},
+	{0x303A, 0x00},
+	{0x303B, 0x0F},
+
+	{0x30E2, 0x02},
+	{0x30F6, 0x76},
+	{0x30F7, 0x02},
+	{0x30F8, 0x0a},
+	{0x30F9, 0x0f},
+	{0x30FA, 0x00},
+	{0x3130, 0x4e},
+	{0x3131, 0x04},
+	{0x3132, 0x46},
+	{0x3133, 0x04},
+	{0x3a54, 0x8c},
+	{0x3a55, 0x07},
+	{0x3344, 0x1a},
+	{0x3554, 0x00},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps
+ * 2 lane
+ */
+static const struct regval imx317_3864x2174_regs_2lane[] = {
+	{0x3000, 0x1f},
+	{0x3004, 0x01},
+	{0x3005, 0x01},
+	{0x3006, 0x00},
+	{0x3007, 0x02},
+	/* crop and scale*/
+	{0x3037, 0x00},
+	{0x3038, 0x00},
+	{0x3039, 0x00},
+	{0x303A, 0x00},
+	{0x303B, 0x0F},
+
+	{0x30E2, 0x01},
+	{0x30F6, 0xE0},
+	{0x30F7, 0x04},
+	{0x30F8, 0xDA},
+	{0x30F9, 0x16},
+	{0x30FA, 0x00},
+	{0x3130, 0x86},
+	{0x3131, 0x08},
+	{0x3132, 0x7E},
+	{0x3133, 0x08},
+	{0x3A54, 0x18},
+	{0x3A55, 0x0F},
+	{0x3344, 0x16},
+	{0x3554, 0x1F},
+	{0x3A43, 0x01},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval imx317_global_regs_4lane[] = {
 	{0x3000, 0x1f},
 	{0x303E, 0x02},
 	{0x3120, 0xF0},
@@ -401,26 +477,130 @@ static const struct regval imx317_3864x2174_regs[] = {
 	{0x300b, 0x02},
 	{0x300c, 0x0c},
 	{0x300d, 0x00},
+	{0x312e, 0x03}, //CSI_LANE_MODE
+	{0x3aa2, 0x03}, //PHYSICAL_LANE_NUM
 	{0x3001, 0x10},
 	{REG_NULL, 0x00},
 };
 
-static const struct imx317_mode supported_modes[] = {
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps
+ * 4 lane
+ */
+static const struct regval imx317_1932x1094_regs_4lane[] = {
+	{0x3000, 0x1f},
+	{0x3004, 0x02},
+	{0x3005, 0x21},
+	{0x3006, 0x00},
+	{0x3007, 0x11},
+	/* crop and scale*/
+	{0x3037, 0x01},
+	{0x3038, 0x00},
+	{0x3039, 0x00},
+	{0x303A, 0x00},
+	{0x303B, 0x0F},
+
+	{0x30E2, 0x02},
+	{0x30F6, 0x1e},
+	{0x30F7, 0x01},
+	{0x30F8, 0xD0},
+	{0x30F9, 0x20},
+	{0x30FA, 0x00},
+	{0x3130, 0x4e},
+	{0x3131, 0x04},
+	{0x3132, 0x46},
+	{0x3133, 0x04},
+	{0x3a54, 0x8c},
+	{0x3a55, 0x07},
+	{0x3344, 0x1a},
+	{0x3554, 0x00},
+	{0x3A43, 0x01},
+
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps
+ * 4 lane
+ */
+static const struct regval imx317_3864x2174_regs_4lane[] = {
+	{0x3000, 0x1f},
+	{0x3004, 0x01},
+	{0x3005, 0x01},
+	{0x3006, 0x00},
+	{0x3007, 0x02},
+	/* crop and scale*/
+	{0x3037, 0x00},
+	{0x3038, 0x00},
+	{0x3039, 0x00},
+	{0x303A, 0x00},
+	{0x303B, 0x0F},
+
+	{0x30E2, 0x01},
+	{0x30F6, 0x10},
+	{0x30F7, 0x02},
+	{0x30F8, 0xc6},
+	{0x30F9, 0x11},
+	{0x30FA, 0x00},
+	{0x3130, 0x86},
+	{0x3131, 0x08},
+	{0x3132, 0x7E},
+	{0x3133, 0x08},
+	{0x3A54, 0x18},
+	{0x3A55, 0x0F},
+	{0x3344, 0x16},
+	{0x3554, 0x1F},
+	{0x3A43, 0x01},
+	{REG_NULL, 0x00},
+};
+
+static const struct imx317_mode supported_modes_2lane[] = {
 	{
-		.width = 1932,
-		.height = 1094,
+		.width = 1920,
+		.height = 1080,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
 		.exp_def = 0x000C,
-		.hts_def = 0x011E,
-		.vts_def = 0x20D0,
-		.reg_list = imx317_1932x1094_regs,
+		.hts_def = 0x0276,
+		.vts_def = 0x0f0a,
+		.reg_list = imx317_1932x1094_regs_2lane,
 	},
 	{
-		.width = 3864,
-		.height = 2174,
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 100000,
+		},
+		.exp_def = 0x000c,
+		.hts_def = 0x04E0,
+		.vts_def = 0x16DA,
+		.reg_list = imx317_3864x2174_regs_2lane,
+	},
+};
+
+static const struct imx317_mode supported_modes_4lane[] = {
+	{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x000c,
+		.hts_def = 0x011E,
+		.vts_def = 0x20D0,
+		.reg_list = imx317_1932x1094_regs_4lane,
+	},
+	{
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -428,12 +608,14 @@ static const struct imx317_mode supported_modes[] = {
 		.exp_def = 0x000C,
 		.hts_def = 0x0210,
 		.vts_def = 0x11C6,
-		.reg_list = imx317_3864x2174_regs,
+		.reg_list = imx317_3864x2174_regs_4lane,
 	},
 };
 
+static const struct imx317_mode *supported_modes;
+
 static const s64 link_freq_menu_items[] = {
-	IMX317_LINK_FREQ_360MHZ
+	MIPI_FREQ,
 };
 
 static const char * const imx317_test_pattern_menu[] = {
@@ -535,7 +717,8 @@ static int imx317_get_reso_dist(const struct imx317_mode *mode,
 }
 
 static const struct imx317_mode *
-imx317_find_best_fit(struct v4l2_subdev_format *fmt)
+imx317_find_best_fit(struct imx317 *imx317,
+		     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
@@ -543,7 +726,7 @@ imx317_find_best_fit(struct v4l2_subdev_format *fmt)
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+	for (i = 0; i < imx317->cfg_num; i++) {
 		dist = imx317_get_reso_dist(&supported_modes[i], framefmt);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
@@ -564,8 +747,8 @@ static int imx317_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&imx317->mutex);
 
-	mode = imx317_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	mode = imx317_find_best_fit(imx317, fmt);
+	fmt->format.code = IMX317_MEDIA_BUS_FMT;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -578,7 +761,7 @@ static int imx317_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		imx317->cur_mode = mode;
-		h_blank = mode->hts_def - mode->width;
+		h_blank = mode->hts_def;
 		__v4l2_ctrl_modify_range(imx317->hblank, h_blank,
 					 h_blank, 1, h_blank);
 		vblank_def = mode->vts_def - mode->height;
@@ -610,7 +793,7 @@ static int imx317_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = IMX317_MEDIA_BUS_FMT;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&imx317->mutex);
@@ -624,7 +807,7 @@ static int imx317_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = IMX317_MEDIA_BUS_FMT;
 
 	return 0;
 }
@@ -633,10 +816,12 @@ static int imx317_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= ARRAY_SIZE(supported_modes))
+	struct imx317 *imx317 = to_imx317(sd);
+
+	if (fse->index >= imx317->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != IMX317_MEDIA_BUS_FMT)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -766,6 +951,12 @@ static int imx317_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = imx317->client;
 	int ret = 0;
 
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				imx317->cur_mode->width,
+				imx317->cur_mode->height,
+		DIV_ROUND_CLOSEST(imx317->cur_mode->max_fps.denominator,
+				  imx317->cur_mode->max_fps.numerator));
+
 	mutex_lock(&imx317->mutex);
 	on = !!on;
 	if (on == imx317->streaming)
@@ -847,6 +1038,10 @@ static int __imx317_power_on(struct imx317 *imx317)
 	u32 delay_us;
 	struct device *dev = &imx317->client->dev;
 
+	if (!IS_ERR(imx317->power_gpio))
+		gpiod_set_value_cansleep(imx317->power_gpio, 1);
+	  usleep_range(3000, 5000);
+
 	if (!IS_ERR_OR_NULL(imx317->pins_default)) {
 		ret = pinctrl_select_state(imx317->pinctrl,
 					   imx317->pins_default);
@@ -907,6 +1102,8 @@ static void __imx317_power_off(struct imx317 *imx317)
 		if (ret < 0)
 			dev_dbg(dev, "could not set pins\n");
 	}
+	if (!IS_ERR(imx317->power_gpio))
+		gpiod_set_value_cansleep(imx317->power_gpio, 0);
 	regulator_bulk_disable(IMX317_NUM_SUPPLIES, imx317->supplies);
 }
 
@@ -942,7 +1139,7 @@ static int imx317_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = IMX317_MEDIA_BUS_FMT;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&imx317->mutex);
@@ -956,10 +1153,12 @@ static int imx317_enum_frame_interval(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_pad_config *cfg,
 				       struct v4l2_subdev_frame_interval_enum *fie)
 {
-	if (fie->index >= ARRAY_SIZE(supported_modes))
+	struct imx317 *imx317 = to_imx317(sd);
+
+	if (fie->index >= imx317->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fie->code != IMX317_MEDIA_BUS_FMT)
 		return -EINVAL;
 
 	fie->width = supported_modes[fie->index].width;
@@ -1013,6 +1212,7 @@ static int imx317_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = imx317->client;
 	s64 max;
 	u32 val = 0;
+	u32 vts_tmp = 0;
 	int ret = 0;
 
 	/* Propagate change of current control to all related controls */
@@ -1033,6 +1233,17 @@ static int imx317_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
+		/* calculate actual integration time */
+		ret = imx317_read_reg(imx317->client, IMX317_REG_VTS_H,
+					   IMX317_REG_VALUE_08BIT, &val);
+		vts_tmp = (val & 0xff) << 16;
+		ret |= imx317_read_reg(imx317->client, IMX317_REG_VTS_M,
+					IMX317_REG_VALUE_08BIT, &val);
+		vts_tmp = vts_tmp | ((val & 0xff) << 8);
+		ret |= imx317_read_reg(imx317->client, IMX317_REG_VTS_L,
+					IMX317_REG_VALUE_08BIT, &val);
+		vts_tmp = vts_tmp | (val & 0xff);
+		ctrl->val = vts_tmp + 1 - ctrl->val;
 		ret = imx317_write_reg(imx317->client,
 				       IMX317_REG_EXPOSURE_H,
 				       IMX317_REG_VALUE_08BIT,
@@ -1043,15 +1254,11 @@ static int imx317_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val & 0xFF);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		val = 2048 * 2048;
-		do_div(val, ctrl->val);
-		if (val <= 2048)
-			val = 2048 - val;
-		else
-			val = 0;
-
-		if (val > 0x7A5)
-			val = 0x7A5;
+		if (ctrl->val > IMX317_GAIN_MAX)
+			ctrl->val = IMX317_GAIN_MAX;
+		if (ctrl->val < IMX317_GAIN_MIN)
+			ctrl->val = IMX317_GAIN_MIN;
+		val = 2048 - (2048 * IMX317_GAIN_MIN) / ctrl->val;
 
 		ret = imx317_write_reg(imx317->client, IMX317_REG_GAIN_H,
 				       IMX317_REG_VALUE_08BIT,
@@ -1094,7 +1301,6 @@ static int imx317_initialize_controls(struct imx317 *imx317)
 {
 	const struct imx317_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1106,15 +1312,14 @@ static int imx317_initialize_controls(struct imx317 *imx317)
 		return ret;
 	handler->lock = &imx317->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	imx317->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
+		V4L2_CID_LINK_FREQ, 0, 0,
+		link_freq_menu_items);
 
 	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, IMX317_PIXEL_RATE, 1, IMX317_PIXEL_RATE);
+			  0, imx317->pixel_rate, 1, imx317->pixel_rate);
 
-	h_blank = mode->hts_def - mode->width;
+	h_blank = mode->hts_def;
 	imx317->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
 				h_blank, h_blank, 1, h_blank);
 	if (imx317->hblank)
@@ -1190,6 +1395,49 @@ static int imx317_configure_regulators(struct imx317 *imx317)
 				       imx317->supplies);
 }
 
+static int imx317_parse_of(struct imx317 *imx317)
+{
+	struct device *dev = &imx317->client->dev;
+	struct device_node *endpoint;
+	struct fwnode_handle *fwnode;
+	int rval;
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+	fwnode = of_fwnode_handle(endpoint);
+	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	of_node_put(endpoint);
+	if (rval <= 0) {
+		dev_warn(dev, " Get mipi lane num failed!\n");
+		return -1;
+	}
+
+	imx317->lane_num = rval;
+	if (4 == imx317->lane_num) {
+		imx317->cur_mode = &supported_modes_4lane[0];
+		supported_modes = supported_modes_4lane;
+		imx317->cfg_num = ARRAY_SIZE(supported_modes_4lane);
+		imx317_global_regs = imx317_global_regs_4lane;
+		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+		imx317->pixel_rate = MIPI_FREQ * 2U * imx317->lane_num / 10U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
+				 imx317->lane_num, imx317->pixel_rate);
+	} else {
+		imx317->cur_mode = &supported_modes_2lane[0];
+		supported_modes = supported_modes_2lane;
+		imx317->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+		imx317_global_regs = imx317_global_regs_2lane;
+		/*pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+		imx317->pixel_rate = MIPI_FREQ * 2U * (imx317->lane_num) / 10U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%u), not supported yet!\n",
+				 imx317->lane_num, imx317->pixel_rate);
+	}
+	return 0;
+}
+
 static int imx317_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1231,6 +1479,9 @@ static int imx317_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	imx317->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(imx317->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios\n");
 	imx317->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(imx317->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
@@ -1238,6 +1489,10 @@ static int imx317_probe(struct i2c_client *client,
 	imx317->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(imx317->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
+
+	ret = imx317_parse_of(imx317);
+	if (ret != 0)
+		return -EINVAL;
 
 	imx317->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(imx317->pinctrl)) {
