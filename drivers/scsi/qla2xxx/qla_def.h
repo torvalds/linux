@@ -4248,8 +4248,8 @@ struct qla_hw_data {
 	int		fw_dump_reading;
 	void		*mpi_fw_dump;
 	u32		mpi_fw_dump_len;
-	int		mpi_fw_dump_reading:1;
-	int		mpi_fw_dumped:1;
+	unsigned int	mpi_fw_dump_reading:1;
+	unsigned int	mpi_fw_dumped:1;
 	int		prev_minidump_failed;
 	dma_addr_t	eft_dma;
 	void		*eft;
