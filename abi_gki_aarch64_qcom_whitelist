@@ -761,6 +761,7 @@
   regulator_disable
   regulator_enable
   regulator_get
+  regulator_get_voltage
   regulator_is_enabled
   regulator_put
   regulator_set_load
@@ -916,6 +917,7 @@
   sysfs_remove_group
   sysfs_remove_groups
   sysfs_streq
+  system_freezable_wq
   system_freezing_cnt
   system_highpri_wq
   system_long_wq
@@ -1275,7 +1277,6 @@
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
   strcat
-  system_freezable_wq
   usb_add_gadget_udc
   usb_del_gadget_udc
   usb_ep_set_maxpacket_limit
@@ -1509,6 +1510,7 @@
   __ll_sc_atomic_or
   mmap_min_addr
   mmput
+  mm_trace_rss_stat
   of_devfreq_cooling_register
   plist_del
   rb_last
@@ -2051,7 +2053,6 @@
 
 # required by qpnp-smb5-charger.ko
   iio_channel_release
-  regulator_get_voltage
 
 # required by qpnp_pdphy.ko
   device_get_named_child_node
