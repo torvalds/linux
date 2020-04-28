@@ -156,10 +156,8 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 	}
 
 	pdev = pci_scan_single_device(bus, zdev->devfn);
-	if (pdev) {
-		pdev->multifunction = 1;
+	if (pdev)
 		pci_bus_add_device(pdev);
-	}
 
 	return 0;
 }
