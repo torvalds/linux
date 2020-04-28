@@ -2948,7 +2948,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 {
 	struct nvkm_subdev *subdev;
 	u64 mmio_base, mmio_size;
-	u32 boot0, strap;
+	u32 boot0, boot1, strap;
 	void __iomem *map = NULL;
 	int ret = -EEXIST, i;
 	unsigned chipset;
@@ -2998,9 +2998,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			}
 		}
 
-		/* read boot0 and strapping information */
 		boot0 = ioread32_native(map + 0x000000);
-		strap = ioread32_native(map + 0x101000);
 
 		/* chipset can be overridden for devel/testing purposes */
 		chipset = nvkm_longopt(device->cfgopt, "NvChipset", 0);
@@ -3157,6 +3155,17 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 		nvdev_info(device, "NVIDIA %s (%08x)\n",
 			   device->chip->name, boot0);
+
+		/* vGPU detection */
+		boot1 = ioread32_native(map + 0x000004);
+		if (device->card_type >= TU100 && (boot1 & 0x00030000)) {
+			nvdev_info(device, "vGPUs are not supported\n");
+			ret = -ENODEV;
+			goto done;
+		}
+
+		/* read strapping information */
+		strap = ioread32_native(map + 0x101000);
 
 		/* determine frequency of timing crystal */
 		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
