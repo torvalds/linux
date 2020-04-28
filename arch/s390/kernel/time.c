@@ -41,6 +41,9 @@
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
+#include <vdso/vsyscall.h>
+#include <vdso/clocksource.h>
+#include <vdso/helpers.h>
 #include <asm/facility.h>
 #include <asm/delay.h>
 #include <asm/div64.h>
@@ -84,7 +87,7 @@ void __init time_early_init(void)
 
 	/* Initialize TOD steering parameters */
 	tod_steering_end = *(unsigned long long *) &tod_clock_base[1];
-	vdso_data->ts_end = tod_steering_end;
+	vdso_data->arch_data.tod_steering_end = tod_steering_end;
 
 	if (!test_facility(28))
 		return;
@@ -257,61 +260,12 @@ static struct clocksource clocksource_tod = {
 	.mult		= 1000,
 	.shift		= 12,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.vdso_clock_mode = VDSO_CLOCKMODE_TOD,
 };
 
 struct clocksource * __init clocksource_default_clock(void)
 {
 	return &clocksource_tod;
-}
-
-void update_vsyscall(struct timekeeper *tk)
-{
-	u64 nsecps;
-
-	if (tk->tkr_mono.clock != &clocksource_tod)
-		return;
-
-	/* Make userspace gettimeofday spin until we're done. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
-	vdso_data->xtime_tod_stamp = tk->tkr_mono.cycle_last;
-	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
-	vdso_data->wtom_clock_sec =
-		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = tk->tkr_mono.xtime_nsec +
-		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
-	nsecps = (u64) NSEC_PER_SEC << tk->tkr_mono.shift;
-	while (vdso_data->wtom_clock_nsec >= nsecps) {
-		vdso_data->wtom_clock_nsec -= nsecps;
-		vdso_data->wtom_clock_sec++;
-	}
-
-	vdso_data->xtime_coarse_sec = tk->xtime_sec;
-	vdso_data->xtime_coarse_nsec =
-		(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
-	vdso_data->wtom_coarse_sec =
-		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_coarse_nsec =
-		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
-	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
-		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
-		vdso_data->wtom_coarse_sec++;
-	}
-
-	vdso_data->tk_mult = tk->tkr_mono.mult;
-	vdso_data->tk_shift = tk->tkr_mono.shift;
-	vdso_data->hrtimer_res = hrtimer_resolution;
-	smp_wmb();
-	++vdso_data->tb_update_count;
-}
-
-extern struct timezone sys_tz;
-
-void update_vsyscall_tz(void)
-{
-	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
-	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
 }
 
 /*
@@ -431,7 +385,6 @@ static void clock_sync_global(unsigned long long delta)
 		/* Epoch overflow */
 		tod_clock_base[0]++;
 	/* Adjust TOD steering parameters. */
-	vdso_data->tb_update_count++;
 	now = get_tod_clock();
 	adj = tod_steering_end - now;
 	if (unlikely((s64) adj >= 0))
@@ -443,9 +396,8 @@ static void clock_sync_global(unsigned long long delta)
 		panic("TOD clock sync offset %lli is too large to drift\n",
 		      tod_steering_delta);
 	tod_steering_end = now + (abs(tod_steering_delta) << 15);
-	vdso_data->ts_dir = (tod_steering_delta < 0) ? 0 : 1;
-	vdso_data->ts_end = tod_steering_end;
-	vdso_data->tb_update_count++;
+	vdso_data->arch_data.tod_steering_end = tod_steering_end;
+
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
@@ -586,7 +538,7 @@ void stp_queue_work(void)
 static int stp_sync_clock(void *data)
 {
 	struct clock_sync_data *sync = data;
-	unsigned long long clock_delta;
+	unsigned long long clock_delta, flags;
 	static int first;
 	int rc;
 
@@ -599,6 +551,7 @@ static int stp_sync_clock(void *data)
 		if (stp_info.todoff[0] || stp_info.todoff[1] ||
 		    stp_info.todoff[2] || stp_info.todoff[3] ||
 		    stp_info.tmd != 2) {
+			flags = vdso_update_begin();
 			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
 					&clock_delta);
 			if (rc == 0) {
@@ -609,6 +562,7 @@ static int stp_sync_clock(void *data)
 				if (rc == 0 && stp_info.tmd != 2)
 					rc = -EAGAIN;
 			}
+			vdso_update_end(flags);
 		}
 		sync->in_sync = rc ? -EAGAIN : 1;
 		xchg(&first, 0);
