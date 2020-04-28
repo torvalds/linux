@@ -1167,6 +1167,35 @@ DEFINE_EVENT(svc_rqst_status, svc_send,
 		{ (1UL << XPT_KILL_TEMP),	"XPT_KILL_TEMP"},	\
 		{ (1UL << XPT_CONG_CTRL),	"XPT_CONG_CTRL"})
 
+TRACE_EVENT(svc_xprt_create_err,
+	TP_PROTO(
+		const char *program,
+		const char *protocol,
+		struct sockaddr *sap,
+		const struct svc_xprt *xprt
+	),
+
+	TP_ARGS(program, protocol, sap, xprt),
+
+	TP_STRUCT__entry(
+		__field(long, error)
+		__string(program, program)
+		__string(protocol, protocol)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+
+	TP_fast_assign(
+		__entry->error = PTR_ERR(xprt);
+		__assign_str(program, program);
+		__assign_str(protocol, protocol);
+		memcpy(__entry->addr, sap, sizeof(__entry->addr));
+	),
+
+	TP_printk("addr=%pISpc program=%s protocol=%s error=%ld",
+		__entry->addr, __get_str(program), __get_str(protocol),
+		__entry->error)
+);
+
 TRACE_EVENT(svc_xprt_do_enqueue,
 	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
 
