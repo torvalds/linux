@@ -69,7 +69,7 @@ typedef enum {
 #if defined(IS_ISP_2400_MAMOIADA_SYSTEM)
 	virq_isp_pmem_error        = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
 #elif defined(IS_ISP_2401_MAMOIADA_SYSTEM)
-	virq_isys_2401             = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_IS2401_BIT_ID,
+	virq_isys_2401             = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
 #else
 #error "irq_local.h: 2400_SYSTEM must be one of {2400, 2401 }"
 #endif

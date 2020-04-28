@@ -15,8 +15,6 @@
 #ifndef _hive_isp_css_defs_h__
 #define _hive_isp_css_defs_h__
 
-#define HIVE_ISP_CSS_IS_2400B0_SYSTEM
-
 #define HIVE_ISP_CTRL_DATA_WIDTH     32
 #define HIVE_ISP_CTRL_ADDRESS_WIDTH  32
 #define HIVE_ISP_CTRL_MAX_BURST_SIZE  1
@@ -86,7 +84,6 @@
 #define HIVE_GP_REGS_SWITCH_GDC2_IDX                           18
 #define HIVE_GP_REGS_SRST_IDX                                  19
 #define HIVE_GP_REGS_SLV_REG_SRST_IDX                          20
-#define HIVE_GP_REGS_VISA_REG_IDX                              21
 
 /* Bit numbers of the soft reset register */
 #define HIVE_GP_REGS_SRST_ISYS_CBUS                             0
@@ -222,7 +219,6 @@
 #define HIVE_GP_TIMER_SP_B_STRMON_IRQ                          16
 #define HIVE_GP_TIMER_ISP_STRMON_IRQ                           17
 #define HIVE_GP_TIMER_MOD_STRMON_IRQ                           18
-#define HIVE_GP_TIMER_ISP_PMEM_ERROR_IRQ                       19
 #define HIVE_GP_TIMER_ISP_BAMEM_ERROR_IRQ                      20
 #define HIVE_GP_TIMER_ISP_DMEM_ERROR_IRQ                       21
 #define HIVE_GP_TIMER_SP_ICACHE_MEM_ERROR_IRQ                  22
