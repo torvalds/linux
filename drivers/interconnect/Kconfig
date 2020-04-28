@@ -11,6 +11,7 @@ menuconfig INTERCONNECT
 
 if INTERCONNECT
 
+source "drivers/interconnect/imx/Kconfig"
 source "drivers/interconnect/qcom/Kconfig"
 
 endif

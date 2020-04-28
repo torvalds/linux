@@ -1,0 +1,5 @@
+config INTERCONNECT_IMX
+	tristate "i.MX interconnect drivers"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Generic interconnect drivers for i.MX SOCs
