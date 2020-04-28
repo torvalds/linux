@@ -37,6 +37,11 @@
 
 #include "common.h"
 
+#define RDBK_MAX		3
+#define RDBK_L			0
+#define RDBK_M			1
+#define RDBK_S			2
+
 struct rkisp_stream;
 
 /*
@@ -225,6 +230,7 @@ struct rkisp_stream {
 struct rkisp_capture_device {
 	struct rkisp_device *ispdev;
 	struct rkisp_stream stream[RKISP_MAX_STREAM];
+	struct rkisp_buffer *rdbk_buf[RDBK_MAX];
 	atomic_t refcnt;
 };
 

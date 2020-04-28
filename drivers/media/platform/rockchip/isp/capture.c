@@ -63,6 +63,7 @@
 #define STREAM_MIN_MP_SP_INPUT_HEIGHT		32
 
 static int mi_frame_end(struct rkisp_stream *stream);
+static void rkisp_buf_queue(struct vb2_buffer *vb);
 
 /* Get xsubs and ysubs for fourcc formats
  *
@@ -1420,6 +1421,98 @@ static struct streams_ops rkisp2_dmatx3_streams_ops = {
 	.update_mi = update_dmatx_v2,
 };
 
+static void rdbk_frame_end(struct rkisp_stream *stream)
+{
+	struct rkisp_device *isp_dev = stream->ispdev;
+	struct rkisp_capture_device *cap = &isp_dev->cap_dev;
+	u64 l_ts, m_ts, s_ts;
+	int max_dma;
+
+	if (stream->id != RKISP_STREAM_DMATX2)
+		return;
+
+	max_dma = hdr_dma_frame(isp_dev);
+	if (max_dma == 3) {
+		if (cap->rdbk_buf[RDBK_L] && cap->rdbk_buf[RDBK_M] &&
+		    cap->rdbk_buf[RDBK_S]) {
+			l_ts = cap->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
+			m_ts = cap->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
+			s_ts = cap->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
+
+			if ((m_ts - l_ts) > 30000000LL || m_ts < l_ts) {
+				v4l2_err(&isp_dev->v4l2_dev,
+					"timestamp is not match (%lld, %lld, %lld)\n",
+					l_ts, m_ts, s_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
+			if ((s_ts - m_ts) > 30000000LL || s_ts < m_ts) {
+				v4l2_err(&isp_dev->v4l2_dev,
+					"timestamp is not match (%lld, %lld, %lld)\n",
+					l_ts, m_ts, s_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
+
+			cap->rdbk_buf[RDBK_L]->vb.sequence =
+				cap->rdbk_buf[RDBK_S]->vb.sequence;
+			cap->rdbk_buf[RDBK_M]->vb.sequence =
+				cap->rdbk_buf[RDBK_S]->vb.sequence;
+			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
+				VB2_BUF_STATE_DONE);
+			vb2_buffer_done(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf,
+				VB2_BUF_STATE_DONE);
+			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
+				VB2_BUF_STATE_DONE);
+		} else {
+			v4l2_err(&isp_dev->v4l2_dev,
+				"lost long or middle frames\n");
+			goto RDBK_FRM_UNMATCH;
+		}
+	} else if (max_dma == 2) {
+		if (cap->rdbk_buf[RDBK_L] && cap->rdbk_buf[RDBK_S]) {
+			l_ts = cap->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
+			s_ts = cap->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
+
+			if ((s_ts - l_ts) > 30000000LL || s_ts < l_ts) {
+				v4l2_err(&isp_dev->v4l2_dev,
+					"timestamp is not match (%lld, %lld)\n",
+					l_ts, s_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
+
+			cap->rdbk_buf[RDBK_L]->vb.sequence =
+				cap->rdbk_buf[RDBK_S]->vb.sequence;
+			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
+				VB2_BUF_STATE_DONE);
+			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
+				VB2_BUF_STATE_DONE);
+		} else {
+			v4l2_err(&isp_dev->v4l2_dev,
+				"lost long frames\n");
+			goto RDBK_FRM_UNMATCH;
+		}
+	} else {
+		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
+			VB2_BUF_STATE_DONE);
+	}
+
+	cap->rdbk_buf[RDBK_L] = NULL;
+	cap->rdbk_buf[RDBK_M] = NULL;
+	cap->rdbk_buf[RDBK_S] = NULL;
+	return;
+
+RDBK_FRM_UNMATCH:
+	if (cap->rdbk_buf[RDBK_L])
+		rkisp_buf_queue(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf);
+	if (cap->rdbk_buf[RDBK_M])
+		rkisp_buf_queue(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf);
+	if (cap->rdbk_buf[RDBK_S])
+		rkisp_buf_queue(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf);
+
+	cap->rdbk_buf[RDBK_L] = NULL;
+	cap->rdbk_buf[RDBK_M] = NULL;
+	cap->rdbk_buf[RDBK_S] = NULL;
+}
+
 /*
  * This function is called when a frame end come. The next frame
  * is processing and we should set up buffer for next-next frame,
@@ -1429,10 +1522,19 @@ static int mi_frame_end(struct rkisp_stream *stream)
 {
 	struct rkisp_device *isp_dev = stream->ispdev;
 	struct rkisp_isp_subdev *isp_sd = &isp_dev->isp_sdev;
+	struct rkisp_capture_device *cap = &isp_dev->cap_dev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	bool interlaced = stream->interlaced;
 	unsigned long lock_flags = 0;
 	int i = 0;
+
+	if (!stream->next_buf && IS_HDR_RDBK(isp_dev->hdr.op_mode) &&
+	    (stream->id == RKISP_STREAM_DMATX0 ||
+	     stream->id == RKISP_STREAM_DMATX1 ||
+	     stream->id == RKISP_STREAM_DMATX2))
+		v4l2_info(&isp_dev->v4l2_dev,
+			  "no available stream(%d) buffer, use dummy\n",
+			  stream->id);
 
 	if (stream->curr_buf &&
 		(!interlaced ||
@@ -1456,8 +1558,38 @@ static int mi_frame_end(struct rkisp_stream *stream)
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
+
+		if (!IS_HDR_RDBK(isp_dev->hdr.op_mode)) {
+			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+					VB2_BUF_STATE_DONE);
+		} else {
+			if (stream->id == RKISP_STREAM_DMATX0) {
+				if (cap->rdbk_buf[RDBK_L]) {
+					v4l2_err(&isp_dev->v4l2_dev,
+						"multiple long data in hdr frame\n");
+					rkisp_buf_queue(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf);
+				}
+				cap->rdbk_buf[RDBK_L] = stream->curr_buf;
+			}
+			if (stream->id == RKISP_STREAM_DMATX1) {
+				if (cap->rdbk_buf[RDBK_M]) {
+					v4l2_err(&isp_dev->v4l2_dev,
+						"multiple middle data in hdr frame\n");
+					rkisp_buf_queue(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf);
+				}
+				cap->rdbk_buf[RDBK_M] = stream->curr_buf;
+			}
+			if (stream->id == RKISP_STREAM_DMATX2) {
+				if (cap->rdbk_buf[RDBK_S]) {
+					v4l2_err(&isp_dev->v4l2_dev,
+						"multiple short data in hdr frame\n");
+					rkisp_buf_queue(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf);
+				}
+				cap->rdbk_buf[RDBK_S] = stream->curr_buf;
+				rdbk_frame_end(stream);
+			}
+		}
+
 		stream->curr_buf = NULL;
 	}
 
@@ -2011,10 +2143,39 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 static void destroy_buf_queue(struct rkisp_stream *stream,
 			      enum vb2_buffer_state state)
 {
+	struct rkisp_device *isp_dev = stream->ispdev;
+	struct rkisp_capture_device *cap = &isp_dev->cap_dev;
 	unsigned long lock_flags = 0;
 	struct rkisp_buffer *buf;
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (cap->rdbk_buf[RDBK_L] && stream->id == RKISP_STREAM_DMATX0) {
+		list_add_tail(&cap->rdbk_buf[RDBK_L]->queue,
+			&stream->buf_queue);
+		if (cap->rdbk_buf[RDBK_L] == stream->curr_buf)
+			stream->curr_buf = NULL;
+		if (cap->rdbk_buf[RDBK_L] == stream->next_buf)
+			stream->next_buf = NULL;
+		cap->rdbk_buf[RDBK_L] = NULL;
+	}
+	if (cap->rdbk_buf[RDBK_M] && stream->id == RKISP_STREAM_DMATX1) {
+		list_add_tail(&cap->rdbk_buf[RDBK_M]->queue,
+			&stream->buf_queue);
+		if (cap->rdbk_buf[RDBK_M] == stream->curr_buf)
+			stream->curr_buf = NULL;
+		if (cap->rdbk_buf[RDBK_M] == stream->next_buf)
+			stream->next_buf = NULL;
+		cap->rdbk_buf[RDBK_M] = NULL;
+	}
+	if (cap->rdbk_buf[RDBK_S] && stream->id == RKISP_STREAM_DMATX2) {
+		list_add_tail(&cap->rdbk_buf[RDBK_S]->queue,
+			&stream->buf_queue);
+		if (cap->rdbk_buf[RDBK_S] == stream->curr_buf)
+			stream->curr_buf = NULL;
+		if (cap->rdbk_buf[RDBK_S] == stream->next_buf)
+			stream->next_buf = NULL;
+		cap->rdbk_buf[RDBK_S] = NULL;
+	}
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
 		if (stream->curr_buf == stream->next_buf)
