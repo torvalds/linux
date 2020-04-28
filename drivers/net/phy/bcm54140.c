@@ -115,6 +115,13 @@
 #define BCM54140_HWMON_IN_ALARM_BIT(ch) ((ch) ? BCM54140_RDB_MON_ISR_3V3 \
 					      : BCM54140_RDB_MON_ISR_1V0)
 
+/* This PHY has two different PHY IDs depening on its MODE_SEL pin. This
+ * pin choses between 4x SGMII and QSGMII mode:
+ *   AE02_5009 4x SGMII
+ *   AE02_5019 QSGMII
+ */
+#define BCM54140_PHY_ID_MASK	0xffffffe8
+
 #define BCM54140_PHY_ID_REV(phy_id)	((phy_id) & 0x7)
 #define BCM54140_REV_B0			1
 
@@ -857,7 +864,7 @@ static int bcm54140_set_tunable(struct phy_device *phydev,
 static struct phy_driver bcm54140_drivers[] = {
 	{
 		.phy_id         = PHY_ID_BCM54140,
-		.phy_id_mask    = 0xfffffff8,
+		.phy_id_mask    = BCM54140_PHY_ID_MASK,
 		.name           = "Broadcom BCM54140",
 		.features       = PHY_GBIT_FEATURES,
 		.config_init    = bcm54140_config_init,
@@ -875,7 +882,7 @@ static struct phy_driver bcm54140_drivers[] = {
 module_phy_driver(bcm54140_drivers);
 
 static struct mdio_device_id __maybe_unused bcm54140_tbl[] = {
-	{ PHY_ID_BCM54140, 0xfffffff8 },
+	{ PHY_ID_BCM54140, BCM54140_PHY_ID_MASK },
 	{ }
 };
 
