@@ -186,7 +186,7 @@ again:
 			continue;
 
 		if (cmdline_mode->refresh_specified) {
-			if (mode->vrefresh != cmdline_mode->refresh)
+			if (drm_mode_vrefresh(mode) != cmdline_mode->refresh)
 				continue;
 		}
 

@@ -370,7 +370,6 @@ static int ili9881c_unprepare(struct drm_panel *panel)
 
 static const struct drm_display_mode bananapi_default_mode = {
 	.clock		= 62000,
-	.vrefresh	= 60,
 
 	.hdisplay	= 720,
 	.hsync_start	= 720 + 10,
@@ -394,7 +393,7 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 		dev_err(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			bananapi_default_mode.hdisplay,
 			bananapi_default_mode.vdisplay,
-			bananapi_default_mode.vrefresh);
+			drm_mode_vrefresh(&bananapi_default_mode));
 		return -ENOMEM;
 	}
 

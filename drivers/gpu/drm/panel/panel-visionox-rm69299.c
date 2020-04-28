@@ -168,7 +168,6 @@ static const struct drm_display_mode visionox_rm69299_1080x2248_60hz = {
 	.vsync_start = 2248 + 56,
 	.vsync_end = 2248 + 56 + 4,
 	.vtotal = 2248 + 56 + 4 + 4,
-	.vrefresh = 60,
 	.flags = 0,
 };
 

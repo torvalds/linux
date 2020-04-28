@@ -382,16 +382,6 @@ struct drm_display_mode {
 	int private_flags;
 
 	/**
-	 * @vrefresh:
-	 *
-	 * Vertical refresh rate, for debug output in human readable form. Not
-	 * used in a functional way.
-	 *
-	 * This value is in Hz.
-	 */
-	int vrefresh;
-
-	/**
 	 * @picture_aspect_ratio:
 	 *
 	 * Field for setting the HDMI picture aspect ratio of a mode.
@@ -422,7 +412,7 @@ struct drm_display_mode {
  * @m: display mode
  */
 #define DRM_MODE_ARG(m) \
-	(m)->name, (m)->vrefresh, (m)->clock, \
+	(m)->name, drm_mode_vrefresh(m), (m)->clock, \
 	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
 	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
 	(m)->type, (m)->flags

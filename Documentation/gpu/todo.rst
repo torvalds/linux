@@ -327,26 +327,6 @@ Contact: Laurent Pinchart, Daniel Vetter
 Level: Intermediate (mostly because it is a huge tasks without good partial
 milestones, not technically itself that challenging)
 
-Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
-----------------------------------------------------------------
-
-drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
-is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
-has helper which will use mode.vrefresh if it's !0 and will calculate it from
-the timings when it's 0.
-
-Use simple search/replace, or (more fun) cocci to replace instances of direct
-vrefresh access with a call to the helper. Check out
-https://lists.freedesktop.org/archives/dri-devel/2019-January/205186.html for
-inspiration.
-
-Once all instances of vrefresh have been converted, remove vrefresh from
-drm_display_mode to avoid future use.
-
-Contact: Sean Paul
-
-Level: Starter
-
 connector register/unregister fixes
 -----------------------------------
 

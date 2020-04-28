@@ -759,9 +759,7 @@ int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
 	int refresh = 0;
 
-	if (mode->vrefresh > 0)
-		refresh = mode->vrefresh;
-	else if (mode->htotal > 0 && mode->vtotal > 0) {
+	if (mode->htotal > 0 && mode->vtotal > 0) {
 		unsigned int num, den;
 
 		num = mode->clock * 1000;
@@ -1308,7 +1306,7 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	if (diff)
 		return diff;
 
-	diff = b->vrefresh - a->vrefresh;
+	diff = drm_mode_vrefresh(b) - drm_mode_vrefresh(a);
 	if (diff)
 		return diff;
 
@@ -1921,7 +1919,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	out->vsync_end = in->vsync_end;
 	out->vtotal = in->vtotal;
 	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
+	out->vrefresh = drm_mode_vrefresh(in);
 	out->flags = in->flags;
 	out->type = in->type;
 
@@ -1981,7 +1979,6 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	out->vsync_end = in->vsync_end;
 	out->vtotal = in->vtotal;
 	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
 	out->flags = in->flags;
 	/*
 	 * Old xf86-video-vmware (possibly others too) used to

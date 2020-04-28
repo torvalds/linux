@@ -102,7 +102,6 @@ static const struct drm_display_mode default_mode_osd101t2587 = {
 	.vsync_start = 1200 + 24,
 	.vsync_end = 1200 + 24 + 6,
 	.vtotal = 1200 + 24 + 6 + 48,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -117,7 +116,7 @@ static int osd101t2587_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			osd101t2587->default_mode->hdisplay,
 			osd101t2587->default_mode->vdisplay,
-			osd101t2587->default_mode->vrefresh);
+			drm_mode_vrefresh(osd101t2587->default_mode));
 		return -ENOMEM;
 	}
 

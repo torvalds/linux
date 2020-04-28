@@ -229,7 +229,7 @@ static int boe_panel_get_modes(struct drm_panel *panel,
 	mode = drm_mode_duplicate(connector->dev, m);
 	if (!mode) {
 		DRM_DEV_ERROR(pinfo->base.dev, "failed to add mode %ux%u@%u\n",
-			      m->hdisplay, m->vdisplay, m->vrefresh);
+			      m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
 		return -ENOMEM;
 	}
 
@@ -262,7 +262,6 @@ static const struct drm_display_mode default_display_mode = {
 	.vsync_start = 1920 + 10,
 	.vsync_end = 1920 + 10 + 14,
 	.vtotal = 1920 + 10 + 14 + 4,
-	.vrefresh = 60,
 };
 
 /* 8 inch */
