@@ -692,7 +692,6 @@ static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct device *dev,
 	kfree(lpm_regs);
 }
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 static bool slps0_dbg_latch;
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -1133,15 +1132,6 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 				    &pmc_core_substate_l_sts_regs_fops);
 	}
 }
-#else
-static inline void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
-{
-}
-
-static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
-{
-}
-#endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		&spt_reg_map),
@@ -1260,13 +1250,11 @@ static int pmc_core_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static bool warn_on_s0ix_failures;
 module_param(warn_on_s0ix_failures, bool, 0644);
 MODULE_PARM_DESC(warn_on_s0ix_failures, "Check and warn for S0ix failures");
 
-static int pmc_core_suspend(struct device *dev)
+static __maybe_unused int pmc_core_suspend(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 
@@ -1318,7 +1306,7 @@ static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
 	return false;
 }
 
-static int pmc_core_resume(struct device *dev)
+static __maybe_unused int pmc_core_resume(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	const struct pmc_bit_map **maps = pmcdev->map->lpm_sts;
@@ -1347,8 +1335,6 @@ static int pmc_core_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
 
 static const struct dev_pm_ops pmc_core_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pmc_core_suspend, pmc_core_resume)
