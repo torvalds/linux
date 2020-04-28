@@ -2237,7 +2237,26 @@ err_exit:
 	return NULL;
 }
 
-static const struct of_device_id cal_of_match[];
+static const struct of_device_id cal_of_match[] = {
+	{
+		.compatible = "ti,dra72-cal",
+		.data = (void *)&dra72x_cal_data,
+	},
+	{
+		.compatible = "ti,dra72-pre-es2-cal",
+		.data = (void *)&dra72x_es1_cal_data,
+	},
+	{
+		.compatible = "ti,dra76-cal",
+		.data = (void *)&dra76x_cal_data,
+	},
+	{
+		.compatible = "ti,am654-cal",
+		.data = (void *)&am654_cal_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, cal_of_match);
 
 static int cal_probe(struct platform_device *pdev)
 {
@@ -2413,29 +2432,6 @@ static int cal_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id cal_of_match[] = {
-	{
-		.compatible = "ti,dra72-cal",
-		.data = (void *)&dra72x_cal_data,
-	},
-	{
-		.compatible = "ti,dra72-pre-es2-cal",
-		.data = (void *)&dra72x_es1_cal_data,
-	},
-	{
-		.compatible = "ti,dra76-cal",
-		.data = (void *)&dra76x_cal_data,
-	},
-	{
-		.compatible = "ti,am654-cal",
-		.data = (void *)&am654_cal_data,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(of, cal_of_match);
-#endif
-
 static int cal_runtime_resume(struct device *dev)
 {
 	struct cal_dev *caldev = dev_get_drvdata(dev);
@@ -2462,7 +2458,7 @@ static struct platform_driver cal_pdrv = {
 	.driver		= {
 		.name	= CAL_MODULE_NAME,
 		.pm	= &cal_pm_ops,
-		.of_match_table = of_match_ptr(cal_of_match),
+		.of_match_table = cal_of_match,
 	},
 };
 
