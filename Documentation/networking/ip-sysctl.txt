@@ -1560,6 +1560,18 @@ skip_notify_on_dev_down - BOOLEAN
 	on userspace caches to track link events and evict routes.
 	Default: false (generate message)
 
+nexthop_compat_mode - BOOLEAN
+	New nexthop API provides a means for managing nexthops independent of
+	prefixes. Backwards compatibilty with old route format is enabled by
+	default which means route dumps and notifications contain the new
+	nexthop attribute but also the full, expanded nexthop definition.
+	Further, updates or deletes of a nexthop configuration generate route
+	notifications for each fib entry using the nexthop. Once a system
+	understands the new API, this sysctl can be disabled to achieve full
+	performance benefits of the new API by disabling the nexthop expansion
+	and extraneous notifications.
+	Default: true (backward compat mode)
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER

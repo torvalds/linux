@@ -784,7 +784,8 @@ static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 	list_for_each_entry_safe(f6i, tmp, &nh->f6i_list, nh_list) {
 		/* __ip6_del_rt does a release, so do a hold here */
 		fib6_info_hold(f6i);
-		ipv6_stub->ip6_del_rt(net, f6i);
+		ipv6_stub->ip6_del_rt(net, f6i,
+				      !net->ipv4.sysctl_nexthop_compat_mode);
 	}
 }
 
@@ -1041,7 +1042,7 @@ out:
 	if (!rc) {
 		nh_base_seq_inc(net);
 		nexthop_notify(RTM_NEWNEXTHOP, new_nh, &cfg->nlinfo);
-		if (replace_notify)
+		if (replace_notify && net->ipv4.sysctl_nexthop_compat_mode)
 			nexthop_replace_notify(net, new_nh, &cfg->nlinfo);
 	}
 
