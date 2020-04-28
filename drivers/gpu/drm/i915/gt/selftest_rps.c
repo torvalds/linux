@@ -312,15 +312,15 @@ int live_rps_clock_interval(void *arg)
 				engine->name, cycles, time, ktime_to_ns(dt), expected,
 				gt->clock_frequency / 1000);
 
-			if (10 * time < 9 * ktime_to_ns(dt) ||
-			    10 * time > 11 * ktime_to_ns(dt)) {
+			if (10 * time < 8 * ktime_to_ns(dt) ||
+			    8 * time > 10 * ktime_to_ns(dt)) {
 				pr_err("%s: rps clock time does not match walltime!\n",
 				       engine->name);
 				err = -EINVAL;
 			}
 
-			if (10 * expected < 9 * cycles ||
-			    10 * expected > 11 * cycles) {
+			if (10 * expected < 8 * cycles ||
+			    8 * expected > 10 * cycles) {
 				pr_err("%s: walltime does not match rps clock ticks!\n",
 				       engine->name);
 				err = -EINVAL;
