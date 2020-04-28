@@ -139,7 +139,7 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 			   ch->stats.dequeue_portal_busy,
 			   ch->stats.frames,
 			   ch->stats.cdan,
-			   ch->stats.frames / ch->stats.cdan,
+			   div64_u64(ch->stats.frames, ch->stats.cdan),
 			   ch->buf_count);
 	}
 
