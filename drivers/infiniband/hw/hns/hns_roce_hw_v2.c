@@ -95,6 +95,7 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 {
 	struct hns_roce_mr *mr = to_hr_mr(wr->mr);
 	struct hns_roce_wqe_frmr_seg *fseg = wqe;
+	u64 pbl_ba;
 
 	/* use ib_access_flags */
 	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_BIND_EN_S,
@@ -109,19 +110,20 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 		     wr->access & IB_ACCESS_LOCAL_WRITE ? 1 : 0);
 
 	/* Data structure reuse may lead to confusion */
-	rc_sq_wqe->msg_len = cpu_to_le32(mr->pbl_ba & 0xffffffff);
-	rc_sq_wqe->inv_key = cpu_to_le32(mr->pbl_ba >> 32);
+	pbl_ba = mr->pbl_mtr.hem_cfg.root_ba;
+	rc_sq_wqe->msg_len = cpu_to_le32(lower_32_bits(pbl_ba));
+	rc_sq_wqe->inv_key = cpu_to_le32(upper_32_bits(pbl_ba));
 
 	rc_sq_wqe->byte_16 = cpu_to_le32(wr->mr->length & 0xffffffff);
 	rc_sq_wqe->byte_20 = cpu_to_le32(wr->mr->length >> 32);
 	rc_sq_wqe->rkey = cpu_to_le32(wr->key);
 	rc_sq_wqe->va = cpu_to_le64(wr->mr->iova);
 
-	fseg->pbl_size = cpu_to_le32(mr->pbl_size);
+	fseg->pbl_size = cpu_to_le32(mr->npages);
 	roce_set_field(fseg->mode_buf_pg_sz,
 		       V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M,
 		       V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S,
-		       mr->pbl_buf_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
 	roce_set_bit(fseg->mode_buf_pg_sz,
 		     V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S, 0);
 }
@@ -2439,32 +2441,30 @@ static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 static int set_mtpt_pbl(struct hns_roce_v2_mpt_entry *mpt_entry,
 			struct hns_roce_mr *mr)
 {
-	struct sg_dma_page_iter sg_iter;
-	u64 page_addr;
-	u64 *pages;
-	int i;
+	struct hns_roce_dev *hr_dev = to_hr_dev(mr->ibmr.device);
+	u64 pages[HNS_ROCE_V2_MAX_INNER_MTPT_NUM] = { 0 };
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	dma_addr_t pbl_ba;
+	int i, count;
 
-	mpt_entry->pbl_size = cpu_to_le32(mr->pbl_size);
-	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(mr->pbl_ba >> 3));
+	count = hns_roce_mtr_find(hr_dev, &mr->pbl_mtr, 0, pages,
+				  ARRAY_SIZE(pages), &pbl_ba);
+	if (count < 1) {
+		ibdev_err(ibdev, "failed to find PBL mtr, count = %d.\n",
+			  count);
+		return -ENOBUFS;
+	}
+
+	/* Aligned to the hardware address access unit */
+	for (i = 0; i < count; i++)
+		pages[i] >>= 6;
+
+	mpt_entry->pbl_size = cpu_to_le32(mr->npages);
+	mpt_entry->pbl_ba_l = cpu_to_le32(pbl_ba >> 3);
 	roce_set_field(mpt_entry->byte_48_mode_ba,
 		       V2_MPT_BYTE_48_PBL_BA_H_M, V2_MPT_BYTE_48_PBL_BA_H_S,
-		       upper_32_bits(mr->pbl_ba >> 3));
+		       upper_32_bits(pbl_ba >> 3));
 
-	pages = (u64 *)__get_free_page(GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
-
-	i = 0;
-	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
-		page_addr = sg_page_iter_dma_address(&sg_iter);
-		pages[i] = page_addr >> 6;
-
-		/* Record the first 2 entry directly to MTPT table */
-		if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
-			goto found;
-		i++;
-	}
-found:
 	mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
 	roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
 		       V2_MPT_BYTE_56_PA0_H_S, upper_32_bits(pages[0]));
@@ -2475,9 +2475,7 @@ found:
 	roce_set_field(mpt_entry->byte_64_buf_pa1,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S,
-		       mr->pbl_buf_pg_sz + PG_SHIFT_OFFSET);
-
-	free_page((unsigned long)pages);
+		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
 
 	return 0;
 }
@@ -2499,7 +2497,7 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 	roce_set_field(mpt_entry->byte_4_pd_hop_st,
 		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_M,
 		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_S,
-		       mr->pbl_ba_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.ba_pg_shift));
 	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
 		       V2_MPT_BYTE_4_PD_S, mr->pd);
 
@@ -2585,10 +2583,18 @@ static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_frmr_write_mtpt(void *mb_buf, struct hns_roce_mr *mr)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(mr->ibmr.device);
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_v2_mpt_entry *mpt_entry;
+	dma_addr_t pbl_ba = 0;
 
 	mpt_entry = mb_buf;
 	memset(mpt_entry, 0, sizeof(*mpt_entry));
+
+	if (hns_roce_mtr_find(hr_dev, &mr->pbl_mtr, 0, NULL, 0, &pbl_ba) < 0) {
+		ibdev_err(ibdev, "failed to find frmr mtr.\n");
+		return -ENOBUFS;
+	}
 
 	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_MPT_ST_M,
 		       V2_MPT_BYTE_4_MPT_ST_S, V2_MPT_ST_FREE);
@@ -2597,7 +2603,7 @@ static int hns_roce_v2_frmr_write_mtpt(void *mb_buf, struct hns_roce_mr *mr)
 	roce_set_field(mpt_entry->byte_4_pd_hop_st,
 		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_M,
 		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_S,
-		       mr->pbl_ba_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.ba_pg_shift));
 	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
 		       V2_MPT_BYTE_4_PD_S, mr->pd);
 
@@ -2610,17 +2616,17 @@ static int hns_roce_v2_frmr_write_mtpt(void *mb_buf, struct hns_roce_mr *mr)
 	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_MR_MW_S, 0);
 	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_BPD_S, 1);
 
-	mpt_entry->pbl_size = cpu_to_le32(mr->pbl_size);
+	mpt_entry->pbl_size = cpu_to_le32(mr->npages);
 
-	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(mr->pbl_ba >> 3));
+	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(pbl_ba >> 3));
 	roce_set_field(mpt_entry->byte_48_mode_ba, V2_MPT_BYTE_48_PBL_BA_H_M,
 		       V2_MPT_BYTE_48_PBL_BA_H_S,
-		       upper_32_bits(mr->pbl_ba >> 3));
+		       upper_32_bits(pbl_ba >> 3));
 
 	roce_set_field(mpt_entry->byte_64_buf_pa1,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S,
-		       mr->pbl_buf_pg_sz + PG_SHIFT_OFFSET);
+		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
 
 	return 0;
 }

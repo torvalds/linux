@@ -403,30 +403,17 @@ struct hns_roce_mw {
 
 struct hns_roce_mr {
 	struct ib_mr		ibmr;
-	struct ib_umem		*umem;
 	u64			iova; /* MR's virtual orignal addr */
 	u64			size; /* Address range of MR */
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
 	u32			access;	/* Access permission of MR */
-	u32			npages;
 	int			enabled; /* MR's active status */
 	int			type;	/* MR's register type */
-	u64			*pbl_buf;	/* MR's PBL space */
-	dma_addr_t		pbl_dma_addr;	/* MR's PBL space PA */
-	u32			pbl_size;	/* PA number in the PBL */
-	u64			pbl_ba;		/* page table address */
-	u32			l0_chunk_last_num;	/* L0 last number */
-	u32			l1_chunk_last_num;	/* L1 last number */
-	u64			**pbl_bt_l2;	/* PBL BT L2 */
-	u64			**pbl_bt_l1;	/* PBL BT L1 */
-	u64			*pbl_bt_l0;	/* PBL BT L0 */
-	dma_addr_t		*pbl_l2_dma_addr;	/* PBL BT L2 dma addr */
-	dma_addr_t		*pbl_l1_dma_addr;	/* PBL BT L1 dma addr */
-	dma_addr_t		pbl_l0_dma_addr;	/* PBL BT L0 dma addr */
-	u32			pbl_ba_pg_sz;	/* BT chunk page size */
-	u32			pbl_buf_pg_sz;	/* buf chunk page size */
 	u32			pbl_hop_num;	/* multi-hop number */
+	struct hns_roce_mtr	pbl_mtr;
+	u32			npages;
+	dma_addr_t		*page_list;
 };
 
 struct hns_roce_mr_table {

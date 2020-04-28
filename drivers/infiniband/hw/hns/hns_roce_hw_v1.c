@@ -1099,7 +1099,6 @@ static int hns_roce_v1_dereg_mr(struct hns_roce_dev *hr_dev,
 	struct completion comp;
 	long end = HNS_ROCE_V1_FREE_MR_TIMEOUT_MSECS;
 	unsigned long start = jiffies;
-	int npages;
 	int ret = 0;
 
 	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
@@ -1146,17 +1145,9 @@ free_mr:
 	dev_dbg(dev, "Free mr 0x%x use 0x%x us.\n",
 		mr->key, jiffies_to_usecs(jiffies) - jiffies_to_usecs(start));
 
-	if (mr->size != ~0ULL) {
-		npages = ib_umem_page_count(mr->umem);
-		dma_free_coherent(dev, npages * 8, mr->pbl_buf,
-				  mr->pbl_dma_addr);
-	}
-
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
 			     key_to_hw_index(mr->key), 0);
-
-	ib_umem_release(mr->umem);
-
+	hns_roce_mtr_destroy(hr_dev, &mr->pbl_mtr);
 	kfree(mr);
 
 	return ret;
@@ -1826,9 +1817,12 @@ static void hns_roce_v1_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,
 static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 				  unsigned long mtpt_idx)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(mr->ibmr.device);
+	u64 pages[HNS_ROCE_MAX_INNER_MTPT_NUM] = { 0 };
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_v1_mpt_entry *mpt_entry;
-	struct sg_dma_page_iter sg_iter;
-	u64 *pages;
+	dma_addr_t pbl_ba;
+	int count;
 	int i;
 
 	/* MPT filled into mailbox buf */
@@ -1878,22 +1872,15 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 	if (mr->type == MR_TYPE_DMA)
 		return 0;
 
-	pages = (u64 *) __get_free_page(GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
-
-	i = 0;
-	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
-		pages[i] = ((u64)sg_page_iter_dma_address(&sg_iter)) >> 12;
-
-		/* Directly record to MTPT table firstly 7 entry */
-		if (i >= HNS_ROCE_MAX_INNER_MTPT_NUM)
-			break;
-		i++;
+	count = hns_roce_mtr_find(hr_dev, &mr->pbl_mtr, 0, pages,
+				  ARRAY_SIZE(pages), &pbl_ba);
+	if (count < 1) {
+		ibdev_err(ibdev, "failed to find PBL mtr, count = %d.", count);
+		return -ENOBUFS;
 	}
 
 	/* Register user mr */
-	for (i = 0; i < HNS_ROCE_MAX_INNER_MTPT_NUM; i++) {
+	for (i = 0; i < count; i++) {
 		switch (i) {
 		case 0:
 			mpt_entry->pa0_l = cpu_to_le32((u32)(pages[i]));
@@ -1959,13 +1946,9 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 		}
 	}
 
-	free_page((unsigned long) pages);
-
-	mpt_entry->pbl_addr_l = cpu_to_le32((u32)(mr->pbl_dma_addr));
-
+	mpt_entry->pbl_addr_l = cpu_to_le32(pbl_ba);
 	roce_set_field(mpt_entry->mpt_byte_12, MPT_BYTE_12_PBL_ADDR_H_M,
-		       MPT_BYTE_12_PBL_ADDR_H_S,
-		       ((u32)(mr->pbl_dma_addr >> 32)));
+		       MPT_BYTE_12_PBL_ADDR_H_S, upper_32_bits(pbl_ba));
 
 	return 0;
 }
