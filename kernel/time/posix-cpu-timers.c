@@ -66,14 +66,13 @@ static struct task_struct *lookup_task(const pid_t pid, bool thread,
 	if (thread)
 		return same_thread_group(p, current) ? p : NULL;
 
-	if (gettime) {
-		/*
-		 * For clock_gettime(PROCESS) the task does not need to be
-		 * the actual group leader. task->signal gives
-		 * access to the group's clock.
-		 */
-		return (p == current || thread_group_leader(p)) ? p : NULL;
-	}
+	/*
+	 * For clock_gettime(PROCESS) the task does not need to be
+	 * the actual group leader. task->signal gives
+	 * access to the group's clock.
+	 */
+	if (gettime && (p == current))
+		return p;
 
 	/*
 	 * For processes require that p is group leader.
