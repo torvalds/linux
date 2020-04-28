@@ -52,7 +52,6 @@
 
 static DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
-static struct kmem_cache *smack_inode_cache;
 struct kmem_cache *smack_rule_cache;
 int smack_enabled;
 
@@ -4747,15 +4746,9 @@ static __init int smack_init(void)
 	struct cred *cred = (struct cred *) current->cred;
 	struct task_smack *tsp;
 
-	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
-	if (!smack_inode_cache)
-		return -ENOMEM;
-
 	smack_rule_cache = KMEM_CACHE(smack_rule, 0);
-	if (!smack_rule_cache) {
-		kmem_cache_destroy(smack_inode_cache);
+	if (!smack_rule_cache)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Set the security state for the initial task.
