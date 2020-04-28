@@ -35,16 +35,11 @@ extern char vdso32_start[], vdso32_end[];
 
 /* vdso_lookup arch_index */
 enum arch_vdso_type {
-	ARM64_VDSO = 0,
+	ARM64_VDSO,
 #ifdef CONFIG_COMPAT_VDSO
-	ARM64_VDSO32 = 1,
+	ARM64_VDSO32,
 #endif /* CONFIG_COMPAT_VDSO */
 };
-#ifdef CONFIG_COMPAT_VDSO
-#define VDSO_TYPES		(ARM64_VDSO32 + 1)
-#else
-#define VDSO_TYPES		(ARM64_VDSO + 1)
-#endif /* CONFIG_COMPAT_VDSO */
 
 struct __vdso_abi {
 	const char *name;
@@ -57,14 +52,14 @@ struct __vdso_abi {
 	struct vm_special_mapping *cm;
 };
 
-static struct __vdso_abi vdso_lookup[VDSO_TYPES] __ro_after_init = {
-	{
+static struct __vdso_abi vdso_lookup[] __ro_after_init = {
+	[ARM64_VDSO] = {
 		.name = "vdso",
 		.vdso_code_start = vdso_start,
 		.vdso_code_end = vdso_end,
 	},
 #ifdef CONFIG_COMPAT_VDSO
-	{
+	[ARM64_VDSO32] = {
 		.name = "vdso32",
 		.vdso_code_start = vdso32_start,
 		.vdso_code_end = vdso32_end,
