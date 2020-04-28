@@ -24,10 +24,6 @@ extern struct orc_entry __stop_orc_unwind[];
 static bool orc_init __ro_after_init;
 static unsigned int lookup_num_blocks __ro_after_init;
 
-static DEFINE_MUTEX(sort_mutex);
-static int *cur_orc_ip_table = __start_orc_unwind_ip;
-static struct orc_entry *cur_orc_table = __start_orc_unwind;
-
 static inline unsigned long orc_ip(const int *ip)
 {
 	return (unsigned long)ip + *ip;
@@ -191,6 +187,10 @@ static struct orc_entry *orc_find(unsigned long ip)
 }
 
 #ifdef CONFIG_MODULES
+
+static DEFINE_MUTEX(sort_mutex);
+static int *cur_orc_ip_table = __start_orc_unwind_ip;
+static struct orc_entry *cur_orc_table = __start_orc_unwind;
 
 static void orc_sort_swap(void *_a, void *_b, int size)
 {
