@@ -377,7 +377,8 @@ static const struct iio_buffer_setup_ops tiadc_buffer_setup_ops = {
 	.postdisable = &tiadc_buffer_postdisable,
 };
 
-static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
+static int tiadc_iio_buffered_hardware_setup(struct device *dev,
+	struct iio_dev *indio_dev,
 	irqreturn_t (*pollfunc_bh)(int irq, void *p),
 	irqreturn_t (*pollfunc_th)(int irq, void *p),
 	int irq,
@@ -387,13 +388,13 @@ static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer;
 	int ret;
 
-	buffer = iio_kfifo_allocate();
+	buffer = devm_iio_kfifo_allocate(dev);
 	if (!buffer)
 		return -ENOMEM;
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
-	ret = request_threaded_irq(irq,	pollfunc_th, pollfunc_bh,
+	ret = devm_request_threaded_irq(dev, irq, pollfunc_th, pollfunc_bh,
 				flags, indio_dev->name, indio_dev);
 	if (ret)
 		goto error_kfifo_free;
@@ -407,15 +408,6 @@ error_kfifo_free:
 	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }
-
-static void tiadc_iio_buffered_hardware_remove(struct iio_dev *indio_dev)
-{
-	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-
-	free_irq(adc_dev->mfd_tscadc->irq, indio_dev);
-	iio_kfifo_free(indio_dev->buffer);
-}
-
 
 static const char * const chan_name_ain[] = {
 	"AIN0",
@@ -635,7 +627,7 @@ static int tiadc_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = tiadc_iio_buffered_hardware_setup(indio_dev,
+	err = tiadc_iio_buffered_hardware_setup(&pdev->dev, indio_dev,
 		&tiadc_worker_h,
 		&tiadc_irq_h,
 		adc_dev->mfd_tscadc->irq,
@@ -660,7 +652,6 @@ static int tiadc_probe(struct platform_device *pdev)
 err_dma:
 	iio_device_unregister(indio_dev);
 err_buffer_unregister:
-	tiadc_iio_buffered_hardware_remove(indio_dev);
 err_free_channels:
 	return err;
 }
@@ -678,7 +669,6 @@ static int tiadc_remove(struct platform_device *pdev)
 		dma_release_channel(dma->chan);
 	}
 	iio_device_unregister(indio_dev);
-	tiadc_iio_buffered_hardware_remove(indio_dev);
 
 	step_en = get_adc_step_mask(adc_dev);
 	am335x_tsc_se_clr(adc_dev->mfd_tscadc, step_en);
