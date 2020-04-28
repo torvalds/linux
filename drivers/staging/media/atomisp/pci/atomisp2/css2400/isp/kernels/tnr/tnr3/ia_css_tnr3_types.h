@@ -1,4 +1,3 @@
-#ifdef ISP2401
 /**
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
@@ -61,5 +60,4 @@ struct ia_css_tnr3_kernel_config {
 	ref_buf_select;                 /** Selection of the reference buffer */
 };
 
-#endif
 #endif

@@ -1,4 +1,3 @@
-#ifndef ISP2401
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -18,5 +17,4 @@
 
 #include "../common/ia_css_common_io_types.h"
 
-#endif
 #endif

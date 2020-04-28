@@ -35,7 +35,6 @@
 #define ISP_NWAY_LOG2			6
 #define ISP_VEC_NELEMS_LOG2		ISP_NWAY_LOG2
 
-#ifdef ISP2401
 #ifdef PIPE_GENERATION
 #define PIPEMEM(x) MEM(x)
 #define ISP_NWAY   BIT(ISP_NWAY_LOG2)
@@ -43,7 +42,6 @@
 #define PIPEMEM(x)
 #endif
 
-#endif
 /* The number of data bytes in a vector disregarding the reduced precision */
 #define ISP_VEC_BYTES			(ISP_VEC_NELEMS * sizeof(uint16_t))
 
@@ -99,17 +97,14 @@
 #define ISP_VAMEM3_SINK_REG		0x08
 #define ISP_HMEM_SINK_REG		0x08
 
-#ifdef ISP2401
+/* ISP2401 */
 #define ISP_BAMEM_ALIGN_ELEM ISP_VMEM_ALIGN_ELEM
 #define BAMEM VMEM
-
 #define XNR3_DOWN_BAMEM_BASE_ADDRESS    (0x16880)
 #define XNR3_UP_BAMEM_BASE_ADDRESS      (0x12880)
-
 #define bmem_ldrow(fu, pid, offset, data) bmem_ldrow_s(fu, pid, offset, data)
 #define bmem_strow(fu, pid, offset, data) bmem_strow_s(fu, pid, offset, data)
 #define bmem_ldblk(fu, pid, offset, data) bmem_ldblk_s(fu, pid, offset, data)
 #define bmem_stblk(fu, pid, offset, data) bmem_stblk_s(fu, pid, offset, data)
 
-#endif
 #endif /* __ISP_GLOBAL_H_INCLUDED__ */

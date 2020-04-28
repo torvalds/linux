@@ -19,9 +19,9 @@
 #include "ia_css_dp_param.h"
 
 extern const struct ia_css_dp_config default_dp_config;
-#ifdef ISP2401
+
+/* ISP2401 */
 extern const struct ia_css_dp_config default_dp_10bpp_config;
-#endif
 
 void
 ia_css_dp_encode(

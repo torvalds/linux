@@ -24,9 +24,8 @@
 #include <ia_css_types.h>
 #include <ia_css_frame_public.h>
 #include <ia_css_buffer.h>
-#ifdef ISP2401
+/* ISP2401 */
 #include <ia_css_acc_types.h>
-#endif
 
 enum {
 	IA_CSS_PIPE_OUTPUT_STAGE_0 = 0,
@@ -484,7 +483,7 @@ ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
 			      u32 fw_handle,
 			      bool *enable);
 
-#ifdef ISP2401
+/* ISP2401  */
 /* @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
  * @param[in] pipe	Pipe handle.
  * @param[in] fw_handle	Extension firmware Handle (ia_css_fw_info.handle).
@@ -507,7 +506,6 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
 				      struct ia_css_isp_param_css_segments *css_seg,
 				      struct ia_css_isp_param_isp_segments *isp_seg);
 
-#endif
 /* @brief Get selected configuration settings
  * @param[in]	pipe	The pipe.
  * @param[out]	config	Configuration settings.
@@ -543,7 +541,7 @@ ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
  */
 bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
 
-#ifdef ISP2401
+/* ISP2401 */
 /* @brief Override the frameformat set on the output pins.
  * @param[in]  pipe        Pipe handle.
  * @param[in]  output_pin  Pin index to set the format on
@@ -568,5 +566,4 @@ ia_css_pipe_override_frame_format(struct ia_css_pipe *pipe,
 				  int output_pin,
 				  enum ia_css_frame_format format);
 
-#endif
 #endif /* __IA_CSS_PIPE_PUBLIC_H */

@@ -23,11 +23,10 @@
 /* force a value to a lower even value */
 #define EVEN_FLOOR(x)        ((x) & ~1)
 
-#ifdef ISP2401
+/* ISP2401 */
 /* If the number is odd, find the next even number */
 #define EVEN_CEIL(x)         ((IS_ODD(x)) ? ((x) + 1) : (x))
 
-#endif
 /* A => B */
 #define IMPLIES(a, b)        (!(a) || (b))
 
@@ -93,17 +92,17 @@ static inline unsigned int ceil_shift_mul(unsigned int a, unsigned int b)
 	return CEIL_SHIFT_MUL(a, b);
 }
 
-#ifdef ISP2401
+/* ISP2401 */
 static inline unsigned int round_half_down_div(unsigned int a, unsigned int b)
 {
 	return ROUND_HALF_DOWN_DIV(a, b);
 }
 
+/* ISP2401 */
 static inline unsigned int round_half_down_mul(unsigned int a, unsigned int b)
 {
 	return ROUND_HALF_DOWN_MUL(a, b);
 }
-#endif
 
 /* @brief Next Power of Two
  *

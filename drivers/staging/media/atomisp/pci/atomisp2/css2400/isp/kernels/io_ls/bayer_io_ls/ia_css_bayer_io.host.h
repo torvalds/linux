@@ -1,4 +1,3 @@
-#ifndef ISP2401
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -27,4 +26,3 @@ ia_css_bayer_io_config(
     const struct sh_css_binary_args *args);
 
 #endif /*__BAYER_IO_HOST_H */
-#endif
