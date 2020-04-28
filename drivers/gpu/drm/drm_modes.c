@@ -757,24 +757,22 @@ EXPORT_SYMBOL(drm_mode_set_name);
  */
 int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
-	int refresh = 0;
+	unsigned int num, den;
 
-	if (mode->htotal > 0 && mode->vtotal > 0) {
-		unsigned int num, den;
+	if (mode->htotal == 0 || mode->vtotal == 0)
+		return 0;
 
-		num = mode->clock * 1000;
-		den = mode->htotal * mode->vtotal;
+	num = mode->clock * 1000;
+	den = mode->htotal * mode->vtotal;
 
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			num *= 2;
-		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-			den *= 2;
-		if (mode->vscan > 1)
-			den *= mode->vscan;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		num *= 2;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		den *= 2;
+	if (mode->vscan > 1)
+		den *= mode->vscan;
 
-		refresh = DIV_ROUND_CLOSEST(num, den);
-	}
-	return refresh;
+	return DIV_ROUND_CLOSEST(num, den);
 }
 EXPORT_SYMBOL(drm_mode_vrefresh);
 
