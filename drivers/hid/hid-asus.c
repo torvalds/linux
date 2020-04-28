@@ -694,7 +694,6 @@ static int asus_input_mapping(struct hid_device *hdev,
 
 	/* ASUS-specific keyboard hotkeys */
 	if ((usage->hid & HID_USAGE_PAGE) == 0xff310000) {
-		set_bit(EV_REP, hi->input->evbit);
 		switch (usage->hid & HID_USAGE) {
 		case 0x10: asus_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
 		case 0x20: asus_map_key_clear(KEY_BRIGHTNESSUP);		break;
@@ -737,11 +736,11 @@ static int asus_input_mapping(struct hid_device *hdev,
 		if (drvdata->quirks & QUIRK_USE_KBD_BACKLIGHT)
 			drvdata->enable_backlight = true;
 
+		set_bit(EV_REP, hi->input->evbit);
 		return 1;
 	}
 
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR) {
-		set_bit(EV_REP, hi->input->evbit);
 		switch (usage->hid & HID_USAGE) {
 		case 0xff01: asus_map_key_clear(BTN_1);	break;
 		case 0xff02: asus_map_key_clear(BTN_2);	break;
@@ -764,6 +763,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 			return 0;
 		}
 
+		set_bit(EV_REP, hi->input->evbit);
 		return 1;
 	}
 
