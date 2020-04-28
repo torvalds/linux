@@ -95,7 +95,8 @@ struct clp_rsp_query_pci {
 	u16 vfn;			/* virtual fn number */
 	u16			:  3;
 	u16 rid_avail		:  1;
-	u16			:  2;
+	u16 is_physfn		:  1;
+	u16 reserved1		:  1;
 	u16 mio_addr_avail	:  1;
 	u16 util_str_avail	:  1;	/* utility string available? */
 	u16 pfgid		:  8;	/* pci function group id */

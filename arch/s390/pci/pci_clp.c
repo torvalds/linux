@@ -159,6 +159,7 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	zdev->uid = response->uid;
 	zdev->fmb_length = sizeof(u32) * response->fmb_len;
 	zdev->rid_available = response->rid_avail;
+	zdev->is_physfn = response->is_physfn;
 	if (!s390_pci_no_rid && zdev->rid_available)
 		zdev->devfn = response->rid & ZPCI_RID_MASK_DEVFN;
 
