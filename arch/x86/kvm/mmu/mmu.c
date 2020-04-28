@@ -1199,7 +1199,7 @@ static void update_gfn_disallow_lpage_count(struct kvm_memory_slot *slot,
 	struct kvm_lpage_info *linfo;
 	int i;
 
-	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
+	for (i = PT_DIRECTORY_LEVEL; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
 		linfo->disallow_lpage += count;
 		WARN_ON(linfo->disallow_lpage < 0);
@@ -1763,7 +1763,7 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 	int i;
 	bool write_protected = false;
 
-	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
+	for (i = PT_PAGE_TABLE_LEVEL; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
 		rmap_head = __gfn_to_rmap(gfn, i, slot);
 		write_protected |= __rmap_write_protect(kvm, rmap_head, true);
 	}
@@ -1952,7 +1952,7 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 			gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
 			for_each_slot_rmap_range(memslot, PT_PAGE_TABLE_LEVEL,
-						 PT_MAX_HUGEPAGE_LEVEL,
+						 KVM_MAX_HUGEPAGE_LEVEL,
 						 gfn_start, gfn_end - 1,
 						 &iterator)
 				ret |= handler(kvm, iterator.rmap, memslot,
@@ -4214,7 +4214,7 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 {
 	int max_level;
 
-	for (max_level = PT_MAX_HUGEPAGE_LEVEL;
+	for (max_level = KVM_MAX_HUGEPAGE_LEVEL;
 	     max_level > PT_PAGE_TABLE_LEVEL;
 	     max_level--) {
 		int page_num = KVM_PAGES_PER_HPAGE(max_level);
@@ -5641,7 +5641,7 @@ slot_handle_all_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		      slot_level_handler fn, bool lock_flush_tlb)
 {
 	return slot_handle_level(kvm, memslot, fn, PT_PAGE_TABLE_LEVEL,
-				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
+				 KVM_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
 static __always_inline bool
@@ -5649,7 +5649,7 @@ slot_handle_large_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			slot_level_handler fn, bool lock_flush_tlb)
 {
 	return slot_handle_level(kvm, memslot, fn, PT_PAGE_TABLE_LEVEL + 1,
-				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
+				 KVM_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
 static __always_inline bool
@@ -5867,7 +5867,8 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 				continue;
 
 			slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
-						PT_PAGE_TABLE_LEVEL, PT_MAX_HUGEPAGE_LEVEL,
+						PT_PAGE_TABLE_LEVEL,
+						KVM_MAX_HUGEPAGE_LEVEL,
 						start, end - 1, true);
 		}
 	}
@@ -5889,7 +5890,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 
 	spin_lock(&kvm->mmu_lock);
 	flush = slot_handle_level(kvm, memslot, slot_rmap_write_protect,
-				start_level, PT_MAX_HUGEPAGE_LEVEL, false);
+				start_level, KVM_MAX_HUGEPAGE_LEVEL, false);
 	spin_unlock(&kvm->mmu_lock);
 
 	/*
