@@ -3,3 +3,7 @@ config INTERCONNECT_IMX
 	depends on ARCH_MXC || COMPILE_TEST
 	help
 	  Generic interconnect drivers for i.MX SOCs
+
+config INTERCONNECT_IMX8MM
+	tristate "i.MX8MM interconnect driver"
+	depends on INTERCONNECT_IMX
