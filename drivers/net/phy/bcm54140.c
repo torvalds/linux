@@ -115,6 +115,9 @@
 #define BCM54140_HWMON_IN_ALARM_BIT(ch) ((ch) ? BCM54140_RDB_MON_ISR_3V3 \
 					      : BCM54140_RDB_MON_ISR_1V0)
 
+#define BCM54140_PHY_ID_REV(phy_id)	((phy_id) & 0x7)
+#define BCM54140_REV_B0			1
+
 #define BCM54140_DEFAULT_DOWNSHIFT 5
 #define BCM54140_MAX_DOWNSHIFT 9
 
@@ -632,9 +635,11 @@ static int bcm54140_config_init(struct phy_device *phydev)
 	int ret;
 
 	/* Apply hardware errata */
-	ret = bcm54140_b0_workaround(phydev);
-	if (ret)
-		return ret;
+	if (BCM54140_PHY_ID_REV(phydev->phy_id) == BCM54140_REV_B0) {
+		ret = bcm54140_b0_workaround(phydev);
+		if (ret)
+			return ret;
+	}
 
 	/* Unmask events we are interested in. */
 	reg &= ~(BCM54140_RDB_INT_DUPLEX |
