@@ -157,6 +157,11 @@ struct intel_engine_execlists {
 	struct i915_priolist default_priolist;
 
 	/**
+	 * @ccid: identifier for contexts submitted to this engine
+	 */
+	u32 ccid;
+
+	/**
 	 * @yield: CCID at the time of the last semaphore-wait interrupt.
 	 *
 	 * Instead of leaving a semaphore busy-spinning on an engine, we would

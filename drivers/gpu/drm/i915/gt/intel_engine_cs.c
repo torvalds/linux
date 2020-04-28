@@ -1425,7 +1425,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			len = scnprintf(hdr, sizeof(hdr),
 					"\t\tActive[%d]:  ccid:%08x, ",
 					(int)(port - execlists->active),
-					upper_32_bits(rq->context->lrc_desc));
+					rq->context->lrc.ccid);
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
@@ -1437,7 +1437,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			len = scnprintf(hdr, sizeof(hdr),
 					"\t\tPending[%d]: ccid:%08x, ",
 					(int)(port - execlists->pending),
-					upper_32_bits(rq->context->lrc_desc));
+					rq->context->lrc.ccid);
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
