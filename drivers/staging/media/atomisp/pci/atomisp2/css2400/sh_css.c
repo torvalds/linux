@@ -10648,12 +10648,6 @@ ERR:
 		sh_css_setup_queues();
 		ia_css_bufq_dump_queue_info();
 
-#ifdef ISP2401
-		if (ia_css_is_system_mode_suspend_or_resume() == false)   /* skip in suspend/resume flow */
-		{
-			ia_css_set_system_mode(IA_CSS_SYS_MODE_WORKING);
-		}
-#endif
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
@@ -10722,18 +10716,8 @@ ERR:
 
 		sh_css_hmm_buffer_record_uninit();
 
-#ifndef ISP2401
 		/* clear pending param sets from refcount */
 		sh_css_param_clear_param_sets();
-#else
-		if (ia_css_is_system_mode_suspend_or_resume() == false)   /* skip in suspend/resume flow */
-		{
-			/* clear pending param sets from refcount */
-			sh_css_param_clear_param_sets();
-			ia_css_set_system_mode(
-			    IA_CSS_SYS_MODE_INIT);  /* System is initialized but not 'running' */
-		}
-#endif
 
 		IA_CSS_LEAVE_ERR(err);
 		return err;
@@ -11252,17 +11236,8 @@ ERR:
 	sh_css_hmm_buffer_record_init(void) {
 		int i;
 
-#ifndef ISP2401
-		for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
+		for (i = 0; i < MAX_HMM_BUFFER_NUM; i++)
 			sh_css_hmm_buffer_record_reset(&hmm_buffer_record[i]);
-#else
-		if (ia_css_is_system_mode_suspend_or_resume() ==
-		    false) { /* skip in suspend/resume flow */
-			for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
-				sh_css_hmm_buffer_record_reset(&hmm_buffer_record[i]);
-			}
-#endif
-		}
 	}
 
 	static void
@@ -11270,29 +11245,14 @@ ERR:
 		int i;
 		struct sh_css_hmm_buffer_record *buffer_record = NULL;
 
-#ifndef ISP2401
 		buffer_record = &hmm_buffer_record[0];
 		for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
 			if (buffer_record->in_use) {
 				if (buffer_record->h_vbuf)
 					ia_css_rmgr_rel_vbuf(hmm_buffer_pool, &buffer_record->h_vbuf);
 				sh_css_hmm_buffer_record_reset(buffer_record);
-#else
-		if (ia_css_is_system_mode_suspend_or_resume() ==
-		    false) { /* skip in suspend/resume flow */
-			buffer_record = &hmm_buffer_record[0];
-			for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
-				if (buffer_record->in_use) {
-					if (buffer_record->h_vbuf)
-						ia_css_rmgr_rel_vbuf(hmm_buffer_pool, &buffer_record->h_vbuf);
-					sh_css_hmm_buffer_record_reset(buffer_record);
-				}
-				buffer_record++;
-#endif
 			}
-#ifndef ISP2401
 			buffer_record++;
-#endif
 		}
 	}
 
