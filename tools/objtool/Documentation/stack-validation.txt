@@ -315,6 +315,13 @@ they mean, and suggestions for how to fix them.
       function tracing inserts additional calls, which is not obvious from the
       sources).
 
+10. file.o: warning: func()+0x5c: alternative modifies stack
+
+    This means that an alternative includes instructions that modify the
+    stack. The problem is that there is only one ORC unwind table, this means
+    that the ORC unwind entries must be valid for each of the alternatives.
+    The easiest way to enforce this is to ensure alternatives do not contain
+    any ORC entries, which in turn implies the above constraint.
 
 If the error doesn't seem to make sense, it could be a bug in objtool.
 Feel free to ask the objtool maintainer for help.
