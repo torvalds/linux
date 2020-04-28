@@ -323,7 +323,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF: frame split into left and
 	 *    right parts.
 	 */
-	unsigned int flags;
+	u32 flags;
 
 	/**
 	 * @width_mm:
