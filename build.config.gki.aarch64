@@ -9,3 +9,4 @@ abi_gki_aarch64_cuttlefish_whitelist
 abi_gki_aarch64_qcom_whitelist
 "
 TRIM_NONLISTED_KMI=1
+KMI_WHITELIST_STRICT_MODE=1
