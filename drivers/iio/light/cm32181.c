@@ -295,8 +295,7 @@ static const struct iio_info cm32181_info = {
 	.attrs			= &cm32181_attribute_group,
 };
 
-static int cm32181_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cm32181_probe(struct i2c_client *client)
 {
 	struct cm32181_chip *cm32181;
 	struct iio_dev *indio_dev;
@@ -317,7 +316,7 @@ static int cm32181_probe(struct i2c_client *client,
 	indio_dev->channels = cm32181_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm32181_channels);
 	indio_dev->info = &cm32181_info;
-	indio_dev->name = id->name;
+	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = cm32181_reg_init(cm32181);
@@ -339,13 +338,6 @@ static int cm32181_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id cm32181_id[] = {
-	{ "cm32181", 0 },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(i2c, cm32181_id);
-
 static const struct of_device_id cm32181_of_match[] = {
 	{ .compatible = "capella,cm32181" },
 	{ }
@@ -357,8 +349,7 @@ static struct i2c_driver cm32181_driver = {
 		.name	= "cm32181",
 		.of_match_table = cm32181_of_match,
 	},
-	.id_table       = cm32181_id,
-	.probe		= cm32181_probe,
+	.probe_new	= cm32181_probe,
 };
 
 module_i2c_driver(cm32181_driver);
