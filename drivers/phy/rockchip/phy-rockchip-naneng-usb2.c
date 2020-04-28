@@ -1546,7 +1546,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 				.ls_det_en = { 0x10300, 0, 0, 0, 1 },
 				.ls_det_st = { 0x10304, 0, 0, 0, 1 },
 				.ls_det_clr = { 0x10308, 0, 0, 0, 1 },
-				.phy_sus = { 0x10230, 8, 0, 0x052, 0x1d9 },
+				.phy_sus = { 0x10230, 8, 0, 0x052, 0x1d5 },
 				.utmi_bvalid = { 0x10248, 9, 9, 0, 1 },
 				.utmi_iddig = { 0x10248, 6, 6, 0, 1 },
 				.utmi_hostdet = { 0x10248, 7, 7, 0, 1 },
@@ -1577,7 +1577,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 				.ls_det_en = { 0x10300, 1, 1, 0, 1 },
 				.ls_det_st = { 0x10304, 1, 1, 0, 1 },
 				.ls_det_clr = { 0x10308, 1, 1, 0, 1 },
-				.phy_sus = { 0x10238, 3, 0, 0x2, 0x9 },
+				.phy_sus = { 0x10238, 3, 0, 0x2, 0x5 },
 				.utmi_hostdet = { 0x10248, 23, 23, 0, 1 },
 			}
 		},
