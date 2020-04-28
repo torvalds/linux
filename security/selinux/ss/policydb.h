@@ -263,13 +263,13 @@ struct policydb {
 	struct avtab te_avtab;
 
 	/* role transitions */
-	struct hashtab *role_tr;
+	struct hashtab role_tr;
 
 	/* file transitions with the last path component */
 	/* quickly exclude lookups when parent ttype has no rules */
 	struct ebitmap filename_trans_ttypes;
 	/* actual set of filename_trans rules */
-	struct hashtab *filename_trans;
+	struct hashtab filename_trans;
 	/* only used if policyvers < POLICYDB_VERSION_COMP_FTRANS */
 	u32 compat_filename_trans_count;
 
@@ -294,7 +294,7 @@ struct policydb {
 	struct genfs *genfs;
 
 	/* range transitions table (range_trans_key -> mls_range) */
-	struct hashtab *range_tr;
+	struct hashtab range_tr;
 
 	/* type -> attribute reverse mapping */
 	struct ebitmap *type_attr_map_array;
