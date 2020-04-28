@@ -16,6 +16,8 @@
 
 #include "internals.h"
 
+#define ONFI_PARAM_PAGES 3
+
 u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
 {
 	int i;
@@ -156,7 +158,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 		return 0;
 
 	/* ONFI chip: allocate a buffer to hold its parameter page */
-	p = kzalloc((sizeof(*p) * 3), GFP_KERNEL);
+	p = kzalloc((sizeof(*p) * ONFI_PARAM_PAGES), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -166,7 +168,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 		goto free_onfi_param_page;
 	}
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < ONFI_PARAM_PAGES; i++) {
 		ret = nand_read_data_op(chip, &p[i], sizeof(*p), true);
 		if (ret) {
 			ret = 0;
@@ -181,11 +183,15 @@ int nand_onfi_detect(struct nand_chip *chip)
 		}
 	}
 
-	if (i == 3) {
-		const void *srcbufs[3] = {p, p + 1, p + 2};
+	if (i == ONFI_PARAM_PAGES) {
+		const void *srcbufs[ONFI_PARAM_PAGES];
+		unsigned int j;
+
+		for (j = 0; j < ONFI_PARAM_PAGES; j++)
+			srcbufs[j] = p + j;
 
 		pr_warn("Could not find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
-		nand_bit_wise_majority(srcbufs, ARRAY_SIZE(srcbufs), p,
+		nand_bit_wise_majority(srcbufs, ONFI_PARAM_PAGES, p,
 				       sizeof(*p));
 
 		crc = onfi_crc16(ONFI_CRC_BASE, (u8 *)p, 254);
