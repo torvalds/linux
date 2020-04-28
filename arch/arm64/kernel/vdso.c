@@ -206,11 +206,16 @@ static int aarch32_vdso_mremap(const struct vm_special_mapping *sm,
 #define C_SIGPAGE	1
 #define C_PAGES		(C_SIGPAGE + 1)
 #endif /* CONFIG_COMPAT_VDSO */
-static struct page *aarch32_vdso_pages[C_PAGES] __ro_after_init;
+
+static struct page *aarch32_vectors_page __ro_after_init;
+#ifndef CONFIG_COMPAT_VDSO
+static struct page *aarch32_sig_page __ro_after_init;
+#endif
+
 static struct vm_special_mapping aarch32_vdso_spec[C_PAGES] = {
 	{
 		.name	= "[vectors]", /* ABI */
-		.pages	= &aarch32_vdso_pages[C_VECTORS],
+		.pages	= &aarch32_vectors_page,
 	},
 #ifdef CONFIG_COMPAT_VDSO
 	{
@@ -223,7 +228,7 @@ static struct vm_special_mapping aarch32_vdso_spec[C_PAGES] = {
 #else
 	{
 		.name	= "[sigpage]", /* ABI */
-		.pages	= &aarch32_vdso_pages[C_SIGPAGE],
+		.pages	= &aarch32_sig_page,
 	},
 #endif /* CONFIG_COMPAT_VDSO */
 };
@@ -243,8 +248,8 @@ static int aarch32_alloc_kuser_vdso_page(void)
 
 	memcpy((void *)(vdso_page + 0x1000 - kuser_sz), __kuser_helper_start,
 	       kuser_sz);
-	aarch32_vdso_pages[C_VECTORS] = virt_to_page(vdso_page);
-	flush_dcache_page(aarch32_vdso_pages[C_VECTORS]);
+	aarch32_vectors_page = virt_to_page(vdso_page);
+	flush_dcache_page(aarch32_vectors_page);
 	return 0;
 }
 
@@ -275,8 +280,8 @@ static int __aarch32_alloc_vdso_pages(void)
 		return -ENOMEM;
 
 	memcpy((void *)sigpage, __aarch32_sigret_code_start, sigret_sz);
-	aarch32_vdso_pages[C_SIGPAGE] = virt_to_page(sigpage);
-	flush_dcache_page(aarch32_vdso_pages[C_SIGPAGE]);
+	aarch32_sig_page = virt_to_page(sigpage);
+	flush_dcache_page(aarch32_sig_page);
 
 	ret = aarch32_alloc_kuser_vdso_page();
 	if (ret)
