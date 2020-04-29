@@ -449,17 +449,14 @@ static void recv_mbox_handler(struct hinic_mbox_func_to_func *func_to_func,
 		return;
 	}
 
-	rcv_mbox_temp = kzalloc(sizeof(*rcv_mbox_temp), GFP_KERNEL);
+	rcv_mbox_temp = kmemdup(recv_mbox, sizeof(*rcv_mbox_temp), GFP_KERNEL);
 	if (!rcv_mbox_temp)
 		return;
 
-	memcpy(rcv_mbox_temp, recv_mbox, sizeof(*rcv_mbox_temp));
-
-	rcv_mbox_temp->mbox = kzalloc(MBOX_MAX_BUF_SZ, GFP_KERNEL);
+	rcv_mbox_temp->mbox = kmemdup(recv_mbox->mbox, MBOX_MAX_BUF_SZ,
+				      GFP_KERNEL);
 	if (!rcv_mbox_temp->mbox)
 		goto err_alloc_rcv_mbox_msg;
-
-	memcpy(rcv_mbox_temp->mbox, recv_mbox->mbox, MBOX_MAX_BUF_SZ);
 
 	rcv_mbox_temp->buf_out = kzalloc(MBOX_MAX_BUF_SZ, GFP_KERNEL);
 	if (!rcv_mbox_temp->buf_out)
