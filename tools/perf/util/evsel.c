@@ -1283,8 +1283,8 @@ void evsel__delete(struct evsel *evsel)
 	free(evsel);
 }
 
-void perf_evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
-				struct perf_counts_values *count)
+void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
+			   struct perf_counts_values *count)
 {
 	struct perf_counts_values tmp;
 
@@ -1440,7 +1440,7 @@ int __perf_evsel__read_on_cpu(struct evsel *evsel,
 	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) <= 0)
 		return -errno;
 
-	perf_evsel__compute_deltas(evsel, cpu, thread, &count);
+	evsel__compute_deltas(evsel, cpu, thread, &count);
 	perf_counts_values__scale(&count, scale, NULL);
 	*perf_counts(evsel->counts, cpu, thread) = count;
 	return 0;

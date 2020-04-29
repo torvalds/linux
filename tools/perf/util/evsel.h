@@ -151,8 +151,8 @@ static inline int evsel__nr_cpus(struct evsel *evsel)
 void perf_counts_values__scale(struct perf_counts_values *count,
 			       bool scale, s8 *pscaled);
 
-void perf_evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
-				struct perf_counts_values *count);
+void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
+			   struct perf_counts_values *count);
 
 int perf_evsel__object_config(size_t object_size,
 			      int (*init)(struct evsel *evsel),
