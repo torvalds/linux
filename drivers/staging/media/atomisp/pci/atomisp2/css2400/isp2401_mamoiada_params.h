@@ -43,29 +43,6 @@
 #define ISP_VMEM_BSEL_DOWNSAMPLE               8
 #define ISP_VMEM_ELEMBITS                      14
 #define ISP_VMEM_ELEM_PRECISION                14
-#define ISP_VMEM_IS_BAMEM                      1
-#if ISP_VMEM_IS_BAMEM
-#define ISP_VMEM_BAMEM_MAX_BOI_HEIGHT        8
-#define ISP_VMEM_BAMEM_LATENCY               5
-#define ISP_VMEM_BAMEM_BANK_NARROWING_FACTOR 2
-#define ISP_VMEM_BAMEM_NR_DATA_PLANES        8
-#define ISP_VMEM_BAMEM_NR_CFG_REGISTERS      16
-#define ISP_VMEM_BAMEM_LININT                0
-#define ISP_VMEM_BAMEM_DAP_BITS              3
-#define ISP_VMEM_BAMEM_LININT_FRAC_BITS      0
-#define ISP_VMEM_BAMEM_PID_BITS              3
-#define ISP_VMEM_BAMEM_OFFSET_BITS           19
-#define ISP_VMEM_BAMEM_ADDRESS_BITS          25
-#define ISP_VMEM_BAMEM_RID_BITS              4
-#define ISP_VMEM_BAMEM_TRANSPOSITION         1
-#define ISP_VMEM_BAMEM_VEC_PLUS_SLICE        1
-#define ISP_VMEM_BAMEM_ARB_SERVICE_CYCLE_BITS 1
-#define ISP_VMEM_BAMEM_LUT_ELEMS             16
-#define ISP_VMEM_BAMEM_LUT_ADDR_WIDTH        14
-#define ISP_VMEM_BAMEM_HALF_BLOCK_WRITE      1
-#define ISP_VMEM_BAMEM_SMART_FETCH           1
-#define ISP_VMEM_BAMEM_BIG_ENDIANNESS        0
-#endif /* ISP_VMEM_IS_BAMEM */
 #define ISP_PMEM_DEPTH                         2048
 #define ISP_PMEM_WIDTH                         640
 #define ISP_VAMEM_ADDRESS_BITS                 12
@@ -165,9 +142,6 @@
 #define ISP_SLICE_WIDTH                        56
 #define ISP_VMEM_WIDTH                         896
 #define ISP_VMEM_ALIGN                         128
-#if ISP_VMEM_IS_BAMEM
-#define ISP_VMEM_ALIGN_ELEM                  2
-#endif /* ISP_VMEM_IS_BAMEM */
 #define ISP_SIMDLSU                            1
 #define ISP_LSU_IMM_BITS                       12
 
