@@ -1122,7 +1122,7 @@ struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm)
 	return p;
 }
 
-/* process_evict_queues - Evict all user queues of a process
+/* kfd_process_evict_queues - Evict all user queues of a process
  *
  * Eviction is reference-counted per process-device. This means multiple
  * evictions from different sources can be nested safely.
@@ -1162,7 +1162,7 @@ fail:
 	return r;
 }
 
-/* process_restore_queues - Restore all user queues of a process */
+/* kfd_process_restore_queues - Restore all user queues of a process */
 int kfd_process_restore_queues(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
