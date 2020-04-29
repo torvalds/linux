@@ -472,62 +472,56 @@ int vnt_radio_power_on(struct vnt_private *priv)
 int vnt_set_bss_mode(struct vnt_private *priv)
 {
 	int ret;
+	unsigned char type = priv->bb_type;
+	unsigned char data = 0;
+	unsigned char bb_vga_0 = 0x1c;
+	unsigned char bb_vga_2_3 = 0x00;
 
 	if (priv->rf_type == RF_AIROHA7230 && priv->bb_type == BB_TYPE_11A)
-		ret = vnt_mac_set_bb_type(priv, BB_TYPE_11G);
-	else
-		ret = vnt_mac_set_bb_type(priv, priv->bb_type);
+		type = BB_TYPE_11G;
 
+	ret = vnt_mac_set_bb_type(priv, type);
 	if (ret)
 		return ret;
 
 	priv->packet_type = vnt_get_pkt_type(priv);
 
-	if (priv->bb_type == BB_TYPE_11A)
+	if (priv->bb_type == BB_TYPE_11A) {
+		data = 0x03;
+		bb_vga_0 = 0x20;
+		bb_vga_2_3 = 0x10;
+	} else if (priv->bb_type == BB_TYPE_11B) {
+		data = 0x02;
+	} else if (priv->bb_type == BB_TYPE_11G) {
+		data = 0x08;
+	}
+
+	if (data) {
 		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					 0x88, 0x03);
-	else if (priv->bb_type == BB_TYPE_11B)
-		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					 0x88, 0x02);
-	else if (priv->bb_type == BB_TYPE_11G)
-		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					 0x88, 0x08);
-	if (ret)
-		return ret;
+					 0x88, data);
+		if (ret)
+			return ret;
+	}
 
 	ret = vnt_update_ifs(priv);
 	if (ret)
 		return ret;
 
-	ret = vnt_set_rspinf(priv, (u8)priv->bb_type);
+	ret = vnt_set_rspinf(priv, priv->bb_type);
 	if (ret)
 		return ret;
 
-	if (priv->bb_type == BB_TYPE_11A) {
-		if (priv->rf_type == RF_AIROHA7230) {
-			priv->bb_vga[0] = 0x20;
+	if (priv->rf_type == RF_AIROHA7230) {
+		priv->bb_vga[0] = bb_vga_0;
 
-			ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						 0xe7, priv->bb_vga[0]);
-			if (ret)
-				return ret;
-		}
-
-		priv->bb_vga[2] = 0x10;
-		priv->bb_vga[3] = 0x10;
-	} else {
-		if (priv->rf_type == RF_AIROHA7230) {
-			priv->bb_vga[0] = 0x1c;
-
-			ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						 0xe7, priv->bb_vga[0]);
-			if (ret)
-				return ret;
-		}
-
-		priv->bb_vga[2] = 0x0;
-		priv->bb_vga[3] = 0x0;
+		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
+					 0xe7, priv->bb_vga[0]);
+		if (ret)
+			return ret;
 	}
+
+	priv->bb_vga[2] = bb_vga_2_3;
+	priv->bb_vga[3] = bb_vga_2_3;
 
 	return vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 }
