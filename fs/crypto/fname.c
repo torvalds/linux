@@ -583,4 +583,4 @@ int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	return valid;
 }
-EXPORT_SYMBOL(fscrypt_d_revalidate);
+EXPORT_SYMBOL_GPL(fscrypt_d_revalidate);
