@@ -556,7 +556,8 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_rps *rps = &gt->rps;
 
-	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
+	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
+	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
 	seq_printf(m, "GPU busy? %s\n", yesno(gt->awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
@@ -576,7 +577,7 @@ static int rps_boost_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
-	if (INTEL_GEN(i915) >= 6 && rps->enabled && gt->awake) {
+	if (INTEL_GEN(i915) >= 6 && intel_rps_is_active(rps)) {
 		struct intel_uncore *uncore = gt->uncore;
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;

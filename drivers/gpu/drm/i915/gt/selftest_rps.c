@@ -183,7 +183,7 @@ static u8 wait_for_freq(struct intel_rps *rps, u8 freq, int timeout_ms)
 static u8 rps_set_check(struct intel_rps *rps, u8 freq)
 {
 	mutex_lock(&rps->lock);
-	GEM_BUG_ON(!rps->active);
+	GEM_BUG_ON(!intel_rps_is_active(rps));
 	intel_rps_set(rps, freq);
 	GEM_BUG_ON(rps->last_freq != freq);
 	mutex_unlock(&rps->lock);
@@ -218,7 +218,7 @@ int live_rps_clock_interval(void *arg)
 	struct igt_spinner spin;
 	int err = 0;
 
-	if (!rps->enabled)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -364,7 +364,7 @@ int live_rps_control(void *arg)
 	 * will be lowered than requested.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (IS_CHERRYVIEW(gt->i915)) /* XXX fragile PCU */
@@ -595,7 +595,7 @@ int live_rps_frequency_cs(void *arg)
 	 * frequency, the actual frequency, and the observed clock rate.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
@@ -737,7 +737,7 @@ int live_rps_frequency_srm(void *arg)
 	 * frequency, the actual frequency, and the observed clock rate.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
@@ -904,7 +904,7 @@ static int __rps_up_interrupt(struct intel_rps *rps,
 		return -EIO;
 	}
 
-	if (!rps->active) {
+	if (!intel_rps_is_active(rps)) {
 		pr_err("%s: RPS not enabled on starting spinner\n",
 		       engine->name);
 		igt_spinner_end(spin);
@@ -1017,7 +1017,7 @@ int live_rps_interrupt(void *arg)
 	 * First, let's check whether or not we are receiving interrupts.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	intel_gt_pm_get(gt);
@@ -1041,7 +1041,7 @@ int live_rps_interrupt(void *arg)
 			unsigned long saved_heartbeat;
 
 			intel_gt_pm_wait_for_idle(engine->gt);
-			GEM_BUG_ON(rps->active);
+			GEM_BUG_ON(intel_rps_is_active(rps));
 
 			saved_heartbeat = engine_heartbeat_disable(engine);
 
@@ -1126,7 +1126,7 @@ int live_rps_power(void *arg)
 	 * that theory.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (!librapl_energy_uJ())
@@ -1231,7 +1231,7 @@ int live_rps_dynamic(void *arg)
 	 * moving parts into dynamic reclocking based on load.
 	 */
 
-	if (!rps->enabled || rps->max_freq <= rps->min_freq)
+	if (!intel_rps_is_enabled(rps))
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -1248,7 +1248,7 @@ int live_rps_dynamic(void *arg)
 			continue;
 
 		intel_gt_pm_wait_for_idle(gt);
-		GEM_BUG_ON(rps->active);
+		GEM_BUG_ON(intel_rps_is_active(rps));
 		rps->cur_freq = rps->min_freq;
 
 		intel_engine_pm_get(engine);
