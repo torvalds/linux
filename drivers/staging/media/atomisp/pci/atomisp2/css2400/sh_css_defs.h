@@ -252,13 +252,39 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	CEIL_MUL(_ISP_MORPH_TABLE_WIDTH(width), \
 		 SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD)
 
-#define _ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+#define _ISP2400_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + 1)
-#define _ISP_SCTBL_HEIGHT(input_height, deci_factor_log2) \
+#define _ISP2400_SCTBL_HEIGHT(input_height, deci_factor_log2) \
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + 1)
-#define _ISP_SCTBL_ALIGNED_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+#define _ISP2400_SCTBL_ALIGNED_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	CEIL_MUL(_ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2), \
 		 ISP_VEC_NELEMS)
+
+/* To position the shading center grid point on the center of output image,
+ * one more grid cell is needed as margin. */
+#define SH_CSS_SCTBL_CENTERING_MARGIN	1
+
+/* The shading table width and height are the number of grids, not cells. The last grid should be counted. */
+#define SH_CSS_SCTBL_LAST_GRID_COUNT	1
+
+/* Number of horizontal grids per color in the shading table. */
+#define _ISP2401_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + \
+	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
+
+/* Number of vertical grids per color in the shading table. */
+#define _ISP2401_SCTBL_HEIGHT(input_height, deci_factor_log2) \
+	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + \
+	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
+
+
+/* ISP2401: Legacy API: Number of horizontal grids per color in the shading table. */
+#define _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
+
+/* ISP2401: Legacy API: Number of vertical grids per color in the shading table. */
+#define _ISP_SCTBL_LEGACY_HEIGHT(input_height, deci_factor_log2) \
+	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
 
 
 /* *****************************************************************

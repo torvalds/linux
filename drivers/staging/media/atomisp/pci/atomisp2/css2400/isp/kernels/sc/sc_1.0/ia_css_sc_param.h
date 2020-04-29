@@ -17,33 +17,6 @@
 
 #include "type_support.h"
 
-/* To position the shading center grid point on the center of output image,
- * one more grid cell is needed as margin. */
-#define SH_CSS_SCTBL_CENTERING_MARGIN	1
-
-/* The shading table width and height are the number of grids, not cells. The last grid should be counted. */
-#define SH_CSS_SCTBL_LAST_GRID_COUNT	1
-
-#ifdef ISP2401
-/* Number of horizontal grids per color in the shading table. */
-#define _ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
-	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + \
-	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
-
-/* Number of vertical grids per color in the shading table. */
-#define _ISP_SCTBL_HEIGHT(input_height, deci_factor_log2) \
-	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + \
-	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
-#endif
-
-/* Legacy API: Number of horizontal grids per color in the shading table. */
-#define _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
-	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
-
-/* Legacy API: Number of vertical grids per color in the shading table. */
-#define _ISP_SCTBL_LEGACY_HEIGHT(input_height, deci_factor_log2) \
-	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
-
 /* SC (Shading Corrction) */
 struct sh_css_isp_sc_params {
 	s32 gain_shift;
