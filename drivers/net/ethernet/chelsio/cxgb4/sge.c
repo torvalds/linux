@@ -2728,6 +2728,7 @@ static void ofldtxq_stop(struct sge_uld_txq *q, struct fw_wr_hdr *wr)
  *	is ever running at a time ...
  */
 static void service_ofldq(struct sge_uld_txq *q)
+	__must_hold(&q->sendq.lock)
 {
 	u64 *pos, *before, *end;
 	int credits;
