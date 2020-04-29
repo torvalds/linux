@@ -248,6 +248,10 @@ struct iommu_iotlb_gather {
  * @cache_invalidate: invalidate translation caches
  * @sva_bind_gpasid: bind guest pasid and mm
  * @sva_unbind_gpasid: unbind guest pasid and mm
+ * @def_domain_type: device default domain type, return value:
+ *		- IOMMU_DOMAIN_IDENTITY: must use an identity domain
+ *		- IOMMU_DOMAIN_DMA: must use a dma domain
+ *		- 0: use the default setting
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  * @owner: Driver module providing these ops
  */
@@ -317,6 +321,8 @@ struct iommu_ops {
 			struct device *dev, struct iommu_gpasid_bind_data *data);
 
 	int (*sva_unbind_gpasid)(struct device *dev, int pasid);
+
+	int (*def_domain_type)(struct device *dev);
 
 	unsigned long pgsize_bitmap;
 	struct module *owner;

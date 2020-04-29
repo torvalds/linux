@@ -1361,21 +1361,35 @@ struct iommu_group *fsl_mc_device_group(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_group);
 
+static int iommu_get_def_domain_type(struct device *dev)
+{
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+	unsigned int type = 0;
+
+	if (ops->def_domain_type)
+		type = ops->def_domain_type(dev);
+
+	return (type == 0) ? iommu_def_domain_type : type;
+}
+
 static int iommu_alloc_default_domain(struct device *dev,
 				      struct iommu_group *group)
 {
 	struct iommu_domain *dom;
+	unsigned int type;
 
 	if (group->default_domain)
 		return 0;
 
-	dom = __iommu_domain_alloc(dev->bus, iommu_def_domain_type);
-	if (!dom && iommu_def_domain_type != IOMMU_DOMAIN_DMA) {
+	type = iommu_get_def_domain_type(dev);
+
+	dom = __iommu_domain_alloc(dev->bus, type);
+	if (!dom && type != IOMMU_DOMAIN_DMA) {
 		dom = __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_DMA);
 		if (dom) {
 			dev_warn(dev,
 				 "failed to allocate default IOMMU domain of type %u; falling back to IOMMU_DOMAIN_DMA",
-				 iommu_def_domain_type);
+				 type);
 		}
 	}
 
