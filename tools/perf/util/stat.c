@@ -173,7 +173,7 @@ static void perf_evsel__reset_prev_raw_counts(struct evsel *evsel)
 
 static int perf_evsel__alloc_stats(struct evsel *evsel, bool alloc_raw)
 {
-	int ncpus = perf_evsel__nr_cpus(evsel);
+	int ncpus = evsel__nr_cpus(evsel);
 	int nthreads = perf_thread_map__nr(evsel->core.threads);
 
 	if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
@@ -334,7 +334,7 @@ static int process_counter_maps(struct perf_stat_config *config,
 				struct evsel *counter)
 {
 	int nthreads = perf_thread_map__nr(counter->core.threads);
-	int ncpus = perf_evsel__nr_cpus(counter);
+	int ncpus = evsel__nr_cpus(counter);
 	int cpu, thread;
 
 	if (counter->core.system_wide)

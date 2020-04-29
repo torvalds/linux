@@ -143,7 +143,7 @@ static inline struct perf_cpu_map *evsel__cpus(struct evsel *evsel)
 	return perf_evsel__cpus(&evsel->core);
 }
 
-static inline int perf_evsel__nr_cpus(struct evsel *evsel)
+static inline int evsel__nr_cpus(struct evsel *evsel)
 {
 	return evsel__cpus(evsel)->nr;
 }
