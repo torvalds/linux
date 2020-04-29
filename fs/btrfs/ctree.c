@@ -1668,15 +1668,8 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 {
 	int low = 0;
 	int high = max;
-	int mid;
 	int ret;
-	struct btrfs_disk_key *tmp = NULL;
-	struct btrfs_disk_key unaligned;
-	unsigned long offset;
-	char *kaddr = NULL;
-	unsigned long map_start = 0;
-	unsigned long map_len = 0;
-	int err;
+	const int key_size = sizeof(struct btrfs_disk_key);
 
 	if (low > high) {
 		btrfs_err(eb->fs_info,
@@ -1687,32 +1680,26 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 	}
 
 	while (low < high) {
+		unsigned long oip;
+		unsigned long offset;
+		struct btrfs_disk_key *tmp;
+		struct btrfs_disk_key unaligned;
+		int mid;
+
 		mid = (low + high) / 2;
 		offset = p + mid * item_size;
+		oip = offset_in_page(offset);
 
-		if (!kaddr || offset < map_start ||
-		    (offset + sizeof(struct btrfs_disk_key)) >
-		    map_start + map_len) {
+		if (oip + key_size <= PAGE_SIZE) {
+			const unsigned long idx = offset >> PAGE_SHIFT;
+			char *kaddr = page_address(eb->pages[idx]);
 
-			err = map_private_extent_buffer(eb, offset,
-						sizeof(struct btrfs_disk_key),
-						&kaddr, &map_start, &map_len);
-
-			if (!err) {
-				tmp = (struct btrfs_disk_key *)(kaddr + offset -
-							map_start);
-			} else if (err == 1) {
-				read_extent_buffer(eb, &unaligned,
-						   offset, sizeof(unaligned));
-				tmp = &unaligned;
-			} else {
-				return err;
-			}
-
+			tmp = (struct btrfs_disk_key *)(kaddr + oip);
 		} else {
-			tmp = (struct btrfs_disk_key *)(kaddr + offset -
-							map_start);
+			read_extent_buffer(eb, &unaligned, offset, key_size);
+			tmp = &unaligned;
 		}
+
 		ret = comp_keys(tmp, key);
 
 		if (ret < 0)
