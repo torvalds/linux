@@ -1345,6 +1345,23 @@ static void g4x_invalidate_wms(struct intel_crtc *crtc,
 	}
 }
 
+static bool g4x_compute_fbc_en(const struct g4x_wm_state *wm_state,
+			       int level)
+{
+	if (level < G4X_WM_LEVEL_SR)
+		return false;
+
+	if (level >= G4X_WM_LEVEL_SR &&
+	    wm_state->sr.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_SR))
+		return false;
+
+	if (level >= G4X_WM_LEVEL_HPLL &&
+	    wm_state->hpll.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_HPLL))
+		return false;
+
+	return true;
+}
+
 static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1384,7 +1401,6 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		wm_state->wm.plane[plane_id] = raw->plane[plane_id];
 
 	level = G4X_WM_LEVEL_SR;
-
 	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
 		goto out;
 
@@ -1396,7 +1412,6 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	wm_state->cxsr = num_active_planes == BIT(PLANE_PRIMARY);
 
 	level = G4X_WM_LEVEL_HPLL;
-
 	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
 		goto out;
 
@@ -1419,17 +1434,11 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	/*
 	 * Determine if the FBC watermark(s) can be used. IF
 	 * this isn't the case we prefer to disable the FBC
-	 ( watermark(s) rather than disable the SR/HPLL
-	 * level(s) entirely.
+	 * watermark(s) rather than disable the SR/HPLL
+	 * level(s) entirely. 'level-1' is the highest valid
+	 * level here.
 	 */
-	wm_state->fbc_en = level > G4X_WM_LEVEL_NORMAL;
-
-	if (level >= G4X_WM_LEVEL_SR &&
-	    wm_state->sr.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_SR))
-		wm_state->fbc_en = false;
-	else if (level >= G4X_WM_LEVEL_HPLL &&
-		 wm_state->hpll.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_HPLL))
-		wm_state->fbc_en = false;
+	wm_state->fbc_en = g4x_compute_fbc_en(wm_state, level - 1);
 
 	return 0;
 }
