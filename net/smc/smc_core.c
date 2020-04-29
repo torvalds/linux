@@ -412,8 +412,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
 		memcpy(lgr->peer_systemid, ini->ib_lcl->id_for_peer,
 		       SMC_SYSTEMID_LEN);
-		INIT_LIST_HEAD(&lgr->llc_event_q);
-		spin_lock_init(&lgr->llc_event_q_lock);
+		smc_llc_lgr_init(lgr, smc);
+
 		link_idx = SMC_SINGLE_LINK;
 		lnk = &lgr->lnk[link_idx];
 		rc = smcr_link_init(lgr, lnk, link_idx, ini);
@@ -614,7 +614,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 			if (lgr->lnk[i].state != SMC_LNK_UNUSED)
 				smcr_link_clear(&lgr->lnk[i]);
 		}
-		smc_llc_event_flush(lgr);
+		smc_llc_lgr_clear(lgr);
 		if (!atomic_dec_return(&lgr_cnt))
 			wake_up(&lgrs_deleted);
 	}

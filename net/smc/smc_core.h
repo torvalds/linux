@@ -238,6 +238,8 @@ struct smc_link_group {
 						/* protects llc_event_q */
 			struct work_struct	llc_event_work;
 						/* llc event worker */
+			int			llc_testlink_time;
+						/* link keep alive time */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;

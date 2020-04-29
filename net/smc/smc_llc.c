@@ -493,7 +493,7 @@ static void smc_llc_rx_delete_rkey(struct smc_link *link,
 }
 
 /* flush the llc event queue */
-void smc_llc_event_flush(struct smc_link_group *lgr)
+static void smc_llc_event_flush(struct smc_link_group *lgr)
 {
 	struct smc_llc_qentry *qentry, *q;
 
@@ -669,6 +669,23 @@ out:
 	schedule_delayed_work(&link->llc_testlink_wrk, next_interval);
 }
 
+void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
+{
+	struct net *net = sock_net(smc->clcsock->sk);
+
+	INIT_WORK(&lgr->llc_event_work, smc_llc_event_work);
+	INIT_LIST_HEAD(&lgr->llc_event_q);
+	spin_lock_init(&lgr->llc_event_q_lock);
+	lgr->llc_testlink_time = net->ipv4.sysctl_tcp_keepalive_time;
+}
+
+/* called after lgr was removed from lgr_list */
+void smc_llc_lgr_clear(struct smc_link_group *lgr)
+{
+	smc_llc_event_flush(lgr);
+	cancel_work_sync(&lgr->llc_event_work);
+}
+
 int smc_llc_link_init(struct smc_link *link)
 {
 	init_completion(&link->llc_confirm);
@@ -679,16 +696,15 @@ int smc_llc_link_init(struct smc_link *link)
 	init_completion(&link->llc_delete_rkey_resp);
 	mutex_init(&link->llc_delete_rkey_mutex);
 	init_completion(&link->llc_testlink_resp);
-	INIT_WORK(&link->lgr->llc_event_work, smc_llc_event_work);
 	INIT_DELAYED_WORK(&link->llc_testlink_wrk, smc_llc_testlink_work);
 	return 0;
 }
 
-void smc_llc_link_active(struct smc_link *link, int testlink_time)
+void smc_llc_link_active(struct smc_link *link)
 {
 	link->state = SMC_LNK_ACTIVE;
-	if (testlink_time) {
-		link->llc_testlink_time = testlink_time * HZ;
+	if (link->lgr->llc_testlink_time) {
+		link->llc_testlink_time = link->lgr->llc_testlink_time * HZ;
 		schedule_delayed_work(&link->llc_testlink_wrk,
 				      link->llc_testlink_time);
 	}
