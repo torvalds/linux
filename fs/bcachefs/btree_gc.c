@@ -701,8 +701,10 @@ static int bch2_gc_start(struct bch_fs *c,
 
 	c->usage_gc = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
 					 sizeof(u64), GFP_KERNEL);
-	if (!c->usage_gc)
+	if (!c->usage_gc) {
+		bch_err(c, "error allocating c->usage_gc");
 		return -ENOMEM;
+	}
 
 	for_each_member_device(ca, c, i) {
 		BUG_ON(ca->buckets[1]);
@@ -713,19 +715,23 @@ static int bch2_gc_start(struct bch_fs *c,
 				GFP_KERNEL|__GFP_ZERO);
 		if (!ca->buckets[1]) {
 			percpu_ref_put(&ca->ref);
+			bch_err(c, "error allocating ca->buckets[gc]");
 			return -ENOMEM;
 		}
 
 		ca->usage[1] = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage[1]) {
+			bch_err(c, "error allocating ca->usage[gc]");
 			percpu_ref_put(&ca->ref);
 			return -ENOMEM;
 		}
 	}
 
 	ret = bch2_ec_mem_alloc(c, true);
-	if (ret)
+	if (ret) {
+		bch_err(c, "error allocating ec gc mem");
 		return ret;
+	}
 
 	percpu_down_write(&c->mark_lock);
 
