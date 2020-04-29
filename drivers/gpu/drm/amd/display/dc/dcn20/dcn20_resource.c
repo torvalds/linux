@@ -2836,8 +2836,8 @@ bool dcn20_fast_validate_bw(
 					dcn20_split_stream_for_mpc(
 							&context->res_ctx, dc->res_pool,
 							pipe, hsplit_pipe);
-					if (!resource_build_scaling_params(pipe) || !resource_build_scaling_params(hsplit_pipe))
-						goto validate_fail;
+					resource_build_scaling_params(pipe);
+					resource_build_scaling_params(hsplit_pipe);
 				}
 				pipe_split_from[hsplit_pipe->pipe_idx] = pipe_idx;
 			}
