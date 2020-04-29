@@ -128,6 +128,27 @@
 	};
 };
 
+&adc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&adc12_ain_pins_b>;
+	vdd-supply = <&vdd>;
+	vdda-supply = <&vdda>;
+	vref-supply = <&vdda>;
+	status = "okay";
+
+	adc1: adc@0 {
+		st,adc-channels = <0 1 6>;
+		st,min-sample-time-nsecs = <5000>;
+		status = "okay";
+	};
+
+	adc2: adc@100 {
+		st,adc-channels = <0 1 2>;
+		st,min-sample-time-nsecs = <5000>;
+		status = "okay";
+	};
+};
+
 &ethernet0 {
 	status = "okay";
 	pinctrl-0 = <&ethernet0_rgmii_pins_c>;
