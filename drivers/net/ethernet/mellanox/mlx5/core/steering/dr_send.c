@@ -100,14 +100,10 @@ static int dr_poll_cq(struct mlx5dr_cq *dr_cq, int ne)
 	return err == CQ_POLL_ERR ? err : npolled;
 }
 
-static void dr_qp_event(struct mlx5_core_qp *mqp, int event)
-{
-	pr_info("DR QP event %u on QP #%u\n", event, mqp->qpn);
-}
-
 static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 					 struct dr_qp_init_attr *attr)
 {
+	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	u32 temp_qpc[MLX5_ST_SZ_DW(qpc)] = {};
 	struct mlx5_wq_param wqp;
 	struct mlx5dr_qp *dr_qp;
@@ -180,14 +176,12 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 				  (__be64 *)MLX5_ADDR_OF(create_qp_in,
 							 in, pas));
 
-	err = mlx5_core_create_qp(mdev, &dr_qp->mqp, in, inlen);
+	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
+	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
+	dr_qp->qpn = MLX5_GET(create_qp_out, out, qpn);
 	kfree(in);
-
-	if (err) {
-		mlx5_core_warn(mdev, " Can't create QP\n");
+	if (err)
 		goto err_in;
-	}
-	dr_qp->mqp.event = dr_qp_event;
 	dr_qp->uar = attr->uar;
 
 	return dr_qp;
@@ -204,7 +198,12 @@ err_wq:
 static void dr_destroy_qp(struct mlx5_core_dev *mdev,
 			  struct mlx5dr_qp *dr_qp)
 {
-	mlx5_core_destroy_qp(mdev, &dr_qp->mqp);
+	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
+
+	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
+	MLX5_SET(destroy_qp_in, in, qpn, dr_qp->qpn);
+	mlx5_cmd_exec_in(mdev, destroy_qp, in);
+
 	kfree(dr_qp->sq.wqe_head);
 	mlx5_wq_destroy(&dr_qp->wq_ctrl);
 	kfree(dr_qp);
@@ -242,7 +241,7 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 		MLX5_WQE_CTRL_CQ_UPDATE : 0;
 	wq_ctrl->opmod_idx_opcode = cpu_to_be32(((dr_qp->sq.pc & 0xffff) << 8) |
 						opcode);
-	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->mqp.qpn << 8);
+	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->qpn << 8);
 	wq_raddr = (void *)(wq_ctrl + 1);
 	wq_raddr->raddr = cpu_to_be64(remote_addr);
 	wq_raddr->rkey = cpu_to_be32(rkey);
@@ -585,8 +584,10 @@ static int dr_modify_qp_rst2init(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, rre, 1);
 	MLX5_SET(qpc, qpc, rwe, 1);
 
-	return mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, qpc,
-				   &dr_qp->mqp);
+	MLX5_SET(rst2init_qp_in, in, opcode, MLX5_CMD_OP_RST2INIT_QP);
+	MLX5_SET(rst2init_qp_in, in, qpn, dr_qp->qpn);
+
+	return mlx5_cmd_exec_in(mdev, rst2init_qp, in);
 }
 
 static int dr_cmd_modify_qp_rtr2rts(struct mlx5_core_dev *mdev,
@@ -598,14 +599,15 @@ static int dr_cmd_modify_qp_rtr2rts(struct mlx5_core_dev *mdev,
 
 	qpc  = MLX5_ADDR_OF(rtr2rts_qp_in, in, qpc);
 
-	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
 
-	MLX5_SET(qpc, qpc, log_ack_req_freq, 0);
 	MLX5_SET(qpc, qpc, retry_count, attr->retry_cnt);
 	MLX5_SET(qpc, qpc, rnr_retry, attr->rnr_retry);
 
-	return mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RTR2RTS_QP, 0, qpc,
-				   &dr_qp->mqp);
+	MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
+	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
+
+	return mlx5_cmd_exec_in(mdev, rtr2rts_qp, in);
 }
 
 static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
@@ -617,7 +619,7 @@ static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
 
 	qpc = MLX5_ADDR_OF(init2rtr_qp_in, in, qpc);
 
-	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->mqp.qpn);
+	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->qpn);
 
 	MLX5_SET(qpc, qpc, mtu, attr->mtu);
 	MLX5_SET(qpc, qpc, log_msg_max, DR_CHUNK_SIZE_MAX - 1);
@@ -636,8 +638,10 @@ static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, attr->port_num);
 	MLX5_SET(qpc, qpc, min_rnr_nak, 1);
 
-	return mlx5_core_qp_modify(mdev, MLX5_CMD_OP_INIT2RTR_QP, 0, qpc,
-				   &dr_qp->mqp);
+	MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
+	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->qpn);
+
+	return mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
 }
 
 static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
@@ -663,7 +667,7 @@ static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
 		return ret;
 
 	rtr_attr.mtu		= mtu;
-	rtr_attr.qp_num		= dr_qp->mqp.qpn;
+	rtr_attr.qp_num		= dr_qp->qpn;
 	rtr_attr.min_rnr_timer	= 12;
 	rtr_attr.port_num	= port;
 	rtr_attr.sgid_index	= gid_index;
@@ -687,12 +691,6 @@ static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
 	}
 
 	return 0;
-}
-
-static void dr_cq_event(struct mlx5_core_cq *mcq,
-			enum mlx5_event event)
-{
-	pr_info("CQ event %u on CQ #%u\n", event, mcq->cqn);
 }
 
 static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
@@ -754,8 +752,6 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas);
 	mlx5_fill_page_frag_array(&cq->wq_ctrl.buf, pas);
-
-	cq->mcq.event = dr_cq_event;
 
 	err = mlx5_core_create_cq(mdev, &cq->mcq, in, inlen, out, sizeof(out));
 	kvfree(in);

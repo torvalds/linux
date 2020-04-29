@@ -47,8 +47,7 @@ static DEFINE_MUTEX(lag_mutex);
 static int mlx5_cmd_create_lag(struct mlx5_core_dev *dev, u8 remap_port1,
 			       u8 remap_port2)
 {
-	u32   in[MLX5_ST_SZ_DW(create_lag_in)]   = {0};
-	u32   out[MLX5_ST_SZ_DW(create_lag_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(create_lag_in)] = {};
 	void *lag_ctx = MLX5_ADDR_OF(create_lag_in, in, ctx);
 
 	MLX5_SET(create_lag_in, in, opcode, MLX5_CMD_OP_CREATE_LAG);
@@ -56,14 +55,13 @@ static int mlx5_cmd_create_lag(struct mlx5_core_dev *dev, u8 remap_port1,
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_1, remap_port1);
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_2, remap_port2);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, create_lag, in);
 }
 
 static int mlx5_cmd_modify_lag(struct mlx5_core_dev *dev, u8 remap_port1,
 			       u8 remap_port2)
 {
-	u32   in[MLX5_ST_SZ_DW(modify_lag_in)]   = {0};
-	u32   out[MLX5_ST_SZ_DW(modify_lag_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(modify_lag_in)] = {};
 	void *lag_ctx = MLX5_ADDR_OF(modify_lag_in, in, ctx);
 
 	MLX5_SET(modify_lag_in, in, opcode, MLX5_CMD_OP_MODIFY_LAG);
@@ -72,51 +70,28 @@ static int mlx5_cmd_modify_lag(struct mlx5_core_dev *dev, u8 remap_port1,
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_1, remap_port1);
 	MLX5_SET(lagc, lag_ctx, tx_remap_affinity_2, remap_port2);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static int mlx5_cmd_destroy_lag(struct mlx5_core_dev *dev)
-{
-	u32  in[MLX5_ST_SZ_DW(destroy_lag_in)]  = {0};
-	u32 out[MLX5_ST_SZ_DW(destroy_lag_out)] = {0};
-
-	MLX5_SET(destroy_lag_in, in, opcode, MLX5_CMD_OP_DESTROY_LAG);
-
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, modify_lag, in);
 }
 
 int mlx5_cmd_create_vport_lag(struct mlx5_core_dev *dev)
 {
-	u32  in[MLX5_ST_SZ_DW(create_vport_lag_in)]  = {0};
-	u32 out[MLX5_ST_SZ_DW(create_vport_lag_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(create_vport_lag_in)] = {};
 
 	MLX5_SET(create_vport_lag_in, in, opcode, MLX5_CMD_OP_CREATE_VPORT_LAG);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, create_vport_lag, in);
 }
 EXPORT_SYMBOL(mlx5_cmd_create_vport_lag);
 
 int mlx5_cmd_destroy_vport_lag(struct mlx5_core_dev *dev)
 {
-	u32  in[MLX5_ST_SZ_DW(destroy_vport_lag_in)]  = {0};
-	u32 out[MLX5_ST_SZ_DW(destroy_vport_lag_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_vport_lag_in)] = {};
 
 	MLX5_SET(destroy_vport_lag_in, in, opcode, MLX5_CMD_OP_DESTROY_VPORT_LAG);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_vport_lag, in);
 }
 EXPORT_SYMBOL(mlx5_cmd_destroy_vport_lag);
-
-static int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
-				       bool reset, void *out, int out_size)
-{
-	u32 in[MLX5_ST_SZ_DW(query_cong_statistics_in)] = { };
-
-	MLX5_SET(query_cong_statistics_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_CONG_STATISTICS);
-	MLX5_SET(query_cong_statistics_in, in, clear, reset);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
-}
 
 int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 				struct net_device *ndev)
@@ -232,12 +207,14 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	bool roce_lag = __mlx5_lag_is_roce(ldev);
 	int err;
 
 	ldev->flags &= ~MLX5_LAG_MODE_FLAGS;
 
-	err = mlx5_cmd_destroy_lag(dev0);
+	MLX5_SET(destroy_lag_in, in, opcode, MLX5_CMD_OP_DESTROY_LAG);
+	err = mlx5_cmd_exec_in(dev0, destroy_lag, in);
 	if (err) {
 		if (roce_lag) {
 			mlx5_core_err(dev0,
@@ -758,7 +735,12 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 	}
 
 	for (i = 0; i < num_ports; ++i) {
-		ret = mlx5_cmd_query_cong_counter(mdev[i], false, out, outlen);
+		u32 in[MLX5_ST_SZ_DW(query_cong_statistics_in)] = {};
+
+		MLX5_SET(query_cong_statistics_in, in, opcode,
+			 MLX5_CMD_OP_QUERY_CONG_STATISTICS);
+		ret = mlx5_cmd_exec_inout(mdev[i], query_cong_statistics, in,
+					  out);
 		if (ret)
 			goto unlock;
 

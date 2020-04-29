@@ -36,6 +36,7 @@
 
 #include "mlx5_ib.h"
 #include "cmd.h"
+#include "qp.h"
 
 #include <linux/mlx5/eq.h>
 
@@ -1189,7 +1190,7 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 	struct mlx5_ib_wq *wq = &qp->rq;
 	int wqe_size = 1 << wq->wqe_shift;
 
-	if (qp->wq_sig) {
+	if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE) {
 		mlx5_ib_err(dev, "ODP fault with WQE signatures is not supported\n");
 		return -EFAULT;
 	}
@@ -1219,7 +1220,7 @@ static inline struct mlx5_core_rsc_common *odp_get_rsc(struct mlx5_ib_dev *dev,
 	case MLX5_WQE_PF_TYPE_REQ_SEND_OR_WRITE:
 	case MLX5_WQE_PF_TYPE_RESP:
 	case MLX5_WQE_PF_TYPE_REQ_READ_OR_ATOMIC:
-		common = mlx5_core_res_hold(dev->mdev, wq_num, MLX5_RES_QP);
+		common = mlx5_core_res_hold(dev, wq_num, MLX5_RES_QP);
 		break;
 	default:
 		break;
