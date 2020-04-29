@@ -698,8 +698,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.modifier = fb->modifier;
 
-	/* This value was pulled out of someone's hat */
-	cache->interval = 500;
+	/* FBC1 compression interval: arbitrary choice of 1 second */
+	cache->interval = drm_mode_vrefresh(&crtc_state->hw.adjusted_mode);
 
 	cache->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
