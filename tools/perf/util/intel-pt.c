@@ -69,6 +69,7 @@ struct intel_pt {
 	bool est_tsc;
 	bool sync_switch;
 	bool mispred_all;
+	bool use_thread_stack;
 	int have_sched_switch;
 	u32 pmu_type;
 	u64 kernel_start;
@@ -2029,8 +2030,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	if (!(state->type & INTEL_PT_BRANCH))
 		return 0;
 
-	if (pt->synth_opts.callchain || pt->synth_opts.add_callchain ||
-	    pt->synth_opts.thread_stack)
+	if (pt->use_thread_stack)
 		thread_stack__event(ptq->thread, ptq->cpu, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
 				    state->trace_nr, true, 0, 0);
@@ -3440,6 +3440,10 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		if (err)
 			goto err_delete_thread;
 	}
+
+	pt->use_thread_stack = pt->synth_opts.callchain ||
+			       pt->synth_opts.add_callchain ||
+			       pt->synth_opts.thread_stack;
 
 	err = intel_pt_synth_events(pt, session);
 	if (err)
