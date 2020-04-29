@@ -3400,4 +3400,18 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
+#define ALC1220_VB_DESKTOP(vend, prod) { \
+	USB_DEVICE(vend, prod),	\
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) { \
+		.vendor_name = "Realtek", \
+		.product_name = "ALC1220-VB-DT", \
+		.profile_name = "Realtek-ALC1220-VB-Desktop", \
+		.ifnum = QUIRK_NO_INTERFACE \
+	} \
+}
+ALC1220_VB_DESKTOP(0x0414, 0xa002), /* Gigabyte TRX40 Aorus Pro WiFi */
+ALC1220_VB_DESKTOP(0x0db0, 0x0d64), /* MSI TRX40 Creator */
+ALC1220_VB_DESKTOP(0x0db0, 0x543d), /* MSI TRX40 */
+#undef ALC1220_VB_DESKTOP
+
 #undef USB_DEVICE_VENDOR_SPEC
