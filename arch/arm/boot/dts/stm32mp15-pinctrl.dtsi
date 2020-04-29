@@ -21,6 +21,13 @@
 		};
 	};
 
+	adc12_ain_pins_b: adc12-ain-1 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 12, ANALOG)>, /* ADC1 in6 */
+				 <STM32_PINMUX('F', 13, ANALOG)>; /* ADC2 in2 */
+		};
+	};
+
 	adc12_usb_cc_pins_a: adc12-usb-cc-pins-0 {
 		pins {
 			pinmux = <STM32_PINMUX('A', 4, ANALOG)>, /* ADC12 in18 */
