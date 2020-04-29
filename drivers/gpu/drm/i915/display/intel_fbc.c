@@ -133,13 +133,13 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 
 	/* enable it... */
 	fbc_ctl = intel_de_read(dev_priv, FBC_CONTROL);
-	fbc_ctl &= 0x3fff << FBC_CTL_INTERVAL_SHIFT;
+	fbc_ctl &= FBC_CTL_INTERVAL(0x3fff);
 	fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
-	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
+	fbc_ctl |= FBC_CTL_STRIDE(cfb_pitch & 0xff);
 	if (params->fence_id >= 0)
-		fbc_ctl |= params->fence_id;
+		fbc_ctl |= FBC_CTL_FENCENO(params->fence_id);
 	intel_de_write(dev_priv, FBC_CONTROL, fbc_ctl);
 }
 
@@ -1423,7 +1423,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	/* This value was pulled out of someone's hat */
 	if (INTEL_GEN(dev_priv) <= 4 && !IS_GM45(dev_priv))
 		intel_de_write(dev_priv, FBC_CONTROL,
-		               500 << FBC_CTL_INTERVAL_SHIFT);
+			       FBC_CTL_INTERVAL(500));
 
 	/* We still don't have any sort of hardware state readout for FBC, so
 	 * deactivate it in case the BIOS activated it to make sure software
