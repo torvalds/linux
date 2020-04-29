@@ -576,7 +576,7 @@ int intel_hdcp_auth_downstream(struct intel_connector *connector)
 		goto err;
 
 	if (drm_hdcp_check_ksvs_revoked(&dev_priv->drm, ksv_fifo,
-					num_downstream)) {
+					num_downstream) > 0) {
 		drm_err(&dev_priv->drm, "Revoked Ksv(s) in ksv_fifo\n");
 		ret = -EPERM;
 		goto err;
@@ -682,7 +682,7 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	if (ret < 0)
 		return ret;
 
-	if (drm_hdcp_check_ksvs_revoked(&dev_priv->drm, bksv.shim, 1)) {
+	if (drm_hdcp_check_ksvs_revoked(&dev_priv->drm, bksv.shim, 1) > 0) {
 		drm_err(&dev_priv->drm, "BKSV is revoked\n");
 		return -EPERM;
 	}
@@ -1283,7 +1283,7 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 
 	if (drm_hdcp_check_ksvs_revoked(&dev_priv->drm,
 					msgs.send_cert.cert_rx.receiver_id,
-					1)) {
+					1) > 0) {
 		drm_err(&dev_priv->drm, "Receiver ID is revoked\n");
 		return -EPERM;
 	}
@@ -1484,7 +1484,7 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 		      HDCP_2_2_DEV_COUNT_LO(rx_info[1]));
 	if (drm_hdcp_check_ksvs_revoked(&dev_priv->drm,
 					msgs.recvid_list.receiver_ids,
-					device_cnt)) {
+					device_cnt) > 0) {
 		drm_err(&dev_priv->drm, "Revoked receiver ID(s) is in list\n");
 		return -EPERM;
 	}
