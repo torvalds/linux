@@ -343,12 +343,6 @@ fail:
 	return NULL;
 }
 
-static int vdpu_prepare(struct mpp_dev *mpp,
-			struct mpp_task *task)
-{
-	return -EINVAL;
-}
-
 static int vdpu_run(struct mpp_dev *mpp,
 		    struct mpp_task *mpp_task)
 {
@@ -669,7 +663,6 @@ static struct mpp_hw_ops vdpu_px30_hw_ops = {
 
 static struct mpp_dev_ops vdpu_v2_dev_ops = {
 	.alloc_task = vdpu_alloc_task,
-	.prepare = vdpu_prepare,
 	.run = vdpu_run,
 	.irq = vdpu_irq,
 	.isr = vdpu_isr,
@@ -781,7 +774,7 @@ static void vdpu_shutdown(struct platform_device *pdev)
 
 	atomic_inc(&mpp->srv->shutdown_request);
 	ret = readx_poll_timeout(atomic_read,
-				 &mpp->total_running,
+				 &mpp->task_count,
 				 val, val == 0, 20000, 200000);
 	if (ret == -ETIMEDOUT)
 		dev_err(dev, "wait total running time out\n");

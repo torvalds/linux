@@ -190,7 +190,7 @@ struct mpp_dev {
 	struct mpp_iommu_info *iommu_info;
 
 	atomic_t reset_request;
-	atomic_t total_running;
+	atomic_t task_count;
 	/* task for work queue */
 	struct workqueue_struct *workq;
 	/* current task in running */
@@ -213,20 +213,20 @@ struct mpp_session {
 	struct mpp_dev *mpp;
 	struct mpp_dma_session *dma;
 
-	/* session tasks pending list lock */
+	/* lock for session task pending list */
 	struct mutex pending_lock;
-	/* session tasks register list lock */
+	/* lock for session task register list */
 	struct mutex reg_lock;
-	/* session tasks done list lock */
+	/* lock for session task done list */
 	struct mutex done_lock;
 	/* task pending list in session */
-	struct list_head pending;
+	struct list_head pending_list;
 
 	DECLARE_KFIFO_PTR(done_fifo, struct mpp_task *);
 
 	wait_queue_head_t wait;
 	pid_t pid;
-	atomic_t task_running;
+	atomic_t task_count;
 	atomic_t release_request;
 	/* trans info set by user */
 	int trans_count;
@@ -238,10 +238,12 @@ struct mpp_task {
 	/* context belong to */
 	struct mpp_session *session;
 
-	/* link to session pending */
+	/* link to session pending_list */
 	struct list_head session_link;
-	/* link to taskqueue node pending */
-	struct list_head queue_link;
+	/* link to taskqueue node pending_list */
+	struct list_head pending_link;
+	/* link to taskqueue node running_list */
+	struct list_head running_link;
 	/* The DMA buffer used in this task */
 	struct list_head mem_region_list;
 
@@ -253,17 +255,23 @@ struct mpp_task {
 };
 
 struct mpp_taskqueue {
-	/* taskqueue structure global lock */
-	struct mutex lock;
+	/* lock for trigger work */
+	struct mutex work_lock;
 	/* work for taskqueue */
 	struct work_struct work;
 
-	struct list_head pending;
-	atomic_t running;
-	struct mpp_task *cur_task;
+	/* lock for pending list */
+	struct mutex pending_lock;
+	struct list_head pending_list;
+	/* lock for running list */
+	struct mutex running_lock;
+	struct list_head running_list;
+
+	/* point to MPP Service */
 	struct mpp_service *srv;
-	/* link to mmu iommu node */
-	struct list_head mmu_link;
+	/* lock for mmu list */
+	struct mutex mmu_lock;
+	struct list_head mmu_list;
 };
 
 struct mpp_reset_clk {
@@ -342,7 +350,7 @@ struct mpp_hw_ops {
 struct mpp_dev_ops {
 	void *(*alloc_task)(struct mpp_session *session,
 			    struct mpp_task_msgs *msgs);
-	int (*prepare)(struct mpp_dev *mpp, struct mpp_task *task);
+	void *(*prepare)(struct mpp_dev *mpp, struct mpp_task *task);
 	int (*run)(struct mpp_dev *mpp, struct mpp_task *task);
 	int (*irq)(struct mpp_dev *mpp);
 	int (*isr)(struct mpp_dev *mpp);

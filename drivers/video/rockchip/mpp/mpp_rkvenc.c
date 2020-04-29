@@ -335,12 +335,6 @@ fail:
 	return NULL;
 }
 
-static int rkvenc_prepare(struct mpp_dev *mpp,
-			  struct mpp_task *task)
-{
-	return -EINVAL;
-}
-
 static int rkvenc_write_req_l2(struct mpp_dev *mpp,
 			       u32 *regs,
 			       u32 start_idx, u32 end_idx)
@@ -762,7 +756,6 @@ static struct mpp_hw_ops rkvenc_hw_ops = {
 
 static struct mpp_dev_ops rkvenc_dev_ops = {
 	.alloc_task = rkvenc_alloc_task,
-	.prepare = rkvenc_prepare,
 	.run = rkvenc_run,
 	.irq = rkvenc_irq,
 	.isr = rkvenc_isr,
@@ -860,7 +853,7 @@ static void rkvenc_shutdown(struct platform_device *pdev)
 
 	atomic_inc(&mpp->srv->shutdown_request);
 	ret = readx_poll_timeout(atomic_read,
-				 &mpp->total_running,
+				 &mpp->task_count,
 				 val, val == 0, 1000, 200000);
 	if (ret == -ETIMEDOUT)
 		dev_err(dev, "wait total running time out\n");

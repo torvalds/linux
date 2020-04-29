@@ -852,21 +852,6 @@ fail:
 	return NULL;
 }
 
-static int rkvdec_prepare(struct mpp_dev *mpp,
-			  struct mpp_task *task)
-{
-	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
-
-	if (dec->state == RKVDEC_STATE_NORMAL)
-		return -EINVAL;
-	/*
-	 * Don't do soft reset before running or you will meet 0x00408322
-	 * if you will decode a HEVC stream. Different error for the AVC.
-	 */
-
-	return 0;
-}
-
 static int rkvdec_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
@@ -1618,7 +1603,6 @@ static struct mpp_hw_ops rkvdec_3368_hw_ops = {
 
 static struct mpp_dev_ops rkvdec_v1_dev_ops = {
 	.alloc_task = rkvdec_alloc_task,
-	.prepare = rkvdec_prepare,
 	.run = rkvdec_run,
 	.irq = rkvdec_irq,
 	.isr = rkvdec_isr,
@@ -1640,7 +1624,6 @@ static struct mpp_hw_ops rkvdec_3328_hw_ops = {
 
 static struct mpp_dev_ops rkvdec_3328_dev_ops = {
 	.alloc_task = rkvdec_alloc_task,
-	.prepare = rkvdec_prepare,
 	.run = rkvdec_3328_run,
 	.irq = rkvdec_irq,
 	.isr = rkvdec_isr,
@@ -1796,7 +1779,7 @@ static void rkvdec_shutdown(struct platform_device *pdev)
 
 	atomic_inc(&mpp->srv->shutdown_request);
 	ret = readx_poll_timeout(atomic_read,
-				 &mpp->total_running,
+				 &mpp->task_count,
 				 val, val == 0, 20000, 200000);
 	if (ret == -ETIMEDOUT)
 		dev_err(dev, "wait total running time out\n");
