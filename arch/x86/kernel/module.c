@@ -18,6 +18,7 @@
 #include <linux/gfp.h>
 #include <linux/jump_label.h>
 #include <linux/random.h>
+#include <linux/memory.h>
 
 #include <asm/text-patching.h>
 #include <asm/page.h>
@@ -227,14 +228,18 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	bool early = me->state == MODULE_STATE_UNFORMED;
 	void *(*write)(void *, const void *, size_t) = memcpy;
 
-	if (!early)
+	if (!early) {
 		write = text_poke;
+		mutex_lock(&text_mutex);
+	}
 
 	ret = __apply_relocate_add(sechdrs, strtab, symindex, relsec, me,
 				   write);
 
-	if (!early)
+	if (!early) {
 		text_poke_sync();
+		mutex_unlock(&text_mutex);
+	}
 
 	return ret;
 }

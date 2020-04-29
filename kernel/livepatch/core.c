@@ -775,9 +775,6 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 	int ret;
 
 	if (klp_is_module(obj)) {
-
-		mutex_lock(&text_mutex);
-
 		/*
 		 * Only write module-specific relocations here
 		 * (.klp.rela.{module}.*).  vmlinux-specific relocations were
@@ -785,9 +782,6 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 		 * itself.
 		 */
 		ret = klp_apply_object_relocs(patch, obj);
-
-		mutex_unlock(&text_mutex);
-
 		if (ret)
 			return ret;
 	}
