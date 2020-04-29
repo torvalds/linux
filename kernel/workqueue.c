@@ -4197,7 +4197,6 @@ static int wq_clamp_max_active(int max_active, unsigned int flags,
 static int init_rescuer(struct workqueue_struct *wq)
 {
 	struct worker *rescuer;
-	int ret;
 
 	if (!(wq->flags & WQ_MEM_RECLAIM))
 		return 0;
@@ -4208,10 +4207,9 @@ static int init_rescuer(struct workqueue_struct *wq)
 
 	rescuer->rescue_wq = wq;
 	rescuer->task = kthread_create(rescuer_thread, rescuer, "%s", wq->name);
-	ret = PTR_ERR_OR_ZERO(rescuer->task);
-	if (ret) {
+	if (IS_ERR(rescuer->task)) {
 		kfree(rescuer);
-		return ret;
+		return PTR_ERR(rescuer->task);
 	}
 
 	wq->rescuer = rescuer;
