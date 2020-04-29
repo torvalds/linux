@@ -1026,9 +1026,11 @@ extern const struct file_operations bpf_prog_fops;
 	extern const struct bpf_verifier_ops _name ## _verifier_ops;
 #define BPF_MAP_TYPE(_id, _ops) \
 	extern const struct bpf_map_ops _ops;
+#define BPF_LINK_TYPE(_id, _name)
 #include <linux/bpf_types.h>
 #undef BPF_PROG_TYPE
 #undef BPF_MAP_TYPE
+#undef BPF_LINK_TYPE
 
 extern const struct bpf_prog_ops bpf_offload_prog_ops;
 extern const struct bpf_verifier_ops tc_cls_act_analyzer_ops;
@@ -1085,21 +1087,35 @@ int bpf_prog_new_fd(struct bpf_prog *prog);
 
 struct bpf_link {
 	atomic64_t refcnt;
+	u32 id;
+	enum bpf_link_type type;
 	const struct bpf_link_ops *ops;
 	struct bpf_prog *prog;
 	struct work_struct work;
 };
 
+struct bpf_link_primer {
+	struct bpf_link *link;
+	struct file *file;
+	int fd;
+	u32 id;
+};
+
 struct bpf_link_ops {
 	void (*release)(struct bpf_link *link);
 	void (*dealloc)(struct bpf_link *link);
-
+	int (*update_prog)(struct bpf_link *link, struct bpf_prog *new_prog,
+			   struct bpf_prog *old_prog);
+	void (*show_fdinfo)(const struct bpf_link *link, struct seq_file *seq);
+	int (*fill_link_info)(const struct bpf_link *link,
+			      struct bpf_link_info *info);
 };
 
-void bpf_link_init(struct bpf_link *link, const struct bpf_link_ops *ops,
-		   struct bpf_prog *prog);
-void bpf_link_cleanup(struct bpf_link *link, struct file *link_file,
-		      int link_fd);
+void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
+		   const struct bpf_link_ops *ops, struct bpf_prog *prog);
+int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer);
+int bpf_link_settle(struct bpf_link_primer *primer);
+void bpf_link_cleanup(struct bpf_link_primer *primer);
 void bpf_link_inc(struct bpf_link *link);
 void bpf_link_put(struct bpf_link *link);
 int bpf_link_new_fd(struct bpf_link *link);

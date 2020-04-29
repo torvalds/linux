@@ -57,8 +57,6 @@ struct bpf_cgroup_link {
 	enum bpf_attach_type type;
 };
 
-extern const struct bpf_link_ops bpf_cgroup_link_lops;
-
 struct bpf_prog_list {
 	struct list_head node;
 	struct bpf_prog *prog;
@@ -100,8 +98,6 @@ int __cgroup_bpf_attach(struct cgroup *cgrp,
 int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 			struct bpf_cgroup_link *link,
 			enum bpf_attach_type type);
-int __cgroup_bpf_replace(struct cgroup *cgrp, struct bpf_cgroup_link *link,
-			 struct bpf_prog *new_prog);
 int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 		       union bpf_attr __user *uattr);
 
@@ -112,8 +108,6 @@ int cgroup_bpf_attach(struct cgroup *cgrp,
 		      u32 flags);
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type);
-int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *old_prog,
-		       struct bpf_prog *new_prog);
 int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 		     union bpf_attr __user *uattr);
 
@@ -353,7 +347,6 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
 #else
 
 struct bpf_prog;
-struct bpf_link;
 struct cgroup_bpf {};
 static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 static inline void cgroup_bpf_offline(struct cgroup *cgrp) {}
@@ -373,13 +366,6 @@ static inline int cgroup_bpf_prog_detach(const union bpf_attr *attr,
 
 static inline int cgroup_bpf_link_attach(const union bpf_attr *attr,
 					 struct bpf_prog *prog)
-{
-	return -EINVAL;
-}
-
-static inline int cgroup_bpf_replace(struct bpf_link *link,
-				     struct bpf_prog *old_prog,
-				     struct bpf_prog *new_prog)
 {
 	return -EINVAL;
 }

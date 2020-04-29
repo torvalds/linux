@@ -3482,6 +3482,7 @@ extern char __weak __stop_BTF[];
 extern struct btf *btf_vmlinux;
 
 #define BPF_MAP_TYPE(_id, _ops)
+#define BPF_LINK_TYPE(_id, _name)
 static union {
 	struct bpf_ctx_convert {
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
@@ -3508,6 +3509,7 @@ static u8 bpf_ctx_convert_map[] = {
 	0, /* avoid empty array */
 };
 #undef BPF_MAP_TYPE
+#undef BPF_LINK_TYPE
 
 static const struct btf_member *
 btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,

@@ -557,8 +557,9 @@ found:
  *
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_replace(struct cgroup *cgrp, struct bpf_cgroup_link *link,
-			 struct bpf_prog *new_prog)
+static int __cgroup_bpf_replace(struct cgroup *cgrp,
+				struct bpf_cgroup_link *link,
+				struct bpf_prog *new_prog)
 {
 	struct list_head *progs = &cgrp->bpf.progs[link->type];
 	struct bpf_prog *old_prog;
@@ -581,6 +582,30 @@ int __cgroup_bpf_replace(struct cgroup *cgrp, struct bpf_cgroup_link *link,
 	replace_effective_prog(cgrp, link->type, link);
 	bpf_prog_put(old_prog);
 	return 0;
+}
+
+static int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *new_prog,
+			      struct bpf_prog *old_prog)
+{
+	struct bpf_cgroup_link *cg_link;
+	int ret;
+
+	cg_link = container_of(link, struct bpf_cgroup_link, link);
+
+	mutex_lock(&cgroup_mutex);
+	/* link might have been auto-released by dying cgroup, so fail */
+	if (!cg_link->cgroup) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+	if (old_prog && link->prog != old_prog) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+	ret = __cgroup_bpf_replace(cg_link->cgroup, cg_link, new_prog);
+out_unlock:
+	mutex_unlock(&cgroup_mutex);
+	return ret;
 }
 
 static struct bpf_prog_list *find_detach_entry(struct list_head *progs,
@@ -808,17 +833,56 @@ static void bpf_cgroup_link_dealloc(struct bpf_link *link)
 	kfree(cg_link);
 }
 
-const struct bpf_link_ops bpf_cgroup_link_lops = {
+static void bpf_cgroup_link_show_fdinfo(const struct bpf_link *link,
+					struct seq_file *seq)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	seq_printf(seq,
+		   "cgroup_id:\t%llu\n"
+		   "attach_type:\t%d\n",
+		   cg_id,
+		   cg_link->type);
+}
+
+static int bpf_cgroup_link_fill_link_info(const struct bpf_link *link,
+					  struct bpf_link_info *info)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	info->cgroup.cgroup_id = cg_id;
+	info->cgroup.attach_type = cg_link->type;
+	return 0;
+}
+
+static const struct bpf_link_ops bpf_cgroup_link_lops = {
 	.release = bpf_cgroup_link_release,
 	.dealloc = bpf_cgroup_link_dealloc,
+	.update_prog = cgroup_bpf_replace,
+	.show_fdinfo = bpf_cgroup_link_show_fdinfo,
+	.fill_link_info = bpf_cgroup_link_fill_link_info,
 };
 
 int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
+	struct bpf_link_primer link_primer;
 	struct bpf_cgroup_link *link;
-	struct file *link_file;
 	struct cgroup *cgrp;
-	int err, link_fd;
+	int err;
 
 	if (attr->link_create.flags)
 		return -EINVAL;
@@ -832,26 +896,25 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		err = -ENOMEM;
 		goto out_put_cgroup;
 	}
-	bpf_link_init(&link->link, &bpf_cgroup_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_CGROUP, &bpf_cgroup_link_lops,
+		      prog);
 	link->cgroup = cgrp;
 	link->type = attr->link_create.attach_type;
 
-	link_file = bpf_link_new_file(&link->link, &link_fd);
-	if (IS_ERR(link_file)) {
+	err  = bpf_link_prime(&link->link, &link_primer);
+	if (err) {
 		kfree(link);
-		err = PTR_ERR(link_file);
 		goto out_put_cgroup;
 	}
 
 	err = cgroup_bpf_attach(cgrp, NULL, NULL, link, link->type,
 				BPF_F_ALLOW_MULTI);
 	if (err) {
-		bpf_link_cleanup(&link->link, link_file, link_fd);
+		bpf_link_cleanup(&link_primer);
 		goto out_put_cgroup;
 	}
 
-	fd_install(link_fd, link_file);
-	return link_fd;
+	return bpf_link_settle(&link_primer);
 
 out_put_cgroup:
 	cgroup_put(cgrp);
