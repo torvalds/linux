@@ -50,6 +50,8 @@
 	"\t            {-m|--mapcompat} | {-n|--nomount} }"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE | name MAP_NAME }"
+#define HELP_SPEC_LINK							\
+	"LINK := { id LINK_ID | pinned FILE }"
 
 static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
@@ -122,6 +124,7 @@ enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
 	BPF_OBJ_PROG,
 	BPF_OBJ_MAP,
+	BPF_OBJ_LINK,
 };
 
 extern const char *bin_name;
@@ -134,6 +137,7 @@ extern bool verifier_logs;
 extern bool relaxed_maps;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
+extern struct pinned_obj_table link_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -185,6 +189,7 @@ int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+int do_link(int argc, char **arg);
 int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
