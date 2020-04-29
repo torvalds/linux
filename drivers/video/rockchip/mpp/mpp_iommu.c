@@ -369,33 +369,27 @@ mpp_iommu_probe(struct device *dev)
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
 #endif
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
 
 	np = of_parse_phandle(dev->of_node, "iommus", 0);
 	if (!np || !of_device_is_available(np)) {
 		mpp_err("failed to get device node\n");
-		ret = -ENODEV;
-		goto err;
-	}
-	pdev = of_find_device_by_node(np);
-	if (!pdev) {
-		mpp_err("failed to get platform device\n");
-		ret = -ENODEV;
-		goto err;
+		return ERR_PTR(-ENODEV);
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		ret = -ENOMEM;
-		goto err;
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!pdev) {
+		mpp_err("failed to get platform device\n");
+		return ERR_PTR(-ENODEV);
 	}
-	info->dev = dev;
-	info->pdev = pdev;
-	init_rwsem(&info->rw_sem);
 
 	info->group = iommu_group_get(dev);
 	if (!info->group) {
 		ret = -EINVAL;
-		goto err_free_info;
+		goto err_put_pdev;
 	}
 
 	/*
@@ -418,13 +412,17 @@ mpp_iommu_probe(struct device *dev)
 		}
 	}
 
+	info->dev = dev;
+	info->pdev = pdev;
+	init_rwsem(&info->rw_sem);
+
 	return info;
 
 err_put_group:
 	iommu_group_put(info->group);
-err_free_info:
-	kfree(info);
-err:
+err_put_pdev:
+	platform_device_put(pdev);
+
 	return ERR_PTR(ret);
 }
 
@@ -437,7 +435,7 @@ int mpp_iommu_remove(struct mpp_iommu_info *info)
 	arm_iommu_release_mapping(mapping);
 #endif
 	iommu_group_put(info->group);
-	kfree(info);
+	platform_device_put(info->pdev);
 
 	return 0;
 }
