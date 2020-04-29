@@ -2542,7 +2542,7 @@ out_exit:
 
 static int perf_evsel__nr_addr_filter(struct evsel *evsel)
 {
-	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 	int nr_addr_filters = 0;
 
 	if (!pmu)
