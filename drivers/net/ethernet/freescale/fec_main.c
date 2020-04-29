@@ -996,9 +996,6 @@ fec_restart(struct net_device *ndev)
 		writel(0x0, fep->hwp + FEC_X_CNTRL);
 	}
 
-	/* Prevent an MII event being report when changing speed */
-	writel(0, fep->hwp + FEC_MII_DATA);
-
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
@@ -1185,10 +1182,6 @@ fec_stop(struct net_device *ndev)
 		writel(val, fep->hwp + FEC_ECNTRL);
 		fec_enet_stop_mode(fep, true);
 	}
-
-	/* Prevent an MII event being report when changing speed */
-	writel(0, fep->hwp + FEC_MII_DATA);
-
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
 	/* We have to keep ENET enabled to have MII interrupt stay working */
@@ -2148,16 +2141,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 
 	if (suppress_preamble)
 		fep->phy_speed |= BIT(7);
-
-	/* Clear MMFR to avoid to generate MII event by writing MSCR.
-	 * MII event generation condition:
-	 * - writing MSCR:
-	 *	- mmfr[31:0]_not_zero & mscr[7:0]_is_zero &
-	 *	  mscr_reg_data_in[7:0] != 0
-	 * - writing MMFR:
-	 *	- mscr[7:0]_not_zero
-	 */
-	writel(0, fep->hwp + FEC_MII_DATA);
 
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
