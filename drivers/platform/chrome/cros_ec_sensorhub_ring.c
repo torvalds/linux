@@ -957,6 +957,53 @@ static int cros_ec_sensorhub_event(struct notifier_block *nb,
 }
 
 /**
+ * cros_ec_sensorhub_ring_allocate() - Prepare the FIFO functionality if the EC
+ *				       supports it.
+ *
+ * @sensorhub : Sensor Hub object.
+ *
+ * Return: 0 on success.
+ */
+int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
+{
+	int fifo_info_length =
+		sizeof(struct ec_response_motion_sense_fifo_info) +
+		sizeof(u16) * sensorhub->sensor_num;
+
+	/* Allocate the array for lost events. */
+	sensorhub->fifo_info = devm_kzalloc(sensorhub->dev, fifo_info_length,
+					    GFP_KERNEL);
+	if (!sensorhub->fifo_info)
+		return -ENOMEM;
+
+	/*
+	 * Allocate the callback area based on the number of sensors.
+	 * Add one for the sensor ring.
+	 */
+	sensorhub->push_data = devm_kcalloc(sensorhub->dev,
+			sensorhub->sensor_num,
+			sizeof(*sensorhub->push_data),
+			GFP_KERNEL);
+	if (!sensorhub->push_data)
+		return -ENOMEM;
+
+	sensorhub->tight_timestamps = cros_ec_check_features(
+			sensorhub->ec,
+			EC_FEATURE_MOTION_SENSE_TIGHT_TIMESTAMPS);
+
+	if (sensorhub->tight_timestamps) {
+		sensorhub->batch_state = devm_kcalloc(sensorhub->dev,
+				sensorhub->sensor_num,
+				sizeof(*sensorhub->batch_state),
+				GFP_KERNEL);
+		if (!sensorhub->batch_state)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/**
  * cros_ec_sensorhub_ring_add() - Add the FIFO functionality if the EC
  *				  supports it.
  *
@@ -971,12 +1018,6 @@ int cros_ec_sensorhub_ring_add(struct cros_ec_sensorhub *sensorhub)
 	int fifo_info_length =
 		sizeof(struct ec_response_motion_sense_fifo_info) +
 		sizeof(u16) * sensorhub->sensor_num;
-
-	/* Allocate the array for lost events. */
-	sensorhub->fifo_info = devm_kzalloc(sensorhub->dev, fifo_info_length,
-					    GFP_KERNEL);
-	if (!sensorhub->fifo_info)
-		return -ENOMEM;
 
 	/* Retrieve FIFO information */
 	sensorhub->msg->version = 2;
@@ -998,30 +1039,8 @@ int cros_ec_sensorhub_ring_add(struct cros_ec_sensorhub *sensorhub)
 	if (!sensorhub->ring)
 		return -ENOMEM;
 
-	/*
-	 * Allocate the callback area based on the number of sensors.
-	 */
-	sensorhub->push_data = devm_kcalloc(
-			sensorhub->dev, sensorhub->sensor_num,
-			sizeof(*sensorhub->push_data),
-			GFP_KERNEL);
-	if (!sensorhub->push_data)
-		return -ENOMEM;
-
 	sensorhub->fifo_timestamp[CROS_EC_SENSOR_LAST_TS] =
 		cros_ec_get_time_ns();
-
-	sensorhub->tight_timestamps = cros_ec_check_features(
-			ec, EC_FEATURE_MOTION_SENSE_TIGHT_TIMESTAMPS);
-
-	if (sensorhub->tight_timestamps) {
-		sensorhub->batch_state = devm_kcalloc(sensorhub->dev,
-				sensorhub->sensor_num,
-				sizeof(*sensorhub->batch_state),
-				GFP_KERNEL);
-		if (!sensorhub->batch_state)
-			return -ENOMEM;
-	}
 
 	/* Register the notifier that will act as a top half interrupt. */
 	sensorhub->notifier.notifier_call = cros_ec_sensorhub_event;
