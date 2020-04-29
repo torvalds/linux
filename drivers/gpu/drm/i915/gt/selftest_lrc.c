@@ -5795,26 +5795,29 @@ static int indirect_ctx_bb_check(struct intel_context *ce)
 static int __live_lrc_indirect_ctx_bb(struct intel_engine_cs *engine)
 {
 	struct intel_context *a, *b;
-	int err = 0;
+	int err;
 
 	a = intel_context_create(engine);
-	b = intel_context_create(engine);
-
+	if (IS_ERR(a))
+		return PTR_ERR(a);
 	err = intel_context_pin(a);
 	if (err)
-		return err;
+		goto put_a;
 
-	err = intel_context_pin(b);
-	if (err) {
-		intel_context_put(a);
-		return err;
+	b = intel_context_create(engine);
+	if (IS_ERR(b)) {
+		err = PTR_ERR(b);
+		goto unpin_a;
 	}
+	err = intel_context_pin(b);
+	if (err)
+		goto put_b;
 
 	/* We use the already reserved extra page in context state */
 	if (!a->wa_bb_page) {
 		GEM_BUG_ON(b->wa_bb_page);
 		GEM_BUG_ON(INTEL_GEN(engine->i915) == 12);
-		goto out;
+		goto unpin_b;
 	}
 
 	/*
@@ -5829,14 +5832,17 @@ static int __live_lrc_indirect_ctx_bb(struct intel_engine_cs *engine)
 
 	err = indirect_ctx_bb_check(a);
 	if (err)
-		goto out;
+		goto unpin_b;
 
 	err = indirect_ctx_bb_check(b);
-out:
-	intel_context_unpin(b);
-	intel_context_put(b);
 
+unpin_b:
+	intel_context_unpin(b);
+put_b:
+	intel_context_put(b);
+unpin_a:
 	intel_context_unpin(a);
+put_a:
 	intel_context_put(a);
 
 	return err;
