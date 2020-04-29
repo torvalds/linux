@@ -9387,8 +9387,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	}
 	fx_init(vcpu);
 
-	vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
-
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
 
 	vcpu->arch.pat = MSR_IA32_CR_PAT_DEFAULT;

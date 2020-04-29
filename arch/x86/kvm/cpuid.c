@@ -86,12 +86,10 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 0);
 	if (!best) {
 		vcpu->arch.guest_supported_xcr0 = 0;
-		vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 	} else {
 		vcpu->arch.guest_supported_xcr0 =
 			(best->eax | ((u64)best->edx << 32)) & supported_xcr0;
-		vcpu->arch.guest_xstate_size = best->ebx =
-			xstate_required_size(vcpu->arch.xcr0, false);
+		best->ebx = xstate_required_size(vcpu->arch.xcr0, false);
 	}
 
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 1);
