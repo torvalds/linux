@@ -860,10 +860,8 @@ extern int module_sysfs_initialized;
 
 #ifdef CONFIG_STRICT_MODULE_RWX
 extern void module_enable_ro(const struct module *mod, bool after_init);
-extern void module_disable_ro(const struct module *mod);
 #else
 static inline void module_enable_ro(const struct module *mod, bool after_init) { }
-static inline void module_disable_ro(const struct module *mod) { }
 #endif
 
 #ifdef CONFIG_GENERIC_BUG
