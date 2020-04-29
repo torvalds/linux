@@ -35,6 +35,17 @@ enum smc_llc_msg_type {
 	SMC_LLC_DELETE_RKEY		= 0x09,
 };
 
+/* returns a usable link of the link group, or NULL */
+static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)
+{
+	int i;
+
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
+		if (smc_link_usable(&lgr->lnk[i]))
+			return &lgr->lnk[i];
+	return NULL;
+}
+
 /* transmit */
 int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);

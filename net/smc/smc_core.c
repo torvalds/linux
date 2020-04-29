@@ -260,7 +260,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *lnk = &lgr->lnk[i];
 
-			if (lnk->state != SMC_LNK_INACTIVE)
+			if (smc_link_usable(lnk))
 				smc_llc_link_inactive(lnk);
 		}
 	}
@@ -286,7 +286,7 @@ static u8 smcr_next_link_id(struct smc_link_group *lgr)
 		if (!link_id)	/* skip zero as link_id */
 			link_id = ++lgr->next_link_id;
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (lgr->lnk[i].state != SMC_LNK_INACTIVE &&
+			if (smc_link_usable(&lgr->lnk[i]) &&
 			    lgr->lnk[i].link_id == link_id)
 				continue;
 		}
@@ -350,6 +350,7 @@ clear_llc_lnk:
 out:
 	put_device(&ini->ib_dev->ibdev->dev);
 	memset(lnk, 0, sizeof(struct smc_link));
+	lnk->state = SMC_LNK_UNUSED;
 	if (!atomic_dec_return(&ini->ib_dev->lnk_cnt))
 		wake_up(&ini->ib_dev->lnks_deleted);
 	return rc;
@@ -500,6 +501,8 @@ void smc_conn_free(struct smc_connection *conn)
 
 static void smcr_link_clear(struct smc_link *lnk)
 {
+	struct smc_ib_device *smcibdev;
+
 	if (lnk->peer_qpn == 0)
 		return;
 	lnk->peer_qpn = 0;
@@ -510,8 +513,11 @@ static void smcr_link_clear(struct smc_link *lnk)
 	smc_ib_dealloc_protection_domain(lnk);
 	smc_wr_free_link_mem(lnk);
 	put_device(&lnk->smcibdev->ibdev->dev);
-	if (!atomic_dec_return(&lnk->smcibdev->lnk_cnt))
-		wake_up(&lnk->smcibdev->lnks_deleted);
+	smcibdev = lnk->smcibdev;
+	memset(lnk, 0, sizeof(struct smc_link));
+	lnk->state = SMC_LNK_UNUSED;
+	if (!atomic_dec_return(&smcibdev->lnk_cnt))
+		wake_up(&smcibdev->lnks_deleted);
 }
 
 static void smcr_buf_free(struct smc_link_group *lgr, bool is_rmb,
@@ -604,9 +610,8 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 			wake_up(&lgr->smcd->lgrs_deleted);
 	} else {
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (lgr->lnk[i].state == SMC_LNK_INACTIVE)
-				continue;
-			smcr_link_clear(&lgr->lnk[i]);
+			if (lgr->lnk[i].state != SMC_LNK_UNUSED)
+				smcr_link_clear(&lgr->lnk[i]);
 		}
 		if (!atomic_dec_return(&lgr_cnt))
 			wake_up(&lgrs_deleted);
@@ -686,7 +691,7 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *lnk = &lgr->lnk[i];
 
-			if (lnk->state != SMC_LNK_INACTIVE)
+			if (smc_link_usable(lnk))
 				smc_llc_link_inactive(lnk);
 		}
 	}
@@ -764,7 +769,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 			continue;
 		/* tbd - terminate only when no more links are active */
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (lgr->lnk[i].state == SMC_LNK_INACTIVE ||
+			if (!smc_link_usable(&lgr->lnk[i]) ||
 			    lgr->lnk[i].state == SMC_LNK_DELETING)
 				continue;
 			if (lgr->lnk[i].smcibdev == smcibdev &&
@@ -1161,8 +1166,7 @@ static int smcr_buf_map_usable_links(struct smc_link_group *lgr,
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 		struct smc_link *lnk = &lgr->lnk[i];
 
-		if (lnk->state != SMC_LNK_ACTIVE &&
-		    lnk->state != SMC_LNK_ACTIVATING)
+		if (!smc_link_usable(lnk))
 			continue;
 		if (smcr_buf_map_link(buf_desc, is_rmb, lnk)) {
 			smcr_buf_unuse(buf_desc, lnk);
@@ -1294,14 +1298,14 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn)
 {
-	if (!conn->lgr || conn->lgr->is_smcd)
+	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_usable(conn->lnk))
 		return;
 	smc_ib_sync_sg_for_cpu(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
 
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn)
 {
-	if (!conn->lgr || conn->lgr->is_smcd)
+	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_usable(conn->lnk))
 		return;
 	smc_ib_sync_sg_for_device(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
@@ -1313,8 +1317,7 @@ void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (conn->lgr->lnk[i].state != SMC_LNK_ACTIVE &&
-		    conn->lgr->lnk[i].state != SMC_LNK_ACTIVATING)
+		if (!smc_link_usable(&conn->lgr->lnk[i]))
 			continue;
 		smc_ib_sync_sg_for_cpu(&conn->lgr->lnk[i], conn->rmb_desc,
 				       DMA_FROM_DEVICE);
@@ -1328,8 +1331,7 @@ void smc_rmb_sync_sg_for_device(struct smc_connection *conn)
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (conn->lgr->lnk[i].state != SMC_LNK_ACTIVE &&
-		    conn->lgr->lnk[i].state != SMC_LNK_ACTIVATING)
+		if (!smc_link_usable(&conn->lgr->lnk[i]))
 			continue;
 		smc_ib_sync_sg_for_device(&conn->lgr->lnk[i], conn->rmb_desc,
 					  DMA_FROM_DEVICE);

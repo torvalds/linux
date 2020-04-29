@@ -372,7 +372,7 @@ static void smc_llc_send_message_work(struct work_struct *work)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	if (llcwrk->link->state == SMC_LNK_INACTIVE)
+	if (!smc_link_usable(llcwrk->link))
 		goto out;
 	rc = smc_llc_add_pending_send(llcwrk->link, &wr_buf, &pend);
 	if (rc)
@@ -562,7 +562,7 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 		return; /* short message */
 	if (llc->raw.hdr.length != sizeof(*llc))
 		return; /* invalid message */
-	if (link->state == SMC_LNK_INACTIVE)
+	if (!smc_link_usable(link))
 		return; /* link not active, drop msg */
 
 	switch (llc->raw.hdr.common.type) {

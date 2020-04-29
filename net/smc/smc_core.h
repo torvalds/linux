@@ -32,6 +32,7 @@ enum smc_lgr_role {		/* possible roles of a link group */
 };
 
 enum smc_link_state {			/* possible states of a link */
+	SMC_LNK_UNUSED,		/* link is unused */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
 	SMC_LNK_ACTIVE,		/* link is active */
@@ -293,6 +294,14 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	}
 
 	return res;
+}
+
+/* returns true if the specified link is usable */
+static inline bool smc_link_usable(struct smc_link *lnk)
+{
+	if (lnk->state == SMC_LNK_UNUSED || lnk->state == SMC_LNK_INACTIVE)
+		return false;
+	return true;
 }
 
 struct smc_sock;
