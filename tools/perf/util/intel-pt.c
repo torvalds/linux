@@ -2033,7 +2033,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	    pt->synth_opts.thread_stack)
 		thread_stack__event(ptq->thread, ptq->cpu, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
-				    state->trace_nr);
+				    state->trace_nr, true, 0, 0);
 	else
 		thread_stack__set_trace_nr(ptq->thread, ptq->cpu, state->trace_nr);
 
