@@ -31,9 +31,7 @@
 #include "ia_css_buffer.h"
 
 #include "ia_css_binary.h"
-#if !defined(__ISP)
 #include "sh_css_firmware.h" /* not needed/desired on SP/ISP */
-#endif
 #include "sh_css_legacy.h"
 #include "sh_css_defs.h"
 #include "sh_css_uds.h"
@@ -765,16 +763,8 @@ struct sh_css_hmm_buffer {
 	 * uint64_t does not exist on SP/ISP.
 	 * Size of the struct is checked by sp.hive.c.
 	 */
-#if !defined(__ISP)
 	CSS_ALIGN(u64 cookie_ptr, 8); /* TODO: check if this alignment is needed */
 	u64 kernel_ptr;
-#else
-	CSS_ALIGN(struct { u32 a[2]; } cookie_ptr,
-		  8); /* TODO: check if this alignment is needed */
-	struct {
-		u32 a[2];
-	} kernel_ptr;
-#endif
 	struct ia_css_time_meas timing_data;
 	clock_value_t isys_eof_clock_tick;
 };
@@ -970,9 +960,7 @@ sh_css_vprint(const char *fmt, va_list args)
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
-#if !defined(__ISP)
-hrt_vaddress
-sh_css_params_ddr_address_map(void);
+hrt_vaddress sh_css_params_ddr_address_map(void);
 
 enum ia_css_err
 sh_css_params_init(void);
@@ -1069,6 +1057,5 @@ ia_css_get_crop_offsets(
     struct ia_css_pipe *pipe,
     struct ia_css_frame_info *in_frame);
 #endif
-#endif /* !defined(__ISP) */
 
 #endif /* _SH_CSS_INTERNAL_H_ */

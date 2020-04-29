@@ -33,28 +33,5 @@ more details.
 
 /* The input buffer should be on a fixed address in vmem, for continuous capture */
 #define INPUT_BUF_ADDR 0x0
-#if (defined(__ISP) && (!defined(MODE) || MODE != IA_CSS_BINARY_MODE_COPY))
-
-#if ENABLE_CONTINUOUS
-typedef struct {
-	tmemvectoru
-	raw[INPUT_BUF_HEIGHT][INPUT_BUF_LINES][MAX_VECTORS_PER_INPUT_LINE_CONT]; /* 2 bayer lines */
-	/* Two more lines for SP raw copy efficiency */
-#ifndef ENABLE_REDUCED_INPUT_BUFFER
-	/* "Workaround" solution in the case that space needed vmem exceeds the size of the vmem. */
-	/* Since in theory this buffer is not needed for IPU 2.2/2.3,  */
-	/* the workaround solution will not be needed (and the whole buffer) after the code refactoring. */
-	tmemvectoru
-	_raw[INPUT_BUF_HEIGHT][INPUT_BUF_LINES][MAX_VECTORS_PER_INPUT_LINE_CONT]; /* 2 bayer lines */
-#endif
-} input_line_type;
-#else /* ENABLE CONTINUOUS == 0 */
-typedef struct {
-	tmemvectoru
-	raw[INPUT_BUF_HEIGHT][INPUT_BUF_LINES][MAX_VECTORS_PER_INPUT_LINE]; /* 2 bayer lines */
-} input_line_type;
-#endif /* ENABLE_CONTINUOUS */
-
-#endif /*MODE*/
 
 #endif /* _INPUT_BUF_ISP_H_ */

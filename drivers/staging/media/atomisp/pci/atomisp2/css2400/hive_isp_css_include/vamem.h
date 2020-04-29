@@ -31,15 +31,6 @@
 
 #include "system_local.h"
 #include "vamem_local.h"
-
-#ifndef __INLINE_VAMEM__
-#define STORAGE_CLASS_VAMEM_H extern
-#define STORAGE_CLASS_VAMEM_C
 #include "vamem_public.h"
-#else  /* __INLINE_VAMEM__ */
-#define STORAGE_CLASS_VAMEM_H static inline
-#define STORAGE_CLASS_VAMEM_C static inline
-#include "vamem_private.h"
-#endif /* __INLINE_VAMEM__ */
 
 #endif /* __VAMEM_H_INCLUDED__ */

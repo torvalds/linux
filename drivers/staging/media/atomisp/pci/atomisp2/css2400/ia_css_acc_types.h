@@ -355,7 +355,7 @@ struct ia_css_sp_info {
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
-#if !defined(__ISP)
+
 /* Accelerator firmware information.
  */
 struct ia_css_acc_info {
@@ -467,8 +467,6 @@ struct ia_css_acc_fw {
 #define IA_CSS_EXT_ISP_PROG_NAME(f)   ((const char *)(f) + (f)->blob.prog_name_offset)
 #define IA_CSS_EXT_ISP_MEM_OFFSETS(f) \
 	((const struct ia_css_memory_offsets *)((const char *)(f) + (f)->blob.mem_offsets))
-
-#endif /* !defined(__ISP) */
 
 enum ia_css_sp_sleep_mode {
 	SP_DISABLE_SLEEP_MODE = 0,
