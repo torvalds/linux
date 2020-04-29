@@ -242,6 +242,10 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(regs->softe != IRQS_ENABLED);
 
+	/*
+	 * We don't need to restore AMR on the way back to userspace for KUAP.
+	 * AMR can only have been unlocked if we interrupted the kernel.
+	 */
 	kuap_check_amr();
 
 	local_irq_save(flags);
@@ -313,13 +317,14 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 	unsigned long *ti_flagsp = &current_thread_info()->flags;
 	unsigned long flags;
 	unsigned long ret = 0;
+	unsigned long amr;
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && unlikely(!(regs->msr & MSR_RI)))
 		unrecoverable_exception(regs);
 	BUG_ON(regs->msr & MSR_PR);
 	BUG_ON(!FULL_REGS(regs));
 
-	kuap_check_amr();
+	amr = kuap_get_and_check_amr();
 
 	if (unlikely(*ti_flagsp & _TIF_EMULATE_STACK_STORE)) {
 		clear_bits(_TIF_EMULATE_STACK_STORE, ti_flagsp);
@@ -367,10 +372,11 @@ again:
 #endif
 
 	/*
-	 * We don't need to restore AMR on the way back to userspace for KUAP.
-	 * The value of AMR only matters while we're in the kernel.
+	 * Don't want to mfspr(SPRN_AMR) here, because this comes after mtmsr,
+	 * which would cause Read-After-Write stalls. Hence, we take the AMR
+	 * value from the check above.
 	 */
-	kuap_restore_amr(regs);
+	kuap_restore_amr(regs, amr);
 
 	return ret;
 }
