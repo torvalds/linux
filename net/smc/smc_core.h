@@ -152,25 +152,32 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			wr_reg	: 1;	/* mem region registered */
-	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */
-			struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];
-						/* virtual buffer */
-			struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
-						/* for rmb only: memory region
-						 * incl. rkey provided to peer
-						 */
-			u32			order;	/* allocation order */
+			struct sg_table	sgt[SMC_LINKS_PER_LGR_MAX];
+					/* virtual buffer */
+			struct ib_mr	*mr_rx[SMC_LINKS_PER_LGR_MAX];
+					/* for rmb only: memory region
+					 * incl. rkey provided to peer
+					 */
+			u32		order;	/* allocation order */
+
+			u8		is_conf_rkey;
+					/* confirm_rkey done */
+			u8		is_reg_mr[SMC_LINKS_PER_LGR_MAX];
+					/* mem region registered */
+			u8		is_map_ib[SMC_LINKS_PER_LGR_MAX];
+					/* mem region mapped to lnk */
+			u8		is_reg_err;
+					/* buffer registration err */
 		};
 		struct { /* SMC-D */
-			unsigned short		sba_idx;
-						/* SBA index number */
-			u64			token;
-						/* DMB token number */
-			dma_addr_t		dma_addr;
-						/* DMA address */
+			unsigned short	sba_idx;
+					/* SBA index number */
+			u64		token;
+					/* DMB token number */
+			dma_addr_t	dma_addr;
+					/* DMA address */
 		};
 	};
 };

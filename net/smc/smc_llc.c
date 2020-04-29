@@ -662,6 +662,8 @@ void smc_llc_link_deleting(struct smc_link *link)
 /* called in tasklet context */
 void smc_llc_link_inactive(struct smc_link *link)
 {
+	if (link->state == SMC_LNK_INACTIVE)
+		return;
 	link->state = SMC_LNK_INACTIVE;
 	cancel_delayed_work(&link->llc_testlink_wrk);
 	smc_wr_wakeup_reg_wait(link);
