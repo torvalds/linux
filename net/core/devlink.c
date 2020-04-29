@@ -4283,6 +4283,11 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
 		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
 		dump = false;
+
+		if (start_offset == end_offset) {
+			err = 0;
+			goto nla_put_failure;
+		}
 	}
 
 	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
