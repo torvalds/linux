@@ -6,7 +6,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
+#ifdef USE_LIBCAP
 #include <sys/capability.h>
+#endif
 #include <sys/utsname.h>
 #include <sys/vfs.h>
 
@@ -37,7 +39,9 @@ static const char * const helper_name[] = {
 #undef BPF_HELPER_MAKE_ENTRY
 
 static bool full_mode;
+#ifdef USE_LIBCAP
 static bool run_as_unprivileged;
+#endif
 
 /* Miscellaneous utility functions */
 
@@ -475,11 +479,13 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 		}
 
 	res = bpf_probe_prog_type(prog_type, ifindex);
+#ifdef USE_LIBCAP
 	/* Probe may succeed even if program load fails, for unprivileged users
 	 * check that we did not fail because of insufficient permissions
 	 */
 	if (run_as_unprivileged && errno == EPERM)
 		res = false;
+#endif
 
 	supported_types[prog_type] |= res;
 
@@ -535,12 +541,14 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 
 	if (supported_type) {
 		res = bpf_probe_helper(id, prog_type, ifindex);
+#ifdef USE_LIBCAP
 		/* Probe may succeed even if program load fails, for
 		 * unprivileged users check that we did not fail because of
 		 * insufficient permissions
 		 */
 		if (run_as_unprivileged && errno == EPERM)
 			res = false;
+#endif
 	}
 
 	if (json_output) {
@@ -738,6 +746,7 @@ static void section_misc(const char *define_prefix, __u32 ifindex)
 
 static int handle_perms(void)
 {
+#ifdef USE_LIBCAP
 	cap_value_t cap_list[1] = { CAP_SYS_ADMIN };
 	bool has_sys_admin_cap = false;
 	cap_flag_value_t val;
@@ -793,6 +802,18 @@ exit_free:
 	}
 
 	return res;
+#else
+	/* Detection assumes user has sufficient privileges (CAP_SYS_ADMIN).
+	 * We do not use libpcap so let's approximate, and restrict usage to
+	 * root user only.
+	 */
+	if (geteuid()) {
+		p_err("full feature probing requires root privileges");
+		return -1;
+	}
+
+	return 0;
+#endif /* USE_LIBCAP */
 }
 
 static int do_probe(int argc, char **argv)
@@ -852,8 +873,13 @@ static int do_probe(int argc, char **argv)
 				return -1;
 			define_prefix = GET_ARG();
 		} else if (is_prefix(*argv, "unprivileged")) {
+#ifdef USE_LIBCAP
 			run_as_unprivileged = true;
 			NEXT_ARG();
+#else
+			p_err("unprivileged run not supported, recompile bpftool with libcap");
+			return -1;
+#endif
 		} else {
 			p_err("expected no more arguments, 'kernel', 'dev', 'macros' or 'prefix', got: '%s'?",
 			      *argv);
