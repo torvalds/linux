@@ -102,22 +102,14 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	struct vnt_private *priv = hw->priv;
 	u8 *mac_addr = NULL;
 	u8 key_dec_mode = 0;
-	int ret = 0, u;
+	int ret = 0;
 
 	if (sta)
 		mac_addr = &sta->addr[0];
 
 	switch (key->cipher) {
-	case 0:
-		for (u = 0 ; u < MAX_KEY_TABLE; u++)
-			vnt_mac_disable_keyentry(priv, u);
-		return ret;
-
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		for (u = 0; u < MAX_KEY_TABLE; u++)
-			vnt_mac_disable_keyentry(priv, u);
-
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_DEFAULTKEY,
 				KEY_CTL_WEP);
 
