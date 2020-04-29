@@ -102,7 +102,7 @@ set_methods:
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 
-int __perf_evsel__sample_size(u64 sample_type)
+int __evsel__sample_size(u64 sample_type)
 {
 	u64 mask = sample_type & PERF_SAMPLE_MASK;
 	int size = 0;
@@ -249,7 +249,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
-	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
+	evsel->sample_size = __evsel__sample_size(attr->sample_type);
 	evsel__calc_id_pos(evsel);
 	evsel->cmdline_group_boundary = false;
 	evsel->metric_expr   = NULL;

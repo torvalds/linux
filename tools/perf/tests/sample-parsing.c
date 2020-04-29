@@ -296,7 +296,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	evsel.sample_size = __perf_evsel__sample_size(sample_type);
+	evsel.sample_size = __evsel__sample_size(sample_type);
 
 	err = perf_evsel__parse_sample(&evsel, event, &sample_out);
 	if (err) {
