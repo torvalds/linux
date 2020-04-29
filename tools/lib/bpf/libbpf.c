@@ -310,6 +310,7 @@ struct bpf_map {
 	int map_ifindex;
 	int inner_map_fd;
 	struct bpf_map_def def;
+	__u32 btf_var_idx;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
 	__u32 btf_vmlinux_value_type_id;
@@ -318,6 +319,9 @@ struct bpf_map {
 	enum libbpf_map_type libbpf_type;
 	void *mmaped;
 	struct bpf_struct_ops *st_ops;
+	struct bpf_map *inner_map;
+	void **init_slots;
+	int init_slots_sz;
 	char *pin_path;
 	bool pinned;
 	bool reused;
@@ -389,6 +393,7 @@ struct bpf_object {
 		int nr_reloc_sects;
 		int maps_shndx;
 		int btf_maps_shndx;
+		__u32 btf_maps_sec_btf_id;
 		int text_shndx;
 		int symbols_shndx;
 		int data_shndx;
@@ -1918,7 +1923,7 @@ static int build_map_pin_path(struct bpf_map *map, const char *path)
 static int parse_btf_map_def(struct bpf_object *obj,
 			     struct bpf_map *map,
 			     const struct btf_type *def,
-			     bool strict,
+			     bool strict, bool is_inner,
 			     const char *pin_root_path)
 {
 	const struct btf_type *t;
@@ -2036,10 +2041,79 @@ static int parse_btf_map_def(struct bpf_object *obj,
 			}
 			map->def.value_size = sz;
 			map->btf_value_type_id = t->type;
+		}
+		else if (strcmp(name, "values") == 0) {
+			int err;
+
+			if (is_inner) {
+				pr_warn("map '%s': multi-level inner maps not supported.\n",
+					map->name);
+				return -ENOTSUP;
+			}
+			if (i != vlen - 1) {
+				pr_warn("map '%s': '%s' member should be last.\n",
+					map->name, name);
+				return -EINVAL;
+			}
+			if (!bpf_map_type__is_map_in_map(map->def.type)) {
+				pr_warn("map '%s': should be map-in-map.\n",
+					map->name);
+				return -ENOTSUP;
+			}
+			if (map->def.value_size && map->def.value_size != 4) {
+				pr_warn("map '%s': conflicting value size %u != 4.\n",
+					map->name, map->def.value_size);
+				return -EINVAL;
+			}
+			map->def.value_size = 4;
+			t = btf__type_by_id(obj->btf, m->type);
+			if (!t) {
+				pr_warn("map '%s': map-in-map inner type [%d] not found.\n",
+					map->name, m->type);
+				return -EINVAL;
+			}
+			if (!btf_is_array(t) || btf_array(t)->nelems) {
+				pr_warn("map '%s': map-in-map inner spec is not a zero-sized array.\n",
+					map->name);
+				return -EINVAL;
+			}
+			t = skip_mods_and_typedefs(obj->btf, btf_array(t)->type,
+						   NULL);
+			if (!btf_is_ptr(t)) {
+				pr_warn("map '%s': map-in-map inner def is of unexpected kind %u.\n",
+					map->name, btf_kind(t));
+				return -EINVAL;
+			}
+			t = skip_mods_and_typedefs(obj->btf, t->type, NULL);
+			if (!btf_is_struct(t)) {
+				pr_warn("map '%s': map-in-map inner def is of unexpected kind %u.\n",
+					map->name, btf_kind(t));
+				return -EINVAL;
+			}
+
+			map->inner_map = calloc(1, sizeof(*map->inner_map));
+			if (!map->inner_map)
+				return -ENOMEM;
+			map->inner_map->sec_idx = obj->efile.btf_maps_shndx;
+			map->inner_map->name = malloc(strlen(map->name) +
+						      sizeof(".inner") + 1);
+			if (!map->inner_map->name)
+				return -ENOMEM;
+			sprintf(map->inner_map->name, "%s.inner", map->name);
+
+			err = parse_btf_map_def(obj, map->inner_map, t, strict,
+						true /* is_inner */, NULL);
+			if (err)
+				return err;
 		} else if (strcmp(name, "pinning") == 0) {
 			__u32 val;
 			int err;
 
+			if (is_inner) {
+				pr_debug("map '%s': inner def can't be pinned.\n",
+					 map->name);
+				return -EINVAL;
+			}
 			if (!get_map_field_int(map->name, obj->btf, m, &val))
 				return -EINVAL;
 			pr_debug("map '%s': found pinning = %u.\n",
@@ -2138,10 +2212,11 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	map->def.type = BPF_MAP_TYPE_UNSPEC;
 	map->sec_idx = sec_idx;
 	map->sec_offset = vi->offset;
+	map->btf_var_idx = var_idx;
 	pr_debug("map '%s': at sec_idx %d, offset %zu.\n",
 		 map_name, map->sec_idx, map->sec_offset);
 
-	return parse_btf_map_def(obj, map, def, strict, pin_root_path);
+	return parse_btf_map_def(obj, map, def, strict, false, pin_root_path);
 }
 
 static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
@@ -2174,6 +2249,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 		name = btf__name_by_offset(obj->btf, t->name_off);
 		if (strcmp(name, MAPS_ELF_SEC) == 0) {
 			sec = t;
+			obj->efile.btf_maps_sec_btf_id = i;
 			break;
 		}
 	}
@@ -2560,7 +2636,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 
 			/* Only do relo for section with exec instructions */
 			if (!section_have_execinstr(obj, sec) &&
-			    strcmp(name, ".rel" STRUCT_OPS_SEC)) {
+			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
+			    strcmp(name, ".rel" MAPS_ELF_SEC)) {
 				pr_debug("skip relo %s(%d) for section(%d)\n",
 					 name, idx, sec);
 				continue;
@@ -3538,6 +3615,22 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 		create_attr.btf_value_type_id = map->btf_value_type_id;
 	}
 
+	if (bpf_map_type__is_map_in_map(def->type)) {
+		if (map->inner_map) {
+			int err;
+
+			err = bpf_object__create_map(obj, map->inner_map);
+			if (err) {
+				pr_warn("map '%s': failed to create inner map: %d\n",
+					map->name, err);
+				return err;
+			}
+			map->inner_map_fd = bpf_map__fd(map->inner_map);
+		}
+		if (map->inner_map_fd >= 0)
+			create_attr.inner_map_fd = map->inner_map_fd;
+	}
+
 	map->fd = bpf_create_map_xattr(&create_attr);
 	if (map->fd < 0 && (create_attr.btf_key_type_id ||
 			    create_attr.btf_value_type_id)) {
@@ -3557,6 +3650,11 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 
 	if (map->fd < 0)
 		return -errno;
+
+	if (bpf_map_type__is_map_in_map(def->type) && map->inner_map) {
+		bpf_map__destroy(map->inner_map);
+		zfree(&map->inner_map);
+	}
 
 	return 0;
 }
@@ -3600,6 +3698,31 @@ bpf_object__create_maps(struct bpf_object *obj)
 				zclose(map->fd);
 				goto err_out;
 			}
+		}
+
+		if (map->init_slots_sz) {
+			for (j = 0; j < map->init_slots_sz; j++) {
+				const struct bpf_map *targ_map;
+				int fd;
+
+				if (!map->init_slots[j])
+					continue;
+
+				targ_map = map->init_slots[j];
+				fd = bpf_map__fd(targ_map);
+				err = bpf_map_update_elem(map->fd, &j, &fd, 0);
+				if (err) {
+					err = -errno;
+					pr_warn("map '%s': failed to initialize slot [%d] to map '%s' fd=%d: %d\n",
+						map->name, j, targ_map->name,
+						fd, err);
+					goto err_out;
+				}
+				pr_debug("map '%s': slot [%d] set to map '%s' fd=%d\n",
+					 map->name, j, targ_map->name, fd);
+			}
+			zfree(&map->init_slots);
+			map->init_slots_sz = 0;
 		}
 
 		if (map->pin_path && !map->pinned) {
@@ -4873,9 +4996,118 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 	return 0;
 }
 
-static int bpf_object__collect_struct_ops_map_reloc(struct bpf_object *obj,
-						    GElf_Shdr *shdr,
-						    Elf_Data *data);
+static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
+					    GElf_Shdr *shdr, Elf_Data *data);
+
+static int bpf_object__collect_map_relos(struct bpf_object *obj,
+					 GElf_Shdr *shdr, Elf_Data *data)
+{
+	int i, j, nrels, new_sz, ptr_sz = sizeof(void *);
+	const struct btf_type *sec, *var, *def;
+	const struct btf_var_secinfo *vi;
+	const struct btf_member *member;
+	struct bpf_map *map, *targ_map;
+	const char *name, *mname;
+	Elf_Data *symbols;
+	unsigned int moff;
+	GElf_Sym sym;
+	GElf_Rel rel;
+	void *tmp;
+
+	if (!obj->efile.btf_maps_sec_btf_id || !obj->btf)
+		return -EINVAL;
+	sec = btf__type_by_id(obj->btf, obj->efile.btf_maps_sec_btf_id);
+	if (!sec)
+		return -EINVAL;
+
+	symbols = obj->efile.symbols;
+	nrels = shdr->sh_size / shdr->sh_entsize;
+	for (i = 0; i < nrels; i++) {
+		if (!gelf_getrel(data, i, &rel)) {
+			pr_warn(".maps relo #%d: failed to get ELF relo\n", i);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+		if (!gelf_getsym(symbols, GELF_R_SYM(rel.r_info), &sym)) {
+			pr_warn(".maps relo #%d: symbol %zx not found\n",
+				i, (size_t)GELF_R_SYM(rel.r_info));
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+		name = elf_strptr(obj->efile.elf, obj->efile.strtabidx,
+				  sym.st_name) ? : "<?>";
+		if (sym.st_shndx != obj->efile.btf_maps_shndx) {
+			pr_warn(".maps relo #%d: '%s' isn't a BTF-defined map\n",
+				i, name);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+
+		pr_debug(".maps relo #%d: for %zd value %zd rel.r_offset %zu name %d ('%s')\n",
+			 i, (ssize_t)(rel.r_info >> 32), (size_t)sym.st_value,
+			 (size_t)rel.r_offset, sym.st_name, name);
+
+		for (j = 0; j < obj->nr_maps; j++) {
+			map = &obj->maps[j];
+			if (map->sec_idx != obj->efile.btf_maps_shndx)
+				continue;
+
+			vi = btf_var_secinfos(sec) + map->btf_var_idx;
+			if (vi->offset <= rel.r_offset &&
+			    rel.r_offset + sizeof(void *) <= vi->offset + vi->size)
+				break;
+		}
+		if (j == obj->nr_maps) {
+			pr_warn(".maps relo #%d: cannot find map '%s' at rel.r_offset %zu\n",
+				i, name, (size_t)rel.r_offset);
+			return -EINVAL;
+		}
+
+		if (!bpf_map_type__is_map_in_map(map->def.type))
+			return -EINVAL;
+		if (map->def.type == BPF_MAP_TYPE_HASH_OF_MAPS &&
+		    map->def.key_size != sizeof(int)) {
+			pr_warn(".maps relo #%d: hash-of-maps '%s' should have key size %zu.\n",
+				i, map->name, sizeof(int));
+			return -EINVAL;
+		}
+
+		targ_map = bpf_object__find_map_by_name(obj, name);
+		if (!targ_map)
+			return -ESRCH;
+
+		var = btf__type_by_id(obj->btf, vi->type);
+		def = skip_mods_and_typedefs(obj->btf, var->type, NULL);
+		if (btf_vlen(def) == 0)
+			return -EINVAL;
+		member = btf_members(def) + btf_vlen(def) - 1;
+		mname = btf__name_by_offset(obj->btf, member->name_off);
+		if (strcmp(mname, "values"))
+			return -EINVAL;
+
+		moff = btf_member_bit_offset(def, btf_vlen(def) - 1) / 8;
+		if (rel.r_offset - vi->offset < moff)
+			return -EINVAL;
+
+		moff = rel.r_offset - vi->offset - moff;
+		if (moff % ptr_sz)
+			return -EINVAL;
+		moff /= ptr_sz;
+		if (moff >= map->init_slots_sz) {
+			new_sz = moff + 1;
+			tmp = realloc(map->init_slots, new_sz * ptr_sz);
+			if (!tmp)
+				return -ENOMEM;
+			map->init_slots = tmp;
+			memset(map->init_slots + map->init_slots_sz, 0,
+			       (new_sz - map->init_slots_sz) * ptr_sz);
+			map->init_slots_sz = new_sz;
+		}
+		map->init_slots[moff] = targ_map;
+
+		pr_debug(".maps relo #%d: map '%s' slot [%d] points to map '%s'\n",
+			 i, map->name, moff, name);
+	}
+
+	return 0;
+}
 
 static int bpf_object__collect_reloc(struct bpf_object *obj)
 {
@@ -4898,21 +5130,17 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 		}
 
 		if (idx == obj->efile.st_ops_shndx) {
-			err = bpf_object__collect_struct_ops_map_reloc(obj,
-								       shdr,
-								       data);
-			if (err)
-				return err;
-			continue;
+			err = bpf_object__collect_st_ops_relos(obj, shdr, data);
+		} else if (idx == obj->efile.btf_maps_shndx) {
+			err = bpf_object__collect_map_relos(obj, shdr, data);
+		} else {
+			prog = bpf_object__find_prog_by_idx(obj, idx);
+			if (!prog) {
+				pr_warn("relocation failed: no prog in section(%d)\n", idx);
+				return -LIBBPF_ERRNO__RELOC;
+			}
+			err = bpf_program__collect_reloc(prog, shdr, data, obj);
 		}
-
-		prog = bpf_object__find_prog_by_idx(obj, idx);
-		if (!prog) {
-			pr_warn("relocation failed: no section(%d)\n", idx);
-			return -LIBBPF_ERRNO__RELOC;
-		}
-
-		err = bpf_program__collect_reloc(prog, shdr, data, obj);
 		if (err)
 			return err;
 	}
@@ -5984,6 +6212,14 @@ static void bpf_map__destroy(struct bpf_map *map)
 	map->priv = NULL;
 	map->clear_priv = NULL;
 
+	if (map->inner_map) {
+		bpf_map__destroy(map->inner_map);
+		zfree(&map->inner_map);
+	}
+
+	zfree(&map->init_slots);
+	map->init_slots_sz = 0;
+
 	if (map->mmaped) {
 		munmap(map->mmaped, bpf_map_mmap_sz(map));
 		map->mmaped = NULL;
@@ -6543,9 +6779,8 @@ static struct bpf_map *find_struct_ops_map_by_offset(struct bpf_object *obj,
 }
 
 /* Collect the reloc from ELF and populate the st_ops->progs[] */
-static int bpf_object__collect_struct_ops_map_reloc(struct bpf_object *obj,
-						    GElf_Shdr *shdr,
-						    Elf_Data *data)
+static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
+					    GElf_Shdr *shdr, Elf_Data *data)
 {
 	const struct btf_member *member;
 	struct bpf_struct_ops *st_ops;
