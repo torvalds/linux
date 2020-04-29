@@ -62,39 +62,28 @@ static bool check_setget_bounds(const struct extent_buffer *eb,
 u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 			       const void *ptr, unsigned long off)	\
 {									\
-	unsigned long part_offset = (unsigned long)ptr;			\
-	unsigned long offset = part_offset + off;			\
-	void *p;							\
-	int err;							\
-	char *kaddr;							\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
-	int size = sizeof(u##bits);					\
-	u##bits res;							\
+	const unsigned long member_offset = (unsigned long)ptr + off;	\
+	const unsigned long idx = member_offset >> PAGE_SHIFT;		\
+	const unsigned long oip = offset_in_page(member_offset);	\
+	const int size = sizeof(u##bits);				\
+	__le##bits leres;						\
 									\
 	ASSERT(token);							\
 	ASSERT(token->kaddr);						\
 	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
-	if (token->offset <= offset &&					\
-	   (token->offset + PAGE_SIZE >= offset + size)) {	\
-		kaddr = token->kaddr;					\
-		p = kaddr + part_offset - token->offset;		\
-		res = get_unaligned_le##bits(p + off);			\
-		return res;						\
+	if (token->offset <= member_offset &&				\
+	    member_offset + size <= token->offset + PAGE_SIZE) {	\
+		return get_unaligned_le##bits(token->kaddr + oip);	\
 	}								\
-	err = map_private_extent_buffer(token->eb, offset, size,	\
-					&kaddr, &map_start, &map_len);	\
-	if (err) {							\
-		__le##bits leres;					\
-									\
-		read_extent_buffer(token->eb, &leres, offset, size);	\
-		return le##bits##_to_cpu(leres);			\
+	if (oip + size <= PAGE_SIZE) {					\
+		token->kaddr = page_address(token->eb->pages[idx]);	\
+		token->offset = idx << PAGE_SHIFT;			\
+		return get_unaligned_le##bits(token->kaddr + oip);	\
 	}								\
-	p = kaddr + part_offset - map_start;				\
-	res = get_unaligned_le##bits(p + off);				\
-	token->kaddr = kaddr;						\
-	token->offset = map_start;					\
-	return res;							\
+	token->kaddr = page_address(token->eb->pages[idx + 1]);		\
+	token->offset = (idx + 1) << PAGE_SHIFT;			\
+	read_extent_buffer(token->eb, &leres, member_offset, size);	\
+	return le##bits##_to_cpu(leres);				\
 }									\
 u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 			 const void *ptr, unsigned long off)		\
