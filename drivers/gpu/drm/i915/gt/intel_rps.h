@@ -66,4 +66,19 @@ static inline bool intel_rps_clear_active(struct intel_rps *rps)
 	return test_and_clear_bit(INTEL_RPS_ACTIVE, &rps->flags);
 }
 
+static inline bool intel_rps_has_interrupts(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
+static inline void intel_rps_set_interrupts(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
+static inline void intel_rps_clear_interrupts(struct intel_rps *rps)
+{
+	clear_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
 #endif /* INTEL_RPS_H */

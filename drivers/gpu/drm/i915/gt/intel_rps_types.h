@@ -34,6 +34,7 @@ struct intel_rps_ei {
 enum {
 	INTEL_RPS_ENABLED = 0,
 	INTEL_RPS_ACTIVE,
+	INTEL_RPS_INTERRUPTS,
 };
 
 struct intel_rps {

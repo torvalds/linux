@@ -1017,7 +1017,7 @@ int live_rps_interrupt(void *arg)
 	 * First, let's check whether or not we are receiving interrupts.
 	 */
 
-	if (!intel_rps_is_enabled(rps))
+	if (!intel_rps_has_interrupts(rps))
 		return 0;
 
 	intel_gt_pm_get(gt);

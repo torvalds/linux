@@ -742,7 +742,7 @@ void intel_rps_unpark(struct intel_rps *rps)
 
 	mutex_unlock(&rps->lock);
 
-	if (INTEL_GEN(rps_to_i915(rps)) >= 6)
+	if (intel_rps_has_interrupts(rps))
 		rps_enable_interrupts(rps);
 
 	if (IS_GEN(rps_to_i915(rps), 5))
@@ -751,12 +751,10 @@ void intel_rps_unpark(struct intel_rps *rps)
 
 void intel_rps_park(struct intel_rps *rps)
 {
-	struct drm_i915_private *i915 = rps_to_i915(rps);
-
 	if (!intel_rps_clear_active(rps))
 		return;
 
-	if (INTEL_GEN(i915) >= 6)
+	if (intel_rps_has_interrupts(rps))
 		rps_disable_interrupts(rps);
 
 	if (rps->last_freq <= rps->idle_freq)
@@ -838,7 +836,7 @@ int intel_rps_set(struct intel_rps *rps, u8 val)
 		 * Make sure we continue to get interrupts
 		 * until we hit the minimum or maximum frequencies.
 		 */
-		if (INTEL_GEN(rps_to_i915(rps)) >= 6) {
+		if (intel_rps_has_interrupts(rps)) {
 			struct intel_uncore *uncore = rps_to_uncore(rps);
 
 			set(uncore,
@@ -1257,6 +1255,11 @@ void intel_rps_enable(struct intel_rps *rps)
 	GEM_BUG_ON(rps->efficient_freq < rps->min_freq);
 	GEM_BUG_ON(rps->efficient_freq > rps->max_freq);
 
+	if (INTEL_GEN(i915) >= 6)
+		intel_rps_set_interrupts(rps);
+	else
+		/* Ironlake currently uses intel_ips.ko */ {}
+
 	intel_rps_set_enabled(rps);
 }
 
@@ -1270,6 +1273,7 @@ void intel_rps_disable(struct intel_rps *rps)
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
 	intel_rps_clear_enabled(rps);
+	intel_rps_clear_interrupts(rps);
 
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_disable(rps);
@@ -1741,6 +1745,9 @@ void intel_rps_init(struct intel_rps *rps)
 
 	if (INTEL_GEN(i915) >= 8 && INTEL_GEN(i915) < 11)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+
+	if (INTEL_GEN(i915) >= 6)
+		rps_disable_interrupts(rps);
 }
 
 u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
