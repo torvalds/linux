@@ -509,8 +509,8 @@ insert:
 				struct btrfs_map_token token;
 
 				btrfs_init_map_token(&token, dst_eb);
-				btrfs_set_token_inode_size(dst_eb, dst_item,
-							   ino_size, &token);
+				btrfs_set_token_inode_size(&token, dst_item,
+							   ino_size);
 			}
 			goto no_copy;
 		}
@@ -3852,44 +3852,41 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 		 * just to say 'this inode exists' and a logging
 		 * to say 'update this inode with these values'
 		 */
-		btrfs_set_token_inode_generation(leaf, item, 0, &token);
-		btrfs_set_token_inode_size(leaf, item, logged_isize, &token);
+		btrfs_set_token_inode_generation(&token, item, 0);
+		btrfs_set_token_inode_size(&token, item, logged_isize);
 	} else {
-		btrfs_set_token_inode_generation(leaf, item,
-						 BTRFS_I(inode)->generation,
-						 &token);
-		btrfs_set_token_inode_size(leaf, item, inode->i_size, &token);
+		btrfs_set_token_inode_generation(&token, item,
+						 BTRFS_I(inode)->generation);
+		btrfs_set_token_inode_size(&token, item, inode->i_size);
 	}
 
-	btrfs_set_token_inode_uid(leaf, item, i_uid_read(inode), &token);
-	btrfs_set_token_inode_gid(leaf, item, i_gid_read(inode), &token);
-	btrfs_set_token_inode_mode(leaf, item, inode->i_mode, &token);
-	btrfs_set_token_inode_nlink(leaf, item, inode->i_nlink, &token);
+	btrfs_set_token_inode_uid(&token, item, i_uid_read(inode));
+	btrfs_set_token_inode_gid(&token, item, i_gid_read(inode));
+	btrfs_set_token_inode_mode(&token, item, inode->i_mode);
+	btrfs_set_token_inode_nlink(&token, item, inode->i_nlink);
 
-	btrfs_set_token_timespec_sec(leaf, &item->atime,
-				     inode->i_atime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, &item->atime,
-				      inode->i_atime.tv_nsec, &token);
+	btrfs_set_token_timespec_sec(&token, &item->atime,
+				     inode->i_atime.tv_sec);
+	btrfs_set_token_timespec_nsec(&token, &item->atime,
+				      inode->i_atime.tv_nsec);
 
-	btrfs_set_token_timespec_sec(leaf, &item->mtime,
-				     inode->i_mtime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, &item->mtime,
-				      inode->i_mtime.tv_nsec, &token);
+	btrfs_set_token_timespec_sec(&token, &item->mtime,
+				     inode->i_mtime.tv_sec);
+	btrfs_set_token_timespec_nsec(&token, &item->mtime,
+				      inode->i_mtime.tv_nsec);
 
-	btrfs_set_token_timespec_sec(leaf, &item->ctime,
-				     inode->i_ctime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, &item->ctime,
-				      inode->i_ctime.tv_nsec, &token);
+	btrfs_set_token_timespec_sec(&token, &item->ctime,
+				     inode->i_ctime.tv_sec);
+	btrfs_set_token_timespec_nsec(&token, &item->ctime,
+				      inode->i_ctime.tv_nsec);
 
-	btrfs_set_token_inode_nbytes(leaf, item, inode_get_bytes(inode),
-				     &token);
+	btrfs_set_token_inode_nbytes(&token, item, inode_get_bytes(inode));
 
-	btrfs_set_token_inode_sequence(leaf, item,
-				       inode_peek_iversion(inode), &token);
-	btrfs_set_token_inode_transid(leaf, item, trans->transid, &token);
-	btrfs_set_token_inode_rdev(leaf, item, inode->i_rdev, &token);
-	btrfs_set_token_inode_flags(leaf, item, BTRFS_I(inode)->flags, &token);
-	btrfs_set_token_inode_block_group(leaf, item, 0, &token);
+	btrfs_set_token_inode_sequence(&token, item, inode_peek_iversion(inode));
+	btrfs_set_token_inode_transid(&token, item, trans->transid);
+	btrfs_set_token_inode_rdev(&token, item, inode->i_rdev);
+	btrfs_set_token_inode_flags(&token, item, BTRFS_I(inode)->flags);
+	btrfs_set_token_inode_block_group(&token, item, 0);
 }
 
 static int log_inode_item(struct btrfs_trans_handle *trans,
@@ -4163,43 +4160,35 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
 
-	btrfs_set_token_file_extent_generation(leaf, fi, trans->transid,
-					       &token);
+	btrfs_set_token_file_extent_generation(&token, fi, trans->transid);
 	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
-		btrfs_set_token_file_extent_type(leaf, fi,
-						 BTRFS_FILE_EXTENT_PREALLOC,
-						 &token);
+		btrfs_set_token_file_extent_type(&token, fi,
+						 BTRFS_FILE_EXTENT_PREALLOC);
 	else
-		btrfs_set_token_file_extent_type(leaf, fi,
-						 BTRFS_FILE_EXTENT_REG,
-						 &token);
+		btrfs_set_token_file_extent_type(&token, fi,
+						 BTRFS_FILE_EXTENT_REG);
 
 	block_len = max(em->block_len, em->orig_block_len);
 	if (em->compress_type != BTRFS_COMPRESS_NONE) {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
-							em->block_start,
-							&token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
-							   &token);
+		btrfs_set_token_file_extent_disk_bytenr(&token, fi,
+							em->block_start);
+		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, block_len);
 	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
+		btrfs_set_token_file_extent_disk_bytenr(&token, fi,
 							em->block_start -
-							extent_offset, &token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
-							   &token);
+							extent_offset);
+		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, block_len);
 	} else {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi, 0, &token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, 0,
-							   &token);
+		btrfs_set_token_file_extent_disk_bytenr(&token, fi, 0);
+		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, 0);
 	}
 
-	btrfs_set_token_file_extent_offset(leaf, fi, extent_offset, &token);
-	btrfs_set_token_file_extent_num_bytes(leaf, fi, em->len, &token);
-	btrfs_set_token_file_extent_ram_bytes(leaf, fi, em->ram_bytes, &token);
-	btrfs_set_token_file_extent_compression(leaf, fi, em->compress_type,
-						&token);
-	btrfs_set_token_file_extent_encryption(leaf, fi, 0, &token);
-	btrfs_set_token_file_extent_other_encoding(leaf, fi, 0, &token);
+	btrfs_set_token_file_extent_offset(&token, fi, extent_offset);
+	btrfs_set_token_file_extent_num_bytes(&token, fi, em->len);
+	btrfs_set_token_file_extent_ram_bytes(&token, fi, em->ram_bytes);
+	btrfs_set_token_file_extent_compression(&token, fi, em->compress_type);
+	btrfs_set_token_file_extent_encryption(&token, fi, 0);
+	btrfs_set_token_file_extent_other_encoding(&token, fi, 0);
 	btrfs_mark_buffer_dirty(leaf);
 
 	btrfs_release_path(path);

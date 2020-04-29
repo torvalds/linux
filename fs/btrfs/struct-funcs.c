@@ -38,9 +38,8 @@ static inline void put_unaligned_le8(u8 val, void *p)
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
-u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
-			       const void *ptr, unsigned long off,	\
-			       struct btrfs_map_token *token)		\
+u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
+			       const void *ptr, unsigned long off)	\
 {									\
 	unsigned long part_offset = (unsigned long)ptr;			\
 	unsigned long offset = part_offset + off;			\
@@ -53,7 +52,6 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 	u##bits res;							\
 									\
 	ASSERT(token);							\
-	ASSERT(token->eb == eb);					\
 									\
 	if (token->kaddr && token->offset <= offset &&			\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
@@ -101,10 +99,9 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	res = get_unaligned_le##bits(p + off);				\
 	return res;							\
 }									\
-void btrfs_set_token_##bits(struct extent_buffer *eb,			\
+void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 			    const void *ptr, unsigned long off,		\
-			    u##bits val,				\
-			    struct btrfs_map_token *token)		\
+			    u##bits val)				\
 {									\
 	unsigned long part_offset = (unsigned long)ptr;			\
 	unsigned long offset = part_offset + off;			\
@@ -116,7 +113,6 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 	int size = sizeof(u##bits);					\
 									\
 	ASSERT(token);							\
-	ASSERT(token->eb == eb);					\
 									\
 	if (token->kaddr && token->offset <= offset &&			\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
