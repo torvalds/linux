@@ -7526,6 +7526,10 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
+
+	/* prevents spurious underruns */
+	if (IS_GEN(dev_priv, 2))
+		intel_wait_for_vblank(dev_priv, pipe);
 }
 
 static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
