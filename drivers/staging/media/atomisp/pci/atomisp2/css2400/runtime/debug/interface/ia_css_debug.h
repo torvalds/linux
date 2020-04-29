@@ -26,11 +26,8 @@
 #include "ia_css_stream_public.h"
 #include "ia_css_metadata.h"
 #include "sh_css_internal.h"
-#ifdef ISP2401
-#if defined(IS_ISP_2500_SYSTEM)
+/* ISP2500 */
 #include "ia_css_pipe.h"
-#endif
-#endif
 
 /* available levels */
 /*! Level for tracing errors */
@@ -177,7 +174,7 @@ void ia_css_debug_dump_isp_state(void);
  */
 void ia_css_debug_dump_sp_state(void);
 
-#ifdef ISP2401
+/* ISP2401 */
 /*! @brief Dump GAC hardware state.
  * Dumps the GAC ACB hardware registers. may be useful for
  * detecting a GAC which got hang.
@@ -185,7 +182,6 @@ void ia_css_debug_dump_sp_state(void);
  */
 void ia_css_debug_dump_gac_state(void);
 
-#endif
 /*! @brief Dump dma controller state.
  * Dumps the dma controller state to tracing output.
  * @return	None
@@ -472,7 +468,7 @@ bool ia_css_debug_mode_enable_dma_channel(
  */
 void ia_css_debug_dump_trace(void);
 
-#ifdef ISP2401
+/* ISP2401 */
 /**
  * @brief Program counter dumping (in loop)
  *
@@ -484,7 +480,7 @@ void ia_css_debug_dump_trace(void);
  */
 void ia_css_debug_pc_dump(sp_ID_t id, unsigned int num_of_dumps);
 
-#if defined(IS_ISP_2500_SYSTEM)
+/* ISP2500 */
 /*! @brief Dump all states for ISP hang case.
  * Dumps the ISP previous and current configurations
  * GACs status, SP0/1 statuses.
@@ -502,8 +498,5 @@ void ia_css_debug_dump_hang_status(
  * @return	None
  */
 void ia_css_debug_ext_command_handler(void);
-
-#endif
-#endif
 
 #endif /* _IA_CSS_DEBUG_H_ */

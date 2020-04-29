@@ -1,7 +1,6 @@
-#ifndef ISP2401
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
+ * Copyright (c) 2010 - 2015, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,28 +11,13 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#else
-/**
-Support for Intel Camera Imaging ISP subsystem.
-Copyright (c) 2010 - 2015, Intel Corporation.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms and conditions of the GNU General Public License,
-version 2, as published by the Free Software Foundation.
-
-This program is distributed in the hope it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-*/
-#endif
 
 #ifndef __IA_CSS_FRAME_H__
 #define __IA_CSS_FRAME_H__
 
-#ifdef ISP2401
+/* ISP2401 */
 #include <ia_css_types.h>
-#endif
+
 #include <ia_css_frame_format.h>
 #include <ia_css_frame_public.h>
 #include "dma.h"
@@ -157,7 +141,7 @@ void ia_css_dma_configure_from_info(
     struct dma_port_config *config,
     const struct ia_css_frame_info *info);
 
-#ifdef ISP2401
+/* ISP2401 */
 /* @brief Finds the cropping resolution
  * This function finds the maximum cropping resolution in an input image keeping
  * the aspect ratio for the given output resolution.Calculates the coordinates
@@ -176,5 +160,4 @@ ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 				  const struct ia_css_resolution *out_res,
 				  struct ia_css_resolution *crop_res);
 
-#endif
 #endif /* __IA_CSS_FRAME_H__ */

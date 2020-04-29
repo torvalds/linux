@@ -182,20 +182,12 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
  * @param[in] type: The shading correction type.
  * @param[in] required_bds_factor: The bayer downscaling factor required in the pipe.
  * @param[in] stream_config: The stream configuration.
-#ifndef ISP2401
- * @param[out] info: The shading information.
-#else
  * @param[out] shading_info: The shading information.
  *		The shading information necessary as API is stored in the shading_info.
-#endif
  *		The driver needs to get this information to generate
-#ifndef ISP2401
- *		the shading table directly required in the isp.
-#else
  *		the shading table directly required from ISP.
  * @param[out] pipe_config: The pipe configuration.
  *		The shading information related to ISP (but, not necessary as API) is stored in the pipe_config.
-#endif
  * @return	IA_CSS_SUCCESS or error code upon error.
  *
  */
