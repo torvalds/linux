@@ -141,12 +141,18 @@ static inline void rb_insert_color_cached(struct rb_node *node,
 	rb_insert_color(node, &root->rb_root);
 }
 
-static inline void rb_erase_cached(struct rb_node *node,
-				   struct rb_root_cached *root)
+
+static inline struct rb_node *
+rb_erase_cached(struct rb_node *node, struct rb_root_cached *root)
 {
+	struct rb_node *leftmost = NULL;
+
 	if (root->rb_leftmost == node)
-		root->rb_leftmost = rb_next(node);
+		leftmost = root->rb_leftmost = rb_next(node);
+
 	rb_erase(node, &root->rb_root);
+
+	return leftmost;
 }
 
 static inline void rb_replace_node_cached(struct rb_node *victim,
@@ -179,8 +185,10 @@ static inline void rb_replace_node_cached(struct rb_node *victim,
  * @node: node to insert
  * @tree: leftmost cached tree to insert @node into
  * @less: operator defining the (partial) node order
+ *
+ * Returns @node when it is the new leftmost, or NULL.
  */
-static __always_inline void
+static __always_inline struct rb_node *
 rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
 	      bool (*less)(struct rb_node *, const struct rb_node *))
 {
@@ -200,6 +208,8 @@ rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
 
 	rb_link_node(node, parent, link);
 	rb_insert_color_cached(node, tree, leftmost);
+
+	return leftmost ? node : NULL;
 }
 
 /**
