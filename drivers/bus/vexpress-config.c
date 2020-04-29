@@ -7,6 +7,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
@@ -407,15 +408,12 @@ static const struct platform_device_id vexpress_syscfg_id_table[] = {
 	{ "vexpress-syscfg", },
 	{},
 };
+MODULE_DEVICE_TABLE(platform, vexpress_syscfg_id_table);
 
 static struct platform_driver vexpress_syscfg_driver = {
 	.driver.name = "vexpress-syscfg",
 	.id_table = vexpress_syscfg_id_table,
 	.probe = vexpress_syscfg_probe,
 };
-
-static int __init vexpress_syscfg_init(void)
-{
-	return platform_driver_register(&vexpress_syscfg_driver);
-}
-core_initcall(vexpress_syscfg_init);
+module_platform_driver(vexpress_syscfg_driver);
+MODULE_LICENSE("GPL v2");
