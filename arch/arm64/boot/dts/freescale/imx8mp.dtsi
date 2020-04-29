@@ -689,7 +689,7 @@
 			};
 
 			fec: ethernet@30be0000 {
-				compatible = "fsl,imx8mp-fec", "fsl,imx8mq-fec";
+				compatible = "fsl,imx8mp-fec", "fsl,imx8mq-fec", "fsl,imx6sx-fec";
 				reg = <0x30be0000 0x10000>;
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
