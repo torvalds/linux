@@ -231,9 +231,9 @@ static int smc_llc_send_confirm_rkey(struct smc_link *link,
 	rkeyllc->hd.common.type = SMC_LLC_CONFIRM_RKEY;
 	rkeyllc->hd.length = sizeof(struct smc_llc_msg_confirm_rkey);
 	rkeyllc->rtoken[0].rmb_key =
-		htonl(rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
+		htonl(rmb_desc->mr_rx[link->link_idx]->rkey);
 	rkeyllc->rtoken[0].rmb_vaddr = cpu_to_be64(
-		(u64)sg_dma_address(rmb_desc->sgt[SMC_SINGLE_LINK].sgl));
+		(u64)sg_dma_address(rmb_desc->sgt[link->link_idx].sgl));
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
@@ -256,7 +256,7 @@ static int smc_llc_send_delete_rkey(struct smc_link *link,
 	rkeyllc->hd.common.type = SMC_LLC_DELETE_RKEY;
 	rkeyllc->hd.length = sizeof(struct smc_llc_msg_delete_rkey);
 	rkeyllc->num_rkeys = 1;
-	rkeyllc->rkey[0] = htonl(rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
+	rkeyllc->rkey[0] = htonl(rmb_desc->mr_rx[link->link_idx]->rkey);
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
@@ -501,7 +501,7 @@ static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 					    SMC_LLC_FLAG_RKEY_NEG;
 		complete(&link->llc_confirm_rkey);
 	} else {
-		rc = smc_rtoken_add(smc_get_lgr(link),
+		rc = smc_rtoken_add(link,
 				    llc->rtoken[0].rmb_vaddr,
 				    llc->rtoken[0].rmb_key);
 
@@ -539,7 +539,7 @@ static void smc_llc_rx_delete_rkey(struct smc_link *link,
 	} else {
 		max = min_t(u8, llc->num_rkeys, SMC_LLC_DEL_RKEY_MAX);
 		for (i = 0; i < max; i++) {
-			if (smc_rtoken_delete(smc_get_lgr(link), llc->rkey[i]))
+			if (smc_rtoken_delete(link, llc->rkey[i]))
 				err_mask |= 1 << (SMC_LLC_DEL_RKEY_MAX - 1 - i);
 		}
 

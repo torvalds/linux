@@ -131,6 +131,11 @@ static void smc_lgr_register_conn(struct smc_connection *conn)
 			conn->alert_token_local = 0;
 	}
 	smc_lgr_add_alert_token(conn);
+
+	/* assign the new connection to a link */
+	if (!conn->lgr->is_smcd)
+		conn->lnk = &conn->lgr->lnk[SMC_SINGLE_LINK];
+
 	conn->lgr->conns_num++;
 }
 
@@ -275,6 +280,7 @@ static int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	atomic_inc(&ini->ib_dev->lnk_cnt);
 	lnk->state = SMC_LNK_ACTIVATING;
 	lnk->link_id = smcr_next_link_id(lgr);
+	lnk->lgr = lgr;
 	lnk->link_idx = link_idx;
 	lnk->smcibdev = ini->ib_dev;
 	lnk->ibport = ini->ib_port;
@@ -421,7 +427,7 @@ static void smc_buf_unuse(struct smc_connection *conn,
 			if (!lgr->is_smcd && !list_empty(&lgr->list)) {
 				/* unregister rmb with peer */
 				smc_llc_do_delete_rkey(
-						&lgr->lnk[SMC_SINGLE_LINK],
+						conn->lnk,
 						conn->rmb_desc);
 			}
 			conn->rmb_desc->used = 0;
@@ -479,16 +485,15 @@ static void smcr_buf_free(struct smc_link_group *lgr, bool is_rmb,
 	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
 
 	if (is_rmb) {
-		if (buf_desc->mr_rx[SMC_SINGLE_LINK])
+		if (buf_desc->mr_rx[lnk->link_idx])
 			smc_ib_put_memory_region(
-					buf_desc->mr_rx[SMC_SINGLE_LINK]);
-		smc_ib_buf_unmap_sg(lnk->smcibdev, buf_desc,
-				    DMA_FROM_DEVICE);
+					buf_desc->mr_rx[lnk->link_idx]);
+		smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_FROM_DEVICE);
 	} else {
-		smc_ib_buf_unmap_sg(lnk->smcibdev, buf_desc,
-				    DMA_TO_DEVICE);
+		smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_TO_DEVICE);
 	}
-	sg_free_table(&buf_desc->sgt[SMC_SINGLE_LINK]);
+	sg_free_table(&buf_desc->sgt[lnk->link_idx]);
+
 	if (buf_desc->pages)
 		__free_pages(buf_desc->pages, buf_desc->order);
 	kfree(buf_desc);
@@ -1026,17 +1031,16 @@ static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
 
 	/* build the sg table from the pages */
 	lnk = &lgr->lnk[SMC_SINGLE_LINK];
-	rc = sg_alloc_table(&buf_desc->sgt[SMC_SINGLE_LINK], 1,
-			    GFP_KERNEL);
+	rc = sg_alloc_table(&buf_desc->sgt[lnk->link_idx], 1, GFP_KERNEL);
 	if (rc) {
 		smc_buf_free(lgr, is_rmb, buf_desc);
 		return ERR_PTR(rc);
 	}
-	sg_set_buf(buf_desc->sgt[SMC_SINGLE_LINK].sgl,
+	sg_set_buf(buf_desc->sgt[lnk->link_idx].sgl,
 		   buf_desc->cpu_addr, bufsize);
 
 	/* map sg table to DMA address */
-	rc = smc_ib_buf_map_sg(lnk->smcibdev, buf_desc,
+	rc = smc_ib_buf_map_sg(lnk, buf_desc,
 			       is_rmb ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	/* SMC protocol depends on mapping to one DMA address only */
 	if (rc != 1)  {
@@ -1049,7 +1053,7 @@ static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
 		rc = smc_ib_get_memory_region(lnk->roce_pd,
 					      IB_ACCESS_REMOTE_WRITE |
 					      IB_ACCESS_LOCAL_WRITE,
-					      buf_desc);
+					      buf_desc, lnk->link_idx);
 		if (rc) {
 			smc_buf_free(lgr, is_rmb, buf_desc);
 			return ERR_PTR(rc);
@@ -1174,22 +1178,16 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn)
 {
-	struct smc_link_group *lgr = conn->lgr;
-
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
-	smc_ib_sync_sg_for_cpu(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
-			       conn->sndbuf_desc, DMA_TO_DEVICE);
+	smc_ib_sync_sg_for_cpu(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
 
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn)
 {
-	struct smc_link_group *lgr = conn->lgr;
-
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
-	smc_ib_sync_sg_for_device(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
-				  conn->sndbuf_desc, DMA_TO_DEVICE);
+	smc_ib_sync_sg_for_device(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
 
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
@@ -1198,7 +1196,7 @@ void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
 
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
-	smc_ib_sync_sg_for_cpu(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+	smc_ib_sync_sg_for_cpu(&lgr->lnk[SMC_SINGLE_LINK],
 			       conn->rmb_desc, DMA_FROM_DEVICE);
 }
 
@@ -1208,7 +1206,7 @@ void smc_rmb_sync_sg_for_device(struct smc_connection *conn)
 
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
-	smc_ib_sync_sg_for_device(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+	smc_ib_sync_sg_for_device(&lgr->lnk[SMC_SINGLE_LINK],
 				  conn->rmb_desc, DMA_FROM_DEVICE);
 }
 
@@ -1245,15 +1243,16 @@ static inline int smc_rmb_reserve_rtoken_idx(struct smc_link_group *lgr)
 }
 
 /* add a new rtoken from peer */
-int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey)
+int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey)
 {
+	struct smc_link_group *lgr = smc_get_lgr(lnk);
 	u64 dma_addr = be64_to_cpu(nw_vaddr);
 	u32 rkey = ntohl(nw_rkey);
 	int i;
 
 	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
-		if ((lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey) &&
-		    (lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr == dma_addr) &&
+		if (lgr->rtokens[i][lnk->link_idx].rkey == rkey &&
+		    lgr->rtokens[i][lnk->link_idx].dma_addr == dma_addr &&
 		    test_bit(i, lgr->rtokens_used_mask)) {
 			/* already in list */
 			return i;
@@ -1262,22 +1261,23 @@ int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey)
 	i = smc_rmb_reserve_rtoken_idx(lgr);
 	if (i < 0)
 		return i;
-	lgr->rtokens[i][SMC_SINGLE_LINK].rkey = rkey;
-	lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr = dma_addr;
+	lgr->rtokens[i][lnk->link_idx].rkey = rkey;
+	lgr->rtokens[i][lnk->link_idx].dma_addr = dma_addr;
 	return i;
 }
 
 /* delete an rtoken */
-int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey)
+int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey)
 {
+	struct smc_link_group *lgr = smc_get_lgr(lnk);
 	u32 rkey = ntohl(nw_rkey);
 	int i;
 
 	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
-		if (lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey &&
+		if (lgr->rtokens[i][lnk->link_idx].rkey == rkey &&
 		    test_bit(i, lgr->rtokens_used_mask)) {
-			lgr->rtokens[i][SMC_SINGLE_LINK].rkey = 0;
-			lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr = 0;
+			lgr->rtokens[i][lnk->link_idx].rkey = 0;
+			lgr->rtokens[i][lnk->link_idx].dma_addr = 0;
 
 			clear_bit(i, lgr->rtokens_used_mask);
 			return 0;
@@ -1290,7 +1290,7 @@ int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey)
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc)
 {
-	conn->rtoken_idx = smc_rtoken_add(conn->lgr, clc->rmb_dma_addr,
+	conn->rtoken_idx = smc_rtoken_add(conn->lnk, clc->rmb_dma_addr,
 					  clc->rmb_rkey);
 	if (conn->rtoken_idx < 0)
 		return conn->rtoken_idx;

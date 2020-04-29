@@ -116,6 +116,7 @@ struct smc_link {
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
 	u8			link_idx;	/* index in lgr link array */
+	struct smc_link_group	*lgr;		/* parent link group */
 
 	enum smc_link_state	state;		/* state of link */
 	struct workqueue_struct *llc_wq;	/* single thread work queue */
@@ -303,8 +304,8 @@ int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
-int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey);
-int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey);
+int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
+int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
@@ -319,6 +320,6 @@ void smc_core_exit(void);
 
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
 {
-	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	return link->lgr;
 }
 #endif

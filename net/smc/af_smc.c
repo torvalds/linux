@@ -343,7 +343,7 @@ static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc,
 {
 	if (!rmb_desc->wr_reg) {
 		/* register memory region for new rmb */
-		if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
+		if (smc_wr_reg_send(link, rmb_desc->mr_rx[link->link_idx])) {
 			rmb_desc->regerr = 1;
 			return -EFAULT;
 		}
@@ -362,12 +362,10 @@ static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc,
 static int smc_clnt_conf_first_link(struct smc_sock *smc)
 {
 	struct net *net = sock_net(smc->clcsock->sk);
-	struct smc_link_group *lgr = smc->conn.lgr;
-	struct smc_link *link;
+	struct smc_link *link = smc->conn.lnk;
 	int rest;
 	int rc;
 
-	link = &lgr->lnk[SMC_SINGLE_LINK];
 	/* receive CONFIRM LINK request from server over RoCE fabric */
 	rest = wait_for_completion_interruptible_timeout(
 		&link->llc_confirm,
@@ -610,7 +608,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		mutex_unlock(&smc_client_lgr_pending);
 		return reason_code;
 	}
-	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+	link = smc->conn.lnk;
 
 	smc_conn_save_peer_info(smc, aclc);
 
@@ -1002,12 +1000,9 @@ void smc_close_non_accepted(struct sock *sk)
 static int smc_serv_conf_first_link(struct smc_sock *smc)
 {
 	struct net *net = sock_net(smc->clcsock->sk);
-	struct smc_link_group *lgr = smc->conn.lgr;
-	struct smc_link *link;
+	struct smc_link *link = smc->conn.lnk;
 	int rest;
 	int rc;
-
-	link = &lgr->lnk[SMC_SINGLE_LINK];
 
 	if (smc_reg_rmb(link, smc->conn.rmb_desc, false))
 		return SMC_CLC_DECL_ERR_REGRMB;
@@ -1194,7 +1189,7 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 /* listen worker: register buffers */
 static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
 {
-	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+	struct smc_link *link = new_smc->conn.lnk;
 
 	if (local_contact != SMC_FIRST_CONTACT) {
 		if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true))
@@ -1210,7 +1205,7 @@ static int smc_listen_rdma_finish(struct smc_sock *new_smc,
 				  struct smc_clc_msg_accept_confirm *cclc,
 				  int local_contact)
 {
-	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+	struct smc_link *link = new_smc->conn.lnk;
 	int reason_code = 0;
 
 	if (local_contact == SMC_FIRST_CONTACT)

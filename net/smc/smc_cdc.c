@@ -57,7 +57,7 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend)
 {
-	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+	struct smc_link *link = conn->lnk;
 	int rc;
 
 	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
@@ -91,11 +91,9 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 		     struct smc_wr_buf *wr_buf,
 		     struct smc_cdc_tx_pend *pend)
 {
+	struct smc_link *link = conn->lnk;
 	union smc_host_cursor cfed;
-	struct smc_link *link;
 	int rc;
-
-	link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 
 	smc_cdc_add_pending_send(conn, pend);
 
@@ -165,7 +163,7 @@ static void smc_cdc_tx_dismisser(struct smc_wr_tx_pend_priv *tx_pend)
 
 void smc_cdc_tx_dismiss_slots(struct smc_connection *conn)
 {
-	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+	struct smc_link *link = conn->lnk;
 
 	smc_wr_tx_dismiss_slots(link, SMC_CDC_MSG_TYPE,
 				smc_cdc_tx_filter, smc_cdc_tx_dismisser,

@@ -121,6 +121,7 @@ enum smc_urg_state {
 struct smc_connection {
 	struct rb_node		alert_node;
 	struct smc_link_group	*lgr;		/* link group of connection */
+	struct smc_link		*lnk;		/* assigned SMC-R link */
 	u32			alert_token_local; /* unique conn. id */
 	u8			peer_rmbe_idx;	/* from tcp handshake */
 	int			peer_rmbe_size;	/* size of peer rx buffer */
