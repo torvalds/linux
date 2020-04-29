@@ -296,7 +296,8 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	device_initialize(&smcd->dev);
 	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
-	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
+	if (smc_pnetid_by_dev_port(parent, 0, smcd->pnetid))
+		smc_pnetid_by_table_smcd(smcd);
 
 	spin_lock_init(&smcd->lock);
 	spin_lock_init(&smcd->lgr_lock);

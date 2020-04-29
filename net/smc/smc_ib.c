@@ -579,8 +579,9 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 	     i++) {
 		set_bit(i, &smcibdev->port_event_mask);
 		/* determine pnetids of the port */
-		smc_pnetid_by_dev_port(ibdev->dev.parent, i,
-				       smcibdev->pnetid[i]);
+		if (smc_pnetid_by_dev_port(ibdev->dev.parent, i,
+					   smcibdev->pnetid[i]))
+			smc_pnetid_by_table_ib(smcibdev, i + 1);
 	}
 	schedule_work(&smcibdev->port_event_work);
 }
