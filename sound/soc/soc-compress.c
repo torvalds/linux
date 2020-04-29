@@ -87,15 +87,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
-		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"Compress ASoC: can't open interface %s: %d\n",
-				cpu_dai->name, ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_dai_compr_startup(cpu_dai, cstream);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_open(cstream, &component);
 	if (ret < 0)
@@ -120,8 +114,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 machine_err:
 	soc_compr_components_free(cstream, component);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
@@ -178,15 +171,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 		goto out;
 	}
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
-		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"Compress ASoC: can't open interface %s: %d\n",
-				cpu_dai->name, ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_dai_compr_startup(cpu_dai, cstream);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_open(cstream, &component);
 	if (ret < 0)
@@ -216,8 +203,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 machine_err:
 	soc_compr_components_free(cstream, component);
 open_err:
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
 	dpcm_path_put(&list);
 be_err:
@@ -256,8 +242,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	soc_compr_components_free(cstream, NULL);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
 	snd_soc_dapm_stream_stop(rtd, stream);
 
@@ -313,8 +298,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	soc_compr_components_free(cstream, NULL);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->shutdown)
-		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
 	mutex_unlock(&fe->card->mutex);
 	return 0;
@@ -354,8 +338,9 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	if (ret < 0)
 		goto out;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger)
-		cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
+	ret = snd_soc_dai_compr_trigger(cpu_dai, cstream, cmd);
+	if (ret < 0)
+		goto out;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -388,11 +373,9 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger) {
-		ret = cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_dai_compr_trigger(cpu_dai, cstream, cmd);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_trigger(cstream, cmd);
 	if (ret < 0)
@@ -460,11 +443,9 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	 * that these callbacks will configure everything for this compress
 	 * path, like configuring a PCM port for a CODEC.
 	 */
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_params) {
-		ret = cpu_dai->driver->cops->set_params(cstream, params, cpu_dai);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_dai_compr_set_params(cpu_dai, cstream, params);
+	if (ret < 0)
+		goto err;
 
 	ret = soc_compr_components_set_params(cstream, params);
 	if (ret < 0)
@@ -530,11 +511,9 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_params) {
-		ret = cpu_dai->driver->cops->set_params(cstream, params, cpu_dai);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_dai_compr_set_params(cpu_dai, cstream, params);
+	if (ret < 0)
+		goto out;
 
 	ret = soc_compr_components_set_params(cstream, params);
 	if (ret < 0)
@@ -565,11 +544,9 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->get_params) {
-		ret = cpu_dai->driver->cops->get_params(cstream, params, cpu_dai);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_dai_compr_get_params(cpu_dai, cstream, params);
+	if (ret < 0)
+		goto err;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
@@ -641,11 +618,9 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->ack) {
-		ret = cpu_dai->driver->cops->ack(cstream, bytes, cpu_dai);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_dai_compr_ack(cpu_dai, cstream, bytes);
+	if (ret < 0)
+		goto err;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
@@ -673,8 +648,9 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->pointer)
-		cpu_dai->driver->cops->pointer(cstream, tstamp, cpu_dai);
+	ret = snd_soc_dai_compr_pointer(cpu_dai, cstream, tstamp);
+	if (ret < 0)
+		goto out;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
@@ -685,7 +661,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 			component, cstream, tstamp);
 		break;
 	}
-
+out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 }
@@ -721,11 +697,9 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int i, ret;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->set_metadata) {
-		ret = cpu_dai->driver->cops->set_metadata(cstream, metadata, cpu_dai);
-		if (ret < 0)
-			return ret;
-	}
+	ret = snd_soc_dai_compr_set_metadata(cpu_dai, cstream, metadata);
+	if (ret < 0)
+		return ret;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||
@@ -749,11 +723,9 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int i, ret;
 
-	if (cpu_dai->driver->cops && cpu_dai->driver->cops->get_metadata) {
-		ret = cpu_dai->driver->cops->get_metadata(cstream, metadata, cpu_dai);
-		if (ret < 0)
-			return ret;
-	}
+	ret = snd_soc_dai_compr_get_metadata(cpu_dai, cstream, metadata);
+	if (ret < 0)
+		return ret;
 
 	for_each_rtd_components(rtd, i, component) {
 		if (!component->driver->compress_ops ||

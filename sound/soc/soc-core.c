@@ -742,9 +742,6 @@ static inline void soc_resume_init(struct snd_soc_card *card)
 }
 #endif
 
-static const struct snd_soc_dai_ops null_dai_ops = {
-};
-
 static struct device_node
 *soc_component_to_node(struct snd_soc_component *component)
 {
@@ -1039,27 +1036,6 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
-static int soc_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *dai;
-	int i, ret = 0;
-
-	for_each_rtd_dais(rtd, i, dai) {
-		struct snd_soc_dai_driver *drv = dai->driver;
-
-		if (drv->pcm_new)
-			ret = drv->pcm_new(rtd, dai);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"ASoC: Failed to bind %s with pcm device\n",
-				dai->name);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int soc_init_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_pcm_runtime *rtd)
 {
@@ -1124,7 +1100,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 		return ret;
 	}
 
-	return soc_dai_pcm_new(rtd);
+	return snd_soc_pcm_dai_new(rtd);
 }
 
 static void soc_set_name_prefix(struct snd_soc_card *card,
@@ -1280,64 +1256,23 @@ err_probe:
 	return ret;
 }
 
-static void soc_remove_dai(struct snd_soc_dai *dai, int order)
-{
-	int err;
-
-	if (!dai || !dai->probed || !dai->driver ||
-	    dai->driver->remove_order != order)
-		return;
-
-	err = snd_soc_dai_remove(dai);
-	if (err < 0)
-		dev_err(dai->dev,
-			"ASoC: failed to remove %s: %d\n",
-			dai->name, err);
-
-	dai->probed = 0;
-}
-
-static int soc_probe_dai(struct snd_soc_dai *dai, int order)
-{
-	int ret;
-
-	if (dai->probed ||
-	    dai->driver->probe_order != order)
-		return 0;
-
-	ret = snd_soc_dai_probe(dai);
-	if (ret < 0) {
-		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
-			dai->name, ret);
-		return ret;
-	}
-
-	dai->probed = 1;
-
-	return 0;
-}
-
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
-	int i;
-	struct snd_soc_dai *dai;
 	struct snd_soc_pcm_runtime *rtd;
 	int order;
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			/* remove DAIs */
-			for_each_rtd_dais(rtd, i, dai)
-				soc_remove_dai(dai, order);
+			/* remove all rtd connected DAIs in good order */
+			snd_soc_pcm_dai_remove(rtd, order);
 		}
 	}
 }
 
 static int soc_probe_link_dais(struct snd_soc_card *card)
 {
-	struct snd_soc_dai *dai;
 	struct snd_soc_pcm_runtime *rtd;
-	int i, order, ret;
+	int order, ret;
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
@@ -1346,12 +1281,10 @@ static int soc_probe_link_dais(struct snd_soc_card *card)
 				"ASoC: probe %s dai link %d late %d\n",
 				card->name, rtd->num, order);
 
-			/* probe the CPU DAI */
-			for_each_rtd_dais(rtd, i, dai) {
-				ret = soc_probe_dai(dai, order);
-				if (ret)
-					return ret;
-			}
+			/* probe all rtd connected DAIs in good order */
+			ret = snd_soc_pcm_dai_probe(rtd, order);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -2406,8 +2339,6 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 	dai->component = component;
 	dai->dev = dev;
 	dai->driver = dai_drv;
-	if (!dai->driver->ops)
-		dai->driver->ops = &null_dai_ops;
 
 	/* see for_each_component_dais */
 	list_add_tail(&dai->list, &component->dai_list);
