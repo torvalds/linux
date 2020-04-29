@@ -225,10 +225,9 @@ void __evsel__reset_sample_bit(struct evsel *evsel, enum perf_event_sample_forma
 
 void evsel__set_sample_id(struct evsel *evsel, bool use_sample_identifier);
 
-int perf_evsel__set_filter(struct evsel *evsel, const char *filter);
-int perf_evsel__append_tp_filter(struct evsel *evsel, const char *filter);
-int perf_evsel__append_addr_filter(struct evsel *evsel,
-				   const char *filter);
+int evsel__set_filter(struct evsel *evsel, const char *filter);
+int evsel__append_tp_filter(struct evsel *evsel, const char *filter);
+int evsel__append_addr_filter(struct evsel *evsel, const char *filter);
 int evsel__enable_cpu(struct evsel *evsel, int cpu);
 int evsel__enable(struct evsel *evsel);
 int evsel__disable(struct evsel *evsel);

@@ -1166,7 +1166,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 		evsel__reset_sample_bit(evsel, BRANCH_STACK);
 }
 
-int perf_evsel__set_filter(struct evsel *evsel, const char *filter)
+int evsel__set_filter(struct evsel *evsel, const char *filter)
 {
 	char *new_filter = strdup(filter);
 
@@ -1179,13 +1179,12 @@ int perf_evsel__set_filter(struct evsel *evsel, const char *filter)
 	return -1;
 }
 
-static int perf_evsel__append_filter(struct evsel *evsel,
-				     const char *fmt, const char *filter)
+static int evsel__append_filter(struct evsel *evsel, const char *fmt, const char *filter)
 {
 	char *new_filter;
 
 	if (evsel->filter == NULL)
-		return perf_evsel__set_filter(evsel, filter);
+		return evsel__set_filter(evsel, filter);
 
 	if (asprintf(&new_filter, fmt, evsel->filter, filter) > 0) {
 		free(evsel->filter);
@@ -1196,14 +1195,14 @@ static int perf_evsel__append_filter(struct evsel *evsel,
 	return -1;
 }
 
-int perf_evsel__append_tp_filter(struct evsel *evsel, const char *filter)
+int evsel__append_tp_filter(struct evsel *evsel, const char *filter)
 {
-	return perf_evsel__append_filter(evsel, "(%s) && (%s)", filter);
+	return evsel__append_filter(evsel, "(%s) && (%s)", filter);
 }
 
-int perf_evsel__append_addr_filter(struct evsel *evsel, const char *filter)
+int evsel__append_addr_filter(struct evsel *evsel, const char *filter)
 {
-	return perf_evsel__append_filter(evsel, "%s,%s", filter);
+	return evsel__append_filter(evsel, "%s,%s", filter);
 }
 
 /* Caller has to clear disabled after going through all CPUs. */
