@@ -59,8 +59,6 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
-DEFINE_COMPLETION_EVENT(dummy);
-
 DECLARE_EVENT_CLASS(xprtrdma_reply_event,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
@@ -1849,57 +1847,48 @@ DEFINE_SENDCOMP_EVENT(send);
 
 TRACE_EVENT(svcrdma_post_recv,
 	TP_PROTO(
-		const struct ib_recv_wr *wr,
-		int status
+		const struct svc_rdma_recv_ctxt *ctxt
 	),
 
-	TP_ARGS(wr, status),
+	TP_ARGS(ctxt),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
-		__field(int, status)
+		__field(u32, cq_id)
+		__field(int, completion_id)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = wr->wr_cqe;
-		__entry->status = status;
+		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
 	),
 
-	TP_printk("cqe=%p status=%d",
-		__entry->cqe, __entry->status
+	TP_printk("cq.id=%d cid=%d",
+		__entry->cq_id, __entry->completion_id
 	)
 );
 
-TRACE_EVENT(svcrdma_wc_receive,
+DEFINE_COMPLETION_EVENT(svcrdma_wc_receive);
+
+TRACE_EVENT(svcrdma_rq_post_err,
 	TP_PROTO(
-		const struct ib_wc *wc
+		const struct svcxprt_rdma *rdma,
+		int status
 	),
 
-	TP_ARGS(wc),
+	TP_ARGS(rdma, status),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
-		__field(u32, byte_len)
-		__field(unsigned int, status)
-		__field(u32, vendor_err)
+		__field(int, status)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = wc->wr_cqe;
-		__entry->status = wc->status;
-		if (wc->status) {
-			__entry->byte_len = 0;
-			__entry->vendor_err = wc->vendor_err;
-		} else {
-			__entry->byte_len = wc->byte_len;
-			__entry->vendor_err = 0;
-		}
+		__entry->status = status;
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("cqe=%p byte_len=%u status=%s (%u/0x%x)",
-		__entry->cqe, __entry->byte_len,
-		rdma_show_wc_status(__entry->status),
-		__entry->status, __entry->vendor_err
+	TP_printk("addr=%s status=%d",
+		__get_str(addr), __entry->status
 	)
 );
 

@@ -46,6 +46,7 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/rpc_rdma.h>
+#include <linux/sunrpc/rpc_rdma_cid.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
@@ -109,6 +110,8 @@ struct svcxprt_rdma {
 	struct work_struct   sc_work;
 
 	struct llist_head    sc_recv_ctxts;
+
+	atomic_t	     sc_completion_ids;
 };
 /* sc_flags */
 #define RDMAXPRT_CONN_PENDING	3
@@ -129,6 +132,7 @@ struct svc_rdma_recv_ctxt {
 	struct list_head	rc_list;
 	struct ib_recv_wr	rc_recv_wr;
 	struct ib_cqe		rc_cqe;
+	struct rpc_rdma_cid	rc_cid;
 	struct ib_sge		rc_recv_sge;
 	void			*rc_recv_buf;
 	struct xdr_buf		rc_arg;

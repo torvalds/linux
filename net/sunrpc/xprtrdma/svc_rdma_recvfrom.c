@@ -117,6 +117,13 @@ svc_rdma_next_recv_ctxt(struct list_head *list)
 					rc_list);
 }
 
+static void svc_rdma_recv_cid_init(struct svcxprt_rdma *rdma,
+				   struct rpc_rdma_cid *cid)
+{
+	cid->ci_queue_id = rdma->sc_rq_cq->res.id;
+	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
+}
+
 static struct svc_rdma_recv_ctxt *
 svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
@@ -134,6 +141,8 @@ svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 				 rdma->sc_max_req_size, DMA_FROM_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_pd->device, addr))
 		goto fail2;
+
+	svc_rdma_recv_cid_init(rdma, &ctxt->rc_cid);
 
 	ctxt->rc_recv_wr.next = NULL;
 	ctxt->rc_recv_wr.wr_cqe = &ctxt->rc_cqe;
@@ -249,13 +258,14 @@ static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
 	int ret;
 
 	svc_xprt_get(&rdma->sc_xprt);
+	trace_svcrdma_post_recv(ctxt);
 	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, NULL);
-	trace_svcrdma_post_recv(&ctxt->rc_recv_wr, ret);
 	if (ret)
 		goto err_post;
 	return 0;
 
 err_post:
+	trace_svcrdma_rq_post_err(rdma, ret);
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	svc_xprt_put(&rdma->sc_xprt);
 	return ret;
@@ -309,11 +319,10 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_recv_ctxt *ctxt;
 
-	trace_svcrdma_wc_receive(wc);
-
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_recv_ctxt, rc_cqe);
 
+	trace_svcrdma_wc_receive(wc, &ctxt->rc_cid);
 	if (wc->status != IB_WC_SUCCESS)
 		goto flushed;
 
