@@ -551,6 +551,15 @@
 	};
 };
 
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pins_a>;
+	cs-gpios = <&gpioi 0 0>;
+	status = "disabled";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+};
+
 &uart4 {
 	/* On Low speed expansion header */
 	label = "LS-UART1";
