@@ -53,6 +53,8 @@
 #include <linux/mempool.h>
 #include <linux/numa.h>
 
+#include "dmaengine.h"
+
 static DEFINE_MUTEX(dma_list_mutex);
 static DEFINE_IDA(dma_ida);
 static LIST_HEAD(dma_device_list);
