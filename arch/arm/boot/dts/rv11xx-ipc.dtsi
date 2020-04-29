@@ -158,6 +158,7 @@
 };
 
 &rkvenc {
+	venc-supply = <&vdd_vepu>;
 	status = "okay";
 };
 
