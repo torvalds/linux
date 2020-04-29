@@ -524,14 +524,12 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 	unsigned int link_clks_available, link_clks_required;
 	unsigned int tu_data, tu_line, link_clks_active;
 	unsigned int hblank_rise, hblank_early_prog;
-	unsigned int h_active, h_total, hblank_delta, pixel_clk, v_total;
-	unsigned int fec_coeff, refresh_rate, cdclk, vdsc_bpp;
+	unsigned int h_active, h_total, hblank_delta, pixel_clk;
+	unsigned int fec_coeff, cdclk, vdsc_bpp;
 
 	h_active = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	h_total = crtc_state->hw.adjusted_mode.crtc_htotal;
-	v_total = crtc_state->hw.adjusted_mode.crtc_vtotal;
 	pixel_clk = crtc_state->hw.adjusted_mode.crtc_clock;
-	refresh_rate = crtc_state->hw.adjusted_mode.vrefresh;
 	vdsc_bpp = crtc_state->dsc.compressed_bpp;
 	cdclk = i915->cdclk.hw.cdclk;
 	/* fec= 0.972261, using rounding multiplier of 1000000 */
@@ -549,9 +547,7 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 	link_clks_available = ((((h_total - h_active) *
 			       ((crtc_state->port_clock * ROUNDING_FACTOR) /
 				pixel_clk)) / ROUNDING_FACTOR) - 28);
-
-	link_clks_required = DIV_ROUND_UP(192000, (refresh_rate *
-					  v_total)) * ((48 /
+	link_clks_required = DIV_ROUND_UP(192000, (1000 * pixel_clk / h_total)) * ((48 /
 					  crtc_state->lane_count) + 2);
 
 	if (link_clks_available > link_clks_required)
