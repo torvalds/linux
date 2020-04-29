@@ -245,8 +245,28 @@ static void smc_lgr_terminate_work(struct work_struct *work)
 	__smc_lgr_terminate(lgr, true);
 }
 
-static int smcr_link_init(struct smc_link *lnk, u8 link_id,
-			  struct smc_init_info *ini)
+/* return next unique link id for the lgr */
+static u8 smcr_next_link_id(struct smc_link_group *lgr)
+{
+	u8 link_id;
+	int i;
+
+	while (1) {
+		link_id = ++lgr->next_link_id;
+		if (!link_id)	/* skip zero as link_id */
+			link_id = ++lgr->next_link_id;
+		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+			if (lgr->lnk[i].state != SMC_LNK_INACTIVE &&
+			    lgr->lnk[i].link_id == link_id)
+				continue;
+		}
+		break;
+	}
+	return link_id;
+}
+
+static int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
+			  u8 link_idx, struct smc_init_info *ini)
 {
 	u8 rndvec[3];
 	int rc;
@@ -254,7 +274,8 @@ static int smcr_link_init(struct smc_link *lnk, u8 link_id,
 	get_device(&ini->ib_dev->ibdev->dev);
 	atomic_inc(&ini->ib_dev->lnk_cnt);
 	lnk->state = SMC_LNK_ACTIVATING;
-	lnk->link_id = link_id;
+	lnk->link_id = smcr_next_link_id(lgr);
+	lnk->link_idx = link_idx;
 	lnk->smcibdev = ini->ib_dev;
 	lnk->ibport = ini->ib_port;
 	lnk->path_mtu = ini->ib_dev->pattr[ini->ib_port - 1].active_mtu;
@@ -310,6 +331,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	struct list_head *lgr_list;
 	struct smc_link *lnk;
 	spinlock_t *lgr_lock;
+	u8 link_idx;
 	int rc = 0;
 	int i;
 
@@ -338,6 +360,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		INIT_LIST_HEAD(&lgr->sndbufs[i]);
 		INIT_LIST_HEAD(&lgr->rmbs[i]);
 	}
+	lgr->next_link_id = 0;
 	smc_lgr_list.num += SMC_LGR_NUM_INCR;
 	memcpy(&lgr->id, (u8 *)&smc_lgr_list.num, SMC_LGR_ID_SIZE);
 	INIT_DELAYED_WORK(&lgr->free_work, smc_lgr_free_work);
@@ -358,8 +381,9 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		memcpy(lgr->peer_systemid, ini->ib_lcl->id_for_peer,
 		       SMC_SYSTEMID_LEN);
 
-		lnk = &lgr->lnk[SMC_SINGLE_LINK];
-		rc = smcr_link_init(lnk, SMC_SINGLE_LINK, ini);
+		link_idx = SMC_SINGLE_LINK;
+		lnk = &lgr->lnk[link_idx];
+		rc = smcr_link_init(lgr, lnk, link_idx, ini);
 		if (rc)
 			goto free_lgr;
 		lgr_list = &smc_lgr_list.list;

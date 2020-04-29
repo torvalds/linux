@@ -115,6 +115,7 @@ struct smc_link {
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
+	u8			link_idx;	/* index in lgr link array */
 
 	enum smc_link_state	state;		/* state of link */
 	struct workqueue_struct *llc_wq;	/* single thread work queue */
@@ -222,6 +223,7 @@ struct smc_link_group {
 						/* remote addr/key pairs */
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
+			u8			next_link_id;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
