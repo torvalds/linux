@@ -68,6 +68,7 @@ static struct inode *alloc_inode(struct super_block *sb);
 static void free_inode(struct inode *inode);
 static void evict_inode(struct inode *inode);
 
+static int incfs_setattr(struct dentry *dentry, struct iattr *ia);
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
 static ssize_t incfs_setxattr(struct dentry *d, const char *name,
@@ -98,7 +99,8 @@ static const struct inode_operations incfs_dir_inode_ops = {
 	.rename = dir_rename_wrap,
 	.unlink = dir_unlink,
 	.link = dir_link,
-	.rmdir = dir_rmdir
+	.rmdir = dir_rmdir,
+	.setattr = incfs_setattr,
 };
 
 static const struct file_operations incfs_dir_fops = {
@@ -158,7 +160,7 @@ static const struct file_operations incfs_log_file_ops = {
 };
 
 static const struct inode_operations incfs_file_inode_ops = {
-	.setattr = simple_setattr,
+	.setattr = incfs_setattr,
 	.getattr = simple_getattr,
 	.listxattr = incfs_listxattr
 };
@@ -369,6 +371,7 @@ static int inode_set(struct inode *inode, void *opaque)
 			inode->i_mapping->a_ops = &incfs_address_space_ops;
 			inode->i_op = &incfs_file_inode_ops;
 			inode->i_fop = &incfs_file_ops;
+			inode->i_mode &= ~0222;
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_size = 0;
 			inode->i_blocks = 1;
@@ -2027,6 +2030,45 @@ static void evict_inode(struct inode *inode)
 
 	truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
+}
+
+static int incfs_setattr(struct dentry *dentry, struct iattr *ia)
+{
+	struct dentry_info *di = get_incfs_dentry(dentry);
+	struct dentry *backing_dentry;
+	struct inode *backing_inode;
+	int error;
+
+	if (ia->ia_valid & ATTR_SIZE)
+		return -EINVAL;
+
+	if (!di)
+		return -EINVAL;
+	backing_dentry = di->backing_path.dentry;
+	if (!backing_dentry)
+		return -EINVAL;
+
+	backing_inode = d_inode(backing_dentry);
+
+	/* incfs files are readonly, but the backing files must be writeable */
+	if (S_ISREG(backing_inode->i_mode)) {
+		if ((ia->ia_valid & ATTR_MODE) && (ia->ia_mode & 0222))
+			return -EINVAL;
+
+		ia->ia_mode |= 0222;
+	}
+
+	inode_lock(d_inode(backing_dentry));
+	error = notify_change(backing_dentry, ia, NULL);
+	inode_unlock(d_inode(backing_dentry));
+
+	if (error)
+		return error;
+
+	if (S_ISREG(backing_inode->i_mode))
+		ia->ia_mode &= ~0222;
+
+	return simple_setattr(dentry, ia);
 }
 
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
