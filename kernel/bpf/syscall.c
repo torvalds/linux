@@ -2271,6 +2271,7 @@ static int bpf_link_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type)
 #define BPF_MAP_TYPE(_id, _ops)
 #define BPF_LINK_TYPE(_id, _name) [_id] = #_name,
@@ -2282,7 +2283,6 @@ static const char *bpf_link_type_strs[] = {
 #undef BPF_MAP_TYPE
 #undef BPF_LINK_TYPE
 
-#ifdef CONFIG_PROC_FS
 static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_link *link = filp->private_data;
