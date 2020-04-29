@@ -417,6 +417,16 @@ static inline bool evsel__has_callchain(const struct evsel *evsel)
 	       evsel->synth_sample_type & PERF_SAMPLE_CALLCHAIN;
 }
 
+static inline bool evsel__has_br_stack(const struct evsel *evsel)
+{
+	/*
+	 * For reporting purposes, an evsel sample can have a recorded branch
+	 * stack or a branch stack synthesized from AUX area data.
+	 */
+	return evsel->core.attr.sample_type & PERF_SAMPLE_BRANCH_STACK ||
+	       evsel->synth_sample_type & PERF_SAMPLE_BRANCH_STACK;
+}
+
 struct perf_env *perf_evsel__env(struct evsel *evsel);
 
 int perf_evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
