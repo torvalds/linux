@@ -646,7 +646,7 @@ int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 				continue;
 
 			if (pos->core.nr_members > 1) {
-				perf_evsel__group_desc(pos, buf, size);
+				evsel__group_desc(pos, buf, size);
 				evname = buf;
 			}
 		}

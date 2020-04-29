@@ -212,7 +212,7 @@ int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size
 const char *evsel__name(struct evsel *evsel);
 
 const char *evsel__group_name(struct evsel *evsel);
-int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
+int evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
 
 void __perf_evsel__set_sample_bit(struct evsel *evsel,
 				  enum perf_event_sample_format bit);

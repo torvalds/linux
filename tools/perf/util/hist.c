@@ -2698,7 +2698,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 	if (perf_evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
-		perf_evsel__group_desc(evsel, buf, buflen);
+		evsel__group_desc(evsel, buf, buflen);
 		ev_name = buf;
 
 		for_each_group_member(pos, evsel) {

@@ -2370,7 +2370,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 
 	if (perf_evsel__is_group_event(evsel)) {
 		width *= evsel->core.nr_members;
-		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		evsel__group_desc(evsel, buf, sizeof(buf));
 		evsel_name = buf;
 	}
 
@@ -2519,7 +2519,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 		goto out_free_filename;
 
 	if (perf_evsel__is_group_event(evsel)) {
-		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		evsel__group_desc(evsel, buf, sizeof(buf));
 		ev_name = buf;
 	}
 
