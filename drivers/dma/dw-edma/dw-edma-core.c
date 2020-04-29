@@ -323,7 +323,7 @@ static struct dma_async_tx_descriptor *
 dw_edma_device_transfer(struct dw_edma_transfer *xfer)
 {
 	struct dw_edma_chan *chan = dchan2dw_edma_chan(xfer->dchan);
-	enum dma_transfer_direction direction = xfer->direction;
+	enum dma_transfer_direction dir = xfer->direction;
 	phys_addr_t src_addr, dst_addr;
 	struct scatterlist *sg = NULL;
 	struct dw_edma_chunk *chunk;
@@ -332,9 +332,25 @@ dw_edma_device_transfer(struct dw_edma_transfer *xfer)
 	u32 cnt;
 	int i;
 
-	if ((direction == DMA_MEM_TO_DEV && chan->dir == EDMA_DIR_WRITE) ||
-	    (direction == DMA_DEV_TO_MEM && chan->dir == EDMA_DIR_READ))
+	if (!chan->configured)
 		return NULL;
+
+	switch (chan->config.direction) {
+	case DMA_DEV_TO_MEM: /* local dma */
+		if (dir == DMA_DEV_TO_MEM && chan->dir == EDMA_DIR_READ)
+			break;
+		return NULL;
+	case DMA_MEM_TO_DEV: /* local dma */
+		if (dir == DMA_MEM_TO_DEV && chan->dir == EDMA_DIR_WRITE)
+			break;
+		return NULL;
+	default: /* remote dma */
+		if (dir == DMA_MEM_TO_DEV && chan->dir == EDMA_DIR_READ)
+			break;
+		if (dir == DMA_DEV_TO_MEM && chan->dir == EDMA_DIR_WRITE)
+			break;
+		return NULL;
+	}
 
 	if (xfer->cyclic) {
 		if (!xfer->xfer.cyclic.len || !xfer->xfer.cyclic.cnt)
@@ -343,9 +359,6 @@ dw_edma_device_transfer(struct dw_edma_transfer *xfer)
 		if (xfer->xfer.sg.len < 1)
 			return NULL;
 	}
-
-	if (!chan->configured)
-		return NULL;
 
 	desc = dw_edma_alloc_desc(chan);
 	if (unlikely(!desc))
@@ -387,7 +400,7 @@ dw_edma_device_transfer(struct dw_edma_transfer *xfer)
 		chunk->ll_region.sz += burst->sz;
 		desc->alloc_sz += burst->sz;
 
-		if (direction == DMA_DEV_TO_MEM) {
+		if (chan->dir == EDMA_DIR_WRITE) {
 			burst->sar = src_addr;
 			if (xfer->cyclic) {
 				burst->dar = xfer->xfer.cyclic.paddr;
