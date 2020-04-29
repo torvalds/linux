@@ -1608,6 +1608,8 @@
 		resets = <&cru SRST_VENC_A>, <&cru SRST_VENC_H>,
 			<&cru SRST_VENC_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
+		assigned-clocks = <&cru ACLK_VENC>, <&cru CLK_VENC_CORE>;
+		assigned-clock-rates = <297000000>, <594000000>;
 		operating-points-v2 = <&rkvenc_opp_table>;
 		iommus = <&rkvenc_mmu>;
 		node-name = "rkvenc";
