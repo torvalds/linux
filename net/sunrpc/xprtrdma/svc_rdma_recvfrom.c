@@ -667,27 +667,27 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg,
 	hdr_len = xdr_stream_pos(&rctxt->rc_stream);
 	rq_arg->head[0].iov_len -= hdr_len;
 	rq_arg->len -= hdr_len;
-	trace_svcrdma_decode_rqst(rdma_argp, hdr_len);
+	trace_svcrdma_decode_rqst(rctxt, rdma_argp, hdr_len);
 	return hdr_len;
 
 out_short:
-	trace_svcrdma_decode_short_err(rq_arg->len);
+	trace_svcrdma_decode_short_err(rctxt, rq_arg->len);
 	return -EINVAL;
 
 out_version:
-	trace_svcrdma_decode_badvers_err(rdma_argp);
+	trace_svcrdma_decode_badvers_err(rctxt, rdma_argp);
 	return -EPROTONOSUPPORT;
 
 out_drop:
-	trace_svcrdma_decode_drop_err(rdma_argp);
+	trace_svcrdma_decode_drop_err(rctxt, rdma_argp);
 	return 0;
 
 out_proc:
-	trace_svcrdma_decode_badproc_err(rdma_argp);
+	trace_svcrdma_decode_badproc_err(rctxt, rdma_argp);
 	return -EINVAL;
 
 out_inval:
-	trace_svcrdma_decode_parse_err(rdma_argp);
+	trace_svcrdma_decode_parse_err(rctxt, rdma_argp);
 	return -EINVAL;
 }
 

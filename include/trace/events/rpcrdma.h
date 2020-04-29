@@ -1369,13 +1369,16 @@ TRACE_DEFINE_ENUM(RDMA_ERROR);
 
 TRACE_EVENT(svcrdma_decode_rqst,
 	TP_PROTO(
+		const struct svc_rdma_recv_ctxt *ctxt,
 		__be32 *p,
 		unsigned int hdrlen
 	),
 
-	TP_ARGS(p, hdrlen),
+	TP_ARGS(ctxt, p, hdrlen),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(u32, xid)
 		__field(u32, vers)
 		__field(u32, proc)
@@ -1384,6 +1387,8 @@ TRACE_EVENT(svcrdma_decode_rqst,
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
 		__entry->xid = be32_to_cpup(p++);
 		__entry->vers = be32_to_cpup(p++);
 		__entry->credits = be32_to_cpup(p++);
@@ -1391,37 +1396,48 @@ TRACE_EVENT(svcrdma_decode_rqst,
 		__entry->hdrlen = hdrlen;
 	),
 
-	TP_printk("xid=0x%08x vers=%u credits=%u proc=%s hdrlen=%u",
+	TP_printk("cq.id=%u cid=%d xid=0x%08x vers=%u credits=%u proc=%s hdrlen=%u",
+		__entry->cq_id, __entry->completion_id,
 		__entry->xid, __entry->vers, __entry->credits,
 		show_rpcrdma_proc(__entry->proc), __entry->hdrlen)
 );
 
 TRACE_EVENT(svcrdma_decode_short_err,
 	TP_PROTO(
+		const struct svc_rdma_recv_ctxt *ctxt,
 		unsigned int hdrlen
 	),
 
-	TP_ARGS(hdrlen),
+	TP_ARGS(ctxt, hdrlen),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, hdrlen)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
 		__entry->hdrlen = hdrlen;
 	),
 
-	TP_printk("hdrlen=%u", __entry->hdrlen)
+	TP_printk("cq.id=%u cid=%d hdrlen=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->hdrlen)
 );
 
 DECLARE_EVENT_CLASS(svcrdma_badreq_event,
 	TP_PROTO(
+		const struct svc_rdma_recv_ctxt *ctxt,
 		__be32 *p
 	),
 
-	TP_ARGS(p),
+	TP_ARGS(ctxt, p),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(u32, xid)
 		__field(u32, vers)
 		__field(u32, proc)
@@ -1429,13 +1445,16 @@ DECLARE_EVENT_CLASS(svcrdma_badreq_event,
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
 		__entry->xid = be32_to_cpup(p++);
 		__entry->vers = be32_to_cpup(p++);
 		__entry->credits = be32_to_cpup(p++);
 		__entry->proc = be32_to_cpup(p);
 	),
 
-	TP_printk("xid=0x%08x vers=%u credits=%u proc=%u",
+	TP_printk("cq.id=%u cid=%d xid=0x%08x vers=%u credits=%u proc=%u",
+		__entry->cq_id, __entry->completion_id,
 		__entry->xid, __entry->vers, __entry->credits, __entry->proc)
 );
 
@@ -1443,9 +1462,10 @@ DECLARE_EVENT_CLASS(svcrdma_badreq_event,
 		DEFINE_EVENT(svcrdma_badreq_event,			\
 			     svcrdma_decode_##name##_err,		\
 				TP_PROTO(				\
+					const struct svc_rdma_recv_ctxt *ctxt,	\
 					__be32 *p			\
 				),					\
-				TP_ARGS(p))
+				TP_ARGS(ctxt, p))
 
 DEFINE_BADREQ_EVENT(badvers);
 DEFINE_BADREQ_EVENT(drop);
