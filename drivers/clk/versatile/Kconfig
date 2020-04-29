@@ -23,7 +23,7 @@ config CLK_SP810
 	  of the ARM SP810 System Controller cell.
 
 config CLK_VEXPRESS_OSC
-	bool "Clock driver for Versatile Express OSC clock generators"
+	tristate "Clock driver for Versatile Express OSC clock generators"
 	depends on VEXPRESS_CONFIG
 	select REGMAP_MMIO
 	default y if ARCH_VEXPRESS

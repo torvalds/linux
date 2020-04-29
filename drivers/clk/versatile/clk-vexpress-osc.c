@@ -7,6 +7,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -108,6 +109,7 @@ static const struct of_device_id vexpress_osc_of_match[] = {
 	{ .compatible = "arm,vexpress-osc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, vexpress_osc_of_match);
 
 static struct platform_driver vexpress_osc_driver = {
 	.driver	= {
@@ -116,9 +118,5 @@ static struct platform_driver vexpress_osc_driver = {
 	},
 	.probe = vexpress_osc_probe,
 };
-
-static int __init vexpress_osc_init(void)
-{
-	return platform_driver_register(&vexpress_osc_driver);
-}
-core_initcall(vexpress_osc_init);
+module_platform_driver(vexpress_osc_driver);
+MODULE_LICENSE("GPL v2");
