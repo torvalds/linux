@@ -211,7 +211,7 @@ void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
-static inline void early_init_mmu(void)
+static inline void __init early_init_mmu(void)
 {
 	if (radix_enabled())
 		return radix__early_init_mmu();
