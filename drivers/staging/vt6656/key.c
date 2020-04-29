@@ -91,9 +91,8 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 			key->key[15] |= 0x80;
 	}
 
-	vnt_mac_set_keyentry(priv, key_mode, entry, key_inx, bssid, key->key);
-
-	return 0;
+	return vnt_mac_set_keyentry(priv, key_mode, entry,
+				    key_inx, bssid, key->key);
 }
 
 int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
@@ -102,7 +101,6 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	struct vnt_private *priv = hw->priv;
 	u8 *mac_addr = NULL;
 	u8 key_dec_mode = 0;
-	int ret = 0;
 
 	if (sta)
 		mac_addr = &sta->addr[0];
@@ -115,7 +113,9 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 
-		return ret;
+		return vnt_set_keymode(hw, mac_addr, key, VNT_KEY_DEFAULTKEY,
+				       KEY_CTL_WEP);
+
 	case WLAN_CIPHER_SUITE_TKIP:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -136,11 +136,9 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	}
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_PAIRWISE,
-				key_dec_mode);
-	else
-		vnt_set_keymode(hw, mac_addr, key,
-				VNT_KEY_GROUP_ADDRESS, key_dec_mode);
+		return vnt_set_keymode(hw, mac_addr, key, VNT_KEY_PAIRWISE,
+				       key_dec_mode);
 
-	return 0;
+	return vnt_set_keymode(hw, mac_addr, key,
+				VNT_KEY_GROUP_ADDRESS, key_dec_mode);
 }
