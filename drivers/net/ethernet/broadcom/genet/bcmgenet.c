@@ -724,7 +724,7 @@ static int bcmgenet_hfb_create_rxnfc_filter(struct bcmgenet_priv *priv,
 		break;
 	}
 
-	if (!fs->ring_cookie) {
+	if (!fs->ring_cookie || fs->ring_cookie == RX_CLS_FLOW_WAKE) {
 		/* Ring 0 flows can be handled by the default Descriptor Ring
 		 * We'll map them to ring 0, but don't enable the filter
 		 */
@@ -1499,7 +1499,8 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (cmd->fs.ring_cookie > priv->hw_params->rx_queues) {
+	if (cmd->fs.ring_cookie > priv->hw_params->rx_queues &&
+	    cmd->fs.ring_cookie != RX_CLS_FLOW_WAKE) {
 		netdev_err(dev, "rxnfc: Unsupported action (%llu)\n",
 			   cmd->fs.ring_cookie);
 		return -EINVAL;
