@@ -147,6 +147,7 @@
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
+#include "shmem_utils.h"
 
 #define RING_EXECLIST_QFULL		(1 << 0x2)
 #define RING_EXECLIST1_VALID		(1 << 0x3)
@@ -5083,30 +5084,18 @@ populate_lr_context(struct intel_context *ce,
 {
 	bool inhibit = true;
 	void *vaddr;
-	int ret;
 
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		drm_dbg(&engine->i915->drm,
-			"Could not map object pages! (%d)\n", ret);
-		return ret;
+		drm_dbg(&engine->i915->drm, "Could not map object pages!\n");
+		return PTR_ERR(vaddr);
 	}
 
 	set_redzone(vaddr, engine);
 
 	if (engine->default_state) {
-		void *defaults;
-
-		defaults = i915_gem_object_pin_map(engine->default_state,
-						   I915_MAP_WB);
-		if (IS_ERR(defaults)) {
-			ret = PTR_ERR(defaults);
-			goto err_unpin_ctx;
-		}
-
-		memcpy(vaddr, defaults, engine->context_size);
-		i915_gem_object_unpin_map(engine->default_state);
+		shmem_read(engine->default_state, 0,
+			   vaddr, engine->context_size);
 		__set_bit(CONTEXT_VALID_BIT, &ce->flags);
 		inhibit = false;
 	}
@@ -5121,11 +5110,9 @@ populate_lr_context(struct intel_context *ce,
 	execlists_init_reg_state(vaddr + LRC_STATE_OFFSET,
 				 ce, engine, ring, inhibit);
 
-	ret = 0;
-err_unpin_ctx:
 	__i915_gem_object_flush_map(ctx_obj, 0, engine->context_size);
 	i915_gem_object_unpin_map(ctx_obj);
-	return ret;
+	return 0;
 }
 
 static int __execlists_context_alloc(struct intel_context *ce,

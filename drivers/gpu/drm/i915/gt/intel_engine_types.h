@@ -339,7 +339,7 @@ struct intel_engine_cs {
 
 	unsigned long wakeref_serial;
 	struct intel_wakeref wakeref;
-	struct drm_i915_gem_object *default_state;
+	struct file *default_state;
 	void *pinned_default_state;
 
 	struct {

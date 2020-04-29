@@ -42,6 +42,7 @@
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
+#include "shmem_utils.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -1241,7 +1242,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 		i915_gem_object_set_cache_coherency(obj, I915_CACHE_L3_LLC);
 
 	if (engine->default_state) {
-		void *defaults, *vaddr;
+		void *vaddr;
 
 		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
@@ -1249,15 +1250,8 @@ alloc_context_vma(struct intel_engine_cs *engine)
 			goto err_obj;
 		}
 
-		defaults = i915_gem_object_pin_map(engine->default_state,
-						   I915_MAP_WB);
-		if (IS_ERR(defaults)) {
-			err = PTR_ERR(defaults);
-			goto err_map;
-		}
-
-		memcpy(vaddr, defaults, engine->context_size);
-		i915_gem_object_unpin_map(engine->default_state);
+		shmem_read(engine->default_state, 0,
+			   vaddr, engine->context_size);
 
 		i915_gem_object_flush_map(obj);
 		i915_gem_object_unpin_map(obj);
@@ -1271,8 +1265,6 @@ alloc_context_vma(struct intel_engine_cs *engine)
 
 	return vma;
 
-err_map:
-	i915_gem_object_unpin_map(obj);
 err_obj:
 	i915_gem_object_put(obj);
 	return ERR_PTR(err);

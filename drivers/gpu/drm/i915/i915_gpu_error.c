@@ -1320,26 +1320,6 @@ capture_user(struct intel_engine_capture_vma *capture,
 	return capture;
 }
 
-static struct i915_vma_coredump *
-capture_object(const struct intel_gt *gt,
-	       struct drm_i915_gem_object *obj,
-	       const char *name,
-	       struct i915_vma_compress *compress)
-{
-	if (obj && i915_gem_object_has_pages(obj)) {
-		struct i915_vma fake = {
-			.node = { .start = U64_MAX, .size = obj->base.size },
-			.size = obj->base.size,
-			.pages = obj->mm.pages,
-			.obj = obj,
-		};
-
-		return i915_vma_coredump_create(gt, &fake, name, compress);
-	} else {
-		return NULL;
-	}
-}
-
 static void add_vma(struct intel_engine_coredump *ee,
 		    struct i915_vma_coredump *vma)
 {
@@ -1428,12 +1408,6 @@ intel_engine_coredump_add_vma(struct intel_engine_coredump *ee,
 					 engine->wa_ctx.vma,
 					 "WA context",
 					 compress));
-
-	add_vma(ee,
-		capture_object(engine->gt,
-			       engine->default_state,
-			       "NULL context",
-			       compress));
 }
 
 static struct intel_engine_coredump *

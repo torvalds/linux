@@ -155,7 +155,7 @@ static int live_context_size(void *arg)
 
 	for_each_engine(engine, gt, id) {
 		struct {
-			struct drm_i915_gem_object *state;
+			struct file *state;
 			void *pinned;
 		} saved;
 

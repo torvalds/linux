@@ -834,7 +834,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_cleanup_cmd_parser(engine);
 
 	if (engine->default_state)
-		i915_gem_object_put(engine->default_state);
+		fput(engine->default_state);
 
 	if (engine->kernel_context) {
 		intel_context_unpin(engine->kernel_context);
