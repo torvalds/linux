@@ -1085,9 +1085,17 @@ int bpf_prog_new_fd(struct bpf_prog *prog);
 
 struct bpf_link {
 	atomic64_t refcnt;
+	u32 id;
 	const struct bpf_link_ops *ops;
 	struct bpf_prog *prog;
 	struct work_struct work;
+};
+
+struct bpf_link_primer {
+	struct bpf_link *link;
+	struct file *file;
+	int fd;
+	u32 id;
 };
 
 struct bpf_link_ops {
@@ -1097,10 +1105,11 @@ struct bpf_link_ops {
 			   struct bpf_prog *old_prog);
 };
 
-void bpf_link_init(struct bpf_link *link, const struct bpf_link_ops *ops,
-		   struct bpf_prog *prog);
-void bpf_link_cleanup(struct bpf_link *link, struct file *link_file,
-		      int link_fd);
+void bpf_link_init(struct bpf_link *link,
+		   const struct bpf_link_ops *ops, struct bpf_prog *prog);
+int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer);
+int bpf_link_settle(struct bpf_link_primer *primer);
+void bpf_link_cleanup(struct bpf_link_primer *primer);
 void bpf_link_inc(struct bpf_link *link);
 void bpf_link_put(struct bpf_link *link);
 int bpf_link_new_fd(struct bpf_link *link);

@@ -841,10 +841,10 @@ const struct bpf_link_ops bpf_cgroup_link_lops = {
 
 int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
+	struct bpf_link_primer link_primer;
 	struct bpf_cgroup_link *link;
-	struct file *link_file;
 	struct cgroup *cgrp;
-	int err, link_fd;
+	int err;
 
 	if (attr->link_create.flags)
 		return -EINVAL;
@@ -862,22 +862,20 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	link->cgroup = cgrp;
 	link->type = attr->link_create.attach_type;
 
-	link_file = bpf_link_new_file(&link->link, &link_fd);
-	if (IS_ERR(link_file)) {
+	err  = bpf_link_prime(&link->link, &link_primer);
+	if (err) {
 		kfree(link);
-		err = PTR_ERR(link_file);
 		goto out_put_cgroup;
 	}
 
 	err = cgroup_bpf_attach(cgrp, NULL, NULL, link, link->type,
 				BPF_F_ALLOW_MULTI);
 	if (err) {
-		bpf_link_cleanup(&link->link, link_file, link_fd);
+		bpf_link_cleanup(&link_primer);
 		goto out_put_cgroup;
 	}
 
-	fd_install(link_fd, link_file);
-	return link_fd;
+	return bpf_link_settle(&link_primer);
 
 out_put_cgroup:
 	cgroup_put(cgrp);
