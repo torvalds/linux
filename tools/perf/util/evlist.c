@@ -119,7 +119,7 @@ static void perf_evlist__update_id_pos(struct evlist *evlist)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
-		perf_evsel__calc_id_pos(evsel);
+		evsel__calc_id_pos(evsel);
 
 	perf_evlist__set_id_pos(evlist);
 }

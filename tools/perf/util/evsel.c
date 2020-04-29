@@ -178,7 +178,7 @@ static int __perf_evsel__calc_is_pos(u64 sample_type)
 	return idx;
 }
 
-void perf_evsel__calc_id_pos(struct evsel *evsel)
+void evsel__calc_id_pos(struct evsel *evsel)
 {
 	evsel->id_pos = __perf_evsel__calc_id_pos(evsel->core.attr.sample_type);
 	evsel->is_pos = __perf_evsel__calc_is_pos(evsel->core.attr.sample_type);
@@ -190,7 +190,7 @@ void __perf_evsel__set_sample_bit(struct evsel *evsel,
 	if (!(evsel->core.attr.sample_type & bit)) {
 		evsel->core.attr.sample_type |= bit;
 		evsel->sample_size += sizeof(u64);
-		perf_evsel__calc_id_pos(evsel);
+		evsel__calc_id_pos(evsel);
 	}
 }
 
@@ -200,7 +200,7 @@ void __perf_evsel__reset_sample_bit(struct evsel *evsel,
 	if (evsel->core.attr.sample_type & bit) {
 		evsel->core.attr.sample_type &= ~bit;
 		evsel->sample_size -= sizeof(u64);
-		perf_evsel__calc_id_pos(evsel);
+		evsel__calc_id_pos(evsel);
 	}
 }
 
@@ -250,7 +250,7 @@ void evsel__init(struct evsel *evsel,
 	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
-	perf_evsel__calc_id_pos(evsel);
+	evsel__calc_id_pos(evsel);
 	evsel->cmdline_group_boundary = false;
 	evsel->metric_expr   = NULL;
 	evsel->metric_name   = NULL;

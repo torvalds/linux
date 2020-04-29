@@ -194,7 +194,7 @@ void evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
 			     struct callchain_param *callchain);
 
 int __perf_evsel__sample_size(u64 sample_type);
-void perf_evsel__calc_id_pos(struct evsel *evsel);
+void evsel__calc_id_pos(struct evsel *evsel);
 
 bool perf_evsel__is_cache_op_valid(u8 type, u8 op);
 
