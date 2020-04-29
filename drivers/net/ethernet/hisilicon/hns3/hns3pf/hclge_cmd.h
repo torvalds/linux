@@ -270,6 +270,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
+	HCLGE_OPC_GET_SFP_EEPROM	= 0x7100,
+	HCLGE_OPC_GET_SFP_EXIST		= 0x7101,
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
 
 	/* Error INT commands */
@@ -1052,6 +1054,19 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 struct hclge_firmware_compat_cmd {
 	__le32 compat;
 	u8 rsv[20];
+};
+
+#define HCLGE_SFP_INFO_CMD_NUM	6
+#define HCLGE_SFP_INFO_BD0_LEN	20
+#define HCLGE_SFP_INFO_BDX_LEN	24
+#define HCLGE_SFP_INFO_MAX_LEN \
+	(HCLGE_SFP_INFO_BD0_LEN + \
+	(HCLGE_SFP_INFO_CMD_NUM - 1) * HCLGE_SFP_INFO_BDX_LEN)
+
+struct hclge_sfp_info_bd0_cmd {
+	__le16 offset;
+	__le16 read_len;
+	u8 data[HCLGE_SFP_INFO_BD0_LEN];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

@@ -4,12 +4,18 @@
 #include <linux/etherdevice.h>
 #include <linux/string.h>
 #include <linux/phy.h>
+#include <linux/sfp.h>
 
 #include "hns3_enet.h"
 
 struct hns3_stats {
 	char stats_string[ETH_GSTRING_LEN];
 	int stats_offset;
+};
+
+struct hns3_sfp_type {
+	u8 type;
+	u8 ext_type;
 };
 
 /* tqp related stats */
@@ -1386,6 +1392,73 @@ static int hns3_set_fecparam(struct net_device *netdev,
 	return ops->set_fec(handle, fec_mode);
 }
 
+static int hns3_get_module_info(struct net_device *netdev,
+				struct ethtool_modinfo *modinfo)
+{
+#define HNS3_SFF_8636_V1_3 0x03
+
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hns3_sfp_type sfp_type;
+	int ret;
+
+	if (handle->pdev->revision == 0x20 || !ops->get_module_eeprom)
+		return -EOPNOTSUPP;
+
+	memset(&sfp_type, 0, sizeof(sfp_type));
+	ret = ops->get_module_eeprom(handle, 0, sizeof(sfp_type) / sizeof(u8),
+				     (u8 *)&sfp_type);
+	if (ret)
+		return ret;
+
+	switch (sfp_type.type) {
+	case SFF8024_ID_SFP:
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		break;
+	case SFF8024_ID_QSFP_8438:
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
+		break;
+	case SFF8024_ID_QSFP_8436_8636:
+		if (sfp_type.ext_type < HNS3_SFF_8636_V1_3) {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
+		}
+		break;
+	case SFF8024_ID_QSFP28_8636:
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
+		break;
+	default:
+		netdev_err(netdev, "Optical module unknown: %#x\n",
+			   sfp_type.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hns3_get_module_eeprom(struct net_device *netdev,
+				  struct ethtool_eeprom *ee, u8 *data)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (handle->pdev->revision == 0x20 || !ops->get_module_eeprom)
+		return -EOPNOTSUPP;
+
+	if (!ee->len)
+		return -EINVAL;
+
+	memset(data, 0, ee->len);
+
+	return ops->get_module_eeprom(handle, ee->offset, ee->len, data);
+}
+
 #define HNS3_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_USECS |		\
 				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
 				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
@@ -1449,6 +1522,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_msglevel = hns3_set_msglevel,
 	.get_fecparam = hns3_get_fecparam,
 	.set_fecparam = hns3_set_fecparam,
+	.get_module_info = hns3_get_module_info,
+	.get_module_eeprom = hns3_get_module_eeprom,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

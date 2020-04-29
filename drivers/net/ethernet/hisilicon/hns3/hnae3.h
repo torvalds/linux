@@ -374,6 +374,8 @@ struct hnae3_ae_dev {
  *   Set the max tx rate of specified vf.
  * set_vf_mac
  *   Configure the default MAC for specified VF
+ * get_module_eeprom
+ *   Get the optical module eeprom info.
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -548,6 +550,8 @@ struct hnae3_ae_ops {
 	int (*set_vf_rate)(struct hnae3_handle *handle, int vf,
 			   int min_tx_rate, int max_tx_rate, bool force);
 	int (*set_vf_mac)(struct hnae3_handle *handle, int vf, u8 *p);
+	int (*get_module_eeprom)(struct hnae3_handle *handle, u32 offset,
+				 u32 len, u8 *data);
 };
 
 struct hnae3_dcb_ops {

@@ -11119,6 +11119,107 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 	}
 }
 
+static bool hclge_module_existed(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc;
+	u32 existed;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_GET_SFP_EXIST, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get SFP exist state, ret = %d\n", ret);
+		return false;
+	}
+
+	existed = le32_to_cpu(desc.data[0]);
+
+	return existed != 0;
+}
+
+/* need 6 bds(total 140 bytes) in one reading
+ * return the number of bytes actually read, 0 means read failed.
+ */
+static u16 hclge_get_sfp_eeprom_info(struct hclge_dev *hdev, u32 offset,
+				     u32 len, u8 *data)
+{
+	struct hclge_desc desc[HCLGE_SFP_INFO_CMD_NUM];
+	struct hclge_sfp_info_bd0_cmd *sfp_info_bd0;
+	u16 read_len;
+	u16 copy_len;
+	int ret;
+	int i;
+
+	/* setup all 6 bds to read module eeprom info. */
+	for (i = 0; i < HCLGE_SFP_INFO_CMD_NUM; i++) {
+		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_GET_SFP_EEPROM,
+					   true);
+
+		/* bd0~bd4 need next flag */
+		if (i < HCLGE_SFP_INFO_CMD_NUM - 1)
+			desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	}
+
+	/* setup bd0, this bd contains offset and read length. */
+	sfp_info_bd0 = (struct hclge_sfp_info_bd0_cmd *)desc[0].data;
+	sfp_info_bd0->offset = cpu_to_le16((u16)offset);
+	read_len = min_t(u16, len, HCLGE_SFP_INFO_MAX_LEN);
+	sfp_info_bd0->read_len = cpu_to_le16(read_len);
+
+	ret = hclge_cmd_send(&hdev->hw, desc, i);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get SFP eeprom info, ret = %d\n", ret);
+		return 0;
+	}
+
+	/* copy sfp info from bd0 to out buffer. */
+	copy_len = min_t(u16, len, HCLGE_SFP_INFO_BD0_LEN);
+	memcpy(data, sfp_info_bd0->data, copy_len);
+	read_len = copy_len;
+
+	/* copy sfp info from bd1~bd5 to out buffer if needed. */
+	for (i = 1; i < HCLGE_SFP_INFO_CMD_NUM; i++) {
+		if (read_len >= len)
+			return read_len;
+
+		copy_len = min_t(u16, len - read_len, HCLGE_SFP_INFO_BDX_LEN);
+		memcpy(data + read_len, desc[i].data, copy_len);
+		read_len += copy_len;
+	}
+
+	return read_len;
+}
+
+static int hclge_get_module_eeprom(struct hnae3_handle *handle, u32 offset,
+				   u32 len, u8 *data)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 read_len = 0;
+	u16 data_len;
+
+	if (hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return -EOPNOTSUPP;
+
+	if (!hclge_module_existed(hdev))
+		return -ENXIO;
+
+	while (read_len < len) {
+		data_len = hclge_get_sfp_eeprom_info(hdev,
+						     offset + read_len,
+						     len - read_len,
+						     data + read_len);
+		if (!data_len)
+			return -EIO;
+
+		read_len += data_len;
+	}
+
+	return 0;
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -11211,6 +11312,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vf_trust = hclge_set_vf_trust,
 	.set_vf_rate = hclge_set_vf_rate,
 	.set_vf_mac = hclge_set_vf_mac,
+	.get_module_eeprom = hclge_get_module_eeprom,
 };
 
 static struct hnae3_ae_algo ae_algo = {
