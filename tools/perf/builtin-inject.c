@@ -684,7 +684,8 @@ static int __cmd_inject(struct perf_inject *inject)
 
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);
-			if (inject->itrace_synth_opts.last_branch)
+			if (inject->itrace_synth_opts.last_branch ||
+			    inject->itrace_synth_opts.add_last_branch)
 				perf_header__set_feat(&session->header,
 						      HEADER_BRANCH_STACK);
 			evsel = perf_evlist__id2evsel_strict(session->evlist,
