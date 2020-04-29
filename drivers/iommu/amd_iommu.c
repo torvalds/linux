@@ -2157,8 +2157,11 @@ static int amd_iommu_add_device(struct device *dev)
 	struct amd_iommu *iommu;
 	int ret, devid;
 
-	if (!check_device(dev) || get_dev_data(dev))
+	if (get_dev_data(dev))
 		return 0;
+
+	if (!check_device(dev))
+		return -ENODEV;
 
 	devid = get_device_id(dev);
 	if (devid < 0)
