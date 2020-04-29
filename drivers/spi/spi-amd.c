@@ -266,10 +266,9 @@ static int amd_spi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	amd_spi->io_remap_addr = devm_ioremap_resource(&pdev->dev, res);
-
-	if (!amd_spi->io_remap_addr) {
+	if (IS_ERR(amd_spi->io_remap_addr)) {
+		err = PTR_ERR(amd_spi->io_remap_addr);
 		dev_err(dev, "error %d ioremap of SPI registers failed\n", err);
-		err = -ENOMEM;
 		goto err_free_master;
 	}
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
