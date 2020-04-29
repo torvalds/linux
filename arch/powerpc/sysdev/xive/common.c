@@ -1664,7 +1664,8 @@ DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
 
 int xive_core_debug_init(void)
 {
-	debugfs_create_file("xive", 0400, powerpc_debugfs_root,
-			    NULL, &xive_core_debug_fops);
+	if (xive_enabled())
+		debugfs_create_file("xive", 0400, powerpc_debugfs_root,
+				    NULL, &xive_core_debug_fops);
 	return 0;
 }
