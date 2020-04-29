@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) Wake-on-LAN support
  *
- * Copyright (c) 2014-2017 Broadcom
+ * Copyright (c) 2014-2020 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet_wol: " fmt
@@ -155,6 +155,9 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 	netif_dbg(priv, wol, dev, "MPD WOL-ready status set after %d msec\n",
 		  retries);
 
+	clk_prepare_enable(priv->clk_wol);
+	priv->wol_active = 1;
+
 	/* Enable CRC forward */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	priv->crc_fwd_en = 1;
@@ -183,9 +186,14 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 		return;
 	}
 
+	if (!priv->wol_active)
+		return;	/* failed to suspend so skip the rest */
+
+	priv->wol_active = 0;
+	clk_disable_unprepare(priv->clk_wol);
+
+	/* Disable Magic Packet Detection */
 	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-	if (!(reg & MPD_EN))
-		return;	/* already powered up so skip the rest */
 	reg &= ~(MPD_EN | MPD_PW_EN);
 	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
 

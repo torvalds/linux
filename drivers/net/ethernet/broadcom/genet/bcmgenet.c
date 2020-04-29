@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014-2019 Broadcom
+ * Copyright (c) 2014-2020 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet: " fmt
@@ -3619,6 +3619,10 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		return ret;
 
+	/* From WOL-enabled suspend, switch to regular clock */
+	if (device_may_wakeup(d) && priv->wolopts)
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
+
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
@@ -3628,10 +3632,6 @@ static int bcmgenet_resume(struct device *d)
 	bcmgenet_umac_reset(priv);
 
 	init_umac(priv);
-
-	/* From WOL-enabled suspend, switch to regular clock */
-	if (priv->wolopts)
-		clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(dev->phydev);
 
@@ -3649,9 +3649,6 @@ static int bcmgenet_resume(struct device *d)
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
-
-	if (priv->wolopts)
-		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
 
 	/* Disable RX/TX DMA and flush TX queues */
 	dma_ctrl = bcmgenet_dma_disable(priv);
@@ -3702,12 +3699,10 @@ static int bcmgenet_suspend(struct device *d)
 		phy_suspend(dev->phydev);
 
 	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
-	if (device_may_wakeup(d) && priv->wolopts) {
+	if (device_may_wakeup(d) && priv->wolopts)
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
-		clk_prepare_enable(priv->clk_wol);
-	} else if (priv->internal_phy) {
+	else if (priv->internal_phy)
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
-	}
 
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);

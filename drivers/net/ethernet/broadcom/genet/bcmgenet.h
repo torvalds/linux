@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2014-2017 Broadcom
+ * Copyright (c) 2014-2020 Broadcom
  */
 
 #ifndef __BCMGENET_H__
@@ -678,6 +678,7 @@ struct bcmgenet_priv {
 	struct clk *clk_wol;
 	u32 wolopts;
 	u8 sopass[SOPASS_MAX];
+	bool wol_active;
 
 	struct bcmgenet_mib_counters mib;
 
