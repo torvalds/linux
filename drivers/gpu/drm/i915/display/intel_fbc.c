@@ -1078,11 +1078,19 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	if (!HAS_FBC(dev_priv))
 		return;
 
+	/*
+	 * GTT tracking does not nuke the entire cfb
+	 * so don't clear busy_bits set for some other
+	 * reason.
+	 */
+	if (origin == ORIGIN_GTT)
+		return;
+
 	mutex_lock(&fbc->lock);
 
 	fbc->busy_bits &= ~frontbuffer_bits;
 
-	if (origin == ORIGIN_GTT || origin == ORIGIN_FLIP)
+	if (origin == ORIGIN_FLIP)
 		goto out;
 
 	if (!fbc->busy_bits && fbc->crtc &&
