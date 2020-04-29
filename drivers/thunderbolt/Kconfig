@@ -15,3 +15,8 @@ menuconfig USB4
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt.
+
+config USB4_KUNIT_TEST
+	bool "KUnit tests"
+	depends on KUNIT=y
+	depends on USB4=y
