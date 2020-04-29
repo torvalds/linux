@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 int perf_evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
-			      perf_evsel__sb_cb_t cb, void *data)
+			      evsel__sb_cb_t cb, void *data)
 {
 	struct evsel *evsel;
 
@@ -81,7 +81,7 @@ static void *perf_evlist__poll_thread(void *arg)
 	return NULL;
 }
 
-void evlist__set_cb(struct evlist *evlist, perf_evsel__sb_cb_t cb, void *data)
+void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data)
 {
 	struct evsel *evsel;
 

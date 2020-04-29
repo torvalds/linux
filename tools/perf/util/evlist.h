@@ -109,9 +109,9 @@ int perf_evlist__add_dummy(struct evlist *evlist);
 
 int perf_evlist__add_sb_event(struct evlist *evlist,
 			      struct perf_event_attr *attr,
-			      perf_evsel__sb_cb_t cb,
+			      evsel__sb_cb_t cb,
 			      void *data);
-void evlist__set_cb(struct evlist *evlist, perf_evsel__sb_cb_t cb, void *data);
+void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data);
 int perf_evlist__start_sb_thread(struct evlist *evlist,
 				 struct target *target);
 void perf_evlist__stop_sb_thread(struct evlist *evlist);
