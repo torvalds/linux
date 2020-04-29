@@ -250,10 +250,10 @@ INCLUDES += \
 	-I$(atomisp)/css2400/isp/kernels/gc/gc_1.0/ \
 	-I$(atomisp)/css2400/isp/kernels/gc/gc_2/ \
 	-I$(atomisp)/css2400/isp/kernels/hdr/ \
-	-I$(atomisp)/css2400/isp/kernels/io_ls/ \
-	-I$(atomisp)/css2400/isp/kernels/io_ls/bayer_io_ls/ \
-	-I$(atomisp)/css2400/isp/kernels/io_ls/common/ \
-	-I$(atomisp)/css2400/isp/kernels/io_ls/yuv444_io_ls/ \
+	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/ \
+	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/bayer_io_ls/ \
+	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/common/ \
+	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/yuv444_io_ls/ \
 	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/ \
 	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/bayer_io_ls/ \
 	-I$(atomisp)/css2400/isp/kernels/ipu2_io_ls/common/ \
