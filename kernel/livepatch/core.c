@@ -1139,6 +1139,11 @@ int klp_module_coming(struct module *mod)
 	if (WARN_ON(mod->state != MODULE_STATE_COMING))
 		return -EINVAL;
 
+	if (!strcmp(mod->name, "vmlinux")) {
+		pr_err("vmlinux.ko: invalid module name");
+		return -EINVAL;
+	}
+
 	mutex_lock(&klp_mutex);
 	/*
 	 * Each module has to know that klp_module_coming()
