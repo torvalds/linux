@@ -631,7 +631,6 @@ struct intel_crtc_scaler_state {
 };
 
 /* {crtc,crtc_state}->mode_flags */
-#define I915_MODE_FLAG_INHERITED (1<<0)
 /* Flag to get scanline using frame time stamps */
 #define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
 /* Flag to use the scanline counter instead of the pixel counter */
@@ -828,6 +827,7 @@ struct intel_crtc_state {
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
 	bool fifo_changed; /* FIFO split is changed */
 	bool preload_luts;
+	bool inherited; /* state inherited from BIOS? */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,

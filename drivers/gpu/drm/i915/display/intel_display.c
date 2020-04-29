@@ -6424,8 +6424,7 @@ static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_s
 	 * We can't read out IPS on broadwell, assume the worst and
 	 * forcibly enable IPS on the first fastset.
 	 */
-	if (new_crtc_state->update_pipe &&
-	    old_crtc_state->mode_flags & I915_MODE_FLAG_INHERITED)
+	if (new_crtc_state->update_pipe && old_crtc_state->inherited)
 		return true;
 
 	return !old_crtc_state->ips_enabled;
@@ -13605,8 +13604,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	bool ret = true;
 	u32 bp_gamma = 0;
 	bool fixup_inherited = fastset &&
-		(current_config->mode_flags & I915_MODE_FLAG_INHERITED) &&
-		!(pipe_config->mode_flags & I915_MODE_FLAG_INHERITED);
+		current_config->inherited && !pipe_config->inherited;
 
 	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -14813,10 +14811,9 @@ static int intel_atomic_check(struct drm_device *dev,
 	int ret, i;
 	bool any_ms = false;
 
-	/* Catch I915_MODE_FLAG_INHERITED */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (new_crtc_state->mode_flags != old_crtc_state->mode_flags)
+		if (new_crtc_state->inherited != old_crtc_state->inherited)
 			new_crtc_state->uapi.mode_changed = true;
 	}
 
@@ -15186,7 +15183,7 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	 * of enabling them on the CRTC's first fastset.
 	 */
 	if (new_crtc_state->update_pipe && !modeset &&
-	    old_crtc_state->mode_flags & I915_MODE_FLAG_INHERITED)
+	    old_crtc_state->inherited)
 		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
@@ -17520,7 +17517,7 @@ static int sanitize_watermarks_add_affected(struct drm_atomic_state *state)
 			 * Preserve the inherited flag to avoid
 			 * taking the full modeset path.
 			 */
-			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
+			crtc_state->inherited = true;
 		}
 	}
 
@@ -17670,7 +17667,7 @@ retry:
 			 * happen only for the first real commit from userspace.
 			 * So preserve the inherited flag for the time being.
 			 */
-			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
+			crtc_state->inherited = true;
 
 			ret = drm_atomic_add_affected_planes(state, &crtc->base);
 			if (ret)
@@ -18450,7 +18447,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * set a flag to indicate that a full recalculation is
 			 * needed on the next commit.
 			 */
-			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
+			crtc_state->inherited = true;
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 

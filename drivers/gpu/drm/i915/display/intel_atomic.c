@@ -249,11 +249,11 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_wm_post = false;
 	crtc_state->fifo_changed = false;
 	crtc_state->preload_luts = false;
+	crtc_state->inherited = false;
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
 	crtc_state->dsb = NULL;
-	crtc_state->mode_flags &= ~I915_MODE_FLAG_INHERITED;
 
 	return &crtc_state->uapi;
 }
