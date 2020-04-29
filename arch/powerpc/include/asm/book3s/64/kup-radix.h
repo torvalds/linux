@@ -12,13 +12,17 @@
 
 #ifdef __ASSEMBLY__
 
-.macro kuap_restore_amr	gpr
+.macro kuap_restore_amr	gpr1, gpr2
 #ifdef CONFIG_PPC_KUAP
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
-	ld	\gpr, STACK_REGS_KUAP(r1)
+	mfspr	\gpr1, SPRN_AMR
+	ld	\gpr2, STACK_REGS_KUAP(r1)
+	cmpd	\gpr1, \gpr2
+	beq	998f
 	isync
-	mtspr	SPRN_AMR, \gpr
+	mtspr	SPRN_AMR, \gpr2
 	/* No isync required, see kuap_restore_amr() */
+998:
 	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_RADIX_KUAP, 67)
 #endif
 .endm
