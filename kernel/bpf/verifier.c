@@ -429,11 +429,30 @@ static bool is_release_function(enum bpf_func_id func_id)
 	return func_id == BPF_FUNC_sk_release;
 }
 
-static bool is_acquire_function(enum bpf_func_id func_id)
+static bool may_be_acquire_function(enum bpf_func_id func_id)
 {
 	return func_id == BPF_FUNC_sk_lookup_tcp ||
 		func_id == BPF_FUNC_sk_lookup_udp ||
-		func_id == BPF_FUNC_skc_lookup_tcp;
+		func_id == BPF_FUNC_skc_lookup_tcp ||
+		func_id == BPF_FUNC_map_lookup_elem;
+}
+
+static bool is_acquire_function(enum bpf_func_id func_id,
+				const struct bpf_map *map)
+{
+	enum bpf_map_type map_type = map ? map->map_type : BPF_MAP_TYPE_UNSPEC;
+
+	if (func_id == BPF_FUNC_sk_lookup_tcp ||
+	    func_id == BPF_FUNC_sk_lookup_udp ||
+	    func_id == BPF_FUNC_skc_lookup_tcp)
+		return true;
+
+	if (func_id == BPF_FUNC_map_lookup_elem &&
+	    (map_type == BPF_MAP_TYPE_SOCKMAP ||
+	     map_type == BPF_MAP_TYPE_SOCKHASH))
+		return true;
+
+	return false;
 }
 
 static bool is_ptr_cast_function(enum bpf_func_id func_id)
@@ -3934,7 +3953,8 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_sock_map_update &&
 		    func_id != BPF_FUNC_map_delete_elem &&
 		    func_id != BPF_FUNC_msg_redirect_map &&
-		    func_id != BPF_FUNC_sk_select_reuseport)
+		    func_id != BPF_FUNC_sk_select_reuseport &&
+		    func_id != BPF_FUNC_map_lookup_elem)
 			goto error;
 		break;
 	case BPF_MAP_TYPE_SOCKHASH:
@@ -3942,7 +3962,8 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_sock_hash_update &&
 		    func_id != BPF_FUNC_map_delete_elem &&
 		    func_id != BPF_FUNC_msg_redirect_hash &&
-		    func_id != BPF_FUNC_sk_select_reuseport)
+		    func_id != BPF_FUNC_sk_select_reuseport &&
+		    func_id != BPF_FUNC_map_lookup_elem)
 			goto error;
 		break;
 	case BPF_MAP_TYPE_REUSEPORT_SOCKARRAY:
@@ -4112,7 +4133,7 @@ static bool check_refcount_ok(const struct bpf_func_proto *fn, int func_id)
 	/* A reference acquiring function cannot acquire
 	 * another refcounted ptr.
 	 */
-	if (is_acquire_function(func_id) && count)
+	if (may_be_acquire_function(func_id) && count)
 		return false;
 
 	/* We only support one arg being unreferenced at the moment,
@@ -4623,7 +4644,7 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	if (is_ptr_cast_function(func_id)) {
 		/* For release_reference() */
 		regs[BPF_REG_0].ref_obj_id = meta.ref_obj_id;
-	} else if (is_acquire_function(func_id)) {
+	} else if (is_acquire_function(func_id, meta.map_ptr)) {
 		int id = acquire_reference_state(env, insn_idx);
 
 		if (id < 0)
@@ -6532,12 +6553,16 @@ static void mark_ptr_or_null_reg(struct bpf_func_state *state,
 		if (is_null) {
 			reg->type = SCALAR_VALUE;
 		} else if (reg->type == PTR_TO_MAP_VALUE_OR_NULL) {
-			if (reg->map_ptr->inner_map_meta) {
+			const struct bpf_map *map = reg->map_ptr;
+
+			if (map->inner_map_meta) {
 				reg->type = CONST_PTR_TO_MAP;
-				reg->map_ptr = reg->map_ptr->inner_map_meta;
-			} else if (reg->map_ptr->map_type ==
-				   BPF_MAP_TYPE_XSKMAP) {
+				reg->map_ptr = map->inner_map_meta;
+			} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
 				reg->type = PTR_TO_XDP_SOCK;
+			} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
+				   map->map_type == BPF_MAP_TYPE_SOCKHASH) {
+				reg->type = PTR_TO_SOCKET;
 			} else {
 				reg->type = PTR_TO_MAP_VALUE;
 			}
