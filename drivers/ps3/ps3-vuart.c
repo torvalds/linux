@@ -858,13 +858,13 @@ static int ps3_vuart_handle_port_interrupt(struct ps3_system_bus_device *dev)
 	return 0;
 }
 
-struct vuart_bus_priv {
+static struct vuart_bus_priv {
 	struct ports_bmp *bmp;
 	unsigned int virq;
 	struct mutex probe_mutex;
 	int use_count;
 	struct ps3_system_bus_device *devices[PORT_COUNT];
-} static vuart_bus_priv;
+} vuart_bus_priv;
 
 /**
  * ps3_vuart_irq_handler - first stage interrupt handler
