@@ -850,6 +850,13 @@ void tb_port_release_out_hopid(struct tb_port *port, int hopid)
 	ida_simple_remove(&port->out_hopids, hopid);
 }
 
+static inline bool tb_switch_is_reachable(const struct tb_switch *parent,
+					  const struct tb_switch *sw)
+{
+	u64 mask = (1ULL << parent->config.depth * 8) - 1;
+	return (tb_route(parent) & mask) == (tb_route(sw) & mask);
+}
+
 /**
  * tb_next_port_on_path() - Return next port for given port on a path
  * @start: Start port of the walk
@@ -879,12 +886,12 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 		return end;
 	}
 
-	if (start->sw->config.depth < end->sw->config.depth) {
+	if (tb_switch_is_reachable(prev->sw, end->sw)) {
+		next = tb_port_at(tb_route(end->sw), prev->sw);
+		/* Walk down the topology if next == prev */
 		if (prev->remote &&
-		    prev->remote->sw->config.depth > prev->sw->config.depth)
+		    (next == prev || next->dual_link_port == prev))
 			next = prev->remote;
-		else
-			next = tb_port_at(tb_route(end->sw), prev->sw);
 	} else {
 		if (tb_is_upstream_port(prev)) {
 			next = prev->remote;
@@ -901,7 +908,7 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 		}
 	}
 
-	return next;
+	return next != prev ? next : NULL;
 }
 
 static int tb_port_get_link_speed(struct tb_port *port)
