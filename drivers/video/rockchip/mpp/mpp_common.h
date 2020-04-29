@@ -189,8 +189,6 @@ struct mpp_dev {
 	struct mpp_grf_info *grf_info;
 	struct mpp_iommu_info *iommu_info;
 
-	struct rw_semaphore rw_sem;
-
 	atomic_t reset_request;
 	atomic_t total_running;
 	/* task for work queue */

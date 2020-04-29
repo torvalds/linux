@@ -59,6 +59,8 @@ struct mpp_rk_iommu {
 };
 
 struct mpp_iommu_info {
+	struct rw_semaphore rw_sem;
+
 	struct device *dev;
 	struct platform_device *pdev;
 	struct iommu_domain *domain;

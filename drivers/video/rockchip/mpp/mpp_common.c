@@ -372,7 +372,7 @@ static int mpp_dev_reset(struct mpp_dev *mpp)
 	if (mpp->hw_ops->reduce_freq)
 		mpp->hw_ops->reduce_freq(mpp);
 	/* FIXME lock resource lock of the other devices in combo */
-	down_write(&mpp->rw_sem);
+	down_write(&mpp->iommu_info->rw_sem);
 	down_write(&mpp->reset_group->rw_sem);
 	atomic_set(&mpp->reset_request, 0);
 	mpp_iommu_detach(mpp->iommu_info);
@@ -390,7 +390,7 @@ static int mpp_dev_reset(struct mpp_dev *mpp)
 
 	mpp_iommu_attach(mpp->iommu_info);
 	up_write(&mpp->reset_group->rw_sem);
-	up_write(&mpp->rw_sem);
+	up_write(&mpp->iommu_info->rw_sem);
 
 	dev_info(mpp->dev, "reset done\n");
 
@@ -837,9 +837,9 @@ static int mpp_process_request(struct mpp_session *session,
 				return -EINVAL;
 
 			mpp_session_clear(mpp, session);
-			down_write(&mpp->rw_sem);
+			down_write(&mpp->iommu_info->rw_sem);
 			ret = mpp_dma_session_destroy(session->dma);
-			up_write(&mpp->rw_sem);
+			up_write(&mpp->iommu_info->rw_sem);
 		}
 		return ret;
 	} break;
@@ -866,10 +866,10 @@ static int mpp_process_request(struct mpp_session *session,
 			struct mpp_dma_buffer *buffer;
 			int fd = data[i];
 
-			down_read(&mpp->rw_sem);
+			down_read(&mpp->iommu_info->rw_sem);
 			buffer = mpp_dma_import_fd(mpp->iommu_info,
 						   session->dma, fd);
-			up_read(&mpp->rw_sem);
+			up_read(&mpp->iommu_info->rw_sem);
 			if (IS_ERR_OR_NULL(buffer)) {
 				mpp_err("can not import fd %d\n", fd);
 				return -EINVAL;
@@ -1080,9 +1080,9 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 		/* remove this filp from the asynchronusly notified filp's */
 		mpp_session_clear(mpp, session);
 
-		down_read(&mpp->rw_sem);
+		down_read(&mpp->iommu_info->rw_sem);
 		mpp_dma_session_destroy(session->dma);
-		up_read(&mpp->rw_sem);
+		up_read(&mpp->iommu_info->rw_sem);
 	}
 
 	kfifo_free(&session->done_fifo);
@@ -1132,9 +1132,9 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 	if (!mem_region)
 		return ERR_PTR(-ENOMEM);
 
-	down_read(&mpp->rw_sem);
+	down_read(&mpp->iommu_info->rw_sem);
 	buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
-	up_read(&mpp->rw_sem);
+	up_read(&mpp->iommu_info->rw_sem);
 	if (IS_ERR_OR_NULL(buffer)) {
 		mpp_err("can't import dma-buf %d\n", fd);
 		goto fail;
@@ -1323,9 +1323,9 @@ int mpp_task_finalize(struct mpp_session *session,
 	list_for_each_entry_safe(mem_region, n,
 				 &task->mem_region_list,
 				 reg_link) {
-		down_read(&mpp->rw_sem);
+		down_read(&mpp->iommu_info->rw_sem);
 		mpp_dma_release(session->dma, mem_region->hdl);
-		up_read(&mpp->rw_sem);
+		up_read(&mpp->iommu_info->rw_sem);
 		list_del_init(&mem_region->reg_link);
 		kfree(mem_region);
 	}
@@ -1438,7 +1438,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	mpp->hw_ops = mpp->var->hw_ops;
 	mpp->dev_ops = mpp->var->dev_ops;
 
-	init_rwsem(&mpp->rw_sem);
 	atomic_set(&mpp->reset_request, 0);
 	atomic_set(&mpp->total_running, 0);
 

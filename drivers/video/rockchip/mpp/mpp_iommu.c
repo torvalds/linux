@@ -390,6 +390,7 @@ mpp_iommu_probe(struct device *dev)
 	}
 	info->dev = dev;
 	info->pdev = pdev;
+	init_rwsem(&info->rw_sem);
 
 	info->group = iommu_group_get(dev);
 	if (!info->group) {
