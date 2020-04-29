@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"
-#include "../util.h"
 #include "../../util/annotate.h"
+#include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/hist.h"
 #include "../../util/sort.h"
+#include "../../util/map.h"
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
@@ -14,7 +15,9 @@
 #include <pthread.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/ttydefaults.h>
+#include <asm/bug.h>
 
 struct disasm_line_samples {
 	double		      percent;
@@ -29,6 +32,7 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
+	struct annotation_options  *opts;
 	bool			    searching_backwards;
 	char			    search_bf[128];
 };
@@ -94,11 +98,12 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct annotation *notes = browser__annotation(browser);
 	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
+	const bool is_current_entry = ui_browser__is_current_entry(browser, row);
 	struct annotation_write_ops ops = {
 		.first_line		 = row == 0,
-		.current_entry		 = ui_browser__is_current_entry(browser, row),
+		.current_entry		 = is_current_entry,
 		.change_color		 = (!notes->options->hide_src_code &&
-					    (!ops.current_entry ||
+					    (!is_current_entry ||
 					     (browser->use_navkeypressed &&
 					      !browser->navkeypressed))),
 		.width			 = browser->width,
@@ -114,7 +119,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	if (!browser->navkeypressed)
 		ops.width += 1;
 
-	annotation_line__write(al, notes, &ops);
+	annotation_line__write(al, notes, &ops, ab->opts);
 
 	if (ops.current_entry)
 		ab->selection = al;
@@ -218,24 +223,28 @@ static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 		annotate_browser__draw_current_jump(browser);
 
 	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
-	__ui_browser__vline(browser, pcnt_width, 0, browser->height - 1);
+	__ui_browser__vline(browser, pcnt_width, 0, browser->rows - 1);
 	return ret;
 }
 
-static int disasm__cmp(struct annotation_line *a, struct annotation_line *b)
+static double disasm__cmp(struct annotation_line *a, struct annotation_line *b,
+						  int percent_type)
 {
 	int i;
 
-	for (i = 0; i < a->samples_nr; i++) {
-		if (a->samples[i].percent == b->samples[i].percent)
+	for (i = 0; i < a->data_nr; i++) {
+		if (a->data[i].percent[percent_type] == b->data[i].percent[percent_type])
 			continue;
-		return a->samples[i].percent < b->samples[i].percent;
+		return a->data[i].percent[percent_type] -
+			   b->data[i].percent[percent_type];
 	}
 	return 0;
 }
 
-static void disasm_rb_tree__insert(struct rb_root *root, struct annotation_line *al)
+static void disasm_rb_tree__insert(struct annotate_browser *browser,
+				struct annotation_line *al)
 {
+	struct rb_root *root = &browser->entries;
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct annotation_line *l;
@@ -244,7 +253,7 @@ static void disasm_rb_tree__insert(struct rb_root *root, struct annotation_line 
 		parent = *p;
 		l = rb_entry(parent, struct annotation_line, rb_node);
 
-		if (disasm__cmp(al, l))
+		if (disasm__cmp(al, l, browser->opts->percent_type) < 0)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -291,7 +300,7 @@ static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 }
 
 static void annotate_browser__calc_percent(struct annotate_browser *browser,
-					   struct perf_evsel *evsel)
+					   struct evsel *evsel)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
@@ -313,18 +322,21 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 			continue;
 		}
 
-		for (i = 0; i < pos->al.samples_nr; i++) {
-			struct annotation_data *sample = &pos->al.samples[i];
+		for (i = 0; i < pos->al.data_nr; i++) {
+			double percent;
 
-			if (max_percent < sample->percent)
-				max_percent = sample->percent;
+			percent = annotation_data__percent(&pos->al.data[i],
+							   browser->opts->percent_type);
+
+			if (max_percent < percent)
+				max_percent = percent;
 		}
 
 		if (max_percent < 0.01 && pos->al.ipc == 0) {
 			RB_CLEAR_NODE(&pos->al.rb_node);
 			continue;
 		}
-		disasm_rb_tree__insert(&browser->entries, &pos->al);
+		disasm_rb_tree__insert(browser, &pos->al);
 	}
 	pthread_mutex_unlock(&notes->lock);
 
@@ -379,9 +391,10 @@ static void ui_browser__init_asm_mode(struct ui_browser *browser)
 #define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
 
 static int sym_title(struct symbol *sym, struct map *map, char *title,
-		     size_t sz)
+		     size_t sz, int percent_type)
 {
-	return snprintf(title, sz, "%s  %s", sym->name, map->dso->long_name);
+	return snprintf(title, sz, "%s  %s [Percent: %s]", sym->name, map->dso->long_name,
+			percent_type_str(percent_type));
 }
 
 /*
@@ -394,10 +407,10 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
  * to the calling function.
  */
 static bool annotate_browser__callq(struct annotate_browser *browser,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct hist_browser_timer *hbt)
 {
-	struct map_symbol *ms = browser->b.priv;
+	struct map_symbol *ms = browser->b.priv, target_ms;
 	struct disasm_line *dl = disasm_line(browser->selection);
 	struct annotation *notes;
 	char title[SYM_TITLE_MAX_SIZE];
@@ -410,16 +423,19 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	notes = symbol__annotation(dl->ops.target.sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (notes->src == NULL && symbol__alloc_hist(dl->ops.target.sym) < 0) {
+	if (!symbol__hists(dl->ops.target.sym, evsel->evlist->core.nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		ui__warning("Not enough memory for annotating '%s' symbol!\n",
 			    dl->ops.target.sym->name);
 		return true;
 	}
 
+	target_ms.maps = ms->maps;
+	target_ms.map = ms->map;
+	target_ms.sym = dl->ops.target.sym;
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(dl->ops.target.sym, ms->map, evsel, hbt);
-	sym_title(ms->sym, ms->map, title, sizeof(title));
+	symbol__tui_annotate(&target_ms, evsel, hbt, browser->opts);
+	sym_title(ms->sym, ms->map, title, sizeof(title), browser->opts->percent_type);
 	ui_browser__show_title(&browser->b, title);
 	return true;
 }
@@ -443,7 +459,7 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 }
 
 static bool annotate_browser__jump(struct annotate_browser *browser,
-				   struct perf_evsel *evsel,
+				   struct evsel *evsel,
 				   struct hist_browser_timer *hbt)
 {
 	struct disasm_line *dl = disasm_line(browser->selection);
@@ -592,21 +608,73 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 	return __annotate_browser__search_reverse(browser);
 }
 
+static int annotate_browser__show(struct ui_browser *browser, char *title, const char *help)
+{
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct map_symbol *ms = browser->priv;
+	struct symbol *sym = ms->sym;
+	char symbol_dso[SYM_TITLE_MAX_SIZE];
+
+	if (ui_browser__show(browser, title, help) < 0)
+		return -1;
+
+	sym_title(sym, ms->map, symbol_dso, sizeof(symbol_dso), ab->opts->percent_type);
+
+	ui_browser__gotorc_title(browser, 0, 0);
+	ui_browser__set_color(browser, HE_COLORSET_ROOT);
+	ui_browser__write_nstring(browser, symbol_dso, browser->width + 1);
+	return 0;
+}
+
+static void
+switch_percent_type(struct annotation_options *opts, bool base)
+{
+	switch (opts->percent_type) {
+	case PERCENT_HITS_LOCAL:
+		if (base)
+			opts->percent_type = PERCENT_PERIOD_LOCAL;
+		else
+			opts->percent_type = PERCENT_HITS_GLOBAL;
+		break;
+	case PERCENT_HITS_GLOBAL:
+		if (base)
+			opts->percent_type = PERCENT_PERIOD_GLOBAL;
+		else
+			opts->percent_type = PERCENT_HITS_LOCAL;
+		break;
+	case PERCENT_PERIOD_LOCAL:
+		if (base)
+			opts->percent_type = PERCENT_HITS_LOCAL;
+		else
+			opts->percent_type = PERCENT_PERIOD_GLOBAL;
+		break;
+	case PERCENT_PERIOD_GLOBAL:
+		if (base)
+			opts->percent_type = PERCENT_HITS_GLOBAL;
+		else
+			opts->percent_type = PERCENT_PERIOD_LOCAL;
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
 static int annotate_browser__run(struct annotate_browser *browser,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct hist_browser_timer *hbt)
 {
 	struct rb_node *nd = NULL;
+	struct hists *hists = evsel__hists(evsel);
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(ms->sym);
 	const char *help = "Press 'h' for help on key bindings";
 	int delay_secs = hbt ? hbt->refresh : 0;
+	char title[256];
 	int key;
-	char title[SYM_TITLE_MAX_SIZE];
 
-	sym_title(sym, ms->map, title, sizeof(title));
-	if (ui_browser__show(&browser->b, title, help) < 0)
+	hists__scnprintf_title(hists, title, sizeof(title));
+	if (annotate_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
@@ -637,8 +705,11 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			if (hbt)
 				hbt->timer(hbt->arg);
 
-			if (delay_secs != 0)
+			if (delay_secs != 0) {
 				symbol__annotate_decay_histogram(sym, evsel->idx);
+				hists__scnprintf_title(hists, title, sizeof(title));
+				annotate_browser__show(&browser->b, title, help);
+			}
 			continue;
 		case K_TAB:
 			if (nd != NULL) {
@@ -670,19 +741,22 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"J             Toggle showing number of jump sources on targets\n"
 		"n             Search next string\n"
 		"o             Toggle disassembler output/simplified view\n"
+		"O             Bump offset level (jump targets -> +call -> all -> cycle thru)\n"
 		"s             Toggle source code view\n"
 		"t             Circulate percent, total period, samples view\n"
+		"c             Show min/max cycle\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
 		"P             Print to [symbol_name].annotation file.\n"
 		"r             Run available scripts\n"
+		"p             Toggle percent type [local/global]\n"
+		"b             Toggle percent base [period/hits]\n"
 		"?             Search string backwards\n");
 			continue;
 		case 'r':
-			{
-				script_browse(NULL);
-				continue;
-			}
+			script_browse(NULL, NULL);
+			annotate_browser__show(&browser->b, title, help);
+			continue;
 		case 'k':
 			notes->options->show_linenr = !notes->options->show_linenr;
 			break;
@@ -696,6 +770,10 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		case 'o':
 			notes->options->use_offset = !notes->options->use_offset;
 			annotation__update_column_widths(notes);
+			continue;
+		case 'O':
+			if (++notes->options->offset_level > ANNOTATION__MAX_OFFSET_LEVEL)
+				notes->options->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
 			continue;
 		case 'j':
 			notes->options->jump_arrows = !notes->options->jump_arrows;
@@ -752,17 +830,30 @@ show_sup_ins:
 			continue;
 		}
 		case 'P':
-			map_symbol__annotation_dump(ms, evsel);
+			map_symbol__annotation_dump(ms, evsel, browser->opts);
 			continue;
 		case 't':
-			if (notes->options->show_total_period) {
-				notes->options->show_total_period = false;
-				notes->options->show_nr_samples = true;
-			} else if (notes->options->show_nr_samples)
-				notes->options->show_nr_samples = false;
+			if (symbol_conf.show_total_period) {
+				symbol_conf.show_total_period = false;
+				symbol_conf.show_nr_samples = true;
+			} else if (symbol_conf.show_nr_samples)
+				symbol_conf.show_nr_samples = false;
 			else
-				notes->options->show_total_period = true;
+				symbol_conf.show_total_period = true;
 			annotation__update_column_widths(notes);
+			continue;
+		case 'c':
+			if (notes->options->show_minmax_cycle)
+				notes->options->show_minmax_cycle = false;
+			else
+				notes->options->show_minmax_cycle = true;
+			annotation__update_column_widths(notes);
+			continue;
+		case 'p':
+		case 'b':
+			switch_percent_type(browser->opts, key == 'b');
+			hists__scnprintf_title(hists, title, sizeof(title));
+			annotate_browser__show(&browser->b, title, help);
 			continue;
 		case K_LEFT:
 		case K_ESC:
@@ -781,53 +872,54 @@ out:
 	return key;
 }
 
-int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
-			     struct hist_browser_timer *hbt)
+int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+			     struct hist_browser_timer *hbt,
+			     struct annotation_options *opts)
 {
-	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt);
+	return symbol__tui_annotate(ms, evsel, hbt, opts);
 }
 
-int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
-			     struct hist_browser_timer *hbt)
+int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
+			     struct hist_browser_timer *hbt,
+			     struct annotation_options *opts)
 {
 	/* reset abort key so that it can get Ctrl-C as a key */
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
 
-	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
+	return map_symbol__tui_annotate(&he->ms, evsel, hbt, opts);
 }
 
-int symbol__tui_annotate(struct symbol *sym, struct map *map,
-			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt)
+int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+			 struct hist_browser_timer *hbt,
+			 struct annotation_options *opts)
 {
+	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct map_symbol ms = {
-		.map = map,
-		.sym = sym,
-	};
 	struct annotate_browser browser = {
 		.b = {
 			.refresh = annotate_browser__refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
 			.filter  = disasm_line__filter,
-			.priv	 = &ms,
+			.extra_title_lines = 1, /* for hists__scnprintf_title() */
+			.priv	 = ms,
 			.use_navkeypressed = true,
 		},
+		.opts = opts,
 	};
 	int ret = -1, err;
 
 	if (sym == NULL)
 		return -1;
 
-	if (map->dso->annotate_warned)
+	if (ms->map->dso->annotate_warned)
 		return -1;
 
-	err = symbol__annotate2(sym, map, evsel, &annotation__default_options, &browser.arch);
+	err = symbol__annotate2(ms, evsel, opts, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
-		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		goto out_free_offsets;
 	}

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
  * Copyright 2017-2018 NXP
@@ -10,7 +10,7 @@
 
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
-#define DPSW_VER_MINOR		0
+#define DPSW_VER_MINOR		1
 
 #define DPSW_CMD_BASE_VERSION	1
 #define DPSW_CMD_ID_OFFSET	4
@@ -49,6 +49,8 @@
 #define DPSW_CMDID_IF_SET_FLOODING          DPSW_CMD_ID(0x047)
 #define DPSW_CMDID_IF_SET_BROADCAST         DPSW_CMD_ID(0x048)
 
+#define DPSW_CMDID_IF_GET_TCI               DPSW_CMD_ID(0x04A)
+
 #define DPSW_CMDID_IF_SET_LINK_CFG          DPSW_CMD_ID(0x04C)
 
 #define DPSW_CMDID_VLAN_ADD                 DPSW_CMD_ID(0x060)
@@ -65,6 +67,7 @@
 #define DPSW_CMDID_FDB_ADD_MULTICAST        DPSW_CMD_ID(0x086)
 #define DPSW_CMDID_FDB_REMOVE_MULTICAST     DPSW_CMD_ID(0x087)
 #define DPSW_CMDID_FDB_SET_LEARNING_MODE    DPSW_CMD_ID(0x088)
+#define DPSW_CMDID_FDB_DUMP                 DPSW_CMD_ID(0x08A)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -206,6 +209,17 @@ struct dpsw_cmd_if_set_tci {
 	__le16 conf;
 };
 
+struct dpsw_cmd_if_get_tci {
+	__le16 if_id;
+};
+
+struct dpsw_rsp_if_get_tci {
+	__le16 pad;
+	__le16 vlan_id;
+	u8 dei;
+	u8 pcp;
+};
+
 #define DPSW_STATE_SHIFT	0
 #define DPSW_STATE_SIZE		4
 
@@ -336,6 +350,18 @@ struct dpsw_cmd_fdb_set_learning_mode {
 	__le16 fdb_id;
 	/* only the first 4 bits from LSB */
 	u8 mode;
+};
+
+struct dpsw_cmd_fdb_dump {
+	__le16 fdb_id;
+	__le16 pad0;
+	__le32 pad1;
+	__le64 iova_addr;
+	__le32 iova_size;
+};
+
+struct dpsw_rsp_fdb_dump {
+	__le16 num_entries;
 };
 
 struct dpsw_rsp_get_api_version {

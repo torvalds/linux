@@ -9,14 +9,13 @@
   _sdata = .;
   PROVIDE (sdata = .);
 
-  RODATA
+  RO_DATA(4096)
 
   .unprotected : { *(.unprotected) }
   . = ALIGN(4096);
   PROVIDE (_unprotected_end = .);
 
   . = ALIGN(4096);
-  NOTES
   EXCEPTION_TABLE(0)
 
   BUG_TABLE
@@ -52,14 +51,6 @@
   .con_initcall.init : {
 	CON_INITCALL
   }
-
-  .uml.initcall.init : {
-	__uml_initcall_start = .;
-	*(.uml.initcall.init)
-	__uml_initcall_end = .;
-  }
-
-  SECURITY_INIT
 
   .exitcall : {
 	__exitcall_begin = .;

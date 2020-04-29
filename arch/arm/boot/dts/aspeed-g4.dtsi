@@ -53,7 +53,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		fmc: flash-controller@1e620000 {
+		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0x94
 				0x20000000 0x10000000 >;
 			#address-cells = <1>;
@@ -65,11 +65,32 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@2 {
+				reg = < 2 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@3 {
+				reg = < 3 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@4 {
+				reg = < 4 >;
+				compatible = "jedec,spi-nor";
 				status = "disabled";
 			};
 		};
 
-		spi: flash-controller@1e630000 {
+		spi: spi@1e630000 {
 			reg = < 0x1e630000 0x18
 				0x30000000 0x10000000 >;
 			#address-cells = <1>;
@@ -80,6 +101,7 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 		};
@@ -90,6 +112,12 @@
 			#interrupt-cells = <1>;
 			valid-sources = <0xffffffff 0x0007ffff>;
 			reg = <0x1e6c0080 0x80>;
+		};
+
+		cvic: copro-interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2400-cvic", "aspeed-cvic";
+			valid-sources = <0x7fffffff>;
+			reg = <0x1e6c2000 0x80>;
 		};
 
 		mac0: ethernet@1e660000 {
@@ -108,6 +136,41 @@
 			status = "disabled";
 		};
 
+		ehci0: usb@1e6a1000 {
+			compatible = "aspeed,ast2400-ehci", "generic-ehci";
+			reg = <0x1e6a1000 0x100>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2h_default>;
+			status = "disabled";
+		};
+
+		uhci: usb@1e6b0000 {
+			compatible = "aspeed,ast2400-uhci", "generic-uhci";
+			reg = <0x1e6b0000 0x100>;
+			interrupts = <14>;
+			#ports = <3>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			status = "disabled";
+			/*
+			 * No default pinmux, it will follow EHCI, use an explicit pinmux
+			 * override if you don't enable EHCI
+			 */
+		};
+
+		vhub: usb-vhub@1e6a0000 {
+			compatible = "aspeed,ast2400-usb-vhub";
+			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			aspeed,vhub-downstream-ports = <5>;
+			aspeed,vhub-generic-endpoints = <15>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2d_default>;
+			status = "disabled";
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -118,13 +181,28 @@
 				compatible = "aspeed,ast2400-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
+				ranges = <0 0x1e6e2000 0x1000>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
 
-				pinctrl: pinctrl {
-					compatible = "aspeed,g4-pinctrl";
+				p2a: p2a-control@2c {
+					reg = <0x2c 0x4>;
+					compatible = "aspeed,ast2400-p2a-ctrl";
+					status = "disabled";
 				};
+
+				pinctrl: pinctrl@80 {
+					reg = <0x80 0x18>, <0xa0 0x10>;
+					compatible = "aspeed,ast2400-pinctrl";
+				};
+			};
+
+			rng: hwrng@1e6e2078 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2078 0x4>;
+				period = <1>;
+				quality = <100>;
 			};
 
 			adc: adc@1e6e9000 {
@@ -136,9 +214,37 @@
 				status = "disabled";
 			};
 
-			sram@1e720000 {
+			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
+			};
+
+			sdmmc: sd-controller@1e740000 {
+				compatible = "aspeed,ast2400-sd-controller";
+				reg = <0x1e740000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
+
+				sdhci0: sdhci@100 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x100 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+				sdhci1: sdhci@200 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x200 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
 			};
 
 			gpio: gpio@1e780000 {
@@ -150,6 +256,7 @@
 				gpio-ranges = <&pinctrl 0 0 220>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			timer: timer@1e782000 {
@@ -159,6 +266,12 @@
 				interrupts = <16 17 18 35 36 37 38 39>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				clock-names = "PCLK";
+			};
+
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2400-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
 			};
 
 			uart1: serial@1e783000 {
@@ -199,7 +312,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1e786000 0x1000>;
-				clocks = <&syscon ASPEED_CLK_APB>;
+				clocks = <&syscon ASPEED_CLK_24M>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
 			};
@@ -238,14 +351,14 @@
 
 					lpc_ctrl: lpc-ctrl@0 {
 						compatible = "aspeed,ast2400-lpc-ctrl";
-						reg = <0x0 0x80>;
+						reg = <0x0 0x10>;
 						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
 						status = "disabled";
 					};
 
-					lpc_snoop: lpc-snoop@0 {
+					lpc_snoop: lpc-snoop@10 {
 						compatible = "aspeed,ast2400-lpc-snoop";
-						reg = <0x0 0x80>;
+						reg = <0x10 0x8>;
 						interrupts = <8>;
 						status = "disabled";
 					};
@@ -303,7 +416,7 @@
 				status = "disabled";
 			};
 
-			i2c: i2c@1e78a000 {
+			i2c: bus@1e78a000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -1248,6 +1361,16 @@
 	pinctrl_usbcki_default: usbcki_default {
 		function = "USBCKI";
 		groups = "USBCKI";
+	};
+
+	pinctrl_usb2h_default: usb2h_default {
+		function = "USB2H1";
+		groups = "USB2H1";
+	};
+
+	pinctrl_usb2d_default: usb2d_default {
+		function = "USB2D1";
+		groups = "USB2D1";
 	};
 
 	pinctrl_vgabios_rom_default: vgabios_rom_default {

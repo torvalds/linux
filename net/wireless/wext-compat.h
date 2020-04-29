@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __WEXT_COMPAT
 #define __WEXT_COMPAT
 

@@ -223,7 +223,7 @@ int vivid_radio_rx_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (vt->index > 0)
 		return -EINVAL;
 
-	strlcpy(vt->name, "AM/FM/SW Receiver", sizeof(vt->name));
+	strscpy(vt->name, "AM/FM/SW Receiver", sizeof(vt->name));
 	vt->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			 V4L2_TUNER_CAP_FREQ_BANDS | V4L2_TUNER_CAP_RDS |
 			 (dev->radio_rx_rds_controls ?

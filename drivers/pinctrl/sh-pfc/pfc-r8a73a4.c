@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012-2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
  * Copyright (C) 2012  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -1265,7 +1252,7 @@ static const u16 pinmux_data[] = {
 
 #define __O	(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO	(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
-#define __PUD	(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
+#define __PUD	(SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 #define R8A73A4_PIN_IO_PU_PD(pin)       SH_PFC_PIN_CFG(pin, __IO | __PUD)
 #define R8A73A4_PIN_O(pin)              SH_PFC_PIN_CFG(pin, __O)
@@ -2297,7 +2284,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(328, 0xe6053148),
 	PORTCR(329, 0xe6053149),
 
-	{ PINMUX_CFG_REG("MSEL1CR", 0xe605800c, 32, 1) {
+	{ PINMUX_CFG_REG("MSEL1CR", 0xe605800c, 32, 1, GROUP(
 			MSEL1CR_31_0, MSEL1CR_31_1,
 			0, 0,
 			0, 0,
@@ -2330,9 +2317,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL1CR_02_0, MSEL1CR_02_1,
 			MSEL1CR_01_0, MSEL1CR_01_1,
 			MSEL1CR_00_0, MSEL1CR_00_1,
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("MSEL3CR", 0xe6058020, 32, 1) {
+	{ PINMUX_CFG_REG("MSEL3CR", 0xe6058020, 32, 1, GROUP(
 			MSEL3CR_31_0, MSEL3CR_31_1,
 			0, 0,
 			0, 0,
@@ -2365,9 +2352,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			0, 0,
 			MSEL3CR_01_0, MSEL3CR_01_1,
 			MSEL3CR_00_0, MSEL3CR_00_1,
-			}
+			))
 	},
-	{ PINMUX_CFG_REG("MSEL4CR", 0xe6058024, 32, 1) {
+	{ PINMUX_CFG_REG("MSEL4CR", 0xe6058024, 32, 1, GROUP(
 			0, 0,
 			MSEL4CR_30_0, MSEL4CR_30_1,
 			MSEL4CR_29_0, MSEL4CR_29_1,
@@ -2400,9 +2387,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			0, 0,
 			MSEL4CR_01_0, MSEL4CR_01_1,
 			0, 0,
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("MSEL5CR", 0xe6058028, 32, 1) {
+	{ PINMUX_CFG_REG("MSEL5CR", 0xe6058028, 32, 1, GROUP(
 			MSEL5CR_31_0, MSEL5CR_31_1,
 			MSEL5CR_30_0, MSEL5CR_30_1,
 			MSEL5CR_29_0, MSEL5CR_29_1,
@@ -2435,9 +2422,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			0, 0,
 			0, 0,
 			0, 0,
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("MSEL8CR", 0xe6058034, 32, 1) {
+	{ PINMUX_CFG_REG("MSEL8CR", 0xe6058034, 32, 1, GROUP(
 			0, 0,
 			0, 0,
 			0, 0,
@@ -2470,14 +2457,14 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			0, 0,
 			MSEL8CR_01_0, MSEL8CR_01_1,
 			MSEL8CR_00_0, MSEL8CR_00_1,
-		}
+		))
 	},
 	{ },
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
 
-	{ PINMUX_DATA_REG("PORTL031_000DR", 0xe6054000, 32) {
+	{ PINMUX_DATA_REG("PORTL031_000DR", 0xe6054000, 32, GROUP(
 			0, PORT30_DATA, PORT29_DATA, PORT28_DATA,
 			PORT27_DATA, PORT26_DATA, PORT25_DATA, PORT24_DATA,
 			PORT23_DATA, PORT22_DATA, PORT21_DATA, PORT20_DATA,
@@ -2486,9 +2473,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT11_DATA, PORT10_DATA, PORT9_DATA, PORT8_DATA,
 			PORT7_DATA, PORT6_DATA, PORT5_DATA, PORT4_DATA,
 			PORT3_DATA, PORT2_DATA, PORT1_DATA, PORT0_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTD063_032DR", 0xe6055000, 32) {
+	{ PINMUX_DATA_REG("PORTD063_032DR", 0xe6055000, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, 0, 0,
@@ -2497,9 +2484,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			0, 0, 0, PORT40_DATA,
 			PORT39_DATA, PORT38_DATA, PORT37_DATA, PORT36_DATA,
 			PORT35_DATA, PORT34_DATA, PORT33_DATA, PORT32_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTL095_064DR", 0xe6054004, 32) {
+	{ PINMUX_DATA_REG("PORTL095_064DR", 0xe6054004, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, PORT85_DATA, PORT84_DATA,
@@ -2508,9 +2495,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT75_DATA, PORT74_DATA, PORT73_DATA, PORT72_DATA,
 			PORT71_DATA, PORT70_DATA, PORT69_DATA, PORT68_DATA,
 			PORT67_DATA, PORT66_DATA, PORT65_DATA, PORT64_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTD127_096DR", 0xe6055004, 32) {
+	{ PINMUX_DATA_REG("PORTD127_096DR", 0xe6055004, 32, GROUP(
 			0, PORT126_DATA, PORT125_DATA, PORT124_DATA,
 			PORT123_DATA, PORT122_DATA, PORT121_DATA, PORT120_DATA,
 			PORT119_DATA, PORT118_DATA, PORT117_DATA, PORT116_DATA,
@@ -2519,9 +2506,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT107_DATA, PORT106_DATA, PORT105_DATA, PORT104_DATA,
 			PORT103_DATA, PORT102_DATA, PORT101_DATA, PORT100_DATA,
 			PORT99_DATA, PORT98_DATA, PORT97_DATA, PORT96_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTD159_128DR", 0xe6055008, 32) {
+	{ PINMUX_DATA_REG("PORTD159_128DR", 0xe6055008, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, 0, 0,
@@ -2530,9 +2517,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			0, 0, 0, 0,
 			0, PORT134_DATA, PORT133_DATA, PORT132_DATA,
 			PORT131_DATA, PORT130_DATA, PORT129_DATA, PORT128_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTR191_160DR", 0xe6056000, 32) {
+	{ PINMUX_DATA_REG("PORTR191_160DR", 0xe6056000, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, 0, 0,
@@ -2541,9 +2528,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT171_DATA, PORT170_DATA, PORT169_DATA, PORT168_DATA,
 			PORT167_DATA, PORT166_DATA, PORT165_DATA, PORT164_DATA,
 			PORT163_DATA, PORT162_DATA, PORT161_DATA, PORT160_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTR223_192DR", 0xe6056004, 32) {
+	{ PINMUX_DATA_REG("PORTR223_192DR", 0xe6056004, 32, GROUP(
 			0, PORT222_DATA, PORT221_DATA, PORT220_DATA,
 			PORT219_DATA, PORT218_DATA, PORT217_DATA, PORT216_DATA,
 			PORT215_DATA, PORT214_DATA, PORT213_DATA, PORT212_DATA,
@@ -2552,9 +2539,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT203_DATA, PORT202_DATA, PORT201_DATA, PORT200_DATA,
 			PORT199_DATA, PORT198_DATA, PORT197_DATA, PORT196_DATA,
 			PORT195_DATA, PORT194_DATA, PORT193_DATA, PORT192_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTR255_224DR", 0xe6056008, 32) {
+	{ PINMUX_DATA_REG("PORTR255_224DR", 0xe6056008, 32, GROUP(
 			0, 0, 0, 0,
 			0, PORT250_DATA, PORT249_DATA, PORT248_DATA,
 			PORT247_DATA, PORT246_DATA, PORT245_DATA, PORT244_DATA,
@@ -2563,9 +2550,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT235_DATA, PORT234_DATA, PORT233_DATA, PORT232_DATA,
 			PORT231_DATA, PORT230_DATA, PORT229_DATA, PORT228_DATA,
 			PORT227_DATA, PORT226_DATA, PORT225_DATA, PORT224_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTR287_256DR", 0xe605600C, 32) {
+	{ PINMUX_DATA_REG("PORTR287_256DR", 0xe605600C, 32, GROUP(
 			0, 0, 0, 0,
 			PORT283_DATA, PORT282_DATA, PORT281_DATA, PORT280_DATA,
 			PORT279_DATA, PORT278_DATA, PORT277_DATA, PORT276_DATA,
@@ -2574,9 +2561,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT267_DATA, PORT266_DATA, PORT265_DATA, PORT264_DATA,
 			PORT263_DATA, PORT262_DATA, PORT261_DATA, PORT260_DATA,
 			PORT259_DATA, PORT258_DATA, PORT257_DATA, PORT256_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTU319_288DR", 0xe6057000, 32) {
+	{ PINMUX_DATA_REG("PORTU319_288DR", 0xe6057000, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, 0, PORT308_DATA,
@@ -2585,9 +2572,9 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT299_DATA, PORT298_DATA, PORT297_DATA, PORT296_DATA,
 			PORT295_DATA, PORT294_DATA, PORT293_DATA, PORT292_DATA,
 			PORT291_DATA, PORT290_DATA, PORT289_DATA, PORT288_DATA,
-		}
+		))
 	},
-	{ PINMUX_DATA_REG("PORTU351_320DR", 0xe6057004, 32) {
+	{ PINMUX_DATA_REG("PORTU351_320DR", 0xe6057004, 32, GROUP(
 			0, 0, 0, 0,
 			0, 0, 0, 0,
 			0, 0, 0, 0,
@@ -2596,7 +2583,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			0, 0, PORT329_DATA, PORT328_DATA,
 			PORT327_DATA, PORT326_DATA, PORT325_DATA, PORT324_DATA,
 			PORT323_DATA, PORT322_DATA, PORT321_DATA, PORT320_DATA,
-		}
+		))
 	},
 	{ },
 };

@@ -67,10 +67,10 @@
 
 /* STANDARD MODE frequency */
 #define SYNQUACER_I2C_CLK_MASTER_STD(rate)			\
-	DIV_ROUND_UP(DIV_ROUND_UP((rate), 100000) - 2, 2)
+	DIV_ROUND_UP(DIV_ROUND_UP((rate), I2C_MAX_STANDARD_MODE_FREQ) - 2, 2)
 /* FAST MODE frequency */
 #define SYNQUACER_I2C_CLK_MASTER_FAST(rate)			\
-	DIV_ROUND_UP((DIV_ROUND_UP((rate), 400000) - 2) * 2, 3)
+	DIV_ROUND_UP((DIV_ROUND_UP((rate), I2C_MAX_FAST_MODE_FREQ) - 2) * 2, 3)
 
 /* (clkrate <= 18000000) */
 /* calculate the value of CS bits in CCR register on standard mode */
@@ -144,8 +144,6 @@ struct synquacer_i2c {
 	u32			timeout_ms;
 	enum i2c_state		state;
 	struct i2c_adapter	adapter;
-
-	bool			is_suspended;
 };
 
 static inline int is_lastmsg(struct synquacer_i2c *i2c)
@@ -316,9 +314,6 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	unsigned long timeout;
 	int ret;
 
-	if (i2c->is_suspended)
-		return -EBUSY;
-
 	synquacer_i2c_hw_init(i2c);
 	bsr = readb(i2c->base + SYNQUACER_I2C_REG_BSR);
 	if (bsr & SYNQUACER_I2C_BSR_BB) {
@@ -356,7 +351,7 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	/* wait 2 clock periods to ensure the stop has been through the bus */
 	udelay(DIV_ROUND_UP(2 * 1000, i2c->speed_khz));
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
@@ -404,7 +399,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 		if (i2c->state == STATE_READ)
 			goto prepare_read;
 
-		/* fallthru */
+		/* fall through */
 
 	case STATE_WRITE:
 		if (bsr & SYNQUACER_I2C_BSR_LRB) {
@@ -509,7 +504,7 @@ static int synquacer_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	dev_dbg(i2c->dev, "calculated timeout %d ms\n", i2c->timeout_ms);
 
-	for (retry = 0; retry < adap->retries; retry++) {
+	for (retry = 0; retry <= adap->retries; retry++) {
 		ret = synquacer_i2c_doxfer(i2c, msgs, num);
 		if (ret != -EAGAIN)
 			return ret;
@@ -531,7 +526,7 @@ static const struct i2c_algorithm synquacer_i2c_algo = {
 	.functionality	= synquacer_i2c_functionality,
 };
 
-static struct i2c_adapter synquacer_i2c_ops = {
+static const struct i2c_adapter synquacer_i2c_ops = {
 	.owner		= THIS_MODULE,
 	.name		= "synquacer_i2c-adapter",
 	.algo		= &synquacer_i2c_algo,
@@ -558,7 +553,7 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 				 &i2c->pclkrate);
 
 	i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(i2c->pclk) && PTR_ERR(i2c->pclk) == -EPROBE_DEFER)
+	if (PTR_ERR(i2c->pclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR_OR_NULL(i2c->pclk)) {
 		dev_dbg(&pdev->dev, "clock source %p\n", i2c->pclk);
@@ -602,10 +597,12 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	i2c->adapter = synquacer_i2c_ops;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	i2c->adapter.dev.parent = &pdev->dev;
+	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	ACPI_COMPANION_SET(&i2c->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	i2c->adapter.nr = pdev->id;
 	init_completion(&i2c->completion);
 
-	if (bus_speed < 400000)
+	if (bus_speed < I2C_MAX_FAST_MODE_FREQ)
 		i2c->speed_khz = SYNQUACER_I2C_SPEED_SM;
 	else
 		i2c->speed_khz = SYNQUACER_I2C_SPEED_FM;

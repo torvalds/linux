@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RDC R6040 Fast Ethernet MAC support
  *
@@ -5,21 +6,6 @@
  * Copyright (C) 2007
  *	Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>
  * Copyright (C) 2007-2012 Florian Fainelli <f.fainelli@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
 */
 
 #include <linux/kernel.h>
@@ -424,7 +410,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(TM2TX, ioaddr + MTPR);
 }
 
-static void r6040_tx_timeout(struct net_device *dev)
+static void r6040_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct r6040_private *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;
@@ -510,14 +496,6 @@ static int r6040_close(struct net_device *dev)
 	}
 
 	return 0;
-}
-
-static int r6040_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	if (!dev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 static int r6040_rx(struct net_device *dev, int limit)
@@ -840,7 +818,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* Trigger the MAC to check the TX descriptor */
-	if (!skb->xmit_more || netif_queue_stopped(dev))
+	if (!netdev_xmit_more() || netif_queue_stopped(dev))
 		iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
@@ -971,7 +949,7 @@ static const struct net_device_ops r6040_netdev_ops = {
 	.ndo_set_rx_mode	= r6040_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_do_ioctl		= r6040_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_tx_timeout		= r6040_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= r6040_poll_controller,
@@ -1024,16 +1002,8 @@ static int r6040_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
-	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_10baseT_Half
-				| SUPPORTED_10baseT_Full
-				| SUPPORTED_100baseT_Half
-				| SUPPORTED_100baseT_Full
-				| SUPPORTED_Autoneg
-				| SUPPORTED_MII
-				| SUPPORTED_TP);
+	phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->advertising = phydev->supported;
 	lp->old_link = 0;
 	lp->old_duplex = -1;
 

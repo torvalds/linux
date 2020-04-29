@@ -45,6 +45,9 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	 */
 	info->scratchpad[0].ul = mc_bus_dev->icid;
 	msi_info = msi_get_domain_info(msi_domain->parent);
+
+	/* Allocate at least 32 MSIs, and always as a power of 2 */
+	nvec = max_t(int, 32, roundup_pow_of_two(nvec));
 	return msi_info->ops->msi_prepare(msi_domain->parent, dev, nvec, info);
 }
 

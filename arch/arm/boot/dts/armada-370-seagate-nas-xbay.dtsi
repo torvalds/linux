@@ -66,33 +66,6 @@
 					interrupts = <110>;
 				};
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0 0x300000>;
-				};
-				partition@300000 {
-					label = "device-tree";
-					reg = <0x300000 0x20000>;
-				};
-				partition@320000 {
-					label = "linux";
-					reg = <0x320000 0x2000000>;
-				};
-				partition@2320000 {
-					label = "rootfs";
-					reg = <0x2320000 0xdce0000>;
-				};
-			};
 		};
 
 	};
@@ -225,5 +198,42 @@
 	hdd1_led_gpio_pin: hdd1-led-gpio-pin {
 		marvell,pins = "mpp57";
 		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x300000>;
+			};
+			partition@300000 {
+				label = "device-tree";
+				reg = <0x300000 0x20000>;
+			};
+			partition@320000 {
+				label = "linux";
+				reg = <0x320000 0x2000000>;
+			};
+			partition@2320000 {
+				label = "rootfs";
+				reg = <0x2320000 0xdce0000>;
+			};
+		};
 	};
 };

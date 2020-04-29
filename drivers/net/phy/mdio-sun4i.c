@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Allwinner EMAC MDIO interface driver
  *
@@ -6,10 +7,6 @@
  *
  * Based on the Linux driver provided by Allwinner:
  * Copyright (C) 1997  Sten Wang
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/delay.h>
@@ -95,7 +92,6 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mii_bus *bus;
 	struct sun4i_mdio_data *data;
-	struct resource *res;
 	int ret;
 
 	bus = mdiobus_alloc_size(sizeof(*data));
@@ -109,8 +105,7 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 	bus->parent = &pdev->dev;
 
 	data = bus->priv;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->membase = devm_ioremap_resource(&pdev->dev, res);
+	data->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->membase)) {
 		ret = PTR_ERR(data->membase);
 		goto err_out_free_mdiobus;
@@ -150,8 +145,11 @@ err_out_free_mdiobus:
 static int sun4i_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
+	struct sun4i_mdio_data *data = bus->priv;
 
 	mdiobus_unregister(bus);
+	if (data->regulator)
+		regulator_disable(data->regulator);
 	mdiobus_free(bus);
 
 	return 0;
@@ -179,4 +177,4 @@ module_platform_driver(sun4i_mdio_driver);
 
 MODULE_DESCRIPTION("Allwinner EMAC MDIO interface driver");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -173,19 +173,14 @@ static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
 	while (timeout++ <= abb->settling_time) {
 		status = ti_abb_check_txdone(abb);
 		if (status)
-			break;
+			return 0;
 
 		udelay(1);
 	}
 
-	if (timeout > abb->settling_time) {
-		dev_warn_ratelimited(dev,
-				     "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
-				     __func__, timeout, readl(abb->int_base));
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_warn_ratelimited(dev, "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
+			     __func__, timeout, readl(abb->int_base));
+	return -ETIMEDOUT;
 }
 
 /**
@@ -205,19 +200,14 @@ static int ti_abb_clear_all_txdone(struct device *dev, const struct ti_abb *abb)
 
 		status = ti_abb_check_txdone(abb);
 		if (!status)
-			break;
+			return 0;
 
 		udelay(1);
 	}
 
-	if (timeout > abb->settling_time) {
-		dev_warn_ratelimited(dev,
-				     "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
-				     __func__, timeout, readl(abb->int_base));
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_warn_ratelimited(dev, "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
+			     __func__, timeout, readl(abb->int_base));
+	return -ETIMEDOUT;
 }
 
 /**
@@ -532,13 +522,13 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	}
 	num_entries /= num_values;
 
-	info = devm_kzalloc(dev, sizeof(*info) * num_entries, GFP_KERNEL);
+	info = devm_kcalloc(dev, num_entries, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	abb->info = info;
 
-	volt_table = devm_kzalloc(dev, sizeof(unsigned int) * num_entries,
+	volt_table = devm_kcalloc(dev, num_entries, sizeof(unsigned int),
 				  GFP_KERNEL);
 	if (!volt_table)
 		return -ENOMEM;
@@ -758,7 +748,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	 * We may have shared interrupt register offsets which are
 	 * write-1-to-clear between domains ensuring exclusivity.
 	 */
-	abb->int_base = devm_ioremap_nocache(dev, res->start,
+	abb->int_base = devm_ioremap(dev, res->start,
 					     resource_size(res));
 	if (!abb->int_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
@@ -778,7 +768,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	 * We may have shared efuse register offsets which are read-only
 	 * between domains
 	 */
-	abb->efuse_base = devm_ioremap_nocache(dev, res->start,
+	abb->efuse_base = devm_ioremap(dev, res->start,
 					       resource_size(res));
 	if (!abb->efuse_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);

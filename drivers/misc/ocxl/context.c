@@ -4,15 +4,15 @@
 #include "trace.h"
 #include "ocxl_internal.h"
 
-struct ocxl_context *ocxl_context_alloc(void)
-{
-	return kzalloc(sizeof(struct ocxl_context), GFP_KERNEL);
-}
-
-int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
+int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 		struct address_space *mapping)
 {
 	int pasid;
+	struct ocxl_context *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
 
 	ctx->afu = afu;
 	mutex_lock(&afu->contexts_lock);
@@ -20,6 +20,7 @@ int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 			afu->pasid_base + afu->pasid_max, GFP_KERNEL);
 	if (pasid < 0) {
 		mutex_unlock(&afu->contexts_lock);
+		kfree(ctx);
 		return pasid;
 	}
 	afu->pasid_count++;
@@ -34,13 +35,17 @@ int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 	mutex_init(&ctx->xsl_error_lock);
 	mutex_init(&ctx->irq_lock);
 	idr_init(&ctx->irq_idr);
+	ctx->tidr = 0;
+
 	/*
 	 * Keep a reference on the AFU to make sure it's valid for the
 	 * duration of the life of the context
 	 */
 	ocxl_afu_get(afu);
+	*context = ctx;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_alloc);
 
 /*
  * Callback for when a translation fault triggers an error
@@ -61,19 +66,23 @@ static void xsl_fault_error(void *data, u64 addr, u64 dsisr)
 	wake_up_all(&ctx->events_wq);
 }
 
-int ocxl_context_attach(struct ocxl_context *ctx, u64 amr)
+int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 {
 	int rc;
+	unsigned long pidr = 0;
 
+	// Locks both status & tidr
 	mutex_lock(&ctx->status_mutex);
 	if (ctx->status != OPENED) {
 		rc = -EIO;
 		goto out;
 	}
 
-	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid,
-			current->mm->context.id, 0, amr, current->mm,
-			xsl_fault_error, ctx);
+	if (mm)
+		pidr = mm->context.id;
+
+	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid, pidr, ctx->tidr,
+			      amr, mm, xsl_fault_error, ctx);
 	if (rc)
 		goto out;
 
@@ -82,25 +91,27 @@ out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_attach);
 
-static int map_afu_irq(struct vm_area_struct *vma, unsigned long address,
+static vm_fault_t map_afu_irq(struct vm_area_struct *vma, unsigned long address,
 		u64 offset, struct ocxl_context *ctx)
 {
 	u64 trigger_addr;
+	int irq_id = ocxl_irq_offset_to_id(ctx, offset);
 
-	trigger_addr = ocxl_afu_irq_get_addr(ctx, offset);
+	trigger_addr = ocxl_afu_irq_get_addr(ctx, irq_id);
 	if (!trigger_addr)
 		return VM_FAULT_SIGBUS;
 
-	vm_insert_pfn(vma, address, trigger_addr >> PAGE_SHIFT);
-	return VM_FAULT_NOPAGE;
+	return vmf_insert_pfn(vma, address, trigger_addr >> PAGE_SHIFT);
 }
 
-static int map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
+static vm_fault_t map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
 		u64 offset, struct ocxl_context *ctx)
 {
 	u64 pp_mmio_addr;
 	int pasid_off;
+	vm_fault_t ret;
 
 	if (offset >= ctx->afu->config.pp_mmio_stride)
 		return VM_FAULT_SIGBUS;
@@ -118,27 +129,27 @@ static int map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
 		pasid_off * ctx->afu->config.pp_mmio_stride +
 		offset;
 
-	vm_insert_pfn(vma, address, pp_mmio_addr >> PAGE_SHIFT);
+	ret = vmf_insert_pfn(vma, address, pp_mmio_addr >> PAGE_SHIFT);
 	mutex_unlock(&ctx->status_mutex);
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
-static int ocxl_mmap_fault(struct vm_fault *vmf)
+static vm_fault_t ocxl_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ocxl_context *ctx = vma->vm_file->private_data;
 	u64 offset;
-	int rc;
+	vm_fault_t ret;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	pr_debug("%s: pasid %d address 0x%lx offset 0x%llx\n", __func__,
 		ctx->pasid, vmf->address, offset);
 
 	if (offset < ctx->afu->irq_base_offset)
-		rc = map_pp_mmio(vma, vmf->address, offset, ctx);
+		ret = map_pp_mmio(vma, vmf->address, offset, ctx);
 	else
-		rc = map_afu_irq(vma, vmf->address, offset, ctx);
-	return rc;
+		ret = map_afu_irq(vma, vmf->address, offset, ctx);
+	return ret;
 }
 
 static const struct vm_operations_struct ocxl_vmops = {
@@ -148,12 +159,14 @@ static const struct vm_operations_struct ocxl_vmops = {
 static int check_mmap_afu_irq(struct ocxl_context *ctx,
 			struct vm_area_struct *vma)
 {
+	int irq_id = ocxl_irq_offset_to_id(ctx, vma->vm_pgoff << PAGE_SHIFT);
+
 	/* only one page */
 	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
 	/* check offset validty */
-	if (!ocxl_afu_irq_get_addr(ctx, vma->vm_pgoff << PAGE_SHIFT))
+	if (!ocxl_afu_irq_get_addr(ctx, irq_id))
 		return -EINVAL;
 
 	/*
@@ -235,11 +248,12 @@ int ocxl_context_detach(struct ocxl_context *ctx)
 	}
 	rc = ocxl_link_remove_pe(ctx->afu->fn->link, ctx->pasid);
 	if (rc) {
-		dev_warn(&ctx->afu->dev,
+		dev_warn(&dev->dev,
 			"Couldn't remove PE entry cleanly: %d\n", rc);
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_context_detach);
 
 void ocxl_context_detach_all(struct ocxl_afu *afu)
 {
@@ -277,3 +291,4 @@ void ocxl_context_free(struct ocxl_context *ctx)
 	ocxl_afu_put(ctx->afu);
 	kfree(ctx);
 }
+EXPORT_SYMBOL_GPL(ocxl_context_free);

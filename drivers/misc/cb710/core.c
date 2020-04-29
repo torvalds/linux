@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cb710/core.c
  *
  *  Copyright by Michał Mirosław, 2008-2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -16,7 +13,6 @@
 #include <linux/gfp.h>
 
 static DEFINE_IDA(cb710_ida);
-static DEFINE_SPINLOCK(cb710_ida_lock);
 
 void cb710_pci_update_config_reg(struct pci_dev *pdev,
 	int reg, uint32_t mask, uint32_t xor)
@@ -205,7 +201,6 @@ static int cb710_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	struct cb710_chip *chip;
-	unsigned long flags;
 	u32 val;
 	int err;
 	int n = 0;
@@ -232,8 +227,8 @@ static int cb710_probe(struct pci_dev *pdev,
 	if (val & CB710_SLOT_SM)
 		++n;
 
-	chip = devm_kzalloc(&pdev->dev,
-		sizeof(*chip) + n * sizeof(*chip->slot), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, struct_size(chip, slot, n),
+			    GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -256,18 +251,10 @@ static int cb710_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	do {
-		if (!ida_pre_get(&cb710_ida, GFP_KERNEL))
-			return -ENOMEM;
-
-		spin_lock_irqsave(&cb710_ida_lock, flags);
-		err = ida_get_new(&cb710_ida, &chip->platform_id);
-		spin_unlock_irqrestore(&cb710_ida_lock, flags);
-
-		if (err && err != -EAGAIN)
-			return err;
-	} while (err);
-
+	err = ida_alloc(&cb710_ida, GFP_KERNEL);
+	if (err < 0)
+		return err;
+	chip->platform_id = err;
 
 	dev_info(&pdev->dev, "id %d, IO 0x%p, IRQ %d\n",
 		chip->platform_id, chip->iobase, pdev->irq);
@@ -308,7 +295,6 @@ unreg_mmc:
 static void cb710_remove_one(struct pci_dev *pdev)
 {
 	struct cb710_chip *chip = pci_get_drvdata(pdev);
-	unsigned long flags;
 
 	cb710_unregister_slot(chip, CB710_SLOT_SM);
 	cb710_unregister_slot(chip, CB710_SLOT_MS);
@@ -317,9 +303,7 @@ static void cb710_remove_one(struct pci_dev *pdev)
 	BUG_ON(atomic_read(&chip->slot_refs_count) != 0);
 #endif
 
-	spin_lock_irqsave(&cb710_ida_lock, flags);
-	ida_remove(&cb710_ida, chip->platform_id);
-	spin_unlock_irqrestore(&cb710_ida_lock, flags);
+	ida_free(&cb710_ida, chip->platform_id);
 }
 
 static const struct pci_device_id cb710_pci_tbl[] = {

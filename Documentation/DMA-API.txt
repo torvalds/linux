@@ -60,15 +60,6 @@ the returned memory, like GFP_DMA).
 
 ::
 
-	void *
-	dma_zalloc_coherent(struct device *dev, size_t size,
-			    dma_addr_t *dma_handle, gfp_t flag)
-
-Wraps dma_alloc_coherent() and also zeroes the returned memory if the
-allocation attempt succeeded.
-
-::
-
 	void
 	dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			  dma_addr_t dma_handle)
@@ -204,6 +195,22 @@ Requesting the required mask does not alter the current mask.  If you
 wish to take advantage of it, you should issue a dma_set_mask()
 call to set the mask to the value returned.
 
+::
+
+	size_t
+	dma_max_mapping_size(struct device *dev);
+
+Returns the maximum size of a mapping for the device. The size parameter
+of the mapping functions like dma_map_single(), dma_map_page() and
+others should not be larger than the returned value.
+
+::
+
+	unsigned long
+	dma_get_merge_boundary(struct device *dev);
+
+Returns the DMA merge boundary. If the device cannot merge any the DMA address
+segments, the function returns 0.
 
 Part Id - Streaming DMA mappings
 --------------------------------
@@ -539,8 +546,8 @@ that simply cannot make consistent memory.
 	dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		       dma_addr_t dma_handle, unsigned long attrs)
 
-Free memory allocated by the dma_alloc_attrs().  All parameters common
-parameters must identical to those otherwise passed to dma_fre_coherent,
+Free memory allocated by the dma_alloc_attrs().  All common
+parameters must be identical to those otherwise passed to dma_free_coherent,
 and the attrs argument must be identical to the attrs passed to
 dma_alloc_attrs().
 
@@ -575,8 +582,7 @@ boundaries when doing this.
 
 	int
 	dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
-				    dma_addr_t device_addr, size_t size, int
-				    flags)
+				    dma_addr_t device_addr, size_t size);
 
 Declare region of memory to be handed out by dma_alloc_coherent() when
 it's asked for coherent memory for this device.
@@ -590,46 +596,12 @@ dma_addr_t in dma_alloc_coherent()).
 
 size is the size of the area (must be multiples of PAGE_SIZE).
 
-flags can be ORed together and are:
-
-- DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions.
-  Do not allow dma_alloc_coherent() to fall back to system memory when
-  it's out of memory in the declared region.
-
 As a simplification for the platforms, only *one* such region of
 memory may be declared per device.
 
 For reasons of efficiency, most platforms choose to track the declared
 region only at the granularity of a page.  For smaller allocations,
 you should use the dma_pool() API.
-
-::
-
-	void
-	dma_release_declared_memory(struct device *dev)
-
-Remove the memory region previously declared from the system.  This
-API performs *no* in-use checking for this region and will return
-unconditionally having removed all the required structures.  It is the
-driver's job to ensure that no parts of this memory region are
-currently in use.
-
-::
-
-	void *
-	dma_mark_declared_memory_occupied(struct device *dev,
-					  dma_addr_t device_addr, size_t size)
-
-This is used to occupy specific regions of the declared space
-(dma_alloc_coherent() will hand out the first free region it finds).
-
-device_addr is the *device* address of the region requested.
-
-size is the size (and should be a page-sized multiple).
-
-The return value will be either a pointer to the processor virtual
-address of the memory, or an error (via PTR_ERR()) if any part of the
-region is occupied.
 
 Part III - Debug drivers use of the DMA-API
 -------------------------------------------
@@ -705,6 +677,9 @@ dma-api/disabled		This read-only file contains the character 'Y'
 				happen when it runs out of memory or if it was
 				disabled at boot time
 
+dma-api/dump			This read-only file contains current DMA
+				mappings.
+
 dma-api/error_count		This file is read-only and shows the total
 				numbers of errors found.
 
@@ -717,13 +692,16 @@ dma-api/num_errors		The number in this file shows how many
 dma-api/min_free_entries	This read-only file can be read to get the
 				minimum number of free dma_debug_entries the
 				allocator has ever seen. If this value goes
-				down to zero the code will disable itself
-				because it is not longer reliable.
+				down to zero the code will attempt to increase
+				nr_total_entries to compensate.
 
 dma-api/num_free_entries	The current number of free dma_debug_entries
 				in the allocator.
 
-dma-api/driver-filter		You can write a name of a driver into this file
+dma-api/nr_total_entries	The total number of dma_debug_entries in the
+				allocator, both free and used.
+
+dma-api/driver_filter		You can write a name of a driver into this file
 				to limit the debug output to requests from that
 				particular driver. Write an empty string to
 				that file to disable the filter and see
@@ -742,10 +720,15 @@ driver filter at boot time. The debug code will only print errors for that
 driver afterwards. This filter can be disabled or changed later using debugfs.
 
 When the code disables itself at runtime this is most likely because it ran
-out of dma_debug_entries. These entries are preallocated at boot. The number
-of preallocated entries is defined per architecture. If it is too low for you
-boot with 'dma_debug_entries=<your_desired_number>' to overwrite the
-architectural default.
+out of dma_debug_entries and was unable to allocate more on-demand. 65536
+entries are preallocated at boot - if this is too low for you boot with
+'dma_debug_entries=<your_desired_number>' to overwrite the default. Note
+that the code allocates entries in batches, so the exact number of
+preallocated entries may be greater than the actual number requested. The
+code will print to the kernel log each time it has dynamically allocated
+as many entries as were initially preallocated. This is to indicate that a
+larger preallocation size may be appropriate, or if it happens continually
+that a driver may be leaking mappings.
 
 ::
 

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * File Name:
  *   skfddi.c
  *
  * Copyright Information:
  *   Copyright SysKonnect 1998,1999.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * The information in this file is provided "AS IS" without warranty.
  *
@@ -297,11 +293,11 @@ static int skfp_init_one(struct pci_dev *pdev,
 	return 0;
 err_out5:
 	if (smc->os.SharedMemAddr) 
-		pci_free_consistent(pdev, smc->os.SharedMemSize,
-				    smc->os.SharedMemAddr, 
-				    smc->os.SharedMemDMA);
-	pci_free_consistent(pdev, MAX_FRAME_SIZE,
-			    smc->os.LocalRxBuffer, smc->os.LocalRxBufferDMA);
+		dma_free_coherent(&pdev->dev, smc->os.SharedMemSize,
+				  smc->os.SharedMemAddr,
+				  smc->os.SharedMemDMA);
+	dma_free_coherent(&pdev->dev, MAX_FRAME_SIZE,
+			  smc->os.LocalRxBuffer, smc->os.LocalRxBufferDMA);
 err_out4:
 	free_netdev(dev);
 err_out3:
@@ -328,17 +324,17 @@ static void skfp_remove_one(struct pci_dev *pdev)
 	unregister_netdev(p);
 
 	if (lp->os.SharedMemAddr) {
-		pci_free_consistent(&lp->os.pdev,
-				    lp->os.SharedMemSize,
-				    lp->os.SharedMemAddr,
-				    lp->os.SharedMemDMA);
+		dma_free_coherent(&pdev->dev,
+				  lp->os.SharedMemSize,
+				  lp->os.SharedMemAddr,
+				  lp->os.SharedMemDMA);
 		lp->os.SharedMemAddr = NULL;
 	}
 	if (lp->os.LocalRxBuffer) {
-		pci_free_consistent(&lp->os.pdev,
-				    MAX_FRAME_SIZE,
-				    lp->os.LocalRxBuffer,
-				    lp->os.LocalRxBufferDMA);
+		dma_free_coherent(&pdev->dev,
+				  MAX_FRAME_SIZE,
+				  lp->os.LocalRxBuffer,
+				  lp->os.LocalRxBufferDMA);
 		lp->os.LocalRxBuffer = NULL;
 	}
 #ifdef MEM_MAPPED_IO
@@ -394,7 +390,9 @@ static  int skfp_driver_init(struct net_device *dev)
 	spin_lock_init(&bp->DriverLock);
 	
 	// Allocate invalid frame
-	bp->LocalRxBuffer = pci_alloc_consistent(&bp->pdev, MAX_FRAME_SIZE, &bp->LocalRxBufferDMA);
+	bp->LocalRxBuffer = dma_alloc_coherent(&bp->pdev.dev, MAX_FRAME_SIZE,
+					       &bp->LocalRxBufferDMA,
+					       GFP_ATOMIC);
 	if (!bp->LocalRxBuffer) {
 		printk("could not allocate mem for ");
 		printk("LocalRxBuffer: %d byte\n", MAX_FRAME_SIZE);
@@ -407,23 +405,22 @@ static  int skfp_driver_init(struct net_device *dev)
 	if (bp->SharedMemSize > 0) {
 		bp->SharedMemSize += 16;	// for descriptor alignment
 
-		bp->SharedMemAddr = pci_alloc_consistent(&bp->pdev,
-							 bp->SharedMemSize,
-							 &bp->SharedMemDMA);
+		bp->SharedMemAddr = dma_alloc_coherent(&bp->pdev.dev,
+						       bp->SharedMemSize,
+						       &bp->SharedMemDMA,
+						       GFP_ATOMIC);
 		if (!bp->SharedMemAddr) {
 			printk("could not allocate mem for ");
 			printk("hardware module: %ld byte\n",
 			       bp->SharedMemSize);
 			goto fail;
 		}
-		bp->SharedMemHeap = 0;	// Nothing used yet.
 
 	} else {
 		bp->SharedMemAddr = NULL;
-		bp->SharedMemHeap = 0;
-	}			// SharedMemSize > 0
+	}
 
-	memset(bp->SharedMemAddr, 0, bp->SharedMemSize);
+	bp->SharedMemHeap = 0;
 
 	card_stop(smc);		// Reset adapter.
 
@@ -442,15 +439,15 @@ static  int skfp_driver_init(struct net_device *dev)
 
 fail:
 	if (bp->SharedMemAddr) {
-		pci_free_consistent(&bp->pdev,
-				    bp->SharedMemSize,
-				    bp->SharedMemAddr,
-				    bp->SharedMemDMA);
+		dma_free_coherent(&bp->pdev.dev,
+				  bp->SharedMemSize,
+				  bp->SharedMemAddr,
+				  bp->SharedMemDMA);
 		bp->SharedMemAddr = NULL;
 	}
 	if (bp->LocalRxBuffer) {
-		pci_free_consistent(&bp->pdev, MAX_FRAME_SIZE,
-				    bp->LocalRxBuffer, bp->LocalRxBufferDMA);
+		dma_free_coherent(&bp->pdev.dev, MAX_FRAME_SIZE,
+				  bp->LocalRxBuffer, bp->LocalRxBufferDMA);
 		bp->LocalRxBuffer = NULL;
 	}
 	return err;
@@ -1523,22 +1520,8 @@ void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
 #ifdef DUMPPACKETS
 void dump_data(unsigned char *Data, int length)
 {
-	int i, j;
-	unsigned char s[255], sh[10];
-	if (length > 64) {
-		length = 64;
-	}
 	printk(KERN_INFO "---Packet start---\n");
-	for (i = 0, j = 0; i < length / 8; i++, j += 8)
-		printk(KERN_INFO "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		       Data[j + 0], Data[j + 1], Data[j + 2], Data[j + 3],
-		       Data[j + 4], Data[j + 5], Data[j + 6], Data[j + 7]);
-	strcpy(s, "");
-	for (i = 0; i < length % 8; i++) {
-		sprintf(sh, "%02x ", Data[j + i]);
-		strcat(s, sh);
-	}
-	printk(KERN_INFO "%s\n", s);
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, Data, min_t(size_t, length, 64), false);
 	printk(KERN_INFO "------------------\n");
 }				// dump_data
 #else

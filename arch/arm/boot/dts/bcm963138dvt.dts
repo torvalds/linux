@@ -16,7 +16,8 @@
 		stdout-path = &serial0;
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x0 0x08000000>;
 	};
 
@@ -40,4 +41,12 @@
 		nand-ecc-step-size = <512>;
 		brcm,nand-oob-sectors-size = <16>;
 	};
+};
+
+&ahci {
+	status = "okay";
+};
+
+&sata_phy {
+	status = "okay";
 };

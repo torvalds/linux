@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASMNDS32_ELF_H
@@ -9,13 +9,13 @@
  */
 
 #include <asm/ptrace.h>
+#include <asm/fpu.h>
+#include <linux/elf-em.h>
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
 
 extern unsigned int elf_hwcap;
-
-#define EM_NDS32			167
 
 #define R_NDS32_NONE			0
 #define R_NDS32_16_RELA			19
@@ -121,9 +121,9 @@ struct elf32_hdr;
  */
 #define ELF_CLASS	ELFCLASS32
 #ifdef __NDS32_EB__
-#define ELF_DATA	ELFDATA2MSB;
+#define ELF_DATA	ELFDATA2MSB
 #else
-#define ELF_DATA	ELFDATA2LSB;
+#define ELF_DATA	ELFDATA2LSB
 #endif
 #define ELF_ARCH	EM_NDS32
 #define USE_ELF_CORE_DUMP
@@ -159,8 +159,18 @@ struct elf32_hdr;
 
 #endif
 
+
+#if IS_ENABLED(CONFIG_FPU)
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_FPUCW, FPCSR_INIT)
+#else
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_IGNORE, 0)
+#endif
+
 #define ARCH_DLINFO						\
 do {								\
+	/* Optional FPU initialization */			\
+	FPU_AUX_ENT;						\
+								\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
 		    (elf_addr_t)current->mm->context.vdso);	\
 } while (0)

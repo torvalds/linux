@@ -1,5 +1,5 @@
-/*
- * af_can.c - Protocol family CAN core module
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+/* af_can.c - Protocol family CAN core module
  *            (used by different CAN protocol modules)
  *
  * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
@@ -58,6 +58,7 @@
 #include <linux/can.h>
 #include <linux/can/core.h>
 #include <linux/can/skb.h>
+#include <linux/can/can-ml.h>
 #include <linux/ratelimit.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -83,29 +84,14 @@ static DEFINE_MUTEX(proto_tab_lock);
 
 static atomic_t skbcounter = ATOMIC_INIT(0);
 
-/*
- * af_can socket functions
- */
+/* af_can socket functions */
 
-int can_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
-{
-	struct sock *sk = sock->sk;
-
-	switch (cmd) {
-
-	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *)arg);
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-}
-EXPORT_SYMBOL(can_ioctl);
-
-static void can_sock_destruct(struct sock *sk)
+void can_sock_destruct(struct sock *sk)
 {
 	skb_queue_purge(&sk->sk_receive_queue);
+	skb_queue_purge(&sk->sk_error_queue);
 }
+EXPORT_SYMBOL(can_sock_destruct);
 
 static const struct can_proto *can_get_proto(int protocol)
 {
@@ -145,14 +131,13 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 		err = request_module("can-proto-%d", protocol);
 
-		/*
-		 * In case of error we only print a message but don't
+		/* In case of error we only print a message but don't
 		 * return the error code immediately.  Below we will
 		 * return -EPROTONOSUPPORT
 		 */
 		if (err)
-			printk_ratelimited(KERN_ERR "can: request_module "
-			       "(can-proto-%d) failed.\n", protocol);
+			pr_err_ratelimited("can: request_module (can-proto-%d) failed.\n",
+					   protocol);
 
 		cp = can_get_proto(protocol);
 	}
@@ -193,9 +178,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 	return err;
 }
 
-/*
- * af_can tx path
- */
+/* af_can tx path */
 
 /**
  * can_send - transmit a CAN frame (optional with local loopback)
@@ -217,7 +200,7 @@ int can_send(struct sk_buff *skb, int loop)
 {
 	struct sk_buff *newskb = NULL;
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-	struct s_stats *can_stats = dev_net(skb->dev)->can.can_stats;
+	struct can_pkg_stats *pkg_stats = dev_net(skb->dev)->can.pkg_stats;
 	int err = -EINVAL;
 
 	if (skb->len == CAN_MTU) {
@@ -228,11 +211,11 @@ int can_send(struct sk_buff *skb, int loop)
 		skb->protocol = htons(ETH_P_CANFD);
 		if (unlikely(cfd->len > CANFD_MAX_DLEN))
 			goto inval_skb;
-	} else
+	} else {
 		goto inval_skb;
+	}
 
-	/*
-	 * Make sure the CAN frame can pass the selected CAN netdevice.
+	/* Make sure the CAN frame can pass the selected CAN netdevice.
 	 * As structs can_frame and canfd_frame are similar, we can provide
 	 * CAN FD frames to legacy CAN drivers as long as the length is <= 8
 	 */
@@ -263,8 +246,7 @@ int can_send(struct sk_buff *skb, int loop)
 		/* indication for the CAN driver: do loopback */
 		skb->pkt_type = PACKET_LOOPBACK;
 
-		/*
-		 * The reference to the originating sock may be required
+		/* The reference to the originating sock may be required
 		 * by the receiving socket to check whether the frame is
 		 * its own. Example: can_raw sockopt CAN_RAW_RECV_OWN_MSGS
 		 * Therefore we have to ensure that skb->sk remains the
@@ -273,8 +255,7 @@ int can_send(struct sk_buff *skb, int loop)
 		 */
 
 		if (!(skb->dev->flags & IFF_ECHO)) {
-			/*
-			 * If the interface is not capable to do loopback
+			/* If the interface is not capable to do loopback
 			 * itself, we do it here.
 			 */
 			newskb = skb_clone(skb, GFP_ATOMIC);
@@ -306,8 +287,8 @@ int can_send(struct sk_buff *skb, int loop)
 		netif_rx_ni(newskb);
 
 	/* update statistics */
-	can_stats->tx_frames++;
-	can_stats->tx_frames_delta++;
+	pkg_stats->tx_frames++;
+	pkg_stats->tx_frames_delta++;
 
 	return 0;
 
@@ -317,17 +298,17 @@ inval_skb:
 }
 EXPORT_SYMBOL(can_send);
 
-/*
- * af_can rx path
- */
+/* af_can rx path */
 
-static struct can_dev_rcv_lists *find_dev_rcv_lists(struct net *net,
-						struct net_device *dev)
+static struct can_dev_rcv_lists *can_dev_rcv_lists_find(struct net *net,
+							struct net_device *dev)
 {
-	if (!dev)
-		return net->can.can_rx_alldev_list;
-	else
-		return (struct can_dev_rcv_lists *)dev->ml_priv;
+	if (dev) {
+		struct can_ml_priv *ml_priv = dev->ml_priv;
+		return &ml_priv->dev_rcv_lists;
+	} else {
+		return net->can.rx_alldev_list;
+	}
 }
 
 /**
@@ -354,7 +335,7 @@ static unsigned int effhash(canid_t can_id)
 }
 
 /**
- * find_rcv_list - determine optimal filterlist inside device filter struct
+ * can_rcv_list_find - determine optimal filterlist inside device filter struct
  * @can_id: pointer to CAN identifier of a given can_filter
  * @mask: pointer to CAN mask of a given can_filter
  * @d: pointer to the device filter struct
@@ -380,8 +361,8 @@ static unsigned int effhash(canid_t can_id)
  *  Constistency checked mask.
  *  Reduced can_id to have a preprocessed filter compare value.
  */
-static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
-					struct can_dev_rcv_lists *d)
+static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
+					    struct can_dev_rcv_lists *dev_rcv_lists)
 {
 	canid_t inv = *can_id & CAN_INV_FILTER; /* save flag before masking */
 
@@ -389,7 +370,7 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 	if (*mask & CAN_ERR_FLAG) {
 		/* clear CAN_ERR_FLAG in filter entry */
 		*mask &= CAN_ERR_MASK;
-		return &d->rx[RX_ERR];
+		return &dev_rcv_lists->rx[RX_ERR];
 	}
 
 	/* with cleared CAN_ERR_FLAG we have a simple mask/value filterpair */
@@ -405,27 +386,26 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 
 	/* inverse can_id/can_mask filter */
 	if (inv)
-		return &d->rx[RX_INV];
+		return &dev_rcv_lists->rx[RX_INV];
 
 	/* mask == 0 => no condition testing at receive time */
 	if (!(*mask))
-		return &d->rx[RX_ALL];
+		return &dev_rcv_lists->rx[RX_ALL];
 
 	/* extra filterlists for the subscription of a single non-RTR can_id */
 	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS) &&
 	    !(*can_id & CAN_RTR_FLAG)) {
-
 		if (*can_id & CAN_EFF_FLAG) {
 			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS))
-				return &d->rx_eff[effhash(*can_id)];
+				return &dev_rcv_lists->rx_eff[effhash(*can_id)];
 		} else {
 			if (*mask == (CAN_SFF_MASK | CAN_EFF_RTR_FLAGS))
-				return &d->rx_sff[*can_id];
+				return &dev_rcv_lists->rx_sff[*can_id];
 		}
 	}
 
 	/* default: filter via can_id/can_mask */
-	return &d->rx[RX_FIL];
+	return &dev_rcv_lists->rx[RX_FIL];
 }
 
 /**
@@ -462,10 +442,10 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 		    canid_t mask, void (*func)(struct sk_buff *, void *),
 		    void *data, char *ident, struct sock *sk)
 {
-	struct receiver *r;
-	struct hlist_head *rl;
-	struct can_dev_rcv_lists *d;
-	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct receiver *rcv;
+	struct hlist_head *rcv_list;
+	struct can_dev_rcv_lists *dev_rcv_lists;
+	struct can_rcv_lists_stats *rcv_lists_stats = net->can.rcv_lists_stats;
 	int err = 0;
 
 	/* insert new receiver  (dev,canid,mask) -> (func,data) */
@@ -476,50 +456,42 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	if (dev && !net_eq(net, dev_net(dev)))
 		return -ENODEV;
 
-	r = kmem_cache_alloc(rcv_cache, GFP_KERNEL);
-	if (!r)
+	rcv = kmem_cache_alloc(rcv_cache, GFP_KERNEL);
+	if (!rcv)
 		return -ENOMEM;
 
-	spin_lock(&net->can.can_rcvlists_lock);
+	spin_lock_bh(&net->can.rcvlists_lock);
 
-	d = find_dev_rcv_lists(net, dev);
-	if (d) {
-		rl = find_rcv_list(&can_id, &mask, d);
+	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
+	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
-		r->can_id  = can_id;
-		r->mask    = mask;
-		r->matches = 0;
-		r->func    = func;
-		r->data    = data;
-		r->ident   = ident;
-		r->sk      = sk;
+	rcv->can_id = can_id;
+	rcv->mask = mask;
+	rcv->matches = 0;
+	rcv->func = func;
+	rcv->data = data;
+	rcv->ident = ident;
+	rcv->sk = sk;
 
-		hlist_add_head_rcu(&r->list, rl);
-		d->entries++;
+	hlist_add_head_rcu(&rcv->list, rcv_list);
+	dev_rcv_lists->entries++;
 
-		can_pstats->rcv_entries++;
-		if (can_pstats->rcv_entries_max < can_pstats->rcv_entries)
-			can_pstats->rcv_entries_max = can_pstats->rcv_entries;
-	} else {
-		kmem_cache_free(rcv_cache, r);
-		err = -ENODEV;
-	}
-
-	spin_unlock(&net->can.can_rcvlists_lock);
+	rcv_lists_stats->rcv_entries++;
+	rcv_lists_stats->rcv_entries_max = max(rcv_lists_stats->rcv_entries_max,
+					       rcv_lists_stats->rcv_entries);
+	spin_unlock_bh(&net->can.rcvlists_lock);
 
 	return err;
 }
 EXPORT_SYMBOL(can_rx_register);
 
-/*
- * can_rx_delete_receiver - rcu callback for single receiver entry removal
- */
+/* can_rx_delete_receiver - rcu callback for single receiver entry removal */
 static void can_rx_delete_receiver(struct rcu_head *rp)
 {
-	struct receiver *r = container_of(rp, struct receiver, rcu);
-	struct sock *sk = r->sk;
+	struct receiver *rcv = container_of(rp, struct receiver, rcu);
+	struct sock *sk = rcv->sk;
 
-	kmem_cache_free(rcv_cache, r);
+	kmem_cache_free(rcv_cache, rcv);
 	if (sk)
 		sock_put(sk);
 }
@@ -539,10 +511,10 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 		       canid_t mask, void (*func)(struct sk_buff *, void *),
 		       void *data)
 {
-	struct receiver *r = NULL;
-	struct hlist_head *rl;
-	struct s_pstats *can_pstats = net->can.can_pstats;
-	struct can_dev_rcv_lists *d;
+	struct receiver *rcv = NULL;
+	struct hlist_head *rcv_list;
+	struct can_rcv_lists_stats *rcv_lists_stats = net->can.rcv_lists_stats;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 
 	if (dev && dev->type != ARPHRD_CAN)
 		return;
@@ -550,86 +522,69 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	if (dev && !net_eq(net, dev_net(dev)))
 		return;
 
-	spin_lock(&net->can.can_rcvlists_lock);
+	spin_lock_bh(&net->can.rcvlists_lock);
 
-	d = find_dev_rcv_lists(net, dev);
-	if (!d) {
-		pr_err("BUG: receive list not found for "
-		       "dev %s, id %03X, mask %03X\n",
-		       DNAME(dev), can_id, mask);
-		goto out;
-	}
+	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
+	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
-	rl = find_rcv_list(&can_id, &mask, d);
-
-	/*
-	 * Search the receiver list for the item to delete.  This should
+	/* Search the receiver list for the item to delete.  This should
 	 * exist, since no receiver may be unregistered that hasn't
 	 * been registered before.
 	 */
-
-	hlist_for_each_entry_rcu(r, rl, list) {
-		if (r->can_id == can_id && r->mask == mask &&
-		    r->func == func && r->data == data)
+	hlist_for_each_entry_rcu(rcv, rcv_list, list) {
+		if (rcv->can_id == can_id && rcv->mask == mask &&
+		    rcv->func == func && rcv->data == data)
 			break;
 	}
 
-	/*
-	 * Check for bugs in CAN protocol implementations using af_can.c:
-	 * 'r' will be NULL if no matching list item was found for removal.
+	/* Check for bugs in CAN protocol implementations using af_can.c:
+	 * 'rcv' will be NULL if no matching list item was found for removal.
 	 */
-
-	if (!r) {
-		WARN(1, "BUG: receive list entry not found for dev %s, "
-		     "id %03X, mask %03X\n", DNAME(dev), can_id, mask);
+	if (!rcv) {
+		WARN(1, "BUG: receive list entry not found for dev %s, id %03X, mask %03X\n",
+		     DNAME(dev), can_id, mask);
 		goto out;
 	}
 
-	hlist_del_rcu(&r->list);
-	d->entries--;
+	hlist_del_rcu(&rcv->list);
+	dev_rcv_lists->entries--;
 
-	if (can_pstats->rcv_entries > 0)
-		can_pstats->rcv_entries--;
-
-	/* remove device structure requested by NETDEV_UNREGISTER */
-	if (d->remove_on_zero_entries && !d->entries) {
-		kfree(d);
-		dev->ml_priv = NULL;
-	}
+	if (rcv_lists_stats->rcv_entries > 0)
+		rcv_lists_stats->rcv_entries--;
 
  out:
-	spin_unlock(&net->can.can_rcvlists_lock);
+	spin_unlock_bh(&net->can.rcvlists_lock);
 
 	/* schedule the receiver item for deletion */
-	if (r) {
-		if (r->sk)
-			sock_hold(r->sk);
-		call_rcu(&r->rcu, can_rx_delete_receiver);
+	if (rcv) {
+		if (rcv->sk)
+			sock_hold(rcv->sk);
+		call_rcu(&rcv->rcu, can_rx_delete_receiver);
 	}
 }
 EXPORT_SYMBOL(can_rx_unregister);
 
-static inline void deliver(struct sk_buff *skb, struct receiver *r)
+static inline void deliver(struct sk_buff *skb, struct receiver *rcv)
 {
-	r->func(skb, r->data);
-	r->matches++;
+	rcv->func(skb, rcv->data);
+	rcv->matches++;
 }
 
-static int can_rcv_filter(struct can_dev_rcv_lists *d, struct sk_buff *skb)
+static int can_rcv_filter(struct can_dev_rcv_lists *dev_rcv_lists, struct sk_buff *skb)
 {
-	struct receiver *r;
+	struct receiver *rcv;
 	int matches = 0;
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	canid_t can_id = cf->can_id;
 
-	if (d->entries == 0)
+	if (dev_rcv_lists->entries == 0)
 		return 0;
 
 	if (can_id & CAN_ERR_FLAG) {
 		/* check for error message frame entries only */
-		hlist_for_each_entry_rcu(r, &d->rx[RX_ERR], list) {
-			if (can_id & r->mask) {
-				deliver(skb, r);
+		hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx[RX_ERR], list) {
+			if (can_id & rcv->mask) {
+				deliver(skb, rcv);
 				matches++;
 			}
 		}
@@ -637,23 +592,23 @@ static int can_rcv_filter(struct can_dev_rcv_lists *d, struct sk_buff *skb)
 	}
 
 	/* check for unfiltered entries */
-	hlist_for_each_entry_rcu(r, &d->rx[RX_ALL], list) {
-		deliver(skb, r);
+	hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx[RX_ALL], list) {
+		deliver(skb, rcv);
 		matches++;
 	}
 
 	/* check for can_id/mask entries */
-	hlist_for_each_entry_rcu(r, &d->rx[RX_FIL], list) {
-		if ((can_id & r->mask) == r->can_id) {
-			deliver(skb, r);
+	hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx[RX_FIL], list) {
+		if ((can_id & rcv->mask) == rcv->can_id) {
+			deliver(skb, rcv);
 			matches++;
 		}
 	}
 
 	/* check for inverted can_id/mask entries */
-	hlist_for_each_entry_rcu(r, &d->rx[RX_INV], list) {
-		if ((can_id & r->mask) != r->can_id) {
-			deliver(skb, r);
+	hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx[RX_INV], list) {
+		if ((can_id & rcv->mask) != rcv->can_id) {
+			deliver(skb, rcv);
 			matches++;
 		}
 	}
@@ -663,16 +618,16 @@ static int can_rcv_filter(struct can_dev_rcv_lists *d, struct sk_buff *skb)
 		return matches;
 
 	if (can_id & CAN_EFF_FLAG) {
-		hlist_for_each_entry_rcu(r, &d->rx_eff[effhash(can_id)], list) {
-			if (r->can_id == can_id) {
-				deliver(skb, r);
+		hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx_eff[effhash(can_id)], list) {
+			if (rcv->can_id == can_id) {
+				deliver(skb, rcv);
 				matches++;
 			}
 		}
 	} else {
 		can_id &= CAN_SFF_MASK;
-		hlist_for_each_entry_rcu(r, &d->rx_sff[can_id], list) {
-			deliver(skb, r);
+		hlist_for_each_entry_rcu(rcv, &dev_rcv_lists->rx_sff[can_id], list) {
+			deliver(skb, rcv);
 			matches++;
 		}
 	}
@@ -682,14 +637,14 @@ static int can_rcv_filter(struct can_dev_rcv_lists *d, struct sk_buff *skb)
 
 static void can_receive(struct sk_buff *skb, struct net_device *dev)
 {
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = dev_net(dev);
-	struct s_stats *can_stats = net->can.can_stats;
+	struct can_pkg_stats *pkg_stats = net->can.pkg_stats;
 	int matches;
 
 	/* update statistics */
-	can_stats->rx_frames++;
-	can_stats->rx_frames_delta++;
+	pkg_stats->rx_frames++;
+	pkg_stats->rx_frames_delta++;
 
 	/* create non-zero unique skb identifier together with *skb */
 	while (!(can_skb_prv(skb)->skbcnt))
@@ -698,12 +653,11 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 
 	/* deliver the packet to sockets listening on all devices */
-	matches = can_rcv_filter(net->can.can_rx_alldev_list, skb);
+	matches = can_rcv_filter(net->can.rx_alldev_list, skb);
 
 	/* find receive list for this device */
-	d = find_dev_rcv_lists(net, dev);
-	if (d)
-		matches += can_rcv_filter(d, skb);
+	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
+	matches += can_rcv_filter(dev_rcv_lists, skb);
 
 	rcu_read_unlock();
 
@@ -711,8 +665,8 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	consume_skb(skb);
 
 	if (matches > 0) {
-		can_stats->matches++;
-		can_stats->matches_delta++;
+		pkg_stats->matches++;
+		pkg_stats->matches_delta++;
 	}
 }
 
@@ -734,7 +688,7 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
-		   struct packet_type *pt, struct net_device *orig_dev)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 
@@ -750,9 +704,7 @@ static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
 	return NET_RX_SUCCESS;
 }
 
-/*
- * af_can protocol functions
- */
+/* af_can protocol functions */
 
 /**
  * can_proto_register - register CAN transport protocol
@@ -783,8 +735,9 @@ int can_proto_register(const struct can_proto *cp)
 	if (rcu_access_pointer(proto_tab[proto])) {
 		pr_err("can: protocol %d already registered\n", proto);
 		err = -EBUSY;
-	} else
+	} else {
 		RCU_INIT_POINTER(proto_tab[proto], cp);
+	}
 
 	mutex_unlock(&proto_tab_lock);
 
@@ -814,48 +767,19 @@ void can_proto_unregister(const struct can_proto *cp)
 }
 EXPORT_SYMBOL(can_proto_unregister);
 
-/*
- * af_can notifier to create/remove CAN netdevice specific structs
- */
+/* af_can notifier to create/remove CAN netdevice specific structs */
 static int can_notifier(struct notifier_block *nb, unsigned long msg,
 			void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct can_dev_rcv_lists *d;
 
 	if (dev->type != ARPHRD_CAN)
 		return NOTIFY_DONE;
 
 	switch (msg) {
-
 	case NETDEV_REGISTER:
-
-		/* create new dev_rcv_lists for this device */
-		d = kzalloc(sizeof(*d), GFP_KERNEL);
-		if (!d)
-			return NOTIFY_DONE;
-		BUG_ON(dev->ml_priv);
-		dev->ml_priv = d;
-
-		break;
-
-	case NETDEV_UNREGISTER:
-		spin_lock(&dev_net(dev)->can.can_rcvlists_lock);
-
-		d = dev->ml_priv;
-		if (d) {
-			if (d->entries)
-				d->remove_on_zero_entries = 1;
-			else {
-				kfree(d);
-				dev->ml_priv = NULL;
-			}
-		} else
-			pr_err("can: notifier: receive list not found for dev "
-			       "%s\n", dev->name);
-
-		spin_unlock(&dev_net(dev)->can.can_rcvlists_lock);
-
+		WARN(!dev->ml_priv,
+		     "No CAN mid layer private allocated, please fix your driver and use alloc_candev()!\n");
 		break;
 	}
 
@@ -864,71 +788,54 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 
 static int can_pernet_init(struct net *net)
 {
-	spin_lock_init(&net->can.can_rcvlists_lock);
-	net->can.can_rx_alldev_list =
-		kzalloc(sizeof(struct can_dev_rcv_lists), GFP_KERNEL);
-	if (!net->can.can_rx_alldev_list)
+	spin_lock_init(&net->can.rcvlists_lock);
+	net->can.rx_alldev_list =
+		kzalloc(sizeof(*net->can.rx_alldev_list), GFP_KERNEL);
+	if (!net->can.rx_alldev_list)
 		goto out;
-	net->can.can_stats = kzalloc(sizeof(struct s_stats), GFP_KERNEL);
-	if (!net->can.can_stats)
-		goto out_free_alldev_list;
-	net->can.can_pstats = kzalloc(sizeof(struct s_pstats), GFP_KERNEL);
-	if (!net->can.can_pstats)
-		goto out_free_can_stats;
+	net->can.pkg_stats = kzalloc(sizeof(*net->can.pkg_stats), GFP_KERNEL);
+	if (!net->can.pkg_stats)
+		goto out_free_rx_alldev_list;
+	net->can.rcv_lists_stats = kzalloc(sizeof(*net->can.rcv_lists_stats), GFP_KERNEL);
+	if (!net->can.rcv_lists_stats)
+		goto out_free_pkg_stats;
 
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
 		if (stats_timer) {
-			timer_setup(&net->can.can_stattimer, can_stat_update,
+			timer_setup(&net->can.stattimer, can_stat_update,
 				    0);
-			mod_timer(&net->can.can_stattimer,
+			mod_timer(&net->can.stattimer,
 				  round_jiffies(jiffies + HZ));
 		}
-		net->can.can_stats->jiffies_init = jiffies;
+		net->can.pkg_stats->jiffies_init = jiffies;
 		can_init_proc(net);
 	}
 
 	return 0;
 
- out_free_can_stats:
-	kfree(net->can.can_stats);
- out_free_alldev_list:
-	kfree(net->can.can_rx_alldev_list);
+ out_free_pkg_stats:
+	kfree(net->can.pkg_stats);
+ out_free_rx_alldev_list:
+	kfree(net->can.rx_alldev_list);
  out:
 	return -ENOMEM;
 }
 
 static void can_pernet_exit(struct net *net)
 {
-	struct net_device *dev;
-
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		can_remove_proc(net);
 		if (stats_timer)
-			del_timer_sync(&net->can.can_stattimer);
+			del_timer_sync(&net->can.stattimer);
 	}
 
-	/* remove created dev_rcv_lists from still registered CAN devices */
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			struct can_dev_rcv_lists *d = dev->ml_priv;
-
-			BUG_ON(d->entries);
-			kfree(d);
-			dev->ml_priv = NULL;
-		}
-	}
-	rcu_read_unlock();
-
-	kfree(net->can.can_rx_alldev_list);
-	kfree(net->can.can_stats);
-	kfree(net->can.can_pstats);
+	kfree(net->can.rx_alldev_list);
+	kfree(net->can.pkg_stats);
+	kfree(net->can.rcv_lists_stats);
 }
 
-/*
- * af_can module init/exit functions
- */
+/* af_can module init/exit functions */
 
 static struct packet_type can_packet __read_mostly = {
 	.type = cpu_to_be16(ETH_P_CAN),
@@ -958,6 +865,8 @@ static struct pernet_operations can_pernet_ops __read_mostly = {
 
 static __init int can_init(void)
 {
+	int err;
+
 	/* check for correct padding to be able to use the structs similarly */
 	BUILD_BUG_ON(offsetof(struct can_frame, can_dlc) !=
 		     offsetof(struct canfd_frame, len) ||
@@ -971,15 +880,31 @@ static __init int can_init(void)
 	if (!rcv_cache)
 		return -ENOMEM;
 
-	register_pernet_subsys(&can_pernet_ops);
+	err = register_pernet_subsys(&can_pernet_ops);
+	if (err)
+		goto out_pernet;
 
 	/* protocol register */
-	sock_register(&can_family_ops);
-	register_netdevice_notifier(&can_netdev_notifier);
+	err = sock_register(&can_family_ops);
+	if (err)
+		goto out_sock;
+	err = register_netdevice_notifier(&can_netdev_notifier);
+	if (err)
+		goto out_notifier;
+
 	dev_add_pack(&can_packet);
 	dev_add_pack(&canfd_packet);
 
 	return 0;
+
+out_notifier:
+	sock_unregister(PF_CAN);
+out_sock:
+	unregister_pernet_subsys(&can_pernet_ops);
+out_pernet:
+	kmem_cache_destroy(rcv_cache);
+
+	return err;
 }
 
 static __exit void can_exit(void)

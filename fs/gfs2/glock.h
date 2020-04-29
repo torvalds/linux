@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __GLOCK_DOT_H__
@@ -193,6 +190,7 @@ extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
 extern int gfs2_glock_poll(struct gfs2_holder *gh);
 extern int gfs2_glock_wait(struct gfs2_holder *gh);
+extern int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq(struct gfs2_holder *gh);
 extern void gfs2_glock_dq_wait(struct gfs2_holder *gh);
 extern void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
@@ -202,8 +200,11 @@ extern int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 			     struct gfs2_holder *gh);
 extern int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
-extern void gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl);
-#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) { gfs2_dump_glock(NULL, gl); BUG(); } } while(0)
+extern void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
+			    bool fsid);
+#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) {		\
+			gfs2_dump_glock(NULL, gl, true);	\
+			BUG(); } } while(0)
 extern __printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
@@ -243,9 +244,9 @@ extern void gfs2_glock_free(struct gfs2_glock *gl);
 extern int __init gfs2_glock_init(void);
 extern void gfs2_glock_exit(void);
 
-extern int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+extern void gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
 extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
-extern int gfs2_register_debugfs(void);
+extern void gfs2_register_debugfs(void);
 extern void gfs2_unregister_debugfs(void);
 
 extern const struct lm_lockops gfs2_dlm_ops;
@@ -260,6 +261,11 @@ static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
 	return gh->gh_gl;
 }
 
+static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
+{
+	return !list_empty(&gh->gh_list);
+}
+
 /**
  * glock_set_object - set the gl_object field of a glock
  * @gl: the glock
@@ -269,7 +275,7 @@ static inline void glock_set_object(struct gfs2_glock *gl, void *object)
 {
 	spin_lock(&gl->gl_lockref.lock);
 	if (gfs2_assert_warn(gl->gl_name.ln_sbd, gl->gl_object == NULL))
-		gfs2_dump_glock(NULL, gl);
+		gfs2_dump_glock(NULL, gl, true);
 	gl->gl_object = object;
 	spin_unlock(&gl->gl_lockref.lock);
 }
@@ -281,7 +287,7 @@ static inline void glock_set_object(struct gfs2_glock *gl, void *object)
  *
  * I'd love to similarly add this:
  *	else if (gfs2_assert_warn(gl->gl_sbd, gl->gl_object == object))
- *		gfs2_dump_glock(NULL, gl);
+ *		gfs2_dump_glock(NULL, gl, true);
  * Unfortunately, that's not possible because as soon as gfs2_delete_inode
  * frees the block in the rgrp, another process can reassign it for an I_NEW
  * inode in gfs2_create_inode because that calls new_inode, not gfs2_iget.

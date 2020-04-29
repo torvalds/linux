@@ -779,8 +779,8 @@ nvkm_perfdom_new(struct nvkm_pm *pm, const char *name, u32 mask,
 
 		sdom = spec;
 		while (sdom->signal_nr) {
-			dom = kzalloc(sizeof(*dom) + sdom->signal_nr *
-				      sizeof(*dom->signal), GFP_KERNEL);
+			dom = kzalloc(struct_size(dom, signal, sdom->signal_nr),
+				      GFP_KERNEL);
 			if (!dom)
 				return -ENOMEM;
 

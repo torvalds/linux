@@ -190,6 +190,8 @@ struct sockaddr_tipc {
 #define TIPC_MCAST_REPLICAST    134     /* Default: TIPC selects. No arg */
 #define TIPC_GROUP_JOIN         135     /* Takes struct tipc_group_req* */
 #define TIPC_GROUP_LEAVE        136     /* No argument */
+#define TIPC_SOCK_RECVQ_USED    137     /* Default: none (read only) */
+#define TIPC_NODELAY            138     /* Default: false */
 
 /*
  * Flag values
@@ -209,16 +211,16 @@ struct tipc_group_req {
  * The string formatting for each name element is:
  * media: media
  * interface: media:interface name
- * link: Z.C.N:interface-Z.C.N:interface
- *
+ * link: node:interface-node:interface
  */
-
+#define TIPC_NODEID_LEN         16
 #define TIPC_MAX_MEDIA_NAME	16
 #define TIPC_MAX_IF_NAME	16
 #define TIPC_MAX_BEARER_NAME	32
 #define TIPC_MAX_LINK_NAME	68
 
-#define SIOCGETLINKNAME		SIOCPROTOPRIVATE
+#define SIOCGETLINKNAME        SIOCPROTOPRIVATE
+#define SIOCGETNODEID          (SIOCPROTOPRIVATE + 1)
 
 struct tipc_sioc_ln_req {
 	__u32 peer;
@@ -226,6 +228,31 @@ struct tipc_sioc_ln_req {
 	char linkname[TIPC_MAX_LINK_NAME];
 };
 
+struct tipc_sioc_nodeid_req {
+	__u32 peer;
+	char node_id[TIPC_NODEID_LEN];
+};
+
+/*
+ * TIPC Crypto, AEAD
+ */
+#define TIPC_AEAD_ALG_NAME		(32)
+
+struct tipc_aead_key {
+	char alg_name[TIPC_AEAD_ALG_NAME];
+	unsigned int keylen;	/* in bytes */
+	char key[];
+};
+
+#define TIPC_AEAD_KEYLEN_MIN		(16 + 4)
+#define TIPC_AEAD_KEYLEN_MAX		(32 + 4)
+#define TIPC_AEAD_KEY_SIZE_MAX		(sizeof(struct tipc_aead_key) + \
+							TIPC_AEAD_KEYLEN_MAX)
+
+static inline int tipc_aead_key_size(struct tipc_aead_key *key)
+{
+	return sizeof(*key) + key->keylen;
+}
 
 /* The macros and functions below are deprecated:
  */

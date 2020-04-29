@@ -3,7 +3,6 @@
 #define __ASM_SH_MOBILE_LCDC_H__
 
 #include <linux/fb.h>
-#include <video/sh_mobile_meram.h>
 
 /* Register definitions */
 #define _LDDCKR			0x410
@@ -184,7 +183,6 @@ struct sh_mobile_lcdc_chan_cfg {
 	struct sh_mobile_lcdc_panel_cfg panel_cfg;
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
-	const struct sh_mobile_meram_cfg *meram_cfg;
 
 	struct platform_device *tx_dev;	/* HDMI/DSI transmitter device */
 };
@@ -193,7 +191,6 @@ struct sh_mobile_lcdc_info {
 	int clock_source;
 	struct sh_mobile_lcdc_chan_cfg ch[2];
 	struct sh_mobile_lcdc_overlay_cfg overlays[4];
-	struct sh_mobile_meram_info *meram_dev;
 };
 
 #endif /* __ASM_SH_MOBILE_LCDC_H__ */

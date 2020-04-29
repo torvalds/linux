@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Context tracking: Probe on high level context boundaries such as kernel
  * and userspace. This includes syscalls and exceptions entry/exit.
@@ -24,8 +25,8 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/context_tracking.h>
 
-DEFINE_STATIC_KEY_FALSE(context_tracking_enabled);
-EXPORT_SYMBOL_GPL(context_tracking_enabled);
+DEFINE_STATIC_KEY_FALSE(context_tracking_key);
+EXPORT_SYMBOL_GPL(context_tracking_key);
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
 EXPORT_SYMBOL_GPL(context_tracking);
@@ -191,17 +192,19 @@ void __init context_tracking_cpu_set(int cpu)
 
 	if (!per_cpu(context_tracking.active, cpu)) {
 		per_cpu(context_tracking.active, cpu) = true;
-		static_branch_inc(&context_tracking_enabled);
+		static_branch_inc(&context_tracking_key);
 	}
 
 	if (initialized)
 		return;
 
+#ifdef CONFIG_HAVE_TIF_NOHZ
 	/*
 	 * Set TIF_NOHZ to init/0 and let it propagate to all tasks through fork
 	 * This assumes that init is the only task at this early boot stage.
 	 */
 	set_tsk_thread_flag(&init_task, TIF_NOHZ);
+#endif
 	WARN_ON_ONCE(!tasklist_empty());
 
 	initialized = true;

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "mdp5_kms.h"
@@ -24,17 +13,19 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
-	struct mdp5_state *state;
+	struct mdp5_global_state *new_global_state, *old_global_state;
 	struct mdp5_hw_pipe_state *old_state, *new_state;
 	int i, j;
 
-	state = mdp5_get_state(s);
-	if (IS_ERR(state))
-		return PTR_ERR(state);
+	new_global_state = mdp5_get_global_state(s);
+	if (IS_ERR(new_global_state))
+		return PTR_ERR(new_global_state);
 
-	/* grab old_state after mdp5_get_state(), since now we hold lock: */
-	old_state = &mdp5_kms->state->hwpipe;
-	new_state = &state->hwpipe;
+	/* grab old_state after mdp5_get_global_state(), since now we hold lock: */
+	old_global_state = mdp5_get_existing_global_state(mdp5_kms);
+
+	old_state = &old_global_state->hwpipe;
+	new_state = &new_global_state->hwpipe;
 
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
 		struct mdp5_hw_pipe *cur = mdp5_kms->hwpipes[i];
@@ -107,7 +98,7 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		WARN_ON(r_hwpipe);
 
 		DBG("%s: alloc SMP blocks", (*hwpipe)->name);
-		ret = mdp5_smp_assign(mdp5_kms->smp, &state->smp,
+		ret = mdp5_smp_assign(mdp5_kms->smp, &new_global_state->smp,
 				(*hwpipe)->pipe, blkcfg);
 		if (ret)
 			return -ENOMEM;
@@ -132,7 +123,7 @@ void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
-	struct mdp5_state *state = mdp5_get_state(s);
+	struct mdp5_global_state *state = mdp5_get_global_state(s);
 	struct mdp5_hw_pipe_state *new_state = &state->hwpipe;
 
 	if (!hwpipe)

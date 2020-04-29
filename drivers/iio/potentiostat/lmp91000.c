@@ -113,7 +113,7 @@ static int lmp91000_read(struct lmp91000_data *data, int channel, int *val)
 		return -EINVAL;
 
 	/* delay till first temperature reading is complete */
-	if ((state != channel) && (channel == LMP91000_REG_MODECN_TEMP))
+	if (state != channel && channel == LMP91000_REG_MODECN_TEMP)
 		usleep_range(3000, 4000);
 
 	data->chan_select = channel != LMP91000_REG_MODECN_3LEAD;
@@ -211,12 +211,11 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
 	if (ret) {
-		if (of_property_read_bool(np, "ti,external-tia-resistor"))
-			val = 0;
-		else {
-			dev_err(dev, "no ti,tia-gain-ohm defined");
+		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
+			dev_err(dev, "no ti,tia-gain-ohm defined and external resistor not specified\n");
 			return ret;
 		}
+		val = 0;
 	}
 
 	ret = -EINVAL;
@@ -255,8 +254,8 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 0);
 	regmap_write(data->regmap, LMP91000_REG_TIACN, reg);
-	regmap_write(data->regmap, LMP91000_REG_REFCN, LMP91000_REG_REFCN_EXT_REF
-					| LMP91000_REG_REFCN_50_ZERO);
+	regmap_write(data->regmap, LMP91000_REG_REFCN,
+		     LMP91000_REG_REFCN_EXT_REF | LMP91000_REG_REFCN_50_ZERO);
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 1);
 
 	return 0;
@@ -276,12 +275,20 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 static const struct iio_trigger_ops lmp91000_trigger_ops = {
 };
 
-
-static int lmp91000_buffer_preenable(struct iio_dev *indio_dev)
+static int lmp91000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct lmp91000_data *data = iio_priv(indio_dev);
+	int err;
 
-	return iio_channel_start_all_cb(data->cb_buffer);
+	err = iio_triggered_buffer_postenable(indio_dev);
+	if (err)
+		return err;
+
+	err = iio_channel_start_all_cb(data->cb_buffer);
+	if (err)
+		iio_triggered_buffer_predisable(indio_dev);
+
+	return err;
 }
 
 static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
@@ -290,12 +297,11 @@ static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
 
 	iio_channel_stop_all_cb(data->cb_buffer);
 
-	return 0;
+	return iio_triggered_buffer_predisable(indio_dev);
 }
 
 static const struct iio_buffer_setup_ops lmp91000_buffer_setup_ops = {
-	.preenable = lmp91000_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
+	.postenable = lmp91000_buffer_postenable,
 	.predisable = lmp91000_buffer_predisable,
 };
 
@@ -411,12 +417,14 @@ static int lmp91000_remove(struct i2c_client *client)
 
 static const struct of_device_id lmp91000_of_match[] = {
 	{ .compatible = "ti,lmp91000", },
+	{ .compatible = "ti,lmp91002", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, lmp91000_of_match);
 
 static const struct i2c_device_id lmp91000_id[] = {
 	{ "lmp91000", 0 },
+	{ "lmp91002", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lmp91000_id);

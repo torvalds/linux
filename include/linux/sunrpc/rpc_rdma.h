@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (c) 2015-2017 Oracle. All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
@@ -57,7 +58,8 @@ enum {
 enum {
 	rpcrdma_fixed_maxsz	= 4,
 	rpcrdma_segment_maxsz	= 4,
-	rpcrdma_readchunk_maxsz	= 2 + rpcrdma_segment_maxsz,
+	rpcrdma_readseg_maxsz	= 1 + rpcrdma_segment_maxsz,
+	rpcrdma_readchunk_maxsz	= 1 + rpcrdma_readseg_maxsz,
 };
 
 /*

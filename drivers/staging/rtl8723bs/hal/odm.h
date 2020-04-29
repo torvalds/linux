@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -90,15 +82,15 @@
 
 /* Remove DIG by yuchen */
 
-typedef struct _Dynamic_Primary_CCA {
+struct dynamic_primary_CCA {
 	u8 PriCCA_flag;
 	u8 intf_flag;
 	u8 intf_type;
 	u8 DupRTS_flag;
 	u8 Monitor_flag;
 	u8 CH_offset;
-	u8 	MF_state;
-} Pri_CCA_T, *pPri_CCA_T;
+	u8 MF_state;
+};
 
 typedef struct _Rate_Adaptive_Table_ {
 	u8 firstconnect;
@@ -269,7 +261,7 @@ struct odm_packet_info {
 	bool is_beacon;
 };
 
-typedef struct _ODM_Phy_Dbg_Info_ {
+struct odm_phy_dbg_info {
 	/* ODM Write, debug info */
 	s8 RxSNRdB[4];
 	u32 NumQryPhyStatus;
@@ -279,11 +271,11 @@ typedef struct _ODM_Phy_Dbg_Info_ {
 	/* Others */
 	s32 RxEVM[4];
 
-} ODM_PHY_DBG_INFO_T;
+};
 
-typedef struct _ODM_Mac_Status_Info_ {
+struct odm_mac_status_info {
 	u8 test;
-} ODM_MAC_INFO;
+};
 
 typedef enum tag_Dynamic_ODM_Support_Ability_Type {
 	/*  BB Team */
@@ -857,7 +849,7 @@ typedef struct _ODM_PATH_DIVERSITY_ {
 	u32 PathB_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
 } PATHDIV_T, *pPATHDIV_T;
 
-typedef enum _BASEBAND_CONFIG_PHY_REG_PG_VALUE_TYPE{
+typedef enum _BASEBAND_CONFIG_PHY_REG_PG_VALUE_TYPE {
 	PHY_REG_PG_RELATIVE_VALUE = 0,
 	PHY_REG_PG_EXACT_VALUE = 1
 } PHY_REG_PG_TYPE;
@@ -921,7 +913,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Platform info AP/ADSL/CE/MP = 1/2/3/4 */
 	u8 SupportPlatform;
-	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ ?K?K = 1/2/3/?K */
+	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/... = 1/2/3/... */
 	u32 SupportAbility;
 	/*  ODM PCIE/USB/SDIO = 1/2/3 */
 	u8 SupportInterface;
@@ -1100,11 +1092,11 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_PHY_DBG_INFO_T PhyDbgInfo;
+	struct odm_phy_dbg_info PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_MAC_INFO *pMacInfo;
+	struct odm_mac_status_info *pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
@@ -1120,7 +1112,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	FAT_T DM_FatTable;
 	DIG_T DM_DigTable;
 	PS_T DM_PSTable;
-	Pri_CCA_T DM_PriCCA;
+	struct dynamic_primary_CCA DM_PriCCA;
 	RXHP_T DM_RXHP_Table;
 	RA_T DM_RA_Table;
 	false_ALARM_STATISTICS FalseAlmCnt;
@@ -1372,10 +1364,6 @@ extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 /*  with original RSSI to determine if it is necessary to switch antenna. */
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
-
-/* Remove DIG by yuchen */
-
-void ODM_SetAntenna(PDM_ODM_T pDM_Odm, u8 Antenna);
 
 /* Remove BB power saving by Yuchen */
 

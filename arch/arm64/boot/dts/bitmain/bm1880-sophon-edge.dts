@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Linaro Ltd.
+ * Author: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+ */
+
+/dts-v1/;
+
+#include "bm1880.dtsi"
+
+/*
+ * GPIO name legend: proper name = the GPIO line is used as GPIO
+ *         NC = not connected (pin out but not routed from the chip to
+ *              anything the board)
+ *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         LSEC = Low Speed External Connector
+ *         HSEC = High Speed External Connector
+ *
+ * Line names are taken from the schematic "sophon-edge-schematics"
+ * version, 1.0210.
+ *
+ * For the lines routed to the external connectors the
+ * lines are named after the 96Boards CE Specification 1.0,
+ * Appendix "Expansion Connector Signal Description".
+ *
+ * When the 96Board naming of a line and the schematic name of
+ * the same line are in conflict, the 96Board specification
+ * takes precedence. This is only for the informational
+ * lines i.e. "[FOO]", the GPIO named lines "GPIO-A" thru "GPIO-L"
+ * are the only ones actually used for GPIO.
+ */
+
+/ {
+	compatible = "bitmain,sophon-edge", "bitmain,bm1880";
+	model = "Sophon Edge";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart2;
+		serial2 = &uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x0 0x40000000>; // 1GB
+	};
+
+	soc {
+		gpio0: gpio@50027000 {
+			porta: gpio-controller@0 {
+				gpio-line-names =
+					"GPIO-A", /* GPIO0, LSEC pin 23 */
+					"GPIO-C", /* GPIO1, LSEC pin 25 */
+					"[GPIO2_PHY0_RST]", /* GPIO2 */
+					"GPIO-E", /* GPIO3, LSEC pin 27 */
+					"[USB_DET]", /* GPIO4 */
+					"[EN_P5V]", /* GPIO5 */
+					"[VDDIO_MS1_SEL]", /* GPIO6 */
+					"GPIO-G", /* GPIO7, LSEC pin 29 */
+					"[BM_TUSB_RST_L]", /* GPIO8 */
+					"[EN_P5V_USBHUB]", /* GPIO9 */
+					"NC",
+					"LED_WIFI", /* GPIO11 */
+					"LED_BT", /* GPIO12 */
+					"[BM_BLM8221_EN_L]", /* GPIO13 */
+					"NC", /* GPIO14 */
+					"NC", /* GPIO15 */
+					"NC", /* GPIO16 */
+					"NC", /* GPIO17 */
+					"NC", /* GPIO18 */
+					"NC", /* GPIO19 */
+					"NC", /* GPIO20 */
+					"NC", /* GPIO21 */
+					"NC", /* GPIO22 */
+					"NC", /* GPIO23 */
+					"NC", /* GPIO24 */
+					"NC", /* GPIO25 */
+					"NC", /* GPIO26 */
+					"NC", /* GPIO27 */
+					"NC", /* GPIO28 */
+					"NC", /* GPIO29 */
+					"NC", /* GPIO30 */
+					"NC"; /* GPIO31 */
+			};
+		};
+
+		gpio1: gpio@50027400 {
+			portb: gpio-controller@0 {
+				gpio-line-names =
+					"NC", /* GPIO32 */
+					"NC", /* GPIO33 */
+					"[I2C0_SDA]", /* GPIO34, LSEC pin 17 */
+					"[I2C0_SCL]", /* GPIO35, LSEC pin 15 */
+					"[JTAG0_TDO]", /* GPIO36 */
+					"[JTAG0_TCK]", /* GPIO37 */
+					"[JTAG0_TDI]", /* GPIO38 */
+					"[JTAG0_TMS]", /* GPIO39 */
+					"[JTAG0_TRST_X]", /* GPIO40 */
+					"[JTAG1_TDO]", /* GPIO41 */
+					"[JTAG1_TCK]", /* GPIO42 */
+					"[JTAG1_TDI]", /* GPIO43 */
+					"[CPU_TX]", /* GPIO44 */
+					"[CPU_RX]", /* GPIO45 */
+					"[UART1_TXD]", /* GPIO46 */
+					"[UART1_RXD]", /* GPIO47 */
+					"[UART0_TXD]", /* GPIO48 */
+					"[UART0_RXD]", /* GPIO49 */
+					"GPIO-I", /* GPIO50, LSEC pin 31 */
+					"GPIO-K", /* GPIO51, LSEC pin 33 */
+					"USER_LED2", /* GPIO52 */
+					"USER_LED1", /* GPIO53 */
+					"[UART0_RTS]", /* GPIO54 */
+					"[UART0_CTS]", /* GPIO55 */
+					"USER_LED4", /* GPIO56, JTAG1_TRST_X */
+					"USER_LED3", /* GPIO57, JTAG1_TMS */
+					"[I2S0_SCLK]", /* GPIO58 */
+					"[I2S0_FS]", /* GPIO59 */
+					"[I2S0_SDI]", /* GPIO60 */
+					"[I2S0_SDO]", /* GPIO61 */
+					"GPIO-B", /* GPIO62, LSEC pin 24 */
+					"GPIO-F"; /* GPIO63, I2S1_SCLK, LSEC pin 28 */
+			};
+		};
+
+		gpio2: gpio@50027800 {
+			portc: gpio-controller@0 {
+				gpio-line-names =
+					"GPIO-D", /* GPIO64, I2S1_FS, LSEC pin 26 */
+					"GPIO-J", /* GPIO65, I2S1_SDI, LSEC pin 32 */
+					"GPIO-H", /* GPIO66, I2S1_SDO, LSEC pin 30 */
+					"GPIO-L", /* GPIO67, LSEC pin 34 */
+					"[SPI0_CS]", /* GPIO68, SPI1_CS, LSEC pin 12 */
+					"[SPI0_DIN]", /* GPIO69, SPI1_SDI, LSEC pin 10 */
+					"[SPI0_DOUT]", /* GPIO70, SPI1_SDO, LSEC pin 14 */
+					"[SPI0_SCLK]"; /* GPIO71, SPI1_SCK, LSEC pin 8 */
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pinctrl_uart0_default: pinctrl-uart0-default {
+		pinmux {
+			groups = "uart0_grp";
+			function = "uart0";
+		};
+	};
+
+	pinctrl_uart1_default: pinctrl-uart1-default {
+		pinmux {
+			groups = "uart1_grp";
+			function = "uart1";
+		};
+	};
+
+	pinctrl_uart2_default: pinctrl-uart2-default {
+		pinmux {
+			groups = "uart2_grp";
+			function = "uart2";
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0_default>;
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_default>;
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_default>;
+};

@@ -43,6 +43,10 @@
 	enet-phy-lane-swap;
 };
 
+&sdio0 {
+	mmc-ddr-1_8v;
+};
+
 &uart2 {
 	status = "okay";
 };

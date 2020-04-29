@@ -39,30 +39,25 @@ struct drm_device;
 struct drm_driver;
 struct drm_master;
 
+#ifdef CONFIG_PCI
+
 struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
 				     size_t align);
 void drm_pci_free(struct drm_device *dev, struct drm_dma_handle * dmah);
 
-int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
-void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
-#ifdef CONFIG_PCI
-int drm_get_pci_dev(struct pci_dev *pdev,
-		    const struct pci_device_id *ent,
-		    struct drm_driver *driver);
 #else
-static inline int drm_get_pci_dev(struct pci_dev *pdev,
-				  const struct pci_device_id *ent,
-				  struct drm_driver *driver)
+
+static inline struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev,
+						   size_t size, size_t align)
 {
-	return -ENOSYS;
+	return NULL;
 }
+
+static inline void drm_pci_free(struct drm_device *dev,
+				struct drm_dma_handle *dmah)
+{
+}
+
 #endif
-
-#define DRM_PCIE_SPEED_25 1
-#define DRM_PCIE_SPEED_50 2
-#define DRM_PCIE_SPEED_80 4
-
-int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
-int drm_pcie_get_max_link_width(struct drm_device *dev, u32 *mlw);
 
 #endif /* _DRM_PCI_H_ */

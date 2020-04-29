@@ -112,71 +112,8 @@
 					default-state = "keep";
 				};
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-
-				partition@0 {
-					label = "U-Boot";
-					reg = <0 0x800000>;
-				};
-				partition@800000 {
-					label = "Linux";
-					reg = <0x800000 0x800000>;
-				};
-				partition@1000000 {
-					label = "Filesystem";
-					reg = <0x1000000 0x3f000000>;
-				};
-			};
 		};
 	};
-
-	dsa {
-		status = "disabled";
-
-		compatible = "marvell,dsa";
-		#address-cells = <2>;
-		#size-cells = <0>;
-
-		dsa,ethernet = <&eth1>;
-		dsa,mii-bus = <&mdio>;
-
-		switch@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x10 0>;	/* MDIO address 16, switch 0 in tree */
-
-			port@0 {
-				reg = <0>;
-				label = "lan0";
-			};
-
-			port@1 {
-			       reg = <1>;
-			       label = "lan1";
-			};
-
-			port@2 {
-			       reg = <2>;
-			       label = "lan2";
-			};
-
-			port@3 {
-			       reg = <3>;
-			       label = "lan3";
-			};
-
-			port@5 {
-			      reg = <5>;
-			      label = "cpu";
-			};
-		};
-	 };
 };
 
 &pciec {
@@ -286,5 +223,36 @@
 	led_pins: led-pins {
 		marvell,pins = "mpp32";
 		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x800000>;
+			};
+			partition@800000 {
+				label = "Linux";
+				reg = <0x800000 0x800000>;
+			};
+			partition@1000000 {
+				label = "Filesystem";
+				reg = <0x1000000 0x3f000000>;
+			};
+		};
 	};
 };

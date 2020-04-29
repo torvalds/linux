@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Broadcom BCM63xx SoC watchdog driver
  *
  *  Copyright (C) 2007, Miguel Gaio <miguel.gaio@efixo.com>
  *  Copyright (C) 2008, Florian Fainelli <florian@openwrt.org>
  *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -119,7 +116,7 @@ static int bcm63xx_wdt_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	bcm63xx_wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int bcm63xx_wdt_release(struct inode *inode, struct file *file)
@@ -224,6 +221,7 @@ static const struct file_operations bcm63xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= bcm63xx_wdt_write,
 	.unlocked_ioctl	= bcm63xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= bcm63xx_wdt_open,
 	.release	= bcm63xx_wdt_release,
 };
@@ -248,7 +246,7 @@ static int bcm63xx_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	bcm63xx_wdt_device.regs = devm_ioremap_nocache(&pdev->dev, r->start,
+	bcm63xx_wdt_device.regs = devm_ioremap(&pdev->dev, r->start,
 							resource_size(r));
 	if (!bcm63xx_wdt_device.regs) {
 		dev_err(&pdev->dev, "failed to remap I/O resources\n");

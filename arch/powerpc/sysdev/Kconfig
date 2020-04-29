@@ -1,24 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 
 config PPC4xx_PCI_EXPRESS
 	bool
 	depends on PCI && 4xx
-	default n
 
 config PPC4xx_HSTA_MSI
 	bool
 	depends on PCI_MSI
 	depends on PCI && 4xx
-	default n
 
 config PPC4xx_MSI
 	bool
 	depends on PCI_MSI
 	depends on PCI && 4xx
-	default n
 
 config PPC_MSI_BITMAP
 	bool
@@ -31,17 +28,8 @@ config PPC_MSI_BITMAP
 source "arch/powerpc/sysdev/xics/Kconfig"
 source "arch/powerpc/sysdev/xive/Kconfig"
 
-config PPC_SCOM
-	bool
-
-config SCOM_DEBUGFS
-	bool "Expose SCOM controllers via debugfs"
-	depends on PPC_SCOM && DEBUG_FS
-	default n
-
 config GE_FPGA
 	bool
-	default n
 
 config FSL_CORENET_RCPM
 	bool

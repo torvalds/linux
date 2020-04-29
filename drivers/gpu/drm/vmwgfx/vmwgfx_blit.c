@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2017 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2017 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -458,9 +459,9 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 
 	/* Buffer objects need to be either pinned or reserved: */
 	if (!(dst->mem.placement & TTM_PL_FLAG_NO_EVICT))
-		lockdep_assert_held(&dst->resv->lock.base);
+		dma_resv_assert_held(dst->base.resv);
 	if (!(src->mem.placement & TTM_PL_FLAG_NO_EVICT))
-		lockdep_assert_held(&src->resv->lock.base);
+		dma_resv_assert_held(src->base.resv);
 
 	if (dst->ttm->state == tt_unpopulated) {
 		ret = dst->ttm->bdev->driver->ttm_tt_populate(dst->ttm, &ctx);

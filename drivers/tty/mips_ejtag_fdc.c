@@ -243,6 +243,7 @@ done:
 		/* Fall back to a 3 byte encoding */
 		word.bytes = 3;
 		word.word &= 0x00ffffff;
+		/* Fall through */
 	case 3:
 		/* 3 byte encoding */
 		word.word |= 0x82000000;
@@ -898,7 +899,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	atomic_set(&priv->xmit_total, 0);
 	raw_spin_lock_init(&priv->lock);
 
-	priv->reg = devm_ioremap_nocache(priv->dev, dev->res.start,
+	priv->reg = devm_ioremap(priv->dev, dev->res.start,
 					 resource_size(&dev->res));
 	if (!priv->reg) {
 		dev_err(priv->dev, "ioremap failed for resource %pR\n",

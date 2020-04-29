@@ -37,7 +37,8 @@
 #include <linux/mlx5/driver.h>
 
 #define MLX5_INVALID_LKEY	0x100
-#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
+/* UMR (3 WQE_BB's) + SIG (3 WQE_BB's) + PSV (mem) + PSV (wire) */
+#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 8)
 #define MLX5_DIF_SIZE		8
 #define MLX5_STRIDE_BLOCK_OP	0x400
 #define MLX5_CPY_GRD_MASK	0xc0
@@ -70,6 +71,7 @@ enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_CQN_RCV			= 1 << 19,
 	MLX5_QP_OPTPAR_DC_HS			= 1 << 20,
 	MLX5_QP_OPTPAR_DC_KEY			= 1 << 21,
+	MLX5_QP_OPTPAR_COUNTER_SET_ID		= 1 << 25,
 };
 
 enum mlx5_qp_state {
@@ -202,7 +204,12 @@ struct mlx5_wqe_ctrl_seg {
 	u8			signature;
 	u8			rsvd[2];
 	u8			fm_ce_se;
-	__be32			imm;
+	union {
+		__be32		general_id;
+		__be32		imm;
+		__be32		umr_mkey;
+		__be32		tisn;
+	};
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
@@ -395,6 +402,7 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
+	__be32	data[0];
 };
 
 enum mlx5_sig_type {
@@ -471,6 +479,7 @@ struct mlx5_core_qp {
 	int			qpn;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
+	u16			uid;
 };
 
 struct mlx5_core_dct {
@@ -549,14 +558,10 @@ static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u
 	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
 }
 
-static inline struct mlx5_core_mkey *__mlx5_mr_lookup(struct mlx5_core_dev *dev, u32 key)
-{
-	return radix_tree_lookup(&dev->priv.mkey_table.tree, key);
-}
-
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *qp,
-			 u32 *in, int inlen);
+			 u32 *in, int inlen,
+			 u32 *out, int outlen);
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			u32 *in,
@@ -594,6 +599,11 @@ int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
 int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
 int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 			      int reset, void *out, int out_size);
+
+struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
+						int res_num,
+						enum mlx5_res_type res_type);
+void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_PSW_H
-
+#define _PARISC_PSW_H
 
 #define	PSW_I	0x00000001
 #define	PSW_D	0x00000002

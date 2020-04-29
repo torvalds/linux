@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2016 Linaro Ltd.
  * Copyright 2016 ZTE Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef __ZX_VOU_H__
@@ -62,6 +58,7 @@ void zx_vou_config_dividers(struct drm_crtc *crtc,
 			    struct vou_div_config *configs, int num);
 
 void zx_vou_layer_enable(struct drm_plane *plane);
-void zx_vou_layer_disable(struct drm_plane *plane);
+void zx_vou_layer_disable(struct drm_plane *plane,
+			  struct drm_plane_state *old_state);
 
 #endif /* __ZX_VOU_H__ */

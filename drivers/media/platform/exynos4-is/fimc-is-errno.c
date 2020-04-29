@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung Exynos4 SoC series FIMC-IS slave interface driver
  *
@@ -7,10 +8,6 @@
  *
  * Authors: Younghwan Joo <yhwan.joo@samsung.com>
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "fimc-is-errno.h"
@@ -90,8 +87,8 @@ const char *fimc_is_param_strerr(unsigned int error)
 		return "ERROR_SENSOR_INVALID_SIZE";
 	case ERROR_SENSOR_INVALID_SETTING:
 		return "ERROR_SENSOR_INVALID_SETTING";
-	case ERROR_SENSOR_ACTURATOR_INIT_FAIL:
-		return "ERROR_SENSOR_ACTURATOR_INIT_FAIL";
+	case ERROR_SENSOR_ACTUATOR_INIT_FAIL:
+		return "ERROR_SENSOR_ACTUATOR_INIT_FAIL";
 	case ERROR_SENSOR_INVALID_AF_POS:
 		return "ERROR_SENSOR_INVALID_AF_POS";
 	case ERROR_SENSOR_UNSUPPORT_FUNC:

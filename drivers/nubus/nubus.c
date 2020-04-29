@@ -163,7 +163,7 @@ unsigned char *nubus_dirptr(const struct nubus_dirent *nd)
 void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
 			unsigned int len)
 {
-	unsigned char *t = (unsigned char *)dest;
+	unsigned char *t = dest;
 	unsigned char *p = nubus_dirptr(dirent);
 
 	while (len) {
@@ -875,7 +875,7 @@ static int __init nubus_init(void)
 		return 0;
 
 	nubus_proc_init();
-	err = nubus_bus_register();
+	err = nubus_parent_device_register();
 	if (err)
 		return err;
 	nubus_scan_bus();

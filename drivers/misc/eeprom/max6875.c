@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max6875.c - driver for MAX6874/MAX6875
  *
@@ -20,10 +21,6 @@
  *
  * Note that the MAX6875 uses i2c_smbus_write_byte_data() to set the read
  * address, so this driver is destructive if loaded for the wrong EEPROM chip.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/kernel.h>
@@ -148,13 +145,14 @@ static int max6875_probe(struct i2c_client *client,
 	if (client->addr & 1)
 		return -ENODEV;
 
-	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
+	data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	/* A fake client is created on the odd address */
-	data->fake_client = i2c_new_dummy(client->adapter, client->addr + 1);
-	if (!data->fake_client) {
-		err = -ENOMEM;
+	data->fake_client = i2c_new_dummy_device(client->adapter, client->addr + 1);
+	if (IS_ERR(data->fake_client)) {
+		err = PTR_ERR(data->fake_client);
 		goto exit_kfree;
 	}
 

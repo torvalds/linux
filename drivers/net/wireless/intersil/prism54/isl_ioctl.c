@@ -1691,6 +1691,7 @@ static int prism54_get_encodeext(struct net_device *ndev,
 	case DOT11_AUTH_BOTH:
 	case DOT11_AUTH_SK:
 		wrqu->encoding.flags |= IW_ENCODE_RESTRICTED;
+		/* fall through */
 	case DOT11_AUTH_OS:
 	default:
 		wrqu->encoding.flags |= IW_ENCODE_OPEN;

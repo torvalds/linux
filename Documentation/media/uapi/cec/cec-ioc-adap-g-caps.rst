@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _CEC_ADAP_G_CAPS:
 
@@ -128,8 +135,12 @@ returns the information to the application. The ioctl never fails.
       - The CEC hardware can monitor CEC pin changes from low to high voltage
         and vice versa. When in pin monitoring mode the application will
 	receive ``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events.
+    * .. _`CEC-CAP-CONNECTOR-INFO`:
 
-
+      - ``CEC_CAP_CONNECTOR_INFO``
+      - 0x00000100
+      - If this capability is set, then :ref:`CEC_ADAP_G_CONNECTOR_INFO` can
+        be used.
 
 Return Value
 ============

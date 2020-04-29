@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _audio_data_types:
 
@@ -114,40 +121,3 @@ following bits set according to the hardwares capabilities.
      #define AUDIO_CAP_OGG   64
      #define AUDIO_CAP_SDDS 128
      #define AUDIO_CAP_AC3  256
-
-.. c:type:: audio_karaoke
-
-The ioctl AUDIO_SET_KARAOKE uses the following format:
-
-
-.. code-block:: c
-
-    typedef
-    struct audio_karaoke {
-	int vocal1;
-	int vocal2;
-	int melody;
-    } audio_karaoke_t;
-
-If Vocal1 or Vocal2 are non-zero, they get mixed into left and right t
-at 70% each. If both, Vocal1 and Vocal2 are non-zero, Vocal1 gets mixed
-into the left channel and Vocal2 into the right channel at 100% each. Ff
-Melody is non-zero, the melody channel gets mixed into left and right.
-
-
-.. c:type:: audio_attributes
-
-The following attributes can be set by a call to AUDIO_SET_ATTRIBUTES:
-
-
-.. code-block:: c
-
-     typedef uint16_t audio_attributes_t;
-     /*   bits: descr. */
-     /*   15-13 audio coding mode (0=ac3, 2=mpeg1, 3=mpeg2ext, 4=LPCM, 6=DTS, */
-     /*   12    multichannel extension */
-     /*   11-10 audio type (0=not spec, 1=language included) */
-     /*    9- 8 audio application mode (0=not spec, 1=karaoke, 2=surround) */
-     /*    7- 6 Quantization / DRC (mpeg audio: 1=DRC exists)(lpcm: 0=16bit,  */
-     /*    5- 4 Sample frequency fs (0=48kHz, 1=96kHz) */
-     /*    2- 0 number of audio channels (n+1 channels) */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * multipath.c : Multiple Devices driver for Linux
  *
@@ -8,15 +9,6 @@
  * MULTIPATH management functions.
  *
  * derived from raid1.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/blkdev.h>
@@ -80,7 +72,7 @@ static void multipath_end_bh_io(struct multipath_bh *mp_bh, blk_status_t status)
 
 	bio->bi_status = status;
 	bio_endio(bio);
-	mempool_free(mp_bh, conf->pool);
+	mempool_free(mp_bh, &conf->pool);
 }
 
 static void multipath_end_request(struct bio *bio)
@@ -112,12 +104,11 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
-	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
-		md_flush_request(mddev, bio);
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)
+	    && md_flush_request(mddev, bio))
 		return true;
-	}
 
-	mp_bh = mempool_alloc(conf->pool, GFP_NOIO);
+	mp_bh = mempool_alloc(&conf->pool, GFP_NOIO);
 
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
@@ -125,7 +116,7 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	mp_bh->path = multipath_map(conf);
 	if (mp_bh->path < 0) {
 		bio_io_error(bio);
-		mempool_free(mp_bh, conf->pool);
+		mempool_free(mp_bh, &conf->pool);
 		return true;
 	}
 	multipath = conf->multipaths + mp_bh->path;
@@ -378,6 +369,7 @@ static int multipath_run (struct mddev *mddev)
 	struct multipath_info *disk;
 	struct md_rdev *rdev;
 	int working_disks;
+	int ret;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -398,7 +390,8 @@ static int multipath_run (struct mddev *mddev)
 	if (!conf)
 		goto out;
 
-	conf->multipaths = kzalloc(sizeof(struct multipath_info)*mddev->raid_disks,
+	conf->multipaths = kcalloc(mddev->raid_disks,
+				   sizeof(struct multipath_info),
 				   GFP_KERNEL);
 	if (!conf->multipaths)
 		goto out_free_conf;
@@ -431,9 +424,9 @@ static int multipath_run (struct mddev *mddev)
 	}
 	mddev->degraded = conf->raid_disks - working_disks;
 
-	conf->pool = mempool_create_kmalloc_pool(NR_RESERVED_BUFS,
-						 sizeof(struct multipath_bh));
-	if (conf->pool == NULL)
+	ret = mempool_init_kmalloc_pool(&conf->pool, NR_RESERVED_BUFS,
+					sizeof(struct multipath_bh));
+	if (ret)
 		goto out_free_conf;
 
 	mddev->thread = md_register_thread(multipathd, mddev,
@@ -455,7 +448,7 @@ static int multipath_run (struct mddev *mddev)
 	return 0;
 
 out_free_conf:
-	mempool_destroy(conf->pool);
+	mempool_exit(&conf->pool);
 	kfree(conf->multipaths);
 	kfree(conf);
 	mddev->private = NULL;
@@ -467,7 +460,7 @@ static void multipath_free(struct mddev *mddev, void *priv)
 {
 	struct mpconf *conf = priv;
 
-	mempool_destroy(conf->pool);
+	mempool_exit(&conf->pool);
 	kfree(conf->multipaths);
 	kfree(conf);
 }

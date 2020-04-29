@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics uvis25 i2c driver
  *
  * Copyright 2017 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>

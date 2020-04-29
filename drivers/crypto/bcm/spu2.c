@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 /*
@@ -49,21 +38,21 @@ enum spu2_proto_sel {
 	SPU2_DTLS_AEAD = 10
 };
 
-char *spu2_cipher_type_names[] = { "None", "AES128", "AES192", "AES256",
+static char *spu2_cipher_type_names[] = { "None", "AES128", "AES192", "AES256",
 	"DES", "3DES"
 };
 
-char *spu2_cipher_mode_names[] = { "ECB", "CBC", "CTR", "CFB", "OFB", "XTS",
-	"CCM", "GCM"
+static char *spu2_cipher_mode_names[] = { "ECB", "CBC", "CTR", "CFB", "OFB",
+	"XTS", "CCM", "GCM"
 };
 
-char *spu2_hash_type_names[] = { "None", "AES128", "AES192", "AES256",
+static char *spu2_hash_type_names[] = { "None", "AES128", "AES192", "AES256",
 	"Reserved", "Reserved", "MD5", "SHA1", "SHA224", "SHA256", "SHA384",
 	"SHA512", "SHA512/224", "SHA512/256", "SHA3-224", "SHA3-256",
 	"SHA3-384", "SHA3-512"
 };
 
-char *spu2_hash_mode_names[] = { "CMAC", "CBC-MAC", "XCBC-MAC", "HMAC",
+static char *spu2_hash_mode_names[] = { "CMAC", "CBC-MAC", "XCBC-MAC", "HMAC",
 	"Rabin", "CCM", "GCM", "Reserved"
 };
 
@@ -553,7 +542,7 @@ void spu2_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 /**
  * spu2_fmd_init() - At setkey time, initialize the fixed meta data for
- * subsequent ablkcipher requests for this context.
+ * subsequent skcipher requests for this context.
  * @spu2_cipher_type:  Cipher algorithm
  * @spu2_mode:         Cipher mode
  * @cipher_key_len:    Length of cipher key, in bytes
@@ -1118,13 +1107,13 @@ u32 spu2_create_request(u8 *spu_hdr,
 }
 
 /**
- * spu_cipher_req_init() - Build an ablkcipher SPU2 request message header,
+ * spu_cipher_req_init() - Build an skcipher SPU2 request message header,
  * including FMD and OMD.
  * @spu_hdr:       Location of start of SPU request (FMD field)
  * @cipher_parms:  Parameters describing cipher request
  *
  * Called at setkey time to initialize a msg header that can be reused for all
- * subsequent ablkcipher requests. Construct the message starting at spu_hdr.
+ * subsequent skcipher requests. Construct the message starting at spu_hdr.
  * Caller should allocate this buffer in DMA-able memory at least
  * SPU_HEADER_ALLOC_LEN bytes long.
  *

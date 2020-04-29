@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * Copyright (C) 2012 Regents of the University of California
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _ASM_RISCV_ELF_H
@@ -15,9 +11,6 @@
 #include <uapi/asm/elf.h>
 #include <asm/auxvec.h>
 #include <asm/byteorder.h>
-
-/* TODO: Move definition into include/uapi/linux/elf-em.h */
-#define EM_RISCV	0xF3
 
 /*
  * These are used to set parameters in the core dumps.
@@ -30,13 +23,7 @@
 #define ELF_CLASS	ELFCLASS32
 #endif
 
-#if defined(__LITTLE_ENDIAN)
 #define ELF_DATA	ELFDATA2LSB
-#elif defined(__BIG_ENDIAN)
-#define ELF_DATA	ELFDATA2MSB
-#else
-#error "Unknown endianness"
-#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -69,16 +56,16 @@ extern unsigned long elf_hwcap;
  */
 #define ELF_PLATFORM	(NULL)
 
+#ifdef CONFIG_MMU
 #define ARCH_DLINFO						\
 do {								\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
 		(elf_addr_t)current->mm->context.vdso);		\
 } while (0)
-
-
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 	int uses_interp);
+#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_ELF_H */

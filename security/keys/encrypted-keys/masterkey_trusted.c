@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 IBM Corporation
  * Copyright (C) 2010 Politecnico di Torino, Italy
@@ -7,15 +8,10 @@
  * Mimi Zohar <zohar@us.ibm.com>
  * Roberto Sassu <roberto.sassu@polito.it>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
  * See Documentation/security/keys/trusted-encrypted.rst
  */
 
 #include <linux/uaccess.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <keys/trusted-type.h>
 #include <keys/encrypted-type.h>

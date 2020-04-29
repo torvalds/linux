@@ -129,8 +129,8 @@ int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
 	/* Stats update for compression requests submitted */
 	atomic64_inc(&zip_dev->stats.comp_req_submit);
 
-	while (!result_ptr->s.compcode)
-		continue;
+	/* Wait for completion or error */
+	zip_poll_result(result_ptr);
 
 	/* Stats update for compression requests completed */
 	atomic64_inc(&zip_dev->stats.comp_req_complete);

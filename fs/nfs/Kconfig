@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NFS_FS
 	tristate "NFS client support"
 	depends on INET && FILE_LOCKING && MULTIUSER
@@ -89,7 +90,7 @@ config NFS_V4
 config NFS_SWAP
 	bool "Provide swap over NFS support"
 	default n
-	depends on NFS_FS
+	depends on NFS_FS && SWAP
 	select SUNRPC_SWAP
 	help
 	  This option enables swapon to work on files located on NFS mounts.
@@ -121,7 +122,6 @@ config PNFS_FILE_LAYOUT
 config PNFS_BLOCK
 	tristate
 	depends on NFS_V4_1 && BLK_DEV_DM
-	depends on 64BIT || LBDAF
 	default NFS_V4
 
 config PNFS_FLEXFILE_LAYOUT
@@ -164,7 +164,7 @@ config ROOT_NFS
 	  If you want your system to mount its root file system via NFS,
 	  choose Y here.  This is common practice for managing systems
 	  without local permanent storage.  For details, read
-	  <file:Documentation/filesystems/nfs/nfsroot.txt>.
+	  <file:Documentation/admin-guide/nfs/nfsroot.rst>.
 
 	  Most people say N here.
 
@@ -196,3 +196,12 @@ config NFS_DEBUG
 	depends on NFS_FS && SUNRPC_DEBUG
 	select CRC32
 	default y
+
+config NFS_DISABLE_UDP_SUPPORT
+       bool "NFS: Disable NFS UDP protocol support"
+       depends on NFS_FS
+       default y
+       help
+	 Choose Y here to disable the use of NFS over UDP. NFS over UDP
+	 on modern networks (1Gb+) can lead to data corruption caused by
+	 fragmentation during high loads.

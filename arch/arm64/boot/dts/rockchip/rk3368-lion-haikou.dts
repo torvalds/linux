@@ -83,12 +83,6 @@
 	status = "okay";
 };
 
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
-	status = "okay";
-};
-
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";
@@ -113,34 +107,34 @@
 		haikou_pin_hog: haikou-pin-hog {
 			rockchip,pins =
 				/* LID_BTN */
-				<RK_GPIO3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
 				/* BATLOW# */
-				<RK_GPIO0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up>,
 				/* SLP_BTN# */
-				<RK_GPIO3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
 				/* BIOS_DISABLE# */
-				<RK_GPIO3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+				<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	leds {
 		led_sd_haikou: led-sd-gpio {
 			rockchip,pins =
-				<RK_GPIO0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_cd_gpio: sdmmc-cd-gpio {
 			rockchip,pins =
-				<RK_GPIO2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-				<RK_GPIO0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

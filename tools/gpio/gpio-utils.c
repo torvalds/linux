@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO tools - helpers library for the GPIO tools
  *
  * Copyright (C) 2015 Linus Walleij
  * Copyright (C) 2016 Bamvor Jian Zhang
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <unistd.h>
@@ -20,7 +17,7 @@
 #include <linux/gpio.h>
 #include "gpio-utils.h"
 
-#define COMSUMER "gpio-utils"
+#define CONSUMER "gpio-utils"
 
 /**
  * doc: Operation of gpio
@@ -212,7 +209,7 @@ int gpiotools_gets(const char *device_name, unsigned int *lines,
 
 	ret = gpiotools_request_linehandle(device_name, lines, nlines,
 					   GPIOHANDLE_REQUEST_INPUT, data,
-					   COMSUMER);
+					   CONSUMER);
 	if (ret < 0)
 		return ret;
 
@@ -262,7 +259,7 @@ int gpiotools_sets(const char *device_name, unsigned int *lines,
 
 	ret = gpiotools_request_linehandle(device_name, lines, nlines,
 					   GPIOHANDLE_REQUEST_OUTPUT, data,
-					   COMSUMER);
+					   CONSUMER);
 	if (ret < 0)
 		return ret;
 

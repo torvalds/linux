@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FANOTIFY
 	bool "Filesystem wide access notification"
 	select FSNOTIFY
-	select ANON_INODES
+	select EXPORTFS
 	default n
 	---help---
 	   Say Y here to enable fanotify support.  fanotify is a file access

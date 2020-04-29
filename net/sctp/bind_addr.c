@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2003
  * Copyright (c) Cisco 1999,2000
@@ -7,22 +8,6 @@
  * This file is part of the SCTP kernel implementation.
  *
  * A collection class to handle the storage of transport addresses.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -337,6 +322,34 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	return match;
 }
 
+int sctp_bind_addrs_check(struct sctp_sock *sp,
+			  struct sctp_sock *sp2, int cnt2)
+{
+	struct sctp_bind_addr *bp2 = &sp2->ep->base.bind_addr;
+	struct sctp_bind_addr *bp = &sp->ep->base.bind_addr;
+	struct sctp_sockaddr_entry *laddr, *laddr2;
+	bool exist = false;
+	int cnt = 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		list_for_each_entry_rcu(laddr2, &bp2->address_list, list) {
+			if (sp->pf->af->cmp_addr(&laddr->a, &laddr2->a) &&
+			    laddr->valid && laddr2->valid) {
+				exist = true;
+				goto next;
+			}
+		}
+		cnt = 0;
+		break;
+next:
+		cnt++;
+	}
+	rcu_read_unlock();
+
+	return (cnt == cnt2) ? 0 : (exist ? -EEXIST : 1);
+}
+
 /* Does the address 'addr' conflict with any addresses in
  * the bp.
  */
@@ -380,24 +393,19 @@ int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 {
 	struct sctp_sockaddr_entry *laddr;
 	struct sctp_af *af;
-	int state = -1;
 
 	af = sctp_get_af_specific(addr->sa.sa_family);
 	if (unlikely(!af))
-		return state;
+		return -1;
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 		if (!laddr->valid)
 			continue;
-		if (af->cmp_addr(&laddr->a, addr)) {
-			state = laddr->state;
-			break;
-		}
+		if (af->cmp_addr(&laddr->a, addr))
+			return laddr->state;
 	}
-	rcu_read_unlock();
 
-	return state;
+	return -1;
 }
 
 /* Find the first address in the bind address list that is not present in

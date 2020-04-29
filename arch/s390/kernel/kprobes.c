@@ -27,49 +27,39 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 
-DEFINE_INSN_CACHE_OPS(dmainsn);
+DEFINE_INSN_CACHE_OPS(s390_insn);
 
-static void *alloc_dmainsn_page(void)
+static int insn_page_in_use;
+static char insn_page[PAGE_SIZE] __aligned(PAGE_SIZE);
+
+static void *alloc_s390_insn_page(void)
 {
-	void *page;
-
-	page = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
-	if (page)
-		set_memory_x((unsigned long) page, 1);
-	return page;
+	if (xchg(&insn_page_in_use, 1) == 1)
+		return NULL;
+	set_memory_x((unsigned long) &insn_page, 1);
+	return &insn_page;
 }
 
-static void free_dmainsn_page(void *page)
+static void free_s390_insn_page(void *page)
 {
 	set_memory_nx((unsigned long) page, 1);
-	free_page((unsigned long)page);
+	xchg(&insn_page_in_use, 0);
 }
 
-struct kprobe_insn_cache kprobe_dmainsn_slots = {
-	.mutex = __MUTEX_INITIALIZER(kprobe_dmainsn_slots.mutex),
-	.alloc = alloc_dmainsn_page,
-	.free = free_dmainsn_page,
-	.pages = LIST_HEAD_INIT(kprobe_dmainsn_slots.pages),
+struct kprobe_insn_cache kprobe_s390_insn_slots = {
+	.mutex = __MUTEX_INITIALIZER(kprobe_s390_insn_slots.mutex),
+	.alloc = alloc_s390_insn_page,
+	.free = free_s390_insn_page,
+	.pages = LIST_HEAD_INIT(kprobe_s390_insn_slots.pages),
 	.insn_size = MAX_INSN_SIZE,
 };
 
 static void copy_instruction(struct kprobe *p)
 {
-	unsigned long ip = (unsigned long) p->addr;
 	s64 disp, new_disp;
 	u64 addr, new_addr;
 
-	if (ftrace_location(ip) == ip) {
-		/*
-		 * If kprobes patches the instruction that is morphed by
-		 * ftrace make sure that kprobes always sees the branch
-		 * "jg .+24" that skips the mcount block or the "brcl 0,0"
-		 * in case of hotpatch.
-		 */
-		ftrace_generate_nop_insn((struct ftrace_insn *)p->ainsn.insn);
-		p->ainsn.is_ftrace_insn = 1;
-	} else
-		memcpy(p->ainsn.insn, p->addr, insn_length(*p->addr >> 8));
+	memcpy(p->ainsn.insn, p->addr, insn_length(*p->addr >> 8));
 	p->opcode = p->ainsn.insn[0];
 	if (!probe_is_insn_relative_long(p->ainsn.insn))
 		return;
@@ -102,7 +92,7 @@ static int s390_get_insn_slot(struct kprobe *p)
 	 */
 	p->ainsn.insn = NULL;
 	if (is_kernel_addr(p->addr))
-		p->ainsn.insn = get_dmainsn_slot();
+		p->ainsn.insn = get_s390_insn_slot();
 	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
 	return p->ainsn.insn ? 0 : -ENOMEM;
@@ -114,7 +104,7 @@ static void s390_free_insn_slot(struct kprobe *p)
 	if (!p->ainsn.insn)
 		return;
 	if (is_kernel_addr(p->addr))
-		free_dmainsn_slot(p->ainsn.insn, 0);
+		free_s390_insn_slot(p->ainsn.insn, 0);
 	else
 		free_insn_slot(p->ainsn.insn, 0);
 	p->ainsn.insn = NULL;
@@ -135,11 +125,6 @@ int arch_prepare_kprobe(struct kprobe *p)
 }
 NOKPROBE_SYMBOL(arch_prepare_kprobe);
 
-int arch_check_ftrace_location(struct kprobe *p)
-{
-	return 0;
-}
-
 struct swap_insn_args {
 	struct kprobe *p;
 	unsigned int arm_kprobe : 1;
@@ -148,28 +133,11 @@ struct swap_insn_args {
 static int swap_instruction(void *data)
 {
 	struct swap_insn_args *args = data;
-	struct ftrace_insn new_insn, *insn;
 	struct kprobe *p = args->p;
-	size_t len;
+	u16 opc;
 
-	new_insn.opc = args->arm_kprobe ? BREAKPOINT_INSTRUCTION : p->opcode;
-	len = sizeof(new_insn.opc);
-	if (!p->ainsn.is_ftrace_insn)
-		goto skip_ftrace;
-	len = sizeof(new_insn);
-	insn = (struct ftrace_insn *) p->addr;
-	if (args->arm_kprobe) {
-		if (is_ftrace_nop(insn))
-			new_insn.disp = KPROBE_ON_FTRACE_NOP;
-		else
-			new_insn.disp = KPROBE_ON_FTRACE_CALL;
-	} else {
-		ftrace_generate_call_insn(&new_insn, (unsigned long)p->addr);
-		if (insn->disp == KPROBE_ON_FTRACE_NOP)
-			ftrace_generate_nop_insn(&new_insn);
-	}
-skip_ftrace:
-	s390_kernel_write(p->addr, &new_insn, len);
+	opc = args->arm_kprobe ? BREAKPOINT_INSTRUCTION : p->opcode;
+	s390_kernel_write(p->addr, &opc, sizeof(opc));
 	return 0;
 }
 NOKPROBE_SYMBOL(swap_instruction);
@@ -321,38 +289,20 @@ static int kprobe_handler(struct pt_regs *regs)
 			 * If we have no pre-handler or it returned 0, we
 			 * continue with single stepping. If we have a
 			 * pre-handler and it returned non-zero, it prepped
-			 * for calling the break_handler below on re-entry
-			 * for jprobe processing, so get out doing nothing
-			 * more here.
+			 * for changing execution path, so get out doing
+			 * nothing more here.
 			 */
 			push_kprobe(kcb, p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-			if (p->pre_handler && p->pre_handler(p, regs))
+			if (p->pre_handler && p->pre_handler(p, regs)) {
+				pop_kprobe(kcb);
+				preempt_enable_no_resched();
 				return 1;
+			}
 			kcb->kprobe_status = KPROBE_HIT_SS;
 		}
 		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
 		return 1;
-	} else if (kprobe_running()) {
-		p = __this_cpu_read(current_kprobe);
-		if (p->break_handler && p->break_handler(p, regs)) {
-			/*
-			 * Continuation after the jprobe completed and
-			 * caused the jprobe_return trap. The jprobe
-			 * break_handler "returns" to the original
-			 * function that still has the kprobe breakpoint
-			 * installed. We continue with single stepping.
-			 */
-			kcb->kprobe_status = KPROBE_HIT_SS;
-			enable_singlestep(kcb, regs,
-					  (unsigned long) p->ainsn.insn);
-			return 1;
-		} /* else:
-		   * No kprobe at this address and the current kprobe
-		   * has no break handler (no jprobe!). The kernel just
-		   * exploded, let the standard trap handler pick up the
-		   * pieces.
-		   */
 	} /* else:
 	   * No kprobe at this address and no active kprobe. The trap has
 	   * not been caused by a kprobe breakpoint. The race of breakpoint
@@ -452,9 +402,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 
 	regs->psw.addr = orig_ret_address;
 
-	pop_kprobe(get_kprobe_ctlblk());
 	kretprobe_hash_unlock(current, &flags);
-	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
@@ -482,24 +430,6 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long ip = regs->psw.addr;
 	int fixup = probe_get_fixup_type(p->ainsn.insn);
-
-	/* Check if the kprobes location is an enabled ftrace caller */
-	if (p->ainsn.is_ftrace_insn) {
-		struct ftrace_insn *insn = (struct ftrace_insn *) p->addr;
-		struct ftrace_insn call_insn;
-
-		ftrace_generate_call_insn(&call_insn, (unsigned long) p->addr);
-		/*
-		 * A kprobe on an enabled ftrace call site actually single
-		 * stepped an unconditional branch (ftrace nop equivalent).
-		 * Now we need to fixup things and pretend that a brasl r0,...
-		 * was executed instead.
-		 */
-		if (insn->disp == KPROBE_ON_FTRACE_CALL) {
-			ip += call_insn.disp * 2 - MCOUNT_INSN_SIZE;
-			regs->gprs[0] = (unsigned long)p->addr + sizeof(*insn);
-		}
-	}
 
 	if (fixup & FIXUP_PSW_NORMAL)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
@@ -592,7 +522,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
-		entry = search_exception_tables(regs->psw.addr);
+		entry = s390_search_extables(regs->psw.addr);
 		if (entry) {
 			regs->psw.addr = extable_fixup(entry);
 			return 1;
@@ -660,60 +590,6 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 NOKPROBE_SYMBOL(kprobe_exceptions_notify);
-
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long stack;
-
-	memcpy(&kcb->jprobe_saved_regs, regs, sizeof(struct pt_regs));
-
-	/* setup return addr to the jprobe handler routine */
-	regs->psw.addr = (unsigned long) jp->entry;
-	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
-
-	/* r15 is the stack pointer */
-	stack = (unsigned long) regs->gprs[15];
-
-	memcpy(kcb->jprobes_stack, (void *) stack, MIN_STACK_SIZE(stack));
-
-	/*
-	 * jprobes use jprobe_return() which skips the normal return
-	 * path of the function, and this messes up the accounting of the
-	 * function graph tracer to get messed up.
-	 *
-	 * Pause function graph tracing while performing the jprobe function.
-	 */
-	pause_graph_tracing();
-	return 1;
-}
-NOKPROBE_SYMBOL(setjmp_pre_handler);
-
-void jprobe_return(void)
-{
-	asm volatile(".word 0x0002");
-}
-NOKPROBE_SYMBOL(jprobe_return);
-
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long stack;
-
-	/* It's OK to start function graph tracing again */
-	unpause_graph_tracing();
-
-	stack = (unsigned long) kcb->jprobe_saved_regs.gprs[15];
-
-	/* Put the regs back */
-	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
-	/* put the stack back */
-	memcpy((void *) stack, kcb->jprobes_stack, MIN_STACK_SIZE(stack));
-	preempt_enable_no_resched();
-	return 1;
-}
-NOKPROBE_SYMBOL(longjmp_break_handler);
 
 static struct kprobe trampoline = {
 	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,

@@ -92,7 +92,8 @@ static void *serial_get_stdout_devp(void)
 	if (devp == NULL)
 		goto err_out;
 
-	if (getprop(devp, "linux,stdout-path", path, MAX_PATH_LEN) > 0) {
+	if (getprop(devp, "linux,stdout-path", path, MAX_PATH_LEN) > 0 ||
+		getprop(devp, "stdout-path", path, MAX_PATH_LEN) > 0) {
 		devp = finddevice(path);
 		if (devp == NULL)
 			goto err_out;
@@ -120,10 +121,6 @@ int serial_console_init(void)
 	if (dt_is_compatible(devp, "ns16550") ||
 	    dt_is_compatible(devp, "pnpPNP,501"))
 		rc = ns16550_console_init(devp, &serial_cd);
-#ifdef CONFIG_EMBEDDED6xx
-	else if (dt_is_compatible(devp, "marvell,mv64360-mpsc"))
-		rc = mpsc_console_init(devp, &serial_cd);
-#endif
 #ifdef CONFIG_CPM
 	else if (dt_is_compatible(devp, "fsl,cpm1-scc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm1-smc-uart") ||

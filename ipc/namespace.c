@@ -42,7 +42,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 		goto fail;
 
 	err = -ENOMEM;
-	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
+	ns = kzalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
 	if (ns == NULL)
 		goto fail_dec;
 
@@ -55,28 +55,16 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 
-	err = sem_init_ns(ns);
-	if (err)
-		goto fail_put;
-	err = msg_init_ns(ns);
-	if (err)
-		goto fail_destroy_sem;
-	err = shm_init_ns(ns);
-	if (err)
-		goto fail_destroy_msg;
-
 	err = mq_init_ns(ns);
 	if (err)
-		goto fail_destroy_shm;
+		goto fail_put;
+
+	sem_init_ns(ns);
+	msg_init_ns(ns);
+	shm_init_ns(ns);
 
 	return ns;
 
-fail_destroy_shm:
-	shm_exit_ns(ns);
-fail_destroy_msg:
-	msg_exit_ns(ns);
-fail_destroy_sem:
-	sem_exit_ns(ns);
 fail_put:
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);

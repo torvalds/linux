@@ -147,7 +147,6 @@ static void enic_get_drvinfo(struct net_device *netdev,
 		return;
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, fw_info->fw_version,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(enic->pdev),
@@ -241,7 +240,7 @@ static int enic_set_ringparam(struct net_device *netdev,
 	}
 	enic_init_vnic_resources(enic);
 	if (running) {
-		err = dev_open(netdev);
+		err = dev_open(netdev, NULL);
 		if (err)
 			goto err_out;
 	}
@@ -323,25 +322,6 @@ static int enic_coalesce_valid(struct enic *enic,
 					   ec->rx_coalesce_usecs_high);
 	u32 rx_coalesce_usecs_low = min_t(u32, coalesce_usecs_max,
 					  ec->rx_coalesce_usecs_low);
-
-	if (ec->rx_max_coalesced_frames		||
-	    ec->rx_coalesce_usecs_irq		||
-	    ec->rx_max_coalesced_frames_irq	||
-	    ec->tx_max_coalesced_frames		||
-	    ec->tx_coalesce_usecs_irq		||
-	    ec->tx_max_coalesced_frames_irq	||
-	    ec->stats_block_coalesce_usecs	||
-	    ec->use_adaptive_tx_coalesce	||
-	    ec->pkt_rate_low			||
-	    ec->rx_max_coalesced_frames_low	||
-	    ec->tx_coalesce_usecs_low		||
-	    ec->tx_max_coalesced_frames_low	||
-	    ec->pkt_rate_high			||
-	    ec->rx_max_coalesced_frames_high	||
-	    ec->tx_coalesce_usecs_high		||
-	    ec->tx_max_coalesced_frames_high	||
-	    ec->rate_sample_interval)
-		return -EINVAL;
 
 	if ((vnic_dev_get_intr_mode(enic->vdev) != VNIC_DEV_INTR_MODE_MSIX) &&
 	    ec->tx_coalesce_usecs)
@@ -476,18 +456,28 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 
 static int enic_get_rx_flow_hash(struct enic *enic, struct ethtool_rxnfc *cmd)
 {
+	u8 rss_hash_type = 0;
 	cmd->data = 0;
 
+	spin_lock_bh(&enic->devcmd_lock);
+	(void)vnic_dev_capable_rss_hash_type(enic->vdev, &rss_hash_type);
+	spin_unlock_bh(&enic->devcmd_lock);
 	switch (cmd->flow_type) {
 	case TCP_V6_FLOW:
 	case TCP_V4_FLOW:
-		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+			     RXH_IP_SRC | RXH_IP_DST;
+		break;
 	case UDP_V6_FLOW:
-	case UDP_V4_FLOW:
-		if (vnic_dev_capable_udp_rss(enic->vdev))
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV6)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		break;
+	case UDP_V4_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV4)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
@@ -626,6 +616,10 @@ static int enic_get_ts_info(struct net_device *netdev,
 }
 
 static const struct ethtool_ops enic_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX |
+				     ETHTOOL_COALESCE_RX_USECS_LOW |
+				     ETHTOOL_COALESCE_RX_USECS_HIGH,
 	.get_drvinfo = enic_get_drvinfo,
 	.get_msglevel = enic_get_msglevel,
 	.set_msglevel = enic_set_msglevel,

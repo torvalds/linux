@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This code is derived from the VIA reference driver (copyright message
  * below) provided to Red Hat by VIA Networking Technologies, Inc. for
@@ -24,22 +25,11 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * This software may be redistributed and/or modified under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
- * for more details.
- *
  * Author: Chuang Liang-Shing, AJ Jiang
  *
  * Date: Jan 24, 2003
  *
  * MODULE_LICENSE("GPL");
- *
  */
 
 #include <linux/module.h>
@@ -1740,7 +1730,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
 				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 	tdinfo->skb = NULL;
 }
 
@@ -3267,12 +3257,16 @@ static struct platform_driver velocity_platform_driver = {
  *	@dev: network device
  *
  *	Called before an ethtool operation. We need to make sure the
- *	chip is out of D3 state before we poke at it.
+ *	chip is out of D3 state before we poke at it. In case of ethtool
+ *	ops nesting, only wake the device up in the outermost block.
  */
 static int velocity_ethtool_up(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	if (!netif_running(dev))
+
+	if (vptr->ethtool_ops_nesting == U32_MAX)
+		return -EBUSY;
+	if (!vptr->ethtool_ops_nesting++ && !netif_running(dev))
 		velocity_set_power_state(vptr, PCI_D0);
 	return 0;
 }
@@ -3282,12 +3276,14 @@ static int velocity_ethtool_up(struct net_device *dev)
  *	@dev: network device
  *
  *	Called after an ethtool operation. Restore the chip back to D3
- *	state if it isn't running.
+ *	state if it isn't running. In case of ethtool ops nesting, only
+ *	put the device to sleep in the outermost block.
  */
 static void velocity_ethtool_down(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	if (!netif_running(dev))
+
+	if (!--vptr->ethtool_ops_nesting && !netif_running(dev))
 		velocity_set_power_state(vptr, PCI_D3hot);
 }
 
@@ -3605,7 +3601,7 @@ static const char velocity_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_jumbo",
 	"rx_mac_control_frames",
 	"tx_mac_control_frames",
-	"rx_frame_alignement_errors",
+	"rx_frame_alignment_errors",
 	"rx_long_ok",
 	"rx_long_err",
 	"tx_sqe_errors",
@@ -3652,6 +3648,8 @@ static void velocity_get_ethtool_stats(struct net_device *dev,
 }
 
 static const struct ethtool_ops velocity_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo		= velocity_get_drvinfo,
 	.get_wol		= velocity_ethtool_get_wol,
 	.set_wol		= velocity_ethtool_set_wol,

@@ -18,6 +18,15 @@ struct ltdc_caps {
 	u32 bus_width;		/* bus width (32 or 64 bits) */
 	const u32 *pix_fmt_hw;	/* supported pixel formats */
 	bool non_alpha_only_l1; /* non-native no-alpha formats on layer 1 */
+	int pad_max_freq_hz;	/* max frequency supported by pad */
+	int nb_irq;		/* number of hardware interrupts */
+};
+
+#define LTDC_MAX_LAYER	4
+
+struct fps_info {
+	unsigned int counter;
+	ktime_t last_timestamp;
 };
 
 struct ltdc_device {
@@ -27,11 +36,13 @@ struct ltdc_device {
 	struct ltdc_caps caps;
 	u32 error_status;
 	u32 irq_status;
+	struct fps_info plane_fpsi[LTDC_MAX_LAYER];
+	struct drm_atomic_state *suspend_state;
 };
 
-int ltdc_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe);
-void ltdc_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe);
 int ltdc_load(struct drm_device *ddev);
 void ltdc_unload(struct drm_device *ddev);
+void ltdc_suspend(struct drm_device *ddev);
+int ltdc_resume(struct drm_device *ddev);
 
 #endif

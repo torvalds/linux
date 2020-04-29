@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #ifndef __BFA_H__
 #define __BFA_H__
@@ -62,8 +54,7 @@ void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1); \
 		writel((__bfa)->iocfc.req_cq_pi[__reqq],		\
 			(__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq]);	\
-		mmiowb();      \
-	} while (0)
+		} while (0)
 
 #define bfa_rspq_pi(__bfa, __rspq)					\
 	(*(u32 *)((__bfa)->iocfc.rsp_cq_shadow_pi[__rspq].kva))

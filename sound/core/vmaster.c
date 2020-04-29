@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Virtual master and slave controls
  *
  *  Copyright (c) 2008 by Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/slab.h>
@@ -259,8 +255,8 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
 	struct link_master *master_link = snd_kcontrol_chip(master);
 	struct link_slave *srec;
 
-	srec = kzalloc(sizeof(*srec) +
-		       slave->count * sizeof(*slave->vd), GFP_KERNEL);
+	srec = kzalloc(struct_size(srec, slave.vd, slave->count),
+		       GFP_KERNEL);
 	if (!srec)
 		return -ENOMEM;
 	srec->kctl = slave;
@@ -421,13 +417,15 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	kctl->private_free = master_free;
 
 	/* additional (constant) TLV read */
-	if (tlv &&
-	    (tlv[0] == SNDRV_CTL_TLVT_DB_SCALE ||
-	     tlv[0] == SNDRV_CTL_TLVT_DB_MINMAX ||
-	     tlv[0] == SNDRV_CTL_TLVT_DB_MINMAX_MUTE)) {
-		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		memcpy(master->tlv, tlv, sizeof(master->tlv));
-		kctl->tlv.p = master->tlv;
+	if (tlv) {
+		unsigned int type = tlv[SNDRV_CTL_TLVO_TYPE];
+		if (type == SNDRV_CTL_TLVT_DB_SCALE ||
+		    type == SNDRV_CTL_TLVT_DB_MINMAX ||
+		    type == SNDRV_CTL_TLVT_DB_MINMAX_MUTE) {
+			kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+			memcpy(master->tlv, tlv, sizeof(master->tlv));
+			kctl->tlv.p = master->tlv;
+		}
 	}
 
 	return kctl;

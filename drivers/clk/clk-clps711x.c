@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Cirrus Logic CLPS711X CLK driver
  *
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk-provider.h>
@@ -44,21 +40,21 @@ struct clps711x_clk {
 	struct clk_hw_onecell_data	clk_data;
 };
 
-static struct clps711x_clk * __init _clps711x_clk_init(void __iomem *base,
-						       u32 fref)
+static void __init clps711x_clk_init_dt(struct device_node *np)
 {
-	u32 tmp, f_cpu, f_pll, f_bus, f_tim, f_pwm, f_spi;
+	u32 tmp, f_cpu, f_pll, f_bus, f_tim, f_pwm, f_spi, fref = 0;
 	struct clps711x_clk *clps711x_clk;
-	unsigned i;
+	void __iomem *base;
 
-	if (!base)
-		return ERR_PTR(-ENOMEM);
+	WARN_ON(of_property_read_u32(np, "startup-frequency", &fref));
 
-	clps711x_clk = kzalloc(sizeof(*clps711x_clk) +
-			sizeof(*clps711x_clk->clk_data.hws) * CLPS711X_CLK_MAX,
-			GFP_KERNEL);
-	if (!clps711x_clk)
-		return ERR_PTR(-ENOMEM);
+	base = of_iomap(np, 0);
+	BUG_ON(!base);
+
+	clps711x_clk = kzalloc(struct_size(clps711x_clk, clk_data.hws,
+					   CLPS711X_CLK_MAX),
+			       GFP_KERNEL);
+	BUG_ON(!clps711x_clk);
 
 	spin_lock_init(&clps711x_clk->lock);
 
@@ -137,52 +133,13 @@ static struct clps711x_clk * __init _clps711x_clk_init(void __iomem *base,
 		clk_hw_register_fixed_factor(NULL, "uart", "bus", 0, 1, 10);
 	clps711x_clk->clk_data.hws[CLPS711X_CLK_TICK] =
 		clk_hw_register_fixed_rate(NULL, "tick", NULL, 0, 64);
-	for (i = 0; i < CLPS711X_CLK_MAX; i++)
-		if (IS_ERR(clps711x_clk->clk_data.hws[i]))
+	for (tmp = 0; tmp < CLPS711X_CLK_MAX; tmp++)
+		if (IS_ERR(clps711x_clk->clk_data.hws[tmp]))
 			pr_err("clk %i: register failed with %ld\n",
-			       i, PTR_ERR(clps711x_clk->clk_data.hws[i]));
-
-	return clps711x_clk;
-}
-
-void __init clps711x_clk_init(void __iomem *base)
-{
-	struct clps711x_clk *clps711x_clk;
-
-	clps711x_clk = _clps711x_clk_init(base, 73728000);
-
-	BUG_ON(IS_ERR(clps711x_clk));
-
-	/* Clocksource */
-	clk_hw_register_clkdev(clps711x_clk->clk_data.hws[CLPS711X_CLK_TIMER1],
-			    NULL, "clps711x-timer.0");
-	clk_hw_register_clkdev(clps711x_clk->clk_data.hws[CLPS711X_CLK_TIMER2],
-			    NULL, "clps711x-timer.1");
-
-	/* Drivers */
-	clk_hw_register_clkdev(clps711x_clk->clk_data.hws[CLPS711X_CLK_PWM],
-			    NULL, "clps711x-pwm");
-	clk_hw_register_clkdev(clps711x_clk->clk_data.hws[CLPS711X_CLK_UART],
-			    NULL, "clps711x-uart.0");
-	clk_hw_register_clkdev(clps711x_clk->clk_data.hws[CLPS711X_CLK_UART],
-			    NULL, "clps711x-uart.1");
-}
-
-#ifdef CONFIG_OF
-static void __init clps711x_clk_init_dt(struct device_node *np)
-{
-	void __iomem *base = of_iomap(np, 0);
-	struct clps711x_clk *clps711x_clk;
-	u32 fref = 0;
-
-	WARN_ON(of_property_read_u32(np, "startup-frequency", &fref));
-
-	clps711x_clk = _clps711x_clk_init(base, fref);
-	BUG_ON(IS_ERR(clps711x_clk));
+			       tmp, PTR_ERR(clps711x_clk->clk_data.hws[tmp]));
 
 	clps711x_clk->clk_data.num = CLPS711X_CLK_MAX;
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
 			       &clps711x_clk->clk_data);
 }
 CLK_OF_DECLARE(clps711x, "cirrus,ep7209-clk", clps711x_clk_init_dt);
-#endif

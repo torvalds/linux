@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2006 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _PSERIES_PSERIES_H
@@ -24,6 +20,7 @@ struct pt_regs;
 
 extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
+extern long pseries_machine_check_realmode(struct pt_regs *regs);
 
 #ifdef CONFIG_SMP
 extern void smp_init_pseries(void);
@@ -59,12 +56,18 @@ extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
 
-void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
-			 struct completion *hotplug_done, int *rc);
+void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog);
+int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_errlog);
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
+int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog);
 #else
 static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+static inline int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 {
 	return -EOPNOTSUPP;
 }
@@ -109,5 +112,6 @@ static inline unsigned long cmo_get_page_size(void)
 int dlpar_workqueue_init(void);
 
 void pseries_setup_rfi_flush(void);
+void pseries_lpar_read_hblkrm_characteristics(void);
 
 #endif /* _PSERIES_PSERIES_H */

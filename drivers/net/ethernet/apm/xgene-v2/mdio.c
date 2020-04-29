@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Applied Micro X-Gene SoC Ethernet v2 Driver
  *
  * Copyright (c) 2017, Applied Micro Circuits Corporation
  * Author(s): Iyappan Subramanian <isubramanian@apm.com>
  *	      Keyur Chudgar <kchudgar@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -109,6 +97,7 @@ void xge_mdio_remove(struct net_device *ndev)
 
 int xge_mdio_config(struct net_device *ndev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct xge_pdata *pdata = netdev_priv(ndev);
 	struct device *dev = &pdata->pdev->dev;
 	struct mii_bus *mdio_bus;
@@ -148,16 +137,17 @@ int xge_mdio_config(struct net_device *ndev)
 		goto err;
 	}
 
-	phydev->supported &= ~(SUPPORTED_10baseT_Half |
-			       SUPPORTED_10baseT_Full |
-			       SUPPORTED_100baseT_Half |
-			       SUPPORTED_100baseT_Full |
-			       SUPPORTED_1000baseT_Half |
-			       SUPPORTED_AUI |
-			       SUPPORTED_MII |
-			       SUPPORTED_FIBRE |
-			       SUPPORTED_BNC);
-	phydev->advertising = phydev->supported;
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_AUI_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_BNC_BIT, mask);
+
+	linkmode_andnot(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 	pdata->phy_speed = SPEED_UNKNOWN;
 
 	return 0;

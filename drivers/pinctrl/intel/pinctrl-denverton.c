@@ -1,25 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Denverton SoC pinctrl/GPIO driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
 
 #define DNV_PAD_OWN	0x020
-#define DNV_HOSTSW_OWN	0x0C0
 #define DNV_PADCFGLOCK	0x090
+#define DNV_HOSTSW_OWN	0x0C0
+#define DNV_GPI_IS	0x100
 #define DNV_GPI_IE	0x120
 
 #define DNV_GPP(n, s, e)				\
@@ -35,6 +33,7 @@
 		.padown_offset = DNV_PAD_OWN,		\
 		.padcfglock_offset = DNV_PADCFGLOCK,	\
 		.hostown_offset = DNV_HOSTSW_OWN,	\
+		.is_offset = DNV_GPI_IS,		\
 		.ie_offset = DNV_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
@@ -42,6 +41,7 @@
 		.ngpps = ARRAY_SIZE(g),			\
 	}
 
+/* Denverton */
 static const struct pinctrl_pin_desc dnv_pins[] = {
 	/* North ALL */
 	PINCTRL_PIN(0, "GBE0_SDP0"),
@@ -62,7 +62,7 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(15, "NCSI_CLK_IN"),
 	PINCTRL_PIN(16, "NCSI_RXD1"),
 	PINCTRL_PIN(17, "NCSI_CRS_DV"),
-	PINCTRL_PIN(18, "NCSI_ARB_IN"),
+	PINCTRL_PIN(18, "IDSLDO_VID_TICKLE"),
 	PINCTRL_PIN(19, "NCSI_TX_EN"),
 	PINCTRL_PIN(20, "NCSI_TXD0"),
 	PINCTRL_PIN(21, "NCSI_TXD1"),
@@ -71,14 +71,14 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(24, "GBE0_LED1"),
 	PINCTRL_PIN(25, "GBE1_LED0"),
 	PINCTRL_PIN(26, "GBE1_LED1"),
-	PINCTRL_PIN(27, "GPIO_0"),
+	PINCTRL_PIN(27, "SPARE_0"),
 	PINCTRL_PIN(28, "PCIE_CLKREQ0_N"),
 	PINCTRL_PIN(29, "PCIE_CLKREQ1_N"),
 	PINCTRL_PIN(30, "PCIE_CLKREQ2_N"),
 	PINCTRL_PIN(31, "PCIE_CLKREQ3_N"),
 	PINCTRL_PIN(32, "PCIE_CLKREQ4_N"),
-	PINCTRL_PIN(33, "GPIO_1"),
-	PINCTRL_PIN(34, "GPIO_2"),
+	PINCTRL_PIN(33, "GBE_MDC"),
+	PINCTRL_PIN(34, "GBE_MDIO"),
 	PINCTRL_PIN(35, "SVID_ALERT_N"),
 	PINCTRL_PIN(36, "SVID_DATA"),
 	PINCTRL_PIN(37, "SVID_CLK"),
@@ -105,15 +105,15 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(57, "DFX_PORT14"),
 	PINCTRL_PIN(58, "DFX_PORT15"),
 	/* South GPP0 */
-	PINCTRL_PIN(59, "GPIO_12"),
-	PINCTRL_PIN(60, "SMB5_GBE_ALRT_N"),
+	PINCTRL_PIN(59, "SPI_TPM_CS_N"),
+	PINCTRL_PIN(60, "UART2_CTS"),
 	PINCTRL_PIN(61, "PCIE_CLKREQ5_N"),
 	PINCTRL_PIN(62, "PCIE_CLKREQ6_N"),
 	PINCTRL_PIN(63, "PCIE_CLKREQ7_N"),
 	PINCTRL_PIN(64, "UART0_RXD"),
 	PINCTRL_PIN(65, "UART0_TXD"),
-	PINCTRL_PIN(66, "SMB5_GBE_CLK"),
-	PINCTRL_PIN(67, "SMB5_GBE_DATA"),
+	PINCTRL_PIN(66, "CPU_RESET_N"),
+	PINCTRL_PIN(67, "NMI"),
 	PINCTRL_PIN(68, "ERROR2_N"),
 	PINCTRL_PIN(69, "ERROR1_N"),
 	PINCTRL_PIN(70, "ERROR0_N"),
@@ -132,20 +132,20 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(83, "USB_OC0_N"),
 	PINCTRL_PIN(84, "FLEX_CLK_SE0"),
 	PINCTRL_PIN(85, "FLEX_CLK_SE1"),
-	PINCTRL_PIN(86, "GPIO_4"),
-	PINCTRL_PIN(87, "GPIO_5"),
-	PINCTRL_PIN(88, "GPIO_6"),
-	PINCTRL_PIN(89, "GPIO_7"),
+	PINCTRL_PIN(86, "SPARE_4"),
+	PINCTRL_PIN(87, "SMB3_IE0_CLK"),
+	PINCTRL_PIN(88, "SMB3_IE0_DATA"),
+	PINCTRL_PIN(89, "SMB3_IE0_ALRT_N"),
 	PINCTRL_PIN(90, "SATA0_LED_N"),
 	PINCTRL_PIN(91, "SATA1_LED_N"),
 	PINCTRL_PIN(92, "SATA_PDETECT0"),
 	PINCTRL_PIN(93, "SATA_PDETECT1"),
-	PINCTRL_PIN(94, "SATA0_SDOUT"),
-	PINCTRL_PIN(95, "SATA1_SDOUT"),
+	PINCTRL_PIN(94, "UART1_RTS"),
+	PINCTRL_PIN(95, "UART1_CTS"),
 	PINCTRL_PIN(96, "UART1_RXD"),
 	PINCTRL_PIN(97, "UART1_TXD"),
-	PINCTRL_PIN(98, "GPIO_8"),
-	PINCTRL_PIN(99, "GPIO_9"),
+	PINCTRL_PIN(98, "SPARE_8"),
+	PINCTRL_PIN(99, "SPARE_9"),
 	PINCTRL_PIN(100, "TCK"),
 	PINCTRL_PIN(101, "TRST_N"),
 	PINCTRL_PIN(102, "TMS"),
@@ -153,11 +153,11 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(104, "TDO"),
 	PINCTRL_PIN(105, "CX_PRDY_N"),
 	PINCTRL_PIN(106, "CX_PREQ_N"),
-	PINCTRL_PIN(107, "CTBTRIGINOUT"),
-	PINCTRL_PIN(108, "CTBTRIGOUT"),
-	PINCTRL_PIN(109, "DFX_SPARE2"),
-	PINCTRL_PIN(110, "DFX_SPARE3"),
-	PINCTRL_PIN(111, "DFX_SPARE4"),
+	PINCTRL_PIN(107, "TAP1_TCK"),
+	PINCTRL_PIN(108, "TAP1_TRST_N"),
+	PINCTRL_PIN(109, "TAP1_TMS"),
+	PINCTRL_PIN(110, "TAP1_TDI"),
+	PINCTRL_PIN(111, "TAP1_TDO"),
 	/* South GPP1 */
 	PINCTRL_PIN(112, "SUSPWRDNACK"),
 	PINCTRL_PIN(113, "PMU_SUSCLK"),
@@ -186,8 +186,8 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(136, "ESPI_CLK"),
 	PINCTRL_PIN(137, "ESPI_RST_N"),
 	PINCTRL_PIN(138, "ESPI_ALRT0_N"),
-	PINCTRL_PIN(139, "GPIO_10"),
-	PINCTRL_PIN(140, "GPIO_11"),
+	PINCTRL_PIN(139, "ESPI_CS1_N"),
+	PINCTRL_PIN(140, "ESPI_ALRT1_N"),
 	PINCTRL_PIN(141, "ESPI_CLK_LOOPBK"),
 	PINCTRL_PIN(142, "EMMC_CMD"),
 	PINCTRL_PIN(143, "EMMC_STROBE"),
@@ -200,7 +200,7 @@ static const struct pinctrl_pin_desc dnv_pins[] = {
 	PINCTRL_PIN(150, "EMMC_D5"),
 	PINCTRL_PIN(151, "EMMC_D6"),
 	PINCTRL_PIN(152, "EMMC_D7"),
-	PINCTRL_PIN(153, "GPIO_3"),
+	PINCTRL_PIN(153, "SPARE_3"),
 };
 
 static const unsigned int dnv_uart0_pins[] = { 60, 61, 64, 65 };
@@ -260,24 +260,16 @@ static const struct intel_pinctrl_soc_data dnv_soc_data = {
 	.ncommunities = ARRAY_SIZE(dnv_communities),
 };
 
-static int dnv_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe(pdev, &dnv_soc_data);
-}
-
-static const struct dev_pm_ops dnv_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(dnv_pinctrl_pm_ops);
 
 static const struct acpi_device_id dnv_pinctrl_acpi_match[] = {
-	{ "INTC3000" },
+	{ "INTC3000", (kernel_ulong_t)&dnv_soc_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dnv_pinctrl_acpi_match);
 
 static struct platform_driver dnv_pinctrl_driver = {
-	.probe = dnv_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "denverton-pinctrl",
 		.acpi_match_table = dnv_pinctrl_acpi_match,

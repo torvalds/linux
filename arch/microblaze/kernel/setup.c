@@ -27,13 +27,12 @@
 #include <linux/param.h>
 #include <linux/pci.h>
 #include <linux/cache.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/prom.h>
 #include <asm/pgtable.h>
 
 DEFINE_PER_CPU(unsigned int, KSP);	/* Saved kernel stack pointer */
@@ -42,7 +41,6 @@ DEFINE_PER_CPU(unsigned int, ENTRY_SP);	/* Saved SP on kernel entry */
 DEFINE_PER_CPU(unsigned int, R11_SAVE);	/* Temp variable for entry */
 DEFINE_PER_CPU(unsigned int, CURRENT_SAVE);	/* Saved current pointer */
 
-unsigned int boot_cpuid;
 /*
  * Placed cmd_line to .data section because can be initialized from
  * ASM code. Default position is BSS section which is cleared
@@ -54,6 +52,8 @@ void __init setup_arch(char **cmdline_p)
 {
 	*cmdline_p = boot_command_line;
 
+	setup_memory();
+
 	console_verbose();
 
 	unflatten_device_tree();
@@ -62,18 +62,7 @@ void __init setup_arch(char **cmdline_p)
 
 	microblaze_cache_init();
 
-	setup_memory();
-
-#ifdef CONFIG_EARLY_PRINTK
-	/* remap early console to virtual address */
-	remap_early_printk();
-#endif
-
 	xilinx_pci_init();
-
-#if defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
 }
 
 #ifdef CONFIG_MTD_UCLINUX
@@ -132,10 +121,6 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 
 /* initialize device tree for usage in early_printk */
 	early_init_devtree(_fdt_start);
-
-#ifdef CONFIG_EARLY_PRINTK
-	setup_early_printk(NULL);
-#endif
 
 	/* setup kernel_tlb after BSS cleaning
 	 * Maybe worth to move to asm code */
@@ -201,23 +186,14 @@ struct dentry *of_debugfs_root;
 static int microblaze_debugfs_init(void)
 {
 	of_debugfs_root = debugfs_create_dir("microblaze", NULL);
-
-	return of_debugfs_root == NULL;
+	return 0;
 }
 arch_initcall(microblaze_debugfs_init);
 
 # ifdef CONFIG_MMU
 static int __init debugfs_tlb(void)
 {
-	struct dentry *d;
-
-	if (!of_debugfs_root)
-		return -ENODEV;
-
-	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
-	if (!d)
-		return -ENOMEM;
-
+	debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
 	return 0;
 }
 device_initcall(debugfs_tlb);

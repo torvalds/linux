@@ -1,9 +1,5 @@
-/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 /* Kernel module implementing an IP set type: the hash:ip type */
 
@@ -30,7 +26,7 @@
 #define IPSET_TYPE_REV_MAX	4	/* skbinfo support  */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
 IP_SET_MODULE_DESC("hash:ip", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:ip");
 
@@ -48,7 +44,7 @@ struct hash_ip4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ip4_data_equal(const struct hash_ip4_elem *e1,
 		    const struct hash_ip4_elem *e2,
 		    u32 *multi)
@@ -67,7 +63,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ip4_data_next(struct hash_ip4_elem *next, const struct hash_ip4_elem *e)
 {
 	next->ip = e->ip;
@@ -175,7 +171,7 @@ struct hash_ip6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ip6_data_equal(const struct hash_ip6_elem *ip1,
 		    const struct hash_ip6_elem *ip2,
 		    u32 *multi)
@@ -183,7 +179,7 @@ hash_ip6_data_equal(const struct hash_ip6_elem *ip1,
 	return ipv6_addr_equal(&ip1->ip.in6, &ip2->ip.in6);
 }
 
-static inline void
+static void
 hash_ip6_netmask(union nf_inet_addr *ip, u8 prefix)
 {
 	ip6_netmask(ip, prefix);
@@ -200,7 +196,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ip6_data_next(struct hash_ip6_elem *next, const struct hash_ip6_elem *e)
 {
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common CPM code
  *
@@ -11,10 +12,6 @@
  * Copyright (c) 2000 MontaVista Software, Inc (source@mvista.com)
  * 2006 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
  */
 #include <linux/genalloc.h>
 #include <linux/init.h>
@@ -35,7 +32,7 @@ static phys_addr_t muram_pbase;
 
 struct muram_block {
 	struct list_head head;
-	unsigned long start;
+	s32 start;
 	int size;
 };
 
@@ -49,7 +46,7 @@ int cpm_muram_init(void)
 {
 	struct device_node *np;
 	struct resource r;
-	u32 zero[OF_MAX_ADDR_CELLS] = {};
+	__be32 zero[OF_MAX_ADDR_CELLS] = {};
 	resource_size_t max = 0;
 	int i = 0;
 	int ret = 0;
@@ -113,34 +110,30 @@ out_muram:
  * @algo: algorithm for alloc.
  * @data: data for genalloc's algorithm.
  *
- * This function returns an offset into the muram area.
+ * This function returns a non-negative offset into the muram area, or
+ * a negative errno on failure.
  */
-static unsigned long cpm_muram_alloc_common(unsigned long size,
-		genpool_algo_t algo, void *data)
+static s32 cpm_muram_alloc_common(unsigned long size,
+				  genpool_algo_t algo, void *data)
 {
 	struct muram_block *entry;
-	unsigned long start;
+	s32 start;
 
-	if (!muram_pool && cpm_muram_init())
-		goto out2;
-
-	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
-	if (!start)
-		goto out2;
-	start = start - GENPOOL_OFFSET;
-	memset_io(cpm_muram_addr(start), 0, size);
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
-		goto out1;
+		return -ENOMEM;
+	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
+	if (!start) {
+		kfree(entry);
+		return -ENOMEM;
+	}
+	start = start - GENPOOL_OFFSET;
+	memset_io(cpm_muram_addr(start), 0, size);
 	entry->start = start;
 	entry->size = size;
 	list_add(&entry->head, &muram_block_list);
 
 	return start;
-out1:
-	gen_pool_free(muram_pool, start, size);
-out2:
-	return (unsigned long)-ENOMEM;
 }
 
 /*
@@ -148,13 +141,14 @@ out2:
  * @size: number of bytes to allocate
  * @align: requested alignment, in bytes
  *
- * This function returns an offset into the muram area.
+ * This function returns a non-negative offset into the muram area, or
+ * a negative errno on failure.
  * Use cpm_dpram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
-unsigned long cpm_muram_alloc(unsigned long size, unsigned long align)
+s32 cpm_muram_alloc(unsigned long size, unsigned long align)
 {
-	unsigned long start;
+	s32 start;
 	unsigned long flags;
 	struct genpool_data_align muram_pool_data;
 
@@ -171,11 +165,14 @@ EXPORT_SYMBOL(cpm_muram_alloc);
  * cpm_muram_free - free a chunk of multi-user ram
  * @offset: The beginning of the chunk as returned by cpm_muram_alloc().
  */
-int cpm_muram_free(unsigned long offset)
+void cpm_muram_free(s32 offset)
 {
 	unsigned long flags;
 	int size;
 	struct muram_block *tmp;
+
+	if (offset < 0)
+		return;
 
 	size = 0;
 	spin_lock_irqsave(&cpm_muram_lock, flags);
@@ -189,7 +186,6 @@ int cpm_muram_free(unsigned long offset)
 	}
 	gen_pool_free(muram_pool, offset + GENPOOL_OFFSET, size);
 	spin_unlock_irqrestore(&cpm_muram_lock, flags);
-	return size;
 }
 EXPORT_SYMBOL(cpm_muram_free);
 
@@ -197,13 +193,14 @@ EXPORT_SYMBOL(cpm_muram_free);
  * cpm_muram_alloc_fixed - reserve a specific region of multi-user ram
  * @offset: offset of allocation start address
  * @size: number of bytes to allocate
- * This function returns an offset into the muram area
+ * This function returns @offset if the area was available, a negative
+ * errno otherwise.
  * Use cpm_dpram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
-unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size)
+s32 cpm_muram_alloc_fixed(unsigned long offset, unsigned long size)
 {
-	unsigned long start;
+	s32 start;
 	unsigned long flags;
 	struct genpool_data_fixed muram_pool_data_fixed;
 

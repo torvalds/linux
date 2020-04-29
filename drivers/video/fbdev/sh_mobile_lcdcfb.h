@@ -61,7 +61,6 @@ struct sh_mobile_lcdc_chan {
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
 	unsigned long enabled; /* ME and SE in LDCNT2R */
-	void *cache;
 
 	struct mutex open_lock;		/* protects the use counter */
 	int use_count;
@@ -87,11 +86,6 @@ struct sh_mobile_lcdc_chan {
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
 	unsigned int line_size;
-
-	int (*notify)(struct sh_mobile_lcdc_chan *ch,
-		      enum sh_mobile_lcdc_entity_event event,
-		      const struct fb_videomode *mode,
-		      const struct fb_monspecs *monspec);
 
 	/* Backlight */
 	struct backlight_device *bl;

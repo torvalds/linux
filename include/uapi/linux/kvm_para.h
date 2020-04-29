@@ -13,6 +13,7 @@
 /* Return values for hypercalls */
 #define KVM_ENOSYS		1000
 #define KVM_EFAULT		EFAULT
+#define KVM_EINVAL		EINVAL
 #define KVM_E2BIG		E2BIG
 #define KVM_EPERM		EPERM
 #define KVM_EOPNOTSUPP		95
@@ -26,6 +27,8 @@
 #define KVM_HC_MIPS_EXIT_VM		7
 #define KVM_HC_MIPS_CONSOLE_OUTPUT	8
 #define KVM_HC_CLOCK_PAIRING		9
+#define KVM_HC_SEND_IPI		10
+#define KVM_HC_SCHED_YIELD		11
 
 /*
  * hypercalls use architecture specific

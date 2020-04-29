@@ -110,15 +110,6 @@ unsigned long long notrace sched_clock(void)
 }
 NOKPROBE_SYMBOL(sched_clock);
 
-/*
- * Monotonic_clock - returns # of nanoseconds passed since time_init()
- */
-unsigned long long monotonic_clock(void)
-{
-	return sched_clock();
-}
-EXPORT_SYMBOL(monotonic_clock);
-
 static void ext_to_timespec64(unsigned char *clk, struct timespec64 *xt)
 {
 	unsigned long long high, low, rem, sec, nsec;
@@ -221,17 +212,22 @@ void read_persistent_clock64(struct timespec64 *ts)
 	ext_to_timespec64(clk, ts);
 }
 
-void read_boot_clock64(struct timespec64 *ts)
+void __init read_persistent_wall_and_boot_offset(struct timespec64 *wall_time,
+						 struct timespec64 *boot_offset)
 {
 	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+	struct timespec64 boot_time;
 	__u64 delta;
 
 	delta = initial_leap_seconds + TOD_UNIX_EPOCH;
-	memcpy(clk, tod_clock_base, 16);
-	*(__u64 *) &clk[1] -= delta;
-	if (*(__u64 *) &clk[1] > delta)
+	memcpy(clk, tod_clock_base, STORE_CLOCK_EXT_SIZE);
+	*(__u64 *)&clk[1] -= delta;
+	if (*(__u64 *)&clk[1] > delta)
 		clk[0]--;
-	ext_to_timespec64(clk, ts);
+	ext_to_timespec64(clk, &boot_time);
+
+	read_persistent_clock64(wall_time);
+	*boot_offset = timespec64_sub(*wall_time, boot_time);
 }
 
 static u64 read_tod_clock(struct clocksource *cs)

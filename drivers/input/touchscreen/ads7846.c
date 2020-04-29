@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADS7846 based touchscreen and sensor driver
  *
@@ -12,10 +13,6 @@
  *	Copyright (C) 2002 MontaVista Software
  *	Copyright (C) 2004 Texas Instruments
  *	Copyright (C) 2005 Dirk Behme
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/types.h>
 #include <linux/hwmon.h>
@@ -23,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
@@ -131,6 +129,8 @@ struct ads7846 {
 	u16			debounce_rep;
 
 	u16			penirq_recheck_delay_usecs;
+
+	struct touchscreen_properties core_prop;
 
 	struct mutex		lock;
 	bool			stopped;	/* P: lock */
@@ -333,7 +333,8 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 		req->xfer[1].len = 2;
 
 		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
-		req->xfer[1].delay_usecs = ts->vref_delay_usecs;
+		req->xfer[1].delay.value = ts->vref_delay_usecs;
+		req->xfer[1].delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&req->xfer[1], &req->msg);
 
 		/* Enable reference voltage */
@@ -826,17 +827,13 @@ static void ads7846_report_state(struct ads7846 *ts)
 	if (Rt) {
 		struct input_dev *input = ts->input;
 
-		if (ts->swap_xy)
-			swap(x, y);
-
 		if (!ts->pendown) {
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = true;
 			dev_vdbg(&ts->spi->dev, "DOWN\n");
 		}
 
-		input_report_abs(input, ABS_X, x);
-		input_report_abs(input, ABS_Y, y);
+		touchscreen_report_pos(input, &ts->core_prop, x, y, false);
 		input_report_abs(input, ABS_PRESSURE, ts->pressure_max - Rt);
 
 		input_sync(input);
@@ -1022,7 +1019,8 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	 * have had enough time to stabilize.
 	 */
 	if (pdata->settle_delay_usecs) {
-		x->delay_usecs = pdata->settle_delay_usecs;
+		x->delay.value = pdata->settle_delay_usecs;
+		x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 		x++;
 		x->tx_buf = &packet->read_y;
@@ -1065,7 +1063,8 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 
 	/* ... maybe discard first sample ... */
 	if (pdata->settle_delay_usecs) {
-		x->delay_usecs = pdata->settle_delay_usecs;
+		x->delay.value = pdata->settle_delay_usecs;
+		x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 		x++;
 		x->tx_buf = &packet->read_x;
@@ -1098,7 +1097,8 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 
 		/* ... maybe discard first sample ... */
 		if (pdata->settle_delay_usecs) {
-			x->delay_usecs = pdata->settle_delay_usecs;
+			x->delay.value = pdata->settle_delay_usecs;
+			x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 			x++;
 			x->tx_buf = &packet->read_z1;
@@ -1129,7 +1129,8 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 
 		/* ... maybe discard first sample ... */
 		if (pdata->settle_delay_usecs) {
-			x->delay_usecs = pdata->settle_delay_usecs;
+			x->delay.value = pdata->settle_delay_usecs;
+			x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 			x++;
 			x->tx_buf = &packet->read_z2;
@@ -1188,6 +1189,7 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 	struct ads7846_platform_data *pdata;
 	struct device_node *node = dev->of_node;
 	const struct of_device_id *match;
+	u32 value;
 
 	if (!node) {
 		dev_err(dev, "Device does not have associated DT data\n");
@@ -1226,10 +1228,18 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 	of_property_read_u16(node, "ti,x-max", &pdata->x_max);
 	of_property_read_u16(node, "ti,y-max", &pdata->y_max);
 
+	/*
+	 * touchscreen-max-pressure gets parsed during
+	 * touchscreen_parse_properties()
+	 */
 	of_property_read_u16(node, "ti,pressure-min", &pdata->pressure_min);
+	if (!of_property_read_u32(node, "touchscreen-min-pressure", &value))
+		pdata->pressure_min = (u16) value;
 	of_property_read_u16(node, "ti,pressure-max", &pdata->pressure_max);
 
 	of_property_read_u16(node, "ti,debounce-max", &pdata->debounce_max);
+	if (!of_property_read_u32(node, "touchscreen-average-samples", &value))
+		pdata->debounce_max = (u16) value;
 	of_property_read_u16(node, "ti,debounce-tol", &pdata->debounce_tol);
 	of_property_read_u16(node, "ti,debounce-rep", &pdata->debounce_rep);
 
@@ -1312,10 +1322,7 @@ static int ads7846_probe(struct spi_device *spi)
 	ts->model = pdata->model ? : 7846;
 	ts->vref_delay_usecs = pdata->vref_delay_usecs ? : 100;
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
-	ts->pressure_max = pdata->pressure_max ? : ~0;
-
 	ts->vref_mv = pdata->vref_mv;
-	ts->swap_xy = pdata->swap_xy;
 
 	if (pdata->filter != NULL) {
 		if (pdata->filter_init != NULL) {
@@ -1366,6 +1373,23 @@ static int ads7846_probe(struct spi_device *spi)
 			0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE,
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
+
+	/*
+	 * Parse common framework properties. Must be done here to ensure the
+	 * correct behaviour in case of using the legacy vendor bindings. The
+	 * general binding value overrides the vendor specific one.
+	 */
+	touchscreen_parse_properties(ts->input, false, &ts->core_prop);
+	ts->pressure_max = input_abs_get_max(input_dev, ABS_PRESSURE) ? : ~0;
+
+	/*
+	 * Check if legacy ti,swap-xy binding is used instead of
+	 * touchscreen-swapped-x-y
+	 */
+	if (!ts->core_prop.swap_x_y && pdata->swap_xy) {
+		swap(input_dev->absinfo[ABS_X], input_dev->absinfo[ABS_Y]);
+		ts->core_prop.swap_x_y = true;
+	}
 
 	ads7846_setup_spi_msg(ts, pdata);
 

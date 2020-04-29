@@ -21,20 +21,23 @@
  *
  * Authors: Alex Deucher
  */
+
 #include <linux/firmware.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "cayman_blit_shaders.h"
+#include "clearstate_cayman.h"
+#include "ni_reg.h"
+#include "nid.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
-#include <drm/radeon_drm.h>
-#include "nid.h"
-#include "atom.h"
-#include "ni_reg.h"
-#include "cayman_blit_shaders.h"
 #include "radeon_ucode.h"
-#include "clearstate_cayman.h"
 
 /*
  * Indirect registers accessor
@@ -2014,7 +2017,7 @@ static void cayman_uvd_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
-		rdev->has_uvd = 0;
+		rdev->has_uvd = false;
 		return;
 	}
 	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
@@ -2082,7 +2085,7 @@ static void cayman_vce_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable vce here.
 		 */
-		rdev->has_vce = 0;
+		rdev->has_vce = false;
 		return;
 	}
 	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_obj = NULL;

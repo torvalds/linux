@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
@@ -5,19 +6,6 @@
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Driver for the PWRficient onchip NAND flash interface
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #undef DEBUG
@@ -43,49 +31,44 @@ static unsigned int lpcctl;
 static struct mtd_info *pasemi_nand_mtd;
 static const char driver_name[] = "pasemi-nand";
 
-static void pasemi_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void pasemi_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	while (len > 0x800) {
-		memcpy_fromio(buf, chip->IO_ADDR_R, 0x800);
+		memcpy_fromio(buf, chip->legacy.IO_ADDR_R, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_fromio(buf, chip->IO_ADDR_R, len);
+	memcpy_fromio(buf, chip->legacy.IO_ADDR_R, len);
 }
 
-static void pasemi_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void pasemi_write_buf(struct nand_chip *chip, const u_char *buf,
+			     int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	while (len > 0x800) {
-		memcpy_toio(chip->IO_ADDR_R, buf, 0x800);
+		memcpy_toio(chip->legacy.IO_ADDR_R, buf, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_toio(chip->IO_ADDR_R, buf, len);
+	memcpy_toio(chip->legacy.IO_ADDR_R, buf, len);
 }
 
-static void pasemi_hwcontrol(struct mtd_info *mtd, int cmd,
+static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
 			     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		out_8(chip->IO_ADDR_W + (1 << CLE_PIN_CTL), cmd);
+		out_8(chip->legacy.IO_ADDR_W + (1 << CLE_PIN_CTL), cmd);
 	else
-		out_8(chip->IO_ADDR_W + (1 << ALE_PIN_CTL), cmd);
+		out_8(chip->legacy.IO_ADDR_W + (1 << ALE_PIN_CTL), cmd);
 
 	/* Push out posted writes */
 	eieio();
 	inl(lpcctl);
 }
 
-int pasemi_device_ready(struct mtd_info *mtd)
+int pasemi_device_ready(struct nand_chip *chip)
 {
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
@@ -122,10 +105,10 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	/* Link the private data with the MTD structure */
 	pasemi_nand_mtd->dev.parent = dev;
 
-	chip->IO_ADDR_R = of_iomap(np, 0);
-	chip->IO_ADDR_W = chip->IO_ADDR_R;
+	chip->legacy.IO_ADDR_R = of_iomap(np, 0);
+	chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
 
-	if (!chip->IO_ADDR_R) {
+	if (!chip->legacy.IO_ADDR_R) {
 		err = -EIO;
 		goto out_mtd;
 	}
@@ -144,11 +127,11 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 		goto out_ior;
 	}
 
-	chip->cmd_ctrl = pasemi_hwcontrol;
-	chip->dev_ready = pasemi_device_ready;
-	chip->read_buf = pasemi_read_buf;
-	chip->write_buf = pasemi_write_buf;
-	chip->chip_delay = 0;
+	chip->legacy.cmd_ctrl = pasemi_hwcontrol;
+	chip->legacy.dev_ready = pasemi_device_ready;
+	chip->legacy.read_buf = pasemi_read_buf;
+	chip->legacy.write_buf = pasemi_write_buf;
+	chip->legacy.chip_delay = 0;
 	chip->ecc.mode = NAND_ECC_SOFT;
 	chip->ecc.algo = NAND_ECC_HAMMING;
 
@@ -156,7 +139,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Scan to find existence of the device */
-	err = nand_scan(pasemi_nand_mtd, 1);
+	err = nand_scan(chip, 1);
 	if (err)
 		goto out_lpc;
 
@@ -174,7 +157,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
  out_lpc:
 	release_region(lpcctl, 4);
  out_ior:
-	iounmap(chip->IO_ADDR_R);
+	iounmap(chip->legacy.IO_ADDR_R);
  out_mtd:
 	kfree(chip);
  out:
@@ -191,11 +174,11 @@ static int pasemi_nand_remove(struct platform_device *ofdev)
 	chip = mtd_to_nand(pasemi_nand_mtd);
 
 	/* Release resources, unregister device */
-	nand_release(pasemi_nand_mtd);
+	nand_release(chip);
 
 	release_region(lpcctl, 4);
 
-	iounmap(chip->IO_ADDR_R);
+	iounmap(chip->legacy.IO_ADDR_R);
 
 	/* Free the MTD device structure */
 	kfree(chip);

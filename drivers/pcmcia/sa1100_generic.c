@@ -31,7 +31,9 @@
 ======================================================================*/
 
 #include <linux/module.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
@@ -41,23 +43,63 @@
 
 #include "sa1100_generic.h"
 
+static const char *sa11x0_cf_gpio_names[] = {
+	[SOC_STAT_CD] = "detect",
+	[SOC_STAT_BVD1] = "bvd1",
+	[SOC_STAT_BVD2] = "bvd2",
+	[SOC_STAT_RDY] = "ready",
+};
+
+static int sa11x0_cf_hw_init(struct soc_pcmcia_socket *skt)
+{
+	struct device *dev = skt->socket.dev.parent;
+	int i;
+
+	skt->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(skt->gpio_reset))
+		return PTR_ERR(skt->gpio_reset);
+
+	skt->gpio_bus_enable = devm_gpiod_get_optional(dev, "bus-enable",
+						       GPIOD_OUT_HIGH);
+	if (IS_ERR(skt->gpio_bus_enable))
+		return PTR_ERR(skt->gpio_bus_enable);
+
+	skt->vcc.reg = devm_regulator_get_optional(dev, "vcc");
+	if (IS_ERR(skt->vcc.reg))
+		return PTR_ERR(skt->vcc.reg);
+
+	if (!skt->vcc.reg)
+		dev_warn(dev,
+			 "no Vcc regulator provided, ignoring Vcc controls\n");
+
+	for (i = 0; i < ARRAY_SIZE(sa11x0_cf_gpio_names); i++) {
+		skt->stat[i].name = sa11x0_cf_gpio_names[i];
+		skt->stat[i].desc = devm_gpiod_get_optional(dev,
+					sa11x0_cf_gpio_names[i], GPIOD_IN);
+		if (IS_ERR(skt->stat[i].desc))
+			return PTR_ERR(skt->stat[i].desc);
+	}
+	return 0;
+}
+
+static int sa11x0_cf_configure_socket(struct soc_pcmcia_socket *skt,
+	const socket_state_t *state)
+{
+	return soc_pcmcia_regulator_set(skt, &skt->vcc, state->Vcc);
+}
+
+static struct pcmcia_low_level sa11x0_cf_ops = {
+	.owner = THIS_MODULE,
+	.hw_init = sa11x0_cf_hw_init,
+	.socket_state = soc_common_cf_socket_state,
+	.configure_socket = sa11x0_cf_configure_socket,
+};
+
 int __init pcmcia_collie_init(struct device *dev);
 
-static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
-#ifdef CONFIG_SA1100_ASSABET
-	pcmcia_assabet_init,
-#endif
-#ifdef CONFIG_SA1100_CERF
-	pcmcia_cerf_init,
-#endif
+static int (*sa11x0_pcmcia_legacy_hw_init[])(struct device *dev) = {
 #if defined(CONFIG_SA1100_H3100) || defined(CONFIG_SA1100_H3600)
 	pcmcia_h3600_init,
-#endif
-#ifdef CONFIG_SA1100_NANOENGINE
-	pcmcia_nanoengine_init,
-#endif
-#ifdef CONFIG_SA1100_SHANNON
-	pcmcia_shannon_init,
 #endif
 #ifdef CONFIG_SA1100_SIMPAD
 	pcmcia_simpad_init,
@@ -67,15 +109,15 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 };
 
-static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
+static int sa11x0_drv_pcmcia_legacy_probe(struct platform_device *dev)
 {
 	int i, ret = -ENODEV;
 
 	/*
 	 * Initialise any "on-board" PCMCIA sockets.
 	 */
-	for (i = 0; i < ARRAY_SIZE(sa11x0_pcmcia_hw_init); i++) {
-		ret = sa11x0_pcmcia_hw_init[i](&dev->dev);
+	for (i = 0; i < ARRAY_SIZE(sa11x0_pcmcia_legacy_hw_init); i++) {
+		ret = sa11x0_pcmcia_legacy_hw_init[i](&dev->dev);
 		if (ret == 0)
 			break;
 	}
@@ -83,7 +125,7 @@ static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int sa11x0_drv_pcmcia_remove(struct platform_device *dev)
+static int sa11x0_drv_pcmcia_legacy_remove(struct platform_device *dev)
 {
 	struct skt_dev_info *sinfo = platform_get_drvdata(dev);
 	int i;
@@ -92,6 +134,45 @@ static int sa11x0_drv_pcmcia_remove(struct platform_device *dev)
 
 	for (i = 0; i < sinfo->nskt; i++)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
+
+	return 0;
+}
+
+static int sa11x0_drv_pcmcia_probe(struct platform_device *pdev)
+{
+	struct soc_pcmcia_socket *skt;
+	struct device *dev = &pdev->dev;
+
+	if (pdev->id == -1)
+		return sa11x0_drv_pcmcia_legacy_probe(pdev);
+
+	skt = devm_kzalloc(dev, sizeof(*skt), GFP_KERNEL);
+	if (!skt)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, skt);
+
+	skt->nr = pdev->id;
+	skt->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(skt->clk))
+		return PTR_ERR(skt->clk);
+
+	sa11xx_drv_pcmcia_ops(&sa11x0_cf_ops);
+	soc_pcmcia_init_one(skt, &sa11x0_cf_ops, dev);
+
+	return sa11xx_drv_pcmcia_add_one(skt);
+}
+
+static int sa11x0_drv_pcmcia_remove(struct platform_device *dev)
+{
+	struct soc_pcmcia_socket *skt;
+
+	if (dev->id == -1)
+		return sa11x0_drv_pcmcia_legacy_remove(dev);
+
+	skt = platform_get_drvdata(dev);
+
+	soc_pcmcia_remove_one(skt);
 
 	return 0;
 }

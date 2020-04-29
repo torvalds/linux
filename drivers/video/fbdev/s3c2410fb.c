@@ -618,7 +618,7 @@ static int s3c2410fb_debug_store(struct device *dev,
 
 static DEVICE_ATTR(debug, 0664, s3c2410fb_debug_show, s3c2410fb_debug_store);
 
-static struct fb_ops s3c2410fb_ops = {
+static const struct fb_ops s3c2410fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= s3c2410fb_check_var,
 	.fb_set_par	= s3c2410fb_set_par,
@@ -777,7 +777,7 @@ static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
 	long delta_f;
 
 	info = container_of(nb, struct s3c2410fb_info, freq_transition);
-	fbinfo = platform_get_drvdata(to_platform_device(info->dev));
+	fbinfo = dev_get_drvdata(info->dev);
 
 	/* work out change, <0 for speed-up */
 	delta_f = info->clk_rate - clk_get_rate(info->clk);

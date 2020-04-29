@@ -295,6 +295,14 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 	if (!mc_adev)
 		goto error;
 
+	mc_adev->consumer_link = device_link_add(&mc_dev->dev,
+						 &mc_adev->dev,
+						 DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!mc_adev->consumer_link) {
+		error = -EINVAL;
+		goto error;
+	}
+
 	*new_mc_adev = mc_adev;
 	return 0;
 error:
@@ -321,6 +329,8 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev)
 		return;
 
 	fsl_mc_resource_free(resource);
+
+	mc_adev->consumer_link = NULL;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_object_free);
 
@@ -354,8 +364,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 	if (error < 0)
 		return error;
 
-	irq_resources = devm_kzalloc(&mc_bus_dev->dev,
-				     sizeof(*irq_resources) * irq_count,
+	irq_resources = devm_kcalloc(&mc_bus_dev->dev,
+				     irq_count, sizeof(*irq_resources),
 				     GFP_KERNEL);
 	if (!irq_resources) {
 		error = -ENOMEM;
@@ -455,7 +465,7 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 		return -ENOSPC;
 	}
 
-	irqs = devm_kzalloc(&mc_dev->dev, irq_count * sizeof(irqs[0]),
+	irqs = devm_kcalloc(&mc_dev->dev, irq_count, sizeof(irqs[0]),
 			    GFP_KERNEL);
 	if (!irqs)
 		return -ENOMEM;

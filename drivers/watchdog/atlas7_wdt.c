@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Watchdog driver for CSR Atlas7
  *
  * Copyright (c) 2015 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2.
  */
 
 #include <linux/clk.h>
@@ -125,80 +124,57 @@ static const struct of_device_id atlas7_wdt_ids[] = {
 	{}
 };
 
+static void atlas7_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int atlas7_wdt_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct atlas7_wdog *wdt;
-	struct resource *res;
 	struct clk *clk;
 	int ret;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap_resource(&pdev->dev, res);
+	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	clk = of_clk_get(np, 0);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(&pdev->dev, "clk enable failed\n");
-		goto err;
+		dev_err(dev, "clk enable failed\n");
+		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, atlas7_clk_disable_unprepare, clk);
+	if (ret)
+		return ret;
 
 	/* disable watchdog hardware */
 	writel(0, wdt->base + ATLAS7_WDT_CNT_CTRL);
 
 	wdt->tick_rate = clk_get_rate(clk);
-	if (!wdt->tick_rate) {
-		ret = -EINVAL;
-		goto err1;
-	}
+	if (!wdt->tick_rate)
+		return -EINVAL;
 
 	wdt->clk = clk;
 	atlas7_wdd.min_timeout = 1;
 	atlas7_wdd.max_timeout = UINT_MAX / wdt->tick_rate;
 
-	watchdog_init_timeout(&atlas7_wdd, 0, &pdev->dev);
+	watchdog_init_timeout(&atlas7_wdd, 0, dev);
 	watchdog_set_nowayout(&atlas7_wdd, nowayout);
 
 	watchdog_set_drvdata(&atlas7_wdd, wdt);
 	platform_set_drvdata(pdev, &atlas7_wdd);
 
-	ret = watchdog_register_device(&atlas7_wdd);
-	if (ret)
-		goto err1;
-
-	return 0;
-
-err1:
-	clk_disable_unprepare(clk);
-err:
-	clk_put(clk);
-	return ret;
-}
-
-static void atlas7_wdt_shutdown(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-	struct atlas7_wdog *wdt = watchdog_get_drvdata(wdd);
-
-	atlas7_wdt_disable(wdd);
-	clk_disable_unprepare(wdt->clk);
-}
-
-static int atlas7_wdt_remove(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-	struct atlas7_wdog *wdt = watchdog_get_drvdata(wdd);
-
-	atlas7_wdt_shutdown(pdev);
-	clk_put(wdt->clk);
-	return 0;
+	watchdog_stop_on_reboot(&atlas7_wdd);
+	watchdog_stop_on_unregister(&atlas7_wdd);
+	return devm_watchdog_register_device(dev, &atlas7_wdd);
 }
 
 static int __maybe_unused atlas7_wdt_suspend(struct device *dev)
@@ -236,8 +212,6 @@ static struct platform_driver atlas7_wdt_driver = {
 		.of_match_table	= atlas7_wdt_ids,
 	},
 	.probe = atlas7_wdt_probe,
-	.remove = atlas7_wdt_remove,
-	.shutdown = atlas7_wdt_shutdown,
 };
 module_platform_driver(atlas7_wdt_driver);
 

@@ -1,17 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics 2016
  *
  * Author: Gerald Baeza <gerald.baeza@st.com>
  *
- * License terms: GNU General Public License (GPL), version 2
- *
  * Inspired by timer-stm32.c from Maxime Coquelin
  *             pwm-atmel.c from Bo Shen
  */
 
+#include <linux/bitfield.h>
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
@@ -19,19 +20,22 @@
 #define CCMR_CHANNEL_MASK  0xFF
 #define MAX_BREAKINPUT 2
 
-struct stm32_pwm {
-	struct pwm_chip chip;
-	struct device *dev;
-	struct clk *clk;
-	struct regmap *regmap;
-	u32 max_arr;
-	bool have_complementary_output;
-};
-
 struct stm32_breakinput {
 	u32 index;
 	u32 level;
 	u32 filter;
+};
+
+struct stm32_pwm {
+	struct pwm_chip chip;
+	struct mutex lock; /* protect pwm config/enable */
+	struct clk *clk;
+	struct regmap *regmap;
+	u32 max_arr;
+	bool have_complementary_output;
+	struct stm32_breakinput breakinputs[MAX_BREAKINPUT];
+	unsigned int num_breakinputs;
+	u32 capture[4] ____cacheline_aligned; /* DMA'able buffer */
 };
 
 static inline struct stm32_pwm *to_stm32_pwm_dev(struct pwm_chip *chip)
@@ -61,6 +65,258 @@ static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
 		return regmap_write(dev->regmap, TIM_CCR4, value);
 	}
 	return -EINVAL;
+}
+
+#define TIM_CCER_CC12P (TIM_CCER_CC1P | TIM_CCER_CC2P)
+#define TIM_CCER_CC12E (TIM_CCER_CC1E | TIM_CCER_CC2E)
+#define TIM_CCER_CC34P (TIM_CCER_CC3P | TIM_CCER_CC4P)
+#define TIM_CCER_CC34E (TIM_CCER_CC3E | TIM_CCER_CC4E)
+
+/*
+ * Capture using PWM input mode:
+ *                              ___          ___
+ * TI[1, 2, 3 or 4]: ........._|   |________|
+ *                             ^0  ^1       ^2
+ *                              .   .        .
+ *                              .   .        XXXXX
+ *                              .   .   XXXXX     |
+ *                              .  XXXXX     .    |
+ *                            XXXXX .        .    |
+ * COUNTER:        ______XXXXX  .   .        .    |_XXX
+ *                 start^       .   .        .        ^stop
+ *                      .       .   .        .
+ *                      v       v   .        v
+ *                                  v
+ * CCR1/CCR3:       tx..........t0...........t2
+ * CCR2/CCR4:       tx..............t1.........
+ *
+ * DMA burst transfer:          |            |
+ *                              v            v
+ * DMA buffer:                  { t0, tx }   { t2, t1 }
+ * DMA done:                                 ^
+ *
+ * 0: IC1/3 snapchot on rising edge: counter value -> CCR1/CCR3
+ *    + DMA transfer CCR[1/3] & CCR[2/4] values (t0, tx: doesn't care)
+ * 1: IC2/4 snapchot on falling edge: counter value -> CCR2/CCR4
+ * 2: IC1/3 snapchot on rising edge: counter value -> CCR1/CCR3
+ *    + DMA transfer CCR[1/3] & CCR[2/4] values (t2, t1)
+ *
+ * DMA done, compute:
+ * - Period     = t2 - t0
+ * - Duty cycle = t1 - t0
+ */
+static int stm32_pwm_raw_capture(struct stm32_pwm *priv, struct pwm_device *pwm,
+				 unsigned long tmo_ms, u32 *raw_prd,
+				 u32 *raw_dty)
+{
+	struct device *parent = priv->chip.dev->parent;
+	enum stm32_timers_dmas dma_id;
+	u32 ccen, ccr;
+	int ret;
+
+	/* Ensure registers have been updated, enable counter and capture */
+	regmap_update_bits(priv->regmap, TIM_EGR, TIM_EGR_UG, TIM_EGR_UG);
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, TIM_CR1_CEN);
+
+	/* Use cc1 or cc3 DMA resp for PWM input channels 1 & 2 or 3 & 4 */
+	dma_id = pwm->hwpwm < 2 ? STM32_TIMERS_DMA_CH1 : STM32_TIMERS_DMA_CH3;
+	ccen = pwm->hwpwm < 2 ? TIM_CCER_CC12E : TIM_CCER_CC34E;
+	ccr = pwm->hwpwm < 2 ? TIM_CCR1 : TIM_CCR3;
+	regmap_update_bits(priv->regmap, TIM_CCER, ccen, ccen);
+
+	/*
+	 * Timer DMA burst mode. Request 2 registers, 2 bursts, to get both
+	 * CCR1 & CCR2 (or CCR3 & CCR4) on each capture event.
+	 * We'll get two capture snapchots: { CCR1, CCR2 }, { CCR1, CCR2 }
+	 * or { CCR3, CCR4 }, { CCR3, CCR4 }
+	 */
+	ret = stm32_timers_dma_burst_read(parent, priv->capture, dma_id, ccr, 2,
+					  2, tmo_ms);
+	if (ret)
+		goto stop;
+
+	/* Period: t2 - t0 (take care of counter overflow) */
+	if (priv->capture[0] <= priv->capture[2])
+		*raw_prd = priv->capture[2] - priv->capture[0];
+	else
+		*raw_prd = priv->max_arr - priv->capture[0] + priv->capture[2];
+
+	/* Duty cycle capture requires at least two capture units */
+	if (pwm->chip->npwm < 2)
+		*raw_dty = 0;
+	else if (priv->capture[0] <= priv->capture[3])
+		*raw_dty = priv->capture[3] - priv->capture[0];
+	else
+		*raw_dty = priv->max_arr - priv->capture[0] + priv->capture[3];
+
+	if (*raw_dty > *raw_prd) {
+		/*
+		 * Race beetween PWM input and DMA: it may happen
+		 * falling edge triggers new capture on TI2/4 before DMA
+		 * had a chance to read CCR2/4. It means capture[1]
+		 * contains period + duty_cycle. So, subtract period.
+		 */
+		*raw_dty -= *raw_prd;
+	}
+
+stop:
+	regmap_update_bits(priv->regmap, TIM_CCER, ccen, 0);
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
+
+	return ret;
+}
+
+static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
+			     struct pwm_capture *result, unsigned long tmo_ms)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	unsigned long long prd, div, dty;
+	unsigned long rate;
+	unsigned int psc = 0, icpsc, scale;
+	u32 raw_prd = 0, raw_dty = 0;
+	int ret = 0;
+
+	mutex_lock(&priv->lock);
+
+	if (active_channels(priv)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	ret = clk_enable(priv->clk);
+	if (ret) {
+		dev_err(priv->chip.dev, "failed to enable counter clock\n");
+		goto unlock;
+	}
+
+	rate = clk_get_rate(priv->clk);
+	if (!rate) {
+		ret = -EINVAL;
+		goto clk_dis;
+	}
+
+	/* prescaler: fit timeout window provided by upper layer */
+	div = (unsigned long long)rate * (unsigned long long)tmo_ms;
+	do_div(div, MSEC_PER_SEC);
+	prd = div;
+	while ((div > priv->max_arr) && (psc < MAX_TIM_PSC)) {
+		psc++;
+		div = prd;
+		do_div(div, psc + 1);
+	}
+	regmap_write(priv->regmap, TIM_ARR, priv->max_arr);
+	regmap_write(priv->regmap, TIM_PSC, psc);
+
+	/* Map TI1 or TI2 PWM input to IC1 & IC2 (or TI3/4 to IC3 & IC4) */
+	regmap_update_bits(priv->regmap,
+			   pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2,
+			   TIM_CCMR_CC1S | TIM_CCMR_CC2S, pwm->hwpwm & 0x1 ?
+			   TIM_CCMR_CC1S_TI2 | TIM_CCMR_CC2S_TI2 :
+			   TIM_CCMR_CC1S_TI1 | TIM_CCMR_CC2S_TI1);
+
+	/* Capture period on IC1/3 rising edge, duty cycle on IC2/4 falling. */
+	regmap_update_bits(priv->regmap, TIM_CCER, pwm->hwpwm < 2 ?
+			   TIM_CCER_CC12P : TIM_CCER_CC34P, pwm->hwpwm < 2 ?
+			   TIM_CCER_CC2P : TIM_CCER_CC4P);
+
+	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	if (ret)
+		goto stop;
+
+	/*
+	 * Got a capture. Try to improve accuracy at high rates:
+	 * - decrease counter clock prescaler, scale up to max rate.
+	 * - use input prescaler, capture once every /2 /4 or /8 edges.
+	 */
+	if (raw_prd) {
+		u32 max_arr = priv->max_arr - 0x1000; /* arbitrary margin */
+
+		scale = max_arr / min(max_arr, raw_prd);
+	} else {
+		scale = priv->max_arr; /* bellow resolution, use max scale */
+	}
+
+	if (psc && scale > 1) {
+		/* 2nd measure with new scale */
+		psc /= scale;
+		regmap_write(priv->regmap, TIM_PSC, psc);
+		ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd,
+					    &raw_dty);
+		if (ret)
+			goto stop;
+	}
+
+	/* Compute intermediate period not to exceed timeout at low rates */
+	prd = (unsigned long long)raw_prd * (psc + 1) * NSEC_PER_SEC;
+	do_div(prd, rate);
+
+	for (icpsc = 0; icpsc < MAX_TIM_ICPSC ; icpsc++) {
+		/* input prescaler: also keep arbitrary margin */
+		if (raw_prd >= (priv->max_arr - 0x1000) >> (icpsc + 1))
+			break;
+		if (prd >= (tmo_ms * NSEC_PER_MSEC) >> (icpsc + 2))
+			break;
+	}
+
+	if (!icpsc)
+		goto done;
+
+	/* Last chance to improve period accuracy, using input prescaler */
+	regmap_update_bits(priv->regmap,
+			   pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2,
+			   TIM_CCMR_IC1PSC | TIM_CCMR_IC2PSC,
+			   FIELD_PREP(TIM_CCMR_IC1PSC, icpsc) |
+			   FIELD_PREP(TIM_CCMR_IC2PSC, icpsc));
+
+	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	if (ret)
+		goto stop;
+
+	if (raw_dty >= (raw_prd >> icpsc)) {
+		/*
+		 * We may fall here using input prescaler, when input
+		 * capture starts on high side (before falling edge).
+		 * Example with icpsc to capture on each 4 events:
+		 *
+		 *       start   1st capture                     2nd capture
+		 *         v     v                               v
+		 *         ___   _____   _____   _____   _____   ____
+		 * TI1..4     |__|    |__|    |__|    |__|    |__|
+		 *            v  v    .  .    .  .    .       v  v
+		 * icpsc1/3:  .  0    .  1    .  2    .  3    .  0
+		 * icpsc2/4:  0       1       2       3       0
+		 *            v  v                            v  v
+		 * CCR1/3  ......t0..............................t2
+		 * CCR2/4  ..t1..............................t1'...
+		 *               .                            .  .
+		 * Capture0:     .<----------------------------->.
+		 * Capture1:     .<-------------------------->.  .
+		 *               .                            .  .
+		 * Period:       .<------>                    .  .
+		 * Low side:                                  .<>.
+		 *
+		 * Result:
+		 * - Period = Capture0 / icpsc
+		 * - Duty = Period - Low side = Period - (Capture0 - Capture1)
+		 */
+		raw_dty = (raw_prd >> icpsc) - (raw_prd - raw_dty);
+	}
+
+done:
+	prd = (unsigned long long)raw_prd * (psc + 1) * NSEC_PER_SEC;
+	result->period = DIV_ROUND_UP_ULL(prd, rate << icpsc);
+	dty = (unsigned long long)raw_dty * (psc + 1) * NSEC_PER_SEC;
+	result->duty_cycle = DIV_ROUND_UP_ULL(dty, rate);
+stop:
+	regmap_write(priv->regmap, TIM_CCER, 0);
+	regmap_write(priv->regmap, pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2, 0);
+	regmap_write(priv->regmap, TIM_PSC, 0);
+clk_dis:
+	clk_disable(priv->clk);
+unlock:
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
@@ -121,9 +377,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	else
 		regmap_update_bits(priv->regmap, TIM_CCMR2, mask, ccmr);
 
-	regmap_update_bits(priv->regmap, TIM_BDTR,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE);
+	regmap_update_bits(priv->regmap, TIM_BDTR, TIM_BDTR_MOE, TIM_BDTR_MOE);
 
 	return 0;
 }
@@ -187,7 +441,7 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
 }
 
 static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			   struct pwm_state *state)
+			   const struct pwm_state *state)
 {
 	bool enabled;
 	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
@@ -214,28 +468,40 @@ static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
+				  const struct pwm_state *state)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ret;
+
+	/* protect common prescaler for all active channels */
+	mutex_lock(&priv->lock);
+	ret = stm32_pwm_apply(chip, pwm, state);
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 static const struct pwm_ops stm32pwm_ops = {
 	.owner = THIS_MODULE,
-	.apply = stm32_pwm_apply,
+	.apply = stm32_pwm_apply_locked,
+	.capture = IS_ENABLED(CONFIG_DMA_ENGINE) ? stm32_pwm_capture : NULL,
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
-				    int index, int level, int filter)
+				    const struct stm32_breakinput *bi)
 {
-	u32 bke = (index == 0) ? TIM_BDTR_BKE : TIM_BDTR_BK2E;
-	int shift = (index == 0) ? TIM_BDTR_BKF_SHIFT : TIM_BDTR_BK2F_SHIFT;
-	u32 mask = (index == 0) ? TIM_BDTR_BKE | TIM_BDTR_BKP | TIM_BDTR_BKF
-				: TIM_BDTR_BK2E | TIM_BDTR_BK2P | TIM_BDTR_BK2F;
-	u32 bdtr = bke;
+	u32 shift = TIM_BDTR_BKF_SHIFT(bi->index);
+	u32 bke = TIM_BDTR_BKE(bi->index);
+	u32 bkp = TIM_BDTR_BKP(bi->index);
+	u32 bkf = TIM_BDTR_BKF(bi->index);
+	u32 mask = bkf | bkp | bke;
+	u32 bdtr;
 
-	/*
-	 * The both bits could be set since only one will be wrote
-	 * due to mask value.
-	 */
-	if (level)
-		bdtr |= TIM_BDTR_BKP | TIM_BDTR_BK2P;
+	bdtr = (bi->filter & TIM_BDTR_BKF_MASK) << shift | bke;
 
-	bdtr |= (filter & TIM_BDTR_BKF_MASK) << shift;
+	if (bi->level)
+		bdtr |= bkp;
 
 	regmap_update_bits(priv->regmap, TIM_BDTR, mask, bdtr);
 
@@ -244,11 +510,25 @@ static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
 	return (bdtr & bke) ? 0 : -EINVAL;
 }
 
-static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
+static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		ret = stm32_pwm_set_breakinput(priv, &priv->breakinputs[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 				       struct device_node *np)
 {
-	struct stm32_breakinput breakinput[MAX_BREAKINPUT];
-	int nb, ret, i, array_size;
+	int nb, ret, array_size;
+	unsigned int i;
 
 	nb = of_property_count_elems_of_size(np, "st,breakinput",
 					     sizeof(struct stm32_breakinput));
@@ -263,20 +543,21 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
 	if (nb > MAX_BREAKINPUT)
 		return -EINVAL;
 
+	priv->num_breakinputs = nb;
 	array_size = nb * sizeof(struct stm32_breakinput) / sizeof(u32);
 	ret = of_property_read_u32_array(np, "st,breakinput",
-					 (u32 *)breakinput, array_size);
+					 (u32 *)priv->breakinputs, array_size);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nb && !ret; i++) {
-		ret = stm32_pwm_set_breakinput(priv,
-					       breakinput[i].index,
-					       breakinput[i].level,
-					       breakinput[i].filter);
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		if (priv->breakinputs[i].index > 1 ||
+		    priv->breakinputs[i].level > 1 ||
+		    priv->breakinputs[i].filter > 15)
+			return -EINVAL;
 	}
 
-	return ret;
+	return stm32_pwm_apply_breakinputs(priv);
 }
 
 static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
@@ -336,14 +617,17 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	mutex_init(&priv->lock);
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
+	priv->chip.of_xlate = of_pwm_xlate_with_flags;
+	priv->chip.of_pwm_n_cells = 3;
 
 	if (!priv->regmap || !priv->clk)
 		return -EINVAL;
 
-	ret = stm32_pwm_apply_breakinputs(priv, np);
+	ret = stm32_pwm_probe_breakinputs(priv, np);
 	if (ret)
 		return ret;
 
@@ -376,6 +660,42 @@ static int stm32_pwm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused stm32_pwm_suspend(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	unsigned int i;
+	u32 ccer, mask;
+
+	/* Look for active channels */
+	ccer = active_channels(priv);
+
+	for (i = 0; i < priv->chip.npwm; i++) {
+		mask = TIM_CCER_CC1E << (i * 4);
+		if (ccer & mask) {
+			dev_err(dev, "PWM %u still in use by consumer %s\n",
+				i, priv->chip.pwms[i].label);
+			return -EBUSY;
+		}
+	}
+
+	return pinctrl_pm_select_sleep_state(dev);
+}
+
+static int __maybe_unused stm32_pwm_resume(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
+		return ret;
+
+	/* restore breakinput registers that may have been lost in low power */
+	return stm32_pwm_apply_breakinputs(priv);
+}
+
+static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
+
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
 	{ /* end node */ },
@@ -388,6 +708,7 @@ static struct platform_driver stm32_pwm_driver = {
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
+		.pm = &stm32_pwm_pm_ops,
 	},
 };
 module_platform_driver(stm32_pwm_driver);

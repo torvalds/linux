@@ -46,7 +46,6 @@ struct xattr {
 	size_t value_len;
 };
 
-ssize_t xattr_getsecurity(struct inode *, const char *, void *, size_t);
 ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
 ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
@@ -74,7 +73,7 @@ struct simple_xattr {
 	struct list_head list;
 	char *name;
 	size_t size;
-	char value[0];
+	char value[];
 };
 
 /*
@@ -103,7 +102,8 @@ struct simple_xattr *simple_xattr_alloc(const void *value, size_t size);
 int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
 int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-		     const void *value, size_t size, int flags);
+		     const void *value, size_t size, int flags,
+		     ssize_t *removed_size);
 ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
 			  size_t size);
 void simple_xattr_list_add(struct simple_xattrs *xattrs,

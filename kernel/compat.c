@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/kernel/compat.c
  *
@@ -5,10 +6,6 @@
  *  on 64 bit kernels.
  *
  *  Copyright (C) 2002-2003 Stephen Rothwell, IBM Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -20,7 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/security.h>
-#include <linux/timex.h>
 #include <linux/export.h>
 #include <linux/migrate.h>
 #include <linux/posix-timers.h>
@@ -29,200 +25,6 @@
 #include <linux/gfp.h>
 
 #include <linux/uaccess.h>
-
-int compat_get_timex(struct timex *txc, const struct compat_timex __user *utp)
-{
-	struct compat_timex tx32;
-
-	if (copy_from_user(&tx32, utp, sizeof(struct compat_timex)))
-		return -EFAULT;
-
-	txc->modes = tx32.modes;
-	txc->offset = tx32.offset;
-	txc->freq = tx32.freq;
-	txc->maxerror = tx32.maxerror;
-	txc->esterror = tx32.esterror;
-	txc->status = tx32.status;
-	txc->constant = tx32.constant;
-	txc->precision = tx32.precision;
-	txc->tolerance = tx32.tolerance;
-	txc->time.tv_sec = tx32.time.tv_sec;
-	txc->time.tv_usec = tx32.time.tv_usec;
-	txc->tick = tx32.tick;
-	txc->ppsfreq = tx32.ppsfreq;
-	txc->jitter = tx32.jitter;
-	txc->shift = tx32.shift;
-	txc->stabil = tx32.stabil;
-	txc->jitcnt = tx32.jitcnt;
-	txc->calcnt = tx32.calcnt;
-	txc->errcnt = tx32.errcnt;
-	txc->stbcnt = tx32.stbcnt;
-
-	return 0;
-}
-
-int compat_put_timex(struct compat_timex __user *utp, const struct timex *txc)
-{
-	struct compat_timex tx32;
-
-	memset(&tx32, 0, sizeof(struct compat_timex));
-	tx32.modes = txc->modes;
-	tx32.offset = txc->offset;
-	tx32.freq = txc->freq;
-	tx32.maxerror = txc->maxerror;
-	tx32.esterror = txc->esterror;
-	tx32.status = txc->status;
-	tx32.constant = txc->constant;
-	tx32.precision = txc->precision;
-	tx32.tolerance = txc->tolerance;
-	tx32.time.tv_sec = txc->time.tv_sec;
-	tx32.time.tv_usec = txc->time.tv_usec;
-	tx32.tick = txc->tick;
-	tx32.ppsfreq = txc->ppsfreq;
-	tx32.jitter = txc->jitter;
-	tx32.shift = txc->shift;
-	tx32.stabil = txc->stabil;
-	tx32.jitcnt = txc->jitcnt;
-	tx32.calcnt = txc->calcnt;
-	tx32.errcnt = txc->errcnt;
-	tx32.stbcnt = txc->stbcnt;
-	tx32.tai = txc->tai;
-	if (copy_to_user(utp, &tx32, sizeof(struct compat_timex)))
-		return -EFAULT;
-	return 0;
-}
-
-static int __compat_get_timeval(struct timeval *tv, const struct compat_timeval __user *ctv)
-{
-	return (!access_ok(VERIFY_READ, ctv, sizeof(*ctv)) ||
-			__get_user(tv->tv_sec, &ctv->tv_sec) ||
-			__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
-}
-
-static int __compat_put_timeval(const struct timeval *tv, struct compat_timeval __user *ctv)
-{
-	return (!access_ok(VERIFY_WRITE, ctv, sizeof(*ctv)) ||
-			__put_user(tv->tv_sec, &ctv->tv_sec) ||
-			__put_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
-}
-
-static int __compat_get_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
-{
-	return (!access_ok(VERIFY_READ, cts, sizeof(*cts)) ||
-			__get_user(ts->tv_sec, &cts->tv_sec) ||
-			__get_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
-}
-
-static int __compat_put_timespec(const struct timespec *ts, struct compat_timespec __user *cts)
-{
-	return (!access_ok(VERIFY_WRITE, cts, sizeof(*cts)) ||
-			__put_user(ts->tv_sec, &cts->tv_sec) ||
-			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
-}
-
-static int __compat_get_timespec64(struct timespec64 *ts64,
-				   const struct compat_timespec __user *cts)
-{
-	struct compat_timespec ts;
-	int ret;
-
-	ret = copy_from_user(&ts, cts, sizeof(ts));
-	if (ret)
-		return -EFAULT;
-
-	ts64->tv_sec = ts.tv_sec;
-	ts64->tv_nsec = ts.tv_nsec;
-
-	return 0;
-}
-
-static int __compat_put_timespec64(const struct timespec64 *ts64,
-				   struct compat_timespec __user *cts)
-{
-	struct compat_timespec ts = {
-		.tv_sec = ts64->tv_sec,
-		.tv_nsec = ts64->tv_nsec
-	};
-	return copy_to_user(cts, &ts, sizeof(ts)) ? -EFAULT : 0;
-}
-
-int compat_get_timespec64(struct timespec64 *ts, const void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_get_timespec64(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_get_timespec64);
-
-int compat_put_timespec64(const struct timespec64 *ts, void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_put_timespec64(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_put_timespec64);
-
-int compat_get_timeval(struct timeval *tv, const void __user *utv)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(tv, utv, sizeof(*tv)) ? -EFAULT : 0;
-	else
-		return __compat_get_timeval(tv, utv);
-}
-EXPORT_SYMBOL_GPL(compat_get_timeval);
-
-int compat_put_timeval(const struct timeval *tv, void __user *utv)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(utv, tv, sizeof(*tv)) ? -EFAULT : 0;
-	else
-		return __compat_put_timeval(tv, utv);
-}
-EXPORT_SYMBOL_GPL(compat_put_timeval);
-
-int compat_get_timespec(struct timespec *ts, const void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_get_timespec(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_get_timespec);
-
-int compat_put_timespec(const struct timespec *ts, void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_put_timespec(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_put_timespec);
-
-int get_compat_itimerval(struct itimerval *o, const struct compat_itimerval __user *i)
-{
-	struct compat_itimerval v32;
-
-	if (copy_from_user(&v32, i, sizeof(struct compat_itimerval)))
-		return -EFAULT;
-	o->it_interval.tv_sec = v32.it_interval.tv_sec;
-	o->it_interval.tv_usec = v32.it_interval.tv_usec;
-	o->it_value.tv_sec = v32.it_value.tv_sec;
-	o->it_value.tv_usec = v32.it_value.tv_usec;
-	return 0;
-}
-
-int put_compat_itimerval(struct compat_itimerval __user *o, const struct itimerval *i)
-{
-	struct compat_itimerval v32;
-
-	v32.it_interval.tv_sec = i->it_interval.tv_sec;
-	v32.it_interval.tv_usec = i->it_interval.tv_usec;
-	v32.it_value.tv_sec = i->it_value.tv_sec;
-	v32.it_value.tv_usec = i->it_value.tv_usec;
-	return copy_to_user(o, &v32, sizeof(struct compat_itimerval)) ? -EFAULT : 0;
-}
 
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
@@ -367,27 +169,6 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 	return ret;
 }
 
-int get_compat_itimerspec64(struct itimerspec64 *its,
-			const struct compat_itimerspec __user *uits)
-{
-
-	if (__compat_get_timespec64(&its->it_interval, &uits->it_interval) ||
-	    __compat_get_timespec64(&its->it_value, &uits->it_value))
-		return -EFAULT;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(get_compat_itimerspec64);
-
-int put_compat_itimerspec64(const struct itimerspec64 *its,
-			struct compat_itimerspec __user *uits)
-{
-	if (__compat_put_timespec64(&its->it_interval, &uits->it_interval) ||
-	    __compat_put_timespec64(&its->it_value, &uits->it_value))
-		return -EFAULT;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(put_compat_itimerspec64);
-
 /*
  * We currently only need the following fields from the sigevent
  * structure: sigev_value, sigev_signo, sig_notify and (sometimes
@@ -399,7 +180,7 @@ int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event)
 {
 	memset(event, 0, sizeof(*event));
-	return (!access_ok(VERIFY_READ, u_event, sizeof(*u_event)) ||
+	return (!access_ok(u_event, sizeof(*u_event)) ||
 		__get_user(event->sigev_value.sival_int,
 			&u_event->sigev_value.sival_int) ||
 		__get_user(event->sigev_signo, &u_event->sigev_signo) ||
@@ -418,10 +199,9 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!access_ok(VERIFY_READ, umask, bitmap_size / 8))
+	if (!user_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
-	user_access_begin();
 	while (nr_compat_longs > 1) {
 		compat_ulong_t l1, l2;
 		unsafe_get_user(l1, umask++, Efault);
@@ -448,10 +228,9 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!access_ok(VERIFY_WRITE, umask, bitmap_size / 8))
+	if (!user_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
-	user_access_begin();
 	while (nr_compat_longs > 1) {
 		unsigned long m = *mask++;
 		unsafe_put_user((compat_ulong_t)m, umask++, Efault);
@@ -476,8 +255,11 @@ get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat)
 		return -EFAULT;
 	switch (_NSIG_WORDS) {
 	case 4: set->sig[3] = v.sig[6] | (((long)v.sig[7]) << 32 );
+		/* fall through */
 	case 3: set->sig[2] = v.sig[4] | (((long)v.sig[5]) << 32 );
+		/* fall through */
 	case 2: set->sig[1] = v.sig[2] | (((long)v.sig[3]) << 32 );
+		/* fall through */
 	case 1: set->sig[0] = v.sig[0] | (((long)v.sig[1]) << 32 );
 	}
 #else
@@ -502,7 +284,7 @@ void __user *compat_alloc_user_space(unsigned long len)
 
 	ptr = arch_compat_alloc_user_space(len);
 
-	if (unlikely(!access_ok(VERIFY_WRITE, ptr, len)))
+	if (unlikely(!access_ok(ptr, len)))
 		return NULL;
 
 	return ptr;

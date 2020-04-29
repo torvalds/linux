@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/platform_data/pxa_sdhci.h
  *
@@ -5,10 +6,6 @@
  *	Zhangfei Gao <zhangfei.gao@marvell.com>
  *
  * PXA Platform - SDHCI platform data definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _PXA_SDHCI_H_
@@ -33,8 +30,6 @@
  *	1: choose feedback clk + delay value
  *	2: choose internal clk
  * @clk_delay_enable: enable clk_delay or not, used on pxa910
- * @ext_cd_gpio: gpio pin used for external CD line
- * @ext_cd_gpio_invert: invert values for external CD gpio line
  * @max_speed: the maximum speed supported
  * @host_caps: Standard MMC host capabilities bit field.
  * @quirks: quirks of platfrom
@@ -46,8 +41,6 @@ struct sdhci_pxa_platdata {
 	unsigned int	clk_delay_cycles;
 	unsigned int	clk_delay_sel;
 	bool		clk_delay_enable;
-	unsigned int	ext_cd_gpio;
-	bool		ext_cd_gpio_invert;
 	unsigned int	max_speed;
 	u32		host_caps;
 	u32		host_caps2;

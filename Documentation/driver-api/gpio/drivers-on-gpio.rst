@@ -85,13 +85,17 @@ hardware descriptions such as device tree or ACPI:
   any other serio bus to the system and makes it possible to connect drivers
   for e.g. keyboards and other PS/2 protocol based devices.
 
+- cec-gpio: drivers/media/platform/cec-gpio/ is used to interact with a CEC
+  Consumer Electronics Control bus using only GPIO. It is used to communicate
+  with devices on the HDMI bus.
+
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The
 MTD NOR flash has add-ons for extra GPIO lines too, though the address bus is
 usually connected directly to the flash.
 
-Use those instead of talking directly to the GPIOs using sysfs; they integrate
-with kernel frameworks better than your userspace code could. Needless to say,
-just using the appropriate kernel drivers will simplify and speed up your
-embedded hacking in particular by providing ready-made components.
+Use those instead of talking directly to the GPIOs from userspace; they
+integrate with kernel frameworks better than your userspace code could.
+Needless to say, just using the appropriate kernel drivers will simplify and
+speed up your embedded hacking in particular by providing ready-made components.

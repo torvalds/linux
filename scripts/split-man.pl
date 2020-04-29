@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # SPDX-License-Identifier: GPL-2.0
 #
-# Author: Mauro Carvalho Chehab <mchehab@s-opensource.com>
+# Author: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 #
 # Produce manpages from kernel-doc.
 # See Documentation/doc-guide/kernel-doc.rst for instructions

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support PCI IO workaround
  *
  *  Copyright (C) 2006 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *		       IBM, Corp.
  *  (C) Copyright 2007-2008 TOSHIBA CORPORATION
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #undef DEBUG
 
@@ -152,11 +149,11 @@ static const struct ppc_pci_io iowa_pci_io = {
 };
 
 #ifdef CONFIG_PPC_INDIRECT_MMIO
-static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
-				  unsigned long flags, void *caller)
+void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
+			   pgprot_t prot, void *caller)
 {
 	struct iowa_bus *bus;
-	void __iomem *res = __ioremap_caller(addr, size, flags, caller);
+	void __iomem *res = __ioremap_caller(addr, size, prot, caller);
 	int busno;
 
 	bus = iowa_pci_find(0, (unsigned long)addr);
@@ -166,20 +163,17 @@ static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 	}
 	return res;
 }
-#else /* CONFIG_PPC_INDIRECT_MMIO */
-#define iowa_ioremap NULL
 #endif /* !CONFIG_PPC_INDIRECT_MMIO */
+
+bool io_workaround_inited;
 
 /* Enable IO workaround */
 static void io_workaround_init(void)
 {
-	static int io_workaround_inited;
-
 	if (io_workaround_inited)
 		return;
 	ppc_pci_io = iowa_pci_io;
-	ppc_md.ioremap = iowa_ioremap;
-	io_workaround_inited = 1;
+	io_workaround_inited = true;
 }
 
 /* Register new bus to support workaround */

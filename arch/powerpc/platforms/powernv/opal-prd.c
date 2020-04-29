@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OPAL Runtime Diagnostics interface driver
  * Supported on POWERNV platform
  *
  * Copyright IBM Corporation 2015
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) "opal-prd: " fmt
@@ -350,7 +342,7 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	int msg_size, item_size;
 	unsigned long flags;
 
-	if (msg_type != OPAL_MSG_PRD)
+	if (msg_type != OPAL_MSG_PRD && msg_type != OPAL_MSG_PRD2)
 		return 0;
 
 	/* Calculate total size of the message and item we need to store. The
@@ -398,6 +390,12 @@ static int opal_prd_probe(struct platform_device *pdev)
 	rc = opal_message_notifier_register(OPAL_MSG_PRD, &opal_prd_event_nb);
 	if (rc) {
 		pr_err("Couldn't register event notifier\n");
+		return rc;
+	}
+
+	rc = opal_message_notifier_register(OPAL_MSG_PRD2, &opal_prd_event_nb);
+	if (rc) {
+		pr_err("Couldn't register PRD2 event notifier\n");
 		return rc;
 	}
 

@@ -77,15 +77,14 @@ int cxgb4_get_srq_entry(struct net_device *dev,
 	adap = netdev2adap(dev);
 	s = adap->srq;
 
-	if (!(adap->flags & FULL_INIT_DONE) || !s)
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE) || !s)
 		goto out;
 
 	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 	req = (struct cpl_srq_table_req *)
-		__skb_put(skb, sizeof(*req));
-	memset(req, 0, sizeof(*req));
+		__skb_put_zero(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SRQ_TABLE_REQ,
 					      TID_TID_V(srq_idx) |

@@ -29,61 +29,22 @@
 
 #include <nvif/notify.h>
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_util.h>
+
 #include "nouveau_crtc.h"
+#include "nouveau_encoder.h"
 
 struct nvkm_i2c_port;
+struct dcb_output;
 
-struct nouveau_connector {
-	struct drm_connector base;
-	enum dcb_connector_type type;
-	u8 index;
-	u8 *dcb;
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+struct nouveau_backlight;
+#endif
 
-	struct nvif_notify hpd;
-
-	struct drm_dp_aux aux;
-
-	int dithering_mode;
-	int scaling_mode;
-
-	struct nouveau_encoder *detected_encoder;
-	struct edid *edid;
-	struct drm_display_mode *native_mode;
-};
-
-static inline struct nouveau_connector *nouveau_connector(
-						struct drm_connector *con)
-{
-	return container_of(con, struct nouveau_connector, base);
-}
-
-static inline struct nouveau_connector *
-nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
-{
-	struct drm_device *dev = nv_crtc->base.dev;
-	struct drm_connector *connector;
-	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder && connector->encoder->crtc == crtc)
-			return nouveau_connector(connector);
-	}
-
-	return NULL;
-}
-
-struct drm_connector *
-nouveau_connector_create(struct drm_device *, int index);
-
-extern int nouveau_tv_disable;
-extern int nouveau_ignorelid;
-extern int nouveau_duallink;
-extern int nouveau_hdmimhz;
-
-#include <drm/drm_crtc.h>
 #define nouveau_conn_atom(p)                                                   \
 	container_of((p), struct nouveau_conn_atom, state)
 
@@ -138,6 +99,89 @@ struct nouveau_conn_atom {
 	} set;
 };
 
+struct nouveau_connector {
+	struct drm_connector base;
+	enum dcb_connector_type type;
+	u8 index;
+	u8 *dcb;
+
+	struct nvif_notify hpd;
+
+	struct drm_dp_aux aux;
+
+	int dithering_mode;
+	int scaling_mode;
+
+	struct nouveau_encoder *detected_encoder;
+	struct edid *edid;
+	struct drm_display_mode *native_mode;
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+	struct nouveau_backlight *backlight;
+#endif
+	/*
+	 * Our connector property code expects a nouveau_conn_atom struct
+	 * even on pre-nv50 where we do not support atomic. This embedded
+	 * version gets used in the non atomic modeset case.
+	 */
+	struct nouveau_conn_atom properties_state;
+};
+
+static inline struct nouveau_connector *nouveau_connector(
+						struct drm_connector *con)
+{
+	return container_of(con, struct nouveau_connector, base);
+}
+
+static inline bool
+nouveau_connector_is_mst(struct drm_connector *connector)
+{
+	const struct nouveau_encoder *nv_encoder;
+	const struct drm_encoder *encoder;
+
+	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+		return false;
+
+	nv_encoder = find_encoder(connector, DCB_OUTPUT_ANY);
+	if (!nv_encoder)
+		return false;
+
+	encoder = &nv_encoder->base.base;
+	return encoder->encoder_type == DRM_MODE_ENCODER_DPMST;
+}
+
+#define nouveau_for_each_non_mst_connector_iter(connector, iter) \
+	drm_for_each_connector_iter(connector, iter) \
+		for_each_if(!nouveau_connector_is_mst(connector))
+
+static inline struct nouveau_connector *
+nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
+{
+	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct nouveau_connector *nv_connector = NULL;
+	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		if (connector->encoder && connector->encoder->crtc == crtc) {
+			nv_connector = nouveau_connector(connector);
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return nv_connector;
+}
+
+struct drm_connector *
+nouveau_connector_create(struct drm_device *, const struct dcb_output *);
+
+extern int nouveau_tv_disable;
+extern int nouveau_ignorelid;
+extern int nouveau_duallink;
+extern int nouveau_hdmimhz;
+
 void nouveau_conn_attach_properties(struct drm_connector *);
 void nouveau_conn_reset(struct drm_connector *);
 struct drm_connector_state *
@@ -151,4 +195,30 @@ int nouveau_conn_atomic_get_property(struct drm_connector *,
 				     const struct drm_connector_state *,
 				     struct drm_property *, u64 *);
 struct drm_display_mode *nouveau_conn_native_mode(struct drm_connector *);
+
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+extern int nouveau_backlight_init(struct drm_connector *);
+extern void nouveau_backlight_fini(struct drm_connector *);
+extern void nouveau_backlight_ctor(void);
+extern void nouveau_backlight_dtor(void);
+#else
+static inline int
+nouveau_backlight_init(struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline void
+nouveau_backlight_fini(struct drm_connector *connector) {
+}
+
+static inline void
+nouveau_backlight_ctor(void) {
+}
+
+static inline void
+nouveau_backlight_dtor(void) {
+}
+#endif
+
 #endif /* __NOUVEAU_CONNECTOR_H__ */

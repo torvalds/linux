@@ -14,6 +14,8 @@
 #include <linux/usb/typec.h>
 
 /* Register offsets */
+#define TPS_REG_VID			0x00
+#define TPS_REG_MODE			0x03
 #define TPS_REG_CMD1			0x08
 #define TPS_REG_DATA1			0x09
 #define TPS_REG_INT_EVENT1		0x14
@@ -39,7 +41,7 @@
 #define TPS_STATUS_VCONN(s)		(!!((s) & BIT(7)))
 
 /* TPS_REG_SYSTEM_CONF bits */
-#define TPS_SYSCONF_PORTINFO(c)		((c) & 3)
+#define TPS_SYSCONF_PORTINFO(c)		((c) & 7)
 
 enum {
 	TPS_PORTINFO_SINK,
@@ -66,6 +68,20 @@ struct tps6598x_rx_identity_reg {
 #define TPS_TASK_TIMEOUT		1
 #define TPS_TASK_REJECTED		3
 
+enum {
+	TPS_MODE_APP,
+	TPS_MODE_BOOT,
+	TPS_MODE_BIST,
+	TPS_MODE_DISC,
+};
+
+static const char *const modes[] = {
+	[TPS_MODE_APP]	= "APP ",
+	[TPS_MODE_BOOT]	= "BOOT",
+	[TPS_MODE_BIST]	= "BIST",
+	[TPS_MODE_DISC]	= "DISC",
+};
+
 /* Unrecognized commands will be replaced with "!CMD" */
 #define INVALID_CMD(_cmd_)		(_cmd_ == 0x444d4321)
 
@@ -73,47 +89,90 @@ struct tps6598x {
 	struct device *dev;
 	struct regmap *regmap;
 	struct mutex lock; /* device lock */
+	u8 i2c_protocol:1;
 
 	struct typec_port *port;
 	struct typec_partner *partner;
 	struct usb_pd_identity partner_identity;
-	struct typec_capability typec_cap;
 };
+
+/*
+ * Max data bytes for Data1, Data2, and other registers. See ch 1.3.2:
+ * http://www.ti.com/lit/ug/slvuan1a/slvuan1a.pdf
+ */
+#define TPS_MAX_LEN	64
+
+static int
+tps6598x_block_read(struct tps6598x *tps, u8 reg, void *val, size_t len)
+{
+	u8 data[TPS_MAX_LEN + 1];
+	int ret;
+
+	if (WARN_ON(len + 1 > sizeof(data)))
+		return -EINVAL;
+
+	if (!tps->i2c_protocol)
+		return regmap_raw_read(tps->regmap, reg, val, len);
+
+	ret = regmap_raw_read(tps->regmap, reg, data, sizeof(data));
+	if (ret)
+		return ret;
+
+	if (data[0] < len)
+		return -EIO;
+
+	memcpy(val, &data[1], len);
+	return 0;
+}
+
+static int tps6598x_block_write(struct tps6598x *tps, u8 reg,
+				const void *val, size_t len)
+{
+	u8 data[TPS_MAX_LEN + 1];
+
+	if (!tps->i2c_protocol)
+		return regmap_raw_write(tps->regmap, reg, val, len);
+
+	data[0] = len;
+	memcpy(&data[1], val, len);
+
+	return regmap_raw_write(tps->regmap, reg, data, sizeof(data));
+}
 
 static inline int tps6598x_read16(struct tps6598x *tps, u8 reg, u16 *val)
 {
-	return regmap_raw_read(tps->regmap, reg, val, sizeof(u16));
+	return tps6598x_block_read(tps, reg, val, sizeof(u16));
 }
 
 static inline int tps6598x_read32(struct tps6598x *tps, u8 reg, u32 *val)
 {
-	return regmap_raw_read(tps->regmap, reg, val, sizeof(u32));
+	return tps6598x_block_read(tps, reg, val, sizeof(u32));
 }
 
 static inline int tps6598x_read64(struct tps6598x *tps, u8 reg, u64 *val)
 {
-	return regmap_raw_read(tps->regmap, reg, val, sizeof(u64));
+	return tps6598x_block_read(tps, reg, val, sizeof(u64));
 }
 
 static inline int tps6598x_write16(struct tps6598x *tps, u8 reg, u16 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u16));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u16));
 }
 
 static inline int tps6598x_write32(struct tps6598x *tps, u8 reg, u32 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u32));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u32));
 }
 
 static inline int tps6598x_write64(struct tps6598x *tps, u8 reg, u64 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u64));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u64));
 }
 
 static inline int
 tps6598x_write_4cc(struct tps6598x *tps, u8 reg, const char *val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u32));
+	return tps6598x_block_write(tps, reg, val, 4);
 }
 
 static int tps6598x_read_partner_identity(struct tps6598x *tps)
@@ -121,8 +180,8 @@ static int tps6598x_read_partner_identity(struct tps6598x *tps)
 	struct tps6598x_rx_identity_reg id;
 	int ret;
 
-	ret = regmap_raw_read(tps->regmap, TPS_REG_RX_IDENTITY_SOP,
-			      &id, sizeof(id));
+	ret = tps6598x_block_read(tps, TPS_REG_RX_IDENTITY_SOP,
+				  &id, sizeof(id));
 	if (ret)
 		return ret;
 
@@ -199,8 +258,8 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 		return -EBUSY;
 
 	if (in_len) {
-		ret = regmap_raw_write(tps->regmap, TPS_REG_DATA1,
-				       in_data, in_len);
+		ret = tps6598x_block_write(tps, TPS_REG_DATA1,
+					   in_data, in_len);
 		if (ret)
 			return ret;
 	}
@@ -224,13 +283,13 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 	} while (val);
 
 	if (out_len) {
-		ret = regmap_raw_read(tps->regmap, TPS_REG_DATA1,
-				      out_data, out_len);
+		ret = tps6598x_block_read(tps, TPS_REG_DATA1,
+					  out_data, out_len);
 		if (ret)
 			return ret;
 		val = out_data[0];
 	} else {
-		ret = regmap_read(tps->regmap, TPS_REG_DATA1, &val);
+		ret = tps6598x_block_read(tps, TPS_REG_DATA1, &val, sizeof(u8));
 		if (ret)
 			return ret;
 	}
@@ -247,11 +306,10 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 	return 0;
 }
 
-static int
-tps6598x_dr_set(const struct typec_capability *cap, enum typec_data_role role)
+static int tps6598x_dr_set(struct typec_port *port, enum typec_data_role role)
 {
-	struct tps6598x *tps = container_of(cap, struct tps6598x, typec_cap);
 	const char *cmd = (role == TYPEC_DEVICE) ? "SWUF" : "SWDF";
+	struct tps6598x *tps = typec_get_drvdata(port);
 	u32 status;
 	int ret;
 
@@ -278,11 +336,10 @@ out_unlock:
 	return ret;
 }
 
-static int
-tps6598x_pr_set(const struct typec_capability *cap, enum typec_role role)
+static int tps6598x_pr_set(struct typec_port *port, enum typec_role role)
 {
-	struct tps6598x *tps = container_of(cap, struct tps6598x, typec_cap);
 	const char *cmd = (role == TYPEC_SINK) ? "SWSk" : "SWSr";
+	struct tps6598x *tps = typec_get_drvdata(port);
 	u32 status;
 	int ret;
 
@@ -308,6 +365,11 @@ out_unlock:
 
 	return ret;
 }
+
+static const struct typec_operations tps6598x_ops = {
+	.dr_set = tps6598x_dr_set,
+	.pr_set = tps6598x_pr_set,
+};
 
 static irqreturn_t tps6598x_interrupt(int irq, void *data)
 {
@@ -354,6 +416,32 @@ err_unlock:
 	return IRQ_HANDLED;
 }
 
+static int tps6598x_check_mode(struct tps6598x *tps)
+{
+	char mode[5] = { };
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_MODE, (void *)mode);
+	if (ret)
+		return ret;
+
+	switch (match_string(modes, ARRAY_SIZE(modes), mode)) {
+	case TPS_MODE_APP:
+		return 0;
+	case TPS_MODE_BOOT:
+		dev_warn(tps->dev, "dead-battery condition\n");
+		return 0;
+	case TPS_MODE_BIST:
+	case TPS_MODE_DISC:
+	default:
+		dev_err(tps->dev, "controller in unsupported mode \"%s\"\n",
+			mode);
+		break;
+	}
+
+	return -ENODEV;
+}
+
 static const struct regmap_config tps6598x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -362,6 +450,7 @@ static const struct regmap_config tps6598x_regmap_config = {
 
 static int tps6598x_probe(struct i2c_client *client)
 {
+	struct typec_capability typec_cap = { };
 	struct tps6598x *tps;
 	u32 status;
 	u32 conf;
@@ -379,11 +468,24 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (IS_ERR(tps->regmap))
 		return PTR_ERR(tps->regmap);
 
-	ret = tps6598x_read32(tps, 0, &vid);
-	if (ret < 0)
-		return ret;
-	if (!vid)
+	ret = tps6598x_read32(tps, TPS_REG_VID, &vid);
+	if (ret < 0 || !vid)
 		return -ENODEV;
+
+	/*
+	 * Checking can the adapter handle SMBus protocol. If it can not, the
+	 * driver needs to take care of block reads separately.
+	 *
+	 * FIXME: Testing with I2C_FUNC_I2C. regmap-i2c uses I2C protocol
+	 * unconditionally if the adapter has I2C_FUNC_I2C set.
+	 */
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		tps->i2c_protocol = true;
+
+	/* Make sure the controller has application firmware running */
+	ret = tps6598x_check_mode(tps);
+	if (ret)
+		return ret;
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret < 0)
@@ -393,40 +495,40 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	tps->typec_cap.revision = USB_TYPEC_REV_1_2;
-	tps->typec_cap.pd_revision = 0x200;
-	tps->typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
-	tps->typec_cap.pr_set = tps6598x_pr_set;
-	tps->typec_cap.dr_set = tps6598x_dr_set;
+	typec_cap.revision = USB_TYPEC_REV_1_2;
+	typec_cap.pd_revision = 0x200;
+	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	typec_cap.driver_data = tps;
+	typec_cap.ops = &tps6598x_ops;
 
 	switch (TPS_SYSCONF_PORTINFO(conf)) {
 	case TPS_PORTINFO_SINK_ACCESSORY:
 	case TPS_PORTINFO_SINK:
-		tps->typec_cap.type = TYPEC_PORT_SNK;
-		tps->typec_cap.data = TYPEC_PORT_UFP;
+		typec_cap.type = TYPEC_PORT_SNK;
+		typec_cap.data = TYPEC_PORT_UFP;
 		break;
 	case TPS_PORTINFO_DRP_UFP_DRD:
 	case TPS_PORTINFO_DRP_DFP_DRD:
-		tps->typec_cap.type = TYPEC_PORT_DRP;
-		tps->typec_cap.data = TYPEC_PORT_DRD;
+		typec_cap.type = TYPEC_PORT_DRP;
+		typec_cap.data = TYPEC_PORT_DRD;
 		break;
 	case TPS_PORTINFO_DRP_UFP:
-		tps->typec_cap.type = TYPEC_PORT_DRP;
-		tps->typec_cap.data = TYPEC_PORT_UFP;
+		typec_cap.type = TYPEC_PORT_DRP;
+		typec_cap.data = TYPEC_PORT_UFP;
 		break;
 	case TPS_PORTINFO_DRP_DFP:
-		tps->typec_cap.type = TYPEC_PORT_DRP;
-		tps->typec_cap.data = TYPEC_PORT_DFP;
+		typec_cap.type = TYPEC_PORT_DRP;
+		typec_cap.data = TYPEC_PORT_DFP;
 		break;
 	case TPS_PORTINFO_SOURCE:
-		tps->typec_cap.type = TYPEC_PORT_SRC;
-		tps->typec_cap.data = TYPEC_PORT_DFP;
+		typec_cap.type = TYPEC_PORT_SRC;
+		typec_cap.data = TYPEC_PORT_DFP;
 		break;
 	default:
 		return -ENODEV;
 	}
 
-	tps->port = typec_register_port(&client->dev, &tps->typec_cap);
+	tps->port = typec_register_port(&client->dev, &typec_cap);
 	if (IS_ERR(tps->port))
 		return PTR_ERR(tps->port);
 
@@ -461,19 +563,19 @@ static int tps6598x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct acpi_device_id tps6598x_acpi_match[] = {
-	{ "INT3515", 0 },
+static const struct i2c_device_id tps6598x_id[] = {
+	{ "tps6598x" },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, tps6598x_acpi_match);
+MODULE_DEVICE_TABLE(i2c, tps6598x_id);
 
 static struct i2c_driver tps6598x_i2c_driver = {
 	.driver = {
 		.name = "tps6598x",
-		.acpi_match_table = tps6598x_acpi_match,
 	},
 	.probe_new = tps6598x_probe,
 	.remove = tps6598x_remove,
+	.id_table = tps6598x_id,
 };
 module_i2c_driver(tps6598x_i2c_driver);
 

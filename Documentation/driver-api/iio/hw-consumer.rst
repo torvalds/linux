@@ -1,7 +1,7 @@
 ===========
 HW consumer
 ===========
-An IIO device can be directly connected to another device in hardware. in this
+An IIO device can be directly connected to another device in hardware. In this
 case the buffers between IIO provider and IIO consumer are handled by hardware.
 The Industrial I/O HW consumer offers a way to bond these IIO devices without
 software buffer for data. The implementation can be found under
@@ -45,7 +45,6 @@ A typical IIO HW consumer setup looks like this::
 
 More details
 ============
-.. kernel-doc:: include/linux/iio/hw-consumer.h
 .. kernel-doc:: drivers/iio/buffer/industrialio-hw-consumer.c
    :export:
 

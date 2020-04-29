@@ -34,8 +34,8 @@
 #ifndef _HNS_ROCE_HEM_H
 #define _HNS_ROCE_HEM_H
 
-#define HW_SYNC_TIMEOUT_MSECS		500
 #define HW_SYNC_SLEEP_TIME_INTERVAL	20
+#define HW_SYNC_TIMEOUT_MSECS           (25 * HW_SYNC_SLEEP_TIME_INTERVAL)
 #define BT_CMD_SYNC_SHIFT		31
 
 enum {
@@ -44,17 +44,22 @@ enum {
 	HEM_TYPE_MTPT,
 	HEM_TYPE_CQC,
 	HEM_TYPE_SRQC,
+	HEM_TYPE_SCCC,
+	HEM_TYPE_QPC_TIMER,
+	HEM_TYPE_CQC_TIMER,
 
 	 /* UNMAP HEM */
 	HEM_TYPE_MTT,
 	HEM_TYPE_CQE,
+	HEM_TYPE_SRQWQE,
+	HEM_TYPE_IDX,
 	HEM_TYPE_IRRL,
 	HEM_TYPE_TRRL,
 };
 
 #define HNS_ROCE_HEM_CHUNK_LEN	\
 	 ((256 - sizeof(struct list_head) - 2 * sizeof(int)) /	 \
-	 (sizeof(struct scatterlist)))
+	 (sizeof(struct scatterlist) + sizeof(void *)))
 
 #define check_whether_bt_num_3(type, hop_num) \
 	(type < HEM_TYPE_MTT && hop_num == 2)
@@ -97,9 +102,9 @@ struct hns_roce_hem_mhop {
 	u32	buf_chunk_size;
 	u32	bt_chunk_size;
 	u32	ba_l0_num;
-	u32	l0_idx;/* level 0 base address table index */
-	u32	l1_idx;/* level 1 base address table index */
-	u32	l2_idx;/* level 2 base address table index */
+	u32	l0_idx; /* level 0 base address table index */
+	u32	l1_idx; /* level 1 base address table index */
+	u32	l2_idx; /* level 2 base address table index */
 };
 
 void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem);
@@ -127,6 +132,20 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_hem_table *table, unsigned long *obj,
 			   struct hns_roce_hem_mhop *mhop);
 bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type);
+
+void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list,
+			    int bt_page_order);
+int hns_roce_hem_list_calc_root_ba(const struct hns_roce_buf_region *regions,
+				   int region_cnt, int unit);
+int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_hem_list *hem_list,
+			      const struct hns_roce_buf_region *regions,
+			      int region_cnt);
+void hns_roce_hem_list_release(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_hem_list *hem_list);
+void *hns_roce_hem_list_find_mtt(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_hem_list *hem_list,
+				 int offset, int *mtt_cnt, u64 *phy_addr);
 
 static inline void hns_roce_hem_first(struct hns_roce_hem *hem,
 				      struct hns_roce_hem_iter *iter)

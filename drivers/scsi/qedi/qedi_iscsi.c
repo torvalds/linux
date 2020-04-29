@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include <linux/blkdev.h>
@@ -61,7 +58,6 @@ struct scsi_host_template qedi_host_template = {
 	.max_sectors = 0xffff,
 	.dma_boundary = QEDI_HW_DMA_BOUNDARY,
 	.cmd_per_lun = 128,
-	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = qedi_shost_attrs,
 };
 
@@ -396,6 +392,7 @@ static int qedi_conn_bind(struct iscsi_cls_session *cls_session,
 
 	qedi_ep->conn = qedi_conn;
 	qedi_conn->ep = qedi_ep;
+	qedi_conn->iscsi_ep = ep;
 	qedi_conn->iscsi_conn_id = qedi_ep->iscsi_cid;
 	qedi_conn->fw_cid = qedi_ep->fw_cid;
 	qedi_conn->cmd_cleanup_req = 0;
@@ -471,13 +468,7 @@ static u16 qedi_calc_mss(u16 pmtu, u8 is_ipv6, u8 tcp_ts_en, u8 vlan_en)
 	else
 		hdrs += IPV4_HDR_LEN;
 
-	if (vlan_en)
-		hdrs += VLAN_LEN;
-
 	mss = pmtu - hdrs;
-
-	if (tcp_ts_en)
-		mss -= TCP_OPTION_LEN;
 
 	if (!mss)
 		mss = DEF_MSS;
@@ -586,7 +577,7 @@ static int qedi_conn_start(struct iscsi_cls_conn *cls_conn)
 	rval = qedi_iscsi_update_conn(qedi, qedi_conn);
 	if (rval) {
 		iscsi_conn_printk(KERN_ALERT, conn,
-				  "conn_start: FW oflload conn failed.\n");
+				  "conn_start: FW offload conn failed.\n");
 		rval = -EINVAL;
 		goto start_err;
 	}
@@ -597,7 +588,7 @@ static int qedi_conn_start(struct iscsi_cls_conn *cls_conn)
 	rval = iscsi_conn_start(cls_conn);
 	if (rval) {
 		iscsi_conn_printk(KERN_ALERT, conn,
-				  "iscsi_conn_start: FW oflload conn failed!!\n");
+				  "iscsi_conn_start: FW offload conn failed!!\n");
 	}
 
 start_err:
@@ -792,6 +783,9 @@ static int qedi_task_xmit(struct iscsi_task *task)
 	struct qedi_cmd *cmd = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
 
+	if (test_bit(QEDI_IN_SHUTDOWN, &qedi_conn->qedi->flags))
+		return -ENODEV;
+
 	cmd->state = 0;
 	cmd->task = NULL;
 	cmd->use_slowpath = false;
@@ -816,8 +810,6 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct qedi_endpoint *qedi_ep;
 	struct sockaddr_in *addr;
 	struct sockaddr_in6 *addr6;
-	struct qed_dev *cdev  =  NULL;
-	struct qedi_uio_dev *udev = NULL;
 	struct iscsi_path path_req;
 	u32 msg_type = ISCSI_KEVENT_IF_DOWN;
 	u32 iscsi_cid = QEDI_CID_RESERVED;
@@ -837,8 +829,6 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	}
 
 	qedi = iscsi_host_priv(shost);
-	cdev = qedi->cdev;
-	udev = qedi->udev;
 
 	if (test_bit(QEDI_IN_OFFLINE, &qedi->flags) ||
 	    test_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
@@ -960,6 +950,7 @@ static int qedi_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 
 	qedi_ep = ep->dd_data;
 	if (qedi_ep->state == EP_STATE_IDLE ||
+	    qedi_ep->state == EP_STATE_OFLDCONN_NONE ||
 	    qedi_ep->state == EP_STATE_OFLDCONN_FAILED)
 		return -1;
 
@@ -999,12 +990,16 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 	struct iscsi_conn *conn = NULL;
 	struct qedi_ctx *qedi;
 	int ret = 0;
-	int wait_delay = 20 * HZ;
+	int wait_delay;
 	int abrt_conn = 0;
 	int count = 10;
 
+	wait_delay = 60 * HZ + DEF_MAX_RT_TIME;
 	qedi_ep = ep->dd_data;
 	qedi = qedi_ep->qedi;
+
+	if (qedi_ep->state == EP_STATE_OFLDCONN_START)
+		goto ep_exit_recover;
 
 	flush_work(&qedi_ep->offload_work);
 
@@ -1042,6 +1037,7 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 
 	switch (qedi_ep->state) {
 	case EP_STATE_OFLDCONN_START:
+	case EP_STATE_OFLDCONN_NONE:
 		goto ep_release_conn;
 	case EP_STATE_OFLDCONN_FAILED:
 			break;
@@ -1150,7 +1146,7 @@ static int qedi_data_avail(struct qedi_ctx *qedi, u16 vlanid)
 	if (vlanid)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlanid);
 
-	rc = qedi_ops->ll2->start_xmit(cdev, skb);
+	rc = qedi_ops->ll2->start_xmit(cdev, skb, 0);
 	if (rc) {
 		QEDI_ERR(&qedi->dbg_ctx, "ll2 start_xmit returned %d\n",
 			 rc);
@@ -1168,7 +1164,7 @@ static void qedi_offload_work(struct work_struct *work)
 	struct qedi_endpoint *qedi_ep =
 		container_of(work, struct qedi_endpoint, offload_work);
 	struct qedi_ctx *qedi;
-	int wait_delay = 20 * HZ;
+	int wait_delay = 5 * HZ;
 	int ret;
 
 	qedi = qedi_ep->qedi;
@@ -1232,6 +1228,7 @@ static int qedi_set_path(struct Scsi_Host *shost, struct iscsi_path *path_data)
 
 	if (!is_valid_ether_addr(&path_data->mac_addr[0])) {
 		QEDI_NOTICE(&qedi->dbg_ctx, "dst mac NOT VALID\n");
+		qedi_ep->state = EP_STATE_OFLDCONN_NONE;
 		ret = -EIO;
 		goto set_path_exit;
 	}
@@ -1601,6 +1598,20 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 
 	if (need_recovery)
 		qedi_start_conn_recovery(qedi_conn->qedi, qedi_conn);
+}
+
+void qedi_clear_session_ctx(struct iscsi_cls_session *cls_sess)
+{
+	struct iscsi_session *session = cls_sess->dd_data;
+	struct iscsi_conn *conn = session->leadconn;
+	struct qedi_conn *qedi_conn = conn->dd_data;
+
+	if (iscsi_is_session_online(cls_sess))
+		qedi_ep_disconnect(qedi_conn->iscsi_ep);
+
+	qedi_conn_destroy(qedi_conn->cls_conn);
+
+	qedi_session_destroy(cls_sess);
 }
 
 void qedi_process_tcp_error(struct qedi_endpoint *ep,

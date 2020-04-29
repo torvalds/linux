@@ -1,20 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
  *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *  Based on Steven Toth <stoth@linuxtv.org> cx23885 driver
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #ifndef CX25821_H_
@@ -93,7 +83,6 @@
 #define VID_CHANNEL_NUM 8
 
 struct cx25821_fmt {
-	char *name;
 	u32 fourcc;		/* v4l2 format id */
 	int depth;
 	int flags;
@@ -156,7 +145,7 @@ struct cx25821_i2c {
 	struct i2c_client i2c_client;
 	u32 i2c_rc;
 
-	/* cx25821 registers used for raw addess */
+	/* cx25821 registers used for raw address */
 	u32 i2c_period;
 	u32 reg_ctrl;
 	u32 reg_stat;
@@ -432,18 +421,6 @@ extern int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 					    const struct sram_channel *ch,
 					    unsigned int bpl, u32 risc);
 
-extern int cx25821_vidupstream_init(struct cx25821_channel *chan, int pixel_format);
-extern int cx25821_audio_upstream_init(struct cx25821_dev *dev,
-				       int channel_select);
-extern int cx25821_write_frame(struct cx25821_channel *chan,
-		const char __user *data, size_t count);
-extern void cx25821_free_mem_upstream(struct cx25821_channel *chan);
-extern void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev);
-extern void cx25821_stop_upstream_video(struct cx25821_channel *chan);
-extern void cx25821_stop_upstream_audio(struct cx25821_dev *dev);
-extern int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
-					       const struct sram_channel *ch,
-					       unsigned int bpl, u32 risc);
 extern void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel,
 				     u32 format);
 

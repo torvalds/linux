@@ -3,7 +3,7 @@
 // Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com
 //
-// EXYNOS - Power Management support
+// Exynos - Power Management support
 //
 // Based on arch/arm/mach-s3c2410/pm.c
 // Copyright (c) 2006 Simtec Electronics
@@ -21,8 +21,6 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 #include <asm/cacheflush.h>
-
-#include <mach/map.h>
 
 #include "common.h"
 
@@ -172,7 +170,7 @@ void exynos_enter_aftr(void)
 	cpu_suspend(0, exynos_aftr_finisher);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-		scu_enable(S5P_VA_SCU);
+		exynos_scu_enable();
 		if (call_firmware_op(resume) == -ENOSYS)
 			exynos_cpu_restore_register();
 	}

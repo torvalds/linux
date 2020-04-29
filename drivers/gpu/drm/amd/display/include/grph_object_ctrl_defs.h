@@ -178,7 +178,8 @@ struct dc_firmware_info {
 	uint32_t default_engine_clk; /* in KHz */
 	uint32_t dp_phy_ref_clk; /* in KHz - DCE12 only */
 	uint32_t i2c_engine_ref_clk; /* in KHz - DCE12 only */
-
+	bool oem_i2c_present;
+	uint8_t oem_i2c_obj_id;
 
 };
 
@@ -395,6 +396,8 @@ struct integrated_info {
 	struct i2c_reg_info dp3_ext_hdmi_reg_settings[9];
 	unsigned char dp3_ext_hdmi_6g_reg_num;
 	struct i2c_reg_info dp3_ext_hdmi_6g_reg_settings[3];
+	/* V11 */
+	uint32_t dp_ss_control;
 };
 
 /**

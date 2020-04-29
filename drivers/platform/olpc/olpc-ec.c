@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Generic driver for the OLPC Embedded Controller.
  *
  * Author: Andres Salomon <dilinger@queued.net>
  *
  * Copyright (C) 2011-2012 One Laptop per Child Foundation.
- *
- * Licensed under the GPL v2 or later.
  */
 #include <linux/completion.h>
 #include <linux/debugfs.h>
@@ -16,8 +15,8 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/regulator/driver.h>
 #include <linux/olpc-ec.h>
-#include <asm/olpc.h>
 
 struct ec_cmd_desc {
 	u8 cmd;
@@ -33,14 +32,25 @@ struct ec_cmd_desc {
 
 struct olpc_ec_priv {
 	struct olpc_ec_driver *drv;
+	u8 version;
 	struct work_struct worker;
 	struct mutex cmd_lock;
+
+	/* DCON regulator */
+	struct regulator_dev *dcon_rdev;
+	bool dcon_enabled;
 
 	/* Pending EC commands */
 	struct list_head cmd_q;
 	spinlock_t cmd_q_lock;
 
 	struct dentry *dbgfs_dir;
+
+	/*
+	 * EC event mask to be applied during suspend (defining wakeup
+	 * sources).
+	 */
+	u16 ec_wakeup_mask;
 
 	/*
 	 * Running an EC command while suspending means we don't always finish
@@ -119,8 +129,11 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	struct olpc_ec_priv *ec = ec_priv;
 	struct ec_cmd_desc desc;
 
-	/* Ensure a driver and ec hook have been registered */
-	if (WARN_ON(!ec_driver || !ec_driver->ec_cmd))
+	/* Driver not yet registered. */
+	if (!ec_driver)
+		return -EPROBE_DEFER;
+
+	if (WARN_ON(!ec_driver->ec_cmd))
 		return -ENODEV;
 
 	if (!ec)
@@ -149,6 +162,88 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	return desc.err;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
+
+void olpc_ec_wakeup_set(u16 value)
+{
+	struct olpc_ec_priv *ec = ec_priv;
+
+	if (WARN_ON(!ec))
+		return;
+
+	ec->ec_wakeup_mask |= value;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_set);
+
+void olpc_ec_wakeup_clear(u16 value)
+{
+	struct olpc_ec_priv *ec = ec_priv;
+
+	if (WARN_ON(!ec))
+		return;
+
+	ec->ec_wakeup_mask &= ~value;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_clear);
+
+int olpc_ec_mask_write(u16 bits)
+{
+	struct olpc_ec_priv *ec = ec_priv;
+
+	if (WARN_ON(!ec))
+		return -ENODEV;
+
+	/* EC version 0x5f adds support for wide SCI mask */
+	if (ec->version >= 0x5f) {
+		__be16 ec_word = cpu_to_be16(bits);
+
+		return olpc_ec_cmd(EC_WRITE_EXT_SCI_MASK, (void *)&ec_word, 2, NULL, 0);
+	} else {
+		u8 ec_byte = bits & 0xff;
+
+		return olpc_ec_cmd(EC_WRITE_SCI_MASK, &ec_byte, 1, NULL, 0);
+	}
+}
+EXPORT_SYMBOL_GPL(olpc_ec_mask_write);
+
+/*
+ * Returns true if the compile and runtime configurations allow for EC events
+ * to wake the system.
+ */
+bool olpc_ec_wakeup_available(void)
+{
+	if (WARN_ON(!ec_driver))
+		return false;
+
+	return ec_driver->wakeup_available;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_wakeup_available);
+
+int olpc_ec_sci_query(u16 *sci_value)
+{
+	struct olpc_ec_priv *ec = ec_priv;
+	int ret;
+
+	if (WARN_ON(!ec))
+		return -ENODEV;
+
+	/* EC version 0x5f adds support for wide SCI mask */
+	if (ec->version >= 0x5f) {
+		__be16 ec_word;
+
+		ret = olpc_ec_cmd(EC_EXT_SCI_QUERY, NULL, 0, (void *)&ec_word, 2);
+		if (ret == 0)
+			*sci_value = be16_to_cpu(ec_word);
+	} else {
+		u8 ec_byte;
+
+		ret = olpc_ec_cmd(EC_SCI_QUERY, NULL, 0, &ec_byte, 1);
+		if (ret == 0)
+			*sci_value = ec_byte;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_sci_query);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -255,9 +350,61 @@ static struct dentry *olpc_ec_setup_debugfs(void)
 
 #endif /* CONFIG_DEBUG_FS */
 
+static int olpc_ec_set_dcon_power(struct olpc_ec_priv *ec, bool state)
+{
+	unsigned char ec_byte = state;
+	int ret;
+
+	if (ec->dcon_enabled == state)
+		return 0;
+
+	ret = olpc_ec_cmd(EC_DCON_POWER_MODE, &ec_byte, 1, NULL, 0);
+	if (ret)
+		return ret;
+
+	ec->dcon_enabled = state;
+	return 0;
+}
+
+static int dcon_regulator_enable(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return olpc_ec_set_dcon_power(ec, true);
+}
+
+static int dcon_regulator_disable(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return olpc_ec_set_dcon_power(ec, false);
+}
+
+static int dcon_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return ec->dcon_enabled ? 1 : 0;
+}
+
+static struct regulator_ops dcon_regulator_ops = {
+	.enable		= dcon_regulator_enable,
+	.disable	= dcon_regulator_disable,
+	.is_enabled	= dcon_regulator_is_enabled,
+};
+
+static const struct regulator_desc dcon_desc = {
+	.name	= "dcon",
+	.id	= 0,
+	.ops	= &dcon_regulator_ops,
+	.type	= REGULATOR_VOLTAGE,
+	.owner	= THIS_MODULE,
+};
+
 static int olpc_ec_probe(struct platform_device *pdev)
 {
 	struct olpc_ec_priv *ec;
+	struct regulator_config config = { };
 	int err;
 
 	if (!ec_driver)
@@ -277,13 +424,25 @@ static int olpc_ec_probe(struct platform_device *pdev)
 	ec_priv = ec;
 	platform_set_drvdata(pdev, ec);
 
-	err = ec_driver->probe ? ec_driver->probe(pdev) : 0;
+	/* get the EC revision */
+	err = olpc_ec_cmd(EC_FIRMWARE_REV, NULL, 0, &ec->version, 1);
 	if (err) {
 		ec_priv = NULL;
 		kfree(ec);
-	} else {
-		ec->dbgfs_dir = olpc_ec_setup_debugfs();
+		return err;
 	}
+
+	config.dev = pdev->dev.parent;
+	config.driver_data = ec;
+	ec->dcon_enabled = true;
+	ec->dcon_rdev = devm_regulator_register(&pdev->dev, &dcon_desc,
+								&config);
+	if (IS_ERR(ec->dcon_rdev)) {
+		dev_err(&pdev->dev, "failed to register DCON regulator\n");
+		return PTR_ERR(ec->dcon_rdev);
+	}
+
+	ec->dbgfs_dir = olpc_ec_setup_debugfs();
 
 	return err;
 }
@@ -293,6 +452,8 @@ static int olpc_ec_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct olpc_ec_priv *ec = platform_get_drvdata(pdev);
 	int err = 0;
+
+	olpc_ec_mask_write(ec->ec_wakeup_mask);
 
 	if (ec_driver->suspend)
 		err = ec_driver->suspend(pdev);

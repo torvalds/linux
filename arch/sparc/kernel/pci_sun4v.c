@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/log2.h>
 #include <linux/of_device.h>
-#include <linux/iommu-common.h>
+#include <asm/iommu-common.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
@@ -73,6 +73,11 @@ static inline void iommu_batch_start(struct device *dev, unsigned long prot, uns
 	p->npages	= 0;
 }
 
+static inline bool iommu_use_atu(struct iommu *iommu, u64 mask)
+{
+	return iommu->atu && mask > DMA_BIT_MASK(32);
+}
+
 /* Interrupts must be disabled.  */
 static long iommu_batch_flush(struct iommu_batch *p, u64 mask)
 {
@@ -92,7 +97,7 @@ static long iommu_batch_flush(struct iommu_batch *p, u64 mask)
 		prot &= (HV_PCI_MAP_ATTR_READ | HV_PCI_MAP_ATTR_WRITE);
 
 	while (npages != 0) {
-		if (mask <= DMA_BIT_MASK(32)) {
+		if (!iommu_use_atu(pbm->iommu, mask)) {
 			num = pci_sun4v_iommu_map(devhandle,
 						  HV_PCI_TSBID(0, entry),
 						  npages,
@@ -179,7 +184,6 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	unsigned long flags, order, first_page, npages, n;
 	unsigned long prot = 0;
 	struct iommu *iommu;
-	struct atu *atu;
 	struct iommu_map_table *tbl;
 	struct page *page;
 	void *ret;
@@ -205,13 +209,11 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
 	iommu = dev->archdata.iommu;
-	atu = iommu->atu;
-
 	mask = dev->coherent_dma_mask;
-	if (mask <= DMA_BIT_MASK(32))
+	if (!iommu_use_atu(iommu, mask))
 		tbl = &iommu->tbl;
 	else
-		tbl = &atu->tbl;
+		tbl = &iommu->atu->tbl;
 
 	entry = iommu_tbl_range_alloc(dev, tbl, npages, NULL,
 				      (unsigned long)(-1), 0);
@@ -333,7 +335,7 @@ static void dma_4v_free_coherent(struct device *dev, size_t size, void *cpu,
 	atu = iommu->atu;
 	devhandle = pbm->devhandle;
 
-	if (dvma <= DMA_BIT_MASK(32)) {
+	if (!iommu_use_atu(iommu, dvma)) {
 		tbl = &iommu->tbl;
 		iotsb_num = 0; /* we don't care for legacy iommu */
 	} else {
@@ -374,7 +376,7 @@ static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 	npages >>= IO_PAGE_SHIFT;
 
 	mask = *dev->dma_mask;
-	if (mask <= DMA_BIT_MASK(32))
+	if (!iommu_use_atu(iommu, mask))
 		tbl = &iommu->tbl;
 	else
 		tbl = &atu->tbl;
@@ -414,12 +416,12 @@ static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 bad:
 	if (printk_ratelimit())
 		WARN_ON(1);
-	return SPARC_MAPPING_ERROR;
+	return DMA_MAPPING_ERROR;
 
 iommu_map_fail:
 	local_irq_restore(flags);
 	iommu_tbl_range_free(tbl, bus_addr, npages, IOMMU_ERROR_CODE);
-	return SPARC_MAPPING_ERROR;
+	return DMA_MAPPING_ERROR;
 }
 
 static void dma_4v_unmap_page(struct device *dev, dma_addr_t bus_addr,
@@ -510,7 +512,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 				  IO_PAGE_SIZE) >> IO_PAGE_SHIFT;
 
 	mask = *dev->dma_mask;
-	if (mask <= DMA_BIT_MASK(32))
+	if (!iommu_use_atu(iommu, mask))
 		tbl = &iommu->tbl;
 	else
 		tbl = &atu->tbl;
@@ -592,7 +594,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	if (outcount < incount) {
 		outs = sg_next(outs);
-		outs->dma_address = SPARC_MAPPING_ERROR;
+		outs->dma_address = DMA_MAPPING_ERROR;
 		outs->dma_length = 0;
 	}
 
@@ -609,7 +611,7 @@ iommu_map_failed:
 			iommu_tbl_range_free(tbl, vaddr, npages,
 					     IOMMU_ERROR_CODE);
 			/* XXX demap? XXX */
-			s->dma_address = SPARC_MAPPING_ERROR;
+			s->dma_address = DMA_MAPPING_ERROR;
 			s->dma_length = 0;
 		}
 		if (s == outs)
@@ -674,23 +676,12 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 static int dma_4v_supported(struct device *dev, u64 device_mask)
 {
 	struct iommu *iommu = dev->archdata.iommu;
-	u64 dma_addr_mask = iommu->dma_addr_mask;
 
-	if (device_mask > DMA_BIT_MASK(32)) {
-		if (iommu->atu)
-			dma_addr_mask = iommu->atu->dma_addr_mask;
-		else
-			return 0;
-	}
-
-	if ((device_mask & dma_addr_mask) == dma_addr_mask)
+	if (ali_sound_dma_hack(dev, device_mask))
 		return 1;
-	return pci64_dma_supported(to_pci_dev(dev), device_mask);
-}
-
-static int dma_4v_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return dma_addr == SPARC_MAPPING_ERROR;
+	if (device_mask < iommu->dma_addr_mask)
+		return 0;
+	return 1;
 }
 
 static const struct dma_map_ops sun4v_dma_ops = {
@@ -701,7 +692,6 @@ static const struct dma_map_ops sun4v_dma_ops = {
 	.map_sg				= dma_4v_map_sg,
 	.unmap_sg			= dma_4v_unmap_sg,
 	.dma_supported			= dma_4v_supported,
-	.mapping_error			= dma_4v_mapping_error,
 };
 
 static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm, struct device *parent)

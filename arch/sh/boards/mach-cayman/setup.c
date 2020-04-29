@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/mach-cayman/setup.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2002  David J. Mckay & Benedict Gaster
  * Copyright (C) 2003 - 2007  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -102,7 +99,7 @@ static int __init smsc_superio_setup(void)
 {
 	unsigned char devid, devrev;
 
-	smsc_superio_virt = (unsigned long)ioremap_nocache(SMSC_SUPERIO_BASE, 1024);
+	smsc_superio_virt = (unsigned long)ioremap(SMSC_SUPERIO_BASE, 1024);
 	if (!smsc_superio_virt) {
 		panic("Unable to remap SMSC SuperIO\n");
 	}

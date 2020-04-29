@@ -71,6 +71,10 @@
 	DMCU_COMMON_REG_LIST_DCE_BASE(), \
 	SR(DMU_MEM_PWR_CNTL)
 
+#define DMCU_DCN20_REG_LIST()\
+	DMCU_DCN10_REG_LIST(), \
+	SR(DMCUB_SCRATCH15)
+
 #define DMCU_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -175,6 +179,7 @@ struct dce_dmcu_registers {
 	uint32_t DMCU_INTERRUPT_TO_UC_EN_MASK;
 	uint32_t SMU_INTERRUPT_CONTROL;
 	uint32_t DC_DMCU_SCRATCH;
+	uint32_t DMCUB_SCRATCH15;
 };
 
 struct dce_dmcu {
@@ -199,16 +204,16 @@ struct dce_dmcu {
  ******************************************************************/
 union dce_dmcu_psr_config_data_reg1 {
 	struct {
-		unsigned int timehyst_frames:8;    /*[7:0]*/
-		unsigned int hyst_lines:7;         /*[14:8]*/
-		unsigned int rfb_update_auto_en:1; /*[15:15]*/
-		unsigned int dp_port_num:3;        /*[18:16]*/
-		unsigned int dcp_sel:3;            /*[21:19]*/
-		unsigned int phy_type:1;           /*[22:22]*/
-		unsigned int frame_cap_ind:1;      /*[23:23]*/
-		unsigned int aux_chan:3;           /*[26:24]*/
-		unsigned int aux_repeat:4;         /*[30:27]*/
-		unsigned int reserved:1;           /*[31:31]*/
+		unsigned int timehyst_frames:8;                  /*[7:0]*/
+		unsigned int hyst_lines:7;                       /*[14:8]*/
+		unsigned int rfb_update_auto_en:1;               /*[15:15]*/
+		unsigned int dp_port_num:3;                      /*[18:16]*/
+		unsigned int dcp_sel:3;                          /*[21:19]*/
+		unsigned int phy_type:1;                         /*[22:22]*/
+		unsigned int frame_cap_ind:1;                    /*[23:23]*/
+		unsigned int aux_chan:3;                         /*[26:24]*/
+		unsigned int aux_repeat:4;                       /*[30:27]*/
+		unsigned int allow_smu_optimizations:1;         /*[31:31]*/
 	} bits;
 	unsigned int u32All;
 };
@@ -236,7 +241,7 @@ union dce_dmcu_psr_config_data_reg3 {
 	struct {
 		unsigned int psr_level:16;      /*[15:0]*/
 		unsigned int link_rate:4;       /*[19:16]*/
-		unsigned int reserved:12;       /*[31:20]*/
+		unsigned int reserved:12;        /*[31:20]*/
 	} bits;
 	unsigned int u32All;
 };
@@ -261,6 +266,20 @@ struct dmcu *dcn10_dmcu_create(
 	const struct dce_dmcu_shift *dmcu_shift,
 	const struct dce_dmcu_mask *dmcu_mask);
 
+struct dmcu *dcn20_dmcu_create(
+	struct dc_context *ctx,
+	const struct dce_dmcu_registers *regs,
+	const struct dce_dmcu_shift *dmcu_shift,
+	const struct dce_dmcu_mask *dmcu_mask);
+
+struct dmcu *dcn21_dmcu_create(
+	struct dc_context *ctx,
+	const struct dce_dmcu_registers *regs,
+	const struct dce_dmcu_shift *dmcu_shift,
+	const struct dce_dmcu_mask *dmcu_mask);
+
 void dce_dmcu_destroy(struct dmcu **dmcu);
+
+static const uint32_t abm_gain_stepsize = 0x0060;
 
 #endif /* _DCE_ABM_H_ */

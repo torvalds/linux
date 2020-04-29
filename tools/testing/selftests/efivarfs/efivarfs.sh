@@ -4,18 +4,27 @@
 efivarfs_mount=/sys/firmware/efi/efivars
 test_guid=210be57c-9849-4fc7-a635-e6382d1aec27
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
+file_cleanup()
+{
+	chattr -i $1
+	rm -f $1
+}
+
 check_prereqs()
 {
 	local msg="skip all tests:"
 
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! grep -q "^\S\+ $efivarfs_mount efivarfs" /proc/mounts; then
 		echo $msg efivarfs is not mounted on $efivarfs_mount >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 
@@ -55,8 +64,10 @@ test_create()
 
 	if [ $(stat -c %s $file) -ne 5 ]; then
 		echo "$file has invalid size" >&2
+		file_cleanup $file
 		exit 1
 	fi
+	file_cleanup $file
 }
 
 test_create_empty()
@@ -69,12 +80,14 @@ test_create_empty()
 		echo "$file can not be created without writing" >&2
 		exit 1
 	fi
+	file_cleanup $file
 }
 
 test_create_read()
 {
 	local file=$efivarfs_mount/$FUNCNAME-$test_guid
 	./create-read $file
+	file_cleanup $file
 }
 
 test_delete()
@@ -89,11 +102,7 @@ test_delete()
 		exit 1
 	fi
 
-	rm $file 2>/dev/null
-	if [ $? -ne 0 ]; then
-		chattr -i $file
-		rm $file
-	fi
+	file_cleanup $file
 
 	if [ -e $file ]; then
 		echo "$file couldn't be deleted" >&2
@@ -147,11 +156,7 @@ test_valid_filenames()
 			echo "$file could not be created" >&2
 			ret=1
 		else
-			rm $file 2>/dev/null
-			if [ $? -ne 0 ]; then
-				chattr -i $file
-				rm $file
-			fi
+			file_cleanup $file
 		fi
 	done
 
@@ -184,11 +189,7 @@ test_invalid_filenames()
 
 		if [ -e $file ]; then
 			echo "Creating $file should have failed" >&2
-			rm $file 2>/dev/null
-			if [ $? -ne 0 ]; then
-				chattr -i $file
-				rm $file
-			fi
+			file_cleanup $file
 			ret=1
 		fi
 	done

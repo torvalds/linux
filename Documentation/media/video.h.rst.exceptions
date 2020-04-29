@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define _UAPI_DVBVIDEO_H_
 
@@ -34,7 +36,4 @@ replace typedef video_displayformat_t :c:type:`video_displayformat`
 replace typedef video_size_t :c:type:`video_size`
 replace typedef video_stream_source_t :c:type:`video_stream_source`
 replace typedef video_play_state_t :c:type:`video_play_state`
-replace typedef video_highlight_t :c:type:`video_highlight`
-replace typedef video_spu_t :c:type:`video_spu`
-replace typedef video_spu_palette_t :c:type:`video_spu_palette`
 replace typedef video_navi_pack_t :c:type:`video_navi_pack`

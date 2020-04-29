@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/types.h>
 #include <linux/export.h>
@@ -35,8 +22,10 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 	bool resp_not_handled = true;
 	struct sk_buff *resp_skb = NULL;
 
-	if (unlikely(!response_skb))
+	if (unlikely(!response_skb)) {
+		dev_kfree_skb(cmd_skb);
 		return -EFAULT;
+	}
 
 	spin_lock(&ctl_node->resp_lock);
 	ctl_node->seq_num++;

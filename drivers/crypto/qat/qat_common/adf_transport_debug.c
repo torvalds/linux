@@ -163,11 +163,6 @@ int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
 	ring_debug->debug = debugfs_create_file(entry_name, S_IRUSR,
 						ring->bank->bank_debug_dir,
 						ring, &adf_ring_debug_fops);
-	if (!ring_debug->debug) {
-		pr_err("QAT: Failed to create ring debug entry.\n");
-		kfree(ring_debug);
-		return -EFAULT;
-	}
 	ring->ring_debug = ring_debug;
 	return 0;
 }
@@ -271,19 +266,9 @@ int adf_bank_debugfs_add(struct adf_etr_bank_data *bank)
 
 	snprintf(name, sizeof(name), "bank_%02d", bank->bank_number);
 	bank->bank_debug_dir = debugfs_create_dir(name, parent);
-	if (!bank->bank_debug_dir) {
-		pr_err("QAT: Failed to create bank debug dir.\n");
-		return -EFAULT;
-	}
-
 	bank->bank_debug_cfg = debugfs_create_file("config", S_IRUSR,
 						   bank->bank_debug_dir, bank,
 						   &adf_bank_debug_fops);
-	if (!bank->bank_debug_cfg) {
-		pr_err("QAT: Failed to create bank debug entry.\n");
-		debugfs_remove(bank->bank_debug_dir);
-		return -EFAULT;
-	}
 	return 0;
 }
 

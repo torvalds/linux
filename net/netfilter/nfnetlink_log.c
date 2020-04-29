@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is a module which is used for logging packets to userspace via
  * nfetlink.
@@ -7,10 +8,6 @@
  *
  * Based on the old ipv4-only ipt_ULOG.c:
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -37,7 +34,6 @@
 #include <net/sock.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netns/generic.h>
-#include <net/netfilter/nfnetlink_log.h>
 
 #include <linux/atomic.h>
 #include <linux/refcount.h>
@@ -47,6 +43,7 @@
 #include "../bridge/br_private.h"
 #endif
 
+#define NFULNL_COPY_DISABLED	0xff
 #define NFULNL_NLBUFSIZ_DEFAULT	NLMSG_GOODSIZE
 #define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
@@ -148,7 +145,7 @@ static void
 instance_put(struct nfulnl_instance *inst)
 {
 	if (inst && refcount_dec_and_test(&inst->use))
-		call_rcu_bh(&inst->rcu, nfulnl_instance_free_rcu);
+		call_rcu(&inst->rcu, nfulnl_instance_free_rcu);
 }
 
 static void nfulnl_timer(struct timer_list *t);
@@ -388,6 +385,57 @@ nfulnl_timer(struct timer_list *t)
 	instance_put(inst);
 }
 
+static u32 nfulnl_get_bridge_size(const struct sk_buff *skb)
+{
+	u32 size = 0;
+
+	if (!skb_mac_header_was_set(skb))
+		return 0;
+
+	if (skb_vlan_tag_present(skb)) {
+		size += nla_total_size(0); /* nested */
+		size += nla_total_size(sizeof(u16)); /* id */
+		size += nla_total_size(sizeof(u16)); /* tag */
+	}
+
+	if (skb->network_header > skb->mac_header)
+		size += nla_total_size(skb->network_header - skb->mac_header);
+
+	return size;
+}
+
+static int nfulnl_put_bridge(struct nfulnl_instance *inst, const struct sk_buff *skb)
+{
+	if (!skb_mac_header_was_set(skb))
+		return 0;
+
+	if (skb_vlan_tag_present(skb)) {
+		struct nlattr *nest;
+
+		nest = nla_nest_start(inst->skb, NFULA_VLAN);
+		if (!nest)
+			goto nla_put_failure;
+
+		if (nla_put_be16(inst->skb, NFULA_VLAN_TCI, htons(skb->vlan_tci)) ||
+		    nla_put_be16(inst->skb, NFULA_VLAN_PROTO, skb->vlan_proto))
+			goto nla_put_failure;
+
+		nla_nest_end(inst->skb, nest);
+	}
+
+	if (skb->mac_header < skb->network_header) {
+		int len = (int)(skb->network_header - skb->mac_header);
+
+		if (nla_put(inst->skb, NFULA_L2HDR, len, skb_mac_header(skb)))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 /* This is an inline function, we don't really care about a long
  * list of arguments */
 static inline int
@@ -540,7 +588,7 @@ __build_packet_message(struct nfnl_log_net *log,
 			goto nla_put_failure;
 	}
 
-	if (skb->tstamp) {
+	if (hooknum <= NF_INET_FORWARD && skb->tstamp) {
 		struct nfulnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
 		ts.sec = cpu_to_be64(kts.tv_sec);
@@ -583,6 +631,10 @@ __build_packet_message(struct nfnl_log_net *log,
 				 NFULA_CT, NFULA_CT_INFO) < 0)
 		goto nla_put_failure;
 
+	if ((pf == NFPROTO_NETDEV || pf == NFPROTO_BRIDGE) &&
+	    nfulnl_put_bridge(inst, skb) < 0)
+		goto nla_put_failure;
+
 	if (data_len) {
 		struct nlattr *nla;
 		int size = nla_attr_size(data_len);
@@ -618,7 +670,7 @@ static const struct nf_loginfo default_loginfo = {
 };
 
 /* log handler for internal netfilter logging api */
-void
+static void
 nfulnl_log_packet(struct net *net,
 		  u_int8_t pf,
 		  unsigned int hooknum,
@@ -633,7 +685,7 @@ nfulnl_log_packet(struct net *net,
 	struct nfulnl_instance *inst;
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
-	unsigned int plen;
+	unsigned int plen = 0;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
 	const struct nfnl_ct_hook *nfnl_ct = NULL;
 	struct nf_conn *ct = NULL;
@@ -648,14 +700,13 @@ nfulnl_log_packet(struct net *net,
 	if (!inst)
 		return;
 
-	plen = 0;
 	if (prefix)
 		plen = strlen(prefix) + 1;
 
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
 	 * memory efficient... */
-	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
+	size = nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
@@ -672,7 +723,7 @@ nfulnl_log_packet(struct net *net,
 		+ nla_total_size(sizeof(struct nfgenmsg));	/* NLMSG_DONE */
 
 	if (in && skb_mac_header_was_set(skb)) {
-		size +=   nla_total_size(skb->dev->hard_header_len)
+		size += nla_total_size(skb->dev->hard_header_len)
 			+ nla_total_size(sizeof(u_int16_t))	/* hwtype */
 			+ nla_total_size(sizeof(u_int16_t));	/* hwlen */
 	}
@@ -691,6 +742,8 @@ nfulnl_log_packet(struct net *net,
 				size += nfnl_ct->build_size(ct);
 		}
 	}
+	if (pf == NFPROTO_NETDEV || pf == NFPROTO_BRIDGE)
+		size += nfulnl_get_bridge_size(skb);
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
@@ -760,7 +813,6 @@ alloc_failure:
 	/* FIXME: statistics */
 	goto unlock_and_release;
 }
-EXPORT_SYMBOL_GPL(nfulnl_log_packet);
 
 static int
 nfulnl_rcv_nl_event(struct notifier_block *this,
@@ -1046,20 +1098,6 @@ static const struct seq_operations nful_seq_ops = {
 	.stop	= seq_stop,
 	.show	= seq_show,
 };
-
-static int nful_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nful_seq_ops,
-			    sizeof(struct iter_state));
-}
-
-static const struct file_operations nful_file_ops = {
-	.open	 = nful_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif /* PROC_FS */
 
 static int __net_init nfnl_log_net_init(struct net *net)
@@ -1077,8 +1115,8 @@ static int __net_init nfnl_log_net_init(struct net *net)
 	spin_lock_init(&log->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	proc = proc_create("nfnetlink_log", 0440,
-			   net->nf.proc_netfilter, &nful_file_ops);
+	proc = proc_create_net("nfnetlink_log", 0440, net->nf.proc_netfilter,
+			&nful_seq_ops, sizeof(struct iter_state));
 	if (!proc)
 		return -ENOMEM;
 

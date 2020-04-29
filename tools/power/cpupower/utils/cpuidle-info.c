@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
  *  (C) 2010       Thomas Renninger <trenn@suse.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  */
 
 

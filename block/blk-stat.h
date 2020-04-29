@@ -8,21 +8,6 @@
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
 
-/*
- * from upper:
- * 3 bits: reserved for other usage
- * 12 bits: size
- * 49 bits: time
- */
-#define BLK_STAT_RES_BITS	3
-#define BLK_STAT_SIZE_BITS	12
-#define BLK_STAT_RES_SHIFT	(64 - BLK_STAT_RES_BITS)
-#define BLK_STAT_SIZE_SHIFT	(BLK_STAT_RES_SHIFT - BLK_STAT_SIZE_BITS)
-#define BLK_STAT_TIME_MASK	((1ULL << BLK_STAT_SIZE_SHIFT) - 1)
-#define BLK_STAT_SIZE_MASK	\
-	(((1ULL << BLK_STAT_SIZE_BITS) - 1) << BLK_STAT_SIZE_SHIFT)
-#define BLK_STAT_RES_MASK	(~((1ULL << BLK_STAT_RES_SHIFT) - 1))
-
 /**
  * struct blk_stat_callback - Block statistics callback.
  *
@@ -80,35 +65,7 @@ struct blk_stat_callback {
 struct blk_queue_stats *blk_alloc_queue_stats(void);
 void blk_free_queue_stats(struct blk_queue_stats *);
 
-void blk_stat_add(struct request *);
-
-static inline u64 __blk_stat_time(u64 time)
-{
-	return time & BLK_STAT_TIME_MASK;
-}
-
-static inline u64 blk_stat_time(struct blk_issue_stat *stat)
-{
-	return __blk_stat_time(stat->stat);
-}
-
-static inline sector_t blk_capped_size(sector_t size)
-{
-	return size & ((1ULL << BLK_STAT_SIZE_BITS) - 1);
-}
-
-static inline sector_t blk_stat_size(struct blk_issue_stat *stat)
-{
-	return (stat->stat & BLK_STAT_SIZE_MASK) >> BLK_STAT_SIZE_SHIFT;
-}
-
-static inline void blk_stat_set_issue(struct blk_issue_stat *stat,
-	sector_t size)
-{
-	stat->stat = (stat->stat & BLK_STAT_RES_MASK) |
-		(ktime_to_ns(ktime_get()) & BLK_STAT_TIME_MASK) |
-		(((u64)blk_capped_size(size)) << BLK_STAT_SIZE_SHIFT);
-}
+void blk_stat_add(struct request *rq, u64 now);
 
 /* record time/size info in request but not add a callback */
 void blk_stat_enable_accounting(struct request_queue *q);
@@ -188,6 +145,11 @@ static inline void blk_stat_activate_nsecs(struct blk_stat_callback *cb,
 	mod_timer(&cb->timer, jiffies + nsecs_to_jiffies(nsecs));
 }
 
+static inline void blk_stat_deactivate(struct blk_stat_callback *cb)
+{
+	del_timer_sync(&cb->timer);
+}
+
 /**
  * blk_stat_activate_msecs() - Gather block statistics during a time window in
  * milliseconds.
@@ -201,5 +163,9 @@ static inline void blk_stat_activate_msecs(struct blk_stat_callback *cb,
 {
 	mod_timer(&cb->timer, jiffies + msecs_to_jiffies(msecs));
 }
+
+void blk_rq_stat_add(struct blk_rq_stat *, u64);
+void blk_rq_stat_sum(struct blk_rq_stat *, struct blk_rq_stat *);
+void blk_rq_stat_init(struct blk_rq_stat *);
 
 #endif

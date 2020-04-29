@@ -1,31 +1,35 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-/* Values for secondary_data.status */
+#include <linux/const.h>
 
-#define CPU_MMU_OFF		(-1)
-#define CPU_BOOT_SUCCESS	(0)
+/* Values for secondary_data.status */
+#define CPU_STUCK_REASON_SHIFT		(8)
+#define CPU_BOOT_STATUS_MASK		((UL(1) << CPU_STUCK_REASON_SHIFT) - 1)
+
+#define CPU_MMU_OFF			(-1)
+#define CPU_BOOT_SUCCESS		(0)
 /* The cpu invoked ops->cpu_die, synchronise it with cpu_kill */
-#define CPU_KILL_ME		(1)
+#define CPU_KILL_ME			(1)
 /* The cpu couldn't die gracefully and is looping in the kernel */
-#define CPU_STUCK_IN_KERNEL	(2)
+#define CPU_STUCK_IN_KERNEL		(2)
 /* Fatal system error detected by secondary CPU, crash the system */
-#define CPU_PANIC_KERNEL	(3)
+#define CPU_PANIC_KERNEL		(3)
+
+#define CPU_STUCK_REASON_52_BIT_VA	(UL(1) << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_NO_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
+
+/* Possible options for __cpu_setup */
+/* Option to setup primary cpu */
+#define ARM64_CPU_BOOT_PRIMARY		(1)
+/* Option to setup secondary cpus */
+#define ARM64_CPU_BOOT_SECONDARY	(2)
+/* Option to setup cpus for different cpu run time services */
+#define ARM64_CPU_RUNTIME		(3)
 
 #ifndef __ASSEMBLY__
 
@@ -34,6 +38,7 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
+#include <asm/pointer_auth.h>
 
 DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
 
@@ -45,6 +50,12 @@ DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
  * here under CONFIG_DEBUG_PREEMPT=y.
  */
 #define raw_smp_processor_id() (*raw_cpu_ptr(&cpu_number))
+
+/*
+ * Logical CPU mapping.
+ */
+extern u64 __cpu_logical_map[NR_CPUS];
+#define cpu_logical_map(cpu)    __cpu_logical_map[cpu]
 
 struct seq_file;
 
@@ -85,6 +96,9 @@ asmlinkage void secondary_start_kernel(void);
 struct secondary_data {
 	void *stack;
 	struct task_struct *task;
+#ifdef CONFIG_ARM64_PTR_AUTH
+	struct ptrauth_keys_kernel ptrauth_key;
+#endif
 	long status;
 };
 

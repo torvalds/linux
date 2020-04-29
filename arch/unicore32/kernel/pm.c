@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/pm.c
  *
@@ -5,10 +6,6 @@
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -109,8 +106,9 @@ static int __init puv3_pm_init(void)
 		return -EINVAL;
 	}
 
-	sleep_save = kmalloc(puv3_cpu_pm_fns->save_count
-				* sizeof(unsigned long), GFP_KERNEL);
+	sleep_save = kmalloc_array(puv3_cpu_pm_fns->save_count,
+				   sizeof(unsigned long),
+				   GFP_KERNEL);
 	if (!sleep_save) {
 		printk(KERN_ERR "failed to alloc memory for pm save\n");
 		return -ENOMEM;

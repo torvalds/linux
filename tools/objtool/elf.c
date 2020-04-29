@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * elf.c - ELF access library
  *
  * Adapted from kpatch (https://github.com/dynup/kpatch):
  * Copyright (C) 2013-2015 Josh Poimboeuf <jpoimboe@redhat.com>
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <sys/types.h>
@@ -27,15 +15,107 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include "builtin.h"
 
 #include "elf.h"
 #include "warn.h"
+
+#define MAX_NAME_LEN 128
+
+static inline u32 str_hash(const char *str)
+{
+	return jhash(str, strlen(str), 0);
+}
+
+static void rb_add(struct rb_root *tree, struct rb_node *node,
+		   int (*cmp)(struct rb_node *, const struct rb_node *))
+{
+	struct rb_node **link = &tree->rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*link) {
+		parent = *link;
+		if (cmp(node, parent) < 0)
+			link = &parent->rb_left;
+		else
+			link = &parent->rb_right;
+	}
+
+	rb_link_node(node, parent, link);
+	rb_insert_color(node, tree);
+}
+
+static struct rb_node *rb_find_first(struct rb_root *tree, const void *key,
+			       int (*cmp)(const void *key, const struct rb_node *))
+{
+	struct rb_node *node = tree->rb_node;
+	struct rb_node *match = NULL;
+
+	while (node) {
+		int c = cmp(key, node);
+		if (c <= 0) {
+			if (!c)
+				match = node;
+			node = node->rb_left;
+		} else if (c > 0) {
+			node = node->rb_right;
+		}
+	}
+
+	return match;
+}
+
+static struct rb_node *rb_next_match(struct rb_node *node, const void *key,
+				    int (*cmp)(const void *key, const struct rb_node *))
+{
+	node = rb_next(node);
+	if (node && cmp(key, node))
+		node = NULL;
+	return node;
+}
+
+#define rb_for_each(tree, node, key, cmp) \
+	for ((node) = rb_find_first((tree), (key), (cmp)); \
+	     (node); (node) = rb_next_match((node), (key), (cmp)))
+
+static int symbol_to_offset(struct rb_node *a, const struct rb_node *b)
+{
+	struct symbol *sa = rb_entry(a, struct symbol, node);
+	struct symbol *sb = rb_entry(b, struct symbol, node);
+
+	if (sa->offset < sb->offset)
+		return -1;
+	if (sa->offset > sb->offset)
+		return 1;
+
+	if (sa->len < sb->len)
+		return -1;
+	if (sa->len > sb->len)
+		return 1;
+
+	sa->alias = sb;
+
+	return 0;
+}
+
+static int symbol_by_offset(const void *key, const struct rb_node *node)
+{
+	const struct symbol *s = rb_entry(node, struct symbol, node);
+	const unsigned long *o = key;
+
+	if (*o < s->offset)
+		return -1;
+	if (*o >= s->offset + s->len)
+		return 1;
+
+	return 0;
+}
 
 struct section *find_section_by_name(struct elf *elf, const char *name)
 {
 	struct section *sec;
 
-	list_for_each_entry(sec, &elf->sections, list)
+	hash_for_each_possible(elf->section_name_hash, sec, name_hash, str_hash(name))
 		if (!strcmp(sec->name, name))
 			return sec;
 
@@ -47,7 +127,7 @@ static struct section *find_section_by_index(struct elf *elf,
 {
 	struct section *sec;
 
-	list_for_each_entry(sec, &elf->sections, list)
+	hash_for_each_possible(elf->section_hash, sec, hash, idx)
 		if (sec->idx == idx)
 			return sec;
 
@@ -56,73 +136,114 @@ static struct section *find_section_by_index(struct elf *elf,
 
 static struct symbol *find_symbol_by_index(struct elf *elf, unsigned int idx)
 {
-	struct section *sec;
 	struct symbol *sym;
 
-	list_for_each_entry(sec, &elf->sections, list)
-		hash_for_each_possible(sec->symbol_hash, sym, hash, idx)
-			if (sym->idx == idx)
-				return sym;
+	hash_for_each_possible(elf->symbol_hash, sym, hash, idx)
+		if (sym->idx == idx)
+			return sym;
 
 	return NULL;
 }
 
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 {
-	struct symbol *sym;
+	struct rb_node *node;
 
-	list_for_each_entry(sym, &sec->symbol_list, list)
-		if (sym->type != STT_SECTION &&
-		    sym->offset == offset)
-			return sym;
+	rb_for_each(&sec->symbol_tree, node, &offset, symbol_by_offset) {
+		struct symbol *s = rb_entry(node, struct symbol, node);
+
+		if (s->offset == offset && s->type != STT_SECTION)
+			return s;
+	}
+
+	return NULL;
+}
+
+struct symbol *find_func_by_offset(struct section *sec, unsigned long offset)
+{
+	struct rb_node *node;
+
+	rb_for_each(&sec->symbol_tree, node, &offset, symbol_by_offset) {
+		struct symbol *s = rb_entry(node, struct symbol, node);
+
+		if (s->offset == offset && s->type == STT_FUNC)
+			return s;
+	}
 
 	return NULL;
 }
 
 struct symbol *find_symbol_containing(struct section *sec, unsigned long offset)
 {
+	struct rb_node *node;
+
+	rb_for_each(&sec->symbol_tree, node, &offset, symbol_by_offset) {
+		struct symbol *s = rb_entry(node, struct symbol, node);
+
+		if (s->type != STT_SECTION)
+			return s;
+	}
+
+	return NULL;
+}
+
+struct symbol *find_func_containing(struct section *sec, unsigned long offset)
+{
+	struct rb_node *node;
+
+	rb_for_each(&sec->symbol_tree, node, &offset, symbol_by_offset) {
+		struct symbol *s = rb_entry(node, struct symbol, node);
+
+		if (s->type == STT_FUNC)
+			return s;
+	}
+
+	return NULL;
+}
+
+struct symbol *find_symbol_by_name(struct elf *elf, const char *name)
+{
 	struct symbol *sym;
 
-	list_for_each_entry(sym, &sec->symbol_list, list)
-		if (sym->type != STT_SECTION &&
-		    offset >= sym->offset && offset < sym->offset + sym->len)
+	hash_for_each_possible(elf->symbol_name_hash, sym, name_hash, str_hash(name))
+		if (!strcmp(sym->name, name))
 			return sym;
 
 	return NULL;
 }
 
-struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
-				     unsigned int len)
+struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
+				     unsigned long offset, unsigned int len)
 {
-	struct rela *rela;
+	struct rela *rela, *r = NULL;
 	unsigned long o;
 
 	if (!sec->rela)
 		return NULL;
 
-	for (o = offset; o < offset + len; o++)
-		hash_for_each_possible(sec->rela->rela_hash, rela, hash, o)
-			if (rela->offset == o)
-				return rela;
+	sec = sec->rela;
+
+	for_offset_range(o, offset, offset + len) {
+		hash_for_each_possible(elf->rela_hash, rela, hash,
+				       sec_offset_hash(sec, o)) {
+			if (rela->sec != sec)
+				continue;
+
+			if (rela->offset >= offset && rela->offset < offset + len) {
+				if (!r || rela->offset < r->offset)
+					r = rela;
+			}
+		}
+		if (r)
+			return r;
+	}
 
 	return NULL;
 }
 
-struct rela *find_rela_by_dest(struct section *sec, unsigned long offset)
+struct rela *find_rela_by_dest(struct elf *elf, struct section *sec, unsigned long offset)
 {
-	return find_rela_by_dest_range(sec, offset, 1);
-}
-
-struct symbol *find_containing_func(struct section *sec, unsigned long offset)
-{
-	struct symbol *func;
-
-	list_for_each_entry(func, &sec->symbol_list, list)
-		if (func->type == STT_FUNC && offset >= func->offset &&
-		    offset < func->offset + func->len)
-			return func;
-
-	return NULL;
+	return find_rela_by_dest_range(elf, sec, offset, 1);
 }
 
 static int read_sections(struct elf *elf)
@@ -152,10 +273,6 @@ static int read_sections(struct elf *elf)
 
 		INIT_LIST_HEAD(&sec->symbol_list);
 		INIT_LIST_HEAD(&sec->rela_list);
-		hash_init(sec->rela_hash);
-		hash_init(sec->symbol_hash);
-
-		list_add_tail(&sec->list, &elf->sections);
 
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
@@ -190,7 +307,14 @@ static int read_sections(struct elf *elf)
 			}
 		}
 		sec->len = sec->sh.sh_size;
+
+		list_add_tail(&sec->list, &elf->sections);
+		hash_add(elf->section_hash, &sec->hash, sec->idx);
+		hash_add(elf->section_name_hash, &sec->name_hash, str_hash(sec->name));
 	}
+
+	if (stats)
+		printf("nr_sections: %lu\n", (unsigned long)sections_nr);
 
 	/* sanity check, one more call to elf_nextscn() should return NULL */
 	if (elf_nextscn(elf->elf, s)) {
@@ -203,10 +327,12 @@ static int read_sections(struct elf *elf)
 
 static int read_symbols(struct elf *elf)
 {
-	struct section *symtab;
-	struct symbol *sym;
-	struct list_head *entry, *tmp;
+	struct section *symtab, *sec;
+	struct symbol *sym, *pfunc;
+	struct list_head *entry;
+	struct rb_node *pnode;
 	int symbols_nr, i;
+	char *coldstr;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (!symtab) {
@@ -223,6 +349,7 @@ static int read_symbols(struct elf *elf)
 			return -1;
 		}
 		memset(sym, 0, sizeof(*sym));
+		sym->alias = sym;
 
 		sym->idx = i;
 
@@ -260,25 +387,66 @@ static int read_symbols(struct elf *elf)
 		sym->offset = sym->sym.st_value;
 		sym->len = sym->sym.st_size;
 
-		/* sorted insert into a per-section list */
-		entry = &sym->sec->symbol_list;
-		list_for_each_prev(tmp, &sym->sec->symbol_list) {
-			struct symbol *s;
+		rb_add(&sym->sec->symbol_tree, &sym->node, symbol_to_offset);
+		pnode = rb_prev(&sym->node);
+		if (pnode)
+			entry = &rb_entry(pnode, struct symbol, node)->list;
+		else
+			entry = &sym->sec->symbol_list;
+		list_add(&sym->list, entry);
+		hash_add(elf->symbol_hash, &sym->hash, sym->idx);
+		hash_add(elf->symbol_name_hash, &sym->name_hash, str_hash(sym->name));
+	}
 
-			s = list_entry(tmp, struct symbol, list);
+	if (stats)
+		printf("nr_symbols: %lu\n", (unsigned long)symbols_nr);
 
-			if (sym->offset > s->offset) {
-				entry = tmp;
-				break;
+	/* Create parent/child links for any cold subfunctions */
+	list_for_each_entry(sec, &elf->sections, list) {
+		list_for_each_entry(sym, &sec->symbol_list, list) {
+			char pname[MAX_NAME_LEN + 1];
+			size_t pnamelen;
+			if (sym->type != STT_FUNC)
+				continue;
+			sym->pfunc = sym->cfunc = sym;
+			coldstr = strstr(sym->name, ".cold");
+			if (!coldstr)
+				continue;
+
+			pnamelen = coldstr - sym->name;
+			if (pnamelen > MAX_NAME_LEN) {
+				WARN("%s(): parent function name exceeds maximum length of %d characters",
+				     sym->name, MAX_NAME_LEN);
+				return -1;
 			}
 
-			if (sym->offset == s->offset && sym->len >= s->len) {
-				entry = tmp;
-				break;
+			strncpy(pname, sym->name, pnamelen);
+			pname[pnamelen] = '\0';
+			pfunc = find_symbol_by_name(elf, pname);
+
+			if (!pfunc) {
+				WARN("%s(): can't find parent function",
+				     sym->name);
+				return -1;
+			}
+
+			sym->pfunc = pfunc;
+			pfunc->cfunc = sym;
+
+			/*
+			 * Unfortunately, -fnoreorder-functions puts the child
+			 * inside the parent.  Remove the overlap so we can
+			 * have sane assumptions.
+			 *
+			 * Note that pfunc->len now no longer matches
+			 * pfunc->sym.st_size.
+			 */
+			if (sym->sec == pfunc->sec &&
+			    sym->offset >= pfunc->offset &&
+			    sym->offset + sym->len == pfunc->offset + pfunc->len) {
+				pfunc->len -= sym->len;
 			}
 		}
-		list_add(&sym->list, entry);
-		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
 	}
 
 	return 0;
@@ -294,6 +462,7 @@ static int read_relas(struct elf *elf)
 	struct rela *rela;
 	int i;
 	unsigned int symndx;
+	unsigned long nr_rela, max_rela = 0, tot_rela = 0;
 
 	list_for_each_entry(sec, &elf->sections, list) {
 		if (sec->sh.sh_type != SHT_RELA)
@@ -308,6 +477,7 @@ static int read_relas(struct elf *elf)
 
 		sec->base->rela = sec;
 
+		nr_rela = 0;
 		for (i = 0; i < sec->sh.sh_size / sec->sh.sh_entsize; i++) {
 			rela = malloc(sizeof(*rela));
 			if (!rela) {
@@ -326,6 +496,7 @@ static int read_relas(struct elf *elf)
 			rela->offset = rela->rela.r_offset;
 			symndx = GELF_R_SYM(rela->rela.r_info);
 			rela->sym = find_symbol_by_index(elf, symndx);
+			rela->sec = sec;
 			if (!rela->sym) {
 				WARN("can't find rela entry symbol %d for %s",
 				     symndx, sec->name);
@@ -333,15 +504,22 @@ static int read_relas(struct elf *elf)
 			}
 
 			list_add_tail(&rela->list, &sec->rela_list);
-			hash_add(sec->rela_hash, &rela->hash, rela->offset);
-
+			hash_add(elf->rela_hash, &rela->hash, rela_hash(rela));
+			nr_rela++;
 		}
+		max_rela = max(max_rela, nr_rela);
+		tot_rela += nr_rela;
+	}
+
+	if (stats) {
+		printf("max_rela: %lu\n", max_rela);
+		printf("tot_rela: %lu\n", tot_rela);
 	}
 
 	return 0;
 }
 
-struct elf *elf_open(const char *name, int flags)
+struct elf *elf_read(const char *name, int flags)
 {
 	struct elf *elf;
 	Elf_Cmd cmd;
@@ -355,6 +533,11 @@ struct elf *elf_open(const char *name, int flags)
 	}
 	memset(elf, 0, sizeof(*elf));
 
+	hash_init(elf->symbol_hash);
+	hash_init(elf->symbol_name_hash);
+	hash_init(elf->section_hash);
+	hash_init(elf->section_name_hash);
+	hash_init(elf->rela_hash);
 	INIT_LIST_HEAD(&elf->sections);
 
 	elf->fd = open(name, flags);
@@ -403,7 +586,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 {
 	struct section *sec, *shstrtab;
 	size_t size = entsize * nr;
-	struct Elf_Scn *s;
+	Elf_Scn *s;
 	Elf_Data *data;
 
 	sec = malloc(sizeof(*sec));
@@ -415,10 +598,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	INIT_LIST_HEAD(&sec->symbol_list);
 	INIT_LIST_HEAD(&sec->rela_list);
-	hash_init(sec->rela_hash);
-	hash_init(sec->symbol_hash);
-
-	list_add_tail(&sec->list, &elf->sections);
 
 	s = elf_newscn(elf->elf);
 	if (!s) {
@@ -466,10 +645,12 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	sec->sh.sh_flags = SHF_ALLOC;
 
 
-	/* Add section name to .shstrtab */
+	/* Add section name to .shstrtab (or .strtab for Clang) */
 	shstrtab = find_section_by_name(elf, ".shstrtab");
+	if (!shstrtab)
+		shstrtab = find_section_by_name(elf, ".strtab");
 	if (!shstrtab) {
-		WARN("can't find .shstrtab section");
+		WARN("can't find .shstrtab or .strtab section");
 		return NULL;
 	}
 
@@ -493,6 +674,10 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	shstrtab->len += strlen(name) + 1;
 	shstrtab->changed = true;
+
+	list_add_tail(&sec->list, &elf->sections);
+	hash_add(elf->section_hash, &sec->hash, sec->idx);
+	hash_add(elf->section_name_hash, &sec->name_hash, str_hash(sec->name));
 
 	return sec;
 }

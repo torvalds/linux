@@ -128,23 +128,6 @@ static void octeon_flush_icache_range(unsigned long start, unsigned long end)
 
 
 /**
- * Flush the icache for a trampoline. These are used for interrupt
- * and exception hooking.
- *
- * @addr:   Address to flush
- */
-static void octeon_flush_cache_sigtramp(unsigned long addr)
-{
-	struct vm_area_struct *vma;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	octeon_flush_icache_all_cores(vma);
-	up_read(&current->mm->mmap_sem);
-}
-
-
-/**
  * Flush a range out of a vma
  *
  * @vma:    VMA to flush
@@ -254,17 +237,17 @@ static void probe_octeon(void)
 	c->dcache.sets = dcache_size / (c->dcache.linesz * c->dcache.ways);
 
 	if (smp_processor_id() == 0) {
-		pr_notice("Primary instruction cache %ldkB, %s, %d way, "
-			  "%d sets, linesize %d bytes.\n",
-			  icache_size >> 10,
-			  cpu_has_vtag_icache ?
+		pr_info("Primary instruction cache %ldkB, %s, %d way, "
+			"%d sets, linesize %d bytes.\n",
+			icache_size >> 10,
+			cpu_has_vtag_icache ?
 				"virtually tagged" : "physically tagged",
-			  c->icache.ways, c->icache.sets, c->icache.linesz);
+			c->icache.ways, c->icache.sets, c->icache.linesz);
 
-		pr_notice("Primary data cache %ldkB, %d-way, %d sets, "
-			  "linesize %d bytes.\n",
-			  dcache_size >> 10, c->dcache.ways,
-			  c->dcache.sets, c->dcache.linesz);
+		pr_info("Primary data cache %ldkB, %d-way, %d sets, "
+			"linesize %d bytes.\n",
+			dcache_size >> 10, c->dcache.ways,
+			c->dcache.sets, c->dcache.linesz);
 	}
 }
 
@@ -289,7 +272,6 @@ void octeon_cache_init(void)
 	flush_cache_mm			= octeon_flush_cache_mm;
 	flush_cache_page		= octeon_flush_cache_page;
 	flush_cache_range		= octeon_flush_cache_range;
-	flush_cache_sigtramp		= octeon_flush_cache_sigtramp;
 	flush_icache_all		= octeon_flush_icache_all;
 	flush_data_cache_page		= octeon_flush_data_cache_page;
 	flush_icache_range		= octeon_flush_icache_range;

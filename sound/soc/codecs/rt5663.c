@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5663.c  --  RT5663 ALSA SoC audio codec driver
  *
  * Copyright 2016 Realtek Semiconductor Corp.
  * Author: Jack Yu <jack.yu@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -17,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -33,6 +31,9 @@
 #define RT5663_DEVICE_ID_2 0x6451
 #define RT5663_DEVICE_ID_1 0x6406
 
+#define RT5663_POWER_ON_DELAY_MS 300
+#define RT5663_SUPPLY_CURRENT_UA 500000
+
 enum {
 	CODEC_VER_1,
 	CODEC_VER_0,
@@ -48,6 +49,11 @@ struct impedance_mapping_table {
 	unsigned int dc_offset_r_manual_mic;
 };
 
+static const char *const rt5663_supply_names[] = {
+	"avdd",
+	"cpvdd",
+};
+
 struct rt5663_priv {
 	struct snd_soc_component *component;
 	struct rt5663_platform_data pdata;
@@ -56,6 +62,7 @@ struct rt5663_priv {
 	struct snd_soc_jack *hs_jack;
 	struct timer_list btn_check_timer;
 	struct impedance_mapping_table *imp_table;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(rt5663_supply_names)];
 
 	int codec_ver;
 	int sysclk;
@@ -72,6 +79,9 @@ struct rt5663_priv {
 static const struct reg_sequence rt5663_patch_list[] = {
 	{ 0x002a, 0x8020 },
 	{ 0x0086, 0x0028 },
+	{ 0x0100, 0xa020 },
+	{ 0x0117, 0x0f28 },
+	{ 0x02fb, 0x8089 },
 };
 
 static const struct reg_default rt5663_v2_reg[] = {
@@ -578,7 +588,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x00fd, 0x0001 },
 	{ 0x00fe, 0x10ec },
 	{ 0x00ff, 0x6406 },
-	{ 0x0100, 0xa0a0 },
+	{ 0x0100, 0xa020 },
 	{ 0x0108, 0x4444 },
 	{ 0x0109, 0x4444 },
 	{ 0x010a, 0xaaaa },
@@ -593,7 +603,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0113, 0x2000 },
 	{ 0x0114, 0x0000 },
 	{ 0x0116, 0x0000 },
-	{ 0x0117, 0x0f00 },
+	{ 0x0117, 0x0f28 },
 	{ 0x0118, 0x0006 },
 	{ 0x0125, 0x2424 },
 	{ 0x0126, 0x5550 },
@@ -693,7 +703,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0251, 0x0000 },
 	{ 0x0252, 0x028a },
 	{ 0x02fa, 0x0000 },
-	{ 0x02fb, 0x00a4 },
+	{ 0x02fb, 0x8089 },
 	{ 0x02fc, 0x0300 },
 	{ 0x0300, 0x0000 },
 	{ 0x03d0, 0x0000 },
@@ -1556,6 +1566,14 @@ static int rt5663_jack_detect(struct snd_soc_component *component, int jack_inse
 			RT5663_PWR_MB_MASK | RT5663_LDO1_DVO_MASK |
 			RT5663_AMP_HP_MASK, RT5663_PWR_MB |
 			RT5663_LDO1_DVO_0_9V | RT5663_AMP_HP_3X);
+		snd_soc_component_update_bits(component, RT5663_PWR_ANLG_1,
+			RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK |
+			RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+			RT5663_PWR_VREF1 | RT5663_PWR_VREF2);
+		msleep(20);
+		snd_soc_component_update_bits(component, RT5663_PWR_ANLG_1,
+			RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+			RT5663_PWR_FV1 | RT5663_PWR_FV2);
 		snd_soc_component_update_bits(component, RT5663_AUTO_1MRC_CLK,
 			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
 		snd_soc_component_update_bits(component, RT5663_IRQ_1,
@@ -1613,7 +1631,10 @@ static int rt5663_jack_detect(struct snd_soc_component *component, int jack_inse
 			break;
 		default:
 			rt5663->jack_type = SND_JACK_HEADPHONE;
-
+			snd_soc_component_update_bits(component,
+				RT5663_PWR_ANLG_1,
+				RT5663_PWR_MB_MASK | RT5663_PWR_VREF1_MASK |
+				RT5663_PWR_VREF2_MASK, 0);
 			if (rt5663->pdata.impedance_sensing_num)
 				break;
 
@@ -1638,6 +1659,9 @@ static int rt5663_jack_detect(struct snd_soc_component *component, int jack_inse
 		if (rt5663->jack_type == SND_JACK_HEADSET)
 			rt5663_enable_push_button_irq(component, false);
 		rt5663->jack_type = 0;
+		snd_soc_component_update_bits(component, RT5663_PWR_ANLG_1,
+			RT5663_PWR_MB_MASK | RT5663_PWR_VREF1_MASK |
+			RT5663_PWR_VREF2_MASK, 0);
 	}
 
 	dev_dbg(component->dev, "jack_type = %d\n", rt5663->jack_type);
@@ -1840,8 +1864,8 @@ static irqreturn_t rt5663_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int rt5663_set_jack_detect(struct snd_soc_component *component,
-	struct snd_soc_jack *hs_jack)
+static int rt5663_set_jack_detect(struct snd_soc_component *component,
+	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
 
@@ -1851,7 +1875,6 @@ int rt5663_set_jack_detect(struct snd_soc_component *component,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt5663_set_jack_detect);
 
 static bool rt5663_check_jd_status(struct snd_soc_component *component)
 {
@@ -2307,6 +2330,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 				RT5663_HP_SIG_SRC1_MASK,
 				RT5663_HP_SIG_SRC1_SILENCE);
 		} else {
+			snd_soc_component_update_bits(component,
+				RT5663_DACREF_LDO, 0x3e0e, 0x3a0a);
 			snd_soc_component_write(component, RT5663_DEPOP_2, 0x3003);
 			snd_soc_component_update_bits(component, RT5663_HP_CHARGE_PUMP_1,
 				RT5663_OVCD_HP_MASK, RT5663_OVCD_HP_DIS);
@@ -2320,6 +2345,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 				0x8000);
 			snd_soc_component_update_bits(component, RT5663_DEPOP_1, 0x3000,
 				0x3000);
+			snd_soc_component_update_bits(component,
+				RT5663_DIG_VOL_ZCD, 0x00c0, 0x0080);
 		}
 		break;
 
@@ -2332,6 +2359,10 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(component, RT5663_DEPOP_1, 0x3000, 0x0);
 			snd_soc_component_update_bits(component, RT5663_HP_CHARGE_PUMP_1,
 				RT5663_OVCD_HP_MASK, RT5663_OVCD_HP_EN);
+			snd_soc_component_update_bits(component,
+				RT5663_DACREF_LDO, 0x3e0e, 0);
+			snd_soc_component_update_bits(component,
+				RT5663_DIG_VOL_ZCD, 0x00c0, 0);
 		}
 		break;
 
@@ -3086,9 +3117,17 @@ static int rt5663_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_component_update_bits(component, RT5663_PWR_ANLG_1,
-			RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK |
-			RT5663_PWR_FV1 | RT5663_PWR_FV2, 0x0);
+		if (rt5663->jack_type != SND_JACK_HEADSET)
+			snd_soc_component_update_bits(component,
+				RT5663_PWR_ANLG_1,
+				RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK |
+				RT5663_PWR_FV1 | RT5663_PWR_FV2 |
+				RT5663_PWR_MB_MASK, 0);
+		else
+			snd_soc_component_update_bits(component,
+				RT5663_PWR_ANLG_1,
+				RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+				RT5663_PWR_FV1 | RT5663_PWR_FV2);
 		break;
 
 	default:
@@ -3216,16 +3255,17 @@ static const struct snd_soc_component_driver soc_component_dev_rt5663 = {
 	.num_dapm_widgets	= ARRAY_SIZE(rt5663_dapm_widgets),
 	.dapm_routes		= rt5663_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(rt5663_dapm_routes),
+	.set_jack		= rt5663_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
-
 };
 
 static const struct regmap_config rt5663_v2_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x07fa,
 	.volatile_reg = rt5663_v2_volatile_register,
 	.readable_reg = rt5663_v2_readable_register,
@@ -3237,7 +3277,8 @@ static const struct regmap_config rt5663_v2_regmap = {
 static const struct regmap_config rt5663_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x03f3,
 	.volatile_reg = rt5663_volatile_register,
 	.readable_reg = rt5663_readable_register,
@@ -3250,7 +3291,8 @@ static const struct regmap_config temp_regmap = {
 	.name = "nocache",
 	.reg_bits = 16,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = 0x03f3,
 	.cache_type = REGCACHE_NONE,
 };
@@ -3310,6 +3352,7 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 	regmap_write(rt5663->regmap, RT5663_HP_IMP_SEN_19, 0x000c);
 	regmap_write(rt5663->regmap, RT5663_DUMMY_1, 0x0324);
 	regmap_write(rt5663->regmap, RT5663_DIG_MISC, 0x8001);
+	regmap_write(rt5663->regmap, RT5663_VREFADJ_OP, 0x0f28);
 	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xa23b);
 	msleep(30);
 	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xf23b);
@@ -3344,6 +3387,7 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_2, 0x8003);
 	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_3, 0x018c);
 	regmap_write(rt5663->regmap, RT5663_HP_CHARGE_PUMP_1, 0x1e32);
+	regmap_write(rt5663->regmap, RT5663_DUMMY_2, 0x8089);
 	regmap_write(rt5663->regmap, RT5663_DACREF_LDO, 0x3b0b);
 	msleep(40);
 	regmap_write(rt5663->regmap, RT5663_STO_DAC_MIXER, 0x0000);
@@ -3446,7 +3490,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5663_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5663_priv *rt5663;
-	int ret;
+	int ret, i;
 	unsigned int val;
 	struct regmap *regmap;
 
@@ -3463,12 +3507,44 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	else
 		rt5663_parse_dp(rt5663, &i2c->dev);
 
+	for (i = 0; i < ARRAY_SIZE(rt5663->supplies); i++)
+		rt5663->supplies[i].supply = rt5663_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev,
+				      ARRAY_SIZE(rt5663->supplies),
+				      rt5663->supplies);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	/* Set load for regulator. */
+	for (i = 0; i < ARRAY_SIZE(rt5663->supplies); i++) {
+		ret = regulator_set_load(rt5663->supplies[i].consumer,
+					 RT5663_SUPPLY_CURRENT_UA);
+		if (ret < 0) {
+			dev_err(&i2c->dev,
+				"Failed to set regulator load on %s, ret: %d\n",
+				rt5663->supplies[i].supply, ret);
+			return ret;
+		}
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(rt5663->supplies),
+				    rt5663->supplies);
+
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+	msleep(RT5663_POWER_ON_DELAY_MS);
+
 	regmap = devm_regmap_init_i2c(i2c, &temp_regmap);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(&i2c->dev, "Failed to allocate temp register map: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
@@ -3493,14 +3569,15 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5663\n",
 			val);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_enable;
 	}
 
 	if (IS_ERR(rt5663->regmap)) {
 		ret = PTR_ERR(rt5663->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	/* reset and calibrate */
@@ -3567,7 +3644,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5663->regmap, RT5663_PWR_ANLG_1,
 			RT5663_LDO1_DVO_MASK | RT5663_AMP_HP_MASK,
 			RT5663_LDO1_DVO_0_9V | RT5663_AMP_HP_3X);
-			break;
+		break;
 	case CODEC_VER_0:
 		regmap_update_bits(rt5663->regmap, RT5663_DIG_MISC,
 			RT5663_DIG_GATE_CTRL_MASK, RT5663_DIG_GATE_CTRL_EN);
@@ -3578,21 +3655,15 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5663->regmap, RT5663_GPIO_1,
 			RT5663_GPIO1_TYPE_MASK, RT5663_GPIO1_TYPE_EN);
 		regmap_write(rt5663->regmap, RT5663_VREF_RECMIX, 0x0032);
-		regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xa2be);
-		msleep(20);
-		regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xf2be);
 		regmap_update_bits(rt5663->regmap, RT5663_GPIO_2,
 			RT5663_GP1_PIN_CONF_MASK | RT5663_SEL_GPIO1_MASK,
 			RT5663_GP1_PIN_CONF_OUTPUT | RT5663_SEL_GPIO1_EN);
-		/* DACREF LDO control */
-		regmap_update_bits(rt5663->regmap, RT5663_DACREF_LDO, 0x3e0e,
-			0x3a0a);
 		regmap_update_bits(rt5663->regmap, RT5663_RECMIX,
 			RT5663_RECMIX1_BST1_MASK, RT5663_RECMIX1_BST1_ON);
 		regmap_update_bits(rt5663->regmap, RT5663_TDM_2,
 			RT5663_DATA_SWAP_ADCDAT1_MASK,
 			RT5663_DATA_SWAP_ADCDAT1_LL);
-			break;
+		break;
 	default:
 		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
 	}
@@ -3604,20 +3675,32 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		ret = request_irq(i2c->irq, rt5663_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5663", rt5663);
-		if (ret)
+		if (ret) {
 			dev_err(&i2c->dev, "%s Failed to reguest IRQ: %d\n",
 				__func__, ret);
+			goto err_enable;
+		}
 	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_rt5663,
 			rt5663_dai, ARRAY_SIZE(rt5663_dai));
 
-	if (ret) {
-		if (i2c->irq)
-			free_irq(i2c->irq, rt5663);
-	}
+	if (ret)
+		goto err_enable;
 
+	return 0;
+
+
+	/*
+	 * Error after enabling regulators should goto err_enable
+	 * to disable regulators.
+	 */
+err_enable:
+	if (i2c->irq)
+		free_irq(i2c->irq, rt5663);
+
+	regulator_bulk_disable(ARRAY_SIZE(rt5663->supplies), rt5663->supplies);
 	return ret;
 }
 
@@ -3627,6 +3710,8 @@ static int rt5663_i2c_remove(struct i2c_client *i2c)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt5663);
+
+	regulator_bulk_disable(ARRAY_SIZE(rt5663->supplies), rt5663->supplies);
 
 	return 0;
 }

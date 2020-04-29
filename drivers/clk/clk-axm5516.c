@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/clk/clk-axm5516.c
  *
@@ -5,10 +6,6 @@
  * the Axxia device: PLL clock, a clock divider and a clock mux.
  *
  * Copyright (C) 2014 LSI Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -311,7 +308,6 @@ static struct axxia_divclk clk_per_div = {
 			"clk_sm1_pll"
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_BASIC,
 		.ops = &axxia_divclk_ops,
 	},
 	.reg   = 0x1000c,
@@ -326,7 +322,6 @@ static struct axxia_divclk clk_mmc_div = {
 			"clk_sm1_pll"
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_BASIC,
 		.ops = &axxia_divclk_ops,
 	},
 	.reg   = 0x1000c,

@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * TI OMAP4 ISS V4L2 Driver - Generic video node
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  *
  * Author: Sergio Aguirre <sergio.a.aguirre@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef OMAP4_ISS_VIDEO_H
@@ -40,7 +36,6 @@ struct v4l2_pix_format;
  *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
  * @pixelformat: V4L2 pixel format FCC identifier
  * @bpp: Bits per pixel
- * @description: Human-readable format description
  */
 struct iss_format_info {
 	u32 code;
@@ -49,7 +44,6 @@ struct iss_format_info {
 	u32 flavor;
 	u32 pixelformat;
 	unsigned int bpp;
-	const char *description;
 };
 
 enum iss_pipeline_stream_state {

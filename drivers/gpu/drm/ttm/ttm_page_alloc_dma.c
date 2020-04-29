@@ -33,7 +33,6 @@
  *   when freed).
  */
 
-#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 #define pr_fmt(fmt) "[TTM] " fmt
 
 #include <linux/dma-mapping.h>
@@ -50,12 +49,7 @@
 #include <linux/kthread.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#if IS_ENABLED(CONFIG_AGP)
-#include <asm/agp.h>
-#endif
-#ifdef CONFIG_X86
-#include <asm/set_memory.h>
-#endif
+#include <drm/ttm/ttm_set_memory.h>
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		4
@@ -268,54 +262,19 @@ static struct kobj_type ttm_pool_kobj_type = {
 	.default_attrs = ttm_pool_attrs,
 };
 
-#ifndef CONFIG_X86
-static int set_pages_array_wb(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		unmap_page_from_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_wc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_uc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-#endif /* for !CONFIG_X86 */
-
 static int ttm_set_pages_caching(struct dma_pool *pool,
 				 struct page **pages, unsigned cpages)
 {
 	int r = 0;
 	/* Set page caching */
 	if (pool->type & IS_UC) {
-		r = set_pages_array_uc(pages, cpages);
+		r = ttm_set_pages_array_uc(pages, cpages);
 		if (r)
 			pr_err("%s: Failed to set %d pages to uc!\n",
 			       pool->dev_name, cpages);
 	}
 	if (pool->type & IS_WC) {
-		r = set_pages_array_wc(pages, cpages);
+		r = ttm_set_pages_array_wc(pages, cpages);
 		if (r)
 			pr_err("%s: Failed to set %d pages to wc!\n",
 			       pool->dev_name, cpages);
@@ -325,9 +284,13 @@ static int ttm_set_pages_caching(struct dma_pool *pool,
 
 static void __ttm_dma_free_page(struct dma_pool *pool, struct dma_page *d_page)
 {
+	unsigned long attrs = 0;
 	dma_addr_t dma = d_page->dma;
 	d_page->vaddr &= ~VADDR_FLAG_HUGE_POOL;
-	dma_free_coherent(pool->dev, pool->size, (void *)d_page->vaddr, dma);
+	if (pool->type & IS_HUGE)
+		attrs = DMA_ATTR_NO_WARN;
+
+	dma_free_attrs(pool->dev, pool->size, (void *)d_page->vaddr, dma, attrs);
 
 	kfree(d_page);
 	d_page = NULL;
@@ -389,17 +352,14 @@ static void ttm_pool_update_free_locked(struct dma_pool *pool,
 static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
 	struct page *page = d_page->p;
-	unsigned i, num_pages;
+	unsigned num_pages;
 
 	/* Don't set WB on WB page pool. */
 	if (!(pool->type & IS_CACHED)) {
 		num_pages = pool->size / PAGE_SIZE;
-		for (i = 0; i < num_pages; ++i, ++page) {
-			if (set_pages_array_wb(&page, 1)) {
-				pr_err("%s: Failed to set %d pages to wb!\n",
-				       pool->dev_name, 1);
-			}
-		}
+		if (ttm_set_pages_wb(page, num_pages))
+			pr_err("%s: Failed to set %d pages to wb!\n",
+			       pool->dev_name, num_pages);
 	}
 
 	list_del(&d_page->page_list);
@@ -420,7 +380,7 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 
 	/* Don't set WB on WB page pool. */
 	if (npages && !(pool->type & IS_CACHED) &&
-	    set_pages_array_wb(pages, npages))
+	    ttm_set_pages_array_wb(pages, npages))
 		pr_err("%s: Failed to set %d pages to wb!\n",
 		       pool->dev_name, npages);
 
@@ -453,18 +413,13 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 
 	if (NUM_PAGES_TO_ALLOC < nr_free)
 		npages_to_free = NUM_PAGES_TO_ALLOC;
-#if 0
-	if (nr_free > 1) {
-		pr_debug("%s: (%s:%d) Attempting to free %d (%d) pages\n",
-			 pool->dev_name, pool->name, current->pid,
-			 npages_to_free, nr_free);
-	}
-#endif
+
 	if (use_static)
 		pages_to_free = static_buf;
 	else
-		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
-					GFP_KERNEL);
+		pages_to_free = kmalloc_array(npages_to_free,
+					      sizeof(struct page *),
+					      GFP_KERNEL);
 
 	if (!pages_to_free) {
 		pr_debug("%s: Failed to allocate memory for pool free operation\n",
@@ -649,7 +604,7 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 	p = pool->name;
 	for (i = 0; i < ARRAY_SIZE(t); i++) {
 		if (type & t[i]) {
-			p += snprintf(p, sizeof(pool->name) - (p - pool->name),
+			p += scnprintf(p, sizeof(pool->name) - (p - pool->name),
 				      "%s", n[i]);
 		}
 	}
@@ -753,7 +708,8 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
 
 	/* allocate array for page caching change */
-	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
+	caching_array = kmalloc_array(max_cpages, sizeof(struct page *),
+				      GFP_KERNEL);
 
 	if (!caching_array) {
 		pr_debug("%s: Unable to allocate table for new pages\n",
@@ -910,7 +866,8 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 		gfp_flags |= __GFP_ZERO;
 
 	if (huge) {
-		gfp_flags |= GFP_TRANSHUGE;
+		gfp_flags |= GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+			__GFP_KSWAPD_RECLAIM;
 		gfp_flags &= ~__GFP_MOVABLE;
 		gfp_flags &= ~__GFP_COMP;
 	}
@@ -928,8 +885,8 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 			struct ttm_operation_ctx *ctx)
 {
+	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
 	struct ttm_tt *ttm = &ttm_dma->ttm;
-	struct ttm_mem_global *mem_glob = ttm->bdev->glob->mem_glob;
 	unsigned long num_pages = ttm->num_pages;
 	struct dma_pool *pool;
 	struct dma_page *d_page;
@@ -1033,8 +990,8 @@ EXPORT_SYMBOL_GPL(ttm_dma_populate);
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
+	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
 	struct ttm_tt *ttm = &ttm_dma->ttm;
-	struct ttm_mem_global *mem_glob = ttm->bdev->glob->mem_glob;
 	struct dma_pool *pool;
 	struct dma_page *d_page, *next;
 	enum pool_type type;
@@ -1280,5 +1237,3 @@ int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_page_alloc_debugfs);
-
-#endif

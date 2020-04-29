@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _sliced:
 
@@ -111,7 +118,7 @@ struct v4l2_sliced_vbi_format
     \scriptsize
     \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{.75cm}|p{3.3cm}|p{3.4cm}|p{3.4cm}|p{3.4cm}|
+.. tabularcolumns:: |p{.85cm}|p{3.3cm}|p{4.4cm}|p{4.4cm}|p{4.4cm}|
 
 .. cssclass:: longtable
 
@@ -216,7 +223,7 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \footnotesize
+    \scriptsize
 
 .. tabularcolumns:: |p{4.1cm}|p{1.1cm}|p{2.4cm}|p{2.0cm}|p{7.3cm}|
 
@@ -471,33 +478,30 @@ struct v4l2_mpeg_vbi_fmt_ivtv
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u8
       - ``magic``\ [4]
-      -
       - A "magic" constant from :ref:`v4l2-mpeg-vbi-fmt-ivtv-magic` that
 	indicates this is a valid sliced VBI data payload and also
 	indicates which member of the anonymous union, ``itv0`` or
 	``ITV0``, to use for the payload data.
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - struct :c:type:`v4l2_mpeg_vbi_itv0`
+    * - struct :c:type:`v4l2_mpeg_vbi_itv0`
       - ``itv0``
       - The primary form of the sliced VBI data payload that contains
 	anywhere from 1 to 35 lines of sliced VBI data. Line masks are
 	provided in this form of the payload indicating which VBI lines
 	are provided.
-    * -
-      - struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
+    * - struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
       - ``ITV0``
       - An alternate form of the sliced VBI data payload used when 36
 	lines of sliced VBI data are present. No line masks are provided
 	in this form of the payload; all valid line mask bits are
 	implcitly set.
-
-
+    * - }
+      -
 
 .. _v4l2-mpeg-vbi-fmt-ivtv-magic:
 
@@ -534,7 +538,7 @@ Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 -------------------------------------------------
 
-.. tabularcolumns:: |p{4.9cm}|p{2.4cm}|p{10.2cm}|
+.. tabularcolumns:: |p{5.2cm}|p{2.4cm}|p{9.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -554,12 +558,12 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 
 	::
 
-	    linemask[0] b0:     line  6     first field
-	    linemask[0] b17:    line 23     first field
-	    linemask[0] b18:    line  6     second field
-	    linemask[0] b31:    line 19     second field
-	    linemask[1] b0:     line 20     second field
-	    linemask[1] b3:     line 23     second field
+	    linemask[0] b0:     line  6  first field
+	    linemask[0] b17:    line 23  first field
+	    linemask[0] b18:    line  6  second field
+	    linemask[0] b31:    line 19  second field
+	    linemask[1] b0:     line 20  second field
+	    linemask[1] b3:     line 23  second field
 	    linemask[1] b4-b31: unused and set to 0
     * - struct
 	:c:type:`v4l2_mpeg_vbi_itv0_line`
@@ -583,7 +587,7 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 struct v4l2_mpeg_vbi_ITV0
 -------------------------
 
-.. tabularcolumns:: |p{4.9cm}|p{4.4cm}|p{8.2cm}|
+.. tabularcolumns:: |p{5.2cm}|p{2.4cm}|p{9.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -628,7 +632,7 @@ struct v4l2_mpeg_vbi_itv0_line
 Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
 ------------------------------------------------------------
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.0cm}|p{1.8cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  1

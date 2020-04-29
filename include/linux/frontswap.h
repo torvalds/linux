@@ -7,6 +7,13 @@
 #include <linux/bitops.h>
 #include <linux/jump_label.h>
 
+/*
+ * Return code to denote that requested number of
+ * frontswap pages are unused(moved to page cache).
+ * Used in in shmem_unuse and try_to_unuse.
+ */
+#define FRONTSWAP_PAGES_UNUSED	2
+
 struct frontswap_ops {
 	void (*init)(unsigned); /* this swap type was just swapon'ed */
 	int (*store)(unsigned, pgoff_t, struct page *); /* store a page */

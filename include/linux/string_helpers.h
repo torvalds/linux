@@ -5,6 +5,7 @@
 #include <linux/types.h>
 
 struct file;
+struct task_struct;
 
 /* Descriptions of the types of units to
  * print in */
@@ -52,6 +53,9 @@ static inline int string_unescape_any_inplace(char *buf)
 
 int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		unsigned int flags, const char *only);
+
+int string_escape_mem_ascii(const char *src, size_t isz, char *dst,
+					size_t osz);
 
 static inline int string_escape_mem_any_np(const char *src, size_t isz,
 		char *dst, size_t osz, const char *only)

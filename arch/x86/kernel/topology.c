@@ -59,38 +59,28 @@ __setup("cpu0_hotplug", enable_cpu0_hotplug);
  */
 int _debug_hotplug_cpu(int cpu, int action)
 {
-	struct device *dev = get_cpu_device(cpu);
 	int ret;
 
 	if (!cpu_is_hotpluggable(cpu))
 		return -EINVAL;
 
-	lock_device_hotplug();
-
 	switch (action) {
 	case 0:
-		ret = cpu_down(cpu);
-		if (!ret) {
-			pr_info("CPU %u is now offline\n", cpu);
-			dev->offline = true;
-			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
-		} else
+		ret = remove_cpu(cpu);
+		if (!ret)
+			pr_info("DEBUG_HOTPLUG_CPU0: CPU %u is now offline\n", cpu);
+		else
 			pr_debug("Can't offline CPU%d.\n", cpu);
 		break;
 	case 1:
-		ret = cpu_up(cpu);
-		if (!ret) {
-			dev->offline = false;
-			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
-		} else {
+		ret = add_cpu(cpu);
+		if (ret)
 			pr_debug("Can't online CPU%d.\n", cpu);
-		}
+
 		break;
 	default:
 		ret = -EINVAL;
 	}
-
-	unlock_device_hotplug();
 
 	return ret;
 }
@@ -111,8 +101,10 @@ int arch_register_cpu(int num)
 	/*
 	 * Currently CPU0 is only hotpluggable on Intel platforms. Other
 	 * vendors can add hotplug support later.
+	 * Xen PV guests don't support CPU0 hotplug at all.
 	 */
-	if (c->x86_vendor != X86_VENDOR_INTEL)
+	if (c->x86_vendor != X86_VENDOR_INTEL ||
+	    boot_cpu_has(X86_FEATURE_XENPV))
 		cpu0_hotpluggable = 0;
 
 	/*

@@ -143,7 +143,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 				"%s: stv0367ter_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
 			return -ENODEV;
-		};
+		}
 
 		/*
 		 * init the demod so that i2c gate_ctrl
@@ -170,8 +170,9 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 
 		/* attach tuner */
 		request_module("tda18212");
-		client = i2c_new_device(tsin->i2c_adapter, &tda18212_info);
-		if (!client || !client->dev.driver) {
+		client = i2c_new_client_device(tsin->i2c_adapter,
+					       &tda18212_info);
+		if (!i2c_client_has_driver(client)) {
 			dvb_frontend_detach(*fe);
 			return -ENODEV;
 		}
@@ -203,7 +204,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 				"%s: stv6110x_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
 			return -ENODEV;
-		};
+		}
 
 		stv090x_config.tuner_init = fe2->tuner_init;
 		stv090x_config.tuner_set_mode = fe2->tuner_set_mode;

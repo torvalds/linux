@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Industrialio buffer test code.
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * This program is primarily intended as an example application.
  * Reads the current buffer setup from sysfs and starts a short capture
@@ -15,7 +12,6 @@
  * generic_buffer -n <device_name> -t <trigger_name>
  * If trigger name is not specified the program assumes you want a dataready
  * trigger associated with the device and goes looking for it.
- *
  */
 
 #include <unistd.h>
@@ -248,7 +244,7 @@ void print_usage(void)
 		"Capture, convert and output data from IIO device buffer\n"
 		"  -a         Auto-activate all available channels\n"
 		"  -A         Force-activate ALL channels\n"
-		"  -c <n>     Do n conversions\n"
+		"  -c <n>     Do n conversions, or loop forever if n < 0\n"
 		"  -e         Disable wait for event (new data)\n"
 		"  -g         Use trigger-less mode\n"
 		"  -l <n>     Set buffer length to n samples\n"
@@ -330,11 +326,14 @@ static const struct option longopts[] = {
 
 int main(int argc, char **argv)
 {
-	unsigned long num_loops = 2;
+	long long num_loops = 2;
 	unsigned long timedelay = 1000000;
 	unsigned long buf_len = 128;
 
-	int ret, c, i, j, toread;
+	ssize_t i;
+	unsigned long long j;
+	unsigned long toread;
+	int ret, c;
 	int fp = -1;
 
 	int num_channels = 0;
@@ -366,7 +365,7 @@ int main(int argc, char **argv)
 			break;	
 		case 'c':
 			errno = 0;
-			num_loops = strtoul(optarg, &dummy, 10);
+			num_loops = strtoll(optarg, &dummy, 10);
 			if (errno) {
 				ret = -errno;
 				goto error;
@@ -634,7 +633,7 @@ int main(int argc, char **argv)
 		goto error;
 	}
 
-	for (j = 0; j < num_loops; j++) {
+	for (j = 0; j < num_loops || num_loops < 0; j++) {
 		if (!noevents) {
 			struct pollfd pfd = {
 				.fd = fp,

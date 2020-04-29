@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ZD1211 USB-WLAN driver for Linux
  *
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* This file implements all the hardware specific functions for the ZD1211
@@ -53,8 +41,7 @@ void zd_chip_clear(struct zd_chip *chip)
 static int scnprint_mac_oui(struct zd_chip *chip, char *buffer, size_t size)
 {
 	u8 *addr = zd_mac_get_perm_addr(zd_chip_to_mac(chip));
-	return scnprintf(buffer, size, "%02x-%02x-%02x",
-		         addr[0], addr[1], addr[2]);
+	return scnprintf(buffer, size, "%3phD", addr);
 }
 
 /* Prints an identifier line, which will support debugging. */
@@ -1341,7 +1328,7 @@ int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 	case ZD_LED_SCANNING:
 		ioreqs[0].value = FW_LINK_OFF;
 		ioreqs[1].value = v[1] & ~other_led;
-		if (get_seconds() % 3 == 0) {
+		if ((u32)ktime_get_seconds() % 3 == 0) {
 			ioreqs[1].value &= ~chip->link_led;
 		} else {
 			ioreqs[1].value |= chip->link_led;

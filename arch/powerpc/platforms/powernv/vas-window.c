@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016-17 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "vas: " fmt
@@ -43,16 +39,6 @@ static void compute_paste_address(struct vas_window *window, u64 *addr, int *len
 
 	pr_debug("Txwin #%d: Paste addr 0x%llx\n", winid, *addr);
 }
-
-u64 vas_win_paste_addr(struct vas_window *win)
-{
-	u64 addr;
-
-	compute_paste_address(win, &addr, NULL);
-
-	return addr;
-}
-EXPORT_SYMBOL(vas_win_paste_addr);
 
 static inline void get_hvwc_mmio_bar(struct vas_window *window,
 			u64 *start, int *len)
@@ -515,35 +501,17 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	return 0;
 }
 
-static DEFINE_SPINLOCK(vas_ida_lock);
-
 static void vas_release_window_id(struct ida *ida, int winid)
 {
-	spin_lock(&vas_ida_lock);
-	ida_remove(ida, winid);
-	spin_unlock(&vas_ida_lock);
+	ida_free(ida, winid);
 }
 
 static int vas_assign_window_id(struct ida *ida)
 {
-	int rc, winid;
+	int winid = ida_alloc_max(ida, VAS_WINDOWS_PER_CHIP - 1, GFP_KERNEL);
 
-	do {
-		rc = ida_pre_get(ida, GFP_KERNEL);
-		if (!rc)
-			return -EAGAIN;
-
-		spin_lock(&vas_ida_lock);
-		rc = ida_get_new(ida, &winid);
-		spin_unlock(&vas_ida_lock);
-	} while (rc == -EAGAIN);
-
-	if (rc)
-		return rc;
-
-	if (winid > VAS_WINDOWS_PER_CHIP) {
-		pr_err("Too many (%d) open windows\n", winid);
-		vas_release_window_id(ida, winid);
+	if (winid == -ENOSPC) {
+		pr_err("Too many (%d) open windows\n", VAS_WINDOWS_PER_CHIP);
 		return -EAGAIN;
 	}
 
@@ -1286,12 +1254,3 @@ int vas_win_close(struct vas_window *window)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vas_win_close);
-
-/*
- * Return a system-wide unique window id for the window @win.
- */
-u32 vas_win_id(struct vas_window *win)
-{
-	return encode_pswid(win->vinst->vas_id, win->winid);
-}
-EXPORT_SYMBOL_GPL(vas_win_id);

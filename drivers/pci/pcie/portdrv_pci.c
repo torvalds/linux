@@ -29,12 +29,20 @@ bool pcie_ports_disabled;
  */
 bool pcie_ports_native;
 
+/*
+ * If the user specified "pcie_ports=dpc-native", use the Linux DPC PCIe
+ * service even if the platform hasn't given us permission.
+ */
+bool pcie_ports_dpc_native;
+
 static int __init pcie_port_setup(char *str)
 {
 	if (!strncmp(str, "compat", 6))
 		pcie_ports_disabled = true;
 	else if (!strncmp(str, "native", 6))
 		pcie_ports_native = true;
+	else if (!strncmp(str, "dpc-native", 10))
+		pcie_ports_dpc_native = true;
 
 	return 1;
 }
@@ -42,26 +50,13 @@ __setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
 
-static int pcie_portdrv_restore_config(struct pci_dev *dev)
-{
-	int retval;
-
-	retval = pci_enable_device(dev);
-	if (retval)
-		return retval;
-	pci_set_master(dev);
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int pcie_port_runtime_suspend(struct device *dev)
 {
-	return to_pci_dev(dev)->bridge_d3 ? 0 : -EBUSY;
-}
+	if (!to_pci_dev(dev)->bridge_d3)
+		return -EBUSY;
 
-static int pcie_port_runtime_resume(struct device *dev)
-{
-	return 0;
+	return pcie_port_device_runtime_suspend(dev);
 }
 
 static int pcie_port_runtime_idle(struct device *dev)
@@ -76,13 +71,15 @@ static int pcie_port_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
+	.resume_noirq	= pcie_port_device_resume_noirq,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
+	.restore_noirq	= pcie_port_device_resume_noirq,
 	.restore	= pcie_port_device_resume,
 	.runtime_suspend = pcie_port_runtime_suspend,
-	.runtime_resume	= pcie_port_runtime_resume,
+	.runtime_resume	= pcie_port_device_runtime_resume,
 	.runtime_idle	= pcie_port_runtime_idle,
 };
 
@@ -118,8 +115,8 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 
 	pci_save_state(dev);
 
-	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_SMART_SUSPEND |
-					   DPM_FLAG_LEAVE_SUSPENDED);
+	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_NEVER_SKIP |
+					   DPM_FLAG_SMART_SUSPEND);
 
 	if (pci_bridge_d3_possible(dev)) {
 		/*
@@ -155,21 +152,15 @@ static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
-static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
+static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
+	pci_restore_state(dev);
+	pci_save_state(dev);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
+static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
-	/* If fatal, restore cfg space for possible link reset at upstream */
-	if (dev->error_state == pci_channel_io_frozen) {
-		dev->state_saved = true;
-		pci_restore_state(dev);
-		pcie_portdrv_restore_config(dev);
-		pci_enable_pcie_error_reporting(dev);
-	}
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -199,16 +190,18 @@ static void pcie_portdrv_err_resume(struct pci_dev *dev)
 /*
  * LINUX Device Driver Model
  */
-static const struct pci_device_id port_pci_ids[] = { {
+static const struct pci_device_id port_pci_ids[] = {
 	/* handle any PCI-Express port */
-	PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0),
-	}, { /* end: all zeroes */ }
+	{ PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0) },
+	/* subtractive decode PCI-to-PCI bridge, class type is 060401h */
+	{ PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x01), ~0) },
+	{ },
 };
 
 static const struct pci_error_handlers pcie_portdrv_err_handler = {
 	.error_detected = pcie_portdrv_error_detected,
-	.mmio_enabled = pcie_portdrv_mmio_enabled,
 	.slot_reset = pcie_portdrv_slot_reset,
+	.mmio_enabled = pcie_portdrv_mmio_enabled,
 	.resume = pcie_portdrv_err_resume,
 };
 
@@ -249,11 +242,21 @@ static const struct dmi_system_id pcie_portdrv_dmi_table[] __initconst = {
 	 {}
 };
 
+static void __init pcie_init_services(void)
+{
+	pcie_aer_init();
+	pcie_pme_init();
+	pcie_dpc_init();
+	pcie_hp_init();
+	pcie_bandwidth_notification_init();
+}
+
 static int __init pcie_portdrv_init(void)
 {
 	if (pcie_ports_disabled)
 		return -EACCES;
 
+	pcie_init_services();
 	dmi_check_system(pcie_portdrv_dmi_table);
 
 	return pci_register_driver(&pcie_portdriver);

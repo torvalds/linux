@@ -506,7 +506,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int  rhine_open(struct net_device *dev);
 static void rhine_reset_task(struct work_struct *work);
 static void rhine_slow_event_task(struct work_struct *work);
-static void rhine_tx_timeout(struct net_device *dev);
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 				  struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
@@ -571,7 +571,6 @@ static void rhine_ack_events(struct rhine_private *rp, u32 mask)
 	if (rp->quirks & rqStatusWBRace)
 		iowrite8(mask >> 16, ioaddr + IntrStatus2);
 	iowrite16(mask, ioaddr + IntrStatus);
-	mmiowb();
 }
 
 /*
@@ -863,7 +862,6 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		iowrite16(enable_mask, ioaddr + IntrEnable);
-		mmiowb();
 	}
 	return work_done;
 }
@@ -1129,15 +1127,13 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const u32 *quirks;
 	int irq;
-	struct resource *res;
 	void __iomem *ioaddr;
 
 	match = of_match_device(rhine_of_tbl, &pdev->dev);
 	if (!match)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 
@@ -1765,7 +1761,7 @@ out_unlock:
 	mutex_unlock(&rp->task_lock);
 }
 
-static void rhine_tx_timeout(struct net_device *dev)
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1893,7 +1889,6 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 static void rhine_irq_disable(struct rhine_private *rp)
 {
 	iowrite16(0x0000, rp->base + IntrEnable);
-	mmiowb();
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

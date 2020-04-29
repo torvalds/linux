@@ -1,0 +1,270 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/psci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Power State Coordination Interface (PSCI)
+
+maintainers:
+  - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+
+description: |+
+  Firmware implementing the PSCI functions described in ARM document number
+  ARM DEN 0022A ("Power State Coordination Interface System Software on ARM
+  processors") can be used by Linux to initiate various CPU-centric power
+  operations.
+
+  Issue A of the specification describes functions for CPU suspend, hotplug
+  and migration of secure software.
+
+  Functions are invoked by trapping to the privilege level of the PSCI
+  firmware (specified as part of the binding below) and passing arguments
+  in a manner similar to that specified by AAPCS:
+
+     r0       => 32-bit Function ID / return value
+    {r1 - r3}	=> Parameters
+
+  Note that the immediate field of the trapping instruction must be set
+  to #0.
+
+  [2] Power State Coordination Interface (PSCI) specification
+    http://infocenter.arm.com/help/topic/com.arm.doc.den0022c/DEN0022C_Power_State_Coordination_Interface.pdf
+
+properties:
+  $nodename:
+    const: psci
+
+  compatible:
+    oneOf:
+      - description:
+          For implementations complying to PSCI versions prior to 0.2.
+        const: arm,psci
+
+      - description:
+          For implementations complying to PSCI 0.2.
+        const: arm,psci-0.2
+
+      - description:
+          For implementations complying to PSCI 0.2.
+          Function IDs are not required and should be ignored by an OS with
+          PSCI 0.2 support, but are permitted to be present for compatibility
+          with existing software when "arm,psci" is later in the compatible
+          list.
+        items:
+          - const: arm,psci-0.2
+          - const: arm,psci
+
+      - description:
+          For implementations complying to PSCI 1.0.
+        const: arm,psci-1.0
+
+      - description:
+          For implementations complying to PSCI 1.0.
+          PSCI 1.0 is backward compatible with PSCI 0.2 with minor
+          specification updates, as defined in the PSCI specification[2].
+        items:
+          - const: arm,psci-1.0
+          - const: arm,psci-0.2
+
+  method:
+    description: The method of calling the PSCI firmware.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/string-array
+      - enum:
+          # SMC #0, with the register assignments specified in this binding.
+          - smc
+          # HVC #0, with the register assignments specified in this binding.
+          - hvc
+
+  cpu_suspend:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Function ID for CPU_SUSPEND operation
+
+  cpu_off:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Function ID for CPU_OFF operation
+
+  cpu_on:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Function ID for CPU_ON operation
+
+  migrate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Function ID for MIGRATE operation
+
+  arm,psci-suspend-param:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      power_state parameter to pass to the PSCI suspend call.
+
+      Device tree nodes that require usage of PSCI CPU_SUSPEND function (ie
+      idle state nodes with entry-method property is set to "psci", as per
+      bindings in [1]) must specify this property.
+
+      [1] Kernel documentation - ARM idle states bindings
+        Documentation/devicetree/bindings/arm/idle-states.yaml
+
+patternProperties:
+  "^power-domain-":
+    allOf:
+      - $ref: "../power/power-domain.yaml#"
+    type: object
+    description: |
+      ARM systems can have multiple cores, sometimes in an hierarchical
+      arrangement. This often, but not always, maps directly to the processor
+      power topology of the system. Individual nodes in a topology have their
+      own specific power states and can be better represented hierarchically.
+
+      For these cases, the definitions of the idle states for the CPUs and the
+      CPU topology, must conform to the binding in [3]. The idle states
+      themselves must conform to the binding in [4] and must specify the
+      arm,psci-suspend-param property.
+
+      It should also be noted that, in PSCI firmware v1.0 the OS-Initiated
+      (OSI) CPU suspend mode is introduced. Using a hierarchical representation
+      helps to implement support for OSI mode and OS implementations may choose
+      to mandate it.
+
+      [3] Documentation/devicetree/bindings/power/power-domain.yaml
+      [4] Documentation/devicetree/bindings/power/domain-idle-state.yaml
+
+required:
+  - compatible
+  - method
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: arm,psci
+    then:
+      required:
+        - cpu_off
+        - cpu_on
+
+additionalProperties: false
+
+examples:
+  - |+
+
+    // Case 1: PSCI v0.1 only.
+
+    psci {
+      compatible      = "arm,psci";
+      method          = "smc";
+      cpu_suspend     = <0x95c10000>;
+      cpu_off         = <0x95c10001>;
+      cpu_on          = <0x95c10002>;
+      migrate         = <0x95c10003>;
+    };
+
+  - |+
+
+    // Case 2: PSCI v0.2 only
+
+    psci {
+      compatible      = "arm,psci-0.2";
+      method          = "smc";
+    };
+
+
+  - |+
+
+    // Case 3: PSCI v0.2 and PSCI v0.1.
+
+    /*
+     * A DTB may provide IDs for use by kernels without PSCI 0.2 support,
+     * enabling firmware and hypervisors to support existing and new kernels.
+     * These IDs will be ignored by kernels with PSCI 0.2 support, which will
+     * use the standard PSCI 0.2 IDs exclusively.
+     */
+
+    psci {
+      compatible = "arm,psci-0.2", "arm,psci";
+      method = "hvc";
+
+      cpu_on = <0x95c10002>;
+      cpu_off = <0x95c10001>;
+    };
+
+  - |+
+
+    // Case 4: CPUs and CPU idle states described using the hierarchical model.
+
+    cpus {
+      #size-cells = <0>;
+      #address-cells = <1>;
+
+      CPU0: cpu@0 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a53";
+        reg = <0x0>;
+        enable-method = "psci";
+        power-domains = <&CPU_PD0>;
+        power-domain-names = "psci";
+      };
+
+      CPU1: cpu@1 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a53";
+        reg = <0x100>;
+        enable-method = "psci";
+        power-domains = <&CPU_PD1>;
+        power-domain-names = "psci";
+      };
+
+      idle-states {
+
+        CPU_PWRDN: cpu-power-down {
+          compatible = "arm,idle-state";
+          arm,psci-suspend-param = <0x0000001>;
+          entry-latency-us = <10>;
+          exit-latency-us = <10>;
+          min-residency-us = <100>;
+        };
+      };
+
+      domain-idle-states {
+
+        CLUSTER_RET: cluster-retention {
+          compatible = "domain-idle-state";
+          arm,psci-suspend-param = <0x1000011>;
+          entry-latency-us = <500>;
+          exit-latency-us = <500>;
+          min-residency-us = <2000>;
+        };
+
+        CLUSTER_PWRDN: cluster-power-down {
+          compatible = "domain-idle-state";
+          arm,psci-suspend-param = <0x1000031>;
+          entry-latency-us = <2000>;
+          exit-latency-us = <2000>;
+          min-residency-us = <6000>;
+        };
+      };
+    };
+
+    psci {
+      compatible = "arm,psci-1.0";
+      method = "smc";
+
+      CPU_PD0: power-domain-cpu0 {
+        #power-domain-cells = <0>;
+        domain-idle-states = <&CPU_PWRDN>;
+        power-domains = <&CLUSTER_PD>;
+      };
+
+      CPU_PD1: power-domain-cpu1 {
+        #power-domain-cells = <0>;
+        domain-idle-states =  <&CPU_PWRDN>;
+        power-domains = <&CLUSTER_PD>;
+      };
+
+      CLUSTER_PD: power-domain-cluster {
+        #power-domain-cells = <0>;
+        domain-idle-states = <&CLUSTER_RET>, <&CLUSTER_PWRDN>;
+      };
+    };
+...

@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008, cozybit Inc.
  *  Copyright (C) 2003-2006, Marvell International Ltd.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -69,7 +65,7 @@ static void lbtf_geo_init(struct lbtf_private *priv)
 			break;
 		}
 
-	for (ch = priv->range.start; ch < priv->range.end; ch++)
+	for (ch = range->start; ch < range->end; ch++)
 		priv->channels[CHAN_TO_IDX(ch)].flags = 0;
 }
 
@@ -256,7 +252,7 @@ static void lbtf_submit_command(struct lbtf_private *priv,
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
 	lbtf_deb_hex(LBTF_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
+	ret = priv->ops->hw_host_to_card(priv, MVMS_CMD, (u8 *)cmd, cmdsize);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (ret) {
@@ -737,10 +733,9 @@ int lbtf_process_rx_command(struct lbtf_private *priv)
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
-	if (net_ratelimit())
-		pr_info("libertastf: cmd response 0x%04x, seq %d, size %d\n",
-			respcmd, le16_to_cpu(resp->seqnum),
-			le16_to_cpu(resp->size));
+	lbtf_deb_cmd("libertastf: cmd response 0x%04x, seq %d, size %d\n",
+		     respcmd, le16_to_cpu(resp->seqnum),
+		     le16_to_cpu(resp->size));
 
 	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {
 		spin_unlock_irqrestore(&priv->driver_lock, flags);

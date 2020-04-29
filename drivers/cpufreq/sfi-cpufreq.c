@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  SFI Performance States Driver
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  *  Author: Vishwesh M Rudramuni <vishwesh.m.rudramuni@intel.com>
  *  Author: Srinidhi Kasagar <srinidhi.kasagar@intel.com>
@@ -95,8 +87,8 @@ static int __init sfi_cpufreq_init(void)
 	if (ret)
 		return ret;
 
-	freq_table = kzalloc(sizeof(*freq_table) *
-			(num_freq_table_entries + 1), GFP_KERNEL);
+	freq_table = kcalloc(num_freq_table_entries + 1, sizeof(*freq_table),
+			     GFP_KERNEL);
 	if (!freq_table) {
 		ret = -ENOMEM;
 		goto err_free_array;

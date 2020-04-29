@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
  *  Copyright 2006-2007 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -175,6 +167,7 @@ static struct resource mx21ads_mmgpio_resource =
 	DEFINE_RES_MEM_NAMED(MX21ADS_IO_REG, SZ_2, "dat");
 
 static struct bgpio_pdata mx21ads_mmgpio_pdata = {
+	.label	= "mx21ads-mmgpio",
 	.base	= MX21ADS_MMGPIO_BASE,
 	.ngpio	= 16,
 };
@@ -203,8 +196,6 @@ static struct regulator_init_data mx21ads_lcd_regulator_init_data = {
 static struct fixed_voltage_config mx21ads_lcd_regulator_pdata = {
 	.supply_name	= "LCD",
 	.microvolts	= 3300000,
-	.gpio		= MX21ADS_IO_LCDON,
-	.enable_high	= 1,
 	.init_data	= &mx21ads_lcd_regulator_init_data,
 };
 
@@ -213,6 +204,14 @@ static struct platform_device mx21ads_lcd_regulator = {
 	.id = PLATFORM_DEVID_AUTO,
 	.dev = {
 		.platform_data = &mx21ads_lcd_regulator_pdata,
+	},
+};
+
+static struct gpiod_lookup_table mx21ads_lcd_regulator_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0", /* Let's hope ID 0 is what we get */
+	.table = {
+		GPIO_LOOKUP("mx21ads-mmgpio", 9, NULL, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -311,6 +310,7 @@ static void __init mx21ads_late_init(void)
 {
 	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
 
+	gpiod_add_lookup_table(&mx21ads_lcd_regulator_gpiod_table);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	mx21ads_cs8900_resources[1].start =

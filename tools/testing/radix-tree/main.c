@@ -27,20 +27,22 @@ void __gang_check(unsigned long middle, long down, long up, int chunk, int hop)
 		item_check_present(&tree, middle + idx);
 	item_check_absent(&tree, middle + up);
 
-	item_gang_check_present(&tree, middle - down,
-			up + down, chunk, hop);
-	item_full_scan(&tree, middle - down, down + up, chunk);
+	if (chunk > 0) {
+		item_gang_check_present(&tree, middle - down, up + down,
+				chunk, hop);
+		item_full_scan(&tree, middle - down, down + up, chunk);
+	}
 	item_kill_tree(&tree);
 }
 
 void gang_check(void)
 {
-	__gang_check(1 << 30, 128, 128, 35, 2);
-	__gang_check(1 << 31, 128, 128, 32, 32);
-	__gang_check(1 << 31, 128, 128, 32, 100);
-	__gang_check(1 << 31, 128, 128, 17, 7);
-	__gang_check(0xffff0000, 0, 65536, 17, 7);
-	__gang_check(0xfffffffe, 1, 1, 17, 7);
+	__gang_check(1UL << 30, 128, 128, 35, 2);
+	__gang_check(1UL << 31, 128, 128, 32, 32);
+	__gang_check(1UL << 31, 128, 128, 32, 100);
+	__gang_check(1UL << 31, 128, 128, 17, 7);
+	__gang_check(0xffff0000UL, 0, 65536, 17, 7);
+	__gang_check(0xfffffffeUL, 1, 1, 17, 7);
 }
 
 void __big_gang_check(void)
@@ -212,7 +214,7 @@ void copy_tag_check(void)
 	}
 
 //	printf("\ncopying tags...\n");
-	tagged = tag_tagged_items(&tree, NULL, start, end, ITEMS, 0, 1);
+	tagged = tag_tagged_items(&tree, start, end, ITEMS, XA_MARK_0, XA_MARK_1);
 
 //	printf("checking copied tags\n");
 	assert(tagged == count);
@@ -221,7 +223,7 @@ void copy_tag_check(void)
 	/* Copy tags in several rounds */
 //	printf("\ncopying tags...\n");
 	tmp = rand() % (count / 10 + 2);
-	tagged = tag_tagged_items(&tree, NULL, start, end, tmp, 0, 2);
+	tagged = tag_tagged_items(&tree, start, end, tmp, XA_MARK_0, XA_MARK_2);
 	assert(tagged == count);
 
 //	printf("%lu %lu %lu\n", tagged, tmp, count);
@@ -234,63 +236,6 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
-static void __locate_check(struct radix_tree_root *tree, unsigned long index,
-			unsigned order)
-{
-	struct item *item;
-	unsigned long index2;
-
-	item_insert_order(tree, index, order);
-	item = item_lookup(tree, index);
-	index2 = find_item(tree, item);
-	if (index != index2) {
-		printv(2, "index %ld order %d inserted; found %ld\n",
-			index, order, index2);
-		abort();
-	}
-}
-
-static void __order_0_locate_check(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	int i;
-
-	for (i = 0; i < 50; i++)
-		__locate_check(&tree, rand() % INT_MAX, 0);
-
-	item_kill_tree(&tree);
-}
-
-static void locate_check(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	unsigned order;
-	unsigned long offset, index;
-
-	__order_0_locate_check();
-
-	for (order = 0; order < 20; order++) {
-		for (offset = 0; offset < (1 << (order + 3));
-		     offset += (1UL << order)) {
-			for (index = 0; index < (1UL << (order + 5));
-			     index += (1UL << order)) {
-				__locate_check(&tree, index + offset, order);
-			}
-			if (find_item(&tree, &tree) != -1)
-				abort();
-
-			item_kill_tree(&tree);
-		}
-	}
-
-	if (find_item(&tree, &tree) != -1)
-		abort();
-	__locate_check(&tree, -1, 0);
-	if (find_item(&tree, &tree) != -1)
-		abort();
-	item_kill_tree(&tree);
-}
-
 static void single_thread_tests(bool long_run)
 {
 	int i;
@@ -300,10 +245,6 @@ static void single_thread_tests(bool long_run)
 	multiorder_checks();
 	rcu_barrier();
 	printv(2, "after multiorder_check: %d allocated, preempt %d\n",
-		nr_allocated, preempt_count);
-	locate_check();
-	rcu_barrier();
-	printv(2, "after locate_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	tag_check();
 	rcu_barrier();
@@ -322,7 +263,7 @@ static void single_thread_tests(bool long_run)
 	printv(2, "after dynamic_height_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	idr_checks();
-	ida_checks();
+	ida_tests();
 	rcu_barrier();
 	printv(2, "after idr_checks: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
@@ -363,13 +304,15 @@ int main(int argc, char **argv)
 	rcu_register_thread();
 	radix_tree_init();
 
+	xarray_tests();
 	regression1_test();
 	regression2_test();
 	regression3_test();
+	regression4_test();
 	iteration_test(0, 10 + 90 * long_run);
 	iteration_test(7, 10 + 90 * long_run);
+	iteration_test2(10 + 90 * long_run);
 	single_thread_tests(long_run);
-	ida_thread_tests();
 
 	/* Free any remaining preallocated nodes */
 	radix_tree_cpu_dead(0);

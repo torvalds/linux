@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
  *  Extended 3 / 2005 by Hartmut Hackmann to support various
  *  cards with the tda10046 DVB-T channel decoder
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "saa7134.h"
@@ -1273,6 +1264,20 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &medion_cardbus,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
+			/*
+			 * The TV tuner on this board is actually NOT
+			 * behind the demod i2c gate.
+			 * However, the demod EEPROM is indeed there and it
+			 * conflicts with the SAA7134 chip config EEPROM
+			 * if the i2c gate is open (since they have same
+			 * bus addresses) resulting in card PCI SVID / SSID
+			 * being garbage after a reboot from time to time.
+			 *
+			 * Let's just leave the gate permanently closed -
+			 * saa7134_i2c_eeprom_md7134_gate() will close it for
+			 * us at probe time if it was open for some reason.
+			 */
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
 			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, medion_cardbus.tuner_address,
 				   TUNER_PHILIPS_FMD1216ME_MK3);

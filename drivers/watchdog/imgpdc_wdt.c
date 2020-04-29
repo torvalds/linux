@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Imagination Technologies PowerDown Controller Watchdog Timer.
  *
  * Copyright (c) 2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Based on drivers/watchdog/sunxi_wdt.c Copyright (c) 2013 Carlo Caione
  *                                                     2012 Henrik Nordstrom
@@ -44,6 +41,7 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
@@ -177,59 +175,69 @@ static const struct watchdog_ops pdc_wdt_ops = {
 	.restart        = pdc_wdt_restart,
 };
 
+static void pdc_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int pdc_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	u64 div;
 	int ret, val;
 	unsigned long clk_rate;
-	struct resource *res;
 	struct pdc_wdt_dev *pdc_wdt;
 
-	pdc_wdt = devm_kzalloc(&pdev->dev, sizeof(*pdc_wdt), GFP_KERNEL);
+	pdc_wdt = devm_kzalloc(dev, sizeof(*pdc_wdt), GFP_KERNEL);
 	if (!pdc_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdc_wdt->base = devm_ioremap_resource(&pdev->dev, res);
+	pdc_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdc_wdt->base))
 		return PTR_ERR(pdc_wdt->base);
 
-	pdc_wdt->sys_clk = devm_clk_get(&pdev->dev, "sys");
+	pdc_wdt->sys_clk = devm_clk_get(dev, "sys");
 	if (IS_ERR(pdc_wdt->sys_clk)) {
-		dev_err(&pdev->dev, "failed to get the sys clock\n");
+		dev_err(dev, "failed to get the sys clock\n");
 		return PTR_ERR(pdc_wdt->sys_clk);
 	}
 
-	pdc_wdt->wdt_clk = devm_clk_get(&pdev->dev, "wdt");
+	pdc_wdt->wdt_clk = devm_clk_get(dev, "wdt");
 	if (IS_ERR(pdc_wdt->wdt_clk)) {
-		dev_err(&pdev->dev, "failed to get the wdt clock\n");
+		dev_err(dev, "failed to get the wdt clock\n");
 		return PTR_ERR(pdc_wdt->wdt_clk);
 	}
 
 	ret = clk_prepare_enable(pdc_wdt->sys_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not prepare or enable sys clock\n");
+		dev_err(dev, "could not prepare or enable sys clock\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, pdc_clk_disable_unprepare,
+				       pdc_wdt->sys_clk);
+	if (ret)
+		return ret;
 
 	ret = clk_prepare_enable(pdc_wdt->wdt_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not prepare or enable wdt clock\n");
-		goto disable_sys_clk;
+		dev_err(dev, "could not prepare or enable wdt clock\n");
+		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, pdc_clk_disable_unprepare,
+				       pdc_wdt->wdt_clk);
+	if (ret)
+		return ret;
 
 	/* We use the clock rate to calculate the max timeout */
 	clk_rate = clk_get_rate(pdc_wdt->wdt_clk);
 	if (clk_rate == 0) {
-		dev_err(&pdev->dev, "failed to get clock rate\n");
-		ret = -EINVAL;
-		goto disable_wdt_clk;
+		dev_err(dev, "failed to get clock rate\n");
+		return -EINVAL;
 	}
 
 	if (order_base_2(clk_rate) > PDC_WDT_CONFIG_DELAY_MASK + 1) {
-		dev_err(&pdev->dev, "invalid clock rate\n");
-		ret = -EINVAL;
-		goto disable_wdt_clk;
+		dev_err(dev, "invalid clock rate\n");
+		return -EINVAL;
 	}
 
 	if (order_base_2(clk_rate) == 0)
@@ -244,10 +252,10 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	do_div(div, clk_rate);
 	pdc_wdt->wdt_dev.max_timeout = div;
 	pdc_wdt->wdt_dev.timeout = PDC_WDT_DEF_TIMEOUT;
-	pdc_wdt->wdt_dev.parent = &pdev->dev;
+	pdc_wdt->wdt_dev.parent = dev;
 	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
-	watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, &pdev->dev);
+	watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, dev);
 
 	pdc_wdt_stop(&pdc_wdt->wdt_dev);
 
@@ -258,24 +266,22 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	case PDC_WDT_TICKLE_STATUS_TICKLE:
 	case PDC_WDT_TICKLE_STATUS_TIMEOUT:
 		pdc_wdt->wdt_dev.bootstatus |= WDIOF_CARDRESET;
-		dev_info(&pdev->dev,
-			 "watchdog module last reset due to timeout\n");
+		dev_info(dev, "watchdog module last reset due to timeout\n");
 		break;
 	case PDC_WDT_TICKLE_STATUS_HRESET:
-		dev_info(&pdev->dev,
+		dev_info(dev,
 			 "watchdog module last reset due to hard reset\n");
 		break;
 	case PDC_WDT_TICKLE_STATUS_SRESET:
-		dev_info(&pdev->dev,
+		dev_info(dev,
 			 "watchdog module last reset due to soft reset\n");
 		break;
 	case PDC_WDT_TICKLE_STATUS_USER:
-		dev_info(&pdev->dev,
+		dev_info(dev,
 			 "watchdog module last reset due to user reset\n");
 		break;
 	default:
-		dev_info(&pdev->dev,
-			 "contains an illegal status code (%08x)\n", val);
+		dev_info(dev, "contains an illegal status code (%08x)\n", val);
 		break;
 	}
 
@@ -284,36 +290,9 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pdc_wdt);
 
-	ret = watchdog_register_device(&pdc_wdt->wdt_dev);
-	if (ret)
-		goto disable_wdt_clk;
-
-	return 0;
-
-disable_wdt_clk:
-	clk_disable_unprepare(pdc_wdt->wdt_clk);
-disable_sys_clk:
-	clk_disable_unprepare(pdc_wdt->sys_clk);
-	return ret;
-}
-
-static void pdc_wdt_shutdown(struct platform_device *pdev)
-{
-	struct pdc_wdt_dev *pdc_wdt = platform_get_drvdata(pdev);
-
-	pdc_wdt_stop(&pdc_wdt->wdt_dev);
-}
-
-static int pdc_wdt_remove(struct platform_device *pdev)
-{
-	struct pdc_wdt_dev *pdc_wdt = platform_get_drvdata(pdev);
-
-	pdc_wdt_stop(&pdc_wdt->wdt_dev);
-	watchdog_unregister_device(&pdc_wdt->wdt_dev);
-	clk_disable_unprepare(pdc_wdt->wdt_clk);
-	clk_disable_unprepare(pdc_wdt->sys_clk);
-
-	return 0;
+	watchdog_stop_on_reboot(&pdc_wdt->wdt_dev);
+	watchdog_stop_on_unregister(&pdc_wdt->wdt_dev);
+	return devm_watchdog_register_device(dev, &pdc_wdt->wdt_dev);
 }
 
 static const struct of_device_id pdc_wdt_match[] = {
@@ -328,8 +307,6 @@ static struct platform_driver pdc_wdt_driver = {
 		.of_match_table	= pdc_wdt_match,
 	},
 	.probe = pdc_wdt_probe,
-	.remove = pdc_wdt_remove,
-	.shutdown = pdc_wdt_shutdown,
 };
 module_platform_driver(pdc_wdt_driver);
 

@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Memory Encryption Support
  *
  * Copyright (C) 2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -18,27 +15,13 @@
 
 	.text
 	.code32
-ENTRY(get_sev_encryption_bit)
+SYM_FUNC_START(get_sev_encryption_bit)
 	xor	%eax, %eax
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	push	%ebx
 	push	%ecx
 	push	%edx
-	push	%edi
-
-	/*
-	 * RIP-relative addressing is needed to access the encryption bit
-	 * variable. Since we are running in 32-bit mode we need this call/pop
-	 * sequence to get the proper relative addressing.
-	 */
-	call	1f
-1:	popl	%edi
-	subl	$1b, %edi
-
-	movl	enc_bit(%edi), %eax
-	cmpl	$0, %eax
-	jge	.Lsev_exit
 
 	/* Check if running under a hypervisor */
 	movl	$1, %eax
@@ -69,15 +52,12 @@ ENTRY(get_sev_encryption_bit)
 
 	movl	%ebx, %eax
 	andl	$0x3f, %eax		/* Return the encryption bit location */
-	movl	%eax, enc_bit(%edi)
 	jmp	.Lsev_exit
 
 .Lno_sev:
 	xor	%eax, %eax
-	movl	%eax, enc_bit(%edi)
 
 .Lsev_exit:
-	pop	%edi
 	pop	%edx
 	pop	%ecx
 	pop	%ebx
@@ -85,10 +65,10 @@ ENTRY(get_sev_encryption_bit)
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
 	ret
-ENDPROC(get_sev_encryption_bit)
+SYM_FUNC_END(get_sev_encryption_bit)
 
 	.code64
-ENTRY(set_sev_encryption_mask)
+SYM_FUNC_START(set_sev_encryption_mask)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	push	%rbp
 	push	%rdx
@@ -110,14 +90,11 @@ ENTRY(set_sev_encryption_mask)
 
 	xor	%rax, %rax
 	ret
-ENDPROC(set_sev_encryption_mask)
+SYM_FUNC_END(set_sev_encryption_mask)
 
 	.data
-enc_bit:
-	.int	0xffffffff
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	.balign	8
-GLOBAL(sme_me_mask)
-	.quad	0
+SYM_DATA(sme_me_mask, .quad 0)
 #endif

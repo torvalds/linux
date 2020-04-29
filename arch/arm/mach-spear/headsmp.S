@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-spear13XX/headsmp.S
  *
  * Picked from realview
  * Copyright (c) 2012 ST Microelectronics Limited
  * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -43,5 +40,5 @@ pen:	ldr	r7, [r6]
 
 	.align
 1:	.long	.
-	.long	pen_release
+	.long	spear_pen_release
 ENDPROC(spear13xx_secondary_startup)

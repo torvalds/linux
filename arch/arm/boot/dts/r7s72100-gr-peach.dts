@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the GR-Peach board
  *
  * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
  * Copyright (C) 2016 Renesas Electronics
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -43,6 +40,9 @@
 		reg = <0x18000000 0x00800000>;
 		bank-width = <4>;
 		device-width = <1>;
+
+		clocks = <&mstp9_clks R7S72100_CLK_SPIBSC0>;
+		power-domains = <&cpg_clocks>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;

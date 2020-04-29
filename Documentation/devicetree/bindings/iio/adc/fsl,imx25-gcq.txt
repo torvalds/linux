@@ -8,7 +8,6 @@ Required properties:
  - reg: Should be the register range of the module.
  - interrupts: Should be the interrupt number of the module.
    Typically this is <1>.
- - interrupt-parent: phandle to the tsadc module of the i.MX25.
  - #address-cells: Should be <1> (setting for the subnodes)
  - #size-cells: Should be <0> (setting for the subnodes)
 

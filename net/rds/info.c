@@ -188,12 +188,12 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 	nr_pages = (PAGE_ALIGN(start + len) - (start & PAGE_MASK))
 			>> PAGE_SHIFT;
 
-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	ret = get_user_pages_fast(start, nr_pages, 1, pages);
+	ret = get_user_pages_fast(start, nr_pages, FOLL_WRITE, pages);
 	if (ret != nr_pages) {
 		if (ret > 0)
 			nr_pages = ret;

@@ -12,6 +12,9 @@
 struct shrink_control {
 	gfp_t gfp_mask;
 
+	/* current node being shrunk (for NUMA aware shrinkers) */
+	int nid;
+
 	/*
 	 * How many objects scan_objects should scan and try to reclaim.
 	 * This is reset before every call, so it is safe for callees
@@ -26,20 +29,20 @@ struct shrink_control {
 	 */
 	unsigned long nr_scanned;
 
-	/* current node being shrunk (for NUMA aware shrinkers) */
-	int nid;
-
 	/* current memcg being shrunk (for memcg aware shrinkers) */
 	struct mem_cgroup *memcg;
 };
 
 #define SHRINK_STOP (~0UL)
+#define SHRINK_EMPTY (~0UL - 1)
 /*
  * A callback you can register to apply pressure to ageable caches.
  *
  * @count_objects should return the number of freeable items in the cache. If
- * there are no objects to free or the number of freeable items cannot be
- * determined, it should return 0. No deadlock checks should be done during the
+ * there are no objects to free, it should return SHRINK_EMPTY, while 0 is
+ * returned in cases of the number of freeable items cannot be determined
+ * or shrinker should skip this cache for this time (e.g., their number
+ * is below shrinkable limit). No deadlock checks should be done during the
  * count callback - the shrinker relies on aggregating scan counts that couldn't
  * be executed due to potential deadlocks to be run at a later call when the
  * deadlock condition is no longer pending.
@@ -60,12 +63,16 @@ struct shrinker {
 	unsigned long (*scan_objects)(struct shrinker *,
 				      struct shrink_control *sc);
 
-	int seeks;	/* seeks to recreate an obj */
 	long batch;	/* reclaim batch size, 0 = default */
-	unsigned long flags;
+	int seeks;	/* seeks to recreate an obj */
+	unsigned flags;
 
 	/* These are for internal use */
 	struct list_head list;
+#ifdef CONFIG_MEMCG
+	/* ID in shrinker_idr */
+	int id;
+#endif
 	/* objs pending delete, per node */
 	atomic_long_t *nr_deferred;
 };
@@ -74,7 +81,15 @@ struct shrinker {
 /* Flags */
 #define SHRINKER_NUMA_AWARE	(1 << 0)
 #define SHRINKER_MEMCG_AWARE	(1 << 1)
+/*
+ * It just makes sense when the shrinker is also MEMCG_AWARE for now,
+ * non-MEMCG_AWARE shrinker should not have this flag set.
+ */
+#define SHRINKER_NONSLAB	(1 << 2)
 
-extern int register_shrinker(struct shrinker *);
-extern void unregister_shrinker(struct shrinker *);
+extern int prealloc_shrinker(struct shrinker *shrinker);
+extern void register_shrinker_prepared(struct shrinker *shrinker);
+extern int register_shrinker(struct shrinker *shrinker);
+extern void unregister_shrinker(struct shrinker *shrinker);
+extern void free_prealloced_shrinker(struct shrinker *shrinker);
 #endif

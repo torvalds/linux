@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Renesas SuperH DMA Engine support
  *
  * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  */
 #ifndef __DMA_SHDMA_H
@@ -61,12 +57,5 @@ struct sh_dmae_desc {
 #define tx_to_sh_desc(tx) container_of(tx, struct sh_desc, async_tx)
 #define to_sh_dev(chan) container_of(chan->shdma_chan.dma_chan.device,\
 				     struct sh_dmae_device, shdma_dev.dma_dev)
-
-#ifdef CONFIG_SH_DMAE_R8A73A4
-extern const struct sh_dmae_pdata r8a73a4_dma_pdata;
-#define r8a73a4_shdma_devid (&r8a73a4_dma_pdata)
-#else
-#define r8a73a4_shdma_devid NULL
-#endif
 
 #endif	/* __DMA_SHDMA_H */

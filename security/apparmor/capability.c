@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/capability.h>
@@ -19,7 +15,7 @@
 
 #include "include/apparmor.h"
 #include "include/capability.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/policy.h"
 #include "include/audit.h"
 
@@ -110,13 +106,13 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
  * profile_capable - test if profile allows use of capability @cap
  * @profile: profile being enforced    (NOT NULL, NOT unconfined)
  * @cap: capability to test if allowed
- * @audit: whether an audit record should be generated
+ * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
  * @sa: audit data (MAY BE NULL indicating no auditing)
  *
  * Returns: 0 if allowed else -EPERM
  */
-static int profile_capable(struct aa_profile *profile, int cap, int audit,
-			   struct common_audit_data *sa)
+static int profile_capable(struct aa_profile *profile, int cap,
+			   unsigned int opts, struct common_audit_data *sa)
 {
 	int error;
 
@@ -126,7 +122,7 @@ static int profile_capable(struct aa_profile *profile, int cap, int audit,
 	else
 		error = -EPERM;
 
-	if (audit == SECURITY_CAP_NOAUDIT) {
+	if (opts & CAP_OPT_NOAUDIT) {
 		if (!COMPLAIN_MODE(profile))
 			return error;
 		/* audit the cap request in complain mode but note that it
@@ -142,13 +138,13 @@ static int profile_capable(struct aa_profile *profile, int cap, int audit,
  * aa_capable - test permission to use capability
  * @label: label being tested for capability (NOT NULL)
  * @cap: capability to be tested
- * @audit: whether an audit record should be generated
+ * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
  *
  * Look up capability in profile capability set.
  *
  * Returns: 0 on success, or else an error code.
  */
-int aa_capable(struct aa_label *label, int cap, int audit)
+int aa_capable(struct aa_label *label, int cap, unsigned int opts)
 {
 	struct aa_profile *profile;
 	int error = 0;
@@ -156,7 +152,7 @@ int aa_capable(struct aa_label *label, int cap, int audit)
 
 	sa.u.cap = cap;
 	error = fn_for_each_confined(label, profile,
-			profile_capable(profile, cap, audit, &sa));
+			profile_capable(profile, cap, opts, &sa));
 
 	return error;
 }

@@ -130,12 +130,12 @@ retry:
 			dev_err(dev, "BM-CMD: too many stalls in "
 				"URB; resetting device\n");
 			usb_queue_reset_device(i2400mu->usb_iface);
-			/* fallthrough */
 		} else {
 			usb_clear_halt(i2400mu->usb_dev, pipe);
 			msleep(10);	/* give the device some time */
 			goto retry;
 		}
+		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -354,6 +354,7 @@ out:
 		usb_autopm_put_interface(i2400mu->usb_iface);
 	d_fnend(8, dev, "(i2400m %p ack %p size %zu) = %ld\n",
 		i2400m, ack, ack_size, (long) result);
+	usb_put_urb(&notif_urb);
 	return result;
 
 error_exceeded:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #undef DEBUG
 
 /*
@@ -27,6 +28,14 @@
 
 static DEFINE_PER_CPU(struct arm_pmu *, cpu_armpmu);
 static DEFINE_PER_CPU(int, cpu_irq);
+
+static inline u64 arm_pmu_event_max_period(struct perf_event *event)
+{
+	if (event->hw.flags & ARMPMU_EVT_64BIT)
+		return GENMASK_ULL(63, 0);
+	else
+		return GENMASK_ULL(31, 0);
+}
 
 static int
 armpmu_map_cache_event(const unsigned (*cache_map)
@@ -114,8 +123,10 @@ int armpmu_event_set_period(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
+	u64 max_period;
 	int ret = 0;
 
+	max_period = arm_pmu_event_max_period(event);
 	if (unlikely(left <= -period)) {
 		left = period;
 		local64_set(&hwc->period_left, left);
@@ -136,12 +147,12 @@ int armpmu_event_set_period(struct perf_event *event)
 	 * effect we are reducing max_period to account for
 	 * interrupt latency (and we are being very conservative).
 	 */
-	if (left > (armpmu->max_period >> 1))
-		left = armpmu->max_period >> 1;
+	if (left > (max_period >> 1))
+		left = (max_period >> 1);
 
 	local64_set(&hwc->prev_count, (u64)-left);
 
-	armpmu->write_counter(event, (u64)(-left) & 0xffffffff);
+	armpmu->write_counter(event, (u64)(-left) & max_period);
 
 	perf_event_update_userpage(event);
 
@@ -153,6 +164,7 @@ u64 armpmu_event_update(struct perf_event *event)
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 delta, prev_raw_count, new_raw_count;
+	u64 max_period = arm_pmu_event_max_period(event);
 
 again:
 	prev_raw_count = local64_read(&hwc->prev_count);
@@ -162,7 +174,7 @@ again:
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
-	delta = (new_raw_count - prev_raw_count) & armpmu->max_period;
+	delta = (new_raw_count - prev_raw_count) & max_period;
 
 	local64_add(delta, &event->count);
 	local64_sub(delta, &hwc->period_left);
@@ -227,11 +239,10 @@ armpmu_del(struct perf_event *event, int flags)
 
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
-	clear_bit(idx, hw_events->used_mask);
-	if (armpmu->clear_event_idx)
-		armpmu->clear_event_idx(hw_events, event);
-
+	armpmu->clear_event_idx(hw_events, event);
 	perf_event_update_userpage(event);
+	/* Clear the allocated counter */
+	hwc->idx = -1;
 }
 
 static int
@@ -339,18 +350,11 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	start_clock = sched_clock();
-	ret = armpmu->handle_irq(irq, armpmu);
+	ret = armpmu->handle_irq(armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);
 	return ret;
-}
-
-static int
-event_requires_mode_exclusion(struct perf_event_attr *attr)
-{
-	return attr->exclude_idle || attr->exclude_user ||
-	       attr->exclude_kernel || attr->exclude_hv;
 }
 
 static int
@@ -360,6 +364,7 @@ __hw_perf_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int mapping;
 
+	hwc->flags = 0;
 	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
@@ -382,9 +387,8 @@ __hw_perf_event_init(struct perf_event *event)
 	/*
 	 * Check whether we need to exclude the counter from certain modes.
 	 */
-	if ((!armpmu->set_event_filter ||
-	     armpmu->set_event_filter(hwc, &event->attr)) &&
-	     event_requires_mode_exclusion(&event->attr)) {
+	if (armpmu->set_event_filter &&
+	    armpmu->set_event_filter(hwc, &event->attr)) {
 		pr_debug("ARM performance counters do not support "
 			 "mode exclusion\n");
 		return -EOPNOTSUPP;
@@ -402,7 +406,7 @@ __hw_perf_event_init(struct perf_event *event)
 		 * is far less likely to overtake the previous one unless
 		 * you have some serious IRQ latency issues.
 		 */
-		hwc->sample_period  = armpmu->max_period >> 1;
+		hwc->sample_period  = arm_pmu_event_max_period(event) >> 1;
 		hwc->last_period    = hwc->sample_period;
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
@@ -474,7 +478,13 @@ static int armpmu_filter_match(struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	unsigned int cpu = smp_processor_id();
-	return cpumask_test_cpu(cpu, &armpmu->supported_cpus);
+	int ret;
+
+	ret = cpumask_test_cpu(cpu, &armpmu->supported_cpus);
+	if (ret && armpmu->filter_match)
+		return armpmu->filter_match(event);
+
+	return ret;
 }
 
 static ssize_t armpmu_cpumask_show(struct device *dev,
@@ -654,14 +664,9 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 	int idx;
 
 	for (idx = 0; idx < armpmu->num_events; idx++) {
-		/*
-		 * If the counter is not used skip it, there is no
-		 * need of stopping/restarting it.
-		 */
-		if (!test_bit(idx, hw_events->used_mask))
-			continue;
-
 		event = hw_events->events[idx];
+		if (!event)
+			continue;
 
 		switch (cmd) {
 		case CPU_PM_ENTER:
@@ -718,8 +723,8 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 		cpu_pm_pmu_setup(armpmu, cmd);
 		break;
 	case CPU_PM_EXIT:
-		cpu_pm_pmu_setup(armpmu, cmd);
 	case CPU_PM_ENTER_FAILED:
+		cpu_pm_pmu_setup(armpmu, cmd);
 		armpmu->start(armpmu);
 		break;
 	default:
@@ -854,6 +859,9 @@ int armpmu_register(struct arm_pmu *pmu)
 	ret = cpu_pmu_init(pmu);
 	if (ret)
 		return ret;
+
+	if (!pmu->set_event_filter)
+		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)

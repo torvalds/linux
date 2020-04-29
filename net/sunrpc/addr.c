@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2009, Oracle.  All rights reserved.
  *
@@ -174,7 +175,7 @@ static int rpc_parse_scope_id(struct net *net, const char *buf,
 		return 0;
 
 	len = (buf + buflen) - delim - 1;
-	p = kstrndup(delim + 1, len, GFP_KERNEL);
+	p = kmemdup_nul(delim + 1, len, GFP_KERNEL);
 	if (p) {
 		u32 scope_id = 0;
 		struct net_device *dev;

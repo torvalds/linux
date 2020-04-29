@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * memconsole-coreboot.c
  *
  * Memory based BIOS console accessed through coreboot table.
  *
  * Copyright 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
+#include <linux/device.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 
 #include "memconsole.h"
 #include "coreboot_table.h"
@@ -34,7 +27,7 @@ struct cbmem_cons {
 #define CURSOR_MASK ((1 << 28) - 1)
 #define OVERFLOW (1 << 31)
 
-static struct cbmem_cons __iomem *cbmem_console;
+static struct cbmem_cons *cbmem_console;
 static u32 cbmem_console_size;
 
 /*
@@ -73,77 +66,47 @@ static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
 	return done;
 }
 
-static int memconsole_coreboot_init(phys_addr_t physaddr)
+static int memconsole_probe(struct coreboot_device *dev)
 {
-	struct cbmem_cons __iomem *tmp_cbmc;
+	struct cbmem_cons *tmp_cbmc;
 
-	tmp_cbmc = memremap(physaddr, sizeof(*tmp_cbmc), MEMREMAP_WB);
+	tmp_cbmc = memremap(dev->cbmem_ref.cbmem_addr,
+			    sizeof(*tmp_cbmc), MEMREMAP_WB);
 
 	if (!tmp_cbmc)
 		return -ENOMEM;
 
 	/* Read size only once to prevent overrun attack through /dev/mem. */
 	cbmem_console_size = tmp_cbmc->size_dont_access_after_boot;
-	cbmem_console = memremap(physaddr,
+	cbmem_console = devm_memremap(&dev->dev, dev->cbmem_ref.cbmem_addr,
 				 cbmem_console_size + sizeof(*cbmem_console),
 				 MEMREMAP_WB);
 	memunmap(tmp_cbmc);
 
-	if (!cbmem_console)
-		return -ENOMEM;
+	if (IS_ERR(cbmem_console))
+		return PTR_ERR(cbmem_console);
 
 	memconsole_setup(memconsole_coreboot_read);
-	return 0;
-}
-
-static int memconsole_probe(struct platform_device *pdev)
-{
-	int ret;
-	struct lb_cbmem_ref entry;
-
-	ret = coreboot_table_find(CB_TAG_CBMEM_CONSOLE, &entry, sizeof(entry));
-	if (ret)
-		return ret;
-
-	ret = memconsole_coreboot_init(entry.cbmem_addr);
-	if (ret)
-		return ret;
 
 	return memconsole_sysfs_init();
 }
 
-static int memconsole_remove(struct platform_device *pdev)
+static int memconsole_remove(struct coreboot_device *dev)
 {
 	memconsole_exit();
 
-	if (cbmem_console)
-		memunmap(cbmem_console);
-
 	return 0;
 }
 
-static struct platform_driver memconsole_driver = {
+static struct coreboot_driver memconsole_driver = {
 	.probe = memconsole_probe,
 	.remove = memconsole_remove,
-	.driver = {
+	.drv = {
 		.name = "memconsole",
 	},
+	.tag = CB_TAG_CBMEM_CONSOLE,
 };
-
-static int __init platform_memconsole_init(void)
-{
-	struct platform_device *pdev;
-
-	pdev = platform_device_register_simple("memconsole", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	platform_driver_register(&memconsole_driver);
-
-	return 0;
-}
-
-module_init(platform_memconsole_init);
+module_coreboot_driver(memconsole_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

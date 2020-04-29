@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 1999-2002 Vojtech Pavlik
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef _INPUT_H
 #define _INPUT_H
@@ -24,6 +21,8 @@
 #include <linux/timer.h>
 #include <linux/mod_devicetable.h>
 
+struct input_dev_poller;
+
 /**
  * struct input_value - input value representation
  * @type: type of value (EV_KEY, EV_ABS, etc)
@@ -34,6 +33,13 @@ struct input_value {
 	__u16 type;
 	__u16 code;
 	__s32 value;
+};
+
+enum input_clock_type {
+	INPUT_CLK_REAL = 0,
+	INPUT_CLK_MONO,
+	INPUT_CLK_BOOT,
+	INPUT_CLK_MAX
 };
 
 /**
@@ -67,6 +73,8 @@ struct input_value {
  *	not sleep
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
+ * @poller: poller structure associated with the device if device is
+ *	set up to use polling mode
  * @repeat_key: stores key code of the last key pressed; used to implement
  *	software autorepeat
  * @timer: timer for software autorepeat
@@ -117,6 +125,8 @@ struct input_value {
  * @vals: array of values queued in the current frame
  * @devres_managed: indicates that devices is managed with devres framework
  *	and needs not be explicitly unregistered or freed.
+ * @timestamp: storage for a timestamp set by input_set_timestamp called
+ *  by a driver
  */
 struct input_dev {
 	const char *name;
@@ -149,6 +159,8 @@ struct input_dev {
 			  struct input_keymap_entry *ke);
 
 	struct ff_device *ff;
+
+	struct input_dev_poller *poller;
 
 	unsigned int repeat_key;
 	struct timer_list timer;
@@ -187,6 +199,8 @@ struct input_dev {
 	struct input_value *vals;
 
 	bool devres_managed;
+
+	ktime_t timestamp[INPUT_CLK_MAX];
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
 
@@ -364,6 +378,13 @@ void input_unregister_device(struct input_dev *);
 
 void input_reset_device(struct input_dev *);
 
+int input_setup_polling(struct input_dev *dev,
+			void (*poll_fn)(struct input_dev *dev));
+void input_set_poll_interval(struct input_dev *dev, unsigned int interval);
+void input_set_min_poll_interval(struct input_dev *dev, unsigned int interval);
+void input_set_max_poll_interval(struct input_dev *dev, unsigned int interval);
+int input_get_poll_interval(struct input_dev *dev);
+
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
@@ -384,6 +405,9 @@ int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
 int input_flush_device(struct input_handle *handle, struct file *file);
+
+void input_set_timestamp(struct input_dev *dev, ktime_t timestamp);
+ktime_t *input_get_timestamp(struct input_dev *dev);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);

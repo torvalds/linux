@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/mfd/ab3100_otp.c
  *
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Driver to read out OTP from the AB3100 Mixed-signal circuit
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
@@ -122,17 +122,11 @@ static const struct file_operations ab3100_otp_operations = {
 	.release	= single_release,
 };
 
-static int __init ab3100_otp_init_debugfs(struct device *dev,
-					  struct ab3100_otp *otp)
+static void __init ab3100_otp_init_debugfs(struct device *dev,
+					   struct ab3100_otp *otp)
 {
 	otp->debugfs = debugfs_create_file("ab3100_otp", S_IFREG | S_IRUGO,
-					   NULL, otp,
-					   &ab3100_otp_operations);
-	if (!otp->debugfs) {
-		dev_err(dev, "AB3100 debugfs OTP file registration failed!\n");
-		return -ENOENT;
-	}
-	return 0;
+					   NULL, otp, &ab3100_otp_operations);
 }
 
 static void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
@@ -141,10 +135,9 @@ static void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
 }
 #else
 /* Compile this out if debugfs not selected */
-static inline int __init ab3100_otp_init_debugfs(struct device *dev,
-						 struct ab3100_otp *otp)
+static inline void __init ab3100_otp_init_debugfs(struct device *dev,
+						  struct ab3100_otp *otp)
 {
-	return 0;
 }
 
 static inline void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
@@ -211,9 +204,7 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 	}
 
 	/* debugfs entries */
-	err = ab3100_otp_init_debugfs(&pdev->dev, otp);
-	if (err)
-		goto err;
+	ab3100_otp_init_debugfs(&pdev->dev, otp);
 
 	return 0;
 

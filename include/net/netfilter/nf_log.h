@@ -106,7 +106,8 @@ int nf_log_dump_udp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 			   u8 proto, int fragment, unsigned int offset,
 			   unsigned int logflags);
-void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk);
+void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
+			    struct sock *sk);
 void nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			       unsigned int hooknum, const struct sk_buff *skb,
 			       const struct net_device *in,

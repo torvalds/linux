@@ -1,27 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/pci.h>
 #include <misc/cxl.h>
-#include <asm/pnv-pci.h>
 #include "cxl.h"
-
-static int cxl_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
-{
-	if (dma_mask < DMA_BIT_MASK(64)) {
-		pr_info("%s only 64bit DMA supported on CXL", __func__);
-		return -EIO;
-	}
-
-	*(pdev->dev.dma_mask) = dma_mask;
-	return 0;
-}
 
 static int cxl_pci_probe_mode(struct pci_bus *bus)
 {
@@ -45,6 +29,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 	struct cxl_afu *afu;
+	struct cxl_context *ctx;
 
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
@@ -54,10 +39,32 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 		return false;
 	}
 
-	set_dma_ops(&dev->dev, &dma_nommu_ops);
-	set_dma_offset(&dev->dev, PAGE_OFFSET);
+	dev->dev.archdata.dma_offset = PAGE_OFFSET;
 
-	return _cxl_pci_associate_default_context(dev, afu);
+	/*
+	 * Allocate a context to do cxl things too.  If we eventually do real
+	 * DMA ops, we'll need a default context to attach them to
+	 */
+	ctx = cxl_dev_context_init(dev);
+	if (IS_ERR(ctx))
+		return false;
+	dev->dev.archdata.cxl_ctx = ctx;
+
+	return (cxl_ops->afu_check_and_enable(afu) == 0);
+}
+
+static void cxl_pci_disable_device(struct pci_dev *dev)
+{
+	struct cxl_context *ctx = cxl_get_context(dev);
+
+	if (ctx) {
+		if (ctx->status == STARTED) {
+			dev_err(&dev->dev, "Default context started\n");
+			return;
+		}
+		dev->dev.archdata.cxl_ctx = NULL;
+		cxl_release_context(ctx);
+	}
 }
 
 static resource_size_t cxl_pci_window_alignment(struct pci_bus *bus,
@@ -191,13 +198,12 @@ static struct pci_controller_ops cxl_pci_controller_ops =
 {
 	.probe_mode = cxl_pci_probe_mode,
 	.enable_device_hook = cxl_pci_enable_device_hook,
-	.disable_device = _cxl_pci_disable_device,
-	.release_device = _cxl_pci_disable_device,
+	.disable_device = cxl_pci_disable_device,
+	.release_device = cxl_pci_disable_device,
 	.window_alignment = cxl_pci_window_alignment,
 	.reset_secondary_bus = cxl_pci_reset_secondary_bus,
 	.setup_msi_irqs = cxl_setup_msi_irqs,
 	.teardown_msi_irqs = cxl_teardown_msi_irqs,
-	.dma_set_mask = cxl_dma_set_mask,
 };
 
 int cxl_pci_vphb_add(struct cxl_afu *afu)
@@ -284,18 +290,13 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	 */
 }
 
-static bool _cxl_pci_is_vphb_device(struct pci_controller *phb)
-{
-	return (phb->ops == &cxl_pcie_pci_ops);
-}
-
 bool cxl_pci_is_vphb_device(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 
 	phb = pci_bus_to_host(dev->bus);
 
-	return _cxl_pci_is_vphb_device(phb);
+	return (phb->ops == &cxl_pcie_pci_ops);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
@@ -304,13 +305,7 @@ struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(dev->bus);
 
-	if (_cxl_pci_is_vphb_device(phb))
-		return (struct cxl_afu *)phb->private_data;
-
-	if (pnv_pci_on_cxl_phb(dev))
-		return pnv_cxl_phb_to_afu(phb);
-
-	return ERR_PTR(-ENODEV);
+	return (struct cxl_afu *)phb->private_data;
 }
 EXPORT_SYMBOL_GPL(cxl_pci_to_afu);
 

@@ -10,9 +10,12 @@
 
 #include "cavium_ptp.h"
 
-#define DRV_NAME	"Cavium PTP Driver"
+#define DRV_NAME "cavium_ptp"
 
 #define PCI_DEVICE_ID_CAVIUM_PTP	0xA00C
+#define PCI_SUBSYS_DEVID_88XX_PTP	0xA10C
+#define PCI_SUBSYS_DEVID_81XX_PTP	0XA20C
+#define PCI_SUBSYS_DEVID_83XX_PTP	0xA30C
 #define PCI_DEVICE_ID_CAVIUM_RST	0xA00E
 
 #define PCI_PTP_BAR_NO	0
@@ -277,10 +280,6 @@ static int cavium_ptp_probe(struct pci_dev *pdev,
 	writeq(clock_comp, clock->reg_base + PTP_CLOCK_COMP);
 
 	clock->ptp_clock = ptp_clock_register(&clock->ptp_info, dev);
-	if (!clock->ptp_clock) {
-		err = -ENODEV;
-		goto error_stop;
-	}
 	if (IS_ERR(clock->ptp_clock)) {
 		err = PTR_ERR(clock->ptp_clock);
 		goto error_stop;
@@ -325,7 +324,12 @@ static void cavium_ptp_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id cavium_ptp_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, PCI_DEVICE_ID_CAVIUM_PTP) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM, PCI_DEVICE_ID_CAVIUM_PTP,
+			PCI_VENDOR_ID_CAVIUM, PCI_SUBSYS_DEVID_88XX_PTP) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM, PCI_DEVICE_ID_CAVIUM_PTP,
+			PCI_VENDOR_ID_CAVIUM, PCI_SUBSYS_DEVID_81XX_PTP) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM, PCI_DEVICE_ID_CAVIUM_PTP,
+			PCI_VENDOR_ID_CAVIUM, PCI_SUBSYS_DEVID_83XX_PTP) },
 	{ 0, }
 };
 

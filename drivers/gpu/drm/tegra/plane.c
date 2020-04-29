@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
+
+#include <linux/iommu.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "dc.h"
@@ -23,7 +24,9 @@ static void tegra_plane_destroy(struct drm_plane *plane)
 
 static void tegra_plane_reset(struct drm_plane *plane)
 {
+	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_plane_state *state;
+	unsigned int i;
 
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
@@ -35,6 +38,11 @@ static void tegra_plane_reset(struct drm_plane *plane)
 	if (state) {
 		plane->state = &state->base;
 		plane->state->plane = plane;
+		plane->state->zpos = p->index;
+		plane->state->normalized_zpos = p->index;
+
+		for (i = 0; i < 3; i++)
+			state->iova[i] = DMA_MAPPING_ERROR;
 	}
 }
 
@@ -53,10 +61,16 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 	copy->tiling = state->tiling;
 	copy->format = state->format;
 	copy->swap = state->swap;
+	copy->bottom_up = state->bottom_up;
 	copy->opaque = state->opaque;
 
-	for (i = 0; i < 3; i++)
-		copy->dependent[i] = state->dependent[i];
+	for (i = 0; i < 2; i++)
+		copy->blending[i] = state->blending[i];
+
+	for (i = 0; i < 3; i++) {
+		copy->iova[i] = DMA_MAPPING_ERROR;
+		copy->sgt[i] = NULL;
+	}
 
 	return &copy->base;
 }
@@ -92,6 +106,115 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
 	.format_mod_supported = tegra_plane_format_mod_supported,
 };
+
+static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dc->dev);
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < state->base.fb->format->num_planes; i++) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		dma_addr_t phys_addr, *phys;
+		struct sg_table *sgt;
+
+		if (!domain || dc->client.group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(dc->dev, &bo->base, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
+
+		if (sgt) {
+			err = dma_map_sg(dc->dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
+			if (err == 0) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			/*
+			 * The display controller needs contiguous memory, so
+			 * fail if the buffer is discontiguous and we fail to
+			 * map its SG table to a single contiguous chunk of
+			 * I/O virtual memory.
+			 */
+			if (err > 1) {
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			state->iova[i] = sg_dma_address(sgt->sgl);
+			state->sgt[i] = sgt;
+		} else {
+			state->iova[i] = phys_addr;
+		}
+	}
+
+	return 0;
+
+unpin:
+	dev_err(dc->dev, "failed to map plane %u: %d\n", i, err);
+
+	while (i--) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		struct sg_table *sgt = state->sgt[i];
+
+		if (sgt)
+			dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
+				     DMA_TO_DEVICE);
+
+		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		state->iova[i] = DMA_MAPPING_ERROR;
+		state->sgt[i] = NULL;
+	}
+
+	return err;
+}
+
+static void tegra_dc_unpin(struct tegra_dc *dc, struct tegra_plane_state *state)
+{
+	unsigned int i;
+
+	for (i = 0; i < state->base.fb->format->num_planes; i++) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		struct sg_table *sgt = state->sgt[i];
+
+		if (sgt)
+			dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
+				     DMA_TO_DEVICE);
+
+		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		state->iova[i] = DMA_MAPPING_ERROR;
+		state->sgt[i] = NULL;
+	}
+}
+
+int tegra_plane_prepare_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+
+	if (!state->fb)
+		return 0;
+
+	drm_gem_fb_prepare_fb(plane, state);
+
+	return tegra_dc_pin(dc, to_tegra_plane_state(state));
+}
+
+void tegra_plane_cleanup_fb(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+
+	if (dc)
+		tegra_dc_unpin(dc, to_tegra_plane_state(state));
+}
 
 int tegra_plane_state_add(struct tegra_plane *plane,
 			  struct drm_plane_state *state)
@@ -267,24 +390,8 @@ static bool __drm_format_has_alpha(u32 format)
 	return false;
 }
 
-/*
- * This is applicable to Tegra20 and Tegra30 only where the opaque formats can
- * be emulated using the alpha formats and alpha blending disabled.
- */
-bool tegra_plane_format_has_alpha(unsigned int format)
-{
-	switch (format) {
-	case WIN_COLOR_DEPTH_B5G5R5A1:
-	case WIN_COLOR_DEPTH_A1B5G5R5:
-	case WIN_COLOR_DEPTH_R8G8B8A8:
-	case WIN_COLOR_DEPTH_B8G8R8A8:
-		return true;
-	}
-
-	return false;
-}
-
-int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
+static int tegra_plane_format_get_alpha(unsigned int opaque,
+					unsigned int *alpha)
 {
 	if (tegra_plane_format_is_yuv(opaque, NULL)) {
 		*alpha = opaque;
@@ -316,6 +423,67 @@ int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 	return -EINVAL;
 }
 
+/*
+ * This is applicable to Tegra20 and Tegra30 only where the opaque formats can
+ * be emulated using the alpha formats and alpha blending disabled.
+ */
+static int tegra_plane_setup_opacity(struct tegra_plane *tegra,
+				     struct tegra_plane_state *state)
+{
+	unsigned int format;
+	int err;
+
+	switch (state->format) {
+	case WIN_COLOR_DEPTH_B5G5R5A1:
+	case WIN_COLOR_DEPTH_A1B5G5R5:
+	case WIN_COLOR_DEPTH_R8G8B8A8:
+	case WIN_COLOR_DEPTH_B8G8R8A8:
+		state->opaque = false;
+		break;
+
+	default:
+		err = tegra_plane_format_get_alpha(state->format, &format);
+		if (err < 0)
+			return err;
+
+		state->format = format;
+		state->opaque = true;
+		break;
+	}
+
+	return 0;
+}
+
+static int tegra_plane_check_transparency(struct tegra_plane *tegra,
+					  struct tegra_plane_state *state)
+{
+	struct drm_plane_state *old, *plane_state;
+	struct drm_plane *plane;
+
+	old = drm_atomic_get_old_plane_state(state->base.state, &tegra->base);
+
+	/* check if zpos / transparency changed */
+	if (old->normalized_zpos == state->base.normalized_zpos &&
+	    to_tegra_plane_state(old)->opaque == state->opaque)
+		return 0;
+
+	/* include all sibling planes into this commit */
+	drm_for_each_plane(plane, tegra->base.dev) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+
+		/* skip this plane and planes on different CRTCs */
+		if (p == tegra || p->dc != tegra->dc)
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state->base.state,
+							 plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+	}
+
+	return 1;
+}
+
 static unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
 						  struct tegra_plane *other)
 {
@@ -336,61 +504,98 @@ static unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
 	return index;
 }
 
-void tegra_plane_check_dependent(struct tegra_plane *tegra,
-				 struct tegra_plane_state *state)
+static void tegra_plane_update_transparency(struct tegra_plane *tegra,
+					    struct tegra_plane_state *state)
 {
-	struct drm_plane_state *old, *new;
+	struct drm_plane_state *new;
 	struct drm_plane *plane;
-	unsigned int zpos[2];
 	unsigned int i;
 
-	for (i = 0; i < 2; i++)
-		zpos[i] = 0;
-
-	for_each_oldnew_plane_in_state(state->base.state, plane, old, new, i) {
+	for_each_new_plane_in_state(state->base.state, plane, new, i) {
 		struct tegra_plane *p = to_tegra_plane(plane);
 		unsigned index;
 
 		/* skip this plane and planes on different CRTCs */
-		if (p == tegra || new->crtc != state->base.crtc)
+		if (p == tegra || p->dc != tegra->dc)
 			continue;
 
 		index = tegra_plane_get_overlap_index(tegra, p);
 
-		state->dependent[index] = false;
+		if (new->fb && __drm_format_has_alpha(new->fb->format->format))
+			state->blending[index].alpha = true;
+		else
+			state->blending[index].alpha = false;
+
+		if (new->normalized_zpos > state->base.normalized_zpos)
+			state->blending[index].top = true;
+		else
+			state->blending[index].top = false;
 
 		/*
-		 * If any of the other planes is on top of this plane and uses
-		 * a format with an alpha component, mark this plane as being
-		 * dependent, meaning it's alpha value will be 1 minus the sum
-		 * of alpha components of the overlapping planes.
+		 * Missing framebuffer means that plane is disabled, in this
+		 * case mark B / C window as top to be able to differentiate
+		 * windows indices order in regards to zPos for the middle
+		 * window X / Y registers programming.
 		 */
-		if (p->index > tegra->index) {
-			if (__drm_format_has_alpha(new->fb->format->format))
-				state->dependent[index] = true;
-
-			/* keep track of the Z position */
-			zpos[index] = p->index;
-		}
+		if (!new->fb)
+			state->blending[index].top = (index == 1);
 	}
+}
+
+static int tegra_plane_setup_transparency(struct tegra_plane *tegra,
+					  struct tegra_plane_state *state)
+{
+	struct tegra_plane_state *tegra_state;
+	struct drm_plane_state *new;
+	struct drm_plane *plane;
+	int err;
 
 	/*
-	 * The region where three windows overlap is the intersection of the
-	 * two regions where two windows overlap. It contributes to the area
-	 * if any of the windows on top of it have an alpha component.
+	 * If planes zpos / transparency changed, sibling planes blending
+	 * state may require adjustment and in this case they will be included
+	 * into this atom commit, otherwise blending state is unchanged.
 	 */
-	for (i = 0; i < 2; i++)
-		state->dependent[2] = state->dependent[2] ||
-				      state->dependent[i];
+	err = tegra_plane_check_transparency(tegra, state);
+	if (err <= 0)
+		return err;
 
 	/*
-	 * However, if any of the windows on top of this window is opaque, it
-	 * will completely conceal this window within that area, so avoid the
-	 * window from contributing to the area.
+	 * All planes are now in the atomic state, walk them up and update
+	 * transparency state for each plane.
 	 */
-	for (i = 0; i < 2; i++) {
-		if (zpos[i] > tegra->index)
-			state->dependent[2] = state->dependent[2] &&
-					      state->dependent[i];
+	drm_for_each_plane(plane, tegra->base.dev) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+
+		/* skip planes on different CRTCs */
+		if (p->dc != tegra->dc)
+			continue;
+
+		new = drm_atomic_get_new_plane_state(state->base.state, plane);
+		tegra_state = to_tegra_plane_state(new);
+
+		/*
+		 * There is no need to update blending state for the disabled
+		 * plane.
+		 */
+		if (new->fb)
+			tegra_plane_update_transparency(p, tegra_state);
 	}
+
+	return 0;
+}
+
+int tegra_plane_setup_legacy_state(struct tegra_plane *tegra,
+				   struct tegra_plane_state *state)
+{
+	int err;
+
+	err = tegra_plane_setup_opacity(tegra, state);
+	if (err < 0)
+		return err;
+
+	err = tegra_plane_setup_transparency(tegra, state);
+	if (err < 0)
+		return err;
+
+	return 0;
 }

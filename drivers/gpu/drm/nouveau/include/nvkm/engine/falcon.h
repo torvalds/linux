@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __NVKM_FALCON_H__
-#define __NVKM_FALCON_H__
+/* SPDX-License-Identifier: MIT */
+#ifndef __NVKM_FLCNEN_H__
+#define __NVKM_FLCNEN_H__
 #define nvkm_falcon(p) container_of((p), struct nvkm_falcon, engine)
 #include <core/engine.h>
 struct nvkm_fifo_chan;
@@ -23,12 +23,13 @@ struct nvkm_falcon {
 
 	struct mutex mutex;
 	struct mutex dmem_mutex;
+	bool oneinit;
+
 	const struct nvkm_subdev *user;
 
 	u8 version;
 	u8 secret;
 	bool debug;
-	bool has_emem;
 
 	struct nvkm_memory *core;
 	bool external;
@@ -76,9 +77,14 @@ struct nvkm_falcon_func {
 	} data;
 	void (*init)(struct nvkm_falcon *);
 	void (*intr)(struct nvkm_falcon *, struct nvkm_fifo_chan *);
+
+	u32 debug;
+	u32 fbif;
+
 	void (*load_imem)(struct nvkm_falcon *, void *, u32, u32, u16, u8, bool);
 	void (*load_dmem)(struct nvkm_falcon *, void *, u32, u32, u8);
 	void (*read_dmem)(struct nvkm_falcon *, u32, u32, u8, void *);
+	u32 emem_addr;
 	void (*bind_context)(struct nvkm_falcon *, struct nvkm_memory *);
 	int (*wait_for_halt)(struct nvkm_falcon *, u32);
 	int (*clear_interrupt)(struct nvkm_falcon *, u32);
@@ -86,6 +92,13 @@ struct nvkm_falcon_func {
 	void (*start)(struct nvkm_falcon *);
 	int (*enable)(struct nvkm_falcon *falcon);
 	void (*disable)(struct nvkm_falcon *falcon);
+	int (*reset)(struct nvkm_falcon *);
+
+	struct {
+		u32 head;
+		u32 tail;
+		u32 stride;
+	} cmdq, msgq;
 
 	struct nvkm_sclass sclass[];
 };
@@ -122,5 +135,4 @@ int nvkm_falcon_clear_interrupt(struct nvkm_falcon *, u32);
 int nvkm_falcon_enable(struct nvkm_falcon *);
 void nvkm_falcon_disable(struct nvkm_falcon *);
 int nvkm_falcon_reset(struct nvkm_falcon *);
-
 #endif

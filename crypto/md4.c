@@ -216,10 +216,10 @@ static struct shash_alg alg = {
 	.final		=	md4_final,
 	.descsize	=	sizeof(struct md4_ctx),
 	.base		=	{
-		.cra_name	=	"md4",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
-		.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md4",
+		.cra_driver_name =	"md4-generic",
+		.cra_blocksize	 =	MD4_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 
@@ -233,7 +233,7 @@ static void __exit md4_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(md4_mod_init);
+subsys_initcall(md4_mod_init);
 module_exit(md4_mod_fini);
 
 MODULE_LICENSE("GPL");

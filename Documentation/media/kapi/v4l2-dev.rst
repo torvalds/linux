@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Video device' s internal representation
 =======================================
 
@@ -31,7 +33,7 @@ of the video device exits.
 The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
-There is also a ::c:func:`video_device_release_empty` function that does
+There is also a :c:func:`video_device_release_empty` function that does
 nothing (is empty) and should be used if the struct is embedded and there
 is nothing to do when it is released.
 
@@ -183,7 +185,7 @@ This will create the character device for you.
 
 .. code-block:: c
 
-	err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
@@ -199,7 +201,7 @@ types exist:
 ========================== ====================	 ==============================
 :c:type:`vfl_devnode_type` Device name		 Usage
 ========================== ====================	 ==============================
-``VFL_TYPE_GRABBER``       ``/dev/videoX``       for video input/output devices
+``VFL_TYPE_VIDEO``         ``/dev/videoX``       for video input/output devices
 ``VFL_TYPE_VBI``           ``/dev/vbiX``         for vertical blank data (i.e.
 						 closed captions, teletext)
 ``VFL_TYPE_RADIO``         ``/dev/radioX``       for radio tuners
@@ -286,6 +288,7 @@ Mask  Description
 0x08  Log the read and write file operations and the VIDIOC_QBUF and
       VIDIOC_DQBUF ioctls.
 0x10  Log the poll file operation.
+0x20  Log error and messages in the control operations.
 ===== ================================================================
 
 Video device cleanup

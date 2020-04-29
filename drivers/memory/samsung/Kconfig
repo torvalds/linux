@@ -7,6 +7,19 @@ config SAMSUNG_MC
 
 if SAMSUNG_MC
 
+config EXYNOS5422_DMC
+	tristate "Exynos5422 Dynamic Memory Controller driver"
+	depends on ARCH_EXYNOS || (COMPILE_TEST && HAS_IOMEM)
+	select DDR
+	depends on DEVFREQ_GOV_SIMPLE_ONDEMAND
+	depends on (PM_DEVFREQ && PM_DEVFREQ_EVENT)
+	help
+	  This adds driver for Exynos5422 DMC (Dynamic Memory Controller).
+	  The driver provides support for Dynamic Voltage and Frequency Scaling in
+	  DMC and DRAM. It also supports changing timings of DRAM running with
+	  different frequency. The timings are calculated based on DT memory
+	  information.
+
 config EXYNOS_SROM
 	bool "Exynos SROM controller driver" if COMPILE_TEST
 	depends on (ARM && ARCH_EXYNOS) || (COMPILE_TEST && HAS_IOMEM)

@@ -15,7 +15,6 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -24,7 +23,6 @@
 #include <linux/iio/events.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/sysfs.h>
-#include <linux/of_gpio.h>
 
 #define APDS9960_REGMAP_NAME	"apds9960_regmap"
 #define APDS9960_DRV_NAME	"apds9960"
@@ -206,7 +204,8 @@ static const struct regmap_config apds9960_regmap_config = {
 	.name = APDS9960_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
-	.use_single_rw = 1,
+	.use_single_read = true,
+	.use_single_write = true,
 
 	.volatile_table = &apds9960_volatile_table,
 	.precious_table = &apds9960_precious_table,
@@ -1134,5 +1133,5 @@ static struct i2c_driver apds9960_driver = {
 module_i2c_driver(apds9960_driver);
 
 MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
-MODULE_DESCRIPTION("ADPS9960 Gesture/RGB/ALS/Proximity sensor");
+MODULE_DESCRIPTION("APDS9960 Gesture/RGB/ALS/Proximity sensor");
 MODULE_LICENSE("GPL");

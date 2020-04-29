@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -9,21 +10,6 @@
  * which was a template for the fs side of this module.
  *
  * Copyright (C) 2003, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 /* Simple VFS hooks based on: */
@@ -47,11 +33,11 @@
 
 #include <linux/uaccess.h>
 
-#include "stackglue.h"
+#include "../stackglue.h"
 #include "userdlm.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
-#include "cluster/masklog.h"
+#include "../cluster/masklog.h"
 
 
 static const struct super_operations dlmfs_ops;
@@ -179,7 +165,7 @@ bail:
 static int dlmfs_file_release(struct inode *inode,
 			      struct file *file)
 {
-	int level, status;
+	int level;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 	struct dlmfs_filp_private *fp = file->private_data;
 
@@ -188,7 +174,6 @@ static int dlmfs_file_release(struct inode *inode,
 
 	mlog(0, "close called on inode %lu\n", inode->i_ino);
 
-	status = 0;
 	if (fp) {
 		level = fp->fp_lock_level;
 		if (level != DLM_LOCK_IV)
@@ -255,7 +240,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't read past the lvb */
@@ -290,7 +275,6 @@ static ssize_t dlmfs_file_write(struct file *filp,
 				loff_t *ppos)
 {
 	int bytes_left;
-	ssize_t writelen;
 	char *lvb_buf;
 	struct inode *inode = file_inode(filp);
 
@@ -300,32 +284,30 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (*ppos >= i_size_read(inode))
 		return -ENOSPC;
 
+	/* don't write past the lvb */
+	if (count > i_size_read(inode) - *ppos)
+		count = i_size_read(inode) - *ppos;
+
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
-	/* don't write past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		writelen = i_size_read(inode) - *ppos;
-	else
-		writelen = count - *ppos;
-
-	lvb_buf = kmalloc(writelen, GFP_NOFS);
+	lvb_buf = kmalloc(count, GFP_NOFS);
 	if (!lvb_buf)
 		return -ENOMEM;
 
-	bytes_left = copy_from_user(lvb_buf, buf, writelen);
-	writelen -= bytes_left;
-	if (writelen)
-		user_dlm_write_lvb(inode, lvb_buf, writelen);
+	bytes_left = copy_from_user(lvb_buf, buf, count);
+	count -= bytes_left;
+	if (count)
+		user_dlm_write_lvb(inode, lvb_buf, count);
 
 	kfree(lvb_buf);
 
-	*ppos = *ppos + writelen;
-	mlog(0, "wrote %zd bytes\n", writelen);
-	return writelen;
+	*ppos = *ppos + count;
+	mlog(0, "wrote %zu bytes\n", count);
+	return count;
 }
 
 static void dlmfs_init_once(void *foo)
@@ -350,15 +332,9 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 	return &ip->ip_vfs_inode;
 }
 
-static void dlmfs_i_callback(struct rcu_head *head)
+static void dlmfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
-}
-
-static void dlmfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, dlmfs_i_callback);
 }
 
 static void dlmfs_evict_inode(struct inode *inode)
@@ -606,7 +582,7 @@ static const struct inode_operations dlmfs_root_inode_operations = {
 static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
-	.destroy_inode	= dlmfs_destroy_inode,
+	.free_inode	= dlmfs_free_inode,
 	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) Freescale Semicondutor, Inc. 2006-2009. All rights reserved.
  *
@@ -9,11 +10,6 @@
  * Changelog:
  * Jun 28, 2006 Li Yang <LeoLi@freescale.com>
  * - Rearrange code and style fixes
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef __UCC_GETH_H__
 #define __UCC_GETH_H__
@@ -30,7 +26,6 @@
 
 #define DRV_DESC "QE UCC Gigabit Ethernet Controller"
 #define DRV_NAME "ucc_geth"
-#define DRV_VERSION "1.1"
 
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8

@@ -1,24 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_mode.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "mdp4_kms.h"
 
@@ -128,7 +118,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct mdp4_kms *mdp4_kms = get_kms(&mdp4_crtc->base);
 	struct msm_kms *kms = &mdp4_kms->base.base;
 
-	msm_gem_put_iova(val, kms->aspace);
+	msm_gem_unpin_iova(val, kms->aspace);
 	drm_gem_object_put_unlocked(val);
 }
 
@@ -201,7 +191,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		int idx = idxs[pipe_id];
 		if (idx > 0) {
 			const struct mdp_format *format =
-					to_mdp_format(msm_framebuffer_format(plane->fb));
+					to_mdp_format(msm_framebuffer_format(plane->state->fb));
 			alpha[idx-1] = format->alpha_enable;
 		}
 	}
@@ -244,14 +234,8 @@ static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	mode = &crtc->state->adjusted_mode;
 
-	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mdp4_crtc->name, mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("%s: set mode: " DRM_MODE_FMT,
+			mdp4_crtc->name, DRM_MODE_ARG(mode));
 
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_SIZE(dma),
 			MDP4_DMA_SRC_SIZE_WIDTH(mode->hdisplay) |
@@ -351,6 +335,7 @@ static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	mdp4_crtc->event = crtc->state->event;
+	crtc->state->event = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	blend_setup(crtc);
@@ -383,7 +368,7 @@ static void update_cursor(struct drm_crtc *crtc)
 		if (next_bo) {
 			/* take a obj ref + iova ref when we start scanning out: */
 			drm_gem_object_get(next_bo);
-			msm_gem_get_iova(next_bo, kms->aspace, &iova);
+			msm_gem_get_and_pin_iova(next_bo, kms->aspace, &iova);
 
 			/* enable cursor: */
 			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_SIZE(dma),
@@ -428,7 +413,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	int ret;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
-		dev_err(dev->dev, "bad cursor size: %dx%d\n", width, height);
+		DRM_DEV_ERROR(dev->dev, "bad cursor size: %dx%d\n", width, height);
 		return -EINVAL;
 	}
 
@@ -441,7 +426,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (cursor_bo) {
-		ret = msm_gem_get_iova(cursor_bo, kms->aspace, &iova);
+		ret = msm_gem_get_and_pin_iova(cursor_bo, kms->aspace, &iova);
 		if (ret)
 			goto fail;
 	} else {
@@ -496,6 +481,8 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank  = msm_crtc_enable_vblank,
+	.disable_vblank = msm_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
@@ -664,7 +651,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs,
 				  NULL);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
-	plane->crtc = crtc;
 
 	return crtc;
 }

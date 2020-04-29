@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NTB_SWITCHTEC
 	tristate "MicroSemi Switchtec Non-Transparent Bridge Support"
 	select PCI_SW_SWITCHTEC

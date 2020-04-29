@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * S3C24XX DMA handling
  *
@@ -10,11 +11,6 @@
  *
  * Author: Peter Pearse <peter.pearse@arm.com>
  * Author: Linus Walleij <linus.walleij@stericsson.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * The DMA controllers in S3C24XX SoCs have a varying number of DMA signals
  * that can be routed to any of the 4 to 8 hardware-channels.
@@ -35,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 
@@ -522,15 +519,6 @@ static void s3c24xx_dma_start_next_txd(struct s3c24xx_dma_chan *s3cchan)
 	s3c24xx_dma_start_next_sg(s3cchan, txd);
 }
 
-static void s3c24xx_dma_free_txd_list(struct s3c24xx_dma_engine *s3cdma,
-				struct s3c24xx_dma_chan *s3cchan)
-{
-	LIST_HEAD(head);
-
-	vchan_get_all_descriptors(&s3cchan->vc, &head);
-	vchan_dma_desc_free_list(&s3cchan->vc, &head);
-}
-
 /*
  * Try to allocate a physical channel.  When successful, assign it to
  * this virtual channel, and initiate the next descriptor.  The
@@ -712,8 +700,9 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 {
 	struct s3c24xx_dma_chan *s3cchan = to_s3c24xx_dma_chan(chan);
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
+	LIST_HEAD(head);
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&s3cchan->vc.lock, flags);
 
@@ -737,7 +726,15 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 	}
 
 	/* Dequeue jobs not yet fired as well */
-	s3c24xx_dma_free_txd_list(s3cdma, s3cchan);
+
+	vchan_get_all_descriptors(&s3cchan->vc, &head);
+
+	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
+
+	vchan_dma_desc_free_list(&s3cchan->vc, &head);
+
+	return 0;
+
 unlock:
 	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 
@@ -1201,7 +1198,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 
 	/* Basic sanity check */
 	if (pdata->num_phy_channels > MAX_DMA_CHANNELS) {
-		dev_err(&pdev->dev, "to many dma channels %d, max %d\n",
+		dev_err(&pdev->dev, "too many dma channels %d, max %d\n",
 			pdata->num_phy_channels, MAX_DMA_CHANNELS);
 		return -EINVAL;
 	}
@@ -1223,9 +1220,9 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(s3cdma->base))
 		return PTR_ERR(s3cdma->base);
 
-	s3cdma->phy_chans = devm_kzalloc(&pdev->dev,
-					      sizeof(struct s3c24xx_dma_phy) *
-							pdata->num_phy_channels,
+	s3cdma->phy_chans = devm_kcalloc(&pdev->dev,
+					      pdata->num_phy_channels,
+					      sizeof(struct s3c24xx_dma_phy),
 					      GFP_KERNEL);
 	if (!s3cdma->phy_chans)
 		return -ENOMEM;
@@ -1240,11 +1237,8 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 		phy->host = s3cdma;
 
 		phy->irq = platform_get_irq(pdev, i);
-		if (phy->irq < 0) {
-			dev_err(&pdev->dev, "failed to get irq %d, err %d\n",
-				i, phy->irq);
+		if (phy->irq < 0)
 			continue;
-		}
 
 		ret = devm_request_irq(&pdev->dev, phy->irq, s3c24xx_dma_irq,
 				       0, pdev->name, phy);

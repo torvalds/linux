@@ -21,6 +21,105 @@
 #ifndef _gc_9_0_SH_MASK_HEADER
 #define _gc_9_0_SH_MASK_HEADER
 
+//GCEA_EDC_CNT
+#define GCEA_EDC_CNT__DRAMRD_CMDMEM_SEC_COUNT__SHIFT                                                          0x0
+#define GCEA_EDC_CNT__DRAMRD_CMDMEM_DED_COUNT__SHIFT                                                          0x2
+#define GCEA_EDC_CNT__DRAMWR_CMDMEM_SEC_COUNT__SHIFT                                                          0x4
+#define GCEA_EDC_CNT__DRAMWR_CMDMEM_DED_COUNT__SHIFT                                                          0x6
+#define GCEA_EDC_CNT__DRAMWR_DATAMEM_SEC_COUNT__SHIFT                                                         0x8
+#define GCEA_EDC_CNT__DRAMWR_DATAMEM_DED_COUNT__SHIFT                                                         0xa
+#define GCEA_EDC_CNT__RRET_TAGMEM_SEC_COUNT__SHIFT                                                            0xc
+#define GCEA_EDC_CNT__RRET_TAGMEM_DED_COUNT__SHIFT                                                            0xe
+#define GCEA_EDC_CNT__WRET_TAGMEM_SEC_COUNT__SHIFT                                                            0x10
+#define GCEA_EDC_CNT__WRET_TAGMEM_DED_COUNT__SHIFT                                                            0x12
+#define GCEA_EDC_CNT__DRAMRD_PAGEMEM_SED_COUNT__SHIFT                                                         0x14
+#define GCEA_EDC_CNT__DRAMWR_PAGEMEM_SED_COUNT__SHIFT                                                         0x16
+#define GCEA_EDC_CNT__IORD_CMDMEM_SED_COUNT__SHIFT                                                            0x18
+#define GCEA_EDC_CNT__IOWR_CMDMEM_SED_COUNT__SHIFT                                                            0x1a
+#define GCEA_EDC_CNT__IOWR_DATAMEM_SED_COUNT__SHIFT                                                           0x1c
+#define GCEA_EDC_CNT__DRAMRD_CMDMEM_SEC_COUNT_MASK                                                            0x00000003L
+#define GCEA_EDC_CNT__DRAMRD_CMDMEM_DED_COUNT_MASK                                                            0x0000000CL
+#define GCEA_EDC_CNT__DRAMWR_CMDMEM_SEC_COUNT_MASK                                                            0x00000030L
+#define GCEA_EDC_CNT__DRAMWR_CMDMEM_DED_COUNT_MASK                                                            0x000000C0L
+#define GCEA_EDC_CNT__DRAMWR_DATAMEM_SEC_COUNT_MASK                                                           0x00000300L
+#define GCEA_EDC_CNT__DRAMWR_DATAMEM_DED_COUNT_MASK                                                           0x00000C00L
+#define GCEA_EDC_CNT__RRET_TAGMEM_SEC_COUNT_MASK                                                              0x00003000L
+#define GCEA_EDC_CNT__RRET_TAGMEM_DED_COUNT_MASK                                                              0x0000C000L
+#define GCEA_EDC_CNT__WRET_TAGMEM_SEC_COUNT_MASK                                                              0x00030000L
+#define GCEA_EDC_CNT__WRET_TAGMEM_DED_COUNT_MASK                                                              0x000C0000L
+#define GCEA_EDC_CNT__DRAMRD_PAGEMEM_SED_COUNT_MASK                                                           0x00300000L
+#define GCEA_EDC_CNT__DRAMWR_PAGEMEM_SED_COUNT_MASK                                                           0x00C00000L
+#define GCEA_EDC_CNT__IORD_CMDMEM_SED_COUNT_MASK                                                              0x03000000L
+#define GCEA_EDC_CNT__IOWR_CMDMEM_SED_COUNT_MASK                                                              0x0C000000L
+#define GCEA_EDC_CNT__IOWR_DATAMEM_SED_COUNT_MASK                                                             0x30000000L
+
+#define GCEA_EDC_CNT2__GMIRD_CMDMEM_SEC_COUNT__SHIFT                                                          0x0
+#define GCEA_EDC_CNT2__GMIRD_CMDMEM_DED_COUNT__SHIFT                                                          0x2
+#define GCEA_EDC_CNT2__GMIWR_CMDMEM_SEC_COUNT__SHIFT                                                          0x4
+#define GCEA_EDC_CNT2__GMIWR_CMDMEM_DED_COUNT__SHIFT                                                          0x6
+#define GCEA_EDC_CNT2__GMIWR_DATAMEM_SEC_COUNT__SHIFT                                                         0x8
+#define GCEA_EDC_CNT2__GMIWR_DATAMEM_DED_COUNT__SHIFT                                                         0xa
+#define GCEA_EDC_CNT2__GMIRD_PAGEMEM_SED_COUNT__SHIFT                                                         0xc
+#define GCEA_EDC_CNT2__GMIWR_PAGEMEM_SED_COUNT__SHIFT                                                         0xe
+#define GCEA_EDC_CNT2__MAM_D0MEM_SED_COUNT__SHIFT                                                             0x10
+#define GCEA_EDC_CNT2__MAM_D1MEM_SED_COUNT__SHIFT                                                             0x12
+#define GCEA_EDC_CNT2__MAM_D2MEM_SED_COUNT__SHIFT                                                             0x14
+#define GCEA_EDC_CNT2__MAM_D3MEM_SED_COUNT__SHIFT                                                             0x16
+#define GCEA_EDC_CNT2__GMIRD_CMDMEM_SEC_COUNT_MASK                                                            0x00000003L
+#define GCEA_EDC_CNT2__GMIRD_CMDMEM_DED_COUNT_MASK                                                            0x0000000CL
+#define GCEA_EDC_CNT2__GMIWR_CMDMEM_SEC_COUNT_MASK                                                            0x00000030L
+#define GCEA_EDC_CNT2__GMIWR_CMDMEM_DED_COUNT_MASK                                                            0x000000C0L
+#define GCEA_EDC_CNT2__GMIWR_DATAMEM_SEC_COUNT_MASK                                                           0x00000300L
+#define GCEA_EDC_CNT2__GMIWR_DATAMEM_DED_COUNT_MASK                                                           0x00000C00L
+#define GCEA_EDC_CNT2__GMIRD_PAGEMEM_SED_COUNT_MASK                                                           0x00003000L
+#define GCEA_EDC_CNT2__GMIWR_PAGEMEM_SED_COUNT_MASK                                                           0x0000C000L
+#define GCEA_EDC_CNT2__MAM_D0MEM_SED_COUNT_MASK                                                               0x00030000L
+#define GCEA_EDC_CNT2__MAM_D1MEM_SED_COUNT_MASK                                                               0x000C0000L
+#define GCEA_EDC_CNT2__MAM_D2MEM_SED_COUNT_MASK                                                               0x00300000L
+#define GCEA_EDC_CNT2__MAM_D3MEM_SED_COUNT_MASK                                                               0x00C00000L
+
+// addressBlock: gc_cppdec2
+//CPF_EDC_TAG_CNT
+#define CPF_EDC_TAG_CNT__DED_COUNT__SHIFT                                                                     0x0
+#define CPF_EDC_TAG_CNT__SEC_COUNT__SHIFT                                                                     0x2
+#define CPF_EDC_TAG_CNT__DED_COUNT_MASK                                                                       0x00000003L
+#define CPF_EDC_TAG_CNT__SEC_COUNT_MASK                                                                       0x0000000CL
+//CPF_EDC_ROQ_CNT
+#define CPF_EDC_ROQ_CNT__COUNT_ME1__SHIFT                                                                     0x0
+#define CPF_EDC_ROQ_CNT__COUNT_ME2__SHIFT                                                                     0x2
+#define CPF_EDC_ROQ_CNT__COUNT_ME1_MASK                                                                       0x00000003L
+#define CPF_EDC_ROQ_CNT__COUNT_ME2_MASK                                                                       0x0000000CL
+//CPG_EDC_TAG_CNT
+#define CPG_EDC_TAG_CNT__DED_COUNT__SHIFT                                                                     0x0
+#define CPG_EDC_TAG_CNT__SEC_COUNT__SHIFT                                                                     0x2
+#define CPG_EDC_TAG_CNT__DED_COUNT_MASK                                                                       0x00000003L
+#define CPG_EDC_TAG_CNT__SEC_COUNT_MASK                                                                       0x0000000CL
+//CPG_EDC_DMA_CNT
+#define CPG_EDC_DMA_CNT__ROQ_COUNT__SHIFT                                                                     0x0
+#define CPG_EDC_DMA_CNT__TAG_DED_COUNT__SHIFT                                                                 0x2
+#define CPG_EDC_DMA_CNT__TAG_SEC_COUNT__SHIFT                                                                 0x4
+#define CPG_EDC_DMA_CNT__ROQ_COUNT_MASK                                                                       0x00000003L
+#define CPG_EDC_DMA_CNT__TAG_DED_COUNT_MASK                                                                   0x0000000CL
+#define CPG_EDC_DMA_CNT__TAG_SEC_COUNT_MASK                                                                   0x00000030L
+//CPC_EDC_SCRATCH_CNT
+#define CPC_EDC_SCRATCH_CNT__DED_COUNT__SHIFT                                                                 0x0
+#define CPC_EDC_SCRATCH_CNT__SEC_COUNT__SHIFT                                                                 0x2
+#define CPC_EDC_SCRATCH_CNT__DED_COUNT_MASK                                                                   0x00000003L
+#define CPC_EDC_SCRATCH_CNT__SEC_COUNT_MASK                                                                   0x0000000CL
+//CPC_EDC_UCODE_CNT
+#define CPC_EDC_UCODE_CNT__DED_COUNT__SHIFT                                                                   0x0
+#define CPC_EDC_UCODE_CNT__SEC_COUNT__SHIFT                                                                   0x2
+#define CPC_EDC_UCODE_CNT__DED_COUNT_MASK                                                                     0x00000003L
+#define CPC_EDC_UCODE_CNT__SEC_COUNT_MASK                                                                     0x0000000CL
+//DC_EDC_STATE_CNT
+#define DC_EDC_STATE_CNT__COUNT_ME1__SHIFT                                                                    0x0
+#define DC_EDC_STATE_CNT__COUNT_ME1_MASK                                                                      0x00000003L
+//DC_EDC_CSINVOC_CNT
+#define DC_EDC_CSINVOC_CNT__COUNT_ME1__SHIFT                                                                  0x0
+#define DC_EDC_CSINVOC_CNT__COUNT_ME1_MASK                                                                    0x00000003L
+//DC_EDC_RESTORE_CNT
+#define DC_EDC_RESTORE_CNT__COUNT_ME1__SHIFT                                                                  0x0
+#define DC_EDC_RESTORE_CNT__COUNT_ME1_MASK                                                                    0x00000003L
 
 // addressBlock: gc_grbmdec
 //GRBM_CNTL
@@ -1961,7 +2060,8 @@
 
 // addressBlock: gc_sqdec
 //SQ_CONFIG
-#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x0
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT__SHIFT                                                             0x0
+#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x1
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY__SHIFT                                                                   0x7
 #define SQ_CONFIG__DEBUG_EN__SHIFT                                                                            0x8
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP__SHIFT                                                                  0x9
@@ -1980,7 +2080,8 @@
 #define SQ_CONFIG__DISABLE_SP_REDUNDANT_THREAD_GATING__SHIFT                                                  0x1d
 #define SQ_CONFIG__DISABLE_FLAT_SOFT_CLAUSE__SHIFT                                                            0x1e
 #define SQ_CONFIG__DISABLE_MIMG_SOFT_CLAUSE__SHIFT                                                            0x1f
-#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007FL
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT_MASK                                                               0x00000001L
+#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007EL
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY_MASK                                                                     0x00000080L
 #define SQ_CONFIG__DEBUG_EN_MASK                                                                              0x00000100L
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP_MASK                                                                    0x00000200L
@@ -6562,7 +6663,6 @@
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                        0x00FF0000L
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                              0xFF000000L
 
-
 // addressBlock: gc_utcl2_vml2pfdec
 //VM_L2_CNTL
 #define VM_L2_CNTL__ENABLE_L2_CACHE__SHIFT                                                                    0x0
@@ -6892,7 +6992,22 @@
 #define VM_L2_CGTT_CLK_CTRL__MGLS_OVERRIDE_MASK                                                               0x00008000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                         0x00FF0000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                               0xFF000000L
-
+//VM_L2_MEM_ECC_INDEX
+#define VM_L2_MEM_ECC_INDEX__INDEX__SHIFT                                                                     0x0
+#define VM_L2_MEM_ECC_INDEX__INDEX_MASK                                                                       0x000000FFL
+//VM_L2_WALKER_MEM_ECC_INDEX
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX__SHIFT                                                              0x0
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX_MASK                                                                0x000000FFL
+//VM_L2_MEM_ECC_CNT
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                                   0xc
+#define VM_L2_MEM_ECC_CNT__DED_COUNT__SHIFT                                                                   0xe
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT_MASK                                                                     0x00003000L
+#define VM_L2_MEM_ECC_CNT__DED_COUNT_MASK                                                                     0x0000C000L
+//VM_L2_WALKER_MEM_ECC_CNT
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                            0xc
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT__SHIFT                                                            0xe
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT_MASK                                                              0x00003000L
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT_MASK                                                              0x0000C000L
 
 // addressBlock: gc_utcl2_vml2vcdec
 //VM_CONTEXT0_CNTL
@@ -8626,10 +8741,16 @@
 #define TCP_ADDR_CONFIG__NUM_BANKS__SHIFT                                                                     0x4
 #define TCP_ADDR_CONFIG__COLHI_WIDTH__SHIFT                                                                   0x6
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI__SHIFT                                                                0x9
+#define TCP_ADDR_CONFIG__ENABLE64KHASH__SHIFT                                                                 0xb
+#define TCP_ADDR_CONFIG__ENABLE2MHASH__SHIFT                                                                  0xc
+#define TCP_ADDR_CONFIG__ENABLE1GHASH__SHIFT                                                                  0xd
 #define TCP_ADDR_CONFIG__NUM_TCC_BANKS_MASK                                                                   0x0000000FL
 #define TCP_ADDR_CONFIG__NUM_BANKS_MASK                                                                       0x00000030L
 #define TCP_ADDR_CONFIG__COLHI_WIDTH_MASK                                                                     0x000001C0L
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI_MASK                                                                  0x00000200L
+#define TCP_ADDR_CONFIG__ENABLE64KHASH_MASK                                                                   0x00000800L
+#define TCP_ADDR_CONFIG__ENABLE2MHASH_MASK                                                                    0x00001000L
+#define TCP_ADDR_CONFIG__ENABLE1GHASH_MASK                                                                    0x00002000L
 //TCP_CREDIT
 #define TCP_CREDIT__LFIFO_CREDIT__SHIFT                                                                       0x0
 #define TCP_CREDIT__REQ_FIFO_CREDIT__SHIFT                                                                    0x10
@@ -9033,11 +9154,15 @@
 #define TCC_EDC_CNT2__SRC_FIFO_NEXT_RAM_SED_COUNT__SHIFT                                                      0x4
 #define TCC_EDC_CNT2__LATENCY_FIFO_NEXT_RAM_SED_COUNT__SHIFT                                                  0x6
 #define TCC_EDC_CNT2__CACHE_TAG_PROBE_FIFO_SED_COUNT__SHIFT                                                   0x8
+#define TCC_EDC_CNT2__WRRET_TAG_WRITE_RETURN_SED_COUNT__SHIFT                                                 0xa
+#define TCC_EDC_CNT2__ATOMIC_RETURN_BUFFER_SED_COUNT__SHIFT                                                   0xc
 #define TCC_EDC_CNT2__WRITE_RETURN_SED_COUNT_MASK                                                             0x00000003L
 #define TCC_EDC_CNT2__WRITE_CACHE_READ_SED_COUNT_MASK                                                         0x0000000CL
 #define TCC_EDC_CNT2__SRC_FIFO_NEXT_RAM_SED_COUNT_MASK                                                        0x00000030L
 #define TCC_EDC_CNT2__LATENCY_FIFO_NEXT_RAM_SED_COUNT_MASK                                                    0x000000C0L
 #define TCC_EDC_CNT2__CACHE_TAG_PROBE_FIFO_SED_COUNT_MASK                                                     0x00000300L
+#define TCC_EDC_CNT2__WRRET_TAG_WRITE_RETURN_SED_COUNT_MASK                                                   0x00000C00L
+#define TCC_EDC_CNT2__ATOMIC_RETURN_BUFFER_SED_COUNT_MASK                                                     0x00003000L
 //TCC_REDUNDANCY
 #define TCC_REDUNDANCY__MC_SEL0__SHIFT                                                                        0x0
 #define TCC_REDUNDANCY__MC_SEL1__SHIFT                                                                        0x1
@@ -29818,6 +29943,60 @@
 #define DIDT_DBR_STALL_EVENT_COUNTER__DIDT_STALL_EVENT_COUNTER__SHIFT                                         0x0
 #define DIDT_DBR_STALL_EVENT_COUNTER__DIDT_STALL_EVENT_COUNTER_MASK                                           0xFFFFFFFFL
 
+//TA_EDC_CNT
+#define TA_EDC_CNT__TA_FS_DFIFO_SEC_COUNT__SHIFT                                                              0x0
+#define TA_EDC_CNT__TA_FS_DFIFO_DED_COUNT__SHIFT                                                              0x2
+#define TA_EDC_CNT__TA_FS_AFIFO_SED_COUNT__SHIFT                                                              0x4
+#define TA_EDC_CNT__TA_FL_LFIFO_SED_COUNT__SHIFT                                                              0x6
+#define TA_EDC_CNT__TA_FX_LFIFO_SED_COUNT__SHIFT                                                              0x8
+#define TA_EDC_CNT__TA_FS_CFIFO_SED_COUNT__SHIFT                                                              0xa
+#define TA_EDC_CNT__TA_FS_DFIFO_SEC_COUNT_MASK                                                                0x00000003L
+#define TA_EDC_CNT__TA_FS_DFIFO_DED_COUNT_MASK                                                                0x0000000CL
+#define TA_EDC_CNT__TA_FS_AFIFO_SED_COUNT_MASK                                                                0x00000030L
+#define TA_EDC_CNT__TA_FL_LFIFO_SED_COUNT_MASK                                                                0x000000C0L
+#define TA_EDC_CNT__TA_FX_LFIFO_SED_COUNT_MASK                                                                0x00000300L
+#define TA_EDC_CNT__TA_FS_CFIFO_SED_COUNT_MASK                                                                0x00000C00L
 
+//TCI_EDC_CNT
+#define TCI_EDC_CNT__WRITE_RAM_SED_COUNT__SHIFT                                                               0x0
+#define TCI_EDC_CNT__WRITE_RAM_SED_COUNT_MASK                                                                 0x00000003L
+
+//TCP_EDC_CNT_NEW
+#define TCP_EDC_CNT_NEW__CACHE_RAM_SEC_COUNT__SHIFT                                                           0x0
+#define TCP_EDC_CNT_NEW__CACHE_RAM_DED_COUNT__SHIFT                                                           0x2
+#define TCP_EDC_CNT_NEW__LFIFO_RAM_SEC_COUNT__SHIFT                                                           0x4
+#define TCP_EDC_CNT_NEW__LFIFO_RAM_DED_COUNT__SHIFT                                                           0x6
+#define TCP_EDC_CNT_NEW__CMD_FIFO_SED_COUNT__SHIFT                                                            0x8
+#define TCP_EDC_CNT_NEW__VM_FIFO_SEC_COUNT__SHIFT                                                             0xa
+#define TCP_EDC_CNT_NEW__VM_FIFO_DED_COUNT__SHIFT                                                             0xc
+#define TCP_EDC_CNT_NEW__DB_RAM_SED_COUNT__SHIFT                                                              0xe
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO0_SEC_COUNT__SHIFT                                                        0x10
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO0_DED_COUNT__SHIFT                                                        0x12
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO1_SEC_COUNT__SHIFT                                                        0x14
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO1_DED_COUNT__SHIFT                                                        0x16
+#define TCP_EDC_CNT_NEW__CACHE_RAM_SEC_COUNT_MASK                                                             0x00000003L
+#define TCP_EDC_CNT_NEW__CACHE_RAM_DED_COUNT_MASK                                                             0x0000000CL
+#define TCP_EDC_CNT_NEW__LFIFO_RAM_SEC_COUNT_MASK                                                             0x00000030L
+#define TCP_EDC_CNT_NEW__LFIFO_RAM_DED_COUNT_MASK                                                             0x000000C0L
+#define TCP_EDC_CNT_NEW__CMD_FIFO_SED_COUNT_MASK                                                              0x00000300L
+#define TCP_EDC_CNT_NEW__VM_FIFO_SEC_COUNT_MASK                                                               0x00000C00L
+#define TCP_EDC_CNT_NEW__VM_FIFO_DED_COUNT_MASK                                                               0x00003000L
+#define TCP_EDC_CNT_NEW__DB_RAM_SED_COUNT_MASK                                                                0x0000C000L
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO0_SEC_COUNT_MASK                                                          0x00030000L
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO0_DED_COUNT_MASK                                                          0x000C0000L
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO1_SEC_COUNT_MASK                                                          0x00300000L
+#define TCP_EDC_CNT_NEW__UTCL1_LFIFO1_DED_COUNT_MASK                                                          0x00C00000L
+
+//TD_EDC_CNT
+#define TD_EDC_CNT__SS_FIFO_LO_SEC_COUNT__SHIFT                                                               0x0
+#define TD_EDC_CNT__SS_FIFO_LO_DED_COUNT__SHIFT                                                               0x2
+#define TD_EDC_CNT__SS_FIFO_HI_SEC_COUNT__SHIFT                                                               0x4
+#define TD_EDC_CNT__SS_FIFO_HI_DED_COUNT__SHIFT                                                               0x6
+#define TD_EDC_CNT__CS_FIFO_SED_COUNT__SHIFT                                                                  0x8
+#define TD_EDC_CNT__SS_FIFO_LO_SEC_COUNT_MASK                                                                 0x00000003L
+#define TD_EDC_CNT__SS_FIFO_LO_DED_COUNT_MASK                                                                 0x0000000CL
+#define TD_EDC_CNT__SS_FIFO_HI_SEC_COUNT_MASK                                                                 0x00000030L
+#define TD_EDC_CNT__SS_FIFO_HI_DED_COUNT_MASK                                                                 0x000000C0L
+#define TD_EDC_CNT__CS_FIFO_SED_COUNT_MASK                                                                    0x00000300L
 
 #endif

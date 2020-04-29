@@ -581,7 +581,7 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	hcd->uses_new_polling = 1;
 	/* Accept arbitrarily long scatter-gather lists */
-	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+	if (!hcd->localmem_pool)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
@@ -590,19 +590,15 @@ static int uhci_start(struct usb_hcd *hcd)
 	init_waitqueue_head(&uhci->waitqh);
 
 #ifdef UHCI_DEBUG_OPS
-	dentry = debugfs_create_file(hcd->self.bus_name,
-			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root,
-			uhci, &uhci_debug_operations);
-	if (!dentry) {
-		dev_err(uhci_dev(uhci), "couldn't create uhci debugfs entry\n");
-		return -ENOMEM;
-	}
-	uhci->dentry = dentry;
+	uhci->dentry = debugfs_create_file(hcd->self.bus_name,
+					   S_IFREG|S_IRUGO|S_IWUSR,
+					   uhci_debugfs_root, uhci,
+					   &uhci_debug_operations);
 #endif
 
-	uhci->frame = dma_zalloc_coherent(uhci_dev(uhci),
-			UHCI_NUMFRAMES * sizeof(*uhci->frame),
-			&uhci->frame_dma_handle, GFP_KERNEL);
+	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
+					 UHCI_NUMFRAMES * sizeof(*uhci->frame),
+					 &uhci->frame_dma_handle, GFP_KERNEL);
 	if (!uhci->frame) {
 		dev_err(uhci_dev(uhci),
 			"unable to allocate consistent memory for frame list\n");
@@ -882,8 +878,6 @@ static int __init uhci_hcd_init(void)
 	if (!errbuf)
 		goto errbuf_failed;
 	uhci_debugfs_root = debugfs_create_dir("uhci", usb_debug_root);
-	if (!uhci_debugfs_root)
-		goto debug_failed;
 #endif
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
@@ -918,7 +912,6 @@ up_failed:
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	debugfs_remove(uhci_debugfs_root);
 
-debug_failed:
 	kfree(errbuf);
 
 errbuf_failed:

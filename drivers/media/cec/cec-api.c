@@ -38,6 +38,7 @@ static __poll_t cec_poll(struct file *filp,
 	struct cec_adapter *adap = fh->adap;
 	__poll_t res = 0;
 
+	poll_wait(filp, &fh->wait, poll);
 	if (!cec_is_registered(adap))
 		return EPOLLERR | EPOLLHUP;
 	mutex_lock(&adap->lock);
@@ -48,7 +49,6 @@ static __poll_t cec_poll(struct file *filp,
 		res |= EPOLLIN | EPOLLRDNORM;
 	if (fh->total_queued_events)
 		res |= EPOLLPRI;
-	poll_wait(filp, &fh->wait, poll);
 	mutex_unlock(&adap->lock);
 	return res;
 }
@@ -77,9 +77,9 @@ static long cec_adap_g_caps(struct cec_adapter *adap,
 {
 	struct cec_caps caps = {};
 
-	strlcpy(caps.driver, adap->devnode.dev.parent->driver->name,
+	strscpy(caps.driver, adap->devnode.dev.parent->driver->name,
 		sizeof(caps.driver));
-	strlcpy(caps.name, adap->name, sizeof(caps.name));
+	strscpy(caps.name, adap->name, sizeof(caps.name));
 	caps.available_log_addrs = adap->available_log_addrs;
 	caps.capabilities = adap->capabilities;
 	caps.version = LINUX_VERSION_CODE;
@@ -101,6 +101,23 @@ static long cec_adap_g_phys_addr(struct cec_adapter *adap,
 	return 0;
 }
 
+static int cec_validate_phys_addr(u16 phys_addr)
+{
+	int i;
+
+	if (phys_addr == CEC_PHYS_ADDR_INVALID)
+		return 0;
+	for (i = 0; i < 16; i += 4)
+		if (phys_addr & (0xf << i))
+			break;
+	if (i == 16)
+		return 0;
+	for (i += 4; i < 16; i += 4)
+		if ((phys_addr & (0xf << i)) == 0)
+			return -EINVAL;
+	return 0;
+}
+
 static long cec_adap_s_phys_addr(struct cec_adapter *adap, struct cec_fh *fh,
 				 bool block, __u16 __user *parg)
 {
@@ -112,7 +129,7 @@ static long cec_adap_s_phys_addr(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&phys_addr, parg, sizeof(phys_addr)))
 		return -EFAULT;
 
-	err = cec_phys_addr_validate(phys_addr, NULL, NULL);
+	err = cec_validate_phys_addr(phys_addr);
 	if (err)
 		return err;
 	mutex_lock(&adap->lock);
@@ -170,6 +187,21 @@ static long cec_adap_s_log_addrs(struct cec_adapter *adap, struct cec_fh *fh,
 	return 0;
 }
 
+static long cec_adap_g_connector_info(struct cec_adapter *adap,
+				      struct cec_log_addrs __user *parg)
+{
+	int ret = 0;
+
+	if (!(adap->capabilities & CEC_CAP_CONNECTOR_INFO))
+		return -ENOTTY;
+
+	mutex_lock(&adap->lock);
+	if (copy_to_user(parg, &adap->conn_info, sizeof(adap->conn_info)))
+		ret = -EFAULT;
+	mutex_unlock(&adap->lock);
+	return ret;
+}
+
 static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 			 bool block, struct cec_msg __user *parg)
 {
@@ -181,18 +213,10 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 
-	/* A CDC-Only device can only send CDC messages */
-	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
-	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
-		return -EINVAL;
-
 	mutex_lock(&adap->lock);
 	if (adap->log_addrs.num_log_addrs == 0)
 		err = -EPERM;
 	else if (adap->is_configuring)
-		err = -ENONET;
-	else if (!adap->is_configured &&
-		 (adap->needs_hpd || msg.msg[0] != 0xf0))
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
@@ -497,6 +521,9 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case CEC_ADAP_S_LOG_ADDRS:
 		return cec_adap_s_log_addrs(adap, fh, block, parg);
 
+	case CEC_ADAP_G_CONNECTOR_INFO:
+		return cec_adap_g_connector_info(adap, parg);
+
 	case CEC_TRANSMIT:
 		return cec_transmit(adap, fh, block, parg);
 
@@ -569,6 +596,8 @@ static int cec_open(struct inode *inode, struct file *filp)
 	/* Queue up initial state events */
 	ev.state_change.phys_addr = adap->phys_addr;
 	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
+	ev.state_change.have_conn_info =
+		adap->conn_info.type != CEC_CONNECTOR_TYPE_NO_CONNECTOR;
 	cec_queue_event_fh(fh, &ev, 0);
 #ifdef CONFIG_CEC_PIN
 	if (adap->pin && adap->pin->ops->read_hpd) {
@@ -576,6 +605,14 @@ static int cec_open(struct inode *inode, struct file *filp)
 		if (err >= 0) {
 			ev.event = err ? CEC_EVENT_PIN_HPD_HIGH :
 					 CEC_EVENT_PIN_HPD_LOW;
+			cec_queue_event_fh(fh, &ev, 0);
+		}
+	}
+	if (adap->pin && adap->pin->ops->read_5v) {
+		err = adap->pin->ops->read_5v(adap);
+		if (err >= 0) {
+			ev.event = err ? CEC_EVENT_PIN_5V_HIGH :
+					 CEC_EVENT_PIN_5V_LOW;
 			cec_queue_event_fh(fh, &ev, 0);
 		}
 	}
@@ -657,6 +694,7 @@ const struct file_operations cec_devnode_fops = {
 	.owner = THIS_MODULE,
 	.open = cec_open,
 	.unlocked_ioctl = cec_ioctl,
+	.compat_ioctl = cec_ioctl,
 	.release = cec_release,
 	.poll = cec_poll,
 	.llseek = no_llseek,

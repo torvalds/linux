@@ -11,10 +11,12 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_device.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sti_awg_utils.h"
 #include "sti_drv.h"
@@ -64,7 +66,7 @@ static struct dvo_config rgb_24bit_de_cfg = {
 	.awg_fwgen_fct = sti_awg_generate_code_data_enable_mode,
 };
 
-/**
+/*
  * STI digital video output structure
  *
  * @dev: driver device
@@ -220,8 +222,7 @@ static void sti_dvo_disable(struct drm_bridge *bridge)
 
 	writel(0x00000000, dvo->regs + DVO_DOF_CFG);
 
-	if (dvo->panel)
-		dvo->panel->funcs->disable(dvo->panel);
+	drm_panel_disable(dvo->panel);
 
 	/* Disable/unprepare dvo clock */
 	clk_disable_unprepare(dvo->clk_pix);
@@ -261,8 +262,7 @@ static void sti_dvo_pre_enable(struct drm_bridge *bridge)
 	if (clk_prepare_enable(dvo->clk))
 		DRM_ERROR("Failed to prepare/enable dvo clk\n");
 
-	if (dvo->panel)
-		dvo->panel->funcs->enable(dvo->panel);
+	drm_panel_enable(dvo->panel);
 
 	/* Set LUT */
 	writel(config->lowbyte,  dvo->regs + DVO_LUT_PROG_LOW);
@@ -277,8 +277,8 @@ static void sti_dvo_pre_enable(struct drm_bridge *bridge)
 }
 
 static void sti_dvo_set_mode(struct drm_bridge *bridge,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode)
+			     const struct drm_display_mode *mode,
+			     const struct drm_display_mode *adjusted_mode)
 {
 	struct sti_dvo *dvo = bridge->driver_private;
 	struct sti_mixer *mixer = to_sti_mixer(dvo->encoder->crtc);
@@ -339,7 +339,7 @@ static int sti_dvo_connector_get_modes(struct drm_connector *connector)
 	struct sti_dvo *dvo = dvo_connector->dvo;
 
 	if (dvo->panel)
-		return dvo->panel->funcs->get_modes(dvo->panel);
+		return drm_panel_get_modes(dvo->panel, connector);
 
 	return 0;
 }
@@ -387,7 +387,9 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 
 	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
-		if (dvo->panel)
+		if (IS_ERR(dvo->panel))
+			dvo->panel = NULL;
+		else
 			drm_panel_attach(dvo->panel, connector);
 	}
 
@@ -465,7 +467,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	bridge->of_node = dvo->dev.of_node;
 	drm_bridge_add(bridge);
 
-	err = drm_bridge_attach(encoder, bridge, NULL);
+	err = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (err) {
 		DRM_ERROR("Failed to attach bridge\n");
 		return err;
@@ -484,7 +486,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 				 &sti_dvo_connector_helper_funcs);
 
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;
@@ -532,7 +534,7 @@ static int sti_dvo_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid dvo resource\n");
 		return -ENOMEM;
 	}
-	dvo->regs = devm_ioremap_nocache(dev, res->start,
+	dvo->regs = devm_ioremap(dev, res->start,
 			resource_size(res));
 	if (!dvo->regs)
 		return -ENOMEM;

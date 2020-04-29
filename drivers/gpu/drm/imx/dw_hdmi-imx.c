@@ -1,24 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
  * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-#include <linux/module.h>
-#include <linux/platform_device.h>
+
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
-#include <drm/bridge/dw_hdmi.h>
-#include <video/imx-ipu-v3.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <drm/drm_of.h>
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+
+#include <video/imx-ipu-v3.h>
+
+#include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_encoder_slave.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_of.h>
 
 #include "imx-drm.h"
 

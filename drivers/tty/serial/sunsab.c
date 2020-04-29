@@ -40,10 +40,6 @@
 #include <asm/prom.h>
 #include <asm/setup.h>
 
-#if defined(CONFIG_SERIAL_SUNSAB_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/serial_core.h>
 #include <linux/sunserialcore.h>
 
@@ -985,6 +981,7 @@ static int sunsab_init_one(struct uart_sunsab_port *up,
 
 	up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
 	up->port.iotype = UPIO_MEM;
+	up->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_SUNSAB_CONSOLE);
 
 	writeb(SAB82532_IPC_IC_ACT_LOW, &up->regs->w.ipc);
 
@@ -1125,8 +1122,9 @@ static int __init sunsab_init(void)
 	}
 
 	if (num_channels) {
-		sunsab_ports = kzalloc(sizeof(struct uart_sunsab_port) *
-				       num_channels, GFP_KERNEL);
+		sunsab_ports = kcalloc(num_channels,
+				       sizeof(struct uart_sunsab_port),
+				       GFP_KERNEL);
 		if (!sunsab_ports)
 			return -ENOMEM;
 

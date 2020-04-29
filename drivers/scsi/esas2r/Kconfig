@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_ESAS2R
 	tristate "ATTO Technology's ExpressSAS RAID adapter driver"
 	depends on PCI && SCSI

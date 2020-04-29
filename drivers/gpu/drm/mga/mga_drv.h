@@ -31,7 +31,20 @@
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
 
+#include <linux/irqreturn.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
 #include <drm/drm_legacy.h>
+#include <drm/drm_print.h>
+#include <drm/drm_sarea.h>
+#include <drm/drm_vblank.h>
+#include <drm/mga_drm.h>
 
 /* General customization:
  */
@@ -188,7 +201,7 @@ extern int mga_warp_init(drm_mga_private_t *dev_priv);
 extern int mga_enable_vblank(struct drm_device *dev, unsigned int pipe);
 extern void mga_disable_vblank(struct drm_device *dev, unsigned int pipe);
 extern u32 mga_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
-extern int mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence);
+extern void mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence);
 extern int mga_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
 extern irqreturn_t mga_driver_irq_handler(int irq, void *arg);
 extern void mga_driver_irq_preinstall(struct drm_device *dev);
@@ -199,10 +212,14 @@ extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #define mga_flush_write_combine()	wmb()
 
-#define MGA_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
-#define MGA_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))
-#define MGA_WRITE8(reg, val)	DRM_WRITE8(dev_priv->mmio, (reg), (val))
-#define MGA_WRITE(reg, val)	DRM_WRITE32(dev_priv->mmio, (reg), (val))
+#define MGA_READ8(reg) \
+	readb(((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define MGA_READ(reg) \
+	readl(((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define MGA_WRITE8(reg, val) \
+	writeb(val, ((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define MGA_WRITE(reg, val) \
+	writel(val, ((void __iomem *)dev_priv->mmio->handle) + (reg))
 
 #define DWGREG0		0x1c00
 #define DWGREG0_END	0x1dff

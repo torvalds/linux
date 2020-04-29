@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Intel Code Loader DMA support
  *
  * Copyright (C) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef SKL_SST_CLDMA_H_
@@ -203,7 +195,7 @@ struct sst_dsp;
 struct skl_cl_dev_ops {
 	void (*cl_setup_bdle)(struct sst_dsp *ctx,
 			struct snd_dma_buffer *dmab_data,
-			u32 **bdlp, int size, int with_ioc);
+			__le32 **bdlp, int size, int with_ioc);
 	void (*cl_setup_controller)(struct sst_dsp *ctx,
 			struct snd_dma_buffer *dmab_bdl,
 			unsigned int max_size, u32 page_count);

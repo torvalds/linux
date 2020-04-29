@@ -125,7 +125,7 @@ static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_HOOK_TYPE] = { .type = NLA_U8, },
 };
 
-static int ila_build_state(struct nlattr *nla,
+static int ila_build_state(struct net *net, struct nlattr *nla,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts,
 			   struct netlink_ext_ack *extack)
@@ -146,7 +146,8 @@ static int ila_build_state(struct nlattr *nla,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, ILA_ATTR_MAX, nla, ila_nl_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, ILA_ATTR_MAX, nla,
+					  ila_nl_policy, extack);
 	if (ret < 0)
 		return ret;
 

@@ -3,7 +3,7 @@
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -25,14 +25,16 @@
 /* Flags for acpi_ns_lookup, acpi_ns_search_and_enter */
 
 #define ACPI_NS_NO_UPSEARCH         0
-#define ACPI_NS_SEARCH_PARENT       0x01
-#define ACPI_NS_DONT_OPEN_SCOPE     0x02
-#define ACPI_NS_NO_PEER_SEARCH      0x04
-#define ACPI_NS_ERROR_IF_FOUND      0x08
-#define ACPI_NS_PREFIX_IS_SCOPE     0x10
-#define ACPI_NS_EXTERNAL            0x20
-#define ACPI_NS_TEMPORARY           0x40
-#define ACPI_NS_OVERRIDE_IF_FOUND   0x80
+#define ACPI_NS_SEARCH_PARENT       0x0001
+#define ACPI_NS_DONT_OPEN_SCOPE     0x0002
+#define ACPI_NS_NO_PEER_SEARCH      0x0004
+#define ACPI_NS_ERROR_IF_FOUND      0x0008
+#define ACPI_NS_PREFIX_IS_SCOPE     0x0010
+#define ACPI_NS_EXTERNAL            0x0020
+#define ACPI_NS_TEMPORARY           0x0040
+#define ACPI_NS_OVERRIDE_IF_FOUND   0x0080
+#define ACPI_NS_EARLY_INIT          0x0100
+#define ACPI_NS_PREFIX_MUST_EXIST   0x0200
 
 /* Flags for acpi_ns_walk_namespace */
 
@@ -55,6 +57,10 @@
 acpi_status acpi_ns_initialize_objects(void);
 
 acpi_status acpi_ns_initialize_devices(u32 flags);
+
+acpi_status
+acpi_ns_init_one_package(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value);
 
 /*
  * nsload -  Namespace loading
@@ -201,8 +207,6 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  */
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
-void acpi_ns_exec_module_code_list(void);
-
 /*
  * nsarguments - Argument count/type checking for predefined/reserved names
  */
@@ -251,6 +255,8 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node);
 u32
 acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 			      char *full_path, u32 path_size, u8 no_trailing);
+
+void acpi_ns_normalize_pathname(char *original_path);
 
 char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 				      u8 no_trailing);

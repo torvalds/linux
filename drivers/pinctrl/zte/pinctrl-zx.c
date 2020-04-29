@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Sanechips Technology Co., Ltd.
  * Copyright 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -277,7 +274,7 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
 
 	/* Every single pin composes a group */
 	ngroups = info->npins;
-	groups = devm_kzalloc(&pdev->dev, ngroups * sizeof(*groups),
+	groups = devm_kcalloc(&pdev->dev, ngroups, sizeof(*groups),
 			      GFP_KERNEL);
 	if (!groups)
 		return -ENOMEM;
@@ -362,8 +359,8 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
 
 			func = functions + j;
 			if (!func->group_names) {
-				func->group_names = devm_kzalloc(&pdev->dev,
-						func->num_group_names *
+				func->group_names = devm_kcalloc(&pdev->dev,
+						func->num_group_names,
 						sizeof(*func->group_names),
 						GFP_KERNEL);
 				if (!func->group_names) {
@@ -390,7 +387,6 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	struct pinctrl_desc *pctldesc;
 	struct zx_pinctrl *zpctl;
 	struct device_node *np;
-	struct resource *res;
 	int ret;
 
 	zpctl = devm_kzalloc(&pdev->dev, sizeof(*zpctl), GFP_KERNEL);
@@ -399,8 +395,7 @@ int zx_pinctrl_init(struct platform_device *pdev,
 
 	spin_lock_init(&zpctl->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	zpctl->base = devm_ioremap_resource(&pdev->dev, res);
+	zpctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(zpctl->base))
 		return PTR_ERR(zpctl->base);
 
@@ -411,6 +406,7 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	}
 
 	zpctl->aux_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!zpctl->aux_base)
 		return -ENOMEM;
 

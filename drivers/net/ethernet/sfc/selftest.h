@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2012 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EFX_SELFTEST_H
@@ -48,8 +45,8 @@ void efx_loopback_rx_packet(struct efx_nic *efx, const char *buf_ptr,
 			    int pkt_len);
 int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 		 unsigned flags);
+void efx_selftest_async_init(struct efx_nic *efx);
 void efx_selftest_async_start(struct efx_nic *efx);
 void efx_selftest_async_cancel(struct efx_nic *efx);
-void efx_selftest_async_work(struct work_struct *data);
 
 #endif /* EFX_SELFTEST_H */

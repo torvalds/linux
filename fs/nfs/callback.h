@@ -72,8 +72,8 @@ struct cb_getattrres {
 	uint32_t bitmap[2];
 	uint64_t size;
 	uint64_t change_attr;
-	struct timespec ctime;
-	struct timespec mtime;
+	struct timespec64 ctime;
+	struct timespec64 mtime;
 };
 
 struct cb_recallargs {
@@ -127,7 +127,9 @@ extern __be32 nfs4_callback_sequence(void *argp, void *resp,
 #define RCA4_TYPE_MASK_OBJ_LAYOUT_MAX  9
 #define RCA4_TYPE_MASK_OTHER_LAYOUT_MIN 12
 #define RCA4_TYPE_MASK_OTHER_LAYOUT_MAX 15
-#define RCA4_TYPE_MASK_ALL 0xf31f
+#define PNFS_FF_RCA4_TYPE_MASK_READ 16
+#define PNFS_FF_RCA4_TYPE_MASK_RW 17
+#define RCA4_TYPE_MASK_ALL 0x3f31f
 
 struct cb_recallanyargs {
 	uint32_t	craa_objs_to_keep;
@@ -184,6 +186,18 @@ struct cb_notify_lock_args {
 extern __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 					 struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_1 */
+#ifdef CONFIG_NFS_V4_2
+struct cb_offloadargs {
+	struct nfs_fh		coa_fh;
+	nfs4_stateid		coa_stateid;
+	uint32_t		error;
+	uint64_t		wr_count;
+	struct nfs_writeverf	wr_writeverf;
+};
+
+extern __be32 nfs4_callback_offload(void *args, void *dummy,
+				    struct cb_process_state *cps);
+#endif /* CONFIG_NFS_V4_2 */
 extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
 extern __be32 nfs4_callback_getattr(void *argp, void *resp,
 				    struct cb_process_state *cps);

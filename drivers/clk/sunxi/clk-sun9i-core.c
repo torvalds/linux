@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 Chen-Yu Tsai
  *
  * Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -88,8 +79,8 @@ static void __init sun9i_a80_pll4_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-pll4-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for a80-pll4-clk: %pOFn\n",
+		       node);
 		return;
 	}
 
@@ -142,8 +133,8 @@ static void __init sun9i_a80_gt_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-gt-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for a80-gt-clk: %pOFn\n",
+		       node);
 		return;
 	}
 
@@ -197,8 +188,8 @@ static void __init sun9i_a80_ahb_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-ahb-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for a80-ahb-clk: %pOFn\n",
+		       node);
 		return;
 	}
 
@@ -223,8 +214,8 @@ static void __init sun9i_a80_apb0_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-apb0-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for a80-apb0-clk: %pOFn\n",
+		       node);
 		return;
 	}
 
@@ -280,8 +271,8 @@ static void __init sun9i_a80_apb1_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for a80-apb1-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for a80-apb1-clk: %pOFn\n",
+		       node);
 		return;
 	}
 

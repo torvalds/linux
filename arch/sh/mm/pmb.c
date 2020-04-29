@@ -24,7 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -861,13 +861,8 @@ static const struct file_operations pmb_debugfs_fops = {
 
 static int __init pmb_debugfs_init(void)
 {
-	struct dentry *dentry;
-
-	dentry = debugfs_create_file("pmb", S_IFREG | S_IRUGO,
-				     arch_debugfs_dir, NULL, &pmb_debugfs_fops);
-	if (!dentry)
-		return -ENOMEM;
-
+	debugfs_create_file("pmb", S_IFREG | S_IRUGO, arch_debugfs_dir, NULL,
+			    &pmb_debugfs_fops);
 	return 0;
 }
 subsys_initcall(pmb_debugfs_init);

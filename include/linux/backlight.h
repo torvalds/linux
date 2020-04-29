@@ -46,6 +46,12 @@ enum backlight_notification {
 	BACKLIGHT_UNREGISTERED,
 };
 
+enum backlight_scale {
+	BACKLIGHT_SCALE_UNKNOWN = 0,
+	BACKLIGHT_SCALE_LINEAR,
+	BACKLIGHT_SCALE_NON_LINEAR,
+};
+
 struct backlight_device;
 struct fb_info;
 
@@ -79,15 +85,12 @@ struct backlight_properties {
 	/* Backlight type */
 	enum backlight_type type;
 	/* Flags used to signal drivers of state changes */
-	/* Upper 4 bits are reserved for driver internal use */
 	unsigned int state;
+	/* Type of the brightness scale (linear, non-linear, ...) */
+	enum backlight_scale scale;
 
 #define BL_CORE_SUSPENDED	(1 << 0)	/* backlight is suspended */
 #define BL_CORE_FBBLANK		(1 << 1)	/* backlight is under an fb blank event */
-#define BL_CORE_DRIVER4		(1 << 28)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER3		(1 << 29)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER2		(1 << 30)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER1		(1 << 31)	/* reserved for driver specific use */
 
 };
 

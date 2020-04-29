@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Synaptics TouchPad PS/2 mouse driver
  *
@@ -15,10 +16,6 @@
  *   Copyright (c) 1997 C. Scott Ananian <cananian@alumni.priceton.edu>
  *   Copyright (c) 1998-2000 Bruce Kalk <kall@compass.com>
  *     code for the special synaptics commands (from the tpconfig-source)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Trademarks are the property of their respective owners.
  */
@@ -99,9 +96,7 @@ static int synaptics_mode_cmd(struct psmouse *psmouse, u8 mode)
 int synaptics_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	u8 param[4];
-
-	param[0] = 0;
+	u8 param[4] = { 0 };
 
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
@@ -151,7 +146,6 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0042", /* Yoga */
 	"LEN0045",
 	"LEN0047",
-	"LEN0049",
 	"LEN2000", /* S540 */
 	"LEN2001", /* Edge E431 */
 	"LEN2002", /* Edge E531 */
@@ -171,8 +165,28 @@ static const char * const smbus_pnp_ids[] = {
 	/* all of the topbuttonpad_pnp_ids are valid, we just add some extras */
 	"LEN0048", /* X1 Carbon 3 */
 	"LEN0046", /* X250 */
+	"LEN0049", /* Yoga 11e */
 	"LEN004a", /* W541 */
+	"LEN005b", /* P50 */
+	"LEN005e", /* T560 */
+	"LEN006c", /* T470s */
+	"LEN0071", /* T480 */
+	"LEN0072", /* X1 Carbon Gen 5 (2017) - Elan/ALPS trackpoint */
+	"LEN0073", /* X1 Carbon G5 (Elantech) */
+	"LEN0091", /* X1 Carbon 6 */
+	"LEN0092", /* X1 Carbon 6 */
+	"LEN0093", /* T480 */
+	"LEN0096", /* X280 */
+	"LEN0097", /* X280 -> ALPS trackpoint */
+	"LEN009b", /* T580 */
 	"LEN200f", /* T450s */
+	"LEN2044", /* L470  */
+	"LEN2054", /* E480 */
+	"LEN2055", /* E580 */
+	"SYN3052", /* HP EliteBook 840 G4 */
+	"SYN3221", /* HP 15-ay000 */
+	"SYN323d", /* HP Spectre X360 13-w013dx */
+	"SYN3257", /* HP Envy 13-ad105ng */
 	NULL
 };
 
@@ -183,7 +197,7 @@ static const char * const forcepad_pnp_ids[] = {
 };
 
 /*
- * Send a command to the synpatics touchpad by special commands
+ * Send a command to the synaptics touchpad by special commands
  */
 static int synaptics_send_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {
@@ -697,7 +711,7 @@ static void synaptics_pt_create(struct psmouse *psmouse)
 
 	serio->id.type = SERIO_PS_PSTHRU;
 	strlcpy(serio->name, "Synaptics pass-through", sizeof(serio->name));
-	strlcpy(serio->phys, "synaptics-pt/serio0", sizeof(serio->name));
+	strlcpy(serio->phys, "synaptics-pt/serio0", sizeof(serio->phys));
 	serio->write = synaptics_pt_write;
 	serio->start = synaptics_pt_start;
 	serio->stop = synaptics_pt_stop;
@@ -1748,7 +1762,7 @@ static int synaptics_create_intertouch(struct psmouse *psmouse,
 	};
 
 	return psmouse_smbus_init(psmouse, &intertouch_board,
-				  &pdata, sizeof(pdata),
+				  &pdata, sizeof(pdata), true,
 				  leave_breadcrumbs);
 }
 

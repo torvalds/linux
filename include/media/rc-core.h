@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Remote Controller core header
  *
  * Copyright (C) 2009-2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #ifndef _RC_CORE
@@ -200,7 +192,7 @@ struct rc_dev {
 	struct timer_list		timer_repeat;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
-	u32				last_scancode;
+	u64				last_scancode;
 	u8				last_toggle;
 	u32				timeout;
 	u32				min_timeout;
@@ -292,12 +284,12 @@ int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
 void rc_unregister_device(struct rc_dev *dev);
 
 void rc_repeat(struct rc_dev *dev);
-void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
+void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u64 scancode,
 		u8 toggle);
 void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
-			  u32 scancode, u8 toggle);
+			  u64 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
-u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
+u32 rc_g_keycode_from_table(struct rc_dev *dev, u64 scancode);
 
 /*
  * From rc-raw.c
@@ -316,13 +308,6 @@ struct ir_raw_event {
 	unsigned                timeout:1;
 	unsigned                carrier_report:1;
 };
-
-#define DEFINE_IR_RAW_EVENT(event) struct ir_raw_event event = {}
-
-static inline void init_ir_raw_event(struct ir_raw_event *ev)
-{
-	memset(ev, 0, sizeof(*ev));
-}
 
 #define IR_DEFAULT_TIMEOUT	MS_TO_NS(125)
 #define IR_MAX_DURATION         500000000	/* 500 ms */
@@ -344,9 +329,8 @@ int ir_raw_encode_carrier(enum rc_proto protocol);
 
 static inline void ir_raw_event_reset(struct rc_dev *dev)
 {
-	struct ir_raw_event ev = { .reset = true };
-
-	ir_raw_event_store(dev, &ev);
+	ir_raw_event_store(dev, &((struct ir_raw_event) { .reset = true }));
+	dev->idle = true;
 	ir_raw_event_handle(dev);
 }
 

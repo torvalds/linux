@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2013 Richard Weinberger <richard@nod.at>
  * Copyright (C) 2014 Google Inc., Author: Daniel Walter <dwalter@google.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kallsyms.h>
@@ -63,8 +60,6 @@ static const struct stacktrace_ops dump_ops = {
 static void __save_stack_trace(struct task_struct *tsk, struct stack_trace *trace)
 {
 	dump_trace(tsk, &dump_ops, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 
 void save_stack_trace(struct stack_trace *trace)

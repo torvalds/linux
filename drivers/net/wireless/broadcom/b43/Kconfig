@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config B43
 	tristate "Broadcom 43xx wireless support (mac80211 stack)"
 	depends on (BCMA_POSSIBLE || SSB_POSSIBLE) && MAC80211 && HAS_DMA
 	select BCMA if B43_BCMA
 	select SSB if B43_SSB
 	select FW_LOADER
+	select CORDIC
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 

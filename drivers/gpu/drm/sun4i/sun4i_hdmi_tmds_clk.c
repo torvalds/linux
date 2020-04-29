@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Free Electrons
  * Copyright (C) 2016 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 
 #include "sun4i_hdmi.h"
 
@@ -35,7 +32,7 @@ static unsigned long sun4i_tmds_calc_divider(unsigned long rate,
 {
 	unsigned long best_rate = 0;
 	u8 best_m = 0, m;
-	bool is_double;
+	bool is_double = false;
 
 	for (m = div_offset ?: 1; m < (16 + div_offset); m++) {
 		u8 d;
@@ -52,7 +49,7 @@ static unsigned long sun4i_tmds_calc_divider(unsigned long rate,
 			    (rate - tmp_rate) < (rate - best_rate)) {
 				best_rate = tmp_rate;
 				best_m = m;
-				is_double = d;
+				is_double = (d == 2) ? true : false;
 			}
 		}
 	}

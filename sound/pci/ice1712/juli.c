@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT1724 (Envy24HT)
  *
@@ -5,22 +6,6 @@
  *
  *	Copyright (c) 2004 Jaroslav Kysela <perex@perex.cz>
  *	              2008 Pavel Hofman <dustin@seznam.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -358,7 +343,7 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new juli_mute_controls[] = {
+static const struct snd_kcontrol_new juli_mute_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -412,7 +397,7 @@ static struct snd_kcontrol_new juli_mute_controls[] = {
 	},
 };
 
-static char *slave_vols[] = {
+static const char * const slave_vols[] = {
 	PCM_VOLUME,
 	MONITOR_AN_IN_VOLUME,
 	MONITOR_DIG_IN_VOLUME,
@@ -435,7 +420,7 @@ static struct snd_kcontrol *ctl_find(struct snd_card *card,
 
 static void add_slaves(struct snd_card *card,
 		       struct snd_kcontrol *master,
-		       char * const *list)
+		       const char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);
@@ -666,7 +651,7 @@ static int juli_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char juli_eeprom[] = {
+static const unsigned char juli_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, 1xADC, 1xDACs,
 					   SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */

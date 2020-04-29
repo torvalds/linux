@@ -34,7 +34,7 @@ Description:	CPU topology files that describe kernel limits related to
 		present: cpus that have been identified as being present in
 		the system.
 
-		See Documentation/cputopology.txt for more information.
+		See Documentation/admin-guide/cputopology.rst for more information.
 
 
 What:		/sys/devices/system/cpu/probe
@@ -103,7 +103,7 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		thread_siblings_list: human-readable list of cpu#'s hardware
 		threads within the same core as cpu#
 
-		See Documentation/cputopology.txt for more information.
+		See Documentation/admin-guide/cputopology.rst for more information.
 
 
 What:		/sys/devices/system/cpu/cpuidle/current_driver
@@ -137,7 +137,8 @@ Description:	Discover cpuidle policy and mechanism
 		current_governor: (RW) displays current idle policy. Users can
 		switch the governor at runtime by writing to this file.
 
-		See files in Documentation/cpuidle/ for more information.
+		See Documentation/admin-guide/pm/cpuidle.rst and
+		Documentation/driver-api/pm/cpuidle.rst for more information.
 
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/name
@@ -145,6 +146,8 @@ What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/name
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/power
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/time
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/usage
+		/sys/devices/system/cpu/cpuX/cpuidle/stateN/above
+		/sys/devices/system/cpu/cpuX/cpuidle/stateN/below
 Date:		September 2007
 KernelVersion:	v2.6.24
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -166,6 +169,11 @@ Description:
 
 		usage: (RO) Number of times this state was entered (a count).
 
+		above: (RO) Number of times this state was entered, but the
+		       observed CPU idle duration was too short for it (a count).
+
+		below: (RO) Number of times this state was entered, but the
+		       observed CPU idle duration was too long for it (a count).
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/desc
 Date:		February 2008
@@ -188,6 +196,12 @@ Description:
 		does not reflect it. Likewise, if one enables a deep state but a
 		lighter state still is disabled, then this has no effect.
 
+What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/default_status
+Date:		December 2019
+KernelVersion:	v5.6
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:
+		(RO) The default status of this state, "enabled" or "disabled".
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/residency
 Date:		March 2014
@@ -237,9 +251,6 @@ Description:	Discover and change clock speed of CPUs
 		There are many knobs to tweak in this directory.
 
 		See files in Documentation/cpu-freq/ for more information.
-
-		In particular, read Documentation/cpu-freq/user-guide.txt
-		to learn how to control the knobs.
 
 
 What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
@@ -478,6 +489,11 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/meltdown
 		/sys/devices/system/cpu/vulnerabilities/spectre_v1
 		/sys/devices/system/cpu/vulnerabilities/spectre_v2
+		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
+		/sys/devices/system/cpu/vulnerabilities/l1tf
+		/sys/devices/system/cpu/vulnerabilities/mds
+		/sys/devices/system/cpu/vulnerabilities/tsx_async_abort
+		/sys/devices/system/cpu/vulnerabilities/itlb_multihit
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities
@@ -489,3 +505,78 @@ Description:	Information about CPU vulnerabilities
 		"Not affected"	  CPU is not affected by the vulnerability
 		"Vulnerable"	  CPU is affected and no mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
+
+		See also: Documentation/admin-guide/hw-vuln/index.rst
+
+What:		/sys/devices/system/cpu/smt
+		/sys/devices/system/cpu/smt/active
+		/sys/devices/system/cpu/smt/control
+Date:		June 2018
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Control Symetric Multi Threading (SMT)
+
+		active:  Tells whether SMT is active (enabled and siblings online)
+
+		control: Read/write interface to control SMT. Possible
+			 values:
+
+			 "on"		  SMT is enabled
+			 "off"		  SMT is disabled
+			 "forceoff"	  SMT is force disabled. Cannot be changed.
+			 "notsupported"   SMT is not supported by the CPU
+			 "notimplemented" SMT runtime toggling is not
+					  implemented for the architecture
+
+			 If control status is "forceoff" or "notsupported" writes
+			 are rejected.
+
+What:		/sys/devices/system/cpu/cpu#/power/energy_perf_bias
+Date:		March 2019
+Contact:	linux-pm@vger.kernel.org
+Description:	Intel Energy and Performance Bias Hint (EPB)
+
+		EPB for the given CPU in a sliding scale 0 - 15, where a value
+		of 0 corresponds to a hint preference for highest performance
+		and a value of 15 corresponds to the maximum energy savings.
+
+		In order to change the EPB value for the CPU, write either
+		a number in the 0 - 15 sliding scale above, or one of the
+		strings: "performance", "balance-performance", "normal",
+		"balance-power", "power" (that represent values reflected by
+		their meaning), to this attribute.
+
+		This attribute is present for all online CPUs supporting the
+		Intel EPB feature.
+
+What:		/sys/devices/system/cpu/umwait_control
+		/sys/devices/system/cpu/umwait_control/enable_c02
+		/sys/devices/system/cpu/umwait_control/max_time
+Date:		May 2019
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Umwait control
+
+		enable_c02: Read/write interface to control umwait C0.2 state
+			Read returns C0.2 state status:
+				0: C0.2 is disabled
+				1: C0.2 is enabled
+
+			Write 'y' or '1'  or 'on' to enable C0.2 state.
+			Write 'n' or '0'  or 'off' to disable C0.2 state.
+
+			The interface is case insensitive.
+
+		max_time: Read/write interface to control umwait maximum time
+			  in TSC-quanta that the CPU can reside in either C0.1
+			  or C0.2 state. The time is an unsigned 32-bit number.
+			  Note that a value of zero means there is no limit.
+			  Low order two bits must be zero.
+
+What:		/sys/devices/system/cpu/svm
+Date:		August 2019
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	Secure Virtual Machine
+
+		If 1, it means the system is using the Protected Execution
+		Facility in POWER9 and newer processors. i.e., it is a Secure
+		Virtual Machine.

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System Control and Power Interface (SCPI) Protocol based clock driver
  *
  * Copyright (C) 2015 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk-provider.h>
@@ -207,7 +196,7 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 
 	count = of_property_count_strings(np, "clock-output-names");
 	if (count < 0) {
-		dev_err(dev, "%s: invalid clock output count\n", np->name);
+		dev_err(dev, "%pOFn: invalid clock output count\n", np);
 		return -EINVAL;
 	}
 
@@ -232,13 +221,13 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 
 		if (of_property_read_string_index(np, "clock-output-names",
 						  idx, &name)) {
-			dev_err(dev, "invalid clock name @ %s\n", np->name);
+			dev_err(dev, "invalid clock name @ %pOFn\n", np);
 			return -EINVAL;
 		}
 
 		if (of_property_read_u32_index(np, "clock-indices",
 					       idx, &val)) {
-			dev_err(dev, "invalid clock index @ %s\n", np->name);
+			dev_err(dev, "invalid clock index @ %pOFn\n", np);
 			return -EINVAL;
 		}
 

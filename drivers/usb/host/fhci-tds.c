@@ -189,7 +189,7 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 			goto err;
 		}
 
-		buff = kmalloc(1028 * sizeof(*buff), GFP_KERNEL);
+		buff = kmalloc_array(1028, sizeof(*buff), GFP_KERNEL);
 		if (!buff) {
 			kfree(pkt);
 			err_for = "buffer";

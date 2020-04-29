@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cn_proc.c - process events connector
  *
@@ -5,21 +6,6 @@
  * Based on cn_fork.c by Guillaume Thouvenin <guillaume.thouvenin@bull.net>
  * Original copyright notice follows:
  * Copyright (C) 2005 BULL SA.
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -250,6 +236,7 @@ void proc_coredump_connector(struct task_struct *task)
 {
 	struct cn_msg *msg;
 	struct proc_event *ev;
+	struct task_struct *parent;
 	__u8 buffer[CN_PROC_MSG_SIZE] __aligned(8);
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
@@ -263,6 +250,14 @@ void proc_coredump_connector(struct task_struct *task)
 	ev->event_data.coredump.process_pid = task->pid;
 	ev->event_data.coredump.process_tgid = task->tgid;
 
+	rcu_read_lock();
+	if (pid_alive(task)) {
+		parent = rcu_dereference(task->real_parent);
+		ev->event_data.coredump.parent_pid = parent->pid;
+		ev->event_data.coredump.parent_tgid = parent->tgid;
+	}
+	rcu_read_unlock();
+
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
@@ -274,6 +269,7 @@ void proc_exit_connector(struct task_struct *task)
 {
 	struct cn_msg *msg;
 	struct proc_event *ev;
+	struct task_struct *parent;
 	__u8 buffer[CN_PROC_MSG_SIZE] __aligned(8);
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
@@ -288,6 +284,14 @@ void proc_exit_connector(struct task_struct *task)
 	ev->event_data.exit.process_tgid = task->tgid;
 	ev->event_data.exit.exit_code = task->exit_code;
 	ev->event_data.exit.exit_signal = task->exit_signal;
+
+	rcu_read_lock();
+	if (pid_alive(task)) {
+		parent = rcu_dereference(task->real_parent);
+		ev->event_data.exit.parent_pid = parent->pid;
+		ev->event_data.exit.parent_tgid = parent->tgid;
+	}
+	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */

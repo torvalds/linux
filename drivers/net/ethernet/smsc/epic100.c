@@ -280,6 +280,7 @@ struct epic_private {
 	signed char phys[4];				/* MII device addresses. */
 	u16 advertising;					/* NWay media advertisement */
 	int mii_phy_cnt;
+	u32 ethtool_ops_nesting;
 	struct mii_if_info mii;
 	unsigned int tx_full:1;				/* The Tx queue is full. */
 	unsigned int default_port:4;		/* Last dev->if_port value. */
@@ -291,7 +292,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int val);
 static void epic_restart(struct net_device *dev);
 static void epic_timer(struct timer_list *t);
-static void epic_tx_timeout(struct net_device *dev);
+static void epic_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void epic_init_ring(struct net_device *dev);
 static netdev_tx_t epic_start_xmit(struct sk_buff *skb,
 				   struct net_device *dev);
@@ -321,7 +322,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int card_idx = -1;
 	void __iomem *ioaddr;
 	int chip_idx = (int) ent->driver_data;
-	int irq;
 	struct net_device *dev;
 	struct epic_private *ep;
 	int i, ret, option = 0, duplex = 0;
@@ -338,7 +338,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out;
-	irq = pdev->irq;
 
 	if (pci_resource_len(pdev, 0) < EPIC_TOTAL_SIZE) {
 		dev_err(&pdev->dev, "no PCI region space\n");
@@ -863,7 +862,7 @@ static void epic_timer(struct timer_list *t)
 	add_timer(&ep->timer);
 }
 
-static void epic_tx_timeout(struct net_device *dev)
+static void epic_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct epic_private *ep = netdev_priv(dev);
 	void __iomem *ioaddr = ep->ioaddr;
@@ -1039,7 +1038,7 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 		skb = ep->tx_skbuff[entry];
 		pci_unmap_single(ep->pci_dev, ep->tx_ring[entry].bufaddr,
 				 skb->len, PCI_DMA_TODEVICE);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		ep->tx_skbuff[entry] = NULL;
 	}
 
@@ -1437,8 +1436,10 @@ static int ethtool_begin(struct net_device *dev)
 	struct epic_private *ep = netdev_priv(dev);
 	void __iomem *ioaddr = ep->ioaddr;
 
+	if (ep->ethtool_ops_nesting == U32_MAX)
+		return -EBUSY;
 	/* power-up, if interface is down */
-	if (!netif_running(dev)) {
+	if (!ep->ethtool_ops_nesting++ && !netif_running(dev)) {
 		ew32(GENCTL, 0x0200);
 		ew32(NVCTL, (er32(NVCTL) & ~0x003c) | 0x4800);
 	}
@@ -1451,7 +1452,7 @@ static void ethtool_complete(struct net_device *dev)
 	void __iomem *ioaddr = ep->ioaddr;
 
 	/* power-down, if interface is down */
-	if (!netif_running(dev)) {
+	if (!--ep->ethtool_ops_nesting && !netif_running(dev)) {
 		ew32(GENCTL, 0x0008);
 		ew32(NVCTL, (er32(NVCTL) & ~0x483c) | 0x0000);
 	}

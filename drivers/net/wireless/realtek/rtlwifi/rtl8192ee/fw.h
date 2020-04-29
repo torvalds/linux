@@ -1,26 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #ifndef __RTL92E__FW__H__
 #define __RTL92E__FW__H__
@@ -128,59 +107,44 @@ enum rtl8192e_h2c_cmd {
 	MAX_92E_H2CCMD
 };
 
-enum rtl8192e_c2h_evt {
-	C2H_8192E_DBG = 0,
-	C2H_8192E_LB = 1,
-	C2H_8192E_TXBF = 2,
-	C2H_8192E_TX_REPORT = 3,
-	C2H_8192E_BT_INFO = 9,
-	C2H_8192E_BT_MP = 11,
-	C2H_8192E_RA_RPT = 12,
-	MAX_8192E_C2HEVENT
-};
-
 #define pagenum_128(_len)	\
 	(u32)(((_len) >> 7) + ((_len) & 0x7F ? 1 : 0))
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)__ph2ccmd = __val;
 #define SET_H2CCMD_PWRMODE_PARM_RLBM(__cmd, __val)			\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 4, __val)
+	u8p_replace_bits(__cmd + 1, __val, GENMASK(3, 0))
 #define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 4, 4, __val)
+	u8p_replace_bits(__cmd + 1, __val, GENMASK(7, 4))
 #define SET_H2CCMD_PWRMODE_PARM_AWAKE_INTERVAL(__cmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __val)
+	*(u8 *)(__cmd + 2) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__cmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __val)
+	*(u8 *)(__cmd + 3) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __val)
+	*(u8 *)(__cmd + 4) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __val)
-#define GET_92E_H2CCMD_PWRMODE_PARM_MODE(__cmd)			\
-	LE_BITS_TO_1BYTE(__cmd, 0, 8)
+	*(u8 *)(__cmd + 5) = __val;
 
-#define SET_H2CCMD_JOINBSSRPT_PARM_OPMODE(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)__ph2ccmd = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 3, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 3) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 4) = __val;
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __val)
+	u8p_replace_bits(__cmd, __val, BIT(0))
 #define SET_H2CCMD_MSRRPT_PARM_MACID_IND(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __val)
+	u8p_replace_bits(__cmd, __val, BIT(1))
 #define SET_H2CCMD_MSRRPT_PARM_MACID(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val;
 #define SET_H2CCMD_MSRRPT_PARM_MACID_END(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val;
 
 int rtl92ee_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw);
 void rtl92ee_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
@@ -190,7 +154,6 @@ void rtl92ee_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92ee_set_fw_media_status_rpt_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
-void rtl92ee_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
-void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
-				 u8 c2h_cmd_len, u8 *tmp_buf);
+void rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				   u8 *cmd_buf, u8 cmd_len);
 #endif

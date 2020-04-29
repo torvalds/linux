@@ -7,7 +7,7 @@
 #ifndef __QLA_NX_H
 #define __QLA_NX_H
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <scsi/scsi.h>
 
 /*
  * Following are the states of the Phantom. Phantom will set them and
@@ -486,13 +486,13 @@
 #define QLA82XX_ADDR_QDR_NET		(0x0000000300000000ULL)
 #define QLA82XX_P3_ADDR_QDR_NET_MAX	(0x0000000303ffffffULL)
 
-#define QLA82XX_PCI_CRBSPACE		(unsigned long)0x06000000
-#define QLA82XX_PCI_DIRECT_CRB		(unsigned long)0x04400000
-#define QLA82XX_PCI_CAMQM		(unsigned long)0x04800000
-#define QLA82XX_PCI_CAMQM_MAX		(unsigned long)0x04ffffff
-#define QLA82XX_PCI_DDR_NET		(unsigned long)0x00000000
-#define QLA82XX_PCI_QDR_NET		(unsigned long)0x04000000
-#define QLA82XX_PCI_QDR_NET_MAX		(unsigned long)0x043fffff
+#define QLA82XX_PCI_CRBSPACE		0x06000000UL
+#define QLA82XX_PCI_DIRECT_CRB		0x04400000UL
+#define QLA82XX_PCI_CAMQM		0x04800000UL
+#define QLA82XX_PCI_CAMQM_MAX		0x04ffffffUL
+#define QLA82XX_PCI_DDR_NET		0x00000000UL
+#define QLA82XX_PCI_QDR_NET		0x04000000UL
+#define QLA82XX_PCI_QDR_NET_MAX		0x043fffffUL
 
 /*
  *   Register offsets for MN

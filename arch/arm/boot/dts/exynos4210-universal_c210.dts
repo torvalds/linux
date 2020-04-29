@@ -24,8 +24,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
-		stdout-path = &serial_2;
+		bootargs = "root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+		stdout-path = "serial2:115200n8";
 	};
 
 
@@ -115,7 +115,7 @@
 		gpio-sck = <&gpy3 1 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpy3 3 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
-		cs-gpios = <&gpy4 3 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpy4 3 GPIO_ACTIVE_LOW>;
 
 		lcd@0 {
 			compatible = "samsung,ld9040";
@@ -124,8 +124,6 @@
 			vci-supply = <&ldo17_reg>;
 			reset-gpios = <&gpy4 5 GPIO_ACTIVE_HIGH>;
 			spi-max-frequency = <1200000>;
-			spi-cpol;
-			spi-cpha;
 			power-on-delay = <10>;
 			reset-delay = <10>;
 			panel-width-mm = <90>;
@@ -177,6 +175,20 @@
 	};
 };
 
+&amba {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
+};
+
 &camera {
 	status = "okay";
 
@@ -190,9 +202,8 @@
 
 &ehci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>;
+	phy-names = "host";
 };
 
 &exynos_usbphy {
@@ -246,6 +257,11 @@
 			remote-endpoint = <&lcd_ep>;
 		};
 	};
+};
+
+&gpu {
+	mali-supply = <&buck2_reg>;
+	status = "okay";
 };
 
 &hdmi {
@@ -310,6 +326,9 @@
 
 	pmic@66 {
 		compatible = "national,lp3974";
+		interrupts-extended = <&gpx0 7 0>, <&gpx2 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lp3974_irq>;
 		reg = <0x66>;
 
 		max8998,pmic-buck1-default-dvs-idx = <0>;
@@ -488,7 +507,8 @@
 };
 
 &mdma1 {
-	reg = <0x12840000 0x1000>;
+	/* Use the secure mdma0 */
+	status = "disabled";
 };
 
 &mixer {
@@ -497,12 +517,14 @@
 
 &ohci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
 };
 
 &pinctrl_1 {
+	lp3974_irq: lp3974-irq {
+		samsung,pins = "gpx0-7", "gpx2-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -537,8 +559,7 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo5_reg>;
-	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -567,16 +588,16 @@
 };
 
 &sysram {
-	smp-sysram@0 {
+	smp-sram@0 {
 		status = "disabled";
 	};
 
-	smp-sysram@5000 {
+	smp-sram@5000 {
 		compatible = "samsung,exynos4210-sysram";
 		reg = <0x5000 0x1000>;
 	};
 
-	smp-sysram@1f000 {
+	smp-sram@1f000 {
 		status = "disabled";
 	};
 };

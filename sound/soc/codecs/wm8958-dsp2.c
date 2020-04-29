@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8958-dsp2.c  --  WM8958 DSP2 support
  *
  * Copyright 2011 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -27,6 +24,8 @@
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/gpio.h>
+
+#include <asm/unaligned.h>
 
 #include "wm8994.h"
 
@@ -61,18 +60,15 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 	}
 
 	if (memcmp(fw->data, "WMFW", 4) != 0) {
-		memcpy(&data32, fw->data, sizeof(data32));
-		data32 = be32_to_cpu(data32);
+		data32 = get_unaligned_be32(fw->data);
 		dev_err(component->dev, "%s: firmware has bad file magic %08x\n",
 			name, data32);
 		goto err;
 	}
 
-	memcpy(&data32, fw->data + 4, sizeof(data32));
-	len = be32_to_cpu(data32);
+	len = get_unaligned_be32(fw->data + 4);
+	data32 = get_unaligned_be32(fw->data + 8);
 
-	memcpy(&data32, fw->data + 8, sizeof(data32));
-	data32 = be32_to_cpu(data32);
 	if ((data32 >> 24) & 0xff) {
 		dev_err(component->dev, "%s: unsupported firmware version %d\n",
 			name, (data32 >> 24) & 0xff);
@@ -90,9 +86,8 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 	}
 
 	if (check) {
-		memcpy(&data64, fw->data + 24, sizeof(u64));
-		dev_info(component->dev, "%s timestamp %llx\n",
-			 name, be64_to_cpu(data64));
+		data64 = get_unaligned_be64(fw->data + 24);
+		dev_info(component->dev, "%s timestamp %llx\n",  name, data64);
 	} else {
 		snd_soc_component_write(component, 0x102, 0x2);
 		snd_soc_component_write(component, 0x900, 0x2);
@@ -107,8 +102,7 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 			goto err;
 		}
 
-		memcpy(&data32, data + 4, sizeof(data32));
-		block_len = be32_to_cpu(data32);
+		block_len = get_unaligned_be32(data + 4);
 		if (block_len + 8 > len) {
 			dev_err(component->dev, "%zd byte block longer than file\n",
 				block_len);
@@ -119,8 +113,7 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 			goto err;
 		}
 
-		memcpy(&data32, data, sizeof(data32));
-		data32 = be32_to_cpu(data32);
+		data32 = get_unaligned_be32(data);
 
 		switch ((data32 >> 24) & 0xff) {
 		case WM_FW_BLOCK_INFO:
@@ -932,8 +925,9 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->mbc_texts = kmalloc(sizeof(char *)
-					    * pdata->num_mbc_cfgs, GFP_KERNEL);
+		wm8994->mbc_texts = kmalloc_array(pdata->num_mbc_cfgs,
+						  sizeof(char *),
+						  GFP_KERNEL);
 		if (!wm8994->mbc_texts)
 			return;
 
@@ -957,8 +951,9 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->vss_texts = kmalloc(sizeof(char *)
-					    * pdata->num_vss_cfgs, GFP_KERNEL);
+		wm8994->vss_texts = kmalloc_array(pdata->num_vss_cfgs,
+						  sizeof(char *),
+						  GFP_KERNEL);
 		if (!wm8994->vss_texts)
 			return;
 
@@ -983,8 +978,9 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->vss_hpf_texts = kmalloc(sizeof(char *)
-						* pdata->num_vss_hpf_cfgs, GFP_KERNEL);
+		wm8994->vss_hpf_texts = kmalloc_array(pdata->num_vss_hpf_cfgs,
+						      sizeof(char *),
+						      GFP_KERNEL);
 		if (!wm8994->vss_hpf_texts)
 			return;
 
@@ -1010,8 +1006,9 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->enh_eq_texts = kmalloc(sizeof(char *)
-						* pdata->num_enh_eq_cfgs, GFP_KERNEL);
+		wm8994->enh_eq_texts = kmalloc_array(pdata->num_enh_eq_cfgs,
+						     sizeof(char *),
+						     GFP_KERNEL);
 		if (!wm8994->enh_eq_texts)
 			return;
 

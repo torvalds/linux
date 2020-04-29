@@ -13,10 +13,15 @@ Optional properties:
  - linux,open-drain: if specified, the data pin is considered in
 		     open-drain mode.
 
+Also refer to the generic w1.txt document.
+
 Examples:
 
-	onewire@0 {
+	onewire {
 		compatible = "w1-gpio";
-		gpios = <&gpio 126 0>, <&gpio 105 0>;
-	};
+		gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
 
+		battery {
+			// ...
+		};
+	};

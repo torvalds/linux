@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-sony-decoder.c - handle Sony IR Pulse/Space protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
@@ -224,6 +216,7 @@ static struct ir_raw_handler sony_handler = {
 	.decode		= ir_sony_decode,
 	.encode		= ir_sony_encode,
 	.carrier	= 40000,
+	.min_timeout	= SONY_TRAILER_SPACE,
 };
 
 static int __init ir_sony_decode_init(void)

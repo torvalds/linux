@@ -146,7 +146,7 @@ static int pci_vpd_wait(struct pci_dev *dev)
 	if (!vpd->busy)
 		return 0;
 
-	while (time_before(jiffies, timeout)) {
+	do {
 		ret = pci_user_read_config_word(dev, vpd->cap + PCI_VPD_ADDR,
 						&status);
 		if (ret < 0)
@@ -160,10 +160,13 @@ static int pci_vpd_wait(struct pci_dev *dev)
 		if (fatal_signal_pending(current))
 			return -EINTR;
 
+		if (time_after(jiffies, timeout))
+			break;
+
 		usleep_range(10, max_sleep);
 		if (max_sleep < 1024)
 			max_sleep *= 2;
-	}
+	} while (true);
 
 	pci_warn(dev, "VPD access failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
 	return -ETIMEDOUT;
@@ -568,6 +571,12 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005f, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, PCI_ANY_ID,
 		quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
+/*
+ * The Amazon Annapurna Labs 0x0031 device id is reused for other non Root Port
+ * device types, so the quirk is registered for the PCI_CLASS_BRIDGE_PCI class.
+ */
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_blacklist_vpd);
 
 /*
  * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the

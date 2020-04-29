@@ -28,7 +28,7 @@ See: Documentation/devicetree/bindings/clock/clock-bindings.txt
 - pinctrl-names	: a pinctrl state named tsin%d-serial or tsin%d-parallel (where %d is tsin-num)
 		   must be defined for each tsin child node.
 - pinctrl-0	: phandle referencing pin configuration for this tsin configuration
-See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 
 Required properties (tsin (child) node):

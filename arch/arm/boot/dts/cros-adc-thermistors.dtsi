@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Thermistor dts fragment for devices that use Thermistors as
  * children of the IIO based ADC.
@@ -6,10 +7,6 @@
  * Exynos5800 based Peach PI.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 &adc {

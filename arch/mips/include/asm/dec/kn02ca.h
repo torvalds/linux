@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	include/asm-mips/dec/kn02ca.h
  *
  *	Personal DECstation 5000/xx (Maxine or KN02-CA) definitions.
  *
  *	Copyright (C) 2002, 2003  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_MIPS_DEC_KN02CA_H
 #define __ASM_MIPS_DEC_KN02CA_H

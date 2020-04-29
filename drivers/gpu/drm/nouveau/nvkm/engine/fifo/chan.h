@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FIFO_CHAN_H__
 #define __NVKM_FIFO_CHAN_H__
 #define nvkm_fifo_chan(p) container_of((p), struct nvkm_fifo_chan, object)
@@ -17,6 +17,7 @@ struct nvkm_fifo_chan_func {
 			    bool suspend);
 	int  (*object_ctor)(struct nvkm_fifo_chan *, struct nvkm_object *);
 	void (*object_dtor)(struct nvkm_fifo_chan *, int);
+	u32 (*submit_token)(struct nvkm_fifo_chan *);
 };
 
 int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,

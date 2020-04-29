@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for AMD InterWave soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  *   1999/07/22		Erik Inge Bolso <knan@mo.himolde.no>
  *			* mixer group handlers
- *
  */
 
 #include <linux/init.h>
@@ -379,7 +364,7 @@ struct rom_hdr {
 
 static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 {
-	static unsigned int lmc[13] =
+	static const unsigned int lmc[13] =
 	{
 		0x00000001, 0x00000101, 0x01010101, 0x00000401,
 		0x04040401, 0x00040101, 0x04040101, 0x00000004,
@@ -490,7 +475,7 @@ static void snd_interwave_init(int dev, struct snd_gus_card *gus)
 
 }
 
-static struct snd_kcontrol_new snd_interwave_controls[] = {
+static const struct snd_kcontrol_new snd_interwave_controls[] = {
 WSS_DOUBLE("Master Playback Switch", 0,
 		CS4231_LINE_LEFT_OUTPUT, CS4231_LINE_RIGHT_OUTPUT, 7, 7, 1, 1),
 WSS_DOUBLE("Master Playback Volume", 0,
@@ -682,6 +667,7 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	iwcard->irq = xirq;
+	card->sync_irq = iwcard->irq;
 
 	err = snd_wss_create(card,
 			     gus->gf1.port + 0x10c, -1, xirq,
@@ -802,8 +788,8 @@ static int snd_interwave_isa_probe(struct device *pdev,
 				   unsigned int dev)
 {
 	int err;
-	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
-	static int possible_dmas[] = {0, 1, 3, 5, 6, 7, -1};
+	static const int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
+	static const int possible_dmas[] = {0, 1, 3, 5, 6, 7, -1};
 
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
 		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
@@ -827,7 +813,7 @@ static int snd_interwave_isa_probe(struct device *pdev,
 	if (port[dev] != SNDRV_AUTO_PORT)
 		return snd_interwave_isa_probe1(dev, pdev);
 	else {
-		static long possible_ports[] = {0x210, 0x220, 0x230, 0x240, 0x250, 0x260};
+		static const long possible_ports[] = {0x210, 0x220, 0x230, 0x240, 0x250, 0x260};
 		int i;
 		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
 			port[dev] = possible_ports[i];

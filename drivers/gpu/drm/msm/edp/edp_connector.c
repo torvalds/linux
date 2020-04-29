@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "drm/drm_edid.h"
@@ -56,7 +48,7 @@ static int edp_connector_get_modes(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	drm_mode_connector_update_edid_property(connector, drm_edid);
+	drm_connector_update_edid_property(connector, drm_edid);
 	if (drm_edid)
 		ret = drm_add_edid_modes(connector, drm_edid);
 
@@ -134,7 +126,7 @@ struct drm_connector *msm_edp_connector_init(struct msm_edp *edp)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_mode_connector_attach_encoder(connector, edp->encoder);
+	drm_connector_attach_encoder(connector, edp->encoder);
 
 	return connector;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Flash memory interface rev.5 driver for the Intel
  * Flash chips used on the NetWinder.
@@ -167,7 +168,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 	if (count > gbFlashSize - p)
 		count = gbFlashSize - p;
 			
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/*
@@ -575,7 +576,7 @@ static const struct file_operations flash_fops =
 
 static struct miscdevice flash_miscdev =
 {
-	FLASH_MINOR,
+	NWFLASH_MINOR,
 	"nwflash",
 	&flash_fops
 };

@@ -70,7 +70,7 @@ xpc_get_rsvd_page_pa(int nasid)
 	unsigned long rp_pa = nasid;	/* seed with nasid */
 	size_t len = 0;
 	size_t buf_len = 0;
-	void *buf = buf;
+	void *buf = NULL;
 	void *buf_base = NULL;
 	enum xp_retval (*get_partition_rsvd_page_pa)
 		(void *, u64 *, unsigned long *, size_t *) =
@@ -93,13 +93,8 @@ xpc_get_rsvd_page_pa(int nasid)
 		if (ret != xpNeedMoreInfo)
 			break;
 
-		/* !!! L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
-		if (is_shub())
-			len = L1_CACHE_ALIGN(len);
-
 		if (len > buf_len) {
-			if (buf_base != NULL)
-				kfree(buf_base);
+			kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);
 			buf = xpc_kmalloc_cacheline_aligned(buf_len, GFP_KERNEL,
 							    &buf_base);
@@ -415,7 +410,6 @@ xpc_discovery(void)
 	int region_size;
 	int max_regions;
 	int nasid;
-	struct xpc_rsvd_page *rp;
 	unsigned long *discovered_nasids;
 	enum xp_retval ret;
 
@@ -425,14 +419,12 @@ xpc_discovery(void)
 	if (remote_rp == NULL)
 		return;
 
-	discovered_nasids = kzalloc(sizeof(long) * xpc_nasid_mask_nlongs,
+	discovered_nasids = kcalloc(xpc_nasid_mask_nlongs, sizeof(long),
 				    GFP_KERNEL);
 	if (discovered_nasids == NULL) {
 		kfree(remote_rp_base);
 		return;
 	}
-
-	rp = (struct xpc_rsvd_page *)xpc_rsvd_page;
 
 	/*
 	 * The term 'region' in this context refers to the minimum number of
@@ -449,12 +441,13 @@ xpc_discovery(void)
 		switch (region_size) {
 		case 128:
 			max_regions *= 2;
+			/* fall through */
 		case 64:
 			max_regions *= 2;
+			/* fall through */
 		case 32:
 			max_regions *= 2;
 			region_size = 16;
-			DBUG_ON(!is_shub2());
 		}
 	}
 

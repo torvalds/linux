@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Base driver for Maxim MAX8925
  *
  * Copyright (C) 2009-2010 Marvell International Ltd.
  *	Haojian Zhuang <haojian.zhuang@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -919,8 +916,3 @@ void max8925_device_exit(struct max8925_chip *chip)
 		free_irq(chip->tsc_irq, chip);
 	mfd_remove_devices(chip->dev);
 }
-
-
-MODULE_DESCRIPTION("PMIC Driver for Maxim MAX8925");
-MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com");
-MODULE_LICENSE("GPL");

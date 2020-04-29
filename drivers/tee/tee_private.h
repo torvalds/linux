@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016, Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef TEE_PRIVATE_H
 #define TEE_PRIVATE_H
@@ -46,7 +37,8 @@ struct tee_shm_pool {
  * @num_users:	number of active users of this device
  * @c_no_user:	completion used when unregistering the device
  * @mutex:	mutex protecting @num_users and @idr
- * @idr:	register of shared memory object allocated on this device
+ * @idr:	register of user space shared memory objects allocated or
+ *		registered on this device
  * @pool:	shared memory pool
  */
 struct tee_device {

@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config UDF_FS
 	tristate "UDF file system support"
 	select CRC_ITU_T
+	select NLS
 	help
 	  This is a file system used on some CD-ROMs and DVDs. Since the
 	  file system is supported by multiple operating systems and is more
@@ -13,8 +15,3 @@ config UDF_FS
 	  module will be called udf.
 
 	  If unsure, say N.
-
-config UDF_NLS
-	bool
-	default y
-	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)

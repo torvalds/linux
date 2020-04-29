@@ -8,7 +8,7 @@
 #include <linux/time.h>
 
 #ifdef CONFIG_DEBUG_FS
-extern void tk_debug_account_sleep_time(struct timespec64 *t);
+extern void tk_debug_account_sleep_time(const struct timespec64 *t);
 #else
 #define tk_debug_account_sleep_time(x)
 #endif
@@ -30,7 +30,5 @@ static inline u64 clocksource_delta(u64 now, u64 last, u64 mask)
 	return (now - last) & mask;
 }
 #endif
-
-extern time64_t __ktime_get_real_seconds(void);
 
 #endif /* _TIMEKEEPING_INTERNAL_H */

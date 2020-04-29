@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2013 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel MIC Host driver.
- *
  */
 #include <linux/fs.h>
 #include <linux/pci.h>
@@ -362,10 +350,10 @@ mic_x100_load_command_line(struct mic_device *mdev, const struct firmware *fw)
 	if (!buf)
 		return -ENOMEM;
 
-	len += snprintf(buf, CMDLINE_SIZE - len,
+	len += scnprintf(buf, CMDLINE_SIZE - len,
 		" mem=%dM", boot_mem);
 	if (mdev->cosm_dev->cmdline)
-		snprintf(buf + len, CMDLINE_SIZE - len, " %s",
+		scnprintf(buf + len, CMDLINE_SIZE - len, " %s",
 			 mdev->cosm_dev->cmdline);
 	memcpy_toio(cmd_line_va, buf, strlen(buf) + 1);
 	kfree(buf);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  toshiba_acpi.c - Toshiba Laptop ACPI Extras
  *
@@ -5,19 +6,6 @@
  *  Copyright (C) 2008 Philip Langdale
  *  Copyright (C) 2010 Pierre Ducroquet
  *  Copyright (C) 2014-2016 Azael Avalos
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  *
  *  The devolpment page for this driver is located at
  *  http://memebeam.org/toys/ToshibaAcpiDriver.
@@ -34,6 +22,7 @@
 #define TOSHIBA_ACPI_VERSION	"0.24"
 #define PROC_INTERFACE_VERSION	1
 
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1443,13 +1432,12 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations lcd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= lcd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= lcd_proc_write,
+static const struct proc_ops lcd_proc_ops = {
+	.proc_open	= lcd_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= lcd_proc_write,
 };
 
 /* Video-Out */
@@ -1550,13 +1538,12 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	return ret ? -EIO : count;
 }
 
-static const struct file_operations video_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= video_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= video_proc_write,
+static const struct proc_ops video_proc_ops = {
+	.proc_open	= video_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= video_proc_write,
 };
 
 /* Fan status */
@@ -1628,13 +1615,12 @@ static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations fan_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= fan_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= fan_proc_write,
+static const struct proc_ops fan_proc_ops = {
+	.proc_open	= fan_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= fan_proc_write,
 };
 
 static int keys_proc_show(struct seq_file *m, void *v)
@@ -1673,34 +1659,20 @@ static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations keys_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= keys_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= keys_proc_write,
+static const struct proc_ops keys_proc_ops = {
+	.proc_open	= keys_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= keys_proc_write,
 };
 
-static int version_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused version_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "driver:                  %s\n", TOSHIBA_ACPI_VERSION);
 	seq_printf(m, "proc_interface:          %d\n", PROC_INTERFACE_VERSION);
 	return 0;
 }
-
-static int version_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, version_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations version_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= version_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 /*
  * Proc and module init
@@ -1712,18 +1684,18 @@ static void create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
 	if (dev->backlight_dev)
 		proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &lcd_proc_fops, dev);
+				 &lcd_proc_ops, dev);
 	if (dev->video_supported)
 		proc_create_data("video", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &video_proc_fops, dev);
+				 &video_proc_ops, dev);
 	if (dev->fan_supported)
 		proc_create_data("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &fan_proc_fops, dev);
+				 &fan_proc_ops, dev);
 	if (dev->hotkey_dev)
 		proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &keys_proc_fops, dev);
-	proc_create_data("version", S_IRUGO, toshiba_proc_dir,
-			 &version_proc_fops, dev);
+				 &keys_proc_ops, dev);
+	proc_create_single_data("version", S_IRUGO, toshiba_proc_dir,
+			version_proc_show, dev);
 }
 
 static void remove_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
@@ -1849,6 +1821,7 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 			return ret;
 
 		toshiba->kbd_mode = mode;
+		toshiba_acpi->kbd_mode = mode;
 
 		/*
 		 * Some laptop models with the second generation backlit
@@ -1865,7 +1838,7 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 		 * event via genetlink.
 		 */
 		if (toshiba->kbd_type == 2 &&
-		    !toshiba_acpi->kbd_event_generated)
+		    !toshiba->kbd_event_generated)
 			schedule_work(&kbd_bl_work);
 	}
 
@@ -2426,16 +2399,21 @@ static const struct attribute_group toshiba_attr_group = {
 
 static void toshiba_acpi_kbd_bl_work(struct work_struct *work)
 {
-	struct acpi_device *acpi_dev = toshiba_acpi->acpi_dev;
-
 	/* Update the sysfs entries */
-	if (sysfs_update_group(&acpi_dev->dev.kobj,
+	if (sysfs_update_group(&toshiba_acpi->acpi_dev->dev.kobj,
 			       &toshiba_attr_group))
 		pr_err("Unable to update sysfs entries\n");
 
+	/* Notify LED subsystem about keyboard backlight change */
+	if (toshiba_acpi->kbd_type == 2 &&
+	    toshiba_acpi->kbd_mode != SCI_KBD_MODE_AUTO)
+		led_classdev_notify_brightness_hw_changed(&toshiba_acpi->kbd_led,
+				(toshiba_acpi->kbd_mode == SCI_KBD_MODE_ON) ?
+				LED_FULL : LED_OFF);
+
 	/* Emulate the keyboard backlight event */
-	acpi_bus_generate_netlink_event(acpi_dev->pnp.device_class,
-					dev_name(&acpi_dev->dev),
+	acpi_bus_generate_netlink_event(toshiba_acpi->acpi_dev->pnp.device_class,
+					dev_name(&toshiba_acpi->acpi_dev->dev),
 					0x92, 0);
 }
 
@@ -3132,9 +3110,12 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	/*
 	 * Only register the LED if KBD illumination is supported
 	 * and the keyboard backlight operation mode is set to FN-Z
+	 * or we detect a second gen keyboard backlight
 	 */
-	if (dev->kbd_illum_supported && dev->kbd_mode == SCI_KBD_MODE_FNZ) {
+	if (dev->kbd_illum_supported &&
+	    (dev->kbd_mode == SCI_KBD_MODE_FNZ || dev->kbd_type == 2)) {
 		dev->kbd_led.name = "toshiba::kbd_backlight";
+		dev->kbd_led.flags = LED_BRIGHT_HW_CHANGED;
 		dev->kbd_led.max_brightness = 1;
 		dev->kbd_led.brightness_set = toshiba_kbd_backlight_set;
 		dev->kbd_led.brightness_get = toshiba_kbd_backlight_get;
@@ -3250,11 +3231,16 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 		pr_info("SATA power event received %x\n", event);
 		break;
 	case 0x92: /* Keyboard backlight mode changed */
-		toshiba_acpi->kbd_event_generated = true;
+		dev->kbd_event_generated = true;
 		/* Update sysfs entries */
 		if (sysfs_update_group(&acpi_dev->dev.kobj,
 				       &toshiba_attr_group))
 			pr_err("Unable to update sysfs entries\n");
+		/* Notify LED subsystem about keyboard backlight change */
+		if (dev->kbd_type == 2 && dev->kbd_mode != SCI_KBD_MODE_AUTO)
+			led_classdev_notify_brightness_hw_changed(&dev->kbd_led,
+					(dev->kbd_mode == SCI_KBD_MODE_ON) ?
+					LED_FULL : LED_OFF);
 		break;
 	case 0x85: /* Unknown */
 	case 0x8d: /* Unknown */

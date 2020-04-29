@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-rc6-decoder.c - A decoder for the RC6 IR protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "rc-core-priv.h"
@@ -40,6 +32,8 @@
 #define RC6_6A_MCE_TOGGLE_MASK	0x8000	/* for the body bits */
 #define RC6_6A_LCC_MASK		0xffff0000 /* RC6-6A-32 long customer code mask */
 #define RC6_6A_MCE_CC		0x800f0000 /* MCE customer code */
+#define RC6_6A_ZOTAC_CC		0x80340000 /* Zotac customer code */
+#define RC6_6A_KATHREIN_CC	0x80460000 /* Kathrein RCU-676 customer code */
 #ifndef CHAR_BIT
 #define CHAR_BIT 8	/* Normally in <limits.h> */
 #endif
@@ -145,9 +139,6 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == RC6_HEADER_NBITS)
 			data->state = STATE_TOGGLE_START;
 		else
@@ -165,10 +156,6 @@ again:
 		return 0;
 
 	case STATE_TOGGLE_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev) ||
-		    !geq_margin(ev.duration, RC6_TOGGLE_END, RC6_UNIT / 2))
-			break;
-
 		if (!(data->header & RC6_STARTBIT_MASK)) {
 			dev_dbg(&dev->dev, "RC6 invalid start bit\n");
 			break;
@@ -210,9 +197,6 @@ again:
 		break;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == data->wanted_bits)
 			data->state = STATE_FINISHED;
 		else
@@ -252,13 +236,18 @@ again:
 				toggle = 0;
 				break;
 			case 32:
-				if ((scancode & RC6_6A_LCC_MASK) == RC6_6A_MCE_CC) {
+				switch (scancode & RC6_6A_LCC_MASK) {
+				case RC6_6A_MCE_CC:
+				case RC6_6A_KATHREIN_CC:
+				case RC6_6A_ZOTAC_CC:
 					protocol = RC_PROTO_RC6_MCE;
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;
-				} else {
+					break;
+				default:
 					protocol = RC_PROTO_RC6_6A_32;
 					toggle = 0;
+					break;
 				}
 				break;
 			default:
@@ -394,6 +383,7 @@ static struct ir_raw_handler rc6_handler = {
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
 	.carrier	= 36000,
+	.min_timeout	= RC6_SUFFIX_SPACE,
 };
 
 static int __init ir_rc6_decode_init(void)

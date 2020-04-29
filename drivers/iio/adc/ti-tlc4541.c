@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI tlc4541 ADC Driver
  *
@@ -6,10 +7,6 @@
  * Datasheets can be found here:
  * http://www.ti.com/lit/gpn/tlc3541
  * http://www.ti.com/lit/gpn/tlc4541
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The tlc4541 requires 24 clock cycles to start a transfer.
  * Conversion then takes 2.94us to complete before data is ready
@@ -192,7 +189,8 @@ static int tlc4541_probe(struct spi_device *spi)
 	/* Setup default message */
 	st->scan_single_xfer[0].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[0].len = 3;
-	st->scan_single_xfer[1].delay_usecs = 3;
+	st->scan_single_xfer[1].delay.value = 3;
+	st->scan_single_xfer[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 	st->scan_single_xfer[2].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[2].len = 2;
 

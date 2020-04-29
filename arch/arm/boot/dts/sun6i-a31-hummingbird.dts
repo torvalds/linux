@@ -86,31 +86,23 @@
 	vga-dac {
 		compatible = "dumb-vga-dac";
 		vdd-supply = <&reg_vga_3v3>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			port@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 
-				vga_dac_in: endpoint@0 {
-					reg = <0>;
+				vga_dac_in: endpoint {
 					remote-endpoint = <&tcon0_out_vga>;
 				};
 			};
 
 			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <1>;
 
-				vga_dac_out: endpoint@0 {
-					reg = <0>;
+				vga_dac_out: endpoint {
 					remote-endpoint = <&vga_con_in>;
 				};
 			};
@@ -160,17 +152,10 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>, <&gmac_phy_reset_pin_hummingbird>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
-	snps,reset-gpio = <&pio 0 21 GPIO_ACTIVE_HIGH>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 30000>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -184,21 +169,15 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	/* pull-ups and devices require AXP221 DLDO3 */
 	status = "failed";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	pcf8563: rtc@51 {
@@ -209,27 +188,27 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
 };
 
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		reset-gpios = <&pio 0 21 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+	};
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	/* external pull-ups missing for some pins */
-	bias-pull-up;
-};
-
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>, <&wifi_reset_pin_hummingbird>;
 	vmmc-supply = <&reg_aldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
@@ -239,24 +218,6 @@
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	gmac_phy_reset_pin_hummingbird: gmac_phy_reset_pin@0 {
-		pins = "PA21";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
-		pins = "PA8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	wifi_reset_pin_hummingbird: wifi_reset_pin@0 {
-		pins = "PG10";
-		function = "gpio_out";
-	};
 };
 
 &p2wi {
@@ -354,7 +315,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 
@@ -368,8 +329,8 @@
 };
 
 &usbphy {
-	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
-	usb0_vbus_det-gpio = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+	usb0_id_det-gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
+	usb0_vbus_det-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;

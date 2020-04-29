@@ -32,6 +32,7 @@
 #define __FSL_QMAN_H
 
 #include <linux/bitops.h>
+#include <linux/device.h>
 
 /* Hardware constants */
 #define QM_CHANNEL_SWPORTAL0 0
@@ -915,6 +916,16 @@ u16 qman_affine_channel(int cpu);
 struct qman_portal *qman_get_affine_portal(int cpu);
 
 /**
+ * qman_start_using_portal - register a device link for the portal user
+ * @p: the portal that will be in use
+ * @dev: the device that will use the portal
+ *
+ * Makes sure that the devices that use the portal are unbound when the
+ * portal is unbound
+ */
+int qman_start_using_portal(struct qman_portal *p, struct device *dev);
+
+/**
  * qman_p_poll_dqrr - process DQRR (fast-path) entries
  * @limit: the maximum number of DQRR entries to process
  *
@@ -1185,5 +1196,54 @@ int qman_alloc_cgrid_range(u32 *result, u32 count);
  * Returns 0 on success, or a negative error code.
  */
 int qman_release_cgrid(u32 id);
+
+/**
+ * qman_is_probed - Check if qman is probed
+ *
+ * Returns 1 if the qman driver successfully probed, -1 if the qman driver
+ * failed to probe or 0 if the qman driver did not probed yet.
+ */
+int qman_is_probed(void);
+
+/**
+ * qman_portals_probed - Check if all cpu bound qman portals are probed
+ *
+ * Returns 1 if all the required cpu bound qman portals successfully probed,
+ * -1 if probe errors appeared or 0 if the qman portals did not yet finished
+ * probing.
+ */
+int qman_portals_probed(void);
+
+/**
+ * qman_dqrr_get_ithresh - Get coalesce interrupt threshold
+ * @portal: portal to get the value for
+ * @ithresh: threshold pointer
+ */
+void qman_dqrr_get_ithresh(struct qman_portal *portal, u8 *ithresh);
+
+/**
+ * qman_dqrr_set_ithresh - Set coalesce interrupt threshold
+ * @portal: portal to set the new value on
+ * @ithresh: new threshold value
+ *
+ * Returns 0 on success, or a negative error code.
+ */
+int qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh);
+
+/**
+ * qman_dqrr_get_iperiod - Get coalesce interrupt period
+ * @portal: portal to get the value for
+ * @iperiod: period pointer
+ */
+void qman_portal_get_iperiod(struct qman_portal *portal, u32 *iperiod);
+
+/**
+ * qman_dqrr_set_iperiod - Set coalesce interrupt period
+ * @portal: portal to set the new value on
+ * @ithresh: new period value
+ *
+ * Returns 0 on success, or a negative error code.
+ */
+int qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod);
 
 #endif	/* __FSL_QMAN_H */

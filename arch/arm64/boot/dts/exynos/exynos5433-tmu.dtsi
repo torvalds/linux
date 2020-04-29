@@ -55,37 +55,44 @@ thermal-zones {
 			map0 {
 				/* Set maximum frequency as 1800MHz  */
 				trip = <&atlas0_alert_0>;
-				cooling-device = <&cpu4 1 2>;
+				cooling-device = <&cpu4 1 2>, <&cpu5 1 2>,
+						 <&cpu6 1 2>, <&cpu7 1 2>;
 			};
 			map1 {
 				/* Set maximum frequency as 1700MHz  */
 				trip = <&atlas0_alert_1>;
-				cooling-device = <&cpu4 2 3>;
+				cooling-device = <&cpu4 2 3>, <&cpu5 2 3>,
+						 <&cpu6 2 3>, <&cpu7 2 3>;
 			};
 			map2 {
 				/* Set maximum frequency as 1600MHz  */
 				trip = <&atlas0_alert_2>;
-				cooling-device = <&cpu4 3 4>;
+				cooling-device = <&cpu4 3 4>, <&cpu5 3 4>,
+						 <&cpu6 3 4>, <&cpu7 3 4>;
 			};
 			map3 {
 				/* Set maximum frequency as 1500MHz  */
 				trip = <&atlas0_alert_3>;
-				cooling-device = <&cpu4 4 5>;
+				cooling-device = <&cpu4 4 5>, <&cpu5 4 5>,
+						 <&cpu6 4 5>, <&cpu7 4 5>;
 			};
 			map4 {
 				/* Set maximum frequency as 1400MHz  */
 				trip = <&atlas0_alert_4>;
-				cooling-device = <&cpu4 5 7>;
+				cooling-device = <&cpu4 5 7>, <&cpu5 5 7>,
+						 <&cpu6 5 7>, <&cpu7 5 7>;
 			};
 			map5 {
 				/* Set maximum frequencyas 1200MHz  */
 				trip = <&atlas0_alert_5>;
-				cooling-device = <&cpu4 7 9>;
+				cooling-device = <&cpu4 7 9>, <&cpu5 7 9>,
+						 <&cpu6 7 9>, <&cpu7 7 9>;
 			};
 			map6 {
 				/* Set maximum frequency as 1000MHz  */
 				trip = <&atlas0_alert_6>;
-				cooling-device = <&cpu4 9 14>;
+				cooling-device = <&cpu4 9 14>, <&cpu5 9 14>,
+						 <&cpu6 9 14>, <&cpu7 9 14>;
 			};
 		};
 	};
@@ -222,27 +229,32 @@ thermal-zones {
 			map0 {
 				/* Set maximum frequency as 1200MHz  */
 				trip = <&apollo_alert_2>;
-				cooling-device = <&cpu0 1 2>;
+				cooling-device = <&cpu0 1 2>, <&cpu1 1 2>,
+						 <&cpu2 1 2>, <&cpu3 1 2>;
 			};
 			map1 {
 				/* Set maximum frequency as 1100MHz  */
 				trip = <&apollo_alert_3>;
-				cooling-device = <&cpu0 2 3>;
+				cooling-device = <&cpu0 2 3>, <&cpu1 2 3>,
+						 <&cpu2 2 3>, <&cpu3 2 3>;
 			};
 			map2 {
 				/* Set maximum frequency as 1000MHz  */
 				trip = <&apollo_alert_4>;
-				cooling-device = <&cpu0 3 4>;
+				cooling-device = <&cpu0 3 4>, <&cpu1 3 4>,
+						 <&cpu2 3 4>, <&cpu3 3 4>;
 			};
 			map3 {
 				/* Set maximum frequency as 900MHz  */
 				trip = <&apollo_alert_5>;
-				cooling-device = <&cpu0 4 5>;
+				cooling-device = <&cpu0 4 5>, <&cpu1 4 5>,
+						 <&cpu2 4 5>, <&cpu3 4 5>;
 			};
 			map4 {
 				/* Set maximum frequency as 800MHz  */
 				trip = <&apollo_alert_6>;
-				cooling-device = <&cpu0 5 9>;
+				cooling-device = <&cpu0 5 9>, <&cpu1 5 9>,
+						 <&cpu2 5 9>, <&cpu3 5 9>;
 			};
 		};
 	};

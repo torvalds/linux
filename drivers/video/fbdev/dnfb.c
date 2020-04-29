@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -107,7 +108,7 @@
 static int dnfb_blank(int blank, struct fb_info *info);
 static void dnfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 
-static struct fb_ops dn_fb_ops = {
+static const struct fb_ops dn_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_blank	= dnfb_blank,
 	.fb_fillrect	= cfb_fillrect,

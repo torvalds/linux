@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) AES GCM crypto API support
  *
  * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -45,7 +42,6 @@ static int ccp_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 		ctx->u.aes.type = CCP_AES_TYPE_256;
 		break;
 	default:
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -61,6 +57,19 @@ static int ccp_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 static int ccp_aes_gcm_setauthsize(struct crypto_aead *tfm,
 				   unsigned int authsize)
 {
+	switch (authsize) {
+	case 16:
+	case 15:
+	case 14:
+	case 13:
+	case 12:
+	case 8:
+	case 4:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -107,6 +116,7 @@ static int ccp_aes_gcm_crypt(struct aead_request *req, bool encrypt)
 	memset(&rctx->cmd, 0, sizeof(rctx->cmd));
 	INIT_LIST_HEAD(&rctx->cmd.entry);
 	rctx->cmd.engine = CCP_ENGINE_AES;
+	rctx->cmd.u.aes.authsize = crypto_aead_authsize(tfm);
 	rctx->cmd.u.aes.type = ctx->u.aes.type;
 	rctx->cmd.u.aes.mode = ctx->u.aes.mode;
 	rctx->cmd.u.aes.action = encrypt;
@@ -161,14 +171,12 @@ static struct aead_alg ccp_aes_gcm_defaults = {
 	.ivsize = GCM_AES_IV_SIZE,
 	.maxauthsize = AES_BLOCK_SIZE,
 	.base = {
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
+		.cra_flags	= CRYPTO_ALG_ASYNC |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize	= AES_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct ccp_ctx),
 		.cra_priority	= CCP_CRA_PRIORITY,
-		.cra_type	= &crypto_ablkcipher_type,
 		.cra_exit	= ccp_aes_gcm_cra_exit,
 		.cra_module	= THIS_MODULE,
 	},
@@ -218,11 +226,10 @@ static int ccp_register_aes_aead(struct list_head *head,
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->driver_name);
 	alg->base.cra_blocksize = def->blocksize;
-	alg->base.cra_ablkcipher.ivsize = def->ivsize;
 
 	ret = crypto_register_aead(alg);
 	if (ret) {
-		pr_err("%s ablkcipher algorithm registration error (%d)\n",
+		pr_err("%s aead algorithm registration error (%d)\n",
 		       alg->base.cra_name, ret);
 		kfree(ccp_aead);
 		return ret;

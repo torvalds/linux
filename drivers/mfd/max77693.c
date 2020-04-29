@@ -1,27 +1,13 @@
-/*
- * max77693.c - mfd core driver for the MAX 77693
- *
- * Copyright (C) 2012 Samsung Electronics
- * SangYoung Son <hello.son@samsung.com>
- *
- * This program is not provided / owned by Maxim Integrated Products.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * This driver is based on max8997.c
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max77693.c - mfd core driver for the MAX 77693
+//
+// Copyright (C) 2012 Samsung Electronics
+// SangYoung Son <hello.son@samsung.com>
+//
+// This program is not provided / owned by Maxim Integrated Products.
+//
+// This driver is based on max8997.c
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -197,17 +183,17 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	} else
 		dev_info(max77693->dev, "device ID: 0x%x\n", reg_data);
 
-	max77693->i2c_muic = i2c_new_dummy(i2c->adapter, I2C_ADDR_MUIC);
-	if (!max77693->i2c_muic) {
+	max77693->i2c_muic = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_MUIC);
+	if (IS_ERR(max77693->i2c_muic)) {
 		dev_err(max77693->dev, "Failed to allocate I2C device for MUIC\n");
-		return -ENODEV;
+		return PTR_ERR(max77693->i2c_muic);
 	}
 	i2c_set_clientdata(max77693->i2c_muic, max77693);
 
-	max77693->i2c_haptic = i2c_new_dummy(i2c->adapter, I2C_ADDR_HAPTIC);
-	if (!max77693->i2c_haptic) {
+	max77693->i2c_haptic = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_HAPTIC);
+	if (IS_ERR(max77693->i2c_haptic)) {
 		dev_err(max77693->dev, "Failed to allocate I2C device for Haptic\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(max77693->i2c_haptic);
 		goto err_i2c_haptic;
 	}
 	i2c_set_clientdata(max77693->i2c_haptic, max77693);

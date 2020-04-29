@@ -24,7 +24,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "nouveau_drv.h"
@@ -36,7 +35,8 @@
 
 #include <subdev/bios/gpio.h>
 #include <subdev/gpio.h>
-#include <subdev/timer.h>
+
+#include <nvif/timer.h>
 
 int nv04_dac_output_offset(struct drm_encoder *encoder)
 {
@@ -556,6 +556,6 @@ nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

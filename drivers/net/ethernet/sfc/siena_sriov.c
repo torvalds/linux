@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2010-2012 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "efx_channels.h"
 #include "nic.h"
 #include "io.h"
 #include "mcdi.h"

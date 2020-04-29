@@ -9,14 +9,18 @@
 #include <linux/debugfs.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -330,7 +334,6 @@ static void hdmi_infoframe_reset(struct sti_hdmi *hdmi,
  * Helper to concatenate infoframe in 32 bits word
  *
  * @ptr: pointer on the hdmi internal structure
- * @data: infoframe to write
  * @size: size to write
  */
 static inline unsigned int hdmi_infoframe_subpack(const u8 *ptr, size_t size)
@@ -434,7 +437,8 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe,
+						       hdmi->drm_connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", ret);
 		return ret;
@@ -539,13 +543,14 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 	return 0;
 }
 
+#define HDMI_TIMEOUT_SWRESET  100   /*milliseconds */
+
 /**
  * Software reset of the hdmi subsystem
  *
  * @hdmi: pointer on the hdmi internal structure
  *
  */
-#define HDMI_TIMEOUT_SWRESET  100   /*milliseconds */
 static void hdmi_swreset(struct sti_hdmi *hdmi)
 {
 	u32 val;
@@ -845,10 +850,13 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	switch (info->channels) {
 	case 8:
 		audio_cfg |= HDMI_AUD_CFG_CH78_VALID;
+		/* fall through */
 	case 6:
 		audio_cfg |= HDMI_AUD_CFG_CH56_VALID;
+		/* fall through */
 	case 4:
 		audio_cfg |= HDMI_AUD_CFG_CH34_VALID | HDMI_AUD_CFG_8CH;
+		/* fall through */
 	case 2:
 		audio_cfg |= HDMI_AUD_CFG_CH12_VALID;
 		break;
@@ -917,8 +925,8 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 }
 
 static void sti_hdmi_set_mode(struct drm_bridge *bridge,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+			      const struct drm_display_mode *mode,
+			      const struct drm_display_mode *adjusted_mode)
 {
 	struct sti_hdmi *hdmi = bridge->driver_private;
 	int ret;
@@ -977,7 +985,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	cec_notifier_set_phys_addr_from_edid(hdmi->notifier, edid);
 
 	count = drm_add_edid_modes(connector, edid);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	kfree(edid);
 	return count;
@@ -1249,6 +1257,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder;
 	struct sti_hdmi_connector *connector;
+	struct cec_connector_info conn_info;
 	struct drm_connector *drm_connector;
 	struct drm_bridge *bridge;
 	int err;
@@ -1272,7 +1281,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hdmi;
 	bridge->funcs = &sti_hdmi_bridge_funcs;
-	drm_bridge_attach(encoder, bridge, NULL);
+	drm_bridge_attach(encoder, bridge, NULL, 0);
 
 	connector->encoder = encoder;
 
@@ -1280,8 +1289,10 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	drm_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	drm_connector_init(drm_dev, drm_connector,
-			&sti_hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm_dev, drm_connector,
+				    &sti_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc_adapt);
 	drm_connector_helper_add(drm_connector,
 			&sti_hdmi_connector_helper_funcs);
 
@@ -1290,7 +1301,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi->drm_connector = drm_connector;
 
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;
@@ -1309,13 +1320,20 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 		goto err_sysfs;
 	}
 
+	cec_fill_conn_info_from_drm(&conn_info, drm_connector);
+	hdmi->notifier = cec_notifier_conn_register(&hdmi->dev, NULL,
+						    &conn_info);
+	if (!hdmi->notifier) {
+		hdmi->drm_connector = NULL;
+		return -ENOMEM;
+	}
+
 	/* Enable default interrupts */
 	hdmi_write(hdmi, HDMI_DEFAULT_INT, HDMI_INT_EN);
 
 	return 0;
 
 err_sysfs:
-	drm_bridge_remove(bridge);
 	hdmi->drm_connector = NULL;
 	return -EINVAL;
 }
@@ -1323,6 +1341,9 @@ err_sysfs:
 static void sti_hdmi_unbind(struct device *dev,
 		struct device *master, void *data)
 {
+	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
+
+	cec_notifier_conn_unregister(hdmi->notifier);
 }
 
 static const struct component_ops sti_hdmi_ops = {
@@ -1372,7 +1393,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto release_adapter;
 	}
-	hdmi->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	hdmi->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!hdmi->regs) {
 		ret = -ENOMEM;
 		goto release_adapter;
@@ -1428,10 +1449,6 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		goto release_adapter;
 	}
 
-	hdmi->notifier = cec_notifier_get(&pdev->dev);
-	if (!hdmi->notifier)
-		goto release_adapter;
-
 	hdmi->reset = devm_reset_control_get(dev, "hdmi");
 	/* Take hdmi out of reset */
 	if (!IS_ERR(hdmi->reset))
@@ -1451,14 +1468,11 @@ static int sti_hdmi_remove(struct platform_device *pdev)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
-	cec_notifier_set_phys_addr(hdmi->notifier, CEC_PHYS_ADDR_INVALID);
-
 	i2c_put_adapter(hdmi->ddc_adapt);
 	if (hdmi->audio_pdev)
 		platform_device_unregister(hdmi->audio_pdev);
 	component_del(&pdev->dev, &sti_hdmi_ops);
 
-	cec_notifier_put(hdmi->notifier);
 	return 0;
 }
 

@@ -40,6 +40,9 @@ struct cstate_pstate_watermarks_st {
 struct dcn_watermarks {
 	uint32_t pte_meta_urgent_ns;
 	uint32_t urgent_ns;
+	uint32_t frac_urg_bw_nom;
+	uint32_t frac_urg_bw_flip;
+	int32_t urgent_latency_ns;
 	struct cstate_pstate_watermarks_st cstate_pstate;
 };
 
@@ -64,7 +67,7 @@ struct stutter_modes {
 };
 
 struct mem_input {
-	struct mem_input_funcs *funcs;
+	const struct mem_input_funcs *funcs;
 	struct dc_context *ctx;
 	struct dc_plane_address request_address;
 	struct dc_plane_address current_address;
@@ -104,6 +107,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		struct dce_watermarks nbp,
 		struct dce_watermarks stutter,
+		struct dce_watermarks stutter_enter,
 		struct dce_watermarks urgent,
 		uint32_t total_dest_line_time_ns);
 
@@ -148,7 +152,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror);

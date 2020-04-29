@@ -1,26 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #include "igb.h"
 #include "e1000_82575.h"
@@ -219,11 +198,11 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	}
 
 	/* init i2c_client */
-	client = i2c_new_device(&adapter->i2c_adap, &i350_sensor_info);
-	if (client == NULL) {
+	client = i2c_new_client_device(&adapter->i2c_adap, &i350_sensor_info);
+	if (IS_ERR(client)) {
 		dev_info(&adapter->pdev->dev,
 			 "Failed to create new i2c device.\n");
-		rc = -ENODEV;
+		rc = PTR_ERR(client);
 		goto exit;
 	}
 	adapter->i2c_client = client;

@@ -50,6 +50,26 @@ struct smc_wr_tx_pend {	/* control data for a pending send request */
 
 /*------------------------------- completion --------------------------------*/
 
+/* returns true if at least one tx work request is pending on the given link */
+static inline bool smc_wr_is_tx_pend(struct smc_link *link)
+{
+	if (find_first_bit(link->wr_tx_mask, link->wr_tx_cnt) !=
+							link->wr_tx_cnt) {
+		return true;
+	}
+	return false;
+}
+
+/* wait till all pending tx work requests on the given link are completed */
+static inline int smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
+{
+	if (wait_event_timeout(link->wr_tx_wait, !smc_wr_is_tx_pend(link),
+			       SMC_WR_TX_WAIT_PENDING_TIME))
+		return 0;
+	else /* timeout */
+		return -EPIPE;
+}
+
 static inline int smc_wr_tx_find_pending_index(struct smc_link *link, u64 wr_id)
 {
 	u32 i;
@@ -75,7 +95,7 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 			link->wr_reg_state = FAILED;
 		else
 			link->wr_reg_state = CONFIRMED;
-		wake_up(&link->wr_reg_wait);
+		smc_wr_wakeup_reg_wait(link);
 		return;
 	}
 
@@ -92,8 +112,6 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	if (!test_and_clear_bit(pnd_snd_idx, link->wr_tx_mask))
 		return;
 	if (wc->status) {
-		struct smc_link_group *lgr;
-
 		for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
 			/* clear full struct smc_wr_tx_pend including .priv */
 			memset(&link->wr_tx_pends[i], 0,
@@ -103,9 +121,7 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 			clear_bit(i, link->wr_tx_mask);
 		}
 		/* terminate connections of this link group abnormally */
-		lgr = container_of(link, struct smc_link_group,
-				   lnk[SMC_SINGLE_LINK]);
-		smc_lgr_terminate(lgr);
+		smc_lgr_terminate_sched(smc_get_lgr(link));
 	}
 	if (pnd_snd.handler)
 		pnd_snd.handler(&pnd_snd.priv, link, wc->status);
@@ -164,6 +180,7 @@ static inline int smc_wr_tx_get_free_slot_index(struct smc_link *link, u32 *idx)
  * @link:		Pointer to smc_link used to later send the message.
  * @handler:		Send completion handler function pointer.
  * @wr_buf:		Out value returns pointer to message buffer.
+ * @wr_rdma_buf:	Out value returns pointer to rdma work request.
  * @wr_pend_priv:	Out value returns pointer serving as handler context.
  *
  * Return: 0 on success, or -errno on error.
@@ -171,8 +188,10 @@ static inline int smc_wr_tx_get_free_slot_index(struct smc_link *link, u32 *idx)
 int smc_wr_tx_get_free_slot(struct smc_link *link,
 			    smc_wr_tx_handler handler,
 			    struct smc_wr_buf **wr_buf,
+			    struct smc_rdma_wr **wr_rdma_buf,
 			    struct smc_wr_tx_pend_priv **wr_pend_priv)
 {
+	struct smc_link_group *lgr = smc_get_lgr(link);
 	struct smc_wr_tx_pend *wr_pend;
 	u32 idx = link->wr_tx_cnt;
 	struct ib_send_wr *wr_ib;
@@ -181,23 +200,20 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 
 	*wr_buf = NULL;
 	*wr_pend_priv = NULL;
-	if (in_softirq()) {
+	if (in_softirq() || lgr->terminating) {
 		rc = smc_wr_tx_get_free_slot_index(link, &idx);
 		if (rc)
 			return rc;
 	} else {
-		struct smc_link_group *lgr;
-
-		lgr = container_of(link, struct smc_link_group,
-				   lnk[SMC_SINGLE_LINK]);
-		rc = wait_event_timeout(
+		rc = wait_event_interruptible_timeout(
 			link->wr_tx_wait,
-			list_empty(&lgr->list) || /* lgr terminated */
+			link->state == SMC_LNK_INACTIVE ||
+			lgr->terminating ||
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
 		if (!rc) {
 			/* timeout - terminate connections */
-			smc_lgr_terminate(lgr);
+			smc_lgr_terminate_sched(lgr);
 			return -EPIPE;
 		}
 		if (idx == link->wr_tx_cnt)
@@ -212,6 +228,8 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 	wr_ib = &link->wr_tx_ibs[idx];
 	wr_ib->wr_id = wr_id;
 	*wr_buf = &link->wr_tx_bufs[idx];
+	if (wr_rdma_buf)
+		*wr_rdma_buf = &link->wr_tx_rdmas[idx];
 	*wr_pend_priv = &wr_pend->priv;
 	return 0;
 }
@@ -223,12 +241,15 @@ int smc_wr_tx_put_slot(struct smc_link *link,
 
 	pend = container_of(wr_pend_priv, struct smc_wr_tx_pend, priv);
 	if (pend->idx < link->wr_tx_cnt) {
+		u32 idx = pend->idx;
+
 		/* clear the full struct smc_wr_tx_pend including .priv */
-		memset(&link->wr_tx_pends[pend->idx], 0,
-		       sizeof(link->wr_tx_pends[pend->idx]));
-		memset(&link->wr_tx_bufs[pend->idx], 0,
-		       sizeof(link->wr_tx_bufs[pend->idx]));
-		test_and_clear_bit(pend->idx, link->wr_tx_mask);
+		memset(&link->wr_tx_pends[idx], 0,
+		       sizeof(link->wr_tx_pends[idx]));
+		memset(&link->wr_tx_bufs[idx], 0,
+		       sizeof(link->wr_tx_bufs[idx]));
+		test_and_clear_bit(idx, link->wr_tx_mask);
+		wake_up(&link->wr_tx_wait);
 		return 1;
 	}
 
@@ -240,22 +261,16 @@ int smc_wr_tx_put_slot(struct smc_link *link,
  */
 int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 {
-	struct ib_send_wr *failed_wr = NULL;
 	struct smc_wr_tx_pend *pend;
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
-	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
-			  &failed_wr);
+	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx], NULL);
 	if (rc) {
-		struct smc_link_group *lgr =
-			container_of(link, struct smc_link_group,
-				     lnk[SMC_SINGLE_LINK]);
-
 		smc_wr_tx_put_slot(link, priv);
-		smc_lgr_terminate(lgr);
+		smc_lgr_terminate_sched(smc_get_lgr(link));
 	}
 	return rc;
 }
@@ -263,7 +278,6 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 /* Register a memory region and wait for result. */
 int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 {
-	struct ib_send_wr *failed_wr = NULL;
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
@@ -272,9 +286,7 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 	link->wr_reg.wr.wr_id = (u64)(uintptr_t)mr;
 	link->wr_reg.mr = mr;
 	link->wr_reg.key = mr->rkey;
-	failed_wr = &link->wr_reg.wr;
-	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, &failed_wr);
-	WARN_ON(failed_wr != &link->wr_reg.wr);
+	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, NULL);
 	if (rc)
 		return rc;
 
@@ -283,11 +295,7 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 					      SMC_WR_REG_MR_WAIT_TIME);
 	if (!rc) {
 		/* timeout - terminate connections */
-		struct smc_link_group *lgr;
-
-		lgr = container_of(link, struct smc_link_group,
-				   lnk[SMC_SINGLE_LINK]);
-		smc_lgr_terminate(lgr);
+		smc_lgr_terminate_sched(smc_get_lgr(link));
 		return -EPIPE;
 	}
 	if (rc == -ERESTARTSYS)
@@ -376,11 +384,10 @@ static inline void smc_wr_rx_process_cqes(struct ib_wc wc[], int num)
 	for (i = 0; i < num; i++) {
 		link = wc[i].qp->qp_context;
 		if (wc[i].status == IB_WC_SUCCESS) {
+			link->wr_rx_tstamp = jiffies;
 			smc_wr_rx_demultiplex(&wc[i]);
 			smc_wr_rx_post(link); /* refill WR RX */
 		} else {
-			struct smc_link_group *lgr;
-
 			/* handle status errors */
 			switch (wc[i].status) {
 			case IB_WC_RETRY_EXC_ERR:
@@ -389,9 +396,7 @@ static inline void smc_wr_rx_process_cqes(struct ib_wc wc[], int num)
 				/* terminate connections of this link group
 				 * abnormally
 				 */
-				lgr = container_of(link, struct smc_link_group,
-						   lnk[SMC_SINGLE_LINK]);
-				smc_lgr_terminate(lgr);
+				smc_lgr_terminate_sched(smc_get_lgr(link));
 				break;
 			default:
 				smc_wr_rx_post(link); /* refill WR RX */
@@ -487,12 +492,26 @@ static void smc_wr_init_sge(struct smc_link *lnk)
 			lnk->wr_tx_dma_addr + i * SMC_WR_BUF_SIZE;
 		lnk->wr_tx_sges[i].length = SMC_WR_TX_SIZE;
 		lnk->wr_tx_sges[i].lkey = lnk->roce_pd->local_dma_lkey;
+		lnk->wr_tx_rdma_sges[i].tx_rdma_sge[0].wr_tx_rdma_sge[0].lkey =
+			lnk->roce_pd->local_dma_lkey;
+		lnk->wr_tx_rdma_sges[i].tx_rdma_sge[0].wr_tx_rdma_sge[1].lkey =
+			lnk->roce_pd->local_dma_lkey;
+		lnk->wr_tx_rdma_sges[i].tx_rdma_sge[1].wr_tx_rdma_sge[0].lkey =
+			lnk->roce_pd->local_dma_lkey;
+		lnk->wr_tx_rdma_sges[i].tx_rdma_sge[1].wr_tx_rdma_sge[1].lkey =
+			lnk->roce_pd->local_dma_lkey;
 		lnk->wr_tx_ibs[i].next = NULL;
 		lnk->wr_tx_ibs[i].sg_list = &lnk->wr_tx_sges[i];
 		lnk->wr_tx_ibs[i].num_sge = 1;
 		lnk->wr_tx_ibs[i].opcode = IB_WR_SEND;
 		lnk->wr_tx_ibs[i].send_flags =
 			IB_SEND_SIGNALED | IB_SEND_SOLICITED;
+		lnk->wr_tx_rdmas[i].wr_tx_rdma[0].wr.opcode = IB_WR_RDMA_WRITE;
+		lnk->wr_tx_rdmas[i].wr_tx_rdma[1].wr.opcode = IB_WR_RDMA_WRITE;
+		lnk->wr_tx_rdmas[i].wr_tx_rdma[0].wr.sg_list =
+			lnk->wr_tx_rdma_sges[i].tx_rdma_sge[0].wr_tx_rdma_sge;
+		lnk->wr_tx_rdmas[i].wr_tx_rdma[1].wr.sg_list =
+			lnk->wr_tx_rdma_sges[i].tx_rdma_sge[1].wr_tx_rdma_sge;
 	}
 	for (i = 0; i < lnk->wr_rx_cnt; i++) {
 		lnk->wr_rx_sges[i].addr =
@@ -514,8 +533,10 @@ void smc_wr_free_link(struct smc_link *lnk)
 {
 	struct ib_device *ibdev;
 
-	memset(lnk->wr_tx_mask, 0,
-	       BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*lnk->wr_tx_mask));
+	if (smc_wr_tx_wait_no_pending_sends(lnk))
+		memset(lnk->wr_tx_mask, 0,
+		       BITS_TO_LONGS(SMC_WR_BUF_CNT) *
+						sizeof(*lnk->wr_tx_mask));
 
 	if (!lnk->smcibdev)
 		return;
@@ -543,8 +564,12 @@ void smc_wr_free_link_mem(struct smc_link *lnk)
 	lnk->wr_tx_mask = NULL;
 	kfree(lnk->wr_tx_sges);
 	lnk->wr_tx_sges = NULL;
+	kfree(lnk->wr_tx_rdma_sges);
+	lnk->wr_tx_rdma_sges = NULL;
 	kfree(lnk->wr_rx_sges);
 	lnk->wr_rx_sges = NULL;
+	kfree(lnk->wr_tx_rdmas);
+	lnk->wr_tx_rdmas = NULL;
 	kfree(lnk->wr_rx_ibs);
 	lnk->wr_rx_ibs = NULL;
 	kfree(lnk->wr_tx_ibs);
@@ -574,18 +599,28 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				  GFP_KERNEL);
 	if (!link->wr_rx_ibs)
 		goto no_mem_wr_tx_ibs;
+	link->wr_tx_rdmas = kcalloc(SMC_WR_BUF_CNT,
+				    sizeof(link->wr_tx_rdmas[0]),
+				    GFP_KERNEL);
+	if (!link->wr_tx_rdmas)
+		goto no_mem_wr_rx_ibs;
+	link->wr_tx_rdma_sges = kcalloc(SMC_WR_BUF_CNT,
+					sizeof(link->wr_tx_rdma_sges[0]),
+					GFP_KERNEL);
+	if (!link->wr_tx_rdma_sges)
+		goto no_mem_wr_tx_rdmas;
 	link->wr_tx_sges = kcalloc(SMC_WR_BUF_CNT, sizeof(link->wr_tx_sges[0]),
 				   GFP_KERNEL);
 	if (!link->wr_tx_sges)
-		goto no_mem_wr_rx_ibs;
+		goto no_mem_wr_tx_rdma_sges;
 	link->wr_rx_sges = kcalloc(SMC_WR_BUF_CNT * 3,
 				   sizeof(link->wr_rx_sges[0]),
 				   GFP_KERNEL);
 	if (!link->wr_rx_sges)
 		goto no_mem_wr_tx_sges;
-	link->wr_tx_mask = kzalloc(
-		BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*link->wr_tx_mask),
-		GFP_KERNEL);
+	link->wr_tx_mask = kcalloc(BITS_TO_LONGS(SMC_WR_BUF_CNT),
+				   sizeof(*link->wr_tx_mask),
+				   GFP_KERNEL);
 	if (!link->wr_tx_mask)
 		goto no_mem_wr_rx_sges;
 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,
@@ -601,6 +636,10 @@ no_mem_wr_rx_sges:
 	kfree(link->wr_rx_sges);
 no_mem_wr_tx_sges:
 	kfree(link->wr_tx_sges);
+no_mem_wr_tx_rdma_sges:
+	kfree(link->wr_tx_rdma_sges);
+no_mem_wr_tx_rdmas:
+	kfree(link->wr_tx_rdmas);
 no_mem_wr_rx_ibs:
 	kfree(link->wr_rx_ibs);
 no_mem_wr_tx_ibs:

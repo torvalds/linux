@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 VanguardiaSur - www.vanguardiasur.com.ar
  *
@@ -7,10 +8,6 @@
  * Based on:
  * Driver for Intersil|Techwell TW6869 based DVR cards
  * (c) 2011-12 liran <jli11@intersil.com> [Intersil|Techwell China]
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -79,17 +76,6 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		ac->ptr = done->dma - ac->buf[0].dma;
 		snd_pcm_period_elapsed(ac->ss);
 	}
-}
-
-static int tw686x_pcm_hw_params(struct snd_pcm_substream *ss,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw_params));
-}
-
-static int tw686x_pcm_hw_free(struct snd_pcm_substream *ss)
-{
-	return snd_pcm_lib_free_pages(ss);
 }
 
 /*
@@ -272,9 +258,6 @@ static snd_pcm_uframes_t tw686x_pcm_pointer(struct snd_pcm_substream *ss)
 static const struct snd_pcm_ops tw686x_pcm_ops = {
 	.open = tw686x_pcm_open,
 	.close = tw686x_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = tw686x_pcm_hw_params,
-	.hw_free = tw686x_pcm_hw_free,
 	.prepare = tw686x_pcm_prepare,
 	.trigger = tw686x_pcm_trigger,
 	.pointer = tw686x_pcm_pointer,
@@ -295,17 +278,18 @@ static int tw686x_snd_pcm_init(struct tw686x_dev *dev)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &tw686x_pcm_ops);
 	snd_pcm_chip(pcm) = dev;
 	pcm->info_flags = 0;
-	strlcpy(pcm->name, "tw686x PCM", sizeof(pcm->name));
+	strscpy(pcm->name, "tw686x PCM", sizeof(pcm->name));
 
 	for (i = 0, ss = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	     ss; ss = ss->next, i++)
 		snprintf(ss->name, sizeof(ss->name), "vch%u audio", i);
 
-	return snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 				SNDRV_DMA_TYPE_DEV,
-				snd_dma_pci_data(dev->pci_dev),
+				&dev->pci_dev->dev,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX);
+	return 0;
 }
 
 static void tw686x_audio_dma_free(struct tw686x_dev *dev,
@@ -390,9 +374,9 @@ int tw686x_audio_init(struct tw686x_dev *dev)
 		return err;
 
 	dev->snd_card = card;
-	strlcpy(card->driver, "tw686x", sizeof(card->driver));
-	strlcpy(card->shortname, "tw686x", sizeof(card->shortname));
-	strlcpy(card->longname, pci_name(pci_dev), sizeof(card->longname));
+	strscpy(card->driver, "tw686x", sizeof(card->driver));
+	strscpy(card->shortname, "tw686x", sizeof(card->shortname));
+	strscpy(card->longname, pci_name(pci_dev), sizeof(card->longname));
 	snd_card_set_dev(card, &pci_dev->dev);
 
 	for (ch = 0; ch < max_channels(dev); ch++) {

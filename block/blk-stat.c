@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Block stat tracking code
  *
@@ -17,7 +18,7 @@ struct blk_queue_stats {
 	bool enable_accounting;
 };
 
-static void blk_stat_init(struct blk_rq_stat *stat)
+void blk_rq_stat_init(struct blk_rq_stat *stat)
 {
 	stat->min = -1ULL;
 	stat->max = stat->nr_samples = stat->mean = 0;
@@ -25,7 +26,7 @@ static void blk_stat_init(struct blk_rq_stat *stat)
 }
 
 /* src is a per-cpu stat, mean isn't initialized */
-static void blk_stat_sum(struct blk_rq_stat *dst, struct blk_rq_stat *src)
+void blk_rq_stat_sum(struct blk_rq_stat *dst, struct blk_rq_stat *src)
 {
 	if (!src->nr_samples)
 		return;
@@ -39,7 +40,7 @@ static void blk_stat_sum(struct blk_rq_stat *dst, struct blk_rq_stat *src)
 	dst->nr_samples += src->nr_samples;
 }
 
-static void __blk_stat_add(struct blk_rq_stat *stat, u64 value)
+void blk_rq_stat_add(struct blk_rq_stat *stat, u64 value)
 {
 	stat->min = min(stat->min, value);
 	stat->max = max(stat->max, value);
@@ -47,23 +48,20 @@ static void __blk_stat_add(struct blk_rq_stat *stat, u64 value)
 	stat->nr_samples++;
 }
 
-void blk_stat_add(struct request *rq)
+void blk_stat_add(struct request *rq, u64 now)
 {
 	struct request_queue *q = rq->q;
 	struct blk_stat_callback *cb;
 	struct blk_rq_stat *stat;
-	int bucket;
-	u64 now, value;
+	int bucket, cpu;
+	u64 value;
 
-	now = __blk_stat_time(ktime_to_ns(ktime_get()));
-	if (now < blk_stat_time(&rq->issue_stat))
-		return;
-
-	value = now - blk_stat_time(&rq->issue_stat);
+	value = (now >= rq->io_start_time_ns) ? now - rq->io_start_time_ns : 0;
 
 	blk_throtl_stat_add(rq, value);
 
 	rcu_read_lock();
+	cpu = get_cpu();
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
 		if (!blk_stat_is_active(cb))
 			continue;
@@ -72,10 +70,10 @@ void blk_stat_add(struct request *rq)
 		if (bucket < 0)
 			continue;
 
-		stat = &get_cpu_ptr(cb->cpu_stat)[bucket];
-		__blk_stat_add(stat, value);
-		put_cpu_ptr(cb->cpu_stat);
+		stat = &per_cpu_ptr(cb->cpu_stat, cpu)[bucket];
+		blk_rq_stat_add(stat, value);
 	}
+	put_cpu();
 	rcu_read_unlock();
 }
 
@@ -86,15 +84,15 @@ static void blk_stat_timer_fn(struct timer_list *t)
 	int cpu;
 
 	for (bucket = 0; bucket < cb->buckets; bucket++)
-		blk_stat_init(&cb->stat[bucket]);
+		blk_rq_stat_init(&cb->stat[bucket]);
 
 	for_each_online_cpu(cpu) {
 		struct blk_rq_stat *cpu_stat;
 
 		cpu_stat = per_cpu_ptr(cb->cpu_stat, cpu);
 		for (bucket = 0; bucket < cb->buckets; bucket++) {
-			blk_stat_sum(&cb->stat[bucket], &cpu_stat[bucket]);
-			blk_stat_init(&cpu_stat[bucket]);
+			blk_rq_stat_sum(&cb->stat[bucket], &cpu_stat[bucket]);
+			blk_rq_stat_init(&cpu_stat[bucket]);
 		}
 	}
 
@@ -134,7 +132,6 @@ blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
 
 	return cb;
 }
-EXPORT_SYMBOL_GPL(blk_stat_alloc_callback);
 
 void blk_stat_add_callback(struct request_queue *q,
 			   struct blk_stat_callback *cb)
@@ -147,7 +144,7 @@ void blk_stat_add_callback(struct request_queue *q,
 
 		cpu_stat = per_cpu_ptr(cb->cpu_stat, cpu);
 		for (bucket = 0; bucket < cb->buckets; bucket++)
-			blk_stat_init(&cpu_stat[bucket]);
+			blk_rq_stat_init(&cpu_stat[bucket]);
 	}
 
 	spin_lock(&q->stats->lock);
@@ -155,7 +152,6 @@ void blk_stat_add_callback(struct request_queue *q,
 	blk_queue_flag_set(QUEUE_FLAG_STATS, q);
 	spin_unlock(&q->stats->lock);
 }
-EXPORT_SYMBOL_GPL(blk_stat_add_callback);
 
 void blk_stat_remove_callback(struct request_queue *q,
 			      struct blk_stat_callback *cb)
@@ -168,7 +164,6 @@ void blk_stat_remove_callback(struct request_queue *q,
 
 	del_timer_sync(&cb->timer);
 }
-EXPORT_SYMBOL_GPL(blk_stat_remove_callback);
 
 static void blk_stat_free_callback_rcu(struct rcu_head *head)
 {
@@ -185,7 +180,6 @@ void blk_stat_free_callback(struct blk_stat_callback *cb)
 	if (cb)
 		call_rcu(&cb->rcu, blk_stat_free_callback_rcu);
 }
-EXPORT_SYMBOL_GPL(blk_stat_free_callback);
 
 void blk_stat_enable_accounting(struct request_queue *q)
 {
@@ -194,6 +188,7 @@ void blk_stat_enable_accounting(struct request_queue *q)
 	blk_queue_flag_set(QUEUE_FLAG_STATS, q);
 	spin_unlock(&q->stats->lock);
 }
+EXPORT_SYMBOL_GPL(blk_stat_enable_accounting);
 
 struct blk_queue_stats *blk_alloc_queue_stats(void)
 {

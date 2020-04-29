@@ -12,6 +12,7 @@
 # Convenient variables
 comma   := ,
 squote  := '
+pound   := \#
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
@@ -43,11 +44,11 @@ echo-cmd = $(if $($(quiet)cmd_$(1)),\
 ###
 # Replace >$< with >$$< to preserve $ when reloading the .cmd file
 # (needed for make)
-# Replace >#< with >\#< to avoid starting a comment in the .cmd file
+# Replace >#< with >$(pound)< to avoid starting a comment in the .cmd file
 # (needed for make)
 # Replace >'< with >'\''< to be able to enclose the whole string in '...'
 # (needed for the shell)
-make-cmd = $(call escsq,$(subst \#,\\\#,$(subst $$,$$$$,$(cmd_$(1)))))
+make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
 ###
 # Find any prerequisites that is newer than target or that does not exist.
@@ -62,8 +63,8 @@ dep-cmd = $(if $(wildcard $(fixdep)),                                           
            $(fixdep) $(depfile) $@ '$(make-cmd)' > $(dot-target).tmp;           \
            rm -f $(depfile);                                                    \
            mv -f $(dot-target).tmp $(dot-target).cmd,                           \
-           printf '\# cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
-           printf '\# using basic dep data\n\n' >> $(dot-target).cmd;           \
+           printf '$(pound) cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
+           printf '$(pound) using basic dep data\n\n' >> $(dot-target).cmd;           \
            cat $(depfile) >> $(dot-target).cmd;                                 \
            printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
 
@@ -97,4 +98,4 @@ cxx_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CXXFLAGS) -D"BUILD_STR(s)=\#s" $(CXX
 ###
 ## HOSTCC C flags
 
-host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CHOSTFLAGS) -D"BUILD_STR(s)=\#s" $(CHOSTFLAGS_$(basetarget).o) $(CHOSTFLAGS_$(obj))
+host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(KBUILD_HOSTCFLAGS) -D"BUILD_STR(s)=\#s" $(HOSTCFLAGS_$(basetarget).o) $(HOSTCFLAGS_$(obj))

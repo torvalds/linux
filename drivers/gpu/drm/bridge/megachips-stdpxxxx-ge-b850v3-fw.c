@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MegaChips STDP4028 with GE B850v3 firmware (LVDS-DP)
  * Driver for MegaChips STDP2690 with GE B850v3 firmware (DP-DP++)
@@ -5,17 +6,6 @@
  * Copyright (c) 2017, Collabora Ltd.
  * Copyright (c) 2017, General Electric Company
 
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
-
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  * This driver creates a drm_bridge and a drm_connector for the LVDS to DP++
  * display bridge of the GE B850v3. There are two physical bridges on the video
@@ -27,18 +17,18 @@
  * signal pipeline is as follows:
  *
  *   Host -> LVDS|--(STDP4028)--|DP -> DP|--(STDP2690)--|DP++ -> Video output
- *
  */
 
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #define EDID_EXT_BLOCK_CNT 0x7E
 
@@ -152,7 +142,7 @@ static int ge_b850v3_lvds_get_modes(struct drm_connector *connector)
 	ge_b850v3_lvds_ptr->edid = (struct edid *)stdp2690_get_edid(client);
 
 	if (ge_b850v3_lvds_ptr->edid) {
-		drm_mode_connector_update_edid_property(connector,
+		drm_connector_update_edid_property(connector,
 						      ge_b850v3_lvds_ptr->edid);
 		num_modes = drm_add_edid_modes(connector,
 					       ge_b850v3_lvds_ptr->edid);
@@ -216,12 +206,18 @@ static irqreturn_t ge_b850v3_lvds_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ge_b850v3_lvds_attach(struct drm_bridge *bridge)
+static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct drm_connector *connector = &ge_b850v3_lvds_ptr->connector;
 	struct i2c_client *stdp4028_i2c
 			= ge_b850v3_lvds_ptr->stdp4028_i2c;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
@@ -241,7 +237,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	ret = drm_mode_connector_attach_encoder(connector, bridge->encoder);
+	ret = drm_connector_attach_encoder(connector, bridge->encoder);
 	if (ret)
 		return ret;
 

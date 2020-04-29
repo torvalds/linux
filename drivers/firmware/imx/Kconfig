@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config IMX_DSP
+	tristate "IMX DSP Protocol driver"
+	depends on IMX_MBOX
+	help
+	  This enables DSP IPC protocol between host AP (Linux)
+	  and the firmware running on DSP.
+	  DSP exists on some i.MX8 processors (e.g i.MX8QM, i.MX8QXP).
+
+	  It acts like a doorbell. Client might use shared memory to
+	  exchange information with DSP side.
+
+config IMX_SCU
+	bool "IMX SCU Protocol driver"
+	depends on IMX_MBOX
+	help
+	  The System Controller Firmware (SCFW) is a low-level system function
+	  which runs on a dedicated Cortex-M core to provide power, clock, and
+	  resource management. It exists on some i.MX8 processors. e.g. i.MX8QM
+	  (QM, QP), and i.MX8QX (QXP, DX).
+
+	  This driver manages the IPC interface between host CPU and the
+	  SCU firmware running on M4.
+
+config IMX_SCU_PD
+	bool "IMX SCU Power Domain driver"
+	depends on IMX_SCU
+	help
+	  The System Controller Firmware (SCFW) based power domain driver.

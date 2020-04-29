@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
+ * Copyright (C) 2019 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -21,7 +22,8 @@
 
 
 void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
-			    const u8 *buf, size_t len, int uapsd_queues)
+			    const u8 *buf, size_t len, int uapsd_queues,
+			    const u8 *req_ies, size_t req_ies_len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -33,6 +35,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	cr.status = (int)le16_to_cpu(mgmt->u.assoc_resp.status_code);
 	cr.bssid = mgmt->bssid;
 	cr.bss = bss;
+	cr.req_ie = req_ies;
+	cr.req_ie_len = req_ies_len;
 	cr.resp_ie = mgmt->u.assoc_resp.variable;
 	cr.resp_ie_len =
 		len - offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
@@ -52,7 +56,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 		return;
 	}
 
-	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL, uapsd_queues);
+	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL, uapsd_queues,
+			      req_ies, req_ies_len);
 	/* update current_bss etc., consumes the bss reference */
 	__cfg80211_connect_result(dev, &cr, cr.status == WLAN_STATUS_SUCCESS);
 }
@@ -272,11 +277,11 @@ void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 
 	p1 = (u8*)(ht_capa);
 	p2 = (u8*)(ht_capa_mask);
-	for (i = 0; i<sizeof(*ht_capa); i++)
+	for (i = 0; i < sizeof(*ht_capa); i++)
 		p1[i] &= p2[i];
 }
 
-/*  Do a logical ht_capa &= ht_capa_mask.  */
+/*  Do a logical vht_capa &= vht_capa_mask.  */
 void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 				const struct ieee80211_vht_cap *vht_capa_mask)
 {
@@ -466,7 +471,7 @@ void cfg80211_mlme_unreg_wk(struct work_struct *wk)
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
-				int match_len)
+				int match_len, struct netlink_ext_ack *extack)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
@@ -477,15 +482,38 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
 
-	if ((frame_type & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT)
+	if ((frame_type & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT) {
+		NL_SET_ERR_MSG(extack, "frame type not management");
 		return -EINVAL;
+	}
 
-	if (frame_type & ~(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE))
+	if (frame_type & ~(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) {
+		NL_SET_ERR_MSG(extack, "Invalid frame type");
 		return -EINVAL;
+	}
 
 	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
-	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].rx & BIT(mgmt_type)))
+	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].rx & BIT(mgmt_type))) {
+		NL_SET_ERR_MSG(extack,
+			       "Registration to specific type not supported");
 		return -EINVAL;
+	}
+
+	/*
+	 * To support Pre Association Security Negotiation (PASN), registration
+	 * for authentication frames should be supported. However, as some
+	 * versions of the user space daemons wrongly register to all types of
+	 * authentication frames (which might result in unexpected behavior)
+	 * allow such registration if the request is for a specific
+	 * authentication algorithm number.
+	 */
+	if (wdev->iftype == NL80211_IFTYPE_STATION &&
+	    (frame_type & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_AUTH &&
+	    !(match_data && match_len >= 2)) {
+		NL_SET_ERR_MSG(extack,
+			       "Authentication algorithm number required");
+		return -EINVAL;
+	}
 
 	nreg = kzalloc(sizeof(*reg) + match_len, GFP_KERNEL);
 	if (!nreg)
@@ -500,6 +528,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 			continue;
 
 		if (memcmp(reg->match, match_data, mlen) == 0) {
+			NL_SET_ERR_MSG(extack, "Match already configured");
 			err = -EALREADY;
 			break;
 		}

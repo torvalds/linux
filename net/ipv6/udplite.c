@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  UDPLITEv6   An implementation of the UDP-Lite protocol over IPv6.
  *              See also net/ipv4/udplite.c
@@ -6,12 +7,9 @@
  *
  *  Changes:
  *  Fixes:
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #include <linux/export.h>
+#include <linux/proc_fs.h>
 #include "udp_impl.h"
 
 static int udplitev6_rcv(struct sk_buff *skb)
@@ -19,11 +17,12 @@ static int udplitev6_rcv(struct sk_buff *skb)
 	return __udp6_lib_rcv(skb, &udplite_table, IPPROTO_UDPLITE);
 }
 
-static void udplitev6_err(struct sk_buff *skb,
+static int udplitev6_err(struct sk_buff *skb,
 			  struct inet6_skb_parm *opt,
 			  u8 type, u8 code, int offset, __be32 info)
 {
-	__udp6_lib_err(skb, opt, type, code, offset, info, &udplite_table);
+	return __udp6_lib_err(skb, opt, type, code, offset, info,
+			      &udplite_table);
 }
 
 static const struct inet6_protocol udplitev6_protocol = {
@@ -47,6 +46,7 @@ struct proto udplitev6_prot = {
 	.recvmsg	   = udpv6_recvmsg,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
+	.rehash		   = udp_v6_rehash,
 	.get_port	   = udp_v6_get_port,
 	.memory_allocated  = &udp_memory_allocated,
 	.sysctl_mem	   = sysctl_udp_mem,
@@ -92,32 +92,23 @@ void udplitev6_exit(void)
 }
 
 #ifdef CONFIG_PROC_FS
-
-static const struct file_operations udplite6_afinfo_seq_fops = {
-	.open     = udp_seq_open,
-	.read     = seq_read,
-	.llseek   = seq_lseek,
-	.release  = seq_release_net
-};
-
 static struct udp_seq_afinfo udplite6_seq_afinfo = {
-	.name		= "udplite6",
 	.family		= AF_INET6,
 	.udp_table	= &udplite_table,
-	.seq_fops	= &udplite6_afinfo_seq_fops,
-	.seq_ops	= {
-		.show		= udp6_seq_show,
-	},
 };
 
 static int __net_init udplite6_proc_init_net(struct net *net)
 {
-	return udp_proc_register(net, &udplite6_seq_afinfo);
+	if (!proc_create_net_data("udplite6", 0444, net->proc_net,
+			&udp6_seq_ops, sizeof(struct udp_iter_state),
+			&udplite6_seq_afinfo))
+		return -ENOMEM;
+	return 0;
 }
 
 static void __net_exit udplite6_proc_exit_net(struct net *net)
 {
-	udp_proc_unregister(net, &udplite6_seq_afinfo);
+	remove_proc_entry("udplite6", net->proc_net);
 }
 
 static struct pernet_operations udplite6_net_ops = {

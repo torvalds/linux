@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
  *
@@ -6,24 +7,20 @@
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
- *
  */
 
 #include <linux/amba/clcd-regs.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/dma-buf.h>
 #include <linux/of_graph.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "pl111_drm.h"
 
@@ -51,10 +48,10 @@ irqreturn_t pl111_irq(int irq, void *data)
 }
 
 static enum drm_mode_status
-pl111_mode_valid(struct drm_crtc *crtc,
+pl111_mode_valid(struct drm_simple_display_pipe *pipe,
 		 const struct drm_display_mode *mode)
 {
-	struct drm_device *drm = crtc->dev;
+	struct drm_device *drm = pipe->crtc.dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	u32 cpp = priv->variant->fb_bpp / 8;
 	u64 bw;
@@ -63,7 +60,7 @@ pl111_mode_valid(struct drm_crtc *crtc,
 	 * We use the pixelclock to also account for interlaced modes, the
 	 * resulting bandwidth is in bytes per second.
 	 */
-	bw = mode->clock * 1000; /* In Hz */
+	bw = mode->clock * 1000ULL; /* In Hz */
 	bw = bw * mode->hdisplay * mode->vdisplay * cpp;
 	bw = div_u64(bw, mode->htotal * mode->vtotal);
 
@@ -120,7 +117,8 @@ static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 }
 
 static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
-				 struct drm_crtc_state *cstate)
+				 struct drm_crtc_state *cstate,
+				 struct drm_plane_state *plane_state)
 {
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_plane *plane = &pipe->plane;
@@ -130,6 +128,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_connector *connector = priv->connector;
 	struct drm_bridge *bridge = priv->bridge;
+	bool grayscale = false;
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
@@ -187,8 +186,22 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 			tim2 |= TIM2_IOE;
 
 		if (connector->display_info.bus_flags &
-		    DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+		    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 			tim2 |= TIM2_IPC;
+
+		if (connector->display_info.num_bus_formats == 1 &&
+		    connector->display_info.bus_formats[0] ==
+		    MEDIA_BUS_FMT_Y8_1X8)
+			grayscale = true;
+
+		/*
+		 * The AC pin bias frequency is set to max count when using
+		 * grayscale so at least once in a while we will reverse
+		 * polarity and get rid of any DC built up that could
+		 * damage the display.
+		 */
+		if (grayscale)
+			tim2 |= TIM2_ACB_MASK;
 	}
 
 	if (bridge) {
@@ -220,50 +233,96 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 	writel(0, priv->regs + CLCD_TIM3);
 
-	/* Hard-code TFT panel */
-	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+	/*
+	 * Detect grayscale bus format. We do not support a grayscale mode
+	 * toward userspace, instead we expose an RGB24 buffer and then the
+	 * hardware will activate its grayscaler to convert to the grayscale
+	 * format.
+	 */
+	if (grayscale)
+		cntl = CNTL_LCDEN | CNTL_LCDMONO8;
+	else
+		/* Else we assume TFT display */
+		cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
 
-	/* Note that the the hardware's format reader takes 'r' from
+	/* On the ST Micro variant, assume all 24 bits are connected */
+	if (priv->variant->st_bitmux_control)
+		cntl |= CNTL_ST_CDWID_24;
+
+	/*
+	 * Note that the the ARM hardware's format reader takes 'r' from
 	 * the low bit, while DRM formats list channels from high bit
-	 * to low bit as you read left to right.
+	 * to low bit as you read left to right. The ST Micro version of
+	 * the PL110 (LCDC) however uses the standard DRM format.
 	 */
 	switch (fb->format->format) {
+	case DRM_FORMAT_BGR888:
+		/* Only supported on the ST Micro variant */
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_LCDBPP24_PACKED | CNTL_BGR;
+		break;
+	case DRM_FORMAT_RGB888:
+		/* Only supported on the ST Micro variant */
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_LCDBPP24_PACKED;
+		break;
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XBGR8888:
-		cntl |= CNTL_LCDBPP24;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP24 | CNTL_BGR;
+		else
+			cntl |= CNTL_LCDBPP24;
 		break;
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB8888:
-		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP24;
+		else
+			cntl |= CNTL_LCDBPP24 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_BGR565:
 		if (priv->variant->is_pl110)
 			cntl |= CNTL_LCDBPP16;
+		else if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP16 | CNTL_ST_1XBPP_565 | CNTL_BGR;
 		else
 			cntl |= CNTL_LCDBPP16_565;
 		break;
 	case DRM_FORMAT_RGB565:
 		if (priv->variant->is_pl110)
-			cntl |= CNTL_LCDBPP16;
+			cntl |= CNTL_LCDBPP16 | CNTL_BGR;
+		else if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_LCDBPP16 | CNTL_ST_1XBPP_565;
 		else
-			cntl |= CNTL_LCDBPP16_565;
-		cntl |= CNTL_BGR;
+			cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_XBGR1555:
 		cntl |= CNTL_LCDBPP16;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_5551 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_XRGB1555:
-		cntl |= CNTL_LCDBPP16 | CNTL_BGR;
+		cntl |= CNTL_LCDBPP16;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_5551;
+		else
+			cntl |= CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR4444:
 	case DRM_FORMAT_XBGR4444:
 		cntl |= CNTL_LCDBPP16_444;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_444 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_XRGB4444:
-		cntl |= CNTL_LCDBPP16_444 | CNTL_BGR;
+		cntl |= CNTL_LCDBPP16_444;
+		if (priv->variant->st_bitmux_control)
+			cntl |= CNTL_ST_1XBPP_444;
+		else
+			cntl |= CNTL_BGR;
 		break;
 	default:
 		WARN_ONCE(true, "Unknown FB format 0x%08x\n",
@@ -376,19 +435,13 @@ static void pl111_display_disable_vblank(struct drm_simple_display_pipe *pipe)
 	writel(0, priv->regs + priv->ienb);
 }
 
-static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
-}
-
 static struct drm_simple_display_pipe_funcs pl111_display_funcs = {
 	.mode_valid = pl111_mode_valid,
 	.check = pl111_display_check,
 	.enable = pl111_display_enable,
 	.disable = pl111_display_disable,
 	.update = pl111_display_update,
-	.prepare_fb = pl111_display_prepare_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static int pl111_clk_div_choose_div(struct clk_hw *hw, unsigned long rate,
@@ -500,14 +553,15 @@ pl111_init_clock_divider(struct drm_device *drm)
 		dev_err(drm->dev, "CLCD: unable to get clcdclk.\n");
 		return PTR_ERR(parent);
 	}
+
+	spin_lock_init(&priv->tim2_lock);
+
 	/* If the clock divider is broken, use the parent directly */
 	if (priv->variant->broken_clockdivider) {
 		priv->clk = parent;
 		return 0;
 	}
 	parent_name = __clk_get_name(parent);
-
-	spin_lock_init(&priv->tim2_lock);
 	div->init = &init;
 
 	ret = devm_clk_hw_register(drm->dev, div);
@@ -519,24 +573,7 @@ pl111_init_clock_divider(struct drm_device *drm)
 int pl111_display_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
-	struct device *dev = drm->dev;
-	struct device_node *endpoint;
-	u32 tft_r0b0g0[3];
 	int ret;
-
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!endpoint)
-		return -ENODEV;
-
-	if (of_property_read_u32_array(endpoint,
-				       "arm,pl11x,tft-r0g0b0-pads",
-				       tft_r0b0g0,
-				       ARRAY_SIZE(tft_r0b0g0)) != 0) {
-		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
-		of_node_put(endpoint);
-		return -ENOENT;
-	}
-	of_node_put(endpoint);
 
 	ret = pl111_init_clock_divider(drm);
 	if (ret)

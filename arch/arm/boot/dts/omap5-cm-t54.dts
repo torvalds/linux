@@ -181,6 +181,13 @@
 			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
 		>;
 	};
+
+	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
+		pinctrl-single,pins = <
+			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
+			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
+		>;
+	};
 };
 
 &omap5_pmx_core {
@@ -414,8 +421,11 @@
 
 	palmas: palmas@48 {
 		compatible = "ti,palmas";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
 		reg = <0x48>;
+		pinctrl-0 = <&palmas_sys_nirq_pins>;
+		pinctrl-names = "default";
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		ti,system-power-controller;

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/kernel/kprobes-test.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -766,8 +763,9 @@ static int coverage_start_fn(const struct decode_header *h, void *args)
 
 static int coverage_start(const union decode_item *table)
 {
-	coverage.base = kmalloc(MAX_COVERAGE_ENTRIES *
-				sizeof(struct coverage_entry), GFP_KERNEL);
+	coverage.base = kmalloc_array(MAX_COVERAGE_ENTRIES,
+				      sizeof(struct coverage_entry),
+				      GFP_KERNEL);
 	coverage.num_entries = 0;
 	coverage.nesting = 0;
 	return table_iter(table, coverage_start_fn, &coverage);
@@ -1460,7 +1458,6 @@ fail:
 	print_registers(&result_regs);
 
 	if (mem) {
-		pr_err("current_stack=%p\n", current_stack);
 		pr_err("expected_memory:\n");
 		print_memory(expected_memory, mem_size);
 		pr_err("result_memory:\n");

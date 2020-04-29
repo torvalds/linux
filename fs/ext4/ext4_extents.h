@@ -91,6 +91,7 @@ struct ext4_extent_header {
 };
 
 #define EXT4_EXT_MAGIC		cpu_to_le16(0xf30a)
+#define EXT4_MAX_EXTENT_DEPTH 5
 
 #define EXT4_EXTENT_TAIL_OFFSET(hdr) \
 	(sizeof(struct ext4_extent_header) + \
@@ -116,6 +117,19 @@ struct ext4_ext_path {
 	struct ext4_extent_idx		*p_idx;
 	struct ext4_extent_header	*p_hdr;
 	struct buffer_head		*p_bh;
+};
+
+/*
+ * Used to record a portion of a cluster found at the beginning or end
+ * of an extent while traversing the extent tree during space removal.
+ * A partial cluster may be removed if it does not contain blocks shared
+ * with extents that aren't being deleted (tofree state).  Otherwise,
+ * it cannot be removed (nofree state).
+ */
+struct partial_cluster {
+	ext4_fsblk_t pclu;  /* physical cluster number */
+	ext4_lblk_t lblk;   /* logical block number within logical cluster */
+	enum {initial, tofree, nofree} state;
 };
 
 /*
@@ -252,11 +266,6 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) &
 				     0xffff);
 }
-
-#define ext4_ext_dirty(handle, inode, path) \
-		__ext4_ext_dirty(__func__, __LINE__, (handle), (inode), (path))
-int __ext4_ext_dirty(const char *where, unsigned int line, handle_t *handle,
-		     struct inode *inode, struct ext4_ext_path *path);
 
 #endif /* _EXT4_EXTENTS */
 

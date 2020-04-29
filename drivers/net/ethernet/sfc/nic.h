@@ -1,20 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EFX_NIC_H
 #define EFX_NIC_H
 
 #include <linux/net_tstamp.h>
-#include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "efx_common.h"
 #include "mcdi.h"
 
 enum {
@@ -509,6 +506,9 @@ static inline void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	tx_queue->efx->type->tx_write(tx_queue);
 }
 
+int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			bool *data_mapped);
+
 /* RX data path */
 static inline int efx_nic_probe_rx(struct efx_rx_queue *rx_queue)
 {
@@ -557,6 +557,7 @@ static inline void efx_nic_eventq_read_ack(struct efx_channel *channel)
 {
 	channel->efx->type->ev_read_ack(channel);
 }
+
 void efx_nic_event_test_start(struct efx_channel *channel);
 
 /* Falcon/Siena queue operations */
@@ -674,6 +675,7 @@ struct efx_farch_register_test {
 	unsigned address;
 	efx_oword_t mask;
 };
+
 int efx_farch_test_registers(struct efx_nic *efx,
 			     const struct efx_farch_register_test *regs,
 			     size_t n_regs);

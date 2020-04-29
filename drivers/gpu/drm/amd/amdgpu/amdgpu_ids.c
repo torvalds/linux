@@ -24,7 +24,7 @@
 
 #include <linux/idr.h>
 #include <linux/dma-fence-array.h>
-#include <drm/drmP.h>
+
 
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
@@ -104,7 +104,7 @@ static void amdgpu_pasid_free_cb(struct dma_fence *fence,
  *
  * Free the pasid only after all the fences in resv are signaled.
  */
-void amdgpu_pasid_free_delayed(struct reservation_object *resv,
+void amdgpu_pasid_free_delayed(struct dma_resv *resv,
 			       unsigned int pasid)
 {
 	struct dma_fence *fence, **fences;
@@ -112,7 +112,7 @@ void amdgpu_pasid_free_delayed(struct reservation_object *resv,
 	unsigned count;
 	int r;
 
-	r = reservation_object_get_fences_rcu(resv, NULL, &count, &fences);
+	r = dma_resv_get_fences_rcu(resv, NULL, &count, &fences);
 	if (r)
 		goto fallback;
 
@@ -156,7 +156,7 @@ fallback:
 	/* Not enough memory for the delayed delete, as last resort
 	 * block for all the fences to complete.
 	 */
-	reservation_object_wait_timeout_rcu(resv, true, false,
+	dma_resv_wait_timeout_rcu(resv, true, false,
 					    MAX_SCHEDULE_TIMEOUT);
 	amdgpu_pasid_free(pasid);
 }
@@ -206,7 +206,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	int r;
 
 	if (ring->vmid_wait && !dma_fence_is_signaled(ring->vmid_wait))
-		return amdgpu_sync_fence(adev, sync, ring->vmid_wait, false);
+		return amdgpu_sync_fence(sync, ring->vmid_wait, false);
 
 	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
 	if (!fences)
@@ -241,7 +241,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 			return -ENOMEM;
 		}
 
-		r = amdgpu_sync_fence(adev, sync, &array->base, false);
+		r = amdgpu_sync_fence(sync, &array->base, false);
 		dma_fence_put(ring->vmid_wait);
 		ring->vmid_wait = &array->base;
 		return r;
@@ -282,7 +282,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	    !dma_fence_is_later(updates, (*id)->flushed_updates))
 	    updates = NULL;
 
-	if ((*id)->owner != vm->entity.fence_context ||
+	if ((*id)->owner != vm->direct.fence_context ||
 	    job->vm_pd_addr != (*id)->pd_gpu_addr ||
 	    updates || !(*id)->last_flush ||
 	    ((*id)->last_flush->context != fence_context &&
@@ -294,7 +294,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
 			*id = NULL;
-			r = amdgpu_sync_fence(adev, sync, tmp, false);
+			r = amdgpu_sync_fence(sync, tmp, false);
 			return r;
 		}
 		needs_flush = true;
@@ -303,7 +303,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	/* Good we can use this VMID. Remember this submission as
 	* user of the VMID.
 	*/
-	r = amdgpu_sync_fence(ring->adev, &(*id)->active, fence, false);
+	r = amdgpu_sync_fence(&(*id)->active, fence, false);
 	if (r)
 		return r;
 
@@ -349,7 +349,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		struct dma_fence *flushed;
 
 		/* Check all the prerequisites to using this VMID */
-		if ((*id)->owner != vm->entity.fence_context)
+		if ((*id)->owner != vm->direct.fence_context)
 			continue;
 
 		if ((*id)->pd_gpu_addr != job->vm_pd_addr)
@@ -364,14 +364,18 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		if (updates && (!flushed || dma_fence_is_later(updates, flushed)))
 			needs_flush = true;
 
-		/* Concurrent flushes are only possible starting with Vega10 */
-		if (adev->asic_type < CHIP_VEGA10 && needs_flush)
+		/* Concurrent flushes are only possible starting with Vega10 and
+		 * are broken on Navi10 and Navi14.
+		 */
+		if (needs_flush && (adev->asic_type < CHIP_VEGA10 ||
+				    adev->asic_type == CHIP_NAVI10 ||
+				    adev->asic_type == CHIP_NAVI14))
 			continue;
 
 		/* Good, we can use this VMID. Remember this submission as
 		 * user of the VMID.
 		 */
-		r = amdgpu_sync_fence(ring->adev, &(*id)->active, fence, false);
+		r = amdgpu_sync_fence(&(*id)->active, fence, false);
 		if (r)
 			return r;
 
@@ -431,8 +435,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			id = idle;
 
 			/* Remember this submission as user of the VMID */
-			r = amdgpu_sync_fence(ring->adev, &id->active,
-					      fence, false);
+			r = amdgpu_sync_fence(&id->active, fence, false);
 			if (r)
 				goto error;
 
@@ -445,7 +448,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 
 	id->pd_gpu_addr = job->vm_pd_addr;
-	id->owner = vm->entity.fence_context;
+	id->owner = vm->direct.fence_context;
 
 	if (job->vm_needs_flush) {
 		dma_fence_put(id->last_flush);
@@ -574,15 +577,10 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 		/* skip over VMID 0, since it is the system VM */
 		for (j = 1; j < id_mgr->num_ids; ++j) {
 			amdgpu_vmid_reset(adev, i, j);
-			amdgpu_sync_create(&id_mgr->ids[i].active);
+			amdgpu_sync_create(&id_mgr->ids[j].active);
 			list_add_tail(&id_mgr->ids[j].list, &id_mgr->ids_lru);
 		}
 	}
-
-	adev->vm_manager.fence_context =
-		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		adev->vm_manager.seqno[i] = 0;
 }
 
 /**

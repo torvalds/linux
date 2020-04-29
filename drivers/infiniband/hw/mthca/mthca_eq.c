@@ -63,7 +63,7 @@ struct mthca_eq_context {
 	__be32 consumer_index;
 	__be32 producer_index;
 	u32    reserved3[4];
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_EQ_STATUS_OK          ( 0 << 28)
 #define MTHCA_EQ_STATUS_OVERFLOW    ( 9 << 28)
@@ -130,7 +130,7 @@ struct mthca_eqe {
 		u32 raw[6];
 		struct {
 			__be32 cqn;
-		} __attribute__((packed)) comp;
+		} __packed comp;
 		struct {
 			u16    reserved1;
 			__be16 token;
@@ -138,27 +138,27 @@ struct mthca_eqe {
 			u8     reserved3[3];
 			u8     status;
 			__be64 out_param;
-		} __attribute__((packed)) cmd;
+		} __packed cmd;
 		struct {
 			__be32 qpn;
-		} __attribute__((packed)) qp;
+		} __packed qp;
 		struct {
 			__be32 srqn;
-		} __attribute__((packed)) srq;
+		} __packed srq;
 		struct {
 			__be32 cqn;
 			u32    reserved1;
 			u8     reserved2[3];
 			u8     syndrome;
-		} __attribute__((packed)) cq_err;
+		} __packed cq_err;
 		struct {
 			u32    reserved1[2];
 			__be32 port;
-		} __attribute__((packed)) port_change;
+		} __packed port_change;
 	} event;
 	u8 reserved3[3];
 	u8 owner;
-} __attribute__((packed));
+} __packed;
 
 #define  MTHCA_EQ_ENTRY_OWNER_SW      (0 << 7)
 #define  MTHCA_EQ_ENTRY_OWNER_HW      (1 << 7)
@@ -479,15 +479,15 @@ static int mthca_create_eq(struct mthca_dev *dev,
 	eq->nent = roundup_pow_of_two(max(nent, 2));
 	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
 
-	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
-				GFP_KERNEL);
+	eq->page_list = kmalloc_array(npages, sizeof(*eq->page_list),
+				      GFP_KERNEL);
 	if (!eq->page_list)
 		goto err_out;
 
 	for (i = 0; i < npages; ++i)
 		eq->page_list[i].buf = NULL;
 
-	dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
+	dma_list = kmalloc_array(npages, sizeof(*dma_list), GFP_KERNEL);
 	if (!dma_list)
 		goto err_out_free;
 

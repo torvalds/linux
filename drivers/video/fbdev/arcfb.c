@@ -419,6 +419,8 @@ static int arcfb_ioctl(struct fb_info *info,
 			schedule();
 			finish_wait(&arcfb_waitq, &wait);
 		}
+		/* fall through */
+
 		case FBIO_GETCONTROL2:
 		{
 			unsigned char ctl2;
@@ -489,7 +491,7 @@ static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
 	return err;
 }
 
-static struct fb_ops arcfb_ops = {
+static const struct fb_ops arcfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arcfb_open,
 	.fb_read        = fb_sys_read,

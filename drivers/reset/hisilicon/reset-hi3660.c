@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016-2017 Linaro Ltd.
  * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -60,7 +56,7 @@ static int hi3660_reset_dev(struct reset_controller_dev *rcdev,
 	return hi3660_reset_deassert(rcdev, idx);
 }
 
-static struct reset_control_ops hi3660_reset_ops = {
+static const struct reset_control_ops hi3660_reset_ops = {
 	.reset    = hi3660_reset_dev,
 	.assert   = hi3660_reset_assert,
 	.deassert = hi3660_reset_deassert,

@@ -230,7 +230,7 @@ in the used rings.
 Binary Firmware Structure
 =========================
 
-At this point remoteproc only supports ELF32 firmware binaries. However,
+At this point remoteproc supports ELF32 and ELF64 firmware binaries. However,
 it is quite expected that other platforms/devices which we'd want to
 support with this framework will be based on different binary formats.
 
@@ -314,6 +314,8 @@ Here are the various resource types that are currently supported::
    * @RSC_VDEV:       declare support for a virtio device, and serve as its
    *		    virtio header.
    * @RSC_LAST:       just keep this one at the end
+   * @RSC_VENDOR_START:	start of the vendor specific resource types range
+   * @RSC_VENDOR_END:	end of the vendor specific resource types range
    *
    * Please note that these values are used as indices to the rproc_handle_rsc
    * lookup table, so please keep them sane. Moreover, @RSC_LAST is used to
@@ -321,11 +323,13 @@ Here are the various resource types that are currently supported::
    * please update it as needed.
    */
   enum fw_resource_type {
-	RSC_CARVEOUT	= 0,
-	RSC_DEVMEM	= 1,
-	RSC_TRACE	= 2,
-	RSC_VDEV	= 3,
-	RSC_LAST	= 4,
+	RSC_CARVEOUT		= 0,
+	RSC_DEVMEM		= 1,
+	RSC_TRACE		= 2,
+	RSC_VDEV		= 3,
+	RSC_LAST		= 4,
+	RSC_VENDOR_START	= 128,
+	RSC_VENDOR_END		= 512,
   };
 
 For more details regarding a specific resource type, please see its

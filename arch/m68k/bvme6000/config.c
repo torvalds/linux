@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
+#include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -39,16 +40,9 @@
 
 static void bvme6000_get_model(char *model);
 extern void bvme6000_sched_init(irq_handler_t handler);
-extern u32 bvme6000_gettimeoffset(void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
-extern int bvme6000_set_clock_mmss (unsigned long);
 extern void bvme6000_reset (void);
 void bvme6000_set_vectors (void);
-
-/* Save tick handler routine pointer, will point to xtime_update() in
- * kernel/timer/timekeeping.c, called via bvme6000_process_int() */
-
-static irq_handler_t tick_handler;
 
 
 int __init bvme6000_parse_bootinfo(const struct bi_record *bi)
@@ -111,9 +105,7 @@ void __init config_bvme6000(void)
     mach_max_dma_address = 0xffffffff;
     mach_sched_init      = bvme6000_sched_init;
     mach_init_IRQ        = bvme6000_init_IRQ;
-    arch_gettimeoffset   = bvme6000_gettimeoffset;
     mach_hwclk           = bvme6000_hwclk;
-    mach_set_clock_mmss	 = bvme6000_set_clock_mmss;
     mach_reset		 = bvme6000_reset;
     mach_get_model       = bvme6000_get_model;
 
@@ -156,15 +148,38 @@ irqreturn_t bvme6000_abort_int (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static u64 bvme6000_read_clk(struct clocksource *cs);
+
+static struct clocksource bvme6000_clk = {
+	.name   = "rtc",
+	.rating = 250,
+	.read   = bvme6000_read_clk,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static u32 clk_total, clk_offset;
+
+#define RTC_TIMER_CLOCK_FREQ 8000000
+#define RTC_TIMER_CYCLES     (RTC_TIMER_CLOCK_FREQ / HZ)
+#define RTC_TIMER_COUNT      ((RTC_TIMER_CYCLES / 2) - 1)
 
 static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
 {
+    irq_handler_t timer_routine = dev_id;
+    unsigned long flags;
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
-    unsigned char msr = rtc->msr & 0xc0;
+    unsigned char msr;
 
+    local_irq_save(flags);
+    msr = rtc->msr & 0xc0;
     rtc->msr = msr | 0x20;		/* Ack the interrupt */
+    clk_total += RTC_TIMER_CYCLES;
+    clk_offset = 0;
+    timer_routine(0, NULL);
+    local_irq_restore(flags);
 
-    return tick_handler(irq, dev_id);
+    return IRQ_HANDLED;
 }
 
 /*
@@ -183,14 +198,13 @@ void bvme6000_sched_init (irq_handler_t timer_routine)
 
     rtc->msr = 0;	/* Ensure timer registers accessible */
 
-    tick_handler = timer_routine;
-    if (request_irq(BVME_IRQ_RTC, bvme6000_timer_int, 0,
-				"timer", bvme6000_timer_int))
+    if (request_irq(BVME_IRQ_RTC, bvme6000_timer_int, IRQF_TIMER, "timer",
+                    timer_routine))
 	panic ("Couldn't register timer int");
 
     rtc->t1cr_omr = 0x04;	/* Mode 2, ext clk */
-    rtc->t1msb = 39999 >> 8;
-    rtc->t1lsb = 39999 & 0xff;
+    rtc->t1msb = RTC_TIMER_COUNT >> 8;
+    rtc->t1lsb = RTC_TIMER_COUNT & 0xff;
     rtc->irr_icr1 &= 0xef;	/* Route timer 1 to INTR pin */
     rtc->msr = 0x40;		/* Access int.cntrl, etc */
     rtc->pfr_icr0 = 0x80;	/* Just timer 1 ints enabled */
@@ -202,13 +216,13 @@ void bvme6000_sched_init (irq_handler_t timer_routine)
 
     rtc->msr = msr;
 
+    clocksource_register_hz(&bvme6000_clk, RTC_TIMER_CLOCK_FREQ);
+
     if (request_irq(BVME_IRQ_ABORT, bvme6000_abort_int, 0,
 				"abort", bvme6000_abort_int))
 	panic ("Couldn't register abort int");
 }
 
-
-/* This is always executed with interrupts disabled.  */
 
 /*
  * NOTE:  Don't accept any readings within 5us of rollover, as
@@ -217,14 +231,18 @@ void bvme6000_sched_init (irq_handler_t timer_routine)
  * results...
  */
 
-u32 bvme6000_gettimeoffset(void)
+static u64 bvme6000_read_clk(struct clocksource *cs)
 {
+    unsigned long flags;
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
     volatile PitRegsPtr pit = (PitRegsPtr)BVME_PIT_BASE;
-    unsigned char msr = rtc->msr & 0xc0;
+    unsigned char msr, msb;
     unsigned char t1int, t1op;
     u32 v = 800000, ov;
 
+    local_irq_save(flags);
+
+    msr = rtc->msr & 0xc0;
     rtc->msr = 0;	/* Ensure timer registers accessible */
 
     do {
@@ -232,22 +250,25 @@ u32 bvme6000_gettimeoffset(void)
 	t1int = rtc->msr & 0x20;
 	t1op  = pit->pcdr & 0x04;
 	rtc->t1cr_omr |= 0x40;		/* Latch timer1 */
-	v = rtc->t1msb << 8;		/* Read timer1 */
-	v |= rtc->t1lsb;		/* Read timer1 */
+	msb = rtc->t1msb;		/* Read timer1 */
+	v = (msb << 8) | rtc->t1lsb;	/* Read timer1 */
     } while (t1int != (rtc->msr & 0x20) ||
 		t1op != (pit->pcdr & 0x04) ||
 			abs(ov-v) > 80 ||
-				v > 39960);
+				v > RTC_TIMER_COUNT - (RTC_TIMER_COUNT / 100));
 
-    v = 39999 - v;
+    v = RTC_TIMER_COUNT - v;
     if (!t1op)				/* If in second half cycle.. */
-	v += 40000;
-    v /= 8;				/* Convert ticks to microseconds */
-    if (t1int)
-	v += 10000;			/* Int pending, + 10ms */
+	v += RTC_TIMER_CYCLES / 2;
+    if (msb > 0 && t1int)
+	clk_offset = RTC_TIMER_CYCLES;
     rtc->msr = msr;
 
-    return v * 1000;
+    v += clk_offset + clk_total;
+
+    local_irq_restore(flags);
+
+    return v;
 }
 
 /*
@@ -305,46 +326,3 @@ int bvme6000_hwclk(int op, struct rtc_time *t)
 
 	return 0;
 }
-
-/*
- * Set the minutes and seconds from seconds value 'nowtime'.  Fail if
- * clock is out by > 30 minutes.  Logic lifted from atari code.
- * Algorithm is to wait for the 10ms register to change, and then to
- * wait a short while, and then set it.
- */
-
-int bvme6000_set_clock_mmss (unsigned long nowtime)
-{
-	int retval = 0;
-	short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-	unsigned char rtc_minutes, rtc_tenms;
-	volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
-	unsigned char msr = rtc->msr & 0xc0;
-	unsigned long flags;
-	volatile int i;
-
-	rtc->msr = 0;		/* Ensure clock accessible */
-	rtc_minutes = bcd2bin (rtc->bcd_min);
-
-	if ((rtc_minutes < real_minutes
-		? real_minutes - rtc_minutes
-			: rtc_minutes - real_minutes) < 30)
-	{
-		local_irq_save(flags);
-		rtc_tenms = rtc->bcd_tenms;
-		while (rtc_tenms == rtc->bcd_tenms)
-			;
-		for (i = 0; i < 1000; i++)
-			;
-		rtc->bcd_min = bin2bcd(real_minutes);
-		rtc->bcd_sec = bin2bcd(real_seconds);
-		local_irq_restore(flags);
-	}
-	else
-		retval = -1;
-
-	rtc->msr = msr;
-
-	return retval;
-}
-

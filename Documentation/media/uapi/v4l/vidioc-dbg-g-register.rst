@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_DBG_G_REGISTER:
 
@@ -93,23 +100,23 @@ instructions.
 .. flat-table:: struct v4l2_dbg_match
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
       - See :ref:`chip-match-types` for a list of possible types.
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - __u32
+    * - __u32
       - ``addr``
       - Match a chip by this number, interpreted according to the ``type``
 	field.
-    * -
-      - char
+    * - char
       - ``name[32]``
       - Match a chip by this name, interpreted according to the ``type``
 	field. Currently unused.
+    * - }
+      -
 
 
 

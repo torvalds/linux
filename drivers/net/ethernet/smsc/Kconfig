@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Western Digital/SMC network device configuration
 #
@@ -27,7 +28,7 @@ config SMC9194
 	  option if you have a DELL laptop with the docking station, or
 	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called smc9194.
@@ -43,12 +44,12 @@ config SMC91X
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
 	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called smc91x.  If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 config PCMCIA_SMC91C92
 	tristate "SMC 91Cxx PCMCIA support"
@@ -85,7 +86,7 @@ config SMC911X
 
 	  This driver is also available as a module. The module will be
 	  called smc911x.  If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>
+	  here and read <file:Documentation/kbuild/modules.rst>
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
@@ -120,6 +121,6 @@ config SMSC9420
 
 	  This driver is also available as a module. The module will be
 	  called smsc9420.  If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>
+	  here and read <file:Documentation/kbuild/modules.rst>
 
 endif # NET_VENDOR_SMSC

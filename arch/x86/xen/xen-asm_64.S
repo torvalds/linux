@@ -12,6 +12,7 @@
 #include <asm/segment.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
+#include <asm/asm.h>
 
 #include <xen/interface/xen.h>
 
@@ -19,18 +20,18 @@
 #include <linux/linkage.h>
 
 .macro xen_pv_trap name
-ENTRY(xen_\name)
+SYM_CODE_START(xen_\name)
 	pop %rcx
 	pop %r11
 	jmp  \name
-END(xen_\name)
+SYM_CODE_END(xen_\name)
+_ASM_NOKPROBE(xen_\name)
 .endm
 
 xen_pv_trap divide_error
 xen_pv_trap debug
 xen_pv_trap xendebug
 xen_pv_trap int3
-xen_pv_trap xenint3
 xen_pv_trap xennmi
 xen_pv_trap overflow
 xen_pv_trap bounds
@@ -56,7 +57,7 @@ xen_pv_trap entry_INT80_compat
 xen_pv_trap hypervisor_callback
 
 	__INIT
-ENTRY(xen_early_idt_handler_array)
+SYM_CODE_START(xen_early_idt_handler_array)
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
 	pop %rcx
@@ -65,7 +66,7 @@ ENTRY(xen_early_idt_handler_array)
 	i = i + 1
 	.fill xen_early_idt_handler_array + i*XEN_EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
-END(xen_early_idt_handler_array)
+SYM_CODE_END(xen_early_idt_handler_array)
 	__FINIT
 
 hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
@@ -84,26 +85,30 @@ hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
  *	r11		}<-- pushed by hypercall page
  * rsp->rax		}
  */
-ENTRY(xen_iret)
+SYM_CODE_START(xen_iret)
 	pushq $0
 	jmp hypercall_iret
+SYM_CODE_END(xen_iret)
 
-ENTRY(xen_sysret64)
+SYM_CODE_START(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
-	 * still with the kernel gs, so we can easily switch back
+	 * still with the kernel gs, so we can easily switch back.
+	 *
+	 * tss.sp2 is scratch space.
 	 */
-	movq %rsp, PER_CPU_VAR(rsp_scratch)
+	movq %rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
 	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER_DS
-	pushq PER_CPU_VAR(rsp_scratch)
+	pushq PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
 	pushq %r11
 	pushq $__USER_CS
 	pushq %rcx
 
 	pushq $VGCF_in_syscall
 	jmp hypercall_iret
+SYM_CODE_END(xen_sysret64)
 
 /*
  * Xen handles syscall callbacks much like ordinary exceptions, which
@@ -121,7 +126,7 @@ ENTRY(xen_sysret64)
  */
 
 /* Normal 64-bit system call target */
-ENTRY(xen_syscall_target)
+SYM_FUNC_START(xen_syscall_target)
 	popq %rcx
 	popq %r11
 
@@ -134,12 +139,12 @@ ENTRY(xen_syscall_target)
 	movq $__USER_CS, 1*8(%rsp)
 
 	jmp entry_SYSCALL_64_after_hwframe
-ENDPROC(xen_syscall_target)
+SYM_FUNC_END(xen_syscall_target)
 
 #ifdef CONFIG_IA32_EMULATION
 
 /* 32-bit compat syscall target */
-ENTRY(xen_syscall32_target)
+SYM_FUNC_START(xen_syscall32_target)
 	popq %rcx
 	popq %r11
 
@@ -152,25 +157,25 @@ ENTRY(xen_syscall32_target)
 	movq $__USER32_CS, 1*8(%rsp)
 
 	jmp entry_SYSCALL_compat_after_hwframe
-ENDPROC(xen_syscall32_target)
+SYM_FUNC_END(xen_syscall32_target)
 
 /* 32-bit compat sysenter target */
-ENTRY(xen_sysenter_target)
+SYM_FUNC_START(xen_sysenter_target)
 	mov 0*8(%rsp), %rcx
 	mov 1*8(%rsp), %r11
 	mov 5*8(%rsp), %rsp
 	jmp entry_SYSENTER_compat
-ENDPROC(xen_sysenter_target)
+SYM_FUNC_END(xen_sysenter_target)
 
 #else /* !CONFIG_IA32_EMULATION */
 
-ENTRY(xen_syscall32_target)
-ENTRY(xen_sysenter_target)
+SYM_FUNC_START_ALIAS(xen_syscall32_target)
+SYM_FUNC_START(xen_sysenter_target)
 	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
 	mov $-ENOSYS, %rax
 	pushq $0
 	jmp hypercall_iret
-ENDPROC(xen_syscall32_target)
-ENDPROC(xen_sysenter_target)
+SYM_FUNC_END(xen_sysenter_target)
+SYM_FUNC_END_ALIAS(xen_syscall32_target)
 
 #endif	/* CONFIG_IA32_EMULATION */

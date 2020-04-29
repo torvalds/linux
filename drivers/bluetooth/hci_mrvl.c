@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Bluetooth HCI UART driver for marvell devices
  *
  *  Copyright (C) 2016  Marvell International Ltd.
  *  Copyright (C) 2016  Intel Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -27,6 +13,8 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/of.h>
+#include <linux/serdev.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -54,6 +42,10 @@ struct mrvl_data {
 	u8 id, rev;
 };
 
+struct mrvl_serdev {
+	struct hci_uart hu;
+};
+
 struct hci_mrvl_pkt {
 	__le16 lhs;
 	__le16 rhs;
@@ -63,8 +55,12 @@ struct hci_mrvl_pkt {
 static int mrvl_open(struct hci_uart *hu)
 {
 	struct mrvl_data *mrvl;
+	int ret;
 
 	BT_DBG("hu %p", hu);
+
+	if (!hci_uart_has_flow_control(hu))
+		return -EOPNOTSUPP;
 
 	mrvl = kzalloc(sizeof(*mrvl), GFP_KERNEL);
 	if (!mrvl)
@@ -76,7 +72,18 @@ static int mrvl_open(struct hci_uart *hu)
 	set_bit(STATE_CHIP_VER_PENDING, &mrvl->flags);
 
 	hu->priv = mrvl;
+
+	if (hu->serdev) {
+		ret = serdev_device_open(hu->serdev);
+		if (ret)
+			goto err;
+	}
+
 	return 0;
+err:
+	kfree(mrvl);
+
+	return ret;
 }
 
 static int mrvl_close(struct hci_uart *hu)
@@ -84,6 +91,9 @@ static int mrvl_close(struct hci_uart *hu)
 	struct mrvl_data *mrvl = hu->priv;
 
 	BT_DBG("hu %p", hu);
+
+	if (hu->serdev)
+		serdev_device_close(hu->serdev);
 
 	skb_queue_purge(&mrvl->txq);
 	skb_queue_purge(&mrvl->rawq);
@@ -353,7 +363,14 @@ static int mrvl_setup(struct hci_uart *hu)
 		return -EINVAL;
 	}
 
-	hci_uart_set_baudrate(hu, 3000000);
+	/* Let the final ack go out before switching the baudrate */
+	hci_uart_wait_until_sent(hu);
+
+	if (hu->serdev)
+		serdev_device_set_baudrate(hu->serdev, 3000000);
+	else
+		hci_uart_set_baudrate(hu, 3000000);
+
 	hci_uart_set_flow_control(hu, false);
 
 	err = mrvl_load_firmware(hu->hdev, "mrvl/uart8897_bt.bin");
@@ -376,12 +393,54 @@ static const struct hci_uart_proto mrvl_proto = {
 	.dequeue	= mrvl_dequeue,
 };
 
+static int mrvl_serdev_probe(struct serdev_device *serdev)
+{
+	struct mrvl_serdev *mrvldev;
+
+	mrvldev = devm_kzalloc(&serdev->dev, sizeof(*mrvldev), GFP_KERNEL);
+	if (!mrvldev)
+		return -ENOMEM;
+
+	mrvldev->hu.serdev = serdev;
+	serdev_device_set_drvdata(serdev, mrvldev);
+
+	return hci_uart_register_device(&mrvldev->hu, &mrvl_proto);
+}
+
+static void mrvl_serdev_remove(struct serdev_device *serdev)
+{
+	struct mrvl_serdev *mrvldev = serdev_device_get_drvdata(serdev);
+
+	hci_uart_unregister_device(&mrvldev->hu);
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id mrvl_bluetooth_of_match[] = {
+	{ .compatible = "mrvl,88w8897" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, mrvl_bluetooth_of_match);
+#endif
+
+static struct serdev_device_driver mrvl_serdev_driver = {
+	.probe = mrvl_serdev_probe,
+	.remove = mrvl_serdev_remove,
+	.driver = {
+		.name = "hci_uart_mrvl",
+		.of_match_table = of_match_ptr(mrvl_bluetooth_of_match),
+	},
+};
+
 int __init mrvl_init(void)
 {
+	serdev_device_driver_register(&mrvl_serdev_driver);
+
 	return hci_uart_register_proto(&mrvl_proto);
 }
 
 int __exit mrvl_deinit(void)
 {
+	serdev_device_driver_unregister(&mrvl_serdev_driver);
+
 	return hci_uart_unregister_proto(&mrvl_proto);
 }

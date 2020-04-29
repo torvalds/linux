@@ -215,7 +215,12 @@ static struct bin_attribute *dev_bin_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group vudc_attr_group = {
+static const struct attribute_group vudc_attr_group = {
 	.attrs = dev_attrs,
 	.bin_attrs = dev_bin_attrs,
+};
+
+const struct attribute_group *vudc_groups[] = {
+	&vudc_attr_group,
+	NULL,
 };

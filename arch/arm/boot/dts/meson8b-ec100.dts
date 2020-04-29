@@ -1,0 +1,415 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+#include "meson8b.dtsi"
+
+/ {
+	model = "Endless Computers Endless Mini";
+	compatible = "endless,ec100", "amlogic,meson8b";
+
+	aliases {
+		serial0 = &uart_AO;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x40000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		pal-switch {
+			label = "pal";
+			linux,input-type = <EV_SW>;
+			linux,code = <KEY_SWITCHVIDEOMODE>;
+			gpios = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
+		};
+
+		ntsc-switch {
+			label = "ntsc";
+			linux,input-type = <EV_SW>;
+			linux,code = <KEY_SWITCHVIDEOMODE>;
+			gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+		};
+
+		power-button {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio GPIOH_9 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		/*
+		 * shutdown is managed by the EC (embedded micro-controller)
+		 * which is configured through GPIOAO_2 (poweroff GPIO) and
+		 * GPIOAO_7 (power LED, which has to go LOW as well).
+		 */
+		gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		timeout-ms = <20000>;
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&saradc 8>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "ec100:red:power";
+			/*
+			 * Needs to go LOW (together with the poweroff GPIO)
+			 * during shutdown to allow the EC (embedded
+			 * micro-controller) to shutdown the system. Setting
+			 * the output to LOW signals the EC to start a
+			 * "breathing"/pulsing effect until the power is fully
+			 * turned off.
+			 */
+			gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	rtc32k_xtal: rtc32k-xtal-clk {
+		/* X2 in the schematics */
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "RTC32K";
+		#clock-cells = <0>;
+	};
+
+	usb_vbus: regulator-usb-vbus {
+		/*
+		 * Silergy SY6288CCAC-GP 2A Power Distribution Switch.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "USB_VBUS";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		vin-supply = <&vcc_5v>;
+
+		/*
+		 * signal name from the schematics: USB_PWR_EN
+		 */
+		gpio = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vcc_5v: regulator-vcc5v {
+		/*
+		 * supplied by the main power input which called PWR_5V_STB
+		 * in the schematics
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC5V";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		/*
+		 * signal name from the schematics: 3V3_5V_EN
+		 */
+		gpio = <&gpio GPIODV_29 GPIO_ACTIVE_LOW>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcck: regulator-vcck {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator.
+		 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VCCK";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		vin-supply = <&vcc_5v>;
+
+		pwms = <&pwm_cd 0 1148 0>;
+		pwm-dutycycle-range = <100 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc_1v8: regulator-vcc1v8 {
+		/*
+		 * ABLIC S-1339D18-M5001-GP
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		vin-supply = <&vcc_3v3>;
+	};
+
+	vcc_3v3: regulator-vcc3v3 {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator. Also called
+		 * VDDIO_AO3.3V in the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&vcc_5v>;
+	};
+
+	vcc_ddr3: regulator-vcc-ddr3 {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator. Also called
+		 * DDR3_1.5V in the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC_DDR3_1V5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&vcc_5v>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc_rtc: regulator-vcc-rtc {
+		/*
+		 * Global Mixed-mode Technology Inc. G918T12U-GP
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC_RTC";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		/*
+		 * When the board is powered then the input is VCC3V3,
+		 * otherwise power is taken from the coin cell battery.
+		 */
+		vin-supply = <&vcc_3v3>;
+	};
+
+	vddee: regulator-vddee {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator. Also called VDDAO
+		 * in a part of the schematics.
+		 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VDDEE";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		vin-supply = <&vcc_5v>;
+
+		pwms = <&pwm_cd 1 1148 0>;
+		pwm-dutycycle-range = <100 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vcck>;
+};
+
+&ethmac {
+	status = "okay";
+
+	pinctrl-0 = <&eth_rmii_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&eth_phy0>;
+	phy-mode = "rmii";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		eth_phy0: ethernet-phy@0 {
+			/* IC Plus IP101A/G (0x02430c54) */
+			reg = <0>;
+
+			reset-assert-us = <10000>;
+			reset-deassert-us = <10000>;
+			reset-gpios = <&gpio GPIOH_4 GPIO_ACTIVE_LOW>;
+
+			icplus,select-interrupt;
+			interrupt-parent = <&gpio_intc>;
+			/* GPIOH_3 */
+			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
+
+&i2c_A {
+	status = "okay";
+	pinctrl-0 = <&i2c_a_pins>;
+	pinctrl-names = "default";
+
+	rt5640: codec@1c {
+		compatible = "realtek,rt5640";
+		reg = <0x1c>;
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <13 IRQ_TYPE_EDGE_BOTH>; /* GPIOAO_13 */
+		realtek,in1-differential;
+	};
+};
+
+&mali {
+	mali-supply = <&vddee>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
+&sdio {
+	status = "okay";
+
+	pinctrl-0 = <&sd_b_pins>;
+	pinctrl-names = "default";
+
+	/* SD card */
+	sd_card_slot: slot@1 {
+		compatible = "mmc-slot";
+		reg = <1>;
+		status = "okay";
+
+		bus-width = <4>;
+		no-sdio;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+
+		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
+
+		vmmc-supply = <&vcc_3v3>;
+	};
+};
+
+&gpio_ao {
+	gpio-line-names = "Linux_TX", "Linux_RX",
+			  "SLP_S5_N", "USB2_OC_FLAG#",
+			  "HUB_RST", "USB_PWR_EN",
+			  "I2S_IN", "SLP_S1_N",
+			  "TCK", "TMS", "TDI", "TDO",
+			  "HDMI_CEC", "5640_IRQ",
+			  "MUTE", "S805_TEST#";
+};
+
+&gpio {
+	gpio-line-names = /* Bank GPIOX */
+			  "WIFI_SD_D0", "WIFI_SD_D1", "WIFI_SD_D2",
+			  "WIFI_SD_D3", "BTPCM_DOUT", "BTPCM_DIN",
+			  "BTPCM_SYNC", "BTPCM_CLK", "WIFI_SD_CLK",
+			  "WIFI_SD_CMD", "WIFI_32K", "WIFI_PWREN",
+			  "UART_B_TX", "UART_B_RX", "UART_B_CTS_N",
+			  "UART_B_RTS_N", "BT_EN", "WIFI_WAKE_HOST",
+			  /* Bank GPIOY */
+			  "", "", "", "", "", "", "", "", "", "",
+			  "", "",
+			  /* Bank GPIODV */
+			  "VCCK_PWM_C", "I2C_SDA_A", "I2C_SCL_A",
+			  "I2C_SDA_B", "I2C_SCL_B", "VDDEE_PWM_D",
+			  "VDDEE_PWM 3V3_5V_EN",
+			  /* Bank GPIOH */
+			  "HDMI_HPD", "HDMI_I2C_SDA", "HDMI_I2C_SCL",
+			  "RMII_IRQ", "RMII_RST#", "RMII_TXD1",
+			  "RMII_TXD0", "AV_select_1", "AV_select_2",
+			  "MCU_Control_S",
+			  /* Bank CARD */
+			  "SD_D1_B", "SD_D0_B", "SD_CLK_8726MX",
+			  "SD_CMD_8726MX", "SD_D3_B", "SD_D2_B",
+			  "CARD_EN_DET (CARD_DET)",
+			  /* Bank BOOT */
+			  "NAND_D0 (EMMC)", "NAND_D1 (EMMC)",
+			  "NAND_D2 (EMMC)", "NAND_D3 (EMMC)",
+			  "NAND_D4 (EMMC)", "NAND_D5 (EMMC)",
+			  "NAND_D6 (EMMC)", "NAND_D7 (EMMC)",
+			  "NAND_CS1 (EMMC)", "NAND_CS2 iNAND_RS1 (EMMC)",
+			  "NAND_nR/B iNAND_CMD (EMMC)", "NAND_ALE (EMMC)",
+			  "NAND_CLE (EMMC)", "nRE_S1 NAND_nRE (EMMC)",
+			  "nWE_S1 NAND_nWE (EMMC)",  "", "", "SPI_CS",
+			  /* Bank DIF */
+			  "RMII_RXD1", "RMII_RXD0", "RMII_CRS_DV",
+			  "RMII_50M_IN", "GPIODIF_4", "GPIODIF_5",
+			  "RMII_TXEN", "CPUETH_25MOUT", "RMII_MDC",
+			  "RMII_MDIO";
+};
+
+&pwm_cd {
+	status = "okay";
+	pinctrl-0 = <&pwm_c1_pins>, <&pwm_d_pins>;
+	pinctrl-names = "default";
+	clocks = <&xtal>, <&xtal>;
+	clock-names = "clkin0", "clkin1";
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&rtc32k_xtal>;
+	vdd-supply = <&vcc_rtc>;
+};
+
+/* exposed through the pin headers labeled "URDUG1" on the top of the PCB */
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
+};
+
+/*
+ * connected to the Bluetooth part of the RTL8723BS SDIO wifi / Bluetooth
+ * combo chip. This is only available on the variant with 2GB RAM.
+ */
+&uart_B {
+	status = "okay";
+	pinctrl-0 = <&uart_b0_pins>, <&uart_b0_cts_rts_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+};
+
+&usb1 {
+	status = "okay";
+	vbus-supply = <&usb_vbus>;
+};
+
+&usb1_phy {
+	status = "okay";
+};

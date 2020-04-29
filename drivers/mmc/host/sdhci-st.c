@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for SDHCI on STMicroelectronics SoCs
  *
@@ -6,16 +7,6 @@
  * Contributors: Peter Griffin <peter.griffin@linaro.org>
  *
  * Based on sdhci-cns3xxx.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/io.h>
@@ -422,10 +413,8 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	st_mmcss_cconfig(np, host);
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed sdhci_add_host\n");
+	if (ret)
 		goto err_out;
-	}
 
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
 

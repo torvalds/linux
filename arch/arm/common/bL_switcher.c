@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/common/bL_switcher.c -- big.LITTLE cluster switcher core driver
  *
  * Created by:	Nicolas Pitre, March 2012
  * Copyright:	(C) 2012-2013  Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/atomic.h>
@@ -542,16 +539,14 @@ static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
 
 int bL_switcher_trace_trigger(void)
 {
-	int ret;
-
 	preempt_disable();
 
 	bL_switcher_trace_trigger_cpu(NULL);
-	ret = smp_call_function(bL_switcher_trace_trigger_cpu, NULL, true);
+	smp_call_function(bL_switcher_trace_trigger_cpu, NULL, true);
 
 	preempt_enable();
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(bL_switcher_trace_trigger);
 

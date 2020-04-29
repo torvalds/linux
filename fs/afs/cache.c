@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS caching stuff
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/sched.h>
@@ -49,7 +45,7 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 	struct afs_vnode *vnode = cookie_netfs_data;
 	struct afs_vnode_cache_aux aux;
 
-	_enter("{%x,%x,%llx},%p,%u",
+	_enter("{%llx,%x,%llx},%p,%u",
 	       vnode->fid.vnode, vnode->fid.unique, vnode->status.data_version,
 	       buffer, buflen);
 

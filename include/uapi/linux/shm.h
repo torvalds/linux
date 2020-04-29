@@ -28,9 +28,9 @@
 struct shmid_ds {
 	struct ipc_perm		shm_perm;	/* operation perms */
 	int			shm_segsz;	/* size of segment (bytes) */
-	__kernel_time_t		shm_atime;	/* last attach time */
-	__kernel_time_t		shm_dtime;	/* last detach time */
-	__kernel_time_t		shm_ctime;	/* last change time */
+	__kernel_old_time_t	shm_atime;	/* last attach time */
+	__kernel_old_time_t	shm_dtime;	/* last detach time */
+	__kernel_old_time_t	shm_ctime;	/* last change time */
 	__kernel_ipc_pid_t	shm_cpid;	/* pid of creator */
 	__kernel_ipc_pid_t	shm_lpid;	/* pid of last operator */
 	unsigned short		shm_nattch;	/* no. of current attaches */
@@ -65,7 +65,9 @@ struct shmid_ds {
 #define SHM_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
 #define SHM_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
 #define SHM_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
+#define SHM_HUGE_32MB	HUGETLB_FLAG_ENCODE_32MB
 #define SHM_HUGE_256MB	HUGETLB_FLAG_ENCODE_256MB
+#define SHM_HUGE_512MB	HUGETLB_FLAG_ENCODE_512MB
 #define SHM_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
 #define SHM_HUGE_2GB	HUGETLB_FLAG_ENCODE_2GB
 #define SHM_HUGE_16GB	HUGETLB_FLAG_ENCODE_16GB
@@ -83,8 +85,9 @@ struct shmid_ds {
 #define SHM_UNLOCK 	12
 
 /* ipcs ctl commands */
-#define SHM_STAT 	13
-#define SHM_INFO 	14
+#define SHM_STAT	13
+#define SHM_INFO	14
+#define SHM_STAT_ANY    15
 
 /* Obsolete, used only for backwards compatibility */
 struct	shminfo {

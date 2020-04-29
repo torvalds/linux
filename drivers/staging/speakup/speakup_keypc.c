@@ -177,7 +177,7 @@ static void do_catch_up(struct spk_synth *synth)
 	jiffy_delta = spk_get_var(JIFFY);
 	delay_time = spk_get_var(DELAY);
 	full_time = spk_get_var(FULL);
-spin_lock_irqsave(&speakup_info.spinlock, flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	jiffy_delta_val = jiffy_delta->u.n.value;
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 
@@ -233,7 +233,7 @@ spin_lock_irqsave(&speakup_info.spinlock, flags);
 			delay_time_val = delay_time->u.n.value;
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
-			jiff_max = jiffies+jiffy_delta_val;
+			jiff_max = jiffies + jiffy_delta_val;
 		}
 	}
 	timeout = 1000;
@@ -261,7 +261,7 @@ static int synth_probe(struct spk_synth *synth)
 		synth_port = port_forced;
 		pr_info("probe forced to %x by kernel command line\n",
 			synth_port);
-		if (synth_request_region(synth_port-1, SYNTH_IO_EXTENT)) {
+		if (synth_request_region(synth_port - 1, SYNTH_IO_EXTENT)) {
 			pr_warn("sorry, port already reserved\n");
 			return -EBUSY;
 		}
@@ -289,7 +289,7 @@ static int synth_probe(struct spk_synth *synth)
 		return -ENODEV;
 	}
 	pr_info("%s: %03x-%03x, driver version %s,\n", synth->long_name,
-		synth_port, synth_port+SYNTH_IO_EXTENT-1,
+		synth_port, synth_port + SYNTH_IO_EXTENT - 1,
 		synth->version);
 	synth->alive = 1;
 	return 0;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2006 Compulab, Ltd.
  *  Mike Rapoport <mike@compulab.co.il>
@@ -5,11 +6,6 @@
  *  Derived from drivers/mtd/nand/h1910.c (removed in v3.10)
  *       Copyright (C) 2002 Marius Gröger (mag@sysgo.de)
  *       Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Overview:
  *   This is a device driver for the NAND flash device found on the
@@ -49,29 +45,26 @@ static const struct mtd_partition partition_info[] = {
 };
 #define NUM_PARTITIONS (ARRAY_SIZE(partition_info))
 
-static u_char cmx270_read_byte(struct mtd_info *mtd)
+static u_char cmx270_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-
-	return (readl(this->IO_ADDR_R) >> 16);
+	return (readl(this->legacy.IO_ADDR_R) >> 16);
 }
 
-static void cmx270_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void cmx270_write_buf(struct nand_chip *this, const u_char *buf,
+			     int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
-		writel((*buf++ << 16), this->IO_ADDR_W);
+		writel((*buf++ << 16), this->legacy.IO_ADDR_W);
 }
 
-static void cmx270_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void cmx270_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
-		*buf++ = readl(this->IO_ADDR_R) >> 16;
+		*buf++ = readl(this->legacy.IO_ADDR_R) >> 16;
 }
 
 static inline void nand_cs_on(void)
@@ -89,11 +82,10 @@ static void nand_cs_off(void)
 /*
  *	hardware specific access to control-lines
  */
-static void cmx270_hwcontrol(struct mtd_info *mtd, int dat,
+static void cmx270_hwcontrol(struct nand_chip *this, int dat,
 			     unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned int nandaddr = (unsigned int)this->IO_ADDR_W;
+	unsigned int nandaddr = (unsigned int)this->legacy.IO_ADDR_W;
 
 	dsb();
 
@@ -113,9 +105,9 @@ static void cmx270_hwcontrol(struct mtd_info *mtd, int dat,
 	}
 
 	dsb();
-	this->IO_ADDR_W = (void __iomem*)nandaddr;
+	this->legacy.IO_ADDR_W = (void __iomem*)nandaddr;
 	if (dat != NAND_CMD_NONE)
-		writel((dat << 16), this->IO_ADDR_W);
+		writel((dat << 16), this->legacy.IO_ADDR_W);
 
 	dsb();
 }
@@ -123,7 +115,7 @@ static void cmx270_hwcontrol(struct mtd_info *mtd, int dat,
 /*
  *	read device ready pin
  */
-static int cmx270_device_ready(struct mtd_info *mtd)
+static int cmx270_device_ready(struct nand_chip *this)
 {
 	dsb();
 
@@ -177,31 +169,31 @@ static int __init cmx270_init(void)
 	cmx270_nand_mtd->owner = THIS_MODULE;
 
 	/* insert callbacks */
-	this->IO_ADDR_R = cmx270_nand_io;
-	this->IO_ADDR_W = cmx270_nand_io;
-	this->cmd_ctrl = cmx270_hwcontrol;
-	this->dev_ready = cmx270_device_ready;
+	this->legacy.IO_ADDR_R = cmx270_nand_io;
+	this->legacy.IO_ADDR_W = cmx270_nand_io;
+	this->legacy.cmd_ctrl = cmx270_hwcontrol;
+	this->legacy.dev_ready = cmx270_device_ready;
 
 	/* 15 us command delay time */
-	this->chip_delay = 20;
+	this->legacy.chip_delay = 20;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 
 	/* read/write functions */
-	this->read_byte = cmx270_read_byte;
-	this->read_buf = cmx270_read_buf;
-	this->write_buf = cmx270_write_buf;
+	this->legacy.read_byte = cmx270_read_byte;
+	this->legacy.read_buf = cmx270_read_buf;
+	this->legacy.write_buf = cmx270_write_buf;
 
 	/* Scan to find existence of the device */
-	ret = nand_scan(cmx270_nand_mtd, 1);
+	ret = nand_scan(this, 1);
 	if (ret) {
 		pr_notice("No NAND device\n");
 		goto err_scan;
 	}
 
 	/* Register the partitions */
-	ret = mtd_device_parse_register(cmx270_nand_mtd, NULL, NULL,
-					partition_info, NUM_PARTITIONS);
+	ret = mtd_device_register(cmx270_nand_mtd, partition_info,
+				  NUM_PARTITIONS);
 	if (ret)
 		goto err_scan;
 
@@ -228,7 +220,7 @@ module_init(cmx270_init);
 static void __exit cmx270_cleanup(void)
 {
 	/* Release resources, unregister device */
-	nand_release(cmx270_nand_mtd);
+	nand_release(mtd_to_nand(cmx270_nand_mtd));
 
 	gpio_free(GPIO_NAND_RB);
 	gpio_free(GPIO_NAND_CS);

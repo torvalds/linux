@@ -530,7 +530,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 			DEBUGP(5, dev, "NumRecBytes is valid\n");
 			break;
 		}
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 	if (i == 100) {
 		DEBUGP(5, dev, "Timeout waiting for NumRecBytes getting "
@@ -546,7 +546,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 			DEBUGP(2, dev, "NumRecBytes = %i\n", num_bytes_read);
 			break;
 		}
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 
 	/* check whether it is a short PTS reply? */
@@ -731,8 +731,9 @@ static void monitor_card(struct timer_list *t)
 	}
 
 	switch (dev->mstate) {
+	case M_CARDOFF: {
 		unsigned char flags0;
-	case M_CARDOFF:
+
 		DEBUGP(4, dev, "M_CARDOFF\n");
 		flags0 = inb(REG_FLAGS0(iobase));
 		if (flags0 & 0x02) {
@@ -755,6 +756,7 @@ static void monitor_card(struct timer_list *t)
 			dev->mdelay = T_50MSEC;
 		}
 		break;
+	}
 	case M_FETCH_ATR:
 		DEBUGP(4, dev, "M_FETCH_ATR\n");
 		xoutb(0x80, REG_FLAGS0(iobase));
@@ -1445,11 +1447,11 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	      _IOC_DIR(cmd), _IOC_READ, _IOC_WRITE, size, cmd);
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (!access_ok(VERIFY_WRITE, argp, size))
+		if (!access_ok(argp, size))
 			goto out;
 	}
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (!access_ok(VERIFY_READ, argp, size))
+		if (!access_ok(argp, size))
 			goto out;
 	}
 	rc = 0;
@@ -1682,7 +1684,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	link->open = 1;		/* only one open per device */
 
 	DEBUGP(2, dev, "<- cmm_open\n");
-	ret = nonseekable_open(inode, filp);
+	ret = stream_open(inode, filp);
 out:
 	mutex_unlock(&cmm_mutex);
 	return ret;
@@ -1748,8 +1750,6 @@ static int cm4000_config_check(struct pcmcia_device *p_dev, void *priv_data)
 
 static int cm4000_config(struct pcmcia_device * link, int devno)
 {
-	struct cm4000_dev *dev;
-
 	link->config_flags |= CONF_AUTO_SET_IO;
 
 	/* read the config-tuples */
@@ -1758,8 +1758,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 
 	if (pcmcia_enable_device(link))
 		goto cs_release;
-
-	dev = link->priv;
 
 	return 0;
 

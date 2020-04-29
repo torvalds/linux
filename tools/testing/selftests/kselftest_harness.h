@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by the GPLv2 license.
  *
  * kselftest_harness.h: simple C unit test helper.
  *
@@ -62,6 +62,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define TEST_TIMEOUT_DEFAULT 30
 
 /* Utilities exposed to the test definitions */
 #ifndef TH_LOG_STREAM
@@ -168,8 +169,9 @@
 #define __TEST_IMPL(test_name, _signal) \
 	static void test_name(struct __test_metadata *_metadata); \
 	static struct __test_metadata _##test_name##_object = \
-		{ name: "global." #test_name, \
-		  fn: &test_name, termsig: _signal }; \
+		{ .name = "global." #test_name, \
+		  .fn = &test_name, .termsig = _signal, \
+		  .timeout = TEST_TIMEOUT_DEFAULT, }; \
 	static void __attribute__((constructor)) _register_##test_name(void) \
 	{ \
 		__register_test(&_##test_name##_object); \
@@ -280,12 +282,15 @@
  */
 /* TODO(wad) register fixtures on dedicated test lists. */
 #define TEST_F(fixture_name, test_name) \
-	__TEST_F_IMPL(fixture_name, test_name, -1)
+	__TEST_F_IMPL(fixture_name, test_name, -1, TEST_TIMEOUT_DEFAULT)
 
 #define TEST_F_SIGNAL(fixture_name, test_name, signal) \
-	__TEST_F_IMPL(fixture_name, test_name, signal)
+	__TEST_F_IMPL(fixture_name, test_name, signal, TEST_TIMEOUT_DEFAULT)
 
-#define __TEST_F_IMPL(fixture_name, test_name, signal) \
+#define TEST_F_TIMEOUT(fixture_name, test_name, timeout) \
+	__TEST_F_IMPL(fixture_name, test_name, -1, timeout)
+
+#define __TEST_F_IMPL(fixture_name, test_name, signal, tmout) \
 	static void fixture_name##_##test_name( \
 		struct __test_metadata *_metadata, \
 		FIXTURE_DATA(fixture_name) *self); \
@@ -304,9 +309,10 @@
 	} \
 	static struct __test_metadata \
 		      _##fixture_name##_##test_name##_object = { \
-		name: #fixture_name "." #test_name, \
-		fn: &wrapper_##fixture_name##_##test_name, \
-		termsig: signal, \
+		.name = #fixture_name "." #test_name, \
+		.fn = &wrapper_##fixture_name##_##test_name, \
+		.termsig = signal, \
+		.timeout = tmout, \
 	 }; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
@@ -354,7 +360,7 @@
  * ASSERT_EQ(expected, measured): expected == measured
  */
 #define ASSERT_EQ(expected, seen) \
-	__EXPECT(expected, seen, ==, 1)
+	__EXPECT(expected, #expected, seen, #seen, ==, 1)
 
 /**
  * ASSERT_NE(expected, seen)
@@ -365,7 +371,7 @@
  * ASSERT_NE(expected, measured): expected != measured
  */
 #define ASSERT_NE(expected, seen) \
-	__EXPECT(expected, seen, !=, 1)
+	__EXPECT(expected, #expected, seen, #seen, !=, 1)
 
 /**
  * ASSERT_LT(expected, seen)
@@ -376,7 +382,7 @@
  * ASSERT_LT(expected, measured): expected < measured
  */
 #define ASSERT_LT(expected, seen) \
-	__EXPECT(expected, seen, <, 1)
+	__EXPECT(expected, #expected, seen, #seen, <, 1)
 
 /**
  * ASSERT_LE(expected, seen)
@@ -387,7 +393,7 @@
  * ASSERT_LE(expected, measured): expected <= measured
  */
 #define ASSERT_LE(expected, seen) \
-	__EXPECT(expected, seen, <=, 1)
+	__EXPECT(expected, #expected, seen, #seen, <=, 1)
 
 /**
  * ASSERT_GT(expected, seen)
@@ -398,7 +404,7 @@
  * ASSERT_GT(expected, measured): expected > measured
  */
 #define ASSERT_GT(expected, seen) \
-	__EXPECT(expected, seen, >, 1)
+	__EXPECT(expected, #expected, seen, #seen, >, 1)
 
 /**
  * ASSERT_GE(expected, seen)
@@ -409,7 +415,7 @@
  * ASSERT_GE(expected, measured): expected >= measured
  */
 #define ASSERT_GE(expected, seen) \
-	__EXPECT(expected, seen, >=, 1)
+	__EXPECT(expected, #expected, seen, #seen, >=, 1)
 
 /**
  * ASSERT_NULL(seen)
@@ -419,7 +425,7 @@
  * ASSERT_NULL(measured): NULL == measured
  */
 #define ASSERT_NULL(seen) \
-	__EXPECT(NULL, seen, ==, 1)
+	__EXPECT(NULL, "NULL", seen, #seen, ==, 1)
 
 /**
  * ASSERT_TRUE(seen)
@@ -429,7 +435,7 @@
  * ASSERT_TRUE(measured): measured != 0
  */
 #define ASSERT_TRUE(seen) \
-	ASSERT_NE(0, seen)
+	__EXPECT(0, "0", seen, #seen, !=, 1)
 
 /**
  * ASSERT_FALSE(seen)
@@ -439,7 +445,7 @@
  * ASSERT_FALSE(measured): measured == 0
  */
 #define ASSERT_FALSE(seen) \
-	ASSERT_EQ(0, seen)
+	__EXPECT(0, "0", seen, #seen, ==, 1)
 
 /**
  * ASSERT_STREQ(expected, seen)
@@ -472,7 +478,7 @@
  * EXPECT_EQ(expected, measured): expected == measured
  */
 #define EXPECT_EQ(expected, seen) \
-	__EXPECT(expected, seen, ==, 0)
+	__EXPECT(expected, #expected, seen, #seen, ==, 0)
 
 /**
  * EXPECT_NE(expected, seen)
@@ -483,7 +489,7 @@
  * EXPECT_NE(expected, measured): expected != measured
  */
 #define EXPECT_NE(expected, seen) \
-	__EXPECT(expected, seen, !=, 0)
+	__EXPECT(expected, #expected, seen, #seen, !=, 0)
 
 /**
  * EXPECT_LT(expected, seen)
@@ -494,7 +500,7 @@
  * EXPECT_LT(expected, measured): expected < measured
  */
 #define EXPECT_LT(expected, seen) \
-	__EXPECT(expected, seen, <, 0)
+	__EXPECT(expected, #expected, seen, #seen, <, 0)
 
 /**
  * EXPECT_LE(expected, seen)
@@ -505,7 +511,7 @@
  * EXPECT_LE(expected, measured): expected <= measured
  */
 #define EXPECT_LE(expected, seen) \
-	__EXPECT(expected, seen, <=, 0)
+	__EXPECT(expected, #expected, seen, #seen, <=, 0)
 
 /**
  * EXPECT_GT(expected, seen)
@@ -516,7 +522,7 @@
  * EXPECT_GT(expected, measured): expected > measured
  */
 #define EXPECT_GT(expected, seen) \
-	__EXPECT(expected, seen, >, 0)
+	__EXPECT(expected, #expected, seen, #seen, >, 0)
 
 /**
  * EXPECT_GE(expected, seen)
@@ -527,7 +533,7 @@
  * EXPECT_GE(expected, measured): expected >= measured
  */
 #define EXPECT_GE(expected, seen) \
-	__EXPECT(expected, seen, >=, 0)
+	__EXPECT(expected, #expected, seen, #seen, >=, 0)
 
 /**
  * EXPECT_NULL(seen)
@@ -537,7 +543,7 @@
  * EXPECT_NULL(measured): NULL == measured
  */
 #define EXPECT_NULL(seen) \
-	__EXPECT(NULL, seen, ==, 0)
+	__EXPECT(NULL, "NULL", seen, #seen, ==, 0)
 
 /**
  * EXPECT_TRUE(seen)
@@ -547,7 +553,7 @@
  * EXPECT_TRUE(measured): 0 != measured
  */
 #define EXPECT_TRUE(seen) \
-	EXPECT_NE(0, seen)
+	__EXPECT(0, "0", seen, #seen, !=, 0)
 
 /**
  * EXPECT_FALSE(seen)
@@ -557,7 +563,7 @@
  * EXPECT_FALSE(measured): 0 == measured
  */
 #define EXPECT_FALSE(seen) \
-	EXPECT_EQ(0, seen)
+	__EXPECT(0, "0", seen, #seen, ==, 0)
 
 /**
  * EXPECT_STREQ(expected, seen)
@@ -597,7 +603,7 @@
 	if (_metadata->passed && _metadata->step < 255) \
 		_metadata->step++;
 
-#define __EXPECT(_expected, _seen, _t, _assert) do { \
+#define __EXPECT(_expected, _expected_str, _seen, _seen_str, _t, _assert) do { \
 	/* Avoid multiple evaluation of the cases */ \
 	__typeof__(_expected) __exp = (_expected); \
 	__typeof__(_seen) __seen = (_seen); \
@@ -606,8 +612,8 @@
 		unsigned long long __exp_print = (uintptr_t)__exp; \
 		unsigned long long __seen_print = (uintptr_t)__seen; \
 		__TH_LOG("Expected %s (%llu) %s %s (%llu)", \
-			 #_expected, __exp_print, #_t, \
-			 #_seen, __seen_print); \
+			 _expected_str, __exp_print, #_t, \
+			 _seen_str, __seen_print); \
 		_metadata->passed = 0; \
 		/* Ensure the optional handler is triggered */ \
 		_metadata->trigger = 1; \
@@ -629,9 +635,12 @@
 struct __test_metadata {
 	const char *name;
 	void (*fn)(struct __test_metadata *);
+	pid_t pid;	/* pid of test when being run */
 	int termsig;
 	int passed;
 	int trigger; /* extra handler after the evaluation */
+	int timeout;	/* seconds to wait for test timeout */
+	bool timed_out;	/* did this test timeout instead of exiting? */
 	__u8 step;
 	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
 	struct __test_metadata *prev, *next;
@@ -688,60 +697,114 @@ static inline int __bail(int for_realz, bool no_print, __u8 step)
 	return 0;
 }
 
-void __run_test(struct __test_metadata *t)
+struct __test_metadata *__active_test;
+static void __timeout_handler(int sig, siginfo_t *info, void *ucontext)
 {
-	pid_t child_pid;
+	struct __test_metadata *t = __active_test;
+
+	/* Sanity check handler execution environment. */
+	if (!t) {
+		fprintf(TH_LOG_STREAM,
+			"no active test in SIGALRM handler!?\n");
+		abort();
+	}
+	if (sig != SIGALRM || sig != info->si_signo) {
+		fprintf(TH_LOG_STREAM,
+			"%s: SIGALRM handler caught signal %d!?\n",
+			t->name, sig != SIGALRM ? sig : info->si_signo);
+		abort();
+	}
+
+	t->timed_out = true;
+	kill(t->pid, SIGKILL);
+}
+
+void __wait_for_test(struct __test_metadata *t)
+{
+	struct sigaction action = {
+		.sa_sigaction = __timeout_handler,
+		.sa_flags = SA_SIGINFO,
+	};
+	struct sigaction saved_action;
 	int status;
 
+	if (sigaction(SIGALRM, &action, &saved_action)) {
+		t->passed = 0;
+		fprintf(TH_LOG_STREAM,
+			"%s: unable to install SIGALRM handler\n",
+			t->name);
+		return;
+	}
+	__active_test = t;
+	t->timed_out = false;
+	alarm(t->timeout);
+	waitpid(t->pid, &status, 0);
+	alarm(0);
+	if (sigaction(SIGALRM, &saved_action, NULL)) {
+		t->passed = 0;
+		fprintf(TH_LOG_STREAM,
+			"%s: unable to uninstall SIGALRM handler\n",
+			t->name);
+		return;
+	}
+	__active_test = NULL;
+
+	if (t->timed_out) {
+		t->passed = 0;
+		fprintf(TH_LOG_STREAM,
+			"%s: Test terminated by timeout\n", t->name);
+	} else if (WIFEXITED(status)) {
+		t->passed = t->termsig == -1 ? !WEXITSTATUS(status) : 0;
+		if (t->termsig != -1) {
+			fprintf(TH_LOG_STREAM,
+				"%s: Test exited normally "
+				"instead of by signal (code: %d)\n",
+				t->name,
+				WEXITSTATUS(status));
+		} else if (!t->passed) {
+			fprintf(TH_LOG_STREAM,
+				"%s: Test failed at step #%d\n",
+				t->name,
+				WEXITSTATUS(status));
+		}
+	} else if (WIFSIGNALED(status)) {
+		t->passed = 0;
+		if (WTERMSIG(status) == SIGABRT) {
+			fprintf(TH_LOG_STREAM,
+				"%s: Test terminated by assertion\n",
+				t->name);
+		} else if (WTERMSIG(status) == t->termsig) {
+			t->passed = 1;
+		} else {
+			fprintf(TH_LOG_STREAM,
+				"%s: Test terminated unexpectedly "
+				"by signal %d\n",
+				t->name,
+				WTERMSIG(status));
+		}
+	} else {
+		fprintf(TH_LOG_STREAM,
+			"%s: Test ended in some other way [%u]\n",
+			t->name,
+			status);
+	}
+}
+
+void __run_test(struct __test_metadata *t)
+{
 	t->passed = 1;
 	t->trigger = 0;
 	printf("[ RUN      ] %s\n", t->name);
-	child_pid = fork();
-	if (child_pid < 0) {
+	t->pid = fork();
+	if (t->pid < 0) {
 		printf("ERROR SPAWNING TEST CHILD\n");
 		t->passed = 0;
-	} else if (child_pid == 0) {
+	} else if (t->pid == 0) {
 		t->fn(t);
 		/* return the step that failed or 0 */
 		_exit(t->passed ? 0 : t->step);
 	} else {
-		/* TODO(wad) add timeout support. */
-		waitpid(child_pid, &status, 0);
-		if (WIFEXITED(status)) {
-			t->passed = t->termsig == -1 ? !WEXITSTATUS(status) : 0;
-			if (t->termsig != -1) {
-				fprintf(TH_LOG_STREAM,
-					"%s: Test exited normally "
-					"instead of by signal (code: %d)\n",
-					t->name,
-					WEXITSTATUS(status));
-			} else if (!t->passed) {
-				fprintf(TH_LOG_STREAM,
-					"%s: Test failed at step #%d\n",
-					t->name,
-					WEXITSTATUS(status));
-			}
-		} else if (WIFSIGNALED(status)) {
-			t->passed = 0;
-			if (WTERMSIG(status) == SIGABRT) {
-				fprintf(TH_LOG_STREAM,
-					"%s: Test terminated by assertion\n",
-					t->name);
-			} else if (WTERMSIG(status) == t->termsig) {
-				t->passed = 1;
-			} else {
-				fprintf(TH_LOG_STREAM,
-					"%s: Test terminated unexpectedly "
-					"by signal %d\n",
-					t->name,
-					WTERMSIG(status));
-			}
-		} else {
-			fprintf(TH_LOG_STREAM,
-				"%s: Test ended in some other way [%u]\n",
-				t->name,
-				status);
-		}
+		__wait_for_test(t);
 	}
 	printf("[     %4s ] %s\n", (t->passed ? "OK" : "FAIL"), t->name);
 }

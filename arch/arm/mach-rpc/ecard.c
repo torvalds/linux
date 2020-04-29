@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/ecard.c
  *
  *  Copyright 1995-2001 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Find all installed expansion cards, and handle interrupts from them.
  *
@@ -70,17 +67,21 @@ struct expcard_blacklist {
 	unsigned short	 manufacturer;
 	unsigned short	 product;
 	const char	*type;
+	void (*init)(ecard_t *ec);
 };
 
 static ecard_t *cards;
 static ecard_t *slot_to_expcard[MAX_ECARDS];
 static unsigned int ectcr;
 
+static void atomwide_3p_quirk(ecard_t *ec);
+
 /* List of descriptions of cards which don't have an extended
  * identification, or chunk directories containing a description.
  */
 static struct expcard_blacklist __initdata blacklist[] = {
-	{ MANU_ACORN, PROD_ACORN_ETHER1, "Acorn Ether1" }
+	{ MANU_ACORN, PROD_ACORN_ETHER1, "Acorn Ether1" },
+	{ MANU_ATOMWIDE, PROD_ATOMWIDE_3PSERIAL, NULL, atomwide_3p_quirk },
 };
 
 asmlinkage extern int
@@ -212,7 +213,7 @@ static DEFINE_MUTEX(ecard_mutex);
  */
 static void ecard_init_pgtables(struct mm_struct *mm)
 {
-	struct vm_area_struct vma;
+	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, VM_EXEC);
 
 	/* We want to set up the page tables for the following mapping:
 	 *  Virtual	Physical
@@ -236,9 +237,6 @@ static void ecard_init_pgtables(struct mm_struct *mm)
 	dst_pgd = pgd_offset(mm, EASI_START);
 
 	memcpy(dst_pgd, src_pgd, sizeof(pgd_t) * (EASI_SIZE / PGDIR_SIZE));
-
-	vma.vm_flags = VM_EXEC;
-	vma.vm_mm = mm;
 
 	flush_tlb_range(&vma, IO_START, IO_START + IO_SIZE);
 	flush_tlb_range(&vma, EASI_START, EASI_START + EASI_SIZE);
@@ -499,18 +497,21 @@ static void ecard_dump_irq_state(void)
 	printk("Expansion card IRQ state:\n");
 
 	for (ec = cards; ec; ec = ec->next) {
+		const char *claimed;
+
 		if (ec->slot_no == 8)
 			continue;
 
-		printk("  %d: %sclaimed, ",
-		       ec->slot_no, ec->claimed ? "" : "not ");
+		claimed = ec->claimed ? "" : "not ";
 
 		if (ec->ops && ec->ops->irqpending &&
 		    ec->ops != &ecard_default_ops)
-			printk("irq %spending\n",
+			printk("  %d: %sclaimed irq %spending\n",
+			       ec->slot_no, claimed,
 			       ec->ops->irqpending(ec) ? "" : "not ");
 		else
-			printk("irqaddr %p, mask = %02X, status = %02X\n",
+			printk("  %d: %sclaimed irqaddr %p, mask = %02X, status = %02X\n",
+			       ec->slot_no, claimed,
 			       ec->irqaddr, ec->irqmask, readb(ec->irqaddr));
 	}
 }
@@ -657,25 +658,13 @@ static int ecard_devices_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ecard_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ecard_devices_proc_show, NULL);
-}
-
-static const struct file_operations bus_ecard_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ecard_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static struct proc_dir_entry *proc_bus_ecard_dir = NULL;
 
 static void ecard_proc_init(void)
 {
 	proc_bus_ecard_dir = proc_mkdir("bus/ecard", NULL);
-	proc_create("devices", 0, proc_bus_ecard_dir, &bus_ecard_proc_fops);
+	proc_create_single("devices", 0, proc_bus_ecard_dir,
+			ecard_devices_proc_show);
 }
 
 #define ec_set_resource(ec,nr,st,sz)				\
@@ -883,6 +872,16 @@ void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
 }
 EXPORT_SYMBOL(ecardm_iomap);
 
+static void atomwide_3p_quirk(ecard_t *ec)
+{
+	void __iomem *addr = __ecard_address(ec, ECARD_IOC, ECARD_SYNC);
+	unsigned int i;
+
+	/* Disable interrupts on each port */
+	for (i = 0x2000; i <= 0x2800; i += 0x0400)
+		writeb(0, addr + i + 4);	
+}
+
 /*
  * Probe for an expansion card.
  *
@@ -939,7 +938,10 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 	for (i = 0; i < ARRAY_SIZE(blacklist); i++)
 		if (blacklist[i].manufacturer == ec->cid.manufacturer &&
 		    blacklist[i].product == ec->cid.product) {
-			ec->card_desc = blacklist[i].type;
+		    	if (blacklist[i].type)
+				ec->card_desc = blacklist[i].type;
+			if (blacklist[i].init)
+				blacklist[i].init(ec);
 			break;
 		}
 

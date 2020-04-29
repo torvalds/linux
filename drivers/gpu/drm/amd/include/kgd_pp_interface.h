@@ -92,8 +92,13 @@ enum pp_clock_type {
 	PP_SCLK,
 	PP_MCLK,
 	PP_PCIE,
+	PP_SOCCLK,
+	PP_FCLK,
+	PP_DCEFCLK,
 	OD_SCLK,
 	OD_MCLK,
+	OD_VDDC_CURVE,
+	OD_RANGE,
 };
 
 enum amd_pp_sensors {
@@ -104,13 +109,21 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_UVD_DCLK,
 	AMDGPU_PP_SENSOR_VCE_ECCLK,
 	AMDGPU_PP_SENSOR_GPU_LOAD,
+	AMDGPU_PP_SENSOR_MEM_LOAD,
 	AMDGPU_PP_SENSOR_GFX_MCLK,
 	AMDGPU_PP_SENSOR_GPU_TEMP,
+	AMDGPU_PP_SENSOR_EDGE_TEMP = AMDGPU_PP_SENSOR_GPU_TEMP,
+	AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
+	AMDGPU_PP_SENSOR_MEM_TEMP,
 	AMDGPU_PP_SENSOR_VCE_POWER,
 	AMDGPU_PP_SENSOR_UVD_POWER,
 	AMDGPU_PP_SENSOR_GPU_POWER,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK,
+	AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK,
+	AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+	AMDGPU_PP_SENSOR_MAX_FAN_RPM,
+	AMDGPU_PP_SENSOR_VCN_POWER_STATE,
 };
 
 enum amd_pp_task {
@@ -122,12 +135,14 @@ enum amd_pp_task {
 };
 
 enum PP_SMC_POWER_PROFILE {
-	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
-	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,
-	PP_SMC_POWER_PROFILE_VIDEO        = 0x2,
-	PP_SMC_POWER_PROFILE_VR           = 0x3,
-	PP_SMC_POWER_PROFILE_COMPUTE      = 0x4,
-	PP_SMC_POWER_PROFILE_CUSTOM       = 0x5,
+	PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT = 0x0,
+	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x1,
+	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x2,
+	PP_SMC_POWER_PROFILE_VIDEO        = 0x3,
+	PP_SMC_POWER_PROFILE_VR           = 0x4,
+	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
+	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
+	PP_SMC_POWER_PROFILE_COUNT,
 };
 
 enum {
@@ -140,6 +155,7 @@ enum {
 enum PP_OD_DPM_TABLE_COMMAND {
 	PP_OD_EDIT_SCLK_VDDC_TABLE,
 	PP_OD_EDIT_MCLK_VDDC_TABLE,
+	PP_OD_EDIT_VDDC_CURVE,
 	PP_OD_RESTORE_DEFAULT_TABLE,
 	PP_OD_COMMIT_DPM_TABLE
 };
@@ -149,11 +165,23 @@ struct pp_states_info {
 	uint32_t states[16];
 };
 
-struct pp_gpu_power {
-	uint32_t vddc_power;
-	uint32_t vddci_power;
-	uint32_t max_gpu_power;
-	uint32_t average_gpu_power;
+enum PP_HWMON_TEMP {
+	PP_TEMP_EDGE = 0,
+	PP_TEMP_JUNCTION,
+	PP_TEMP_MEM,
+	PP_TEMP_MAX
+};
+
+enum pp_mp1_state {
+	PP_MP1_STATE_NONE,
+	PP_MP1_STATE_SHUTDOWN,
+	PP_MP1_STATE_UNLOAD,
+	PP_MP1_STATE_RESET,
+};
+
+enum pp_df_cstate {
+	DF_CSTATE_DISALLOW = 0,
+	DF_CSTATE_ALLOW,
 };
 
 #define PP_GROUP_MASK        0xF0000000
@@ -192,13 +220,15 @@ struct pp_gpu_power {
 		((group) << PP_GROUP_SHIFT | (block) << PP_BLOCK_SHIFT | \
 		(support) << PP_STATE_SUPPORT_SHIFT | (state) << PP_STATE_SHIFT)
 
+#define XGMI_MODE_PSTATE_D3 0
+#define XGMI_MODE_PSTATE_D0 1
+
 struct seq_file;
 enum amd_pp_clock_type;
 struct amd_pp_simple_clock_info;
 struct amd_pp_display_configuration;
 struct amd_pp_clock_info;
 struct pp_display_clock_request;
-struct pp_wm_sets_with_clock_ranges_soc15;
 struct pp_clock_levels_with_voltage;
 struct pp_clock_levels_with_latency;
 struct amd_pp_clocks;
@@ -232,27 +262,28 @@ struct amd_pm_funcs {
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*set_fan_speed_rpm)(void *handle, uint32_t rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
 	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
 	int (*switch_power_profile)(void *handle, enum PP_SMC_POWER_PROFILE type, bool en);
 /* export to amdgpu */
-	void (*powergate_uvd)(void *handle, bool gate);
-	void (*powergate_vce)(void *handle, bool gate);
 	struct amd_vce_state *(*get_vce_clock_state)(void *handle, u32 idx);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
 			enum amd_pm_state_type *user_state);
 	int (*load_firmware)(void *handle);
 	int (*wait_for_fw_loading_complete)(void *handle);
+	int (*set_powergating_by_smu)(void *handle,
+				uint32_t block_type, bool gate);
 	int (*set_clockgating_by_smu)(void *handle, uint32_t msg_id);
-	int (*notify_smu_memory_info)(void *handle, uint32_t virtual_addr_low,
-					uint32_t virtual_addr_hi,
-					uint32_t mc_addr_low,
-					uint32_t mc_addr_hi,
-					uint32_t size);
 	int (*set_power_limit)(void *handle, uint32_t n);
 	int (*get_power_limit)(void *handle, uint32_t *limit, bool default_limit);
+	int (*get_power_profile_mode)(void *handle, char *buf);
+	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
+	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
+	int (*set_mp1_state)(void *handle, enum pp_mp1_state mp1_state);
+	int (*smu_i2c_bus_access)(void *handle, bool acquire);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);
@@ -272,15 +303,25 @@ struct amd_pm_funcs {
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_voltage *clocks);
 	int (*set_watermarks_for_clocks_ranges)(void *handle,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+						void *clock_ranges);
 	int (*display_clock_voltage_request)(void *handle,
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
-	int (*get_power_profile_mode)(void *handle, char *buf);
-	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
-	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
-	int (*set_mmhub_powergating_by_smu)(void *handle);
+	int (*notify_smu_enable_pwe)(void *handle);
+	int (*enable_mgpu_fan_boost)(void *handle);
+	int (*set_active_display_count)(void *handle, uint32_t count);
+	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
+	int (*get_asic_baco_capability)(void *handle, bool *cap);
+	int (*get_asic_baco_state)(void *handle, int *state);
+	int (*set_asic_baco_state)(void *handle, int state);
+	int (*get_ppfeature_status)(void *handle, char *buf);
+	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
+	int (*asic_reset_mode_2)(void *handle);
+	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
+	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 };
 
 #endif

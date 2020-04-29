@@ -24,6 +24,10 @@ int cec_debug;
 module_param_named(debug, cec_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
+static bool debug_phys_addr;
+module_param(debug_phys_addr, bool, 0644);
+MODULE_PARM_DESC(debug_phys_addr, "add CEC_CAP_PHYS_ADDR if set");
+
 static dev_t cec_dev_t;
 
 /* Active devices */
@@ -122,14 +126,16 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	/* Part 2: Initialize and register the character device */
 	cdev_init(&devnode->cdev, &cec_devnode_fops);
 	devnode->cdev.owner = owner;
+	kobject_set_name(&devnode->cdev.kobj, "cec%d", devnode->minor);
 
+	devnode->registered = true;
 	ret = cdev_device_add(&devnode->cdev, &devnode->dev);
 	if (ret) {
+		devnode->registered = false;
 		pr_err("%s: cdev_device_add failed\n", __func__);
 		goto clr_bit;
 	}
 
-	devnode->registered = true;
 	return 0;
 
 clr_bit:
@@ -176,24 +182,6 @@ static void cec_devnode_unregister(struct cec_adapter *adap)
 	cdev_device_del(&devnode->cdev, &devnode->dev);
 	put_device(&devnode->dev);
 }
-
-#ifdef CONFIG_CEC_NOTIFIER
-static void cec_cec_notify(struct cec_adapter *adap, u16 pa)
-{
-	cec_s_phys_addr(adap, pa, false);
-}
-
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier)
-{
-	if (WARN_ON(!cec_is_registered(adap)))
-		return;
-
-	adap->notifier = notifier;
-	cec_notifier_register(adap->notifier, adap, cec_cec_notify);
-}
-EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
-#endif
 
 #ifdef CONFIG_DEBUG_FS
 static ssize_t cec_error_inj_write(struct file *file,
@@ -264,12 +252,14 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (!adap)
 		return ERR_PTR(-ENOMEM);
-	strlcpy(adap->name, name, sizeof(adap->name));
+	strscpy(adap->name, name, sizeof(adap->name));
 	adap->phys_addr = CEC_PHYS_ADDR_INVALID;
 	adap->cec_pin_is_high = true;
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 	adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
 	adap->capabilities = caps;
+	if (debug_phys_addr)
+		adap->capabilities |= CEC_CAP_PHYS_ADDR;
 	adap->needs_hpd = caps & CEC_CAP_NEEDS_HPD;
 	adap->available_log_addrs = available_las;
 	adap->sequence = 0;
@@ -307,12 +297,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	snprintf(adap->device_name, sizeof(adap->device_name),
-		 "RC for %s", name);
 	snprintf(adap->input_phys, sizeof(adap->input_phys),
-		 "%s/input0", name);
+		 "%s/input0", adap->name);
 
-	adap->rc->device_name = adap->device_name;
+	adap->rc->device_name = adap->name;
 	adap->rc->input_phys = adap->input_phys;
 	adap->rc->input_id.bustype = BUS_CEC;
 	adap->rc->input_id.vendor = 0;
@@ -322,7 +310,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->allowed_protocols = RC_PROTO_BIT_CEC;
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
-	adap->rc->timeout = MS_TO_NS(100);
+	adap->rc->timeout = MS_TO_NS(550);
 #endif
 	return adap;
 }
@@ -410,8 +398,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
 #ifdef CONFIG_CEC_NOTIFIER
-	if (adap->notifier)
-		cec_notifier_unregister(adap->notifier);
+	cec_notifier_cec_adap_unregister(adap->notifier, adap);
 #endif
 	cec_devnode_unregister(adap);
 }

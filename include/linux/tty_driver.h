@@ -249,6 +249,7 @@
 struct tty_struct;
 struct tty_driver;
 struct serial_icounter_struct;
+struct serial_struct;
 
 struct tty_operations {
 	struct tty_struct * (*lookup)(struct tty_driver *driver,
@@ -287,13 +288,15 @@ struct tty_operations {
 	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
+	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *p);
+	int  (*set_serial)(struct tty_struct *tty, struct serial_struct *p);
 	void (*show_fdinfo)(struct tty_struct *tty, struct seq_file *m);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
 	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
 #endif
-	const struct file_operations *proc_fops;
+	int (*proc_show)(struct seq_file *, void *);
 } __randomize_layout;
 
 struct tty_driver {

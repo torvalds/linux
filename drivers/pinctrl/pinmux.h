@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Internal interface between the core pin control system and the
  * pinmux portions
@@ -7,14 +8,14 @@
  * Based on bits of regulator core, gpio core and clk core
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifdef CONFIG_PINMUX
 
 int pinmux_check_ops(struct pinctrl_dev *pctldev);
 
 int pinmux_validate_map(const struct pinctrl_map *map, int i);
+
+bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin);
 
 int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
@@ -41,6 +42,12 @@ static inline int pinmux_check_ops(struct pinctrl_dev *pctldev)
 static inline int pinmux_validate_map(const struct pinctrl_map *map, int i)
 {
 	return 0;
+}
+
+static inline bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev,
+					       unsigned pin)
+{
+	return true;
 }
 
 static inline int pinmux_request_gpio(struct pinctrl_dev *pctldev,
@@ -149,13 +156,6 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 
 int pinmux_generic_remove_function(struct pinctrl_dev *pctldev,
 				   unsigned int selector);
-
-static inline int
-pinmux_generic_remove_last_function(struct pinctrl_dev *pctldev)
-{
-	return pinmux_generic_remove_function(pctldev,
-					      pctldev->num_functions - 1);
-}
 
 void pinmux_generic_free_functions(struct pinctrl_dev *pctldev);
 

@@ -1,0 +1,171 @@
+Qualcomm Technologies, Inc. RPMh Regulators
+
+rpmh-regulator devices support PMIC regulator management via the Voltage
+Regulator Manager (VRM) and Oscillator Buffer (XOB) RPMh accelerators.  The APPS
+processor communicates with these hardware blocks via a Resource State
+Coordinator (RSC) using command packets.  The VRM allows changing three
+parameters for a given regulator: enable state, output voltage, and operating
+mode.  The XOB allows changing only a single parameter for a given regulator:
+its enable state.  Despite its name, the XOB is capable of controlling the
+enable state of any PMIC peripheral.  It is used for clock buffers, low-voltage
+switches, and LDO/SMPS regulators which have a fixed voltage and mode.
+
+=======================
+Required Node Structure
+=======================
+
+RPMh regulators must be described in two levels of device nodes.  The first
+level describes the PMIC containing the regulators and must reside within an
+RPMh device node.  The second level describes each regulator within the PMIC
+which is to be used on the board.  Each of these regulators maps to a single
+RPMh resource.
+
+The names used for regulator nodes must match those supported by a given PMIC.
+Supported regulator node names:
+	PM8005:		smps1 - smps4
+	PM8009:		smps1 - smps2, ldo1 - ldo7
+	PM8150:		smps1 - smps10, ldo1 - ldo18
+	PM8150L:	smps1 - smps8, ldo1 - ldo11, bob, flash, rgb
+	PM8998:		smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
+	PMI8998:	bob
+	PM6150:         smps1 - smps5, ldo1 - ldo19
+	PM6150L:        smps1 - smps8, ldo1 - ldo11, bob
+
+========================
+First Level Nodes - PMIC
+========================
+
+- compatible
+	Usage:      required
+	Value type: <string>
+	Definition: Must be one of below:
+		    "qcom,pm8005-rpmh-regulators"
+		    "qcom,pm8009-rpmh-regulators"
+		    "qcom,pm8150-rpmh-regulators"
+		    "qcom,pm8150l-rpmh-regulators"
+		    "qcom,pm8998-rpmh-regulators"
+		    "qcom,pmi8998-rpmh-regulators"
+		    "qcom,pm6150-rpmh-regulators"
+		    "qcom,pm6150l-rpmh-regulators"
+
+- qcom,pmic-id
+	Usage:      required
+	Value type: <string>
+	Definition: RPMh resource name suffix used for the regulators found on
+		    this PMIC.  Typical values: "a", "b", "c", "d", "e", "f".
+
+- vdd-s1-supply
+- vdd-s2-supply
+- vdd-s3-supply
+- vdd-s4-supply
+	Usage:      optional (PM8998 and PM8005 only)
+	Value type: <phandle>
+	Definition: phandle of the parent supply regulator of one or more of the
+		    regulators for this PMIC.
+
+- vdd-s5-supply
+- vdd-s6-supply
+- vdd-s7-supply
+- vdd-s8-supply
+- vdd-s9-supply
+- vdd-s10-supply
+- vdd-s11-supply
+- vdd-s12-supply
+- vdd-s13-supply
+- vdd-l1-l27-supply
+- vdd-l2-l8-l17-supply
+- vdd-l3-l11-supply
+- vdd-l4-l5-supply
+- vdd-l6-supply
+- vdd-l7-l12-l14-l15-supply
+- vdd-l9-supply
+- vdd-l10-l23-l25-supply
+- vdd-l13-l19-l21-supply
+- vdd-l16-l28-supply
+- vdd-l18-l22-supply
+- vdd-l20-l24-supply
+- vdd-l26-supply
+- vin-lvs-1-2-supply
+	Usage:      optional (PM8998 only)
+	Value type: <phandle>
+	Definition: phandle of the parent supply regulator of one or more of the
+		    regulators for this PMIC.
+
+- vdd-bob-supply
+	Usage:      optional (PMI8998 only)
+	Value type: <phandle>
+	Definition: BOB regulator parent supply phandle
+
+===============================
+Second Level Nodes - Regulators
+===============================
+
+- qcom,always-wait-for-ack
+	Usage:      optional
+	Value type: <empty>
+	Definition: Boolean flag which indicates that the application processor
+		    must wait for an ACK or a NACK from RPMh for every request
+		    sent for this regulator including those which are for a
+		    strictly lower power state.
+
+Other properties defined in Documentation/devicetree/bindings/regulator/regulator.txt
+may also be used.  regulator-initial-mode and regulator-allowed-modes may be
+specified for VRM regulators using mode values from
+include/dt-bindings/regulator/qcom,rpmh-regulator.h.  regulator-allow-bypass
+may be specified for BOB type regulators managed via VRM.
+regulator-allow-set-load may be specified for LDO type regulators managed via
+VRM.
+
+========
+Examples
+========
+
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+
+&apps_rsc {
+	pm8998-rpmh-regulators {
+		compatible = "qcom,pm8998-rpmh-regulators";
+		qcom,pmic-id = "a";
+
+		vdd-l7-l12-l14-l15-supply = <&pm8998_s5>;
+
+		smps2 {
+			regulator-min-microvolt = <1100000>;
+			regulator-max-microvolt = <1100000>;
+		};
+
+		pm8998_s5: smps5 {
+			regulator-min-microvolt = <1904000>;
+			regulator-max-microvolt = <2040000>;
+		};
+
+		ldo7 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allowed-modes =
+				<RPMH_REGULATOR_MODE_LPM
+				 RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+		};
+
+		lvs1 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+	};
+
+	pmi8998-rpmh-regulators {
+		compatible = "qcom,pmi8998-rpmh-regulators";
+		qcom,pmic-id = "b";
+
+		bob {
+			regulator-min-microvolt = <3312000>;
+			regulator-max-microvolt = <3600000>;
+			regulator-allowed-modes =
+				<RPMH_REGULATOR_MODE_AUTO
+				 RPMH_REGULATOR_MODE_HPM>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
+		};
+	};
+};

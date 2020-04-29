@@ -94,7 +94,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		 * Solaris, at least, doesn't seem to care what the time
 		 * request is.  We require it be within 30 minutes of now.
 		 */
-		time_t delta = iap->ia_atime.tv_sec - get_seconds();
+		time64_t delta = iap->ia_atime.tv_sec - ktime_get_real_seconds();
 
 		nfserr = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (nfserr)
@@ -113,7 +113,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		}
 	}
 
-	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time_t)0);
+	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time64_t)0);
 done:
 	return nfsd_return_attrs(nfserr, resp);
 }
@@ -172,6 +172,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	struct nfsd_readargs *argp = rqstp->rq_argp;
 	struct nfsd_readres *resp = rqstp->rq_resp;
 	__be32	nfserr;
+	u32 eof;
 
 	dprintk("nfsd: READ    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
@@ -195,7 +196,8 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
-				  &resp->count);
+				  &resp->count,
+				  &eof);
 
 	if (nfserr) return nfserr;
 	return fh_getattr(&resp->fh, &resp->stat);
@@ -218,12 +220,13 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 		SVCFH_fmt(&argp->fh),
 		argp->len, argp->offset);
 
-	nvecs = svc_fill_write_vector(rqstp, &argp->first, cnt);
+	nvecs = svc_fill_write_vector(rqstp, rqstp->rq_arg.pages,
+				      &argp->first, cnt);
 	if (!nvecs)
 		return nfserr_io;
 	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
 			    argp->offset, rqstp->rq_vec, nvecs,
-			    &cnt, NFS_DATA_SYNC);
+			    &cnt, NFS_DATA_SYNC, NULL);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
@@ -377,7 +380,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		 */
 		attr->ia_valid &= ATTR_SIZE;
 		if (attr->ia_valid)
-			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time_t)0);
+			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time64_t)0);
 	}
 
 out_unlock:
@@ -453,6 +456,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 		return nfserr_nametoolong;
 
 	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
+						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname))
 		return nfserrno(PTR_ERR(argp->tname));
@@ -465,6 +469,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
 						 argp->tname, &newfh);
 
+	kfree(argp->tname);
 	fh_put(&argp->ffh);
 	fh_put(&newfh);
 	return nfserr;

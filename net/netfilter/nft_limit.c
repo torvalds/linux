@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -51,10 +48,13 @@ static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 	return !limit->invert;
 }
 
+/* Use same default as in iptables. */
+#define NFT_LIMIT_PKT_BURST_DEFAULT	5
+
 static int nft_limit_init(struct nft_limit *limit,
-			  const struct nlattr * const tb[])
+			  const struct nlattr * const tb[], bool pkts)
 {
-	u64 unit;
+	u64 unit, tokens;
 
 	if (tb[NFTA_LIMIT_RATE] == NULL ||
 	    tb[NFTA_LIMIT_UNIT] == NULL)
@@ -68,18 +68,25 @@ static int nft_limit_init(struct nft_limit *limit,
 
 	if (tb[NFTA_LIMIT_BURST])
 		limit->burst = ntohl(nla_get_be32(tb[NFTA_LIMIT_BURST]));
-	else
-		limit->burst = 0;
+
+	if (pkts && limit->burst == 0)
+		limit->burst = NFT_LIMIT_PKT_BURST_DEFAULT;
 
 	if (limit->rate + limit->burst < limit->rate)
 		return -EOVERFLOW;
 
-	/* The token bucket size limits the number of tokens can be
-	 * accumulated. tokens_max specifies the bucket size.
-	 * tokens_max = unit * (rate + burst) / rate.
-	 */
-	limit->tokens = div_u64(limit->nsecs * (limit->rate + limit->burst),
-				limit->rate);
+	if (pkts) {
+		tokens = div_u64(limit->nsecs, limit->rate) * limit->burst;
+	} else {
+		/* The token bucket size limits the number of tokens can be
+		 * accumulated. tokens_max specifies the bucket size.
+		 * tokens_max = unit * (rate + burst) / rate.
+		 */
+		tokens = div_u64(limit->nsecs * (limit->rate + limit->burst),
+				 limit->rate);
+	}
+
+	limit->tokens = tokens;
 	limit->tokens_max = limit->tokens;
 
 	if (tb[NFTA_LIMIT_FLAGS]) {
@@ -144,7 +151,7 @@ static int nft_limit_pkts_init(const struct nft_ctx *ctx,
 	struct nft_limit_pkts *priv = nft_expr_priv(expr);
 	int err;
 
-	err = nft_limit_init(&priv->limit, tb);
+	err = nft_limit_init(&priv->limit, tb, true);
 	if (err < 0)
 		return err;
 
@@ -185,7 +192,7 @@ static int nft_limit_bytes_init(const struct nft_ctx *ctx,
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
 
-	return nft_limit_init(priv, tb);
+	return nft_limit_init(priv, tb, false);
 }
 
 static int nft_limit_bytes_dump(struct sk_buff *skb,
@@ -246,7 +253,7 @@ static int nft_limit_obj_pkts_init(const struct nft_ctx *ctx,
 	struct nft_limit_pkts *priv = nft_obj_data(obj);
 	int err;
 
-	err = nft_limit_init(&priv->limit, tb);
+	err = nft_limit_init(&priv->limit, tb, true);
 	if (err < 0)
 		return err;
 
@@ -289,7 +296,7 @@ static int nft_limit_obj_bytes_init(const struct nft_ctx *ctx,
 {
 	struct nft_limit *priv = nft_obj_data(obj);
 
-	return nft_limit_init(priv, tb);
+	return nft_limit_init(priv, tb, false);
 }
 
 static int nft_limit_obj_bytes_dump(struct sk_buff *skb,

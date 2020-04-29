@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-mediatek/platsmp.c
  *
  * Copyright (c) 2014 Mediatek Inc.
  * Author: Shunli Wang <shunli.wang@mediatek.com>
  *         Yingjoe Chen <yingjoe.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/io.h>
 #include <linux/memblock.h>
@@ -60,7 +51,7 @@ static const struct of_device_id mtk_tz_smp_boot_infos[] __initconst = {
 static const struct of_device_id mtk_smp_boot_infos[] __initconst = {
 	{ .compatible   = "mediatek,mt6589", .data = &mtk_mt6589_boot },
 	{ .compatible   = "mediatek,mt7623", .data = &mtk_mt7623_boot },
-	{ .compatible   = "mediatek,mt7623a", .data = &mtk_mt7623_boot },
+	{ .compatible   = "mediatek,mt7629", .data = &mtk_mt7623_boot },
 	{},
 };
 

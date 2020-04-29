@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max8660.c  --  Voltage regulation for the Maxim 8660/8661
  *
  * based on max1586.c and wm8400-regulator.c
  *
  * Copyright (C) 2009 Wolfram Sang, Pengutronix e.K.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Some info:
  *
@@ -34,7 +22,6 @@
  * If the driver is feature complete, it might be worth to check if one set of
  * functions for V3-V7 is sufficient. For maximum flexibility during
  * development, they are separated for now.
- *
  */
 
 #include <linux/module.h>
@@ -351,8 +338,10 @@ static int max8660_pdata_from_dt(struct device *dev,
 	if (matched <= 0)
 		return matched;
 
-	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max8660_subdev_data) *
-						matched, GFP_KERNEL);
+	pdata->subdevs = devm_kcalloc(dev,
+				      matched,
+				      sizeof(struct max8660_subdev_data),
+				      GFP_KERNEL);
 	if (!pdata->subdevs)
 		return -ENOMEM;
 
@@ -496,7 +485,6 @@ static int max8660_probe(struct i2c_client *client,
 		rdev = devm_regulator_register(&client->dev,
 						  &max8660_reg[id], &config);
 		if (IS_ERR(rdev)) {
-			ret = PTR_ERR(rdev);
 			dev_err(&client->dev, "failed to register %s\n",
 				max8660_reg[id].name);
 			return PTR_ERR(rdev);

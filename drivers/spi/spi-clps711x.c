@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  CLPS711X SPI bus driver
  *
  *  Copyright (C) 2012-2016 Alexander Shiyan <shc_work@mail.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -35,25 +31,6 @@ struct spi_clps711x_data {
 	unsigned int		bpw;
 	int			len;
 };
-
-static int spi_clps711x_setup(struct spi_device *spi)
-{
-	if (!spi->controller_state) {
-		int ret;
-
-		ret = devm_gpio_request(&spi->master->dev, spi->cs_gpio,
-					dev_name(&spi->master->dev));
-		if (ret)
-			return ret;
-
-		spi->controller_state = spi;
-	}
-
-	/* We are expect that SPI-device is not selected */
-	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-
-	return 0;
-}
 
 static int spi_clps711x_prepare_message(struct spi_master *master,
 					struct spi_message *msg)
@@ -114,7 +91,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 {
 	struct spi_clps711x_data *hw;
 	struct spi_master *master;
-	struct resource *res;
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
@@ -125,11 +101,11 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
+	master->use_gpio_descriptors = true;
 	master->bus_num = -1;
 	master->mode_bits = SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask =  SPI_BPW_RANGE_MASK(1, 8);
 	master->dev.of_node = pdev->dev.of_node;
-	master->setup = spi_clps711x_setup;
 	master->prepare_message = spi_clps711x_prepare_message;
 	master->transfer_one = spi_clps711x_transfer_one;
 
@@ -148,8 +124,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hw->syncio = devm_ioremap_resource(&pdev->dev, res);
+	hw->syncio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hw->syncio)) {
 		ret = PTR_ERR(hw->syncio);
 		goto err_out;

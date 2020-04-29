@@ -1,4 +1,2 @@
+# SPDX-License-Identifier: GPL-2.0-only
 dtc
-dtc-lexer.lex.c
-dtc-parser.tab.c
-dtc-parser.tab.h

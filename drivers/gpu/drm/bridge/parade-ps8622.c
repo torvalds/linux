@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Parade PS8622 eDP/LVDS bridge driver
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -24,12 +15,14 @@
 #include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
+
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 /* Brightness scale on the Parade chip */
 #define PS8622_MAX_BRIGHTNESS 0xff
@@ -468,7 +461,7 @@ static int ps8622_get_modes(struct drm_connector *connector)
 
 	ps8622 = connector_to_ps8622(connector);
 
-	return drm_panel_get_modes(ps8622->panel);
+	return drm_panel_get_modes(ps8622->panel, connector);
 }
 
 static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
@@ -483,10 +476,16 @@ static const struct drm_connector_funcs ps8622_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ps8622_attach(struct drm_bridge *bridge)
+static int ps8622_attach(struct drm_bridge *bridge,
+			 enum drm_bridge_attach_flags flags)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
@@ -503,7 +502,7 @@ static int ps8622_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&ps8622->connector,
 					&ps8622_connector_helper_funcs);
 	drm_connector_register(&ps8622->connector);
-	drm_mode_connector_attach_encoder(&ps8622->connector,
+	drm_connector_attach_encoder(&ps8622->connector,
 							bridge->encoder);
 
 	if (ps8622->panel)

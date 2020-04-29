@@ -32,7 +32,6 @@
 #include <linux/platform_data/omapdss.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include "omap-pm.h"
 #include "common.h"
 
 #include "soc.h"
@@ -84,6 +83,7 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 	u32 enable_mask, enable_shift;
 	u32 pipd_mask, pipd_shift;
 	u32 reg;
+	int ret;
 
 	if (dsi_id == 0) {
 		enable_mask = OMAP4_DSI1_LANEENABLE_MASK;
@@ -99,7 +99,11 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 		return -ENODEV;
 	}
 
-	regmap_read(omap4_dsi_mux_syscon, OMAP4_DSIPHY_SYSCON_OFFSET, &reg);
+	ret = regmap_read(omap4_dsi_mux_syscon,
+					  OMAP4_DSIPHY_SYSCON_OFFSET,
+					  &reg);
+	if (ret)
+		return ret;
 
 	reg &= ~enable_mask;
 	reg &= ~pipd_mask;
@@ -124,11 +128,6 @@ static void omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
 {
 	if (cpu_is_omap44xx())
 		omap4_dsi_mux_pads(dsi_id, 0);
-}
-
-static int omap_dss_set_min_bus_tput(struct device *dev, unsigned long tput)
-{
-	return omap_pm_set_min_bus_tput(dev, OCP_INITIATOR_AGENT, tput);
 }
 
 static enum omapdss_version __init omap_display_get_version(void)
@@ -169,7 +168,6 @@ static int __init omapdss_init_fbdev(void)
 	static struct omap_dss_board_info board_data = {
 		.dsi_enable_pads = omap_dsi_enable_pads,
 		.dsi_disable_pads = omap_dsi_disable_pads,
-		.set_min_bus_tput = omap_dss_set_min_bus_tput,
 	};
 	struct device_node *node;
 	int r;
@@ -216,11 +214,64 @@ static int __init omapdss_init_fbdev(void)
 
 	return 0;
 }
-#else
-static inline int omapdss_init_fbdev(void)
+
+static const char * const omapdss_compat_names[] __initconst = {
+	"ti,omap2-dss",
+	"ti,omap3-dss",
+	"ti,omap4-dss",
+	"ti,omap5-dss",
+	"ti,dra7-dss",
+};
+
+static struct device_node * __init omapdss_find_dss_of_node(void)
 {
-	return 0;
+	struct device_node *node;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(omapdss_compat_names); ++i) {
+		node = of_find_compatible_node(NULL, NULL,
+			omapdss_compat_names[i]);
+		if (node)
+			return node;
+	}
+
+	return NULL;
 }
+
+static int __init omapdss_init_of(void)
+{
+	int r;
+	struct device_node *node;
+	struct platform_device *pdev;
+
+	/* only create dss helper devices if dss is enabled in the .dts */
+
+	node = omapdss_find_dss_of_node();
+	if (!node)
+		return 0;
+
+	if (!of_device_is_available(node)) {
+		of_node_put(node);
+		return 0;
+	}
+
+	pdev = of_find_device_by_node(node);
+
+	if (!pdev) {
+		pr_err("Unable to find DSS platform device\n");
+		return -ENODEV;
+	}
+
+	r = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	if (r) {
+		pr_err("Unable to populate DSS submodule devices\n");
+		put_device(&pdev->dev);
+		return r;
+	}
+
+	return omapdss_init_fbdev();
+}
+omap_device_initcall(omapdss_init_of);
 #endif /* CONFIG_FB_OMAP2 */
 
 static void dispc_disable_outputs(void)
@@ -367,58 +418,4 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	r = (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT : 0;
 
 	return r;
-}
-
-static const char * const omapdss_compat_names[] __initconst = {
-	"ti,omap2-dss",
-	"ti,omap3-dss",
-	"ti,omap4-dss",
-	"ti,omap5-dss",
-	"ti,dra7-dss",
-};
-
-static struct device_node * __init omapdss_find_dss_of_node(void)
-{
-	struct device_node *node;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(omapdss_compat_names); ++i) {
-		node = of_find_compatible_node(NULL, NULL,
-			omapdss_compat_names[i]);
-		if (node)
-			return node;
-	}
-
-	return NULL;
-}
-
-int __init omapdss_init_of(void)
-{
-	int r;
-	struct device_node *node;
-	struct platform_device *pdev;
-
-	/* only create dss helper devices if dss is enabled in the .dts */
-
-	node = omapdss_find_dss_of_node();
-	if (!node)
-		return 0;
-
-	if (!of_device_is_available(node))
-		return 0;
-
-	pdev = of_find_device_by_node(node);
-
-	if (!pdev) {
-		pr_err("Unable to find DSS platform device\n");
-		return -ENODEV;
-	}
-
-	r = of_platform_populate(node, NULL, NULL, &pdev->dev);
-	if (r) {
-		pr_err("Unable to populate DSS submodule devices\n");
-		return r;
-	}
-
-	return omapdss_init_fbdev();
 }

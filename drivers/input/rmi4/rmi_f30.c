@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016 Synaptics Incorporated
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -122,8 +119,9 @@ static void rmi_f30_report_button(struct rmi_function *fn,
 	}
 }
 
-static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
+static irqreturn_t rmi_f30_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct f30_data *f30 = dev_get_drvdata(&fn->dev);
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&fn->rmi_dev->dev);
 	int error;
@@ -134,7 +132,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		if (drvdata->attn_data.size < f30->register_count) {
 			dev_warn(&fn->dev,
 				 "F30 interrupted, but data is missing\n");
-			return 0;
+			return IRQ_HANDLED;
 		}
 		memcpy(f30->data_regs, drvdata->attn_data.data,
 			f30->register_count);
@@ -147,7 +145,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			dev_err(&fn->dev,
 				"%s: Failed to read F30 data registers: %d\n",
 				__func__, error);
-			return error;
+			return IRQ_RETVAL(error);
 		}
 	}
 
@@ -159,7 +157,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			rmi_f03_commit_buttons(f30->f03);
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int rmi_f30_config(struct rmi_function *fn)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/kernel/power/swap.c
  *
@@ -7,9 +8,6 @@
  * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  * Copyright (C) 2010-2012 Bojan Smojver <bojan@rexursive.com>
- *
- * This file is released under the GPLv2.
- *
  */
 
 #define pr_fmt(fmt) "PM: " fmt
@@ -269,7 +267,7 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
 	struct bio *bio;
 	int error = 0;
 
-	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
+	bio = bio_alloc(GFP_NOIO | __GFP_HIGH, 1);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio_set_dev(bio, hib_resume_bdev);
 	bio_set_op_attrs(bio, op, op_flags);
@@ -376,7 +374,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 		return -ENOSPC;
 
 	if (hb) {
-		src = (void *)__get_free_page(__GFP_RECLAIM | __GFP_NOWARN |
+		src = (void *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
 		                              __GFP_NORETRY);
 		if (src) {
 			copy_page(src, buf);
@@ -384,7 +382,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 			ret = hib_wait_io(hb); /* Free pages */
 			if (ret)
 				return ret;
-			src = (void *)__get_free_page(__GFP_RECLAIM |
+			src = (void *)__get_free_page(GFP_NOIO |
 			                              __GFP_NOWARN |
 			                              __GFP_NORETRY);
 			if (src) {
@@ -691,14 +689,14 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	nr_threads = num_online_cpus() - 1;
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
-	page = (void *)__get_free_page(__GFP_RECLAIM | __GFP_HIGH);
+	page = (void *)__get_free_page(GFP_NOIO | __GFP_HIGH);
 	if (!page) {
 		pr_err("Failed to allocate LZO page\n");
 		ret = -ENOMEM;
 		goto out_clean;
 	}
 
-	data = vmalloc(sizeof(*data) * nr_threads);
+	data = vmalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
 		pr_err("Failed to allocate LZO data\n");
 		ret = -ENOMEM;
@@ -923,7 +921,7 @@ int swsusp_write(unsigned int flags)
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_read_next(&snapshot);
-	if (error < PAGE_SIZE) {
+	if (error < (int)PAGE_SIZE) {
 		if (error >= 0)
 			error = -EFAULT;
 
@@ -976,12 +974,11 @@ static int get_swap_reader(struct swap_map_handle *handle,
 	last = handle->maps = NULL;
 	offset = swsusp_header->image;
 	while (offset) {
-		tmp = kmalloc(sizeof(*handle->maps), GFP_KERNEL);
+		tmp = kzalloc(sizeof(*handle->maps), GFP_KERNEL);
 		if (!tmp) {
 			release_swap_reader(handle);
 			return -ENOMEM;
 		}
-		memset(tmp, 0, sizeof(*tmp));
 		if (!handle->maps)
 			handle->maps = tmp;
 		if (last)
@@ -989,7 +986,7 @@ static int get_swap_reader(struct swap_map_handle *handle,
 		last = tmp;
 
 		tmp->map = (struct swap_map_page *)
-			   __get_free_page(__GFP_RECLAIM | __GFP_HIGH);
+			   __get_free_page(GFP_NOIO | __GFP_HIGH);
 		if (!tmp->map) {
 			release_swap_reader(handle);
 			return -ENOMEM;
@@ -1183,14 +1180,14 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	nr_threads = num_online_cpus() - 1;
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
-	page = vmalloc(sizeof(*page) * LZO_MAX_RD_PAGES);
+	page = vmalloc(array_size(LZO_MAX_RD_PAGES, sizeof(*page)));
 	if (!page) {
 		pr_err("Failed to allocate LZO page\n");
 		ret = -ENOMEM;
 		goto out_clean;
 	}
 
-	data = vmalloc(sizeof(*data) * nr_threads);
+	data = vmalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
 		pr_err("Failed to allocate LZO data\n");
 		ret = -ENOMEM;
@@ -1261,8 +1258,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
 
 	for (i = 0; i < read_pages; i++) {
 		page[i] = (void *)__get_free_page(i < LZO_CMP_PAGES ?
-						  __GFP_RECLAIM | __GFP_HIGH :
-						  __GFP_RECLAIM | __GFP_NOWARN |
+						  GFP_NOIO | __GFP_HIGH :
+						  GFP_NOIO | __GFP_NOWARN |
 						  __GFP_NORETRY);
 
 		if (!page[i]) {
@@ -1483,7 +1480,7 @@ int swsusp_read(unsigned int *flags_p)
 
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_write_next(&snapshot);
-	if (error < PAGE_SIZE)
+	if (error < (int)PAGE_SIZE)
 		return error < 0 ? error : -EFAULT;
 	header = (struct swsusp_info *)data_of(snapshot);
 	error = get_swap_reader(&handle, flags_p);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pinmux driver for CSR SiRFprimaII
  *
@@ -8,8 +9,6 @@
  *
  * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
  * company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/init.h>
@@ -27,7 +26,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of_gpio.h>
 
 #include "pinctrl-sirf.h"
@@ -108,7 +107,7 @@ static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENODEV;
 	}
 
-	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
+	*map = kcalloc(count, sizeof(**map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
@@ -782,10 +781,11 @@ static void sirfsoc_gpio_set_pulldown(struct sirfsoc_gpio_chip *sgpio,
 static int sirfsoc_gpio_probe(struct device_node *np)
 {
 	int i, err = 0;
-	static struct sirfsoc_gpio_chip *sgpio;
+	struct sirfsoc_gpio_chip *sgpio;
 	struct sirfsoc_gpio_bank *bank;
 	void __iomem *regs;
 	struct platform_device *pdev;
+	struct gpio_irq_chip *girq;
 
 	u32 pullups[SIRFSOC_GPIO_NO_OF_BANKS], pulldowns[SIRFSOC_GPIO_NO_OF_BANKS];
 
@@ -817,36 +817,33 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	sgpio->chip.gc.parent = &pdev->dev;
 	sgpio->chip.regs = regs;
 
-	err = gpiochip_add_data(&sgpio->chip.gc, sgpio);
-	if (err) {
-		dev_err(&pdev->dev, "%pOF: error in probe function with status %d\n",
-			np, err);
-		goto out;
-	}
-
-	err =  gpiochip_irqchip_add(&sgpio->chip.gc,
-		&sirfsoc_irq_chip,
-		0, handle_level_irq,
-		IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(&pdev->dev,
-			"could not connect irqchip to gpiochip\n");
-		goto out_banks;
-	}
-
+	girq = &sgpio->chip.gc.irq;
+	girq->chip = &sirfsoc_irq_chip;
+	girq->parent_handler = sirfsoc_gpio_handle_irq;
+	girq->num_parents = SIRFSOC_GPIO_NO_OF_BANKS;
+	girq->parents = devm_kcalloc(&pdev->dev, SIRFSOC_GPIO_NO_OF_BANKS,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
 		bank = &sgpio->sgpio_bank[i];
 		spin_lock_init(&bank->lock);
 		bank->parent_irq = platform_get_irq(pdev, i);
 		if (bank->parent_irq < 0) {
 			err = bank->parent_irq;
-			goto out_banks;
+			goto out;
 		}
+		girq->parents[i] = bank->parent_irq;
+	}
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
-		gpiochip_set_chained_irqchip(&sgpio->chip.gc,
-			&sirfsoc_irq_chip,
-			bank->parent_irq,
-			sirfsoc_gpio_handle_irq);
+	err = gpiochip_add_data(&sgpio->chip.gc, sgpio);
+	if (err) {
+		dev_err(&pdev->dev, "%pOF: error in probe function with status %d\n",
+			np, err);
+		goto out;
 	}
 
 	err = gpiochip_add_pin_range(&sgpio->chip.gc, dev_name(&pdev->dev),
@@ -868,7 +865,6 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	return 0;
 
 out_no_range:
-out_banks:
 	gpiochip_remove(&sgpio->chip.gc);
 out:
 	iounmap(regs);

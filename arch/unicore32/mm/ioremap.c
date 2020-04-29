@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/mm/ioremap.c
  *
  * Code specific to PKUnity SoC and UniCore ISA
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *
  * Re-map IO memory to kernel address space so that we can access it.
  *
@@ -34,7 +30,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/map.h>
 #include "mm.h"
@@ -223,14 +219,6 @@ __uc32_ioremap(unsigned long phys_addr, size_t size)
 			__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__uc32_ioremap);
-
-void __iomem *
-__uc32_ioremap_cached(unsigned long phys_addr, size_t size)
-{
-	return __uc32_ioremap_caller(phys_addr, size, MT_DEVICE_CACHED,
-			__builtin_return_address(0));
-}
-EXPORT_SYMBOL(__uc32_ioremap_cached);
 
 void __uc32_iounmap(volatile void __iomem *io_addr)
 {

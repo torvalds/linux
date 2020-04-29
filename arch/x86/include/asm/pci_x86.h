@@ -121,7 +121,14 @@ extern void __init dmi_check_pciprobe(void);
 extern void __init dmi_check_skip_isa_align(void);
 
 /* some common used subsys_initcalls */
+#ifdef CONFIG_PCI
 extern int __init pci_acpi_init(void);
+#else
+static inline int  __init pci_acpi_init(void)
+{
+	return -EINVAL;
+}
+#endif
 extern void __init pcibios_irq_init(void);
 extern int __init pcibios_init(void);
 extern int pci_legacy_init(void);

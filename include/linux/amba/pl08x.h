@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/amba/pl08x.h - ARM PrimeCell DMA Controller driver
  *
  * Copyright (C) 2005 ARM Ltd
  * Copyright (C) 2010 ST-Ericsson SA
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * pl08x information required by platform code
  *

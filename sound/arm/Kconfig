@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA ARM drivers
 
 menuconfig SND_ARM
@@ -17,14 +18,9 @@ config SND_ARMAACI
 	select SND_PCM
 	select SND_AC97_CODEC
 
-config SND_PXA2XX_PCM
-	tristate
-	select SND_PCM
-
 config SND_PXA2XX_AC97
 	tristate "AC97 driver for the Intel PXA2xx chip"
 	depends on ARCH_PXA
-	select SND_PXA2XX_PCM
 	select SND_AC97_CODEC
 	select SND_PXA2XX_LIB
 	select SND_PXA2XX_LIB_AC97
@@ -36,7 +32,6 @@ endif	# SND_ARM
 
 config SND_PXA2XX_LIB
 	tristate
-	select SND_AC97_CODEC if SND_PXA2XX_LIB_AC97
 	select SND_DMAENGINE_PCM
 
 config SND_PXA2XX_LIB_AC97

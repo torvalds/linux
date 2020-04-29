@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atmel_wm8904 - Atmel ASoC driver for boards with WM8904 codec.
  *
  * Copyright (C) 2012 Atmel
  *
  * Author: Bo Shen <voice.shen@atmel.com>
- *
- * GPLv2 or later
  */
 
 #include <linux/clk.h>
@@ -28,7 +27,7 @@ static int atmel_asoc_wm8904_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	ret = snd_soc_dai_set_pll(codec_dai, WM8904_FLL_MCLK, WM8904_FLL_MCLK,
@@ -57,14 +56,19 @@ static const struct snd_soc_ops atmel_asoc_wm8904_ops = {
 	.hw_params = atmel_asoc_wm8904_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8904-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link atmel_asoc_wm8904_dailink = {
 	.name = "WM8904",
 	.stream_name = "WM8904 PCM",
-	.codec_dai_name = "wm8904-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 		| SND_SOC_DAIFMT_NB_NF
 		| SND_SOC_DAIFMT_CBM_CFM,
 	.ops = &atmel_asoc_wm8904_ops,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card atmel_asoc_wm8904_card = {
@@ -108,8 +112,8 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 		ret = -EINVAL;
 		return ret;
 	}
-	dailink->cpu_of_node = cpu_np;
-	dailink->platform_of_node = cpu_np;
+	dailink->cpus->of_node = cpu_np;
+	dailink->platforms->of_node = cpu_np;
 	of_node_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
@@ -118,7 +122,7 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 		ret = -EINVAL;
 		return ret;
 	}
-	dailink->codec_of_node = codec_np;
+	dailink->codecs->of_node = codec_np;
 	of_node_put(codec_np);
 
 	return 0;
@@ -137,7 +141,7 @@ static int atmel_asoc_wm8904_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	id = of_alias_get_id((struct device_node *)dailink->cpu_of_node, "ssc");
+	id = of_alias_get_id((struct device_node *)dailink->cpus->of_node, "ssc");
 	ret = atmel_ssc_set_audio(id);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to set SSC %d for audio\n", id);
@@ -163,7 +167,7 @@ static int atmel_asoc_wm8904_remove(struct platform_device *pdev)
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
 	int id;
 
-	id = of_alias_get_id((struct device_node *)dailink->cpu_of_node, "ssc");
+	id = of_alias_get_id((struct device_node *)dailink->cpus->of_node, "ssc");
 
 	snd_soc_unregister_card(card);
 	atmel_ssc_put_audio(id);

@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ALSA driver for Xilinx ML403 AC97 Controller Reference
  *   IP: opb_ac97_controller_ref_v1_00_a (EDK 8.1i)
  *   IP: opb_ac97_controller_ref_v1_00_a (EDK 9.1i)
  *
  *  Copyright (c) by 2007  Joachim Foerster <JOFT@gmx.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* Some notes / status of this driver:
@@ -684,23 +670,6 @@ snd_ml403_ac97cr_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_ml403_ac97cr_hw_free(struct snd_pcm_substream *substream)
-{
-	PDEBUG(WORK_INFO, "hw_free()\n");
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int
-snd_ml403_ac97cr_hw_params(struct snd_pcm_substream *substream,
-			   struct snd_pcm_hw_params *hw_params)
-{
-	PDEBUG(WORK_INFO, "hw_params(): desired buffer bytes=%d, desired "
-	       "period bytes=%d\n",
-	       params_buffer_bytes(hw_params), params_period_bytes(hw_params));
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
 static int snd_ml403_ac97cr_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr;
@@ -762,9 +731,6 @@ static int snd_ml403_ac97cr_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
 	.open = snd_ml403_ac97cr_playback_open,
 	.close = snd_ml403_ac97cr_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ml403_ac97cr_hw_params,
-	.hw_free = snd_ml403_ac97cr_hw_free,
 	.prepare = snd_ml403_ac97cr_pcm_playback_prepare,
 	.trigger = snd_ml403_ac97cr_pcm_playback_trigger,
 	.pointer = snd_ml403_ac97cr_pcm_pointer,
@@ -773,9 +739,6 @@ static const struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
 static const struct snd_pcm_ops snd_ml403_ac97cr_capture_ops = {
 	.open = snd_ml403_ac97cr_capture_open,
 	.close = snd_ml403_ac97cr_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ml403_ac97cr_hw_params,
-	.hw_free = snd_ml403_ac97cr_hw_free,
 	.prepare = snd_ml403_ac97cr_pcm_capture_prepare,
 	.trigger = snd_ml403_ac97cr_pcm_capture_trigger,
 	.pointer = snd_ml403_ac97cr_pcm_pointer,
@@ -1113,7 +1076,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ml403_ac97cr_dev_free,
 	};
 	struct resource *resource;
@@ -1137,7 +1100,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 	PDEBUG(INIT_INFO, "Trying to reserve resources now ...\n");
 	resource = platform_get_resource(pfdev, IORESOURCE_MEM, 0);
 	/* get "port" */
-	ml403_ac97cr->port = ioremap_nocache(resource->start,
+	ml403_ac97cr->port = ioremap(resource->start,
 					     (resource->end) -
 					     (resource->start) + 1);
 	if (ml403_ac97cr->port == NULL) {
@@ -1209,7 +1172,7 @@ snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 	struct snd_ac97_bus *bus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ml403_ac97cr_codec_write,
 		.read = snd_ml403_ac97cr_codec_read,
 	};
@@ -1255,10 +1218,10 @@ snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device)
 	strcpy(pcm->name, "ML403AC97CR DAC/ADC");
 	ml403_ac97cr->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					  snd_dma_continuous_data(GFP_KERNEL),
-					  64 * 1024,
-					  128 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       64 * 1024,
+				       128 * 1024);
 	return 0;
 }
 

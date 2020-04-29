@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Maxime Ripard. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _CCU_NKMP_H_
@@ -33,6 +25,9 @@ struct ccu_nkmp {
 	struct ccu_mult_internal	k;
 	struct ccu_div_internal		m;
 	struct ccu_div_internal		p;
+
+	unsigned int		fixed_post_div;
+	unsigned int		max_rate;
 
 	struct ccu_common	common;
 };

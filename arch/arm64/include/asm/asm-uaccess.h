@@ -24,7 +24,7 @@
 	.endm
 
 	.macro	__uaccess_ttbr0_enable, tmp1, tmp2
-	get_thread_info \tmp1
+	get_current_task \tmp1
 	ldr	\tmp1, [\tmp1, #TSK_TI_TTBR0]	// load saved TTBR0_EL1
 	mrs	\tmp2, ttbr1_el1
 	extr    \tmp2, \tmp2, \tmp1, #48
@@ -57,31 +57,5 @@ alternative_else_nop_endif
 	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 	.endm
 #endif
-
-/*
- * These macros are no-ops when UAO is present.
- */
-	.macro	uaccess_disable_not_uao, tmp1, tmp2
-	uaccess_ttbr0_disable \tmp1, \tmp2
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(1)
-alternative_else_nop_endif
-	.endm
-
-	.macro	uaccess_enable_not_uao, tmp1, tmp2, tmp3
-	uaccess_ttbr0_enable \tmp1, \tmp2, \tmp3
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(0)
-alternative_else_nop_endif
-	.endm
-
-/*
- * Remove the address tag from a virtual address, if present.
- */
-	.macro	clear_address_tag, dst, addr
-	tst	\addr, #(1 << 55)
-	bic	\dst, \addr, #(0xff << 56)
-	csel	\dst, \dst, \addr, eq
-	.endm
 
 #endif

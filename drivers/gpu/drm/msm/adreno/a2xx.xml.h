@@ -8,17 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  37162 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  13324 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  31866 bytes, from 2017-06-06 18:26:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 111898 bytes, from 2017-06-06 18:23:59)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          ( 139480 bytes, from 2017-06-16 12:44:39)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
-Copyright (C) 2013-2017 by the following authors:
+Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -84,13 +86,12 @@ enum a2xx_sq_surfaceformat {
 	FMT_5_5_5_1 = 13,
 	FMT_8_8_8_8_A = 14,
 	FMT_4_4_4_4 = 15,
-	FMT_10_11_11 = 16,
-	FMT_11_11_10 = 17,
+	FMT_8_8_8 = 16,
 	FMT_DXT1 = 18,
 	FMT_DXT2_3 = 19,
 	FMT_DXT4_5 = 20,
+	FMT_10_10_10_2 = 21,
 	FMT_24_8 = 22,
-	FMT_24_8_FLOAT = 23,
 	FMT_16 = 24,
 	FMT_16_16 = 25,
 	FMT_16_16_16_16 = 26,
@@ -106,29 +107,23 @@ enum a2xx_sq_surfaceformat {
 	FMT_32_FLOAT = 36,
 	FMT_32_32_FLOAT = 37,
 	FMT_32_32_32_32_FLOAT = 38,
-	FMT_32_AS_8 = 39,
-	FMT_32_AS_8_8 = 40,
-	FMT_16_MPEG = 41,
-	FMT_16_16_MPEG = 42,
-	FMT_8_INTERLACED = 43,
-	FMT_32_AS_8_INTERLACED = 44,
-	FMT_32_AS_8_8_INTERLACED = 45,
-	FMT_16_INTERLACED = 46,
-	FMT_16_MPEG_INTERLACED = 47,
-	FMT_16_16_MPEG_INTERLACED = 48,
+	FMT_ATI_TC_RGB = 39,
+	FMT_ATI_TC_RGBA = 40,
+	FMT_ATI_TC_555_565_RGB = 41,
+	FMT_ATI_TC_555_565_RGBA = 42,
+	FMT_ATI_TC_RGBA_INTERP = 43,
+	FMT_ATI_TC_555_565_RGBA_INTERP = 44,
+	FMT_ETC1_RGBA_INTERP = 46,
+	FMT_ETC1_RGB = 47,
+	FMT_ETC1_RGBA = 48,
 	FMT_DXN = 49,
-	FMT_8_8_8_8_AS_16_16_16_16 = 50,
-	FMT_DXT1_AS_16_16_16_16 = 51,
-	FMT_DXT2_3_AS_16_16_16_16 = 52,
-	FMT_DXT4_5_AS_16_16_16_16 = 53,
+	FMT_2_3_3 = 51,
 	FMT_2_10_10_10_AS_16_16_16_16 = 54,
-	FMT_10_11_11_AS_16_16_16_16 = 55,
-	FMT_11_11_10_AS_16_16_16_16 = 56,
+	FMT_10_10_10_2_AS_16_16_16_16 = 55,
 	FMT_32_32_32_FLOAT = 57,
 	FMT_DXT3A = 58,
 	FMT_DXT5A = 59,
 	FMT_CTX1 = 60,
-	FMT_DXT3A_AS_1_1_1_1 = 61,
 };
 
 enum a2xx_sq_ps_vtx_mode {
@@ -244,7 +239,63 @@ enum sq_tex_swiz {
 enum sq_tex_filter {
 	SQ_TEX_FILTER_POINT = 0,
 	SQ_TEX_FILTER_BILINEAR = 1,
-	SQ_TEX_FILTER_BICUBIC = 2,
+	SQ_TEX_FILTER_BASEMAP = 2,
+	SQ_TEX_FILTER_USE_FETCH_CONST = 3,
+};
+
+enum sq_tex_aniso_filter {
+	SQ_TEX_ANISO_FILTER_DISABLED = 0,
+	SQ_TEX_ANISO_FILTER_MAX_1_1 = 1,
+	SQ_TEX_ANISO_FILTER_MAX_2_1 = 2,
+	SQ_TEX_ANISO_FILTER_MAX_4_1 = 3,
+	SQ_TEX_ANISO_FILTER_MAX_8_1 = 4,
+	SQ_TEX_ANISO_FILTER_MAX_16_1 = 5,
+	SQ_TEX_ANISO_FILTER_USE_FETCH_CONST = 7,
+};
+
+enum sq_tex_dimension {
+	SQ_TEX_DIMENSION_1D = 0,
+	SQ_TEX_DIMENSION_2D = 1,
+	SQ_TEX_DIMENSION_3D = 2,
+	SQ_TEX_DIMENSION_CUBE = 3,
+};
+
+enum sq_tex_border_color {
+	SQ_TEX_BORDER_COLOR_BLACK = 0,
+	SQ_TEX_BORDER_COLOR_WHITE = 1,
+	SQ_TEX_BORDER_COLOR_ACBYCR_BLACK = 2,
+	SQ_TEX_BORDER_COLOR_ACBCRY_BLACK = 3,
+};
+
+enum sq_tex_sign {
+	SQ_TEX_SIGN_UNISIGNED = 0,
+	SQ_TEX_SIGN_SIGNED = 1,
+	SQ_TEX_SIGN_UNISIGNED_BIASED = 2,
+	SQ_TEX_SIGN_GAMMA = 3,
+};
+
+enum sq_tex_endian {
+	SQ_TEX_ENDIAN_NONE = 0,
+	SQ_TEX_ENDIAN_8IN16 = 1,
+	SQ_TEX_ENDIAN_8IN32 = 2,
+	SQ_TEX_ENDIAN_16IN32 = 3,
+};
+
+enum sq_tex_clamp_policy {
+	SQ_TEX_CLAMP_POLICY_D3D = 0,
+	SQ_TEX_CLAMP_POLICY_OGL = 1,
+};
+
+enum sq_tex_num_format {
+	SQ_TEX_NUM_FORMAT_FRAC = 0,
+	SQ_TEX_NUM_FORMAT_INT = 1,
+};
+
+enum sq_tex_type {
+	SQ_TEX_TYPE_0 = 0,
+	SQ_TEX_TYPE_1 = 1,
+	SQ_TEX_TYPE_2 = 2,
+	SQ_TEX_TYPE_3 = 3,
 };
 
 #define REG_A2XX_RBBM_PATCH_RELEASE				0x00000001
@@ -328,6 +379,18 @@ static inline uint32_t A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR(enum adreno_mmu_cln
 }
 
 #define REG_A2XX_MH_MMU_VA_RANGE				0x00000041
+#define A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS__MASK		0x00000fff
+#define A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS__SHIFT		0
+static inline uint32_t A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS(uint32_t val)
+{
+	return ((val) << A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS__SHIFT) & A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS__MASK;
+}
+#define A2XX_MH_MMU_VA_RANGE_VA_BASE__MASK			0xfffff000
+#define A2XX_MH_MMU_VA_RANGE_VA_BASE__SHIFT			12
+static inline uint32_t A2XX_MH_MMU_VA_RANGE_VA_BASE(uint32_t val)
+{
+	return ((val) << A2XX_MH_MMU_VA_RANGE_VA_BASE__SHIFT) & A2XX_MH_MMU_VA_RANGE_VA_BASE__MASK;
+}
 
 #define REG_A2XX_MH_MMU_PT_BASE					0x00000042
 
@@ -336,6 +399,8 @@ static inline uint32_t A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR(enum adreno_mmu_cln
 #define REG_A2XX_MH_MMU_TRAN_ERROR				0x00000044
 
 #define REG_A2XX_MH_MMU_INVALIDATE				0x00000045
+#define A2XX_MH_MMU_INVALIDATE_INVALIDATE_ALL			0x00000001
+#define A2XX_MH_MMU_INVALIDATE_INVALIDATE_TC			0x00000002
 
 #define REG_A2XX_MH_MMU_MPU_BASE				0x00000046
 
@@ -394,12 +459,19 @@ static inline uint32_t A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR(enum adreno_mmu_cln
 #define REG_A2XX_RBBM_READ_ERROR				0x000003b3
 
 #define REG_A2XX_RBBM_INT_CNTL					0x000003b4
+#define A2XX_RBBM_INT_CNTL_RDERR_INT_MASK			0x00000001
+#define A2XX_RBBM_INT_CNTL_DISPLAY_UPDATE_INT_MASK		0x00000002
+#define A2XX_RBBM_INT_CNTL_GUI_IDLE_INT_MASK			0x00080000
 
 #define REG_A2XX_RBBM_INT_STATUS				0x000003b5
 
 #define REG_A2XX_RBBM_INT_ACK					0x000003b6
 
 #define REG_A2XX_MASTER_INT_SIGNAL				0x000003b7
+#define A2XX_MASTER_INT_SIGNAL_MH_INT_STAT			0x00000020
+#define A2XX_MASTER_INT_SIGNAL_SQ_INT_STAT			0x04000000
+#define A2XX_MASTER_INT_SIGNAL_CP_INT_STAT			0x40000000
+#define A2XX_MASTER_INT_SIGNAL_RBBM_INT_STAT			0x80000000
 
 #define REG_A2XX_RBBM_PERIPHID1					0x000003f9
 
@@ -471,6 +543,19 @@ static inline uint32_t A2XX_MH_ARBITER_CONFIG_IN_FLIGHT_LIMIT(uint32_t val)
 #define A2XX_MH_ARBITER_CONFIG_TC_CLNT_ENABLE			0x01000000
 #define A2XX_MH_ARBITER_CONFIG_RB_CLNT_ENABLE			0x02000000
 #define A2XX_MH_ARBITER_CONFIG_PA_CLNT_ENABLE			0x04000000
+
+#define REG_A2XX_MH_INTERRUPT_MASK				0x00000a42
+#define A2XX_MH_INTERRUPT_MASK_AXI_READ_ERROR			0x00000001
+#define A2XX_MH_INTERRUPT_MASK_AXI_WRITE_ERROR			0x00000002
+#define A2XX_MH_INTERRUPT_MASK_MMU_PAGE_FAULT			0x00000004
+
+#define REG_A2XX_MH_INTERRUPT_STATUS				0x00000a43
+
+#define REG_A2XX_MH_INTERRUPT_CLEAR				0x00000a44
+
+#define REG_A2XX_MH_CLNT_INTF_CTRL_CONFIG1			0x00000a54
+
+#define REG_A2XX_MH_CLNT_INTF_CTRL_CONFIG2			0x00000a55
 
 #define REG_A2XX_A220_VSC_BIN_SIZE				0x00000c01
 #define A2XX_A220_VSC_BIN_SIZE_WIDTH__MASK			0x0000001f
@@ -653,6 +738,18 @@ static inline uint32_t A2XX_RB_BC_CONTROL_MEM_EXPORT_TIMEOUT_SELECT(uint32_t val
 #define REG_A2XX_RB_DEBUG_DATA					0x00000f27
 
 #define REG_A2XX_RB_SURFACE_INFO				0x00002000
+#define A2XX_RB_SURFACE_INFO_SURFACE_PITCH__MASK		0x00003fff
+#define A2XX_RB_SURFACE_INFO_SURFACE_PITCH__SHIFT		0
+static inline uint32_t A2XX_RB_SURFACE_INFO_SURFACE_PITCH(uint32_t val)
+{
+	return ((val) << A2XX_RB_SURFACE_INFO_SURFACE_PITCH__SHIFT) & A2XX_RB_SURFACE_INFO_SURFACE_PITCH__MASK;
+}
+#define A2XX_RB_SURFACE_INFO_MSAA_SAMPLES__MASK			0x0000c000
+#define A2XX_RB_SURFACE_INFO_MSAA_SAMPLES__SHIFT		14
+static inline uint32_t A2XX_RB_SURFACE_INFO_MSAA_SAMPLES(uint32_t val)
+{
+	return ((val) << A2XX_RB_SURFACE_INFO_MSAA_SAMPLES__SHIFT) & A2XX_RB_SURFACE_INFO_MSAA_SAMPLES__MASK;
+}
 
 #define REG_A2XX_RB_COLOR_INFO					0x00002001
 #define A2XX_RB_COLOR_INFO_FORMAT__MASK				0x0000000f
@@ -684,7 +781,7 @@ static inline uint32_t A2XX_RB_COLOR_INFO_SWAP(uint32_t val)
 #define A2XX_RB_COLOR_INFO_BASE__SHIFT				12
 static inline uint32_t A2XX_RB_COLOR_INFO_BASE(uint32_t val)
 {
-	return ((val >> 10) << A2XX_RB_COLOR_INFO_BASE__SHIFT) & A2XX_RB_COLOR_INFO_BASE__MASK;
+	return ((val >> 12) << A2XX_RB_COLOR_INFO_BASE__SHIFT) & A2XX_RB_COLOR_INFO_BASE__MASK;
 }
 
 #define REG_A2XX_RB_DEPTH_INFO					0x00002002
@@ -698,7 +795,7 @@ static inline uint32_t A2XX_RB_DEPTH_INFO_DEPTH_FORMAT(enum adreno_rb_depth_form
 #define A2XX_RB_DEPTH_INFO_DEPTH_BASE__SHIFT			12
 static inline uint32_t A2XX_RB_DEPTH_INFO_DEPTH_BASE(uint32_t val)
 {
-	return ((val >> 10) << A2XX_RB_DEPTH_INFO_DEPTH_BASE__SHIFT) & A2XX_RB_DEPTH_INFO_DEPTH_BASE__MASK;
+	return ((val >> 12) << A2XX_RB_DEPTH_INFO_DEPTH_BASE__SHIFT) & A2XX_RB_DEPTH_INFO_DEPTH_BASE__MASK;
 }
 
 #define REG_A2XX_A225_RB_COLOR_INFO3				0x00002005
@@ -1762,6 +1859,36 @@ static inline uint32_t A2XX_RB_COPY_DEST_OFFSET_Y(uint32_t val)
 #define REG_A2XX_COHER_STATUS_PM4				0x00000a2b
 
 #define REG_A2XX_SQ_TEX_0					0x00000000
+#define A2XX_SQ_TEX_0_TYPE__MASK				0x00000003
+#define A2XX_SQ_TEX_0_TYPE__SHIFT				0
+static inline uint32_t A2XX_SQ_TEX_0_TYPE(enum sq_tex_type val)
+{
+	return ((val) << A2XX_SQ_TEX_0_TYPE__SHIFT) & A2XX_SQ_TEX_0_TYPE__MASK;
+}
+#define A2XX_SQ_TEX_0_SIGN_X__MASK				0x0000000c
+#define A2XX_SQ_TEX_0_SIGN_X__SHIFT				2
+static inline uint32_t A2XX_SQ_TEX_0_SIGN_X(enum sq_tex_sign val)
+{
+	return ((val) << A2XX_SQ_TEX_0_SIGN_X__SHIFT) & A2XX_SQ_TEX_0_SIGN_X__MASK;
+}
+#define A2XX_SQ_TEX_0_SIGN_Y__MASK				0x00000030
+#define A2XX_SQ_TEX_0_SIGN_Y__SHIFT				4
+static inline uint32_t A2XX_SQ_TEX_0_SIGN_Y(enum sq_tex_sign val)
+{
+	return ((val) << A2XX_SQ_TEX_0_SIGN_Y__SHIFT) & A2XX_SQ_TEX_0_SIGN_Y__MASK;
+}
+#define A2XX_SQ_TEX_0_SIGN_Z__MASK				0x000000c0
+#define A2XX_SQ_TEX_0_SIGN_Z__SHIFT				6
+static inline uint32_t A2XX_SQ_TEX_0_SIGN_Z(enum sq_tex_sign val)
+{
+	return ((val) << A2XX_SQ_TEX_0_SIGN_Z__SHIFT) & A2XX_SQ_TEX_0_SIGN_Z__MASK;
+}
+#define A2XX_SQ_TEX_0_SIGN_W__MASK				0x00000300
+#define A2XX_SQ_TEX_0_SIGN_W__SHIFT				8
+static inline uint32_t A2XX_SQ_TEX_0_SIGN_W(enum sq_tex_sign val)
+{
+	return ((val) << A2XX_SQ_TEX_0_SIGN_W__SHIFT) & A2XX_SQ_TEX_0_SIGN_W__MASK;
+}
 #define A2XX_SQ_TEX_0_CLAMP_X__MASK				0x00001c00
 #define A2XX_SQ_TEX_0_CLAMP_X__SHIFT				10
 static inline uint32_t A2XX_SQ_TEX_0_CLAMP_X(enum sq_tex_clamp val)
@@ -1780,14 +1907,46 @@ static inline uint32_t A2XX_SQ_TEX_0_CLAMP_Z(enum sq_tex_clamp val)
 {
 	return ((val) << A2XX_SQ_TEX_0_CLAMP_Z__SHIFT) & A2XX_SQ_TEX_0_CLAMP_Z__MASK;
 }
-#define A2XX_SQ_TEX_0_PITCH__MASK				0xffc00000
+#define A2XX_SQ_TEX_0_PITCH__MASK				0x7fc00000
 #define A2XX_SQ_TEX_0_PITCH__SHIFT				22
 static inline uint32_t A2XX_SQ_TEX_0_PITCH(uint32_t val)
 {
 	return ((val >> 5) << A2XX_SQ_TEX_0_PITCH__SHIFT) & A2XX_SQ_TEX_0_PITCH__MASK;
 }
+#define A2XX_SQ_TEX_0_TILED					0x00000002
 
 #define REG_A2XX_SQ_TEX_1					0x00000001
+#define A2XX_SQ_TEX_1_FORMAT__MASK				0x0000003f
+#define A2XX_SQ_TEX_1_FORMAT__SHIFT				0
+static inline uint32_t A2XX_SQ_TEX_1_FORMAT(enum a2xx_sq_surfaceformat val)
+{
+	return ((val) << A2XX_SQ_TEX_1_FORMAT__SHIFT) & A2XX_SQ_TEX_1_FORMAT__MASK;
+}
+#define A2XX_SQ_TEX_1_ENDIANNESS__MASK				0x000000c0
+#define A2XX_SQ_TEX_1_ENDIANNESS__SHIFT				6
+static inline uint32_t A2XX_SQ_TEX_1_ENDIANNESS(enum sq_tex_endian val)
+{
+	return ((val) << A2XX_SQ_TEX_1_ENDIANNESS__SHIFT) & A2XX_SQ_TEX_1_ENDIANNESS__MASK;
+}
+#define A2XX_SQ_TEX_1_REQUEST_SIZE__MASK			0x00000300
+#define A2XX_SQ_TEX_1_REQUEST_SIZE__SHIFT			8
+static inline uint32_t A2XX_SQ_TEX_1_REQUEST_SIZE(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_1_REQUEST_SIZE__SHIFT) & A2XX_SQ_TEX_1_REQUEST_SIZE__MASK;
+}
+#define A2XX_SQ_TEX_1_STACKED					0x00000400
+#define A2XX_SQ_TEX_1_CLAMP_POLICY__MASK			0x00000800
+#define A2XX_SQ_TEX_1_CLAMP_POLICY__SHIFT			11
+static inline uint32_t A2XX_SQ_TEX_1_CLAMP_POLICY(enum sq_tex_clamp_policy val)
+{
+	return ((val) << A2XX_SQ_TEX_1_CLAMP_POLICY__SHIFT) & A2XX_SQ_TEX_1_CLAMP_POLICY__MASK;
+}
+#define A2XX_SQ_TEX_1_BASE_ADDRESS__MASK			0xfffff000
+#define A2XX_SQ_TEX_1_BASE_ADDRESS__SHIFT			12
+static inline uint32_t A2XX_SQ_TEX_1_BASE_ADDRESS(uint32_t val)
+{
+	return ((val >> 12) << A2XX_SQ_TEX_1_BASE_ADDRESS__SHIFT) & A2XX_SQ_TEX_1_BASE_ADDRESS__MASK;
+}
 
 #define REG_A2XX_SQ_TEX_2					0x00000002
 #define A2XX_SQ_TEX_2_WIDTH__MASK				0x00001fff
@@ -1802,8 +1961,20 @@ static inline uint32_t A2XX_SQ_TEX_2_HEIGHT(uint32_t val)
 {
 	return ((val) << A2XX_SQ_TEX_2_HEIGHT__SHIFT) & A2XX_SQ_TEX_2_HEIGHT__MASK;
 }
+#define A2XX_SQ_TEX_2_DEPTH__MASK				0xfc000000
+#define A2XX_SQ_TEX_2_DEPTH__SHIFT				26
+static inline uint32_t A2XX_SQ_TEX_2_DEPTH(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_2_DEPTH__SHIFT) & A2XX_SQ_TEX_2_DEPTH__MASK;
+}
 
 #define REG_A2XX_SQ_TEX_3					0x00000003
+#define A2XX_SQ_TEX_3_NUM_FORMAT__MASK				0x00000001
+#define A2XX_SQ_TEX_3_NUM_FORMAT__SHIFT				0
+static inline uint32_t A2XX_SQ_TEX_3_NUM_FORMAT(enum sq_tex_num_format val)
+{
+	return ((val) << A2XX_SQ_TEX_3_NUM_FORMAT__SHIFT) & A2XX_SQ_TEX_3_NUM_FORMAT__MASK;
+}
 #define A2XX_SQ_TEX_3_SWIZ_X__MASK				0x0000000e
 #define A2XX_SQ_TEX_3_SWIZ_X__SHIFT				1
 static inline uint32_t A2XX_SQ_TEX_3_SWIZ_X(enum sq_tex_swiz val)
@@ -1828,6 +1999,12 @@ static inline uint32_t A2XX_SQ_TEX_3_SWIZ_W(enum sq_tex_swiz val)
 {
 	return ((val) << A2XX_SQ_TEX_3_SWIZ_W__SHIFT) & A2XX_SQ_TEX_3_SWIZ_W__MASK;
 }
+#define A2XX_SQ_TEX_3_EXP_ADJUST__MASK				0x0007e000
+#define A2XX_SQ_TEX_3_EXP_ADJUST__SHIFT				13
+static inline uint32_t A2XX_SQ_TEX_3_EXP_ADJUST(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_3_EXP_ADJUST__SHIFT) & A2XX_SQ_TEX_3_EXP_ADJUST__MASK;
+}
 #define A2XX_SQ_TEX_3_XY_MAG_FILTER__MASK			0x00180000
 #define A2XX_SQ_TEX_3_XY_MAG_FILTER__SHIFT			19
 static inline uint32_t A2XX_SQ_TEX_3_XY_MAG_FILTER(enum sq_tex_filter val)
@@ -1839,6 +2016,104 @@ static inline uint32_t A2XX_SQ_TEX_3_XY_MAG_FILTER(enum sq_tex_filter val)
 static inline uint32_t A2XX_SQ_TEX_3_XY_MIN_FILTER(enum sq_tex_filter val)
 {
 	return ((val) << A2XX_SQ_TEX_3_XY_MIN_FILTER__SHIFT) & A2XX_SQ_TEX_3_XY_MIN_FILTER__MASK;
+}
+#define A2XX_SQ_TEX_3_MIP_FILTER__MASK				0x01800000
+#define A2XX_SQ_TEX_3_MIP_FILTER__SHIFT				23
+static inline uint32_t A2XX_SQ_TEX_3_MIP_FILTER(enum sq_tex_filter val)
+{
+	return ((val) << A2XX_SQ_TEX_3_MIP_FILTER__SHIFT) & A2XX_SQ_TEX_3_MIP_FILTER__MASK;
+}
+#define A2XX_SQ_TEX_3_ANISO_FILTER__MASK			0x0e000000
+#define A2XX_SQ_TEX_3_ANISO_FILTER__SHIFT			25
+static inline uint32_t A2XX_SQ_TEX_3_ANISO_FILTER(enum sq_tex_aniso_filter val)
+{
+	return ((val) << A2XX_SQ_TEX_3_ANISO_FILTER__SHIFT) & A2XX_SQ_TEX_3_ANISO_FILTER__MASK;
+}
+#define A2XX_SQ_TEX_3_BORDER_SIZE__MASK				0x80000000
+#define A2XX_SQ_TEX_3_BORDER_SIZE__SHIFT			31
+static inline uint32_t A2XX_SQ_TEX_3_BORDER_SIZE(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_3_BORDER_SIZE__SHIFT) & A2XX_SQ_TEX_3_BORDER_SIZE__MASK;
+}
+
+#define REG_A2XX_SQ_TEX_4					0x00000004
+#define A2XX_SQ_TEX_4_VOL_MAG_FILTER__MASK			0x00000001
+#define A2XX_SQ_TEX_4_VOL_MAG_FILTER__SHIFT			0
+static inline uint32_t A2XX_SQ_TEX_4_VOL_MAG_FILTER(enum sq_tex_filter val)
+{
+	return ((val) << A2XX_SQ_TEX_4_VOL_MAG_FILTER__SHIFT) & A2XX_SQ_TEX_4_VOL_MAG_FILTER__MASK;
+}
+#define A2XX_SQ_TEX_4_VOL_MIN_FILTER__MASK			0x00000002
+#define A2XX_SQ_TEX_4_VOL_MIN_FILTER__SHIFT			1
+static inline uint32_t A2XX_SQ_TEX_4_VOL_MIN_FILTER(enum sq_tex_filter val)
+{
+	return ((val) << A2XX_SQ_TEX_4_VOL_MIN_FILTER__SHIFT) & A2XX_SQ_TEX_4_VOL_MIN_FILTER__MASK;
+}
+#define A2XX_SQ_TEX_4_MIP_MIN_LEVEL__MASK			0x0000003c
+#define A2XX_SQ_TEX_4_MIP_MIN_LEVEL__SHIFT			2
+static inline uint32_t A2XX_SQ_TEX_4_MIP_MIN_LEVEL(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_4_MIP_MIN_LEVEL__SHIFT) & A2XX_SQ_TEX_4_MIP_MIN_LEVEL__MASK;
+}
+#define A2XX_SQ_TEX_4_MIP_MAX_LEVEL__MASK			0x000003c0
+#define A2XX_SQ_TEX_4_MIP_MAX_LEVEL__SHIFT			6
+static inline uint32_t A2XX_SQ_TEX_4_MIP_MAX_LEVEL(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_4_MIP_MAX_LEVEL__SHIFT) & A2XX_SQ_TEX_4_MIP_MAX_LEVEL__MASK;
+}
+#define A2XX_SQ_TEX_4_MAX_ANISO_WALK				0x00000400
+#define A2XX_SQ_TEX_4_MIN_ANISO_WALK				0x00000800
+#define A2XX_SQ_TEX_4_LOD_BIAS__MASK				0x003ff000
+#define A2XX_SQ_TEX_4_LOD_BIAS__SHIFT				12
+static inline uint32_t A2XX_SQ_TEX_4_LOD_BIAS(float val)
+{
+	return ((((int32_t)(val * 32.0))) << A2XX_SQ_TEX_4_LOD_BIAS__SHIFT) & A2XX_SQ_TEX_4_LOD_BIAS__MASK;
+}
+#define A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_H__MASK			0x07c00000
+#define A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_H__SHIFT			22
+static inline uint32_t A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_H(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_H__SHIFT) & A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_H__MASK;
+}
+#define A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_V__MASK			0xf8000000
+#define A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_V__SHIFT			27
+static inline uint32_t A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_V(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_V__SHIFT) & A2XX_SQ_TEX_4_GRAD_EXP_ADJUST_V__MASK;
+}
+
+#define REG_A2XX_SQ_TEX_5					0x00000005
+#define A2XX_SQ_TEX_5_BORDER_COLOR__MASK			0x00000003
+#define A2XX_SQ_TEX_5_BORDER_COLOR__SHIFT			0
+static inline uint32_t A2XX_SQ_TEX_5_BORDER_COLOR(enum sq_tex_border_color val)
+{
+	return ((val) << A2XX_SQ_TEX_5_BORDER_COLOR__SHIFT) & A2XX_SQ_TEX_5_BORDER_COLOR__MASK;
+}
+#define A2XX_SQ_TEX_5_FORCE_BCW_MAX				0x00000004
+#define A2XX_SQ_TEX_5_TRI_CLAMP__MASK				0x00000018
+#define A2XX_SQ_TEX_5_TRI_CLAMP__SHIFT				3
+static inline uint32_t A2XX_SQ_TEX_5_TRI_CLAMP(uint32_t val)
+{
+	return ((val) << A2XX_SQ_TEX_5_TRI_CLAMP__SHIFT) & A2XX_SQ_TEX_5_TRI_CLAMP__MASK;
+}
+#define A2XX_SQ_TEX_5_ANISO_BIAS__MASK				0x000001e0
+#define A2XX_SQ_TEX_5_ANISO_BIAS__SHIFT				5
+static inline uint32_t A2XX_SQ_TEX_5_ANISO_BIAS(float val)
+{
+	return ((((int32_t)(val * 1.0))) << A2XX_SQ_TEX_5_ANISO_BIAS__SHIFT) & A2XX_SQ_TEX_5_ANISO_BIAS__MASK;
+}
+#define A2XX_SQ_TEX_5_DIMENSION__MASK				0x00000600
+#define A2XX_SQ_TEX_5_DIMENSION__SHIFT				9
+static inline uint32_t A2XX_SQ_TEX_5_DIMENSION(enum sq_tex_dimension val)
+{
+	return ((val) << A2XX_SQ_TEX_5_DIMENSION__SHIFT) & A2XX_SQ_TEX_5_DIMENSION__MASK;
+}
+#define A2XX_SQ_TEX_5_PACKED_MIPS				0x00000800
+#define A2XX_SQ_TEX_5_MIP_ADDRESS__MASK				0xfffff000
+#define A2XX_SQ_TEX_5_MIP_ADDRESS__SHIFT			12
+static inline uint32_t A2XX_SQ_TEX_5_MIP_ADDRESS(uint32_t val)
+{
+	return ((val >> 12) << A2XX_SQ_TEX_5_MIP_ADDRESS__SHIFT) & A2XX_SQ_TEX_5_MIP_ADDRESS__MASK;
 }
 
 

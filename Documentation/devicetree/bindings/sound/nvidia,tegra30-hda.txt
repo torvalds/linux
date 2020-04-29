@@ -13,6 +13,10 @@ Required properties:
   See ../reset/reset.txt for details.
 - reset-names : Must include the following entries: hda, hda2hdmi, hda2codec_2x
 
+Optional properties:
+- nvidia,model : The user-visible name of this sound complex. Since the property
+  is optional, legacy boards can use default name provided in hda driver.
+
 Example:
 
 hda@70030000 {
@@ -27,4 +31,5 @@ hda@70030000 {
 		 <&tegra_car 128>, /* hda2hdmi */
 		 <&tegra_car 111>; /* hda2codec_2x */
 	reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+	nvidia,model = "jetson-tk1-hda";
 };

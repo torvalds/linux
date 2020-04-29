@@ -7,6 +7,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/stop_machine.h>
 #include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -31,6 +32,7 @@ struct cpu_info {
 };
 
 static DEFINE_PER_CPU(struct cpu_info, cpu_info);
+static DEFINE_PER_CPU(int, cpu_relax_retry);
 
 static bool machine_has_cpu_mhz;
 
@@ -58,15 +60,20 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace cpu_relax_yield(void)
+void notrace stop_machine_yield(const struct cpumask *cpumask)
 {
-	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44) {
-		diag_stat_inc(DIAG_STAT_X044);
-		asm volatile("diag 0,0,0x44");
+	int cpu, this_cpu;
+
+	this_cpu = smp_processor_id();
+	if (__this_cpu_inc_return(cpu_relax_retry) >= spin_retry) {
+		__this_cpu_write(cpu_relax_retry, 0);
+		cpu = cpumask_next_wrap(this_cpu, cpumask, this_cpu, false);
+		if (cpu >= nr_cpu_ids)
+			return;
+		if (arch_vcpu_is_preempted(cpu))
+			smp_yield_cpu(cpu);
 	}
-	barrier();
 }
-EXPORT_SYMBOL(cpu_relax_yield);
 
 /*
  * cpu_init - initializes state that is per-CPU.
@@ -109,7 +116,8 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs",
+		"vxe2", "vxp", "sort", "dflt"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"
@@ -143,10 +151,35 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	}
 }
 
+static void show_cpu_topology(struct seq_file *m, unsigned long n)
+{
+#ifdef CONFIG_SCHED_TOPOLOGY
+	seq_printf(m, "physical id     : %d\n", topology_physical_package_id(n));
+	seq_printf(m, "core id         : %d\n", topology_core_id(n));
+	seq_printf(m, "book id         : %d\n", topology_book_id(n));
+	seq_printf(m, "drawer id       : %d\n", topology_drawer_id(n));
+	seq_printf(m, "dedicated       : %d\n", topology_cpu_dedicated(n));
+	seq_printf(m, "address         : %d\n", smp_cpu_get_cpu_address(n));
+	seq_printf(m, "siblings        : %d\n", cpumask_weight(topology_core_cpumask(n)));
+	seq_printf(m, "cpu cores       : %d\n", topology_booted_cores(n));
+#endif /* CONFIG_SCHED_TOPOLOGY */
+}
+
+static void show_cpu_ids(struct seq_file *m, unsigned long n)
+{
+	struct cpuid *id = &per_cpu(cpu_info.cpu_id, n);
+
+	seq_printf(m, "version         : %02X\n", id->version);
+	seq_printf(m, "identification  : %06X\n", id->ident);
+	seq_printf(m, "machine         : %04X\n", id->machine);
+}
+
 static void show_cpu_mhz(struct seq_file *m, unsigned long n)
 {
 	struct cpu_info *c = per_cpu_ptr(&cpu_info, n);
 
+	if (!machine_has_cpu_mhz)
+		return;
 	seq_printf(m, "cpu MHz dynamic : %d\n", c->cpu_mhz_dynamic);
 	seq_printf(m, "cpu MHz static  : %d\n", c->cpu_mhz_static);
 }
@@ -157,12 +190,13 @@ static void show_cpu_mhz(struct seq_file *m, unsigned long n)
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long n = (unsigned long) v - 1;
+	unsigned long first = cpumask_first(cpu_online_mask);
 
-	if (!n)
+	if (n == first)
 		show_cpu_summary(m, v);
-	if (!machine_has_cpu_mhz)
-		return 0;
 	seq_printf(m, "\ncpu number      : %ld\n", n);
+	show_cpu_topology(m, n);
+	show_cpu_ids(m, n);
 	show_cpu_mhz(m, n);
 	return 0;
 }
@@ -171,6 +205,8 @@ static inline void *c_update(loff_t *pos)
 {
 	if (*pos)
 		*pos = cpumask_next(*pos - 1, cpu_online_mask);
+	else
+		*pos = cpumask_first(cpu_online_mask);
 	return *pos < nr_cpu_ids ? (void *)*pos + 1 : NULL;
 }
 

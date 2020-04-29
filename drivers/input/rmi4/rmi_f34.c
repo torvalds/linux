@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2016, Synaptics Incorporated
  * Copyright (C) 2016 Zodiac Inflight Innovations
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -100,8 +97,9 @@ static int rmi_f34_command(struct f34_data *f34, u8 command,
 	return 0;
 }
 
-static int rmi_f34_attention(struct rmi_function *fn, unsigned long *irq_bits)
+static irqreturn_t rmi_f34_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct f34_data *f34 = dev_get_drvdata(&fn->dev);
 	int ret;
 	u8 status;
@@ -126,7 +124,7 @@ static int rmi_f34_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			complete(&f34->v7.cmd_done);
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int rmi_f34_write_blocks(struct f34_data *f34, const void *data,

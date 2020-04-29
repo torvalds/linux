@@ -15,8 +15,6 @@
 
 #include <linux/stringify.h>
 #include <linux/types.h>
-
-#ifdef __KERNEL__
 #include <asm/processor.h>
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
@@ -58,7 +56,67 @@
  */
 #define atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
 
-#if XCHAL_HAVE_S32C1I
+#if XCHAL_HAVE_EXCLUSIVE
+#define ATOMIC_OP(op)							\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
+			: "memory"					\
+			);						\
+}									\
+
+#define ATOMIC_OP_RETURN(op)						\
+static inline int atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
+			: "memory"					\
+			);						\
+									\
+	return result;							\
+}
+
+#define ATOMIC_FETCH_OP(op)						\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long tmp;						\
+	int result;							\
+									\
+	__asm__ __volatile__(						\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
+			: "memory"					\
+			);						\
+									\
+	return tmp;							\
+}
+
+#elif XCHAL_HAVE_S32C1I
 #define ATOMIC_OP(op)							\
 static inline void atomic_##op(int i, atomic_t * v)			\
 {									\
@@ -66,13 +124,14 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 }									\
@@ -84,14 +143,15 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			"       " #op " %0, %0, %2\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -105,13 +165,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -126,14 +187,14 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"\
-			"       l32i    %0, %2, 0\n"			\
-			"       " #op " %0, %0, %1\n"			\
-			"       s32i    %0, %2, 0\n"			\
+			"       rsil    a15, "__stringify(TOPLEVEL)"\n"	\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval)					\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 }									\
@@ -145,13 +206,13 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %0, %2, 0\n"			\
-			"       " #op " %0, %0, %1\n"			\
-			"       s32i    %0, %2, 0\n"			\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval)					\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\
@@ -165,13 +226,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %0, %3, 0\n"			\
-			"       " #op " %1, %0, %2\n"			\
-			"       s32i    %1, %3, 0\n"			\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[tmp], %[result], %[i]\n"	\
+			"       s32i    %[tmp], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\
@@ -197,107 +259,7 @@ ATOMIC_OPS(xor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-/**
- * atomic_sub_and_test - subtract value from variable and test result
- * @i: integer value to subtract
- * @v: pointer of type atomic_t
- *
- * Atomically subtracts @i from @v and returns
- * true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_sub_and_test(i,v) (atomic_sub_return((i),(v)) == 0)
-
-/**
- * atomic_inc - increment atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1.
- */
-#define atomic_inc(v) atomic_add(1,(v))
-
-/**
- * atomic_inc - increment atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1.
- */
-#define atomic_inc_return(v) atomic_add_return(1,(v))
-
-/**
- * atomic_dec - decrement atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically decrements @v by 1.
- */
-#define atomic_dec(v) atomic_sub(1,(v))
-
-/**
- * atomic_dec_return - decrement atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically decrements @v by 1.
- */
-#define atomic_dec_return(v) atomic_sub_return(1,(v))
-
-/**
- * atomic_dec_and_test - decrement and test
- * @v: pointer of type atomic_t
- *
- * Atomically decrements @v by 1 and
- * returns true if the result is 0, or false for all other
- * cases.
- */
-#define atomic_dec_and_test(v) (atomic_sub_return(1,(v)) == 0)
-
-/**
- * atomic_inc_and_test - increment and test
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_inc_and_test(v) (atomic_add_return(1,(v)) == 0)
-
-/**
- * atomic_add_negative - add and test if negative
- * @v: pointer of type atomic_t
- * @i: integer value to add
- *
- * Atomically adds @i to @v and returns true
- * if the result is negative, or false when
- * result is greater than or equal to zero.
- */
-#define atomic_add_negative(i,v) (atomic_add_return((i),(v)) < 0)
-
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
-
-/**
- * __atomic_add_unless - add unless the number is a given value
- * @v: pointer of type atomic_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
-}
-
-#endif /* __KERNEL__ */
 
 #endif /* _XTENSA_ATOMIC_H */

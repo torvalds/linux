@@ -8,7 +8,8 @@
 #include <linux/netdevice.h>
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 struct bpf_map_def SEC("maps") my_map = {
 	.type = BPF_MAP_TYPE_HASH,
@@ -20,7 +21,7 @@ struct bpf_map_def SEC("maps") my_map = {
 /* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
  * example will no longer be meaningful
  */
-SEC("kprobe/blk_start_request")
+SEC("kprobe/blk_mq_start_request")
 int bpf_prog1(struct pt_regs *ctx)
 {
 	long rq = PT_REGS_PARM1(ctx);

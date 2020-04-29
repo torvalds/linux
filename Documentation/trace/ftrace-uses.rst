@@ -12,7 +12,7 @@ Written for: 4.14
 Introduction
 ============
 
-The ftrace infrastructure was originially created to attach callbacks to the
+The ftrace infrastructure was originally created to attach callbacks to the
 beginning of functions in order to record and trace the flow of the kernel.
 But callbacks to the start of a function can have other use cases. Either
 for live kernel patching, or for security monitoring. This document describes
@@ -30,7 +30,7 @@ The ftrace context
   This requires extra care to what can be done inside a callback. A callback
   can be called outside the protective scope of RCU.
 
-The ftrace infrastructure has some protections agains recursions and RCU
+The ftrace infrastructure has some protections against recursions and RCU
 but one must still be very careful how they use the callbacks.
 
 
@@ -146,7 +146,7 @@ FTRACE_OPS_FL_RECURSION_SAFE
 	itself or any nested functions that those functions call.
 
 	If this flag is set, it is possible that the callback will also
-	be called with preemption enabled (when CONFIG_PREEMPT is set),
+	be called with preemption enabled (when CONFIG_PREEMPTION is set),
 	but this is not guaranteed.
 
 FTRACE_OPS_FL_IPMODIFY
@@ -169,6 +169,14 @@ FTRACE_OPS_FL_RCU
 	to user space and back to kernel space. During these transitions,
 	a callback may be executed and RCU synchronization will not protect
 	it.
+
+FTRACE_OPS_FL_PERMANENT
+        If this is set on any ftrace ops, then the tracing cannot disabled by
+        writing 0 to the proc sysctl ftrace_enabled. Equally, a callback with
+        the flag set cannot be registered if ftrace_enabled is 0.
+
+        Livepatch uses it not to lose the function redirection, so the system
+        stays protected.
 
 
 Filtering which functions to trace
@@ -199,7 +207,7 @@ If @buf is NULL and reset is set, all functions will be enabled for tracing.
 The @buf can also be a glob expression to enable all functions that
 match a specific pattern.
 
-See Filter Commands in :file:`Documentation/trace/ftrace.txt`.
+See Filter Commands in :file:`Documentation/trace/ftrace.rst`.
 
 To just trace the schedule function:
 

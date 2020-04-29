@@ -28,6 +28,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_util.h>
 
 struct drm_encoder;
 
@@ -139,7 +140,7 @@ struct drm_encoder {
 	 * @possible_crtcs: Bitmask of potential CRTC bindings, using
 	 * drm_crtc_index() as the index into the bitfield. The driver must set
 	 * the bits for all &drm_crtc objects this encoder can be connected to
-	 * before calling drm_encoder_init().
+	 * before calling drm_dev_register().
 	 *
 	 * In reality almost every driver gets this wrong.
 	 *
@@ -153,7 +154,7 @@ struct drm_encoder {
 	 * using drm_encoder_index() as the index into the bitfield. The driver
 	 * must set the bits for all &drm_encoder objects which can clone a
 	 * &drm_crtc together with this encoder before calling
-	 * drm_encoder_init(). Drivers should set the bit representing the
+	 * drm_dev_register(). Drivers should set the bit representing the
 	 * encoder itself, too. Cloning bits should be set such that when two
 	 * encoders can be used in a cloned configuration, they both should have
 	 * each another bits set.
@@ -171,7 +172,13 @@ struct drm_encoder {
 	 * &drm_connector_state.crtc.
 	 */
 	struct drm_crtc *crtc;
-	struct drm_bridge *bridge;
+
+	/**
+	 * @bridge_chain: Bridges attached to this encoder. Drivers shall not
+	 * access this field directly.
+	 */
+	struct list_head bridge_chain;
+
 	const struct drm_encoder_funcs *funcs;
 	const struct drm_encoder_helper_funcs *helper_private;
 };
@@ -191,9 +198,21 @@ int drm_encoder_init(struct drm_device *dev,
  * Given a registered encoder, return the index of that encoder within a DRM
  * device's list of encoders.
  */
-static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+static inline unsigned int drm_encoder_index(const struct drm_encoder *encoder)
 {
 	return encoder->index;
+}
+
+/**
+ * drm_encoder_mask - find the mask of a registered encoder
+ * @encoder: encoder to find mask for
+ *
+ * Given a registered encoder, return the mask bit of that encoder for an
+ * encoder's possible_clones field.
+ */
+static inline u32 drm_encoder_mask(const struct drm_encoder *encoder)
+{
+	return 1 << drm_encoder_index(encoder);
 }
 
 /**
@@ -241,7 +260,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder);
  */
 #define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
 	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
-		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
+		for_each_if ((encoder_mask) & drm_encoder_mask(encoder))
 
 /**
  * drm_for_each_encoder - iterate over all encoders

@@ -59,7 +59,7 @@ static const struct hc_driver ps3_ehci_hc_driver = {
 	.product_desc		= "PS3 EHCI Host Controller",
 	.hcd_priv_size		= sizeof(struct ehci_hcd),
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
+	.flags			= HCD_MEMORY | HCD_DMA | HCD_USB2 | HCD_BH,
 	.reset			= ps3_ehci_hc_reset,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
@@ -86,7 +86,7 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 	int result;
 	struct usb_hcd *hcd;
 	unsigned int virq;
-	static u64 dummy_mask = DMA_BIT_MASK(32);
+	static u64 dummy_mask;
 
 	if (usb_disabled()) {
 		result = -ENODEV;
@@ -131,7 +131,9 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 		goto fail_irq;
 	}
 
-	dev->core.dma_mask = &dummy_mask; /* FIXME: for improper usb code */
+	dummy_mask = DMA_BIT_MASK(32);
+	dev->core.dma_mask = &dummy_mask;
+	dma_set_coherent_mask(&dev->core, dummy_mask);
 
 	hcd = usb_create_hcd(&ps3_ehci_hc_driver, &dev->core, dev_name(&dev->core));
 

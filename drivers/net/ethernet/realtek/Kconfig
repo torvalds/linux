@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Realtek device configuration
 #
@@ -95,13 +96,19 @@ config 8139_OLD_RX_RESET
 	  old RX-reset behavior.  If unsure, say N.
 
 config R8169
-	tristate "Realtek 8169 gigabit ethernet support"
+	tristate "Realtek 8169/8168/8101/8125 ethernet support"
 	depends on PCI
 	select FW_LOADER
 	select CRC32
-	select MII
+	select PHYLIB
+	select REALTEK_PHY
 	---help---
-	  Say Y here if you have a Realtek 8169 PCI Gigabit Ethernet adapter.
+	  Say Y here if you have a Realtek Ethernet adapter belonging to
+	  the following families:
+	  RTL8169 Gigabit Ethernet
+	  RTL8168 Gigabit Ethernet
+	  RTL8101 Fast Ethernet
+	  RTL8125 2.5GBit Ethernet
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.

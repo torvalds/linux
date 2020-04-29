@@ -12,7 +12,7 @@ endif
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
-CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
+override CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
 
 ALL_TARGETS := iio_event_monitor lsiio iio_generic_buffer
 ALL_PROGRAMS := $(patsubst %,$(OUTPUT)%,$(ALL_TARGETS))
@@ -32,20 +32,24 @@ $(OUTPUT)include/linux/iio: ../../include/uapi/linux/iio
 
 prepare: $(OUTPUT)include/linux/iio
 
+IIO_UTILS_IN := $(OUTPUT)iio_utils-in.o
+$(IIO_UTILS_IN): prepare FORCE
+	$(Q)$(MAKE) $(build)=iio_utils
+
 LSIIO_IN := $(OUTPUT)lsiio-in.o
-$(LSIIO_IN): prepare FORCE
+$(LSIIO_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=lsiio
 $(OUTPUT)lsiio: $(LSIIO_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 IIO_EVENT_MONITOR_IN := $(OUTPUT)iio_event_monitor-in.o
-$(IIO_EVENT_MONITOR_IN): prepare FORCE
+$(IIO_EVENT_MONITOR_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=iio_event_monitor
 $(OUTPUT)iio_event_monitor: $(IIO_EVENT_MONITOR_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 IIO_GENERIC_BUFFER_IN := $(OUTPUT)iio_generic_buffer-in.o
-$(IIO_GENERIC_BUFFER_IN): prepare FORCE
+$(IIO_GENERIC_BUFFER_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=iio_generic_buffer
 $(OUTPUT)iio_generic_buffer: $(IIO_GENERIC_BUFFER_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@

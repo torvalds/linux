@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ISHTP Ring Buffers
  *
  * Copyright (c) 2003-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/slab.h>
@@ -69,6 +60,8 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 	int	j;
 	unsigned long	flags;
 
+	cl->tx_ring_free_size = 0;
+
 	/* Allocate pool to free Tx bufs */
 	for (j = 0; j < cl->tx_ring_size; ++j) {
 		struct ishtp_cl_tx_ring	*tx_buf;
@@ -85,12 +78,13 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 
 		spin_lock_irqsave(&cl->tx_free_list_spinlock, flags);
 		list_add_tail(&tx_buf->list, &cl->tx_free_list.list);
+		++cl->tx_ring_free_size;
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock, flags);
 	}
 	return	0;
 out:
 	dev_err(&cl->device->dev, "error in allocating Tx pool\n");
-	ishtp_cl_free_rx_ring(cl);
+	ishtp_cl_free_tx_ring(cl);
 	return	-ENOMEM;
 }
 
@@ -144,6 +138,7 @@ void ishtp_cl_free_tx_ring(struct ishtp_cl *cl)
 		tx_buf = list_entry(cl->tx_free_list.list.next,
 				    struct ishtp_cl_tx_ring, list);
 		list_del(&tx_buf->list);
+		--cl->tx_ring_free_size;
 		kfree(tx_buf->send_buf.data);
 		kfree(tx_buf);
 	}
@@ -255,3 +250,48 @@ int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb)
 	return	rets;
 }
 EXPORT_SYMBOL(ishtp_cl_io_rb_recycle);
+
+/**
+ * ishtp_cl_tx_empty() -test whether client device tx buffer is empty
+ * @cl: Pointer to client device instance
+ *
+ * Look client device tx buffer list, and check whether this list is empty
+ *
+ * Return: true if client tx buffer list is empty else false
+ */
+bool ishtp_cl_tx_empty(struct ishtp_cl *cl)
+{
+	int tx_list_empty;
+	unsigned long tx_flags;
+
+	spin_lock_irqsave(&cl->tx_list_spinlock, tx_flags);
+	tx_list_empty = list_empty(&cl->tx_list.list);
+	spin_unlock_irqrestore(&cl->tx_list_spinlock, tx_flags);
+
+	return !!tx_list_empty;
+}
+EXPORT_SYMBOL(ishtp_cl_tx_empty);
+
+/**
+ * ishtp_cl_rx_get_rb() -Get a rb from client device rx buffer list
+ * @cl: Pointer to client device instance
+ *
+ * Check client device in-processing buffer list and get a rb from it.
+ *
+ * Return: rb pointer if buffer list isn't empty else NULL
+ */
+struct ishtp_cl_rb *ishtp_cl_rx_get_rb(struct ishtp_cl *cl)
+{
+	unsigned long rx_flags;
+	struct ishtp_cl_rb *rb;
+
+	spin_lock_irqsave(&cl->in_process_spinlock, rx_flags);
+	rb = list_first_entry_or_null(&cl->in_process_list.list,
+				struct ishtp_cl_rb, list);
+	if (rb)
+		list_del_init(&rb->list);
+	spin_unlock_irqrestore(&cl->in_process_spinlock, rx_flags);
+
+	return rb;
+}
+EXPORT_SYMBOL(ishtp_cl_rx_get_rb);

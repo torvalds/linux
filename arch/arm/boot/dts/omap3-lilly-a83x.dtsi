@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Christoph Fritz <chf.fritzc@googlemail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "omap36xx.dtsi"
 
 / {
 	model = "INCOstartec LILLY-A83X module (DM3730)";
-	compatible = "incostartec,omap3-lilly-a83x", "ti,omap36xx", "ti,omap3";
+	compatible = "incostartec,omap3-lilly-a83x", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	chosen {
 			bootargs = "console=ttyO0,115200n8 vt.global_cursor_default=0 consoleblank=0";

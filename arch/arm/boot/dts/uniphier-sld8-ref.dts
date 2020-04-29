@@ -63,6 +63,10 @@
 	status = "okay";
 };
 
+&sd {
+	status = "okay";
+};
+
 &usb0 {
 	status = "okay";
 };
@@ -77,4 +81,8 @@
 
 &nand {
 	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+	};
 };

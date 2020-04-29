@@ -180,11 +180,17 @@ static int send_dreg(struct vio_driver_state *vio)
 		struct vio_dring_register pkt;
 		char all[sizeof(struct vio_dring_register) +
 			 (sizeof(struct ldc_trans_cookie) *
-			  dr->ncookies)];
+			  VIO_MAX_RING_COOKIES)];
 	} u;
+	size_t bytes = sizeof(struct vio_dring_register) +
+		       (sizeof(struct ldc_trans_cookie) *
+			dr->ncookies);
 	int i;
 
-	memset(&u, 0, sizeof(u));
+	if (WARN_ON(bytes > sizeof(u)))
+		return -EINVAL;
+
+	memset(&u, 0, bytes);
 	init_tag(&u.pkt.tag, VIO_TYPE_CTRL, VIO_SUBTYPE_INFO, VIO_DRING_REG);
 	u.pkt.dring_ident = 0;
 	u.pkt.num_descr = dr->num_entries;
@@ -206,7 +212,7 @@ static int send_dreg(struct vio_driver_state *vio)
 		       (unsigned long long) u.pkt.cookies[i].cookie_size);
 	}
 
-	return send_ctrl(vio, &u.pkt.tag, sizeof(u));
+	return send_ctrl(vio, &u.pkt.tag, bytes);
 }
 
 static int send_rdx(struct vio_driver_state *vio)

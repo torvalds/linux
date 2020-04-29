@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 #ifndef __WIL_FW_H__
 #define __WIL_FW_H__
@@ -109,12 +98,17 @@ struct wil_fw_record_concurrency { /* type == wil_fw_type_comment */
 
 /* brd file info encoded inside a comment record */
 #define WIL_BRD_FILE_MAGIC (0xabcddcbb)
+
+struct brd_info {
+	__le32 base_addr;
+	__le32 max_size_bytes;
+} __packed;
+
 struct wil_fw_record_brd_file { /* type == wil_fw_type_comment */
 	/* identifies brd file record */
 	struct wil_fw_record_comment_hdr hdr;
 	__le32 version;
-	__le32 base_addr;
-	__le32 max_size_bytes;
+	struct brd_info brd_info[0];
 } __packed;
 
 /* perform action

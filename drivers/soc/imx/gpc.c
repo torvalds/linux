@@ -1,13 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015-2017 Pengutronix, Lucas Stach <kernel@pengutronix.de>
  * Copyright 2011-2013 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/clk.h>
@@ -27,14 +21,21 @@
 #define GPC_PGC_SW2ISO_SHIFT	0x8
 #define GPC_PGC_SW_SHIFT	0x0
 
+#define GPC_PGC_PCI_PDN		0x200
+#define GPC_PGC_PCI_SR		0x20c
+
 #define GPC_PGC_GPU_PDN		0x260
 #define GPC_PGC_GPU_PUPSCR	0x264
 #define GPC_PGC_GPU_PDNSCR	0x268
+#define GPC_PGC_GPU_SR		0x26c
+
+#define GPC_PGC_DISP_PDN	0x240
+#define GPC_PGC_DISP_SR		0x24c
 
 #define GPU_VPU_PUP_REQ		BIT(1)
 #define GPU_VPU_PDN_REQ		BIT(0)
 
-#define GPC_CLK_MAX		6
+#define GPC_CLK_MAX		7
 
 #define PGC_DOMAIN_FLAG_NO_PD		BIT(0)
 
@@ -47,7 +48,6 @@ struct imx_pm_domain {
 	unsigned int reg_offs;
 	signed char cntr_pdn_bit;
 	unsigned int ipg_rate_mhz;
-	unsigned int flags;
 };
 
 static inline struct imx_pm_domain *
@@ -62,11 +62,8 @@ static int imx6_pm_domain_power_off(struct generic_pm_domain *genpd)
 	int iso, iso2sw;
 	u32 val;
 
-	if (pd->flags & PGC_DOMAIN_FLAG_NO_PD)
-		return -EBUSY;
-
 	/* Read ISO and ISO2SW power down delays */
-	regmap_read(pd->regmap, pd->reg_offs + GPC_PGC_PUPSCR_OFFS, &val);
+	regmap_read(pd->regmap, pd->reg_offs + GPC_PGC_PDNSCR_OFFS, &val);
 	iso = val & 0x3f;
 	iso2sw = (val >> 8) & 0x3f;
 
@@ -90,8 +87,8 @@ static int imx6_pm_domain_power_off(struct generic_pm_domain *genpd)
 static int imx6_pm_domain_power_on(struct generic_pm_domain *genpd)
 {
 	struct imx_pm_domain *pd = to_imx_pm_domain(genpd);
-	int i, ret, sw, sw2iso;
-	u32 val;
+	int i, ret;
+	u32 val, req;
 
 	if (pd->supply) {
 		ret = regulator_enable(pd->supply);
@@ -110,17 +107,18 @@ static int imx6_pm_domain_power_on(struct generic_pm_domain *genpd)
 	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_CTRL_OFFS,
 			   0x1, 0x1);
 
-	/* Read ISO and ISO2SW power up delays */
-	regmap_read(pd->regmap, pd->reg_offs + GPC_PGC_PUPSCR_OFFS, &val);
-	sw = val & 0x3f;
-	sw2iso = (val >> 8) & 0x3f;
-
 	/* Request GPC to power up domain */
-	val = BIT(pd->cntr_pdn_bit + 1);
-	regmap_update_bits(pd->regmap, GPC_CNTR, val, val);
+	req = BIT(pd->cntr_pdn_bit + 1);
+	regmap_update_bits(pd->regmap, GPC_CNTR, req, req);
 
-	/* Wait ISO + ISO2SW IPG clock cycles */
-	udelay(DIV_ROUND_UP(sw + sw2iso, pd->ipg_rate_mhz));
+	/* Wait for the PGC to handle the request */
+	ret = regmap_read_poll_timeout(pd->regmap, GPC_CNTR, val, !(val & req),
+				       1, 50);
+	if (ret)
+		pr_err("powerup request on domain %s timed out\n", genpd->name);
+
+	/* Wait for reset to propagate through peripherals */
+	usleep_range(5, 10);
 
 	/* Disable reset clocks for all devices in the domain */
 	for (i = 0; i < pd->num_clks; i++)
@@ -202,7 +200,7 @@ static int imx_pgc_power_domain_probe(struct platform_device *pdev)
 			goto genpd_err;
 	}
 
-	device_link_add(dev, dev->parent, DL_FLAG_AUTOREMOVE);
+	device_link_add(dev, dev->parent, DL_FLAG_AUTOREMOVE_CONSUMER);
 
 	return 0;
 
@@ -244,6 +242,7 @@ builtin_platform_driver(imx_pgc_power_domain_driver)
 #define GPC_PGC_DOMAIN_ARM	0
 #define GPC_PGC_DOMAIN_PU	1
 #define GPC_PGC_DOMAIN_DISPLAY	2
+#define GPC_PGC_DOMAIN_PCI	3
 
 static struct genpd_power_state imx6_pm_domain_pu_state = {
 	.power_off_latency_ns = 25000,
@@ -251,12 +250,13 @@ static struct genpd_power_state imx6_pm_domain_pu_state = {
 };
 
 static struct imx_pm_domain imx_gpc_domains[] = {
-	{
+	[GPC_PGC_DOMAIN_ARM] = {
 		.base = {
 			.name = "ARM",
 			.flags = GENPD_FLAG_ALWAYS_ON,
 		},
-	}, {
+	},
+	[GPC_PGC_DOMAIN_PU] = {
 		.base = {
 			.name = "PU",
 			.power_off = imx6_pm_domain_power_off,
@@ -266,7 +266,8 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 		},
 		.reg_offs = 0x260,
 		.cntr_pdn_bit = 0,
-	}, {
+	},
+	[GPC_PGC_DOMAIN_DISPLAY] = {
 		.base = {
 			.name = "DISPLAY",
 			.power_off = imx6_pm_domain_power_off,
@@ -274,7 +275,8 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 		},
 		.reg_offs = 0x240,
 		.cntr_pdn_bit = 4,
-	}, {
+	},
+	[GPC_PGC_DOMAIN_PCI] = {
 		.base = {
 			.name = "PCI",
 			.power_off = imx6_pm_domain_power_off,
@@ -288,26 +290,31 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 struct imx_gpc_dt_data {
 	int num_domains;
 	bool err009619_present;
+	bool err006287_present;
 };
 
 static const struct imx_gpc_dt_data imx6q_dt_data = {
 	.num_domains = 2,
 	.err009619_present = false,
+	.err006287_present = false,
 };
 
 static const struct imx_gpc_dt_data imx6qp_dt_data = {
 	.num_domains = 2,
 	.err009619_present = true,
+	.err006287_present = false,
 };
 
 static const struct imx_gpc_dt_data imx6sl_dt_data = {
 	.num_domains = 3,
 	.err009619_present = false,
+	.err006287_present = true,
 };
 
 static const struct imx_gpc_dt_data imx6sx_dt_data = {
 	.num_domains = 4,
 	.err009619_present = false,
+	.err006287_present = false,
 };
 
 static const struct of_device_id imx_gpc_dt_ids[] = {
@@ -318,16 +325,31 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 	{ }
 };
 
+static const struct regmap_range yes_ranges[] = {
+	regmap_reg_range(GPC_CNTR, GPC_CNTR),
+	regmap_reg_range(GPC_PGC_PCI_PDN, GPC_PGC_PCI_SR),
+	regmap_reg_range(GPC_PGC_GPU_PDN, GPC_PGC_GPU_SR),
+	regmap_reg_range(GPC_PGC_DISP_PDN, GPC_PGC_DISP_SR),
+};
+
+static const struct regmap_access_table access_table = {
+	.yes_ranges	= yes_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(yes_ranges),
+};
+
 static const struct regmap_config imx_gpc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
+	.rd_table = &access_table,
+	.wr_table = &access_table,
 	.max_register = 0x2ac,
+	.fast_io = true,
 };
 
 static struct generic_pm_domain *imx_gpc_onecell_domains[] = {
-	&imx_gpc_domains[0].base,
-	&imx_gpc_domains[1].base,
+	&imx_gpc_domains[GPC_PGC_DOMAIN_ARM].base,
+	&imx_gpc_domains[GPC_PGC_DOMAIN_PU].base,
 };
 
 static struct genpd_onecell_data imx_gpc_onecell_data = {
@@ -386,7 +408,6 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	const struct imx_gpc_dt_data *of_id_data = of_id->data;
 	struct device_node *pgc_node;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -397,8 +418,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	    !pgc_node)
 		return 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -411,10 +431,24 @@ static int imx_gpc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Disable PU power down in normal operation if ERR009619 is present */
+	/*
+	 * Disable PU power down by runtime PM if ERR009619 is present.
+	 *
+	 * The PRE clock will be paused for several cycles when turning on the
+	 * PU domain LDO from power down state. If PRE is in use at that time,
+	 * the IPU/PRG cannot get the correct display data from the PRE.
+	 *
+	 * This is not a concern when the whole system enters suspend state, so
+	 * it's safe to power down PU in this case.
+	 */
 	if (of_id_data->err009619_present)
-		imx_gpc_domains[GPC_PGC_DOMAIN_PU].flags |=
-				PGC_DOMAIN_FLAG_NO_PD;
+		imx_gpc_domains[GPC_PGC_DOMAIN_PU].base.flags |=
+				GENPD_FLAG_RPM_ALWAYS_ON;
+
+	/* Keep DISP always on if ERR006287 is present */
+	if (of_id_data->err006287_present)
+		imx_gpc_domains[GPC_PGC_DOMAIN_DISPLAY].base.flags |=
+				GENPD_FLAG_ALWAYS_ON;
 
 	if (!pgc_node) {
 		ret = imx_gpc_old_dt_init(&pdev->dev, regmap,
@@ -443,17 +477,25 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			if (domain_index >= of_id_data->num_domains)
 				continue;
 
-			domain = &imx_gpc_domains[domain_index];
-			domain->regmap = regmap;
-			domain->ipg_rate_mhz = ipg_rate_mhz;
-
 			pd_pdev = platform_device_alloc("imx-pgc-power-domain",
 							domain_index);
 			if (!pd_pdev) {
 				of_node_put(np);
 				return -ENOMEM;
 			}
-			pd_pdev->dev.platform_data = domain;
+
+			ret = platform_device_add_data(pd_pdev,
+						       &imx_gpc_domains[domain_index],
+						       sizeof(imx_gpc_domains[domain_index]));
+			if (ret) {
+				platform_device_put(pd_pdev);
+				of_node_put(np);
+				return ret;
+			}
+			domain = pd_pdev->dev.platform_data;
+			domain->regmap = regmap;
+			domain->ipg_rate_mhz = ipg_rate_mhz;
+
 			pd_pdev->dev.parent = &pdev->dev;
 			pd_pdev->dev.of_node = np;
 

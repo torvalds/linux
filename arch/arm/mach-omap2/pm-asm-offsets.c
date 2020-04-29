@@ -7,9 +7,12 @@
 
 #include <linux/kbuild.h>
 #include <linux/platform_data/pm33xx.h>
+#include <linux/ti-emif-sram.h>
 
 int main(void)
 {
+	ti_emif_asm_offsets();
+
 	DEFINE(AMX3_PM_WFI_FLAGS_OFFSET,
 	       offsetof(struct am33xx_pm_sram_data, wfi_flags));
 	DEFINE(AMX3_PM_L2_AUX_CTRL_VAL_OFFSET,
@@ -24,6 +27,8 @@ int main(void)
 	       offsetof(struct am33xx_pm_ro_sram_data, amx3_pm_sram_data_virt));
 	DEFINE(AMX3_PM_RO_SRAM_DATA_PHYS_OFFSET,
 	       offsetof(struct am33xx_pm_ro_sram_data, amx3_pm_sram_data_phys));
+	DEFINE(AMX3_PM_RTC_BASE_VIRT_OFFSET,
+	       offsetof(struct am33xx_pm_ro_sram_data, rtc_base_virt));
 	DEFINE(AMX3_PM_RO_SRAM_DATA_SIZE,
 	       sizeof(struct am33xx_pm_ro_sram_data));
 

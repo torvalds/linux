@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vpd.c
  *
  * Driver for exporting VPD content to sysfs.
  *
  * Copyright 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/ctype.h>
@@ -100,8 +92,8 @@ static int vpd_section_check_key_name(const u8 *key, s32 key_len)
 	return VPD_OK;
 }
 
-static int vpd_section_attrib_add(const u8 *key, s32 key_len,
-				  const u8 *value, s32 value_len,
+static int vpd_section_attrib_add(const u8 *key, u32 key_len,
+				  const u8 *value, u32 value_len,
 				  void *arg)
 {
 	int ret;
@@ -198,7 +190,7 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 
 	sec->name = name;
 
-	/* We want to export the raw partion with name ${name}_raw */
+	/* We want to export the raw partition with name ${name}_raw */
 	sec->raw_name = kasprintf(GFP_KERNEL, "%s_raw", name);
 	if (!sec->raw_name) {
 		err = -ENOMEM;
@@ -246,6 +238,7 @@ static int vpd_section_destroy(struct vpd_section *sec)
 		sysfs_remove_bin_file(vpd_kobj, &sec->bin_attr);
 		kfree(sec->raw_name);
 		memunmap(sec->baseaddr);
+		sec->enabled = false;
 	}
 
 	return 0;
@@ -253,7 +246,7 @@ static int vpd_section_destroy(struct vpd_section *sec)
 
 static int vpd_sections_init(phys_addr_t physaddr)
 {
-	struct vpd_cbmem __iomem *temp;
+	struct vpd_cbmem *temp;
 	struct vpd_cbmem header;
 	int ret = 0;
 
@@ -261,7 +254,7 @@ static int vpd_sections_init(phys_addr_t physaddr)
 	if (!temp)
 		return -ENOMEM;
 
-	memcpy_fromio(&header, temp, sizeof(struct vpd_cbmem));
+	memcpy(&header, temp, sizeof(struct vpd_cbmem));
 	memunmap(temp);
 
 	if (header.magic != VPD_CBMEM_MAGIC)
@@ -279,27 +272,24 @@ static int vpd_sections_init(phys_addr_t physaddr)
 		ret = vpd_section_init("rw", &rw_vpd,
 				       physaddr + sizeof(struct vpd_cbmem) +
 				       header.ro_size, header.rw_size);
-		if (ret)
+		if (ret) {
+			vpd_section_destroy(&ro_vpd);
 			return ret;
+		}
 	}
 
 	return 0;
 }
 
-static int vpd_probe(struct platform_device *pdev)
+static int vpd_probe(struct coreboot_device *dev)
 {
 	int ret;
-	struct lb_cbmem_ref entry;
-
-	ret = coreboot_table_find(CB_TAG_VPD, &entry, sizeof(entry));
-	if (ret)
-		return ret;
 
 	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
 	if (!vpd_kobj)
 		return -ENOMEM;
 
-	ret = vpd_sections_init(entry.cbmem_addr);
+	ret = vpd_sections_init(dev->cbmem_ref.cbmem_addr);
 	if (ret) {
 		kobject_put(vpd_kobj);
 		return ret;
@@ -308,7 +298,7 @@ static int vpd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vpd_remove(struct platform_device *pdev)
+static int vpd_remove(struct coreboot_device *dev)
 {
 	vpd_section_destroy(&ro_vpd);
 	vpd_section_destroy(&rw_vpd);
@@ -318,41 +308,15 @@ static int vpd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vpd_driver = {
+static struct coreboot_driver vpd_driver = {
 	.probe = vpd_probe,
 	.remove = vpd_remove,
-	.driver = {
+	.drv = {
 		.name = "vpd",
 	},
+	.tag = CB_TAG_VPD,
 };
-
-static struct platform_device *vpd_pdev;
-
-static int __init vpd_platform_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&vpd_driver);
-	if (ret)
-		return ret;
-
-	vpd_pdev = platform_device_register_simple("vpd", -1, NULL, 0);
-	if (IS_ERR(vpd_pdev)) {
-		platform_driver_unregister(&vpd_driver);
-		return PTR_ERR(vpd_pdev);
-	}
-
-	return 0;
-}
-
-static void __exit vpd_platform_exit(void)
-{
-	platform_device_unregister(vpd_pdev);
-	platform_driver_unregister(&vpd_driver);
-}
-
-module_init(vpd_platform_init);
-module_exit(vpd_platform_exit);
+module_coreboot_driver(vpd_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

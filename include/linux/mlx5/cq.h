@@ -47,7 +47,7 @@ struct mlx5_core_cq {
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
-	void (*comp)		(struct mlx5_core_cq *);
+	void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
 	u32			cons_index;
 	unsigned		arm_sn;
@@ -55,12 +55,13 @@ struct mlx5_core_cq {
 	int			pid;
 	struct {
 		struct list_head list;
-		void (*comp)(struct mlx5_core_cq *);
+		void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 		void		*priv;
 	} tasklet_ctx;
 	int			reset_notify_added;
 	struct list_head	reset_notify;
-	struct mlx5_eq		*eq;
+	struct mlx5_eq_comp	*eq;
+	u16 uid;
 };
 
 
@@ -124,9 +125,9 @@ struct mlx5_cq_modify_params {
 };
 
 enum {
-	CQE_SIZE_64 = 0,
-	CQE_SIZE_128 = 1,
-	CQE_SIZE_128_PAD = 2,
+	CQE_STRIDE_64 = 0,
+	CQE_STRIDE_128 = 1,
+	CQE_STRIDE_128_PAD = 2,
 };
 
 #define MLX5_MAX_CQ_PERIOD (BIT(__mlx5_bit_sz(cqc, cq_period)) - 1)
@@ -134,8 +135,8 @@ enum {
 
 static inline int cqe_sz_to_mlx_sz(u8 size, int padding_128_en)
 {
-	return padding_128_en ? CQE_SIZE_128_PAD :
-				size == 64 ? CQE_SIZE_64 : CQE_SIZE_128;
+	return padding_128_en ? CQE_STRIDE_128_PAD :
+				size == 64 ? CQE_STRIDE_64 : CQE_STRIDE_128;
 }
 
 static inline void mlx5_cq_set_ci(struct mlx5_core_cq *cq)
@@ -169,7 +170,7 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	doorbell[0] = cpu_to_be32(sn << 28 | cmd | ci);
 	doorbell[1] = cpu_to_be32(cq->cqn);
 
-	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
+	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL);
 }
 
 static inline void mlx5_cq_hold(struct mlx5_core_cq *cq)
@@ -184,7 +185,7 @@ static inline void mlx5_cq_put(struct mlx5_core_cq *cq)
 }
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen);
+			u32 *in, int inlen, u32 *out, int outlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		       u32 *out, int outlen);

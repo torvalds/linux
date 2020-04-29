@@ -10,8 +10,6 @@ Required properties:
     as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
 
-  - interrupt-parent : Specifies the phandle of the interrupt controller to
-    which the IRQs from CS35L35 are delivered to.
   - interrupts : IRQ line info CS35L35.
     (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
     for further information relating to interrupt properties)

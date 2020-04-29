@@ -435,6 +435,11 @@ static void dce110_timing_generator_v_set_blank(struct timing_generator *tg,
 
 static void dce110_timing_generator_v_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	if (use_vbios)
@@ -648,12 +653,6 @@ static void dce110_timing_generator_v_disable_vga(
 	return;
 }
 
-static bool dce110_tg_v_is_blanked(struct timing_generator *tg)
-{
-	/* Signal comes from the primary pipe, underlay is never blanked. */
-	return false;
-}
-
 /** ********************************************************************************************
  *
  * DCE11 Timing Generator Constructor / Destructor
@@ -670,7 +669,6 @@ static const struct timing_generator_funcs dce110_tg_v_funcs = {
 		.set_early_control = dce110_timing_generator_v_set_early_control,
 		.wait_for_state = dce110_timing_generator_v_wait_for_state,
 		.set_blank = dce110_timing_generator_v_set_blank,
-		.is_blanked = dce110_tg_v_is_blanked,
 		.set_colors = dce110_timing_generator_v_set_colors,
 		.set_overscan_blank_color =
 				dce110_timing_generator_v_set_overscan_color_black,

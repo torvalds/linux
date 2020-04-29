@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux driver for TerraTec DMX 6Fire USB
  *
@@ -6,11 +7,6 @@
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
  * Copyright:	(C) Torsten Schenk
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "pcm.h"
@@ -450,18 +446,6 @@ static int usb6fire_pcm_close(struct snd_pcm_substream *alsa_sub)
 	return 0;
 }
 
-static int usb6fire_pcm_hw_params(struct snd_pcm_substream *alsa_sub,
-		struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_alloc_vmalloc_buffer(alsa_sub,
-						params_buffer_bytes(hw_params));
-}
-
-static int usb6fire_pcm_hw_free(struct snd_pcm_substream *alsa_sub)
-{
-	return snd_pcm_lib_free_vmalloc_buffer(alsa_sub);
-}
-
 static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 {
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
@@ -558,14 +542,9 @@ static snd_pcm_uframes_t usb6fire_pcm_pointer(
 static const struct snd_pcm_ops pcm_ops = {
 	.open = usb6fire_pcm_open,
 	.close = usb6fire_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = usb6fire_pcm_hw_params,
-	.hw_free = usb6fire_pcm_hw_free,
 	.prepare = usb6fire_pcm_prepare,
 	.trigger = usb6fire_pcm_trigger,
 	.pointer = usb6fire_pcm_pointer,
-	.page = snd_pcm_lib_get_vmalloc_page,
-	.mmap = snd_pcm_lib_mmap_vmalloc,
 };
 
 static void usb6fire_pcm_init_urb(struct pcm_urb *urb,
@@ -591,12 +570,14 @@ static int usb6fire_pcm_buffers_init(struct pcm_runtime *rt)
 	int i;
 
 	for (i = 0; i < PCM_N_URBS; i++) {
-		rt->out_urbs[i].buffer = kzalloc(PCM_N_PACKETS_PER_URB
-				* PCM_MAX_PACKET_SIZE, GFP_KERNEL);
+		rt->out_urbs[i].buffer = kcalloc(PCM_MAX_PACKET_SIZE,
+						 PCM_N_PACKETS_PER_URB,
+						 GFP_KERNEL);
 		if (!rt->out_urbs[i].buffer)
 			return -ENOMEM;
-		rt->in_urbs[i].buffer = kzalloc(PCM_N_PACKETS_PER_URB
-				* PCM_MAX_PACKET_SIZE, GFP_KERNEL);
+		rt->in_urbs[i].buffer = kcalloc(PCM_MAX_PACKET_SIZE,
+						PCM_N_PACKETS_PER_URB,
+						GFP_KERNEL);
 		if (!rt->in_urbs[i].buffer)
 			return -ENOMEM;
 	}
@@ -662,14 +643,8 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	strcpy(pcm->name, "DMX 6Fire USB");
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
-	if (ret) {
-		usb6fire_pcm_buffers_destroy(rt);
-		kfree(rt);
-		dev_err(&chip->dev->dev,
-			"error preallocating pcm buffers.\n");
-		return ret;
-	}
 	rt->instance = pcm;
 
 	chip->pcm = rt;

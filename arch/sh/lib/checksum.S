@@ -1,4 +1,6 @@
-/* $Id: checksum.S,v 1.10 2001/07/06 13:11:32 gniibe Exp $
+/* SPDX-License-Identifier: GPL-2.0+
+ *
+ * $Id: checksum.S,v 1.10 2001/07/06 13:11:32 gniibe Exp $
  *
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -21,11 +23,6 @@
  *                   converted to pure assembler
  *
  * SuperH version:  Copyright (C) 1999  Niibe Yutaka
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #include <asm/errno.h>

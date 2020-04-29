@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _v4l2-meta-fmt-vsp1-hgt:
 
@@ -34,6 +41,10 @@ The Hue position **m** (0 - 5) of the bucket in the matrix depends on
 how the HGT Hue areas are configured. There are 6 user configurable Hue
 Areas which can be configured to cover overlapping Hue values:
 
+.. raw:: latex
+
+    \small
+
 ::
 
          Area 0       Area 1       Area 2       Area 3       Area 4       Area 5
@@ -45,6 +56,11 @@ Areas which can be configured to cover overlapping Hue values:
    /   \|      |/   \|      |/   \|      |/   \|      |/   \|      |/   \|      |/   \
   5U   0L      0U   1L      1U   2L      2U   3L      3U   4L      4U   5L      5U   0L
         <0..............................Hue Value............................255>
+
+
+.. raw:: latex
+
+    \normalsize
 
 When two consecutive areas don't overlap (n+1L is equal to nU) the boundary
 value is considered as part of the lower area.

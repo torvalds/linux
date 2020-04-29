@@ -271,7 +271,7 @@ struct reiserfs_journal_list {
 
 	struct mutex j_commit_mutex;
 	unsigned int j_trans_id;
-	time_t j_timestamp;
+	time64_t j_timestamp; /* write-only but useful for crash dump analysis */
 	struct reiserfs_list_bitmap *j_list_bitmap;
 	struct buffer_head *j_commit_bh;	/* commit buffer head */
 	struct reiserfs_journal_cnode *j_realblock;
@@ -331,7 +331,7 @@ struct reiserfs_journal {
 
 	struct buffer_head *j_header_bh;
 
-	time_t j_trans_start_time;	/* time this transaction started */
+	time64_t j_trans_start_time;	/* time this transaction started */
 	struct mutex j_mutex;
 	struct mutex j_flush_mutex;
 
@@ -1167,6 +1167,8 @@ static inline int bmap_would_wrap(unsigned bmap_nr)
 {
 	return bmap_nr > ((1LL << 16) - 1);
 }
+
+extern const struct xattr_handler *reiserfs_xattr_handlers[];
 
 /*
  * this says about version of key of all items (but stat data) the

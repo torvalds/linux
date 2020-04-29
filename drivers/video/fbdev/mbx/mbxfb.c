@@ -74,7 +74,7 @@ struct mbxfb_info {
 
 	u32 pseudo_palette[MAX_PALETTES];
 #ifdef CONFIG_FB_MBX_DEBUG
-	void *debugfs_data;
+	struct dentry *debugfs_dir;
 #endif
 
 };
@@ -671,7 +671,7 @@ static int mbxfb_ioctl(struct fb_info *info, unsigned int cmd,
 	return -EINVAL;
 }
 
-static struct fb_ops mbxfb_ops = {
+static const struct fb_ops mbxfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = mbxfb_check_var,
 	.fb_set_par = mbxfb_set_par,
@@ -899,10 +899,8 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 
 	fbi = framebuffer_alloc(sizeof(struct mbxfb_info), &dev->dev);
-	if (fbi == NULL) {
-		dev_err(&dev->dev, "framebuffer_alloc failed\n");
+	if (!fbi)
 		return -ENOMEM;
-	}
 
 	mfbi = fbi->par;
 	fbi->pseudo_palette = mfbi->pseudo_palette;
@@ -940,7 +938,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	mfbi->reg_phys_addr = mfbi->reg_res->start;
 
-	mfbi->reg_virt_addr = devm_ioremap_nocache(&dev->dev,
+	mfbi->reg_virt_addr = devm_ioremap(&dev->dev,
 						   mfbi->reg_phys_addr,
 						   res_size(mfbi->reg_req));
 	if (!mfbi->reg_virt_addr) {
@@ -950,7 +948,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	virt_base_2700 = mfbi->reg_virt_addr;
 
-	mfbi->fb_virt_addr = devm_ioremap_nocache(&dev->dev, mfbi->fb_phys_addr,
+	mfbi->fb_virt_addr = devm_ioremap(&dev->dev, mfbi->fb_phys_addr,
 						  res_size(mfbi->fb_req));
 	if (!mfbi->fb_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap frame buffer\n");

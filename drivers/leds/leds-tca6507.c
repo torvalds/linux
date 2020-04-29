@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * leds-tca6507
  *
@@ -697,8 +698,8 @@ tca6507_led_dt_init(struct i2c_client *client)
 	if (!count || count > NUM_LEDS)
 		return ERR_PTR(-ENODEV);
 
-	tca_leds = devm_kzalloc(&client->dev,
-			sizeof(struct led_info) * NUM_LEDS, GFP_KERNEL);
+	tca_leds = devm_kcalloc(&client->dev,
+			NUM_LEDS, sizeof(struct led_info), GFP_KERNEL);
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
@@ -757,7 +758,7 @@ static int tca6507_probe(struct i2c_client *client,
 	int err;
 	int i = 0;
 
-	adapter = to_i2c_adapter(client->dev.parent);
+	adapter = client->adapter;
 	pdata = dev_get_platdata(&client->dev);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for LTC3815
  *
  * Copyright (c) 2015 Linear Technology
  * Copyright (c) 2015 Guenter Roeck
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -64,7 +55,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 		 * LTC3815 does not support the CLEAR_FAULTS command.
 		 * Emulate it by clearing the status register.
 		 */
-		ret = pmbus_read_word_data(client, 0, PMBUS_STATUS_WORD);
+		ret = pmbus_read_word_data(client, 0, 0xff, PMBUS_STATUS_WORD);
 		if (ret > 0) {
 			pmbus_write_word_data(client, 0, PMBUS_STATUS_WORD,
 					      ret);
@@ -78,25 +69,31 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 	return ret;
 }
 
-static int ltc3815_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc3815_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VIN_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_TEMP_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_TEMP_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IIN_PEAK);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:

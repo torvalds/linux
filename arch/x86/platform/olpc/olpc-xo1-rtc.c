@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for OLPC XO-1 Real Time Clock (RTC)
  *
  * Copyright (C) 2011 One Laptop per Child
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/mc146818rtc.h>
@@ -16,6 +12,7 @@
 
 #include <asm/msr.h>
 #include <asm/olpc.h>
+#include <asm/x86_init.h>
 
 static void rtc_wake_on(struct device *dev)
 {
@@ -74,6 +71,8 @@ static int __init xo1_rtc_init(void)
 	r = platform_device_register(&xo1_rtc_device);
 	if (r)
 		return r;
+
+	x86_platform.legacy.rtc = 0;
 
 	device_init_wakeup(&xo1_rtc_device.dev, 1);
 	return 0;

@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Library General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
  
 /*
@@ -221,15 +209,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	vortex_t *chip = snd_pcm_substream_chip(substream);
 	stream_t *stream = (stream_t *) (substream->runtime->private_data);
-	int err;
 
-	// Alloc buffer memory.
-	err =
-	    snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0) {
-		dev_err(chip->card->dev, "Vortex: pcm page alloc failed!\n");
-		return err;
-	}
 	/*
 	   pr_info( "Vortex: periods %d, period_bytes %d, channels = %d\n", params_periods(hw_params),
 	   params_period_bytes(hw_params), params_channels(hw_params));
@@ -316,7 +296,7 @@ static int snd_vortex_pcm_hw_free(struct snd_pcm_substream *substream)
 	substream->runtime->private_data = NULL;
 	spin_unlock_irq(&chip->lock);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /* prepare callback */
@@ -442,27 +422,25 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.open = snd_vortex_pcm_open,
 	.close = snd_vortex_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_vortex_pcm_hw_params,
 	.hw_free = snd_vortex_pcm_hw_free,
 	.prepare = snd_vortex_pcm_prepare,
 	.trigger = snd_vortex_pcm_trigger,
 	.pointer = snd_vortex_pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 /*
 *  definitions of capture are omitted here...
 */
 
-static char *vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
 	CARD_NAME " ADB",
 	CARD_NAME " SPDIF",
 	CARD_NAME " A3D",
 	CARD_NAME " WT",
 	CARD_NAME " I2S",
 };
-static char *vortex_pcm_name[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_name[VORTEX_PCM_LAST] = {
 	"adb",
 	"spdif",
 	"a3d",
@@ -519,7 +497,7 @@ static int snd_vortex_spdif_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 }
 
 /* spdif controls */
-static struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
+static const struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -649,9 +627,8 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	
 	/* pre-allocation of Scatter-Gather buffers */
 	
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci_dev),
-					      0x10000, 0x10000);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &chip->pci_dev->dev, 0x10000, 0x10000);
 
 	switch (VORTEX_PCM_TYPE(pcm)) {
 	case VORTEX_PCM_ADB:

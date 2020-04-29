@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009  Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 
@@ -433,12 +420,6 @@ failed_sensitivity:
 
 static int cmpc_accel_remove_v4(struct acpi_device *acpi)
 {
-	struct input_dev *inputdev;
-	struct cmpc_accel *accel;
-
-	inputdev = dev_get_drvdata(&acpi->dev);
-	accel = dev_get_drvdata(&inputdev->dev);
-
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
 	device_remove_file(&acpi->dev, &cmpc_accel_g_select_attr_v4);
 	return cmpc_remove_acpi_notify_device(acpi);
@@ -669,12 +650,6 @@ failed_file:
 
 static int cmpc_accel_remove(struct acpi_device *acpi)
 {
-	struct input_dev *inputdev;
-	struct cmpc_accel *accel;
-
-	inputdev = dev_get_drvdata(&acpi->dev);
-	accel = dev_get_drvdata(&inputdev->dev);
-
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr);
 	return cmpc_remove_acpi_notify_device(acpi);
 }

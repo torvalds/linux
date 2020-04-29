@@ -12,6 +12,7 @@
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/unistd.h>
+#include <asm/fpu.h>
 
 #include <asm/ptrace.h>
 #include <asm/vdso.h>
@@ -20,6 +21,60 @@ struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
 };
+#if IS_ENABLED(CONFIG_FPU)
+static inline int restore_sigcontext_fpu(struct pt_regs *regs,
+					 struct sigcontext __user *sc)
+{
+	struct task_struct *tsk = current;
+	unsigned long used_math_flag;
+	int ret = 0;
+
+	clear_used_math();
+	__get_user_error(used_math_flag, &sc->used_math_flag, ret);
+
+	if (!used_math_flag)
+		return 0;
+	set_used_math();
+
+#if IS_ENABLED(CONFIG_LAZY_FPU)
+	preempt_disable();
+	if (current == last_task_used_math) {
+		last_task_used_math = NULL;
+		disable_ptreg_fpu(regs);
+	}
+	preempt_enable();
+#else
+	clear_fpu(regs);
+#endif
+
+	return __copy_from_user(&tsk->thread.fpu, &sc->fpu,
+				sizeof(struct fpu_struct));
+}
+
+static inline int setup_sigcontext_fpu(struct pt_regs *regs,
+				       struct sigcontext __user *sc)
+{
+	struct task_struct *tsk = current;
+	int ret = 0;
+
+	__put_user_error(used_math(), &sc->used_math_flag, ret);
+
+	if (!used_math())
+		return ret;
+
+	preempt_disable();
+#if IS_ENABLED(CONFIG_LAZY_FPU)
+	if (last_task_used_math == tsk)
+		save_fpu(last_task_used_math);
+#else
+	unlazy_fpu(tsk);
+#endif
+	ret = __copy_to_user(&sc->fpu, &tsk->thread.fpu,
+			     sizeof(struct fpu_struct));
+	preempt_enable();
+	return ret;
+}
+#endif
 
 static int restore_sigframe(struct pt_regs *regs,
 			    struct rt_sigframe __user * sf)
@@ -69,7 +124,9 @@ static int restore_sigframe(struct pt_regs *regs,
 	__get_user_error(regs->le, &sf->uc.uc_mcontext.zol.nds32_le, err);
 	__get_user_error(regs->lb, &sf->uc.uc_mcontext.zol.nds32_lb, err);
 #endif
-
+#if IS_ENABLED(CONFIG_FPU)
+	err |= restore_sigcontext_fpu(regs, &sf->uc.uc_mcontext);
+#endif
 	/*
 	 * Avoid sys_rt_sigreturn() restarting.
 	 */
@@ -94,7 +151,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 
 	frame = (struct rt_sigframe __user *)regs->sp;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	if (restore_sigframe(regs, frame))
@@ -106,7 +163,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->uregs[0];
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -152,6 +209,9 @@ setup_sigframe(struct rt_sigframe __user * sf, struct pt_regs *regs,
 	__put_user_error(regs->lc, &sf->uc.uc_mcontext.zol.nds32_lc, err);
 	__put_user_error(regs->le, &sf->uc.uc_mcontext.zol.nds32_le, err);
 	__put_user_error(regs->lb, &sf->uc.uc_mcontext.zol.nds32_lb, err);
+#endif
+#if IS_ENABLED(CONFIG_FPU)
+	err |= setup_sigcontext_fpu(regs, &sf->uc.uc_mcontext);
 #endif
 
 	__put_user_error(current->thread.trap_no, &sf->uc.uc_mcontext.trap_no,
@@ -215,7 +275,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t * set, struct pt_regs *regs)
 	    get_sigframe(ksig, regs, sizeof(*frame));
 	int err = 0;
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
 
 	__put_user_error(0, &frame->uc.uc_flags, err);
@@ -256,6 +316,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->uregs[0] = -EINTR;
 				break;
 			}
+			/* Else, fall through */
 		case -ERESTARTNOINTR:
 			regs->uregs[0] = regs->orig_r0;
 			regs->ipc -= 4;
@@ -300,6 +361,7 @@ static void do_signal(struct pt_regs *regs)
 		switch (regs->uregs[0]) {
 		case -ERESTART_RESTARTBLOCK:
 			regs->uregs[15] = __NR_restart_syscall;
+			/* Fall through */
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:

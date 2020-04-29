@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tps65910.c  --  TI tps65910
  *
@@ -5,12 +6,6 @@
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
  * Author: Jorge Eduardo Candelaria <jedu@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -1102,8 +1097,10 @@ static int tps65910_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 
 	/* Give control of all register to control port */
-	tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
+	err = tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
 				DEVCTRL_SR_CTL_I2C_SEL_MASK);
+	if (err < 0)
+		return err;
 
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
@@ -1131,18 +1128,24 @@ static int tps65910_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct regulator_desc), GFP_KERNEL);
+	pmic->desc = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct regulator_desc),
+				  GFP_KERNEL);
 	if (!pmic->desc)
 		return -ENOMEM;
 
-	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct tps_info *), GFP_KERNEL);
+	pmic->info = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct tps_info *),
+				  GFP_KERNEL);
 	if (!pmic->info)
 		return -ENOMEM;
 
-	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct regulator_dev *), GFP_KERNEL);
+	pmic->rdev = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct regulator_dev *),
+				  GFP_KERNEL);
 	if (!pmic->rdev)
 		return -ENOMEM;
 

@@ -33,7 +33,8 @@ struct kstat {
 	 STATX_ATTR_IMMUTABLE |				\
 	 STATX_ATTR_APPEND |				\
 	 STATX_ATTR_NODUMP |				\
-	 STATX_ATTR_ENCRYPTED				\
+	 STATX_ATTR_ENCRYPTED |				\
+	 STATX_ATTR_VERITY				\
 	 )/* Attrs corresponding to FS_*_FL flags */
 	u64		ino;
 	dev_t		dev;
@@ -41,10 +42,10 @@ struct kstat {
 	kuid_t		uid;
 	kgid_t		gid;
 	loff_t		size;
-	struct timespec	atime;
-	struct timespec	mtime;
-	struct timespec	ctime;
-	struct timespec	btime;			/* File creation time */
+	struct timespec64 atime;
+	struct timespec64 mtime;
+	struct timespec64 ctime;
+	struct timespec64 btime;			/* File creation time */
 	u64		blocks;
 };
 

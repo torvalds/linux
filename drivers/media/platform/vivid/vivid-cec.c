@@ -241,11 +241,11 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = jiffies;
 			break;
 		case CEC_OP_DISP_CTL_UNTIL_CLEARED:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = 0;
 			break;
 		case CEC_OP_DISP_CTL_CLEAR:
@@ -276,12 +276,11 @@ struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
 					 bool is_source)
 {
-	char name[sizeof(dev->vid_out_dev.name) + 2];
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN;
+	char name[32];
 
-	snprintf(name, sizeof(name), "%s%d",
-		 is_source ? dev->vid_out_dev.name : dev->vid_cap_dev.name,
-		 idx);
+	snprintf(name, sizeof(name), "vivid-%03d-vid-%s%d",
+		 dev->inst, is_source ? "out" : "cap", idx);
 	return cec_allocate_adapter(&vivid_cec_adap_ops, dev,
 		name, caps, 1);
 }

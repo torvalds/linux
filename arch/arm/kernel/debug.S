@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/kernel/debug.S
  *
  *  Copyright (C) 1994-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  32-bit debugging code
  */
@@ -86,7 +83,7 @@ hexbuf_rel:	.long	hexbuf_addr - .
 ENTRY(printascii)
 		addruart_current r3, r1, r2
 1:		teq	r0, #0
-		ldrneb	r1, [r0], #1
+		ldrbne	r1, [r0], #1
 		teqne	r1, #0
 		reteq	lr
 2:		teq     r1, #'\n'

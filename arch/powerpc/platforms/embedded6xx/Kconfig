@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based boards"
-	depends on 6xx && BROKEN_ON_SMP
+	depends on PPC_BOOK3S_32 && BROKEN_ON_SMP
 
 config LINKSTATION
 	bool "Linkstation / Kurobox(HG) from Buffalo"
@@ -48,21 +48,11 @@ config PPC_HOLLY
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
 
-config PPC_C2K
-	bool "SBS/GEFanuc C2K board"
-	depends on EMBEDDED6xx
-	select MV64X60
-	select NOT_COHERENT_CACHE
-	select MTD_CFI_I4
-	help
-	  This option enables support for the GE Fanuc C2K board (formerly
-	  an SBS board).
-
 config MVME5100
 	bool "Motorola/Emerson MVME5100"
 	depends on EMBEDDED6xx
 	select MPIC
-	select PCI
+	select FORCE_PCI
 	select PPC_INDIRECT_PCI
 	select PPC_I8259
 	select PPC_NATIVE
@@ -73,7 +63,7 @@ config MVME5100
 
 config TSI108_BRIDGE
 	bool
-	select PCI
+	select FORCE_PCI
 	select MPIC
 	select MPIC_WEIRD
 

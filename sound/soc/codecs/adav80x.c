@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADAV80X Audio Codec driver supporting ADAV801, ADAV803
  *
  * Copyright 2011 Analog Devices Inc.
  * Author: Yi Li <yi.li@analog.com>
  * Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -648,6 +647,7 @@ static int adav80x_set_pll(struct snd_soc_component *component, int pll_id,
 			pll_ctrl1 |= ADAV80X_PLL_CTRL1_PLLDIV;
 			break;
 		}
+		/* fall through */
 	default:
 		return -EINVAL;
 	}

@@ -94,8 +94,6 @@ union cvmx_pcie_address {
 
 static int cvmx_pcie_rc_initialize(int pcie_port);
 
-#include <dma-coherence.h>
-
 /**
  * Return the Core virtual base address for PCIe IO access. IOs are
  * read/written as an offset from this address.
@@ -1239,14 +1237,14 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0)) {
 		if (pcie_port) {
-			union cvmx_ciu_qlm1 ciu_qlm;
+			union cvmx_ciu_qlm ciu_qlm;
 			ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM1);
 			ciu_qlm.s.txbypass = 1;
 			ciu_qlm.s.txdeemph = 5;
 			ciu_qlm.s.txmargin = 0x17;
 			cvmx_write_csr(CVMX_CIU_QLM1, ciu_qlm.u64);
 		} else {
-			union cvmx_ciu_qlm0 ciu_qlm;
+			union cvmx_ciu_qlm ciu_qlm;
 			ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM0);
 			ciu_qlm.s.txbypass = 1;
 			ciu_qlm.s.txdeemph = 5;

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TLB Management (flush/create/diagnostics) for ARC700
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: Aug 2011
  *  -Reintroduce duplicate PD fixup - some customer chips still have the issue
@@ -121,6 +118,33 @@ static inline void __tlb_entry_erase(void)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
+static void utlb_invalidate(void)
+{
+#if (CONFIG_ARC_MMU_VER >= 2)
+
+#if (CONFIG_ARC_MMU_VER == 2)
+	/* MMU v2 introduced the uTLB Flush command.
+	 * There was however an obscure hardware bug, where uTLB flush would
+	 * fail when a prior probe for J-TLB (both totally unrelated) would
+	 * return lkup err - because the entry didn't exist in MMU.
+	 * The Workround was to set Index reg with some valid value, prior to
+	 * flush. This was fixed in MMU v3
+	 */
+	unsigned int idx;
+
+	/* make sure INDEX Reg is valid */
+	idx = read_aux_reg(ARC_REG_TLBINDEX);
+
+	/* If not write some dummy val */
+	if (unlikely(idx & TLB_LKUP_ERR))
+		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
+#endif
+
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
+#endif
+
+}
+
 #if (CONFIG_ARC_MMU_VER < 4)
 
 static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
@@ -150,44 +174,6 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 		WARN(idx == TLB_DUP_ERR, "Probe returned Dup PD for %x\n",
 					   vaddr_n_asid);
 	}
-}
-
-/****************************************************************************
- * ARC700 MMU caches recently used J-TLB entries (RAM) as uTLBs (FLOPs)
- *
- * New IVUTLB cmd in MMU v2 explictly invalidates the uTLB
- *
- * utlb_invalidate ( )
- *  -For v2 MMU calls Flush uTLB Cmd
- *  -For v1 MMU does nothing (except for Metal Fix v1 MMU)
- *      This is because in v1 TLBWrite itself invalidate uTLBs
- ***************************************************************************/
-
-static void utlb_invalidate(void)
-{
-#if (CONFIG_ARC_MMU_VER >= 2)
-
-#if (CONFIG_ARC_MMU_VER == 2)
-	/* MMU v2 introduced the uTLB Flush command.
-	 * There was however an obscure hardware bug, where uTLB flush would
-	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didn't exist in MMU.
-	 * The Workround was to set Index reg with some valid value, prior to
-	 * flush. This was fixed in MMU v3 hence not needed any more
-	 */
-	unsigned int idx;
-
-	/* make sure INDEX Reg is valid */
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
-
-	/* If not write some dummy val */
-	if (unlikely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
-#endif
-
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
-#endif
-
 }
 
 static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
@@ -221,11 +207,6 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 }
 
 #else	/* CONFIG_ARC_MMU_VER >= 4) */
-
-static void utlb_invalidate(void)
-{
-	/* No need since uTLB is always in sync with JTLB */
-}
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
 {
@@ -270,7 +251,7 @@ noinline void local_flush_tlb_all(void)
 	for (entry = 0; entry < num_tlb; entry++) {
 		/* write this entry to the TLB */
 		write_aux_reg(ARC_REG_TLBINDEX, entry);
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 	}
 
 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
@@ -281,7 +262,7 @@ noinline void local_flush_tlb_all(void)
 
 		for (entry = stlb_idx; entry < stlb_idx + 16; entry++) {
 			write_aux_reg(ARC_REG_TLBINDEX, entry);
-			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 		}
 	}
 
@@ -358,8 +339,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		}
 	}
 
-	utlb_invalidate();
-
 	local_irq_restore(flags);
 }
 
@@ -388,8 +367,6 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 
-	utlb_invalidate();
-
 	local_irq_restore(flags);
 }
 
@@ -410,7 +387,6 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 
 	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
 		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
-		utlb_invalidate();
 	}
 
 	local_irq_restore(flags);
@@ -871,7 +847,7 @@ void arc_mmu_init(void)
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
 
 	/* In smp we use this reg for interrupt 1 scratch */
-#ifndef CONFIG_SMP
+#ifdef ARC_USE_SCRATCH_REG
 	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif
@@ -911,9 +887,11 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int pd0[mmu->ways];
 	unsigned long flags;
-	int set;
+	int set, n_ways = mmu->ways;
+
+	n_ways = min(n_ways, 4);
+	BUG_ON(mmu->ways > 4);
 
 	local_irq_save(flags);
 
@@ -921,9 +899,10 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 	for (set = 0; set < mmu->sets; set++) {
 
 		int is_valid, way;
+		unsigned int pd0[4];
 
 		/* read out all the ways of current set */
-		for (way = 0, is_valid = 0; way < mmu->ways; way++) {
+		for (way = 0, is_valid = 0; way < n_ways; way++) {
 			write_aux_reg(ARC_REG_TLBINDEX,
 					  SET_WAY_TO_IDX(mmu, set, way));
 			write_aux_reg(ARC_REG_TLBCOMMAND, TLBRead);
@@ -937,14 +916,14 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			continue;
 
 		/* Scan the set for duplicate ways: needs a nested loop */
-		for (way = 0; way < mmu->ways - 1; way++) {
+		for (way = 0; way < n_ways - 1; way++) {
 
 			int n;
 
 			if (!pd0[way])
 				continue;
 
-			for (n = way + 1; n < mmu->ways; n++) {
+			for (n = way + 1; n < n_ways; n++) {
 				if (pd0[way] != pd0[n])
 					continue;
 

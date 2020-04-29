@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
- *
  */
 
 #include <linux/slab.h>
@@ -13,13 +10,10 @@
 #include <linux/types.h>
 #include <linux/of_platform.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-
-#include <lantiq_soc.h>
 
 /*
  * The Serial To Parallel (STP) is found on MIPS based Lantiq socs. It is a
@@ -75,8 +69,7 @@
 #define xway_stp_r32(m, reg)		__raw_readl(m + reg)
 #define xway_stp_w32(m, val, reg)	__raw_writel(val, m + reg)
 #define xway_stp_w32_mask(m, clear, set, reg) \
-		ltq_w32((ltq_r32(m + reg) & ~(clear)) | (set), \
-		m + reg)
+		xway_stp_w32(m, (xway_stp_r32(m, reg) & ~(clear)) | (set), reg)
 
 struct xway_stp {
 	struct gpio_chip gc;
@@ -89,6 +82,20 @@ struct xway_stp {
 	u8 phy2;	/* 3 bits can be driven by phy2 */
 	u8 reserved;	/* mask out the hw driven bits in gpio_request */
 };
+
+/**
+ * xway_stp_get() - gpio_chip->get - get gpios.
+ * @gc:     Pointer to gpio_chip device structure.
+ * @gpio:   GPIO signal number.
+ *
+ * Gets the shadow value.
+ */
+static int xway_stp_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct xway_stp *chip = gpiochip_get_data(gc);
+
+	return (xway_stp_r32(chip->virt, XWAY_STP_CPU0) & BIT(gpio));
+}
 
 /**
  * xway_stp_set() - gpio_chip->set - set gpios.
@@ -146,9 +153,9 @@ static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 
 /**
  * xway_stp_hw_init() - Configure the STP unit and enable the clock gate
- * @virt: pointer to the remapped register range
+ * @chip: Pointer to the xway_stp chip structure
  */
-static int xway_stp_hw_init(struct xway_stp *chip)
+static void xway_stp_hw_init(struct xway_stp *chip)
 {
 	/* sane defaults */
 	xway_stp_w32(chip->virt, 0, XWAY_STP_AR);
@@ -191,13 +198,10 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 	if (chip->reserved)
 		xway_stp_w32_mask(chip->virt, XWAY_STP_UPD_MASK,
 			XWAY_STP_UPD_FPI, XWAY_STP_CON1);
-
-	return 0;
 }
 
 static int xway_stp_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	u32 shadow, groups, dsl, phy;
 	struct xway_stp *chip;
 	struct clk *clk;
@@ -207,14 +211,14 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->virt = devm_ioremap_resource(&pdev->dev, res);
+	chip->virt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 
 	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
+	chip->gc.get = xway_stp_get;
 	chip->gc.set = xway_stp_set;
 	chip->gc.request = xway_stp_request;
 	chip->gc.base = -1;
@@ -249,21 +253,27 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (!of_find_property(pdev->dev.of_node, "lantiq,rising", NULL))
 		chip->edge = XWAY_STP_FALLING;
 
-	clk = clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return PTR_ERR(clk);
 	}
-	clk_enable(clk);
 
-	ret = xway_stp_hw_init(chip);
-	if (!ret)
-		ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
 
-	if (!ret)
-		dev_info(&pdev->dev, "Init done\n");
+	xway_stp_hw_init(chip);
 
-	return ret;
+	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
+	if (ret) {
+		clk_disable_unprepare(clk);
+		return ret;
+	}
+
+	dev_info(&pdev->dev, "Init done\n");
+
+	return 0;
 }
 
 static const struct of_device_id xway_stp_match[] = {

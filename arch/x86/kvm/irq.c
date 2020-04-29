@@ -1,23 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * irq.c: API for in kernel interrupt controller
  * Copyright (c) 2007, Intel Corporation.
  * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
  * Authors:
  *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
- *
  */
 
 #include <linux/export.h>
@@ -73,8 +61,19 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;
@@ -91,8 +90,19 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;
@@ -149,4 +159,11 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	__kvm_migrate_apic_timer(vcpu);
 	__kvm_migrate_pit_timer(vcpu);
+}
+
+bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)
+{
+	bool resample = args->flags & KVM_IRQFD_FLAG_RESAMPLE;
+
+	return resample ? irqchip_kernel(kvm) : irqchip_in_kernel(kvm);
 }

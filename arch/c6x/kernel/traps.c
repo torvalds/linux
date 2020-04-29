@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2006, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/ptrace.h>
@@ -244,7 +241,6 @@ static struct exception_info eexcept_table[128] = {
 static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
-	siginfo_t info;
 
 	if (except_info->code != TRAP_BRKPT)
 		pr_err("TRAP: %s PC[0x%lx] signo[%d] code[%d]\n",
@@ -253,12 +249,8 @@ static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 
 	die_if_kernel(except_info->kernel_str, regs, addr);
 
-	info.si_signo = except_info->signo;
-	info.si_errno = 0;
-	info.si_code  = except_info->code;
-	info.si_addr  = (void __user *)addr;
-
-	force_sig_info(except_info->signo, &info, current);
+	force_sig_fault(except_info->signo, except_info->code,
+			(void __user *)addr);
 }
 
 /*

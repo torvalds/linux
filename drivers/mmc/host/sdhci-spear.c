@@ -15,13 +15,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -32,7 +30,6 @@
 
 struct spear_sdhci {
 	struct clk *clk;
-	int card_int_gpio;
 };
 
 /* sdhci ops */
@@ -43,22 +40,9 @@ static const struct sdhci_ops sdhci_pltfm_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static void sdhci_probe_config_dt(struct device_node *np,
-				struct spear_sdhci *host)
-{
-	int cd_gpio;
-
-	cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
-	if (!gpio_is_valid(cd_gpio))
-		cd_gpio = -1;
-
-	host->card_int_gpio = cd_gpio;
-}
-
 static int sdhci_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
-	struct resource *iomem;
 	struct spear_sdhci *sdhci;
 	struct device *dev;
 	int ret;
@@ -71,8 +55,7 @@ static int sdhci_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_ioremap_resource(&pdev->dev, iomem);
+	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->ioaddr)) {
 		ret = PTR_ERR(host->ioaddr);
 		dev_dbg(&pdev->dev, "unable to map iomem: %d\n", ret);
@@ -109,27 +92,17 @@ static int sdhci_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Error setting desired clk, clk=%lu\n",
 				clk_get_rate(sdhci->clk));
 
-	sdhci_probe_config_dt(pdev->dev.of_node, sdhci);
 	/*
-	 * It is optional to use GPIOs for sdhci card detection. If
-	 * sdhci->card_int_gpio < 0, then use original sdhci lines otherwise
-	 * GPIO lines. We use the built-in GPIO support for this.
+	 * It is optional to use GPIOs for sdhci card detection. If we
+	 * find a descriptor using slot GPIO, we use it.
 	 */
-	if (sdhci->card_int_gpio >= 0) {
-		ret = mmc_gpio_request_cd(host->mmc, sdhci->card_int_gpio, 0);
-		if (ret < 0) {
-			dev_dbg(&pdev->dev,
-				"failed to request card-detect gpio%d\n",
-				sdhci->card_int_gpio);
-			goto disable_clk;
-		}
-	}
+	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
+	if (ret == -EPROBE_DEFER)
+		goto disable_clk;
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_dbg(&pdev->dev, "error adding host\n");
+	if (ret)
 		goto disable_clk;
-	}
 
 	platform_set_drvdata(pdev, host);
 

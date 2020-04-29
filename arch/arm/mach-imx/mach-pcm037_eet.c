@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009
  * Guennadi Liakhovetski, DENX Software Engineering, <lg@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/input.h>
@@ -56,11 +53,8 @@ static struct spi_board_info pcm037_spi_dev[] = {
 };
 
 /* Platform Data for MXC CSPI */
-static int pcm037_spi1_cs[] = { MXC_SPI_CS(0), MXC_SPI_CS(1), };
-
 static const struct spi_imx_master pcm037_spi1_pdata __initconst = {
-	.chipselect = pcm037_spi1_cs,
-	.num_chipselect = ARRAY_SIZE(pcm037_spi1_cs),
+	.num_chipselect = 2,
 };
 
 /* GPIO-keys input device */

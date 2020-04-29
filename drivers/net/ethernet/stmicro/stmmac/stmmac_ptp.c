@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   PTP 1588 clock using the STMMAC.
 
   Copyright (C) 2013  Vayavya Labs Pvt Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Rayagond Kokatanur <rayagond@vayavyalabs.com>
 *******************************************************************************/
@@ -49,9 +39,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	addend = neg_adj ? (addend - diff) : (addend + diff);
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->config_addend(priv->ptpaddr, addend);
-
+	stmmac_config_addend(priv, priv->ptpaddr, addend);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -73,6 +61,9 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	u32 sec, nsec;
 	u32 quotient, reminder;
 	int neg_adj = 0;
+	bool xmac;
+
+	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 
 	if (delta < 0) {
 		neg_adj = 1;
@@ -84,10 +75,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	nsec = reminder;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->adjust_systime(priv->ptpaddr, sec, nsec, neg_adj,
-				      priv->plat->has_gmac4);
-
+	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -107,12 +95,10 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	struct stmmac_priv *priv =
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
-	u64 ns;
+	u64 ns = 0;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
-
+	stmmac_get_systime(priv, priv->ptpaddr, &ns);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	*ts = ns_to_timespec64(ns);
@@ -137,9 +123,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->init_systime(priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
-
+	stmmac_init_systime(priv, priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -148,17 +132,47 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 static int stmmac_enable(struct ptp_clock_info *ptp,
 			 struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct stmmac_pps_cfg *cfg;
+	int ret = -EOPNOTSUPP;
+	unsigned long flags;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		cfg = &priv->pps[rq->perout.index];
+
+		cfg->start.tv_sec = rq->perout.start.sec;
+		cfg->start.tv_nsec = rq->perout.start.nsec;
+		cfg->period.tv_sec = rq->perout.period.sec;
+		cfg->period.tv_nsec = rq->perout.period.nsec;
+
+		spin_lock_irqsave(&priv->ptp_lock, flags);
+		ret = stmmac_flex_pps_config(priv, priv->ioaddr,
+					     rq->perout.index, cfg, on,
+					     priv->sub_second_inc,
+					     priv->systime_flags);
+		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 /* structure describing a PTP hardware clock */
-static const struct ptp_clock_info stmmac_ptp_clock_ops = {
+static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
-	.name = "stmmac_ptp_clock",
+	.name = "stmmac ptp",
 	.max_adj = 62500000,
 	.n_alarm = 0,
 	.n_ext_ts = 0,
-	.n_per_out = 0,
+	.n_per_out = 0, /* will be overwritten in stmmac_ptp_register */
 	.n_pins = 0,
 	.pps = 0,
 	.adjfreq = stmmac_adjust_freq,
@@ -176,6 +190,19 @@ static const struct ptp_clock_info stmmac_ptp_clock_ops = {
  */
 void stmmac_ptp_register(struct stmmac_priv *priv)
 {
+	int i;
+
+	for (i = 0; i < priv->dma_cap.pps_out_num; i++) {
+		if (i >= STMMAC_PPS_MAX)
+			break;
+		priv->pps[i].available = true;
+	}
+
+	if (priv->plat->ptp_max_adj)
+		stmmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
+
+	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
+
 	spin_lock_init(&priv->ptp_lock);
 	priv->ptp_clock_ops = stmmac_ptp_clock_ops;
 

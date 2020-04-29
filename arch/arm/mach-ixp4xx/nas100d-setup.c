@@ -34,6 +34,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define NAS100D_SDA_PIN		5
 #define NAS100D_SCL_PIN		6
 
@@ -102,7 +104,7 @@ static struct platform_device nas100d_leds = {
 };
 
 static struct gpiod_lookup_table nas100d_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.0",
 	.table		= {
 		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", NAS100D_SDA_PIN,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
@@ -163,6 +165,14 @@ static struct platform_device nas100d_uart = {
 };
 
 /* Built-in 10/100 Ethernet MAC interfaces */
+static struct resource nas100d_eth_resources[] = {
+	{
+		.start		= IXP4XX_EthB_BASE_PHYS,
+		.end		= IXP4XX_EthB_BASE_PHYS + 0x0fff,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
 static struct eth_plat_info nas100d_plat_eth[] = {
 	{
 		.phy		= 0,
@@ -176,6 +186,8 @@ static struct platform_device nas100d_eth[] = {
 		.name			= "ixp4xx_eth",
 		.id			= IXP4XX_ETH_NPEB,
 		.dev.platform_data	= nas100d_plat_eth,
+		.num_resources		= ARRAY_SIZE(nas100d_eth_resources),
+		.resource		= nas100d_eth_resources,
 	}
 };
 
@@ -278,9 +290,6 @@ static void __init nas100d_init(void)
 	int i;
 
 	ixp4xx_sys_init();
-
-	/* gpio 14 and 15 are _not_ clocks */
-	*IXP4XX_GPIO_GPCLKR = 0;
 
 	nas100d_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	nas100d_flash_resource.end =

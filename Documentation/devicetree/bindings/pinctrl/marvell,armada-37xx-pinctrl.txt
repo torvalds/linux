@@ -58,11 +58,11 @@ group pwm3
  - functions pwm, gpio
 
 group pmic1
- - pin 17
+ - pin 7
  - functions pmic, gpio
 
 group pmic0
- - pin 16
+ - pin 6
  - functions pmic, gpio
 
 group i2c2
@@ -112,19 +112,31 @@ group usb2_drvvbus1
  - functions drvbus, gpio
 
 group sdio_sb
- - pins 60-64
+ - pins 60-65
  - functions sdio, gpio
 
 group rgmii
- - pins 42-55
+ - pins 42-53
  - functions mii, gpio
 
 group pcie1
- - pins 39-40
+ - pins 39
  - functions pcie, gpio
 
+group pcie1_clkreq
+ - pins 40
+ - functions pcie, gpio
+
+group pcie1_wakeup
+ - pins 41
+ - functions pcie, gpio
+
+group smi
+ - pins 54-55
+ - functions smi, gpio
+
 group ptp
- - pins 56-58
+ - pins 56
  - functions ptp, gpio
 
 group ptp_clk

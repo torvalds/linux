@@ -8,11 +8,11 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu
 
-#define KVM_MMU_PAGE_FIELDS			\
-	__field(unsigned long, mmu_valid_gen)	\
-	__field(__u64, gfn)			\
-	__field(__u32, role)			\
-	__field(__u32, root_count)		\
+#define KVM_MMU_PAGE_FIELDS		\
+	__field(__u8, mmu_valid_gen)	\
+	__field(__u64, gfn)		\
+	__field(__u32, role)		\
+	__field(__u32, root_count)	\
 	__field(bool, unsync)
 
 #define KVM_MMU_PAGE_ASSIGN(sp)				\
@@ -31,11 +31,11 @@
 								        \
 	role.word = __entry->role;					\
 									\
-	trace_seq_printf(p, "sp gen %lx gfn %llx l%u%s q%u%s %s%s"	\
+	trace_seq_printf(p, "sp gen %u gfn %llx l%u %u-byte q%u%s %s%s"	\
 			 " %snxe %sad root %u %s%c",			\
 			 __entry->mmu_valid_gen,			\
 			 __entry->gfn, role.level,			\
-			 role.cr4_pae ? " pae" : "",			\
+			 role.gpte_is_8_bytes ? 8 : 4,			\
 			 role.quadrant,					\
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\
@@ -249,13 +249,13 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	fast_page_fault,
-	TP_PROTO(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code,
+	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
 		 u64 *sptep, u64 old_spte, bool retry),
-	TP_ARGS(vcpu, gva, error_code, sptep, old_spte, retry),
+	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, retry),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
-		__field(gva_t, gva)
+		__field(gpa_t, cr2_or_gpa)
 		__field(u32, error_code)
 		__field(u64 *, sptep)
 		__field(u64, old_spte)
@@ -265,7 +265,7 @@ TRACE_EVENT(
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu->vcpu_id;
-		__entry->gva = gva;
+		__entry->cr2_or_gpa = cr2_or_gpa;
 		__entry->error_code = error_code;
 		__entry->sptep = sptep;
 		__entry->old_spte = old_spte;
@@ -273,9 +273,9 @@ TRACE_EVENT(
 		__entry->retry = retry;
 	),
 
-	TP_printk("vcpu %d gva %lx error_code %s sptep %p old %#llx"
+	TP_printk("vcpu %d gva %llx error_code %s sptep %p old %#llx"
 		  " new %llx spurious %d fixed %d", __entry->vcpu_id,
-		  __entry->gva, __print_flags(__entry->error_code, "|",
+		  __entry->cr2_or_gpa, __print_flags(__entry->error_code, "|",
 		  kvm_mmu_trace_pferr_flags), __entry->sptep,
 		  __entry->old_spte, __entry->new_spte,
 		  __spte_satisfied(old_spte), __spte_satisfied(new_spte)
@@ -283,12 +283,12 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	kvm_mmu_invalidate_zap_all_pages,
+	kvm_mmu_zap_all_fast,
 	TP_PROTO(struct kvm *kvm),
 	TP_ARGS(kvm),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, mmu_valid_gen)
+		__field(__u8, mmu_valid_gen)
 		__field(unsigned int, mmu_used_pages)
 	),
 
@@ -297,7 +297,7 @@ TRACE_EVENT(
 		__entry->mmu_used_pages = kvm->arch.n_used_mmu_pages;
 	),
 
-	TP_printk("kvm-mmu-valid-gen %lx used_pages %x",
+	TP_printk("kvm-mmu-valid-gen %u used_pages %x",
 		  __entry->mmu_valid_gen, __entry->mmu_used_pages
 	)
 );
@@ -325,6 +325,65 @@ TRACE_EVENT(
 		  __entry->kvm_gen == __entry->spte_gen
 	)
 );
+
+TRACE_EVENT(
+	kvm_mmu_set_spte,
+	TP_PROTO(int level, gfn_t gfn, u64 *sptep),
+	TP_ARGS(level, gfn, sptep),
+
+	TP_STRUCT__entry(
+		__field(u64, gfn)
+		__field(u64, spte)
+		__field(u64, sptep)
+		__field(u8, level)
+		/* These depend on page entry type, so compute them now.  */
+		__field(bool, r)
+		__field(bool, x)
+		__field(signed char, u)
+	),
+
+	TP_fast_assign(
+		__entry->gfn = gfn;
+		__entry->spte = *sptep;
+		__entry->sptep = virt_to_phys(sptep);
+		__entry->level = level;
+		__entry->r = shadow_present_mask || (__entry->spte & PT_PRESENT_MASK);
+		__entry->x = is_executable_pte(__entry->spte);
+		__entry->u = shadow_user_mask ? !!(__entry->spte & shadow_user_mask) : -1;
+	),
+
+	TP_printk("gfn %llx spte %llx (%s%s%s%s) level %d at %llx",
+		  __entry->gfn, __entry->spte,
+		  __entry->r ? "r" : "-",
+		  __entry->spte & PT_WRITABLE_MASK ? "w" : "-",
+		  __entry->x ? "x" : "-",
+		  __entry->u == -1 ? "" : (__entry->u ? "u" : "-"),
+		  __entry->level, __entry->sptep
+	)
+);
+
+TRACE_EVENT(
+	kvm_mmu_spte_requested,
+	TP_PROTO(gpa_t addr, int level, kvm_pfn_t pfn),
+	TP_ARGS(addr, level, pfn),
+
+	TP_STRUCT__entry(
+		__field(u64, gfn)
+		__field(u64, pfn)
+		__field(u8, level)
+	),
+
+	TP_fast_assign(
+		__entry->gfn = addr >> PAGE_SHIFT;
+		__entry->pfn = pfn | (__entry->gfn & (KVM_PAGES_PER_HPAGE(level) - 1));
+		__entry->level = level;
+	),
+
+	TP_printk("gfn %llx pfn %llx level %d",
+		  __entry->gfn, __entry->pfn, __entry->level
+	)
+);
+
 #endif /* _TRACE_KVMMMU_H */
 
 #undef TRACE_INCLUDE_PATH

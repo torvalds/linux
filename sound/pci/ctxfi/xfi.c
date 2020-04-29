@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * xfi linux driver.
  *
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
- *
- * This source file is released under GPL v2 license (no other versions).
- * See the COPYING file included in the main directory of this source
- * distribution for the license terms and conditions.
  */
 
 #include <linux/init.h>
@@ -26,9 +23,9 @@ MODULE_SUPPORTED_DEVICE("{{Creative Labs, Sound Blaster X-Fi}");
 static unsigned int reference_rate = 48000;
 static unsigned int multiple = 2;
 MODULE_PARM_DESC(reference_rate, "Reference rate (default=48000)");
-module_param(reference_rate, uint, S_IRUGO);
+module_param(reference_rate, uint, 0444);
 MODULE_PARM_DESC(multiple, "Rate multiplier (default=2)");
-module_param(multiple, uint, S_IRUGO);
+module_param(multiple, uint, 0444);
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;

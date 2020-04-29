@@ -9,7 +9,6 @@ This module provides a simple power button event via an Interrupt.
 Required properties:
 - compatible: should be one of the following
    - "ti,palmas-pwrbutton": For Palmas compatible power on button
-- interrupt-parent: Parent interrupt device, must be handle of palmas node.
 - interrupts: Interrupt number of power button submodule on device.
 
 Optional Properties:

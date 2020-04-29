@@ -1,17 +1,8 @@
 Specifying GPIO information for devices
-============================================
+=======================================
 
 1) gpios property
 -----------------
-
-Nodes that makes use of GPIOs should specify them using one or more
-properties, each containing a 'gpio-list':
-
-	gpio-list ::= <single-gpio> [gpio-list]
-	single-gpio ::= <gpio-phandle> <gpio-specifier>
-	gpio-phandle : phandle to gpio controller node
-	gpio-specifier : Array of #gpio-cells specifying specific gpio
-			 (controller specific)
 
 GPIO properties should be named "[<name>-]gpios", with <name> being the purpose
 of this GPIO for the device. While a non-existent <name> is considered valid
@@ -33,33 +24,27 @@ The following example could be used to describe GPIO pins used as device enable
 and bit-banged data signals:
 
 	gpio1: gpio1 {
-		gpio-controller
-		 #gpio-cells = <2>;
-	};
-	gpio2: gpio2 {
-		gpio-controller
-		 #gpio-cells = <1>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 	[...]
 
-	enable-gpios = <&gpio2 2>;
 	data-gpios = <&gpio1 12 0>,
 		     <&gpio1 13 0>,
 		     <&gpio1 14 0>,
 		     <&gpio1 15 0>;
 
-Note that gpio-specifier length is controller dependent.  In the
-above example, &gpio1 uses 2 cells to specify a gpio, while &gpio2
-only uses one.
+In the above example, &gpio1 uses 2 cells to specify a gpio. The first cell is
+a local offset to the GPIO line and the second cell represent consumer flags,
+such as if the consumer desire the line to be active low (inverted) or open
+drain. This is the recommended practice.
 
-gpio-specifier may encode: bank, pin position inside the bank,
-whether pin is open-drain and whether pin is logically inverted.
+The exact meaning of each specifier cell is controller specific, and must be
+documented in the device tree binding for the device, but it is strongly
+recommended to use the two-cell approach.
 
-Exact meaning of each specifier cell is controller specific, and must
-be documented in the device tree binding for the device.
-
-Most controllers are however specifying a generic flag bitfield
-in the last cell, so for these, use the macros defined in
+Most controllers are specifying a generic flag bitfield in the last cell, so
+for these, use the macros defined in
 include/dt-bindings/gpio/gpio.h whenever possible:
 
 Example of a node using GPIOs:
@@ -82,6 +67,18 @@ Optional standard bitfield specifiers for the last cell:
            https://en.wikipedia.org/wiki/Open_collector
 - Bit 3: 0 means the output should be maintained during sleep/low-power mode
          1 means the output state can be lost during sleep/low-power mode
+- Bit 4: 0 means no pull-up resistor should be enabled
+         1 means a pull-up resistor should be enabled
+         This setting only applies to hardware with a simple on/off
+         control for pull-up configuration. If the hardware has more
+         elaborate pull-up configuration, it should be represented
+         using a pin control binding.
+- Bit 5: 0 means no pull-down resistor should be enabled
+         1 means a pull-down resistor should be enabled
+         This setting only applies to hardware with a simple on/off
+         control for pull-down configuration. If the hardware has more
+         elaborate pull-down configuration, it should be represented
+         using a pin control binding.
 
 1.1) GPIO specifier best practices
 ----------------------------------
@@ -236,46 +233,40 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 
 Some or all of the GPIOs provided by a GPIO controller may be routed to pins
 on the package via a pin controller. This allows muxing those pins between
-GPIO and other functions.
+GPIO and other functions. It is a fairly common practice among silicon
+engineers.
+
+2.2) Ordinary (numerical) GPIO ranges
+-------------------------------------
 
 It is useful to represent which GPIOs correspond to which pins on which pin
-controllers. The gpio-ranges property described below represents this, and
-contains information structures as follows:
+controllers. The gpio-ranges property described below represents this with
+a discrete set of ranges mapping pins from the pin controller local number space
+to pins in the GPIO controller local number space.
 
-	gpio-range-list ::= <single-gpio-range> [gpio-range-list]
-	single-gpio-range ::= <numeric-gpio-range> | <named-gpio-range>
-	numeric-gpio-range ::=
-			<pinctrl-phandle> <gpio-base> <pinctrl-base> <count>
-	named-gpio-range ::= <pinctrl-phandle> <gpio-base> '<0 0>'
-	pinctrl-phandle : phandle to pin controller node
-	gpio-base : Base GPIO ID in the GPIO controller
-	pinctrl-base : Base pinctrl pin ID in the pin controller
-	count : The number of GPIOs/pins in this range
+The format is: <[pin controller phandle], [GPIO controller offset],
+                [pin controller offset], [number of pins]>;
 
-The "pin controller node" mentioned above must conform to the bindings
-described in ../pinctrl/pinctrl-bindings.txt.
+The GPIO controller offset pertains to the GPIO controller node containing the
+range definition.
 
-In case named gpio ranges are used (ranges with both <pinctrl-base> and
-<count> set to 0), the property gpio-ranges-group-names contains one string
-for every single-gpio-range in gpio-ranges:
-	gpiorange-names-list ::= <gpiorange-name> [gpiorange-names-list]
-	gpiorange-name : Name of the pingroup associated to the GPIO range in
-			the respective pin controller.
+The pin controller node referenced by the phandle must conform to the bindings
+described in pinctrl/pinctrl-bindings.txt.
 
-Elements of gpiorange-names-list corresponding to numeric ranges contain
-the empty string. Elements of gpiorange-names-list corresponding to named
-ranges contain the name of a pin group defined in the respective pin
-controller. The number of pins/GPIOs in the range is the number of pins in
-that pin group.
+Each offset runs from 0 to N. It is perfectly fine to pile any number of
+ranges with just one pin-to-GPIO line mapping if the ranges are concocted, but
+in practice these ranges are often lumped in discrete sets.
 
-Previous versions of this binding required all pin controller nodes that
-were referenced by any gpio-ranges property to contain a property named
-#gpio-range-cells with value <3>. This requirement is now deprecated.
-However, that property may still exist in older device trees for
-compatibility reasons, and would still be required even in new device
-trees that need to be compatible with older software.
+Example:
 
-Example 1:
+    gpio-ranges = <&foo 0 20 10>, <&bar 10 50 20>;
+
+This means:
+- pins 20..29 on pin controller "foo" is mapped to GPIO line 0..9 and
+- pins 50..69 on pin controller "bar" is mapped to GPIO line 10..29
+
+
+Verbose example:
 
 	qe_pio_e: gpio-controller@1460 {
 		#gpio-cells = <2>;
@@ -289,7 +280,28 @@ Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
 pinctrl1's pins 20..29, and GPIOs 10..29 routed to pin controller pinctrl2's
 pins 50..69.
 
-Example 2:
+
+2.3) GPIO ranges from named pin groups
+--------------------------------------
+
+It is also possible to use pin groups for gpio ranges when pin groups are the
+easiest and most convenient mapping.
+
+Both both <pinctrl-base> and <count> must set to 0 when using named pin groups
+names.
+
+The property gpio-ranges-group-names must contain exactly one string for each
+range.
+
+Elements of gpio-ranges-group-names must contain the name of a pin group
+defined in the respective pin controller. The number of pins/GPIO lines in the
+range is the number of pins in that pin group. The number of pins of that
+group is defined int the implementation and not in the device tree.
+
+If numerical and named pin groups are mixed, the string corresponding to a
+numerical pin range in gpio-ranges-group-names must be empty.
+
+Example:
 
 	gpio_pio_i: gpio-controller@14b0 {
 		#gpio-cells = <2>;
@@ -306,6 +318,14 @@ Example 2:
 						"bar";
 	};
 
-Here, three GPIO ranges are defined wrt. two pin controllers. pinctrl1 GPIO
-ranges are defined using pin numbers whereas the GPIO ranges wrt. pinctrl2
-are named "foo" and "bar".
+Here, three GPIO ranges are defined referring to two pin controllers.
+
+pinctrl1 GPIO ranges are defined using pin numbers whereas the GPIO ranges
+in pinctrl2 are defined using the pin groups named "foo" and "bar".
+
+Previous versions of this binding required all pin controller nodes that
+were referenced by any gpio-ranges property to contain a property named
+#gpio-range-cells with value <3>. This requirement is now deprecated.
+However, that property may still exist in older device trees for
+compatibility reasons, and would still be required even in new device
+trees that need to be compatible with older software.

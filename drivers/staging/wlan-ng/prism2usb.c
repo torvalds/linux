@@ -137,7 +137,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 {
 	struct wlandevice *wlandev;
 
-	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
+	wlandev = usb_get_intfdata(interface);
 	if (wlandev) {
 		LIST_HEAD(cleanlist);
 		struct hfa384x_usbctlx *ctlx, *temp;
@@ -180,6 +180,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 
 		cancel_work_sync(&hw->link_bh);
 		cancel_work_sync(&hw->commsqual_bh);
+		cancel_work_sync(&hw->usb_work);
 
 		/* Now we complete any outstanding commands
 		 * and tell everyone who is waiting for their
@@ -222,7 +223,7 @@ static int prism2sta_suspend(struct usb_interface *interface,
 	struct hfa384x *hw = NULL;
 	struct wlandevice *wlandev;
 
-	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
+	wlandev = usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 
@@ -245,7 +246,7 @@ static int prism2sta_resume(struct usb_interface *interface)
 	struct hfa384x *hw = NULL;
 	struct wlandevice *wlandev;
 
-	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
+	wlandev = usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 

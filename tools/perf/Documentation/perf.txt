@@ -22,6 +22,10 @@ OPTIONS
 	  verbose          - general debug messages
 	  ordered-events   - ordered events object debug messages
 	  data-convert     - data convert command debug messages
+	  stderr           - write debug output (option -v) to stderr
+	                     in browser mode
+	  perf-event-open  - Print perf_event_open() arguments and
+			     return value
 
 --buildid-dir::
 	Setup buildid cache directory. It has higher priority than

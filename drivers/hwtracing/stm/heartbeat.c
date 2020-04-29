@@ -76,7 +76,7 @@ static int stm_heartbeat_init(void)
 			goto fail_unregister;
 
 		stm_heartbeat[i].data.nr_chans	= 1;
-		stm_heartbeat[i].data.link		= stm_heartbeat_link;
+		stm_heartbeat[i].data.link	= stm_heartbeat_link;
 		stm_heartbeat[i].data.unlink	= stm_heartbeat_unlink;
 		hrtimer_init(&stm_heartbeat[i].hrtimer, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_ABS);

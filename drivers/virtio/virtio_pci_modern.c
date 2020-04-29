@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Virtio PCI driver - modern (virtio 1.0) device support
  *
@@ -11,10 +12,6 @@
  *  Anthony Liguori  <aliguori@us.ibm.com>
  *  Rusty Russell <rusty@rustcorp.com.au>
  *  Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
  */
 
 #include <linux/delay.h>
@@ -153,13 +150,27 @@ static u64 vp_get_features(struct virtio_device *vdev)
 	return features;
 }
 
+static void vp_transport_features(struct virtio_device *vdev, u64 features)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct pci_dev *pci_dev = vp_dev->pci_dev;
+
+	if ((features & BIT_ULL(VIRTIO_F_SR_IOV)) &&
+			pci_find_ext_capability(pci_dev, PCI_EXT_CAP_ID_SRIOV))
+		__virtio_set_bit(vdev, VIRTIO_F_SR_IOV);
+}
+
 /* virtio config->finalize_features() implementation */
 static int vp_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	u64 features = vdev->features;
 
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
+
+	/* Give virtio_pci a chance to accept features. */
+	vp_transport_features(vdev, features);
 
 	if (!__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev, "virtio: device uses modern interface "

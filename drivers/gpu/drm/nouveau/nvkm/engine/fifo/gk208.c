@@ -24,16 +24,36 @@
 #include "gk104.h"
 #include "changk104.h"
 
+#include <nvif/class.h>
+
+void
+gk208_fifo_pbdma_init_timeout(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int i;
+
+	for (i = 0; i < fifo->pbdma_nr; i++)
+		nvkm_wr32(device, 0x04012c + (i * 0x2000), 0x0000ffff);
+}
+
+const struct gk104_fifo_pbdma_func
+gk208_fifo_pbdma = {
+	.nr = gk104_fifo_pbdma_nr,
+	.init = gk104_fifo_pbdma_init,
+	.init_timeout = gk208_fifo_pbdma_init_timeout,
+};
+
 static const struct gk104_fifo_func
 gk208_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
+	.pbdma = &gk208_fifo_pbdma,
+	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
-	.chan = {
-		&gk104_fifo_gpfifo_oclass,
-		NULL
-	},
+	.runlist = &gk110_fifo_runlist,
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
 };
 
 int

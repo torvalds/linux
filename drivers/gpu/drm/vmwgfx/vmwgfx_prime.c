@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2013 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2013 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -31,8 +31,8 @@
  */
 
 #include "vmwgfx_drv.h"
+#include "ttm_object.h"
 #include <linux/dma-buf.h>
-#include <drm/ttm/ttm_object.h>
 
 /*
  * DMA-BUF attach- and mapping methods. No need to implement
@@ -40,7 +40,6 @@
  */
 
 static int vmw_prime_map_attach(struct dma_buf *dma_buf,
-				struct device *target_dev,
 				struct dma_buf_attachment *attach)
 {
 	return -ENOSYS;
@@ -63,58 +62,12 @@ static void vmw_prime_unmap_dma_buf(struct dma_buf_attachment *attach,
 {
 }
 
-static void *vmw_prime_dmabuf_vmap(struct dma_buf *dma_buf)
-{
-	return NULL;
-}
-
-static void vmw_prime_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
-{
-}
-
-static void *vmw_prime_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-		unsigned long page_num)
-{
-	return NULL;
-}
-
-static void vmw_prime_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-		unsigned long page_num, void *addr)
-{
-
-}
-static void *vmw_prime_dmabuf_kmap(struct dma_buf *dma_buf,
-		unsigned long page_num)
-{
-	return NULL;
-}
-
-static void vmw_prime_dmabuf_kunmap(struct dma_buf *dma_buf,
-		unsigned long page_num, void *addr)
-{
-
-}
-
-static int vmw_prime_dmabuf_mmap(struct dma_buf *dma_buf,
-				 struct vm_area_struct *vma)
-{
-	WARN_ONCE(true, "Attempted use of dmabuf mmap. Bad.\n");
-	return -ENOSYS;
-}
-
 const struct dma_buf_ops vmw_prime_dmabuf_ops =  {
 	.attach = vmw_prime_map_attach,
 	.detach = vmw_prime_map_detach,
 	.map_dma_buf = vmw_prime_map_dma_buf,
 	.unmap_dma_buf = vmw_prime_unmap_dma_buf,
 	.release = NULL,
-	.map = vmw_prime_dmabuf_kmap,
-	.map_atomic = vmw_prime_dmabuf_kmap_atomic,
-	.unmap = vmw_prime_dmabuf_kunmap,
-	.unmap_atomic = vmw_prime_dmabuf_kunmap_atomic,
-	.mmap = vmw_prime_dmabuf_mmap,
-	.vmap = vmw_prime_dmabuf_vmap,
-	.vunmap = vmw_prime_dmabuf_vunmap,
 };
 
 int vmw_prime_fd_to_handle(struct drm_device *dev,

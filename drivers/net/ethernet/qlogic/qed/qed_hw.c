@@ -360,6 +360,26 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	       *(u32 *)&p_ptt->pxp.pretend);
 }
 
+void qed_port_fid_pretend(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 port_id, u16 fid)
+{
+	u16 control = 0;
+
+	SET_FIELD(control, PXP_PRETEND_CMD_PORT, port_id);
+	SET_FIELD(control, PXP_PRETEND_CMD_USE_PORT, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_PRETEND_PORT, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_IS_CONCRETE, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_PRETEND_FUNCTION, 1);
+	if (!GET_FIELD(fid, PXP_CONCRETE_FID_VFVALID))
+		fid = GET_FIELD(fid, PXP_CONCRETE_FID_PFID);
+	p_ptt->pxp.pretend.control = cpu_to_le16(control);
+	p_ptt->pxp.pretend.fid.concrete_fid.fid = cpu_to_le16(fid);
+	REG_WR(p_hwfn,
+	       qed_ptt_config_addr(p_ptt) +
+	       offsetof(struct pxp_ptt_entry, pretend),
+	       *(u32 *)&p_ptt->pxp.pretend);
+}
+
 u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
 {
 	u32 concrete_fid = 0;
@@ -372,11 +392,15 @@ u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
 }
 
 /* DMAE */
+#define QED_DMAE_FLAGS_IS_SET(params, flag) \
+	((params) != NULL && GET_FIELD((params)->flags, QED_DMAE_PARAMS_##flag))
+
 static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    const u8 is_src_type_grc,
 			    const u8 is_dst_type_grc,
 			    struct qed_dmae_params *p_params)
 {
+	u8 src_pfid, dst_pfid, port_id;
 	u16 opcode_b = 0;
 	u32 opcode = 0;
 
@@ -384,56 +408,55 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	 * 0- The source is the PCIe
 	 * 1- The source is the GRC.
 	 */
-	opcode |= (is_src_type_grc ? DMAE_CMD_SRC_MASK_GRC
-				   : DMAE_CMD_SRC_MASK_PCIE) <<
-		   DMAE_CMD_SRC_SHIFT;
-	opcode |= ((p_hwfn->rel_pf_id & DMAE_CMD_SRC_PF_ID_MASK) <<
-		   DMAE_CMD_SRC_PF_ID_SHIFT);
+	SET_FIELD(opcode, DMAE_CMD_SRC,
+		  (is_src_type_grc ? dmae_cmd_src_grc : dmae_cmd_src_pcie));
+	src_pfid = QED_DMAE_FLAGS_IS_SET(p_params, SRC_PF_VALID) ?
+	    p_params->src_pfid : p_hwfn->rel_pf_id;
+	SET_FIELD(opcode, DMAE_CMD_SRC_PF_ID, src_pfid);
 
 	/* The destination of the DMA can be: 0-None 1-PCIe 2-GRC 3-None */
-	opcode |= (is_dst_type_grc ? DMAE_CMD_DST_MASK_GRC
-				   : DMAE_CMD_DST_MASK_PCIE) <<
-		   DMAE_CMD_DST_SHIFT;
-	opcode |= ((p_hwfn->rel_pf_id & DMAE_CMD_DST_PF_ID_MASK) <<
-		   DMAE_CMD_DST_PF_ID_SHIFT);
+	SET_FIELD(opcode, DMAE_CMD_DST,
+		  (is_dst_type_grc ? dmae_cmd_dst_grc : dmae_cmd_dst_pcie));
+	dst_pfid = QED_DMAE_FLAGS_IS_SET(p_params, DST_PF_VALID) ?
+	    p_params->dst_pfid : p_hwfn->rel_pf_id;
+	SET_FIELD(opcode, DMAE_CMD_DST_PF_ID, dst_pfid);
+
 
 	/* Whether to write a completion word to the completion destination:
 	 * 0-Do not write a completion word
 	 * 1-Write the completion word
 	 */
-	opcode |= (DMAE_CMD_COMP_WORD_EN_MASK << DMAE_CMD_COMP_WORD_EN_SHIFT);
-	opcode |= (DMAE_CMD_SRC_ADDR_RESET_MASK <<
-		   DMAE_CMD_SRC_ADDR_RESET_SHIFT);
+	SET_FIELD(opcode, DMAE_CMD_COMP_WORD_EN, 1);
+	SET_FIELD(opcode, DMAE_CMD_SRC_ADDR_RESET, 1);
 
-	if (p_params->flags & QED_DMAE_FLAG_COMPLETION_DST)
-		opcode |= (1 << DMAE_CMD_COMP_FUNC_SHIFT);
+	if (QED_DMAE_FLAGS_IS_SET(p_params, COMPLETION_DST))
+		SET_FIELD(opcode, DMAE_CMD_COMP_FUNC, 1);
 
-	opcode |= (DMAE_CMD_ENDIANITY << DMAE_CMD_ENDIANITY_MODE_SHIFT);
+	/* swapping mode 3 - big endian */
+	SET_FIELD(opcode, DMAE_CMD_ENDIANITY_MODE, DMAE_CMD_ENDIANITY);
 
-	opcode |= ((p_hwfn->port_id) << DMAE_CMD_PORT_ID_SHIFT);
+	port_id = (QED_DMAE_FLAGS_IS_SET(p_params, PORT_VALID)) ?
+	    p_params->port_id : p_hwfn->port_id;
+	SET_FIELD(opcode, DMAE_CMD_PORT_ID, port_id);
 
 	/* reset source address in next go */
-	opcode |= (DMAE_CMD_SRC_ADDR_RESET_MASK <<
-		   DMAE_CMD_SRC_ADDR_RESET_SHIFT);
+	SET_FIELD(opcode, DMAE_CMD_SRC_ADDR_RESET, 1);
 
 	/* reset dest address in next go */
-	opcode |= (DMAE_CMD_DST_ADDR_RESET_MASK <<
-		   DMAE_CMD_DST_ADDR_RESET_SHIFT);
+	SET_FIELD(opcode, DMAE_CMD_DST_ADDR_RESET, 1);
 
 	/* SRC/DST VFID: all 1's - pf, otherwise VF id */
-	if (p_params->flags & QED_DMAE_FLAG_VF_SRC) {
-		opcode |= 1 << DMAE_CMD_SRC_VF_ID_VALID_SHIFT;
-		opcode_b |= p_params->src_vfid << DMAE_CMD_SRC_VF_ID_SHIFT;
+	if (QED_DMAE_FLAGS_IS_SET(p_params, SRC_VF_VALID)) {
+		SET_FIELD(opcode, DMAE_CMD_SRC_VF_ID_VALID, 1);
+		SET_FIELD(opcode_b, DMAE_CMD_SRC_VF_ID, p_params->src_vfid);
 	} else {
-		opcode_b |= DMAE_CMD_SRC_VF_ID_MASK <<
-			    DMAE_CMD_SRC_VF_ID_SHIFT;
+		SET_FIELD(opcode_b, DMAE_CMD_SRC_VF_ID, 0xFF);
 	}
-
-	if (p_params->flags & QED_DMAE_FLAG_VF_DST) {
-		opcode |= 1 << DMAE_CMD_DST_VF_ID_VALID_SHIFT;
-		opcode_b |= p_params->dst_vfid << DMAE_CMD_DST_VF_ID_SHIFT;
+	if (QED_DMAE_FLAGS_IS_SET(p_params, DST_VF_VALID)) {
+		SET_FIELD(opcode, DMAE_CMD_DST_VF_ID_VALID, 1);
+		SET_FIELD(opcode_b, DMAE_CMD_DST_VF_ID, p_params->dst_vfid);
 	} else {
-		opcode_b |= DMAE_CMD_DST_VF_ID_MASK << DMAE_CMD_DST_VF_ID_SHIFT;
+		SET_FIELD(opcode_b, DMAE_CMD_DST_VF_ID, 0xFF);
 	}
 
 	p_hwfn->dmae_info.p_dmae_cmd->opcode = cpu_to_le32(opcode);
@@ -683,6 +706,17 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 	int qed_status = 0;
 	u32 offset = 0;
 
+	if (p_hwfn->cdev->recov_in_prog) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "Recovery is in progress. Avoid DMAE transaction [{src: addr 0x%llx, type %d}, {dst: addr 0x%llx, type %d}, size %d].\n",
+			   src_addr, src_type, dst_addr, dst_type,
+			   size_in_dwords);
+
+		/* Let the flow complete w/o any error handling */
+		return 0;
+	}
+
 	qed_dmae_opcode(p_hwfn,
 			(src_type == QED_DMAE_ADDRESS_GRC),
 			(dst_type == QED_DMAE_ADDRESS_GRC),
@@ -702,7 +736,7 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 	for (i = 0; i <= cnt_split; i++) {
 		offset = length_limit * i;
 
-		if (!(p_params->flags & QED_DMAE_FLAG_RW_REPL_SRC)) {
+		if (!QED_DMAE_FLAGS_IS_SET(p_params, RW_REPL_SRC)) {
 			if (src_type == QED_DMAE_ADDRESS_GRC)
 				src_addr_split = src_addr + offset;
 			else
@@ -740,14 +774,12 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 
 int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
-		  u64 source_addr, u32 grc_addr, u32 size_in_dwords, u32 flags)
+		      u64 source_addr, u32 grc_addr, u32 size_in_dwords,
+		      struct qed_dmae_params *p_params)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
-	struct qed_dmae_params params;
 	int rc;
 
-	memset(&params, 0, sizeof(struct qed_dmae_params));
-	params.flags = flags;
 
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
@@ -755,7 +787,7 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 				      grc_addr_in_dw,
 				      QED_DMAE_ADDRESS_HOST_VIRT,
 				      QED_DMAE_ADDRESS_GRC,
-				      size_in_dwords, &params);
+				      size_in_dwords, p_params);
 
 	mutex_unlock(&p_hwfn->dmae_info.mutex);
 
@@ -765,21 +797,19 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 int qed_dmae_grc2host(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
 		      u32 grc_addr,
-		      dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
+		      dma_addr_t dest_addr, u32 size_in_dwords,
+		      struct qed_dmae_params *p_params)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
-	struct qed_dmae_params params;
 	int rc;
 
-	memset(&params, 0, sizeof(struct qed_dmae_params));
-	params.flags = flags;
 
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
 	rc = qed_dmae_execute_command(p_hwfn, p_ptt, grc_addr_in_dw,
 				      dest_addr, QED_DMAE_ADDRESS_GRC,
 				      QED_DMAE_ADDRESS_HOST_VIRT,
-				      size_in_dwords, &params);
+				      size_in_dwords, p_params);
 
 	mutex_unlock(&p_hwfn->dmae_info.mutex);
 
@@ -811,7 +841,6 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, const char *phase)
 {
 	u32 size = PAGE_SIZE / 2, val;
-	struct qed_dmae_params params;
 	int rc = 0;
 	dma_addr_t p_phys;
 	void *p_virt;
@@ -844,9 +873,8 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		   (u64)p_phys,
 		   p_virt, (u64)(p_phys + size), (u8 *)p_virt + size, size);
 
-	memset(&params, 0, sizeof(params));
 	rc = qed_dmae_host2host(p_hwfn, p_ptt, p_phys, p_phys + size,
-				size / 4 /* size_in_dwords */, &params);
+				size / 4, NULL);
 	if (rc) {
 		DP_NOTICE(p_hwfn,
 			  "DMAE sanity [%s]: qed_dmae_host2host() failed. rc = %d.\n",

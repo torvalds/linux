@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Free Electrons
  * Copyright (C) 2015 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
-
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_modes.h>
 
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
@@ -24,6 +14,13 @@
 #include <linux/regmap.h>
 
 #include <video/videomode.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "sun4i_backend.h"
 #include "sun4i_crtc.h"
@@ -242,7 +239,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 
 	/* Set possible_crtcs to this crtc for overlay planes */
 	for (i = 0; planes[i]; i++) {
-		uint32_t possible_crtcs = BIT(drm_crtc_index(&scrtc->crtc));
+		uint32_t possible_crtcs = drm_crtc_mask(&scrtc->crtc);
 		struct drm_plane *plane = planes[i];
 
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)

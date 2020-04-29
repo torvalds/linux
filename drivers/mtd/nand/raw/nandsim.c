@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NAND flash simulator.
  *
@@ -7,20 +8,6 @@
  *
  * Note: NS means "NAND Simulator".
  * Note: Input means input TO flash chip, output means output FROM chip.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any later
- * version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
- * Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  */
 
 #define pr_fmt(fmt)  "[nandsim]" fmt
@@ -298,6 +285,8 @@ union ns_mem {
  * The structure which describes all the internal simulator data.
  */
 struct nandsim {
+	struct nand_chip chip;
+	struct nand_controller base;
 	struct mtd_partition partitions[CONFIG_NANDSIM_MAX_PARTS];
 	unsigned int nbparts;
 
@@ -443,7 +432,7 @@ static unsigned long total_wear = 0;
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
-static int nandsim_debugfs_show(struct seq_file *m, void *private)
+static int nandsim_show(struct seq_file *m, void *private)
 {
 	unsigned long wmin = -1, wmax = 0, avg;
 	unsigned long deciles[10], decile_max[10], tot = 0;
@@ -494,18 +483,7 @@ static int nandsim_debugfs_show(struct seq_file *m, void *private)
 
 	return 0;
 }
-
-static int nandsim_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nandsim_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations dfs_fops = {
-	.open		= nandsim_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nandsim);
 
 /**
  * nandsim_debugfs_create - initialize debugfs
@@ -531,7 +509,7 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 	}
 
 	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
-				   root, dev, &dfs_fops);
+				   root, dev, &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
 		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
 		return -1;
@@ -565,8 +543,9 @@ static int __init alloc_device(struct nandsim *ns)
 			err = -EINVAL;
 			goto err_close;
 		}
-		ns->pages_written = vzalloc(BITS_TO_LONGS(ns->geom.pgnum) *
-					    sizeof(unsigned long));
+		ns->pages_written =
+			vzalloc(array_size(sizeof(unsigned long),
+					   BITS_TO_LONGS(ns->geom.pgnum)));
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
 			err = -ENOMEM;
@@ -582,7 +561,7 @@ static int __init alloc_device(struct nandsim *ns)
 		return 0;
 	}
 
-	ns->pages = vmalloc(ns->geom.pgnum * sizeof(union ns_mem));
+	ns->pages = vmalloc(array_size(sizeof(union ns_mem), ns->geom.pgnum));
 	if (!ns->pages) {
 		NS_ERR("alloc_device: unable to allocate page array\n");
 		return -ENOMEM;
@@ -653,9 +632,6 @@ static int __init init_nandsim(struct mtd_info *mtd)
 		NS_ERR("init_nandsim: nandsim is already initialized\n");
 		return -EIO;
 	}
-
-	/* Force mtd to not do delays */
-	chip->chip_delay = 0;
 
 	/* Initialize the NAND flash parameters */
 	ns->busw = chip->options & NAND_BUSWIDTH_16 ? 16 : 8;
@@ -1871,9 +1847,8 @@ static void switch_state(struct nandsim *ns)
 	}
 }
 
-static u_char ns_nand_read_byte(struct mtd_info *mtd)
+static u_char ns_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 	u_char outb = 0x00;
 
@@ -1933,9 +1908,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 	return outb;
 }
 
-static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2088,37 +2062,9 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 	return;
 }
 
-static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
+static void ns_nand_write_buf(struct nand_chip *chip, const u_char *buf,
+			      int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct nandsim *ns = nand_get_controller_data(chip);
-
-	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
-	ns->lines.ale = bitmask & NAND_ALE ? 1 : 0;
-	ns->lines.ce = bitmask & NAND_NCE ? 1 : 0;
-
-	if (cmd != NAND_CMD_NONE)
-		ns_nand_write_byte(mtd, cmd);
-}
-
-static int ns_device_ready(struct mtd_info *mtd)
-{
-	NS_DBG("device_ready\n");
-	return 1;
-}
-
-static uint16_t ns_nand_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
-	NS_DBG("read_word\n");
-
-	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
-}
-
-static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Check that chip is expecting data input */
@@ -2144,9 +2090,8 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	}
 }
 
-static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ns_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2168,7 +2113,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = mtd_to_nand(mtd)->read_byte(mtd);
+			buf[i] = ns_nand_read_byte(chip);
 
 		return;
 	}
@@ -2191,13 +2136,96 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	return;
 }
 
+static int ns_exec_op(struct nand_chip *chip, const struct nand_operation *op,
+		      bool check_only)
+{
+	int i;
+	unsigned int op_id;
+	const struct nand_op_instr *instr = NULL;
+	struct nandsim *ns = nand_get_controller_data(chip);
+
+	ns->lines.ce = 1;
+
+	for (op_id = 0; op_id < op->ninstrs; op_id++) {
+		instr = &op->instrs[op_id];
+		ns->lines.cle = 0;
+		ns->lines.ale = 0;
+
+		switch (instr->type) {
+		case NAND_OP_CMD_INSTR:
+			ns->lines.cle = 1;
+			ns_nand_write_byte(chip, instr->ctx.cmd.opcode);
+			break;
+		case NAND_OP_ADDR_INSTR:
+			ns->lines.ale = 1;
+			for (i = 0; i < instr->ctx.addr.naddrs; i++)
+				ns_nand_write_byte(chip, instr->ctx.addr.addrs[i]);
+			break;
+		case NAND_OP_DATA_IN_INSTR:
+			ns_nand_read_buf(chip, instr->ctx.data.buf.in, instr->ctx.data.len);
+			break;
+		case NAND_OP_DATA_OUT_INSTR:
+			ns_nand_write_buf(chip, instr->ctx.data.buf.out, instr->ctx.data.len);
+			break;
+		case NAND_OP_WAITRDY_INSTR:
+			/* we are always ready */
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int ns_attach_chip(struct nand_chip *chip)
+{
+	unsigned int eccsteps, eccbytes;
+
+	if (!bch)
+		return 0;
+
+	if (!mtd_nand_has_bch()) {
+		NS_ERR("BCH ECC support is disabled\n");
+		return -EINVAL;
+	}
+
+	/* Use 512-byte ecc blocks */
+	eccsteps = nsmtd->writesize / 512;
+	eccbytes = ((bch * 13) + 7) / 8;
+
+	/* Do not bother supporting small page devices */
+	if (nsmtd->oobsize < 64 || !eccsteps) {
+		NS_ERR("BCH not available on small page devices\n");
+		return -EINVAL;
+	}
+
+	if (((eccbytes * eccsteps) + 2) > nsmtd->oobsize) {
+		NS_ERR("Invalid BCH value %u\n", bch);
+		return -EINVAL;
+	}
+
+	chip->ecc.mode = NAND_ECC_SOFT;
+	chip->ecc.algo = NAND_ECC_BCH;
+	chip->ecc.size = 512;
+	chip->ecc.strength = bch;
+	chip->ecc.bytes = eccbytes;
+
+	NS_INFO("Using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
+
+	return 0;
+}
+
+static const struct nand_controller_ops ns_controller_ops = {
+	.attach_chip = ns_attach_chip,
+	.exec_op = ns_exec_op,
+};
+
 /*
  * Module initialization function
  */
 static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
-	struct nandsim *nand;
+	struct nandsim *ns;
 	int retval = -ENOMEM, i;
 
 	if (bus_width != 8 && bus_width != 16) {
@@ -2205,26 +2233,15 @@ static int __init ns_init_module(void)
 		return -EINVAL;
 	}
 
-	/* Allocate and initialize mtd_info, nand_chip and nandsim structures */
-	chip = kzalloc(sizeof(struct nand_chip) + sizeof(struct nandsim),
-		       GFP_KERNEL);
-	if (!chip) {
+	ns = kzalloc(sizeof(struct nandsim), GFP_KERNEL);
+	if (!ns) {
 		NS_ERR("unable to allocate core structures.\n");
 		return -ENOMEM;
 	}
+	chip	    = &ns->chip;
 	nsmtd       = nand_to_mtd(chip);
-	nand        = (struct nandsim *)(chip + 1);
-	nand_set_controller_data(chip, (void *)nand);
+	nand_set_controller_data(chip, (void *)ns);
 
-	/*
-	 * Register simulator's callbacks.
-	 */
-	chip->cmd_ctrl	 = ns_hwcontrol;
-	chip->read_byte  = ns_nand_read_byte;
-	chip->dev_ready  = ns_device_ready;
-	chip->write_buf  = ns_nand_write_buf;
-	chip->read_buf   = ns_nand_read_buf;
-	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
@@ -2233,9 +2250,11 @@ static int __init ns_init_module(void)
 
 	switch (bbt) {
 	case 2:
-		 chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_NO_OOB;
+		fallthrough;
 	case 1:
-		 chip->bbt_options |= NAND_BBT_USE_FLASH;
+		chip->bbt_options |= NAND_BBT_USE_FLASH;
+		fallthrough;
 	case 0:
 		break;
 	default:
@@ -2248,19 +2267,19 @@ static int __init ns_init_module(void)
 	 * the initial ID read command correctly
 	 */
 	if (id_bytes[6] != 0xFF || id_bytes[7] != 0xFF)
-		nand->geom.idbytes = 8;
+		ns->geom.idbytes = 8;
 	else if (id_bytes[4] != 0xFF || id_bytes[5] != 0xFF)
-		nand->geom.idbytes = 6;
+		ns->geom.idbytes = 6;
 	else if (id_bytes[2] != 0xFF || id_bytes[3] != 0xFF)
-		nand->geom.idbytes = 4;
+		ns->geom.idbytes = 4;
 	else
-		nand->geom.idbytes = 2;
-	nand->regs.status = NS_STATUS_OK(nand);
-	nand->nxstate = STATE_UNKNOWN;
-	nand->options |= OPT_PAGE512; /* temporary value */
-	memcpy(nand->ids, id_bytes, sizeof(nand->ids));
+		ns->geom.idbytes = 2;
+	ns->regs.status = NS_STATUS_OK(ns);
+	ns->nxstate = STATE_UNKNOWN;
+	ns->options |= OPT_PAGE512; /* temporary value */
+	memcpy(ns->ids, id_bytes, sizeof(ns->ids));
 	if (bus_width == 16) {
-		nand->busw = 16;
+		ns->busw = 16;
 		chip->options |= NAND_BUSWIDTH_16;
 	}
 
@@ -2275,59 +2294,35 @@ static int __init ns_init_module(void)
 	if ((retval = parse_gravepages()) != 0)
 		goto error;
 
-	retval = nand_scan_ident(nsmtd, 1, NULL);
-	if (retval) {
-		NS_ERR("cannot scan NAND Simulator device\n");
-		goto error;
-	}
+	nand_controller_init(&ns->base);
+	ns->base.ops = &ns_controller_ops;
+	chip->controller = &ns->base;
 
-	if (bch) {
-		unsigned int eccsteps, eccbytes;
-		if (!mtd_nand_has_bch()) {
-			NS_ERR("BCH ECC support is disabled\n");
-			retval = -EINVAL;
-			goto error;
-		}
-		/* use 512-byte ecc blocks */
-		eccsteps = nsmtd->writesize/512;
-		eccbytes = (bch*13+7)/8;
-		/* do not bother supporting small page devices */
-		if ((nsmtd->oobsize < 64) || !eccsteps) {
-			NS_ERR("bch not available on small page devices\n");
-			retval = -EINVAL;
-			goto error;
-		}
-		if ((eccbytes*eccsteps+2) > nsmtd->oobsize) {
-			NS_ERR("invalid bch value %u\n", bch);
-			retval = -EINVAL;
-			goto error;
-		}
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_BCH;
-		chip->ecc.size = 512;
-		chip->ecc.strength = bch;
-		chip->ecc.bytes = eccbytes;
-		NS_INFO("using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
-	}
-
-	retval = nand_scan_tail(nsmtd);
+	retval = nand_scan(chip, 1);
 	if (retval) {
-		NS_ERR("can't register NAND Simulator\n");
+		NS_ERR("Could not scan NAND Simulator device\n");
 		goto error;
 	}
 
 	if (overridesize) {
 		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
+		struct nand_memory_organization *memorg;
+		u64 targetsize;
+
+		memorg = nanddev_get_memorg(&chip->base);
+
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
 			retval = -EINVAL;
 			goto err_exit;
 		}
+
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
 		nsmtd->size = new_size;
-		chip->chipsize = new_size;
+		memorg->eraseblocks_per_lun = 1 << overridesize;
+		targetsize = nanddev_target_size(&chip->base);
 		chip->chip_shift = ffs(nsmtd->erasesize) + overridesize - 1;
-		chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;
+		chip->pagemask = (targetsize >> chip->page_shift) - 1;
 	}
 
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)
@@ -2336,30 +2331,30 @@ static int __init ns_init_module(void)
 	if ((retval = init_nandsim(nsmtd)) != 0)
 		goto err_exit;
 
-	if ((retval = chip->scan_bbt(nsmtd)) != 0)
+	if ((retval = nand_create_bbt(chip)) != 0)
 		goto err_exit;
 
-	if ((retval = parse_badblocks(nand, nsmtd)) != 0)
+	if ((retval = parse_badblocks(ns, nsmtd)) != 0)
 		goto err_exit;
 
 	/* Register NAND partitions */
-	retval = mtd_device_register(nsmtd, &nand->partitions[0],
-				     nand->nbparts);
+	retval = mtd_device_register(nsmtd, &ns->partitions[0],
+				     ns->nbparts);
 	if (retval != 0)
 		goto err_exit;
 
-	if ((retval = nandsim_debugfs_create(nand)) != 0)
+	if ((retval = nandsim_debugfs_create(ns)) != 0)
 		goto err_exit;
 
         return 0;
 
 err_exit:
-	free_nandsim(nand);
-	nand_release(nsmtd);
-	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)
-		kfree(nand->partitions[i].name);
+	free_nandsim(ns);
+	nand_release(chip);
+	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
+		kfree(ns->partitions[i].name);
 error:
-	kfree(chip);
+	kfree(ns);
 	free_lists();
 
 	return retval;
@@ -2377,10 +2372,10 @@ static void __exit ns_cleanup_module(void)
 	int i;
 
 	free_nandsim(ns);    /* Free nandsim private resources */
-	nand_release(nsmtd); /* Unregister driver */
+	nand_release(chip); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
 		kfree(ns->partitions[i].name);
-	kfree(mtd_to_nand(nsmtd));        /* Free other structures */
+	kfree(ns);        /* Free other structures */
 	free_lists();
 }
 

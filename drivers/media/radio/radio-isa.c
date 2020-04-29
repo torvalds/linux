@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Framework for ISA radio drivers.
  * This takes care of all the V4L2 scaffolding, allowing the ISA drivers
  * to concentrate on the actual hardware operation.
  *
  * Copyright (C) 2012 Hans Verkuil <hans.verkuil@cisco.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -42,12 +34,9 @@ static int radio_isa_querycap(struct file *file, void  *priv,
 {
 	struct radio_isa_card *isa = video_drvdata(file);
 
-	strlcpy(v->driver, isa->drv->driver.driver.name, sizeof(v->driver));
-	strlcpy(v->card, isa->drv->card, sizeof(v->card));
+	strscpy(v->driver, isa->drv->driver.driver.name, sizeof(v->driver));
+	strscpy(v->card, isa->drv->card, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", isa->v4l2_dev.name);
-
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -60,7 +49,7 @@ static int radio_isa_g_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	strlcpy(v->name, "FM", sizeof(v->name));
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_LOW;
 	v->rangehigh = FREQ_HIGH;
@@ -198,7 +187,7 @@ static struct radio_isa_card *radio_isa_alloc(struct radio_isa_driver *drv,
 	dev_set_drvdata(pdev, isa);
 	isa->drv = drv;
 	v4l2_dev = &isa->v4l2_dev;
-	strlcpy(v4l2_dev->name, dev_name(pdev), sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, dev_name(pdev), sizeof(v4l2_dev->name));
 
 	return isa;
 }
@@ -243,11 +232,12 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 
 	mutex_init(&isa->lock);
 	isa->vdev.lock = &isa->lock;
-	strlcpy(isa->vdev.name, v4l2_dev->name, sizeof(isa->vdev.name));
+	strscpy(isa->vdev.name, v4l2_dev->name, sizeof(isa->vdev.name));
 	isa->vdev.v4l2_dev = v4l2_dev;
 	isa->vdev.fops = &radio_isa_fops;
 	isa->vdev.ioctl_ops = &radio_isa_ioctl_ops;
 	isa->vdev.release = video_device_release_empty;
+	isa->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	video_set_drvdata(&isa->vdev, isa);
 	isa->freq = FREQ_LOW;
 	isa->stereo = drv->has_stereo;

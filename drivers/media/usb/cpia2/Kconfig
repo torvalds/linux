@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CPIA2
 	tristate "CPiA2 Video For Linux"
 	depends on VIDEO_DEV && USB && VIDEO_V4L2
-	---help---
+	help
 	  This is the video4linux driver for cameras based on Vision's CPiA2
 	  (Colour Processor Interface ASIC), such as the Digital Blue QX5
 	  Microscope. If you have one of these cameras, say Y here

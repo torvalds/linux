@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_SELINUX
 	bool "NSA SELinux Support"
 	depends on SECURITY_NETWORK && AUDIT && NET && INET
@@ -22,21 +23,6 @@ config SECURITY_SELINUX_BOOTPARAM
 
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_SELINUX_BOOTPARAM_VALUE
-	int "NSA SELinux boot parameter default value"
-	depends on SECURITY_SELINUX_BOOTPARAM
-	range 0 1
-	default 1
-	help
-	  This option sets the default value for the kernel parameter
-	  'selinux', which allows SELinux to be disabled at boot.  If this
-	  option is set to 0 (zero), the SELinux kernel parameter will
-	  default to 0, disabling SELinux at bootup.  If this option is
-	  set to 1 (one), the SELinux kernel parameter will default to 1,
-	  enabling SELinux at bootup.
-
-	  If you are unsure how to answer this question, answer 1.
-
 config SECURITY_SELINUX_DISABLE
 	bool "NSA SELinux runtime disable"
 	depends on SECURITY_SELINUX
@@ -56,6 +42,9 @@ config SECURITY_SELINUX_DISABLE
 	  using the selinux=0 boot parameter instead of enabling this
 	  option.
 
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
+
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_SELINUX_DEVELOP
@@ -69,7 +58,8 @@ config SECURITY_SELINUX_DEVELOP
 	  kernel will start in permissive mode (log everything, deny nothing)
 	  unless you specify enforcing=1 on the kernel command line.  You
 	  can interactively toggle the kernel between enforcing mode and
-	  permissive mode (if permitted by the policy) via /selinux/enforce.
+	  permissive mode (if permitted by the policy) via
+	  /sys/fs/selinux/enforce.
 
 config SECURITY_SELINUX_AVC_STATS
 	bool "NSA SELinux AVC Statistics"
@@ -77,7 +67,7 @@ config SECURITY_SELINUX_AVC_STATS
 	default y
 	help
 	  This option collects access vector cache statistics to
-	  /selinux/avc/cache_stats, which may be monitored via
+	  /sys/fs/selinux/avc/cache_stats, which may be monitored via
 	  tools such as avcstat.
 
 config SECURITY_SELINUX_CHECKREQPROT_VALUE
@@ -96,6 +86,32 @@ config SECURITY_SELINUX_CHECKREQPROT_VALUE
 	  default to checking the protection requested by the application.
 	  The checkreqprot flag may be changed from the default via the
 	  'checkreqprot=' boot parameter.  It may also be changed at runtime
-	  via /selinux/checkreqprot if authorized by policy.
+	  via /sys/fs/selinux/checkreqprot if authorized by policy.
+
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
 
 	  If you are unsure how to answer this question, answer 0.
+
+config SECURITY_SELINUX_SIDTAB_HASH_BITS
+	int "NSA SELinux sidtab hashtable size"
+	depends on SECURITY_SELINUX
+	range 8 13
+	default 9
+	help
+	  This option sets the number of buckets used in the sidtab hashtable
+	  to 2^SECURITY_SELINUX_SIDTAB_HASH_BITS buckets. The number of hash
+	  collisions may be viewed at /sys/fs/selinux/ss/sidtab_hash_stats. If
+	  chain lengths are high (e.g. > 20) then selecting a higher value here
+	  will ensure that lookups times are short and stable.
+
+config SECURITY_SELINUX_SID2STR_CACHE_SIZE
+	int "NSA SELinux SID to context string translation cache size"
+	depends on SECURITY_SELINUX
+	default 256
+	help
+	  This option defines the size of the internal SID -> context string
+	  cache, which improves the performance of context to string
+	  conversion.  Setting this option to 0 disables the cache completely.
+
+	  If unsure, keep the default value.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -13,9 +14,6 @@
   * David Boggs
   * Ron Crane
   * Alan Cox
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   *
   * Driver for the LanMedia LMC5200, LMC5245, LMC1000, LMC1200 cards.
   *
@@ -34,7 +32,6 @@
   * we still have link, and that the timing source is what we expected
   * it to be.  If link is lost, the interface is marked down, and
   * we no longer can transmit.
-  *
   */
 
 #include <linux/kernel.h>
@@ -102,7 +99,7 @@ static int lmc_ifdown(struct net_device * const);
 static void lmc_watchdog(struct timer_list *t);
 static void lmc_reset(lmc_softc_t * const sc);
 static void lmc_dec_reset(lmc_softc_t * const sc);
-static void lmc_driver_timeout(struct net_device *dev);
+static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue);
 
 /*
  * linux reserves 16 device specific IOCTLs.  We call them
@@ -1118,7 +1115,7 @@ static void lmc_running_reset (struct net_device *dev) /*fold00*/
     sc->lmc_cmdmode |= (TULIP_CMD_TXRUN | TULIP_CMD_RXRUN);
     LMC_CSR_WRITE (sc, csr_command, sc->lmc_cmdmode);
 
-    lmc_trace(dev, "lmc_runnin_reset_out");
+    lmc_trace(dev, "lmc_running_reset_out");
 }
 
 
@@ -1320,8 +1317,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
 			sc->lmc_device->stats.tx_packets++;
                 }
 
-                //                dev_kfree_skb(sc->lmc_txq[i]);
-                dev_kfree_skb_irq(sc->lmc_txq[i]);
+		dev_consume_skb_irq(sc->lmc_txq[i]);
                 sc->lmc_txq[i] = NULL;
 
                 badtx++;
@@ -1362,7 +1358,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
             case 0x001:
                 printk(KERN_WARNING "%s: Master Abort (naughty)\n", dev->name);
                 break;
-            case 0x010:
+            case 0x002:
                 printk(KERN_WARNING "%s: Target Abort (not so naughty)\n", dev->name);
                 break;
             default:
@@ -1491,7 +1487,6 @@ static int lmc_rx(struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     int i;
     int rx_work_limit = LMC_RXDESCS;
-    unsigned int next_rx;
     int rxIntLoopCnt;		/* debug -baz */
     int localLengthErrCnt = 0;
     long stat;
@@ -1505,7 +1500,6 @@ static int lmc_rx(struct net_device *dev)
     rxIntLoopCnt = 0;		/* debug -baz */
 
     i = sc->lmc_next_rx % LMC_RXDESCS;
-    next_rx = sc->lmc_next_rx;
 
     while (((stat = sc->lmc_rxring[i].status) & LMC_RDES_OWN_BIT) != DESC_OWNED_BY_DC21X4)
     {
@@ -2050,7 +2044,7 @@ static void lmc_initcsrs(lmc_softc_t * const sc, lmc_csrptr_t csr_base, /*fold00
     lmc_trace(sc->lmc_device, "lmc_initcsrs out");
 }
 
-static void lmc_driver_timeout(struct net_device *dev)
+static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
 {
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 csr6;

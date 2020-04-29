@@ -10,7 +10,7 @@ Required properties:
 - compatible: should be "arm,versatile-tft-panel"
 
 Required subnodes:
-- port: see display/panel/panel-common.txt, graph.txt
+- port: see display/panel/panel-common.yaml, graph.txt
 
 
 Example:

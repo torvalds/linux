@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* This is a module which is used to mark packets for tracing.
  */
 #include <linux/module.h>

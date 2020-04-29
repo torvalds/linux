@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * twl4030.h - header for TWL4030 PM and audio CODEC device
  *
@@ -5,21 +6,6 @@
  *
  * Based on tlv320aic23.c:
  * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #ifndef __TWL_H_
@@ -195,14 +181,18 @@ static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
 }
 
 static inline int twl_i2c_write_u16(u8 mod_no, u16 val, u8 reg) {
-	val = cpu_to_le16(val);
-	return twl_i2c_write(mod_no, (u8*) &val, reg, 2);
+	__le16 value;
+
+	value = cpu_to_le16(val);
+	return twl_i2c_write(mod_no, (u8 *) &value, reg, 2);
 }
 
 static inline int twl_i2c_read_u16(u8 mod_no, u16 *val, u8 reg) {
 	int ret;
-	ret = twl_i2c_read(mod_no, (u8*) val, reg, 2);
-	*val = le16_to_cpu(*val);
+	__le16 value;
+
+	ret = twl_i2c_read(mod_no, (u8 *) &value, reg, 2);
+	*val = le16_to_cpu(value);
 	return ret;
 }
 

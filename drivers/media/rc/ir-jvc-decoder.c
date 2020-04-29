@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-jvc-decoder.c - handle JVC IR Pulse/Space protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
@@ -213,6 +205,7 @@ static struct ir_raw_handler jvc_handler = {
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
 	.carrier	= 38000,
+	.min_timeout	= JVC_TRAILER_SPACE,
 };
 
 static int __init ir_jvc_decode_init(void)

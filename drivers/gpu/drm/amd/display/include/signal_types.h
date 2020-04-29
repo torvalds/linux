@@ -45,6 +45,11 @@ enum signal_type {
 };
 
 /* help functions for signal types manipulation */
+static inline bool dc_is_hdmi_tmds_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_HDMI_TYPE_A);
+}
+
 static inline bool dc_is_hdmi_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_HDMI_TYPE_A);
@@ -66,6 +71,11 @@ static inline bool dc_is_dp_signal(enum signal_type signal)
 static inline bool dc_is_embedded_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_EDP || signal == SIGNAL_TYPE_LVDS);
+}
+
+static inline bool dc_is_lvds_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_LVDS);
 }
 
 static inline bool dc_is_dvi_signal(enum signal_type signal)
@@ -95,6 +105,11 @@ static inline bool dc_is_audio_capable_signal(enum signal_type signal)
 	return (signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
 		dc_is_hdmi_signal(signal));
+}
+
+static inline bool dc_is_virtual_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_VIRTUAL);
 }
 
 #endif

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include "cptvf.h"
@@ -15,23 +12,6 @@ static void cptvf_send_msg_to_pf(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
 			mbx->msg);
 	cpt_write_csr64(cptvf->reg_base, CPTX_VFX_PF_MBOXX(0, 0, 1),
 			mbx->data);
-}
-
-/* ACKs PF's mailbox message
- */
-void cptvf_mbox_send_ack(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
-{
-	mbx->msg = CPT_MBOX_MSG_TYPE_ACK;
-	cptvf_send_msg_to_pf(cptvf, mbx);
-}
-
-/* NACKs PF's mailbox message that VF is not able to
- * complete the action
- */
-void cptvf_mbox_send_nack(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
-{
-	mbx->msg = CPT_MBOX_MSG_TYPE_NACK;
-	cptvf_send_msg_to_pf(cptvf, mbx);
 }
 
 /* Interrupt handler to handle mailbox messages from VFs */

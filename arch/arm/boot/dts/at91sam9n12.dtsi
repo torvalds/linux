@@ -1,13 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9n12.dtsi - Device Tree include file for AT91SAM9N12 SoC
  *
  *  Copyright (C) 2012 Atmel,
  *                2012 Hong Xu <hong.xu@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -15,6 +13,8 @@
 #include <dt-bindings/clock/at91.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel AT91SAM9N12 SoC";
 	compatible = "atmel,at91sam9n12";
 	interrupt-parent = <&aic>;
@@ -47,6 +47,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x10000000>;
 	};
 

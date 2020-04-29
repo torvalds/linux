@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 //		      Markus Rechberger <mrechberger@gmail.com>
-//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
 //
@@ -296,7 +296,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 		return ret;
 	}
 	/*
-	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * NOTE: some devices with two i2c buses have the bad habit to return 0
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.
@@ -427,7 +427,7 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return ret;
 	}
 	/*
-	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * NOTE: some devices with two i2c buses have the bad habit to return 0
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.
@@ -559,10 +559,6 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dev->cur_i2c_bus = bus;
 	}
 
-	if (num <= 0) {
-		rt_mutex_unlock(&dev->i2c_bus_lock);
-		return 0;
-	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
 		if (!msgs[i].len) {
@@ -953,7 +949,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 	unsigned char buf;
 	int i, rc;
 
-	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
+	memset(i2c_devicelist, 0, sizeof(i2c_devicelist));
 
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
 		dev->i2c_client[bus].addr = i;
@@ -968,7 +964,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 
 	if (bus == dev->def_i2c_bus)
 		dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
-						ARRAY_SIZE(i2c_devicelist), 32);
+						sizeof(i2c_devicelist), 32);
 }
 
 /*
@@ -989,7 +985,8 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned int bus,
 
 	dev->i2c_adap[bus] = em28xx_adap_template;
 	dev->i2c_adap[bus].dev.parent = &dev->intf->dev;
-	strcpy(dev->i2c_adap[bus].name, dev_name(&dev->intf->dev));
+	strscpy(dev->i2c_adap[bus].name, dev_name(&dev->intf->dev),
+		sizeof(dev->i2c_adap[bus].name));
 
 	dev->i2c_bus[bus].bus = bus;
 	dev->i2c_bus[bus].algo_type = algo_type;

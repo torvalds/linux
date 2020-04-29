@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains an ECC algorithm that detects and corrects 1 bit
  * errors in a 256 byte block of data.
@@ -10,22 +11,7 @@
  *   Thomas Gleixner (tglx@linutronix.de)
  *
  * Information on how this algorithm works and how it was developed
- * can be found in Documentation/mtd/nand_ecc.txt
- *
- * This file is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 or (at your option) any
- * later version.
- *
- * This file is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this file; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
+ * can be found in Documentation/driver-api/mtd/nand_ecc.rst
  */
 
 #include <linux/types.h>
@@ -132,9 +118,10 @@ static const char addressbits[256] = {
  * @buf:	input buffer with raw data
  * @eccsize:	data bytes per ECC step (256 or 512)
  * @code:	output buffer with ECC
+ * @sm_order:	Smart Media byte ordering
  */
 void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
-		       unsigned char *code)
+			  unsigned char *code, bool sm_order)
 {
 	int i;
 	const uint32_t *bp = (uint32_t *)buf;
@@ -330,45 +317,26 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 	 * possible, but benchmarks showed that on the system this is developed
 	 * the code below is the fastest
 	 */
-#ifdef CONFIG_MTD_NAND_ECC_SMC
-	code[0] =
-	    (invparity[rp7] << 7) |
-	    (invparity[rp6] << 6) |
-	    (invparity[rp5] << 5) |
-	    (invparity[rp4] << 4) |
-	    (invparity[rp3] << 3) |
-	    (invparity[rp2] << 2) |
-	    (invparity[rp1] << 1) |
-	    (invparity[rp0]);
-	code[1] =
-	    (invparity[rp15] << 7) |
-	    (invparity[rp14] << 6) |
-	    (invparity[rp13] << 5) |
-	    (invparity[rp12] << 4) |
-	    (invparity[rp11] << 3) |
-	    (invparity[rp10] << 2) |
-	    (invparity[rp9] << 1)  |
-	    (invparity[rp8]);
-#else
-	code[1] =
-	    (invparity[rp7] << 7) |
-	    (invparity[rp6] << 6) |
-	    (invparity[rp5] << 5) |
-	    (invparity[rp4] << 4) |
-	    (invparity[rp3] << 3) |
-	    (invparity[rp2] << 2) |
-	    (invparity[rp1] << 1) |
-	    (invparity[rp0]);
-	code[0] =
-	    (invparity[rp15] << 7) |
-	    (invparity[rp14] << 6) |
-	    (invparity[rp13] << 5) |
-	    (invparity[rp12] << 4) |
-	    (invparity[rp11] << 3) |
-	    (invparity[rp10] << 2) |
-	    (invparity[rp9] << 1)  |
-	    (invparity[rp8]);
-#endif
+	if (sm_order) {
+		code[0] = (invparity[rp7] << 7) | (invparity[rp6] << 6) |
+			  (invparity[rp5] << 5) | (invparity[rp4] << 4) |
+			  (invparity[rp3] << 3) | (invparity[rp2] << 2) |
+			  (invparity[rp1] << 1) | (invparity[rp0]);
+		code[1] = (invparity[rp15] << 7) | (invparity[rp14] << 6) |
+			  (invparity[rp13] << 5) | (invparity[rp12] << 4) |
+			  (invparity[rp11] << 3) | (invparity[rp10] << 2) |
+			  (invparity[rp9] << 1) | (invparity[rp8]);
+	} else {
+		code[1] = (invparity[rp7] << 7) | (invparity[rp6] << 6) |
+			  (invparity[rp5] << 5) | (invparity[rp4] << 4) |
+			  (invparity[rp3] << 3) | (invparity[rp2] << 2) |
+			  (invparity[rp1] << 1) | (invparity[rp0]);
+		code[0] = (invparity[rp15] << 7) | (invparity[rp14] << 6) |
+			  (invparity[rp13] << 5) | (invparity[rp12] << 4) |
+			  (invparity[rp11] << 3) | (invparity[rp10] << 2) |
+			  (invparity[rp9] << 1) | (invparity[rp8]);
+	}
+
 	if (eccsize_mult == 1)
 		code[2] =
 		    (invparity[par & 0xf0] << 7) |
@@ -394,15 +362,16 @@ EXPORT_SYMBOL(__nand_calculate_ecc);
 /**
  * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
  *			 block
- * @mtd:	MTD block structure
+ * @chip:	NAND chip object
  * @buf:	input buffer with raw data
  * @code:	output buffer with ECC
  */
-int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
+int nand_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 		       unsigned char *code)
 {
-	__nand_calculate_ecc(buf,
-			mtd_to_nand(mtd)->ecc.size, code);
+	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+
+	__nand_calculate_ecc(buf, chip->ecc.size, code, sm_order);
 
 	return 0;
 }
@@ -414,12 +383,13 @@ EXPORT_SYMBOL(nand_calculate_ecc);
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
  * @eccsize:	data bytes per ECC step (256 or 512)
+ * @sm_order:	Smart Media byte order
  *
  * Detect and correct a 1 bit error for eccsize byte block
  */
 int __nand_correct_data(unsigned char *buf,
 			unsigned char *read_ecc, unsigned char *calc_ecc,
-			unsigned int eccsize)
+			unsigned int eccsize, bool sm_order)
 {
 	unsigned char b0, b1, b2, bit_addr;
 	unsigned int byte_addr;
@@ -431,13 +401,14 @@ int __nand_correct_data(unsigned char *buf,
 	 * we might need the xor result  more than once,
 	 * so keep them in a local var
 	*/
-#ifdef CONFIG_MTD_NAND_ECC_SMC
-	b0 = read_ecc[0] ^ calc_ecc[0];
-	b1 = read_ecc[1] ^ calc_ecc[1];
-#else
-	b0 = read_ecc[1] ^ calc_ecc[1];
-	b1 = read_ecc[0] ^ calc_ecc[0];
-#endif
+	if (sm_order) {
+		b0 = read_ecc[0] ^ calc_ecc[0];
+		b1 = read_ecc[1] ^ calc_ecc[1];
+	} else {
+		b0 = read_ecc[1] ^ calc_ecc[1];
+		b1 = read_ecc[0] ^ calc_ecc[0];
+	}
+
 	b2 = read_ecc[2] ^ calc_ecc[2];
 
 	/* check if there are any bitfaults */
@@ -491,18 +462,20 @@ EXPORT_SYMBOL(__nand_correct_data);
 
 /**
  * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @mtd:	MTD block structure
+ * @chip:	NAND chip object
  * @buf:	raw data read from the chip
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
  *
  * Detect and correct a 1 bit error for 256/512 byte block
  */
-int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
+int nand_correct_data(struct nand_chip *chip, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	return __nand_correct_data(buf, read_ecc, calc_ecc,
-				   mtd_to_nand(mtd)->ecc.size);
+	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+
+	return __nand_correct_data(buf, read_ecc, calc_ecc, chip->ecc.size,
+				   sm_order);
 }
 EXPORT_SYMBOL(nand_correct_data);
 

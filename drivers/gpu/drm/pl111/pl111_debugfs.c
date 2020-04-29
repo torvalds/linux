@@ -1,15 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright © 2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/amba/clcd-regs.h>
 #include <linux/seq_file.h>
+
 #include <drm/drm_debugfs.h>
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+
 #include "pl111_drm.h"
 
 #define REGDEF(reg) { reg, #reg }

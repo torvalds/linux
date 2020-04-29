@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/platform/s5p-mfc/s5p_mfc_opr_v6.c
  *
@@ -6,10 +7,6 @@
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #undef DEBUG
@@ -53,7 +50,7 @@ static int s5p_mfc_alloc_dec_temp_buffers_v6(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-/* Release temproary buffers for decoding */
+/* Release temporary buffers for decoding */
 static void s5p_mfc_release_dec_desc_buffer_v6(struct s5p_mfc_ctx *ctx)
 {
 	/* NOP */
@@ -736,10 +733,10 @@ static int s5p_mfc_set_slice_mode(struct s5p_mfc_ctx *ctx)
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
 	writel(ctx->slice_mode, mfc_regs->e_mslice_mode);
-	if (ctx->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
+	if (ctx->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) {
 		writel(ctx->slice_size.mb, mfc_regs->e_mslice_size_mb);
 	} else if (ctx->slice_mode ==
-			V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+			V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) {
 		writel(ctx->slice_size.bits, mfc_regs->e_mslice_size_bits);
 	} else {
 		writel(0x0, mfc_regs->e_mslice_size_mb);
@@ -779,11 +776,11 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	/* multi-slice MB number or bit size */
 	ctx->slice_mode = p->slice_mode;
 	reg = 0;
-	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
+	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) {
 		reg |= (0x1 << 3);
 		writel(reg, mfc_regs->e_enc_options);
 		ctx->slice_size.mb = p->slice_mb;
-	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) {
 		reg |= (0x1 << 3);
 		writel(reg, mfc_regs->e_enc_options);
 		ctx->slice_size.bits = p->slice_bit;
@@ -843,7 +840,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	if (p->pad) {
 		reg = 0;
 		/** enable */
-		reg |= (1 << 31);
+		reg |= (1UL << 31);
 		/** cr value */
 		reg |= ((p->pad_cr & 0xFF) << 16);
 		/** cb value */
@@ -1928,7 +1925,7 @@ static inline int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
 		mfc_err("It seems that not all destination buffers were\n"
-			"mmaped.MFC requires that all destination are mmaped\n"
+			"mmapped.MFC requires that all destination are mmapped\n"
 			"before starting processing.\n");
 		return -EAGAIN;
 	}

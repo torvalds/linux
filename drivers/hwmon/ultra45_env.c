@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ultra45_env.c: Driver for Ultra45 PIC16F747 environmental monitor.
  *

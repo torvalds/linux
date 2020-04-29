@@ -186,7 +186,7 @@ struct pktcdvd_device
 	sector_t		current_sector;	/* Keep track of where the elevator is */
 	atomic_t		scan_queue;	/* Set to non-zero when pkt_handle_queue */
 						/* needs to be run. */
-	mempool_t		*rb_pool;	/* mempool for pkt_rb_node allocations */
+	mempool_t		rb_pool;	/* mempool for pkt_rb_node allocations */
 
 	struct packet_iosched   iosched;
 	struct gendisk		*disk;

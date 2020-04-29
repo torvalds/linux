@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *            au88x0_eq.c
  *  Aureal Vortex Hardware EQ control/access.
@@ -15,19 +16,6 @@
  ****************************************************************************/
 
 /*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Library General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
@@ -63,7 +51,7 @@ static inline u16 sign_invert(u16 a)
 		return -a;
 }
 
-static void vortex_EqHw_SetLeftCoefs(vortex_t * vortex, u16 coefs[])
+static void vortex_EqHw_SetLeftCoefs(vortex_t *vortex, const u16 coefs[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int i = 0, n /*esp2c */;
@@ -85,7 +73,7 @@ static void vortex_EqHw_SetLeftCoefs(vortex_t * vortex, u16 coefs[])
 	}
 }
 
-static void vortex_EqHw_SetRightCoefs(vortex_t * vortex, u16 coefs[])
+static void vortex_EqHw_SetRightCoefs(vortex_t *vortex, const u16 coefs[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int i = 0, n /*esp2c */;
@@ -108,7 +96,7 @@ static void vortex_EqHw_SetRightCoefs(vortex_t * vortex, u16 coefs[])
 
 }
 
-static void vortex_EqHw_SetLeftStates(vortex_t * vortex, u16 a[], u16 b[])
+static void vortex_EqHw_SetLeftStates(vortex_t *vortex, const u16 a[], const u16 b[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int i = 0, ebx;
@@ -125,7 +113,7 @@ static void vortex_EqHw_SetLeftStates(vortex_t * vortex, u16 a[], u16 b[])
 	}
 }
 
-static void vortex_EqHw_SetRightStates(vortex_t * vortex, u16 a[], u16 b[])
+static void vortex_EqHw_SetRightStates(vortex_t *vortex, const u16 a[], const u16 b[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int i = 0, ebx;
@@ -218,7 +206,7 @@ vortex_EqHw_SetRightGainsSingleTarget(vortex_t * vortex, u16 index, u16 b)
 	hwwrite(vortex->mmio, 0x2b20c + (index * 0x30), b);
 }
 
-static void vortex_EqHw_SetLeftGainsTarget(vortex_t * vortex, u16 a[])
+static void vortex_EqHw_SetLeftGainsTarget(vortex_t *vortex, const u16 a[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int ebx;
@@ -228,7 +216,7 @@ static void vortex_EqHw_SetLeftGainsTarget(vortex_t * vortex, u16 a[])
 	}
 }
 
-static void vortex_EqHw_SetRightGainsTarget(vortex_t * vortex, u16 a[])
+static void vortex_EqHw_SetRightGainsTarget(vortex_t *vortex, const u16 a[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int ebx;
@@ -238,7 +226,7 @@ static void vortex_EqHw_SetRightGainsTarget(vortex_t * vortex, u16 a[])
 	}
 }
 
-static void vortex_EqHw_SetLeftGainsCurrent(vortex_t * vortex, u16 a[])
+static void vortex_EqHw_SetLeftGainsCurrent(vortex_t *vortex, const u16 a[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int ebx;
@@ -248,7 +236,7 @@ static void vortex_EqHw_SetLeftGainsCurrent(vortex_t * vortex, u16 a[])
 	}
 }
 
-static void vortex_EqHw_SetRightGainsCurrent(vortex_t * vortex, u16 a[])
+static void vortex_EqHw_SetRightGainsCurrent(vortex_t *vortex, const u16 a[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int ebx;
@@ -321,7 +309,7 @@ static void vortex_EqHw_GetRightGainsCurrent(vortex_t * vortex, u16 a[])
 
 #endif
 /* EQ band levels settings */
-static void vortex_EqHw_SetLevels(vortex_t * vortex, u16 peaks[])
+static void vortex_EqHw_SetLevels(vortex_t *vortex, const u16 peaks[])
 {
 	eqhw_t *eqhw = &(vortex->eq.this04);
 	int i;
@@ -586,7 +574,7 @@ static int vortex_Eqlzr_SetAllBandsFromActiveCoeffSet(vortex_t * vortex)
 }
 
 static int
-vortex_Eqlzr_SetAllBands(vortex_t * vortex, u16 gains[], s32 count)
+vortex_Eqlzr_SetAllBands(vortex_t *vortex, const u16 gains[], s32 count)
 {
 	eqlzr_t *eq = &(vortex->eq);
 	int i;
@@ -864,7 +852,7 @@ static const struct snd_kcontrol_new vortex_levels_kcontrol = {
 };
 
 /* EQ band gain labels. */
-static char *EqBandLabels[10] = {
+static const char * const EqBandLabels[10] = {
 	"EQ0 31Hz\0",
 	"EQ1 63Hz\0",
 	"EQ2 125Hz\0",

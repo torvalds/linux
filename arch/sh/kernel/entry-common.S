@@ -1,11 +1,7 @@
-/* 
+/* SPDX-License-Identifier: GPL-2.0
+ *
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  *  Copyright (C) 2003 - 2008  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  */
 
 ! NOTE:
@@ -45,7 +41,7 @@
  */
 #include <asm/dwarf.h>
 
-#if defined(CONFIG_PREEMPT)
+#if defined(CONFIG_PREEMPTION)
 #  define preempt_stop()	cli ; TRACE_IRQS_OFF
 #else
 #  define preempt_stop()
@@ -88,7 +84,7 @@ ENTRY(ret_from_irq)
 	get_current_thread_info r8, r0
 	bt	resume_kernel	! Yes, it's from kernel, go back soon
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	bra	resume_userspace
 	 nop
 ENTRY(resume_kernel)
@@ -255,7 +251,7 @@ debug_trap:
 	mov.l	@r8, r8
 	jsr	@r8
 	 nop
-	bra	__restore_all
+	bra	ret_from_exception
 	 nop
 	CFI_ENDPROC
 

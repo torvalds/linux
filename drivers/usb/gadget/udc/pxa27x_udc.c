@@ -205,50 +205,19 @@ DEFINE_SHOW_ATTRIBUTE(eps_dbg);
 
 static void pxa_init_debugfs(struct pxa_udc *udc)
 {
-	struct dentry *root, *state, *queues, *eps;
+	struct dentry *root;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
-	if (IS_ERR(root) || !root)
-		goto err_root;
-
-	state = debugfs_create_file("udcstate", 0400, root, udc,
-			&state_dbg_fops);
-	if (!state)
-		goto err_state;
-	queues = debugfs_create_file("queues", 0400, root, udc,
-			&queues_dbg_fops);
-	if (!queues)
-		goto err_queues;
-	eps = debugfs_create_file("epstate", 0400, root, udc,
-			&eps_dbg_fops);
-	if (!eps)
-		goto err_eps;
-
+	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
 	udc->debugfs_root = root;
-	udc->debugfs_state = state;
-	udc->debugfs_queues = queues;
-	udc->debugfs_eps = eps;
-	return;
-err_eps:
-	debugfs_remove(eps);
-err_queues:
-	debugfs_remove(queues);
-err_state:
-	debugfs_remove(root);
-err_root:
-	dev_err(udc->dev, "debugfs is not available\n");
+
+	debugfs_create_file("udcstate", 0400, root, udc, &state_dbg_fops);
+	debugfs_create_file("queues", 0400, root, udc, &queues_dbg_fops);
+	debugfs_create_file("epstate", 0400, root, udc, &eps_dbg_fops);
 }
 
 static void pxa_cleanup_debugfs(struct pxa_udc *udc)
 {
-	debugfs_remove(udc->debugfs_eps);
-	debugfs_remove(udc->debugfs_queues);
-	debugfs_remove(udc->debugfs_state);
-	debugfs_remove(udc->debugfs_root);
-	udc->debugfs_eps = NULL;
-	udc->debugfs_queues = NULL;
-	udc->debugfs_state = NULL;
-	udc->debugfs_root = NULL;
+	debugfs_remove_recursive(udc->debugfs_root);
 }
 
 #else
@@ -2387,7 +2356,6 @@ MODULE_DEVICE_TABLE(of, udc_pxa_dt_ids);
  */
 static int pxa_udc_probe(struct platform_device *pdev)
 {
-	struct resource *regs;
 	struct pxa_udc *udc = &memory;
 	int retval = 0, gpio;
 	struct pxa2xx_udc_mach_info *mach = dev_get_platdata(&pdev->dev);
@@ -2409,8 +2377,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_ASIS);
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->regs = devm_ioremap_resource(&pdev->dev, regs);
+	udc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->regs))
 		return PTR_ERR(udc->regs);
 	udc->irq = platform_get_irq(pdev, 0);

@@ -108,12 +108,19 @@ struct ch_tc_pedit_fields {
 #define PEDIT_TCP_SPORT_DPORT		0x0
 #define PEDIT_UDP_SPORT_DPORT		0x0
 
+void cxgb4_process_flow_actions(struct net_device *in,
+				struct flow_action *actions,
+				struct ch_filter_specification *fs);
+int cxgb4_validate_flow_actions(struct net_device *dev,
+				struct flow_action *actions,
+				struct netlink_ext_ack *extack);
+
 int cxgb4_tc_flower_replace(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls);
+			    struct flow_cls_offload *cls);
 int cxgb4_tc_flower_destroy(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls);
+			    struct flow_cls_offload *cls);
 int cxgb4_tc_flower_stats(struct net_device *dev,
-			  struct tc_cls_flower_offload *cls);
+			  struct flow_cls_offload *cls);
 
 int cxgb4_init_tc_flower(struct adapter *adap);
 void cxgb4_cleanup_tc_flower(struct adapter *adap);

@@ -20,6 +20,8 @@
 
 #include <asm/mach/time.h>
 
+extern volatile int spear_pen_release;
+
 extern void spear13xx_timer_init(void);
 extern void spear3xx_timer_init(void);
 extern struct pl022_ssp_controller pl022_plat_data;

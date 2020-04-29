@@ -16,9 +16,13 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
+#include <linux/pinctrl/consumer.h>
 
 #define PHY_MDM6600_PHY_DELAY_MS	4000	/* PHY enable 2.2s to 3.5s */
 #define PHY_MDM6600_ENABLED_DELAY_MS	8000	/* 8s more total for MDM6600 */
+#define PHY_MDM6600_WAKE_KICK_MS	600	/* time on after GPIO toggle */
+#define MDM6600_MODEM_IDLE_DELAY_MS	1000	/* modem after USB suspend */
+#define MDM6600_MODEM_WAKE_DELAY_MS	200	/* modem response after idle */
 
 enum phy_mdm6600_ctrl_lines {
 	PHY_MDM6600_ENABLE,			/* USB PHY enable */
@@ -93,9 +97,11 @@ struct phy_mdm6600 {
 	struct gpio_descs *cmd_gpios;
 	struct delayed_work bootup_work;
 	struct delayed_work status_work;
+	struct delayed_work modem_wake_work;
 	struct completion ack;
 	bool enabled;				/* mdm6600 phy enabled */
 	bool running;				/* mdm6600 boot done */
+	bool awake;				/* mdm6600 respnds on n_gsm */
 	int status;
 };
 
@@ -116,11 +122,21 @@ static int phy_mdm6600_power_on(struct phy *x)
 {
 	struct phy_mdm6600 *ddata = phy_get_drvdata(x);
 	struct gpio_desc *enable_gpio = ddata->ctrl_gpios[PHY_MDM6600_ENABLE];
+	int error;
 
 	if (!ddata->enabled)
 		return -ENODEV;
 
+	error = pinctrl_pm_select_default_state(ddata->dev);
+	if (error)
+		dev_warn(ddata->dev, "%s: error with default_state: %i\n",
+			 __func__, error);
+
 	gpiod_set_value_cansleep(enable_gpio, 1);
+
+	/* Allow aggressive PM for USB, it's only needed for n_gsm port */
+	if (pm_runtime_enabled(&x->dev))
+		phy_pm_runtime_put(x);
 
 	return 0;
 }
@@ -129,11 +145,25 @@ static int phy_mdm6600_power_off(struct phy *x)
 {
 	struct phy_mdm6600 *ddata = phy_get_drvdata(x);
 	struct gpio_desc *enable_gpio = ddata->ctrl_gpios[PHY_MDM6600_ENABLE];
+	int error;
 
 	if (!ddata->enabled)
 		return -ENODEV;
 
+	/* Paired with phy_pm_runtime_put() in phy_mdm6600_power_on() */
+	if (pm_runtime_enabled(&x->dev)) {
+		error = phy_pm_runtime_get(x);
+		if (error < 0 && error != -EINPROGRESS)
+			dev_warn(ddata->dev, "%s: phy_pm_runtime_get: %i\n",
+				 __func__, error);
+	}
+
 	gpiod_set_value_cansleep(enable_gpio, 0);
+
+	error = pinctrl_pm_select_sleep_state(ddata->dev);
+	if (error)
+		dev_warn(ddata->dev, "%s: error with sleep_state: %i\n",
+			 __func__, error);
 
 	return 0;
 }
@@ -153,15 +183,13 @@ static const struct phy_ops gpio_usb_ops = {
  */
 static void phy_mdm6600_cmd(struct phy_mdm6600 *ddata, int val)
 {
-	int values[PHY_MDM6600_NR_CMD_LINES];
-	int i;
+	DECLARE_BITMAP(values, PHY_MDM6600_NR_CMD_LINES);
 
-	val &= (1 << PHY_MDM6600_NR_CMD_LINES) - 1;
-	for (i = 0; i < PHY_MDM6600_NR_CMD_LINES; i++)
-		values[i] = (val & BIT(i)) >> i;
+	values[0] = val;
 
 	gpiod_set_array_value_cansleep(PHY_MDM6600_NR_CMD_LINES,
-				       ddata->cmd_gpios->desc, values);
+				       ddata->cmd_gpios->desc,
+				       ddata->cmd_gpios->info, values);
 }
 
 /**
@@ -172,28 +200,24 @@ static void phy_mdm6600_status(struct work_struct *work)
 {
 	struct phy_mdm6600 *ddata;
 	struct device *dev;
-	int values[PHY_MDM6600_NR_STATUS_LINES];
-	int error, i, val = 0;
+	DECLARE_BITMAP(values, PHY_MDM6600_NR_STATUS_LINES);
+	int error;
 
 	ddata = container_of(work, struct phy_mdm6600, status_work.work);
 	dev = ddata->dev;
 
-	error = gpiod_get_array_value_cansleep(PHY_MDM6600_NR_CMD_LINES,
+	error = gpiod_get_array_value_cansleep(PHY_MDM6600_NR_STATUS_LINES,
 					       ddata->status_gpios->desc,
+					       ddata->status_gpios->info,
 					       values);
 	if (error)
 		return;
 
-	for (i = 0; i < PHY_MDM6600_NR_CMD_LINES; i++) {
-		val |= values[i] << i;
-		dev_dbg(ddata->dev, "XXX %s: i: %i values[i]: %i val: %i\n",
-			__func__, i, values[i], val);
-	}
-	ddata->status = val;
+	ddata->status = values[0] & ((1 << PHY_MDM6600_NR_STATUS_LINES) - 1);
 
 	dev_info(dev, "modem status: %i %s\n",
 		 ddata->status,
-		 phy_mdm6600_status_name[ddata->status & 7]);
+		 phy_mdm6600_status_name[ddata->status]);
 	complete(&ddata->ack);
 }
 
@@ -220,10 +244,24 @@ static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)
 {
 	struct phy_mdm6600 *ddata = data;
 	struct gpio_desc *mode_gpio1;
+	int error, wakeup;
 
 	mode_gpio1 = ddata->mode_gpios->desc[PHY_MDM6600_MODE1];
-	dev_dbg(ddata->dev, "OOB wake on mode_gpio1: %i\n",
-		gpiod_get_value(mode_gpio1));
+	wakeup = gpiod_get_value(mode_gpio1);
+	if (!wakeup)
+		return IRQ_NONE;
+
+	dev_dbg(ddata->dev, "OOB wake on mode_gpio1: %i\n", wakeup);
+	error = pm_runtime_get_sync(ddata->dev);
+	if (error < 0) {
+		pm_runtime_put_noidle(ddata->dev);
+
+		return IRQ_NONE;
+	}
+
+	/* Just wake-up and kick the autosuspend timer */
+	pm_runtime_mark_last_busy(ddata->dev);
+	pm_runtime_put_autosuspend(ddata->dev);
 
 	return IRQ_HANDLED;
 }
@@ -446,6 +484,68 @@ static void phy_mdm6600_deferred_power_on(struct work_struct *work)
 		dev_err(ddata->dev, "Device not functional\n");
 }
 
+/*
+ * USB suspend puts mdm6600 into low power mode. For any n_gsm using apps,
+ * we need to keep the modem awake by kicking it's mode0 GPIO. This will
+ * keep the modem awake for about 1.2 seconds. When no n_gsm apps are using
+ * the modem, runtime PM auto mode can be enabled so modem can enter low
+ * power mode.
+ */
+static void phy_mdm6600_wake_modem(struct phy_mdm6600 *ddata)
+{
+	struct gpio_desc *mode_gpio0;
+
+	mode_gpio0 = ddata->mode_gpios->desc[PHY_MDM6600_MODE0];
+	gpiod_set_value_cansleep(mode_gpio0, 1);
+	usleep_range(5, 15);
+	gpiod_set_value_cansleep(mode_gpio0, 0);
+	if (ddata->awake)
+		usleep_range(5, 15);
+	else
+		msleep(MDM6600_MODEM_WAKE_DELAY_MS);
+}
+
+static void phy_mdm6600_modem_wake(struct work_struct *work)
+{
+	struct phy_mdm6600 *ddata;
+
+	ddata = container_of(work, struct phy_mdm6600, modem_wake_work.work);
+	phy_mdm6600_wake_modem(ddata);
+
+	/*
+	 * The modem does not always stay awake 1.2 seconds after toggling
+	 * the wake GPIO, and sometimes it idles after about some 600 ms
+	 * making writes time out.
+	 */
+	schedule_delayed_work(&ddata->modem_wake_work,
+			      msecs_to_jiffies(PHY_MDM6600_WAKE_KICK_MS));
+}
+
+static int __maybe_unused phy_mdm6600_runtime_suspend(struct device *dev)
+{
+	struct phy_mdm6600 *ddata = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&ddata->modem_wake_work);
+	ddata->awake = false;
+
+	return 0;
+}
+
+static int __maybe_unused phy_mdm6600_runtime_resume(struct device *dev)
+{
+	struct phy_mdm6600 *ddata = dev_get_drvdata(dev);
+
+	phy_mdm6600_modem_wake(&ddata->modem_wake_work.work);
+	ddata->awake = true;
+
+	return 0;
+}
+
+static const struct dev_pm_ops phy_mdm6600_pm_ops = {
+	SET_RUNTIME_PM_OPS(phy_mdm6600_runtime_suspend,
+			   phy_mdm6600_runtime_resume, NULL)
+};
+
 static const struct of_device_id phy_mdm6600_id_table[] = {
 	{ .compatible = "motorola,mapphone-mdm6600", },
 	{},
@@ -464,33 +564,23 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&ddata->bootup_work,
 			  phy_mdm6600_deferred_power_on);
 	INIT_DELAYED_WORK(&ddata->status_work, phy_mdm6600_status);
+	INIT_DELAYED_WORK(&ddata->modem_wake_work, phy_mdm6600_modem_wake);
 	init_completion(&ddata->ack);
 
 	ddata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ddata);
+
+	/* Active state selected in phy_mdm6600_power_on() */
+	error = pinctrl_pm_select_sleep_state(ddata->dev);
+	if (error)
+		dev_warn(ddata->dev, "%s: error with sleep_state: %i\n",
+			 __func__, error);
 
 	error = phy_mdm6600_init_lines(ddata);
 	if (error)
 		return error;
 
 	phy_mdm6600_init_irq(ddata);
-
-	ddata->generic_phy = devm_phy_create(ddata->dev, NULL, &gpio_usb_ops);
-	if (IS_ERR(ddata->generic_phy)) {
-		error = PTR_ERR(ddata->generic_phy);
-		goto cleanup;
-	}
-
-	phy_set_drvdata(ddata->generic_phy, ddata);
-
-	ddata->phy_provider =
-		devm_of_phy_provider_register(ddata->dev,
-					      of_phy_simple_xlate);
-	if (IS_ERR(ddata->phy_provider)) {
-		error = PTR_ERR(ddata->phy_provider);
-		goto cleanup;
-	}
-
 	schedule_delayed_work(&ddata->bootup_work, 0);
 
 	/*
@@ -500,10 +590,45 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 	 */
 	msleep(PHY_MDM6600_PHY_DELAY_MS + 500);
 
-	return 0;
+	/*
+	 * Enable PM runtime only after PHY has been powered up properly.
+	 * It is currently only needed after USB suspends mdm6600 and n_gsm
+	 * needs to access the device. We don't want to do this earlier as
+	 * gpio mode0 pin doubles as mdm6600 wake-up gpio.
+	 */
+	pm_runtime_use_autosuspend(ddata->dev);
+	pm_runtime_set_autosuspend_delay(ddata->dev,
+					 MDM6600_MODEM_IDLE_DELAY_MS);
+	pm_runtime_enable(ddata->dev);
+	error = pm_runtime_get_sync(ddata->dev);
+	if (error < 0) {
+		dev_warn(ddata->dev, "failed to wake modem: %i\n", error);
+		pm_runtime_put_noidle(ddata->dev);
+		goto cleanup;
+	}
+
+	ddata->generic_phy = devm_phy_create(ddata->dev, NULL, &gpio_usb_ops);
+	if (IS_ERR(ddata->generic_phy)) {
+		error = PTR_ERR(ddata->generic_phy);
+		goto idle;
+	}
+
+	phy_set_drvdata(ddata->generic_phy, ddata);
+
+	ddata->phy_provider =
+		devm_of_phy_provider_register(ddata->dev,
+					      of_phy_simple_xlate);
+	if (IS_ERR(ddata->phy_provider))
+		error = PTR_ERR(ddata->phy_provider);
+
+idle:
+	pm_runtime_mark_last_busy(ddata->dev);
+	pm_runtime_put_autosuspend(ddata->dev);
 
 cleanup:
-	phy_mdm6600_device_power_off(ddata);
+	if (error < 0)
+		phy_mdm6600_device_power_off(ddata);
+
 	return error;
 }
 
@@ -512,6 +637,10 @@ static int phy_mdm6600_remove(struct platform_device *pdev)
 	struct phy_mdm6600 *ddata = platform_get_drvdata(pdev);
 	struct gpio_desc *reset_gpio = ddata->ctrl_gpios[PHY_MDM6600_RESET];
 
+	pm_runtime_dont_use_autosuspend(ddata->dev);
+	pm_runtime_put_sync(ddata->dev);
+	pm_runtime_disable(ddata->dev);
+
 	if (!ddata->running)
 		wait_for_completion_timeout(&ddata->ack,
 			msecs_to_jiffies(PHY_MDM6600_ENABLED_DELAY_MS));
@@ -519,6 +648,7 @@ static int phy_mdm6600_remove(struct platform_device *pdev)
 	gpiod_set_value_cansleep(reset_gpio, 1);
 	phy_mdm6600_device_power_off(ddata);
 
+	cancel_delayed_work_sync(&ddata->modem_wake_work);
 	cancel_delayed_work_sync(&ddata->bootup_work);
 	cancel_delayed_work_sync(&ddata->status_work);
 
@@ -530,6 +660,7 @@ static struct platform_driver phy_mdm6600_driver = {
 	.remove = phy_mdm6600_remove,
 	.driver = {
 		.name = "phy-mapphone-mdm6600",
+		.pm = &phy_mdm6600_pm_ops,
 		.of_match_table = of_match_ptr(phy_mdm6600_id_table),
 	},
 };

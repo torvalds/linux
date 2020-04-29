@@ -1,6 +1,8 @@
 #
 # Kernel configuration file for the SMARTPQI
 #
+# Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+# Copyright (c) 2017-2018 Microsemi Corporation
 # Copyright (c) 2016 Microsemi Corporation
 # Copyright (c) 2016 PMC-Sierra, Inc.
 #  (mailto:esc.storagedev@microsemi.com)
@@ -51,4 +53,4 @@ config SCSI_SMARTPQI
         Note: the aacraid driver will not manage a smartpqi
               controller. You need to enable smartpqi for smartpqi
               controllers. For more information, please see
-              Documentation/scsi/smartpqi.txt
+              Documentation/scsi/smartpqi.rst

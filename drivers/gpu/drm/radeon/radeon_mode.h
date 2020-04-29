@@ -46,7 +46,6 @@ struct radeon_device;
 #define to_radeon_crtc(x) container_of(x, struct radeon_crtc, base)
 #define to_radeon_connector(x) container_of(x, struct radeon_connector, base)
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
-#define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
 #define RADEON_MAX_HPD_PINS 7
 #define RADEON_MAX_CRTCS 6
@@ -328,7 +327,6 @@ enum radeon_flip_status {
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
-	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
 	bool cursor_out_of_bounds;
@@ -572,11 +570,6 @@ struct radeon_connector {
 	struct radeon_encoder *mst_encoder;
 	struct stream_attribs cur_stream_attribs[6];
 	int enabled_attribs;
-};
-
-struct radeon_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
 };
 
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
@@ -887,6 +880,12 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
 
+extern bool
+radeon_get_crtc_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+				 int *vpos, int *hpos,
+				 ktime_t *stime, ktime_t *etime,
+				 const struct drm_display_mode *mode);
+
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
 radeon_bios_get_hardcoded_edid(struct radeon_device *rdev);
@@ -932,7 +931,7 @@ radeon_combios_encoder_crtc_scratch_regs(struct drm_encoder *encoder, int crtc);
 extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
 int radeon_framebuffer_init(struct drm_device *dev,
-			     struct radeon_framebuffer *rfb,
+			     struct drm_framebuffer *rfb,
 			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
@@ -986,9 +985,6 @@ void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
 
 void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
-
-void radeon_fb_add_connector(struct radeon_device *rdev, struct drm_connector *connector);
-void radeon_fb_remove_connector(struct radeon_device *rdev, struct drm_connector *connector);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 

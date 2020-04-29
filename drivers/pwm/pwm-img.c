@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Imagination Technologies Pulse Width Modulator driver
  *
  * Copyright (c) 2014-2015, Imagination Technologies
  *
  * Based on drivers/pwm/pwm-tegra.c, Copyright (c) 2010, NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 
 #include <linux/clk.h>
@@ -123,7 +120,7 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else if (mul <= max_timebase * 512) {
 		div = PWM_CTRL_CFG_SUB_DIV0_DIV1;
 		timebase = DIV_ROUND_UP(mul, 512);
-	} else if (mul > max_timebase * 512) {
+	} else {
 		dev_err(chip->dev,
 			"failed to configure timebase steps/divider value\n");
 		return -EINVAL;

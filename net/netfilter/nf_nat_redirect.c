@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * Copyright (c) 2011 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on Rusty Russell's IPv4 REDIRECT target. Development of IPv6
  * NAT funded by Astaro.
@@ -15,7 +12,6 @@
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/types.h>
@@ -36,7 +32,7 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 newdst;
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 
 	WARN_ON(hooknum != NF_INET_PRE_ROUTING &&
 		hooknum != NF_INET_LOCAL_OUT);
@@ -48,18 +44,18 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	if (hooknum == NF_INET_LOCAL_OUT) {
 		newdst = htonl(0x7F000001);
 	} else {
-		struct in_device *indev;
-		struct in_ifaddr *ifa;
+		const struct in_device *indev;
 
 		newdst = 0;
 
-		rcu_read_lock();
 		indev = __in_dev_get_rcu(skb->dev);
-		if (indev && indev->ifa_list) {
-			ifa = indev->ifa_list;
-			newdst = ifa->ifa_local;
+		if (indev) {
+			const struct in_ifaddr *ifa;
+
+			ifa = rcu_dereference(indev->ifa_list);
+			if (ifa)
+				newdst = ifa->ifa_local;
 		}
-		rcu_read_unlock();
 
 		if (!newdst)
 			return NF_DROP;
@@ -82,10 +78,10 @@ EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv4);
 static const struct in6_addr loopback_addr = IN6ADDR_LOOPBACK_INIT;
 
 unsigned int
-nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
+nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		     unsigned int hooknum)
 {
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 	struct in6_addr newdst;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
@@ -98,7 +94,6 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 		struct inet6_ifaddr *ifa;
 		bool addr = false;
 
-		rcu_read_lock();
 		idev = __in6_dev_get(skb->dev);
 		if (idev != NULL) {
 			read_lock_bh(&idev->lock);
@@ -109,7 +104,6 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 			}
 			read_unlock_bh(&idev->lock);
 		}
-		rcu_read_unlock();
 
 		if (!addr)
 			return NF_DROP;
@@ -124,6 +118,3 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 	return nf_nat_setup_info(ct, &newrange, NF_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv6);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

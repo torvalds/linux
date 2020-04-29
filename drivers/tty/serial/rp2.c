@@ -774,7 +774,7 @@ static int rp2_probe(struct pci_dev *pdev,
 
 	rp2_init_card(card);
 
-	ports = devm_kzalloc(&pdev->dev, sizeof(*ports) * card->n_ports,
+	ports = devm_kcalloc(&pdev->dev, card->n_ports, sizeof(*ports),
 			     GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;

@@ -12,4 +12,4 @@ Description:
 			free_hugepages
 			surplus_hugepages
 			resv_hugepages
-		See Documentation/vm/hugetlbpage.txt for details.
+		See Documentation/admin-guide/mm/hugetlbpage.rst for details.

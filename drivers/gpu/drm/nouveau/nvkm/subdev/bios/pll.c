@@ -134,6 +134,7 @@ pll_map(struct nvkm_bios *bios)
 		    device->chipset == 0xaa ||
 		    device->chipset == 0xac)
 			return g84_pll_mapping;
+		/* fall through */
 	default:
 		return NULL;
 	}
@@ -193,7 +194,10 @@ pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 		data += hdr;
 		while (cnt--) {
 			if (nvbios_rd08(bios, data + 0) == type) {
-				*reg = nvbios_rd32(bios, data + 3);
+				if (*ver < 0x50)
+					*reg = nvbios_rd32(bios, data + 3);
+				else
+					*reg = 0;
 				return data;
 			}
 			data += *len;
@@ -360,6 +364,20 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 		info->vco1.max_n = nvbios_rd08(bios, data + 11);
 		info->min_p = nvbios_rd08(bios, data + 12);
 		info->max_p = nvbios_rd08(bios, data + 13);
+		break;
+	case 0x50:
+		info->refclk = nvbios_rd16(bios, data + 1) * 1000;
+		/* info->refclk_alt = nvbios_rd16(bios, data + 3) * 1000; */
+		info->vco1.min_freq = nvbios_rd16(bios, data + 5) * 1000;
+		info->vco1.max_freq = nvbios_rd16(bios, data + 7) * 1000;
+		info->vco1.min_inputfreq = nvbios_rd16(bios, data + 9) * 1000;
+		info->vco1.max_inputfreq = nvbios_rd16(bios, data + 11) * 1000;
+		info->vco1.min_m = nvbios_rd08(bios, data + 13);
+		info->vco1.max_m = nvbios_rd08(bios, data + 14);
+		info->vco1.min_n = nvbios_rd08(bios, data + 15);
+		info->vco1.max_n = nvbios_rd08(bios, data + 16);
+		info->min_p = nvbios_rd08(bios, data + 17);
+		info->max_p = nvbios_rd08(bios, data + 18);
 		break;
 	default:
 		nvkm_error(subdev, "unknown pll limits version 0x%02x\n", ver);

@@ -29,13 +29,10 @@
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
 #include <asm/facility.h>
+#include <asm/boot_data.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
-static void __init setup_boot_command_line(void);
-
-/*
- * Get the TOD clock running.
- */
 static void __init reset_tod_clock(void)
 {
 	u64 time;
@@ -44,19 +41,11 @@ static void __init reset_tod_clock(void)
 		return;
 	/* TOD clock not running. Set the clock to Unix Epoch. */
 	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
-		disabled_wait(0);
+		disabled_wait();
 
 	memset(tod_clock_base, 0, 16);
 	*(__u64 *) &tod_clock_base[1] = TOD_UNIX_EPOCH;
 	S390_lowcore.last_update_clock = TOD_UNIX_EPOCH;
-}
-
-/*
- * Clear bss memory
- */
-static noinline __init void clear_bss_section(void)
-{
-	memset(__bss_start, 0, __bss_stop - __bss_start);
 }
 
 /*
@@ -67,7 +56,7 @@ static noinline __init void init_kernel_storage_key(void)
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
-	end_pfn = PFN_UP(__pa(&_end));
+	end_pfn = PFN_UP(__pa(_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
@@ -90,10 +79,10 @@ static noinline __init void detect_machine_type(void)
 	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
-	/* Running under KVM? If not we assume z/VM */
+	/* Detect known hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
-	else
+	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
@@ -165,9 +154,9 @@ static void early_pgm_check_handler(void)
 	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
-	fixup = search_exception_tables(addr);
+	fixup = s390_search_extables(addr);
 	if (!fixup)
-		disabled_wait(0);
+		disabled_wait();
 	/* Disable low address protection before storing into lowcore. */
 	__ctl_store(cr0, 0, 0);
 	cr0_new = cr0 & ~(1UL << 28);
@@ -191,8 +180,6 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	stfle(S390_lowcore.stfle_fac_list,
-	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	memcpy(S390_lowcore.alt_stfle_fac_list,
 	       S390_lowcore.stfle_fac_list,
 	       sizeof(S390_lowcore.alt_stfle_fac_list));
@@ -217,21 +204,6 @@ static __init void detect_diag9c(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG9C;
 }
 
-static __init void detect_diag44(void)
-{
-	int rc;
-
-	diag_stat_inc(DIAG_STAT_X044);
-	asm volatile(
-		"	diag	0,0,0x44\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG44;
-}
-
 static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
@@ -242,8 +214,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(40))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 		__ctl_set_bit(0, 55);
@@ -254,7 +224,7 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
-	if (test_facility(130)) {
+	if (test_facility(130) && !noexec_disabled) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
 		__ctl_set_bit(0, 20);
 	}
@@ -276,6 +246,24 @@ static inline void save_vector_registers(void)
 #endif
 }
 
+static inline void setup_control_registers(void)
+{
+	unsigned long reg;
+
+	__ctl_store(reg, 0, 0);
+	reg |= CR0_LOW_ADDRESS_PROTECTION;
+	reg |= CR0_EMERGENCY_SIGNAL_SUBMASK;
+	reg |= CR0_EXTERNAL_CALL_SUBMASK;
+	__ctl_load(reg, 0, 0);
+}
+
+static inline void setup_access_registers(void)
+{
+	unsigned int acrs[NUM_ACRS] = { 0 };
+
+	restore_access_regs(acrs);
+}
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
@@ -283,21 +271,6 @@ static int __init disable_vector_extension(char *str)
 	return 0;
 }
 early_param("novx", disable_vector_extension);
-
-static int __init noexec_setup(char *str)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(str, &enabled);
-	if (!rc && !enabled) {
-		/* Disable no-execute support */
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_NX;
-		__ctl_clear_bit(0, 20);
-	}
-	return rc;
-}
-early_param("noexec", noexec_setup);
 
 static int __init cad_setup(char *str)
 {
@@ -312,121 +285,28 @@ static int __init cad_setup(char *str)
 }
 early_param("cad", cad_setup);
 
-static __init void memmove_early(void *dst, const void *src, size_t n)
-{
-	unsigned long addr;
-	long incr;
-	psw_t old;
-
-	if (!n)
-		return;
-	incr = 1;
-	if (dst > src) {
-		incr = -incr;
-		dst += n - 1;
-		src += n - 1;
-	}
-	old = S390_lowcore.program_new_psw;
-	S390_lowcore.program_new_psw.mask = __extract_psw();
-	asm volatile(
-		"	larl	%[addr],1f\n"
-		"	stg	%[addr],%[psw_pgm_addr]\n"
-		"0:     mvc	0(1,%[dst]),0(%[src])\n"
-		"	agr	%[dst],%[incr]\n"
-		"	agr	%[src],%[incr]\n"
-		"	brctg	%[n],0b\n"
-		"1:\n"
-		: [addr] "=&d" (addr),
-		  [psw_pgm_addr] "=Q" (S390_lowcore.program_new_psw.addr),
-		  [dst] "+&a" (dst), [src] "+&a" (src),  [n] "+d" (n)
-		: [incr] "d" (incr)
-		: "cc", "memory");
-	S390_lowcore.program_new_psw = old;
-}
-
-static __init noinline void ipl_save_parameters(void)
-{
-	void *src, *dst;
-
-	src = (void *)(unsigned long) S390_lowcore.ipl_parmblock_ptr;
-	dst = (void *) IPL_PARMBLOCK_ORIGIN;
-	memmove_early(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
-}
-
-static __init noinline void rescue_initrd(void)
-{
-#ifdef CONFIG_BLK_DEV_INITRD
-	unsigned long min_initrd_addr = (unsigned long) _end + (4UL << 20);
-	/*
-	 * Just like in case of IPL from VM reader we make sure there is a
-	 * gap of 4MB between end of kernel and start of initrd.
-	 * That way we can also be sure that saving an NSS will succeed,
-	 * which however only requires different segments.
-	 */
-	if (!INITRD_START || !INITRD_SIZE)
-		return;
-	if (INITRD_START >= min_initrd_addr)
-		return;
-	memmove_early((void *) min_initrd_addr, (void *) INITRD_START, INITRD_SIZE);
-	INITRD_START = min_initrd_addr;
-#endif
-}
-
-/* Set up boot command line */
-static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
-{
-	char *parm, *delim;
-	size_t rc, len;
-
-	len = strlen(boot_command_line);
-
-	delim = boot_command_line + len;	/* '\0' character position */
-	parm  = boot_command_line + len + 1;	/* append right after '\0' */
-
-	rc = ipl_data(parm, COMMAND_LINE_SIZE - len - 1);
-	if (rc) {
-		if (*parm == '=')
-			memmove(boot_command_line, parm + 1, rc);
-		else
-			*delim = ' ';		/* replace '\0' with space */
-	}
-}
-
-static inline int has_ebcdic_char(const char *str)
-{
-	int i;
-
-	for (i = 0; str[i]; i++)
-		if (str[i] & 0x80)
-			return 1;
-	return 0;
-}
-
+char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
 {
-	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE - 1] = 0;
-	/* convert arch command line to ascii if necessary */
-	if (has_ebcdic_char(COMMAND_LINE))
-		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
 	/* copy arch command line */
-	strlcpy(boot_command_line, strstrip(COMMAND_LINE),
-		ARCH_COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, early_command_line, ARCH_COMMAND_LINE_SIZE);
+}
 
-	/* append IPL PARM data to the boot command line */
-	if (MACHINE_IS_VM)
-		append_to_cmdline(append_ipl_vmparm);
+static void __init check_image_bootable(void)
+{
+	if (!memcmp(EP_STRING, (void *)EP_OFFSET, strlen(EP_STRING)))
+		return;
 
-	append_to_cmdline(append_ipl_scpdata);
+	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");
+	sclp_early_printk("This image does not contain all parts necessary for starting up. Use\n");
+	sclp_early_printk("bzImage or arch/s390/boot/compressed/vmlinux instead.\n");
+	disabled_wait();
 }
 
 void __init startup_init(void)
 {
 	reset_tod_clock();
-	ipl_save_parameters();
-	rescue_initrd();
-	clear_bss_section();
-	ipl_verify_parameters();
+	check_image_bootable();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
@@ -434,13 +314,13 @@ void __init startup_init(void)
 	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
-	ipl_update_parameters();
 	setup_boot_command_line();
 	detect_diag9c();
-	detect_diag44();
 	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();
+	setup_control_registers();
+	setup_access_registers();
 	lockdep_on();
 }

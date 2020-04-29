@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_XILINX_I2S
+	tristate "Audio support for the Xilinx I2S"
+	help
+	  Select this option to enable Xilinx I2S Audio. This enables
+	  I2S playback and capture using xilinx soft IP. In transmitter
+	  mode, IP receives audio in AES format, extracts PCM and sends
+	  PCM data. In receiver mode, IP receives PCM audio and
+	  encapsulates PCM in AES format and sends AES data.
+
+config SND_SOC_XILINX_AUDIO_FORMATTER
+	tristate "Audio support for the the Xilinx audio formatter"
+	help
+	  Select this option to enable Xilinx audio formatter
+	  support. This provides DMA platform device support for
+	  audio functionality.
+
+config SND_SOC_XILINX_SPDIF
+	tristate "Audio support for the the Xilinx SPDIF"
+	help
+	  Select this option to enable Xilinx SPDIF Audio.
+	  This provides playback and capture of SPDIF audio in
+	  AES format.

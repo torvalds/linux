@@ -1,2 +1,2 @@
-vdso-syms.lds
+# SPDX-License-Identifier: GPL-2.0-only
 vdso.lds

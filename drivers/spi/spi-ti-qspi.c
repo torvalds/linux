@@ -1,16 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI QSPI driver
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
  * Author: Sourav Poddar <sourav.poddar@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GPLv2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR /PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -36,6 +29,7 @@
 #include <linux/sizes.h>
 
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-mem.h>
 
 struct ti_qspi_regs {
 	u32 clkctrl;
@@ -50,6 +44,7 @@ struct ti_qspi {
 	struct spi_master	*master;
 	void __iomem            *base;
 	void __iomem            *mmap_base;
+	size_t			mmap_size;
 	struct regmap		*ctrl_base;
 	unsigned int		ctrl_reg;
 	struct clk		*fclk;
@@ -67,6 +62,7 @@ struct ti_qspi {
 	u32 dc;
 
 	bool mmap_enabled;
+	int current_cs;
 };
 
 #define QSPI_PID			(0x0)
@@ -83,8 +79,6 @@ struct ti_qspi {
 #define QSPI_SPI_DATA_REG_3		(0x70)
 
 #define QSPI_COMPLETION_TIMEOUT		msecs_to_jiffies(2000)
-
-#define QSPI_FCLK			192000000
 
 /* Clock Control */
 #define QSPI_CLK_EN			(1 << 31)
@@ -320,6 +314,8 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t,
 {
 	int wlen;
 	unsigned int cmd;
+	u32 rx;
+	u8 rxlen, rx_wlen;
 	u8 *rxbuf;
 
 	rxbuf = t->rx_buf;
@@ -336,20 +332,67 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t,
 		break;
 	}
 	wlen = t->bits_per_word >> 3;	/* in bytes */
+	rx_wlen = wlen;
 
 	while (count) {
 		dev_dbg(qspi->dev, "rx cmd %08x dc %08x\n", cmd, qspi->dc);
 		if (qspi_is_busy(qspi))
 			return -EBUSY;
 
+		switch (wlen) {
+		case 1:
+			/*
+			 * Optimize the 8-bit words transfers, as used by
+			 * the SPI flash devices.
+			 */
+			if (count >= QSPI_WLEN_MAX_BYTES) {
+				rxlen = QSPI_WLEN_MAX_BYTES;
+			} else {
+				rxlen = min(count, 4);
+			}
+			rx_wlen = rxlen << 3;
+			cmd &= ~QSPI_WLEN_MASK;
+			cmd |= QSPI_WLEN(rx_wlen);
+			break;
+		default:
+			rxlen = wlen;
+			break;
+		}
+
 		ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
 		if (ti_qspi_poll_wc(qspi)) {
 			dev_err(qspi->dev, "read timed out\n");
 			return -ETIMEDOUT;
 		}
+
 		switch (wlen) {
 		case 1:
-			*rxbuf = readb(qspi->base + QSPI_SPI_DATA_REG);
+			/*
+			 * Optimize the 8-bit words transfers, as used by
+			 * the SPI flash devices.
+			 */
+			if (count >= QSPI_WLEN_MAX_BYTES) {
+				u32 *rxp = (u32 *) rxbuf;
+				rx = readl(qspi->base + QSPI_SPI_DATA_REG_3);
+				*rxp++ = be32_to_cpu(rx);
+				rx = readl(qspi->base + QSPI_SPI_DATA_REG_2);
+				*rxp++ = be32_to_cpu(rx);
+				rx = readl(qspi->base + QSPI_SPI_DATA_REG_1);
+				*rxp++ = be32_to_cpu(rx);
+				rx = readl(qspi->base + QSPI_SPI_DATA_REG);
+				*rxp++ = be32_to_cpu(rx);
+			} else {
+				u8 *rxp = rxbuf;
+				rx = readl(qspi->base + QSPI_SPI_DATA_REG);
+				if (rx_wlen >= 8)
+					*rxp++ = rx >> (rx_wlen - 8);
+				if (rx_wlen >= 16)
+					*rxp++ = rx >> (rx_wlen - 16);
+				if (rx_wlen >= 24)
+					*rxp++ = rx >> (rx_wlen - 24);
+				if (rx_wlen >= 32)
+					*rxp++ = rx;
+			}
 			break;
 		case 2:
 			*((u16 *)rxbuf) = readw(qspi->base + QSPI_SPI_DATA_REG);
@@ -358,8 +401,8 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t,
 			*((u32 *)rxbuf) = readl(qspi->base + QSPI_SPI_DATA_REG);
 			break;
 		}
-		rxbuf += wlen;
-		count -= wlen;
+		rxbuf += rxlen;
+		count -= rxlen;
 	}
 
 	return 0;
@@ -434,12 +477,10 @@ static int ti_qspi_dma_xfer(struct ti_qspi *qspi, dma_addr_t dma_dst,
 	return 0;
 }
 
-static int ti_qspi_dma_bounce_buffer(struct ti_qspi *qspi,
-				     struct spi_flash_read_message *msg)
+static int ti_qspi_dma_bounce_buffer(struct ti_qspi *qspi, loff_t offs,
+				     void *to, size_t readsize)
 {
-	size_t readsize = msg->len;
-	void *to = msg->buf;
-	dma_addr_t dma_src = qspi->mmap_phys_base + msg->from;
+	dma_addr_t dma_src = qspi->mmap_phys_base + offs;
 	int ret = 0;
 
 	/*
@@ -490,10 +531,11 @@ static void ti_qspi_enable_memory_map(struct spi_device *spi)
 	ti_qspi_write(qspi, MM_SWITCH, QSPI_SPI_SWITCH_REG);
 	if (qspi->ctrl_base) {
 		regmap_update_bits(qspi->ctrl_base, qspi->ctrl_reg,
-				   MEM_CS_EN(spi->chip_select),
-				   MEM_CS_MASK);
+				   MEM_CS_MASK,
+				   MEM_CS_EN(spi->chip_select));
 	}
 	qspi->mmap_enabled = true;
+	qspi->current_cs = spi->chip_select;
 }
 
 static void ti_qspi_disable_memory_map(struct spi_device *spi)
@@ -503,17 +545,19 @@ static void ti_qspi_disable_memory_map(struct spi_device *spi)
 	ti_qspi_write(qspi, 0, QSPI_SPI_SWITCH_REG);
 	if (qspi->ctrl_base)
 		regmap_update_bits(qspi->ctrl_base, qspi->ctrl_reg,
-				   0, MEM_CS_MASK);
+				   MEM_CS_MASK, 0);
 	qspi->mmap_enabled = false;
+	qspi->current_cs = -1;
 }
 
-static void ti_qspi_setup_mmap_read(struct spi_device *spi,
-				    struct spi_flash_read_message *msg)
+static void ti_qspi_setup_mmap_read(struct spi_device *spi, u8 opcode,
+				    u8 data_nbits, u8 addr_width,
+				    u8 dummy_bytes)
 {
 	struct ti_qspi  *qspi = spi_master_get_devdata(spi->master);
-	u32 memval = msg->read_opcode;
+	u32 memval = opcode;
 
-	switch (msg->data_nbits) {
+	switch (data_nbits) {
 	case SPI_NBITS_QUAD:
 		memval |= QSPI_SETUP_RD_QUAD;
 		break;
@@ -524,47 +568,93 @@ static void ti_qspi_setup_mmap_read(struct spi_device *spi,
 		memval |= QSPI_SETUP_RD_NORMAL;
 		break;
 	}
-	memval |= ((msg->addr_width - 1) << QSPI_SETUP_ADDR_SHIFT |
-		   msg->dummy_bytes << QSPI_SETUP_DUMMY_SHIFT);
+	memval |= ((addr_width - 1) << QSPI_SETUP_ADDR_SHIFT |
+		   dummy_bytes << QSPI_SETUP_DUMMY_SHIFT);
 	ti_qspi_write(qspi, memval,
 		      QSPI_SPI_SETUP_REG(spi->chip_select));
 }
 
-static bool ti_qspi_spi_flash_can_dma(struct spi_device *spi,
-				      struct spi_flash_read_message *msg)
+static int ti_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	return virt_addr_valid(msg->buf);
+	struct ti_qspi *qspi = spi_controller_get_devdata(mem->spi->master);
+	size_t max_len;
+
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		if (op->addr.val < qspi->mmap_size) {
+			/* Limit MMIO to the mmaped region */
+			if (op->addr.val + op->data.nbytes > qspi->mmap_size) {
+				max_len = qspi->mmap_size - op->addr.val;
+				op->data.nbytes = min((size_t) op->data.nbytes,
+						      max_len);
+			}
+		} else {
+			/*
+			 * Use fallback mode (SW generated transfers) above the
+			 * mmaped region.
+			 * Adjust size to comply with the QSPI max frame length.
+			 */
+			max_len = QSPI_FRAME;
+			max_len -= 1 + op->addr.nbytes + op->dummy.nbytes;
+			op->data.nbytes = min((size_t) op->data.nbytes,
+					      max_len);
+		}
+	}
+
+	return 0;
 }
 
-static int ti_qspi_spi_flash_read(struct spi_device *spi,
-				  struct spi_flash_read_message *msg)
+static int ti_qspi_exec_mem_op(struct spi_mem *mem,
+			       const struct spi_mem_op *op)
 {
-	struct ti_qspi *qspi = spi_master_get_devdata(spi->master);
+	struct ti_qspi *qspi = spi_master_get_devdata(mem->spi->master);
+	u32 from = 0;
 	int ret = 0;
+
+	/* Only optimize read path. */
+	if (!op->data.nbytes || op->data.dir != SPI_MEM_DATA_IN ||
+	    !op->addr.nbytes || op->addr.nbytes > 4)
+		return -ENOTSUPP;
+
+	/* Address exceeds MMIO window size, fall back to regular mode. */
+	from = op->addr.val;
+	if (from + op->data.nbytes > qspi->mmap_size)
+		return -ENOTSUPP;
 
 	mutex_lock(&qspi->list_lock);
 
-	if (!qspi->mmap_enabled)
-		ti_qspi_enable_memory_map(spi);
-	ti_qspi_setup_mmap_read(spi, msg);
+	if (!qspi->mmap_enabled || qspi->current_cs != mem->spi->chip_select)
+		ti_qspi_enable_memory_map(mem->spi);
+	ti_qspi_setup_mmap_read(mem->spi, op->cmd.opcode, op->data.buswidth,
+				op->addr.nbytes, op->dummy.nbytes);
 
 	if (qspi->rx_chan) {
-		if (msg->cur_msg_mapped)
-			ret = ti_qspi_dma_xfer_sg(qspi, msg->rx_sg, msg->from);
-		else
-			ret = ti_qspi_dma_bounce_buffer(qspi, msg);
-		if (ret)
-			goto err_unlock;
-	} else {
-		memcpy_fromio(msg->buf, qspi->mmap_base + msg->from, msg->len);
-	}
-	msg->retlen = msg->len;
+		struct sg_table sgt;
 
-err_unlock:
+		if (virt_addr_valid(op->data.buf.in) &&
+		    !spi_controller_dma_map_mem_op_data(mem->spi->master, op,
+							&sgt)) {
+			ret = ti_qspi_dma_xfer_sg(qspi, sgt, from);
+			spi_controller_dma_unmap_mem_op_data(mem->spi->master,
+							     op, &sgt);
+		} else {
+			ret = ti_qspi_dma_bounce_buffer(qspi, from,
+							op->data.buf.in,
+							op->data.nbytes);
+		}
+	} else {
+		memcpy_fromio(op->data.buf.in, qspi->mmap_base + from,
+			      op->data.nbytes);
+	}
+
 	mutex_unlock(&qspi->list_lock);
 
 	return ret;
 }
+
+static const struct spi_controller_mem_ops ti_qspi_mem_ops = {
+	.exec_op = ti_qspi_exec_mem_op,
+	.adjust_op_size = ti_qspi_adjust_op_size,
+};
 
 static int ti_qspi_start_transfer_one(struct spi_master *master,
 		struct spi_message *m)
@@ -672,7 +762,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	master->dev.of_node = pdev->dev.of_node;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
 				     SPI_BPW_MASK(8);
-	master->spi_flash_read = ti_qspi_spi_flash_read;
+	master->mem_ops = &ti_qspi_mem_ops;
 
 	if (!of_property_read_u32(np, "num-cs", &num_cs))
 		master->num_chipselect = num_cs;
@@ -702,9 +792,11 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (res_mmap)
+		qspi->mmap_size = resource_size(res_mmap);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
 		ret = irq;
 		goto free_master;
 	}
@@ -770,7 +862,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		dma_release_channel(qspi->rx_chan);
 		goto no_dma;
 	}
-	master->spi_flash_can_dma = ti_qspi_spi_flash_can_dma;
 	master->dma_rx = qspi->rx_chan;
 	init_completion(&qspi->transfer_complete);
 	if (res_mmap)
@@ -784,10 +875,11 @@ no_dma:
 				 "mmap failed with error %ld using PIO mode\n",
 				 PTR_ERR(qspi->mmap_base));
 			qspi->mmap_base = NULL;
-			master->spi_flash_read = NULL;
+			master->mem_ops = NULL;
 		}
 	}
 	qspi->mmap_enabled = false;
+	qspi->current_cs = -1;
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (!ret)

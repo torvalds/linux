@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*****************************************************************************
  *
  * Copyright (C) 2008 Cedric Bregardis <cedric.bregardis@free.fr> and
  * Jean-Christian Hassler <jhassler@free.fr>
  *
  * This file is part of the Audiowerk2 ALSA driver
- *
- * The Audiowerk2 ALSA driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
- *
- * The Audiowerk2 ALSA driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the Audiowerk2 ALSA driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- * USA.
  *
  *****************************************************************************/
 #include <linux/init.h>
@@ -122,9 +109,6 @@ static int snd_aw2_pcm_playback_open(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_playback_close(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_capture_open(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_capture_close(struct snd_pcm_substream *substream);
-static int snd_aw2_pcm_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params);
-static int snd_aw2_pcm_hw_free(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_prepare_playback(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_prepare_capture(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_trigger_playback(struct snd_pcm_substream *substream,
@@ -182,9 +166,6 @@ module_pci_driver(aw2_driver);
 static const struct snd_pcm_ops snd_aw2_playback_ops = {
 	.open = snd_aw2_pcm_playback_open,
 	.close = snd_aw2_pcm_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aw2_pcm_hw_params,
-	.hw_free = snd_aw2_pcm_hw_free,
 	.prepare = snd_aw2_pcm_prepare_playback,
 	.trigger = snd_aw2_pcm_trigger_playback,
 	.pointer = snd_aw2_pcm_pointer_playback,
@@ -194,9 +175,6 @@ static const struct snd_pcm_ops snd_aw2_playback_ops = {
 static const struct snd_pcm_ops snd_aw2_capture_ops = {
 	.open = snd_aw2_pcm_capture_open,
 	.close = snd_aw2_pcm_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aw2_pcm_hw_params,
-	.hw_free = snd_aw2_pcm_hw_free,
 	.prepare = snd_aw2_pcm_prepare_capture,
 	.trigger = snd_aw2_pcm_trigger_capture,
 	.pointer = snd_aw2_pcm_pointer_capture,
@@ -245,7 +223,7 @@ static int snd_aw2_create(struct snd_card *card,
 {
 	struct aw2 *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_aw2_dev_free,
 	};
 
@@ -284,7 +262,7 @@ static int snd_aw2_create(struct snd_card *card,
 	}
 	chip->iobase_phys = pci_resource_start(pci, 0);
 	chip->iobase_virt =
-		ioremap_nocache(chip->iobase_phys,
+		ioremap(chip->iobase_phys,
 				pci_resource_len(pci, 0));
 
 	if (chip->iobase_virt == NULL) {
@@ -309,6 +287,7 @@ static int snd_aw2_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
@@ -422,20 +401,6 @@ static int snd_aw2_pcm_capture_close(struct snd_pcm_substream *substream)
 {
 	/* TODO: something to do ? */
 	return 0;
-}
-
- /* hw_params callback */
-static int snd_aw2_pcm_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-/* hw_free callback */
-static int snd_aw2_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 /* prepare callback for playback */
@@ -624,15 +589,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm_playback_ana,
-						    SNDRV_DMA_TYPE_DEV,
-						    snd_dma_pci_data
-						    (chip->pci),
-						    64 * 1024, 64 * 1024);
-	if (err)
-		dev_err(chip->card->dev,
-			"snd_pcm_lib_preallocate_pages_for_all error (0x%X)\n",
-			err);
+	snd_pcm_set_managed_buffer_all(pcm_playback_ana,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 digital playback", 1, 1, 0,
 			  &pcm_playback_num);
@@ -661,15 +621,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm_playback_num,
-						    SNDRV_DMA_TYPE_DEV,
-						    snd_dma_pci_data
-						    (chip->pci),
-						    64 * 1024, 64 * 1024);
-	if (err)
-		dev_err(chip->card->dev,
-			"snd_pcm_lib_preallocate_pages_for_all error (0x%X)\n",
-			err);
+	snd_pcm_set_managed_buffer_all(pcm_playback_num,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 capture", 2, 0, 1,
 			  &pcm_capture);
@@ -699,16 +654,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm_capture,
-						    SNDRV_DMA_TYPE_DEV,
-						    snd_dma_pci_data
-						    (chip->pci),
-						    64 * 1024, 64 * 1024);
-	if (err)
-		dev_err(chip->card->dev,
-			"snd_pcm_lib_preallocate_pages_for_all error (0x%X)\n",
-			err);
-
+	snd_pcm_set_managed_buffer_all(pcm_capture,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	/* Create control */
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&aw2_control, chip));

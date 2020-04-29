@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/cpuhotplug.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/cacheflush.h>
@@ -310,7 +307,7 @@ static int cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 	}
 
 	/* Barrier ensuring previous cache invalidates are complete */
-	uasm_i_sync(pp, STYPE_SYNC);
+	uasm_i_sync(pp, __SYNC_full);
 	uasm_i_ehb(pp);
 
 	/* Check whether the pipeline stalled due to the FSB being full */
@@ -400,7 +397,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 
 	if (coupled_coherence) {
 		/* Increment ready_count */
-		uasm_i_sync(&p, STYPE_SYNC_MB);
+		uasm_i_sync(&p, __SYNC_mb);
 		uasm_build_label(&l, p, lbl_incready);
 		uasm_i_ll(&p, t1, 0, r_nc_count);
 		uasm_i_addiu(&p, t2, t1, 1);
@@ -409,7 +406,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_addiu(&p, t1, t1, 1);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, STYPE_SYNC_MB);
+		uasm_i_sync(&p, __SYNC_mb);
 
 		/*
 		 * If this is the last VPE to become ready for non-coherence
@@ -476,7 +473,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			      Index_Writeback_Inv_D, lbl_flushdcache);
 
 	/* Barrier ensuring previous cache invalidates are complete */
-	uasm_i_sync(&p, STYPE_SYNC);
+	uasm_i_sync(&p, __SYNC_full);
 	uasm_i_ehb(&p);
 
 	if (mips_cm_revision() < CM_REV_CM3) {
@@ -490,7 +487,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_lw(&p, t0, 0, r_pcohctl);
 
 		/* Barrier to ensure write to coherence control is complete */
-		uasm_i_sync(&p, STYPE_SYNC);
+		uasm_i_sync(&p, __SYNC_full);
 		uasm_i_ehb(&p);
 	}
 
@@ -537,7 +534,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		}
 
 		/* Barrier to ensure write to CPC command is complete */
-		uasm_i_sync(&p, STYPE_SYNC);
+		uasm_i_sync(&p, __SYNC_full);
 		uasm_i_ehb(&p);
 	}
 
@@ -575,13 +572,13 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
 	/* Barrier to ensure write to coherence control is complete */
-	uasm_i_sync(&p, STYPE_SYNC);
+	uasm_i_sync(&p, __SYNC_full);
 	uasm_i_ehb(&p);
 
 	if (coupled_coherence && (state == CPS_PM_NC_WAIT)) {
 		/* Decrement ready_count */
 		uasm_build_label(&l, p, lbl_decready);
-		uasm_i_sync(&p, STYPE_SYNC_MB);
+		uasm_i_sync(&p, __SYNC_mb);
 		uasm_i_ll(&p, t1, 0, r_nc_count);
 		uasm_i_addiu(&p, t2, t1, -1);
 		uasm_i_sc(&p, t2, 0, r_nc_count);
@@ -589,7 +586,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_andi(&p, v0, t1, (1 << fls(smp_num_siblings)) - 1);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, STYPE_SYNC_MB);
+		uasm_i_sync(&p, __SYNC_mb);
 	}
 
 	if (coupled_coherence && (state == CPS_PM_CLOCK_GATED)) {
@@ -611,7 +608,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_build_label(&l, p, lbl_secondary_cont);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, STYPE_SYNC_MB);
+		uasm_i_sync(&p, __SYNC_mb);
 	}
 
 	/* The core is coherent, time to return to C code */
@@ -670,6 +667,34 @@ static int cps_pm_online_cpu(unsigned int cpu)
 	return 0;
 }
 
+static int cps_pm_power_notifier(struct notifier_block *this,
+				 unsigned long event, void *ptr)
+{
+	unsigned int stat;
+
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		stat = read_cpc_cl_stat_conf();
+		/*
+		 * If we're attempting to suspend the system and power down all
+		 * of the cores, the JTAG detect bit indicates that the CPC will
+		 * instead put the cores into clock-off state. In this state
+		 * a connected debugger can cause the CPU to attempt
+		 * interactions with the powered down system. At best this will
+		 * fail. At worst, it can hang the NoC, requiring a hard reset.
+		 * To avoid this, just block system suspend if a JTAG probe
+		 * is detected.
+		 */
+		if (stat & CPC_Cx_STAT_CONF_EJTAG_PROBE) {
+			pr_warn("JTAG probe is connected - abort suspend\n");
+			return NOTIFY_BAD;
+		}
+		return NOTIFY_DONE;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
 static int __init cps_pm_init(void)
 {
 	/* A CM is required for all non-coherent states */
@@ -704,6 +729,8 @@ static int __init cps_pm_init(void)
 	} else {
 		pr_warn("pm-cps: no CPC, clock & power gating unavailable\n");
 	}
+
+	pm_notifier(cps_pm_power_notifier, 0);
 
 	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "mips/cps_pm:online",
 				 cps_pm_online_cpu, NULL);

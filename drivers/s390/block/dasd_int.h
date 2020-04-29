@@ -158,42 +158,36 @@ do { \
 
 struct dasd_ccw_req {
 	unsigned int magic;		/* Eye catcher */
+	int intrc;			/* internal error, e.g. from start_IO */
 	struct list_head devlist;	/* for dasd_device request queue */
 	struct list_head blocklist;	/* for dasd_block request queue */
-
-	/* Where to execute what... */
 	struct dasd_block *block;	/* the originating block device */
 	struct dasd_device *memdev;	/* the device used to allocate this */
 	struct dasd_device *startdev;	/* device the request is started on */
 	struct dasd_device *basedev;	/* base device if no block->base */
 	void *cpaddr;			/* address of ccw or tcw */
+	short retries;			/* A retry counter */
 	unsigned char cpmode;		/* 0 = cmd mode, 1 = itcw */
 	char status;			/* status of this request */
-	short retries;			/* A retry counter */
+	char lpm;			/* logical path mask */
 	unsigned long flags;        	/* flags of this request */
 	struct dasd_queue *dq;
-
-	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
 	unsigned long expires;		/* expiration period in jiffies */
-	char lpm;			/* logical path mask */
 	void *data;			/* pointer to data area */
-
-	/* these are important for recovering erroneous requests          */
-	int intrc;			/* internal error, e.g. from start_IO */
 	struct irb irb;			/* device status in case of an error */
 	struct dasd_ccw_req *refers;	/* ERP-chain queueing. */
 	void *function; 		/* originating ERP action */
+	void *mem_chunk;
 
-	/* these are for statistics only */
 	unsigned long buildclk;		/* TOD-clock of request generation */
 	unsigned long startclk;		/* TOD-clock of request start */
 	unsigned long stopclk;		/* TOD-clock of request interrupt */
 	unsigned long endclk;		/* TOD-clock of request termination */
 
-        /* Callback that is called after reaching final status. */
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
+	unsigned int proc_bytes;	/* bytes for partial completion */
 };
 
 /*
@@ -235,14 +229,6 @@ struct dasd_ccw_req {
 #define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 #define DASD_CQR_SUPPRESS_CR	7	/* Suppress 'Command Reject' error */
 
-/*
- * There is no reliable way to determine the number of available CPUs on
- * LPAR but there is no big performance difference between 1 and the
- * maximum CPU number.
- * 64 is a good trade off performance wise.
- */
-#define DASD_NR_HW_QUEUES 64
-#define DASD_MAX_LCU_DEV 256
 #define DASD_REQ_PER_DEV 4
 
 /* Signature for error recovery functions. */
@@ -283,7 +269,6 @@ struct dasd_discipline {
 	struct module *owner;
 	char ebcname[8];	/* a name used for tagging and printks */
 	char name[8];		/* a name used for tagging and printks */
-	int max_blocks;		/* maximum number of blocks to be chained */
 
 	struct list_head list;	/* used for list of disciplines */
 
@@ -322,6 +307,10 @@ struct dasd_discipline {
 	int (*online_to_ready) (struct dasd_device *);
 	int (*basic_to_known)(struct dasd_device *);
 
+	/*
+	 * Initialize block layer request queue.
+	 */
+	void (*setup_blk_queue)(struct dasd_block *);
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and
@@ -382,6 +371,26 @@ struct dasd_discipline {
 	void (*disable_hpf)(struct dasd_device *);
 	int (*hpf_enabled)(struct dasd_device *);
 	void (*reset_path)(struct dasd_device *, __u8);
+
+	/*
+	 * Extent Space Efficient (ESE) relevant functions
+	 */
+	int (*is_ese)(struct dasd_device *);
+	/* Capacity */
+	int (*space_allocated)(struct dasd_device *);
+	int (*space_configured)(struct dasd_device *);
+	int (*logical_capacity)(struct dasd_device *);
+	int (*release_space)(struct dasd_device *, struct format_data_t *);
+	/* Extent Pool */
+	int (*ext_pool_id)(struct dasd_device *);
+	int (*ext_size)(struct dasd_device *);
+	int (*ext_pool_cap_at_warnlevel)(struct dasd_device *);
+	int (*ext_pool_warn_thrshld)(struct dasd_device *);
+	int (*ext_pool_oos)(struct dasd_device *);
+	int (*ext_pool_exhaust)(struct dasd_device *, struct dasd_ccw_req *);
+	struct dasd_ccw_req *(*ese_format)(struct dasd_device *,
+					   struct dasd_ccw_req *, struct irb *);
+	int (*ese_read)(struct dasd_ccw_req *, struct irb *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -401,6 +410,7 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_EER_NOPATH      2
 #define DASD_EER_STATECHANGE 3
 #define DASD_EER_PPRCSUSPEND 4
+#define DASD_EER_NOSPC	     5
 
 /* DASD path handling */
 
@@ -466,6 +476,11 @@ struct dasd_profile {
 	spinlock_t lock;
 };
 
+struct dasd_format_entry {
+	struct list_head list;
+	sector_t track;
+};
+
 struct dasd_device {
 	/* Block device stuff. */
 	struct dasd_block *block;
@@ -497,8 +512,10 @@ struct dasd_device {
 	spinlock_t mem_lock;
 	void *ccw_mem;
 	void *erp_mem;
+	void *ese_mem;
 	struct list_head ccw_chunks;
 	struct list_head erp_chunks;
+	struct list_head ese_chunks;
 
 	atomic_t tasklet_scheduled;
         struct tasklet_struct tasklet;
@@ -529,6 +546,7 @@ struct dasd_device {
 	struct dentry *debugfs_dentry;
 	struct dentry *hosts_dentry;
 	struct dasd_profile profile;
+	struct dasd_format_entry format_entry;
 };
 
 struct dasd_block {
@@ -554,6 +572,9 @@ struct dasd_block {
 
 	struct dentry *debugfs_dentry;
 	struct dasd_profile profile;
+
+	struct list_head format_list;
+	spinlock_t format_lock;
 };
 
 struct dasd_attention_data {
@@ -573,6 +594,7 @@ struct dasd_queue {
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
 #define DASD_STOPPED_PM      32        /* pm state transition */
 #define DASD_UNRESUMED_PM    64        /* pm resume failed state */
+#define DASD_STOPPED_NOSPC   128       /* no space left */
 
 /* per device flags */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
@@ -714,18 +736,11 @@ extern const struct block_device_operations dasd_device_operations;
 extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
-dasd_kmalloc_request(int , int, int, struct dasd_device *);
-struct dasd_ccw_req *
-dasd_smalloc_request(int , int, int, struct dasd_device *);
-void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
+dasd_smalloc_request(int, int, int, struct dasd_device *, struct dasd_ccw_req *);
+struct dasd_ccw_req *dasd_fmalloc_request(int, int, int, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
+void dasd_ffree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
-
-static inline int
-dasd_kmalloc_set_cda(struct ccw1 *ccw, void *cda, struct dasd_device *device)
-{
-	return set_normalized_cda(ccw, cda);
-}
 
 struct dasd_device *dasd_alloc_device(void);
 void dasd_free_device(struct dasd_device *);
@@ -751,6 +766,7 @@ void dasd_schedule_block_bh(struct dasd_block *);
 int  dasd_sleep_on(struct dasd_ccw_req *);
 int  dasd_sleep_on_queue(struct list_head *);
 int  dasd_sleep_on_immediatly(struct dasd_ccw_req *);
+int  dasd_sleep_on_queue_interruptible(struct list_head *);
 int  dasd_sleep_on_interruptible(struct dasd_ccw_req *);
 void dasd_device_set_timer(struct dasd_device *, int);
 void dasd_device_clear_timer(struct dasd_device *);
@@ -774,6 +790,8 @@ int dasd_generic_restore_device(struct ccw_device *);
 enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
 void dasd_generic_path_event(struct ccw_device *, int *);
 int dasd_generic_verify_path(struct dasd_device *, __u8);
+void dasd_generic_space_exhaust(struct dasd_device *, struct dasd_ccw_req *);
+void dasd_generic_space_avail(struct dasd_device *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);

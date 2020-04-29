@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* linux/drivers/gpu/drm/exynos/regs-gsc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Register definition file for Samsung G-Scaler driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef EXYNOS_REGS_GSC_H_
@@ -138,6 +135,7 @@
 #define GSC_OUT_YUV420_3P		(3 << 4)
 #define GSC_OUT_YUV422_1P		(4 << 4)
 #define GSC_OUT_YUV422_2P		(5 << 4)
+#define GSC_OUT_YUV422_3P		(6 << 4)
 #define GSC_OUT_YUV444			(7 << 4)
 #define GSC_OUT_TILE_TYPE_MASK		(1 << 2)
 #define GSC_OUT_TILE_C_16x8		(0 << 2)

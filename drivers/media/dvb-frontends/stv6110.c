@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * stv6110.c
  *
@@ -5,17 +6,6 @@
  *
  * Copyright (C) 2009 NetUP Inc.
  * Copyright (C) 2009 Igor M. Liplianin <liplianin@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -202,7 +192,7 @@ static int stv6110_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 		i++;
 	}
 
-	/* RCCLKOFF = 1 calibration done, desactivate the calibration Clock */
+	/* RCCLKOFF = 1 calibration done, deactivate the calibration Clock */
 	priv->regs[RSTV6110_CTRL3] |= (1 << 6);
 	stv6110_write_regs(fe, &priv->regs[RSTV6110_CTRL3], RSTV6110_CTRL3, 1);
 	return 0;
@@ -371,9 +361,9 @@ static int stv6110_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static const struct dvb_tuner_ops stv6110_tuner_ops = {
 	.info = {
 		.name = "ST STV6110",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_step = 1000,
+		.frequency_min_hz  =  950 * MHz,
+		.frequency_max_hz  = 2150 * MHz,
+		.frequency_step_hz =    1 * MHz,
 	},
 	.init = stv6110_init,
 	.release = stv6110_release,

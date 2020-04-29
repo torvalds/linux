@@ -241,11 +241,12 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pr_debug("cpage[%08lx,%08lx]\n",
+	pr_debug("cpage[%08llx,%08lx]\n",
 		 cpu_context(smp_processor_id(), mm), addr);
 
 	/* No ASID => no such page in the cache.  */
@@ -253,7 +254,8 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 		return;
 
 	pgdp = pgd_offset(mm, addr);
-	pudp = pud_offset(pgdp, addr);
+	p4dp = p4d_offset(pgdp, addr);
+	pudp = pud_offset(p4dp, addr);
 	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset(pmdp, addr);
 
@@ -272,30 +274,6 @@ static void local_r3k_flush_data_cache_page(void *addr)
 
 static void r3k_flush_data_cache_page(unsigned long addr)
 {
-}
-
-static void r3k_flush_cache_sigtramp(unsigned long addr)
-{
-	unsigned long flags;
-
-	pr_debug("csigtramp[%08lx]\n", addr);
-
-	flags = read_c0_status();
-
-	write_c0_status(flags&~ST0_IEC);
-
-	/* Fill the TLB to avoid an exception with caches isolated. */
-	asm(	"lw\t$0, 0x000(%0)\n\t"
-		"lw\t$0, 0x004(%0)\n\t"
-		: : "r" (addr) );
-
-	write_c0_status((ST0_ISC|ST0_SWC|flags)&~ST0_IEC);
-
-	asm(	"sb\t$0, 0x000(%0)\n\t"
-		"sb\t$0, 0x004(%0)\n\t"
-		: : "r" (addr) );
-
-	write_c0_status(flags);
 }
 
 static void r3k_flush_kernel_vmap_range(unsigned long vaddr, int size)
@@ -331,7 +309,6 @@ void r3k_cache_init(void)
 
 	__flush_kernel_vmap_range = r3k_flush_kernel_vmap_range;
 
-	flush_cache_sigtramp = r3k_flush_cache_sigtramp;
 	local_flush_data_cache_page = local_r3k_flush_data_cache_page;
 	flush_data_cache_page = r3k_flush_data_cache_page;
 
@@ -339,9 +316,9 @@ void r3k_cache_init(void)
 	_dma_cache_wback = r3k_dma_cache_wback_inv;
 	_dma_cache_inv = r3k_dma_cache_wback_inv;
 
-	printk("Primary instruction cache %ldkB, linesize %ld bytes.\n",
+	pr_info("Primary instruction cache %ldkB, linesize %ld bytes.\n",
 		icache_size >> 10, icache_lsize);
-	printk("Primary data cache %ldkB, linesize %ld bytes.\n",
+	pr_info("Primary data cache %ldkB, linesize %ld bytes.\n",
 		dcache_size >> 10, dcache_lsize);
 
 	build_clear_page();

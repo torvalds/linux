@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  menubox.c -- implements the menu box
  *
  *  ORIGINAL AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *  MODIFIED FOR LINUX KERNEL CONFIG BY: William Roadcap (roadcapw@cfw.com)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -157,11 +144,11 @@ static void print_buttons(WINDOW * win, int height, int width, int selected)
 	int x = width / 2 - 28;
 	int y = height - 2;
 
-	print_button(win, gettext("Select"), y, x, selected == 0);
-	print_button(win, gettext(" Exit "), y, x + 12, selected == 1);
-	print_button(win, gettext(" Help "), y, x + 24, selected == 2);
-	print_button(win, gettext(" Save "), y, x + 36, selected == 3);
-	print_button(win, gettext(" Load "), y, x + 48, selected == 4);
+	print_button(win, "Select", y, x, selected == 0);
+	print_button(win, " Exit ", y, x + 12, selected == 1);
+	print_button(win, " Help ", y, x + 24, selected == 2);
+	print_button(win, " Save ", y, x + 36, selected == 3);
+	print_button(win, " Load ", y, x + 48, selected == 4);
 
 	wmove(win, y, x + 1 + 12 * selected);
 	wrefresh(win);

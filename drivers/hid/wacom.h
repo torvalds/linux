@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/input/tablet/wacom.h
  *
@@ -78,10 +79,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef WACOM_H
 #define WACOM_H
@@ -203,6 +200,21 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 		schedule_work(&wacom->mode_change_work);
 		break;
 	}
+}
+
+/*
+ * Convert a signed 32-bit integer to an unsigned n-bit integer. Undoes
+ * the normally-helpful work of 'hid_snto32' for fields that use signed
+ * ranges for questionable reasons.
+ */
+static inline __u32 wacom_s32tou(s32 value, __u8 n)
+{
+	switch (n) {
+	case 8:  return ((__u8)value);
+	case 16: return ((__u16)value);
+	case 32: return ((__u32)value);
+	}
+	return value & (1 << (n - 1)) ? value & (~(~0U << n)) : value;
 }
 
 extern const struct hid_device_id wacom_ids[];

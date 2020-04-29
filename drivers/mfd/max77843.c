@@ -1,15 +1,10 @@
-/*
- * MFD core driver for the Maxim MAX77843
- *
- * Copyright (C) 2015 Samsung Electronics
- * Author: Jaewon Kim <jaewon02.kim@samsung.com>
- * Author: Beomho Seo <beomho.seo@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// MFD core driver for the Maxim MAX77843
+//
+// Copyright (C) 2015 Samsung Electronics
+// Author: Jaewon Kim <jaewon02.kim@samsung.com>
+// Author: Beomho Seo <beomho.seo@samsung.com>
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -75,11 +70,11 @@ static int max77843_chg_init(struct max77693_dev *max77843)
 {
 	int ret;
 
-	max77843->i2c_chg = i2c_new_dummy(max77843->i2c->adapter, I2C_ADDR_CHG);
-	if (!max77843->i2c_chg) {
+	max77843->i2c_chg = i2c_new_dummy_device(max77843->i2c->adapter, I2C_ADDR_CHG);
+	if (IS_ERR(max77843->i2c_chg)) {
 		dev_err(&max77843->i2c->dev,
 				"Cannot allocate I2C device for Charger\n");
-		return -ENODEV;
+		return PTR_ERR(max77843->i2c_chg);
 	}
 	i2c_set_clientdata(max77843->i2c_chg, max77843);
 

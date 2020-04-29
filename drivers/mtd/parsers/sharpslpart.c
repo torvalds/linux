@@ -165,10 +165,10 @@ static int sharpsl_nand_get_logical_num(u8 *oob)
 
 static int sharpsl_nand_init_ftl(struct mtd_info *mtd, struct sharpsl_ftl *ftl)
 {
-	unsigned int block_num, log_num, phymax;
+	unsigned int block_num, phymax;
+	int i, ret, log_num;
 	loff_t block_adr;
 	u8 *oob;
-	int i, ret;
 
 	oob = kzalloc(mtd->oobsize, GFP_KERNEL);
 	if (!oob)
@@ -362,8 +362,9 @@ static int sharpsl_parse_mtd_partitions(struct mtd_info *master,
 		return err;
 	}
 
-	sharpsl_nand_parts = kzalloc(sizeof(*sharpsl_nand_parts) *
-				     SHARPSL_NAND_PARTS, GFP_KERNEL);
+	sharpsl_nand_parts = kcalloc(SHARPSL_NAND_PARTS,
+				     sizeof(*sharpsl_nand_parts),
+				     GFP_KERNEL);
 	if (!sharpsl_nand_parts)
 		return -ENOMEM;
 

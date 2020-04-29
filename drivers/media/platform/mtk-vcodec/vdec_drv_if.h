@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PC Chen <pc.chen@mediatek.com>
  *		   Tiffany Lin <tiffany.lin@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _VDEC_DRV_IF_H_
@@ -62,6 +54,10 @@ struct vdec_fb_node {
 	struct vdec_fb *fb;
 };
 
+extern const struct vdec_common_if vdec_h264_if;
+extern const struct vdec_common_if vdec_vp8_if;
+extern const struct vdec_common_if vdec_vp9_if;
+
 /**
  * vdec_if_init() - initialize decode driver
  * @ctx	: [in] v4l2 context
@@ -80,7 +76,7 @@ void vdec_if_deinit(struct mtk_vcodec_ctx *ctx);
  * vdec_if_decode() - trigger decode
  * @ctx	: [in] v4l2 context
  * @bs	: [in] input bitstream
- * @fb	: [in] frame buffer to store decoded frame, when null menas parse
+ * @fb	: [in] frame buffer to store decoded frame, when null means parse
  *	header only
  * @res_chg	: [out] resolution change happens if current bs have different
  *	picture width/height

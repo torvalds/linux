@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 ccflags-$(CONFIG_SGI_GRU_DEBUG)	:= -DDEBUG
 
 obj-$(CONFIG_SGI_GRU) := gru.o

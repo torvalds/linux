@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics hts221 sensor driver
  *
  * Copyright 2016 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -24,13 +23,6 @@
 
 #define HTS221_REG_CNTRL1_ADDR		0x20
 #define HTS221_REG_CNTRL2_ADDR		0x21
-
-#define HTS221_REG_AVG_ADDR		0x10
-#define HTS221_REG_H_OUT_L		0x28
-#define HTS221_REG_T_OUT_L		0x2a
-
-#define HTS221_HUMIDITY_AVG_MASK	0x07
-#define HTS221_TEMP_AVG_MASK		0x38
 
 #define HTS221_ODR_MASK			0x03
 #define HTS221_BDU_MASK			BIT(2)
@@ -67,8 +59,8 @@ static const struct hts221_odr hts221_odr_table[] = {
 
 static const struct hts221_avg hts221_avg_list[] = {
 	{
-		.addr = HTS221_REG_AVG_ADDR,
-		.mask = HTS221_HUMIDITY_AVG_MASK,
+		.addr = 0x10,
+		.mask = 0x07,
 		.avg_avl = {
 			4, /* 0.4 %RH */
 			8, /* 0.3 %RH */
@@ -81,8 +73,8 @@ static const struct hts221_avg hts221_avg_list[] = {
 		},
 	},
 	{
-		.addr = HTS221_REG_AVG_ADDR,
-		.mask = HTS221_TEMP_AVG_MASK,
+		.addr = 0x10,
+		.mask = 0x38,
 		.avg_avl = {
 			2, /* 0.08 degC */
 			4, /* 0.05 degC */
@@ -99,7 +91,7 @@ static const struct hts221_avg hts221_avg_list[] = {
 static const struct iio_chan_spec hts221_channels[] = {
 	{
 		.type = IIO_HUMIDITYRELATIVE,
-		.address = HTS221_REG_H_OUT_L,
+		.address = 0x28,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_OFFSET) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
@@ -115,7 +107,7 @@ static const struct iio_chan_spec hts221_channels[] = {
 	},
 	{
 		.type = IIO_TEMP,
-		.address = HTS221_REG_T_OUT_L,
+		.address = 0x2a,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_OFFSET) |
 				      BIT(IIO_CHAN_INFO_SCALE) |

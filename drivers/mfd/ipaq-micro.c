@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Compaq iPAQ h3xxx Atmel microcontroller companion support
  *
@@ -8,10 +9,6 @@
  * Author : Alessandro Gardich <gremlin@gremlin.it>
  * Author : Dmitry Artamonow <mad_soft@inbox.ru>
  * Author : Linus Walleij <linus.walleij@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -399,11 +396,7 @@ static int __init micro_probe(struct platform_device *pdev)
 	if (IS_ERR(micro->base))
 		return PTR_ERR(micro->base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
-		return -EINVAL;
-
-	micro->sdlc = devm_ioremap_resource(&pdev->dev, res);
+	micro->sdlc = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(micro->sdlc))
 		return PTR_ERR(micro->sdlc);
 

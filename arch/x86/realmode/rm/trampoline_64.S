@@ -38,7 +38,7 @@
 	.code16
 
 	.balign	PAGE_SIZE
-ENTRY(trampoline_start)
+SYM_CODE_START(trampoline_start)
 	cli			# We should be safe anyway
 	wbinvd
 
@@ -48,9 +48,6 @@ ENTRY(trampoline_start)
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %ss
-
-	movl	$0xA5A5A5A5, trampoline_status
-	# write marker for master knows we're running
 
 	# Setup stack
 	movl	$rm_stack_end, %esp
@@ -81,12 +78,14 @@ ENTRY(trampoline_start)
 no_longmode:
 	hlt
 	jmp no_longmode
+SYM_CODE_END(trampoline_start)
+
 #include "../kernel/verify_cpu.S"
 
 	.section ".text32","ax"
 	.code32
 	.balign 4
-ENTRY(startup_32)
+SYM_CODE_START(startup_32)
 	movl	%edx, %ss
 	addl	$pa_real_mode_base, %esp
 	movl	%edx, %ds
@@ -140,38 +139,39 @@ ENTRY(startup_32)
 	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
 	 */
 	ljmpl	$__KERNEL_CS, $pa_startup_64
+SYM_CODE_END(startup_32)
 
 	.section ".text64","ax"
 	.code64
 	.balign 4
-ENTRY(startup_64)
+SYM_CODE_START(startup_64)
 	# Now jump into the kernel using virtual addresses
 	jmpq	*tr_start(%rip)
+SYM_CODE_END(startup_64)
 
 	.section ".rodata","a"
 	# Duplicate the global descriptor table
 	# so the kernel can live anywhere
 	.balign	16
-	.globl tr_gdt
-tr_gdt:
+SYM_DATA_START(tr_gdt)
 	.short	tr_gdt_end - tr_gdt - 1	# gdt limit
 	.long	pa_tr_gdt
 	.short	0
 	.quad	0x00cf9b000000ffff	# __KERNEL32_CS
 	.quad	0x00af9b000000ffff	# __KERNEL_CS
 	.quad	0x00cf93000000ffff	# __KERNEL_DS
-tr_gdt_end:
+SYM_DATA_END_LABEL(tr_gdt, SYM_L_LOCAL, tr_gdt_end)
 
 	.bss
 	.balign	PAGE_SIZE
-GLOBAL(trampoline_pgd)		.space	PAGE_SIZE
+SYM_DATA(trampoline_pgd, .space PAGE_SIZE)
 
 	.balign	8
-GLOBAL(trampoline_header)
-	tr_start:		.space	8
-	GLOBAL(tr_efer)		.space	8
-	GLOBAL(tr_cr4)		.space	4
-	GLOBAL(tr_flags)	.space	4
-END(trampoline_header)
+SYM_DATA_START(trampoline_header)
+	SYM_DATA_LOCAL(tr_start,	.space 8)
+	SYM_DATA(tr_efer,		.space 8)
+	SYM_DATA(tr_cr4,		.space 4)
+	SYM_DATA(tr_flags,		.space 4)
+SYM_DATA_END(trampoline_header)
 
 #include "trampoline_common.S"

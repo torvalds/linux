@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PTP clock support configuration
 #
@@ -41,33 +42,19 @@ config PTP_1588_CLOCK_DTE
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_dte.
 
-config PTP_1588_CLOCK_GIANFAR
-	tristate "Freescale eTSEC as PTP clock"
-	depends on GIANFAR
+config PTP_1588_CLOCK_QORIQ
+	tristate "Freescale QorIQ 1588 timer as PTP clock"
+	depends on GIANFAR || FSL_DPAA_ETH || FSL_DPAA2_ETH || FSL_ENETC || FSL_ENETC_VF || COMPILE_TEST
 	depends on PTP_1588_CLOCK
 	default y
 	help
-	  This driver adds support for using the eTSEC as a PTP
-	  clock. This clock is only useful if your PTP programs are
-	  getting hardware time stamps on the PTP Ethernet packets
-	  using the SO_TIMESTAMPING API.
+	  This driver adds support for using the Freescale QorIQ 1588
+	  timer as a PTP clock. This clock is only useful if your PTP
+	  programs are getting hardware time stamps on the PTP Ethernet
+	  packets using the SO_TIMESTAMPING API.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called gianfar_ptp.
-
-config PTP_1588_CLOCK_IXP46X
-	tristate "Intel IXP46x as PTP clock"
-	depends on IXP4XX_ETH
-	depends on PTP_1588_CLOCK
-	default y
-	help
-	  This driver adds support for using the IXP46X as a PTP
-	  clock. This clock is only useful if your PTP programs are
-	  getting hardware time stamps on the PTP Ethernet packets
-	  using the SO_TIMESTAMPING API.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ptp_ixp46x.
+	  will be called ptp-qoriq.
 
 comment "Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks."
 	depends on PHYLIB=n || NETWORK_PHY_TIMESTAMPING=n
@@ -88,6 +75,16 @@ config DP83640_PHY
 	  In order for this to work, your MAC driver must also
 	  implement the skb_tx_timestamp() function.
 
+config PTP_1588_CLOCK_INES
+	tristate "ZHAW InES PTP time stamping IP core"
+	depends on NETWORK_PHY_TIMESTAMPING
+	depends on PHYLIB
+	depends on PTP_1588_CLOCK
+	help
+	  This driver adds support for using the ZHAW InES 1588 IP
+	  core.  This clock is only useful if the MII bus of your MAC
+	  is wired up to the core.
+
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"
 	depends on X86_32 || COMPILE_TEST
@@ -96,8 +93,8 @@ config PTP_1588_CLOCK_PCH
 	help
 	  This driver adds support for using the PCH EG20T as a PTP
 	  clock. The hardware supports time stamping of PTP packets
-	  when using the end-to-end delay (E2E) mechansim. The peer
-	  delay mechansim (P2P) is not supported.
+	  when using the end-to-end delay (E2E) mechanism. The peer
+	  delay mechanism (P2P) is not supported.
 
 	  This clock is only useful if your PTP programs are getting
 	  hardware time stamps on the PTP Ethernet packets using the
@@ -117,5 +114,41 @@ config PTP_1588_CLOCK_KVM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_kvm.
+
+config PTP_1588_CLOCK_IDT82P33
+	tristate "IDT 82P33xxx PTP clock"
+	depends on PTP_1588_CLOCK && I2C
+	default n
+	help
+	  This driver adds support for using the IDT 82P33xxx as a PTP
+	  clock. This clock is only useful if your time stamping MAC
+	  is connected to the IDT chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_idt82p33.
+
+config PTP_1588_CLOCK_IDTCM
+	tristate "IDT CLOCKMATRIX as PTP clock"
+	depends on PTP_1588_CLOCK && I2C
+	default n
+	help
+	  This driver adds support for using IDT CLOCKMATRIX(TM) as a PTP
+	  clock. This clock is only useful if your time stamping MAC
+	  is connected to the IDT chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_clockmatrix.
+
+config PTP_1588_CLOCK_VMW
+	tristate "VMware virtual PTP clock"
+	depends on ACPI && HYPERVISOR_GUEST && X86
+	depends on PTP_1588_CLOCK
+	help
+	  This driver adds support for using VMware virtual precision
+	  clock device as a PTP clock. This is only useful in virtual
+	  machines running on VMware virtual infrastructure.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_vmw.
 
 endmenu

@@ -1,37 +1,71 @@
-/*
- * Renesas R-Car SSIU support
- *
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SSIU support
+//
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include "rsnd.h"
 
 #define SSIU_NAME "ssiu"
 
 struct rsnd_ssiu {
 	struct rsnd_mod mod;
+	u32 busif_status[8]; /* for BUSIF0 - BUSIF7 */
+	unsigned int usrcnt;
+	int id;
+	int id_sub;
 };
 
+/* SSI_MODE */
+#define TDM_EXT		(1 << 0)
+#define TDM_SPLIT	(1 << 8)
+
 #define rsnd_ssiu_nr(priv) ((priv)->ssiu_nr)
+#define rsnd_mod_to_ssiu(_mod) container_of((_mod), struct rsnd_ssiu, mod)
 #define for_each_rsnd_ssiu(pos, priv, i)				\
 	for (i = 0;							\
 	     (i < rsnd_ssiu_nr(priv)) &&				\
 		     ((pos) = ((struct rsnd_ssiu *)(priv)->ssiu + i));	\
 	     i++)
 
+/*
+ *	SSI	Gen2		Gen3
+ *	0	BUSIF0-3	BUSIF0-7
+ *	1	BUSIF0-3	BUSIF0-7
+ *	2	BUSIF0-3	BUSIF0-7
+ *	3	BUSIF0		BUSIF0-7
+ *	4	BUSIF0		BUSIF0-7
+ *	5	BUSIF0		BUSIF0
+ *	6	BUSIF0		BUSIF0
+ *	7	BUSIF0		BUSIF0
+ *	8	BUSIF0		BUSIF0
+ *	9	BUSIF0-3	BUSIF0-7
+ *	total	22		52
+ */
+static const int gen2_id[] = { 0, 4,  8, 12, 13, 14, 15, 16, 17, 18 };
+static const int gen3_id[] = { 0, 8, 16, 24, 32, 40, 41, 42, 43, 44 };
+
+static u32 *rsnd_ssiu_get_status(struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io,
+				 enum rsnd_mod_type type)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_mod_id_sub(mod);
+
+	return &ssiu->busif_status[busif];
+}
+
 static int rsnd_ssiu_init(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	u32 multi_ssi_slaves = rsnd_ssi_multi_slaves_runtime(io);
+	u32 ssis = rsnd_ssi_multi_slaves_runtime(io);
 	int use_busif = rsnd_ssi_use_busif(io);
 	int id = rsnd_mod_id(mod);
-	u32 mask1, val1;
-	u32 mask2, val2;
+	int is_clk_master = rsnd_rdai_is_clk_master(rdai);
+	u32 val1, val2;
+	int i;
 
 	/* clear status */
 	switch (id) {
@@ -40,16 +74,12 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	case 2:
 	case 3:
 	case 4:
-		rsnd_mod_write(mod, SSI_SYS_STATUS0, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS2, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS4, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS6, 0xf << (id * 4));
+		for (i = 0; i < 4; i++)
+			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
 		break;
 	case 9:
-		rsnd_mod_write(mod, SSI_SYS_STATUS1, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS3, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS5, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS7, 0xf << 4);
+		for (i = 0; i < 4; i++)
+			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
 		break;
 	}
 
@@ -59,71 +89,70 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	rsnd_mod_bset(mod, SSI_MODE0, (1 << id), !use_busif << id);
 
 	/*
-	 * SSI_MODE1
+	 * SSI_MODE1 / SSI_MODE2
+	 *
+	 * FIXME
+	 * sharing/multi with SSI0 are mainly supported
 	 */
-	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
-	mask2 = (1 << 4);		/* mask sync bit */
-	val1  = val2  = 0;
-	if (id == 8) {
+	val1 = rsnd_mod_read(mod, SSI_MODE1);
+	val2 = rsnd_mod_read(mod, SSI_MODE2);
+	if (rsnd_ssi_is_pin_sharing(io)) {
+
+		ssis |= (1 << id);
+
+	} else if (ssis) {
 		/*
-		 * SSI8 pin is sharing with SSI7, nothing to do.
+		 * Multi SSI
+		 *
+		 * set synchronized bit here
 		 */
-	} else if (rsnd_ssi_is_pin_sharing(io)) {
-		int shift = -1;
 
-		switch (id) {
-		case 1:
-			shift = 0;
-			break;
-		case 2:
-			shift = 2;
-			break;
-		case 4:
-			shift = 16;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		mask1 |= 0x3 << shift;
-		val1 = rsnd_rdai_is_clk_master(rdai) ?
-			0x2 << shift : 0x1 << shift;
-
-	} else if (multi_ssi_slaves) {
-
-		mask2 |= 0x00000007;
-		mask1 |= 0x0000000f;
-
-		switch (multi_ssi_slaves) {
-		case 0x0206: /* SSI0/1/2/9 */
-			val2 = (1 << 4) | /* SSI0129 sync */
-				(rsnd_rdai_is_clk_master(rdai) ? 0x2 : 0x1);
-			/* fall through */
-		case 0x0006: /* SSI0/1/2 */
-			val1 = rsnd_rdai_is_clk_master(rdai) ?
-				0xa : 0x5;
-
-			if (!val2)  /* SSI012 sync */
-				val1 |= (1 << 4);
-		}
+		/* SSI4 is synchronized with SSI3 */
+		if (ssis & (1 << 4))
+			val1 |= (1 << 20);
+		/* SSI012 are synchronized */
+		if (ssis == 0x0006)
+			val1 |= (1 << 4);
+		/* SSI0129 are synchronized */
+		if (ssis == 0x0206)
+			val2 |= (1 << 4);
 	}
 
-	rsnd_mod_bset(mod, SSI_MODE1, mask1, val1);
-	rsnd_mod_bset(mod, SSI_MODE2, mask2, val2);
+	/* SSI1 is sharing pin with SSI0 */
+	if (ssis & (1 << 1))
+		val1 |= is_clk_master ? 0x2 : 0x1;
+
+	/* SSI2 is sharing pin with SSI0 */
+	if (ssis & (1 << 2))
+		val1 |= is_clk_master ?	0x2 << 2 :
+					0x1 << 2;
+	/* SSI4 is sharing pin with SSI3 */
+	if (ssis & (1 << 4))
+		val1 |= is_clk_master ? 0x2 << 16 :
+					0x1 << 16;
+	/* SSI9 is sharing pin with SSI0 */
+	if (ssis & (1 << 9))
+		val2 |= is_clk_master ? 0x2 : 0x1;
+
+	rsnd_mod_bset(mod, SSI_MODE1, 0x0013001f, val1);
+	rsnd_mod_bset(mod, SSI_MODE2, 0x00000017, val2);
 
 	return 0;
 }
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen1 = {
-	.name	= SSIU_NAME,
-	.init	= rsnd_ssiu_init,
+	.name		= SSIU_NAME,
+	.init		= rsnd_ssiu_init,
+	.get_status	= rsnd_ssiu_get_status,
 };
 
 static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
-	int hdmi = rsnd_ssi_hdmi_port(io);
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	u32 has_hdmi0 = rsnd_flags_has(io, RSND_STREAM_HDMI0);
+	u32 has_hdmi1 = rsnd_flags_has(io, RSND_STREAM_HDMI1);
 	int ret;
 	u32 mode = 0;
 
@@ -131,30 +160,47 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	if (rsnd_runtime_is_ssi_tdm(io)) {
-		/*
-		 * TDM Extend Mode
-		 * see
-		 *	rsnd_ssi_config_init()
-		 */
-		mode = 0x1;
-	}
+	ssiu->usrcnt++;
+
+	/*
+	 * TDM Extend/Split Mode
+	 * see
+	 *	rsnd_ssi_config_init()
+	 */
+	if (rsnd_runtime_is_tdm(io))
+		mode = TDM_EXT;
+	else if (rsnd_runtime_is_tdm_split(io))
+		mode = TDM_SPLIT;
 
 	rsnd_mod_write(mod, SSI_MODE, mode);
 
 	if (rsnd_ssi_use_busif(io)) {
-		rsnd_mod_write(mod, SSI_BUSIF_ADINR,
+		int id = rsnd_mod_id(mod);
+		int busif = rsnd_mod_id_sub(mod);
+		enum rsnd_reg adinr_reg, mode_reg, dalign_reg;
+
+		if ((id == 9) && (busif >= 4)) {
+			adinr_reg = SSI9_BUSIF_ADINR(busif);
+			mode_reg = SSI9_BUSIF_MODE(busif);
+			dalign_reg = SSI9_BUSIF_DALIGN(busif);
+		} else {
+			adinr_reg = SSI_BUSIF_ADINR(busif);
+			mode_reg = SSI_BUSIF_MODE(busif);
+			dalign_reg = SSI_BUSIF_DALIGN(busif);
+		}
+
+		rsnd_mod_write(mod, adinr_reg,
 			       rsnd_get_adinr_bit(mod, io) |
 			       (rsnd_io_is_play(io) ?
 				rsnd_runtime_channel_after_ctu(io) :
 				rsnd_runtime_channel_original(io)));
-		rsnd_mod_write(mod, SSI_BUSIF_MODE,
+		rsnd_mod_write(mod, mode_reg,
 			       rsnd_get_busif_shift(io, mod) | 1);
-		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
+		rsnd_mod_write(mod, dalign_reg,
 			       rsnd_get_dalign(mod, io));
 	}
 
-	if (hdmi) {
+	if (has_hdmi0 || has_hdmi1) {
 		enum rsnd_mod_type rsnd_ssi_array[] = {
 			RSND_MOD_SSIM1,
 			RSND_MOD_SSIM2,
@@ -175,19 +221,15 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			i;
 
 		for_each_rsnd_mod_array(i, pos, io, rsnd_ssi_array) {
-			shift	= (i * 4) + 16;
+			shift	= (i * 4) + 20;
 			val	= (val & ~(0xF << shift)) |
 				rsnd_mod_id(pos) << shift;
 		}
 
-		switch (hdmi) {
-		case RSND_SSI_HDMI_PORT0:
+		if (has_hdmi0)
 			rsnd_mod_write(mod, HDMI0_SEL, val);
-			break;
-		case RSND_SSI_HDMI_PORT1:
+		if (has_hdmi1)
 			rsnd_mod_write(mod, HDMI1_SEL, val);
-			break;
-		}
 	}
 
 	return 0;
@@ -197,10 +239,12 @@ static int rsnd_ssiu_start_gen2(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io,
 				struct rsnd_priv *priv)
 {
+	int busif = rsnd_mod_id_sub(mod);
+
 	if (!rsnd_ssi_use_busif(io))
 		return 0;
 
-	rsnd_mod_write(mod, SSI_CTRL, 0x1);
+	rsnd_mod_bset(mod, SSI_CTRL, 1 << (busif * 4), 1 << (busif * 4));
 
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0x1);
@@ -212,10 +256,16 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_mod_id_sub(mod);
+
 	if (!rsnd_ssi_use_busif(io))
 		return 0;
 
-	rsnd_mod_write(mod, SSI_CTRL, 0);
+	rsnd_mod_bset(mod, SSI_CTRL, 1 << (busif * 4), 0);
+
+	if (--ssiu->usrcnt)
+		return 0;
 
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0);
@@ -223,11 +273,53 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_ssiu_id(struct rsnd_mod *mod)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+
+	/* see rsnd_ssiu_probe() */
+	return ssiu->id;
+}
+
+static int rsnd_ssiu_id_sub(struct rsnd_mod *mod)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+
+	/* see rsnd_ssiu_probe() */
+	return ssiu->id_sub;
+}
+
+static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
+					  struct rsnd_mod *mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	int is_play = rsnd_io_is_play(io);
+	char *name;
+
+	/*
+	 * It should use "rcar_sound,ssiu" on DT.
+	 * But, we need to keep compatibility for old version.
+	 *
+	 * If it has "rcar_sound.ssiu", it will be used.
+	 * If not, "rcar_sound.ssi" will be used.
+	 * see
+	 *	rsnd_ssi_dma_req()
+	 *	rsnd_dma_of_path()
+	 */
+
+	name = is_play ? "rx" : "tx";
+
+	return rsnd_dma_request_channel(rsnd_ssiu_of_node(priv),
+					mod, name);
+}
+
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
-	.name	= SSIU_NAME,
-	.init	= rsnd_ssiu_init_gen2,
-	.start	= rsnd_ssiu_start_gen2,
-	.stop	= rsnd_ssiu_stop_gen2,
+	.name		= SSIU_NAME,
+	.dma_req	= rsnd_ssiu_dma_req,
+	.init		= rsnd_ssiu_init_gen2,
+	.start		= rsnd_ssiu_start_gen2,
+	.stop		= rsnd_ssiu_stop_gen2,
+	.get_status	= rsnd_ssiu_get_status,
 };
 
 static struct rsnd_mod *rsnd_ssiu_mod_get(struct rsnd_priv *priv, int id)
@@ -238,27 +330,86 @@ static struct rsnd_mod *rsnd_ssiu_mod_get(struct rsnd_priv *priv, int id)
 	return rsnd_mod_get((struct rsnd_ssiu *)(priv->ssiu) + id);
 }
 
-int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
-		     struct rsnd_mod *ssi_mod)
+static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
+					       struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct rsnd_mod *mod = rsnd_ssiu_mod_get(priv, rsnd_mod_id(ssi_mod));
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *mod;
+	struct rsnd_ssiu *ssiu;
+	int i;
 
-	rsnd_mod_confirm_ssi(ssi_mod);
+	if (!ssi_mod)
+		return;
 
-	return rsnd_dai_connect(mod, io, mod->type);
+	/* select BUSIF0 */
+	for_each_rsnd_ssiu(ssiu, priv, i) {
+		mod = rsnd_mod_get(ssiu);
+
+		if ((rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
+		    (rsnd_mod_id_sub(mod) == 0)) {
+			rsnd_dai_connect(mod, io, mod->type);
+			return;
+		}
+	}
+}
+
+void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
+			     struct device_node *playback,
+			     struct device_node *capture)
+{
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device_node *node = rsnd_ssiu_of_node(priv);
+	struct device_node *np;
+	struct rsnd_mod *mod;
+	struct rsnd_dai_stream *io_p = &rdai->playback;
+	struct rsnd_dai_stream *io_c = &rdai->capture;
+	int i;
+
+	/* use rcar_sound,ssiu if exist */
+	if (node) {
+		i = 0;
+		for_each_child_of_node(node, np) {
+			mod = rsnd_ssiu_mod_get(priv, i);
+			if (np == playback)
+				rsnd_dai_connect(mod, io_p, mod->type);
+			if (np == capture)
+				rsnd_dai_connect(mod, io_c, mod->type);
+			i++;
+		}
+
+		of_node_put(node);
+	}
+
+	/* Keep DT compatibility */
+	if (!rsnd_io_to_mod_ssiu(io_p))
+		rsnd_parse_connect_ssiu_compatible(priv, io_p);
+	if (!rsnd_io_to_mod_ssiu(io_c))
+		rsnd_parse_connect_ssiu_compatible(priv, io_c);
 }
 
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *node;
 	struct rsnd_ssiu *ssiu;
 	struct rsnd_mod_ops *ops;
+	const int *list = NULL;
 	int i, nr, ret;
 
-	/* same number to SSI */
-	nr	= priv->ssi_nr;
-	ssiu	= devm_kzalloc(dev, sizeof(*ssiu) * nr, GFP_KERNEL);
+	/*
+	 * Keep DT compatibility.
+	 * if it has "rcar_sound,ssiu", use it.
+	 * if not, use "rcar_sound,ssi"
+	 * see
+	 *	rsnd_ssiu_bufsif_to_id()
+	 */
+	node = rsnd_ssiu_of_node(priv);
+	if (node)
+		nr = of_get_child_count(node);
+	else
+		nr = priv->ssi_nr;
+
+	ssiu	= devm_kcalloc(dev, nr, sizeof(*ssiu), GFP_KERNEL);
 	if (!ssiu)
 		return -ENOMEM;
 
@@ -270,10 +421,46 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	else
 		ops = &rsnd_ssiu_ops_gen2;
 
+	/* Keep compatibility */
+	nr = 0;
+	if ((node) &&
+	    (ops == &rsnd_ssiu_ops_gen2)) {
+		ops->id		= rsnd_ssiu_id;
+		ops->id_sub	= rsnd_ssiu_id_sub;
+
+		if (rsnd_is_gen2(priv)) {
+			list	= gen2_id;
+			nr	= ARRAY_SIZE(gen2_id);
+		} else if (rsnd_is_gen3(priv)) {
+			list	= gen3_id;
+			nr	= ARRAY_SIZE(gen3_id);
+		} else {
+			dev_err(dev, "unknown SSIU\n");
+			return -ENODEV;
+		}
+	}
+
 	for_each_rsnd_ssiu(ssiu, priv, i) {
+		if (node) {
+			int j;
+
+			/*
+			 * see
+			 *	rsnd_ssiu_get_id()
+			 *	rsnd_ssiu_get_id_sub()
+			 */
+			for (j = 0; j < nr; j++) {
+				if (list[j] > i)
+					break;
+				ssiu->id	= j;
+				ssiu->id_sub	= i - list[ssiu->id];
+			}
+		} else {
+			ssiu->id = i;
+		}
+
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssiu),
-				    ops, NULL, rsnd_mod_get_status,
-				    RSND_MOD_SSIU, i);
+				    ops, NULL, RSND_MOD_SSIU, i);
 		if (ret)
 			return ret;
 	}

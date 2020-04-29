@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _LINUX_LIMITS_H
-#define _LINUX_LIMITS_H
+#ifndef _UAPI_LINUX_LIMITS_H
+#define _UAPI_LINUX_LIMITS_H
 
 #define NR_OPEN	        1024
 

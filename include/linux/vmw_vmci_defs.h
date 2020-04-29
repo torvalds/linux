@@ -1,22 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * VMware VMCI Driver
  *
  * Copyright (C) 2012 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation version 2 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #ifndef _VMW_VMCI_DEF_H_
 #define _VMW_VMCI_DEF_H_
 
 #include <linux/atomic.h>
+#include <linux/bits.h>
 
 /* Register offsets. */
 #define VMCI_STATUS_ADDR      0x00
@@ -33,26 +26,27 @@
 #define VMCI_MAX_DEVICES 1
 
 /* Status register bits. */
-#define VMCI_STATUS_INT_ON     0x1
+#define VMCI_STATUS_INT_ON     BIT(0)
 
 /* Control register bits. */
-#define VMCI_CONTROL_RESET        0x1
-#define VMCI_CONTROL_INT_ENABLE   0x2
-#define VMCI_CONTROL_INT_DISABLE  0x4
+#define VMCI_CONTROL_RESET        BIT(0)
+#define VMCI_CONTROL_INT_ENABLE   BIT(1)
+#define VMCI_CONTROL_INT_DISABLE  BIT(2)
 
 /* Capabilities register bits. */
-#define VMCI_CAPS_HYPERCALL     0x1
-#define VMCI_CAPS_GUESTCALL     0x2
-#define VMCI_CAPS_DATAGRAM      0x4
-#define VMCI_CAPS_NOTIFICATIONS 0x8
+#define VMCI_CAPS_HYPERCALL     BIT(0)
+#define VMCI_CAPS_GUESTCALL     BIT(1)
+#define VMCI_CAPS_DATAGRAM      BIT(2)
+#define VMCI_CAPS_NOTIFICATIONS BIT(3)
+#define VMCI_CAPS_PPN64         BIT(4)
 
 /* Interrupt Cause register bits. */
-#define VMCI_ICR_DATAGRAM      0x1
-#define VMCI_ICR_NOTIFICATION  0x2
+#define VMCI_ICR_DATAGRAM      BIT(0)
+#define VMCI_ICR_NOTIFICATION  BIT(1)
 
 /* Interrupt Mask register bits. */
-#define VMCI_IMR_DATAGRAM      0x1
-#define VMCI_IMR_NOTIFICATION  0x2
+#define VMCI_IMR_DATAGRAM      BIT(0)
+#define VMCI_IMR_NOTIFICATION  BIT(1)
 
 /* Maximum MSI/MSI-X interrupt vectors in the device. */
 #define VMCI_MAX_INTRS 2
@@ -68,9 +62,18 @@ enum {
 
 /*
  * A single VMCI device has an upper limit of 128MB on the amount of
- * memory that can be used for queue pairs.
+ * memory that can be used for queue pairs. Since each queue pair
+ * consists of at least two pages, the memory limit also dictates the
+ * number of queue pairs a guest can create.
  */
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
+#define VMCI_MAX_GUEST_QP_COUNT  (VMCI_MAX_GUEST_QP_MEMORY / PAGE_SIZE / 2)
+
+/*
+ * There can be at most PAGE_SIZE doorbells since there is one doorbell
+ * per byte in the doorbell bitmap page.
+ */
+#define VMCI_MAX_GUEST_DOORBELL_COUNT PAGE_SIZE
 
 /*
  * Queues with pre-mapped data pages must be small, so that we don't pin
@@ -436,8 +439,8 @@ enum {
 struct vmci_queue_header {
 	/* All fields are 64bit and aligned. */
 	struct vmci_handle handle;	/* Identifier. */
-	atomic64_t producer_tail;	/* Offset in this queue. */
-	atomic64_t consumer_head;	/* Offset in peer queue. */
+	u64 producer_tail;	/* Offset in this queue. */
+	u64 consumer_head;	/* Offset in peer queue. */
 };
 
 /*
@@ -462,9 +465,9 @@ struct vmci_datagram {
  * datagram callback is invoked in a delayed context (not interrupt context).
  */
 #define VMCI_FLAG_DG_NONE          0
-#define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
-#define VMCI_FLAG_ANYCID_DG_HND    0x2
-#define VMCI_FLAG_DG_DELAYED_CB    0x4
+#define VMCI_FLAG_WELLKNOWN_DG_HND BIT(0)
+#define VMCI_FLAG_ANYCID_DG_HND    BIT(1)
+#define VMCI_FLAG_DG_DELAYED_CB    BIT(2)
 
 /*
  * Maximum supported size of a VMCI datagram for routable datagrams.
@@ -569,8 +572,10 @@ struct vmci_resource_query_msg {
  */
 struct vmci_notify_bm_set_msg {
 	struct vmci_datagram hdr;
-	u32 bitmap_ppn;
-	u32 _pad;
+	union {
+		u32 bitmap_ppn32;
+		u64 bitmap_ppn64;
+	};
 };
 
 /*
@@ -691,7 +696,7 @@ struct vmci_qp_detach_msg {
 };
 
 /* VMCI Doorbell API. */
-#define VMCI_FLAG_DELAYED_CB 0x01
+#define VMCI_FLAG_DELAYED_CB BIT(0)
 
 typedef void (*vmci_callback) (void *client_data);
 
@@ -736,13 +741,9 @@ static inline void *vmci_event_data_payload(struct vmci_event_data *ev_data)
  * prefix will be used, so correctness isn't an issue, but using a
  * 64bit operation still adds unnecessary overhead.
  */
-static inline u64 vmci_q_read_pointer(atomic64_t *var)
+static inline u64 vmci_q_read_pointer(u64 *var)
 {
-#if defined(CONFIG_X86_32)
-	return atomic_read((atomic_t *)var);
-#else
-	return atomic64_read(var);
-#endif
+	return READ_ONCE(*(unsigned long *)var);
 }
 
 /*
@@ -751,23 +752,17 @@ static inline u64 vmci_q_read_pointer(atomic64_t *var)
  * never exceeds a 32bit value in this case. On 32bit SMP, using a
  * locked cmpxchg8b adds unnecessary overhead.
  */
-static inline void vmci_q_set_pointer(atomic64_t *var,
-				      u64 new_val)
+static inline void vmci_q_set_pointer(u64 *var, u64 new_val)
 {
-#if defined(CONFIG_X86_32)
-	return atomic_set((atomic_t *)var, (u32)new_val);
-#else
-	return atomic64_set(var, new_val);
-#endif
+	/* XXX buggered on big-endian */
+	WRITE_ONCE(*(unsigned long *)var, (unsigned long)new_val);
 }
 
 /*
  * Helper to add a given offset to a head or tail pointer. Wraps the
  * value of the pointer around the max size of the queue.
  */
-static inline void vmci_qp_add_pointer(atomic64_t *var,
-				       size_t add,
-				       u64 size)
+static inline void vmci_qp_add_pointer(u64 *var, size_t add, u64 size)
 {
 	u64 new_val = vmci_q_read_pointer(var);
 
@@ -844,8 +839,8 @@ static inline void vmci_q_header_init(struct vmci_queue_header *q_header,
 				      const struct vmci_handle handle)
 {
 	q_header->handle = handle;
-	atomic64_set(&q_header->producer_tail, 0);
-	atomic64_set(&q_header->consumer_head, 0);
+	q_header->producer_tail = 0;
+	q_header->consumer_head = 0;
 }
 
 /*

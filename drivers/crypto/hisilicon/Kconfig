@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config CRYPTO_DEV_HISI_SEC
+	tristate "Support for Hisilicon SEC crypto block cipher accelerator"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_DES
+	select SG_SPLIT
+	depends on ARM64 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Support for Hisilicon SEC Engine in Hip06 and Hip07
+
+	  To compile this as a module, choose M here: the module
+	  will be called hisi_sec.
+
+config CRYPTO_DEV_HISI_SEC2
+	tristate "Support for HiSilicon SEC2 crypto block cipher accelerator"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_DES
+	select CRYPTO_DEV_HISI_QM
+	select CRYPTO_AEAD
+	select CRYPTO_AUTHENC
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	depends on PCI && PCI_MSI
+	depends on UACCE || UACCE=n
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for HiSilicon SEC Engine of version 2 in crypto subsystem.
+	  It provides AES, SM4, and 3DES algorithms with ECB
+	  CBC, and XTS cipher mode, and AEAD algorithms.
+
+	  To compile this as a module, choose M here: the module
+          will be called hisi_sec2.
+
+config CRYPTO_DEV_HISI_QM
+	tristate
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI && PCI_MSI
+	depends on UACCE || UACCE=n
+	help
+	  HiSilicon accelerator engines use a common queue management
+	  interface. Specific engine driver may use this module.
+
+config CRYPTO_DEV_HISI_ZIP
+	tristate "Support for HiSilicon ZIP accelerator"
+	depends on PCI && PCI_MSI
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on !CPU_BIG_ENDIAN || COMPILE_TEST
+	depends on UACCE || UACCE=n
+	select CRYPTO_DEV_HISI_QM
+	help
+	  Support for HiSilicon ZIP Driver
+
+config CRYPTO_DEV_HISI_HPRE
+	tristate "Support for HISI HPRE accelerator"
+	depends on PCI && PCI_MSI
+	depends on UACCE || UACCE=n
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	select CRYPTO_DEV_HISI_QM
+	select CRYPTO_DH
+	select CRYPTO_RSA
+	help
+	  Support for HiSilicon HPRE(High Performance RSA Engine)
+	  accelerator, which can accelerate RSA and DH algorithms.

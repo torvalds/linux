@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright 2017 Luxul Inc.
- *
- * Licensed under the ISC license.
  */
 
 /dts-v1/;
@@ -16,7 +15,8 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -44,8 +44,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		restart {
 			label = "Reset";
@@ -56,5 +54,9 @@
 };
 
 &spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
 	status = "okay";
 };

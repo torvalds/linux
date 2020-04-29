@@ -102,9 +102,10 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	}
 
 	rpc_ops = NFS_SB(sb)->nfs_client->rpc_ops;
-	ret = rpc_ops->getattr(NFS_SB(sb), server_fh, fattr, label);
+	ret = rpc_ops->getattr(NFS_SB(sb), server_fh, fattr, label, NULL);
 	if (ret) {
 		dprintk("%s: getattr failed %d\n", __func__, ret);
+		trace_nfs_fh_to_dentry(sb, server_fh, fattr->fileid, ret);
 		dentry = ERR_PTR(ret);
 		goto out_free_label;
 	}

@@ -29,7 +29,7 @@
 #include <linux/highmem.h>
 #include <linux/kgdb.h>
 #include <asm/tlbflush.h>
-
+#include <linux/vmalloc.h>
 
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
 DEFINE_PER_CPU(int, __kmap_atomic_idx);
@@ -105,9 +105,8 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 }
 #endif
 
-unsigned long totalhigh_pages __read_mostly;
-EXPORT_SYMBOL(totalhigh_pages);
-
+atomic_long_t _totalhigh_pages __read_mostly;
+EXPORT_SYMBOL(_totalhigh_pages);
 
 EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
 

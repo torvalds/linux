@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2016,2017 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_XIVE_REGS_H
 #define _ASM_POWERPC_XIVE_REGS_H
@@ -43,6 +39,7 @@
 
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1
+#define XIVE_ESB_INVALID	0xFF
 
 /*
  * Thread Management (aka "TM") registers
@@ -122,11 +119,5 @@
 #define  TM_QW3_NSR_HE_LSI	3
 #define TM_QW3_NSR_I		PPC_BIT8(2)
 #define TM_QW3_NSR_GRP_LVL	PPC_BIT8(3,7)
-
-/* Utilities to manipulate these (originaly from OPAL) */
-#define MASK_TO_LSH(m)		(__builtin_ffsl(m) - 1)
-#define GETFIELD(m, v)		(((v) & (m)) >> MASK_TO_LSH(m))
-#define SETFIELD(m, v, val)				\
-	(((v) & ~(m)) |	((((typeof(v))(val)) << MASK_TO_LSH(m)) & (m)))
 
 #endif /* _ASM_POWERPC_XIVE_REGS_H */

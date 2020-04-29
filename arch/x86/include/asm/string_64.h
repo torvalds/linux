@@ -7,45 +7,12 @@
 
 /* Written 2002 by Andi Kleen */
 
-/* Only used for special circumstances. Stolen from i386/string.h */
-static __always_inline void *__inline_memcpy(void *to, const void *from, size_t n)
-{
-	unsigned long d0, d1, d2;
-	asm volatile("rep ; movsl\n\t"
-		     "testb $2,%b4\n\t"
-		     "je 1f\n\t"
-		     "movsw\n"
-		     "1:\ttestb $1,%b4\n\t"
-		     "je 2f\n\t"
-		     "movsb\n"
-		     "2:"
-		     : "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		     : "0" (n / 4), "q" (n), "1" ((long)to), "2" ((long)from)
-		     : "memory");
-	return to;
-}
-
 /* Even with __builtin_ the compiler may decide to use the out of line
    function. */
 
 #define __HAVE_ARCH_MEMCPY 1
 extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
-
-#ifndef CONFIG_FORTIFY_SOURCE
-#if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4
-#define memcpy(dst, src, len)					\
-({								\
-	size_t __len = (len);					\
-	void *__ret;						\
-	if (__builtin_constant_p(len) && __len >= 64)		\
-		__ret = __memcpy((dst), (src), __len);		\
-	else							\
-		__ret = __builtin_memcpy((dst), (src), __len);	\
-	__ret;							\
-})
-#endif
-#endif /* !CONFIG_FORTIFY_SOURCE */
 
 #define __HAVE_ARCH_MEMSET
 void *memset(void *s, int c, size_t n);
@@ -116,7 +83,8 @@ int strcmp(const char *cs, const char *ct);
 #endif
 
 #define __HAVE_ARCH_MEMCPY_MCSAFE 1
-__must_check int memcpy_mcsafe_unrolled(void *dst, const void *src, size_t cnt);
+__must_check unsigned long __memcpy_mcsafe(void *dst, const void *src,
+		size_t cnt);
 DECLARE_STATIC_KEY_FALSE(mcsafe_key);
 
 /**
@@ -131,14 +99,15 @@ DECLARE_STATIC_KEY_FALSE(mcsafe_key);
  * actually do machine check recovery. Everyone else can just
  * use memcpy().
  *
- * Return 0 for success, -EFAULT for fail
+ * Return 0 for success, or number of bytes not copied if there was an
+ * exception.
  */
-static __always_inline __must_check int
+static __always_inline __must_check unsigned long
 memcpy_mcsafe(void *dst, const void *src, size_t cnt)
 {
 #ifdef CONFIG_X86_MCE
 	if (static_branch_unlikely(&mcsafe_key))
-		return memcpy_mcsafe_unrolled(dst, src, cnt);
+		return __memcpy_mcsafe(dst, src, cnt);
 	else
 #endif
 		memcpy(dst, src, cnt);
@@ -147,7 +116,25 @@ memcpy_mcsafe(void *dst, const void *src, size_t cnt)
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 #define __HAVE_ARCH_MEMCPY_FLUSHCACHE 1
-void memcpy_flushcache(void *dst, const void *src, size_t cnt);
+void __memcpy_flushcache(void *dst, const void *src, size_t cnt);
+static __always_inline void memcpy_flushcache(void *dst, const void *src, size_t cnt)
+{
+	if (__builtin_constant_p(cnt)) {
+		switch (cnt) {
+			case 4:
+				asm ("movntil %1, %0" : "=m"(*(u32 *)dst) : "r"(*(u32 *)src));
+				return;
+			case 8:
+				asm ("movntiq %1, %0" : "=m"(*(u64 *)dst) : "r"(*(u64 *)src));
+				return;
+			case 16:
+				asm ("movntiq %1, %0" : "=m"(*(u64 *)dst) : "r"(*(u64 *)src));
+				asm ("movntiq %1, %0" : "=m"(*(u64 *)(dst + 8)) : "r"(*(u64 *)(src + 8)));
+				return;
+		}
+	}
+	__memcpy_flushcache(dst, src, cnt);
+}
 #endif
 
 #endif /* __KERNEL__ */

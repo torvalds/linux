@@ -56,10 +56,9 @@ proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *
 	return nbytes;
 }
 
-static const struct file_operations proc_bus_zorro_operations = {
-	.owner		= THIS_MODULE,
-	.llseek		= proc_bus_zorro_lseek,
-	.read		= proc_bus_zorro_read,
+static const struct proc_ops bus_zorro_proc_ops = {
+	.proc_lseek	= proc_bus_zorro_lseek,
+	.proc_read	= proc_bus_zorro_read,
 };
 
 static void * zorro_seq_start(struct seq_file *m, loff_t *pos)
@@ -96,19 +95,6 @@ static const struct seq_operations zorro_devices_seq_ops = {
 	.show  = zorro_seq_show,
 };
 
-static int zorro_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &zorro_devices_seq_ops);
-}
-
-static const struct file_operations zorro_devices_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= zorro_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static struct proc_dir_entry *proc_bus_zorro_dir;
 
 static int __init zorro_proc_attach_device(unsigned int slot)
@@ -118,7 +104,7 @@ static int __init zorro_proc_attach_device(unsigned int slot)
 
 	sprintf(name, "%02x", slot);
 	entry = proc_create_data(name, 0, proc_bus_zorro_dir,
-				 &proc_bus_zorro_operations,
+				 &bus_zorro_proc_ops,
 				 &zorro_autocon[slot]);
 	if (!entry)
 		return -ENOMEM;
@@ -132,8 +118,8 @@ static int __init zorro_proc_init(void)
 
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(ZORRO)) {
 		proc_bus_zorro_dir = proc_mkdir("bus/zorro", NULL);
-		proc_create("devices", 0, proc_bus_zorro_dir,
-			    &zorro_devices_proc_fops);
+		proc_create_seq("devices", 0, proc_bus_zorro_dir,
+			    &zorro_devices_seq_ops);
 		for (slot = 0; slot < zorro_num_autocon; slot++)
 			zorro_proc_attach_device(slot);
 	}

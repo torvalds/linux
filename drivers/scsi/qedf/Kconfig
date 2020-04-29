@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config QEDF
 	tristate "QLogic QEDF 25/40/100Gb FCoE Initiator Driver Support"
 	depends on PCI && SCSI

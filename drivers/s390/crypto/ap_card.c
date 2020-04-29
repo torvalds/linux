@@ -14,68 +14,67 @@
 #include <asm/facility.h>
 
 #include "ap_bus.h"
-#include "ap_asm.h"
 
 /*
  * AP card related attributes.
  */
-static ssize_t ap_hwtype_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t hwtype_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ac->ap_dev.device_type);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->ap_dev.device_type);
 }
 
-static DEVICE_ATTR(hwtype, 0444, ap_hwtype_show, NULL);
+static DEVICE_ATTR_RO(hwtype);
 
-static ssize_t ap_raw_hwtype_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t raw_hwtype_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ac->raw_hwtype);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->raw_hwtype);
 }
 
-static DEVICE_ATTR(raw_hwtype, 0444, ap_raw_hwtype_show, NULL);
+static DEVICE_ATTR_RO(raw_hwtype);
 
-static ssize_t ap_depth_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t depth_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ac->queue_depth);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->queue_depth);
 }
 
-static DEVICE_ATTR(depth, 0444, ap_depth_show, NULL);
+static DEVICE_ATTR_RO(depth);
 
 static ssize_t ap_functions_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%08X\n", ac->functions);
+	return scnprintf(buf, PAGE_SIZE, "0x%08X\n", ac->functions);
 }
 
 static DEVICE_ATTR_RO(ap_functions);
 
-static ssize_t ap_req_count_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t request_count_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
-	unsigned int req_cnt;
+	u64 req_cnt;
 
 	req_cnt = 0;
 	spin_lock_bh(&ap_list_lock);
-	req_cnt = atomic_read(&ac->total_request_count);
+	req_cnt = atomic64_read(&ac->total_request_count);
 	spin_unlock_bh(&ap_list_lock);
-	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
 }
 
-static ssize_t ap_req_count_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t request_count_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct ap_card *ac = to_ap_card(dev);
 	struct ap_queue *aq;
@@ -84,15 +83,15 @@ static ssize_t ap_req_count_store(struct device *dev,
 	for_each_ap_queue(aq, ac)
 		aq->total_request_count = 0;
 	spin_unlock_bh(&ap_list_lock);
-	atomic_set(&ac->total_request_count, 0);
+	atomic64_set(&ac->total_request_count, 0);
 
 	return count;
 }
 
-static DEVICE_ATTR(request_count, 0644, ap_req_count_show, ap_req_count_store);
+static DEVICE_ATTR_RW(request_count);
 
-static ssize_t ap_requestq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t requestq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 	struct ap_queue *aq;
@@ -103,13 +102,13 @@ static ssize_t ap_requestq_count_show(struct device *dev,
 	for_each_ap_queue(aq, ac)
 		reqq_cnt += aq->requestq_count;
 	spin_unlock_bh(&ap_list_lock);
-	return snprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
 }
 
-static DEVICE_ATTR(requestq_count, 0444, ap_requestq_count_show, NULL);
+static DEVICE_ATTR_RO(requestq_count);
 
-static ssize_t ap_pendingq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t pendingq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 	struct ap_queue *aq;
@@ -120,18 +119,19 @@ static ssize_t ap_pendingq_count_show(struct device *dev,
 	for_each_ap_queue(aq, ac)
 		penq_cnt += aq->pendingq_count;
 	spin_unlock_bh(&ap_list_lock);
-	return snprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
 }
 
-static DEVICE_ATTR(pendingq_count, 0444, ap_pendingq_count_show, NULL);
+static DEVICE_ATTR_RO(pendingq_count);
 
-static ssize_t ap_modalias_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "ap:t%02X\n", to_ap_dev(dev)->device_type);
+	return scnprintf(buf, PAGE_SIZE, "ap:t%02X\n",
+			 to_ap_dev(dev)->device_type);
 }
 
-static DEVICE_ATTR(modalias, 0444, ap_modalias_show, NULL);
+static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *ap_card_dev_attrs[] = {
 	&dev_attr_hwtype.attr,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
     hwmon.h - part of lm_sensors, Linux kernel modules for hardware monitoring
 
@@ -6,9 +7,6 @@
 
     Copyright (C) 2005 Mark M. Hoffman <mhoffman@lightlink.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; version 2 of the License.
 */
 
 #ifndef _HWMON_H_
@@ -29,6 +27,7 @@ enum hwmon_sensor_types {
 	hwmon_humidity,
 	hwmon_fan,
 	hwmon_pwm,
+	hwmon_intrusion,
 	hwmon_max,
 };
 
@@ -40,6 +39,11 @@ enum hwmon_chip_attributes {
 	hwmon_chip_register_tz,
 	hwmon_chip_update_interval,
 	hwmon_chip_alarms,
+	hwmon_chip_samples,
+	hwmon_chip_curr_samples,
+	hwmon_chip_in_samples,
+	hwmon_chip_power_samples,
+	hwmon_chip_temp_samples,
 };
 
 #define HWMON_C_TEMP_RESET_HISTORY	BIT(hwmon_chip_temp_reset_history)
@@ -49,9 +53,15 @@ enum hwmon_chip_attributes {
 #define HWMON_C_REGISTER_TZ		BIT(hwmon_chip_register_tz)
 #define HWMON_C_UPDATE_INTERVAL		BIT(hwmon_chip_update_interval)
 #define HWMON_C_ALARMS			BIT(hwmon_chip_alarms)
+#define HWMON_C_SAMPLES			BIT(hwmon_chip_samples)
+#define HWMON_C_CURR_SAMPLES		BIT(hwmon_chip_curr_samples)
+#define HWMON_C_IN_SAMPLES		BIT(hwmon_chip_in_samples)
+#define HWMON_C_POWER_SAMPLES		BIT(hwmon_chip_power_samples)
+#define HWMON_C_TEMP_SAMPLES		BIT(hwmon_chip_temp_samples)
 
 enum hwmon_temp_attributes {
-	hwmon_temp_input = 0,
+	hwmon_temp_enable,
+	hwmon_temp_input,
 	hwmon_temp_type,
 	hwmon_temp_lcrit,
 	hwmon_temp_lcrit_hyst,
@@ -77,6 +87,7 @@ enum hwmon_temp_attributes {
 	hwmon_temp_reset_history,
 };
 
+#define HWMON_T_ENABLE		BIT(hwmon_temp_enable)
 #define HWMON_T_INPUT		BIT(hwmon_temp_input)
 #define HWMON_T_TYPE		BIT(hwmon_temp_type)
 #define HWMON_T_LCRIT		BIT(hwmon_temp_lcrit)
@@ -93,6 +104,7 @@ enum hwmon_temp_attributes {
 #define HWMON_T_MIN_ALARM	BIT(hwmon_temp_min_alarm)
 #define HWMON_T_MAX_ALARM	BIT(hwmon_temp_max_alarm)
 #define HWMON_T_CRIT_ALARM	BIT(hwmon_temp_crit_alarm)
+#define HWMON_T_LCRIT_ALARM	BIT(hwmon_temp_lcrit_alarm)
 #define HWMON_T_EMERGENCY_ALARM	BIT(hwmon_temp_emergency_alarm)
 #define HWMON_T_FAULT		BIT(hwmon_temp_fault)
 #define HWMON_T_OFFSET		BIT(hwmon_temp_offset)
@@ -102,6 +114,7 @@ enum hwmon_temp_attributes {
 #define HWMON_T_RESET_HISTORY	BIT(hwmon_temp_reset_history)
 
 enum hwmon_in_attributes {
+	hwmon_in_enable,
 	hwmon_in_input,
 	hwmon_in_min,
 	hwmon_in_max,
@@ -119,6 +132,7 @@ enum hwmon_in_attributes {
 	hwmon_in_crit_alarm,
 };
 
+#define HWMON_I_ENABLE		BIT(hwmon_in_enable)
 #define HWMON_I_INPUT		BIT(hwmon_in_input)
 #define HWMON_I_MIN		BIT(hwmon_in_min)
 #define HWMON_I_MAX		BIT(hwmon_in_max)
@@ -136,6 +150,7 @@ enum hwmon_in_attributes {
 #define HWMON_I_CRIT_ALARM	BIT(hwmon_in_crit_alarm)
 
 enum hwmon_curr_attributes {
+	hwmon_curr_enable,
 	hwmon_curr_input,
 	hwmon_curr_min,
 	hwmon_curr_max,
@@ -153,6 +168,7 @@ enum hwmon_curr_attributes {
 	hwmon_curr_crit_alarm,
 };
 
+#define HWMON_C_ENABLE		BIT(hwmon_curr_enable)
 #define HWMON_C_INPUT		BIT(hwmon_curr_input)
 #define HWMON_C_MIN		BIT(hwmon_curr_min)
 #define HWMON_C_MAX		BIT(hwmon_curr_max)
@@ -170,6 +186,7 @@ enum hwmon_curr_attributes {
 #define HWMON_C_CRIT_ALARM	BIT(hwmon_curr_crit_alarm)
 
 enum hwmon_power_attributes {
+	hwmon_power_enable,
 	hwmon_power_average,
 	hwmon_power_average_interval,
 	hwmon_power_average_interval_max,
@@ -187,15 +204,20 @@ enum hwmon_power_attributes {
 	hwmon_power_cap_hyst,
 	hwmon_power_cap_max,
 	hwmon_power_cap_min,
+	hwmon_power_min,
 	hwmon_power_max,
 	hwmon_power_crit,
+	hwmon_power_lcrit,
 	hwmon_power_label,
 	hwmon_power_alarm,
 	hwmon_power_cap_alarm,
+	hwmon_power_min_alarm,
 	hwmon_power_max_alarm,
+	hwmon_power_lcrit_alarm,
 	hwmon_power_crit_alarm,
 };
 
+#define HWMON_P_ENABLE			BIT(hwmon_power_enable)
 #define HWMON_P_AVERAGE			BIT(hwmon_power_average)
 #define HWMON_P_AVERAGE_INTERVAL	BIT(hwmon_power_average_interval)
 #define HWMON_P_AVERAGE_INTERVAL_MAX	BIT(hwmon_power_average_interval_max)
@@ -213,23 +235,30 @@ enum hwmon_power_attributes {
 #define HWMON_P_CAP_HYST		BIT(hwmon_power_cap_hyst)
 #define HWMON_P_CAP_MAX			BIT(hwmon_power_cap_max)
 #define HWMON_P_CAP_MIN			BIT(hwmon_power_cap_min)
+#define HWMON_P_MIN			BIT(hwmon_power_min)
 #define HWMON_P_MAX			BIT(hwmon_power_max)
+#define HWMON_P_LCRIT			BIT(hwmon_power_lcrit)
 #define HWMON_P_CRIT			BIT(hwmon_power_crit)
 #define HWMON_P_LABEL			BIT(hwmon_power_label)
 #define HWMON_P_ALARM			BIT(hwmon_power_alarm)
 #define HWMON_P_CAP_ALARM		BIT(hwmon_power_cap_alarm)
+#define HWMON_P_MIN_ALARM		BIT(hwmon_power_min_alarm)
 #define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
+#define HWMON_P_LCRIT_ALARM		BIT(hwmon_power_lcrit_alarm)
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
 
 enum hwmon_energy_attributes {
+	hwmon_energy_enable,
 	hwmon_energy_input,
 	hwmon_energy_label,
 };
 
+#define HWMON_E_ENABLE			BIT(hwmon_energy_enable)
 #define HWMON_E_INPUT			BIT(hwmon_energy_input)
 #define HWMON_E_LABEL			BIT(hwmon_energy_label)
 
 enum hwmon_humidity_attributes {
+	hwmon_humidity_enable,
 	hwmon_humidity_input,
 	hwmon_humidity_label,
 	hwmon_humidity_min,
@@ -240,6 +269,7 @@ enum hwmon_humidity_attributes {
 	hwmon_humidity_fault,
 };
 
+#define HWMON_H_ENABLE			BIT(hwmon_humidity_enable)
 #define HWMON_H_INPUT			BIT(hwmon_humidity_input)
 #define HWMON_H_LABEL			BIT(hwmon_humidity_label)
 #define HWMON_H_MIN			BIT(hwmon_humidity_min)
@@ -250,6 +280,7 @@ enum hwmon_humidity_attributes {
 #define HWMON_H_FAULT			BIT(hwmon_humidity_fault)
 
 enum hwmon_fan_attributes {
+	hwmon_fan_enable,
 	hwmon_fan_input,
 	hwmon_fan_label,
 	hwmon_fan_min,
@@ -263,6 +294,7 @@ enum hwmon_fan_attributes {
 	hwmon_fan_fault,
 };
 
+#define HWMON_F_ENABLE			BIT(hwmon_fan_enable)
 #define HWMON_F_INPUT			BIT(hwmon_fan_input)
 #define HWMON_F_LABEL			BIT(hwmon_fan_label)
 #define HWMON_F_MIN			BIT(hwmon_fan_min)
@@ -286,6 +318,13 @@ enum hwmon_pwm_attributes {
 #define HWMON_PWM_ENABLE		BIT(hwmon_pwm_enable)
 #define HWMON_PWM_MODE			BIT(hwmon_pwm_mode)
 #define HWMON_PWM_FREQ			BIT(hwmon_pwm_freq)
+
+enum hwmon_intrusion_attributes {
+	hwmon_intrusion_alarm,
+	hwmon_intrusion_beep,
+};
+#define HWMON_INTRUSION_ALARM		BIT(hwmon_intrusion_alarm)
+#define HWMON_INTRUSION_BEEP		BIT(hwmon_intrusion_beep)
 
 /**
  * struct hwmon_ops - hwmon device operations
@@ -354,6 +393,14 @@ struct hwmon_channel_info {
 	const u32 *config;
 };
 
+#define HWMON_CHANNEL_INFO(stype, ...)	\
+	(&(struct hwmon_channel_info) {	\
+		.type = hwmon_##stype,	\
+		.config = (u32 []) {	\
+			__VA_ARGS__, 0	\
+		}			\
+	})
+
 /**
  * Chip configuration
  * @ops:	Pointer to hwmon operations.
@@ -388,5 +435,28 @@ devm_hwmon_device_register_with_info(struct device *dev,
 
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
+
+/**
+ * hwmon_is_bad_char - Is the char invalid in a hwmon name
+ * @ch: the char to be considered
+ *
+ * hwmon_is_bad_char() can be used to determine if the given character
+ * may not be used in a hwmon name.
+ *
+ * Returns true if the char is invalid, false otherwise.
+ */
+static inline bool hwmon_is_bad_char(const char ch)
+{
+	switch (ch) {
+	case '-':
+	case '*':
+	case ' ':
+	case '\t':
+	case '\n':
+		return true;
+	default:
+		return false;
+	}
+}
 
 #endif

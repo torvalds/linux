@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/powerpc/sysdev/ipic.c
  *
  * IPIC routines implementations.
  *
  * Copyright 2005 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -771,49 +767,6 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	return ipic;
 }
 
-int ipic_set_priority(unsigned int virq, unsigned int priority)
-{
-	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
-	u32 temp;
-
-	if (priority > 7)
-		return -EINVAL;
-	if (src > 127)
-		return -EINVAL;
-	if (ipic_info[src].prio == 0)
-		return -EINVAL;
-
-	temp = ipic_read(ipic->regs, ipic_info[src].prio);
-
-	if (priority < 4) {
-		temp &= ~(0x7 << (20 + (3 - priority) * 3));
-		temp |= ipic_info[src].prio_mask << (20 + (3 - priority) * 3);
-	} else {
-		temp &= ~(0x7 << (4 + (7 - priority) * 3));
-		temp |= ipic_info[src].prio_mask << (4 + (7 - priority) * 3);
-	}
-
-	ipic_write(ipic->regs, ipic_info[src].prio, temp);
-
-	return 0;
-}
-
-void ipic_set_highest_priority(unsigned int virq)
-{
-	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
-	u32 temp;
-
-	temp = ipic_read(ipic->regs, IPIC_SICFR);
-
-	/* clear and set HPI */
-	temp &= 0x7f000000;
-	temp |= (src & 0x7f) << 24;
-
-	ipic_write(ipic->regs, IPIC_SICFR, temp);
-}
-
 void ipic_set_default_priority(void)
 {
 	ipic_write(primary_ipic->regs, IPIC_SIPRR_A, IPIC_PRIORITY_DEFAULT);
@@ -824,29 +777,9 @@ void ipic_set_default_priority(void)
 	ipic_write(primary_ipic->regs, IPIC_SMPRR_B, IPIC_PRIORITY_DEFAULT);
 }
 
-void ipic_enable_mcp(enum ipic_mcp_irq mcp_irq)
-{
-	struct ipic *ipic = primary_ipic;
-	u32 temp;
-
-	temp = ipic_read(ipic->regs, IPIC_SERMR);
-	temp |= (1 << (31 - mcp_irq));
-	ipic_write(ipic->regs, IPIC_SERMR, temp);
-}
-
-void ipic_disable_mcp(enum ipic_mcp_irq mcp_irq)
-{
-	struct ipic *ipic = primary_ipic;
-	u32 temp;
-
-	temp = ipic_read(ipic->regs, IPIC_SERMR);
-	temp &= (1 << (31 - mcp_irq));
-	ipic_write(ipic->regs, IPIC_SERMR, temp);
-}
-
 u32 ipic_get_mcp_status(void)
 {
-	return ipic_read(primary_ipic->regs, IPIC_SERSR);
+	return primary_ipic ? ipic_read(primary_ipic->regs, IPIC_SERSR) : 0;
 }
 
 void ipic_clear_mcp_status(u32 mask)

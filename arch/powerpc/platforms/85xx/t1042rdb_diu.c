@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * T1042 platform DIU operation
  *
  * Copyright 2014 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
@@ -37,7 +35,7 @@ struct device_node *cpld_node;
  */
 static void t1042rdb_set_monitor_port(enum fsl_diu_monitor_port port)
 {
-	static void __iomem *cpld_base;
+	void __iomem *cpld_base;
 
 	cpld_base = of_iomap(cpld_node, 0);
 	if (!cpld_base) {
@@ -150,3 +148,5 @@ static int __init t1042rdb_diu_init(void)
 }
 
 early_initcall(t1042rdb_diu_init);
+
+MODULE_LICENSE("GPL");

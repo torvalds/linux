@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -93,6 +80,7 @@ static int als_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 min;
 
 	*val = 0;
 	*val2 = 0;
@@ -102,8 +90,8 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		case  CHANNEL_SCAN_INDEX_INTENSITY:
 		case  CHANNEL_SCAN_INDEX_ILLUM:
 			report_id = als_state->als_illum.report_id;
-			address =
-			HID_USAGE_SENSOR_LIGHT_ILLUM;
+			min = als_state->als_illum.logical_minimum;
+			address = HID_USAGE_SENSOR_LIGHT_ILLUM;
 			break;
 		default:
 			report_id = -1;
@@ -116,7 +104,8 @@ static int als_read_raw(struct iio_dev *indio_dev,
 					als_state->common_attributes.hsdev,
 					HID_USAGE_SENSOR_ALS, address,
 					report_id,
-					SENSOR_HUB_SYNC);
+					SENSOR_HUB_SYNC,
+					min < 0);
 			hid_sensor_power_state(&als_state->common_attributes,
 						false);
 		} else {

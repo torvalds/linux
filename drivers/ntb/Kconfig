@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig NTB
 	tristate "Non-Transparent Bridge support"
 	depends on PCI
@@ -12,6 +13,17 @@ menuconfig NTB
 
 if NTB
 
+config NTB_MSI
+	bool "MSI Interrupt Support"
+	depends on PCI_MSI
+	help
+	 Support using MSI interrupt forwarding instead of (or in addition to)
+	 hardware doorbells. MSI interrupts typically offer lower latency
+	 than doorbells and more MSI interrupts can be made available to
+	 clients. However this requires an extra memory window and support
+	 in the hardware driver for creating the MSI interrupts.
+
+	 If unsure, say N.
 source "drivers/ntb/hw/Kconfig"
 
 source "drivers/ntb/test/Kconfig"

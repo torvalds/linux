@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 /* \file cc_buffer_mgr.h
  * Buffer Manager
@@ -24,14 +24,15 @@ enum cc_sg_cpy_direct {
 };
 
 struct cc_mlli {
-	cc_sram_addr_t sram_addr;
+	u32 sram_addr;
+	unsigned int mapped_nents;
 	unsigned int nents; //sg nents
 	unsigned int mlli_nents; //mlli nents might be different than the above
 };
 
 struct mlli_params {
 	struct dma_pool *curr_pool;
-	u8 *mlli_virt_addr;
+	void *mlli_virt_addr;
 	dma_addr_t mlli_dma_addr;
 	u32 mlli_len;
 };
@@ -65,7 +66,5 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 
 void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
 			u32 to_skip, u32 end, enum cc_sg_cpy_direct direct);
-
-void cc_zero_sgl(struct scatterlist *sgl, u32 data_len);
 
 #endif /*__BUFFER_MGR_H__*/

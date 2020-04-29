@@ -245,9 +245,6 @@ struct octeon_droq_ops {
  *  Octeon DROQ.
  */
 struct octeon_droq {
-	/** A spinlock to protect access to this ring. */
-	spinlock_t lock;
-
 	u32 q_no;
 
 	u32 pkt_count;
@@ -414,6 +411,6 @@ int octeon_droq_process_poll_pkts(struct octeon_device *oct,
 
 int octeon_enable_irq(struct octeon_device *oct, u32 q_no);
 
-void octeon_droq_check_oom(struct octeon_droq *droq);
+int octeon_retry_droq_refill(struct octeon_droq *droq);
 
 #endif	/*__OCTEON_DROQ_H__ */

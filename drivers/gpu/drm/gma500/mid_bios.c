@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
 
@@ -23,11 +11,10 @@
  * - Check ioremap failures
  */
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
+
 #include "mid_bios.h"
+#include "psb_drv.h"
 
 static void mid_get_fuse_settings(struct drm_device *dev)
 {
@@ -239,7 +226,7 @@ static int mid_get_vbt_data_r10(struct drm_psb_private *dev_priv, u32 addr)
 	if (read_vbt_r10(addr, &vbt))
 		return -1;
 
-	gct = kmalloc(sizeof(*gct) * vbt.panel_count, GFP_KERNEL);
+	gct = kmalloc_array(vbt.panel_count, sizeof(*gct), GFP_KERNEL);
 	if (!gct)
 		return -ENOMEM;
 

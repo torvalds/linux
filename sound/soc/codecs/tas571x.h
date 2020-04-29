@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * TAS571x amplifier audio driver
  *
  * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _TAS571X_H
@@ -53,6 +49,22 @@
 #define TAS571X_PWM_MUX_REG		0x25
 
 /* 20-byte biquad registers */
+#define TAS5707_CH1_BQ0_REG		0x29
+#define TAS5707_CH1_BQ1_REG		0x2a
+#define TAS5707_CH1_BQ2_REG		0x2b
+#define TAS5707_CH1_BQ3_REG		0x2c
+#define TAS5707_CH1_BQ4_REG		0x2d
+#define TAS5707_CH1_BQ5_REG		0x2e
+#define TAS5707_CH1_BQ6_REG		0x2f
+
+#define TAS5707_CH2_BQ0_REG		0x30
+#define TAS5707_CH2_BQ1_REG		0x31
+#define TAS5707_CH2_BQ2_REG		0x32
+#define TAS5707_CH2_BQ3_REG		0x33
+#define TAS5707_CH2_BQ4_REG		0x34
+#define TAS5707_CH2_BQ5_REG		0x35
+#define TAS5707_CH2_BQ6_REG		0x36
+
 #define TAS5717_CH1_BQ0_REG		0x26
 #define TAS5717_CH1_BQ1_REG		0x27
 #define TAS5717_CH1_BQ2_REG		0x28

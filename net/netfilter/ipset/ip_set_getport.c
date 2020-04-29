@@ -1,4 +1,5 @@
-/* Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -147,31 +148,3 @@ ip_set_get_ip6_port(const struct sk_buff *skb, bool src,
 }
 EXPORT_SYMBOL_GPL(ip_set_get_ip6_port);
 #endif
-
-bool
-ip_set_get_ip_port(const struct sk_buff *skb, u8 pf, bool src, __be16 *port)
-{
-	bool ret;
-	u8 proto;
-
-	switch (pf) {
-	case NFPROTO_IPV4:
-		ret = ip_set_get_ip4_port(skb, src, port, &proto);
-		break;
-	case NFPROTO_IPV6:
-		ret = ip_set_get_ip6_port(skb, src, port, &proto);
-		break;
-	default:
-		return false;
-	}
-	if (!ret)
-		return ret;
-	switch (proto) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-		return true;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL_GPL(ip_set_get_ip_port);

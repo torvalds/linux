@@ -17,9 +17,13 @@
 /*
  * This gives the physical RAM offset.
  */
-#ifndef PHYS_OFFSET
-#define PHYS_OFFSET		_AC(0, UL)
-#endif
+#ifndef __ASSEMBLY__
+# if defined(CONFIG_MIPS_AUTO_PFN_OFFSET)
+#  define PHYS_OFFSET		((unsigned long)PFN_PHYS(ARCH_PFN_OFFSET))
+# elif !defined(PHYS_OFFSET)
+#  define PHYS_OFFSET		_AC(0, UL)
+# endif
+#endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_32BIT
 #ifdef CONFIG_KVM_GUEST

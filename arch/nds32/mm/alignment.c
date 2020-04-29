@@ -19,7 +19,7 @@
 #define RA(inst)	(((inst) >> 15) & 0x1FUL)
 #define RB(inst)	(((inst) >> 10) & 0x1FUL)
 #define SV(inst)	(((inst) >> 8) & 0x3UL)
-#define IMM(inst)	(((inst) >> 0) & 0x3FFFUL)
+#define IMM(inst)	(((inst) >> 0) & 0x7FFFUL)
 
 #define RA3(inst)	(((inst) >> 3) & 0x7UL)
 #define RT3(inst)	(((inst) >> 6) & 0x7UL)
@@ -27,6 +27,9 @@
 
 #define RA5(inst)	(((inst) >> 0) & 0x1FUL)
 #define RT4(inst)	(((inst) >> 5) & 0xFUL)
+
+#define GET_IMMSVAL(imm_value) \
+	(((imm_value >> 14) & 0x1) ? (imm_value - 0x8000) : imm_value)
 
 #define __get8_data(val,addr,err)	\
 	__asm__(					\
@@ -286,13 +289,13 @@ static inline int do_16(unsigned long inst, struct pt_regs *regs)
 		unaligned_addr += shift;
 
 	if (load) {
-		if (!access_ok(VERIFY_READ, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		get_data(unaligned_addr, &target_val, len);
 		*idx_to_addr(regs, target_idx) = target_val;
 	} else {
-		if (!access_ok(VERIFY_WRITE, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 		target_val = *idx_to_addr(regs, target_idx);
 		set_data((void *)unaligned_addr, target_val, len);
@@ -467,7 +470,7 @@ static inline int do_32(unsigned long inst, struct pt_regs *regs)
 	}
 
 	if (imm)
-		shift = IMM(inst) * len;
+		shift = GET_IMMSVAL(IMM(inst)) * len;
 	else
 		shift = *idx_to_addr(regs, RB(inst)) << SV(inst);
 
@@ -476,7 +479,7 @@ static inline int do_32(unsigned long inst, struct pt_regs *regs)
 
 	if (load) {
 
-		if (!access_ok(VERIFY_READ, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		get_data(unaligned_addr, &target_val, len);
@@ -488,7 +491,7 @@ static inline int do_32(unsigned long inst, struct pt_regs *regs)
 			*idx_to_addr(regs, RT(inst)) = target_val;
 	} else {
 
-		if (!access_ok(VERIFY_WRITE, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		target_val = *idx_to_addr(regs, RT(inst));
@@ -552,7 +555,7 @@ static struct ctl_table alignment_tbl[3] = {
 
 static struct ctl_table nds32_sysctl_table[2] = {
 	{
-	 .procname = "unaligned_acess",
+	 .procname = "unaligned_access",
 	 .mode = 0555,
 	 .child = alignment_tbl},
 	{}

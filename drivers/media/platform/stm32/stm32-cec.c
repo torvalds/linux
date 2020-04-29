@@ -56,6 +56,13 @@
 #define ALL_TX_IT	(TXEND | TXBR | TXACKE | TXERR | TXUDR | ARBLST)
 #define ALL_RX_IT	(RXEND | RXBR | RXACKE | RXOVR)
 
+/*
+ * 400 ms is the time it takes for one 16 byte message to be
+ * transferred and 5 is the maximum number of retries. Add
+ * another 100 ms as a margin.
+ */
+#define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
+
 struct stm32_cec {
 	struct cec_adapter	*adap;
 	struct device		*dev;
@@ -188,7 +195,11 @@ static int stm32_cec_adap_log_addr(struct cec_adapter *adap, u8 logical_addr)
 {
 	struct stm32_cec *cec = adap->priv;
 	u32 oar = (1 << logical_addr) << 16;
+	u32 val;
 
+	/* Poll every 100µs the register CEC_CR to wait end of transmission */
+	regmap_read_poll_timeout(cec->regmap, CEC_CR, val, !(val & TXSOM),
+				 100, CEC_XFER_TIMEOUT_MS * 1000);
 	regmap_update_bits(cec->regmap, CEC_CR, CECEN, 0);
 
 	if (logical_addr == CEC_LOG_ADDR_INVALID)
@@ -280,7 +291,9 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec->clk_cec = devm_clk_get(&pdev->dev, "cec");
 	if (IS_ERR(cec->clk_cec)) {
-		dev_err(&pdev->dev, "Cannot get cec clock\n");
+		if (PTR_ERR(cec->clk_cec) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Cannot get cec clock\n");
+
 		return PTR_ERR(cec->clk_cec);
 	}
 
@@ -291,10 +304,14 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	}
 
 	cec->clk_hdmi_cec = devm_clk_get(&pdev->dev, "hdmi-cec");
+	if (IS_ERR(cec->clk_hdmi_cec) &&
+	    PTR_ERR(cec->clk_hdmi_cec) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (!IS_ERR(cec->clk_hdmi_cec)) {
 		ret = clk_prepare(cec->clk_hdmi_cec);
 		if (ret) {
-			dev_err(&pdev->dev, "Unable to prepare hdmi-cec clock\n");
+			dev_err(&pdev->dev, "Can't prepare hdmi-cec clock\n");
 			return ret;
 		}
 	}

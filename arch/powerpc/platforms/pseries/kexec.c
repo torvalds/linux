@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright 2006 Michael Ellerman, IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -57,8 +53,11 @@ void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 		}
 	}
 
-	if (xive_enabled())
-		xive_kexec_teardown_cpu(secondary);
-	else
+	if (xive_enabled()) {
+		xive_teardown_cpu();
+
+		if (!secondary)
+			xive_shutdown();
+	} else
 		xics_kexec_teardown_cpu(secondary);
 }

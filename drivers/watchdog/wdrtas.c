@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FIXME: add wdrtas_get_status and wdrtas_get_boot_status as soon as
  * RTAS calls are available
@@ -10,20 +11,6 @@
  * device driver to exploit watchdog RTAS functions
  *
  * Authors : Utz Bacher <utz.bacher@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -376,7 +363,7 @@ static int wdrtas_open(struct inode *inode, struct file *file)
 	wdrtas_timer_start();
 	wdrtas_timer_keepalive();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /**
@@ -442,7 +429,7 @@ static ssize_t wdrtas_temp_read(struct file *file, char __user *buf,
  */
 static int wdrtas_temp_open(struct inode *inode, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /**
@@ -485,6 +472,7 @@ static const struct file_operations wdrtas_fops = {
 	.llseek		= no_llseek,
 	.write		= wdrtas_write,
 	.unlocked_ioctl	= wdrtas_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdrtas_open,
 	.release	= wdrtas_close,
 };

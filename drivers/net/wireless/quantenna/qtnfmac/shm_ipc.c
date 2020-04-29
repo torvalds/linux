@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/types.h>
 #include <linux/io.h>
@@ -42,19 +29,18 @@ static void qtnf_shm_handle_new_data(struct qtnf_shm_ipc *ipc)
 	if (unlikely(size == 0 || size > QTN_IPC_MAX_DATA_SZ)) {
 		pr_err("wrong rx packet size: %zu\n", size);
 		rx_buff_ok = false;
-	} else {
-		memcpy_fromio(ipc->rx_data, ipc->shm_region->data, size);
+	}
+
+	if (likely(rx_buff_ok)) {
+		ipc->rx_packet_count++;
+		ipc->rx_callback.fn(ipc->rx_callback.arg,
+				    ipc->shm_region->data, size);
 	}
 
 	writel(QTNF_SHM_IPC_ACK, &shm_reg_hdr->flags);
 	readl(&shm_reg_hdr->flags); /* flush PCIe write */
 
 	ipc->interrupt.fn(ipc->interrupt.arg);
-
-	if (likely(rx_buff_ok)) {
-		ipc->rx_packet_count++;
-		ipc->rx_callback.fn(ipc->rx_callback.arg, ipc->rx_data, size);
-	}
 }
 
 static void qtnf_shm_ipc_irq_work(struct work_struct *work)

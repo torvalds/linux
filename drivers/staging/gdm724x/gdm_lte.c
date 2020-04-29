@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -408,7 +398,7 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 	return nic_type;
 }
 
-static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct nic *nic = netdev_priv(dev);
 	u32 nic_type;
@@ -523,7 +513,7 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 
 	length = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
 				  hci->len) + HCI_HEADER_SIZE;
-	return netlink_send(lte_event.sock, idx, 0, buf, length);
+	return netlink_send(lte_event.sock, idx, 0, buf, length, dev);
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type,
@@ -881,7 +871,6 @@ int register_lte_device(struct phy_dev *phy_dev,
 		net = alloc_netdev(sizeof(struct nic), pdn_dev_name,
 				   NET_NAME_UNKNOWN, ether_setup);
 		if (!net) {
-			pr_err("alloc_netdev failed\n");
 			ret = -ENOMEM;
 			goto err;
 		}

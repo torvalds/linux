@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * KFR2R09 LCD panel support
  *
@@ -5,10 +6,6 @@
  *
  * Register settings based on the out-of-tree t33fb.c driver
  * Copyright (C) 2008 Lineo Solutions, Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file COPYING in the main directory of this archive for
- * more details.
  */
 
 #include <linux/delay.h>

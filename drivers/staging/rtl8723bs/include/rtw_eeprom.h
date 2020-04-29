@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_EEPROM_H__
@@ -99,7 +91,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_819x_ALPHA_Dlink = 44,/* add by ylb 20121012 for customer led for alpha */
 	RT_CID_WNC_NEC = 45,/* add by page for NEC */
 	RT_CID_DNI_BUFFALO = 46,/* add by page for NEC */
-}RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
+} RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
 struct eeprom_priv
 {

@@ -21,8 +21,10 @@
  */
 #undef __NO_VERSION__
 
+#include <linux/bits.h>
 #include <linux/etherdevice.h>
 #include <linux/file.h>
+#include <linux/kernel.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -30,12 +32,10 @@
 #include "power.h"
 #include "wcmd.h"
 #include "rxtx.h"
-#include "dpc.h"
 #include "rf.h"
 #include "firmware.h"
 #include "usbpipe.h"
 #include "channel.h"
-#include "int.h"
 
 /*
  * define module options
@@ -99,7 +99,6 @@ static void vnt_set_options(struct vnt_private *priv)
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bb_type = BBP_TYPE_DEF;
 	priv->packet_type = priv->bb_type;
-	priv->auto_fb_ctrl = AUTO_FB_0;
 	priv->preamble_type = 0;
 	priv->exist_sw_net_addr = false;
 }
@@ -109,65 +108,69 @@ static void vnt_set_options(struct vnt_private *priv)
  */
 static int vnt_init_registers(struct vnt_private *priv)
 {
+	int ret;
 	struct vnt_cmd_card_init *init_cmd = &priv->init_command;
 	struct vnt_rsp_card_init *init_rsp = &priv->init_response;
 	u8 antenna;
 	int ii;
-	int status = STATUS_SUCCESS;
 	u8 tmp;
 	u8 calib_tx_iq = 0, calib_tx_dc = 0, calib_rx_iq = 0;
 
 	dev_dbg(&priv->usb->dev, "---->INIbInitAdapter. [%d][%d]\n",
 		DEVICE_INIT_COLD, priv->packet_type);
 
-	if (!vnt_check_firmware_version(priv)) {
-		if (vnt_download_firmware(priv) == true) {
-			if (vnt_firmware_branch_to_sram(priv) == false) {
-				dev_dbg(&priv->usb->dev,
-					" vnt_firmware_branch_to_sram fail\n");
-				return false;
-			}
-		} else {
-			dev_dbg(&priv->usb->dev, "FIRMWAREbDownload fail\n");
-			return false;
+	ret = vnt_check_firmware_version(priv);
+	if (ret) {
+		ret = vnt_download_firmware(priv);
+		if (ret) {
+			dev_dbg(&priv->usb->dev,
+				"Could not download firmware: %d.\n", ret);
+			goto end;
+		}
+
+		ret = vnt_firmware_branch_to_sram(priv);
+		if (ret) {
+			dev_dbg(&priv->usb->dev,
+				"Could not branch to SRAM: %d.\n", ret);
+			goto end;
 		}
 	}
 
-	if (!vnt_vt3184_init(priv)) {
+	ret = vnt_vt3184_init(priv);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, "vnt_vt3184_init fail\n");
-		return false;
+		goto end;
 	}
 
 	init_cmd->init_class = DEVICE_INIT_COLD;
 	init_cmd->exist_sw_net_addr = priv->exist_sw_net_addr;
-	for (ii = 0; ii < 6; ii++)
+	for (ii = 0; ii < ARRAY_SIZE(init_cmd->sw_net_addr); ii++)
 		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
 	init_cmd->short_retry_limit = priv->short_retry_limit;
 	init_cmd->long_retry_limit = priv->long_retry_limit;
 
 	/* issue card_init command to device */
-	status = vnt_control_out(priv, MESSAGE_TYPE_CARDINIT, 0, 0,
-				 sizeof(struct vnt_cmd_card_init),
-				 (u8 *)init_cmd);
-	if (status != STATUS_SUCCESS) {
+	ret = vnt_control_out(priv, MESSAGE_TYPE_CARDINIT, 0, 0,
+			      sizeof(struct vnt_cmd_card_init),
+			      (u8 *)init_cmd);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, "Issue Card init fail\n");
-		return false;
+		goto end;
 	}
 
-	status = vnt_control_in(priv, MESSAGE_TYPE_INIT_RSP, 0, 0,
-				sizeof(struct vnt_rsp_card_init),
-				(u8 *)init_rsp);
-	if (status != STATUS_SUCCESS) {
-		dev_dbg(&priv->usb->dev,
-			"Cardinit request in status fail!\n");
-		return false;
+	ret = vnt_control_in(priv, MESSAGE_TYPE_INIT_RSP, 0, 0,
+			     sizeof(struct vnt_rsp_card_init),
+			     (u8 *)init_rsp);
+	if (ret) {
+		dev_dbg(&priv->usb->dev, "Cardinit request in status fail!\n");
+		goto end;
 	}
 
 	/* local ID for AES functions */
-	status = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_LOCALID,
-				MESSAGE_REQUEST_MACREG, 1, &priv->local_id);
-	if (status != STATUS_SUCCESS)
-		return false;
+	ret = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_LOCALID,
+			     MESSAGE_REQUEST_MACREG, 1, &priv->local_id);
+	if (ret)
+		goto end;
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
@@ -180,7 +183,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	priv->cck_pwr = priv->eeprom[EEP_OFS_PWR_CCK];
 	priv->ofdm_pwr_g = priv->eeprom[EEP_OFS_PWR_OFDMG];
 	/* load power table */
-	for (ii = 0; ii < 14; ii++) {
+	for (ii = 0; ii < ARRAY_SIZE(priv->cck_pwr_tbl); ii++) {
 		priv->cck_pwr_tbl[ii] =
 			priv->eeprom[ii + EEP_OFS_CCK_PWR_TBL];
 		if (priv->cck_pwr_tbl[ii] == 0)
@@ -196,7 +199,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-	for (ii = 11; ii < 14; ii++) {
+	for (ii = 11; ii < ARRAY_SIZE(priv->cck_pwr_tbl); ii++) {
 		priv->cck_pwr_tbl[ii] = priv->cck_pwr_tbl[10];
 		priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_tbl[10];
 	}
@@ -245,18 +248,17 @@ static int vnt_init_registers(struct vnt_private *priv)
 		} else {
 			priv->tx_antenna_mode = ANT_B;
 
-		if (priv->tx_rx_ant_inv)
-			priv->rx_antenna_mode = ANT_A;
-		else
-			priv->rx_antenna_mode = ANT_B;
+			if (priv->tx_rx_ant_inv)
+				priv->rx_antenna_mode = ANT_A;
+			else
+				priv->rx_antenna_mode = ANT_B;
 		}
 	}
 
 	/* Set initial antenna mode */
-	vnt_set_antenna_mode(priv, priv->rx_antenna_mode);
-
-	/* get Auto Fall Back type */
-	priv->auto_fb_ctrl = AUTO_FB_0;
+	ret = vnt_set_antenna_mode(priv, priv->rx_antenna_mode);
+	if (ret)
+		goto end;
 
 	/* default Auto Mode */
 	priv->bb_type = BB_TYPE_11G;
@@ -275,33 +277,41 @@ static int vnt_init_registers(struct vnt_private *priv)
 				/* CR255, enable TX/RX IQ and
 				 * DC compensation mode
 				 */
-				vnt_control_out_u8(priv,
-						   MESSAGE_REQUEST_BBREG,
-						   0xff,
-						   0x03);
+				ret = vnt_control_out_u8(priv,
+							 MESSAGE_REQUEST_BBREG,
+							 0xff, 0x03);
+				if (ret)
+					goto end;
+
 				/* CR251, TX I/Q Imbalance Calibration */
-				vnt_control_out_u8(priv,
-						   MESSAGE_REQUEST_BBREG,
-						   0xfb,
-						   calib_tx_iq);
+				ret = vnt_control_out_u8(priv,
+							 MESSAGE_REQUEST_BBREG,
+							 0xfb, calib_tx_iq);
+				if (ret)
+					goto end;
+
 				/* CR252, TX DC-Offset Calibration */
-				vnt_control_out_u8(priv,
-						   MESSAGE_REQUEST_BBREG,
-						   0xfC,
-						   calib_tx_dc);
+				ret = vnt_control_out_u8(priv,
+							 MESSAGE_REQUEST_BBREG,
+							 0xfC, calib_tx_dc);
+				if (ret)
+					goto end;
+
 				/* CR253, RX I/Q Imbalance Calibration */
-				vnt_control_out_u8(priv,
-						   MESSAGE_REQUEST_BBREG,
-						   0xfd,
-						   calib_rx_iq);
+				ret = vnt_control_out_u8(priv,
+							 MESSAGE_REQUEST_BBREG,
+							 0xfd, calib_rx_iq);
+				if (ret)
+					goto end;
 			} else {
 				/* CR255, turn off
 				 * BB Calibration compensation
 				 */
-				vnt_control_out_u8(priv,
-						   MESSAGE_REQUEST_BBREG,
-						   0xff,
-						   0x0);
+				ret = vnt_control_out_u8(priv,
+							 MESSAGE_REQUEST_BBREG,
+							 0xff, 0x0);
+				if (ret)
+					goto end;
 			}
 		}
 	}
@@ -323,37 +333,51 @@ static int vnt_init_registers(struct vnt_private *priv)
 	else
 		priv->short_slot_time = false;
 
-	vnt_set_short_slot_time(priv);
+	ret = vnt_set_short_slot_time(priv);
+	if (ret)
+		goto end;
 
 	priv->radio_ctl = priv->eeprom[EEP_OFS_RADIOCTL];
 
 	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
-		status = vnt_control_in(priv, MESSAGE_TYPE_READ,
-					MAC_REG_GPIOCTL1,
-					MESSAGE_REQUEST_MACREG, 1, &tmp);
+		ret = vnt_control_in(priv, MESSAGE_TYPE_READ,
+				     MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG,
+				     1, &tmp);
+		if (ret)
+			goto end;
 
-		if (status != STATUS_SUCCESS)
-			return false;
+		if ((tmp & GPIO3_DATA) == 0) {
+			ret = vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1,
+						  GPIO3_INTMD);
+		} else {
+			ret = vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1,
+						   GPIO3_INTMD);
+		}
 
-		if ((tmp & GPIO3_DATA) == 0)
-			vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1,
-					    GPIO3_INTMD);
-		else
-			vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1,
-					     GPIO3_INTMD);
+		if (ret)
+			goto end;
 	}
 
-	vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
+	ret = vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
+	if (ret)
+		goto end;
 
-	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_SLOW);
+	ret = vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_SLOW);
+	if (ret)
+		goto end;
 
-	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, 0x01);
+	ret = vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, BIT(0));
+	if (ret)
+		goto end;
 
-	vnt_radio_power_on(priv);
+	ret = vnt_radio_power_on(priv);
+	if (ret)
+		goto end;
 
 	dev_dbg(&priv->usb->dev, "<----INIbInitAdapter Exit\n");
 
-	return true;
+end:
+	return ret;
 }
 
 static void vnt_free_tx_bufs(struct vnt_private *priv)
@@ -363,6 +387,9 @@ static void vnt_free_tx_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = priv->tx_context[ii];
+		if (!tx_context)
+			continue;
+
 		/* deallocate URBs */
 		if (tx_context->urb) {
 			usb_kill_urb(tx_context->urb);
@@ -402,16 +429,19 @@ static void vnt_free_int_bufs(struct vnt_private *priv)
 	kfree(priv->int_buf.data_buf);
 }
 
-static bool vnt_alloc_bufs(struct vnt_private *priv)
+static int vnt_alloc_bufs(struct vnt_private *priv)
 {
+	int ret;
 	struct vnt_usb_send_context *tx_context;
 	struct vnt_rcb *rcb;
 	int ii;
 
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(*tx_context), GFP_KERNEL);
-		if (!tx_context)
+		if (!tx_context) {
+			ret = -ENOMEM;
 			goto free_tx;
+		}
 
 		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
@@ -419,16 +449,20 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 		/* allocate URBs */
 		tx_context->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!tx_context->urb)
+		if (!tx_context->urb) {
+			ret = -ENOMEM;
 			goto free_tx;
+		}
 
 		tx_context->in_use = false;
 	}
 
 	for (ii = 0; ii < priv->num_rcb; ii++) {
 		priv->rcb[ii] = kzalloc(sizeof(*priv->rcb[ii]), GFP_KERNEL);
-		if (!priv->rcb[ii])
+		if (!priv->rcb[ii]) {
+			ret = -ENOMEM;
 			goto free_rx_tx;
+		}
 
 		rcb = priv->rcb[ii];
 
@@ -436,39 +470,43 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 		/* allocate URBs */
 		rcb->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!rcb->urb)
+		if (!rcb->urb) {
+			ret = -ENOMEM;
 			goto free_rx_tx;
+		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
-		if (!rcb->skb)
+		if (!rcb->skb) {
+			ret = -ENOMEM;
 			goto free_rx_tx;
-
-		rcb->in_use = false;
-
+		}
 		/* submit rx urb */
-		if (vnt_submit_rx_urb(priv, rcb))
+		ret = vnt_submit_rx_urb(priv, rcb);
+		if (ret)
 			goto free_rx_tx;
 	}
 
 	priv->interrupt_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!priv->interrupt_urb)
-		goto free_rx_tx;
-
-	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (!priv->int_buf.data_buf) {
-		usb_free_urb(priv->interrupt_urb);
+	if (!priv->interrupt_urb) {
+		ret = -ENOMEM;
 		goto free_rx_tx;
 	}
 
-	return true;
+	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
+	if (!priv->int_buf.data_buf) {
+		ret = -ENOMEM;
+		goto free_rx_tx_urb;
+	}
 
+	return 0;
+
+free_rx_tx_urb:
+	usb_free_urb(priv->interrupt_urb);
 free_rx_tx:
 	vnt_free_rx_bufs(priv);
-
 free_tx:
 	vnt_free_tx_bufs(priv);
-
-	return false;
+	return ret;
 }
 
 static void vnt_tx_80211(struct ieee80211_hw *hw,
@@ -483,28 +521,34 @@ static void vnt_tx_80211(struct ieee80211_hw *hw,
 
 static int vnt_start(struct ieee80211_hw *hw)
 {
+	int ret;
 	struct vnt_private *priv = hw->priv;
 
 	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
-	if (!vnt_alloc_bufs(priv)) {
+	ret = vnt_alloc_bufs(priv);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, "vnt_alloc_bufs fail...\n");
-		return -ENOMEM;
+		goto err;
 	}
 
 	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 
-	if (vnt_init_registers(priv) == false) {
+	ret = vnt_init_registers(priv);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, " init register fail\n");
 		goto free_all;
 	}
 
-	if (vnt_key_init_table(priv))
+	ret = vnt_key_init_table(priv);
+	if (ret)
 		goto free_all;
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
-	vnt_int_start_interrupt(priv);
+	ret = vnt_start_interrupt_urb(priv);
+	if (ret)
+		goto free_all;
 
 	ieee80211_wake_queues(hw);
 
@@ -517,8 +561,8 @@ free_all:
 
 	usb_kill_urb(priv->interrupt_urb);
 	usb_free_urb(priv->interrupt_urb);
-
-	return -ENOMEM;
+err:
+	return ret;
 }
 
 static void vnt_stop(struct ieee80211_hw *hw)
@@ -580,8 +624,6 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	priv->op_mode = vif->type;
-
-	vnt_set_bss_mode(priv);
 
 	/* LED blink on TX */
 	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_INTER);
@@ -669,7 +711,6 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		priv->basic_rates = conf->basic_rates;
 
 		vnt_update_top_rates(priv);
-		vnt_set_bss_mode(priv);
 
 		dev_dbg(&priv->usb->dev, "basic rates %x\n", conf->basic_rates);
 	}
@@ -698,10 +739,13 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			priv->short_slot_time = false;
 
 		vnt_set_short_slot_time(priv);
-		vnt_update_ifs(priv);
 		vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 		vnt_update_pre_ed_threshold(priv, false);
 	}
+
+	if (changed & (BSS_CHANGED_BASIC_RATES | BSS_CHANGED_ERP_PREAMBLE |
+		       BSS_CHANGED_ERP_SLOT))
+		vnt_set_bss_mode(priv);
 
 	if (changed & BSS_CHANGED_TXPOWER)
 		vnt_rf_setpower(priv, priv->current_rate,
@@ -726,12 +770,15 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL,
 					    TFTCTL_TSFCNTREN);
 
-			vnt_adjust_tsf(priv, conf->beacon_rate->hw_value,
-				       conf->sync_tsf, priv->current_tsf);
-
 			vnt_mac_set_beacon_interval(priv, conf->beacon_int);
 
 			vnt_reset_next_tbtt(priv, conf->beacon_int);
+
+			vnt_adjust_tsf(priv, conf->beacon_rate->hw_value,
+				       conf->sync_tsf, priv->current_tsf);
+
+			vnt_update_next_tbtt(priv,
+					     conf->sync_tsf, conf->beacon_int);
 		} else {
 			vnt_clear_current_tsf(priv);
 
@@ -747,12 +794,11 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
 	u64 mc_filter = 0;
-	u32 bit_nr = 0;
+	u32 bit_nr;
 
 	netdev_hw_addr_list_for_each(ha, mc_list) {
 		bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
-
-		mc_filter |= 1ULL << (bit_nr & 0x3f);
+		mc_filter |= BIT_ULL(bit_nr);
 	}
 
 	priv->mc_list_count = mc_list->count;
@@ -766,15 +812,11 @@ static void vnt_configure(struct ieee80211_hw *hw,
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
-	int rc;
 
 	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC;
 
-	rc = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
-			    MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
-
-	if (!rc)
-		rx_mode = RCR_MULTICAST | RCR_BROADCAST;
+	vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
+		       MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
 
 	dev_dbg(&priv->usb->dev, "rx mode in = %x\n", rx_mode);
 
@@ -811,12 +853,14 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		if (vnt_set_keys(hw, sta, vif, key))
-			return -EOPNOTSUPP;
-		break;
+		return vnt_set_keys(hw, sta, vif, key);
 	case DISABLE_KEY:
-		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse))
+		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse)) {
 			clear_bit(key->hw_key_idx, &priv->key_entry_inuse);
+
+			vnt_mac_disable_keyentry(priv, key->hw_key_idx);
+		}
+
 	default:
 		break;
 	}
@@ -898,7 +942,7 @@ static const struct ieee80211_ops vnt_mac_ops = {
 
 int vnt_init(struct vnt_private *priv)
 {
-	if (!(vnt_init_registers(priv)))
+	if (vnt_init_registers(priv))
 		return -EAGAIN;
 
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->permanent_net_addr);
@@ -922,7 +966,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct vnt_private *priv;
 	struct ieee80211_hw *hw;
 	struct wiphy *wiphy;
-	int rc = 0;
+	int rc;
 
 	udev = usb_get_dev(interface_to_usbdev(intf));
 
@@ -941,6 +985,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	priv = hw->priv;
 	priv->hw = hw;
 	priv->usb = udev;
+	priv->intf = intf;
 
 	vnt_set_options(priv);
 
@@ -963,6 +1008,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(priv->hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(priv->hw, SUPPORTS_PS);
+	ieee80211_hw_set(priv->hw, PS_NULLFUNC_STACK);
 
 	priv->hw->max_signal = 100;
 

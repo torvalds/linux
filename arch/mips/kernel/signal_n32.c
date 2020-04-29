@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2003 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/cache.h>
 #include <linux/sched.h>
@@ -64,25 +51,27 @@ struct rt_sigframe_n32 {
 	struct ucontextn32 rs_uc;
 };
 
-asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sysn32_rt_sigreturn(void)
 {
 	struct rt_sigframe_n32 __user *frame;
+	struct pt_regs *regs;
 	sigset_t set;
 	int sig;
 
-	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	regs = current_pt_regs();
+	frame = (struct rt_sigframe_n32 __user *)regs->regs[29];
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	set_current_blocked(&set);
 
-	sig = restore_sigcontext(&regs, &frame->rs_uc.uc_mcontext);
+	sig = restore_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	if (sig < 0)
 		goto badframe;
 	else if (sig)
-		force_sig(sig, current);
+		force_sig(sig);
 
 	if (compat_restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
@@ -93,12 +82,12 @@ asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		:/* no outputs */
-		:"r" (&regs));
+		: /* no outputs */
+		: "r" (regs));
 	/* Unreached */
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }
 
 static int setup_rt_frame_n32(void *sig_return, struct ksignal *ksig,
@@ -108,7 +97,7 @@ static int setup_rt_frame_n32(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Create siginfo.  */

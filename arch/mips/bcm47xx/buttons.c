@@ -147,7 +147,7 @@ bcm47xx_buttons_buffalo_whr_g125[] __initconst = {
 static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_g54s[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
-	BCM47XX_GPIO_KEY(4, KEY_RESTART),
+	BCM47XX_GPIO_KEY_H(4, KEY_RESTART),
 	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
 };
 
@@ -355,7 +355,7 @@ bcm47xx_buttons_luxul_xwr_600_v1[] = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_luxul_xwr_1750_v1[] = {
-	BCM47XX_GPIO_KEY(14, BTN_TASK),
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
 };
 
 /* Microsoft */
@@ -385,6 +385,13 @@ bcm47xx_buttons_motorola_wr850gv2v3[] __initconst = {
 /* Netgear */
 
 static const struct gpio_keys_button
+bcm47xx_buttons_netgear_r6200_v1[] __initconst = {
+	BCM47XX_GPIO_KEY(2, KEY_RFKILL),
+	BCM47XX_GPIO_KEY(3, KEY_RESTART),
+	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_netgear_wndr3400v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
 	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
@@ -409,6 +416,12 @@ bcm47xx_buttons_netgear_wndr4500v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(5, KEY_RFKILL),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wnr1000_v3[] __initconst = {
+	BCM47XX_GPIO_KEY(2, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(3, KEY_RESTART),
 };
 
 static const struct gpio_keys_button
@@ -658,6 +671,9 @@ int __init bcm47xx_buttons_register(void)
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_motorola_wr850gv2v3);
 		break;
 
+	case BCM47XX_BOARD_NETGEAR_R6200_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_r6200_v1);
+		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR3400V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr3400v1);
 		break;
@@ -669,6 +685,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR4500V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr4500v1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WNR1000_V3:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr1000_v3);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR3500L:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr3500lv1);

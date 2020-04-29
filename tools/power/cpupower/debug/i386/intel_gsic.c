@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2003  Bruno Ducrot
  *  (C) 2004  Dominik Brodowski <linux@dominikbrodowski.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  * Based on code found in
  * linux/include/asm-i386/ist.h and linux/arch/i386/kernel/setup.c

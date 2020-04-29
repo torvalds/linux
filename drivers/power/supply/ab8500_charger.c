@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
  * Charger driver for AB8500
  *
- * License Terms: GNU General Public License v2
  * Author:
  *	Johan Palsson <johan.palsson@stericsson.com>
  *	Karl Komierowski <karl.komierowski@stericsson.com>
@@ -29,10 +29,10 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/usb/otg.h>
 #include <linux/mutex.h>
+#include <linux/iio/consumer.h>
 
 /* Charger constants */
 #define NO_PW_CONN			0
@@ -58,9 +58,7 @@
 
 #define MAIN_CH_INPUT_CURR_SHIFT	4
 #define VBUS_IN_CURR_LIM_SHIFT		4
-#define AB8540_VBUS_IN_CURR_LIM_SHIFT	2
 #define AUTO_VBUS_IN_CURR_LIM_SHIFT	4
-#define AB8540_AUTO_VBUS_IN_CURR_MASK	0x3F
 #define VBUS_IN_CURR_LIM_RETRY_SET_TIME	30 /* seconds */
 
 #define LED_INDICATOR_PWM_ENA		0x01
@@ -235,7 +233,10 @@ struct ab8500_charger_max_usb_in_curr {
  * @current_stepping_sessions:
  *			Counter for current stepping sessions
  * @parent:		Pointer to the struct ab8500
- * @gpadc:		Pointer to the struct gpadc
+ * @adc_main_charger_v	ADC channel for main charger voltage
+ * @adc_main_charger_c	ADC channel for main charger current
+ * @adc_vbus_v		ADC channel for USB charger voltage
+ * @adc_usb_charger_c	ADC channel for USB charger current
  * @bm:           	Platform specific battery management information
  * @flags:		Structure for information about events triggered
  * @usb_state:		Structure for usb stack information
@@ -285,7 +286,10 @@ struct ab8500_charger {
 	int is_aca_rid;
 	atomic_t current_stepping_sessions;
 	struct ab8500 *parent;
-	struct ab8500_gpadc *gpadc;
+	struct iio_channel *adc_main_charger_v;
+	struct iio_channel *adc_main_charger_c;
+	struct iio_channel *adc_vbus_v;
+	struct iio_channel *adc_usb_charger_c;
 	struct abx500_bm_data *bm;
 	struct ab8500_charger_event_flags flags;
 	struct ab8500_charger_usb_state usb_state;
@@ -400,7 +404,7 @@ disable_otp:
 }
 
 /**
- * ab8500_power_supply_changed - a wrapper with local extentions for
+ * ab8500_power_supply_changed - a wrapper with local extensions for
  * power_supply_changed
  * @di:	  pointer to the ab8500_charger structure
  * @psy:  pointer to power_supply_that have changed.
@@ -461,13 +465,13 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
  */
 static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 {
-	int vch;
+	int vch, ret;
 
 	/* Only measure voltage if the charger is connected */
 	if (di->ac.charger_connected) {
-		vch = ab8500_gpadc_convert(di->gpadc, MAIN_CHARGER_V);
-		if (vch < 0)
-			dev_err(di->dev, "%s gpadc conv failed,\n", __func__);
+		ret = iio_read_channel_processed(di->adc_main_charger_v, &vch);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		vch = 0;
 	}
@@ -512,13 +516,13 @@ static int ab8500_charger_ac_cv(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 {
-	int vch;
+	int vch, ret;
 
 	/* Only measure voltage if the charger is connected */
 	if (di->usb.charger_connected) {
-		vch = ab8500_gpadc_convert(di->gpadc, VBUS_V);
-		if (vch < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_vbus_v, &vch);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		vch = 0;
 	}
@@ -534,13 +538,13 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 {
-	int ich;
+	int ich, ret;
 
 	/* Only measure current if the charger is online */
 	if (di->usb.charger_online) {
-		ich = ab8500_gpadc_convert(di->gpadc, USB_CHARGER_C);
-		if (ich < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_usb_charger_c, &ich);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		ich = 0;
 	}
@@ -556,13 +560,13 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 {
-	int ich;
+	int ich, ret;
 
 	/* Only measure current if the charger is online */
 	if (di->ac.charger_online) {
-		ich = ab8500_gpadc_convert(di->gpadc, MAIN_CHARGER_C);
-		if (ich < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_main_charger_c, &ich);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		ich = 0;
 	}
@@ -679,7 +683,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	/*
 	 * Platform only supports USB 2.0.
 	 * This means that charging current from USB source
-	 * is maximum 500 mA. Every occurence of USB_STAT_*_HOST_*
+	 * is maximum 500 mA. Every occurrence of USB_STAT_*_HOST_*
 	 * should set USB_CH_IP_CUR_LVL_0P5.
 	 */
 
@@ -744,6 +748,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 						USB_CH_IP_CUR_LVL_1P5;
 			break;
 		}
+		/* else, fall through */
 	case USB_STAT_HM_IDGND:
 		dev_err(di->dev, "USB Type - Charging not allowed\n");
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
@@ -784,7 +789,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
-	};
+	}
 
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
@@ -1074,7 +1079,7 @@ static int ab8500_charger_get_usb_cur(struct ab8500_charger *di)
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -EPERM;
 		break;
-	};
+	}
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	return ret;
 }
@@ -1138,10 +1143,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 			no_stepping = true;
 		break;
 	case AB8500_USBCH_IPT_CRNTLVL_REG:
-		if (is_ab8540(di->parent))
-			shift_value = AB8540_VBUS_IN_CURR_LIM_SHIFT;
-		else
-			shift_value = VBUS_IN_CURR_LIM_SHIFT;
+		shift_value = VBUS_IN_CURR_LIM_SHIFT;
 		prev_curr_index = (reg_value >> shift_value);
 		curr_index = ab8500_vbus_in_curr_to_regval(di, ich);
 		step_udelay = STEP_UDELAY * 100;
@@ -1377,13 +1379,13 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
-		 * will be triggered everytime we enable the VDD ADC supply.
+		 * will be triggered every time we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
 		 * there is a charger enabled. Normally the VDD ADC supply
-		 * is enabled everytime a GPADC conversion is triggered. We will
-		 * force it to be enabled from this driver to have
-		 * the GPADC module independant of the AB8500 chargers
+		 * is enabled every time a GPADC conversion is triggered.
+		 * We will force it to be enabled from this driver to have
+		 * the GPADC module independent of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_ac) {
 			ret = regulator_enable(di->regu);
@@ -1453,7 +1455,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		if (is_ab8500_1p1_or_earlier(di->parent)) {
 			/*
 			 * For ABB revision 1.0 and 1.1 there is a bug in the
-			 * watchdog logic. That means we have to continously
+			 * watchdog logic. That means we have to continuously
 			 * kick the charger watchdog even when no charger is
 			 * connected. This is only valid once the AC charger
 			 * has been enabled. This is a bug that is not handled
@@ -1550,13 +1552,13 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
-		 * will be triggered everytime we enable the VDD ADC supply.
+		 * will be triggered every time we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
 		 * there is a charger enabled. Normally the VDD ADC supply
-		 * is enabled everytime a GPADC conversion is triggered. We will
-		 * force it to be enabled from this driver to have
-		 * the GPADC module independant of the AB8500 chargers
+		 * is enabled every time a GPADC conversion is triggered.
+		 * We will force it to be enabled from this driver to have
+		 * the GPADC module independent of the AB8500 chargers
 		 */
 		if (!di->vddadc_en_usb) {
 			ret = regulator_enable(di->regu);
@@ -1580,7 +1582,10 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 			return -ENXIO;
 		}
 
-		/* ChVoltLevel: max voltage upto which battery can be charged */
+		/*
+		 * ChVoltLevel: max voltage up to which battery can be
+		 * charged
+		 */
 		ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
 			AB8500_CH_VOLT_LVL_REG, (u8) volt_index);
 		if (ret) {
@@ -1865,67 +1870,6 @@ static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
 	return ret;
 }
 
-/**
- * ab8540_charger_power_path_enable() - enable usb power path mode
- * @charger:	pointer to the ux500_charger structure
- * @enable:	enable/disable flag
- *
- * Enable or disable the power path for usb mode
- * Returns error code in case of failure else 0(on success)
- */
-static int ab8540_charger_power_path_enable(struct ux500_charger *charger,
-		bool enable)
-{
-	int ret;
-	struct ab8500_charger *di;
-
-	if (charger->psy->desc->type == POWER_SUPPLY_TYPE_USB)
-		di = to_ab8500_charger_usb_device_info(charger);
-	else
-		return -ENXIO;
-
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-				AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
-				BUS_POWER_PATH_MODE_ENA, enable);
-	if (ret) {
-		dev_err(di->dev, "%s write failed\n", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-
-
-/**
- * ab8540_charger_usb_pre_chg_enable() - enable usb pre change
- * @charger:	pointer to the ux500_charger structure
- * @enable:	enable/disable flag
- *
- * Enable or disable the pre-chage for usb mode
- * Returns error code in case of failure else 0(on success)
- */
-static int ab8540_charger_usb_pre_chg_enable(struct ux500_charger *charger,
-		bool enable)
-{
-	int ret;
-	struct ab8500_charger *di;
-
-	if (charger->psy->desc->type == POWER_SUPPLY_TYPE_USB)
-		di = to_ab8500_charger_usb_device_info(charger);
-	else
-		return -ENXIO;
-
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-				AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
-				BUS_POWER_PATH_PRECHG_ENA, enable);
-	if (ret) {
-		dev_err(di->dev, "%s write failed\n", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-
 static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 {
 	struct power_supply *psy;
@@ -2073,7 +2017,7 @@ static void ab8500_charger_check_hw_failure_work(struct work_struct *work)
  * Work queue function for kicking the charger watchdog.
  *
  * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
- * logic. That means we have to continously kick the charger
+ * logic. That means we have to continuously kick the charger
  * watchdog even when no charger is connected. This is only
  * valid once the AC charger has been enabled. This is
  * a bug that is not handled by the algorithm and the
@@ -2321,7 +2265,7 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 	 * Some chargers that breaks the USB spec is
 	 * identified as invalid by AB8500 and it refuse
 	 * to start the charging process. but by jumping
-	 * thru a few hoops it can be forced to start.
+	 * through a few hoops it can be forced to start.
 	 */
 	if (is_ab8500(di->parent))
 		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
@@ -2486,7 +2430,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 
 	default:
 		break;
-	};
+	}
 }
 
 /**
@@ -2704,23 +2648,15 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 	abx500_set_register_interruptible(di->dev,
 				  AB8500_CHARGER, AB8500_CHARGER_CTRL, 0x01);
 
-	if (is_ab8540(di->parent))
-		ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
-				AB8540_CH_USBCH_STAT3_REG, &reg_value);
-	else
-		ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
-				AB8500_CH_USBCH_STAT2_REG, &reg_value);
+	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+			AB8500_CH_USBCH_STAT2_REG, &reg_value);
 	if (ret < 0) {
 		dev_err(di->dev, "%s read failed\n", __func__);
 		return;
 	}
 
-	if (is_ab8540(di->parent))
-		curr = di->bm->chg_input_curr[
-			reg_value & AB8540_AUTO_VBUS_IN_CURR_MASK];
-	else
-		curr = di->bm->chg_input_curr[
-			reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT];
+	curr = di->bm->chg_input_curr[
+		reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT];
 
 	if (di->max_usb_in_curr.calculated_max != curr) {
 		/* USB source is collapsing */
@@ -3084,7 +3020,6 @@ static int ab8500_charger_usb_get_property(struct power_supply *psy,
 static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 {
 	int ret = 0;
-	u8 bup_vch_range = 0, vbup33_vrtcn = 0;
 
 	/* Setup maximum charger current and voltage for ABB cut2.0 */
 	if (!is_ab8500_1p1_or_earlier(di->parent)) {
@@ -3097,14 +3032,9 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 			goto out;
 		}
 
-		if (is_ab8540(di->parent))
-			ret = abx500_set_register_interruptible(di->dev,
-				AB8500_CHARGER, AB8500_CH_OPT_CRNTLVL_MAX_REG,
-				CH_OP_CUR_LVL_2P);
-		else
-			ret = abx500_set_register_interruptible(di->dev,
-				AB8500_CHARGER, AB8500_CH_OPT_CRNTLVL_MAX_REG,
-				CH_OP_CUR_LVL_1P6);
+		ret = abx500_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8500_CH_OPT_CRNTLVL_MAX_REG,
+			CH_OP_CUR_LVL_1P6);
 		if (ret) {
 			dev_err(di->dev,
 				"failed to set CH_OPT_CRNTLVL_MAX_REG\n");
@@ -3112,8 +3042,7 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		}
 	}
 
-	if (is_ab9540_2p0(di->parent) || is_ab9540_3p0(di->parent)
-	 || is_ab8505_2p0(di->parent) || is_ab8540(di->parent))
+	if (is_ab8505_2p0(di->parent))
 		ret = abx500_mask_and_set_register_interruptible(di->dev,
 			AB8500_CHARGER,
 			AB8500_USBCH_CTRL2_REG,
@@ -3146,7 +3075,7 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		AB8500_SYS_CTRL2_BLOCK,
 		AB8500_MAIN_WDOG_CTRL_REG, MAIN_WDOG_ENA);
 	if (ret) {
-		dev_err(di->dev, "faile to enable main watchdog\n");
+		dev_err(di->dev, "failed to enable main watchdog\n");
 		goto out;
 	}
 
@@ -3191,12 +3120,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		goto out;
 	}
 
-	/* Backup battery voltage and current */
-	if (di->bm->bkup_bat_v > BUP_VCH_SEL_3P1V)
-		bup_vch_range = BUP_VCH_RANGE;
-	if (di->bm->bkup_bat_v == BUP_VCH_SEL_3P3V)
-		vbup33_vrtcn = VBUP33_VRTCN;
-
 	ret = abx500_set_register_interruptible(di->dev,
 		AB8500_RTC,
 		AB8500_RTC_BACKUP_CHG_REG,
@@ -3204,17 +3127,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 	if (ret) {
 		dev_err(di->dev, "failed to setup backup battery charging\n");
 		goto out;
-	}
-	if (is_ab8540(di->parent)) {
-		ret = abx500_set_register_interruptible(di->dev,
-			AB8500_RTC,
-			AB8500_RTC_CTRL1_REG,
-			bup_vch_range | vbup33_vrtcn);
-		if (ret) {
-			dev_err(di->dev,
-				"failed to setup backup battery charging\n");
-			goto out;
-		}
 	}
 
 	/* Enable backup battery charging */
@@ -3224,25 +3136,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 	if (ret < 0) {
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
 		goto out;
-	}
-
-	if (is_ab8540(di->parent)) {
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
-			BUS_VSYS_VOL_SELECT_MASK, BUS_VSYS_VOL_SELECT_3P6V);
-		if (ret) {
-			dev_err(di->dev,
-				"failed to setup usb power path vsys voltage\n");
-			goto out;
-		}
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
-			BUS_PP_PRECHG_CURRENT_MASK, 0);
-		if (ret) {
-			dev_err(di->dev,
-				"failed to setup usb power path precharge current\n");
-			goto out;
-		}
 	}
 
 out:
@@ -3324,7 +3217,7 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
-	 * logic. That means we have to continously kick the charger
+	 * logic. That means we have to continuously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
 	 * a bug that is not handled by the algorithm and the
@@ -3487,7 +3380,39 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* get parent data */
 	di->dev = &pdev->dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
-	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+
+	/* Get ADC channels */
+	di->adc_main_charger_v = devm_iio_channel_get(&pdev->dev,
+						      "main_charger_v");
+	if (IS_ERR(di->adc_main_charger_v)) {
+		if (PTR_ERR(di->adc_main_charger_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC main charger voltage\n");
+		return PTR_ERR(di->adc_main_charger_v);
+	}
+	di->adc_main_charger_c = devm_iio_channel_get(&pdev->dev,
+						      "main_charger_c");
+	if (IS_ERR(di->adc_main_charger_c)) {
+		if (PTR_ERR(di->adc_main_charger_c) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC main charger current\n");
+		return PTR_ERR(di->adc_main_charger_c);
+	}
+	di->adc_vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
+	if (IS_ERR(di->adc_vbus_v)) {
+		if (PTR_ERR(di->adc_vbus_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC USB charger voltage\n");
+		return PTR_ERR(di->adc_vbus_v);
+	}
+	di->adc_usb_charger_c = devm_iio_channel_get(&pdev->dev,
+						     "usb_charger_c");
+	if (IS_ERR(di->adc_usb_charger_c)) {
+		if (PTR_ERR(di->adc_usb_charger_c) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC USB charger current\n");
+		return PTR_ERR(di->adc_usb_charger_c);
+	}
 
 	/* initialize lock */
 	spin_lock_init(&di->usb_state.usb_lock);
@@ -3529,8 +3454,6 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
-	di->usb_chg.ops.pp_enable = &ab8540_charger_power_path_enable;
-	di->usb_chg.ops.pre_chg_enable = &ab8540_charger_usb_pre_chg_enable;
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr =
@@ -3538,7 +3461,6 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.enabled = di->bm->usb_enabled;
 	di->usb_chg.external = false;
-	di->usb_chg.power_path = di->bm->usb_power_path;
 	di->usb_state.usb_current = -1;
 
 	/* Create a work queue for the charger */
@@ -3564,7 +3486,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
-	 * logic. That means we have to continously kick the charger
+	 * logic. That means we have to continuously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
 	 * a bug that is not handled by the algorithm and the
@@ -3675,6 +3597,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* Register interrupts */
 	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
+		if (irq < 0) {
+			ret = irq;
+			goto free_irq;
+		}
+
 		ret = request_threaded_irq(irq, NULL, ab8500_charger_irq[i].isr,
 			IRQF_SHARED | IRQF_NO_SUSPEND,
 			ab8500_charger_irq[i].name, di);

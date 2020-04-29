@@ -6,6 +6,7 @@
 
 #include <asm/cputype.h>
 #include <asm/idmap.h>
+#include <asm/hwcap.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
@@ -110,7 +111,8 @@ static int __init init_static_idmap(void)
 			     __idmap_text_end, 0);
 
 	/* Flush L1 for the hardware to see this page table content */
-	flush_cache_louis();
+	if (!(elf_hwcap & HWCAP_LPAE))
+		flush_cache_louis();
 
 	return 0;
 }

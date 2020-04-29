@@ -57,6 +57,7 @@
 
 	/* Will be filled by the bootloader */
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0>;
 	};
 
@@ -106,7 +107,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,n133hse-ea1", "simple-panel";
+		compatible = "innolux,n133hse-ea1";
 		backlight = <&backlight>;
 	};
 
@@ -268,8 +269,6 @@
 	touch: stmpe811@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		irq-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;
 		id = <0>;
 		blocks = <0x5>;

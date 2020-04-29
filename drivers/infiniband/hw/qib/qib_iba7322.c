@@ -1382,7 +1382,6 @@ static void err_decode(char *msg, size_t len, u64 errs,
 					*msg++ = ',';
 					len--;
 				}
-				BUG_ON(!msp->sz);
 				/* msp->sz counts the nul */
 				took = min_t(size_t, msp->sz - (size_t)1, len);
 				memcpy(msg,  msp->msg, took);
@@ -3648,8 +3647,9 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 
 	if (msix_entries) {
 		/* can be up to 512 bytes, too big for stack */
-		msix_vecsave = kmalloc(2 * dd->cspec->num_msix_entries *
-			sizeof(u64), GFP_KERNEL);
+		msix_vecsave = kmalloc_array(2 * dd->cspec->num_msix_entries,
+					     sizeof(u64),
+					     GFP_KERNEL);
 	}
 
 	/*
@@ -3793,7 +3793,6 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
@@ -4440,10 +4439,8 @@ static void qib_update_7322_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 		adjust_rcv_timeout(rcd, npkts);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7322_hdrqempty(struct qib_ctxtdata *rcd)
@@ -5009,16 +5006,17 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = sizeof(cntr7322names) - 1;
 	else
 		dd->cspec->cntrnamelen = 1 + s - cntr7322names;
-	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
-		* sizeof(u64), GFP_KERNEL);
+	dd->cspec->cntrs = kmalloc_array(dd->cspec->ncntrs, sizeof(u64),
+					 GFP_KERNEL);
 
 	for (i = 0, s = (char *)portcntr7322names; s; i++)
 		s = strchr(s + 1, '\n');
 	dd->cspec->nportcntrs = i - 1;
 	dd->cspec->portcntrnamelen = sizeof(portcntr7322names) - 1;
 	for (i = 0; i < dd->num_pports; ++i) {
-		dd->pport[i].cpspec->portcntrs = kmalloc(dd->cspec->nportcntrs
-			* sizeof(u64), GFP_KERNEL);
+		dd->pport[i].cpspec->portcntrs =
+			kmalloc_array(dd->cspec->nportcntrs, sizeof(u64),
+				      GFP_KERNEL);
 	}
 }
 
@@ -6139,7 +6137,7 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 static int setup_txselect(const char *str, const struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
-	unsigned long val;
+	unsigned long index, val;
 	char *n;
 
 	if (strlen(str) >= ARRAY_SIZE(txselect_list)) {
@@ -6155,7 +6153,7 @@ static int setup_txselect(const char *str, const struct kernel_param *kp)
 	}
 	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
 
-	list_for_each_entry(dd, &qib_dev_list, list)
+	xa_for_each(&qib_dev_table, index, dd)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);
 	return 0;
@@ -6412,12 +6410,15 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	sbufcnt = dd->piobcnt2k + dd->piobcnt4k +
 		NUM_VL15_BUFS + BITS_PER_LONG - 1;
 	sbufcnt /= BITS_PER_LONG;
-	dd->cspec->sendchkenable = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendchkenable), GFP_KERNEL);
-	dd->cspec->sendgrhchk = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendgrhchk), GFP_KERNEL);
-	dd->cspec->sendibchk = kmalloc(sbufcnt *
-		sizeof(*dd->cspec->sendibchk), GFP_KERNEL);
+	dd->cspec->sendchkenable =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendchkenable),
+			      GFP_KERNEL);
+	dd->cspec->sendgrhchk =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendgrhchk),
+			      GFP_KERNEL);
+	dd->cspec->sendibchk =
+		kmalloc_array(sbufcnt, sizeof(*dd->cspec->sendibchk),
+			      GFP_KERNEL);
 	if (!dd->cspec->sendchkenable || !dd->cspec->sendgrhchk ||
 		!dd->cspec->sendibchk) {
 		ret = -ENOMEM;
@@ -6594,7 +6595,6 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 
 	/* we always allocate at least 2048 bytes for eager buffers */
 	dd->rcvegrbufsize = max(mtu, 2048);
-	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
 	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7322_tidtemplate(dd);
@@ -6630,7 +6630,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	/* vl15 buffers start just after the 4k buffers */
 	vl15off = dd->physaddr + (dd->piobufbase >> 32) +
 		  dd->piobcnt4k * dd->align4k;
-	dd->piovl15base	= ioremap_nocache(vl15off,
+	dd->piovl15base	= ioremap(vl15off,
 					  NUM_VL15_BUFS * dd->align4k);
 	if (!dd->piovl15base) {
 		ret = -ENOMEM;
@@ -6899,7 +6899,6 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 		unsigned word = erstbuf / BITS_PER_LONG;
 		unsigned bit = erstbuf & (BITS_PER_LONG - 1);
 
-		BUG_ON(word >= 3);
 		senddmabufmask[word] |= 1ULL << bit;
 	}
 	qib_write_kreg_port(ppd, krp_senddmabufmask0, senddmabufmask[0]);
@@ -7290,8 +7289,9 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 		actual_cnt -= dd->num_pports;
 
 	tabsize = actual_cnt;
-	dd->cspec->msix_entries = kzalloc(tabsize *
-			sizeof(struct qib_msix_entry), GFP_KERNEL);
+	dd->cspec->msix_entries = kcalloc(tabsize,
+					  sizeof(struct qib_msix_entry),
+					  GFP_KERNEL);
 	if (!dd->cspec->msix_entries)
 		tabsize = 0;
 

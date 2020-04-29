@@ -21,6 +21,16 @@ readonly DADDR6='fd::2'
 
 readonly path_sysctl_mem="net.core.optmem_max"
 
+# No arguments: automated test
+if [[ "$#" -eq "0" ]]; then
+	$0 4 tcp -t 1
+	$0 6 tcp -t 1
+	$0 4 udp -t 1
+	$0 6 udp -t 1
+	echo "OK. All tests passed"
+	exit 0
+fi
+
 # Argument parsing
 if [[ "$#" -lt "2" ]]; then
 	echo "Usage: $0 [4|6] [tcp|udp|raw|raw_hdrincl|packet|packet_dgram] <args>"

@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/linux/mfd/wm831x/pdata.h -- Platform data for WM831x
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #ifndef __MFD_WM831X_PDATA_H__
@@ -52,7 +47,6 @@ struct wm831x_battery_pdata {
  * I2C or SPI buses.
  */
 struct wm831x_buckv_pdata {
-	int dvs_gpio;        /** CPU GPIO to use for DVS switching */
 	int dvs_control_src; /** Hardware DVS source to use (1 or 2) */
 	int dvs_init_state;  /** DVS state to expect on startup */
 	int dvs_state_gpio;  /** CPU GPIO to use for monitoring status */
@@ -95,7 +89,6 @@ enum wm831x_watchdog_action {
 
 struct wm831x_watchdog_pdata {
 	enum wm831x_watchdog_action primary, secondary;
-	int update_gpio;
 	unsigned int software:1;
 };
 

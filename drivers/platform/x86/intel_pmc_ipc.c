@@ -1,39 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmc_ipc.c: Driver for the Intel PMC IPC mechanism
+ * Driver for the Intel PMC IPC mechanism
  *
  * (C) Copyright 2014-2015 Intel Corporation
  *
- * This driver is based on Intel SCU IPC driver(intel_scu_opc.c) by
+ * This driver is based on Intel SCU IPC driver(intel_scu_ipc.c) by
  *     Sreedhara DS <sreedhara.ds@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * PMC running in ARC processor communicates with other entity running in IA
  * core through IPC mechanism which in turn messaging between IA core ad PMC.
  */
 
-#include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/pm.h>
+#include <linux/interrupt.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
-#include <linux/pm_qos.h>
-#include <linux/kernel.h>
-#include <linux/bitops.h>
-#include <linux/sched.h>
-#include <linux/atomic.h>
-#include <linux/notifier.h>
-#include <linux/suspend.h>
-#include <linux/acpi.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
-#include <linux/spinlock.h>
 
 #include <asm/intel_pmc_ipc.h>
 
@@ -45,14 +30,14 @@
  * The ARC handles the interrupt and services it, writing optional data to
  * the IPC1 registers, updates the IPC_STS response register with the status.
  */
-#define IPC_CMD			0x0
-#define		IPC_CMD_MSI		0x100
+#define IPC_CMD			0x00
+#define		IPC_CMD_MSI		BIT(8)
 #define		IPC_CMD_SIZE		16
 #define		IPC_CMD_SUBCMD		12
 #define IPC_STATUS		0x04
-#define		IPC_STATUS_IRQ		0x4
-#define		IPC_STATUS_ERR		0x2
-#define		IPC_STATUS_BUSY		0x1
+#define		IPC_STATUS_IRQ		BIT(2)
+#define		IPC_STATUS_ERR		BIT(1)
+#define		IPC_STATUS_BUSY		BIT(0)
 #define IPC_SPTR		0x08
 #define IPC_DPTR		0x0C
 #define IPC_WRITE_BUFFER	0x80
@@ -106,13 +91,13 @@
 #define TELEM_SSRAM_SIZE		240
 #define TELEM_PMC_SSRAM_OFFSET		0x1B00
 #define TELEM_PUNIT_SSRAM_OFFSET	0x1A00
-#define TCO_PMC_OFFSET			0x8
-#define TCO_PMC_SIZE			0x4
+#define TCO_PMC_OFFSET			0x08
+#define TCO_PMC_SIZE			0x04
 
 /* PMC register bit definitions */
 
 /* PMC_CFG_REG bit masks */
-#define PMC_CFG_NO_REBOOT_MASK		(1 << 4)
+#define PMC_CFG_NO_REBOOT_MASK		BIT_MASK(4)
 #define PMC_CFG_NO_REBOOT_EN		(1 << 4)
 #define PMC_CFG_NO_REBOOT_DIS		(0 << 4)
 
@@ -136,6 +121,7 @@ static struct intel_pmc_ipc_dev {
 
 	/* punit */
 	struct platform_device *punit_dev;
+	unsigned int punit_res_count;
 
 	/* Telemetry */
 	resource_size_t telem_pmc_ssram_base;
@@ -188,11 +174,6 @@ static inline void ipc_data_writel(u32 data, u32 offset)
 	writel(data, ipcdev.ipc_base + IPC_WRITE_BUFFER + offset);
 }
 
-static inline u8 __maybe_unused ipc_data_readb(u32 offset)
-{
-	return readb(ipcdev.ipc_base + IPC_READ_BUFFER + offset);
-}
-
 static inline u32 ipc_data_readl(u32 offset)
 {
 	return readl(ipcdev.ipc_base + IPC_READ_BUFFER + offset);
@@ -213,35 +194,6 @@ static inline int is_gcr_valid(u32 offset)
 
 	return 0;
 }
-
-/**
- * intel_pmc_gcr_read() - Read a 32-bit PMC GCR register
- * @offset:	offset of GCR register from GCR address base
- * @data:	data pointer for storing the register output
- *
- * Reads the 32-bit PMC GCR register at given offset.
- *
- * Return:	negative value on error or 0 on success.
- */
-int intel_pmc_gcr_read(u32 offset, u32 *data)
-{
-	int ret;
-
-	spin_lock(&ipcdev.gcr_lock);
-
-	ret = is_gcr_valid(offset);
-	if (ret < 0) {
-		spin_unlock(&ipcdev.gcr_lock);
-		return ret;
-	}
-
-	*data = readl(ipcdev.gcr_mem_base + offset);
-
-	spin_unlock(&ipcdev.gcr_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pmc_gcr_read);
 
 /**
  * intel_pmc_gcr_read64() - Read a 64-bit PMC GCR register
@@ -273,36 +225,6 @@ int intel_pmc_gcr_read64(u32 offset, u64 *data)
 EXPORT_SYMBOL_GPL(intel_pmc_gcr_read64);
 
 /**
- * intel_pmc_gcr_write() - Write PMC GCR register
- * @offset:	offset of GCR register from GCR address base
- * @data:	register update value
- *
- * Writes the PMC GCR register of given offset with given
- * value.
- *
- * Return:	negative value on error or 0 on success.
- */
-int intel_pmc_gcr_write(u32 offset, u32 data)
-{
-	int ret;
-
-	spin_lock(&ipcdev.gcr_lock);
-
-	ret = is_gcr_valid(offset);
-	if (ret < 0) {
-		spin_unlock(&ipcdev.gcr_lock);
-		return ret;
-	}
-
-	writel(data, ipcdev.gcr_mem_base + offset);
-
-	spin_unlock(&ipcdev.gcr_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pmc_gcr_write);
-
-/**
  * intel_pmc_gcr_update() - Update PMC GCR register bits
  * @offset:	offset of GCR register from GCR address base
  * @mask:	bit mask for update operation
@@ -313,7 +235,7 @@ EXPORT_SYMBOL_GPL(intel_pmc_gcr_write);
  *
  * Return:	negative value on error or 0 on success.
  */
-int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
+static int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
 {
 	u32 new_val;
 	int ret = 0;
@@ -343,7 +265,6 @@ gcr_ipc_unlock:
 	spin_unlock(&ipcdev.gcr_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_pmc_gcr_update);
 
 static int update_no_reboot_bit(void *priv, bool set)
 {
@@ -409,7 +330,7 @@ static int intel_pmc_ipc_check_status(void)
  *
  * Return:	an IPC error code or 0 on success.
  */
-int intel_pmc_ipc_simple_command(int cmd, int sub)
+static int intel_pmc_ipc_simple_command(int cmd, int sub)
 {
 	int ret;
 
@@ -424,7 +345,6 @@ int intel_pmc_ipc_simple_command(int cmd, int sub)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_pmc_ipc_simple_command);
 
 /**
  * intel_pmc_ipc_raw_cmd() - IPC command with data and pointers
@@ -441,8 +361,8 @@ EXPORT_SYMBOL_GPL(intel_pmc_ipc_simple_command);
  *
  * Return:	an IPC error code or 0 on success.
  */
-int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen, u32 *out,
-			  u32 outlen, u32 dptr, u32 sptr)
+static int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen, u32 *out,
+				 u32 outlen, u32 dptr, u32 sptr)
 {
 	u32 wbuf[4] = { 0 };
 	int ret;
@@ -474,7 +394,6 @@ int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen, u32 *out,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_pmc_ipc_raw_cmd);
 
 /**
  * intel_pmc_ipc_command() -  IPC command with input/output data
@@ -583,6 +502,7 @@ static ssize_t intel_pmc_ipc_simple_cmd_store(struct device *dev,
 	}
 	return (ssize_t)count;
 }
+static DEVICE_ATTR(simplecmd, 0200, NULL, intel_pmc_ipc_simple_cmd_store);
 
 static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
 					     struct device_attribute *attr,
@@ -592,8 +512,9 @@ static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
 	int subcmd;
 	int ret;
 
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val)
 		subcmd = 1;
@@ -606,11 +527,7 @@ static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
 	}
 	return (ssize_t)count;
 }
-
-static DEVICE_ATTR(simplecmd, S_IWUSR,
-		   NULL, intel_pmc_ipc_simple_cmd_store);
-static DEVICE_ATTR(northpeak, S_IWUSR,
-		   NULL, intel_pmc_ipc_northpeak_store);
+static DEVICE_ATTR(northpeak, 0200, NULL, intel_pmc_ipc_northpeak_store);
 
 static struct attribute *intel_ipc_attrs[] = {
 	&dev_attr_northpeak.attr,
@@ -620,6 +537,11 @@ static struct attribute *intel_ipc_attrs[] = {
 
 static const struct attribute_group intel_ipc_group = {
 	.attrs = intel_ipc_attrs,
+};
+
+static const struct attribute_group *intel_ipc_groups[] = {
+	&intel_ipc_group,
+	NULL
 };
 
 static struct resource punit_res_array[] = {
@@ -687,7 +609,7 @@ static int ipc_create_punit_device(void)
 		.name = PUNIT_DEVICE_NAME,
 		.id = -1,
 		.res = punit_res_array,
-		.num_res = ARRAY_SIZE(punit_res_array),
+		.num_res = ipcdev.punit_res_count,
 		};
 
 	pdev = platform_device_register_full(&pdevinfo);
@@ -776,13 +698,17 @@ static int ipc_create_pmc_devices(void)
 	if (ret) {
 		dev_err(ipcdev.dev, "Failed to add punit platform device\n");
 		platform_device_unregister(ipcdev.tco_dev);
+		return ret;
 	}
 
 	if (!ipcdev.telem_res_inval) {
 		ret = ipc_create_telemetry_device();
-		if (ret)
+		if (ret) {
 			dev_warn(ipcdev.dev,
 				"Failed to add telemetry platform device\n");
+			platform_device_unregister(ipcdev.punit_dev);
+			platform_device_unregister(ipcdev.tco_dev);
+		}
 	}
 
 	return ret;
@@ -790,7 +716,7 @@ static int ipc_create_pmc_devices(void)
 
 static int ipc_plat_get_res(struct platform_device *pdev)
 {
-	struct resource *res, *punit_res;
+	struct resource *res, *punit_res = punit_res_array;
 	void __iomem *addr;
 	int size;
 
@@ -805,7 +731,8 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	ipcdev.acpi_io_size = size;
 	dev_info(&pdev->dev, "io res: %pR\n", res);
 
-	punit_res = punit_res_array;
+	ipcdev.punit_res_count = 0;
+
 	/* This is index 0 to cover BIOS data register */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_BIOS_DATA_INDEX);
@@ -813,7 +740,7 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get res of punit BIOS data\n");
 		return -ENXIO;
 	}
-	*punit_res = *res;
+	punit_res[ipcdev.punit_res_count++] = *res;
 	dev_info(&pdev->dev, "punit BIOS data res: %pR\n", res);
 
 	/* This is index 1 to cover BIOS interface register */
@@ -823,42 +750,38 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get res of punit BIOS iface\n");
 		return -ENXIO;
 	}
-	*++punit_res = *res;
+	punit_res[ipcdev.punit_res_count++] = *res;
 	dev_info(&pdev->dev, "punit BIOS interface res: %pR\n", res);
 
 	/* This is index 2 to cover ISP data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_DATA_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit ISP data res: %pR\n", res);
 	}
 
 	/* This is index 3 to cover ISP interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_IFACE_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit ISP interface res: %pR\n", res);
 	}
 
 	/* This is index 4 to cover GTD data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_DATA_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit GTD data res: %pR\n", res);
 	}
 
 	/* This is index 5 to cover GTD interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_IFACE_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit GTD interface res: %pR\n", res);
 	}
 
@@ -939,10 +862,8 @@ static int ipc_plat_probe(struct platform_device *pdev)
 	spin_lock_init(&ipcdev.gcr_lock);
 
 	ipcdev.irq = platform_get_irq(pdev, 0);
-	if (ipcdev.irq < 0) {
-		dev_err(&pdev->dev, "Failed to get irq\n");
+	if (ipcdev.irq < 0)
 		return -EINVAL;
-	}
 
 	ret = ipc_plat_get_res(pdev);
 	if (ret) {
@@ -963,18 +884,10 @@ static int ipc_plat_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &intel_ipc_group);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to create sysfs group %d\n",
-			ret);
-		goto err_sys;
-	}
-
 	ipcdev.has_gcr_regs = true;
 
 	return 0;
-err_sys:
-	devm_free_irq(&pdev->dev, ipcdev.irq, &ipcdev);
+
 err_irq:
 	platform_device_unregister(ipcdev.tco_dev);
 	platform_device_unregister(ipcdev.punit_dev);
@@ -985,7 +898,6 @@ err_irq:
 
 static int ipc_plat_remove(struct platform_device *pdev)
 {
-	sysfs_remove_group(&pdev->dev.kobj, &intel_ipc_group);
 	devm_free_irq(&pdev->dev, ipcdev.irq, &ipcdev);
 	platform_device_unregister(ipcdev.tco_dev);
 	platform_device_unregister(ipcdev.punit_dev);
@@ -1000,6 +912,7 @@ static struct platform_driver ipc_plat_driver = {
 	.driver = {
 		.name = "pmc-ipc-plat",
 		.acpi_match_table = ACPI_PTR(ipc_acpi_ids),
+		.dev_groups = intel_ipc_groups,
 	},
 };
 
@@ -1029,7 +942,7 @@ static void __exit intel_pmc_ipc_exit(void)
 
 MODULE_AUTHOR("Zha Qipeng <qipeng.zha@intel.com>");
 MODULE_DESCRIPTION("Intel PMC IPC driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 /* Some modules are dependent on this, so init earlier */
 fs_initcall(intel_pmc_ipc_init);

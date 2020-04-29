@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Handle async block request by crypto hardware engine.
  *
  * Copyright (C) 2016 Linaro, Inc.
  *
  * Author: Baolin Wang <baolin.wang@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/err.h>
@@ -219,20 +214,6 @@ static int crypto_transfer_request_to_engine(struct crypto_engine *engine,
 }
 
 /**
- * crypto_transfer_ablkcipher_request_to_engine - transfer one ablkcipher_request
- * to list into the engine queue
- * @engine: the hardware engine
- * @req: the request need to be listed into the engine queue
- * TODO: Remove this function when skcipher conversion is finished
- */
-int crypto_transfer_ablkcipher_request_to_engine(struct crypto_engine *engine,
-						 struct ablkcipher_request *req)
-{
-	return crypto_transfer_request_to_engine(engine, &req->base);
-}
-EXPORT_SYMBOL_GPL(crypto_transfer_ablkcipher_request_to_engine);
-
-/**
  * crypto_transfer_aead_request_to_engine - transfer one aead_request
  * to list into the engine queue
  * @engine: the hardware engine
@@ -283,21 +264,6 @@ int crypto_transfer_skcipher_request_to_engine(struct crypto_engine *engine,
 	return crypto_transfer_request_to_engine(engine, &req->base);
 }
 EXPORT_SYMBOL_GPL(crypto_transfer_skcipher_request_to_engine);
-
-/**
- * crypto_finalize_ablkcipher_request - finalize one ablkcipher_request if
- * the request is done
- * @engine: the hardware engine
- * @req: the request need to be finalized
- * @err: error number
- * TODO: Remove this function when skcipher conversion is finished
- */
-void crypto_finalize_ablkcipher_request(struct crypto_engine *engine,
-					struct ablkcipher_request *req, int err)
-{
-	return crypto_finalize_request(engine, &req->base, err);
-}
-EXPORT_SYMBOL_GPL(crypto_finalize_ablkcipher_request);
 
 /**
  * crypto_finalize_aead_request - finalize one aead_request if
@@ -430,7 +396,7 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  */
 struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct crypto_engine *engine;
 
 	if (!dev)

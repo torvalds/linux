@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016 MediaTek Inc.
  * Author: Houlong Wei <houlong.wei@mediatek.com>
  *         Ming Hsiu Tsai <minghsiu.tsai@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MTK_MDP_CORE_H__
@@ -41,7 +33,7 @@
 #define MTK_MDP_CTX_ERROR		BIT(5)
 
 /**
- *  struct mtk_mdp_pix_align - alignement of image
+ *  struct mtk_mdp_pix_align - alignment of image
  *  @org_w: source alignment of width
  *  @org_h: source alignment of height
  *  @target_w: dst alignment of width
@@ -122,8 +114,8 @@ struct mtk_mdp_frame {
 /**
  * struct mtk_mdp_variant - image processor variant information
  * @pix_max:		maximum limit of image size
- * @pix_min:		minimun limit of image size
- * @pix_align:		alignement of image
+ * @pix_min:		minimum limit of image size
+ * @pix_align:		alignment of image
  * @h_scale_up_max:	maximum scale-up in horizontal
  * @v_scale_up_max:	maximum scale-up in vertical
  * @h_scale_down_max:	maximum scale-down in horizontal

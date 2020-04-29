@@ -833,6 +833,16 @@ static const u32 bicubic4coefftab32[480] = {
 	0x1012110d, 0x1012110d, 0x1013110c, 0x1013110c,
 };
 
+static u32 sun8i_vi_scaler_base(struct sun8i_mixer *mixer, int channel)
+{
+	if (mixer->cfg->is_de3)
+		return DE3_VI_SCALER_UNIT_BASE +
+		       DE3_VI_SCALER_UNIT_SIZE * channel;
+	else
+		return DE2_VI_SCALER_UNIT_BASE +
+		       DE2_VI_SCALER_UNIT_SIZE * channel;
+}
+
 static int sun8i_vi_scaler_coef_index(unsigned int step)
 {
 	unsigned int scale, int_part, float_part;
@@ -857,7 +867,7 @@ static int sun8i_vi_scaler_coef_index(unsigned int step)
 	}
 }
 
-static void sun8i_vi_scaler_set_coeff(struct regmap *map, int layer,
+static void sun8i_vi_scaler_set_coeff(struct regmap *map, u32 base,
 				      u32 hstep, u32 vstep,
 				      const struct drm_format_info *format)
 {
@@ -877,29 +887,31 @@ static void sun8i_vi_scaler_set_coeff(struct regmap *map, int layer,
 	offset = sun8i_vi_scaler_coef_index(hstep) *
 			SUN8I_VI_SCALER_COEFF_COUNT;
 	for (i = 0; i < SUN8I_VI_SCALER_COEFF_COUNT; i++) {
-		regmap_write(map, SUN8I_SCALER_VSU_YHCOEFF0(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_YHCOEFF0(base, i),
 			     lan3coefftab32_left[offset + i]);
-		regmap_write(map, SUN8I_SCALER_VSU_YHCOEFF1(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_YHCOEFF1(base, i),
 			     lan3coefftab32_right[offset + i]);
-		regmap_write(map, SUN8I_SCALER_VSU_CHCOEFF0(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_CHCOEFF0(base, i),
 			     ch_left[offset + i]);
-		regmap_write(map, SUN8I_SCALER_VSU_CHCOEFF1(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_CHCOEFF1(base, i),
 			     ch_right[offset + i]);
 	}
 
 	offset = sun8i_vi_scaler_coef_index(hstep) *
 			SUN8I_VI_SCALER_COEFF_COUNT;
 	for (i = 0; i < SUN8I_VI_SCALER_COEFF_COUNT; i++) {
-		regmap_write(map, SUN8I_SCALER_VSU_YVCOEFF(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_YVCOEFF(base, i),
 			     lan2coefftab32[offset + i]);
-		regmap_write(map, SUN8I_SCALER_VSU_CVCOEFF(layer, i),
+		regmap_write(map, SUN8I_SCALER_VSU_CVCOEFF(base, i),
 			     cy[offset + i]);
 	}
 }
 
 void sun8i_vi_scaler_enable(struct sun8i_mixer *mixer, int layer, bool enable)
 {
-	u32 val;
+	u32 val, base;
+
+	base = sun8i_vi_scaler_base(mixer, layer);
 
 	if (enable)
 		val = SUN8I_SCALER_VSU_CTRL_EN |
@@ -907,7 +919,8 @@ void sun8i_vi_scaler_enable(struct sun8i_mixer *mixer, int layer, bool enable)
 	else
 		val = 0;
 
-	regmap_write(mixer->engine.regs, SUN8I_SCALER_VSU_CTRL(layer), val);
+	regmap_write(mixer->engine.regs,
+		     SUN8I_SCALER_VSU_CTRL(base), val);
 }
 
 void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
@@ -917,6 +930,9 @@ void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
 {
 	u32 chphase, cvphase;
 	u32 insize, outsize;
+	u32 base;
+
+	base = sun8i_vi_scaler_base(mixer, layer);
 
 	hphase <<= SUN8I_VI_SCALER_PHASE_FRAC - 16;
 	vphase <<= SUN8I_VI_SCALER_PHASE_FRAC - 16;
@@ -940,32 +956,44 @@ void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
 		cvphase = vphase;
 	}
 
+	if (mixer->cfg->is_de3) {
+		u32 val;
+
+		if (format->hsub == 1 && format->vsub == 1)
+			val = SUN50I_SCALER_VSU_SCALE_MODE_UI;
+		else
+			val = SUN50I_SCALER_VSU_SCALE_MODE_NORMAL;
+
+		regmap_write(mixer->engine.regs,
+			     SUN50I_SCALER_VSU_SCALE_MODE(base), val);
+	}
+
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_OUTSIZE(layer), outsize);
+		     SUN8I_SCALER_VSU_OUTSIZE(base), outsize);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_YINSIZE(layer), insize);
+		     SUN8I_SCALER_VSU_YINSIZE(base), insize);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_YHSTEP(layer), hscale);
+		     SUN8I_SCALER_VSU_YHSTEP(base), hscale);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_YVSTEP(layer), vscale);
+		     SUN8I_SCALER_VSU_YVSTEP(base), vscale);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_YHPHASE(layer), hphase);
+		     SUN8I_SCALER_VSU_YHPHASE(base), hphase);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_YVPHASE(layer), vphase);
+		     SUN8I_SCALER_VSU_YVPHASE(base), vphase);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_CINSIZE(layer),
+		     SUN8I_SCALER_VSU_CINSIZE(base),
 		     SUN8I_VI_SCALER_SIZE(src_w / format->hsub,
 					  src_h / format->vsub));
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_CHSTEP(layer),
+		     SUN8I_SCALER_VSU_CHSTEP(base),
 		     hscale / format->hsub);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_CVSTEP(layer),
+		     SUN8I_SCALER_VSU_CVSTEP(base),
 		     vscale / format->vsub);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_CHPHASE(layer), chphase);
+		     SUN8I_SCALER_VSU_CHPHASE(base), chphase);
 	regmap_write(mixer->engine.regs,
-		     SUN8I_SCALER_VSU_CVPHASE(layer), cvphase);
-	sun8i_vi_scaler_set_coeff(mixer->engine.regs, layer,
+		     SUN8I_SCALER_VSU_CVPHASE(base), cvphase);
+	sun8i_vi_scaler_set_coeff(mixer->engine.regs, base,
 				  hscale, vscale, format);
 }

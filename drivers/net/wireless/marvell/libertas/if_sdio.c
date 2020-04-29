@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/net/wireless/libertas/if_sdio.c
  *
  *  Copyright 2007-2008 Pierre Ossman
  *
  * Inspired by if_cs.c, Copyright 2007 Holger Schurig
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  *
  * This hardware has more or less no CMD53 support, so all registers
  * must be accessed using sdio_readb()/sdio_writeb().
@@ -107,7 +103,7 @@ MODULE_FIRMWARE("sd8688.bin");
 struct if_sdio_packet {
 	struct if_sdio_packet	*next;
 	u16			nb;
-	u8			buffer[0] __attribute__((aligned(4)));
+	u8			buffer[] __aligned(4);
 };
 
 struct if_sdio_card {
@@ -1183,6 +1179,10 @@ static int if_sdio_probe(struct sdio_func *func,
 
 	spin_lock_init(&card->lock);
 	card->workqueue = alloc_workqueue("libertas_sdio", WQ_MEM_RECLAIM, 0);
+	if (unlikely(!card->workqueue)) {
+		ret = -ENOMEM;
+		goto err_queue;
+	}
 	INIT_WORK(&card->packet_worker, if_sdio_host_to_card_worker);
 	init_waitqueue_head(&card->pwron_waitq);
 
@@ -1206,8 +1206,8 @@ static int if_sdio_probe(struct sdio_func *func,
 
 
 	priv = lbs_add_card(card, &func->dev);
-	if (!priv) {
-		ret = -ENOMEM;
+	if (IS_ERR(priv)) {
+		ret = PTR_ERR(priv);
 		goto free;
 	}
 
@@ -1234,6 +1234,7 @@ err_activate_card:
 	lbs_remove_card(priv);
 free:
 	destroy_workqueue(card->workqueue);
+err_queue:
 	while (card->packets) {
 		packet = card->packets;
 		card->packets = card->packets->next;
@@ -1290,15 +1291,23 @@ static void if_sdio_remove(struct sdio_func *func)
 static int if_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	int ret;
 	struct if_sdio_card *card = sdio_get_drvdata(func);
+	struct lbs_private *priv = card->priv;
+	int ret;
 
 	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
+	priv->power_up_on_resume = false;
 
 	/* If we're powered off anyway, just let the mmc layer remove the
 	 * card. */
-	if (!lbs_iface_active(card->priv))
-		return -ENOSYS;
+	if (!lbs_iface_active(priv)) {
+		if (priv->fw_ready) {
+			priv->power_up_on_resume = true;
+			if_sdio_power_off(card);
+		}
+
+		return 0;
+	}
 
 	dev_info(dev, "%s: suspend: PM flags = 0x%x\n",
 		 sdio_func_id(func), flags);
@@ -1306,9 +1315,18 @@ static int if_sdio_suspend(struct device *dev)
 	/* If we aren't being asked to wake on anything, we should bail out
 	 * and let the SD stack power down the card.
 	 */
-	if (card->priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
 		dev_info(dev, "Suspend without wake params -- powering down card\n");
-		return -ENOSYS;
+		if (priv->fw_ready) {
+			ret = lbs_suspend(priv);
+			if (ret)
+				return ret;
+
+			priv->power_up_on_resume = true;
+			if_sdio_power_off(card);
+		}
+
+		return 0;
 	}
 
 	if (!(flags & MMC_PM_KEEP_POWER)) {
@@ -1321,7 +1339,7 @@ static int if_sdio_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = lbs_suspend(card->priv);
+	ret = lbs_suspend(priv);
 	if (ret)
 		return ret;
 
@@ -1335,6 +1353,11 @@ static int if_sdio_resume(struct device *dev)
 	int ret;
 
 	dev_info(dev, "%s: resume: we're back\n", sdio_func_id(func));
+
+	if (card->priv->power_up_on_resume) {
+		if_sdio_power_on(card);
+		wait_event(card->pwron_waitq, card->priv->fw_ready);
+	}
 
 	ret = lbs_resume(card->priv);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * EFI Test Driver for Runtime Services
  *
@@ -13,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/efi.h>
+#include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -68,7 +70,7 @@ copy_ucs2_from_user_len(efi_char16_t **dst, efi_char16_t __user *src,
 		return 0;
 	}
 
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	buf = memdup_user(src, len);
@@ -89,7 +91,7 @@ copy_ucs2_from_user_len(efi_char16_t **dst, efi_char16_t __user *src,
 static inline int
 get_ucs2_strsize_from_user(efi_char16_t __user *src, size_t *len)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	*len = user_ucs2_strsize(src);
@@ -116,7 +118,7 @@ copy_ucs2_from_user(efi_char16_t **dst, efi_char16_t __user *src)
 {
 	size_t len;
 
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	len = user_ucs2_strsize(src);
@@ -140,7 +142,7 @@ copy_ucs2_to_user_len(efi_char16_t __user *dst, efi_char16_t *src, size_t len)
 	if (!src)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, dst, 1))
+	if (!access_ok(dst, 1))
 		return -EFAULT;
 
 	return copy_to_user(dst, src, len);
@@ -542,6 +544,30 @@ static long efi_runtime_get_nexthighmonocount(unsigned long arg)
 	return 0;
 }
 
+static long efi_runtime_reset_system(unsigned long arg)
+{
+	struct efi_resetsystem __user *resetsystem_user;
+	struct efi_resetsystem resetsystem;
+	void *data = NULL;
+
+	resetsystem_user = (struct efi_resetsystem __user *)arg;
+	if (copy_from_user(&resetsystem, resetsystem_user,
+						sizeof(resetsystem)))
+		return -EFAULT;
+	if (resetsystem.data_size != 0) {
+		data = memdup_user((void *)resetsystem.data,
+						resetsystem.data_size);
+		if (IS_ERR(data))
+			return PTR_ERR(data);
+	}
+
+	efi.reset_system(resetsystem.reset_type, resetsystem.status,
+				resetsystem.data_size, (efi_char16_t *)data);
+
+	kfree(data);
+	return 0;
+}
+
 static long efi_runtime_query_variableinfo(unsigned long arg)
 {
 	struct efi_queryvariableinfo __user *queryvariableinfo_user;
@@ -682,6 +708,9 @@ static long efi_test_ioctl(struct file *file, unsigned int cmd,
 
 	case EFI_RUNTIME_QUERY_CAPSULECAPABILITIES:
 		return efi_runtime_query_capsulecaps(arg);
+
+	case EFI_RUNTIME_RESET_SYSTEM:
+		return efi_runtime_reset_system(arg);
 	}
 
 	return -ENOTTY;
@@ -689,6 +718,13 @@ static long efi_test_ioctl(struct file *file, unsigned int cmd,
 
 static int efi_test_open(struct inode *inode, struct file *file)
 {
+	int ret = security_locked_down(LOCKDOWN_EFI_TEST);
+
+	if (ret)
+		return ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
 	/*
 	 * nothing special to do here
 	 * We do accept multiple open files at the same time as we

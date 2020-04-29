@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Linear Technology LTC4151 High Voltage I2C Current
  * and Voltage Monitor
@@ -11,21 +12,6 @@
  *  Copyright (C) 2010 Ericsson AB.
  *
  * Datasheet: http://www.linear.com/docs/Datasheet/4151fc.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -131,7 +117,7 @@ static int ltc4151_get_value(struct ltc4151_data *data, u8 reg)
 	return val;
 }
 
-static ssize_t ltc4151_show_value(struct device *dev,
+static ssize_t ltc4151_value_show(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -148,14 +134,11 @@ static ssize_t ltc4151_show_value(struct device *dev,
 /*
  * Input voltages.
  */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc4151_show_value, NULL,
-			  LTC4151_VIN_H);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc4151_show_value, NULL,
-			  LTC4151_ADIN_H);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ltc4151_value, LTC4151_VIN_H);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ltc4151_value, LTC4151_ADIN_H);
 
 /* Currents (via sense resistor) */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc4151_show_value, NULL,
-			  LTC4151_SENSE_H);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ltc4151_value, LTC4151_SENSE_H);
 
 /*
  * Finally, construct an array of pointers to members of the above objects,
@@ -211,7 +194,7 @@ static const struct i2c_device_id ltc4151_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc4151_id);
 
-static const struct of_device_id ltc4151_match[] = {
+static const struct of_device_id __maybe_unused ltc4151_match[] = {
 	{ .compatible = "lltc,ltc4151" },
 	{},
 };

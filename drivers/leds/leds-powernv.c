@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV LED Driver
  *
@@ -5,11 +6,6 @@
  *
  * Author: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
  * Author: Anshuman Khandual <khandual@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/leds.h>
@@ -285,6 +281,7 @@ static int powernv_led_probe(struct platform_device *pdev)
 	struct device_node *led_node;
 	struct powernv_led_common *powernv_led_common;
 	struct device *dev = &pdev->dev;
+	int rc;
 
 	led_node = of_find_node_by_path("/ibm,opal/leds");
 	if (!led_node) {
@@ -295,15 +292,20 @@ static int powernv_led_probe(struct platform_device *pdev)
 
 	powernv_led_common = devm_kzalloc(dev, sizeof(*powernv_led_common),
 					  GFP_KERNEL);
-	if (!powernv_led_common)
-		return -ENOMEM;
+	if (!powernv_led_common) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	mutex_init(&powernv_led_common->lock);
 	powernv_led_common->max_led_type = cpu_to_be64(OPAL_SLOT_LED_TYPE_MAX);
 
 	platform_set_drvdata(pdev, powernv_led_common);
 
-	return powernv_led_classdev(pdev, led_node, powernv_led_common);
+	rc = powernv_led_classdev(pdev, led_node, powernv_led_common);
+out:
+	of_node_put(led_node);
+	return rc;
 }
 
 /* Platform driver remove */

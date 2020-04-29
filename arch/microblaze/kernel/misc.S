@@ -39,7 +39,7 @@ _tlbia_1:
 	rsubi	r11, r12, MICROBLAZE_TLB_SIZE - 1
 	bneid	r11, _tlbia_1 /* loop for all entries */
 	addik	r12, r12, 1
-	/* sync */
+	mbar	1 /* sync */
 	rtsd	r15, 8
 	nop
 	.size  _tlbia, . - _tlbia
@@ -58,43 +58,9 @@ _tlbie:
 	blti	r12, _tlbie_1 /* Check if found */
 	mts	rtlbhi, r0 /* flush: ensure V is clear */
 	nop
+	mbar	1 /* sync */
 _tlbie_1:
 	rtsd	r15, 8
 	nop
 
 	.size  _tlbie, . - _tlbie
-
-/*
- * Allocate TLB entry for early console
- */
-.globl early_console_reg_tlb_alloc;
-.type  early_console_reg_tlb_alloc, @function
-.align 4;
-early_console_reg_tlb_alloc:
-	/*
-	 * Load a TLB entry for the UART, so that microblaze_progress() can use
-	 * the UARTs nice and early.  We use a 4k real==virtual mapping.
-	 */
-	lwi	r4, r0, tlb_skip
-	mts	rtlbx, r4 /* TLB slot 63 */
-
-	or	r4,r5,r0
-	andi	r4,r4,0xfffff000
-	ori	r4,r4,(TLB_WR|TLB_I|TLB_M|TLB_G)
-
-	andi	r5,r5,0xfffff000
-	ori	r5,r5,(TLB_VALID | TLB_PAGESZ(PAGESZ_4K))
-
-	mts	rtlblo,r4 /* Load the data portion of the entry */
-	nop
-	mts	rtlbhi,r5 /* Load the tag portion of the entry */
-	nop
-
-	lwi	r5, r0, tlb_skip
-	addik	r5, r5, 1
-	swi	r5, r0, tlb_skip
-
-	rtsd	r15, 8
-	nop
-
-	.size  early_console_reg_tlb_alloc, . - early_console_reg_tlb_alloc

@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/pci.h>
@@ -19,6 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 
 #include "mei_dev.h"
 #include "hbm.h"
@@ -182,6 +173,27 @@ static inline void mei_me_d0i3c_write(struct mei_device *dev, u32 reg)
 }
 
 /**
+ * mei_me_trc_status - read trc status register
+ *
+ * @dev: mei device
+ * @trc: trc status register value
+ *
+ * Return: 0 on success, error otherwise
+ */
+static int mei_me_trc_status(struct mei_device *dev, u32 *trc)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (!hw->cfg->hw_trc_supported)
+		return -EOPNOTSUPP;
+
+	*trc = mei_me_reg_read(hw, ME_TRC);
+	trace_mei_reg_read(dev->dev, "ME_TRC", ME_TRC, *trc);
+
+	return 0;
+}
+
+/**
  * mei_me_fw_status - read fw status register from pci config space
  *
  * @dev: mei device
@@ -192,20 +204,19 @@ static inline void mei_me_d0i3c_write(struct mei_device *dev, u32 reg)
 static int mei_me_fw_status(struct mei_device *dev,
 			    struct mei_fw_status *fw_status)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct mei_me_hw *hw = to_me_hw(dev);
 	const struct mei_fw_status *fw_src = &hw->cfg->fw_status;
 	int ret;
 	int i;
 
-	if (!fw_status)
+	if (!fw_status || !hw->read_fws)
 		return -EINVAL;
 
 	fw_status->count = fw_src->count;
 	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
-		ret = pci_read_config_dword(pdev, fw_src->status[i],
-					    &fw_status->status[i]);
-		trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HSF_X",
+		ret = hw->read_fws(dev, fw_src->status[i],
+				   &fw_status->status[i]);
+		trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HFS_X",
 				       fw_src->status[i],
 				       fw_status->status[i]);
 		if (ret)
@@ -219,19 +230,26 @@ static int mei_me_fw_status(struct mei_device *dev,
  * mei_me_hw_config - configure hw dependent settings
  *
  * @dev: mei device
+ *
+ * Return:
+ *  * -EINVAL when read_fws is not set
+ *  * 0 on success
+ *
  */
-static void mei_me_hw_config(struct mei_device *dev)
+static int mei_me_hw_config(struct mei_device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr, reg;
 
+	if (WARN_ON(!hw->read_fws))
+		return -EINVAL;
+
 	/* Doesn't change in runtime */
 	hcsr = mei_hcsr_read(dev);
-	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
+	hw->hbuf_depth = (hcsr & H_CBD) >> 24;
 
 	reg = 0;
-	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	hw->read_fws(dev, PCI_CFG_HFS_1, &reg);
 	trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HFS_1", PCI_CFG_HFS_1, reg);
 	hw->d0i3_supported =
 		((reg & PCI_CFG_HFS_1_D0I3_MSK) == PCI_CFG_HFS_1_D0I3_MSK);
@@ -242,6 +260,8 @@ static void mei_me_hw_config(struct mei_device *dev)
 		if (reg & H_D0I3C_I3)
 			hw->pg_state = MEI_PG_ON;
 	}
+
+	return 0;
 }
 
 /**
@@ -278,7 +298,7 @@ static inline void me_intr_disable(struct mei_device *dev, u32 hcsr)
 }
 
 /**
- * mei_me_intr_clear - clear and stop interrupts
+ * me_intr_clear - clear and stop interrupts
  *
  * @dev: the device structure
  * @hcsr: supplied hcsr register value
@@ -332,9 +352,9 @@ static void mei_me_intr_disable(struct mei_device *dev)
  */
 static void mei_me_synchronize_irq(struct mei_device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
 
-	synchronize_irq(pdev->irq);
+	synchronize_irq(hw->irq);
 }
 
 /**
@@ -349,9 +369,6 @@ static void mei_me_hw_reset_release(struct mei_device *dev)
 	hcsr |= H_IG;
 	hcsr &= ~H_RST;
 	mei_hcsr_set(dev, hcsr);
-
-	/* complete this write before we set host ready on another CPU */
-	mmiowb();
 }
 
 /**
@@ -490,70 +507,82 @@ static bool mei_me_hbuf_is_empty(struct mei_device *dev)
  */
 static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned char filled_slots, empty_slots;
 
 	filled_slots = mei_hbuf_filled_slots(dev);
-	empty_slots = dev->hbuf_depth - filled_slots;
+	empty_slots = hw->hbuf_depth - filled_slots;
 
 	/* check for overflow */
-	if (filled_slots > dev->hbuf_depth)
+	if (filled_slots > hw->hbuf_depth)
 		return -EOVERFLOW;
 
 	return empty_slots;
 }
 
 /**
- * mei_me_hbuf_max_len - returns size of hw buffer.
+ * mei_me_hbuf_depth - returns depth of the hw buffer.
  *
  * @dev: the device structure
  *
- * Return: size of hw buffer in bytes
+ * Return: size of hw buffer in slots
  */
-static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
+static u32 mei_me_hbuf_depth(const struct mei_device *dev)
 {
-	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
-}
+	struct mei_me_hw *hw = to_me_hw(dev);
 
+	return hw->hbuf_depth;
+}
 
 /**
  * mei_me_hbuf_write - writes a message to host hw buffer.
  *
  * @dev: the device structure
- * @header: mei HECI header of message
- * @buf: message payload will be written
+ * @hdr: header of message
+ * @hdr_len: header length in bytes: must be multiplication of a slot (4bytes)
+ * @data: payload
+ * @data_len: payload length in bytes
  *
- * Return: -EIO if write has failed
+ * Return: 0 if success, < 0 - otherwise.
  */
 static int mei_me_hbuf_write(struct mei_device *dev,
-			     struct mei_msg_hdr *header,
-			     const unsigned char *buf)
+			     const void *hdr, size_t hdr_len,
+			     const void *data, size_t data_len)
 {
 	unsigned long rem;
-	unsigned long length = header->length;
-	u32 *reg_buf = (u32 *)buf;
+	unsigned long i;
+	const u32 *reg_buf;
 	u32 dw_cnt;
-	int i;
 	int empty_slots;
 
-	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
+	if (WARN_ON(!hdr || !data || hdr_len & 0x3))
+		return -EINVAL;
+
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM((struct mei_msg_hdr *)hdr));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
 
-	dw_cnt = mei_data2slots(length);
-	if (empty_slots < 0 || dw_cnt > empty_slots)
+	if (empty_slots < 0)
+		return -EOVERFLOW;
+
+	dw_cnt = mei_data2slots(hdr_len + data_len);
+	if (dw_cnt > (u32)empty_slots)
 		return -EMSGSIZE;
 
-	mei_me_hcbww_write(dev, *((u32 *) header));
-
-	for (i = 0; i < length / 4; i++)
+	reg_buf = hdr;
+	for (i = 0; i < hdr_len / MEI_SLOT_SIZE; i++)
 		mei_me_hcbww_write(dev, reg_buf[i]);
 
-	rem = length & 0x3;
+	reg_buf = data;
+	for (i = 0; i < data_len / MEI_SLOT_SIZE; i++)
+		mei_me_hcbww_write(dev, reg_buf[i]);
+
+	rem = data_len & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
 
-		memcpy(&reg, &buf[length - rem], rem);
+		memcpy(&reg, (const u8 *)data + data_len - rem, rem);
 		mei_me_hcbww_write(dev, reg);
 	}
 
@@ -601,11 +630,11 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
  * Return: always 0
  */
 static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
-		    unsigned long buffer_length)
+			     unsigned long buffer_length)
 {
 	u32 *reg_buf = (u32 *)buffer;
 
-	for (; buffer_length >= sizeof(u32); buffer_length -= sizeof(u32))
+	for (; buffer_length >= MEI_SLOT_SIZE; buffer_length -= MEI_SLOT_SIZE)
 		*reg_buf++ = mei_me_mecbrw_read(dev);
 
 	if (buffer_length > 0) {
@@ -1294,6 +1323,7 @@ end:
 
 static const struct mei_hw_ops mei_me_hw_ops = {
 
+	.trc_status = mei_me_trc_status,
 	.fw_status = mei_me_fw_status,
 	.pg_state  = mei_me_pg_state,
 
@@ -1314,7 +1344,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 
 	.hbuf_free_slots = mei_me_hbuf_empty_slots,
 	.hbuf_is_ready = mei_me_hbuf_is_empty,
-	.hbuf_max_len = mei_me_hbuf_max_len,
+	.hbuf_depth = mei_me_hbuf_depth,
 
 	.write = mei_me_hbuf_write,
 
@@ -1355,6 +1385,8 @@ static bool mei_me_fw_type_sps(struct pci_dev *pdev)
 #define MEI_CFG_FW_SPS                           \
 	.quirk_probe = mei_me_fw_type_sps
 
+#define MEI_CFG_FW_VER_SUPP                     \
+	.fw_ver_supported = 1
 
 #define MEI_CFG_ICH_HFS                      \
 	.fw_status.count = 0
@@ -1377,6 +1409,14 @@ static bool mei_me_fw_type_sps(struct pci_dev *pdev)
 	.fw_status.status[4] = PCI_CFG_HFS_5,   \
 	.fw_status.status[5] = PCI_CFG_HFS_6
 
+#define MEI_CFG_DMA_128 \
+	.dma_size[DMA_DSCR_HOST] = SZ_128K, \
+	.dma_size[DMA_DSCR_DEVICE] = SZ_128K, \
+	.dma_size[DMA_DSCR_CTRL] = PAGE_SIZE
+
+#define MEI_CFG_TRC \
+	.hw_trc_supported = 1
+
 /* ICH Legacy devices */
 static const struct mei_cfg mei_me_ich_cfg = {
 	MEI_CFG_ICH_HFS,
@@ -1387,26 +1427,50 @@ static const struct mei_cfg mei_me_ich10_cfg = {
 	MEI_CFG_ICH10_HFS,
 };
 
-/* PCH devices */
-static const struct mei_cfg mei_me_pch_cfg = {
+/* PCH6 devices */
+static const struct mei_cfg mei_me_pch6_cfg = {
 	MEI_CFG_PCH_HFS,
+};
+
+/* PCH7 devices */
+static const struct mei_cfg mei_me_pch7_cfg = {
+	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_VER_SUPP,
 };
 
 /* PCH Cougar Point and Patsburg with quirk for Node Manager exclusion */
 static const struct mei_cfg mei_me_pch_cpt_pbg_cfg = {
 	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_VER_SUPP,
 	MEI_CFG_FW_NM,
 };
 
 /* PCH8 Lynx Point and newer devices */
 static const struct mei_cfg mei_me_pch8_cfg = {
 	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
 };
 
 /* PCH8 Lynx Point with quirk for SPS Firmware exclusion */
 static const struct mei_cfg mei_me_pch8_sps_cfg = {
 	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
 	MEI_CFG_FW_SPS,
+};
+
+/* Cannon Lake and newer devices */
+static const struct mei_cfg mei_me_pch12_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_DMA_128,
+};
+
+/* Tiger Lake and newer devices */
+static const struct mei_cfg mei_me_pch15_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_DMA_128,
+	MEI_CFG_TRC,
 };
 
 /*
@@ -1417,10 +1481,13 @@ static const struct mei_cfg *const mei_cfg_list[] = {
 	[MEI_ME_UNDEF_CFG] = NULL,
 	[MEI_ME_ICH_CFG] = &mei_me_ich_cfg,
 	[MEI_ME_ICH10_CFG] = &mei_me_ich10_cfg,
-	[MEI_ME_PCH_CFG] = &mei_me_pch_cfg,
+	[MEI_ME_PCH6_CFG] = &mei_me_pch6_cfg,
+	[MEI_ME_PCH7_CFG] = &mei_me_pch7_cfg,
 	[MEI_ME_PCH_CPT_PBG_CFG] = &mei_me_pch_cpt_pbg_cfg,
 	[MEI_ME_PCH8_CFG] = &mei_me_pch8_cfg,
 	[MEI_ME_PCH8_SPS_CFG] = &mei_me_pch8_sps_cfg,
+	[MEI_ME_PCH12_CFG] = &mei_me_pch12_cfg,
+	[MEI_ME_PCH15_CFG] = &mei_me_pch15_cfg,
 };
 
 const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
@@ -1436,25 +1503,33 @@ const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
 /**
  * mei_me_dev_init - allocates and initializes the mei device structure
  *
- * @pdev: The pci device structure
+ * @parent: device associated with physical device (pci/platform)
  * @cfg: per device generation config
  *
  * Return: The mei_device pointer on success, NULL on failure.
  */
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+struct mei_device *mei_me_dev_init(struct device *parent,
 				   const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
+	int i;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
+	dev = devm_kzalloc(parent, sizeof(struct mei_device) +
 			   sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+
 	hw = to_me_hw(dev);
 
-	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
+	for (i = 0; i < DMA_DSCR_NUM; i++)
+		dev->dr_dscr[i].size = cfg->dma_size[i];
+
+	mei_device_init(dev, parent, &mei_me_hw_ops);
 	hw->cfg = cfg;
+
+	dev->fw_f_fw_ver_supported = cfg->fw_ver_supported;
+
 	return dev;
 }
 

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DMA Engine support for Tsi721 PCIExpress-to-SRIO bridge
  *
  * Copyright (c) 2011-2014 Integrated Device Technology, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called COPYING.
  */
 
 #include <linux/io.h>
@@ -90,9 +78,9 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	 * Allocate space for DMA descriptors
 	 * (add an extra element for link descriptor)
 	 */
-	bd_ptr = dma_zalloc_coherent(dev,
-				(bd_num + 1) * sizeof(struct tsi721_dma_desc),
-				&bd_phys, GFP_ATOMIC);
+	bd_ptr = dma_alloc_coherent(dev,
+				    (bd_num + 1) * sizeof(struct tsi721_dma_desc),
+				    &bd_phys, GFP_ATOMIC);
 	if (!bd_ptr)
 		return -ENOMEM;
 
@@ -108,7 +96,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	sts_size = ((bd_num + 1) >= TSI721_DMA_MINSTSSZ) ?
 					(bd_num + 1) : TSI721_DMA_MINSTSSZ;
 	sts_size = roundup_pow_of_two(sts_size);
-	sts_ptr = dma_zalloc_coherent(dev,
+	sts_ptr = dma_alloc_coherent(dev,
 				     sts_size * sizeof(struct tsi721_dma_sts),
 				     &sts_phys, GFP_ATOMIC);
 	if (!sts_ptr) {

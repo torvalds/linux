@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Crypto engine API
  *
  * Copyright (c) 2016 Baolin Wang <baolin.wang@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_ENGINE_H
 #define _CRYPTO_ENGINE_H
@@ -88,8 +83,6 @@ struct crypto_engine_ctx {
 	struct crypto_engine_op op;
 };
 
-int crypto_transfer_ablkcipher_request_to_engine(struct crypto_engine *engine,
-						 struct ablkcipher_request *req);
 int crypto_transfer_aead_request_to_engine(struct crypto_engine *engine,
 					   struct aead_request *req);
 int crypto_transfer_akcipher_request_to_engine(struct crypto_engine *engine,
@@ -98,8 +91,6 @@ int crypto_transfer_hash_request_to_engine(struct crypto_engine *engine,
 					       struct ahash_request *req);
 int crypto_transfer_skcipher_request_to_engine(struct crypto_engine *engine,
 					       struct skcipher_request *req);
-void crypto_finalize_ablkcipher_request(struct crypto_engine *engine,
-					struct ablkcipher_request *req, int err);
 void crypto_finalize_aead_request(struct crypto_engine *engine,
 				  struct aead_request *req, int err);
 void crypto_finalize_akcipher_request(struct crypto_engine *engine,

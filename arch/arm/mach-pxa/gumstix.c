@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/gumstix.c
  *
@@ -6,10 +7,6 @@
  *  Original Author:	Craig Hughes
  *  Created:	Feb 14, 2008
  *  Copyright:	Craig Hughes
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  *  Implemented based on lubbock.c by Nicolas Pitre and code from Craig
  *  Hughes
@@ -23,17 +20,17 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/usb/gpio_vbus.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -90,9 +87,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MMC_PXA
 static struct pxamci_platform_data gumstix_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect 	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static void __init gumstix_mmc_init(void)
@@ -107,21 +101,25 @@ static void __init gumstix_mmc_init(void)
 #endif
 
 #ifdef CONFIG_USB_PXA25X
-static struct gpio_vbus_mach_info gumstix_udc_info = {
-	.gpio_vbus		= GPIO_GUMSTIX_USB_GPIOn,
-	.gpio_pullup		= GPIO_GUMSTIX_USB_GPIOx,
+static struct gpiod_lookup_table gumstix_gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_GUMSTIX_USB_GPIOn,
+			    "vbus", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO_GUMSTIX_USB_GPIOx,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device gumstix_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &gumstix_udc_info,
-	},
 };
 
 static void __init gumstix_udc_init(void)
 {
+	gpiod_add_lookup_table(&gumstix_gpio_vbus_gpiod_table);
 	platform_device_register(&gumstix_gpio_vbus);
 }
 #else

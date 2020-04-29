@@ -1,5 +1,5 @@
 This document explains only the device tree data binding. For general
-information about PHY subsystem refer to Documentation/phy.txt
+information about PHY subsystem refer to Documentation/driver-api/phy/phy.rst
 
 PHY device node
 ===============

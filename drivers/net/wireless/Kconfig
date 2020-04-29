@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Wireless LAN device configuration
 #
@@ -113,5 +114,12 @@ config USB_NET_RNDIS_WLAN
 	  only wireless RNDIS chip known to date.
 
 	  If you choose to build a module, it'll be called rndis_wlan.
+
+config VIRT_WIFI
+	tristate "Wifi wrapper for ethernet drivers"
+	depends on CFG80211
+	---help---
+	  This option adds support for ethernet connections to appear as if they
+	  are wifi connections through a special rtnetlink device.
 
 endif # WLAN

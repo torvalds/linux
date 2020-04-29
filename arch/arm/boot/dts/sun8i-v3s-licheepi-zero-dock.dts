@@ -51,7 +51,7 @@
 
 	leds {
 		/* The LEDs use PG0~2 pins, which conflict with MMC1 */
-		status = "disbaled";
+		status = "disabled";
 	};
 };
 
@@ -66,28 +66,28 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <200000>;
 	};
 
-	button@400 {
+	button-400 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <400000>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Select";
 		linux,code = <KEY_SELECT>;
 		channel = <0>;
 		voltage = <600000>;
 	};
 
-	button@800 {
+	button-800 {
 		label = "Start";
 		linux,code = <KEY_OK>;
 		channel = <0>;

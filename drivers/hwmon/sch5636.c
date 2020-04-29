@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *   Copyright (C) 2011-2012 Hans de Goede <hdegoede@redhat.com>           *
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -170,14 +157,14 @@ static int reg_to_rpm(u16 reg)
 	return 5400540 / reg;
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
-	char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
 }
 
-static ssize_t show_in_value(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t in_value_show(struct device *dev,
+			     struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -192,8 +179,8 @@ static ssize_t show_in_value(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_in_label(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t in_label_show(struct device *dev,
+			     struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
@@ -201,8 +188,8 @@ static ssize_t show_in_label(struct device *dev, struct device_attribute
 			SCH5636_IN_LABELS[attr->index]);
 }
 
-static ssize_t show_temp_value(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t temp_value_show(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -215,8 +202,8 @@ static ssize_t show_temp_value(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_temp_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t temp_fault_show(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -229,8 +216,8 @@ static ssize_t show_temp_fault(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_temp_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t temp_alarm_show(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -243,8 +230,8 @@ static ssize_t show_temp_alarm(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_fan_value(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t fan_value_show(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -260,8 +247,8 @@ static ssize_t show_fan_value(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_fan_fault(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t fan_fault_show(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -274,8 +261,8 @@ static ssize_t show_fan_fault(struct device *dev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
-	*devattr, char *buf)
+static ssize_t fan_alarm_show(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct sch5636_data *data = sch5636_update_device(dev);
@@ -289,95 +276,95 @@ static ssize_t show_fan_alarm(struct device *dev, struct device_attribute
 }
 
 static struct sensor_device_attribute sch5636_attr[] = {
-	SENSOR_ATTR(name, 0444, show_name, NULL, 0),
-	SENSOR_ATTR(in0_input, 0444, show_in_value, NULL, 0),
-	SENSOR_ATTR(in0_label, 0444, show_in_label, NULL, 0),
-	SENSOR_ATTR(in1_input, 0444, show_in_value, NULL, 1),
-	SENSOR_ATTR(in1_label, 0444, show_in_label, NULL, 1),
-	SENSOR_ATTR(in2_input, 0444, show_in_value, NULL, 2),
-	SENSOR_ATTR(in2_label, 0444, show_in_label, NULL, 2),
-	SENSOR_ATTR(in3_input, 0444, show_in_value, NULL, 3),
-	SENSOR_ATTR(in3_label, 0444, show_in_label, NULL, 3),
-	SENSOR_ATTR(in4_input, 0444, show_in_value, NULL, 4),
-	SENSOR_ATTR(in4_label, 0444, show_in_label, NULL, 4),
+	SENSOR_ATTR_RO(name, name, 0),
+	SENSOR_ATTR_RO(in0_input, in_value, 0),
+	SENSOR_ATTR_RO(in0_label, in_label, 0),
+	SENSOR_ATTR_RO(in1_input, in_value, 1),
+	SENSOR_ATTR_RO(in1_label, in_label, 1),
+	SENSOR_ATTR_RO(in2_input, in_value, 2),
+	SENSOR_ATTR_RO(in2_label, in_label, 2),
+	SENSOR_ATTR_RO(in3_input, in_value, 3),
+	SENSOR_ATTR_RO(in3_label, in_label, 3),
+	SENSOR_ATTR_RO(in4_input, in_value, 4),
+	SENSOR_ATTR_RO(in4_label, in_label, 4),
 };
 
 static struct sensor_device_attribute sch5636_temp_attr[] = {
-	SENSOR_ATTR(temp1_input, 0444, show_temp_value, NULL, 0),
-	SENSOR_ATTR(temp1_fault, 0444, show_temp_fault, NULL, 0),
-	SENSOR_ATTR(temp1_alarm, 0444, show_temp_alarm, NULL, 0),
-	SENSOR_ATTR(temp2_input, 0444, show_temp_value, NULL, 1),
-	SENSOR_ATTR(temp2_fault, 0444, show_temp_fault, NULL, 1),
-	SENSOR_ATTR(temp2_alarm, 0444, show_temp_alarm, NULL, 1),
-	SENSOR_ATTR(temp3_input, 0444, show_temp_value, NULL, 2),
-	SENSOR_ATTR(temp3_fault, 0444, show_temp_fault, NULL, 2),
-	SENSOR_ATTR(temp3_alarm, 0444, show_temp_alarm, NULL, 2),
-	SENSOR_ATTR(temp4_input, 0444, show_temp_value, NULL, 3),
-	SENSOR_ATTR(temp4_fault, 0444, show_temp_fault, NULL, 3),
-	SENSOR_ATTR(temp4_alarm, 0444, show_temp_alarm, NULL, 3),
-	SENSOR_ATTR(temp5_input, 0444, show_temp_value, NULL, 4),
-	SENSOR_ATTR(temp5_fault, 0444, show_temp_fault, NULL, 4),
-	SENSOR_ATTR(temp5_alarm, 0444, show_temp_alarm, NULL, 4),
-	SENSOR_ATTR(temp6_input, 0444, show_temp_value, NULL, 5),
-	SENSOR_ATTR(temp6_fault, 0444, show_temp_fault, NULL, 5),
-	SENSOR_ATTR(temp6_alarm, 0444, show_temp_alarm, NULL, 5),
-	SENSOR_ATTR(temp7_input, 0444, show_temp_value, NULL, 6),
-	SENSOR_ATTR(temp7_fault, 0444, show_temp_fault, NULL, 6),
-	SENSOR_ATTR(temp7_alarm, 0444, show_temp_alarm, NULL, 6),
-	SENSOR_ATTR(temp8_input, 0444, show_temp_value, NULL, 7),
-	SENSOR_ATTR(temp8_fault, 0444, show_temp_fault, NULL, 7),
-	SENSOR_ATTR(temp8_alarm, 0444, show_temp_alarm, NULL, 7),
-	SENSOR_ATTR(temp9_input, 0444, show_temp_value, NULL, 8),
-	SENSOR_ATTR(temp9_fault, 0444, show_temp_fault, NULL, 8),
-	SENSOR_ATTR(temp9_alarm, 0444, show_temp_alarm, NULL, 8),
-	SENSOR_ATTR(temp10_input, 0444, show_temp_value, NULL, 9),
-	SENSOR_ATTR(temp10_fault, 0444, show_temp_fault, NULL, 9),
-	SENSOR_ATTR(temp10_alarm, 0444, show_temp_alarm, NULL, 9),
-	SENSOR_ATTR(temp11_input, 0444, show_temp_value, NULL, 10),
-	SENSOR_ATTR(temp11_fault, 0444, show_temp_fault, NULL, 10),
-	SENSOR_ATTR(temp11_alarm, 0444, show_temp_alarm, NULL, 10),
-	SENSOR_ATTR(temp12_input, 0444, show_temp_value, NULL, 11),
-	SENSOR_ATTR(temp12_fault, 0444, show_temp_fault, NULL, 11),
-	SENSOR_ATTR(temp12_alarm, 0444, show_temp_alarm, NULL, 11),
-	SENSOR_ATTR(temp13_input, 0444, show_temp_value, NULL, 12),
-	SENSOR_ATTR(temp13_fault, 0444, show_temp_fault, NULL, 12),
-	SENSOR_ATTR(temp13_alarm, 0444, show_temp_alarm, NULL, 12),
-	SENSOR_ATTR(temp14_input, 0444, show_temp_value, NULL, 13),
-	SENSOR_ATTR(temp14_fault, 0444, show_temp_fault, NULL, 13),
-	SENSOR_ATTR(temp14_alarm, 0444, show_temp_alarm, NULL, 13),
-	SENSOR_ATTR(temp15_input, 0444, show_temp_value, NULL, 14),
-	SENSOR_ATTR(temp15_fault, 0444, show_temp_fault, NULL, 14),
-	SENSOR_ATTR(temp15_alarm, 0444, show_temp_alarm, NULL, 14),
-	SENSOR_ATTR(temp16_input, 0444, show_temp_value, NULL, 15),
-	SENSOR_ATTR(temp16_fault, 0444, show_temp_fault, NULL, 15),
-	SENSOR_ATTR(temp16_alarm, 0444, show_temp_alarm, NULL, 15),
+	SENSOR_ATTR_RO(temp1_input, temp_value, 0),
+	SENSOR_ATTR_RO(temp1_fault, temp_fault, 0),
+	SENSOR_ATTR_RO(temp1_alarm, temp_alarm, 0),
+	SENSOR_ATTR_RO(temp2_input, temp_value, 1),
+	SENSOR_ATTR_RO(temp2_fault, temp_fault, 1),
+	SENSOR_ATTR_RO(temp2_alarm, temp_alarm, 1),
+	SENSOR_ATTR_RO(temp3_input, temp_value, 2),
+	SENSOR_ATTR_RO(temp3_fault, temp_fault, 2),
+	SENSOR_ATTR_RO(temp3_alarm, temp_alarm, 2),
+	SENSOR_ATTR_RO(temp4_input, temp_value, 3),
+	SENSOR_ATTR_RO(temp4_fault, temp_fault, 3),
+	SENSOR_ATTR_RO(temp4_alarm, temp_alarm, 3),
+	SENSOR_ATTR_RO(temp5_input, temp_value, 4),
+	SENSOR_ATTR_RO(temp5_fault, temp_fault, 4),
+	SENSOR_ATTR_RO(temp5_alarm, temp_alarm, 4),
+	SENSOR_ATTR_RO(temp6_input, temp_value, 5),
+	SENSOR_ATTR_RO(temp6_fault, temp_fault, 5),
+	SENSOR_ATTR_RO(temp6_alarm, temp_alarm, 5),
+	SENSOR_ATTR_RO(temp7_input, temp_value, 6),
+	SENSOR_ATTR_RO(temp7_fault, temp_fault, 6),
+	SENSOR_ATTR_RO(temp7_alarm, temp_alarm, 6),
+	SENSOR_ATTR_RO(temp8_input, temp_value, 7),
+	SENSOR_ATTR_RO(temp8_fault, temp_fault, 7),
+	SENSOR_ATTR_RO(temp8_alarm, temp_alarm, 7),
+	SENSOR_ATTR_RO(temp9_input, temp_value, 8),
+	SENSOR_ATTR_RO(temp9_fault, temp_fault, 8),
+	SENSOR_ATTR_RO(temp9_alarm, temp_alarm, 8),
+	SENSOR_ATTR_RO(temp10_input, temp_value, 9),
+	SENSOR_ATTR_RO(temp10_fault, temp_fault, 9),
+	SENSOR_ATTR_RO(temp10_alarm, temp_alarm, 9),
+	SENSOR_ATTR_RO(temp11_input, temp_value, 10),
+	SENSOR_ATTR_RO(temp11_fault, temp_fault, 10),
+	SENSOR_ATTR_RO(temp11_alarm, temp_alarm, 10),
+	SENSOR_ATTR_RO(temp12_input, temp_value, 11),
+	SENSOR_ATTR_RO(temp12_fault, temp_fault, 11),
+	SENSOR_ATTR_RO(temp12_alarm, temp_alarm, 11),
+	SENSOR_ATTR_RO(temp13_input, temp_value, 12),
+	SENSOR_ATTR_RO(temp13_fault, temp_fault, 12),
+	SENSOR_ATTR_RO(temp13_alarm, temp_alarm, 12),
+	SENSOR_ATTR_RO(temp14_input, temp_value, 13),
+	SENSOR_ATTR_RO(temp14_fault, temp_fault, 13),
+	SENSOR_ATTR_RO(temp14_alarm, temp_alarm, 13),
+	SENSOR_ATTR_RO(temp15_input, temp_value, 14),
+	SENSOR_ATTR_RO(temp15_fault, temp_fault, 14),
+	SENSOR_ATTR_RO(temp15_alarm, temp_alarm, 14),
+	SENSOR_ATTR_RO(temp16_input, temp_value, 15),
+	SENSOR_ATTR_RO(temp16_fault, temp_fault, 15),
+	SENSOR_ATTR_RO(temp16_alarm, temp_alarm, 15),
 };
 
 static struct sensor_device_attribute sch5636_fan_attr[] = {
-	SENSOR_ATTR(fan1_input, 0444, show_fan_value, NULL, 0),
-	SENSOR_ATTR(fan1_fault, 0444, show_fan_fault, NULL, 0),
-	SENSOR_ATTR(fan1_alarm, 0444, show_fan_alarm, NULL, 0),
-	SENSOR_ATTR(fan2_input, 0444, show_fan_value, NULL, 1),
-	SENSOR_ATTR(fan2_fault, 0444, show_fan_fault, NULL, 1),
-	SENSOR_ATTR(fan2_alarm, 0444, show_fan_alarm, NULL, 1),
-	SENSOR_ATTR(fan3_input, 0444, show_fan_value, NULL, 2),
-	SENSOR_ATTR(fan3_fault, 0444, show_fan_fault, NULL, 2),
-	SENSOR_ATTR(fan3_alarm, 0444, show_fan_alarm, NULL, 2),
-	SENSOR_ATTR(fan4_input, 0444, show_fan_value, NULL, 3),
-	SENSOR_ATTR(fan4_fault, 0444, show_fan_fault, NULL, 3),
-	SENSOR_ATTR(fan4_alarm, 0444, show_fan_alarm, NULL, 3),
-	SENSOR_ATTR(fan5_input, 0444, show_fan_value, NULL, 4),
-	SENSOR_ATTR(fan5_fault, 0444, show_fan_fault, NULL, 4),
-	SENSOR_ATTR(fan5_alarm, 0444, show_fan_alarm, NULL, 4),
-	SENSOR_ATTR(fan6_input, 0444, show_fan_value, NULL, 5),
-	SENSOR_ATTR(fan6_fault, 0444, show_fan_fault, NULL, 5),
-	SENSOR_ATTR(fan6_alarm, 0444, show_fan_alarm, NULL, 5),
-	SENSOR_ATTR(fan7_input, 0444, show_fan_value, NULL, 6),
-	SENSOR_ATTR(fan7_fault, 0444, show_fan_fault, NULL, 6),
-	SENSOR_ATTR(fan7_alarm, 0444, show_fan_alarm, NULL, 6),
-	SENSOR_ATTR(fan8_input, 0444, show_fan_value, NULL, 7),
-	SENSOR_ATTR(fan8_fault, 0444, show_fan_fault, NULL, 7),
-	SENSOR_ATTR(fan8_alarm, 0444, show_fan_alarm, NULL, 7),
+	SENSOR_ATTR_RO(fan1_input, fan_value, 0),
+	SENSOR_ATTR_RO(fan1_fault, fan_fault, 0),
+	SENSOR_ATTR_RO(fan1_alarm, fan_alarm, 0),
+	SENSOR_ATTR_RO(fan2_input, fan_value, 1),
+	SENSOR_ATTR_RO(fan2_fault, fan_fault, 1),
+	SENSOR_ATTR_RO(fan2_alarm, fan_alarm, 1),
+	SENSOR_ATTR_RO(fan3_input, fan_value, 2),
+	SENSOR_ATTR_RO(fan3_fault, fan_fault, 2),
+	SENSOR_ATTR_RO(fan3_alarm, fan_alarm, 2),
+	SENSOR_ATTR_RO(fan4_input, fan_value, 3),
+	SENSOR_ATTR_RO(fan4_fault, fan_fault, 3),
+	SENSOR_ATTR_RO(fan4_alarm, fan_alarm, 3),
+	SENSOR_ATTR_RO(fan5_input, fan_value, 4),
+	SENSOR_ATTR_RO(fan5_fault, fan_fault, 4),
+	SENSOR_ATTR_RO(fan5_alarm, fan_alarm, 4),
+	SENSOR_ATTR_RO(fan6_input, fan_value, 5),
+	SENSOR_ATTR_RO(fan6_fault, fan_fault, 5),
+	SENSOR_ATTR_RO(fan6_alarm, fan_alarm, 5),
+	SENSOR_ATTR_RO(fan7_input, fan_value, 6),
+	SENSOR_ATTR_RO(fan7_fault, fan_fault, 6),
+	SENSOR_ATTR_RO(fan7_alarm, fan_alarm, 6),
+	SENSOR_ATTR_RO(fan8_input, fan_value, 7),
+	SENSOR_ATTR_RO(fan8_fault, fan_fault, 7),
+	SENSOR_ATTR_RO(fan8_alarm, fan_alarm, 7),
 };
 
 static int sch5636_remove(struct platform_device *pdev)

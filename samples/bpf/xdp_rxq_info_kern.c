@@ -4,7 +4,9 @@
  *  Example howto extract XDP RX-queue info
  */
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <uapi/linux/if_ether.h>
+#include <uapi/linux/in.h>
+#include <bpf/bpf_helpers.h>
 
 /* Config setup from with userspace
  *
@@ -14,13 +16,20 @@
 struct config {
 	__u32 action;
 	int ifindex;
+	__u32 options;
 };
-struct bpf_map_def SEC("maps") config_map = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(int),
-	.value_size	= sizeof(struct config),
-	.max_entries	= 1,
+enum cfg_options_flags {
+	NO_TOUCH = 0x0U,
+	READ_MEM = 0x1U,
+	SWAP_MAC = 0x2U,
 };
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, struct config);
+	__uint(max_entries, 1);
+} config_map SEC(".maps");
 
 /* Common stats data record (shared with userspace) */
 struct datarec {
@@ -28,22 +37,39 @@ struct datarec {
 	__u64 issue;
 };
 
-struct bpf_map_def SEC("maps") stats_global_map = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 1);
+} stats_global_map SEC(".maps");
 
 #define MAX_RXQs 64
 
 /* Stats per rx_queue_index (per CPU) */
-struct bpf_map_def SEC("maps") rx_queue_index_map = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= MAX_RXQs + 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, MAX_RXQs + 1);
+} rx_queue_index_map SEC(".maps");
+
+static __always_inline
+void swap_src_dst_mac(void *data)
+{
+	unsigned short *p = data;
+	unsigned short dst[3];
+
+	dst[0] = p[0];
+	dst[1] = p[1];
+	dst[2] = p[2];
+	p[0] = p[3];
+	p[1] = p[4];
+	p[2] = p[5];
+	p[3] = dst[0];
+	p[4] = dst[1];
+	p[5] = dst[2];
+}
 
 SEC("xdp_prog0")
 int  xdp_prognum0(struct xdp_md *ctx)
@@ -89,6 +115,24 @@ int  xdp_prognum0(struct xdp_md *ctx)
 	rxq_rec->processed++;
 	if (key == MAX_RXQs)
 		rxq_rec->issue++;
+
+	/* Default: Don't touch packet data, only count packets */
+	if (unlikely(config->options & (READ_MEM|SWAP_MAC))) {
+		struct ethhdr *eth = data;
+
+		if (eth + 1 > data_end)
+			return XDP_ABORTED;
+
+		/* Avoid compiler removing this: Drop non 802.3 Ethertypes */
+		if (ntohs(eth->h_proto) < ETH_P_802_3_MIN)
+			return XDP_ABORTED;
+
+		/* XDP_TX requires changing MAC-addrs, else HW may drop.
+		 * Can also be enabled with --swapmac (for test purposes)
+		 */
+		if (unlikely(config->options & SWAP_MAC))
+			swap_src_dst_mac(data);
+	}
 
 	return config->action;
 }

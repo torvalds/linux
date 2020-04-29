@@ -50,14 +50,24 @@
 #define DASD_ECKD_CCW_PFX_READ		 0xEA
 #define DASD_ECKD_CCW_RSCK		 0xF9
 #define DASD_ECKD_CCW_RCD		 0xFA
+#define DASD_ECKD_CCW_DSO		 0xF7
+
+/* Define Subssystem Function / Orders */
+#define DSO_ORDER_RAS			 0x81
+
+/*
+ * Perform Subsystem Function / Orders
+ */
+#define PSF_ORDER_PRSSD			 0x18
+#define PSF_ORDER_CUIR_RESPONSE		 0x1A
+#define PSF_ORDER_SSC			 0x1D
 
 /*
  * Perform Subsystem Function / Sub-Orders
  */
-#define PSF_ORDER_PRSSD			 0x18
-#define PSF_ORDER_CUIR_RESPONSE		 0x1A
-#define PSF_SUBORDER_QHA		 0x1C
-#define PSF_ORDER_SSC			 0x1D
+#define PSF_SUBORDER_QHA		 0x1C /* Query Host Access */
+#define PSF_SUBORDER_VSQ		 0x52 /* Volume Storage Query */
+#define PSF_SUBORDER_LCQ		 0x53 /* Logical Configuration Query */
 
 /*
  * CUIR response condition codes
@@ -80,10 +90,22 @@
 #define CUIR_RESUME			 0x02
 
 /*
+ * Out-of-space (OOS) Codes
+ */
+#define REPO_WARN			 0x01
+#define REPO_EXHAUST			 0x02
+#define POOL_WARN			 0x03
+#define POOL_EXHAUST			 0x04
+#define REPO_RELIEVE			 0x05
+#define POOL_RELIEVE			 0x06
+
+/*
  * attention message definitions
  */
 #define ATTENTION_LENGTH_CUIR		 0x0e
 #define ATTENTION_FORMAT_CUIR		 0x01
+#define ATTENTION_LENGTH_OOS		 0x10
+#define ATTENTION_FORMAT_OOS		 0x06
 
 #define DASD_ECKD_PG_GROUPED		 0x10
 
@@ -98,6 +120,12 @@
 
 #define DASD_ECKD_PATH_THRHLD		 256
 #define DASD_ECKD_PATH_INTERVAL		 300
+
+/*
+ * Maximum number of blocks to be chained
+ */
+#define DASD_ECKD_MAX_BLOCKS		 190
+#define DASD_ECKD_MAX_BLOCKS_RAW	 256
 
 /*****************************************************************************
  * SECTION: Type Definitions
@@ -116,33 +144,10 @@ struct ch_t {
 	__u16 head;
 } __attribute__ ((packed));
 
-struct chs_t {
-	__u16 cyl;
-	__u16 head;
-	__u32 sector;
-} __attribute__ ((packed));
-
 struct chr_t {
 	__u16 cyl;
 	__u16 head;
 	__u8 record;
-} __attribute__ ((packed));
-
-struct geom_t {
-	__u16 cyl;
-	__u16 head;
-	__u32 sector;
-} __attribute__ ((packed));
-
-struct eckd_home {
-	__u8 skip_control[14];
-	__u16 cell_number;
-	__u8 physical_addr[3];
-	__u8 flag;
-	struct ch_t track_addr;
-	__u8 reserved;
-	__u8 key_length;
-	__u8 reserved2[2];
 } __attribute__ ((packed));
 
 struct DE_eckd_data {
@@ -215,7 +220,7 @@ struct LRE_eckd_data {
 	__u8 imbedded_count;
 	__u8 extended_operation;
 	__u16 extended_parameter_length;
-	__u8 extended_parameter[0];
+	__u8 extended_parameter[];
 } __attribute__ ((packed));
 
 /* Prefix data for format 0x00 and 0x01 */
@@ -387,6 +392,86 @@ struct dasd_rssd_messages {
 	char messages[4087];
 } __packed;
 
+/*
+ * Read Subsystem Data - Volume Storage Query
+ */
+struct dasd_rssd_vsq {
+	struct {
+		__u8 tse:1;
+		__u8 space_not_available:1;
+		__u8 ese:1;
+		__u8 unused:5;
+	} __packed vol_info;
+	__u8 unused1;
+	__u16 extent_pool_id;
+	__u8 warn_cap_limit;
+	__u8 warn_cap_guaranteed;
+	__u16 unused2;
+	__u32 limit_capacity;
+	__u32 guaranteed_capacity;
+	__u32 space_allocated;
+	__u32 space_configured;
+	__u32 logical_capacity;
+} __packed;
+
+/*
+ * Extent Pool Summary
+ */
+struct dasd_ext_pool_sum {
+	__u16 pool_id;
+	__u8 repo_warn_thrshld;
+	__u8 warn_thrshld;
+	struct {
+		__u8 type:1;			/* 0 - CKD / 1 - FB */
+		__u8 track_space_efficient:1;
+		__u8 extent_space_efficient:1;
+		__u8 standard_volume:1;
+		__u8 extent_size_valid:1;
+		__u8 capacity_at_warnlevel:1;
+		__u8 pool_oos:1;
+		__u8 unused0:1;
+		__u8 unused1;
+	} __packed flags;
+	struct {
+		__u8 reserved0:1;
+		__u8 size_1G:1;
+		__u8 reserved1:5;
+		__u8 size_16M:1;
+	} __packed extent_size;
+	__u8 unused;
+} __packed;
+
+/*
+ * Read Subsystem Data-Response - Logical Configuration Query - Header
+ */
+struct dasd_rssd_lcq {
+	__u16 data_length;		/* Length of data returned */
+	__u16 pool_count;		/* Count of extent pools returned - Max: 448 */
+	struct {
+		__u8 pool_info_valid:1;	/* Detailed Information valid */
+		__u8 pool_id_volume:1;
+		__u8 pool_id_cec:1;
+		__u8 unused0:5;
+		__u8 unused1;
+	} __packed header_flags;
+	char sfi_type[6];		/* Storage Facility Image Type (EBCDIC) */
+	char sfi_model[3];		/* Storage Facility Image Model (EBCDIC) */
+	__u8 sfi_seq_num[10];		/* Storage Facility Image Sequence Number */
+	__u8 reserved[7];
+	struct dasd_ext_pool_sum ext_pool_sum[448];
+} __packed;
+
+struct dasd_oos_message {
+	__u16 length;
+	__u8 format;
+	__u8 code;
+	__u8 percentage_empty;
+	__u8 reserved;
+	__u16 ext_pool_id;
+	__u16 token;
+	__u8 unused[6];
+} __packed;
+
 struct dasd_cuir_message {
 	__u16 length;
 	__u8 format;
@@ -460,6 +545,42 @@ struct dasd_psf_ssc_data {
 	unsigned char suborder;
 	unsigned char reserved[59];
 } __attribute__((packed));
+
+/* Maximum number of extents for a single Release Allocated Space command */
+#define DASD_ECKD_RAS_EXTS_MAX		110U
+
+struct dasd_dso_ras_ext_range {
+	struct ch_t beg_ext;
+	struct ch_t end_ext;
+} __packed;
+
+/*
+ * Define Subsytem Operation - Release Allocated Space
+ */
+struct dasd_dso_ras_data {
+	__u8 order;
+	struct {
+		__u8 message:1;		/* Must be zero */
+		__u8 reserved1:2;
+		__u8 vol_type:1;	/* 0 - CKD/FBA, 1 - FB */
+		__u8 reserved2:4;
+	} __packed flags;
+	/* Operation Flags to specify scope */
+	struct {
+		__u8 reserved1:2;
+		/* Release Space by Extent */
+		__u8 by_extent:1;	/* 0 - entire volume, 1 - specified extents */
+		__u8 guarantee_init:1;
+		__u8 force_release:1;	/* Internal - will be ignored */
+		__u16 reserved2:11;
+	} __packed op_flags;
+	__u8 lss;
+	__u8 dev_addr;
+	__u32 reserved1;
+	__u8 reserved2[10];
+	__u16 nr_exts;			/* Defines number of ext_scope - max 110 */
+	__u16 reserved3;
+} __packed;
 
 
 /*
@@ -551,6 +672,8 @@ struct dasd_eckd_private {
 	int uses_cdl;
 	struct attrib_data_t attrib;	/* e.g. cache operations */
 	struct dasd_rssd_features features;
+	struct dasd_rssd_vsq vsq;
+	struct dasd_ext_pool_sum eps;
 	u32 real_cyl;
 
 	/* alias managemnet */
@@ -572,7 +695,5 @@ int dasd_alias_remove_device(struct dasd_device *);
 struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *);
 void dasd_alias_handle_summary_unit_check(struct work_struct *);
 void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
-void dasd_alias_lcu_setup_complete(struct dasd_device *);
-void dasd_alias_wait_for_lcu_setup(struct dasd_device *);
 int dasd_alias_update_add_device(struct dasd_device *);
 #endif				/* DASD_ECKD_H */

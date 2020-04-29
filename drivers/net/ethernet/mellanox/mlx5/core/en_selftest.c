@@ -35,6 +35,7 @@
 #include <linux/udp.h>
 #include <net/udp.h>
 #include "en.h"
+#include "en/port.h"
 
 enum {
 	MLX5E_ST_LINK_STATE,
@@ -64,7 +65,7 @@ static int mlx5e_test_health_info(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_health *health = &priv->mdev->priv.health;
 
-	return health->sick ? 1 : 0;
+	return health->fatal_error ? 1 : 0;
 }
 
 static int mlx5e_test_link_state(struct mlx5e_priv *priv)
@@ -74,41 +75,30 @@ static int mlx5e_test_link_state(struct mlx5e_priv *priv)
 	if (!netif_carrier_ok(priv->netdev))
 		return 1;
 
-	port_state = mlx5_query_vport_state(priv->mdev, MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
+	port_state = mlx5_query_vport_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT, 0);
 	return port_state == VPORT_STATE_UP ? 0 : 1;
 }
 
 static int mlx5e_test_link_speed(struct mlx5e_priv *priv)
 {
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	u32 eth_proto_oper;
-	int i;
+	u32 speed;
 
 	if (!netif_carrier_ok(priv->netdev))
 		return 1;
 
-	if (mlx5_query_port_ptys(priv->mdev, out, sizeof(out), MLX5_PTYS_EN, 1))
-		return 1;
-
-	eth_proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; i++) {
-		if (eth_proto_oper & MLX5E_PROT_MASK(i))
-			return 0;
-	}
-	return 1;
+	return mlx5e_port_linkspeed(priv->mdev, &speed);
 }
-
-#ifdef CONFIG_INET
-/* loopback test */
-#define MLX5E_TEST_PKT_SIZE (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD - NET_IP_ALIGN)
-static const char mlx5e_test_text[ETH_GSTRING_LEN] = "MLX5E SELF TEST";
-#define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
 
 struct mlx5ehdr {
 	__be32 version;
 	__be64 magic;
-	char   text[ETH_GSTRING_LEN];
 };
+
+#ifdef CONFIG_INET
+/* loopback test */
+#define MLX5E_TEST_PKT_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) +\
+			     sizeof(struct udphdr) + sizeof(struct mlx5ehdr))
+#define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
 
 static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 {
@@ -117,10 +107,7 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	struct ethhdr *ethh;
 	struct udphdr *udph;
 	struct iphdr *iph;
-	int datalen, iplen;
-
-	datalen = MLX5E_TEST_PKT_SIZE -
-		  (sizeof(*ethh) + sizeof(*iph) + sizeof(*udph));
+	int    iplen;
 
 	skb = netdev_alloc_skb(priv->netdev, MLX5E_TEST_PKT_SIZE);
 	if (!skb) {
@@ -149,7 +136,7 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	/* Fill UDP header */
 	udph->source = htons(9);
 	udph->dest = htons(9); /* Discard Protocol */
-	udph->len = htons(datalen + sizeof(struct udphdr));
+	udph->len = htons(sizeof(struct mlx5ehdr) + sizeof(struct udphdr));
 	udph->check = 0;
 
 	/* Fill IP header */
@@ -157,7 +144,8 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	iph->ttl = 32;
 	iph->version = 4;
 	iph->protocol = IPPROTO_UDP;
-	iplen = sizeof(struct iphdr) + sizeof(struct udphdr) + datalen;
+	iplen = sizeof(struct iphdr) + sizeof(struct udphdr) +
+		sizeof(struct mlx5ehdr);
 	iph->tot_len = htons(iplen);
 	iph->frag_off = 0;
 	iph->saddr = 0;
@@ -170,9 +158,6 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	mlxh = skb_put(skb, sizeof(*mlxh));
 	mlxh->version = 0;
 	mlxh->magic = cpu_to_be64(MLX5E_TEST_MAGIC);
-	strlcpy(mlxh->text, mlx5e_test_text, sizeof(mlxh->text));
-	datalen -= sizeof(*mlxh);
-	skb_put_zero(skb, datalen);
 
 	skb->csum = 0;
 	skb->ip_summed = CHECKSUM_PARTIAL;
@@ -290,7 +275,7 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		netdev_err(priv->netdev,
-			   "\tCan't perform loobpack test while device is down\n");
+			   "\tCan't perform loopback test while device is down\n");
 		return -ENODEV;
 	}
 

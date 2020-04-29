@@ -76,7 +76,7 @@ static struct hpet_scope ir_hpet[MAX_HPET_TBS];
  * in single-threaded environment with interrupt disabled, so no need to tabke
  * the dmar_global_lock.
  */
-static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
+DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 static const struct irq_domain_ops intel_ir_domain_ops;
 
 static void iommu_disable_irq_remapping(struct intel_iommu *iommu);
@@ -101,7 +101,7 @@ static void init_ir_status(struct intel_iommu *iommu)
 		iommu->flags |= VTD_FLAG_IRQ_REMAP_PRE_ENABLED;
 }
 
-static int alloc_irte(struct intel_iommu *iommu, int irq,
+static int alloc_irte(struct intel_iommu *iommu,
 		      struct irq_2_iommu *irq_iommu, u16 count)
 {
 	struct ir_table *table = iommu->ir_table;
@@ -145,9 +145,11 @@ static int qi_flush_iec(struct intel_iommu *iommu, int index, int mask)
 {
 	struct qi_desc desc;
 
-	desc.low = QI_IEC_IIDEX(index) | QI_IEC_TYPE | QI_IEC_IM(mask)
+	desc.qw0 = QI_IEC_IIDEX(index) | QI_IEC_TYPE | QI_IEC_IM(mask)
 		   | QI_IEC_SELECTIVE;
-	desc.high = 0;
+	desc.qw1 = 0;
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	return qi_submit_sync(&desc, iommu);
 }
@@ -292,6 +294,18 @@ static void set_irte_sid(struct irte *irte, unsigned int svt,
 	irte->sid = sid;
 }
 
+/*
+ * Set an IRTE to match only the bus number. Interrupt requests that reference
+ * this IRTE must have a requester-id whose bus number is between or equal
+ * to the start_bus and end_bus arguments.
+ */
+static void set_irte_verify_bus(struct irte *irte, unsigned int start_bus,
+				unsigned int end_bus)
+{
+	set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
+		     (start_bus << 8) | end_bus);
+}
+
 static int set_ioapic_sid(struct irte *irte, int apic)
 {
 	int i;
@@ -354,14 +368,20 @@ static int set_hpet_sid(struct irte *irte, u8 id)
 struct set_msi_sid_data {
 	struct pci_dev *pdev;
 	u16 alias;
+	int count;
+	int busmatch_count;
 };
 
 static int set_msi_sid_cb(struct pci_dev *pdev, u16 alias, void *opaque)
 {
 	struct set_msi_sid_data *data = opaque;
 
+	if (data->count == 0 || PCI_BUS_NUM(alias) == PCI_BUS_NUM(data->alias))
+		data->busmatch_count++;
+
 	data->pdev = pdev;
 	data->alias = alias;
+	data->count++;
 
 	return 0;
 }
@@ -373,6 +393,8 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	if (!irte || !dev)
 		return -1;
 
+	data.count = 0;
+	data.busmatch_count = 0;
 	pci_for_each_dma_alias(dev, set_msi_sid_cb, &data);
 
 	/*
@@ -380,6 +402,11 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * where the it will return an alias on a different bus than the
 	 * device is the case of a PCIe-to-PCI bridge, where the alias is for
 	 * the subordinate bus.  In this case we can only verify the bus.
+	 *
+	 * If there are multiple aliases, all with the same bus number,
+	 * then all we can do is verify the bus. This is typical in NTB
+	 * hardware which use proxy IDs where the device will generate traffic
+	 * from multiple devfn numbers on the same bus.
 	 *
 	 * If the alias device is on a different bus than our source device
 	 * then we have a topology based alias, use it.
@@ -389,14 +416,15 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * original device.
 	 */
 	if (PCI_BUS_NUM(data.alias) != data.pdev->bus->number)
-		set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
-			     PCI_DEVID(PCI_BUS_NUM(data.alias),
-				       dev->bus->number));
+		set_irte_verify_bus(irte, PCI_BUS_NUM(data.alias),
+				    dev->bus->number);
+	else if (data.count >= 2 && data.busmatch_count == data.count)
+		set_irte_verify_bus(irte, dev->bus->number, dev->bus->number);
 	else if (data.pdev->bus->number != dev->bus->number)
 		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16, data.alias);
 	else
 		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16,
-			     PCI_DEVID(dev->bus->number, dev->devfn));
+			     pci_dev_id(dev));
 
 	return 0;
 }
@@ -520,8 +548,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 		goto out_free_table;
 	}
 
-	bitmap = kcalloc(BITS_TO_LONGS(INTR_REMAP_TABLE_ENTRIES),
-			 sizeof(long), GFP_ATOMIC);
+	bitmap = bitmap_zalloc(INTR_REMAP_TABLE_ENTRIES, GFP_ATOMIC);
 	if (bitmap == NULL) {
 		pr_err("IR%d: failed to allocate bitmap\n", iommu->seq_id);
 		goto out_free_pages;
@@ -588,7 +615,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	return 0;
 
 out_free_bitmap:
-	kfree(bitmap);
+	bitmap_free(bitmap);
 out_free_pages:
 	__free_pages(pages, INTR_REMAP_PAGE_ORDER);
 out_free_table:
@@ -612,7 +639,7 @@ static void intel_teardown_irq_remapping(struct intel_iommu *iommu)
 		}
 		free_pages((unsigned long)iommu->ir_table->base,
 			   INTR_REMAP_PAGE_ORDER);
-		kfree(iommu->ir_table->bitmap);
+		bitmap_free(iommu->ir_table->bitmap);
 		kfree(iommu->ir_table);
 		iommu->ir_table = NULL;
 	}
@@ -1136,7 +1163,7 @@ static void intel_ir_reconfigure_irte(struct irq_data *irqd, bool force)
 	irte->dest_id = IRTE_DEST(cfg->dest_apicid);
 
 	/* Update the hardware only if the interrupt is in remapped mode. */
-	if (!force || ir_data->irq_2_iommu.mode == IRQ_REMAPPING)
+	if (force || ir_data->irq_2_iommu.mode == IRQ_REMAPPING)
 		modify_irte(&ir_data->irq_2_iommu, irte);
 }
 
@@ -1223,7 +1250,7 @@ static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
 
 static struct irq_chip intel_ir_chip = {
 	.name			= "INTEL-IR",
-	.irq_ack		= ir_ack_apic_edge,
+	.irq_ack		= apic_ack_irq,
 	.irq_set_affinity	= intel_ir_set_affinity,
 	.irq_compose_msi_msg	= intel_ir_compose_msi_msg,
 	.irq_set_vcpu_affinity	= intel_ir_set_vcpu_affinity,
@@ -1347,7 +1374,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		goto out_free_parent;
 
 	down_read(&dmar_global_lock);
-	index = alloc_irte(iommu, virq, &data->irq_2_iommu, nr_irqs);
+	index = alloc_irte(iommu, &data->irq_2_iommu, nr_irqs);
 	up_read(&dmar_global_lock);
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");

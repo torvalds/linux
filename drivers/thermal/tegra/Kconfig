@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "NVIDIA Tegra thermal drivers"
 depends on ARCH_TEGRA
 
@@ -14,7 +15,7 @@ config TEGRA_BPMP_THERMAL
 	tristate "Tegra BPMP thermal sensing"
 	depends on TEGRA_BPMP || COMPILE_TEST
 	help
-	 Enable this option for support for sensing system temperature of NVIDIA
-	 Tegra systems-on-chip with the BPMP coprocessor (Tegra186).
+	  Enable this option for support for sensing system temperature of NVIDIA
+	  Tegra systems-on-chip with the BPMP coprocessor (Tegra186).
 
 endmenu

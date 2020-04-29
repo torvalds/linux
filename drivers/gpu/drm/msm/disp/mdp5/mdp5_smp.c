@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_util.h>
 
 #include "mdp5_kms.h"
 #include "mdp5_smp.h"
@@ -88,7 +79,7 @@ static int smp_request_block(struct mdp5_smp *smp,
 
 	avail = cnt - bitmap_weight(state->state, cnt);
 	if (nblks > avail) {
-		dev_err(smp->dev->dev, "out of blks (req=%d > avail=%d)\n",
+		DRM_DEV_ERROR(smp->dev->dev, "out of blks (req=%d > avail=%d)\n",
 				nblks, avail);
 		return -ENOSPC;
 	}
@@ -126,14 +117,14 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 		const struct mdp_format *format,
 		u32 width, bool hdecim)
 {
+	const struct drm_format_info *info = drm_format_info(format->base.pixel_format);
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 	int i, hsub, nplanes, nlines;
-	u32 fmt = format->base.pixel_format;
 	uint32_t blkcfg = 0;
 
-	nplanes = drm_format_num_planes(fmt);
-	hsub = drm_format_horz_chroma_subsampling(fmt);
+	nplanes = info->num_planes;
+	hsub = info->hsub;
 
 	/* different if BWC (compressed framebuffer?) enabled: */
 	nlines = 2;
@@ -143,7 +134,6 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	 * them together, writes to SMP using a single client.
 	 */
 	if ((rev > 0) && (format->chroma_sample > CHROMA_FULL)) {
-		fmt = DRM_FORMAT_NV24;
 		nplanes = 2;
 
 		/* if decimation is enabled, HW decimates less on the
@@ -156,7 +146,7 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	for (i = 0; i < nplanes; i++) {
 		int n, fetch_stride, cpp;
 
-		cpp = drm_format_plane_cpp(fmt, i);
+		cpp = info->cpp[i];
 		fetch_stride = width * cpp / (i ? hsub : 1);
 
 		n = DIV_ROUND_UP(fetch_stride * nlines, smp->blk_size);
@@ -188,7 +178,7 @@ int mdp5_smp_assign(struct mdp5_smp *smp, struct mdp5_smp_state *state,
 		DBG("%s[%d]: request %d SMP blocks", pipe2name(pipe), i, n);
 		ret = smp_request_block(smp, state, cid, n);
 		if (ret) {
-			dev_err(dev->dev, "Cannot allocate %d SMP blocks: %d\n",
+			DRM_DEV_ERROR(dev->dev, "Cannot allocate %d SMP blocks: %d\n",
 					n, ret);
 			return ret;
 		}
@@ -340,17 +330,20 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	struct mdp5_hw_pipe_state *hwpstate;
 	struct mdp5_smp_state *state;
+	struct mdp5_global_state *global_state;
 	int total = 0, i, j;
 
 	drm_printf(p, "name\tinuse\tplane\n");
 	drm_printf(p, "----\t-----\t-----\n");
 
 	if (drm_can_sleep())
-		drm_modeset_lock(&mdp5_kms->state_lock, NULL);
+		drm_modeset_lock(&mdp5_kms->glob_state_lock, NULL);
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	/* grab these *after* we hold the state_lock */
-	hwpstate = &mdp5_kms->state->hwpipe;
-	state = &mdp5_kms->state->smp;
+	hwpstate = &global_state->hwpipe;
+	state = &global_state->smp;
 
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
 		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
@@ -374,7 +367,7 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 			bitmap_weight(state->state, smp->blk_cnt));
 
 	if (drm_can_sleep())
-		drm_modeset_unlock(&mdp5_kms->state_lock);
+		drm_modeset_unlock(&mdp5_kms->glob_state_lock);
 }
 
 void mdp5_smp_destroy(struct mdp5_smp *smp)
@@ -384,7 +377,8 @@ void mdp5_smp_destroy(struct mdp5_smp *smp)
 
 struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_block *cfg)
 {
-	struct mdp5_smp_state *state = &mdp5_kms->state->smp;
+	struct mdp5_smp_state *state;
+	struct mdp5_global_state *global_state;
 	struct mdp5_smp *smp = NULL;
 	int ret;
 
@@ -397,6 +391,9 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 	smp->dev = mdp5_kms->dev;
 	smp->blk_cnt = cfg->mmb_count;
 	smp->blk_size = cfg->mmb_size;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
+	state = &global_state->smp;
 
 	/* statically tied MMBs cannot be re-allocated: */
 	bitmap_copy(state->state, cfg->reserved_state, smp->blk_cnt);

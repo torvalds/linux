@@ -144,7 +144,7 @@ static inline bool mmc_op_multi(u32 opcode)
 #define R1_WP_ERASE_SKIP	(1 << 15)	/* sx, c */
 #define R1_CARD_ECC_DISABLED	(1 << 14)	/* sx, a */
 #define R1_ERASE_RESET		(1 << 13)	/* sr, c */
-#define R1_STATUS(x)            (x & 0xFFFFE000)
+#define R1_STATUS(x)            (x & 0xFFF9A000)
 #define R1_CURRENT_STATE(x)	((x & 0x00001E00) >> 9)	/* sx, b (4 bits) */
 #define R1_READY_FOR_DATA	(1 << 8)	/* sx, a */
 #define R1_SWITCH_ERROR		(1 << 7)	/* sx, c */
@@ -160,6 +160,16 @@ static inline bool mmc_op_multi(u32 opcode)
 #define R1_STATE_RCV	6
 #define R1_STATE_PRG	7
 #define R1_STATE_DIS	8
+
+static inline bool mmc_ready_for_data(u32 status)
+{
+	/*
+	 * Some cards mishandle the status bits, so make sure to check both the
+	 * busy indication and the card state.
+	 */
+	return status & R1_READY_FOR_DATA &&
+	       R1_CURRENT_STATE(status) == R1_STATE_TRAN;
+}
 
 /*
  * MMC/SD in SPI mode reports R1 status always, and R2 for SEND_STATUS

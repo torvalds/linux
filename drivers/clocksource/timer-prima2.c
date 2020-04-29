@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * System timer for CSR SiRFprimaII
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/kernel.h>
@@ -166,14 +165,6 @@ static struct clocksource sirfsoc_clocksource = {
 	.resume = sirfsoc_clocksource_resume,
 };
 
-static struct irqaction sirfsoc_timer_irq = {
-	.name = "sirfsoc_timer0",
-	.flags = IRQF_TIMER,
-	.irq = 0,
-	.handler = sirfsoc_timer_interrupt,
-	.dev_id = &sirfsoc_clockevent,
-};
-
 /* Overwrite weak default sched_clock with more precise one */
 static u64 notrace sirfsoc_read_sched_clock(void)
 {
@@ -191,6 +182,7 @@ static void __init sirfsoc_clockevent_init(void)
 static int __init sirfsoc_prima2_timer_init(struct device_node *np)
 {
 	unsigned long rate;
+	unsigned int irq;
 	struct clk *clk;
 	int ret;
 
@@ -219,7 +211,7 @@ static int __init sirfsoc_prima2_timer_init(struct device_node *np)
 		return -ENXIO;
 	}
 
-	sirfsoc_timer_irq.irq = irq_of_parse_and_map(np, 0);
+	irq = irq_of_parse_and_map(np, 0);
 
 	writel_relaxed(rate / PRIMA2_CLOCK_FREQ / 2 - 1,
 		sirfsoc_timer_base + SIRFSOC_TIMER_DIV);
@@ -235,7 +227,8 @@ static int __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	sched_clock_register(sirfsoc_read_sched_clock, 64, PRIMA2_CLOCK_FREQ);
 
-	ret = setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq);
+	ret = request_irq(irq, sirfsoc_timer_interrupt, IRQF_TIMER,
+			  "sirfsoc_timer0", &sirfsoc_clockevent);
 	if (ret) {
 		pr_err("Failed to setup irq\n");
 		return ret;

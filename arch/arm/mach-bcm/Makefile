@@ -40,13 +40,11 @@ obj-$(CONFIG_ARCH_BCM_MOBILE_L2_CACHE) += kona_l2_cache.o
 
 # Support for secure monitor traps
 obj-$(CONFIG_ARCH_BCM_MOBILE_SMC) += bcm_kona_smc.o
-ifeq ($(call as-instr,.arch_extension sec,as_has_sec),as_has_sec)
-CFLAGS_bcm_kona_smc.o		+= -Wa,-march=armv7-a+sec -DREQUIRES_SEC
-endif
 
 # BCM2835
-obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
 ifeq ($(CONFIG_ARCH_BCM2835),y)
+obj-y				+= board_bcm2835.o
+obj-y				+= bcm2711.o
 ifeq ($(CONFIG_ARM),y)
 obj-$(CONFIG_SMP)		+= platsmp.o
 endif

@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 
 #include "mdp4_kms.h"
 
@@ -68,7 +60,6 @@ static void mdp4_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 
-	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp4_plane);
@@ -97,21 +88,6 @@ static const struct drm_plane_funcs mdp4_plane_funcs = {
 		.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 		.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
-
-static int mdp4_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_plane_state *new_state)
-{
-	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
-	struct mdp4_kms *mdp4_kms = get_kms(plane);
-	struct msm_kms *kms = &mdp4_kms->base.base;
-	struct drm_framebuffer *fb = new_state->fb;
-
-	if (!fb)
-		return 0;
-
-	DBG("%s: prepare: FB[%u]", mdp4_plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, kms->aspace);
-}
 
 static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
@@ -152,7 +128,7 @@ static void mdp4_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs mdp4_plane_helper_funcs = {
-		.prepare_fb = mdp4_plane_prepare_fb,
+		.prepare_fb = msm_atomic_prepare_fb,
 		.cleanup_fb = mdp4_plane_cleanup_fb,
 		.atomic_check = mdp4_plane_atomic_check,
 		.atomic_update = mdp4_plane_atomic_update,
@@ -182,8 +158,6 @@ static void mdp4_plane_set_scanout(struct drm_plane *plane,
 			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP3_BASE(pipe),
 			msm_framebuffer_iova(fb, kms->aspace, 3));
-
-	plane->fb = fb;
 }
 
 static void mdp4_write_csc_config(struct mdp4_kms *mdp4_kms,
@@ -252,22 +226,22 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	format = to_mdp_format(msm_framebuffer_format(fb));
 
 	if (src_w > (crtc_w * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Width down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (src_h > (crtc_h * DOWN_SCALE_MAX)) {
-		dev_err(dev->dev, "Height down scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height down scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_w > (src_w * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Width up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Width up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
 	if (crtc_h > (src_h * UP_SCALE_MAX)) {
-		dev_err(dev->dev, "Height up scaling exceeds limits!\n");
+		DRM_DEV_ERROR(dev->dev, "Height up scaling exceeds limits!\n");
 		return -ERANGE;
 	}
 
@@ -408,6 +382,8 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
 	mdp4_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

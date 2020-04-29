@@ -13,7 +13,7 @@ Required properties:
               "tcg,tpm-tis-mmio". Valid chip strings are:
 	          * "atmel,at97sc3204"
 - reg: The location of the MMIO registers, should be at least 0x5000 bytes
-- interrupt-parent/interrupts: An optional interrupt indicating command completion.
+- interrupts: An optional interrupt indicating command completion.
 
 Example:
 

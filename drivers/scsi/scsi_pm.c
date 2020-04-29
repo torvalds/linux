@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	scsi_pm.c	Copyright (C) 2010 Alan Stern
  *
@@ -8,6 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/export.h>
 #include <linux/async.h>
+#include <linux/blk-pm.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -79,8 +81,21 @@ static int scsi_dev_type_resume(struct device *dev,
 
 	if (err == 0) {
 		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
+		err = pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
+
+		/*
+		 * Forcibly set runtime PM status of request queue to "active"
+		 * to make sure we can again get requests from the queue
+		 * (see also blk_pm_peek_request()).
+		 *
+		 * The resume hook will correct runtime PM status of the disk.
+		 */
+		if (!err && scsi_is_sdev_device(dev)) {
+			struct scsi_device *sdev = to_scsi_device(dev);
+
+			blk_set_runtime_active(sdev->request_queue);
+		}
 	}
 
 	return err;
@@ -139,16 +154,6 @@ static int scsi_bus_resume_common(struct device *dev,
 	else
 		fn = NULL;
 
-	/*
-	 * Forcibly set runtime PM status of request queue to "active" to
-	 * make sure we can again get requests from the queue (see also
-	 * blk_pm_peek_request()).
-	 *
-	 * The resume hook will correct runtime PM status of the disk.
-	 */
-	if (scsi_is_sdev_device(dev) && pm_runtime_suspended(dev))
-		blk_set_runtime_active(to_scsi_device(dev)->request_queue);
-
 	if (fn) {
 		async_schedule_domain(fn, dev, &scsi_sd_pm_domain);
 
@@ -170,11 +175,7 @@ static int scsi_bus_resume_common(struct device *dev,
 
 static int scsi_bus_prepare(struct device *dev)
 {
-	if (scsi_is_sdev_device(dev)) {
-		/* sd probing uses async_schedule.  Wait until it finishes. */
-		async_synchronize_full_domain(&scsi_sd_probe_domain);
-
-	} else if (scsi_is_host_device(dev)) {
+	if (scsi_is_host_device(dev)) {
 		/* Wait until async scanning is finished */
 		scsi_complete_async_scans();
 	}

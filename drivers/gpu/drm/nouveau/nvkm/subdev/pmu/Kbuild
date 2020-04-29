@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/pmu/base.o
 nvkm-y += nvkm/subdev/pmu/memx.o
 nvkm-y += nvkm/subdev/pmu/gt215.o
@@ -11,3 +12,4 @@ nvkm-y += nvkm/subdev/pmu/gm107.o
 nvkm-y += nvkm/subdev/pmu/gm20b.o
 nvkm-y += nvkm/subdev/pmu/gp100.o
 nvkm-y += nvkm/subdev/pmu/gp102.o
+nvkm-y += nvkm/subdev/pmu/gp10b.o

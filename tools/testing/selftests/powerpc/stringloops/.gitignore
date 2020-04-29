@@ -1,1 +1,5 @@
-memcmp
+# SPDX-License-Identifier: GPL-2.0-only
+memcmp_64
+memcmp_32
+strlen
+strlen_32

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio controller helpers
  */
@@ -40,6 +41,8 @@ static void azx_clear_corbrp(struct hdac_bus *bus)
  */
 void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 {
+	WARN_ON_ONCE(!bus->rb.area);
+
 	spin_lock_irq(&bus->reg_lock);
 	/* CORB set up */
 	bus->corb.addr = bus->rb.addr;
@@ -76,6 +79,8 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 	snd_hdac_chip_writew(bus, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
@@ -176,6 +181,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_send_cmd);
  * @bus: HD-audio core bus
  *
  * Usually called from interrupt handler.
+ * The caller needs bus->reg_lock spinlock before calling this.
  */
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 {
@@ -211,6 +217,9 @@ void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 		else if (bus->rirb.cmds[addr]) {
 			bus->rirb.res[addr] = res;
 			bus->rirb.cmds[addr]--;
+			if (!bus->rirb.cmds[addr] &&
+			    waitqueue_active(&bus->rirb_wq))
+				wake_up(&bus->rirb_wq);
 		} else {
 			dev_err_ratelimited(bus->dev,
 				"spurious response %#x:%#x, last cmd=%#08x\n",
@@ -233,27 +242,50 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 {
 	unsigned long timeout;
 	unsigned long loopcounter;
+	wait_queue_entry_t wait;
+	bool warned = false;
 
+	init_wait_entry(&wait, 0);
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
+		if (!bus->polling_mode)
+			prepare_to_wait(&bus->rirb_wq, &wait,
+					TASK_UNINTERRUPTIBLE);
+		if (bus->polling_mode)
+			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
+			if (!bus->polling_mode)
+				finish_wait(&bus->rirb_wq, &wait);
 			spin_unlock_irq(&bus->reg_lock);
 			return 0;
 		}
 		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
-		if (loopcounter > 3000)
+#define LOOP_COUNT_MAX	3000
+		if (!bus->polling_mode) {
+			schedule_timeout(msecs_to_jiffies(2));
+		} else if (bus->needs_damn_long_delay ||
+			   loopcounter > LOOP_COUNT_MAX) {
+			if (loopcounter > LOOP_COUNT_MAX && !warned) {
+				dev_dbg_ratelimited(bus->dev,
+						    "too slow response, last cmd=%#08x\n",
+						    bus->last_cmd[addr]);
+				warned = true;
+			}
 			msleep(2); /* temporary workaround */
-		else {
+		} else {
 			udelay(10);
 			cond_resched();
 		}
 	}
+
+	if (!bus->polling_mode)
+		finish_wait(&bus->rirb_wq, &wait);
 
 	return -EIO;
 }
@@ -374,7 +406,7 @@ void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus)
 {
 	unsigned long timeout;
 
-	snd_hdac_chip_updateb(bus, GCTL, 0, AZX_GCTL_RESET);
+	snd_hdac_chip_updateb(bus, GCTL, AZX_GCTL_RESET, AZX_GCTL_RESET);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 	while (!snd_hdac_chip_readb(bus, GCTL) && time_before(jiffies, timeout))
@@ -383,7 +415,7 @@ void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_bus_exit_link_reset);
 
 /* reset codec link */
-static int azx_reset(struct hdac_bus *bus, bool full_reset)
+int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 {
 	if (!full_reset)
 		goto skip_reset;
@@ -408,12 +440,9 @@ static int azx_reset(struct hdac_bus *bus, bool full_reset)
  skip_reset:
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "azx_reset: controller not ready!\n");
+		dev_dbg(bus->dev, "controller not ready!\n");
 		return -EBUSY;
 	}
-
-	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, 0, AZX_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!bus->codec_mask) {
@@ -423,12 +452,15 @@ static int azx_reset(struct hdac_bus *bus, bool full_reset)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_hdac_bus_reset_link);
 
 /* enable interrupts */
 static void azx_int_enable(struct hdac_bus *bus)
 {
 	/* enable controller CIE and GIE */
-	snd_hdac_chip_updatel(bus, INTCTL, 0, AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
+	snd_hdac_chip_updatel(bus, INTCTL,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
 }
 
 /* disable interrupts */
@@ -477,14 +509,16 @@ bool snd_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 		return false;
 
 	/* reset controller */
-	azx_reset(bus, full_reset);
+	snd_hdac_bus_reset_link(bus, full_reset);
 
-	/* initialize interrupts */
+	/* clear interrupts */
 	azx_int_clear(bus);
-	azx_int_enable(bus);
 
 	/* initialize the codec command I/O */
 	snd_hdac_bus_init_cmd_io(bus);
+
+	/* enable interrupts after CORB/RIRB buffers are initialized above */
+	azx_int_enable(bus);
 
 	/* program the position buffer */
 	if (bus->use_posbuf && bus->posbuf.addr) {
@@ -527,7 +561,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * snd_hdac_bus_handle_stream_irq - interrupt handler for streams
  * @bus: HD-audio core bus
  * @status: INTSTS register value
- * @ask: callback to be called for woken streams
+ * @ack: callback to be called for woken streams
  *
  * Returns the bits of handled streams, or zero if no stream is handled.
  */
@@ -566,12 +600,13 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 {
 	struct hdac_stream *s;
 	int num_streams = 0;
+	int dma_type = bus->dma_type ? bus->dma_type : SNDRV_DMA_TYPE_DEV;
 	int err;
 
 	list_for_each_entry(s, &bus->stream_list, list) {
 		/* allocate memory for the BDL for each stream */
-		err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-						   BDL_SIZE, &s->bdl);
+		err = snd_dma_alloc_pages(dma_type, bus->dev,
+					  BDL_SIZE, &s->bdl);
 		num_streams++;
 		if (err < 0)
 			return -ENOMEM;
@@ -580,16 +615,15 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 	if (WARN_ON(!num_streams))
 		return -EINVAL;
 	/* allocate memory for the position buffer */
-	err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-					   num_streams * 8, &bus->posbuf);
+	err = snd_dma_alloc_pages(dma_type, bus->dev,
+				  num_streams * 8, &bus->posbuf);
 	if (err < 0)
 		return -ENOMEM;
 	list_for_each_entry(s, &bus->stream_list, list)
 		s->posbuf = (__le32 *)(bus->posbuf.area + s->index * 8);
 
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	return bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-					    PAGE_SIZE, &bus->rb);
+	return snd_dma_alloc_pages(dma_type, bus->dev, PAGE_SIZE, &bus->rb);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_alloc_stream_pages);
 
@@ -603,12 +637,12 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus)
 
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (s->bdl.area)
-			bus->io_ops->dma_free_pages(bus, &s->bdl);
+			snd_dma_free_pages(&s->bdl);
 	}
 
 	if (bus->rb.area)
-		bus->io_ops->dma_free_pages(bus, &bus->rb);
+		snd_dma_free_pages(&bus->rb);
 	if (bus->posbuf.area)
-		bus->io_ops->dma_free_pages(bus, &bus->posbuf);
+		snd_dma_free_pages(&bus->posbuf);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_free_stream_pages);

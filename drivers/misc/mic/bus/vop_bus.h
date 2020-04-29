@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Intel Virtio over PCIe Bus driver.
  */
@@ -87,8 +76,8 @@ struct vop_driver {
  * @get_dp: Get access to the virtio device page used by the self
  *          node to add/remove/configure virtio devices.
  * @send_intr: Send an interrupt to the peer node on a specified doorbell.
- * @ioremap: Map a buffer with the specified DMA address and length.
- * @iounmap: Unmap a buffer previously mapped.
+ * @remap: Map a buffer with the specified DMA address and length.
+ * @unmap: Unmap a buffer previously mapped.
  * @dma_filter: The DMA filter function to use for obtaining access to
  *		a DMA channel on the peer node.
  */
@@ -104,9 +93,9 @@ struct vop_hw_ops {
 	void __iomem * (*get_remote_dp)(struct vop_device *vpdev);
 	void * (*get_dp)(struct vop_device *vpdev);
 	void (*send_intr)(struct vop_device *vpdev, int db);
-	void __iomem * (*ioremap)(struct vop_device *vpdev,
+	void __iomem * (*remap)(struct vop_device *vpdev,
 				  dma_addr_t pa, size_t len);
-	void (*iounmap)(struct vop_device *vpdev, void __iomem *va);
+	void (*unmap)(struct vop_device *vpdev, void __iomem *va);
 };
 
 struct vop_device *

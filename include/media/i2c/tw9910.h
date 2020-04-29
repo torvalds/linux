@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tw9910 Driver header
  *
@@ -7,16 +8,10 @@
  * Based on ov772x.h
  *
  * Copyright (C) Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __TW9910_H__
 #define __TW9910_H__
-
-#include <media/soc_camera.h>
 
 /**
  * tw9910_mpout_pin - MPOUT (multi-purpose output) pin functions

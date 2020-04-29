@@ -12,8 +12,6 @@
 #define _XTENSA_PLATFORM_H
 
 #include <linux/types.h>
-#include <linux/pci.h>
-
 #include <asm/bootparam.h>
 
 /*
@@ -53,16 +51,6 @@ extern void platform_idle (void);
  * platform_heartbeat is called every HZ
  */
 extern void platform_heartbeat (void);
-
-/*
- * platform_pcibios_init is called to allow the platform to setup the pci bus.
- */
-extern void platform_pcibios_init (void);
-
-/*
- * platform_pcibios_fixup allows to modify the PCI configuration.
- */
-extern int platform_pcibios_fixup (void);
 
 /*
  * platform_calibrate_ccount calibrates cpu clock freq (CONFIG_XTENSA_CALIBRATE)

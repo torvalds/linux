@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * acenic.c: Linux driver for the Alteon AceNIC Gigabit Ethernet card
  *           and other Tigon based cards.
@@ -11,11 +12,6 @@
  * setup, please subscribe to the lists if you have any questions
  * about the driver. Send mail to linux-acenic-help@sunsite.auc.dk to
  * see how to subscribe.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Additional credits:
  *   Pete Wyckoff <wyckoff@ca.sandia.gov>: Initial Linux/Alpha and trace
@@ -441,7 +437,7 @@ static const struct ethtool_ops ace_ethtool_ops = {
 	.set_link_ksettings = ace_set_link_ksettings,
 };
 
-static void ace_watchdog(struct net_device *dev);
+static void ace_watchdog(struct net_device *dev, unsigned int txqueue);
 
 static const struct net_device_ops ace_netdev_ops = {
 	.ndo_open		= ace_open,
@@ -551,6 +547,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 			       ap->name);
 			break;
 		}
+		/* Fall through */
 	case PCI_VENDOR_ID_SGI:
 		printk(KERN_INFO "%s: SGI AceNIC ", ap->name);
 		break;
@@ -1545,7 +1542,7 @@ static void ace_set_rxtx_parms(struct net_device *dev, int jumbo)
 }
 
 
-static void ace_watchdog(struct net_device *data)
+static void ace_watchdog(struct net_device *data, unsigned int txqueue)
 {
 	struct net_device *dev = data;
 	struct ace_private *ap = netdev_priv(dev);
@@ -1933,7 +1930,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 	while (idx != rxretprd) {
 		struct ring_info *rip;
 		struct sk_buff *skb;
-		struct rx_desc *rxdesc, *retdesc;
+		struct rx_desc *retdesc;
 		u32 skbidx;
 		int bd_flags, desc_type, mapsize;
 		u16 csum;
@@ -1959,19 +1956,16 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 		case 0:
 			rip = &ap->skb->rx_std_skbuff[skbidx];
 			mapsize = ACE_STD_BUFSIZE;
-			rxdesc = &ap->rx_std_ring[skbidx];
 			std_count++;
 			break;
 		case BD_FLG_JUMBO:
 			rip = &ap->skb->rx_jumbo_skbuff[skbidx];
 			mapsize = ACE_JUMBO_BUFSIZE;
-			rxdesc = &ap->rx_jumbo_ring[skbidx];
 			atomic_dec(&ap->cur_jumbo_bufs);
 			break;
 		case BD_FLG_MINI:
 			rip = &ap->skb->rx_mini_skbuff[skbidx];
 			mapsize = ACE_MINI_BUFSIZE;
-			rxdesc = &ap->rx_mini_ring[skbidx];
 			mini_count++;
 			break;
 		default:
@@ -2061,7 +2055,7 @@ static inline void ace_tx_int(struct net_device *dev,
 		if (skb) {
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			info->skb = NULL;
 		}
 
@@ -2705,9 +2699,8 @@ static void ace_get_drvinfo(struct net_device *dev,
 	struct ace_private *ap = netdev_priv(dev);
 
 	strlcpy(info->driver, "acenic", sizeof(info->driver));
-	snprintf(info->version, sizeof(info->version), "%i.%i.%i",
-		 ap->firmware_major, ap->firmware_minor,
-		 ap->firmware_fix);
+	snprintf(info->fw_version, sizeof(info->version), "%i.%i.%i",
+		 ap->firmware_major, ap->firmware_minor, ap->firmware_fix);
 
 	if (ap->pdev)
 		strlcpy(info->bus_info, pci_name(ap->pdev),

@@ -11,8 +11,6 @@ Required properties:
   information for the interrupt.  This should be encoded based on
   the information in section 2) depending on the type of interrupt
   controller you have.
-- interrupt-parent : the phandle for the interrupt controller that
-  services interrupts for this device.
 - pio-handle : The phandle for the Parallel I/O port configuration.
 - port-number : for UART drivers, the port number to use, between 0 and 3.
   This usually corresponds to the /dev/ttyQE device, e.g. <0> = /dev/ttyQE0.

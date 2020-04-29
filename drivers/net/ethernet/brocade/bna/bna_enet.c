@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux network driver for QLogic BR-series Converged Network Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
@@ -1797,7 +1789,7 @@ bna_ucam_mod_init(struct bna_ucam_mod *ucam_mod, struct bna *bna,
 
 	/* A separate queue to allow synchronous setting of a list of MACs */
 	INIT_LIST_HEAD(&ucam_mod->del_q);
-	for (i = i; i < (bna->ioceth.attr.num_ucmac * 2); i++)
+	for (; i < (bna->ioceth.attr.num_ucmac * 2); i++)
 		list_add_tail(&ucam_mod->ucmac[i].qe, &ucam_mod->del_q);
 
 	ucam_mod->bna = bna;
@@ -1832,7 +1824,7 @@ bna_mcam_mod_init(struct bna_mcam_mod *mcam_mod, struct bna *bna,
 
 	/* A separate queue to allow synchronous setting of a list of MACs */
 	INIT_LIST_HEAD(&mcam_mod->del_q);
-	for (i = i; i < (bna->ioceth.attr.num_mcmac * 2); i++)
+	for (; i < (bna->ioceth.attr.num_mcmac * 2); i++)
 		list_add_tail(&mcam_mod->mcmac[i].qe, &mcam_mod->del_q);
 
 	mcam_mod->bna = bna;

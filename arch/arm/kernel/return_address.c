@@ -1,17 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/kernel/return_address.c
  *
  * Copyright (C) 2009 Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>
  * for Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/export.h>
 #include <linux/ftrace.h>
-
-#if defined(CONFIG_FRAME_POINTER) && !defined(CONFIG_ARM_UNWIND)
 #include <linux/sched.h>
 
 #include <asm/stacktrace.h>
@@ -55,7 +50,5 @@ void *return_address(unsigned int level)
 	else
 		return NULL;
 }
-
-#endif /* if defined(CONFIG_FRAME_POINTER) && !defined(CONFIG_ARM_UNWIND) */
 
 EXPORT_SYMBOL_GPL(return_address);

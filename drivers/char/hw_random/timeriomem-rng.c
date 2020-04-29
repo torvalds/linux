@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/char/hw_random/timeriomem-rng.c
  *
@@ -6,10 +7,6 @@
  * Derived from drivers/char/hw_random/omap-rng.c
  *   Copyright 2005 (c) MontaVista Software, Inc.
  *   Author: Deepak Saxena <dsaxena@plexity.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Overview:
  *   This driver is useful for platforms that have an IO range that provides
@@ -120,9 +117,9 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	if (res->start % 4 != 0 || resource_size(res) != 4) {
+	if (res->start % 4 != 0 || resource_size(res) < 4) {
 		dev_err(&pdev->dev,
-			"address must be four bytes wide and aligned\n");
+			"address must be at least four bytes wide and 32-bit aligned\n");
 		return -EINVAL;
 	}
 

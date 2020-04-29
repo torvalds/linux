@@ -1,9 +1,5 @@
-/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 /* Kernel module implementing an IP set type: the hash:net,port type */
 
@@ -33,7 +29,7 @@
 #define IPSET_TYPE_REV_MAX	7 /* skbinfo support added */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
 IP_SET_MODULE_DESC("hash:net,port", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:net,port");
 
@@ -61,7 +57,7 @@ struct hash_netport4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_netport4_data_equal(const struct hash_netport4_elem *ip1,
 			 const struct hash_netport4_elem *ip2,
 			 u32 *multi)
@@ -72,25 +68,25 @@ hash_netport4_data_equal(const struct hash_netport4_elem *ip1,
 	       ip1->cidr == ip2->cidr;
 }
 
-static inline int
+static int
 hash_netport4_do_data_match(const struct hash_netport4_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_netport4_data_set_flags(struct hash_netport4_elem *elem, u32 flags)
 {
 	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
 }
 
-static inline void
+static void
 hash_netport4_data_reset_flags(struct hash_netport4_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_netport4_data_netmask(struct hash_netport4_elem *elem, u8 cidr)
 {
 	elem->ip &= ip_set_netmask(cidr);
@@ -116,7 +112,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_netport4_data_next(struct hash_netport4_elem *next,
 			const struct hash_netport4_elem *d)
 {
@@ -274,7 +270,7 @@ struct hash_netport6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_netport6_data_equal(const struct hash_netport6_elem *ip1,
 			 const struct hash_netport6_elem *ip2,
 			 u32 *multi)
@@ -285,25 +281,25 @@ hash_netport6_data_equal(const struct hash_netport6_elem *ip1,
 	       ip1->cidr == ip2->cidr;
 }
 
-static inline int
+static int
 hash_netport6_do_data_match(const struct hash_netport6_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_netport6_data_set_flags(struct hash_netport6_elem *elem, u32 flags)
 {
 	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
 }
 
-static inline void
+static void
 hash_netport6_data_reset_flags(struct hash_netport6_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_netport6_data_netmask(struct hash_netport6_elem *elem, u8 cidr)
 {
 	ip6_netmask(&elem->ip, cidr);
@@ -329,7 +325,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_netport6_data_next(struct hash_netport6_elem *next,
 			const struct hash_netport6_elem *d)
 {

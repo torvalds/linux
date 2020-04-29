@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TDA7419 audio processor driver
  *
  * Copyright 2018 Konsulko Group
  *
  * Author: Matt Porter <mporter@konsulko.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/i2c.h>
@@ -142,9 +134,9 @@ struct tda7419_vol_control {
 static inline bool tda7419_vol_is_stereo(struct tda7419_vol_control *tvc)
 {
 	if (tvc->reg == tvc->rreg)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static int tda7419_vol_info(struct snd_kcontrol *kcontrol,

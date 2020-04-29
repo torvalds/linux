@@ -24,6 +24,7 @@
 
 #define SCLP_ATYPE_PCI				2
 
+#define SCLP_ERRNOTIFY_AQ_RESET			0
 #define SCLP_ERRNOTIFY_AQ_REPAIR		1
 #define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
 
@@ -38,7 +39,7 @@ struct err_notify_evbuf {
 	u8 atype;
 	u32 fh;
 	u32 fid;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct err_notify_sccb {
@@ -111,9 +112,14 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 	if (report->version != 1)
 		return -EINVAL;
 
-	if (report->action != SCLP_ERRNOTIFY_AQ_REPAIR &&
-	    report->action != SCLP_ERRNOTIFY_AQ_INFO_LOG)
+	switch (report->action) {
+	case SCLP_ERRNOTIFY_AQ_RESET:
+	case SCLP_ERRNOTIFY_AQ_REPAIR:
+	case SCLP_ERRNOTIFY_AQ_INFO_LOG:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	if (report->length > (PAGE_SIZE - sizeof(struct err_notify_sccb)))
 		return -EINVAL;

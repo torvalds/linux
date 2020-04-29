@@ -68,7 +68,7 @@ void __brcms_dbg(struct device *dev, u32 level, const char *func,
 struct brcms_pub;
 void brcms_debugfs_init(void);
 void brcms_debugfs_exit(void);
-int brcms_debugfs_attach(struct brcms_pub *drvr);
+void brcms_debugfs_attach(struct brcms_pub *drvr);
 void brcms_debugfs_detach(struct brcms_pub *drvr);
 struct dentry *brcms_debugfs_get_devdir(struct brcms_pub *drvr);
 void brcms_debugfs_create_files(struct brcms_pub *drvr);

@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 Google, Inc.
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
  *	Colin Cross <ccross@android.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __DRIVERS_MISC_TEGRA_FUSE_H
@@ -22,6 +13,8 @@
 #include <linux/dmaengine.h>
 #include <linux/types.h>
 
+struct nvmem_cell_lookup;
+struct nvmem_device;
 struct tegra_fuse;
 
 struct tegra_fuse_info {
@@ -36,6 +29,9 @@ struct tegra_fuse_soc {
 	int (*probe)(struct tegra_fuse *fuse);
 
 	const struct tegra_fuse_info *info;
+
+	const struct nvmem_cell_lookup *lookups;
+	unsigned int num_lookups;
 };
 
 struct tegra_fuse {
@@ -57,6 +53,9 @@ struct tegra_fuse {
 		dma_addr_t phys;
 		u32 *virt;
 	} apbdma;
+
+	struct nvmem_device *nvmem;
+	struct nvmem_cell_lookup *lookups;
 };
 
 void tegra_init_revision(void);
@@ -107,6 +106,10 @@ extern const struct tegra_fuse_soc tegra210_fuse_soc;
 
 #ifdef CONFIG_ARCH_TEGRA_186_SOC
 extern const struct tegra_fuse_soc tegra186_fuse_soc;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_194_SOC
+extern const struct tegra_fuse_soc tegra194_fuse_soc;
 #endif
 
 #endif

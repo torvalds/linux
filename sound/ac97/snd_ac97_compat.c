@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2016 Robert Jarzmik <robert.jarzmik@free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/list.h>
@@ -14,6 +11,11 @@
 #include <sound/soc.h>
 
 #include "ac97_core.h"
+
+static void compat_ac97_release(struct device *dev)
+{
+	kfree(to_ac97_t(dev));
+}
 
 static void compat_ac97_reset(struct snd_ac97 *ac97)
 {
@@ -51,7 +53,7 @@ static unsigned short compat_ac97_read(struct snd_ac97 *ac97,
 	return actrl->ops->read(actrl, ac97->num, reg);
 }
 
-static struct snd_ac97_bus_ops compat_snd_ac97_bus_ops = {
+static const struct snd_ac97_bus_ops compat_snd_ac97_bus_ops = {
 	.reset = compat_ac97_reset,
 	.warm_reset = compat_ac97_warm_reset,
 	.write = compat_ac97_write,
@@ -65,21 +67,31 @@ static struct snd_ac97_bus compat_soc_ac97_bus = {
 struct snd_ac97 *snd_ac97_compat_alloc(struct ac97_codec_device *adev)
 {
 	struct snd_ac97 *ac97;
+	int ret;
 
 	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (ac97 == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ac97->dev = adev->dev;
 	ac97->private_data = adev;
 	ac97->bus = &compat_soc_ac97_bus;
+
+	ac97->dev.parent = &adev->dev;
+	ac97->dev.release = compat_ac97_release;
+	dev_set_name(&ac97->dev, "%s-compat", dev_name(&adev->dev));
+	ret = device_register(&ac97->dev);
+	if (ret) {
+		put_device(&ac97->dev);
+		return ERR_PTR(ret);
+	}
+
 	return ac97;
 }
 EXPORT_SYMBOL_GPL(snd_ac97_compat_alloc);
 
 void snd_ac97_compat_release(struct snd_ac97 *ac97)
 {
-	kfree(ac97);
+	device_unregister(&ac97->dev);
 }
 EXPORT_SYMBOL_GPL(snd_ac97_compat_release);
 

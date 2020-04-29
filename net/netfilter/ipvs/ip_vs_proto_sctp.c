@@ -10,6 +10,9 @@
 #include <net/ip_vs.h>
 
 static int
+sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp);
+
+static int
 sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		   struct ip_vs_proto_data *pd,
 		   int *verdict, struct ip_vs_conn **cpp,
@@ -98,18 +101,18 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 #endif
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))
+	if (skb_ensure_writable(skb, sctphoff + sizeof(*sctph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!sctp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		ret = ip_vs_app_pkt_out(cp, skb);
+		ret = ip_vs_app_pkt_out(cp, skb, iph);
 		if (ret == 0)
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
@@ -145,18 +148,18 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 #endif
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))
+	if (skb_ensure_writable(skb, sctphoff + sizeof(*sctph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!sctp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		ret = ip_vs_app_pkt_in(cp, skb);
+		ret = ip_vs_app_pkt_in(cp, skb, iph);
 		if (ret == 0)
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
@@ -183,7 +186,7 @@ static int
 sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
 	unsigned int sctphoff;
-	struct sctphdr *sh, _sctph;
+	struct sctphdr *sh;
 	__le32 cmp, val;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -193,10 +196,7 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 #endif
 		sctphoff = ip_hdrlen(skb);
 
-	sh = skb_header_pointer(skb, sctphoff, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
-		return 0;
-
+	sh = (struct sctphdr *)(skb->data + sctphoff);
 	cmp = sh->checksum;
 	val = sctp_compute_cksum(skb, sctphoff);
 
@@ -461,6 +461,8 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				cp->flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 		}
+		if (next_state == IP_VS_SCTP_S_ESTABLISHED)
+			ip_vs_control_assure_ct(cp);
 	}
 	if (likely(pd))
 		cp->timeout = pd->timeout_table[cp->state = next_state];
@@ -585,7 +587,6 @@ struct ip_vs_protocol ip_vs_protocol_sctp = {
 	.conn_out_get	= ip_vs_conn_out_get_proto,
 	.snat_handler	= sctp_snat_handler,
 	.dnat_handler	= sctp_dnat_handler,
-	.csum_check	= sctp_csum_check,
 	.state_name	= sctp_state_name,
 	.state_transition = sctp_state_transition,
 	.app_conn_bind	= sctp_app_conn_bind,

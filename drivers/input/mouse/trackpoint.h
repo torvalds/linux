@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IBM TrackPoint PS/2 mouse driver
  *
  * Stephen Evanchik <evanchsa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #ifndef _TRACKPOINT_H
@@ -158,13 +155,6 @@ struct trackpoint_data {
 	bool ext_dev;
 };
 
-#ifdef CONFIG_MOUSE_PS2_TRACKPOINT
 int trackpoint_detect(struct psmouse *psmouse, bool set_properties);
-#else
-inline int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
-{
-	return -ENOSYS;
-}
-#endif /* CONFIG_MOUSE_PS2_TRACKPOINT */
 
 #endif /* _TRACKPOINT_H */

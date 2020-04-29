@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
@@ -6,10 +7,6 @@
  *         for ST-Ericsson.
  *
  * License terms:
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -722,8 +719,6 @@ static const struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
 
 static struct snd_soc_dai_driver ux500_msp_dai_drv = {
 	.probe                 = ux500_msp_dai_probe,
-	.suspend               = NULL,
-	.resume                = NULL,
 	.playback.channels_min = UX500_MSP_MIN_CHANNELS,
 	.playback.channels_max = UX500_MSP_MAX_CHANNELS,
 	.playback.rates        = UX500_I2S_RATES,

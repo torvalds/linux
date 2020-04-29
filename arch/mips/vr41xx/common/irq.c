@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Interrupt handing routines for NEC VR4100 series.
  *
  *  Copyright (C) 2005-2007  Yoichi Yuasa <yuasa@linux-mips.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/export.h>
 #include <linux/interrupt.h>
@@ -30,12 +17,6 @@ typedef struct irq_cascade {
 
 static irq_cascade_t irq_cascade[NR_IRQS] __cacheline_aligned;
 
-static struct irqaction cascade_irqaction = {
-	.handler	= no_action,
-	.name		= "cascade",
-	.flags		= IRQF_NO_THREAD,
-};
-
 int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int))
 {
 	int retval = 0;
@@ -49,7 +30,8 @@ int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int))
 	irq_cascade[irq].get_irq = get_irq;
 
 	if (get_irq != NULL) {
-		retval = setup_irq(irq, &cascade_irqaction);
+		retval = request_irq(irq, no_action, IRQF_NO_THREAD,
+				     "cascade", NULL);
 		if (retval < 0)
 			irq_cascade[irq].get_irq = NULL;
 	}

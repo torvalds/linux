@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common interrupt code for 32 and 64 bit
  */
@@ -10,6 +11,7 @@
 #include <linux/ftrace.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/irq.h>
 
 #include <asm/apic.h>
 #include <asm/io_apic.h>
@@ -133,7 +135,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
 	seq_puts(p, "  Machine check polls\n");
 #endif
-#if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
+#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
 	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, system_vectors)) {
 		seq_printf(p, "%*s: ", prec, "HYP");
 		for_each_online_cpu(j)
@@ -228,7 +230,7 @@ u64 arch_irq_stat(void)
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-__visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
+__visible void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc * desc;
@@ -241,11 +243,15 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "IRQ failed to wake up RCU");
 
 	desc = __this_cpu_read(vector_irq[vector]);
-
-	if (!handle_irq(desc, regs)) {
+	if (likely(!IS_ERR_OR_NULL(desc))) {
+		if (IS_ENABLED(CONFIG_X86_32))
+			handle_irq(desc, regs);
+		else
+			generic_handle_irq_desc(desc);
+	} else {
 		ack_APIC_irq();
 
-		if (desc != VECTOR_RETRIGGERED) {
+		if (desc == VECTOR_UNUSED) {
 			pr_emerg_ratelimited("%s: %d.%d No irq handler for vector\n",
 					     __func__, smp_processor_id(),
 					     vector);
@@ -257,7 +263,6 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	exiting_irq();
 
 	set_irq_regs(old_regs);
-	return 1;
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC

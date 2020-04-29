@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #define _GNU_SOURCE
@@ -162,5 +162,6 @@ int instruction_count(void)
 
 int main(void)
 {
+	test_harness_set_timeout(300);
 	return test_harness(instruction_count, "instruction_count");
 }

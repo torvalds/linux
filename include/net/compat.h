@@ -30,9 +30,6 @@ struct compat_cmsghdr {
 	compat_int_t	cmsg_type;
 };
 
-int compat_sock_get_timestamp(struct sock *, struct timeval __user *);
-int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
-
 #else /* defined(CONFIG_COMPAT) */
 /*
  * To avoid compiler warnings:
@@ -41,6 +38,9 @@ int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
 #define compat_mmsghdr	mmsghdr
 #endif /* defined(CONFIG_COMPAT) */
 
+int __get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg,
+			struct sockaddr __user **save_addr, compat_uptr_t *ptr,
+			compat_size_t *len);
 int get_compat_msghdr(struct msghdr *, struct compat_msghdr __user *,
 		      struct sockaddr __user **, struct iovec **);
 struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval);

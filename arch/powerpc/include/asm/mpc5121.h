@@ -1,8 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MPC5121 Prototypes and definitions
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.
  */
 
 #ifndef __ASM_POWERPC_MPC5121_H__

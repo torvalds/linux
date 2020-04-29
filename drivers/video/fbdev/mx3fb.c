@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008
  * Guennadi Liakhovetski, DENX Software Engineering, <lg@denx.de>
  *
  * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -1252,7 +1249,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
  * invoked by the core framebuffer driver to perform operations like
  * blitting, rectangle filling, copy regions and cursor definition.
  */
-static struct fb_ops mx3fb_ops = {
+static const struct fb_ops mx3fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_set_par = mx3fb_set_par,
 	.fb_check_var = mx3fb_check_var,
@@ -1392,7 +1389,8 @@ static int mx3fb_unmap_video_memory(struct fb_info *fbi)
  * mx3fb_init_fbinfo() - initialize framebuffer information object.
  * @return:	initialized framebuffer structure.
  */
-static struct fb_info *mx3fb_init_fbinfo(struct device *dev, struct fb_ops *ops)
+static struct fb_info *mx3fb_init_fbinfo(struct device *dev,
+					 const struct fb_ops *ops)
 {
 	struct fb_info *fbi;
 	struct mx3fb_info *mx3fbi;

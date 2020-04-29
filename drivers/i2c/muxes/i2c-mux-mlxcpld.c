@@ -94,31 +94,11 @@ static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
 				 struct i2c_client *client, u8 val)
 {
 	struct mlxcpld_mux_plat_data *pdata = dev_get_platdata(&client->dev);
-	int ret = -ENODEV;
+	union i2c_smbus_data data = { .byte = val };
 
-	if (adap->algo->master_xfer) {
-		struct i2c_msg msg;
-		u8 msgbuf[] = {pdata->sel_reg_addr, val};
-
-		msg.addr = client->addr;
-		msg.flags = 0;
-		msg.len = 2;
-		msg.buf = msgbuf;
-		ret = __i2c_transfer(adap, &msg, 1);
-
-		if (ret >= 0 && ret != 1)
-			ret = -EREMOTEIO;
-	} else if (adap->algo->smbus_xfer) {
-		union i2c_smbus_data data;
-
-		data.byte = val;
-		ret = adap->algo->smbus_xfer(adap, client->addr,
-					     client->flags, I2C_SMBUS_WRITE,
-					     pdata->sel_reg_addr,
-					     I2C_SMBUS_BYTE_DATA, &data);
-	}
-
-	return ret;
+	return __i2c_smbus_xfer(adap, client->addr, client->flags,
+				I2C_SMBUS_WRITE, pdata->sel_reg_addr,
+				I2C_SMBUS_BYTE_DATA, &data);
 }
 
 static int mlxcpld_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
@@ -152,7 +132,7 @@ static int mlxcpld_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int mlxcpld_mux_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adap = client->adapter;
 	struct mlxcpld_mux_plat_data *pdata = dev_get_platdata(&client->dev);
 	struct i2c_mux_core *muxc;
 	int num, force;

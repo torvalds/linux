@@ -1,26 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  ******************************************************************************/
 
 #define _HAL_INTF_C_
-#include <osdep_service.h>
-#include <drv_types.h>
 #include <hal_intf.h>
 
-uint	 rtw_hal_init(struct adapter *adapt)
+uint rtw_hal_init(struct adapter *adapt)
 {
-	uint	status = _SUCCESS;
+	uint status = _SUCCESS;
 
 	adapt->hw_init_completed = false;
 
@@ -44,7 +34,7 @@ uint	 rtw_hal_init(struct adapter *adapt)
 
 uint rtw_hal_deinit(struct adapter *adapt)
 {
-	uint	status = _SUCCESS;
+	uint status = _SUCCESS;
 
 	status = rtl8188eu_hal_deinit(adapt);
 
@@ -58,15 +48,15 @@ uint rtw_hal_deinit(struct adapter *adapt)
 
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
-	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);
+	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 #ifdef CONFIG_88EU_AP_MODE
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &adapt->stapriv;
 
-		if ((mac_id-1) > 0)
-			psta = pstapriv->sta_aid[(mac_id-1) - 1];
+		if (mac_id - 1 > 0)
+			psta = pstapriv->sta_aid[mac_id - 2];
 		if (psta)
 			add_RATid(adapt, psta, 0);/* todo: based on rssi_level*/
 #endif

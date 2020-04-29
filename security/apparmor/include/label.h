@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
  * This file contains AppArmor label definitions
  *
  * Copyright 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_LABEL_H
@@ -281,7 +277,7 @@ void __aa_labelset_update_subtree(struct aa_ns *ns);
 
 void aa_label_free(struct aa_label *label);
 void aa_label_kref(struct kref *kref);
-bool aa_label_init(struct aa_label *label, int size);
+bool aa_label_init(struct aa_label *label, int size, gfp_t gfp);
 struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp);
 
 bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub);
@@ -327,8 +323,36 @@ void aa_label_audit(struct audit_buffer *ab, struct aa_label *label, gfp_t gfp);
 void aa_label_seq_print(struct seq_file *f, struct aa_label *label, gfp_t gfp);
 void aa_label_printk(struct aa_label *label, gfp_t gfp);
 
+struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
+				     size_t n, gfp_t gfp, bool create,
+				     bool force_stack);
 struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 				gfp_t gfp, bool create, bool force_stack);
+
+static inline const char *aa_label_strn_split(const char *str, int n)
+{
+	const char *pos;
+	unsigned int state;
+
+	state = aa_dfa_matchn_until(stacksplitdfa, DFA_START, str, n, &pos);
+	if (!ACCEPT_TABLE(stacksplitdfa)[state])
+		return NULL;
+
+	return pos - 3;
+}
+
+static inline const char *aa_label_str_split(const char *str)
+{
+	const char *pos;
+	unsigned int state;
+
+	state = aa_dfa_match_until(stacksplitdfa, DFA_START, str, &pos);
+	if (!ACCEPT_TABLE(stacksplitdfa)[state])
+		return NULL;
+
+	return pos - 3;
+}
+
 
 
 struct aa_perms;

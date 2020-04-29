@@ -4,7 +4,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/div64.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/osdmap.h>
@@ -496,9 +495,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			  / sizeof(struct crush_rule_step))
 			goto bad;
 #endif
-		r = c->rules[i] = kmalloc(sizeof(*r) +
-					  yes*sizeof(struct crush_rule_step),
-					  GFP_NOFS);
+		r = kmalloc(struct_size(r, steps, yes), GFP_NOFS);
+		c->rules[i] = r;
 		if (r == NULL)
 			goto badmem;
 		dout(" rule %d is at %p\n", i, r);
@@ -711,6 +709,15 @@ int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name)
 	return -ENOENT;
 }
 EXPORT_SYMBOL(ceph_pg_poolid_by_name);
+
+u64 ceph_pg_pool_flags(struct ceph_osdmap *map, u64 id)
+{
+	struct ceph_pg_pool_info *pi;
+
+	pi = __lookup_pg_pool(&map->pg_pools, id);
+	return pi ? pi->flags : 0;
+}
+EXPORT_SYMBOL(ceph_pg_pool_flags);
 
 static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 {
@@ -975,11 +982,11 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 				 struct ceph_pg_pool_info, node);
 		__remove_pg_pool(&map->pg_pools, pi);
 	}
-	kfree(map->osd_state);
-	kfree(map->osd_weight);
-	kfree(map->osd_addr);
-	kfree(map->osd_primary_affinity);
-	kfree(map->crush_workspace);
+	kvfree(map->osd_state);
+	kvfree(map->osd_weight);
+	kvfree(map->osd_addr);
+	kvfree(map->osd_primary_affinity);
+	kvfree(map->crush_workspace);
 	kfree(map);
 }
 
@@ -988,28 +995,41 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
  *
  * The new elements are properly initialized.
  */
-static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
+static int osdmap_set_max_osd(struct ceph_osdmap *map, u32 max)
 {
 	u32 *state;
 	u32 *weight;
 	struct ceph_entity_addr *addr;
+	u32 to_copy;
 	int i;
 
-	state = krealloc(map->osd_state, max*sizeof(*state), GFP_NOFS);
-	if (!state)
+	dout("%s old %u new %u\n", __func__, map->max_osd, max);
+	if (max == map->max_osd)
+		return 0;
+
+	state = ceph_kvmalloc(array_size(max, sizeof(*state)), GFP_NOFS);
+	weight = ceph_kvmalloc(array_size(max, sizeof(*weight)), GFP_NOFS);
+	addr = ceph_kvmalloc(array_size(max, sizeof(*addr)), GFP_NOFS);
+	if (!state || !weight || !addr) {
+		kvfree(state);
+		kvfree(weight);
+		kvfree(addr);
 		return -ENOMEM;
+	}
+
+	to_copy = min(map->max_osd, max);
+	if (map->osd_state) {
+		memcpy(state, map->osd_state, to_copy * sizeof(*state));
+		memcpy(weight, map->osd_weight, to_copy * sizeof(*weight));
+		memcpy(addr, map->osd_addr, to_copy * sizeof(*addr));
+		kvfree(map->osd_state);
+		kvfree(map->osd_weight);
+		kvfree(map->osd_addr);
+	}
+
 	map->osd_state = state;
-
-	weight = krealloc(map->osd_weight, max*sizeof(*weight), GFP_NOFS);
-	if (!weight)
-		return -ENOMEM;
 	map->osd_weight = weight;
-
-	addr = krealloc(map->osd_addr, max*sizeof(*addr), GFP_NOFS);
-	if (!addr)
-		return -ENOMEM;
 	map->osd_addr = addr;
-
 	for (i = map->max_osd; i < max; i++) {
 		map->osd_state[i] = 0;
 		map->osd_weight[i] = CEPH_OSD_OUT;
@@ -1019,12 +1039,16 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	if (map->osd_primary_affinity) {
 		u32 *affinity;
 
-		affinity = krealloc(map->osd_primary_affinity,
-				    max*sizeof(*affinity), GFP_NOFS);
+		affinity = ceph_kvmalloc(array_size(max, sizeof(*affinity)),
+					 GFP_NOFS);
 		if (!affinity)
 			return -ENOMEM;
-		map->osd_primary_affinity = affinity;
 
+		memcpy(affinity, map->osd_primary_affinity,
+		       to_copy * sizeof(*affinity));
+		kvfree(map->osd_primary_affinity);
+
+		map->osd_primary_affinity = affinity;
 		for (i = map->max_osd; i < max; i++)
 			map->osd_primary_affinity[i] =
 			    CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
@@ -1045,7 +1069,7 @@ static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 
 	work_size = crush_work_size(crush, CEPH_PG_MAX_SIZE);
 	dout("%s work_size %zu bytes\n", __func__, work_size);
-	workspace = kmalloc(work_size, GFP_NOIO);
+	workspace = ceph_kvmalloc(work_size, GFP_NOIO);
 	if (!workspace) {
 		crush_destroy(crush);
 		return -ENOMEM;
@@ -1054,7 +1078,7 @@ static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 
 	if (map->crush)
 		crush_destroy(map->crush);
-	kfree(map->crush_workspace);
+	kvfree(map->crush_workspace);
 	map->crush = crush;
 	map->crush_workspace = workspace;
 	return 0;
@@ -1300,8 +1324,9 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 	if (!map->osd_primary_affinity) {
 		int i;
 
-		map->osd_primary_affinity = kmalloc(map->max_osd*sizeof(u32),
-						    GFP_NOFS);
+		map->osd_primary_affinity = ceph_kvmalloc(
+		    array_size(map->max_osd, sizeof(*map->osd_primary_affinity)),
+		    GFP_NOFS);
 		if (!map->osd_primary_affinity)
 			return -ENOMEM;
 
@@ -1322,7 +1347,7 @@ static int decode_primary_affinity(void **p, void *end,
 
 	ceph_decode_32_safe(p, end, len, e_inval);
 	if (len == 0) {
-		kfree(map->osd_primary_affinity);
+		kvfree(map->osd_primary_affinity);
 		map->osd_primary_affinity = NULL;
 		return 0;
 	}
@@ -1490,11 +1515,9 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	/* osd_state, osd_weight, osd_addrs->client_addr */
 	ceph_decode_need(p, end, 3*sizeof(u32) +
-			 map->max_osd*((struct_v >= 5 ? sizeof(u32) :
-							sizeof(u8)) +
-				       sizeof(*map->osd_weight) +
-				       sizeof(*map->osd_addr)), e_inval);
-
+			 map->max_osd*(struct_v >= 5 ? sizeof(u32) :
+						       sizeof(u8)) +
+				       sizeof(*map->osd_weight), e_inval);
 	if (ceph_decode_32(p) != map->max_osd)
 		goto e_inval;
 
@@ -1515,9 +1538,11 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	if (ceph_decode_32(p) != map->max_osd)
 		goto e_inval;
 
-	ceph_decode_copy(p, map->osd_addr, map->max_osd*sizeof(*map->osd_addr));
-	for (i = 0; i < map->max_osd; i++)
-		ceph_decode_addr(&map->osd_addr[i]);
+	for (i = 0; i < map->max_osd; i++) {
+		err = ceph_decode_entity_addr(p, end, &map->osd_addr[i]);
+		if (err)
+			goto bad;
+	}
 
 	/* pg_temp */
 	err = decode_pg_temp(p, end, map);
@@ -1619,12 +1644,17 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 	void *new_state;
 	void *new_weight_end;
 	u32 len;
+	int i;
 
 	new_up_client = *p;
 	ceph_decode_32_safe(p, end, len, e_inval);
-	len *= sizeof(u32) + sizeof(struct ceph_entity_addr);
-	ceph_decode_need(p, end, len, e_inval);
-	*p += len;
+	for (i = 0; i < len; ++i) {
+		struct ceph_entity_addr addr;
+
+		ceph_decode_skip_32(p, end, e_inval);
+		if (ceph_decode_entity_addr(p, end, &addr))
+			goto e_inval;
+	}
 
 	new_state = *p;
 	ceph_decode_32_safe(p, end, len, e_inval);
@@ -1700,9 +1730,9 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 		struct ceph_entity_addr addr;
 
 		osd = ceph_decode_32(p);
-		ceph_decode_copy(p, &addr, sizeof(addr));
-		ceph_decode_addr(&addr);
 		BUG_ON(osd >= map->max_osd);
+		if (ceph_decode_entity_addr(p, end, &addr))
+			goto e_inval;
 		pr_info("osd%d up\n", osd);
 		map->osd_state[osd] |= CEPH_OSD_EXISTS | CEPH_OSD_UP;
 		map->osd_addr[osd] = addr;
@@ -2141,85 +2171,15 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 }
 
 /*
- * calculate file layout from given offset, length.
- * fill in correct oid, logical length, and object extent
- * offset, length.
- *
- * for now, we write only a single su, until we can
- * pass a stride back to the caller.
- */
-int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-				   u64 off, u64 len,
-				   u64 *ono,
-				   u64 *oxoff, u64 *oxlen)
-{
-	u32 osize = layout->object_size;
-	u32 su = layout->stripe_unit;
-	u32 sc = layout->stripe_count;
-	u32 bl, stripeno, stripepos, objsetno;
-	u32 su_per_object;
-	u64 t, su_offset;
-
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
-	     osize, su);
-	if (su == 0 || sc == 0)
-		goto invalid;
-	su_per_object = osize / su;
-	if (su_per_object == 0)
-		goto invalid;
-	dout("osize %u / su %u = su_per_object %u\n", osize, su,
-	     su_per_object);
-
-	if ((su & ~PAGE_MASK) != 0)
-		goto invalid;
-
-	/* bl = *off / su; */
-	t = off;
-	do_div(t, su);
-	bl = t;
-	dout("off %llu / su %u = bl %u\n", off, su, bl);
-
-	stripeno = bl / sc;
-	stripepos = bl % sc;
-	objsetno = stripeno / su_per_object;
-
-	*ono = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned int)*ono);
-
-	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
-	t = off;
-	su_offset = do_div(t, su);
-	*oxoff = su_offset + (stripeno % su_per_object) * su;
-
-	/*
-	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (len) or
-	 * the remainder of the current stripe being written to.
-	 */
-	*oxlen = min_t(u64, len, su - su_offset);
-
-	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
-	return 0;
-
-invalid:
-	dout(" invalid layout\n");
-	*ono = 0;
-	*oxoff = 0;
-	*oxlen = 0;
-	return -EINVAL;
-}
-EXPORT_SYMBOL(ceph_calc_file_object_mapping);
-
-/*
  * Map an object into a PG.
  *
  * Should only be called with target_oid and target_oloc (as opposed to
  * base_oid and base_oloc), since tiering isn't taken into account.
  */
-int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
-				const struct ceph_object_id *oid,
-				const struct ceph_object_locator *oloc,
-				struct ceph_pg *raw_pgid)
+void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				 const struct ceph_object_id *oid,
+				 const struct ceph_object_locator *oloc,
+				 struct ceph_pg *raw_pgid)
 {
 	WARN_ON(pi->id != oloc->pool);
 
@@ -2235,11 +2195,8 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		int nsl = oloc->pool_ns->len;
 		size_t total = nsl + 1 + oid->name_len;
 
-		if (total > sizeof(stack_buf)) {
-			buf = kmalloc(total, GFP_NOIO);
-			if (!buf)
-				return -ENOMEM;
-		}
+		if (total > sizeof(stack_buf))
+			buf = kmalloc(total, GFP_NOIO | __GFP_NOFAIL);
 		memcpy(buf, oloc->pool_ns->str, nsl);
 		buf[nsl] = '\037';
 		memcpy(buf + nsl + 1, oid->name, oid->name_len);
@@ -2251,7 +2208,6 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		     oid->name, nsl, oloc->pool_ns->str,
 		     raw_pgid->pool, raw_pgid->seed);
 	}
-	return 0;
 }
 
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
@@ -2265,7 +2221,8 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 	if (!pi)
 		return -ENOENT;
 
-	return __ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	__ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	return 0;
 }
 EXPORT_SYMBOL(ceph_object_locator_to_pg);
 

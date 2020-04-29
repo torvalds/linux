@@ -20,9 +20,14 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/uaccess.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_file.h>
 #include <drm/drm_mode_config.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <linux/dma-resv.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -97,8 +102,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
+		return -EOPNOTSUPP;
 
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;
@@ -145,6 +149,11 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	count = 0;
 	connector_id = u64_to_user_ptr(card_res->connector_id_ptr);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		/* only expose writeback connectors if userspace understands them */
+		if (!file_priv->writeback_connectors &&
+		    (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK))
+			continue;
+
 		if (drm_lease_held(file_priv, connector->base.id)) {
 			if (count < card_res->count_connectors &&
 			    put_user(connector->base.id, connector_id + count)) {
@@ -293,6 +302,13 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.prop_crtc_id = prop;
 
+	prop = drm_property_create(dev,
+			DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
+			"FB_DAMAGE_CLIPS", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_fb_damage_clips = prop;
+
 	prop = drm_property_create_bool(dev, DRM_MODE_PROP_ATOMIC,
 			"ACTIVE");
 	if (!prop)
@@ -305,6 +321,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_mode_id = prop;
+
+	prop = drm_property_create_bool(dev, 0,
+			"VRR_ENABLED");
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_vrr_enabled = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
@@ -377,7 +399,8 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
 	INIT_LIST_HEAD(&dev->mode_config.plane_list);
-	idr_init(&dev->mode_config.crtc_idr);
+	INIT_LIST_HEAD(&dev->mode_config.privobj_list);
+	idr_init(&dev->mode_config.object_idr);
 	idr_init(&dev->mode_config.tile_idr);
 	ida_init(&dev->mode_config.connector_ida);
 	spin_lock_init(&dev->mode_config.connector_list_lock);
@@ -393,6 +416,33 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
 	dev->mode_config.num_total_plane = 0;
+
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		struct drm_modeset_acquire_ctx modeset_ctx;
+		struct ww_acquire_ctx resv_ctx;
+		struct dma_resv resv;
+		int ret;
+
+		dma_resv_init(&resv);
+
+		drm_modeset_acquire_init(&modeset_ctx, 0);
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       &modeset_ctx);
+		if (ret == -EDEADLK)
+			ret = drm_modeset_backoff(&modeset_ctx);
+
+		ww_acquire_init(&resv_ctx, &reservation_ww_class);
+		ret = dma_resv_lock(&resv, &resv_ctx);
+		if (ret == -EDEADLK)
+			dma_resv_lock_slow(&resv, &resv_ctx);
+
+		dma_resv_unlock(&resv);
+		ww_acquire_fini(&resv_ctx);
+
+		drm_modeset_drop_locks(&modeset_ctx);
+		drm_modeset_acquire_fini(&modeset_ctx);
+		dma_resv_fini(&resv);
+	}
 }
 EXPORT_SYMBOL(drm_mode_config_init);
 
@@ -406,8 +456,6 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * Note that since this /should/ happen single-threaded at driver/device
  * teardown time, no locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
- *
- * FIXME: cleanup any dangling user buffer objects too
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {
@@ -480,7 +528,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 
 	ida_destroy(&dev->mode_config.connector_ida);
 	idr_destroy(&dev->mode_config.tile_idr);
-	idr_destroy(&dev->mode_config.crtc_idr);
+	idr_destroy(&dev->mode_config.object_idr);
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);

@@ -16,10 +16,6 @@
  * this driver as required for the omap-platform.
  */
 
-#if defined(CONFIG_SERIAL_OMAP_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -40,8 +36,6 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/serial-omap.h>
-
-#include <dt-bindings/gpio/gpio.h>
 
 #define OMAP_MAX_HSUART_PORTS	10
 
@@ -493,10 +487,13 @@ static unsigned int check_modem_status(struct uart_omap_port *up)
 static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 {
 	unsigned int flag;
-	unsigned char ch = 0;
 
+	/*
+	 * Read one data character out to avoid stalling the receiver according
+	 * to the table 23-246 of the omap4 TRM.
+	 */
 	if (likely(lsr & UART_LSR_DR))
-		ch = serial_in(up, UART_RX);
+		serial_in(up, UART_RX);
 
 	up->port.icount.rx++;
 	flag = TTY_NORMAL;
@@ -832,7 +829,7 @@ static void serial_omap_uart_qos_work(struct work_struct *work)
 	struct uart_omap_port *up = container_of(work, struct uart_omap_port,
 						qos_work);
 
-	pm_qos_update_request(&up->pm_qos_request, up->latency);
+	cpu_latency_qos_update_request(&up->pm_qos_request, up->latency);
 }
 
 static void
@@ -1680,6 +1677,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
 	up->port.ops = &serial_omap_pops;
+	up->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_OMAP_CONSOLE);
 
 	if (pdev->dev.of_node)
 		ret = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -1722,10 +1720,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 			 DEFAULT_CLK_SPEED);
 	}
 
-	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
-	up->calc_latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
-	pm_qos_add_request(&up->pm_qos_request,
-		PM_QOS_CPU_DMA_LATENCY, up->latency);
+	up->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+	up->calc_latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+	cpu_latency_qos_add_request(&up->pm_qos_request, up->latency);
 	INIT_WORK(&up->qos_work, serial_omap_uart_qos_work);
 
 	platform_set_drvdata(pdev, up);
@@ -1759,7 +1756,7 @@ err_add_port:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_qos_remove_request(&up->pm_qos_request);
+	cpu_latency_qos_remove_request(&up->pm_qos_request);
 	device_init_wakeup(up->dev, false);
 err_rs485:
 err_port_line:
@@ -1777,7 +1774,7 @@ static int serial_omap_remove(struct platform_device *dev)
 	pm_runtime_dont_use_autosuspend(up->dev);
 	pm_runtime_put_sync(up->dev);
 	pm_runtime_disable(up->dev);
-	pm_qos_remove_request(&up->pm_qos_request);
+	cpu_latency_qos_remove_request(&up->pm_qos_request);
 	device_init_wakeup(&dev->dev, false);
 
 	return 0;
@@ -1869,7 +1866,7 @@ static int serial_omap_runtime_suspend(struct device *dev)
 
 	serial_omap_enable_wakeup(up, true);
 
-	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	up->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 	schedule_work(&up->qos_work);
 
 	return 0;

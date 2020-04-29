@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 # ----------------------------------------------------------------------
 # extract-vmlinux - Extract uncompressed vmlinux from a kernel image
 #
@@ -7,7 +8,6 @@
 #
 # (c) 2011      Corentin Chary <corentin.chary@gmail.com>
 #
-# Licensed under the GNU General Public License, version 2 (GPLv2).
 # ----------------------------------------------------------------------
 
 check_vmlinux()
@@ -48,15 +48,17 @@ fi
 tmp=$(mktemp /tmp/vmlinux-XXX)
 trap "rm -f $tmp" 0
 
-# Initial attempt for uncompressed images or objects:
-check_vmlinux $img
-
 # That didn't work, so retry after decompression.
 try_decompress '\037\213\010' xy    gunzip
 try_decompress '\3757zXZ\000' abcde unxz
 try_decompress 'BZh'          xy    bunzip2
 try_decompress '\135\0\0\0'   xxx   unlzma
 try_decompress '\211\114\132' xy    'lzop -d'
+try_decompress '\002!L\030'   xxx   'lz4 -d'
+try_decompress '(\265/\375'   xxx   unzstd
+
+# Finally check for uncompressed images or objects:
+check_vmlinux $img
 
 # Bail out:
 echo "$me: Cannot find vmlinux." >&2

@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_VIRTIO_GPU
 	tristate "Virtio GPU driver"
 	depends on DRM && VIRTIO && MMU
 	select DRM_KMS_HELPER
-	select DRM_TTM
+	select DRM_GEM_SHMEM_HELPER
 	help
 	   This is the virtual GPU driver for virtio.  It can be used with
 	   QEMU based VMMs (like KVM or Xen).

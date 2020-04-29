@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * i2c-smbus.c - SMBus extensions to the I2C protocol
  *
  * Copyright (C) 2008 David Brownell
  * Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -75,7 +66,6 @@ static irqreturn_t smbus_alert(int irq, void *d)
 {
 	struct i2c_smbus_alert *alert = d;
 	struct i2c_client *ara;
-	unsigned short prev_addr = 0;	/* Not a valid address */
 
 	ara = alert->ara;
 
@@ -99,18 +89,12 @@ static irqreturn_t smbus_alert(int irq, void *d)
 		data.addr = status >> 1;
 		data.type = I2C_PROTOCOL_SMBUS_ALERT;
 
-		if (data.addr == prev_addr) {
-			dev_warn(&ara->dev, "Duplicate SMBALERT# from dev "
-				"0x%02x, skipping\n", data.addr);
-			break;
-		}
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
 			data.addr, data.data);
 
 		/* Notify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,
 				      smbus_do_alert);
-		prev_addr = data.addr;
 	}
 
 	return IRQ_HANDLED;
@@ -200,7 +184,7 @@ static struct i2c_driver smbalert_driver = {
  * corresponding I2C device driver's alert function.
  *
  * It is assumed that ara is a valid i2c client previously returned by
- * i2c_setup_smbus_alert().
+ * i2c_new_smbus_alert_device().
  */
 int i2c_handle_smbus_alert(struct i2c_client *ara)
 {

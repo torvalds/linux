@@ -1,29 +1,63 @@
-What:		/sys/bus/mdio_bus/devices/.../phy_id
-Date:		November 2012
-KernelVersion:	3.8
-Contact:	netdev@vger.kernel.org
+What:          /sys/bus/mdio_bus/devices/.../statistics/
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
 Description:
-		This attribute contains the 32-bit PHY Identifier as reported
-		by the device during bus enumeration, encoded in hexadecimal.
-		This ID is used to match the device with the appropriate
-		driver.
+		This folder contains statistics about global and per
+		MDIO bus address statistics.
 
-What:		/sys/bus/mdio_bus/devices/.../phy_interface
-Date:		February 2014
-KernelVersion:	3.15
-Contact:	netdev@vger.kernel.org
+What:          /sys/bus/mdio_bus/devices/.../statistics/transfers
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
 Description:
-		This attribute contains the PHY interface as configured by the
-		Ethernet driver during bus enumeration, encoded in string.
-		This interface mode is used to configure the Ethernet MAC with the
-		appropriate mode for its data lines to the PHY hardware.
+		Total number of transfers for this MDIO bus.
 
-What:		/sys/bus/mdio_bus/devices/.../phy_has_fixups
-Date:		February 2014
-KernelVersion:	3.15
-Contact:	netdev@vger.kernel.org
+What:          /sys/bus/mdio_bus/devices/.../statistics/errors
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
 Description:
-		This attribute contains the boolean value whether a given PHY
-		device has had any "fixup" workaround running on it, encoded as
-		a boolean. This information is provided to help troubleshooting
-		PHY configurations.
+		Total number of transfer errors for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/writes
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of write transactions for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/reads
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of read transactions for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/transfers_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfers for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/errors_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfer errors for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/writes_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of write transactions for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/reads_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of read transactions for this MDIO bus address.

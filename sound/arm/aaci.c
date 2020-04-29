@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/sound/arm/aaci.c - ARM PrimeCell AACI PL041 driver
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Documentation: ARM DDI 0173B
  */
@@ -383,7 +380,7 @@ static const struct snd_pcm_hardware aaci_hw_info = {
 static int aaci_rule_channels(struct snd_pcm_hw_params *p,
 	struct snd_pcm_hw_rule *rule)
 {
-	static unsigned int channel_list[] = { 2, 4, 6 };
+	static const unsigned int channel_list[] = { 2, 4, 6 };
 	struct aaci *aaci = rule->private;
 	unsigned int mask = 1 << 0, slots;
 
@@ -486,11 +483,6 @@ static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 		snd_ac97_pcm_close(aacirun->pcm);
 	aacirun->pcm_open = 0;
 
-	/*
-	 * Clear out the DMA and any allocated buffers.
-	 */
-	snd_pcm_lib_free_pages(substream);
-
 	return 0;
 }
 
@@ -505,6 +497,7 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
+	struct aaci *aaci = substream->private_data;
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
 	int dbl = rate > 48000;
@@ -520,25 +513,19 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (dbl && channels != 2)
 		return -EINVAL;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(params));
-	if (err >= 0) {
-		struct aaci *aaci = substream->private_data;
+	err = snd_ac97_pcm_open(aacirun->pcm, rate, channels,
+				aacirun->pcm->r[dbl].slots);
 
-		err = snd_ac97_pcm_open(aacirun->pcm, rate, channels,
-					aacirun->pcm->r[dbl].slots);
+	aacirun->pcm_open = err == 0;
+	aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
+	aacirun->cr |= channels_to_slotmask[channels + dbl * 2];
 
-		aacirun->pcm_open = err == 0;
-		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
-		aacirun->cr |= channels_to_slotmask[channels + dbl * 2];
-
-		/*
-		 * fifo_bytes is the number of bytes we transfer to/from
-		 * the FIFO, including padding.  So that's x4.  As we're
-		 * in compact mode, the FIFO is half the size.
-		 */
-		aacirun->fifo_bytes = aaci->fifo_depth * 4 / 2;
-	}
+	/*
+	 * fifo_bytes is the number of bytes we transfer to/from
+	 * the FIFO, including padding.  So that's x4.  As we're
+	 * in compact mode, the FIFO is half the size.
+	 */
+	aacirun->fifo_bytes = aaci->fifo_depth * 4 / 2;
 
 	return err;
 }
@@ -638,7 +625,6 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 static const struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_prepare,
@@ -741,7 +727,6 @@ static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_capture_prepare,
@@ -757,7 +742,6 @@ static int aaci_do_suspend(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(aaci->pcm);
 	return 0;
 }
 
@@ -827,7 +811,7 @@ static const struct ac97_pcm ac97_defs[] = {
 	}
 };
 
-static struct snd_ac97_bus_ops aaci_bus_ops = {
+static const struct snd_ac97_bus_ops aaci_bus_ops = {
 	.write	= aaci_ac97_write,
 	.read	= aaci_ac97_read,
 };
@@ -941,8 +925,9 @@ static int aaci_init_pcm(struct aaci *aaci)
 
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aaci_playback_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aaci_capture_ops);
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      NULL, 0, 64 * 1024);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       aaci->card->dev,
+					       0, 64 * 1024);
 	}
 
 	return ret;

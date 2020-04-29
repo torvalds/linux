@@ -97,22 +97,31 @@ typedef unsigned long sigset_t;
 #include <asm-generic/signal-defs.h>
 
 #ifndef __KERNEL__
-/* Here we must cater to libcs that poke about in kernel headers.  */
 
+/*
+ * There are two system calls in regard to sigaction, sys_rt_sigaction
+ * and sys_sigaction. Internally the kernel uses the struct old_sigaction
+ * for the older sys_sigaction system call, and the kernel version of the
+ * struct sigaction for the newer sys_rt_sigaction.
+ *
+ * The uapi definition for struct sigaction has made a strange distinction
+ * between 31-bit and 64-bit in the past. For 64-bit the uapi structure
+ * looks like the kernel struct sigaction, but for 31-bit it used to
+ * look like the kernel struct old_sigaction. That practically made the
+ * structure unusable for either system call. To get around this problem
+ * the glibc always had its own definitions for the sigaction structures.
+ *
+ * The current struct sigaction uapi definition below is suitable for the
+ * sys_rt_sigaction system call only.
+ */
 struct sigaction {
         union {
           __sighandler_t _sa_handler;
           void (*_sa_sigaction)(int, struct siginfo *, void *);
         } _u;
-#ifndef __s390x__ /* lovely */
-        sigset_t sa_mask;
-        unsigned long sa_flags;
-        void (*sa_restorer)(void);
-#else  /* __s390x__ */
         unsigned long sa_flags;
         void (*sa_restorer)(void);
 	sigset_t sa_mask;
-#endif /* __s390x__ */
 };
 
 #define sa_handler      _u._sa_handler

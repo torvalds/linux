@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9M032 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2010-2011 Lund Engineering
  * Contact: Gil Lund <gwlund@lundeng.com>
  * Author: Martin Hostettler <martin@neutronstar.dyndns.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -793,6 +785,7 @@ static int mt9m032_probe(struct i2c_client *client,
 	v4l2_ctrl_cluster(2, &sensor->hflip);
 
 	sensor->subdev.ctrl_handler = &sensor->ctrls;
+	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
 	if (ret < 0)

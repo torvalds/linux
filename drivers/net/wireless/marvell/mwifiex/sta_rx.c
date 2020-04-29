@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: station RX data handling
+ * NXP Wireless LAN device driver: station RX data handling
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -152,14 +152,17 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 		mwifiex_process_tdls_action_frame(priv, offset, rx_pkt_len);
 	}
 
-	priv->rxpd_rate = local_rx_pd->rx_rate;
-
-	priv->rxpd_htinfo = local_rx_pd->ht_info;
+	/* Only stash RX bitrate for unicast packets. */
+	if (likely(!is_multicast_ether_addr(rx_pkt_hdr->eth803_hdr.h_dest))) {
+		priv->rxpd_rate = local_rx_pd->rx_rate;
+		priv->rxpd_htinfo = local_rx_pd->ht_info;
+	}
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
-		adj_rx_rate = mwifiex_adjust_data_rate(priv, priv->rxpd_rate,
-						       priv->rxpd_htinfo);
+		adj_rx_rate = mwifiex_adjust_data_rate(priv,
+						       local_rx_pd->rx_rate,
+						       local_rx_pd->ht_info);
 		mwifiex_hist_data_add(priv, adj_rx_rate, local_rx_pd->snr,
 				      local_rx_pd->nf);
 	}
@@ -247,7 +250,8 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 							     local_rx_pd->nf);
 		}
 	} else {
-		if (rx_pkt_type != PKT_TYPE_BAR)
+		if (rx_pkt_type != PKT_TYPE_BAR &&
+		    local_rx_pd->priority < MAX_NUM_TID)
 			priv->rx_seq[local_rx_pd->priority] = seq_num;
 		memcpy(ta, priv->curr_bss_params.bss_descriptor.mac_address,
 		       ETH_ALEN);

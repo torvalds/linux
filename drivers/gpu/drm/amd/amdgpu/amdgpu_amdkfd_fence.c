@@ -122,7 +122,7 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
-	if (!kgd2kfd->schedule_evict_and_restore_process(fence->mm, f))
+	if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, f))
 		return true;
 
 	return false;
@@ -173,7 +173,5 @@ static const struct dma_fence_ops amdkfd_fence_ops = {
 	.get_driver_name = amdkfd_fence_get_driver_name,
 	.get_timeline_name = amdkfd_fence_get_timeline_name,
 	.enable_signaling = amdkfd_fence_enable_signaling,
-	.signaled = NULL,
-	.wait = dma_fence_default_wait,
 	.release = amdkfd_fence_release,
 };

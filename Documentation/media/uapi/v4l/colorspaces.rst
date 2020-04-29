@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _colorspaces:
 
@@ -49,9 +56,9 @@ The Y value in the CIE XYZ colorspace corresponds to luminance. Often
 the CIE XYZ colorspace is transformed to the normalized CIE xyY
 colorspace:
 
-x = X / (X + Y + Z)
+	x = X / (X + Y + Z)
 
-y = Y / (X + Y + Z)
+	y = Y / (X + Y + Z)
 
 The x and y values are the chromaticity coordinates and can be used to
 define a color without the luminance component Y. It is very confusing

@@ -18,6 +18,8 @@ class SubPlugin(TdcPlugin):
 
         if self.args.namespace:
             self._ns_create()
+        else:
+            self._ports_create()
 
     def post_suite(self, index):
         '''run commands after test_runner goes into a test loop'''
@@ -27,6 +29,8 @@ class SubPlugin(TdcPlugin):
 
         if self.args.namespace:
             self._ns_destroy()
+        else:
+            self._ports_destroy()
 
     def add_args(self, parser):
         super().add_args(parser)
@@ -34,8 +38,8 @@ class SubPlugin(TdcPlugin):
             'netns',
             'options for nsPlugin(run commands in net namespace)')
         self.argparser_group.add_argument(
-            '-n', '--namespace', action='store_true',
-            help='Run commands in namespace')
+            '-N', '--no-namespace', action='store_false', default=True,
+            dest='namespace', help='Don\'t run commands in namespace')
         return self.argparser
 
     def adjust_command(self, stage, command):
@@ -60,7 +64,7 @@ class SubPlugin(TdcPlugin):
             cmdlist.insert(0, self.args.NAMES['NS'])
             cmdlist.insert(0, 'exec')
             cmdlist.insert(0, 'netns')
-            cmdlist.insert(0, 'ip')
+            cmdlist.insert(0, self.args.NAMES['IP'])
         else:
             pass
 
@@ -73,26 +77,36 @@ class SubPlugin(TdcPlugin):
             print('adjust_command:  return command [{}]'.format(command))
         return command
 
+    def _ports_create(self):
+        cmd = '$IP link add $DEV0 type veth peer name $DEV1'
+        self._exec_cmd('pre', cmd)
+        cmd = '$IP link set $DEV0 up'
+        self._exec_cmd('pre', cmd)
+        if not self.args.namespace:
+            cmd = '$IP link set $DEV1 up'
+            self._exec_cmd('pre', cmd)
+
+    def _ports_destroy(self):
+        cmd = '$IP link del $DEV0'
+        self._exec_cmd('post', cmd)
+
     def _ns_create(self):
         '''
         Create the network namespace in which the tests will be run and set up
         the required network devices for it.
         '''
+        self._ports_create()
         if self.args.namespace:
-            cmd = 'ip netns add {}'.format(self.args.NAMES['NS'])
+            cmd = '$IP netns add {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
-            cmd = 'ip link add $DEV0 type veth peer name $DEV1'
+            cmd = '$IP link set $DEV1 netns {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
-            cmd = 'ip link set $DEV1 netns {}'.format(self.args.NAMES['NS'])
-            self._exec_cmd('pre', cmd)
-            cmd = 'ip link set $DEV0 up'
-            self._exec_cmd('pre', cmd)
-            cmd = 'ip -n {} link set $DEV1 up'.format(self.args.NAMES['NS'])
+            cmd = '$IP -n {} link set $DEV1 up'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
             if self.args.device:
-                cmd = 'ip link set $DEV2 netns {}'.format(self.args.NAMES['NS'])
+                cmd = '$IP link set $DEV2 netns {}'.format(self.args.NAMES['NS'])
                 self._exec_cmd('pre', cmd)
-                cmd = 'ip -n {} link set $DEV2 up'.format(self.args.NAMES['NS'])
+                cmd = '$IP -n {} link set $DEV2 up'.format(self.args.NAMES['NS'])
                 self._exec_cmd('pre', cmd)
 
     def _ns_destroy(self):
@@ -101,7 +115,7 @@ class SubPlugin(TdcPlugin):
         devices as well)
         '''
         if self.args.namespace:
-            cmd = 'ip netns delete {}'.format(self.args.NAMES['NS'])
+            cmd = '$IP netns delete {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('post', cmd)
 
     def _exec_cmd(self, stage, command):

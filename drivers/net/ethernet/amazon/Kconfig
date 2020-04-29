@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Amazon network device configuration
 #
@@ -17,7 +18,8 @@ if NET_VENDOR_AMAZON
 
 config ENA_ETHERNET
 	tristate "Elastic Network Adapter (ENA) support"
-	depends on (PCI_MSI && X86)
+	depends on PCI_MSI && !CPU_BIG_ENDIAN
+	select DIMLIB
 	---help---
 	  This driver supports Elastic Network Adapter (ENA)"
 

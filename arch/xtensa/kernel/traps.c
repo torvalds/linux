@@ -51,7 +51,7 @@
 extern void kernel_exception(void);
 extern void user_exception(void);
 
-extern void fast_syscall_kernel(void);
+extern void fast_illegal_instruction_user(void);
 extern void fast_syscall_user(void);
 extern void fast_alloca(void);
 extern void fast_unaligned(void);
@@ -88,8 +88,10 @@ typedef struct {
 
 static dispatch_init_table_t __initdata dispatch_init_table[] = {
 
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+{ EXCCAUSE_ILLEGAL_INSTRUCTION,	USER,	   fast_illegal_instruction_user },
+#endif
 { EXCCAUSE_ILLEGAL_INSTRUCTION,	0,	   do_illegal_instruction},
-{ EXCCAUSE_SYSTEM_CALL,		KRNL,	   fast_syscall_kernel },
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
@@ -186,7 +188,7 @@ void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    exccause);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 /*
@@ -215,8 +217,8 @@ extern void do_IRQ(int, struct pt_regs *);
 
 static inline void check_valid_nmi(void)
 {
-	unsigned intread = get_sr(interrupt);
-	unsigned intenable = get_sr(intenable);
+	unsigned intread = xtensa_get_sr(interrupt);
+	unsigned intenable = xtensa_get_sr(intenable);
 
 	BUG_ON(intread & intenable &
 	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
@@ -273,8 +275,8 @@ void do_interrupt(struct pt_regs *regs)
 	irq_enter();
 
 	for (;;) {
-		unsigned intread = get_sr(interrupt);
-		unsigned intenable = get_sr(intenable);
+		unsigned intread = xtensa_get_sr(interrupt);
+		unsigned intenable = xtensa_get_sr(intenable);
 		unsigned int_at_level = intread & intenable;
 		unsigned level;
 
@@ -308,7 +310,7 @@ do_illegal_instruction(struct pt_regs *regs)
 
 	pr_info_ratelimited("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
 			    current->comm, task_pid_nr(current), regs->pc);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 
@@ -323,8 +325,6 @@ do_illegal_instruction(struct pt_regs *regs)
 void
 do_unaligned_user (struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	__die_if_kernel("Unhandled unaligned exception in kernel",
 			regs, SIGKILL);
 
@@ -334,12 +334,7 @@ do_unaligned_user (struct pt_regs *regs)
 			    "(pid = %d, pc = %#010lx)\n",
 			    regs->excvaddr, current->comm,
 			    task_pid_nr(current), regs->pc);
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRALN;
-	info.si_addr = (void *) regs->excvaddr;
-	force_sig_info(SIGSEGV, &info, current);
-
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr);
 }
 #endif
 
@@ -363,7 +358,7 @@ do_debug(struct pt_regs *regs)
 
 	/* If in user mode, send SIGTRAP signal to current process */
 
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
 
 
@@ -429,16 +424,15 @@ void __init trap_init(void)
 	/* Setup specific handlers. */
 
 	for(i = 0; dispatch_init_table[i].cause >= 0; i++) {
-
 		int fast = dispatch_init_table[i].fast;
 		int cause = dispatch_init_table[i].cause;
 		void *handler = dispatch_init_table[i].handler;
 
 		if (fast == 0)
 			set_handler(default_handler, cause, handler);
-		if (fast && fast & USER)
+		if ((fast & USER) != 0)
 			set_handler(fast_user_handler, cause, handler);
-		if (fast && fast & KRNL)
+		if ((fast & KRNL) != 0)
 			set_handler(fast_kernel_handler, cause, handler);
 	}
 
@@ -497,32 +491,27 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 
 	pr_info("Call Trace:\n");
 	walk_stackframe(sp, show_trace_cb, NULL);
-#ifndef CONFIG_KALLSYMS
-	pr_cont("\n");
-#endif
 }
 
-static int kstack_depth_to_print = 24;
+#define STACK_DUMP_ENTRY_SIZE 4
+#define STACK_DUMP_LINE_SIZE 32
+static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	int i = 0;
-	unsigned long *stack;
+	size_t len;
 
 	if (!sp)
 		sp = stack_pointer(task);
-	stack = sp;
+
+	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
+		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
 
 	pr_info("Stack:\n");
-
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(sp))
-			break;
-		pr_cont(" %08lx", *sp++);
-		if (i % 8 == 7)
-			pr_cont("\n");
-	}
-	show_trace(task, stack);
+	print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+		       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+		       sp, len, false);
+	show_trace(task, sp);
 }
 
 DEFINE_SPINLOCK(die_lock);
@@ -530,12 +519,15 @@ DEFINE_SPINLOCK(die_lock);
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
+	const char *pr = "";
+
+	if (IS_ENABLED(CONFIG_PREEMPTION))
+		pr = IS_ENABLED(CONFIG_PREEMPT_RT) ? " PREEMPT_RT" : " PREEMPT";
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 
-	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter,
-		IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "");
+	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter, pr);
 	show_regs(regs);
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);

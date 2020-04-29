@@ -29,8 +29,6 @@ Required properties:
 - reg: Specifies base physical address and size of the registers.
 - interrupts: The interrupt that the AVS CPU will use to interrupt the host
               when a command completed.
-- interrupt-parent: The interrupt controller the above interrupt is routed
-                    through.
 - interrupt-names: The name of the interrupt used to interrupt the host.
 
 Optional properties:

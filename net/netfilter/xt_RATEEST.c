@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2007 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -33,7 +30,7 @@ static unsigned int jhash_rnd __read_mostly;
 
 static unsigned int xt_rateest_hash(const char *name)
 {
-	return jhash(name, FIELD_SIZEOF(struct xt_rateest, name), jhash_rnd) &
+	return jhash(name, sizeof_field(struct xt_rateest, name), jhash_rnd) &
 	       (RATEEST_HSIZE - 1);
 }
 
@@ -201,18 +198,8 @@ static __net_init int xt_rateest_net_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit xt_rateest_net_exit(struct net *net)
-{
-	struct xt_rateest_net *xn = net_generic(net, xt_rateest_id);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(xn->hash); i++)
-		WARN_ON_ONCE(!hlist_empty(&xn->hash[i]));
-}
-
 static struct pernet_operations xt_rateest_net_ops = {
 	.init = xt_rateest_net_init,
-	.exit = xt_rateest_net_exit,
 	.id   = &xt_rateest_id,
 	.size = sizeof(struct xt_rateest_net),
 };

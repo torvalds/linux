@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/engine/fifo/base.o
 nvkm-y += nvkm/engine/fifo/nv04.o
 nvkm-y += nvkm/engine/fifo/nv10.o
@@ -15,6 +16,8 @@ nvkm-y += nvkm/engine/fifo/gm200.o
 nvkm-y += nvkm/engine/fifo/gm20b.o
 nvkm-y += nvkm/engine/fifo/gp100.o
 nvkm-y += nvkm/engine/fifo/gp10b.o
+nvkm-y += nvkm/engine/fifo/gv100.o
+nvkm-y += nvkm/engine/fifo/tu102.o
 
 nvkm-y += nvkm/engine/fifo/chan.o
 nvkm-y += nvkm/engine/fifo/channv50.o
@@ -31,6 +34,8 @@ nvkm-y += nvkm/engine/fifo/gpfifonv50.o
 nvkm-y += nvkm/engine/fifo/gpfifog84.o
 nvkm-y += nvkm/engine/fifo/gpfifogf100.o
 nvkm-y += nvkm/engine/fifo/gpfifogk104.o
-nvkm-y += nvkm/engine/fifo/gpfifogk110.o
-nvkm-y += nvkm/engine/fifo/gpfifogm200.o
-nvkm-y += nvkm/engine/fifo/gpfifogp100.o
+nvkm-y += nvkm/engine/fifo/gpfifogv100.o
+nvkm-y += nvkm/engine/fifo/gpfifotu102.o
+
+nvkm-y += nvkm/engine/fifo/usergv100.o
+nvkm-y += nvkm/engine/fifo/usertu102.o

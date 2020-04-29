@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MID Power Management Unit (PWRMU) device driver
  *
  * Copyright (C) 2016, Intel Corporation
  *
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * Intel MID Power Management Unit device driver handles the South Complex PCI
  * devices such as GPDMA, SPI, I2C, PWM, and so on. By default PCI core

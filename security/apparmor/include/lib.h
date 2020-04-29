@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
  * This file contains AppArmor lib definitions
  *
  * 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_LIB_H
@@ -16,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/lsm_hooks.h>
 
 #include "match.h"
 
@@ -54,6 +51,9 @@ char *aa_split_fqname(char *args, char **ns_name);
 const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 			     size_t *ns_len);
 void aa_info_message(const char *str);
+
+/* Security blob offsets */
+extern struct lsm_blob_sizes apparmor_blob_sizes;
 
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring

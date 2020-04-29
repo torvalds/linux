@@ -14,7 +14,6 @@
 #include <asm/processor.h>
 #include <asm/types.h>
 #include <asm/cache.h>
-#include <platform/hardware.h>
 #include <asm/kmem_layout.h>
 
 /*
@@ -31,8 +30,8 @@
 #define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
 			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
-#define PAGE_OFFSET	PLATFORM_DEFAULT_MEM_START
-#define PHYS_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define PAGE_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
+#define PHYS_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
 #define MAX_LOW_PFN	PHYS_PFN(0xfffffffful)
 #endif
 
@@ -170,7 +169,18 @@ static inline unsigned long ___pa(unsigned long va)
 	if (off >= XCHAL_KSEG_SIZE)
 		off -= XCHAL_KSEG_SIZE;
 
+#ifndef CONFIG_XIP_KERNEL
 	return off + PHYS_OFFSET;
+#else
+	if (off < XCHAL_KSEG_SIZE)
+		return off + PHYS_OFFSET;
+
+	off -= XCHAL_KSEG_SIZE;
+	if (off >= XCHAL_KIO_SIZE)
+		off -= XCHAL_KIO_SIZE;
+
+	return off + XCHAL_KIO_PADDR;
+#endif
 }
 #define __pa(x)	___pa((unsigned long)(x))
 #else
@@ -192,9 +202,6 @@ static inline unsigned long ___pa(unsigned long va)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 #endif /* __ASSEMBLY__ */
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
 #endif /* _XTENSA_PAGE_H */

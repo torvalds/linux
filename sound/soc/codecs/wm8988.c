@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8988.c -- WM8988 ALSA SoC audio driver
  *
@@ -5,10 +6,6 @@
  * Copyright 2005 Openedhand Ltd.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -276,7 +273,7 @@ static const struct soc_enum wm8988_rline_enum =
 			      wm8988_line_texts,
 			      wm8988_line_values);
 static const struct snd_kcontrol_new wm8988_right_line_controls =
-	SOC_DAPM_ENUM("Route", wm8988_lline_enum);
+	SOC_DAPM_ENUM("Route", wm8988_rline_enum);
 
 /* Left Mixer */
 static const struct snd_kcontrol_new wm8988_left_mixer_controls[] = {
@@ -522,7 +519,7 @@ static inline int get_coeff(int mclk, int rate)
 /* The set of rates we can generate from the above for each SYSCLK */
 
 static const unsigned int rates_12288[] = {
-	8000, 12000, 16000, 24000, 24000, 32000, 48000, 96000,
+	8000, 12000, 16000, 24000, 32000, 48000, 96000,
 };
 
 static const struct snd_pcm_hw_constraint_list constraints_12288 = {
@@ -540,7 +537,7 @@ static const struct snd_pcm_hw_constraint_list constraints_112896 = {
 };
 
 static const unsigned int rates_12[] = {
-	8000, 11025, 12000, 16000, 22050, 2400, 32000, 41100, 48000,
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 41100, 48000,
 	48000, 88235, 96000,
 };
 

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom Northstar NAND.
  *
  * Copyright (C) 2016 Rafał Miłecki <rafal.milecki@gmail.com>
- *
- * Licensed under the ISC license.
  */
 
 #include "bcm5301x-nand-cs0.dtsi"

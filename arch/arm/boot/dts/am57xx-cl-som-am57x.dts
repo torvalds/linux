@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for CompuLab CL-SOM-AM57x System-on-Module
  *
  * Copyright (C) 2015 CompuLab Ltd. - http://www.compulab.co.il/
  * Author: Dmitry Lifshitz <lifshitz@compulab.co.il>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "dra74x.dtsi"
+#include "am5728.dtsi"
 
 / {
 	model = "CompuLab CL-SOM-AM57x";
@@ -518,7 +515,7 @@
 	};
 
 	/* touch controller */
-	ads7846@0 {
+	touchscreen@1 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ads7846_pins>;
 
@@ -558,13 +555,13 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <0>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
 };
@@ -573,6 +570,14 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_pins_default>;
 	pinctrl-1 = <&davinci_mdio_pins_sleep>;
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &usb2_phy1 {

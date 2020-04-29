@@ -23,6 +23,12 @@ struct hi3798cv200_priv {
 	struct clk *drive_clk;
 };
 
+static unsigned long dw_mci_hi3798cv200_caps[] = {
+	MMC_CAP_CMD23,
+	MMC_CAP_CMD23,
+	MMC_CAP_CMD23
+};
+
 static void dw_mci_hi3798cv200_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
 	struct hi3798cv200_priv *priv = host->priv;
@@ -60,7 +66,7 @@ static void dw_mci_hi3798cv200_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 static int dw_mci_hi3798cv200_execute_tuning(struct dw_mci_slot *slot,
 					     u32 opcode)
 {
-	int degrees[] = { 0, 45, 90, 135, 180, 225, 270, 315 };
+	static const int degrees[] = { 0, 45, 90, 135, 180, 225, 270, 315 };
 	struct dw_mci *host = slot->host;
 	struct hi3798cv200_priv *priv = host->priv;
 	int raise_point = -1, fall_point = -1;
@@ -160,6 +166,8 @@ disable_sample_clk:
 }
 
 static const struct dw_mci_drv_data hi3798cv200_data = {
+	.caps = dw_mci_hi3798cv200_caps,
+	.num_caps = ARRAY_SIZE(dw_mci_hi3798cv200_caps),
 	.init = dw_mci_hi3798cv200_init,
 	.set_ios = dw_mci_hi3798cv200_set_ios,
 	.execute_tuning = dw_mci_hi3798cv200_execute_tuning,

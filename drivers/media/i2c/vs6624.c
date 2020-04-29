@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vs6624.c ST VS6624 CMOS image sensor driver
  *
  * Copyright (c) 2011 Analog Devices Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -770,7 +762,7 @@ static int vs6624_probe(struct i2c_client *client,
 		return ret;
 	}
 	/* wait 100ms before any further i2c writes are performed */
-	mdelay(100);
+	msleep(100);
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (sensor == NULL)
@@ -782,7 +774,7 @@ static int vs6624_probe(struct i2c_client *client,
 	vs6624_writeregs(sd, vs6624_p1);
 	vs6624_write(sd, VS6624_MICRO_EN, 0x2);
 	vs6624_write(sd, VS6624_DIO_EN, 0x1);
-	mdelay(10);
+	usleep_range(10000, 11000);
 	vs6624_writeregs(sd, vs6624_p2);
 
 	vs6624_writeregs(sd, vs6624_default);

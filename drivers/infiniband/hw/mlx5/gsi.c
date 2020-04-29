@@ -263,7 +263,7 @@ static struct ib_qp *create_gsi_ud_qp(struct mlx5_ib_gsi_qp *gsi)
 		},
 		.sq_sig_type = gsi->sq_sig_type,
 		.qp_type = IB_QPT_UD,
-		.create_flags = mlx5_ib_create_qp_sqpn_qp1(),
+		.create_flags = MLX5_IB_QP_CREATE_SQPN_QP1,
 	};
 
 	return ib_create_qp(pd, &init_attr);
@@ -477,8 +477,8 @@ static struct ib_qp *get_tx_qp(struct mlx5_ib_gsi_qp *gsi, struct ib_ud_wr *wr)
 	return gsi->tx_qps[qp_index];
 }
 
-int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
-			  struct ib_send_wr **bad_wr)
+int mlx5_ib_gsi_post_send(struct ib_qp *qp, const struct ib_send_wr *wr,
+			  const struct ib_send_wr **bad_wr)
 {
 	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
 	struct ib_qp *tx_qp;
@@ -507,8 +507,7 @@ int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
 		ret = ib_post_send(tx_qp, &cur_wr.wr, bad_wr);
 		if (ret) {
 			/* Undo the effect of adding the outstanding wr */
-			gsi->outstanding_pi = (gsi->outstanding_pi - 1) %
-					      gsi->cap.max_send_wr;
+			gsi->outstanding_pi--;
 			goto err;
 		}
 		spin_unlock_irqrestore(&gsi->lock, flags);
@@ -522,8 +521,8 @@ err:
 	return ret;
 }
 
-int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
-			  struct ib_recv_wr **bad_wr)
+int mlx5_ib_gsi_post_recv(struct ib_qp *qp, const struct ib_recv_wr *wr,
+			  const struct ib_recv_wr **bad_wr)
 {
 	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
 

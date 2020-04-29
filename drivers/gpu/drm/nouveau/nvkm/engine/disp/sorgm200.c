@@ -23,7 +23,7 @@
  */
 #include "ior.h"
 
-static void
+void
 gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -45,7 +45,7 @@ gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 	nvkm_wr32(device, 0x61c13c + loff, data[3] | (pc << shift));
 }
 
-static void
+void
 gm200_sor_route_set(struct nvkm_outp *outp, struct nvkm_ior *ior)
 {
 	struct nvkm_device *device = outp->disp->engine.subdev.device;
@@ -62,7 +62,7 @@ gm200_sor_route_set(struct nvkm_outp *outp, struct nvkm_ior *ior)
 		nvkm_mask(device, 0x612388 + moff, 0x0000001f, link << 4 | sor);
 }
 
-static int
+int
 gm200_sor_route_get(struct nvkm_outp *outp, int *link)
 {
 	struct nvkm_device *device = outp->disp->engine.subdev.device;
@@ -99,6 +99,7 @@ gm200_sor = {
 	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gk104_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
@@ -120,5 +121,5 @@ gm200_sor = {
 int
 gm200_sor_new(struct nvkm_disp *disp, int id)
 {
-	return gf119_sor_new_(&gm200_sor, disp, id);
+	return nvkm_ior_new_(&gm200_sor, disp, SOR, id);
 }

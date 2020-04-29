@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO driver for the ACCES 104-IDIO-16 family
  * Copyright (C) 2015 William Breathitt Gray
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  *
  * This driver supports the following ACCES devices: 104-IDIO-16,
  * 104-IDIO-16E, 104-IDO-16, 104-IDIO-8, 104-IDIO-8E, and 104-IDO-8.
@@ -59,9 +51,9 @@ struct idio_16_gpio {
 static int idio_16_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset > 15)
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
-	return 0;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int idio_16_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

@@ -1,6 +1,28 @@
-=============
- Thunderbolt
-=============
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
+ USB4 and Thunderbolt
+======================
+USB4 is the public specification based on Thunderbolt 3 protocol with
+some differences at the register level among other things. Connection
+manager is an entity running on the host router (host controller)
+responsible for enumerating routers and establishing tunnels. A
+connection manager can be implemented either in firmware or software.
+Typically PCs come with a firmware connection manager for Thunderbolt 3
+and early USB4 capable systems. Apple systems on the other hand use
+software connection manager and the later USB4 compliant devices follow
+the suit.
+
+The Linux Thunderbolt driver supports both and can detect at runtime which
+connection manager implementation is to be used. To be on the safe side the
+software connection manager in Linux also advertises security level
+``user`` which means PCIe tunneling is disabled by default. The
+documentation below applies to both implementations with the exception that
+the software connection manager only supports ``user`` security level and
+is expected to be accompanied with an IOMMU based DMA protection.
+
+Security levels and how to use them
+-----------------------------------
 The interface presented here is not meant for end users. Instead there
 should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
@@ -18,8 +40,6 @@ This will authorize all devices automatically when they appear. However,
 keep in mind that this bypasses the security levels and makes the system
 vulnerable to DMA attacks.
 
-Security levels and how to use them
------------------------------------
 Starting with Intel Falcon Ridge Thunderbolt controller there are 4
 security levels available. Intel Titan Ridge added one more security level
 (usbonly). The reason for these is the fact that the connected devices can
@@ -132,6 +152,26 @@ returned to the user.
 If the user still wants to connect the device they can either approve
 the device without a key or write a new key and write 1 to the
 ``authorized`` file to get the new key stored on the device NVM.
+
+DMA protection utilizing IOMMU
+------------------------------
+Recent systems from 2018 and forward with Thunderbolt ports may natively
+support IOMMU. This means that Thunderbolt security is handled by an IOMMU
+so connected devices cannot access memory regions outside of what is
+allocated for them by drivers. When Linux is running on such system it
+automatically enables IOMMU if not enabled by the user already. These
+systems can be identified by reading ``1`` from
+``/sys/bus/thunderbolt/devices/domainX/iommu_dma_protection`` attribute.
+
+The driver does not do anything special in this case but because DMA
+protection is handled by the IOMMU, security levels (if set) are
+redundant. For this reason some systems ship with security level set to
+``none``. Other systems have security level set to ``user`` in order to
+support downgrade to older OS, so users who want to automatically
+authorize devices when IOMMU DMA protection is enabled can use the
+following ``udev`` rule::
+
+  ACTION=="add", SUBSYSTEM=="thunderbolt", ATTRS{iommu_dma_protection}=="1", ATTR{authorized}=="0", ATTR{authorized}="1"
 
 Upgrading NVM on Thunderbolt device or host
 -------------------------------------------

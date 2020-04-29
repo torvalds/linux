@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2015 Intel Corporation.
  *
  * Authors: David Woodhouse <David.Woodhouse@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_SVM_H__
@@ -20,7 +12,7 @@ struct device;
 
 struct svm_dev_ops {
 	void (*fault_cb)(struct device *dev, int pasid, u64 address,
-			 u32 private, int rwxp, int response);
+			 void *private, int rwxp, int response);
 };
 
 /* Values for rxwp in fault_cb callback */
@@ -57,7 +49,7 @@ struct svm_dev_ops {
 
 /**
  * intel_svm_bind_mm() - Bind the current process to a PASID
- * @dev:	Device to be granted acccess
+ * @dev:	Device to be granted access
  * @pasid:	Address for allocated PASID
  * @flags:	Flags. Later for requesting supervisor mode, etc.
  * @ops:	Callbacks to device driver
@@ -130,7 +122,7 @@ static inline int intel_svm_unbind_mm(struct device *dev, int pasid)
 	BUG();
 }
 
-static int intel_svm_is_pasid_valid(struct device *dev, int pasid)
+static inline int intel_svm_is_pasid_valid(struct device *dev, int pasid)
 {
 	return -EINVAL;
 }

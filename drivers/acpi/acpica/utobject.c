@@ -3,11 +3,12 @@
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
 #include <acpi/acpi.h>
+#include <linux/kmemleak.h>
 #include "accommon.h"
 #include "acnamesp.h"
 
@@ -43,7 +44,7 @@ acpi_ut_get_element_length(u8 object_type,
  *
  * NOTE:        We always allocate the worst-case object descriptor because
  *              these objects are cached, and we want them to be
- *              one-size-satisifies-any-request. This in itself may not be
+ *              one-size-satisfies-any-request. This in itself may not be
  *              the most memory efficient, but the efficiency of the object
  *              cache should more than make up for this!
  *
@@ -70,6 +71,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
 	if (!object) {
 		return_PTR(NULL);
 	}
+	kmemleak_not_leak(object);
 
 	switch (type) {
 	case ACPI_TYPE_REGION:

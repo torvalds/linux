@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    PARISC Architecture-dependent parts of process handling
  *    based on the work for i386
@@ -15,21 +16,6 @@
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
  *    Copyright (C) 2001-2014 Helge Deller <deller@gmx.de>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <stdarg.h>
@@ -112,14 +98,6 @@ void machine_restart(char *cmd)
 
 }
 
-void machine_halt(void)
-{
-	/*
-	** The LED/ChassisCodes are updated by the led_halt()
-	** function, called by the reboot notifier chain.
-	*/
-}
-
 void (*chassis_power_off)(void);
 
 /*
@@ -158,6 +136,11 @@ void machine_power_off(void)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
+void machine_halt(void)
+{
+	machine_power_off();
+}
+
 void flush_thread(void)
 {
 	/* Only needs to handle fpu stuff or perf monitors.
@@ -195,7 +178,8 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
  * QEMU idle the host too.
  */
 
-int running_on_qemu __read_mostly;
+int running_on_qemu __ro_after_init;
+EXPORT_SYMBOL(running_on_qemu);
 
 void __cpuidle arch_cpu_idle_dead(void)
 {
@@ -213,12 +197,6 @@ void __cpuidle arch_cpu_idle(void)
 
 static int __init parisc_idle_init(void)
 {
-	const char *marker;
-
-	/* check QEMU/SeaBIOS marker in PAGE0 */
-	marker = (char *) &PAGE0->pad0;
-	running_on_qemu = (memcmp(marker, "SeaBIOS", 8) == 0);
-
 	if (!running_on_qemu)
 		cpu_idle_poll_ctrl(1);
 
@@ -230,8 +208,8 @@ arch_initcall(parisc_idle_init);
  * Copy architecture-specific thread state
  */
 int
-copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long kthread_arg, struct task_struct *p)
+copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+	    unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
@@ -276,9 +254,9 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &child_return;
 
-		/* Setup thread TLS area from the 4th parameter in clone */
+		/* Setup thread TLS area */
 		if (clone_flags & CLONE_SETTLS)
-			cregs->cr27 = cregs->gr[23];
+			cregs->cr27 = tls;
 	}
 
 	return 0;
@@ -305,7 +283,7 @@ get_wchan(struct task_struct *p)
 		ip = info.ip;
 		if (!in_sched_functions(ip))
 			return ip;
-	} while (count++ < 16);
+	} while (count++ < MAX_UNWIND_ENTRIES);
 	return 0;
 }
 

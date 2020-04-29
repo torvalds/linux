@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -51,6 +52,10 @@
  * should be smaller or equal to 32
  */
 #define MAX_DELSYS	8
+
+/* Helper definitions to be used at frontend drivers */
+#define kHz 1000UL
+#define MHz 1000000UL
 
 /**
  * struct dvb_frontend_tune_settings - parameters to adjust frontend tuning
@@ -73,22 +78,19 @@ struct dvb_frontend;
  * struct dvb_tuner_info - Frontend name and min/max ranges/bandwidths
  *
  * @name:		name of the Frontend
- * @frequency_min:	minimal frequency supported
- * @frequency_max:	maximum frequency supported
- * @frequency_step:	frequency step
+ * @frequency_min_hz:	minimal frequency supported in Hz
+ * @frequency_max_hz:	maximum frequency supported in Hz
+ * @frequency_step_hz:	frequency step in Hz
  * @bandwidth_min:	minimal frontend bandwidth supported
  * @bandwidth_max:	maximum frontend bandwidth supported
  * @bandwidth_step:	frontend bandwidth step
- *
- * NOTE: frequency parameters are in Hz, for terrestrial/cable or kHz for
- * satellite.
  */
 struct dvb_tuner_info {
 	char name[128];
 
-	u32 frequency_min;
-	u32 frequency_max;
-	u32 frequency_step;
+	u32 frequency_min_hz;
+	u32 frequency_max_hz;
+	u32 frequency_step_hz;
 
 	u32 bandwidth_min;
 	u32 bandwidth_max;
@@ -140,10 +142,10 @@ struct analog_parameters {
  *	These devices have AUTO recovery capabilities from LOCK failure
  */
 enum dvbfe_algo {
-	DVBFE_ALGO_HW			= (1 <<  0),
-	DVBFE_ALGO_SW			= (1 <<  1),
-	DVBFE_ALGO_CUSTOM		= (1 <<  2),
-	DVBFE_ALGO_RECOVERY		= (1 << 31)
+	DVBFE_ALGO_HW			= BIT(0),
+	DVBFE_ALGO_SW			= BIT(1),
+	DVBFE_ALGO_CUSTOM		= BIT(2),
+	DVBFE_ALGO_RECOVERY		= BIT(31),
 };
 
 /**
@@ -159,7 +161,7 @@ enum dvbfe_algo {
  *	The frontend search for a signal failed
  *
  * @DVBFE_ALGO_SEARCH_INVALID:
- *	The frontend search algorith was probably supplied with invalid
+ *	The frontend search algorithm was probably supplied with invalid
  *	parameters and the search is an invalid one
  *
  * @DVBFE_ALGO_SEARCH_ERROR:
@@ -169,12 +171,12 @@ enum dvbfe_algo {
  *	The frontend search algorithm was requested to search again
  */
 enum dvbfe_search {
-	DVBFE_ALGO_SEARCH_SUCCESS	= (1 <<  0),
-	DVBFE_ALGO_SEARCH_ASLEEP	= (1 <<  1),
-	DVBFE_ALGO_SEARCH_FAILED	= (1 <<  2),
-	DVBFE_ALGO_SEARCH_INVALID	= (1 <<  3),
-	DVBFE_ALGO_SEARCH_AGAIN		= (1 <<  4),
-	DVBFE_ALGO_SEARCH_ERROR		= (1 << 31),
+	DVBFE_ALGO_SEARCH_SUCCESS	= BIT(0),
+	DVBFE_ALGO_SEARCH_ASLEEP	= BIT(1),
+	DVBFE_ALGO_SEARCH_FAILED	= BIT(2),
+	DVBFE_ALGO_SEARCH_INVALID	= BIT(3),
+	DVBFE_ALGO_SEARCH_AGAIN		= BIT(4),
+	DVBFE_ALGO_SEARCH_ERROR		= BIT(31),
 };
 
 /**
@@ -203,7 +205,7 @@ enum dvbfe_search {
  * @set_config:		callback function used to send some tuner-specific
  *			parameters.
  * @get_frequency:	get the actual tuned frequency
- * @get_bandwidth:	get the bandwitdh used by the low pass filters
+ * @get_bandwidth:	get the bandwidth used by the low pass filters
  * @get_if_frequency:	get the Intermediate Frequency, in Hz. For baseband,
  *			should return 0.
  * @get_status:		returns the frontend lock status
@@ -231,7 +233,7 @@ struct dvb_tuner_ops {
 	int (*suspend)(struct dvb_frontend *fe);
 	int (*resume)(struct dvb_frontend *fe);
 
-	/* This is the recomended way to set the tuner */
+	/* This is the recommended way to set the tuner */
 	int (*set_params)(struct dvb_frontend *fe);
 	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
@@ -316,6 +318,34 @@ struct analog_demod_ops {
 
 struct dtv_frontend_properties;
 
+/**
+ * struct dvb_frontend_internal_info - Frontend properties and capabilities
+ *
+ * @name:			Name of the frontend
+ * @frequency_min_hz:		Minimal frequency supported by the frontend.
+ * @frequency_max_hz:		Minimal frequency supported by the frontend.
+ * @frequency_stepsize_hz:	All frequencies are multiple of this value.
+ * @frequency_tolerance_hz:	Frequency tolerance.
+ * @symbol_rate_min:		Minimal symbol rate, in bauds
+ *				(for Cable/Satellite systems).
+ * @symbol_rate_max:		Maximal symbol rate, in bauds
+ *				(for Cable/Satellite systems).
+ * @symbol_rate_tolerance:	Maximal symbol rate tolerance, in ppm
+ *				(for Cable/Satellite systems).
+ * @caps:			Capabilities supported by the frontend,
+ *				as specified in &enum fe_caps.
+ */
+struct dvb_frontend_internal_info {
+	char	name[128];
+	u32	frequency_min_hz;
+	u32	frequency_max_hz;
+	u32	frequency_stepsize_hz;
+	u32	frequency_tolerance_hz;
+	u32	symbol_rate_min;
+	u32	symbol_rate_max;
+	u32	symbol_rate_tolerance;
+	enum fe_caps caps;
+};
 
 /**
  * struct dvb_frontend_ops - Demodulation information and callbacks for
@@ -329,7 +359,7 @@ struct dtv_frontend_properties;
  * @release:		callback function called when frontend is ready to be
  *			freed.
  *			drivers should free any allocated memory.
- * @release_sec:	callback function requesting that the Satelite Equipment
+ * @release_sec:	callback function requesting that the Satellite Equipment
  *			Control (SEC) driver to release and free any memory
  *			allocated by the driver.
  * @init:		callback function used to initialize the tuner device.
@@ -403,7 +433,7 @@ struct dtv_frontend_properties;
  * @analog_ops:		pointer to &struct analog_demod_ops
  */
 struct dvb_frontend_ops {
-	struct dvb_frontend_info info;
+	struct dvb_frontend_internal_info info;
 
 	u8 delsys[MAX_DELSYS];
 

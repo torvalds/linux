@@ -8,7 +8,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/rtc.h>
 
 #define SRTC_LPPDR_INIT       0x41736166	/* init for glitch detect */
@@ -165,11 +167,6 @@ static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	time64_t time = rtc_tm_to_time64(tm);
 	int ret;
 
-	if (time > U32_MAX) {
-		dev_err(dev, "RTC exceeded by %llus\n", time - U32_MAX);
-		return -EINVAL;
-	}
-
 	ret = mxc_rtc_lock(pdata);
 	if (ret)
 		return ret;
@@ -198,7 +195,7 @@ static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret)
 		return ret;
 
-	rtc_time_to_tm(readl(ioaddr + SRTC_LPSAR), &alrm->time);
+	rtc_time64_to_tm(readl(ioaddr + SRTC_LPSAR), &alrm->time);
 	alrm->pending = !!(readl(ioaddr + SRTC_LPSR) & SRTC_LPSR_ALP);
 	return mxc_rtc_unlock(pdata);
 }
@@ -248,11 +245,6 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret)
 		return ret;
 
-	if (time > U32_MAX) {
-		dev_err(dev, "Hopefully I am out of service by then :-(\n");
-		return -EINVAL;
-	}
-
 	writel((u32)time, pdata->ioaddr + SRTC_LPSAR);
 
 	/* clear alarm interrupt status bit */
@@ -273,7 +265,7 @@ static const struct rtc_class_ops mxc_rtc_ops = {
 	.alarm_irq_enable = mxc_rtc_alarm_irq_enable,
 };
 
-static int mxc_rtc_wait_for_flag(void *__iomem ioaddr, int flag)
+static int mxc_rtc_wait_for_flag(void __iomem *ioaddr, int flag)
 {
 	unsigned int timeout = REG_READ_TIMEOUT;
 
@@ -287,7 +279,6 @@ static int mxc_rtc_wait_for_flag(void *__iomem ioaddr, int flag)
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct mxc_rtc_data *pdata;
-	struct resource *res;
 	void __iomem *ioaddr;
 	int ret = 0;
 
@@ -295,8 +286,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
@@ -314,6 +304,9 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return pdata->irq;
 
 	device_init_wakeup(&pdev->dev, 1);
+	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irq);
+	if (ret)
+		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	ret = clk_prepare_enable(pdata->clk);
 	if (ret)
@@ -343,6 +336,13 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &mxc_rtc_ops;
+	pdata->rtc->range_max = U32_MAX;
+
 	clk_disable(pdata->clk);
 	platform_set_drvdata(pdev, pdata);
 	ret =
@@ -354,15 +354,11 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pdata->rtc =
-	    devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
-				     THIS_MODULE);
-	if (IS_ERR(pdata->rtc)) {
+	ret = rtc_register_device(pdata->rtc);
+	if (ret < 0)
 		clk_unprepare(pdata->clk);
-		return PTR_ERR(pdata->rtc);
-	}
 
-	return 0;
+	return ret;
 }
 
 static int mxc_rtc_remove(struct platform_device *pdev)
@@ -373,30 +369,6 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mxc_rtc_suspend(struct device *dev)
-{
-	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(pdata->irq);
-
-	return 0;
-}
-
-static int mxc_rtc_resume(struct device *dev)
-{
-	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(pdata->irq);
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
-
 static const struct of_device_id mxc_ids[] = {
 	{ .compatible = "fsl,imx53-rtc", },
 	{}
@@ -406,7 +378,6 @@ static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		.name = "mxc_rtc_v2",
 		.of_match_table = mxc_ids,
-		.pm = &mxc_rtc_pm_ops,
 	},
 	.probe = mxc_rtc_probe,
 	.remove = mxc_rtc_remove,

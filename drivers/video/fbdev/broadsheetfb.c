@@ -617,7 +617,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 	int tail_start_addr;
 	int start_sector_addr;
 
-	sector_buffer = kzalloc(sizeof(char)*sector_size, GFP_KERNEL);
+	sector_buffer = kzalloc(sector_size, GFP_KERNEL);
 	if (!sector_buffer)
 		return -ENOMEM;
 
@@ -1048,7 +1048,7 @@ static ssize_t broadsheetfb_write(struct fb_info *info, const char __user *buf,
 	return (err) ? err : count;
 }
 
-static struct fb_ops broadsheetfb_ops = {
+static const struct fb_ops broadsheetfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read        = fb_sys_read,
 	.fb_write	= broadsheetfb_write,

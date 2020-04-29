@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
+test_memcontrol
+test_core
+test_freezer

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -25,9 +14,9 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_graph.h>
@@ -176,6 +165,8 @@ struct vc4_vec {
 	struct clk *clock;
 
 	const struct vc4_vec_tv_mode *tv_mode;
+
+	struct debugfs_regset32 regset;
 };
 
 #define VEC_READ(offset) readl(vec->regs + (offset))
@@ -223,58 +214,32 @@ struct vc4_vec_tv_mode {
 	void (*mode_set)(struct vc4_vec *vec);
 };
 
-#define VEC_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} vec_regs[] = {
-	VEC_REG(VEC_WSE_CONTROL),
-	VEC_REG(VEC_WSE_WSS_DATA),
-	VEC_REG(VEC_WSE_VPS_DATA1),
-	VEC_REG(VEC_WSE_VPS_CONTROL),
-	VEC_REG(VEC_REVID),
-	VEC_REG(VEC_CONFIG0),
-	VEC_REG(VEC_SCHPH),
-	VEC_REG(VEC_CLMP0_START),
-	VEC_REG(VEC_CLMP0_END),
-	VEC_REG(VEC_FREQ3_2),
-	VEC_REG(VEC_FREQ1_0),
-	VEC_REG(VEC_CONFIG1),
-	VEC_REG(VEC_CONFIG2),
-	VEC_REG(VEC_INTERRUPT_CONTROL),
-	VEC_REG(VEC_INTERRUPT_STATUS),
-	VEC_REG(VEC_FCW_SECAM_B),
-	VEC_REG(VEC_SECAM_GAIN_VAL),
-	VEC_REG(VEC_CONFIG3),
-	VEC_REG(VEC_STATUS0),
-	VEC_REG(VEC_MASK0),
-	VEC_REG(VEC_CFG),
-	VEC_REG(VEC_DAC_TEST),
-	VEC_REG(VEC_DAC_CONFIG),
-	VEC_REG(VEC_DAC_MISC),
+static const struct debugfs_reg32 vec_regs[] = {
+	VC4_REG32(VEC_WSE_CONTROL),
+	VC4_REG32(VEC_WSE_WSS_DATA),
+	VC4_REG32(VEC_WSE_VPS_DATA1),
+	VC4_REG32(VEC_WSE_VPS_CONTROL),
+	VC4_REG32(VEC_REVID),
+	VC4_REG32(VEC_CONFIG0),
+	VC4_REG32(VEC_SCHPH),
+	VC4_REG32(VEC_CLMP0_START),
+	VC4_REG32(VEC_CLMP0_END),
+	VC4_REG32(VEC_FREQ3_2),
+	VC4_REG32(VEC_FREQ1_0),
+	VC4_REG32(VEC_CONFIG1),
+	VC4_REG32(VEC_CONFIG2),
+	VC4_REG32(VEC_INTERRUPT_CONTROL),
+	VC4_REG32(VEC_INTERRUPT_STATUS),
+	VC4_REG32(VEC_FCW_SECAM_B),
+	VC4_REG32(VEC_SECAM_GAIN_VAL),
+	VC4_REG32(VEC_CONFIG3),
+	VC4_REG32(VEC_STATUS0),
+	VC4_REG32(VEC_MASK0),
+	VC4_REG32(VEC_CFG),
+	VC4_REG32(VEC_DAC_TEST),
+	VC4_REG32(VEC_DAC_CONFIG),
+	VC4_REG32(VEC_DAC_MISC),
 };
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_vec *vec = vc4->vec;
-	int i;
-
-	if (!vec)
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(vec_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   vec_regs[i].name, vec_regs[i].reg,
-			   VEC_READ(vec_regs[i].reg));
-	}
-
-	return 0;
-}
-#endif
 
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
@@ -404,7 +369,7 @@ static struct drm_connector *vc4_vec_connector_init(struct drm_device *dev,
 				   VC4_VEC_TV_MODE_NTSC);
 	vec->tv_mode = &vc4_vec_tv_modes[VC4_VEC_TV_MODE_NTSC];
 
-	drm_mode_connector_attach_encoder(connector, vec->encoder);
+	drm_connector_attach_encoder(connector, vec->encoder);
 
 	return connector;
 }
@@ -587,6 +552,9 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
+	vec->regset.base = vec->regs;
+	vec->regset.regs = vec_regs;
+	vec->regset.nregs = ARRAY_SIZE(vec_regs);
 
 	vec->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(vec->clock)) {
@@ -611,6 +579,8 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vec);
 
 	vc4->vec = vec;
+
+	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 
 	return 0;
 

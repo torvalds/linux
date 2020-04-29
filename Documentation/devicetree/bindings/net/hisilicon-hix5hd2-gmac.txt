@@ -18,7 +18,6 @@ Required properties:
 - #size-cells: must be <0>.
 - phy-mode: see ethernet.txt [1].
 - phy-handle: see ethernet.txt [1].
-- mac-address: see ethernet.txt [1].
 - clocks: clock phandle and specifier pair.
 - clock-names: contain the clock name "mac_core"(required) and "mac_ifc"(optional).
 - resets: should contain the phandle to the MAC core reset signal(optional),
@@ -30,6 +29,9 @@ Required properties:
 	The 1st cell is reset pre-delay in micro seconds.
 	The 2nd cell is reset pulse in micro seconds.
 	The 3rd cell is reset post-delay in micro seconds.
+
+The MAC address will be determined using the properties defined in
+ethernet.txt[1].
 
 - PHY subnode: inherits from phy binding [2]
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Serpent Cipher 8-way parallel algorithm (x86_64/SSE2)
  *
@@ -6,22 +7,6 @@
  * Based on crypto/serpent.c by
  *  Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
  *                2003 Herbert Valerio Riedel <hvr@gnu.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -634,7 +619,7 @@
 	pxor t0,		x3; \
 	movdqu x3,		(3*4*4)(out);
 
-ENTRY(__serpent_enc_blk_8way)
+SYM_FUNC_START(__serpent_enc_blk_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -697,9 +682,9 @@ ENTRY(__serpent_enc_blk_8way)
 	xor_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(__serpent_enc_blk_8way)
+SYM_FUNC_END(__serpent_enc_blk_8way)
 
-ENTRY(serpent_dec_blk_8way)
+SYM_FUNC_START(serpent_dec_blk_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -751,4 +736,4 @@ ENTRY(serpent_dec_blk_8way)
 	write_blocks(%rax, RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(serpent_dec_blk_8way)
+SYM_FUNC_END(serpent_dec_blk_8way)

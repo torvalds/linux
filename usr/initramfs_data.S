@@ -22,16 +22,13 @@
   in the ELF header, as required by certain architectures.
 */
 
-#include <linux/stringify.h>
-#include <asm-generic/vmlinux.lds.h>
-
 .section .init.ramfs,"a"
 __irf_start:
-.incbin __stringify(INITRAMFS_IMAGE)
+.incbin "usr/initramfs_inc_data"
 __irf_end:
 .section .init.ramfs.info,"a"
-.globl VMLINUX_SYMBOL(__initramfs_size)
-VMLINUX_SYMBOL(__initramfs_size):
+.globl __initramfs_size
+__initramfs_size:
 #ifdef CONFIG_64BIT
 	.quad __irf_end - __irf_start
 #else

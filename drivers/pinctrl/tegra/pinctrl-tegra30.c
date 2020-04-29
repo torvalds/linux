@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl data for the NVIDIA Tegra30 pinmux
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  *
  * Copyright (c) 2011-2012, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -2141,8 +2133,8 @@ static struct tegra_function tegra30_functions[] = {
 		.lock_bit = 7,						\
 		.ioreset_bit = PINGROUP_BIT_##ior(8),			\
 		.rcv_sel_bit = -1,					\
-		.parked_bit = -1,					\
 		.drv_reg = -1,						\
+		.parked_bitmask = 0,					\
 	}
 
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b, drvdn_b,	\
@@ -2162,7 +2154,6 @@ static struct tegra_function tegra30_functions[] = {
 		.rcv_sel_bit = -1,					\
 		.drv_reg = DRV_PINGROUP_REG(r),				\
 		.drv_bank = 0,						\
-		.parked_bit = -1,					\
 		.hsm_bit = hsm_b,					\
 		.schmitt_bit = schmitt_b,				\
 		.lpmd_bit = lpmd_b,					\
@@ -2175,6 +2166,7 @@ static struct tegra_function tegra30_functions[] = {
 		.slwf_bit = slwf_b,					\
 		.slwf_width = slwf_w,					\
 		.drvtype_bit = -1,					\
+		.parked_bitmask = 0,					\
 	}
 
 static const struct tegra_pingroup tegra30_groups[] = {
@@ -2474,6 +2466,7 @@ static const struct tegra_pingroup tegra30_groups[] = {
 
 static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.ngpios = NUM_GPIOS,
+	.gpio_compatible = "nvidia,tegra30-gpio",
 	.pins = tegra30_pins,
 	.npins = ARRAY_SIZE(tegra30_pins),
 	.functions = tegra30_functions,
@@ -2502,4 +2495,9 @@ static struct platform_driver tegra30_pinctrl_driver = {
 	},
 	.probe = tegra30_pinctrl_probe,
 };
-builtin_platform_driver(tegra30_pinctrl_driver);
+
+static int __init tegra30_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra30_pinctrl_driver);
+}
+arch_initcall(tegra30_pinctrl_init);

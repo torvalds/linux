@@ -9,16 +9,15 @@
 #include <linux/kernel.h>
 #include <linux/virtio_console.h>
 #include <linux/kvm_para.h>
+#include <asm/setup.h>
 
 /*
  * Emit one character to the boot console.
  */
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	kvm_hypercall3(KVM_HC_MIPS_CONSOLE_OUTPUT, 0 /*  port 0 */,
 		(unsigned long)&c, 1 /* len == 1 */);
-
-	return 1;
 }
 
 #ifdef CONFIG_VIRTIO_CONSOLE

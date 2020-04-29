@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ddbridge-ci.c: Digital Devices bridge CI (DuoFlex, CI Bridge) support
  *
@@ -13,9 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include "ddbridge.h"
@@ -164,7 +162,7 @@ static struct dvb_ca_en50221 en_templ = {
 
 static void ci_attach(struct ddb_port *port)
 {
-	struct ddb_ci *ci = NULL;
+	struct ddb_ci *ci;
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)

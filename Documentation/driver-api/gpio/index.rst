@@ -8,11 +8,13 @@ Contents:
    :maxdepth: 2
 
    intro
+   using-gpio
    driver
    consumer
    board
    drivers-on-gpio
    legacy
+   bt8xxgpio
 
 Core
 ====
@@ -38,7 +40,7 @@ Device tree support
 Device-managed API
 ==================
 
-.. kernel-doc:: drivers/gpio/devres.c
+.. kernel-doc:: drivers/gpio/gpiolib-devres.c
    :export:
 
 sysfs helpers

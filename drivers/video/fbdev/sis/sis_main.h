@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SiS 300/305/540/630(S)/730(S),
  * SiS 315[E|PRO]/550/[M]65x/[M]66x[F|M|G]X/[M]74x[GX]/330/[M]76x[GX],
@@ -5,20 +6,6 @@
  * frame buffer driver for Linux kernels >=2.4.14 and >=2.6.3
  *
  * Copyright (C) 2001-2005 Thomas Winischhofer, Vienna, Austria.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the named License,
- * or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  */
 
 #ifndef _SISFB_MAIN
@@ -661,121 +648,4 @@ static struct _customttable {
 	}
 };
 
-/* ---------------------- Prototypes ------------------------- */
-
-/* Interface used by the world */
-#ifndef MODULE
-static int sisfb_setup(char *options);
 #endif
-
-/* Interface to the low level console driver */
-static int sisfb_init(void);
-
-/* fbdev routines */
-static int	sisfb_get_fix(struct fb_fix_screeninfo *fix, int con,
-				struct fb_info *info);
-
-static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
-			    unsigned long arg);
-static int	sisfb_set_par(struct fb_info *info);
-static int	sisfb_blank(int blank,
-				struct fb_info *info);
-extern void	fbcon_sis_fillrect(struct fb_info *info,
-				const struct fb_fillrect *rect);
-extern void	fbcon_sis_copyarea(struct fb_info *info,
-				const struct fb_copyarea *area);
-extern int	fbcon_sis_sync(struct fb_info *info);
-
-/* Internal 2D accelerator functions */
-extern int	sisfb_initaccel(struct sis_video_info *ivideo);
-extern void	sisfb_syncaccel(struct sis_video_info *ivideo);
-
-/* Internal general routines */
-static void	sisfb_search_mode(char *name, bool quiet);
-static int	sisfb_validate_mode(struct sis_video_info *ivideo, int modeindex, u32 vbflags);
-static u8	sisfb_search_refresh_rate(struct sis_video_info *ivideo, unsigned int rate,
-				int index);
-static int	sisfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-				unsigned blue, unsigned transp,
-				struct fb_info *fb_info);
-static int	sisfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
-				struct fb_info *info);
-static void	sisfb_pre_setmode(struct sis_video_info *ivideo);
-static void	sisfb_post_setmode(struct sis_video_info *ivideo);
-static bool	sisfb_CheckVBRetrace(struct sis_video_info *ivideo);
-static bool	sisfbcheckvretracecrt2(struct sis_video_info *ivideo);
-static bool	sisfbcheckvretracecrt1(struct sis_video_info *ivideo);
-static bool	sisfb_bridgeisslave(struct sis_video_info *ivideo);
-static void	sisfb_detect_VB_connect(struct sis_video_info *ivideo);
-static void	sisfb_get_VB_type(struct sis_video_info *ivideo);
-static void	sisfb_set_TVxposoffset(struct sis_video_info *ivideo, int val);
-static void	sisfb_set_TVyposoffset(struct sis_video_info *ivideo, int val);
-#ifdef CONFIG_FB_SIS_300
-unsigned int	sisfb_read_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg);
-void		sisfb_write_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg, unsigned int val);
-unsigned int	sisfb_read_lpc_pci_dword(struct SiS_Private *SiS_Pr, int reg);
-#endif
-#ifdef CONFIG_FB_SIS_315
-void		sisfb_write_nbridge_pci_byte(struct SiS_Private *SiS_Pr, int reg, unsigned char val);
-unsigned int	sisfb_read_mio_pci_word(struct SiS_Private *SiS_Pr, int reg);
-#endif
-
-/* SiS-specific exported functions */
-void			sis_malloc(struct sis_memreq *req);
-void			sis_malloc_new(struct pci_dev *pdev, struct sis_memreq *req);
-void			sis_free(u32 base);
-void			sis_free_new(struct pci_dev *pdev, u32 base);
-
-/* Internal heap routines */
-static int		sisfb_heap_init(struct sis_video_info *ivideo);
-static struct SIS_OH *	sisfb_poh_new_node(struct SIS_HEAP *memheap);
-static struct SIS_OH *	sisfb_poh_allocate(struct SIS_HEAP *memheap, u32 size);
-static void		sisfb_delete_node(struct SIS_OH *poh);
-static void		sisfb_insert_node(struct SIS_OH *pohList, struct SIS_OH *poh);
-static struct SIS_OH *	sisfb_poh_free(struct SIS_HEAP *memheap, u32 base);
-static void		sisfb_free_node(struct SIS_HEAP *memheap, struct SIS_OH *poh);
-
-/* Routines from init.c/init301.c */
-extern unsigned short	SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay,
-				int VDisplay, int Depth, bool FSTN, unsigned short CustomT,
-				int LCDwith, int LCDheight, unsigned int VBFlags2);
-extern unsigned short	SiS_GetModeID_TV(int VGAEngine, unsigned int VBFlags, int HDisplay,
-				int VDisplay, int Depth, unsigned int VBFlags2);
-extern unsigned short	SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay,
-				int VDisplay, int Depth, unsigned int VBFlags2);
-extern void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);
-extern bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
-extern void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
-extern void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
-
-extern bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
-
-extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
-				int *htotal, int *vtotal, unsigned char rateindex);
-extern int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
-				unsigned char modeno, unsigned char rateindex);
-extern int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
-				unsigned char rateindex, struct fb_var_screeninfo *var);
-
-/* Chrontel TV, DDC and DPMS functions */
-extern unsigned short	SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg);
-extern void		SiS_SetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
-extern unsigned short	SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg);
-extern void		SiS_SetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
-extern void		SiS_SetCH70xxANDOR(struct SiS_Private *SiS_Pr, unsigned short reg,
-				unsigned char myor, unsigned char myand);
-extern void		SiS_DDC2Delay(struct SiS_Private *SiS_Pr, unsigned int delaytime);
-extern void		SiS_SetChrontelGPIO(struct SiS_Private *SiS_Pr, unsigned short myvbinfo);
-extern unsigned short	SiS_HandleDDC(struct SiS_Private *SiS_Pr, unsigned int VBFlags, int VGAEngine,
-				unsigned short adaptnum, unsigned short DDCdatatype, unsigned char *buffer,
-				unsigned int VBFlags2);
-extern unsigned short	SiS_ReadDDC1Bit(struct SiS_Private *SiS_Pr);
-#ifdef CONFIG_FB_SIS_315
-extern void		SiS_Chrontel701xBLOn(struct SiS_Private *SiS_Pr);
-extern void		SiS_Chrontel701xBLOff(struct SiS_Private *SiS_Pr);
-#endif
-extern void		SiS_SiS30xBLOn(struct SiS_Private *SiS_Pr);
-extern void		SiS_SiS30xBLOff(struct SiS_Private *SiS_Pr);
-#endif
-
-

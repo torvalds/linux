@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C adapter for the IMG Serial Control Bus (SCB) IP block.
  *
  * Copyright (C) 2009, 2010, 2012, 2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * There are three ways that this I2C controller can be driven:
  *
@@ -307,7 +304,7 @@ static struct img_i2c_timings timings[] = {
 	/* Standard mode */
 	{
 		.name = "standard",
-		.max_bitrate = 100000,
+		.max_bitrate = I2C_MAX_STANDARD_MODE_FREQ,
 		.tckh = 4000,
 		.tckl = 4700,
 		.tsdh = 4700,
@@ -319,7 +316,7 @@ static struct img_i2c_timings timings[] = {
 	/* Fast mode */
 	{
 		.name = "fast",
-		.max_bitrate = 400000,
+		.max_bitrate = I2C_MAX_FAST_MODE_FREQ,
 		.tckh = 600,
 		.tckl = 1300,
 		.tsdh = 600,

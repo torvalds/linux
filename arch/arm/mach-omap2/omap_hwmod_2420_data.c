@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_2420_data.c - hardware modules present on the OMAP2420 chips
  *
@@ -5,16 +6,11 @@
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
-#include <linux/omap-dma.h>
+#include <linux/platform_data/i2c-omap.h>
 
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
@@ -91,7 +87,6 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class i2c_class = {
 	.name		= "i2c",
 	.sysc		= &i2c_sysc,
-	.rev		= OMAP_I2C_IP_VERSION_1,
 	.reset		= &omap_i2c_reset,
 };
 
@@ -128,21 +123,6 @@ static struct omap_hwmod omap2420_i2c2_hwmod = {
 	},
 	.class		= &i2c_class,
 	.flags		= HWMOD_16BIT_REG,
-};
-
-/* dma attributes */
-static struct omap_dma_dev_attr dma_dev_attr = {
-	.dev_caps  = RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
-						IS_CSSA_32 | IS_CDSA_32,
-	.lch_count = 32,
-};
-
-static struct omap_hwmod omap2420_dma_system_hwmod = {
-	.name		= "dma",
-	.class		= &omap2xxx_dma_hwmod_class,
-	.main_clk	= "core_l3_ck",
-	.dev_attr	= &dma_dev_attr,
-	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* mailbox */
@@ -332,22 +312,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio4 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* dma_system -> L3 */
-static struct omap_hwmod_ocp_if omap2420_dma_system__l3 = {
-	.master		= &omap2420_dma_system_hwmod,
-	.slave		= &omap2xxx_l3_main_hwmod,
-	.clk		= "core_l3_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_core -> dma_system */
-static struct omap_hwmod_ocp_if omap2420_l4_core__dma_system = {
-	.master		= &omap2xxx_l4_core_hwmod,
-	.slave		= &omap2420_dma_system_hwmod,
-	.clk		= "sdma_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_core -> mailbox */
 static struct omap_hwmod_ocp_if omap2420_l4_core__mailbox = {
 	.master		= &omap2xxx_l4_core_hwmod,
@@ -439,8 +403,6 @@ static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 	&omap2420_l4_wkup__gpio2,
 	&omap2420_l4_wkup__gpio3,
 	&omap2420_l4_wkup__gpio4,
-	&omap2420_dma_system__l3,
-	&omap2420_l4_core__dma_system,
 	&omap2420_l4_core__mailbox,
 	&omap2420_l4_core__mcbsp1,
 	&omap2420_l4_core__mcbsp2,

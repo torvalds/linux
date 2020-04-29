@@ -116,10 +116,14 @@ static struct net_device * __init ipddp_init(void)
  */
 static netdev_tx_t ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	__be32 paddr = skb_rtable(skb)->rt_gateway;
+        struct rtable *rtable = skb_rtable(skb);
+        __be32 paddr = 0;
         struct ddpehdr *ddp;
         struct ipddp_route *rt;
         struct atalk_addr *our_addr;
+
+	if (rtable->rt_gw_family == AF_INET)
+		paddr = rtable->rt_gw4;
 
 	spin_lock(&ipddp_route_lock);
 
@@ -283,8 +287,12 @@ static int ipddp_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                 case SIOCFINDIPDDPRT:
 			spin_lock_bh(&ipddp_route_lock);
 			rp = __ipddp_find_route(&rcp);
-			if (rp)
-				memcpy(&rcp2, rp, sizeof(rcp2));
+			if (rp) {
+				memset(&rcp2, 0, sizeof(rcp2));
+				rcp2.ip    = rp->ip;
+				rcp2.at    = rp->at;
+				rcp2.flags = rp->flags;
+			}
 			spin_unlock_bh(&ipddp_route_lock);
 
 			if (rp) {

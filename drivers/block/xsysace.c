@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx SystemACE device driver
  *
  * Copyright 2007 Secret Lab Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 /*
@@ -88,7 +85,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/mutex.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
@@ -209,6 +206,8 @@ struct ace_device {
 	struct device *dev;
 	struct request_queue *queue;
 	struct gendisk *gd;
+	struct blk_mq_tag_set tag_set;
+	struct list_head rq_list;
 
 	/* Inserted CF card parameters */
 	u16 cf_id[ATA_ID_WORDS];
@@ -462,18 +461,26 @@ static inline void ace_fsm_yieldirq(struct ace_device *ace)
 	ace->fsm_continue_flag = 0;
 }
 
+static bool ace_has_next_request(struct request_queue *q)
+{
+	struct ace_device *ace = q->queuedata;
+
+	return !list_empty(&ace->rq_list);
+}
+
 /* Get the next read/write request; ending requests that we don't handle */
 static struct request *ace_get_next_request(struct request_queue *q)
 {
-	struct request *req;
+	struct ace_device *ace = q->queuedata;
+	struct request *rq;
 
-	while ((req = blk_peek_request(q)) != NULL) {
-		if (!blk_rq_is_passthrough(req))
-			break;
-		blk_start_request(req);
-		__blk_end_request_all(req, BLK_STS_IOERR);
+	rq = list_first_entry_or_null(&ace->rq_list, struct request, queuelist);
+	if (rq) {
+		list_del_init(&rq->queuelist);
+		blk_mq_start_request(rq);
 	}
-	return req;
+
+	return NULL;
 }
 
 static void ace_fsm_dostate(struct ace_device *ace)
@@ -499,11 +506,11 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Drop all in-flight and pending requests */
 		if (ace->req) {
-			__blk_end_request_all(ace->req, BLK_STS_IOERR);
+			blk_mq_end_request(ace->req, BLK_STS_IOERR);
 			ace->req = NULL;
 		}
-		while ((req = blk_fetch_request(ace->queue)) != NULL)
-			__blk_end_request_all(req, BLK_STS_IOERR);
+		while ((req = ace_get_next_request(ace->queue)) != NULL)
+			blk_mq_end_request(req, BLK_STS_IOERR);
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -517,7 +524,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 	switch (ace->fsm_state) {
 	case ACE_FSM_STATE_IDLE:
 		/* See if there is anything to do */
-		if (ace->id_req_count || ace_get_next_request(ace->queue)) {
+		if (ace->id_req_count || ace_has_next_request(ace->queue)) {
 			ace->fsm_iter_num++;
 			ace->fsm_state = ACE_FSM_STATE_REQ_LOCK;
 			mod_timer(&ace->stall_timer, jiffies + HZ);
@@ -651,7 +658,6 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->fsm_state = ACE_FSM_STATE_IDLE;
 			break;
 		}
-		blk_start_request(req);
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,
@@ -728,7 +734,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 
 		/* bio finished; is there another one? */
-		if (__blk_end_request_cur(ace->req, BLK_STS_OK)) {
+		if (blk_update_request(ace->req, BLK_STS_OK,
+		    blk_rq_cur_bytes(ace->req))) {
 			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
 			 *      blk_rq_sectors(ace->req),
 			 *      blk_rq_cur_sectors(ace->req));
@@ -854,17 +861,23 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 /* ---------------------------------------------------------------------
  * Block ops
  */
-static void ace_request(struct request_queue * q)
+static blk_status_t ace_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd)
 {
-	struct request *req;
-	struct ace_device *ace;
+	struct ace_device *ace = hctx->queue->queuedata;
+	struct request *req = bd->rq;
 
-	req = ace_get_next_request(q);
-
-	if (req) {
-		ace = req->rq_disk->private_data;
-		tasklet_schedule(&ace->fsm_tasklet);
+	if (blk_rq_is_passthrough(req)) {
+		blk_mq_start_request(req);
+		return BLK_STS_IOERR;
 	}
+
+	spin_lock_irq(&ace->lock);
+	list_add_tail(&req->queuelist, &ace->rq_list);
+	spin_unlock_irq(&ace->lock);
+
+	tasklet_schedule(&ace->fsm_tasklet);
+	return BLK_STS_OK;
 }
 
 static unsigned int ace_check_events(struct gendisk *gd, unsigned int clearing)
@@ -957,6 +970,10 @@ static const struct block_device_operations ace_fops = {
 	.getgeo = ace_getgeo,
 };
 
+static const struct blk_mq_ops ace_mq_ops = {
+	.queue_rq	= ace_queue_rq,
+};
+
 /* --------------------------------------------------------------------
  * SystemACE device setup/teardown code
  */
@@ -972,6 +989,7 @@ static int ace_setup(struct ace_device *ace)
 
 	spin_lock_init(&ace->lock);
 	init_completion(&ace->id_completion);
+	INIT_LIST_HEAD(&ace->rq_list);
 
 	/*
 	 * Map the device
@@ -989,9 +1007,15 @@ static int ace_setup(struct ace_device *ace)
 	/*
 	 * Initialize the request queue
 	 */
-	ace->queue = blk_init_queue(ace_request, &ace->lock);
-	if (ace->queue == NULL)
+	ace->queue = blk_mq_init_sq_queue(&ace->tag_set, &ace_mq_ops, 2,
+						BLK_MQ_F_SHOULD_MERGE);
+	if (IS_ERR(ace->queue)) {
+		rc = PTR_ERR(ace->queue);
+		ace->queue = NULL;
 		goto err_blk_initq;
+	}
+	ace->queue->queuedata = ace;
+
 	blk_queue_logical_block_size(ace->queue, 512);
 	blk_queue_bounce_limit(ace->queue, BLK_BOUNCE_HIGH);
 
@@ -1005,6 +1029,7 @@ static int ace_setup(struct ace_device *ace)
 	ace->gd->major = ace_major;
 	ace->gd->first_minor = ace->id * ACE_NUM_MINORS;
 	ace->gd->fops = &ace_fops;
+	ace->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	ace->gd->queue = ace->queue;
 	ace->gd->private_data = ace;
 	snprintf(ace->gd->disk_name, 32, "xs%c", ace->id + 'a');
@@ -1063,9 +1088,12 @@ static int ace_setup(struct ace_device *ace)
 	return 0;
 
 err_read:
+	/* prevent double queue cleanup */
+	ace->gd->queue = NULL;
 	put_disk(ace->gd);
 err_alloc_disk:
 	blk_cleanup_queue(ace->queue);
+	blk_mq_free_tag_set(&ace->tag_set);
 err_blk_initq:
 	iounmap(ace->baseaddr);
 err_ioremap:
@@ -1081,8 +1109,10 @@ static void ace_teardown(struct ace_device *ace)
 		put_disk(ace->gd);
 	}
 
-	if (ace->queue)
+	if (ace->queue) {
 		blk_cleanup_queue(ace->queue);
+		blk_mq_free_tag_set(&ace->tag_set);
+	}
 
 	tasklet_kill(&ace->fsm_tasklet);
 

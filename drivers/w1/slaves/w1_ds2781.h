@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * 1-Wire implementation for the ds2780 chip
  *
  * Author: Renata Sayakhova <renata@oktetlabs.ru>
  *
  * Based on w1-ds2760 driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _W1_DS2781_H

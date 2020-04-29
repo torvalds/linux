@@ -18,7 +18,6 @@
 #define ALIGN(x, a) (((x) + (a) - 1) / (a) * (a))
 #define SIZE_MAX        (~(size_t)0)
 #define KMALLOC_MAX_SIZE SIZE_MAX
-#define BUG_ON(x) assert(x)
 
 typedef pthread_spinlock_t  spinlock_t;
 

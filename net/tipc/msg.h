@@ -102,19 +102,79 @@ struct plist;
 #define TIPC_MEDIA_INFO_OFFSET	5
 
 struct tipc_skb_cb {
-	u32 bytes_read;
-	u32 orig_member;
-	struct sk_buff *tail;
-	bool validated;
-	u16 chain_imp;
-	u16 ackers;
-};
+	union {
+		struct {
+			struct sk_buff *tail;
+			unsigned long nxt_retr;
+			unsigned long retr_stamp;
+			u32 bytes_read;
+			u32 orig_member;
+			u16 chain_imp;
+			u16 ackers;
+			u16 retr_cnt;
+		} __packed;
+#ifdef CONFIG_TIPC_CRYPTO
+		struct {
+			struct tipc_crypto *rx;
+			struct tipc_aead *last;
+			u8 recurs;
+		} tx_clone_ctx __packed;
+#endif
+	} __packed;
+	union {
+		struct {
+			u8 validated:1;
+#ifdef CONFIG_TIPC_CRYPTO
+			u8 encrypted:1;
+			u8 decrypted:1;
+			u8 probe:1;
+			u8 tx_clone_deferred:1;
+#endif
+		};
+		u8 flags;
+	};
+	u8 reserved;
+#ifdef CONFIG_TIPC_CRYPTO
+	void *crypto_ctx;
+#endif
+} __packed;
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
 
 struct tipc_msg {
 	__be32 hdr[15];
 };
+
+/* struct tipc_gap_ack - TIPC Gap ACK block
+ * @ack: seqno of the last consecutive packet in link deferdq
+ * @gap: number of gap packets since the last ack
+ *
+ * E.g:
+ *       link deferdq: 1 2 3 4      10 11      13 14 15       20
+ * --> Gap ACK blocks:      <4, 5>,   <11, 1>,      <15, 4>, <20, 0>
+ */
+struct tipc_gap_ack {
+	__be16 ack;
+	__be16 gap;
+};
+
+/* struct tipc_gap_ack_blks
+ * @len: actual length of the record
+ * @gack_cnt: number of Gap ACK blocks in the record
+ * @gacks: array of Gap ACK blocks
+ */
+struct tipc_gap_ack_blks {
+	__be16 len;
+	u8 gack_cnt;
+	u8 reserved;
+	struct tipc_gap_ack gacks[];
+};
+
+#define tipc_gap_ack_blks_sz(n) (sizeof(struct tipc_gap_ack_blks) + \
+				 sizeof(struct tipc_gap_ack) * (n))
+
+#define MAX_GAP_ACK_BLKS	32
+#define MAX_GAP_ACK_BLKS_SZ	tipc_gap_ack_blks_sz(MAX_GAP_ACK_BLKS)
 
 static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 {
@@ -216,6 +276,16 @@ static inline void msg_set_non_seq(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 0, 20, 1, n);
 }
 
+static inline int msg_is_syn(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 17, 1);
+}
+
+static inline void msg_set_syn(struct tipc_msg *m, u32 d)
+{
+	msg_set_bits(m, 0, 17, 1, d);
+}
+
 static inline int msg_dest_droppable(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 19, 1);
@@ -246,6 +316,26 @@ static inline void msg_set_src_droppable(struct tipc_msg *m, u32 d)
 	msg_set_bits(m, 0, 18, 1, d);
 }
 
+static inline int msg_ack_required(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 18, 1);
+}
+
+static inline void msg_set_ack_required(struct tipc_msg *m, u32 d)
+{
+	msg_set_bits(m, 0, 18, 1, d);
+}
+
+static inline bool msg_is_rcast(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 18, 0x1);
+}
+
+static inline void msg_set_is_rcast(struct tipc_msg *m, bool d)
+{
+	msg_set_bits(m, 0, 18, 0x1, d);
+}
+
 static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 {
 	m->hdr[0] = htonl((msg_word(m, 0) & ~0x1ffff) | sz);
@@ -256,7 +346,7 @@ static inline unchar *msg_data(struct tipc_msg *m)
 	return ((unchar *)m) + msg_hdr_sz(m);
 }
 
-static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
+static inline struct tipc_msg *msg_inner_hdr(struct tipc_msg *m)
 {
 	return (struct tipc_msg *)msg_data(m);
 }
@@ -304,6 +394,11 @@ static inline u32 msg_connected(struct tipc_msg *m)
 	return msg_type(m) == TIPC_CONN_MSG;
 }
 
+static inline u32 msg_direct(struct tipc_msg *m)
+{
+	return msg_type(m) == TIPC_DIRECT_MSG;
+}
+
 static inline u32 msg_errcode(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 25, 0xf);
@@ -349,6 +444,28 @@ static inline void msg_set_bcast_ack(struct tipc_msg *m, u16 n)
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
+/* Note: reusing bits in word 1 for ACTIVATE_MSG only, to re-synch
+ * link peer session number
+ */
+static inline bool msg_dest_session_valid(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 16, 0x1);
+}
+
+static inline void msg_set_dest_session_valid(struct tipc_msg *m, bool valid)
+{
+	msg_set_bits(m, 1, 16, 0x1, valid);
+}
+
+static inline u16 msg_dest_session(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_dest_session(struct tipc_msg *m, u16 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
+}
 
 /*
  * Word 2
@@ -412,7 +529,7 @@ static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 static inline u32 msg_origport(struct tipc_msg *m)
 {
 	if (msg_user(m) == MSG_FRAGMENTER)
-		m = msg_get_wrapped(m);
+		m = msg_inner_hdr(m);
 	return msg_word(m, 4);
 }
 
@@ -647,11 +764,25 @@ static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
 
+static inline u32 msg_nof_fragms(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 0, 0xffff);
+}
+
+static inline void msg_set_nof_fragms(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 4, 0, 0xffff, n);
+}
+
+static inline u32 msg_fragm_no(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 16, 0xffff);
+}
+
 static inline void msg_set_fragm_no(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
-
 
 static inline u16 msg_next_sent(struct tipc_msg *m)
 {
@@ -803,6 +934,16 @@ static inline void msg_set_msgcnt(struct tipc_msg *m, u16 n)
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
 
+static inline u16 msg_syncpt(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 16, 0xffff);
+}
+
+static inline void msg_set_syncpt(struct tipc_msg *m, u16 n)
+{
+	msg_set_bits(m, 9, 16, 0xffff, n);
+}
+
 static inline u32 msg_conn_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
@@ -926,6 +1067,20 @@ static inline bool msg_is_reset(struct tipc_msg *hdr)
 	return (msg_user(hdr) == LINK_PROTOCOL) && (msg_type(hdr) == RESET_MSG);
 }
 
+/* Word 13
+ */
+static inline void msg_set_peer_net_hash(struct tipc_msg *m, u32 n)
+{
+	msg_set_word(m, 13, n);
+}
+
+static inline u32 msg_peer_net_hash(struct tipc_msg *m)
+{
+	return msg_word(m, 13);
+}
+
+/* Word 14
+ */
 static inline u32 msg_sugg_node_addr(struct tipc_msg *m)
 {
 	return msg_word(m, 14);
@@ -957,12 +1112,15 @@ struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
 				uint data_sz, u32 dnode, u32 onode,
 				u32 dport, u32 oport, int errcode);
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
-bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu);
-bool tipc_msg_make_bundle(struct sk_buff **skb, struct tipc_msg *msg,
-			  u32 mtu, u32 dnode);
+bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
+			 u32 dnode, bool *new_bundle);
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
+int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
+		      int pktmax, struct sk_buff_head *frags);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
+int tipc_msg_append(struct tipc_msg *hdr, struct msghdr *m, int dlen,
+		    int mss, struct sk_buff_head *txq);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
 bool tipc_msg_assemble(struct sk_buff_head *list);
 bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq);
@@ -970,6 +1128,7 @@ bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
 			struct sk_buff_head *cpy);
 void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 			     struct sk_buff *skb);
+bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy);
 
 static inline u16 buf_seqno(struct sk_buff *skb)
 {
@@ -1074,6 +1233,27 @@ static inline void tipc_skb_queue_splice_tail_init(struct sk_buff_head *list,
 	skb_queue_splice_tail_init(list, &tmp);
 	spin_unlock_bh(&list->lock);
 	tipc_skb_queue_splice_tail(&tmp, head);
+}
+
+/* __tipc_skb_dequeue() - dequeue the head skb according to expected seqno
+ * @list: list to be dequeued from
+ * @seqno: seqno of the expected msg
+ *
+ * returns skb dequeued from the list if its seqno is less than or equal to
+ * the expected one, otherwise the skb is still hold
+ *
+ * Note: must be used with appropriate locks held only
+ */
+static inline struct sk_buff *__tipc_skb_dequeue(struct sk_buff_head *list,
+						 u16 seqno)
+{
+	struct sk_buff *skb = skb_peek(list);
+
+	if (skb && less_eq(buf_seqno(skb), seqno)) {
+		__skb_unlink(skb, list);
+		return skb;
+	}
+	return NULL;
 }
 
 #endif

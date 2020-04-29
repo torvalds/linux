@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
  *
  * (c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -411,21 +402,18 @@ static int lgdt330x_set_ts_param(struct dvb_frontend *fe, int is_punctured)
 }
 
 static struct lgdt330x_config fusionhdtv_3_gold = {
-	.demod_address = 0x0e,
 	.demod_chip    = LGDT3302,
 	.serial_mpeg   = 0x04, /* TPSERIAL for 3302 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
 static const struct lgdt330x_config fusionhdtv_5_gold = {
-	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
 static const struct lgdt330x_config pchdtv_hd5500 = {
-	.demod_address = 0x59,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
@@ -1229,14 +1217,15 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 
 		/* Select RF connector callback */
 		fusionhdtv_3_gold.pll_rf_set = lgdt330x_pll_rf_set;
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1250,11 +1239,12 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 9);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1268,11 +1258,12 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_5_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1289,11 +1280,12 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &pchdtv_hd5500,
+					       0x59,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1386,6 +1378,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
+	case CX88_BOARD_NOTONLYTV_LV3H:
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
@@ -1582,9 +1575,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		cx_set(MO_GP0_IO, 0x0101);
 
 		cx_clear(MO_GP0_IO, 0x01);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 0x01);
-		mdelay(200);
+		msleep(200);
 
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
 					       &samsung_stv0299_config,

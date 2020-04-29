@@ -34,6 +34,7 @@
 
 #include <linux/kernel.h>
 #include <linux/of_fdt.h>
+#include <linux/memblock.h>
 
 #include <asm/idle.h>
 #include <asm/reboot.h>
@@ -67,12 +68,11 @@ static void nlm_linux_exit(void)
 static void nlm_fixup_mem(void)
 {
 	const int pref_backup = 512;
-	int i;
+	struct memblock_region *mem;
 
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
-			continue;
-		boot_mem_map.map[i].size -= pref_backup;
+	for_each_memblock(memory, mem) {
+		memblock_remove(mem->base + mem->size - pref_backup,
+			pref_backup);
 	}
 }
 
@@ -110,7 +110,7 @@ void __init plat_mem_setup(void)
 	/* memory and bootargs from DT */
 	xlp_early_init_devtree();
 
-	if (boot_mem_map.nr_map == 0) {
+	if (memblock_end_of_DRAM() == 0) {
 		pr_info("Using DRAM BARs for memory map.\n");
 		xlp_init_mem_from_bars();
 	}

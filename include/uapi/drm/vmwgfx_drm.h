@@ -40,6 +40,7 @@ extern "C" {
 
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
+#define DRM_VMW_ALLOC_BO             1
 #define DRM_VMW_UNREF_DMABUF         2
 #define DRM_VMW_HANDLE_CLOSE         2
 #define DRM_VMW_CURSOR_BYPASS        3
@@ -68,6 +69,9 @@ extern "C" {
 #define DRM_VMW_GB_SURFACE_REF       24
 #define DRM_VMW_SYNCCPU              25
 #define DRM_VMW_CREATE_EXTENDED_CONTEXT 26
+#define DRM_VMW_GB_SURFACE_CREATE_EXT   27
+#define DRM_VMW_GB_SURFACE_REF_EXT      28
+#define DRM_VMW_MSG                     29
 
 /*************************************************************************/
 /**
@@ -79,6 +83,12 @@ extern "C" {
  *
  * DRM_VMW_PARAM_OVERLAY_IOCTL:
  * Does the driver support the overlay ioctl.
+ *
+ * DRM_VMW_PARAM_SM4_1
+ * SM4_1 support is enabled.
+ *
+ * DRM_VMW_PARAM_SM5
+ * SM5 support is enabled.
  */
 
 #define DRM_VMW_PARAM_NUM_STREAMS      0
@@ -94,6 +104,9 @@ extern "C" {
 #define DRM_VMW_PARAM_MAX_MOB_SIZE     10
 #define DRM_VMW_PARAM_SCREEN_TARGET    11
 #define DRM_VMW_PARAM_DX               12
+#define DRM_VMW_PARAM_HW_CAPS2         13
+#define DRM_VMW_PARAM_SM4_1            14
+#define DRM_VMW_PARAM_SM5              15
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls
@@ -356,9 +369,9 @@ struct drm_vmw_fence_rep {
 
 /*************************************************************************/
 /**
- * DRM_VMW_ALLOC_DMABUF
+ * DRM_VMW_ALLOC_BO
  *
- * Allocate a DMA buffer that is visible also to the host.
+ * Allocate a buffer object that is visible also to the host.
  * NOTE: The buffer is
  * identified by a handle and an offset, which are private to the guest, but
  * useable in the command stream. The guest kernel may translate these
@@ -366,27 +379,28 @@ struct drm_vmw_fence_rep {
  * be zero at all times, or it may disappear from the interface before it is
  * fixed.
  *
- * The DMA buffer may stay user-space mapped in the guest at all times,
+ * The buffer object may stay user-space mapped in the guest at all times,
  * and is thus suitable for sub-allocation.
  *
- * DMA buffers are mapped using the mmap() syscall on the drm device.
+ * Buffer objects are mapped using the mmap() syscall on the drm device.
  */
 
 /**
- * struct drm_vmw_alloc_dmabuf_req
+ * struct drm_vmw_alloc_bo_req
  *
  * @size: Required minimum size of the buffer.
  *
- * Input data to the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Input data to the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-struct drm_vmw_alloc_dmabuf_req {
+struct drm_vmw_alloc_bo_req {
 	__u32 size;
 	__u32 pad64;
 };
+#define drm_vmw_alloc_dmabuf_req drm_vmw_alloc_bo_req
 
 /**
- * struct drm_vmw_dmabuf_rep
+ * struct drm_vmw_bo_rep
  *
  * @map_handle: Offset to use in the mmap() call used to map the buffer.
  * @handle: Handle unique to this buffer. Used for unreferencing.
@@ -395,50 +409,32 @@ struct drm_vmw_alloc_dmabuf_req {
  * @cur_gmr_offset: Offset to use in the command stream when this buffer is
  * referenced. See note above.
  *
- * Output data from the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Output data from the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-struct drm_vmw_dmabuf_rep {
+struct drm_vmw_bo_rep {
 	__u64 map_handle;
 	__u32 handle;
 	__u32 cur_gmr_id;
 	__u32 cur_gmr_offset;
 	__u32 pad64;
 };
+#define drm_vmw_dmabuf_rep drm_vmw_bo_rep
 
 /**
- * union drm_vmw_dmabuf_arg
+ * union drm_vmw_alloc_bo_arg
  *
  * @req: Input data as described above.
  * @rep: Output data as described above.
  *
- * Argument to the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Argument to the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-union drm_vmw_alloc_dmabuf_arg {
-	struct drm_vmw_alloc_dmabuf_req req;
-	struct drm_vmw_dmabuf_rep rep;
+union drm_vmw_alloc_bo_arg {
+	struct drm_vmw_alloc_bo_req req;
+	struct drm_vmw_bo_rep rep;
 };
-
-/*************************************************************************/
-/**
- * DRM_VMW_UNREF_DMABUF - Free a DMA buffer.
- *
- */
-
-/**
- * struct drm_vmw_unref_dmabuf_arg
- *
- * @handle: Handle indicating what buffer to free. Obtained from the
- * DRM_VMW_ALLOC_DMABUF Ioctl.
- *
- * Argument to the DRM_VMW_UNREF_DMABUF Ioctl.
- */
-
-struct drm_vmw_unref_dmabuf_arg {
-	__u32 handle;
-	__u32 pad64;
-};
+#define drm_vmw_alloc_dmabuf_arg drm_vmw_alloc_bo_arg
 
 /*************************************************************************/
 /**
@@ -900,11 +896,13 @@ struct drm_vmw_shader_arg {
  *                                      surface.
  * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is
  *                                      given.
+ * @drm_vmw_surface_flag_coherent:      Back surface with coherent memory.
  */
 enum drm_vmw_surface_flags {
 	drm_vmw_surface_flag_shareable = (1 << 0),
 	drm_vmw_surface_flag_scanout = (1 << 1),
-	drm_vmw_surface_flag_create_buffer = (1 << 2)
+	drm_vmw_surface_flag_create_buffer = (1 << 2),
+	drm_vmw_surface_flag_coherent = (1 << 3),
 };
 
 /**
@@ -1103,9 +1101,8 @@ union drm_vmw_extended_context_arg {
  * DRM_VMW_HANDLE_CLOSE - Close a user-space handle and release its
  * underlying resource.
  *
- * Note that this ioctl is overlaid on the DRM_VMW_UNREF_DMABUF Ioctl.
- * The ioctl arguments therefore need to be identical in layout.
- *
+ * Note that this ioctl is overlaid on the deprecated DRM_VMW_UNREF_DMABUF
+ * Ioctl.
  */
 
 /**
@@ -1119,7 +1116,125 @@ struct drm_vmw_handle_close_arg {
 	__u32 handle;
 	__u32 pad64;
 };
+#define drm_vmw_unref_dmabuf_arg drm_vmw_handle_close_arg
 
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_CREATE_EXT - Create a host guest-backed surface.
+ *
+ * Allocates a surface handle and queues a create surface command
+ * for the host on the first use of the surface. The surface ID can
+ * be used as the surface ID in commands referencing the surface.
+ *
+ * This new command extends DRM_VMW_GB_SURFACE_CREATE by adding version
+ * parameter and 64 bit svga flag.
+ */
+
+/**
+ * enum drm_vmw_surface_version
+ *
+ * @drm_vmw_surface_gb_v1: Corresponds to current gb surface format with
+ * svga3d surface flags split into 2, upper half and lower half.
+ */
+enum drm_vmw_surface_version {
+	drm_vmw_gb_surface_v1,
+};
+
+/**
+ * struct drm_vmw_gb_surface_create_ext_req
+ *
+ * @base: Surface create parameters.
+ * @version: Version of surface create ioctl.
+ * @svga3d_flags_upper_32_bits: Upper 32 bits of svga3d flags.
+ * @multisample_pattern: Multisampling pattern when msaa is supported.
+ * @quality_level: Precision settings for each sample.
+ * @buffer_byte_stride: Buffer byte stride.
+ * @must_be_zero: Reserved for future usage.
+ *
+ * Input argument to the  DRM_VMW_GB_SURFACE_CREATE_EXT Ioctl.
+ * Part of output argument for the DRM_VMW_GB_SURFACE_REF_EXT Ioctl.
+ */
+struct drm_vmw_gb_surface_create_ext_req {
+	struct drm_vmw_gb_surface_create_req base;
+	enum drm_vmw_surface_version version;
+	__u32 svga3d_flags_upper_32_bits;
+	__u32 multisample_pattern;
+	__u32 quality_level;
+	__u32 buffer_byte_stride;
+	__u32 must_be_zero;
+};
+
+/**
+ * union drm_vmw_gb_surface_create_ext_arg
+ *
+ * @req: Input argument as described above.
+ * @rep: Output argument as described above.
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ */
+union drm_vmw_gb_surface_create_ext_arg {
+	struct drm_vmw_gb_surface_create_rep rep;
+	struct drm_vmw_gb_surface_create_ext_req req;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_REF_EXT - Reference a host surface.
+ *
+ * Puts a reference on a host surface with a given handle, as previously
+ * returned by the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ * A reference will make sure the surface isn't destroyed while we hold
+ * it and will allow the calling client to use the surface handle in
+ * the command stream.
+ *
+ * On successful return, the Ioctl returns the surface information given
+ * to and returned from the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ */
+
+/**
+ * struct drm_vmw_gb_surface_ref_ext_rep
+ *
+ * @creq: The data used as input when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_ext_req"
+ * @crep: Additional data output when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_rep"
+ *
+ * Output Argument to the DRM_VMW_GB_SURFACE_REF_EXT ioctl.
+ */
+struct drm_vmw_gb_surface_ref_ext_rep {
+	struct drm_vmw_gb_surface_create_ext_req creq;
+	struct drm_vmw_gb_surface_create_rep crep;
+};
+
+/**
+ * union drm_vmw_gb_surface_reference_ext_arg
+ *
+ * @req: Input data as described above at "struct drm_vmw_surface_arg"
+ * @rep: Output data as described above at
+ *       "struct drm_vmw_gb_surface_ref_ext_rep"
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_REF Ioctl.
+ */
+union drm_vmw_gb_surface_reference_ext_arg {
+	struct drm_vmw_gb_surface_ref_ext_rep rep;
+	struct drm_vmw_surface_arg req;
+};
+
+/**
+ * struct drm_vmw_msg_arg
+ *
+ * @send: Pointer to user-space msg string (null terminated).
+ * @receive: Pointer to user-space receive buffer.
+ * @send_only: Boolean whether this is only sending or receiving too.
+ *
+ * Argument to the DRM_VMW_MSG ioctl.
+ */
+struct drm_vmw_msg_arg {
+	__u64 send;
+	__u64 receive;
+	__s32 send_only;
+	__u32 receive_len;
+};
 
 #if defined(__cplusplus)
 }

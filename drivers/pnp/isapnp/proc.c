@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ISA Plug & Play support
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -47,7 +34,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 		nbytes = size - pos;
 	cnt = nbytes;
 
-	if (!access_ok(VERIFY_WRITE, buf, cnt))
+	if (!access_ok(buf, cnt))
 		return -EINVAL;
 
 	isapnp_cfg_begin(dev->card->number, dev->number);
@@ -62,10 +49,9 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 	return nbytes;
 }
 
-static const struct file_operations isapnp_proc_bus_file_operations = {
-	.owner	= THIS_MODULE,
-	.llseek = isapnp_proc_bus_lseek,
-	.read = isapnp_proc_bus_read,
+static const struct proc_ops isapnp_proc_bus_proc_ops = {
+	.proc_lseek	= isapnp_proc_bus_lseek,
+	.proc_read	= isapnp_proc_bus_read,
 };
 
 static int isapnp_proc_attach_device(struct pnp_dev *dev)
@@ -82,7 +68,7 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 	}
 	sprintf(name, "%02x", dev->number);
 	e = dev->procent = proc_create_data(name, S_IFREG | S_IRUGO, de,
-			&isapnp_proc_bus_file_operations, dev);
+					    &isapnp_proc_bus_proc_ops, dev);
 	if (!e)
 		return -ENOMEM;
 	proc_set_size(e, 256);

@@ -81,74 +81,79 @@
 
 &nand {
 	/* AMD/Spansion S34ML02G2 256MiB, OEM Layout */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-	partition@0 {
-		label = "u-boot";
-		reg = <0x0000000 0x200000>;  /* 2MiB */
-		read-only;
-	};
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0000000 0x200000>;  /* 2MiB */
+			read-only;
+		};
 
-	partition@200000 {
-		label = "u_env";
-		reg = <0x200000 0x20000>;    /* 128KiB */
-	};
+		partition@200000 {
+			label = "u_env";
+			reg = <0x200000 0x20000>;    /* 128KiB */
+		};
 
-	partition@220000 {
-		label = "s_env";
-		reg = <0x220000 0x40000>;    /* 256KiB */
-	};
+		partition@220000 {
+			label = "s_env";
+			reg = <0x220000 0x40000>;    /* 256KiB */
+		};
 
-	partition@7e0000 {
-		label = "devinfo";
-		reg = <0x7e0000 0x40000>;   /* 256KiB */
-		read-only;
-	};
+		partition@7e0000 {
+			label = "devinfo";
+			reg = <0x7e0000 0x40000>;   /* 256KiB */
+			read-only;
+		};
 
-	partition@820000 {
-		label = "sysdiag";
-		reg = <0x820000 0x1e0000>;   /* 1920KiB */
-		read-only;
-	};
+		partition@820000 {
+			label = "sysdiag";
+			reg = <0x820000 0x1e0000>;   /* 1920KiB */
+			read-only;
+		};
 
-	/* kernel1 overlaps with rootfs1 by design */
-	partition@a00000 {
-		label = "kernel1";
-		reg = <0xa00000 0x5000000>;  /* 80MiB */
-	};
+		/* kernel1 overlaps with rootfs1 by design */
+		partition@a00000 {
+			label = "kernel1";
+			reg = <0xa00000 0x5000000>;  /* 80MiB */
+		};
 
-	partition@1000000 {
-		label = "rootfs1";
-		reg = <0x1000000 0x4a00000>;  /* 74MiB */
-	};
+		partition@1000000 {
+			label = "rootfs1";
+			reg = <0x1000000 0x4a00000>;  /* 74MiB */
+		};
 
-	/* kernel2 overlaps with rootfs2 by design */
-	partition@5a00000 {
-		label = "kernel2";
-		reg = <0x5a00000 0x5000000>; /* 80MiB */
-	};
+		/* kernel2 overlaps with rootfs2 by design */
+		partition@5a00000 {
+			label = "kernel2";
+			reg = <0x5a00000 0x5000000>; /* 80MiB */
+		};
 
-	partition@6000000 {
-		label = "rootfs2";
-		reg = <0x6000000 0x4a00000>; /* 74MiB */
-	};
+		partition@6000000 {
+			label = "rootfs2";
+			reg = <0x6000000 0x4a00000>; /* 74MiB */
+		};
 
-	/*
-	 * 86MiB, last MiB is for the BBT, not writable
-	 */
-	partition@aa00000 {
-		label = "syscfg";
-		reg = <0xaa00000 0x5600000>;
-	};
+		/*
+		 * 86MiB, last MiB is for the BBT, not writable
+		 */
+		partition@aa00000 {
+			label = "syscfg";
+			reg = <0xaa00000 0x5600000>;
+		};
 
-	/*
-	 * Unused area between "s_env" and "devinfo".
-	 * Moved here because otherwise the renumbered
-	 * partitions would break the bootloader
-	 * supplied bootargs
-	 */
-	partition@180000 {
-		label = "unused_area";
-		reg = <0x260000 0x5c0000>;   /* 5.75MiB */
+		/*
+		 * Unused area between "s_env" and "devinfo".
+		 * Moved here because otherwise the renumbered
+		 * partitions would break the bootloader
+		 * supplied bootargs
+		 */
+		partition@180000 {
+			label = "unused_area";
+			reg = <0x260000 0x5c0000>;   /* 5.75MiB */
+		};
 	};
 };
 

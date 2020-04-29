@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* sun4v_mcd.S: Sun4v memory corruption detected precise exception handler
  *
  * Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
  * Authors: Bob Picco <bob.picco@oracle.com>,
  *          Khalid Aziz <khalid.aziz@oracle.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 	.text
 	.align 32

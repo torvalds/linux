@@ -388,7 +388,7 @@ static void gic_all_vpes_irq_cpu_online(struct irq_data *d)
 	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	cd = irq_data_get_irq_chip_data(d);
 
-	write_gic_vl_map(intr, cd->map);
+	write_gic_vl_map(mips_gic_vx_map_reg(intr), cd->map);
 	if (cd->mask)
 		write_gic_vl_smask(BIT(intr));
 }
@@ -517,7 +517,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	spin_lock_irqsave(&gic_lock, flags);
 	for_each_online_cpu(cpu) {
 		write_gic_vl_other(mips_cm_vp_id(cpu));
-		write_gic_vo_map(intr, map);
+		write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
@@ -716,7 +716,7 @@ static int __init gic_of_init(struct device_node *node,
 		__sync();
 	}
 
-	mips_gic_base = ioremap_nocache(gic_base, gic_len);
+	mips_gic_base = ioremap(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
 	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;

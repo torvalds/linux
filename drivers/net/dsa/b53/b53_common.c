@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/b53.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
@@ -341,9 +342,17 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
 	mgmt |= B53_MII_DUMB_FWDG_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
+
+	/* Look at B53_UC_FWD_EN and B53_MC_FWD_EN to decide whether
+	 * frames should be flooded or not.
+	 */
+	b53_read8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, &mgmt);
+	mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN | B53_IPMC_FWD_EN;
+	b53_write8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, mgmt);
 }
 
-static void b53_enable_vlan(struct b53_device *dev, bool enable)
+static void b53_enable_vlan(struct b53_device *dev, bool enable,
+			    bool enable_filtering)
 {
 	u8 mgmt, vc0, vc1, vc4 = 0, vc5;
 
@@ -362,14 +371,17 @@ static void b53_enable_vlan(struct b53_device *dev, bool enable)
 		b53_read8(dev, B53_VLAN_PAGE, B53_VLAN_CTRL5, &vc5);
 	}
 
-	mgmt &= ~SM_SW_FWD_MODE;
-
 	if (enable) {
 		vc0 |= VC0_VLAN_EN | VC0_VID_CHK_EN | VC0_VID_HASH_VID;
 		vc1 |= VC1_RX_MCST_UNTAG_EN | VC1_RX_MCST_FWD_EN;
 		vc4 &= ~VC4_ING_VID_CHECK_MASK;
-		vc4 |= VC4_ING_VID_VIO_DROP << VC4_ING_VID_CHECK_S;
-		vc5 |= VC5_DROP_VTABLE_MISS;
+		if (enable_filtering) {
+			vc4 |= VC4_ING_VID_VIO_DROP << VC4_ING_VID_CHECK_S;
+			vc5 |= VC5_DROP_VTABLE_MISS;
+		} else {
+			vc4 |= VC4_ING_VID_VIO_FWD << VC4_ING_VID_CHECK_S;
+			vc5 &= ~VC5_DROP_VTABLE_MISS;
+		}
 
 		if (is5325(dev))
 			vc0 &= ~VC0_RESERVED_1;
@@ -419,6 +431,8 @@ static void b53_enable_vlan(struct b53_device *dev, bool enable)
 	}
 
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, mgmt);
+
+	dev->vlan_enabled = enable;
 }
 
 static int b53_set_jumbo(struct b53_device *dev, bool enable, bool allow_10_100)
@@ -501,8 +515,21 @@ EXPORT_SYMBOL(b53_imp_vlan_setup);
 int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
-	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
+	unsigned int cpu_port;
+	int ret = 0;
 	u16 pvlan;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
+
+	b53_br_egress_floods(ds, port, true, true);
+
+	if (dev->ops->irq_enable)
+		ret = dev->ops->irq_enable(dev, port);
+	if (ret)
+		return ret;
 
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), 0);
@@ -527,7 +554,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 }
 EXPORT_SYMBOL(b53_enable_port);
 
-void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
+void b53_disable_port(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 	u8 reg;
@@ -536,14 +563,16 @@ void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+
+	if (dev->ops->irq_disable)
+		dev->ops->irq_disable(dev, port);
 }
 EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	bool tag_en = !(ds->ops->get_tag_protocol(ds, port) ==
-			 DSA_TAG_PROTO_NONE);
 	struct b53_device *dev = ds->priv;
+	bool tag_en = !(dev->tag_protocol == DSA_TAG_PROTO_NONE);
 	u8 hdr_ctl, val;
 	u16 reg;
 
@@ -562,6 +591,22 @@ void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 		val = 0;
 		break;
 	}
+
+	/* Enable management mode if tagging is requested */
+	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &hdr_ctl);
+	if (tag_en)
+		hdr_ctl |= SM_SW_FWD_MODE;
+	else
+		hdr_ctl &= ~SM_SW_FWD_MODE;
+	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, hdr_ctl);
+
+	/* Configure the appropriate IMP port */
+	b53_read8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, &hdr_ctl);
+	if (port == 8)
+		hdr_ctl |= GC_FRM_MGMT_PORT_MII;
+	else if (port == 5)
+		hdr_ctl |= GC_FRM_MGMT_PORT_M;
+	b53_write8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, hdr_ctl);
 
 	/* Enable Broadcom tags for IMP port */
 	b53_read8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, &hdr_ctl);
@@ -611,6 +656,8 @@ static void b53_enable_cpu_port(struct b53_device *dev, int port)
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
 
 	b53_brcm_hdr_setup(dev->ds, port);
+
+	b53_br_egress_floods(dev->ds, port, true, true);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -622,28 +669,50 @@ static void b53_enable_mib(struct b53_device *dev)
 	b53_write8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, gc);
 }
 
+static u16 b53_default_pvid(struct b53_device *dev)
+{
+	if (is5325(dev) || is5365(dev))
+		return 1;
+	else
+		return 0;
+}
+
 int b53_configure_vlan(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan vl = { 0 };
-	int i;
+	struct b53_vlan *v;
+	int i, def_vid;
+	u16 vid;
+
+	def_vid = b53_default_pvid(dev);
 
 	/* clear all vlan entries */
 	if (is5325(dev) || is5365(dev)) {
-		for (i = 1; i < dev->num_vlans; i++)
+		for (i = def_vid; i < dev->num_vlans; i++)
 			b53_set_vlan_entry(dev, i, &vl);
 	} else {
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
 	}
 
-	b53_enable_vlan(dev, false);
+	b53_enable_vlan(dev, dev->vlan_enabled, ds->vlan_filtering);
 
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
-			    B53_VLAN_PORT_DEF_TAG(i), 1);
+			    B53_VLAN_PORT_DEF_TAG(i), def_vid);
 
-	if (!is5325(dev) && !is5365(dev))
-		b53_set_jumbo(dev, dev->enable_jumbo, false);
+	/* Upon initial call we have not set-up any VLANs, but upon
+	 * system resume, we need to restore all VLAN entries.
+	 */
+	for (vid = def_vid; vid < dev->num_vlans; vid++) {
+		v = &dev->vlans[vid];
+
+		if (!v->members)
+			continue;
+
+		b53_set_vlan_entry(dev, vid, v);
+		b53_fast_age_vlan(dev, vid);
+	}
 
 	return 0;
 }
@@ -684,7 +753,8 @@ static int b53_switch_reset(struct b53_device *dev)
 	 * still use this driver as a library and need to perform the reset
 	 * earlier.
 	 */
-	if (dev->chip_id == BCM58XX_DEVICE_ID) {
+	if (dev->chip_id == BCM58XX_DEVICE_ID ||
+	    dev->chip_id == BCM583XX_DEVICE_ID) {
 		b53_read8(dev, B53_CTRL_PAGE, B53_SOFTRESET, &reg);
 		reg |= SW_RST | EN_SW_RST | EN_CH_RST;
 		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, reg);
@@ -749,10 +819,10 @@ static int b53_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 static int b53_reset_switch(struct b53_device *priv)
 {
 	/* reset vlans */
-	priv->enable_jumbo = false;
-
 	memset(priv->vlans, 0, sizeof(*priv->vlans) * priv->num_vlans);
 	memset(priv->ports, 0, sizeof(*priv->ports) * priv->num_ports);
+
+	priv->serdes_lane = B53_INVALID_LANE;
 
 	return b53_switch_reset(priv);
 }
@@ -806,16 +876,39 @@ static unsigned int b53_get_mib_size(struct b53_device *dev)
 		return B53_MIBS_SIZE;
 }
 
-void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static struct phy_device *b53_get_phy_device(struct dsa_switch *ds, int port)
+{
+	/* These ports typically do not have built-in PHYs */
+	switch (port) {
+	case B53_CPU_PORT_25:
+	case 7:
+	case B53_CPU_PORT:
+		return NULL;
+	}
+
+	return mdiobus_get_phy(ds->slave_mii_bus, port);
+}
+
+void b53_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+		     uint8_t *data)
 {
 	struct b53_device *dev = ds->priv;
 	const struct b53_mib_desc *mibs = b53_get_mib(dev);
 	unsigned int mib_size = b53_get_mib_size(dev);
+	struct phy_device *phydev;
 	unsigned int i;
 
-	for (i = 0; i < mib_size; i++)
-		strlcpy(data + i * ETH_GSTRING_LEN,
-			mibs[i].name, ETH_GSTRING_LEN);
+	if (stringset == ETH_SS_STATS) {
+		for (i = 0; i < mib_size; i++)
+			strlcpy(data + i * ETH_GSTRING_LEN,
+				mibs[i].name, ETH_GSTRING_LEN);
+	} else if (stringset == ETH_SS_PHY_STATS) {
+		phydev = b53_get_phy_device(ds, port);
+		if (!phydev)
+			return;
+
+		phy_ethtool_get_strings(phydev, data);
+	}
 }
 EXPORT_SYMBOL(b53_get_strings);
 
@@ -852,11 +945,34 @@ void b53_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
 }
 EXPORT_SYMBOL(b53_get_ethtool_stats);
 
-int b53_get_sset_count(struct dsa_switch *ds, int port)
+void b53_get_ethtool_phy_stats(struct dsa_switch *ds, int port, uint64_t *data)
+{
+	struct phy_device *phydev;
+
+	phydev = b53_get_phy_device(ds, port);
+	if (!phydev)
+		return;
+
+	phy_ethtool_get_stats(phydev, NULL, data);
+}
+EXPORT_SYMBOL(b53_get_ethtool_phy_stats);
+
+int b53_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	struct b53_device *dev = ds->priv;
+	struct phy_device *phydev;
 
-	return b53_get_mib_size(dev);
+	if (sset == ETH_SS_STATS) {
+		return b53_get_mib_size(dev);
+	} else if (sset == ETH_SS_PHY_STATS) {
+		phydev = b53_get_phy_device(ds, port);
+		if (!phydev)
+			return 0;
+
+		return phy_ethtool_get_sset_count(phydev);
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(b53_get_sset_count);
 
@@ -878,46 +994,70 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(ds->dev, "failed to apply configuration\n");
 
-	/* Configure IMP/CPU port, disable unused ports. Enabled
+	/* Configure IMP/CPU port, disable all other ports. Enabled
 	 * ports will be configured with .port_enable
 	 */
 	for (port = 0; port < dev->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			b53_enable_cpu_port(dev, port);
-		else if (dsa_is_unused_port(ds, port))
-			b53_disable_port(ds, port, NULL);
+		else
+			b53_disable_port(ds, port);
 	}
+
+	/* Let DSA handle the case were multiple bridges span the same switch
+	 * device and different VLAN awareness settings are requested, which
+	 * would be breaking filtering semantics for any of the other bridge
+	 * devices. (not hardware supported)
+	 */
+	ds->vlan_filtering_is_global = true;
 
 	return ret;
 }
 
-static void b53_adjust_link(struct dsa_switch *ds, int port,
-			    struct phy_device *phydev)
+static void b53_force_link(struct b53_device *dev, int port, int link)
 {
-	struct b53_device *dev = ds->priv;
-	struct ethtool_eee *p = &dev->ports[port].eee;
-	u8 rgmii_ctrl = 0, reg = 0, off;
-
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
+	u8 reg, val, off;
 
 	/* Override the port settings */
 	if (port == dev->cpu_port) {
 		off = B53_PORT_OVERRIDE_CTRL;
-		reg = PORT_OVERRIDE_EN;
+		val = PORT_OVERRIDE_EN;
 	} else {
 		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
-		reg = GMII_PO_EN;
+		val = GMII_PO_EN;
 	}
 
-	/* Set the link UP */
-	if (phydev->link)
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (link)
 		reg |= PORT_OVERRIDE_LINK;
+	else
+		reg &= ~PORT_OVERRIDE_LINK;
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
 
-	if (phydev->duplex == DUPLEX_FULL)
+static void b53_force_port_config(struct b53_device *dev, int port,
+				  int speed, int duplex, int pause)
+{
+	u8 reg, val, off;
+
+	/* Override the port settings */
+	if (port == dev->cpu_port) {
+		off = B53_PORT_OVERRIDE_CTRL;
+		val = PORT_OVERRIDE_EN;
+	} else {
+		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
+		val = GMII_PO_EN;
+	}
+
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (duplex == DUPLEX_FULL)
 		reg |= PORT_OVERRIDE_FULL_DUPLEX;
+	else
+		reg &= ~PORT_OVERRIDE_FULL_DUPLEX;
 
-	switch (phydev->speed) {
+	switch (speed) {
 	case 2000:
 		reg |= PORT_OVERRIDE_SPEED_2000M;
 		/* fallthrough */
@@ -931,21 +1071,41 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		reg |= PORT_OVERRIDE_SPEED_10M;
 		break;
 	default:
-		dev_err(ds->dev, "unknown speed: %d\n", phydev->speed);
+		dev_err(dev->dev, "unknown speed: %d\n", speed);
 		return;
 	}
 
+	if (pause & MLO_PAUSE_RX)
+		reg |= PORT_OVERRIDE_RX_FLOW;
+	if (pause & MLO_PAUSE_TX)
+		reg |= PORT_OVERRIDE_TX_FLOW;
+
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
+
+static void b53_adjust_link(struct dsa_switch *ds, int port,
+			    struct phy_device *phydev)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+	u8 rgmii_ctrl = 0, reg = 0, off;
+	int pause = 0;
+
+	if (!phy_is_pseudo_fixed_link(phydev))
+		return;
+
 	/* Enable flow control on BCM5301x's CPU port */
 	if (is5301x(dev) && port == dev->cpu_port)
-		reg |= PORT_OVERRIDE_RX_FLOW | PORT_OVERRIDE_TX_FLOW;
+		pause = MLO_PAUSE_TXRX_MASK;
 
 	if (phydev->pause) {
 		if (phydev->asym_pause)
-			reg |= PORT_OVERRIDE_TX_FLOW;
-		reg |= PORT_OVERRIDE_RX_FLOW;
+			pause |= MLO_PAUSE_TX;
+		pause |= MLO_PAUSE_RX;
 	}
 
-	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+	b53_force_port_config(dev, port, phydev->speed, phydev->duplex, pause);
+	b53_force_link(dev, port, phydev->link);
 
 	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
 		if (port == 8)
@@ -1005,16 +1165,9 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		}
 	} else if (is5301x(dev)) {
 		if (port != dev->cpu_port) {
-			u8 po_reg = B53_GMII_PORT_OVERRIDE_CTRL(dev->cpu_port);
-			u8 gmii_po;
-
-			b53_read8(dev, B53_CTRL_PAGE, po_reg, &gmii_po);
-			gmii_po |= GMII_PO_LINK |
-				   GMII_PO_RX_FLOW |
-				   GMII_PO_TX_FLOW |
-				   GMII_PO_EN |
-				   GMII_PO_SPEED_2000M;
-			b53_write8(dev, B53_CTRL_PAGE, po_reg, gmii_po);
+			b53_force_port_config(dev, dev->cpu_port, 2000,
+					      DUPLEX_FULL, MLO_PAUSE_TXRX_MASK);
+			b53_force_link(dev, dev->cpu_port, 1);
 		}
 	}
 
@@ -1022,8 +1175,174 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 	p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
+void b53_port_event(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	bool link;
+	u16 sts;
+
+	b53_read16(dev, B53_STAT_PAGE, B53_LINK_STAT, &sts);
+	link = !!(sts & BIT(port));
+	dsa_port_phylink_mac_change(ds, port, link);
+}
+EXPORT_SYMBOL(b53_port_event);
+
+void b53_phylink_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (dev->ops->serdes_phylink_validate)
+		dev->ops->serdes_phylink_validate(dev, port, mask, state);
+
+	/* Allow all the expected bits */
+	phylink_set(mask, Autoneg);
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+
+	/* With the exclusion of 5325/5365, MII, Reverse MII and 802.3z, we
+	 * support Gigabit, including Half duplex.
+	 */
+	if (state->interface != PHY_INTERFACE_MODE_MII &&
+	    state->interface != PHY_INTERFACE_MODE_REVMII &&
+	    !phy_interface_mode_is_8023z(state->interface) &&
+	    !(is5325(dev) || is5365(dev))) {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseT_Half);
+	}
+
+	if (!phy_interface_mode_is_8023z(state->interface)) {
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	phylink_helper_basex_speed(state);
+}
+EXPORT_SYMBOL(b53_phylink_validate);
+
+int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			       struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+	int ret = -EOPNOTSUPP;
+
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_link_state)
+		ret = dev->ops->serdes_link_state(dev, port, state);
+
+	return ret;
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_state);
+
+void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+			    unsigned int mode,
+			    const struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_port_config(dev, port, state->speed,
+				      state->duplex, state->pause);
+		return;
+	}
+
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_config)
+		dev->ops->serdes_config(dev, port, mode, state);
+}
+EXPORT_SYMBOL(b53_phylink_mac_config);
+
+void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (dev->ops->serdes_an_restart)
+		dev->ops->serdes_an_restart(dev, port);
+}
+EXPORT_SYMBOL(b53_phylink_mac_an_restart);
+
+void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_link(dev, port, false);
+		return;
+	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, false);
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_down);
+
+void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+			     unsigned int mode,
+			     phy_interface_t interface,
+			     struct phy_device *phydev,
+			     int speed, int duplex,
+			     bool tx_pause, bool rx_pause)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_link(dev, port, true);
+		return;
+	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, true);
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_up);
+
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 {
+	struct b53_device *dev = ds->priv;
+	u16 pvid, new_pvid;
+
+	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
+	new_pvid = pvid;
+	if (!vlan_filtering) {
+		/* Filtering is currently enabled, use the default PVID since
+		 * the bridge does not expect tagging anymore
+		 */
+		dev->ports[port].pvid = pvid;
+		new_pvid = b53_default_pvid(dev);
+	} else {
+		/* Filtering is currently disabled, restore the previous PVID */
+		new_pvid = dev->ports[port].pvid;
+	}
+
+	if (pvid != new_pvid)
+		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port),
+			    new_pvid);
+
+	b53_enable_vlan(dev, dev->vlan_enabled, vlan_filtering);
+
 	return 0;
 }
 EXPORT_SYMBOL(b53_vlan_filtering);
@@ -1036,10 +1355,18 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	if ((is5325(dev) || is5365(dev)) && vlan->vid_begin == 0)
 		return -EOPNOTSUPP;
 
+	/* Port 7 on 7278 connects to the ASP's UniMAC which is not capable of
+	 * receiving VLAN tagged frames at all, we can still allow the port to
+	 * be configured for egress untagged.
+	 */
+	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7 &&
+	    !(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED))
+		return -EINVAL;
+
 	if (vlan->vid_end > dev->num_vlans)
 		return -ERANGE;
 
-	b53_enable_vlan(dev, true);
+	b53_enable_vlan(dev, true, ds->vlan_filtering);
 
 	return 0;
 }
@@ -1059,8 +1386,11 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 
 		b53_get_vlan_entry(dev, vid, vl);
 
+		if (vid == 0 && vid == b53_default_pvid(dev))
+			untagged = true;
+
 		vl->members |= BIT(port);
-		if (untagged)
+		if (untagged && !dsa_is_cpu_port(ds, port))
 			vl->untag |= BIT(port);
 		else
 			vl->untag &= ~BIT(port);
@@ -1069,7 +1399,7 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 		b53_fast_age_vlan(dev, vid);
 	}
 
-	if (pvid) {
+	if (pvid && !dsa_is_cpu_port(ds, port)) {
 		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port),
 			    vlan->vid_end);
 		b53_fast_age_vlan(dev, vid);
@@ -1095,14 +1425,10 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 
 		vl->members &= ~BIT(port);
 
-		if (pvid == vid) {
-			if (is5325(dev) || is5365(dev))
-				pvid = 1;
-			else
-				pvid = 0;
-		}
+		if (pvid == vid)
+			pvid = b53_default_pvid(dev);
 
-		if (untagged)
+		if (untagged && !dsa_is_cpu_port(ds, port))
 			vl->untag &= ~(BIT(port));
 
 		b53_set_vlan_entry(dev, vid, vl);
@@ -1148,6 +1474,10 @@ static int b53_arl_rw_op(struct b53_device *dev, unsigned int op)
 		reg |= ARLTBL_RW;
 	else
 		reg &= ~ARLTBL_RW;
+	if (dev->vlan_enabled)
+		reg &= ~ARLTBL_IVL_SVL_SELECT;
+	else
+		reg |= ARLTBL_IVL_SVL_SELECT;
 	b53_write8(dev, B53_ARLIO_PAGE, B53_ARLTBL_RW_CTRL, reg);
 
 	return b53_arl_op_wait(dev);
@@ -1157,12 +1487,15 @@ static int b53_arl_read(struct b53_device *dev, u64 mac,
 			u16 vid, struct b53_arl_entry *ent, u8 *idx,
 			bool is_valid)
 {
+	DECLARE_BITMAP(free_bins, B53_ARLTBL_MAX_BIN_ENTRIES);
 	unsigned int i;
 	int ret;
 
 	ret = b53_arl_op_wait(dev);
 	if (ret)
 		return ret;
+
+	bitmap_zero(free_bins, dev->num_arl_entries);
 
 	/* Read the bins */
 	for (i = 0; i < dev->num_arl_entries; i++) {
@@ -1175,12 +1508,23 @@ static int b53_arl_read(struct b53_device *dev, u64 mac,
 			   B53_ARLTBL_DATA_ENTRY(i), &fwd_entry);
 		b53_arl_to_entry(ent, mac_vid, fwd_entry);
 
-		if (!(fwd_entry & ARLTBL_VALID))
+		if (!(fwd_entry & ARLTBL_VALID)) {
+			set_bit(i, free_bins);
 			continue;
+		}
 		if ((mac_vid & ARLTBL_MAC_MASK) != mac)
 			continue;
+		if (dev->vlan_enabled &&
+		    ((mac_vid >> ARLTBL_VID_S) & ARLTBL_VID_MASK) != vid)
+			continue;
 		*idx = i;
+		return 0;
 	}
+
+	if (bitmap_weight(free_bins, dev->num_arl_entries) == 0)
+		return -ENOSPC;
+
+	*idx = find_first_bit(free_bins, dev->num_arl_entries);
 
 	return -ENOENT;
 }
@@ -1211,17 +1555,41 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	if (op)
 		return ret;
 
-	/* We could not find a matching MAC, so reset to a new entry */
-	if (ret) {
+	switch (ret) {
+	case -ENOSPC:
+		dev_dbg(dev->dev, "{%pM,%.4d} no space left in ARL\n",
+			addr, vid);
+		return is_valid ? ret : 0;
+	case -ENOENT:
+		/* We could not find a matching MAC, so reset to a new entry */
+		dev_dbg(dev->dev, "{%pM,%.4d} not found, using idx: %d\n",
+			addr, vid, idx);
 		fwd_entry = 0;
-		idx = 1;
+		break;
+	default:
+		dev_dbg(dev->dev, "{%pM,%.4d} found, using idx: %d\n",
+			addr, vid, idx);
+		break;
 	}
 
-	memset(&ent, 0, sizeof(ent));
-	ent.port = port;
-	ent.is_valid = is_valid;
+	/* For multicast address, the port is a bitmask and the validity
+	 * is determined by having at least one port being still active
+	 */
+	if (!is_multicast_ether_addr(addr)) {
+		ent.port = port;
+		ent.is_valid = is_valid;
+	} else {
+		if (is_valid)
+			ent.port |= BIT(port);
+		else
+			ent.port &= ~BIT(port);
+
+		ent.is_valid = !!(ent.port);
+	}
+
 	ent.vid = vid;
 	ent.is_static = true;
+	ent.is_age = false;
 	memcpy(ent.mac, addr, ETH_ALEN);
 	b53_arl_from_entry(&mac_vid, &fwd_entry, &ent);
 
@@ -1340,12 +1708,59 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_fdb_dump);
 
+int b53_mdb_prepare(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+
+	/* 5325 and 5365 require some more massaging, but could
+	 * be supported eventually
+	 */
+	if (is5325(priv) || is5365(priv))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_mdb_prepare);
+
+void b53_mdb_add(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, true);
+	if (ret)
+		dev_err(ds->dev, "failed to add MDB entry\n");
+}
+EXPORT_SYMBOL(b53_mdb_add);
+
+int b53_mdb_del(struct dsa_switch *ds, int port,
+		const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, false);
+	if (ret)
+		dev_err(ds->dev, "failed to delete MDB entry\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(b53_mdb_del);
+
 int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	u16 pvlan, reg;
 	unsigned int i;
+
+	/* On 7278, port 7 which connects to the ASP should only receive
+	 * traffic from matching CFP rules.
+	 */
+	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7)
+		return -EINVAL;
 
 	/* Make this port leave the all VLANs join since we will have proper
 	 * VLAN entries from now on
@@ -1389,7 +1804,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan *vl = &dev->vlans[0];
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	unsigned int i;
 	u16 pvlan, reg, pvid;
 
@@ -1413,10 +1828,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 	b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), pvlan);
 	dev->ports[port].vlan_ctl_mask = pvlan;
 
-	if (is5325(dev) || is5365(dev))
-		pvid = 1;
-	else
-		pvid = 0;
+	pvid = b53_default_pvid(dev);
 
 	/* Make this port join all VLANs without VLAN entries */
 	if (is58xx(dev)) {
@@ -1477,7 +1889,39 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
-static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
+int b53_br_egress_floods(struct dsa_switch *ds, int port,
+			 bool unicast, bool multicast)
+{
+	struct b53_device *dev = ds->priv;
+	u16 uc, mc;
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, &uc);
+	if (unicast)
+		uc |= BIT(port);
+	else
+		uc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, uc);
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, &mc);
+	if (multicast)
+		mc |= BIT(port);
+	else
+		mc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, mc);
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, &mc);
+	if (multicast)
+		mc |= BIT(port);
+	else
+		mc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, mc);
+
+	return 0;
+
+}
+EXPORT_SYMBOL(b53_br_egress_floods);
+
+static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
 	/* Broadcom switches will accept enabling Broadcom tags on the
 	 * following ports: 5, 7 and 8, any other port is not supported
@@ -1489,30 +1933,60 @@ static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 		return true;
 	}
 
-	dev_warn(ds->dev, "Port %d is not Broadcom tag capable\n", port);
 	return false;
 }
 
-enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
+static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port,
+				     enum dsa_tag_protocol tag_protocol)
+{
+	bool ret = b53_possible_cpu_port(ds, port);
+
+	if (!ret) {
+		dev_warn(ds->dev, "Port %d is not Broadcom tag capable\n",
+			 port);
+		return ret;
+	}
+
+	switch (tag_protocol) {
+	case DSA_TAG_PROTO_BRCM:
+	case DSA_TAG_PROTO_BRCM_PREPEND:
+		dev_warn(ds->dev,
+			 "Port %d is stacked to Broadcom tag switch\n", port);
+		ret = false;
+		break;
+	default:
+		ret = true;
+		break;
+	}
+
+	return ret;
+}
+
+enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port,
+					   enum dsa_tag_protocol mprot)
 {
 	struct b53_device *dev = ds->priv;
 
 	/* Older models (5325, 5365) support a different tag format that we do
-	 * not support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
-	 * mode to be turned on which means we need to specifically manage ARL
-	 * misses on multicast addresses (TBD).
+	 * not support in net/dsa/tag_brcm.c yet.
 	 */
-	if (is5325(dev) || is5365(dev) || is539x(dev) || is531x5(dev) ||
-	    !b53_can_enable_brcm_tags(ds, port))
-		return DSA_TAG_PROTO_NONE;
+	if (is5325(dev) || is5365(dev) ||
+	    !b53_can_enable_brcm_tags(ds, port, mprot)) {
+		dev->tag_protocol = DSA_TAG_PROTO_NONE;
+		goto out;
+	}
 
 	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
 	 * which requires us to use the prepended Broadcom tag type
 	 */
-	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT)
-		return DSA_TAG_PROTO_BRCM_PREPEND;
+	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT) {
+		dev->tag_protocol = DSA_TAG_PROTO_BRCM_PREPEND;
+		goto out;
+	}
 
-	return DSA_TAG_PROTO_BRCM;
+	dev->tag_protocol = DSA_TAG_PROTO_BRCM;
+out:
+	return dev->tag_protocol;
 }
 EXPORT_SYMBOL(b53_get_tag_protocol);
 
@@ -1528,7 +2002,6 @@ int b53_mirror_add(struct dsa_switch *ds, int port,
 		loc = B53_EG_MIR_CTL;
 
 	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
-	reg &= ~MIRROR_MASK;
 	reg |= BIT(port);
 	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
 
@@ -1644,15 +2117,42 @@ int b53_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
 }
 EXPORT_SYMBOL(b53_set_mac_eee);
 
+static int b53_change_mtu(struct dsa_switch *ds, int port, int mtu)
+{
+	struct b53_device *dev = ds->priv;
+	bool enable_jumbo;
+	bool allow_10_100;
+
+	if (is5325(dev) || is5365(dev))
+		return -EOPNOTSUPP;
+
+	enable_jumbo = (mtu >= JMS_MIN_SIZE);
+	allow_10_100 = (dev->chip_id == BCM583XX_DEVICE_ID);
+
+	return b53_set_jumbo(dev, enable_jumbo, allow_10_100);
+}
+
+static int b53_get_max_mtu(struct dsa_switch *ds, int port)
+{
+	return JMS_MAX_SIZE;
+}
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
 	.get_strings		= b53_get_strings,
 	.get_ethtool_stats	= b53_get_ethtool_stats,
 	.get_sset_count		= b53_get_sset_count,
+	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
 	.adjust_link		= b53_adjust_link,
+	.phylink_validate	= b53_phylink_validate,
+	.phylink_mac_link_state	= b53_phylink_mac_link_state,
+	.phylink_mac_config	= b53_phylink_mac_config,
+	.phylink_mac_an_restart	= b53_phylink_mac_an_restart,
+	.phylink_mac_link_down	= b53_phylink_mac_link_down,
+	.phylink_mac_link_up	= b53_phylink_mac_link_up,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
 	.get_mac_eee		= b53_get_mac_eee,
@@ -1661,6 +2161,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
+	.port_egress_floods	= b53_br_egress_floods,
 	.port_vlan_filtering	= b53_vlan_filtering,
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
@@ -1670,6 +2171,11 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_fdb_del		= b53_fdb_del,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
+	.port_mdb_prepare	= b53_mdb_prepare,
+	.port_mdb_add		= b53_mdb_add,
+	.port_mdb_del		= b53_mdb_del,
+	.port_max_mtu		= b53_get_max_mtu,
+	.port_change_mtu	= b53_change_mtu,
 };
 
 struct b53_chip_data {
@@ -1710,6 +2216,18 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.arl_entries = 2,
 		.cpu_port = B53_CPU_PORT_25,
 		.duplex_reg = B53_DUPLEX_STAT_FE,
+	},
+	{
+		.chip_id = BCM5389_DEVICE_ID,
+		.dev_name = "BCM5389",
+		.vlans = 4096,
+		.enabled_ports = 0x1f,
+		.arl_entries = 4,
+		.cpu_port = B53_CPU_PORT,
+		.vta_regs = B53_VTA_REGS,
+		.duplex_reg = B53_DUPLEX_STAT_GE,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
 	},
 	{
 		.chip_id = BCM5395_DEVICE_ID,
@@ -1868,6 +2386,18 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
 	},
 	{
+		.chip_id = BCM583XX_DEVICE_ID,
+		.dev_name = "BCM583xx/11360",
+		.vlans = 4096,
+		.enabled_ports = 0x103,
+		.arl_entries = 4,
+		.cpu_port = B53_CPU_PORT,
+		.vta_regs = B53_VTA_REGS,
+		.duplex_reg = B53_DUPLEX_STAT_GE,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
+	},
+	{
 		.chip_id = BCM7445_DEVICE_ID,
 		.dev_name = "BCM7445",
 		.vlans	= 4096,
@@ -1954,14 +2484,23 @@ static int b53_switch_init(struct b53_device *dev)
 	dev->num_ports = dev->cpu_port + 1;
 	dev->enabled_ports |= BIT(dev->cpu_port);
 
-	dev->ports = devm_kzalloc(dev->dev,
-				  sizeof(struct b53_port) * dev->num_ports,
+	/* Include non standard CPU port built-in PHYs to be probed */
+	if (is539x(dev) || is531x5(dev)) {
+		for (i = 0; i < dev->num_ports; i++) {
+			if (!(dev->ds->phys_mii_mask & BIT(i)) &&
+			    !b53_possible_cpu_port(dev->ds, i))
+				dev->ds->phys_mii_mask |= BIT(i);
+		}
+	}
+
+	dev->ports = devm_kcalloc(dev->dev,
+				  dev->num_ports, sizeof(struct b53_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
 
-	dev->vlans = devm_kzalloc(dev->dev,
-				  sizeof(struct b53_vlan) * dev->num_vlans,
+	dev->vlans = devm_kcalloc(dev->dev,
+				  dev->num_vlans, sizeof(struct b53_vlan),
 				  GFP_KERNEL);
 	if (!dev->vlans)
 		return -ENOMEM;
@@ -1984,9 +2523,12 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	struct dsa_switch *ds;
 	struct b53_device *dev;
 
-	ds = dsa_switch_alloc(base, DSA_MAX_PORTS);
+	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return NULL;
+
+	ds->dev = base;
+	ds->num_ports = DSA_MAX_PORTS;
 
 	dev = devm_kzalloc(base, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -2034,6 +2576,7 @@ int b53_switch_detect(struct b53_device *dev)
 		else
 			dev->chip_id = BCM5365_DEVICE_ID;
 		break;
+	case BCM5389_DEVICE_ID:
 	case BCM5395_DEVICE_ID:
 	case BCM5397_DEVICE_ID:
 	case BCM5398_DEVICE_ID:

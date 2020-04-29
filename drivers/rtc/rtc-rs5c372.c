@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for Ricoh RS5C372, R2025S/D and RV5C38[67] RTCs
  *
  * Copyright (C) 2005 Pavel Mironchik <pmironchik@optifacio.net>
  * Copyright (C) 2006 Tower Technologies
  * Copyright (C) 2008 Paul Mundt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -52,8 +49,10 @@
 #	define RS5C_CTRL1_CT4		(4 << 0)	/* 1 Hz level irq */
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
-#	define R2025_CTRL2_XST		(1 << 5)
-#	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2025S/D */
+#	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2x2x */
+#	define R2x2x_CTRL2_VDET		(1 << 6)	/* only if  R2x2x */
+#	define R2x2x_CTRL2_XSTP		(1 << 5)	/* only if  R2x2x */
+#	define R2x2x_CTRL2_PON		(1 << 4)	/* only if  R2x2x */
 #	define RS5C_CTRL2_CTFG		(1 << 2)
 #	define RS5C_CTRL2_AAFG		(1 << 1)	/* or WAFG */
 #	define RS5C_CTRL2_BAFG		(1 << 0)	/* or DAFG */
@@ -207,13 +206,31 @@ static unsigned rs5c_hr2reg(struct rs5c372 *rs5c, unsigned hour)
 	return bin2bcd(hour);
 }
 
-static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rs5c372_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rs5c372	*rs5c = i2c_get_clientdata(client);
 	int		status = rs5c_get_regs(rs5c);
+	unsigned char ctrl2 = rs5c->regs[RS5C_REG_CTRL2];
 
 	if (status < 0)
 		return status;
+
+	switch (rs5c->type) {
+	case rtc_r2025sd:
+	case rtc_r2221tl:
+		if ((rs5c->type == rtc_r2025sd && !(ctrl2 & R2x2x_CTRL2_XSTP)) ||
+		    (rs5c->type == rtc_r2221tl &&  (ctrl2 & R2x2x_CTRL2_XSTP))) {
+			dev_warn(&client->dev, "rtc oscillator interruption detected. Please reset the rtc clock.\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		if (ctrl2 & RS5C_CTRL2_XSTP) {
+			dev_warn(&client->dev, "rtc oscillator interruption detected. Please reset the rtc clock.\n");
+			return -EINVAL;
+		}
+	}
 
 	tm->tm_sec = bcd2bin(rs5c->regs[RS5C372_REG_SECS] & 0x7f);
 	tm->tm_min = bcd2bin(rs5c->regs[RS5C372_REG_MINS] & 0x7f);
@@ -234,14 +251,15 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* rtc might need initialization */
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
-static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rs5c372_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rs5c372	*rs5c = i2c_get_clientdata(client);
 	unsigned char	buf[7];
+	unsigned char	ctrl2;
 	int		addr;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d "
@@ -260,7 +278,32 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[6] = bin2bcd(tm->tm_year - 100);
 
 	if (i2c_smbus_write_i2c_block_data(client, addr, sizeof(buf), buf) < 0) {
-		dev_err(&client->dev, "%s: write error\n", __func__);
+		dev_dbg(&client->dev, "%s: write error in line %i\n",
+			__func__, __LINE__);
+		return -EIO;
+	}
+
+	addr = RS5C_ADDR(RS5C_REG_CTRL2);
+	ctrl2 = i2c_smbus_read_byte_data(client, addr);
+
+	/* clear rtc warning bits */
+	switch (rs5c->type) {
+	case rtc_r2025sd:
+	case rtc_r2221tl:
+		ctrl2 &= ~(R2x2x_CTRL2_VDET | R2x2x_CTRL2_PON);
+		if (rs5c->type == rtc_r2025sd)
+			ctrl2 |= R2x2x_CTRL2_XSTP;
+		else
+			ctrl2 &= ~R2x2x_CTRL2_XSTP;
+		break;
+	default:
+		ctrl2 &= ~RS5C_CTRL2_XSTP;
+		break;
+	}
+
+	if (i2c_smbus_write_byte_data(client, addr, ctrl2) < 0) {
+		dev_dbg(&client->dev, "%s: write error in line %i\n",
+			__func__, __LINE__);
 		return -EIO;
 	}
 
@@ -304,17 +347,6 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 	return 0;
 }
 #endif
-
-static int rs5c372_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return rs5c372_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int rs5c372_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return rs5c372_set_datetime(to_i2c_client(dev), tm);
-}
-
 
 static int rs5c_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
@@ -529,19 +561,24 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	unsigned char buf[2];
 	int addr, i, ret = 0;
 
-	if (rs5c372->type == rtc_r2025sd) {
-		if (rs5c372->regs[RS5C_REG_CTRL2] & R2025_CTRL2_XST)
-			return ret;
-		rs5c372->regs[RS5C_REG_CTRL2] |= R2025_CTRL2_XST;
-	} else {
-		if (!(rs5c372->regs[RS5C_REG_CTRL2] & RS5C_CTRL2_XSTP))
-			return ret;
-		rs5c372->regs[RS5C_REG_CTRL2] &= ~RS5C_CTRL2_XSTP;
-	}
-
 	addr   = RS5C_ADDR(RS5C_REG_CTRL1);
 	buf[0] = rs5c372->regs[RS5C_REG_CTRL1];
 	buf[1] = rs5c372->regs[RS5C_REG_CTRL2];
+
+	switch (rs5c372->type) {
+	case rtc_r2025sd:
+		if (buf[1] & R2x2x_CTRL2_XSTP)
+			return ret;
+		break;
+	case rtc_r2221tl:
+		if (!(buf[1] & R2x2x_CTRL2_XSTP))
+			return ret;
+		break;
+	default:
+		if (!(buf[1] & RS5C_CTRL2_XSTP))
+			return ret;
+		break;
+	}
 
 	/* use 24hr mode */
 	switch (rs5c372->type) {
@@ -581,7 +618,6 @@ static int rs5c372_probe(struct i2c_client *client,
 	int err = 0;
 	int smbus_mode = 0;
 	struct rs5c372 *rs5c372;
-	struct rtc_time tm;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -661,9 +697,6 @@ static int rs5c372_probe(struct i2c_client *client,
 		dev_err(&client->dev, "setup error\n");
 		goto exit;
 	}
-
-	if (rs5c372_get_datetime(client, &tm) < 0)
-		dev_warn(&client->dev, "clock needs to be set\n");
 
 	dev_info(&client->dev, "%s found, %s\n",
 			({ char *s; switch (rs5c372->type) {

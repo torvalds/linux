@@ -1,19 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
-
 
 #include <linux/types.h>
 #include <linux/debugfs.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 #include <drm/drm_print.h>
 
 #include "a5xx_gpu.h"
@@ -130,16 +123,14 @@ reset_set(void *data, u64 val)
 	adreno_gpu->fw[ADRENO_FW_PFP] = NULL;
 
 	if (a5xx_gpu->pm4_bo) {
-		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
-		drm_gem_object_unreference(a5xx_gpu->pm4_bo);
+		msm_gem_unpin_iova(a5xx_gpu->pm4_bo, gpu->aspace);
+		drm_gem_object_put(a5xx_gpu->pm4_bo);
 		a5xx_gpu->pm4_bo = NULL;
 	}
 
 	if (a5xx_gpu->pfp_bo) {
-		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
-		drm_gem_object_unreference(a5xx_gpu->pfp_bo);
+		msm_gem_unpin_iova(a5xx_gpu->pfp_bo, gpu->aspace);
+		drm_gem_object_put(a5xx_gpu->pfp_bo);
 		a5xx_gpu->pfp_bo = NULL;
 	}
 
@@ -160,7 +151,6 @@ DEFINE_SIMPLE_ATTRIBUTE(reset_fops, NULL, reset_set, "%llx\n");
 int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 {
 	struct drm_device *dev;
-	struct dentry *ent;
 	int ret;
 
 	if (!minor)
@@ -173,15 +163,12 @@ int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 			minor->debugfs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install a5xx_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install a5xx_debugfs_list\n");
 		return ret;
 	}
 
-	ent = debugfs_create_file("reset", S_IWUGO,
-		minor->debugfs_root,
-		dev, &reset_fops);
-	if (!ent)
-		return -ENOMEM;
+	debugfs_create_file("reset", S_IWUGO, minor->debugfs_root, dev,
+			    &reset_fops);
 
 	return 0;
 }

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MMP2 Power Management Routines
- *
- * This software program is licensed subject to the GNU General Public License
- * (GPL).Version 2,June 1991, available at http://www.fsf.org/copyleft/gpl.html
  *
  * (C) Copyright 2012 Marvell International Ltd.
  * All Rights Reserved
@@ -19,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <asm/mach-types.h>
 
-#include "cputype.h"
+#include <linux/soc/mmp/cputype.h>
 #include "addr-map.h"
 #include "pm-mmp2.h"
 #include "regs-icu.h"

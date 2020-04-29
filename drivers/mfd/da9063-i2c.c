@@ -1,15 +1,10 @@
-/* da9063-i2c.c: Interrupt support for Dialog DA9063
+// SPDX-License-Identifier: GPL-2.0+
+/* I2C support for Dialog DA9063
  *
  * Copyright 2012 Dialog Semiconductor Ltd.
  * Copyright 2013 Philipp Zabel, Pengutronix
  *
  * Author: Krystian Garbaciak, Dialog Semiconductor
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -22,85 +17,39 @@
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
 #include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 
 static const struct regmap_range da9063_ad_readable_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_AD_REG_SECOND_D,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_ID_32_31,
-	}, {
-		.range_min = DA9063_REG_SEQ_A,
-		.range_max = DA9063_REG_AUTO3_LOW,
-	}, {
-		.range_min = DA9063_REG_T_OFFSET,
-		.range_max = DA9063_AD_REG_GP_ID_19,
-	}, {
-		.range_min = DA9063_REG_CHIP_ID,
-		.range_max = DA9063_REG_CHIP_VARIANT,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_AD_REG_SECOND_D),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_T_OFFSET, DA9063_AD_REG_GP_ID_19),
+	regmap_reg_range(DA9063_REG_CHIP_ID, DA9063_REG_CHIP_VARIANT),
 };
 
 static const struct regmap_range da9063_ad_writeable_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_REG_PAGE_CON,
-	}, {
-		.range_min = DA9063_REG_FAULT_LOG,
-		.range_max = DA9063_REG_VSYS_MON,
-	}, {
-		.range_min = DA9063_REG_COUNT_S,
-		.range_max = DA9063_AD_REG_ALARM_Y,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_ID_32_31,
-	}, {
-		.range_min = DA9063_REG_SEQ_A,
-		.range_max = DA9063_REG_AUTO3_LOW,
-	}, {
-		.range_min = DA9063_REG_CONFIG_I,
-		.range_max = DA9063_AD_REG_MON_REG_4,
-	}, {
-		.range_min = DA9063_AD_REG_GP_ID_0,
-		.range_max = DA9063_AD_REG_GP_ID_19,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_PAGE_CON),
+	regmap_reg_range(DA9063_REG_FAULT_LOG, DA9063_REG_VSYS_MON),
+	regmap_reg_range(DA9063_REG_COUNT_S, DA9063_AD_REG_ALARM_Y),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_CONFIG_I, DA9063_AD_REG_MON_REG_4),
+	regmap_reg_range(DA9063_AD_REG_GP_ID_0, DA9063_AD_REG_GP_ID_19),
 };
 
 static const struct regmap_range da9063_ad_volatile_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_REG_EVENT_D,
-	}, {
-		.range_min = DA9063_REG_CONTROL_A,
-		.range_max = DA9063_REG_CONTROL_B,
-	}, {
-		.range_min = DA9063_REG_CONTROL_E,
-		.range_max = DA9063_REG_CONTROL_F,
-	}, {
-		.range_min = DA9063_REG_BCORE2_CONT,
-		.range_max = DA9063_REG_LDO11_CONT,
-	}, {
-		.range_min = DA9063_REG_DVC_1,
-		.range_max = DA9063_REG_ADC_MAN,
-	}, {
-		.range_min = DA9063_REG_ADC_RES_L,
-		.range_max = DA9063_AD_REG_SECOND_D,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_SEQ,
-	}, {
-		.range_min = DA9063_REG_EN_32K,
-		.range_max = DA9063_REG_EN_32K,
-	}, {
-		.range_min = DA9063_AD_REG_MON_REG_5,
-		.range_max = DA9063_AD_REG_MON_REG_6,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_EVENT_D),
+	regmap_reg_range(DA9063_REG_CONTROL_A, DA9063_REG_CONTROL_B),
+	regmap_reg_range(DA9063_REG_CONTROL_E, DA9063_REG_CONTROL_F),
+	regmap_reg_range(DA9063_REG_BCORE2_CONT, DA9063_REG_LDO11_CONT),
+	regmap_reg_range(DA9063_REG_DVC_1, DA9063_REG_ADC_MAN),
+	regmap_reg_range(DA9063_REG_ADC_RES_L, DA9063_AD_REG_SECOND_D),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_SEQ),
+	regmap_reg_range(DA9063_REG_EN_32K, DA9063_REG_EN_32K),
+	regmap_reg_range(DA9063_AD_REG_MON_REG_5, DA9063_AD_REG_MON_REG_6),
 };
 
 static const struct regmap_access_table da9063_ad_readable_table = {
@@ -119,78 +68,33 @@ static const struct regmap_access_table da9063_ad_volatile_table = {
 };
 
 static const struct regmap_range da9063_bb_readable_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_BB_REG_SECOND_D,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_ID_32_31,
-	}, {
-		.range_min = DA9063_REG_SEQ_A,
-		.range_max = DA9063_REG_AUTO3_LOW,
-	}, {
-		.range_min = DA9063_REG_T_OFFSET,
-		.range_max = DA9063_BB_REG_GP_ID_19,
-	}, {
-		.range_min = DA9063_REG_CHIP_ID,
-		.range_max = DA9063_REG_CHIP_VARIANT,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_BB_REG_SECOND_D),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_T_OFFSET, DA9063_BB_REG_GP_ID_19),
+	regmap_reg_range(DA9063_REG_CHIP_ID, DA9063_REG_CHIP_VARIANT),
 };
 
 static const struct regmap_range da9063_bb_writeable_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_REG_PAGE_CON,
-	}, {
-		.range_min = DA9063_REG_FAULT_LOG,
-		.range_max = DA9063_REG_VSYS_MON,
-	}, {
-		.range_min = DA9063_REG_COUNT_S,
-		.range_max = DA9063_BB_REG_ALARM_Y,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_ID_32_31,
-	}, {
-		.range_min = DA9063_REG_SEQ_A,
-		.range_max = DA9063_REG_AUTO3_LOW,
-	}, {
-		.range_min = DA9063_REG_CONFIG_I,
-		.range_max = DA9063_BB_REG_MON_REG_4,
-	}, {
-		.range_min = DA9063_BB_REG_GP_ID_0,
-		.range_max = DA9063_BB_REG_GP_ID_19,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_PAGE_CON),
+	regmap_reg_range(DA9063_REG_FAULT_LOG, DA9063_REG_VSYS_MON),
+	regmap_reg_range(DA9063_REG_COUNT_S, DA9063_BB_REG_ALARM_Y),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_CONFIG_I, DA9063_BB_REG_MON_REG_4),
+	regmap_reg_range(DA9063_BB_REG_GP_ID_0, DA9063_BB_REG_GP_ID_19),
 };
 
 static const struct regmap_range da9063_bb_volatile_ranges[] = {
-	{
-		.range_min = DA9063_REG_PAGE_CON,
-		.range_max = DA9063_REG_EVENT_D,
-	}, {
-		.range_min = DA9063_REG_CONTROL_A,
-		.range_max = DA9063_REG_CONTROL_B,
-	}, {
-		.range_min = DA9063_REG_CONTROL_E,
-		.range_max = DA9063_REG_CONTROL_F,
-	}, {
-		.range_min = DA9063_REG_BCORE2_CONT,
-		.range_max = DA9063_REG_LDO11_CONT,
-	}, {
-		.range_min = DA9063_REG_DVC_1,
-		.range_max = DA9063_REG_ADC_MAN,
-	}, {
-		.range_min = DA9063_REG_ADC_RES_L,
-		.range_max = DA9063_BB_REG_SECOND_D,
-	}, {
-		.range_min = DA9063_REG_SEQ,
-		.range_max = DA9063_REG_SEQ,
-	}, {
-		.range_min = DA9063_REG_EN_32K,
-		.range_max = DA9063_REG_EN_32K,
-	}, {
-		.range_min = DA9063_BB_REG_MON_REG_5,
-		.range_max = DA9063_BB_REG_MON_REG_6,
-	},
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_EVENT_D),
+	regmap_reg_range(DA9063_REG_CONTROL_A, DA9063_REG_CONTROL_B),
+	regmap_reg_range(DA9063_REG_CONTROL_E, DA9063_REG_CONTROL_F),
+	regmap_reg_range(DA9063_REG_BCORE2_CONT, DA9063_REG_LDO11_CONT),
+	regmap_reg_range(DA9063_REG_DVC_1, DA9063_REG_ADC_MAN),
+	regmap_reg_range(DA9063_REG_ADC_RES_L, DA9063_BB_REG_SECOND_D),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_SEQ),
+	regmap_reg_range(DA9063_REG_EN_32K, DA9063_REG_EN_32K),
+	regmap_reg_range(DA9063_BB_REG_MON_REG_5, DA9063_BB_REG_MON_REG_6),
 };
 
 static const struct regmap_access_table da9063_bb_readable_table = {
@@ -206,6 +110,50 @@ static const struct regmap_access_table da9063_bb_writeable_table = {
 static const struct regmap_access_table da9063_bb_volatile_table = {
 	.yes_ranges = da9063_bb_volatile_ranges,
 	.n_yes_ranges = ARRAY_SIZE(da9063_bb_volatile_ranges),
+};
+
+static const struct regmap_range da9063l_bb_readable_ranges[] = {
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_MON_A10_RES),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_T_OFFSET, DA9063_BB_REG_GP_ID_19),
+	regmap_reg_range(DA9063_REG_CHIP_ID, DA9063_REG_CHIP_VARIANT),
+};
+
+static const struct regmap_range da9063l_bb_writeable_ranges[] = {
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_PAGE_CON),
+	regmap_reg_range(DA9063_REG_FAULT_LOG, DA9063_REG_VSYS_MON),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_ID_32_31),
+	regmap_reg_range(DA9063_REG_SEQ_A, DA9063_REG_AUTO3_LOW),
+	regmap_reg_range(DA9063_REG_CONFIG_I, DA9063_BB_REG_MON_REG_4),
+	regmap_reg_range(DA9063_BB_REG_GP_ID_0, DA9063_BB_REG_GP_ID_19),
+};
+
+static const struct regmap_range da9063l_bb_volatile_ranges[] = {
+	regmap_reg_range(DA9063_REG_PAGE_CON, DA9063_REG_EVENT_D),
+	regmap_reg_range(DA9063_REG_CONTROL_A, DA9063_REG_CONTROL_B),
+	regmap_reg_range(DA9063_REG_CONTROL_E, DA9063_REG_CONTROL_F),
+	regmap_reg_range(DA9063_REG_BCORE2_CONT, DA9063_REG_LDO11_CONT),
+	regmap_reg_range(DA9063_REG_DVC_1, DA9063_REG_ADC_MAN),
+	regmap_reg_range(DA9063_REG_ADC_RES_L, DA9063_REG_MON_A10_RES),
+	regmap_reg_range(DA9063_REG_SEQ, DA9063_REG_SEQ),
+	regmap_reg_range(DA9063_REG_EN_32K, DA9063_REG_EN_32K),
+	regmap_reg_range(DA9063_BB_REG_MON_REG_5, DA9063_BB_REG_MON_REG_6),
+};
+
+static const struct regmap_access_table da9063l_bb_readable_table = {
+	.yes_ranges = da9063l_bb_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_readable_ranges),
+};
+
+static const struct regmap_access_table da9063l_bb_writeable_table = {
+	.yes_ranges = da9063l_bb_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_writeable_ranges),
+};
+
+static const struct regmap_access_table da9063l_bb_volatile_table = {
+	.yes_ranges = da9063l_bb_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9063_range_cfg[] = {
@@ -232,11 +180,12 @@ static struct regmap_config da9063_regmap_config = {
 
 static const struct of_device_id da9063_dt_ids[] = {
 	{ .compatible = "dlg,da9063", },
+	{ .compatible = "dlg,da9063l", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da9063_dt_ids);
 static int da9063_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+			    const struct i2c_device_id *id)
 {
 	struct da9063 *da9063;
 	int ret;
@@ -248,11 +197,16 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, da9063);
 	da9063->dev = &i2c->dev;
 	da9063->chip_irq = i2c->irq;
+	da9063->type = id->driver_data;
 
 	if (da9063->variant_code == PMIC_DA9063_AD) {
 		da9063_regmap_config.rd_table = &da9063_ad_readable_table;
 		da9063_regmap_config.wr_table = &da9063_ad_writeable_table;
 		da9063_regmap_config.volatile_table = &da9063_ad_volatile_table;
+	} else if (da9063->type == PMIC_TYPE_DA9063L) {
+		da9063_regmap_config.rd_table = &da9063l_bb_readable_table;
+		da9063_regmap_config.wr_table = &da9063l_bb_writeable_table;
+		da9063_regmap_config.volatile_table = &da9063l_bb_volatile_table;
 	} else {
 		da9063_regmap_config.rd_table = &da9063_bb_readable_table;
 		da9063_regmap_config.wr_table = &da9063_bb_writeable_table;
@@ -270,17 +224,9 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 	return da9063_device_init(da9063, i2c->irq);
 }
 
-static int da9063_i2c_remove(struct i2c_client *i2c)
-{
-	struct da9063 *da9063 = i2c_get_clientdata(i2c);
-
-	da9063_device_exit(da9063);
-
-	return 0;
-}
-
 static const struct i2c_device_id da9063_i2c_id[] = {
-	{"da9063", PMIC_DA9063},
+	{ "da9063", PMIC_TYPE_DA9063 },
+	{ "da9063l", PMIC_TYPE_DA9063L },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, da9063_i2c_id);
@@ -291,7 +237,6 @@ static struct i2c_driver da9063_i2c_driver = {
 		.of_match_table = of_match_ptr(da9063_dt_ids),
 	},
 	.probe    = da9063_i2c_probe,
-	.remove   = da9063_i2c_remove,
 	.id_table = da9063_i2c_id,
 };
 

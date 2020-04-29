@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/ioport.h>
@@ -38,7 +39,7 @@ static irqreturn_t a3000_intr(int irq, void *data)
 		spin_unlock_irqrestore(instance->host_lock, flags);
 		return IRQ_HANDLED;
 	}
-	pr_warning("Non-serviced A3000 SCSI-interrupt? ISTR = %02x\n", status);
+	pr_warn("Non-serviced A3000 SCSI-interrupt? ISTR = %02x\n", status);
 	return IRQ_NONE;
 }
 
@@ -175,7 +176,6 @@ static struct scsi_host_template amiga_a3000_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING
 };
 
 static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)

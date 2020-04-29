@@ -1,18 +1,13 @@
-/*
- * s3c24xx-i2s.c  --  ALSA Soc Audio Layer
- *
- * (c) 2006 Wolfson Microelectronics PLC.
- * Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
- *
- * Copyright 2004-2005 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// s3c24xx-i2s.c  --  ALSA Soc Audio Layer
+//
+// (c) 2006 Wolfson Microelectronics PLC.
+// Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
+//
+// Copyright 2004-2005 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
 
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -366,7 +361,7 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_suspend(struct snd_soc_component *component)
 {
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -378,7 +373,7 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_resume(struct snd_soc_component *component)
 {
 	int ret;
 
@@ -413,8 +408,6 @@ static const struct snd_soc_dai_ops s3c24xx_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 	.probe = s3c24xx_i2s_probe,
-	.suspend = s3c24xx_i2s_suspend,
-	.resume = s3c24xx_i2s_resume,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -430,6 +423,8 @@ static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 
 static const struct snd_soc_component_driver s3c24xx_i2s_component = {
 	.name		= "s3c24xx-i2s",
+	.suspend	= s3c24xx_i2s_suspend,
+	.resume		= s3c24xx_i2s_resume,
 };
 
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
@@ -446,7 +441,7 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 	s3c24xx_i2s_pcm_stereo_in.addr = res->start + S3C2410_IISFIFO;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, NULL,
-						 NULL, NULL);
+						 "tx", "rx", NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register the DMA: %d\n", ret);
 		return ret;

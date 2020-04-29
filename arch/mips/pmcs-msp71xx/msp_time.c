@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Setting up the clock on MSP SOCs.  No RTC typically.
  *
@@ -5,19 +6,6 @@
  * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
  *
  * ########################################################################
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * ########################################################################
  */
@@ -39,7 +27,6 @@
 #define get_current_vpe()   \
 	((read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) & TCBIND_CURVPE)
 
-static struct irqaction timer_vpe1;
 static int tim_installed;
 
 void __init plat_time_init(void)
@@ -89,10 +76,13 @@ void __init plat_time_init(void)
 
 unsigned int get_c0_compare_int(void)
 {
+	unsigned long flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED;
+
 	/* MIPS_MT modes may want timer for second VPE */
 	if ((get_current_vpe()) && !tim_installed) {
-		memcpy(&timer_vpe1, &c0_compare_irqaction, sizeof(timer_vpe1));
-		setup_irq(MSP_INT_VPE1_TIMER, &timer_vpe1);
+		if (request_irq(MSP_INT_VPE1_TIMER, c0_compare_interrupt, flags,
+				"timer", c0_compare_interrupt))
+			pr_err("Failed to register timer interrupt\n");
 		tim_installed++;
 	}
 

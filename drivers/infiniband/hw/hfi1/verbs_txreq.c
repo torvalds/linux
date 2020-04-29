@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 - 2017 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -94,13 +94,13 @@ struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 				struct rvt_qp *qp)
 	__must_hold(&qp->s_lock)
 {
-	struct verbs_txreq *tx = ERR_PTR(-EBUSY);
+	struct verbs_txreq *tx = NULL;
 
 	write_seqlock(&dev->txwait_lock);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		struct hfi1_qp_priv *priv;
 
-		tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
+		tx = kmem_cache_alloc(dev->verbs_txreq_cache, VERBS_TXREQ_GFP);
 		if (tx)
 			goto out;
 		priv = qp->priv;

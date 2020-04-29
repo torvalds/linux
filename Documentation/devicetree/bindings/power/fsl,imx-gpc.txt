@@ -14,12 +14,12 @@ Required properties:
   datasheet
 - interrupts: Should contain one interrupt specifier for the GPC interrupt
 - clocks: Must contain an entry for each entry in clock-names.
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+  See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
   - ipg
 
 The power domains are generic power domain providers as documented in
-Documentation/devicetree/bindings/power/power_domain.txt. They are described as
+Documentation/devicetree/bindings/power/power-domain.yaml. They are described as
 subnodes of the power gating controller 'pgc' node of the GPC and should
 contain the following:
 

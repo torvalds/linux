@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VMware VMCI Driver
  *
  * Copyright (C) 2012 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation version 2 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/vmw_vmci_defs.h>
@@ -318,7 +310,8 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 
 	entry = container_of(resource, struct dbell_entry, resource);
 	if (entry->run_delayed) {
-		schedule_work(&entry->work);
+		if (!schedule_work(&entry->work))
+			vmci_resource_put(resource);
 	} else {
 		entry->notify_cb(entry->client_data);
 		vmci_resource_put(resource);
@@ -330,7 +323,7 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 /*
  * Register the notification bitmap with the host.
  */
-bool vmci_dbell_register_notification_bitmap(u32 bitmap_ppn)
+bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn)
 {
 	int result;
 	struct vmci_notify_bm_set_msg bitmap_set_msg;
@@ -340,11 +333,14 @@ bool vmci_dbell_register_notification_bitmap(u32 bitmap_ppn)
 	bitmap_set_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
 	bitmap_set_msg.hdr.payload_size = sizeof(bitmap_set_msg) -
 	    VMCI_DG_HEADERSIZE;
-	bitmap_set_msg.bitmap_ppn = bitmap_ppn;
+	if (vmci_use_ppn64())
+		bitmap_set_msg.bitmap_ppn64 = bitmap_ppn;
+	else
+		bitmap_set_msg.bitmap_ppn32 = (u32) bitmap_ppn;
 
 	result = vmci_send_datagram(&bitmap_set_msg.hdr);
 	if (result != VMCI_SUCCESS) {
-		pr_devel("Failed to register (PPN=%u) as notification bitmap (error=%d)\n",
+		pr_devel("Failed to register (PPN=%llu) as notification bitmap (error=%d)\n",
 			 bitmap_ppn, result);
 		return false;
 	}
@@ -366,7 +362,8 @@ static void dbell_fire_entries(u32 notify_idx)
 		    atomic_read(&dbell->active) == 1) {
 			if (dbell->run_delayed) {
 				vmci_resource_get(&dbell->resource);
-				schedule_work(&dbell->work);
+				if (!schedule_work(&dbell->work))
+					vmci_resource_put(&dbell->resource);
 			} else {
 				dbell->notify_cb(dbell->client_data);
 			}

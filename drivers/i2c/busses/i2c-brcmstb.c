@@ -165,12 +165,10 @@ static const struct bsc_clk_param bsc_clk[] = {
 struct brcmstb_i2c_dev {
 	struct device *device;
 	void __iomem *base;
-	void __iomem *irq_base;
 	int irq;
 	struct bsc_regs *bsc_regmap;
 	struct i2c_adapter adapter;
 	struct completion done;
-	bool is_suspended;
 	u32 clk_freq_hz;
 	int data_regsz;
 };
@@ -467,9 +465,6 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 	int xfersz = brcmstb_i2c_get_xfersz(dev);
 	u32 cond, cond_per_msg;
 
-	if (dev->is_suspended)
-		return -EBUSY;
-
 	/* Loop through all messages */
 	for (i = 0; i < num; i++) {
 		pmsg = &msgs[i];
@@ -585,6 +580,31 @@ static void brcmstb_i2c_set_bsc_reg_defaults(struct brcmstb_i2c_dev *dev)
 	brcmstb_i2c_set_bus_speed(dev);
 }
 
+#define AUTOI2C_CTRL0		0x26c
+#define AUTOI2C_CTRL0_RELEASE_BSC	BIT(1)
+
+static int bcm2711_release_bsc(struct brcmstb_i2c_dev *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev->device);
+	struct resource *iomem;
+	void __iomem *autoi2c;
+
+	/* Map hardware registers */
+	iomem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "auto-i2c");
+	autoi2c = devm_ioremap_resource(&pdev->dev, iomem);
+	if (IS_ERR(autoi2c))
+		return PTR_ERR(autoi2c);
+
+	writel(AUTOI2C_CTRL0_RELEASE_BSC, autoi2c + AUTOI2C_CTRL0);
+	devm_iounmap(&pdev->dev, autoi2c);
+
+	/* We need to reset the controller after the release */
+	dev->bsc_regmap->iic_enable = 0;
+	bsc_writel(dev, dev->bsc_regmap->iic_enable, iic_enable);
+
+	return 0;
+}
+
 static int brcmstb_i2c_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -612,6 +632,13 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->base)) {
 		rc = -ENOMEM;
 		goto probe_errorout;
+	}
+
+	if (of_device_is_compatible(dev->device->of_node,
+				    "brcm,bcm2711-hdmi-i2c")) {
+		rc = bcm2711_release_bsc(dev);
+		if (rc)
+			goto probe_errorout;
 	}
 
 	rc = of_property_read_string(dev->device->of_node, "interrupt-names",
@@ -689,10 +716,7 @@ static int brcmstb_i2c_suspend(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_adapter(&i2c_dev->adapter);
-	i2c_dev->is_suspended = true;
-	i2c_unlock_adapter(&i2c_dev->adapter);
-
+	i2c_mark_adapter_suspended(&i2c_dev->adapter);
 	return 0;
 }
 
@@ -700,10 +724,8 @@ static int brcmstb_i2c_resume(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_adapter(&i2c_dev->adapter);
 	brcmstb_i2c_set_bsc_reg_defaults(i2c_dev);
-	i2c_dev->is_suspended = false;
-	i2c_unlock_adapter(&i2c_dev->adapter);
+	i2c_mark_adapter_resumed(&i2c_dev->adapter);
 
 	return 0;
 }
@@ -715,6 +737,7 @@ static SIMPLE_DEV_PM_OPS(brcmstb_i2c_pm, brcmstb_i2c_suspend,
 static const struct of_device_id brcmstb_i2c_of_match[] = {
 	{.compatible = "brcm,brcmstb-i2c"},
 	{.compatible = "brcm,brcmper-i2c"},
+	{.compatible = "brcm,bcm2711-hdmi-i2c"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, brcmstb_i2c_of_match);

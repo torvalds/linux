@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define SAA7134_VERSION "0, 2, 17"
@@ -107,7 +98,6 @@ struct saa7134_tvaudio {
 };
 
 struct saa7134_format {
-	char           *name;
 	unsigned int   fourcc;
 	unsigned int   depth;
 	unsigned int   pm;
@@ -123,9 +113,7 @@ struct saa7134_format {
 struct saa7134_card_ir {
 	struct rc_dev		*dev;
 
-	char                    name[32];
 	char                    phys[32];
-	unsigned                users;
 
 	u32			polling;
 	u32			last_gpio;
@@ -547,6 +535,12 @@ struct saa7134_mpeg_ops {
 						  unsigned long status);
 };
 
+enum saa7134_pads {
+	SAA7134_PAD_IF_INPUT,
+	SAA7134_PAD_VID_OUT,
+	SAA7134_NUM_PADS
+};
+
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
@@ -674,7 +668,7 @@ struct saa7134_dev {
 	struct media_pad input_pad[SAA7134_INPUT_MAX + 1];
 
 	struct media_entity demod;
-	struct media_pad demod_pad[DEMOD_NUM_PADS];
+	struct media_pad demod_pad[SAA7134_NUM_PADS];
 
 	struct media_pad video_pad, vbi_pad;
 	struct media_entity *decoder;
@@ -917,13 +911,13 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
-int saa7134_ir_start(struct saa7134_dev *dev);
-void saa7134_ir_stop(struct saa7134_dev *dev);
+int saa7134_ir_open(struct rc_dev *dev);
+void saa7134_ir_close(struct rc_dev *dev);
 #else
 #define saa7134_input_init1(dev)	((void)0)
 #define saa7134_input_fini(dev)		((void)0)
 #define saa7134_input_irq(dev)		((void)0)
 #define saa7134_probe_i2c_ir(dev)	((void)0)
-#define saa7134_ir_start(dev)		((void)0)
-#define saa7134_ir_stop(dev)		((void)0)
+#define saa7134_ir_open(dev)		((void)0)
+#define saa7134_ir_close(dev)		((void)0)
 #endif

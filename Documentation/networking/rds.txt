@@ -159,7 +159,7 @@ Socket Interface
 	set SO_RDS_TRANSPORT on a socket for which the transport has
 	been previously attached explicitly (by SO_RDS_TRANSPORT) or
 	implicitly (via bind(2)) will return an error of EOPNOTSUPP.
-	An attempt to set SO_RDS_TRANSPPORT to RDS_TRANS_NONE will
+	An attempt to set SO_RDS_TRANSPORT to RDS_TRANS_NONE will
 	always return EINVAL.
 
 RDMA for RDS
@@ -389,7 +389,7 @@ Multipath RDS (mprds)
   a common (to all paths) part, and a per-path struct rds_conn_path. All
   I/O workqs and reconnect threads are driven from the rds_conn_path.
   Transports such as TCP that are multipath capable may then set up a
-  TPC socket per rds_conn_path, and this is managed by the transport via
+  TCP socket per rds_conn_path, and this is managed by the transport via
   the transport privatee cp_transport_data pointer.
 
   Transports announce themselves as multipath capable by setting the

@@ -31,6 +31,8 @@ SoC is on the same page.
 
 Required properties:
 - compatible: should be one of:
+  - "rockchip,px30-io-voltage-domain" for px30
+  - "rockchip,px30-pmu-io-voltage-domain" for px30 pmu-domains
   - "rockchip,rk3188-io-voltage-domain" for rk3188
   - "rockchip,rk3228-io-voltage-domain" for rk3228
   - "rockchip,rk3288-io-voltage-domain" for rk3288
@@ -50,6 +52,19 @@ You specify supplies using the standard regulator bindings by including
 a phandle the relevant regulator.  All specified supplies must be able
 to report their voltage.  The IO Voltage Domain for any non-specified
 supplies will be not be touched.
+
+Possible supplies for PX30:
+- vccio6-supply: The supply connected to VCCIO6.
+- vccio1-supply: The supply connected to VCCIO1.
+- vccio2-supply: The supply connected to VCCIO2.
+- vccio3-supply: The supply connected to VCCIO3.
+- vccio4-supply: The supply connected to VCCIO4.
+- vccio5-supply: The supply connected to VCCIO5.
+- vccio-oscgpi-supply: The supply connected to VCCIO_OSCGPI.
+
+Possible supplies for PX30 pmu-domains:
+- pmuio1-supply: The supply connected to PMUIO1.
+- pmuio2-supply: The supply connected to PMUIO2.
 
 Possible supplies for rk3188:
 - ap0-supply:    The supply connected to AP0_VCC.

@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -374,26 +365,12 @@ static struct imx_ssi_platform_data mx31_3ds_ssi_pdata = {
 };
 
 /* SPI */
-static int spi0_internal_chipselect[] = {
-	MXC_SPI_CS(0),
-	MXC_SPI_CS(1),
-	MXC_SPI_CS(2),
-};
-
 static const struct spi_imx_master spi0_pdata __initconst = {
-	.chipselect	= spi0_internal_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi0_internal_chipselect),
-};
-
-static int spi1_internal_chipselect[] = {
-	MXC_SPI_CS(0),
-	MXC_SPI_CS(1),
-	MXC_SPI_CS(2),
+	.num_chipselect	= 3,
 };
 
 static const struct spi_imx_master spi1_pdata __initconst = {
-	.chipselect	= spi1_internal_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
+	.num_chipselect	= 3,
 };
 
 static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {

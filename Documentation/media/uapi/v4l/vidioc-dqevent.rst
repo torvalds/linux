@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_DQEVENT:
 
@@ -48,66 +55,54 @@ call.
 .. flat-table:: struct v4l2_event
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``type``
-      -
       - Type of the event, see :ref:`event-type`.
-    * - union
+    * - union {
       - ``u``
-      -
-      -
-    * -
-      - struct :c:type:`v4l2_event_vsync`
+    * - struct :c:type:`v4l2_event_vsync`
       - ``vsync``
       - Event data for event ``V4L2_EVENT_VSYNC``.
-    * -
-      - struct :c:type:`v4l2_event_ctrl`
+    * - struct :c:type:`v4l2_event_ctrl`
       - ``ctrl``
       - Event data for event ``V4L2_EVENT_CTRL``.
-    * -
-      - struct :c:type:`v4l2_event_frame_sync`
+    * - struct :c:type:`v4l2_event_frame_sync`
       - ``frame_sync``
       - Event data for event ``V4L2_EVENT_FRAME_SYNC``.
-    * -
-      - struct :c:type:`v4l2_event_motion_det`
+    * - struct :c:type:`v4l2_event_motion_det`
       - ``motion_det``
       - Event data for event V4L2_EVENT_MOTION_DET.
-    * -
-      - struct :c:type:`v4l2_event_src_change`
+    * - struct :c:type:`v4l2_event_src_change`
       - ``src_change``
       - Event data for event V4L2_EVENT_SOURCE_CHANGE.
-    * -
-      - __u8
+    * - __u8
       - ``data``\ [64]
       - Event data. Defined by the event type. The union should be used to
 	define easily accessible type for events.
+    * - }
+      -
     * - __u32
       - ``pending``
-      -
       - Number of pending events excluding this one.
     * - __u32
       - ``sequence``
-      -
       - Event sequence number. The sequence number is incremented for
 	every subscribed event that takes place. If sequence numbers are
 	not contiguous it means that events have been lost.
     * - struct timespec
       - ``timestamp``
-      -
       - Event timestamp. The timestamp has been taken from the
 	``CLOCK_MONOTONIC`` clock. To access the same clock outside V4L2,
 	use :c:func:`clock_gettime`.
     * - u32
       - ``id``
-      -
       - The ID associated with the event source. If the event does not
 	have an associated ID (this depends on the event type), then this
 	is 0.
     * - __u32
       - ``reserved``\ [8]
-      -
       - Reserved for future extensions. Drivers must set the array to
 	zero.
 
@@ -226,54 +221,45 @@ call.
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
       - ``changes``
-      -
       - A bitmask that tells what has changed. See
 	:ref:`ctrl-changes-flags`.
     * - __u32
       - ``type``
-      -
       - The type of the control. See enum
 	:c:type:`v4l2_ctrl_type`.
-    * - union (anonymous)
-      -
-      -
-      -
-    * -
-      - __s32
+    * - union {
+      - (anonymous)
+    * - __s32
       - ``value``
       - The 32-bit value of the control for 32-bit control types. This is
 	0 for string controls since the value of a string cannot be passed
 	using :ref:`VIDIOC_DQEVENT`.
-    * -
-      - __s64
+    * - __s64
       - ``value64``
       - The 64-bit value of the control for 64-bit control types.
+    * - }
+      -
     * - __u32
       - ``flags``
-      -
       - The control flags. See :ref:`control-flags`.
     * - __s32
       - ``minimum``
-      -
       - The minimum value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``maximum``
-      -
       - The maximum value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``step``
-      -
       - The step value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
     * - __s32
       - ``default_value``
-      -
       - The default value value of the control. See struct
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
 
@@ -379,7 +365,22 @@ call.
       - 0x0001
       - This event gets triggered when a resolution change is detected at
 	an input. This can come from an input connector or from a video
-	decoder.
+	decoder. Applications will have to query the new resolution (if
+	any, the signal may also have been lost).
+
+	For stateful decoders follow the guidelines in :ref:`decoder`.
+	Video Capture devices have to query the new timings using
+	:ref:`VIDIOC_QUERY_DV_TIMINGS` or
+	:ref:`VIDIOC_QUERYSTD <VIDIOC_QUERYSTD>`.
+
+	*Important*: even if the new video timings appear identical to the old
+	ones, receiving this event indicates that there was an issue with the
+	video signal and you must stop and restart streaming
+	(:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+	followed by :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`). The reason is
+	that many Video Capture devices are not able to recover from a temporary
+	loss of signal and so restarting streaming I/O is required in order for
+	the hardware to synchronize to the video signal.
 
 
 Return Value

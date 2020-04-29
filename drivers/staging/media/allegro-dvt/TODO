@@ -1,0 +1,4 @@
+TODO:
+
+- This driver is waiting for the stateful encoder spec and corresponding
+  v4l2-compliance tests to be finalized.

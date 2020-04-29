@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ISHTP client logic
  *
  * Copyright (c) 2003-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _ISHTP_CLIENT_H_
@@ -18,15 +10,6 @@
 
 #include <linux/types.h>
 #include "ishtp-dev.h"
-
-/* Client state */
-enum cl_state {
-	ISHTP_CL_INITIALIZING = 0,
-	ISHTP_CL_CONNECTING,
-	ISHTP_CL_CONNECTED,
-	ISHTP_CL_DISCONNECTING,
-	ISHTP_CL_DISCONNECTED
-};
 
 /* Tx and Rx ring size */
 #define	CL_DEF_RX_RING_SIZE	2
@@ -84,6 +67,7 @@ struct ishtp_cl {
 	/* Client Tx buffers list */
 	unsigned int	tx_ring_size;
 	struct ishtp_cl_tx_ring	tx_list, tx_free_list;
+	int		tx_ring_free_size;
 	spinlock_t	tx_list_spinlock;
 	spinlock_t	tx_free_list_spinlock;
 	size_t	tx_offs;	/* Offset in buffer at head of 'tx_list' */
@@ -125,7 +109,7 @@ struct ishtp_cl {
 };
 
 /* Client connection managenment internal functions */
-int ishtp_can_client_connect(struct ishtp_device *ishtp_dev, uuid_le *uuid);
+int ishtp_can_client_connect(struct ishtp_device *ishtp_dev, guid_t *uuid);
 int ishtp_fw_cl_by_id(struct ishtp_device *dev, uint8_t client_id);
 void ishtp_cl_send_msg(struct ishtp_device *dev, struct ishtp_cl *cl);
 void recv_ishtp_cl_msg(struct ishtp_device *dev,
@@ -137,6 +121,8 @@ int ishtp_cl_alloc_rx_ring(struct ishtp_cl *cl);
 int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl);
 void ishtp_cl_free_rx_ring(struct ishtp_cl *cl);
 void ishtp_cl_free_tx_ring(struct ishtp_cl *cl);
+int ishtp_cl_get_tx_free_buffer_size(struct ishtp_cl *cl);
+int ishtp_cl_get_tx_free_rings(struct ishtp_cl *cl);
 
 /* DMA I/F functions */
 void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
@@ -165,18 +151,5 @@ static inline bool ishtp_cl_cmp_id(const struct ishtp_cl *cl1,
 		(cl1->host_client_id == cl2->host_client_id) &&
 		(cl1->fw_client_id == cl2->fw_client_id);
 }
-
-/* exported functions from ISHTP under client management scope */
-struct ishtp_cl	*ishtp_cl_allocate(struct ishtp_device *dev);
-void ishtp_cl_free(struct ishtp_cl *cl);
-int ishtp_cl_link(struct ishtp_cl *cl, int id);
-void ishtp_cl_unlink(struct ishtp_cl *cl);
-int ishtp_cl_disconnect(struct ishtp_cl *cl);
-int ishtp_cl_connect(struct ishtp_cl *cl);
-int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length);
-int ishtp_cl_flush_queues(struct ishtp_cl *cl);
-
-/* exported functions from ISHTP client buffer management scope */
-int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb);
 
 #endif /* _ISHTP_CLIENT_H_ */

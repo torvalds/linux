@@ -1,0 +1,23 @@
+MediaTek CAMSYS controller
+============================
+
+The MediaTek camsys controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt6779-camsys", "syscon"
+	- "mediatek,mt8183-camsys", "syscon"
+- #clock-cells: Must be 1
+
+The camsys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+camsys: camsys@1a000000  {
+	compatible = "mediatek,mt8183-camsys", "syscon";
+	reg = <0 0x1a000000  0 0x1000>;
+	#clock-cells = <1>;
+};

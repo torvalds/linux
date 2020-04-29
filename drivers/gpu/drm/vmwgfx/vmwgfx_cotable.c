@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2014-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2014-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -80,9 +80,10 @@ static const struct vmw_cotable_info co_info[] = {
 	{1, sizeof(SVGACOTableDXDepthStencilEntry), NULL},
 	{1, sizeof(SVGACOTableDXRasterizerStateEntry), NULL},
 	{1, sizeof(SVGACOTableDXSamplerEntry), NULL},
-	{1, sizeof(SVGACOTableDXStreamOutputEntry), NULL},
+	{1, sizeof(SVGACOTableDXStreamOutputEntry), &vmw_dx_streamoutput_cotable_list_scrub},
 	{1, sizeof(SVGACOTableDXQueryEntry), NULL},
-	{1, sizeof(SVGACOTableDXShaderEntry), &vmw_dx_shader_cotable_list_scrub}
+	{1, sizeof(SVGACOTableDXShaderEntry), &vmw_dx_shader_cotable_list_scrub},
+	{1, sizeof(SVGACOTableDXUAViewEntry), &vmw_view_cotable_list_destroy}
 };
 
 /*
@@ -102,6 +103,7 @@ const SVGACOTableType vmw_cotable_scrub_order[] = {
 	SVGA_COTABLE_SAMPLER,
 	SVGA_COTABLE_STREAMOUTPUT,
 	SVGA_COTABLE_DXQUERY,
+	SVGA_COTABLE_UAVIEW,
 };
 
 static int vmw_cotable_bind(struct vmw_resource *res,
@@ -116,6 +118,8 @@ static const struct vmw_res_func vmw_cotable_func = {
 	.res_type = vmw_res_cotable,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 3,
+	.dirty_prio = 3,
 	.type_name = "context guest backed object tables",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_cotable_create,
@@ -169,14 +173,11 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 	} *cmd;
 
 	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
-	lockdep_assert_held(&bo->resv->lock.base);
+	dma_resv_assert_held(bo->base.resv);
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), SVGA3D_INVALID_ID);
-	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for cotable "
-			  "binding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	WARN_ON(vcotbl->ctx->id == SVGA3D_INVALID_ID);
 	WARN_ON(bo->mem.mem_type != VMW_PL_MOB);
@@ -262,12 +263,9 @@ int vmw_cotable_scrub(struct vmw_resource *res, bool readback)
 	if (readback)
 		submit_size += sizeof(*cmd0);
 
-	cmd1 = vmw_fifo_reserve_dx(dev_priv, submit_size, SVGA3D_INVALID_ID);
-	if (!cmd1) {
-		DRM_ERROR("Failed reserving FIFO space for cotable "
-			  "unbinding.\n");
+	cmd1 = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (!cmd1)
 		return -ENOMEM;
-	}
 
 	vcotbl->size_read_back = 0;
 	if (readback) {
@@ -313,18 +311,18 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	struct ttm_buffer_object *bo = val_buf->bo;
 	struct vmw_fence_obj *fence;
 
-	if (list_empty(&res->mob_head))
+	if (!vmw_resource_mob_attached(res))
 		return 0;
 
 	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
-	lockdep_assert_held(&bo->resv->lock.base);
+	dma_resv_assert_held(bo->base.resv);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	if (!vcotbl->scrubbed)
 		vmw_dx_context_scrub_cotables(vcotbl->ctx, readback);
 	mutex_unlock(&dev_priv->binding_mutex);
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
 
@@ -351,13 +349,10 @@ static int vmw_cotable_readback(struct vmw_resource *res)
 	struct vmw_fence_obj *fence;
 
 	if (!vcotbl->scrubbed) {
-		cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd),
-					  SVGA3D_INVALID_ID);
-		if (!cmd) {
-			DRM_ERROR("Failed reserving FIFO space for cotable "
-				  "readback.\n");
+		cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+		if (!cmd)
 			return -ENOMEM;
-		}
+
 		cmd->header.id = SVGA_3D_CMD_DX_READBACK_COTABLE;
 		cmd->header.size = sizeof(cmd->body);
 		cmd->body.cid = vcotbl->ctx->id;
@@ -367,7 +362,7 @@ static int vmw_cotable_readback(struct vmw_resource *res)
 	}
 
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-	vmw_fence_single_bo(&res->backup->base, fence);
+	vmw_bo_fence_single(&res->backup->base, fence);
 	vmw_fence_obj_unreference(&fence);
 
 	return 0;
@@ -390,7 +385,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	struct ttm_operation_ctx ctx = { false, false };
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_cotable *vcotbl = vmw_cotable(res);
-	struct vmw_dma_buffer *buf, *old_buf = res->backup;
+	struct vmw_buffer_object *buf, *old_buf = res->backup;
 	struct ttm_buffer_object *bo, *old_bo = &res->backup->base;
 	size_t old_size = res->backup_size;
 	size_t old_size_read_back = vcotbl->size_read_back;
@@ -415,8 +410,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(dev_priv, buf, new_size, &vmw_mob_ne_placement,
-			      true, vmw_dmabuf_bo_free);
+	ret = vmw_bo_init(dev_priv, buf, new_size, &vmw_mob_ne_placement,
+			  true, vmw_bo_bo_free);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
 		return ret;
@@ -462,6 +457,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 		goto out_wait;
 	}
 
+	vmw_resource_mob_detach(res);
 	res->backup = buf;
 	res->backup_size = new_size;
 	vcotbl->size_read_back = cur_size_read_back;
@@ -476,13 +472,13 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 		res->backup = old_buf;
 		res->backup_size = old_size;
 		vcotbl->size_read_back = old_size_read_back;
+		vmw_resource_mob_attach(res);
 		goto out_wait;
 	}
 
+	vmw_resource_mob_attach(res);
 	/* Let go of the old mob. */
-	list_del(&res->mob_head);
-	list_add_tail(&res->mob_head, &buf->res_list);
-	vmw_dmabuf_unreference(&old_buf);
+	vmw_bo_unreference(&old_buf);
 	res->id = vcotbl->type;
 
 	return 0;
@@ -491,7 +487,7 @@ out_map_new:
 	ttm_bo_kunmap(&old_map);
 out_wait:
 	ttm_bo_unreserve(bo);
-	vmw_dmabuf_unreference(&buf);
+	vmw_bo_unreference(&buf);
 
 	return ret;
 }
@@ -505,7 +501,7 @@ out_wait:
  * is called before bind() in the validation sequence is instead used for two
  * things.
  * 1) Unscrub the cotable if it is scrubbed and still attached to a backup
- *    buffer, that is, if @res->mob_head is non-empty.
+ *    buffer.
  * 2) Resize the cotable if needed.
  */
 static int vmw_cotable_create(struct vmw_resource *res)
@@ -521,7 +517,7 @@ static int vmw_cotable_create(struct vmw_resource *res)
 		new_size *= 2;
 
 	if (likely(new_size <= res->backup_size)) {
-		if (vcotbl->scrubbed && !list_empty(&res->mob_head)) {
+		if (vcotbl->scrubbed && vmw_resource_mob_attached(res)) {
 			ret = vmw_cotable_unscrub(res);
 			if (ret)
 				return ret;
@@ -615,7 +611,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	vcotbl->type = type;
 	vcotbl->ctx = ctx;
 
-	vmw_resource_activate(&vcotbl->res, vmw_hw_cotable_destroy);
+	vcotbl->res.hw_destroy = vmw_hw_cotable_destroy;
 
 	return &vcotbl->res;
 

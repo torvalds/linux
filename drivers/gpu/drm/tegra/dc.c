@@ -1,20 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <soc/tegra/pmc.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "dc.h"
 #include "drm.h"
@@ -22,9 +28,8 @@
 #include "hub.h"
 #include "plane.h"
 
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
+static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state);
 
 static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
 {
@@ -163,28 +168,89 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 			 BLEND_COLOR_KEY_NONE;
 	u32 blendnokey = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255);
 	struct tegra_plane_state *state;
+	u32 blending[2];
 	unsigned int i;
 
-	state = to_tegra_plane_state(plane->base.state);
-
-	/* alpha contribution is 1 minus sum of overlapping windows */
-	for (i = 0; i < 3; i++) {
-		if (state->dependent[i])
-			background[i] |= BLEND_CONTROL_DEPENDENT;
-	}
-
-	/* enable alpha blending if pixel format has an alpha component */
-	if (!state->opaque)
-		foreground |= BLEND_CONTROL_ALPHA;
-
-	/*
-	 * Disable blending and assume Window A is the bottom-most window,
-	 * Window C is the top-most window and Window B is in the middle.
-	 */
+	/* disable blending for non-overlapping case */
 	tegra_plane_writel(plane, blendnokey, DC_WIN_BLEND_NOKEY);
 	tegra_plane_writel(plane, foreground, DC_WIN_BLEND_1WIN);
 
-	switch (plane->index) {
+	state = to_tegra_plane_state(plane->base.state);
+
+	if (state->opaque) {
+		/*
+		 * Since custom fix-weight blending isn't utilized and weight
+		 * of top window is set to max, we can enforce dependent
+		 * blending which in this case results in transparent bottom
+		 * window if top window is opaque and if top window enables
+		 * alpha blending, then bottom window is getting alpha value
+		 * of 1 minus the sum of alpha components of the overlapping
+		 * plane.
+		 */
+		background[0] |= BLEND_CONTROL_DEPENDENT;
+		background[1] |= BLEND_CONTROL_DEPENDENT;
+
+		/*
+		 * The region where three windows overlap is the intersection
+		 * of the two regions where two windows overlap. It contributes
+		 * to the area if all of the windows on top of it have an alpha
+		 * component.
+		 */
+		switch (state->base.normalized_zpos) {
+		case 0:
+			if (state->blending[0].alpha &&
+			    state->blending[1].alpha)
+				background[2] |= BLEND_CONTROL_DEPENDENT;
+			break;
+
+		case 1:
+			background[2] |= BLEND_CONTROL_DEPENDENT;
+			break;
+		}
+	} else {
+		/*
+		 * Enable alpha blending if pixel format has an alpha
+		 * component.
+		 */
+		foreground |= BLEND_CONTROL_ALPHA;
+
+		/*
+		 * If any of the windows on top of this window is opaque, it
+		 * will completely conceal this window within that area. If
+		 * top window has an alpha component, it is blended over the
+		 * bottom window.
+		 */
+		for (i = 0; i < 2; i++) {
+			if (state->blending[i].alpha &&
+			    state->blending[i].top)
+				background[i] |= BLEND_CONTROL_DEPENDENT;
+		}
+
+		switch (state->base.normalized_zpos) {
+		case 0:
+			if (state->blending[0].alpha &&
+			    state->blending[1].alpha)
+				background[2] |= BLEND_CONTROL_DEPENDENT;
+			break;
+
+		case 1:
+			/*
+			 * When both middle and topmost windows have an alpha,
+			 * these windows a mixed together and then the result
+			 * is blended over the bottom window.
+			 */
+			if (state->blending[0].alpha &&
+			    state->blending[0].top)
+				background[2] |= BLEND_CONTROL_ALPHA;
+
+			if (state->blending[1].alpha &&
+			    state->blending[1].top)
+				background[2] |= BLEND_CONTROL_ALPHA;
+			break;
+		}
+	}
+
+	switch (state->base.normalized_zpos) {
 	case 0:
 		tegra_plane_writel(plane, background[0], DC_WIN_BLEND_2WIN_X);
 		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
@@ -192,8 +258,21 @@ static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 		break;
 
 	case 1:
-		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
+		/*
+		 * If window B / C is topmost, then X / Y registers are
+		 * matching the order of blending[...] state indices,
+		 * otherwise a swap is required.
+		 */
+		if (!state->blending[0].top && state->blending[1].top) {
+			blending[0] = foreground;
+			blending[1] = background[1];
+		} else {
+			blending[0] = background[0];
+			blending[1] = foreground;
+		}
+
+		tegra_plane_writel(plane, blending[0], DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, blending[1], DC_WIN_BLEND_2WIN_Y);
 		tegra_plane_writel(plane, background[2], DC_WIN_BLEND_3WIN_XY);
 		break;
 
@@ -222,6 +301,39 @@ static void tegra_plane_setup_blending(struct tegra_plane *plane,
 
 	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - window->zpos);
 	tegra_plane_writel(plane, value, DC_WIN_BLEND_LAYER_CONTROL);
+}
+
+static bool
+tegra_plane_use_horizontal_filtering(struct tegra_plane *plane,
+				     const struct tegra_dc_window *window)
+{
+	struct tegra_dc *dc = plane->dc;
+
+	if (window->src.w == window->dst.w)
+		return false;
+
+	if (plane->index == 0 && dc->soc->has_win_a_without_filters)
+		return false;
+
+	return true;
+}
+
+static bool
+tegra_plane_use_vertical_filtering(struct tegra_plane *plane,
+				   const struct tegra_dc_window *window)
+{
+	struct tegra_dc *dc = plane->dc;
+
+	if (window->src.h == window->dst.h)
+		return false;
+
+	if (plane->index == 0 && dc->soc->has_win_a_without_filters)
+		return false;
+
+	if (plane->index == 2 && dc->soc->has_win_c_without_vert_filter)
+		return false;
+
+	return true;
 }
 
 static void tegra_dc_setup_window(struct tegra_plane *plane,
@@ -361,12 +473,50 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 	if (window->bottom_up)
 		value |= V_DIRECTION;
 
+	if (tegra_plane_use_horizontal_filtering(plane, window)) {
+		/*
+		 * Enable horizontal 6-tap filter and set filtering
+		 * coefficients to the default values defined in TRM.
+		 */
+		tegra_plane_writel(plane, 0x00008000, DC_WIN_H_FILTER_P(0));
+		tegra_plane_writel(plane, 0x3e087ce1, DC_WIN_H_FILTER_P(1));
+		tegra_plane_writel(plane, 0x3b117ac1, DC_WIN_H_FILTER_P(2));
+		tegra_plane_writel(plane, 0x591b73aa, DC_WIN_H_FILTER_P(3));
+		tegra_plane_writel(plane, 0x57256d9a, DC_WIN_H_FILTER_P(4));
+		tegra_plane_writel(plane, 0x552f668b, DC_WIN_H_FILTER_P(5));
+		tegra_plane_writel(plane, 0x73385e8b, DC_WIN_H_FILTER_P(6));
+		tegra_plane_writel(plane, 0x72435583, DC_WIN_H_FILTER_P(7));
+		tegra_plane_writel(plane, 0x714c4c8b, DC_WIN_H_FILTER_P(8));
+		tegra_plane_writel(plane, 0x70554393, DC_WIN_H_FILTER_P(9));
+		tegra_plane_writel(plane, 0x715e389b, DC_WIN_H_FILTER_P(10));
+		tegra_plane_writel(plane, 0x71662faa, DC_WIN_H_FILTER_P(11));
+		tegra_plane_writel(plane, 0x536d25ba, DC_WIN_H_FILTER_P(12));
+		tegra_plane_writel(plane, 0x55731bca, DC_WIN_H_FILTER_P(13));
+		tegra_plane_writel(plane, 0x387a11d9, DC_WIN_H_FILTER_P(14));
+		tegra_plane_writel(plane, 0x3c7c08f1, DC_WIN_H_FILTER_P(15));
+
+		value |= H_FILTER;
+	}
+
+	if (tegra_plane_use_vertical_filtering(plane, window)) {
+		unsigned int i, k;
+
+		/*
+		 * Enable vertical 2-tap filter and set filtering
+		 * coefficients to the default values defined in TRM.
+		 */
+		for (i = 0, k = 128; i < 16; i++, k -= 8)
+			tegra_plane_writel(plane, k, DC_WIN_V_FILTER_P(i));
+
+		value |= V_FILTER;
+	}
+
 	tegra_plane_writel(plane, value, DC_WIN_WIN_OPTIONS);
 
-	if (dc->soc->supports_blending)
-		tegra_plane_setup_blending(plane, window);
-	else
+	if (dc->soc->has_legacy_blending)
 		tegra_plane_setup_blending_legacy(plane);
+	else
+		tegra_plane_setup_blending(plane, window);
 }
 
 static const u32 tegra20_primary_formats[] = {
@@ -451,17 +601,18 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
 	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	unsigned int rotation = DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y;
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
-	unsigned int format;
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format, &format,
+	err = tegra_plane_format(state->fb->format->format,
+				 &plane_state->format,
 				 &plane_state->swap);
 	if (err < 0)
 		return err;
@@ -472,21 +623,11 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	 * the corresponding opaque formats. However, the opaque formats can
 	 * be emulated by disabling alpha blending for the plane.
 	 */
-	if (!dc->soc->supports_blending) {
-		if (!tegra_plane_format_has_alpha(format)) {
-			err = tegra_plane_format_get_alpha(format, &format);
-			if (err < 0)
-				return err;
-
-			plane_state->opaque = true;
-		} else {
-			plane_state->opaque = false;
-		}
-
-		tegra_plane_check_dependent(tegra, plane_state);
+	if (dc->soc->has_legacy_blending) {
+		err = tegra_plane_setup_legacy_state(tegra, plane_state);
+		if (err < 0)
+			return err;
 	}
-
-	plane_state->format = format;
 
 	err = tegra_fb_get_tiling(state->fb, tiling);
 	if (err < 0)
@@ -497,6 +638,13 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 		DRM_ERROR("hardware doesn't support block linear mode\n");
 		return -EINVAL;
 	}
+
+	rotation = drm_rotation_simplify(state->rotation, rotation);
+
+	if (rotation & DRM_MODE_REFLECT_Y)
+		plane_state->bottom_up = true;
+	else
+		plane_state->bottom_up = false;
 
 	/*
 	 * Tegra doesn't support different strides for U and V planes so we
@@ -558,7 +706,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.dst.w = drm_rect_width(&plane->state->dst);
 	window.dst.h = drm_rect_height(&plane->state->dst);
 	window.bits_per_pixel = fb->format->cpp[0] * 8;
-	window.bottom_up = tegra_fb_is_bottom_up(fb);
+	window.bottom_up = tegra_fb_is_bottom_up(fb) || state->bottom_up;
 
 	/* copy from state */
 	window.zpos = plane->state->normalized_zpos;
@@ -567,9 +715,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.swap = state->swap;
 
 	for (i = 0; i < fb->format->num_planes; i++) {
-		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
-
-		window.base[i] = bo->paddr + fb->offsets[i];
+		window.base[i] = state->iova[i] + fb->offsets[i];
 
 		/*
 		 * Tegra uses a shared stride for UV planes. Framebuffers are
@@ -584,6 +730,8 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
+	.prepare_fb = tegra_plane_prepare_fb,
+	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_plane_atomic_check,
 	.atomic_disable = tegra_plane_atomic_disable,
 	.atomic_update = tegra_plane_atomic_update,
@@ -639,9 +787,15 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
+	drm_plane_create_zpos_property(&plane->base, plane->index, 0, 255);
 
-	if (dc->soc->supports_blending)
-		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
+	err = drm_plane_create_rotation_property(&plane->base,
+						 DRM_MODE_ROTATE_0,
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_Y);
+	if (err < 0)
+		dev_err(dc->dev, "failed to create rotation property: %d\n",
+			err);
 
 	return &plane->base;
 }
@@ -683,16 +837,15 @@ static int tegra_cursor_atomic_check(struct drm_plane *plane,
 static void tegra_cursor_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct tegra_bo *bo = tegra_fb_get_plane(plane->state->fb, 0);
+	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
-	struct drm_plane_state *state = plane->state;
 	u32 value = CURSOR_CLIP_DISPLAY;
 
 	/* rien ne va plus */
 	if (!plane->state->crtc || !plane->state->fb)
 		return;
 
-	switch (state->crtc_w) {
+	switch (plane->state->crtc_w) {
 	case 32:
 		value |= CURSOR_SIZE_32x32;
 		break;
@@ -710,16 +863,16 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 		break;
 
 	default:
-		WARN(1, "cursor size %ux%u not supported\n", state->crtc_w,
-		     state->crtc_h);
+		WARN(1, "cursor size %ux%u not supported\n",
+		     plane->state->crtc_w, plane->state->crtc_h);
 		return;
 	}
 
-	value |= (bo->paddr >> 10) & 0x3fffff;
+	value |= (state->iova[0] >> 10) & 0x3fffff;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR);
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	value = (bo->paddr >> 32) & 0x3;
+	value = (state->iova[0] >> 32) & 0x3;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR_HI);
 #endif
 
@@ -738,7 +891,8 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 	tegra_dc_writel(dc, value, DC_DISP_BLEND_CURSOR_CONTROL);
 
 	/* position the cursor */
-	value = (state->crtc_y & 0x3fff) << 16 | (state->crtc_x & 0x3fff);
+	value = (plane->state->crtc_y & 0x3fff) << 16 |
+		(plane->state->crtc_x & 0x3fff);
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
 }
 
@@ -760,6 +914,8 @@ static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
+	.prepare_fb = tegra_plane_prepare_fb,
+	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
 	.atomic_disable = tegra_cursor_atomic_disable,
@@ -918,9 +1074,15 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
+	drm_plane_create_zpos_property(&plane->base, plane->index, 0, 255);
 
-	if (dc->soc->supports_blending)
-		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
+	err = drm_plane_create_rotation_property(&plane->base,
+						 DRM_MODE_ROTATE_0,
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_Y);
+	if (err < 0)
+		dev_err(dc->dev, "failed to create rotation property: %d\n",
+			err);
 
 	return &plane->base;
 }
@@ -1000,20 +1162,12 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 
 static void tegra_crtc_reset(struct drm_crtc *crtc)
 {
-	struct tegra_dc_state *state;
+	struct tegra_dc_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		tegra_crtc_atomic_destroy_state(crtc, crtc->state);
 
-	kfree(crtc->state);
-	crtc->state = NULL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		crtc->state = &state->base;
-		crtc->state->crtc = crtc;
-	}
-
+	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 	drm_crtc_vblank_reset(crtc);
 }
 
@@ -1573,6 +1727,7 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
+	int err;
 
 	if (!tegra_dc_idle(dc)) {
 		tegra_dc_stop(dc);
@@ -1619,7 +1774,9 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_unlock_irq(&crtc->dev->event_lock);
 
-	pm_runtime_put_sync(dc->dev);
+	err = host1x_client_suspend(&dc->client);
+	if (err < 0)
+		dev_err(dc->dev, "failed to suspend: %d\n", err);
 }
 
 static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -1629,8 +1786,13 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
+	int err;
 
-	pm_runtime_get_sync(dc->dev);
+	err = host1x_client_resume(&dc->client);
+	if (err < 0) {
+		dev_err(dc->dev, "failed to resume: %d\n", err);
+		return;
+	}
 
 	/* initialize display controller */
 	if (dc->syncpt) {
@@ -1823,10 +1985,26 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static bool tegra_dc_has_window_groups(struct tegra_dc *dc)
+{
+	unsigned int i;
+
+	if (!dc->soc->wgrps)
+		return true;
+
+	for (i = 0; i < dc->soc->num_wgrps; i++) {
+		const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
+
+		if (wgrp->dc == dc->pipe && wgrp->num_windows > 0)
+			return true;
+	}
+
+	return false;
+}
+
 static int tegra_dc_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
-	struct iommu_group *group = iommu_group_get(client->dev);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -1834,24 +2012,31 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct drm_plane *cursor = NULL;
 	int err;
 
+	/*
+	 * XXX do not register DCs with no window groups because we cannot
+	 * assign a primary plane to them, which in turn will cause KMS to
+	 * crash.
+	 */
+	if (!tegra_dc_has_window_groups(dc))
+		return 0;
+
+	/*
+	 * Set the display hub as the host1x client parent for the display
+	 * controller. This is needed for the runtime reference counting that
+	 * ensures the display hub is always powered when any of the display
+	 * controllers are.
+	 */
+	if (dc->soc->has_nvdisplay)
+		client->parent = &tegra->hub->client;
+
 	dc->syncpt = host1x_syncpt_request(client, flags);
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
-	if (group && tegra->domain) {
-		if (group != tegra->group) {
-			err = iommu_attach_group(tegra->domain, group);
-			if (err < 0) {
-				dev_err(dc->dev,
-					"failed to attach to domain: %d\n",
-					err);
-				return err;
-			}
-
-			tegra->group = group;
-		}
-
-		dc->domain = tegra->domain;
+	err = host1x_client_iommu_attach(client);
+	if (err < 0 && err != -ENODEV) {
+		dev_err(client->dev, "failed to attach to domain: %d\n", err);
+		return err;
 	}
 
 	if (dc->soc->wgrps)
@@ -1907,6 +2092,12 @@ static int tegra_dc_init(struct host1x_client *client)
 		goto cleanup;
 	}
 
+	/*
+	 * Inherit the DMA parameters (such as maximum segment size) from the
+	 * parent host1x device.
+	 */
+	client->dev->dma_parms = client->host->dma_parms;
+
 	return 0;
 
 cleanup:
@@ -1916,25 +2107,22 @@ cleanup:
 	if (!IS_ERR(primary))
 		drm_plane_cleanup(primary);
 
-	if (group && dc->domain) {
-		if (group == tegra->group) {
-			iommu_detach_group(dc->domain, group);
-			tegra->group = NULL;
-		}
-
-		dc->domain = NULL;
-	}
+	host1x_client_iommu_detach(client);
+	host1x_syncpt_free(dc->syncpt);
 
 	return err;
 }
 
 static int tegra_dc_exit(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
-	struct iommu_group *group = iommu_group_get(client->dev);
 	struct tegra_dc *dc = host1x_client_to_dc(client);
-	struct tegra_drm *tegra = drm->dev_private;
 	int err;
+
+	if (!tegra_dc_has_window_groups(dc))
+		return 0;
+
+	/* avoid a dangling pointer just in case this disappears */
+	client->dev->dma_parms = NULL;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
 
@@ -1944,23 +2132,80 @@ static int tegra_dc_exit(struct host1x_client *client)
 		return err;
 	}
 
-	if (group && dc->domain) {
-		if (group == tegra->group) {
-			iommu_detach_group(dc->domain, group);
-			tegra->group = NULL;
-		}
-
-		dc->domain = NULL;
-	}
-
+	host1x_client_iommu_detach(client);
 	host1x_syncpt_free(dc->syncpt);
 
 	return 0;
 }
 
+static int tegra_dc_runtime_suspend(struct host1x_client *client)
+{
+	struct tegra_dc *dc = host1x_client_to_dc(client);
+	struct device *dev = client->dev;
+	int err;
+
+	err = reset_control_assert(dc->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
+
+	if (dc->soc->has_powergate)
+		tegra_powergate_power_off(dc->powergate);
+
+	clk_disable_unprepare(dc->clk);
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
+static int tegra_dc_runtime_resume(struct host1x_client *client)
+{
+	struct tegra_dc *dc = host1x_client_to_dc(client);
+	struct device *dev = client->dev;
+	int err;
+
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "failed to get runtime PM: %d\n", err);
+		return err;
+	}
+
+	if (dc->soc->has_powergate) {
+		err = tegra_powergate_sequence_power_up(dc->powergate, dc->clk,
+							dc->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to power partition: %d\n", err);
+			goto put_rpm;
+		}
+	} else {
+		err = clk_prepare_enable(dc->clk);
+		if (err < 0) {
+			dev_err(dev, "failed to enable clock: %d\n", err);
+			goto put_rpm;
+		}
+
+		err = reset_control_deassert(dc->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to deassert reset: %d\n", err);
+			goto disable_clk;
+		}
+	}
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(dc->clk);
+put_rpm:
+	pm_runtime_put_sync(dev);
+	return err;
+}
+
 static const struct host1x_client_ops dc_client_ops = {
 	.init = tegra_dc_init,
 	.exit = tegra_dc_exit,
+	.suspend = tegra_dc_runtime_suspend,
+	.resume = tegra_dc_runtime_resume,
 };
 
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
@@ -1968,7 +2213,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
-	.supports_blending = false,
+	.has_legacy_blending = true,
 	.pitch_align = 8,
 	.has_powergate = false,
 	.coupled_pm = true,
@@ -1978,6 +2223,8 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
 	.modifiers = tegra20_modifiers,
+	.has_win_a_without_filters = true,
+	.has_win_c_without_vert_filter = true,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
@@ -1985,7 +2232,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
-	.supports_blending = false,
+	.has_legacy_blending = true,
 	.pitch_align = 8,
 	.has_powergate = false,
 	.coupled_pm = false,
@@ -1995,6 +2242,8 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
 	.modifiers = tegra20_modifiers,
+	.has_win_a_without_filters = false,
+	.has_win_c_without_vert_filter = false,
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
@@ -2002,7 +2251,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
-	.supports_blending = false,
+	.has_legacy_blending = true,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.coupled_pm = false,
@@ -2012,6 +2261,8 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
 	.modifiers = tegra20_modifiers,
+	.has_win_a_without_filters = false,
+	.has_win_c_without_vert_filter = false,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
@@ -2019,7 +2270,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
-	.supports_blending = true,
+	.has_legacy_blending = false,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.coupled_pm = false,
@@ -2029,6 +2280,8 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
 	.overlay_formats = tegra124_overlay_formats,
 	.modifiers = tegra124_modifiers,
+	.has_win_a_without_filters = false,
+	.has_win_c_without_vert_filter = false,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
@@ -2036,7 +2289,7 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
-	.supports_blending = true,
+	.has_legacy_blending = false,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.coupled_pm = false,
@@ -2046,6 +2299,8 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
 	.modifiers = tegra124_modifiers,
+	.has_win_a_without_filters = false,
+	.has_win_c_without_vert_filter = false,
 };
 
 static const struct tegra_windowgroup_soc tegra186_dc_wgrps[] = {
@@ -2087,7 +2342,7 @@ static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
-	.supports_blending = true,
+	.has_legacy_blending = false,
 	.pitch_align = 64,
 	.has_powergate = false,
 	.coupled_pm = false,
@@ -2096,8 +2351,59 @@ static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
 	.num_wgrps = ARRAY_SIZE(tegra186_dc_wgrps),
 };
 
+static const struct tegra_windowgroup_soc tegra194_dc_wgrps[] = {
+	{
+		.index = 0,
+		.dc = 0,
+		.windows = (const unsigned int[]) { 0 },
+		.num_windows = 1,
+	}, {
+		.index = 1,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 1 },
+		.num_windows = 1,
+	}, {
+		.index = 2,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 2 },
+		.num_windows = 1,
+	}, {
+		.index = 3,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 3 },
+		.num_windows = 1,
+	}, {
+		.index = 4,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 4 },
+		.num_windows = 1,
+	}, {
+		.index = 5,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 5 },
+		.num_windows = 1,
+	},
+};
+
+static const struct tegra_dc_soc_info tegra194_dc_soc_info = {
+	.supports_background_color = true,
+	.supports_interlacing = true,
+	.supports_cursor = true,
+	.supports_block_linear = true,
+	.has_legacy_blending = false,
+	.pitch_align = 64,
+	.has_powergate = false,
+	.coupled_pm = false,
+	.has_nvdisplay = true,
+	.wgrps = tegra194_dc_wgrps,
+	.num_wgrps = ARRAY_SIZE(tegra194_dc_wgrps),
+};
+
 static const struct of_device_id tegra_dc_of_match[] = {
 	{
+		.compatible = "nvidia,tegra194-dc",
+		.data = &tegra194_dc_soc_info,
+	}, {
 		.compatible = "nvidia,tegra186-dc",
 		.data = &tegra186_dc_soc_info,
 	}, {
@@ -2158,10 +2464,10 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 	return 0;
 }
 
-static int tegra_dc_match_by_pipe(struct device *dev, void *data)
+static int tegra_dc_match_by_pipe(struct device *dev, const void *data)
 {
 	struct tegra_dc *dc = dev_get_drvdata(dev);
-	unsigned int pipe = (unsigned long)data;
+	unsigned int pipe = (unsigned long)(void *)data;
 
 	return dc->pipe == pipe;
 }
@@ -2174,7 +2480,7 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 	 * POWER_CONTROL registers during CRTC enabling.
 	 */
 	if (dc->soc->coupled_pm && dc->pipe == 1) {
-		u32 flags = DL_FLAG_PM_RUNTIME | DL_FLAG_AUTOREMOVE;
+		u32 flags = DL_FLAG_PM_RUNTIME | DL_FLAG_AUTOREMOVE_CONSUMER;
 		struct device_link *link;
 		struct device *partner;
 
@@ -2197,7 +2503,6 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
 
@@ -2254,8 +2559,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		tegra_powergate_power_off(dc->powergate);
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dc->regs = devm_ioremap_resource(&pdev->dev, regs);
+	dc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dc->regs))
 		return PTR_ERR(dc->regs);
 
@@ -2267,7 +2571,13 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	err = tegra_dc_rgb_probe(dc);
 	if (err < 0 && err != -ENODEV) {
-		dev_err(&pdev->dev, "failed to probe RGB output: %d\n", err);
+		const char *level = KERN_ERR;
+
+		if (err == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, dc->dev, "failed to probe RGB output: %d\n",
+			   err);
 		return err;
 	}
 
@@ -2282,10 +2592,16 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
-		return err;
+		goto disable_pm;
 	}
 
 	return 0;
+
+disable_pm:
+	pm_runtime_disable(&pdev->dev);
+	tegra_dc_rgb_remove(dc);
+
+	return err;
 }
 
 static int tegra_dc_remove(struct platform_device *pdev)
@@ -2311,65 +2627,10 @@ static int tegra_dc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tegra_dc_suspend(struct device *dev)
-{
-	struct tegra_dc *dc = dev_get_drvdata(dev);
-	int err;
-
-	err = reset_control_assert(dc->rst);
-	if (err < 0) {
-		dev_err(dev, "failed to assert reset: %d\n", err);
-		return err;
-	}
-
-	if (dc->soc->has_powergate)
-		tegra_powergate_power_off(dc->powergate);
-
-	clk_disable_unprepare(dc->clk);
-
-	return 0;
-}
-
-static int tegra_dc_resume(struct device *dev)
-{
-	struct tegra_dc *dc = dev_get_drvdata(dev);
-	int err;
-
-	if (dc->soc->has_powergate) {
-		err = tegra_powergate_sequence_power_up(dc->powergate, dc->clk,
-							dc->rst);
-		if (err < 0) {
-			dev_err(dev, "failed to power partition: %d\n", err);
-			return err;
-		}
-	} else {
-		err = clk_prepare_enable(dc->clk);
-		if (err < 0) {
-			dev_err(dev, "failed to enable clock: %d\n", err);
-			return err;
-		}
-
-		err = reset_control_deassert(dc->rst);
-		if (err < 0) {
-			dev_err(dev, "failed to deassert reset: %d\n", err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops tegra_dc_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_dc_suspend, tegra_dc_resume, NULL)
-};
-
 struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegra-dc",
 		.of_match_table = tegra_dc_of_match,
-		.pm = &tegra_dc_pm_ops,
 	},
 	.probe = tegra_dc_probe,
 	.remove = tegra_dc_remove,

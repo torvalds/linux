@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Conexant Cx231xx audio extension
  *
  *  Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
  *       Based on em28xx driver
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx231xx.h"
@@ -23,8 +13,6 @@
 #include <linux/spinlock.h>
 #include <linux/soundcard.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -112,7 +100,7 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
-		dev_dbg(dev->dev, "urb completition error %d.\n",
+		dev_dbg(dev->dev, "urb completion error %d.\n",
 			urb->status);
 		break;
 	}
@@ -126,6 +114,7 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 		stride = runtime->frame_bits >> 3;
 
 		for (i = 0; i < urb->number_of_packets; i++) {
+			unsigned long flags;
 			int length = urb->iso_frame_desc[i].actual_length /
 				     stride;
 			cp = (unsigned char *)urb->transfer_buffer +
@@ -148,7 +137,7 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 				       length * stride);
 			}
 
-			snd_pcm_stream_lock(substream);
+			snd_pcm_stream_lock_irqsave(substream, flags);
 
 			dev->adev.hwptr_done_capture += length;
 			if (dev->adev.hwptr_done_capture >=
@@ -163,7 +152,7 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 						runtime->period_size;
 				period_elapsed = 1;
 			}
-			snd_pcm_stream_unlock(substream);
+			snd_pcm_stream_unlock_irqrestore(substream, flags);
 		}
 		if (period_elapsed)
 			snd_pcm_period_elapsed(substream);
@@ -202,7 +191,7 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
-		dev_dbg(dev->dev, "urb completition error %d.\n",
+		dev_dbg(dev->dev, "urb completion error %d.\n",
 			urb->status);
 		break;
 	}
@@ -216,6 +205,7 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 		stride = runtime->frame_bits >> 3;
 
 		if (1) {
+			unsigned long flags;
 			int length = urb->actual_length /
 				     stride;
 			cp = (unsigned char *)urb->transfer_buffer;
@@ -234,7 +224,7 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 				       length * stride);
 			}
 
-			snd_pcm_stream_lock(substream);
+			snd_pcm_stream_lock_irqsave(substream, flags);
 
 			dev->adev.hwptr_done_capture += length;
 			if (dev->adev.hwptr_done_capture >=
@@ -249,7 +239,7 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 						runtime->period_size;
 				period_elapsed = 1;
 			}
-			snd_pcm_stream_unlock(substream);
+			snd_pcm_stream_unlock_irqrestore(substream, flags);
 		}
 		if (period_elapsed)
 			snd_pcm_period_elapsed(substream);
@@ -381,28 +371,6 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 	return errCode;
 }
 
-static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
-					size_t size)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-	struct cx231xx *dev = snd_pcm_substream_chip(subs);
-
-	dev_dbg(dev->dev, "Allocating vbuffer\n");
-	if (runtime->dma_area) {
-		if (runtime->dma_bytes > size)
-			return 0;
-
-		vfree(runtime->dma_area);
-	}
-	runtime->dma_area = vmalloc(size);
-	if (!runtime->dma_area)
-		return -ENOMEM;
-
-	runtime->dma_bytes = size;
-
-	return 0;
-}
-
 static const struct snd_pcm_hardware snd_cx231xx_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER	|
 	    SNDRV_PCM_INFO_MMAP			|
@@ -493,11 +461,6 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	}
 
 	dev->adev.users--;
-	if (substream->runtime->dma_area) {
-		dev_dbg(dev->dev, "freeing\n");
-		vfree(substream->runtime->dma_area);
-		substream->runtime->dma_area = NULL;
-	}
 	mutex_unlock(&dev->lock);
 
 	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {
@@ -510,44 +473,6 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 			schedule_work(&dev->wq_trigger);
 		}
 	}
-	return 0;
-}
-
-static int snd_cx231xx_hw_capture_params(struct snd_pcm_substream *substream,
-					 struct snd_pcm_hw_params *hw_params)
-{
-	struct cx231xx *dev = snd_pcm_substream_chip(substream);
-	int ret;
-
-	dev_dbg(dev->dev, "Setting capture parameters\n");
-
-	ret = snd_pcm_alloc_vmalloc_buffer(substream,
-					   params_buffer_bytes(hw_params));
-#if 0
-	/* TODO: set up cx231xx audio chip to deliver the correct audio format,
-	   current default is 48000hz multiplexed => 96000hz mono
-	   which shouldn't matter since analogue TV only supports mono */
-	unsigned int channels, rate, format;
-
-	format = params_format(hw_params);
-	rate = params_rate(hw_params);
-	channels = params_channels(hw_params);
-#endif
-
-	return ret;
-}
-
-static int snd_cx231xx_hw_capture_free(struct snd_pcm_substream *substream)
-{
-	struct cx231xx *dev = snd_pcm_substream_chip(substream);
-
-	dev_dbg(dev->dev, "Stop capture, if needed\n");
-
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
-	}
-
 	return 0;
 }
 
@@ -623,24 +548,12 @@ static snd_pcm_uframes_t snd_cx231xx_capture_pointer(struct snd_pcm_substream
 	return hwptr_done;
 }
 
-static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
-					     unsigned long offset)
-{
-	void *pageptr = subs->runtime->dma_area + offset;
-
-	return vmalloc_to_page(pageptr);
-}
-
 static const struct snd_pcm_ops snd_cx231xx_pcm_capture = {
 	.open = snd_cx231xx_capture_open,
 	.close = snd_cx231xx_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_cx231xx_hw_capture_params,
-	.hw_free = snd_cx231xx_hw_capture_free,
 	.prepare = snd_cx231xx_prepare,
 	.trigger = snd_cx231xx_capture_trigger,
 	.pointer = snd_cx231xx_capture_pointer,
-	.page = snd_pcm_get_vmalloc_page,
 };
 
 static int cx231xx_audio_init(struct cx231xx *dev)
@@ -675,12 +588,13 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 			&snd_cx231xx_pcm_capture);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
-	strcpy(pcm->name, "Conexant cx231xx Capture");
-	strcpy(card->driver, "Cx231xx-Audio");
-	strcpy(card->shortname, "Cx231xx Audio");
-	strcpy(card->longname, "Conexant cx231xx Audio");
+	strscpy(pcm->name, "Conexant cx231xx Capture", sizeof(pcm->name));
+	strscpy(card->driver, "Cx231xx-Audio", sizeof(card->driver));
+	strscpy(card->shortname, "Cx231xx Audio", sizeof(card->shortname));
+	strscpy(card->longname, "Conexant cx231xx Audio", sizeof(card->longname));
 
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
@@ -710,7 +624,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	dev_info(dev->dev,
 		"audio EndPoint Addr 0x%x, Alternate settings: %i\n",
 		adev->end_point_addr, adev->num_alt);
-	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
+	adev->alt_max_pkt_size = kmalloc_array(32, adev->num_alt, GFP_KERNEL);
 	if (!adev->alt_max_pkt_size) {
 		err = -ENOMEM;
 		goto err_free_card;

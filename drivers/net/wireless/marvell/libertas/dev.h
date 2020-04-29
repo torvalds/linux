@@ -58,8 +58,6 @@ struct lbs_private {
 #ifdef CONFIG_LIBERTAS_MESH
 	struct lbs_mesh_stats mstats;
 	uint16_t mesh_tlv;
-	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 mesh_ssid_len;
 	u8 mesh_channel;
 #endif
 
@@ -104,6 +102,7 @@ struct lbs_private {
 	u8 fw_ready;
 	u8 surpriseremoved;
 	u8 setup_fw_on_resume;
+	u8 power_up_on_resume;
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	void (*reset_card) (struct lbs_private *priv);
 	int (*power_save) (struct lbs_private *priv);

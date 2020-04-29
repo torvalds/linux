@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. include:: <isonum.txt>
 
 Vaio Picturebook Motion Eye Camera Driver
@@ -93,7 +95,7 @@ so all video4linux tools (like xawtv) should work with this driver.
 
 Besides the video4linux interface, the driver has a private interface
 for accessing the Motion Eye extended parameters (camera sharpness,
-agc, video framerate), the shapshot and the MJPEG capture facilities.
+agc, video framerate), the snapshot and the MJPEG capture facilities.
 
 This interface consists of several ioctls (prototypes and structures
 can be found in include/linux/meye.h):

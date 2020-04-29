@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* $Id: plip.c,v 1.3.6.2 1997/04/16 15:07:56 phil Exp $ */
 /* PLIP: A parallel port "network" driver for Linux. */
 /* This driver is for parallel port with 5-bit cable (LapLink (R) cable). */
@@ -29,11 +30,6 @@
  *		Al Viro
  *		  - Changed {enable,disable}_irq handling to make it work
  *		    with new ("stack") semantics.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -1012,7 +1008,7 @@ plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		/* Any address will do - we take the first */
-		const struct in_ifaddr *ifa = in_dev->ifa_list;
+		const struct in_ifaddr *ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa) {
 			memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 			memset(eth->h_dest, 0xfc, 2);
@@ -1107,7 +1103,7 @@ plip_open(struct net_device *dev)
 		/* Any address will do - we take the first. We already
 		   have the first two bytes filled with 0xfc, from
 		   plip_init_dev(). */
-		struct in_ifaddr *ifa=in_dev->ifa_list;
+		const struct in_ifaddr *ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
 			memcpy(dev->dev_addr+2, &ifa->ifa_local, 4);
 		}

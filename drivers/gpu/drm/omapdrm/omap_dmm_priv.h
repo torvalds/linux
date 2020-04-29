@@ -159,6 +159,7 @@ struct dmm_platform_data {
 
 struct dmm {
 	struct device *dev;
+	dma_addr_t phys_base;
 	void __iomem *base;
 	int irq;
 
@@ -189,6 +190,12 @@ struct dmm {
 	struct list_head alloc_head;
 
 	const struct dmm_platform_data *plat_data;
+
+	bool dmm_workaround;
+	spinlock_t wa_lock;
+	u32 *wa_dma_data;
+	dma_addr_t wa_dma_handle;
+	struct dma_chan *wa_dma_chan;
 };
 
 #endif

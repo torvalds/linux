@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/nommu.c
  *
  * Various helper routines and stubs for MMUless SH.
  *
  * Copyright (C) 2002 - 2009 Paul Mundt
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -96,9 +95,5 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 }
 
 void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
-{
-}
-
-void pgtable_cache_init(void)
 {
 }

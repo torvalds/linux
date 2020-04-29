@@ -47,6 +47,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 	"rp_byte_reset",
 	"rp_threshold",
 	"rp_ai_rate",
+	"rp_max_rate",
 	"rp_hai_rate",
 	"rp_min_dec_fac",
 	"rp_min_rate",
@@ -56,6 +57,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 	"rp_rate_reduce_monitor_period",
 	"rp_initial_alpha_value",
 	"rp_gd",
+	"np_min_time_between_cnps",
 	"np_cnp_dscp",
 	"np_cnp_prio_mode",
 	"np_cnp_prio",
@@ -66,6 +68,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_RP_TIME_RESET_ATTR			BIT(3)
 #define MLX5_IB_RP_BYTE_RESET_ATTR			BIT(4)
 #define MLX5_IB_RP_THRESHOLD_ATTR			BIT(5)
+#define MLX5_IB_RP_MAX_RATE_ATTR			BIT(6)
 #define MLX5_IB_RP_AI_RATE_ATTR				BIT(7)
 #define MLX5_IB_RP_HAI_RATE_ATTR			BIT(8)
 #define MLX5_IB_RP_MIN_DEC_FAC_ATTR			BIT(9)
@@ -77,6 +80,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_RP_INITIAL_ALPHA_VALUE_ATTR		BIT(15)
 #define MLX5_IB_RP_GD_ATTR				BIT(16)
 
+#define MLX5_IB_NP_MIN_TIME_BETWEEN_CNPS_ATTR		BIT(2)
 #define MLX5_IB_NP_CNP_DSCP_ATTR			BIT(3)
 #define MLX5_IB_NP_CNP_PRIO_MODE_ATTR			BIT(4)
 
@@ -111,6 +115,9 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_RP_AI_RATE:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_ai_rate);
+	case MLX5_IB_DBG_CC_RP_MAX_RATE:
+		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
+				rpg_max_rate);
 	case MLX5_IB_DBG_CC_RP_HAI_RATE:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_hai_rate);
@@ -138,6 +145,9 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_RP_GD:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_gd);
+	case MLX5_IB_DBG_CC_NP_MIN_TIME_BETWEEN_CNPS:
+		return MLX5_GET(cong_control_r_roce_ecn_np, field,
+				min_time_between_cnps);
 	case MLX5_IB_DBG_CC_NP_CNP_DSCP:
 		return MLX5_GET(cong_control_r_roce_ecn_np, field,
 				cnp_dscp);
@@ -186,6 +196,11 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		MLX5_SET(cong_control_r_roce_ecn_rp, field,
 			 rpg_ai_rate, var);
 		break;
+	case MLX5_IB_DBG_CC_RP_MAX_RATE:
+		*attr_mask |= MLX5_IB_RP_MAX_RATE_ATTR;
+		MLX5_SET(cong_control_r_roce_ecn_rp, field,
+			 rpg_max_rate, var);
+		break;
 	case MLX5_IB_DBG_CC_RP_HAI_RATE:
 		*attr_mask |= MLX5_IB_RP_HAI_RATE_ATTR;
 		MLX5_SET(cong_control_r_roce_ecn_rp, field,
@@ -230,6 +245,11 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		*attr_mask |= MLX5_IB_RP_GD_ATTR;
 		MLX5_SET(cong_control_r_roce_ecn_rp, field,
 			 rpg_gd, var);
+		break;
+	case MLX5_IB_DBG_CC_NP_MIN_TIME_BETWEEN_CNPS:
+		*attr_mask |= MLX5_IB_NP_MIN_TIME_BETWEEN_CNPS_ATTR;
+		MLX5_SET(cong_control_r_roce_ecn_np, field,
+			 min_time_between_cnps, var);
 		break;
 	case MLX5_IB_DBG_CC_NP_CNP_DSCP:
 		*attr_mask |= MLX5_IB_NP_CNP_DSCP_ATTR;
@@ -359,9 +379,6 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	int ret;
 	char lbuf[11];
 
-	if (*pos)
-		return 0;
-
 	ret = mlx5_ib_get_cc_params(param->dev, param->port_num, offset, &var);
 	if (ret)
 		return ret;
@@ -370,11 +387,7 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	if (ret < 0)
 		return ret;
 
-	if (copy_to_user(buf, lbuf, ret))
-		return -EFAULT;
-
-	*pos += ret;
-	return ret;
+	return simple_read_from_buffer(buf, count, pos, lbuf, ret);
 }
 
 static const struct file_operations dbg_cc_fops = {
@@ -396,19 +409,19 @@ void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_core_dev *mdev;
 	int i;
 
 	if (!mlx5_debugfs_root)
-		goto out;
+		return;
 
 	/* Takes a 1-based port number */
 	mdev = mlx5_ib_get_native_port_mdev(dev, port_num + 1, NULL);
 	if (!mdev)
-		goto out;
+		return;
 
 	if (!MLX5_CAP_GEN(mdev, cc_query_allowed) ||
 	    !MLX5_CAP_GEN(mdev, cc_modify_allowed))
@@ -422,8 +435,6 @@ int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 
 	dbg_cc_params->root = debugfs_create_dir("cc_params",
 						 mdev->priv.dbg_root);
-	if (!dbg_cc_params->root)
-		goto err;
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
 		dbg_cc_params->params[i].offset = i;
@@ -434,14 +445,11 @@ int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 					    0600, dbg_cc_params->root,
 					    &dbg_cc_params->params[i],
 					    &dbg_cc_fops);
-		if (!dbg_cc_params->params[i].dentry)
-			goto err;
 	}
 
 put_mdev:
 	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
-out:
-	return 0;
+	return;
 
 err:
 	mlx5_ib_warn(dev, "cong debugfs failure\n");
@@ -452,5 +460,5 @@ err:
 	 * We don't want to fail driver if debugfs failed to initialize,
 	 * so we are not forwarding error to the user.
 	 */
-	return 0;
+	return;
 }

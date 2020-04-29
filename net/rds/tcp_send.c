@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -153,7 +153,7 @@ out:
 			 * an incoming RST.
 			 */
 			if (rds_conn_path_up(cp)) {
-				pr_warn("RDS/tcp: send to %pI4 on cp [%d]"
+				pr_warn("RDS/tcp: send to %pI6c on cp [%d]"
 					"returned %d, "
 					"disconnecting and reconnecting\n",
 					&conn->c_faddr, cp->cp_index, ret);

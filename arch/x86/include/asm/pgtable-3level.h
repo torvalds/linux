@@ -2,6 +2,8 @@
 #ifndef _ASM_X86_PGTABLE_3LEVEL_H
 #define _ASM_X86_PGTABLE_3LEVEL_H
 
+#include <asm/atomic64_32.h>
+
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
  * tables on PPro+ CPUs.
@@ -34,39 +36,41 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 
 #define pmd_read_atomic pmd_read_atomic
 /*
- * pte_offset_map_lock on 32bit PAE kernels was reading the pmd_t with
- * a "*pmdp" dereference done by gcc. Problem is, in certain places
- * where pte_offset_map_lock is called, concurrent page faults are
+ * pte_offset_map_lock() on 32-bit PAE kernels was reading the pmd_t with
+ * a "*pmdp" dereference done by GCC. Problem is, in certain places
+ * where pte_offset_map_lock() is called, concurrent page faults are
  * allowed, if the mmap_sem is hold for reading. An example is mincore
  * vs page faults vs MADV_DONTNEED. On the page fault side
- * pmd_populate rightfully does a set_64bit, but if we're reading the
+ * pmd_populate() rightfully does a set_64bit(), but if we're reading the
  * pmd_t with a "*pmdp" on the mincore side, a SMP race can happen
- * because gcc will not read the 64bit of the pmd atomically. To fix
- * this all places running pmd_offset_map_lock() while holding the
+ * because GCC will not read the 64-bit value of the pmd atomically.
+ *
+ * To fix this all places running pte_offset_map_lock() while holding the
  * mmap_sem in read mode, shall read the pmdp pointer using this
- * function to know if the pmd is null nor not, and in turn to know if
- * they can run pmd_offset_map_lock or pmd_trans_huge or other pmd
+ * function to know if the pmd is null or not, and in turn to know if
+ * they can run pte_offset_map_lock() or pmd_trans_huge() or other pmd
  * operations.
  *
- * Without THP if the mmap_sem is hold for reading, the pmd can only
- * transition from null to not null while pmd_read_atomic runs. So
+ * Without THP if the mmap_sem is held for reading, the pmd can only
+ * transition from null to not null while pmd_read_atomic() runs. So
  * we can always return atomic pmd values with this function.
  *
- * With THP if the mmap_sem is hold for reading, the pmd can become
+ * With THP if the mmap_sem is held for reading, the pmd can become
  * trans_huge or none or point to a pte (and in turn become "stable")
- * at any time under pmd_read_atomic. We could read it really
- * atomically here with a atomic64_read for the THP enabled case (and
+ * at any time under pmd_read_atomic(). We could read it truly
+ * atomically here with an atomic64_read() for the THP enabled case (and
  * it would be a whole lot simpler), but to avoid using cmpxchg8b we
  * only return an atomic pmdval if the low part of the pmdval is later
- * found stable (i.e. pointing to a pte). And we're returning a none
- * pmdval if the low part of the pmd is none. In some cases the high
- * and low part of the pmdval returned may not be consistent if THP is
- * enabled (the low part may point to previously mapped hugepage,
- * while the high part may point to a more recently mapped hugepage),
- * but pmd_none_or_trans_huge_or_clear_bad() only needs the low part
- * of the pmd to be read atomically to decide if the pmd is unstable
- * or not, with the only exception of when the low part of the pmd is
- * zero in which case we return a none pmd.
+ * found to be stable (i.e. pointing to a pte). We are also returning a
+ * 'none' (zero) pmdval if the low part of the pmd is zero.
+ *
+ * In some cases the high and low part of the pmdval returned may not be
+ * consistent if THP is enabled (the low part may point to previously
+ * mapped hugepage, while the high part may point to a more recently
+ * mapped hugepage), but pmd_none_or_trans_huge_or_clear_bad() only
+ * needs the low part of the pmd to be read atomically to decide if the
+ * pmd is unstable or not, with the only exception when the low part
+ * of the pmd is zero, in which case we return a 'none' pmd.
  */
 static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 {
@@ -98,6 +102,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
+#endif
 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
 }
 
@@ -147,10 +154,7 @@ static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
 	pte_t res;
 
-	/* xchg acts as a barrier before the setting of the high bits */
-	res.pte_low = xchg(&ptep->pte_low, 0);
-	res.pte_high = ptep->pte_high;
-	ptep->pte_high = 0;
+	res.pte = (pteval_t)arch_atomic64_xchg((atomic64_t *)ptep, 0);
 
 	return res;
 }
@@ -229,6 +233,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
 {
 	union split_pud res, *orig = (union split_pud *)pudp;
 
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
+#endif
+
 	/* xchg acts as a barrier before setting of the high bits */
 	res.pud_low = xchg(&orig->pud_low, 0);
 	res.pud_high = orig->pud_high;
@@ -241,58 +249,44 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
 #endif
 
 /* Encode and de-code a swap entry */
+#define SWP_TYPE_BITS		5
+
+#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTNONE + 1)
+
+/* We always extract/encode the offset by shifting it all the way up, and then down again */
+#define SWP_OFFSET_SHIFT	(SWP_OFFSET_FIRST_BIT + SWP_TYPE_BITS)
+
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > 5)
 #define __swp_type(x)			(((x).val) & 0x1f)
 #define __swp_offset(x)			((x).val >> 5)
 #define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) << 5})
-#define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
-#define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
-#define gup_get_pte gup_get_pte
 /*
- * WARNING: only to be used in the get_user_pages_fast() implementation.
- *
- * With get_user_pages_fast(), we walk down the pagetables without taking
- * any locks.  For this we would like to load the pointers atomically,
- * but that is not possible (without expensive cmpxchg8b) on PAE.  What
- * we do have is the guarantee that a PTE will only either go from not
- * present to present, or present to not present or both -- it will not
- * switch to a completely different present page without a TLB flush in
- * between; something that we are blocking by holding interrupts off.
- *
- * Setting ptes from not present to present goes:
- *
- *   ptep->pte_high = h;
- *   smp_wmb();
- *   ptep->pte_low = l;
- *
- * And present to not present goes:
- *
- *   ptep->pte_low = 0;
- *   smp_wmb();
- *   ptep->pte_high = 0;
- *
- * We must ensure here that the load of pte_low sees 'l' iff pte_high
- * sees 'h'. We load pte_high *after* loading pte_low, which ensures we
- * don't see an older value of pte_high.  *Then* we recheck pte_low,
- * which ensures that we haven't picked up a changed pte high. We might
- * have gotten rubbish values from pte_low and pte_high, but we are
- * guaranteed that pte_low will not have the present bit set *unless*
- * it is 'l'. Because get_user_pages_fast() only operates on present ptes
- * we're safe.
+ * Normally, __swp_entry() converts from arch-independent swp_entry_t to
+ * arch-dependent swp_entry_t, and __swp_entry_to_pte() just stores the result
+ * to pte. But here we have 32bit swp_entry_t and 64bit pte, and need to use the
+ * whole 64 bits. Thus, we shift the "real" arch-dependent conversion to
+ * __swp_entry_to_pte() through the following helper macro based on 64bit
+ * __swp_entry().
  */
-static inline pte_t gup_get_pte(pte_t *ptep)
-{
-	pte_t pte;
+#define __swp_pteval_entry(type, offset) ((pteval_t) { \
+	(~(pteval_t)(offset) << SWP_OFFSET_SHIFT >> SWP_TYPE_BITS) \
+	| ((pteval_t)(type) << (64 - SWP_TYPE_BITS)) })
 
-	do {
-		pte.pte_low = ptep->pte_low;
-		smp_rmb();
-		pte.pte_high = ptep->pte_high;
-		smp_rmb();
-	} while (unlikely(pte.pte_low != ptep->pte_low));
+#define __swp_entry_to_pte(x)	((pte_t){ .pte = \
+		__swp_pteval_entry(__swp_type(x), __swp_offset(x)) })
+/*
+ * Analogically, __pte_to_swp_entry() doesn't just extract the arch-dependent
+ * swp_entry_t, but also has to convert it from 64bit to the 32bit
+ * intermediate representation, using the following macros based on 64bit
+ * __swp_type() and __swp_offset().
+ */
+#define __pteval_swp_type(x) ((unsigned long)((x).pte >> (64 - SWP_TYPE_BITS)))
+#define __pteval_swp_offset(x) ((unsigned long)(~((x).pte) << SWP_TYPE_BITS >> SWP_OFFSET_SHIFT))
 
-	return pte;
-}
+#define __pte_to_swp_entry(pte)	(__swp_entry(__pteval_swp_type(pte), \
+					     __pteval_swp_offset(pte)))
+
+#include <asm/pgtable-invert.h>
 
 #endif /* _ASM_X86_PGTABLE_3LEVEL_H */

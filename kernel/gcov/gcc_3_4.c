@@ -38,7 +38,7 @@ static struct gcov_info *gcov_info_head;
 struct gcov_fn_info {
 	unsigned int ident;
 	unsigned int checksum;
-	unsigned int n_ctrs[0];
+	unsigned int n_ctrs[];
 };
 
 /**
@@ -78,7 +78,7 @@ struct gcov_info {
 	unsigned int			n_functions;
 	const struct gcov_fn_info	*functions;
 	unsigned int			ctr_mask;
-	struct gcov_ctr_info		counts[0];
+	struct gcov_ctr_info		counts[];
 };
 
 /**
@@ -135,6 +135,18 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
 		prev->next = info->next;
 	else
 		gcov_info_head = info->next;
+}
+
+/**
+ * gcov_info_within_module - check if a profiling data set belongs to a module
+ * @info: profiling data set
+ * @mod: module
+ *
+ * Returns true if profiling data belongs module, false otherwise.
+ */
+bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+{
+	return within_module((unsigned long)info, mod);
 }
 
 /* Symbolic links to be created for each profiling data file. */
@@ -245,8 +257,7 @@ struct gcov_info *gcov_info_dup(struct gcov_info *info)
 
 	/* Duplicate gcov_info. */
 	active = num_counter_active(info);
-	dup = kzalloc(sizeof(struct gcov_info) +
-		      sizeof(struct gcov_ctr_info) * active, GFP_KERNEL);
+	dup = kzalloc(struct_size(dup, counts, active), GFP_KERNEL);
 	if (!dup)
 		return NULL;
 	dup->version		= info->version;
@@ -341,7 +352,7 @@ struct gcov_iterator {
 	unsigned int count;
 
 	int num_types;
-	struct type_info type_info[0];
+	struct type_info type_info[];
 };
 
 static struct gcov_fn_info *get_func(struct gcov_iterator *iter)
@@ -364,8 +375,7 @@ struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 {
 	struct gcov_iterator *iter;
 
-	iter = kzalloc(sizeof(struct gcov_iterator) +
-		       num_counter_active(info) * sizeof(struct type_info),
+	iter = kzalloc(struct_size(iter, type_info, num_counter_active(info)),
 		       GFP_KERNEL);
 	if (iter)
 		iter->info = info;

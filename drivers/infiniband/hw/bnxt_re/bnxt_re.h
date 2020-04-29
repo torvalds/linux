@@ -40,7 +40,6 @@
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
-#define ROCE_DRV_MODULE_VERSION		"1.0.0"
 
 #define BNXT_RE_DESC	"Broadcom NetXtreme-C/E RoCE Driver"
 #define BNXT_RE_PAGE_SHIFT_4K		(12)
@@ -90,6 +89,15 @@
 
 #define BNXT_RE_DEFAULT_ACK_DELAY	16
 
+struct bnxt_re_ring_attr {
+	dma_addr_t	*dma_arr;
+	int		pages;
+	int		type;
+	u32		depth;
+	u32		lrid; /* Logical ring id */
+	u8		mode;
+};
+
 struct bnxt_re_work {
 	struct work_struct	work;
 	unsigned long		event;
@@ -105,24 +113,35 @@ struct bnxt_re_sqp_entries {
 	struct bnxt_re_qp *qp1_qp;
 };
 
+#define BNXT_RE_MAX_GSI_SQP_ENTRIES	1024
+struct bnxt_re_gsi_context {
+	struct	bnxt_re_qp *gsi_qp;
+	struct	bnxt_re_qp *gsi_sqp;
+	struct	bnxt_re_ah *gsi_sah;
+	struct	bnxt_re_sqp_entries *sqp_tbl;
+};
+
 #define BNXT_RE_MIN_MSIX		2
 #define BNXT_RE_MAX_MSIX		9
 #define BNXT_RE_AEQ_IDX			0
 #define BNXT_RE_NQ_IDX			1
+#define BNXT_RE_GEN_P5_MAX_VF		64
 
 struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
 	unsigned long			flags;
 #define BNXT_RE_FLAG_NETDEV_REGISTERED		0
-#define BNXT_RE_FLAG_IBDEV_REGISTERED		1
 #define BNXT_RE_FLAG_GOT_MSIX			2
 #define BNXT_RE_FLAG_HAVE_L2_REF		3
 #define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
 #define BNXT_RE_FLAG_QOS_WORK_REG		5
+#define BNXT_RE_FLAG_RESOURCES_ALLOCATED	7
+#define BNXT_RE_FLAG_RESOURCES_INITIALIZED	8
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;
+	struct bnxt_qplib_chip_ctx	*chip_ctx;
 	struct bnxt_en_dev		*en_dev;
 	struct bnxt_msix_entry		msix_entries[BNXT_RE_MAX_MSIX];
 	int				num_msix;
@@ -157,15 +176,11 @@ struct bnxt_re_dev {
 	atomic_t			srq_count;
 	atomic_t			mr_count;
 	atomic_t			mw_count;
-	atomic_t			sched_count;
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
 	/* QP for for handling QP1 packets */
-	u32				sqp_id;
-	struct bnxt_re_qp		*qp1_sqp;
-	struct bnxt_re_ah		*sqp_ah;
-	struct bnxt_re_sqp_entries sqp_tbl[1024];
+	struct bnxt_re_gsi_context	gsi_ctx;
 	atomic_t nq_alloc_cnt;
 	u32 is_virtfn;
 	u32 num_vfs;

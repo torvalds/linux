@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -8,11 +9,6 @@
  * Version:	@(#)ip.h	1.0.2	04/28/93
  *
  * Authors:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _LINUX_IP_H
 #define _LINUX_IP_H
@@ -33,5 +29,10 @@ static inline struct iphdr *inner_ip_hdr(const struct sk_buff *skb)
 static inline struct iphdr *ipip_hdr(const struct sk_buff *skb)
 {
 	return (struct iphdr *)skb_transport_header(skb);
+}
+
+static inline unsigned int ip_transport_len(const struct sk_buff *skb)
+{
+	return ntohs(ip_hdr(skb)->tot_len) - skb_network_header_len(skb);
 }
 #endif	/* _LINUX_IP_H */

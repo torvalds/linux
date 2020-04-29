@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include "../bus/scif_bus.h"
 #include "scif_peer_bus.h"
@@ -797,7 +788,7 @@ scif_node_add(struct scif_dev *scifdev, struct scifmsg *msg)
 			"failed to setup interrupts for %d\n", msg->src.node);
 		goto interrupt_setup_error;
 	}
-	newdev->mmio.va = ioremap_nocache(msg->payload[1], sdev->mmio->len);
+	newdev->mmio.va = ioremap(msg->payload[1], sdev->mmio->len);
 	if (!newdev->mmio.va) {
 		dev_err(&scifdev->sdev->dev,
 			"failed to map mmio for %d\n", msg->src.node);

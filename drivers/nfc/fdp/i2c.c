@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -------------------------------------------------------------------------
  * Copyright (C) 2014-2016, Intel Corporation
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  * -------------------------------------------------------------------------
  */
 
@@ -259,15 +251,15 @@ static void fdp_nci_i2c_read_device_properties(struct device *dev,
 		/* Add 1 to the length to inclue the length byte itself */
 		len++;
 
-		*fw_vsc_cfg = devm_kmalloc(dev,
-					   len * sizeof(**fw_vsc_cfg),
+		*fw_vsc_cfg = devm_kmalloc_array(dev,
+					   len, sizeof(**fw_vsc_cfg),
 					   GFP_KERNEL);
 
 		r = device_property_read_u8_array(dev, FDP_DP_FW_VSC_CFG_NAME,
 						  *fw_vsc_cfg, len);
 
 		if (r) {
-			devm_kfree(dev, fw_vsc_cfg);
+			devm_kfree(dev, *fw_vsc_cfg);
 			goto vsc_read_err;
 		}
 	} else {

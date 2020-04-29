@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Generic on-chip SRAM allocation driver
  *
  * Copyright (C) 2012 Philipp Zabel, Pengutronix
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
  */
 
 #include <linux/clk.h>
@@ -185,7 +172,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	 * after the reserved blocks from the dt are processed.
 	 */
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
-	rblocks = kzalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
+	rblocks = kcalloc(nblocks, sizeof(*rblocks), GFP_KERNEL);
 	if (!rblocks)
 		return -ENOMEM;
 
@@ -264,8 +251,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	list_sort(NULL, &reserve_list, sram_reserve_cmp);
 
 	if (exports) {
-		sram->partition = devm_kzalloc(sram->dev,
-				       exports * sizeof(*sram->partition),
+		sram->partition = devm_kcalloc(sram->dev,
+				       exports, sizeof(*sram->partition),
 				       GFP_KERNEL);
 		if (!sram->partition) {
 			ret = -ENOMEM;
@@ -323,10 +310,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		cur_start = block->start + block->size;
 	}
 
- err_chunks:
-	if (child)
-		of_node_put(child);
-
+err_chunks:
+	of_node_put(child);
 	kfree(rblocks);
 
 	return ret;
@@ -355,8 +340,6 @@ static const struct of_device_id sram_dt_ids[] = {
 static int sram_probe(struct platform_device *pdev)
 {
 	struct sram_dev *sram;
-	struct resource *res;
-	size_t size;
 	int ret;
 	int (*init_func)(void);
 
@@ -366,34 +349,19 @@ static int sram_probe(struct platform_device *pdev)
 
 	sram->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(sram->dev, "found no memory resource\n");
-		return -EINVAL;
-	}
-
-	size = resource_size(res);
-
-	if (!devm_request_mem_region(sram->dev, res->start, size, pdev->name)) {
-		dev_err(sram->dev, "could not request region for resource\n");
-		return -EBUSY;
-	}
-
 	if (of_property_read_bool(pdev->dev.of_node, "no-memory-wc"))
-		sram->virt_base = devm_ioremap(sram->dev, res->start, size);
+		sram->virt_base = devm_platform_ioremap_resource(pdev, 0);
 	else
-		sram->virt_base = devm_ioremap_wc(sram->dev, res->start, size);
-	if (!sram->virt_base)
-		return -ENOMEM;
+		sram->virt_base = devm_platform_ioremap_resource_wc(pdev, 0);
+	if (IS_ERR(sram->virt_base)) {
+		dev_err(&pdev->dev, "could not map SRAM registers\n");
+		return PTR_ERR(sram->virt_base);
+	}
 
 	sram->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
 					  NUMA_NO_NODE, NULL);
 	if (IS_ERR(sram->pool))
 		return PTR_ERR(sram->pool);
-
-	ret = sram_reserve_regions(sram, res);
-	if (ret)
-		return ret;
 
 	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
@@ -401,19 +369,32 @@ static int sram_probe(struct platform_device *pdev)
 	else
 		clk_prepare_enable(sram->clk);
 
+	ret = sram_reserve_regions(sram,
+			platform_get_resource(pdev, IORESOURCE_MEM, 0));
+	if (ret)
+		goto err_disable_clk;
+
 	platform_set_drvdata(pdev, sram);
 
 	init_func = of_device_get_match_data(&pdev->dev);
 	if (init_func) {
 		ret = init_func();
 		if (ret)
-			return ret;
+			goto err_free_partitions;
 	}
 
 	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
 		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
+
+err_free_partitions:
+	sram_free_partitions(sram);
+err_disable_clk:
+	if (sram->clk)
+		clk_disable_unprepare(sram->clk);
+
+	return ret;
 }
 
 static int sram_remove(struct platform_device *pdev)

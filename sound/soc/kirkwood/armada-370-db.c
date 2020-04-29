@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Marvell
  *
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -23,7 +19,7 @@ static int a370db_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	unsigned int freq;
 
 	switch (params_rate(params)) {
@@ -58,28 +54,40 @@ static const struct snd_soc_dapm_route a370db_route[] = {
 	{ "AIN1L",	NULL,	"In Jack" },
 };
 
+SND_SOC_DAILINK_DEFS(analog,
+	DAILINK_COMP_ARRAY(COMP_CPU("i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42l51-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(spdif_out,
+	DAILINK_COMP_ARRAY(COMP_CPU("spdif")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dit-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(spdif_in,
+	DAILINK_COMP_ARRAY(COMP_CPU("spdif")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dir-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link a370db_dai[] = {
 {
 	.name = "CS42L51",
 	.stream_name = "analog",
-	.cpu_dai_name = "i2s",
-	.codec_dai_name = "cs42l51-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &a370db_ops,
+	SND_SOC_DAILINK_REG(analog),
 },
 {
 	.name = "S/PDIF out",
 	.stream_name = "spdif-out",
-	.cpu_dai_name = "spdif",
-	.codec_dai_name = "dit-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(spdif_out),
 },
 {
 	.name = "S/PDIF in",
 	.stream_name = "spdif-in",
-	.cpu_dai_name = "spdif",
-	.codec_dai_name = "dir-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(spdif_in),
 },
 };
 
@@ -100,26 +108,26 @@ static int a370db_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	a370db_dai[0].cpu_of_node =
+	a370db_dai[0].cpus->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-controller", 0);
-	a370db_dai[0].platform_of_node = a370db_dai[0].cpu_of_node;
+	a370db_dai[0].platforms->of_node = a370db_dai[0].cpus->of_node;
 
-	a370db_dai[0].codec_of_node =
+	a370db_dai[0].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 0);
 
-	a370db_dai[1].cpu_of_node = a370db_dai[0].cpu_of_node;
-	a370db_dai[1].platform_of_node = a370db_dai[0].cpu_of_node;
+	a370db_dai[1].cpus->of_node = a370db_dai[0].cpus->of_node;
+	a370db_dai[1].platforms->of_node = a370db_dai[0].cpus->of_node;
 
-	a370db_dai[1].codec_of_node =
+	a370db_dai[1].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 1);
 
-	a370db_dai[2].cpu_of_node = a370db_dai[0].cpu_of_node;
-	a370db_dai[2].platform_of_node = a370db_dai[0].cpu_of_node;
+	a370db_dai[2].cpus->of_node = a370db_dai[0].cpus->of_node;
+	a370db_dai[2].platforms->of_node = a370db_dai[0].cpus->of_node;
 
-	a370db_dai[2].codec_of_node =
+	a370db_dai[2].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 2);
 

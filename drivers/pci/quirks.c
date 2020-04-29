@@ -20,15 +20,177 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/pci-aspm.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/nvme.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pm_runtime.h>
+#include <linux/switchtec.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
+
+static ktime_t fixup_debug_start(struct pci_dev *dev,
+				 void (*fn)(struct pci_dev *dev))
+{
+	if (initcall_debug)
+		pci_info(dev, "calling  %pS @ %i\n", fn, task_pid_nr(current));
+
+	return ktime_get();
+}
+
+static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
+			       void (*fn)(struct pci_dev *dev))
+{
+	ktime_t delta, rettime;
+	unsigned long long duration;
+
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	if (initcall_debug || duration > 10000)
+		pci_info(dev, "%pS took %lld usecs\n", fn, duration);
+}
+
+static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
+			  struct pci_fixup *end)
+{
+	ktime_t calltime;
+
+	for (; f < end; f++)
+		if ((f->class == (u32) (dev->class >> f->class_shift) ||
+		     f->class == (u32) PCI_ANY_ID) &&
+		    (f->vendor == dev->vendor ||
+		     f->vendor == (u16) PCI_ANY_ID) &&
+		    (f->device == dev->device ||
+		     f->device == (u16) PCI_ANY_ID)) {
+			void (*hook)(struct pci_dev *dev);
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+			hook = offset_to_ptr(&f->hook_offset);
+#else
+			hook = f->hook;
+#endif
+			calltime = fixup_debug_start(dev, hook);
+			hook(dev);
+			fixup_debug_report(dev, calltime, hook);
+		}
+}
+
+extern struct pci_fixup __start_pci_fixups_early[];
+extern struct pci_fixup __end_pci_fixups_early[];
+extern struct pci_fixup __start_pci_fixups_header[];
+extern struct pci_fixup __end_pci_fixups_header[];
+extern struct pci_fixup __start_pci_fixups_final[];
+extern struct pci_fixup __end_pci_fixups_final[];
+extern struct pci_fixup __start_pci_fixups_enable[];
+extern struct pci_fixup __end_pci_fixups_enable[];
+extern struct pci_fixup __start_pci_fixups_resume[];
+extern struct pci_fixup __end_pci_fixups_resume[];
+extern struct pci_fixup __start_pci_fixups_resume_early[];
+extern struct pci_fixup __end_pci_fixups_resume_early[];
+extern struct pci_fixup __start_pci_fixups_suspend[];
+extern struct pci_fixup __end_pci_fixups_suspend[];
+extern struct pci_fixup __start_pci_fixups_suspend_late[];
+extern struct pci_fixup __end_pci_fixups_suspend_late[];
+
+static bool pci_apply_fixup_final_quirks;
+
+void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
+{
+	struct pci_fixup *start, *end;
+
+	switch (pass) {
+	case pci_fixup_early:
+		start = __start_pci_fixups_early;
+		end = __end_pci_fixups_early;
+		break;
+
+	case pci_fixup_header:
+		start = __start_pci_fixups_header;
+		end = __end_pci_fixups_header;
+		break;
+
+	case pci_fixup_final:
+		if (!pci_apply_fixup_final_quirks)
+			return;
+		start = __start_pci_fixups_final;
+		end = __end_pci_fixups_final;
+		break;
+
+	case pci_fixup_enable:
+		start = __start_pci_fixups_enable;
+		end = __end_pci_fixups_enable;
+		break;
+
+	case pci_fixup_resume:
+		start = __start_pci_fixups_resume;
+		end = __end_pci_fixups_resume;
+		break;
+
+	case pci_fixup_resume_early:
+		start = __start_pci_fixups_resume_early;
+		end = __end_pci_fixups_resume_early;
+		break;
+
+	case pci_fixup_suspend:
+		start = __start_pci_fixups_suspend;
+		end = __end_pci_fixups_suspend;
+		break;
+
+	case pci_fixup_suspend_late:
+		start = __start_pci_fixups_suspend_late;
+		end = __end_pci_fixups_suspend_late;
+		break;
+
+	default:
+		/* stupid compiler warning, you would think with an enum... */
+		return;
+	}
+	pci_do_fixups(dev, start, end);
+}
+EXPORT_SYMBOL(pci_fixup_device);
+
+static int __init pci_apply_final_quirks(void)
+{
+	struct pci_dev *dev = NULL;
+	u8 cls = 0;
+	u8 tmp;
+
+	if (pci_cache_line_size)
+		pr_info("PCI: CLS %u bytes\n", pci_cache_line_size << 2);
+
+	pci_apply_fixup_final_quirks = true;
+	for_each_pci_dev(dev) {
+		pci_fixup_device(pci_fixup_final, dev);
+		/*
+		 * If arch hasn't set it explicitly yet, use the CLS
+		 * value shared by all PCI devices.  If there's a
+		 * mismatch, fall back to the default value.
+		 */
+		if (!pci_cache_line_size) {
+			pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &tmp);
+			if (!cls)
+				cls = tmp;
+			if (!tmp || cls == tmp)
+				continue;
+
+			pci_info(dev, "CLS mismatch (%u != %u), using %u bytes\n",
+			         cls << 2, tmp << 2,
+				 pci_dfl_cache_line_size << 2);
+			pci_cache_line_size = pci_dfl_cache_line_size;
+		}
+	}
+
+	if (!pci_cache_line_size) {
+		pr_info("PCI: CLS %u bytes, default %u\n", cls << 2,
+			pci_dfl_cache_line_size << 2);
+		pci_cache_line_size = cls ? cls : pci_dfl_cache_line_size;
+	}
+
+	return 0;
+}
+fs_initcall_sync(pci_apply_final_quirks);
 
 /*
  * Decoding should be disabled for a PCI device during BAR sizing to avoid
@@ -43,9 +205,10 @@ static void quirk_mmio_always_on(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_ANY_ID, PCI_ANY_ID,
 				PCI_CLASS_BRIDGE_HOST, 8, quirk_mmio_always_on);
 
-/* The Mellanox Tavor device gives false positive parity errors
- * Mark this device with a broken_parity_status, to allow
- * PCI scanning code to "skip" this now blacklisted device.
+/*
+ * The Mellanox Tavor device gives false positive parity errors.  Mark this
+ * device with a broken_parity_status to allow PCI scanning code to "skip"
+ * this now blacklisted device.
  */
 static void quirk_mellanox_tavor(struct pci_dev *dev)
 {
@@ -54,15 +217,19 @@ static void quirk_mellanox_tavor(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR, quirk_mellanox_tavor);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE, quirk_mellanox_tavor);
 
-/* Deal with broken BIOSes that neglect to enable passive release,
-   which can cause problems in combination with the 82441FX/PPro MTRRs */
+/*
+ * Deal with broken BIOSes that neglect to enable passive release,
+ * which can cause problems in combination with the 82441FX/PPro MTRRs
+ */
 static void quirk_passive_release(struct pci_dev *dev)
 {
 	struct pci_dev *d = NULL;
 	unsigned char dlc;
 
-	/* We have to make sure a particular bit is set in the PIIX3
-	   ISA bridge, so we have to go out and find it. */
+	/*
+	 * We have to make sure a particular bit is set in the PIIX3
+	 * ISA bridge, so we have to go out and find it.
+	 */
 	while ((d = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371SB_0, d))) {
 		pci_read_config_byte(d, 0x82, &dlc);
 		if (!(dlc & 1<<1)) {
@@ -75,13 +242,14 @@ static void quirk_passive_release(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82441,	quirk_passive_release);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82441,	quirk_passive_release);
 
-/*  The VIA VP2/VP3/MVP3 seem to have some 'features'. There may be a workaround
-    but VIA don't answer queries. If you happen to have good contacts at VIA
-    ask them for me please -- Alan
-
-    This appears to be BIOS not version dependent. So presumably there is a
-    chipset level fix */
-
+/*
+ * The VIA VP2/VP3/MVP3 seem to have some 'features'. There may be a
+ * workaround but VIA don't answer queries. If you happen to have good
+ * contacts at VIA ask them for me please -- Alan
+ *
+ * This appears to be BIOS not version dependent. So presumably there is a
+ * chipset level fix.
+ */
 static void quirk_isa_dma_hangs(struct pci_dev *dev)
 {
 	if (!isa_dma_bridge_buggy) {
@@ -89,10 +257,10 @@ static void quirk_isa_dma_hangs(struct pci_dev *dev)
 		pci_info(dev, "Activating ISA DMA hang workarounds\n");
 	}
 }
-	/*
-	 * Its not totally clear which chipsets are the problematic ones
-	 * We know 82C586 and 82C596 variants are affected.
-	 */
+/*
+ * It's not totally clear which chipsets are the problematic ones.  We know
+ * 82C586 and 82C596 variants are affected.
+ */
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C586_0,	quirk_isa_dma_hangs);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C596,	quirk_isa_dma_hangs);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82371SB_0,  quirk_isa_dma_hangs);
@@ -121,9 +289,7 @@ static void quirk_tigerpoint_bm_sts(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TGP_LPC, quirk_tigerpoint_bm_sts);
 
-/*
- *	Chipsets where PCI->PCI transfers vanish or hang
- */
+/* Chipsets where PCI->PCI transfers vanish or hang */
 static void quirk_nopcipci(struct pci_dev *dev)
 {
 	if ((pci_pci_problems & PCIPCI_FAIL) == 0) {
@@ -146,9 +312,7 @@ static void quirk_nopciamd(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8151_0,	quirk_nopciamd);
 
-/*
- *	Triton requires workarounds to be used by the drivers
- */
+/* Triton requires workarounds to be used by the drivers */
 static void quirk_triton(struct pci_dev *dev)
 {
 	if ((pci_pci_problems&PCIPCI_TRITON) == 0) {
@@ -162,53 +326,62 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82439,	quirk_tr
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82439TX,	quirk_triton);
 
 /*
- *	VIA Apollo KT133 needs PCI latency patch
- *	Made according to a windows driver based patch by George E. Breese
- *	see PCI Latency Adjust on http://www.viahardware.com/download/viatweak.shtm
- *	Also see http://www.au-ja.org/review-kt133a-1-en.phtml for
- *	the info on which Mr Breese based his work.
+ * VIA Apollo KT133 needs PCI latency patch
+ * Made according to a Windows driver-based patch by George E. Breese;
+ * see PCI Latency Adjust on http://www.viahardware.com/download/viatweak.shtm
+ * Also see http://www.au-ja.org/review-kt133a-1-en.phtml for the info on
+ * which Mr Breese based his work.
  *
- *	Updated based on further information from the site and also on
- *	information provided by VIA
+ * Updated based on further information from the site and also on
+ * information provided by VIA
  */
 static void quirk_vialatency(struct pci_dev *dev)
 {
 	struct pci_dev *p;
 	u8 busarb;
-	/* Ok we have a potential problem chipset here. Now see if we have
-	   a buggy southbridge */
 
+	/*
+	 * Ok, we have a potential problem chipset here. Now see if we have
+	 * a buggy southbridge.
+	 */
 	p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686, NULL);
 	if (p != NULL) {
-		/* 0x40 - 0x4f == 686B, 0x10 - 0x2f == 686A; thanks Dan Hollis */
-		/* Check for buggy part revisions */
+
+		/*
+		 * 0x40 - 0x4f == 686B, 0x10 - 0x2f == 686A;
+		 * thanks Dan Hollis.
+		 * Check for buggy part revisions
+		 */
 		if (p->revision < 0x40 || p->revision > 0x42)
 			goto exit;
 	} else {
 		p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231, NULL);
 		if (p == NULL)	/* No problem parts */
 			goto exit;
+
 		/* Check for buggy part revisions */
 		if (p->revision < 0x10 || p->revision > 0x12)
 			goto exit;
 	}
 
 	/*
-	 *	Ok we have the problem. Now set the PCI master grant to
-	 *	occur every master grant. The apparent bug is that under high
-	 *	PCI load (quite common in Linux of course) you can get data
-	 *	loss when the CPU is held off the bus for 3 bus master requests
-	 *	This happens to include the IDE controllers....
+	 * Ok we have the problem. Now set the PCI master grant to occur
+	 * every master grant. The apparent bug is that under high PCI load
+	 * (quite common in Linux of course) you can get data loss when the
+	 * CPU is held off the bus for 3 bus master requests.  This happens
+	 * to include the IDE controllers....
 	 *
-	 *	VIA only apply this fix when an SB Live! is present but under
-	 *	both Linux and Windows this isn't enough, and we have seen
-	 *	corruption without SB Live! but with things like 3 UDMA IDE
-	 *	controllers. So we ignore that bit of the VIA recommendation..
+	 * VIA only apply this fix when an SB Live! is present but under
+	 * both Linux and Windows this isn't enough, and we have seen
+	 * corruption without SB Live! but with things like 3 UDMA IDE
+	 * controllers. So we ignore that bit of the VIA recommendation..
 	 */
-
 	pci_read_config_byte(dev, 0x76, &busarb);
-	/* Set bit 4 and bi 5 of byte 76 to 0x01
-	   "Master priority rotation on every PCI master grant */
+
+	/*
+	 * Set bit 4 and bit 5 of byte 76 to 0x01
+	 * "Master priority rotation on every PCI master grant"
+	 */
 	busarb &= ~(1<<5);
 	busarb |= (1<<4);
 	pci_write_config_byte(dev, 0x76, busarb);
@@ -224,9 +397,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8363_0,	quirk_vial
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8371_1,	quirk_vialatency);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8361,		quirk_vialatency);
 
-/*
- *	VIA Apollo VP3 needs ETBF on BT848/878
- */
+/* VIA Apollo VP3 needs ETBF on BT848/878 */
 static void quirk_viaetbf(struct pci_dev *dev)
 {
 	if ((pci_pci_problems&PCIPCI_VIAETBF) == 0) {
@@ -246,10 +417,9 @@ static void quirk_vsfx(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C576,	quirk_vsfx);
 
 /*
- *	Ali Magik requires workarounds to be used by the drivers
- *	that DMA to AGP space. Latency must be set to 0xA and triton
- *	workaround applied too
- *	[Info kindly provided by ALi]
+ * ALi Magik requires workarounds to be used by the drivers that DMA to AGP
+ * space. Latency must be set to 0xA and Triton workaround applied too.
+ * [Info kindly provided by ALi]
  */
 static void quirk_alimagik(struct pci_dev *dev)
 {
@@ -261,10 +431,7 @@ static void quirk_alimagik(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL,	PCI_DEVICE_ID_AL_M1647,		quirk_alimagik);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL,	PCI_DEVICE_ID_AL_M1651,		quirk_alimagik);
 
-/*
- *	Natoma has some interesting boundary conditions with Zoran stuff
- *	at least
- */
+/* Natoma has some interesting boundary conditions with Zoran stuff at least */
 static void quirk_natoma(struct pci_dev *dev)
 {
 	if ((pci_pci_problems&PCIPCI_NATOMA) == 0) {
@@ -280,8 +447,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82443BX_1,	quir
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82443BX_2,	quirk_natoma);
 
 /*
- *  This chip can cause PCI parity errors if config register 0xA0 is read
- *  while DMAs are occurring.
+ * This chip can cause PCI parity errors if config register 0xA0 is read
+ * while DMAs are occurring.
  */
 static void quirk_citrine(struct pci_dev *dev)
 {
@@ -299,6 +466,7 @@ static void quirk_nfp6000(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP4000,	quirk_nfp6000);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP6000,	quirk_nfp6000);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP5000,	quirk_nfp6000);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP6000_VF,	quirk_nfp6000);
 
 /*  On IBM Crocodile ipr SAS adapters, expand BAR to system page size */
@@ -306,7 +474,7 @@ static void quirk_extend_bar_to_page(struct pci_dev *dev)
 {
 	int i;
 
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *r = &dev->resource[i];
 
 		if (r->flags & IORESOURCE_MEM && resource_size(r) < PAGE_SIZE) {
@@ -321,8 +489,8 @@ static void quirk_extend_bar_to_page(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM, 0x034a, quirk_extend_bar_to_page);
 
 /*
- *  S3 868 and 968 chips report region size equal to 32M, but they decode 64M.
- *  If it's needed, re-allocate the region.
+ * S3 868 and 968 chips report region size equal to 32M, but they decode 64M.
+ * If it's needed, re-allocate the region.
  */
 static void quirk_s3_64M(struct pci_dev *dev)
 {
@@ -413,8 +581,8 @@ static void quirk_io_region(struct pci_dev *dev, int port,
 }
 
 /*
- *	ATI Northbridge setups MCE the processor if you even
- *	read somewhere between 0x3b0->0x3bb or read 0x3d3
+ * ATI Northbridge setups MCE the processor if you even read somewhere
+ * between 0x3b0->0x3bb or read 0x3d3
  */
 static void quirk_ati_exploding_mce(struct pci_dev *dev)
 {
@@ -429,6 +597,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI,	PCI_DEVICE_ID_ATI_RS100,   quirk_ati_
  * In the AMD NL platform, this device ([1022:7912]) has a class code of
  * PCI_CLASS_SERIAL_USB_XHCI (0x0c0330), which means the xhci driver will
  * claim it.
+ *
  * But the dwc3 driver is a more specific driver for this device, and we'd
  * prefer to use it instead of xhci. To prevent xhci from claiming the
  * device, change the class code to 0x0c03fe, which the PCI r3.0 spec
@@ -448,11 +617,35 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB,
 		quirk_amd_nl_class);
 
 /*
- * Let's make the southbridge information explicit instead
- * of having to worry about people probing the ACPI areas,
- * for example.. (Yes, it happens, and if you read the wrong
- * ACPI register it will put the machine to sleep with no
- * way of waking it up again. Bummer).
+ * Synopsys USB 3.x host HAPS platform has a class code of
+ * PCI_CLASS_SERIAL_USB_XHCI, and xhci driver can claim it.  However, these
+ * devices should use dwc3-haps driver.  Change these devices' class code to
+ * PCI_CLASS_SERIAL_USB_DEVICE to prevent the xhci-pci driver from claiming
+ * them.
+ */
+static void quirk_synopsys_haps(struct pci_dev *pdev)
+{
+	u32 class = pdev->class;
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3:
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI:
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31:
+		pdev->class = PCI_CLASS_SERIAL_USB_DEVICE;
+		pci_info(pdev, "PCI class overridden (%#08x -> %#08x) so dwc3 driver can claim this instead of xhci\n",
+			 class, pdev->class);
+		break;
+	}
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_SYNOPSYS, PCI_ANY_ID,
+			       PCI_CLASS_SERIAL_USB_XHCI, 0,
+			       quirk_synopsys_haps);
+
+/*
+ * Let's make the southbridge information explicit instead of having to
+ * worry about people probing the ACPI areas, for example.. (Yes, it
+ * happens, and if you read the wrong ACPI register it will put the machine
+ * to sleep with no way of waking it up again. Bummer).
  *
  * ALI M7101: Two IO regions pointed to by words at
  *	0xE0 (64 bytes of ACPI registers)
@@ -508,6 +701,7 @@ static void piix4_mem_quirk(struct pci_dev *dev, const char *name, unsigned int 
 			break;
 		size = bit;
 	}
+
 	/*
 	 * For now we only print it out. Eventually we'll want to
 	 * reserve it, but let's get enough confirmation reports first.
@@ -579,8 +773,7 @@ static void quirk_ich4_lpc_acpi(struct pci_dev *dev)
 	 * priority and can't tell whether the legacy device or the one created
 	 * here is really at that address.  This happens on boards with broken
 	 * BIOSes.
-	*/
-
+	 */
 	pci_read_config_byte(dev, ICH_ACPI_CNTL, &enable);
 	if (enable & ICH4_ACPI_EN)
 		quirk_io_region(dev, ICH_PMBASE, 128, PCI_BRIDGE_RESOURCES,
@@ -617,7 +810,8 @@ static void ich6_lpc_acpi_gpio(struct pci_dev *dev)
 				"ICH6 GPIO");
 }
 
-static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg, const char *name, int dynsize)
+static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
+				    const char *name, int dynsize)
 {
 	u32 val;
 	u32 size, base;
@@ -641,7 +835,10 @@ static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg, const cha
 	}
 	base &= ~(size-1);
 
-	/* Just print it out for now. We should reserve it after more debugging */
+	/*
+	 * Just print it out for now. We should reserve it after more
+	 * debugging.
+	 */
 	pci_info(dev, "%s PIO at %04x-%04x\n", name, base, base+size-1);
 }
 
@@ -657,7 +854,8 @@ static void quirk_ich6_lpc(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_0, quirk_ich6_lpc);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1, quirk_ich6_lpc);
 
-static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg, const char *name)
+static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
+				    const char *name)
 {
 	u32 val;
 	u32 mask, base;
@@ -668,15 +866,15 @@ static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg, const cha
 	if (!(val & 1))
 		return;
 
-	/*
-	 * IO base in bits 15:2, mask in bits 23:18, both
-	 * are dword-based
-	 */
+	/* IO base in bits 15:2, mask in bits 23:18, both are dword-based */
 	base = val & 0xfffc;
 	mask = (val >> 16) & 0xfc;
 	mask |= 3;
 
-	/* Just print it out for now. We should reserve it after more debugging */
+	/*
+	 * Just print it out for now. We should reserve it after more
+	 * debugging.
+	 */
 	pci_info(dev, "%s PIO at %04x (mask %04x)\n", name, base, mask);
 }
 
@@ -748,8 +946,8 @@ static void quirk_vt8235_acpi(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,	quirk_vt8235_acpi);
 
 /*
- * TI XIO2000a PCIe-PCI Bridge erroneously reports it supports fast back-to-back:
- *	Disable fast back-to-back on the secondary bus segment
+ * TI XIO2000a PCIe-PCI Bridge erroneously reports it supports fast
+ * back-to-back: Disable fast back-to-back on the secondary bus segment
  */
 static void quirk_xio2000a(struct pci_dev *dev)
 {
@@ -774,8 +972,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XIO2000A,
  * VIA 686A/B: If an IO-APIC is active, we need to route all on-chip
  * devices to the external APIC.
  *
- * TODO: When we have device-specific interrupt routers,
- * this code will go away from quirks.
+ * TODO: When we have device-specific interrupt routers, this code will go
+ * away from quirks.
  */
 static void quirk_via_ioapic(struct pci_dev *dev)
 {
@@ -816,13 +1014,13 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_vt
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_vt8237_bypass_apic_deassert);
 
 /*
- * The AMD io apic can hang the box when an apic irq is masked.
+ * The AMD IO-APIC can hang the box when an APIC IRQ is masked.
  * We check all revs >= B0 (yet not in the pre production!) as the bug
  * is currently marked NoFix
  *
  * We have multiple reports of hangs with this chipset that went away with
  * noapic specified. For the moment we assume it's the erratum. We may be wrong
- * of course. However the advice is demonstrably good even if so..
+ * of course. However the advice is demonstrably good even if so.
  */
 static void quirk_amd_ioapic(struct pci_dev *dev)
 {
@@ -838,7 +1036,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_VIPER_7410,	quirk_a
 
 static void quirk_cavium_sriov_rnm_link(struct pci_dev *dev)
 {
-	/* Fix for improper SRIOV configuration on Cavium cn88xx  RNM device */
+	/* Fix for improper SR-IOV configuration on Cavium cn88xx RNM device */
 	if (dev->subsystem_device == 0xa118)
 		dev->sriov->link = dev->devfn;
 }
@@ -860,19 +1058,17 @@ static void quirk_amd_8131_mmrbc(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_amd_8131_mmrbc);
 
 /*
- * FIXME: it is questionable that quirk_via_acpi
- * is needed.  It shows up as an ISA bridge, and does not
- * support the PCI_INTERRUPT_LINE register at all.  Therefore
- * it seems like setting the pci_dev's 'irq' to the
- * value of the ACPI SCI interrupt is only done for convenience.
+ * FIXME: it is questionable that quirk_via_acpi() is needed.  It shows up
+ * as an ISA bridge, and does not support the PCI_INTERRUPT_LINE register
+ * at all.  Therefore it seems like setting the pci_dev's IRQ to the value
+ * of the ACPI SCI interrupt is only done for convenience.
  *	-jgarzik
  */
 static void quirk_via_acpi(struct pci_dev *d)
 {
-	/*
-	 * VIA ACPI device: SCI IRQ line in PCI config byte 0x42
-	 */
 	u8 irq;
+
+	/* VIA ACPI device: SCI IRQ line in PCI config byte 0x42 */
 	pci_read_config_byte(d, 0x42, &irq);
 	irq &= 0xf;
 	if (irq && (irq != 2))
@@ -881,11 +1077,7 @@ static void quirk_via_acpi(struct pci_dev *d)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C586_3,	quirk_via_acpi);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_via_acpi);
 
-
-/*
- *	VIA bridges which have VLink
- */
-
+/* VIA bridges which have VLink */
 static int via_vlink_dev_lo = -1, via_vlink_dev_hi = 18;
 
 static void quirk_via_bridge(struct pci_dev *dev)
@@ -893,9 +1085,11 @@ static void quirk_via_bridge(struct pci_dev *dev)
 	/* See what bridge we have and find the device ranges */
 	switch (dev->device) {
 	case PCI_DEVICE_ID_VIA_82C686:
-		/* The VT82C686 is special, it attaches to PCI and can have
-		   any device number. All its subdevices are functions of
-		   that single device. */
+		/*
+		 * The VT82C686 is special; it attaches to PCI and can have
+		 * any device number. All its subdevices are functions of
+		 * that single device.
+		 */
 		via_vlink_dev_lo = PCI_SLOT(dev->devfn);
 		via_vlink_dev_hi = PCI_SLOT(dev->devfn);
 		break;
@@ -923,19 +1117,17 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,		quirk_via_b
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_bridge);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237A,	quirk_via_bridge);
 
-/**
- *	quirk_via_vlink		-	VIA VLink IRQ number update
- *	@dev: PCI device
+/*
+ * quirk_via_vlink		-	VIA VLink IRQ number update
+ * @dev: PCI device
  *
- *	If the device we are dealing with is on a PIC IRQ we need to
- *	ensure that the IRQ line register which usually is not relevant
- *	for PCI cards, is actually written so that interrupts get sent
- *	to the right place.
- *	We only do this on systems where a VIA south bridge was detected,
- *	and only for VIA devices on the motherboard (see quirk_via_bridge
- *	above).
+ * If the device we are dealing with is on a PIC IRQ we need to ensure that
+ * the IRQ line register which usually is not relevant for PCI cards, is
+ * actually written so that interrupts get sent to the right place.
+ *
+ * We only do this on systems where a VIA south bridge was detected, and
+ * only for VIA devices on the motherboard (see quirk_via_bridge above).
  */
-
 static void quirk_via_vlink(struct pci_dev *dev)
 {
 	u8 irq, new_irq;
@@ -955,9 +1147,10 @@ static void quirk_via_vlink(struct pci_dev *dev)
 	    PCI_SLOT(dev->devfn) < via_vlink_dev_lo)
 		return;
 
-	/* This is an internal VLink device on a PIC interrupt. The BIOS
-	   ought to have set this but may not have, so we redo it */
-
+	/*
+	 * This is an internal VLink device on a PIC interrupt. The BIOS
+	 * ought to have set this but may not have, so we redo it.
+	 */
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &irq);
 	if (new_irq != irq) {
 		pci_info(dev, "VIA VLink IRQ fixup, from %d to %d\n",
@@ -969,10 +1162,9 @@ static void quirk_via_vlink(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_ANY_ID, quirk_via_vlink);
 
 /*
- * VIA VT82C598 has its device ID settable and many BIOSes
- * set it to the ID of VT82C597 for backward compatibility.
- * We need to switch it off to be able to recognize the real
- * type of the chip.
+ * VIA VT82C598 has its device ID settable and many BIOSes set it to the ID
+ * of VT82C597 for backward compatibility.  We need to switch it off to be
+ * able to recognize the real type of the chip.
  */
 static void quirk_vt82c598_id(struct pci_dev *dev)
 {
@@ -982,10 +1174,10 @@ static void quirk_vt82c598_id(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C597_0,	quirk_vt82c598_id);
 
 /*
- * CardBus controllers have a legacy base address that enables them
- * to respond as i82365 pcmcia controllers.  We don't want them to
- * do this even if the Linux CardBus driver is not loaded, because
- * the Linux i82365 driver does not (and should not) handle CardBus.
+ * CardBus controllers have a legacy base address that enables them to
+ * respond as i82365 pcmcia controllers.  We don't want them to do this
+ * even if the Linux CardBus driver is not loaded, because the Linux i82365
+ * driver does not (and should not) handle CardBus.
  */
 static void quirk_cardbus_legacy(struct pci_dev *dev)
 {
@@ -997,11 +1189,11 @@ DECLARE_PCI_FIXUP_CLASS_RESUME_EARLY(PCI_ANY_ID, PCI_ANY_ID,
 			PCI_CLASS_BRIDGE_CARDBUS, 8, quirk_cardbus_legacy);
 
 /*
- * Following the PCI ordering rules is optional on the AMD762. I'm not
- * sure what the designers were smoking but let's not inhale...
+ * Following the PCI ordering rules is optional on the AMD762. I'm not sure
+ * what the designers were smoking but let's not inhale...
  *
- * To be fair to AMD, it follows the spec by default, its BIOS people
- * who turn it off!
+ * To be fair to AMD, it follows the spec by default, it's BIOS people who
+ * turn it off!
  */
 static void quirk_amd_ordering(struct pci_dev *dev)
 {
@@ -1020,11 +1212,11 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_FE_GATE_700C, quirk
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_FE_GATE_700C, quirk_amd_ordering);
 
 /*
- *	DreamWorks provided workaround for Dunord I-3000 problem
+ * DreamWorks-provided workaround for Dunord I-3000 problem
  *
- *	This card decodes and responds to addresses not apparently
- *	assigned to it. We force a larger allocation to ensure that
- *	nothing gets put too close to it.
+ * This card decodes and responds to addresses not apparently assigned to
+ * it.  We force a larger allocation to ensure that nothing gets put too
+ * close to it.
  */
 static void quirk_dunord(struct pci_dev *dev)
 {
@@ -1037,10 +1229,9 @@ static void quirk_dunord(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DUNORD,	PCI_DEVICE_ID_DUNORD_I3000,	quirk_dunord);
 
 /*
- * i82380FB mobile docking controller: its PCI-to-PCI bridge
- * is subtractive decoding (transparent), and does indicate this
- * in the ProgIf. Unfortunately, the ProgIf value is wrong - 0x80
- * instead of 0x01.
+ * i82380FB mobile docking controller: its PCI-to-PCI bridge is subtractive
+ * decoding (transparent), and does indicate this in the ProgIf.
+ * Unfortunately, the ProgIf value is wrong - 0x80 instead of 0x01.
  */
 static void quirk_transparent_bridge(struct pci_dev *dev)
 {
@@ -1050,10 +1241,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82380FB,	quirk
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA,	0x605,	quirk_transparent_bridge);
 
 /*
- * Common misconfiguration of the MediaGX/Geode PCI master that will
- * reduce PCI bandwidth from 70MB/s to 25MB/s.  See the GXM/GXLV/GX1
- * datasheets found at http://www.national.com/analog for info on what
- * these bits do.  <christer@weinigel.se>
+ * Common misconfiguration of the MediaGX/Geode PCI master that will reduce
+ * PCI bandwidth from 70MB/s to 25MB/s.  See the GXM/GXLV/GX1 datasheets
+ * found at http://www.national.com/analog for info on what these bits do.
+ * <christer@weinigel.se>
  */
 static void quirk_mediagx_master(struct pci_dev *dev)
 {
@@ -1071,9 +1262,9 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, qui
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, quirk_mediagx_master);
 
 /*
- *	Ensure C0 rev restreaming is off. This is normally done by
- *	the BIOS but in the odd case it is not the results are corruption
- *	hence the presence of a Linux check
+ * Ensure C0 rev restreaming is off. This is normally done by the BIOS but
+ * in the odd case it is not the results are corruption hence the presence
+ * of a Linux check.
  */
 static void quirk_disable_pxb(struct pci_dev *pdev)
 {
@@ -1117,9 +1308,7 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SATA
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x7900, quirk_amd_ide_mode);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD, 0x7900, quirk_amd_ide_mode);
 
-/*
- *	Serverworks CSB5 IDE does not fully support native mode
- */
+/* Serverworks CSB5 IDE does not fully support native mode */
 static void quirk_svwks_csb5ide(struct pci_dev *pdev)
 {
 	u8 prog;
@@ -1133,9 +1322,7 @@ static void quirk_svwks_csb5ide(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, quirk_svwks_csb5ide);
 
-/*
- *	Intel 82801CAM ICH3-M datasheet says IDE modes must be the same
- */
+/* Intel 82801CAM ICH3-M datasheet says IDE modes must be the same */
 static void quirk_ide_samemode(struct pci_dev *pdev)
 {
 	u8 prog;
@@ -1151,10 +1338,7 @@ static void quirk_ide_samemode(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
-/*
- * Some ATA devices break if put into D3
- */
-
+/* Some ATA devices break if put into D3 */
 static void quirk_no_ata_d3(struct pci_dev *pdev)
 {
 	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
@@ -1172,7 +1356,8 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_AL, PCI_ANY_ID,
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_VIA, PCI_ANY_ID,
 				PCI_CLASS_STORAGE_IDE, 8, quirk_no_ata_d3);
 
-/* This was originally an Alpha specific thing, but it really fits here.
+/*
+ * This was originally an Alpha-specific thing, but it really fits here.
  * The i82375 PCI/EISA bridge appears as non-classified. Fix that.
  */
 static void quirk_eisa_bridge(struct pci_dev *dev)
@@ -1180,7 +1365,6 @@ static void quirk_eisa_bridge(struct pci_dev *dev)
 	dev->class = PCI_CLASS_BRIDGE_EISA << 8;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_eisa_bridge);
-
 
 /*
  * On ASUS P4B boards, the SMBus PCI Device within the ICH2/4 southbridge
@@ -1387,7 +1571,7 @@ static void asus_hides_smbus_lpc_ich6_suspend(struct pci_dev *dev)
 
 	pci_read_config_dword(dev, 0xF0, &rcba);
 	/* use bits 31:14, 16 kB aligned */
-	asus_rcba_base = ioremap_nocache(rcba & 0xFFFFC000, 0x4000);
+	asus_rcba_base = ioremap(rcba & 0xFFFFC000, 0x4000);
 	if (asus_rcba_base == NULL)
 		return;
 }
@@ -1398,15 +1582,19 @@ static void asus_hides_smbus_lpc_ich6_resume_early(struct pci_dev *dev)
 
 	if (likely(!asus_hides_smbus || !asus_rcba_base))
 		return;
+
 	/* read the Function Disable register, dword mode only */
 	val = readl(asus_rcba_base + 0x3418);
-	writel(val & 0xFFFFFFF7, asus_rcba_base + 0x3418); /* enable the SMBus device */
+
+	/* enable the SMBus device */
+	writel(val & 0xFFFFFFF7, asus_rcba_base + 0x3418);
 }
 
 static void asus_hides_smbus_lpc_ich6_resume(struct pci_dev *dev)
 {
 	if (likely(!asus_hides_smbus || !asus_rcba_base))
 		return;
+
 	iounmap(asus_rcba_base);
 	asus_rcba_base = NULL;
 	pci_info(dev, "Enabled ICH6/i801 SMBus device\n");
@@ -1423,9 +1611,7 @@ DECLARE_PCI_FIXUP_SUSPEND(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_hides_smbus_lpc_ich6_resume);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_hides_smbus_lpc_ich6_resume_early);
 
-/*
- * SiS 96x south bridge: BIOS typically hides SMBus device...
- */
+/* SiS 96x south bridge: BIOS typically hides SMBus device...  */
 static void quirk_sis_96x_smbus(struct pci_dev *dev)
 {
 	u8 val = 0;
@@ -1448,7 +1634,7 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_si
  * ... This is further complicated by the fact that some SiS96x south
  * bridges pretend to be 85C503/5513 instead.  In that case see if we
  * spotted a compatible north bridge to make sure.
- * (pci_find_device doesn't work yet)
+ * (pci_find_device() doesn't work yet)
  *
  * We can also enable the sis96x bit in the discovery register..
  */
@@ -1468,16 +1654,15 @@ static void quirk_sis_503(struct pci_dev *dev)
 	}
 
 	/*
-	 * Ok, it now shows up as a 96x.. run the 96x quirk by
-	 * hand in case it has already been processed.
-	 * (depends on link order, which is apparently not guaranteed)
+	 * Ok, it now shows up as a 96x.  Run the 96x quirk by hand in case
+	 * it has already been processed.  (Depends on link order, which is
+	 * apparently not guaranteed)
 	 */
 	dev->device = devid;
 	quirk_sis_96x_smbus(dev);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503);
-
 
 /*
  * On ASUS A8V and A8V Deluxe boards, the onboard AC97 audio controller
@@ -1515,9 +1700,8 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237, asus_h
 #if defined(CONFIG_ATA) || defined(CONFIG_ATA_MODULE)
 
 /*
- *	If we are using libata we can drive this chip properly but must
- *	do this early on to make the additional device appear during
- *	the PCI scanning.
+ * If we are using libata we can drive this chip properly but must do this
+ * early on to make the additional device appear during the PCI scanning.
  */
 static void quirk_jmicron_ata(struct pci_dev *pdev)
 {
@@ -1613,15 +1797,19 @@ static void quirk_alder_ioapic(struct pci_dev *pdev)
 	if ((pdev->class >> 8) != 0xff00)
 		return;
 
-	/* the first BAR is the location of the IO APIC...we must
+	/*
+	 * The first BAR is the location of the IO-APIC... we must
 	 * not touch this (and it's already covered by the fixmap), so
-	 * forcibly insert it into the resource tree */
+	 * forcibly insert it into the resource tree.
+	 */
 	if (pci_resource_start(pdev, 0) && pci_resource_len(pdev, 0))
 		insert_resource(&iomem_resource, &pdev->resource[0]);
 
-	/* The next five BARs all seem to be rubbish, so just clean
-	 * them out */
-	for (i = 1; i < 6; i++)
+	/*
+	 * The next five BARs all seem to be rubbish, so just clean
+	 * them out.
+	 */
+	for (i = 1; i < PCI_STD_NUM_BARS; i++)
 		memset(&pdev->resource[i], 0, sizeof(pdev->resource[i]));
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_alder_ioapic);
@@ -1638,8 +1826,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7525_MCH,	quir
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_HUAWEI, 0x1610, PCI_CLASS_BRIDGE_PCI, 8, quirk_pcie_mch);
 
 /*
- * It's possible for the MSI to get corrupted if shpc and acpi
- * are used together on certain PXH-based systems.
+ * It's possible for the MSI to get corrupted if SHPC and ACPI are used
+ * together on certain PXH-based systems.
  */
 static void quirk_pcie_pxh(struct pci_dev *dev)
 {
@@ -1653,15 +1841,14 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXH_1,	quirk_pc
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXHV,	quirk_pcie_pxh);
 
 /*
- * Some Intel PCI Express chipsets have trouble with downstream
- * device power management.
+ * Some Intel PCI Express chipsets have trouble with downstream device
+ * power management.
  */
 static void quirk_intel_pcie_pm(struct pci_dev *dev)
 {
 	pci_pm_d3_delay = 120;
 	dev->no_d1d2 = 1;
 }
-
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x25e2, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x25e3, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x25e4, quirk_intel_pcie_pm);
@@ -1684,18 +1871,39 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x2609, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260a, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
 
+static void quirk_d3hot_delay(struct pci_dev *dev, unsigned int delay)
+{
+	if (dev->d3_delay >= delay)
+		return;
+
+	dev->d3_delay = delay;
+	pci_info(dev, "extending delay after power-on from D3hot to %d msec\n",
+		 dev->d3_delay);
+}
+
 static void quirk_radeon_pm(struct pci_dev *dev)
 {
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
-	    dev->subsystem_device == 0x00e2) {
-		if (dev->d3_delay < 20) {
-			dev->d3_delay = 20;
-			pci_info(dev, "extending delay after power-on from D3 to %d msec\n",
-				 dev->d3_delay);
-		}
-	}
+	    dev->subsystem_device == 0x00e2)
+		quirk_d3hot_delay(dev, 20);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x6741, quirk_radeon_pm);
+
+/*
+ * Ryzen5/7 XHCI controllers fail upon resume from runtime suspend or s2idle.
+ * https://bugzilla.kernel.org/show_bug.cgi?id=205587
+ *
+ * The kernel attempts to transition these devices to D3cold, but that seems
+ * to be ineffective on the platforms in question; the PCI device appears to
+ * remain on in D3hot state. The D3hot-to-D0 transition then requires an
+ * extended delay in order to succeed.
+ */
+static void quirk_ryzen_xhci_d3hot(struct pci_dev *dev)
+{
+	quirk_d3hot_delay(dev, 20);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x15e0, quirk_ryzen_xhci_d3hot);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x15e1, quirk_ryzen_xhci_d3hot);
 
 #ifdef CONFIG_X86_IO_APIC
 static int dmi_disable_ioapicreroute(const struct dmi_system_id *d)
@@ -1723,7 +1931,7 @@ static const struct dmi_system_id boot_interrupt_dmi_table[] = {
 
 /*
  * Boot interrupts on some chipsets cannot be turned off. For these chipsets,
- * remap the original interrupt in the linux kernel to the boot interrupt, so
+ * remap the original interrupt in the Linux kernel to the boot interrupt, so
  * that a PCI device's interrupt handler is installed on the boot interrupt
  * line instead.
  */
@@ -1760,32 +1968,96 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80332_1,	quirk
  */
 
 /*
- * IO-APIC1 on 6300ESB generates boot interrupts, see intel order no
+ * IO-APIC1 on 6300ESB generates boot interrupts, see Intel order no
  * 300641-004US, section 5.7.3.
+ *
+ * Core IO on Xeon E5 1600/2600/4600, see Intel order no 326509-003.
+ * Core IO on Xeon E5 v2, see Intel order no 329188-003.
+ * Core IO on Xeon E7 v2, see Intel order no 329595-002.
+ * Core IO on Xeon E5 v3, see Intel order no 330784-003.
+ * Core IO on Xeon E7 v3, see Intel order no 332315-001US.
+ * Core IO on Xeon E5 v4, see Intel order no 333810-002US.
+ * Core IO on Xeon E7 v4, see Intel order no 332315-001US.
+ * Core IO on Xeon D-1500, see Intel order no 332051-001.
+ * Core IO on Xeon Scalable, see Intel order no 610950.
  */
-#define INTEL_6300_IOAPIC_ABAR		0x40
+#define INTEL_6300_IOAPIC_ABAR		0x40	/* Bus 0, Dev 29, Func 5 */
 #define INTEL_6300_DISABLE_BOOT_IRQ	(1<<14)
+
+#define INTEL_CIPINTRC_CFG_OFFSET	0x14C	/* Bus 0, Dev 5, Func 0 */
+#define INTEL_CIPINTRC_DIS_INTX_ICH	(1<<25)
 
 static void quirk_disable_intel_boot_interrupt(struct pci_dev *dev)
 {
 	u16 pci_config_word;
+	u32 pci_config_dword;
 
 	if (noioapicquirk)
 		return;
 
-	pci_read_config_word(dev, INTEL_6300_IOAPIC_ABAR, &pci_config_word);
-	pci_config_word |= INTEL_6300_DISABLE_BOOT_IRQ;
-	pci_write_config_word(dev, INTEL_6300_IOAPIC_ABAR, pci_config_word);
-
+	switch (dev->device) {
+	case PCI_DEVICE_ID_INTEL_ESB_10:
+		pci_read_config_word(dev, INTEL_6300_IOAPIC_ABAR,
+				     &pci_config_word);
+		pci_config_word |= INTEL_6300_DISABLE_BOOT_IRQ;
+		pci_write_config_word(dev, INTEL_6300_IOAPIC_ABAR,
+				      pci_config_word);
+		break;
+	case 0x3c28:	/* Xeon E5 1600/2600/4600	*/
+	case 0x0e28:	/* Xeon E5/E7 V2		*/
+	case 0x2f28:	/* Xeon E5/E7 V3,V4		*/
+	case 0x6f28:	/* Xeon D-1500			*/
+	case 0x2034:	/* Xeon Scalable Family		*/
+		pci_read_config_dword(dev, INTEL_CIPINTRC_CFG_OFFSET,
+				      &pci_config_dword);
+		pci_config_dword |= INTEL_CIPINTRC_DIS_INTX_ICH;
+		pci_write_config_dword(dev, INTEL_CIPINTRC_CFG_OFFSET,
+				       pci_config_dword);
+		break;
+	default:
+		return;
+	}
 	pci_info(dev, "disabled boot interrupts on device [%04x:%04x]\n",
 		 dev->vendor, dev->device);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,   PCI_DEVICE_ID_INTEL_ESB_10,	quirk_disable_intel_boot_interrupt);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,   PCI_DEVICE_ID_INTEL_ESB_10,	quirk_disable_intel_boot_interrupt);
+/*
+ * Device 29 Func 5 Device IDs of IO-APIC
+ * containing ABAR—APIC1 Alternate Base Address Register
+ */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ESB_10,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ESB_10,
+		quirk_disable_intel_boot_interrupt);
 
 /*
- * disable boot interrupts on HT-1000
+ * Device 5 Func 0 Device IDs of Core IO modules/hubs
+ * containing Coherent Interface Protocol Interrupt Control
+ *
+ * Device IDs obtained from volume 2 datasheets of commented
+ * families above.
  */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x3c28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x0e28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x2f28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x6f28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x2034,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	0x3c28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	0x0e28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	0x2f28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	0x6f28,
+		quirk_disable_intel_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	0x2034,
+		quirk_disable_intel_boot_interrupt);
+
+/* Disable boot interrupts on HT-1000 */
 #define BC_HT1000_FEATURE_REG		0x64
 #define BC_HT1000_PIC_REGS_ENABLE	(1<<0)
 #define BC_HT1000_MAP_IDX		0xC00
@@ -1816,9 +2088,8 @@ static void quirk_disable_broadcom_boot_interrupt(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_HT1000SB,	quirk_disable_broadcom_boot_interrupt);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_HT1000SB,	quirk_disable_broadcom_boot_interrupt);
 
-/*
- * disable boot interrupts on AMD and ATI chipsets
- */
+/* Disable boot interrupts on AMD and ATI chipsets */
+
 /*
  * NOIOAMODE needs to be disabled to disable "boot interrupts". For AMD 8131
  * rev. A0 and B0, NOIOAMODE needs to be disabled anyway to fix IO-APIC mode
@@ -1894,7 +2165,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA_2,
 			 quirk_tc86c001_ide);
 
 /*
- * PLX PCI 9050 PCI Target bridge controller has an errata that prevents the
+ * PLX PCI 9050 PCI Target bridge controller has an erratum that prevents the
  * local configuration registers accessible via BAR0 (memory) or BAR1 (i/o)
  * being read correctly if bit 7 of the base address is set.
  * The BAR0 or BAR1 region may be disabled (size 0) or enabled (size 128).
@@ -1953,6 +2224,7 @@ static void quirk_netmos(struct pci_dev *dev)
 		if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 				dev->subsystem_device == 0x0299)
 			return;
+		/* else, fall through */
 	case PCI_DEVICE_ID_NETMOS_9735:
 	case PCI_DEVICE_ID_NETMOS_9745:
 	case PCI_DEVICE_ID_NETMOS_9845:
@@ -2058,6 +2330,23 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10f1, quirk_disable_aspm_l0s);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10f4, quirk_disable_aspm_l0s);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1508, quirk_disable_aspm_l0s);
 
+/*
+ * Some Pericom PCIe-to-PCI bridges in reverse mode need the PCIe Retrain
+ * Link bit cleared after starting the link retrain process to allow this
+ * process to finish.
+ *
+ * Affected devices: PI7C9X110, PI7C9X111SL, PI7C9X130.  See also the
+ * Pericom Errata Sheet PI7C9X111SLB_errata_rev1.2_102711.pdf.
+ */
+static void quirk_enable_clear_retrain_link(struct pci_dev *dev)
+{
+	dev->clear_retrain_link = 1;
+	pci_info(dev, "Enable PCIe Retrain Link quirk\n");
+}
+DECLARE_PCI_FIXUP_HEADER(0x12d8, 0xe110, quirk_enable_clear_retrain_link);
+DECLARE_PCI_FIXUP_HEADER(0x12d8, 0xe111, quirk_enable_clear_retrain_link);
+DECLARE_PCI_FIXUP_HEADER(0x12d8, 0xe130, quirk_enable_clear_retrain_link);
+
 static void fixup_rev1_53c810(struct pci_dev *dev)
 {
 	u32 class = dev->class;
@@ -2087,15 +2376,17 @@ static void quirk_p64h2_1k_io(struct pci_dev *dev)
 		dev->io_window_1k = 1;
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1460, quirk_p64h2_1k_io);
 
-/* Under some circumstances, AER is not linked with extended capabilities.
+/*
+ * Under some circumstances, AER is not linked with extended capabilities.
  * Force it to be linked by setting the corresponding control bit in the
  * config space.
  */
 static void quirk_nvidia_ck804_pcie_aer_ext_cap(struct pci_dev *dev)
 {
 	uint8_t b;
+
 	if (pci_read_config_byte(dev, 0xf41, &b) == 0) {
 		if (!(b & 0x20)) {
 			pci_write_config_byte(dev, 0xf41, b | 0x20);
@@ -2125,8 +2416,10 @@ static void quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 		PCI_DEVICE_ID_VIA_8235_USB_2, NULL);
 	uint8_t b;
 
-	/* p should contain the first (internal) VT6212L -- see if we have
-	   an external one by searching again */
+	/*
+	 * p should contain the first (internal) VT6212L -- see if we have
+	 * an external one by searching again.
+	 */
 	p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235_USB_2, p);
 	if (!p)
 		return;
@@ -2171,36 +2464,14 @@ static void quirk_brcm_5719_limit_mrrs(struct pci_dev *dev)
 			pcie_set_readrq(dev, 2048);
 	}
 }
-
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_BROADCOM,
 			 PCI_DEVICE_ID_TIGON3_5719,
 			 quirk_brcm_5719_limit_mrrs);
 
-#ifdef CONFIG_PCIE_IPROC_PLATFORM
-static void quirk_paxc_bridge(struct pci_dev *pdev)
-{
-	/* The PCI config space is shared with the PAXC root port and the first
-	 * Ethernet device.  So, we need to workaround this by telling the PCI
-	 * code that the bridge is not an Ethernet device.
-	 */
-	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		pdev->class = PCI_CLASS_BRIDGE_PCI << 8;
-
-	/* MPSS is not being set properly (as it is currently 0).  This is
-	 * because that area of the PCI config space is hard coded to zero, and
-	 * is not modifiable by firmware.  Set this to 2 (e.g., 512 byte MPS)
-	 * so that the MPS can be set to the real max value.
-	 */
-	pdev->pcie_mpss = 2;
-}
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x16cd, quirk_paxc_bridge);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x16f0, quirk_paxc_bridge);
-#endif
-
-/* Originally in EDAC sources for i82875P:
- * Intel tells BIOS developers to hide device 6 which
- * configures the overflow device access containing
- * the DRBs - this is where we expose device 6.
+/*
+ * Originally in EDAC sources for i82875P: Intel tells BIOS developers to
+ * hide device 6 which configures the overflow device access containing the
+ * DRBs - this is where we expose device 6.
  * http://www.x86-secret.com/articles/tweak/pat/patsecrets-2.htm
  */
 static void quirk_unhide_mch_dev6(struct pci_dev *dev)
@@ -2212,18 +2483,18 @@ static void quirk_unhide_mch_dev6(struct pci_dev *dev)
 		pci_write_config_byte(dev, 0xF4, reg | 0x02);
 	}
 }
-
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 			quirk_unhide_mch_dev6);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
 
 #ifdef CONFIG_PCI_MSI
-/* Some chipsets do not support MSI. We cannot easily rely on setting
- * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually
- * some other buses controlled by the chipset even if Linux is not
- * aware of it.  Instead of setting the flag on all buses in the
- * machine, simply disable MSI globally.
+/*
+ * Some chipsets do not support MSI. We cannot easily rely on setting
+ * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually some
+ * other buses controlled by the chipset even if Linux is not aware of it.
+ * Instead of setting the flag on all buses in the machine, simply disable
+ * MSI globally.
  */
 static void quirk_disable_all_msi(struct pci_dev *dev)
 {
@@ -2271,8 +2542,10 @@ static void quirk_amd_780_apc_msi(struct pci_dev *host_bridge)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9600, quirk_amd_780_apc_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9601, quirk_amd_780_apc_msi);
 
-/* Go through the list of Hypertransport capabilities and
- * return 1 if a HT MSI capability is found and enabled */
+/*
+ * Go through the list of HyperTransport capabilities and return 1 if a HT
+ * MSI capability is found and enabled.
+ */
 static int msi_ht_cap_enabled(struct pci_dev *dev)
 {
 	int pos, ttl = PCI_FIND_CAP_TTL;
@@ -2295,7 +2568,7 @@ static int msi_ht_cap_enabled(struct pci_dev *dev)
 	return 0;
 }
 
-/* Check the hypertransport MSI mapping to know whether MSI is enabled or not */
+/* Check the HyperTransport MSI mapping to know whether MSI is enabled or not */
 static void quirk_msi_ht_cap(struct pci_dev *dev)
 {
 	if (dev->subordinate && !msi_ht_cap_enabled(dev)) {
@@ -2306,8 +2579,9 @@ static void quirk_msi_ht_cap(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE,
 			quirk_msi_ht_cap);
 
-/* The nVidia CK804 chipset may have 2 HT MSI mappings.
- * MSI are supported if the MSI capability set in any of these mappings.
+/*
+ * The nVidia CK804 chipset may have 2 HT MSI mappings.  MSI is supported
+ * if the MSI capability is set in any of these mappings.
  */
 static void quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 {
@@ -2316,8 +2590,9 @@ static void quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 	if (!dev->subordinate)
 		return;
 
-	/* check HT MSI cap on this chipset and the root one.
-	 * a single one having MSI is enough to be sure that MSI are supported.
+	/*
+	 * Check HT MSI cap on this chipset and the root one.  A single one
+	 * having MSI is enough to be sure that MSI is supported.
 	 */
 	pdev = pci_get_slot(dev->bus, 0);
 	if (!pdev)
@@ -2354,13 +2629,13 @@ static void ht_enable_msi_mapping(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
 			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
 			 ht_enable_msi_mapping);
-
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8132_BRIDGE,
 			 ht_enable_msi_mapping);
 
-/* The P5N32-SLI motherboards from Asus have a problem with msi
- * for the MCP55 NIC. It is not yet determined whether the msi problem
- * also affects other devices. As for now, turn off msi for this device.
+/*
+ * The P5N32-SLI motherboards from Asus have a problem with MSI
+ * for the MCP55 NIC. It is not yet determined whether the MSI problem
+ * also affects other devices. As for now, turn off MSI for this device.
  */
 static void nvenet_msi_disable(struct pci_dev *dev)
 {
@@ -2376,6 +2651,59 @@ static void nvenet_msi_disable(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_NVENET_15,
 			nvenet_msi_disable);
+
+/*
+ * PCIe spec r4.0 sec 7.7.1.2 and sec 7.7.2.2 say that if MSI/MSI-X is enabled,
+ * then the device can't use INTx interrupts. Tegra's PCIe root ports don't
+ * generate MSI interrupts for PME and AER events instead only INTx interrupts
+ * are generated. Though Tegra's PCIe root ports can generate MSI interrupts
+ * for other events, since PCIe specificiation doesn't support using a mix of
+ * INTx and MSI/MSI-X, it is required to disable MSI interrupts to avoid port
+ * service drivers registering their respective ISRs for MSIs.
+ */
+static void pci_quirk_nvidia_tegra_disable_rp_msi(struct pci_dev *dev)
+{
+	dev->no_msi = 1;
+}
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x1ad0,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x1ad1,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x1ad2,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf0,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf1,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e1c,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e1d,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e12,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e13,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0fae,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0faf,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x10e5,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_NVIDIA, 0x10e6,
+			      PCI_CLASS_BRIDGE_PCI, 8,
+			      pci_quirk_nvidia_tegra_disable_rp_msi);
 
 /*
  * Some versions of the MCP55 bridge from Nvidia have a legacy IRQ routing
@@ -2397,16 +2725,14 @@ static void nvbridge_check_legacy_irq_routing(struct pci_dev *dev)
 	pci_read_config_dword(dev, 0x74, &cfg);
 
 	if (cfg & ((1 << 2) | (1 << 15))) {
-		printk(KERN_INFO "Rewriting irq routing register on MCP55\n");
+		pr_info("Rewriting IRQ routing register on MCP55\n");
 		cfg &= ~((1 << 2) | (1 << 15));
 		pci_write_config_dword(dev, 0x74, cfg);
 	}
 }
-
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V0,
 			nvbridge_check_legacy_irq_routing);
-
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V4,
 			nvbridge_check_legacy_irq_routing);
@@ -2416,7 +2742,7 @@ static int ht_check_msi_mapping(struct pci_dev *dev)
 	int pos, ttl = PCI_FIND_CAP_TTL;
 	int found = 0;
 
-	/* check if there is HT MSI cap or enabled on this device */
+	/* Check if there is HT MSI cap or enabled on this device */
 	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
 	while (pos && ttl--) {
 		u8 flags;
@@ -2452,7 +2778,7 @@ static int host_bridge_with_leaf(struct pci_dev *host_bridge)
 		if (!dev)
 			continue;
 
-		/* found next host bridge ?*/
+		/* found next host bridge? */
 		pos = pci_find_ht_capability(dev, HT_CAPTYPE_SLAVE);
 		if (pos != 0) {
 			pci_dev_put(dev);
@@ -2611,27 +2937,27 @@ static void nv_msi_ht_cap_quirk_all(struct pci_dev *dev)
 {
 	return __nv_msi_ht_cap_quirk(dev, 1);
 }
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
 
 static void nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
 {
 	return __nv_msi_ht_cap_quirk(dev, 0);
 }
-
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
-DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
 
 static void quirk_msi_intx_disable_bug(struct pci_dev *dev)
 {
 	dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
 }
+
 static void quirk_msi_intx_disable_ati_bug(struct pci_dev *dev)
 {
 	struct pci_dev *p;
 
-	/* SB700 MSI issue will be fixed at HW level from revision A21,
+	/*
+	 * SB700 MSI issue will be fixed at HW level from revision A21;
 	 * we need check PCI REVISION ID of SMBus controller to get SB700
 	 * revision.
 	 */
@@ -2644,6 +2970,7 @@ static void quirk_msi_intx_disable_ati_bug(struct pci_dev *dev)
 		dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
 	pci_dev_put(p);
 }
+
 static void quirk_msi_intx_disable_qca_bug(struct pci_dev *dev)
 {
 	/* AR816X/AR817X/E210X MSI is fixed at HW level from revision 0x18 */
@@ -2711,57 +3038,76 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x10a1,
 			quirk_msi_intx_disable_qca_bug);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0xe091,
 			quirk_msi_intx_disable_qca_bug);
+
+/*
+ * Amazon's Annapurna Labs 1c36:0031 Root Ports don't support MSI-X, so it
+ * should be disabled on platforms where the device (mistakenly) advertises it.
+ *
+ * Notice that this quirk also disables MSI (which may work, but hasn't been
+ * tested), since currently there is no standard way to disable only MSI-X.
+ *
+ * The 0031 device id is reused for other non Root Port device types,
+ * therefore the quirk is registered for the PCI_CLASS_BRIDGE_PCI class.
+ */
+static void quirk_al_msi_disable(struct pci_dev *dev)
+{
+	dev->no_msi = 1;
+	pci_warn(dev, "Disabling MSI/MSI-X\n");
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
+			      PCI_CLASS_BRIDGE_PCI, 8, quirk_al_msi_disable);
 #endif /* CONFIG_PCI_MSI */
 
-/* Allow manual resource allocation for PCI hotplug bridges
- * via pci=hpmemsize=nnM and pci=hpiosize=nnM parameters. For
- * some PCI-PCI hotplug bridges, like PLX 6254 (former HINT HB6),
- * kernel fails to allocate resources when hotplug device is
- * inserted and PCI bus is rescanned.
+/*
+ * Allow manual resource allocation for PCI hotplug bridges via
+ * pci=hpmemsize=nnM and pci=hpiosize=nnM parameters. For some PCI-PCI
+ * hotplug bridges, like PLX 6254 (former HINT HB6), kernel fails to
+ * allocate resources when hotplug device is inserted and PCI bus is
+ * rescanned.
  */
 static void quirk_hotplug_bridge(struct pci_dev *dev)
 {
 	dev->is_hotplug_bridge = 1;
 }
-
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HINT, 0x0020, quirk_hotplug_bridge);
 
 /*
- * This is a quirk for the Ricoh MMC controller found as a part of
- * some mulifunction chips.
-
+ * This is a quirk for the Ricoh MMC controller found as a part of some
+ * multifunction chips.
+ *
  * This is very similar and based on the ricoh_mmc driver written by
  * Philip Langdale. Thank you for these magic sequences.
  *
- * These chips implement the four main memory card controllers (SD, MMC, MS, xD)
- * and one or both of cardbus or firewire.
+ * These chips implement the four main memory card controllers (SD, MMC,
+ * MS, xD) and one or both of CardBus or FireWire.
  *
- * It happens that they implement SD and MMC
- * support as separate controllers (and PCI functions). The linux SDHCI
- * driver supports MMC cards but the chip detects MMC cards in hardware
- * and directs them to the MMC controller - so the SDHCI driver never sees
- * them.
+ * It happens that they implement SD and MMC support as separate
+ * controllers (and PCI functions). The Linux SDHCI driver supports MMC
+ * cards but the chip detects MMC cards in hardware and directs them to the
+ * MMC controller - so the SDHCI driver never sees them.
  *
- * To get around this, we must disable the useless MMC controller.
- * At that point, the SDHCI controller will start seeing them
- * It seems to be the case that the relevant PCI registers to deactivate the
- * MMC controller live on PCI function 0, which might be the cardbus controller
- * or the firewire controller, depending on the particular chip in question
+ * To get around this, we must disable the useless MMC controller.  At that
+ * point, the SDHCI controller will start seeing them.  It seems to be the
+ * case that the relevant PCI registers to deactivate the MMC controller
+ * live on PCI function 0, which might be the CardBus controller or the
+ * FireWire controller, depending on the particular chip in question
  *
  * This has to be done early, because as soon as we disable the MMC controller
- * other pci functions shift up one level, e.g. function #2 becomes function
- * #1, and this will confuse the pci core.
+ * other PCI functions shift up one level, e.g. function #2 becomes function
+ * #1, and this will confuse the PCI core.
  */
-
 #ifdef CONFIG_MMC_RICOH_MMC
 static void ricoh_mmc_fixup_rl5c476(struct pci_dev *dev)
 {
-	/* disable via cardbus interface */
 	u8 write_enable;
 	u8 write_target;
 	u8 disable;
 
-	/* disable must be done via function #0 */
+	/*
+	 * Disable via CardBus interface
+	 *
+	 * This must be done via function #0
+	 */
 	if (PCI_FUNC(dev->devfn))
 		return;
 
@@ -2777,7 +3123,7 @@ static void ricoh_mmc_fixup_rl5c476(struct pci_dev *dev)
 	pci_write_config_byte(dev, 0x8E, write_enable);
 	pci_write_config_byte(dev, 0x8D, write_target);
 
-	pci_notice(dev, "proprietary Ricoh MMC controller disabled (via cardbus function)\n");
+	pci_notice(dev, "proprietary Ricoh MMC controller disabled (via CardBus function)\n");
 	pci_notice(dev, "MMC cards are now supported by standard SDHCI controller\n");
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, ricoh_mmc_fixup_rl5c476);
@@ -2785,17 +3131,20 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476,
 
 static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 {
-	/* disable via firewire interface */
 	u8 write_enable;
 	u8 disable;
 
-	/* disable must be done via function #0 */
+	/*
+	 * Disable via FireWire interface
+	 *
+	 * This must be done via function #0
+	 */
 	if (PCI_FUNC(dev->devfn))
 		return;
 	/*
 	 * RICOH 0xe822 and 0xe823 SD/MMC card readers fail to recognize
-	 * certain types of SD/MMC cards. Lowering the SD base
-	 * clock frequency from 200Mhz to 50Mhz fixes this issue.
+	 * certain types of SD/MMC cards. Lowering the SD base clock
+	 * frequency from 200Mhz to 50Mhz fixes this issue.
 	 *
 	 * 0x150 - SD2.0 mode enable for changing base clock
 	 *	   frequency to 50Mhz
@@ -2826,7 +3175,7 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 	pci_write_config_byte(dev, 0xCB, disable | 0x02);
 	pci_write_config_byte(dev, 0xCA, write_enable);
 
-	pci_notice(dev, "proprietary Ricoh MMC controller disabled (via firewire function)\n");
+	pci_notice(dev, "proprietary Ricoh MMC controller disabled (via FireWire function)\n");
 	pci_notice(dev, "MMC cards are now supported by standard SDHCI controller\n");
 
 }
@@ -2842,13 +3191,13 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5CE823,
 #define VTUNCERRMSK_REG	0x1ac
 #define VTD_MSK_SPEC_ERRORS	(1 << 31)
 /*
- * This is a quirk for masking vt-d spec defined errors to platform error
- * handling logic. With out this, platforms using Intel 7500, 5500 chipsets
+ * This is a quirk for masking VT-d spec-defined errors to platform error
+ * handling logic. Without this, platforms using Intel 7500, 5500 chipsets
  * (and the derivative chipsets like X58 etc) seem to generate NMI/SMI (based
- * on the RAS config settings of the platform) when a vt-d fault happens.
+ * on the RAS config settings of the platform) when a VT-d fault happens.
  * The resulting SMI caused the system to hang.
  *
- * VT-d spec related errors are already handled by the VT-d OS code, so no
+ * VT-d spec-related errors are already handled by the VT-d OS code, so no
  * need to report the same error through other channels.
  */
 static void vtd_mask_spec_errors(struct pci_dev *dev)
@@ -2874,7 +3223,8 @@ static void fixup_ti816x_class(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_TI, 0xb800,
 			      PCI_CLASS_NOT_DEFINED, 8, fixup_ti816x_class);
 
-/* Some PCIe devices do not work reliably with the claimed maximum
+/*
+ * Some PCIe devices do not work reliably with the claimed maximum
  * payload size supported.
  */
 static void fixup_mpss_256(struct pci_dev *dev)
@@ -2888,9 +3238,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
 			 PCI_DEVICE_ID_SOLARFLARE_SFC4000B, fixup_mpss_256);
 
-/* Intel 5000 and 5100 Memory controllers have an errata with read completion
+/*
+ * Intel 5000 and 5100 Memory controllers have an erratum with read completion
  * coalescing (which is enabled by default on some BIOSes) and MPS of 256B.
- * Since there is no way of knowing what the PCIE MPS on each fabric will be
+ * Since there is no way of knowing what the PCIe MPS on each fabric will be
  * until all of the devices are discovered and buses walked, read completion
  * coalescing must be disabled.  Unfortunately, it cannot be re-enabled because
  * it is possible to hotplug a device with MPS of 256B.
@@ -2904,9 +3255,10 @@ static void quirk_intel_mc_errata(struct pci_dev *dev)
 	    pcie_bus_config == PCIE_BUS_DEFAULT)
 		return;
 
-	/* Intel errata specifies bits to change but does not say what they are.
-	 * Keeping them magical until such time as the registers and values can
-	 * be explained.
+	/*
+	 * Intel erratum specifies bits to change but does not say what
+	 * they are.  Keeping them magical until such time as the registers
+	 * and values can be explained.
 	 */
 	err = pci_read_config_word(dev, 0x48, &rcc);
 	if (err) {
@@ -2925,7 +3277,7 @@ static void quirk_intel_mc_errata(struct pci_dev *dev)
 		return;
 	}
 
-	pr_info_once("Read completion coalescing disabled due to hardware errata relating to 256B MPS\n");
+	pr_info_once("Read completion coalescing disabled due to hardware erratum relating to 256B MPS\n");
 }
 /* Intel 5000 series memory controllers and ports 2-7 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25c0, quirk_intel_mc_errata);
@@ -2955,11 +3307,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f8, quirk_intel_mc_errata);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f9, quirk_intel_mc_errata);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65fa, quirk_intel_mc_errata);
 
-
 /*
- * Ivytown NTB BAR sizes are misreported by the hardware due to an erratum.  To
- * work around this, query the size it should be configured to by the device and
- * modify the resource end to correspond to this new size.
+ * Ivytown NTB BAR sizes are misreported by the hardware due to an erratum.
+ * To work around this, query the size it should be configured to by the
+ * device and modify the resource end to correspond to this new size.
  */
 static void quirk_intel_ntb(struct pci_dev *dev)
 {
@@ -2981,39 +3332,17 @@ static void quirk_intel_ntb(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0e08, quirk_intel_ntb);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0e0d, quirk_intel_ntb);
 
-static ktime_t fixup_debug_start(struct pci_dev *dev,
-				 void (*fn)(struct pci_dev *dev))
-{
-	if (initcall_debug)
-		pci_info(dev, "calling  %pF @ %i\n", fn, task_pid_nr(current));
-
-	return ktime_get();
-}
-
-static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
-			       void (*fn)(struct pci_dev *dev))
-{
-	ktime_t delta, rettime;
-	unsigned long long duration;
-
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	if (initcall_debug || duration > 10000)
-		pci_info(dev, "%pF took %lld usecs\n", fn, duration);
-}
-
 /*
- * Some BIOS implementations leave the Intel GPU interrupts enabled,
- * even though no one is handling them (f.e. i915 driver is never loaded).
- * Additionally the interrupt destination is not set up properly
+ * Some BIOS implementations leave the Intel GPU interrupts enabled, even
+ * though no one is handling them (e.g., if the i915 driver is never
+ * loaded).  Additionally the interrupt destination is not set up properly
  * and the interrupt ends up -somewhere-.
  *
- * These spurious interrupts are "sticky" and the kernel disables
- * the (shared) interrupt line after 100.000+ generated interrupts.
+ * These spurious interrupts are "sticky" and the kernel disables the
+ * (shared) interrupt line after 100,000+ generated interrupts.
  *
- * Fix it by disabling the still enabled interrupts.
- * This resolves crashes often seen on monitor unplug.
+ * Fix it by disabling the still enabled interrupts.  This resolves crashes
+ * often seen on monitor unplug.
  */
 #define I915_DEIER_REG 0x4400c
 static void disable_igfx_irq(struct pci_dev *dev)
@@ -3033,7 +3362,11 @@ static void disable_igfx_irq(struct pci_dev *dev)
 
 	pci_iounmap(dev, regs);
 }
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0042, disable_igfx_irq);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0046, disable_igfx_irq);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x004a, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0102, disable_igfx_irq);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0106, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x010a, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0152, disable_igfx_irq);
 
@@ -3101,38 +3434,22 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_REALTEK, 0x8169,
  * Intel i40e (XL710/X710) 10/20/40GbE NICs all have broken INTx masking,
  * DisINTx can be set but the interrupt status bit is non-functional.
  */
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1572,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1574,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1580,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1581,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1583,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1584,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1585,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1586,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1587,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1588,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1589,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x158a,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x158b,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d0,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d1,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d2,
-			quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1572, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1574, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1580, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1581, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1583, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1584, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1585, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1586, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1587, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1588, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1589, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x158a, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x158b, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d0, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d1, quirk_broken_intx_masking);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d2, quirk_broken_intx_masking);
 
 static u16 mellanox_broken_intx_devs[] = {
 	PCI_DEVICE_ID_MELLANOX_HERMON_SDR,
@@ -3177,7 +3494,8 @@ static void mellanox_check_broken_intx_masking(struct pci_dev *pdev)
 		}
 	}
 
-	/* Getting here means Connect-IB cards and up. Connect-IB has no INTx
+	/*
+	 * Getting here means Connect-IB cards and up. Connect-IB has no INTx
 	 * support so shouldn't be checked further
 	 */
 	if (pdev->device == PCI_DEVICE_ID_MELLANOX_CONNECTIB)
@@ -3237,6 +3555,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0030, quirk_no_bus_reset);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0032, quirk_no_bus_reset);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x003c, quirk_no_bus_reset);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0033, quirk_no_bus_reset);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0034, quirk_no_bus_reset);
 
 /*
  * Root port on some Cavium CN8xxx chips do not successfully complete a bus
@@ -3297,8 +3616,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PORT_RIDGE,
  * shutdown before suspend. Otherwise the native host interface (NHI) will not
  * be present after resume if a device was plugged in before suspend.
  *
- * The thunderbolt controller consists of a pcie switch with downstream
- * bridges leading to the NHI and to the tunnel pci bridges.
+ * The Thunderbolt controller consists of a PCIe switch with downstream
+ * bridges leading to the NHI and to the tunnel PCI bridges.
  *
  * This quirk cuts power to the whole chip. Therefore we have to apply it
  * during suspend_noirq of the upstream bridge.
@@ -3316,17 +3635,19 @@ static void quirk_apple_poweroff_thunderbolt(struct pci_dev *dev)
 	bridge = ACPI_HANDLE(&dev->dev);
 	if (!bridge)
 		return;
+
 	/*
 	 * SXIO and SXLV are present only on machines requiring this quirk.
-	 * TB bridges in external devices might have the same device id as those
-	 * on the host, but they will not have the associated ACPI methods. This
-	 * implicitly checks that we are at the right bridge.
+	 * Thunderbolt bridges in external devices might have the same
+	 * device ID as those on the host, but they will not have the
+	 * associated ACPI methods. This implicitly checks that we are at
+	 * the right bridge.
 	 */
 	if (ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXIO", &SXIO))
 	    || ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXFP", &SXFP))
 	    || ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXLV", &SXLV)))
 		return;
-	pci_info(dev, "quirk: cutting power to thunderbolt controller...\n");
+	pci_info(dev, "quirk: cutting power to Thunderbolt controller...\n");
 
 	/* magic sequence */
 	acpi_execute_simple_method(SXIO, NULL, 1);
@@ -3341,9 +3662,9 @@ DECLARE_PCI_FIXUP_SUSPEND_LATE(PCI_VENDOR_ID_INTEL,
 			       quirk_apple_poweroff_thunderbolt);
 
 /*
- * Apple: Wait for the thunderbolt controller to reestablish pci tunnels.
+ * Apple: Wait for the Thunderbolt controller to reestablish PCI tunnels
  *
- * During suspend the thunderbolt controller is reset and all pci
+ * During suspend the Thunderbolt controller is reset and all PCI
  * tunnels are lost. The NHI driver will try to reestablish all tunnels
  * during resume. We have to manually wait for the NHI since there is
  * no parent child relationship between the NHI and the tunneled
@@ -3358,9 +3679,10 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 		return;
 	if (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)
 		return;
+
 	/*
-	 * Find the NHI and confirm that we are a bridge on the tb host
-	 * controller and not on a tb endpoint.
+	 * Find the NHI and confirm that we are a bridge on the Thunderbolt
+	 * host controller and not on a Thunderbolt endpoint.
 	 */
 	sibling = pci_get_slot(dev->bus, 0x0);
 	if (sibling == dev)
@@ -3377,7 +3699,7 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 			nhi->device != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI)
 		    || nhi->class != PCI_CLASS_SYSTEM_OTHER << 8)
 		goto out;
-	pci_info(dev, "quirk: waiting for thunderbolt to reestablish PCI tunnels...\n");
+	pci_info(dev, "quirk: waiting for Thunderbolt to reestablish PCI tunnels...\n");
 	device_pm_wait_for_dev(&dev->dev, &nhi->dev);
 out:
 	pci_dev_put(nhi);
@@ -3396,142 +3718,6 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,
 			       PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE,
 			       quirk_apple_wait_for_thunderbolt);
 #endif
-
-static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
-			  struct pci_fixup *end)
-{
-	ktime_t calltime;
-
-	for (; f < end; f++)
-		if ((f->class == (u32) (dev->class >> f->class_shift) ||
-		     f->class == (u32) PCI_ANY_ID) &&
-		    (f->vendor == dev->vendor ||
-		     f->vendor == (u16) PCI_ANY_ID) &&
-		    (f->device == dev->device ||
-		     f->device == (u16) PCI_ANY_ID)) {
-			calltime = fixup_debug_start(dev, f->hook);
-			f->hook(dev);
-			fixup_debug_report(dev, calltime, f->hook);
-		}
-}
-
-extern struct pci_fixup __start_pci_fixups_early[];
-extern struct pci_fixup __end_pci_fixups_early[];
-extern struct pci_fixup __start_pci_fixups_header[];
-extern struct pci_fixup __end_pci_fixups_header[];
-extern struct pci_fixup __start_pci_fixups_final[];
-extern struct pci_fixup __end_pci_fixups_final[];
-extern struct pci_fixup __start_pci_fixups_enable[];
-extern struct pci_fixup __end_pci_fixups_enable[];
-extern struct pci_fixup __start_pci_fixups_resume[];
-extern struct pci_fixup __end_pci_fixups_resume[];
-extern struct pci_fixup __start_pci_fixups_resume_early[];
-extern struct pci_fixup __end_pci_fixups_resume_early[];
-extern struct pci_fixup __start_pci_fixups_suspend[];
-extern struct pci_fixup __end_pci_fixups_suspend[];
-extern struct pci_fixup __start_pci_fixups_suspend_late[];
-extern struct pci_fixup __end_pci_fixups_suspend_late[];
-
-static bool pci_apply_fixup_final_quirks;
-
-void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
-{
-	struct pci_fixup *start, *end;
-
-	switch (pass) {
-	case pci_fixup_early:
-		start = __start_pci_fixups_early;
-		end = __end_pci_fixups_early;
-		break;
-
-	case pci_fixup_header:
-		start = __start_pci_fixups_header;
-		end = __end_pci_fixups_header;
-		break;
-
-	case pci_fixup_final:
-		if (!pci_apply_fixup_final_quirks)
-			return;
-		start = __start_pci_fixups_final;
-		end = __end_pci_fixups_final;
-		break;
-
-	case pci_fixup_enable:
-		start = __start_pci_fixups_enable;
-		end = __end_pci_fixups_enable;
-		break;
-
-	case pci_fixup_resume:
-		start = __start_pci_fixups_resume;
-		end = __end_pci_fixups_resume;
-		break;
-
-	case pci_fixup_resume_early:
-		start = __start_pci_fixups_resume_early;
-		end = __end_pci_fixups_resume_early;
-		break;
-
-	case pci_fixup_suspend:
-		start = __start_pci_fixups_suspend;
-		end = __end_pci_fixups_suspend;
-		break;
-
-	case pci_fixup_suspend_late:
-		start = __start_pci_fixups_suspend_late;
-		end = __end_pci_fixups_suspend_late;
-		break;
-
-	default:
-		/* stupid compiler warning, you would think with an enum... */
-		return;
-	}
-	pci_do_fixups(dev, start, end);
-}
-EXPORT_SYMBOL(pci_fixup_device);
-
-
-static int __init pci_apply_final_quirks(void)
-{
-	struct pci_dev *dev = NULL;
-	u8 cls = 0;
-	u8 tmp;
-
-	if (pci_cache_line_size)
-		printk(KERN_DEBUG "PCI: CLS %u bytes\n",
-		       pci_cache_line_size << 2);
-
-	pci_apply_fixup_final_quirks = true;
-	for_each_pci_dev(dev) {
-		pci_fixup_device(pci_fixup_final, dev);
-		/*
-		 * If arch hasn't set it explicitly yet, use the CLS
-		 * value shared by all PCI devices.  If there's a
-		 * mismatch, fall back to the default value.
-		 */
-		if (!pci_cache_line_size) {
-			pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &tmp);
-			if (!cls)
-				cls = tmp;
-			if (!tmp || cls == tmp)
-				continue;
-
-			printk(KERN_DEBUG "PCI: CLS mismatch (%u != %u), using %u bytes\n",
-			       cls << 2, tmp << 2,
-			       pci_dfl_cache_line_size << 2);
-			pci_cache_line_size = pci_dfl_cache_line_size;
-		}
-	}
-
-	if (!pci_cache_line_size) {
-		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
-		       cls << 2, pci_dfl_cache_line_size << 2);
-		pci_cache_line_size = cls ? cls : pci_dfl_cache_line_size;
-	}
-
-	return 0;
-}
-
-fs_initcall_sync(pci_apply_final_quirks);
 
 /*
  * Following are device-specific reset methods which can be used to
@@ -3602,9 +3788,7 @@ reset_complete:
 	return 0;
 }
 
-/*
- * Device-specific reset method for Chelsio T4-based adapters.
- */
+/* Device-specific reset method for Chelsio T4-based adapters */
 static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
 {
 	u16 old_command;
@@ -3670,6 +3854,108 @@ static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
 #define PCI_DEVICE_ID_INTEL_IVB_M_VGA      0x0156
 #define PCI_DEVICE_ID_INTEL_IVB_M2_VGA     0x0166
 
+/*
+ * The Samsung SM961/PM961 controller can sometimes enter a fatal state after
+ * FLR where config space reads from the device return -1.  We seem to be
+ * able to avoid this condition if we disable the NVMe controller prior to
+ * FLR.  This quirk is generic for any NVMe class device requiring similar
+ * assistance to quiesce the device prior to FLR.
+ *
+ * NVMe specification: https://nvmexpress.org/resources/specifications/
+ * Revision 1.0e:
+ *    Chapter 2: Required and optional PCI config registers
+ *    Chapter 3: NVMe control registers
+ *    Chapter 7.3: Reset behavior
+ */
+static int nvme_disable_and_flr(struct pci_dev *dev, int probe)
+{
+	void __iomem *bar;
+	u16 cmd;
+	u32 cfg;
+
+	if (dev->class != PCI_CLASS_STORAGE_EXPRESS ||
+	    !pcie_has_flr(dev) || !pci_resource_start(dev, 0))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	bar = pci_iomap(dev, 0, NVME_REG_CC + sizeof(cfg));
+	if (!bar)
+		return -ENOTTY;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	pci_write_config_word(dev, PCI_COMMAND, cmd | PCI_COMMAND_MEMORY);
+
+	cfg = readl(bar + NVME_REG_CC);
+
+	/* Disable controller if enabled */
+	if (cfg & NVME_CC_ENABLE) {
+		u32 cap = readl(bar + NVME_REG_CAP);
+		unsigned long timeout;
+
+		/*
+		 * Per nvme_disable_ctrl() skip shutdown notification as it
+		 * could complete commands to the admin queue.  We only intend
+		 * to quiesce the device before reset.
+		 */
+		cfg &= ~(NVME_CC_SHN_MASK | NVME_CC_ENABLE);
+
+		writel(cfg, bar + NVME_REG_CC);
+
+		/*
+		 * Some controllers require an additional delay here, see
+		 * NVME_QUIRK_DELAY_BEFORE_CHK_RDY.  None of those are yet
+		 * supported by this quirk.
+		 */
+
+		/* Cap register provides max timeout in 500ms increments */
+		timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
+
+		for (;;) {
+			u32 status = readl(bar + NVME_REG_CSTS);
+
+			/* Ready status becomes zero on disable complete */
+			if (!(status & NVME_CSTS_RDY))
+				break;
+
+			msleep(100);
+
+			if (time_after(jiffies, timeout)) {
+				pci_warn(dev, "Timeout waiting for NVMe ready status to clear after disable\n");
+				break;
+			}
+		}
+	}
+
+	pci_iounmap(dev, bar);
+
+	pcie_flr(dev);
+
+	return 0;
+}
+
+/*
+ * Intel DC P3700 NVMe controller will timeout waiting for ready status
+ * to change after NVMe enable if the driver starts interacting with the
+ * device too soon after FLR.  A 250ms delay after FLR has heuristically
+ * proven to produce reliably working results for device assignment cases.
+ */
+static int delay_250ms_after_flr(struct pci_dev *dev, int probe)
+{
+	if (!pcie_has_flr(dev))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pcie_flr(dev);
+
+	msleep(250);
+
+	return 0;
+}
+
 static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
 		 reset_intel_82599_sfp_virtfn },
@@ -3677,6 +3963,8 @@ static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 		reset_ivb_igd },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M2_VGA,
 		reset_ivb_igd },
+	{ PCI_VENDOR_ID_SAMSUNG, 0xa804, nvme_disable_and_flr },
+	{ PCI_VENDOR_ID_INTEL, 0x0953, delay_250ms_after_flr },
 	{ PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
 		reset_chelsio_generic_dev },
 	{ 0 }
@@ -3705,7 +3993,7 @@ int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 static void quirk_dma_func0_alias(struct pci_dev *dev)
 {
 	if (PCI_FUNC(dev->devfn) != 0)
-		pci_add_dma_alias(dev, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+		pci_add_dma_alias(dev, PCI_DEVFN(PCI_SLOT(dev->devfn), 0), 1);
 }
 
 /*
@@ -3719,7 +4007,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_RICOH, 0xe476, quirk_dma_func0_alias);
 static void quirk_dma_func1_alias(struct pci_dev *dev)
 {
 	if (PCI_FUNC(dev->devfn) != 1)
-		pci_add_dma_alias(dev, PCI_DEVFN(PCI_SLOT(dev->devfn), 1));
+		pci_add_dma_alias(dev, PCI_DEVFN(PCI_SLOT(dev->devfn), 1), 1);
 }
 
 /*
@@ -3737,6 +4025,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9128,
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c14 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9130,
 			 quirk_dma_func1_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9170,
+			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c47 + c57 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9172,
 			 quirk_dma_func1_alias);
@@ -3745,6 +4035,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x917a,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c78 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9182,
+			 quirk_dma_func1_alias);
+/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c134 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9183,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c46 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x91a0,
@@ -3799,9 +4092,8 @@ static void quirk_fixed_dma_alias(struct pci_dev *dev)
 
 	id = pci_match_id(fixed_dma_alias_tbl, dev);
 	if (id)
-		pci_add_dma_alias(dev, id->driver_data);
+		pci_add_dma_alias(dev, id->driver_data, 1);
 }
-
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ADAPTEC2, 0x0285, quirk_fixed_dma_alias);
 
 /*
@@ -3841,12 +4133,41 @@ DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
  */
 static void quirk_mic_x200_dma_alias(struct pci_dev *pdev)
 {
-	pci_add_dma_alias(pdev, PCI_DEVFN(0x10, 0x0));
-	pci_add_dma_alias(pdev, PCI_DEVFN(0x11, 0x0));
-	pci_add_dma_alias(pdev, PCI_DEVFN(0x12, 0x3));
+	pci_add_dma_alias(pdev, PCI_DEVFN(0x10, 0x0), 1);
+	pci_add_dma_alias(pdev, PCI_DEVFN(0x11, 0x0), 1);
+	pci_add_dma_alias(pdev, PCI_DEVFN(0x12, 0x3), 1);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2260, quirk_mic_x200_dma_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2264, quirk_mic_x200_dma_alias);
+
+/*
+ * Intel Visual Compute Accelerator (VCA) is a family of PCIe add-in devices
+ * exposing computational units via Non Transparent Bridges (NTB, PEX 87xx).
+ *
+ * Similarly to MIC x200, we need to add DMA aliases to allow buffer access
+ * when IOMMU is enabled.  These aliases allow computational unit access to
+ * host memory.  These aliases mark the whole VCA device as one IOMMU
+ * group.
+ *
+ * All possible slot numbers (0x20) are used, since we are unable to tell
+ * what slot is used on other side.  This quirk is intended for both host
+ * and computational unit sides.  The VCA devices have up to five functions
+ * (four for DMA channels and one additional).
+ */
+static void quirk_pex_vca_alias(struct pci_dev *pdev)
+{
+	const unsigned int num_pci_slots = 0x20;
+	unsigned int slot;
+
+	for (slot = 0; slot < num_pci_slots; slot++)
+		pci_add_dma_alias(pdev, PCI_DEVFN(slot, 0x0), 5);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2954, quirk_pex_vca_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2955, quirk_pex_vca_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2956, quirk_pex_vca_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2958, quirk_pex_vca_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2959, quirk_pex_vca_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x295A, quirk_pex_vca_alias);
 
 /*
  * The IOMMU and interrupt controller on Broadcom Vulcan/Cavium ThunderX2 are
@@ -3887,7 +4208,7 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(0x1797, 0x6869, PCI_CLASS_NOT_DEFINED, 8,
 /*
  * Some devices have problems with Transaction Layer Packets with the Relaxed
  * Ordering Attribute set.  Such devices should mark themselves and other
- * Device Drivers should check before sending TLPs with RO set.
+ * device drivers should check before sending TLPs with RO set.
  */
 static void quirk_relaxedordering_disable(struct pci_dev *dev)
 {
@@ -3897,7 +4218,7 @@ static void quirk_relaxedordering_disable(struct pci_dev *dev)
 
 /*
  * Intel Xeon processors based on Broadwell/Haswell microarchitecture Root
- * Complex has a Flow Control Credit issue which can cause performance
+ * Complex have a Flow Control Credit issue which can cause performance
  * problems with Upstream Transaction Layer Packets with Relaxed Ordering set.
  */
 DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, 0x6f01, PCI_CLASS_NOT_DEFINED, 8,
@@ -3958,7 +4279,7 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, 0x2f0e, PCI_CLASS_NOT_DEFINED
 			      quirk_relaxedordering_disable);
 
 /*
- * The AMD ARM A1100 (AKA "SEATTLE") SoC has a bug in its PCIe Root Complex
+ * The AMD ARM A1100 (aka "SEATTLE") SoC has a bug in its PCIe Root Complex
  * where Upstream Transaction Layer Packets with the Relaxed Ordering
  * Attribute clear are allowed to bypass earlier TLPs with Relaxed Ordering
  * set.  This is a violation of the PCIe 3.0 Transaction Ordering Rules
@@ -4022,13 +4343,31 @@ static void quirk_chelsio_T5_disable_root_port_attributes(struct pci_dev *pdev)
 	 * This mask/compare operation selects for Physical Function 4 on a
 	 * T5.  We only need to fix up the Root Port once for any of the
 	 * PFs.  PF[0..3] have PCI Device IDs of 0x50xx, but PF4 is uniquely
-	 * 0x54xx so we use that one,
+	 * 0x54xx so we use that one.
 	 */
 	if ((pdev->device & 0xff00) == 0x5400)
 		quirk_disable_root_port_attributes(pdev);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
 			 quirk_chelsio_T5_disable_root_port_attributes);
+
+/*
+ * pci_acs_ctrl_enabled - compare desired ACS controls with those provided
+ *			  by a device
+ * @acs_ctrl_req: Bitmask of desired ACS controls
+ * @acs_ctrl_ena: Bitmask of ACS controls enabled or provided implicitly by
+ *		  the hardware design
+ *
+ * Return 1 if all ACS controls in the @acs_ctrl_req bitmask are included
+ * in @acs_ctrl_ena, i.e., the device provides all the access controls the
+ * caller desires.  Return 0 otherwise.
+ */
+static int pci_acs_ctrl_enabled(u16 acs_ctrl_req, u16 acs_ctrl_ena)
+{
+	if ((acs_ctrl_req & acs_ctrl_ena) == acs_ctrl_req)
+		return 1;
+	return 0;
+}
 
 /*
  * AMD has indicated that the devices below do not support peer-to-peer
@@ -4073,7 +4412,7 @@ static int pci_quirk_amd_sb_acs(struct pci_dev *dev, u16 acs_flags)
 	/* Filter out flags not applicable to multifunction */
 	acs_flags &= (PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_EC | PCI_ACS_DT);
 
-	return acs_flags & ~(PCI_ACS_RR | PCI_ACS_CR) ? 0 : 1;
+	return pci_acs_ctrl_enabled(acs_flags, PCI_ACS_RR | PCI_ACS_CR);
 #else
 	return -ENODEV;
 #endif
@@ -4081,49 +4420,76 @@ static int pci_quirk_amd_sb_acs(struct pci_dev *dev, u16 acs_flags)
 
 static bool pci_quirk_cavium_acs_match(struct pci_dev *dev)
 {
+	if (!pci_is_pcie(dev) || pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
+		return false;
+
+	switch (dev->device) {
 	/*
-	 * Effectively selects all downstream ports for whole ThunderX 1
-	 * family by 0xf800 mask (which represents 8 SoCs), while the lower
-	 * bits of device ID are used to indicate which subdevice is used
-	 * within the SoC.
+	 * Effectively selects all downstream ports for whole ThunderX1
+	 * (which represents 8 SoCs).
 	 */
-	return (pci_is_pcie(dev) &&
-		(pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT) &&
-		((dev->device & 0xf800) == 0xa000));
+	case 0xa000 ... 0xa7ff: /* ThunderX1 */
+	case 0xaf84:  /* ThunderX2 */
+	case 0xb884:  /* ThunderX3 */
+		return true;
+	default:
+		return false;
+	}
 }
 
 static int pci_quirk_cavium_acs(struct pci_dev *dev, u16 acs_flags)
 {
+	if (!pci_quirk_cavium_acs_match(dev))
+		return -ENOTTY;
+
 	/*
-	 * Cavium root ports don't advertise an ACS capability.  However,
+	 * Cavium Root Ports don't advertise an ACS capability.  However,
 	 * the RTL internally implements similar protection as if ACS had
-	 * Request Redirection, Completion Redirection, Source Validation,
+	 * Source Validation, Request Redirection, Completion Redirection,
 	 * and Upstream Forwarding features enabled.  Assert that the
 	 * hardware implements and enables equivalent ACS functionality for
 	 * these flags.
 	 */
-	acs_flags &= ~(PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_SV | PCI_ACS_UF);
-
-	if (!pci_quirk_cavium_acs_match(dev))
-		return -ENOTTY;
-
-	return acs_flags ? 0 : 1;
+	return pci_acs_ctrl_enabled(acs_flags,
+		PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
 }
 
 static int pci_quirk_xgene_acs(struct pci_dev *dev, u16 acs_flags)
 {
 	/*
-	 * X-Gene root matching this quirk do not allow peer-to-peer
+	 * X-Gene Root Ports matching this quirk do not allow peer-to-peer
 	 * transactions with others, allowing masking out these bits as if they
 	 * were unimplemented in the ACS capability.
 	 */
-	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
-
-	return acs_flags ? 0 : 1;
+	return pci_acs_ctrl_enabled(acs_flags,
+		PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
 }
 
 /*
- * Many Intel PCH root ports do provide ACS-like features to disable peer
+ * Many Zhaoxin Root Ports and Switch Downstream Ports have no ACS capability.
+ * But the implementation could block peer-to-peer transactions between them
+ * and provide ACS-like functionality.
+ */
+static int  pci_quirk_zhaoxin_pcie_ports_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	if (!pci_is_pcie(dev) ||
+	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
+		return -ENOTTY;
+
+	switch (dev->device) {
+	case 0x0710 ... 0x071e:
+	case 0x0721:
+	case 0x0723 ... 0x0732:
+		return pci_acs_ctrl_enabled(acs_flags,
+			PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+	}
+
+	return false;
+}
+
+/*
+ * Many Intel PCH Root Ports do provide ACS-like features to disable peer
  * transactions and validate bus numbers in requests, but do not provide an
  * actual PCIe ACS capability.  This is the list of device IDs known to fall
  * into that category as provided by Intel in Red Hat bugzilla 1037684.
@@ -4171,37 +4537,50 @@ static bool pci_quirk_intel_pch_acs_match(struct pci_dev *dev)
 	return false;
 }
 
-#define INTEL_PCH_ACS_FLAGS (PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_SV)
-
 static int pci_quirk_intel_pch_acs(struct pci_dev *dev, u16 acs_flags)
 {
-	u16 flags = dev->dev_flags & PCI_DEV_FLAGS_ACS_ENABLED_QUIRK ?
-		    INTEL_PCH_ACS_FLAGS : 0;
-
 	if (!pci_quirk_intel_pch_acs_match(dev))
 		return -ENOTTY;
 
-	return acs_flags & ~flags ? 0 : 1;
+	if (dev->dev_flags & PCI_DEV_FLAGS_ACS_ENABLED_QUIRK)
+		return pci_acs_ctrl_enabled(acs_flags,
+			PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+
+	return pci_acs_ctrl_enabled(acs_flags, 0);
 }
 
 /*
- * These QCOM root ports do provide ACS-like features to disable peer
+ * These QCOM Root Ports do provide ACS-like features to disable peer
  * transactions and validate bus numbers in requests, but do not provide an
  * actual PCIe ACS capability.  Hardware supports source validation but it
  * will report the issue as Completer Abort instead of ACS Violation.
- * Hardware doesn't support peer-to-peer and each root port is a root
- * complex with unique segment numbers.  It is not possible for one root
- * port to pass traffic to another root port.  All PCIe transactions are
- * terminated inside the root port.
+ * Hardware doesn't support peer-to-peer and each Root Port is a Root
+ * Complex with unique segment numbers.  It is not possible for one Root
+ * Port to pass traffic to another Root Port.  All PCIe transactions are
+ * terminated inside the Root Port.
  */
 static int pci_quirk_qcom_rp_acs(struct pci_dev *dev, u16 acs_flags)
 {
-	u16 flags = (PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_SV);
-	int ret = acs_flags & ~flags ? 0 : 1;
+	return pci_acs_ctrl_enabled(acs_flags,
+		PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+}
 
-	pci_info(dev, "Using QCOM ACS Quirk (%d)\n", ret);
+static int pci_quirk_al_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
+		return -ENOTTY;
 
-	return ret;
+	/*
+	 * Amazon's Annapurna Labs root ports don't include an ACS capability,
+	 * but do include ACS-like functionality. The hardware doesn't support
+	 * peer-to-peer transactions via the root port and each has a unique
+	 * segment number.
+	 *
+	 * Additionally, the root ports cannot send traffic to each other.
+	 */
+	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+
+	return acs_flags ? 0 : 1;
 }
 
 /*
@@ -4230,11 +4609,24 @@ static int pci_quirk_qcom_rp_acs(struct pci_dev *dev, u16 acs_flags)
  * 0xa290-0xa29f PCI Express Root port #{0-16}
  * 0xa2e7-0xa2ee PCI Express Root port #{17-24}
  *
+ * Mobile chipsets are also affected, 7th & 8th Generation
+ * Specification update confirms ACS errata 22, status no fix: (7th Generation
+ * Intel Processor Family I/O for U/Y Platforms and 8th Generation Intel
+ * Processor Family I/O for U Quad Core Platforms Specification Update,
+ * August 2017, Revision 002, Document#: 334660-002)[6]
+ * Device IDs from I/O datasheet: (7th Generation Intel Processor Family I/O
+ * for U/Y Platforms and 8th Generation Intel ® Processor Family I/O for U
+ * Quad Core Platforms, Vol 1 of 2, August 2017, Document#: 334658-003)[7]
+ *
+ * 0x9d10-0x9d1b PCI Express Root port #{1-12}
+ *
  * [1] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-2.html
  * [2] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-1.html
  * [3] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-spec-update.html
  * [4] http://www.intel.com/content/www/us/en/chipsets/200-series-chipset-pch-spec-update.html
  * [5] http://www.intel.com/content/www/us/en/chipsets/200-series-chipset-pch-datasheet-vol-1.html
+ * [6] https://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-u-y-processor-lines-i-o-spec-update.html
+ * [7] https://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-u-y-processor-lines-i-o-datasheet-vol-1.html
  */
 static bool pci_quirk_intel_spt_pch_acs_match(struct pci_dev *dev)
 {
@@ -4244,6 +4636,7 @@ static bool pci_quirk_intel_spt_pch_acs_match(struct pci_dev *dev)
 	switch (dev->device) {
 	case 0xa110 ... 0xa11f: case 0xa167 ... 0xa16a: /* Sunrise Point */
 	case 0xa290 ... 0xa29f: case 0xa2e7 ... 0xa2ee: /* Union Point */
+	case 0x9d10 ... 0x9d1b: /* 7th & 8th Gen Mobile */
 		return true;
 	}
 
@@ -4270,7 +4663,7 @@ static int pci_quirk_intel_spt_pch_acs(struct pci_dev *dev, u16 acs_flags)
 
 	pci_read_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, &ctrl);
 
-	return acs_flags & ~ctrl ? 0 : 1;
+	return pci_acs_ctrl_enabled(acs_flags, ctrl);
 }
 
 static int pci_quirk_mf_endpoint_acs(struct pci_dev *dev, u16 acs_flags)
@@ -4284,10 +4677,21 @@ static int pci_quirk_mf_endpoint_acs(struct pci_dev *dev, u16 acs_flags)
 	 * perform peer-to-peer with other functions, allowing us to mask out
 	 * these bits as if they were unimplemented in the ACS capability.
 	 */
-	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
-		       PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
+	return pci_acs_ctrl_enabled(acs_flags,
+		PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
+		PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
+}
 
-	return acs_flags ? 0 : 1;
+static int pci_quirk_brcm_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	/*
+	 * iProc PAXB Root Ports don't advertise an ACS capability, but
+	 * they do not allow peer-to-peer transactions between Root Ports.
+	 * Allow each Root Port to be in a separate IOMMU group by masking
+	 * SV/RR/CR/UF bits.
+	 */
+	return pci_acs_ctrl_enabled(acs_flags,
+		PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
 }
 
 static const struct pci_dev_acs_enabled {
@@ -4361,8 +4765,10 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_INTEL, 0x15b7, pci_quirk_mf_endpoint_acs },
 	{ PCI_VENDOR_ID_INTEL, 0x15b8, pci_quirk_mf_endpoint_acs },
 	/* QCOM QDF2xxx root ports */
-	{ 0x17cb, 0x400, pci_quirk_qcom_rp_acs },
-	{ 0x17cb, 0x401, pci_quirk_qcom_rp_acs },
+	{ PCI_VENDOR_ID_QCOM, 0x0400, pci_quirk_qcom_rp_acs },
+	{ PCI_VENDOR_ID_QCOM, 0x0401, pci_quirk_qcom_rp_acs },
+	/* HXT SD4800 root ports. The ACS design is same as QCOM QDF2xxx */
+	{ PCI_VENDOR_ID_HXT, 0x0401, pci_quirk_qcom_rp_acs },
 	/* Intel PCH root ports */
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_intel_pch_acs },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_intel_spt_pch_acs },
@@ -4381,9 +4787,29 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_AMPERE, 0xE00A, pci_quirk_xgene_acs },
 	{ PCI_VENDOR_ID_AMPERE, 0xE00B, pci_quirk_xgene_acs },
 	{ PCI_VENDOR_ID_AMPERE, 0xE00C, pci_quirk_xgene_acs },
+	{ PCI_VENDOR_ID_BROADCOM, 0xD714, pci_quirk_brcm_acs },
+	/* Amazon Annapurna Labs */
+	{ PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031, pci_quirk_al_acs },
+	/* Zhaoxin multi-function devices */
+	{ PCI_VENDOR_ID_ZHAOXIN, 0x3038, pci_quirk_mf_endpoint_acs },
+	{ PCI_VENDOR_ID_ZHAOXIN, 0x3104, pci_quirk_mf_endpoint_acs },
+	{ PCI_VENDOR_ID_ZHAOXIN, 0x9083, pci_quirk_mf_endpoint_acs },
+	/* Zhaoxin Root/Downstream Ports */
+	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
 	{ 0 }
 };
 
+/*
+ * pci_dev_specific_acs_enabled - check whether device provides ACS controls
+ * @dev:	PCI device
+ * @acs_flags:	Bitmask of desired ACS controls
+ *
+ * Returns:
+ *   -ENOTTY:	No quirk applies to this device; we can't tell whether the
+ *		device provides the desired controls
+ *   0:		Device does not provide all the desired controls
+ *   >0:	Device provides all the controls in @acs_flags
+ */
 int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags)
 {
 	const struct pci_dev_acs_enabled *i;
@@ -4424,7 +4850,7 @@ int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags)
 #define INTEL_BSPR_REG_BPPD  (1 << 9)
 
 /* Upstream Peer Decode Configuration Register */
-#define INTEL_UPDCR_REG 0x1114
+#define INTEL_UPDCR_REG 0x1014
 /* 5:0 Peer Decode Enable bits */
 #define INTEL_UPDCR_REG_MASK 0x3f
 
@@ -4436,14 +4862,14 @@ static int pci_quirk_enable_intel_lpc_acs(struct pci_dev *dev)
 	/*
 	 * Read the RCBA register from the LPC (D31:F0).  PCH root ports
 	 * are D28:F* and therefore get probed before LPC, thus we can't
-	 * use pci_get_slot/pci_read_config_dword here.
+	 * use pci_get_slot()/pci_read_config_dword() here.
 	 */
 	pci_bus_read_config_dword(dev->bus, PCI_DEVFN(31, 0),
 				  INTEL_LPC_RCBA_REG, &rcba);
 	if (!(rcba & INTEL_LPC_RCBA_ENABLE))
 		return -EINVAL;
 
-	rcba_mem = ioremap_nocache(rcba & INTEL_LPC_RCBA_MASK,
+	rcba_mem = ioremap(rcba & INTEL_LPC_RCBA_MASK,
 				   PAGE_ALIGN(INTEL_UPDCR_REG));
 	if (!rcba_mem)
 		return -ENOMEM;
@@ -4539,27 +4965,79 @@ static int pci_quirk_enable_intel_spt_pch_acs(struct pci_dev *dev)
 	return 0;
 }
 
-static const struct pci_dev_enable_acs {
+static int pci_quirk_disable_intel_spt_pch_acs_redir(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap, ctrl;
+
+	if (!pci_quirk_intel_spt_pch_acs_match(dev))
+		return -ENOTTY;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
+	if (!pos)
+		return -ENOTTY;
+
+	pci_read_config_dword(dev, pos + PCI_ACS_CAP, &cap);
+	pci_read_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, &ctrl);
+
+	ctrl &= ~(PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_EC);
+
+	pci_write_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, ctrl);
+
+	pci_info(dev, "Intel SPT PCH root port workaround: disabled ACS redirect\n");
+
+	return 0;
+}
+
+static const struct pci_dev_acs_ops {
 	u16 vendor;
 	u16 device;
 	int (*enable_acs)(struct pci_dev *dev);
-} pci_dev_enable_acs[] = {
-	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_pch_acs },
-	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_spt_pch_acs },
-	{ 0 }
+	int (*disable_acs_redir)(struct pci_dev *dev);
+} pci_dev_acs_ops[] = {
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+	    .enable_acs = pci_quirk_enable_intel_pch_acs,
+	},
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+	    .enable_acs = pci_quirk_enable_intel_spt_pch_acs,
+	    .disable_acs_redir = pci_quirk_disable_intel_spt_pch_acs_redir,
+	},
 };
 
 int pci_dev_specific_enable_acs(struct pci_dev *dev)
 {
-	const struct pci_dev_enable_acs *i;
-	int ret;
+	const struct pci_dev_acs_ops *p;
+	int i, ret;
 
-	for (i = pci_dev_enable_acs; i->enable_acs; i++) {
-		if ((i->vendor == dev->vendor ||
-		     i->vendor == (u16)PCI_ANY_ID) &&
-		    (i->device == dev->device ||
-		     i->device == (u16)PCI_ANY_ID)) {
-			ret = i->enable_acs(dev);
+	for (i = 0; i < ARRAY_SIZE(pci_dev_acs_ops); i++) {
+		p = &pci_dev_acs_ops[i];
+		if ((p->vendor == dev->vendor ||
+		     p->vendor == (u16)PCI_ANY_ID) &&
+		    (p->device == dev->device ||
+		     p->device == (u16)PCI_ANY_ID) &&
+		    p->enable_acs) {
+			ret = p->enable_acs(dev);
+			if (ret >= 0)
+				return ret;
+		}
+	}
+
+	return -ENOTTY;
+}
+
+int pci_dev_specific_disable_acs_redir(struct pci_dev *dev)
+{
+	const struct pci_dev_acs_ops *p;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(pci_dev_acs_ops); i++) {
+		p = &pci_dev_acs_ops[i];
+		if ((p->vendor == dev->vendor ||
+		     p->vendor == (u16)PCI_ANY_ID) &&
+		    (p->device == dev->device ||
+		     p->device == (u16)PCI_ANY_ID) &&
+		    p->disable_acs_redir) {
+			ret = p->disable_acs_redir(dev);
 			if (ret >= 0)
 				return ret;
 		}
@@ -4569,7 +5047,7 @@ int pci_dev_specific_enable_acs(struct pci_dev *dev)
 }
 
 /*
- * The PCI capabilities list for Intel DH895xCC VFs (device id 0x0443) with
+ * The PCI capabilities list for Intel DH895xCC VFs (device ID 0x0443) with
  * QuickAssist Technology (QAT) is prematurely terminated in hardware.  The
  * Next Capability pointer in the MSI Capability Structure should point to
  * the PCIe Capability Structure but is incorrectly hardwired as 0 terminating
@@ -4630,9 +5108,7 @@ static void quirk_intel_qat_vf_cap(struct pci_dev *pdev)
 		if (pci_find_saved_cap(pdev, PCI_CAP_ID_EXP))
 			return;
 
-		/*
-		 * Save PCIE cap
-		 */
+		/* Save PCIe cap */
 		state = kzalloc(sizeof(*state) + size, GFP_KERNEL);
 		if (!state)
 			return;
@@ -4653,7 +5129,7 @@ static void quirk_intel_qat_vf_cap(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x443, quirk_intel_qat_vf_cap);
 
-/* FLR may cause some 82579 devices to hang. */
+/* FLR may cause some 82579 devices to hang */
 static void quirk_intel_no_flr(struct pci_dev *dev)
 {
 	dev->dev_flags |= PCI_DEV_FLAGS_NO_FLR_RESET;
@@ -4673,23 +5149,35 @@ static void quirk_no_ext_tags(struct pci_dev *pdev)
 
 	pci_walk_bus(bridge->bus, pci_configure_extended_tags, NULL);
 }
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0132, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0140, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0141, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0142, quirk_no_ext_tags);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0144, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0420, quirk_no_ext_tags);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, 0x0422, quirk_no_ext_tags);
 
 #ifdef CONFIG_PCI_ATS
 /*
- * Some devices have a broken ATS implementation causing IOMMU stalls.
- * Don't use ATS for those devices.
+ * Some devices require additional driver setup to enable ATS.  Don't use
+ * ATS for those devices as ATS will be enabled before the driver has had a
+ * chance to load and configure the device.
  */
-static void quirk_no_ats(struct pci_dev *pdev)
+static void quirk_amd_harvest_no_ats(struct pci_dev *pdev)
 {
-	pci_info(pdev, "disabling ATS (broken on this device)\n");
+	if (pdev->device == 0x7340 && pdev->revision != 0xc5)
+		return;
+
+	pci_info(pdev, "disabling ATS\n");
 	pdev->ats_cap = 0;
 }
 
 /* AMD Stoney platform GPU */
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x98e4, quirk_no_ats);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x98e4, quirk_amd_harvest_no_ats);
+/* AMD Iceland dGPU */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x6900, quirk_amd_harvest_no_ats);
+/* AMD Navi14 dGPU */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x7340, quirk_amd_harvest_no_ats);
 #endif /* CONFIG_PCI_ATS */
 
 /* Freescale PCIe doesn't support MSI in RC mode */
@@ -4701,35 +5189,49 @@ static void quirk_fsl_no_msi(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, quirk_fsl_no_msi);
 
 /*
- * GPUs with integrated HDA controller for streaming audio to attached displays
- * need a device link from the HDA controller (consumer) to the GPU (supplier)
- * so that the GPU is powered up whenever the HDA controller is accessed.
- * The GPU and HDA controller are functions 0 and 1 of the same PCI device.
- * The device link stays in place until shutdown (or removal of the PCI device
- * if it's hotplugged).  Runtime PM is allowed by default on the HDA controller
- * to prevent it from permanently keeping the GPU awake.
+ * Although not allowed by the spec, some multi-function devices have
+ * dependencies of one function (consumer) on another (supplier).  For the
+ * consumer to work in D0, the supplier must also be in D0.  Create a
+ * device link from the consumer to the supplier to enforce this
+ * dependency.  Runtime PM is allowed by default on the consumer to prevent
+ * it from permanently keeping the supplier awake.
  */
-static void quirk_gpu_hda(struct pci_dev *hda)
+static void pci_create_device_link(struct pci_dev *pdev, unsigned int consumer,
+				   unsigned int supplier, unsigned int class,
+				   unsigned int class_shift)
 {
-	struct pci_dev *gpu;
+	struct pci_dev *supplier_pdev;
 
-	if (PCI_FUNC(hda->devfn) != 1)
+	if (PCI_FUNC(pdev->devfn) != consumer)
 		return;
 
-	gpu = pci_get_domain_bus_and_slot(pci_domain_nr(hda->bus),
-					  hda->bus->number,
-					  PCI_DEVFN(PCI_SLOT(hda->devfn), 0));
-	if (!gpu || (gpu->class >> 16) != PCI_BASE_CLASS_DISPLAY) {
-		pci_dev_put(gpu);
+	supplier_pdev = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+				pdev->bus->number,
+				PCI_DEVFN(PCI_SLOT(pdev->devfn), supplier));
+	if (!supplier_pdev || (supplier_pdev->class >> class_shift) != class) {
+		pci_dev_put(supplier_pdev);
 		return;
 	}
 
-	if (!device_link_add(&hda->dev, &gpu->dev,
-			     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME))
-		pci_err(hda, "cannot link HDA to GPU %s\n", pci_name(gpu));
+	if (device_link_add(&pdev->dev, &supplier_pdev->dev,
+			    DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME))
+		pci_info(pdev, "D0 power state depends on %s\n",
+			 pci_name(supplier_pdev));
+	else
+		pci_err(pdev, "Cannot enforce power dependency on %s\n",
+			pci_name(supplier_pdev));
 
-	pm_runtime_allow(&hda->dev);
-	pci_dev_put(gpu);
+	pm_runtime_allow(&pdev->dev);
+	pci_dev_put(supplier_pdev);
+}
+
+/*
+ * Create device link for GPUs with integrated HDA controller for streaming
+ * audio to attached displays.
+ */
+static void quirk_gpu_hda(struct pci_dev *hda)
+{
+	pci_create_device_link(hda, 1, 0, PCI_BASE_CLASS_DISPLAY, 16);
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_ATI, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
@@ -4737,3 +5239,338 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMD, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
+
+/*
+ * Create device link for NVIDIA GPU with integrated USB xHCI Host
+ * controller to VGA.
+ */
+static void quirk_gpu_usb(struct pci_dev *usb)
+{
+	pci_create_device_link(usb, 2, 0, PCI_BASE_CLASS_DISPLAY, 16);
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+			      PCI_CLASS_SERIAL_USB, 8, quirk_gpu_usb);
+
+/*
+ * Create device link for NVIDIA GPU with integrated Type-C UCSI controller
+ * to VGA. Currently there is no class code defined for UCSI device over PCI
+ * so using UNKNOWN class for now and it will be updated when UCSI
+ * over PCI gets a class code.
+ */
+#define PCI_CLASS_SERIAL_UNKNOWN	0x0c80
+static void quirk_gpu_usb_typec_ucsi(struct pci_dev *ucsi)
+{
+	pci_create_device_link(ucsi, 3, 0, PCI_BASE_CLASS_DISPLAY, 16);
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+			      PCI_CLASS_SERIAL_UNKNOWN, 8,
+			      quirk_gpu_usb_typec_ucsi);
+
+/*
+ * Enable the NVIDIA GPU integrated HDA controller if the BIOS left it
+ * disabled.  https://devtalk.nvidia.com/default/topic/1024022
+ */
+static void quirk_nvidia_hda(struct pci_dev *gpu)
+{
+	u8 hdr_type;
+	u32 val;
+
+	/* There was no integrated HDA controller before MCP89 */
+	if (gpu->device < PCI_DEVICE_ID_NVIDIA_GEFORCE_320M)
+		return;
+
+	/* Bit 25 at offset 0x488 enables the HDA controller */
+	pci_read_config_dword(gpu, 0x488, &val);
+	if (val & BIT(25))
+		return;
+
+	pci_info(gpu, "Enabling HDA controller\n");
+	pci_write_config_dword(gpu, 0x488, val | BIT(25));
+
+	/* The GPU becomes a multi-function device when the HDA is enabled */
+	pci_read_config_byte(gpu, PCI_HEADER_TYPE, &hdr_type);
+	gpu->multifunction = !!(hdr_type & 0x80);
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+			       PCI_BASE_CLASS_DISPLAY, 16, quirk_nvidia_hda);
+DECLARE_PCI_FIXUP_CLASS_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+			       PCI_BASE_CLASS_DISPLAY, 16, quirk_nvidia_hda);
+
+/*
+ * Some IDT switches incorrectly flag an ACS Source Validation error on
+ * completions for config read requests even though PCIe r4.0, sec
+ * 6.12.1.1, says that completions are never affected by ACS Source
+ * Validation.  Here's the text of IDT 89H32H8G3-YC, erratum #36:
+ *
+ *   Item #36 - Downstream port applies ACS Source Validation to Completions
+ *   Section 6.12.1.1 of the PCI Express Base Specification 3.1 states that
+ *   completions are never affected by ACS Source Validation.  However,
+ *   completions received by a downstream port of the PCIe switch from a
+ *   device that has not yet captured a PCIe bus number are incorrectly
+ *   dropped by ACS Source Validation by the switch downstream port.
+ *
+ * The workaround suggested by IDT is to issue a config write to the
+ * downstream device before issuing the first config read.  This allows the
+ * downstream device to capture its bus and device numbers (see PCIe r4.0,
+ * sec 2.2.9), thus avoiding the ACS error on the completion.
+ *
+ * However, we don't know when the device is ready to accept the config
+ * write, so we do config reads until we receive a non-Config Request Retry
+ * Status, then do the config write.
+ *
+ * To avoid hitting the erratum when doing the config reads, we disable ACS
+ * SV around this process.
+ */
+int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *l, int timeout)
+{
+	int pos;
+	u16 ctrl = 0;
+	bool found;
+	struct pci_dev *bridge = bus->self;
+
+	pos = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ACS);
+
+	/* Disable ACS SV before initial config reads */
+	if (pos) {
+		pci_read_config_word(bridge, pos + PCI_ACS_CTRL, &ctrl);
+		if (ctrl & PCI_ACS_SV)
+			pci_write_config_word(bridge, pos + PCI_ACS_CTRL,
+					      ctrl & ~PCI_ACS_SV);
+	}
+
+	found = pci_bus_generic_read_dev_vendor_id(bus, devfn, l, timeout);
+
+	/* Write Vendor ID (read-only) so the endpoint latches its bus/dev */
+	if (found)
+		pci_bus_write_config_word(bus, devfn, PCI_VENDOR_ID, 0);
+
+	/* Re-enable ACS_SV if it was previously enabled */
+	if (ctrl & PCI_ACS_SV)
+		pci_write_config_word(bridge, pos + PCI_ACS_CTRL, ctrl);
+
+	return found;
+}
+
+/*
+ * Microsemi Switchtec NTB uses devfn proxy IDs to move TLPs between
+ * NT endpoints via the internal switch fabric. These IDs replace the
+ * originating requestor ID TLPs which access host memory on peer NTB
+ * ports. Therefore, all proxy IDs must be aliased to the NTB device
+ * to permit access when the IOMMU is turned on.
+ */
+static void quirk_switchtec_ntb_dma_alias(struct pci_dev *pdev)
+{
+	void __iomem *mmio;
+	struct ntb_info_regs __iomem *mmio_ntb;
+	struct ntb_ctrl_regs __iomem *mmio_ctrl;
+	u64 partition_map;
+	u8 partition;
+	int pp;
+
+	if (pci_enable_device(pdev)) {
+		pci_err(pdev, "Cannot enable Switchtec device\n");
+		return;
+	}
+
+	mmio = pci_iomap(pdev, 0, 0);
+	if (mmio == NULL) {
+		pci_disable_device(pdev);
+		pci_err(pdev, "Cannot iomap Switchtec device\n");
+		return;
+	}
+
+	pci_info(pdev, "Setting Switchtec proxy ID aliases\n");
+
+	mmio_ntb = mmio + SWITCHTEC_GAS_NTB_OFFSET;
+	mmio_ctrl = (void __iomem *) mmio_ntb + SWITCHTEC_NTB_REG_CTRL_OFFSET;
+
+	partition = ioread8(&mmio_ntb->partition_id);
+
+	partition_map = ioread32(&mmio_ntb->ep_map);
+	partition_map |= ((u64) ioread32(&mmio_ntb->ep_map + 4)) << 32;
+	partition_map &= ~(1ULL << partition);
+
+	for (pp = 0; pp < (sizeof(partition_map) * 8); pp++) {
+		struct ntb_ctrl_regs __iomem *mmio_peer_ctrl;
+		u32 table_sz = 0;
+		int te;
+
+		if (!(partition_map & (1ULL << pp)))
+			continue;
+
+		pci_dbg(pdev, "Processing partition %d\n", pp);
+
+		mmio_peer_ctrl = &mmio_ctrl[pp];
+
+		table_sz = ioread16(&mmio_peer_ctrl->req_id_table_size);
+		if (!table_sz) {
+			pci_warn(pdev, "Partition %d table_sz 0\n", pp);
+			continue;
+		}
+
+		if (table_sz > 512) {
+			pci_warn(pdev,
+				 "Invalid Switchtec partition %d table_sz %d\n",
+				 pp, table_sz);
+			continue;
+		}
+
+		for (te = 0; te < table_sz; te++) {
+			u32 rid_entry;
+			u8 devfn;
+
+			rid_entry = ioread32(&mmio_peer_ctrl->req_id_table[te]);
+			devfn = (rid_entry >> 1) & 0xFF;
+			pci_dbg(pdev,
+				"Aliasing Partition %d Proxy ID %02x.%d\n",
+				pp, PCI_SLOT(devfn), PCI_FUNC(devfn));
+			pci_add_dma_alias(pdev, devfn, 1);
+		}
+	}
+
+	pci_iounmap(pdev, mmio);
+	pci_disable_device(pdev);
+}
+#define SWITCHTEC_QUIRK(vid) \
+	DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_MICROSEMI, vid, \
+		PCI_CLASS_BRIDGE_OTHER, 8, quirk_switchtec_ntb_dma_alias)
+
+SWITCHTEC_QUIRK(0x8531);  /* PFX 24xG3 */
+SWITCHTEC_QUIRK(0x8532);  /* PFX 32xG3 */
+SWITCHTEC_QUIRK(0x8533);  /* PFX 48xG3 */
+SWITCHTEC_QUIRK(0x8534);  /* PFX 64xG3 */
+SWITCHTEC_QUIRK(0x8535);  /* PFX 80xG3 */
+SWITCHTEC_QUIRK(0x8536);  /* PFX 96xG3 */
+SWITCHTEC_QUIRK(0x8541);  /* PSX 24xG3 */
+SWITCHTEC_QUIRK(0x8542);  /* PSX 32xG3 */
+SWITCHTEC_QUIRK(0x8543);  /* PSX 48xG3 */
+SWITCHTEC_QUIRK(0x8544);  /* PSX 64xG3 */
+SWITCHTEC_QUIRK(0x8545);  /* PSX 80xG3 */
+SWITCHTEC_QUIRK(0x8546);  /* PSX 96xG3 */
+SWITCHTEC_QUIRK(0x8551);  /* PAX 24XG3 */
+SWITCHTEC_QUIRK(0x8552);  /* PAX 32XG3 */
+SWITCHTEC_QUIRK(0x8553);  /* PAX 48XG3 */
+SWITCHTEC_QUIRK(0x8554);  /* PAX 64XG3 */
+SWITCHTEC_QUIRK(0x8555);  /* PAX 80XG3 */
+SWITCHTEC_QUIRK(0x8556);  /* PAX 96XG3 */
+SWITCHTEC_QUIRK(0x8561);  /* PFXL 24XG3 */
+SWITCHTEC_QUIRK(0x8562);  /* PFXL 32XG3 */
+SWITCHTEC_QUIRK(0x8563);  /* PFXL 48XG3 */
+SWITCHTEC_QUIRK(0x8564);  /* PFXL 64XG3 */
+SWITCHTEC_QUIRK(0x8565);  /* PFXL 80XG3 */
+SWITCHTEC_QUIRK(0x8566);  /* PFXL 96XG3 */
+SWITCHTEC_QUIRK(0x8571);  /* PFXI 24XG3 */
+SWITCHTEC_QUIRK(0x8572);  /* PFXI 32XG3 */
+SWITCHTEC_QUIRK(0x8573);  /* PFXI 48XG3 */
+SWITCHTEC_QUIRK(0x8574);  /* PFXI 64XG3 */
+SWITCHTEC_QUIRK(0x8575);  /* PFXI 80XG3 */
+SWITCHTEC_QUIRK(0x8576);  /* PFXI 96XG3 */
+SWITCHTEC_QUIRK(0x4000);  /* PFX 100XG4 */
+SWITCHTEC_QUIRK(0x4084);  /* PFX 84XG4  */
+SWITCHTEC_QUIRK(0x4068);  /* PFX 68XG4  */
+SWITCHTEC_QUIRK(0x4052);  /* PFX 52XG4  */
+SWITCHTEC_QUIRK(0x4036);  /* PFX 36XG4  */
+SWITCHTEC_QUIRK(0x4028);  /* PFX 28XG4  */
+SWITCHTEC_QUIRK(0x4100);  /* PSX 100XG4 */
+SWITCHTEC_QUIRK(0x4184);  /* PSX 84XG4  */
+SWITCHTEC_QUIRK(0x4168);  /* PSX 68XG4  */
+SWITCHTEC_QUIRK(0x4152);  /* PSX 52XG4  */
+SWITCHTEC_QUIRK(0x4136);  /* PSX 36XG4  */
+SWITCHTEC_QUIRK(0x4128);  /* PSX 28XG4  */
+SWITCHTEC_QUIRK(0x4200);  /* PAX 100XG4 */
+SWITCHTEC_QUIRK(0x4284);  /* PAX 84XG4  */
+SWITCHTEC_QUIRK(0x4268);  /* PAX 68XG4  */
+SWITCHTEC_QUIRK(0x4252);  /* PAX 52XG4  */
+SWITCHTEC_QUIRK(0x4236);  /* PAX 36XG4  */
+SWITCHTEC_QUIRK(0x4228);  /* PAX 28XG4  */
+
+/*
+ * The PLX NTB uses devfn proxy IDs to move TLPs between NT endpoints.
+ * These IDs are used to forward responses to the originator on the other
+ * side of the NTB.  Alias all possible IDs to the NTB to permit access when
+ * the IOMMU is turned on.
+ */
+static void quirk_plx_ntb_dma_alias(struct pci_dev *pdev)
+{
+	pci_info(pdev, "Setting PLX NTB proxy ID aliases\n");
+	/* PLX NTB may use all 256 devfns */
+	pci_add_dma_alias(pdev, 0, 256);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_PLX, 0x87b0, quirk_plx_ntb_dma_alias);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_PLX, 0x87b1, quirk_plx_ntb_dma_alias);
+
+/*
+ * On Lenovo Thinkpad P50 SKUs with a Nvidia Quadro M1000M, the BIOS does
+ * not always reset the secondary Nvidia GPU between reboots if the system
+ * is configured to use Hybrid Graphics mode.  This results in the GPU
+ * being left in whatever state it was in during the *previous* boot, which
+ * causes spurious interrupts from the GPU, which in turn causes us to
+ * disable the wrong IRQ and end up breaking the touchpad.  Unsurprisingly,
+ * this also completely breaks nouveau.
+ *
+ * Luckily, it seems a simple reset of the Nvidia GPU brings it back to a
+ * clean state and fixes all these issues.
+ *
+ * When the machine is configured in Dedicated display mode, the issue
+ * doesn't occur.  Fortunately the GPU advertises NoReset+ when in this
+ * mode, so we can detect that and avoid resetting it.
+ */
+static void quirk_reset_lenovo_thinkpad_p50_nvgpu(struct pci_dev *pdev)
+{
+	void __iomem *map;
+	int ret;
+
+	if (pdev->subsystem_vendor != PCI_VENDOR_ID_LENOVO ||
+	    pdev->subsystem_device != 0x222e ||
+	    !pdev->reset_fn)
+		return;
+
+	if (pci_enable_device_mem(pdev))
+		return;
+
+	/*
+	 * Based on nvkm_device_ctor() in
+	 * drivers/gpu/drm/nouveau/nvkm/engine/device/base.c
+	 */
+	map = pci_iomap(pdev, 0, 0x23000);
+	if (!map) {
+		pci_err(pdev, "Can't map MMIO space\n");
+		goto out_disable;
+	}
+
+	/*
+	 * Make sure the GPU looks like it's been POSTed before resetting
+	 * it.
+	 */
+	if (ioread32(map + 0x2240c) & 0x2) {
+		pci_info(pdev, FW_BUG "GPU left initialized by EFI, resetting\n");
+		ret = pci_reset_bus(pdev);
+		if (ret < 0)
+			pci_err(pdev, "Failed to reset GPU: %d\n", ret);
+	}
+
+	iounmap(map);
+out_disable:
+	pci_disable_device(pdev);
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, 0x13b1,
+			      PCI_CLASS_DISPLAY_VGA, 8,
+			      quirk_reset_lenovo_thinkpad_p50_nvgpu);
+
+/*
+ * Device [1b21:2142]
+ * When in D0, PME# doesn't get asserted when plugging USB 3.0 device.
+ */
+static void pci_fixup_no_d0_pme(struct pci_dev *dev)
+{
+	pci_info(dev, "PME# does not work under D0, disabling it\n");
+	dev->pme_support &= ~(PCI_PM_CAP_PME_D0 >> PCI_PM_CAP_PME_SHIFT);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ASMEDIA, 0x2142, pci_fixup_no_d0_pme);
+
+static void apex_pci_fixup_class(struct pci_dev *pdev)
+{
+	pdev->class = (PCI_CLASS_SYSTEM_OTHER << 8) | pdev->class;
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(0x1ac1, 0x089a,
+			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);

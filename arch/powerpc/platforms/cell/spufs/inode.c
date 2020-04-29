@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * SPU file system
@@ -5,24 +6,12 @@
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/fsnotify.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
@@ -33,7 +22,6 @@
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/parser.h>
 
 #include <asm/prom.h>
 #include <asm/spu.h>
@@ -43,7 +31,7 @@
 #include "spufs.h"
 
 struct spufs_sb_info {
-	int debug;
+	bool debug;
 };
 
 static struct kmem_cache *spufs_inode_cache;
@@ -71,15 +59,9 @@ spufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void spufs_i_callback(struct rcu_head *head)
+static void spufs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
-}
-
-static void spufs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, spufs_i_callback);
 }
 
 static void
@@ -216,14 +198,12 @@ static int spufs_fill_dir(struct dentry *dir,
 
 static int spufs_dir_close(struct inode *inode, struct file *file)
 {
-	struct spu_context *ctx;
 	struct inode *parent;
 	struct dentry *dir;
 	int ret;
 
 	dir = file->f_path.dentry;
 	parent = d_inode(dir->d_parent);
-	ctx = SPUFS_I(d_inode(dir))->i_ctx;
 
 	inode_lock_nested(parent, I_MUTEX_PARENT);
 	ret = spufs_rmdir(parent, dir);
@@ -593,16 +573,22 @@ long spufs_create(struct path *path, struct dentry *dentry,
 }
 
 /* File system initialization */
-enum {
-	Opt_uid, Opt_gid, Opt_mode, Opt_debug, Opt_err,
+struct spufs_fs_context {
+	kuid_t	uid;
+	kgid_t	gid;
+	umode_t	mode;
 };
 
-static const match_table_t spufs_tokens = {
-	{ Opt_uid,   "uid=%d" },
-	{ Opt_gid,   "gid=%d" },
-	{ Opt_mode,  "mode=%o" },
-	{ Opt_debug, "debug" },
-	{ Opt_err,    NULL  },
+enum {
+	Opt_uid, Opt_gid, Opt_mode, Opt_debug,
+};
+
+static const struct fs_parameter_spec spufs_fs_parameters[] = {
+	fsparam_u32	("gid",				Opt_gid),
+	fsparam_u32oct	("mode",			Opt_mode),
+	fsparam_u32	("uid",				Opt_uid),
+	fsparam_flag	("debug",			Opt_debug),
+	{}
 };
 
 static int spufs_show_options(struct seq_file *m, struct dentry *root)
@@ -623,47 +609,41 @@ static int spufs_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
-static int
-spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
+static int spufs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
+	struct spufs_fs_context *ctx = fc->fs_private;
+	struct spufs_sb_info *sbi = fc->s_fs_info;
+	struct fs_parse_result result;
+	kuid_t uid;
+	kgid_t gid;
+	int opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token, option;
+	opt = fs_parse(fc, spufs_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
 
-		if (!*p)
-			continue;
-
-		token = match_token(p, spufs_tokens, args);
-		switch (token) {
-		case Opt_uid:
-			if (match_int(&args[0], &option))
-				return 0;
-			root->i_uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(root->i_uid))
-				return 0;
-			break;
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return 0;
-			root->i_gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(root->i_gid))
-				return 0;
-			break;
-		case Opt_mode:
-			if (match_octal(&args[0], &option))
-				return 0;
-			root->i_mode = option | S_IFDIR;
-			break;
-		case Opt_debug:
-			spufs_get_sb_info(sb)->debug = 1;
-			break;
-		default:
-			return 0;
-		}
+	switch (opt) {
+	case Opt_uid:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			return invalf(fc, "Unknown uid");
+		ctx->uid = uid;
+		break;
+	case Opt_gid:
+		gid = make_kgid(current_user_ns(), result.uint_32);
+		if (!gid_valid(gid))
+			return invalf(fc, "Unknown gid");
+		ctx->gid = gid;
+		break;
+	case Opt_mode:
+		ctx->mode = result.uint_32 & S_IALLUGO;
+		break;
+	case Opt_debug:
+		sbi->debug = true;
+		break;
 	}
-	return 1;
+
+	return 0;
 }
 
 static void spufs_exit_isolated_loader(void)
@@ -697,79 +677,99 @@ spufs_init_isolated_loader(void)
 	printk(KERN_INFO "spufs: SPU isolation mode enabled\n");
 }
 
-static int
-spufs_create_root(struct super_block *sb, void *data)
+static int spufs_create_root(struct super_block *sb, struct fs_context *fc)
 {
+	struct spufs_fs_context *ctx = fc->fs_private;
 	struct inode *inode;
-	int ret;
 
-	ret = -ENODEV;
 	if (!spu_management_ops)
-		goto out;
+		return -ENODEV;
 
-	ret = -ENOMEM;
-	inode = spufs_new_inode(sb, S_IFDIR | 0775);
+	inode = spufs_new_inode(sb, S_IFDIR | ctx->mode);
 	if (!inode)
-		goto out;
+		return -ENOMEM;
 
+	inode->i_uid = ctx->uid;
+	inode->i_gid = ctx->gid;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	SPUFS_I(inode)->i_ctx = NULL;
 	inc_nlink(inode);
 
-	ret = -EINVAL;
-	if (!spufs_parse_options(sb, data, inode))
-		goto out_iput;
-
-	ret = -ENOMEM;
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
-		goto out;
-
+		return -ENOMEM;
 	return 0;
-out_iput:
-	iput(inode);
-out:
-	return ret;
 }
 
-static int
-spufs_fill_super(struct super_block *sb, void *data, int silent)
+static const struct super_operations spufs_ops = {
+	.alloc_inode	= spufs_alloc_inode,
+	.free_inode	= spufs_free_inode,
+	.statfs		= simple_statfs,
+	.evict_inode	= spufs_evict_inode,
+	.show_options	= spufs_show_options,
+};
+
+static int spufs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct spufs_sb_info *info;
-	static const struct super_operations s_ops = {
-		.alloc_inode = spufs_alloc_inode,
-		.destroy_inode = spufs_destroy_inode,
-		.statfs = simple_statfs,
-		.evict_inode = spufs_evict_inode,
-		.show_options = spufs_show_options,
-	};
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = SPUFS_MAGIC;
-	sb->s_op = &s_ops;
-	sb->s_fs_info = info;
+	sb->s_op = &spufs_ops;
 
-	return spufs_create_root(sb, data);
+	return spufs_create_root(sb, fc);
 }
 
-static struct dentry *
-spufs_mount(struct file_system_type *fstype, int flags,
-		const char *name, void *data)
+static int spufs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fstype, flags, data, spufs_fill_super);
+	return get_tree_single(fc, spufs_fill_super);
+}
+
+static void spufs_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations spufs_context_ops = {
+	.free		= spufs_free_fc,
+	.parse_param	= spufs_parse_param,
+	.get_tree	= spufs_get_tree,
+};
+
+static int spufs_init_fs_context(struct fs_context *fc)
+{
+	struct spufs_fs_context *ctx;
+	struct spufs_sb_info *sbi;
+
+	ctx = kzalloc(sizeof(struct spufs_fs_context), GFP_KERNEL);
+	if (!ctx)
+		goto nomem;
+
+	sbi = kzalloc(sizeof(struct spufs_sb_info), GFP_KERNEL);
+	if (!sbi)
+		goto nomem_ctx;
+
+	ctx->uid = current_uid();
+	ctx->gid = current_gid();
+	ctx->mode = 0755;
+
+	fc->fs_private = ctx;
+	fc->s_fs_info = sbi;
+	fc->ops = &spufs_context_ops;
+	return 0;
+
+nomem_ctx:
+	kfree(ctx);
+nomem:
+	return -ENOMEM;
 }
 
 static struct file_system_type spufs_type = {
 	.owner = THIS_MODULE,
 	.name = "spufs",
-	.mount = spufs_mount,
+	.init_fs_context = spufs_init_fs_context,
+	.parameters	= spufs_fs_parameters,
 	.kill_sb = kill_litter_super,
 };
 MODULE_ALIAS_FS("spufs");

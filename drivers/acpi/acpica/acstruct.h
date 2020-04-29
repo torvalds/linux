@@ -3,7 +3,7 @@
  *
  * Name: acstruct.h - Internal structs
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -60,6 +60,8 @@ struct acpi_walk_state {
 	struct acpi_parse_state parser_state;	/* Current state of parser */
 	u32 prev_arg_types;
 	u32 arg_count;		/* push for fixed or var args */
+	u16 method_nesting_depth;
+	u8 method_is_nested;
 
 	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
 	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
@@ -74,7 +76,8 @@ struct acpi_walk_state {
 	struct acpi_namespace_node *method_call_node;	/* Called method Node */
 	union acpi_parse_object *method_call_op;	/* method_call Op if running a method */
 	union acpi_operand_object *method_desc;	/* Method descriptor if running a method */
-	struct acpi_namespace_node *method_node;	/* Method node if running a method. */
+	struct acpi_namespace_node *method_node;	/* Method node if running a method */
+	char *method_pathname;	/* Full pathname of running method */
 	union acpi_parse_object *op;	/* Current parser op */
 	const struct acpi_opcode_info *op_info;	/* Info on current opcode */
 	union acpi_parse_object *origin;	/* Start of walk [Obsolete] */
@@ -164,9 +167,9 @@ struct acpi_evaluate_info {
 	u32 return_flags;	/* Used for return value analysis */
 	u32 return_btype;	/* Bitmapped type of the returned object */
 	u16 param_count;	/* Count of the input argument list */
+	u16 node_flags;		/* Same as Node->Flags */
 	u8 pass_number;		/* Parser pass number */
 	u8 return_object_type;	/* Object type of the returned object */
-	u8 node_flags;		/* Same as Node->Flags */
 	u8 flags;		/* General flags */
 };
 
@@ -187,6 +190,16 @@ struct acpi_device_walk_info {
 	u32 device_count;
 	u32 num_STA;
 	u32 num_INI;
+};
+
+/* Info used by Acpi  acpi_db_display_fields */
+
+struct acpi_region_walk_info {
+	u32 debug_level;
+	u32 count;
+	acpi_owner_id owner_id;
+	u8 display_type;
+	u32 address_space_id;
 };
 
 /* TBD: [Restructure] Merge with struct above */

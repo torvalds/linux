@@ -75,8 +75,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
 
 		status_led {
 			label = "orangepi:red:status";
@@ -92,8 +90,6 @@
 
 	r_gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&sw_r_opc>;
 
 		sw2 {
 			label = "sw2";
@@ -110,8 +106,6 @@
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_orangepi>;
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 WIFI_EN */
 	};
 };
@@ -152,7 +146,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -179,30 +173,6 @@
 	};
 };
 
-&pio {
-	leds_opc: led_pins {
-		pins = "PA15";
-		function = "gpio_out";
-	};
-};
-
-&r_pio {
-	leds_r_opc: led_pins {
-		pins = "PL10";
-		function = "gpio_out";
-	};
-
-	sw_r_opc: key_pins {
-		pins = "PL3", "PL4";
-		function = "gpio_in";
-	};
-
-	wifi_pwrseq_pin_orangepi: wifi_pwrseq_pin {
-		pins = "PL7";
-		function = "gpio_out";
-	};
-};
-
 &reg_usb1_vbus {
 	gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -210,7 +180,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

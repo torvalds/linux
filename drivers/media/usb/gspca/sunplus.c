@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *		Sunplus spca504(abc) spca533 spca536 library
  *		Copyright (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -264,6 +255,11 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	if (ret < 0) {
 		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
+		/*
+		 * Make sure the buffer is zeroed to avoid uninitialized
+		 * values.
+		 */
+		memset(gspca_dev->usb_buf, 0, USB_BUF_SZ);
 	}
 }
 
@@ -555,7 +551,7 @@ static void init_ctl_reg(struct gspca_dev *gspca_dev)
 	case BRIDGE_SPCA504:
 	case BRIDGE_SPCA504C:
 		pollreg = 0;
-		/* fall thru */
+		/* fall through */
 	default:
 /*	case BRIDGE_SPCA533: */
 /*	case BRIDGE_SPCA504B: */
@@ -638,7 +634,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w_riv(gspca_dev, 0x00, 0x2000, 0x00);
 		reg_w_riv(gspca_dev, 0x00, 0x2301, 0x13);
 		reg_w_riv(gspca_dev, 0x00, 0x2306, 0x00);
-		/* fall thru */
+		/* fall through */
 	case BRIDGE_SPCA533:
 		spca504B_PollingDataReady(gspca_dev);
 		spca50x_GetFirmware(gspca_dev);

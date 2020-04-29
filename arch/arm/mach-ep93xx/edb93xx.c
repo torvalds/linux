@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/edb93xx.c
  * Cirrus Logic EDB93xx Development Board support.
@@ -17,11 +18,6 @@
  * EDB9312
  * Copyright (C) 2006 Infosys Technologies Limited
  *                    Toufeeq Hussain <toufeeq_hussain@infosys.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -29,13 +25,14 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio/machine.h>
 
 #include <sound/cs4271.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <linux/platform_data/video-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
-#include <mach/gpio-ep93xx.h>
+#include "gpio-ep93xx.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -105,13 +102,16 @@ static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
 	},
 };
 
-static int edb93xx_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_EGPIO6,
+static struct gpiod_lookup_table edb93xx_spi_cs_gpio_table = {
+	.dev_id = "spi0",
+	.table = {
+		GPIO_LOOKUP("A", 6, "cs", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info edb93xx_spi_info __initdata = {
-	.chipselect	= edb93xx_spi_chipselects,
-	.num_chipselect	= ARRAY_SIZE(edb93xx_spi_chipselects),
+	/* Intentionally left blank */
 };
 
 static void __init edb93xx_register_spi(void)
@@ -123,6 +123,7 @@ static void __init edb93xx_register_spi(void)
 	else if (machine_is_edb9315a())
 		edb93xx_cs4271_data.gpio_nreset = EP93XX_GPIO_LINE_EGPIO14;
 
+	gpiod_add_lookup_table(&edb93xx_spi_cs_gpio_table);
 	ep93xx_register_spi(&edb93xx_spi_info, edb93xx_spi_board_info,
 			    ARRAY_SIZE(edb93xx_spi_board_info));
 }

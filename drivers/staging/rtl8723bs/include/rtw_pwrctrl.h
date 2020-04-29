@@ -1,20 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_PWRCTRL_H_
 #define __RTW_PWRCTRL_H_
 
+#include <linux/mutex.h>
 
 #define FW_PWR0	0
 #define FW_PWR1		1
@@ -38,19 +31,18 @@
 #define BTCOEX_ALIVE	BIT(4)
 
 
-enum Power_Mgnt
-{
-	PS_MODE_ACTIVE	= 0	,
-	PS_MODE_MIN			,
-	PS_MODE_MAX			,
-	PS_MODE_DTIM			,	/* PS_MODE_SELF_DEFINED */
-	PS_MODE_VOIP			,
-	PS_MODE_UAPSD_WMM	,
-	PS_MODE_UAPSD			,
-	PS_MODE_IBSS			,
-	PS_MODE_WWLAN		,
-	PM_Radio_Off			,
-	PM_Card_Disable		,
+enum Power_Mgnt {
+	PS_MODE_ACTIVE	= 0,
+	PS_MODE_MIN,
+	PS_MODE_MAX,
+	PS_MODE_DTIM,	/* PS_MODE_SELF_DEFINED */
+	PS_MODE_VOIP,
+	PS_MODE_UAPSD_WMM,
+	PS_MODE_UAPSD,
+	PS_MODE_IBSS,
+	PS_MODE_WWLAN,
+	PM_Radio_Off,
+	PM_Card_Disable,
 	PS_MODE_NUM,
 };
 
@@ -101,10 +93,6 @@ struct reportpwrstate_parm {
 	unsigned char state; /* the CPWM value */
 	unsigned short rsvd;
 };
-
-
-typedef _sema _pwrlock;
-
 
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
@@ -171,7 +159,7 @@ enum PS_DENY_REASON {
 };
 
 #ifdef CONFIG_PNO_SUPPORT
-typedef struct pno_nlo_info
+struct pno_nlo_info
 {
 	u32 fast_scan_period;				/* Fast scan period */
 	u32 ssid_num;				/* number of entry */
@@ -180,26 +168,26 @@ typedef struct pno_nlo_info
 	u8 ssid_length[MAX_PNO_LIST_COUNT];	/* SSID Length Array */
 	u8 ssid_cipher_info[MAX_PNO_LIST_COUNT];	/* Cipher information for security */
 	u8 ssid_channel_info[MAX_PNO_LIST_COUNT];	/* channel information */
-}pno_nlo_info_t;
+};
 
-typedef struct pno_ssid {
+struct pno_ssid {
 	u32 	SSID_len;
 	u8 SSID[32];
-} pno_ssid_t;
+};
 
-typedef struct pno_ssid_list {
-	pno_ssid_t	node[MAX_PNO_LIST_COUNT];
-}pno_ssid_list_t;
+struct pno_ssid_list {
+	struct pno_ssid	node[MAX_PNO_LIST_COUNT];
+};
 
-typedef struct pno_scan_channel_info
+struct pno_scan_channel_info
 {
 	u8 channel;
 	u8 tx_power;
 	u8 timeout;
 	u8 active;				/* set 1 means active scan, or pasivite scan. */
-}pno_scan_channel_info_t;
+};
 
-typedef struct pno_scan_info
+struct pno_scan_info
 {
 	u8 enableRFE;			/* Enable RFE */
 	u8 period_scan_time;		/* exclusive with fast_scan_period and slow_scan_period */
@@ -210,14 +198,13 @@ typedef struct pno_scan_info
 	u8 orig_ch;			/* original channel */
 	u8 channel_num;			/* number of channel */
 	u64	rfe_type;			/* rfe_type && 0x00000000000000ff */
-	pno_scan_channel_info_t ssid_channel_info[MAX_SCAN_LIST_COUNT];
-}pno_scan_info_t;
+	struct pno_scan_channel_info ssid_channel_info[MAX_SCAN_LIST_COUNT];
+};
 #endif /* CONFIG_PNO_SUPPORT */
 
 struct pwrctrl_priv
 {
-	_pwrlock	lock;
-	_pwrlock	check_32k_lock;
+	struct mutex lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when 1. read from HCPWM 2. driver lowers power level */
 	volatile u8 tog; /*  toggling */
@@ -292,9 +279,9 @@ struct pwrctrl_priv
 #ifdef CONFIG_PNO_SUPPORT
 	u8 pno_in_resume;
 	u8 pno_inited;
-	pno_nlo_info_t	*pnlo_info;
-	pno_scan_info_t	*pscan_info;
-	pno_ssid_list_t	*pno_ssid_list;
+	struct pno_nlo_info *pnlo_info;
+	struct pno_scan_info *pscan_info;
+	struct pno_ssid_list *pno_ssid_list;
 #endif
 	u32 	wowlan_pattern_context[8][5];
 	u64		wowlan_fw_iv;

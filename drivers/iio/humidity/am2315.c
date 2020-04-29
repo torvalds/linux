@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Aosong AM2315 relative humidity and temperature
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * 7-bit I2C address: 0x5C.
  */
@@ -243,32 +240,15 @@ static int am2315_probe(struct i2c_client *client,
 	indio_dev->channels = am2315_channels;
 	indio_dev->num_channels = ARRAY_SIZE(am2315_channels);
 
-	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
+	ret = devm_iio_triggered_buffer_setup(&client->dev,
+					indio_dev, iio_pollfunc_store_time,
 					 am2315_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
 		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto err_buffer_cleanup;
-
-	return 0;
-
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return ret;
-}
-
-static int am2315_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id am2315_i2c_id[] = {
@@ -290,7 +270,6 @@ static struct i2c_driver am2315_driver = {
 		.acpi_match_table = ACPI_PTR(am2315_acpi_id),
 	},
 	.probe =            am2315_probe,
-	.remove =	    am2315_remove,
 	.id_table =         am2315_i2c_id,
 };
 

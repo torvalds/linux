@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _CEC_DQEVENT:
 
@@ -63,6 +70,14 @@ it is guaranteed that the state did change in between the two events.
         addresses are claimed or if ``phys_addr`` is ``CEC_PHYS_ADDR_INVALID``.
 	If bit 15 is set (``1 << CEC_LOG_ADDR_UNREGISTERED``) then this device
 	has the unregistered logical address. In that case all other bits are 0.
+    * - __u16
+      - ``have_conn_info``
+      - If non-zero, then HDMI connector information is available.
+        This field is only valid if ``CEC_CAP_CONNECTOR_INFO`` is set. If that
+        capability is set and ``have_conn_info`` is zero, then that indicates
+        that the HDMI connector device is not instantiated, either because
+        the HDMI driver is still configuring the device or because the HDMI
+        device was unbound.
 
 
 .. c:type:: cec_event_lost_msgs
@@ -94,35 +109,33 @@ it is guaranteed that the state did change in between the two events.
 .. flat-table:: struct cec_event
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 8
+    :widths:       1 1 8
 
     * - __u64
       - ``ts``
-      - :cspan:`1`\ Timestamp of the event in ns.
+      - Timestamp of the event in ns.
 
 	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock.
 
 	To access the same clock from userspace use :c:func:`clock_gettime`.
     * - __u32
       - ``event``
-      - :cspan:`1` The CEC event type, see :ref:`cec-events`.
+      - The CEC event type, see :ref:`cec-events`.
     * - __u32
       - ``flags``
-      - :cspan:`1` Event flags, see :ref:`cec-event-flags`.
-    * - union
+      - Event flags, see :ref:`cec-event-flags`.
+    * - union {
       - (anonymous)
-      -
-      -
-    * -
-      - struct cec_event_state_change
+    * - struct cec_event_state_change
       - ``state_change``
       - The new adapter state as sent by the :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>`
 	event.
-    * -
-      - struct cec_event_lost_msgs
+    * - struct cec_event_lost_msgs
       - ``lost_msgs``
       - The number of lost messages as sent by the :ref:`CEC_EVENT_LOST_MSGS <CEC-EVENT-LOST-MSGS>`
 	event.
+    * - }
+      -
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
@@ -178,6 +191,24 @@ it is guaranteed that the state did change in between the two events.
 	Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
 	capability set. When open() is called, the HPD pin can be read and
 	if the HPD is high, then an initial event will be generated for that
+	filehandle.
+    * .. _`CEC-EVENT-PIN-5V-LOW`:
+
+      - ``CEC_EVENT_PIN_5V_LOW``
+      - 6
+      - Generated if the 5V pin goes from a high voltage to a low voltage.
+	Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set. When open() is called, the 5V pin can be read and
+	if the 5V is low, then an initial event will be generated for that
+	filehandle.
+    * .. _`CEC-EVENT-PIN-5V-HIGH`:
+
+      - ``CEC_EVENT_PIN_5V_HIGH``
+      - 7
+      - Generated if the 5V pin goes from a low voltage to a high voltage.
+	Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set. When open() is called, the 5V pin can be read and
+	if the 5V is high, then an initial event will be generated for that
 	filehandle.
 
 

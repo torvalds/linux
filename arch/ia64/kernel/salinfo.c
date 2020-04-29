@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * salinfo.c
  *
@@ -53,8 +54,6 @@
 MODULE_AUTHOR("Jesse Barnes <jbarnes@sgi.com>");
 MODULE_DESCRIPTION("/proc interface to IA-64 SAL features");
 MODULE_LICENSE("GPL");
-
-static const struct file_operations proc_salinfo_fops;
 
 typedef struct {
 	const char		*name;		/* name of the proc entry */
@@ -332,10 +331,10 @@ retry:
 	return size;
 }
 
-static const struct file_operations salinfo_event_fops = {
-	.open  = salinfo_event_open,
-	.read  = salinfo_event_read,
-	.llseek = noop_llseek,
+static const struct proc_ops salinfo_event_proc_ops = {
+	.proc_open	= salinfo_event_open,
+	.proc_read	= salinfo_event_read,
+	.proc_lseek	= noop_llseek,
 };
 
 static int
@@ -535,12 +534,12 @@ salinfo_log_write(struct file *file, const char __user *buffer, size_t count, lo
 	return count;
 }
 
-static const struct file_operations salinfo_data_fops = {
-	.open    = salinfo_log_open,
-	.release = salinfo_log_release,
-	.read    = salinfo_log_read,
-	.write   = salinfo_log_write,
-	.llseek  = default_llseek,
+static const struct proc_ops salinfo_data_proc_ops = {
+	.proc_open	= salinfo_log_open,
+	.proc_release	= salinfo_log_release,
+	.proc_read	= salinfo_log_read,
+	.proc_write	= salinfo_log_write,
+	.proc_lseek	= default_llseek,
 };
 
 static int salinfo_cpu_online(unsigned int cpu)
@@ -578,6 +577,17 @@ static int salinfo_cpu_pre_down(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * 'data' contains an integer that corresponds to the feature we're
+ * testing
+ */
+static int proc_salinfo_show(struct seq_file *m, void *v)
+{
+	unsigned long data = (unsigned long)v;
+	seq_puts(m, (sal_platform_features & data) ? "1\n" : "0\n");
+	return 0;
+}
+
 static int __init
 salinfo_init(void)
 {
@@ -593,9 +603,9 @@ salinfo_init(void)
 
 	for (i=0; i < NR_SALINFO_ENTRIES; i++) {
 		/* pass the feature bit in question as misc data */
-		*sdir++ = proc_create_data(salinfo_entries[i].name, 0, salinfo_dir,
-					   &proc_salinfo_fops,
-					   (void *)salinfo_entries[i].feature);
+		*sdir++ = proc_create_single_data(salinfo_entries[i].name, 0,
+				salinfo_dir, proc_salinfo_show,
+				(void *)salinfo_entries[i].feature);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(salinfo_log_name); i++) {
@@ -607,13 +617,13 @@ salinfo_init(void)
 			continue;
 
 		entry = proc_create_data("event", S_IRUSR, dir,
-					 &salinfo_event_fops, data);
+					 &salinfo_event_proc_ops, data);
 		if (!entry)
 			continue;
 		*sdir++ = entry;
 
 		entry = proc_create_data("data", S_IRUSR | S_IWUSR, dir,
-					 &salinfo_data_fops, data);
+					 &salinfo_data_proc_ops, data);
 		if (!entry)
 			continue;
 		*sdir++ = entry;
@@ -632,28 +642,5 @@ salinfo_init(void)
 	WARN_ON(i < 0);
 	return 0;
 }
-
-/*
- * 'data' contains an integer that corresponds to the feature we're
- * testing
- */
-static int proc_salinfo_show(struct seq_file *m, void *v)
-{
-	unsigned long data = (unsigned long)v;
-	seq_puts(m, (sal_platform_features & data) ? "1\n" : "0\n");
-	return 0;
-}
-
-static int proc_salinfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_salinfo_show, PDE_DATA(inode));
-}
-
-static const struct file_operations proc_salinfo_fops = {
-	.open		= proc_salinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 module_init(salinfo_init);

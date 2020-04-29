@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NetLabel Domain Hash Table
  *
@@ -7,25 +8,10 @@
  * as CIPSO and RIPSO.
  *
  * Author: Paul Moore <paul@paul-moore.com>
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/types.h>
@@ -157,7 +143,8 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain,
 	if (domain != NULL) {
 		bkt = netlbl_domhsh_hash(domain);
 		bkt_list = &netlbl_domhsh_rcu_deref(netlbl_domhsh)->tbl[bkt];
-		list_for_each_entry_rcu(iter, bkt_list, list)
+		list_for_each_entry_rcu(iter, bkt_list, list,
+					lockdep_is_held(&netlbl_domhsh_lock))
 			if (iter->valid &&
 			    netlbl_family_match(iter->family, family) &&
 			    strcmp(iter->domain, domain) == 0)

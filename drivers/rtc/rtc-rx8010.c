@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Epson RTC module RX-8010 SJ
  *
  * Copyright(C) Timesys Corporation 2015
  * Copyright(C) General Electric Company 2015
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/bcd.h>
@@ -138,7 +134,7 @@ static int rx8010_get_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_year = bcd2bin(date[RX8010_YEAR - RX8010_SEC]) + 100;
 	dt->tm_wday = ffs(date[RX8010_WDAY - RX8010_SEC] & 0x7f);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
@@ -393,9 +389,8 @@ static int rx8010_alarm_irq_enable(struct device *dev,
 
 static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
-	int ret, tmp;
+	int tmp;
 	int flagreg;
 
 	switch (cmd) {
@@ -404,24 +399,8 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (flagreg < 0)
 			return flagreg;
 
-		tmp = !!(flagreg & RX8010_FLAG_VLF);
-		if (copy_to_user((void __user *)arg, &tmp, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
-
-	case RTC_VL_CLR:
-		flagreg = i2c_smbus_read_byte_data(rx8010->client, RX8010_FLAG);
-		if (flagreg < 0) {
-			return flagreg;
-		}
-
-		flagreg &= ~RX8010_FLAG_VLF;
-		ret = i2c_smbus_write_byte_data(client, RX8010_FLAG, flagreg);
-		if (ret < 0)
-			return ret;
-
-		return 0;
+		tmp = flagreg & RX8010_FLAG_VLF ? RTC_VL_DATA_INVALID : 0;
+		return put_user(tmp, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -437,7 +416,7 @@ static struct rtc_class_ops rx8010_rtc_ops = {
 static int rx8010_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct rx8010_data *rx8010;
 	int err = 0;
 
@@ -486,7 +465,7 @@ static int rx8010_probe(struct i2c_client *client,
 
 	rx8010->rtc->max_user_freq = 1;
 
-	return err;
+	return 0;
 }
 
 static struct i2c_driver rx8010_driver = {

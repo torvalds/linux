@@ -13,8 +13,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
@@ -83,6 +82,8 @@ int __init db1550_board_setup(void)
 
 /*****************************************************************************/
 
+static u64 au1550_all_dmamask = DMA_BIT_MASK(32);
+
 static struct mtd_partition db1550_spiflash_parts[] = {
 	{
 		.name	= "spi_flash",
@@ -126,11 +127,10 @@ static struct i2c_board_info db1550_i2c_devs[] __initdata = {
 
 /**********************************************************************/
 
-static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void au1550_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long ioaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long ioaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	ioaddr &= 0xffffff00;
 
@@ -142,14 +142,14 @@ static void au1550_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		/* assume we want to r/w real data  by default */
 		ioaddr += MEM_STNAND_DATA;
 	}
-	this->IO_ADDR_R = this->IO_ADDR_W = (void __iomem *)ioaddr;
+	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
 	if (cmd != NAND_CMD_NONE) {
-		__raw_writeb(cmd, this->IO_ADDR_W);
+		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
 }
 
-static int au1550_nand_device_ready(struct mtd_info *mtd)
+static int au1550_nand_device_ready(struct nand_chip *this)
 {
 	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
@@ -271,11 +271,10 @@ static struct au1550_spi_info db1550_spi_platdata = {
 	.activate_cs	= db1550_spi_cs_en,
 };
 
-static u64 spi_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1550_spi_dev = {
 	.dev	= {
-		.dma_mask		= &spi_dmamask,
+		.dma_mask		= &au1550_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1550_spi_platdata,
 	},
@@ -399,10 +398,18 @@ static struct platform_device db1550_i2sdma_dev = {
 
 static struct platform_device db1550_sndac97_dev = {
 	.name		= "db1550-ac97",
+	.dev = {
+		.dma_mask		= &au1550_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 static struct platform_device db1550_sndi2s_dev = {
 	.name		= "db1550-i2s",
+	.dev = {
+		.dma_mask		= &au1550_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 /**********************************************************************/

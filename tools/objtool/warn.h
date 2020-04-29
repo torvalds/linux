@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _WARN_H
@@ -33,7 +21,7 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	char *name, *str;
 	unsigned long name_off;
 
-	func = find_containing_func(sec, offset);
+	func = find_func_containing(sec, offset);
 	if (func) {
 		name = func->name;
 		name_off = offset - func->offset;
@@ -61,6 +49,14 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 ({							\
 	char *_str = offstr(sec, offset);		\
 	WARN("%s: " format, _str, ##__VA_ARGS__);	\
+	free(_str);					\
+})
+
+#define BT_FUNC(format, insn, ...)			\
+({							\
+	struct instruction *_insn = (insn);		\
+	char *_str = offstr(_insn->sec, _insn->offset); \
+	WARN("  %s: " format, _str, ##__VA_ARGS__);	\
 	free(_str);					\
 })
 

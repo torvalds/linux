@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_PRIV_H__
 #define __NVKM_DISP_PRIV_H__
 #include <engine/disp.h>
@@ -12,6 +12,9 @@ void nvkm_disp_vblank(struct nvkm_disp *, int head);
 
 struct nvkm_disp_func {
 	void *(*dtor)(struct nvkm_disp *);
+	int (*oneinit)(struct nvkm_disp *);
+	int (*init)(struct nvkm_disp *);
+	void (*fini)(struct nvkm_disp *);
 	void (*intr)(struct nvkm_disp *);
 
 	const struct nvkm_disp_oclass *(*root)(struct nvkm_disp *);

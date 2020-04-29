@@ -52,12 +52,12 @@ struct tk_read_base {
  * @offs_real:		Offset clock monotonic -> clock realtime
  * @offs_boot:		Offset clock monotonic -> clock boottime
  * @offs_tai:		Offset clock monotonic -> clock tai
- * @time_suspended:	Accumulated suspend time
  * @tai_offset:		The current UTC to TAI offset in seconds
  * @clock_was_set_seq:	The sequence number of clock was set events
  * @cs_was_changed_seq:	The sequence number of clocksource change events
  * @next_leap_ktime:	CLOCK_MONOTONIC time value of a pending leap-second
  * @raw_sec:		CLOCK_MONOTONIC_RAW  time in seconds
+ * @monotonic_to_boot:	CLOCK_MONOTONIC to CLOCK_BOOTTIME offset
  * @cycle_interval:	Number of clock cycles in one NTP interval
  * @xtime_interval:	Number of clock shifted nano seconds in one NTP
  *			interval.
@@ -85,6 +85,9 @@ struct tk_read_base {
  *
  * wall_to_monotonic is no longer the boot time, getboottime must be
  * used instead.
+ *
+ * @monotonic_to_boottime is a timespec64 representation of @offs_boot to
+ * accelerate the VDSO update for CLOCK_BOOTTIME.
  */
 struct timekeeper {
 	struct tk_read_base	tkr_mono;
@@ -95,12 +98,12 @@ struct timekeeper {
 	ktime_t			offs_real;
 	ktime_t			offs_boot;
 	ktime_t			offs_tai;
-	ktime_t			time_suspended;
 	s32			tai_offset;
 	unsigned int		clock_was_set_seq;
 	u8			cs_was_changed_seq;
 	ktime_t			next_leap_ktime;
 	u64			raw_sec;
+	struct timespec64	monotonic_to_boot;
 
 	/* The following members are for timekeeping internal use */
 	u64			cycle_interval;

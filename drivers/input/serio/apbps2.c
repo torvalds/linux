@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013 Aeroflex Gaisler
  *
@@ -9,11 +10,6 @@
  *
  * See "Documentation/devicetree/bindings/input/ps2keyb-mouse-apbps2.txt" for
  * information on open firmware properties.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Contributors: Daniel Hellstrom <daniel@gaisler.com>
  */
@@ -55,7 +51,7 @@ struct apbps2_regs {
 
 struct apbps2_priv {
 	struct serio		*io;
-	struct apbps2_regs	*regs;
+	struct apbps2_regs	__iomem *regs;
 };
 
 static int apbps2_idx;

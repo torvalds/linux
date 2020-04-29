@@ -37,11 +37,14 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/io.h>
+#include <linux/prefetch.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/netdevice.h>
 
 #include "ena_common_defs.h"
 #include "ena_admin_defs.h"
@@ -70,48 +73,20 @@
 /*****************************************************************************/
 /* ENA adaptive interrupt moderation settings */
 
-#define ENA_INTR_LOWEST_USECS           (0)
-#define ENA_INTR_LOWEST_PKTS            (3)
-#define ENA_INTR_LOWEST_BYTES           (2 * 1524)
-
-#define ENA_INTR_LOW_USECS              (32)
-#define ENA_INTR_LOW_PKTS               (12)
-#define ENA_INTR_LOW_BYTES              (16 * 1024)
-
-#define ENA_INTR_MID_USECS              (80)
-#define ENA_INTR_MID_PKTS               (48)
-#define ENA_INTR_MID_BYTES              (64 * 1024)
-
-#define ENA_INTR_HIGH_USECS             (128)
-#define ENA_INTR_HIGH_PKTS              (96)
-#define ENA_INTR_HIGH_BYTES             (128 * 1024)
-
-#define ENA_INTR_HIGHEST_USECS          (192)
-#define ENA_INTR_HIGHEST_PKTS           (128)
-#define ENA_INTR_HIGHEST_BYTES          (192 * 1024)
-
-#define ENA_INTR_INITIAL_TX_INTERVAL_USECS		196
-#define ENA_INTR_INITIAL_RX_INTERVAL_USECS		4
-#define ENA_INTR_DELAY_OLD_VALUE_WEIGHT			6
-#define ENA_INTR_DELAY_NEW_VALUE_WEIGHT			4
-#define ENA_INTR_MODER_LEVEL_STRIDE			2
-#define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
+#define ENA_INTR_INITIAL_TX_INTERVAL_USECS		64
+#define ENA_INTR_INITIAL_RX_INTERVAL_USECS		0
+#define ENA_DEFAULT_INTR_DELAY_RESOLUTION		1
 
 #define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
-enum ena_intr_moder_level {
-	ENA_INTR_MODER_LOWEST = 0,
-	ENA_INTR_MODER_LOW,
-	ENA_INTR_MODER_MID,
-	ENA_INTR_MODER_HIGH,
-	ENA_INTR_MODER_HIGHEST,
-	ENA_INTR_MAX_NUM_OF_LEVELS,
-};
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
 
-struct ena_intr_moder_entry {
-	unsigned int intr_moder_interval;
-	unsigned int pkts_per_interval;
-	unsigned int bytes_per_interval;
+struct ena_llq_configurations {
+	enum ena_admin_llq_header_location llq_header_location;
+	enum ena_admin_llq_ring_entry_size llq_ring_entry_size;
+	enum ena_admin_llq_stride_ctrl  llq_stride_ctrl;
+	enum ena_admin_llq_num_descs_before_header llq_num_decs_before_header;
+	u16 llq_ring_entry_size_value;
 };
 
 enum queue_direction {
@@ -140,6 +115,16 @@ struct ena_com_tx_meta {
 	u16 l3_hdr_len;
 	u16 l3_hdr_offset;
 	u16 l4_hdr_len; /* In words */
+};
+
+struct ena_com_llq_info {
+	u16 header_location_ctrl;
+	u16 desc_stride_ctrl;
+	u16 desc_list_entry_size_ctrl;
+	u16 desc_list_entry_size;
+	u16 descs_num_before_header;
+	u16 descs_per_entry;
+	u16 max_entries_in_tx_burst;
 };
 
 struct ena_com_io_cq {
@@ -179,6 +164,20 @@ struct ena_com_io_cq {
 
 } ____cacheline_aligned;
 
+struct ena_com_io_bounce_buffer_control {
+	u8 *base_buffer;
+	u16 next_to_use;
+	u16 buffer_size;
+	u16 buffers_num;  /* Must be a power of 2 */
+};
+
+/* This struct is to keep tracking the current location of the next llq entry */
+struct ena_com_llq_pkt_ctrl {
+	u8 *curr_bounce_buf;
+	u16 idx;
+	u16 descs_left_in_line;
+};
+
 struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
 
@@ -190,6 +189,9 @@ struct ena_com_io_sq {
 
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
+	struct ena_com_llq_info llq_info;
+	struct ena_com_llq_pkt_ctrl llq_buf_ctrl;
+	struct ena_com_io_bounce_buffer_control bounce_buf_ctrl;
 
 	u16 q_depth;
 	u16 qid;
@@ -197,10 +199,12 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
+	u16 llq_last_copy_tail;
 	u32 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
+	u16 entries_in_tx_burst_left;
 } ____cacheline_aligned;
 
 struct ena_com_admin_cq {
@@ -243,6 +247,9 @@ struct ena_com_admin_queue {
 
 	/* Indicate if the admin queue should poll for completion */
 	bool polling;
+
+	/* Define if fallback to polling mode should occur */
+	bool auto_polling;
 
 	u16 curr_cmd_id;
 
@@ -332,16 +339,26 @@ struct ena_com_dev {
 	struct ena_host_attribute host_attr;
 	bool adaptive_coalescing;
 	u16 intr_delay_resolution;
+
+	/* interrupt moderation intervals are in usec divided by
+	 * intr_delay_resolution, which is supplied by the device.
+	 */
 	u32 intr_moder_tx_interval;
+	u32 intr_moder_rx_interval;
+
 	struct ena_intr_moder_entry *intr_moder_tbl;
+
+	struct ena_com_llq_info llq_info;
 };
 
 struct ena_com_dev_get_features_ctx {
 	struct ena_admin_queue_feature_desc max_queues;
+	struct ena_admin_queue_ext_feature_desc max_queue_ext;
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
+	struct ena_admin_feature_llq_desc llq;
 };
 
 struct ena_com_create_io_ctx {
@@ -397,8 +414,6 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
 /* ena_com_admin_init - Init the admin and the async queues
  * @ena_dev: ENA communication layer struct
  * @aenq_handlers: Those handlers to be called upon event.
- * @init_spinlock: Indicate if this method should init the admin spinlock or
- * the spinlock was init before (for example, in a case of FLR).
  *
  * Initialize the admin submission and completion queues.
  * Initialize the asynchronous events notification queues.
@@ -406,8 +421,7 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock);
+		       struct ena_aenq_handlers *aenq_handlers);
 
 /* ena_com_admin_destroy - Destroy the admin and the async events queues.
  * @ena_dev: ENA communication layer struct
@@ -498,6 +512,17 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
  * @return state
  */
 bool ena_com_get_ena_admin_polling_mode(struct ena_com_dev *ena_dev);
+
+/* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
+ * @ena_dev: ENA communication layer struct
+ * @polling: Enable/Disable polling mode
+ *
+ * Set the autopolling mode.
+ * If autopolling is on:
+ * In case of missing interrupt when data is available switch to polling.
+ */
+void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
+					 bool polling);
 
 /* ena_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @ena_dev: ENA communication layer struct
@@ -630,6 +655,14 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 log_size);
  * Free all the RSS/RFS resources.
  */
 void ena_com_rss_destroy(struct ena_com_dev *ena_dev);
+
+/* ena_com_get_current_hash_function - Get RSS hash function
+ * @ena_dev: ENA communication layer struct
+ *
+ * Return the current hash function.
+ * @return: 0 or one of the ena_admin_hash_functions values.
+ */
+int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev);
 
 /* ena_com_fill_hash_function - Fill RSS hash function
  * @ena_dev: ENA communication layer struct
@@ -858,23 +891,12 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
  */
 int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev);
 
-/* ena_com_destroy_interrupt_moderation - Destroy interrupt moderation resources
- * @ena_dev: ENA communication layer struct
- */
-void ena_com_destroy_interrupt_moderation(struct ena_com_dev *ena_dev);
-
 /* ena_com_interrupt_moderation_supported - Return if interrupt moderation
  * capability is supported by the device.
  *
  * @return - supported or not.
  */
 bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev);
-
-/* ena_com_config_default_interrupt_moderation_table - Restore the interrupt
- * moderation table back to the default parameters.
- * @ena_dev: ENA communication layer struct
- */
-void ena_com_config_default_interrupt_moderation_table(struct ena_com_dev *ena_dev);
 
 /* ena_com_update_nonadaptive_moderation_interval_tx - Update the
  * non-adaptive interval in Tx direction.
@@ -912,28 +934,15 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *
  */
 unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev);
 
-/* ena_com_init_intr_moderation_entry - Update a single entry in the interrupt
- * moderation table.
+/* ena_com_config_dev_mode - Configure the placement policy of the device.
  * @ena_dev: ENA communication layer struct
- * @level: Interrupt moderation table level
- * @entry: Entry value
- *
- * Update a single entry in the interrupt moderation table.
+ * @llq_features: LLQ feature descriptor, retrieve via
+ *                ena_com_get_dev_attr_feat.
+ * @ena_llq_config: The default driver LLQ parameters configurations
  */
-void ena_com_init_intr_moderation_entry(struct ena_com_dev *ena_dev,
-					enum ena_intr_moder_level level,
-					struct ena_intr_moder_entry *entry);
-
-/* ena_com_get_intr_moderation_entry - Init ena_intr_moder_entry.
- * @ena_dev: ENA communication layer struct
- * @level: Interrupt moderation table level
- * @entry: Entry to fill.
- *
- * Initialize the entry according to the adaptive interrupt moderation table.
- */
-void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
-				       enum ena_intr_moder_level level,
-				       struct ena_intr_moder_entry *entry);
+int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+			    struct ena_admin_feature_llq_desc *llq_features,
+			    struct ena_llq_configurations *llq_default_config);
 
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
@@ -948,75 +957,6 @@ static inline void ena_com_enable_adaptive_moderation(struct ena_com_dev *ena_de
 static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_dev)
 {
 	ena_dev->adaptive_coalescing = false;
-}
-
-/* ena_com_calculate_interrupt_delay - Calculate new interrupt delay
- * @ena_dev: ENA communication layer struct
- * @pkts: Number of packets since the last update
- * @bytes: Number of bytes received since the last update.
- * @smoothed_interval: Returned interval
- * @moder_tbl_idx: Current table level as input update new level as return
- * value.
- */
-static inline void ena_com_calculate_interrupt_delay(struct ena_com_dev *ena_dev,
-						     unsigned int pkts,
-						     unsigned int bytes,
-						     unsigned int *smoothed_interval,
-						     unsigned int *moder_tbl_idx)
-{
-	enum ena_intr_moder_level curr_moder_idx, new_moder_idx;
-	struct ena_intr_moder_entry *curr_moder_entry;
-	struct ena_intr_moder_entry *pred_moder_entry;
-	struct ena_intr_moder_entry *new_moder_entry;
-	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
-	unsigned int interval;
-
-	/* We apply adaptive moderation on Rx path only.
-	 * Tx uses static interrupt moderation.
-	 */
-	if (!pkts || !bytes)
-		/* Tx interrupt, or spurious interrupt,
-		 * in both cases we just use same delay values
-		 */
-		return;
-
-	curr_moder_idx = (enum ena_intr_moder_level)(*moder_tbl_idx);
-	if (unlikely(curr_moder_idx >= ENA_INTR_MAX_NUM_OF_LEVELS)) {
-		pr_err("Wrong moderation index %u\n", curr_moder_idx);
-		return;
-	}
-
-	curr_moder_entry = &intr_moder_tbl[curr_moder_idx];
-	new_moder_idx = curr_moder_idx;
-
-	if (curr_moder_idx == ENA_INTR_MODER_LOWEST) {
-		if ((pkts > curr_moder_entry->pkts_per_interval) ||
-		    (bytes > curr_moder_entry->bytes_per_interval))
-			new_moder_idx =
-				(enum ena_intr_moder_level)(curr_moder_idx + ENA_INTR_MODER_LEVEL_STRIDE);
-	} else {
-		pred_moder_entry = &intr_moder_tbl[curr_moder_idx - ENA_INTR_MODER_LEVEL_STRIDE];
-
-		if ((pkts <= pred_moder_entry->pkts_per_interval) ||
-		    (bytes <= pred_moder_entry->bytes_per_interval))
-			new_moder_idx =
-				(enum ena_intr_moder_level)(curr_moder_idx - ENA_INTR_MODER_LEVEL_STRIDE);
-		else if ((pkts > curr_moder_entry->pkts_per_interval) ||
-			 (bytes > curr_moder_entry->bytes_per_interval)) {
-			if (curr_moder_idx != ENA_INTR_MODER_HIGHEST)
-				new_moder_idx =
-					(enum ena_intr_moder_level)(curr_moder_idx + ENA_INTR_MODER_LEVEL_STRIDE);
-		}
-	}
-	new_moder_entry = &intr_moder_tbl[new_moder_idx];
-
-	interval = new_moder_entry->intr_moder_interval;
-	*smoothed_interval = (
-		(interval * ENA_INTR_DELAY_NEW_VALUE_WEIGHT +
-		ENA_INTR_DELAY_OLD_VALUE_WEIGHT * (*smoothed_interval)) + 5) /
-		10;
-
-	*moder_tbl_idx = new_moder_idx;
 }
 
 /* ena_com_update_intr_reg - Prepare interrupt register
@@ -1042,6 +982,23 @@ static inline void ena_com_update_intr_reg(struct ena_eth_io_intr_reg *intr_reg,
 
 	if (unmask)
 		intr_reg->intr_control |= ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK;
+}
+
+static inline u8 *ena_com_get_next_bounce_buffer(struct ena_com_io_bounce_buffer_control *bounce_buf_ctrl)
+{
+	u16 size, buffers_num;
+	u8 *buf;
+
+	size = bounce_buf_ctrl->buffer_size;
+	buffers_num = bounce_buf_ctrl->buffers_num;
+
+	buf = bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use++ & (buffers_num - 1)) * size;
+
+	prefetchw(bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use & (buffers_num - 1)) * size);
+
+	return buf;
 }
 
 #endif /* !(ENA_COM) */

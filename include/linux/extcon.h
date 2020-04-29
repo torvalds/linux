@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * External Connector (extcon) framework
  * - linux/include/linux/extcon.h for extcon consumer device driver.
@@ -12,15 +13,6 @@
  * based on switch class driver
  * Copyright (C) 2008 Google, Inc.
  * Author: Mike Lockwood <lockwood@android.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_EXTCON_H__
@@ -178,7 +170,7 @@ struct extcon_dev;
  * Following APIs get the connected state of each external connector.
  * The 'id' argument indicates the defined external connector.
  */
-extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
+int extcon_get_state(struct extcon_dev *edev, unsigned int id);
 
 /*
  * Following APIs get the property of each external connector.
@@ -189,10 +181,10 @@ extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
  * for each external connector. They are used to get the capability of the
  * property of each external connector based on the id and property.
  */
-extern int extcon_get_property(struct extcon_dev *edev, unsigned int id,
+int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 				unsigned int prop,
 				union extcon_property_value *prop_val);
-extern int extcon_get_property_capability(struct extcon_dev *edev,
+int extcon_get_property_capability(struct extcon_dev *edev,
 				unsigned int id, unsigned int prop);
 
 /*
@@ -204,38 +196,38 @@ extern int extcon_get_property_capability(struct extcon_dev *edev,
  * extcon_register_notifier_all(*edev, *nb) : Register a notifier block
  *			for all supported external connectors of the extcon.
  */
-extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
+int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
-extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
+int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
-extern int devm_extcon_register_notifier(struct device *dev,
+int devm_extcon_register_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
-extern void devm_extcon_unregister_notifier(struct device *dev,
+void devm_extcon_unregister_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
 
-extern int extcon_register_notifier_all(struct extcon_dev *edev,
+int extcon_register_notifier_all(struct extcon_dev *edev,
 				struct notifier_block *nb);
-extern int extcon_unregister_notifier_all(struct extcon_dev *edev,
+int extcon_unregister_notifier_all(struct extcon_dev *edev,
 				struct notifier_block *nb);
-extern int devm_extcon_register_notifier_all(struct device *dev,
+int devm_extcon_register_notifier_all(struct device *dev,
 				struct extcon_dev *edev,
 				struct notifier_block *nb);
-extern void devm_extcon_unregister_notifier_all(struct device *dev,
+void devm_extcon_unregister_notifier_all(struct device *dev,
 				struct extcon_dev *edev,
 				struct notifier_block *nb);
 
 /*
  * Following APIs get the extcon_dev from devicetree or by through extcon name.
  */
-extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
-extern struct extcon_dev *extcon_find_edev_by_node(struct device_node *node);
-extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
+struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
+struct extcon_dev *extcon_find_edev_by_node(struct device_node *node);
+struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 						     int index);
 
 /* Following API get the name of extcon device. */
-extern const char *extcon_get_edev_name(struct extcon_dev *edev);
+const char *extcon_get_edev_name(struct extcon_dev *edev);
 
 #else /* CONFIG_EXTCON */
 static inline int extcon_get_state(struct extcon_dev *edev, unsigned int id)
@@ -293,6 +285,11 @@ static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 				int index)
 {
 	return ERR_PTR(-ENODEV);
+}
+
+static inline const char *extcon_get_edev_name(struct extcon_dev *edev)
+{
+	return NULL;
 }
 #endif /* CONFIG_EXTCON */
 

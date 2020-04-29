@@ -122,14 +122,15 @@ struct drbg_state {
 
 	struct crypto_skcipher *ctr_handle;	/* CTR mode cipher handle */
 	struct skcipher_request *ctr_req;	/* CTR mode request handle */
-	__u8 *ctr_null_value_buf;		/* CTR mode unaligned buffer */
-	__u8 *ctr_null_value;			/* CTR mode aligned zero buf */
 	__u8 *outscratchpadbuf;			/* CTR mode output scratchpad */
         __u8 *outscratchpad;			/* CTR mode aligned outbuf */
 	struct crypto_wait ctr_wait;		/* CTR mode async wait obj */
+	struct scatterlist sg_in, sg_out;	/* CTR mode SGLs */
 
 	bool seeded;		/* DRBG fully seeded? */
 	bool pr;		/* Prediction resistance enabled? */
+	bool fips_primed;	/* Continuous test primed? */
+	unsigned char *prev;	/* FIPS 140-2 continuous test value */
 	struct work_struct seed_work;	/* asynchronous seeding support */
 	struct crypto_rng *jent;
 	const struct drbg_state_ops *d_ops;

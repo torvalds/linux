@@ -7,7 +7,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/thread_info.h>
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -57,14 +57,32 @@ _nodtb:
 	isb
 	mtsr    $r4, $L1_PPTB       ! load page table pointer\n"
 
-/* set NTC0 cacheable/writeback, mutliple page size in use */
-	mfsr    $r3, $MMU_CTL
-	li      $r0, #~MMU_CTL_mskNTC0
-	and     $r3, $r3, $r0
-#ifdef CONFIG_ANDES_PAGE_SIZE_4KB
-	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|(MMU_CTL_CACHEABLE_WB << MMU_CTL_offNTC0))
+#ifdef CONFIG_CPU_DCACHE_DISABLE
+	#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_NON
 #else
-	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|(MMU_CTL_CACHEABLE_WB << MMU_CTL_offNTC0)|MMU_CTL_D8KB)
+	#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_WT
+	#else
+		#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_WB
+	#endif
+#endif
+
+/* set NTC cacheability, mutliple page size in use */
+	mfsr    $r3, $MMU_CTL
+#if CONFIG_MEMORY_START >= 0xc0000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC3)
+#elif CONFIG_MEMORY_START >= 0x80000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC2)
+#elif CONFIG_MEMORY_START >= 0x40000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC1)
+#else
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC0)
+#endif
+
+#ifdef CONFIG_ANDES_PAGE_SIZE_4KB
+	ori     $r3, $r3, #(MMU_CTL_mskMPZIU)
+#else
+	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|MMU_CTL_D8KB)
 #endif
 #ifdef CONFIG_HW_SUPPORT_UNALIGNMENT_ACCESS
 	li      $r0, #MMU_CTL_UNA
@@ -105,21 +123,12 @@ _image_size_check:
         andi    $r0, $r0, MMU_CFG_mskTBS
         srli    $r6, $r6, MMU_CFG_offTBW
         srli    $r0, $r0, MMU_CFG_offTBS
-        /*
-         * we just map the kernel to the maximum way - 1 of tlb
-         * reserver one way for UART VA mapping
-         * it will cause page fault if UART mapping cover the kernel mapping
-         *
-         * direct mapping is not supported now.
-         */
-        li      $r2, 't'
-        beqz    $r6, __error                 ! MMU_CFG.TBW = 0 is direct mappin
+	addi    $r6, $r6, #0x1               ! MMU_CFG.TBW value -> meaning
         addi    $r0, $r0, #0x2               ! MMU_CFG.TBS value -> meaning
         sll     $r0, $r6, $r0                ! entries = k-way * n-set
         mul     $r6, $r0, $r5                ! max size = entries * page size
         /* check kernel image size */
         la      $r3, (_end - PAGE_OFFSET)
-        li      $r2, 's'
         bgt     $r3, $r6, __error
 
 	li      $r2, #(PHYS_OFFSET + TLB_DATA_kernel_text_attr)
@@ -142,7 +151,7 @@ _tlb:
 #endif
 	mtsr    $r3, $TLB_MISC
 
-	mfsr    $r0, $MISC_CTL      ! Enable BTB and RTP and shadow sp
+	mfsr    $r0, $MISC_CTL      ! Enable BTB, RTP, shadow sp, and HW_PRE
 	ori     $r0, $r0, #MISC_init
 	mtsr    $r0, $MISC_CTL
 

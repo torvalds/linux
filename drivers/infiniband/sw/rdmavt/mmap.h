@@ -53,10 +53,8 @@
 void rvt_mmap_init(struct rvt_dev_info *rdi);
 void rvt_release_mmap_info(struct kref *ref);
 int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
-struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj);
+struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
+					   struct ib_udata *udata, void *obj);
 void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
 			  u32 size, void *obj);
 

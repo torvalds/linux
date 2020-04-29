@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0
+# common clock support for NXP i.MX SoC family.
+config MXC_CLK
+	bool
+	def_bool ARCH_MXC
+
+config MXC_CLK_SCU
+	bool
+	depends on IMX_SCU
+
+config CLK_IMX8MM
+	bool "IMX8MM CCM Clock Driver"
+	depends on ARCH_MXC && ARM64
+	help
+	    Build the driver for i.MX8MM CCM Clock Driver
+
+config CLK_IMX8MN
+	bool "IMX8MN CCM Clock Driver"
+	depends on ARCH_MXC && ARM64
+	help
+	    Build the driver for i.MX8MN CCM Clock Driver
+
+config CLK_IMX8MP
+	bool "IMX8MP CCM Clock Driver"
+	depends on ARCH_MXC && ARM64
+	help
+	    Build the driver for i.MX8MP CCM Clock Driver
+
+config CLK_IMX8MQ
+	bool "IMX8MQ CCM Clock Driver"
+	depends on ARCH_MXC && ARM64
+	help
+	    Build the driver for i.MX8MQ CCM Clock Driver
+
+config CLK_IMX8QXP
+	bool "IMX8QXP SCU Clock"
+	depends on ARCH_MXC && IMX_SCU && ARM64
+	select MXC_CLK_SCU
+	help
+	  Build the driver for IMX8QXP SCU based clocks.

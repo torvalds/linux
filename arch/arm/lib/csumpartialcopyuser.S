@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/csumpartialcopyuser.S
  *
  *  Copyright (C) 1995-1998 Russell King
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * 27/03/03 Ian Molton Clean up CONFIG_CPU
- *
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -95,7 +91,7 @@
 		add	r2, r2, r1
 		mov	r0, #0			@ zero the buffer
 9002:		teq	r2, r1
-		strneb	r0, [r1], #1
+		strbne	r0, [r1], #1
 		bne	9002b
 		load_regs
 		.popsection

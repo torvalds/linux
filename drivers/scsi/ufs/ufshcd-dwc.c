@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * UFS Host driver for Synopsys Designware Core
  *
  * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
  *
  * Authors: Joao Pinto <jpinto@synopsys.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "ufshcd.h"
@@ -50,7 +47,7 @@ static void ufshcd_dwc_program_clk_div(struct ufs_hba *hba, u32 divider_val)
 /**
  * ufshcd_dwc_link_is_up()
  * Check if link is up
- * @hba: private structure poitner
+ * @hba: private structure pointer
  *
  * Returns 0 on success, non-zero value on failure
  */
@@ -83,7 +80,7 @@ static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
  */
 static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 {
-	const struct ufshcd_dme_attr_val setup_attrs[] = {
+	static const struct ufshcd_dme_attr_val setup_attrs[] = {
 		{ UIC_ARG_MIB(T_CONNECTIONSTATE), 0, DME_LOCAL },
 		{ UIC_ARG_MIB(N_DEVICEID), 0, DME_LOCAL },
 		{ UIC_ARG_MIB(N_DEVICEID_VALID), 0, DME_LOCAL },
@@ -110,7 +107,7 @@ static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 /**
  * ufshcd_dwc_link_startup_notify()
  * UFS Host DWC specific link startup sequence
- * @hba: private structure poitner
+ * @hba: private structure pointer
  * @status: Callback notify status
  *
  * Returns 0 on success, non-zero value on failure

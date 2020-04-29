@@ -24,7 +24,7 @@
 # It provides the control and status of HW GPIO pins.
 
 GPIO = gpio_base.o gpio_service.o hw_factory.o \
-       hw_gpio.o hw_hpd.o hw_ddc.o hw_translate.o
+       hw_gpio.o hw_hpd.o hw_ddc.o hw_generic.o hw_translate.o
 
 AMD_DAL_GPIO = $(addprefix $(AMDDALPATH)/dc/gpio/,$(GPIO))
 
@@ -61,14 +61,31 @@ AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE120)
 ###############################################################################
 # DCN 1x
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_DRM_AMD_DC_DCN
 GPIO_DCN10 = hw_translate_dcn10.o hw_factory_dcn10.o
 
 AMD_DAL_GPIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn10/,$(GPIO_DCN10))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN10)
-endif
 
+###############################################################################
+# DCN 2
+###############################################################################
+GPIO_DCN20 = hw_translate_dcn20.o hw_factory_dcn20.o
+
+AMD_DAL_GPIO_DCN20 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn20/,$(GPIO_DCN20))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN20)
+
+###############################################################################
+# DCN 21
+###############################################################################
+GPIO_DCN21 = hw_translate_dcn21.o hw_factory_dcn21.o
+
+AMD_DAL_GPIO_DCN21 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn21/,$(GPIO_DCN21))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN21)
+endif
 ###############################################################################
 # Diagnostics on FPGA
 ###############################################################################

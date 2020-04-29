@@ -1,16 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
  *
@@ -105,7 +94,6 @@ enum int_class {
 
 void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type);
 
-extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu,
 				       unsigned int inst, int *advance);
@@ -113,7 +101,6 @@ extern int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn,
 					  ulong spr_val);
 extern int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn,
 					  ulong *spr_val);
-extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu,
 				       unsigned int inst, int *advance);

@@ -610,6 +610,32 @@ Various utility functions for use with perf script:
   nsecs_str(nsecs) - returns printable string in the form secs.nsecs
   avg(total, n) - returns average given a sum and a total number of values
 
+SUPPORTED FIELDS
+----------------
+
+Currently supported fields:
+
+ev_name, comm, pid, tid, cpu, ip, time, period, phys_addr, addr,
+symbol, dso, time_enabled, time_running, values, callchain,
+brstack, brstacksym, datasrc, datasrc_decode, iregs, uregs,
+weight, transaction, raw_buf, attr.
+
+Some fields have sub items:
+
+brstack:
+    from, to, from_dsoname, to_dsoname, mispred,
+    predicted, in_tx, abort, cycles.
+
+brstacksym:
+    items: from, to, pred, in_tx, abort (converted string)
+
+For example,
+We can use this code to print brstack "from", "to", "cycles".
+
+if 'brstack' in dict:
+	for entry in dict['brstack']:
+		print "from %s, to %s, cycles %s" % (entry["from"], entry["to"], entry["cycles"])
+
 SEE ALSO
 --------
 linkperf:perf-script[1]

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _lirc-read:
 
@@ -55,7 +62,8 @@ read from the chardev.
 Alternatively, :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` can be available,
 in this mode scancodes which are either decoded by software decoders, or
 by hardware decoders. The :c:type:`rc_proto` member is set to the
-protocol used for transmission, and ``scancode`` to the decoded scancode,
+:ref:`IR protocol <Remote_controllers_Protocols>`
+used for transmission, and ``scancode`` to the decoded scancode,
 and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
 
 

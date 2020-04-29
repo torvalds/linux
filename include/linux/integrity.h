@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2009 IBM Corporation
  * Author: Mimi Zohar <zohar@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  */
 
 #ifndef _LINUX_INTEGRITY_H
@@ -43,5 +40,18 @@ static inline void integrity_load_keys(void)
 {
 }
 #endif /* CONFIG_INTEGRITY */
+
+#ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
+
+extern int integrity_kernel_module_request(char *kmod_name);
+
+#else
+
+static inline int integrity_kernel_module_request(char *kmod_name)
+{
+	return 0;
+}
+
+#endif /* CONFIG_INTEGRITY_ASYMMETRIC_KEYS */
 
 #endif /* _LINUX_INTEGRITY_H */

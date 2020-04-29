@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RadioTrack II driver
  * Copyright 1998 Ben Pfaff
@@ -7,7 +8,7 @@
  * Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * Fully tested with actual hardware and the v4l2-compliance tool.
  */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dallas DS1216 RTC driver
  *
@@ -76,8 +77,7 @@ static void ds1216_switch_ds_to_clock(u8 __iomem *ioaddr)
 
 static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
@@ -99,13 +99,12 @@ static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ds1216_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
@@ -138,7 +137,6 @@ static const struct rtc_class_ops ds1216_rtc_ops = {
 
 static int __init ds1216_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct ds1216_priv *priv;
 	u8 dummy[8];
 
@@ -148,8 +146,7 @@ static int __init ds1216_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	priv->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->ioaddr))
 		return PTR_ERR(priv->ioaddr);
 

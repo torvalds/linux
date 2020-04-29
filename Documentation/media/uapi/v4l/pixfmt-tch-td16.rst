@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _V4L2-TCH-FMT-DELTA-TD16:
 
@@ -8,7 +15,7 @@ V4L2_TCH_FMT_DELTA_TD16 ('TD16')
 
 *man V4L2_TCH_FMT_DELTA_TD16(2)*
 
-16-bit signed Touch Delta
+16-bit signed little endian Touch Delta
 
 
 Description
@@ -30,38 +37,38 @@ Each cell is one byte.
     :widths:       2 1 1 1 1 1 1 1 1
 
     * - start + 0:
-      - D'\ :sub:`00high`
       - D'\ :sub:`00low`
-      - D'\ :sub:`01high`
+      - D'\ :sub:`00high`
       - D'\ :sub:`01low`
-      - D'\ :sub:`02high`
+      - D'\ :sub:`01high`
       - D'\ :sub:`02low`
-      - D'\ :sub:`03high`
+      - D'\ :sub:`02high`
       - D'\ :sub:`03low`
+      - D'\ :sub:`03high`
     * - start + 8:
-      - D'\ :sub:`10high`
       - D'\ :sub:`10low`
-      - D'\ :sub:`11high`
+      - D'\ :sub:`10high`
       - D'\ :sub:`11low`
-      - D'\ :sub:`12high`
+      - D'\ :sub:`11high`
       - D'\ :sub:`12low`
-      - D'\ :sub:`13high`
+      - D'\ :sub:`12high`
       - D'\ :sub:`13low`
+      - D'\ :sub:`13high`
     * - start + 16:
-      - D'\ :sub:`20high`
       - D'\ :sub:`20low`
-      - D'\ :sub:`21high`
+      - D'\ :sub:`20high`
       - D'\ :sub:`21low`
-      - D'\ :sub:`22high`
+      - D'\ :sub:`21high`
       - D'\ :sub:`22low`
-      - D'\ :sub:`23high`
+      - D'\ :sub:`22high`
       - D'\ :sub:`23low`
+      - D'\ :sub:`23high`
     * - start + 24:
-      - D'\ :sub:`30high`
       - D'\ :sub:`30low`
-      - D'\ :sub:`31high`
+      - D'\ :sub:`30high`
       - D'\ :sub:`31low`
-      - D'\ :sub:`32high`
+      - D'\ :sub:`31high`
       - D'\ :sub:`32low`
-      - D'\ :sub:`33high`
+      - D'\ :sub:`32high`
       - D'\ :sub:`33low`
+      - D'\ :sub:`33high`

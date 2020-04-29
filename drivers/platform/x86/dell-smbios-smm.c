@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  SMI methods for use with dell-smbios
  *
  *  Copyright (c) Red Hat <mjg@redhat.com>
  *  Copyright (c) 2014 Gabriele Mazzotta <gabriele.mzt@gmail.com>
- *  Copyright (c) 2014 Pali Rohár <pali.rohar@gmail.com>
+ *  Copyright (c) 2014 Pali Rohár <pali@kernel.org>
  *  Copyright (c) 2017 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -18,13 +15,13 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include "../../firmware/dcdbas.h"
+#include "dcdbas.h"
 #include "dell-smbios.h"
 
 static int da_command_address;
 static int da_command_code;
 static struct calling_interface_buffer *buffer;
-struct platform_device *platform_device;
+static struct platform_device *platform_device;
 static DEFINE_MUTEX(smm_mutex);
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
@@ -82,7 +79,7 @@ static void find_cmd_address(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-int dell_smbios_smm_call(struct calling_interface_buffer *input)
+static int dell_smbios_smm_call(struct calling_interface_buffer *input)
 {
 	struct smi_cmd command;
 	size_t size;

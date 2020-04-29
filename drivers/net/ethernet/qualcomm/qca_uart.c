@@ -248,7 +248,7 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static void qcauart_netdev_tx_timeout(struct net_device *dev)
+static void qcauart_netdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct qcauart *qca = netdev_priv(dev);
 
@@ -285,8 +285,7 @@ static void qcauart_netdev_uninit(struct net_device *dev)
 {
 	struct qcauart *qca = netdev_priv(dev);
 
-	if (qca->rx_skb)
-		dev_kfree_skb(qca->rx_skb);
+	dev_kfree_skb(qca->rx_skb);
 }
 
 static const struct net_device_ops qcauart_netdev_ops = {
@@ -351,7 +350,7 @@ static int qca_uart_probe(struct serdev_device *serdev)
 
 	mac = of_get_mac_address(serdev->dev.of_node);
 
-	if (mac)
+	if (!IS_ERR(mac))
 		ether_addr_copy(qca->net_dev->dev_addr, mac);
 
 	if (!is_valid_ether_addr(qca->net_dev->dev_addr)) {

@@ -26,13 +26,7 @@ static DEFINE_SPINLOCK(die_lock);
 
 static void _send_sig(int signo, int code, unsigned long addr)
 {
-	siginfo_t info;
-
-	info.si_signo = signo;
-	info.si_errno = 0;
-	info.si_code = code;
-	info.si_addr = (void __user *) addr;
-	force_sig_info(signo, &info, current);
+	force_sig_fault(signo, code, (void __user *) addr);
 }
 
 void die(const char *str, struct pt_regs *regs, long err)

@@ -1,4 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    This file is dual-licensed: you can use it either under the terms
+    of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
+    dual licensing only applies to this file, and not this project as a
+    whole.
+
+    a) This file is free software; you can redistribute it and/or
+       modify it under the terms of the GNU General Public License as
+       published by the Free Software Foundation version 2 of
+       the License.
+
+       This file is distributed in the hope that it will be useful,
+       but WITHOUT ANY WARRANTY; without even the implied warranty of
+       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+       GNU General Public License for more details.
+
+    Or, alternatively,
+
+    b) Permission is granted to copy, distribute and/or modify this
+       document under the terms of the GNU Free Documentation License,
+       Version 1.1 or any later version published by the Free Software
+       Foundation, with no Invariant Sections, no Front-Cover Texts
+       and no Back-Cover Texts. A copy of the license is included at
+       Documentation/media/uapi/fdl-appendix.rst.
+
+    TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+-->
 <svg enable-background="new" version="1" viewBox="0 0 4226.3 1686.8" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
  <defs>
   <pattern id="ig" xlink:href="#ka" patternTransform="matrix(5.4432 0 0 10.1 1722.4 161.06)"/>
@@ -1128,11 +1155,11 @@
    </text>
   </g>
   <text transform="matrix(.96106 0 0 1.0405 48.571 195.53)" x="2438.062" y="1368.429" enable-background="new" font-size="50" style="line-height:125%">
-   <tspan x="2438.062" y="1368.429">COMPOSE_BONDS</tspan>
+   <tspan x="2438.062" y="1368.429">COMPOSE_BOUNDS</tspan>
   </text>
   <g font-size="40">
    <text transform="translate(48.571 195.53)" x="8.082" y="1438.896" enable-background="new" style="line-height:125%">
-    <tspan x="8.082" y="1438.896" font-size="50">CROP_BONDS</tspan>
+    <tspan x="8.082" y="1438.896" font-size="50">CROP_BOUNDS</tspan>
    </text>
    <text transform="translate(48.571 195.53)" x="1455.443" y="-26.808" enable-background="new" style="line-height:125%">
     <tspan x="1455.443" y="-26.808" font-size="50">overscan area</tspan>

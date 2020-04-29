@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IEEE754 floating point arithmetic
  * single precision: MIN{,A}.f
@@ -10,10 +11,6 @@
  * MIPS floating point support
  * Copyright (C) 2015 Imagination Technologies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; version 2 of the License.
  */
 
 #include "ieee754sp.h"

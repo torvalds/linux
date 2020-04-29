@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -8,11 +9,6 @@
  * Version:	@(#)udp.h	1.0.2	04/28/93
  *
  * Author:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _LINUX_UDP_H
 #define _LINUX_UDP_H
@@ -49,12 +45,19 @@ struct udp_sock {
 	unsigned int	 corkflag;	/* Cork is required */
 	__u8		 encap_type;	/* Is this an Encapsulation socket? */
 	unsigned char	 no_check6_tx:1,/* Send zero UDP6 checksums on TX? */
-			 no_check6_rx:1;/* Allow zero UDP6 checksums on RX? */
+			 no_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
+			 encap_enabled:1, /* This socket enabled encap
+					   * processing; UDP tunnels and
+					   * different encapsulation layer set
+					   * this
+					   */
+			 gro_enabled:1;	/* Can accept GRO packets */
 	/*
 	 * Following member retains the information to create a UDP header
 	 * when the socket is uncorked.
 	 */
 	__u16		 len;		/* total length of pending frames */
+	__u16		 gso_size;
 	/*
 	 * Fields specific to UDP-Lite.
 	 */
@@ -70,11 +73,12 @@ struct udp_sock {
 	 * For encapsulation sockets.
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
+	int (*encap_err_lookup)(struct sock *sk, struct sk_buff *skb);
 	void (*encap_destroy)(struct sock *sk);
 
 	/* GRO functions for UDP socket */
-	struct sk_buff **	(*gro_receive)(struct sock *sk,
-					       struct sk_buff **head,
+	struct sk_buff *	(*gro_receive)(struct sock *sk,
+					       struct list_head *head,
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sock *sk,
 						struct sk_buff *skb,
@@ -86,6 +90,8 @@ struct udp_sock {
 	/* This field is dirtied by udp_recvmsg() */
 	int		forward_deficit;
 };
+
+#define UDP_MAX_SEGMENTS	(1 << 6UL)
 
 static inline struct udp_sock *udp_sk(const struct sock *sk)
 {
@@ -110,6 +116,23 @@ static inline bool udp_get_no_check6_tx(struct sock *sk)
 static inline bool udp_get_no_check6_rx(struct sock *sk)
 {
 	return udp_sk(sk)->no_check6_rx;
+}
+
+static inline void udp_cmsg_recv(struct msghdr *msg, struct sock *sk,
+				 struct sk_buff *skb)
+{
+	int gso_size;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		gso_size = skb_shinfo(skb)->gso_size;
+		put_cmsg(msg, SOL_UDP, UDP_GRO, sizeof(gso_size), &gso_size);
+	}
+}
+
+static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
+{
+	return !udp_sk(sk)->gro_enabled && skb_is_gso(skb) &&
+	       skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4;
 }
 
 #define udp_portaddr_for_each_entry(__sk, list) \

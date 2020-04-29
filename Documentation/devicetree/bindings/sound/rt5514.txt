@@ -14,7 +14,6 @@ Optional properties:
 - clocks: The phandle of the master clock to the CODEC
 - clock-names: Should be "mclk"
 
-- interrupt-parent: The phandle for the interrupt controller.
 - interrupts: The interrupt number to the cpu. The interrupt specifier format
 	      depends on the interrupt controller.
 
@@ -32,7 +31,7 @@ Pins on the device (for linking into audio routes) for I2C:
 
 Example:
 
-codec: rt5514@57 {
+rt5514: codec@57 {
 	compatible = "realtek,rt5514";
 	reg = <0x57>;
 };

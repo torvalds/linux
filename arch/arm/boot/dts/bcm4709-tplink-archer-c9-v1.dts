@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
- *
- * Licensed under the ISC license.
  */
 
 /dts-v1/;
@@ -17,6 +16,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -103,5 +103,37 @@
 };
 
 &spi_nor {
+	status = "okay";
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot@0 {
+			label = "boot";
+			reg = <0x000000 0x040000>;
+			read-only;
+		};
+
+		os-image@100000 {
+			label = "os-image";
+			reg = <0x040000 0x200000>;
+			compatible = "brcm,trx";
+		};
+
+		rootfs@240000 {
+			label = "rootfs";
+			reg = <0x240000 0xc00000>;
+		};
+
+		nvram@ff0000 {
+			label = "nvram";
+			reg = <0xff0000 0x010000>;
+		};
+	};
+};
+
+&usb3_phy {
 	status = "okay";
 };

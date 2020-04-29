@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa at gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for all S3C64xx SoCs.
 */
@@ -12,7 +9,6 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/syscore_ops.h>
 
 #include <dt-bindings/clock/samsung,s3c64xx-clock.h>
 
@@ -56,17 +52,8 @@
 #define GATE_ON(_id, cname, pname, o, b) \
 		GATE(_id, cname, pname, o, b, CLK_IGNORE_UNUSED, 0)
 
-/* list of PLLs to be registered */
-enum s3c64xx_plls {
-	apll, mpll, epll,
-};
-
 static void __iomem *reg_base;
 static bool is_s3c6400;
-
-#ifdef CONFIG_PM_SLEEP
-static struct samsung_clk_reg_dump *s3c64xx_save_common;
-static struct samsung_clk_reg_dump *s3c64xx_save_soc;
 
 /*
  * List of controller registers to be saved and restored during
@@ -93,60 +80,6 @@ static unsigned long s3c6410_clk_regs[] __initdata = {
 	CLK_SRC2,
 	MEM0_GATE,
 };
-
-static int s3c64xx_clk_suspend(void)
-{
-	samsung_clk_save(reg_base, s3c64xx_save_common,
-				ARRAY_SIZE(s3c64xx_clk_regs));
-
-	if (!is_s3c6400)
-		samsung_clk_save(reg_base, s3c64xx_save_soc,
-					ARRAY_SIZE(s3c6410_clk_regs));
-
-	return 0;
-}
-
-static void s3c64xx_clk_resume(void)
-{
-	samsung_clk_restore(reg_base, s3c64xx_save_common,
-				ARRAY_SIZE(s3c64xx_clk_regs));
-
-	if (!is_s3c6400)
-		samsung_clk_restore(reg_base, s3c64xx_save_soc,
-					ARRAY_SIZE(s3c6410_clk_regs));
-}
-
-static struct syscore_ops s3c64xx_clk_syscore_ops = {
-	.suspend = s3c64xx_clk_suspend,
-	.resume = s3c64xx_clk_resume,
-};
-
-static void __init s3c64xx_clk_sleep_init(void)
-{
-	s3c64xx_save_common = samsung_clk_alloc_reg_dump(s3c64xx_clk_regs,
-						ARRAY_SIZE(s3c64xx_clk_regs));
-	if (!s3c64xx_save_common)
-		goto err_warn;
-
-	if (!is_s3c6400) {
-		s3c64xx_save_soc = samsung_clk_alloc_reg_dump(s3c6410_clk_regs,
-						ARRAY_SIZE(s3c6410_clk_regs));
-		if (!s3c64xx_save_soc)
-			goto err_soc;
-	}
-
-	register_syscore_ops(&s3c64xx_clk_syscore_ops);
-	return;
-
-err_soc:
-	kfree(s3c64xx_save_common);
-err_warn:
-	pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
-		__func__);
-}
-#else
-static void __init s3c64xx_clk_sleep_init(void) {}
-#endif
 
 /* List of parent clocks common for all S3C64xx SoCs. */
 PNAME(spi_mmc_p)	= { "mout_epll", "dout_mpll", "fin_pll", "clk27m" };
@@ -364,12 +297,12 @@ GATE_CLOCKS(s3c6410_gate_clks) __initdata = {
 
 /* List of PLL clocks. */
 static struct samsung_pll_clock s3c64xx_pll_clks[] __initdata = {
-	[apll] = PLL(pll_6552, FOUT_APLL, "fout_apll", "fin_pll",
-						APLL_LOCK, APLL_CON, NULL),
-	[mpll] = PLL(pll_6552, FOUT_MPLL, "fout_mpll", "fin_pll",
-						MPLL_LOCK, MPLL_CON, NULL),
-	[epll] = PLL(pll_6553, FOUT_EPLL, "fout_epll", "fin_pll",
-						EPLL_LOCK, EPLL_CON0, NULL),
+	PLL(pll_6552, FOUT_APLL, "fout_apll", "fin_pll",
+					APLL_LOCK, APLL_CON, NULL),
+	PLL(pll_6552, FOUT_MPLL, "fout_mpll", "fin_pll",
+					MPLL_LOCK, MPLL_CON, NULL),
+	PLL(pll_6553, FOUT_EPLL, "fout_epll", "fin_pll",
+					EPLL_LOCK, EPLL_CON0, NULL),
 };
 
 /* Aliases for common s3c64xx clocks. */
@@ -513,7 +446,12 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 
 	samsung_clk_register_alias(ctx, s3c64xx_clock_aliases,
 					ARRAY_SIZE(s3c64xx_clock_aliases));
-	s3c64xx_clk_sleep_init();
+
+	samsung_clk_sleep_init(reg_base, s3c64xx_clk_regs,
+			       ARRAY_SIZE(s3c64xx_clk_regs));
+	if (!is_s3c6400)
+		samsung_clk_sleep_init(reg_base, s3c6410_clk_regs,
+				       ARRAY_SIZE(s3c6410_clk_regs));
 
 	samsung_clk_of_add_provider(np, ctx);
 

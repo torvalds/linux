@@ -118,17 +118,23 @@ Kernel Functions and Structures Reference
 Reservation Objects
 -------------------
 
-.. kernel-doc:: drivers/dma-buf/reservation.c
+.. kernel-doc:: drivers/dma-buf/dma-resv.c
    :doc: Reservation Object Overview
 
-.. kernel-doc:: drivers/dma-buf/reservation.c
+.. kernel-doc:: drivers/dma-buf/dma-resv.c
    :export:
 
-.. kernel-doc:: include/linux/reservation.h
+.. kernel-doc:: include/linux/dma-resv.h
    :internal:
 
 DMA Fences
 ----------
+
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
+   :doc: DMA fences overview
+
+DMA Fences Functions Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
    :export:

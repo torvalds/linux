@@ -1,41 +1,12 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_ipip.c
- * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
+#include <net/inet_ecn.h>
 
 #include "spectrum_ipip.h"
+#include "reg.h"
 
 struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev)
@@ -176,6 +147,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_ipip_entry *ipip_entry)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
+	u16 ul_rif_id = mlxsw_sp_ipip_lb_ul_rif_id(ipip_entry->ol_lb);
 	char rtdp_pl[MLXSW_REG_RTDP_LEN];
 	struct ip_tunnel_parm parms;
 	unsigned int type_check;
@@ -188,6 +160,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 	ikey = mlxsw_sp_ipip_parms4_ikey(parms);
 
 	mlxsw_reg_rtdp_pack(rtdp_pl, MLXSW_REG_RTDP_TYPE_IPIP, tunnel_index);
+	mlxsw_reg_rtdp_egress_router_interface_set(rtdp_pl, ul_rif_id);
 
 	type_check = has_ikey ?
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE_KEY :
@@ -367,3 +340,61 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[] = {
 	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
 };
+
+static int mlxsw_sp_ipip_ecn_encap_init_one(struct mlxsw_sp *mlxsw_sp,
+					    u8 inner_ecn, u8 outer_ecn)
+{
+	char tieem_pl[MLXSW_REG_TIEEM_LEN];
+
+	mlxsw_reg_tieem_pack(tieem_pl, inner_ecn, outer_ecn);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tieem), tieem_pl);
+}
+
+int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int i;
+
+	/* Iterate over inner ECN values */
+	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+		u8 outer_ecn = INET_ECN_encapsulate(0, i);
+		int err;
+
+		err = mlxsw_sp_ipip_ecn_encap_init_one(mlxsw_sp, i, outer_ecn);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int mlxsw_sp_ipip_ecn_decap_init_one(struct mlxsw_sp *mlxsw_sp,
+					    u8 inner_ecn, u8 outer_ecn)
+{
+	char tidem_pl[MLXSW_REG_TIDEM_LEN];
+	bool trap_en, set_ce = false;
+	u8 new_inner_ecn;
+
+	trap_en = __INET_ECN_decapsulate(outer_ecn, inner_ecn, &set_ce);
+	new_inner_ecn = set_ce ? INET_ECN_CE : inner_ecn;
+
+	mlxsw_reg_tidem_pack(tidem_pl, outer_ecn, inner_ecn, new_inner_ecn,
+			     trap_en, trap_en ? MLXSW_TRAP_ID_DECAP_ECN0 : 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tidem), tidem_pl);
+}
+
+int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int i, j, err;
+
+	/* Iterate over inner ECN values */
+	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+		/* Iterate over outer ECN values */
+		for (j = INET_ECN_NOT_ECT; j <= INET_ECN_CE; j++) {
+			err = mlxsw_sp_ipip_ecn_decap_init_one(mlxsw_sp, i, j);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}

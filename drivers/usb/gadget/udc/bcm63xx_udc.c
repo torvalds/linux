@@ -288,8 +288,6 @@ struct bcm63xx_req {
  * @ep0_reply: Pending reply from gadget driver.
  * @ep0_request: Outstanding ep0 request.
  * @debugfs_root: debugfs directory: /sys/kernel/debug/<DRV_MODULE_NAME>.
- * @debugfs_usbd: debugfs file "usbd" for controller state.
- * @debugfs_iudma: debugfs file "usbd" for IUDMA state.
  */
 struct bcm63xx_udc {
 	spinlock_t			lock;
@@ -330,8 +328,6 @@ struct bcm63xx_udc {
 	struct usb_request		*ep0_request;
 
 	struct dentry			*debugfs_root;
-	struct dentry			*debugfs_usbd;
-	struct dentry			*debugfs_iudma;
 };
 
 static const struct usb_ep_ops bcm63xx_udc_ep_ops;
@@ -2247,34 +2243,16 @@ DEFINE_SHOW_ATTRIBUTE(bcm63xx_iudma_dbg);
  */
 static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 {
-	struct dentry *root, *usbd, *iudma;
+	struct dentry *root;
 
 	if (!IS_ENABLED(CONFIG_USB_GADGET_DEBUG_FS))
 		return;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
-	if (IS_ERR(root) || !root)
-		goto err_root;
-
-	usbd = debugfs_create_file("usbd", 0400, root, udc,
-			&bcm63xx_usbd_dbg_fops);
-	if (!usbd)
-		goto err_usbd;
-	iudma = debugfs_create_file("iudma", 0400, root, udc,
-			&bcm63xx_iudma_dbg_fops);
-	if (!iudma)
-		goto err_iudma;
-
+	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
 	udc->debugfs_root = root;
-	udc->debugfs_usbd = usbd;
-	udc->debugfs_iudma = iudma;
-	return;
-err_iudma:
-	debugfs_remove(usbd);
-err_usbd:
-	debugfs_remove(root);
-err_root:
-	dev_err(udc->dev, "debugfs is not available\n");
+
+	debugfs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
+	debugfs_create_file("iudma", 0400, root, udc, &bcm63xx_iudma_dbg_fops);
 }
 
 /**
@@ -2285,12 +2263,7 @@ err_root:
  */
 static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
 {
-	debugfs_remove(udc->debugfs_iudma);
-	debugfs_remove(udc->debugfs_usbd);
-	debugfs_remove(udc->debugfs_root);
-	udc->debugfs_iudma = NULL;
-	udc->debugfs_usbd = NULL;
-	udc->debugfs_root = NULL;
+	debugfs_remove_recursive(udc->debugfs_root);
 }
 
 /***********************************************************************
@@ -2309,7 +2282,6 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_usbd_platform_data *pd = dev_get_platdata(dev);
 	struct bcm63xx_udc *udc;
-	struct resource *res;
 	int rc = -ENOMEM, i, irq;
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
@@ -2325,13 +2297,11 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->usbd_regs = devm_ioremap_resource(dev, res);
+	udc->usbd_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->usbd_regs))
 		return PTR_ERR(udc->usbd_regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	udc->iudma_regs = devm_ioremap_resource(dev, res);
+	udc->iudma_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(udc->iudma_regs))
 		return PTR_ERR(udc->iudma_regs);
 
@@ -2355,10 +2325,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 
 	/* IRQ resource #0: control interrupt (VBUS, speed, etc.) */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "missing IRQ resource #0\n");
+	if (irq < 0)
 		goto out_uninit;
-	}
 	if (devm_request_irq(dev, irq, &bcm63xx_udc_ctrl_isr, 0,
 			     dev_name(dev), udc) < 0)
 		goto report_request_failure;
@@ -2366,10 +2334,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	/* IRQ resources #1-6: data interrupts for IUDMA channels 0-5 */
 	for (i = 0; i < BCM63XX_NUM_IUDMA; i++) {
 		irq = platform_get_irq(pdev, i + 1);
-		if (irq < 0) {
-			dev_err(dev, "missing IRQ resource #%d\n", i + 1);
+		if (irq < 0)
 			goto out_uninit;
-		}
 		if (devm_request_irq(dev, irq, &bcm63xx_udc_data_isr, 0,
 				     dev_name(dev), &udc->iudma[i]) < 0)
 			goto report_request_failure;

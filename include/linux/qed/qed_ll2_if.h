@@ -52,6 +52,12 @@ enum qed_ll2_conn_type {
 	QED_LL2_TYPE_ROCE,
 	QED_LL2_TYPE_IWARP,
 	QED_LL2_TYPE_RESERVED3,
+	MAX_QED_LL2_CONN_TYPE
+};
+
+enum qed_ll2_rx_conn_type {
+	QED_LL2_RX_TYPE_LEGACY,
+	QED_LL2_RX_TYPE_CTX,
 	MAX_QED_LL2_RX_CONN_TYPE
 };
 
@@ -165,6 +171,7 @@ struct qed_ll2_cbs {
 };
 
 struct qed_ll2_acquire_data_inputs {
+	enum qed_ll2_rx_conn_type rx_conn_type;
 	enum qed_ll2_conn_type conn_type;
 	u16 mtu;
 	u16 rx_num_desc;
@@ -202,6 +209,7 @@ struct qed_ll2_tx_pkt_info {
 	bool enable_ip_cksum;
 	bool enable_l4_cksum;
 	bool calc_ip_len;
+	bool remove_stag;
 };
 
 #define QED_LL2_UNUSED_HANDLE   (0xff)
@@ -218,6 +226,11 @@ struct qed_ll2_params {
 	u8 tx_tc;
 	bool frags_mapped;
 	u8 ll2_mac_address[ETH_ALEN];
+};
+
+enum qed_ll2_xmit_flags {
+	/* FIP discovery packet */
+	QED_LL2_XMIT_FLAGS_FIP_DISCOVERY
 };
 
 struct qed_ll2_ops {
@@ -245,10 +258,12 @@ struct qed_ll2_ops {
  *
  * @param cdev
  * @param skb
+ * @param xmit_flags - Transmit options defined by the enum qed_ll2_xmit_flags.
  *
  * @return 0 on success, otherwise error value.
  */
-	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb);
+	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb,
+			  unsigned long xmit_flags);
 
 /**
  * @brief register_cb_ops - protocol driver register the callback for Rx/Tx

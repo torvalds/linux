@@ -1,0 +1,571 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ *  Copyright (C) 2019 Lubomir Rintel <lkundrak@v3.sk>
+ */
+
+#include <dt-bindings/clock/marvell,mmp2.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "marvell,mmp3-smp";
+
+		cpu@0 {
+			compatible = "marvell,pj4b";
+			device_type = "cpu";
+			next-level-cache = <&l2>;
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "marvell,pj4b";
+			device_type = "cpu";
+			next-level-cache = <&l2>;
+			reg = <1>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		axi@d4200000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4200000 0x00200000>;
+			ranges;
+
+			interrupt-controller@d4282000 {
+				compatible = "marvell,mmp3-intc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0xd4282000 0x1000>,
+				      <0xd4284000 0x100>;
+				mrvl,intc-nr-irqs = <64>;
+			};
+
+			pmic_mux: interrupt-controller@d4282150 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x150 0x4>, <0x168 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <4>;
+			};
+
+			rtc_mux: interrupt-controller@d4282154 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x154 0x4>, <0x16c 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			hsi3_mux: interrupt-controller@d42821bc {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1bc 0x4>, <0x1a4 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <3>;
+			};
+
+			gpu_mux: interrupt-controller@d42821c0 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1c0 0x4>, <0x1a8 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <3>;
+			};
+
+			twsi_mux: interrupt-controller@d4282158 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x158 0x4>, <0x170 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <5>;
+			};
+
+			hsi2_mux: interrupt-controller@d42821c4 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1c4 0x4>, <0x1ac 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			dxo_mux: interrupt-controller@d42821c8 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1c8 0x4>, <0x1b0 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			misc1_mux: interrupt-controller@d428215c {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x15c 0x4>, <0x174 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <31>;
+			};
+
+			ci_mux: interrupt-controller@d42821cc {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1cc 0x4>, <0x1b4 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			ssp_mux: interrupt-controller@d4282160 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x160 0x4>, <0x178 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			hsi1_mux: interrupt-controller@d4282184 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x184 0x4>, <0x17c 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <4>;
+			};
+
+			misc2_mux: interrupt-controller@d4282188 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x188 0x4>, <0x180 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <20>;
+			};
+
+			hsi0_mux: interrupt-controller@d42821d0 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x1d0 0x4>, <0x1b8 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <5>;
+			};
+
+			usb_otg_phy0: usb-otg-phy@d4207000 {
+				compatible = "marvell,mmp3-usb-phy";
+				reg = <0xd4207000 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			usb_otg0: usb-otg@d4208000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xd4208000 0x200>;
+				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USB>;
+				clock-names = "USBCLK";
+				phys = <&usb_otg_phy0>;
+				phy-names = "usb";
+				status = "disabled";
+			};
+
+			hsic_phy0: hsic-phy@f0001800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0001800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic0: hsic@f0001000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0001000 0x200>;
+				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC0>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy0>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
+			hsic_phy1: hsic-phy@f0002800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0002800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic1: hsic@f0002000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0002000 0x200>;
+				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC1>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy1>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
+			mmc1: mmc@d4280000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4280000 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH0>;
+				clock-names = "io";
+				interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			mmc2: mmc@d4280800 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4280800 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH1>;
+				clock-names = "io";
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			mmc3: mmc@d4281000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4281000 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH2>;
+				clock-names = "io";
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			mmc4: mmc@d4281800 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4281800 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH3>;
+				clock-names = "io";
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			camera0: camera@d420a000 {
+				compatible = "marvell,mmp2-ccic";
+				reg = <0xd420a000 0x800>;
+				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_CCIC0>;
+				clock-names = "axi";
+				#clock-cells = <0>;
+				clock-output-names = "mclk";
+				status = "disabled";
+			};
+
+			camera1: camera@d420a800 {
+				compatible = "marvell,mmp2-ccic";
+				reg = <0xd420a800 0x800>;
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_CCIC1>;
+				clock-names = "axi";
+				#clock-cells = <0>;
+				clock-output-names = "mclk";
+				status = "disabled";
+			};
+		};
+
+		apb@d4000000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4000000 0x00200000>;
+			ranges;
+
+			timer: timer@d4014000 {
+				compatible = "mrvl,mmp-timer";
+				reg = <0xd4014000 0x100>;
+				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_TIMER>;
+			};
+
+			uart1: serial@d4030000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4030000 0x1000>;
+				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_UART0>;
+				resets = <&soc_clocks MMP2_CLK_UART0>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart2: serial@d4017000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4017000 0x1000>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_UART1>;
+				resets = <&soc_clocks MMP2_CLK_UART1>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart3: serial@d4018000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4018000 0x1000>;
+				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_UART2>;
+				resets = <&soc_clocks MMP2_CLK_UART2>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart4: serial@d4016000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4016000 0x1000>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_UART3>;
+				resets = <&soc_clocks MMP2_CLK_UART3>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			gpio: gpio@d4019000 {
+				compatible = "marvell,mmp2-gpio";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xd4019000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "gpio_mux";
+				clocks = <&soc_clocks MMP2_CLK_GPIO>;
+				resets = <&soc_clocks MMP2_CLK_GPIO>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				ranges;
+
+				gcb0: gpio@d4019000 {
+					reg = <0xd4019000 0x4>;
+				};
+
+				gcb1: gpio@d4019004 {
+					reg = <0xd4019004 0x4>;
+				};
+
+				gcb2: gpio@d4019008 {
+					reg = <0xd4019008 0x4>;
+				};
+
+				gcb3: gpio@d4019100 {
+					reg = <0xd4019100 0x4>;
+				};
+
+				gcb4: gpio@d4019104 {
+					reg = <0xd4019104 0x4>;
+				};
+
+				gcb5: gpio@d4019108 {
+					reg = <0xd4019108 0x4>;
+				};
+			};
+
+			twsi1: i2c@d4011000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4011000 0x70>;
+				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI0>;
+				resets = <&soc_clocks MMP2_CLK_TWSI0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				mrvl,i2c-fast-mode;
+				status = "disabled";
+			};
+
+			twsi2: i2c@d4031000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4031000 0x70>;
+				interrupt-parent = <&twsi_mux>;
+				interrupts = <0>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
+				resets = <&soc_clocks MMP2_CLK_TWSI1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi3: i2c@d4032000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4032000 0x70>;
+				interrupt-parent = <&twsi_mux>;
+				interrupts = <1>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI2>;
+				resets = <&soc_clocks MMP2_CLK_TWSI2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi4: i2c@d4033000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033000 0x70>;
+				interrupt-parent = <&twsi_mux>;
+				interrupts = <2>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI3>;
+				resets = <&soc_clocks MMP2_CLK_TWSI3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+
+			twsi5: i2c@d4033800 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033800 0x70>;
+				interrupt-parent = <&twsi_mux>;
+				interrupts = <3>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI4>;
+				resets = <&soc_clocks MMP2_CLK_TWSI4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi6: i2c@d4034000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4034000 0x70>;
+				interrupt-parent = <&twsi_mux>;
+				interrupts = <4>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI5>;
+				resets = <&soc_clocks MMP2_CLK_TWSI5>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			rtc: rtc@d4010000 {
+				compatible = "mrvl,mmp-rtc";
+				reg = <0xd4010000 0x1000>;
+				interrupts = <1 0>;
+				interrupt-names = "rtc 1Hz", "rtc alarm";
+				interrupt-parent = <&rtc_mux>;
+				clocks = <&soc_clocks MMP2_CLK_RTC>;
+				resets = <&soc_clocks MMP2_CLK_RTC>;
+				status = "disabled";
+			};
+
+			ssp1: spi@d4035000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4035000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP0>;
+				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			ssp2: spi@d4036000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4036000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP1>;
+				interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			ssp3: spi@d4037000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4037000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP2>;
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			ssp4: spi@d4039000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4039000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP3>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		l2: l2-cache-controller@d0020000 {
+			compatible = "marvell,tauros3-cache", "arm,pl310-cache";
+			reg = <0xd0020000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		soc_clocks: clocks@d4050000 {
+			compatible = "marvell,mmp2-clock";
+			reg = <0xd4050000 0x1000>,
+			      <0xd4282800 0x400>,
+			      <0xd4015000 0x1000>;
+			reg-names = "mpmu", "apmu", "apbc";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		snoop-control-unit@e0000000 {
+			compatible = "arm,arm11mp-scu";
+			reg = <0xe0000000 0x100>;
+		};
+
+		gic: interrupt-controller@e0001000 {
+			compatible = "arm,arm11mp-gic";
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			reg = <0xe0001000 0x1000>,
+			      <0xe0000100 0x100>;
+		};
+
+		local-timer@e0000600 {
+			compatible = "arm,arm11mp-twd-timer";
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_EDGE_RISING)>;
+			reg = <0xe0000600 0x20>;
+		};
+
+		watchdog@e0000620 {
+			compatible = "arm,arm11mp-twd-wdt";
+			reg = <0xe0000620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_EDGE_RISING)>;
+		};
+	};
+};

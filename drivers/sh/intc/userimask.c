@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/stat.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include "internals.h"
 
 static void __iomem *uimask;
@@ -73,7 +73,7 @@ int register_intc_userimask(unsigned long addr)
 	if (unlikely(uimask))
 		return -EBUSY;
 
-	uimask = ioremap_nocache(addr, SZ_4K);
+	uimask = ioremap(addr, SZ_4K);
 	if (unlikely(!uimask))
 		return -ENOMEM;
 

@@ -20,14 +20,19 @@
  * Authors: Rafał Miłecki <zajec5@gmail.com>
  *          Alex Deucher <alexdeucher@gmail.com>
  */
-#include <drm/drmP.h>
-#include "radeon.h"
-#include "avivod.h"
-#include "atom.h"
-#include "r600_dpm.h"
-#include <linux/power_supply.h>
-#include <linux/hwmon.h>
+
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/pci.h>
+#include <linux/power_supply.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_vblank.h>
+
+#include "atom.h"
+#include "avivod.h"
+#include "r600_dpm.h"
+#include "radeon.h"
 
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200
@@ -1784,7 +1789,7 @@ static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish
 	u32 stat_crtc = 0;
 	bool in_vbl = radeon_pm_in_vbl(rdev);
 
-	if (in_vbl == false)
+	if (!in_vbl)
 		DRM_DEBUG_DRIVER("not in vbl for pm change %08x at %s\n", stat_crtc,
 			 finish ? "exit" : "entry");
 	return in_vbl;

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006 Mike Kravetz IBM Corporation
  *
  * Hypervisor Call Instrumentation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -125,7 +112,7 @@ static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long
 	h->purr_start = mfspr(SPRN_PURR);
 }
 
-static void probe_hcall_exit(void *ignored, unsigned long opcode, unsigned long retval,
+static void probe_hcall_exit(void *ignored, unsigned long opcode, long retval,
 			     unsigned long *retbuf)
 {
 	struct hcall_stats *h;
@@ -142,7 +129,6 @@ static void probe_hcall_exit(void *ignored, unsigned long opcode, unsigned long 
 static int __init hcall_inst_init(void)
 {
 	struct dentry *hcall_root;
-	struct dentry *hcall_file;
 	char cpu_name_buf[CPU_NAME_BUF_SIZE];
 	int cpu;
 
@@ -158,17 +144,12 @@ static int __init hcall_inst_init(void)
 	}
 
 	hcall_root = debugfs_create_dir(HCALL_ROOT_DIR, NULL);
-	if (!hcall_root)
-		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
 		snprintf(cpu_name_buf, CPU_NAME_BUF_SIZE, "cpu%d", cpu);
-		hcall_file = debugfs_create_file(cpu_name_buf, 0444,
-						 hcall_root,
-						 per_cpu(hcall_stats, cpu),
-						 &hcall_inst_seq_fops);
-		if (!hcall_file)
-			return -ENOMEM;
+		debugfs_create_file(cpu_name_buf, 0444, hcall_root,
+				    per_cpu(hcall_stats, cpu),
+				    &hcall_inst_seq_fops);
 	}
 
 	return 0;

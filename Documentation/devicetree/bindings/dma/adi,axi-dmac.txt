@@ -1,4 +1,4 @@
-Analog Device AXI-DMAC DMA controller
+Analog Devices AXI-DMAC DMA controller
 
 Required properties:
  - compatible: Must be "adi,axi-dmac-1.00.a".
@@ -18,7 +18,6 @@ Required properties for adi,channels sub-node:
 
 Required channel sub-node properties:
  - reg: Which channel this node refers to.
- - adi,length-width: Width of the DMA transfer length register.
  - adi,source-bus-width,
    adi,destination-bus-width: Width of the source or destination bus in bits.
  - adi,source-bus-type,
@@ -28,7 +27,8 @@ Required channel sub-node properties:
 	1 (AXI_DMAC_TYPE_AXI_STREAM): Streaming AXI interface
 	2 (AXI_DMAC_TYPE_AXI_FIFO): FIFO interface
 
-Optional channel properties:
+Deprecated optional channel properties:
+ - adi,length-width: Width of the DMA transfer length register.
  - adi,cyclic: Must be set if the channel supports hardware cyclic DMA
    transfers.
  - adi,2d: Must be set if the channel supports hardware 2D DMA transfers.

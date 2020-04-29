@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig RTL_CARDS
 	tristate "Realtek rtlwifi family of devices"
 	depends on MAC80211 && (PCI || USB)

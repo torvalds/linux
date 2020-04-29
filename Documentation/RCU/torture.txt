@@ -10,173 +10,8 @@ status messages via printk(), which can be examined via the dmesg
 command (perhaps grepping for "torture").  The test is started
 when the module is loaded, and stops when the module is unloaded.
 
-
-MODULE PARAMETERS
-
-This module has the following parameters:
-
-fqs_duration	Duration (in microseconds) of artificially induced bursts
-		of force_quiescent_state() invocations.  In RCU
-		implementations having force_quiescent_state(), these
-		bursts help force races between forcing a given grace
-		period and that grace period ending on its own.
-
-fqs_holdoff	Holdoff time (in microseconds) between consecutive calls
-		to force_quiescent_state() within a burst.
-
-fqs_stutter	Wait time (in seconds) between consecutive bursts
-		of calls to force_quiescent_state().
-
-gp_normal	Make the fake writers use normal synchronous grace-period
-		primitives.
-
-gp_exp		Make the fake writers use expedited synchronous grace-period
-		primitives.  If both gp_normal and gp_exp are set, or
-		if neither gp_normal nor gp_exp are set, then randomly
-		choose the primitive so that about 50% are normal and
-		50% expedited.  By default, neither are set, which
-		gives best overall test coverage.
-
-irqreader	Says to invoke RCU readers from irq level.  This is currently
-		done via timers.  Defaults to "1" for variants of RCU that
-		permit this.  (Or, more accurately, variants of RCU that do
-		-not- permit this know to ignore this variable.)
-
-n_barrier_cbs	If this is nonzero, RCU barrier testing will be conducted,
-		in which case n_barrier_cbs specifies the number of
-		RCU callbacks (and corresponding kthreads) to use for
-		this testing.  The value cannot be negative.  If you
-		specify this to be non-zero when torture_type indicates a
-		synchronous RCU implementation (one for which a member of
-		the synchronize_rcu() rather than the call_rcu() family is
-		used -- see the documentation for torture_type below), an
-		error will be reported and no testing will be carried out.
-
-nfakewriters	This is the number of RCU fake writer threads to run.  Fake
-		writer threads repeatedly use the synchronous "wait for
-		current readers" function of the interface selected by
-		torture_type, with a delay between calls to allow for various
-		different numbers of writers running in parallel.
-		nfakewriters defaults to 4, which provides enough parallelism
-		to trigger special cases caused by multiple writers, such as
-		the synchronize_srcu() early return optimization.
-
-nreaders	This is the number of RCU reading threads supported.
-		The default is twice the number of CPUs.  Why twice?
-		To properly exercise RCU implementations with preemptible
-		read-side critical sections.
-
-onoff_interval
-		The number of seconds between each attempt to execute a
-		randomly selected CPU-hotplug operation.  Defaults to
-		zero, which disables CPU hotplugging.  In HOTPLUG_CPU=n
-		kernels, rcutorture will silently refuse to do any
-		CPU-hotplug operations regardless of what value is
-		specified for onoff_interval.
-
-onoff_holdoff	The number of seconds to wait until starting CPU-hotplug
-		operations.  This would normally only be used when
-		rcutorture was built into the kernel and started
-		automatically at boot time, in which case it is useful
-		in order to avoid confusing boot-time code with CPUs
-		coming and going.
-
-shuffle_interval
-		The number of seconds to keep the test threads affinitied
-		to a particular subset of the CPUs, defaults to 3 seconds.
-		Used in conjunction with test_no_idle_hz.
-
-shutdown_secs	The number of seconds to run the test before terminating
-		the test and powering off the system.  The default is
-		zero, which disables test termination and system shutdown.
-		This capability is useful for automated testing.
-
-stall_cpu	The number of seconds that a CPU should be stalled while
-		within both an rcu_read_lock() and a preempt_disable().
-		This stall happens only once per rcutorture run.
-		If you need multiple stalls, use modprobe and rmmod to
-		repeatedly run rcutorture.  The default for stall_cpu
-		is zero, which prevents rcutorture from stalling a CPU.
-
-		Note that attempts to rmmod rcutorture while the stall
-		is ongoing will hang, so be careful what value you
-		choose for this module parameter!  In addition, too-large
-		values for stall_cpu might well induce failures and
-		warnings in other parts of the kernel.  You have been
-		warned!
-
-stall_cpu_holdoff
-		The number of seconds to wait after rcutorture starts
-		before stalling a CPU.  Defaults to 10 seconds.
-
-stat_interval	The number of seconds between output of torture
-		statistics (via printk()).  Regardless of the interval,
-		statistics are printed when the module is unloaded.
-		Setting the interval to zero causes the statistics to
-		be printed -only- when the module is unloaded, and this
-		is the default.
-
-stutter		The length of time to run the test before pausing for this
-		same period of time.  Defaults to "stutter=5", so as
-		to run and pause for (roughly) five-second intervals.
-		Specifying "stutter=0" causes the test to run continuously
-		without pausing, which is the old default behavior.
-
-test_boost	Whether or not to test the ability of RCU to do priority
-		boosting.  Defaults to "test_boost=1", which performs
-		RCU priority-inversion testing only if the selected
-		RCU implementation supports priority boosting.  Specifying
-		"test_boost=0" never performs RCU priority-inversion
-		testing.  Specifying "test_boost=2" performs RCU
-		priority-inversion testing even if the selected RCU
-		implementation does not support RCU priority boosting,
-		which can be used to test rcutorture's ability to
-		carry out RCU priority-inversion testing.
-
-test_boost_interval
-		The number of seconds in an RCU priority-inversion test
-		cycle.	Defaults to "test_boost_interval=7".  It is
-		usually wise for this value to be relatively prime to
-		the value selected for "stutter".
-
-test_boost_duration
-		The number of seconds to do RCU priority-inversion testing
-		within any given "test_boost_interval".  Defaults to
-		"test_boost_duration=4".
-
-test_no_idle_hz	Whether or not to test the ability of RCU to operate in
-		a kernel that disables the scheduling-clock interrupt to
-		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
-		Defaults to omitting this test.
-
-torture_type	The type of RCU to test, with string values as follows:
-
-		"rcu":  rcu_read_lock(), rcu_read_unlock() and call_rcu(),
-			along with expedited, synchronous, and polling
-			variants.
-
-		"rcu_bh": rcu_read_lock_bh(), rcu_read_unlock_bh(), and
-			call_rcu_bh(), along with expedited and synchronous
-			variants.
-
-		"rcu_busted": This tests an intentionally incorrect version
-			of RCU in order to help test rcutorture itself.
-
-		"srcu": srcu_read_lock(), srcu_read_unlock() and
-			call_srcu(), along with expedited and
-			synchronous variants.
-
-		"sched": preempt_disable(), preempt_enable(), and
-			call_rcu_sched(), along with expedited,
-			synchronous, and polling variants.
-
-		"tasks": voluntary context switch and call_rcu_tasks(),
-			along with expedited and synchronous variants.
-
-		Defaults to "rcu".
-
-verbose		Enable debug printk()s.  Default is disabled.
-
+Module parameters are prefixed by "rcutorture." in
+Documentation/admin-guide/kernel-parameters.txt.
 
 OUTPUT
 
@@ -289,9 +124,14 @@ using a dynamically allocated srcu_struct (hence "srcud-" rather than
 debugging.  The final "T" entry contains the totals of the counters.
 
 
-USAGE
+USAGE ON SPECIFIC KERNEL BUILDS
 
-The following script may be used to torture RCU:
+It is sometimes desirable to torture RCU on a specific kernel build,
+for example, when preparing to put that kernel build into production.
+In that case, the kernel should be built with CONFIG_RCU_TORTURE_TEST=m
+so that the test can be started using modprobe and terminated using rmmod.
+
+For example, the following script may be used to torture RCU:
 
 	#!/bin/sh
 
@@ -307,8 +147,136 @@ checked for such errors.  The "rmmod" command forces a "SUCCESS",
 two are self-explanatory, while the last indicates that while there
 were no RCU failures, CPU-hotplug problems were detected.
 
-However, the tools/testing/selftests/rcutorture/bin/kvm.sh script
-provides better automation, including automatic failure analysis.
-It assumes a qemu/kvm-enabled platform, and runs guest OSes out of initrd.
-See tools/testing/selftests/rcutorture/doc/initrd.txt for instructions
-on setting up such an initrd.
+
+USAGE ON MAINLINE KERNELS
+
+When using rcutorture to test changes to RCU itself, it is often
+necessary to build a number of kernels in order to test that change
+across a broad range of combinations of the relevant Kconfig options
+and of the relevant kernel boot parameters.  In this situation, use
+of modprobe and rmmod can be quite time-consuming and error-prone.
+
+Therefore, the tools/testing/selftests/rcutorture/bin/kvm.sh
+script is available for mainline testing for x86, arm64, and
+powerpc.  By default, it will run the series of tests specified by
+tools/testing/selftests/rcutorture/configs/rcu/CFLIST, with each test
+running for 30 minutes within a guest OS using a minimal userspace
+supplied by an automatically generated initrd.  After the tests are
+complete, the resulting build products and console output are analyzed
+for errors and the results of the runs are summarized.
+
+On larger systems, rcutorture testing can be accelerated by passing the
+--cpus argument to kvm.sh.  For example, on a 64-CPU system, "--cpus 43"
+would use up to 43 CPUs to run tests concurrently, which as of v5.4 would
+complete all the scenarios in two batches, reducing the time to complete
+from about eight hours to about one hour (not counting the time to build
+the sixteen kernels).  The "--dryrun sched" argument will not run tests,
+but rather tell you how the tests would be scheduled into batches.  This
+can be useful when working out how many CPUs to specify in the --cpus
+argument.
+
+Not all changes require that all scenarios be run.  For example, a change
+to Tree SRCU might run only the SRCU-N and SRCU-P scenarios using the
+--configs argument to kvm.sh as follows:  "--configs 'SRCU-N SRCU-P'".
+Large systems can run multiple copies of of the full set of scenarios,
+for example, a system with 448 hardware threads can run five instances
+of the full set concurrently.  To make this happen:
+
+	kvm.sh --cpus 448 --configs '5*CFLIST'
+
+Alternatively, such a system can run 56 concurrent instances of a single
+eight-CPU scenario:
+
+	kvm.sh --cpus 448 --configs '56*TREE04'
+
+Or 28 concurrent instances of each of two eight-CPU scenarios:
+
+	kvm.sh --cpus 448 --configs '28*TREE03 28*TREE04'
+
+Of course, each concurrent instance will use memory, which can be
+limited using the --memory argument, which defaults to 512M.  Small
+values for memory may require disabling the callback-flooding tests
+using the --bootargs parameter discussed below.
+
+Sometimes additional debugging is useful, and in such cases the --kconfig
+parameter to kvm.sh may be used, for example, "--kconfig 'CONFIG_KASAN=y'".
+
+Kernel boot arguments can also be supplied, for example, to control
+rcutorture's module parameters.  For example, to test a change to RCU's
+CPU stall-warning code, use "--bootargs 'rcutorture.stall_cpu=30'".
+This will of course result in the scripting reporting a failure, namely
+the resuling RCU CPU stall warning.  As noted above, reducing memory may
+require disabling rcutorture's callback-flooding tests:
+
+	kvm.sh --cpus 448 --configs '56*TREE04' --memory 128M \
+		--bootargs 'rcutorture.fwd_progress=0'
+
+Sometimes all that is needed is a full set of kernel builds.  This is
+what the --buildonly argument does.
+
+Finally, the --trust-make argument allows each kernel build to reuse what
+it can from the previous kernel build.
+
+There are additional more arcane arguments that are documented in the
+source code of the kvm.sh script.
+
+If a run contains failures, the number of buildtime and runtime failures
+is listed at the end of the kvm.sh output, which you really should redirect
+to a file.  The build products and console output of each run is kept in
+tools/testing/selftests/rcutorture/res in timestamped directories.  A
+given directory can be supplied to kvm-find-errors.sh in order to have
+it cycle you through summaries of errors and full error logs.  For example:
+
+	tools/testing/selftests/rcutorture/bin/kvm-find-errors.sh \
+		tools/testing/selftests/rcutorture/res/2020.01.20-15.54.23
+
+However, it is often more convenient to access the files directly.
+Files pertaining to all scenarios in a run reside in the top-level
+directory (2020.01.20-15.54.23 in the example above), while per-scenario
+files reside in a subdirectory named after the scenario (for example,
+"TREE04").  If a given scenario ran more than once (as in "--configs
+'56*TREE04'" above), the directories corresponding to the second and
+subsequent runs of that scenario include a sequence number, for example,
+"TREE04.2", "TREE04.3", and so on.
+
+The most frequently used file in the top-level directory is testid.txt.
+If the test ran in a git repository, then this file contains the commit
+that was tested and any uncommitted changes in diff format.
+
+The most frequently used files in each per-scenario-run directory are:
+
+.config: This file contains the Kconfig options.
+
+Make.out: This contains build output for a specific scenario.
+
+console.log: This contains the console output for a specific scenario.
+	This file may be examined once the kernel has booted, but
+	it might not exist if the build failed.
+
+vmlinux: This contains the kernel, which can be useful with tools like
+	objdump and gdb.
+
+A number of additional files are available, but are less frequently used.
+Many are intended for debugging of rcutorture itself or of its scripting.
+
+As of v5.4, a successful run with the default set of scenarios produces
+the following summary at the end of the run on a 12-CPU system:
+
+SRCU-N ------- 804233 GPs (148.932/s) [srcu: g10008272 f0x0 ]
+SRCU-P ------- 202320 GPs (37.4667/s) [srcud: g1809476 f0x0 ]
+SRCU-t ------- 1122086 GPs (207.794/s) [srcu: g0 f0x0 ]
+SRCU-u ------- 1111285 GPs (205.794/s) [srcud: g1 f0x0 ]
+TASKS01 ------- 19666 GPs (3.64185/s) [tasks: g0 f0x0 ]
+TASKS02 ------- 20541 GPs (3.80389/s) [tasks: g0 f0x0 ]
+TASKS03 ------- 19416 GPs (3.59556/s) [tasks: g0 f0x0 ]
+TINY01 ------- 836134 GPs (154.84/s) [rcu: g0 f0x0 ] n_max_cbs: 34198
+TINY02 ------- 850371 GPs (157.476/s) [rcu: g0 f0x0 ] n_max_cbs: 2631
+TREE01 ------- 162625 GPs (30.1157/s) [rcu: g1124169 f0x0 ]
+TREE02 ------- 333003 GPs (61.6672/s) [rcu: g2647753 f0x0 ] n_max_cbs: 35844
+TREE03 ------- 306623 GPs (56.782/s) [rcu: g2975325 f0x0 ] n_max_cbs: 1496497
+CPU count limited from 16 to 12
+TREE04 ------- 246149 GPs (45.5831/s) [rcu: g1695737 f0x0 ] n_max_cbs: 434961
+TREE05 ------- 314603 GPs (58.2598/s) [rcu: g2257741 f0x2 ] n_max_cbs: 193997
+TREE07 ------- 167347 GPs (30.9902/s) [rcu: g1079021 f0x0 ] n_max_cbs: 478732
+CPU count limited from 16 to 12
+TREE09 ------- 752238 GPs (139.303/s) [rcu: g13075057 f0x0 ] n_max_cbs: 99011

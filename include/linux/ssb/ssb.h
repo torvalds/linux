@@ -499,11 +499,9 @@ struct ssb_bus {
 
 	/* Internal-only stuff follows. Do not touch. */
 	struct list_head list;
-#ifdef CONFIG_SSB_DEBUG
 	/* Is the bus already powered up? */
 	bool powered_up;
 	int power_warn_count;
-#endif /* DEBUG */
 };
 
 enum ssb_quirks {

@@ -1,6 +1,6 @@
-#
+# SPDX-License-Identifier: GPL-2.0
 # Intel pin control drivers
-#
+
 if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
@@ -30,6 +30,19 @@ config PINCTRL_CHERRYVIEW
 	help
 	  Cherryview/Braswell pinctrl driver provides an interface that
 	  allows configuring of SoC pins and using them as GPIOs.
+
+config PINCTRL_LYNXPOINT
+	tristate "Intel Lynxpoint pinctrl and GPIO driver"
+	depends on ACPI
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Lynxpoint is the PCH of Intel Haswell. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
 
 config PINCTRL_MERRIFIELD
 	tristate "Intel Merrifield pinctrl driver"
@@ -90,6 +103,14 @@ config PINCTRL_GEMINILAKE
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Gemini Lake SoC pins and using them as GPIOs.
 
+config PINCTRL_ICELAKE
+	tristate "Intel Ice Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Ice Lake PCH pins and using them as GPIOs.
+
 config PINCTRL_LEWISBURG
 	tristate "Intel Lewisburg pinctrl and GPIO driver"
 	depends on ACPI
@@ -107,4 +128,11 @@ config PINCTRL_SUNRISEPOINT
 	  provides an interface that allows configuring of PCH pins and
 	  using them as GPIOs.
 
+config PINCTRL_TIGERLAKE
+	tristate "Intel Tiger Lake pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Tiger Lake PCH pins and using them as GPIOs.
 endif

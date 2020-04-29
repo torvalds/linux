@@ -11,11 +11,7 @@ endif
 GCOV_PROFILE_sclp_early_core.o		:= n
 KCOV_INSTRUMENT_sclp_early_core.o	:= n
 UBSAN_SANITIZE_sclp_early_core.o	:= n
-
-ifneq ($(CC_FLAGS_MARCH),-march=z900)
-CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_sclp_early_core.o		+= -march=z900
-endif
+KASAN_SANITIZE_sclp_early_core.o	:= n
 
 CFLAGS_sclp_early_core.o		+= -D__NO_FORTIFY
 
@@ -23,7 +19,7 @@ CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_EXPOLINE)
 
 obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
 	 sclp_cmd.o sclp_config.o sclp_cpi_sys.o sclp_ocf.o sclp_ctl.o \
-	 sclp_early.o sclp_early_core.o
+	 sclp_early.o sclp_early_core.o sclp_sd.o
 
 obj-$(CONFIG_TN3270) += raw3270.o
 obj-$(CONFIG_TN3270_CONSOLE) += con3270.o
@@ -35,7 +31,6 @@ obj-$(CONFIG_TN3215) += con3215.o
 obj-$(CONFIG_SCLP_TTY) += sclp_tty.o
 obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
-obj-$(CONFIG_SCLP_ASYNC) += sclp_async.o
 
 obj-$(CONFIG_PCI) += sclp_pci.o
 

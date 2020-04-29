@@ -1,0 +1,69 @@
+Socionext UniPhier USB3 High-Speed (HS) PHY
+
+This describes the devicetree bindings for PHY interfaces built into
+USB3 controller implemented on Socionext UniPhier SoCs.
+Although the controller includes High-Speed PHY and Super-Speed PHY,
+this describes about High-Speed PHY.
+
+Required properties:
+- compatible: Should contain one of the following:
+    "socionext,uniphier-pro5-usb3-hsphy" - for Pro5 SoC
+    "socionext,uniphier-pxs2-usb3-hsphy" - for PXs2 SoC
+    "socionext,uniphier-ld20-usb3-hsphy" - for LD20 SoC
+    "socionext,uniphier-pxs3-usb3-hsphy" - for PXs3 SoC
+- reg: Specifies offset and length of the register set for the device.
+- #phy-cells: Should be 0.
+- clocks: A list of phandles to the clock gate for USB3 glue layer.
+	According to the clock-names, appropriate clocks are required.
+- clock-names: Should contain the following:
+    "gio", "link" - for Pro5 SoC
+    "phy", "phy-ext", "link" - for PXs3 SoC, "phy-ext" is optional.
+    "phy", "link" - for others
+- resets: A list of phandles to the reset control for USB3 glue layer.
+	According to the reset-names, appropriate resets are required.
+- reset-names: Should contain the following:
+    "gio", "link" - for Pro5 SoC
+    "phy", "link" - for others
+
+Optional properties:
+- vbus-supply: A phandle to the regulator for USB VBUS.
+- nvmem-cells: Phandles to nvmem cell that contains the trimming data.
+	Available only for HS-PHY implemented on LD20 and PXs3, and
+	if unspecified, default value is used.
+- nvmem-cell-names: Should be the following names, which correspond to
+	each nvmem-cells.
+	All of the 3 parameters associated with the following names are
+	required for each port, if any one is omitted, the trimming data
+	of the port will not be set at all.
+    "rterm", "sel_t", "hs_i" - Each cell name for phy parameters
+
+Refer to phy/phy-bindings.txt for the generic PHY binding properties.
+
+Example:
+
+	usb-glue@65b00000 {
+		compatible = "socionext,uniphier-ld20-dwc3-glue",
+			     "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x65b00000 0x400>;
+
+		usb_vbus0: regulator {
+			...
+		};
+
+		usb_hsphy0: hs-phy@200 {
+			compatible = "socionext,uniphier-ld20-usb3-hsphy";
+			reg = <0x200 0x10>;
+			#phy-cells = <0>;
+			clock-names = "link", "phy";
+			clocks = <&sys_clk 14>, <&sys_clk 16>;
+			reset-names = "link", "phy";
+			resets = <&sys_rst 14>, <&sys_rst 16>;
+			vbus-supply = <&usb_vbus0>;
+			nvmem-cell-names = "rterm", "sel_t", "hs_i";
+			nvmem-cells = <&usb_rterm0>, <&usb_sel_t0>,
+				      <&usb_hs_i0>;
+		};
+		...
+	};

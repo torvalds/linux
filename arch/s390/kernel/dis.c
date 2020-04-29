@@ -242,6 +242,7 @@ static const unsigned char formats[][6] = {
 	[INSTR_RRF_U0FF]     = { F_24, U4_16, F_28, 0, 0, 0 },
 	[INSTR_RRF_U0RF]     = { R_24, U4_16, F_28, 0, 0, 0 },
 	[INSTR_RRF_U0RR]     = { R_24, R_28, U4_16, 0, 0, 0 },
+	[INSTR_RRF_URR]	     = { R_24, R_28, U8_16, 0, 0, 0 },
 	[INSTR_RRF_UUFF]     = { F_24, U4_16, F_28, U4_20, 0, 0 },
 	[INSTR_RRF_UUFR]     = { F_24, U4_16, R_28, U4_20, 0, 0 },
 	[INSTR_RRF_UURF]     = { R_24, U4_16, F_28, U4_20, 0, 0 },
@@ -306,7 +307,7 @@ static const unsigned char formats[][6] = {
 	[INSTR_VRI_VVV0UU2]  = { V_8, V_12, V_16, U8_28, U4_24, 0 },
 	[INSTR_VRR_0V]	     = { V_12, 0, 0, 0, 0, 0 },
 	[INSTR_VRR_0VV0U]    = { V_12, V_16, U4_24, 0, 0, 0 },
-	[INSTR_VRR_RV0U]     = { R_8, V_12, U4_24, 0, 0, 0 },
+	[INSTR_VRR_RV0UU]    = { R_8, V_12, U4_24, U4_28, 0, 0 },
 	[INSTR_VRR_VRR]	     = { V_8, R_12, R_16, 0, 0, 0 },
 	[INSTR_VRR_VV]	     = { V_8, V_12, 0, 0, 0, 0 },
 	[INSTR_VRR_VV0U]     = { V_8, V_12, U4_32, 0, 0, 0 },
@@ -326,10 +327,8 @@ static const unsigned char formats[][6] = {
 	[INSTR_VRS_RVRDU]    = { R_8, V_12, D_20, B_16, U4_32, 0 },
 	[INSTR_VRS_VRRD]     = { V_8, R_12, D_20, B_16, 0, 0 },
 	[INSTR_VRS_VRRDU]    = { V_8, R_12, D_20, B_16, U4_32, 0 },
-	[INSTR_VRS_VVRD]     = { V_8, V_12, D_20, B_16, 0, 0 },
 	[INSTR_VRS_VVRDU]    = { V_8, V_12, D_20, B_16, U4_32, 0 },
 	[INSTR_VRV_VVXRDU]   = { V_8, D_20, VX_12, B_16, U4_32, 0 },
-	[INSTR_VRX_VRRD]     = { V_8, D_20, X_12, B_16, 0, 0 },
 	[INSTR_VRX_VRRDU]    = { V_8, D_20, X_12, B_16, U4_32, 0 },
 	[INSTR_VRX_VV]	     = { V_8, V_12, 0, 0, 0, 0 },
 	[INSTR_VSI_URDV]     = { V_32, D_20, B_16, U8_8, 0, 0 },
@@ -462,10 +461,11 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 				ptr += sprintf(ptr, "%%c%i", value);
 			else if (operand->flags & OPERAND_VR)
 				ptr += sprintf(ptr, "%%v%i", value);
-			else if (operand->flags & OPERAND_PCREL)
-				ptr += sprintf(ptr, "%lx", (signed int) value
-								      + addr);
-			else if (operand->flags & OPERAND_SIGNED)
+			else if (operand->flags & OPERAND_PCREL) {
+				void *pcrel = (void *)((int)value + addr);
+
+				ptr += sprintf(ptr, "%px", pcrel);
+			} else if (operand->flags & OPERAND_SIGNED)
 				ptr += sprintf(ptr, "%i", value);
 			else
 				ptr += sprintf(ptr, "%u", value);
@@ -537,7 +537,7 @@ void show_code(struct pt_regs *regs)
 		else
 			*ptr++ = ' ';
 		addr = regs->psw.addr + start - 32;
-		ptr += sprintf(ptr, "%016lx: ", addr);
+		ptr += sprintf(ptr, "%px: ", (void *)addr);
 		if (start + opsize >= end)
 			break;
 		for (i = 0; i < opsize; i++)
@@ -565,7 +565,7 @@ void print_fn_code(unsigned char *code, unsigned long len)
 		opsize = insn_length(*code);
 		if (opsize > len)
 			break;
-		ptr += sprintf(ptr, "%p: ", code);
+		ptr += sprintf(ptr, "%px: ", code);
 		for (i = 0; i < opsize; i++)
 			ptr += sprintf(ptr, "%02x", code[i]);
 		*ptr++ = '\t';

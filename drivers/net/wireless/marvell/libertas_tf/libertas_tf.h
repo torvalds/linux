@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2008, cozybit Inc.
  *  Copyright (C) 2007, Red Hat, Inc.
  *  Copyright (C) 2003-2006, Marvell International Ltd.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
  */
 #include <linux/spinlock.h>
 #include <linux/device.h>
@@ -173,10 +169,19 @@ struct channel_range {
 
 struct if_usb_card;
 
+struct lbtf_ops {
+	/** Hardware access */
+	int (*hw_host_to_card)(struct lbtf_private *priv, u8 type,
+			       u8 *payload, u16 nb);
+	int (*hw_prog_firmware)(struct lbtf_private *priv);
+	int (*hw_reset_device)(struct lbtf_private *priv);
+};
+
 /** Private structure for the MV device */
 struct lbtf_private {
 	void *card;
 	struct ieee80211_hw *hw;
+	const struct lbtf_ops *ops;
 
 	/* Command response buffer */
 	u8 cmd_resp_buff[LBS_UPLD_SIZE];
@@ -188,11 +193,6 @@ struct lbtf_private {
 
 	struct work_struct cmd_work;
 	struct work_struct tx_work;
-	/** Hardware access */
-	int (*hw_host_to_card) (struct lbtf_private *priv, u8 type, u8 *payload, u16 nb);
-	int (*hw_prog_firmware) (struct if_usb_card *cardp);
-	int (*hw_reset_device) (struct if_usb_card *cardp);
-
 
 	/** Wlan adapter data structure*/
 	/** STATUS variables */
@@ -250,7 +250,6 @@ struct lbtf_private {
 	struct ieee80211_supported_band band;
 	struct lbtf_offset_value offsetvalue;
 
-	u8 fw_ready;
 	u8 surpriseremoved;
 	struct sk_buff_head bc_ps_buf;
 
@@ -486,7 +485,8 @@ void lbtf_cmd_response_rx(struct lbtf_private *priv);
 /* main.c */
 struct chan_freq_power *lbtf_get_region_cfp_table(u8 region,
 	int *cfp_no);
-struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev);
+struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
+				   const struct lbtf_ops *ops);
 int lbtf_remove_card(struct lbtf_private *priv);
 int lbtf_start_card(struct lbtf_private *priv);
 int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb);

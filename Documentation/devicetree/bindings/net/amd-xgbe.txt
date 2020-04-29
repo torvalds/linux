@@ -8,8 +8,6 @@ Required properties:
    - SerDes Rx/Tx registers
    - SerDes integration registers (1/2)
    - SerDes integration registers (2/2)
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the amd-xgbe interrupt(s). The first interrupt
   listed is required and is the general device interrupt. If the optional
   amd,per-channel-interrupt property is specified, then one additional
@@ -26,8 +24,6 @@ Required properties:
 - phy-mode: See ethernet.txt file in the same directory
 
 Optional properties:
-- mac-address: mac address to be assigned to the device. Can be overridden
-  by UEFI.
 - dma-coherent: Present if dma operations are coherent
 - amd,per-channel-interrupt: Indicates that Rx and Tx complete will generate
   a unique interrupt for each DMA channel - this requires an additional
@@ -35,6 +31,9 @@ Optional properties:
 - amd,speed-set: Speed capabilities of the device
     0 - 1GbE and 10GbE (default)
     1 - 2.5GbE and 10GbE
+
+The MAC address will be determined using the optional properties defined in
+ethernet.txt.
 
 The following optional properties are represented by an array with each
 value corresponding to a particular speed. The first array value represents

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __TRACE_STAT_H
 #define __TRACE_STAT_H
 
@@ -16,7 +16,7 @@ struct tracer_stat {
 	void			*(*stat_start)(struct tracer_stat *trace);
 	void			*(*stat_next)(void *prev, int idx);
 	/* Compare two entries for stats sorting */
-	int			(*stat_cmp)(void *p1, void *p2);
+	cmp_func_t		stat_cmp;
 	/* Print a stat entry */
 	int			(*stat_show)(struct seq_file *s, void *p);
 	/* Release an entry */

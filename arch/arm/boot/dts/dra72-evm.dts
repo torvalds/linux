@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include "dra72-evm-common.dtsi"
 #include "dra72x-mmc-iodelay.dtsi"
@@ -51,8 +48,14 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <3>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@3 {
+		reg = <3>;
+	};
 };
 
 &mmc1 {

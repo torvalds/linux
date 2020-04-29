@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Large capacity key type
  *
  * Copyright (C) 2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  * Copyright (C) 2013 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "big_key: "fmt
@@ -22,6 +18,7 @@
 #include <keys/user-type.h>
 #include <keys/big_key-type.h>
 #include <crypto/aead.h>
+#include <crypto/gcm.h>
 
 struct big_key_buf {
 	unsigned int		nr_pages;
@@ -85,6 +82,7 @@ struct key_type key_type_big_key = {
  * Crypto names for big_key data authenticated encryption
  */
 static const char big_key_alg_name[] = "gcm(aes)";
+#define BIG_KEY_IV_SIZE		GCM_AES_IV_SIZE
 
 /*
  * Crypto algorithms for big_key data authenticated encryption
@@ -109,7 +107,7 @@ static int big_key_crypt(enum big_key_op op, struct big_key_buf *buf, size_t dat
 	 * an .update function, so there's no chance we'll wind up reusing the
 	 * key to encrypt updated data. Simply put: one key, one encryption.
 	 */
-	u8 zero_nonce[crypto_aead_ivsize(big_key_aead)];
+	u8 zero_nonce[BIG_KEY_IV_SIZE];
 
 	aead_req = aead_request_alloc(big_key_aead, GFP_KERNEL);
 	if (!aead_req)
@@ -354,7 +352,7 @@ void big_key_describe(const struct key *key, struct seq_file *m)
  * read the key data
  * - the key's semaphore is read-locked
  */
-long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
+long big_key_read(const struct key *key, char *buffer, size_t buflen)
 {
 	size_t datalen = (size_t)key->payload.data[big_key_len];
 	long ret;
@@ -393,9 +391,8 @@ long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
 
 		ret = datalen;
 
-		/* copy decrypted data to user */
-		if (copy_to_user(buffer, buf->virt, datalen) != 0)
-			ret = -EFAULT;
+		/* copy out decrypted data */
+		memcpy(buffer, buf->virt, datalen);
 
 err_fput:
 		fput(file);
@@ -403,9 +400,7 @@ error:
 		big_key_free_buffer(buf);
 	} else {
 		ret = datalen;
-		if (copy_to_user(buffer, key->payload.data[big_key_data],
-				 datalen) != 0)
-			ret = -EFAULT;
+		memcpy(buffer, key->payload.data[big_key_data], datalen);
 	}
 
 	return ret;
@@ -425,6 +420,13 @@ static int __init big_key_init(void)
 		pr_err("Can't alloc crypto: %d\n", ret);
 		return ret;
 	}
+
+	if (unlikely(crypto_aead_ivsize(big_key_aead) != BIG_KEY_IV_SIZE)) {
+		WARN(1, "big key algorithm changed?");
+		ret = -EINVAL;
+		goto free_aead;
+	}
+
 	ret = crypto_aead_setauthsize(big_key_aead, ENC_AUTHTAG_SIZE);
 	if (ret < 0) {
 		pr_err("Can't set crypto auth tag len: %d\n", ret);

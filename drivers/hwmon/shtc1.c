@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Sensirion SHTC1 humidity and temperature sensor driver
  *
  * Copyright (C) 2014 Sensirion AG, Switzerland
  * Author: Johannes Winkelmann <johannes.winkelmann@sensirion.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -34,18 +24,32 @@ static const unsigned char shtc1_cmd_measure_blocking_lpm[]    = { 0x64, 0x58 };
 static const unsigned char shtc1_cmd_measure_nonblocking_lpm[] = { 0x60, 0x9c };
 
 /* command for reading the ID register */
-static const unsigned char shtc1_cmd_read_id_reg[]	       = { 0xef, 0xc8 };
+static const unsigned char shtc1_cmd_read_id_reg[]             = { 0xef, 0xc8 };
 
-/* constants for reading the ID register */
-#define SHTC1_ID	  0x07
-#define SHTC1_ID_REG_MASK 0x1f
+/*
+ * constants for reading the ID register
+ * SHTC1: 0x0007 with mask 0x003f
+ * SHTW1: 0x0007 with mask 0x003f
+ * SHTC3: 0x0807 with mask 0x083f
+ */
+#define SHTC3_ID      0x0807
+#define SHTC3_ID_MASK 0x083f
+#define SHTC1_ID      0x0007
+#define SHTC1_ID_MASK 0x003f
 
 /* delays for non-blocking i2c commands, both in us */
 #define SHTC1_NONBLOCKING_WAIT_TIME_HPM  14400
 #define SHTC1_NONBLOCKING_WAIT_TIME_LPM   1000
+#define SHTC3_NONBLOCKING_WAIT_TIME_HPM  12100
+#define SHTC3_NONBLOCKING_WAIT_TIME_LPM    800
 
 #define SHTC1_CMD_LENGTH      2
 #define SHTC1_RESPONSE_LENGTH 6
+
+enum shtcx_chips {
+	shtc1,
+	shtc3,
+};
 
 struct shtc1_data {
 	struct i2c_client *client;
@@ -57,6 +61,7 @@ struct shtc1_data {
 	unsigned int nonblocking_wait_time; /* in us */
 
 	struct shtc1_platform_data setup;
+	enum shtcx_chips chip;
 
 	int temperature; /* 1000 * temperature in dgr C */
 	int humidity; /* 1000 * relative humidity in %RH */
@@ -167,13 +172,16 @@ static void shtc1_select_command(struct shtc1_data *data)
 		data->command = data->setup.blocking_io ?
 				shtc1_cmd_measure_blocking_hpm :
 				shtc1_cmd_measure_nonblocking_hpm;
-		data->nonblocking_wait_time = SHTC1_NONBLOCKING_WAIT_TIME_HPM;
-
+		data->nonblocking_wait_time = (data->chip == shtc1) ?
+				SHTC1_NONBLOCKING_WAIT_TIME_HPM :
+				SHTC3_NONBLOCKING_WAIT_TIME_HPM;
 	} else {
 		data->command = data->setup.blocking_io ?
 				shtc1_cmd_measure_blocking_lpm :
 				shtc1_cmd_measure_nonblocking_lpm;
-		data->nonblocking_wait_time = SHTC1_NONBLOCKING_WAIT_TIME_LPM;
+		data->nonblocking_wait_time = (data->chip == shtc1) ?
+				SHTC1_NONBLOCKING_WAIT_TIME_LPM :
+				SHTC3_NONBLOCKING_WAIT_TIME_LPM;
 	}
 }
 
@@ -181,9 +189,11 @@ static int shtc1_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
 	int ret;
-	char id_reg[2];
+	u16 id_reg;
+	char id_reg_buf[2];
 	struct shtc1_data *data;
 	struct device *hwmon_dev;
+	enum shtcx_chips chip = id->driver_data;
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
 
@@ -197,13 +207,20 @@ static int shtc1_probe(struct i2c_client *client,
 		dev_err(dev, "could not send read_id_reg command: %d\n", ret);
 		return ret < 0 ? ret : -ENODEV;
 	}
-	ret = i2c_master_recv(client, id_reg, sizeof(id_reg));
-	if (ret != sizeof(id_reg)) {
+	ret = i2c_master_recv(client, id_reg_buf, sizeof(id_reg_buf));
+	if (ret != sizeof(id_reg_buf)) {
 		dev_err(dev, "could not read ID register: %d\n", ret);
 		return -ENODEV;
 	}
-	if ((id_reg[1] & SHTC1_ID_REG_MASK) != SHTC1_ID) {
-		dev_err(dev, "ID register doesn't match\n");
+
+	id_reg = be16_to_cpup((__be16 *)id_reg_buf);
+	if (chip == shtc3) {
+		if ((id_reg & SHTC3_ID_MASK) != SHTC3_ID) {
+			dev_err(dev, "SHTC3 ID register does not match\n");
+			return -ENODEV;
+		}
+	} else if ((id_reg & SHTC1_ID_MASK) != SHTC1_ID) {
+		dev_err(dev, "SHTC1 ID register does not match\n");
 		return -ENODEV;
 	}
 
@@ -214,6 +231,7 @@ static int shtc1_probe(struct i2c_client *client,
 	data->setup.blocking_io = false;
 	data->setup.high_precision = true;
 	data->client = client;
+	data->chip = chip;
 
 	if (client->dev.platform_data)
 		data->setup = *(struct shtc1_platform_data *)dev->platform_data;
@@ -232,8 +250,9 @@ static int shtc1_probe(struct i2c_client *client,
 
 /* device ID table */
 static const struct i2c_device_id shtc1_id[] = {
-	{ "shtc1", 0 },
-	{ "shtw1", 0 },
+	{ "shtc1", shtc1 },
+	{ "shtw1", shtc1 },
+	{ "shtc3", shtc3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, shtc1_id);

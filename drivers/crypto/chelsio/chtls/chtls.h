@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __CHTLS_H__
@@ -24,6 +21,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/tls.h>
 #include <net/tls.h>
+#include <net/tls_toe.h>
 
 #include "t4fw_api.h"
 #include "t4_msg.h"
@@ -67,11 +65,6 @@ enum {
 	CPL_RET_UNKNOWN_TID = 4    /* unexpected unknown TID */
 };
 
-#define TLS_RCV_ST_READ_HEADER		0xF0
-#define TLS_RCV_ST_READ_BODY		0xF1
-#define TLS_RCV_ST_READ_DONE		0xF2
-#define TLS_RCV_ST_READ_NB		0xF3
-
 #define LISTEN_INFO_HASH_SIZE 32
 #define RSPQ_HASH_BITS 5
 struct listen_info {
@@ -101,6 +94,10 @@ enum csk_flags {
 	CSK_CONN_INLINE,	/* Connection on HW */
 };
 
+enum chtls_cdev_state {
+	CHTLS_CDEV_STATE_UP = 1
+};
+
 struct listen_ctx {
 	struct sock *lsk;
 	struct chtls_dev *cdev;
@@ -122,7 +119,7 @@ struct tls_scmd {
 };
 
 struct chtls_dev {
-	struct tls_device tlsdev;
+	struct tls_toe_device tlsdev;
 	struct list_head list;
 	struct cxgb4_lld_info *lldi;
 	struct pci_dev *pdev;
@@ -149,7 +146,14 @@ struct chtls_dev {
 	struct list_head rcu_node;
 	struct list_head na_node;
 	unsigned int send_page_order;
+	int max_host_sndbuf;
 	struct key_map kmap;
+	unsigned int cdev_state;
+};
+
+struct chtls_listen {
+	struct chtls_dev *cdev;
+	struct sock *sk;
 };
 
 struct chtls_hws {
@@ -175,7 +179,10 @@ struct chtls_hws {
 	u32 copied_seq;
 	u64 tx_seq_no;
 	struct tls_scmd scmd;
-	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	union {
+		struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+		struct tls12_crypto_info_aes_gcm_256 aes_gcm_256;
+	} crypto_info;
 };
 
 struct chtls_sock {
@@ -214,6 +221,8 @@ struct chtls_sock {
 	u16 resv2;
 	u32 delack_mode;
 	u32 delack_seq;
+	u32 snd_win;
+	u32 rcv_win;
 
 	void *passive_reap_next;        /* placeholder for passive */
 	struct chtls_hws tlshws;
@@ -278,6 +287,7 @@ struct tlsrx_cmp_hdr {
 #define TLSRX_HDR_PKT_MAC_ERROR_F        TLSRX_HDR_PKT_MAC_ERROR_V(1U)
 
 #define TLSRX_HDR_PKT_ERROR_M           0x1F
+#define CONTENT_TYPE_ERROR		0x7F
 
 struct ulp_mem_rw {
 	__be32 cmd;
@@ -347,8 +357,8 @@ enum {
 	ULPCB_FLAG_HOLD      = 1 << 3,	/* skb not ready for Tx yet */
 	ULPCB_FLAG_COMPL     = 1 << 4,	/* request WR completion */
 	ULPCB_FLAG_URG       = 1 << 5,	/* urgent data */
-	ULPCB_FLAG_TLS_ND    = 1 << 6, /* payload of zero length */
-	ULPCB_FLAG_NO_HDR    = 1 << 7, /* not a ofld wr */
+	ULPCB_FLAG_TLS_HDR   = 1 << 6,  /* payload with tls hdr */
+	ULPCB_FLAG_NO_HDR    = 1 << 7,  /* not a ofld wr */
 };
 
 /* The ULP mode/submode of an skbuff */
@@ -356,7 +366,7 @@ enum {
 #define TCP_PAGE(sk)   (sk->sk_frag.page)
 #define TCP_OFF(sk)    (sk->sk_frag.offset)
 
-static inline struct chtls_dev *to_chtls_dev(struct tls_device *tlsdev)
+static inline struct chtls_dev *to_chtls_dev(struct tls_toe_device *tlsdev)
 {
 	return container_of(tlsdev, struct chtls_dev, tlsdev);
 }
@@ -475,7 +485,7 @@ int send_tx_flowc_wr(struct sock *sk, int compl,
 void chtls_tcp_push(struct sock *sk, int flags);
 int chtls_push_frames(struct chtls_sock *csk, int comp);
 int chtls_set_tcb_tflag(struct sock *sk, unsigned int bit_pos, int val);
-int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 mode);
+int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 mode, int cipher_type);
 void skb_entail(struct sock *sk, struct sk_buff *skb, int flags);
 unsigned int keyid_to_addr(int start_addr, int keyid);
 void free_tls_keyid(struct sock *sk);

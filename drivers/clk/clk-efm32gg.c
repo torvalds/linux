@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Pengutronix
  * Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #include <linux/io.h>
 #include <linux/clk-provider.h>
@@ -25,8 +22,8 @@ static void __init efm32gg_cmu_init(struct device_node *np)
 	void __iomem *base;
 	struct clk_hw **hws;
 
-	clk_data = kzalloc(sizeof(*clk_data) +
-			   sizeof(*clk_data->hws) * CMU_MAX_CLKS, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, CMU_MAX_CLKS),
+			   GFP_KERNEL);
 
 	if (!clk_data)
 		return;

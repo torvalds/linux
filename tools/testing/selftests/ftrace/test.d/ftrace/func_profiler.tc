@@ -29,8 +29,6 @@ if [ ! -f function_profile_enabled ]; then
 fi
 
 fail() { # mesg
-    reset_tracer
-    echo > set_ftrace_filter
     echo $1
     exit_fail
 }
@@ -75,7 +73,5 @@ if ! grep -v -e '^#' -e 'schedule' trace > /dev/null; then
 	cat trace
 	fail "no other functions besides schedule was found"
 fi
-
-reset_tracer
 
 exit 0

@@ -1,0 +1,875 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR X11)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/sunxi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner platforms device tree bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description: Allwinner A23 Evaluation Board
+        items:
+          - const: allwinner,sun8i-a23-evb
+          - const: allwinner,sun8i-a23
+
+      - description: Allwinner A31 APP4 Evaluation Board
+        items:
+          - const: allwinner,app4-evb1
+          - const: allwinner,sun6i-a31
+
+      - description: Allwinner A83t Homlet Evaluation Board v2
+        items:
+          - const: allwinner,h8homlet-v2
+          - const: allwinner,sun8i-a83t
+
+      - description: Allwinner GA10H Quad Core Tablet v1.1
+        items:
+          - const: allwinner,ga10h-v1.1
+          - const: allwinner,sun8i-a33
+
+      - description: Allwinner GT90H Tablet v4
+        items:
+          - const: allwinner,gt90h-v4
+          - const: allwinner,sun8i-a23
+
+      - description: Allwinner R16 EVB (Parrot)
+        items:
+          - const: allwinner,parrot
+          - const: allwinner,sun8i-a33
+
+      - description: Amarula A64 Relic
+        items:
+          - const: amarula,a64-relic
+          - const: allwinner,sun50i-a64
+
+      - description: Auxtek T003 A10s HDMI TV Stick
+        items:
+          - const: allwinner,auxtek-t003
+          - const: allwinner,sun5i-a10s
+
+      - description: Auxtek T004 A10s HDMI TV Stick
+        items:
+          - const: allwinner,auxtek-t004
+          - const: allwinner,sun5i-a10s
+
+      - description: BA10 TV Box
+        items:
+          - const: allwinner,ba10-tvbox
+          - const: allwinner,sun4i-a10
+
+      - description: BananaPi
+        items:
+          - const: lemaker,bananapi
+          - const: allwinner,sun7i-a20
+
+      - description: BananaPi M1 Plus
+        items:
+          - const: sinovoip,bpi-m1-plus
+          - const: allwinner,sun7i-a20
+
+      - description: BananaPi M2
+        items:
+          - const: sinovoip,bpi-m2
+          - const: allwinner,sun6i-a31s
+
+      - description: BananaPi M2 Berry
+        items:
+          - const: sinovoip,bpi-m2-berry
+          - const: allwinner,sun8i-r40
+
+      - description: BananaPi M2 Plus
+        items:
+          - const: sinovoip,bpi-m2-plus
+          - const: allwinner,sun8i-h3
+
+      - description: BananaPi M2 Plus
+        items:
+          - const: sinovoip,bpi-m2-plus
+          - const: allwinner,sun50i-h5
+
+      - description: BananaPi M2 Plus v1.2
+        items:
+          - const: bananapi,bpi-m2-plus-v1.2
+          - const: allwinner,sun8i-h3
+
+      - description: BananaPi M2 Plus v1.2
+        items:
+          - const: bananapi,bpi-m2-plus-v1.2
+          - const: allwinner,sun50i-h5
+
+      - description: BananaPi M2 Magic
+        items:
+          - const: sinovoip,bananapi-m2m
+          - const: allwinner,sun8i-a33
+
+      - description: BananaPi M2 Ultra
+        items:
+          - const: sinovoip,bpi-m2-ultra
+          - const: allwinner,sun8i-r40
+
+      - description: BananaPi M2 Zero
+        items:
+          - const: sinovoip,bpi-m2-zero
+          - const: allwinner,sun8i-h2-plus
+
+      - description: BananaPi M3
+        items:
+          - const: sinovoip,bpi-m3
+          - const: allwinner,sun8i-a83t
+
+      - description: BananaPi M64
+        items:
+          - const: sinovoip,bananapi-m64
+          - const: allwinner,sun50i-a64
+
+      - description: BananaPro
+        items:
+          - const: lemaker,bananapro
+          - const: allwinner,sun7i-a20
+
+      - description: Beelink GS1
+        items:
+          - const: azw,beelink-gs1
+          - const: allwinner,sun50i-h6
+
+      - description: Beelink X2
+        items:
+          - const: roofull,beelink-x2
+          - const: allwinner,sun8i-h3
+
+      - description: Chuwi V7 CW0825
+        items:
+          - const: chuwi,v7-cw0825
+          - const: allwinner,sun4i-a10
+
+      - description: Colorfly E708 Q1 Tablet
+        items:
+          - const: colorfly,e708-q1
+          - const: allwinner,sun6i-a31s
+
+      - description: CSQ CS908 Set Top Box
+        items:
+          - const: csq,cs908
+          - const: allwinner,sun6i-a31s
+
+      - description: Cubietech Cubieboard
+        items:
+          - const: cubietech,a10-cubieboard
+          - const: allwinner,sun4i-a10
+
+      - description: Cubietech Cubieboard2
+        items:
+          - const: cubietech,cubieboard2
+          - const: allwinner,sun7i-a20
+
+      - description: Cubietech Cubieboard4
+        items:
+          - const: cubietech,a80-cubieboard4
+          - const: allwinner,sun9i-a80
+
+      - description: Cubietech Cubietruck
+        items:
+          - const: cubietech,cubietruck
+          - const: allwinner,sun7i-a20
+
+      - description: Cubietech Cubietruck Plus
+        items:
+          - const: cubietech,cubietruck-plus
+          - const: allwinner,sun8i-a83t
+
+      - description: Difrnce DIT4350
+        items:
+          - const: difrnce,dit4350
+          - const: allwinner,sun5i-a13
+
+      - description: Dserve DSRV9703C
+        items:
+          - const: dserve,dsrv9703c
+          - const: allwinner,sun4i-a10
+
+      - description: Empire Electronix D709 Tablet
+        items:
+          - const: empire-electronix,d709
+          - const: allwinner,sun5i-a13
+
+      - description: Empire Electronix M712 Tablet
+        items:
+          - const: empire-electronix,m712
+          - const: allwinner,sun5i-a13
+
+      - description: FriendlyARM NanoPi A64
+        items:
+          - const: friendlyarm,nanopi-a64
+          - const: allwinner,sun50i-a64
+
+      - description: FriendlyARM NanoPi Duo2
+        items:
+          - const: friendlyarm,nanopi-duo2
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi M1
+        items:
+          - const: friendlyarm,nanopi-m1
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi M1 Plus
+        items:
+          - const: friendlyarm,nanopi-m1-plus
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi Neo
+        items:
+          - const: friendlyarm,nanopi-neo
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi Neo 2
+        items:
+          - const: friendlyarm,nanopi-neo2
+          - const: allwinner,sun50i-h5
+
+      - description: FriendlyARM NanoPi Neo Air
+        items:
+          - const: friendlyarm,nanopi-neo-air
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi Neo Plus2
+        items:
+          - const: friendlyarm,nanopi-neo-plus2
+          - const: allwinner,sun50i-h5
+
+      - description: Gemei G9 Tablet
+        items:
+          - const: gemei,g9
+          - const: allwinner,sun4i-a10
+
+      - description: Hyundai A7HD
+        items:
+          - const: hyundai,a7hd
+          - const: allwinner,sun4i-a10
+
+      - description: HSG H702
+        items:
+          - const: hsg,h702
+          - const: allwinner,sun5i-a13
+
+      - description: I12 TV Box
+        items:
+          - const: allwinner,i12-tvbox
+          - const: allwinner,sun7i-a20
+
+      - description: ICNova A20 SWAC
+        items:
+          - const: incircuit,icnova-a20-swac
+          - const: incircuit,icnova-a20
+          - const: allwinner,sun7i-a20
+
+      - description: INet-1
+        items:
+          - const: inet-tek,inet1
+          - const: allwinner,sun4i-a10
+
+      - description: iNet-86DZ Rev 01
+        items:
+          - const: primux,inet86dz
+          - const: allwinner,sun8i-a23
+
+      - description: iNet-9F Rev 03
+        items:
+          - const: inet-tek,inet9f-rev03
+          - const: allwinner,sun4i-a10
+
+      - description: iNet-97F Rev 02
+        items:
+          - const: primux,inet97fv2
+          - const: allwinner,sun4i-a10
+
+      - description: iNet-98V Rev 02
+        items:
+          - const: primux,inet98v-rev2
+          - const: allwinner,sun5i-a13
+
+      - description: iNet D978 Rev 02 Tablet
+        items:
+          - const: primux,inet-d978-rev2
+          - const: allwinner,sun8i-a33
+
+      - description: iNet Q972 Tablet
+        items:
+          - const: inet-tek,inet-q972
+          - const: allwinner,sun6i-a31s
+
+      - description: Itead Ibox A20
+        items:
+          - const: itead,itead-ibox-a20
+          - const: allwinner,sun7i-a20
+
+      - description: Itead Iteaduino Plus A10
+        items:
+          - const: itead,iteaduino-plus-a10
+          - const: allwinner,sun4i-a10
+
+      - description: Jesurun Q5
+        items:
+          - const: jesurun,q5
+          - const: allwinner,sun4i-a10
+
+      - description: Lamobo R1
+        items:
+          - const: lamobo,lamobo-r1
+          - const: allwinner,sun7i-a20
+
+      - description: Libre Computer Board ALL-H3-CC H2+
+        items:
+          - const: libretech,all-h3-cc-h2-plus
+          - const: allwinner,sun8i-h2-plus
+
+      - description: Libre Computer Board ALL-H3-CC H3
+        items:
+          - const: libretech,all-h3-cc-h3
+          - const: allwinner,sun8i-h3
+
+      - description: Libre Computer Board ALL-H3-CC H5
+        items:
+          - const: libretech,all-h3-cc-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H3-IT H5
+        items:
+          - const: libretech,all-h3-it-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H5-CC H5
+        items:
+          - const: libretech,all-h5-cc-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Lichee Pi One
+        items:
+          - const: licheepi,licheepi-one
+          - const: allwinner,sun5i-a13
+
+      - description: Lichee Pi Zero
+        items:
+          - const: licheepi,licheepi-zero
+          - const: allwinner,sun8i-v3s
+
+      - description: Lichee Pi Zero (with Dock)
+        items:
+          - const: licheepi,licheepi-zero-dock
+          - const: licheepi,licheepi-zero
+          - const: allwinner,sun8i-v3s
+
+      - description: Lichee Zero Plus (with S3, without eMMC/SPI Flash)
+        items:
+          - const: sipeed,lichee-zero-plus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
+      - description: Linksprite PCDuino
+        items:
+          - const: linksprite,a10-pcduino
+          - const: allwinner,sun4i-a10
+
+      - description: Linksprite PCDuino2
+        items:
+          - const: linksprite,a10-pcduino2
+          - const: allwinner,sun4i-a10
+
+      - description: Linksprite PCDuino3
+        items:
+          - const: linksprite,pcduino3
+          - const: allwinner,sun7i-a20
+
+      - description: Linksprite PCDuino3 Nano
+        items:
+          - const: linksprite,pcduino3-nano
+          - const: allwinner,sun7i-a20
+
+      - description: Linutronix Testbox v2
+        items:
+          - const: linutronix,testbox-v2
+          - const: lamobo,lamobo-r1
+          - const: allwinner,sun7i-a20
+
+      - description: HAOYU Electronics Marsboard A10
+        items:
+          - const: haoyu,a10-marsboard
+          - const: allwinner,sun4i-a10
+
+      - description: MapleBoard MP130
+        items:
+          - const: mapleboard,mp130
+          - const: allwinner,sun8i-h3
+
+      - description: Mele A1000
+        items:
+          - const: mele,a1000
+          - const: allwinner,sun4i-a10
+
+      - description: Mele A1000G Quad Set Top Box
+        items:
+          - const: mele,a1000g-quad
+          - const: allwinner,sun6i-a31
+
+      - description: Mele I7 Quad Set Top Box
+        items:
+          - const: mele,i7
+          - const: allwinner,sun6i-a31
+
+      - description: Mele M3
+        items:
+          - const: mele,m3
+          - const: allwinner,sun7i-a20
+
+      - description: Mele M9 Set Top Box
+        items:
+          - const: mele,m9
+          - const: allwinner,sun6i-a31
+
+      - description: Merrii A20 Hummingboard
+        items:
+          - const: merrii,a20-hummingbird
+          - const: allwinner,sun7i-a20
+
+      - description: Merrii A31 Hummingboard
+        items:
+          - const: merrii,a31-hummingbird
+          - const: allwinner,sun6i-a31
+
+      - description: Merrii A80 Optimus
+        items:
+          - const: merrii,a80-optimus
+          - const: allwinner,sun9i-a80
+
+      - description: Miniand Hackberry
+        items:
+          - const: miniand,hackberry
+          - const: allwinner,sun4i-a10
+
+      - description: MK802
+        items:
+          - const: allwinner,mk802
+          - const: allwinner,sun4i-a10
+
+      - description: MK802-A10s
+        items:
+          - const: allwinner,a10s-mk802
+          - const: allwinner,sun5i-a10s
+
+      - description: MK802-II
+        items:
+          - const: allwinner,mk802ii
+          - const: allwinner,sun4i-a10
+
+      - description: MK808c
+        items:
+          - const: allwinner,mk808c
+          - const: allwinner,sun7i-a20
+
+      - description: MSI Primo81 Tablet
+        items:
+          - const: msi,primo81
+          - const: allwinner,sun6i-a31s
+
+      - description: Emlid Neutis N5 Developper Board
+        items:
+          - const: emlid,neutis-n5-devboard
+          - const: emlid,neutis-n5
+          - const: allwinner,sun50i-h5
+
+      - description: Emlid Neutis N5H3 Developper Board
+        items:
+          - const: emlid,neutis-n5h3-devboard
+          - const: emlid,neutis-n5h3
+          - const: allwinner,sun8i-h3
+
+      - description: NextThing Co. CHIP
+        items:
+          - const: nextthing,chip
+          - const: allwinner,sun5i-r8
+          - const: allwinner,sun5i-a13
+
+      - description: NextThing Co. CHIP Pro
+        items:
+          - const: nextthing,chip-pro
+          - const: nextthing,gr8
+
+      - description: NextThing Co. GR8 Evaluation Board
+        items:
+          - const: nextthing,gr8-evb
+          - const: nextthing,gr8
+
+      - description: Nintendo NES Classic
+        items:
+          - const: nintendo,nes-classic
+          - const: allwinner,sun8i-r16
+          - const: allwinner,sun8i-a33
+
+      - description: Nintendo Super NES Classic
+        items:
+          - const: nintendo,super-nes-classic
+          - const: nintendo,nes-classic
+          - const: allwinner,sun8i-r16
+          - const: allwinner,sun8i-a33
+
+      - description: Oceanic 5inMFD (5205)
+        items:
+          - const: oceanic,5205-5inmfd
+          - const: allwinner,sun50i-a64
+
+      - description: Olimex A10-OlinuXino LIME
+        items:
+          - const: olimex,a10-olinuxino-lime
+          - const: allwinner,sun4i-a10
+
+      - description: Olimex A10s-OlinuXino Micro
+        items:
+          - const: olimex,a10s-olinuxino-micro
+          - const: allwinner,sun5i-a10s
+
+      - description: Olimex A13-OlinuXino
+        items:
+          - const: olimex,a13-olinuxino
+          - const: allwinner,sun5i-a13
+
+      - description: Olimex A13-OlinuXino Micro
+        items:
+          - const: olimex,a13-olinuxino-micro
+          - const: allwinner,sun5i-a13
+
+      - description: Olimex A20-Olimex SOM Evaluation Board
+        items:
+          - const: olimex,a20-olimex-som-evb
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-Olimex SOM Evaluation Board (with eMMC)
+        items:
+          - const: olimex,a20-olimex-som-evb-emmc
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-OlinuXino LIME
+        items:
+          - const: olimex,a20-olinuxino-lime
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-OlinuXino LIME2
+        items:
+          - const: olimex,a20-olinuxino-lime2
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-OlinuXino LIME2 (with eMMC)
+        items:
+          - const: olimex,a20-olinuxino-lime2-emmc
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-OlinuXino Micro
+        items:
+          - const: olimex,a20-olinuxino-micro
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-OlinuXino Micro (with eMMC)
+        items:
+          - const: olimex,a20-olinuxino-micro-emmc
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-SOM204 Evaluation Board
+        items:
+          - const: olimex,a20-olimex-som204-evb
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A20-SOM204 Evaluation Board (with eMMC)
+        items:
+          - const: olimex,a20-olimex-som204-evb-emmc
+          - const: allwinner,sun7i-a20
+
+      - description: Olimex A33-OlinuXino
+        items:
+          - const: olimex,a33-olinuxino
+          - const: allwinner,sun8i-a33
+
+      - description: Olimex A64-OlinuXino
+        items:
+          - const: olimex,a64-olinuxino
+          - const: allwinner,sun50i-a64
+
+      - description: Olimex A64-OlinuXino (with eMMC)
+        items:
+          - const: olimex,a64-olinuxino-emmc
+          - const: allwinner,sun50i-a64
+
+      - description: Olimex A64 Teres-I
+        items:
+          - const: olimex,a64-teres-i
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64
+        items:
+          - const: pine64,pine64
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64+
+        items:
+          - const: pine64,pine64-plus
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PineH64 model A
+        items:
+          - const: pine64,pine-h64
+          - const: allwinner,sun50i-h6
+
+      - description: Pine64 PineH64 model B
+        items:
+          - const: pine64,pine-h64-model-b
+          - const: allwinner,sun50i-h6
+
+      - description: Pine64 LTS
+        items:
+          - const: pine64,pine64-lts
+          - const: allwinner,sun50i-r18
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 Pinebook
+        items:
+          - const: pine64,pinebook
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PinePhone Developer Batch (1.0)
+        items:
+          - const: pine64,pinephone-1.0
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PinePhone Braveheart (1.1)
+        items:
+          - const: pine64,pinephone-1.1
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PineTab
+        items:
+          - const: pine64,pinetab
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 SoPine Baseboard
+        items:
+          - const: pine64,sopine-baseboard
+          - const: pine64,sopine
+          - const: allwinner,sun50i-a64
+
+      - description: PineRiver Mini X-Plus
+        items:
+          - const: pineriver,mini-xplus
+          - const: allwinner,sun4i-a10
+
+      - description: PocketBook Touch Lux 3
+        items:
+          - const: pocketbook,touch-lux-3
+          - const: allwinner,sun5i-a13
+
+      - description: Point of View Protab2-IPS9
+        items:
+          - const: pov,protab2-ips9
+          - const: allwinner,sun4i-a10
+
+      - description: Polaroid MID2407PXE03 Tablet
+        items:
+          - const: polaroid,mid2407pxe03
+          - const: allwinner,sun8i-a23
+
+      - description: Polaroid MID2809PXE04 Tablet
+        items:
+          - const: polaroid,mid2809pxe04
+          - const: allwinner,sun8i-a23
+
+      - description: Q8 A13 Tablet
+        items:
+          - const: allwinner,q8-a13
+          - const: allwinner,sun5i-a13
+
+      - description: Q8 A23 Tablet
+        items:
+          - const: allwinner,q8-a23
+          - const: allwinner,sun8i-a23
+
+      - description: Q8 A33 Tablet
+        items:
+          - const: allwinner,q8-a33
+          - const: allwinner,sun8i-a33
+
+      - description: Qihua CQA3T BV3
+        items:
+          - const: qihua,t3-cqa3t-bv3
+          - const: allwinner,sun8i-t3
+          - const: allwinner,sun8i-r40
+
+      - description: R7 A10s HDMI TV Stick
+        items:
+          - const: allwinner,r7-tv-dongle
+          - const: allwinner,sun5i-a10s
+
+      - description: RerVision H3-DVK
+        items:
+          - const: rervision,h3-dvk
+          - const: allwinner,sun8i-h3
+
+      - description: Sinlinx SinA31s Core Board
+        items:
+          - const: sinlinx,sina31s
+          - const: allwinner,sun6i-a31s
+
+      - description: Sinlinx SinA31s Development Board
+        items:
+          - const: sinlinx,sina31s-sdk
+          - const: allwinner,sun6i-a31s
+
+      - description: Sinlinx SinA33
+        items:
+          - const: sinlinx,sina33
+          - const: allwinner,sun8i-a33
+
+      - description: Tanix TX6
+        items:
+          - const: oranth,tanix-tx6
+          - const: allwinner,sun50i-h6
+
+      - description: TBS A711 Tablet
+        items:
+          - const: tbs-biometrics,a711
+          - const: allwinner,sun8i-a83t
+
+      - description: Utoo P66
+        items:
+          - const: utoo,p66
+          - const: allwinner,sun5i-a13
+
+      - description: Wexler TAB7200
+        items:
+          - const: wexler,tab7200
+          - const: allwinner,sun7i-a20
+
+      - description: WITS A31 Colombus Evaluation Board
+        items:
+          - const: wits,colombus
+          - const: allwinner,sun6i-a31
+
+      - description: WITS Pro A20 DKT
+        items:
+          - const: wits,pro-a20-dkt
+          - const: allwinner,sun7i-a20
+
+      - description: Wobo i5
+        items:
+          - const: wobo,a10s-wobo-i5
+          - const: allwinner,sun5i-a10s
+
+      - description: Yones TopTech BS1078 v2 Tablet
+        items:
+          - const: yones-toptech,bs1078-v2
+          - const: allwinner,sun6i-a31s
+
+      - description: Xunlong OrangePi
+        items:
+          - const: xunlong,orangepi
+          - const: allwinner,sun7i-a20
+
+      - description: Xunlong OrangePi 2
+        items:
+          - const: xunlong,orangepi-2
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi 3
+        items:
+          - const: xunlong,orangepi-3
+          - const: allwinner,sun50i-h6
+
+      - description: Xunlong OrangePi Lite
+        items:
+          - const: xunlong,orangepi-lite
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi Lite2
+        items:
+          - const: xunlong,orangepi-lite2
+          - const: allwinner,sun50i-h6
+
+      - description: Xunlong OrangePi Mini
+        items:
+          - const: xunlong,orangepi-mini
+          - const: allwinner,sun7i-a20
+
+      - description: Xunlong OrangePi One
+        items:
+          - const: xunlong,orangepi-one
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi One Plus
+        items:
+          - const: xunlong,orangepi-one-plus
+          - const: allwinner,sun50i-h6
+
+      - description: Xunlong OrangePi PC
+        items:
+          - const: xunlong,orangepi-pc
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi PC 2
+        items:
+          - const: xunlong,orangepi-pc2
+          - const: allwinner,sun50i-h5
+
+      - description: Xunlong OrangePi PC Plus
+        items:
+          - const: xunlong,orangepi-pc-plus
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi Plus
+        items:
+          - const: xunlong,orangepi-plus
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi Plus 2E
+        items:
+          - const: xunlong,orangepi-plus2e
+          - const: allwinner,sun8i-h3
+
+      - description: Xunlong OrangePi Prime
+        items:
+          - const: xunlong,orangepi-prime
+          - const: allwinner,sun50i-h5
+
+      - description: Xunlong OrangePi R1
+        items:
+          - const: xunlong,orangepi-r1
+          - const: allwinner,sun8i-h2-plus
+
+      - description: Xunlong OrangePi Win
+        items:
+          - const: xunlong,orangepi-win
+          - const: allwinner,sun50i-a64
+
+      - description: Xunlong OrangePi Zero
+        items:
+          - const: xunlong,orangepi-zero
+          - const: allwinner,sun8i-h2-plus
+
+      - description: Xunlong OrangePi Zero Plus
+        items:
+          - const: xunlong,orangepi-zero-plus
+          - const: allwinner,sun50i-h5
+
+      - description: Xunlong OrangePi Zero Plus2
+        items:
+          - const: xunlong,orangepi-zero-plus2
+          - const: allwinner,sun50i-h5
+
+      - description: Xunlong OrangePi Zero Plus2
+        items:
+          - const: xunlong,orangepi-zero-plus2-h3
+          - const: allwinner,sun8i-h3

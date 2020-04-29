@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Sharp SL-C7xx PDAs
  * Models: SL-C700 (Corgi), SL-C750 (Shepherd), SL-C760 (Husky)
@@ -5,11 +6,6 @@
  * Copyright (c) 2004-2005 Richard Purdie
  *
  * Based on Sharp's 2.4 kernel patches/lubbock.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -24,6 +20,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/backlight.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -493,11 +490,23 @@ static struct platform_device corgi_audio_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
-	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
-	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
 
+static struct gpiod_lookup_table corgi_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 9 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 7 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 33 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_SD_PWR,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*
  * Irda
@@ -517,7 +526,7 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 };
 
 #if IS_ENABLED(CONFIG_SPI_PXA2XX)
-static struct pxa2xx_spi_master corgi_spi_info = {
+static struct pxa2xx_spi_controller corgi_spi_info = {
 	.num_chipselect	= 3,
 };
 
@@ -554,13 +563,20 @@ static void corgi_bl_kick_battery(void)
 	}
 }
 
+static struct gpiod_lookup_table corgi_lcdcon_gpio_table = {
+	.dev_id = "spi1.1",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_BACKLIGHT_CONT,
+			    "BL_CONT", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct corgi_lcd_platform_data corgi_lcdcon_info = {
 	.init_mode		= CORGI_LCD_MODE_VGA,
 	.max_intensity		= 0x2f,
 	.default_intensity	= 0x1f,
 	.limit_mask		= 0x0b,
-	.gpio_backlight_cont	= CORGI_GPIO_BACKLIGHT_CONT,
-	.gpio_backlight_on	= -1,
 	.kick_battery		= corgi_bl_kick_battery,
 };
 
@@ -600,6 +616,7 @@ static struct spi_board_info corgi_spi_devices[] = {
 static void __init corgi_init_spi(void)
 {
 	pxa2xx_set_spi_info(1, &corgi_spi_info);
+	gpiod_add_lookup_table(&corgi_lcdcon_gpio_table);
 	spi_register_board_info(ARRAY_AND_SIZE(corgi_spi_devices));
 }
 #else
@@ -731,6 +748,7 @@ static void __init corgi_init(void)
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
+	gpiod_add_lookup_table(&corgi_mci_gpio_table);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

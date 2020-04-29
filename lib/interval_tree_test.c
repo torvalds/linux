@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/interval_tree.h>
@@ -64,11 +65,12 @@ static int interval_tree_test_init(void)
 	unsigned long results;
 	cycles_t time1, time2, time;
 
-	nodes = kmalloc(nnodes * sizeof(struct interval_tree_node), GFP_KERNEL);
+	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
+			      GFP_KERNEL);
 	if (!nodes)
 		return -ENOMEM;
 
-	queries = kmalloc(nsearches * sizeof(int), GFP_KERNEL);
+	queries = kmalloc_array(nsearches, sizeof(int), GFP_KERNEL);
 	if (!queries) {
 		kfree(nodes);
 		return -ENOMEM;

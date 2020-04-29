@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * HE handling
+ *
+ * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
+ */
+
+#include "ieee80211_i.h"
+
+void
+ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_supported_band *sband,
+				  const u8 *he_cap_ie, u8 he_cap_len,
+				  struct sta_info *sta)
+{
+	struct ieee80211_sta_he_cap *he_cap = &sta->sta.he_cap;
+	struct ieee80211_he_cap_elem *he_cap_ie_elem = (void *)he_cap_ie;
+	u8 he_ppe_size;
+	u8 mcs_nss_size;
+	u8 he_total_size;
+
+	memset(he_cap, 0, sizeof(*he_cap));
+
+	if (!he_cap_ie || !ieee80211_get_he_sta_cap(sband))
+		return;
+
+	/* Make sure size is OK */
+	mcs_nss_size = ieee80211_he_mcs_nss_size(he_cap_ie_elem);
+	he_ppe_size =
+		ieee80211_he_ppe_size(he_cap_ie[sizeof(he_cap->he_cap_elem) +
+						mcs_nss_size],
+				      he_cap_ie_elem->phy_cap_info);
+	he_total_size = sizeof(he_cap->he_cap_elem) + mcs_nss_size +
+			he_ppe_size;
+	if (he_cap_len < he_total_size)
+		return;
+
+	memcpy(&he_cap->he_cap_elem, he_cap_ie, sizeof(he_cap->he_cap_elem));
+
+	/* HE Tx/Rx HE MCS NSS Support Field */
+	memcpy(&he_cap->he_mcs_nss_supp,
+	       &he_cap_ie[sizeof(he_cap->he_cap_elem)], mcs_nss_size);
+
+	/* Check if there are (optional) PPE Thresholds */
+	if (he_cap->he_cap_elem.phy_cap_info[6] &
+	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT)
+		memcpy(he_cap->ppe_thres,
+		       &he_cap_ie[sizeof(he_cap->he_cap_elem) + mcs_nss_size],
+		       he_ppe_size);
+
+	he_cap->has_he = true;
+
+	sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
+	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+}
+
+void
+ieee80211_he_op_ie_to_bss_conf(struct ieee80211_vif *vif,
+			const struct ieee80211_he_operation *he_op_ie_elem)
+{
+	struct ieee80211_he_operation *he_operation =
+					&vif->bss_conf.he_operation;
+
+	if (!he_op_ie_elem) {
+		memset(he_operation, 0, sizeof(*he_operation));
+		return;
+	}
+
+	vif->bss_conf.he_operation = *he_op_ie_elem;
+}
+
+void
+ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
+				const struct ieee80211_he_spr *he_spr_ie_elem)
+{
+	struct ieee80211_he_obss_pd *he_obss_pd =
+					&vif->bss_conf.he_obss_pd;
+	const u8 *data;
+
+	memset(he_obss_pd, 0, sizeof(*he_obss_pd));
+
+	if (!he_spr_ie_elem)
+		return;
+	data = he_spr_ie_elem->optional;
+
+	if (he_spr_ie_elem->he_sr_control &
+	    IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
+		data++;
+	if (he_spr_ie_elem->he_sr_control &
+	    IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT) {
+		he_obss_pd->max_offset = *data++;
+		he_obss_pd->min_offset = *data++;
+		he_obss_pd->enable = true;
+	}
+}

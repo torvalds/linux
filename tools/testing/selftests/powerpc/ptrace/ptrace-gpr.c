@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ptrace test for GPR/FPR registers
  *
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include "ptrace.h"
 #include "ptrace-gpr.h"
@@ -31,7 +27,7 @@ void gpr(void)
 		ASM_LOAD_GPR_IMMED(gpr_1)
 		ASM_LOAD_FPR_SINGLE_PRECISION(flt_1)
 		:
-		: [gpr_1]"i"(GPR_1), [flt_1] "r" (&a)
+		: [gpr_1]"i"(GPR_1), [flt_1] "b" (&a)
 		: "memory", "r6", "r7", "r8", "r9", "r10",
 		"r11", "r12", "r13", "r14", "r15", "r16", "r17",
 		"r18", "r19", "r20", "r21", "r22", "r23", "r24",

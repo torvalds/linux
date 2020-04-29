@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2001  Dave Jones, Arjan van de ven.
  * (C) 2002 - 2003  Dominik Brodowski <linux@brodo.de>
  *
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information, and on Intel documentation
  *  for chipsets ICH2-M and ICH3-M.
  *
@@ -243,8 +243,7 @@ static unsigned int speedstep_get(unsigned int cpu)
 	unsigned int speed;
 
 	/* You're supposed to ensure CPU is online. */
-	if (smp_call_function_single(cpu, get_freq_data, &speed, 1) != 0)
-		BUG();
+	BUG_ON(smp_call_function_single(cpu, get_freq_data, &speed, 1));
 
 	pr_debug("detected %u kHz as current frequency\n", speed);
 	return speed;
@@ -320,15 +319,11 @@ static struct cpufreq_driver speedstep_driver = {
 };
 
 static const struct x86_cpu_id ss_smi_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0xb, },
-	{ X86_VENDOR_INTEL, 6, 0x8, },
-	{ X86_VENDOR_INTEL, 15, 2 },
+	X86_MATCH_VENDOR_FAM_MODEL(INTEL,  6, 0x8, 0),
+	X86_MATCH_VENDOR_FAM_MODEL(INTEL,  6, 0xb, 0),
+	X86_MATCH_VENDOR_FAM_MODEL(INTEL, 15, 0x2, 0),
 	{}
 };
-#if 0
-/* Autoload or not? Do not for now. */
-MODULE_DEVICE_TABLE(x86cpu, ss_smi_ids);
-#endif
 
 /**
  * speedstep_init - initializes the SpeedStep CPUFreq driver

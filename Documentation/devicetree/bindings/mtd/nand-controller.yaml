@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/nand-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NAND Chip and NAND Controller Generic Binding
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+  - Richard Weinberger <richard@nod.at>
+
+description: |
+  The NAND controller should be represented with its own DT node, and
+  all NAND chips attached to this controller should be defined as
+  children nodes of the NAND controller. This representation should be
+  enforced even for simple controllers supporting only one chip.
+
+  The ECC strength and ECC step size properties define the user
+  desires in terms of correction capability of a controller. Together,
+  they request the ECC engine to correct {strength} bit errors per
+  {size} bytes.
+
+  The interpretation of these parameters is implementation-defined, so
+  not all implementations must support all possible
+  combinations. However, implementations are encouraged to further
+  specify the value(s) they support.
+
+properties:
+  $nodename:
+    pattern: "^nand-controller(@.*)?"
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  ranges: true
+
+patternProperties:
+  "^nand@[a-f0-9]$":
+    type: object
+    properties:
+      reg:
+        description:
+          Contains the native Ready/Busy IDs.
+
+      nand-ecc-mode:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/string
+          - enum: [ none, soft, hw, hw_syndrome, hw_oob_first, on-die ]
+        description:
+          Desired ECC engine, either hardware (most of the time
+          embedded in the NAND controller) or software correction
+          (Linux will handle the calculations). soft_bch is deprecated
+          and should be replaced by soft and nand-ecc-algo.
+
+      nand-ecc-algo:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/string
+          - enum: [ hamming, bch, rs ]
+        description:
+          Desired ECC algorithm.
+
+      nand-bus-width:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/uint32
+          - enum: [ 8, 16 ]
+          - default: 8
+        description:
+          Bus width to the NAND chip
+
+      nand-on-flash-bbt:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          With this property, the OS will search the device for a Bad
+          Block Table (BBT). If not found, it will create one, reserve
+          a few blocks at the end of the device to store it and update
+          it as the device ages. Otherwise, the out-of-band area of a
+          few pages of all the blocks will be scanned at boot time to
+          find Bad Block Markers (BBM). These markers will help to
+          build a volatile BBT in RAM.
+
+      nand-ecc-strength:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/uint32
+          - minimum: 1
+        description:
+          Maximum number of bits that can be corrected per ECC step.
+
+      nand-ecc-step-size:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/uint32
+          - minimum: 1
+        description:
+          Number of data bytes covered by a single ECC step.
+
+      nand-ecc-maximize:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Whether or not the ECC strength should be maximized. The
+          maximum ECC strength is both controller and chip
+          dependent. The ECC engine has to select the ECC config
+          providing the best strength and taking the OOB area size
+          constraint into account. This is particularly useful when
+          only the in-band area is used by the upper layers, and you
+          want to make your NAND as reliable as possible.
+
+      nand-is-boot-medium:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Whether or not the NAND chip is a boot medium. Drivers might
+          use this information to select ECC algorithms supported by
+          the boot ROM or similar restrictions.
+
+      nand-rb:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description:
+          Contains the native Ready/Busy IDs.
+
+    required:
+      - reg
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    nand-controller {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      /* controller specific properties */
+
+      nand@0 {
+        reg = <0>;
+        nand-ecc-mode = "soft";
+        nand-ecc-algo = "bch";
+
+        /* controller specific properties */
+      };
+    };

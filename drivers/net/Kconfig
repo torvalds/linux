@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Network device configuration
 #
@@ -70,6 +71,49 @@ config DUMMY
 	  To compile this driver as a module, choose M here: the module
 	  will be called dummy.
 
+config WIREGUARD
+	tristate "WireGuard secure network tunnel"
+	depends on NET && INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select DST_CACHE
+	select CRYPTO
+	select CRYPTO_LIB_CURVE25519
+	select CRYPTO_LIB_CHACHA20POLY1305
+	select CRYPTO_LIB_BLAKE2S
+	select CRYPTO_CHACHA20_X86_64 if X86 && 64BIT
+	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
+	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
+	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
+	select ARM_CRYPTO if ARM
+	select ARM64_CRYPTO if ARM64
+	select CRYPTO_CHACHA20_NEON if (ARM || ARM64) && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_ARM if ARM
+	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
+	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
+	select CRYPTO_POLY1305_MIPS if CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	help
+	  WireGuard is a secure, fast, and easy to use replacement for IPSec
+	  that uses modern cryptography and clever networking tricks. It's
+	  designed to be fairly general purpose and abstract enough to fit most
+	  use cases, while at the same time remaining extremely simple to
+	  configure. See www.wireguard.com for more info.
+
+	  It's safe to say Y or M here, as the driver is very lightweight and
+	  is only in use when an administrator chooses to add an interface.
+
+config WIREGUARD_DEBUG
+	bool "Debugging checks and verbose messages"
+	depends on WIREGUARD
+	help
+	  This will write log messages for handshake and other events
+	  that occur for a WireGuard interface. It will also perform some
+	  extra validation checks and unit tests at various points. This is
+	  only useful for debugging.
+
+	  Say N here unless you know what you're doing.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
 	---help---
@@ -105,6 +149,7 @@ config NET_FC
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
+	select NET_REDIRECT
 	---help---
 	  This is an intermediate driver that allows sharing of
 	  resources.
@@ -145,26 +190,29 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
+config IPVLAN_L3S
+	depends on NETFILTER
+	depends on IPVLAN
+	def_bool y
+	select NET_L3_MASTER_DEV
 
 config IPVLAN
-    tristate "IP-VLAN support"
-    depends on INET
-    depends on IPV6 || !IPV6
-    depends on NETFILTER
-    select NET_L3_MASTER_DEV
-    ---help---
-      This allows one to create virtual devices off of a main interface
-      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
-      on packets. All interfaces (including the main interface) share L2
-      making it transparent to the connected L2 switch.
+	tristate "IP-VLAN support"
+	depends on INET
+	depends on IPV6 || !IPV6
+	---help---
+	  This allows one to create virtual devices off of a main interface
+	  and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+	  on packets. All interfaces (including the main interface) share L2
+	  making it transparent to the connected L2 switch.
 
-      Ipvlan devices can be added using the "ip" command from the
-      iproute2 package starting with the iproute2-3.19 release:
+	  Ipvlan devices can be added using the "ip" command from the
+	  iproute2 package starting with the iproute2-3.19 release:
 
-      "ip link add link <main-dev> [ NAME ] type ipvlan"
+	  "ip link add link <main-dev> [ NAME ] type ipvlan"
 
-      To compile this driver as a module, choose M here: the module
-      will be called ipvlan.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipvlan.
 
 config IPVTAP
 	tristate "IP-VLAN based tap driver"
@@ -181,11 +229,11 @@ config IPVTAP
 	  will be called ipvtap.
 
 config VXLAN
-       tristate "Virtual eXtensible Local Area Network (VXLAN)"
-       depends on INET
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Virtual eXtensible Local Area Network (VXLAN)"
+	depends on INET
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -196,11 +244,12 @@ config VXLAN
 	  will be called vxlan.
 
 config GENEVE
-       tristate "Generic Network Virtualization Encapsulation"
-       depends on INET && NET_UDP_TUNNEL
-       select NET_IP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Generic Network Virtualization Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	---help---
 	  This allows one to create geneve virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -210,10 +259,23 @@ config GENEVE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
 
+config BAREUDP
+       tristate "Bare UDP Encapsulation"
+       depends on INET
+       depends on IPV6 || !IPV6
+       select NET_UDP_TUNNEL
+       select GRO_CELLS
+       help
+          This adds a bare UDP tunnel module for tunnelling different
+          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+
+          To compile this driver as a module, choose M here: the module
+          will be called bareudp.
+
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
-	depends on INET && NET_UDP_TUNNEL
-	select NET_IP_TUNNEL
+	depends on INET
+	select NET_UDP_TUNNEL
 	---help---
 	  This allows one to create gtp virtual interfaces that provide
 	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
@@ -239,8 +301,8 @@ config MACSEC
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
-	If you want to log kernel messages over the network, enable this.
-	See <file:Documentation/networking/netconsole.txt> for details.
+	  If you want to log kernel messages over the network, enable this.
+	  See <file:Documentation/networking/netconsole.txt> for details.
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
@@ -331,6 +393,7 @@ config VETH
 config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
+	select NET_FAILOVER
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -356,12 +419,12 @@ config NET_VRF
 	  support enables VRF devices.
 
 config VSOCKMON
-    tristate "Virtual vsock monitoring device"
-    depends on VHOST_VSOCK
-    ---help---
-     This option enables a monitoring net device for vsock sockets. It is
-     mostly intended for developers or support to debug vsock issues. If
-     unsure, say N.
+	tristate "Virtual vsock monitoring device"
+	depends on VHOST_VSOCK
+	---help---
+	  This option enables a monitoring net device for vsock sockets. It is
+	  mostly intended for developers or support to debug vsock issues. If
+	  unsure, say N.
 
 endif # NET_CORE
 
@@ -382,6 +445,8 @@ source "drivers/net/fddi/Kconfig"
 
 source "drivers/net/hippi/Kconfig"
 
+source "drivers/net/ipa/Kconfig"
+
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
 	depends on PNP
@@ -395,10 +460,10 @@ config NET_SB1000
 
 	  At present this driver only compiles as a module, so say M here if
 	  you have this card. The module will be called sb1000. Then read
-	  <file:Documentation/networking/README.sb1000> for information on how
-	  to use this module, as it needs special ppp scripts for establishing
-	  a connection. Further documentation and the necessary scripts can be
-	  found at:
+	  <file:Documentation/networking/device_drivers/sb1000.txt> for
+	  information on how to use this module, as it needs special ppp
+	  scripts for establishing a connection. Further documentation
+	  and the necessary scripts can be found at:
 
 	  <http://www.jacksonville.net/~fventuri/>
 	  <http://home.adelphia.net/~siglercm/sb1000.html>
@@ -481,14 +546,14 @@ config FUJITSU_ES
 	depends on ACPI
 	help
 	  This driver provides support for Extended Socket network device
-          on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
+	  on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
-config THUNDERBOLT_NET
-	tristate "Networking over Thunderbolt cable"
-	depends on THUNDERBOLT && INET
+config USB4_NET
+	tristate "Networking over USB4 and Thunderbolt cables"
+	depends on USB4 && INET
 	help
-	  Select this if you want to create network between two
-	  computers over a Thunderbolt cable. The driver supports Apple
+	  Select this if you want to create network between two computers
+	  over a USB4 and Thunderbolt cables. The driver supports Apple
 	  ThunderboltIP protocol and allows communication with any host
 	  supporting the same protocol including Windows and macOS.
 
@@ -500,7 +565,9 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
-	depends on MAY_USE_DEVLINK
+	depends on INET
+	depends on IPV6 || IPV6=n
+	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially
@@ -508,5 +575,17 @@ config NETDEVSIM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called netdevsim.
+
+config NET_FAILOVER
+	tristate "Failover driver"
+	select FAILOVER
+	help
+	  This provides an automated failover mechanism via APIs to create
+	  and destroy a failover master netdev and manages a primary and
+	  standby slave netdevs that get registered via the generic failover
+	  infrastructure. This can be used by paravirtual drivers to enable
+	  an alternate low latency datapath. It also enables live migration of
+	  a VM with direct attached VF by failing over to the paravirtual
+	  datapath when the VF is unplugged.
 
 endif # NETDEVICES

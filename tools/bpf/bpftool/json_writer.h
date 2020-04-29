@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
  * Simple streaming JSON writer
  *
  * This takes care of the annoying bits of JSON syntax like the commas
  * after elements
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Authors:	Stephen Hemminger <stephen@networkplumber.org>
  */
@@ -18,6 +14,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <linux/compiler.h>
 
 /* Opaque class structure */
 typedef struct json_writer json_writer_t;
@@ -34,8 +31,9 @@ void jsonw_pretty(json_writer_t *self, bool on);
 void jsonw_name(json_writer_t *self, const char *name);
 
 /* Add value  */
-void jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap);
-void jsonw_printf(json_writer_t *self, const char *fmt, ...);
+void __printf(2, 0) jsonw_vprintf_enquote(json_writer_t *self, const char *fmt,
+					  va_list ap);
+void __printf(2, 3) jsonw_printf(json_writer_t *self, const char *fmt, ...);
 void jsonw_string(json_writer_t *self, const char *value);
 void jsonw_bool(json_writer_t *self, bool value);
 void jsonw_float(json_writer_t *self, double number);

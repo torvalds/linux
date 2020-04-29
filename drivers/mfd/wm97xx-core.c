@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Wolfson WM97xx -- Core device
  *
  * Copyright (C) 2017 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Features:
  *  - an AC97 audio codec
@@ -278,7 +274,7 @@ static int wm97xx_ac97_probe(struct ac97_codec_device *adev)
 
 	codec_pdata = &wm97xx->codec_pdata;
 	codec_pdata->ac97 = wm97xx->ac97;
-	codec_pdata->batt_pdata = pdata->batt_pdata;
+	codec_pdata->batt_pdata = pdata ? pdata->batt_pdata : NULL;
 
 	switch (adev->vendor_id) {
 	case WM9705_VENDOR_ID:

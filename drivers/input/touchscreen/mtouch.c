@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MicroTouch (3M) serial touchscreen driver
  *
  * Copyright (c) 2004 Vojtech Pavlik
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 /*
  * 2005/02/19 Dan Streetman <ddstreet@ieee.org>
@@ -90,7 +86,7 @@ static void mtouch_process_response(struct mtouch *mtouch)
 static irqreturn_t mtouch_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags)
 {
-	struct mtouch* mtouch = serio_get_drvdata(serio);
+	struct mtouch *mtouch = serio_get_drvdata(serio);
 
 	mtouch->data[mtouch->idx] = data;
 
@@ -110,7 +106,7 @@ static irqreturn_t mtouch_interrupt(struct serio *serio,
 
 static void mtouch_disconnect(struct serio *serio)
 {
-	struct mtouch* mtouch = serio_get_drvdata(serio);
+	struct mtouch *mtouch = serio_get_drvdata(serio);
 
 	input_get_device(mtouch->dev);
 	input_unregister_device(mtouch->dev);

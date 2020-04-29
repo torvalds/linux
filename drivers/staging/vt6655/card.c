@@ -60,14 +60,9 @@ static const unsigned short cwRXBCNTSFOff[MAX_RATE] = {
 
 /*---------------------  Static Functions  --------------------------*/
 
-static
-void
-s_vCalculateOFDMRParameter(
-	unsigned char byRate,
-	u8 bb_type,
-	unsigned char *pbyTxRate,
-	unsigned char *pbyRsvTime
-);
+static void s_vCalculateOFDMRParameter(unsigned char byRate, u8 bb_type,
+				       unsigned char *pbyTxRate,
+				       unsigned char *pbyRsvTime);
 
 /*---------------------  Export Functions  --------------------------*/
 
@@ -84,14 +79,10 @@ s_vCalculateOFDMRParameter(
  *
  * Return Value: none
  */
-static
-void
-s_vCalculateOFDMRParameter(
-	unsigned char byRate,
-	u8 bb_type,
-	unsigned char *pbyTxRate,
-	unsigned char *pbyRsvTime
-)
+static void s_vCalculateOFDMRParameter(unsigned char byRate,
+				       u8 bb_type,
+				       unsigned char *pbyTxRate,
+				       unsigned char *pbyRsvTime)
 {
 	switch (byRate) {
 	case RATE_6M:
@@ -414,14 +405,11 @@ bool CARDbSetBeaconPeriod(struct vnt_private *priv,
  *  Out:
  *      none
  *
- * Return Value: true if success; otherwise false
  */
-bool CARDbRadioPowerOff(struct vnt_private *priv)
+void CARDbRadioPowerOff(struct vnt_private *priv)
 {
-	bool bResult = true;
-
 	if (priv->bRadioOff)
-		return true;
+		return;
 
 	switch (priv->byRFType) {
 	case RF_RFMD2959:
@@ -449,7 +437,6 @@ bool CARDbRadioPowerOff(struct vnt_private *priv)
 	pr_debug("chester power off\n");
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_GPIOCTL0,
 		      LED_ACTSET);  /* LED issue */
-	return bResult;
 }
 
 /*
@@ -506,10 +493,7 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 	return bResult;
 }
 
-void
-CARDvSafeResetTx(
-	struct vnt_private *priv
-)
+void CARDvSafeResetTx(struct vnt_private *priv)
 {
 	unsigned int uu;
 	struct vnt_tx_desc *pCurrTD;
@@ -557,10 +541,7 @@ CARDvSafeResetTx(
  *
  * Return Value: none
  */
-void
-CARDvSafeResetRx(
-	struct vnt_private *priv
-)
+void CARDvSafeResetRx(struct vnt_private *priv)
 {
 	unsigned int uu;
 	struct vnt_rx_desc *pDesc;
@@ -751,8 +732,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	VNSvOutPortW(priv->PortOffset + MAC_REG_RSPINF_A_24,
 		     MAKEWORD(byTxRate, byRsvTime));
 	/* RSPINF_a_36 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate(
-							   (void *)priv,
+	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_36M),
 				   bb_type,
 				   &byTxRate,
@@ -760,8 +740,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	VNSvOutPortW(priv->PortOffset + MAC_REG_RSPINF_A_36,
 		     MAKEWORD(byTxRate, byRsvTime));
 	/* RSPINF_a_48 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate(
-							   (void *)priv,
+	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_48M),
 				   bb_type,
 				   &byTxRate,
@@ -769,8 +748,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	VNSvOutPortW(priv->PortOffset + MAC_REG_RSPINF_A_48,
 		     MAKEWORD(byTxRate, byRsvTime));
 	/* RSPINF_a_54 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate(
-							   (void *)priv,
+	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,
@@ -778,8 +756,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	VNSvOutPortW(priv->PortOffset + MAC_REG_RSPINF_A_54,
 		     MAKEWORD(byTxRate, byRsvTime));
 	/* RSPINF_a_72 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate(
-							   (void *)priv,
+	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,

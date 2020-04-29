@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _ASM_ARC_MMU_H
@@ -43,6 +40,10 @@
 #define ARC_REG_SCRATCH_DATA0	0x46c
 #endif
 
+#if defined(CONFIG_ISA_ARCV2) || !defined(CONFIG_SMP)
+#define	ARC_USE_SCRATCH_REG
+#endif
+
 /* Bits in MMU PID register */
 #define __TLB_ENABLE		(1 << 31)
 #define __PROG_ENABLE		(1 << 30)
@@ -66,6 +67,8 @@
 #if (CONFIG_ARC_MMU_VER >= 2)
 #define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
 #define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
+#else
+#define TLBWriteNI  TLBWrite	/* Not present in hardware, fallback */
 #endif
 
 #if (CONFIG_ARC_MMU_VER >= 4)

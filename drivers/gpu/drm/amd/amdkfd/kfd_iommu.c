@@ -157,7 +157,7 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 	if (!p)
 		return;
 
-	pr_debug("Unbinding process %d from IOMMU\n", pasid);
+	pr_debug("Unbinding process 0x%x from IOMMU\n", pasid);
 
 	mutex_lock(kfd_get_dbgmgr_mutex());
 
@@ -190,8 +190,8 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 {
 	struct kfd_dev *dev;
 
-	dev_warn(kfd_device,
-			"Invalid PPR device %x:%x.%x pasid %d address 0x%lX flags 0x%X",
+	dev_warn_ratelimited(kfd_device,
+			"Invalid PPR device %x:%x.%x pasid 0x%x address 0x%lX flags 0x%X",
 			PCI_BUS_NUM(pdev->devfn),
 			PCI_SLOT(pdev->devfn),
 			PCI_FUNC(pdev->devfn),
@@ -232,7 +232,7 @@ static int kfd_bind_processes_to_device(struct kfd_dev *kfd)
 		err = amd_iommu_bind_pasid(kfd->pdev, p->pasid,
 				p->lead_thread);
 		if (err < 0) {
-			pr_err("Unexpected pasid %d binding failure\n",
+			pr_err("Unexpected pasid 0x%x binding failure\n",
 					p->pasid);
 			mutex_unlock(&p->mutex);
 			break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-ixp4xx/common-pci.c 
  *
@@ -8,11 +9,6 @@
  * Copyright (C) 2002 Intel Corporation.
  * Copyright (C) 2003 Greg Ungerer <gerg@snapgear.com>
  * Copyright (C) 2003-2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/sched.h>
@@ -31,7 +27,7 @@
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/mach/pci.h>
 #include <mach/hardware.h>
 
@@ -421,7 +417,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	if (nr >= 1)
 		return 0;
 
-	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
+	res = kcalloc(2, sizeof(*res), GFP_KERNEL);
 	if (res == NULL) {
 		/* 
 		 * If we're out of memory this early, something is wrong,

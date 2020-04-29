@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * poweroff.c - sysrq handler to gracefully power down machine.
- *
- * This file is released under the GPL v2
  */
 
 #include <linux/kernel.h>

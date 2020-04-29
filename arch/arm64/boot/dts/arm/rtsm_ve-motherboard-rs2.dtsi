@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ARM Ltd. Fast Models
+ *
+ * "rs2" extension for the v2m motherboard
+ */
+/ {
+	bus@8000000 {
+		motherboard {
+			arm,v2m-memory-map = "rs2";
+
+			iofpga@3,00000000 {
+				virtio-p9@140000 {
+					compatible = "virtio,mmio";
+					reg = <0x140000 0x200>;
+					interrupts = <43>;
+				};
+
+				virtio-net@150000 {
+					compatible = "virtio,mmio";
+					reg = <0x150000 0x200>;
+					interrupts = <44>;
+				};
+			};
+		};
+	};
+};

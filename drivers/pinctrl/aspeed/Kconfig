@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_ASPEED
 	bool
 	depends on (ARCH_ASPEED || COMPILE_TEST) && OF
@@ -21,4 +22,12 @@ config PINCTRL_ASPEED_G5
 	select PINCTRL_ASPEED
 	help
 	  Say Y here to enable pin controller support for Aspeed's 5th
+	  generation SoCs. GPIO is provided by a separate GPIO driver.
+
+config PINCTRL_ASPEED_G6
+	bool "Aspeed G6 SoC pin control"
+	depends on (MACH_ASPEED_G6 || COMPILE_TEST) && OF
+	select PINCTRL_ASPEED
+	help
+	  Say Y here to enable pin controller support for Aspeed's 6th
 	  generation SoCs. GPIO is provided by a separate GPIO driver.

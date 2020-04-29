@@ -67,6 +67,17 @@ enum {
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_MAX_PAGES_PER_MR	= 512,
+
+	SRP_MAX_ADD_CDB_LEN	= 16,
+
+	SRP_MAX_IMM_SGE		= 2,
+	SRP_MAX_SGE		= SRP_MAX_IMM_SGE + 1,
+	/*
+	 * Choose the immediate data offset such that a 32 byte CDB still fits.
+	 */
+	SRP_IMM_DATA_OFFSET	= sizeof(struct srp_cmd) +
+				  SRP_MAX_ADD_CDB_LEN +
+				  sizeof(struct srp_imm_buf),
 };
 
 enum srp_target_state {
@@ -130,6 +141,8 @@ struct srp_request {
 /**
  * struct srp_rdma_ch
  * @comp_vector: Completion vector used by this RDMA channel.
+ * @max_it_iu_len: Maximum initiator-to-target information unit length.
+ * @max_ti_iu_len: Maximum target-to-initiator information unit length.
  */
 struct srp_rdma_ch {
 	/* These are RW in the hot path, and commonly used together */
@@ -146,6 +159,10 @@ struct srp_rdma_ch {
 		struct ib_fmr_pool     *fmr_pool;
 		struct srp_fr_pool     *fr_pool;
 	};
+	uint32_t		max_it_iu_len;
+	uint32_t		max_ti_iu_len;
+	u8			max_imm_sge;
+	bool			use_imm_data;
 
 	/* Everything above this point is used in the hot path of
 	 * command processing. Try to keep them packed into cachelines.
@@ -169,7 +186,6 @@ struct srp_rdma_ch {
 	struct srp_iu	      **tx_ring;
 	struct srp_iu	      **rx_ring;
 	struct srp_request     *req_ring;
-	int			max_ti_iu_len;
 	int			comp_vector;
 
 	u64			tsk_mgmt_tag;
@@ -194,7 +210,7 @@ struct srp_target_port {
 	u32			ch_count;
 	u32			lkey;
 	enum srp_target_state	state;
-	unsigned int		max_iu_len;
+	uint32_t		max_it_iu_size;
 	unsigned int		cmd_sg_cnt;
 	unsigned int		indirect_size;
 	bool			allow_ext_sg;
@@ -231,11 +247,13 @@ struct srp_target_port {
 			union {
 				struct sockaddr_in	ip4;
 				struct sockaddr_in6	ip6;
+				struct sockaddr		sa;
 				struct sockaddr_storage ss;
 			} src;
 			union {
 				struct sockaddr_in	ip4;
 				struct sockaddr_in6	ip6;
+				struct sockaddr		sa;
 				struct sockaddr_storage ss;
 			} dst;
 			bool src_specified;
@@ -259,6 +277,8 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
+	u32			num_sge;
+	struct ib_sge		sge[SRP_MAX_SGE];
 	struct ib_cqe		cqe;
 };
 
@@ -289,7 +309,7 @@ struct srp_fr_pool {
 	int			max_page_list_len;
 	spinlock_t		lock;
 	struct list_head	free_list;
-	struct srp_fr_desc	desc[0];
+	struct srp_fr_desc	desc[];
 };
 
 /**

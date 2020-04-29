@@ -37,14 +37,14 @@
 #include <linux/slab.h>
 #include "qed.h"
 
-/* Fields of IGU PF CONFIGRATION REGISTER */
+/* Fields of IGU PF CONFIGURATION REGISTER */
 #define IGU_PF_CONF_FUNC_EN       (0x1 << 0)    /* function enable        */
 #define IGU_PF_CONF_MSI_MSIX_EN   (0x1 << 1)    /* MSI/MSIX enable        */
 #define IGU_PF_CONF_INT_LINE_EN   (0x1 << 2)    /* INT enable             */
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
-/* Fields of IGU VF CONFIGRATION REGISTER */
+/* Fields of IGU VF CONFIGURATION REGISTER */
 #define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
 #define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
 #define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
@@ -189,6 +189,16 @@ void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
  *
  */
 void qed_int_disable_post_isr_release(struct qed_dev *cdev);
+
+/**
+ * @brief - Doorbell Recovery handler.
+ *          Run doorbell recovery in case of PF overflow (and flush DORQ if
+ *          needed).
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 #define QED_CAU_DEF_RX_TIMER_RES 0
 #define QED_CAU_DEF_TX_TIMER_RES 0
@@ -420,5 +430,8 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			  u8 timer_res, u16 sb_id, bool tx);
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
+
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt);
 
 #endif

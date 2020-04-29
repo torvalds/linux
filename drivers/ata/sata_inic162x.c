@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sata_inic162x.c - Driver for Initio 162x SATA controllers
  *
  * Copyright 2006  SUSE Linux Products GmbH
  * Copyright 2006  Tejun Heo <teheo@novell.com>
- *
- * This file is released under GPL v2.
  *
  * **** WARNING ****
  *
@@ -146,7 +145,7 @@ enum {
 
 	/* PORT_IDMA_CTL bits */
 	IDMA_CTL_RST_ATA	= (1 << 2),  /* hardreset ATA bus */
-	IDMA_CTL_RST_IDMA	= (1 << 5),  /* reset IDMA machinary */
+	IDMA_CTL_RST_IDMA	= (1 << 5),  /* reset IDMA machinery */
 	IDMA_CTL_GO		= (1 << 7),  /* IDMA mode go */
 	IDMA_CTL_ATA_NIEN	= (1 << 8),  /* ATA IRQ disable */
 
@@ -245,8 +244,15 @@ struct inic_port_priv {
 
 static struct scsi_host_template inic_sht = {
 	ATA_BASE_SHT(DRV_NAME),
-	.sg_tablesize	= LIBATA_MAX_PRD,	/* maybe it can be larger? */
-	.dma_boundary	= INIC_DMA_BOUNDARY,
+	.sg_tablesize		= LIBATA_MAX_PRD, /* maybe it can be larger? */
+
+	/*
+	 * This controller is braindamaged.  dma_boundary is 0xffff like others
+	 * but it will lock up the whole machine HARD if 65536 byte PRD entry
+	 * is fed.  Reduce maximum segment size.
+	 */
+	.dma_boundary		= INIC_DMA_BOUNDARY,
+	.max_segment_size	= 65536 - 512,
 };
 
 static const int scr_map[] = {
@@ -472,7 +478,7 @@ static void inic_fill_sg(struct inic_prd *prd, struct ata_queued_cmd *qc)
 	prd[-1].flags |= PRD_END;
 }
 
-static void inic_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors inic_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct inic_port_priv *pp = qc->ap->private_data;
 	struct inic_pkt *pkt = pp->pkt;
@@ -532,6 +538,8 @@ static void inic_qc_prep(struct ata_queued_cmd *qc)
 		inic_fill_sg(prd, qc);
 
 	pp->cpb_tbl[0] = pp->pkt_dma;
+
+	return AC_ERR_OK;
 }
 
 static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
@@ -856,26 +864,9 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Set dma_mask.  This devices doesn't support 64bit addressing. */
-	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc) {
 		dev_err(&pdev->dev, "32-bit DMA enable failed\n");
-		return rc;
-	}
-
-	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (rc) {
-		dev_err(&pdev->dev, "32-bit consistent DMA enable failed\n");
-		return rc;
-	}
-
-	/*
-	 * This controller is braindamaged.  dma_boundary is 0xffff
-	 * like others but it will lock up the whole machine HARD if
-	 * 65536 byte PRD entry is fed. Reduce maximum segment size.
-	 */
-	rc = pci_set_dma_max_seg_size(pdev, 65536 - 512);
-	if (rc) {
-		dev_err(&pdev->dev, "failed to set the maximum segment size\n");
 		return rc;
 	}
 

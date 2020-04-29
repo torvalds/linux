@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Touchkey driver for Freescale MPR121 Controllor
  *
@@ -5,11 +6,6 @@
  * Author: Zhang Jiejing <jiejing.zhang@freescale.com>
  *
  * Based on mcs_touchkey.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/bitops.h>
@@ -57,6 +53,9 @@
 #define TOUCH_STATUS_MASK		0xfff
 /* MPR121 has 12 keys */
 #define MPR121_MAX_KEY_COUNT		12
+
+#define MPR121_MIN_POLL_INTERVAL	10
+#define MPR121_MAX_POLL_INTERVAL	200
 
 struct mpr121_touchkey {
 	struct i2c_client	*client;
@@ -119,11 +118,11 @@ static struct regulator *mpr121_vdd_supply_init(struct device *dev)
 	return vdd_supply;
 }
 
-static irqreturn_t mpr_touchkey_interrupt(int irq, void *dev_id)
+static void mpr_touchkey_report(struct input_dev *dev)
 {
-	struct mpr121_touchkey *mpr121 = dev_id;
-	struct i2c_client *client = mpr121->client;
+	struct mpr121_touchkey *mpr121 = input_get_drvdata(dev);
 	struct input_dev *input = mpr121->input_dev;
+	struct i2c_client *client = mpr121->client;
 	unsigned long bit_changed;
 	unsigned int key_num;
 	int reg;
@@ -131,14 +130,14 @@ static irqreturn_t mpr_touchkey_interrupt(int irq, void *dev_id)
 	reg = i2c_smbus_read_byte_data(client, ELE_TOUCH_STATUS_1_ADDR);
 	if (reg < 0) {
 		dev_err(&client->dev, "i2c read error [%d]\n", reg);
-		goto out;
+		return;
 	}
 
 	reg <<= 8;
 	reg |= i2c_smbus_read_byte_data(client, ELE_TOUCH_STATUS_0_ADDR);
 	if (reg < 0) {
 		dev_err(&client->dev, "i2c read error [%d]\n", reg);
-		goto out;
+		return;
 	}
 
 	reg &= TOUCH_STATUS_MASK;
@@ -159,8 +158,14 @@ static irqreturn_t mpr_touchkey_interrupt(int irq, void *dev_id)
 
 	}
 	input_sync(input);
+}
 
-out:
+static irqreturn_t mpr_touchkey_interrupt(int irq, void *dev_id)
+{
+	struct mpr121_touchkey *mpr121 = dev_id;
+
+	mpr_touchkey_report(mpr121->input_dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -233,13 +238,9 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 	int vdd_uv;
 	struct mpr121_touchkey *mpr121;
 	struct input_dev *input_dev;
+	u32 poll_interval = 0;
 	int error;
 	int i;
-
-	if (!client->irq) {
-		dev_err(dev, "irq number should not be zero\n");
-		return -EINVAL;
-	}
 
 	vdd_supply = mpr121_vdd_supply_init(dev);
 	if (IS_ERR(vdd_supply))
@@ -257,8 +258,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 
 	mpr121->client = client;
 	mpr121->input_dev = input_dev;
-	mpr121->keycount = device_property_read_u32_array(dev, "linux,keycodes",
-							  NULL, 0);
+	mpr121->keycount = device_property_count_u32(dev, "linux,keycodes");
 	if (mpr121->keycount > MPR121_MAX_KEY_COUNT) {
 		dev_err(dev, "too many keys defined (%d)\n", mpr121->keycount);
 		return -EINVAL;
@@ -279,6 +279,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 	if (device_property_read_bool(dev, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
+	input_set_drvdata(input_dev, mpr121);
 
 	input_dev->keycode = mpr121->keycodes;
 	input_dev->keycodesize = sizeof(mpr121->keycodes[0]);
@@ -293,13 +294,40 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_request_threaded_irq(dev, client->irq, NULL,
-					  mpr_touchkey_interrupt,
-					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					  dev->driver->name, mpr121);
-	if (error) {
-		dev_err(dev, "Failed to register interrupt\n");
-		return error;
+	device_property_read_u32(dev, "poll-interval", &poll_interval);
+
+	if (client->irq) {
+		error = devm_request_threaded_irq(dev, client->irq, NULL,
+						  mpr_touchkey_interrupt,
+						  IRQF_TRIGGER_FALLING |
+						  IRQF_ONESHOT,
+						  dev->driver->name, mpr121);
+		if (error) {
+			dev_err(dev, "Failed to register interrupt\n");
+			return error;
+		}
+	} else if (poll_interval) {
+		if (poll_interval < MPR121_MIN_POLL_INTERVAL)
+			return -EINVAL;
+
+		if (poll_interval > MPR121_MAX_POLL_INTERVAL)
+			return -EINVAL;
+
+		error = input_setup_polling(input_dev, mpr_touchkey_report);
+		if (error) {
+			dev_err(dev, "Failed to setup polling\n");
+			return error;
+		}
+
+		input_set_poll_interval(input_dev, poll_interval);
+		input_set_min_poll_interval(input_dev,
+					    MPR121_MIN_POLL_INTERVAL);
+		input_set_max_poll_interval(input_dev,
+					    MPR121_MAX_POLL_INTERVAL);
+	} else {
+		dev_err(dev,
+			"invalid IRQ number and polling not configured\n");
+		return -EINVAL;
 	}
 
 	error = input_register_device(input_dev);

@@ -1,9 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * relocate_kernel.S for kexec
  * Created by <nschichan@corp.free.fr> on Thu Oct 12 17:49:57 2006
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <asm/asm.h>
@@ -85,7 +83,7 @@ done:
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	/* We need to flush I-cache before jumping to new kernel.
-	 * Unfortunatelly, this code is cpu-specific.
+	 * Unfortunately, this code is cpu-specific.
 	 */
 	.set push
 	.set noreorder
@@ -145,7 +143,7 @@ LEAF(kexec_smp_wait)
 #endif
 
 /* All parameters to new kernel are passed in registers a0-a3.
- * kexec_args[0..3] are uses to prepare register values.
+ * kexec_args[0..3] are used to prepare register values.
  */
 
 kexec_args:

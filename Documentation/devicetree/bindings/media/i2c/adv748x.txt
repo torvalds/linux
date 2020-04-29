@@ -10,7 +10,11 @@ Required Properties:
     - "adi,adv7481" for the ADV7481
     - "adi,adv7482" for the ADV7482
 
-  - reg: I2C slave address
+  - reg: I2C slave addresses
+    The ADV748x has up to twelve 256-byte maps that can be accessed via the
+    main I2C ports. Each map has it own I2C address and acts as a standard
+    slave device on the I2C bus. The main address is mandatory, others are
+    optional and remain at default values if not specified.
 
 Optional Properties:
 
@@ -18,6 +22,11 @@ Optional Properties:
 		     "intrq3". All interrupts are optional. The "intrq3" interrupt
 		     is only available on the adv7481
   - interrupts: Specify the interrupt lines for the ADV748x
+  - reg-names : Names of maps with programmable addresses.
+		It shall contain all maps needing a non-default address.
+		Possible map names are:
+		  "main", "dpll", "cp", "hdmi", "edid", "repeater",
+		  "infoframe", "cbus", "cec", "sdp", "txa", "txb"
 
 The device node must contain one 'port' child node per device input and output
 port, in accordance with the video interface bindings defined in
@@ -39,7 +48,16 @@ are numbered as follows.
 	  TXA		source		10
 	  TXB		source		11
 
-The digital output port nodes must contain at least one endpoint.
+The digital output port nodes, when present, shall contain at least one
+endpoint. Each of those endpoints shall contain the data-lanes property as
+described in video-interfaces.txt.
+
+Required source endpoint properties:
+  - data-lanes: an array of physical data lane indexes
+    The accepted value(s) for this property depends on which of the two
+    sources are described. For TXA 1, 2 or 4 data lanes can be described
+    while for TXB only 1 data lane is valid. See video-interfaces.txt
+    for detailed description.
 
 Ports are optional if they are not connected to anything at the hardware level.
 
@@ -47,7 +65,10 @@ Example:
 
 	video-receiver@70 {
 		compatible = "adi,adv7482";
-		reg = <0x70>;
+		reg = <0x70 0x71 0x72 0x73 0x74 0x75
+		       0x60 0x61 0x62 0x63 0x64 0x65>;
+		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
+			    "infoframe", "cbus", "cec", "sdp", "txa", "txb";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -73,7 +94,7 @@ Example:
 			};
 		};
 
-		port@10 {
+		port@a {
 			reg = <10>;
 
 			adv7482_txa: endpoint {
@@ -83,7 +104,7 @@ Example:
 			};
 		};
 
-		port@11 {
+		port@b {
 			reg = <11>;
 
 			adv7482_txb: endpoint {

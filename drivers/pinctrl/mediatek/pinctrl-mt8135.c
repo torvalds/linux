@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Hongzhou.Yang <hongzhou.yang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -313,31 +305,12 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.eint_offsets = {
-		.name = "mt8135_eint",
-		.stat      = 0x000,
-		.ack       = 0x040,
-		.mask      = 0x080,
-		.mask_set  = 0x0c0,
-		.mask_clr  = 0x100,
-		.sens      = 0x140,
-		.sens_set  = 0x180,
-		.sens_clr  = 0x1c0,
-		.soft      = 0x200,
-		.soft_set  = 0x240,
-		.soft_clr  = 0x280,
-		.pol       = 0x300,
-		.pol_set   = 0x340,
-		.pol_clr   = 0x380,
-		.dom_en    = 0x400,
-		.dbnc_ctrl = 0x500,
-		.dbnc_set  = 0x600,
-		.dbnc_clr  = 0x700,
+	.eint_hw = {
 		.port_mask = 7,
 		.ports     = 6,
+		.ap_num    = 192,
+		.db_cnt    = 16,
 	},
-	.ap_num = 192,
-	.db_cnt = 16,
 };
 
 static int mt8135_pinctrl_probe(struct platform_device *pdev)

@@ -1,3 +1,5 @@
+.. _magicnumbers:
+
 Linux magic numbers
 ===================
 
@@ -79,7 +81,6 @@ FF_MAGIC              0x4646           fc_info                  ``drivers/net/ip
 ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
-SERIAL_MAGIC          0x5301           async_struct             ``include/linux/serial.h``
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
 SLIP_MAGIC            0x5302           slip                     ``drivers/net/slip.h``
 STRIP_MAGIC           0x5303           strip                    ``drivers/net/strip.c``
@@ -156,9 +157,6 @@ Note that there are also defined special per-driver magic numbers in sound
 memory management. See ``include/sound/sndmagic.h`` for complete list of them. Many
 OSS sound drivers have their magic numbers constructed from the soundcard PCI
 ID - these are not listed here as well.
-
-IrDA subsystem also uses large number of own magic numbers, see
-``include/net/irda/irda.h`` for a complete list of them.
 
 HFS is another larger user of magic numbers - you can find them in
 ``fs/hfs/hfs.h``.

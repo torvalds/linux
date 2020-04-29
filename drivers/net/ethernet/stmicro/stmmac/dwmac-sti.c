@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dwmac-sti.c - STMicroelectronics DWMAC Specific Glue layer
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
  * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
  * Contributors: Giuseppe Cavallaro <peppe.cavallaro@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -120,7 +116,7 @@
 #define ETH_PHY_SEL_MII		0x0
 
 struct sti_dwmac {
-	int interface;		/* MII interface */
+	phy_interface_t interface;	/* MII interface */
 	bool ext_phyclk;	/* Clock from external PHY */
 	u32 tx_retime_src;	/* TXCLK Retiming*/
 	struct clk *clk;	/* PHY clock */
@@ -273,7 +269,12 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 		return err;
 	}
 
-	dwmac->interface = of_get_phy_mode(np);
+	err = of_get_phy_mode(np, &dwmac->interface);
+	if (err && err != -ENODEV) {
+		dev_err(dev, "Can't get phy-mode\n");
+		return err;
+	}
+
 	dwmac->regmap = regmap;
 	dwmac->gmac_en = of_property_read_bool(np, "st,gmac_en");
 	dwmac->ext_phyclk = of_property_read_bool(np, "st,ext-phyclk");

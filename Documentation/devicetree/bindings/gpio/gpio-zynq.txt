@@ -11,7 +11,6 @@ Required properties:
 - gpio-controller	: Marks the device node as a GPIO controller.
 - interrupts		: Interrupt specifier (see interrupt bindings for
 			  details)
-- interrupt-parent	: Must be core interrupt controller
 - interrupt-controller	: Marks the device node as an interrupt controller.
 - #interrupt-cells 	: Should be 2.  The first cell is the GPIO number.
 			  The second cell bits[3:0] is used to specify trigger type and level flags:

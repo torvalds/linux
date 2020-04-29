@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Heiko Schocher <hs@denx.de>
  *
@@ -9,22 +10,21 @@
  * Derived from drivers/video/backlight/ld9040.c
  *
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 struct lg4573 {
 	struct drm_panel panel;
@@ -42,7 +42,7 @@ static int lg4573_spi_write_u16(struct lg4573 *ctx, u16 data)
 	struct spi_transfer xfer = {
 		.len = 2,
 	};
-	u16 temp = cpu_to_be16(data);
+	__be16 temp = cpu_to_be16(data);
 	struct spi_message msg;
 
 	dev_dbg(ctx->panel.dev, "writing data: %x\n", data);
@@ -197,7 +197,7 @@ static int lg4573_enable(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode default_mode = {
-	.clock = 27000,
+	.clock = 28341,
 	.hdisplay = 480,
 	.hsync_start = 480 + 10,
 	.hsync_end = 480 + 10 + 59,
@@ -209,14 +209,14 @@ static const struct drm_display_mode default_mode = {
 	.vrefresh = 60,
 };
 
-static int lg4573_get_modes(struct drm_panel *panel)
+static int lg4573_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		dev_err(panel->drm->dev, "failed to add mode %ux%ux@%u\n",
+		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			default_mode.vrefresh);
 		return -ENOMEM;
@@ -227,8 +227,8 @@ static int lg4573_get_modes(struct drm_panel *panel)
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 61;
-	panel->connector->display_info.height_mm = 103;
+	connector->display_info.width_mm = 61;
+	connector->display_info.height_mm = 103;
 
 	return 1;
 }
@@ -259,9 +259,8 @@ static int lg4573_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &spi->dev;
-	ctx->panel.funcs = &lg4573_drm_funcs;
+	drm_panel_init(&ctx->panel, &spi->dev, &lg4573_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&ctx->panel);
 }

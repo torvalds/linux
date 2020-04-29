@@ -157,6 +157,13 @@ config I2C_SPI_SMC1_UCODE_PATCH
 	help
 	  Help not implemented yet, coming soon.
 
+config SMC_UCODE_PATCH
+	bool "SMC relocation patch"
+	help
+	  This microcode relocates SMC1 and SMC2 parameter RAMs at
+	  offset 0x1ec0 and 0x1fc0 to allow extended parameter RAM
+	  for SCC3 and SCC4.
+
 endchoice
 
 config UCODE_PATCH

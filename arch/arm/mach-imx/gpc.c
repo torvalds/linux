@@ -1,13 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011-2013 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/io.h>
@@ -16,16 +10,19 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/irqchip/arm-gic.h>
+
 #include "common.h"
 #include "hardware.h"
 
+#define GPC_CNTR		0x0
 #define GPC_IMR1		0x008
 #define GPC_PGC_CPU_PDN		0x2a0
 #define GPC_PGC_CPU_PUPSCR	0x2a4
 #define GPC_PGC_CPU_PDNSCR	0x2a8
 #define GPC_PGC_SW2ISO_SHIFT	0x8
 #define GPC_PGC_SW_SHIFT	0x0
+
+#define GPC_CNTR_L2_PGE_SHIFT	22
 
 #define IMR_NUM			4
 #define GPC_MAX_IRQS		(IMR_NUM * 32)
@@ -49,6 +46,17 @@ void imx_gpc_set_arm_power_down_timing(u32 sw2iso, u32 sw)
 void imx_gpc_set_arm_power_in_lpm(bool power_off)
 {
 	writel_relaxed(power_off, gpc_base + GPC_PGC_CPU_PDN);
+}
+
+void imx_gpc_set_l2_mem_power_in_lpm(bool power_off)
+{
+	u32 val;
+
+	val = readl_relaxed(gpc_base + GPC_CNTR);
+	val &= ~(1 << GPC_CNTR_L2_PGE_SHIFT);
+	if (power_off)
+		val |= 1 << GPC_CNTR_L2_PGE_SHIFT;
+	writel_relaxed(val, gpc_base + GPC_CNTR);
 }
 
 void imx_gpc_pre_suspend(bool arm_power_off)
@@ -103,7 +111,6 @@ void imx_gpc_mask_all(void)
 		gpc_saved_imrs[i] = readl_relaxed(reg_imr1 + i * 4);
 		writel_relaxed(~0, reg_imr1 + i * 4);
 	}
-
 }
 
 void imx_gpc_restore_all(void)
@@ -274,4 +281,5 @@ void __init imx_gpc_check_dt(void)
 		/* map GPC, so that at least CPUidle and WARs keep working */
 		gpc_base = of_iomap(np, 0);
 	}
+	of_node_put(np);
 }

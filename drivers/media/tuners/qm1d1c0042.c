@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Sharp QM1D1C0042 8PSK tuner driver
  *
  * Copyright (C) 2014 Akihiro Tsukada <tskd08@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -215,7 +206,7 @@ static int qm1d1c0042_set_params(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	a = (freq + state->cfg.xtal_freq / 2) / state->cfg.xtal_freq;
+	a = DIV_ROUND_CLOSEST(freq, state->cfg.xtal_freq);
 
 	state->regs[0x06] &= 0x40;
 	state->regs[0x06] |= (a - 12) / 4;
@@ -397,8 +388,8 @@ static const struct dvb_tuner_ops qm1d1c0042_ops = {
 	.info = {
 		.name = "Sharp QM1D1C0042",
 
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 
 	.init = qm1d1c0042_init,

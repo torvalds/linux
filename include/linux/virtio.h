@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/gfp.h>
-#include <linux/vringh.h>
 
 /**
  * virtqueue - a queue to register buffers for sending or receiving.
@@ -90,23 +89,6 @@ dma_addr_t virtqueue_get_desc_addr(struct virtqueue *vq);
 dma_addr_t virtqueue_get_avail_addr(struct virtqueue *vq);
 dma_addr_t virtqueue_get_used_addr(struct virtqueue *vq);
 
-/*
- * Legacy accessors -- in almost all cases, these are the wrong functions
- * to use.
- */
-static inline void *virtqueue_get_desc(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->desc;
-}
-static inline void *virtqueue_get_avail(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->avail;
-}
-static inline void *virtqueue_get_used(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->used;
-}
-
 /**
  * virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus
@@ -156,6 +138,11 @@ int virtio_finalize_features(struct virtio_device *dev);
 int virtio_device_freeze(struct virtio_device *dev);
 int virtio_device_restore(struct virtio_device *dev);
 #endif
+
+size_t virtio_max_dma_size(struct virtio_device *vdev);
+
+#define virtio_device_for_each_vq(vdev, vq) \
+	list_for_each_entry(vq, &vdev->vqs, list)
 
 /**
  * virtio_driver - operations for a virtio I/O driver

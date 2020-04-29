@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  qt2160.c - Atmel AT42QT2160 Touch Sense Controller
  *
  *  Copyright (C) 2009 Raphael Derosso Pereira <raphaelpereira@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -58,10 +45,9 @@ static unsigned char qt2160_key2code[] = {
 struct qt2160_led {
 	struct qt2160_data *qt2160;
 	struct led_classdev cdev;
-	struct work_struct work;
 	char name[32];
 	int id;
-	enum led_brightness new_brightness;
+	enum led_brightness brightness;
 };
 #endif
 
@@ -69,12 +55,10 @@ struct qt2160_data {
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct delayed_work dwork;
-	spinlock_t lock;        /* Protects canceling/rescheduling of dwork */
 	unsigned short keycodes[ARRAY_SIZE(qt2160_key2code)];
 	u16 key_matrix;
 #ifdef CONFIG_LEDS_CLASS
 	struct qt2160_led leds[QT2160_NUM_LEDS_X];
-	struct mutex led_lock;
 #endif
 };
 
@@ -83,46 +67,39 @@ static int qt2160_write(struct i2c_client *client, u8 reg, u8 data);
 
 #ifdef CONFIG_LEDS_CLASS
 
-static void qt2160_led_work(struct work_struct *work)
-{
-	struct qt2160_led *led = container_of(work, struct qt2160_led, work);
-	struct qt2160_data *qt2160 = led->qt2160;
-	struct i2c_client *client = qt2160->client;
-	int value = led->new_brightness;
-	u32 drive, pwmen;
-
-	mutex_lock(&qt2160->led_lock);
-
-	drive = qt2160_read(client, QT2160_CMD_DRIVE_X);
-	pwmen = qt2160_read(client, QT2160_CMD_PWMEN_X);
-	if (value != LED_OFF) {
-		drive |= (1 << led->id);
-		pwmen |= (1 << led->id);
-
-	} else {
-		drive &= ~(1 << led->id);
-		pwmen &= ~(1 << led->id);
-	}
-	qt2160_write(client, QT2160_CMD_DRIVE_X, drive);
-	qt2160_write(client, QT2160_CMD_PWMEN_X, pwmen);
-
-	/*
-	 * Changing this register will change the brightness
-	 * of every LED in the qt2160. It's a HW limitation.
-	 */
-	if (value != LED_OFF)
-		qt2160_write(client, QT2160_CMD_PWM_DUTY, value);
-
-	mutex_unlock(&qt2160->led_lock);
-}
-
-static void qt2160_led_set(struct led_classdev *cdev,
-			   enum led_brightness value)
+static int qt2160_led_set(struct led_classdev *cdev,
+			  enum led_brightness value)
 {
 	struct qt2160_led *led = container_of(cdev, struct qt2160_led, cdev);
+	struct qt2160_data *qt2160 = led->qt2160;
+	struct i2c_client *client = qt2160->client;
+	u32 drive, pwmen;
 
-	led->new_brightness = value;
-	schedule_work(&led->work);
+	if (value != led->brightness) {
+		drive = qt2160_read(client, QT2160_CMD_DRIVE_X);
+		pwmen = qt2160_read(client, QT2160_CMD_PWMEN_X);
+		if (value != LED_OFF) {
+			drive |= BIT(led->id);
+			pwmen |= BIT(led->id);
+
+		} else {
+			drive &= ~BIT(led->id);
+			pwmen &= ~BIT(led->id);
+		}
+		qt2160_write(client, QT2160_CMD_DRIVE_X, drive);
+		qt2160_write(client, QT2160_CMD_PWMEN_X, pwmen);
+
+		/*
+		 * Changing this register will change the brightness
+		 * of every LED in the qt2160. It's a HW limitation.
+		 */
+		if (value != LED_OFF)
+			qt2160_write(client, QT2160_CMD_PWM_DUTY, value);
+
+		led->brightness = value;
+	}
+
+	return 0;
 }
 
 #endif /* CONFIG_LEDS_CLASS */
@@ -221,22 +198,15 @@ static int qt2160_get_key_matrix(struct qt2160_data *qt2160)
 static irqreturn_t qt2160_irq(int irq, void *_qt2160)
 {
 	struct qt2160_data *qt2160 = _qt2160;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qt2160->lock, flags);
 
 	mod_delayed_work(system_wq, &qt2160->dwork, 0);
-
-	spin_unlock_irqrestore(&qt2160->lock, flags);
 
 	return IRQ_HANDLED;
 }
 
 static void qt2160_schedule_read(struct qt2160_data *qt2160)
 {
-	spin_lock_irq(&qt2160->lock);
 	schedule_delayed_work(&qt2160->dwork, QT2160_CYCLE_INTERVAL);
-	spin_unlock_irq(&qt2160->lock);
 }
 
 static void qt2160_worker(struct work_struct *work)
@@ -293,19 +263,15 @@ static int qt2160_register_leds(struct qt2160_data *qt2160)
 	int ret;
 	int i;
 
-	mutex_init(&qt2160->led_lock);
-
 	for (i = 0; i < QT2160_NUM_LEDS_X; i++) {
 		struct qt2160_led *led = &qt2160->leds[i];
 
 		snprintf(led->name, sizeof(led->name), "qt2160:x%d", i);
 		led->cdev.name = led->name;
-		led->cdev.brightness_set = qt2160_led_set;
+		led->cdev.brightness_set_blocking = qt2160_led_set;
 		led->cdev.brightness = LED_OFF;
 		led->id = i;
 		led->qt2160 = qt2160;
-
-		INIT_WORK(&led->work, qt2160_led_work);
 
 		ret = led_classdev_register(&client->dev, &led->cdev);
 		if (ret < 0)
@@ -324,10 +290,8 @@ static void qt2160_unregister_leds(struct qt2160_data *qt2160)
 {
 	int i;
 
-	for (i = 0; i < QT2160_NUM_LEDS_X; i++) {
+	for (i = 0; i < QT2160_NUM_LEDS_X; i++)
 		led_classdev_unregister(&qt2160->leds[i].cdev);
-		cancel_work_sync(&qt2160->leds[i].work);
-	}
 }
 
 #else
@@ -406,7 +370,6 @@ static int qt2160_probe(struct i2c_client *client,
 	qt2160->client = client;
 	qt2160->input = input;
 	INIT_DELAYED_WORK(&qt2160->dwork, qt2160_worker);
-	spin_lock_init(&qt2160->lock);
 
 	input->name = "AT42QT2160 Touch Sense Keyboard";
 	input->id.bustype = BUS_I2C;

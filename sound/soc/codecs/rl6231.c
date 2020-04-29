@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rl6231.c - RL6231 class device shared support
  *
  * Copyright 2014 Realtek Semiconductor Corp.
  *
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -105,6 +102,7 @@ struct pll_calc_map {
 static const struct pll_calc_map pll_preset_table[] = {
 	{19200000,  4096000,  23, 14, 1, false},
 	{19200000,  24576000,  3, 30, 3, false},
+	{3840000,   24576000,  3, 30, 0, true},
 };
 
 static unsigned int find_best_div(unsigned int in,

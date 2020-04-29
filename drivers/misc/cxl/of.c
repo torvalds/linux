@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -302,7 +298,7 @@ static int read_adapter_irq_config(struct cxl *adapter, struct device_node *np)
 	if (nranges == 0 || (nranges * 2 * sizeof(int)) != len)
 		return -EINVAL;
 
-	adapter->guest->irq_avail = kzalloc(nranges * sizeof(struct irq_avail),
+	adapter->guest->irq_avail = kcalloc(nranges, sizeof(struct irq_avail),
 					    GFP_KERNEL);
 	if (adapter->guest->irq_avail == NULL)
 		return -ENOMEM;

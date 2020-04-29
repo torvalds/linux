@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * SHA-512 routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2011-2012 International Business Machines Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 only.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
@@ -166,8 +154,7 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 			goto out;
 		}
 
-		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-				   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 		if (rc)
 			goto out;
 
@@ -249,8 +236,7 @@ static int nx_sha512_final(struct shash_desc *desc, u8 *out)
 		goto out;
 	}
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 	if (rc)
 		goto out;
 
@@ -294,7 +280,6 @@ struct shash_alg nx_shash_sha512_alg = {
 		.cra_name        = "sha512",
 		.cra_driver_name = "sha512-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize   = SHA512_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),

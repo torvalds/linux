@@ -102,7 +102,7 @@ static inline u32 irbar_read(void)
 
 static inline void rgnr_write(u32 v)
 {
-	writel_relaxed(v, BASEADDR_V7M_SCB + MPU_RNR);
+	writel_relaxed(v, BASEADDR_V7M_SCB + PMSAv7_RNR);
 }
 
 /* Data-side / unified region attributes */
@@ -110,28 +110,28 @@ static inline void rgnr_write(u32 v)
 /* Region access control register */
 static inline void dracr_write(u32 v)
 {
-	u32 rsr = readl_relaxed(BASEADDR_V7M_SCB + MPU_RASR) & GENMASK(15, 0);
+	u32 rsr = readl_relaxed(BASEADDR_V7M_SCB + PMSAv7_RASR) & GENMASK(15, 0);
 
-	writel_relaxed((v << 16) | rsr, BASEADDR_V7M_SCB + MPU_RASR);
+	writel_relaxed((v << 16) | rsr, BASEADDR_V7M_SCB + PMSAv7_RASR);
 }
 
 /* Region size register */
 static inline void drsr_write(u32 v)
 {
-	u32 racr = readl_relaxed(BASEADDR_V7M_SCB + MPU_RASR) & GENMASK(31, 16);
+	u32 racr = readl_relaxed(BASEADDR_V7M_SCB + PMSAv7_RASR) & GENMASK(31, 16);
 
-	writel_relaxed(v | racr, BASEADDR_V7M_SCB + MPU_RASR);
+	writel_relaxed(v | racr, BASEADDR_V7M_SCB + PMSAv7_RASR);
 }
 
 /* Region base address register */
 static inline void drbar_write(u32 v)
 {
-	writel_relaxed(v, BASEADDR_V7M_SCB + MPU_RBAR);
+	writel_relaxed(v, BASEADDR_V7M_SCB + PMSAv7_RBAR);
 }
 
 static inline u32 drbar_read(void)
 {
-	return readl_relaxed(BASEADDR_V7M_SCB + MPU_RBAR);
+	return readl_relaxed(BASEADDR_V7M_SCB + PMSAv7_RBAR);
 }
 
 /* ARMv7-M only supports a unified MPU, so I-side operations are nop */
@@ -142,11 +142,6 @@ static inline void irbar_write(u32 v) {}
 static inline unsigned long irbar_read(void) {return 0;}
 
 #endif
-
-static int __init mpu_present(void)
-{
-	return ((read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA) == MMFR0_PMSAv7);
-}
 
 static bool __init try_split_region(phys_addr_t base, phys_addr_t size, struct region *region)
 {
@@ -161,7 +156,7 @@ static bool __init try_split_region(phys_addr_t base, phys_addr_t size, struct r
 
 	bdiff = base - abase;
 	sdiff = p2size - asize;
-	subreg = p2size / MPU_NR_SUBREGS;
+	subreg = p2size / PMSAv7_NR_SUBREGS;
 
 	if ((bdiff % subreg) || (sdiff % subreg))
 		return false;
@@ -172,17 +167,17 @@ static bool __init try_split_region(phys_addr_t base, phys_addr_t size, struct r
 	if (bslots || sslots) {
 		int i;
 
-		if (subreg < MPU_MIN_SUBREG_SIZE)
+		if (subreg < PMSAv7_MIN_SUBREG_SIZE)
 			return false;
 
-		if (bslots + sslots > MPU_NR_SUBREGS)
+		if (bslots + sslots > PMSAv7_NR_SUBREGS)
 			return false;
 
 		for (i = 0; i < bslots; i++)
 			_set_bit(i, &region->subreg);
 
 		for (i = 1; i <= sslots; i++)
-			_set_bit(MPU_NR_SUBREGS - i, &region->subreg);
+			_set_bit(PMSAv7_NR_SUBREGS - i, &region->subreg);
 	}
 
 	region->base = abase;
@@ -233,7 +228,7 @@ static int __init allocate_region(phys_addr_t base, phys_addr_t size,
 }
 
 /* MPU initialisation functions */
-void __init adjust_lowmem_bounds_mpu(void)
+void __init pmsav7_adjust_lowmem_bounds(void)
 {
 	phys_addr_t  specified_mem_size = 0, total_mem_size = 0;
 	struct memblock_region *reg;
@@ -243,10 +238,7 @@ void __init adjust_lowmem_bounds_mpu(void)
 	unsigned int mem_max_regions;
 	int num, i;
 
-	if (!mpu_present())
-		return;
-
-	/* Free-up MPU_PROBE_REGION */
+	/* Free-up PMSAv7_PROBE_REGION */
 	mpu_min_region_order = __mpu_min_region_order();
 
 	/* How many regions are supported */
@@ -301,12 +293,12 @@ void __init adjust_lowmem_bounds_mpu(void)
 	num = allocate_region(mem_start, specified_mem_size, mem_max_regions, mem);
 
 	for (i = 0; i < num; i++) {
-		unsigned long  subreg = mem[i].size / MPU_NR_SUBREGS;
+		unsigned long  subreg = mem[i].size / PMSAv7_NR_SUBREGS;
 
 		total_mem_size += mem[i].size - subreg * hweight_long(mem[i].subreg);
 
 		pr_debug("MPU: base %pa size %pa disable subregions: %*pbl\n",
-			 &mem[i].base, &mem[i].size, MPU_NR_SUBREGS, &mem[i].subreg);
+			 &mem[i].base, &mem[i].size, PMSAv7_NR_SUBREGS, &mem[i].subreg);
 	}
 
 	if (total_mem_size != specified_mem_size) {
@@ -349,7 +341,7 @@ static int __init __mpu_min_region_order(void)
 	u32 drbar_result, irbar_result;
 
 	/* We've kept a region free for this probing */
-	rgnr_write(MPU_PROBE_REGION);
+	rgnr_write(PMSAv7_PROBE_REGION);
 	isb();
 	/*
 	 * As per ARM ARM, write 0xFFFFFFFC to DRBAR to find the minimum
@@ -388,8 +380,8 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 		return -ENOMEM;
 
 	/* Writing N to bits 5:1 (RSR_SZ)  specifies region size 2^N+1 */
-	size_data = ((size_order - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN;
-	size_data |= subregions << MPU_RSR_SD;
+	size_data = ((size_order - 1) << PMSAv7_RSR_SZ) | 1 << PMSAv7_RSR_EN;
+	size_data |= subregions << PMSAv7_RSR_SD;
 
 	if (need_flush)
 		flush_cache_all();
@@ -424,18 +416,15 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 /*
 * Set up default MPU regions, doing nothing if there is no MPU
 */
-void __init mpu_setup(void)
+void __init pmsav7_setup(void)
 {
 	int i, region = 0, err = 0;
-
-	if (!mpu_present())
-		return;
 
 	/* Setup MPU (order is important) */
 
 	/* Background */
 	err |= mpu_setup_region(region++, 0, 32,
-				MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0RW,
+				PMSAv7_ACR_XN | PMSAv7_RGN_STRONGLY_ORDERED | PMSAv7_AP_PL1RW_PL0RW,
 				0, false);
 
 #ifdef CONFIG_XIP_KERNEL
@@ -448,13 +437,13 @@ void __init mpu_setup(void)
                  * with BG region (which is uncachable), thus we need
                  * to clean and invalidate cache.
 		 */
-		bool need_flush = region == MPU_RAM_REGION;
+		bool need_flush = region == PMSAv7_RAM_REGION;
 
 		if (!xip[i].size)
 			continue;
 
 		err |= mpu_setup_region(region++, xip[i].base, ilog2(xip[i].size),
-					MPU_AP_PL1RO_PL0NA | MPU_RGN_NORMAL,
+					PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_NORMAL,
 					xip[i].subreg, need_flush);
 	}
 #endif
@@ -465,14 +454,14 @@ void __init mpu_setup(void)
 			continue;
 
 		err |= mpu_setup_region(region++, mem[i].base, ilog2(mem[i].size),
-					MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL,
+					PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_NORMAL,
 					mem[i].subreg, false);
 	}
 
 	/* Vectors */
 #ifndef CONFIG_CPU_V7M
 	err |= mpu_setup_region(region++, vectors_base, ilog2(2 * PAGE_SIZE),
-				MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL,
+				PMSAv7_AP_PL1RW_PL0NA | PMSAv7_RGN_NORMAL,
 				0, false);
 #endif
 	if (err) {

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "IRQ subsystem"
 # Options selectable by the architecture code
 
@@ -41,6 +42,10 @@ config GENERIC_IRQ_MIGRATION
 # Alpha specific irq affinity mechanism
 config AUTO_IRQ_AFFINITY
        bool
+
+# Interrupt injection mechanism
+config GENERIC_IRQ_INJECTION
+	bool
 
 # Tasklet based software resend for pending interrupts on enable_irq()
 config HARDIRQS_SW_RESEND
@@ -91,6 +96,9 @@ config GENERIC_MSI_IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_MSI_IRQ
 
+config IRQ_MSI_IOMMU
+	bool
+
 config HANDLE_DOMAIN_IRQ
 	bool
 
@@ -123,6 +131,7 @@ config SPARSE_IRQ
 config GENERIC_IRQ_DEBUGFS
 	bool "Expose irq internals in debugfs"
 	depends on DEBUG_FS
+	select GENERIC_IRQ_INJECTION
 	default n
 	---help---
 
@@ -134,7 +143,6 @@ config GENERIC_IRQ_DEBUGFS
 endmenu
 
 config GENERIC_IRQ_MULTI_HANDLER
-	depends on !MULTI_IRQ_HANDLER
 	bool
 	help
 	  Allow to specify the low level IRQ handler at run time.

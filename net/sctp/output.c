@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -6,22 +7,6 @@
  * This file is part of the SCTP kernel implementation
  *
  * These functions handle output processing.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -90,8 +75,8 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
+	struct sctp_sock *sp = NULL;
 	struct sock *sk;
-	size_t overhead = sizeof(struct ipv6hdr) + sizeof(struct sctphdr);
 
 	pr_debug("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
 	packet->vtag = vtag;
@@ -102,30 +87,31 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 
 	/* set packet max_size with pathmtu, then calculate overhead */
 	packet->max_size = tp->pathmtu;
-	if (asoc) {
-		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-		struct sctp_af *af = sp->pf->af;
 
-		overhead = af->net_header_len +
-			   af->ip_options_len(asoc->base.sk);
-		overhead += sizeof(struct sctphdr);
-		packet->overhead = overhead;
-		packet->size = overhead;
-	} else {
-		packet->overhead = overhead;
-		packet->size = overhead;
-		return;
+	if (asoc) {
+		sk = asoc->base.sk;
+		sp = sctp_sk(sk);
 	}
+	packet->overhead = sctp_mtu_payload(sp, 0, 0);
+	packet->size = packet->overhead;
+
+	if (!asoc)
+		return;
 
 	/* update dst or transport pathmtu if in need */
-	sk = asoc->base.sk;
 	if (!sctp_transport_dst_check(tp)) {
-		sctp_transport_route(tp, NULL, sctp_sk(sk));
+		sctp_transport_route(tp, NULL, sp);
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
 			sctp_assoc_sync_pmtu(asoc);
 	} else if (!sctp_transport_pmtu_check(tp)) {
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
 			sctp_assoc_sync_pmtu(asoc);
+	}
+
+	if (asoc->pmtu_pending) {
+		if (asoc->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
+		asoc->pmtu_pending = 0;
 	}
 
 	/* If there a is a prepend chunk stick it on the list before
@@ -296,6 +282,9 @@ static enum sctp_xmit sctp_packet_bundle_sack(struct sctp_packet *pkt,
 					sctp_chunk_free(sack);
 					goto out;
 				}
+				SCTP_INC_STATS(asoc->base.net,
+					       SCTP_MIB_OUTCTRLCHUNKS);
+				asoc->stats.octrlchunks++;
 				asoc->peer.sack_needed = 0;
 				if (del_timer(timer))
 					sctp_association_put(asoc);
@@ -398,23 +387,20 @@ finish:
 	return retval;
 }
 
-static void sctp_packet_release_owner(struct sk_buff *skb)
+static void sctp_packet_gso_append(struct sk_buff *head, struct sk_buff *skb)
 {
-	sk_free(skb->sk);
-}
+	if (SCTP_OUTPUT_CB(head)->last == head)
+		skb_shinfo(head)->frag_list = skb;
+	else
+		SCTP_OUTPUT_CB(head)->last->next = skb;
+	SCTP_OUTPUT_CB(head)->last = skb;
 
-static void sctp_packet_set_owner_w(struct sk_buff *skb, struct sock *sk)
-{
-	skb_orphan(skb);
-	skb->sk = sk;
-	skb->destructor = sctp_packet_release_owner;
+	head->truesize += skb->truesize;
+	head->data_len += skb->len;
+	head->len += skb->len;
+	refcount_add(skb->truesize, &head->sk->sk_wmem_alloc);
 
-	/*
-	 * The data chunks have already been accounted for in sctp_sendmsg(),
-	 * therefore only reserve a single byte to keep socket around until
-	 * the packet has been transmitted.
-	 */
-	refcount_inc(&sk->sk_wmem_alloc);
+	__skb_header_release(skb);
 }
 
 static int sctp_packet_pack(struct sctp_packet *packet,
@@ -430,7 +416,7 @@ static int sctp_packet_pack(struct sctp_packet *packet,
 
 	if (gso) {
 		skb_shinfo(head)->gso_type = sk->sk_gso_type;
-		NAPI_GRO_CB(head)->last = head;
+		SCTP_OUTPUT_CB(head)->last = head;
 	} else {
 		nskb = head;
 		pkt_size = packet->size;
@@ -511,15 +497,8 @@ merge:
 					 &packet->chunk_list);
 		}
 
-		if (gso) {
-			if (skb_gro_receive(&head, nskb)) {
-				kfree_skb(nskb);
-				return 0;
-			}
-			if (WARN_ON_ONCE(skb_shinfo(head)->gso_segs >=
-					 sk->sk_gso_max_segs))
-				return 0;
-		}
+		if (gso)
+			sctp_packet_gso_append(head, nskb);
 
 		pkt_count++;
 	} while (!list_empty(&packet->chunk_list));
@@ -595,7 +574,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	if (!head)
 		goto out;
 	skb_reserve(head, packet->overhead + MAX_HEADER);
-	sctp_packet_set_owner_w(head, sk);
+	skb_set_owner_w(head, sk);
 
 	/* set sctp header */
 	sh = skb_push(head, sizeof(struct sctphdr));

@@ -1,34 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl1271
  *
  * Copyright (C) 2009-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/ieee80211.h>
+#include <linux/pm_runtime.h>
 
 #include "wlcore.h"
 #include "debug.h"
 #include "cmd.h"
 #include "scan.h"
 #include "acx.h"
-#include "ps.h"
 #include "tx.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
@@ -67,16 +53,16 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.req = NULL;
 	wl->scan_wlvif = NULL;
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 		/* restore hardware connection monitoring template */
 		wl1271_cmd_build_ap_probe_req(wl, wlvif, wlvif->probereq);
 	}
-
-	wl1271_ps_elp_sleep(wl);
 
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
@@ -84,6 +70,9 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	}
 
 	wlcore_cmd_regdomain_config_locked(wl);
+
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 
 	ieee80211_scan_completed(wl->hw, &info);
 

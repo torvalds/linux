@@ -7,6 +7,7 @@
 #include <linux/kthread.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/scatterlist.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -17,9 +18,9 @@ static int is_clear_halt_cmd(struct urb *urb)
 
 	req = (struct usb_ctrlrequest *) urb->setup_packet;
 
-	 return (req->bRequest == USB_REQ_CLEAR_FEATURE) &&
-		 (req->bRequestType == USB_RECIP_ENDPOINT) &&
-		 (req->wValue == USB_ENDPOINT_HALT);
+	return (req->bRequest == USB_REQ_CLEAR_FEATURE) &&
+	       (req->bRequestType == USB_RECIP_ENDPOINT) &&
+	       (req->wValue == USB_ENDPOINT_HALT);
 }
 
 static int is_set_interface_cmd(struct urb *urb)
@@ -201,7 +202,7 @@ static void tweak_special_requests(struct urb *urb)
 static int stub_recv_cmd_unlink(struct stub_device *sdev,
 				struct usbip_header *pdu)
 {
-	int ret;
+	int ret, i;
 	unsigned long flags;
 	struct stub_priv *priv;
 
@@ -246,12 +247,14 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		 * so a driver in a client host will know the failure
 		 * of the unlink request ?
 		 */
-		ret = usb_unlink_urb(priv->urb);
-		if (ret != -EINPROGRESS)
-			dev_err(&priv->urb->dev->dev,
-				"failed to unlink a urb # %lu, ret %d\n",
-				priv->seqnum, ret);
-
+		for (i = priv->completed_urbs; i < priv->num_urbs; i++) {
+			ret = usb_unlink_urb(priv->urbs[i]);
+			if (ret != -EINPROGRESS)
+				dev_err(&priv->urbs[i]->dev->dev,
+					"failed to unlink %d/%d urb of seqnum %lu, ret %d\n",
+					i + 1, priv->num_urbs,
+					priv->seqnum, ret);
+		}
 		return 0;
 	}
 
@@ -361,16 +364,10 @@ static int get_pipe(struct stub_device *sdev, struct usbip_header *pdu)
 	}
 
 	if (usb_endpoint_xfer_isoc(epd)) {
-		/* validate packet size and number of packets */
-		unsigned int maxp, packets, bytes;
-
-		maxp = usb_endpoint_maxp(epd);
-		maxp *= usb_endpoint_maxp_mult(epd);
-		bytes = pdu->u.cmd_submit.transfer_buffer_length;
-		packets = DIV_ROUND_UP(bytes, maxp);
-
+		/* validate number of packets */
 		if (pdu->u.cmd_submit.number_of_packets < 0 ||
-		    pdu->u.cmd_submit.number_of_packets > packets) {
+		    pdu->u.cmd_submit.number_of_packets >
+		    USBIP_MAX_ISO_PACKETS) {
 			dev_err(&sdev->udev->dev,
 				"CMD_SUBMIT: isoc invalid num packets %d\n",
 				pdu->u.cmd_submit.number_of_packets);
@@ -439,92 +436,191 @@ static void masking_bogus_flags(struct urb *urb)
 	urb->transfer_flags &= allowed;
 }
 
+static int stub_recv_xbuff(struct usbip_device *ud, struct stub_priv *priv)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < priv->num_urbs; i++) {
+		ret = usbip_recv_xbuff(ud, priv->urbs[i]);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
+}
+
 static void stub_recv_cmd_submit(struct stub_device *sdev,
 				 struct usbip_header *pdu)
 {
-	int ret;
 	struct stub_priv *priv;
 	struct usbip_device *ud = &sdev->ud;
 	struct usb_device *udev = sdev->udev;
+	struct scatterlist *sgl = NULL, *sg;
+	void *buffer = NULL;
+	unsigned long long buf_len;
+	int nents;
+	int num_urbs = 1;
 	int pipe = get_pipe(sdev, pdu);
+	int use_sg = pdu->u.cmd_submit.transfer_flags & URB_DMA_MAP_SG;
+	int support_sg = 1;
+	int np = 0;
+	int ret, i;
 
 	if (pipe == -1)
 		return;
 
+	/*
+	 * Smatch reported the error case where use_sg is true and buf_len is 0.
+	 * In this case, It adds SDEV_EVENT_ERROR_MALLOC and stub_priv will be
+	 * released by stub event handler and connection will be shut down.
+	 */
 	priv = stub_priv_alloc(sdev, pdu);
 	if (!priv)
 		return;
 
-	/* setup a urb */
-	if (usb_pipeisoc(pipe))
-		priv->urb = usb_alloc_urb(pdu->u.cmd_submit.number_of_packets,
-					  GFP_KERNEL);
-	else
-		priv->urb = usb_alloc_urb(0, GFP_KERNEL);
+	buf_len = (unsigned long long)pdu->u.cmd_submit.transfer_buffer_length;
 
-	if (!priv->urb) {
-		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
-		return;
+	if (use_sg && !buf_len) {
+		dev_err(&udev->dev, "sg buffer with zero length\n");
+		goto err_malloc;
 	}
 
 	/* allocate urb transfer buffer, if needed */
-	if (pdu->u.cmd_submit.transfer_buffer_length > 0) {
-		priv->urb->transfer_buffer =
-			kzalloc(pdu->u.cmd_submit.transfer_buffer_length,
-				GFP_KERNEL);
-		if (!priv->urb->transfer_buffer) {
-			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
-			return;
+	if (buf_len) {
+		if (use_sg) {
+			sgl = sgl_alloc(buf_len, GFP_KERNEL, &nents);
+			if (!sgl)
+				goto err_malloc;
+
+			/* Check if the server's HCD supports SG */
+			if (!udev->bus->sg_tablesize) {
+				/*
+				 * If the server's HCD doesn't support SG, break
+				 * a single SG request into several URBs and map
+				 * each SG list entry to corresponding URB
+				 * buffer. The previously allocated SG list is
+				 * stored in priv->sgl (If the server's HCD
+				 * support SG, SG list is stored only in
+				 * urb->sg) and it is used as an indicator that
+				 * the server split single SG request into
+				 * several URBs. Later, priv->sgl is used by
+				 * stub_complete() and stub_send_ret_submit() to
+				 * reassemble the divied URBs.
+				 */
+				support_sg = 0;
+				num_urbs = nents;
+				priv->completed_urbs = 0;
+				pdu->u.cmd_submit.transfer_flags &=
+								~URB_DMA_MAP_SG;
+			}
+		} else {
+			buffer = kzalloc(buf_len, GFP_KERNEL);
+			if (!buffer)
+				goto err_malloc;
 		}
 	}
 
-	/* copy urb setup packet */
-	priv->urb->setup_packet = kmemdup(&pdu->u.cmd_submit.setup, 8,
-					  GFP_KERNEL);
-	if (!priv->urb->setup_packet) {
-		dev_err(&udev->dev, "allocate setup_packet\n");
-		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
-		return;
+	/* allocate urb array */
+	priv->num_urbs = num_urbs;
+	priv->urbs = kmalloc_array(num_urbs, sizeof(*priv->urbs), GFP_KERNEL);
+	if (!priv->urbs)
+		goto err_urbs;
+
+	/* setup a urb */
+	if (support_sg) {
+		if (usb_pipeisoc(pipe))
+			np = pdu->u.cmd_submit.number_of_packets;
+
+		priv->urbs[0] = usb_alloc_urb(np, GFP_KERNEL);
+		if (!priv->urbs[0])
+			goto err_urb;
+
+		if (buf_len) {
+			if (use_sg) {
+				priv->urbs[0]->sg = sgl;
+				priv->urbs[0]->num_sgs = nents;
+				priv->urbs[0]->transfer_buffer = NULL;
+			} else {
+				priv->urbs[0]->transfer_buffer = buffer;
+			}
+		}
+
+		/* copy urb setup packet */
+		priv->urbs[0]->setup_packet = kmemdup(&pdu->u.cmd_submit.setup,
+					8, GFP_KERNEL);
+		if (!priv->urbs[0]->setup_packet) {
+			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
+			return;
+		}
+
+		usbip_pack_pdu(pdu, priv->urbs[0], USBIP_CMD_SUBMIT, 0);
+	} else {
+		for_each_sg(sgl, sg, nents, i) {
+			priv->urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
+			/* The URBs which is previously allocated will be freed
+			 * in stub_device_cleanup_urbs() if error occurs.
+			 */
+			if (!priv->urbs[i])
+				goto err_urb;
+
+			usbip_pack_pdu(pdu, priv->urbs[i], USBIP_CMD_SUBMIT, 0);
+			priv->urbs[i]->transfer_buffer = sg_virt(sg);
+			priv->urbs[i]->transfer_buffer_length = sg->length;
+		}
+		priv->sgl = sgl;
 	}
 
-	/* set other members from the base header of pdu */
-	priv->urb->context                = (void *) priv;
-	priv->urb->dev                    = udev;
-	priv->urb->pipe                   = pipe;
-	priv->urb->complete               = stub_complete;
+	for (i = 0; i < num_urbs; i++) {
+		/* set other members from the base header of pdu */
+		priv->urbs[i]->context = (void *) priv;
+		priv->urbs[i]->dev = udev;
+		priv->urbs[i]->pipe = pipe;
+		priv->urbs[i]->complete = stub_complete;
 
-	usbip_pack_pdu(pdu, priv->urb, USBIP_CMD_SUBMIT, 0);
+		/* no need to submit an intercepted request, but harmless? */
+		tweak_special_requests(priv->urbs[i]);
 
+		masking_bogus_flags(priv->urbs[i]);
+	}
 
-	if (usbip_recv_xbuff(ud, priv->urb) < 0)
+	if (stub_recv_xbuff(ud, priv) < 0)
 		return;
 
-	if (usbip_recv_iso(ud, priv->urb) < 0)
+	if (usbip_recv_iso(ud, priv->urbs[0]) < 0)
 		return;
 
-	/* no need to submit an intercepted request, but harmless? */
-	tweak_special_requests(priv->urb);
-
-	masking_bogus_flags(priv->urb);
 	/* urb is now ready to submit */
-	ret = usb_submit_urb(priv->urb, GFP_KERNEL);
+	for (i = 0; i < priv->num_urbs; i++) {
+		ret = usb_submit_urb(priv->urbs[i], GFP_KERNEL);
 
-	if (ret == 0)
-		usbip_dbg_stub_rx("submit urb ok, seqnum %u\n",
-				  pdu->base.seqnum);
-	else {
-		dev_err(&udev->dev, "submit_urb error, %d\n", ret);
-		usbip_dump_header(pdu);
-		usbip_dump_urb(priv->urb);
+		if (ret == 0)
+			usbip_dbg_stub_rx("submit urb ok, seqnum %u\n",
+					pdu->base.seqnum);
+		else {
+			dev_err(&udev->dev, "submit_urb error, %d\n", ret);
+			usbip_dump_header(pdu);
+			usbip_dump_urb(priv->urbs[i]);
 
-		/*
-		 * Pessimistic.
-		 * This connection will be discarded.
-		 */
-		usbip_event_add(ud, SDEV_EVENT_ERROR_SUBMIT);
+			/*
+			 * Pessimistic.
+			 * This connection will be discarded.
+			 */
+			usbip_event_add(ud, SDEV_EVENT_ERROR_SUBMIT);
+			break;
+		}
 	}
 
 	usbip_dbg_stub_rx("Leave\n");
+	return;
+
+err_urb:
+	kfree(priv->urbs);
+err_urbs:
+	kfree(buffer);
+	sgl_free(sgl);
+err_malloc:
+	usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 }
 
 /* recv a pdu */

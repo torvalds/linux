@@ -55,7 +55,7 @@
 	};
 
 	chosen {
-		stdout-path = "&uart1:115200n8";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@70000000 {
@@ -140,6 +140,25 @@
 		regulator-always-on;
 	};
 
+	reg_3v3: regulator-3v3 {
+		/* TPS54320 */
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_3v3_lcd: regulator-3v3-lcd {
+		/* MIC2009 */
+		compatible = "regulator-fixed";
+		regulator-name = "LCD_3V3";
+		vin-supply = <&reg_3v3>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	pwm_bl: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm2 0 50000>;
@@ -154,6 +173,7 @@
 				     234 237 239 242 244 247 249 252 255>;
 		default-brightness-level = <0>;
 		enable-gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3v3_lcd>;
 	};
 
 	leds {
@@ -180,8 +200,6 @@
 
 	power-gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		power-button {
 			label = "Power button";
@@ -192,8 +210,6 @@
 
 	touch-lock-key {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		touch-lock-button {
 			label = "Touch lock button";
@@ -202,8 +218,9 @@
 		};
 	};
 
-	usbphy2: usbphy2 {
+	usbphy2: usbphy-2 {
 		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_3v3>;
 		reset-gpios = <&gpio4 4 GPIO_ACTIVE_LOW>;
 		clock-names = "main_clk";
 		clock-frequency = <24000000>;
@@ -212,8 +229,9 @@
 		assigned-clock-parents = <&clks IMX5_CLK_OSC>;
 	};
 
-	usbphy3: usbphy3 {
+	usbphy3: usbphy-3 {
 		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_3v3>;
 		reset-gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
 		clock-names = "main_clk";
 
@@ -225,6 +243,7 @@
 
 	panel-lvds0 {
 		compatible = "nvd,9128";
+		power-supply = <&reg_3v3_lcd>;
 
 		port {
 			panel_in_lvds0: endpoint {
@@ -232,6 +251,14 @@
 			};
 		};
 	};
+};
+
+&usbphy0 {
+	vcc-supply = <&reg_3v3>;
+};
+
+&usbphy1 {
+	vcc-supply = <&reg_3v3>;
 };
 
 &audmux {
@@ -292,7 +319,6 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	num-chipselects = <1>;
 	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
@@ -300,7 +326,7 @@
 		compatible = "dlg,da9053-aa";
 		reg = <0>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <12 0x8>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
 		spi-max-frequency = <1000000>;
 		dlg,tsi-as-adc;
 		tsiref-supply = <&reg_tsiref>;
@@ -418,6 +444,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
+	phy-supply = <&reg_3v3>;
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio2 16 GPIO_ACTIVE_LOW>;
 	status = "okay";
@@ -473,7 +500,7 @@
 				compatible = "fsl,mma8453";
 				reg = <0x1c>;
 				interrupt-parent = <&gpio1>;
-				interrupts = <6 0>;
+				interrupts = <6 IRQ_TYPE_NONE>;
 				interrupt-names = "INT1";
 			};
 
@@ -539,7 +566,7 @@
 		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <4 0x8>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -559,13 +586,15 @@
 		status = "okay";
 
 		port@2 {
-			reg = <2>;
-
 			lvds0_out: endpoint {
 				remote-endpoint = <&panel_in_lvds0>;
 			};
 		};
 	};
+};
+
+&pmu {
+	secure-reg-access;
 };
 
 &pwm1 {

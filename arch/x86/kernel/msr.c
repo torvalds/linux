@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
- *   USA; either version 2 of the License, or (at your option) any later
- *   version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -39,6 +34,7 @@
 #include <linux/notifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
+#include <linux/security.h>
 
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
@@ -84,6 +80,10 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	int err = 0;
 	ssize_t bytes = 0;
 
+	err = security_locked_down(LOCKDOWN_MSR);
+	if (err)
+		return err;
+
 	if (count % 8)
 		return -EINVAL;	/* Invalid chunk size */
 
@@ -115,14 +115,14 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 			err = -EBADF;
 			break;
 		}
-		if (copy_from_user(&regs, uregs, sizeof regs)) {
+		if (copy_from_user(&regs, uregs, sizeof(regs))) {
 			err = -EFAULT;
 			break;
 		}
 		err = rdmsr_safe_regs_on_cpu(cpu, regs);
 		if (err)
 			break;
-		if (copy_to_user(uregs, &regs, sizeof regs))
+		if (copy_to_user(uregs, &regs, sizeof(regs)))
 			err = -EFAULT;
 		break;
 
@@ -131,14 +131,17 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 			err = -EBADF;
 			break;
 		}
-		if (copy_from_user(&regs, uregs, sizeof regs)) {
+		if (copy_from_user(&regs, uregs, sizeof(regs))) {
 			err = -EFAULT;
 			break;
 		}
+		err = security_locked_down(LOCKDOWN_MSR);
+		if (err)
+			break;
 		err = wrmsr_safe_regs_on_cpu(cpu, regs);
 		if (err)
 			break;
-		if (copy_to_user(uregs, &regs, sizeof regs))
+		if (copy_to_user(uregs, &regs, sizeof(regs)))
 			err = -EFAULT;
 		break;
 

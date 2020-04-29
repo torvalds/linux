@@ -58,6 +58,9 @@ SUBSYSTEM
 'futex'::
 	Futex stressing benchmarks.
 
+'epoll'::
+	Eventpoll (epoll) stressing benchmarks.
+
 'all'::
 	All benchmark subsystems.
 
@@ -203,6 +206,13 @@ Suite for evaluating requeue calls.
 *lock-pi*::
 Suite for evaluating futex lock_pi calls.
 
+SUITES FOR 'epoll'
+~~~~~~~~~~~~~~~~~~
+*wait*::
+Suite for evaluating concurrent epoll_wait calls.
+
+*ctl*::
+Suite for evaluating multiple epoll_ctl calls.
 
 SEE ALSO
 --------

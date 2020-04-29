@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2/3 Clock Management (CM) register definitions
  *
  * Copyright (C) 2007-2009 Texas Instruments, Inc.
  * Copyright (C) 2007-2010 Nokia Corporation
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The CM hardware modules on the OMAP2/3 are quite similar to each
  * other.  The CM modules/instances on OMAP4 are quite different, so

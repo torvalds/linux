@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SMP support for J2 processor
  *
  * Copyright (C) 2015-2016 Smart Energy Instruments, Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/smp.h>
@@ -91,8 +88,8 @@ static void j2_start_cpu(unsigned int cpu, unsigned long entry_point)
 	if (!np) return;
 
 	if (of_property_read_u32_array(np, "cpu-release-addr", regs, 2)) return;
-	release = ioremap_nocache(regs[0], sizeof(u32));
-	initpc = ioremap_nocache(regs[1], sizeof(u32));
+	release = ioremap(regs[0], sizeof(u32));
+	initpc = ioremap(regs[1], sizeof(u32));
 
 	__raw_writel(entry_point, initpc);
 	__raw_writel(1, release);

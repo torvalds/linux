@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Low-Level PCI Support for the SH7751
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2001  Dustin McIntire
  *
  *  With cleanup by Paul van Gool <pvangool@mimotech.com>, 2003.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -17,7 +14,7 @@
 #include <linux/io.h>
 #include "pci-sh4.h"
 #include <asm/addrspace.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 static int __init __area_sdram_check(struct pci_channel *chan,
 				     unsigned int area)

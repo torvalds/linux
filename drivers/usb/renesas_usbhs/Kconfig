@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Renesas USBHS Controller Drivers
 #
@@ -7,7 +8,6 @@ config USB_RENESAS_USBHS
 	depends on USB_GADGET
 	depends on ARCH_RENESAS || SUPERH || COMPILE_TEST
 	depends on EXTCON || !EXTCON # if EXTCON=m, USBHS cannot be built-in
-	default n
 	help
 	  Renesas USBHS is a discrete USB host and peripheral controller chip
 	  that supports both full and high speed USB 2.0 data transfers.

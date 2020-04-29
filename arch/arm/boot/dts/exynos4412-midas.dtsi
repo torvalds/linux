@@ -13,6 +13,7 @@
 #include "exynos4412.dtsi"
 #include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/maxim,max77686.h>
 #include <dt-bindings/pinctrl/samsung.h>
@@ -46,60 +47,65 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	cam_io_reg: voltage-regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_SENSOR_A";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_io_reg: voltage-regulator-1 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_SENSOR_A";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	cam_af_reg: voltage-regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_AF";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_af_reg: voltage-regulator-3 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_AF";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	vsil12: voltage-regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VSIL_1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&buck7_reg>;
+	};
 
-		vsil12: voltage-regulator-6 {
-			compatible = "regulator-fixed";
-			regulator-name = "VSIL_1.2V";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			vin-supply = <&buck7_reg>;
-		};
+	vcc33mhl: voltage-regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3.3_MHL";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		vcc33mhl: voltage-regulator-7 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_3.3_MHL";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vcc18mhl: voltage-regulator-5 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1.8_MHL";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		vcc18mhl: voltage-regulator-8 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_1.8_MHL";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	touchkey_reg: voltage-regulator-6 {
+		compatible = "regulator-fixed";
+		regulator-name = "LED_VDD_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		status = "disabled";
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys>;
 
 		key-down {
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
@@ -144,6 +150,8 @@
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
 
 			regulators {
@@ -190,10 +198,31 @@
 			compatible = "maxim,max17047";
 			interrupt-parent = <&gpx2>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77693_fuel_irq>;
 			reg = <0x36>;
 
 			maxim,over-heat-temp = <700>;
 			maxim,over-volt = <4500>;
+		};
+	};
+
+	i2c-gpio-4 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpl0 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpl0 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey@20 {
+			compatible = "cypress,midas-touchkey";
+			reg = <0x20>;
+			vdd-supply = <&touchkey_reg>;
+			vcc-supply = <&ldo5_reg>;
+			interrupt-parent = <&gpj0>;
+			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			linux,keycodes = <KEY_BACK KEY_MENU>;
 		};
 	};
 
@@ -267,11 +296,15 @@
 			cooling-maps {
 				map0 {
 				     /* Corresponds to 800MHz at freq_table */
-				     cooling-device = <&cpu0 7 7>;
+				     cooling-device = <&cpu0 7 7>, <&cpu1 7 7>,
+						      <&cpu2 7 7>, <&cpu3 7 7>;
 				};
 				map1 {
 				     /* Corresponds to 200MHz at freq_table */
-				     cooling-device = <&cpu0 13 13>;
+				     cooling-device = <&cpu0 13 13>,
+						      <&cpu1 13 13>,
+						      <&cpu2 13 13>,
+						      <&cpu3 13 13>;
 			       };
 		       };
 		};
@@ -449,6 +482,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&buck4_reg>;
+	status = "okay";
+};
+
 &hdmi {
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
@@ -580,6 +618,8 @@
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
+		pinctrl-0 = <&max77686_irq>;
+		pinctrl-names = "default";
 		reg = <0x09>;
 		#clock-cells = <1>;
 
@@ -1013,6 +1053,31 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
 
+	gpio_keys: gpio-keys {
+		samsung,pins = "gpx0-1", "gpx2-2", "gpx2-7", "gpx3-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx0-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77693_irq: max77693-irq {
+		samsung,pins = "gpx1-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77693_fuel_irq: max77693-fuel-irq {
+		samsung,pins = "gpx2-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	sdhci2_cd: sdhci2-cd-irq {
+		samsung,pins = "gpx3-4";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
@@ -1242,9 +1307,8 @@
 
 &sdhci_2 {
 	bus-width = <4>;
-	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sdhci2_cd>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo21_reg>;
 	status = "okay";

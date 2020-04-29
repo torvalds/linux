@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -75,7 +67,7 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 	int cmd_num;
 
 	for (cmd_num = 0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
-		if (0 == strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
+		if (!strncasecmp(cmdstr, android_wifi_cmd_str[cmd_num],
 				  strlen(android_wifi_cmd_str[cmd_num])))
 			break;
 	return cmd_num;
@@ -92,7 +84,7 @@ static int rtw_android_get_rssi(struct net_device *net, char *command,
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		bytes_written += snprintf(&command[bytes_written], total_len,
 					  "%s rssi %d",
-					  pcur_network->network.Ssid.Ssid,
+					  pcur_network->network.ssid.ssid,
 					  padapter->recvpriv.rssi);
 	}
 	return bytes_written;
@@ -133,12 +125,6 @@ static int android_get_p2p_addr(struct net_device *net, char *command,
 	/* We use the same address as our HW MAC address */
 	memcpy(command, net->dev_addr, ETH_ALEN);
 	return ETH_ALEN;
-}
-
-static int rtw_android_set_block(struct net_device *net, char *command,
-				 int total_len)
-{
-	return 0;
 }
 
 int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
@@ -194,8 +180,6 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 							priv_cmd.total_len);
 		break;
 	case ANDROID_WIFI_CMD_BLOCK:
-		bytes_written = rtw_android_set_block(net, command,
-						      priv_cmd.total_len);
 		break;
 	case ANDROID_WIFI_CMD_RXFILTER_START:
 		break;

@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <media/v4l2-event.h>
@@ -256,8 +257,8 @@ static int hva_querycap(struct file *file, void *priv,
 	struct hva_ctx *ctx = fh_to_ctx(file->private_data);
 	struct hva_dev *hva = ctx_to_hdev(ctx);
 
-	strlcpy(cap->driver, HVA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, hva->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, HVA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, hva->vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 hva->pdev->name);
 
@@ -565,6 +566,7 @@ static int hva_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		 */
 		struct vb2_queue *vq;
 		struct hva_stream *stream;
+		struct vb2_buffer *vb2_buf;
 
 		vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 
@@ -574,7 +576,8 @@ static int hva_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			return -EINVAL;
 		}
 
-		stream = (struct hva_stream *)vq->bufs[buf->index];
+		vb2_buf = vb2_get_buffer(vq, buf->index);
+		stream = to_hva_stream(to_vb2_v4l2_buffer(vb2_buf));
 		stream->bytesused = buf->bytesused;
 	}
 
@@ -1313,7 +1316,7 @@ static int hva_register_device(struct hva_dev *hva)
 	snprintf(vdev->name, sizeof(vdev->name), "%s%lx", HVA_NAME,
 		 hva->ip_version);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dev, "%s failed to register video device\n",
 			HVA_PREFIX);
@@ -1354,6 +1357,10 @@ static int hva_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	hva->dev = dev;
 	hva->pdev = pdev;

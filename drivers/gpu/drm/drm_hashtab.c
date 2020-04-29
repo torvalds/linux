@@ -32,11 +32,15 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_hashtab.h>
-#include <linux/hash.h>
-#include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/hash.h>
+#include <linux/mm.h>
+#include <linux/rculist.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+
+#include <drm/drm_hashtab.h>
+#include <drm/drm_print.h>
 
 int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 {
@@ -47,7 +51,7 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	if (size <= PAGE_SIZE / sizeof(*ht->table))
 		ht->table = kcalloc(size, sizeof(*ht->table), GFP_KERNEL);
 	else
-		ht->table = vzalloc(size*sizeof(*ht->table));
+		ht->table = vzalloc(array_size(size, sizeof(*ht->table)));
 	if (!ht->table) {
 		DRM_ERROR("Out of memory for hash table\n");
 		return -ENOMEM;

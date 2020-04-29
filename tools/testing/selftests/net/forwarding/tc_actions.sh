@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+ALL_TESTS="gact_drop_and_ok_test mirred_egress_redirect_test \
+	mirred_egress_mirror_test gact_trap_test"
 NUM_NETIFS=4
 source tc_common.sh
 source lib.sh
@@ -111,6 +113,10 @@ gact_trap_test()
 {
 	RET=0
 
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
 	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
 		skip_hw dst_ip 192.0.2.2 action drop
 	tc filter add dev $swp1 ingress protocol ip pref 3 handle 103 flower \
@@ -179,24 +185,29 @@ cleanup()
 	ip link set $swp1 address $swp1origmac
 }
 
+mirred_egress_redirect_test()
+{
+	mirred_egress_test "redirect"
+}
+
+mirred_egress_mirror_test()
+{
+	mirred_egress_test "mirror"
+}
+
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-gact_drop_and_ok_test
-mirred_egress_test "redirect"
-mirred_egress_test "mirror"
+tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
 	log_info "Could not test offloaded functionality"
 else
 	tcflags="skip_sw"
-	gact_drop_and_ok_test
-	mirred_egress_test "redirect"
-	mirred_egress_test "mirror"
-	gact_trap_test
+	tests_run
 fi
 
 exit $EXIT_STATUS

@@ -166,7 +166,7 @@ static bool max_work_reached(struct background_tracker *b)
 		atomic_read(&b->pending_demotes) >= b->max_work;
 }
 
-struct bt_work *alloc_work(struct background_tracker *b)
+static struct bt_work *alloc_work(struct background_tracker *b)
 {
 	if (max_work_reached(b))
 		return NULL;

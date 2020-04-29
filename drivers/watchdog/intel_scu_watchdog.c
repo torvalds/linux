@@ -1,31 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *      Intel_SCU 0.2:  An Intel SCU IOH Based Watchdog Device
  *			for Intel part #(s):
  *				- AF82MP20 PCH
  *
  *      Copyright (C) 2009-2010 Intel Corporation. All rights reserved.
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of version 2 of the GNU General
- *      Public License as published by the Free Software Foundation.
- *
- *      This program is distributed in the hope that it will be
- *      useful, but WITHOUT ANY WARRANTY; without even the implied
- *      warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- *      PURPOSE.  See the GNU General Public License for more details.
- *      You should have received a copy of the GNU General Public
- *      License along with this program; if not, write to the Free
- *      Software Foundation, Inc., 59 Temple Place - Suite 330,
- *      Boston, MA  02111-1307, USA.
- *      The full GNU General Public License is included in this
- *      distribution in the file called COPYING.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/compiler.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -224,7 +208,7 @@ static int intel_scu_set_heartbeat(u32 t)
 		 watchdog_device.timer_tbl_ptr->freq_hz);
 	pr_debug("set_heartbeat: timer_set is %x (hex)\n",
 		 watchdog_device.timer_set);
-	pr_debug("set_hearbeat: timer_margin is %x (hex)\n", timer_margin);
+	pr_debug("set_heartbeat: timer_margin is %x (hex)\n", timer_margin);
 	pr_debug("set_heartbeat: threshold is %x (hex)\n",
 		 watchdog_device.threshold);
 	pr_debug("set_heartbeat: soft_threshold is %x (hex)\n",
@@ -304,7 +288,7 @@ static int intel_scu_open(struct inode *inode, struct file *file)
 	if (watchdog_device.driver_closed)
 		return -EPERM;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int intel_scu_release(struct inode *inode, struct file *file)
@@ -428,6 +412,7 @@ static const struct file_operations intel_scu_fops = {
 	.llseek         = no_llseek,
 	.write          = intel_scu_write,
 	.unlocked_ioctl = intel_scu_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = intel_scu_open,
 	.release        = intel_scu_release,
 };
@@ -478,7 +463,7 @@ static int __init intel_scu_watchdog_init(void)
 		return -ENODEV;
 	}
 
-	tmp_addr = ioremap_nocache(watchdog_device.timer_tbl_ptr->phys_addr,
+	tmp_addr = ioremap(watchdog_device.timer_tbl_ptr->phys_addr,
 			20);
 
 	if (tmp_addr == NULL) {
@@ -545,21 +530,4 @@ register_reboot_error:
 	iounmap(watchdog_device.timer_load_count_addr);
 	return ret;
 }
-
-static void __exit intel_scu_watchdog_exit(void)
-{
-
-	misc_deregister(&watchdog_device.miscdev);
-	unregister_reboot_notifier(&watchdog_device.intel_scu_notifier);
-	/* disable the timer */
-	iowrite32(0x00000002, watchdog_device.timer_control_addr);
-	iounmap(watchdog_device.timer_load_count_addr);
-}
-
 late_initcall(intel_scu_watchdog_init);
-module_exit(intel_scu_watchdog_exit);
-
-MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Intel SCU Watchdog Device Driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(WDT_VER);

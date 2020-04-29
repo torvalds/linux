@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig GOOGLE_FIRMWARE
 	bool "Google Firmware Drivers"
 	default n
@@ -10,37 +11,31 @@ if GOOGLE_FIRMWARE
 
 config GOOGLE_SMI
 	tristate "SMI interface for Google platforms"
-	depends on X86 && ACPI && DMI && EFI
-	select EFI_VARS
+	depends on X86 && ACPI && DMI
 	help
 	  Say Y here if you want to enable SMI callbacks for Google
 	  platforms.  This provides an interface for writing to and
-	  clearing the EFI event log and reading and writing NVRAM
+	  clearing the event log.  If EFI_VARS is also enabled this
+	  driver provides an interface for reading and writing NVRAM
 	  variables.
 
 config GOOGLE_COREBOOT_TABLE
-	tristate
-	depends on GOOGLE_COREBOOT_TABLE_ACPI || GOOGLE_COREBOOT_TABLE_OF
-
-config GOOGLE_COREBOOT_TABLE_ACPI
-	tristate "Coreboot Table Access - ACPI"
-	depends on ACPI
-	select GOOGLE_COREBOOT_TABLE
+	tristate "Coreboot Table Access"
+	depends on ACPI || OF
 	help
 	  This option enables the coreboot_table module, which provides other
-	  firmware modules to access to the coreboot table. The coreboot table
-	  pointer is accessed through the ACPI "GOOGCB00" object.
+	  firmware modules access to the coreboot table. The coreboot table
+	  pointer is accessed through the ACPI "GOOGCB00" object or the
+	  device tree node /firmware/coreboot.
 	  If unsure say N.
 
-config GOOGLE_COREBOOT_TABLE_OF
-	tristate "Coreboot Table Access - Device Tree"
-	depends on OF
+config GOOGLE_COREBOOT_TABLE_ACPI
+	tristate
 	select GOOGLE_COREBOOT_TABLE
-	help
-	  This option enable the coreboot_table module, which provide other
-	  firmware modules to access coreboot table. The coreboot table pointer
-	  is accessed through the device tree node /firmware/coreboot.
-	  If unsure say N.
+
+config GOOGLE_COREBOOT_TABLE_OF
+	tristate
+	select GOOGLE_COREBOOT_TABLE
 
 config GOOGLE_MEMCONSOLE
 	tristate
@@ -54,6 +49,14 @@ config GOOGLE_MEMCONSOLE_X86_LEGACY
 	  This option enables the kernel to search for a firmware log in
 	  the EBDA on Google servers.  If found, this log is exported to
 	  userland in the file /sys/firmware/log.
+
+config GOOGLE_FRAMEBUFFER_COREBOOT
+	tristate "Coreboot Framebuffer"
+	depends on FB_SIMPLE
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  This option enables the kernel to search for a framebuffer in
+	  the coreboot table.  If found, it is registered with simplefb.
 
 config GOOGLE_MEMCONSOLE_COREBOOT
 	tristate "Firmware Memory Console"

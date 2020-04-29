@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-vexpress/platsmp.c
  *
  *  Copyright (C) 2002 ARM Ltd.
  *  All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -81,6 +78,13 @@ static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 	 */
 	vexpress_flags_set(__pa_symbol(versatile_secondary_startup));
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void vexpress_cpu_die(unsigned int cpu)
+{
+	versatile_immitation_cpu_die(cpu, 0x40);
+}
+#endif
 
 const struct smp_operations vexpress_smp_dt_ops __initconst = {
 	.smp_prepare_cpus	= vexpress_smp_dt_prepare_cpus,

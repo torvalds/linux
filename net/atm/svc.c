@@ -381,7 +381,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 				    msg->pvc.sap_addr.vpi,
 				    msg->pvc.sap_addr.vci);
 		dev_kfree_skb(skb);
-		sk->sk_ack_backlog--;
+		sk_acceptq_removed(sk);
 		if (error) {
 			sigd_enq2(NULL, as_reject, old_vcc, NULL, NULL,
 				  &old_vcc->qos, error);
@@ -641,6 +641,7 @@ static const struct proto_ops svc_proto_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	svc_compat_ioctl,
 #endif
+	.gettstamp =	sock_gettstamp,
 	.listen =	svc_listen,
 	.shutdown =	svc_shutdown,
 	.setsockopt =	svc_setsockopt,

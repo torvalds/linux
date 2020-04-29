@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * sm5502.h
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __LINUX_EXTCON_SM5502_H
@@ -240,6 +236,8 @@ enum sm5502_reg {
 						| (DM_DP_CON_SWITCH_AUDIO <<SM5502_REG_MANUAL_SW1_DM_SHIFT))
 #define DM_DP_SWITCH_UART			((DM_DP_CON_SWITCH_UART <<SM5502_REG_MANUAL_SW1_DP_SHIFT) \
 						| (DM_DP_CON_SWITCH_UART <<SM5502_REG_MANUAL_SW1_DM_SHIFT))
+
+#define SM5502_REG_RESET_MASK			(0x1)
 
 /* SM5502 Interrupts */
 enum sm5502_irq {

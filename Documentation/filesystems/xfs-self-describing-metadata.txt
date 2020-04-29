@@ -110,7 +110,7 @@ owner field in the metadata object, we can immediately do top down validation to
 determine the scope of the problem.
 
 Different types of metadata have different owner identifiers. For example,
-directory, attribute and extent tree blocks are all owned by an inode, whilst
+directory, attribute and extent tree blocks are all owned by an inode, while
 freespace btree blocks are owned by an allocation group. Hence the size and
 contents of the owner field are determined by the type of metadata object we are
 looking at.  The owner information can also identify misplaced writes (e.g.
@@ -222,7 +222,7 @@ static void
 xfs_foo_read_verify(
 	struct xfs_buf	*bp)
 {
-       struct xfs_mount *mp = bp->b_target->bt_mount;
+       struct xfs_mount *mp = bp->b_mount;
 
         if ((xfs_sb_version_hascrc(&mp->m_sb) &&
              !xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
@@ -245,7 +245,7 @@ static bool
 xfs_foo_verify(
 	struct xfs_buf		*bp)
 {
-        struct xfs_mount	*mp = bp->b_target->bt_mount;
+        struct xfs_mount	*mp = bp->b_mount;
         struct xfs_ondisk_hdr	*hdr = bp->b_addr;
 
         if (hdr->magic != cpu_to_be32(XFS_FOO_MAGIC))
@@ -272,7 +272,7 @@ static bool
 xfs_foo_verify(
 	struct xfs_buf		*bp)
 {
-        struct xfs_mount	*mp = bp->b_target->bt_mount;
+        struct xfs_mount	*mp = bp->b_mount;
         struct xfs_ondisk_hdr	*hdr = bp->b_addr;
 
         if (hdr->magic == cpu_to_be32(XFS_FOO_CRC_MAGIC)) {
@@ -297,7 +297,7 @@ static void
 xfs_foo_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	if (!xfs_foo_verify(bp)) {

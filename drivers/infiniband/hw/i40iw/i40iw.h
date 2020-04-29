@@ -67,7 +67,7 @@
 #include "i40iw_user.h"
 #include "i40iw_puda.h"
 
-#define I40IW_FW_VERSION  2
+#define I40IW_FW_VER_DEFAULT 2
 #define I40IW_HW_VERSION  2
 
 #define I40IW_ARP_ADD     1
@@ -207,6 +207,7 @@ struct i40iw_msix_vector {
 	u32 irq;
 	u32 cpu_affinity;
 	u32 ceq_id;
+	cpumask_t mask;
 };
 
 struct l2params_work {
@@ -323,6 +324,26 @@ struct i40iw_handler {
 	struct i40iw_device device;
 	struct i40e_info ldev;
 };
+
+/**
+ * i40iw_fw_major_ver - get firmware major version
+ * @dev: iwarp device
+ **/
+static inline u64 i40iw_fw_major_ver(struct i40iw_sc_dev *dev)
+{
+	return RS_64(dev->feature_info[I40IW_FEATURE_FW_INFO],
+		     I40IW_FW_VER_MAJOR);
+}
+
+/**
+ * i40iw_fw_minor_ver - get firmware minor version
+ * @dev: iwarp device
+ **/
+static inline u64 i40iw_fw_minor_ver(struct i40iw_sc_dev *dev)
+{
+	return RS_64(dev->feature_info[I40IW_FEATURE_FW_INFO],
+		     I40IW_FW_VER_MINOR);
+}
 
 /**
  * to_iwdev - get device
@@ -551,7 +572,7 @@ enum i40iw_status_code i40iw_obj_aligned_mem(struct i40iw_device *iwdev,
 
 void i40iw_request_reset(struct i40iw_device *iwdev);
 void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev);
-void i40iw_setup_cm_core(struct i40iw_device *iwdev);
+int i40iw_setup_cm_core(struct i40iw_device *iwdev);
 void i40iw_cleanup_cm_core(struct i40iw_cm_core *cm_core);
 void i40iw_process_ceq(struct i40iw_device *, struct i40iw_ceq *iwceq);
 void i40iw_process_aeq(struct i40iw_device *);

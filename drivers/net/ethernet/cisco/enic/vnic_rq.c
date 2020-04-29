@@ -35,7 +35,7 @@ static int vnic_rq_alloc_bufs(struct vnic_rq *rq)
 	unsigned int blks = VNIC_RQ_BUF_BLKS_NEEDED(count);
 
 	for (i = 0; i < blks; i++) {
-		rq->bufs[i] = kzalloc(VNIC_RQ_BUF_BLK_SZ(count), GFP_ATOMIC);
+		rq->bufs[i] = kzalloc(VNIC_RQ_BUF_BLK_SZ(count), GFP_KERNEL);
 		if (!rq->bufs[i])
 			return -ENOMEM;
 	}

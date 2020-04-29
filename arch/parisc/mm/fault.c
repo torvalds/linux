@@ -66,6 +66,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 	case 0x30000000: /* coproc2 */
 		if (bit22set(inst))
 			return VM_WRITE;
+		/* fall through */
 
 	case 0x0: /* indexed/memory management */
 		if (bit22set(inst)) {
@@ -262,7 +263,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	unsigned long acc_type;
-	int fault = 0;
+	vm_fault_t fault = 0;
 	unsigned int flags;
 
 	if (faulthandler_disabled())
@@ -273,7 +274,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	if (!mm)
 		goto no_context;
 
-	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 
@@ -303,7 +304,7 @@ good_area:
 
 	fault = handle_mm_fault(vma, address, flags);
 
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+	if (fault_signal_pending(fault, regs))
 		return;
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
@@ -327,14 +328,12 @@ good_area:
 		else
 			current->min_flt++;
 		if (fault & VM_FAULT_RETRY) {
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-
 			/*
 			 * No need to up_read(&mm->mmap_sem) as we would
 			 * have already released it in __lock_page_or_retry
 			 * in mm/filemap.c.
 			 */
-
+			flags |= FAULT_FLAG_TRIED;
 			goto retry;
 		}
 	}
@@ -353,23 +352,22 @@ bad_area:
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
-		struct siginfo si;
-		unsigned int lsb = 0;
+		int signo, si_code;
 
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
 			    address < vma->vm_start || address >= vma->vm_end) {
-				si.si_signo = SIGSEGV;
-				si.si_code = SEGV_MAPERR;
+				signo = SIGSEGV;
+				si_code = SEGV_MAPERR;
 				break;
 			}
 
 			/* send SIGSEGV for wrong permissions */
 			if ((vma->vm_flags & acc_type) != acc_type) {
-				si.si_signo = SIGSEGV;
-				si.si_code = SEGV_ACCERR;
+				signo = SIGSEGV;
+				si_code = SEGV_ACCERR;
 				break;
 			}
 
@@ -377,43 +375,40 @@ bad_area:
 			/* fall through */
 		case 17:	/* NA data TLB miss / page fault */
 		case 18:	/* Unaligned access - PCXS only */
-			si.si_signo = SIGBUS;
-			si.si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
+			signo = SIGBUS;
+			si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
 			break;
 		case 16:	/* Non-access instruction TLB miss fault */
 		case 26:	/* PCXL: Data memory access rights trap */
 		default:
-			si.si_signo = SIGSEGV;
-			si.si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
+			signo = SIGSEGV;
+			si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
 			break;
 		}
-
 #ifdef CONFIG_MEMORY_FAILURE
 		if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+			unsigned int lsb = 0;
 			printk(KERN_ERR
 	"MCE: Killing %s:%d due to hardware memory corruption fault at %08lx\n",
 			tsk->comm, tsk->pid, address);
-			si.si_signo = SIGBUS;
-			si.si_code = BUS_MCEERR_AR;
+			/*
+			 * Either small page or large page may be poisoned.
+			 * In other words, VM_FAULT_HWPOISON_LARGE and
+			 * VM_FAULT_HWPOISON are mutually exclusive.
+			 */
+			if (fault & VM_FAULT_HWPOISON_LARGE)
+				lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+			else if (fault & VM_FAULT_HWPOISON)
+				lsb = PAGE_SHIFT;
+
+			force_sig_mceerr(BUS_MCEERR_AR, (void __user *) address,
+					 lsb);
+			return;
 		}
 #endif
+		show_signal_msg(regs, code, address, tsk, vma);
 
-		/*
-		 * Either small page or large page may be poisoned.
-		 * In other words, VM_FAULT_HWPOISON_LARGE and
-		 * VM_FAULT_HWPOISON are mutually exclusive.
-		 */
-		if (fault & VM_FAULT_HWPOISON_LARGE)
-			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
-		else if (fault & VM_FAULT_HWPOISON)
-			lsb = PAGE_SHIFT;
-		else
-			show_signal_msg(regs, code, address, tsk, vma);
-		si.si_addr_lsb = lsb;
-
-		si.si_errno = 0;
-		si.si_addr = (void __user *) address;
-		force_sig_info(si.si_signo, &si, current);
+		force_sig_fault(signo, si_code, (void __user *) address);
 		return;
 	}
 

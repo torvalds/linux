@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* keytable for Terratec Cinergy C PCI Remote Controller
  *
  * Copyright (c) 2010 by Igor M. Liplianin <liplianin@me.by>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
@@ -13,17 +9,17 @@
 
 static struct rc_map_table terratec_cinergy_c_pci[] = {
 	{ 0x3e, KEY_POWER},
-	{ 0x3d, KEY_1},
-	{ 0x3c, KEY_2},
-	{ 0x3b, KEY_3},
-	{ 0x3a, KEY_4},
-	{ 0x39, KEY_5},
-	{ 0x38, KEY_6},
-	{ 0x37, KEY_7},
-	{ 0x36, KEY_8},
-	{ 0x35, KEY_9},
+	{ 0x3d, KEY_NUMERIC_1},
+	{ 0x3c, KEY_NUMERIC_2},
+	{ 0x3b, KEY_NUMERIC_3},
+	{ 0x3a, KEY_NUMERIC_4},
+	{ 0x39, KEY_NUMERIC_5},
+	{ 0x38, KEY_NUMERIC_6},
+	{ 0x37, KEY_NUMERIC_7},
+	{ 0x36, KEY_NUMERIC_8},
+	{ 0x35, KEY_NUMERIC_9},
 	{ 0x34, KEY_VIDEO_NEXT}, /* AV */
-	{ 0x33, KEY_0},
+	{ 0x33, KEY_NUMERIC_0},
 	{ 0x32, KEY_REFRESH},
 	{ 0x30, KEY_EPG},
 	{ 0x2f, KEY_UP},

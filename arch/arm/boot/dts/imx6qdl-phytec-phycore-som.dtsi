@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/dlg,da9063-regulator.h>
 
 / {
 	aliases {
@@ -87,7 +88,7 @@
 		reg = <0x50>;
 	};
 
-	pmic@58 {
+	pmic: pmic@58 {
 		compatible = "dlg,da9062";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
@@ -95,27 +96,36 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		da9062_rtc: rtc {
 			compatible = "dlg,da9062-rtc";
 		};
 
+		da9062_onkey: onkey {
+			compatible = "dlg,da9062-onkey";
+		};
+
 		watchdog {
 			compatible = "dlg,da9062-watchdog";
+			dlg,use-sw-pm;
 		};
 
 		regulators {
 			vdd_arm: buck1 {
 				regulator-name = "vdd_arm";
-				regulator-min-microvolt = <730000>;
+				regulator-min-microvolt = <925000>;
 				regulator-max-microvolt = <1380000>;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-always-on;
 			};
 
 			vdd_soc: buck2 {
 				regulator-name = "vdd_soc";
-				regulator-min-microvolt = <730000>;
+				regulator-min-microvolt = <1150000>;
 				regulator-max-microvolt = <1380000>;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-always-on;
 			};
 
@@ -123,6 +133,7 @@
 				regulator-name = "vdd_ddr3";
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-always-on;
 			};
 
@@ -130,6 +141,7 @@
 				regulator-name = "vdd_eth";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-always-on;
 			};
 
@@ -183,7 +195,6 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
 	non-removable;
-	vmmc-supply = <&vdd_emmc_1p8>;
 	status = "disabled";
 };
 

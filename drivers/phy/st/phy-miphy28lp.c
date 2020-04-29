@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 STMicroelectronics
  *
  * STMicroelectronics PHY driver MiPHY28lp (for SoC STiH407).
  *
  * Author: Alexandre Torgue <alexandre.torgue@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/platform_device.h>

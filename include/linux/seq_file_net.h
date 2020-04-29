@@ -13,16 +13,23 @@ struct seq_net_private {
 #endif
 };
 
-int seq_open_net(struct inode *, struct file *,
-		 const struct seq_operations *, int);
-int single_open_net(struct inode *, struct file *file,
-		int (*show)(struct seq_file *, void *));
-int seq_release_net(struct inode *, struct file *);
-int single_release_net(struct inode *, struct file *);
 static inline struct net *seq_file_net(struct seq_file *seq)
 {
 #ifdef CONFIG_NET_NS
 	return ((struct seq_net_private *)seq->private)->net;
+#else
+	return &init_net;
+#endif
+}
+
+/*
+ * This one is needed for proc_create_net_single since net is stored directly
+ * in private not as a struct i.e. seq_file_net can't be used.
+ */
+static inline struct net *seq_file_single_net(struct seq_file *seq)
+{
+#ifdef CONFIG_NET_NS
+	return (struct net *)seq->private;
 #else
 	return &init_net;
 #endif

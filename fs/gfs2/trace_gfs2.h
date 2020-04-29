@@ -606,7 +606,8 @@ TRACE_EVENT(gfs2_rs,
 		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
 		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
 		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
-		__entry->inum		= rs->rs_inum;
+		__entry->inum		= container_of(rs, struct gfs2_inode,
+						       i_res)->i_no_addr;
 		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;

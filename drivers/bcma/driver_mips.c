@@ -59,22 +59,6 @@ static inline void mips_write32(struct bcma_drv_mips *mcore,
 	bcma_write32(mcore->core, offset, value);
 }
 
-static const u32 ipsflag_irq_mask[] = {
-	0,
-	BCMA_MIPS_IPSFLAG_IRQ1,
-	BCMA_MIPS_IPSFLAG_IRQ2,
-	BCMA_MIPS_IPSFLAG_IRQ3,
-	BCMA_MIPS_IPSFLAG_IRQ4,
-};
-
-static const u32 ipsflag_irq_shift[] = {
-	0,
-	BCMA_MIPS_IPSFLAG_IRQ1_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ2_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ3_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ4_SHIFT,
-};
-
 static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
 {
 	u32 flag;
@@ -184,7 +168,7 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 {
 	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	char interrupts[20];
+	char interrupts[25];
 	char *ints = interrupts;
 
 	for (i = 0; i < ARRAY_SIZE(irq_name); i++)

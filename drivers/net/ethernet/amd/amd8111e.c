@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /* Advanced  Micro Devices Inc. AMD8111E Linux Network Driver
  * Copyright (C) 2004 Advanced Micro Devices
- *
  *
  * Copyright 2001,2002 Jeff Garzik <jgarzik@mandrakesoft.com> [ 8139cp.c,tg3.c ]
  * Copyright (C) 2001, 2002 David S. Miller (davem@redhat.com)[ tg3.c]
@@ -12,19 +12,6 @@
  * Carsten Langgaard, carstenl@mips.com [ pcnet32.c ]
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 Module Name:
 
@@ -97,9 +84,8 @@ Revision History:
 
 #include "amd8111e.h"
 #define MODULE_NAME	"amd8111e"
-#define MODULE_VERS	"3.0.7"
 MODULE_AUTHOR("Advanced Micro Devices, Inc.");
-MODULE_DESCRIPTION ("AMD8111 based 10/100 Ethernet Controller. Driver Version "MODULE_VERS);
+MODULE_DESCRIPTION("AMD8111 based 10/100 Ethernet Controller.");
 MODULE_LICENSE("GPL");
 module_param_array(speed_duplex, int, NULL, 0);
 MODULE_PARM_DESC(speed_duplex, "Set device speed and duplex modes, 0: Auto Negotiate, 1: 10Mbps Half Duplex, 2: 10Mbps Full Duplex, 3: 100Mbps Half Duplex, 4: 100Mbps Full Duplex");
@@ -435,7 +421,7 @@ static int amd8111e_restart(struct net_device *dev)
 	int i,reg_val;
 
 	/* stop the chip */
-	 writel(RUN, mmio + CMD0);
+	writel(RUN, mmio + CMD0);
 
 	if(amd8111e_init_ring(dev))
 		return -ENOMEM;
@@ -666,7 +652,7 @@ static int amd8111e_tx(struct net_device *dev)
 			pci_unmap_single(lp->pci_dev, lp->tx_dma_addr[tx_index],
 				  	lp->tx_skbuff[tx_index]->len,
 					PCI_DMA_TODEVICE);
-			dev_kfree_skb_irq (lp->tx_skbuff[tx_index]);
+			dev_consume_skb_irq(lp->tx_skbuff[tx_index]);
 			lp->tx_skbuff[tx_index] = NULL;
 			lp->tx_dma_addr[tx_index] = 0;
 		}
@@ -1074,16 +1060,12 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 				amd8111e_set_coalesce(dev,TX_INTR_COAL);
 				coal_conf->tx_coal_type = MEDIUM_COALESCE;
 			}
-
-		}
-		else if(tx_pkt_size >= 1024){
-			if (tx_pkt_size >= 1024){
-				if(coal_conf->tx_coal_type !=  HIGH_COALESCE){
-					coal_conf->tx_timeout = 4;
-					coal_conf->tx_event_count = 8;
-					amd8111e_set_coalesce(dev,TX_INTR_COAL);
-					coal_conf->tx_coal_type = HIGH_COALESCE;
-				}
+		} else if (tx_pkt_size >= 1024) {
+			if (coal_conf->tx_coal_type != HIGH_COALESCE) {
+				coal_conf->tx_timeout = 4;
+				coal_conf->tx_event_count = 8;
+				amd8111e_set_coalesce(dev, TX_INTR_COAL);
+				coal_conf->tx_coal_type = HIGH_COALESCE;
 			}
 		}
 	}
@@ -1383,7 +1365,6 @@ static void amd8111e_get_drvinfo(struct net_device *dev,
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	struct pci_dev *pci_dev = lp->pci_dev;
 	strlcpy(info->driver, MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, MODULE_VERS, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version),
 		"%u", chip_version);
 	strlcpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
@@ -1586,7 +1567,7 @@ static int amd8111e_enable_link_change(struct amd8111e_priv *lp)
  * failed or the interface is locked up. This function will reinitialize
  * the hardware.
  */
-static void amd8111e_tx_timeout(struct net_device *dev)
+static void amd8111e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int err;
@@ -1724,7 +1705,7 @@ static void amd8111e_config_ipg(struct timer_list *t)
 		writew((u32)tmp_ipg, mmio + IPG);
 		writew((u32)(tmp_ipg - IFS1_DELTA), mmio + IFS1);
 	}
-	 mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
+	mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
 	return;
 
 }
@@ -1892,7 +1873,6 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/*  display driver and device information */
     	chip_version = (readl(lp->mmio + CHIPID) & 0xf0000000)>>28;
-	dev_info(&pdev->dev, "AMD-8111e Driver Version: %s\n", MODULE_VERS);
 	dev_info(&pdev->dev, "[ Rev %x ] PCI 10/100BaseT Ethernet %pM\n",
 		 chip_version, dev->dev_addr);
 	if (lp->ext_phy_id)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
  * not configured or static.
@@ -5,6 +6,7 @@
 
 #include <linux/export.h>
 #include <net/ipv6.h>
+#include <net/ipv6_stubs.h>
 #include <net/addrconf.h>
 #include <net/ip.h>
 
@@ -127,15 +129,77 @@ int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
 }
 EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
 
-static int eafnosupport_ipv6_dst_lookup(struct net *net, struct sock *u1,
-					struct dst_entry **u2,
-					struct flowi6 *u3)
+static struct dst_entry *eafnosupport_ipv6_dst_lookup_flow(struct net *net,
+							   const struct sock *sk,
+							   struct flowi6 *fl6,
+							   const struct in6_addr *final_dst)
+{
+	return ERR_PTR(-EAFNOSUPPORT);
+}
+
+static int eafnosupport_ipv6_route_input(struct sk_buff *skb)
+{
+	return -EAFNOSUPPORT;
+}
+
+static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
+{
+	return NULL;
+}
+
+static int
+eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
+			       int oif, struct flowi6 *fl6,
+			       struct fib6_result *res, int flags)
+{
+	return -EAFNOSUPPORT;
+}
+
+static int
+eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+			 struct fib6_result *res, int flags)
+{
+	return -EAFNOSUPPORT;
+}
+
+static void
+eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
+			      struct flowi6 *fl6, int oif, bool have_oif_match,
+			      const struct sk_buff *skb, int strict)
+{
+}
+
+static u32
+eafnosupport_ip6_mtu_from_fib6(const struct fib6_result *res,
+			       const struct in6_addr *daddr,
+			       const struct in6_addr *saddr)
+{
+	return 0;
+}
+
+static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+				     struct fib6_config *cfg, gfp_t gfp_flags,
+				     struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
+	return -EAFNOSUPPORT;
+}
+
+static int eafnosupport_ip6_del_rt(struct net *net, struct fib6_info *rt)
 {
 	return -EAFNOSUPPORT;
 }
 
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
-	.ipv6_dst_lookup = eafnosupport_ipv6_dst_lookup,
+	.ipv6_dst_lookup_flow = eafnosupport_ipv6_dst_lookup_flow,
+	.ipv6_route_input  = eafnosupport_ipv6_route_input,
+	.fib6_get_table    = eafnosupport_fib6_get_table,
+	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
+	.fib6_lookup       = eafnosupport_fib6_lookup,
+	.fib6_select_path  = eafnosupport_fib6_select_path,
+	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
+	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
+	.ip6_del_rt	   = eafnosupport_ip6_del_rt,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 

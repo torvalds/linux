@@ -6,11 +6,12 @@
 
 #include <linux/clk.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_tcon.h"
@@ -20,7 +21,7 @@ struct sun4i_lvds {
 	struct drm_connector	connector;
 	struct drm_encoder	encoder;
 
-	struct sun4i_tcon	*tcon;
+	struct drm_panel	*panel;
 };
 
 static inline struct sun4i_lvds *
@@ -41,9 +42,8 @@ static int sun4i_lvds_get_modes(struct drm_connector *connector)
 {
 	struct sun4i_lvds *lvds =
 		drm_connector_to_sun4i_lvds(connector);
-	struct sun4i_tcon *tcon = lvds->tcon;
 
-	return drm_panel_get_modes(tcon->panel);
+	return drm_panel_get_modes(lvds->panel, connector);
 }
 
 static struct drm_connector_helper_funcs sun4i_lvds_con_helper_funcs = {
@@ -54,9 +54,8 @@ static void
 sun4i_lvds_connector_destroy(struct drm_connector *connector)
 {
 	struct sun4i_lvds *lvds = drm_connector_to_sun4i_lvds(connector);
-	struct sun4i_tcon *tcon = lvds->tcon;
 
-	drm_panel_detach(tcon->panel);
+	drm_panel_detach(lvds->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -71,87 +70,30 @@ static const struct drm_connector_funcs sun4i_lvds_con_funcs = {
 static void sun4i_lvds_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_lvds *lvds = drm_encoder_to_sun4i_lvds(encoder);
-	struct sun4i_tcon *tcon = lvds->tcon;
 
 	DRM_DEBUG_DRIVER("Enabling LVDS output\n");
 
-	if (!IS_ERR(tcon->panel)) {
-		drm_panel_prepare(tcon->panel);
-		drm_panel_enable(tcon->panel);
+	if (lvds->panel) {
+		drm_panel_prepare(lvds->panel);
+		drm_panel_enable(lvds->panel);
 	}
 }
 
 static void sun4i_lvds_encoder_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_lvds *lvds = drm_encoder_to_sun4i_lvds(encoder);
-	struct sun4i_tcon *tcon = lvds->tcon;
 
 	DRM_DEBUG_DRIVER("Disabling LVDS output\n");
 
-	if (!IS_ERR(tcon->panel)) {
-		drm_panel_disable(tcon->panel);
-		drm_panel_unprepare(tcon->panel);
+	if (lvds->panel) {
+		drm_panel_disable(lvds->panel);
+		drm_panel_unprepare(lvds->panel);
 	}
-}
-
-static enum drm_mode_status sun4i_lvds_encoder_mode_valid(struct drm_encoder *crtc,
-							  const struct drm_display_mode *mode)
-{
-	struct sun4i_lvds *lvds = drm_encoder_to_sun4i_lvds(crtc);
-	struct sun4i_tcon *tcon = lvds->tcon;
-	u32 hsync = mode->hsync_end - mode->hsync_start;
-	u32 vsync = mode->vsync_end - mode->vsync_start;
-	unsigned long rate = mode->clock * 1000;
-	long rounded_rate;
-
-	DRM_DEBUG_DRIVER("Validating modes...\n");
-
-	if (hsync < 1)
-		return MODE_HSYNC_NARROW;
-
-	if (hsync > 0x3ff)
-		return MODE_HSYNC_WIDE;
-
-	if ((mode->hdisplay < 1) || (mode->htotal < 1))
-		return MODE_H_ILLEGAL;
-
-	if ((mode->hdisplay > 0x7ff) || (mode->htotal > 0xfff))
-		return MODE_BAD_HVALUE;
-
-	DRM_DEBUG_DRIVER("Horizontal parameters OK\n");
-
-	if (vsync < 1)
-		return MODE_VSYNC_NARROW;
-
-	if (vsync > 0x3ff)
-		return MODE_VSYNC_WIDE;
-
-	if ((mode->vdisplay < 1) || (mode->vtotal < 1))
-		return MODE_V_ILLEGAL;
-
-	if ((mode->vdisplay > 0x7ff) || (mode->vtotal > 0xfff))
-		return MODE_BAD_VVALUE;
-
-	DRM_DEBUG_DRIVER("Vertical parameters OK\n");
-
-	tcon->dclk_min_div = 7;
-	tcon->dclk_max_div = 7;
-	rounded_rate = clk_round_rate(tcon->dclk, rate);
-	if (rounded_rate < rate)
-		return MODE_CLOCK_LOW;
-
-	if (rounded_rate > rate)
-		return MODE_CLOCK_HIGH;
-
-	DRM_DEBUG_DRIVER("Clock rate OK\n");
-
-	return MODE_OK;
 }
 
 static const struct drm_encoder_helper_funcs sun4i_lvds_enc_helper_funcs = {
 	.disable	= sun4i_lvds_encoder_disable,
 	.enable		= sun4i_lvds_encoder_enable,
-	.mode_valid	= sun4i_lvds_encoder_mode_valid,
 };
 
 static const struct drm_encoder_funcs sun4i_lvds_enc_funcs = {
@@ -168,11 +110,10 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	lvds = devm_kzalloc(drm->dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
 		return -ENOMEM;
-	lvds->tcon = tcon;
 	encoder = &lvds->encoder;
 
 	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
-					  &tcon->panel, &bridge);
+					  &lvds->panel, &bridge);
 	if (ret) {
 		dev_info(drm->dev, "No panel or bridge found... LVDS output disabled\n");
 		return 0;
@@ -191,9 +132,9 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	}
 
 	/* The LVDS encoder can only work with the TCON channel 0 */
-	lvds->encoder.possible_crtcs = BIT(drm_crtc_index(&tcon->crtc->crtc));
+	lvds->encoder.possible_crtcs = drm_crtc_mask(&tcon->crtc->crtc);
 
-	if (tcon->panel) {
+	if (lvds->panel) {
 		drm_connector_helper_add(&lvds->connector,
 					 &sun4i_lvds_con_helper_funcs);
 		ret = drm_connector_init(drm, &lvds->connector,
@@ -204,10 +145,10 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 			goto err_cleanup_connector;
 		}
 
-		drm_mode_connector_attach_encoder(&lvds->connector,
+		drm_connector_attach_encoder(&lvds->connector,
 						  &lvds->encoder);
 
-		ret = drm_panel_attach(tcon->panel, &lvds->connector);
+		ret = drm_panel_attach(lvds->panel, &lvds->connector);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our panel\n");
 			goto err_cleanup_connector;
@@ -215,7 +156,7 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	}
 
 	if (bridge) {
-		ret = drm_bridge_attach(encoder, bridge, NULL);
+		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");
 			goto err_cleanup_connector;

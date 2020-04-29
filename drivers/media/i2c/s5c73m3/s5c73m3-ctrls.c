@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung LSI S5C73M3 8M pixel camera driver
  *
  * Copyright (C) 2012, Samsung Electronics, Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/sizes.h>
@@ -555,7 +547,7 @@ int s5c73m3_init_controls(struct s5c73m3 *state)
 				V4L2_CTRL_FLAG_UPDATE;
 	v4l2_ctrl_auto_cluster(2, &ctrls->auto_iso, 0, false);
 	ctrls->af_status->flags |= V4L2_CTRL_FLAG_VOLATILE;
-	v4l2_ctrl_cluster(6, &ctrls->focus_auto);
+	v4l2_ctrl_cluster(5, &ctrls->focus_auto);
 
 	state->sensor_sd.ctrl_handler = hdl;
 

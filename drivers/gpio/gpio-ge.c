@@ -52,8 +52,6 @@ MODULE_DEVICE_TABLE(of, gef_gpio_ids);
 
 static int __init gef_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(gef_gpio_ids, &pdev->dev);
 	struct gpio_chip *gc;
 	void __iomem *regs;
 	int ret;
@@ -82,7 +80,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	}
 
 	gc->base = -1;
-	gc->ngpio = (u16)(uintptr_t)of_id->data;
+	gc->ngpio = (u16)(uintptr_t)of_device_get_match_data(&pdev->dev);
 	gc->of_gpio_n_cells = 2;
 	gc->of_node = pdev->dev.of_node;
 

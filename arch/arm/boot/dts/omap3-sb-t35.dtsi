@@ -34,7 +34,7 @@
 		};
 	};
 
-	dvi0: connector {
+	dvi0: dvi-connector {
 		compatible = "dvi-connector";
 		label = "dvi";
 

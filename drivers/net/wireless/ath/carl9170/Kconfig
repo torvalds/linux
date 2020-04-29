@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CARL9170
 	tristate "Linux Community AR9170 802.11n USB support"
 	depends on USB && MAC80211
@@ -40,9 +41,9 @@ config CARL9170_WPC
 	default y
 
 config CARL9170_HWRNG
-        bool "Random number generator"
-        depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
-        default n
+	bool "Random number generator"
+	depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
+	default n
 	help
 	  Provides a hardware random number generator to the kernel.
 

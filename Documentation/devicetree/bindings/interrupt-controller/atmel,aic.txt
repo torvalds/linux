@@ -1,10 +1,12 @@
 * Advanced Interrupt Controller (AIC)
 
 Required properties:
-- compatible: Should be "atmel,<chip>-aic"
-  <chip> can be "at91rm9200", "sama5d2", "sama5d3" or "sama5d4"
+- compatible: Should be:
+    - "atmel,<chip>-aic" where  <chip> can be "at91rm9200", "sama5d2",
+      "sama5d3" or "sama5d4"
+    - "microchip,<chip>-aic" where <chip> can be "sam9x60"
+
 - interrupt-controller: Identifies the node as an interrupt controller.
-- interrupt-parent: For single AIC system, it is an empty property.
 - #interrupt-cells: The number of cells to define the interrupts. It should be 3.
   The first cell is the IRQ number (aka "Peripheral IDentifier" on datasheet).
   The second cell is used to specify flags:
@@ -27,7 +29,6 @@ Examples:
 	aic: interrupt-controller@fffff000 {
 		compatible = "atmel,at91rm9200-aic";
 		interrupt-controller;
-		interrupt-parent;
 		#interrupt-cells = <3>;
 		reg = <0xfffff000 0x200>;
 	};

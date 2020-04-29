@@ -11,10 +11,23 @@ ARM Short-Descriptor translation table format for address translation.
                |
               m4u (Multimedia Memory Management Unit)
                |
+          +--------+
+          |        |
+      gals0-rx   gals1-rx    (Global Async Local Sync rx)
+          |        |
+          |        |
+      gals0-tx   gals1-tx    (Global Async Local Sync tx)
+          |        |          Some SoCs may have GALS.
+          +--------+
+               |
            SMI Common(Smart Multimedia Interface Common)
                |
        +----------------+-------
        |                |
+       |             gals-rx        There may be GALS in some larbs.
+       |                |
+       |                |
+       |             gals-tx
        |                |
    SMI larb0        SMI larb1   ... SoCs have several SMI local arbiter(larb).
    (display)         (vdec)
@@ -36,22 +49,37 @@ each local arbiter.
 like display, video decode, and camera. And there are different ports
 in each larb. Take a example, There are many ports like MC, PP, VLD in the
 video decode local arbiter, all these ports are according to the video HW.
+  In some SoCs, there may be a GALS(Global Async Local Sync) module between
+smi-common and m4u, and additional GALS module between smi-larb and
+smi-common. GALS can been seen as a "asynchronous fifo" which could help
+synchronize for the modules in different clock frequency.
 
 Required properties:
 - compatible : must be one of the following string:
 	"mediatek,mt2701-m4u" for mt2701 which uses generation one m4u HW.
+	"mediatek,mt2712-m4u" for mt2712 which uses generation two m4u HW.
+	"mediatek,mt7623-m4u", "mediatek,mt2701-m4u" for mt7623 which uses
+						     generation one m4u HW.
 	"mediatek,mt8173-m4u" for mt8173 which uses generation two m4u HW.
+	"mediatek,mt8183-m4u" for mt8183 which uses generation two m4u HW.
 - reg : m4u register base and size.
 - interrupts : the interrupt of m4u.
 - clocks : must contain one entry for each clock-names.
-- clock-names : must be "bclk", It is the block clock of m4u.
+- clock-names : Only 1 optional clock:
+  - "bclk": the block clock of m4u.
+  Here is the list which require this "bclk":
+  - mt2701, mt2712, mt7623 and mt8173.
+  Note that m4u use the EMI clock which always has been enabled before kernel
+  if there is no this "bclk".
 - mediatek,larbs : List of phandle to the local arbiters in the current Socs.
 	Refer to bindings/memory-controllers/mediatek,smi-larb.txt. It must sort
 	according to the local arbiter index, like larb0, larb1, larb2...
 - iommu-cells : must be 1. This is the mtk_m4u_id according to the HW.
 	Specifies the mtk_m4u_id as defined in
-	dt-binding/memory/mt2701-larb-port.h for mt2701 and
-	dt-binding/memory/mt8173-larb-port.h for mt8173
+	dt-binding/memory/mt2701-larb-port.h for mt2701, mt7623
+	dt-binding/memory/mt2712-larb-port.h for mt2712,
+	dt-binding/memory/mt8173-larb-port.h for mt8173, and
+	dt-binding/memory/mt8183-larb-port.h for mt8183.
 
 Example:
 	iommu: iommu@10205000 {

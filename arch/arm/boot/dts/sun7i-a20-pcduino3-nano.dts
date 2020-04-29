@@ -71,8 +71,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_pcduino3_nano>;
 
 		/* Marked "LED3" on the PCB. */
 		usr1 {
@@ -115,14 +113,10 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -136,8 +130,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -149,13 +141,17 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
@@ -174,31 +170,7 @@
 	status = "okay";
 };
 
-&pio {
-	ahci_pwr_pin_pcduino3_nano: ahci_pwr_pin@0 {
-		pins = "PH2";
-		function = "gpio_out";
-	};
-
-	led_pins_pcduino3_nano: led_pins@0 {
-		pins = "PH16", "PH15";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PH4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb1_vbus_pin_pcduino3_nano: usb1_vbus_pin@0 {
-		pins = "PD2";
-		function = "gpio_out";
-	};
-};
-
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_pcduino3_nano>;
 	gpio = <&pio 7 2 GPIO_ACTIVE_HIGH>; /* PH2 */
 	status = "okay";
 };
@@ -232,14 +204,13 @@
 
 /* A single regulator (U24) powers both USB host ports. */
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_pcduino3_nano>;
 	gpio = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
@@ -249,9 +220,7 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	usb0_id_det-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH4 */
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";

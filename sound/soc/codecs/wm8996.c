@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8996.c - WM8996 audio codec interface
  *
  * Copyright 2011-2 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -1498,9 +1494,9 @@ static bool wm8996_readable_register(struct device *dev, unsigned int reg)
 	case WM8996_RIGHT_PDM_SPEAKER:
 	case WM8996_PDM_SPEAKER_MUTE_SEQUENCE:
 	case WM8996_PDM_SPEAKER_VOLUME:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1522,9 +1518,9 @@ static bool wm8996_volatile_register(struct device *dev, unsigned int reg)
 	case WM8996_MIC_DETECT_3:
 	case WM8996_HEADPHONE_DETECT_1:
 	case WM8996_HEADPHONE_DETECT_2:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1858,6 +1854,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	case 24576000:
 		ratediv = WM8996_SYSCLK_DIV;
 		wm8996->sysclk /= 2;
+		/* fall through */
 	case 11289600:
 	case 12288000:
 		snd_soc_component_update_bits(component, WM8996_AIF_RATE,
@@ -2800,8 +2797,9 @@ static int wm8996_i2c_probe(struct i2c_client *i2c,
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
-		ret = regulator_register_notifier(wm8996->supplies[i].consumer,
-						  &wm8996->disable_nb[i]);
+		ret = devm_regulator_register_notifier(
+						wm8996->supplies[i].consumer,
+						&wm8996->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
 				"Failed to register regulator notifier: %d\n",
@@ -3070,16 +3068,12 @@ err:
 static int wm8996_i2c_remove(struct i2c_client *client)
 {
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
-	int i;
 
 	wm8996_free_gpio(wm8996);
 	if (wm8996->pdata.ldo_ena > 0) {
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		gpio_free(wm8996->pdata.ldo_ena);
 	}
-	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
-		regulator_unregister_notifier(wm8996->supplies[i].consumer,
-					      &wm8996->disable_nb[i]);
 
 	return 0;
 }

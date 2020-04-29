@@ -45,6 +45,7 @@ enum ucount_type {
 	UCOUNT_NET_NAMESPACES,
 	UCOUNT_MNT_NAMESPACES,
 	UCOUNT_CGROUP_NAMESPACES,
+	UCOUNT_TIME_NAMESPACES,
 #ifdef CONFIG_INOTIFY_USER
 	UCOUNT_INOTIFY_INSTANCES,
 	UCOUNT_INOTIFY_WATCHES,
@@ -64,10 +65,20 @@ struct user_namespace {
 	struct ns_common	ns;
 	unsigned long		flags;
 
+#ifdef CONFIG_KEYS
+	/* List of joinable keyrings in this namespace.  Modification access of
+	 * these pointers is controlled by keyring_sem.  Once
+	 * user_keyring_register is set, it won't be changed, so it can be
+	 * accessed directly with READ_ONCE().
+	 */
+	struct list_head	keyring_name_list;
+	struct key		*user_keyring_register;
+	struct rw_semaphore	keyring_sem;
+#endif
+
 	/* Register of per-UID persistent keyrings for this namespace */
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 	struct key		*persistent_keyring_register;
-	struct rw_semaphore	persistent_keyring_register_sem;
 #endif
 	struct work_struct	work;
 #ifdef CONFIG_SYSCTL

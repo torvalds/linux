@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Accelerated GHASH implementation with Intel PCLMULQDQ-NI
  * instructions. This file contains accelerated part of ghash
@@ -10,10 +11,6 @@
  *	     Vinodh Gopal
  *	     Erdinc Ozturk
  *	     Deniz Karakoyunlu
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -47,7 +44,7 @@
  *	T2
  *	T3
  */
-__clmul_gf128mul_ble:
+SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
 	movaps DATA, T1
 	pshufd $0b01001110, DATA, T2
 	pshufd $0b01001110, SHASH, T3
@@ -90,10 +87,10 @@ __clmul_gf128mul_ble:
 	pxor T2, T1
 	pxor T1, DATA
 	ret
-ENDPROC(__clmul_gf128mul_ble)
+SYM_FUNC_END(__clmul_gf128mul_ble)
 
 /* void clmul_ghash_mul(char *dst, const u128 *shash) */
-ENTRY(clmul_ghash_mul)
+SYM_FUNC_START(clmul_ghash_mul)
 	FRAME_BEGIN
 	movups (%rdi), DATA
 	movups (%rsi), SHASH
@@ -104,13 +101,13 @@ ENTRY(clmul_ghash_mul)
 	movups DATA, (%rdi)
 	FRAME_END
 	ret
-ENDPROC(clmul_ghash_mul)
+SYM_FUNC_END(clmul_ghash_mul)
 
 /*
  * void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
  *			   const u128 *shash);
  */
-ENTRY(clmul_ghash_update)
+SYM_FUNC_START(clmul_ghash_update)
 	FRAME_BEGIN
 	cmp $16, %rdx
 	jb .Lupdate_just_ret	# check length
@@ -133,4 +130,4 @@ ENTRY(clmul_ghash_update)
 .Lupdate_just_ret:
 	FRAME_END
 	ret
-ENDPROC(clmul_ghash_update)
+SYM_FUNC_END(clmul_ghash_update)

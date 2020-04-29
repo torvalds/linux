@@ -3,11 +3,6 @@
  * Device Tree file for SolidRun Armada 38x Microsom
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
  */
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -76,6 +71,19 @@
 	};
 };
 
+&i2c0 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	eeprom@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+	};
+};
+
 &pinctrl {
 	microsom_phy_clk_pins: microsom-phy-clk-pins {
 		marvell,pins = "mpp45";
@@ -99,7 +107,6 @@
 		compatible = "w25q32", "jedec,spi-nor";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <3000000>;
-		status = "disabled";
 	};
 };
 

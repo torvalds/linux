@@ -1,6 +1,6 @@
 * ARM PrimeCell Color LCD Controller PL110/PL111
 
-See also Documentation/devicetree/bindings/arm/primecell.txt
+See also Documentation/devicetree/bindings/arm/primecell.yaml
 
 Required properties:
 
@@ -39,9 +39,11 @@ Required sub-nodes:
 
 - port: describes LCD panel signals, following the common binding
 	for video transmitter interfaces; see
-	Documentation/devicetree/bindings/media/video-interfaces.txt;
-	when it is a TFT panel, the port's endpoint must define the
-	following property:
+	Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Deprecated properties:
+	The port's endbpoint subnode had this, now deprecated property
+	in the past. Drivers should be able to survive without it:
 
 	- arm,pl11x,tft-r0g0b0-pads: an array of three 32-bit values,
 		defining the way CLD pads are wired up; first value
@@ -80,7 +82,6 @@ Example:
 		port {
 			clcd_pads: endpoint {
 				remote-endpoint = <&clcd_panel>;
-				arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
 			};
 		};
 

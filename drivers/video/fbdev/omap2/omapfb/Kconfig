@@ -1,23 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config OMAP2_VRFB
 	bool
 
 menuconfig FB_OMAP2
-        tristate "OMAP2+ frame buffer support"
-        depends on FB
-        depends on DRM_OMAP = n
+	tristate "OMAP2+ frame buffer support"
+	depends on FB
+	depends on DRM_OMAP = n
+	depends on GPIOLIB
 
-        select FB_OMAP2_DSS
+	select FB_OMAP2_DSS
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
-        select FB_CFB_FILLRECT
-        select FB_CFB_COPYAREA
-        select FB_CFB_IMAGEBLIT
-        help
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
 	  Frame buffer driver for OMAP2+ based boards.
 
 if FB_OMAP2
 
 config FB_OMAP2_DEBUG_SUPPORT
-        bool "Debug support for OMAP2+ FB"
+	bool "Debug support for OMAP2+ FB"
 	default y
 	depends on FB_OMAP2
 	help

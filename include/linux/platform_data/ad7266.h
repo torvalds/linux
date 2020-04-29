@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD7266/65 SPI ADC driver
  *
  * Copyright 2012 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __IIO_ADC_AD7266_H__
@@ -41,14 +40,11 @@ enum ad7266_mode {
  * @range: Reference voltage range the device is configured for
  * @mode: Sample mode the device is configured for
  * @fixed_addr: Whether the address pins are hard-wired
- * @addr_gpios: GPIOs used for controlling the address pins, only used if
- *		fixed_addr is set to false.
  */
 struct ad7266_platform_data {
 	enum ad7266_range range;
 	enum ad7266_mode mode;
 	bool fixed_addr;
-	unsigned int addr_gpios[3];
 };
 
 #endif

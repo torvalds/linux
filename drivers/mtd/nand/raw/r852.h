@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2009 - Maxim Levitsky
  * driver for Ricoh xD readers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/pci.h>
@@ -129,7 +126,7 @@ struct r852_device {
 	/* card status area */
 	struct delayed_work card_detect_work;
 	struct workqueue_struct *card_workqueue;
-	int card_registred;		/* card registered with mtd */
+	int card_registered;		/* card registered with mtd */
 	int card_detected;		/* card detected in slot */
 	int card_unstable;		/* whenever the card is inserted,
 					   is not known yet */

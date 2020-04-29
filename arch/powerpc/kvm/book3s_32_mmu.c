@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -23,7 +12,6 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
@@ -52,7 +40,7 @@
 static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 {
 #ifdef DEBUG_MMU_PTE_IP
-	return vcpu->arch.pc == DEBUG_MMU_PTE_IP;
+	return vcpu->arch.regs.nip == DEBUG_MMU_PTE_IP;
 #else
 	return true;
 #endif
@@ -100,11 +88,6 @@ static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	kvmppc_mmu_book3s_32_esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
 	return (((u64)eaddr >> 12) & 0xffff) | (vsid << 16);
-}
-
-static void kvmppc_mmu_book3s_32_reset_msr(struct kvm_vcpu *vcpu)
-{
-	kvmppc_set_msr(vcpu, 0);
 }
 
 static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvm_vcpu *vcpu,
@@ -251,6 +234,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 				case 2:
 				case 6:
 					pte->may_write = true;
+					fallthrough;
 				case 3:
 				case 5:
 				case 7:
@@ -417,7 +401,6 @@ void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu)
 	mmu->mtsrin = kvmppc_mmu_book3s_32_mtsrin;
 	mmu->mfsrin = kvmppc_mmu_book3s_32_mfsrin;
 	mmu->xlate = kvmppc_mmu_book3s_32_xlate;
-	mmu->reset_msr = kvmppc_mmu_book3s_32_reset_msr;
 	mmu->tlbie = kvmppc_mmu_book3s_32_tlbie;
 	mmu->esid_to_vsid = kvmppc_mmu_book3s_32_esid_to_vsid;
 	mmu->ea_to_vp = kvmppc_mmu_book3s_32_ea_to_vp;
@@ -426,6 +409,7 @@ void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = NULL;
 	mmu->slbmfee = NULL;
 	mmu->slbmfev = NULL;
+	mmu->slbfee = NULL;
 	mmu->slbie = NULL;
 	mmu->slbia = NULL;
 }

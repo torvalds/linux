@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Device Tree Source for IFM PDM360NG.
  *
@@ -6,11 +7,6 @@
  *
  * Based on MPC5121E ADS dts.
  * Copyright 2008 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include "mpc5121.dtsi"
@@ -98,7 +94,7 @@
 			fsl,preserve-clocking;
 
 			eeprom@50 {
-				compatible = "at,24c01";
+				compatible = "atmel,24c01";
 				reg = <0x50>;
 			};
 

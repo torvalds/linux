@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include "scif_main.h"
 #include "scif_map.h"
@@ -200,21 +191,19 @@ static void scif_mmu_notifier_release(struct mmu_notifier *mn,
 	schedule_work(&scif_info.misc_work);
 }
 
-static void scif_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
-						     struct mm_struct *mm,
-						     unsigned long start,
-						     unsigned long end)
+static int scif_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+					const struct mmu_notifier_range *range)
 {
 	struct scif_mmu_notif	*mmn;
 
 	mmn = container_of(mn, struct scif_mmu_notif, ep_mmu_notifier);
-	scif_rma_destroy_tcw(mmn, start, end - start);
+	scif_rma_destroy_tcw(mmn, range->start, range->end - range->start);
+
+	return 0;
 }
 
 static void scif_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
-						   struct mm_struct *mm,
-						   unsigned long start,
-						   unsigned long end)
+			const struct mmu_notifier_range *range)
 {
 	/*
 	 * Nothing to do here, everything needed was done in
@@ -1032,8 +1021,6 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 			}
 			dma_async_issue_pending(chan);
 		}
-		if (ret < 0)
-			goto err;
 		offset += loop_len;
 		temp += loop_len;
 		temp_phys += loop_len;
@@ -1550,9 +1537,8 @@ static int scif_rma_list_dma_copy_wrapper(struct scif_endpt *epd,
 	int src_cache_off, dst_cache_off;
 	s64 src_offset = work->src_offset, dst_offset = work->dst_offset;
 	u8 *temp = NULL;
-	bool src_local = true, dst_local = false;
+	bool src_local = true;
 	struct scif_dma_comp_cb *comp_cb;
-	dma_addr_t src_dma_addr, dst_dma_addr;
 	int err;
 
 	if (is_dma_copy_aligned(chan->device, 1, 1, 1))
@@ -1566,12 +1552,8 @@ static int scif_rma_list_dma_copy_wrapper(struct scif_endpt *epd,
 
 	if (work->loopback)
 		return scif_rma_list_cpu_copy(work);
-	src_dma_addr = __scif_off_to_dma_addr(work->src_window, src_offset);
-	dst_dma_addr = __scif_off_to_dma_addr(work->dst_window, dst_offset);
 	src_local = work->src_window->type == SCIF_WINDOW_SELF;
-	dst_local = work->dst_window->type == SCIF_WINDOW_SELF;
 
-	dst_local = dst_local;
 	/* Allocate dma_completion cb */
 	comp_cb = kzalloc(sizeof(*comp_cb), GFP_KERNEL);
 	if (!comp_cb)

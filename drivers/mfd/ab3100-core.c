@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010 ST-Ericsson
- * License terms: GNU General Public License (GPL) version 2
  * Low-level core for exclusive access to the AB3100 IC on the I2C bus
  * and some basic chip-configuration.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -575,58 +575,27 @@ static const struct file_operations ab3100_get_set_reg_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct dentry *ab3100_dir;
-static struct dentry *ab3100_reg_file;
 static struct ab3100_get_set_reg_priv ab3100_get_priv;
-static struct dentry *ab3100_get_reg_file;
 static struct ab3100_get_set_reg_priv ab3100_set_priv;
-static struct dentry *ab3100_set_reg_file;
 
 static void ab3100_setup_debugfs(struct ab3100 *ab3100)
 {
-	int err;
+	struct dentry *ab3100_dir;
 
 	ab3100_dir = debugfs_create_dir("ab3100", NULL);
-	if (!ab3100_dir)
-		goto exit_no_debugfs;
 
-	ab3100_reg_file = debugfs_create_file("registers",
-				S_IRUGO, ab3100_dir, ab3100,
-				&ab3100_registers_fops);
-	if (!ab3100_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_dir;
-	}
+	debugfs_create_file("registers", S_IRUGO, ab3100_dir, ab3100,
+			    &ab3100_registers_fops);
 
 	ab3100_get_priv.ab3100 = ab3100;
 	ab3100_get_priv.mode = false;
-	ab3100_get_reg_file = debugfs_create_file("get_reg",
-				S_IWUSR, ab3100_dir, &ab3100_get_priv,
-				&ab3100_get_set_reg_fops);
-	if (!ab3100_get_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_reg;
-	}
+	debugfs_create_file("get_reg", S_IWUSR, ab3100_dir, &ab3100_get_priv,
+			    &ab3100_get_set_reg_fops);
 
 	ab3100_set_priv.ab3100 = ab3100;
 	ab3100_set_priv.mode = true;
-	ab3100_set_reg_file = debugfs_create_file("set_reg",
-				S_IWUSR, ab3100_dir, &ab3100_set_priv,
-				&ab3100_get_set_reg_fops);
-	if (!ab3100_set_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_get_reg;
-	}
-	return;
-
- exit_destroy_get_reg:
-	debugfs_remove(ab3100_get_reg_file);
- exit_destroy_reg:
-	debugfs_remove(ab3100_reg_file);
- exit_destroy_dir:
-	debugfs_remove(ab3100_dir);
- exit_no_debugfs:
-	return;
+	debugfs_create_file("set_reg", S_IWUSR, ab3100_dir, &ab3100_set_priv,
+			    &ab3100_get_set_reg_fops);
 }
 #else
 static inline void ab3100_setup_debugfs(struct ab3100 *ab3100)
@@ -896,10 +865,10 @@ static int ab3100_probe(struct i2c_client *client,
 		 &ab3100->chip_name[0]);
 
 	/* Attach a second dummy i2c_client to the test register address */
-	ab3100->testreg_client = i2c_new_dummy(client->adapter,
+	ab3100->testreg_client = i2c_new_dummy_device(client->adapter,
 					       client->addr + 1);
-	if (!ab3100->testreg_client) {
-		err = -ENOMEM;
+	if (IS_ERR(ab3100->testreg_client)) {
+		err = PTR_ERR(ab3100->testreg_client);
 		goto exit_no_testreg_client;
 	}
 

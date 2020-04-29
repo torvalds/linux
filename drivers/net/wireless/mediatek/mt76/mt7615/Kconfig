@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MT7615E
+	tristate "MediaTek MT7615E (PCIe) support"
+	select MT76_CORE
+	depends on MAC80211
+	depends on PCI
+	help
+	  This adds support for MT7615-based wireless PCIe devices,
+	  which support concurrent dual-band operation at both 5GHz
+	  and 2.4GHz, IEEE 802.11ac 4x4:4SS 1733Mbps PHY rate, wave2
+	  MU-MIMO up to 4 users/group and 160MHz channels.
+
+	  To compile this driver as a module, choose M here.
+
+config MT7622_WMAC
+	bool "MT7622 (SoC) WMAC support"
+	depends on MT7615E
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select REGMAP
+	default y
+	help
+	  This adds support for the built-in WMAC on MT7622 SoC devices
+	  which has the same feature set as a MT7615, but limited to
+	  2.4 GHz only.

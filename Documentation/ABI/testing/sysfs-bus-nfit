@@ -212,22 +212,3 @@ Description:
 		range. Used by NVDIMM Region Mapping Structure to uniquely refer
 		to this structure. Value of 0 is reserved and not used as an
 		index.
-
-
-What:		/sys/bus/nd/devices/regionX/nfit/ecc_unit_size
-Date:		Aug, 2017
-KernelVersion:	v4.14
-Contact:	linux-nvdimm@lists.01.org
-Description:
-		(RO) Size of a write request to a DIMM that will not incur a
-		read-modify-write cycle at the memory controller.
-
-		When the nfit driver initializes it runs an ARS (Address Range
-		Scrub) operation across every pmem range. Part of that process
-		involves determining the ARS capabilities of a given address
-		range. One of the capabilities that is reported is the 'Clear
-		Uncorrectable Error Range Length Unit Size' (see: ACPI 6.2
-		section 9.20.7.4 Function Index 1 - Query ARS Capabilities).
-		This property indicates the boundary at which the NVDIMM may
-		need to perform read-modify-write cycles to maintain ECC (Error
-		Correcting Code) blocks.

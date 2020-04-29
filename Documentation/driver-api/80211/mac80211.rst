@@ -126,6 +126,9 @@ functions/definitions
    :functions: ieee80211_rx_status
 
 .. kernel-doc:: include/net/mac80211.h
+   :functions: mac80211_rx_encoding_flags
+
+.. kernel-doc:: include/net/mac80211.h
    :functions: mac80211_rx_flags
 
 .. kernel-doc:: include/net/mac80211.h

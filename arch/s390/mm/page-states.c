@@ -21,17 +21,11 @@ static int cmma_flag = 1;
 
 static int __init cmma(char *str)
 {
-	char *parm;
+	bool enabled;
 
-	parm = strstrip(str);
-	if (strcmp(parm, "yes") == 0 || strcmp(parm, "on") == 0) {
-		cmma_flag = 1;
-		return 1;
-	}
-	cmma_flag = 0;
-	if (strcmp(parm, "no") == 0 || strcmp(parm, "off") == 0)
-		return 1;
-	return 0;
+	if (!kstrtobool(str, &enabled))
+		cmma_flag = enabled;
+	return 1;
 }
 __setup("cmma=", cmma);
 
@@ -271,7 +265,7 @@ void arch_set_page_states(int make_stable)
 			list_for_each(l, &zone->free_area[order].free_list[t]) {
 				page = list_entry(l, struct page, lru);
 				if (make_stable)
-					set_page_stable_dat(page, 0);
+					set_page_stable_dat(page, order);
 				else
 					set_page_unused(page, order);
 			}

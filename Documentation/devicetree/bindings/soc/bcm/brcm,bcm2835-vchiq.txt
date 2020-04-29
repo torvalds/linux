@@ -2,7 +2,8 @@ Broadcom VCHIQ firmware services
 
 Required properties:
 
-- compatible:	Should be "brcm,bcm2835-vchiq"
+- compatible:	Should be "brcm,bcm2835-vchiq" on BCM2835, otherwise
+		"brcm,bcm2836-vchiq".
 - reg:		Physical base address and length of the doorbell register pair
 - interrupts:	The interrupt number
 		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt

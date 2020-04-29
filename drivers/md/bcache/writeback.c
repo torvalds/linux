@@ -17,6 +17,15 @@
 #include <linux/sched/clock.h>
 #include <trace/events/bcache.h>
 
+static void update_gc_after_writeback(struct cache_set *c)
+{
+	if (c->gc_after_writeback != (BCH_ENABLE_AUTO_GC) ||
+	    c->gc_stats.in_use < BCH_AUTO_GC_DIRTY_THRESHOLD)
+		return;
+
+	c->gc_after_writeback |= BCH_DO_AUTO_GC;
+}
+
 /* Rate limiting */
 static uint64_t __calc_target_rate(struct cached_dev *dc)
 {
@@ -27,7 +36,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
 	 * flash-only devices
 	 */
 	uint64_t cache_sectors = c->nbuckets * c->sb.bucket_size -
-				bcache_flash_devs_sectors_dirty(c);
+				atomic_long_read(&c->flash_dev_dirty_sectors);
 
 	/*
 	 * Unfortunately there is no control of global dirty data.  If the
@@ -104,9 +113,61 @@ static void __update_writeback_rate(struct cached_dev *dc)
 
 	dc->writeback_rate_proportional = proportional_scaled;
 	dc->writeback_rate_integral_scaled = integral_scaled;
-	dc->writeback_rate_change = new_rate - dc->writeback_rate.rate;
-	dc->writeback_rate.rate = new_rate;
+	dc->writeback_rate_change = new_rate -
+			atomic_long_read(&dc->writeback_rate.rate);
+	atomic_long_set(&dc->writeback_rate.rate, new_rate);
 	dc->writeback_rate_target = target;
+}
+
+static bool set_at_max_writeback_rate(struct cache_set *c,
+				       struct cached_dev *dc)
+{
+	/* Don't sst max writeback rate if it is disabled */
+	if (!c->idle_max_writeback_rate_enabled)
+		return false;
+
+	/* Don't set max writeback rate if gc is running */
+	if (!c->gc_mark_valid)
+		return false;
+	/*
+	 * Idle_counter is increased everytime when update_writeback_rate() is
+	 * called. If all backing devices attached to the same cache set have
+	 * identical dc->writeback_rate_update_seconds values, it is about 6
+	 * rounds of update_writeback_rate() on each backing device before
+	 * c->at_max_writeback_rate is set to 1, and then max wrteback rate set
+	 * to each dc->writeback_rate.rate.
+	 * In order to avoid extra locking cost for counting exact dirty cached
+	 * devices number, c->attached_dev_nr is used to calculate the idle
+	 * throushold. It might be bigger if not all cached device are in write-
+	 * back mode, but it still works well with limited extra rounds of
+	 * update_writeback_rate().
+	 */
+	if (atomic_inc_return(&c->idle_counter) <
+	    atomic_read(&c->attached_dev_nr) * 6)
+		return false;
+
+	if (atomic_read(&c->at_max_writeback_rate) != 1)
+		atomic_set(&c->at_max_writeback_rate, 1);
+
+	atomic_long_set(&dc->writeback_rate.rate, INT_MAX);
+
+	/* keep writeback_rate_target as existing value */
+	dc->writeback_rate_proportional = 0;
+	dc->writeback_rate_integral_scaled = 0;
+	dc->writeback_rate_change = 0;
+
+	/*
+	 * Check c->idle_counter and c->at_max_writeback_rate agagain in case
+	 * new I/O arrives during before set_at_max_writeback_rate() returns.
+	 * Then the writeback rate is set to 1, and its new value should be
+	 * decided via __update_writeback_rate().
+	 */
+	if ((atomic_read(&c->idle_counter) <
+	     atomic_read(&c->attached_dev_nr) * 6) ||
+	    !atomic_read(&c->at_max_writeback_rate))
+		return false;
+
+	return true;
 }
 
 static void update_writeback_rate(struct work_struct *work)
@@ -122,7 +183,7 @@ static void update_writeback_rate(struct work_struct *work)
 	 */
 	set_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
 	/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
-	smp_mb();
+	smp_mb__after_atomic();
 
 	/*
 	 * CACHE_SET_IO_DISABLE might be set via sysfs interface,
@@ -132,17 +193,25 @@ static void update_writeback_rate(struct work_struct *work)
 	    test_bit(CACHE_SET_IO_DISABLE, &c->flags)) {
 		clear_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
 		/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
-		smp_mb();
+		smp_mb__after_atomic();
 		return;
 	}
 
-	down_read(&dc->writeback_lock);
+	if (atomic_read(&dc->has_dirty) && dc->writeback_percent) {
+		/*
+		 * If the whole cache set is idle, set_at_max_writeback_rate()
+		 * will set writeback rate to a max number. Then it is
+		 * unncessary to update writeback rate for an idle cache set
+		 * in maximum writeback rate number(s).
+		 */
+		if (!set_at_max_writeback_rate(c, dc)) {
+			down_read(&dc->writeback_lock);
+			__update_writeback_rate(dc);
+			update_gc_after_writeback(c);
+			up_read(&dc->writeback_lock);
+		}
+	}
 
-	if (atomic_read(&dc->has_dirty) &&
-	    dc->writeback_percent)
-		__update_writeback_rate(dc);
-
-	up_read(&dc->writeback_lock);
 
 	/*
 	 * CACHE_SET_IO_DISABLE might be set via sysfs interface,
@@ -160,10 +229,11 @@ static void update_writeback_rate(struct work_struct *work)
 	 */
 	clear_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
 	/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
-	smp_mb();
+	smp_mb__after_atomic();
 }
 
-static unsigned writeback_delay(struct cached_dev *dc, unsigned sectors)
+static unsigned int writeback_delay(struct cached_dev *dc,
+				    unsigned int sectors)
 {
 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    !dc->writeback_percent)
@@ -197,6 +267,7 @@ static void dirty_init(struct keybuf_key *w)
 static void dirty_io_destructor(struct closure *cl)
 {
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+
 	kfree(io);
 }
 
@@ -211,7 +282,7 @@ static void write_dirty_finish(struct closure *cl)
 	/* This is kind of a dumb way of signalling errors. */
 	if (KEY_DIRTY(&w->key)) {
 		int ret;
-		unsigned i;
+		unsigned int i;
 		struct keylist keys;
 
 		bch_keylist_init(&keys);
@@ -244,8 +315,10 @@ static void dirty_endio(struct bio *bio)
 	struct keybuf_key *w = bio->bi_private;
 	struct dirty_io *io = w->private;
 
-	if (bio->bi_status)
+	if (bio->bi_status) {
 		SET_KEY_DIRTY(&w->key, false);
+		bch_count_backing_io_errors(io->dc, bio);
+	}
 
 	closure_put(&io->cl);
 }
@@ -323,7 +396,7 @@ static void read_dirty_submit(struct closure *cl)
 
 static void read_dirty(struct cached_dev *dc)
 {
-	unsigned delay = 0;
+	unsigned int delay = 0;
 	struct keybuf_key *next, *keys[MAX_WRITEBACKS_IN_PASS], *w;
 	size_t size;
 	int nk, i;
@@ -388,7 +461,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			io = kzalloc(sizeof(struct dirty_io) +
 				     sizeof(struct bio_vec) *
-				     DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
+				     DIV_ROUND_UP(KEY_SIZE(&w->key),
+						  PAGE_SECTORS),
 				     GFP_KERNEL);
 			if (!io)
 				goto err;
@@ -411,7 +485,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			down(&dc->in_flight);
 
-			/* We've acquired a semaphore for the maximum
+			/*
+			 * We've acquired a semaphore for the maximum
 			 * simultaneous number of writebacks; from here
 			 * everything happens asynchronously.
 			 */
@@ -419,27 +494,6 @@ static void read_dirty(struct cached_dev *dc)
 		}
 
 		delay = writeback_delay(dc, size);
-
-		/* If the control system would wait for at least half a
-		 * second, and there's been no reqs hitting the backing disk
-		 * for awhile: use an alternate mode where we have at most
-		 * one contiguous set of writebacks in flight at a time.  If
-		 * someone wants to do IO it will be quick, as it will only
-		 * have to contend with one operation in flight, and we'll
-		 * be round-tripping data to the backing disk as quickly as
-		 * it can accept it.
-		 */
-		if (delay >= HZ / 2) {
-			/* 3 means at least 1.5 seconds, up to 7.5 if we
-			 * have slowed way down.
-			 */
-			if (atomic_inc_return(&dc->backing_idle) >= 3) {
-				/* Wait for current I/Os to finish */
-				closure_sync(&cl);
-				/* And immediately launch a new set. */
-				delay = 0;
-			}
-		}
 
 		while (!kthread_should_stop() &&
 		       !test_bit(CACHE_SET_IO_DISABLE, &dc->disk.c->flags) &&
@@ -465,20 +519,23 @@ err:
 
 /* Scan for dirty data */
 
-void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
 				  uint64_t offset, int nr_sectors)
 {
 	struct bcache_device *d = c->devices[inode];
-	unsigned stripe_offset, stripe, sectors_dirty;
+	unsigned int stripe_offset, stripe, sectors_dirty;
 
 	if (!d)
 		return;
+
+	if (UUID_FLASH_ONLY(&c->uuids[inode]))
+		atomic_long_add(nr_sectors, &c->flash_dev_dirty_sectors);
 
 	stripe = offset_to_stripe(d, offset);
 	stripe_offset = offset & (d->stripe_size - 1);
 
 	while (nr_sectors) {
-		int s = min_t(unsigned, abs(nr_sectors),
+		int s = min_t(unsigned int, abs(nr_sectors),
 			      d->stripe_size - stripe_offset);
 
 		if (nr_sectors < 0)
@@ -502,7 +559,9 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 
 static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 {
-	struct cached_dev *dc = container_of(buf, struct cached_dev, writeback_keys);
+	struct cached_dev *dc = container_of(buf,
+					     struct cached_dev,
+					     writeback_keys);
 
 	BUG_ON(KEY_INODE(k) != dc->disk.id);
 
@@ -512,7 +571,7 @@ static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 static void refill_full_stripes(struct cached_dev *dc)
 {
 	struct keybuf *buf = &dc->writeback_keys;
-	unsigned start_stripe, stripe, next_stripe;
+	unsigned int start_stripe, stripe, next_stripe;
 	bool wrapped = false;
 
 	stripe = offset_to_stripe(&dc->disk, KEY_OFFSET(&buf->last_scanned));
@@ -643,8 +702,27 @@ static int bch_writeback_thread(void *arg)
 			 * data on cache. BCACHE_DEV_DETACHING flag is set in
 			 * bch_cached_dev_detach().
 			 */
-			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
+			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags)) {
+				up_write(&dc->writeback_lock);
 				break;
+			}
+
+			/*
+			 * When dirty data rate is high (e.g. 50%+), there might
+			 * be heavy buckets fragmentation after writeback
+			 * finished, which hurts following write performance.
+			 * If users really care about write performance they
+			 * may set BCH_ENABLE_AUTO_GC via sysfs, then when
+			 * BCH_DO_AUTO_GC is set, garbage collection thread
+			 * will be wake up here. After moving gc, the shrunk
+			 * btree and discarded free buckets SSD space may be
+			 * helpful for following write requests.
+			 */
+			if (c->gc_after_writeback ==
+			    (BCH_ENABLE_AUTO_GC|BCH_DO_AUTO_GC)) {
+				c->gc_after_writeback &= ~BCH_DO_AUTO_GC;
+				force_wake_up_gc(c);
+			}
 		}
 
 		up_write(&dc->writeback_lock);
@@ -652,7 +730,7 @@ static int bch_writeback_thread(void *arg)
 		read_dirty(dc);
 
 		if (searched_full_index) {
-			unsigned delay = dc->writeback_delay * HZ;
+			unsigned int delay = dc->writeback_delay * HZ;
 
 			while (delay &&
 			       !kthread_should_stop() &&
@@ -664,6 +742,10 @@ static int bch_writeback_thread(void *arg)
 		}
 	}
 
+	if (dc->writeback_write_wq) {
+		flush_workqueue(dc->writeback_write_wq);
+		destroy_workqueue(dc->writeback_write_wq);
+	}
 	cached_dev_put(dc);
 	wait_for_kthread_stop();
 
@@ -671,10 +753,14 @@ static int bch_writeback_thread(void *arg)
 }
 
 /* Init */
+#define INIT_KEYS_EACH_TIME	500000
+#define INIT_KEYS_SLEEP_MS	100
 
 struct sectors_dirty_init {
 	struct btree_op	op;
-	unsigned	inode;
+	unsigned int	inode;
+	size_t		count;
+	struct bkey	start;
 };
 
 static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
@@ -689,18 +775,189 @@ static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 		bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
 					     KEY_START(k), KEY_SIZE(k));
 
+	op->count++;
+	if (atomic_read(&b->c->search_inflight) &&
+	    !(op->count % INIT_KEYS_EACH_TIME)) {
+		bkey_copy_key(&op->start, k);
+		return -EAGAIN;
+	}
+
 	return MAP_CONTINUE;
+}
+
+static int bch_root_node_dirty_init(struct cache_set *c,
+				     struct bcache_device *d,
+				     struct bkey *k)
+{
+	struct sectors_dirty_init op;
+	int ret;
+
+	bch_btree_op_init(&op.op, -1);
+	op.inode = d->id;
+	op.count = 0;
+	op.start = KEY(op.inode, 0, 0);
+
+	do {
+		ret = bcache_btree(map_keys_recurse,
+				   k,
+				   c->root,
+				   &op.op,
+				   &op.start,
+				   sectors_dirty_init_fn,
+				   0);
+		if (ret == -EAGAIN)
+			schedule_timeout_interruptible(
+				msecs_to_jiffies(INIT_KEYS_SLEEP_MS));
+		else if (ret < 0) {
+			pr_warn("sectors dirty init failed, ret=%d!", ret);
+			break;
+		}
+	} while (ret == -EAGAIN);
+
+	return ret;
+}
+
+static int bch_dirty_init_thread(void *arg)
+{
+	struct dirty_init_thrd_info *info = arg;
+	struct bch_dirty_init_state *state = info->state;
+	struct cache_set *c = state->c;
+	struct btree_iter iter;
+	struct bkey *k, *p;
+	int cur_idx, prev_idx, skip_nr;
+	int i;
+
+	k = p = NULL;
+	i = 0;
+	cur_idx = prev_idx = 0;
+
+	bch_btree_iter_init(&c->root->keys, &iter, NULL);
+	k = bch_btree_iter_next_filter(&iter, &c->root->keys, bch_ptr_bad);
+	BUG_ON(!k);
+
+	p = k;
+
+	while (k) {
+		spin_lock(&state->idx_lock);
+		cur_idx = state->key_idx;
+		state->key_idx++;
+		spin_unlock(&state->idx_lock);
+
+		skip_nr = cur_idx - prev_idx;
+
+		while (skip_nr) {
+			k = bch_btree_iter_next_filter(&iter,
+						       &c->root->keys,
+						       bch_ptr_bad);
+			if (k)
+				p = k;
+			else {
+				atomic_set(&state->enough, 1);
+				/* Update state->enough earlier */
+				smp_mb__after_atomic();
+				goto out;
+			}
+			skip_nr--;
+			cond_resched();
+		}
+
+		if (p) {
+			if (bch_root_node_dirty_init(c, state->d, p) < 0)
+				goto out;
+		}
+
+		p = NULL;
+		prev_idx = cur_idx;
+		cond_resched();
+	}
+
+out:
+	/* In order to wake up state->wait in time */
+	smp_mb__before_atomic();
+	if (atomic_dec_and_test(&state->started))
+		wake_up(&state->wait);
+
+	return 0;
+}
+
+static int bch_btre_dirty_init_thread_nr(void)
+{
+	int n = num_online_cpus()/2;
+
+	if (n == 0)
+		n = 1;
+	else if (n > BCH_DIRTY_INIT_THRD_MAX)
+		n = BCH_DIRTY_INIT_THRD_MAX;
+
+	return n;
 }
 
 void bch_sectors_dirty_init(struct bcache_device *d)
 {
+	int i;
+	struct bkey *k = NULL;
+	struct btree_iter iter;
 	struct sectors_dirty_init op;
+	struct cache_set *c = d->c;
+	struct bch_dirty_init_state *state;
+	char name[32];
 
-	bch_btree_op_init(&op.op, -1);
-	op.inode = d->id;
+	/* Just count root keys if no leaf node */
+	if (c->root->level == 0) {
+		bch_btree_op_init(&op.op, -1);
+		op.inode = d->id;
+		op.count = 0;
+		op.start = KEY(op.inode, 0, 0);
 
-	bch_btree_map_keys(&op.op, d->c, &KEY(op.inode, 0, 0),
-			   sectors_dirty_init_fn, 0);
+		for_each_key_filter(&c->root->keys,
+				    k, &iter, bch_ptr_invalid)
+			sectors_dirty_init_fn(&op.op, c->root, k);
+		return;
+	}
+
+	state = kzalloc(sizeof(struct bch_dirty_init_state), GFP_KERNEL);
+	if (!state) {
+		pr_warn("sectors dirty init failed: cannot allocate memory");
+		return;
+	}
+
+	state->c = c;
+	state->d = d;
+	state->total_threads = bch_btre_dirty_init_thread_nr();
+	state->key_idx = 0;
+	spin_lock_init(&state->idx_lock);
+	atomic_set(&state->started, 0);
+	atomic_set(&state->enough, 0);
+	init_waitqueue_head(&state->wait);
+
+	for (i = 0; i < state->total_threads; i++) {
+		/* Fetch latest state->enough earlier */
+		smp_mb__before_atomic();
+		if (atomic_read(&state->enough))
+			break;
+
+		state->infos[i].state = state;
+		atomic_inc(&state->started);
+		snprintf(name, sizeof(name), "bch_dirty_init[%d]", i);
+
+		state->infos[i].thread =
+			kthread_run(bch_dirty_init_thread,
+				    &state->infos[i],
+				    name);
+		if (IS_ERR(state->infos[i].thread)) {
+			pr_err("fails to run thread bch_dirty_init[%d]", i);
+			for (--i; i >= 0; i--)
+				kthread_stop(state->infos[i].thread);
+			goto out;
+		}
+	}
+
+	wait_event_interruptible(state->wait,
+		 atomic_read(&state->started) == 0 ||
+		 test_bit(CACHE_SET_IO_DISABLE, &c->flags));
+
+out:
+	kfree(state);
 }
 
 void bch_cached_dev_writeback_init(struct cached_dev *dc)
@@ -710,10 +967,10 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	bch_keybuf_init(&dc->writeback_keys);
 
 	dc->writeback_metadata		= true;
-	dc->writeback_running		= true;
+	dc->writeback_running		= false;
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
-	dc->writeback_rate.rate		= 1024;
+	atomic_long_set(&dc->writeback_rate.rate, 1024);
 	dc->writeback_rate_minimum	= 8;
 
 	dc->writeback_rate_update_seconds = WRITEBACK_RATE_UPDATE_SECS_DEFAULT;
@@ -736,8 +993,10 @@ int bch_cached_dev_writeback_start(struct cached_dev *dc)
 					      "bcache_writeback");
 	if (IS_ERR(dc->writeback_thread)) {
 		cached_dev_put(dc);
+		destroy_workqueue(dc->writeback_write_wq);
 		return PTR_ERR(dc->writeback_thread);
 	}
+	dc->writeback_running = true;
 
 	WARN_ON(test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));
 	schedule_delayed_work(&dc->writeback_rate_update,

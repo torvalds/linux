@@ -3,7 +3,7 @@
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -69,7 +69,8 @@ acpi_status
 acpi_ev_mask_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 is_masked);
 
 acpi_status
-acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
+acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info,
+			  u8 clear_on_enable);
 
 acpi_status
 acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
@@ -228,6 +229,8 @@ acpi_ev_default_region_setup(acpi_handle handle,
 			     void *handler_context, void **region_context);
 
 acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj);
+
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
 
 /*
  * evsci - SCI (System Control Interrupt) handling/dispatch

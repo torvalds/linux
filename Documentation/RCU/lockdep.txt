@@ -96,7 +96,17 @@ other flavors of rcu_dereference().  On the other hand, it is illegal
 to use rcu_dereference_protected() if either the RCU-protected pointer
 or the RCU-protected data that it points to can change concurrently.
 
-There are currently only "universal" versions of the rcu_assign_pointer()
-and RCU list-/tree-traversal primitives, which do not (yet) check for
-being in an RCU read-side critical section.  In the future, separate
-versions of these primitives might be created.
+Like rcu_dereference(), when lockdep is enabled, RCU list and hlist
+traversal primitives check for being called from within an RCU read-side
+critical section.  However, a lockdep expression can be passed to them
+as a additional optional argument.  With this lockdep expression, these
+traversal primitives will complain only if the lockdep expression is
+false and they are called from outside any RCU read-side critical section.
+
+For example, the workqueue for_each_pwq() macro is intended to be used
+either within an RCU read-side critical section or with wq->mutex held.
+It is thus implemented as follows:
+
+	#define for_each_pwq(pwq, wq)
+		list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,
+					lock_is_held(&(wq->mutex).dep_map))

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xtensa xtfpga SPI controller driver
  *
  * Copyright (c) 2014 Cadence Design Systems Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -54,7 +51,7 @@ static inline void xtfpga_spi_wait_busy(struct xtfpga_spi *xspi)
 }
 
 static u32 xtfpga_spi_txrx_word(struct spi_device *spi, unsigned nsecs,
-				u32 v, u8 bits)
+				u32 v, u8 bits, unsigned flags)
 {
 	struct xtfpga_spi *xspi = spi_master_get_devdata(spi->master);
 
@@ -83,7 +80,6 @@ static void xtfpga_spi_chipselect(struct spi_device *spi, int is_on)
 static int xtfpga_spi_probe(struct platform_device *pdev)
 {
 	struct xtfpga_spi *xspi;
-	struct resource *mem;
 	int ret;
 	struct spi_master *master;
 
@@ -100,14 +96,7 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 	xspi->bitbang.master = master;
 	xspi->bitbang.chipselect = xtfpga_spi_chipselect;
 	xspi->bitbang.txrx_word[SPI_MODE_0] = xtfpga_spi_txrx_word;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No memory resource\n");
-		ret = -ENODEV;
-		goto err;
-	}
-	xspi->regs = devm_ioremap_resource(&pdev->dev, mem);
+	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xspi->regs)) {
 		ret = PTR_ERR(xspi->regs);
 		goto err;

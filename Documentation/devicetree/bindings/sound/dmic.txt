@@ -9,6 +9,7 @@ Optional properties:
 	- dmicen-gpios: GPIO specifier for dmic to control start and stop
 	- num-channels: Number of microphones on this DAI
 	- wakeup-delay-ms: Delay (in ms) after enabling the DMIC
+	- modeswitch-delay-ms: Delay (in ms) to complete DMIC mode switch
 
 Example node:
 
@@ -17,4 +18,5 @@ Example node:
 		dmicen-gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
 		num-channels = <1>;
 		wakeup-delay-ms <50>;
+		modeswitch-delay-ms <35>;
 	};

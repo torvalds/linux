@@ -714,7 +714,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.eh_host_reset_handler	= atari_scsi_host_reset,
 	.this_id		= 7,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.cmd_size		= NCR5380_CMD_SIZE,
 };
 
@@ -742,7 +742,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		atari_scsi_template.sg_tablesize = SG_ALL;
 	} else {
 		atari_scsi_template.can_queue    = 1;
-		atari_scsi_template.sg_tablesize = SG_NONE;
+		atari_scsi_template.sg_tablesize = 1;
 	}
 
 	if (setup_can_queue > 0)
@@ -751,21 +751,23 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	if (setup_cmd_per_lun > 0)
 		atari_scsi_template.cmd_per_lun = setup_cmd_per_lun;
 
-	/* Leave sg_tablesize at 0 on a Falcon! */
-	if (ATARIHW_PRESENT(TT_SCSI) && setup_sg_tablesize >= 0)
+	/* Don't increase sg_tablesize on Falcon! */
+	if (ATARIHW_PRESENT(TT_SCSI) && setup_sg_tablesize > 0)
 		atari_scsi_template.sg_tablesize = setup_sg_tablesize;
 
 	if (setup_hostid >= 0) {
 		atari_scsi_template.this_id = setup_hostid & 7;
-	} else {
+	} else if (IS_REACHABLE(CONFIG_NVRAM)) {
 		/* Test if a host id is set in the NVRam */
-		if (ATARIHW_PRESENT(TT_CLK) && nvram_check_checksum()) {
-			unsigned char b = nvram_read_byte(16);
+		if (ATARIHW_PRESENT(TT_CLK)) {
+			unsigned char b;
+			loff_t offset = 16;
+			ssize_t count = nvram_read(&b, 1, &offset);
 
 			/* Arbitration enabled? (for TOS)
 			 * If yes, use configured host ID
 			 */
-			if (b & 0x80)
+			if ((count == 1) && (b & 0x80))
 				atari_scsi_template.this_id = b & 7;
 		}
 	}

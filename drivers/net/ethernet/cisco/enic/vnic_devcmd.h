@@ -148,8 +148,26 @@ enum vnic_devcmd_cmd {
 	/* del VLAN id in (u16)a0 */
 	CMD_VLAN_DEL            = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 15),
 
-	/* nic_cfg in (u32)a0 */
+	/* nic_cfg (no wait, always succeeds)
+	 * in: (u32)a0
+	 *
+	 * Capability query:
+	 * out: (u64) a0 = 1 if a1 is valid
+	 *	(u64) a1 = (NIC_CFG bits supported) | (flags << 32)
+	 *
+	 * flags are CMD_NIC_CFG_CAPF_xxx
+	 */
 	CMD_NIC_CFG             = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 16),
+	/* nic_cfg_chk (will return error if flags are invalid)
+	 * in: (u32)a0
+	 *
+	 * Capability query:
+	 * out: (u64) a0 = 1 if a1 is valid
+	 *	(u64) a1 = (NIC_CFG bits supported) | (flags << 32)
+	 *
+	 * flags are CMD_NIC_CFG_CAPF_xxx
+	 */
+	CMD_NIC_CFG_CHK		= _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 16),
 
 	/* union vnic_rss_key in mem: (u64)a0=paddr, (u16)a1=len */
 	CMD_RSS_KEY             = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 17),
@@ -523,7 +541,7 @@ struct vnic_devcmd_notify {
 struct vnic_devcmd_provinfo {
 	u8 oui[3];
 	u8 type;
-	u8 data[0];
+	u8 data[];
 };
 
 /* These are used in flags field of different filters to denote
@@ -630,9 +648,9 @@ enum {
 #define FILTER_MAX_BUF_SIZE 100
 
 struct filter_tlv {
-	u_int32_t type;
-	u_int32_t length;
-	u_int32_t val[0];
+	u32 type;
+	u32 length;
+	u32 val[];
 };
 
 enum {

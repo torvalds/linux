@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Copyright (c) 1999 The Puffin Group
  * Copyright (c) 2001 Matthew Wilcox for Hewlett Packard
@@ -38,9 +34,10 @@
 #include <asm/io.h>
 #include <asm/pdc.h>
 #include <asm/parisc-device.h>
+#include <asm/ropes.h>
 
 /* See comments in include/asm-parisc/pci.h */
-const struct dma_map_ops *hppa_dma_ops __read_mostly;
+const struct dma_map_ops *hppa_dma_ops __ro_after_init;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
@@ -154,17 +151,14 @@ int register_parisc_driver(struct parisc_driver *driver)
 {
 	/* FIXME: we need this because apparently the sti
 	 * driver can be registered twice */
-	if(driver->drv.name) {
-		printk(KERN_WARNING 
-		       "BUG: skipping previously registered driver %s\n",
-		       driver->name);
+	if (driver->drv.name) {
+		pr_warn("BUG: skipping previously registered driver %s\n",
+			driver->name);
 		return 1;
 	}
 
 	if (!driver->probe) {
-		printk(KERN_WARNING 
-		       "BUG: driver %s has no probe routine\n",
-		       driver->name);
+		pr_warn("BUG: driver %s has no probe routine\n", driver->name);
 		return 1;
 	}
 
@@ -260,6 +254,30 @@ static struct parisc_device *find_device_by_addr(unsigned long hpa)
 	return ret ? d.dev : NULL;
 }
 
+static int __init is_IKE_device(struct device *dev, void *data)
+{
+	struct parisc_device *pdev = to_parisc_device(dev);
+
+	if (!check_dev(dev))
+		return 0;
+	if (pdev->id.hw_type != HPHW_BCPORT)
+		return 0;
+	if (IS_IKE(pdev) ||
+		(pdev->id.hversion == REO_MERCED_PORT) ||
+		(pdev->id.hversion == REOG_MERCED_PORT)) {
+			return 1;
+	}
+	return 0;
+}
+
+int __init machine_has_merced_bus(void)
+{
+	int ret;
+
+	ret = for_each_padev(is_IKE_device, NULL);
+	return ret ? 1 : 0;
+}
+
 /**
  * find_pa_parent_type - Find a parent of a specific type
  * @dev: The device to start searching from
@@ -268,7 +286,7 @@ static struct parisc_device *find_device_by_addr(unsigned long hpa)
  * Walks up the device tree looking for a device of the specified type.
  * If it finds it, it returns it.  If not, it returns NULL.
  */
-const struct parisc_device * __init
+const struct parisc_device *
 find_pa_parent_type(const struct parisc_device *padev, int type)
 {
 	const struct device *dev = &padev->dev;
@@ -448,7 +466,8 @@ static int match_by_id(struct device * dev, void * data)
  * Checks all the children of @parent for a matching @id.  If none
  * found, it allocates a new device and returns it.
  */
-static struct parisc_device * alloc_tree_node(struct device *parent, char id)
+static struct parisc_device * __init alloc_tree_node(
+			struct device *parent, char id)
 {
 	struct match_id_data d = {
 		.id = id,
@@ -490,12 +509,9 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 
 	dev = create_parisc_device(mod_path);
 	if (dev->id.hw_type != HPHW_FAULTY) {
-		printk(KERN_ERR "Two devices have hardware path [%s].  "
-				"IODC data for second device: "
-				"%02x%02x%02x%02x%02x%02x\n"
-				"Rearranging GSC cards sometimes helps\n",
-			parisc_pathname(dev), iodc_data[0], iodc_data[1],
-			iodc_data[3], iodc_data[4], iodc_data[5], iodc_data[6]);
+		pr_err("Two devices have hardware path [%s].  IODC data for second device: %7phN\n"
+		       "Rearranging GSC cards sometimes helps\n",
+			parisc_pathname(dev), iodc_data);
 		return NULL;
 	}
 
@@ -527,8 +543,7 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 	 * the keyboard controller
 	 */
 	if ((hpa & 0xfff) == 0 && insert_resource(&iomem_resource, &dev->hpa))
-		printk("Unable to claim HPA %lx for device %s\n",
-				hpa, name);
+		pr_warn("Unable to claim HPA %lx for device %s\n", hpa, name);
 
 	return dev;
 }
@@ -795,7 +810,7 @@ EXPORT_SYMBOL(device_to_hwpath);
 static void walk_native_bus(unsigned long io_io_low, unsigned long io_io_high,
                             struct device *parent);
 
-static void walk_lower_bus(struct parisc_device *dev)
+static void __init walk_lower_bus(struct parisc_device *dev)
 {
 	unsigned long io_io_low, io_io_high;
 
@@ -825,8 +840,8 @@ static void walk_lower_bus(struct parisc_device *dev)
  * devices which are not physically connected (such as extra serial &
  * keyboard ports).  This problem is not yet solved.
  */
-static void walk_native_bus(unsigned long io_io_low, unsigned long io_io_high,
-                            struct device *parent)
+static void __init walk_native_bus(unsigned long io_io_low,
+	unsigned long io_io_high, struct device *parent)
 {
 	int i, devices_found = 0;
 	unsigned long hpa = io_io_low;
@@ -874,8 +889,8 @@ static void print_parisc_device(struct parisc_device *dev)
 	static int count;
 
 	print_pa_hwpath(dev, hw_path);
-	printk(KERN_INFO "%d. %s at 0x%px [%s] { %d, 0x%x, 0x%.3x, 0x%.5x }",
-		++count, dev->name, (void*) dev->hpa.start, hw_path, dev->id.hw_type,
+	pr_info("%d. %s at %pap [%s] { %d, 0x%x, 0x%.3x, 0x%.5x }",
+		++count, dev->name, &(dev->hpa.start), hw_path, dev->id.hw_type,
 		dev->id.hversion_rev, dev->id.hversion, dev->id.sversion);
 
 	if (dev->num_addrs) {

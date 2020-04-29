@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,11 +16,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -31,6 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -196,34 +193,25 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 {
 	int ret;
 
-	/* Enable 40MHz radio clock */
-	iwl_write32(trans, CSR_GP_CNTRL,
-		    iwl_read32(trans, CSR_GP_CNTRL) |
-		    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	if (ret)
+		return ret;
 
-	/* wait for clock to be ready */
-	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   25000);
-	if (ret < 0) {
-		IWL_ERR(trans, "Time out access OTP\n");
-	} else {
-		iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
-				  APMG_PS_CTRL_VAL_RESET_REQ);
-		udelay(5);
-		iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
-				    APMG_PS_CTRL_VAL_RESET_REQ);
+	iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
+			  APMG_PS_CTRL_VAL_RESET_REQ);
+	udelay(5);
+	iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
+			    APMG_PS_CTRL_VAL_RESET_REQ);
 
-		/*
-		 * CSR auto clock gate disable bit -
-		 * this is only applicable for HW with OTP shadow RAM
-		 */
-		if (trans->cfg->base_params->shadow_ram_support)
-			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
-	}
-	return ret;
+	/*
+	 * CSR auto clock gate disable bit -
+	 * this is only applicable for HW with OTP shadow RAM
+	 */
+	if (trans->trans_cfg->base_params->shadow_ram_support)
+		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+
+	return 0;
 }
 
 static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
@@ -340,7 +328,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
+	} while (usedblocks <= trans->trans_cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(trans->dev, "OTP has no valid blocks\n");
@@ -373,7 +361,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 	if (nvm_is_otp < 0)
 		return nvm_is_otp;
 
-	sz = trans->cfg->base_params->eeprom_size;
+	sz = trans->trans_cfg->base_params->eeprom_size;
 	IWL_DEBUG_EEPROM(trans->dev, "NVM size = %d\n", sz);
 
 	e = kmalloc(sz, GFP_KERNEL);
@@ -408,7 +396,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!trans->cfg->base_params->shadow_ram_support) {
+		if (!trans->trans_cfg->base_params->shadow_ram_support) {
 			ret = iwl_find_otp_image(trans, &validblockaddr);
 			if (ret)
 				goto err_unlock;

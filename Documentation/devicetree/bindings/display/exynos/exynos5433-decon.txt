@@ -19,7 +19,8 @@ Required properties:
 	  clock-names property.
 - clock-names: list of clock names sorted in the same order as the clocks
 	       property. Must contain "pclk", "aclk_decon", "aclk_smmu_decon0x",
-	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", clk_decon_vclk",
+	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", "aclk_smmu_decon1x",
+	       "aclk_xiu_decon1x", "pclk_smmu_decon1x", clk_decon_vclk",
 	       "sclk_decon_eclk"
 - ports: contains a port which is connected to mic node. address-cells and
 	 size-cells must 1 and 0, respectively.
@@ -34,10 +35,14 @@ decon: decon@13800000 {
 	clocks = <&cmu_disp CLK_ACLK_DECON>, <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
 		<&cmu_disp CLK_ACLK_XIU_DECON0X>,
 		<&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+		<&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+		<&cmu_disp CLK_ACLK_XIU_DECON1X>,
+		<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 		<&cmu_disp CLK_SCLK_DECON_VCLK>,
 		<&cmu_disp CLK_SCLK_DECON_ECLK>;
 	clock-names = "aclk_decon", "aclk_smmu_decon0x", "aclk_xiu_decon0x",
-		"pclk_smmu_decon0x", "sclk_decon_vclk", "sclk_decon_eclk";
+		"pclk_smmu_decon0x", "aclk_smmu_decon1x", "aclk_xiu_decon1x",
+		"pclk_smmu_decon1x", "sclk_decon_vclk", "sclk_decon_eclk";
 	interrupt-names = "vsync", "lcd_sys";
 	interrupts = <0 202 0>, <0 203 0>;
 

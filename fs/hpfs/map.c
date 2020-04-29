@@ -115,7 +115,7 @@ __le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
 	int n = (hpfs_sb(s)->sb_fs_size + 0x200000 - 1) >> 21;
 	int i;
 	__le32 *b;
-	if (!(b = kmalloc(n * 512, GFP_KERNEL))) {
+	if (!(b = kmalloc_array(n, 512, GFP_KERNEL))) {
 		pr_err("can't allocate memory for bitmap directory\n");
 		return NULL;
 	}	

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright 2017 IBM Corp.
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ocxl
@@ -107,16 +107,14 @@ DEFINE_EVENT(ocxl_fault_handler, ocxl_fault_ack,
 );
 
 TRACE_EVENT(ocxl_afu_irq_alloc,
-	TP_PROTO(int pasid, int irq_id, unsigned int virq, int hw_irq,
-		u64 irq_offset),
-	TP_ARGS(pasid, irq_id, virq, hw_irq, irq_offset),
+	TP_PROTO(int pasid, int irq_id, unsigned int virq, int hw_irq),
+	TP_ARGS(pasid, irq_id, virq, hw_irq),
 
 	TP_STRUCT__entry(
 		__field(int, pasid)
 		__field(int, irq_id)
 		__field(unsigned int, virq)
 		__field(int, hw_irq)
-		__field(u64, irq_offset)
 	),
 
 	TP_fast_assign(
@@ -124,15 +122,13 @@ TRACE_EVENT(ocxl_afu_irq_alloc,
 		__entry->irq_id = irq_id;
 		__entry->virq = virq;
 		__entry->hw_irq = hw_irq;
-		__entry->irq_offset = irq_offset;
 	),
 
-	TP_printk("pasid=0x%x irq_id=%d virq=%u hw_irq=%d irq_offset=0x%llx",
+	TP_printk("pasid=0x%x irq_id=%d virq=%u hw_irq=%d",
 		__entry->pasid,
 		__entry->irq_id,
 		__entry->virq,
-		__entry->hw_irq,
-		__entry->irq_offset
+		__entry->hw_irq
 	)
 );
 

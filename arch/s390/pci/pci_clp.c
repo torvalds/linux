@@ -19,13 +19,12 @@
 #include <linux/uaccess.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
-#include <asm/compat.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>
 
 bool zpci_unique_uid;
 
-static void update_uid_checking(bool new)
+void update_uid_checking(bool new)
 {
 	if (zpci_unique_uid != new)
 		zpci_dbg(1, "uid checking:%d\n", new);
@@ -67,7 +66,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 /*
  * Call Logical Processor with c=0, the give constant lps and an lpcb request.
  */
-static inline int clp_req(void *data, unsigned int lps)
+static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
 	u64 ignored;
@@ -146,7 +145,7 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 {
 	int i;
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		zdev->bars[i].val = le32_to_cpu(response->bar[i]);
 		zdev->bars[i].size = response->bar_size[i];
 	}
@@ -164,7 +163,14 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 		memcpy(zdev->util_str, response->util_str,
 		       sizeof(zdev->util_str));
 	}
+	zdev->mio_capable = response->mio_addr_avail;
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		if (!(response->mio.valid & (1 << (PCI_STD_NUM_BARS - i - 1))))
+			continue;
 
+		zdev->bars[i].mio_wb = (void __iomem *) response->mio.addr[i].wb;
+		zdev->bars[i].mio_wt = (void __iomem *) response->mio.addr[i].wt;
+	}
 	return 0;
 }
 
@@ -234,12 +240,14 @@ error:
 }
 
 /*
- * Enable/Disable a given PCI function defined by its function handle.
+ * Enable/Disable a given PCI function and update its function handle if
+ * necessary
  */
-static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
+static int clp_set_pci_fn(struct zpci_dev *zdev, u8 nr_dma_as, u8 command)
 {
 	struct clp_req_rsp_set_pci *rrb;
 	int rc, retries = 100;
+	u32 fid = zdev->fid;
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
@@ -250,7 +258,7 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 		rrb->request.hdr.len = sizeof(rrb->request);
 		rrb->request.hdr.cmd = CLP_SET_PCI_FN;
 		rrb->response.hdr.len = sizeof(rrb->response);
-		rrb->request.fh = *fh;
+		rrb->request.fh = zdev->fh;
 		rrb->request.oc = command;
 		rrb->request.ndas = nr_dma_as;
 
@@ -263,12 +271,17 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 		}
 	} while (rrb->response.hdr.rsp == CLP_RC_SETPCIFN_BUSY);
 
-	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
-		*fh = rrb->response.fh;
-	else {
+	if (rc || rrb->response.hdr.rsp != CLP_RC_OK) {
 		zpci_err("Set PCI FN:\n");
 		zpci_err_clp(rrb->response.hdr.rsp, rc);
-		rc = -EIO;
+	}
+
+	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK) {
+		zdev->fh = rrb->response.fh;
+	} else if (!rc && rrb->response.hdr.rsp == CLP_RC_SETPCIFN_ALRDY &&
+			rrb->response.fh == 0) {
+		/* Function is already in desired state - update handle */
+		rc = clp_rescan_pci_devices_simple(&fid);
 	}
 	clp_free_block(rrb);
 	return rc;
@@ -276,15 +289,21 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 
 int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 {
-	u32 fh = zdev->fh;
 	int rc;
 
-	rc = clp_set_pci_fn(&fh, nr_dma_as, CLP_SET_ENABLE_PCI_FN);
-	if (!rc)
-		/* Success -> store enabled handle in zdev */
-		zdev->fh = fh;
-
+	rc = clp_set_pci_fn(zdev, nr_dma_as, CLP_SET_ENABLE_PCI_FN);
 	zpci_dbg(3, "ena fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
+	if (rc)
+		goto out;
+
+	if (zpci_use_mio(zdev)) {
+		rc = clp_set_pci_fn(zdev, nr_dma_as, CLP_SET_ENABLE_MIO);
+		zpci_dbg(3, "ena mio fid:%x, fh:%x, rc:%d\n",
+				zdev->fid, zdev->fh, rc);
+		if (rc)
+			clp_disable_fh(zdev);
+	}
+out:
 	return rc;
 }
 
@@ -296,12 +315,8 @@ int clp_disable_fh(struct zpci_dev *zdev)
 	if (!zdev_enabled(zdev))
 		return 0;
 
-	rc = clp_set_pci_fn(&fh, 0, CLP_SET_DISABLE_PCI_FN);
-	if (!rc)
-		/* Success -> store disabled handle in zdev */
-		zdev->fh = fh;
-
-	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
+	rc = clp_set_pci_fn(zdev, 0, CLP_SET_DISABLE_PCI_FN);
+	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
 	return rc;
 }
 
@@ -358,8 +373,12 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 static void __clp_update(struct clp_fh_list_entry *entry, void *data)
 {
 	struct zpci_dev *zdev;
+	u32 *fid = data;
 
 	if (!entry->vendor_id)
+		return;
+
+	if (fid && *fid != entry->fid)
 		return;
 
 	zdev = get_zdev_by_fid(entry->fid);
@@ -401,7 +420,10 @@ int clp_rescan_pci_devices(void)
 	return rc;
 }
 
-int clp_rescan_pci_devices_simple(void)
+/* Rescan PCI functions and refresh function handles. If fid is non-NULL only
+ * refresh the handle of the function matching @fid
+ */
+int clp_rescan_pci_devices_simple(u32 *fid)
 {
 	struct clp_req_rsp_list_pci *rrb;
 	int rc;
@@ -410,7 +432,7 @@ int clp_rescan_pci_devices_simple(void)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, NULL, __clp_update);
+	rc = clp_list_pci(rrb, fid, __clp_update);
 
 	clp_free_block(rrb);
 	return rc;
@@ -437,7 +459,7 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 	struct clp_state_data sd = {fid, ZPCI_FN_STATE_RESERVED};
 	int rc;
 
-	rrb = clp_alloc_block(GFP_KERNEL);
+	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
 		return -ENOMEM;
 

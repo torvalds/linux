@@ -62,6 +62,11 @@ int kfd_interrupt_init(struct kfd_dev *kfd)
 	}
 
 	kfd->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
+	if (unlikely(!kfd->ih_wq)) {
+		kfifo_free(&kfd->ih_fifo);
+		dev_err(kfd_chardev(), "Failed to allocate KFD IH workqueue\n");
+		return -ENOMEM;
+	}
 	spin_lock_init(&kfd->interrupt_lock);
 
 	INIT_WORK(&kfd->interrupt_work, interrupt_wq);
@@ -139,23 +144,27 @@ static void interrupt_wq(struct work_struct *work)
 {
 	struct kfd_dev *dev = container_of(work, struct kfd_dev,
 						interrupt_work);
+	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
 
-	uint32_t ih_ring_entry[DIV_ROUND_UP(
-				dev->device_info->ih_ring_entry_size,
-				sizeof(uint32_t))];
+	if (dev->device_info->ih_ring_entry_size > sizeof(ih_ring_entry)) {
+		dev_err_once(kfd_chardev(), "Ring entry too small\n");
+		return;
+	}
 
 	while (dequeue_ih_ring_entry(dev, ih_ring_entry))
 		dev->device_info->event_interrupt_class->interrupt_wq(dev,
 								ih_ring_entry);
 }
 
-bool interrupt_is_wanted(struct kfd_dev *dev, const uint32_t *ih_ring_entry)
+bool interrupt_is_wanted(struct kfd_dev *dev,
+			const uint32_t *ih_ring_entry,
+			uint32_t *patched_ihre, bool *flag)
 {
 	/* integer and bitwise OR so there is no boolean short-circuiting */
 	unsigned int wanted = 0;
 
 	wanted |= dev->device_info->event_interrupt_class->interrupt_isr(dev,
-								ih_ring_entry);
+					 ih_ring_entry, patched_ihre, flag);
 
 	return wanted != 0;
 }

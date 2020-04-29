@@ -136,6 +136,10 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulUClk;
 	uint32_t   ulSocClk;
 	uint32_t   ulDCEFClk;
+	uint32_t   ulEClk;
+	uint32_t   ulVClk;
+	uint32_t   ulDClk;
+	uint32_t   ulFClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;
@@ -192,9 +196,9 @@ struct pp_atomfwctrl_smc_dpm_parameters
   uint8_t  ledpin1;
   uint8_t  ledpin2;
 
-  uint8_t  gfxclkspreadenabled;
-  uint8_t  gfxclkspreadpercent;
-  uint16_t gfxclkspreadfreq;
+	uint8_t  pllgfxclkspreadenabled;
+	uint8_t  pllgfxclkspreadpercent;
+	uint16_t pllgfxclkspreadfreq;
 
   uint8_t  uclkspreadenabled;
   uint8_t  uclkspreadpercent;
@@ -203,6 +207,12 @@ struct pp_atomfwctrl_smc_dpm_parameters
   uint8_t socclkspreadenabled;
   uint8_t socclkspreadpercent;
   uint16_t socclkspreadfreq;
+
+	uint8_t  acggfxclkspreadenabled;
+	uint8_t  acggfxclkspreadpercent;
+	uint16_t acggfxclkspreadfreq;
+
+	uint8_t Vr2_I2C_address;
 };
 
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
@@ -226,6 +236,9 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values);
 int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_smc_dpm_parameters *param);
+int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
+					uint8_t clk_id, uint8_t syspll_id,
+					uint32_t *frequency);
 
 #endif
 

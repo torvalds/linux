@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -6,16 +7,6 @@
  *
  * Based on, softdog.c by Alan Cox,
  *     (c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -522,7 +513,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct s3c2410_wdt *wdt;
-	struct resource *wdt_mem;
 	struct resource *wdt_irq;
 	unsigned int wtcon;
 	int started = 0;
@@ -554,8 +544,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	/* get the memory region for the watchdog timer */
-	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->reg_base = devm_ioremap_resource(dev, wdt_mem);
+	wdt->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->reg_base)) {
 		ret = PTR_ERR(wdt->reg_base);
 		goto err;
@@ -617,10 +606,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->wdt_device.parent = dev;
 
 	ret = watchdog_register_device(&wdt->wdt_device);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog (%d)\n", ret);
+	if (ret)
 		goto err_cpufreq;
-	}
 
 	ret = s3c2410wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)

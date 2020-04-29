@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2015 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This assembly is required to safely remap the physical address space
  * for Keystone 2
@@ -33,10 +30,10 @@ ENTRY(lpae_pgtables_remap_asm)
 	add	r7, r2, #0x1000
 	add	r6, r7, r6, lsr #SECTION_SHIFT - L2_ORDER
 	add	r7, r7, #PAGE_OFFSET >> (SECTION_SHIFT - L2_ORDER)
-1:	ldrd	r4, [r7]
+1:	ldrd	r4, r5, [r7]
 	adds	r4, r4, r0
 	adc	r5, r5, r1
-	strd	r4, [r7], #1 << L2_ORDER
+	strd	r4, r5, [r7], #1 << L2_ORDER
 	cmp	r7, r6
 	bls	1b
 
@@ -44,22 +41,22 @@ ENTRY(lpae_pgtables_remap_asm)
 	add	r7, r2, #0x1000
 	add	r7, r7, r3, lsr #SECTION_SHIFT - L2_ORDER
 	bic	r7, r7, #(1 << L2_ORDER) - 1
-	ldrd	r4, [r7]
+	ldrd	r4, r5, [r7]
 	adds	r4, r4, r0
 	adc	r5, r5, r1
-	strd	r4, [r7], #1 << L2_ORDER
-	ldrd	r4, [r7]
+	strd	r4, r5, [r7], #1 << L2_ORDER
+	ldrd	r4, r5, [r7]
 	adds	r4, r4, r0
 	adc	r5, r5, r1
-	strd	r4, [r7]
+	strd	r4, r5, [r7]
 
 	/* Update level 1 entries */
 	mov	r6, #4
 	mov	r7, r2
-2:	ldrd	r4, [r7]
+2:	ldrd	r4, r5, [r7]
 	adds	r4, r4, r0
 	adc	r5, r5, r1
-	strd	r4, [r7], #1 << L1_ORDER
+	strd	r4, r5, [r7], #1 << L1_ORDER
 	subs	r6, r6, #1
 	bne	2b
 

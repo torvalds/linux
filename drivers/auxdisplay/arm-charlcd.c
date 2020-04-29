@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the on-board character LCD found on some ARM reference boards
  * This is basically an Hitachi HD44780 LCD with a custom IP block to drive it
  * http://en.wikipedia.org/wiki/HD44780_Character_LCD
  * Currently it will just display the text "ARM Linux" and the linux version
  *
- * License terms: GNU General Public License (GPL) version 2
  * Author: Linus Walleij <triad@df.lth.se>
  */
 #include <linux/init.h>
@@ -54,12 +54,14 @@
 #define HD_BUSY_FLAG			0x80U
 
 /**
+ * struct charlcd - Private data structure
  * @dev: a pointer back to containing device
  * @phybase: the offset to the controller in physical memory
  * @physize: the size of the physical page
  * @virtbase: the offset to the controller in virtual memory
  * @irq: reserved interrupt number
  * @complete: completion structure for the last LCD command
+ * @init_work: delayed work structure to initialize the display on boot
  */
 struct charlcd {
 	struct device *dev;
@@ -329,8 +331,7 @@ out_no_resource:
 
 static int charlcd_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct charlcd *lcd = platform_get_drvdata(pdev);
+	struct charlcd *lcd = dev_get_drvdata(dev);
 
 	/* Power the display off */
 	charlcd_4bit_command(lcd, HD_DISPCTRL);
@@ -339,8 +340,7 @@ static int charlcd_suspend(struct device *dev)
 
 static int charlcd_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct charlcd *lcd = platform_get_drvdata(pdev);
+	struct charlcd *lcd = dev_get_drvdata(dev);
 
 	/* Turn the display back on */
 	charlcd_4bit_command(lcd, HD_DISPCTRL | HD_DISPCTRL_ON);

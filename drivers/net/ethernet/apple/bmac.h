@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mace.h - definitions for the registers in the "Big Mac"
  *  Ethernet controller found in PowerMac G3 models.
  *
  * Copyright (C) 1998 Randy Gobbel.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /* The "Big MAC" appears to have some parts in common with the Sun "Happy Meal"

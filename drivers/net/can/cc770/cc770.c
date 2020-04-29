@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the CC770 and AN82527 CAN controllers
  *
  * Copyright (C) 2009, 2011 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -73,7 +65,7 @@ MODULE_PARM_DESC(msgobj15_eff, "Extended 29-bit frames for message object 15 "
 
 static int i82527_compat;
 module_param(i82527_compat, int, 0444);
-MODULE_PARM_DESC(i82527_compat, "Strict Intel 82527 comptibility mode "
+MODULE_PARM_DESC(i82527_compat, "Strict Intel 82527 compatibility mode "
 		 "without using additional functions");
 
 /*

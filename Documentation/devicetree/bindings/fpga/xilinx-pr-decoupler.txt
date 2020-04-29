@@ -18,12 +18,8 @@ Required properties:
 - clocks		: input clock to IP
 - clock-names		: should contain "aclk"
 
-Optional properties:
-- bridge-enable		: 0 if driver should disable bridge at startup
-			  1 if driver should enable bridge at startup
-			  Default is to leave bridge in current state.
-
-See Documentation/devicetree/bindings/fpga/fpga-region.txt for generic bindings.
+See Documentation/devicetree/bindings/fpga/fpga-region.txt and
+Documentation/devicetree/bindings/fpga/fpga-bridge.txt for generic bindings.
 
 Example:
 	fpga-bridge@100000450 {

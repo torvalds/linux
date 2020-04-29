@@ -30,8 +30,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../perf.h"
+#include "../perf-sys.h"
 #include <subcmd/exec-cmd.h>
+#include "event.h"
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"
@@ -182,7 +183,7 @@ int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 	char path_perf[PATH_MAX];
 	char path_dir[PATH_MAX];
 
-	/* First try developement tree tests. */
+	/* First try development tree tests. */
 	if (!lstat("./tests", &st))
 		return run_dir("./tests", "./perf");
 

@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright 2003 PathScale, Inc.
  * Derived from include/asm-i386/pgtable.h
- * Licensed under the GPL
  */
 
 #ifndef __UM_PGTABLE_H
@@ -31,8 +31,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /* zero page used for uninitialized stuff */
 extern unsigned long *empty_zero_page;
-
-#define pgtable_cache_init() do ; while (0)
 
 /* Just any arbitrary offset to the start of the vmalloc VM area: the
  * current 8MB value just means that there will be a 8MB "hole" after the
@@ -108,6 +106,9 @@ extern unsigned long end_iomem;
 #define pud_newpage(x)  (pud_val(x) & _PAGE_NEWPAGE)
 #define pud_mkuptodate(x) (pud_val(x) &= ~_PAGE_NEWPAGE)
 
+#define p4d_newpage(x)  (p4d_val(x) & _PAGE_NEWPAGE)
+#define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEWPAGE)
+
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
 #define pte_page(x) pfn_to_page(pte_pfn(x))
@@ -166,11 +167,6 @@ static inline int pte_newprot(pte_t pte)
 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
 }
 
-static inline int pte_special(pte_t pte)
-{
-	return 0;
-}
-
 /*
  * =================================
  * Flags setting section.
@@ -197,12 +193,17 @@ static inline pte_t pte_mkold(pte_t pte)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 { 
-	pte_clear_bits(pte, _PAGE_RW);
+	if (likely(pte_get_bits(pte, _PAGE_RW)))
+		pte_clear_bits(pte, _PAGE_RW);
+	else
+		return pte;
 	return(pte_mknewprot(pte)); 
 }
 
 static inline pte_t pte_mkread(pte_t pte)
 { 
+	if (unlikely(pte_get_bits(pte, _PAGE_USER)))
+		return pte;
 	pte_set_bits(pte, _PAGE_USER);
 	return(pte_mknewprot(pte)); 
 }
@@ -221,6 +222,8 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 static inline pte_t pte_mkwrite(pte_t pte)	
 {
+	if (unlikely(pte_get_bits(pte,  _PAGE_RW)))
+		return pte;
 	pte_set_bits(pte, _PAGE_RW);
 	return(pte_mknewprot(pte)); 
 }
@@ -239,11 +242,6 @@ static inline pte_t pte_mknewpage(pte_t pte)
 	return(pte);
 }
 
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	return(pte);
-}
-
 static inline void set_pte(pte_t *pteptr, pte_t pteval)
 {
 	pte_copy(*pteptr, pteval);
@@ -256,7 +254,12 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 	*pteptr = pte_mknewpage(*pteptr);
 	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
 }
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
+
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *pteptr, pte_t pteval)
+{
+	set_pte(pteptr, pteval);
+}
 
 #define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t pte_a, pte_t pte_b)

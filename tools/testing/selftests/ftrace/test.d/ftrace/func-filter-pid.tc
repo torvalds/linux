@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function pid filters
+# flags: instance
 
 # Make sure that function pid matching filter works.
 # Also test it on an instance directory
@@ -35,12 +36,6 @@ if [ $do_function_fork -eq 1 ]; then
 fi
 
 do_reset() {
-    reset_tracer
-    clear_trace
-    enable_tracing
-    echo > set_ftrace_filter
-    echo > set_ftrace_pid
-
     if [ $do_function_fork -eq 0 ]; then
 	return
     fi
@@ -52,10 +47,6 @@ fail() { # msg
     do_reset
     echo $1
     exit_fail
-}
-
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
 do_test() {
@@ -106,13 +97,6 @@ do_test() {
 }
 
 do_test
-
-mkdir instances/foo
-cd instances/foo
-do_test
-cd ../../
-rmdir instances/foo
-
 do_reset
 
 exit 0

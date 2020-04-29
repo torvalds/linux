@@ -13,6 +13,8 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
@@ -93,10 +95,8 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 
 	/* init private data */
 	info->data = nf_conncount_init(par->net, par->family, keylen);
-	if (IS_ERR(info->data))
-		return PTR_ERR(info->data);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(info->data);
 }
 
 static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)

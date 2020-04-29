@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SUNRPC
 	tristate
 	depends on MULTIUSER
@@ -33,6 +34,22 @@ config RPCSEC_GSS_KRB5
 	  Kerberos support should be installed.
 
 	  If unsure, say Y.
+
+config SUNRPC_DISABLE_INSECURE_ENCTYPES
+	bool "Secure RPC: Disable insecure Kerberos encryption types"
+	depends on RPCSEC_GSS_KRB5
+	default n
+	help
+	  Choose Y here to disable the use of deprecated encryption types
+	  with the Kerberos version 5 GSS-API mechanism (RFC 1964). The
+	  deprecated encryption types include DES-CBC-MD5, DES-CBC-CRC,
+	  and DES-CBC-MD4. These types were deprecated by RFC 6649 because
+	  they were found to be insecure.
+
+	  N is the default because many sites have deployed KDCs and
+	  keytabs that contain only these deprecated encryption types.
+	  Choosing Y prevents the use of known-insecure encryption types
+	  but might result in compatibility problems.
 
 config SUNRPC_DEBUG
 	bool "RPC: Enable dprintk debugging"

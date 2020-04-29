@@ -3,7 +3,6 @@
 Required properties:
  - compatible		: Should be "rohm,bd9571mwv".
  - reg			: I2C slave address.
- - interrupt-parent	: Phandle to the parent interrupt controller.
  - interrupts		: The interrupt line the device is connected to.
  - interrupt-controller	: Marks the device node as an interrupt controller.
  - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.
@@ -25,6 +24,25 @@ Required properties:
 			    Each child node is defined using the standard
 			    binding for regulators.
 
+Optional properties:
+  - rohm,ddr-backup-power : Value to use for DDR-Backup Power (default 0).
+			    This is a bitmask that specifies which DDR power
+			    rails need to be kept powered when backup mode is
+			    entered, for system suspend:
+			      - bit 0: DDR0
+			      - bit 1: DDR1
+			      - bit 2: DDR0C
+			      - bit 3: DDR1C
+			    These bits match the KEEPON_DDR* bits in the
+			    documentation for the "BKUP Mode Cnt" register.
+  - rohm,rstbmode-level: The RSTB signal is configured for level mode, to
+			 accommodate a toggle power switch (the RSTBMODE pin is
+			 strapped low).
+  - rohm,rstbmode-pulse: The RSTB signal is configured for pulse mode, to
+			 accommodate a momentary power switch (the RSTBMODE pin
+			 is strapped high).
+			 The two properties above are mutually exclusive.
+
 Example:
 
 	pmic: pmic@30 {
@@ -36,6 +54,8 @@ Example:
 		#interrupt-cells = <2>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		rohm,ddr-backup-power = <0xf>;
+		rohm,rstbmode-pulse;
 
 		regulators {
 			dvfs: dvfs {

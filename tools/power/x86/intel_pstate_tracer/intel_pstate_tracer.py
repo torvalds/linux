@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
 # -*- coding: utf-8 -*-
 #
 """ This utility can be used to debug and tune the performance of the
@@ -10,11 +11,11 @@ then this utility enables and collects trace data for a user specified interval
 and generates performance plots.
 
 Prerequisites:
-    Python version 2.7.x
+    Python version 2.7.x or higher
     gnuplot 5.0 or higher
-    gnuplot-py 1.8
+    gnuplot-py 1.8 or higher
     (Most of the distributions have these required packages. They may be called
-     gnuplot-py, phython-gnuplot. )
+     gnuplot-py, phython-gnuplot or phython3-gnuplot, gnuplot-nox, ... )
 
     HWP (Hardware P-States are disabled)
     Kernel config for Linux trace is enabled
@@ -28,6 +29,7 @@ import subprocess
 import os
 import time
 import re
+import signal
 import sys
 import getopt
 import Gnuplot
@@ -78,11 +80,12 @@ def print_help():
     print('    Or')
     print('      ./intel_pstate_tracer.py [--cpu cpus] ---trace_file <trace_file> --name <test_name>')
     print('    To generate trace file, parse and plot, use (sudo required):')
-    print('      sudo ./intel_pstate_tracer.py [-c cpus] -i <interval> -n <test_name>')
+    print('      sudo ./intel_pstate_tracer.py [-c cpus] -i <interval> -n <test_name> -m <kbytes>')
     print('    Or')
-    print('      sudo ./intel_pstate_tracer.py [--cpu cpus] --interval <interval> --name <test_name>')
+    print('      sudo ./intel_pstate_tracer.py [--cpu cpus] --interval <interval> --name <test_name> --memory <kbytes>')
     print('    Optional argument:')
-    print('      cpus:  comma separated list of CPUs')
+    print('      cpus:   comma separated list of CPUs')
+    print('      kbytes: Kilo bytes of memory per CPU to allocate to the trace buffer. Default: 10240')
     print('  Output:')
     print('    If not already present, creates a "results/test_name" folder in the current working directory with:')
     print('      cpu.csv - comma seperated values file with trace contents and some additional calculations.')
@@ -101,7 +104,7 @@ def plot_perf_busy_with_sample(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_perf_busy_vs_samples.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#   autoscale this one, no set y1 range
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
         g_plot('set title "{} : cpu perf busy vs. sample : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
@@ -122,7 +125,7 @@ def plot_perf_busy(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_perf_busy.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#   autoscale this one, no set y1 range
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
         g_plot('set title "{} : perf busy : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
@@ -141,9 +144,7 @@ def plot_durations(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_durations.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-#       Should autoscale be used here? Should seconds be used here?
-        g_plot('set yrange [0:5000]')
-        g_plot('set ytics 0, 500')
+#       autoscale this one, no set y range
         g_plot('set title "{} : durations : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
         g_plot('set ylabel "Timer Duration (MilliSeconds)"')
 #       override common
@@ -173,12 +174,12 @@ def plot_pstate_cpu_with_sample():
     if os.path.exists('cpu.csv'):
         output_png = 'all_cpu_pstates_vs_samples.png'
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#       autoscale this one, no set y range
 #       override common
         g_plot('set xlabel "Samples"')
         g_plot('set ylabel "P-State"')
         g_plot('set title "{} : cpu pstate vs. sample : {:%F %H:%M}"'.format(testname, datetime.now()))
-        title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+        title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
         plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_SAMPLE, C_TO)
         g_plot('title_list = "{}"'.format(title_list))
         g_plot(plot_str)
@@ -188,14 +189,14 @@ def plot_pstate_cpu():
 
     output_png = 'all_cpu_pstates.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:40]')
+#   autoscale this one, no set y range
     g_plot('set ylabel "P-State"')
     g_plot('set title "{} : cpu pstates : {:%F %H:%M}"'.format(testname, datetime.now()))
 
 #    the following command is really cool, but doesn't work with the CPU masking option because it aborts on the first missing file.
 #    plot_str = 'plot for [i=0:*] file=sprintf("cpu%03d.csv",i) title_s=sprintf("cpu%03d",i) file using 16:7 pt 7 ps 1 title title_s'
 #
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_TO)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -209,7 +210,7 @@ def plot_load_cpu():
     g_plot('set ylabel "CPU load (percent)"')
     g_plot('set title "{} : cpu loads : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_LOAD)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -219,11 +220,11 @@ def plot_frequency_cpu():
 
     output_png = 'all_cpu_frequencies.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:4]')
+#   autoscale this one, no set y range
     g_plot('set ylabel "CPU Frequency (GHz)"')
     g_plot('set title "{} : cpu frequencies : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_FREQ)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -233,12 +234,11 @@ def plot_duration_cpu():
 
     output_png = 'all_cpu_durations.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:5000]')
-    g_plot('set ytics 0, 500')
+#   autoscale this one, no set y range
     g_plot('set ylabel "Timer Duration (MilliSeconds)"')
     g_plot('set title "{} : cpu durations : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_DURATION)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -252,7 +252,7 @@ def plot_scaled_cpu():
     g_plot('set ylabel "Scaled Busy (Unitless)"')
     g_plot('set title "{} : cpu scaled busy : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_SCALED)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -266,7 +266,7 @@ def plot_boost_cpu():
     g_plot('set ylabel "CPU IO Boost (percent)"')
     g_plot('set title "{} : cpu io boost : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_BOOST)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -280,7 +280,7 @@ def plot_ghz_cpu():
     g_plot('set ylabel "TSC Frequency (GHz)"')
     g_plot('set title "{} : cpu TSC Frequencies (Sanity check calculation) : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_GHZ)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -379,7 +379,7 @@ def clear_trace_file():
         f_handle.close()
     except:
         print('IO error clearing trace file ')
-        quit()
+        sys.exit(2)
 
 def enable_trace():
     """ Enable trace """
@@ -389,7 +389,7 @@ def enable_trace():
                  , 'w').write("1")
     except:
         print('IO error enabling trace ')
-        quit()
+        sys.exit(2)
 
 def disable_trace():
     """ Disable trace """
@@ -399,17 +399,17 @@ def disable_trace():
                  , 'w').write("0")
     except:
         print('IO error disabling trace ')
-        quit()
+        sys.exit(2)
 
 def set_trace_buffer_size():
     """ Set trace buffer size """
 
     try:
-       open('/sys/kernel/debug/tracing/buffer_size_kb'
-                 , 'w').write("10240")
+       with open('/sys/kernel/debug/tracing/buffer_size_kb', 'w') as fp:
+          fp.write(memory)
     except:
-        print('IO error setting trace buffer size ')
-        quit()
+       print('IO error setting trace buffer size ')
+       sys.exit(2)
 
 def free_trace_buffer():
     """ Free the trace buffer memory """
@@ -418,8 +418,8 @@ def free_trace_buffer():
        open('/sys/kernel/debug/tracing/buffer_size_kb'
                  , 'w').write("1")
     except:
-        print('IO error setting trace buffer size ')
-        quit()
+        print('IO error freeing trace buffer ')
+        sys.exit(2)
 
 def read_trace_data(filename):
     """ Read and parse trace data """
@@ -431,7 +431,7 @@ def read_trace_data(filename):
         data = open(filename, 'r').read()
     except:
         print('Error opening ', filename)
-        quit()
+        sys.exit(2)
 
     for line in data.splitlines():
         search_obj = \
@@ -489,10 +489,22 @@ def read_trace_data(filename):
 # Now seperate the main overall csv file into per CPU csv files.
     split_csv()
 
+def signal_handler(signal, frame):
+    print(' SIGINT: Forcing cleanup before exit.')
+    if interval:
+        disable_trace()
+        clear_trace_file()
+        # Free the memory
+        free_trace_buffer()
+        sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 interval = ""
 filename = ""
 cpu_list = ""
 testname = ""
+memory = "10240"
 graph_data_present = False;
 
 valid1 = False
@@ -501,7 +513,7 @@ valid2 = False
 cpu_mask = zeros((MAX_CPUS,), dtype=int)
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:",["help","trace_file=","interval=","cpu=","name="])
+    opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:m:",["help","trace_file=","interval=","cpu=","name=","memory="])
 except getopt.GetoptError:
     print_help()
     sys.exit(2)
@@ -521,6 +533,8 @@ for opt, arg in opts:
     elif opt in ("-n", "--name"):
         valid2 = True
         testname = arg
+    elif opt in ("-m", "--memory"):
+        memory = arg
 
 if not (valid1 and valid2):
     print_help()
@@ -569,6 +583,11 @@ current_max_cpu = 0
 
 read_trace_data(filename)
 
+if interval:
+    clear_trace_file()
+    # Free the memory
+    free_trace_buffer()
+
 if graph_data_present == False:
     print('No valid data to plot')
     sys.exit(2)
@@ -592,10 +611,5 @@ plot_ghz_cpu()
 for root, dirs, files in os.walk('.'):
     for f in files:
         fix_ownership(f)
-
-clear_trace_file()
-# Free the memory
-if interval:
-    free_trace_buffer()
 
 os.chdir('../../')

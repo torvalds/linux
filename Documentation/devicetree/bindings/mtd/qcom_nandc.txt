@@ -45,11 +45,12 @@ Required properties:
 			number (e.g., 0, 1, 2, etc.)
 - #address-cells:	see partition.txt
 - #size-cells:		see partition.txt
-- nand-ecc-strength:	see nand.txt
-- nand-ecc-step-size:	must be 512. see nand.txt for more details.
 
 Optional properties:
-- nand-bus-width:	see nand.txt
+- nand-bus-width:	see nand-controller.yaml
+- nand-ecc-strength:	see nand-controller.yaml. If not specified, then ECC strength will
+			be used according to chip requirement and available
+			OOB size.
 
 Each nandcs device node may optionally contain a 'partitions' sub-node, which
 further contains sub-nodes describing the flash partition mapping. See
@@ -77,7 +78,6 @@ nand-controller@1ac00000 {
 		reg = <0>;
 
 		nand-ecc-strength = <4>;
-		nand-ecc-step-size = <512>;
 		nand-bus-width = <8>;
 
 		partitions {
@@ -117,7 +117,6 @@ nand-controller@79b0000 {
 	nand@0 {
 		reg = <0>;
 		nand-ecc-strength = <4>;
-		nand-ecc-step-size = <512>;
 		nand-bus-width = <8>;
 
 		partitions {

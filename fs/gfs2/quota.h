@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __QUOTA_DOT_H__
@@ -18,8 +15,8 @@ struct gfs2_sbd;
 #define NO_UID_QUOTA_CHANGE INVALID_UID
 #define NO_GID_QUOTA_CHANGE INVALID_GID
 
-extern int gfs2_qa_alloc(struct gfs2_inode *ip);
-extern void gfs2_qa_delete(struct gfs2_inode *ip, atomic_t *wcount);
+extern int gfs2_qa_get(struct gfs2_inode *ip);
+extern void gfs2_qa_put(struct gfs2_inode *ip);
 extern int gfs2_quota_hold(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
 extern void gfs2_quota_unhold(struct gfs2_inode *ip);
 

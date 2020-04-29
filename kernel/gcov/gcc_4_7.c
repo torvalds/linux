@@ -68,7 +68,7 @@ struct gcov_fn_info {
 	unsigned int ident;
 	unsigned int lineno_checksum;
 	unsigned int cfg_checksum;
-	struct gcov_ctr_info ctrs[0];
+	struct gcov_ctr_info ctrs[];
 };
 
 /**
@@ -148,6 +148,18 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
 		prev->next = info->next;
 	else
 		gcov_info_head = info->next;
+}
+
+/**
+ * gcov_info_within_module - check if a profiling data set belongs to a module
+ * @info: profiling data set
+ * @mod: module
+ *
+ * Returns true if profiling data belongs module, false otherwise.
+ */
+bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+{
+	return within_module((unsigned long)info, mod);
 }
 
 /* Symbolic links to be created for each profiling data file. */

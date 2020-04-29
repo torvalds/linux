@@ -30,23 +30,6 @@ struct pci_vector_struct {
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
-/*
- * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct
- * correspondence between device bus addresses and CPU physical addresses.
- * Platforms with a hardware I/O MMU _must_ turn this off to suppress the
- * bounce buffer handling code in the block and network device layers.
- * Platforms with separate bus address spaces _must_ turn this off and provide
- * a device DMA mapping implementation that takes care of the necessary
- * address translation.
- *
- * For now, the ia64 platforms which may have separate/multiple bus address
- * spaces all have I/O MMUs which support the merging of physically
- * discontiguous buffers, so we can use that as the sole factor to determine
- * the setting of PCI_DMA_BUS_IS_PHYS.
- */
-extern unsigned long ia64_max_iommu_merge_mask;
-#define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
-
 #define HAVE_PCI_MMAP
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE
 #define arch_can_pci_mmap_wc()	1
@@ -56,9 +39,9 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 				      struct vm_area_struct *vma,
 				      enum pci_mmap_state mmap_state);
 
-#define pci_get_legacy_mem platform_pci_get_legacy_mem
-#define pci_legacy_read platform_pci_legacy_read
-#define pci_legacy_write platform_pci_legacy_write
+char *pci_get_legacy_mem(struct pci_bus *bus);
+int pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size);
+int pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size);
 
 struct pci_controller {
 	struct acpi_device *companion;
@@ -86,7 +69,4 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return channel ? isa_irq_to_vector(15) : isa_irq_to_vector(14);
 }
 
-#ifdef CONFIG_INTEL_IOMMU
-extern void pci_iommu_alloc(void);
-#endif
 #endif /* _ASM_IA64_PCI_H */

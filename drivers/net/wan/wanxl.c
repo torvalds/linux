@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wanXL serial card driver for Linux
  * host part
  *
  * Copyright (C) 2003 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * Status:
  *   - Only DTE (external clock) support with NRZ and NRZI encodings
@@ -81,7 +78,7 @@ struct card {
 	struct sk_buff *rx_skbs[RX_QUEUE_LENGTH];
 	struct card_status *status;	/* shared between host and card */
 	dma_addr_t status_address;
-	struct port ports[0];	/* 1 - 4 port structures follow */
+	struct port ports[];	/* 1 - 4 port structures follow */
 };
 
 
@@ -185,7 +182,7 @@ static inline void wanxl_tx_intr(struct port *port)
                 desc->stat = PACKET_EMPTY; /* Free descriptor */
 		pci_unmap_single(port->card->pdev, desc->address, skb->len,
 				 PCI_DMA_TODEVICE);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
                 port->tx_in = (port->tx_in + 1) % TX_BUFFERS;
         }
 }
@@ -565,7 +562,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	u32 plx_phy;		/* PLX PCI base address */
 	u32 mem_phy;		/* memory PCI base addr */
 	u8 __iomem *mem;	/* memory virtual base addr */
-	int i, ports, alloc_size;
+	int i, ports;
 
 #ifndef MODULE
 	pr_info_once("%s\n", version);
@@ -601,8 +598,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	default: ports = 4;
 	}
 
-	alloc_size = sizeof(struct card) + ports * sizeof(struct port);
-	card = kzalloc(alloc_size, GFP_KERNEL);
+	card = kzalloc(struct_size(card, ports, ports), GFP_KERNEL);
 	if (card == NULL) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
@@ -639,7 +635,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	/* set up PLX mapping */
 	plx_phy = pci_resource_start(pdev, 0);
 
-	card->plx = ioremap_nocache(plx_phy, 0x70);
+	card->plx = ioremap(plx_phy, 0x70);
 	if (!card->plx) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);
@@ -708,7 +704,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 					       PCI_DMA_FROMDEVICE);
 	}
 
-	mem = ioremap_nocache(mem_phy, PDM_OFFSET + sizeof(firmware));
+	mem = ioremap(mem_phy, PDM_OFFSET + sizeof(firmware));
 	if (!mem) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);

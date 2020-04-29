@@ -1,8 +1,0 @@
-Toshiba 8.9" WXGA (1280x768) TFT LCD panel
-
-Required properties:
-- compatible: should be "toshiba,lt089ac29000"
-- power-supply: as specified in the base binding
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

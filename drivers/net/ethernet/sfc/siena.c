@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/bitops.h>
@@ -17,12 +14,14 @@
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
+#include "efx_common.h"
 #include "nic.h"
 #include "farch_regs.h"
 #include "io.h"
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "mcdi_port_common.h"
 #include "selftest.h"
 #include "siena_sriov.h"
 

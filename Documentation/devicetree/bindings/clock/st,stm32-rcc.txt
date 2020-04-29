@@ -11,6 +11,8 @@ Required properties:
   "st,stm32f42xx-rcc"
   "st,stm32f469-rcc"
   "st,stm32f746-rcc"
+  "st,stm32f769-rcc"
+
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below
@@ -102,6 +104,10 @@ The secondary index is bound with the following magic numbers:
 	28	CLK_I2C3
 	29	CLK_I2C4
 	30	CLK_LPTIMER	(LPTimer1 clock)
+	31	CLK_PLL_SRC
+	32	CLK_DFSDM1
+	33	CLK_ADFSDM1
+	34	CLK_F769_DSI
 )
 
 Example:

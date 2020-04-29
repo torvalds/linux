@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ds.h -- 16-bit PCMCIA core support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -39,7 +36,7 @@ struct config_t;
 struct net_device;
 
 /* dynamic device IDs for PCMCIA device drivers. See
- * Documentation/pcmcia/driver.txt for details.
+ * Documentation/pcmcia/driver.rst for details.
 */
 struct pcmcia_dynids {
 	struct mutex		lock;
@@ -205,16 +202,6 @@ int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val);
 
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev);
-
-int __must_check
-__pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
-				irq_handler_t handler);
-static inline __must_check __deprecated int
-pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
-				irq_handler_t handler)
-{
-	return __pcmcia_request_exclusive_irq(p_dev, handler);
-}
 
 int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 				irq_handler_t handler);

@@ -41,7 +41,7 @@
  * If we are asked to block we wait on all the oldest fence of all
  * rings. We just wait for any of those fence to complete.
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 
 static void amdgpu_sa_bo_remove_locked(struct amdgpu_sa_bo *sa_bo);
@@ -226,6 +226,8 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
 		struct amdgpu_sa_bo *sa_bo;
 
+		fences[i] = NULL;
+
 		if (list_empty(&sa_manager->flist[i]))
 			continue;
 
@@ -296,10 +298,8 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 
 	spin_lock(&sa_manager->wq.lock);
 	do {
-		for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
-			fences[i] = NULL;
+		for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
 			tries[i] = 0;
-		}
 
 		do {
 			amdgpu_sa_bo_try_free(sa_manager);
@@ -388,7 +388,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 			   soffset, eoffset, eoffset - soffset);
 
 		if (i->fence)
-			seq_printf(m, " protected by 0x%08x on context %llu",
+			seq_printf(m, " protected by 0x%016llx on context %llu",
 				   i->fence->seqno, i->fence->context);
 
 		seq_printf(m, "\n");

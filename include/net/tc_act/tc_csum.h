@@ -7,7 +7,6 @@
 #include <linux/tc_act/tc_csum.h>
 
 struct tcf_csum_params {
-	int action;
 	u32 update_flags;
 	struct rcu_head rcu;
 };
@@ -22,7 +21,7 @@ struct tcf_csum {
 static inline bool is_tcf_csum(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->type == TCA_ACT_CSUM)
+	if (a->ops && a->ops->id == TCA_ID_CSUM)
 		return true;
 #endif
 	return false;

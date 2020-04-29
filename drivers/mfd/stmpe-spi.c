@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST Microelectronics MFD: stmpe's spi client specific driver
  *
  * Copyright (C) ST Microelectronics SA 2011
  *
- * License Terms: GNU General Public License, version 2
  * Author: Viresh Kumar <vireshk@kernel.org> for ST Microelectronics
  */
 

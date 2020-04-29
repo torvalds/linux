@@ -60,6 +60,37 @@
 #define _REG_701C0(pipe, plane) (0x701c0 + pipe * 0x1000 + (plane - 1) * 0x100)
 #define _REG_701C4(pipe, plane) (0x701c4 + pipe * 0x1000 + (plane - 1) * 0x100)
 
+#define SKL_FLIP_EVENT(pipe, plane) (PRIMARY_A_FLIP_DONE + (plane) * 3 + (pipe))
+
+#define PLANE_CTL_ASYNC_FLIP		(1 << 9)
+#define REG50080_FLIP_TYPE_MASK	0x3
+#define REG50080_FLIP_TYPE_ASYNC	0x1
+
+#define REG_50080(_pipe, _plane) ({ \
+	typeof(_pipe) (p) = (_pipe); \
+	typeof(_plane) (q) = (_plane); \
+	(((p) == PIPE_A) ? (((q) == PLANE_PRIMARY) ? (_MMIO(0x50080)) : \
+		(_MMIO(0x50090))) : \
+	(((p) == PIPE_B) ? (((q) == PLANE_PRIMARY) ? (_MMIO(0x50088)) : \
+		(_MMIO(0x50098))) : \
+	(((p) == PIPE_C) ? (((q) == PLANE_PRIMARY) ? (_MMIO(0x5008C)) : \
+		(_MMIO(0x5009C))) : \
+		(_MMIO(0x50080))))); })
+
+#define REG_50080_TO_PIPE(_reg) ({ \
+	typeof(_reg) (reg) = (_reg); \
+	(((reg) == 0x50080 || (reg) == 0x50090) ? (PIPE_A) : \
+	(((reg) == 0x50088 || (reg) == 0x50098) ? (PIPE_B) : \
+	(((reg) == 0x5008C || (reg) == 0x5009C) ? (PIPE_C) : \
+	(INVALID_PIPE)))); })
+
+#define REG_50080_TO_PLANE(_reg) ({ \
+	typeof(_reg) (reg) = (_reg); \
+	(((reg) == 0x50080 || (reg) == 0x50088 || (reg) == 0x5008C) ? \
+		(PLANE_PRIMARY) : \
+	(((reg) == 0x50090 || (reg) == 0x50098 || (reg) == 0x5009C) ? \
+		(PLANE_SPRITE0) : (I915_MAX_PLANES))); })
+
 #define GFX_MODE_BIT_SET_IN_MASK(val, bit) \
 		((((bit) & 0xffff0000) == 0) && !!((val) & (((bit) << 16))))
 
@@ -71,10 +102,30 @@
 #define FORCEWAKE_ACK_MEDIA_GEN9_REG 0x0D88
 #define FORCEWAKE_ACK_HSW_REG 0x130044
 
+#define RB_HEAD_WRAP_CNT_MAX	((1 << 11) - 1)
+#define RB_HEAD_WRAP_CNT_OFF	21
 #define RB_HEAD_OFF_MASK	((1U << 21) - (1U << 2))
 #define RB_TAIL_OFF_MASK	((1U << 21) - (1U << 3))
 #define RB_TAIL_SIZE_MASK	((1U << 21) - (1U << 12))
 #define _RING_CTL_BUF_SIZE(ctl) (((ctl) & RB_TAIL_SIZE_MASK) + \
 		I915_GTT_PAGE_SIZE)
+
+#define PCH_GPIO_BASE	_MMIO(0xc5010)
+
+#define PCH_GMBUS0	_MMIO(0xc5100)
+#define PCH_GMBUS1	_MMIO(0xc5104)
+#define PCH_GMBUS2	_MMIO(0xc5108)
+#define PCH_GMBUS3	_MMIO(0xc510c)
+#define PCH_GMBUS4	_MMIO(0xc5110)
+#define PCH_GMBUS5	_MMIO(0xc5120)
+
+#define TRVATTL3PTRDW(i)	_MMIO(0x4de0 + (i) * 4)
+#define TRNULLDETCT		_MMIO(0x4de8)
+#define TRINVTILEDETCT		_MMIO(0x4dec)
+#define TRVADR			_MMIO(0x4df0)
+#define TRTTE			_MMIO(0x4df4)
+#define RING_EXCC(base)		_MMIO((base) + 0x28)
+#define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
+#define VF_GUARDBAND		_MMIO(0x83a4)
 
 #endif

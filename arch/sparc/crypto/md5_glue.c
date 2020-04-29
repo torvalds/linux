@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for MD5 hashing optimized for sparc64 crypto opcodes.
  *
  * This is based largely upon arch/x86/crypto/sha1_ssse3_glue.c
@@ -144,7 +145,6 @@ static struct shash_alg alg = {
 		.cra_name	=	"md5",
 		.cra_driver_name=	"md5-sparc64",
 		.cra_priority	=	SPARC_CR_OPCODE_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

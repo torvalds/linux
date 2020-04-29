@@ -239,7 +239,7 @@ static void *page_align_ptr(void *ptr)
 static void *diag204_alloc_vbuf(int pages)
 {
 	/* The buffer has to be page aligned! */
-	diag204_buf_vmalloc = vmalloc(PAGE_SIZE * (pages + 1));
+	diag204_buf_vmalloc = vmalloc(array_size(PAGE_SIZE, (pages + 1)));
 	if (!diag204_buf_vmalloc)
 		return ERR_PTR(-ENOMEM);
 	diag204_buf = page_align_ptr(diag204_buf_vmalloc);
@@ -440,11 +440,10 @@ __init int hypfs_diag_init(void)
 		pr_err("The hardware system does not support hypfs\n");
 		return -ENODATA;
 	}
-	if (diag204_info_type == DIAG204_INFO_EXT) {
-		rc = hypfs_dbfs_create_file(&dbfs_file_d204);
-		if (rc)
-			return rc;
-	}
+
+	if (diag204_info_type == DIAG204_INFO_EXT)
+		hypfs_dbfs_create_file(&dbfs_file_d204);
+
 	if (MACHINE_IS_LPAR) {
 		rc = diag224_get_name_table();
 		if (rc) {
@@ -497,7 +496,7 @@ static int hypfs_create_cpu_files(struct dentry *cpus_dir, void *cpu_info)
 	}
 	diag224_idx2name(cpu_info__ctidx(diag204_info_type, cpu_info), buffer);
 	rc = hypfs_create_str(cpu_dir, "type", buffer);
-	return PTR_RET(rc);
+	return PTR_ERR_OR_ZERO(rc);
 }
 
 static void *hypfs_create_lpar_files(struct dentry *systems_dir, void *part_hdr)
@@ -544,7 +543,7 @@ static int hypfs_create_phys_cpu_files(struct dentry *cpus_dir, void *cpu_info)
 		return PTR_ERR(rc);
 	diag224_idx2name(phys_cpu__ctidx(diag204_info_type, cpu_info), buffer);
 	rc = hypfs_create_str(cpu_dir, "type", buffer);
-	return PTR_RET(rc);
+	return PTR_ERR_OR_ZERO(rc);
 }
 
 static void *hypfs_create_phys_files(struct dentry *parent_dir, void *phys_hdr)

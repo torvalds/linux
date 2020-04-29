@@ -5,7 +5,7 @@
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -95,6 +95,27 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_lock
 void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
+#endif
+
+/*
+ * RAW spinlock primitives. If the OS does not provide them, fallback to
+ * spinlock primitives
+ */
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
+# define acpi_os_create_raw_lock(out_handle)	acpi_os_create_lock(out_handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_delete_raw_lock
+# define acpi_os_delete_raw_lock(handle)	acpi_os_delete_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_raw_lock
+# define acpi_os_acquire_raw_lock(handle)	acpi_os_acquire_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_raw_lock
+# define acpi_os_release_raw_lock(handle, flags)	\
+	acpi_os_release_lock(handle, flags)
 #endif
 
 /*
@@ -309,6 +330,7 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
  * Debug print routines
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_printf
+ACPI_PRINTF_LIKE(1)
 void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *format, ...);
 #endif
 

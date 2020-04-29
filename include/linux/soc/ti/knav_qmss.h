@@ -86,5 +86,6 @@ int knav_pool_desc_map(void *ph, void *desc, unsigned size,
 void *knav_pool_desc_unmap(void *ph, dma_addr_t dma, unsigned dma_sz);
 dma_addr_t knav_pool_desc_virt_to_dma(void *ph, void *virt);
 void *knav_pool_desc_dma_to_virt(void *ph, dma_addr_t dma);
+bool knav_qmss_device_ready(void);
 
 #endif /* __SOC_TI_KNAV_QMSS_H__ */

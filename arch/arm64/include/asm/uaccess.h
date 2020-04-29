@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on arch/arm/include/asm/uaccess.h
  *
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_UACCESS_H
 #define __ASM_UACCESS_H
@@ -32,10 +21,8 @@
 #include <asm/cpufeature.h>
 #include <asm/ptrace.h>
 #include <asm/memory.h>
-#include <asm/compiler.h>
 #include <asm/extable.h>
 
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 
 static inline void set_fs(mm_segment_t fs)
@@ -46,8 +33,7 @@ static inline void set_fs(mm_segment_t fs)
 	 * Prevent a mispredicted conditional call to set_fs from forwarding
 	 * the wrong address limit to access_ok under speculation.
 	 */
-	dsb(nsh);
-	isb();
+	spec_bar();
 
 	/* On user-mode return, check fs is correct */
 	set_thread_flag(TIF_FSCHECK);
@@ -76,6 +62,15 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 {
 	unsigned long ret, limit = current_thread_info()->addr_limit;
 
+	/*
+	 * Asynchronous I/O running in a kernel thread does not have the
+	 * TIF_TAGGED_ADDR flag of the process owning the mm, so always untag
+	 * the user address before checking.
+	 */
+	if (IS_ENABLED(CONFIG_ARM64_TAGGED_ADDR_ABI) &&
+	    (current->flags & PF_KTHREAD || test_thread_flag(TIF_TAGGED_ADDR)))
+		addr = untagged_addr(addr);
+
 	__chk_user_ptr(addr);
 	asm volatile(
 	// A + B <= C + 1 for all A,B,C, in four easy steps:
@@ -97,14 +92,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 	return ret;
 }
 
-/*
- * When dealing with data aborts, watchpoints, or instruction traps we may end
- * up with a tagged userland pointer. Clear the tag to get a sane pointer to
- * pass on to access_ok(), for instance.
- */
-#define untagged_addr(addr)		sign_extend64(addr, 55)
-
-#define access_ok(type, addr, size)	__range_ok(addr, size)
+#define access_ok(addr, size)	__range_ok(addr, size)
 #define user_addr_max			get_fs
 
 #define _ASM_EXTABLE(from, to)						\
@@ -236,7 +224,8 @@ static inline void uaccess_enable_not_uao(void)
 
 /*
  * Sanitise a uaccess pointer such that it becomes NULL if above the
- * current addr_limit.
+ * current addr_limit. In case the pointer is tagged (has the top byte set),
+ * untag the pointer before checking.
  */
 #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
 static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
@@ -244,10 +233,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	void __user *safe_ptr;
 
 	asm volatile(
-	"	bics	xzr, %1, %2\n"
+	"	bics	xzr, %3, %2\n"
 	"	csel	%0, %1, xzr, eq\n"
 	: "=&r" (safe_ptr)
-	: "r" (ptr), "r" (current_thread_info()->addr_limit)
+	: "r" (ptr), "r" (current_thread_info()->addr_limit),
+	  "r" (untagged_addr(ptr))
 	: "cc");
 
 	csdb();
@@ -277,7 +267,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	: "+r" (err), "=&r" (x)						\
 	: "r" (addr), "i" (-EFAULT))
 
-#define __get_user_err(x, ptr, err)					\
+#define __raw_get_user(x, ptr, err)					\
 do {									\
 	unsigned long __gu_val;						\
 	__chk_user_ptr(ptr);						\
@@ -306,28 +296,22 @@ do {									\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
-#define __get_user_check(x, ptr, err)					\
-({									\
+#define __get_user_error(x, ptr, err)					\
+do {									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
-	if (access_ok(VERIFY_READ, __p, sizeof(*__p))) {		\
+	if (access_ok(__p, sizeof(*__p))) {				\
 		__p = uaccess_mask_ptr(__p);				\
-		__get_user_err((x), __p, (err));			\
+		__raw_get_user((x), __p, (err));			\
 	} else {							\
 		(x) = 0; (err) = -EFAULT;				\
 	}								\
-})
-
-#define __get_user_error(x, ptr, err)					\
-({									\
-	__get_user_check((x), (ptr), (err));				\
-	(void)0;							\
-})
+} while (0)
 
 #define __get_user(x, ptr)						\
 ({									\
 	int __gu_err = 0;						\
-	__get_user_check((x), (ptr), __gu_err);				\
+	__get_user_error((x), (ptr), __gu_err);				\
 	__gu_err;							\
 })
 
@@ -347,7 +331,7 @@ do {									\
 	: "+r" (err)							\
 	: "r" (x), "r" (addr), "i" (-EFAULT))
 
-#define __put_user_err(x, ptr, err)					\
+#define __raw_put_user(x, ptr, err)					\
 do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	__chk_user_ptr(ptr);						\
@@ -375,28 +359,22 @@ do {									\
 	uaccess_disable_not_uao();					\
 } while (0)
 
-#define __put_user_check(x, ptr, err)					\
-({									\
+#define __put_user_error(x, ptr, err)					\
+do {									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
-	if (access_ok(VERIFY_WRITE, __p, sizeof(*__p))) {		\
+	if (access_ok(__p, sizeof(*__p))) {				\
 		__p = uaccess_mask_ptr(__p);				\
-		__put_user_err((x), __p, (err));			\
+		__raw_put_user((x), __p, (err));			\
 	} else	{							\
 		(err) = -EFAULT;					\
 	}								\
-})
-
-#define __put_user_error(x, ptr, err)					\
-({									\
-	__put_user_check((x), (ptr), (err));				\
-	(void)0;							\
-})
+} while (0)
 
 #define __put_user(x, ptr)						\
 ({									\
 	int __pu_err = 0;						\
-	__put_user_check((x), (ptr), __pu_err);				\
+	__put_user_error((x), (ptr), __pu_err);				\
 	__pu_err;							\
 })
 
@@ -405,20 +383,34 @@ do {									\
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
 #define raw_copy_from_user(to, from, n)					\
 ({									\
-	__arch_copy_from_user((to), __uaccess_mask_ptr(from), (n));	\
+	unsigned long __acfu_ret;					\
+	uaccess_enable_not_uao();					\
+	__acfu_ret = __arch_copy_from_user((to),			\
+				      __uaccess_mask_ptr(from), (n));	\
+	uaccess_disable_not_uao();					\
+	__acfu_ret;							\
 })
 
 extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
 #define raw_copy_to_user(to, from, n)					\
 ({									\
-	__arch_copy_to_user(__uaccess_mask_ptr(to), (from), (n));	\
+	unsigned long __actu_ret;					\
+	uaccess_enable_not_uao();					\
+	__actu_ret = __arch_copy_to_user(__uaccess_mask_ptr(to),	\
+				    (from), (n));			\
+	uaccess_disable_not_uao();					\
+	__actu_ret;							\
 })
 
 extern unsigned long __must_check __arch_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 #define raw_copy_in_user(to, from, n)					\
 ({									\
-	__arch_copy_in_user(__uaccess_mask_ptr(to),			\
-			    __uaccess_mask_ptr(from), (n));		\
+	unsigned long __aciu_ret;					\
+	uaccess_enable_not_uao();					\
+	__aciu_ret = __arch_copy_in_user(__uaccess_mask_ptr(to),	\
+				    __uaccess_mask_ptr(from), (n));	\
+	uaccess_disable_not_uao();					\
+	__aciu_ret;							\
 })
 
 #define INLINE_COPY_TO_USER
@@ -427,8 +419,11 @@ extern unsigned long __must_check __arch_copy_in_user(void __user *to, const voi
 extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned long n);
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n)) {
+		uaccess_enable_not_uao();
 		n = __arch_clear_user(__uaccess_mask_ptr(to), n);
+		uaccess_disable_not_uao();
+	}
 	return n;
 }
 #define clear_user	__clear_user

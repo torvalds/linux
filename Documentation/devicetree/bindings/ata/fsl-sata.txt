@@ -16,7 +16,6 @@ Required properties:
                           4 for controller @ 0x1b000
 
 Optional properties:
-- interrupt-parent  : optional, if needed for interrupt mapping
 - reg               : <registers mapping>
 
 Example:

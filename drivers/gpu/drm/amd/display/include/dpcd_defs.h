@@ -27,6 +27,9 @@
 #define __DAL_DPCD_DEFS_H__
 
 #include <drm/drm_dp_helper.h>
+#ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_SINK_HW_REVISION_START 0x409
+#endif
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,
@@ -40,7 +43,7 @@ enum dpcd_revision {
 enum dpcd_downstream_port_type {
 	DOWNSTREAM_DP = 0,
 	DOWNSTREAM_VGA,
-	DOWNSTREAM_DVI_HDMI,
+	DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS,/* DVI, HDMI, DP++ */
 	DOWNSTREAM_NONDDC /* has no EDID (TV,CV) */
 };
 
@@ -145,5 +148,13 @@ enum dpcd_psr_sink_states {
 	PSR_SINK_STATE_ACTIVE_CAPTURE_TIMING_RESYNC = 4,
 	PSR_SINK_STATE_SINK_INTERNAL_ERROR = 7,
 };
+
+#define DP_SOURCE_TABLE_REVISION	    0x310
+#define DP_SOURCE_PAYLOAD_SIZE		    0x311
+#define DP_SOURCE_SINK_CAP		    0x317
+#define DP_SOURCE_BACKLIGHT_LEVEL	    0x320
+#define DP_SOURCE_BACKLIGHT_CURRENT_PEAK    0x326
+#define DP_SOURCE_BACKLIGHT_CONTROL	    0x32E
+#define DP_SOURCE_BACKLIGHT_ENABLE	    0x32F
 
 #endif /* __DAL_DPCD_DEFS_H__ */

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006
  * NTT (Nippon Telegraph and Telephone Corporation).
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -982,12 +970,9 @@ camellia_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct camellia_ctx *cctx = crypto_tfm_ctx(tfm);
 	const unsigned char *key = (const unsigned char *)in_key;
-	u32 *flags = &tfm->crt_flags;
 
-	if (key_len != 16 && key_len != 24 && key_len != 32) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len != 16 && key_len != 24 && key_len != 32)
 		return -EINVAL;
-	}
 
 	cctx->key_length = key_len;
 
@@ -1092,7 +1077,7 @@ static void __exit camellia_fini(void)
 	crypto_unregister_alg(&camellia_alg);
 }
 
-module_init(camellia_init);
+subsys_initcall(camellia_init);
 module_exit(camellia_fini);
 
 MODULE_DESCRIPTION("Camellia Cipher Algorithm");

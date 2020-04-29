@@ -746,10 +746,8 @@ static int ath6kl_htc_pipe_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
 	struct htc_endpoint *ep;
 	struct htc_packet *packet;
 	u8 ep_id, *netdata;
-	u32 netlen;
 
 	netdata = skb->data;
-	netlen = skb->len;
 
 	htc_hdr = (struct htc_frame_hdr *) netdata;
 
@@ -855,12 +853,8 @@ static int htc_process_trailer(struct htc_target *target, u8 *buffer,
 {
 	struct htc_credit_report *report;
 	struct htc_record_hdr *record;
-	u8 *record_buf, *orig_buf;
-	int orig_len, status;
-
-	orig_buf = buffer;
-	orig_len = len;
-	status = 0;
+	u8 *record_buf;
+	int status = 0;
 
 	while (len > 0) {
 		if (len < sizeof(struct htc_record_hdr)) {
@@ -903,9 +897,6 @@ static int htc_process_trailer(struct htc_target *target, u8 *buffer,
 				   record->rec_id, record->len);
 			break;
 		}
-
-		if (status != 0)
-			break;
 
 		/* advance buffer past this record for next time around */
 		buffer += record->len;

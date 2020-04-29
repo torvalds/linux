@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/kthread.h>
 
@@ -33,7 +34,7 @@ static void simple_thread_func(int cnt)
 
 	/* Silly tracepoints */
 	trace_foo_bar("hello", cnt, array, random_strings[len],
-		      &current->cpus_allowed);
+		      current->cpus_ptr);
 
 	trace_foo_with_template_simple("HELLO", cnt);
 

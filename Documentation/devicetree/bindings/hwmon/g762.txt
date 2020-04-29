@@ -21,7 +21,7 @@ If an optional property is not set in .dts file, then current value is kept
 unmodified (e.g. u-boot installed value).
 
 Additional information on operational parameters for the device is available
-in Documentation/hwmon/g762. A detailed datasheet for the device is available
+in Documentation/hwmon/g762.rst. A detailed datasheet for the device is available
 at http://natisbad.org/NAS/refs/GMT_EDS-762_763-080710-0.2.pdf.
 
 Example g762 node:

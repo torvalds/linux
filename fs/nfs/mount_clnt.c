@@ -29,9 +29,7 @@
  */
 #define encode_dirpath_sz	(1 + XDR_QUADLEN(MNTPATHLEN))
 #define MNT_status_sz		(1)
-#define MNT_fhs_status_sz	(1)
 #define MNT_fhandle_sz		XDR_QUADLEN(NFS2_FHSIZE)
-#define MNT_fhandle3_sz		(1 + XDR_QUADLEN(NFS3_FHSIZE))
 #define MNT_authflav3_sz	(1 + NFS_MAX_SECFLAVORS)
 
 /*
@@ -163,6 +161,7 @@ int nfs_mount(struct nfs_mount_request *info)
 		.program	= &mnt_program,
 		.version	= info->version,
 		.authflavor	= RPC_AUTH_UNIX,
+		.cred		= current_cred(),
 	};
 	struct rpc_clnt		*mnt_clnt;
 	int			status;
@@ -249,6 +248,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 		.version	= info->version,
 		.authflavor	= RPC_AUTH_UNIX,
 		.flags		= RPC_CLNT_CREATE_NOPING,
+		.cred		= current_cred(),
 	};
 	struct rpc_message msg	= {
 		.rpc_argp	= info->dirpath,

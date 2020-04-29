@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
  * linux/fs/devpts/inode.c
  *
  *  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * ------------------------------------------------------------------------- */
 
@@ -46,7 +43,7 @@ static int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_reserve = NR_UNIX98_PTY_RESERVE;
 static int pty_limit_min;
 static int pty_limit_max = INT_MAX;
-static int pty_count;
+static atomic_t pty_count = ATOMIC_INIT(0);
 
 static struct ctl_table pty_table[] = {
 	{
@@ -92,8 +89,6 @@ static struct ctl_table pty_root_table[] = {
 	},
 	{}
 };
-
-static DEFINE_MUTEX(allocated_ptys_lock);
 
 struct pts_mount_opts {
 	int setuid;
@@ -457,6 +452,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_blocksize_bits = 10;
 	s->s_magic = DEVPTS_SUPER_MAGIC;
 	s->s_op = &devpts_sops;
+	s->s_d_op = &simple_dentry_operations;
 	s->s_time_gran = 1;
 
 	error = -ENOMEM;
@@ -533,44 +529,25 @@ static struct file_system_type devpts_fs_type = {
 
 int devpts_new_index(struct pts_fs_info *fsi)
 {
-	int index;
-	int ida_ret;
+	int index = -ENOSPC;
 
-retry:
-	if (!ida_pre_get(&fsi->allocated_ptys, GFP_KERNEL))
-		return -ENOMEM;
+	if (atomic_inc_return(&pty_count) >= (pty_limit -
+			  (fsi->mount_opts.reserve ? 0 : pty_reserve)))
+		goto out;
 
-	mutex_lock(&allocated_ptys_lock);
-	if (pty_count >= (pty_limit -
-			  (fsi->mount_opts.reserve ? 0 : pty_reserve))) {
-		mutex_unlock(&allocated_ptys_lock);
-		return -ENOSPC;
-	}
+	index = ida_alloc_max(&fsi->allocated_ptys, fsi->mount_opts.max - 1,
+			GFP_KERNEL);
 
-	ida_ret = ida_get_new(&fsi->allocated_ptys, &index);
-	if (ida_ret < 0) {
-		mutex_unlock(&allocated_ptys_lock);
-		if (ida_ret == -EAGAIN)
-			goto retry;
-		return -EIO;
-	}
-
-	if (index >= fsi->mount_opts.max) {
-		ida_remove(&fsi->allocated_ptys, index);
-		mutex_unlock(&allocated_ptys_lock);
-		return -ENOSPC;
-	}
-	pty_count++;
-	mutex_unlock(&allocated_ptys_lock);
+out:
+	if (index < 0)
+		atomic_dec(&pty_count);
 	return index;
 }
 
 void devpts_kill_index(struct pts_fs_info *fsi, int idx)
 {
-	mutex_lock(&allocated_ptys_lock);
-	ida_remove(&fsi->allocated_ptys, idx);
-	pty_count--;
-	mutex_unlock(&allocated_ptys_lock);
+	ida_free(&fsi->allocated_ptys, idx);
+	atomic_dec(&pty_count);
 }
 
 /**
@@ -644,7 +621,8 @@ void devpts_pty_kill(struct dentry *dentry)
 
 	dentry->d_fsdata = NULL;
 	drop_nlink(dentry->d_inode);
-	d_delete(dentry);
+	fsnotify_unlink(d_inode(dentry->d_parent), dentry);
+	d_drop(dentry);
 	dput(dentry);	/* d_alloc_name() in devpts_pty_new() */
 }
 

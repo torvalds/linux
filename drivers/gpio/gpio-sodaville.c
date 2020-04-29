@@ -1,26 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  GPIO interface for Intel Sodaville SoCs.
  *
  *  Copyright (c) 2010, 2011 Intel Corporation
  *
  *  Author: Hans J. Koch <hjk@linutronix.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License 2 as published
- *  by the Free Software Foundation.
- *
  */
 
 #include <linux/errno.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/of_irq.h>
-#include <linux/gpio/driver.h>
 
 #define DRV_NAME		"sdv_gpio"
 #define SDV_NUM_PUB_GPIOS	12
@@ -80,18 +76,15 @@ static int sdv_gpio_pub_set_type(struct irq_data *d, unsigned int type)
 static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 {
 	struct sdv_gpio_chip_data *sd = data;
-	u32 irq_stat = readl(sd->gpio_pub_base + GPSTR);
+	unsigned long irq_stat = readl(sd->gpio_pub_base + GPSTR);
+	int irq_bit;
 
 	irq_stat &= readl(sd->gpio_pub_base + GPIO_INT);
 	if (!irq_stat)
 		return IRQ_NONE;
 
-	while (irq_stat) {
-		u32 irq_bit = __fls(irq_stat);
-
-		irq_stat &= ~BIT(irq_bit);
+	for_each_set_bit(irq_bit, &irq_stat, 32)
 		generic_handle_irq(irq_find_mapping(sd->id, irq_bit));
-	}
 
 	return IRQ_HANDLED;
 }
@@ -155,8 +148,10 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 	 * we unmask & ACK the IRQ before the source of the interrupt is gone
 	 * then the interrupt is active again.
 	 */
-	sd->gc = irq_alloc_generic_chip("sdv-gpio", 1, sd->irq_base,
-			sd->gpio_pub_base, handle_fasteoi_irq);
+	sd->gc = devm_irq_alloc_generic_chip(&pdev->dev, "sdv-gpio", 1,
+					     sd->irq_base,
+					     sd->gpio_pub_base,
+					     handle_fasteoi_irq);
 	if (!sd->gc)
 		return -ENOMEM;
 
@@ -186,70 +181,52 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 					const struct pci_device_id *pci_id)
 {
 	struct sdv_gpio_chip_data *sd;
-	unsigned long addr;
-	const void *prop;
-	int len;
 	int ret;
 	u32 mux_val;
 
-	sd = kzalloc(sizeof(struct sdv_gpio_chip_data), GFP_KERNEL);
+	sd = devm_kzalloc(&pdev->dev, sizeof(*sd), GFP_KERNEL);
 	if (!sd)
 		return -ENOMEM;
-	ret = pci_enable_device(pdev);
+
+	ret = pcim_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "can't enable device.\n");
-		goto done;
+		return ret;
 	}
 
-	ret = pci_request_region(pdev, GPIO_BAR, DRV_NAME);
+	ret = pcim_iomap_regions(pdev, 1 << GPIO_BAR, DRV_NAME);
 	if (ret) {
 		dev_err(&pdev->dev, "can't alloc PCI BAR #%d\n", GPIO_BAR);
-		goto disable_pci;
+		return ret;
 	}
 
-	addr = pci_resource_start(pdev, GPIO_BAR);
-	if (!addr) {
-		ret = -ENODEV;
-		goto release_reg;
-	}
-	sd->gpio_pub_base = ioremap(addr, pci_resource_len(pdev, GPIO_BAR));
+	sd->gpio_pub_base = pcim_iomap_table(pdev)[GPIO_BAR];
 
-	prop = of_get_property(pdev->dev.of_node, "intel,muxctl", &len);
-	if (prop && len == 4) {
-		mux_val = of_read_number(prop, 1);
+	ret = of_property_read_u32(pdev->dev.of_node, "intel,muxctl", &mux_val);
+	if (!ret)
 		writel(mux_val, sd->gpio_pub_base + GPMUXCTL);
-	}
 
 	ret = bgpio_init(&sd->chip, &pdev->dev, 4,
 			sd->gpio_pub_base + GPINR, sd->gpio_pub_base + GPOUTR,
 			NULL, sd->gpio_pub_base + GPOER, NULL, 0);
 	if (ret)
-		goto unmap;
+		return ret;
+
 	sd->chip.ngpio = SDV_NUM_PUB_GPIOS;
 
-	ret = gpiochip_add_data(&sd->chip, sd);
+	ret = devm_gpiochip_add_data(&pdev->dev, &sd->chip, sd);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "gpiochip_add() failed.\n");
-		goto unmap;
+		return ret;
 	}
 
 	ret = sdv_register_irqsupport(sd, pdev);
 	if (ret)
-		goto unmap;
+		return ret;
 
 	pci_set_drvdata(pdev, sd);
 	dev_info(&pdev->dev, "Sodaville GPIO driver registered.\n");
 	return 0;
-
-unmap:
-	iounmap(sd->gpio_pub_base);
-release_reg:
-	pci_release_region(pdev, GPIO_BAR);
-disable_pci:
-	pci_disable_device(pdev);
-done:
-	kfree(sd);
-	return ret;
 }
 
 static const struct pci_device_id sdv_gpio_pci_ids[] = {

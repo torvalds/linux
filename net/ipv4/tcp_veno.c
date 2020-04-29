@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TCP Veno congestion control
  *
@@ -152,31 +153,34 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		veno->diff = (tp->snd_cwnd << V_PARAM_SHIFT) - target_cwnd;
 
 		if (tcp_in_slow_start(tp)) {
-			/* Slow start.  */
-			tcp_slow_start(tp, acked);
-		} else {
-			/* Congestion avoidance. */
-			if (veno->diff < beta) {
-				/* In the "non-congestive state", increase cwnd
-				 *  every rtt.
-				 */
-				tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
-			} else {
-				/* In the "congestive state", increase cwnd
-				 * every other rtt.
-				 */
-				if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-					if (veno->inc &&
-					    tp->snd_cwnd < tp->snd_cwnd_clamp) {
-						tp->snd_cwnd++;
-						veno->inc = 0;
-					} else
-						veno->inc = 1;
-					tp->snd_cwnd_cnt = 0;
-				} else
-					tp->snd_cwnd_cnt++;
-			}
+			/* Slow start. */
+			acked = tcp_slow_start(tp, acked);
+			if (!acked)
+				goto done;
 		}
+
+		/* Congestion avoidance. */
+		if (veno->diff < beta) {
+			/* In the "non-congestive state", increase cwnd
+			 * every rtt.
+			 */
+			tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
+		} else {
+			/* In the "congestive state", increase cwnd
+			 * every other rtt.
+			 */
+			if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
+				if (veno->inc &&
+				    tp->snd_cwnd < tp->snd_cwnd_clamp) {
+					tp->snd_cwnd++;
+					veno->inc = 0;
+				} else
+					veno->inc = 1;
+				tp->snd_cwnd_cnt = 0;
+			} else
+				tp->snd_cwnd_cnt += acked;
+		}
+done:
 		if (tp->snd_cwnd < 2)
 			tp->snd_cwnd = 2;
 		else if (tp->snd_cwnd > tp->snd_cwnd_clamp)

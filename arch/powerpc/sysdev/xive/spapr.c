@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016,2017 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "xive: " fmt
@@ -19,7 +15,10 @@
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
 #include <linux/mm.h>
+#include <linux/delay.h>
+#include <linux/libfdt.h>
 
+#include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -47,7 +46,7 @@ static int xive_irq_bitmap_add(int base, int count)
 {
 	struct xive_irq_bitmap *xibm;
 
-	xibm = kzalloc(sizeof(*xibm), GFP_ATOMIC);
+	xibm = kzalloc(sizeof(*xibm), GFP_KERNEL);
 	if (!xibm)
 		return -ENOMEM;
 
@@ -55,6 +54,10 @@ static int xive_irq_bitmap_add(int base, int count)
 	xibm->base = base;
 	xibm->count = count;
 	xibm->bitmap = kzalloc(xibm->count, GFP_KERNEL);
+	if (!xibm->bitmap) {
+		kfree(xibm);
+		return -ENOMEM;
+	}
 	list_add(&xibm->list, &xive_irq_bitmaps);
 
 	pr_info("Using IRQ range [%x-%x]", xibm->base,
@@ -108,6 +111,51 @@ static void xive_irq_bitmap_free(int irq)
 	}
 }
 
+
+/* Based on the similar routines in RTAS */
+static unsigned int plpar_busy_delay_time(long rc)
+{
+	unsigned int ms = 0;
+
+	if (H_IS_LONG_BUSY(rc)) {
+		ms = get_longbusy_msecs(rc);
+	} else if (rc == H_BUSY) {
+		ms = 10; /* seems appropriate for XIVE hcalls */
+	}
+
+	return ms;
+}
+
+static unsigned int plpar_busy_delay(int rc)
+{
+	unsigned int ms;
+
+	ms = plpar_busy_delay_time(rc);
+	if (ms)
+		mdelay(ms);
+
+	return ms;
+}
+
+/*
+ * Note: this call has a partition wide scope and can take a while to
+ * complete. If it returns H_LONG_BUSY_* it should be retried
+ * periodically.
+ */
+static long plpar_int_reset(unsigned long flags)
+{
+	long rc;
+
+	do {
+		rc = plpar_hcall_norets(H_INT_RESET, flags);
+	} while (plpar_busy_delay(rc));
+
+	if (rc)
+		pr_err("H_INT_RESET failed %ld\n", rc);
+
+	return rc;
+}
+
 static long plpar_int_get_source_info(unsigned long flags,
 				      unsigned long lisn,
 				      unsigned long *src_flags,
@@ -118,7 +166,10 @@ static long plpar_int_get_source_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	do {
+		rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_SOURCE_INFO lisn=%ld failed %ld\n", lisn, rc);
 		return rc;
@@ -151,13 +202,48 @@ static long plpar_int_set_source_config(unsigned long flags,
 		flags, lisn, target, prio, sw_irq);
 
 
-	rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
-				target, prio, sw_irq);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
+					target, prio, sw_irq);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_SOURCE_CONFIG lisn=%ld target=%lx prio=%lx failed %ld\n",
 		       lisn, target, prio, rc);
 		return rc;
 	}
+
+	return 0;
+}
+
+static long plpar_int_get_source_config(unsigned long flags,
+					unsigned long lisn,
+					unsigned long *target,
+					unsigned long *prio,
+					unsigned long *sw_irq)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	pr_devel("H_INT_GET_SOURCE_CONFIG flags=%lx lisn=%lx\n", flags, lisn);
+
+	do {
+		rc = plpar_hcall(H_INT_GET_SOURCE_CONFIG, retbuf, flags, lisn,
+				 target, prio, sw_irq);
+	} while (plpar_busy_delay(rc));
+
+	if (rc) {
+		pr_err("H_INT_GET_SOURCE_CONFIG lisn=%ld failed %ld\n",
+		       lisn, rc);
+		return rc;
+	}
+
+	*target = retbuf[0];
+	*prio   = retbuf[1];
+	*sw_irq = retbuf[2];
+
+	pr_devel("H_INT_GET_SOURCE_CONFIG target=%lx prio=%lx sw_irq=%lx\n",
+		retbuf[0], retbuf[1], retbuf[2]);
 
 	return 0;
 }
@@ -171,7 +257,11 @@ static long plpar_int_get_queue_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target, priority);
+	do {
+		rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target,
+				 priority);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_QUEUE_INFO cpu=%ld prio=%ld failed %ld\n",
 		       target, priority, rc);
@@ -200,8 +290,11 @@ static long plpar_int_set_queue_config(unsigned long flags,
 	pr_devel("H_INT_SET_QUEUE_CONFIG flags=%lx target=%lx priority=%lx qpage=%lx qsize=%lx\n",
 		flags,  target, priority, qpage, qsize);
 
-	rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
-				priority, qpage, qsize);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
+					priority, qpage, qsize);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_QUEUE_CONFIG cpu=%ld prio=%ld qpage=%lx returned %ld\n",
 		       target, priority, qpage, rc);
@@ -215,7 +308,10 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 {
 	long rc;
 
-	rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	do {
+		rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SYNC lisn=%ld returned %ld\n", lisn, rc);
 		return  rc;
@@ -238,7 +334,11 @@ static long plpar_int_esb(unsigned long flags,
 	pr_devel("H_INT_ESB flags=%lx lisn=%lx offset=%lx in=%lx\n",
 		flags,  lisn, offset, in_data);
 
-	rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset, in_data);
+	do {
+		rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset,
+				 in_data);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_ESB lisn=%ld offset=%ld returned %ld\n",
 		       lisn, offset, rc);
@@ -293,19 +393,27 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	data->esb_shift = esb_shift;
 	data->trig_page = trig_page;
 
+	data->hw_irq = hw_irq;
+
 	/*
 	 * No chip-id for the sPAPR backend. This has an impact how we
 	 * pick a target. See xive_pick_irq_target().
 	 */
 	data->src_chip = XIVE_INVALID_CHIP_ID;
 
+	/*
+	 * When the H_INT_ESB flag is set, the H_INT_ESB hcall should
+	 * be used for interrupt management. Skip the remapping of the
+	 * ESB pages which are not available.
+	 */
+	if (data->flags & XIVE_IRQ_FLAG_H_INT_ESB)
+		return 0;
+
 	data->eoi_mmio = ioremap(data->eoi_page, 1u << data->esb_shift);
 	if (!data->eoi_mmio) {
 		pr_err("Failed to map EOI page for irq 0x%x\n", hw_irq);
 		return -ENOMEM;
 	}
-
-	data->hw_irq = hw_irq;
 
 	/* Full function page supports trigger */
 	if (flags & XIVE_SRC_TRIGGER) {
@@ -327,6 +435,24 @@ static int xive_spapr_configure_irq(u32 hw_irq, u32 target, u8 prio, u32 sw_irq)
 
 	rc = plpar_int_set_source_config(XIVE_SRC_SET_EISN, hw_irq, target,
 					 prio, sw_irq);
+
+	return rc == 0 ? 0 : -ENXIO;
+}
+
+static int xive_spapr_get_irq_config(u32 hw_irq, u32 *target, u8 *prio,
+				     u32 *sw_irq)
+{
+	long rc;
+	unsigned long h_target;
+	unsigned long h_prio;
+	unsigned long h_sw_irq;
+
+	rc = plpar_int_get_source_config(0, hw_irq, &h_target, &h_prio,
+					 &h_sw_irq);
+
+	*target = h_target;
+	*prio = h_prio;
+	*sw_irq = h_sw_irq;
 
 	return rc == 0 ? 0 : -ENXIO;
 }
@@ -435,21 +561,17 @@ static int xive_spapr_get_ipi(unsigned int cpu, struct xive_cpu *xc)
 
 static void xive_spapr_put_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
-	if (!xc->hw_ipi)
+	if (xc->hw_ipi == XIVE_BAD_IRQ)
 		return;
 
 	xive_irq_bitmap_free(xc->hw_ipi);
-	xc->hw_ipi = 0;
+	xc->hw_ipi = XIVE_BAD_IRQ;
 }
 #endif /* CONFIG_SMP */
 
 static void xive_spapr_shutdown(void)
 {
-	long rc;
-
-	rc = plpar_hcall_norets(H_INT_RESET, 0);
-	if (rc)
-		pr_err("H_INT_RESET failed %ld\n", rc);
+	plpar_int_reset(0);
 }
 
 /*
@@ -524,9 +646,25 @@ static void xive_spapr_sync_source(u32 hw_irq)
 	plpar_int_sync(0, hw_irq);
 }
 
+static int xive_spapr_debug_show(struct seq_file *m, void *private)
+{
+	struct xive_irq_bitmap *xibm;
+	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+
+	list_for_each_entry(xibm, &xive_irq_bitmaps, list) {
+		memset(buf, 0, PAGE_SIZE);
+		bitmap_print_to_pagebuf(true, buf, xibm->bitmap, xibm->count);
+		seq_printf(m, "bitmap #%d: %s", xibm->count, buf);
+	}
+	kfree(buf);
+
+	return 0;
+}
+
 static const struct xive_ops xive_spapr_ops = {
 	.populate_irq_data	= xive_spapr_populate_irq_data,
 	.configure_irq		= xive_spapr_configure_irq,
+	.get_irq_config		= xive_spapr_get_irq_config,
 	.setup_queue		= xive_spapr_setup_queue,
 	.cleanup_queue		= xive_spapr_cleanup_queue,
 	.match			= xive_spapr_match,
@@ -540,6 +678,7 @@ static const struct xive_ops xive_spapr_ops = {
 #ifdef CONFIG_SMP
 	.get_ipi		= xive_spapr_get_ipi,
 	.put_ipi		= xive_spapr_put_ipi,
+	.debug_show		= xive_spapr_debug_show,
 #endif /* CONFIG_SMP */
 	.name			= "spapr",
 };
@@ -601,6 +740,55 @@ static bool xive_get_max_prio(u8 *max_prio)
 	return true;
 }
 
+static const u8 *get_vec5_feature(unsigned int index)
+{
+	unsigned long root, chosen;
+	int size;
+	const u8 *vec5;
+
+	root = of_get_flat_dt_root();
+	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_NOTFOUND)
+		return NULL;
+
+	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
+	if (!vec5)
+		return NULL;
+
+	if (size <= index)
+		return NULL;
+
+	return vec5 + index;
+}
+
+static bool xive_spapr_disabled(void)
+{
+	const u8 *vec5_xive;
+
+	vec5_xive = get_vec5_feature(OV5_INDX(OV5_XIVE_SUPPORT));
+	if (vec5_xive) {
+		u8 val;
+
+		val = *vec5_xive & OV5_FEAT(OV5_XIVE_SUPPORT);
+		switch (val) {
+		case OV5_FEAT(OV5_XIVE_EITHER):
+		case OV5_FEAT(OV5_XIVE_LEGACY):
+			break;
+		case OV5_FEAT(OV5_XIVE_EXPLOIT):
+			/* Hypervisor only supports XIVE */
+			if (xive_cmdline_disabled)
+				pr_warn("WARNING: Ignoring cmdline option xive=off\n");
+			return false;
+		default:
+			pr_warn("%s: Unknown xive support option: 0x%x\n",
+				__func__, val);
+			break;
+		}
+	}
+
+	return xive_cmdline_disabled;
+}
+
 bool __init xive_spapr_init(void)
 {
 	struct device_node *np;
@@ -613,7 +801,7 @@ bool __init xive_spapr_init(void)
 	const __be32 *reg;
 	int i;
 
-	if (xive_cmdline_disabled)
+	if (xive_spapr_disabled())
 		return false;
 
 	pr_devel("%s()\n", __func__);
@@ -668,3 +856,5 @@ bool __init xive_spapr_init(void)
 	pr_info("Using %dkB queues\n", 1 << (xive_queue_shift - 10));
 	return true;
 }
+
+machine_arch_initcall(pseries, xive_core_debug_init);

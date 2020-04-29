@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -184,25 +173,39 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 	{},
 };
 
+static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
+	{ .compatible = "panel-dsi-cm" },
+	{},
+};
+
+static void __init omapdss_find_children(struct device_node *np)
+{
+	struct device_node *child;
+
+	for_each_available_child_of_node(np, child) {
+		if (!of_find_property(child, "compatible", NULL))
+			continue;
+
+		omapdss_walk_device(child, true);
+
+		if (of_device_is_compatible(child, "ti,sysc"))
+			omapdss_find_children(child);
+	}
+}
+
 static int __init omapdss_boot_init(void)
 {
-	struct device_node *dss, *child;
+	struct device_node *dss;
 
 	INIT_LIST_HEAD(&dss_conv_list);
 
 	dss = of_find_matching_node(NULL, omapdss_of_match);
 
 	if (dss == NULL || !of_device_is_available(dss))
-		return 0;
+		goto put_node;
 
 	omapdss_walk_device(dss, true);
-
-	for_each_available_child_of_node(dss, child) {
-		if (!of_find_property(child, "compatible", NULL))
-			continue;
-
-		omapdss_walk_device(child, true);
-	}
+	omapdss_find_children(dss);
 
 	while (!list_empty(&dss_conv_list)) {
 		struct dss_conv_node *n;
@@ -210,7 +213,7 @@ static int __init omapdss_boot_init(void)
 		n = list_first_entry(&dss_conv_list, struct dss_conv_node,
 			list);
 
-		if (!n->root)
+		if (of_match_node(omapdss_of_fixups_whitelist, n->node))
 			omapdss_omapify_node(n->node);
 
 		list_del(&n->list);
@@ -218,6 +221,8 @@ static int __init omapdss_boot_init(void)
 		kfree(n);
 	}
 
+put_node:
+	of_node_put(dss);
 	return 0;
 }
 

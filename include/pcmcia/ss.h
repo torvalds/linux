@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ss.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -190,7 +187,7 @@ struct pcmcia_socket {
 	unsigned int			sysfs_events;
 
 	/* For the non-trivial interaction between these locks,
-	 * see Documentation/pcmcia/locking.txt */
+	 * see Documentation/pcmcia/locking.rst */
 	struct mutex			skt_mutex;
 	struct mutex			ops_mutex;
 

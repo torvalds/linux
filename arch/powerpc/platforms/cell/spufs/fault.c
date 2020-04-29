@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Low-level SPU handling
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/sched/signal.h>
 #include <linux/mm.h>
@@ -36,42 +23,31 @@
 static void spufs_handle_event(struct spu_context *ctx,
 				unsigned long ea, int type)
 {
-	siginfo_t info;
-
 	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
 		ctx->event_return |= type;
 		wake_up_all(&ctx->stop_wq);
 		return;
 	}
 
-	memset(&info, 0, sizeof(info));
-
 	switch (type) {
 	case SPE_EVENT_INVALID_DMA:
-		info.si_signo = SIGBUS;
-		info.si_code = BUS_OBJERR;
+		force_sig_fault(SIGBUS, BUS_OBJERR, NULL);
 		break;
 	case SPE_EVENT_SPE_DATA_STORAGE:
-		info.si_signo = SIGSEGV;
-		info.si_addr = (void __user *)ea;
-		info.si_code = SEGV_ACCERR;
 		ctx->ops->restart_dma(ctx);
+		force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *)ea);
 		break;
 	case SPE_EVENT_DMA_ALIGNMENT:
-		info.si_signo = SIGBUS;
 		/* DAR isn't set for an alignment fault :( */
-		info.si_code = BUS_ADRALN;
+		force_sig_fault(SIGBUS, BUS_ADRALN, NULL);
 		break;
 	case SPE_EVENT_SPE_ERROR:
-		info.si_signo = SIGILL;
-		info.si_addr = (void __user *)(unsigned long)
-			ctx->ops->npc_read(ctx) - 4;
-		info.si_code = ILL_ILLOPC;
+		force_sig_fault(
+			SIGILL, ILL_ILLOPC,
+			(void __user *)(unsigned long)
+			ctx->ops->npc_read(ctx) - 4);
 		break;
 	}
-
-	if (info.si_signo)
-		force_sig_info(info.si_signo, &info, current);
 }
 
 int spufs_handle_class0(struct spu_context *ctx)
@@ -111,7 +87,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 {
 	u64 ea, dsisr, access;
 	unsigned long flags;
-	unsigned flt = 0;
+	vm_fault_t flt = 0;
 	int ret;
 
 	/*

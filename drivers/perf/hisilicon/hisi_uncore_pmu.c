@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon SoC Hardware event counters support
  *
@@ -6,10 +7,6 @@
  *         Shaokun Zhang <zhangshaokun@hisilicon.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
@@ -18,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 
+#include <asm/cputype.h>
 #include <asm/local64.h>
 
 #include "hisi_uncore_pmu.h"
@@ -141,15 +139,6 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EOPNOTSUPP;
-
-	/* counters do not have these bits */
-	if (event->attr.exclude_user	||
-	    event->attr.exclude_kernel	||
-	    event->attr.exclude_host	||
-	    event->attr.exclude_guest	||
-	    event->attr.exclude_hv	||
-	    event->attr.exclude_idle)
-		return -EINVAL;
 
 	/*
 	 *  The uncore counters not specific to any CPU, so cannot
@@ -348,27 +337,44 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 	hisi_pmu->ops->stop_counters(hisi_pmu);
 }
 
+
 /*
- * Read Super CPU cluster and CPU cluster ID from MPIDR_EL1.
- * If multi-threading is supported, SCCL_ID is in MPIDR[aff3] and CCL_ID
- * is in MPIDR[aff2]; if not, SCCL_ID is in MPIDR[aff2] and CCL_ID is
- * in MPIDR[aff1]. If this changes in future, this shall be updated.
+ * The Super CPU Cluster (SCCL) and CPU Cluster (CCL) IDs can be
+ * determined from the MPIDR_EL1, but the encoding varies by CPU:
+ *
+ * - For MT variants of TSV110:
+ *   SCCL is Aff2[7:3], CCL is Aff2[2:0]
+ *
+ * - For other MT parts:
+ *   SCCL is Aff3[7:0], CCL is Aff2[7:0]
+ *
+ * - For non-MT parts:
+ *   SCCL is Aff2[7:0], CCL is Aff1[7:0]
  */
-static void hisi_read_sccl_and_ccl_id(int *sccl_id, int *ccl_id)
+static void hisi_read_sccl_and_ccl_id(int *scclp, int *cclp)
 {
 	u64 mpidr = read_cpuid_mpidr();
+	int aff3 = MPIDR_AFFINITY_LEVEL(mpidr, 3);
+	int aff2 = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+	int aff1 = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	bool mt = mpidr & MPIDR_MT_BITMASK;
+	int sccl, ccl;
 
-	if (mpidr & MPIDR_MT_BITMASK) {
-		if (sccl_id)
-			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 3);
-		if (ccl_id)
-			*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+	if (mt && read_cpuid_part_number() == HISI_CPU_PART_TSV110) {
+		sccl = aff2 >> 3;
+		ccl = aff2 & 0x7;
+	} else if (mt) {
+		sccl = aff3;
+		ccl = aff2;
 	} else {
-		if (sccl_id)
-			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
-		if (ccl_id)
-			*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+		sccl = aff2;
+		ccl = aff1;
 	}
+
+	if (scclp)
+		*scclp = sccl;
+	if (cclp)
+		*cclp = ccl;
 }
 
 /*

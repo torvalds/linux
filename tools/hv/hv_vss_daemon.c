@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An implementation of the host initiated guest snapshot for Hyper-V.
  *
- *
  * Copyright (C) 2013, Microsoft, Inc.
  * Author : K. Y. Srinivasan <kys@microsoft.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
  */
 
 
@@ -36,6 +25,10 @@
 #include <linux/hyperv.h>
 #include <syslog.h>
 #include <getopt.h>
+#include <stdbool.h>
+#include <dirent.h>
+
+static bool fs_frozen;
 
 /* Don't use syslog() in the function since that can cause write to disk */
 static int vss_do_freeze(char *dir, unsigned int cmd)
@@ -51,7 +44,7 @@ static int vss_do_freeze(char *dir, unsigned int cmd)
 	 * If a partition is mounted more than once, only the first
 	 * FREEZE/THAW can succeed and the later ones will get
 	 * EBUSY/EINVAL respectively: there could be 2 cases:
-	 * 1) a user may mount the same partition to differnt directories
+	 * 1) a user may mount the same partition to different directories
 	 *  by mistake or on purpose;
 	 * 2) The subvolume of btrfs appears to have the same partition
 	 * mounted more than once.
@@ -68,6 +61,55 @@ static int vss_do_freeze(char *dir, unsigned int cmd)
 	return !!ret;
 }
 
+static bool is_dev_loop(const char *blkname)
+{
+	char *buffer;
+	DIR *dir;
+	struct dirent *entry;
+	bool ret = false;
+
+	buffer = malloc(PATH_MAX);
+	if (!buffer) {
+		syslog(LOG_ERR, "Can't allocate memory!");
+		exit(1);
+	}
+
+	snprintf(buffer, PATH_MAX, "%s/loop", blkname);
+	if (!access(buffer, R_OK | X_OK)) {
+		ret = true;
+		goto free_buffer;
+	} else if (errno != ENOENT) {
+		syslog(LOG_ERR, "Can't access: %s; error:%d %s!",
+		       buffer, errno, strerror(errno));
+	}
+
+	snprintf(buffer, PATH_MAX, "%s/slaves", blkname);
+	dir = opendir(buffer);
+	if (!dir) {
+		if (errno != ENOENT)
+			syslog(LOG_ERR, "Can't opendir: %s; error:%d %s!",
+			       buffer, errno, strerror(errno));
+		goto free_buffer;
+	}
+
+	while ((entry = readdir(dir)) != NULL) {
+		if (strcmp(entry->d_name, ".") == 0 ||
+		    strcmp(entry->d_name, "..") == 0)
+			continue;
+
+		snprintf(buffer, PATH_MAX, "%s/slaves/%s", blkname,
+			 entry->d_name);
+		if (is_dev_loop(buffer)) {
+			ret = true;
+			break;
+		}
+	}
+	closedir(dir);
+free_buffer:
+	free(buffer);
+	return ret;
+}
+
 static int vss_operate(int operation)
 {
 	char match[] = "/dev/";
@@ -75,6 +117,7 @@ static int vss_operate(int operation)
 	struct mntent *ent;
 	struct stat sb;
 	char errdir[1024] = {0};
+	char blkdir[23]; /* /sys/dev/block/XXX:XXX */
 	unsigned int cmd;
 	int error = 0, root_seen = 0, save_errno = 0;
 
@@ -96,10 +139,15 @@ static int vss_operate(int operation)
 	while ((ent = getmntent(mounts))) {
 		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
-		if (stat(ent->mnt_fsname, &sb) == -1)
-			continue;
-		if (S_ISBLK(sb.st_mode) && major(sb.st_rdev) == LOOP_MAJOR)
-			continue;
+		if (stat(ent->mnt_fsname, &sb)) {
+			syslog(LOG_ERR, "Can't stat: %s; error:%d %s!",
+			       ent->mnt_fsname, errno, strerror(errno));
+		} else {
+			sprintf(blkdir, "/sys/dev/block/%d:%d",
+				major(sb.st_rdev), minor(sb.st_rdev));
+			if (is_dev_loop(blkdir))
+				continue;
+		}
 		if (hasmntopt(ent, MNTOPT_RO) != NULL)
 			continue;
 		if (strcmp(ent->mnt_type, "vfat") == 0)
@@ -109,17 +157,26 @@ static int vss_operate(int operation)
 			continue;
 		}
 		error |= vss_do_freeze(ent->mnt_dir, cmd);
-		if (error && operation == VSS_OP_FREEZE)
-			goto err;
+		if (operation == VSS_OP_FREEZE) {
+			if (error)
+				goto err;
+			fs_frozen = true;
+		}
 	}
 
 	endmntent(mounts);
 
 	if (root_seen) {
 		error |= vss_do_freeze("/", cmd);
-		if (error && operation == VSS_OP_FREEZE)
-			goto err;
+		if (operation == VSS_OP_FREEZE) {
+			if (error)
+				goto err;
+			fs_frozen = true;
+		}
 	}
+
+	if (operation == VSS_OP_THAW && !error)
+		fs_frozen = false;
 
 	goto out;
 err:
@@ -129,6 +186,7 @@ err:
 		endmntent(mounts);
 	}
 	vss_operate(VSS_OP_THAW);
+	fs_frozen = false;
 	/* Call syslog after we thaw all filesystems */
 	if (ent)
 		syslog(LOG_ERR, "FREEZE of %s failed; error:%d %s",
@@ -150,13 +208,13 @@ void print_usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int vss_fd, len;
+	int vss_fd = -1, len;
 	int error;
 	struct pollfd pfd;
 	int	op;
 	struct hv_vss_msg vss_msg[1];
 	int daemonize = 1, long_index = 0, opt;
-	int in_handshake = 1;
+	int in_handshake;
 	__u32 kernel_modver;
 
 	static struct option long_options[] = {
@@ -172,6 +230,8 @@ int main(int argc, char *argv[])
 			daemonize = 0;
 			break;
 		case 'h':
+			print_usage(argv);
+			exit(0);
 		default:
 			print_usage(argv);
 			exit(EXIT_FAILURE);
@@ -184,6 +244,18 @@ int main(int argc, char *argv[])
 	openlog("Hyper-V VSS", 0, LOG_USER);
 	syslog(LOG_INFO, "VSS starting; pid is:%d", getpid());
 
+reopen_vss_fd:
+	if (vss_fd != -1)
+		close(vss_fd);
+	if (fs_frozen) {
+		if (vss_operate(VSS_OP_THAW) || fs_frozen) {
+			syslog(LOG_ERR, "failed to thaw file system: err=%d",
+			       errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	in_handshake = 1;
 	vss_fd = open("/dev/vmbus/hv_vss", O_RDWR);
 	if (vss_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_vss failed; error: %d %s",
@@ -236,8 +308,7 @@ int main(int argc, char *argv[])
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
 			       errno, strerror(errno));
-			close(vss_fd);
-			return EXIT_FAILURE;
+			goto reopen_vss_fd;
 		}
 
 		op = vss_msg->vss_hdr.operation;
@@ -264,14 +335,18 @@ int main(int argc, char *argv[])
 		default:
 			syslog(LOG_ERR, "Illegal op:%d\n", op);
 		}
+
+		/*
+		 * The write() may return an error due to the faked VSS_OP_THAW
+		 * message upon hibernation. Ignore the error by resetting the
+		 * dev file, i.e. closing and re-opening it.
+		 */
 		vss_msg->error = error;
 		len = write(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "write failed; error: %d %s", errno,
 			       strerror(errno));
-
-			if (op == VSS_OP_FREEZE)
-				vss_operate(VSS_OP_THAW);
+			goto reopen_vss_fd;
 		}
 	}
 

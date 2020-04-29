@@ -136,5 +136,5 @@
     "EventName": "PM_THRESH_NOT_MET",
     "BriefDescription": "Threshold counter did not meet threshold",
     "PublicDescription": ""
-  },
+  }
 ]

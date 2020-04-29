@@ -122,7 +122,7 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 			set_bad_pkey_cntr(port);
 			goto err1;
 		}
-	} else if (qpn != 0) {
+	} else {
 		if (unlikely(!pkey_match(pkey,
 					 port->pkey_tbl[qp->attr.pkey_index]
 					))) {
@@ -134,7 +134,7 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	}
 
 	if ((qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) &&
-	    qpn != 0 && pkt->mask) {
+	    pkt->mask) {
 		u32 qkey = (qpn == 1) ? GSI_QKEY : qp->attr.qkey;
 
 		if (unlikely(deth_qkey(pkt) != qkey)) {
@@ -225,9 +225,14 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 		goto err1;
 	}
 
+	if (unlikely(qpn == 0)) {
+		pr_warn_once("QP 0 not supported");
+		goto err1;
+	}
+
 	if (qpn != IB_MULTICAST_QPN) {
-		index = (qpn == 0) ? port->qp_smi_index :
-			((qpn == 1) ? port->qp_gsi_index : qpn);
+		index = (qpn == 1) ? port->qp_gsi_index : qpn;
+
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
 		if (unlikely(!qp)) {
 			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);
@@ -256,20 +261,17 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	return 0;
 
 err2:
-	if (qp)
-		rxe_drop_ref(qp);
+	rxe_drop_ref(qp);
 err1:
 	return -EINVAL;
 }
 
-static inline void rxe_rcv_pkt(struct rxe_dev *rxe,
-			       struct rxe_pkt_info *pkt,
-			       struct sk_buff *skb)
+static inline void rxe_rcv_pkt(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
 	if (pkt->mask & RXE_REQ_MASK)
-		rxe_resp_queue_pkt(rxe, pkt->qp, skb);
+		rxe_resp_queue_pkt(pkt->qp, skb);
 	else
-		rxe_comp_queue_pkt(rxe, pkt->qp, skb);
+		rxe_comp_queue_pkt(pkt->qp, skb);
 }
 
 static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
@@ -311,11 +313,11 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * increase the users of the skb then post to the next qp
 		 */
 		if (mce->qp_list.next != &mcg->qp_list)
-			refcount_inc(&skb->users);
+			skb_get(skb);
 
 		pkt->qp = qp;
 		rxe_add_ref(qp);
-		rxe_rcv_pkt(rxe, pkt, skb);
+		rxe_rcv_pkt(pkt, skb);
 	}
 
 	spin_unlock_bh(&mcg->mcg_lock);
@@ -328,6 +330,7 @@ err1:
 
 static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 {
+	const struct ib_gid_attr *gid_attr;
 	union ib_gid dgid;
 	union ib_gid *pdgid;
 
@@ -339,13 +342,18 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 		pdgid = (union ib_gid *)&ipv6_hdr(skb)->daddr;
 	}
 
-	return ib_find_cached_gid_by_port(&rxe->ib_dev, pdgid,
-					  IB_GID_TYPE_ROCE_UDP_ENCAP,
-					  1, skb->dev, NULL);
+	gid_attr = rdma_find_gid_by_port(&rxe->ib_dev, pdgid,
+					 IB_GID_TYPE_ROCE_UDP_ENCAP,
+					 1, skb->dev);
+	if (IS_ERR(gid_attr))
+		return PTR_ERR(gid_attr);
+
+	rdma_put_gid_attr(gid_attr);
+	return 0;
 }
 
 /* rxe_rcv is called from the interface driver */
-int rxe_rcv(struct sk_buff *skb)
+void rxe_rcv(struct sk_buff *skb)
 {
 	int err;
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
@@ -381,7 +389,7 @@ int rxe_rcv(struct sk_buff *skb)
 
 	calc_icrc = rxe_icrc_hdr(pkt, skb);
 	calc_icrc = rxe_crc32(rxe, calc_icrc, (u8 *)payload_addr(pkt),
-			      payload_size(pkt));
+			      payload_size(pkt) + bth_pad(pkt));
 	calc_icrc = (__force u32)cpu_to_be32(~calc_icrc);
 	if (unlikely(calc_icrc != pack_icrc)) {
 		if (skb->protocol == htons(ETH_P_IPV6))
@@ -401,14 +409,13 @@ int rxe_rcv(struct sk_buff *skb)
 	if (unlikely(bth_qpn(pkt) == IB_MULTICAST_QPN))
 		rxe_rcv_mcast_pkt(rxe, skb);
 	else
-		rxe_rcv_pkt(rxe, pkt, skb);
+		rxe_rcv_pkt(pkt, skb);
 
-	return 0;
+	return;
 
 drop:
 	if (pkt->qp)
 		rxe_drop_ref(pkt->qp);
 
 	kfree_skb(skb);
-	return 0;
 }

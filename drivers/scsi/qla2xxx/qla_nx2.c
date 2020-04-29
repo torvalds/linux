@@ -559,12 +559,12 @@ exit_lock_error:
 /*
  * Address and length are byte address
  */
-uint8_t *
-qla8044_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+void *
+qla8044_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	uint32_t offset, uint32_t length)
 {
 	scsi_block_requests(vha->host);
-	if (qla8044_read_flash_data(vha, (uint8_t *)buf, offset, length / 4)
+	if (qla8044_read_flash_data(vha, buf, offset, length / 4)
 	    != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha,  0xb08d,
 		    "%s: Failed to read from flash\n",
@@ -2810,7 +2810,7 @@ error:
 
 #define ISP8044_PEX_DMA_ENGINE_INDEX		8
 #define ISP8044_PEX_DMA_BASE_ADDRESS		0x77320000
-#define ISP8044_PEX_DMA_NUM_OFFSET		0x10000
+#define ISP8044_PEX_DMA_NUM_OFFSET		0x10000UL
 #define ISP8044_PEX_DMA_CMD_ADDR_LOW		0x0
 #define ISP8044_PEX_DMA_CMD_ADDR_HIGH		0x04
 #define ISP8044_PEX_DMA_CMD_STS_AND_CNTRL	0x08
@@ -3007,10 +3007,9 @@ qla8044_minidump_process_rddfe(struct scsi_qla_host *vha,
 	uint16_t count;
 	uint32_t poll, mask, modify_mask;
 	uint32_t wait_count = 0;
-
 	uint32_t *data_ptr = *d_ptr;
-
 	struct qla8044_minidump_entry_rddfe *rddfe;
+
 	rddfe = (struct qla8044_minidump_entry_rddfe *) entry_hdr;
 
 	addr1 = rddfe->addr_1;
@@ -3797,7 +3796,7 @@ qla8044_write_flash_dword_mode(scsi_qla_host_t *vha, uint32_t *dwptr,
 }
 
 int
-qla8044_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+qla8044_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 			  uint32_t offset, uint32_t length)
 {
 	int rval = QLA_FUNCTION_FAILED, i, burst_iter_count;
@@ -3878,7 +3877,7 @@ out:
 #define PF_BITS_MASK		(0xF << 16)
 /**
  * qla8044_intr_handler() - Process interrupts for the ISP8044
- * @irq:
+ * @irq: interrupt number
  * @dev_id: SCSI driver HA context
  *
  * Called by system whenever the host adapter generates an interrupt.
@@ -3896,7 +3895,7 @@ qla8044_intr_handler(int irq, void *dev_id)
 	unsigned long	flags;
 	unsigned long	iter;
 	uint32_t	stat;
-	uint16_t	mb[4];
+	uint16_t	mb[8];
 	uint32_t leg_int_ptr = 0, pf_bit;
 
 	rsp = (struct rsp_que *) dev_id;

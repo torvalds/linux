@@ -289,63 +289,6 @@ static const struct fb_videomode modedb[] = {
 };
 
 #ifdef CONFIG_FB_MODE_HELPERS
-const struct fb_videomode cea_modes[65] = {
-	/* #1: 640x480p@59.94/60Hz */
-	[1] = {
-		NULL, 60, 640, 480, 39722, 48, 16, 33, 10, 96, 2, 0,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #3: 720x480p@59.94/60Hz */
-	[3] = {
-		NULL, 60, 720, 480, 37037, 60, 16, 30, 9, 62, 6, 0,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #5: 1920x1080i@59.94/60Hz */
-	[5] = {
-		NULL, 60, 1920, 1080, 13763, 148, 88, 15, 2, 44, 5,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_INTERLACED, 0,
-	},
-	/* #7: 720(1440)x480iH@59.94/60Hz */
-	[7] = {
-		NULL, 60, 1440, 480, 18554/*37108*/, 114, 38, 15, 4, 124, 3, 0,
-		FB_VMODE_INTERLACED, 0,
-	},
-	/* #9: 720(1440)x240pH@59.94/60Hz */
-	[9] = {
-		NULL, 60, 1440, 240, 18554, 114, 38, 16, 4, 124, 3, 0,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #18: 720x576pH@50Hz */
-	[18] = {
-		NULL, 50, 720, 576, 37037, 68, 12, 39, 5, 64, 5, 0,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #19: 1280x720p@50Hz */
-	[19] = {
-		NULL, 50, 1280, 720, 13468, 220, 440, 20, 5, 40, 5,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #20: 1920x1080i@50Hz */
-	[20] = {
-		NULL, 50, 1920, 1080, 13480, 148, 528, 15, 5, 528, 5,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_INTERLACED, 0,
-	},
-	/* #32: 1920x1080p@23.98/24Hz */
-	[32] = {
-		NULL, 24, 1920, 1080, 13468, 148, 638, 36, 4, 44, 5,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-	/* #35: (2880)x480p4x@59.94/60Hz */
-	[35] = {
-		NULL, 60, 2880, 480, 9250, 240, 64, 30, 9, 248, 6, 0,
-		FB_VMODE_NONINTERLACED, 0,
-	},
-};
-
 const struct fb_videomode vesa_modes[] = {
 	/* 0 640x350-85 VESA */
 	{ NULL, 85, 640, 350, 31746,  96, 32, 60, 32, 64, 3,
@@ -628,45 +571,47 @@ static int fb_try_mode(struct fb_var_screeninfo *var, struct fb_info *info,
 }
 
 /**
- *     fb_find_mode - finds a valid video mode
- *     @var: frame buffer user defined part of display
- *     @info: frame buffer info structure
- *     @mode_option: string video mode to find
- *     @db: video mode database
- *     @dbsize: size of @db
- *     @default_mode: default video mode to fall back to
- *     @default_bpp: default color depth in bits per pixel
+ * fb_find_mode - finds a valid video mode
+ * @var: frame buffer user defined part of display
+ * @info: frame buffer info structure
+ * @mode_option: string video mode to find
+ * @db: video mode database
+ * @dbsize: size of @db
+ * @default_mode: default video mode to fall back to
+ * @default_bpp: default color depth in bits per pixel
  *
- *     Finds a suitable video mode, starting with the specified mode
- *     in @mode_option with fallback to @default_mode.  If
- *     @default_mode fails, all modes in the video mode database will
- *     be tried.
+ * Finds a suitable video mode, starting with the specified mode
+ * in @mode_option with fallback to @default_mode.  If
+ * @default_mode fails, all modes in the video mode database will
+ * be tried.
  *
- *     Valid mode specifiers for @mode_option:
+ * Valid mode specifiers for @mode_option::
  *
- *     <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m] or
+ *     <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][p][m]
+ *
+ * or ::
+ *
  *     <name>[-<bpp>][@<refresh>]
  *
- *     with <xres>, <yres>, <bpp> and <refresh> decimal numbers and
- *     <name> a string.
+ * with <xres>, <yres>, <bpp> and <refresh> decimal numbers and
+ * <name> a string.
  *
- *      If 'M' is present after yres (and before refresh/bpp if present),
- *      the function will compute the timings using VESA(tm) Coordinated
- *      Video Timings (CVT).  If 'R' is present after 'M', will compute with
- *      reduced blanking (for flatpanels).  If 'i' is present, compute
- *      interlaced mode.  If 'm' is present, add margins equal to 1.8%
- *      of xres rounded down to 8 pixels, and 1.8% of yres. The char
- *      'i' and 'm' must be after 'M' and 'R'. Example:
+ * If 'M' is present after yres (and before refresh/bpp if present),
+ * the function will compute the timings using VESA(tm) Coordinated
+ * Video Timings (CVT).  If 'R' is present after 'M', will compute with
+ * reduced blanking (for flatpanels).  If 'i' or 'p' are present, compute
+ * interlaced or progressive mode.  If 'm' is present, add margins equal
+ * to 1.8% of xres rounded down to 8 pixels, and 1.8% of yres. The char
+ * 'i', 'p' and 'm' must be after 'M' and 'R'. Example::
  *
- *      1024x768MR-8@60m - Reduced blank with margins at 60Hz.
+ *     1024x768MR-8@60m - Reduced blank with margins at 60Hz.
  *
- *     NOTE: The passed struct @var is _not_ cleared!  This allows you
- *     to supply values for e.g. the grayscale and accel_flags fields.
+ * NOTE: The passed struct @var is _not_ cleared!  This allows you
+ * to supply values for e.g. the grayscale and accel_flags fields.
  *
- *     Returns zero for failure, 1 if using specified @mode_option,
- *     2 if using specified @mode_option with an ignored refresh rate,
- *     3 if default mode is used, 4 if fall back to any valid mode.
- *
+ * Returns zero for failure, 1 if using specified @mode_option,
+ * 2 if using specified @mode_option with an ignored refresh rate,
+ * 3 if default mode is used, 4 if fall back to any valid mode.
  */
 
 int fb_find_mode(struct fb_var_screeninfo *var,
@@ -697,7 +642,8 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 		unsigned int namelen = strlen(name);
 		int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
 		unsigned int xres = 0, yres = 0, bpp = default_bpp, refresh = 0;
-		int yres_specified = 0, cvt = 0, rb = 0, interlace = 0;
+		int yres_specified = 0, cvt = 0, rb = 0;
+		int interlace_specified = 0, interlace = 0;
 		int margins = 0;
 		u32 best, diff, tdiff;
 
@@ -748,9 +694,17 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 				if (!cvt)
 					margins = 1;
 				break;
+			case 'p':
+				if (!cvt) {
+					interlace = 0;
+					interlace_specified = 1;
+				}
+				break;
 			case 'i':
-				if (!cvt)
+				if (!cvt) {
 					interlace = 1;
+					interlace_specified = 1;
+				}
 				break;
 			default:
 				goto done;
@@ -819,11 +773,21 @@ done:
 			if ((name_matches(db[i], name, namelen) ||
 			     (res_specified && res_matches(db[i], xres, yres))) &&
 			    !fb_try_mode(var, info, &db[i], bpp)) {
-				if (refresh_specified && db[i].refresh == refresh)
-					return 1;
+				const int db_interlace = (db[i].vmode &
+					FB_VMODE_INTERLACED ? 1 : 0);
+				int score = abs(db[i].refresh - refresh);
 
-				if (abs(db[i].refresh - refresh) < diff) {
-					diff = abs(db[i].refresh - refresh);
+				if (interlace_specified)
+					score += abs(db_interlace - interlace);
+
+				if (!interlace_specified ||
+				    db_interlace == interlace)
+					if (refresh_specified &&
+					    db[i].refresh == refresh)
+						return 1;
+
+				if (score < diff) {
+					diff = score;
 					best = i;
 				}
 			}
@@ -913,6 +877,9 @@ void fb_var_to_videomode(struct fb_videomode *mode,
 		vtotal /= 2;
 	if (var->vmode & FB_VMODE_DOUBLE)
 		vtotal *= 2;
+
+	if (!htotal || !vtotal)
+		return;
 
 	hfreq = pixclock/htotal;
 	mode->refresh = hfreq/vtotal;

@@ -3,12 +3,9 @@
 # error "Please do not build this file directly, build asm-offsets.c instead"
 #endif
 
-#include <asm/ucontext.h>
+#include <linux/efi.h>
 
-#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
-static char syscalls[] = {
-#include <asm/syscalls_32.h>
-};
+#include <asm/ucontext.h>
 
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);
@@ -46,16 +43,21 @@ void foo(void)
 	OFFSET(saved_context_gdt_desc, saved_context, gdt_desc);
 	BLANK();
 
-	/* Offset from the sysenter stack to tss.sp0 */
-	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+	/*
+	 * Offset from the entry stack to task stack stored in TSS. Kernel entry
+	 * happens on the per-cpu entry-stack, and the asm code switches to the
+	 * task-stack pointer stored in x86_tss.sp1, which is a copy of
+	 * task->thread.sp0 where entry code can find it.
+	 */
+	DEFINE(TSS_entry2task_stack,
+	       offsetof(struct cpu_entry_area, tss.x86_tss.sp1) -
 	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	BLANK();
 	OFFSET(stack_canary_offset, stack_canary, canary);
 #endif
 
 	BLANK();
-	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
-	DEFINE(NR_syscalls, sizeof(syscalls));
+	DEFINE(EFI_svam, offsetof(efi_runtime_services_t, set_virtual_address_map));
 }

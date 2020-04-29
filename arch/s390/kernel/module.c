@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/kasan.h>
 #include <linux/moduleloader.h>
 #include <linux/bug.h>
 #include <asm/alternative.h>
@@ -32,12 +33,18 @@
 
 void *module_alloc(unsigned long size)
 {
+	void *p;
+
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				    GFP_KERNEL, PAGE_KERNEL_EXEC,
-				    0, NUMA_NO_NODE,
-				    __builtin_return_address(0));
+	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
+				 GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				 __builtin_return_address(0));
+	if (p && (kasan_module_alloc(p, size) < 0)) {
+		vfree(p);
+		return NULL;
+	}
+	return p;
 }
 
 void module_arch_freeing_init(struct module *mod)
@@ -123,8 +130,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 
 	/* Allocate one syminfo structure per symbol. */
 	me->arch.nsyms = symtab->sh_size / sizeof(Elf_Sym);
-	me->arch.syminfo = vmalloc(me->arch.nsyms *
-				   sizeof(struct mod_arch_syminfo));
+	me->arch.syminfo = vmalloc(array_size(sizeof(struct mod_arch_syminfo),
+					      me->arch.nsyms));
 	if (!me->arch.syminfo)
 		return -ENOMEM;
 	symbols = (void *) hdr + symtab->sh_offset;
@@ -159,7 +166,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	me->core_layout.size += me->arch.got_size;
 	me->arch.plt_offset = me->core_layout.size;
 	if (me->arch.plt_size) {
-		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_call_disable)
+		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable)
 			me->arch.plt_size += PLT_ENTRY_SIZE;
 		me->core_layout.size += me->arch.plt_size;
 	}
@@ -318,8 +325,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 				info->plt_offset;
 			ip[0] = 0x0d10e310;	/* basr 1,0  */
 			ip[1] = 0x100a0004;	/* lg	1,10(1) */
-			if (IS_ENABLED(CONFIG_EXPOLINE) &&
-			    !nospec_call_disable) {
+			if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable) {
 				unsigned int *ij;
 				ij = me->core_layout.base +
 					me->arch.plt_offset +
@@ -440,7 +446,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	void *aseg;
 
 	if (IS_ENABLED(CONFIG_EXPOLINE) &&
-	    !nospec_call_disable && me->arch.plt_size) {
+	    !nospec_disable && me->arch.plt_size) {
 		unsigned int *ij;
 
 		ij = me->core_layout.base + me->arch.plt_offset +
@@ -466,12 +472,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 			apply_alternatives(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strcmp(".nospec_call_table", secname)))
-			nospec_call_revert(aseg, aseg + s->sh_size);
+		    (str_has_prefix(secname, ".s390_indirect")))
+			nospec_revert(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strcmp(".nospec_return_table", secname)))
-			nospec_return_revert(aseg, aseg + s->sh_size);
+		    (str_has_prefix(secname, ".s390_return")))
+			nospec_revert(aseg, aseg + s->sh_size);
 	}
 
 	jump_label_apply_nops(me);

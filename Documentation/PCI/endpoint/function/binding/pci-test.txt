@@ -15,3 +15,5 @@ subsys_id	 : don't care
 interrupt_pin	 : Should be 1 - INTA, 2 - INTB, 3 - INTC, 4 -INTD
 msi_interrupts	 : Should be 1 to 32 depending on the number of MSI interrupts
 		   to test
+msix_interrupts	 : Should be 1 to 2048 depending on the number of MSI-X
+		   interrupts to test

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/pxa2xx-ac97.c -- AC97 support for the Intel PXA2xx chip.
  *
  * Author:	Nicolas Pitre
  * Created:	Dec 02, 2004
  * Copyright:	MontaVista Software Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -15,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
-#include <linux/dma/pxa-dma.h>
+#include <linux/dma-mapping.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -26,8 +23,6 @@
 
 #include <mach/regs-ac97.h>
 #include <mach/audio.h>
-
-#include "pxa2xx-pcm.h"
 
 static void pxa2xx_ac97_legacy_reset(struct snd_ac97 *ac97)
 {
@@ -57,67 +52,52 @@ static void pxa2xx_ac97_legacy_write(struct snd_ac97 *ac97,
 	ret = pxa2xx_ac97_write(ac97->num, reg, val);
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
+static const struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_legacy_read,
 	.write	= pxa2xx_ac97_legacy_write,
 	.reset	= pxa2xx_ac97_legacy_reset,
 };
 
-static struct pxad_param pxa2xx_ac97_pcm_out_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 12,
-};
-
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_out = {
-	.addr		= __PREG(PCDR),
-	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
-	.maxburst	= 32,
-	.filter_data	= &pxa2xx_ac97_pcm_out_req,
-};
-
-static struct pxad_param pxa2xx_ac97_pcm_in_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 11,
-};
-
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_in = {
-	.addr		= __PREG(PCDR),
-	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
-	.maxburst	= 32,
-	.filter_data	= &pxa2xx_ac97_pcm_in_req,
-};
-
 static struct snd_pcm *pxa2xx_ac97_pcm;
 static struct snd_ac97 *pxa2xx_ac97_ac97;
 
-static int pxa2xx_ac97_pcm_startup(struct snd_pcm_substream *substream)
+static int pxa2xx_ac97_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	pxa2xx_audio_ops_t *platform_ops;
-	int r;
+	int ret, i;
+
+	ret = pxa2xx_pcm_open(substream);
+	if (ret)
+		return ret;
 
 	runtime->hw.channels_min = 2;
 	runtime->hw.channels_max = 2;
 
-	r = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
-	    AC97_RATES_FRONT_DAC : AC97_RATES_ADC;
-	runtime->hw.rates = pxa2xx_ac97_ac97->rates[r];
+	i = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		AC97_RATES_FRONT_DAC : AC97_RATES_ADC;
+	runtime->hw.rates = pxa2xx_ac97_ac97->rates[i];
 	snd_pcm_limit_hw_rates(runtime);
 
-       	platform_ops = substream->pcm->card->dev->platform_data;
-	if (platform_ops && platform_ops->startup)
-		return platform_ops->startup(substream, platform_ops->priv);
-	else
-		return 0;
+	platform_ops = substream->pcm->card->dev->platform_data;
+	if (platform_ops && platform_ops->startup) {
+		ret = platform_ops->startup(substream, platform_ops->priv);
+		if (ret < 0)
+			pxa2xx_pcm_close(substream);
+	}
+
+	return ret;
 }
 
-static void pxa2xx_ac97_pcm_shutdown(struct snd_pcm_substream *substream)
+static int pxa2xx_ac97_pcm_close(struct snd_pcm_substream *substream)
 {
 	pxa2xx_audio_ops_t *platform_ops;
 
-       	platform_ops = substream->pcm->card->dev->platform_data;
+	platform_ops = substream->pcm->card->dev->platform_data;
 	if (platform_ops && platform_ops->shutdown)
 		platform_ops->shutdown(substream, platform_ops->priv);
+
+	return 0;
 }
 
 static int pxa2xx_ac97_pcm_prepare(struct snd_pcm_substream *substream)
@@ -125,16 +105,14 @@ static int pxa2xx_ac97_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int reg = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		  AC97_PCM_FRONT_DAC_RATE : AC97_PCM_LR_ADC_RATE;
+	int ret;
+
+	ret = pxa2xx_pcm_prepare(substream);
+	if (ret < 0)
+		return ret;
+
 	return snd_ac97_set_rate(pxa2xx_ac97_ac97, reg, runtime->rate);
 }
-
-static struct pxa2xx_pcm_client pxa2xx_ac97_pcm_client = {
-	.playback_params	= &pxa2xx_ac97_pcm_out,
-	.capture_params		= &pxa2xx_ac97_pcm_in,
-	.startup		= pxa2xx_ac97_pcm_startup,
-	.shutdown		= pxa2xx_ac97_pcm_shutdown,
-	.prepare		= pxa2xx_ac97_pcm_prepare,
-};
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -143,7 +121,6 @@ static int pxa2xx_ac97_do_suspend(struct snd_card *card)
 	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(pxa2xx_ac97_pcm);
 	snd_ac97_suspend(pxa2xx_ac97_ac97);
 	if (platform_ops && platform_ops->suspend)
 		platform_ops->suspend(platform_ops->priv);
@@ -193,6 +170,52 @@ static int pxa2xx_ac97_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_resume);
 #endif
 
+static const struct snd_pcm_ops pxa2xx_ac97_pcm_ops = {
+	.open		= pxa2xx_ac97_pcm_open,
+	.close		= pxa2xx_ac97_pcm_close,
+	.hw_params	= pxa2xx_pcm_hw_params,
+	.hw_free	= pxa2xx_pcm_hw_free,
+	.prepare	= pxa2xx_ac97_pcm_prepare,
+	.trigger	= pxa2xx_pcm_trigger,
+	.pointer	= pxa2xx_pcm_pointer,
+	.mmap		= pxa2xx_pcm_mmap,
+};
+
+
+static int pxa2xx_ac97_pcm_new(struct snd_card *card)
+{
+	struct snd_pcm *pcm;
+	int stream, ret;
+
+	ret = snd_pcm_new(card, "PXA2xx-PCM", 0, 1, 1, &pcm);
+	if (ret)
+		goto out;
+
+	pcm->private_free = pxa2xx_pcm_free_dma_buffers;
+
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto out;
+
+	stream = SNDRV_PCM_STREAM_PLAYBACK;
+	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
+	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
+	if (ret)
+		goto out;
+
+	stream = SNDRV_PCM_STREAM_CAPTURE;
+	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
+	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
+	if (ret)
+		goto out;
+
+	pxa2xx_ac97_pcm = pcm;
+	ret = 0;
+
+ out:
+	return ret;
+}
+
 static int pxa2xx_ac97_probe(struct platform_device *dev)
 {
 	struct snd_card *card;
@@ -214,7 +237,7 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 
 	strlcpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
 
-	ret = pxa2xx_pcm_new(card, &pxa2xx_ac97_pcm_client, &pxa2xx_ac97_pcm);
+	ret = pxa2xx_ac97_pcm_new(card);
 	if (ret)
 		goto err;
 

@@ -109,6 +109,38 @@ enum drm_mm_insert_mode {
 	 * Allocates the node from the bottom of the found hole.
 	 */
 	DRM_MM_INSERT_EVICT,
+
+	/**
+	 * @DRM_MM_INSERT_ONCE:
+	 *
+	 * Only check the first hole for suitablity and report -ENOSPC
+	 * immediately otherwise, rather than check every hole until a
+	 * suitable one is found. Can only be used in conjunction with another
+	 * search method such as DRM_MM_INSERT_HIGH or DRM_MM_INSERT_LOW.
+	 */
+	DRM_MM_INSERT_ONCE = BIT(31),
+
+	/**
+	 * @DRM_MM_INSERT_HIGHEST:
+	 *
+	 * Only check the highest hole (the hole with the largest address) and
+	 * insert the node at the top of the hole or report -ENOSPC if
+	 * unsuitable.
+	 *
+	 * Does not search all holes.
+	 */
+	DRM_MM_INSERT_HIGHEST = DRM_MM_INSERT_HIGH | DRM_MM_INSERT_ONCE,
+
+	/**
+	 * @DRM_MM_INSERT_LOWEST:
+	 *
+	 * Only check the lowest hole (the hole with the smallest address) and
+	 * insert the node at the bottom of the hole or report -ENOSPC if
+	 * unsuitable.
+	 *
+	 * Does not search all holes.
+	 */
+	DRM_MM_INSERT_LOWEST  = DRM_MM_INSERT_LOW | DRM_MM_INSERT_ONCE,
 };
 
 /**
@@ -136,8 +168,9 @@ struct drm_mm_node {
 	struct rb_node rb_hole_addr;
 	u64 __subtree_last;
 	u64 hole_size;
-	bool allocated : 1;
-	bool scanned_block : 1;
+	unsigned long flags;
+#define DRM_MM_NODE_ALLOCATED_BIT	0
+#define DRM_MM_NODE_SCANNED_BIT		1
 #ifdef CONFIG_DRM_DEBUG_MM
 	depot_stack_handle_t stack;
 #endif
@@ -173,7 +206,7 @@ struct drm_mm {
 	struct drm_mm_node head_node;
 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
 	struct rb_root_cached interval_tree;
-	struct rb_root holes_size;
+	struct rb_root_cached holes_size;
 	struct rb_root holes_addr;
 
 	unsigned long scan_active;
@@ -221,7 +254,7 @@ struct drm_mm_scan {
  */
 static inline bool drm_mm_node_allocated(const struct drm_mm_node *node)
 {
-	return node->allocated;
+	return test_bit(DRM_MM_NODE_ALLOCATED_BIT, &node->flags);
 }
 
 /**
@@ -239,7 +272,7 @@ static inline bool drm_mm_node_allocated(const struct drm_mm_node *node)
  */
 static inline bool drm_mm_initialized(const struct drm_mm *mm)
 {
-	return mm->hole_stack.next;
+	return READ_ONCE(mm->hole_stack.next);
 }
 
 /**

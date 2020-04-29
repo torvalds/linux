@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -67,15 +68,6 @@ static void unwind_dump(struct unwind_state *state)
 					sp, BITS_PER_LONG/4, word, (void *)word);
 		}
 	}
-}
-
-static size_t regs_size(struct pt_regs *regs)
-{
-	/* x86_32 regs from kernel mode are two words shorter: */
-	if (IS_ENABLED(CONFIG_X86_32) && !user_mode(regs))
-		return sizeof(*regs) - 2*sizeof(long);
-
-	return sizeof(*regs);
 }
 
 static bool in_entry_code(unsigned long ip)
@@ -197,12 +189,6 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 }
 #endif
 
-#ifdef CONFIG_X86_32
-#define KERNEL_REGS_SIZE (sizeof(struct pt_regs) - 2*sizeof(long))
-#else
-#define KERNEL_REGS_SIZE (sizeof(struct pt_regs))
-#endif
-
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
 {
@@ -213,7 +199,7 @@ static bool update_stack_state(struct unwind_state *state,
 	size_t len;
 
 	if (state->regs)
-		prev_frame_end = (void *)state->regs + regs_size(state->regs);
+		prev_frame_end = (void *)state->regs + sizeof(*state->regs);
 	else
 		prev_frame_end = (void *)state->bp + FRAME_HEADER_SIZE;
 
@@ -221,7 +207,7 @@ static bool update_stack_state(struct unwind_state *state,
 	regs = decode_frame_pointer(next_bp);
 	if (regs) {
 		frame = (unsigned long *)regs;
-		len = KERNEL_REGS_SIZE;
+		len = sizeof(*regs);
 		state->got_irq = true;
 	} else {
 		frame = next_bp;
@@ -243,14 +229,6 @@ static bool update_stack_state(struct unwind_state *state,
 	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
 	if (state->orig_sp && state->stack_info.type == prev_type &&
 	    frame < prev_frame_end)
-		return false;
-
-	/*
-	 * On 32-bit with user mode regs, make sure the last two regs are safe
-	 * to access:
-	 */
-	if (IS_ENABLED(CONFIG_X86_32) && regs && user_mode(regs) &&
-	    !on_stack(info, frame, len + 2*sizeof(long)))
 		return false;
 
 	/* Move state to the next frame: */
@@ -320,10 +298,14 @@ bool unwind_next_frame(struct unwind_state *state)
 	}
 
 	/* Get the next frame pointer: */
-	if (state->regs)
+	if (state->next_bp) {
+		next_bp = state->next_bp;
+		state->next_bp = NULL;
+	} else if (state->regs) {
 		next_bp = (unsigned long *)state->regs->bp;
-	else
+	} else {
 		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task, *state->bp);
+	}
 
 	/* Move to the next frame if it's safe: */
 	if (!update_stack_state(state, next_bp))
@@ -398,6 +380,20 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 	bp = get_frame_pointer(task, regs);
 
+	/*
+	 * If we crash with IP==0, the last successfully executed instruction
+	 * was probably an indirect function call with a NULL function pointer.
+	 * That means that SP points into the middle of an incomplete frame:
+	 * *SP is a return pointer, and *(SP-sizeof(unsigned long)) is where we
+	 * would have written a frame pointer if we hadn't crashed.
+	 * Pretend that the frame is complete and that BP points to it, but save
+	 * the real BP so that we can use it when looking for the next frame.
+	 */
+	if (regs && regs->ip == 0 && (unsigned long *)regs->sp >= first_frame) {
+		state->next_bp = bp;
+		bp = ((unsigned long *)regs->sp) - 1;
+	}
+
 	/* Initialize stack info and make sure the frame data is accessible: */
 	get_stack_info(bp, state->task, &state->stack_info,
 		       &state->stack_mask);
@@ -410,7 +406,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	 */
 	while (!unwind_done(state) &&
 	       (!on_stack(&state->stack_info, first_frame, sizeof(long)) ||
-			state->bp < first_frame))
+			(state->next_bp == NULL && state->bp < first_frame)))
 		unwind_next_frame(state);
 }
 EXPORT_SYMBOL_GPL(__unwind_start);

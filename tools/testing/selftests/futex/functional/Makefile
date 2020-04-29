@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 INCLUDES := -I../include -I../../
 CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES)
-LDFLAGS := $(LDFLAGS) -pthread -lrt
+LDLIBS := -lpthread -lrt
 
 HEADERS := \
 	../include/futextest.h \
@@ -18,6 +18,8 @@ TEST_GEN_FILES := \
 
 TEST_PROGS := run.sh
 
+top_srcdir = ../../../../..
+KSFT_KHDR_INSTALL := 1
 include ../../lib.mk
 
 $(TEST_GEN_FILES): $(HEADERS)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2001-2003 SuSE Labs.
  * Distributed under the GNU public license, v2.
@@ -156,7 +157,7 @@ static u64 amd64_configure(struct pci_dev *hammer, u64 gatt_table)
 
 	/* Address to map to */
 	pci_read_config_dword(hammer, AMD64_GARTAPERTUREBASE, &tmp);
-	aperturebase = tmp << 25;
+	aperturebase = (u64)tmp << 25;
 	aper_base = (aperturebase & PCI_BASE_ADDRESS_MEM_MASK);
 
 	enable_gart_translation(hammer, gatt_table);
@@ -277,7 +278,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	pci_read_config_dword(nb, AMD64_GARTAPERTURECTL, &nb_order);
 	nb_order = (nb_order >> 1) & 7;
 	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
-	nb_aper = nb_base << 25;
+	nb_aper = (u64)nb_base << 25;
 
 	/* Northbridge seems to contain crap. Try the AGP bridge. */
 
@@ -774,7 +775,7 @@ int __init agp_amd64_init(void)
 		}
 
 		/* First check that we have at least one AMD64 NB */
-		if (!pci_dev_present(amd_nb_misc_ids)) {
+		if (!amd_nb_num()) {
 			pci_unregister_driver(&agp_amd64_pci_driver);
 			return -ENODEV;
 		}

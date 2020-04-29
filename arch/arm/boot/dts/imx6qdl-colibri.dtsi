@@ -1,44 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
- * Copyright 2014-2016 Toradex AG
+ * Copyright 2014-2020 Toradex
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -56,25 +20,17 @@
 		status = "disabled";
 	};
 
-	reg_1p8v: regulator-1p8v {
+	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "1P8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+		regulator-name = "+V3.3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 
-	reg_2p5v: regulator-2p5v {
+	reg_module_3v3_audio: regulator-module-3v3-audio {
 		compatible = "regulator-fixed";
-		regulator-name = "2P5V";
-		regulator-min-microvolt = <2500000>;
-		regulator-max-microvolt = <2500000>;
-		regulator-always-on;
-	};
-
-	reg_3p3v: regulator-3p3v {
-		compatible = "regulator-fixed";
-		regulator-name = "3P3V";
+		regulator-name = "+V3.3_AUDIO";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
@@ -148,7 +104,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rmii";
+	phy-handle = <&ethphy>;
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy@0 {
+			reg = <0>;
+			micrel,led-mode = <0>;
+		};
+	};
 };
 
 &hdmi {
@@ -163,8 +130,11 @@
  */
 &i2c2 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-0 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio2 30 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	pmic: pfuze100@8 {
@@ -227,7 +197,7 @@
 
 			vgen4_reg: vgen4 {
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
@@ -252,8 +222,9 @@
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
-		VDDA-supply = <&reg_2p5v>;
-		VDDIO-supply = <&reg_3p3v>;
+		VDDA-supply = <&reg_module_3v3_audio>;
+		VDDIO-supply = <&reg_module_3v3>;
+		VDDD-supply = <&vgen4_reg>;
 		lrclk-strength = <3>;
 	};
 
@@ -262,8 +233,6 @@
 		compatible = "st,stmpe811";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touch_int>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio6>;
@@ -271,11 +240,17 @@
 		id = <0>;
 		blocks = <0x5>;
 		irq-trigger = <0x1>;
+		/* 3.25 MHz ADC clock speed */
+		st,adc-freq = <1>;
+		/* 12-bit ADC */
+		st,mod-12b = <1>;
+		/* internal ADC reference */
+		st,ref-sel = <0>;
+		/* ADC converstion time: 80 clocks */
+		st,sample-time = <4>;
 
 		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
-			/* 3.25 MHz ADC clock speed */
-			st,adc-freq = <1>;
 			/* 8 sample average control */
 			st,ave-ctrl = <3>;
 			/* 7 length fractional part in z */
@@ -285,16 +260,16 @@
 			 * current limit value
 			 */
 			st,i-drive = <1>;
-			/* 12-bit ADC */
-			st,mod-12b = <1>;
-			/* internal ADC reference */
-			st,ref-sel = <0>;
-			/* ADC converstion time: 80 clocks */
-			st,sample-time = <4>;
 			/* 1 ms panel driver settling time */
 			st,settling = <3>;
 			/* 5 ms touch detect interrupt delay */
 			st,touch-det-delay = <5>;
+		};
+
+		stmpe_adc {
+			compatible = "st,stmpe-adc";
+			/* forbid to use ADC channels 3-0 (touch) */
+			st,norequest-mask = <0x0F>;
 		};
 	};
 };
@@ -304,11 +279,11 @@
  */
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default", "recovery";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	pinctrl-1 = <&pinctrl_i2c3_recovery>;
-	scl-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "disabled";
 };
 
@@ -387,10 +362,12 @@
 /* Colibri MMC */
 &usdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	vqmmc-supply = <&reg_3p3v>;
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_mmc_cd>;
+	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
+	disable-wp;
+	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <4>;
-	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	status = "disabled";
 };
 
@@ -398,9 +375,9 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	vqmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <8>;
-	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	non-removable;
 	status = "okay";
 };
@@ -416,6 +393,9 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh_oc_1>;
+
 	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_COL0__AUD5_TXC	0x130b0
@@ -481,8 +461,7 @@
 
 	pinctrl_gpio_keys: gpiokeys {
 		fsl,pins = <
-			/* Power button */
-			MX6QDL_PAD_EIM_A16__GPIO2_IO22		0x1b0b0
+			MX6QDL_PAD_EIM_A16__GPIO2_IO22		0x130b0
 		>;
 	};
 
@@ -500,6 +479,13 @@
 		>;
 	};
 
+	pinctrl_i2c2_gpio: i2c2grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_EB2__GPIO2_IO30 0x4001b8b1
+			MX6QDL_PAD_EIM_D16__GPIO3_IO16 0x4001b8b1
+		>;
+	};
+
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__I2C3_SCL 0x4001b8b1
@@ -507,7 +493,7 @@
 		>;
 	};
 
-	pinctrl_i2c3_recovery: i2c3recoverygrp {
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__GPIO1_IO03 0x4001b8b1
 			MX6QDL_PAD_GPIO_6__GPIO1_IO06 0x4001b8b1
@@ -569,7 +555,7 @@
 
 	pinctrl_mmc_cd: gpiommccd {
 		fsl,pins = <
-			MX6QDL_PAD_NANDF_D5__GPIO2_IO05	0x80000000
+			MX6QDL_PAD_NANDF_D5__GPIO2_IO05	0x1b0b1
 		>;
 	};
 
@@ -603,6 +589,13 @@
 		fsl,pins = <
 			/* USBH_EN */
 			MX6QDL_PAD_EIM_D31__GPIO3_IO31	0x0f058
+		>;
+	};
+
+	pinctrl_usbh_oc_1: usbhoc1grp {
+		fsl,pins = <
+			/* USBH_OC */
+			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x1b0b0
 		>;
 	};
 
@@ -672,6 +665,13 @@
 		>;
 	};
 
+	pinctrl_usbc_id_1: usbc_id-1 {
+		fsl,pins = <
+			/* USBC_ID */
+			MX6QDL_PAD_NANDF_D2__GPIO2_IO02		0x1b0b0
+		>;
+	};
+
 	pinctrl_usdhc1: usdhc1grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_CMD__SD1_CMD	0x17071
@@ -697,40 +697,6 @@
 			MX6QDL_PAD_SD3_DAT7__SD3_DATA7	0x17059
 			/* eMMC reset */
 			MX6QDL_PAD_SD3_RST__SD3_RESET	0x17059
-		>;
-	};
-
-	pinctrl_usdhc3_100mhz: usdhc3100mhzgrp {
-		fsl,pins = <
-			MX6QDL_PAD_SD3_CMD__SD3_CMD	0x170b9
-			MX6QDL_PAD_SD3_CLK__SD3_CLK	0x100b9
-			MX6QDL_PAD_SD3_DAT0__SD3_DATA0	0x170b9
-			MX6QDL_PAD_SD3_DAT1__SD3_DATA1	0x170b9
-			MX6QDL_PAD_SD3_DAT2__SD3_DATA2	0x170b9
-			MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x170b9
-			MX6QDL_PAD_SD3_DAT4__SD3_DATA4	0x170b9
-			MX6QDL_PAD_SD3_DAT5__SD3_DATA5	0x170b9
-			MX6QDL_PAD_SD3_DAT6__SD3_DATA6	0x170b9
-			MX6QDL_PAD_SD3_DAT7__SD3_DATA7	0x170b9
-			/* eMMC reset */
-			MX6QDL_PAD_SD3_RST__SD3_RESET	0x170b9
-		>;
-	};
-
-	pinctrl_usdhc3_200mhz: usdhc3200mhzgrp {
-		fsl,pins = <
-			MX6QDL_PAD_SD3_CMD__SD3_CMD	0x170f9
-			MX6QDL_PAD_SD3_CLK__SD3_CLK	0x100f9
-			MX6QDL_PAD_SD3_DAT0__SD3_DATA0	0x170f9
-			MX6QDL_PAD_SD3_DAT1__SD3_DATA1	0x170f9
-			MX6QDL_PAD_SD3_DAT2__SD3_DATA2	0x170f9
-			MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x170f9
-			MX6QDL_PAD_SD3_DAT4__SD3_DATA4	0x170f9
-			MX6QDL_PAD_SD3_DAT5__SD3_DATA5	0x170f9
-			MX6QDL_PAD_SD3_DAT6__SD3_DATA6	0x170f9
-			MX6QDL_PAD_SD3_DAT7__SD3_DATA7	0x170f9
-			/* eMMC reset */
-			MX6QDL_PAD_SD3_RST__SD3_RESET	0x170f9
 		>;
 	};
 

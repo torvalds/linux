@@ -217,15 +217,15 @@ struct ieee80211_wmm_rule {
 struct ieee80211_reg_rule {
 	struct ieee80211_freq_range freq_range;
 	struct ieee80211_power_rule power_rule;
-	struct ieee80211_wmm_rule *wmm_rule;
+	struct ieee80211_wmm_rule wmm_rule;
 	u32 flags;
 	u32 dfs_cac_ms;
+	bool has_wmm;
 };
 
 struct ieee80211_regdomain {
 	struct rcu_head rcu_head;
 	u32 n_reg_rules;
-	u32 n_wmm_rules;
 	char alpha2[3];
 	enum nl80211_dfs_regions dfs_region;
 	struct ieee80211_reg_rule reg_rules[];

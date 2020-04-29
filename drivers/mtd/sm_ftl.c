@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2009 - Maxim Levitsky
  * SmartMedia/xD translation layer
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -82,7 +79,7 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 
 
 	/* Create array of pointers to the attributes */
-	attributes = kzalloc(sizeof(struct attribute *) * (NUM_ATTRIBUTES + 1),
+	attributes = kcalloc(NUM_ATTRIBUTES + 1, sizeof(struct attribute *),
 								GFP_KERNEL);
 	if (!attributes)
 		goto error3;
@@ -221,14 +218,18 @@ static int sm_correct_sector(uint8_t *buffer, struct sm_oob *oob)
 {
 	uint8_t ecc[3];
 
-	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
-	if (__nand_correct_data(buffer, ecc, oob->ecc1, SM_SMALL_PAGE) < 0)
+	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc,
+			     IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC));
+	if (__nand_correct_data(buffer, ecc, oob->ecc1, SM_SMALL_PAGE,
+				IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC)) < 0)
 		return -EIO;
 
 	buffer += SM_SMALL_PAGE;
 
-	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
-	if (__nand_correct_data(buffer, ecc, oob->ecc2, SM_SMALL_PAGE) < 0)
+	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc,
+			     IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC));
+	if (__nand_correct_data(buffer, ecc, oob->ecc2, SM_SMALL_PAGE,
+				IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC)) < 0)
 		return -EIO;
 	return 0;
 }
@@ -246,7 +247,8 @@ static int sm_read_sector(struct sm_ftl *ftl,
 
 	/* FTL can contain -1 entries that are by default filled with bits */
 	if (block == -1) {
-		memset(buffer, 0xFF, SM_SECTOR_SIZE);
+		if (buffer)
+			memset(buffer, 0xFF, SM_SECTOR_SIZE);
 		return 0;
 	}
 
@@ -393,11 +395,13 @@ restart:
 		}
 
 		if (ftl->smallpagenand) {
-			__nand_calculate_ecc(buf + boffset,
-						SM_SMALL_PAGE, oob.ecc1);
+			__nand_calculate_ecc(buf + boffset, SM_SMALL_PAGE,
+					oob.ecc1,
+					IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC));
 
 			__nand_calculate_ecc(buf + boffset + SM_SMALL_PAGE,
-						SM_SMALL_PAGE, oob.ecc2);
+					SM_SMALL_PAGE, oob.ecc2,
+					IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING_SMC));
 		}
 		if (!sm_write_sector(ftl, zone, block, boffset,
 							buf + boffset, &oob))
@@ -750,7 +754,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	dbg("initializing zone %d", zone_num);
 
 	/* Allocate memory for FTL table */
-	zone->lba_to_phys_table = kmalloc(ftl->max_lba * 2, GFP_KERNEL);
+	zone->lba_to_phys_table = kmalloc_array(ftl->max_lba, 2, GFP_KERNEL);
 
 	if (!zone->lba_to_phys_table)
 		return -ENOMEM;
@@ -771,8 +775,11 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 			continue;
 
 		/* Read the oob of first sector */
-		if (sm_read_sector(ftl, zone_num, block, 0, NULL, &oob))
+		if (sm_read_sector(ftl, zone_num, block, 0, NULL, &oob)) {
+			kfifo_free(&zone->free_sectors);
+			kfree(zone->lba_to_phys_table);
 			return -EIO;
+		}
 
 		/* Test to see if block is erased. It is enough to test
 			first sector, because erase happens in one shot */
@@ -1137,7 +1144,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		goto error2;
 
 	/* Allocate zone array, it will be initialized on demand */
-	ftl->zones = kzalloc(sizeof(struct ftl_zone) * ftl->zone_count,
+	ftl->zones = kcalloc(ftl->zone_count, sizeof(struct ftl_zone),
 								GFP_KERNEL);
 	if (!ftl->zones)
 		goto error3;

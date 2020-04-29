@@ -2,7 +2,15 @@
 #ifndef _ASM_M68K_VGA_H
 #define _ASM_M68K_VGA_H
 
+/*
+ * Some ColdFire platforms do in fact have a PCI bus. So for those we want
+ * to use the real IO access functions, don't fake them out or redirect them
+ * for that case.
+ */
+#ifndef CONFIG_PCI
+
 #include <asm/raw_io.h>
+#include <asm/kmap.h>
 
 /*
  * FIXME
@@ -25,4 +33,5 @@
 #define writeb			raw_outb
 #define writew			raw_outw
 
+#endif /* CONFIG_PCI */
 #endif /* _ASM_M68K_VGA_H */

@@ -1,15 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fpu.c - save/restore of Floating Point Unit Registers on task switch
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/sched.h>
-#include <asm/switch_to.h>
+#include <asm/fpu.h>
+
+#ifdef CONFIG_ISA_ARCOMPACT
 
 /*
  * To save/restore FPU regs, simplest scheme would use LR/SR insns.
@@ -53,3 +52,28 @@ void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
 		: "r" (zero), "r" (*(readfrom + 3)), "r" (*(readfrom + 2))
 	);
 }
+
+#else
+
+void fpu_init_task(struct pt_regs *regs)
+{
+	/* default rounding mode */
+	write_aux_reg(ARC_REG_FPU_CTRL, 0x100);
+
+	/* set "Write enable" to allow explicit write to exception flags */
+	write_aux_reg(ARC_REG_FPU_STATUS, 0x80000000);
+}
+
+void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
+{
+	struct arc_fpu *save = &prev->thread.fpu;
+	struct arc_fpu *restore = &next->thread.fpu;
+
+	save->ctrl = read_aux_reg(ARC_REG_FPU_CTRL);
+	save->status = read_aux_reg(ARC_REG_FPU_STATUS);
+
+	write_aux_reg(ARC_REG_FPU_CTRL, restore->ctrl);
+	write_aux_reg(ARC_REG_FPU_STATUS, restore->status);
+}
+
+#endif

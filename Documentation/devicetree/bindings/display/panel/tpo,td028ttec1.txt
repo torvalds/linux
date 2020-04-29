@@ -6,6 +6,7 @@ Required properties:
 
 Optional properties:
 - label: a symbolic name for the panel
+- backlight: phandle of the backlight device
 
 Required nodes:
 - Video port for DPI input
@@ -21,6 +22,7 @@ lcd-panel: td028ttec1@0 {
 	spi-cpha;
 
 	label = "lcd";
+	backlight = <&backlight>;
 	port {
 		lcd_in: endpoint {
 			remote-endpoint = <&dpi_out>;

@@ -353,7 +353,6 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 
 	memcpy_toio(port->membase + MEN_Z135_TX_RAM, &xmit->buf[xmit->tail], n);
 	xmit->tail = (xmit->tail + n) & (UART_XMIT_SIZE - 1);
-	mmiowb();
 
 	iowrite32(n & 0x3ff, port->membase + MEN_Z135_TX_CTRL);
 
@@ -931,3 +930,4 @@ MODULE_AUTHOR("Johannes Thumshirn <johannes.thumshirn@men.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MEN 16z135 High Speed UART");
 MODULE_ALIAS("mcb:16z135");
+MODULE_IMPORT_NS(MCB);

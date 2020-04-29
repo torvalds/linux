@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SYSV_FS
 	tristate "System V/Xenix/V7/Coherent file system support"
 	depends on BLOCK

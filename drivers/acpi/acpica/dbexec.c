@@ -160,12 +160,12 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 		}
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"while executing %s from debugger",
+				"while executing %s from AML Debugger",
 				info->pathname));
 
 		if (status == AE_BUFFER_OVERFLOW) {
 			ACPI_ERROR((AE_INFO,
-				    "Possible overflow of internal debugger "
+				    "Possible buffer overflow within AML Debugger "
 				    "buffer (size 0x%X needed 0x%X)",
 				    ACPI_DEBUG_BUFFER_SIZE,
 				    (u32)return_obj->length));
@@ -453,7 +453,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 
 			/* Dump a _PLD buffer if present */
 
-			if (ACPI_COMPARE_NAME
+			if (ACPI_COMPARE_NAMESEG
 			    ((ACPI_CAST_PTR
 			      (struct acpi_namespace_node,
 			       acpi_gbl_db_method_info.method)->name.ascii),

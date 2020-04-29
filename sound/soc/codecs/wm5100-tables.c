@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm5100-tables.c  --  WM5100 ALSA SoC Audio driver data
  *
  * Copyright 2011-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "wm5100.h"
@@ -30,7 +26,7 @@ bool wm5100_volatile_register(struct device *dev, unsigned int reg)
 	case WM5100_OUTPUT_STATUS_2:
 	case WM5100_INPUT_ENABLES_STATUS:
 	case WM5100_MIC_DETECT_3:
-		return 1;
+		return true;
 	default:
 		if ((reg >= WM5100_DSP1_PM_0 && reg <= WM5100_DSP1_PM_1535) ||
 		    (reg >= WM5100_DSP1_ZM_0 && reg <= WM5100_DSP1_ZM_2047) ||
@@ -41,9 +37,9 @@ bool wm5100_volatile_register(struct device *dev, unsigned int reg)
 		    (reg >= WM5100_DSP3_PM_0 && reg <= WM5100_DSP3_PM_1535) ||
 		    (reg >= WM5100_DSP3_ZM_0 && reg <= WM5100_DSP3_ZM_2047) ||
 		    (reg >= WM5100_DSP3_DM_0 && reg <= WM5100_DSP3_DM_511))
-			return 1;
+			return true;
 		else
-			return 0;
+			return false;
 	}
 }
 
@@ -798,7 +794,7 @@ bool wm5100_readable_register(struct device *dev, unsigned int reg)
 	case WM5100_DSP3_CONTROL_28:
 	case WM5100_DSP3_CONTROL_29:
 	case WM5100_DSP3_CONTROL_30:
-		return 1;
+		return true;
 	default:
 		if ((reg >= WM5100_DSP1_PM_0 && reg <= WM5100_DSP1_PM_1535) ||
 		    (reg >= WM5100_DSP1_ZM_0 && reg <= WM5100_DSP1_ZM_2047) ||
@@ -809,9 +805,9 @@ bool wm5100_readable_register(struct device *dev, unsigned int reg)
 		    (reg >= WM5100_DSP3_PM_0 && reg <= WM5100_DSP3_PM_1535) ||
 		    (reg >= WM5100_DSP3_ZM_0 && reg <= WM5100_DSP3_ZM_2047) ||
 		    (reg >= WM5100_DSP3_DM_0 && reg <= WM5100_DSP3_DM_511))
-			return 1;
+			return true;
 		else
-			return 0;
+			return false;
 	}
 }
 

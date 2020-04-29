@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /*
  * p80211types.h
  *
@@ -119,11 +119,6 @@
 					/* is a DID-LEN-DATA triple */
 					/* with a max size of 4+4+384 */
 
-/*----------------------------------------------------------------*/
-/* The following macro creates a name for an enum */
-
-#define MKENUMNAME(name) p80211enum_ ## name
-
 /*----------------------------------------------------------------
  * The following constants and macros are used to construct and
  * deconstruct the Data ID codes.  The coding is as follows:
@@ -199,20 +194,6 @@
 					P80211DID_LSB_ACCESS)
 
 /*----------------------------------------------------------------*/
-/* The following structure types are used for the representation */
-/*  of ENUMint type metadata. */
-
-struct p80211enumpair {
-	u32 val;
-	char *name;
-};
-
-struct p80211enum {
-	int nitems;
-	struct p80211enumpair *list;
-};
-
-/*----------------------------------------------------------------*/
 /* The following structure types are used to store data items in */
 /*  messages. */
 
@@ -223,7 +204,7 @@ struct p80211pstr {
 
 struct p80211pstrd {
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Maximum pascal string */
@@ -268,7 +249,7 @@ struct p80211itemd {
 	u32 did;
 	u16 status;
 	u16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* message data item for int, BOUNDEDINT, ENUMINT */
@@ -334,44 +315,5 @@ struct p80211item_unk4096 {
 	u16 len;
 	u8 data[4096];
 } __packed;
-
-struct catlistitem;
-
-/*----------------------------------------------------------------*/
-/* The following structure type is used to represent all of the */
-/*  metadata items.  Some components may choose to use more, */
-/*  less or different metadata items. */
-
-typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 *itembuf,
-				 char *textbuf);
-typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 *itembuf,
-				   char *textbuf);
-typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
-
-/*----------------------------------------------------------------*/
-/* Enumeration Lists */
-/*  The following are the external declarations */
-/*  for all enumerations  */
-
-extern struct p80211enum MKENUMNAME(truth);
-extern struct p80211enum MKENUMNAME(ifstate);
-extern struct p80211enum MKENUMNAME(powermgmt);
-extern struct p80211enum MKENUMNAME(bsstype);
-extern struct p80211enum MKENUMNAME(authalg);
-extern struct p80211enum MKENUMNAME(phytype);
-extern struct p80211enum MKENUMNAME(temptype);
-extern struct p80211enum MKENUMNAME(regdomain);
-extern struct p80211enum MKENUMNAME(ccamode);
-extern struct p80211enum MKENUMNAME(diversity);
-extern struct p80211enum MKENUMNAME(scantype);
-extern struct p80211enum MKENUMNAME(resultcode);
-extern struct p80211enum MKENUMNAME(reason);
-extern struct p80211enum MKENUMNAME(status);
-extern struct p80211enum MKENUMNAME(msgcode);
-extern struct p80211enum MKENUMNAME(msgitem_status);
-
-extern struct p80211enum MKENUMNAME(lnxroam_reason);
-
-extern struct p80211enum MKENUMNAME(p2preamble);
 
 #endif /* _P80211TYPES_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LEDs driver for Freescale MC13783/MC13892/MC34708
  *
@@ -9,10 +10,6 @@
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
  *      Eric Miao <eric.miao@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -136,7 +133,7 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 
 	pdata->num_leds = of_get_child_count(parent);
 
-	pdata->led = devm_kzalloc(dev, pdata->num_leds * sizeof(*pdata->led),
+	pdata->led = devm_kcalloc(dev, pdata->num_leds, sizeof(*pdata->led),
 				  GFP_KERNEL);
 	if (!pdata->led) {
 		ret = -ENOMEM;
@@ -210,7 +207,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	leds->led = devm_kzalloc(dev, leds->num_leds * sizeof(*leds->led),
+	leds->led = devm_kcalloc(dev, leds->num_leds, sizeof(*leds->led),
 				 GFP_KERNEL);
 	if (!leds->led)
 		return -ENOMEM;

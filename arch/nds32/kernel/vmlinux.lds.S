@@ -13,14 +13,26 @@ OUTPUT_ARCH(nds32)
 ENTRY(_stext_lma)
 jiffies = jiffies_64;
 
+#if defined(CONFIG_GCOV_KERNEL)
+#define NDS32_EXIT_KEEP(x)	x
+#else
+#define NDS32_EXIT_KEEP(x)
+#endif
+
 SECTIONS
 {
 	_stext_lma = TEXTADDR - LOAD_OFFSET;
 	. = TEXTADDR;
 	__init_begin = .;
 	HEAD_TEXT_SECTION
+	.exit.text : {
+		NDS32_EXIT_KEEP(EXIT_TEXT)
+	}
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
+	.exit.data : {
+		NDS32_EXIT_KEEP(EXIT_DATA)
+	}
 	PERCPU_SECTION(L1_CACHE_BYTES)
 	__init_end = .;
 
@@ -35,18 +47,18 @@ SECTIONS
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.fixup)
 	}
 
 	_etext = .;			/* End of text and rodata section */
 
 	_sdata = .;
-	RO_DATA_SECTION(PAGE_SIZE)
-	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	RO_DATA(PAGE_SIZE)
+	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	_edata  =  .;
 
 	EXCEPTION_TABLE(16)
-	NOTES
 	BSS_SECTION(4, 4, 4)
 	_end = .;
 

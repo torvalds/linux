@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014 Zhang, Keguang <keguang.zhang@gmail.com>
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -53,7 +49,7 @@ static inline void ls1x_pwmtimer_restart(void)
 
 void __init ls1x_pwmtimer_init(void)
 {
-	timer_reg_base = ioremap_nocache(LS1X_TIMER_BASE, SZ_16);
+	timer_reg_base = ioremap(LS1X_TIMER_BASE, SZ_16);
 	if (!timer_reg_base)
 		panic("Failed to remap timer registers");
 
@@ -180,13 +176,6 @@ static struct clock_event_device ls1x_clockevent = {
 	.tick_resume		= ls1x_clockevent_tick_resume,
 };
 
-static struct irqaction ls1x_pwmtimer_irqaction = {
-	.name		= "ls1x-pwmtimer",
-	.handler	= ls1x_clockevent_isr,
-	.dev_id		= &ls1x_clockevent,
-	.flags		= IRQF_PERCPU | IRQF_TIMER,
-};
-
 static void __init ls1x_time_init(void)
 {
 	struct clock_event_device *cd = &ls1x_clockevent;
@@ -210,7 +199,10 @@ static void __init ls1x_time_init(void)
 	if (ret)
 		panic(KERN_ERR "Failed to register clocksource: %d\n", ret);
 
-	setup_irq(LS1X_TIMER_IRQ, &ls1x_pwmtimer_irqaction);
+	if (request_irq(LS1X_TIMER_IRQ, ls1x_clockevent_isr,
+			IRQF_PERCPU | IRQF_TIMER, "ls1x-pwmtimer",
+			&ls1x_clockevent))
+		pr_err("Failed to register ls1x-pwmtimer interrupt\n");
 }
 #endif /* CONFIG_CEVT_CSRC_LS1X */
 

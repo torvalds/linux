@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * call-path.h: Manipulate a tree data structure containing function call paths
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
+#include <stdlib.h>
 
-#include "util.h"
 #include "call-path.h"
 
 static void call_path__init(struct call_path *cp, struct call_path *parent,
@@ -48,7 +40,7 @@ void call_path_root__free(struct call_path_root *cpr)
 	struct call_path_block *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &cpr->blocks, node) {
-		list_del(&pos->node);
+		list_del_init(&pos->node);
 		free(pos);
 	}
 	free(cpr);

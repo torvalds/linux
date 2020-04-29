@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -112,6 +112,8 @@ struct lpfc_nodelist {
 	uint8_t         nlp_retry;		/* used for ELS retries */
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
+	u8		nlp_nvme_info;	        /* NVME NSLER Support */
+#define NLP_NVME_NSLER     0x1			/* NVME NSLER device */
 
 	uint16_t        nlp_usg_map;	/* ndlp management usage bitmap */
 #define NLP_USG_NODE_ACT_BIT	0x1	/* Indicate ndlp is actively used */
@@ -138,6 +140,7 @@ struct lpfc_nodelist {
 
 	uint32_t nvme_fb_size; /* NVME target's supported byte cnt */
 #define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
+	uint32_t nlp_defer_did;
 };
 struct lpfc_node_rrq {
 	struct list_head list;
@@ -150,9 +153,13 @@ struct lpfc_node_rrq {
 	unsigned long rrq_stop_time;
 };
 
+#define lpfc_ndlp_check_qdepth(phba, ndlp) \
+	(ndlp->cmd_qdepth < phba->sli4_hba.max_cfg_param.max_xri)
+
 /* Defines for nlp_flag (uint32) */
 #define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
 #define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */
+#define NLP_RELEASE_RPI    0x00000004   /* Release RPI to free pool */
 #define NLP_SUPPRESS_RSP   0x00000010	/* Remote NPort supports suppress rsp */
 #define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
@@ -162,6 +169,7 @@ struct lpfc_node_rrq {
 #define NLP_ELS_SND_MASK   0x000007e0	/* sent ELS request for this entry */
 #define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
 #define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does not support FCP PRLI. */
+#define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
 #define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
 #define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
@@ -290,4 +298,4 @@ struct lpfc_node_rrq {
 #define NLP_EVT_DEVICE_RM         0xb	/* Device not found in NS / ALPAmap */
 #define NLP_EVT_DEVICE_RECOVERY   0xc	/* Device existence unknown */
 #define NLP_EVT_MAX_EVENT         0xd
-
+#define NLP_EVT_NOTHING_PENDING   0xff

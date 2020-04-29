@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_SEQ_MIDI_EVENT_H
 #define __SOUND_SEQ_MIDI_EVENT_H
 
@@ -6,20 +7,6 @@
  *
  *  Copyright (C) 1998,99 Takashi Iwai <tiwai@suse.de>,
  *                        Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <sound/asequencer.h>
@@ -43,10 +30,8 @@ void snd_midi_event_free(struct snd_midi_event *dev);
 void snd_midi_event_reset_encode(struct snd_midi_event *dev);
 void snd_midi_event_reset_decode(struct snd_midi_event *dev);
 void snd_midi_event_no_status(struct snd_midi_event *dev, int on);
-/* encode from byte stream - return number of written bytes if success */
-long snd_midi_event_encode(struct snd_midi_event *dev, unsigned char *buf, long count,
-			   struct snd_seq_event *ev);
-int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c, struct snd_seq_event *ev);
+bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
+				struct snd_seq_event *ev);
 /* decode from event to bytes - return number of written bytes if success */
 long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long count,
 			   struct snd_seq_event *ev);

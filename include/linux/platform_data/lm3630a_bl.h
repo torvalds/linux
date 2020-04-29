@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
 * Simple driver for Texas Instruments LM3630A LED Flash driver chip
 * Copyright (C) 2012 Texas Instruments
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
 */
 
 #ifndef __LINUX_LM3630A_H
@@ -38,9 +34,11 @@ enum lm3630a_ledb_ctrl {
 
 #define LM3630A_MAX_BRIGHTNESS 255
 /*
+ *@leda_label    : optional led a label.
  *@leda_init_brt : led a init brightness. 4~255
  *@leda_max_brt  : led a max brightness.  4~255
  *@leda_ctrl     : led a disable, enable linear, enable exponential
+ *@ledb_label    : optional led b label.
  *@ledb_init_brt : led b init brightness. 4~255
  *@ledb_max_brt  : led b max brightness.  4~255
  *@ledb_ctrl     : led b disable, enable linear, enable exponential
@@ -50,10 +48,12 @@ enum lm3630a_ledb_ctrl {
 struct lm3630a_platform_data {
 
 	/* led a config.  */
+	const char *leda_label;
 	int leda_init_brt;
 	int leda_max_brt;
 	enum lm3630a_leda_ctrl leda_ctrl;
 	/* led b config. */
+	const char *ledb_label;
 	int ledb_init_brt;
 	int ledb_max_brt;
 	enum lm3630a_ledb_ctrl ledb_ctrl;

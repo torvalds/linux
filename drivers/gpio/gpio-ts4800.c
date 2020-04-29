@@ -23,7 +23,6 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
 	struct gpio_chip *chip;
-	struct resource *res;
 	void __iomem *base_addr;
 	int retval;
 	u32 ngpios;
@@ -32,8 +31,7 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base_addr = devm_ioremap_resource(&pdev->dev, res);
+	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atmel-pcm.c  --  ALSA PCM interface for the Atmel atmel SoC.
  *
@@ -15,20 +16,6 @@
  * Author:	Nicolas Pitre
  * Created:	Nov 30, 2004
  * Copyright:	(C) 2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -69,15 +56,17 @@ static int atmel_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	return 0;
 }
 
-static int atmel_pcm_mmap(struct snd_pcm_substream *substream,
-	struct vm_area_struct *vma)
+static int atmel_pcm_mmap(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
+			  struct vm_area_struct *vma)
 {
 	return remap_pfn_range(vma, vma->vm_start,
 		       substream->dma_buffer.addr >> PAGE_SHIFT,
 		       vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int atmel_pcm_new(struct snd_soc_component *component,
+			 struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -106,7 +95,8 @@ static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static void atmel_pcm_free(struct snd_pcm *pcm)
+static void atmel_pcm_free(struct snd_soc_component *component,
+			   struct snd_pcm *pcm)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_dma_buffer *buf;
@@ -209,8 +199,9 @@ static void atmel_pcm_dma_irq(u32 ssc_sr,
 /*--------------------------------------------------------------------------*\
  * PCM operations
 \*--------------------------------------------------------------------------*/
-static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int atmel_pcm_hw_params(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd = runtime->private_data;
@@ -222,7 +213,7 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
 
-	prtd->params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	prtd->params = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 	prtd->params->dma_intr_handler = atmel_pcm_dma_irq;
 
 	prtd->dma_buffer = runtime->dma_addr;
@@ -238,7 +229,8 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int atmel_pcm_hw_free(struct snd_pcm_substream *substream)
+static int atmel_pcm_hw_free(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 	struct atmel_pcm_dma_params *params = prtd->params;
@@ -252,7 +244,8 @@ static int atmel_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_prepare(struct snd_pcm_substream *substream)
+static int atmel_pcm_prepare(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 	struct atmel_pcm_dma_params *params = prtd->params;
@@ -264,8 +257,8 @@ static int atmel_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
-	int cmd)
+static int atmel_pcm_trigger(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *rtd = substream->runtime;
 	struct atmel_runtime_data *prtd = rtd->private_data;
@@ -330,8 +323,8 @@ static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static snd_pcm_uframes_t atmel_pcm_pointer(
-	struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t atmel_pcm_pointer(struct snd_soc_component *component,
+					   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd = runtime->private_data;
@@ -348,7 +341,8 @@ static snd_pcm_uframes_t atmel_pcm_pointer(
 	return x;
 }
 
-static int atmel_pcm_open(struct snd_pcm_substream *substream)
+static int atmel_pcm_open(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd;
@@ -373,7 +367,8 @@ static int atmel_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int atmel_pcm_close(struct snd_pcm_substream *substream)
+static int atmel_pcm_close(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 
@@ -381,22 +376,17 @@ static int atmel_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_pcm_ops atmel_pcm_ops = {
+static const struct snd_soc_component_driver atmel_soc_platform = {
 	.open		= atmel_pcm_open,
 	.close		= atmel_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
 	.hw_free	= atmel_pcm_hw_free,
 	.prepare	= atmel_pcm_prepare,
 	.trigger	= atmel_pcm_trigger,
 	.pointer	= atmel_pcm_pointer,
 	.mmap		= atmel_pcm_mmap,
-};
-
-static struct snd_soc_component_driver atmel_soc_platform = {
-	.ops		= &atmel_pcm_ops,
-	.pcm_new	= atmel_pcm_new,
-	.pcm_free	= atmel_pcm_free,
+	.pcm_construct	= atmel_pcm_new,
+	.pcm_destruct	= atmel_pcm_free,
 };
 
 int atmel_pcm_pdc_platform_register(struct device *dev)
@@ -405,11 +395,6 @@ int atmel_pcm_pdc_platform_register(struct device *dev)
 					       NULL, 0);
 }
 EXPORT_SYMBOL(atmel_pcm_pdc_platform_register);
-
-void atmel_pcm_pdc_platform_unregister(struct device *dev)
-{
-}
-EXPORT_SYMBOL(atmel_pcm_pdc_platform_unregister);
 
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");

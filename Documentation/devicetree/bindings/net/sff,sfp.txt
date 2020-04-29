@@ -7,10 +7,10 @@ Required properties:
   "sff,sfp" for SFP modules
   "sff,sff" for soldered down SFF modules
 
-Optional Properties:
-
 - i2c-bus : phandle of an I2C bus controller for the SFP two wire serial
   interface
+
+Optional Properties:
 
 - mod-def0-gpios : GPIO phandle and a specifier of the MOD-DEF0 (AKA Mod_ABS)
   module presence input gpio signal, active (module absent) high. Must

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NFC Digital Protocol stack
  * Copyright (c) 2013, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #define pr_fmt(fmt) "digital: %s: " fmt, __func__
@@ -80,7 +71,7 @@ struct digital_atr_req {
 	u8 bs;
 	u8 br;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_atr_res {
@@ -92,7 +83,7 @@ struct digital_atr_res {
 	u8 br;
 	u8 to;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_psl_req {

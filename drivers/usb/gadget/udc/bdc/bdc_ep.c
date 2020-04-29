@@ -138,9 +138,9 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		__func__, ep, num_tabs);
 
 	/* Allocate memory for table array */
-	ep->bd_list.bd_table_array = kzalloc(
-					num_tabs * sizeof(struct bd_table *),
-					GFP_ATOMIC);
+	ep->bd_list.bd_table_array = kcalloc(num_tabs,
+					     sizeof(struct bd_table *),
+					     GFP_ATOMIC);
 	if (!ep->bd_list.bd_table_array)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static void bdc_req_complete(struct bdc_ep *ep, struct bdc_req *req,
 {
 	struct bdc *bdc = ep->bdc;
 
-	if (req == NULL  || &req->queue == NULL || &req->usb_req == NULL)
+	if (req == NULL)
 		return;
 
 	dev_dbg(bdc->dev, "%s ep:%s status:%d\n", __func__, ep->name, status);

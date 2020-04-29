@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Unaligned memory access handler
  *
  *    Copyright (C) 2001 Randolph Chung <tausq@debian.org>
  *    Significantly tweaked by LaMont Jones <lamont@debian.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/jiffies.h>
@@ -452,7 +438,6 @@ void handle_unaligned(struct pt_regs *regs)
 	unsigned long newbase = R1(regs->iir)?regs->gr[R1(regs->iir)]:0;
 	int modify = 0;
 	int ret = ERR_NOTHANDLED;
-	struct siginfo si;
 	register int flop=0;	/* true if this is a flop */
 
 	__inc_irq_stat(irq_unaligned_count);
@@ -690,21 +675,15 @@ void handle_unaligned(struct pt_regs *regs)
 
 		if (ret == ERR_PAGEFAULT)
 		{
-			si.si_signo = SIGSEGV;
-			si.si_errno = 0;
-			si.si_code = SEGV_MAPERR;
-			si.si_addr = (void __user *)regs->ior;
-			force_sig_info(SIGSEGV, &si, current);
+			force_sig_fault(SIGSEGV, SEGV_MAPERR,
+					(void __user *)regs->ior);
 		}
 		else
 		{
 force_sigbus:
 			/* couldn't handle it ... */
-			si.si_signo = SIGBUS;
-			si.si_errno = 0;
-			si.si_code = BUS_ADRALN;
-			si.si_addr = (void __user *)regs->ior;
-			force_sig_info(SIGBUS, &si, current);
+			force_sig_fault(SIGBUS, BUS_ADRALN,
+					(void __user *)regs->ior);
 		}
 		
 		return;

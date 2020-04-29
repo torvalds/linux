@@ -1,0 +1,20 @@
+MT8183 with MT6358, TS3A227 and MAX98357 CODECS
+
+Required properties:
+- compatible : "mediatek,mt8183_mt6358_ts3a227_max98357"
+- mediatek,platform: the phandle of MT8183 ASoC platform
+
+Optional properties:
+- mediatek,headset-codec: the phandles of ts3a227 codecs
+- mediatek,ec-codec: the phandle of EC codecs.
+                     See google,cros-ec-codec.txt for more details.
+
+Example:
+
+	sound {
+		compatible = "mediatek,mt8183_mt6358_ts3a227_max98357";
+		mediatek,headset-codec = <&ts3a227>;
+		mediatek,ec-codec = <&ec_codec>;
+		mediatek,platform = <&afe>;
+	};
+

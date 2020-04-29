@@ -19,7 +19,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="TreeRCU-gp-init-2.svg">
+   sodipodi:docname="TreeRCU-gp-init-3.svg">
   <metadata
      id="metadata212">
     <rdf:RDF>
@@ -257,18 +257,22 @@
      inkscape:window-width="1087"
      inkscape:window-height="1144"
      id="namedview208"
-     showgrid="false"
-     inkscape:zoom="0.70710678"
+     showgrid="true"
+     inkscape:zoom="0.68224756"
      inkscape:cx="617.89019"
      inkscape:cy="625.84293"
-     inkscape:window-x="697"
+     inkscape:window-x="54"
      inkscape:window-y="28"
      inkscape:window-maximized="0"
-     inkscape:current-layer="svg2"
+     inkscape:current-layer="g3153"
      fit-margin-top="5"
      fit-margin-right="5"
      fit-margin-left="5"
-     fit-margin-bottom="5" />
+     fit-margin-bottom="5">
+    <inkscape:grid
+       type="xygrid"
+       id="grid3090" />
+  </sodipodi:namedview>
   <path
      sodipodi:nodetypes="cccccccccccccccccccccccc"
      inkscape:connector-curvature="0"
@@ -281,13 +285,13 @@
      id="g3188">
     <text
        xml:space="preserve"
-       x="3305.5364"
+       x="3145.9592"
        y="13255.592"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
     <g
        id="g3107"
        transform="translate(947.90548,11584.029)">
@@ -366,13 +370,13 @@
     </g>
     <text
        xml:space="preserve"
-       x="5392.3345"
-       y="15407.104"
+       x="5253.6904"
+       y="15407.032"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-6"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
   </g>
   <g
      style="fill:none;stroke-width:0.025in"
@@ -413,13 +417,13 @@
          id="tspan3104-6-5-6-0">Leaf</tspan></text>
     <text
        xml:space="preserve"
-       x="7536.4883"
-       y="17640.934"
+       x="7415.4365"
+       y="17670.572"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-9"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
   </g>
   <g
      transform="translate(-1642.5375,-11610.962)"
@@ -448,13 +452,13 @@
     </g>
     <text
        xml:space="preserve"
-       x="5378.4146"
-       y="15436.927"
+       x="5258.0688"
+       y="15412.313"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-3"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
   </g>
   <g
      transform="translate(-151.71726,-11647.329)"
@@ -533,13 +537,13 @@
          id="tspan3104-6-5-6-0-92">Leaf</tspan></text>
     <text
        xml:space="preserve"
-       x="7520.1294"
-       y="17673.639"
+       x="7405.2607"
+       y="17670.572"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-35"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
   </g>
   <g
      transform="translate(-6817.1998,-11647.329)"
@@ -580,13 +584,13 @@
          id="tspan3104-6-5-6-0-1">Leaf</tspan></text>
     <text
        xml:space="preserve"
-       x="7521.4663"
-       y="17666.062"
+       x="7413.4688"
+       y="17670.566"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-75"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
   </g>
   <path
      style="fill:none;stroke:#000000;stroke-width:13.29812908px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
@@ -622,11 +626,11 @@
      sodipodi:nodetypes="cc" />
   <text
      xml:space="preserve"
-     x="7370.856"
-     y="5997.5972"
+     x="7271.9297"
+     y="6023.2412"
      font-style="normal"
      font-weight="bold"
      font-size="192"
      id="text202-62"
-     style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gpnum = rsp-&gt;gpnum</text>
+     style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;gp_seq = rsp-&gt;gp_seq</text>
 </svg>

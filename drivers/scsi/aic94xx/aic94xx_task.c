@@ -1,27 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx SAS/SATA Tasks
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/spinlock.h>
@@ -42,13 +24,13 @@ static void asd_can_dequeue(struct asd_ha_struct *asd_ha, int num)
 	spin_unlock_irqrestore(&asd_ha->seq.pend_q_lock, flags);
 }
 
-/* PCI_DMA_... to our direction translation.
+/* DMA_... to our direction translation.
  */
 static const u8 data_dir_flags[] = {
-	[PCI_DMA_BIDIRECTIONAL] = DATA_DIR_BYRECIPIENT,	/* UNSPECIFIED */
-	[PCI_DMA_TODEVICE]      = DATA_DIR_OUT, /* OUTBOUND */
-	[PCI_DMA_FROMDEVICE]    = DATA_DIR_IN, /* INBOUND */
-	[PCI_DMA_NONE]          = DATA_DIR_NONE, /* NO TRANSFER */
+	[DMA_BIDIRECTIONAL]	= DATA_DIR_BYRECIPIENT,	/* UNSPECIFIED */
+	[DMA_TO_DEVICE]		= DATA_DIR_OUT,		/* OUTBOUND */
+	[DMA_FROM_DEVICE]	= DATA_DIR_IN,		/* INBOUND */
+	[DMA_NONE]		= DATA_DIR_NONE,	/* NO TRANSFER */
 };
 
 static int asd_map_scatterlist(struct sas_task *task,
@@ -60,12 +42,12 @@ static int asd_map_scatterlist(struct sas_task *task,
 	struct scatterlist *sc;
 	int num_sg, res;
 
-	if (task->data_dir == PCI_DMA_NONE)
+	if (task->data_dir == DMA_NONE)
 		return 0;
 
 	if (task->num_scatter == 0) {
 		void *p = task->scatter;
-		dma_addr_t dma = pci_map_single(asd_ha->pcidev, p,
+		dma_addr_t dma = dma_map_single(&asd_ha->pcidev->dev, p,
 						task->total_xfer_len,
 						task->data_dir);
 		sg_arr[0].bus_addr = cpu_to_le64((u64)dma);
@@ -79,7 +61,7 @@ static int asd_map_scatterlist(struct sas_task *task,
 	if (sas_protocol_ata(task->task_proto))
 		num_sg = task->num_scatter;
 	else
-		num_sg = pci_map_sg(asd_ha->pcidev, task->scatter,
+		num_sg = dma_map_sg(&asd_ha->pcidev->dev, task->scatter,
 				    task->num_scatter, task->data_dir);
 	if (num_sg == 0)
 		return -ENOMEM;
@@ -126,8 +108,8 @@ static int asd_map_scatterlist(struct sas_task *task,
 	return 0;
 err_unmap:
 	if (sas_protocol_ata(task->task_proto))
-		pci_unmap_sg(asd_ha->pcidev, task->scatter, task->num_scatter,
-			     task->data_dir);
+		dma_unmap_sg(&asd_ha->pcidev->dev, task->scatter,
+			     task->num_scatter, task->data_dir);
 	return res;
 }
 
@@ -136,21 +118,21 @@ static void asd_unmap_scatterlist(struct asd_ascb *ascb)
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct sas_task *task = ascb->uldd_task;
 
-	if (task->data_dir == PCI_DMA_NONE)
+	if (task->data_dir == DMA_NONE)
 		return;
 
 	if (task->num_scatter == 0) {
 		dma_addr_t dma = (dma_addr_t)
 		       le64_to_cpu(ascb->scb->ssp_task.sg_element[0].bus_addr);
-		pci_unmap_single(ascb->ha->pcidev, dma, task->total_xfer_len,
-				 task->data_dir);
+		dma_unmap_single(&ascb->ha->pcidev->dev, dma,
+				 task->total_xfer_len, task->data_dir);
 		return;
 	}
 
 	asd_free_coherent(asd_ha, ascb->sg_arr);
 	if (task->task_proto != SAS_PROTOCOL_STP)
-		pci_unmap_sg(asd_ha->pcidev, task->scatter, task->num_scatter,
-			     task->data_dir);
+		dma_unmap_sg(&asd_ha->pcidev->dev, task->scatter,
+			     task->num_scatter, task->data_dir);
 }
 
 /* ---------- Task complete tasklet ---------- */
@@ -436,10 +418,10 @@ static int asd_build_smp_ascb(struct asd_ascb *ascb, struct sas_task *task,
 	struct domain_device *dev = task->dev;
 	struct scb *scb;
 
-	pci_map_sg(asd_ha->pcidev, &task->smp_task.smp_req, 1,
-		   PCI_DMA_TODEVICE);
-	pci_map_sg(asd_ha->pcidev, &task->smp_task.smp_resp, 1,
-		   PCI_DMA_FROMDEVICE);
+	dma_map_sg(&asd_ha->pcidev->dev, &task->smp_task.smp_req, 1,
+		   DMA_TO_DEVICE);
+	dma_map_sg(&asd_ha->pcidev->dev, &task->smp_task.smp_resp, 1,
+		   DMA_FROM_DEVICE);
 
 	scb = ascb->scb;
 
@@ -471,10 +453,10 @@ static void asd_unbuild_smp_ascb(struct asd_ascb *a)
 	struct sas_task *task = a->uldd_task;
 
 	BUG_ON(!task);
-	pci_unmap_sg(a->ha->pcidev, &task->smp_task.smp_req, 1,
-		     PCI_DMA_TODEVICE);
-	pci_unmap_sg(a->ha->pcidev, &task->smp_task.smp_resp, 1,
-		     PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&a->ha->pcidev->dev, &task->smp_task.smp_req, 1,
+		     DMA_TO_DEVICE);
+	dma_unmap_sg(&a->ha->pcidev->dev, &task->smp_task.smp_resp, 1,
+		     DMA_FROM_DEVICE);
 }
 
 /* ---------- SSP ---------- */

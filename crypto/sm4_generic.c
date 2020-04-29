@@ -143,29 +143,23 @@ int crypto_sm4_expand_key(struct crypto_sm4_ctx *ctx, const u8 *in_key,
 EXPORT_SYMBOL_GPL(crypto_sm4_expand_key);
 
 /**
- * crypto_sm4_set_key - Set the AES key.
+ * crypto_sm4_set_key - Set the SM4 key.
  * @tfm:	The %crypto_tfm that is used in the context.
  * @in_key:	The input key.
  * @key_len:	The size of the key.
  *
- * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. The function uses crypto_sm4_expand_key() to expand the key.
+ * This function uses crypto_sm4_expand_key() to expand the key.
  * &crypto_sm4_ctx _must_ be the private data embedded in @tfm which is
  * retrieved with crypto_tfm_ctx().
+ *
+ * Return: 0 on success; -EINVAL on failure (only happens for bad key lengths)
  */
 int crypto_sm4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
 	struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int ret;
 
-	ret = crypto_sm4_expand_key(ctx, in_key, key_len);
-	if (!ret)
-		return 0;
-
-	*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-	return -EINVAL;
+	return crypto_sm4_expand_key(ctx, in_key, key_len);
 }
 EXPORT_SYMBOL_GPL(crypto_sm4_set_key);
 
@@ -190,21 +184,23 @@ static void sm4_do_crypt(const u32 *rk, u32 *out, const u32 *in)
 
 /* encrypt a block of text */
 
-static void sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_do_crypt(ctx->rkey_enc, (u32 *)out, (u32 *)in);
 }
+EXPORT_SYMBOL_GPL(crypto_sm4_encrypt);
 
 /* decrypt a block of text */
 
-static void sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_do_crypt(ctx->rkey_dec, (u32 *)out, (u32 *)in);
 }
+EXPORT_SYMBOL_GPL(crypto_sm4_decrypt);
 
 static struct crypto_alg sm4_alg = {
 	.cra_name		=	"sm4",
@@ -219,8 +215,8 @@ static struct crypto_alg sm4_alg = {
 			.cia_min_keysize	=	SM4_KEY_SIZE,
 			.cia_max_keysize	=	SM4_KEY_SIZE,
 			.cia_setkey		=	crypto_sm4_set_key,
-			.cia_encrypt		=	sm4_encrypt,
-			.cia_decrypt		=	sm4_decrypt
+			.cia_encrypt		=	crypto_sm4_encrypt,
+			.cia_decrypt		=	crypto_sm4_decrypt
 		}
 	}
 };
@@ -235,7 +231,7 @@ static void __exit sm4_fini(void)
 	crypto_unregister_alg(&sm4_alg);
 }
 
-module_init(sm4_init);
+subsys_initcall(sm4_init);
 module_exit(sm4_fini);
 
 MODULE_DESCRIPTION("SM4 Cipher Algorithm");

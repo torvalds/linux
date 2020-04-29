@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kxsd9.c	simple support for the Kionix KXSD9 3D
  *		accelerometer.
  *
  * Copyright (c) 2008-2009 Jonathan Cameron <jic23@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The i2c interface is very similar, so shouldn't be a problem once
  * I have a suitable wire made up.
@@ -420,9 +417,7 @@ int kxsd9_common_probe(struct device *dev,
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
 
 	/* Read the mounting matrix, if present */
-	ret = of_iio_read_mount_matrix(dev,
-				       "mount-matrix",
-				       &st->orientation);
+	ret = iio_read_mount_matrix(dev, "mount-matrix", &st->orientation);
 	if (ret)
 		return ret;
 

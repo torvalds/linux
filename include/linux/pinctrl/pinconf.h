@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Interface the pinconfig portions of the pinctrl subsystem
  *
@@ -6,15 +7,11 @@
  * This interface is used in the core to keep track of pins.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef __LINUX_PINCTRL_PINCONF_H
 #define __LINUX_PINCTRL_PINCONF_H
 
-#ifdef CONFIG_PINCONF
-
-#include <linux/pinctrl/machine.h>
+#include <linux/types.h>
 
 struct pinctrl_dev;
 struct seq_file;
@@ -28,9 +25,9 @@ struct seq_file;
  *	is not available on this controller this should return -ENOTSUPP
  *	and if it is available but disabled it should return -EINVAL
  * @pin_config_set: configure an individual pin
- * @pin_config_group_get: get configurations for an entire pin group
+ * @pin_config_group_get: get configurations for an entire pin group; should
+ *	return -ENOTSUPP and -EINVAL using the same rules as pin_config_get.
  * @pin_config_group_set: configure all pins in a group
- * @pin_config_dbg_parse_modify: optional debugfs to modify a pin configuration
  * @pin_config_dbg_show: optional debugfs display hook that will provide
  *	per-device info for a certain pin in debugfs
  * @pin_config_group_dbg_show: optional debugfs display hook that will provide
@@ -56,9 +53,6 @@ struct pinconf_ops {
 				     unsigned selector,
 				     unsigned long *configs,
 				     unsigned num_configs);
-	int (*pin_config_dbg_parse_modify) (struct pinctrl_dev *pctldev,
-					   const char *arg,
-					   unsigned long *config);
 	void (*pin_config_dbg_show) (struct pinctrl_dev *pctldev,
 				     struct seq_file *s,
 				     unsigned offset);
@@ -69,7 +63,5 @@ struct pinconf_ops {
 					    struct seq_file *s,
 					    unsigned long config);
 };
-
-#endif
 
 #endif /* __LINUX_PINCTRL_PINCONF_H */

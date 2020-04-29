@@ -82,7 +82,10 @@ This defines voltage-current-frequency combinations along with other related
 properties.
 
 Required properties:
-- opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer.
+- opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
+  required property for all device nodes but devices like power domains. The
+  power domain nodes must have another (implementation dependent) property which
+  uniquely identifies the OPP nodes.
 
 Optional properties:
 - opp-microvolt: voltage in micro Volts.
@@ -126,6 +129,9 @@ Optional properties:
 - opp-microamp-<name>: Named opp-microamp property. Similar to
   opp-microvolt-<name> property, but for microamp instead.
 
+- opp-level: A value representing the performance level of the device,
+  expressed as a 32-bit integer.
+
 - clock-latency-ns: Specifies the maximum possible transition latency (in
   nanoseconds) for switching to this OPP from any other OPP.
 
@@ -134,8 +140,8 @@ Optional properties:
   frequency for a short duration of time limited by the device's power, current
   and thermal limits.
 
-- opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
-  the table should have this.
+- opp-suspend: Marks the OPP to be used during device suspend. If multiple OPPs
+  in the table have this, the OPP with highest opp-hz will be used.
 
 - opp-supported-hw: This enables us to select only a subset of OPPs from the
   larger OPP table, based on what version of the hardware we are running on. We
@@ -159,7 +165,7 @@ Optional properties:
 
 - status: Marks the node enabled/disabled.
 
-- required-opp: This contains phandle to an OPP node in another device's OPP
+- required-opps: This contains phandle to an OPP node in another device's OPP
   table. It may contain an array of phandles, where each phandle points to an
   OPP of a different device. It should not contain multiple phandles to the OPP
   nodes in the same OPP table. This specifies the minimum required OPP of the

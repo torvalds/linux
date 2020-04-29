@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _v4l2-selection-targets:
 
@@ -31,8 +38,10 @@ of the two interfaces they are used.
     * - ``V4L2_SEL_TGT_CROP_DEFAULT``
       - 0x0001
       - Suggested cropping rectangle that covers the "whole picture".
+        This includes only active pixels and excludes other non-active
+        pixels such as black pixels.
       - Yes
-      - No
+      - Yes
     * - ``V4L2_SEL_TGT_CROP_BOUNDS``
       - 0x0002
       - Bounds of the crop rectangle. All valid crop rectangles fit inside
@@ -42,12 +51,7 @@ of the two interfaces they are used.
     * - ``V4L2_SEL_TGT_NATIVE_SIZE``
       - 0x0003
       - The native size of the device, e.g. a sensor's pixel array.
-	``left`` and ``top`` fields are zero for this target. Setting the
-	native size will generally only make sense for memory to memory
-	devices where the software can create a canvas of a given size in
-	which for example a video frame can be composed. In that case
-	V4L2_SEL_TGT_NATIVE_SIZE can be used to configure the size of
-	that canvas.
+	``left`` and ``top`` fields are zero for this target.
       - Yes
       - Yes
     * - ``V4L2_SEL_TGT_COMPOSE``

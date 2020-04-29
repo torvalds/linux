@@ -85,7 +85,7 @@ static int harddog_open(struct inode *inode, struct file *file)
 	timer_alive = 1;
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 err:
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);
@@ -165,6 +165,7 @@ static const struct file_operations harddog_fops = {
 	.owner		= THIS_MODULE,
 	.write		= harddog_write,
 	.unlocked_ioctl	= harddog_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= harddog_open,
 	.release	= harddog_release,
 	.llseek		= no_llseek,

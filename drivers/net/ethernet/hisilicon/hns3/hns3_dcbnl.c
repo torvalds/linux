@@ -1,19 +1,15 @@
-/*
- * Copyright (c) 2016-2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include "hnae3.h"
 #include "hns3_enet.h"
 
-static
-int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
+static int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
 
 	if (h->kinfo.dcb_ops->ieee_getets)
 		return h->kinfo.dcb_ops->ieee_getets(h, ets);
@@ -21,10 +17,12 @@ int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
 	return -EOPNOTSUPP;
 }
 
-static
-int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
+static int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
 
 	if (h->kinfo.dcb_ops->ieee_setets)
 		return h->kinfo.dcb_ops->ieee_setets(h, ets);
@@ -32,10 +30,12 @@ int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
 	return -EOPNOTSUPP;
 }
 
-static
-int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
+static int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
 
 	if (h->kinfo.dcb_ops->ieee_getpfc)
 		return h->kinfo.dcb_ops->ieee_getpfc(h, pfc);
@@ -43,10 +43,12 @@ int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 	return -EOPNOTSUPP;
 }
 
-static
-int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
+static int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
+
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
 
 	if (h->kinfo.dcb_ops->ieee_setpfc)
 		return h->kinfo.dcb_ops->ieee_setpfc(h, pfc);

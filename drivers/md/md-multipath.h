@@ -13,7 +13,7 @@ struct mpconf {
 	spinlock_t		device_lock;
 	struct list_head	retry_list;
 
-	mempool_t		*pool;
+	mempool_t		pool;
 };
 
 /*

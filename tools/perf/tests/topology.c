@@ -2,11 +2,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <perf/cpumap.h>
+#include "cpumap.h"
 #include "tests.h"
-#include "util.h"
 #include "session.h"
 #include "evlist.h"
 #include "debug.h"
+#include <linux/err.h>
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 #define DATA_SIZE	10
@@ -38,13 +40,14 @@ static int session_write_header(char *path)
 	};
 
 	session = perf_session__new(&data, false, NULL);
-	TEST_ASSERT_VAL("can't get session", session);
+	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
 
 	session->evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("can't get evlist", session->evlist);
 
 	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);
 	perf_header__set_feat(&session->header, HEADER_NRCPUS);
+	perf_header__set_feat(&session->header, HEADER_ARCH);
 
 	session->header.data_size += DATA_SIZE;
 
@@ -56,7 +59,7 @@ static int session_write_header(char *path)
 	return 0;
 }
 
-static int check_cpu_topology(char *path, struct cpu_map *map)
+static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 {
 	struct perf_session *session;
 	struct perf_data data = {
@@ -68,7 +71,28 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 	int i;
 
 	session = perf_session__new(&data, false, NULL);
-	TEST_ASSERT_VAL("can't get session", session);
+	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
+
+	/* On platforms with large numbers of CPUs process_cpu_topology()
+	 * might issue an error while reading the perf.data file section
+	 * HEADER_CPU_TOPOLOGY and the cpu_topology_map pointed to by member
+	 * cpu is a NULL pointer.
+	 * Example: On s390
+	 *   CPU 0 is on core_id 0 and physical_package_id 6
+	 *   CPU 1 is on core_id 1 and physical_package_id 3
+	 *
+	 *   Core_id and physical_package_id are platform and architecture
+	 *   dependend and might have higher numbers than the CPU id.
+	 *   This actually depends on the configuration.
+	 *
+	 *  In this case process_cpu_topology() prints error message:
+	 *  "socket_id number is too big. You may need to upgrade the
+	 *  perf tool."
+	 *
+	 *  This is the reason why this test might be skipped.
+	 */
+	if (!session->header.env.cpu)
+		return TEST_SKIP;
 
 	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
 		if (!cpu_map__has(map, i))
@@ -94,8 +118,8 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
-	struct cpu_map *map;
-	int ret = -1;
+	struct perf_cpu_map *map;
+	int ret = TEST_FAIL;
 
 	TEST_ASSERT_VAL("can't get templ file", !get_temp(path));
 
@@ -104,18 +128,15 @@ int test__session_topology(struct test *test __maybe_unused, int subtest __maybe
 	if (session_write_header(path))
 		goto free_path;
 
-	map = cpu_map__new(NULL);
+	map = perf_cpu_map__new(NULL);
 	if (map == NULL) {
 		pr_debug("failed to get system cpumap\n");
 		goto free_path;
 	}
 
-	if (check_cpu_topology(path, map))
-		goto free_map;
-	ret = 0;
+	ret = check_cpu_topology(path, map);
+	perf_cpu_map__put(map);
 
-free_map:
-	cpu_map__put(map);
 free_path:
 	unlink(path);
 	return ret;

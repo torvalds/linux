@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #ifndef _QTN_FMAC_QLINK_UTIL_H_
 #define _QTN_FMAC_QLINK_UTIL_H_
@@ -33,28 +20,19 @@ static inline void qtnf_cmd_skb_put_tlv_arr(struct sk_buff *skb,
 					    u16 tlv_id, const u8 arr[],
 					    size_t arr_len)
 {
-	struct qlink_tlv_hdr *hdr = skb_put(skb, sizeof(*hdr) + arr_len);
+	struct qlink_tlv_hdr *hdr;
 
+	hdr = skb_put(skb, sizeof(*hdr) + round_up(arr_len, QLINK_ALIGN));
 	hdr->type = cpu_to_le16(tlv_id);
 	hdr->len = cpu_to_le16(arr_len);
 	memcpy(hdr->val, arr, arr_len);
 }
 
-static inline void qtnf_cmd_skb_put_tlv_u8(struct sk_buff *skb, u16 tlv_id,
-					   u8 value)
+static inline void qtnf_cmd_skb_put_tlv_u32(struct sk_buff *skb,
+					    u16 tlv_id, u32 value)
 {
 	struct qlink_tlv_hdr *hdr = skb_put(skb, sizeof(*hdr) + sizeof(value));
-
-	hdr->type = cpu_to_le16(tlv_id);
-	hdr->len = cpu_to_le16(sizeof(value));
-	*hdr->val = value;
-}
-
-static inline void qtnf_cmd_skb_put_tlv_u16(struct sk_buff *skb,
-					    u16 tlv_id, u16 value)
-{
-	struct qlink_tlv_hdr *hdr = skb_put(skb, sizeof(*hdr) + sizeof(value));
-	__le16 tmp = cpu_to_le16(value);
+	__le32 tmp = cpu_to_le32(value);
 
 	hdr->type = cpu_to_le16(tlv_id);
 	hdr->len = cpu_to_le16(sizeof(value));
@@ -73,5 +51,23 @@ bool qtnf_utils_is_bit_set(const u8 *arr, unsigned int bit,
 			   unsigned int arr_max_len);
 void qlink_acl_data_cfg2q(const struct cfg80211_acl_data *acl,
 			  struct qlink_acl_data *qacl);
+enum qlink_band qlink_utils_band_cfg2q(enum nl80211_band band);
+enum qlink_dfs_state qlink_utils_dfs_state_cfg2q(enum nl80211_dfs_state state);
+u32 qlink_utils_chflags_cfg2q(u32 cfgflags);
+void qlink_utils_regrule_q2nl(struct ieee80211_reg_rule *rule,
+			      const struct qlink_tlv_reg_rule *tlv_rule);
+
+#define qlink_for_each_tlv(_tlv, _start, _datalen)			\
+	for (_tlv = (const struct qlink_tlv_hdr *)(_start);		\
+	     (const u8 *)(_start) + (_datalen) - (const u8 *)_tlv >=	\
+		(int)sizeof(*_tlv) &&					\
+	     (const u8 *)(_start) + (_datalen) - (const u8 *)_tlv >=	\
+		(int)sizeof(*_tlv) + le16_to_cpu(_tlv->len);		\
+	     _tlv = (const struct qlink_tlv_hdr *)(_tlv->val +		\
+		round_up(le16_to_cpu(_tlv->len), QLINK_ALIGN)))
+
+#define qlink_tlv_parsing_ok(_tlv_last, _start, _datalen)	\
+	((const u8 *)(_tlv_last) == \
+		(const u8 *)(_start) + round_up(_datalen, QLINK_ALIGN))
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */

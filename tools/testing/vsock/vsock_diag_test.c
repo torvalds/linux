@@ -1,44 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vsock_diag_test - vsock_diag.ko test suite
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
  * Author: Stefan Hajnoczi <stefanha@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #include <getopt.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <signal.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <linux/list.h>
 #include <linux/net.h>
 #include <linux/netlink.h>
 #include <linux/sock_diag.h>
+#include <linux/vm_sockets_diag.h>
 #include <netinet/tcp.h>
-
-#include "../../../include/uapi/linux/vm_sockets.h"
-#include "../../../include/uapi/linux/vm_sockets_diag.h"
 
 #include "timeout.h"
 #include "control.h"
-
-enum test_mode {
-	TEST_MODE_UNSET,
-	TEST_MODE_CLIENT,
-	TEST_MODE_SERVER
-};
+#include "util.h"
 
 /* Per-socket status */
 struct vsock_stat {
@@ -339,7 +325,7 @@ static void free_sock_stat(struct list_head *sockets)
 		free(st);
 }
 
-static void test_no_sockets(unsigned int peer_cid)
+static void test_no_sockets(const struct test_opts *opts)
 {
 	LIST_HEAD(sockets);
 
@@ -350,7 +336,7 @@ static void test_no_sockets(unsigned int peer_cid)
 	free_sock_stat(&sockets);
 }
 
-static void test_listen_socket_server(unsigned int peer_cid)
+static void test_listen_socket_server(const struct test_opts *opts)
 {
 	union {
 		struct sockaddr sa;
@@ -388,35 +374,14 @@ static void test_listen_socket_server(unsigned int peer_cid)
 	free_sock_stat(&sockets);
 }
 
-static void test_connect_client(unsigned int peer_cid)
+static void test_connect_client(const struct test_opts *opts)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = 1234,
-			.svm_cid = peer_cid,
-		},
-	};
 	int fd;
-	int ret;
 	LIST_HEAD(sockets);
 	struct vsock_stat *st;
 
-	control_expectln("LISTENING");
-
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-
-	timeout_begin(TIMEOUT);
-	do {
-		ret = connect(fd, &addr.sa, sizeof(addr.svm));
-		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
-	timeout_end();
-
-	if (ret < 0) {
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
 	}
@@ -434,68 +399,21 @@ static void test_connect_client(unsigned int peer_cid)
 	free_sock_stat(&sockets);
 }
 
-static void test_connect_server(unsigned int peer_cid)
+static void test_connect_server(const struct test_opts *opts)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = 1234,
-			.svm_cid = VMADDR_CID_ANY,
-		},
-	};
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} clientaddr;
-	socklen_t clientaddr_len = sizeof(clientaddr.svm);
-	LIST_HEAD(sockets);
 	struct vsock_stat *st;
-	int fd;
+	LIST_HEAD(sockets);
 	int client_fd;
 
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
-
-	if (listen(fd, 1) < 0) {
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-	control_writeln("LISTENING");
-
-	timeout_begin(TIMEOUT);
-	do {
-		client_fd = accept(fd, &clientaddr.sa, &clientaddr_len);
-		timeout_check("accept");
-	} while (client_fd < 0 && errno == EINTR);
-	timeout_end();
-
+	client_fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
 	if (client_fd < 0) {
 		perror("accept");
-		exit(EXIT_FAILURE);
-	}
-	if (clientaddr.sa.sa_family != AF_VSOCK) {
-		fprintf(stderr, "expected AF_VSOCK from accept(2), got %d\n",
-			clientaddr.sa.sa_family);
-		exit(EXIT_FAILURE);
-	}
-	if (clientaddr.svm.svm_cid != peer_cid) {
-		fprintf(stderr, "expected peer CID %u from accept(2), got %u\n",
-			peer_cid, clientaddr.svm.svm_cid);
 		exit(EXIT_FAILURE);
 	}
 
 	read_vsock_stat(&sockets);
 
-	check_num_sockets(&sockets, 2);
-	find_vsock_stat(&sockets, fd);
+	check_num_sockets(&sockets, 1);
 	st = find_vsock_stat(&sockets, client_fd);
 	check_socket_state(st, TCP_ESTABLISHED);
 
@@ -503,15 +421,10 @@ static void test_connect_server(unsigned int peer_cid)
 	control_expectln("DONE");
 
 	close(client_fd);
-	close(fd);
 	free_sock_stat(&sockets);
 }
 
-static struct {
-	const char *name;
-	void (*run_client)(unsigned int peer_cid);
-	void (*run_server)(unsigned int peer_cid);
-} test_cases[] = {
+static struct test_case test_cases[] = {
 	{
 		.name = "No sockets",
 		.run_server = test_no_sockets,
@@ -527,30 +440,6 @@ static struct {
 	},
 	{},
 };
-
-static void init_signals(void)
-{
-	struct sigaction act = {
-		.sa_handler = sigalrm,
-	};
-
-	sigaction(SIGALRM, &act, NULL);
-	signal(SIGPIPE, SIG_IGN);
-}
-
-static unsigned int parse_cid(const char *str)
-{
-	char *endptr = NULL;
-	unsigned long int n;
-
-	errno = 0;
-	n = strtoul(str, &endptr, 10);
-	if (errno || *endptr != '\0') {
-		fprintf(stderr, "malformed CID \"%s\"\n", str);
-		exit(EXIT_FAILURE);
-	}
-	return n;
-}
 
 static const char optstring[] = "";
 static const struct option longopts[] = {
@@ -575,6 +464,16 @@ static const struct option longopts[] = {
 		.val = 'p',
 	},
 	{
+		.name = "list",
+		.has_arg = no_argument,
+		.val = 'l',
+	},
+	{
+		.name = "skip",
+		.has_arg = required_argument,
+		.val = 's',
+	},
+	{
 		.name = "help",
 		.has_arg = no_argument,
 		.val = '?',
@@ -584,7 +483,7 @@ static const struct option longopts[] = {
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: vsock_diag_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid>\n"
+	fprintf(stderr, "Usage: vsock_diag_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid> [--list] [--skip=<test_id>]\n"
 		"\n"
 		"  Server: vsock_diag_test --control-port=1234 --mode=server --peer-cid=3\n"
 		"  Client: vsock_diag_test --control-host=192.168.0.1 --control-port=1234 --mode=client --peer-cid=2\n"
@@ -598,7 +497,18 @@ static void usage(void)
 		"listen address and the client requires an address to\n"
 		"connect to.\n"
 		"\n"
-		"The CID of the other side must be given with --peer-cid=<cid>.\n");
+		"The CID of the other side must be given with --peer-cid=<cid>.\n"
+		"\n"
+		"Options:\n"
+		"  --help                 This help message\n"
+		"  --control-host <host>  Server IP address to connect to\n"
+		"  --control-port <port>  Server port to listen on/connect to\n"
+		"  --mode client|server   Server or client mode\n"
+		"  --peer-cid <cid>       CID of the other side\n"
+		"  --list                 List of tests that will be executed\n"
+		"  --skip <test_id>       Test ID to skip;\n"
+		"                         use multiple --skip options to skip more tests\n"
+		);
 	exit(EXIT_FAILURE);
 }
 
@@ -606,9 +516,10 @@ int main(int argc, char **argv)
 {
 	const char *control_host = NULL;
 	const char *control_port = NULL;
-	int mode = TEST_MODE_UNSET;
-	unsigned int peer_cid = VMADDR_CID_ANY;
-	int i;
+	struct test_opts opts = {
+		.mode = TEST_MODE_UNSET,
+		.peer_cid = VMADDR_CID_ANY,
+	};
 
 	init_signals();
 
@@ -624,19 +535,26 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			if (strcmp(optarg, "client") == 0)
-				mode = TEST_MODE_CLIENT;
+				opts.mode = TEST_MODE_CLIENT;
 			else if (strcmp(optarg, "server") == 0)
-				mode = TEST_MODE_SERVER;
+				opts.mode = TEST_MODE_SERVER;
 			else {
 				fprintf(stderr, "--mode must be \"client\" or \"server\"\n");
 				return EXIT_FAILURE;
 			}
 			break;
 		case 'p':
-			peer_cid = parse_cid(optarg);
+			opts.peer_cid = parse_cid(optarg);
 			break;
 		case 'P':
 			control_port = optarg;
+			break;
+		case 'l':
+			list_tests(test_cases);
+			break;
+		case 's':
+			skip_test(test_cases, ARRAY_SIZE(test_cases) - 1,
+				  optarg);
 			break;
 		case '?':
 		default:
@@ -646,35 +564,21 @@ int main(int argc, char **argv)
 
 	if (!control_port)
 		usage();
-	if (mode == TEST_MODE_UNSET)
+	if (opts.mode == TEST_MODE_UNSET)
 		usage();
-	if (peer_cid == VMADDR_CID_ANY)
+	if (opts.peer_cid == VMADDR_CID_ANY)
 		usage();
 
 	if (!control_host) {
-		if (mode != TEST_MODE_SERVER)
+		if (opts.mode != TEST_MODE_SERVER)
 			usage();
 		control_host = "0.0.0.0";
 	}
 
-	control_init(control_host, control_port, mode == TEST_MODE_SERVER);
+	control_init(control_host, control_port,
+		     opts.mode == TEST_MODE_SERVER);
 
-	for (i = 0; test_cases[i].name; i++) {
-		void (*run)(unsigned int peer_cid);
-
-		printf("%s...", test_cases[i].name);
-		fflush(stdout);
-
-		if (mode == TEST_MODE_CLIENT)
-			run = test_cases[i].run_client;
-		else
-			run = test_cases[i].run_server;
-
-		if (run)
-			run(peer_cid);
-
-		printf("ok\n");
-	}
+	run_tests(test_cases, &opts);
 
 	control_cleanup();
 	return EXIT_SUCCESS;

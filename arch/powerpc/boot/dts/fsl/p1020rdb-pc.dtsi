@@ -205,13 +205,13 @@
 	mdio@24000 {
 		phy0: ethernet-phy@0 {
 			interrupt-parent = <&mpic>;
-			interrupts = <3 1>;
+			interrupts = <3 1 0 0>;
 			reg = <0x0>;
 		};
 
 		phy1: ethernet-phy@1 {
 			interrupt-parent = <&mpic>;
-			interrupts = <2 1>;
+			interrupts = <2 1 0 0>;
 			reg = <0x1>;
 		};
 

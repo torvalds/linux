@@ -42,8 +42,14 @@ SECTIONS
 #endif
 	_startcode_end = .;
 
-	/* bootloader code and data starts behind area of extracted kernel */
-	. = (SZ_end - SZparisc_kernel_start + KERNEL_BINARY_TEXT_START);
+	/* vmlinux.bin.gz is here */
+	. = ALIGN(8);
+	.rodata.compressed : {
+		*(.rodata.compressed)
+	}
+
+	/* bootloader code and data starts at least behind area of extracted kernel */
+	. = MAX(ABSOLUTE(.), (SZ_end - SZparisc_kernel_start + KERNEL_BINARY_TEXT_START));
 
 	/* align on next page boundary */
 	. = ALIGN(4096);
@@ -66,10 +72,6 @@ SECTIONS
 		*(.rodata)	 /* read-only data */
 		*(.rodata.*)
 		_erodata = . ;
-	}
-	. = ALIGN(8);
-	.rodata.compressed : {
-		*(.rodata.compressed)
 	}
 	. = ALIGN(8);
 	.bss : {

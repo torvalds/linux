@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
 			  msnd_pinnacle_mixer.c  -  description
 			     -------------------
@@ -8,10 +9,6 @@
 
 /***************************************************************************
  *							      		   *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.				   *
  *									   *
  ***************************************************************************/
 
@@ -278,7 +275,7 @@ static int snd_msndmix_volume_put(struct snd_kcontrol *kcontrol,
   .private_value = addr }
 
 
-static struct snd_kcontrol_new snd_msnd_controls[] = {
+static const struct snd_kcontrol_new snd_msnd_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MSND_MIXER_VOLUME),
 DUMMY_VOLUME("PCM Volume", 0, MSND_MIXER_PCM),
 DUMMY_VOLUME("Aux Volume", 0, MSND_MIXER_AUX),

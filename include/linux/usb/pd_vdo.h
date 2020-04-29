@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2015-2017 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_USB_PD_VDO_H
@@ -147,6 +138,38 @@
  */
 #define VDO_PRODUCT(pid, bcd)	(((pid) & 0xffff) << 16 | ((bcd) & 0xffff))
 #define PD_PRODUCT_PID(vdo)	(((vdo) >> 16) & 0xffff)
+
+/*
+ * UFP VDO1
+ * --------
+ * <31:29> :: UFP VDO version
+ * <28>    :: Reserved
+ * <27:24> :: Device capability
+ * <23:6>  :: Reserved
+ * <5:3>   :: Alternate modes
+ * <2:0>   :: USB highest speed
+ */
+#define PD_VDO1_UFP_DEVCAP(vdo)	(((vdo) & GENMASK(27, 24)) >> 24)
+
+#define DEV_USB2_CAPABLE	BIT(0)
+#define DEV_USB2_BILLBOARD	BIT(1)
+#define DEV_USB3_CAPABLE	BIT(2)
+#define DEV_USB4_CAPABLE	BIT(3)
+
+/*
+ * DFP VDO
+ * --------
+ * <31:29> :: DFP VDO version
+ * <28:27> :: Reserved
+ * <26:24> :: Host capability
+ * <23:5>  :: Reserved
+ * <4:0>   :: Port number
+ */
+#define PD_VDO_DFP_HOSTCAP(vdo)	(((vdo) & GENMASK(26, 24)) >> 24)
+
+#define HOST_USB2_CAPABLE	BIT(0)
+#define HOST_USB3_CAPABLE	BIT(1)
+#define HOST_USB4_CAPABLE	BIT(2)
 
 /*
  * Cable VDO

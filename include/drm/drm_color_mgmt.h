@@ -24,11 +24,35 @@
 #define __DRM_COLOR_MGMT_H__
 
 #include <linux/ctype.h>
+#include <drm/drm_property.h>
 
 struct drm_crtc;
 struct drm_plane;
 
-uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision);
+/**
+ * drm_color_lut_extract - clamp and round LUT entries
+ * @user_input: input value
+ * @bit_precision: number of bits the hw LUT supports
+ *
+ * Extract a degamma/gamma LUT value provided by user (in the form of
+ * &drm_color_lut entries) and round it to the precision supported by the
+ * hardware.
+ */
+static inline u32 drm_color_lut_extract(u32 user_input, int bit_precision)
+{
+	u32 val = user_input;
+	u32 max = 0xffff >> (16 - bit_precision);
+
+	/* Round only if we're not using full precision. */
+	if (bit_precision < 16) {
+		val += 1UL << (16 - bit_precision - 1);
+		val >>= 16 - bit_precision;
+	}
+
+	return clamp_val(val, 0, max);
+}
+
+u64 drm_color_ctm_s31_32_to_qm_n(u64 user_input, u32 m, u32 n);
 
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				uint degamma_lut_size,
@@ -68,4 +92,32 @@ int drm_plane_create_color_properties(struct drm_plane *plane,
 				      u32 supported_ranges,
 				      enum drm_color_encoding default_encoding,
 				      enum drm_color_range default_range);
+
+/**
+ * enum drm_color_lut_tests - hw-specific LUT tests to perform
+ *
+ * The drm_color_lut_check() function takes a bitmask of the values here to
+ * determine which tests to apply to a userspace-provided LUT.
+ */
+enum drm_color_lut_tests {
+	/**
+	 * @DRM_COLOR_LUT_EQUAL_CHANNELS:
+	 *
+	 * Checks whether the entries of a LUT all have equal values for the
+	 * red, green, and blue channels.  Intended for hardware that only
+	 * accepts a single value per LUT entry and assumes that value applies
+	 * to all three color components.
+	 */
+	DRM_COLOR_LUT_EQUAL_CHANNELS = BIT(0),
+
+	/**
+	 * @DRM_COLOR_LUT_NON_DECREASING:
+	 *
+	 * Checks whether the entries of a LUT are always flat or increasing
+	 * (never decreasing).
+	 */
+	DRM_COLOR_LUT_NON_DECREASING = BIT(1),
+};
+
+int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests);
 #endif

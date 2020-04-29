@@ -135,6 +135,7 @@ struct link_config {
 
 	enum cc_pause	requested_fc;	/* flow control user has requested */
 	enum cc_pause	fc;		/* actual link flow control */
+	enum cc_pause   advertised_fc;  /* actual advertised flow control */
 
 	enum cc_fec	auto_fec;	/* Forward Error Correction: */
 	enum cc_fec	requested_fec;	/*   "automatic" (IEEE 802.3), */
@@ -391,7 +392,10 @@ int t4vf_config_rss_range(struct adapter *, unsigned int, int, int,
 
 int t4vf_alloc_vi(struct adapter *, int);
 int t4vf_free_vi(struct adapter *, int);
-int t4vf_enable_vi(struct adapter *, unsigned int, bool, bool);
+int t4vf_enable_vi(struct adapter *adapter, unsigned int viid, bool rx_en,
+		   bool tx_en);
+int t4vf_enable_pi(struct adapter *adapter, struct port_info *pi, bool rx_en,
+		   bool tx_en);
 int t4vf_identify_port(struct adapter *, unsigned int, unsigned int);
 
 int t4vf_set_rxmode(struct adapter *, unsigned int, int, int, int, int, int,

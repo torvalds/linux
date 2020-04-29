@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_nfct.c:	Netfilter connection tracking support for IPVS
  *
@@ -7,26 +8,10 @@
  * Portions Copyright (C) 2003-2010
  * Julian Anastasov
  *
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- *
  * Authors:
  * Ben North <ben@redfrontdoor.org>
  * Julian Anastasov <ja@ssi.bg>		Reorganize and sync with latest kernels
  * Hannes Eder <heder@google.com>	Extend NFCT support for FTP, ipvs match
- *
  *
  * Current status:
  *
@@ -43,7 +28,6 @@
  * when RELATED conntrack is created from real server (Active FTP DATA)
  * - if iptables_nat is not loaded the Passive FTP will not work (the
  * PASV response can not be NAT-ed) but Active FTP should work
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -67,15 +51,20 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 
 
-#define FMT_TUPLE	"%pI4:%u->%pI4:%u/%u"
-#define ARG_TUPLE(T)	&(T)->src.u3.ip, ntohs((T)->src.u.all), \
-			&(T)->dst.u3.ip, ntohs((T)->dst.u.all), \
+#define FMT_TUPLE	"%s:%u->%s:%u/%u"
+#define ARG_TUPLE(T)	IP_VS_DBG_ADDR((T)->src.l3num, &(T)->src.u3),	\
+			ntohs((T)->src.u.all),				\
+			IP_VS_DBG_ADDR((T)->src.l3num, &(T)->dst.u3),	\
+			ntohs((T)->dst.u.all),				\
 			(T)->dst.protonum
 
-#define FMT_CONN	"%pI4:%u->%pI4:%u->%pI4:%u/%u:%u"
-#define ARG_CONN(C)	&((C)->caddr.ip), ntohs((C)->cport), \
-			&((C)->vaddr.ip), ntohs((C)->vport), \
-			&((C)->daddr.ip), ntohs((C)->dport), \
+#define FMT_CONN	"%s:%u->%s:%u->%s:%u/%u:%u"
+#define ARG_CONN(C)	IP_VS_DBG_ADDR((C)->af, &((C)->caddr)),		\
+			ntohs((C)->cport),				\
+			IP_VS_DBG_ADDR((C)->af, &((C)->vaddr)),		\
+			ntohs((C)->vport),				\
+			IP_VS_DBG_ADDR((C)->daf, &((C)->daddr)),	\
+			ntohs((C)->dport),				\
 			(C)->protocol, (C)->state
 
 void
@@ -127,13 +116,17 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 		    new_tuple.dst.protonum != IPPROTO_ICMPV6)
 			new_tuple.dst.u.tcp.port = cp->vport;
 	}
-	IP_VS_DBG(7, "%s: Updating conntrack ct=%p, status=0x%lX, "
-		  "ctinfo=%d, old reply=" FMT_TUPLE
-		  ", new reply=" FMT_TUPLE ", cp=" FMT_CONN "\n",
-		  __func__, ct, ct->status, ctinfo,
-		  ARG_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple),
-		  ARG_TUPLE(&new_tuple), ARG_CONN(cp));
+	IP_VS_DBG_BUF(7, "%s: Updating conntrack ct=%p, status=0x%lX, "
+		      "ctinfo=%d, old reply=" FMT_TUPLE "\n",
+		      __func__, ct, ct->status, ctinfo,
+		      ARG_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple));
+	IP_VS_DBG_BUF(7, "%s: Updating conntrack ct=%p, status=0x%lX, "
+		      "ctinfo=%d, new reply=" FMT_TUPLE "\n",
+		      __func__, ct, ct->status, ctinfo,
+		      ARG_TUPLE(&new_tuple));
 	nf_conntrack_alter_reply(ct, &new_tuple);
+	IP_VS_DBG_BUF(7, "%s: Updated conntrack ct=%p for cp=" FMT_CONN "\n",
+		      __func__, ct, ARG_CONN(cp));
 }
 
 int ip_vs_confirm_conntrack(struct sk_buff *skb)
@@ -152,9 +145,6 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	struct ip_vs_conn_param p;
 	struct net *net = nf_ct_net(ct);
 
-	if (exp->tuple.src.l3num != PF_INET)
-		return;
-
 	/*
 	 * We assume that no NF locks are held before this callback.
 	 * ip_vs_conn_out_get and ip_vs_conn_in_get should match their
@@ -171,19 +161,15 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	cp = ip_vs_conn_out_get(&p);
 	if (cp) {
 		/* Change reply CLIENT->RS to CLIENT->VS */
+		IP_VS_DBG_BUF(7, "%s: for ct=%p, status=0x%lX found inout cp="
+			      FMT_CONN "\n",
+			      __func__, ct, ct->status, ARG_CONN(cp));
 		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		IP_VS_DBG(7, "%s: ct=%p, status=0x%lX, tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", found inout cp=" FMT_CONN "\n",
-			  __func__, ct, ct->status,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
+		IP_VS_DBG_BUF(7, "%s: ct=%p before alter: reply tuple="
+			      FMT_TUPLE "\n",
+			      __func__, ct, ARG_TUPLE(&new_reply));
 		new_reply.dst.u3 = cp->vaddr;
 		new_reply.dst.u.tcp.port = cp->vport;
-		IP_VS_DBG(7, "%s: ct=%p, new tuples=" FMT_TUPLE ", " FMT_TUPLE
-			  ", inout cp=" FMT_CONN "\n",
-			  __func__, ct,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
 		goto alter;
 	}
 
@@ -191,25 +177,21 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	cp = ip_vs_conn_in_get(&p);
 	if (cp) {
 		/* Change reply VS->CLIENT to RS->CLIENT */
+		IP_VS_DBG_BUF(7, "%s: for ct=%p, status=0x%lX found outin cp="
+			      FMT_CONN "\n",
+			      __func__, ct, ct->status, ARG_CONN(cp));
 		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		IP_VS_DBG(7, "%s: ct=%p, status=0x%lX, tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", found outin cp=" FMT_CONN "\n",
-			  __func__, ct, ct->status,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
+		IP_VS_DBG_BUF(7, "%s: ct=%p before alter: reply tuple="
+			      FMT_TUPLE "\n",
+			      __func__, ct, ARG_TUPLE(&new_reply));
 		new_reply.src.u3 = cp->daddr;
 		new_reply.src.u.tcp.port = cp->dport;
-		IP_VS_DBG(7, "%s: ct=%p, new tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", outin cp=" FMT_CONN "\n",
-			  __func__, ct,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
 		goto alter;
 	}
 
-	IP_VS_DBG(7, "%s: ct=%p, status=0x%lX, tuple=" FMT_TUPLE
-		  " - unknown expect\n",
-		  __func__, ct, ct->status, ARG_TUPLE(orig));
+	IP_VS_DBG_BUF(7, "%s: ct=%p, status=0x%lX, tuple=" FMT_TUPLE
+		      " - unknown expect\n",
+		      __func__, ct, ct->status, ARG_TUPLE(orig));
 	return;
 
 alter:
@@ -247,9 +229,9 @@ void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 
 	exp->expectfn = ip_vs_nfct_expect_callback;
 
-	IP_VS_DBG(7, "%s: ct=%p, expect tuple=" FMT_TUPLE "\n",
-		__func__, ct, ARG_TUPLE(&exp->tuple));
-	nf_ct_expect_related(exp);
+	IP_VS_DBG_BUF(7, "%s: ct=%p, expect tuple=" FMT_TUPLE "\n",
+		      __func__, ct, ARG_TUPLE(&exp->tuple));
+	nf_ct_expect_related(exp, 0);
 	nf_ct_expect_put(exp);
 }
 EXPORT_SYMBOL(ip_vs_nfct_expect_related);
@@ -274,26 +256,25 @@ void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 	tuple.dst.u3 = cp->vaddr;
 	tuple.dst.u.all = cp->vport;
 
-	IP_VS_DBG(7, "%s: dropping conntrack with tuple=" FMT_TUPLE
-		" for conn " FMT_CONN "\n",
-		__func__, ARG_TUPLE(&tuple), ARG_CONN(cp));
+	IP_VS_DBG_BUF(7, "%s: dropping conntrack for conn " FMT_CONN "\n",
+		      __func__, ARG_CONN(cp));
 
 	h = nf_conntrack_find_get(cp->ipvs->net, &nf_ct_zone_dflt, &tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (nf_ct_kill(ct)) {
-			IP_VS_DBG(7, "%s: ct=%p, deleted conntrack for tuple="
-				FMT_TUPLE "\n",
-				__func__, ct, ARG_TUPLE(&tuple));
+			IP_VS_DBG_BUF(7, "%s: ct=%p deleted for tuple="
+				      FMT_TUPLE "\n",
+				      __func__, ct, ARG_TUPLE(&tuple));
 		} else {
-			IP_VS_DBG(7, "%s: ct=%p, no conntrack timer for tuple="
-				FMT_TUPLE "\n",
-				__func__, ct, ARG_TUPLE(&tuple));
+			IP_VS_DBG_BUF(7, "%s: ct=%p, no conntrack for tuple="
+				      FMT_TUPLE "\n",
+				      __func__, ct, ARG_TUPLE(&tuple));
 		}
 		nf_ct_put(ct);
 	} else {
-		IP_VS_DBG(7, "%s: no conntrack for tuple=" FMT_TUPLE "\n",
-			__func__, ARG_TUPLE(&tuple));
+		IP_VS_DBG_BUF(7, "%s: no conntrack for tuple=" FMT_TUPLE "\n",
+			      __func__, ARG_TUPLE(&tuple));
 	}
 }
 

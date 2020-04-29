@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -721,14 +719,14 @@ int dlm_plock_init(void);
 void dlm_plock_exit(void);
 
 #ifdef CONFIG_DLM_DEBUG
-int dlm_register_debugfs(void);
+void dlm_register_debugfs(void);
 void dlm_unregister_debugfs(void);
-int dlm_create_debug_file(struct dlm_ls *ls);
+void dlm_create_debug_file(struct dlm_ls *ls);
 void dlm_delete_debug_file(struct dlm_ls *ls);
 #else
-static inline int dlm_register_debugfs(void) { return 0; }
+static inline void dlm_register_debugfs(void) { }
 static inline void dlm_unregister_debugfs(void) { }
-static inline int dlm_create_debug_file(struct dlm_ls *ls) { return 0; }
+static inline void dlm_create_debug_file(struct dlm_ls *ls) { }
 static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
 #endif
 

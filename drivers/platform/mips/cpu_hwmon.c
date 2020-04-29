@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
@@ -8,6 +9,9 @@
 #include <loongson.h>
 #include <boot_param.h>
 #include <loongson_hwmon.h>
+#include <loongson_regs.h>
+
+static int csr_temp_enable = 0;
 
 /*
  * Loongson-3 series cpu has two sensors inside,
@@ -19,21 +23,32 @@ int loongson3_cpu_temp(int cpu)
 {
 	u32 reg, prid_rev;
 
+	if (csr_temp_enable) {
+		reg = (csr_readl(LOONGSON_CSR_CPUTEMP) & 0xff);
+		goto out;
+	}
+
 	reg = LOONGSON_CHIPTEMP(cpu);
 	prid_rev = read_c0_prid() & PRID_REV_MASK;
+
 	switch (prid_rev) {
 	case PRID_REV_LOONGSON3A_R1:
 		reg = (reg >> 8) & 0xff;
 		break;
-	case PRID_REV_LOONGSON3A_R2:
 	case PRID_REV_LOONGSON3B_R1:
 	case PRID_REV_LOONGSON3B_R2:
+	case PRID_REV_LOONGSON3A_R2_0:
+	case PRID_REV_LOONGSON3A_R2_1:
 		reg = ((reg >> 8) & 0xff) - 100;
 		break;
-	case PRID_REV_LOONGSON3A_R3:
+	case PRID_REV_LOONGSON3A_R3_0:
+	case PRID_REV_LOONGSON3A_R3_1:
+	default:
 		reg = (reg & 0xffff)*731/0x4000 - 273;
 		break;
 	}
+
+out:
 	return (int)reg * 1000;
 }
 
@@ -156,9 +171,12 @@ static int __init loongson_hwmon_init(void)
 
 	pr_info("Loongson Hwmon Enter...\n");
 
+	if (cpu_has_csr())
+		csr_temp_enable = csr_readl(LOONGSON_CSR_FEATURES) & LOONGSON_CSRF_TEMP;
+
 	cpu_hwmon_dev = hwmon_device_register(NULL);
 	if (IS_ERR(cpu_hwmon_dev)) {
-		ret = -ENOMEM;
+		ret = PTR_ERR(cpu_hwmon_dev);
 		pr_err("hwmon_device_register fail!\n");
 		goto fail_hwmon_device_register;
 	}

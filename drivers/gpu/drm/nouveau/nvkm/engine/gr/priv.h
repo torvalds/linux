@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_GR_PRIV_H__
 #define __NVKM_GR_PRIV_H__
 #define nvkm_gr(p) container_of((p), struct nvkm_gr, engine)
@@ -27,6 +27,11 @@ struct nvkm_gr_func {
 	 */
 	u64 (*units)(struct nvkm_gr *);
 	bool (*chsw_load)(struct nvkm_gr *);
+	struct {
+		int (*pause)(struct nvkm_gr *);
+		int (*resume)(struct nvkm_gr *);
+		u32 (*inst)(struct nvkm_gr *);
+	} ctxsw;
 	struct nvkm_sclass sclass[];
 };
 

@@ -1,10 +1,26 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _crop:
 
-*************************************
-Image Cropping, Insertion and Scaling
-*************************************
+*****************************************************
+Image Cropping, Insertion and Scaling -- the CROP API
+*****************************************************
+
+.. note::
+
+   The CROP API is mostly superseded by the newer :ref:`SELECTION API
+   <selection-api>`. The new API should be preferred in most cases,
+   with the exception of pixel aspect ratio detection, which is
+   implemented by :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` and has no
+   equivalent in the SELECTION API. See :ref:`selection-vs-crop` for a
+   comparison of the two APIs.
 
 Some video capture devices can sample a subsection of the picture and
 shrink or enlarge it to an image of arbitrary size. We call these
@@ -42,10 +58,9 @@ where applicable) will be fixed in this case.
 
 .. note::
 
-   All capture and output devices must support the
-   :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl such that applications
-   can determine if scaling takes place.
-
+   All capture and output devices that support the CROP or SELECTION
+   API will also support the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`
+   ioctl.
 
 Cropping Structures
 ===================

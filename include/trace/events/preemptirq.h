@@ -1,4 +1,4 @@
-#ifdef CONFIG_PREEMPTIRQ_EVENTS
+#ifdef CONFIG_PREEMPTIRQ_TRACEPOINTS
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM preemptirq
@@ -18,21 +18,21 @@ DECLARE_EVENT_CLASS(preemptirq_template,
 	TP_ARGS(ip, parent_ip),
 
 	TP_STRUCT__entry(
-		__field(u32, caller_offs)
-		__field(u32, parent_offs)
+		__field(s32, caller_offs)
+		__field(s32, parent_offs)
 	),
 
 	TP_fast_assign(
-		__entry->caller_offs = (u32)(ip - (unsigned long)_stext);
-		__entry->parent_offs = (u32)(parent_ip - (unsigned long)_stext);
+		__entry->caller_offs = (s32)(ip - (unsigned long)_stext);
+		__entry->parent_offs = (s32)(parent_ip - (unsigned long)_stext);
 	),
 
-	TP_printk("caller=%pF parent=%pF",
+	TP_printk("caller=%pS parent=%pS",
 		  (void *)((unsigned long)(_stext) + __entry->caller_offs),
 		  (void *)((unsigned long)(_stext) + __entry->parent_offs))
 );
 
-#ifndef CONFIG_PROVE_LOCKING
+#ifdef CONFIG_TRACE_IRQFLAGS
 DEFINE_EVENT(preemptirq_template, irq_disable,
 	     TP_PROTO(unsigned long ip, unsigned long parent_ip),
 	     TP_ARGS(ip, parent_ip));
@@ -40,9 +40,14 @@ DEFINE_EVENT(preemptirq_template, irq_disable,
 DEFINE_EVENT(preemptirq_template, irq_enable,
 	     TP_PROTO(unsigned long ip, unsigned long parent_ip),
 	     TP_ARGS(ip, parent_ip));
+#else
+#define trace_irq_enable(...)
+#define trace_irq_disable(...)
+#define trace_irq_enable_rcuidle(...)
+#define trace_irq_disable_rcuidle(...)
 #endif
 
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_TRACE_PREEMPT_TOGGLE
 DEFINE_EVENT(preemptirq_template, preempt_disable,
 	     TP_PROTO(unsigned long ip, unsigned long parent_ip),
 	     TP_ARGS(ip, parent_ip));
@@ -50,22 +55,22 @@ DEFINE_EVENT(preemptirq_template, preempt_disable,
 DEFINE_EVENT(preemptirq_template, preempt_enable,
 	     TP_PROTO(unsigned long ip, unsigned long parent_ip),
 	     TP_ARGS(ip, parent_ip));
+#else
+#define trace_preempt_enable(...)
+#define trace_preempt_disable(...)
+#define trace_preempt_enable_rcuidle(...)
+#define trace_preempt_disable_rcuidle(...)
 #endif
 
 #endif /* _TRACE_PREEMPTIRQ_H */
 
 #include <trace/define_trace.h>
 
-#endif /* !CONFIG_PREEMPTIRQ_EVENTS */
-
-#if !defined(CONFIG_PREEMPTIRQ_EVENTS) || defined(CONFIG_PROVE_LOCKING)
+#else /* !CONFIG_PREEMPTIRQ_TRACEPOINTS */
 #define trace_irq_enable(...)
 #define trace_irq_disable(...)
 #define trace_irq_enable_rcuidle(...)
 #define trace_irq_disable_rcuidle(...)
-#endif
-
-#if !defined(CONFIG_PREEMPTIRQ_EVENTS) || !defined(CONFIG_DEBUG_PREEMPT)
 #define trace_preempt_enable(...)
 #define trace_preempt_disable(...)
 #define trace_preempt_enable_rcuidle(...)

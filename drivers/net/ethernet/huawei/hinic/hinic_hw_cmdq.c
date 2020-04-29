@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -398,7 +389,8 @@ static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
 
 	spin_unlock_bh(&cmdq->cmdq_lock);
 
-	if (!wait_for_completion_timeout(&done, CMDQ_TIMEOUT)) {
+	if (!wait_for_completion_timeout(&done,
+					 msecs_to_jiffies(CMDQ_TIMEOUT))) {
 		spin_lock_bh(&cmdq->cmdq_lock);
 
 		if (cmdq->errcode[curr_prod_idx] == &errcode)
@@ -632,6 +624,8 @@ static int cmdq_cmd_ceq_handler(struct hinic_cmdq *cmdq, u16 ci,
 	if (!CMDQ_WQE_COMPLETED(be32_to_cpu(ctrl->ctrl_info)))
 		return -EBUSY;
 
+	dma_rmb();
+
 	errcode = CMDQ_WQE_ERRCODE_GET(be32_to_cpu(status->status_info), VAL);
 
 	cmdq_sync_cmd_handler(cmdq, ci, errcode);
@@ -753,11 +747,12 @@ static int init_cmdq(struct hinic_cmdq *cmdq, struct hinic_wq *wq,
 
 	spin_lock_init(&cmdq->cmdq_lock);
 
-	cmdq->done = vzalloc(wq->q_depth * sizeof(*cmdq->done));
+	cmdq->done = vzalloc(array_size(sizeof(*cmdq->done), wq->q_depth));
 	if (!cmdq->done)
 		return -ENOMEM;
 
-	cmdq->errcode = vzalloc(wq->q_depth * sizeof(*cmdq->errcode));
+	cmdq->errcode = vzalloc(array_size(sizeof(*cmdq->errcode),
+					   wq->q_depth));
 	if (!cmdq->errcode) {
 		err = -ENOMEM;
 		goto err_errcode;

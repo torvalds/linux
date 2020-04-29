@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Architecture-specific kernel symbols
  *
@@ -8,20 +9,6 @@
  *    Copyright (C) 2002-2003 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq at parisc-linux.org>
  *    Copyright (C) 2002-2007 Helge Deller <deller with parisc-linux.org>
- * 
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -30,6 +17,10 @@
 
 #include <linux/string.h>
 EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(strlen);
+EXPORT_SYMBOL(strcpy);
+EXPORT_SYMBOL(strncpy);
+EXPORT_SYMBOL(strcat);
 
 #include <linux/atomic.h>
 EXPORT_SYMBOL(__xchg8);
@@ -136,12 +127,6 @@ EXPORT_SYMBOL(__moddi3);
 #ifndef CONFIG_64BIT
 extern void $$dyncall(void);
 EXPORT_SYMBOL($$dyncall);
-#endif
-
-#ifdef CONFIG_DISCONTIGMEM
-#include <asm/mmzone.h>
-EXPORT_SYMBOL(node_data);
-EXPORT_SYMBOL(pfnnid_map);
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER

@@ -85,7 +85,7 @@ static int m54xx_wdt_open(struct inode *inode, struct file *file)
 
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t m54xx_wdt_write(struct file *file, const char *data,
@@ -183,6 +183,7 @@ static const struct file_operations m54xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= m54xx_wdt_write,
 	.unlocked_ioctl	= m54xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= m54xx_wdt_open,
 	.release	= m54xx_wdt_release,
 };

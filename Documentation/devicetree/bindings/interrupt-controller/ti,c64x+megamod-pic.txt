@@ -46,7 +46,6 @@ C6X Interrupt Chips
   - interrupt-controller
   - #interrupt-cells: <1>
   - reg: base address and size of register area
-  - interrupt-parent: must be core interrupt controller
   - interrupts: This should have four cells; one for each interrupt combiner.
                 The cells contain the core priority interrupt to which the
                 corresponding combiner output is wired.

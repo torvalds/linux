@@ -123,7 +123,7 @@ struct ebt_entry_match {
 	union {
 		struct {
 			char name[EBT_EXTENSION_MAXNAMELEN];
-			uint8_t revision;
+			__u8 revision;
 		};
 		struct xt_match *match;
 	} u;
@@ -136,7 +136,7 @@ struct ebt_entry_watcher {
 	union {
 		struct {
 			char name[EBT_EXTENSION_MAXNAMELEN];
-			uint8_t revision;
+			__u8 revision;
 		};
 		struct xt_target *watcher;
 	} u;
@@ -149,7 +149,7 @@ struct ebt_entry_target {
 	union {
 		struct {
 			char name[EBT_EXTENSION_MAXNAMELEN];
-			uint8_t revision;
+			__u8 revision;
 		};
 		struct xt_target *target;
 	} u;
@@ -190,6 +190,12 @@ struct ebt_entry {
 	unsigned int next_offset;
 	unsigned char elems[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
 };
+
+static __inline__ struct ebt_entry_target *
+ebt_get_target(struct ebt_entry *e)
+{
+	return (struct ebt_entry_target *)((char *)e + e->target_offset);
+}
 
 /* {g,s}etsockopt numbers */
 #define EBT_BASE_CTL            128

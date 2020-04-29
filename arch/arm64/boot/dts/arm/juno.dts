@@ -62,7 +62,7 @@
 		};
 
 		idle-states {
-			entry-method = "arm,psci";
+			entry-method = "psci";
 
 			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
@@ -84,7 +84,7 @@
 		};
 
 		A57_0: cpu@0 {
-			compatible = "arm,cortex-a57","arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -98,10 +98,11 @@
 			clocks = <&scpi_dvfs 0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <530>;
 		};
 
 		A57_1: cpu@1 {
-			compatible = "arm,cortex-a57","arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0 0x1>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -115,10 +116,11 @@
 			clocks = <&scpi_dvfs 0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <530>;
 		};
 
 		A53_0: cpu@100 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -132,10 +134,11 @@
 			clocks = <&scpi_dvfs 1>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <578>;
+			dynamic-power-coefficient = <140>;
 		};
 
 		A53_1: cpu@101 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x101>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -149,10 +152,11 @@
 			clocks = <&scpi_dvfs 1>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <578>;
+			dynamic-power-coefficient = <140>;
 		};
 
 		A53_2: cpu@102 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x102>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -166,10 +170,11 @@
 			clocks = <&scpi_dvfs 1>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <578>;
+			dynamic-power-coefficient = <140>;
 		};
 
 		A53_3: cpu@103 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x103>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -183,6 +188,7 @@
 			clocks = <&scpi_dvfs 1>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <578>;
+			dynamic-power-coefficient = <140>;
 		};
 
 		A57_L2: l2-cache0 {
@@ -200,7 +206,7 @@
 		};
 	};
 
-	pmu_a57 {
+	pmu-a57 {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 02 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 06 IRQ_TYPE_LEVEL_HIGH>;
@@ -208,7 +214,7 @@
 				     <&A57_1>;
 	};
 
-	pmu_a53 {
+	pmu-a53 {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
@@ -257,14 +263,11 @@
 	remote-endpoint = <&main_funnel_in_port2>;
 };
 
-&main_funnel {
-	ports {
-		port@3 {
-			reg = <2>;
-			main_funnel_in_port2: endpoint {
-				slave-mode;
-				remote-endpoint = <&stm_out_port>;
-			};
+&main_funnel_in_ports {
+	port@2 {
+		reg = <2>;
+		main_funnel_in_port2: endpoint {
+			remote-endpoint = <&stm_out_port>;
 		};
 	};
 };

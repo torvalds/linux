@@ -25,7 +25,7 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/dp.h>
 
-static u16
+u16
 nvbios_dp_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry d;
@@ -212,7 +212,7 @@ nvbios_dpcfg_match(struct nvkm_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
 	u16 data;
 
 	if (*ver >= 0x30) {
-		const u8 vsoff[] = { 0, 4, 7, 9 };
+		static const u8 vsoff[] = { 0, 4, 7, 9 };
 		idx = (pc * 10) + vsoff[vs] + pe;
 		if (*ver >= 0x40 && *ver <= 0x41 && *hdr >= 0x12)
 			idx += nvbios_rd08(bios, outp + 0x11) * 40;

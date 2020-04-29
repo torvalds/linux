@@ -4,7 +4,6 @@ Required properties:
  - compatible		: Should be "ti,afe4404".
  - reg			: I2C address of the device.
  - tx-supply		: Regulator supply to transmitting LEDs.
- - interrupt-parent	: Phandle to he parent interrupt controller.
  - interrupts		: The interrupt line the device ADC_RDY pin is
 			  connected to. For details refer to,
 			  ../interrupt-controller/interrupts.txt.

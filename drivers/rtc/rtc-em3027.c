@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc/i2c driver for the EM Microelectronic EM3027
  * Copyright 2011 CompuLab, Ltd.
@@ -5,10 +6,6 @@
  * Author: Mike Rapoport <mike@compulab.co.il>
  *
  * Based on rtc-ds1672.c by Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -74,7 +71,7 @@ static int em3027_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_hour	= bcd2bin(buf[2]);
 	tm->tm_mday	= bcd2bin(buf[3]);
 	tm->tm_wday	= bcd2bin(buf[4]);
-	tm->tm_mon	= bcd2bin(buf[5]);
+	tm->tm_mon	= bcd2bin(buf[5]) - 1;
 	tm->tm_year	= bcd2bin(buf[6]) + 100;
 
 	return 0;
@@ -97,7 +94,7 @@ static int em3027_set_time(struct device *dev, struct rtc_time *tm)
 	buf[3] = bin2bcd(tm->tm_hour);
 	buf[4] = bin2bcd(tm->tm_mday);
 	buf[5] = bin2bcd(tm->tm_wday);
-	buf[6] = bin2bcd(tm->tm_mon);
+	buf[6] = bin2bcd(tm->tm_mon + 1);
 	buf[7] = bin2bcd(tm->tm_year % 100);
 
 	/* write time/date registers */

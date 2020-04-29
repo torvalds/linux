@@ -1,7 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Temperature sensor drivers
 #
 menu "Temperature sensors"
+
+config IQS620AT_TEMP
+	tristate "Azoteq IQS620AT temperature sensor"
+	depends on MFD_IQS62X || COMPILE_TEST
+	help
+	  Say Y here if you want to build support for the Azoteq IQS620AT
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called iqs620at-temp.
+
+config LTC2983
+	tristate "Analog Devices Multi-Sensor Digital Temperature Measurement System"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the LTC2983 Multi-Sensor
+	  high accuracy digital temperature measurement system.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ltc2983.
 
 config MAXIM_THERMOCOUPLE
 	tristate "Maxim thermocouple sensors"
@@ -66,14 +88,14 @@ config TMP006
 	  be called tmp006.
 
 config TMP007
-        tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
-        depends on I2C
-        help
-          If you say yes here you get support for the Texas Instruments
-          TMP007 infrared thermopile sensor with Integrated Math Engine.
+	tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TMP007 infrared thermopile sensor with Integrated Math Engine.
 
-          This driver can also be built as a module. If so, the module will
-          be called tmp007.
+	  This driver can also be built as a module. If so, the module will
+	  be called tmp007.
 
 config TSYS01
 	tristate "Measurement Specialties TSYS01 temperature sensor using I2C bus connection"
@@ -96,5 +118,15 @@ config TSYS02D
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tsys02d.
+
+config MAX31856
+	tristate "MAX31856 thermocouple sensor"
+	depends on SPI
+	help
+	  If you say yes here you get support for MAX31856
+	  thermocouple sensor chip connected via SPI.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31856.
 
 endmenu

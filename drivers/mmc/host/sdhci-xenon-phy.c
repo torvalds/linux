@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PHY support for Xenon SDHC
  *
@@ -5,10 +6,6 @@
  *
  * Author:	Hu Ziji <huziji@marvell.com>
  * Date:	2016-8-24
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
  */
 
 #include <linux/slab.h>
@@ -357,9 +354,13 @@ static int xenon_emmc_phy_enable_dll(struct sdhci_host *host)
 
 	/* Wait max 32 ms */
 	timeout = ktime_add_ms(ktime_get(), 32);
-	while (!(sdhci_readw(host, XENON_SLOT_EXT_PRESENT_STATE) &
-		XENON_DLL_LOCK_STATE)) {
-		if (ktime_after(ktime_get(), timeout)) {
+	while (1) {
+		bool timedout = ktime_after(ktime_get(), timeout);
+
+		if (sdhci_readw(host, XENON_SLOT_EXT_PRESENT_STATE) &
+		    XENON_DLL_LOCK_STATE)
+			break;
+		if (timedout) {
 			dev_err(mmc_dev(host->mmc), "Wait for DLL Lock time-out\n");
 			return -ETIMEDOUT;
 		}
@@ -526,6 +527,7 @@ static bool xenon_emmc_phy_slow_mode(struct sdhci_host *host,
 			ret = true;
 			break;
 		}
+		/* fall through */
 	default:
 		reg &= ~XENON_TIMING_ADJUST_SLOW_MODE;
 		ret = false;
@@ -659,8 +661,8 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 		return 0;
 
 	if (of_address_to_resource(np, 1, &iomem)) {
-		dev_err(mmc_dev(host->mmc), "Unable to find SoC PAD ctrl register address for %s\n",
-			np->name);
+		dev_err(mmc_dev(host->mmc), "Unable to find SoC PAD ctrl register address for %pOFn\n",
+			np);
 		return -EINVAL;
 	}
 
@@ -814,15 +816,10 @@ static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < NR_PHY_TYPES; i++) {
-		if (!strcmp(phy_name, phy_types[i])) {
-			priv->phy_type = i;
-			break;
-		}
-	}
-	if (i == NR_PHY_TYPES) {
+	priv->phy_type = match_string(phy_types, NR_PHY_TYPES, phy_name);
+	if (priv->phy_type < 0) {
 		dev_err(mmc_dev(host->mmc),
 			"Unable to determine PHY name %s. Use default eMMC 5.1 PHY\n",
 			phy_name);

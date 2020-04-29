@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  * RMNET Data virtual network driver
- *
  */
 
 #include <linux/etherdevice.h>
@@ -152,6 +142,56 @@ static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_get_stats64 = rmnet_get_stats64,
 };
 
+static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
+	"Checksum ok",
+	"Checksum valid bit not set",
+	"Checksum validation failed",
+	"Checksum error bad buffer",
+	"Checksum error bad ip version",
+	"Checksum error bad transport",
+	"Checksum skipped on ip fragment",
+	"Checksum skipped",
+	"Checksum computed in software",
+};
+
+static void rmnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
+{
+	switch (stringset) {
+	case ETH_SS_STATS:
+		memcpy(buf, &rmnet_gstrings_stats,
+		       sizeof(rmnet_gstrings_stats));
+		break;
+	}
+}
+
+static int rmnet_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(rmnet_gstrings_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void rmnet_get_ethtool_stats(struct net_device *dev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct rmnet_priv_stats *st = &priv->stats;
+
+	if (!data)
+		return;
+
+	memcpy(data, st, ARRAY_SIZE(rmnet_gstrings_stats) * sizeof(u64));
+}
+
+static const struct ethtool_ops rmnet_ethtool_ops = {
+	.get_ethtool_stats = rmnet_get_ethtool_stats,
+	.get_strings = rmnet_get_strings,
+	.get_sset_count = rmnet_get_sset_count,
+};
+
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */
@@ -160,7 +200,7 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 	rmnet_dev->netdev_ops = &rmnet_vnd_ops;
 	rmnet_dev->mtu = RMNET_DFLT_PACKET_SIZE;
 	rmnet_dev->needed_headroom = RMNET_NEEDED_HEADROOM;
-	random_ether_addr(rmnet_dev->dev_addr);
+	eth_random_addr(rmnet_dev->dev_addr);
 	rmnet_dev->tx_queue_len = RMNET_TX_QUEUE_LEN;
 
 	/* Raw IP mode */
@@ -170,6 +210,13 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 	rmnet_dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 
 	rmnet_dev->needs_free_netdev = true;
+	rmnet_dev->ethtool_ops = &rmnet_ethtool_ops;
+
+	rmnet_dev->features |= NETIF_F_LLTX;
+
+	/* This perm addr will be used as interface identifier by IPv6 */
+	rmnet_dev->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(rmnet_dev->perm_addr);
 }
 
 /* Exposed API */
@@ -177,20 +224,23 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct rmnet_port *port,
 		      struct net_device *real_dev,
-		      struct rmnet_endpoint *ep)
+		      struct rmnet_endpoint *ep,
+		      struct netlink_ext_ack *extack)
+
 {
-	struct rmnet_priv *priv;
+	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
 	int rc;
 
-	if (ep->egress_dev)
-		return -EINVAL;
-
-	if (rmnet_get_endpoint(port, id))
+	if (rmnet_get_endpoint(port, id)) {
+		NL_SET_ERR_MSG_MOD(extack, "MUX ID already exists");
 		return -EBUSY;
+	}
 
 	rmnet_dev->hw_features = NETIF_F_RXCSUM;
 	rmnet_dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	rmnet_dev->hw_features |= NETIF_F_SG;
+
+	priv->real_dev = real_dev;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
@@ -200,9 +250,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
 
-		priv = netdev_priv(rmnet_dev);
 		priv->mux_id = id;
-		priv->real_dev = real_dev;
 
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
@@ -219,14 +267,6 @@ int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 	ep->egress_dev = NULL;
 	port->nr_rmnet_devs--;
 	return 0;
-}
-
-u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
-{
-	struct rmnet_priv *priv;
-
-	priv = netdev_priv(rmnet_dev);
-	return priv->mux_id;
 }
 
 int rmnet_vnd_do_flow_control(struct net_device *rmnet_dev, int enable)

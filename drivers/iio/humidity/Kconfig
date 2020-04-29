@@ -1,19 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # humidity sensor drivers
 #
 menu "Humidity sensors"
 
 config AM2315
-    tristate "Aosong AM2315 relative humidity and temperature sensor"
-    depends on I2C
-    select IIO_BUFFER
-    select IIO_TRIGGERED_BUFFER
-    help
-      If you say yes here you get support for the Aosong AM2315
-      relative humidity and ambient temperature sensor.
+	tristate "Aosong AM2315 relative humidity and temperature sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for the Aosong AM2315
+	  relative humidity and ambient temperature sensor.
 
-      This driver can also be built as a module. If so, the module will
-      be called am2315.
+	  This driver can also be built as a module. If so, the module will
+	  be called am2315.
 
 config DHT11
 	tristate "DHT11 (and compatible sensors) driver"
@@ -78,7 +79,7 @@ config HTS221_SPI
 config HTU21
 	tristate "Measurement Specialties HTU21 humidity & temperature sensor"
 	depends on I2C
-        select IIO_MS_SENSORS_I2C
+	select IIO_MS_SENSORS_I2C
 	help
 	  If you say yes here you get support for the Measurement Specialties
 	  HTU21 humidity and temperature sensor.

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Bridge per vlan tunnel port dst_metadata netlink control interface
  *
  *	Authors:
  *	Roopa Prabhu		<roopa@cumulusnetworks.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -30,8 +26,8 @@ static size_t __get_vlan_tinfo_size(void)
 		  nla_total_size(sizeof(u16)); /* IFLA_BRIDGE_VLAN_TUNNEL_FLAGS */
 }
 
-static bool vlan_tunid_inrange(struct net_bridge_vlan *v_curr,
-			       struct net_bridge_vlan *v_last)
+bool vlan_tunid_inrange(const struct net_bridge_vlan *v_curr,
+			const struct net_bridge_vlan *v_last)
 {
 	__be32 tunid_curr = tunnel_id_to_key32(v_curr->tinfo.tunnel_id);
 	__be32 tunid_last = tunnel_id_to_key32(v_last->tinfo.tunnel_id);
@@ -97,7 +93,7 @@ static int br_fill_vlan_tinfo(struct sk_buff *skb, u16 vid,
 	__be32 tid = tunnel_id_to_key32(tunnel_id);
 	struct nlattr *tmap;
 
-	tmap = nla_nest_start(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
+	tmap = nla_nest_start_noflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
 	if (!tmap)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_BRIDGE_VLAN_TUNNEL_ID,
@@ -197,8 +193,8 @@ static const struct nla_policy vlan_tunnel_policy[IFLA_BRIDGE_VLAN_TUNNEL_MAX + 
 	[IFLA_BRIDGE_VLAN_TUNNEL_FLAGS] = { .type = NLA_U16 },
 };
 
-static int br_vlan_tunnel_info(struct net_bridge_port *p, int cmd,
-			       u16 vid, u32 tun_id, bool *changed)
+int br_vlan_tunnel_info(const struct net_bridge_port *p, int cmd,
+			u16 vid, u32 tun_id, bool *changed)
 {
 	int err = 0;
 
@@ -230,8 +226,8 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 
 	memset(tinfo, 0, sizeof(*tinfo));
 
-	err = nla_parse_nested(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX, attr,
-			       vlan_tunnel_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX,
+					  attr, vlan_tunnel_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -254,8 +250,8 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 	return 0;
 }
 
-int br_process_vlan_tunnel_info(struct net_bridge *br,
-				struct net_bridge_port *p, int cmd,
+int br_process_vlan_tunnel_info(const struct net_bridge *br,
+				const struct net_bridge_port *p, int cmd,
 				struct vtunnel_info *tinfo_curr,
 				struct vtunnel_info *tinfo_last,
 				bool *changed)

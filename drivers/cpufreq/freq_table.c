@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/cpufreq/freq_table.c
  *
  * Copyright (C) 2002 - 2003 Dominik Brodowski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -64,7 +60,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 		return 0;
 }
 
-int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
+int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy,
 				   struct cpufreq_frequency_table *table)
 {
 	struct cpufreq_frequency_table *pos;
@@ -104,7 +100,7 @@ EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
  * Generic routine to verify policy & frequency table, requires driver to set
  * policy->freq_table prior to it.
  */
-int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy)
+int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy)
 {
 	if (!policy->freq_table)
 		return -ENODEV;
@@ -290,9 +286,6 @@ EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_boost_freqs);
 
 struct freq_attr *cpufreq_generic_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
-#ifdef CONFIG_CPU_FREQ_BOOST_SW
-	&cpufreq_freq_attr_scaling_boost_freqs,
-#endif
 	NULL,
 };
 EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
@@ -351,20 +344,6 @@ static int set_freq_table_sorted(struct cpufreq_policy *policy)
 
 	return 0;
 }
-
-int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
-				      struct cpufreq_frequency_table *table)
-{
-	int ret;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, table);
-	if (ret)
-		return ret;
-
-	policy->freq_table = table;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cpufreq_table_validate_and_show);
 
 int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 {

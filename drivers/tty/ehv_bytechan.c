@@ -128,12 +128,27 @@ static int find_console_handle(void)
 	 */
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		pr_err("ehv-bc: no 'hv-handle' property in %s node\n",
-		       np->name);
+		pr_err("ehv-bc: no 'hv-handle' property in %pOFn node\n",
+		       np);
 		return 0;
 	}
 	stdout_bc = be32_to_cpu(*iprop);
 	return 1;
+}
+
+static unsigned int local_ev_byte_channel_send(unsigned int handle,
+					       unsigned int *count,
+					       const char *p)
+{
+	char buffer[EV_BYTE_CHANNEL_MAX_BYTES];
+	unsigned int c = *count;
+
+	if (c < sizeof(buffer)) {
+		memcpy(buffer, p, c);
+		memset(&buffer[c], 0, sizeof(buffer) - c);
+		p = buffer;
+	}
+	return ev_byte_channel_send(handle, count, p);
 }
 
 /*************************** EARLY CONSOLE DRIVER ***************************/
@@ -154,7 +169,7 @@ static void byte_channel_spin_send(const char data)
 
 	do {
 		count = 1;
-		ret = ev_byte_channel_send(CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE,
+		ret = local_ev_byte_channel_send(CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE,
 					   &count, &data);
 	} while (ret == EV_EAGAIN);
 }
@@ -221,7 +236,7 @@ static int ehv_bc_console_byte_channel_send(unsigned int handle, const char *s,
 	while (count) {
 		len = min_t(unsigned int, count, EV_BYTE_CHANNEL_MAX_BYTES);
 		do {
-			ret = ev_byte_channel_send(handle, &len, s);
+			ret = local_ev_byte_channel_send(handle, &len, s);
 		} while (ret == EV_EAGAIN);
 		count -= len;
 		s += len;
@@ -401,7 +416,7 @@ static void ehv_bc_tx_dequeue(struct ehv_bc_data *bc)
 			    CIRC_CNT_TO_END(bc->head, bc->tail, BUF_SIZE),
 			    EV_BYTE_CHANNEL_MAX_BYTES);
 
-		ret = ev_byte_channel_send(bc->handle, &len, bc->buf + bc->tail);
+		ret = local_ev_byte_channel_send(bc->handle, &len, bc->buf + bc->tail);
 
 		/* 'len' is valid only if the return code is 0 or EV_EAGAIN */
 		if (!ret || (ret == EV_EAGAIN))
@@ -661,8 +676,8 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		dev_err(&pdev->dev, "no 'hv-handle' property in %s node\n",
-			np->name);
+		dev_err(&pdev->dev, "no 'hv-handle' property in %pOFn node\n",
+			np);
 		return -ENODEV;
 	}
 
@@ -682,8 +697,8 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 	bc->rx_irq = irq_of_parse_and_map(np, 0);
 	bc->tx_irq = irq_of_parse_and_map(np, 1);
 	if ((bc->rx_irq == NO_IRQ) || (bc->tx_irq == NO_IRQ)) {
-		dev_err(&pdev->dev, "no 'interrupts' property in %s node\n",
-			np->name);
+		dev_err(&pdev->dev, "no 'interrupts' property in %pOFn node\n",
+			np);
 		ret = -ENODEV;
 		goto error;
 	}
@@ -754,7 +769,7 @@ static int __init ehv_bc_init(void)
 	 * array, then you can use pointer math (e.g. "bc - bcs") to get its
 	 * tty index.
 	 */
-	bcs = kzalloc(count * sizeof(struct ehv_bc_data), GFP_KERNEL);
+	bcs = kcalloc(count, sizeof(struct ehv_bc_data), GFP_KERNEL);
 	if (!bcs)
 		return -ENOMEM;
 

@@ -51,9 +51,13 @@ void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *f
  **/
 #define blk_add_cgroup_trace_msg(q, cg, fmt, ...)			\
 	do {								\
-		struct blk_trace *bt = (q)->blk_trace;			\
+		struct blk_trace *bt;					\
+									\
+		rcu_read_lock();					\
+		bt = rcu_dereference((q)->blk_trace);			\
 		if (unlikely(bt))					\
 			__trace_note_message(bt, cg, fmt, ##__VA_ARGS__);\
+		rcu_read_unlock();					\
 	} while (0)
 #define blk_add_trace_msg(q, fmt, ...)					\
 	blk_add_cgroup_trace_msg(q, NULL, fmt, ##__VA_ARGS__)
@@ -61,10 +65,14 @@ void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *f
 
 static inline bool blk_trace_note_message_enabled(struct request_queue *q)
 {
-	struct blk_trace *bt = q->blk_trace;
-	if (likely(!bt))
-		return false;
-	return bt->act_mask & BLK_TC_NOTIFY;
+	struct blk_trace *bt;
+	bool ret;
+
+	rcu_read_lock();
+	bt = rcu_dereference(q->blk_trace);
+	ret = bt && (bt->act_mask & BLK_TC_NOTIFY);
+	rcu_read_unlock();
+	return ret;
 }
 
 extern void blk_add_driver_data(struct request_queue *q, struct request *rq,
@@ -116,7 +124,13 @@ extern void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes);
 
 static inline sector_t blk_rq_trace_sector(struct request *rq)
 {
-	return blk_rq_is_passthrough(rq) ? 0 : blk_rq_pos(rq);
+	/*
+	 * Tracing should ignore starting sector for passthrough requests and
+	 * requests where starting sector didn't get set.
+	 */
+	if (blk_rq_is_passthrough(rq) || blk_rq_pos(rq) == (sector_t)-1)
+		return 0;
+	return blk_rq_pos(rq);
 }
 
 static inline unsigned int blk_rq_trace_nr_sectors(struct request *rq)

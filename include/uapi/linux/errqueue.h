@@ -3,6 +3,7 @@
 #define _UAPI_LINUX_ERRQUEUE_H
 
 #include <linux/types.h>
+#include <linux/time_types.h>
 
 struct sock_extended_err {
 	__u32	ee_errno;	
@@ -20,11 +21,15 @@ struct sock_extended_err {
 #define SO_EE_ORIGIN_ICMP6	3
 #define SO_EE_ORIGIN_TXSTATUS	4
 #define SO_EE_ORIGIN_ZEROCOPY	5
+#define SO_EE_ORIGIN_TXTIME	6
 #define SO_EE_ORIGIN_TIMESTAMPING SO_EE_ORIGIN_TXSTATUS
 
 #define SO_EE_OFFENDER(ee)	((struct sockaddr*)((ee)+1))
 
 #define SO_EE_CODE_ZEROCOPY_COPIED	1
+
+#define SO_EE_CODE_TXTIME_INVALID_PARAM	1
+#define SO_EE_CODE_TXTIME_MISSED	2
 
 /**
  *	struct scm_timestamping - timestamps exposed through cmsg
@@ -32,9 +37,20 @@ struct sock_extended_err {
  *	The timestamping interfaces SO_TIMESTAMPING, MSG_TSTAMP_*
  *	communicate network timestamps by passing this struct in a cmsg with
  *	recvmsg(). See Documentation/networking/timestamping.txt for details.
+ *	User space sees a timespec definition that matches either
+ *	__kernel_timespec or __kernel_old_timespec, in the kernel we
+ *	require two structure definitions to provide both.
  */
 struct scm_timestamping {
+#ifdef __KERNEL__
+	struct __kernel_old_timespec ts[3];
+#else
 	struct timespec ts[3];
+#endif
+};
+
+struct scm_timestamping64 {
+	struct __kernel_timespec ts[3];
 };
 
 /* The type of scm_timestamping, passed in sock_extended_err ee_info.

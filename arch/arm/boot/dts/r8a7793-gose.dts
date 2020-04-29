@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the Gose board
  *
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /*
@@ -55,7 +52,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -68,81 +65,81 @@
 		compatible = "gpio-keys";
 
 		key-1 {
-		        gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_1>;
-		        label = "SW2-1";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW2-1";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-2 {
-		        gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_2>;
-		        label = "SW2-2";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW2-2";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-3 {
-		        gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_3>;
-		        label = "SW2-3";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW2-3";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-4 {
-		        gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_4>;
-		        label = "SW2-4";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW2-4";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-a {
-		        gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_A>;
-		        label = "SW30";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_A>;
+			label = "SW30";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-b {
-		        gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_B>;
-		        label = "SW31";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_B>;
+			label = "SW31";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-c {
-		        gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_C>;
-		        label = "SW32";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_C>;
+			label = "SW32";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-d {
-		        gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_D>;
-		        label = "SW33";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_D>;
+			label = "SW33";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-e {
-		        gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_E>;
-		        label = "SW34";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_E>;
+			label = "SW34";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-f {
-		        gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_F>;
-		        label = "SW35";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_F>;
+			label = "SW35";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-g {
-		        gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_G>;
-		        label = "SW36";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_G>;
+			label = "SW36";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 	};
 
@@ -182,8 +179,7 @@
 
 		gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi1: regulator-vcc-sdhi1 {
@@ -206,8 +202,7 @@
 
 		gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -230,8 +225,7 @@
 
 		gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {
@@ -447,10 +441,9 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&cpg CPG_MOD 726>,
+	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>,
 		 <&x13_clk>, <&x2_clk>;
-	clock-names = "du.0", "du.1", "lvds.0",
-		      "dclkin.0", "dclkin.1";
+	clock-names = "du.0", "du.1", "dclkin.0", "dclkin.1";
 
 	ports {
 		port@0 {
@@ -458,6 +451,11 @@
 				remote-endpoint = <&adv7511_in>;
 			};
 		};
+	};
+};
+
+&lvds0 {
+	ports {
 		port@1 {
 			lvds_connector: endpoint {
 			};
@@ -510,6 +508,11 @@
 
 	phy1_pins: phy1 {
 		groups = "intc_irq0";
+		function = "intc";
+	};
+
+	pmic_irq_pins: pmicirq {
+		groups = "intc_irq2";
 		function = "intc";
 	};
 
@@ -588,10 +591,20 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
 	};
 };
 
 &cmt0 {
+	status = "okay";
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+};
+
+&rwdt {
+	timeout-sec = <60>;
 	status = "okay";
 };
 
@@ -701,6 +714,8 @@
 };
 
 &i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_irq_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 
@@ -718,6 +733,18 @@
 		wdt {
 			compatible = "dlg,da9063-watchdog";
 		};
+	};
+
+	vdd_dvfs: regulator@68 {
+		compatible = "dlg,da9210";
+		reg = <0x68>;
+		interrupt-parent = <&irqc0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 
@@ -754,9 +781,6 @@
 	pinctrl-names = "default";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		vin0ep2: endpoint {
 			remote-endpoint = <&adv7612_out>;
 			bus-width = <24>;
@@ -776,9 +800,6 @@
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		vin1ep: endpoint {
 			remote-endpoint = <&adv7180_out>;
 			bus-width = <8>;

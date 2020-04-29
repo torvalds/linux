@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <asm/types.h>
 #include <init.h>
@@ -36,7 +36,9 @@ int __init read_initrd(void)
 		return 0;
 	}
 
-	area = alloc_bootmem(size);
+	area = memblock_alloc(size, SMP_CACHE_BYTES);
+	if (!area)
+		panic("%s: Failed to allocate %llu bytes\n", __func__, size);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;

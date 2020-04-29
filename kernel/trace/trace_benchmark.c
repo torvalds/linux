@@ -159,13 +159,13 @@ static int benchmark_event_kthread(void *arg)
 		 * wants to run, schedule in, but if the CPU is idle,
 		 * we'll keep burning cycles.
 		 *
-		 * Note the _rcu_qs() version of cond_resched() will
+		 * Note the tasks_rcu_qs() version of cond_resched() will
 		 * notify synchronize_rcu_tasks() that this thread has
 		 * passed a quiescent state for rcu_tasks. Otherwise
 		 * this thread will never voluntarily schedule which would
 		 * block synchronize_rcu_tasks() indefinitely.
 		 */
-		cond_resched();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	return 0;
@@ -178,14 +178,14 @@ static int benchmark_event_kthread(void *arg)
 int trace_benchmark_reg(void)
 {
 	if (!ok_to_run) {
-		pr_warning("trace benchmark cannot be started via kernel command line\n");
+		pr_warn("trace benchmark cannot be started via kernel command line\n");
 		return -EBUSY;
 	}
 
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
 	if (IS_ERR(bm_event_thread)) {
-		pr_warning("trace benchmark failed to create kernel thread\n");
+		pr_warn("trace benchmark failed to create kernel thread\n");
 		return PTR_ERR(bm_event_thread);
 	}
 

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * apb_timer.c: Driver for Langwell APB timers
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Note:
  * Langwell is the south complex of Intel Moorestown MID platform. There are
@@ -99,7 +95,7 @@ static inline void apbt_set_mapping(void)
 		printk(KERN_WARNING "No timer base from SFI, use default\n");
 		apbt_address = APBT_DEFAULT_BASE;
 	}
-	apbt_virt_address = ioremap_nocache(apbt_address, APBT_MMAP_SIZE);
+	apbt_virt_address = ioremap(apbt_address, APBT_MMAP_SIZE);
 	if (!apbt_virt_address) {
 		pr_debug("Failed mapping APBT phy address at %lu\n",\
 			 (unsigned long)apbt_address);

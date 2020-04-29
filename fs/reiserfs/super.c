@@ -629,6 +629,7 @@ static void reiserfs_put_super(struct super_block *s)
 	reiserfs_write_unlock(s);
 	mutex_destroy(&REISERFS_SB(s)->lock);
 	destroy_workqueue(REISERFS_SB(s)->commit_wq);
+	kfree(REISERFS_SB(s)->s_jdev);
 	kfree(s->s_fs_info);
 	s->s_fs_info = NULL;
 }
@@ -650,15 +651,9 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void reiserfs_i_callback(struct rcu_head *head)
+static void reiserfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(reiserfs_inode_cachep, REISERFS_I(inode));
-}
-
-static void reiserfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, reiserfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -815,7 +810,7 @@ static struct dquot **reiserfs_get_dquots(struct inode *inode)
 
 static const struct super_operations reiserfs_sops = {
 	.alloc_inode = reiserfs_alloc_inode,
-	.destroy_inode = reiserfs_destroy_inode,
+	.free_inode = reiserfs_free_inode,
 	.write_inode = reiserfs_write_inode,
 	.dirty_inode = reiserfs_dirty_inode,
 	.evict_inode = reiserfs_evict_inode,
@@ -1953,7 +1948,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		if (!sbi->s_jdev) {
 			SWARN(silent, s, "", "Cannot allocate memory for "
 				"journal device name");
-			goto error;
+			goto error_unlocked;
 		}
 	}
 #ifdef CONFIG_QUOTA
@@ -1981,6 +1976,9 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		      s->s_id);
 		goto error_unlocked;
 	}
+
+	s->s_time_min = 0;
+	s->s_time_max = U32_MAX;
 
 	rs = SB_DISK_SUPER_BLOCK(s);
 	/*
@@ -2051,6 +2049,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 	if (replay_only(s))
 		goto error_unlocked;
+
+	s->s_xattr = reiserfs_xattr_handlers;
 
 	if (bdev_read_only(s->s_bdev) && !sb_rdonly(s)) {
 		SWARN(silent, s, "clm-7000",
@@ -2241,6 +2241,7 @@ error_unlocked:
 			kfree(qf_names[j]);
 	}
 #endif
+	kfree(sbi->s_jdev);
 	kfree(sbi);
 
 	s->s_fs_info = NULL;

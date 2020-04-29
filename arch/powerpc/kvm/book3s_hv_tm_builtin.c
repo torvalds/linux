@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kvm_host.h>
@@ -26,7 +23,18 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 	u64 newmsr, msr, bescr;
 	int rs;
 
-	switch (instr & 0xfc0007ff) {
+	/*
+	 * rfid, rfebb, and mtmsrd encode bit 31 = 0 since it's a reserved bit
+	 * in these instructions, so masking bit 31 out doesn't change these
+	 * instructions. For the tsr. instruction if bit 31 = 0 then it is per
+	 * ISA an invalid form, however P9 UM, in section 4.6.10 Book II Invalid
+	 * Forms, informs specifically that ignoring bit 31 is an acceptable way
+	 * to handle TM-related invalid forms that have bit 31 = 0. Moreover,
+	 * for emulation purposes both forms (w/ and wo/ bit 31 set) can
+	 * generate a softpatch interrupt. Hence both forms are handled below
+	 * for tsr. to make them behave the same way.
+	 */
+	switch (instr & PO_XOP_OPCODE_MASK) {
 	case PPC_INST_RFID:
 		/* XXX do we need to check for PR=0 here? */
 		newmsr = vcpu->arch.shregs.srr1;
@@ -35,8 +43,8 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 			return 0;
 		newmsr = sanitize_msr(newmsr);
 		vcpu->arch.shregs.msr = newmsr;
-		vcpu->arch.cfar = vcpu->arch.pc - 4;
-		vcpu->arch.pc = vcpu->arch.shregs.srr0;
+		vcpu->arch.cfar = vcpu->arch.regs.nip - 4;
+		vcpu->arch.regs.nip = vcpu->arch.shregs.srr0;
 		return 1;
 
 	case PPC_INST_RFEBB:
@@ -58,8 +66,8 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		mtspr(SPRN_BESCR, bescr);
 		msr = (msr & ~MSR_TS_MASK) | MSR_TS_T;
 		vcpu->arch.shregs.msr = msr;
-		vcpu->arch.cfar = vcpu->arch.pc - 4;
-		vcpu->arch.pc = mfspr(SPRN_EBBRR);
+		vcpu->arch.cfar = vcpu->arch.regs.nip - 4;
+		vcpu->arch.regs.nip = mfspr(SPRN_EBBRR);
 		return 1;
 
 	case PPC_INST_MTMSRD:
@@ -76,7 +84,8 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		vcpu->arch.shregs.msr = newmsr;
 		return 1;
 
-	case PPC_INST_TSR:
+	/* ignore bit 31, see comment above */
+	case (PPC_INST_TSR & PO_XOP_OPCODE_MASK):
 		/* we know the MSR has the TS field = S (0b01) here */
 		msr = vcpu->arch.shregs.msr;
 		/* check for PR=1 and arch 2.06 bit set in PCR */
@@ -89,7 +98,8 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		if (instr & (1 << 21))
 			vcpu->arch.shregs.msr = (msr & ~MSR_TS_MASK) | MSR_TS_T;
 		/* Set CR0 to 0b0010 */
-		vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) | 0x20000000;
+		vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) |
+			0x20000000;
 		return 1;
 	}
 
@@ -103,7 +113,7 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 void kvmhv_emulate_tm_rollback(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.shregs.msr &= ~MSR_TS_MASK;	/* go to N state */
-	vcpu->arch.pc = vcpu->arch.tfhar;
+	vcpu->arch.regs.nip = vcpu->arch.tfhar;
 	copy_from_checkpoint(vcpu);
-	vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) | 0xa0000000;
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) | 0xa0000000;
 }

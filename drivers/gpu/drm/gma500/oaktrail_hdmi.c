@@ -24,11 +24,13 @@
  *	Li Peng <peng.li@intel.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/delay.h>
+
 #include <drm/drm.h>
+
+#include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_drv.h"
 
 #define HDMI_READ(reg)		readl(hdmi_dev->regs + (reg))
 #define HDMI_WRITE(reg, val)	writel(val, hdmi_dev->regs + (reg))
@@ -157,9 +159,7 @@ static void oaktrail_hdmi_audio_disable(struct drm_device *dev)
 
 static unsigned int htotal_calculate(struct drm_display_mode *mode)
 {
-	u32 htotal, new_crtc_htotal;
-
-	htotal = (mode->crtc_hdisplay - 1) | ((mode->crtc_htotal - 1) << 16);
+	u32 new_crtc_htotal;
 
 	/*
 	 * 1024 x 768  new_crtc_htotal = 0x1024;
@@ -509,7 +509,7 @@ static void oaktrail_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	HDMI_WRITE(HDMI_VIDEO_REG, temp);
 }
 
-static int oaktrail_hdmi_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status oaktrail_hdmi_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)
@@ -578,7 +578,7 @@ static int oaktrail_hdmi_get_modes(struct drm_connector *connector)
 	}
 
 	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 	}
 	return ret;
@@ -815,7 +815,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	PSB_WVDC32(hdmi_dev->saveDPLL_ADJUST, DPLL_ADJUST);
 	PSB_WVDC32(hdmi_dev->saveDPLL_UPDATE, DPLL_UPDATE);
 	PSB_WVDC32(hdmi_dev->saveDPLL_CLK_ENABLE, DPLL_CLK_ENABLE);
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* pipe */
 	PSB_WVDC32(pipeb->src, PIPEBSRC);

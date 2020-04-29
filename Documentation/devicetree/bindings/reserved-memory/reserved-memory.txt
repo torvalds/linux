@@ -49,7 +49,7 @@ compatible (optional) - standard definition
     - may contain the following strings:
         - shared-dma-pool: This indicates a region of memory meant to be
           used as a shared pool of DMA buffers for a set of devices. It can
-          be used by an operating system to instanciate the necessary pool
+          be used by an operating system to instantiate the necessary pool
           management subsystem if necessary.
         - vendor specific string in the form <vendor>,[<device>-]<usage>
 no-map (optional) - empty property

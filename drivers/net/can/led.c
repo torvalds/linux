@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012, Fabio Baltieri <fabio.baltieri@gmail.com>
  * Copyright 2012, Kurt Van Dijck <kurt.van.dijck@eia.be>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

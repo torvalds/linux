@@ -1,24 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Job
  *
  * Copyright (c) 2010-2015, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -34,8 +24,7 @@
 #define HOST1X_WAIT_SYNCPT_OFFSET 0x8
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs,
-				    u32 num_waitchks)
+				    u32 num_cmdbufs, u32 num_relocs)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_cmdbufs + num_relocs;
@@ -46,7 +35,6 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	total = sizeof(struct host1x_job) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
-		(u64)num_waitchks * sizeof(struct host1x_waitchk) +
 		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
 		(u64)num_unpins * sizeof(u32 *);
@@ -62,12 +50,10 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
-	job->relocarray = num_relocs ? mem : NULL;
+	job->relocs = num_relocs ? mem : NULL;
 	mem += num_relocs * sizeof(struct host1x_reloc);
 	job->unpins = num_unpins ? mem : NULL;
 	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
-	job->waitchk = num_waitchks ? mem : NULL;
-	mem += num_waitchks * sizeof(struct host1x_waitchk);
 	job->gathers = num_cmdbufs ? mem : NULL;
 	mem += num_cmdbufs * sizeof(struct host1x_job_gather);
 	job->addr_phys = num_unpins ? mem : NULL;
@@ -100,95 +86,33 @@ void host1x_job_put(struct host1x_job *job)
 EXPORT_SYMBOL(host1x_job_put);
 
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
-			   u32 words, u32 offset)
+			   unsigned int words, unsigned int offset)
 {
-	struct host1x_job_gather *cur_gather = &job->gathers[job->num_gathers];
+	struct host1x_job_gather *gather = &job->gathers[job->num_gathers];
 
-	cur_gather->words = words;
-	cur_gather->bo = bo;
-	cur_gather->offset = offset;
+	gather->words = words;
+	gather->bo = bo;
+	gather->offset = offset;
+
 	job->num_gathers++;
 }
 EXPORT_SYMBOL(host1x_job_add_gather);
 
-/*
- * NULL an already satisfied WAIT_SYNCPT host method, by patching its
- * args in the command stream. The method data is changed to reference
- * a reserved (never given out or incr) HOST1X_SYNCPT_RESERVED syncpt
- * with a matching threshold value of 0, so is guaranteed to be popped
- * by the host HW.
- */
-static void host1x_syncpt_patch_offset(struct host1x_syncpt *sp,
-				       struct host1x_bo *h, u32 offset)
-{
-	void *patch_addr = NULL;
-
-	/* patch the wait */
-	patch_addr = host1x_bo_kmap(h, offset >> PAGE_SHIFT);
-	if (patch_addr) {
-		host1x_syncpt_patch_wait(sp,
-					 patch_addr + (offset & ~PAGE_MASK));
-		host1x_bo_kunmap(h, offset >> PAGE_SHIFT, patch_addr);
-	} else
-		pr_err("Could not map cmdbuf for wait check\n");
-}
-
-/*
- * Check driver supplied waitchk structs for syncpt thresholds
- * that have already been satisfied and NULL the comparison (to
- * avoid a wrap condition in the HW).
- */
-static int do_waitchks(struct host1x_job *job, struct host1x *host,
-		       struct host1x_job_gather *g)
-{
-	struct host1x_bo *patch = g->bo;
-	int i;
-
-	/* compare syncpt vs wait threshold */
-	for (i = 0; i < job->num_waitchk; i++) {
-		struct host1x_waitchk *wait = &job->waitchk[i];
-		struct host1x_syncpt *sp =
-			host1x_syncpt_get(host, wait->syncpt_id);
-
-		/* validate syncpt id */
-		if (wait->syncpt_id > host1x_syncpt_nb_pts(host))
-			continue;
-
-		/* skip all other gathers */
-		if (patch != wait->bo)
-			continue;
-
-		trace_host1x_syncpt_wait_check(wait->bo, wait->offset,
-					       wait->syncpt_id, wait->thresh,
-					       host1x_syncpt_read_min(sp));
-
-		if (host1x_syncpt_is_expired(sp, wait->thresh)) {
-			dev_dbg(host->dev,
-				"drop WAIT id %u (%s) thresh 0x%x, min 0x%x\n",
-				wait->syncpt_id, sp->name, wait->thresh,
-				host1x_syncpt_read_min(sp));
-
-			host1x_syncpt_patch_offset(sp, patch,
-						   g->offset + wait->offset);
-		}
-
-		wait->bo = NULL;
-	}
-
-	return 0;
-}
-
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
+	struct host1x_client *client = job->client;
+	struct device *dev = client->dev;
+	struct iommu_domain *domain;
 	unsigned int i;
 	int err;
 
+	domain = iommu_get_domain_for_dev(dev);
 	job->num_unpins = 0;
 
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
+		dma_addr_t phys_addr, *phys;
 		struct sg_table *sgt;
-		dma_addr_t phys_addr;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
 		if (!reloc->target.bo) {
@@ -196,7 +120,62 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
+		/*
+		 * If the client device is not attached to an IOMMU, the
+		 * physical address of the buffer object can be used.
+		 *
+		 * Similarly, when an IOMMU domain is shared between all
+		 * host1x clients, the IOVA is already available, so no
+		 * need to map the buffer object again.
+		 *
+		 * XXX Note that this isn't always safe to do because it
+		 * relies on an assumption that no cache maintenance is
+		 * needed on the buffer objects.
+		 */
+		if (!domain || client->group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(dev, reloc->target.bo, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
+
+		if (sgt) {
+			unsigned long mask = HOST1X_RELOC_READ |
+					     HOST1X_RELOC_WRITE;
+			enum dma_data_direction dir;
+
+			switch (reloc->flags & mask) {
+			case HOST1X_RELOC_READ:
+				dir = DMA_TO_DEVICE;
+				break;
+
+			case HOST1X_RELOC_WRITE:
+				dir = DMA_FROM_DEVICE;
+				break;
+
+			case HOST1X_RELOC_READ | HOST1X_RELOC_WRITE:
+				dir = DMA_BIDIRECTIONAL;
+				break;
+
+			default:
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			err = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dev = dev;
+			job->unpins[job->num_unpins].dir = dir;
+			phys_addr = sg_dma_address(sgt->sgl);
+		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
@@ -212,6 +191,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		dma_addr_t phys_addr;
 		unsigned long shift;
 		struct iova *alloc;
+		dma_addr_t *phys;
 		unsigned int j;
 
 		g->bo = host1x_bo_get(g->bo);
@@ -220,7 +200,21 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(g->bo, &sgt);
+		/**
+		 * If the host1x is not attached to an IOMMU, there is no need
+		 * to map the buffer object for the host1x, since the physical
+		 * address can simply be used.
+		 */
+		if (!iommu_get_domain_for_dev(host->dev))
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(host->dev, g->bo, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
 			for_each_sg(sgt->sgl, sg, sgt->nents, j)
@@ -244,14 +238,23 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 				goto unpin;
 			}
 
-			job->addr_phys[job->num_unpins] =
-				iova_dma_addr(&host->iova, alloc);
 			job->unpins[job->num_unpins].size = gather_size;
-		} else {
-			job->addr_phys[job->num_unpins] = phys_addr;
+			phys_addr = iova_dma_addr(&host->iova, alloc);
+		} else if (sgt) {
+			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dir = DMA_TO_DEVICE;
+			job->unpins[job->num_unpins].dev = host->dev;
+			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
-		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
+		job->addr_phys[job->num_unpins] = phys_addr;
+		job->gather_addr_phys[i] = phys_addr;
 
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
@@ -267,14 +270,13 @@ unpin:
 
 static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 {
-	int i = 0;
-	u32 last_page = ~0;
-	void *cmdbuf_page_addr = NULL;
+	void *cmdbuf_addr = NULL;
 	struct host1x_bo *cmdbuf = g->bo;
+	unsigned int i;
 
 	/* pin & patch the relocs for one gather */
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
 				  reloc->target.offset) >> reloc->shift;
 		u32 *target;
@@ -290,28 +292,22 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 			goto patch_reloc;
 		}
 
-		if (last_page != reloc->cmdbuf.offset >> PAGE_SHIFT) {
-			if (cmdbuf_page_addr)
-				host1x_bo_kunmap(cmdbuf, last_page,
-						 cmdbuf_page_addr);
+		if (!cmdbuf_addr) {
+			cmdbuf_addr = host1x_bo_mmap(cmdbuf);
 
-			cmdbuf_page_addr = host1x_bo_kmap(cmdbuf,
-					reloc->cmdbuf.offset >> PAGE_SHIFT);
-			last_page = reloc->cmdbuf.offset >> PAGE_SHIFT;
-
-			if (unlikely(!cmdbuf_page_addr)) {
+			if (unlikely(!cmdbuf_addr)) {
 				pr_err("Could not map cmdbuf for relocation\n");
 				return -ENOMEM;
 			}
 		}
 
-		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
+		target = cmdbuf_addr + reloc->cmdbuf.offset;
 patch_reloc:
 		*target = reloc_addr;
 	}
 
-	if (cmdbuf_page_addr)
-		host1x_bo_kunmap(cmdbuf, last_page, cmdbuf_page_addr);
+	if (cmdbuf_addr)
+		host1x_bo_munmap(cmdbuf, cmdbuf_addr);
 
 	return 0;
 }
@@ -331,26 +327,12 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	return true;
 }
 
-static bool check_wait(struct host1x_waitchk *wait, struct host1x_bo *cmdbuf,
-		       unsigned int offset)
-{
-	offset *= sizeof(u32);
-
-	if (wait->bo != cmdbuf || wait->offset != offset)
-		return false;
-
-	return true;
-}
-
 struct host1x_firewall {
 	struct host1x_job *job;
 	struct device *dev;
 
 	unsigned int num_relocs;
 	struct host1x_reloc *reloc;
-
-	unsigned int num_waitchks;
-	struct host1x_waitchk *waitchk;
 
 	struct host1x_bo *cmdbuf;
 	unsigned int offset;
@@ -376,20 +358,6 @@ static int check_register(struct host1x_firewall *fw, unsigned long offset)
 
 		fw->num_relocs--;
 		fw->reloc++;
-	}
-
-	if (offset == HOST1X_WAIT_SYNCPT_OFFSET) {
-		if (fw->class != HOST1X_CLASS_HOST1X)
-			return -EINVAL;
-
-		if (!fw->num_waitchks)
-			return -EINVAL;
-
-		if (!check_wait(fw->waitchk, fw->cmdbuf, fw->offset))
-			return -EINVAL;
-
-		fw->num_waitchks--;
-		fw->waitchk++;
 	}
 
 	return 0;
@@ -545,19 +513,18 @@ out:
 	return err;
 }
 
-static inline int copy_gathers(struct host1x_job *job, struct device *dev)
+static inline int copy_gathers(struct device *host, struct host1x_job *job,
+			       struct device *dev)
 {
 	struct host1x_firewall fw;
 	size_t size = 0;
 	size_t offset = 0;
-	int i;
+	unsigned int i;
 
 	fw.job = job;
 	fw.dev = dev;
-	fw.reloc = job->relocarray;
+	fw.reloc = job->relocs;
 	fw.num_relocs = job->num_relocs;
-	fw.waitchk = job->waitchk;
-	fw.num_waitchks = job->num_waitchk;
 	fw.class = job->class;
 
 	for (i = 0; i < job->num_gathers; i++) {
@@ -570,12 +537,12 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	 * Try a non-blocking allocation from a higher priority pools first,
 	 * as awaiting for the allocation here is a major performance hit.
 	 */
-	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
+	job->gather_copy_mapped = dma_alloc_wc(host, size, &job->gather_copy,
 					       GFP_NOWAIT);
 
 	/* the higher priority allocation failed, try the generic-blocking */
 	if (!job->gather_copy_mapped)
-		job->gather_copy_mapped = dma_alloc_wc(dev, size,
+		job->gather_copy_mapped = dma_alloc_wc(host, size,
 						       &job->gather_copy,
 						       GFP_KERNEL);
 	if (!job->gather_copy_mapped)
@@ -604,8 +571,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		offset += g->words * sizeof(u32);
 	}
 
-	/* No relocs and waitchks should remain at this point */
-	if (fw.num_relocs || fw.num_waitchks)
+	/* No relocs should remain at this point */
+	if (fw.num_relocs)
 		return -EINVAL;
 
 	return 0;
@@ -616,19 +583,6 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	int err;
 	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	DECLARE_BITMAP(waitchk_mask, host1x_syncpt_nb_pts(host));
-
-	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
-	for (i = 0; i < job->num_waitchk; i++) {
-		u32 syncpt_id = job->waitchk[i].syncpt_id;
-
-		if (syncpt_id < host1x_syncpt_nb_pts(host))
-			set_bit(syncpt_id, waitchk_mask);
-	}
-
-	/* get current syncpt values for waitchk */
-	for_each_set_bit(i, waitchk_mask, host1x_syncpt_nb_pts(host))
-		host1x_syncpt_load(host->syncpt + i);
 
 	/* pin memory */
 	err = pin_job(host, job);
@@ -636,7 +590,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		goto out;
 
 	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
-		err = copy_gathers(job, dev);
+		err = copy_gathers(host->dev, job, dev);
 		if (err)
 			goto out;
 	}
@@ -663,10 +617,6 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		err = do_relocs(job, g);
 		if (err)
 			break;
-
-		err = do_waitchks(job, host, g);
-		if (err)
-			break;
 	}
 
 out:
@@ -685,22 +635,29 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+		struct device *dev = unpin->dev ?: host->dev;
+		struct sg_table *sgt = unpin->sgt;
 
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
+		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
+		    unpin->size && host->domain) {
 			iommu_unmap(host->domain, job->addr_phys[i],
 				    unpin->size);
 			free_iova(&host->iova,
 				iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		host1x_bo_unpin(unpin->bo, unpin->sgt);
+		if (unpin->dev && sgt)
+			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
+				     unpin->dir);
+
+		host1x_bo_unpin(dev, unpin->bo, sgt);
 		host1x_bo_put(unpin->bo);
 	}
 
 	job->num_unpins = 0;
 
 	if (job->gather_copy_size)
-		dma_free_wc(job->channel->dev, job->gather_copy_size,
+		dma_free_wc(host->dev, job->gather_copy_size,
 			    job->gather_copy_mapped, job->gather_copy);
 }
 EXPORT_SYMBOL(host1x_job_unpin);

@@ -57,7 +57,6 @@ void acpi_ds_clear_implicit_return(struct acpi_walk_state *walk_state)
 	}
 }
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_do_implicit_return
@@ -401,7 +400,6 @@ void acpi_ds_clear_operands(struct acpi_walk_state *walk_state)
 	walk_state->num_operands = 0;
 	return_VOID;
 }
-#endif
 
 /*******************************************************************************
  *

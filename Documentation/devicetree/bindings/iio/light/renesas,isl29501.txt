@@ -1,0 +1,13 @@
+* ISL29501 Time-of-flight sensor.
+
+Required properties:
+
+  - compatible : should be "renesas,isl29501"
+  - reg : the I2C address of the sensor
+
+Example:
+
+isl29501@57 {
+	compatible = "renesas,isl29501";
+	reg = <0x57>;
+};

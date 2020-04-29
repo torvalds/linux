@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Alienware AlienFX control
  *
  * Copyright (C) 2014 Dell Inc <mario_limonciello@dell.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -458,19 +448,19 @@ static int alienware_zone_init(struct platform_device *dev)
 	 *      - zone_data num_zones is for the distinct zones
 	 */
 	zone_dev_attrs =
-	    kzalloc(sizeof(struct device_attribute) * (quirks->num_zones + 1),
+	    kcalloc(quirks->num_zones + 1, sizeof(struct device_attribute),
 		    GFP_KERNEL);
 	if (!zone_dev_attrs)
 		return -ENOMEM;
 
 	zone_attrs =
-	    kzalloc(sizeof(struct attribute *) * (quirks->num_zones + 2),
+	    kcalloc(quirks->num_zones + 2, sizeof(struct attribute *),
 		    GFP_KERNEL);
 	if (!zone_attrs)
 		return -ENOMEM;
 
 	zone_data =
-	    kzalloc(sizeof(struct platform_zone) * (quirks->num_zones),
+	    kcalloc(quirks->num_zones, sizeof(struct platform_zone),
 		    GFP_KERNEL);
 	if (!zone_data)
 		return -ENOMEM;
@@ -522,22 +512,22 @@ static acpi_status alienware_wmax_command(struct wmax_basic_args *in_args,
 
 	input.length = (acpi_size) sizeof(*in_args);
 	input.pointer = in_args;
-	if (out_data != NULL) {
+	if (out_data) {
 		output.length = ACPI_ALLOCATE_BUFFER;
 		output.pointer = NULL;
 		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 0,
 					     command, &input, &output);
-	} else
+		if (ACPI_SUCCESS(status)) {
+			obj = (union acpi_object *)output.pointer;
+			if (obj && obj->type == ACPI_TYPE_INTEGER)
+				*out_data = (u32)obj->integer.value;
+		}
+		kfree(output.pointer);
+	} else {
 		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 0,
 					     command, &input, NULL);
-
-	if (ACPI_SUCCESS(status) && out_data != NULL) {
-		obj = (union acpi_object *)output.pointer;
-		if (obj && obj->type == ACPI_TYPE_INTEGER)
-			*out_data = (u32) obj->integer.value;
 	}
 	return status;
-
 }
 
 /*
@@ -587,7 +577,7 @@ static ssize_t show_hdmi_source(struct device *dev,
 			return scnprintf(buf, PAGE_SIZE,
 					 "input [gpu] unknown\n");
 	}
-	pr_err("alienware-wmi: unknown HDMI source status: %d\n", out_data);
+	pr_err("alienware-wmi: unknown HDMI source status: %u\n", status);
 	return scnprintf(buf, PAGE_SIZE, "input gpu [unknown]\n");
 }
 

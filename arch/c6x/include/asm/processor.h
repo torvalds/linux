@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
@@ -5,10 +6,6 @@
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
  *
  *  Updated for 2.6.34: Mark Salter <msalter@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #ifndef _ASM_C6X_PROCESSOR_H
 #define _ASM_C6X_PROCESSOR_H
@@ -16,17 +13,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/current.h>
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr()			\
-({						\
-	void *__pc;				\
-	asm("mvc .S2 pce1,%0\n" : "=b"(__pc));	\
-	__pc;					\
-})
 
 /*
  * User space process size. This is mostly meaningless for NOMMU

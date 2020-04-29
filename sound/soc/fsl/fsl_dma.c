@@ -1,18 +1,14 @@
-/*
- * Freescale DMA ALSA SoC PCM driver
- *
- * Author: Timur Tabi <timur@freescale.com>
- *
- * Copyright 2007-2010 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- *
- * This driver implements ASoC support for the Elo DMA controller, which is
- * the DMA controller on Freescale 83xx, 85xx, and 86xx SOCs. In ALSA terms,
- * the PCM driver is what handles the DMA buffer.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale DMA ALSA SoC PCM driver
+//
+// Author: Timur Tabi <timur@freescale.com>
+//
+// Copyright 2007-2010 Freescale Semiconductor, Inc.
+//
+// This driver implements ASoC support for the Elo DMA controller, which is
+// the DMA controller on Freescale 83xx, 85xx, and 86xx SOCs. In ALSA terms,
+// the PCM driver is what handles the DMA buffer.
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -205,8 +201,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
 	struct fsl_dma_private *dma_private = dev_id;
 	struct snd_pcm_substream *substream = dma_private->substream;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct device *dev = component->dev;
+	struct device *dev = rtd->dev;
 	struct ccsr_dma_channel __iomem *dma_channel = dma_private->dma_channel;
 	irqreturn_t ret = IRQ_NONE;
 	u32 sr, sr2 = 0;
@@ -284,7 +279,8 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
  * Regardless of where the memory is actually allocated, since the device can
  * technically DMA to any 36-bit address, we do need to set the DMA mask to 36.
  */
-static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
+static int fsl_dma_new(struct snd_soc_component *component,
+		       struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -384,11 +380,10 @@ static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
  *    buffer, which is what ALSA expects.  We're just dividing it into
  *    contiguous parts, and creating a link descriptor for each one.
  */
-static int fsl_dma_open(struct snd_pcm_substream *substream)
+static int fsl_dma_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	struct dma_object *dma =
 		container_of(component->driver, struct dma_object, dai);
@@ -537,13 +532,12 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
  * and 8 bytes at a time).  So we do not support packed 24-bit samples.
  * 24-bit data must be padded to 32 bits.
  */
-static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *hw_params)
+static int fsl_dma_hw_params(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_dma_private *dma_private = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 
 	/* Number of bits per sample */
@@ -702,12 +696,11 @@ static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
  * The base address of the buffer is stored in the source_addr field of the
  * first link descriptor.
  */
-static snd_pcm_uframes_t fsl_dma_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t fsl_dma_pointer(struct snd_soc_component *component,
+					 struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_dma_private *dma_private = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	struct ccsr_dma_channel __iomem *dma_channel = dma_private->dma_channel;
 	dma_addr_t position;
@@ -767,7 +760,8 @@ static snd_pcm_uframes_t fsl_dma_pointer(struct snd_pcm_substream *substream)
  *
  * This function can be called multiple times.
  */
-static int fsl_dma_hw_free(struct snd_pcm_substream *substream)
+static int fsl_dma_hw_free(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_dma_private *dma_private = runtime->private_data;
@@ -800,12 +794,11 @@ static int fsl_dma_hw_free(struct snd_pcm_substream *substream)
 /**
  * fsl_dma_close: close the stream.
  */
-static int fsl_dma_close(struct snd_pcm_substream *substream)
+static int fsl_dma_close(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_dma_private *dma_private = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	struct dma_object *dma =
 		container_of(component->driver, struct dma_object, dai);
@@ -828,7 +821,8 @@ static int fsl_dma_close(struct snd_pcm_substream *substream)
 /*
  * Remove this PCM driver.
  */
-static void fsl_dma_free_dma_buffers(struct snd_pcm *pcm)
+static void fsl_dma_free_dma_buffers(struct snd_soc_component *component,
+				     struct snd_pcm *pcm)
 {
 	struct snd_pcm_substream *substream;
 	unsigned int i;
@@ -876,15 +870,6 @@ static struct device_node *find_ssi_node(struct device_node *dma_channel_np)
 	return NULL;
 }
 
-static const struct snd_pcm_ops fsl_dma_ops = {
-	.open   	= fsl_dma_open,
-	.close  	= fsl_dma_close,
-	.ioctl  	= snd_pcm_lib_ioctl,
-	.hw_params      = fsl_dma_hw_params,
-	.hw_free	= fsl_dma_hw_free,
-	.pointer	= fsl_dma_pointer,
-};
-
 static int fsl_soc_dma_probe(struct platform_device *pdev)
 {
 	struct dma_object *dma;
@@ -916,9 +901,13 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
 	}
 
 	dma->dai.name = DRV_NAME;
-	dma->dai.ops = &fsl_dma_ops;
-	dma->dai.pcm_new = fsl_dma_new;
-	dma->dai.pcm_free = fsl_dma_free_dma_buffers;
+	dma->dai.open = fsl_dma_open;
+	dma->dai.close = fsl_dma_close;
+	dma->dai.hw_params = fsl_dma_hw_params;
+	dma->dai.hw_free = fsl_dma_hw_free;
+	dma->dai.pointer = fsl_dma_pointer;
+	dma->dai.pcm_construct = fsl_dma_new;
+	dma->dai.pcm_destruct = fsl_dma_free_dma_buffers;
 
 	/* Store the SSI-specific information that we need */
 	dma->ssi_stx_phys = res.start + REG_SSI_STX0;

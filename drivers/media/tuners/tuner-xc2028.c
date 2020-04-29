@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // tuner-xc2028
 //
-// Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
+// Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
 // Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
 //       - frontend interface
@@ -376,13 +376,12 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
 			printk(KERN_CONT
-			       "(%x), id %llx is corrupted (size=%d, expected %d)\n",
-			       type, (unsigned long long)id,
-			       (unsigned)(endp - p), size);
+			       "(%x), id %llx is corrupted (size=%zd, expected %d)\n",
+			       type, (unsigned long long)id, (endp - p), size);
 			goto corrupt;
 		}
 
-		priv->firm[n].ptr = kzalloc(size, GFP_KERNEL);
+		priv->firm[n].ptr = kmemdup(p, size, GFP_KERNEL);
 		if (priv->firm[n].ptr == NULL) {
 			tuner_err("Not enough memory to load firmware file.\n");
 			rc = -ENOMEM;
@@ -395,7 +394,6 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			       type, (unsigned long long)id, size);
 		}
 
-		memcpy(priv->firm[n].ptr, p, size);
 		priv->firm[n].type = type;
 		priv->firm[n].id   = id;
 		priv->firm[n].size = size;
@@ -616,8 +614,8 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		}
 
 		if ((size + p > endp)) {
-			tuner_err("missing bytes: need %d, have %d\n",
-				   size, (int)(endp - p));
+			tuner_err("missing bytes: need %d, have %zd\n",
+				   size, (endp - p));
 			return -EINVAL;
 		}
 
@@ -1440,9 +1438,9 @@ unlock:
 static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.info = {
 		 .name = "Xceive XC3028",
-		 .frequency_min = 42000000,
-		 .frequency_max = 864000000,
-		 .frequency_step = 50000,
+		 .frequency_min_hz  =  42 * MHz,
+		 .frequency_max_hz  = 864 * MHz,
+		 .frequency_step_hz =  50 * kHz,
 		 },
 
 	.set_config	   = xc2028_set_config,
@@ -1518,7 +1516,7 @@ EXPORT_SYMBOL(xc2028_attach);
 
 MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
 MODULE_AUTHOR("Michel Ludwig <michel.ludwig@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(XC2028_DEFAULT_FIRMWARE);
 MODULE_FIRMWARE(XC3028L_DEFAULT_FIRMWARE);

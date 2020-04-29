@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver access RC5T583 power management chip.
  *
@@ -6,24 +7,10 @@
  *
  * Based on code
  *	Copyright (C) 2011 RICOH COMPANY,LTD
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -258,11 +245,9 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 	}
 
-	rc5t583 = devm_kzalloc(&i2c->dev, sizeof(struct rc5t583), GFP_KERNEL);
-	if (!rc5t583) {
-		dev_err(&i2c->dev, "Memory allocation failed\n");
+	rc5t583 = devm_kzalloc(&i2c->dev, sizeof(*rc5t583), GFP_KERNEL);
+	if (!rc5t583)
 		return -ENOMEM;
-	}
 
 	rc5t583->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rc5t583);
@@ -300,8 +285,6 @@ static const struct i2c_device_id rc5t583_i2c_id[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, rc5t583_i2c_id);
-
 static struct i2c_driver rc5t583_i2c_driver = {
 	.driver = {
 		   .name = "rc5t583",
@@ -315,14 +298,3 @@ static int __init rc5t583_i2c_init(void)
 	return i2c_add_driver(&rc5t583_i2c_driver);
 }
 subsys_initcall(rc5t583_i2c_init);
-
-static void __exit rc5t583_i2c_exit(void)
-{
-	i2c_del_driver(&rc5t583_i2c_driver);
-}
-
-module_exit(rc5t583_i2c_exit);
-
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("RICOH RC5T583 power management system device driver");
-MODULE_LICENSE("GPL v2");

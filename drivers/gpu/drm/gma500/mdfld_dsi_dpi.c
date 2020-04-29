@@ -25,9 +25,11 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
+#include <linux/delay.h>
+
 #include "mdfld_dsi_dpi.h"
-#include "mdfld_output.h"
 #include "mdfld_dsi_pkg_sender.h"
+#include "mdfld_output.h"
 #include "psb_drv.h"
 #include "tc35876x-dsi-lvds.h"
 
@@ -999,7 +1001,7 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 				p_funcs->encoder_helper_funcs);
 
 	/*attach to given connector*/
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	/*set possible crtcs and clones*/
 	if (dsi_connector->pipe) {

@@ -30,6 +30,7 @@ fi
 
 if [ ! -e "$DIR"/trigger_async_request ]; then
 	echo "$0: empty filename: async trigger not present, ignoring test" >&2
+	exit $ksft_skip
 else
 	if printf '\000' >"$DIR"/trigger_async_request 2> /dev/null; then
 		echo "$0: empty filename should not succeed (async)" >&2
@@ -69,6 +70,7 @@ fi
 # Try the asynchronous version too
 if [ ! -e "$DIR"/trigger_async_request ]; then
 	echo "$0: firmware loading: async trigger not present, ignoring test" >&2
+	exit $ksft_skip
 else
 	if ! echo -n "$NAME" >"$DIR"/trigger_async_request ; then
 		echo "$0: could not trigger async request" >&2
@@ -84,12 +86,35 @@ else
 	fi
 fi
 
+# Try platform (EFI embedded fw) loading too
+if [ ! -e "$DIR"/trigger_request_platform ]; then
+	echo "$0: firmware loading: platform trigger not present, ignoring test" >&2
+else
+	if printf '\000' >"$DIR"/trigger_request_platform 2> /dev/null; then
+		echo "$0: empty filename should not succeed (platform)" >&2
+		exit 1
+	fi
+
+	# Note we echo a non-existing name, since files on the file-system
+	# are preferred over firmware embedded inside the platform's firmware
+	# The test adds a fake entry with the requested name to the platform's
+	# fw list, so the name does not matter as long as it does not exist
+	if ! echo -n "nope-$NAME" >"$DIR"/trigger_request_platform ; then
+		echo "$0: could not trigger request platform" >&2
+		exit 1
+	fi
+
+	# The test verifies itself that the loaded firmware contents matches
+	# the contents for the fake platform fw entry it added.
+	echo "$0: platform loading works"
+fi
+
 ### Batched requests tests
 test_config_present()
 {
 	if [ ! -f $DIR/reset ]; then
 		echo "Configuration triggers not present, ignoring test"
-		exit 0
+		exit $ksft_skip
 	fi
 }
 
@@ -112,6 +137,16 @@ release_all_firmware()
 config_set_name()
 {
 	echo -n $1 >  $DIR/config_name
+}
+
+config_set_into_buf()
+{
+	echo 1 >  $DIR/config_into_buf
+}
+
+config_unset_into_buf()
+{
+	echo 0 >  $DIR/config_into_buf
 }
 
 config_set_sync_direct()
@@ -151,13 +186,21 @@ config_set_read_fw_idx()
 
 read_firmwares()
 {
+	if [ "$(cat $DIR/config_into_buf)" == "1" ]; then
+		fwfile="$FW_INTO_BUF"
+	else
+		fwfile="$FW"
+	fi
+	if [ "$1" = "xzonly" ]; then
+		fwfile="${fwfile}-orig"
+	fi
 	for i in $(seq 0 3); do
 		config_set_read_fw_idx $i
 		# Verify the contents are what we expect.
 		# -Z required for now -- check for yourself, md5sum
 		# on $FW and DIR/read_firmware will yield the same. Even
 		# cmp agrees, so something is off.
-		if ! diff -q -Z "$FW" $DIR/read_firmware 2>/dev/null ; then
+		if ! diff -q -Z "$fwfile" $DIR/read_firmware 2>/dev/null ; then
 			echo "request #$i: firmware was not loaded" >&2
 			exit 1
 		fi
@@ -181,6 +224,18 @@ test_batched_request_firmware_nofile()
 	echo -n "Batched request_firmware() nofile try #$1: "
 	config_reset
 	config_set_name nope-test-firmware.bin
+	config_trigger_sync
+	read_firmwares_expect_nofile
+	release_all_firmware
+	echo "OK"
+}
+
+test_batched_request_firmware_into_buf_nofile()
+{
+	echo -n "Batched request_firmware_into_buf() nofile try #$1: "
+	config_reset
+	config_set_name nope-test-firmware.bin
+	config_set_into_buf
 	config_trigger_sync
 	read_firmwares_expect_nofile
 	release_all_firmware
@@ -244,17 +299,29 @@ test_request_firmware_nowait_custom_nofile()
 
 test_batched_request_firmware()
 {
-	echo -n "Batched request_firmware() try #$1: "
+	echo -n "Batched request_firmware() $2 try #$1: "
 	config_reset
 	config_trigger_sync
-	read_firmwares
+	read_firmwares $2
+	release_all_firmware
+	echo "OK"
+}
+
+test_batched_request_firmware_into_buf()
+{
+	echo -n "Batched request_firmware_into_buf() $2 try #$1: "
+	config_reset
+	config_set_name $TEST_FIRMWARE_INTO_BUF_FILENAME
+	config_set_into_buf
+	config_trigger_sync
+	read_firmwares $2
 	release_all_firmware
 	echo "OK"
 }
 
 test_batched_request_firmware_direct()
 {
-	echo -n "Batched request_firmware_direct() try #$1: "
+	echo -n "Batched request_firmware_direct() $2 try #$1: "
 	config_reset
 	config_set_sync_direct
 	config_trigger_sync
@@ -264,7 +331,7 @@ test_batched_request_firmware_direct()
 
 test_request_firmware_nowait_uevent()
 {
-	echo -n "Batched request_firmware_nowait(uevent=true) try #$1: "
+	echo -n "Batched request_firmware_nowait(uevent=true) $2 try #$1: "
 	config_reset
 	config_trigger_async
 	release_all_firmware
@@ -273,11 +340,16 @@ test_request_firmware_nowait_uevent()
 
 test_request_firmware_nowait_custom()
 {
-	echo -n "Batched request_firmware_nowait(uevent=false) try #$1: "
+	echo -n "Batched request_firmware_nowait(uevent=false) $2 try #$1: "
 	config_reset
 	config_unset_uevent
 	RANDOM_FILE_PATH=$(setup_random_file)
 	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
+	if [ "$2" = "both" ]; then
+		xz -9 -C crc32 -k $RANDOM_FILE_PATH
+	elif [ "$2" = "xzonly" ]; then
+		xz -9 -C crc32 $RANDOM_FILE_PATH
+	fi
 	config_set_name $RANDOM_FILE
 	config_trigger_async
 	release_all_firmware
@@ -292,19 +364,23 @@ test_config_present
 echo
 echo "Testing with the file present..."
 for i in $(seq 1 5); do
-	test_batched_request_firmware $i
+	test_batched_request_firmware $i normal
 done
 
 for i in $(seq 1 5); do
-	test_batched_request_firmware_direct $i
+	test_batched_request_firmware_into_buf $i normal
 done
 
 for i in $(seq 1 5); do
-	test_request_firmware_nowait_uevent $i
+	test_batched_request_firmware_direct $i normal
 done
 
 for i in $(seq 1 5); do
-	test_request_firmware_nowait_custom $i
+	test_request_firmware_nowait_uevent $i normal
+done
+
+for i in $(seq 1 5); do
+	test_request_firmware_nowait_custom $i normal
 done
 
 # Test for file not found, errors are expected, the failure would be
@@ -313,6 +389,10 @@ echo
 echo "Testing with the file missing..."
 for i in $(seq 1 5); do
 	test_batched_request_firmware_nofile $i
+done
+
+for i in $(seq 1 5); do
+	test_batched_request_firmware_into_buf_nofile $i
 done
 
 for i in $(seq 1 5); do
@@ -325,6 +405,57 @@ done
 
 for i in $(seq 1 5); do
 	test_request_firmware_nowait_custom_nofile $i
+done
+
+test "$HAS_FW_LOADER_COMPRESS" != "yes" && exit 0
+
+# test with both files present
+xz -9 -C crc32 -k $FW
+config_set_name $NAME
+echo
+echo "Testing with both plain and xz files present..."
+for i in $(seq 1 5); do
+	test_batched_request_firmware $i both
+done
+
+for i in $(seq 1 5); do
+	test_batched_request_firmware_into_buf $i both
+done
+
+for i in $(seq 1 5); do
+	test_batched_request_firmware_direct $i both
+done
+
+for i in $(seq 1 5); do
+	test_request_firmware_nowait_uevent $i both
+done
+
+for i in $(seq 1 5); do
+	test_request_firmware_nowait_custom $i both
+done
+
+# test with only xz file present
+mv "$FW" "${FW}-orig"
+echo
+echo "Testing with only xz file present..."
+for i in $(seq 1 5); do
+	test_batched_request_firmware $i xzonly
+done
+
+for i in $(seq 1 5); do
+	test_batched_request_firmware_into_buf $i xzonly
+done
+
+for i in $(seq 1 5); do
+	test_batched_request_firmware_direct $i xzonly
+done
+
+for i in $(seq 1 5); do
+	test_request_firmware_nowait_uevent $i xzonly
+done
+
+for i in $(seq 1 5); do
+	test_request_firmware_nowait_custom $i xzonly
 done
 
 exit 0

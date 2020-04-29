@@ -10,8 +10,6 @@
 #define CIO2_PCI_ID					0x9d32
 #define CIO2_PCI_BAR					0
 #define CIO2_DMA_MASK					DMA_BIT_MASK(39)
-#define CIO2_IMAGE_MAX_WIDTH				4224
-#define CIO2_IMAGE_MAX_LENGTH				3136
 
 #define CIO2_IMAGE_MAX_WIDTH				4224
 #define CIO2_IMAGE_MAX_LENGTH				3136

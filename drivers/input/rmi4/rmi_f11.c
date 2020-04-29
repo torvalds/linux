@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2015 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -415,6 +412,10 @@ struct f11_2d_sensor_queries {
 
 /* Defs for Ctrl0. */
 #define RMI_F11_REPORT_MODE_MASK        0x07
+#define RMI_F11_REPORT_MODE_CONTINUOUS  (0 << 0)
+#define RMI_F11_REPORT_MODE_REDUCED     (1 << 0)
+#define RMI_F11_REPORT_MODE_FS_CHANGE   (2 << 0)
+#define RMI_F11_REPORT_MODE_FP_CHANGE   (3 << 0)
 #define RMI_F11_ABS_POS_FILT            (1 << 3)
 #define RMI_F11_REL_POS_FILT            (1 << 4)
 #define RMI_F11_REL_BALLISTICS          (1 << 5)
@@ -513,7 +514,6 @@ struct f11_data {
 	struct rmi_2d_sensor_platform_data sensor_pdata;
 	unsigned long *abs_mask;
 	unsigned long *rel_mask;
-	unsigned long *result_bits;
 };
 
 enum f11_finger_state {
@@ -570,9 +570,7 @@ static inline u8 rmi_f11_parse_finger_state(const u8 *f_state, u8 n_finger)
 }
 
 static void rmi_f11_finger_handler(struct f11_data *f11,
-				   struct rmi_2d_sensor *sensor,
-				   unsigned long *irq_bits, int num_irq_regs,
-				   int size)
+				   struct rmi_2d_sensor *sensor, int size)
 {
 	const u8 *f_state = f11->data.f_state;
 	u8 finger_state;
@@ -581,12 +579,7 @@ static void rmi_f11_finger_handler(struct f11_data *f11,
 	int rel_fingers;
 	int abs_size = sensor->nbr_fingers * RMI_F11_ABS_BYTES;
 
-	int abs_bits = bitmap_and(f11->result_bits, irq_bits, f11->abs_mask,
-				  num_irq_regs * 8);
-	int rel_bits = bitmap_and(f11->result_bits, irq_bits, f11->rel_mask,
-				  num_irq_regs * 8);
-
-	if (abs_bits) {
+	if (sensor->report_abs) {
 		if (abs_size > size)
 			abs_fingers = size / RMI_F11_ABS_BYTES;
 		else
@@ -604,19 +597,7 @@ static void rmi_f11_finger_handler(struct f11_data *f11,
 			rmi_f11_abs_pos_process(f11, sensor, &sensor->objs[i],
 							finger_state, i);
 		}
-	}
 
-	if (rel_bits) {
-		if ((abs_size + sensor->nbr_fingers * RMI_F11_REL_BYTES) > size)
-			rel_fingers = (size - abs_size) / RMI_F11_REL_BYTES;
-		else
-			rel_fingers = sensor->nbr_fingers;
-
-		for (i = 0; i < rel_fingers; i++)
-			rmi_f11_rel_pos_report(f11, i);
-	}
-
-	if (abs_bits) {
 		/*
 		 * the absolute part is made in 2 parts to allow the kernel
 		 * tracking to take place.
@@ -638,7 +619,16 @@ static void rmi_f11_finger_handler(struct f11_data *f11,
 		}
 
 		input_mt_sync_frame(sensor->input);
+	} else if (sensor->report_rel) {
+		if ((abs_size + sensor->nbr_fingers * RMI_F11_REL_BYTES) > size)
+			rel_fingers = (size - abs_size) / RMI_F11_REL_BYTES;
+		else
+			rel_fingers = sensor->nbr_fingers;
+
+		for (i = 0; i < rel_fingers; i++)
+			rmi_f11_rel_pos_report(f11, i);
 	}
+
 }
 
 static int f11_2d_construct_data(struct f11_data *f11)
@@ -1070,7 +1060,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	/*
 	** init instance data, fill in values and create any sysfs files
 	*/
-	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 3,
+	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 2,
 			GFP_KERNEL);
 	if (!f11)
 		return -ENOMEM;
@@ -1089,8 +1079,6 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 			+ sizeof(struct f11_data));
 	f11->rel_mask = (unsigned long *)((char *)f11
 			+ sizeof(struct f11_data) + mask_size);
-	f11->result_bits = (unsigned long *)((char *)f11
-			+ sizeof(struct f11_data) + mask_size * 2);
 
 	set_bit(fn->irq_pos, f11->abs_mask);
 	set_bit(fn->irq_pos + 1, f11->rel_mask);
@@ -1190,14 +1178,15 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 		f11->sensor.attn_size += f11->sensor.nbr_fingers * 2;
 
 	/* allocate the in-kernel tracking buffers */
-	sensor->tracking_pos = devm_kzalloc(&fn->dev,
-			sizeof(struct input_mt_pos) * sensor->nbr_fingers,
+	sensor->tracking_pos = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(struct input_mt_pos),
 			GFP_KERNEL);
-	sensor->tracking_slots = devm_kzalloc(&fn->dev,
-			sizeof(int) * sensor->nbr_fingers, GFP_KERNEL);
-	sensor->objs = devm_kzalloc(&fn->dev,
-			sizeof(struct rmi_2d_sensor_abs_object)
-			* sensor->nbr_fingers, GFP_KERNEL);
+	sensor->tracking_slots = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(int), GFP_KERNEL);
+	sensor->objs = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers,
+			sizeof(struct rmi_2d_sensor_abs_object),
+			GFP_KERNEL);
 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
 		return -ENOMEM;
 
@@ -1209,6 +1198,16 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	if (sensor->axis_align.delta_y_threshold)
 		ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD] =
 			sensor->axis_align.delta_y_threshold;
+
+	/*
+	 * If distance threshold values are set, switch to reduced reporting
+	 * mode so they actually get used by the controller.
+	 */
+	if (sensor->axis_align.delta_x_threshold ||
+	    sensor->axis_align.delta_y_threshold) {
+		ctrl->ctrl0_11[0] &= ~RMI_F11_REPORT_MODE_MASK;
+		ctrl->ctrl0_11[0] |= RMI_F11_REPORT_MODE_REDUCED;
+	}
 
 	if (f11->sens_query.has_dribble) {
 		switch (sensor->dribble) {
@@ -1239,7 +1238,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	}
 
 	rc = f11_write_control_regs(fn, &f11->sens_query,
-			   &f11->dev_controls, fn->fd.query_base_addr);
+			   &f11->dev_controls, fn->fd.control_base_addr);
 	if (rc)
 		dev_warn(&fn->dev, "Failed to write control registers\n");
 
@@ -1275,8 +1274,9 @@ static int rmi_f11_config(struct rmi_function *fn)
 	return 0;
 }
 
-static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
+static irqreturn_t rmi_f11_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f11_data *f11 = dev_get_drvdata(&fn->dev);
@@ -1295,20 +1295,19 @@ static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			valid_bytes = f11->sensor.attn_size;
 		memcpy(f11->sensor.data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		drvdata->attn_data.data += f11->sensor.attn_size;
-		drvdata->attn_data.size -= f11->sensor.attn_size;
+		drvdata->attn_data.data += valid_bytes;
+		drvdata->attn_data.size -= valid_bytes;
 	} else {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr, f11->sensor.data_pkt,
 				f11->sensor.pkt_size);
 		if (error < 0)
-			return error;
+			return IRQ_RETVAL(error);
 	}
 
-	rmi_f11_finger_handler(f11, &f11->sensor, irq_bits,
-				drvdata->num_of_irq_regs, valid_bytes);
+	rmi_f11_finger_handler(f11, &f11->sensor, valid_bytes);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int rmi_f11_resume(struct rmi_function *fn)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH5-101/SH5-103 CPU Setup
  *
  *  Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -15,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
 #include <asm/addrspace.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.flags		= UPF_IOREMAP,
@@ -118,6 +116,6 @@ arch_initcall(sh5_devices_setup);
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh5_early_devices,
+	sh_early_platform_add_devices(sh5_early_devices,
 				   ARRAY_SIZE(sh5_early_devices));
 }

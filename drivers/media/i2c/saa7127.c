@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * saa7127 - Philips SAA7127/SAA7129 video encoder driver
  *
@@ -31,16 +32,6 @@
  * macrovision anti-taping support. This driver will almost certainly
  * work fine for those chips, except of course for the missing anti-taping
  * support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 
@@ -761,10 +752,10 @@ static int saa7127_probe(struct i2c_client *client,
 			saa7127_write(sd, SAA7129_REG_FADE_KEY_COL2,
 					read_result);
 			state->ident = SAA7129;
-			strlcpy(client->name, "saa7129", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7129", I2C_NAME_SIZE);
 		} else {
 			state->ident = SAA7127;
-			strlcpy(client->name, "saa7127", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7127", I2C_NAME_SIZE);
 		}
 	}
 

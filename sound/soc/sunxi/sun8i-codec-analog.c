@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This driver supports the analog controls for the internal codec
  * found in Allwinner's A31s, A23, A33 and H3 SoCs.
  *
  * Copyright 2016 Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -26,6 +17,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
+
+#include "sun8i-adda-pr-regmap.h"
 
 /* Codec analog control register offsets and bit fields */
 #define SUN8I_ADDA_HP_VOLC		0x00
@@ -119,81 +112,6 @@
 #define SUN8I_ADDA_ADC_AP_EN_ADCREN		7
 #define SUN8I_ADDA_ADC_AP_EN_ADCLEN		6
 #define SUN8I_ADDA_ADC_AP_EN_ADCG		0
-
-/* Analog control register access bits */
-#define ADDA_PR			0x0		/* PRCM base + 0x1c0 */
-#define ADDA_PR_RESET			BIT(28)
-#define ADDA_PR_WRITE			BIT(24)
-#define ADDA_PR_ADDR_SHIFT		16
-#define ADDA_PR_ADDR_MASK		GENMASK(4, 0)
-#define ADDA_PR_DATA_IN_SHIFT		8
-#define ADDA_PR_DATA_IN_MASK		GENMASK(7, 0)
-#define ADDA_PR_DATA_OUT_SHIFT		0
-#define ADDA_PR_DATA_OUT_MASK		GENMASK(7, 0)
-
-/* regmap access bits */
-static int adda_reg_read(void *context, unsigned int reg, unsigned int *val)
-{
-	void __iomem *base = (void __iomem *)context;
-	u32 tmp;
-
-	/* De-assert reset */
-	writel(readl(base) | ADDA_PR_RESET, base);
-
-	/* Clear write bit */
-	writel(readl(base) & ~ADDA_PR_WRITE, base);
-
-	/* Set register address */
-	tmp = readl(base);
-	tmp &= ~(ADDA_PR_ADDR_MASK << ADDA_PR_ADDR_SHIFT);
-	tmp |= (reg & ADDA_PR_ADDR_MASK) << ADDA_PR_ADDR_SHIFT;
-	writel(tmp, base);
-
-	/* Read back value */
-	*val = readl(base) & ADDA_PR_DATA_OUT_MASK;
-
-	return 0;
-}
-
-static int adda_reg_write(void *context, unsigned int reg, unsigned int val)
-{
-	void __iomem *base = (void __iomem *)context;
-	u32 tmp;
-
-	/* De-assert reset */
-	writel(readl(base) | ADDA_PR_RESET, base);
-
-	/* Set register address */
-	tmp = readl(base);
-	tmp &= ~(ADDA_PR_ADDR_MASK << ADDA_PR_ADDR_SHIFT);
-	tmp |= (reg & ADDA_PR_ADDR_MASK) << ADDA_PR_ADDR_SHIFT;
-	writel(tmp, base);
-
-	/* Set data to write */
-	tmp = readl(base);
-	tmp &= ~(ADDA_PR_DATA_IN_MASK << ADDA_PR_DATA_IN_SHIFT);
-	tmp |= (val & ADDA_PR_DATA_IN_MASK) << ADDA_PR_DATA_IN_SHIFT;
-	writel(tmp, base);
-
-	/* Set write bit to signal a write */
-	writel(readl(base) | ADDA_PR_WRITE, base);
-
-	/* Clear write bit */
-	writel(readl(base) & ~ADDA_PR_WRITE, base);
-
-	return 0;
-}
-
-static const struct regmap_config adda_pr_regmap_cfg = {
-	.name		= "adda-pr",
-	.reg_bits	= 5,
-	.reg_stride	= 1,
-	.val_bits	= 8,
-	.reg_read	= adda_reg_read,
-	.reg_write	= adda_reg_write,
-	.fast_io	= true,
-	.max_register	= 24,
-};
 
 /* mixer controls */
 static const struct snd_kcontrol_new sun8i_codec_mixer_controls[] = {
@@ -901,18 +819,16 @@ MODULE_DEVICE_TABLE(of, sun8i_codec_analog_of_match);
 
 static int sun8i_codec_analog_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct regmap *regmap;
 	void __iomem *base;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		dev_err(&pdev->dev, "Failed to map the registers\n");
 		return PTR_ERR(base);
 	}
 
-	regmap = devm_regmap_init(&pdev->dev, NULL, base, &adda_pr_regmap_cfg);
+	regmap = sun8i_adda_pr_regmap_init(&pdev->dev, base);
 	if (IS_ERR(regmap)) {
 		dev_err(&pdev->dev, "Failed to create regmap\n");
 		return PTR_ERR(regmap);

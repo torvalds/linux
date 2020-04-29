@@ -78,11 +78,10 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct mmp_clk_factor_masks *masks = factor->masks;
 	int i;
 	unsigned long val;
-	unsigned long prev_rate, rate = 0;
+	unsigned long rate = 0;
 	unsigned long flags = 0;
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
-		prev_rate = rate;
 		rate = (((prate / 10000) * factor->ftbl[i].den) /
 			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
 		if (rate > drate)
@@ -110,7 +109,7 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static void clk_factor_init(struct clk_hw *hw)
+static int clk_factor_init(struct clk_hw *hw)
 {
 	struct mmp_clk_factor *factor = to_clk_factor(hw);
 	struct mmp_clk_factor_masks *masks = factor->masks;
@@ -147,6 +146,8 @@ static void clk_factor_init(struct clk_hw *hw)
 
 	if (factor->lock)
 		spin_unlock_irqrestore(factor->lock, flags);
+
+	return 0;
 }
 
 static const struct clk_ops clk_factor_ops = {

@@ -2,15 +2,14 @@ Device Tree Dynamic Resolver Notes
 ----------------------------------
 
 This document describes the implementation of the in-kernel
-Device Tree resolver, residing in drivers/of/resolver.c and is a
-companion document to Documentation/devicetree/dt-object-internal.txt[1]
+Device Tree resolver, residing in drivers/of/resolver.c
 
 How the resolver works
 ----------------------
 
 The resolver is given as an input an arbitrary tree compiled with the
 proper dtc option and having a /plugin/ tag. This generates the
-appropriate __fixups__ & __local_fixups__ nodes as described in [1].
+appropriate __fixups__ & __local_fixups__ nodes.
 
 In sequence the resolver works by the following steps:
 

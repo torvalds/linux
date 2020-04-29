@@ -1,18 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  D-Link DL2000-based Gigabit Ethernet Adapter Linux driver */
 /*
     Copyright (c) 2001, 2002 by D-Link Corporation
     Written by Edward Peng.<edward_peng@dlink.com.tw>
     Created 03-May-2001, base on Linux' sundance.c.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
 */
 
 #define DRV_NAME	"DL2000/TC902x-based linux driver"
-#define DRV_VERSION	"v1.19"
-#define DRV_RELDATE	"2007/08/12"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
@@ -23,8 +18,6 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-static char version[] =
-      KERN_INFO DRV_NAME " " DRV_VERSION " " DRV_RELDATE "\n";
 #define MAX_UNITS 8
 static int mtu[MAX_UNITS];
 static int vlan[MAX_UNITS];
@@ -69,7 +62,7 @@ static const int multicast_filter_limit = 0x40;
 
 static int rio_open (struct net_device *dev);
 static void rio_timer (struct timer_list *t);
-static void rio_tx_timeout (struct net_device *dev);
+static void rio_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static netdev_tx_t start_xmit (struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t rio_interrupt (int irq, void *dev_instance);
 static void rio_free_tx (struct net_device *dev, int irq);
@@ -116,12 +109,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int chip_idx = ent->driver_data;
 	int err, irq;
 	void __iomem *ioaddr;
-	static int version_printed;
 	void *ring_space;
 	dma_addr_t ring_dma;
-
-	if (!version_printed++)
-		printk ("%s", version);
 
 	err = pci_enable_device (pdev);
 	if (err)
@@ -699,7 +688,7 @@ rio_timer (struct timer_list *t)
 }
 
 static void
-rio_tx_timeout (struct net_device *dev)
+rio_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->ioaddr;
@@ -843,9 +832,9 @@ rio_free_tx (struct net_device *dev, int irq)
 				  desc_to_dma(&np->tx_ring[entry]),
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
-			dev_kfree_skb_irq (skb);
+			dev_consume_skb_irq(skb);
 		else
-			dev_kfree_skb (skb);
+			dev_kfree_skb(skb);
 
 		np->tx_skbuff[entry] = NULL;
 		entry = (entry + 1) % TX_RING_SIZE;
@@ -1247,7 +1236,6 @@ static void rio_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	struct netdev_private *np = netdev_priv(dev);
 
 	strlcpy(info->driver, "dl2k", sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 
@@ -1881,7 +1869,7 @@ Compile command:
 
 gcc -D__KERNEL__ -DMODULE -I/usr/src/linux/include -Wall -Wstrict-prototypes -O2 -c dl2k.c
 
-Read Documentation/networking/dl2k.txt for details.
+Read Documentation/networking/device_drivers/dlink/dl2k.txt for details.
 
 */
 

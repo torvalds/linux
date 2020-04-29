@@ -24,8 +24,16 @@ struct alias_prop {
 	const char *alias;
 	struct device_node *np;
 	int id;
-	char stem[0];
+	char stem[];
 };
+
+#if defined(CONFIG_SPARC)
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 2
+#else
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
+#endif
+
+#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
 
 extern struct mutex of_mutex;
 extern struct list_head aliases_lookup;
@@ -75,6 +83,8 @@ static inline void __of_detach_node_sysfs(struct device_node *np) {}
 #if defined(CONFIG_OF_RESOLVE)
 int of_resolve_phandles(struct device_node *tree);
 #endif
+
+void __of_phandle_cache_inv_entry(phandle handle);
 
 #if defined(CONFIG_OF_OVERLAY)
 void of_overlay_mutex_lock(void);
@@ -143,5 +153,19 @@ extern void __of_sysfs_remove_bin_file(struct device_node *np,
 /* reverse iterator */
 #define for_each_transaction_entry_reverse(_oft, _te) \
 	list_for_each_entry_reverse(_te, &(_oft)->te_list, node)
+
+extern int of_bus_n_addr_cells(struct device_node *np);
+extern int of_bus_n_size_cells(struct device_node *np);
+
+#ifdef CONFIG_OF_ADDRESS
+extern int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+			    u64 *paddr, u64 *size);
+#else
+static inline int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+				   u64 *paddr, u64 *size)
+{
+	return -ENODEV;
+}
+#endif
 
 #endif /* _LINUX_OF_PRIVATE_H */

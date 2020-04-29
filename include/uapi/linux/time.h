@@ -3,26 +3,37 @@
 #define _UAPI_LINUX_TIME_H
 
 #include <linux/types.h>
+#include <linux/time_types.h>
 
-
+#ifndef __KERNEL__
 #ifndef _STRUCT_TIMESPEC
 #define _STRUCT_TIMESPEC
 struct timespec {
-	__kernel_time_t	tv_sec;			/* seconds */
-	long		tv_nsec;		/* nanoseconds */
+	__kernel_old_time_t	tv_sec;		/* seconds */
+	long			tv_nsec;	/* nanoseconds */
 };
 #endif
 
 struct timeval {
-	__kernel_time_t		tv_sec;		/* seconds */
+	__kernel_old_time_t	tv_sec;		/* seconds */
 	__kernel_suseconds_t	tv_usec;	/* microseconds */
 };
+
+struct itimerspec {
+	struct timespec it_interval;/* timer period */
+	struct timespec it_value;	/* timer expiration */
+};
+
+struct itimerval {
+	struct timeval it_interval;/* timer interval */
+	struct timeval it_value;	/* current value */
+};
+#endif
 
 struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
 	int	tz_dsttime;	/* type of dst correction */
 };
-
 
 /*
  * Names of the interval timers, and structure
@@ -31,28 +42,6 @@ struct timezone {
 #define	ITIMER_REAL		0
 #define	ITIMER_VIRTUAL		1
 #define	ITIMER_PROF		2
-
-struct itimerspec {
-	struct timespec it_interval;	/* timer period */
-	struct timespec it_value;	/* timer expiration */
-};
-
-struct itimerval {
-	struct timeval it_interval;	/* timer interval */
-	struct timeval it_value;	/* current value */
-};
-
-/*
- * legacy timeval structure, only embedded in structures that
- * traditionally used 'timeval' to pass time intervals (not absolute
- * times). Do not add new users. If user space fails to compile
- * here, this is probably because it is not y2038 safe and needs to
- * be changed to use another interface.
- */
-struct __kernel_old_timeval {
-	__kernel_long_t tv_sec;
-	__kernel_long_t tv_usec;
-};
 
 /*
  * The IDs of the various system clocks (for POSIX.1b interval timers):
@@ -73,7 +62,6 @@ struct __kernel_old_timeval {
  */
 #define CLOCK_SGI_CYCLE			10
 #define CLOCK_TAI			11
-#define CLOCK_MONOTONIC_ACTIVE		12
 
 #define MAX_CLOCKS			16
 #define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)

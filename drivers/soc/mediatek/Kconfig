@@ -1,8 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # MediaTek SoC drivers
 #
 menu "MediaTek SoC drivers"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+
+config MTK_CMDQ
+	tristate "MediaTek CMDQ Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select MAILBOX
+	select MTK_CMDQ_MBOX
+	select MTK_INFRACFG
+	help
+	  Say yes here to add support for the MediaTek Command Queue (CMDQ)
+	  driver. The CMDQ is used to help read/write registers with critical
+	  time limitation, such as updating display configuration during the
+	  vblank.
 
 config MTK_INFRACFG
 	bool "MediaTek INFRACFG Support"

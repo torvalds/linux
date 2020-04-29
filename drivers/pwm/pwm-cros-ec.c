@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2, as published by
- * the Free Software Foundation.
- *
  * Expose a PWM controlled by the ChromeOS EC to the host processor.
+ *
+ * Copyright (C) 2016 Google, Inc.
  */
 
 #include <linux/module.h>
-#include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -28,9 +25,37 @@ struct cros_ec_pwm_device {
 	struct pwm_chip chip;
 };
 
+/**
+ * struct cros_ec_pwm - per-PWM driver data
+ * @duty_cycle: cached duty cycle
+ */
+struct cros_ec_pwm {
+	u16 duty_cycle;
+};
+
 static inline struct cros_ec_pwm_device *pwm_to_cros_ec_pwm(struct pwm_chip *c)
 {
 	return container_of(c, struct cros_ec_pwm_device, chip);
+}
+
+static int cros_ec_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct cros_ec_pwm *channel;
+
+	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	if (!channel)
+		return -ENOMEM;
+
+	pwm_set_chip_data(pwm, channel);
+
+	return 0;
+}
+
+static void cros_ec_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
+
+	kfree(channel);
 }
 
 static int cros_ec_pwm_set_duty(struct cros_ec_device *ec, u8 index, u16 duty)
@@ -96,10 +121,12 @@ static int cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index)
 }
 
 static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			     struct pwm_state *state)
+			     const struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
-	int duty_cycle;
+	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
+	u16 duty_cycle;
+	int ret;
 
 	/* The EC won't let us change the period */
 	if (state->period != EC_PWM_MAX_DUTY)
@@ -111,13 +138,20 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	duty_cycle = state->enabled ? state->duty_cycle : 0;
 
-	return cros_ec_pwm_set_duty(ec_pwm->ec, pwm->hwpwm, duty_cycle);
+	ret = cros_ec_pwm_set_duty(ec_pwm->ec, pwm->hwpwm, duty_cycle);
+	if (ret < 0)
+		return ret;
+
+	channel->duty_cycle = state->duty_cycle;
+
+	return 0;
 }
 
 static void cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				  struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
+	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
 	int ret;
 
 	ret = cros_ec_pwm_get_duty(ec_pwm->ec, pwm->hwpwm);
@@ -129,8 +163,19 @@ static void cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->enabled = (ret > 0);
 	state->period = EC_PWM_MAX_DUTY;
 
-	/* Note that "disabled" and "duty cycle == 0" are treated the same */
-	state->duty_cycle = ret;
+	/*
+	 * Note that "disabled" and "duty cycle == 0" are treated the same. If
+	 * the cached duty cycle is not zero, used the cached duty cycle. This
+	 * ensures that the configured duty cycle is kept across a disable and
+	 * enable operation and avoids potentially confusing consumers.
+	 *
+	 * For the case of the initial hardware readout, channel->duty_cycle
+	 * will be 0 and the actual duty cycle read from the EC is used.
+	 */
+	if (ret == 0 && channel->duty_cycle > 0)
+		state->duty_cycle = channel->duty_cycle;
+	else
+		state->duty_cycle = ret;
 }
 
 static struct pwm_device *
@@ -152,6 +197,8 @@ cros_ec_pwm_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
 }
 
 static const struct pwm_ops cros_ec_pwm_ops = {
+	.request = cros_ec_pwm_request,
+	.free = cros_ec_pwm_free,
 	.get_state	= cros_ec_pwm_get_state,
 	.apply		= cros_ec_pwm_apply,
 	.owner		= THIS_MODULE,

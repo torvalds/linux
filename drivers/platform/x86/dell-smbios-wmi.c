@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  WMI methods for use with dell-smbios
  *
  *  Copyright (c) 2017 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -78,11 +75,12 @@ static int run_smbios_call(struct wmi_device *wdev)
 	dev_dbg(&wdev->dev, "result: [%08x,%08x,%08x,%08x]\n",
 		priv->buf->std.output[0], priv->buf->std.output[1],
 		priv->buf->std.output[2], priv->buf->std.output[3]);
+	kfree(output.pointer);
 
 	return 0;
 }
 
-int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 {
 	struct wmi_smbios_priv *priv;
 	size_t difference;
@@ -145,7 +143,7 @@ fail_smbios_cmd:
 	return ret;
 }
 
-static int dell_smbios_wmi_probe(struct wmi_device *wdev)
+static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct wmi_driver *wdriver =
 		container_of(wdev->dev.driver, struct wmi_driver, driver);
@@ -276,4 +274,4 @@ void exit_dell_smbios_wmi(void)
 	wmi_driver_unregister(&dell_smbios_wmi_driver);
 }
 
-MODULE_ALIAS("wmi:" DELL_WMI_SMBIOS_GUID);
+MODULE_DEVICE_TABLE(wmi, dell_smbios_wmi_id_table);

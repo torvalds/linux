@@ -156,7 +156,6 @@ static u16 tx4939ide_check_error_ints(ide_hwif_t *hwif)
 		u16 sysctl = tx4939ide_readw(base, TX4939IDE_Sys_Ctl);
 
 		tx4939ide_writew(sysctl | 0x4000, base, TX4939IDE_Sys_Ctl);
-		mmiowb();
 		/* wait 12GBUSCLK (typ. 60ns @ GBUS200MHz, max 270ns) */
 		ndelay(270);
 		tx4939ide_writew(sysctl, base, TX4939IDE_Sys_Ctl);
@@ -364,9 +363,9 @@ static int tx4939ide_dma_test_irq(ide_drive_t *drive)
 	case TX4939IDE_INT_HOST | TX4939IDE_INT_XFEREND:
 		dma_stat = tx4939ide_readb(base, TX4939IDE_DMA_Stat);
 		if (!(dma_stat & ATA_DMA_INTR))
-			pr_warning("%s: weird interrupt status. "
-				   "DMA_Stat %#02x int_ctl %#04x\n",
-				   hwif->name, dma_stat, ctl);
+			pr_warn("%s: weird interrupt status. "
+				"DMA_Stat %#02x int_ctl %#04x\n",
+				hwif->name, dma_stat, ctl);
 		found = 1;
 		break;
 	}
@@ -396,7 +395,6 @@ static void tx4939ide_init_hwif(ide_hwif_t *hwif)
 
 	/* Soft Reset */
 	tx4939ide_writew(0x8000, base, TX4939IDE_Sys_Ctl);
-	mmiowb();
 	/* at least 20 GBUSCLK (typ. 100ns @ GBUS200MHz, max 450ns) */
 	ndelay(450);
 	tx4939ide_writew(0x0000, base, TX4939IDE_Sys_Ctl);
@@ -551,7 +549,7 @@ static int __init tx4939ide_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), "tx4938ide"))
+				     resource_size(res), MODNAME))
 		return -EBUSY;
 	mapbase = (unsigned long)devm_ioremap(&pdev->dev, res->start,
 					      resource_size(res));

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_alua.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -268,7 +255,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 	}
 	transport_kunmap_data_sg(cmd);
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd_with_length(cmd, GOOD, rd_len + 4);
 	return 0;
 }
 
@@ -451,7 +438,7 @@ static inline void set_ascq(struct se_cmd *cmd, u8 alua_ascq)
 	pr_debug("[%s]: ALUA TG Port not available, "
 		"SenseKey: NOT_READY, ASC/ASCQ: "
 		"0x04/0x%02x\n",
-		cmd->se_tfo->get_fabric_name(), alua_ascq);
+		cmd->se_tfo->fabric_name, alua_ascq);
 
 	cmd->scsi_asc = 0x04;
 	cmd->scsi_ascq = alua_ascq;
@@ -910,9 +897,6 @@ static int core_alua_write_tpg_metadata(
 	return (ret < 0) ? -EIO : 0;
 }
 
-/*
- * Called with tg_pt_gp->tg_pt_gp_transition_mutex held
- */
 static int core_alua_update_tpg_primary_metadata(
 	struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
@@ -920,6 +904,8 @@ static int core_alua_update_tpg_primary_metadata(
 	struct t10_wwn *wwn = &tg_pt_gp->tg_pt_gp_dev->t10_wwn;
 	char *path;
 	int len, rc;
+
+	lockdep_assert_held(&tg_pt_gp->tg_pt_gp_transition_mutex);
 
 	md_buf = kzalloc(ALUA_MD_BUF_LEN, GFP_KERNEL);
 	if (!md_buf) {
@@ -1229,13 +1215,13 @@ static int core_alua_update_tpg_secondary_metadata(struct se_lun *lun)
 
 	if (se_tpg->se_tpg_tfo->tpg_get_tag != NULL) {
 		path = kasprintf(GFP_KERNEL, "%s/alua/%s/%s+%hu/lun_%llu",
-				db_root, se_tpg->se_tpg_tfo->get_fabric_name(),
+				db_root, se_tpg->se_tpg_tfo->fabric_name,
 				se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg),
 				se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg),
 				lun->unpacked_lun);
 	} else {
 		path = kasprintf(GFP_KERNEL, "%s/alua/%s/%s/lun_%llu",
-				db_root, se_tpg->se_tpg_tfo->get_fabric_name(),
+				db_root, se_tpg->se_tpg_tfo->fabric_name,
 				se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg),
 				lun->unpacked_lun);
 	}
@@ -1761,8 +1747,10 @@ void core_alua_free_tg_pt_gp(
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
-	list_del(&tg_pt_gp->tg_pt_gp_list);
-	dev->t10_alua.alua_tg_pt_gps_counter--;
+	if (tg_pt_gp->tg_pt_gp_valid_id) {
+		list_del(&tg_pt_gp->tg_pt_gp_list);
+		dev->t10_alua.alua_tg_pt_gps_count--;
+	}
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 	/*

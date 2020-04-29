@@ -17,10 +17,6 @@
 #include <linux/if_ether.h>
 #include <uapi/linux/netfilter_bridge/ebtables.h>
 
-/* return values for match() functions */
-#define EBT_MATCH 0
-#define EBT_NOMATCH 1
-
 struct ebt_match {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
@@ -89,7 +85,7 @@ struct ebt_table_info {
 	/* room to maintain the stack used for jumping from and into udc */
 	struct ebt_chainstack **chainstack;
 	char *entries;
-	struct ebt_counter counters[0] ____cacheline_aligned;
+	struct ebt_counter counters[] ____cacheline_aligned;
 };
 
 struct ebt_table {
@@ -109,6 +105,7 @@ struct ebt_table {
 
 #define EBT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) & \
 		     ~(__alignof__(struct _xt_align)-1))
+
 extern int ebt_register_table(struct net *net,
 			      const struct ebt_table *table,
 			      const struct nf_hook_ops *ops,

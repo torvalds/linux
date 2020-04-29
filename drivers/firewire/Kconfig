@@ -1,5 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "IEEE 1394 (FireWire) support"
-	depends on HAS_DMA
 	depends on PCI || COMPILE_TEST
 	# firewire-core does not depend on PCI but is
 	# not useful without PCI controller driver

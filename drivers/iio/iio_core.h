@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* The industrial I/O core function defs.
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * These definitions are meant for use only within the IIO core, not individual
  * drivers.
@@ -45,14 +42,14 @@ struct poll_table_struct;
 
 __poll_t iio_buffer_poll(struct file *filp,
 			     struct poll_table_struct *wait);
-ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
-				      size_t n, loff_t *f_ps);
+ssize_t iio_buffer_read_outer(struct file *filp, char __user *buf,
+			      size_t n, loff_t *f_ps);
 
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev);
 void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev);
 
 #define iio_buffer_poll_addr (&iio_buffer_poll)
-#define iio_buffer_read_first_n_outer_addr (&iio_buffer_read_first_n_outer)
+#define iio_buffer_read_outer_addr (&iio_buffer_read_outer)
 
 void iio_disable_all_buffers(struct iio_dev *indio_dev);
 void iio_buffer_wakeup_poll(struct iio_dev *indio_dev);
@@ -60,7 +57,7 @@ void iio_buffer_wakeup_poll(struct iio_dev *indio_dev);
 #else
 
 #define iio_buffer_poll_addr NULL
-#define iio_buffer_read_first_n_outer_addr NULL
+#define iio_buffer_read_outer_addr NULL
 
 static inline int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {

@@ -71,7 +71,7 @@ bmips_cpufreq_get_freq_table(const struct cpufreq_policy *policy)
 
 	cpu_freq = htp_freq_to_cpu_freq(priv->clk_mult);
 
-	table = kmalloc((priv->max_freqs + 1) * sizeof(*table), GFP_KERNEL);
+	table = kmalloc_array(priv->max_freqs + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return ERR_PTR(-ENOMEM);
 
@@ -131,23 +131,18 @@ static int bmips_cpufreq_exit(struct cpufreq_policy *policy)
 static int bmips_cpufreq_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *freq_table;
-	int ret;
 
 	freq_table = bmips_cpufreq_get_freq_table(policy);
 	if (IS_ERR(freq_table)) {
-		ret = PTR_ERR(freq_table);
-		pr_err("%s: couldn't determine frequency table (%d).\n",
-			BMIPS_CPUFREQ_NAME, ret);
-		return ret;
+		pr_err("%s: couldn't determine frequency table (%ld).\n",
+			BMIPS_CPUFREQ_NAME, PTR_ERR(freq_table));
+		return PTR_ERR(freq_table);
 	}
 
-	ret = cpufreq_generic_init(policy, freq_table, TRANSITION_LATENCY);
-	if (ret)
-		bmips_cpufreq_exit(policy);
-	else
-		pr_info("%s: registered\n", BMIPS_CPUFREQ_NAME);
+	cpufreq_generic_init(policy, freq_table, TRANSITION_LATENCY);
+	pr_info("%s: registered\n", BMIPS_CPUFREQ_NAME);
 
-	return ret;
+	return 0;
 }
 
 static struct cpufreq_driver bmips_cpufreq_driver = {

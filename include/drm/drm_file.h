@@ -32,6 +32,7 @@
 
 #include <linux/types.h>
 #include <linux/completion.h>
+#include <linux/idr.h>
 
 #include <uapi/drm/drm.h>
 
@@ -41,12 +42,16 @@ struct dma_fence;
 struct drm_file;
 struct drm_device;
 struct device;
+struct file;
 
 /*
  * FIXME: Not sure we want to have drm_minor here in the end, but to avoid
  * header include loops we need it here for now.
  */
 
+/* Note that the order of this enum is ABI (it determines
+ * /dev/dri/renderD* numbers).
+ */
 enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
@@ -161,14 +166,14 @@ struct drm_file {
 	 * See also the :ref:`section on primary nodes and authentication
 	 * <drm_primary_node>`.
 	 */
-	unsigned authenticated :1;
+	bool authenticated;
 
 	/**
 	 * @stereo_allowed:
 	 *
 	 * True when the client has asked us to expose stereo 3D mode flags.
 	 */
-	unsigned stereo_allowed :1;
+	bool stereo_allowed;
 
 	/**
 	 * @universal_planes:
@@ -176,10 +181,25 @@ struct drm_file {
 	 * True if client understands CRTC primary planes and cursor planes
 	 * in the plane list. Automatically set when @atomic is set.
 	 */
-	unsigned universal_planes:1;
+	bool universal_planes;
 
 	/** @atomic: True if client understands atomic properties. */
-	unsigned atomic:1;
+	bool atomic;
+
+	/**
+	 * @aspect_ratio_allowed:
+	 *
+	 * True, if client can handle picture aspect ratios, and has requested
+	 * to pass this information along with the mode.
+	 */
+	bool aspect_ratio_allowed;
+
+	/**
+	 * @writeback_connectors:
+	 *
+	 * True if client understands writeback connectors
+	 */
+	bool writeback_connectors;
 
 	/**
 	 * @is_master:
@@ -190,7 +210,7 @@ struct drm_file {
 	 * See also the :ref:`section on primary nodes and authentication
 	 * <drm_primary_node>`.
 	 */
-	unsigned is_master:1;
+	bool is_master;
 
 	/**
 	 * @master:
@@ -316,7 +336,9 @@ struct drm_file {
 	struct drm_prime_file_private prime;
 
 	/* private: */
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 	unsigned long lock_count; /* DRI1 legacy lock count */
+#endif
 };
 
 /**
@@ -348,22 +370,11 @@ static inline bool drm_is_render_client(const struct drm_file *file_priv)
 	return file_priv->minor->type == DRM_MINOR_RENDER;
 }
 
-/**
- * drm_is_control_client - is this an open file of the control node
- * @file_priv: DRM file
- *
- * Control nodes are deprecated and in the process of getting removed from the
- * DRM userspace API. Do not ever use!
- */
-static inline bool drm_is_control_client(const struct drm_file *file_priv)
-{
-	return file_priv->minor->type == DRM_MINOR_CONTROL;
-}
-
 int drm_open(struct inode *inode, struct file *filp);
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset);
 int drm_release(struct inode *inode, struct file *filp);
+int drm_release_noglobal(struct inode *inode, struct file *filp);
 __poll_t drm_poll(struct file *filp, struct poll_table_struct *wait);
 int drm_event_reserve_init_locked(struct drm_device *dev,
 				  struct drm_file *file_priv,
@@ -377,5 +388,16 @@ void drm_event_cancel_free(struct drm_device *dev,
 			   struct drm_pending_event *p);
 void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e);
 void drm_send_event(struct drm_device *dev, struct drm_pending_event *e);
+
+struct file *mock_drm_getfile(struct drm_minor *minor, unsigned int flags);
+
+#ifdef CONFIG_MMU
+struct drm_vma_offset_manager;
+unsigned long drm_get_unmapped_area(struct file *file,
+				    unsigned long uaddr, unsigned long len,
+				    unsigned long pgoff, unsigned long flags,
+				    struct drm_vma_offset_manager *mgr);
+#endif /* CONFIG_MMU */
+
 
 #endif /* _DRM_FILE_H_ */

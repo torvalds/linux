@@ -10,7 +10,7 @@
 
 /* maximum number of slots to use */
 #define NFS4_DEF_SLOT_TABLE_SIZE (64U)
-#define NFS4_DEF_CB_SLOT_TABLE_SIZE (1U)
+#define NFS4_DEF_CB_SLOT_TABLE_SIZE (16U)
 #define NFS4_MAX_SLOT_TABLE (1024U)
 #define NFS4_NO_SLOT ((u32)-1)
 
@@ -23,8 +23,9 @@ struct nfs4_slot {
 	unsigned long		generation;
 	u32			slot_nr;
 	u32		 	seq_nr;
-	unsigned int		interrupted : 1,
-				privileged : 1,
+	u32		 	seq_nr_last_acked;
+	u32		 	seq_nr_highest_sent;
+	unsigned int		privileged : 1,
 				seq_done : 1;
 };
 

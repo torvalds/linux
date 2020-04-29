@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file provides /sys/class/ieee80211/<wiphy name>/
  * and some default attributes.
  *
  * Copyright 2005-2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2006	Johannes Berg <johannes@sipsolutions.net>
- *
- * This file is GPLv2 as found in COPYING.
  */
 
 #include <linux/device.h>
@@ -102,7 +101,7 @@ static int wiphy_suspend(struct device *dev)
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);
 	int ret = 0;
 
-	rdev->suspend_at = get_seconds();
+	rdev->suspend_at = ktime_get_boottime_seconds();
 
 	rtnl_lock();
 	if (rdev->wiphy.registered) {
@@ -130,7 +129,7 @@ static int wiphy_resume(struct device *dev)
 	int ret = 0;
 
 	/* Age scan results with time spent in suspend */
-	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
+	cfg80211_bss_age(rdev, ktime_get_boottime_seconds() - rdev->suspend_at);
 
 	rtnl_lock();
 	if (rdev->wiphy.registered && rdev->ops->resume)

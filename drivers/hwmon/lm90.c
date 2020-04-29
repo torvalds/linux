@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm90.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
@@ -68,20 +69,6 @@
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -187,6 +174,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_HAVE_EMERGENCY_ALARM (1 << 5)/* emergency alarm		*/
 #define LM90_HAVE_TEMP3		(1 << 6) /* 3rd temperature sensor	*/
 #define LM90_HAVE_BROKEN_ALERT	(1 << 7) /* Broken alert		*/
+#define LM90_PAUSE_FOR_CONFIG	(1 << 8) /* Pause conversion for config	*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	(1 << 0) /* local THERM limit tripped */
@@ -236,7 +224,7 @@ static const struct i2c_device_id lm90_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
 
-static const struct of_device_id lm90_of_match[] = {
+static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "adi,adm1032",
 		.data = (void *)adm1032
@@ -380,6 +368,7 @@ static const struct lm90_params lm90_params[] = {
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6657] = {
+		.flags = LM90_PAUSE_FOR_CONFIG,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
@@ -470,6 +459,7 @@ struct lm90_data {
 
 	unsigned int update_interval; /* in milliseconds */
 
+	u8 config;		/* Current configuration register value */
 	u8 config_orig;		/* Original configuration register value */
 	u8 convrate_orig;	/* Original conversion rate register value */
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
@@ -553,6 +543,21 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl)
 	return (newh << 8) | l;
 }
 
+static int lm90_update_confreg(struct lm90_data *data, u8 config)
+{
+	if (data->config != config) {
+		int err;
+
+		err = i2c_smbus_write_byte_data(data->client,
+						LM90_REG_W_CONFIG1,
+						config);
+		if (err)
+			return err;
+		data->config = config;
+	}
+	return 0;
+}
+
 /*
  * client->update_lock must be held when calling this function (unless we are
  * in detection or initialization steps), and while a remote channel other
@@ -561,23 +566,39 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl)
  * various registers have different meanings as a result of selecting a
  * non-default remote channel.
  */
-static inline int lm90_select_remote_channel(struct i2c_client *client,
-					     struct lm90_data *data,
-					     int channel)
+static int lm90_select_remote_channel(struct lm90_data *data, int channel)
 {
-	int config;
+	int err = 0;
 
 	if (data->kind == max6696) {
-		config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-		if (config < 0)
-			return config;
-		config &= ~0x08;
+		u8 config = data->config & ~0x08;
+
 		if (channel)
 			config |= 0x08;
-		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-					  config);
+		err = lm90_update_confreg(data, config);
 	}
-	return 0;
+	return err;
+}
+
+static int lm90_write_convrate(struct lm90_data *data, int val)
+{
+	u8 config = data->config;
+	int err;
+
+	/* Save config and pause conversion */
+	if (data->flags & LM90_PAUSE_FOR_CONFIG) {
+		err = lm90_update_confreg(data, config | 0x40);
+		if (err < 0)
+			return err;
+	}
+
+	/* Set conv rate */
+	err = i2c_smbus_write_byte_data(data->client, LM90_REG_W_CONVRATE, val);
+
+	/* Revert change to config */
+	lm90_update_confreg(data, config);
+
+	return err;
 }
 
 /*
@@ -600,7 +621,7 @@ static int lm90_set_convrate(struct i2c_client *client, struct lm90_data *data,
 		if (interval >= update_interval * 3 / 4)
 			break;
 
-	err = i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE, i);
+	err = lm90_write_convrate(data, i);
 	data->update_interval = DIV_ROUND_CLOSEST(update_interval, 64);
 	return err;
 }
@@ -671,7 +692,7 @@ static int lm90_update_limits(struct device *dev)
 	}
 
 	if (data->kind == max6696) {
-		val = lm90_select_remote_channel(client, data, 1);
+		val = lm90_select_remote_channel(data, 1);
 		if (val < 0)
 			return val;
 
@@ -695,7 +716,7 @@ static int lm90_update_limits(struct device *dev)
 			return val;
 		data->temp11[REMOTE2_HIGH] = val << 8;
 
-		lm90_select_remote_channel(client, data, 0);
+		lm90_select_remote_channel(data, 0);
 	}
 
 	return 0;
@@ -755,19 +776,19 @@ static int lm90_update_device(struct device *dev)
 		data->alarms = val;	/* lower 8 bit of alarms */
 
 		if (data->kind == max6696) {
-			val = lm90_select_remote_channel(client, data, 1);
+			val = lm90_select_remote_channel(data, 1);
 			if (val < 0)
 				return val;
 
 			val = lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
 					  LM90_REG_R_REMOTE_TEMPL);
 			if (val < 0) {
-				lm90_select_remote_channel(client, data, 0);
+				lm90_select_remote_channel(data, 0);
 				return val;
 			}
 			data->temp11[REMOTE2_TEMP] = val;
 
-			lm90_select_remote_channel(client, data, 0);
+			lm90_select_remote_channel(data, 0);
 
 			val = lm90_read_reg(client, MAX6696_REG_R_STATUS2);
 			if (val < 0)
@@ -781,15 +802,9 @@ static int lm90_update_device(struct device *dev)
 		 */
 		if (!(data->config_orig & 0x80) &&
 		    !(data->alarms & data->alert_alarms)) {
-			val = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-			if (val < 0)
-				return val;
-
-			if (val & 0x80) {
+			if (data->config & 0x80) {
 				dev_dbg(&client->dev, "Re-enabling ALERT#\n");
-				i2c_smbus_write_byte_data(client,
-							  LM90_REG_W_CONFIG1,
-							  val & ~0x80);
+				lm90_update_confreg(data, data->config & ~0x80);
 			}
 		}
 
@@ -1007,7 +1022,7 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 	else
 		data->temp11[index] = temp_to_s8(val) << 8;
 
-	lm90_select_remote_channel(client, data, index >= 3);
+	lm90_select_remote_channel(data, index >= 3);
 	err = i2c_smbus_write_byte_data(client, regp->high,
 				  data->temp11[index] >> 8);
 	if (err < 0)
@@ -1016,7 +1031,7 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 		err = i2c_smbus_write_byte_data(client, regp->low,
 						data->temp11[index] & 0xff);
 
-	lm90_select_remote_channel(client, data, 0);
+	lm90_select_remote_channel(data, 0);
 	return err;
 }
 
@@ -1065,9 +1080,9 @@ static int lm90_set_temp8(struct lm90_data *data, int index, long val)
 	else
 		data->temp8[index] = temp_to_s8(val);
 
-	lm90_select_remote_channel(client, data, index >= 6);
+	lm90_select_remote_channel(data, index >= 6);
 	err = i2c_smbus_write_byte_data(client, reg[index], data->temp8[index]);
-	lm90_select_remote_channel(client, data, 0);
+	lm90_select_remote_channel(data, 0);
 
 	return err;
 }
@@ -1266,17 +1281,17 @@ static umode_t lm90_temp_is_visible(const void *data, u32 attr, int channel)
 	case hwmon_temp_emergency_alarm:
 	case hwmon_temp_emergency_hyst:
 	case hwmon_temp_fault:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_min:
 	case hwmon_temp_max:
 	case hwmon_temp_crit:
 	case hwmon_temp_emergency:
 	case hwmon_temp_offset:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_temp_crit_hyst:
 		if (channel == 0)
-			return S_IRUGO | S_IWUSR;
-		return S_IRUGO;
+			return 0644;
+		return 0444;
 	default:
 		return 0;
 	}
@@ -1338,9 +1353,9 @@ static umode_t lm90_chip_is_visible(const void *data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_chip_alarms:
-		return S_IRUGO;
+		return 0444;
 	default:
 		return 0;
 	}
@@ -1606,8 +1621,7 @@ static void lm90_restore_conf(void *_data)
 	struct i2c_client *client = data->client;
 
 	/* Restore initial configuration */
-	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
-				  data->convrate_orig);
+	lm90_write_convrate(data, data->convrate_orig);
 	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
 				  data->config_orig);
 }
@@ -1624,11 +1638,13 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	/*
 	 * Start the conversions.
 	 */
-	lm90_set_convrate(client, data, 500);	/* 500ms; 2Hz conversion rate */
 	config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
 	if (config < 0)
 		return config;
 	data->config_orig = config;
+	data->config = config;
+
+	lm90_set_convrate(client, data, 500); /* 500ms; 2Hz conversion rate */
 
 	/* Check Temperature Range Select */
 	if (data->kind == adt7461 || data->kind == tmp451) {
@@ -1651,8 +1667,7 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 		config &= ~0x08;
 
 	config &= 0xBF;	/* run */
-	if (config != data->config_orig) /* Only write if changed */
-		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1, config);
+	lm90_update_confreg(data, config);
 
 	return devm_add_action_or_reset(&client->dev, lm90_restore_conf, data);
 }
@@ -1720,16 +1735,6 @@ static void lm90_regulator_disable(void *regulator)
 	regulator_disable(regulator);
 }
 
-static const u32 lm90_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS,
-	0
-};
-
-static const struct hwmon_channel_info lm90_chip_info = {
-	.type = hwmon_chip,
-	.config = lm90_chip_config,
-};
-
 
 static const struct hwmon_ops lm90_ops = {
 	.is_visible = lm90_is_visible,
@@ -1741,7 +1746,7 @@ static int lm90_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct hwmon_channel_info *info;
 	struct regulator *regulator;
 	struct device *hwmon_dev;
@@ -1792,7 +1797,8 @@ static int lm90_probe(struct i2c_client *client,
 	data->chip.ops = &lm90_ops;
 	data->chip.info = data->info;
 
-	data->info[0] = &lm90_chip_info;
+	data->info[0] = HWMON_CHANNEL_INFO(chip,
+		HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS);
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;
@@ -1895,14 +1901,8 @@ static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 
 		if ((data->flags & LM90_HAVE_BROKEN_ALERT) &&
 		    (alarms & data->alert_alarms)) {
-			int config;
-
 			dev_dbg(&client->dev, "Disabling ALERT#\n");
-			config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-			if (config >= 0)
-				i2c_smbus_write_byte_data(client,
-							  LM90_REG_W_CONFIG1,
-							  config | 0x80);
+			lm90_update_confreg(data, data->config | 0x80);
 		}
 	} else {
 		dev_info(&client->dev, "Everything OK\n");

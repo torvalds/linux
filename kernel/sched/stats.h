@@ -55,6 +55,113 @@ static inline void rq_sched_info_depart  (struct rq *rq, unsigned long long delt
 # define   schedstat_val_or_zero(var)	0
 #endif /* CONFIG_SCHEDSTATS */
 
+#ifdef CONFIG_PSI
+/*
+ * PSI tracks state that persists across sleeps, such as iowaits and
+ * memory stalls. As a result, it has to distinguish between sleeps,
+ * where a task's runnable state changes, and requeues, where a task
+ * and its state are being moved between CPUs and runqueues.
+ */
+static inline void psi_enqueue(struct task_struct *p, bool wakeup)
+{
+	int clear = 0, set = TSK_RUNNING;
+
+	if (static_branch_likely(&psi_disabled))
+		return;
+
+	if (!wakeup || p->sched_psi_wake_requeue) {
+		if (p->in_memstall)
+			set |= TSK_MEMSTALL;
+		if (p->sched_psi_wake_requeue)
+			p->sched_psi_wake_requeue = 0;
+	} else {
+		if (p->in_iowait)
+			clear |= TSK_IOWAIT;
+	}
+
+	psi_task_change(p, clear, set);
+}
+
+static inline void psi_dequeue(struct task_struct *p, bool sleep)
+{
+	int clear = TSK_RUNNING, set = 0;
+
+	if (static_branch_likely(&psi_disabled))
+		return;
+
+	if (!sleep) {
+		if (p->in_memstall)
+			clear |= TSK_MEMSTALL;
+	} else {
+		/*
+		 * When a task sleeps, schedule() dequeues it before
+		 * switching to the next one. Merge the clearing of
+		 * TSK_RUNNING and TSK_ONCPU to save an unnecessary
+		 * psi_task_change() call in psi_sched_switch().
+		 */
+		clear |= TSK_ONCPU;
+
+		if (p->in_iowait)
+			set |= TSK_IOWAIT;
+	}
+
+	psi_task_change(p, clear, set);
+}
+
+static inline void psi_ttwu_dequeue(struct task_struct *p)
+{
+	if (static_branch_likely(&psi_disabled))
+		return;
+	/*
+	 * Is the task being migrated during a wakeup? Make sure to
+	 * deregister its sleep-persistent psi states from the old
+	 * queue, and let psi_enqueue() know it has to requeue.
+	 */
+	if (unlikely(p->in_iowait || p->in_memstall)) {
+		struct rq_flags rf;
+		struct rq *rq;
+		int clear = 0;
+
+		if (p->in_iowait)
+			clear |= TSK_IOWAIT;
+		if (p->in_memstall)
+			clear |= TSK_MEMSTALL;
+
+		rq = __task_rq_lock(p, &rf);
+		psi_task_change(p, clear, 0);
+		p->sched_psi_wake_requeue = 1;
+		__task_rq_unlock(rq, &rf);
+	}
+}
+
+static inline void psi_sched_switch(struct task_struct *prev,
+				    struct task_struct *next,
+				    bool sleep)
+{
+	if (static_branch_likely(&psi_disabled))
+		return;
+
+	psi_task_switch(prev, next, sleep);
+}
+
+static inline void psi_task_tick(struct rq *rq)
+{
+	if (static_branch_likely(&psi_disabled))
+		return;
+
+	if (unlikely(rq->curr->in_memstall))
+		psi_memstall_tick(rq->curr, cpu_of(rq));
+}
+#else /* CONFIG_PSI */
+static inline void psi_enqueue(struct task_struct *p, bool wakeup) {}
+static inline void psi_dequeue(struct task_struct *p, bool sleep) {}
+static inline void psi_ttwu_dequeue(struct task_struct *p) {}
+static inline void psi_sched_switch(struct task_struct *prev,
+				    struct task_struct *next,
+				    bool sleep) {}
+static inline void psi_task_tick(struct rq *rq) {}
+#endif /* CONFIG_PSI */
+
 #ifdef CONFIG_SCHED_INFO
 static inline void sched_info_reset_dequeued(struct task_struct *t)
 {
@@ -71,9 +178,10 @@ static inline void sched_info_dequeued(struct rq *rq, struct task_struct *t)
 {
 	unsigned long long now = rq_clock(rq), delta = 0;
 
-	if (unlikely(sched_info_on()))
+	if (sched_info_on()) {
 		if (t->sched_info.last_queued)
 			delta = now - t->sched_info.last_queued;
+	}
 	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
 
@@ -106,7 +214,7 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
  */
 static inline void sched_info_queued(struct rq *rq, struct task_struct *t)
 {
-	if (unlikely(sched_info_on())) {
+	if (sched_info_on()) {
 		if (!t->sched_info.last_queued)
 			t->sched_info.last_queued = rq_clock(rq);
 	}
@@ -153,7 +261,7 @@ __sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct 
 static inline void
 sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
-	if (unlikely(sched_info_on()))
+	if (sched_info_on())
 		__sched_info_switch(rq, prev, next);
 }
 

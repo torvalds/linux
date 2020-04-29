@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics pressures driver
  *
  * Copyright 2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -18,7 +17,6 @@
 #include <linux/iio/common/st_sensors_spi.h>
 #include "st_pressure.h"
 
-#ifdef CONFIG_OF
 /*
  * For new single-chip sensors use <device_name> as compatible string.
  * For old single-chip devices keep <device_name>-press to maintain
@@ -49,28 +47,40 @@ static const struct of_device_id st_press_of_match[] = {
 		.compatible = "st,lps35hw",
 		.data = LPS35HW_PRESS_DEV_NAME,
 	},
+	{
+		.compatible = "st,lps22hh",
+		.data = LPS22HH_PRESS_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_press_of_match);
-#else
-#define st_press_of_match	NULL
-#endif
 
 static int st_press_spi_probe(struct spi_device *spi)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *press_data;
+	struct iio_dev *indio_dev;
 	int err;
 
+	st_sensors_dev_name_probe(&spi->dev, spi->modalias, sizeof(spi->modalias));
+
+	settings = st_press_get_settings(spi->modalias);
+	if (!settings) {
+		dev_err(&spi->dev, "device name %s not recognized.\n",
+			spi->modalias);
+		return -ENODEV;
+	}
+
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	press_data = iio_priv(indio_dev);
+	press_data->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_of_name_probe(&spi->dev, st_press_of_match,
-				 spi->modalias, sizeof(spi->modalias));
-	st_sensors_spi_configure(indio_dev, spi, press_data);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_press_common_probe(indio_dev);
 	if (err < 0)
@@ -93,6 +103,7 @@ static const struct spi_device_id st_press_id_table[] = {
 	{ LPS22HB_PRESS_DEV_NAME },
 	{ LPS33HW_PRESS_DEV_NAME },
 	{ LPS35HW_PRESS_DEV_NAME },
+	{ LPS22HH_PRESS_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_press_id_table);
@@ -100,7 +111,7 @@ MODULE_DEVICE_TABLE(spi, st_press_id_table);
 static struct spi_driver st_press_driver = {
 	.driver = {
 		.name = "st-press-spi",
-		.of_match_table = of_match_ptr(st_press_of_match),
+		.of_match_table = st_press_of_match,
 	},
 	.probe = st_press_spi_probe,
 	.remove = st_press_spi_remove,

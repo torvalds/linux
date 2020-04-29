@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV50_DEVINIT_H__
 #define __NV50_DEVINIT_H__
 #define nv50_devinit(p) container_of((p), struct nv50_devinit, base)
@@ -24,4 +24,7 @@ int  gf100_devinit_pll_set(struct nvkm_devinit *, u32, u32);
 void gf100_devinit_preinit(struct nvkm_devinit *);
 
 u64  gm107_devinit_disable(struct nvkm_devinit *);
+
+int gm200_devinit_post(struct nvkm_devinit *, bool);
+void gm200_devinit_preos(struct nv50_devinit *, bool);
 #endif

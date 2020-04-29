@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains common routines for dealing with free of page tables
  * Along with common page table handling code
@@ -14,11 +15,6 @@
  *
  *  Dave Engebretsen <engebret@us.ibm.com>
  *      Rework for PPC64 port.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -30,6 +26,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
+#include <asm/hugetlb.h>
 
 static inline int is_exec_fault(void)
 {
@@ -44,20 +41,13 @@ static inline int is_exec_fault(void)
 static inline int pte_looks_normal(pte_t pte)
 {
 
-#if defined(CONFIG_PPC_BOOK3S_64)
-	if ((pte_val(pte) & (_PAGE_PRESENT | _PAGE_SPECIAL)) == _PAGE_PRESENT) {
+	if (pte_present(pte) && !pte_special(pte)) {
 		if (pte_ci(pte))
 			return 0;
 		if (pte_user(pte))
 			return 1;
 	}
 	return 0;
-#else
-	return (pte_val(pte) &
-		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER |
-		 _PAGE_PRIVILEGED)) ==
-		(_PAGE_PRESENT | _PAGE_USER);
-#endif
 }
 
 static struct page *maybe_pte_to_page(pte_t pte)
@@ -73,7 +63,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
 	return page;
 }
 
-#if defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0
+#ifdef CONFIG_PPC_BOOK3S
 
 /* Server-style MMU handles coherency when hashing if HW exec permission
  * is supposed per page (currently 64-bit only). If not, then, we always
@@ -81,7 +71,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
  * support falls into the same category.
  */
 
-static pte_t set_pte_filter(pte_t pte)
+static pte_t set_pte_filter_hash(pte_t pte)
 {
 	if (radix_enabled())
 		return pte;
@@ -100,13 +90,11 @@ static pte_t set_pte_filter(pte_t pte)
 	return pte;
 }
 
-static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
-				     int dirty)
-{
-	return pte;
-}
+#else /* CONFIG_PPC_BOOK3S */
 
-#else /* defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0 */
+static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
+
+#endif /* CONFIG_PPC_BOOK3S */
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
@@ -116,8 +104,11 @@ static pte_t set_pte_filter(pte_t pte)
 {
 	struct page *pg;
 
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return set_pte_filter_hash(pte);
+
 	/* No exec permission in the first place, move on */
-	if (!(pte_val(pte) & _PAGE_EXEC) || !pte_looks_normal(pte))
+	if (!pte_exec(pte) || !pte_looks_normal(pte))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
@@ -137,7 +128,7 @@ static pte_t set_pte_filter(pte_t pte)
 	}
 
 	/* Else, we filter out _PAGE_EXEC */
-	return __pte(pte_val(pte) & ~_PAGE_EXEC);
+	return pte_exprotect(pte);
 }
 
 static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
@@ -145,12 +136,15 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 {
 	struct page *pg;
 
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return pte;
+
 	/* So here, we only care about exec faults, as we use them
 	 * to recover lost _PAGE_EXEC and perform I$/D$ coherency
 	 * if necessary. Also if _PAGE_EXEC is already set, same deal,
 	 * we just bail out
 	 */
-	if (dirty || (pte_val(pte) & _PAGE_EXEC) || !is_exec_fault())
+	if (dirty || pte_exec(pte) || !is_exec_fault())
 		return pte;
 
 #ifdef CONFIG_DEBUG_VM
@@ -176,10 +170,8 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 	set_bit(PG_arch_1, &pg->flags);
 
  bail:
-	return __pte(pte_val(pte) | _PAGE_EXEC);
+	return pte_mkexec(pte);
 }
-
-#endif /* !(defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0) */
 
 /*
  * set_pte stores a linux PTE into the linux page table.
@@ -188,14 +180,13 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte)
 {
 	/*
-	 * When handling numa faults, we already have the pte marked
-	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
-	 * Hence we can use set_pte_at for them.
+	 * Make sure hardware valid bit is not set. We don't do
+	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
 	/* Add the pte bit when trying to set a pte */
-	pte = __pte(pte_val(pte) | _PAGE_PTE);
+	pte = pte_mkpte(pte);
 
 	/* Note: mm->context.id might not yet have been assigned as
 	 * this context might not have been activated yet when this
@@ -221,13 +212,54 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	entry = set_access_flags_filter(entry, vma, dirty);
 	changed = !pte_same(*(ptep), entry);
 	if (changed) {
-		if (!is_vm_hugetlb_page(vma))
-			assert_pte_locked(vma->vm_mm, address);
-		__ptep_set_access_flags(vma->vm_mm, ptep, entry, address);
-		flush_tlb_page(vma, address);
+		assert_pte_locked(vma->vm_mm, address);
+		__ptep_set_access_flags(vma, ptep, entry,
+					address, mmu_virtual_psize);
 	}
 	return changed;
 }
+
+#ifdef CONFIG_HUGETLB_PAGE
+int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+			       unsigned long addr, pte_t *ptep,
+			       pte_t pte, int dirty)
+{
+#ifdef HUGETLB_NEED_PRELOAD
+	/*
+	 * The "return 1" forces a call of update_mmu_cache, which will write a
+	 * TLB entry.  Without this, platforms that don't do a write of the TLB
+	 * entry in the TLB miss handler asm will fault ad infinitum.
+	 */
+	ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+	return 1;
+#else
+	int changed, psize;
+
+	pte = set_access_flags_filter(pte, vma, dirty);
+	changed = !pte_same(*(ptep), pte);
+	if (changed) {
+
+#ifdef CONFIG_PPC_BOOK3S_64
+		struct hstate *h = hstate_vma(vma);
+
+		psize = hstate_get_psize(h);
+#ifdef CONFIG_DEBUG_VM
+		assert_spin_locked(huge_pte_lockptr(h, vma->vm_mm, ptep));
+#endif
+
+#else
+		/*
+		 * Not used on non book3s64 platforms. But 8xx
+		 * can possibly use tsize derived from hstate.
+		 */
+		psize = 0;
+#endif
+		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
+	}
+	return changed;
+#endif
+}
+#endif /* CONFIG_HUGETLB_PAGE */
 
 #ifdef CONFIG_DEBUG_VM
 void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
@@ -264,3 +296,128 @@ unsigned long vmalloc_to_phys(void *va)
 	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
 }
 EXPORT_SYMBOL_GPL(vmalloc_to_phys);
+
+/*
+ * We have 4 cases for pgds and pmds:
+ * (1) invalid (all zeroes)
+ * (2) pointer to next table, as normal; bottom 6 bits == 0
+ * (3) leaf pte for huge page _PAGE_PTE set
+ * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
+ *
+ * So long as we atomically load page table pointers we are safe against teardown,
+ * we can follow the address down to the the page and take a ref on it.
+ * This function need to be called with interrupts disabled. We use this variant
+ * when we have MSR[EE] = 0 but the paca->irq_soft_mask = IRQS_ENABLED
+ */
+pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
+			bool *is_thp, unsigned *hpage_shift)
+{
+	pgd_t pgd, *pgdp;
+	pud_t pud, *pudp;
+	pmd_t pmd, *pmdp;
+	pte_t *ret_pte;
+	hugepd_t *hpdp = NULL;
+	unsigned pdshift = PGDIR_SHIFT;
+
+	if (hpage_shift)
+		*hpage_shift = 0;
+
+	if (is_thp)
+		*is_thp = false;
+
+	pgdp = pgdir + pgd_index(ea);
+	pgd  = READ_ONCE(*pgdp);
+	/*
+	 * Always operate on the local stack value. This make sure the
+	 * value don't get updated by a parallel THP split/collapse,
+	 * page fault or a page unmap. The return pte_t * is still not
+	 * stable. So should be checked there for above conditions.
+	 */
+	if (pgd_none(pgd))
+		return NULL;
+
+	if (pgd_is_leaf(pgd)) {
+		ret_pte = (pte_t *)pgdp;
+		goto out;
+	}
+
+	if (is_hugepd(__hugepd(pgd_val(pgd)))) {
+		hpdp = (hugepd_t *)&pgd;
+		goto out_huge;
+	}
+
+	/*
+	 * Even if we end up with an unmap, the pgtable will not
+	 * be freed, because we do an rcu free and here we are
+	 * irq disabled
+	 */
+	pdshift = PUD_SHIFT;
+	pudp = pud_offset(&pgd, ea);
+	pud  = READ_ONCE(*pudp);
+
+	if (pud_none(pud))
+		return NULL;
+
+	if (pud_is_leaf(pud)) {
+		ret_pte = (pte_t *)pudp;
+		goto out;
+	}
+
+	if (is_hugepd(__hugepd(pud_val(pud)))) {
+		hpdp = (hugepd_t *)&pud;
+		goto out_huge;
+	}
+
+	pdshift = PMD_SHIFT;
+	pmdp = pmd_offset(&pud, ea);
+	pmd  = READ_ONCE(*pmdp);
+
+	/*
+	 * A hugepage collapse is captured by this condition, see
+	 * pmdp_collapse_flush.
+	 */
+	if (pmd_none(pmd))
+		return NULL;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * A hugepage split is captured by this condition, see
+	 * pmdp_invalidate.
+	 *
+	 * Huge page modification can be caught here too.
+	 */
+	if (pmd_is_serializing(pmd))
+		return NULL;
+#endif
+
+	if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
+		if (is_thp)
+			*is_thp = true;
+		ret_pte = (pte_t *)pmdp;
+		goto out;
+	}
+
+	if (pmd_is_leaf(pmd)) {
+		ret_pte = (pte_t *)pmdp;
+		goto out;
+	}
+
+	if (is_hugepd(__hugepd(pmd_val(pmd)))) {
+		hpdp = (hugepd_t *)&pmd;
+		goto out_huge;
+	}
+
+	return pte_offset_kernel(&pmd, ea);
+
+out_huge:
+	if (!hpdp)
+		return NULL;
+
+	ret_pte = hugepte_offset(*hpdp, ea, pdshift);
+	pdshift = hugepd_shift(*hpdp);
+out:
+	if (hpage_shift)
+		*hpage_shift = pdshift;
+	return ret_pte;
+}
+EXPORT_SYMBOL_GPL(__find_linux_pte);

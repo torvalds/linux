@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # top-like utility for displaying kvm statistics
 #
@@ -8,8 +9,6 @@
 # Authors:
 #  Avi Kivity <avi@redhat.com>
 #
-# This work is licensed under the terms of the GNU GPL, version 2.  See
-# the COPYING file in the top-level directory.
 """The kvm_stat module outputs statistics about running KVM VMs
 
 Three different ways of output formatting are available:
@@ -26,7 +25,7 @@ import sys
 import locale
 import os
 import time
-import optparse
+import argparse
 import ctypes
 import fcntl
 import resource
@@ -34,6 +33,8 @@ import struct
 import re
 import subprocess
 from collections import defaultdict, namedtuple
+from functools import reduce
+from datetime import datetime
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -271,6 +272,7 @@ class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = 'exit_reason'
         self.exit_reasons = exit_reasons
 
     def debugfs_is_child(self, field):
@@ -290,6 +292,7 @@ class ArchPPC(Arch):
         # numbers depend on the wordsize.
         char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
+        self.exit_reason_field = 'exit_nr'
         self.exit_reasons = {}
 
     def debugfs_is_child(self, field):
@@ -301,6 +304,7 @@ class ArchA64(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 241
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = 'esr_ec'
         self.exit_reasons = AARCH64_EXIT_REASONS
 
     def debugfs_is_child(self, field):
@@ -312,6 +316,7 @@ class ArchS390(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 331
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = None
         self.exit_reasons = None
 
     def debugfs_is_child(self, field):
@@ -542,8 +547,8 @@ class TracepointProvider(Provider):
         """
         filters = {}
         filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-        if ARCH.exit_reasons:
-            filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+        if ARCH.exit_reason_field and ARCH.exit_reasons:
+            filters['kvm_exit'] = (ARCH.exit_reason_field, ARCH.exit_reasons)
         return filters
 
     def _get_available_fields(self):
@@ -575,8 +580,12 @@ class TracepointProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self.fields = [field for field in self._get_available_fields()
-                       if self.is_field_wanted(fields_filter, field) or
-                       ARCH.tracepoint_is_child(field)]
+                       if self.is_field_wanted(fields_filter, field)]
+        # add parents for child fields - otherwise we won't see any output!
+        for field in self._fields:
+            parent = ARCH.tracepoint_is_child(field)
+            if (parent and parent not in self._fields):
+                self.fields.append(parent)
 
     @staticmethod
     def _get_online_cpus():
@@ -735,8 +744,12 @@ class DebugfsProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self._get_available_fields()
-                        if self.is_field_wanted(fields_filter, field) or
-                        ARCH.debugfs_is_child(field)]
+                        if self.is_field_wanted(fields_filter, field)]
+        # add parents for child fields - otherwise we won't see any output!
+        for field in self._fields:
+            parent = ARCH.debugfs_is_child(field)
+            if (parent and parent not in self._fields):
+                self.fields.append(parent)
 
     @property
     def fields(self):
@@ -759,12 +772,18 @@ class DebugfsProvider(Provider):
             if len(vms) == 0:
                 self.do_read = False
 
-            self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
+            self.paths = list(filter(lambda x: "{}-".format(pid) in x, vms))
 
         else:
             self.paths = []
             self.do_read = True
-        self.reset()
+
+    def _verify_paths(self):
+        """Remove invalid paths"""
+        for path in self.paths:
+            if not os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
+                self.paths.remove(path)
+                continue
 
     def read(self, reset=0, by_guest=0):
         """Returns a dict with format:'file name / field -> current value'.
@@ -780,6 +799,7 @@ class DebugfsProvider(Provider):
         # If no debugfs filtering support is available, then don't read.
         if not self.do_read:
             return results
+        self._verify_paths()
 
         paths = self.paths
         if self._pid == 0:
@@ -855,7 +875,7 @@ class Stats(object):
 
         if options.debugfs:
             providers.append(DebugfsProvider(options.pid, options.fields,
-                                             options.dbgfs_include_past))
+                                             options.debugfs_include_past))
         if options.tracepoints or not providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
@@ -956,15 +976,17 @@ DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
 SORT_DEFAULT = 0
+MIN_DELAY = 0.1
+MAX_DELAY = 25.5
 
 
 class Tui(object):
     """Instruments curses to draw a nice text ui."""
-    def __init__(self, stats):
+    def __init__(self, stats, opts):
         self.stats = stats
         self.screen = None
         self._delay_initial = 0.25
-        self._delay_regular = DELAY_DEFAULT
+        self._delay_regular = opts.set_delay
         self._sorting = SORT_DEFAULT
         self._display_guests = 0
 
@@ -1096,15 +1118,16 @@ class Tui(object):
             pid = self.stats.pid_filter
         self.screen.erase()
         gname = self.get_gname_from_pid(pid)
+        self._gname = gname
         if gname:
             gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
                                    if len(gname) > MAX_GUEST_NAME_LEN
                                    else gname))
         if pid > 0:
-            self.screen.addstr(0, 0, 'kvm statistics - pid {0} {1}'
-                               .format(pid, gname), curses.A_BOLD)
+            self._headline = 'kvm statistics - pid {0} {1}'.format(pid, gname)
         else:
-            self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+            self._headline = 'kvm statistics - summary'
+        self.screen.addstr(0, 0, self._headline, curses.A_BOLD)
         if self.stats.fields_filter:
             regex = self.stats.fields_filter
             if len(regex) > MAX_REGEX_LEN:
@@ -1121,9 +1144,6 @@ class Tui(object):
         self.screen.refresh()
 
     def _refresh_body(self, sleeptime):
-        def is_child_field(field):
-            return field.find('(') != -1
-
         def insert_child(sorted_items, child, values, parent):
             num = len(sorted_items)
             for i in range(0, num):
@@ -1134,12 +1154,14 @@ class Tui(object):
         def get_sorted_events(self, stats):
             """ separate parent and child events """
             if self._sorting == SORT_DEFAULT:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by (delta value, overall value)
+                    v = pair[1]
                     return (v.delta, v.value)
             else:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by overall value
+                    v = pair[1]
                     return v.value
 
             childs = []
@@ -1163,6 +1185,19 @@ class Tui(object):
 
             return sorted_items
 
+        if not self._is_running_guest(self.stats.pid_filter):
+            if self._gname:
+                try:  # ...to identify the guest by name in case it's back
+                    pids = self.get_pid_from_gname(self._gname)
+                    if len(pids) == 1:
+                        self._refresh_header(pids[0])
+                        self._update_pid(pids[0])
+                        return
+                except:
+                    pass
+            self._display_guest_dead()
+            # leave final data on screen
+            return
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1185,6 +1220,7 @@ class Tui(object):
         # print events
         tavg = 0
         tcur = 0
+        guest_removed = False
         for key, values in get_sorted_events(self, stats):
             if row >= self.screen.getmaxyx()[0] - 1 or values == (0, 0):
                 break
@@ -1192,7 +1228,10 @@ class Tui(object):
                 key = self.get_gname_from_pid(key)
                 if not key:
                     continue
-            cur = int(round(values.delta / sleeptime)) if values.delta else ''
+            cur = int(round(values.delta / sleeptime)) if values.delta else 0
+            if cur < 0:
+                guest_removed = True
+                continue
             if key[0] != ' ':
                 if values.delta:
                     tcur += values.delta
@@ -1205,12 +1244,20 @@ class Tui(object):
                                values.value * 100 / float(ltotal), cur))
             row += 1
         if row == 3:
-            self.screen.addstr(4, 1, 'No matching events reported yet')
+            if guest_removed:
+                self.screen.addstr(4, 1, 'Guest removed, updating...')
+            else:
+                self.screen.addstr(4, 1, 'No matching events reported yet')
         if row > 4:
             tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
                                ('Total', total, tavg), curses.A_BOLD)
         self.screen.refresh()
+
+    def _display_guest_dead(self):
+        marker = '   Guest is DEAD   '
+        y = min(len(self._headline), 80 - len(marker))
+        self.screen.addstr(0, y, marker, curses.A_BLINK | curses.A_STANDOUT)
 
     def _show_msg(self, text):
         """Display message centered text and exit on key press"""
@@ -1220,10 +1267,10 @@ class Tui(object):
         (x, term_width) = self.screen.getmaxyx()
         row = 2
         for line in text:
-            start = (term_width - len(line)) / 2
+            start = (term_width - len(line)) // 2
             self.screen.addstr(row, start, line)
             row += 1
-        self.screen.addstr(row + 1, (term_width - len(hint)) / 2, hint,
+        self.screen.addstr(row + 1, (term_width - len(hint)) // 2, hint,
                            curses.A_STANDOUT)
         self.screen.getkey()
 
@@ -1239,7 +1286,8 @@ class Tui(object):
                '   p     filter by guest name/PID',
                '   q     quit',
                '   r     reset stats',
-               '   s     set update interval',
+               '   s     set delay between refreshs (value range: '
+               '%s-%s secs)' % (MIN_DELAY, MAX_DELAY),
                '   x     toggle reporting of stats for individual child trace'
                ' events',
                'Any other key refreshes statistics immediately')
@@ -1293,8 +1341,8 @@ class Tui(object):
         msg = ''
         while True:
             self.screen.erase()
-            self.screen.addstr(0, 0, 'Set update interval (defaults to %fs).' %
-                               DELAY_DEFAULT, curses.A_BOLD)
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).'
+                               % DELAY_DEFAULT, curses.A_BOLD)
             self.screen.addstr(4, 0, msg)
             self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
                                self._delay_regular)
@@ -1305,11 +1353,9 @@ class Tui(object):
             try:
                 if len(val) > 0:
                     delay = float(val)
-                    if delay < 0.1:
-                        msg = '"' + str(val) + '": Value must be >=0.1'
-                        continue
-                    if delay > 25.5:
-                        msg = '"' + str(val) + '": Value must be <=25.5'
+                    err = is_delay_valid(delay)
+                    if err is not None:
+                        msg = err
                         continue
                 else:
                     delay = DELAY_DEFAULT
@@ -1319,6 +1365,12 @@ class Tui(object):
             except ValueError:
                 msg = '"' + str(val) + '": Invalid value'
         self._refresh_header()
+
+    def _is_running_guest(self, pid):
+        """Check if pid is still a running process."""
+        if not pid:
+            return True
+        return os.path.isdir(os.path.join('/proc/', str(pid)))
 
     def _show_vm_selection_by_guest(self):
         """Draws guest selection mask.
@@ -1347,7 +1399,7 @@ class Tui(object):
             if not guest or guest == '0':
                 break
             if guest.isdigit():
-                if not os.path.isdir(os.path.join('/proc/', guest)):
+                if not self._is_running_guest(guest):
                     msg = '"' + guest + '": Not a running process'
                     continue
                 pid = int(guest)
@@ -1439,31 +1491,62 @@ def batch(stats):
         pass
 
 
-def log(stats):
+class StdFormat(object):
+    def __init__(self, keys):
+        self._banner = ''
+        for key in keys:
+            self._banner += key.split(' ')[0] + ' '
+
+    def get_banner(self):
+        return self._banner
+
+    @staticmethod
+    def get_statline(keys, s):
+        res = ''
+        for key in keys:
+            res += ' %9d' % s[key].delta
+        return res
+
+
+class CSVFormat(object):
+    def __init__(self, keys):
+        self._banner = 'timestamp'
+        self._banner += reduce(lambda res, key: "{},{!s}".format(res,
+                               key.split(' ')[0]), keys, '')
+
+    def get_banner(self):
+        return self._banner
+
+    @staticmethod
+    def get_statline(keys, s):
+        return reduce(lambda res, key: "{},{!s}".format(res, s[key].delta),
+                      keys, '')
+
+
+def log(stats, opts, frmt, keys):
     """Prints statistics as reiterating key block, multiple value blocks."""
-    keys = sorted(stats.get().keys())
-
-    def banner():
-        for key in keys:
-            print(key.split(' ')[0], end=' ')
-        print()
-
-    def statline():
-        s = stats.get()
-        for key in keys:
-            print(' %9d' % s[key].delta, end=' ')
-        print()
     line = 0
     banner_repeat = 20
     while True:
         try:
-            time.sleep(1)
+            time.sleep(opts.set_delay)
             if line % banner_repeat == 0:
-                banner()
-            statline()
+                print(frmt.get_banner())
+            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
+                  frmt.get_statline(keys, stats.get()))
             line += 1
         except KeyboardInterrupt:
             break
+
+
+def is_delay_valid(delay):
+    """Verify delay is in valid value range."""
+    msg = None
+    if delay < MIN_DELAY:
+        msg = '"' + str(delay) + '": Delay must be >=%s' % MIN_DELAY
+    if delay > MAX_DELAY:
+        msg = '"' + str(delay) + '": Delay must be <=%s' % MAX_DELAY
+    return msg
 
 
 def get_options():
@@ -1496,89 +1579,85 @@ Interactive Commands:
    p     filter by PID
    q     quit
    r     reset stats
-   s     set update interval
+   s     set update interval (value range: 0.1-25.5 secs)
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
 """ % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
-    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
-        def format_description(self, description):
-            if description:
-                return description + "\n"
-            else:
-                return ""
+    class Guest_to_pid(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+                pids = Tui.get_pid_from_gname(values)
+            except:
+                sys.exit('Error while searching for guest "{}". Use "-p" to '
+                         'specify a pid instead?'.format(values))
+            if len(pids) == 0:
+                sys.exit('Error: No guest by the name "{}" found'
+                         .format(values))
+            if len(pids) > 1:
+                sys.exit('Error: Multiple processes found (pids: {}). Use "-p"'
+                         ' to specify the desired pid'.format(" ".join(pids)))
+            namespace.pid = pids[0]
 
-    def cb_guest_to_pid(option, opt, val, parser):
-        try:
-            pids = Tui.get_pid_from_gname(val)
-        except:
-            sys.exit('Error while searching for guest "{}". Use "-p" to '
-                     'specify a pid instead?'.format(val))
-        if len(pids) == 0:
-            sys.exit('Error: No guest by the name "{}" found'.format(val))
-        if len(pids) > 1:
-            sys.exit('Error: Multiple processes found (pids: {}). Use "-p" '
-                     'to specify the desired pid'.format(" ".join(pids)))
-        parser.values.pid = pids[0]
-
-    optparser = optparse.OptionParser(description=description_text,
-                                      formatter=PlainHelpFormatter())
-    optparser.add_option('-1', '--once', '--batch',
-                         action='store_true',
-                         default=False,
-                         dest='once',
-                         help='run in batch mode for one second',
-                         )
-    optparser.add_option('-i', '--debugfs-include-past',
-                         action='store_true',
-                         default=False,
-                         dest='dbgfs_include_past',
-                         help='include all available data on past events for '
-                              'debugfs',
-                         )
-    optparser.add_option('-l', '--log',
-                         action='store_true',
-                         default=False,
-                         dest='log',
-                         help='run in logging mode (like vmstat)',
-                         )
-    optparser.add_option('-t', '--tracepoints',
-                         action='store_true',
-                         default=False,
-                         dest='tracepoints',
-                         help='retrieve statistics from tracepoints',
-                         )
-    optparser.add_option('-d', '--debugfs',
-                         action='store_true',
-                         default=False,
-                         dest='debugfs',
-                         help='retrieve statistics from debugfs',
-                         )
-    optparser.add_option('-f', '--fields',
-                         action='store',
-                         default='',
-                         dest='fields',
-                         help='''fields to display (regex)
-                                 "-f help" for a list of available events''',
-                         )
-    optparser.add_option('-p', '--pid',
-                         action='store',
-                         default=0,
-                         type='int',
-                         dest='pid',
-                         help='restrict statistics to pid',
-                         )
-    optparser.add_option('-g', '--guest',
-                         action='callback',
-                         type='string',
-                         dest='pid',
-                         metavar='GUEST',
-                         help='restrict statistics to guest by name',
-                         callback=cb_guest_to_pid,
-                         )
-    options, unkn = optparser.parse_args(sys.argv)
-    if len(unkn) != 1:
-        sys.exit('Error: Extra argument(s): ' + ' '.join(unkn[1:]))
+    argparser = argparse.ArgumentParser(description=description_text,
+                                        formatter_class=argparse
+                                        .RawTextHelpFormatter)
+    argparser.add_argument('-1', '--once', '--batch',
+                           action='store_true',
+                           default=False,
+                           help='run in batch mode for one second',
+                           )
+    argparser.add_argument('-c', '--csv',
+                           action='store_true',
+                           default=False,
+                           help='log in csv format - requires option -l/--log',
+                           )
+    argparser.add_argument('-d', '--debugfs',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from debugfs',
+                           )
+    argparser.add_argument('-f', '--fields',
+                           default='',
+                           help='''fields to display (regex)
+"-f help" for a list of available events''',
+                           )
+    argparser.add_argument('-g', '--guest',
+                           type=str,
+                           help='restrict statistics to guest by name',
+                           action=Guest_to_pid,
+                           )
+    argparser.add_argument('-i', '--debugfs-include-past',
+                           action='store_true',
+                           default=False,
+                           help='include all available data on past events for'
+                                ' debugfs',
+                           )
+    argparser.add_argument('-l', '--log',
+                           action='store_true',
+                           default=False,
+                           help='run in logging mode (like vmstat)',
+                           )
+    argparser.add_argument('-p', '--pid',
+                           type=int,
+                           default=0,
+                           help='restrict statistics to pid',
+                           )
+    argparser.add_argument('-s', '--set-delay',
+                           type=float,
+                           default=DELAY_DEFAULT,
+                           metavar='DELAY',
+                           help='set delay between refreshs (value range: '
+                                '%s-%s secs)' % (MIN_DELAY, MAX_DELAY),
+                           )
+    argparser.add_argument('-t', '--tracepoints',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from tracepoints',
+                           )
+    options = argparser.parse_args()
+    if options.csv and not options.log:
+        sys.exit('Error: Option -c/--csv requires -l/--log')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
@@ -1613,7 +1692,7 @@ def assign_globals():
     global PATH_DEBUGFS_TRACING
 
     debugfs = ''
-    for line in file('/proc/mounts'):
+    for line in open('/proc/mounts'):
         if line.split(' ')[0] == 'debugfs':
             debugfs = line.split(' ')[1]
             break
@@ -1644,6 +1723,10 @@ def main():
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
         sys.exit('Specified pid does not exist.')
 
+    err = is_delay_valid(options.set_delay)
+    if err is not None:
+        sys.exit('Error: ' + err)
+
     stats = Stats(options)
 
     if options.fields == 'help':
@@ -1655,12 +1738,18 @@ def main():
         sys.exit(0)
 
     if options.log:
-        log(stats)
+        keys = sorted(stats.get().keys())
+        if options.csv:
+            frmt = CSVFormat(keys)
+        else:
+            frmt = StdFormat(keys)
+        log(stats, options, frmt, keys)
     elif not options.once:
-        with Tui(stats) as tui:
+        with Tui(stats, options) as tui:
             tui.show_stats()
     else:
         batch(stats)
+
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_ENUM_FRAMEINTERVALS:
 
@@ -131,35 +138,30 @@ application should zero out all members except for the *IN* fields.
 
     * - __u32
       - ``index``
-      -
       - IN: Index of the given frame interval in the enumeration.
     * - __u32
       - ``pixel_format``
-      -
       - IN: Pixel format for which the frame intervals are enumerated.
     * - __u32
       - ``width``
-      -
       - IN: Frame width for which the frame intervals are enumerated.
     * - __u32
       - ``height``
-      -
       - IN: Frame height for which the frame intervals are enumerated.
     * - __u32
       - ``type``
-      -
       - OUT: Frame interval type the device supports.
-    * - union
-      -
-      -
+    * - union {
+      - (anonymous)
       - OUT: Frame interval with the given index.
-    * -
-      - struct :c:type:`v4l2_fract`
+    * - struct :c:type:`v4l2_fract`
       - ``discrete``
       - Frame interval [s].
-    * -
-      - struct :c:type:`v4l2_frmival_stepwise`
+    * - struct :c:type:`v4l2_frmival_stepwise`
       - ``stepwise``
+      -
+    * - }
+      -
       -
     * - __u32
       - ``reserved[2]``

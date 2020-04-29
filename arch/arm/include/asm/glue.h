@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/glue.h
  *
  *  Copyright (C) 1997-1999 Russell King
  *  Copyright (C) 2000-2002 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This file provides the glue to stick the processor-specific bits
  *  into the kernel in an efficient manner.  The idea is to use branches

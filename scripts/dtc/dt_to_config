@@ -1,10 +1,9 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Copyright 2016 by Frank Rowand
 # Copyright 2016 by Gaurav Minocha
 #
-# This file is subject to the terms and conditions of the GNU General Public
-# License v2.
 
 use strict 'refs';
 use strict subs;

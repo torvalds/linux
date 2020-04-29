@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * esrt.c
  *
@@ -239,18 +240,23 @@ void __init efi_esrt_init(void)
 {
 	void *va;
 	struct efi_system_resource_table tmpesrt;
-	struct efi_system_resource_entry_v1 *v1_entries;
 	size_t size, max, entry_size, entries_size;
 	efi_memory_desc_t md;
 	int rc;
 	phys_addr_t end;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
 
 	pr_debug("esrt-init: loading.\n");
 	if (!esrt_table_exists())
 		return;
 
 	rc = efi_mem_desc_lookup(efi.esrt, &md);
-	if (rc < 0) {
+	if (rc < 0 ||
+	    (!(md.attribute & EFI_MEMORY_RUNTIME) &&
+	     md.type != EFI_BOOT_SERVICES_DATA &&
+	     md.type != EFI_RUNTIME_SERVICES_DATA)) {
 		pr_warn("ESRT header is not in the memory map.\n");
 		return;
 	}
@@ -281,14 +287,13 @@ void __init efi_esrt_init(void)
 	memcpy(&tmpesrt, va, sizeof(tmpesrt));
 	early_memunmap(va, size);
 
-	if (tmpesrt.fw_resource_version == 1) {
-		entry_size = sizeof (*v1_entries);
-	} else {
+	if (tmpesrt.fw_resource_version != 1) {
 		pr_err("Unsupported ESRT version %lld.\n",
 		       tmpesrt.fw_resource_version);
 		return;
 	}
 
+	entry_size = sizeof(struct efi_system_resource_entry_v1);
 	if (tmpesrt.fw_resource_count > 0 && max - size < entry_size) {
 		pr_err("ESRT memory map entry can only hold the header. (max: %zu size: %zu)\n",
 		       max - size, entry_size);
@@ -326,7 +331,8 @@ void __init efi_esrt_init(void)
 
 	end = esrt_data + size;
 	pr_info("Reserving ESRT space from %pa to %pa.\n", &esrt_data, &end);
-	efi_mem_reserve(esrt_data, esrt_data_size);
+	if (md.type == EFI_BOOT_SERVICES_DATA)
+		efi_mem_reserve(esrt_data, esrt_data_size);
 
 	pr_debug("esrt-init: loaded.\n");
 }

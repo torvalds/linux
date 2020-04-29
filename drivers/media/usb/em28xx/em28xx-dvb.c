@@ -2,7 +2,7 @@
 //
 // DVB device driver for em28xx
 //
-// (c) 2008-2011 Mauro Carvalho Chehab <mchehab@infradead.org>
+// (c) 2008-2011 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
 // (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 //	- Fixes for the driver to properly work with HVR-950
@@ -63,7 +63,7 @@
 #include "tc90522.h"
 #include "qm1d1c0042.h"
 
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
 MODULE_VERSION(EM28XX_VERSION);
@@ -199,6 +199,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	int rc;
 	struct em28xx_i2c_bus *i2c_bus = dvb->adapter.priv;
 	struct em28xx *dev = i2c_bus->dev;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
 	if (dev->dvb_xfer_bulk) {
@@ -216,6 +217,9 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 		packet_multiplier = EM28XX_DVB_NUM_ISOC_PACKETS;
 		dvb_alt = dev->dvb_alt_isoc;
 	}
+
+	if (!dev->board.has_dual_ts)
+		usb_set_interface(udev, dev->ifnum, dvb_alt);
 
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
@@ -298,7 +302,6 @@ static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 /* ------------------------------------------------------------------ */
 
 static struct lgdt330x_config em2880_lgdt3303_dev = {
-	.demod_address = 0x0e,
 	.demod_chip = LGDT3303,
 };
 
@@ -468,13 +471,13 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 {
 	int i;
 
-	struct em28xx_reg_seq hauppauge_hvr930c_init[] = {
+	static const struct em28xx_reg_seq hauppauge_hvr930c_init[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfb,	0xff,	0x32},
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0xb8},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
+	static const struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x01},
 		{EM2874_R80_GPIO_P0_CTRL,	0xaf,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x76},
@@ -490,7 +493,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{	-1,			-1,	-1,	-1},
 	};
 
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -534,20 +537,20 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 static void terratec_h5_init(struct em28xx *dev)
 {
 	int i;
-	struct em28xx_reg_seq terratec_h5_init[] = {
+	static const struct em28xx_reg_seq terratec_h5_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_h5_end[] = {
+	static const struct em28xx_reg_seq terratec_h5_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -591,14 +594,14 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 	 * 0xe6: unknown (does not affect DVB-T).
 	 * 0xb6: unknown (does not affect DVB-T).
 	 */
-	struct em28xx_reg_seq terratec_htc_stick_init[] = {
+	static const struct em28xx_reg_seq terratec_htc_stick_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_htc_stick_end[] = {
+	static const struct em28xx_reg_seq terratec_htc_stick_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	50},
 		{	-1,			-1,	-1,	-1},
@@ -608,7 +611,7 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 	 * Init the analog decoder (not yet supported), but
 	 * it's probably still a good idea.
 	 */
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -639,14 +642,14 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 {
 	int i;
 
-	struct em28xx_reg_seq terratec_htc_usb_xs_init[] = {
+	static const struct em28xx_reg_seq terratec_htc_usb_xs_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
+	static const struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
@@ -657,7 +660,7 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 	 * Init the analog decoder (not yet supported), but
 	 * it's probably still a good idea.
 	 */
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -701,7 +704,7 @@ static void pctv_520e_init(struct em28xx *dev)
 	 * digital demodulator and tuner are routed via AVF4910B.
 	 */
 	int i;
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -797,7 +800,7 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 static void px_bcud_init(struct em28xx *dev)
 {
 	int i;
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs1[] = {
@@ -815,7 +818,7 @@ static void px_bcud_init(struct em28xx *dev)
 		{{ 0x85, 0x7a }, 2},
 		{{ 0x87, 0x04 }, 2},
 	};
-	static struct em28xx_reg_seq gpio[] = {
+	static const struct em28xx_reg_seq gpio[] = {
 		{EM28XX_R06_I2C_CLK,		0x40,	0xff,	300},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	60},
 		{EM28XX_R15_RGAIN,		0x20,	0xff,	0},
@@ -1216,6 +1219,61 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 	return 0;
 }
 
+static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
+{
+	struct em28xx_dvb *dvb = dev->dvb;
+	struct i2c_adapter *i2c_adapter;
+	struct m88ds3103_platform_data m88ds3103_pdata = {};
+	struct ts2020_config ts2020_config = {};
+	struct a8293_platform_data a8293_pdata = {};
+
+	/* attach demod */
+	m88ds3103_pdata.clk = 27000000;
+	m88ds3103_pdata.i2c_wr_max = 33;
+	m88ds3103_pdata.ts_mode = M88DS3103_TS_PARALLEL;
+	m88ds3103_pdata.ts_clk = 16000;
+	m88ds3103_pdata.ts_clk_pol = 0;
+	m88ds3103_pdata.agc = 0x99;
+	m88ds3103_pdata.agc_inv = 0;
+	m88ds3103_pdata.spec_inv = 0;
+	dvb->i2c_client_demod = dvb_module_probe("m88ds3103", "m88ds3103b",
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x6a, &m88ds3103_pdata);
+
+	if (!dvb->i2c_client_demod)
+		return -ENODEV;
+
+	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod);
+	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod);
+
+	/* attach tuner */
+	ts2020_config.fe = dvb->fe[0];
+	dvb->i2c_client_tuner = dvb_module_probe("ts2020", "ts2022",
+						 i2c_adapter,
+						 0x60, &ts2020_config);
+	if (!dvb->i2c_client_tuner) {
+		dvb_module_release(dvb->i2c_client_demod);
+		return -ENODEV;
+	}
+
+	/* delegate signal strength measurement to tuner */
+	dvb->fe[0]->ops.read_signal_strength =
+			dvb->fe[0]->ops.tuner_ops.get_rf_strength;
+
+	/* attach SEC */
+	a8293_pdata.dvb_frontend = dvb->fe[0];
+	dvb->i2c_client_sec = dvb_module_probe("a8293", NULL,
+					       &dev->i2c_adap[dev->def_i2c_bus],
+					       0x08, &a8293_pdata);
+	if (!dvb->i2c_client_sec) {
+		dvb_module_release(dvb->i2c_client_tuner);
+		dvb_module_release(dvb->i2c_client_demod);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int em28178_dvb_init_pctv_292e(struct em28xx *dev)
 {
 	struct em28xx_dvb *dvb = dev->dvb;
@@ -1392,7 +1450,7 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_01595(struct em28xx *dev)
 
 	dvb->i2c_client_tuner = dvb_module_probe("si2157", NULL,
 						 adapter,
-						 0x60, &si2157_config);
+						 addr, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
 		dvb_module_release(dvb->i2c_client_demod);
 		return -ENODEV;
@@ -1470,6 +1528,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		dvb->fe[0] = dvb_attach(lgdt330x_attach,
 					&em2880_lgdt3303_dev,
+					0x0e,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
@@ -1488,6 +1547,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2882_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
+	case EM2882_BOARD_ZOLID_HYBRID_TV_STICK:
 		dvb->fe[0] = dvb_attach(zl10353_attach,
 					&em28xx_zl10353_xc3028_no_i2c_gate,
 					&dev->i2c_adap[dev->def_i2c_bus]);
@@ -1550,6 +1610,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2882_BOARD_KWORLD_ATSC_315U:
 		dvb->fe[0] = dvb_attach(lgdt330x_attach,
 					&em2880_lgdt3303_dev,
+					0x0e,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (dvb->fe[0]) {
 			if (!dvb_attach(simple_tuner_attach, dvb->fe[0],
@@ -1851,6 +1912,11 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM28178_BOARD_PCTV_461E:
 		result = em28178_dvb_init_pctv_461e(dev);
+		if (result)
+			goto out_free;
+		break;
+	case EM28178_BOARD_PCTV_461E_V2:
+		result = em28178_dvb_init_pctv_461e_v2(dev);
 		if (result)
 			goto out_free;
 		break;

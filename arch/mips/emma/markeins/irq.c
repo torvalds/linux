@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This file is based on the arch/mips/ddb5xxx/ddb5477/irq.c
  *
  *	Copyright 2001 MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -166,14 +153,6 @@ void emma2rh_gpio_irq_init(void)
 					      handle_edge_irq, "edge");
 }
 
-static struct irqaction irq_cascade = {
-	   .handler = no_action,
-	   .flags = IRQF_NO_THREAD,
-	   .name = "cascade",
-	   .dev_id = NULL,
-	   .next = NULL,
-};
-
 /*
  * the first level int-handler will jump here if it is a emma2rh irq
  */
@@ -249,6 +228,7 @@ void emma2rh_irq_dispatch(void)
 void __init arch_init_irq(void)
 {
 	u32 reg;
+	int irq;
 
 	/* by default, interrupts are disabled. */
 	emma2rh_out32(EMMA2RH_BHIF_INT_EN_0, 0);
@@ -285,9 +265,15 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init();
 
 	/* setup cascade interrupts */
-	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE, &irq_cascade);
-	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE, &irq_cascade);
-	setup_irq(MIPS_CPU_IRQ_BASE + 2, &irq_cascade);
+	irq = EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
+	irq = EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
+	irq = MIPS_CPU_IRQ_BASE + 2;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", irq);
 }
 
 asmlinkage void plat_irq_dispatch(void)

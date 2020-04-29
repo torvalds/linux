@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # 1-wire bus master configuration
 #
@@ -49,7 +50,7 @@ config W1_MASTER_DS1WM
 
 config W1_MASTER_GPIO
 	tristate "GPIO 1-wire busmaster"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you want to communicate with your 1-wire devices using
 	  GPIO pins. This driver uses the GPIO API to control the wire.
@@ -63,6 +64,15 @@ config HDQ_MASTER_OMAP
 	help
 	  Say Y here if you want support for the 1-wire or HDQ Interface
 	  on an OMAP processor.
+
+config W1_MASTER_SGI
+	tristate "SGI ASIC driver"
+	help
+	  Say Y here if you want support for your 1-wire devices using
+	  SGI ASIC 1-Wire interface
+
+	  This support is also available as a module.  If so, the module
+	  will be called sgi_w1.
 
 endmenu
 

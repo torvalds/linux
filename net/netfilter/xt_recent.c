@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Patrick McHardy <kaber@trash.net>
  * Copyright © CC Computer Consultants GmbH, 2007 - 2008
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This is a replacement of the old ipt_recent module, which carried the
  * following copyright notice:
@@ -74,7 +71,7 @@ struct recent_entry {
 	u_int8_t		ttl;
 	u_int8_t		index;
 	u_int16_t		nstamps;
-	unsigned long		stamps[0];
+	unsigned long		stamps[];
 };
 
 struct recent_table {
@@ -85,7 +82,7 @@ struct recent_table {
 	unsigned int		entries;
 	u8			nstamps_max_mask;
 	struct list_head	lru_list;
-	struct list_head	iphash[0];
+	struct list_head	iphash[];
 };
 
 struct recent_net {
@@ -106,7 +103,7 @@ static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations recent_mt_fops;
+static const struct proc_ops recent_mt_proc_ops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;
@@ -184,8 +181,7 @@ recent_entry_init(struct recent_table *t, const union nf_inet_addr *addr,
 	}
 
 	nstamps_max += 1;
-	e = kmalloc(sizeof(*e) + sizeof(e->stamps[0]) * nstamps_max,
-		    GFP_ATOMIC);
+	e = kmalloc(struct_size(e, stamps, nstamps_max), GFP_ATOMIC);
 	if (e == NULL)
 		return NULL;
 	memcpy(&e->addr, addr, sizeof(e->addr));
@@ -266,7 +262,8 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 
 	/* use TTL as seen before forwarding */
-	if (xt_out(par) != NULL && skb->sk == NULL)
+	if (xt_out(par) != NULL &&
+	    (!skb->sk || !net_eq(net, sock_net(skb->sk))))
 		ttl++;
 
 	spin_lock_bh(&recent_lock);
@@ -337,7 +334,6 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	unsigned int nstamp_mask;
 	unsigned int i;
 	int ret = -EINVAL;
-	size_t sz;
 
 	net_get_random_once(&hash_rnd, sizeof(hash_rnd));
 
@@ -387,8 +383,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 
-	sz = sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size;
-	t = kvzalloc(sz, GFP_KERNEL);
+	t = kvzalloc(struct_size(t, iphash, ip_list_hash_size), GFP_KERNEL);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -410,7 +405,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
-		  &recent_mt_fops, t);
+			       &recent_mt_proc_ops, t);
 	if (pde == NULL) {
 		recent_table_free(t);
 		ret = -ENOMEM;
@@ -497,12 +492,12 @@ static void *recent_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	const struct recent_entry *e = v;
 	const struct list_head *head = e->list.next;
 
+	(*pos)++;
 	while (head == &t->iphash[st->bucket]) {
 		if (++st->bucket >= ip_list_hash_size)
 			return NULL;
 		head = t->iphash[st->bucket].next;
 	}
-	(*pos)++;
 	return list_entry(head, struct recent_entry, list);
 }
 
@@ -621,13 +616,12 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	return size + 1;
 }
 
-static const struct file_operations recent_mt_fops = {
-	.open    = recent_seq_open,
-	.read    = seq_read,
-	.write   = recent_mt_proc_write,
-	.release = seq_release_private,
-	.owner   = THIS_MODULE,
-	.llseek = seq_lseek,
+static const struct proc_ops recent_mt_proc_ops = {
+	.proc_open	= recent_seq_open,
+	.proc_read	= seq_read,
+	.proc_write	= recent_mt_proc_write,
+	.proc_release	= seq_release_private,
+	.proc_lseek	= seq_lseek,
 };
 
 static int __net_init recent_proc_net_init(struct net *net)

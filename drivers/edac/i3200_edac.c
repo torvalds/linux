@@ -280,7 +280,7 @@ static void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, I3200_MMR_WINDOW_SIZE);
+	window = ioremap(u.mchbar, I3200_MMR_WINDOW_SIZE);
 	if (!window)
 		printk(KERN_ERR "i3200: cannot map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);
@@ -392,14 +392,13 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 		unsigned long nr_pages;
 
 		for (j = 0; j < nr_channels; j++) {
-			struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-							       mci->n_layers, i, j, 0);
+			struct dimm_info *dimm = edac_get_dimm(mci, i, j, 0);
 
 			nr_pages = drb_to_nr_pages(drbs, stacked, j, i);
 			if (nr_pages == 0)
 				continue;
 
-			edac_dbg(0, "csrow %d, channel %d%s, size = %ld Mb\n", i, j,
+			edac_dbg(0, "csrow %d, channel %d%s, size = %ld MiB\n", i, j,
 				 stacked ? " (stacked)" : "", PAGES_TO_MiB(nr_pages));
 
 			dimm->nr_pages = nr_pages;

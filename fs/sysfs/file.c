@@ -17,7 +17,6 @@
 #include <linux/seq_file.h>
 
 #include "sysfs.h"
-#include "../kernfs/kernfs-internal.h"
 
 /*
  * Determine ktype->sysfs_ops for the given kernfs_node.  This function
@@ -245,7 +244,7 @@ static const struct kernfs_ops sysfs_bin_kfops_mmap = {
 
 int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 			   const struct attribute *attr, bool is_bin,
-			   umode_t mode, const void *ns)
+			   umode_t mode, kuid_t uid, kgid_t gid, const void *ns)
 {
 	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops;
@@ -302,20 +301,15 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	if (!attr->ignore_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
-	kn = __kernfs_create_file(parent, attr->name, mode & 0777, size, ops,
-				  (void *)attr, ns, key);
+
+	kn = __kernfs_create_file(parent, attr->name, mode & 0777, uid, gid,
+				  size, ops, (void *)attr, ns, key);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)
 			sysfs_warn_dup(parent, attr->name);
 		return PTR_ERR(kn);
 	}
 	return 0;
-}
-
-int sysfs_add_file(struct kernfs_node *parent, const struct attribute *attr,
-		   bool is_bin)
-{
-	return sysfs_add_file_mode_ns(parent, attr, is_bin, attr->mode, NULL);
 }
 
 /**
@@ -327,14 +321,20 @@ int sysfs_add_file(struct kernfs_node *parent, const struct attribute *attr,
 int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
 			 const void *ns)
 {
-	BUG_ON(!kobj || !kobj->sd || !attr);
+	kuid_t uid;
+	kgid_t gid;
 
-	return sysfs_add_file_mode_ns(kobj->sd, attr, false, attr->mode, ns);
+	if (WARN_ON(!kobj || !kobj->sd || !attr))
+		return -EINVAL;
+
+	kobject_get_ownership(kobj, &uid, &gid);
+	return sysfs_add_file_mode_ns(kobj->sd, attr, false, attr->mode,
+				      uid, gid, ns);
 
 }
 EXPORT_SYMBOL_GPL(sysfs_create_file_ns);
 
-int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+int sysfs_create_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int err = 0;
 	int i;
@@ -358,6 +358,8 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
 	struct kernfs_node *parent;
+	kuid_t uid;
+	kgid_t gid;
 	int error;
 
 	if (group) {
@@ -370,7 +372,9 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 	if (!parent)
 		return -ENOENT;
 
-	error = sysfs_add_file(parent, attr, false);
+	kobject_get_ownership(kobj, &uid, &gid);
+	error = sysfs_add_file_mode_ns(parent, attr, false,
+				       attr->mode, uid, gid, NULL);
 	kernfs_put(parent);
 
 	return error;
@@ -404,6 +408,50 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
+
+/**
+ * sysfs_break_active_protection - break "active" protection
+ * @kobj: The kernel object @attr is associated with.
+ * @attr: The attribute to break the "active" protection for.
+ *
+ * With sysfs, just like kernfs, deletion of an attribute is postponed until
+ * all active .show() and .store() callbacks have finished unless this function
+ * is called. Hence this function is useful in methods that implement self
+ * deletion.
+ */
+struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
+						  const struct attribute *attr)
+{
+	struct kernfs_node *kn;
+
+	kobject_get(kobj);
+	kn = kernfs_find_and_get(kobj->sd, attr->name);
+	if (kn)
+		kernfs_break_active_protection(kn);
+	return kn;
+}
+EXPORT_SYMBOL_GPL(sysfs_break_active_protection);
+
+/**
+ * sysfs_unbreak_active_protection - restore "active" protection
+ * @kn: Pointer returned by sysfs_break_active_protection().
+ *
+ * Undo the effects of sysfs_break_active_protection(). Since this function
+ * calls kernfs_put() on the kernfs node that corresponds to the 'attr'
+ * argument passed to sysfs_break_active_protection() that attribute may have
+ * been removed between the sysfs_break_active_protection() and
+ * sysfs_unbreak_active_protection() calls, it is not safe to access @kn after
+ * this function has returned.
+ */
+void sysfs_unbreak_active_protection(struct kernfs_node *kn)
+{
+	struct kobject *kobj = kn->parent->priv;
+
+	kernfs_unbreak_active_protection(kn);
+	kernfs_put(kn);
+	kobject_put(kobj);
+}
+EXPORT_SYMBOL_GPL(sysfs_unbreak_active_protection);
 
 /**
  * sysfs_remove_file_ns - remove an object attribute with a custom ns tag
@@ -445,9 +493,10 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 	return ret;
 }
 
-void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
+void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int i;
+
 	for (i = 0; ptr[i]; i++)
 		sysfs_remove_file(kobj, ptr[i]);
 }
@@ -486,9 +535,15 @@ EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
 int sysfs_create_bin_file(struct kobject *kobj,
 			  const struct bin_attribute *attr)
 {
-	BUG_ON(!kobj || !kobj->sd || !attr);
+	kuid_t uid;
+	kgid_t gid;
 
-	return sysfs_add_file(kobj->sd, &attr->attr, true);
+	if (WARN_ON(!kobj || !kobj->sd || !attr))
+		return -EINVAL;
+
+	kobject_get_ownership(kobj, &uid, &gid);
+	return sysfs_add_file_mode_ns(kobj->sd, &attr->attr, true,
+				      attr->attr.mode, uid, gid, NULL);
 }
 EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 
@@ -503,3 +558,151 @@ void sysfs_remove_bin_file(struct kobject *kobj,
 	kernfs_remove_by_name(kobj->sd, attr->attr.name);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_bin_file);
+
+static int internal_change_owner(struct kernfs_node *kn, kuid_t kuid,
+				 kgid_t kgid)
+{
+	struct iattr newattrs = {
+		.ia_valid = ATTR_UID | ATTR_GID,
+		.ia_uid = kuid,
+		.ia_gid = kgid,
+	};
+	return kernfs_setattr(kn, &newattrs);
+}
+
+/**
+ *	sysfs_link_change_owner - change owner of a sysfs file.
+ *	@kobj:	object of the kernfs_node the symlink is located in.
+ *	@targ:	object of the kernfs_node the symlink points to.
+ *	@name:	name of the link.
+ *	@kuid:	new owner's kuid
+ *	@kgid:	new owner's kgid
+ *
+ * This function looks up the sysfs symlink entry @name under @kobj and changes
+ * the ownership to @kuid/@kgid. The symlink is looked up in the namespace of
+ * @targ.
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int sysfs_link_change_owner(struct kobject *kobj, struct kobject *targ,
+			    const char *name, kuid_t kuid, kgid_t kgid)
+{
+	struct kernfs_node *kn = NULL;
+	int error;
+
+	if (!name || !kobj->state_in_sysfs || !targ->state_in_sysfs)
+		return -EINVAL;
+
+	error = -ENOENT;
+	kn = kernfs_find_and_get_ns(kobj->sd, name, targ->sd->ns);
+	if (!kn)
+		goto out;
+
+	error = -EINVAL;
+	if (kernfs_type(kn) != KERNFS_LINK)
+		goto out;
+	if (kn->symlink.target_kn->priv != targ)
+		goto out;
+
+	error = internal_change_owner(kn, kuid, kgid);
+
+out:
+	kernfs_put(kn);
+	return error;
+}
+
+/**
+ *	sysfs_file_change_owner - change owner of a sysfs file.
+ *	@kobj:	object.
+ *	@name:	name of the file to change.
+ *	@kuid:	new owner's kuid
+ *	@kgid:	new owner's kgid
+ *
+ * This function looks up the sysfs entry @name under @kobj and changes the
+ * ownership to @kuid/@kgid.
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
+			    kgid_t kgid)
+{
+	struct kernfs_node *kn;
+	int error;
+
+	if (!name)
+		return -EINVAL;
+
+	if (!kobj->state_in_sysfs)
+		return -EINVAL;
+
+	kn = kernfs_find_and_get(kobj->sd, name);
+	if (!kn)
+		return -ENOENT;
+
+	error = internal_change_owner(kn, kuid, kgid);
+
+	kernfs_put(kn);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_file_change_owner);
+
+/**
+ *	sysfs_change_owner - change owner of the given object.
+ *	@kobj:	object.
+ *	@kuid:	new owner's kuid
+ *	@kgid:	new owner's kgid
+ *
+ * Change the owner of the default directory, files, groups, and attributes of
+ * @kobj to @kuid/@kgid. Note that sysfs_change_owner mirrors how the sysfs
+ * entries for a kobject are added by driver core. In summary,
+ * sysfs_change_owner() takes care of the default directory entry for @kobj,
+ * the default attributes associated with the ktype of @kobj and the default
+ * attributes associated with the ktype of @kobj.
+ * Additional properties not added by driver core have to be changed by the
+ * driver or subsystem which created them. This is similar to how
+ * driver/subsystem specific entries are removed.
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid)
+{
+	int error;
+	const struct kobj_type *ktype;
+
+	if (!kobj->state_in_sysfs)
+		return -EINVAL;
+
+	/* Change the owner of the kobject itself. */
+	error = internal_change_owner(kobj->sd, kuid, kgid);
+	if (error)
+		return error;
+
+	ktype = get_ktype(kobj);
+	if (ktype) {
+		struct attribute **kattr;
+
+		/*
+		 * Change owner of the default attributes associated with the
+		 * ktype of @kobj.
+		 */
+		for (kattr = ktype->default_attrs; kattr && *kattr; kattr++) {
+			error = sysfs_file_change_owner(kobj, (*kattr)->name,
+							kuid, kgid);
+			if (error)
+				return error;
+		}
+
+		/*
+		 * Change owner of the default groups associated with the
+		 * ktype of @kobj.
+		 */
+		error = sysfs_groups_change_owner(kobj, ktype->default_groups,
+						  kuid, kgid);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sysfs_change_owner);

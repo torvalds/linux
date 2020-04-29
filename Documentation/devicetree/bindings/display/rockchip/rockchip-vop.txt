@@ -8,6 +8,10 @@ Required properties:
 - compatible: value should be one of the following
 		"rockchip,rk3036-vop";
 		"rockchip,rk3126-vop";
+		"rockchip,px30-vop-lit";
+		"rockchip,px30-vop-big";
+		"rockchip,rk3066-vop";
+		"rockchip,rk3188-vop";
 		"rockchip,rk3288-vop";
 		"rockchip,rk3368-vop";
 		"rockchip,rk3366-vop";
@@ -15,6 +19,10 @@ Required properties:
 		"rockchip,rk3399-vop-lit";
 		"rockchip,rk3228-vop";
 		"rockchip,rk3328-vop";
+
+- reg: Must contain one entry corresponding to the base address and length
+	of the register space. Can optionally contain a second entry
+	corresponding to the CRTC gamma LUT address.
 
 - interrupts: should contain a list of all VOP IP block interrupts in the
 		 order: VSYNC, LCD_SYSTEM. The interrupt specifier
@@ -44,7 +52,7 @@ Example:
 SoC specific DT entry:
 	vopb: vopb@ff930000 {
 		compatible = "rockchip,rk3288-vop";
-		reg = <0xff930000 0x19c>;
+		reg = <0x0 0xff930000 0x0 0x19c>, <0x0 0xff931000 0x0 0x1000>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";

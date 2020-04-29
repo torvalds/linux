@@ -7,6 +7,8 @@
 #include "common.h"
 #include "dwmac4.h"
 #include "dwmac5.h"
+#include "stmmac.h"
+#include "stmmac_ptp.h"
 
 struct dwmac5_error_desc {
 	bool valid;
@@ -237,15 +239,16 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 	return 0;
 }
 
-bool dwmac5_safety_feat_irq_status(struct net_device *ndev,
+int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats)
 {
-	bool ret = false, err, corr;
+	bool err, corr;
 	u32 mtl, dma;
+	int ret = 0;
 
 	if (!asp)
-		return false;
+		return -EINVAL;
 
 	mtl = readl(ioaddr + MTL_SAFETY_INT_STATUS);
 	dma = readl(ioaddr + DMA_SAFETY_INT_STATUS);
@@ -282,17 +285,387 @@ static const struct dwmac5_error {
 	{ dwmac5_dma_errors },
 };
 
-const char *dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
-			int index, unsigned long *count)
+int dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
+			int index, unsigned long *count, const char **desc)
 {
 	int module = index / 32, offset = index % 32;
 	unsigned long *ptr = (unsigned long *)stats;
 
 	if (module >= ARRAY_SIZE(dwmac5_all_errors))
-		return NULL;
+		return -EINVAL;
 	if (!dwmac5_all_errors[module].desc[offset].valid)
-		return NULL;
+		return -EINVAL;
 	if (count)
 		*count = *(ptr + index);
-	return dwmac5_all_errors[module].desc[offset].desc;
+	if (desc)
+		*desc = dwmac5_all_errors[module].desc[offset].desc;
+	return 0;
+}
+
+static int dwmac5_rxp_disable(void __iomem *ioaddr)
+{
+	u32 val;
+	int ret;
+
+	val = readl(ioaddr + MTL_OPERATION_MODE);
+	val &= ~MTL_FRPE;
+	writel(val, ioaddr + MTL_OPERATION_MODE);
+
+	ret = readl_poll_timeout(ioaddr + MTL_RXP_CONTROL_STATUS, val,
+			val & RXPI, 1, 10000);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+static void dwmac5_rxp_enable(void __iomem *ioaddr)
+{
+	u32 val;
+
+	val = readl(ioaddr + MTL_OPERATION_MODE);
+	val |= MTL_FRPE;
+	writel(val, ioaddr + MTL_OPERATION_MODE);
+}
+
+static int dwmac5_rxp_update_single_entry(void __iomem *ioaddr,
+					  struct stmmac_tc_entry *entry,
+					  int pos)
+{
+	int ret, i;
+
+	for (i = 0; i < (sizeof(entry->val) / sizeof(u32)); i++) {
+		int real_pos = pos * (sizeof(entry->val) / sizeof(u32)) + i;
+		u32 val;
+
+		/* Wait for ready */
+		ret = readl_poll_timeout(ioaddr + MTL_RXP_IACC_CTRL_STATUS,
+				val, !(val & STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+
+		/* Write data */
+		val = *((u32 *)&entry->val + i);
+		writel(val, ioaddr + MTL_RXP_IACC_DATA);
+
+		/* Write pos */
+		val = real_pos & ADDR;
+		writel(val, ioaddr + MTL_RXP_IACC_CTRL_STATUS);
+
+		/* Write OP */
+		val |= WRRDN;
+		writel(val, ioaddr + MTL_RXP_IACC_CTRL_STATUS);
+
+		/* Start Write */
+		val |= STARTBUSY;
+		writel(val, ioaddr + MTL_RXP_IACC_CTRL_STATUS);
+
+		/* Wait for done */
+		ret = readl_poll_timeout(ioaddr + MTL_RXP_IACC_CTRL_STATUS,
+				val, !(val & STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static struct stmmac_tc_entry *
+dwmac5_rxp_get_next_entry(struct stmmac_tc_entry *entries, unsigned int count,
+			  u32 curr_prio)
+{
+	struct stmmac_tc_entry *entry;
+	u32 min_prio = ~0x0;
+	int i, min_prio_idx;
+	bool found = false;
+
+	for (i = count - 1; i >= 0; i--) {
+		entry = &entries[i];
+
+		/* Do not update unused entries */
+		if (!entry->in_use)
+			continue;
+		/* Do not update already updated entries (i.e. fragments) */
+		if (entry->in_hw)
+			continue;
+		/* Let last entry be updated last */
+		if (entry->is_last)
+			continue;
+		/* Do not return fragments */
+		if (entry->is_frag)
+			continue;
+		/* Check if we already checked this prio */
+		if (entry->prio < curr_prio)
+			continue;
+		/* Check if this is the minimum prio */
+		if (entry->prio < min_prio) {
+			min_prio = entry->prio;
+			min_prio_idx = i;
+			found = true;
+		}
+	}
+
+	if (found)
+		return &entries[min_prio_idx];
+	return NULL;
+}
+
+int dwmac5_rxp_config(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
+		      unsigned int count)
+{
+	struct stmmac_tc_entry *entry, *frag;
+	int i, ret, nve = 0;
+	u32 curr_prio = 0;
+	u32 old_val, val;
+
+	/* Force disable RX */
+	old_val = readl(ioaddr + GMAC_CONFIG);
+	val = old_val & ~GMAC_CONFIG_RE;
+	writel(val, ioaddr + GMAC_CONFIG);
+
+	/* Disable RX Parser */
+	ret = dwmac5_rxp_disable(ioaddr);
+	if (ret)
+		goto re_enable;
+
+	/* Set all entries as NOT in HW */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		entry->in_hw = false;
+	}
+
+	/* Update entries by reverse order */
+	while (1) {
+		entry = dwmac5_rxp_get_next_entry(entries, count, curr_prio);
+		if (!entry)
+			break;
+
+		curr_prio = entry->prio;
+		frag = entry->frag_ptr;
+
+		/* Set special fragment requirements */
+		if (frag) {
+			entry->val.af = 0;
+			entry->val.rf = 0;
+			entry->val.nc = 1;
+			entry->val.ok_index = nve + 2;
+		}
+
+		ret = dwmac5_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+		entry->in_hw = true;
+
+		if (frag && !frag->in_hw) {
+			ret = dwmac5_rxp_update_single_entry(ioaddr, frag, nve);
+			if (ret)
+				goto re_enable;
+			frag->table_pos = nve++;
+			frag->in_hw = true;
+		}
+	}
+
+	if (!nve)
+		goto re_enable;
+
+	/* Update all pass entry */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		if (!entry->is_last)
+			continue;
+
+		ret = dwmac5_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+	}
+
+	/* Assume n. of parsable entries == n. of valid entries */
+	val = (nve << 16) & NPE;
+	val |= nve & NVE;
+	writel(val, ioaddr + MTL_RXP_CONTROL_STATUS);
+
+	/* Enable RX Parser */
+	dwmac5_rxp_enable(ioaddr);
+
+re_enable:
+	/* Re-enable RX */
+	writel(old_val, ioaddr + GMAC_CONFIG);
+	return ret;
+}
+
+int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
+			   struct stmmac_pps_cfg *cfg, bool enable,
+			   u32 sub_second_inc, u32 systime_flags)
+{
+	u32 tnsec = readl(ioaddr + MAC_PPSx_TARGET_TIME_NSEC(index));
+	u32 val = readl(ioaddr + MAC_PPS_CONTROL);
+	u64 period;
+
+	if (!cfg->available)
+		return -EINVAL;
+	if (tnsec & TRGTBUSY0)
+		return -EBUSY;
+	if (!sub_second_inc || !systime_flags)
+		return -EINVAL;
+
+	val &= ~PPSx_MASK(index);
+
+	if (!enable) {
+		val |= PPSCMDx(index, 0x5);
+		val |= PPSEN0;
+		writel(val, ioaddr + MAC_PPS_CONTROL);
+		return 0;
+	}
+
+	val |= PPSCMDx(index, 0x2);
+	val |= TRGTMODSELx(index, 0x2);
+	val |= PPSEN0;
+
+	writel(cfg->start.tv_sec, ioaddr + MAC_PPSx_TARGET_TIME_SEC(index));
+
+	if (!(systime_flags & PTP_TCR_TSCTRLSSR))
+		cfg->start.tv_nsec = (cfg->start.tv_nsec * 1000) / 465;
+	writel(cfg->start.tv_nsec, ioaddr + MAC_PPSx_TARGET_TIME_NSEC(index));
+
+	period = cfg->period.tv_sec * 1000000000;
+	period += cfg->period.tv_nsec;
+
+	do_div(period, sub_second_inc);
+
+	if (period <= 1)
+		return -EINVAL;
+
+	writel(period - 1, ioaddr + MAC_PPSx_INTERVAL(index));
+
+	period >>= 1;
+	if (period <= 1)
+		return -EINVAL;
+
+	writel(period - 1, ioaddr + MAC_PPSx_WIDTH(index));
+
+	/* Finally, activate it */
+	writel(val, ioaddr + MAC_PPS_CONTROL);
+	return 0;
+}
+
+static int dwmac5_est_write(void __iomem *ioaddr, u32 reg, u32 val, bool gcl)
+{
+	u32 ctrl;
+
+	writel(val, ioaddr + MTL_EST_GCL_DATA);
+
+	ctrl = (reg << ADDR_SHIFT);
+	ctrl |= gcl ? 0 : GCRR;
+
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	ctrl |= SRWO;
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	return readl_poll_timeout(ioaddr + MTL_EST_GCL_CONTROL,
+				  ctrl, !(ctrl & SRWO), 100, 5000);
+}
+
+int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
+			 unsigned int ptp_rate)
+{
+	u32 speed, total_offset, offset, ctrl, ctr_low;
+	u32 extcfg = readl(ioaddr + GMAC_EXT_CONFIG);
+	u32 mac_cfg = readl(ioaddr + GMAC_CONFIG);
+	int i, ret = 0x0;
+	u64 total_ctr;
+
+	if (extcfg & GMAC_CONFIG_EIPG_EN) {
+		offset = (extcfg & GMAC_CONFIG_EIPG) >> GMAC_CONFIG_EIPG_SHIFT;
+		offset = 104 + (offset * 8);
+	} else {
+		offset = (mac_cfg & GMAC_CONFIG_IPG) >> GMAC_CONFIG_IPG_SHIFT;
+		offset = 96 - (offset * 8);
+	}
+
+	speed = mac_cfg & (GMAC_CONFIG_PS | GMAC_CONFIG_FES);
+	speed = speed >> GMAC_CONFIG_FES_SHIFT;
+
+	switch (speed) {
+	case 0x0:
+		offset = offset * 1000; /* 1G */
+		break;
+	case 0x1:
+		offset = offset * 400; /* 2.5G */
+		break;
+	case 0x2:
+		offset = offset * 100000; /* 10M */
+		break;
+	case 0x3:
+		offset = offset * 10000; /* 100M */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	offset = offset / 1000;
+
+	ret |= dwmac5_est_write(ioaddr, BTR_LOW, cfg->btr[0], false);
+	ret |= dwmac5_est_write(ioaddr, BTR_HIGH, cfg->btr[1], false);
+	ret |= dwmac5_est_write(ioaddr, TER, cfg->ter, false);
+	ret |= dwmac5_est_write(ioaddr, LLR, cfg->gcl_size, false);
+	if (ret)
+		return ret;
+
+	total_offset = 0;
+	for (i = 0; i < cfg->gcl_size; i++) {
+		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i] + offset, true);
+		if (ret)
+			return ret;
+
+		total_offset += offset;
+	}
+
+	total_ctr = cfg->ctr[0] + cfg->ctr[1] * 1000000000;
+	total_ctr += total_offset;
+
+	ctr_low = do_div(total_ctr, 1000000000);
+
+	ret |= dwmac5_est_write(ioaddr, CTR_LOW, ctr_low, false);
+	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, total_ctr, false);
+	if (ret)
+		return ret;
+
+	ctrl = readl(ioaddr + MTL_EST_CONTROL);
+	ctrl &= ~PTOV;
+	ctrl |= ((1000000000 / ptp_rate) * 6) << PTOV_SHIFT;
+	if (cfg->enable)
+		ctrl |= EEST | SSWL;
+	else
+		ctrl &= ~EEST;
+
+	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+	return 0;
+}
+
+void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
+			  bool enable)
+{
+	u32 value;
+
+	if (!enable) {
+		value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+		value &= ~EFPE;
+
+		writel(value, ioaddr + MAC_FPE_CTRL_STS);
+		return;
+	}
+
+	value = readl(ioaddr + GMAC_RXQ_CTRL1);
+	value &= ~GMAC_RXQCTRL_FPRQ;
+	value |= (num_rxq - 1) << GMAC_RXQCTRL_FPRQ_SHIFT;
+	writel(value, ioaddr + GMAC_RXQ_CTRL1);
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+	value |= EFPE;
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
 }

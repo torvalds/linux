@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
  * This file contains AppArmor basic permission sets definitions.
  *
  * Copyright 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_PERM_H
@@ -137,10 +133,12 @@ extern struct aa_perms allperms;
 	xcheck(fn_for_each((L1), (P), (FN1)), fn_for_each((L2), (P), (FN2)))
 
 
-void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask);
-void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask);
+void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs,
+			 u32 mask);
+void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
+			 u32 mask);
 void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
-			u32 chrsmask, const char **names, u32 namesmask);
+			u32 chrsmask, const char * const *names, u32 namesmask);
 void aa_apply_modes_to_perms(struct aa_profile *profile,
 			     struct aa_perms *perms);
 void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MXC
 	bool "Freescale i.MX family"
 	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
@@ -470,8 +471,6 @@ config	SOC_IMX53
 config SOC_IMX6
 	bool
 	select ARM_CPU_SUSPEND if (PM || CPU_IDLE)
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
 	select ARM_GIC
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
@@ -483,6 +482,8 @@ config SOC_IMX6
 config SOC_IMX6Q
 	bool "i.MX6 Quad/DualLite support"
 	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD
 	select PINCTRL_IMX6Q
@@ -493,6 +494,8 @@ config SOC_IMX6Q
 
 config SOC_IMX6SL
 	bool "i.MX6 SoloLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select PINCTRL_IMX6SL
 	select SOC_IMX6
 
@@ -501,6 +504,9 @@ config SOC_IMX6SL
 
 config SOC_IMX6SLL
 	bool "i.MX6 SoloLiteLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select PINCTRL_IMX6SLL
 	select SOC_IMX6
 
 	help
@@ -508,6 +514,8 @@ config SOC_IMX6SLL
 
 config SOC_IMX6SX
 	bool "i.MX6 SoloX support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select PINCTRL_IMX6SX
 	select SOC_IMX6
 
@@ -518,21 +526,10 @@ config SOC_IMX6UL
 	bool "i.MX6 UltraLite support"
 	select PINCTRL_IMX6UL
 	select SOC_IMX6
+	select ARM_ERRATA_814220
 
 	help
 	  This enables support for Freescale i.MX6 UltraLite processor.
-
-config SOC_IMX7D
-	bool "i.MX7 Dual support"
-	select PINCTRL_IMX7D
-	select ARM_GIC
-	select HAVE_ARM_ARCH_TIMER
-	select HAVE_IMX_ANATOP
-	select HAVE_IMX_MMDC
-	select HAVE_IMX_SRC
-	select IMX_GPCV2
-	help
-		This enables support for Freescale i.MX7 Dual processor.
 
 config SOC_LS1021A
 	bool "Freescale LS1021A support"
@@ -547,6 +544,37 @@ endif
 comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
 
 if ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+
+config SOC_IMX7D_CA7
+	bool
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select IMX_GPCV2
+
+config SOC_IMX7D_CM4
+	bool
+	select ARMV7M_SYSTICK
+
+config SOC_IMX7D
+	bool "i.MX7 Dual support"
+	select PINCTRL_IMX7D
+	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
+	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	select ARM_ERRATA_814220 if ARCH_MULTI_V7
+	help
+		This enables support for Freescale i.MX7 Dual processor.
+
+config SOC_IMX7ULP
+	bool "i.MX7ULP support"
+	select CLKSRC_IMX_TPM
+	select PINCTRL_IMX7ULP
+	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
+	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	help
+	  This enables support for Freescale i.MX7 Ultra Low Power processor.
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"

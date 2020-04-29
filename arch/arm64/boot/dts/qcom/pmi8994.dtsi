@@ -14,17 +14,10 @@
 			compatible = "qcom,pmi8994-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
+			gpio-ranges = <&pmi8994_gpios 0 0 10>;
 			#gpio-cells = <2>;
-			interrupts = <2 0xc0 0 IRQ_TYPE_NONE>,
-				     <2 0xc1 0 IRQ_TYPE_NONE>,
-				     <2 0xc2 0 IRQ_TYPE_NONE>,
-				     <2 0xc3 0 IRQ_TYPE_NONE>,
-				     <2 0xc4 0 IRQ_TYPE_NONE>,
-				     <2 0xc5 0 IRQ_TYPE_NONE>,
-				     <2 0xc6 0 IRQ_TYPE_NONE>,
-				     <2 0xc7 0 IRQ_TYPE_NONE>,
-				     <2 0xc8 0 IRQ_TYPE_NONE>,
-				     <2 0xc9 0 IRQ_TYPE_NONE>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 

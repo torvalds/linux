@@ -1,3 +1,6 @@
+
+.. _addsyscalls:
+
 Adding a New System Call
 ========================
 
@@ -232,7 +235,7 @@ normally be optional, so add a ``CONFIG`` option (typically to
    by the option.
  - Make the option depend on EXPERT if it should be hidden from normal users.
  - Make any new source files implementing the function dependent on the CONFIG
-   option in the Makefile (e.g. ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.c``).
+   option in the Makefile (e.g. ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.o``).
  - Double check that the kernel still builds with the new CONFIG option turned
    off.
 
@@ -360,7 +363,7 @@ First, the entry in ``arch/x86/entry/syscalls/syscall_32.tbl`` gets an extra
 column to indicate that a 32-bit userspace program running on a 64-bit kernel
 should hit the compat entry point::
 
-    380   i386     xyzzy     sys_xyzzy    compat_sys_xyzzy
+    380   i386     xyzzy     sys_xyzzy    __ia32_compat_sys_xyzzy
 
 Second, you need to figure out what should happen for the x32 ABI version of
 the new system call.  There's a choice here: the layout of the arguments
@@ -373,7 +376,7 @@ the compatibility wrapper::
 
     333   64       xyzzy     sys_xyzzy
     ...
-    555   x32      xyzzy     compat_sys_xyzzy
+    555   x32      xyzzy     __x32_compat_sys_xyzzy
 
 If no pointers are involved, then it is preferable to re-use the 64-bit system
 call for the x32 ABI (and consequently the entry in

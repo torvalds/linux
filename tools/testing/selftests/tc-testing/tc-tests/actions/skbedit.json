@@ -17,7 +17,31 @@
         "cmdUnderTest": "$TC actions add action skbedit mark 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit mark 1",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "c8cf",
+        "name": "Add skbedit action with 32-bit maximum mark",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 4294967295 pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbedit index 1",
+        "matchPattern": "action order [0-9]*: skbedit  mark 4294967295.*pipe.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -25,7 +49,7 @@
     },
     {
         "id": "407b",
-        "name": "Add skbedit action with invalid mark",
+        "name": "Add skbedit action with mark exceeding 32-bit maximum",
         "category": [
             "actions",
             "skbedit"
@@ -43,6 +67,121 @@
         "verifyCmd": "$TC actions list action skbedit",
         "matchPattern": "action order [0-9]*:  skbedit mark",
         "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "d4cd",
+        "name": "Add skbedit action with valid mark and mask",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 1/0xaabb",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1/0xaabb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "baa7",
+        "name": "Add skbedit action with valid mark and 32-bit maximum mask",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 1/0xffffffff",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1/0xffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "62a5",
+        "name": "Add skbedit action with valid mark and mask exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 1/0xaabbccddeeff112233",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1/0xaabbccddeeff112233",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "bc15",
+        "name": "Add skbedit action with valid mark and mask with invalid format",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 1/-1234",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1/-1234",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "57c2",
+        "name": "Replace skbedit action with new mask",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbedit mark 1/0x11223344 index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action skbedit mark 1/0xaabb index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  mark 1/0xaabb",
+        "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
         ]
@@ -65,7 +204,7 @@
         "cmdUnderTest": "$TC actions add action skbedit prio 99",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit priority :99",
+        "matchPattern": "action order [0-9]*: skbedit  priority :99",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -113,7 +252,7 @@
         "cmdUnderTest": "$TC actions add action skbedit queue_mapping 909",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit queue_mapping 909",
+        "matchPattern": "action order [0-9]*: skbedit queue_mapping 909",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -121,7 +260,7 @@
     },
     {
         "id": "985c",
-        "name": "Add skbedit action with invalid queue_mapping",
+        "name": "Add skbedit action with queue_mapping exceeding 16-bit maximum",
         "category": [
             "actions",
             "skbedit"
@@ -161,7 +300,7 @@
         "cmdUnderTest": "$TC actions add action skbedit ptype host",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit ptype host",
+        "matchPattern": "action order [0-9]*: skbedit  ptype host",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -185,7 +324,7 @@
         "cmdUnderTest": "$TC actions add action skbedit ptype otherhost",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit ptype otherhost",
+        "matchPattern": "action order [0-9]*: skbedit  ptype otherhost",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -233,7 +372,7 @@
         "cmdUnderTest": "$TC actions add action skbedit ptype host pipe index 11",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 11",
-        "matchPattern": "action order [0-9]*:  skbedit ptype host pipe.*index 11 ref",
+        "matchPattern": "action order [0-9]*: skbedit  ptype host pipe.*index 11 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -257,7 +396,7 @@
         "cmdUnderTest": "$TC actions add action skbedit mark 56789 reclassify index 90",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 90",
-        "matchPattern": "action order [0-9]*:  skbedit mark 56789 reclassify.*index 90 ref",
+        "matchPattern": "action order [0-9]*: skbedit  mark 56789 reclassify.*index 90 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -281,7 +420,7 @@
         "cmdUnderTest": "$TC actions add action skbedit queue_mapping 3 pass index 271",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 271",
-        "matchPattern": "action order [0-9]*:  skbedit queue_mapping 3 pass.*index 271 ref",
+        "matchPattern": "action order [0-9]*: skbedit queue_mapping 3 pass.*index 271 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -305,7 +444,7 @@
         "cmdUnderTest": "$TC actions add action skbedit queue_mapping 3 drop index 271",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 271",
-        "matchPattern": "action order [0-9]*:  skbedit queue_mapping 3 drop.*index 271 ref",
+        "matchPattern": "action order [0-9]*: skbedit queue_mapping 3 drop.*index 271 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -329,7 +468,7 @@
         "cmdUnderTest": "$TC actions add action skbedit priority 8 jump 9 index 2",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 2",
-        "matchPattern": "action order [0-9]*:  skbedit priority :8 jump 9.*index 2 ref",
+        "matchPattern": "action order [0-9]*: skbedit  priority :8 jump 9.*index 2 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -353,7 +492,7 @@
         "cmdUnderTest": "$TC actions add action skbedit priority 16 continue index 32",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 32",
-        "matchPattern": "action order [0-9]*:  skbedit priority :16 continue.*index 32 ref",
+        "matchPattern": "action order [0-9]*: skbedit  priority :16 continue.*index 32 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -377,7 +516,7 @@
         "cmdUnderTest": "$TC actions add action skbedit priority 16 continue index 32 cookie deadbeef",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbedit index 32",
-        "matchPattern": "action order [0-9]*:  skbedit priority :16 continue.*index 32 ref.*cookie deadbeef",
+        "matchPattern": "action order [0-9]*: skbedit  priority :16 continue.*index 32 ref.*cookie deadbeef",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -405,7 +544,7 @@
         "cmdUnderTest": "$TC actions list action skbedit",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "action order [0-9]*:  skbedit",
+        "matchPattern": "action order [0-9]*: skbedit",
         "matchCount": "4",
         "teardown": [
             "$TC actions flush action skbedit"
@@ -413,7 +552,7 @@
     },
     {
         "id": "a6d6",
-        "name": "Add skbedit action with index",
+        "name": "Add skbedit action with index at 32-bit maximum",
         "category": [
             "actions",
             "skbedit"
@@ -426,14 +565,36 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action skbedit mark 808 index 4040404040",
+        "cmdUnderTest": "$TC actions add action skbedit mark 808 index 4294967295",
         "expExitCode": "0",
-        "verifyCmd": "$TC actions list action skbedit",
-        "matchPattern": "index 4040404040",
+        "verifyCmd": "$TC actions get action skbedit index 4294967295",
+        "matchPattern": "action order [0-9]*: skbedit  mark 808.*index 4294967295",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbedit"
         ]
+    },
+    {
+        "id": "f0f4",
+        "name": "Add skbedit action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbedit mark 808 pass index 4294967297",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action skbedit index 4294967297",
+        "matchPattern": "action order [0-9]*:.*skbedit.*mark 808.*pass.*index 4294967297",
+        "matchCount": "0",
+        "teardown": []
     },
     {
         "id": "38f3",
@@ -484,5 +645,77 @@
         "teardown": [
             "$TC actions flush action skbedit"
         ]
+    },
+    {
+        "id": "1b2b",
+        "name": "Replace skbedit action with invalid goto_chain control",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbedit ptype host pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action skbedit ptype host goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  ptype host pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "630c",
+        "name": "Add batch of 32 skbedit actions with all parameters and cookie",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action skbedit queue_mapping 2 priority 10 mark 7/0xaabbccdd ptype host inheritdsfield index \\$i cookie aabbccddeeff112233445566778800a1 \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "32",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
+    },
+    {
+        "id": "706d",
+        "name": "Delete batch of 32 skbedit actions with all parameters",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ],
+            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action skbedit queue_mapping 2 priority 10 mark 7/0xaabbccdd ptype host inheritdsfield index \\$i \\\"; args=\\\"\\$args\\$cmd\\\"; done && $TC actions add \\$args\""
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action skbedit index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions del \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "0",
+        "teardown": []
     }
 ]

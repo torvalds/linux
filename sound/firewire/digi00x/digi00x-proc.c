@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * digi00x-proc.c - a part of driver for Digidesign Digi 002/003 family
  *
  * Copyright (c) 2014-2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "digi00x.h"
@@ -79,21 +78,9 @@ void snd_dg00x_proc_init(struct snd_dg00x *dg00x)
 	if (root == NULL)
 		return;
 
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
+	root->mode = S_IFDIR | 0555;
 
 	entry = snd_info_create_card_entry(dg00x->card, "clock", root);
-	if (entry == NULL) {
-		snd_info_free_entry(root);
-		return;
-	}
-
-	snd_info_set_text_ops(entry, dg00x, proc_read_clock);
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		snd_info_free_entry(root);
-	}
+	if (entry)
+		snd_info_set_text_ops(entry, dg00x, proc_read_clock);
 }

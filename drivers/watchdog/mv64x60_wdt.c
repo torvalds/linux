@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mv64x60_wdt.c - MV64X60 (Marvell Discovery) watchdog userspace interface
  *
@@ -9,10 +10,7 @@
  *
  * Derived from mpc8xx_wdt.c, with the following copyright.
  *
- * 2002 (c) Florian Schirmer <jolt@tuxbox.org> This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2002 (c) Florian Schirmer <jolt@tuxbox.org>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -133,7 +131,7 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 
 	mv64x60_wdt_handler_enable();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mv64x60_wdt_release(struct inode *inode, struct file *file)
@@ -243,6 +241,7 @@ static const struct file_operations mv64x60_wdt_fops = {
 	.llseek = no_llseek,
 	.write = mv64x60_wdt_write,
 	.unlocked_ioctl = mv64x60_wdt_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = mv64x60_wdt_open,
 	.release = mv64x60_wdt_release,
 };

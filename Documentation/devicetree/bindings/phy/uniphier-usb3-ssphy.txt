@@ -1,0 +1,58 @@
+Socionext UniPhier USB3 Super-Speed (SS) PHY
+
+This describes the devicetree bindings for PHY interfaces built into
+USB3 controller implemented on Socionext UniPhier SoCs.
+Although the controller includes High-Speed PHY and Super-Speed PHY,
+this describes about Super-Speed PHY.
+
+Required properties:
+- compatible: Should contain one of the following:
+    "socionext,uniphier-pro4-usb3-ssphy" - for Pro4 SoC
+    "socionext,uniphier-pro5-usb3-ssphy" - for Pro5 SoC
+    "socionext,uniphier-pxs2-usb3-ssphy" - for PXs2 SoC
+    "socionext,uniphier-ld20-usb3-ssphy" - for LD20 SoC
+    "socionext,uniphier-pxs3-usb3-ssphy" - for PXs3 SoC
+- reg: Specifies offset and length of the register set for the device.
+- #phy-cells: Should be 0.
+- clocks: A list of phandles to the clock gate for USB3 glue layer.
+	According to the clock-names, appropriate clocks are required.
+- clock-names:
+    "gio", "link" - for Pro4 and Pro5 SoC
+    "phy", "phy-ext", "link" - for PXs3 SoC, "phy-ext" is optional.
+    "phy", "link" - for others
+- resets: A list of phandles to the reset control for USB3 glue layer.
+	According to the reset-names, appropriate resets are required.
+- reset-names:
+    "gio", "link" - for Pro4 and Pro5 SoC
+    "phy", "link" - for others
+
+Optional properties:
+- vbus-supply: A phandle to the regulator for USB VBUS.
+
+Refer to phy/phy-bindings.txt for the generic PHY binding properties.
+
+Example:
+
+	usb-glue@65b00000 {
+		compatible = "socionext,uniphier-ld20-dwc3-glue",
+			     "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x65b00000 0x400>;
+
+		usb_vbus0: regulator {
+			...
+		};
+
+		usb_ssphy0: ss-phy@300 {
+			compatible = "socionext,uniphier-ld20-usb3-ssphy";
+			reg = <0x300 0x10>;
+			#phy-cells = <0>;
+			clock-names = "link", "phy";
+			clocks = <&sys_clk 14>, <&sys_clk 16>;
+			reset-names = "link", "phy";
+			resets = <&sys_rst 14>, <&sys_rst 16>;
+			vbus-supply = <&usb_vbus0>;
+		};
+		...
+	};

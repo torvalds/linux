@@ -16,9 +16,9 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y := \
-	-Idrivers/net/wireless/broadcom/brcm80211/brcmsmac \
-	-Idrivers/net/wireless/broadcom/brcm80211/brcmsmac/phy \
-	-Idrivers/net/wireless/broadcom/brcm80211/include
+	-I $(srctree)/$(src) \
+	-I $(srctree)/$(src)/phy \
+	-I $(srctree)/$(src)/../include
 
 brcmsmac-y := \
 	mac80211_if.o \

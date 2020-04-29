@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015, Michael Lee <igvtee@gmail.com>
  *  MTK HSDMA support
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/dmaengine.h>
@@ -191,7 +186,7 @@ static inline u32 mtk_hsdma_read(struct mtk_hsdam_engine *hsdma, u32 reg)
 }
 
 static inline void mtk_hsdma_write(struct mtk_hsdam_engine *hsdma,
-				   unsigned reg, u32 val)
+				   unsigned int reg, u32 val)
 {
 	writel(val, hsdma->base + reg);
 }
@@ -213,8 +208,8 @@ static void mtk_hsdma_reset_chan(struct mtk_hsdam_engine *hsdma,
 
 static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 {
-	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, " \
-			"tctx %08x, tdtx: %08x, rbase %08x, " \
+	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, "
+			"tctx %08x, tdtx: %08x, rbase %08x, "
 			"rcnt %08x, rctx %08x, rdtx %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_BASE),
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_CNT),
@@ -225,8 +220,7 @@ static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_CRX),
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_DRX));
 
-	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, " \
-			"intr_stat %08x, intr_mask %08x\n",
+	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, intr_stat %08x, intr_mask %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_INFO),
 			mtk_hsdma_read(hsdma, HSDMA_REG_GLO_CFG),
 			mtk_hsdma_read(hsdma, HSDMA_REG_DELAY_INT),
@@ -242,15 +236,15 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	dev_dbg(hsdma->ddev.dev, "tx idx: %d, rx idx: %d\n",
-			chan->tx_idx, chan->rx_idx);
+		chan->tx_idx, chan->rx_idx);
 
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		tx_desc = &chan->tx_ring[i];
 		rx_desc = &chan->rx_ring[i];
 
-		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, " \
+		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, "
 				"tx addr1: %08x, rx addr0 %08x, flags %08x\n",
-				i, tx_desc->addr0, tx_desc->flags, \
+				i, tx_desc->addr0, tx_desc->flags,
 				tx_desc->addr1, rx_desc->addr0, rx_desc->flags);
 	}
 }
@@ -269,8 +263,7 @@ static void mtk_hsdma_reset(struct mtk_hsdam_engine *hsdma,
 	/* init desc value */
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->tx_ring[i].addr0 = 0;
-		chan->tx_ring[i].flags = HSDMA_DESC_LS0 |
-			HSDMA_DESC_DONE;
+		chan->tx_ring[i].flags = HSDMA_DESC_LS0 | HSDMA_DESC_DONE;
 	}
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->rx_ring[i].addr0 = 0;
@@ -335,6 +328,8 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 	/* tx desc */
 	src = sg->src_addr;
 	for (i = 0; i < chan->desc->num_sgs; i++) {
+		tx_desc = &chan->tx_ring[chan->tx_idx];
+
 		if (len > HSDMA_MAX_PLEN)
 			tlen = HSDMA_MAX_PLEN;
 		else
@@ -344,7 +339,6 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 			tx_desc->addr1 = src;
 			tx_desc->flags |= HSDMA_DESC_PLEN1(tlen);
 		} else {
-			tx_desc = &chan->tx_ring[chan->tx_idx];
 			tx_desc->addr0 = src;
 			tx_desc->flags = HSDMA_DESC_PLEN0(tlen);
 
@@ -418,8 +412,9 @@ static void mtk_hsdma_chan_done(struct mtk_hsdam_engine *hsdma,
 			vchan_cookie_complete(&desc->vdesc);
 			chan_issued = gdma_next_desc(chan);
 		}
-	} else
+	} else {
 		dev_dbg(hsdma->ddev.dev, "no desc to complete\n");
+	}
 
 	if (chan_issued)
 		set_bit(chan->id, &hsdma->chan_issued);
@@ -438,8 +433,7 @@ static irqreturn_t mtk_hsdma_irq(int irq, void *devid)
 	if (likely(status & HSDMA_INT_RX_Q0))
 		tasklet_schedule(&hsdma->task);
 	else
-		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n",
-			status);
+		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n", status);
 	/* clean intr bits */
 	mtk_hsdma_write(hsdma, HSDMA_REG_INT_STATUS, status);
 
@@ -456,8 +450,9 @@ static void mtk_hsdma_issue_pending(struct dma_chan *c)
 		if (gdma_next_desc(chan)) {
 			set_bit(chan->id, &hsdma->chan_issued);
 			tasklet_schedule(&hsdma->task);
-		} else
+		} else {
 			dev_dbg(hsdma->ddev.dev, "no desc to issue\n");
+		}
 	}
 	spin_unlock_bh(&chan->vchan.lock);
 }
@@ -472,7 +467,7 @@ static struct dma_async_tx_descriptor *mtk_hsdma_prep_dma_memcpy(
 	if (len <= 0)
 		return NULL;
 
-	desc = kzalloc(sizeof(struct mtk_hsdma_desc), GFP_ATOMIC);
+	desc = kzalloc(sizeof(*desc), GFP_ATOMIC);
 	if (!desc) {
 		dev_err(c->device->dev, "alloc memcpy decs error\n");
 		return NULL;
@@ -552,7 +547,8 @@ static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	chan->tx_ring = dma_alloc_coherent(hsdma->ddev.dev,
-			2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+					   2 * HSDMA_DESCS_NUM *
+					   sizeof(*chan->tx_ring),
 			&chan->desc_addr, GFP_ATOMIC | __GFP_ZERO);
 	if (!chan->tx_ring)
 		goto no_mem;
@@ -573,8 +569,8 @@ static void mtk_hsdam_free_desc(struct mtk_hsdam_engine *hsdma,
 {
 	if (chan->tx_ring) {
 		dma_free_coherent(hsdma->ddev.dev,
-				2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
-				chan->tx_ring, chan->desc_addr);
+				  2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+				  chan->tx_ring, chan->desc_addr);
 		chan->tx_ring = NULL;
 		chan->rx_ring = NULL;
 	}
@@ -654,7 +650,6 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	struct mtk_hsdma_chan *chan;
 	struct mtk_hsdam_engine *hsdma;
 	struct dma_device *dd;
-	struct resource *res;
 	int ret;
 	int irq;
 	void __iomem *base;
@@ -668,23 +663,18 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
-	if (!hsdma) {
-		dev_err(&pdev->dev, "alloc dma device failed\n");
+	if (!hsdma)
 		return -EINVAL;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	hsdma->base = base + HSDMA_BASE_OFFSET;
 	tasklet_init(&hsdma->task, mtk_hsdma_tasklet, (unsigned long)hsdma);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 	ret = devm_request_irq(&pdev->dev, irq, mtk_hsdma_irq,
 			       0, dev_name(&pdev->dev), hsdma);
 	if (ret) {

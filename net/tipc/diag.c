@@ -59,7 +59,7 @@ static int __tipc_add_sock_diag(struct sk_buff *skb,
 	if (!nlh)
 		return -EMSGSIZE;
 
-	err = tipc_sk_fill_sock_diag(skb, tsk, req->tidiag_states,
+	err = tipc_sk_fill_sock_diag(skb, cb, tsk, req->tidiag_states,
 				     __tipc_diag_gen_cookie);
 	if (err)
 		return err;
@@ -84,7 +84,9 @@ static int tipc_sock_diag_handler_dump(struct sk_buff *skb,
 
 	if (h->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = tipc_dump_start,
 			.dump = tipc_diag_dump,
+			.done = tipc_dump_done,
 		};
 		netlink_dump_start(net->diag_nlsk, skb, h, &c);
 		return 0;

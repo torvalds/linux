@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2020 Intel Corporation
  */
 
 #ifndef __MAC80211_HWSIM_H
@@ -132,6 +130,8 @@ enum {
  * @HWSIM_ATTR_TX_INFO_FLAGS: additional flags for corresponding
  *	rates of %HWSIM_ATTR_TX_INFO
  * @HWSIM_ATTR_PERM_ADDR: permanent mac address of new radio
+ * @HWSIM_ATTR_IFTYPE_SUPPORT: u32 attribute of supported interface types bits
+ * @HWSIM_ATTR_CIPHER_SUPPORT: u32 array of supported cipher types
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -160,6 +160,8 @@ enum {
 	HWSIM_ATTR_PAD,
 	HWSIM_ATTR_TX_INFO_FLAGS,
 	HWSIM_ATTR_PERM_ADDR,
+	HWSIM_ATTR_IFTYPE_SUPPORT,
+	HWSIM_ATTR_CIPHER_SUPPORT,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)
@@ -244,4 +246,24 @@ struct hwsim_tx_rate_flag {
 	s8 idx;
 	u16 flags;
 } __packed;
+
+/**
+ * DOC: Frame transmission support over virtio
+ *
+ * Frame transmission is also supported over virtio to allow communication
+ * with external entities.
+ */
+
+/**
+ * enum hwsim_vqs - queues for virtio frame transmission
+ *
+ * @HWSIM_VQ_TX: send frames to external entity
+ * @HWSIM_VQ_RX: receive frames and transmission info reports
+ * @HWSIM_NUM_VQS: enum limit
+ */
+enum {
+	HWSIM_VQ_TX,
+	HWSIM_VQ_RX,
+	HWSIM_NUM_VQS,
+};
 #endif /* __MAC80211_HWSIM_H */

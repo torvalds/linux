@@ -1,0 +1,35 @@
+NVIDIA Tegra210 Boot and Power Management Processor (BPMP)
+
+The Boot and Power Management Processor (BPMP) is a co-processor found
+in Tegra210 SoC. It is designed to handle the early stages of the boot
+process as well as to assisting in entering deep low power state
+(suspend to ram), and also offloading DRAM memory clock scaling on
+some platforms. The binding document defines the resources that would
+be used by the BPMP T210 firmware driver, which can create the
+interprocessor communication (IPC) between the CPU and BPMP.
+
+Required properties:
+- compatible
+    Array of strings
+    One of:
+    - "nvidia,tegra210-bpmp"
+- reg: physical base address and length for HW synchornization primitives
+       1) base address and length to Tegra 'atomics' hardware
+       2) base address and length to Tegra 'semaphore' hardware
+- interrupts: specifies the interrupt number for receiving messages ("rx")
+              and for triggering messages ("tx")
+
+Optional properties:
+- #clock-cells : Should be 1 for platforms where DRAM clock control is
+                 offloaded to bpmp.
+
+Example:
+
+bpmp@70016000 {
+	compatible = "nvidia,tegra210-bpmp";
+	reg = <0x0 0x70016000 0x0 0x2000
+	       0x0 0x60001000 0x0 0x1000>;
+	interrupts = <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
+		     <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+	interrupt-names = "tx", "rx";
+};

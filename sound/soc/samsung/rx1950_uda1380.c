@@ -1,21 +1,15 @@
-/*
- * rx1950.c  --  ALSA Soc Audio Layer
- *
- * Copyright (c) 2010 Vasily Khoruzhick <anarsoul@gmail.com>
- *
- * Based on smdk2440.c and magician.c
- *
- * Authors: Graeme Gregory graeme.gregory@wolfsonmicro.com
- *          Philipp Zabel <philipp.zabel@gmail.com>
- *          Denis Grigoriev <dgreenday@gmail.com>
- *          Vasily Khoruzhick <anarsoul@gmail.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// rx1950.c - ALSA SoC Audio Layer
+//
+// Copyright (c) 2010 Vasily Khoruzhick <anarsoul@gmail.com>
+//
+// Based on smdk2440.c and magician.c
+//
+// Authors: Graeme Gregory graeme.gregory@wolfsonmicro.com
+//          Philipp Zabel <philipp.zabel@gmail.com>
+//          Denis Grigoriev <dgreenday@gmail.com>
+//          Vasily Khoruzhick <anarsoul@gmail.com>
 
 #include <linux/types.h>
 #include <linux/gpio.h>
@@ -78,18 +72,21 @@ static struct snd_soc_ops rx1950_ops = {
 };
 
 /* s3c24xx digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(uda1380,
+	DAILINK_COMP_ARRAY(COMP_CPU("s3c24xx-iis")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("uda1380-codec.0-001a",
+				      "uda1380-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("s3c24xx-iis")));
+
 static struct snd_soc_dai_link rx1950_uda1380_dai[] = {
 	{
 		.name		= "uda1380",
 		.stream_name	= "UDA1380 Duplex",
-		.cpu_dai_name	= "s3c24xx-iis",
-		.codec_dai_name	= "uda1380-hifi",
 		.init		= rx1950_uda1380_init,
-		.platform_name	= "s3c24xx-iis",
-		.codec_name	= "uda1380-codec.0-001a",
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBS_CFS,
 		.ops		= &rx1950_ops,
+		SND_SOC_DAILINK_REG(uda1380),
 	},
 };
 
@@ -152,7 +149,7 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int div;
 	int ret;
 	unsigned int rate = params_rate(params);

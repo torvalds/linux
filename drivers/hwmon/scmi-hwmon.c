@@ -18,6 +18,50 @@ struct scmi_sensors {
 	const struct scmi_sensor_info **info[hwmon_max];
 };
 
+static inline u64 __pow10(u8 x)
+{
+	u64 r = 1;
+
+	while (x--)
+		r *= 10;
+
+	return r;
+}
+
+static int scmi_hwmon_scale(const struct scmi_sensor_info *sensor, u64 *value)
+{
+	s8 scale = sensor->scale;
+	u64 f;
+
+	switch (sensor->type) {
+	case TEMPERATURE_C:
+	case VOLTAGE:
+	case CURRENT:
+		scale += 3;
+		break;
+	case POWER:
+	case ENERGY:
+		scale += 6;
+		break;
+	default:
+		break;
+	}
+
+	if (scale == 0)
+		return 0;
+
+	if (abs(scale) > 19)
+		return -E2BIG;
+
+	f = __pow10(abs(scale));
+	if (scale > 0)
+		*value *= f;
+	else
+		*value = div64_u64(*value, f);
+
+	return 0;
+}
+
 static int scmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			   u32 attr, int channel, long *val)
 {
@@ -28,7 +72,11 @@ static int scmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	const struct scmi_handle *h = scmi_sensors->handle;
 
 	sensor = *(scmi_sensors->info[type] + channel);
-	ret = h->sensor_ops->reading_get(h, sensor->id, false, &value);
+	ret = h->sensor_ops->reading_get(h, sensor->id, &value);
+	if (ret)
+		return ret;
+
+	ret = scmi_hwmon_scale(sensor, &value);
 	if (!ret)
 		*val = value;
 
@@ -56,8 +104,8 @@ scmi_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 	const struct scmi_sensors *scmi_sensors = drvdata;
 
 	sensor = *(scmi_sensors->info[type] + channel);
-	if (sensor && sensor->name)
-		return S_IRUGO;
+	if (sensor)
+		return 0444;
 
 	return 0;
 }
@@ -170,7 +218,10 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 	scmi_chip_info.info = ptr_scmi_ci;
 	chip_info = &scmi_chip_info;
 
-	for (type = 0; type < hwmon_max && nr_count[type]; type++) {
+	for (type = 0; type < hwmon_max; type++) {
+		if (!nr_count[type])
+			continue;
+
 		scmi_hwmon_add_chan_info(scmi_hwmon_chan, dev, nr_count[type],
 					 type, hwmon_attributes[type]);
 		*ptr_scmi_ci++ = scmi_hwmon_chan++;
@@ -208,7 +259,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 }
 
 static const struct scmi_device_id scmi_id_table[] = {
-	{ SCMI_PROTOCOL_SENSOR },
+	{ SCMI_PROTOCOL_SENSOR, "hwmon" },
 	{ },
 };
 MODULE_DEVICE_TABLE(scmi, scmi_id_table);

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
- * Licensed under the GPL
  */
 
 #include <linux/completion.h>
@@ -137,7 +137,6 @@ static void port_work_proc(struct work_struct *unused)
 		if (!port->has_connection)
 			continue;
 
-		reactivate_fd(port->fd, ACCEPT_IRQ);
 		while (port_accept(port))
 			;
 		port->has_connection = 0;

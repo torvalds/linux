@@ -1,6 +1,6 @@
 What:		/sys/bus/siox/devices/siox-X/active
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		On reading represents the current state of the bus. If it
 		contains a "0" the bus is stopped and connected devices are
@@ -12,7 +12,7 @@ Description:
 
 What:		/sys/bus/siox/devices/siox-X/device_add
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Write-only file. Write
 
@@ -27,13 +27,13 @@ Description:
 
 What:		/sys/bus/siox/devices/siox-X/device_remove
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Write-only file. A single write removes the last device in the siox chain.
 
 What:		/sys/bus/siox/devices/siox-X/poll_interval_ns
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Defines the interval between two poll cycles in nano seconds.
 		Note this is rounded to jiffies on writing. On reading the current value
@@ -41,33 +41,33 @@ Description:
 
 What:		/sys/bus/siox/devices/siox-X-Y/connected
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value. "0" means the Yth device on siox bus X isn't "connected" i.e.
 		communication with it is not ensured. "1" signals a working connection.
 
 What:		/sys/bus/siox/devices/siox-X-Y/inbytes
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting the inbytes value provided to siox-X/device_add
 
 What:		/sys/bus/siox/devices/siox-X-Y/status_errors
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Counts the number of time intervals when the read status byte doesn't yield the
 		expected value.
 
 What:		/sys/bus/siox/devices/siox-X-Y/type
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting the type value provided to siox-X/device_add.
 
 What:		/sys/bus/siox/devices/siox-X-Y/watchdog
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting if the watchdog of the siox device is
 		active. "0" means the watchdog is not active and the device is expected to
@@ -75,13 +75,13 @@ Description:
 
 What:		/sys/bus/siox/devices/siox-X-Y/watchdog_errors
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting the number to time intervals when the
 		watchdog was active.
 
 What:		/sys/bus/siox/devices/siox-X-Y/outbytes
 KernelVersion:	4.16
-Contact:	Gavin Schenk <g.schenk@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting the outbytes value provided to siox-X/device_add.

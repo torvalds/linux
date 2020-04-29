@@ -169,7 +169,8 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
  */
 int __init setup_earlycon(char *buf)
 {
-	const struct earlycon_id *match;
+	const struct earlycon_id **p_match;
+	bool empty_compatible = true;
 
 	if (!buf || !buf[0])
 		return -EINVAL;
@@ -177,10 +178,17 @@ int __init setup_earlycon(char *buf)
 	if (early_con.flags & CON_ENABLED)
 		return -EALREADY;
 
-	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
+again:
+	for (p_match = __earlycon_table; p_match < __earlycon_table_end;
+	     p_match++) {
+		const struct earlycon_id *match = *p_match;
 		size_t len = strlen(match->name);
 
 		if (strncmp(buf, match->name, len))
+			continue;
+
+		/* prefer entries with empty compatible */
+		if (empty_compatible && *match->compatible)
 			continue;
 
 		if (buf[len]) {
@@ -191,6 +199,11 @@ int __init setup_earlycon(char *buf)
 			buf = NULL;
 
 		return register_earlycon(buf, match);
+	}
+
+	if (empty_compatible) {
+		empty_compatible = false;
+		goto again;
 	}
 
 	return -ENOENT;
@@ -244,7 +257,6 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 		return -ENXIO;
 	}
 	port->mapbase = addr;
-	port->uartclk = BASE_BAUD * 16;
 
 	val = of_get_flat_dt_prop(node, "reg-offset", NULL);
 	if (val)
@@ -278,6 +290,10 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	val = of_get_flat_dt_prop(node, "current-speed", NULL);
 	if (val)
 		early_console_dev.baud = be32_to_cpu(*val);
+
+	val = of_get_flat_dt_prop(node, "clock-frequency", NULL);
+	if (val)
+		port->uartclk = be32_to_cpu(*val);
 
 	if (options) {
 		early_console_dev.baud = simple_strtoul(options, NULL, 0);

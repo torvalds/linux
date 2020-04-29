@@ -626,6 +626,48 @@ static int waveform_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int waveform_ai_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		/*
+		 * input:  data[1], data[2] : scan_begin_src, convert_src
+		 * output: data[1], data[2] : scan_begin_min, convert_min
+		 */
+		if (data[1] == TRIG_FOLLOW) {
+			/* exactly TRIG_FOLLOW case */
+			data[1] = 0;
+			data[2] = NSEC_PER_USEC;
+		} else {
+			data[1] = NSEC_PER_USEC;
+			if (data[2] & TRIG_TIMER)
+				data[2] = NSEC_PER_USEC;
+			else
+				data[2] = 0;
+		}
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int waveform_ao_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		/* we don't care about actual channels */
+		data[1] = NSEC_PER_USEC; /* scan_begin_min */
+		data[2] = 0;		 /* convert_min */
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int waveform_common_attach(struct comedi_device *dev,
 				  int amplitude, int period)
 {
@@ -658,6 +700,7 @@ static int waveform_common_attach(struct comedi_device *dev,
 	s->do_cmd = waveform_ai_cmd;
 	s->do_cmdtest = waveform_ai_cmdtest;
 	s->cancel = waveform_ai_cancel;
+	s->insn_config = waveform_ai_insn_config;
 
 	s = &dev->subdevices[1];
 	dev->write_subdev = s;
@@ -673,6 +716,7 @@ static int waveform_common_attach(struct comedi_device *dev,
 	s->do_cmd = waveform_ao_cmd;
 	s->do_cmdtest = waveform_ao_cmdtest;
 	s->cancel = waveform_ao_cancel;
+	s->insn_config = waveform_ao_insn_config;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)

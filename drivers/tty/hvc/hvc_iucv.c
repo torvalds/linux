@@ -1252,7 +1252,7 @@ static int hvc_iucv_setup_filter(const char *val)
 	if (size > MAX_VMID_FILTER)
 		return -ENOSPC;
 
-	array = kzalloc(size * 8, GFP_KERNEL);
+	array = kcalloc(size, 8, GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
 

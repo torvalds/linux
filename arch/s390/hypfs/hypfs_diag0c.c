@@ -16,26 +16,12 @@
 #define DBFS_D0C_HDR_VERSION 0
 
 /*
- * Execute diagnose 0c in 31 bit mode
- */
-static void diag0c(struct hypfs_diag0c_entry *entry)
-{
-	diag_stat_inc(DIAG_STAT_X00C);
-	asm volatile (
-		"	sam31\n"
-		"	diag	%0,%0,0x0c\n"
-		"	sam64\n"
-		: /* no output register */
-		: "a" (entry)
-		: "memory");
-}
-
-/*
  * Get hypfs_diag0c_entry from CPU vector and store diag0c data
  */
 static void diag0c_fn(void *data)
 {
-	diag0c(((void **) data)[smp_processor_id()]);
+	diag_stat_inc(DIAG_STAT_X00C);
+	diag_dma_ops.diag0c(((void **) data)[smp_processor_id()]);
 }
 
 /*
@@ -49,12 +35,12 @@ static void *diag0c_store(unsigned int *count)
 
 	get_online_cpus();
 	cpu_count = num_online_cpus();
-	cpu_vec = kmalloc(sizeof(*cpu_vec) * num_possible_cpus(), GFP_KERNEL);
+	cpu_vec = kmalloc_array(num_possible_cpus(), sizeof(*cpu_vec),
+				GFP_KERNEL);
 	if (!cpu_vec)
 		goto fail_put_online_cpus;
 	/* Note: Diag 0c needs 8 byte alignment and real storage */
-	diag0c_data = kzalloc(sizeof(struct hypfs_diag0c_hdr) +
-			      cpu_count * sizeof(struct hypfs_diag0c_entry),
+	diag0c_data = kzalloc(struct_size(diag0c_data, entry, cpu_count),
 			      GFP_KERNEL | GFP_DMA);
 	if (!diag0c_data)
 		goto fail_kfree_cpu_vec;
@@ -124,7 +110,8 @@ int __init hypfs_diag0c_init(void)
 {
 	if (!MACHINE_IS_VM)
 		return 0;
-	return hypfs_dbfs_create_file(&dbfs_file_0c);
+	hypfs_dbfs_create_file(&dbfs_file_0c);
+	return 0;
 }
 
 /*

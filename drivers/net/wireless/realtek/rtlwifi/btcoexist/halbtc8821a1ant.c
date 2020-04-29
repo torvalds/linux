@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2012  Realtek Corporation.*/
 
 /**************************************************************
  * Description:
@@ -1584,11 +1562,7 @@ static void btc8821a1ant_act_bt_sco_hid_only_busy(struct btc_coexist *btcoexist,
 	/* tdma and coex table */
 	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
 
-	if (BT_8821A_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN ==
-	    wifi_status)
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
-	else
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+	btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
 }
 
 static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
@@ -1991,16 +1965,9 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 			wifi_rssi_state =
 				btc8821a1ant_wifi_rssi_state(btcoexist, 1, 2,
 							     30, 0);
-			if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
-			    (wifi_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-				btc8821a1ant_limited_tx(btcoexist,
-							NORMAL_EXEC, 1, 1,
-							0, 1);
-			} else {
-				btc8821a1ant_limited_tx(btcoexist,
-							NORMAL_EXEC, 1, 1,
-							0, 1);
-			}
+			btc8821a1ant_limited_tx(btcoexist,
+						NORMAL_EXEC, 1, 1,
+						0, 1);
 		} else {
 			btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC,
 						0, 0, 0, 0);

@@ -47,6 +47,9 @@ struct test_sysctl_data {
 	unsigned int uint_0001;
 
 	char string_0001[65];
+
+#define SYSCTL_TEST_BITMAP_SIZE	65536
+	unsigned long *bitmap_0001;
 };
 
 static struct test_sysctl_data test_data = {
@@ -102,6 +105,13 @@ static struct ctl_table test_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dostring,
 	},
+	{
+		.procname	= "bitmap_0001",
+		.data		= &test_data.bitmap_0001,
+		.maxlen		= SYSCTL_TEST_BITMAP_SIZE,
+		.mode		= 0644,
+		.proc_handler	= proc_do_large_bitmap,
+	},
 	{ }
 };
 
@@ -129,15 +139,21 @@ static struct ctl_table_header *test_sysctl_header;
 
 static int __init test_sysctl_init(void)
 {
-	test_sysctl_header = register_sysctl_table(test_sysctl_root_table);
-	if (!test_sysctl_header)
+	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
+	if (!test_data.bitmap_0001)
 		return -ENOMEM;
+	test_sysctl_header = register_sysctl_table(test_sysctl_root_table);
+	if (!test_sysctl_header) {
+		kfree(test_data.bitmap_0001);
+		return -ENOMEM;
+	}
 	return 0;
 }
 late_initcall(test_sysctl_init);
 
 static void __exit test_sysctl_exit(void)
 {
+	kfree(test_data.bitmap_0001);
 	if (test_sysctl_header)
 		unregister_sysctl_table(test_sysctl_header);
 }

@@ -1,21 +1,9 @@
-/*
- * sky81452-regulator.c	SKY81452 regulator driver
- *
- * Copyright 2014 Skyworks Solutions Inc.
- * Author : Gyungoh Yoo <jack.yoo@skyworksinc.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// sky81452-regulator.c	SKY81452 regulator driver
+//
+// Copyright 2014 Skyworks Solutions Inc.
+// Author : Gyungoh Yoo <jack.yoo@skyworksinc.com>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -34,7 +22,7 @@
 #define SKY81452_LEN	0x40
 #define SKY81452_LOUT	0x1F
 
-static struct regulator_ops sky81452_reg_ops = {
+static const struct regulator_ops sky81452_reg_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 	.map_voltage = regulator_map_voltage_linear_range,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adm9240.c	Part of lm_sensors, Linux kernel modules for hardware
  *		monitoring
@@ -25,20 +26,6 @@
  * Test hardware: Intel SE440BX-2 desktop motherboard --Grant
  *
  * LM81 extended temp reading not implemented
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -269,16 +256,16 @@ static ssize_t temp1_input_show(struct device *dev,
 	return sprintf(buf, "%d\n", data->temp / 128 * 500); /* 9-bit value */
 }
 
-static ssize_t show_max(struct device *dev, struct device_attribute *devattr,
-		char *buf)
+static ssize_t max_show(struct device *dev, struct device_attribute *devattr,
+			char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_max[attr->index] * 1000);
 }
 
-static ssize_t set_max(struct device *dev, struct device_attribute *devattr,
-		const char *buf, size_t count)
+static ssize_t max_store(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
@@ -299,14 +286,12 @@ static ssize_t set_max(struct device *dev, struct device_attribute *devattr,
 }
 
 static DEVICE_ATTR_RO(temp1_input);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-		show_max, set_max, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-		show_max, set_max, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, max, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, max, 1);
 
 /* voltage */
-static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
-		char *buf)
+static ssize_t in_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -314,8 +299,8 @@ static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
 				attr->index));
 }
 
-static ssize_t show_in_min(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t in_min_show(struct device *dev,
+			   struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -323,8 +308,8 @@ static ssize_t show_in_min(struct device *dev,
 				attr->index));
 }
 
-static ssize_t show_in_max(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t in_max_show(struct device *dev,
+			   struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -332,9 +317,9 @@ static ssize_t show_in_max(struct device *dev,
 				attr->index));
 }
 
-static ssize_t set_in_min(struct device *dev,
-		struct device_attribute *devattr,
-		const char *buf, size_t count)
+static ssize_t in_min_store(struct device *dev,
+			    struct device_attribute *devattr, const char *buf,
+			    size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
@@ -354,9 +339,9 @@ static ssize_t set_in_min(struct device *dev,
 	return count;
 }
 
-static ssize_t set_in_max(struct device *dev,
-		struct device_attribute *devattr,
-		const char *buf, size_t count)
+static ssize_t in_max_store(struct device *dev,
+			    struct device_attribute *devattr, const char *buf,
+			    size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
@@ -376,24 +361,28 @@ static ssize_t set_in_max(struct device *dev,
 	return count;
 }
 
-#define vin(nr)							\
-static SENSOR_DEVICE_ATTR(in##nr##_input, S_IRUGO,		\
-		show_in, NULL, nr);				\
-static SENSOR_DEVICE_ATTR(in##nr##_min, S_IRUGO | S_IWUSR,	\
-		show_in_min, set_in_min, nr);			\
-static SENSOR_DEVICE_ATTR(in##nr##_max, S_IRUGO | S_IWUSR,	\
-		show_in_max, set_in_max, nr);
-
-vin(0);
-vin(1);
-vin(2);
-vin(3);
-vin(4);
-vin(5);
+static SENSOR_DEVICE_ATTR_RO(in0_input, in, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_min, in_min, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_max, in_max, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, in, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_min, in_min, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_max, in_max, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, in, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_min, in_min, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_max, in_max, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, in, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_min, in_min, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_max, in_max, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, in, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_min, in_min, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_max, in_max, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, in, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_min, in_min, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_max, in_max, 5);
 
 /* fans */
-static ssize_t show_fan(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
+			char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -401,8 +390,8 @@ static ssize_t show_fan(struct device *dev,
 				1 << data->fan_div[attr->index]));
 }
 
-static ssize_t show_fan_min(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t fan_min_show(struct device *dev,
+			    struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -410,8 +399,8 @@ static ssize_t show_fan_min(struct device *dev,
 				1 << data->fan_div[attr->index]));
 }
 
-static ssize_t show_fan_div(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t fan_div_show(struct device *dev,
+			    struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = adm9240_update_device(dev);
@@ -429,9 +418,9 @@ static ssize_t show_fan_div(struct device *dev,
  * - otherwise: select fan clock divider to suit fan speed low limit,
  *   measurement code may adjust registers to ensure fan speed reading
  */
-static ssize_t set_fan_min(struct device *dev,
-		struct device_attribute *devattr,
-		const char *buf, size_t count)
+static ssize_t fan_min_store(struct device *dev,
+			     struct device_attribute *devattr,
+			     const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
@@ -489,16 +478,12 @@ static ssize_t set_fan_min(struct device *dev,
 	return count;
 }
 
-#define fan(nr)							\
-static SENSOR_DEVICE_ATTR(fan##nr##_input, S_IRUGO,		\
-		show_fan, NULL, nr - 1);			\
-static SENSOR_DEVICE_ATTR(fan##nr##_div, S_IRUGO,		\
-		show_fan_div, NULL, nr - 1);			\
-static SENSOR_DEVICE_ATTR(fan##nr##_min, S_IRUGO | S_IWUSR,	\
-		show_fan_min, set_fan_min, nr - 1);
-
-fan(1);
-fan(2);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RW(fan1_min, fan_min, 0);
+static SENSOR_DEVICE_ATTR_RO(fan1_div, fan_div, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
+static SENSOR_DEVICE_ATTR_RW(fan2_min, fan_min, 1);
+static SENSOR_DEVICE_ATTR_RO(fan2_div, fan_div, 1);
 
 /* alarms */
 static ssize_t alarms_show(struct device *dev,
@@ -509,22 +494,22 @@ static ssize_t alarms_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(alarms);
 
-static ssize_t show_alarm(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct adm9240_data *data = adm9240_update_device(dev);
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8);
-static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 9);
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, alarm, 8);
+static SENSOR_DEVICE_ATTR_RO(in5_alarm, alarm, 9);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(fan1_alarm, alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(fan2_alarm, alarm, 7);
 
 /* vid */
 static ssize_t cpu0_vid_show(struct device *dev,
@@ -564,9 +549,8 @@ static ssize_t aout_output_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(aout_output);
 
-static ssize_t chassis_clear(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t alarm_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct adm9240_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -583,8 +567,7 @@ static ssize_t chassis_clear(struct device *dev,
 
 	return count;
 }
-static SENSOR_DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR, show_alarm,
-		chassis_clear, 12);
+static SENSOR_DEVICE_ATTR_RW(intrusion0_alarm, alarm, 12);
 
 static struct attribute *adm9240_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -631,7 +614,6 @@ static struct attribute *adm9240_attrs[] = {
 };
 
 ATTRIBUTE_GROUPS(adm9240);
-
 
 /*** sensor chip detect and driver install ***/
 

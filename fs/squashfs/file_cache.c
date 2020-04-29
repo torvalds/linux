@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013
  * Phillip Lougher <phillip@squashfs.org.uk>
- *
- * This work is licensed under the terms of the GNU GPL, version 2. See
- * the COPYING file in the top-level directory.
  */
 
 #include <linux/fs.h>
@@ -20,7 +18,7 @@
 #include "squashfs.h"
 
 /* Read separately compressed datablock and memcopy into page cache */
-int squashfs_readpage_block(struct page *page, u64 block, int bsize)
+int squashfs_readpage_block(struct page *page, u64 block, int bsize, int expected)
 {
 	struct inode *i = page->mapping->host;
 	struct squashfs_cache_entry *buffer = squashfs_get_datablock(i->i_sb,
@@ -31,7 +29,7 @@ int squashfs_readpage_block(struct page *page, u64 block, int bsize)
 		ERROR("Unable to read page, block %llx, size %x\n", block,
 			bsize);
 	else
-		squashfs_copy_cache(page, buffer, buffer->length, 0);
+		squashfs_copy_cache(page, buffer, expected, 0);
 
 	squashfs_cache_put(buffer);
 	return res;

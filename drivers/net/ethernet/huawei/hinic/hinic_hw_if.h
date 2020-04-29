@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_HW_IF_H
@@ -146,12 +137,14 @@
 #define HINIC_HWIF_FUNC_IDX(hwif)       ((hwif)->attr.func_idx)
 #define HINIC_HWIF_PCI_INTF(hwif)       ((hwif)->attr.pci_intf_idx)
 #define HINIC_HWIF_PF_IDX(hwif)         ((hwif)->attr.pf_idx)
+#define HINIC_HWIF_PPF_IDX(hwif)        ((hwif)->attr.ppf_idx)
 
 #define HINIC_FUNC_TYPE(hwif)           ((hwif)->attr.func_type)
 #define HINIC_IS_PF(hwif)               (HINIC_FUNC_TYPE(hwif) == HINIC_PF)
 #define HINIC_IS_PPF(hwif)              (HINIC_FUNC_TYPE(hwif) == HINIC_PPF)
 
 #define HINIC_PCI_CFG_REGS_BAR          0
+#define HINIC_PCI_INTR_REGS_BAR         2
 #define HINIC_PCI_DB_BAR                4
 
 #define HINIC_PCIE_ST_DISABLE           0
@@ -163,6 +156,10 @@
 #define HINIC_EQ_MSIX_LLI_TIMER_DEFAULT         0       /* Disabled */
 #define HINIC_EQ_MSIX_LLI_CREDIT_LIMIT_DEFAULT  0       /* Disabled */
 #define HINIC_EQ_MSIX_RESEND_TIMER_DEFAULT      7       /* max */
+
+#define HINIC_PCI_MSIX_ENTRY_SIZE               16
+#define HINIC_PCI_MSIX_ENTRY_VECTOR_CTRL        12
+#define HINIC_PCI_MSIX_ENTRY_CTRL_MASKBIT       1
 
 enum hinic_pcie_nosnoop {
 	HINIC_PCIE_SNOOP        = 0,
@@ -207,6 +204,11 @@ enum hinic_db_state {
 	HINIC_DB_DISABLE = 1,
 };
 
+enum hinic_msix_state {
+	HINIC_MSIX_ENABLE,
+	HINIC_MSIX_DISABLE,
+};
+
 struct hinic_func_attr {
 	u16                     func_idx;
 	u8                      pf_idx;
@@ -226,6 +228,7 @@ struct hinic_func_attr {
 struct hinic_hwif {
 	struct pci_dev          *pdev;
 	void __iomem            *cfg_regs_bar;
+	void __iomem		*intr_regs_base;
 
 	struct hinic_func_attr  attr;
 };
@@ -250,6 +253,9 @@ int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
 			u8 *pending_limit, u8 *coalesc_timer_cfg,
 			u8 *lli_timer, u8 *lli_credit_limit,
 			u8 *resend_timer);
+
+void hinic_set_msix_state(struct hinic_hwif *hwif, u16 msix_idx,
+			  enum hinic_msix_state flag);
 
 int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index);
 

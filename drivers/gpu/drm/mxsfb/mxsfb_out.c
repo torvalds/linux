@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Marek Vasut <marex@denx.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/of_graph.h>
@@ -16,21 +8,21 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/drmP.h>
 
 #include "mxsfb_drv.h"
 
 static struct mxsfb_drm_private *
 drm_connector_to_mxsfb_drm_private(struct drm_connector *connector)
 {
-	return container_of(connector, struct mxsfb_drm_private, connector);
+	return container_of(connector, struct mxsfb_drm_private,
+			    panel_connector);
 }
 
 static int mxsfb_panel_get_modes(struct drm_connector *connector)
@@ -39,7 +31,7 @@ static int mxsfb_panel_get_modes(struct drm_connector *connector)
 			drm_connector_to_mxsfb_drm_private(connector);
 
 	if (mxsfb->panel)
-		return mxsfb->panel->funcs->get_modes(mxsfb->panel);
+		return drm_panel_get_modes(mxsfb->panel, connector);
 
 	return 0;
 }
@@ -85,22 +77,23 @@ static const struct drm_connector_funcs mxsfb_panel_connector_funcs = {
 int mxsfb_create_output(struct drm_device *drm)
 {
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-	struct drm_panel *panel;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0, &panel, NULL);
+	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0,
+					  &mxsfb->panel, &mxsfb->bridge);
 	if (ret)
 		return ret;
 
-	mxsfb->connector.dpms = DRM_MODE_DPMS_OFF;
-	mxsfb->connector.polled = 0;
-	drm_connector_helper_add(&mxsfb->connector,
-			&mxsfb_panel_connector_helper_funcs);
-	ret = drm_connector_init(drm, &mxsfb->connector,
-				 &mxsfb_panel_connector_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
-	if (!ret)
-		mxsfb->panel = panel;
+	if (mxsfb->panel) {
+		mxsfb->connector = &mxsfb->panel_connector;
+		mxsfb->connector->dpms = DRM_MODE_DPMS_OFF;
+		mxsfb->connector->polled = 0;
+		drm_connector_helper_add(mxsfb->connector,
+					 &mxsfb_panel_connector_helper_funcs);
+		ret = drm_connector_init(drm, mxsfb->connector,
+					 &mxsfb_panel_connector_funcs,
+					 DRM_MODE_CONNECTOR_Unknown);
+	}
 
 	return ret;
 }

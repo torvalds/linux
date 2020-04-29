@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012-2017 Hideep, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2
- * as published by the Free Software Foudation.
  */
 
 #include <linux/module.h>
@@ -814,8 +811,7 @@ static int hideep_init_input(struct hideep_ts *ts)
 	if (error)
 		return error;
 
-	ts->key_num = device_property_read_u32_array(dev, "linux,keycodes",
-						     NULL, 0);
+	ts->key_num = device_property_count_u32(dev, "linux,keycodes");
 	if (ts->key_num > HIDEEP_KEY_MAX) {
 		dev_err(dev, "too many keys defined: %d\n",
 			ts->key_num);

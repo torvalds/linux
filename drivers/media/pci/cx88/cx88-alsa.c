@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Support for audio capture
  *  PCI function #1 of the cx2388x.
  *
  *    (c) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
- *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -103,8 +94,8 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},{{Conexant,23882},{{Conexant,23883}");
@@ -298,7 +289,7 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
 
-	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(array_size(sizeof(*buf->sglist), buf->nr_pages));
 	if (!buf->sglist)
 		goto vzalloc_err;
 
@@ -594,7 +585,6 @@ static struct page *snd_cx88_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx88_pcm_ops = {
 	.open = snd_cx88_pcm_open,
 	.close = snd_cx88_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx88_hw_params,
 	.hw_free = snd_cx88_hw_free,
 	.prepare = snd_cx88_prepare,
@@ -616,7 +606,7 @@ static int snd_cx88_pcm(struct cx88_audio_dev *chip, int device,
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx88_pcm_ops);
 
 	return 0;
@@ -962,15 +952,18 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 		goto error;
 
 	/* If there's a wm8775 then add a Line-In ALC switch */
-	if (core->sd_wm8775)
-		snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
+	if (core->sd_wm8775) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
+		if (err < 0)
+			goto error;
+	}
 
-	strcpy(card->driver, "CX88x");
+	strscpy(card->driver, "CX88x", sizeof(card->driver));
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
 	sprintf(card->longname, "%s at %#llx",
 		card->shortname,
 		(unsigned long long)pci_resource_start(pci, 0));
-	strcpy(card->mixername, "CX88");
+	strscpy(card->mixername, "CX88", sizeof(card->mixername));
 
 	dprintk(0, "%s/%i: ALSA support for cx2388x boards\n",
 		card->driver, devno);

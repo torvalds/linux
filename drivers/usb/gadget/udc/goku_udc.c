@@ -1241,22 +1241,6 @@ done:
 	local_irq_restore(flags);
 	return 0;
 }
-
-/*
- * seq_file wrappers for procfile show routines.
- */
-static int udc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, udc_proc_read, PDE_DATA(file_inode(file)));
-}
-
-static const struct file_operations udc_proc_fops = {
-	.open		= udc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
 /*-------------------------------------------------------------------------*/
@@ -1798,7 +1782,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	dev->got_region = 1;
 
-	base = ioremap_nocache(resource, len);
+	base = ioremap(resource, len);
 	if (base == NULL) {
 		DBG(dev, "can't map memory\n");
 		retval = -EFAULT;
@@ -1826,7 +1810,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
-	proc_create_data(proc_node_name, 0, NULL, &udc_proc_fops, dev);
+	proc_create_single_data(proc_node_name, 0, NULL, udc_proc_read, dev);
 #endif
 
 	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
@@ -1860,7 +1844,7 @@ static const struct pci_device_id pci_ids[] = { {
 MODULE_DEVICE_TABLE (pci, pci_ids);
 
 static struct pci_driver goku_pci_driver = {
-	.name =		(char *) driver_name,
+	.name =		driver_name,
 	.id_table =	pci_ids,
 
 	.probe =	goku_probe,

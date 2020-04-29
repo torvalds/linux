@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EEPROMs access control driver for display configuration EEPROMs
  * on DigsyMTC board.
  *
  * (C) 2011 DENX Software Engineering, Anatolij Gustschin <agust@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * FIXME: this driver is used on a device-tree probed platform: it
  * should be defined as a bit-banged SPI device and probed from the device

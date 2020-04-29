@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9T001 CMOS Image Sensor from Aptina (Micron)
  *
@@ -6,10 +7,6 @@
  * Based on the MT9M001 driver,
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -943,6 +940,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	mt9t001->subdev.internal_ops = &mt9t001_subdev_internal_ops;
 	mt9t001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
+	mt9t001->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	mt9t001->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&mt9t001->subdev.entity, 1, &mt9t001->pad);
 

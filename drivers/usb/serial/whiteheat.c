@@ -8,7 +8,7 @@
  *	Copyright (C) 1999 - 2001
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 
@@ -83,8 +83,8 @@ static int  whiteheat_port_remove(struct usb_serial_port *port);
 static int  whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void whiteheat_close(struct usb_serial_port *port);
-static int  whiteheat_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
+static int  whiteheat_get_serial(struct tty_struct *tty,
+			struct serial_struct *ss);
 static void whiteheat_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  whiteheat_tiocmget(struct tty_struct *tty);
@@ -120,7 +120,7 @@ static struct usb_serial_driver whiteheat_device = {
 	.port_remove =		whiteheat_port_remove,
 	.open =			whiteheat_open,
 	.close =		whiteheat_close,
-	.ioctl =		whiteheat_ioctl,
+	.get_serial =		whiteheat_get_serial,
 	.set_termios =		whiteheat_set_termios,
 	.break_ctl =		whiteheat_break_ctl,
 	.tiocmget =		whiteheat_tiocmget,
@@ -442,33 +442,21 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 }
 
 
-static int whiteheat_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
+static int whiteheat_get_serial(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct serial_struct serstruct;
-	void __user *user_arg = (void __user *)arg;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		memset(&serstruct, 0, sizeof(serstruct));
-		serstruct.type = PORT_16654;
-		serstruct.line = port->minor;
-		serstruct.port = port->port_number;
-		serstruct.xmit_fifo_size = kfifo_size(&port->write_fifo);
-		serstruct.custom_divisor = 0;
-		serstruct.baud_base = 460800;
-		serstruct.close_delay = CLOSING_DELAY;
-		serstruct.closing_wait = CLOSING_DELAY;
+	ss->type = PORT_16654;
+	ss->line = port->minor;
+	ss->port = port->port_number;
+	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
+	ss->custom_divisor = 0;
+	ss->baud_base = 460800;
+	ss->close_delay = CLOSING_DELAY;
+	ss->closing_wait = CLOSING_DELAY;
 
-		if (copy_to_user(user_arg, &serstruct, sizeof(serstruct)))
-			return -EFAULT;
-		break;
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
+	return 0;
 }
 
 
@@ -571,6 +559,10 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 
 	command_port = port->serial->port[COMMAND_PORT];
 	command_info = usb_get_serial_port_data(command_port);
+
+	if (command_port->bulk_out_size < datasize + 1)
+		return -EIO;
+
 	mutex_lock(&command_info->mutex);
 	command_info->command_finished = false;
 
@@ -644,6 +636,7 @@ static void firm_setup_port(struct tty_struct *tty)
 	struct device *dev = &port->dev;
 	struct whiteheat_port_settings port_settings;
 	unsigned int cflag = tty->termios.c_cflag;
+	speed_t baud;
 
 	port_settings.port = port->port_number + 1;
 
@@ -704,11 +697,13 @@ static void firm_setup_port(struct tty_struct *tty)
 	dev_dbg(dev, "%s - XON = %2x, XOFF = %2x\n", __func__, port_settings.xon, port_settings.xoff);
 
 	/* get the baud rate wanted */
-	port_settings.baud = tty_get_baud_rate(tty);
-	dev_dbg(dev, "%s - baud rate = %d\n", __func__, port_settings.baud);
+	baud = tty_get_baud_rate(tty);
+	port_settings.baud = cpu_to_le32(baud);
+	dev_dbg(dev, "%s - baud rate = %u\n", __func__, baud);
 
 	/* fixme: should set validated settings */
-	tty_encode_baud_rate(tty, port_settings.baud, port_settings.baud);
+	tty_encode_baud_rate(tty, baud, baud);
+
 	/* handle any settings that aren't specified in the tty structure */
 	port_settings.lloop = 0;
 

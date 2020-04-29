@@ -1,13 +1,4 @@
-/*
- * Many of the syscalls used in this file expect some of the arguments
- * to be __user pointers not __kernel pointers.  To limit the sparse
- * noise, turn off sparse checking for this file.
- */
-#ifdef __CHECKER__
-#undef __CHECKER__
-#warning "Sparse checking disabled for this file"
-#endif
-
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/ctype.h>
@@ -32,6 +23,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
+#include <uapi/linux/mount.h>
 
 #include "do_mounts.h"
 
@@ -177,6 +169,24 @@ done:
 	}
 	return res;
 }
+
+/**
+ * match_dev_by_label - callback for finding a partition using its label
+ * @dev:	device passed in by the caller
+ * @data:	opaque pointer to the label to match
+ *
+ * Returns 1 if the device matches, and 0 otherwise.
+ */
+static int match_dev_by_label(struct device *dev, const void *data)
+{
+	const char *label = data;
+	struct hd_struct *part = dev_to_part(dev);
+
+	if (part->info && !strcmp(label, part->info->volname))
+		return 1;
+
+	return 0;
+}
 #endif
 
 /*
@@ -200,6 +210,9 @@ done:
  *	   a partition with a known unique id.
  *	8) <major>:<minor> major and minor number of the device separated by
  *	   a colon.
+ *	9) PARTLABEL=<name> with name being the GPT partition label.
+ *	   MSDOS partitions do not support labels!
+ *	10) /dev/cifs represents Root_CIFS (0xfe)
  *
  *	If name doesn't have fall into the categories above, we return (0,0).
  *	block_class is used to check if something is a disk name. If the disk
@@ -220,6 +233,17 @@ dev_t name_to_dev_t(const char *name)
 		res = devt_from_partuuid(name);
 		if (!res)
 			goto fail;
+		goto done;
+	} else if (strncmp(name, "PARTLABEL=", 10) == 0) {
+		struct device *dev;
+
+		dev = class_find_device(&block_class, NULL, name + 10,
+					&match_dev_by_label);
+		if (!dev)
+			goto fail;
+
+		res = dev->devt;
+		put_device(dev);
 		goto done;
 	}
 #endif
@@ -244,6 +268,9 @@ dev_t name_to_dev_t(const char *name)
 	name += 5;
 	res = Root_NFS;
 	if (strcmp(name, "nfs") == 0)
+		goto done;
+	res = Root_CIFS;
+	if (strcmp(name, "cifs") == 0)
 		goto done;
 	res = Root_RAM0;
 	if (strcmp(name, "ram") == 0)
@@ -360,12 +387,27 @@ static void __init get_fs_names(char *page)
 	*s = '\0';
 }
 
-static int __init do_mount_root(char *name, char *fs, int flags, void *data)
+static int __init do_mount_root(const char *name, const char *fs,
+				 const int flags, const void *data)
 {
 	struct super_block *s;
-	int err = ksys_mount(name, "/root", fs, flags, data);
-	if (err)
-		return err;
+	struct page *p = NULL;
+	char *data_page = NULL;
+	int ret;
+
+	if (data) {
+		/* do_mount() requires a full page as fifth argument */
+		p = alloc_page(GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		data_page = page_address(p);
+		/* zero-pad. do_mount() will make sure it's terminated */
+		strncpy(data_page, data, PAGE_SIZE);
+	}
+
+	ret = do_mount(name, "/root", fs, flags, data_page);
+	if (ret)
+		goto out;
 
 	ksys_chdir("/root");
 	s = current->fs->pwd.dentry->d_sb;
@@ -375,7 +417,11 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 	       s->s_type->name,
 	       sb_rdonly(s) ? " readonly" : "",
 	       MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
-	return 0;
+
+out:
+	if (p)
+		put_page(p);
+	return ret;
 }
 
 void __init mount_block_root(char *name, int flags)
@@ -383,12 +429,10 @@ void __init mount_block_root(char *name, int flags)
 	struct page *page = alloc_page(GFP_KERNEL);
 	char *fs_names = page_address(page);
 	char *p;
-#ifdef CONFIG_BLOCK
 	char b[BDEVNAME_SIZE];
-#else
-	const char *b = name;
-#endif
 
+	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
+		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	get_fs_names(fs_names);
 retry:
 	for (p = fs_names; *p; p += strlen(p)+1) {
@@ -405,9 +449,6 @@ retry:
 		 * and bad superblock on root device.
 		 * and give them a list of the available devices
 		 */
-#ifdef CONFIG_BLOCK
-		__bdevname(ROOT_DEV, b);
-#endif
 		printk("VFS: Cannot open root device \"%s\" or %s: error %d\n",
 				root_device_name, b, err);
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
@@ -430,9 +471,6 @@ retry:
 	for (p = fs_names; *p; p += strlen(p)+1)
 		printk(" %s", p);
 	printk("\n");
-#ifdef CONFIG_BLOCK
-	__bdevname(ROOT_DEV, b);
-#endif
 	panic("VFS: Unable to mount root fs on %s", b);
 out:
 	put_page(page);
@@ -478,6 +516,42 @@ static int __init mount_nfs_root(void)
 }
 #endif
 
+#ifdef CONFIG_CIFS_ROOT
+
+extern int cifs_root_data(char **dev, char **opts);
+
+#define CIFSROOT_TIMEOUT_MIN	5
+#define CIFSROOT_TIMEOUT_MAX	30
+#define CIFSROOT_RETRY_MAX	5
+
+static int __init mount_cifs_root(void)
+{
+	char *root_dev, *root_data;
+	unsigned int timeout;
+	int try, err;
+
+	err = cifs_root_data(&root_dev, &root_data);
+	if (err != 0)
+		return 0;
+
+	timeout = CIFSROOT_TIMEOUT_MIN;
+	for (try = 1; ; try++) {
+		err = do_mount_root(root_dev, "cifs", root_mountflags,
+				    root_data);
+		if (err == 0)
+			return 1;
+		if (try > CIFSROOT_RETRY_MAX)
+			break;
+
+		ssleep(timeout);
+		timeout <<= 1;
+		if (timeout > CIFSROOT_TIMEOUT_MAX)
+			timeout = CIFSROOT_TIMEOUT_MAX;
+	}
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_BLK_DEV_RAM) || defined(CONFIG_BLK_DEV_FD)
 void __init change_floppy(char *fmt, ...)
 {
@@ -516,6 +590,15 @@ void __init mount_root(void)
 			return;
 
 		printk(KERN_ERR "VFS: Unable to mount root fs via NFS, trying floppy.\n");
+		ROOT_DEV = Root_FD0;
+	}
+#endif
+#ifdef CONFIG_CIFS_ROOT
+	if (ROOT_DEV == Root_CIFS) {
+		if (mount_cifs_root())
+			return;
+
+		printk(KERN_ERR "VFS: Unable to mount root fs via SMB, trying floppy.\n");
 		ROOT_DEV = Root_FD0;
 	}
 #endif
@@ -598,50 +681,29 @@ void __init prepare_namespace(void)
 
 	mount_root();
 out:
-	devtmpfs_mount("dev");
-	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
+	devtmpfs_mount();
+	do_mount(".", "/", NULL, MS_MOVE, NULL);
 	ksys_chroot(".");
 }
 
 static bool is_tmpfs;
-static struct dentry *rootfs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int rootfs_init_fs_context(struct fs_context *fc)
 {
-	static unsigned long once;
-	void *fill = ramfs_fill_super;
-
-	if (test_and_set_bit(0, &once))
-		return ERR_PTR(-ENODEV);
-
 	if (IS_ENABLED(CONFIG_TMPFS) && is_tmpfs)
-		fill = shmem_fill_super;
+		return shmem_init_fs_context(fc);
 
-	return mount_nodev(fs_type, flags, data, fill);
+	return ramfs_init_fs_context(fc);
 }
 
-static struct file_system_type rootfs_fs_type = {
+struct file_system_type rootfs_fs_type = {
 	.name		= "rootfs",
-	.mount		= rootfs_mount,
+	.init_fs_context = rootfs_init_fs_context,
 	.kill_sb	= kill_litter_super,
 };
 
-int __init init_rootfs(void)
+void __init init_rootfs(void)
 {
-	int err = register_filesystem(&rootfs_fs_type);
-
-	if (err)
-		return err;
-
 	if (IS_ENABLED(CONFIG_TMPFS) && !saved_root_name[0] &&
-		(!root_fs_names || strstr(root_fs_names, "tmpfs"))) {
-		err = shmem_init();
+		(!root_fs_names || strstr(root_fs_names, "tmpfs")))
 		is_tmpfs = true;
-	} else {
-		err = init_ramfs_fs();
-	}
-
-	if (err)
-		unregister_filesystem(&rootfs_fs_type);
-
-	return err;
 }

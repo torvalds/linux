@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* uio_fsl_elbc_gpcm: UIO driver for eLBC/GPCM peripherals
 
    Copyright (C) 2014 Linutronix GmbH
@@ -67,14 +68,20 @@ static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count);
 
-DEVICE_ATTR(reg_br, S_IRUGO|S_IWUSR|S_IWGRP, reg_show, reg_store);
-DEVICE_ATTR(reg_or, S_IRUGO|S_IWUSR|S_IWGRP, reg_show, reg_store);
+static DEVICE_ATTR(reg_br, 0664, reg_show, reg_store);
+static DEVICE_ATTR(reg_or, 0664, reg_show, reg_store);
+
+static struct attribute *uio_fsl_elbc_gpcm_attrs[] = {
+	&dev_attr_reg_br.attr,
+	&dev_attr_reg_or.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(uio_fsl_elbc_gpcm);
 
 static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uio_info *info = platform_get_drvdata(pdev);
+	struct uio_info *info = dev_get_drvdata(dev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 	struct fsl_lbc_bank *bank = &priv->lbc->bank[priv->bank];
 
@@ -93,8 +100,7 @@ static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uio_info *info = platform_get_drvdata(pdev);
+	struct uio_info *info = dev_get_drvdata(dev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 	struct fsl_lbc_bank *bank = &priv->lbc->bank[priv->bank];
 	unsigned long val;
@@ -381,8 +387,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	}
 
 	/* set all UIO data */
-	if (node->name)
-		info->mem[0].name = kstrdup(node->name, GFP_KERNEL);
+	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", node);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;
@@ -413,25 +418,12 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	/* store private data */
 	platform_set_drvdata(pdev, info);
 
-	/* create sysfs files */
-	ret = device_create_file(priv->dev, &dev_attr_reg_br);
-	if (ret)
-		goto out_err3;
-	ret = device_create_file(priv->dev, &dev_attr_reg_or);
-	if (ret)
-		goto out_err4;
-
 	dev_info(priv->dev,
 		 "eLBC/GPCM device (%s) at 0x%llx, bank %d, irq=%d\n",
 		 priv->name, (unsigned long long)res.start, priv->bank,
 		 irq != NO_IRQ ? irq : -1);
 
 	return 0;
-out_err4:
-	device_remove_file(priv->dev, &dev_attr_reg_br);
-out_err3:
-	platform_set_drvdata(pdev, NULL);
-	uio_unregister_device(info);
 out_err2:
 	if (priv->shutdown)
 		priv->shutdown(info, true);
@@ -450,8 +442,6 @@ static int uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
 	struct uio_info *info = platform_get_drvdata(pdev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 
-	device_remove_file(priv->dev, &dev_attr_reg_or);
-	device_remove_file(priv->dev, &dev_attr_reg_br);
 	platform_set_drvdata(pdev, NULL);
 	uio_unregister_device(info);
 	if (priv->shutdown)
@@ -475,8 +465,8 @@ MODULE_DEVICE_TABLE(of, uio_fsl_elbc_gpcm_match);
 static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 	.driver = {
 		.name = "fsl,elbc-gpcm-uio",
-		.owner = THIS_MODULE,
 		.of_match_table = uio_fsl_elbc_gpcm_match,
+		.dev_groups = uio_fsl_elbc_gpcm_groups,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,
 	.remove = uio_fsl_elbc_gpcm_remove,

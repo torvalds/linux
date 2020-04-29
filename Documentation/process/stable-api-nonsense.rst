@@ -169,14 +169,13 @@ driver for every different kernel version for every distribution is a
 nightmare, and trying to keep up with an ever changing kernel interface
 is also a rough job.
 
-Simple, get your kernel driver into the main kernel tree (remember we
-are talking about GPL released drivers here, if your code doesn't fall
-under this category, good luck, you are on your own here, you leech
-<insert link to leech comment from Andrew and Linus here>.)  If your
-driver is in the tree, and a kernel interface changes, it will be fixed
-up by the person who did the kernel change in the first place.  This
-ensures that your driver is always buildable, and works over time, with
-very little effort on your part.
+Simple, get your kernel driver into the main kernel tree (remember we are
+talking about drivers released under a GPL-compatible license here, if your
+code doesn't fall under this category, good luck, you are on your own here,
+you leech).  If your driver is in the tree, and a kernel interface changes,
+it will be fixed up by the person who did the kernel change in the first
+place.  This ensures that your driver is always buildable, and works over
+time, with very little effort on your part.
 
 The very good side effects of having your driver in the main kernel tree
 are:

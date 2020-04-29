@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Technologic Systems TS-5500 Single Board Computer support
  *
  * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any later
- * version.
- *
  *
  * This driver registers the Technologic Systems TS-5500 Single Board Computer
  * (SBC) and its devices, and exposes information to userspace such as jumpers'
@@ -24,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/init.h>
-#include <linux/platform_data/gpio-ts5500.h>
 #include <linux/platform_data/max197.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>

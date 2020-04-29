@@ -1,7 +1,7 @@
 #include <linux/ptrace.h>
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct bpf_map_def SEC("maps") counters = {
 	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,

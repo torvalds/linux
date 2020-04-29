@@ -9,11 +9,20 @@ DIR=/sys/devices/virtual/misc/test_firmware
 PROC_CONFIG="/proc/config.gz"
 TEST_DIR=$(dirname $0)
 
+# We need to load a different file to test request_firmware_into_buf
+# I believe the issue is firmware loaded cached vs. non-cached
+# with same filename is bungled.
+# To reproduce rename this to test-firmware.bin
+TEST_FIRMWARE_INTO_BUF_FILENAME=test-firmware-into-buf.bin
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 print_reqs_exit()
 {
 	echo "You must have the following enabled in your kernel:" >&2
 	cat $TEST_DIR/config >&2
-	exit 1
+	exit $ksft_skip
 }
 
 test_modprobe()
@@ -25,6 +34,12 @@ test_modprobe()
 
 check_mods()
 {
+	local uid=$(id -u)
+	if [ $uid -ne 0 ]; then
+		echo "skip all tests: must be run as root" >&2
+		exit $ksft_skip
+	fi
+
 	trap "test_modprobe" EXIT
 	if [ ! -d $DIR ]; then
 		modprobe test_firmware
@@ -47,6 +62,7 @@ check_setup()
 {
 	HAS_FW_LOADER_USER_HELPER="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER=y)"
 	HAS_FW_LOADER_USER_HELPER_FALLBACK="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)"
+	HAS_FW_LOADER_COMPRESS="$(kconfig_has CONFIG_FW_LOADER_COMPRESS=y)"
 	PROC_FW_IGNORE_SYSFS_FALLBACK="0"
 	PROC_FW_FORCE_SYSFS_FALLBACK="0"
 
@@ -81,6 +97,12 @@ check_setup()
 	fi
 
 	OLD_FWPATH="$(cat /sys/module/firmware_class/parameters/path)"
+
+	if [ "$HAS_FW_LOADER_COMPRESS" = "yes" ]; then
+		if ! which xz 2> /dev/null > /dev/null; then
+			HAS_FW_LOADER_COMPRESS=""
+		fi
+	fi
 }
 
 verify_reqs()
@@ -98,6 +120,8 @@ setup_tmp_file()
 	FWPATH=$(mktemp -d)
 	FW="$FWPATH/test-firmware.bin"
 	echo "ABCD0123" >"$FW"
+	FW_INTO_BUF="$FWPATH/$TEST_FIRMWARE_INTO_BUF_FILENAME"
+	echo "EFGH4567" >"$FW_INTO_BUF"
 	NAME=$(basename "$FW")
 	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
 		echo -n "$FWPATH" >/sys/module/firmware_class/parameters/path
@@ -154,14 +178,19 @@ test_finish()
 	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
 		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
 	fi
-	if [ "$OLD_FWPATH" = "" ]; then
-		OLD_FWPATH=" "
-	fi
 	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
-		echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
+		if [ "$OLD_FWPATH" = "" ]; then
+			# A zero-length write won't work; write a null byte
+			printf '\000' >/sys/module/firmware_class/parameters/path
+		else
+			echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
+		fi
 	fi
 	if [ -f $FW ]; then
 		rm -f "$FW"
+	fi
+	if [ -f $FW_INTO_BUF ]; then
+		rm -f "$FW_INTO_BUF"
 	fi
 	if [ -d $FWPATH ]; then
 		rm -rf "$FWPATH"

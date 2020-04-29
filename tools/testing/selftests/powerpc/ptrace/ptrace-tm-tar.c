@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ptrace test for TAR, PPR, DSCR registers in the TM context
  *
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include "ptrace.h"
 #include "tm.h"
@@ -65,8 +61,8 @@ trans:
 		: [sprn_dscr]"i"(SPRN_DSCR), [sprn_tar]"i"(SPRN_TAR),
 		[sprn_ppr]"i"(SPRN_PPR), [sprn_texasr]"i"(SPRN_TEXASR),
 		[tar_1]"i"(TAR_1), [dscr_1]"i"(DSCR_1), [tar_2]"i"(TAR_2),
-		[dscr_2]"i"(DSCR_2), [cptr1] "r" (&cptr[1])
-		: "memory", "r0", "r1", "r3", "r4", "r5", "r6"
+		[dscr_2]"i"(DSCR_2), [cptr1] "b" (&cptr[1])
+		: "memory", "r0", "r3", "r4", "r5", "r6"
 		);
 
 	/* TM failed, analyse */

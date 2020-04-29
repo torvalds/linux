@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Definitions for measuring cputime on powerpc machines.
  *
  * Copyright (C) 2006 Paul Mackerras, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * If we have CONFIG_VIRT_CPU_ACCOUNTING_NATIVE, we measure cpu time in
  * the same units as the timebase.  Otherwise we measure cpu time
@@ -23,7 +19,6 @@
 #include <asm/div64.h>
 #include <asm/time.h>
 #include <asm/param.h>
-#include <asm/cpu_has_feature.h>
 
 typedef u64 __nocast cputime_t;
 typedef u64 __nocast cputime64_t;
@@ -47,11 +42,57 @@ static inline unsigned long cputime_to_usecs(const cputime_t ct)
  * has to be populated in the new task
  */
 #ifdef CONFIG_PPC64
+#define get_accounting(tsk)	(&get_paca()->accounting)
+#define raw_get_accounting(tsk)	(&local_paca->accounting)
 static inline void arch_vtime_task_switch(struct task_struct *tsk) { }
+
 #else
-void arch_vtime_task_switch(struct task_struct *tsk);
+#define get_accounting(tsk)	(&task_thread_info(tsk)->accounting)
+#define raw_get_accounting(tsk)	get_accounting(tsk)
+/*
+ * Called from the context switch with interrupts disabled, to charge all
+ * accumulated times to the current process, and to prepare accounting on
+ * the next process.
+ */
+static inline void arch_vtime_task_switch(struct task_struct *prev)
+{
+	struct cpu_accounting_data *acct = get_accounting(current);
+	struct cpu_accounting_data *acct0 = get_accounting(prev);
+
+	acct->starttime = acct0->starttime;
+}
 #endif
 
+/*
+ * account_cpu_user_entry/exit runs "unreconciled", so can't trace,
+ * can't use use get_paca()
+ */
+static notrace inline void account_cpu_user_entry(void)
+{
+	unsigned long tb = mftb();
+	struct cpu_accounting_data *acct = raw_get_accounting(current);
+
+	acct->utime += (tb - acct->starttime_user);
+	acct->starttime = tb;
+}
+
+static notrace inline void account_cpu_user_exit(void)
+{
+	unsigned long tb = mftb();
+	struct cpu_accounting_data *acct = raw_get_accounting(current);
+
+	acct->stime += (tb - acct->starttime);
+	acct->starttime_user = tb;
+}
+
+
 #endif /* __KERNEL__ */
+#else /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
+static inline void account_cpu_user_entry(void)
+{
+}
+static inline void account_cpu_user_exit(void)
+{
+}
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 #endif /* __POWERPC_CPUTIME_H */

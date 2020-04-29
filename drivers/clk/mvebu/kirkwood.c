@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell Kirkwood SoC clocks
  *
@@ -7,9 +8,6 @@
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Andrew Lunn <andrew@lunn.ch>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -187,6 +185,11 @@ static void __init mv88f6180_get_clk_ratio(
 	}
 }
 
+static u32 __init mv98dx1135_get_tclk_freq(void __iomem *sar)
+{
+	return 166666667;
+}
+
 static const struct coreclk_soc_desc kirkwood_coreclks = {
 	.get_tclk_freq = kirkwood_get_tclk_freq,
 	.get_cpu_freq = kirkwood_get_cpu_freq,
@@ -199,6 +202,14 @@ static const struct coreclk_soc_desc mv88f6180_coreclks = {
 	.get_tclk_freq = kirkwood_get_tclk_freq,
 	.get_cpu_freq = mv88f6180_get_cpu_freq,
 	.get_clk_ratio = mv88f6180_get_clk_ratio,
+	.ratios = kirkwood_coreclk_ratios,
+	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
+};
+
+static const struct coreclk_soc_desc mv98dx1135_coreclks = {
+	.get_tclk_freq = mv98dx1135_get_tclk_freq,
+	.get_cpu_freq = kirkwood_get_cpu_freq,
+	.get_clk_ratio = kirkwood_get_clk_ratio,
 	.ratios = kirkwood_coreclk_ratios,
 	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
 };
@@ -327,15 +338,21 @@ static void __init kirkwood_clk_init(struct device_node *np)
 
 	if (of_device_is_compatible(np, "marvell,mv88f6180-core-clock"))
 		mvebu_coreclk_setup(np, &mv88f6180_coreclks);
+	else if (of_device_is_compatible(np, "marvell,mv98dx1135-core-clock"))
+		mvebu_coreclk_setup(np, &mv98dx1135_coreclks);
 	else
 		mvebu_coreclk_setup(np, &kirkwood_coreclks);
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, kirkwood_gating_desc);
 		kirkwood_clk_muxing_setup(cgnp, kirkwood_mux_desc);
+
+		of_node_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(kirkwood_clk, "marvell,kirkwood-core-clock",
 	       kirkwood_clk_init);
 CLK_OF_DECLARE(mv88f6180_clk, "marvell,mv88f6180-core-clock",
+	       kirkwood_clk_init);
+CLK_OF_DECLARE(98dx1135_clk, "marvell,mv98dx1135-core-clock",
 	       kirkwood_clk_init);

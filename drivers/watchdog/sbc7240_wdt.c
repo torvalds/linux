@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	NANO7240 SBC Watchdog device driver
  *
  *	Based on w83877f.c by Scott Jennings,
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation;
- *
- *	Software distributed under the License is distributed on an "AS IS"
- *	basis, WITHOUT WARRANTY OF ANY KIND, either express or
- *	implied. See the License for the specific language governing
- *	rights and limitations under the License.
- *
  *	(c) Copyright 2007  Gilles GIGAN <gilles.gigan@jcu.edu.au>
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -136,7 +127,7 @@ static int fop_open(struct inode *inode, struct file *file)
 
 	wdt_enable();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int fop_close(struct inode *inode, struct file *file)
@@ -203,9 +194,8 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (wdt_set_timeout(new_timeout))
 			return -EINVAL;
-
-		/* Fall through */
 	}
+	/* Fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, (int __user *)arg);
 	default:
@@ -220,6 +210,7 @@ static const struct file_operations wdt_fops = {
 	.open = fop_open,
 	.release = fop_close,
 	.unlocked_ioctl = fop_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static struct miscdevice wdt_miscdev = {

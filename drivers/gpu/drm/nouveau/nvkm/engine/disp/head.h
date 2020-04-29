@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_HEAD_H__
 #define __NVKM_DISP_HEAD_H__
 #include "priv.h"
@@ -52,6 +52,14 @@ void nv50_head_rgpos(struct nvkm_head *, u16 *, u16 *);
 #define HEAD_DBG(h,f,a...) HEAD_MSG((h), debug, f, ##a)
 
 int nv04_head_new(struct nvkm_disp *, int id);
+
+int nv50_head_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_head_new(struct nvkm_disp *, int id);
+
+int gf119_head_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_head_new(struct nvkm_disp *, int id);
+void gf119_head_rgclk(struct nvkm_head *, int);
+
+int gv100_head_cnt(struct nvkm_disp *, unsigned long *);
+int gv100_head_new(struct nvkm_disp *, int id);
 #endif

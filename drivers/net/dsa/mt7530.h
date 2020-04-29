@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017 Sean Wang <sean.wang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MT7530_H
@@ -18,6 +10,11 @@
 #define MT7530_CPU_PORT			6
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
+
+enum {
+	ID_MT7530 = 0,
+	ID_MT7621 = 1,
+};
 
 #define	NUM_TRGMII_CTRL			5
 
@@ -36,6 +33,12 @@
 #define  UNM_FFP(x)			(((x) & 0xff) << 16)
 #define  UNU_FFP(x)			(((x) & 0xff) << 8)
 #define  UNU_FFP_MASK			UNU_FFP(~0)
+#define  CPU_EN				BIT(7)
+#define  CPU_PORT(x)			((x) << 4)
+#define  CPU_MASK			(0xf << 4)
+#define  MIRROR_EN			BIT(3)
+#define  MIRROR_PORT(x)			((x) & 0x7)
+#define  MIRROR_MASK			0x7
 
 /* Registers for address table access */
 #define MT7530_ATA1			0x74
@@ -141,6 +144,8 @@ enum mt7530_stp_state {
 
 /* Register for port control */
 #define MT7530_PCR_P(x)			(0x2004 + ((x) * 0x100))
+#define  PORT_TX_MIR			BIT(9)
+#define  PORT_RX_MIR			BIT(8)
 #define  PORT_VLAN(x)			((x) & 0x3)
 
 enum mt7530_port_mode {
@@ -167,8 +172,15 @@ enum mt7530_port_mode {
 /* Register for port vlan control */
 #define MT7530_PVC_P(x)			(0x2010 + ((x) * 0x100))
 #define  PORT_SPEC_TAG			BIT(5)
+#define  PVC_EG_TAG(x)			(((x) & 0x7) << 8)
+#define  PVC_EG_TAG_MASK		PVC_EG_TAG(7)
 #define  VLAN_ATTR(x)			(((x) & 0x3) << 6)
 #define  VLAN_ATTR_MASK			VLAN_ATTR(3)
+
+enum mt7530_vlan_port_eg_tag {
+	MT7530_VLAN_EG_DISABLED = 0,
+	MT7530_VLAN_EG_CONSISTENT = 1,
+};
 
 enum mt7530_vlan_port_attr {
 	MT7530_VLAN_USER = 0,
@@ -186,6 +198,7 @@ enum mt7530_vlan_port_attr {
 /* Register for port MAC control register */
 #define MT7530_PMCR_P(x)		(0x3000 + ((x) * 0x100))
 #define  PMCR_IFG_XMIT(x)		(((x) & 0x3) << 18)
+#define  PMCR_EXT_PHY			BIT(17)
 #define  PMCR_MAC_MODE			BIT(16)
 #define  PMCR_FORCE_MODE		BIT(15)
 #define  PMCR_TX_EN			BIT(14)
@@ -198,26 +211,24 @@ enum mt7530_vlan_port_attr {
 #define  PMCR_FORCE_SPEED_100		BIT(2)
 #define  PMCR_FORCE_FDX			BIT(1)
 #define  PMCR_FORCE_LNK			BIT(0)
-#define  PMCR_COMMON_LINK		(PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | \
-					 PMCR_BACKOFF_EN | PMCR_BACKPR_EN | \
-					 PMCR_TX_EN | PMCR_RX_EN | \
-					 PMCR_TX_FC_EN | PMCR_RX_FC_EN)
-#define  PMCR_CPUP_LINK			(PMCR_COMMON_LINK | PMCR_FORCE_MODE | \
-					 PMCR_FORCE_SPEED_1000 | \
-					 PMCR_FORCE_FDX | \
-					 PMCR_FORCE_LNK)
-#define  PMCR_USERP_LINK		PMCR_COMMON_LINK
-#define  PMCR_FIXED_LINK		(PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | \
-					 PMCR_FORCE_MODE | PMCR_TX_EN | \
-					 PMCR_RX_EN | PMCR_BACKPR_EN | \
-					 PMCR_BACKOFF_EN | \
-					 PMCR_FORCE_SPEED_1000 | \
-					 PMCR_FORCE_FDX | \
-					 PMCR_FORCE_LNK)
-#define PMCR_FIXED_LINK_FC		(PMCR_FIXED_LINK | \
-					 PMCR_TX_FC_EN | PMCR_RX_FC_EN)
+#define  PMCR_SPEED_MASK		(PMCR_FORCE_SPEED_100 | \
+					 PMCR_FORCE_SPEED_1000)
+#define  PMCR_LINK_SETTINGS_MASK	(PMCR_TX_EN | PMCR_FORCE_SPEED_1000 | \
+					 PMCR_RX_EN | PMCR_FORCE_SPEED_100 | \
+					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
+					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
 
 #define MT7530_PMSR_P(x)		(0x3008 + (x) * 0x100)
+#define  PMSR_EEE1G			BIT(7)
+#define  PMSR_EEE100M			BIT(6)
+#define  PMSR_RX_FC			BIT(5)
+#define  PMSR_TX_FC			BIT(4)
+#define  PMSR_SPEED_1000		BIT(3)
+#define  PMSR_SPEED_100			BIT(2)
+#define  PMSR_SPEED_10			0x00
+#define  PMSR_SPEED_MASK		(PMSR_SPEED_100 | PMSR_SPEED_1000)
+#define  PMSR_DPX			BIT(1)
+#define  PMSR_LINK			BIT(0)
 
 /* Register for MIB */
 #define MT7530_PORT_MIB_COUNTER(x)	(0x4000 + (x) * 0x100)
@@ -244,9 +255,14 @@ enum mt7530_vlan_port_attr {
 
 /* Register for hw trap status */
 #define MT7530_HWTRAP			0x7800
+#define  HWTRAP_XTAL_MASK		(BIT(10) | BIT(9))
+#define  HWTRAP_XTAL_25MHZ		(BIT(10) | BIT(9))
+#define  HWTRAP_XTAL_40MHZ		(BIT(10))
+#define  HWTRAP_XTAL_20MHZ		(BIT(9))
 
 /* Register for hw trap modification */
 #define MT7530_MHWTRAP			0x7804
+#define  MHWTRAP_PHY0_SEL		BIT(20)
 #define  MHWTRAP_MANUAL			BIT(16)
 #define  MHWTRAP_P5_MAC_SEL		BIT(13)
 #define  MHWTRAP_P6_DIS			BIT(8)
@@ -268,7 +284,6 @@ enum mt7530_vlan_port_attr {
 
 /* Registers for TRGMII on the both side */
 #define MT7530_TRGMII_RCK_CTRL		0x7a00
-#define GSW_TRGMII_RCK_CTRL		0x300
 #define  RX_RST				BIT(31)
 #define  RXC_DQSISEL			BIT(30)
 #define  DQSI1_TAP_MASK			(0x7f << 8)
@@ -277,30 +292,23 @@ enum mt7530_vlan_port_attr {
 #define  DQSI0_TAP(x)			((x) & 0x7f)
 
 #define MT7530_TRGMII_RCK_RTT		0x7a04
-#define GSW_TRGMII_RCK_RTT		0x304
 #define  DQS1_GATE			BIT(31)
 #define  DQS0_GATE			BIT(30)
 
 #define MT7530_TRGMII_RD(x)		(0x7a10 + (x) * 8)
-#define GSW_TRGMII_RD(x)		(0x310 + (x) * 8)
 #define  BSLIP_EN			BIT(31)
 #define  EDGE_CHK			BIT(30)
 #define  RD_TAP_MASK			0x7f
 #define  RD_TAP(x)			((x) & 0x7f)
 
-#define GSW_TRGMII_TXCTRL		0x340
 #define MT7530_TRGMII_TXCTRL		0x7a40
 #define  TRAIN_TXEN			BIT(31)
 #define  TXC_INV			BIT(30)
 #define  TX_RST				BIT(28)
 
 #define MT7530_TRGMII_TD_ODT(i)		(0x7a54 + 8 * (i))
-#define GSW_TRGMII_TD_ODT(i)		(0x354 + 8 * (i))
 #define  TD_DM_DRVP(x)			((x) & 0xf)
 #define  TD_DM_DRVN(x)			(((x) & 0xf) << 4)
-
-#define GSW_INTF_MODE			0x390
-#define  INTF_MODE_TRGMII		BIT(1)
 
 #define MT7530_TRGMII_TCK_CTRL		0x7a78
 #define  TCK_TAP(x)			(((x) & 0xf) << 8)
@@ -402,8 +410,31 @@ struct mt7530_port {
 	bool enable;
 	u32 pm;
 	u16 pvid;
-	bool vlan_filtering;
 };
+
+/* Port 5 interface select definitions */
+enum p5_interface_select {
+	P5_DISABLED = 0,
+	P5_INTF_SEL_PHY_P0,
+	P5_INTF_SEL_PHY_P4,
+	P5_INTF_SEL_GMAC5,
+};
+
+static const char *p5_intf_modes(unsigned int p5_interface)
+{
+	switch (p5_interface) {
+	case P5_DISABLED:
+		return "DISABLED";
+	case P5_INTF_SEL_PHY_P0:
+		return "PHY P0";
+	case P5_INTF_SEL_PHY_P4:
+		return "PHY P4";
+	case P5_INTF_SEL_GMAC5:
+		return "GMAC5";
+	default:
+		return "unknown";
+	}
+}
 
 /* struct mt7530_priv -	This is the main data structure for holding the state
  *			of the driver
@@ -411,7 +442,6 @@ struct mt7530_port {
  * @ds:			The pointer to the dsa core structure
  * @bus:		The bus used for the device and built-in PHY
  * @rstc:		The pointer to reset control used by MCM
- * @ethernet:		The regmap used for access TRGMII-based registers
  * @core_pwr:		The power supplied into the core
  * @io_pwr:		The power supplied into the I/O
  * @reset:		The descriptor for GPIO line tied to its reset pin
@@ -420,17 +450,24 @@ struct mt7530_port {
  * @ports:		Holding the state among ports
  * @reg_mutex:		The lock for protecting among process accessing
  *			registers
+ * @p6_interface	Holding the current port 6 interface
+ * @p5_intf_sel:	Holding the current port 5 interface select
  */
 struct mt7530_priv {
 	struct device		*dev;
 	struct dsa_switch	*ds;
 	struct mii_bus		*bus;
 	struct reset_control	*rstc;
-	struct regmap		*ethernet;
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
 	struct gpio_desc	*reset;
+	unsigned int		id;
 	bool			mcm;
+	phy_interface_t		p6_interface;
+	phy_interface_t		p5_interface;
+	unsigned int		p5_intf_sel;
+	u8			mirror_rx;
+	u8			mirror_tx;
 
 	struct mt7530_port	ports[MT7530_NUM_PORTS];
 	/* protect among processes for registers access*/

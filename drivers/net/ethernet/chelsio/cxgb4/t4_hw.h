@@ -91,6 +91,7 @@ enum {
 	SGE_CTXT_SIZE = 24,       /* size of SGE context */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_NDBQTIMERS = 8,       /* # of Doorbell Queue Timer values */
 	SGE_MAX_IQ_SIZE = 65520,
 
 	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */

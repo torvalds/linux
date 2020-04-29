@@ -171,7 +171,7 @@
 			uart0: serial@4000 {
 				compatible = "arm,mps2-uart";
 				reg = <0x4000 0x1000>;
-				interrupts = <0 1 12>;
+				interrupts = <0>, <1>, <12>;
 				clocks = <&sysclk>;
 				status = "disabled";
 			};
@@ -179,7 +179,7 @@
 			uart1: serial@5000 {
 				compatible = "arm,mps2-uart";
 				reg = <0x5000 0x1000>;
-				interrupts = <2 3 12>;
+				interrupts = <2>, <3>, <12>;
 				clocks = <&sysclk>;
 				status = "disabled";
 			};
@@ -187,7 +187,7 @@
 			uart2: serial@6000 {
 				compatible = "arm,mps2-uart";
 				reg = <0x6000 0x1000>;
-				interrupts = <4 5 12>;
+				interrupts = <4>, <5>, <12>;
 				clocks = <&sysclk>;
 				status = "disabled";
 			};

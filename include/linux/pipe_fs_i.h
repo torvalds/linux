@@ -29,15 +29,16 @@ struct pipe_buffer {
 /**
  *	struct pipe_inode_info - a linux kernel pipe
  *	@mutex: mutex protecting the whole thing
- *	@wait: reader/writer wait point in case of empty/full pipe
- *	@nrbufs: the number of non-empty pipe buffers in this pipe
- *	@buffers: total number of buffers (should be a power of 2)
- *	@curbuf: the current pipe buffer entry
+ *	@rd_wait: reader wait point in case of empty pipe
+ *	@wr_wait: writer wait point in case of full pipe
+ *	@head: The point of buffer production
+ *	@tail: The point of buffer consumption
+ *	@max_usage: The maximum number of slots that may be used in the ring
+ *	@ring_size: total number of buffers (should be a power of 2)
  *	@tmp_page: cached released page
  *	@readers: number of current readers of this pipe
  *	@writers: number of current writers of this pipe
  *	@files: number of struct file referring this pipe (protected by ->i_lock)
- *	@waiting_writers: number of writers blocked waiting for room
  *	@r_counter: reader counter
  *	@w_counter: writer counter
  *	@fasync_readers: reader side fasync
@@ -47,12 +48,14 @@ struct pipe_buffer {
  **/
 struct pipe_inode_info {
 	struct mutex mutex;
-	wait_queue_head_t wait;
-	unsigned int nrbufs, curbuf, buffers;
+	wait_queue_head_t rd_wait, wr_wait;
+	unsigned int head;
+	unsigned int tail;
+	unsigned int max_usage;
+	unsigned int ring_size;
 	unsigned int readers;
 	unsigned int writers;
 	unsigned int files;
-	unsigned int waiting_writers;
 	unsigned int r_counter;
 	unsigned int w_counter;
 	struct page *tmp_page;
@@ -73,13 +76,6 @@ struct pipe_inode_info {
  * in fs/pipe.c for the pipe and generic variants of these hooks.
  */
 struct pipe_buf_operations {
-	/*
-	 * This is set to 1, if the generic pipe read/write may coalesce
-	 * data into an existing buffer. If this is set to 0, a new pipe
-	 * page segment is always used for new data.
-	 */
-	int can_merge;
-
 	/*
 	 * ->confirm() verifies that the data in the pipe buffer is there
 	 * and that the contents are good. If the pages in the pipe belong
@@ -108,18 +104,72 @@ struct pipe_buf_operations {
 	/*
 	 * Get a reference to the pipe buffer.
 	 */
-	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
+	bool (*get)(struct pipe_inode_info *, struct pipe_buffer *);
 };
+
+/**
+ * pipe_empty - Return true if the pipe is empty
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ */
+static inline bool pipe_empty(unsigned int head, unsigned int tail)
+{
+	return head == tail;
+}
+
+/**
+ * pipe_occupancy - Return number of slots used in the pipe
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ */
+static inline unsigned int pipe_occupancy(unsigned int head, unsigned int tail)
+{
+	return head - tail;
+}
+
+/**
+ * pipe_full - Return true if the pipe is full
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ * @limit: The maximum amount of slots available.
+ */
+static inline bool pipe_full(unsigned int head, unsigned int tail,
+			     unsigned int limit)
+{
+	return pipe_occupancy(head, tail) >= limit;
+}
+
+/**
+ * pipe_space_for_user - Return number of slots available to userspace
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ * @pipe: The pipe info structure
+ */
+static inline unsigned int pipe_space_for_user(unsigned int head, unsigned int tail,
+					       struct pipe_inode_info *pipe)
+{
+	unsigned int p_occupancy, p_space;
+
+	p_occupancy = pipe_occupancy(head, tail);
+	if (p_occupancy >= pipe->max_usage)
+		return 0;
+	p_space = pipe->ring_size - p_occupancy;
+	if (p_space > pipe->max_usage)
+		p_space = pipe->max_usage;
+	return p_space;
+}
 
 /**
  * pipe_buf_get - get a reference to a pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to get a reference to
+ *
+ * Return: %true if the reference was successfully obtained.
  */
-static inline void pipe_buf_get(struct pipe_inode_info *pipe,
+static inline __must_check bool pipe_buf_get(struct pipe_inode_info *pipe,
 				struct pipe_buffer *buf)
 {
-	buf->ops->get(pipe, buf);
+	return buf->ops->get(pipe, buf);
 }
 
 /**
@@ -178,10 +228,12 @@ struct pipe_inode_info *alloc_pipe_info(void);
 void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
-void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
+bool generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_nosteal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
+void pipe_buf_mark_unmergeable(struct pipe_buffer *buf);
 
 extern const struct pipe_buf_operations nosteal_pipe_buf_ops;
 

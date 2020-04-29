@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel MIC Coprocessor State Management (COSM) Driver
- *
  */
 #include <linux/kthread.h>
 #include <linux/sched/signal.h>
@@ -179,9 +167,13 @@ static void cosm_set_crashed(struct cosm_device *cdev)
 static void cosm_send_time(struct cosm_device *cdev)
 {
 	struct cosm_msg msg = { .id = COSM_MSG_SYNC_TIME };
+	struct timespec64 ts;
 	int rc;
 
-	getnstimeofday64(&msg.timespec);
+	ktime_get_real_ts64(&ts);
+	msg.timespec.tv_sec = ts.tv_sec;
+	msg.timespec.tv_nsec = ts.tv_nsec;
+
 	rc = scif_send(cdev->epd, &msg, sizeof(msg), SCIF_SEND_BLOCK);
 	if (rc < 0)
 		dev_err(&cdev->dev, "%s %d scif_send failed rc %d\n",

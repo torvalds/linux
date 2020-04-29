@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Oskar Andero <oskar.andero@gmail.com>
  * Copyright (C) 2014 Rose Technology
@@ -34,10 +35,6 @@
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21298c.pdf  mcp3204/08
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21950D.pdf  mcp3550/1/3
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -167,7 +164,7 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 	case mcp3550_60:
 	case mcp3551:
 	case mcp3553: {
-		u32 raw = be32_to_cpup((u32 *)adc->rx_buf);
+		u32 raw = be32_to_cpup((__be32 *)adc->rx_buf);
 
 		if (!(adc->spi->mode & SPI_CPOL))
 			raw <<= 1; /* strip Data Ready bit in SPI mode 0,0 */
@@ -424,7 +421,8 @@ static int mcp320x_probe(struct spi_device *spi)
 			adc->transfer[1].len++;
 
 		/* conversions are started by asserting CS pin for 8 usec */
-		adc->start_conv_transfer.delay_usecs = 8;
+		adc->start_conv_transfer.delay.value = 8;
+		adc->start_conv_transfer.delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_init_with_transfers(&adc->start_conv_msg,
 						&adc->start_conv_transfer, 1);
 

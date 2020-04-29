@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 alarmtimer-suspend
 change_skew
 clocksource-switch
@@ -9,7 +10,7 @@ nanosleep
 nsleep-lat
 posix_timers
 raw_skew
-rtctest
+rtcpie
 set-2038
 set-tai
 set-timer-lat
@@ -19,4 +20,3 @@ valid-adjtimex
 adjtick
 set-tz
 freq-step
-rtctest_setdate

@@ -1,0 +1,189 @@
+This is a place for planning the ongoing long-term work in the GPIO
+subsystem.
+
+
+GPIO descriptors
+
+Starting with commit 79a9becda894 the GPIO subsystem embarked on a journey
+to move away from the global GPIO numberspace and toward a decriptor-based
+approach. This means that GPIO consumers, drivers and machine descriptions
+ideally have no use or idea of the global GPIO numberspace that has/was
+used in the inception of the GPIO subsystem.
+
+The numberspace issue is the same as to why irq is moving away from irq
+numbers to IRQ descriptors.
+
+The underlying motivation for this is that the GPIO numberspace has become
+unmanageable: machine board files tend to become full of macros trying to
+establish the numberspace at compile-time, making it hard to add any numbers
+in the middle (such as if you missed a pin on a chip) without the numberspace
+breaking.
+
+Machine descriptions such as device tree or ACPI does not have a concept of the
+Linux GPIO number as those descriptions are external to the Linux kernel
+and treat GPIO lines as abstract entities.
+
+The runtime-assigned GPIO numberspace (what you get if you assign the GPIO
+base as -1 in struct gpio_chip) has also became unpredictable due to factors
+such as probe ordering and the introduction of -EPROBE_DEFER making probe
+ordering of independent GPIO chips essentially unpredictable, as their base
+number will be assigned on a first come first serve basis.
+
+The best way to get out of the problem is to make the global GPIO numbers
+unimportant by simply not using them. GPIO descriptors deal with this.
+
+Work items:
+
+- Convert all GPIO device drivers to only #include <linux/gpio/driver.h>
+
+- Convert all consumer drivers to only #include <linux/gpio/consumer.h>
+
+- Convert all machine descriptors in "boardfiles" to only
+  #include <linux/gpio/machine.h>, the other option being to convert it
+  to a machine description such as device tree, ACPI or fwnode that
+  implicitly does not use global GPIO numbers.
+
+- When this work is complete (will require some of the items in the
+  following ongoing work as well) we can delete the old global
+  numberspace accessors from <linux/gpio.h> and eventually delete
+  <linux/gpio.h> altogether.
+
+
+Get rid of <linux/of_gpio.h>
+
+This header and helpers appeared at one point when there was no proper
+driver infrastructure for doing simpler MMIO GPIO devices and there was
+no core support for parsing device tree GPIOs from the core library with
+the [devm_]gpiod_get() calls we have today that will implicitly go into
+the device tree back-end. It is legacy and should not be used in new code.
+
+Work items:
+
+- Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
+  GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
+  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_add()
+  of_mm_gpiochip_remove() from the kernel.
+
+- Change all consumer drivers that #include <linux/of_gpio.h> to
+  #include <linux/gpio/consumer.h> and stop doing custom parsing of the
+  GPIO lines from the device tree. This can be tricky and often ivolves
+  changing boardfiles, etc.
+
+- Pull semantics for legacy device tree (OF) GPIO lookups into
+  gpiolib-of.c: in some cases subsystems are doing custom flags and
+  lookups for polarity inversion, open drain and what not. As we now
+  handle this with generic OF bindings, pull all legacy handling into
+  gpiolib so the library API becomes narrow and deep and handle all
+  legacy bindings internally. (See e.g. commits 6953c57ab172,
+  6a537d48461d etc)
+
+- Delete <linux/of_gpio.h> when all the above is complete and everything
+  uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
+
+
+Get rid of <linux/gpio.h>
+
+This legacy header is a one stop shop for anything GPIO is closely tied
+to the global GPIO numberspace. The endgame of the above refactorings will
+be the removal of <linux/gpio.h> and from that point only the specialized
+headers under <linux/gpio/*.h> will be used. This requires all the above to
+be completed and is expected to take a long time.
+
+
+Collect drivers
+
+Collect GPIO drivers from arch/* and other places that should be placed
+in drivers/gpio/gpio-*. Augment platforms to create platform devices or
+similar and probe a proper driver in the gpiolib subsystem.
+
+In some cases it makes sense to create a GPIO chip from the local driver
+for a few GPIOs. Those should stay where they are.
+
+
+Generic MMIO GPIO
+
+The GPIO drivers can utilize the generic MMIO helper library in many
+cases, and the helper library should be as helpful as possible for MMIO
+drivers. (drivers/gpio/gpio-mmio.c)
+
+Work items:
+
+- Look over and identify any remaining easily converted drivers and
+  dry-code conversions to MMIO GPIO for maintainers to test
+
+- Expand the MMIO GPIO or write a new library for regmap-based I/O
+  helpers for GPIO drivers on regmap that simply use offsets
+  0..n in some register to drive GPIO lines
+
+- Expand the MMIO GPIO or write a new library for port-mapped I/O
+  helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
+  this with dry-coding and sending to maintainers to test
+
+
+GPIOLIB irqchip
+
+The GPIOLIB irqchip is a helper irqchip for "simple cases" that should
+try to cover any generic kind of irqchip cascaded from a GPIO.
+
+- Convert all the GPIOLIB_IRQCHIP users to pass an irqchip template,
+  parent and flags before calling [devm_]gpiochip_add[_data]().
+  Currently we set up the irqchip after setting up the gpiochip
+  using gpiochip_irqchip_add() and gpiochip_set_[chained|nested]_irqchip().
+  This is too complex, so convert all users over to just set up
+  the irqchip before registering the gpio_chip, typical example:
+
+  /* Typical state container with dynamic irqchip */
+  struct my_gpio {
+      struct gpio_chip gc;
+      struct irq_chip irq;
+  };
+
+  int irq; /* from platform etc */
+  struct my_gpio *g;
+  struct gpio_irq_chip *girq;
+
+  /* Set up the irqchip dynamically */
+  g->irq.name = "my_gpio_irq";
+  g->irq.irq_ack = my_gpio_ack_irq;
+  g->irq.irq_mask = my_gpio_mask_irq;
+  g->irq.irq_unmask = my_gpio_unmask_irq;
+  g->irq.irq_set_type = my_gpio_set_irq_type;
+
+  /* Get a pointer to the gpio_irq_chip */
+  girq = &g->gc.irq;
+  girq->chip = &g->irq;
+  girq->parent_handler = ftgpio_gpio_irq_handler;
+  girq->num_parents = 1;
+  girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+                               GFP_KERNEL);
+  if (!girq->parents)
+      return -ENOMEM;
+  girq->default_type = IRQ_TYPE_NONE;
+  girq->handler = handle_bad_irq;
+  girq->parents[0] = irq;
+
+  When this is done, we will delete the old APIs for instatiating
+  GPIOLIB_IRQCHIP and simplify the code.
+
+- Look over and identify any remaining easily converted drivers and
+  dry-code conversions to gpiolib irqchip for maintainers to test
+
+- Drop gpiochip_set_chained_irqchip() when all the chained irqchips
+  have been converted to the above infrastructure.
+
+- Add more infrastructure to make it possible to also pass a threaded
+  irqchip in struct gpio_irq_chip.
+
+- Drop gpiochip_irqchip_add_nested() when all the chained irqchips
+  have been converted to the above infrastructure.
+
+
+Increase integration with pin control
+
+There are already ways to use pin control as back-end for GPIO and
+it may make sense to bring these subsystems closer. One reason for
+creating pin control as its own subsystem was that we could avoid any
+use of the global GPIO numbers. Once the above is complete, it may
+make sense to simply join the subsystems into one and make pin
+multiplexing, pin configuration, GPIO, etc selectable options in one
+and the same pin control and GPIO subsystem.

@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_HW_QP_H
@@ -103,6 +94,7 @@ struct hinic_rq {
 
 	struct hinic_wq         *wq;
 
+	struct cpumask		affinity_mask;
 	u32                     irq;
 	u16                     msix_entry;
 
@@ -149,6 +141,31 @@ int hinic_get_sq_free_wqebbs(struct hinic_sq *sq);
 
 int hinic_get_rq_free_wqebbs(struct hinic_rq *rq);
 
+void hinic_task_set_l2hdr(struct hinic_sq_task *task, u32 len);
+
+void hinic_task_set_outter_l3(struct hinic_sq_task *task,
+			      enum hinic_l3_offload_type l3_type,
+			      u32 network_len);
+
+void hinic_task_set_inner_l3(struct hinic_sq_task *task,
+			     enum hinic_l3_offload_type l3_type,
+			     u32 network_len);
+
+void hinic_task_set_tunnel_l4(struct hinic_sq_task *task,
+			      enum hinic_l4_tunnel_type l4_type,
+			      u32 tunnel_len);
+
+void hinic_set_cs_inner_l4(struct hinic_sq_task *task,
+			   u32 *queue_info,
+			   enum hinic_l4_offload_type l4_offload,
+			   u32 l4_len, u32 offset);
+
+void hinic_set_tso_inner_l4(struct hinic_sq_task *task,
+			    u32 *queue_info,
+			    enum hinic_l4_offload_type l4_offload,
+			    u32 l4_len,
+			    u32 offset, u32 ip_ident, u32 mss);
+
 void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
 			  struct hinic_sq_wqe *wqe, struct hinic_sge *sges,
 			  int nr_sges);
@@ -159,13 +176,19 @@ void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
 struct hinic_sq_wqe *hinic_sq_get_wqe(struct hinic_sq *sq,
 				      unsigned int wqe_size, u16 *prod_idx);
 
+void hinic_sq_return_wqe(struct hinic_sq *sq, unsigned int wqe_size);
+
 void hinic_sq_write_wqe(struct hinic_sq *sq, u16 prod_idx,
 			struct hinic_sq_wqe *wqe, struct sk_buff *skb,
 			unsigned int wqe_size);
 
 struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
 				       struct sk_buff **skb,
-				       unsigned int *wqe_size, u16 *cons_idx);
+				       unsigned int wqe_size, u16 *cons_idx);
+
+struct hinic_sq_wqe *hinic_sq_read_wqebb(struct hinic_sq *sq,
+					 struct sk_buff **skb,
+					 unsigned int *wqe_size, u16 *cons_idx);
 
 void hinic_sq_put_wqe(struct hinic_sq *sq, unsigned int wqe_size);
 

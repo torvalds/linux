@@ -2,6 +2,7 @@
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Logical priority bands not depending on specific packet scheduler.
@@ -124,6 +125,21 @@ struct tc_fifo_qopt {
 	__u32	limit;	/* Queue length: bytes for bfifo, packets for pfifo */
 };
 
+/* SKBPRIO section */
+
+/*
+ * Priorities go from zero to (SKBPRIO_MAX_PRIORITY - 1).
+ * SKBPRIO_MAX_PRIORITY should be at least 64 in order for skbprio to be able
+ * to map one to one the DS field of IPV4 and IPV6 headers.
+ * Memory allocation grows linearly with SKBPRIO_MAX_PRIORITY.
+ */
+
+#define SKBPRIO_MAX_PRIORITY 64
+
+struct tc_skbprio_qopt {
+	__u32	limit;		/* Queue length in packets. */
+};
+
 /* PRIO section */
 
 #define TCQ_PRIO_BANDS	16
@@ -240,6 +256,7 @@ enum {
 	TCA_RED_PARMS,
 	TCA_RED_STAB,
 	TCA_RED_MAX_P,
+	TCA_RED_FLAGS,		/* bitfield32 */
 	__TCA_RED_MAX,
 };
 
@@ -252,11 +269,27 @@ struct tc_red_qopt {
 	unsigned char   Wlog;		/* log(W)		*/
 	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
 	unsigned char   Scell_log;	/* cell size for idle damping */
+
+	/* This field can be used for flags that a RED-like qdisc has
+	 * historically supported. E.g. when configuring RED, it can be used for
+	 * ECN, HARDDROP and ADAPTATIVE. For SFQ it can be used for ECN,
+	 * HARDDROP. Etc. Because this field has not been validated, and is
+	 * copied back on dump, any bits besides those to which a given qdisc
+	 * has assigned a historical meaning need to be considered for free use
+	 * by userspace tools.
+	 *
+	 * Any further flags need to be passed differently, e.g. through an
+	 * attribute (such as TCA_RED_FLAGS above). Such attribute should allow
+	 * passing both recent and historic flags in one value.
+	 */
 	unsigned char	flags;
 #define TC_RED_ECN		1
 #define TC_RED_HARDDROP		2
 #define TC_RED_ADAPTATIVE	4
+#define TC_RED_NODROP		8
 };
+
+#define TC_RED_HISTORIC_FLAGS (TC_RED_ECN | TC_RED_HARDDROP | TC_RED_ADAPTATIVE)
 
 struct tc_red_xstats {
 	__u32           early;          /* Early drops */
@@ -276,10 +309,37 @@ enum {
        TCA_GRED_DPS,
        TCA_GRED_MAX_P,
        TCA_GRED_LIMIT,
+       TCA_GRED_VQ_LIST,	/* nested TCA_GRED_VQ_ENTRY */
        __TCA_GRED_MAX,
 };
 
 #define TCA_GRED_MAX (__TCA_GRED_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_ENTRY_UNSPEC,
+	TCA_GRED_VQ_ENTRY,	/* nested TCA_GRED_VQ_* */
+	__TCA_GRED_VQ_ENTRY_MAX,
+};
+#define TCA_GRED_VQ_ENTRY_MAX (__TCA_GRED_VQ_ENTRY_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_UNSPEC,
+	TCA_GRED_VQ_PAD,
+	TCA_GRED_VQ_DP,			/* u32 */
+	TCA_GRED_VQ_STAT_BYTES,		/* u64 */
+	TCA_GRED_VQ_STAT_PACKETS,	/* u32 */
+	TCA_GRED_VQ_STAT_BACKLOG,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_PDROP,		/* u32 */
+	TCA_GRED_VQ_STAT_OTHER,		/* u32 */
+	TCA_GRED_VQ_FLAGS,		/* u32 */
+	__TCA_GRED_VQ_MAX
+};
+
+#define TCA_GRED_VQ_MAX (__TCA_GRED_VQ_MAX - 1)
 
 struct tc_gred_qopt {
 	__u32		limit;        /* HARD maximal queue length (bytes)    */
@@ -380,9 +440,9 @@ enum {
 struct tc_htb_xstats {
 	__u32 lends;
 	__u32 borrows;
-	__u32 giants;	/* too big packets (rate will not be accurate) */
-	__u32 tokens;
-	__u32 ctokens;
+	__u32 giants;	/* unused since 'Make HTB scheduler work with TSO.' */
+	__s32 tokens;
+	__s32 ctokens;
 };
 
 /* HFSC section */
@@ -539,6 +599,7 @@ enum {
 	TCA_NETEM_LATENCY64,
 	TCA_NETEM_JITTER64,
 	TCA_NETEM_SLOT,
+	TCA_NETEM_SLOT_DIST,
 	__TCA_NETEM_MAX,
 };
 
@@ -581,6 +642,8 @@ struct tc_netem_slot {
 	__s64   max_delay;
 	__s32   max_packets;
 	__s32   max_bytes;
+	__s64	dist_delay; /* nsec */
+	__s64	dist_jitter; /* nsec */
 };
 
 enum {
@@ -846,6 +909,10 @@ enum {
 
 	TCA_FQ_LOW_RATE_THRESHOLD, /* per packet delay under this rate */
 
+	TCA_FQ_CE_THRESHOLD,	/* DCTCP-like CE-marking threshold */
+
+	TCA_FQ_TIMER_SLACK,	/* timer slack */
+
 	__TCA_FQ_MAX
 };
 
@@ -864,6 +931,7 @@ struct tc_fq_qd_stats {
 	__u32	inactive_flows;
 	__u32	throttled_flows;
 	__u32	unthrottle_latency_ns;
+	__u64	ce_mark;		/* packets above ce_threshold */
 };
 
 /* Heavy-Hitter Filter */
@@ -901,19 +969,56 @@ enum {
 	TCA_PIE_BETA,
 	TCA_PIE_ECN,
 	TCA_PIE_BYTEMODE,
+	TCA_PIE_DQ_RATE_ESTIMATOR,
 	__TCA_PIE_MAX
 };
 #define TCA_PIE_MAX   (__TCA_PIE_MAX - 1)
 
 struct tc_pie_xstats {
-	__u32 prob;             /* current probability */
-	__u32 delay;            /* current delay in ms */
-	__u32 avg_dq_rate;      /* current average dq_rate in bits/pie_time */
-	__u32 packets_in;       /* total number of packets enqueued */
-	__u32 dropped;          /* packets dropped due to pie_action */
-	__u32 overlimit;        /* dropped due to lack of space in queue */
-	__u32 maxq;             /* maximum queue size */
-	__u32 ecn_mark;         /* packets marked with ecn*/
+	__u64 prob;			/* current probability */
+	__u32 delay;			/* current delay in ms */
+	__u32 avg_dq_rate;		/* current average dq_rate in
+					 * bits/pie_time
+					 */
+	__u32 dq_rate_estimating;	/* is avg_dq_rate being calculated? */
+	__u32 packets_in;		/* total number of packets enqueued */
+	__u32 dropped;			/* packets dropped due to pie_action */
+	__u32 overlimit;		/* dropped due to lack of space
+					 * in queue
+					 */
+	__u32 maxq;			/* maximum queue size */
+	__u32 ecn_mark;			/* packets marked with ecn*/
+};
+
+/* FQ PIE */
+enum {
+	TCA_FQ_PIE_UNSPEC,
+	TCA_FQ_PIE_LIMIT,
+	TCA_FQ_PIE_FLOWS,
+	TCA_FQ_PIE_TARGET,
+	TCA_FQ_PIE_TUPDATE,
+	TCA_FQ_PIE_ALPHA,
+	TCA_FQ_PIE_BETA,
+	TCA_FQ_PIE_QUANTUM,
+	TCA_FQ_PIE_MEMORY_LIMIT,
+	TCA_FQ_PIE_ECN_PROB,
+	TCA_FQ_PIE_ECN,
+	TCA_FQ_PIE_BYTEMODE,
+	TCA_FQ_PIE_DQ_RATE_ESTIMATOR,
+	__TCA_FQ_PIE_MAX
+};
+#define TCA_FQ_PIE_MAX   (__TCA_FQ_PIE_MAX - 1)
+
+struct tc_fq_pie_xstats {
+	__u32 packets_in;	/* total number of packets enqueued */
+	__u32 dropped;		/* packets dropped due to fq_pie_action */
+	__u32 overlimit;	/* dropped due to lack of space in queue */
+	__u32 overmemory;	/* dropped due to lack of memory in queue */
+	__u32 ecn_mark;		/* packets marked with ecn */
+	__u32 new_flow_count;	/* count of new flows created by packets */
+	__u32 new_flows_len;	/* count of flows in new list */
+	__u32 old_flows_len;	/* count of flows in old list */
+	__u32 memory_usage;	/* total memory across all queues */
 };
 
 /* CBS */
@@ -933,5 +1038,220 @@ enum {
 };
 
 #define TCA_CBS_MAX (__TCA_CBS_MAX - 1)
+
+
+/* ETF */
+struct tc_etf_qopt {
+	__s32 delta;
+	__s32 clockid;
+	__u32 flags;
+#define TC_ETF_DEADLINE_MODE_ON	_BITUL(0)
+#define TC_ETF_OFFLOAD_ON	_BITUL(1)
+#define TC_ETF_SKIP_SOCK_CHECK	_BITUL(2)
+};
+
+enum {
+	TCA_ETF_UNSPEC,
+	TCA_ETF_PARMS,
+	__TCA_ETF_MAX,
+};
+
+#define TCA_ETF_MAX (__TCA_ETF_MAX - 1)
+
+
+/* CAKE */
+enum {
+	TCA_CAKE_UNSPEC,
+	TCA_CAKE_PAD,
+	TCA_CAKE_BASE_RATE64,
+	TCA_CAKE_DIFFSERV_MODE,
+	TCA_CAKE_ATM,
+	TCA_CAKE_FLOW_MODE,
+	TCA_CAKE_OVERHEAD,
+	TCA_CAKE_RTT,
+	TCA_CAKE_TARGET,
+	TCA_CAKE_AUTORATE,
+	TCA_CAKE_MEMORY,
+	TCA_CAKE_NAT,
+	TCA_CAKE_RAW,
+	TCA_CAKE_WASH,
+	TCA_CAKE_MPU,
+	TCA_CAKE_INGRESS,
+	TCA_CAKE_ACK_FILTER,
+	TCA_CAKE_SPLIT_GSO,
+	TCA_CAKE_FWMARK,
+	__TCA_CAKE_MAX
+};
+#define TCA_CAKE_MAX	(__TCA_CAKE_MAX - 1)
+
+enum {
+	__TCA_CAKE_STATS_INVALID,
+	TCA_CAKE_STATS_PAD,
+	TCA_CAKE_STATS_CAPACITY_ESTIMATE64,
+	TCA_CAKE_STATS_MEMORY_LIMIT,
+	TCA_CAKE_STATS_MEMORY_USED,
+	TCA_CAKE_STATS_AVG_NETOFF,
+	TCA_CAKE_STATS_MIN_NETLEN,
+	TCA_CAKE_STATS_MAX_NETLEN,
+	TCA_CAKE_STATS_MIN_ADJLEN,
+	TCA_CAKE_STATS_MAX_ADJLEN,
+	TCA_CAKE_STATS_TIN_STATS,
+	TCA_CAKE_STATS_DEFICIT,
+	TCA_CAKE_STATS_COBALT_COUNT,
+	TCA_CAKE_STATS_DROPPING,
+	TCA_CAKE_STATS_DROP_NEXT_US,
+	TCA_CAKE_STATS_P_DROP,
+	TCA_CAKE_STATS_BLUE_TIMER_US,
+	__TCA_CAKE_STATS_MAX
+};
+#define TCA_CAKE_STATS_MAX (__TCA_CAKE_STATS_MAX - 1)
+
+enum {
+	__TCA_CAKE_TIN_STATS_INVALID,
+	TCA_CAKE_TIN_STATS_PAD,
+	TCA_CAKE_TIN_STATS_SENT_PACKETS,
+	TCA_CAKE_TIN_STATS_SENT_BYTES64,
+	TCA_CAKE_TIN_STATS_DROPPED_PACKETS,
+	TCA_CAKE_TIN_STATS_DROPPED_BYTES64,
+	TCA_CAKE_TIN_STATS_ACKS_DROPPED_PACKETS,
+	TCA_CAKE_TIN_STATS_ACKS_DROPPED_BYTES64,
+	TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS,
+	TCA_CAKE_TIN_STATS_ECN_MARKED_BYTES64,
+	TCA_CAKE_TIN_STATS_BACKLOG_PACKETS,
+	TCA_CAKE_TIN_STATS_BACKLOG_BYTES,
+	TCA_CAKE_TIN_STATS_THRESHOLD_RATE64,
+	TCA_CAKE_TIN_STATS_TARGET_US,
+	TCA_CAKE_TIN_STATS_INTERVAL_US,
+	TCA_CAKE_TIN_STATS_WAY_INDIRECT_HITS,
+	TCA_CAKE_TIN_STATS_WAY_MISSES,
+	TCA_CAKE_TIN_STATS_WAY_COLLISIONS,
+	TCA_CAKE_TIN_STATS_PEAK_DELAY_US,
+	TCA_CAKE_TIN_STATS_AVG_DELAY_US,
+	TCA_CAKE_TIN_STATS_BASE_DELAY_US,
+	TCA_CAKE_TIN_STATS_SPARSE_FLOWS,
+	TCA_CAKE_TIN_STATS_BULK_FLOWS,
+	TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS,
+	TCA_CAKE_TIN_STATS_MAX_SKBLEN,
+	TCA_CAKE_TIN_STATS_FLOW_QUANTUM,
+	__TCA_CAKE_TIN_STATS_MAX
+};
+#define TCA_CAKE_TIN_STATS_MAX (__TCA_CAKE_TIN_STATS_MAX - 1)
+#define TC_CAKE_MAX_TINS (8)
+
+enum {
+	CAKE_FLOW_NONE = 0,
+	CAKE_FLOW_SRC_IP,
+	CAKE_FLOW_DST_IP,
+	CAKE_FLOW_HOSTS,    /* = CAKE_FLOW_SRC_IP | CAKE_FLOW_DST_IP */
+	CAKE_FLOW_FLOWS,
+	CAKE_FLOW_DUAL_SRC, /* = CAKE_FLOW_SRC_IP | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_DUAL_DST, /* = CAKE_FLOW_DST_IP | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_TRIPLE,   /* = CAKE_FLOW_HOSTS  | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_MAX,
+};
+
+enum {
+	CAKE_DIFFSERV_DIFFSERV3 = 0,
+	CAKE_DIFFSERV_DIFFSERV4,
+	CAKE_DIFFSERV_DIFFSERV8,
+	CAKE_DIFFSERV_BESTEFFORT,
+	CAKE_DIFFSERV_PRECEDENCE,
+	CAKE_DIFFSERV_MAX
+};
+
+enum {
+	CAKE_ACK_NONE = 0,
+	CAKE_ACK_FILTER,
+	CAKE_ACK_AGGRESSIVE,
+	CAKE_ACK_MAX
+};
+
+enum {
+	CAKE_ATM_NONE = 0,
+	CAKE_ATM_ATM,
+	CAKE_ATM_PTM,
+	CAKE_ATM_MAX
+};
+
+
+/* TAPRIO */
+enum {
+	TC_TAPRIO_CMD_SET_GATES = 0x00,
+	TC_TAPRIO_CMD_SET_AND_HOLD = 0x01,
+	TC_TAPRIO_CMD_SET_AND_RELEASE = 0x02,
+};
+
+enum {
+	TCA_TAPRIO_SCHED_ENTRY_UNSPEC,
+	TCA_TAPRIO_SCHED_ENTRY_INDEX, /* u32 */
+	TCA_TAPRIO_SCHED_ENTRY_CMD, /* u8 */
+	TCA_TAPRIO_SCHED_ENTRY_GATE_MASK, /* u32 */
+	TCA_TAPRIO_SCHED_ENTRY_INTERVAL, /* u32 */
+	__TCA_TAPRIO_SCHED_ENTRY_MAX,
+};
+#define TCA_TAPRIO_SCHED_ENTRY_MAX (__TCA_TAPRIO_SCHED_ENTRY_MAX - 1)
+
+/* The format for schedule entry list is:
+ * [TCA_TAPRIO_SCHED_ENTRY_LIST]
+ *   [TCA_TAPRIO_SCHED_ENTRY]
+ *     [TCA_TAPRIO_SCHED_ENTRY_CMD]
+ *     [TCA_TAPRIO_SCHED_ENTRY_GATES]
+ *     [TCA_TAPRIO_SCHED_ENTRY_INTERVAL]
+ */
+enum {
+	TCA_TAPRIO_SCHED_UNSPEC,
+	TCA_TAPRIO_SCHED_ENTRY,
+	__TCA_TAPRIO_SCHED_MAX,
+};
+
+#define TCA_TAPRIO_SCHED_MAX (__TCA_TAPRIO_SCHED_MAX - 1)
+
+/* The format for the admin sched (dump only):
+ * [TCA_TAPRIO_SCHED_ADMIN_SCHED]
+ *   [TCA_TAPRIO_ATTR_SCHED_BASE_TIME]
+ *   [TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST]
+ *     [TCA_TAPRIO_ATTR_SCHED_ENTRY]
+ *       [TCA_TAPRIO_ATTR_SCHED_ENTRY_CMD]
+ *       [TCA_TAPRIO_ATTR_SCHED_ENTRY_GATES]
+ *       [TCA_TAPRIO_ATTR_SCHED_ENTRY_INTERVAL]
+ */
+
+#define TCA_TAPRIO_ATTR_FLAG_TXTIME_ASSIST	_BITUL(0)
+#define TCA_TAPRIO_ATTR_FLAG_FULL_OFFLOAD	_BITUL(1)
+
+enum {
+	TCA_TAPRIO_ATTR_UNSPEC,
+	TCA_TAPRIO_ATTR_PRIOMAP, /* struct tc_mqprio_qopt */
+	TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST, /* nested of entry */
+	TCA_TAPRIO_ATTR_SCHED_BASE_TIME, /* s64 */
+	TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY, /* single entry */
+	TCA_TAPRIO_ATTR_SCHED_CLOCKID, /* s32 */
+	TCA_TAPRIO_PAD,
+	TCA_TAPRIO_ATTR_ADMIN_SCHED, /* The admin sched, only used in dump */
+	TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME, /* s64 */
+	TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION, /* s64 */
+	TCA_TAPRIO_ATTR_FLAGS, /* u32 */
+	TCA_TAPRIO_ATTR_TXTIME_DELAY, /* u32 */
+	__TCA_TAPRIO_ATTR_MAX,
+};
+
+#define TCA_TAPRIO_ATTR_MAX (__TCA_TAPRIO_ATTR_MAX - 1)
+
+/* ETS */
+
+#define TCQ_ETS_MAX_BANDS 16
+
+enum {
+	TCA_ETS_UNSPEC,
+	TCA_ETS_NBANDS,		/* u8 */
+	TCA_ETS_NSTRICT,	/* u8 */
+	TCA_ETS_QUANTA,		/* nested TCA_ETS_QUANTA_BAND */
+	TCA_ETS_QUANTA_BAND,	/* u32 */
+	TCA_ETS_PRIOMAP,	/* nested TCA_ETS_PRIOMAP_BAND */
+	TCA_ETS_PRIOMAP_BAND,	/* u8 */
+	__TCA_ETS_MAX,
+};
+
+#define TCA_ETS_MAX (__TCA_ETS_MAX - 1)
 
 #endif

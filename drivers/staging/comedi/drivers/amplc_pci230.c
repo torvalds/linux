@@ -444,7 +444,7 @@ struct pci230_board {
 	unsigned char ai_bits;
 	unsigned char ao_bits;
 	unsigned char min_hwver; /* Minimum hardware version supported. */
-	bool have_dio:1;
+	unsigned int have_dio:1;
 };
 
 static const struct pci230_board pci230_boards[] = {
@@ -490,11 +490,11 @@ struct pci230_private {
 	unsigned short adcg;		/* ADCG register value */
 	unsigned char ier;		/* Interrupt enable bits */
 	unsigned char res_owned[NUM_OWNERS]; /* Owned resources */
-	bool intr_running:1;		/* Flag set in interrupt routine */
-	bool ai_bipolar:1;		/* Flag AI range is bipolar */
-	bool ao_bipolar:1;		/* Flag AO range is bipolar */
-	bool ai_cmd_started:1;		/* Flag AI command started */
-	bool ao_cmd_started:1;		/* Flag AO command started */
+	unsigned int intr_running:1;	/* Flag set in interrupt routine */
+	unsigned int ai_bipolar:1;	/* Flag AI range is bipolar */
+	unsigned int ao_bipolar:1;	/* Flag AO range is bipolar */
+	unsigned int ai_cmd_started:1;	/* Flag AI command started */
+	unsigned int ao_cmd_started:1;	/* Flag AO command started */
 };
 
 /* PCI230 clock source periods in ns */
@@ -2330,7 +2330,8 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	devpriv->intr_running = false;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
-	comedi_handle_events(dev, s_ao);
+	if (s_ao)
+		comedi_handle_events(dev, s_ao);
 	comedi_handle_events(dev, s_ai);
 
 	return IRQ_HANDLED;
@@ -2464,7 +2465,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	devpriv->adcg = 0;
 	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE |
 			  PCI230_ADC_IR_BIP;
-	outw(1 << 0, devpriv->daqio + PCI230_ADCEN);
+	outw(BIT(0), devpriv->daqio + PCI230_ADCEN);
 	outw(devpriv->adcg, devpriv->daqio + PCI230_ADCG);
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     devpriv->daqio + PCI230_ADCCON);

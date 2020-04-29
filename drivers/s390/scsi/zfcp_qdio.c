@@ -4,7 +4,7 @@
  *
  * Setup and helper functions to access QDIO.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -19,7 +19,7 @@ static bool enable_multibuffer = true;
 module_param_named(datarouter, enable_multibuffer, bool, 0400);
 MODULE_PARM_DESC(datarouter, "Enable hardware data router support (default on)");
 
-static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
+static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *dbftag,
 				    unsigned int qdio_err)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -28,12 +28,12 @@ static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
 
 	if (qdio_err & QDIO_ERROR_SLSB_STATE) {
 		zfcp_qdio_siosl(adapter);
-		zfcp_erp_adapter_shutdown(adapter, 0, id);
+		zfcp_erp_adapter_shutdown(adapter, 0, dbftag);
 		return;
 	}
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-				ZFCP_STATUS_COMMON_ERP_FAILED, id);
+				ZFCP_STATUS_COMMON_ERP_FAILED, dbftag);
 }
 
 static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
@@ -98,7 +98,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 			memset(pl, 0,
 			       ZFCP_QDIO_MAX_SBALS_PER_REQ * sizeof(void *));
 			sbale = qdio->res_q[idx]->element;
-			req_id = (u64) sbale->addr;
+			req_id = sbale->addr;
 			scount = min(sbale->scount + 1,
 				     ZFCP_QDIO_MAX_SBALS_PER_REQ + 1);
 				     /* incl. signaling SBAL */
@@ -180,7 +180,6 @@ zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
  * @qdio: pointer to struct zfcp_qdio
  * @q_req: pointer to struct zfcp_qdio_req
  * @sg: scatter-gather list
- * @max_sbals: upper bound for number of SBALs to be used
  * Returns: zero or -EINVAL on error
  */
 int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
@@ -200,7 +199,7 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 					     q_req->sbal_number);
 			return -EINVAL;
 		}
-		sbale->addr = sg_virt(sg);
+		sbale->addr = sg_phys(sg);
 		sbale->length = sg->length;
 	}
 	return 0;
@@ -278,38 +277,14 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 	return 0;
 }
 
-
-static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
-				      struct zfcp_qdio *qdio)
-{
-	memset(id, 0, sizeof(*id));
-	id->cdev = qdio->adapter->ccw_device;
-	id->q_format = QDIO_ZFCP_QFMT;
-	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
-	ASCEBC(id->adapter_name, 8);
-	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
-	if (enable_multibuffer)
-		id->qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
-	id->no_input_qs = 1;
-	id->no_output_qs = 1;
-	id->input_handler = zfcp_qdio_int_resp;
-	id->output_handler = zfcp_qdio_int_req;
-	id->int_parm = (unsigned long) qdio;
-	id->input_sbal_addr_array = (void **) (qdio->res_q);
-	id->output_sbal_addr_array = (void **) (qdio->req_q);
-	id->scan_threshold =
-		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
-}
-
 /**
  * zfcp_qdio_allocate - allocate queue memory and initialize QDIO data
- * @adapter: pointer to struct zfcp_adapter
+ * @qdio: pointer to struct zfcp_qdio
  * Returns: -ENOMEM on memory allocation error or return value from
  *          qdio_allocate
  */
 static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 {
-	struct qdio_initialize init_data;
 	int ret;
 
 	ret = qdio_alloc_buffers(qdio->req_q, QDIO_MAX_BUFFERS_PER_Q);
@@ -320,10 +295,9 @@ static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 	if (ret)
 		goto free_req_q;
 
-	zfcp_qdio_setup_init_data(&init_data, qdio);
 	init_waitqueue_head(&qdio->req_q_wq);
 
-	ret = qdio_allocate(&init_data);
+	ret = qdio_allocate(qdio->adapter->ccw_device, 1, 1);
 	if (ret)
 		goto free_res_q;
 
@@ -375,8 +349,10 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
  */
 int zfcp_qdio_open(struct zfcp_qdio *qdio)
 {
+	struct qdio_buffer **input_sbals[1] = {qdio->res_q};
+	struct qdio_buffer **output_sbals[1] = {qdio->req_q};
 	struct qdio_buffer_element *sbale;
-	struct qdio_initialize init_data;
+	struct qdio_initialize init_data = {0};
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct ccw_device *cdev = adapter->ccw_device;
 	struct qdio_ssqd_desc ssqd;
@@ -388,12 +364,26 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	atomic_andnot(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 			  &qdio->adapter->status);
 
-	zfcp_qdio_setup_init_data(&init_data, qdio);
+	init_data.q_format = QDIO_ZFCP_QFMT;
+	memcpy(init_data.adapter_name, dev_name(&cdev->dev), 8);
+	ASCEBC(init_data.adapter_name, 8);
+	init_data.qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
+	if (enable_multibuffer)
+		init_data.qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
+	init_data.no_input_qs = 1;
+	init_data.no_output_qs = 1;
+	init_data.input_handler = zfcp_qdio_int_resp;
+	init_data.output_handler = zfcp_qdio_int_req;
+	init_data.int_parm = (unsigned long) qdio;
+	init_data.input_sbal_addr_array = input_sbals;
+	init_data.output_sbal_addr_array = output_sbals;
+	init_data.scan_threshold =
+		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
 
-	if (qdio_establish(&init_data))
+	if (qdio_establish(cdev, &init_data))
 		goto failed_establish;
 
-	if (qdio_get_ssqd_desc(init_data.cdev, &ssqd))
+	if (qdio_get_ssqd_desc(cdev, &ssqd))
 		goto failed_qdio;
 
 	if (ssqd.qdioac2 & CHSC_AC2_DATA_DIV_ENABLED)
@@ -419,7 +409,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 		sbale->length = 0;
 		sbale->eflags = SBAL_EFLAGS_LAST_ENTRY;
 		sbale->sflags = 0;
-		sbale->addr = NULL;
+		sbale->addr = 0;
 	}
 
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, 0, QDIO_MAX_BUFFERS_PER_Q))

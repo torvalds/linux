@@ -602,12 +602,6 @@ ia64_set_unat (__u64 *unat, void *spill_addr, unsigned long nat)
 	*unat = (*unat & ~mask) | (nat << bit);
 }
 
-/*
- * Get the current instruction/program counter value.
- */
-#define current_text_addr() \
-	({ void *_pc; _pc = (void *)ia64_getreg(_IA64_REG_IP); _pc; })
-
 static inline __u64
 ia64_get_ivr (void)
 {
@@ -684,8 +678,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_FORCE_MWAIT,
 			 IDLE_NOMWAIT, IDLE_POLL};
 
 void default_idle(void);
-
-#define ia64_platform_is(x) (strcmp(x, ia64_platform_name) == 0)
 
 #endif /* !__ASSEMBLY__ */
 

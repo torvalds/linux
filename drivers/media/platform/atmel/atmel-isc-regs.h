@@ -24,6 +24,8 @@
 #define ISC_PFE_CFG0_HPOL_LOW   BIT(0)
 #define ISC_PFE_CFG0_VPOL_LOW   BIT(1)
 #define ISC_PFE_CFG0_PPOL_LOW   BIT(2)
+#define ISC_PFE_CFG0_CCIR656    BIT(9)
+#define ISC_PFE_CFG0_CCIR_CRC   BIT(10)
 
 #define ISC_PFE_CFG0_MODE_PROGRESSIVE   (0x0 << 4)
 #define ISC_PFE_CFG0_MODE_MASK          GENMASK(6, 4)
@@ -34,6 +36,25 @@
 #define ISC_PFG_CFG0_BPS_ELEVEN (0x1 << 28)
 #define ISC_PFG_CFG0_BPS_TWELVE (0x0 << 28)
 #define ISC_PFE_CFG0_BPS_MASK   GENMASK(30, 28)
+
+#define ISC_PFE_CFG0_COLEN	BIT(12)
+#define ISC_PFE_CFG0_ROWEN	BIT(13)
+
+/* ISC Parallel Front End Configuration 1 Register */
+#define ISC_PFE_CFG1    0x00000010
+
+#define ISC_PFE_CFG1_COLMIN(v)		((v))
+#define ISC_PFE_CFG1_COLMIN_MASK	GENMASK(15, 0)
+#define ISC_PFE_CFG1_COLMAX(v)		((v) << 16)
+#define ISC_PFE_CFG1_COLMAX_MASK	GENMASK(31, 16)
+
+/* ISC Parallel Front End Configuration 2 Register */
+#define ISC_PFE_CFG2    0x00000014
+
+#define ISC_PFE_CFG2_ROWMIN(v)		((v))
+#define ISC_PFE_CFG2_ROWMIN_MASK	GENMASK(15, 0)
+#define ISC_PFE_CFG2_ROWMAX(v)		((v) << 16)
+#define ISC_PFE_CFG2_ROWMAX_MASK	GENMASK(31, 16)
 
 /* ISC Clock Enable Register */
 #define ISC_CLKEN               0x00000018
@@ -79,13 +100,15 @@
 #define ISC_WB_O_RGR	0x00000060
 
 /* ISC White Balance Offset for B, GB Register */
-#define ISC_WB_O_BGR	0x00000064
+#define ISC_WB_O_BGB	0x00000064
 
 /* ISC White Balance Gain for R, GR Register */
 #define ISC_WB_G_RGR	0x00000068
 
 /* ISC White Balance Gain for B, GB Register */
-#define ISC_WB_G_BGR	0x0000006c
+#define ISC_WB_G_BGB	0x0000006c
+
+#define ISC_WB_O_ZERO_VAL	(1 << 13)
 
 /* ISC Color Filter Array Control Register */
 #define ISC_CFA_CTRL    0x00000070

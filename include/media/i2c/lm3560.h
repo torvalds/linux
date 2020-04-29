@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/media/i2c/lm3560.h
  *
@@ -5,16 +6,6 @@
  *
  * Contact: Daniel Jeong <gshark.jeong@gmail.com>
  *			Ldd-Mlp <ldd-mlp@list.ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #ifndef __LM3560_H__
@@ -22,6 +13,7 @@
 
 #include <media/v4l2-subdev.h>
 
+#define LM3559_NAME	"lm3559"
 #define LM3560_NAME	"lm3560"
 #define LM3560_I2C_ADDR	(0x53)
 

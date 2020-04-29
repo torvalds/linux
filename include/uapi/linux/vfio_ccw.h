@@ -12,6 +12,7 @@
 
 #include <linux/types.h>
 
+/* used for START SUBCHANNEL, always present */
 struct ccw_io_region {
 #define ORB_AREA_SIZE 12
 	__u8	orb_area[ORB_AREA_SIZE];
@@ -20,6 +21,17 @@ struct ccw_io_region {
 #define IRB_AREA_SIZE 96
 	__u8	irb_area[IRB_AREA_SIZE];
 	__u32	ret_code;
+} __packed;
+
+/*
+ * used for processing commands that trigger asynchronous actions
+ * Note: this is controlled by a capability
+ */
+#define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)
+#define VFIO_CCW_ASYNC_CMD_CSCH (1 << 1)
+struct ccw_cmd_region {
+	__u32 command;
+	__u32 ret_code;
 } __packed;
 
 #endif

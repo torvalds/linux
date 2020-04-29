@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic HDLC support routines for Linux
  * Cisco HDLC support
  *
  * Copyright (C) 2000 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
@@ -78,7 +75,7 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 {
 	struct hdlc_header *data;
 #ifdef DEBUG_HARD_HEADER
-	printk(KERN_DEBUG "%s: cisco_hard_header called\n", dev->name);
+	netdev_dbg(dev, "%s called\n", __func__);
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
@@ -104,7 +101,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cisco_packet));
 	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on cisco_keepalive_send()\n");
+		netdev_warn(dev, "Memory squeeze on %s()\n", __func__);
 		return;
 	}
 	skb_reserve(skb, 4);
@@ -196,16 +193,15 @@ static int cisco_rx(struct sk_buff *skb)
 			mask = ~cpu_to_be32(0); /* is the mask correct? */
 
 			if (in_dev != NULL) {
-				struct in_ifaddr **ifap = &in_dev->ifa_list;
+				const struct in_ifaddr *ifa;
 
-				while (*ifap != NULL) {
+				in_dev_for_each_ifa_rcu(ifa, in_dev) {
 					if (strcmp(dev->name,
-						   (*ifap)->ifa_label) == 0) {
-						addr = (*ifap)->ifa_local;
-						mask = (*ifap)->ifa_mask;
+						   ifa->ifa_label) == 0) {
+						addr = ifa->ifa_local;
+						mask = ifa->ifa_mask;
 						break;
 					}
-					ifap = &(*ifap)->ifa_next;
 				}
 
 				cisco_keepalive_send(dev, CISCO_ADDR_REPLY,

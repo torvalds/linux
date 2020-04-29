@@ -1,32 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright Â© 2006-2007 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
-#include "psb_intel_reg.h"
-#include "gma_display.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+
 #include "framebuffer.h"
-#include "mdfld_output.h"
+#include "gma_display.h"
 #include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "psb_intel_reg.h"
 
 /* Hardcoded currently */
 static int ksel = KSEL_CRYSTAL_19;
@@ -122,27 +113,6 @@ static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 	return (pfit_control >> 29) & 0x3;
 }
 
-static struct drm_device globle_dev;
-
-void mdfld__intel_plane_set_alpha(int enable)
-{
-	struct drm_device *dev = &globle_dev;
-	int dspcntr_reg = DSPACNTR;
-	u32 dspcntr;
-
-	dspcntr = REG_READ(dspcntr_reg);
-
-	if (enable) {
-		dspcntr &= ~DISPPLANE_32BPP_NO_ALPHA;
-		dspcntr |= DISPPLANE_32BPP;
-	} else {
-		dspcntr &= ~DISPPLANE_32BPP;
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
-	}
-
-	REG_WRITE(dspcntr_reg, dspcntr);
-}
-
 static int check_fb(struct drm_framebuffer *fb)
 {
 	if (!fb)
@@ -167,14 +137,11 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 	u32 dspcntr;
 	int ret;
-
-	memcpy(&globle_dev, dev, sizeof(struct drm_device));
 
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
@@ -196,7 +163,7 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = psbfb->gtt->offset;
+	start = to_gtt_range(fb->obj[0])->offset;
 	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
 	REG_WRITE(map->stride, fb->pitches[0]);

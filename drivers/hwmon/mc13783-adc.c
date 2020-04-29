@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for the ADC on Freescale Semiconductor MC13783 and MC13892 PMICs.
  *
  * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2009 Sascha Hauer, Pengutronix
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
 #include <linux/mfd/mc13xxx.h>
@@ -23,6 +11,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/hwmon.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -63,6 +52,10 @@ static int mc13783_adc_read(struct device *dev,
 	if (ret)
 		return ret;
 
+	/* ADIN7 subchannels */
+	if (channel >= 16)
+		channel = 7;
+
 	channel &= 0x7;
 
 	*val = (sample[channel % 4] >> (channel > 3 ? 14 : 2)) & 0x3ff;
@@ -70,8 +63,9 @@ static int mc13783_adc_read(struct device *dev,
 	return 0;
 }
 
-static ssize_t mc13783_adc_read_bp(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_bp_show(struct device *dev,
+				   struct device_attribute *devattr,
+				   char *buf)
 {
 	unsigned val;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -93,8 +87,9 @@ static ssize_t mc13783_adc_read_bp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t mc13783_adc_read_gp(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_gp_show(struct device *dev,
+				   struct device_attribute *devattr,
+				   char *buf)
 {
 	unsigned val;
 	int ret = mc13783_adc_read(dev, devattr, &val);
@@ -111,19 +106,74 @@ static ssize_t mc13783_adc_read_gp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
+static ssize_t mc13783_adc_uid_show(struct device *dev,
+				    struct device_attribute *devattr,
+				    char *buf)
+{
+	unsigned int val;
+	struct platform_device *pdev = to_platform_device(dev);
+	kernel_ulong_t driver_data = platform_get_device_id(pdev)->driver_data;
+	int ret = mc13783_adc_read(dev, devattr, &val);
+
+	if (ret)
+		return ret;
+
+	if (driver_data & MC13783_ADC_BPDIV2)
+		/* MC13892 have 1/2 divider, input range is [0, 4.800V] */
+		val = DIV_ROUND_CLOSEST(val * 4800, 1024);
+	else
+		/* MC13783 have 0.9 divider, input range is [0, 2.555V] */
+		val = DIV_ROUND_CLOSEST(val * 2555, 1024);
+
+	return sprintf(buf, "%u\n", val);
+}
+
+static ssize_t mc13783_adc_temp_show(struct device *dev,
+				     struct device_attribute *devattr,
+				     char *buf)
+{
+	unsigned int val;
+	struct platform_device *pdev = to_platform_device(dev);
+	kernel_ulong_t driver_data = platform_get_device_id(pdev)->driver_data;
+	int ret = mc13783_adc_read(dev, devattr, &val);
+
+	if (ret)
+		return ret;
+
+	if (driver_data & MC13783_ADC_BPDIV2) {
+		/*
+		 * MC13892:
+		 * Die Temperature Read Out Code at 25C 680
+		 * Temperature change per LSB +0.4244C
+		 */
+		ret = DIV_ROUND_CLOSEST(-2635920 + val * 4244, 10);
+	} else {
+		/*
+		 * MC13783:
+		 * Die Temperature Read Out Code at 25C 282
+		 * Temperature change per LSB -1.14C
+		 */
+		ret = 346480 - 1140 * val;
+	}
+
+	return sprintf(buf, "%d\n", ret);
+}
+
 static DEVICE_ATTR_RO(name);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, mc13783_adc_read_bp, NULL, 2);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, mc13783_adc_read_gp, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, mc13783_adc_read_gp, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, mc13783_adc_read_gp, NULL, 7);
-static SENSOR_DEVICE_ATTR(in8_input, S_IRUGO, mc13783_adc_read_gp, NULL, 8);
-static SENSOR_DEVICE_ATTR(in9_input, S_IRUGO, mc13783_adc_read_gp, NULL, 9);
-static SENSOR_DEVICE_ATTR(in10_input, S_IRUGO, mc13783_adc_read_gp, NULL, 10);
-static SENSOR_DEVICE_ATTR(in11_input, S_IRUGO, mc13783_adc_read_gp, NULL, 11);
-static SENSOR_DEVICE_ATTR(in12_input, S_IRUGO, mc13783_adc_read_gp, NULL, 12);
-static SENSOR_DEVICE_ATTR(in13_input, S_IRUGO, mc13783_adc_read_gp, NULL, 13);
-static SENSOR_DEVICE_ATTR(in14_input, S_IRUGO, mc13783_adc_read_gp, NULL, 14);
-static SENSOR_DEVICE_ATTR(in15_input, S_IRUGO, mc13783_adc_read_gp, NULL, 15);
+static SENSOR_DEVICE_ATTR_RO(in2_input, mc13783_adc_bp, 2);
+static SENSOR_DEVICE_ATTR_RO(in5_input, mc13783_adc_gp, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, mc13783_adc_gp, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, mc13783_adc_gp, 7);
+static SENSOR_DEVICE_ATTR_RO(in8_input, mc13783_adc_gp, 8);
+static SENSOR_DEVICE_ATTR_RO(in9_input, mc13783_adc_gp, 9);
+static SENSOR_DEVICE_ATTR_RO(in10_input, mc13783_adc_gp, 10);
+static SENSOR_DEVICE_ATTR_RO(in11_input, mc13783_adc_gp, 11);
+static SENSOR_DEVICE_ATTR_RO(in12_input, mc13783_adc_gp, 12);
+static SENSOR_DEVICE_ATTR_RO(in13_input, mc13783_adc_gp, 13);
+static SENSOR_DEVICE_ATTR_RO(in14_input, mc13783_adc_gp, 14);
+static SENSOR_DEVICE_ATTR_RO(in15_input, mc13783_adc_gp, 15);
+static SENSOR_DEVICE_ATTR_RO(in16_input, mc13783_adc_uid, 16);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mc13783_adc_temp, 17);
 
 static struct attribute *mc13783_attr_base[] = {
 	&dev_attr_name.attr,
@@ -131,6 +181,8 @@ static struct attribute *mc13783_attr_base[] = {
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&sensor_dev_attr_in16_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	NULL
 };
 

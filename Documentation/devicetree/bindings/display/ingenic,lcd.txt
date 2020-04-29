@@ -1,0 +1,45 @@
+Ingenic JZ47xx LCD driver
+
+Required properties:
+- compatible: one of:
+  * ingenic,jz4740-lcd
+  * ingenic,jz4725b-lcd
+  * ingenic,jz4770-lcd
+- reg: LCD registers location and length
+- clocks: LCD pixclock and device clock specifiers.
+	   The device clock is only required on the JZ4740.
+- clock-names: "lcd_pclk" and "lcd"
+- interrupts: Specifies the interrupt line the LCD controller is connected to.
+
+Example:
+
+panel {
+	compatible = "sharp,ls020b1dd01d";
+
+	backlight = <&backlight>;
+	power-supply = <&vcc>;
+
+	port {
+		panel_input: endpoint {
+			remote-endpoint = <&panel_output>;
+		};
+	};
+};
+
+
+lcd: lcd-controller@13050000 {
+	compatible = "ingenic,jz4725b-lcd";
+	reg = <0x13050000 0x1000>;
+
+	interrupt-parent = <&intc>;
+	interrupts = <31>;
+
+	clocks = <&cgu JZ4725B_CLK_LCD>;
+	clock-names = "lcd";
+
+	port {
+		panel_output: endpoint {
+			remote-endpoint = <&panel_input>;
+		};
+	};
+};

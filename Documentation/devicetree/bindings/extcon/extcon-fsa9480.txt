@@ -1,0 +1,21 @@
+FAIRCHILD SEMICONDUCTOR FSA9480 MICROUSB SWITCH
+
+The FSA9480 is a USB port accessory detector and switch. The FSA9480 is fully
+controlled using I2C and enables USB data, stereo and mono audio, video,
+microphone, and UART data to use a common connector port.
+
+Required properties:
+ - compatible : Must be one of
+   "fcs,fsa9480"
+   "fcs,fsa880"
+ - reg : Specifies i2c slave address. Must be 0x25.
+ - interrupts : Should contain one entry specifying interrupt signal of
+   interrupt parent to which interrupt pin of the chip is connected.
+
+ Example:
+	musb@25 {
+		compatible = "fcs,fsa9480";
+		reg = <0x25>;
+		interrupt-parent = <&gph2>;
+		interrupts = <7 0>;
+	};

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IIO imu drivers configuration
 #
@@ -16,6 +17,18 @@ config ADIS16400
 	  adis16365, adis16400 and adis16405 triaxial inertial sensors
 	  (adis16400 series also have magnetometers).
 
+config ADIS16460
+	tristate "Analog Devices ADIS16460 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16460 inertial
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adis16460.
+
 config ADIS16480
 	tristate "Analog Devices ADIS16480 and similar IMU driver"
 	depends on SPI
@@ -26,6 +39,33 @@ config ADIS16480
 	  ADIS16485, ADIS16488 inertial sensors.
 
 source "drivers/iio/imu/bmi160/Kconfig"
+
+config FXOS8700
+	tristate
+
+config FXOS8700_I2C
+	tristate "NXP FXOS8700 I2C driver"
+	depends on I2C
+	select FXOS8700
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  sensor on I2C.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fxos8700_i2c.
+
+config FXOS8700_SPI
+	tristate "NXP FXOS8700 SPI driver"
+	depends on SPI
+	select FXOS8700
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  sensor on SPI.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fxos8700_spi.
 
 config KMX61
 	tristate "Kionix KMX61 6-axis accelerometer and magnetometer"

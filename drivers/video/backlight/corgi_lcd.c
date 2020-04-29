@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  LCD/Backlight Driver for Sharp Zaurus Handhelds (various models)
  *
@@ -8,18 +9,13 @@
  *  Copyright (c) 2008 Marvell International Ltd.
  *	Converted to SPI device based LCD/Backlight device driver
  *	by Eric Miao <eric.miao@marvell.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/fb.h>
 #include <linux/lcd.h>
 #include <linux/spi/spi.h>
@@ -94,9 +90,8 @@ struct corgi_lcd {
 	int	mode;
 	char	buf[2];
 
-	int	gpio_backlight_on;
-	int	gpio_backlight_cont;
-	int	gpio_backlight_cont_inverted;
+	struct gpio_desc *backlight_on;
+	struct gpio_desc *backlight_cont;
 
 	void (*kick_battery)(void);
 };
@@ -407,13 +402,13 @@ static int corgi_bl_set_intensity(struct corgi_lcd *lcd, int intensity)
 	corgi_ssp_lcdtg_send(lcd, DUTYCTRL_ADRS, intensity);
 
 	/* Bit 5 via GPIO_BACKLIGHT_CONT */
-	cont = !!(intensity & 0x20) ^ lcd->gpio_backlight_cont_inverted;
+	cont = !!(intensity & 0x20);
 
-	if (gpio_is_valid(lcd->gpio_backlight_cont))
-		gpio_set_value_cansleep(lcd->gpio_backlight_cont, cont);
+	if (lcd->backlight_cont)
+		gpiod_set_value_cansleep(lcd->backlight_cont, cont);
 
-	if (gpio_is_valid(lcd->gpio_backlight_on))
-		gpio_set_value_cansleep(lcd->gpio_backlight_on, intensity);
+	if (lcd->backlight_on)
+		gpiod_set_value_cansleep(lcd->backlight_on, intensity);
 
 	if (lcd->kick_battery)
 		lcd->kick_battery();
@@ -486,48 +481,17 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 				struct corgi_lcd_platform_data *pdata)
 {
 	struct spi_device *spi = lcd->spi_dev;
-	int err;
 
-	lcd->gpio_backlight_on = -1;
-	lcd->gpio_backlight_cont = -1;
+	lcd->backlight_on = devm_gpiod_get_optional(&spi->dev,
+						    "BL_ON", GPIOD_OUT_LOW);
+	if (IS_ERR(lcd->backlight_on))
+		return PTR_ERR(lcd->backlight_on);
 
-	if (gpio_is_valid(pdata->gpio_backlight_on)) {
-		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_on,
-					"BL_ON");
-		if (err) {
-			dev_err(&spi->dev,
-				"failed to request GPIO%d for backlight_on\n",
-				pdata->gpio_backlight_on);
-			return err;
-		}
+	lcd->backlight_cont = devm_gpiod_get_optional(&spi->dev, "BL_CONT",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(lcd->backlight_cont))
+		return PTR_ERR(lcd->backlight_cont);
 
-		lcd->gpio_backlight_on = pdata->gpio_backlight_on;
-		gpio_direction_output(lcd->gpio_backlight_on, 0);
-	}
-
-	if (gpio_is_valid(pdata->gpio_backlight_cont)) {
-		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_cont,
-					"BL_CONT");
-		if (err) {
-			dev_err(&spi->dev,
-				"failed to request GPIO%d for backlight_cont\n",
-				pdata->gpio_backlight_cont);
-			return err;
-		}
-
-		lcd->gpio_backlight_cont = pdata->gpio_backlight_cont;
-
-		/* spitz and akita use both GPIOs for backlight, and
-		 * have inverted polarity of GPIO_BACKLIGHT_CONT
-		 */
-		if (gpio_is_valid(lcd->gpio_backlight_on)) {
-			lcd->gpio_backlight_cont_inverted = 1;
-			gpio_direction_output(lcd->gpio_backlight_cont, 1);
-		} else {
-			lcd->gpio_backlight_cont_inverted = 0;
-			gpio_direction_output(lcd->gpio_backlight_cont, 0);
-		}
-	}
 	return 0;
 }
 

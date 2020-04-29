@@ -216,11 +216,6 @@ enum mes_map_queues_queue_type_vi_enum {
 queue_type__mes_map_queues__low_latency_static_queue_vi = 3
 };
 
-enum mes_map_queues_alloc_format_vi_enum {
-	alloc_format__mes_map_queues__one_per_pipe_vi = 0,
-alloc_format__mes_map_queues__all_on_one_pipe_vi = 1
-};
-
 enum mes_map_queues_engine_sel_vi_enum {
 	engine_sel__mes_map_queues__compute_vi = 0,
 	engine_sel__mes_map_queues__sdma0_vi = 2,
@@ -240,7 +235,7 @@ struct pm4_mes_map_queues {
 			enum mes_map_queues_queue_sel_vi_enum queue_sel:2;
 			uint32_t reserved2:15;
 			enum mes_map_queues_queue_type_vi_enum queue_type:3;
-			enum mes_map_queues_alloc_format_vi_enum alloc_format:2;
+			uint32_t reserved3:2;
 			enum mes_map_queues_engine_sel_vi_enum engine_sel:3;
 			uint32_t num_queues:3;
 		} bitfields2;

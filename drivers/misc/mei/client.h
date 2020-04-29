@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef _MEI_CLIENT_H_
@@ -77,6 +67,42 @@ static inline const uuid_le *mei_me_cl_uuid(const struct mei_me_client *me_cl)
 static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
 {
 	return me_cl->props.protocol_version;
+}
+
+/**
+ * mei_me_cl_max_conn - return me client max number of connections
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max number of connections
+ */
+static inline u8 mei_me_cl_max_conn(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_number_of_connections;
+}
+
+/**
+ * mei_me_cl_fixed - return me client fixed address, if any
+ *
+ * @me_cl: me client
+ *
+ * Return: me client fixed address
+ */
+static inline u8 mei_me_cl_fixed(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.fixed_address;
+}
+
+/**
+ * mei_me_cl_max_len - return me client max msg length
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max msg length
+ */
+static inline u32 mei_me_cl_max_len(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_msg_length;
 }
 
 /*
@@ -202,7 +228,7 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 		       struct list_head *cmpl_list);
 int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp);
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb);
+ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		     struct list_head *cmpl_list);
 

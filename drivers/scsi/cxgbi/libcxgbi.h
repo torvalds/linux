@@ -120,6 +120,9 @@ struct cxgbi_sock {
 	int wr_max_cred;
 	int wr_cred;
 	int wr_una_cred;
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u8 dcb_priority;
+#endif
 	unsigned char hcrc_len;
 	unsigned char dcrc_len;
 
@@ -146,6 +149,7 @@ struct cxgbi_sock {
 	struct sk_buff_head receive_queue;
 	struct sk_buff_head write_queue;
 	struct timer_list retry_timer;
+	struct completion cmpl;
 	int err;
 	rwlock_t callback_lock;
 	void *user_data;
@@ -487,9 +491,9 @@ struct cxgbi_device {
 				  struct cxgbi_ppm *,
 				  struct cxgbi_task_tag_info *);
 	int (*csk_ddp_setup_digest)(struct cxgbi_sock *,
-				unsigned int, int, int, int);
+				    unsigned int, int, int);
 	int (*csk_ddp_setup_pgidx)(struct cxgbi_sock *,
-				unsigned int, int, bool);
+				   unsigned int, int);
 
 	void (*csk_release_offload_resources)(struct cxgbi_sock *);
 	int (*csk_rx_pdu_ready)(struct cxgbi_sock *, struct sk_buff *);
@@ -613,8 +617,9 @@ void cxgbi_ddp_page_size_factor(int *);
 void cxgbi_ddp_set_one_ppod(struct cxgbi_pagepod *,
 			    struct cxgbi_task_tag_info *,
 			    struct scatterlist **sg_pp, unsigned int *sg_off);
-void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *,
-			 struct cxgbi_tag_format *, unsigned int ppmax,
-			 unsigned int llimit, unsigned int start,
-			 unsigned int rsvd_factor);
+int cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
+			struct cxgbi_tag_format *tformat,
+			unsigned int iscsi_size, unsigned int llimit,
+			unsigned int start, unsigned int rsvd_factor,
+			unsigned int edram_start, unsigned int edram_size);
 #endif	/*__LIBCXGBI_H__*/

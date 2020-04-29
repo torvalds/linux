@@ -47,10 +47,6 @@ static const char version[] =
 MODULE_AUTHOR("Milan Jurik");
 MODULE_DESCRIPTION("Atari NFeth driver");
 MODULE_LICENSE("GPL");
-/*
-MODULE_PARM(nfeth_debug, "i");
-MODULE_PARM_DESC(nfeth_debug, "nfeth_debug level (1-2)");
-*/
 
 
 static long nfEtherID;
@@ -171,7 +167,7 @@ static int nfeth_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static void nfeth_tx_timeout(struct net_device *dev)
+static void nfeth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);

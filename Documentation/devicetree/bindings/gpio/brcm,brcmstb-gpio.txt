@@ -30,9 +30,6 @@ Optional properties:
 - interrupts:
     The interrupt shared by all GPIO lines for this controller.
 
-- interrupt-parent:
-    phandle of the parent interrupt controller
-
 - interrupts-extended:
     Alternate form of specifying interrupts and parents that allows for
     multiple parents.  This takes precedence over 'interrupts' and

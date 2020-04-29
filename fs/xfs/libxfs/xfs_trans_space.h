@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_TRANS_SPACE_H__
 #define __XFS_TRANS_SPACE_H__
@@ -68,9 +56,9 @@
 #define	XFS_DIRREMOVE_SPACE_RES(mp)	\
 	XFS_DAREMOVE_SPACE_RES(mp, XFS_DATA_FORK)
 #define	XFS_IALLOC_SPACE_RES(mp)	\
-	((mp)->m_ialloc_blks + \
+	(M_IGEO(mp)->ialloc_blks + \
 	 (xfs_sb_version_hasfinobt(&mp->m_sb) ? 2 : 1 * \
-	  ((mp)->m_in_maxlevels - 1)))
+	  (M_IGEO(mp)->inobt_maxlevels - 1)))
 
 /*
  * Space reservation values for various transactions.
@@ -106,7 +94,8 @@
 #define	XFS_SYMLINK_SPACE_RES(mp,nl,b)	\
 	(XFS_IALLOC_SPACE_RES(mp) + XFS_DIRENTER_SPACE_RES(mp,nl) + (b))
 #define XFS_IFREE_SPACE_RES(mp)		\
-	(xfs_sb_version_hasfinobt(&mp->m_sb) ? (mp)->m_in_maxlevels : 0)
+	(xfs_sb_version_hasfinobt(&mp->m_sb) ? \
+			M_IGEO(mp)->inobt_maxlevels : 0)
 
 
 #endif	/* __XFS_TRANS_SPACE_H__ */

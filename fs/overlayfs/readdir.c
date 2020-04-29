@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (C) 2011 Novell Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/fs.h>
@@ -119,6 +116,10 @@ static bool ovl_calc_d_ino(struct ovl_readdir_data *rdd,
 	/* Don't care if not doing ovl_iter() */
 	if (!rdd->dentry)
 		return false;
+
+	/* Always recalc d_ino when remapping lower inode numbers */
+	if (ovl_xino_bits(rdd->dentry->d_sb))
+		return true;
 
 	/* Always recalc d_ino for parent */
 	if (strcmp(p->name, "..") == 0)
@@ -435,6 +436,27 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 	return cache;
 }
 
+/* Map inode number to lower fs unique range */
+static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
+			       const char *name, int namelen, bool warn)
+{
+	unsigned int xinoshift = 64 - xinobits;
+
+	if (unlikely(ino >> xinoshift)) {
+		if (warn) {
+			pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
+					    namelen, name, ino, xinobits);
+		}
+		return ino;
+	}
+
+	/*
+	 * The lowest xinobit is reserved for mapping the non-peresistent inode
+	 * numbers range, but this range is only exposed via st_ino, not here.
+	 */
+	return ino | ((u64)fsid) << (xinoshift + 1);
+}
+
 /*
  * Set d_ino for upper entries. Non-upper entries should always report
  * the uppermost real inode ino and should not call this function.
@@ -452,9 +474,10 @@ static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
 	struct dentry *this = NULL;
 	enum ovl_path_type type;
 	u64 ino = p->real_ino;
+	int xinobits = ovl_xino_bits(dir->d_sb);
 	int err = 0;
 
-	if (!ovl_same_sb(dir->d_sb))
+	if (!ovl_same_dev(dir->d_sb))
 		goto out;
 
 	if (p->name[0] == '.') {
@@ -489,8 +512,19 @@ get:
 		if (err)
 			goto fail;
 
-		WARN_ON_ONCE(dir->d_sb->s_dev != stat.dev);
+		/*
+		 * Directory inode is always on overlay st_dev.
+		 * Non-dir with ovl_same_dev() could be on pseudo st_dev in case
+		 * of xino bits overflow.
+		 */
+		WARN_ON_ONCE(S_ISDIR(stat.mode) &&
+			     dir->d_sb->s_dev != stat.dev);
 		ino = stat.ino;
+	} else if (xinobits && !OVL_TYPE_UPPER(type)) {
+		ino = ovl_remap_lower_ino(ino, xinobits,
+					  ovl_layer_lower(this)->fsid,
+					  p->name, p->len,
+					  ovl_xino_warn(dir->d_sb));
 	}
 
 out:
@@ -499,7 +533,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to look up (%s) for ino (%i)\n",
+	pr_warn_ratelimited("failed to look up (%s) for ino (%i)\n",
 			    p->name, err);
 	goto out;
 }
@@ -618,6 +652,9 @@ struct ovl_readdir_translate {
 	struct ovl_dir_cache *cache;
 	struct dir_context ctx;
 	u64 parent_ino;
+	int fsid;
+	int xinobits;
+	bool xinowarn;
 };
 
 static int ovl_fill_real(struct dir_context *ctx, const char *name,
@@ -628,17 +665,35 @@ static int ovl_fill_real(struct dir_context *ctx, const char *name,
 		container_of(ctx, struct ovl_readdir_translate, ctx);
 	struct dir_context *orig_ctx = rdt->orig_ctx;
 
-	if (rdt->parent_ino && strcmp(name, "..") == 0)
+	if (rdt->parent_ino && strcmp(name, "..") == 0) {
 		ino = rdt->parent_ino;
-	else if (rdt->cache) {
+	} else if (rdt->cache) {
 		struct ovl_cache_entry *p;
 
 		p = ovl_cache_entry_find(&rdt->cache->root, name, namelen);
 		if (p)
 			ino = p->ino;
+	} else if (rdt->xinobits) {
+		ino = ovl_remap_lower_ino(ino, rdt->xinobits, rdt->fsid,
+					  name, namelen, rdt->xinowarn);
 	}
 
 	return orig_ctx->actor(orig_ctx, name, namelen, offset, ino, d_type);
+}
+
+static bool ovl_is_impure_dir(struct file *file)
+{
+	struct ovl_dir_file *od = file->private_data;
+	struct inode *dir = d_inode(file->f_path.dentry);
+
+	/*
+	 * Only upper dir can be impure, but if we are in the middle of
+	 * iterating a lower real dir, dir could be copied up and marked
+	 * impure. We only want the impure cache if we started iterating
+	 * a real upper dir to begin with.
+	 */
+	return od->is_upper && ovl_test_flag(OVL_IMPURE, dir);
+
 }
 
 static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
@@ -646,10 +701,16 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 	int err;
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dir = file->f_path.dentry;
+	const struct ovl_layer *lower_layer = ovl_layer_lower(dir);
 	struct ovl_readdir_translate rdt = {
 		.ctx.actor = ovl_fill_real,
 		.orig_ctx = ctx,
+		.xinobits = ovl_xino_bits(dir->d_sb),
+		.xinowarn = ovl_xino_warn(dir->d_sb),
 	};
+
+	if (rdt.xinobits && lower_layer)
+		rdt.fsid = lower_layer->fsid;
 
 	if (OVL_TYPE_MERGE(ovl_path_type(dir->d_parent))) {
 		struct kstat stat;
@@ -664,7 +725,7 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 		rdt.parent_ino = stat.ino;
 	}
 
-	if (ovl_test_flag(OVL_IMPURE, d_inode(dir))) {
+	if (ovl_is_impure_dir(file)) {
 		rdt.cache = ovl_cache_get_impure(&file->f_path);
 		if (IS_ERR(rdt.cache))
 			return PTR_ERR(rdt.cache);
@@ -693,9 +754,10 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		 * dir is impure then need to adjust d_ino for copied up
 		 * entries.
 		 */
-		if (ovl_same_sb(dentry->d_sb) &&
-		    (ovl_test_flag(OVL_IMPURE, d_inode(dentry)) ||
-		     OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent)))) {
+		if (ovl_xino_bits(dentry->d_sb) ||
+		    (ovl_same_fs(dentry->d_sb) &&
+		     (ovl_is_impure_dir(file) ||
+		      OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent))))) {
 			return ovl_iterate_real(file, ctx);
 		}
 		return iterate_dir(od->realfile, ctx);
@@ -920,7 +982,7 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 
 		dentry = lookup_one_len(p->name, upper, p->len);
 		if (IS_ERR(dentry)) {
-			pr_err("overlayfs: lookup '%s/%.*s' failed (%i)\n",
+			pr_err("lookup '%s/%.*s' failed (%i)\n",
 			       upper->d_name.name, p->len, p->name,
 			       (int) PTR_ERR(dentry));
 			continue;
@@ -1102,6 +1164,6 @@ next:
 out:
 	ovl_cache_free(&list);
 	if (err)
-		pr_err("overlayfs: failed index dir cleanup (%i)\n", err);
+		pr_err("failed index dir cleanup (%i)\n", err);
 	return err;
 }

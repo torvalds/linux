@@ -1,0 +1,191 @@
+[
+    {
+        "ArchStdEvent": "L1D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_INVAL"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL_WR"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB_CLEAN"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_INVAL"
+    },
+    {
+        "PublicDescription": "Level 1 instruction cache refill",
+        "EventCode": "0x01",
+        "EventName": "L1I_CACHE_REFILL",
+        "BriefDescription": "L1I cache refill"
+    },
+    {
+        "PublicDescription": "Level 1 instruction TLB refill",
+        "EventCode": "0x02",
+        "EventName": "L1I_TLB_REFILL",
+        "BriefDescription": "L1I TLB refill"
+    },
+    {
+        "PublicDescription": "Level 1 data cache refill",
+        "EventCode": "0x03",
+        "EventName": "L1D_CACHE_REFILL",
+        "BriefDescription": "L1D cache refill"
+    },
+    {
+        "PublicDescription": "Level 1 data cache access",
+        "EventCode": "0x04",
+        "EventName": "L1D_CACHE_ACCESS",
+        "BriefDescription": "L1D cache access"
+    },
+    {
+        "PublicDescription": "Level 1 data TLB refill",
+        "EventCode": "0x05",
+        "EventName": "L1D_TLB_REFILL",
+        "BriefDescription": "L1D TLB refill"
+    },
+    {
+        "PublicDescription": "Level 1 instruction cache access",
+        "EventCode": "0x14",
+        "EventName": "L1I_CACHE_ACCESS",
+        "BriefDescription": "L1I cache access"
+    },
+    {
+        "PublicDescription": "Level 2 data cache access",
+        "EventCode": "0x16",
+        "EventName": "L2D_CACHE_ACCESS",
+        "BriefDescription": "L2D cache access"
+    },
+    {
+        "PublicDescription": "Level 2 data refill",
+        "EventCode": "0x17",
+        "EventName": "L2D_CACHE_REFILL",
+        "BriefDescription": "L2D cache refill"
+    },
+    {
+        "PublicDescription": "Level 2 data cache, Write-Back",
+        "EventCode": "0x18",
+        "EventName": "L2D_CACHE_WB",
+        "BriefDescription": "L2D cache Write-Back"
+    },
+    {
+        "PublicDescription": "Level 1 data TLB access. This event counts any load or store operation which accesses the data L1 TLB",
+        "EventCode": "0x25",
+        "EventName": "L1D_TLB_ACCESS",
+        "BriefDescription": "L1D TLB access"
+    },
+    {
+        "PublicDescription": "Level 1 instruction TLB access. This event counts any instruction fetch which accesses the instruction L1 TLB",
+        "EventCode": "0x26",
+        "EventName": "L1I_TLB_ACCESS",
+        "BriefDescription": "L1I TLB access"
+    },
+    {
+        "PublicDescription": "Level 2 access to data TLB that caused a page table walk. This event counts on any data access which causes L2D_TLB_REFILL to count",
+        "EventCode": "0x34",
+        "EventName": "L2D_TLB_ACCESS",
+        "BriefDescription": "L2D TLB access"
+    },
+    {
+        "PublicDescription": "Level 2 access to instruciton TLB that caused a page table walk. This event counts on any instruciton access which causes L2I_TLB_REFILL to count",
+        "EventCode": "0x35",
+        "EventName": "L2I_TLB_ACCESS",
+        "BriefDescription": "L2D TLB access"
+    },
+    {
+        "PublicDescription": "Branch target buffer misprediction",
+        "EventCode": "0x102",
+        "EventName": "BTB_MIS_PRED",
+        "BriefDescription": "BTB misprediction"
+    },
+    {
+        "PublicDescription": "ITB miss",
+        "EventCode": "0x103",
+        "EventName": "ITB_MISS",
+        "BriefDescription": "ITB miss"
+    },
+    {
+        "PublicDescription": "DTB miss",
+        "EventCode": "0x104",
+        "EventName": "DTB_MISS",
+        "BriefDescription": "DTB miss"
+    },
+    {
+        "PublicDescription": "Level 1 data cache late miss",
+        "EventCode": "0x105",
+        "EventName": "L1D_CACHE_LATE_MISS",
+        "BriefDescription": "L1D cache late miss"
+    },
+    {
+        "PublicDescription": "Level 1 data cache prefetch request",
+        "EventCode": "0x106",
+        "EventName": "L1D_CACHE_PREFETCH",
+        "BriefDescription": "L1D cache prefetch"
+    },
+    {
+        "PublicDescription": "Level 2 data cache prefetch request",
+        "EventCode": "0x107",
+        "EventName": "L2D_CACHE_PREFETCH",
+        "BriefDescription": "L2D cache prefetch"
+    },
+    {
+        "PublicDescription": "Level 1 stage 2 TLB refill",
+        "EventCode": "0x111",
+        "EventName": "L1_STAGE2_TLB_REFILL",
+        "BriefDescription": "L1 stage 2 TLB refill"
+    },
+    {
+        "PublicDescription": "Page walk cache level-0 stage-1 hit",
+        "EventCode": "0x112",
+        "EventName": "PAGE_WALK_L0_STAGE1_HIT",
+        "BriefDescription": "Page walk, L0 stage-1 hit"
+    },
+    {
+        "PublicDescription": "Page walk cache level-1 stage-1 hit",
+        "EventCode": "0x113",
+        "EventName": "PAGE_WALK_L1_STAGE1_HIT",
+        "BriefDescription": "Page walk, L1 stage-1 hit"
+    },
+    {
+        "PublicDescription": "Page walk cache level-2 stage-1 hit",
+        "EventCode": "0x114",
+        "EventName": "PAGE_WALK_L2_STAGE1_HIT",
+        "BriefDescription": "Page walk, L2 stage-1 hit"
+    },
+    {
+        "PublicDescription": "Page walk cache level-1 stage-2 hit",
+        "EventCode": "0x115",
+        "EventName": "PAGE_WALK_L1_STAGE2_HIT",
+        "BriefDescription": "Page walk, L1 stage-2 hit"
+    },
+    {
+        "PublicDescription": "Page walk cache level-2 stage-2 hit",
+        "EventCode": "0x116",
+        "EventName": "PAGE_WALK_L2_STAGE2_HIT",
+        "BriefDescription": "Page walk, L2 stage-2 hit"
+    }
+]

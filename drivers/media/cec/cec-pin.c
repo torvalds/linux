@@ -119,7 +119,7 @@ static void cec_pin_update(struct cec_pin *pin, bool v, bool force)
 
 		if (pin->work_pin_events_dropped) {
 			pin->work_pin_events_dropped = false;
-			v |= CEC_PIN_EVENT_FL_DROPPED;
+			ev |= CEC_PIN_EVENT_FL_DROPPED;
 		}
 		pin->work_pin_events[pin->work_pin_events_wr] = ev;
 		pin->work_pin_ts[pin->work_pin_events_wr] = ktime_get();
@@ -601,8 +601,9 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		/* Was the message ACKed? */
 		ack = cec_msg_is_broadcast(&pin->tx_msg) ? v : !v;
-		if (!ack && !pin->tx_ignore_nack_until_eom &&
-		    pin->tx_bit / 10 < pin->tx_msg.len && !pin->tx_post_eom) {
+		if (!ack && (!pin->tx_ignore_nack_until_eom ||
+		    pin->tx_bit / 10 == pin->tx_msg.len - 1) &&
+		    !pin->tx_post_eom) {
 			/*
 			 * Note: the CEC spec is ambiguous regarding
 			 * what action to take when a NACK appears
@@ -668,7 +669,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		/* Start bit low is too short, go back to idle */
 		if (delta < CEC_TIM_START_BIT_LOW_MIN - CEC_TIM_IDLE_SAMPLE) {
 			if (!pin->rx_start_bit_low_too_short_cnt++) {
-				pin->rx_start_bit_low_too_short_ts = pin->ts;
+				pin->rx_start_bit_low_too_short_ts = ktime_to_ns(pin->ts);
 				pin->rx_start_bit_low_too_short_delta = delta;
 			}
 			cec_pin_to_idle(pin);
@@ -700,7 +701,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		/* Start bit is too short, go back to idle */
 		if (delta < CEC_TIM_START_BIT_TOTAL_MIN - CEC_TIM_IDLE_SAMPLE) {
 			if (!pin->rx_start_bit_too_short_cnt++) {
-				pin->rx_start_bit_too_short_ts = pin->ts;
+				pin->rx_start_bit_too_short_ts = ktime_to_ns(pin->ts);
 				pin->rx_start_bit_too_short_delta = delta;
 			}
 			cec_pin_to_idle(pin);
@@ -770,7 +771,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		 */
 		if (delta < CEC_TIM_DATA_BIT_TOTAL_MIN) {
 			if (!pin->rx_data_bit_too_short_cnt++) {
-				pin->rx_data_bit_too_short_ts = pin->ts;
+				pin->rx_data_bit_too_short_ts = ktime_to_ns(pin->ts);
 				pin->rx_data_bit_too_short_delta = delta;
 			}
 			cec_pin_low(pin);
@@ -935,6 +936,17 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			/* Start bit, switch to receive state */
 			pin->ts = ts;
 			pin->state = CEC_ST_RX_START_BIT_LOW;
+			/*
+			 * If a transmit is pending, then that transmit should
+			 * use a signal free time of no more than
+			 * CEC_SIGNAL_FREE_TIME_NEW_INITIATOR since it will
+			 * have a new initiator due to the receive that is now
+			 * starting.
+			 */
+			if (pin->tx_msg.len && pin->tx_signal_free_time >
+			    CEC_SIGNAL_FREE_TIME_NEW_INITIATOR)
+				pin->tx_signal_free_time =
+					CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
 			break;
 		}
 		if (ktime_to_ns(pin->ts) == 0)
@@ -1157,6 +1169,15 @@ static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
 {
 	struct cec_pin *pin = adap->pin;
 
+	/*
+	 * If a receive is in progress, then this transmit should use
+	 * a signal free time of max CEC_SIGNAL_FREE_TIME_NEW_INITIATOR
+	 * since when it starts transmitting it will have a new initiator.
+	 */
+	if (pin->state != CEC_ST_IDLE &&
+	    signal_free_time > CEC_SIGNAL_FREE_TIME_NEW_INITIATOR)
+		signal_free_time = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
+
 	pin->tx_signal_free_time = signal_free_time;
 	pin->tx_extra_bytes = 0;
 	pin->tx_msg = *msg;
@@ -1258,6 +1279,15 @@ static void cec_pin_adap_free(struct cec_adapter *adap)
 	kfree(pin);
 }
 
+static int cec_pin_received(struct cec_adapter *adap, struct cec_msg *msg)
+{
+	struct cec_pin *pin = adap->pin;
+
+	if (pin->ops->received)
+		return pin->ops->received(adap, msg);
+	return -ENOMSG;
+}
+
 void cec_pin_changed(struct cec_adapter *adap, bool value)
 {
 	struct cec_pin *pin = adap->pin;
@@ -1280,6 +1310,7 @@ static const struct cec_adap_ops cec_pin_adap_ops = {
 	.error_inj_parse_line = cec_pin_error_inj_parse_line,
 	.error_inj_show = cec_pin_error_inj_show,
 #endif
+	.received = cec_pin_received,
 };
 
 struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,

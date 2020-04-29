@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/rc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic Infrared Remote Controller Device Tree Bindings
+
+maintainers:
+  - Mauro Carvalho Chehab <mchehab@kernel.org>
+  - Sean Young <sean@mess.org>
+
+properties:
+  $nodename:
+    pattern: "^ir(@[a-f0-9]+)?$"
+
+  linux,rc-map-name:
+    description:
+      Specifies the scancode/key mapping table defined in-kernel for
+      the remote controller.
+    allOf:
+      - $ref: '/schemas/types.yaml#/definitions/string'
+      - enum:
+          - rc-adstech-dvb-t-pci
+          - rc-alink-dtu-m
+          - rc-anysee
+          - rc-apac-viewcomp
+          - rc-astrometa-t2hybrid
+          - rc-asus-pc39
+          - rc-asus-ps3-100
+          - rc-ati-tv-wonder-hd-600
+          - rc-ati-x10
+          - rc-avermedia
+          - rc-avermedia-a16d
+          - rc-avermedia-cardbus
+          - rc-avermedia-dvbt
+          - rc-avermedia-m135a
+          - rc-avermedia-m733a-rm-k6
+          - rc-avermedia-rm-ks
+          - rc-avertv-303
+          - rc-azurewave-ad-tu700
+          - rc-beelink-gs1
+          - rc-behold
+          - rc-behold-columbus
+          - rc-budget-ci-old
+          - rc-cec
+          - rc-cinergy
+          - rc-cinergy-1400
+          - rc-d680-dmb
+          - rc-delock-61959
+          - rc-dib0700-nec
+          - rc-dib0700-rc5
+          - rc-digitalnow-tinytwin
+          - rc-digittrade
+          - rc-dm1105-nec
+          - rc-dntv-live-dvb-t
+          - rc-dntv-live-dvbt-pro
+          - rc-dtt200u
+          - rc-dvbsky
+          - rc-dvico-mce
+          - rc-dvico-portable
+          - rc-em-terratec
+          - rc-empty
+          - rc-encore-enltv
+          - rc-encore-enltv-fm53
+          - rc-encore-enltv2
+          - rc-evga-indtube
+          - rc-eztv
+          - rc-flydvb
+          - rc-flyvideo
+          - rc-fusionhdtv-mce
+          - rc-gadmei-rm008z
+          - rc-geekbox
+          - rc-genius-tvgo-a11mce
+          - rc-gotview7135
+          - rc-hauppauge
+          - rc-hisi-poplar
+          - rc-hisi-tv-demo
+          - rc-imon-mce
+          - rc-imon-pad
+          - rc-imon-rsc
+          - rc-iodata-bctv7e
+          - rc-it913x-v1
+          - rc-it913x-v2
+          - rc-kaiomy
+          - rc-khadas
+          - rc-kworld-315u
+          - rc-kworld-pc150u
+          - rc-kworld-plus-tv-analog
+          - rc-leadtek-y04g0051
+          - rc-lme2510
+          - rc-manli
+          - rc-medion-x10
+          - rc-medion-x10-digitainer
+          - rc-medion-x10-or2x
+          - rc-msi-digivox-ii
+          - rc-msi-digivox-iii
+          - rc-msi-tvanywhere
+          - rc-msi-tvanywhere-plus
+          - rc-nebula
+          - rc-nec-terratec-cinergy-xs
+          - rc-norwood
+          - rc-npgtech
+          - rc-odroid
+          - rc-pctv-sedna
+          - rc-pinnacle-color
+          - rc-pinnacle-grey
+          - rc-pinnacle-pctv-hd
+          - rc-pixelview
+          - rc-pixelview-002t
+          - rc-pixelview-mk12
+          - rc-pixelview-new
+          - rc-powercolor-real-angel
+          - rc-proteus-2309
+          - rc-purpletv
+          - rc-pv951
+          - rc-rc5-tv
+          - rc-rc6-mce
+          - rc-real-audio-220-32-keys
+          - rc-reddo
+          - rc-snapstream-firefly
+          - rc-streamzap
+          - rc-su3000
+          - rc-tango
+          - rc-tanix-tx3mini
+          - rc-tanix-tx5max
+          - rc-tbs-nec
+          - rc-technisat-ts35
+          - rc-technisat-usb2
+          - rc-terratec-cinergy-c-pci
+          - rc-terratec-cinergy-s2-hd
+          - rc-terratec-cinergy-xs
+          - rc-terratec-slim
+          - rc-terratec-slim-2
+          - rc-tevii-nec
+          - rc-tivo
+          - rc-total-media-in-hand
+          - rc-total-media-in-hand-02
+          - rc-trekstor
+          - rc-tt-1500
+          - rc-twinhan-dtv-cab-ci
+          - rc-twinhan1027
+          - rc-videomate-k100
+          - rc-videomate-s350
+          - rc-videomate-tv-pvr
+          - rc-videostrong-kii-pro
+          - rc-wetek-hub
+          - rc-wetek-play2
+          - rc-winfast
+          - rc-winfast-usbii-deluxe
+          - rc-x96max
+          - rc-xbox-dvd
+          - rc-zx-irdec

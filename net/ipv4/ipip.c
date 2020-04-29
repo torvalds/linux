@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Linux NET3:	IP/IP protocol decoder.
  *
@@ -16,12 +17,6 @@
  *              Carlos Picoto   :       GRE over IP support
  *		Alexey Kuznetsov:	Reworked. Really, now it is truncated version of ipv4/ip_gre.c.
  *					I do not want to merge them together.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  */
 
 /* tunnel.c: an IP tunnel driver
@@ -140,6 +135,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	struct ip_tunnel *t;
 	int err = 0;
 
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+			     iph->daddr, iph->saddr, 0);
+	if (!t) {
+		err = -ENOENT;
+		goto out;
+	}
+
 	switch (type) {
 	case ICMP_DEST_UNREACH:
 		switch (code) {
@@ -167,21 +169,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		goto out;
 	}
 
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			     iph->daddr, iph->saddr, 0);
-	if (!t) {
-		err = -ENOENT;
-		goto out;
-	}
-
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		ipv4_update_pmtu(skb, net, info, t->parms.link, 0,
-				 iph->protocol, 0);
+		ipv4_update_pmtu(skb, net, info, t->parms.link, iph->protocol);
 		goto out;
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, net, t->parms.link, 0, iph->protocol, 0);
+		ipv4_redirect(skb, net, t->parms.link, iph->protocol);
 		goto out;
 	}
 
@@ -281,6 +275,9 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 	u8 ipproto;
 
+	if (!pskb_inet_may_pull(skb))
+		goto tx_error;
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		ipproto = IPPROTO_IPIP;
@@ -303,7 +300,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 	skb_set_inner_ipproto(skb, ipproto);
 
 	if (tunnel->collect_md)
-		ip_md_tunnel_xmit(skb, dev, ipproto);
+		ip_md_tunnel_xmit(skb, dev, ipproto, 0);
 	else
 		ip_tunnel_xmit(skb, dev, tiph, ipproto);
 	return NETDEV_TX_OK;

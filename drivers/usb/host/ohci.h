@@ -337,7 +337,7 @@ typedef struct urb_priv {
 	u16			length;		// # tds in this request
 	u16			td_cnt;		// tds already serviced
 	struct list_head	pending;
-	struct td		*td [0];	// all TDs in this request
+	struct td		*td[];		// all TDs in this request
 
 } urb_priv_t;
 
@@ -385,6 +385,8 @@ struct ohci_hcd {
 
 	/*
 	 * memory management for queue data structures
+	 *
+	 * @td_cache and @ed_cache are %NULL if &usb_hcd.localmem_pool is used.
 	 */
 	struct dma_pool		*td_cache;
 	struct dma_pool		*ed_cache;
@@ -431,12 +433,9 @@ struct ohci_hcd {
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
 	struct dentry		*debug_dir;
-	struct dentry		*debug_async;
-	struct dentry		*debug_periodic;
-	struct dentry		*debug_registers;
 
 	/* platform-specific data -- must come last */
-	unsigned long           priv[0] __aligned(sizeof(s64));
+	unsigned long           priv[] __aligned(sizeof(s64));
 
 };
 

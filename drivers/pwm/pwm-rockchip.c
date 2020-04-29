@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PWM driver for Rockchip SoCs
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
  * Copyright (C) 2014 ROCKCHIP, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -93,16 +90,16 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 		state->enabled = ((val & enable_conf) == enable_conf) ?
 				 true : false;
 
-	if (pc->data->supports_polarity) {
-		if (!(val & PWM_DUTY_POSITIVE))
-			state->polarity = PWM_POLARITY_INVERSED;
-	}
+	if (pc->data->supports_polarity && !(val & PWM_DUTY_POSITIVE))
+		state->polarity = PWM_POLARITY_INVERSED;
+	else
+		state->polarity = PWM_POLARITY_NORMAL;
 
 	clk_disable(pc->pclk);
 }
 
 static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			       struct pwm_state *state)
+			       const struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	unsigned long period, duty;
@@ -186,7 +183,7 @@ static int rockchip_pwm_enable(struct pwm_chip *chip,
 }
 
 static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			      struct pwm_state *state)
+			      const struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	struct pwm_state curstate;
@@ -214,12 +211,6 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (ret)
 			goto out;
 	}
-
-	/*
-	 * Update the state with the real hardware, which can differ a bit
-	 * because of period/duty_cycle approximation.
-	 */
-	rockchip_pwm_get_state(chip, pwm, state);
 
 out:
 	clk_disable(pc->pclk);

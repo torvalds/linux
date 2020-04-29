@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   pata-legacy.c - Legacy port PATA/SATA controller driver.
  *   Copyright 2005/2006 Red Hat, all rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   An ATA driver for the legacy ATA ports.
  *
@@ -55,7 +42,6 @@
  *
  *  For now use autospeed and pio_mask as above with the W83759A. This may
  *  change.
- *
  */
 
 #include <linux/async.h>
@@ -246,12 +232,12 @@ static const struct ata_port_operations legacy_base_port_ops = {
 
 static struct ata_port_operations simple_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer32,
 };
 
 static struct ata_port_operations legacy_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer32,
 	.set_mode	= legacy_set_mode,
 };
 
@@ -341,7 +327,7 @@ static unsigned int pdc_data_xfer_vlb(struct ata_queued_cmd *qc,
 		}
 		local_irq_restore(flags);
 	} else
-		buflen = ata_sff_data_xfer_noirq(qc, buf, buflen, rw);
+		buflen = ata_sff_data_xfer32(qc, buf, buflen, rw);
 
 	return buflen;
 }

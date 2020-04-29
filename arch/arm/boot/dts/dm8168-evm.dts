@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 /dts-v1/;
 
 #include "dm816x.dtsi"
@@ -10,7 +6,7 @@
 
 / {
 	model = "DM8168 EVM";
-	compatible = "ti,dm8168-evm", "ti,dm8168";
+	compatible = "ti,dm8168-evm", "ti,dm8168", "ti,dm816";
 
 	memory@80000000 {
 		device_type = "memory";

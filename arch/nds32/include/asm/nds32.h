@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef _ASM_NDS32_NDS32_H_
@@ -17,6 +17,7 @@
 #else
 #define FP_OFFSET (-2)
 #endif
+#define LP_OFFSET (-1)
 
 extern void __init early_trap_init(void);
 static inline void GIE_ENABLE(void)

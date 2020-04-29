@@ -75,10 +75,12 @@
 #define cpu_dcache_line_size()		32
 #define cpu_icache_line_size()		32
 #define cpu_scache_line_size()		0
+#define cpu_tcache_line_size()		0
 
 #define cpu_has_perf_cntr_intr_bit	0
 #define cpu_has_vz			0
 #define cpu_has_msa			0
+#define cpu_has_ufr			0
 #define cpu_has_fre			0
 #define cpu_has_cdmm			0
 #define cpu_has_small_pages		0
@@ -88,5 +90,6 @@
 #define cpu_has_badinstr		0
 #define cpu_has_badinstrp		0
 #define cpu_has_contextconfig		0
+#define cpu_has_perf			0
 
 #endif /* __ASM_MACH_AU1X00_CPU_FEATURE_OVERRIDES_H */

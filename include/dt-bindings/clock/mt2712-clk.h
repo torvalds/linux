@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017 MediaTek Inc.
  * Author: Weiyi Lu <weiyi.lu@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_CLK_MT2712_H
@@ -222,7 +214,14 @@
 #define CLK_TOP_APLL_DIV_PDN5		183
 #define CLK_TOP_APLL_DIV_PDN6		184
 #define CLK_TOP_APLL_DIV_PDN7		185
-#define CLK_TOP_NR_CLK			186
+#define CLK_TOP_APLL1_D3		186
+#define CLK_TOP_APLL1_REF_SEL		187
+#define CLK_TOP_APLL2_REF_SEL		188
+#define CLK_TOP_NFI2X_EN		189
+#define CLK_TOP_NFIECC_EN		190
+#define CLK_TOP_NFI1X_CK_EN		191
+#define CLK_TOP_APLL2_D3		192
+#define CLK_TOP_NR_CLK			193
 
 /* INFRACFG */
 
@@ -281,7 +280,9 @@
 #define CLK_PERI_MSDC30_3_EN		41
 #define CLK_PERI_MSDC50_0_HCLK_EN	42
 #define CLK_PERI_MSDC50_3_HCLK_EN	43
-#define CLK_PERI_NR_CLK			44
+#define CLK_PERI_MSDC30_0_QTR_EN	44
+#define CLK_PERI_MSDC30_3_QTR_EN	45
+#define CLK_PERI_NR_CLK			46
 
 /* MCUCFG */
 

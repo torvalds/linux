@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  * Author: Vinay Simha <vinaysimha@inforcecomputing.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <linux/gpio.h>
 
 #include "mdp4_kms.h"
 
@@ -34,9 +21,12 @@ static enum drm_connector_status mdp4_lvds_connector_detect(
 	struct mdp4_lvds_connector *mdp4_lvds_connector =
 			to_mdp4_lvds_connector(connector);
 
-	if (!mdp4_lvds_connector->panel)
+	if (!mdp4_lvds_connector->panel) {
 		mdp4_lvds_connector->panel =
 			of_drm_find_panel(mdp4_lvds_connector->panel_node);
+		if (IS_ERR(mdp4_lvds_connector->panel))
+			mdp4_lvds_connector->panel = NULL;
+	}
 
 	return mdp4_lvds_connector->panel ?
 			connector_status_connected :
@@ -63,7 +53,7 @@ static int mdp4_lvds_connector_get_modes(struct drm_connector *connector)
 	if (panel) {
 		drm_panel_attach(panel, connector);
 
-		ret = panel->funcs->get_modes(panel);
+		ret = drm_panel_get_modes(panel, connector);
 
 		drm_panel_detach(panel);
 	}
@@ -129,7 +119,7 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return connector;
 }

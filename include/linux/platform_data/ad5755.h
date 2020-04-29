@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2012 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 #ifndef __LINUX_PLATFORM_DATA_AD5755_H__
 #define __LINUX_PLATFORM_DATA_AD5755_H__

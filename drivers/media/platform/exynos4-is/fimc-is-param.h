@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
  *
@@ -5,10 +6,6 @@
  *
  * Authors: Younghwan Joo <yhwan.joo@samsung.com>
  *	    Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef FIMC_IS_PARAM_H_
 #define FIMC_IS_PARAM_H_
@@ -298,7 +295,7 @@ enum isp_af_mode {
 #define ISP_FLASH_COMMAND_AUTO			2
 #define ISP_FLASH_COMMAND_TORCH			3 /* 3 sec */
 
-/* Flash red-eye commads */
+/* Flash red-eye commands */
 #define ISP_FLASH_REDEYE_DISABLE		0
 #define ISP_FLASH_REDEYE_ENABLE			1
 

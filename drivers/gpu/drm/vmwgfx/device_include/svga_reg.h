@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 1998-2015 VMware, Inc.  All rights reserved.
+ * Copyright 1998-2015 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -63,16 +64,25 @@ typedef uint32 SVGAMobId;
 #define SVGA_MAX_BITS_PER_PIXEL         32
 #define SVGA_MAX_DEPTH                  24
 #define SVGA_MAX_DISPLAYS               10
+#define SVGA_MAX_SCREEN_SIZE            8192
+#define SVGA_SCREEN_ROOT_LIMIT (SVGA_MAX_SCREEN_SIZE * SVGA_MAX_DISPLAYS)
+
 
 /*
  * Legal values for the SVGA_REG_CURSOR_ON register in old-fashioned
- * cursor bypass mode. This is still supported, but no new guest
- * drivers should use it.
+ * cursor bypass mode.
  */
-#define SVGA_CURSOR_ON_HIDE            0x0   /* Must be 0 to maintain backward compatibility */
-#define SVGA_CURSOR_ON_SHOW            0x1   /* Must be 1 to maintain backward compatibility */
-#define SVGA_CURSOR_ON_REMOVE_FROM_FB  0x2   /* Remove the cursor from the framebuffer because we need to see what's under it */
-#define SVGA_CURSOR_ON_RESTORE_TO_FB   0x3   /* Put the cursor back in the framebuffer so the user can see it */
+#define SVGA_CURSOR_ON_HIDE            0x0
+#define SVGA_CURSOR_ON_SHOW            0x1
+
+/*
+ * Remove the cursor from the framebuffer
+ * because we need to see what's under it
+ */
+#define SVGA_CURSOR_ON_REMOVE_FROM_FB  0x2
+
+/* Put the cursor back in the framebuffer so the user can see it */
+#define SVGA_CURSOR_ON_RESTORE_TO_FB   0x3
 
 /*
  * The maximum framebuffer size that can traced for guests unless the
@@ -101,7 +111,10 @@ typedef uint32 SVGAMobId;
 #define SVGA_VERSION_0     0
 #define SVGA_ID_0          SVGA_MAKE_ID(SVGA_VERSION_0)
 
-/* "Invalid" value for all SVGA IDs. (Version ID, screen object ID, surface ID...) */
+/*
+ * "Invalid" value for all SVGA IDs.
+ * (Version ID, screen object ID, surface ID...)
+ */
 #define SVGA_ID_INVALID    0xFFFFFFFF
 
 /* Port offsets, relative to BAR0 */
@@ -121,6 +134,17 @@ typedef uint32 SVGAMobId;
 #define SVGA_IRQFLAG_FENCE_GOAL           0x4    /* SVGA_FIFO_FENCE_GOAL reached */
 #define SVGA_IRQFLAG_COMMAND_BUFFER       0x8    /* Command buffer completed */
 #define SVGA_IRQFLAG_ERROR                0x10   /* Error while processing commands */
+
+/*
+ * The byte-size is the size of the actual cursor data,
+ * possibly after expanding it to the current bit depth.
+ *
+ * 40K is sufficient memory for two 32-bit planes for a 64 x 64 cursor.
+ *
+ * The dimension limit is a bound on the maximum width or height.
+ */
+#define SVGA_MAX_CURSOR_CMD_BYTES  (40 * 1024)
+#define SVGA_MAX_CURSOR_CMD_DIMENSION 1024
 
 /*
  * Registers
@@ -154,8 +178,8 @@ enum {
    SVGA_REG_CONFIG_DONE = 20,         /* Set when memory area configured */
    SVGA_REG_SYNC = 21,                /* See "FIFO Synchronization Registers" */
    SVGA_REG_BUSY = 22,                /* See "FIFO Synchronization Registers" */
-   SVGA_REG_GUEST_ID = 23,            /* Set guest OS identifier */
-   SVGA_REG_CURSOR_ID = 24,           /* (Deprecated) */
+   SVGA_REG_GUEST_ID = 23,            /* (Deprecated) */
+   SVGA_REG_DEAD = 24,                /* Drivers should never write this. */
    SVGA_REG_CURSOR_X = 25,            /* (Deprecated) */
    SVGA_REG_CURSOR_Y = 26,            /* (Deprecated) */
    SVGA_REG_CURSOR_ON = 27,           /* (Deprecated) */
@@ -186,15 +210,83 @@ enum {
    SVGA_REG_MEMORY_SIZE = 47,       /* Total dedicated device memory excluding FIFO */
    SVGA_REG_COMMAND_LOW = 48,       /* Lower 32 bits and submits commands */
    SVGA_REG_COMMAND_HIGH = 49,      /* Upper 32 bits of command buffer PA */
-   SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM = 50,   /* Max primary memory */
-   SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB = 51, /* Sugested limit on mob mem */
+
+   /*
+    * Max primary memory.
+    * See SVGA_CAP_NO_BB_RESTRICTION.
+    */
+   SVGA_REG_MAX_PRIMARY_MEM = 50,
+   SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM = 50,
+
+   /*
+    * Legacy version of SVGA_REG_GBOBJECT_MEM_SIZE_KB for drivers that
+    * don't know how to convert to a 64-bit byte value without overflowing.
+    * (See SVGA_REG_GBOBJECT_MEM_SIZE_KB).
+    */
+   SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB = 51,
+
    SVGA_REG_DEV_CAP = 52,           /* Write dev cap index, read value */
    SVGA_REG_CMD_PREPEND_LOW = 53,
    SVGA_REG_CMD_PREPEND_HIGH = 54,
    SVGA_REG_SCREENTARGET_MAX_WIDTH = 55,
    SVGA_REG_SCREENTARGET_MAX_HEIGHT = 56,
    SVGA_REG_MOB_MAX_SIZE = 57,
-   SVGA_REG_TOP = 58,               /* Must be 1 more than the last register */
+   SVGA_REG_BLANK_SCREEN_TARGETS = 58,
+   SVGA_REG_CAP2 = 59,
+   SVGA_REG_DEVEL_CAP = 60,
+
+   /*
+    * Allow the guest to hint to the device which driver is running.
+    *
+    * This should not generally change device behavior, but might be
+    * convenient to work-around specific bugs in guest drivers.
+    *
+    * Drivers should first write their id value into SVGA_REG_GUEST_DRIVER_ID,
+    * and then fill out all of the version registers that they have defined.
+    *
+    * After the driver has written all of the registers, they should
+    * then write the value SVGA_REG_GUEST_DRIVER_ID_SUBMIT to the
+    * SVGA_REG_GUEST_DRIVER_ID register, to signal that they have finished.
+    *
+    * The SVGA_REG_GUEST_DRIVER_ID values are defined below by the
+    * SVGARegGuestDriverId enum.
+    *
+    * The SVGA_REG_GUEST_DRIVER_VERSION fields are driver-specific,
+    * but ideally should encode a monotonically increasing number that allows
+    * the device to perform inequality checks against ranges of driver versions.
+    */
+   SVGA_REG_GUEST_DRIVER_ID = 61,
+   SVGA_REG_GUEST_DRIVER_VERSION1 = 62,
+   SVGA_REG_GUEST_DRIVER_VERSION2 = 63,
+   SVGA_REG_GUEST_DRIVER_VERSION3 = 64,
+   SVGA_REG_CURSOR_MOBID = 65,
+   SVGA_REG_CURSOR_MAX_BYTE_SIZE = 66,
+   SVGA_REG_CURSOR_MAX_DIMENSION = 67,
+
+   SVGA_REG_FIFO_CAPS = 68,
+   SVGA_REG_FENCE = 69,
+
+   SVGA_REG_RESERVED1 = 70,
+   SVGA_REG_RESERVED2 = 71,
+   SVGA_REG_RESERVED3 = 72,
+   SVGA_REG_RESERVED4 = 73,
+   SVGA_REG_RESERVED5 = 74,
+   SVGA_REG_SCREENDMA = 75,
+
+   /*
+    * The maximum amount of guest-backed objects that the device can have
+    * resident at a time. Guest-drivers should keep their working set size
+    * below this limit for best performance.
+    *
+    * Note that this value is in kilobytes, and not bytes, because the actual
+    * number of bytes might be larger than can fit in a 32-bit register.
+    *
+    * PLEASE USE A 64-BIT VALUE WHEN CONVERTING THIS INTO BYTES.
+    * (See SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB).
+    */
+   SVGA_REG_GBOBJECT_MEM_SIZE_KB = 76,
+
+   SVGA_REG_TOP = 77,               /* Must be 1 more than the last register */
 
    SVGA_PALETTE_BASE = 1024,        /* Base of SVGA color map */
    /* Next 768 (== 256*3) registers exist for colormap */
@@ -204,6 +296,20 @@ enum {
       First 4 are reserved for VESA BIOS Extension; any remaining are for
       the use of the current SVGA driver. */
 };
+
+
+/*
+ * Values for SVGA_REG_GUEST_DRIVER_ID.
+ */
+typedef enum SVGARegGuestDriverId {
+   SVGA_REG_GUEST_DRIVER_ID_UNKNOWN = 0,
+   SVGA_REG_GUEST_DRIVER_ID_WDDM    = 1,
+   SVGA_REG_GUEST_DRIVER_ID_LINUX   = 2,
+   SVGA_REG_GUEST_DRIVER_ID_MAX,
+
+   SVGA_REG_GUEST_DRIVER_ID_SUBMIT  = MAX_UINT32,
+} SVGARegGuestDriverId;
+
 
 /*
  * Guest memory regions (GMRs):
@@ -448,6 +554,18 @@ typedef enum {
     * due to an error.  No IRQ is raised.
     */
    SVGA_CB_STATUS_SUBMISSION_ERROR = 6,
+
+   /*
+    * Written by the host when the host finished a
+    * SVGA_DC_CMD_ASYNC_STOP_QUEUE request for this command buffer
+    * queue.  The offset of the first byte not processed is stored in
+    * the errorOffset field of the command buffer header.  All guest
+    * visible side effects of commands till that point are guaranteed
+    * to be finished before this is written.  The
+    * SVGA_IRQFLAG_COMMAND_BUFFER IRQ is raised as long as the
+    * SVGA_CB_FLAG_NO_IRQ is not set.
+    */
+   SVGA_CB_STATUS_PARTIAL_COMPLETE = 7,
 } SVGACBStatus;
 
 typedef enum {
@@ -460,8 +578,8 @@ typedef enum {
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   volatile SVGACBStatus status;
-   volatile uint32 errorOffset;
+   volatile SVGACBStatus status; /* Modified by device. */
+   volatile uint32 errorOffset;  /* Modified by device. */
    uint64 id;
    SVGACBFlags flags;
    uint32 length;
@@ -472,7 +590,9 @@ struct {
          uint32 mobOffset;
       } mob;
    } ptr;
-   uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise */
+   uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise,
+                   * modified by device.
+                   */
    uint32 dxContext; /* Valid if DX_CONTEXT flag set, must be zero otherwise */
    uint32 mustBeZero[6];
 }
@@ -483,20 +603,26 @@ typedef enum {
    SVGA_DC_CMD_NOP                   = 0,
    SVGA_DC_CMD_START_STOP_CONTEXT    = 1,
    SVGA_DC_CMD_PREEMPT               = 2,
-   SVGA_DC_CMD_MAX                   = 3,
-   SVGA_DC_CMD_FORCE_UINT            = MAX_UINT32,
+   SVGA_DC_CMD_START_QUEUE           = 3, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_ASYNC_STOP_QUEUE      = 4, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_EMPTY_CONTEXT_QUEUE   = 5, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_MAX                   = 6,
 } SVGADeviceContextCmdId;
 
-typedef struct {
+/*
+ * Starts or stops both SVGA_CB_CONTEXT_0 and SVGA_CB_CONTEXT_1.
+ */
+
+typedef struct SVGADCCmdStartStop {
    uint32 enable;
-   SVGACBContext context;
+   SVGACBContext context; /* Must be zero */
 } SVGADCCmdStartStop;
 
 /*
  * SVGADCCmdPreempt --
  *
  * This command allows the guest to request that all command buffers
- * on the specified context be preempted that can be.  After execution
+ * on SVGA_CB_CONTEXT_0 be preempted that can be.  After execution
  * of this command all command buffers that were preempted will
  * already have SVGA_CB_STATUS_PREEMPTED written into the status
  * field.  The device might still be processing a command buffer,
@@ -506,10 +632,67 @@ typedef struct {
  * command buffer header set to zero.
  */
 
-typedef struct {
-   SVGACBContext context;
+typedef struct SVGADCCmdPreempt {
+   SVGACBContext context; /* Must be zero */
    uint32 ignoreIDZero;
 } SVGADCCmdPreempt;
+
+/*
+ * Starts the requested command buffer processing queue.  Valid only
+ * if the SVGA_CAP_HP_CMD_QUEUE cap is set.
+ *
+ * For a command queue to be considered runnable it must be enabled
+ * and any corresponding higher priority queues must also be enabled.
+ * For example in order for command buffers to be processed on
+ * SVGA_CB_CONTEXT_0 both SVGA_CB_CONTEXT_0 and SVGA_CB_CONTEXT_1 must
+ * be enabled.  But for commands to be runnable on SVGA_CB_CONTEXT_1
+ * only that queue must be enabled.
+ */
+
+typedef struct SVGADCCmdStartQueue {
+   SVGACBContext context;
+} SVGADCCmdStartQueue;
+
+/*
+ * Requests the SVGA device to stop processing the requested command
+ * buffer queue as soon as possible.  The guest knows the stop has
+ * completed when one of the following happens.
+ *
+ * 1) A command buffer status of SVGA_CB_STATUS_PARTIAL_COMPLETE is returned
+ * 2) A command buffer error is encountered with would stop the queue
+ *    regardless of the async stop request.
+ * 3) All command buffers that have been submitted complete successfully.
+ * 4) The stop completes synchronously if no command buffers are
+ *    active on the queue when it is issued.
+ *
+ * If the command queue is not in a runnable state there is no
+ * guarentee this async stop will finish.  For instance if the high
+ * priority queue is not enabled and a stop is requested on the low
+ * priority queue, the high priority queue must be reenabled to
+ * guarantee that the async stop will finish.
+ *
+ * This command along with SVGA_DC_CMD_EMPTY_CONTEXT_QUEUE can be used
+ * to implement mid command buffer preemption.
+ *
+ * Valid only if the SVGA_CAP_HP_CMD_QUEUE cap is set.
+ */
+
+typedef struct SVGADCCmdAsyncStopQueue {
+   SVGACBContext context;
+} SVGADCCmdAsyncStopQueue;
+
+/*
+ * Requests the SVGA device to throw away any full command buffers on
+ * the requested command queue that have not been started.  For a
+ * driver to know which command buffers were thrown away a driver
+ * should only issue this command when the queue is stopped, for
+ * whatever reason.
+ */
+
+typedef struct SVGADCCmdEmptyQueue {
+   SVGACBContext context;
+} SVGADCCmdEmptyQueue;
+
 
 /*
  * SVGAGMRImageFormat --
@@ -536,7 +719,7 @@ typedef struct SVGAGMRImageFormat {
       struct {
          uint32 bitsPerPixel : 8;
          uint32 colorDepth   : 8;
-	 uint32 reserved     : 16;  /* Must be zero */
+         uint32 reserved     : 16;  /* Must be zero */
       };
 
       uint32 value;
@@ -631,9 +814,6 @@ SVGASignedPoint;
  * and must not be reused. Those capabilities will never be reported
  * by new versions of the SVGA device.
  *
- * XXX: Add longer descriptions for each capability, including a list
- *      of the new features that each capability provides.
- *
  * SVGA_CAP_IRQMASK --
  *    Provides device interrupts.  Adds device register SVGA_REG_IRQMASK
  *    to set interrupt mask and direct I/O port SVGA_IRQSTATUS_PORT to
@@ -672,8 +852,36 @@ SVGASignedPoint;
  * SVGA_CAP_GBOBJECTS --
  *    Enable guest-backed objects and surfaces.
  *
- * SVGA_CAP_CMD_BUFFERS_3 --
- *    Enable support for command buffers in a mob.
+ * SVGA_CAP_DX --
+ *    Enable support for DX commands, and command buffers in a mob.
+ *
+ * SVGA_CAP_HP_CMD_QUEUE --
+ *    Enable support for the high priority command queue, and the
+ *    ScreenCopy command.
+ *
+ * SVGA_CAP_NO_BB_RESTRICTION --
+ *    Allow ScreenTargets to be defined without regard to the 32-bpp
+ *    bounding-box memory restrictions. ie:
+ *
+ *    The summed memory usage of all screens (assuming they were defined as
+ *    32-bpp) must always be less than the value of the
+ *    SVGA_REG_MAX_PRIMARY_MEM register.
+ *
+ *    If this cap is not present, the 32-bpp bounding box around all screens
+ *    must additionally be under the value of the SVGA_REG_MAX_PRIMARY_MEM
+ *    register.
+ *
+ *    If the cap is present, the bounding box restriction is lifted (and only
+ *    the screen-sum limit applies).
+ *
+ *    (Note that this is a slight lie... there is still a sanity limit on any
+ *     dimension of the topology to be less than SVGA_SCREEN_ROOT_LIMIT, even
+ *     when SVGA_CAP_NO_BB_RESTRICTION is present, but that should be
+ *     large enough to express any possible topology without holes between
+ *     monitors.)
+ *
+ * SVGA_CAP_CAP2_REGISTER --
+ *    If this cap is present, the SVGA_REG_CAP2 register is supported.
  */
 
 #define SVGA_CAP_NONE               0x00000000
@@ -699,8 +907,64 @@ SVGASignedPoint;
 #define SVGA_CAP_GBOBJECTS          0x08000000
 #define SVGA_CAP_DX                 0x10000000
 #define SVGA_CAP_HP_CMD_QUEUE       0x20000000
+#define SVGA_CAP_NO_BB_RESTRICTION  0x40000000
+#define SVGA_CAP_CAP2_REGISTER      0x80000000
 
-#define SVGA_CAP_CMD_RESERVED       0x80000000
+/*
+ * The SVGA_REG_CAP2 register is an additional set of SVGA capability bits.
+ *
+ * SVGA_CAP2_GROW_OTABLE --
+ *      Allow the GrowOTable/DXGrowCOTable commands.
+ *
+ * SVGA_CAP2_INTRA_SURFACE_COPY --
+ *      Allow the IntraSurfaceCopy command.
+ *
+ * SVGA_CAP2_DX2 --
+ *      Allow the DefineGBSurface_v3, WholeSurfaceCopy, WriteZeroSurface, and
+ *      HintZeroSurface commands, and the SVGA_REG_GUEST_DRIVER_ID register.
+ *
+ * SVGA_CAP2_GB_MEMSIZE_2 --
+ *      Allow the SVGA_REG_GBOBJECT_MEM_SIZE_KB register.
+ *
+ * SVGA_CAP2_SCREENDMA_REG --
+ *      Allow the SVGA_REG_SCREENDMA register.
+ *
+ * SVGA_CAP2_OTABLE_PTDEPTH_2 --
+ *      Allow 2 level page tables for OTable commands.
+ *
+ * SVGA_CAP2_NON_MS_TO_MS_STRETCHBLT --
+ *      Allow a stretch blt from a non-multisampled surface to a multisampled
+ *      surface.
+ *
+ * SVGA_CAP2_CURSOR_MOB --
+ *      Allow the SVGA_REG_CURSOR_MOBID register.
+ *
+ * SVGA_CAP2_MSHINT --
+ *      Allow the SVGA_REG_MSHINT register.
+ *
+ * SVGA_CAP2_DX3 --
+ *      Allows the DefineGBSurface_v4 command.
+ *      Allows the DXDefineDepthStencilView_v2, DXDefineStreamOutputWithMob,
+ *      and DXBindStreamOutput commands if 3D is also available.
+ *      Allows the DXPredStagingCopy and DXStagingCopy commands if SM41
+ *      is also available.
+ *
+ * SVGA_CAP2_RESERVED --
+ *      Reserve the last bit for extending the SVGA capabilities to some
+ *      future mechanisms.
+ */
+#define SVGA_CAP2_NONE                    0x00000000
+#define SVGA_CAP2_GROW_OTABLE             0x00000001
+#define SVGA_CAP2_INTRA_SURFACE_COPY      0x00000002
+#define SVGA_CAP2_DX2                     0x00000004
+#define SVGA_CAP2_GB_MEMSIZE_2            0x00000008
+#define SVGA_CAP2_SCREENDMA_REG           0x00000010
+#define SVGA_CAP2_OTABLE_PTDEPTH_2        0x00000020
+#define SVGA_CAP2_NON_MS_TO_MS_STRETCHBLT 0x00000040
+#define SVGA_CAP2_CURSOR_MOB              0x00000080
+#define SVGA_CAP2_MSHINT                  0x00000100
+#define SVGA_CAP2_DX3                     0x00000400
+#define SVGA_CAP2_RESERVED                0x80000000
 
 
 /*
@@ -722,7 +986,10 @@ typedef enum {
    SVGABackdoorCapDeviceCaps = 0,
    SVGABackdoorCapFifoCaps = 1,
    SVGABackdoorCap3dHWVersion = 2,
-   SVGABackdoorCapMax = 3,
+   SVGABackdoorCapDeviceCaps2 = 3,
+   SVGABackdoorCapDevelCaps = 4,
+   SVGABackdoorDevelRenderer = 5,
+   SVGABackdoorCapMax = 6,
 } SVGABackdoorCapType;
 
 
@@ -902,103 +1169,80 @@ enum {
 /*
  * FIFO Synchronization Registers
  *
- *  This explains the relationship between the various FIFO
- *  sync-related registers in IOSpace and in FIFO space.
- *
  *  SVGA_REG_SYNC --
  *
- *       The SYNC register can be used in two different ways by the guest:
+ *       The SYNC register can be used by the guest driver to signal to the
+ *       device that the guest driver is waiting for previously submitted
+ *       commands to complete.
  *
- *         1. If the guest wishes to fully sync (drain) the FIFO,
- *            it will write once to SYNC then poll on the BUSY
- *            register. The FIFO is sync'ed once BUSY is zero.
+ *       When the guest driver writes to the SYNC register, the device sets
+ *       the BUSY register to TRUE, and starts processing the submitted commands
+ *       (if it was not already doing so).  When all previously submitted
+ *       commands are finished and the device is idle again, it sets the BUSY
+ *       register back to FALSE.  (If the guest driver submits new commands
+ *       after writing the SYNC register, the new commands are not guaranteed
+ *       to have been procesesd.)
  *
- *         2. If the guest wants to asynchronously wake up the host,
- *            it will write once to SYNC without polling on BUSY.
- *            Ideally it will do this after some new commands have
- *            been placed in the FIFO, and after reading a zero
- *            from SVGA_FIFO_BUSY.
+ *       When guest drivers are submitting commands using the FIFO, the device
+ *       periodically polls to check for new FIFO commands when idle, which may
+ *       introduce a delay in command processing.  If the guest-driver wants
+ *       the commands to be processed quickly (which it typically does), it
+ *       should write SYNC after each batch of commands is committed to the
+ *       FIFO to immediately wake up the device.  For even better performance,
+ *       the guest can use the SVGA_FIFO_BUSY register to avoid these extra
+ *       SYNC writes if the device is already active, using the technique known
+ *       as "Ringing the Doorbell" (described below).  (Note that command
+ *       buffer submission implicitly wakes up the device, and so doesn't
+ *       suffer from this problem.)
  *
- *       (1) is the original behaviour that SYNC was designed to
- *       support.  Originally, a write to SYNC would implicitly
- *       trigger a read from BUSY. This causes us to synchronously
- *       process the FIFO.
- *
- *       This behaviour has since been changed so that writing SYNC
- *       will *not* implicitly cause a read from BUSY. Instead, it
- *       makes a channel call which asynchronously wakes up the MKS
- *       thread.
- *
- *       New guests can use this new behaviour to implement (2)
- *       efficiently. This lets guests get the host's attention
- *       without waiting for the MKS to poll, which gives us much
- *       better CPU utilization on SMP hosts and on UP hosts while
- *       we're blocked on the host GPU.
- *
- *       Old guests shouldn't notice the behaviour change. SYNC was
- *       never guaranteed to process the entire FIFO, since it was
- *       bounded to a particular number of CPU cycles. Old guests will
- *       still loop on the BUSY register until the FIFO is empty.
- *
- *       Writing to SYNC currently has the following side-effects:
- *
- *         - Sets SVGA_REG_BUSY to TRUE (in the monitor)
- *         - Asynchronously wakes up the MKS thread for FIFO processing
- *         - The value written to SYNC is recorded as a "reason", for
- *           stats purposes.
- *
- *       If SVGA_FIFO_BUSY is available, drivers are advised to only
- *       write to SYNC if SVGA_FIFO_BUSY is FALSE. Drivers should set
- *       SVGA_FIFO_BUSY to TRUE after writing to SYNC. The MKS will
- *       eventually set SVGA_FIFO_BUSY on its own, but this approach
- *       lets the driver avoid sending multiple asynchronous wakeup
- *       messages to the MKS thread.
+ *       The SYNC register can also be used in combination with BUSY to
+ *       synchronously ensure that all SVGA commands are processed (with both
+ *       the FIFO and command-buffers).  To do this, the guest driver should
+ *       write to SYNC, and then loop reading BUSY until BUSY returns FALSE.
+ *       This technique is known as a "Legacy Sync".
  *
  *  SVGA_REG_BUSY --
  *
  *       This register is set to TRUE when SVGA_REG_SYNC is written,
- *       and it reads as FALSE when the FIFO has been completely
- *       drained.
+ *       and is set back to FALSE when the device has finished processing
+ *       all commands and is idle again.
  *
- *       Every read from this register causes us to synchronously
- *       process FIFO commands. There is no guarantee as to how many
- *       commands each read will process.
+ *       Every read from the BUSY reigster will block for an undefined
+ *       amount of time (normally until the device finishes some interesting
+ *       work unit), or the device is idle.
  *
- *       CPU time spent processing FIFO commands will be billed to
- *       the guest.
- *
- *       New drivers should avoid using this register unless they
- *       need to guarantee that the FIFO is completely drained. It
- *       is overkill for performing a sync-to-fence. Older drivers
- *       will use this register for any type of synchronization.
+ *       Guest drivers can also do a partial Legacy Sync to check for some
+ *       particular condition, for instance by stopping early when a fence
+ *       passes before BUSY has been set back to FALSE.  This is particularly
+ *       useful if the guest-driver knows that it is blocked waiting on the
+ *       device, because it will yield CPU time back to the host.
  *
  *  SVGA_FIFO_BUSY --
  *
- *       This register is a fast way for the guest driver to check
- *       whether the FIFO is already being processed. It reads and
- *       writes at normal RAM speeds, with no monitor intervention.
+ *       The SVGA_FIFO_BUSY register is a fast way for the guest driver to check
+ *       whether the device is actively processing FIFO commands before writing
+ *       the more expensive SYNC register.
  *
- *       If this register reads as TRUE, the host is guaranteeing that
- *       any new commands written into the FIFO will be noticed before
- *       the MKS goes back to sleep.
+ *       If this register reads as TRUE, the device is actively processing
+ *       FIFO commands.
  *
- *       If this register reads as FALSE, no such guarantee can be
- *       made.
+ *       If this register reads as FALSE, the device may not be actively
+ *       processing commands, and the guest driver should try
+ *       "Ringing the Doorbell".
  *
- *       The guest should use this register to quickly determine
- *       whether or not it needs to wake up the host. If the guest
- *       just wrote a command or group of commands that it would like
- *       the host to begin processing, it should:
+ *       To Ring the Doorbell, the guest should:
  *
- *         1. Read SVGA_FIFO_BUSY. If it reads as TRUE, no further
- *            action is necessary.
+ *       1. Have already written their batch of commands into the FIFO.
+ *       2. Check if the SVGA_FIFO_BUSY register is available by reading
+ *          SVGA_FIFO_MIN.
+ *       3. Read SVGA_FIFO_BUSY.  If it reads as TRUE, the device is actively
+ *          processing FIFO commands, and no further action is necessary.
+ *       4. If SVGA_FIFO_BUSY was FALSE, write TRUE to SVGA_REG_SYNC.
  *
- *         2. Write TRUE to SVGA_FIFO_BUSY. This informs future guest
- *            code that we've already sent a SYNC to the host and we
- *            don't need to send a duplicate.
- *
- *         3. Write a reason to SVGA_REG_SYNC. This will send an
- *            asynchronous wakeup to the MKS thread.
+ *       For maximum performance, this procedure should be followed after
+ *       every meaningful batch of commands has been written into the FIFO.
+ *       (Normally when the underlying application signals it's finished a
+ *       meaningful work unit by calling Flush.)
  */
 
 
@@ -1010,9 +1254,6 @@ enum {
  *      Pitch Lock -- Pitch lock register is supported
  *      Video -- SVGA Video overlay units are supported
  *      Escape -- Escape command is supported
- *
- * XXX: Add longer descriptions for each capability, including a list
- *      of the new features that each capability provides.
  *
  * SVGA_FIFO_CAP_SCREEN_OBJECT --
  *
@@ -1124,6 +1365,15 @@ enum {
 
 #define SVGA_FIFO_RESERVED_UNKNOWN      0xffffffff
 
+
+/*
+ * ScreenDMA Register Values
+ */
+
+#define SVGA_SCREENDMA_REG_UNDEFINED    0
+#define SVGA_SCREENDMA_REG_NOT_PRESENT  1
+#define SVGA_SCREENDMA_REG_PRESENT      2
+#define SVGA_SCREENDMA_REG_MAX          3
 
 /*
  * Video overlay support
@@ -1509,6 +1759,80 @@ struct {
 }
 #include "vmware_pack_end.h"
 SVGAFifoCmdDefineAlphaCursor;
+
+
+/*
+ *    Provide a new large cursor image, as an AND/XOR mask.
+ *
+ *    Should only be used for CursorMob functionality
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 hotspotX;
+   uint32 hotspotY;
+   uint32 width;
+   uint32 height;
+   uint32 andMaskDepth;
+   uint32 xorMaskDepth;
+   /*
+    * Followed by scanline data for AND mask, then XOR mask.
+    * Each scanline is padded to a 32-bit boundary.
+   */
+}
+#include "vmware_pack_end.h"
+SVGAGBColorCursorHeader;
+
+
+/*
+ *    Provide a new large cursor image, in 32-bit BGRA format.
+ *
+ *    Should only be used for CursorMob functionality
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 hotspotX;
+   uint32 hotspotY;
+   uint32 width;
+   uint32 height;
+   /* Followed by scanline data */
+}
+#include "vmware_pack_end.h"
+SVGAGBAlphaCursorHeader;
+
+ /*
+  * Define the SVGA guest backed cursor types
+  */
+
+typedef enum {
+   SVGA_COLOR_CURSOR       = 0,
+   SVGA_ALPHA_CURSOR       = 1,
+} SVGAGBCursorType;
+
+/*
+ *    Provide a new large cursor image.
+ *
+ *    Should only be used for CursorMob functionality
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SVGAGBCursorType type;
+   union {
+      SVGAGBColorCursorHeader colorHeader;
+      SVGAGBAlphaCursorHeader alphaHeader;
+   } header;
+   uint32 sizeInBytes;
+   /*
+    * Followed by the cursor data
+    */
+}
+#include "vmware_pack_end.h"
+SVGAGBCursorHeader;
 
 
 /*
@@ -1908,21 +2232,14 @@ SVGAFifoCmdRemapGMR2;
 #define SVGA_VRAM_MAX_SIZE         (128 * 1024 * 1024)
 #define SVGA_MEMORY_SIZE_MAX      (1024 * 1024 * 1024)
 #define SVGA_FIFO_SIZE_MAX           (2 * 1024 * 1024)
-#define SVGA_GRAPHICS_MEMORY_KB_MIN       (32 * 1024)
-#define SVGA_GRAPHICS_MEMORY_KB_MAX       (2 * 1024 * 1024)
-#define SVGA_GRAPHICS_MEMORY_KB_DEFAULT   (256 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_MIN     (32 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_MAX_2GB (2 * 1024 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_MAX_3GB (3 * 1024 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_MAX_4GB (4 * 1024 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_MAX_8GB (8 * 1024 * 1024)
+#define SVGA_GRAPHICS_MEMORY_KB_DEFAULT (256 * 1024)
 
 #define SVGA_VRAM_SIZE_W2K          (64 * 1024 * 1024) /* 64 MB */
-
-/*
- * To simplify autoDetect display configuration, support a minimum of
- * two 1920x1200 monitors, 32bpp, side-by-side, optionally rotated:
- *   numDisplays = 2
- *   maxWidth = numDisplay * 1920 = 3840
- *   maxHeight = rotated width of single monitor = 1920
- *   vramSize = maxWidth * maxHeight * 4 = 29491200
- */
-#define SVGA_VRAM_SIZE_AUTODETECT   (32 * 1024 * 1024)
 
 #if defined(VMX86_SERVER)
 #define SVGA_VRAM_SIZE               (4 * 1024 * 1024)
@@ -1942,5 +2259,7 @@ SVGAFifoCmdRemapGMR2;
 
 #define SVGA_FIFO_SIZE_GBOBJECTS          (256 * 1024)
 #define SVGA_VRAM_SIZE_GBOBJECTS     (4 * 1024 * 1024)
+
+#define SVGA_PCI_REGS_PAGES                        (1)
 
 #endif

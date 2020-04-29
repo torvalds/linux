@@ -1,25 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * shmob_drm_crtc.h  --  SH Mobile DRM CRTCs
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __SHMOB_DRM_CRTC_H__
 #define __SHMOB_DRM_CRTC_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
 struct backlight_device;
+struct drm_pending_vblank_event;
 struct shmob_drm_device;
+struct shmob_drm_format_info;
 
 struct shmob_drm_crtc {
 	struct drm_crtc crtc;
@@ -28,7 +26,6 @@ struct shmob_drm_crtc {
 	int dpms;
 
 	const struct shmob_drm_format_info *format;
-	void *cache;
 	unsigned long dma[2];
 	unsigned int line_size;
 	bool started;

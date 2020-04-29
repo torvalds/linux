@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef	__HALBTC_OUT_SRC_H__
@@ -52,14 +44,14 @@
 #define BTC_ANT_WIFI_AT_CPL_MAIN	0
 #define BTC_ANT_WIFI_AT_CPL_AUX		1
 
-typedef enum _BTC_POWERSAVE_TYPE{
+typedef enum _BTC_POWERSAVE_TYPE {
 	BTC_PS_WIFI_NATIVE	= 0,	/*  wifi original power save behavior */
 	BTC_PS_LPS_ON		= 1,
 	BTC_PS_LPS_OFF		= 2,
 	BTC_PS_MAX
 } BTC_POWERSAVE_TYPE, *PBTC_POWERSAVE_TYPE;
 
-typedef enum _BTC_BT_REG_TYPE{
+typedef enum _BTC_BT_REG_TYPE {
 	BTC_BT_REG_RF		= 0,
 	BTC_BT_REG_MODEM	= 1,
 	BTC_BT_REG_BLUEWIZE	= 2,
@@ -68,7 +60,7 @@ typedef enum _BTC_BT_REG_TYPE{
 	BTC_BT_REG_MAX
 } BTC_BT_REG_TYPE, *PBTC_BT_REG_TYPE;
 
-typedef enum _BTC_CHIP_INTERFACE{
+typedef enum _BTC_CHIP_INTERFACE {
 	BTC_INTF_UNKNOWN	= 0,
 	BTC_INTF_PCI		= 1,
 	BTC_INTF_USB		= 2,
@@ -540,7 +532,6 @@ typedef struct _BTC_COEXIST {
 
 extern BTC_COEXIST GLBtCoexist;
 
-u8 EXhalbtcoutsrc_InitlizeVariables(void *Adapter);
 void EXhalbtcoutsrc_PowerOnSetting(PBTC_COEXIST pBtCoexist);
 void EXhalbtcoutsrc_InitHwConfig(PBTC_COEXIST pBtCoexist, u8 bWifiOnly);
 void EXhalbtcoutsrc_InitCoexDm(PBTC_COEXIST pBtCoexist);

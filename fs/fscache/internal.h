@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Internal definitions for FS-Cache
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -31,6 +27,7 @@
 #include <linux/fscache-cache.h>
 #include <trace/events/fscache.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 
 #define FSCACHE_MIN_THREADS	4
 #define FSCACHE_MAX_THREADS	32
@@ -50,7 +47,6 @@ extern struct fscache_cache *fscache_select_cache_for_object(
 extern struct kmem_cache *fscache_cookie_jar;
 
 extern void fscache_free_cookie(struct fscache_cookie *);
-extern void fscache_cookie_init_once(void *);
 extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
 						   const struct fscache_cookie_def *,
 						   const void *, size_t,
@@ -84,7 +80,7 @@ static inline void fscache_hist(atomic_t histogram[], unsigned long start_jif)
 	atomic_inc(&histogram[jif]);
 }
 
-extern const struct file_operations fscache_histogram_fops;
+extern const struct seq_operations fscache_histogram_ops;
 
 #else
 #define fscache_hist(hist, start_jif) do {} while (0)
@@ -115,7 +111,7 @@ extern void fscache_enqueue_object(struct fscache_object *);
  * object-list.c
  */
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
-extern const struct file_operations fscache_objlist_fops;
+extern const struct proc_ops fscache_objlist_proc_ops;
 
 extern void fscache_objlist_add(struct fscache_object *);
 extern void fscache_objlist_remove(struct fscache_object *);
@@ -294,7 +290,7 @@ static inline void fscache_stat_d(atomic_t *stat)
 
 #define __fscache_stat(stat) (stat)
 
-extern const struct file_operations fscache_stats_fops;
+int fscache_stats_show(struct seq_file *m, void *v);
 #else
 
 #define __fscache_stat(stat) (NULL)

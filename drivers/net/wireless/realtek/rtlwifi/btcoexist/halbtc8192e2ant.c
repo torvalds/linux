@@ -1,36 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
-/**************************************************************
- * Description:
- *
- * This file is for RTL8192E Co-exist mechanism
- *
- * History
- * 2012/11/15 Cosa first check in.
- *
- **************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2012  Realtek Corporation.*/
 
 /**************************************************************
  *   include files
@@ -893,7 +862,7 @@ static void btc8192e2ant_set_sw_rf_rx_lpf_corner(struct btc_coexist *btcoexist,
 		/* Resume RF Rx LPF corner
 		 * After initialized, we can use coex_dm->btRf0x1eBackup
 		 */
-		if (btcoexist->initilized) {
+		if (btcoexist->initialized) {
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], Resume RF Rx LPF corner!!\n");
 			btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1e,
@@ -1609,10 +1578,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	static int up, dn, m, n, wait_cnt;
-	/* 0: no change, +1: increase WiFi duration,
-	 * -1: decrease WiFi duration
-	 */
-	int result;
 	u8 retry_cnt = 0;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -1700,7 +1665,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		dn = 0;
 		m = 1;
 		n = 3;
-		result = 0;
 		wait_cnt = 0;
 	} else {
 		/* accquire the BT TRx retry count from BT_Info byte2 */
@@ -1710,7 +1674,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], up=%d, dn=%d, m=%d, n=%d, wait_cnt=%d\n",
 			 up, dn, m, n, wait_cnt);
-		result = 0;
 		wait_cnt++;
 		/* no retry in the last 2-second duration */
 		if (retry_cnt == 0) {
@@ -1725,7 +1688,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				n = 3;
 				up = 0;
 				dn = 0;
-				result = 1;
 				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 					 "[BTCoex]Increase wifi duration!!\n");
 			}
@@ -1749,7 +1711,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				up = 0;
 				dn = 0;
 				wait_cnt = 0;
-				result = -1;
 				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 					 "Reduce wifi duration for retry<3\n");
 			}
@@ -1766,7 +1727,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 			up = 0;
 			dn = 0;
 			wait_cnt = 0;
-			result = -1;
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "Decrease wifi duration for retryCounter>3!!\n");
 		}
@@ -1783,7 +1743,7 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		bool scan = false, link = false, roam = false;
 
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], PsTdma type dismatch!!!, ");
+			 "[BTCoex], PsTdma type mismatch!!!, ");
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "curPsTdma=%d, recordPsTdma=%d\n",
 			 coex_dm->cur_ps_tdma, coex_dm->tdma_adj_type);

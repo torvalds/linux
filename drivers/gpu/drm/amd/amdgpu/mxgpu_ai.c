@@ -26,6 +26,7 @@
 #include "nbio/nbio_6_1_sh_mask.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
+#include "mp/mp_9_0_offset.h"
 #include "soc15.h"
 #include "vega10_ih.h"
 #include "soc15_common.h"
@@ -174,7 +175,7 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 			return r;
 		}
 		/* Retrieve checksum from mailbox2 */
-		if (req == IDH_REQ_GPU_INIT_ACCESS) {
+		if (req == IDH_REQ_GPU_INIT_ACCESS || req == IDH_REQ_GPU_RESET_ACCESS) {
 			adev->virt.fw_reserve.checksum_key =
 				RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
 					mmBIF_BX_PF0_MAILBOX_MSGBUF_RCV_DW2));
@@ -249,7 +250,7 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	 */
 	locked = mutex_trylock(&adev->lock_reset);
 	if (locked)
-		adev->in_gpu_reset = 1;
+		adev->in_gpu_reset = true;
 
 	do {
 		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
@@ -260,12 +261,15 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	} while (timeout > 1);
 
 flr_done:
-	if (locked)
+	if (locked) {
+		adev->in_gpu_reset = false;
 		mutex_unlock(&adev->lock_reset);
+	}
 
 	/* Trigger recovery for world switch failure if no TDR */
-	if (amdgpu_lockup_timeout == 0)
-		amdgpu_device_gpu_recover(adev, NULL, true);
+	if (amdgpu_device_should_recover_gpu(adev)
+		&& adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT)
+		amdgpu_device_gpu_recover(adev, NULL);
 }
 
 static int xgpu_ai_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -293,6 +297,9 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 		if (amdgpu_sriov_runtime(adev))
 			schedule_work(&adev->virt.flr_work);
 		break;
+		case IDH_QUERY_ALIVE:
+			xgpu_ai_mailbox_send_ack(adev);
+			break;
 		/* READY_TO_ACCESS_GPU is fetched by kernel polling, IRQ can ignore
 		 * it byfar since that polling thread will handle it,
 		 * other msg like flr complete is not handled here.

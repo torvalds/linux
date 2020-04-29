@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pmi backend for the cbe_cpufreq driver
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005-2007
  *
  * Author: Christian Krafft <krafft@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -25,6 +12,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/of_platform.h>
+#include <linux/pm_qos.h>
 
 #include <asm/processor.h>
 #include <asm/prom.h>
@@ -36,8 +24,6 @@
 #endif
 
 #include "ppc_cbe_cpufreq.h"
-
-static u8 pmi_slow_mode_limit[MAX_CBE];
 
 bool cbe_cpufreq_has_pmi = false;
 EXPORT_SYMBOL_GPL(cbe_cpufreq_has_pmi);
@@ -78,64 +64,88 @@ EXPORT_SYMBOL_GPL(cbe_cpufreq_set_pmode_pmi);
 
 static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
+	struct cpufreq_policy *policy;
+	struct freq_qos_request *req;
 	u8 node, slow_mode;
+	int cpu, ret;
 
 	BUG_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
 
 	node = pmi_msg.data1;
 	slow_mode = pmi_msg.data2;
 
-	pmi_slow_mode_limit[node] = slow_mode;
+	cpu = cbe_node_to_cpu(node);
 
 	pr_debug("cbe_handle_pmi: node: %d max_freq: %d\n", node, slow_mode);
-}
 
-static int pmi_notifier(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	struct cpufreq_policy *policy = data;
-	struct cpufreq_frequency_table *cbe_freqs = policy->freq_table;
-	u8 node;
-
-	/* Should this really be called for CPUFREQ_ADJUST and CPUFREQ_NOTIFY
-	 * policy events?)
-	 */
-	node = cbe_cpu_to_node(policy->cpu);
-
-	pr_debug("got notified, event=%lu, node=%u\n", event, node);
-
-	if (pmi_slow_mode_limit[node] != 0) {
-		pr_debug("limiting node %d to slow mode %d\n",
-			 node, pmi_slow_mode_limit[node]);
-
-		cpufreq_verify_within_limits(policy, 0,
-
-			cbe_freqs[pmi_slow_mode_limit[node]].frequency);
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy) {
+		pr_warn("cpufreq policy not found cpu%d\n", cpu);
+		return;
 	}
 
-	return 0;
-}
+	req = policy->driver_data;
 
-static struct notifier_block pmi_notifier_block = {
-	.notifier_call = pmi_notifier,
-};
+	ret = freq_qos_update_request(req,
+			policy->freq_table[slow_mode].frequency);
+	if (ret < 0)
+		pr_warn("Failed to update freq constraint: %d\n", ret);
+	else
+		pr_debug("limiting node %d to slow mode %d\n", node, slow_mode);
+
+	cpufreq_cpu_put(policy);
+}
 
 static struct pmi_handler cbe_pmi_handler = {
 	.type			= PMI_TYPE_FREQ_CHANGE,
 	.handle_pmi_message	= cbe_cpufreq_handle_pmi,
 };
 
-
-
-static int __init cbe_cpufreq_pmi_init(void)
+void cbe_cpufreq_pmi_policy_init(struct cpufreq_policy *policy)
 {
-	cbe_cpufreq_has_pmi = pmi_register_handler(&cbe_pmi_handler) == 0;
+	struct freq_qos_request *req;
+	int ret;
 
 	if (!cbe_cpufreq_has_pmi)
-		return -ENODEV;
+		return;
 
-	cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return;
 
-	return 0;
+	ret = freq_qos_add_request(&policy->constraints, req, FREQ_QOS_MAX,
+				   policy->freq_table[0].frequency);
+	if (ret < 0) {
+		pr_err("Failed to add freq constraint (%d)\n", ret);
+		kfree(req);
+		return;
+	}
+
+	policy->driver_data = req;
 }
-device_initcall(cbe_cpufreq_pmi_init);
+EXPORT_SYMBOL_GPL(cbe_cpufreq_pmi_policy_init);
+
+void cbe_cpufreq_pmi_policy_exit(struct cpufreq_policy *policy)
+{
+	struct freq_qos_request *req = policy->driver_data;
+
+	if (cbe_cpufreq_has_pmi) {
+		freq_qos_remove_request(req);
+		kfree(req);
+	}
+}
+EXPORT_SYMBOL_GPL(cbe_cpufreq_pmi_policy_exit);
+
+void cbe_cpufreq_pmi_init(void)
+{
+	if (!pmi_register_handler(&cbe_pmi_handler))
+		cbe_cpufreq_has_pmi = true;
+}
+EXPORT_SYMBOL_GPL(cbe_cpufreq_pmi_init);
+
+void cbe_cpufreq_pmi_exit(void)
+{
+	pmi_unregister_handler(&cbe_pmi_handler);
+	cbe_cpufreq_has_pmi = false;
+}
+EXPORT_SYMBOL_GPL(cbe_cpufreq_pmi_exit);

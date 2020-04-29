@@ -115,7 +115,7 @@ static void __init alchemy_setup_uarts(int ctype)
 	uartclk = clk_get_rate(clk);
 	clk_put(clk);
 
-	ports = kzalloc(s * (c + 1), GFP_KERNEL);
+	ports = kcalloc(s, (c + 1), GFP_KERNEL);
 	if (!ports) {
 		printk(KERN_INFO "Alchemy: no memory for UART data\n");
 		return;
@@ -131,9 +131,7 @@ static void __init alchemy_setup_uarts(int ctype)
 }
 
 
-/* The dmamask must be set for OHCI/EHCI to work */
-static u64 alchemy_ohci_dmamask = DMA_BIT_MASK(32);
-static u64 __maybe_unused alchemy_ehci_dmamask = DMA_BIT_MASK(32);
+static u64 alchemy_all_dmamask = DMA_BIT_MASK(32);
 
 /* Power on callback for the ehci platform driver */
 static int alchemy_ehci_power_on(struct platform_device *pdev)
@@ -198,7 +196,7 @@ static unsigned long alchemy_ehci_data[][2] __initdata = {
 
 static int __init _new_usbres(struct resource **r, struct platform_device **d)
 {
-	*r = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	*r = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
 	if (!*r)
 		return -ENOMEM;
 	*d = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
@@ -231,7 +229,7 @@ static void __init alchemy_setup_usb(int ctype)
 	res[1].flags = IORESOURCE_IRQ;
 	pdev->name = "ohci-platform";
 	pdev->id = 0;
-	pdev->dev.dma_mask = &alchemy_ohci_dmamask;
+	pdev->dev.dma_mask = &alchemy_all_dmamask;
 	pdev->dev.platform_data = &alchemy_ohci_pdata;
 
 	if (platform_device_register(pdev))
@@ -251,7 +249,7 @@ static void __init alchemy_setup_usb(int ctype)
 		res[1].flags = IORESOURCE_IRQ;
 		pdev->name = "ehci-platform";
 		pdev->id = 0;
-		pdev->dev.dma_mask = &alchemy_ehci_dmamask;
+		pdev->dev.dma_mask = &alchemy_all_dmamask;
 		pdev->dev.platform_data = &alchemy_ehci_pdata;
 
 		if (platform_device_register(pdev))
@@ -271,7 +269,7 @@ static void __init alchemy_setup_usb(int ctype)
 		res[1].flags = IORESOURCE_IRQ;
 		pdev->name = "ohci-platform";
 		pdev->id = 1;
-		pdev->dev.dma_mask = &alchemy_ohci_dmamask;
+		pdev->dev.dma_mask = &alchemy_all_dmamask;
 		pdev->dev.platform_data = &alchemy_ohci_pdata;
 
 		if (platform_device_register(pdev))
@@ -338,7 +336,11 @@ static struct platform_device au1xxx_eth0_device = {
 	.name		= "au1000-eth",
 	.id		= 0,
 	.num_resources	= MAC_RES_COUNT,
-	.dev.platform_data = &au1xxx_eth0_platform_data,
+	.dev = {
+		.dma_mask               = &alchemy_all_dmamask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+		.platform_data          = &au1xxx_eth0_platform_data,
+	},
 };
 
 static struct resource au1xxx_eth1_resources[][MAC_RES_COUNT] __initdata = {
@@ -370,7 +372,11 @@ static struct platform_device au1xxx_eth1_device = {
 	.name		= "au1000-eth",
 	.id		= 1,
 	.num_resources	= MAC_RES_COUNT,
-	.dev.platform_data = &au1xxx_eth1_platform_data,
+	.dev = {
+		.dma_mask               = &alchemy_all_dmamask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+		.platform_data          = &au1xxx_eth1_platform_data,
+	},
 };
 
 void __init au1xxx_override_eth_cfg(unsigned int port,

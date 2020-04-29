@@ -107,7 +107,6 @@ void foo(void)
 	/* These would be unneccessary if we ran asm files
 	 * through the preprocessor.
 	 */
-	DEFINE(KTHREAD_SIZE, THREAD_SIZE);
 	DEFINE(KTHREAD_SHIFT, THREAD_SHIFT);
 	DEFINE(KTHREAD_START_SP, THREAD_START_SP);
 	DEFINE(ENOSYS_, ENOSYS);

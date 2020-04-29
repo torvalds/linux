@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
- * Licensed under the GPL
  */
 
 #include <linux/slab.h>
@@ -213,8 +213,7 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 		spin_lock_irqsave(&irqs_to_free_lock, flags);
 		list_add(&chan->free_list, &irqs_to_free);
 		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
-	}
-	else {
+	} else {
 		if (chan->input && chan->enabled)
 			um_free_irq(chan->line->driver->read_irq, chan);
 		if (chan->output && chan->enabled)
@@ -248,12 +247,6 @@ void deactivate_chan(struct chan *chan, int irq)
 		deactivate_fd(chan->fd, irq);
 }
 
-void reactivate_chan(struct chan *chan, int irq)
-{
-	if (chan && chan->enabled)
-		reactivate_fd(chan->fd, irq);
-}
-
 int write_chan(struct chan *chan, const char *buf, int len,
 	       int write_irq)
 {
@@ -265,8 +258,6 @@ int write_chan(struct chan *chan, const char *buf, int len,
 	n = chan->ops->write(chan->fd, buf, len, chan->data);
 	if (chan->primary) {
 		ret = n;
-		if ((ret == -EAGAIN) || ((ret >= 0) && (ret < len)))
-			reactivate_fd(chan->fd, write_irq);
 	}
 	return ret;
 }
@@ -564,8 +555,6 @@ void chan_interrupt(struct line *line, int irq)
 			tty_insert_flip_char(port, c, TTY_NORMAL);
 	} while (err > 0);
 
-	if (err == 0)
-		reactivate_fd(chan->fd, irq);
 	if (err == -EIO) {
 		if (chan->primary) {
 			tty_port_tty_hangup(&line->port, false);

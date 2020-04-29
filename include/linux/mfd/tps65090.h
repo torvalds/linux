@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Core driver interface for TI TPS65090 PMIC family
  *
  * Copyright (C) 2012 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
  */
 
 #ifndef __LINUX_MFD_TPS65090_H
@@ -83,6 +69,8 @@ enum {
 #define TPS65090_MAX_REG	TPS65090_REG_AD_OUT2
 #define TPS65090_NUM_REGS	(TPS65090_MAX_REG + 1)
 
+struct gpio_desc;
+
 struct tps65090 {
 	struct device		*dev;
 	struct regmap		*rmap;
@@ -95,8 +83,8 @@ struct tps65090 {
  * @reg_init_data: The regulator init data.
  * @enable_ext_control: Enable extrenal control or not. Only available for
  *     DCDC1, DCDC2 and DCDC3.
- * @gpio: Gpio number if external control is enabled and controlled through
- *     gpio.
+ * @gpiod: Gpio descriptor if external control is enabled and controlled through
+ *     gpio
  * @overcurrent_wait_valid: True if the overcurrent_wait should be applied.
  * @overcurrent_wait: Value to set as the overcurrent wait time.  This is the
  *     actual bitfield value, not a time in ms (valid value are 0 - 3).
@@ -104,7 +92,7 @@ struct tps65090 {
 struct tps65090_regulator_plat_data {
 	struct regulator_init_data *reg_init_data;
 	bool enable_ext_control;
-	int gpio;
+	struct gpio_desc *gpiod;
 	bool overcurrent_wait_valid;
 	int overcurrent_wait;
 };

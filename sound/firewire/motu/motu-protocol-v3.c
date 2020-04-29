@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-protocol-v3.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <linux/delay.h>
@@ -105,6 +104,8 @@ static int v3_get_clock_source(struct snd_motu *motu,
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 	} else if (val == 0x01) {
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
+	} else if (val == 0x02) {
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 	} else if (val == 0x10) {
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 	} else if (val == 0x18 || val == 0x19) {
@@ -188,11 +189,20 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		/*
-		 * Packets to v2 units transfer main-out-1/2 and phone-out-1/2.
-		 */
-		pcm_chunks[0] += 4;
-		pcm_chunks[1] += 4;
+		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
+			pcm_chunks[0] += 2;
+			pcm_chunks[1] += 2;
+		}
+
+		// Packets to v3 units include 2 chunks for phone 1/2, except
+		// for 176.4/192.0 kHz.
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
+	}
+
+	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
 	}
 
 	/*

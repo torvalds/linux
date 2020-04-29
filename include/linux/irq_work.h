@@ -18,11 +18,13 @@
 
 /* Doesn't want IPI, wait for tick: */
 #define IRQ_WORK_LAZY		BIT(2)
+/* Run hard IRQ context, even on RT */
+#define IRQ_WORK_HARD_IRQ	BIT(3)
 
 #define IRQ_WORK_CLAIMED	(IRQ_WORK_PENDING | IRQ_WORK_BUSY)
 
 struct irq_work {
-	unsigned long flags;
+	atomic_t flags;
 	struct llist_node llnode;
 	void (*func)(struct irq_work *);
 };
@@ -30,11 +32,15 @@ struct irq_work {
 static inline
 void init_irq_work(struct irq_work *work, void (*func)(struct irq_work *))
 {
-	work->flags = 0;
+	atomic_set(&work->flags, 0);
 	work->func = func;
 }
 
-#define DEFINE_IRQ_WORK(name, _f) struct irq_work name = { .func = (_f), }
+#define DEFINE_IRQ_WORK(name, _f) struct irq_work name = {	\
+		.flags = ATOMIC_INIT(0),			\
+		.func  = (_f)					\
+}
+
 
 bool irq_work_queue(struct irq_work *work);
 bool irq_work_queue_on(struct irq_work *work, int cpu);

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADIS16260/ADIS16265 Programmable Digital Gyroscope Sensor Driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/interrupt.h>
@@ -294,7 +293,7 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 		addr = adis16260_addresses[chan->scan_index][1];
 		return adis_write_reg_16(adis, addr, val);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&adis->state_lock);
 		if (spi_get_device_id(adis->spi)->driver_data)
 			t = 256 / val;
 		else
@@ -309,9 +308,9 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 			adis->spi->max_speed_hz = ADIS16260_SPI_SLOW;
 		else
 			adis->spi->max_speed_hz = ADIS16260_SPI_FAST;
-		ret = adis_write_reg_8(adis, ADIS16260_SMPL_PRD, t);
+		ret = __adis_write_reg_8(adis, ADIS16260_SMPL_PRD, t);
 
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&adis->state_lock);
 		return ret;
 	}
 	return -EINVAL;
@@ -333,6 +332,12 @@ static const char * const adis1620_status_error_msgs[] = {
 	[ADIS16260_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 4.75",
 };
 
+static const struct adis_timeout adis16260_timeouts = {
+	.reset_ms = ADIS16260_STARTUP_DELAY,
+	.sw_reset_ms = ADIS16260_STARTUP_DELAY,
+	.self_test_ms = ADIS16260_STARTUP_DELAY,
+};
+
 static const struct adis_data adis16260_data = {
 	.write_delay = 30,
 	.read_delay = 30,
@@ -341,7 +346,8 @@ static const struct adis_data adis16260_data = {
 	.diag_stat_reg = ADIS16260_DIAG_STAT,
 
 	.self_test_mask = ADIS16260_MSC_CTRL_MEM_TEST,
-	.startup_delay = ADIS16260_STARTUP_DELAY,
+	.self_test_reg = ADIS16260_MSC_CTRL,
+	.timeouts = &adis16260_timeouts,
 
 	.status_error_msgs = adis1620_status_error_msgs,
 	.status_error_mask = BIT(ADIS16260_DIAG_STAT_FLASH_CHK_BIT) |

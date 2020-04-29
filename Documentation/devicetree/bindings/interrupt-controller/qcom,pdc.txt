@@ -17,7 +17,8 @@ Properties:
 - compatible:
 	Usage: required
 	Value type: <string>
-	Definition: Should contain "qcom,<soc>-pdc"
+	Definition: Should contain "qcom,<soc>-pdc" and "qcom,pdc"
+		    - "qcom,sc7180-pdc": For SC7180
 		    - "qcom,sdm845-pdc": For SDM845
 
 - reg:
@@ -34,12 +35,6 @@ Properties:
 		    The first element of the tuple is the PDC pin for the
 		    interrupt.
 		    The second element is the trigger type.
-
-- interrupt-parent:
-	Usage: required
-	Value type: <phandle>
-	Definition: Specifies the interrupt parent necessary for hierarchical
-		    domain to operate.
 
 - interrupt-controller:
 	Usage: required

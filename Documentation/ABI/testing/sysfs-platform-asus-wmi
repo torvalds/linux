@@ -36,3 +36,23 @@ KernelVersion:	3.5
 Contact:	"AceLan Kao" <acelan.kao@canonical.com>
 Description:
 		Resume on lid open. 1 means on, 0 means off.
+
+What:		/sys/devices/platform/<platform>/fan_boost_mode
+Date:		Sep 2019
+KernelVersion:	5.3
+Contact:	"Yurii Pavlovskyi" <yurii.pavlovskyi@gmail.com>
+Description:
+		Fan boost mode:
+			* 0 - normal,
+			* 1 - overboost,
+			* 2 - silent
+
+What:		/sys/devices/platform/<platform>/throttle_thermal_policy
+Date:		Dec 2019
+KernelVersion:	5.6
+Contact:	"Leonid Maksymchuk" <leonmaxx@gmail.com>
+Description:
+		Throttle thermal policy mode:
+			* 0 - default,
+			* 1 - overboost,
+			* 2 - silent

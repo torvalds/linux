@@ -7,9 +7,6 @@ Required properties:
 - reg: Specifies the physical base address of the controller and
   the length of the memory mapped region.
 
-- interrupt-parent: The phandle for the interrupt controller that
-  services interrupts for this device.
-
 - interrupts: Specifies the interrupt source of the parent interrupt
   controller. The format of the interrupt specifier depends on the
   parent interrupt controller.

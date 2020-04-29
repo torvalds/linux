@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* incoming call handling
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -88,7 +84,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 		smp_store_release(&b->conn_backlog_head,
 				  (head + 1) & (size - 1));
 
-		trace_rxrpc_conn(conn, rxrpc_conn_new_service,
+		trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_service,
 				 atomic_read(&conn->usage), here);
 	}
 
@@ -101,7 +97,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
 	call->state = RXRPC_CALL_SERVER_PREALLOC;
 
-	trace_rxrpc_call(call, rxrpc_call_new_service,
+	trace_rxrpc_call(call->debug_id, rxrpc_call_new_service,
 			 atomic_read(&call->usage),
 			 here, (const void *)user_call_ID);
 
@@ -116,9 +112,9 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 		while (*pp) {
 			parent = *pp;
 			xcall = rb_entry(parent, struct rxrpc_call, sock_node);
-			if (user_call_ID < call->user_call_ID)
+			if (user_call_ID < xcall->user_call_ID)
 				pp = &(*pp)->rb_left;
-			else if (user_call_ID > call->user_call_ID)
+			else if (user_call_ID > xcall->user_call_ID)
 				pp = &(*pp)->rb_right;
 			else
 				goto id_in_use;
@@ -244,16 +240,34 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 }
 
 /*
+ * Ping the other end to fill our RTT cache and to retrieve the rwind
+ * and MTU parameters.
+ */
+static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	ktime_t now = skb->tstamp;
+
+	if (call->peer->rtt_usage < 3 ||
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, sp->hdr.serial,
+				  true, true,
+				  rxrpc_propose_ack_ping_for_params);
+}
+
+/*
  * Allocate a new incoming call from the prealloc pool, along with a connection
  * and a peer as necessary.
  */
 static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 						    struct rxrpc_local *local,
+						    struct rxrpc_peer *peer,
 						    struct rxrpc_connection *conn,
+						    const struct rxrpc_security *sec,
+						    struct key *key,
 						    struct sk_buff *skb)
 {
 	struct rxrpc_backlog *b = rx->backlog;
-	struct rxrpc_peer *peer, *xpeer;
 	struct rxrpc_call *call;
 	unsigned short call_head, conn_head, peer_head;
 	unsigned short call_tail, conn_tail, peer_tail;
@@ -276,21 +290,18 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		return NULL;
 
 	if (!conn) {
-		/* No connection.  We're going to need a peer to start off
-		 * with.  If one doesn't yet exist, use a spare from the
-		 * preallocation set.  We dump the address into the spare in
-		 * anticipation - and to save on stack space.
-		 */
-		xpeer = b->peer_backlog[peer_tail];
-		if (rxrpc_extract_addr_from_skb(local, &xpeer->srx, skb) < 0)
-			return NULL;
-
-		peer = rxrpc_lookup_incoming_peer(local, xpeer);
-		if (peer == xpeer) {
+		if (peer && !rxrpc_get_peer_maybe(peer))
+			peer = NULL;
+		if (!peer) {
+			peer = b->peer_backlog[peer_tail];
+			if (rxrpc_extract_addr_from_skb(&peer->srx, skb) < 0)
+				return NULL;
 			b->peer_backlog[peer_tail] = NULL;
 			smp_store_release(&b->peer_backlog_tail,
 					  (peer_tail + 1) &
 					  (RXRPC_BACKLOG_MAX - 1));
+
+			rxrpc_new_incoming_peer(rx, local, peer);
 		}
 
 		/* Now allocate and set up the connection */
@@ -301,7 +312,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		conn->params.local = rxrpc_get_local(local);
 		conn->params.peer = peer;
 		rxrpc_see_connection(conn);
-		rxrpc_new_incoming_connection(rx, conn, skb);
+		rxrpc_new_incoming_connection(rx, conn, sec, key, skb);
 	} else {
 		rxrpc_get_connection(conn);
 	}
@@ -314,6 +325,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 
 	rxrpc_see_call(call);
 	call->conn = conn;
+	call->security = conn->security;
 	call->peer = rxrpc_get_peer(conn->params.peer);
 	call->cong_cwnd = call->peer->cong_cwnd;
 	return call;
@@ -335,64 +347,47 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * The call is returned with the user access mutex held.
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
-					   struct rxrpc_connection *conn,
+					   struct rxrpc_sock *rx,
 					   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rxrpc_sock *rx;
-	struct rxrpc_call *call;
-	u16 service_id = sp->hdr.serviceId;
+	const struct rxrpc_security *sec = NULL;
+	struct rxrpc_connection *conn;
+	struct rxrpc_peer *peer = NULL;
+	struct rxrpc_call *call = NULL;
+	struct key *key = NULL;
 
 	_enter("");
 
-	/* Get the socket providing the service */
-	rx = rcu_dereference(local->service);
-	if (rx && (service_id == rx->srx.srx_service ||
-		   service_id == rx->second_service))
-		goto found_service;
-
-	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-			  RX_INVALID_OPERATION, EOPNOTSUPP);
-	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
-	skb->priority = RX_INVALID_OPERATION;
-	_leave(" = NULL [service]");
-	return NULL;
-
-found_service:
 	spin_lock(&rx->incoming_lock);
 	if (rx->sk.sk_state == RXRPC_SERVER_LISTEN_DISABLED ||
 	    rx->sk.sk_state == RXRPC_CLOSE) {
 		trace_rxrpc_abort(0, "CLS", sp->hdr.cid, sp->hdr.callNumber,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
-		skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 		skb->priority = RX_INVALID_OPERATION;
-		_leave(" = NULL [close]");
-		call = NULL;
-		goto out;
+		goto no_call;
 	}
 
-	call = rxrpc_alloc_incoming_call(rx, local, conn, skb);
+	/* The peer, connection and call may all have sprung into existence due
+	 * to a duplicate packet being handled on another CPU in parallel, so
+	 * we have to recheck the routing.  However, we're now holding
+	 * rx->incoming_lock, so the values should remain stable.
+	 */
+	conn = rxrpc_find_connection_rcu(local, skb, &peer);
+
+	if (!conn && !rxrpc_look_up_server_security(local, rx, &sec, &key, skb))
+		goto no_call;
+
+	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, key, skb);
+	key_put(key);
 	if (!call) {
-		skb->mark = RXRPC_SKB_MARK_BUSY;
-		_leave(" = NULL [busy]");
-		call = NULL;
-		goto out;
+		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
+		goto no_call;
 	}
 
 	trace_rxrpc_receive(call, rxrpc_receive_incoming,
 			    sp->hdr.serial, sp->hdr.seq);
-
-	/* Lock the call to prevent rxrpc_kernel_send/recv_data() and
-	 * sendmsg()/recvmsg() inconveniently stealing the mutex once the
-	 * notification is generated.
-	 *
-	 * The BUG should never happen because the kernel should be well
-	 * behaved enough not to access the call before the first notification
-	 * event and userspace is prevented from doing so until the state is
-	 * appropriate.
-	 */
-	if (!mutex_trylock(&call->user_mutex))
-		BUG();
 
 	/* Make the call live. */
 	rxrpc_incoming_call(rx, call, skb);
@@ -413,25 +408,30 @@ found_service:
 
 	case RXRPC_CONN_SERVICE:
 		write_lock(&call->state_lock);
-		if (rx->discard_new_call)
-			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
-		else
-			call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		if (call->state < RXRPC_CALL_COMPLETE) {
+			if (rx->discard_new_call)
+				call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
+			else
+				call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		}
 		write_unlock(&call->state_lock);
 		break;
 
 	case RXRPC_CONN_REMOTELY_ABORTED:
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
-					  conn->remote_abort, -ECONNABORTED);
+					  conn->abort_code, conn->error);
 		break;
 	case RXRPC_CONN_LOCALLY_ABORTED:
 		rxrpc_abort_call("CON", call, sp->hdr.seq,
-				 conn->local_abort, -ECONNABORTED);
+				 conn->abort_code, conn->error);
 		break;
 	default:
 		BUG();
 	}
 	spin_unlock(&conn->state_lock);
+	spin_unlock(&rx->incoming_lock);
+
+	rxrpc_send_ping(call, skb);
 
 	if (call->state == RXRPC_CALL_SERVER_ACCEPTING)
 		rxrpc_notify_socket(call);
@@ -444,9 +444,12 @@ found_service:
 	rxrpc_put_call(call, rxrpc_call_put);
 
 	_leave(" = %p{%d}", call, call->debug_id);
-out:
-	spin_unlock(&rx->incoming_lock);
 	return call;
+
+no_call:
+	spin_unlock(&rx->incoming_lock);
+	_leave(" = NULL [%u]", skb->mark);
+	return NULL;
 }
 
 /*

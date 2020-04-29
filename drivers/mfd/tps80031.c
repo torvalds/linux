@@ -30,7 +30,6 @@
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps80031.h>
-#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -431,21 +430,18 @@ static int tps80031_probe(struct i2c_client *client,
 	}
 
 	tps80031 = devm_kzalloc(&client->dev, sizeof(*tps80031), GFP_KERNEL);
-	if (!tps80031) {
-		dev_err(&client->dev, "Malloc failed for tps80031\n");
+	if (!tps80031)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < TPS80031_NUM_SLAVES; i++) {
 		if (tps80031_slave_address[i] == client->addr)
 			tps80031->clients[i] = client;
 		else
-			tps80031->clients[i] = i2c_new_dummy(client->adapter,
-						tps80031_slave_address[i]);
-		if (!tps80031->clients[i]) {
+			tps80031->clients[i] = devm_i2c_new_dummy_device(&client->dev,
+						client->adapter, tps80031_slave_address[i]);
+		if (IS_ERR(tps80031->clients[i])) {
 			dev_err(&client->dev, "can't attach client %d\n", i);
-			ret = -ENOMEM;
-			goto fail_client_reg;
+			return PTR_ERR(tps80031->clients[i]);
 		}
 
 		i2c_set_clientdata(tps80031->clients[i], tps80031);
@@ -455,7 +451,7 @@ static int tps80031_probe(struct i2c_client *client,
 			ret = PTR_ERR(tps80031->regmap[i]);
 			dev_err(&client->dev,
 				"regmap %d init failed, err %d\n", i, ret);
-			goto fail_client_reg;
+			return ret;
 		}
 	}
 
@@ -464,7 +460,7 @@ static int tps80031_probe(struct i2c_client *client,
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"Silicon version number read failed: %d\n", ret);
-		goto fail_client_reg;
+		return ret;
 	}
 
 	ret = tps80031_read(&client->dev, TPS80031_SLAVE_ID3,
@@ -472,7 +468,7 @@ static int tps80031_probe(struct i2c_client *client,
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"Silicon eeprom version read failed: %d\n", ret);
-		goto fail_client_reg;
+		return ret;
 	}
 
 	dev_info(&client->dev, "ES version 0x%02x and EPROM version 0x%02x\n",
@@ -485,7 +481,7 @@ static int tps80031_probe(struct i2c_client *client,
 	ret = tps80031_irq_init(tps80031, client->irq, pdata->irq_base);
 	if (ret) {
 		dev_err(&client->dev, "IRQ init failed: %d\n", ret);
-		goto fail_client_reg;
+		return ret;
 	}
 
 	tps80031_pupd_init(tps80031, pdata);
@@ -509,34 +505,7 @@ static int tps80031_probe(struct i2c_client *client,
 
 fail_mfd_add:
 	regmap_del_irq_chip(client->irq, tps80031->irq_data);
-
-fail_client_reg:
-	for (i = 0; i < TPS80031_NUM_SLAVES; i++) {
-		if (tps80031->clients[i]  && (tps80031->clients[i] != client))
-			i2c_unregister_device(tps80031->clients[i]);
-	}
 	return ret;
-}
-
-static int tps80031_remove(struct i2c_client *client)
-{
-	struct tps80031 *tps80031 = i2c_get_clientdata(client);
-	int i;
-
-	if (tps80031_power_off_dev == tps80031) {
-		tps80031_power_off_dev = NULL;
-		pm_power_off = NULL;
-	}
-
-	mfd_remove_devices(tps80031->dev);
-
-	regmap_del_irq_chip(client->irq, tps80031->irq_data);
-
-	for (i = 0; i < TPS80031_NUM_SLAVES; i++) {
-		if (tps80031->clients[i] != client)
-			i2c_unregister_device(tps80031->clients[i]);
-	}
-	return 0;
 }
 
 static const struct i2c_device_id tps80031_id_table[] = {
@@ -544,14 +513,13 @@ static const struct i2c_device_id tps80031_id_table[] = {
 	{ "tps80032", TPS80032 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, tps80031_id_table);
 
 static struct i2c_driver tps80031_driver = {
 	.driver	= {
-		.name	= "tps80031",
+		.name			= "tps80031",
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= tps80031_probe,
-	.remove		= tps80031_remove,
 	.id_table	= tps80031_id_table,
 };
 
@@ -560,13 +528,3 @@ static int __init tps80031_init(void)
 	return i2c_add_driver(&tps80031_driver);
 }
 subsys_initcall(tps80031_init);
-
-static void __exit tps80031_exit(void)
-{
-	i2c_del_driver(&tps80031_driver);
-}
-module_exit(tps80031_exit);
-
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("TPS80031 core driver");
-MODULE_LICENSE("GPL v2");

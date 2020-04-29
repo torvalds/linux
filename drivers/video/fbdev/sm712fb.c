@@ -530,6 +530,65 @@ static const struct modeinit vgamode[] = {
 			0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x15, 0x03,
 		},
 	},
+	{	/*  1024 x 768  16Bpp  60Hz */
+		1024, 768, 16, 60,
+		/*  Init_MISC */
+		0xEB,
+		{	/*  Init_SR0_SR4 */
+			0x03, 0x01, 0x0F, 0x03, 0x0E,
+		},
+		{	/*  Init_SR10_SR24 */
+			0xF3, 0xB6, 0xC0, 0xDD, 0x00, 0x0E, 0x17, 0x2C,
+			0x99, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0xC4, 0x30, 0x02, 0x01, 0x01,
+		},
+		{	/*  Init_SR30_SR75 */
+			0x38, 0x03, 0x20, 0x09, 0xC0, 0x3A, 0x3A, 0x3A,
+			0x3A, 0x3A, 0x3A, 0x3A, 0x00, 0x00, 0x03, 0xFF,
+			0x00, 0xFC, 0x00, 0x00, 0x20, 0x18, 0x00, 0xFC,
+			0x20, 0x0C, 0x44, 0x20, 0x00, 0x00, 0x00, 0x3A,
+			0x06, 0x68, 0xA7, 0x7F, 0x83, 0x24, 0xFF, 0x03,
+			0x0F, 0x60, 0x59, 0x3A, 0x3A, 0x00, 0x00, 0x3A,
+			0x01, 0x80, 0x7E, 0x1A, 0x1A, 0x00, 0x00, 0x00,
+			0x50, 0x03, 0x74, 0x14, 0x3B, 0x0D, 0x09, 0x02,
+			0x04, 0x45, 0x30, 0x30, 0x40, 0x20,
+		},
+		{	/*  Init_SR80_SR93 */
+			0xFF, 0x07, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x3A,
+			0xF7, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x3A, 0x3A,
+			0x00, 0x00, 0x00, 0x00,
+		},
+		{	/*  Init_SRA0_SRAF */
+			0x00, 0xFB, 0x9F, 0x01, 0x00, 0xED, 0xED, 0xED,
+			0x7B, 0xFB, 0xFF, 0xFF, 0x97, 0xEF, 0xBF, 0xDF,
+		},
+		{	/*  Init_GR00_GR08 */
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x05, 0x0F,
+			0xFF,
+		},
+		{	/*  Init_AR00_AR14 */
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+			0x41, 0x00, 0x0F, 0x00, 0x00,
+		},
+		{	/*  Init_CR00_CR18 */
+			0xA3, 0x7F, 0x7F, 0x00, 0x85, 0x16, 0x24, 0xF5,
+			0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x03, 0x09, 0xFF, 0x80, 0x40, 0xFF, 0x00, 0xE3,
+			0xFF,
+		},
+		{	/*  Init_CR30_CR4D */
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x02, 0x20,
+			0x00, 0x00, 0x00, 0x40, 0x00, 0xFF, 0xBF, 0xFF,
+			0xA3, 0x7F, 0x00, 0x86, 0x15, 0x24, 0xFF, 0x00,
+			0x01, 0x07, 0xE5, 0x20, 0x7F, 0xFF,
+		},
+		{	/*  Init_CR90_CRA7 */
+			0x55, 0xD9, 0x5D, 0xE1, 0x86, 0x1B, 0x8E, 0x26,
+			0xDA, 0x8D, 0xDE, 0x94, 0x00, 0x00, 0x18, 0x00,
+			0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x15, 0x03,
+		},
+	},
 	{	/*  mode#5: 1024 x 768  24Bpp  60Hz */
 		1024, 768, 24, 60,
 		/*  Init_MISC */
@@ -827,67 +886,80 @@ static inline unsigned int chan_to_field(unsigned int chan,
 
 static int smtc_blank(int blank_mode, struct fb_info *info)
 {
+	struct smtcfb_info *sfb = info->par;
+
 	/* clear DPMS setting */
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		/* Screen On: HSync: On, VSync : On */
+
+		switch (sfb->chip_id) {
+		case 0x710:
+		case 0x712:
+			smtc_seqw(0x6a, 0x16);
+			smtc_seqw(0x6b, 0x02);
+			break;
+		case 0x720:
+			smtc_seqw(0x6a, 0x0d);
+			smtc_seqw(0x6b, 0x02);
+			break;
+		}
+
+		smtc_seqw(0x23, (smtc_seqr(0x23) & (~0xc0)));
 		smtc_seqw(0x01, (smtc_seqr(0x01) & (~0x20)));
-		smtc_seqw(0x6a, 0x16);
-		smtc_seqw(0x6b, 0x02);
 		smtc_seqw(0x21, (smtc_seqr(0x21) & 0x77));
 		smtc_seqw(0x22, (smtc_seqr(0x22) & (~0x30)));
-		smtc_seqw(0x23, (smtc_seqr(0x23) & (~0xc0)));
-		smtc_seqw(0x24, (smtc_seqr(0x24) | 0x01));
 		smtc_seqw(0x31, (smtc_seqr(0x31) | 0x03));
+		smtc_seqw(0x24, (smtc_seqr(0x24) | 0x01));
 		break;
 	case FB_BLANK_NORMAL:
 		/* Screen Off: HSync: On, VSync : On   Soft blank */
-		smtc_seqw(0x01, (smtc_seqr(0x01) & (~0x20)));
-		smtc_seqw(0x6a, 0x16);
-		smtc_seqw(0x6b, 0x02);
-		smtc_seqw(0x22, (smtc_seqr(0x22) & (~0x30)));
-		smtc_seqw(0x23, (smtc_seqr(0x23) & (~0xc0)));
 		smtc_seqw(0x24, (smtc_seqr(0x24) | 0x01));
 		smtc_seqw(0x31, ((smtc_seqr(0x31) & (~0x07)) | 0x00));
+		smtc_seqw(0x23, (smtc_seqr(0x23) & (~0xc0)));
+		smtc_seqw(0x01, (smtc_seqr(0x01) & (~0x20)));
+		smtc_seqw(0x22, (smtc_seqr(0x22) & (~0x30)));
+		smtc_seqw(0x6a, 0x16);
+		smtc_seqw(0x6b, 0x02);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		/* Screen On: HSync: On, VSync : Off */
-		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
-		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
-		smtc_seqw(0x6a, 0x0c);
-		smtc_seqw(0x6b, 0x02);
-		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
-		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x20));
-		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0x20));
 		smtc_seqw(0x24, (smtc_seqr(0x24) & (~0x01)));
 		smtc_seqw(0x31, ((smtc_seqr(0x31) & (~0x07)) | 0x00));
+		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0x20));
+		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
+		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
+		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
+		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x20));
 		smtc_seqw(0x34, (smtc_seqr(0x34) | 0x80));
+		smtc_seqw(0x6a, 0x0c);
+		smtc_seqw(0x6b, 0x02);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		/* Screen On: HSync: Off, VSync : On */
-		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
-		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
-		smtc_seqw(0x6a, 0x0c);
-		smtc_seqw(0x6b, 0x02);
-		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
-		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x10));
-		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0xD8));
 		smtc_seqw(0x24, (smtc_seqr(0x24) & (~0x01)));
 		smtc_seqw(0x31, ((smtc_seqr(0x31) & (~0x07)) | 0x00));
+		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0xD8));
+		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
+		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
+		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
+		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x10));
 		smtc_seqw(0x34, (smtc_seqr(0x34) | 0x80));
+		smtc_seqw(0x6a, 0x0c);
+		smtc_seqw(0x6b, 0x02);
 		break;
 	case FB_BLANK_POWERDOWN:
 		/* Screen On: HSync: Off, VSync : Off */
-		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
-		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
-		smtc_seqw(0x6a, 0x0c);
-		smtc_seqw(0x6b, 0x02);
-		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
-		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x30));
-		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0xD8));
 		smtc_seqw(0x24, (smtc_seqr(0x24) & (~0x01)));
 		smtc_seqw(0x31, ((smtc_seqr(0x31) & (~0x07)) | 0x00));
+		smtc_seqw(0x23, ((smtc_seqr(0x23) & (~0xc0)) | 0xD8));
+		smtc_seqw(0x01, (smtc_seqr(0x01) | 0x20));
+		smtc_seqw(0x21, (smtc_seqr(0x21) | 0x88));
+		smtc_seqw(0x20, (smtc_seqr(0x20) & (~0xB0)));
+		smtc_seqw(0x22, ((smtc_seqr(0x22) & (~0x30)) | 0x30));
 		smtc_seqw(0x34, (smtc_seqr(0x34) | 0x80));
+		smtc_seqw(0x6a, 0x0c);
+		smtc_seqw(0x6b, 0x02);
 		break;
 	default:
 		return -EINVAL;
@@ -1145,8 +1217,10 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 
 		/* init SEQ register SR30 - SR75 */
 		for (i = 0; i < SIZE_SR30_SR75; i++)
-			if ((i + 0x30) != 0x62 && (i + 0x30) != 0x6a &&
-			    (i + 0x30) != 0x6b)
+			if ((i + 0x30) != 0x30 && (i + 0x30) != 0x62 &&
+			    (i + 0x30) != 0x6a && (i + 0x30) != 0x6b &&
+			    (i + 0x30) != 0x70 && (i + 0x30) != 0x71 &&
+			    (i + 0x30) != 0x74 && (i + 0x30) != 0x75)
 				smtc_seqw(i + 0x30,
 					  vgamode[j].init_sr30_sr75[i]);
 
@@ -1171,8 +1245,12 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 			smtc_crtcw(i, vgamode[j].init_cr00_cr18[i]);
 
 		/* init CRTC register CR30 - CR4D */
-		for (i = 0; i < SIZE_CR30_CR4D; i++)
+		for (i = 0; i < SIZE_CR30_CR4D; i++) {
+			if ((i + 0x30) >= 0x3B && (i + 0x30) <= 0x3F)
+				/* side-effect, don't write to CR3B-CR3F */
+				continue;
 			smtc_crtcw(i + 0x30, vgamode[j].init_cr30_cr4d[i]);
+		}
 
 		/* init CRTC register CR90 - CRA7 */
 		for (i = 0; i < SIZE_CR90_CRA7; i++)
@@ -1291,7 +1369,7 @@ static int smtc_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops smtcfb_ops = {
+static const struct fb_ops smtcfb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = smtc_check_var,
 	.fb_set_par   = smtc_set_par,
@@ -1323,6 +1401,11 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 {
 	sfb->fb->fix.smem_start = pci_resource_start(pdev, 0);
 
+	if (sfb->chip_id == 0x720)
+		/* on SM720, the framebuffer starts at the 1 MB offset */
+		sfb->fb->fix.smem_start += 0x00200000;
+
+	/* XXX: is it safe for SM720 on Big-Endian? */
 	if (sfb->fb->var.bits_per_pixel == 32)
 		sfb->fb->fix.smem_start += big_addr;
 
@@ -1360,12 +1443,82 @@ static inline void sm7xx_init_hw(void)
 	outb_p(0x11, 0x3c5);
 }
 
+static u_long sm7xx_vram_probe(struct smtcfb_info *sfb)
+{
+	u8 vram;
+
+	switch (sfb->chip_id) {
+	case 0x710:
+	case 0x712:
+		/*
+		 * Assume SM712 graphics chip has 4MB VRAM.
+		 *
+		 * FIXME: SM712 can have 2MB VRAM, which is used on earlier
+		 * laptops, such as IBM Thinkpad 240X. This driver would
+		 * probably crash on those machines. If anyone gets one of
+		 * those and is willing to help, run "git blame" and send me
+		 * an E-mail.
+		 */
+		return 0x00400000;
+	case 0x720:
+		outb_p(0x76, 0x3c4);
+		vram = inb_p(0x3c5) >> 6;
+
+		if (vram == 0x00)
+			return 0x00800000;  /* 8 MB */
+		else if (vram == 0x01)
+			return 0x01000000;  /* 16 MB */
+		else if (vram == 0x02)
+			return 0x00400000;  /* illegal, fallback to 4 MB */
+		else if (vram == 0x03)
+			return 0x00400000;  /* 4 MB */
+	}
+	return 0;  /* unknown hardware */
+}
+
+static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
+{
+	/* get mode parameter from smtc_scr_info */
+	if (smtc_scr_info.lfb_width != 0) {
+		sfb->fb->var.xres = smtc_scr_info.lfb_width;
+		sfb->fb->var.yres = smtc_scr_info.lfb_height;
+		sfb->fb->var.bits_per_pixel = smtc_scr_info.lfb_depth;
+		goto final;
+	}
+
+	/*
+	 * No parameter, default resolution is 1024x768-16.
+	 *
+	 * FIXME: earlier laptops, such as IBM Thinkpad 240X, has a 800x600
+	 * panel, also see the comments about Thinkpad 240X above.
+	 */
+	sfb->fb->var.xres = SCREEN_X_RES;
+	sfb->fb->var.yres = SCREEN_Y_RES_PC;
+	sfb->fb->var.bits_per_pixel = SCREEN_BPP;
+
+#ifdef CONFIG_MIPS
+	/*
+	 * Loongson MIPS netbooks use 1024x600 LCD panels, which is the original
+	 * target platform of this driver, but nearly all old x86 laptops have
+	 * 1024x768. Lighting 768 panels using 600's timings would partially
+	 * garble the display, so we don't want that. But it's not possible to
+	 * distinguish them reliably.
+	 *
+	 * So we change the default to 768, but keep 600 as-is on MIPS.
+	 */
+	sfb->fb->var.yres = SCREEN_Y_RES_NETBOOK;
+#endif
+
+final:
+	big_pixel_depth(sfb->fb->var.bits_per_pixel, smtc_scr_info.lfb_depth);
+}
+
 static int smtcfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
 	struct fb_info *info;
-	u_long smem_size = 0x00800000;	/* default 8MB */
+	u_long smem_size;
 	int err;
 	unsigned long mmio_base;
 
@@ -1385,7 +1538,6 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(*sfb), &pdev->dev);
 	if (!info) {
-		dev_err(&pdev->dev, "framebuffer_alloc failed\n");
 		err = -ENOMEM;
 		goto failed_free;
 	}
@@ -1405,29 +1557,19 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	sm7xx_init_hw();
 
-	/* get mode parameter from smtc_scr_info */
-	if (smtc_scr_info.lfb_width != 0) {
-		sfb->fb->var.xres = smtc_scr_info.lfb_width;
-		sfb->fb->var.yres = smtc_scr_info.lfb_height;
-		sfb->fb->var.bits_per_pixel = smtc_scr_info.lfb_depth;
-	} else {
-		/* default resolution 1024x600 16bit mode */
-		sfb->fb->var.xres = SCREEN_X_RES;
-		sfb->fb->var.yres = SCREEN_Y_RES;
-		sfb->fb->var.bits_per_pixel = SCREEN_BPP;
-	}
-
-	big_pixel_depth(sfb->fb->var.bits_per_pixel, smtc_scr_info.lfb_depth);
 	/* Map address and memory detection */
 	mmio_base = pci_resource_start(pdev, 0);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chip_rev_id);
+
+	smem_size = sm7xx_vram_probe(sfb);
+	dev_info(&pdev->dev, "%lu MiB of VRAM detected.\n",
+					smem_size / 1048576);
 
 	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
 		sfb->fb->fix.mmio_start = mmio_base + 0x00400000;
 		sfb->fb->fix.mmio_len = 0x00400000;
-		smem_size = SM712_VIDEOMEMORYSIZE;
 		sfb->lfb = ioremap(mmio_base, mmio_addr);
 		if (!sfb->lfb) {
 			dev_err(&pdev->dev,
@@ -1459,8 +1601,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	case 0x720:
 		sfb->fb->fix.mmio_start = mmio_base;
 		sfb->fb->fix.mmio_len = 0x00200000;
-		smem_size = SM722_VIDEOMEMORYSIZE;
-		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
+		sfb->dp_regs = ioremap(mmio_base, 0x00200000 + smem_size);
 		sfb->lfb = sfb->dp_regs + 0x00200000;
 		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
@@ -1477,6 +1618,9 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		goto failed_fb;
 	}
 
+	/* probe and decide resolution */
+	sm7xx_resolution_probe(sfb);
+
 	/* can support 32 bpp */
 	if (sfb->fb->var.bits_per_pixel == 15)
 		sfb->fb->var.bits_per_pixel = 16;
@@ -1487,7 +1631,11 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto failed;
 
-	smtcfb_setmode(sfb);
+	/*
+	 * The screen would be temporarily garbled when sm712fb takes over
+	 * vesafb or VGA text mode. Zero the framebuffer.
+	 */
+	memset_io(sfb->lfb, 0, sfb->fb->fix.smem_len);
 
 	err = register_framebuffer(info);
 	if (err < 0)
@@ -1546,10 +1694,8 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 
 static int __maybe_unused smtcfb_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct smtcfb_info *sfb;
+	struct smtcfb_info *sfb = dev_get_drvdata(device);
 
-	sfb = pci_get_drvdata(pdev);
 
 	/* set the hw in sleep mode use external clock and self memory refresh
 	 * so that we can turn off internal PLLs later on
@@ -1569,10 +1715,8 @@ static int __maybe_unused smtcfb_pci_suspend(struct device *device)
 
 static int __maybe_unused smtcfb_pci_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct smtcfb_info *sfb;
+	struct smtcfb_info *sfb = dev_get_drvdata(device);
 
-	sfb = pci_get_drvdata(pdev);
 
 	/* reinit hardware */
 	sm7xx_init_hw();

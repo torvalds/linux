@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/cpu/sh5/clock-sh5.c
  *
  * SH-5 support for the clock framework
  *
  *  Copyright (C) 2008  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -71,7 +68,7 @@ static struct sh_clk_ops *sh5_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct sh_clk_ops **ops, int idx)
 {
-	cprc_base = (unsigned long)ioremap_nocache(CPRC_BASE, 1024);
+	cprc_base = (unsigned long)ioremap(CPRC_BASE, 1024);
 	BUG_ON(!cprc_base);
 
 	if (idx < ARRAY_SIZE(sh5_clk_ops))

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Generic video config states
 #
@@ -10,18 +11,21 @@ config VIDEO_V4L2
 	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	default (I2C || I2C=n) && VIDEO_DEV
 
+config VIDEO_V4L2_I2C
+	bool
+	depends on I2C && VIDEO_V4L2
+	default y
+
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality on V4L2 drivers"
-	default n
-	---help---
+	help
 	  Say Y here to enable advanced debugging functionality on some
 	  V4L devices.
 	  In doubt, say N.
 
 config VIDEO_FIXED_MINOR_RANGES
 	bool "Enable old-style fixed minor ranges on drivers/video devices"
-	default n
-	---help---
+	help
 	  Say Y here to enable the old-style fixed-range minor assignments.
 	  Only useful if you rely on the old behavior and use mknod instead of udev.
 
@@ -30,9 +34,10 @@ config VIDEO_FIXED_MINOR_RANGES
 config VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
 	depends on PCI
+	depends on SAMPLES
 	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
 	depends on VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
-	---help---
+	help
 	  Enable build of the skeleton PCI driver, used as a reference
 	  when developing new drivers.
 
@@ -50,7 +55,7 @@ config V4L2_FLASH_LED_CLASS
 	tristate "V4L2 flash API for LED flash class devices"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on LEDS_CLASS_FLASH
-	---help---
+	help
 	  Say Y here to enable V4L2 flash API support for LED flash
 	  class drivers.
 
@@ -65,7 +70,6 @@ config VIDEOBUF_GEN
 
 config VIDEOBUF_DMA_SG
 	tristate
-	depends on HAS_DMA
 	select VIDEOBUF_GEN
 
 config VIDEOBUF_VMALLOC
@@ -73,10 +77,5 @@ config VIDEOBUF_VMALLOC
 	select VIDEOBUF_GEN
 
 config VIDEOBUF_DMA_CONTIG
-	tristate
-	depends on HAS_DMA
-	select VIDEOBUF_GEN
-
-config VIDEOBUF_DVB
 	tristate
 	select VIDEOBUF_GEN

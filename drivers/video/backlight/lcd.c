@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LCD Lowlevel Control Abstraction
  *
@@ -29,18 +30,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 	struct lcd_device *ld;
 	struct fb_event *evdata = data;
 
-	/* If we aren't interested in this event, skip it immediately ... */
-	switch (event) {
-	case FB_EVENT_BLANK:
-	case FB_EVENT_MODE_CHANGE:
-	case FB_EVENT_MODE_CHANGE_ALL:
-	case FB_EARLY_EVENT_BLANK:
-	case FB_R_EARLY_EVENT_BLANK:
-		break;
-	default:
-		return 0;
-	}
-
 	ld = container_of(self, struct lcd_device, fb_notif);
 	if (!ld->ops)
 		return 0;
@@ -50,14 +39,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (event == FB_EVENT_BLANK) {
 			if (ld->ops->set_power)
 				ld->ops->set_power(ld, *(int *)evdata->data);
-		} else if (event == FB_EARLY_EVENT_BLANK) {
-			if (ld->ops->early_set_power)
-				ld->ops->early_set_power(ld,
-						*(int *)evdata->data);
-		} else if (event == FB_R_EARLY_EVENT_BLANK) {
-			if (ld->ops->r_early_set_power)
-				ld->ops->r_early_set_power(ld,
-						*(int *)evdata->data);
 		} else {
 			if (ld->ops->set_mode)
 				ld->ops->set_mode(ld, evdata->data);

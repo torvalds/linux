@@ -49,6 +49,6 @@
 };
 
 &pp0 {
-	compatible = "marvell,prestera-98dx4251";
+	compatible = "marvell,prestera-98dx4251", "marvell,prestera";
 	interrupts = <33>, <34>, <35>, <36>;
 };

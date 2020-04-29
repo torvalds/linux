@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Miro PCM20 radio driver for Linux radio support
  * (c) 1998 Ruurd Reitsma <R.A.Reitsma@wbmt.tudelft.nl>
@@ -200,11 +201,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct pcm20 *dev = video_drvdata(file);
 
-	strlcpy(v->driver, "Miro PCM20", sizeof(v->driver));
-	strlcpy(v->card, "Miro PCM20", sizeof(v->card));
+	strscpy(v->driver, "Miro PCM20", sizeof(v->driver));
+	strscpy(v->card, "Miro PCM20", sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", dev->v4l2_dev.name);
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -231,7 +230,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 	if (v->index)
 		return -EINVAL;
-	strlcpy(v->name, "FM", sizeof(v->name));
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = 87*16000;
 	v->rangehigh = 108*16000;
@@ -443,7 +442,7 @@ static int __init pcm20_init(void)
 			 "you must load the snd-miro driver first!\n");
 		return -ENODEV;
 	}
-	strlcpy(v4l2_dev->name, "radio-miropcm20", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "radio-miropcm20", sizeof(v4l2_dev->name));
 	mutex_init(&dev->lock);
 
 	res = v4l2_device_register(NULL, v4l2_dev);
@@ -474,12 +473,14 @@ static int __init pcm20_init(void)
 		v4l2_err(v4l2_dev, "Could not register control\n");
 		goto err_hdl;
 	}
-	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
+	strscpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
 	dev->vdev.v4l2_dev = v4l2_dev;
 	dev->vdev.fops = &pcm20_fops;
 	dev->vdev.ioctl_ops = &pcm20_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
+	dev->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+				V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&dev->vdev, dev);
 	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
 			dev->audmode == V4L2_TUNER_MODE_MONO, -1);

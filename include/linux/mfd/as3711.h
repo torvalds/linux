@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AS3711 PMIC MFC driver header
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  * Author: Guennadi Liakhovetski, <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #ifndef MFD_AS3711_H
@@ -108,9 +105,9 @@ struct as3711_regulator_pdata {
 };
 
 struct as3711_bl_pdata {
-	const char *su1_fb;
+	bool su1_fb;
 	int su1_max_uA;
-	const char *su2_fb;
+	bool su2_fb;
 	int su2_max_uA;
 	enum as3711_su2_feedback su2_feedback;
 	enum as3711_su2_fbprot su2_fbprot;

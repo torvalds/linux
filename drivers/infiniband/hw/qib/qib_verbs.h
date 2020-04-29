@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2018 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -46,7 +46,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_hdrs.h>
-#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 #include <rdma/rdmavt_cq.h>
 
 struct qib_ctxtdata;
@@ -77,9 +77,6 @@ struct qib_verbs_txreq;
 #define IB_PMA_PORT_XMIT_WAIT   cpu_to_be16(0x0005)
 
 #define QIB_VENDOR_IPG		cpu_to_be16(0xFFA0)
-
-/* XXX Should be defined in ib_verbs.h enum ib_port_cap_flags */
-#define IB_PORT_OTHER_LOCAL_CHANGES_SUP (1 << 26)
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
 
@@ -180,7 +177,6 @@ struct qib_ibdev {
 	struct timer_list mem_timer;
 	struct qib_pio_header *pio_hdrs;
 	dma_addr_t pio_hdrs_phys;
-	u32 qp_rnd; /* random bytes for hash */
 
 	u32 n_piowait;
 	u32 n_txwait;
@@ -226,8 +222,8 @@ static inline int qib_send_ok(struct rvt_qp *qp)
 		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
-void _qib_schedule_send(struct rvt_qp *qp);
-void qib_schedule_send(struct rvt_qp *qp);
+bool _qib_schedule_send(struct rvt_qp *qp);
+bool qib_schedule_send(struct rvt_qp *qp);
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 {
@@ -248,9 +244,8 @@ void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		    const struct ib_mad_hdr *in, size_t in_mad_size,
-		    struct ib_mad_hdr *out, size_t *out_mad_size,
-		    u16 *out_mad_pkey_index);
+		    const struct ib_mad *in, struct ib_mad *out,
+		    size_t *out_mad_size, u16 *out_mad_pkey_index);
 void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx);
 void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx);
 
@@ -295,9 +290,6 @@ void qib_put_txreq(struct qib_verbs_txreq *tx);
 int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len);
 
-void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		  int release);
-
 void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
@@ -306,7 +298,8 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 
 int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
-int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		       bool *call_send);
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
@@ -314,14 +307,12 @@ void qib_rc_rnr_retry(unsigned long arg);
 
 void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
-int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
+int qib_post_ud_send(struct rvt_qp *qp, const struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 void mr_rcu_callback(struct rcu_head *list);
-
-int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
 void qib_migrate_qp(struct rvt_qp *qp);
 
@@ -337,9 +328,6 @@ void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 void _qib_do_send(struct work_struct *work);
 
 void qib_do_send(struct rvt_qp *qp);
-
-void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-		       enum ib_wc_status status);
 
 void qib_send_rc_ack(struct rvt_qp *qp);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for mt2063 Micronas tuner
  *
@@ -7,16 +8,6 @@
  *		Henry Wang <Henry.wang@AzureWave.com>
  * Made publicly available by Terratec, at:
  *	http://linux.terratec.de/files/TERRATEC_H7/20110323_TERRATEC_H7_Linux.tar.gz
- * The original driver's license is GPL, as declared with MODULE_LICENSE()
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation under version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -2200,10 +2191,9 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 static const struct dvb_tuner_ops mt2063_ops = {
 	.info = {
 		 .name = "MT2063 Silicon Tuner",
-		 .frequency_min = 45000000,
-		 .frequency_max = 865000000,
-		 .frequency_step = 0,
-		 },
+		 .frequency_min_hz  =  45 * MHz,
+		 .frequency_max_hz  = 865 * MHz,
+	 },
 
 	.init = mt2063_init,
 	.sleep = MT2063_Sleep,

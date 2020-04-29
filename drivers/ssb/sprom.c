@@ -26,9 +26,9 @@ static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len,
 	int i, pos = 0;
 
 	for (i = 0; i < sprom_size_words; i++)
-		pos += snprintf(buf + pos, buf_len - pos - 1,
+		pos += scnprintf(buf + pos, buf_len - pos - 1,
 				"%04X", swab16(sprom[i]) & 0xFFFF);
-	pos += snprintf(buf + pos, buf_len - pos - 1, "\n");
+	pos += scnprintf(buf + pos, buf_len - pos - 1, "\n");
 
 	return pos + 1;
 }
@@ -127,13 +127,13 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 		goto out_kfree;
 	err = ssb_devices_freeze(bus, &freeze);
 	if (err) {
-		ssb_err("SPROM write: Could not freeze all devices\n");
+		pr_err("SPROM write: Could not freeze all devices\n");
 		goto out_unlock;
 	}
 	res = sprom_write(bus, sprom);
 	err = ssb_devices_thaw(&freeze);
 	if (err)
-		ssb_err("SPROM write: Could not thaw all devices\n");
+		pr_err("SPROM write: Could not thaw all devices\n");
 out_unlock:
 	mutex_unlock(&bus->sprom_mutex);
 out_kfree:

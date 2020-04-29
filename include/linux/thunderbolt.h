@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt service API
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2017, Intel Corporation
  * Authors: Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef THUNDERBOLT_H_
@@ -184,6 +181,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @device_name: Name of the device (or %NULL if not known)
  * @is_unplugged: The XDomain is unplugged
  * @resume: The XDomain is being resumed
+ * @needs_uuid: If the XDomain does not have @remote_uuid it will be
+ *		queried first
  * @transmit_path: HopID which the remote end expects us to transmit
  * @transmit_ring: Local ring (hop) where outgoing packets are pushed
  * @receive_path: HopID which we expect the remote end to transmit
@@ -192,6 +191,9 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @properties: Properties exported by the remote domain
  * @property_block_gen: Generation of @properties
  * @properties_lock: Lock protecting @properties.
+ * @get_uuid_work: Work used to retrieve @remote_uuid
+ * @uuid_retries: Number of times left @remote_uuid is requested before
+ *		  giving up
  * @get_properties_work: Work used to get remote domain properties
  * @properties_retries: Number of times left to read properties
  * @properties_changed_work: Work used to notify the remote domain that
@@ -223,6 +225,7 @@ struct tb_xdomain {
 	const char *device_name;
 	bool is_unplugged;
 	bool resume;
+	bool needs_uuid;
 	u16 transmit_path;
 	u16 transmit_ring;
 	u16 receive_path;
@@ -230,6 +233,8 @@ struct tb_xdomain {
 	struct ida service_ids;
 	struct tb_property_dir *properties;
 	u32 property_block_gen;
+	struct delayed_work get_uuid_work;
+	int uuid_retries;
 	struct delayed_work get_properties_work;
 	int properties_retries;
 	struct delayed_work properties_changed_work;
@@ -424,6 +429,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
  * @lock: Must be held during ring creation/destruction. Is acquired by
  *	  interrupt_work when dispatching interrupts to individual rings.
  * @pdev: Pointer to the PCI device
+ * @ops: NHI specific optional ops
  * @iobase: MMIO space of the NHI
  * @tx_rings: All Tx rings available on this host controller
  * @rx_rings: All Rx rings available on this host controller
@@ -437,6 +443,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
 struct tb_nhi {
 	spinlock_t lock;
 	struct pci_dev *pdev;
+	const struct tb_nhi_ops *ops;
 	void __iomem *iobase;
 	struct tb_ring **tx_rings;
 	struct tb_ring **rx_rings;

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ADIS16203 Programmable 360 Degrees Inclinometer
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/delay.h>
@@ -123,7 +122,7 @@
 /* Power supply above 3.625 V */
 #define ADIS16203_DIAG_STAT_POWER_HIGH_BIT    1
 
-/* Power supply below 3.15 V */
+/* Power supply below 2.975 V */
 #define ADIS16203_DIAG_STAT_POWER_LOW_BIT     0
 
 /* GLOB_CMD */
@@ -168,7 +167,6 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 {
 	struct adis *st = iio_priv(indio_dev);
 	int ret;
-	int bits;
 	u8 addr;
 	s16 val16;
 
@@ -202,14 +200,11 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 		*val = 25000 / -470 - 1278; /* 25 C = 1278 */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		bits = 14;
 		addr = adis16203_addresses[chan->scan_index];
 		ret = adis_read_reg_16(st, addr, &val16);
 		if (ret)
 			return ret;
-		val16 &= (1 << bits) - 1;
-		val16 = (s16)(val16 << (16 - bits)) >> (16 - bits);
-		*val = val16;
+		*val = sign_extend32(val16, 13);
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -239,7 +234,13 @@ static const char * const adis16203_status_error_msgs[] = {
 	[ADIS16203_DIAG_STAT_SPI_FAIL_BIT] = "SPI failure",
 	[ADIS16203_DIAG_STAT_FLASH_UPT_BIT] = "Flash update failed",
 	[ADIS16203_DIAG_STAT_POWER_HIGH_BIT] = "Power supply above 3.625V",
-	[ADIS16203_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 3.15V",
+	[ADIS16203_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 2.975V",
+};
+
+static const struct adis_timeout adis16203_timeouts = {
+	.reset_ms = ADIS16203_STARTUP_DELAY,
+	.sw_reset_ms = ADIS16203_STARTUP_DELAY,
+	.self_test_ms = ADIS16203_STARTUP_DELAY
 };
 
 static const struct adis_data adis16203_data = {
@@ -249,8 +250,9 @@ static const struct adis_data adis16203_data = {
 	.diag_stat_reg = ADIS16203_DIAG_STAT,
 
 	.self_test_mask = ADIS16203_MSC_CTRL_SELF_TEST_EN,
+	.self_test_reg = ADIS16203_MSC_CTRL,
 	.self_test_no_autoclear = true,
-	.startup_delay = ADIS16203_STARTUP_DELAY,
+	.timeouts = &adis16203_timeouts,
 
 	.status_error_msgs = adis16203_status_error_msgs,
 	.status_error_mask = BIT(ADIS16203_DIAG_STAT_SELFTEST_FAIL_BIT) |
@@ -316,9 +318,17 @@ static int adis16203_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id adis16203_of_match[] = {
+	{ .compatible = "adi,adis16203" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, adis16203_of_match);
+
 static struct spi_driver adis16203_driver = {
 	.driver = {
 		.name = "adis16203",
+		.of_match_table = adis16203_of_match,
 	},
 	.probe = adis16203_probe,
 	.remove = adis16203_remove,

@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+
+chkbss-target ?= built-in.a
+$(obj)/$(chkbss-target): chkbss
+
+chkbss-files := $(addsuffix .chkbss, $(chkbss))
+clean-files += $(chkbss-files)
+
+PHONY += chkbss
+chkbss: $(addprefix $(obj)/, $(chkbss-files))
+
+quiet_cmd_chkbss = CHKBSS  $<
+      cmd_chkbss = \
+	if ! $(OBJSIZE) --common $< | $(AWK) 'END { if ($$3) exit 1 }'; then \
+		echo "error: $< .bss section is not empty" >&2; exit 1; \
+	fi; \
+	touch $@;
+
+$(obj)/%.o.chkbss: $(obj)/%.o
+	$(call cmd,chkbss)

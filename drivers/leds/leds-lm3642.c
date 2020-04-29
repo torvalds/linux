@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Simple driver for Texas Instruments LM3642 LED Flash driver chip
 * Copyright (C) 2012 Texas Instruments
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
 */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -110,7 +106,7 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 	ret = regmap_read(chip->regmap, REG_FLAG, &chip->last_flag);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read REG_FLAG Register\n");
-		goto out;
+		return ret;
 	}
 
 	if (chip->last_flag)
@@ -150,11 +146,11 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 		break;
 
 	default:
-		return ret;
+		return -EINVAL;
 	}
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to write REG_I_CTRL Register\n");
-		goto out;
+		return ret;
 	}
 
 	if (chip->tx_pin)
@@ -163,13 +159,12 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 	ret = regmap_update_bits(chip->regmap, REG_ENABLE,
 				 MODE_BITS_MASK << MODE_BITS_SHIFT,
 				 opmode << MODE_BITS_SHIFT);
-out:
 	return ret;
 }
 
 /* torch */
 
-/* torch pin config for lm3642*/
+/* torch pin config for lm3642 */
 static ssize_t lm3642_torch_pin_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t size)
@@ -182,7 +177,7 @@ static ssize_t lm3642_torch_pin_store(struct device *dev,
 
 	ret = kstrtouint(buf, 10, &state);
 	if (ret)
-		goto out_strtoint;
+		return ret;
 	if (state != 0)
 		state = 0x01 << TORCH_PIN_EN_SHIFT;
 
@@ -190,16 +185,12 @@ static ssize_t lm3642_torch_pin_store(struct device *dev,
 	ret = regmap_update_bits(chip->regmap, REG_ENABLE,
 				 TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT,
 				 state);
-	if (ret < 0)
-		goto out;
+	if (ret < 0) {
+		dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
+		return ret;
+	}
 
 	return size;
-out:
-	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return ret;
-out_strtoint:
-	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return ret;
 }
 
 static DEVICE_ATTR(torch_pin, S_IWUSR, NULL, lm3642_torch_pin_store);
@@ -233,7 +224,7 @@ static ssize_t lm3642_strobe_pin_store(struct device *dev,
 
 	ret = kstrtouint(buf, 10, &state);
 	if (ret)
-		goto out_strtoint;
+		return ret;
 	if (state != 0)
 		state = 0x01 << STROBE_PIN_EN_SHIFT;
 
@@ -241,16 +232,12 @@ static ssize_t lm3642_strobe_pin_store(struct device *dev,
 	ret = regmap_update_bits(chip->regmap, REG_ENABLE,
 				 STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT,
 				 state);
-	if (ret < 0)
-		goto out;
+	if (ret < 0) {
+		dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
+		return ret;
+	}
 
 	return size;
-out:
-	dev_err(chip->dev, "%s:i2c access fail to register\n", __func__);
-	return ret;
-out_strtoint:
-	dev_err(chip->dev, "%s: fail to change str to int\n", __func__);
-	return ret;
 }
 
 static DEVICE_ATTR(strobe_pin, S_IWUSR, NULL, lm3642_strobe_pin_store);

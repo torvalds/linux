@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __NDS32_CACHEFLUSH_H__
@@ -7,6 +7,12 @@
 #include <linux/mm.h>
 
 #define PG_dcache_dirty PG_arch_1
+
+void flush_icache_range(unsigned long start, unsigned long end);
+#define flush_icache_range flush_icache_range
+
+void flush_icache_page(struct vm_area_struct *vma, struct page *page);
+#define flush_icache_page flush_icache_page
 
 #ifdef CONFIG_CPU_CACHE_ALIASING
 void flush_cache_mm(struct mm_struct *mm);
@@ -32,12 +38,16 @@ void flush_anon_page(struct vm_area_struct *vma,
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
 void flush_kernel_dcache_page(struct page *page);
-void flush_icache_range(unsigned long start, unsigned long end);
-void flush_icache_page(struct vm_area_struct *vma, struct page *page);
-#define flush_dcache_mmap_lock(mapping)   spin_lock_irq(&(mapping)->tree_lock)
-#define flush_dcache_mmap_unlock(mapping) spin_unlock_irq(&(mapping)->tree_lock)
+void flush_kernel_vmap_range(void *addr, int size);
+void invalidate_kernel_vmap_range(void *addr, int size);
+#define flush_dcache_mmap_lock(mapping)   xa_lock_irq(&(mapping)->i_pages)
+#define flush_dcache_mmap_unlock(mapping) xa_unlock_irq(&(mapping)->i_pages)
 
 #else
+void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
+	                     unsigned long addr, int len);
+#define flush_icache_user_range flush_icache_user_range
+
 #include <asm-generic/cacheflush.h>
 #endif
 

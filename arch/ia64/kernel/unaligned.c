@@ -1298,7 +1298,6 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	mm_segment_t old_fs = get_fs();
 	unsigned long bundle[2];
 	unsigned long opcode;
-	struct siginfo si;
 	const struct exception_table_entry *eh = NULL;
 	union {
 		unsigned long l;
@@ -1432,7 +1431,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		if (u.insn.x)
 			/* oops, really a semaphore op (cmpxchg, etc) */
 			goto failure;
-		/* no break */
+		/*FALLTHRU*/
 	      case LDS_IMM_OP:
 	      case LDSA_IMM_OP:
 	      case LDFS_OP:
@@ -1460,7 +1459,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		if (u.insn.x)
 			/* oops, really a semaphore op (cmpxchg, etc) */
 			goto failure;
-		/* no break */
+		/*FALLTHRU*/
 	      case LD_IMM_OP:
 	      case LDA_IMM_OP:
 	      case LDBIAS_IMM_OP:
@@ -1476,7 +1475,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		if (u.insn.x)
 			/* oops, really a semaphore op (cmpxchg, etc) */
 			goto failure;
-		/* no break */
+		/*FALLTHRU*/
 	      case ST_IMM_OP:
 	      case STREL_IMM_OP:
 		ret = emulate_store_int(ifa, u.insn, regs);
@@ -1537,13 +1536,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		/* NOT_REACHED */
 	}
   force_sigbus:
-	si.si_signo = SIGBUS;
-	si.si_errno = 0;
-	si.si_code = BUS_ADRALN;
-	si.si_addr = (void __user *) ifa;
-	si.si_flags = 0;
-	si.si_isr = 0;
-	si.si_imm = 0;
-	force_sig_info(SIGBUS, &si, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) ifa,
+			0, 0, 0);
 	goto done;
 }

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/media/platform/exynos3250-jpeg/jpeg-hw.h
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -425,9 +422,9 @@ unsigned int exynos3250_jpeg_get_int_status(void __iomem *regs)
 }
 
 void exynos3250_jpeg_clear_int_status(void __iomem *regs,
-						unsigned int value)
+				      unsigned int value)
 {
-	return writel(value, regs + EXYNOS3250_JPGINTST);
+	writel(value, regs + EXYNOS3250_JPGINTST);
 }
 
 unsigned int exynos3250_jpeg_operating(void __iomem *regs)

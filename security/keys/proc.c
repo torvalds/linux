@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* procfs files for key database enumeration
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -18,7 +13,6 @@
 #include <asm/errno.h>
 #include "internal.h"
 
-static int proc_keys_open(struct inode *inode, struct file *file);
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos);
 static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_keys_stop(struct seq_file *p, void *v);
@@ -31,14 +25,6 @@ static const struct seq_operations proc_keys_ops = {
 	.show	= proc_keys_show,
 };
 
-static const struct file_operations proc_keys_fops = {
-	.open		= proc_keys_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static int proc_key_users_open(struct inode *inode, struct file *file);
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos);
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_key_users_stop(struct seq_file *p, void *v);
@@ -51,13 +37,6 @@ static const struct seq_operations proc_key_users_ops = {
 	.show	= proc_key_users_show,
 };
 
-static const struct file_operations proc_key_users_fops = {
-	.open		= proc_key_users_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
  * Declare the /proc files.
  */
@@ -65,11 +44,11 @@ static int __init key_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("keys", 0, NULL, &proc_keys_fops);
+	p = proc_create_seq("keys", 0, NULL, &proc_keys_ops);
 	if (!p)
 		panic("Cannot create /proc/keys\n");
 
-	p = proc_create("key-users", 0, NULL, &proc_key_users_fops);
+	p = proc_create_seq("key-users", 0, NULL, &proc_key_users_ops);
 	if (!p)
 		panic("Cannot create /proc/key-users\n");
 
@@ -94,11 +73,6 @@ static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
 		n = rb_next(n);
 	}
 	return n;
-}
-
-static int proc_keys_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_keys_ops);
 }
 
 static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
@@ -165,6 +139,8 @@ static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 	n = key_serial_next(p, v);
 	if (n)
 		*_pos = key_node_serial(n);
+	else
+		(*_pos)++;
 	return n;
 }
 
@@ -187,13 +163,13 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	int rc;
 
 	struct keyring_search_context ctx = {
-		.index_key.type		= key->type,
-		.index_key.description	= key->description,
+		.index_key		= key->index_key,
 		.cred			= m->file->f_cred,
 		.match_data.cmp		= lookup_user_key_possessed,
 		.match_data.raw_data	= key,
 		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-		.flags			= KEYRING_SEARCH_NO_STATE_CHECK,
+		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
+					   KEYRING_SEARCH_RECURSE),
 	};
 
 	key_ref = make_key_ref(key, 0);
@@ -202,7 +178,9 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	 * skip if the key does not indicate the possessor can view it
 	 */
 	if (key->perm & KEY_POS_VIEW) {
-		skey_ref = search_my_process_keyrings(&ctx);
+		rcu_read_lock();
+		skey_ref = search_cred_keyrings_rcu(&ctx);
+		rcu_read_unlock();
 		if (!IS_ERR(skey_ref)) {
 			key_ref_put(skey_ref);
 			key_ref = make_key_ref(key, 1);
@@ -291,15 +269,6 @@ static struct rb_node *key_user_first(struct user_namespace *user_ns, struct rb_
 {
 	struct rb_node *n = rb_first(r);
 	return __key_user_next(user_ns, n);
-}
-
-/*
- * Implement "/proc/key-users" to provides a list of the key users and their
- * quotas.
- */
-static int proc_key_users_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_key_users_ops);
 }
 
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)

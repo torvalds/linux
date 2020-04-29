@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RTC Driver for X-Powers AC100
  *
  * Copyright (c) 2016 Chen-Yu Tsai
  *
  * Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/bcd.h>
@@ -183,7 +175,29 @@ static int ac100_clkout_determine_rate(struct clk_hw *hw,
 
 	for (i = 0; i < num_parents; i++) {
 		struct clk_hw *parent = clk_hw_get_parent_by_index(hw, i);
-		unsigned long tmp, prate = clk_hw_get_rate(parent);
+		unsigned long tmp, prate;
+
+		/*
+		 * The clock has two parents, one is a fixed clock which is
+		 * internally registered by the ac100 driver. The other parent
+		 * is a clock from the codec side of the chip, which we
+		 * properly declare and reference in the devicetree and is
+		 * not implemented in any driver right now.
+		 * If the clock core looks for the parent of that second
+		 * missing clock, it can't find one that is registered and
+		 * returns NULL.
+		 * So we end up in a situation where clk_hw_get_num_parents
+		 * returns the amount of clocks we can be parented to, but
+		 * clk_hw_get_parent_by_index will not return the orphan
+		 * clocks.
+		 * Thus we need to check if the parent exists before
+		 * we get the parent rate, so we could use the RTC
+		 * without waiting for the codec to be supported.
+		 */
+		if (!parent)
+			continue;
+
+		prate = clk_hw_get_rate(parent);
 
 		tmp = ac100_clkout_round_rate(hw, req->rate, prate);
 
@@ -295,10 +309,10 @@ static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 	const char *parents[2] = {AC100_RTC_32K_NAME};
 	int i, ret;
 
-	chip->clk_data = devm_kzalloc(chip->dev, sizeof(*chip->clk_data) +
-						 sizeof(*chip->clk_data->hws) *
-						 AC100_CLKOUT_NUM,
-						 GFP_KERNEL);
+	chip->clk_data = devm_kzalloc(chip->dev,
+				      struct_size(chip->clk_data, hws,
+						  AC100_CLKOUT_NUM),
+				      GFP_KERNEL);
 	if (!chip->clk_data)
 		return -ENOMEM;
 
@@ -387,7 +401,7 @@ static int ac100_rtc_get_time(struct device *dev, struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = bcd2bin(reg[6] & AC100_RTC_YEA_MASK) +
 			  AC100_YEAR_OFF;
 
-	return rtc_valid_tm(rtc_tm);
+	return 0;
 }
 
 static int ac100_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
@@ -564,10 +578,8 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	chip->regmap = ac100->regmap;
 
 	chip->irq = platform_get_irq(pdev, 0);
-	if (chip->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (chip->irq < 0)
 		return chip->irq;
-	}
 
 	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(chip->rtc))
@@ -598,15 +610,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rtc_register_device(chip->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register device\n");
-		return ret;
-	}
-
-	dev_info(&pdev->dev, "RTC enabled\n");
-
-	return 0;
+	return rtc_register_device(chip->rtc);
 }
 
 static int ac100_rtc_remove(struct platform_device *pdev)

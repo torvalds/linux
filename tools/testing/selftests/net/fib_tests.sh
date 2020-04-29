@@ -5,10 +5,19 @@
 # different events.
 
 ret=0
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
-VERBOSE=${VERBOSE:=0}
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
-IP="ip -netns testns"
+# all tests in this script. Can be overridden with -t option
+TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr"
+
+VERBOSE=0
+PAUSE_ON_FAIL=no
+PAUSE=no
+IP="ip -netns ns1"
+NS_EXEC="ip netns exec ns1"
+
+which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
 log_test()
 {
@@ -18,8 +27,10 @@ log_test()
 
 	if [ ${rc} -eq ${expected} ]; then
 		printf "    TEST: %-60s  [ OK ]\n" "${msg}"
+		nsuccess=$((nsuccess+1))
 	else
 		ret=1
+		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 		echo
@@ -28,13 +39,23 @@ log_test()
 			[ "$a" = "q" ] && exit 1
 		fi
 	fi
+
+	if [ "${PAUSE}" = "yes" ]; then
+		echo
+		echo "hit enter to continue, 'q' to quit"
+		read a
+		[ "$a" = "q" ] && exit 1
+	fi
 }
 
 setup()
 {
 	set -e
-	ip netns add testns
+	ip netns add ns1
+	ip netns set ns1 auto
 	$IP link set dev lo up
+	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ns1 sysctl -qw net.ipv6.conf.all.forwarding=1
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
@@ -47,7 +68,8 @@ setup()
 cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
-	ip netns del testns
+	ip netns del ns1
+	ip netns del ns2 &> /dev/null
 }
 
 get_linklocal()
@@ -371,6 +393,7 @@ fib_carrier_unicast_test()
 
 	set -e
 	$IP link set dev dummy0 carrier off
+	sleep 1
 	set +e
 
 	echo "    Carrier down"
@@ -411,6 +434,37 @@ fib_carrier_test()
 {
 	fib_carrier_local_test
 	fib_carrier_unicast_test
+}
+
+fib_rp_filter_test()
+{
+	echo
+	echo "IPv4 rp_filter tests"
+
+	setup
+
+	set -e
+	$IP link set dev lo address 52:54:00:6a:c7:5e
+	$IP link set dummy0 address 52:54:00:6a:c7:5e
+	$IP link add dummy1 type dummy
+	$IP link set dummy1 address 52:54:00:6a:c7:5e
+	$IP link set dev dummy1 up
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.rp_filter=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.accept_local=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.route_localnet=1
+
+	$NS_EXEC tc qd add dev dummy1 parent root handle 1: fq_codel
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol arp basic action mirred egress redirect dev lo
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol ip basic action mirred egress redirect dev lo
+	set +e
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 198.51.100.1"
+	log_test $? 0 "rp_filter passes local packets"
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 127.0.0.1"
+	log_test $? 0 "rp_filter passes loopback packets"
+
+	cleanup
 }
 
 ################################################################################
@@ -562,40 +616,1124 @@ fib_nexthop_test()
 	cleanup
 }
 
-################################################################################
-#
-
-fib_test()
+fib_suppress_test()
 {
-	if [ -n "$TEST" ]; then
-		eval $TEST
-	else
-		fib_unreg_test
-		fib_down_test
-		fib_carrier_test
-		fib_nexthop_test
+	echo
+	echo "FIB rule with suppress_prefixlength"
+	setup
+
+	$IP link add dummy1 type dummy
+	$IP link set dummy1 up
+	$IP -6 route add default dev dummy1
+	$IP -6 rule add table main suppress_prefixlength 0
+	ping -f -c 1000 -W 1 1234::1 >/dev/null 2>&1
+	$IP -6 rule del table main suppress_prefixlength 0
+	$IP link del dummy1
+
+	# If we got here without crashing, we're good.
+	log_test 0 0 "FIB rule suppress test"
+
+	cleanup
+}
+
+################################################################################
+# Tests on route add and replace
+
+run_cmd()
+{
+	local cmd="$1"
+	local out
+	local stderr="2>/dev/null"
+
+	if [ "$VERBOSE" = "1" ]; then
+		printf "    COMMAND: $cmd\n"
+		stderr=
+	fi
+
+	out=$(eval $cmd $stderr)
+	rc=$?
+	if [ "$VERBOSE" = "1" -a -n "$out" ]; then
+		echo "    $out"
+	fi
+
+	[ "$VERBOSE" = "1" ] && echo
+
+	return $rc
+}
+
+check_expected()
+{
+	local out="$1"
+	local expected="$2"
+	local rc=0
+
+	[ "${out}" = "${expected}" ] && return 0
+
+	if [ -z "${out}" ]; then
+		if [ "$VERBOSE" = "1" ]; then
+			printf "\nNo route entry found\n"
+			printf "Expected:\n"
+			printf "    ${expected}\n"
+		fi
+		return 1
+	fi
+
+	# tricky way to convert output to 1-line without ip's
+	# messy '\'; this drops all extra white space
+	out=$(echo ${out})
+	if [ "${out}" != "${expected}" ]; then
+		rc=1
+		if [ "${VERBOSE}" = "1" ]; then
+			printf "    Unexpected route entry. Have:\n"
+			printf "        ${out}\n"
+			printf "    Expected:\n"
+			printf "        ${expected}\n\n"
+		fi
+	fi
+
+	return $rc
+}
+
+# add route for a prefix, flushing any existing routes first
+# expected to be the first step of a test
+add_route6()
+{
+	local pfx="$1"
+	local nh="$2"
+	local out
+
+	if [ "$VERBOSE" = "1" ]; then
+		echo
+		echo "    ##################################################"
+		echo
+	fi
+
+	run_cmd "$IP -6 ro flush ${pfx}"
+	[ $? -ne 0 ] && exit 1
+
+	out=$($IP -6 ro ls match ${pfx})
+	if [ -n "$out" ]; then
+		echo "Failed to flush routes for prefix used for tests."
+		exit 1
+	fi
+
+	run_cmd "$IP -6 ro add ${pfx} ${nh}"
+	if [ $? -ne 0 ]; then
+		echo "Failed to add initial route for test."
+		exit 1
 	fi
 }
 
+# add initial route - used in replace route tests
+add_initial_route6()
+{
+	add_route6 "2001:db8:104::/64" "$1"
+}
+
+check_route6()
+{
+	local pfx
+	local expected="$1"
+	local out
+	local rc=0
+
+	set -- $expected
+	pfx=$1
+
+	out=$($IP -6 ro ls match ${pfx} | sed -e 's/ pref medium//')
+	check_expected "${out}" "${expected}"
+}
+
+route_cleanup()
+{
+	$IP li del red 2>/dev/null
+	$IP li del dummy1 2>/dev/null
+	$IP li del veth1 2>/dev/null
+	$IP li del veth3 2>/dev/null
+
+	cleanup &> /dev/null
+}
+
+route_setup()
+{
+	route_cleanup
+	setup
+
+	[ "${VERBOSE}" = "1" ] && set -x
+	set -e
+
+	ip netns add ns2
+	ip netns set ns2 auto
+	ip -netns ns2 link set dev lo up
+	ip netns exec ns2 sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ns2 sysctl -qw net.ipv6.conf.all.forwarding=1
+
+	$IP li add veth1 type veth peer name veth2
+	$IP li add veth3 type veth peer name veth4
+
+	$IP li set veth1 up
+	$IP li set veth3 up
+	$IP li set veth2 netns ns2 up
+	$IP li set veth4 netns ns2 up
+	ip -netns ns2 li add dummy1 type dummy
+	ip -netns ns2 li set dummy1 up
+
+	$IP -6 addr add 2001:db8:101::1/64 dev veth1 nodad
+	$IP -6 addr add 2001:db8:103::1/64 dev veth3 nodad
+	$IP addr add 172.16.101.1/24 dev veth1
+	$IP addr add 172.16.103.1/24 dev veth3
+
+	ip -netns ns2 -6 addr add 2001:db8:101::2/64 dev veth2 nodad
+	ip -netns ns2 -6 addr add 2001:db8:103::2/64 dev veth4 nodad
+	ip -netns ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 nodad
+
+	ip -netns ns2 addr add 172.16.101.2/24 dev veth2
+	ip -netns ns2 addr add 172.16.103.2/24 dev veth4
+	ip -netns ns2 addr add 172.16.104.1/24 dev dummy1
+
+	set +e
+}
+
+# assumption is that basic add of a single path route works
+# otherwise just adding an address on an interface is broken
+ipv6_rt_add()
+{
+	local rc
+
+	echo
+	echo "IPv6 route add / append tests"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro add 2001:db8:104::/64 via 2001:db8:103::2"
+	log_test $? 2 "Attempt to add duplicate route - gw"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro add 2001:db8:104::/64 dev veth3"
+	log_test $? 2 "Attempt to add duplicate route - dev only"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro add unreachable 2001:db8:104::/64"
+	log_test $? 2 "Attempt to add duplicate route - reject route"
+
+	# route append with same prefix adds a new route
+	# - iproute2 sets NLM_F_CREATE | NLM_F_APPEND
+	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro append 2001:db8:104::/64 via 2001:db8:103::2"
+	check_route6 "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+	log_test $? 0 "Append nexthop to existing route - gw"
+
+	# insert mpath directly
+	add_route6 "2001:db8:104::/64" "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+	log_test $? 0 "Add multipath route"
+
+	add_route6 "2001:db8:104::/64" "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro add 2001:db8:104::/64 nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	log_test $? 2 "Attempt to add duplicate multipath route"
+
+	# insert of a second route without append but different metric
+	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro add 2001:db8:104::/64 via 2001:db8:103::2 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		run_cmd "$IP -6 ro add 2001:db8:104::/64 via 2001:db8:103::3 metric 256"
+		rc=$?
+	fi
+	log_test $rc 0 "Route add with different metrics"
+
+	run_cmd "$IP -6 ro del 2001:db8:104::/64 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 via 2001:db8:103::3 dev veth3 metric 256 2001:db8:104::/64 via 2001:db8:101::2 dev veth1 metric 1024"
+		rc=$?
+	fi
+	log_test $rc 0 "Route delete with metric"
+}
+
+ipv6_rt_replace_single()
+{
+	# single path with single path
+	#
+	add_initial_route6 "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 via 2001:db8:103::2"
+	check_route6 "2001:db8:104::/64 via 2001:db8:103::2 dev veth3 metric 1024"
+	log_test $? 0 "Single path with single path"
+
+	# single path with multipath
+	#
+	add_initial_route6 "nexthop via 2001:db8:101::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::2"
+	check_route6 "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::3 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+	log_test $? 0 "Single path with multipath"
+
+	# single path with single path using MULTIPATH attribute
+	#
+	add_initial_route6 "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:103::2"
+	check_route6 "2001:db8:104::/64 via 2001:db8:103::2 dev veth3 metric 1024"
+	log_test $? 0 "Single path with single path via multipath attribute"
+
+	# route replace fails - invalid nexthop
+	add_initial_route6 "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 via 2001:db8:104::2"
+	if [ $? -eq 0 ]; then
+		# previous command is expected to fail so if it returns 0
+		# that means the test failed.
+		log_test 0 1 "Invalid nexthop"
+	else
+		check_route6 "2001:db8:104::/64 via 2001:db8:101::2 dev veth1 metric 1024"
+		log_test $? 0 "Invalid nexthop"
+	fi
+
+	# replace non-existent route
+	# - note use of change versus replace since ip adds NLM_F_CREATE
+	#   for replace
+	add_initial_route6 "via 2001:db8:101::2"
+	run_cmd "$IP -6 ro change 2001:db8:105::/64 via 2001:db8:101::2"
+	log_test $? 2 "Single path - replace of non-existent route"
+}
+
+ipv6_rt_replace_mpath()
+{
+	# multipath with multipath
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::3"
+	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::3 dev veth1 weight 1 nexthop via 2001:db8:103::3 dev veth3 weight 1"
+	log_test $? 0 "Multipath with multipath"
+
+	# multipath with single
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 via 2001:db8:101::3"
+	check_route6  "2001:db8:104::/64 via 2001:db8:101::3 dev veth1 metric 1024"
+	log_test $? 0 "Multipath with single path"
+
+	# multipath with single
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3"
+	check_route6 "2001:db8:104::/64 via 2001:db8:101::3 dev veth1 metric 1024"
+	log_test $? 0 "Multipath with single path via multipath attribute"
+
+	# multipath with dev-only
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 dev veth1"
+	check_route6 "2001:db8:104::/64 dev veth1 metric 1024"
+	log_test $? 0 "Multipath with dev-only"
+
+	# route replace fails - invalid nexthop 1
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:111::3 nexthop via 2001:db8:103::3"
+	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid first nexthop"
+
+	# route replace fails - invalid nexthop 2
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:113::3"
+	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid second nexthop"
+
+	# multipath non-existent route
+	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	run_cmd "$IP -6 ro change 2001:db8:105::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::3"
+	log_test $? 2 "Multipath - replace of non-existent route"
+}
+
+ipv6_rt_replace()
+{
+	echo
+	echo "IPv6 route replace tests"
+
+	ipv6_rt_replace_single
+	ipv6_rt_replace_mpath
+}
+
+ipv6_route_test()
+{
+	route_setup
+
+	ipv6_rt_add
+	ipv6_rt_replace
+
+	route_cleanup
+}
+
+ip_addr_metric_check()
+{
+	ip addr help 2>&1 | grep -q metric
+	if [ $? -ne 0 ]; then
+		echo "iproute2 command does not support metric for addresses. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv6_addr_metric_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 prefix route tests"
+
+	ip_addr_metric_check || return 1
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li add dummy2 type dummy
+	$IP li set dummy1 up
+	$IP li set dummy2 up
+
+	# default entry is metric 256
+	run_cmd "$IP -6 addr add dev dummy1 2001:db8:104::1/64"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::2/64"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy1 proto kernel metric 256 2001:db8:104::/64 dev dummy2 proto kernel metric 256"
+	log_test $? 0 "Default metric"
+
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy1"
+	run_cmd "$IP -6 addr add dev dummy1 2001:db8:104::1/64 metric 257"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 256 2001:db8:104::/64 dev dummy1 proto kernel metric 257"
+	log_test $? 0 "User specified metric on first device"
+
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy2"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::2/64 metric 258"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy1 proto kernel metric 257 2001:db8:104::/64 dev dummy2 proto kernel metric 258"
+	log_test $? 0 "User specified metric on second device"
+
+	run_cmd "$IP -6 addr del dev dummy1 2001:db8:104::1/64 metric 257"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 258"
+		rc=$?
+	fi
+	log_test $rc 0 "Delete of address on first device"
+
+	run_cmd "$IP -6 addr change dev dummy2 2001:db8:104::2/64 metric 259"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of address"
+
+	# verify prefix route removed on down
+	run_cmd "ip netns exec ns1 sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1"
+	run_cmd "$IP li set dev dummy2 down"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		out=$($IP -6 ro ls match 2001:db8:104::/64)
+		check_expected "${out}" ""
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route removed on link down"
+
+	# verify prefix route re-inserted with assigned metric
+	run_cmd "$IP li set dev dummy2 up"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route with metric on link up"
+
+	# verify peer metric added correctly
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy2"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::1 peer 2001:db8:104::2 metric 260"
+	set +e
+
+	check_route6 "2001:db8:104::1 dev dummy2 proto kernel metric 260"
+	log_test $? 0 "Set metric with peer route on local side"
+	log_test $? 0 "User specified metric on local address"
+	check_route6 "2001:db8:104::2 dev dummy2 proto kernel metric 260"
+	log_test $? 0 "Set metric with peer route on peer side"
+
+	set -e
+	run_cmd "$IP -6 addr change dev dummy2 2001:db8:104::1 peer 2001:db8:104::3 metric 261"
+	set +e
+
+	check_route6 "2001:db8:104::1 dev dummy2 proto kernel metric 261"
+	log_test $? 0 "Modify metric and peer address on local side"
+	check_route6 "2001:db8:104::3 dev dummy2 proto kernel metric 261"
+	log_test $? 0 "Modify metric and peer address on peer side"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
+ipv6_route_metrics_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 routes with metrics"
+
+	route_setup
+
+	#
+	# single path with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:111::/64 via 2001:db8:101::2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6  "2001:db8:111::/64 via 2001:db8:101::2 dev veth1 metric 1024 mtu 1400"
+		rc=$?
+	fi
+	log_test $rc 0 "Single path route with mtu metric"
+
+
+	#
+	# multipath via separate routes with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:112::/64 via 2001:db8:101::2 mtu 1400"
+	run_cmd "$IP -6 ro append 2001:db8:112::/64 via 2001:db8:103::2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:112::/64 metric 1024 mtu 1400 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route via 2 single routes with mtu metric on first"
+
+	# second route is coalesced to first to make a multipath route.
+	# MTU of the second path is hidden from display!
+	run_cmd "$IP -6 ro add 2001:db8:113::/64 via 2001:db8:101::2"
+	run_cmd "$IP -6 ro append 2001:db8:113::/64 via 2001:db8:103::2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:113::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route via 2 single routes with mtu metric on 2nd"
+
+	run_cmd "$IP -6 ro del 2001:db8:113::/64 via 2001:db8:101::2"
+	if [ $? -eq 0 ]; then
+		check_route6 "2001:db8:113::/64 via 2001:db8:103::2 dev veth3 metric 1024 mtu 1400"
+		log_test $? 0 "    MTU of second leg"
+	fi
+
+	#
+	# multipath with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:115::/64 mtu 1400 nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6  "2001:db8:115::/64 metric 1024 mtu 1400 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route with mtu metric"
+
+	$IP -6 ro add 2001:db8:104::/64 via 2001:db8:101::2 mtu 1300
+	run_cmd "ip netns exec ns1 ${ping6} -w1 -c1 -s 1500 2001:db8:104::1"
+	log_test $? 0 "Using route with mtu metric"
+
+	run_cmd "$IP -6 ro add 2001:db8:114::/64 via  2001:db8:101::2  congctl lock foo"
+	log_test $? 2 "Invalid metric (fails metric_convert)"
+
+	route_cleanup
+}
+
+# add route for a prefix, flushing any existing routes first
+# expected to be the first step of a test
+add_route()
+{
+	local pfx="$1"
+	local nh="$2"
+	local out
+
+	if [ "$VERBOSE" = "1" ]; then
+		echo
+		echo "    ##################################################"
+		echo
+	fi
+
+	run_cmd "$IP ro flush ${pfx}"
+	[ $? -ne 0 ] && exit 1
+
+	out=$($IP ro ls match ${pfx})
+	if [ -n "$out" ]; then
+		echo "Failed to flush routes for prefix used for tests."
+		exit 1
+	fi
+
+	run_cmd "$IP ro add ${pfx} ${nh}"
+	if [ $? -ne 0 ]; then
+		echo "Failed to add initial route for test."
+		exit 1
+	fi
+}
+
+# add initial route - used in replace route tests
+add_initial_route()
+{
+	add_route "172.16.104.0/24" "$1"
+}
+
+check_route()
+{
+	local pfx
+	local expected="$1"
+	local out
+
+	set -- $expected
+	pfx=$1
+	[ "${pfx}" = "unreachable" ] && pfx=$2
+
+	out=$($IP ro ls match ${pfx})
+	check_expected "${out}" "${expected}"
+}
+
+# assumption is that basic add of a single path route works
+# otherwise just adding an address on an interface is broken
+ipv4_rt_add()
+{
+	local rc
+
+	echo
+	echo "IPv4 route add / append tests"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.2"
+	log_test $? 2 "Attempt to add duplicate route - gw"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 dev veth3"
+	log_test $? 2 "Attempt to add duplicate route - dev only"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	log_test $? 2 "Attempt to add duplicate route - reject route"
+
+	# iproute2 prepend only sets NLM_F_CREATE
+	# - adds a new route; does NOT convert existing route to ECMP
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro prepend 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3 172.16.104.0/24 via 172.16.101.2 dev veth1"
+	log_test $? 0 "Add new nexthop for existing prefix"
+
+	# route append with same prefix adds a new route
+	# - iproute2 sets NLM_F_CREATE | NLM_F_APPEND
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Append nexthop to existing route - gw"
+
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append 172.16.104.0/24 dev veth3"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 dev veth3 scope link"
+	log_test $? 0 "Append nexthop to existing route - dev only"
+
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append unreachable 172.16.104.0/24"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 unreachable 172.16.104.0/24"
+	log_test $? 0 "Append nexthop to existing route - reject route"
+
+	run_cmd "$IP ro flush 172.16.104.0/24"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	run_cmd "$IP ro append 172.16.104.0/24 via 172.16.103.2"
+	check_route "unreachable 172.16.104.0/24 172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Append nexthop to existing reject route - gw"
+
+	run_cmd "$IP ro flush 172.16.104.0/24"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	run_cmd "$IP ro append 172.16.104.0/24 dev veth3"
+	check_route "unreachable 172.16.104.0/24 172.16.104.0/24 dev veth3 scope link"
+	log_test $? 0 "Append nexthop to existing reject route - dev only"
+
+	# insert mpath directly
+	add_route "172.16.104.0/24" "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "add multipath route"
+
+	add_route "172.16.104.0/24" "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	log_test $? 2 "Attempt to add duplicate multipath route"
+
+	# insert of a second route without append but different metric
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.2 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.3 metric 256"
+		rc=$?
+	fi
+	log_test $rc 0 "Route add with different metrics"
+
+	run_cmd "$IP ro del 172.16.104.0/24 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 via 172.16.103.3 dev veth3 metric 256"
+		rc=$?
+	fi
+	log_test $rc 0 "Route delete with metric"
+}
+
+ipv4_rt_replace_single()
+{
+	# single path with single path
+	#
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Single path with single path"
+
+	# single path with multipath
+	#
+	add_initial_route "nexthop via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.2"
+	check_route "172.16.104.0/24 nexthop via 172.16.101.3 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Single path with multipath"
+
+	# single path with reject
+	#
+	add_initial_route "nexthop via 172.16.101.2"
+	run_cmd "$IP ro replace unreachable 172.16.104.0/24"
+	check_route "unreachable 172.16.104.0/24"
+	log_test $? 0 "Single path with reject route"
+
+	# single path with single path using MULTIPATH attribute
+	#
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Single path with single path via multipath attribute"
+
+	# route replace fails - invalid nexthop
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 2001:db8:104::2"
+	if [ $? -eq 0 ]; then
+		# previous command is expected to fail so if it returns 0
+		# that means the test failed.
+		log_test 0 1 "Invalid nexthop"
+	else
+		check_route "172.16.104.0/24 via 172.16.101.2 dev veth1"
+		log_test $? 0 "Invalid nexthop"
+	fi
+
+	# replace non-existent route
+	# - note use of change versus replace since ip adds NLM_F_CREATE
+	#   for replace
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro change 172.16.105.0/24 via 172.16.101.2"
+	log_test $? 2 "Single path - replace of non-existent route"
+}
+
+ipv4_rt_replace_mpath()
+{
+	# multipath with multipath
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.3 dev veth1 weight 1 nexthop via 172.16.103.3 dev veth3 weight 1"
+	log_test $? 0 "Multipath with multipath"
+
+	# multipath with single
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 172.16.101.3"
+	check_route  "172.16.104.0/24 via 172.16.101.3 dev veth1"
+	log_test $? 0 "Multipath with single path"
+
+	# multipath with single
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3"
+	check_route "172.16.104.0/24 via 172.16.101.3 dev veth1"
+	log_test $? 0 "Multipath with single path via multipath attribute"
+
+	# multipath with reject
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace unreachable 172.16.104.0/24"
+	check_route "unreachable 172.16.104.0/24"
+	log_test $? 0 "Multipath with reject route"
+
+	# route replace fails - invalid nexthop 1
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.111.3 nexthop via 172.16.103.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid first nexthop"
+
+	# route replace fails - invalid nexthop 2
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.113.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid second nexthop"
+
+	# multipath non-existent route
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro change 172.16.105.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
+	log_test $? 2 "Multipath - replace of non-existent route"
+}
+
+ipv4_rt_replace()
+{
+	echo
+	echo "IPv4 route replace tests"
+
+	ipv4_rt_replace_single
+	ipv4_rt_replace_mpath
+}
+
+ipv4_route_test()
+{
+	route_setup
+
+	ipv4_rt_add
+	ipv4_rt_replace
+
+	route_cleanup
+}
+
+ipv4_addr_metric_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 prefix route tests"
+
+	ip_addr_metric_check || return 1
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li add dummy2 type dummy
+	$IP li set dummy1 up
+	$IP li set dummy2 up
+
+	# default entry is metric 256
+	run_cmd "$IP addr add dev dummy1 172.16.104.1/24"
+	run_cmd "$IP addr add dev dummy2 172.16.104.2/24"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2"
+	log_test $? 0 "Default metric"
+
+	set -e
+	run_cmd "$IP addr flush dev dummy1"
+	run_cmd "$IP addr add dev dummy1 172.16.104.1/24 metric 257"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 metric 257"
+	log_test $? 0 "User specified metric on first device"
+
+	set -e
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.2/24 metric 258"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 metric 257 172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 258"
+	log_test $? 0 "User specified metric on second device"
+
+	run_cmd "$IP addr del dev dummy1 172.16.104.1/24 metric 257"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 258"
+		rc=$?
+	fi
+	log_test $rc 0 "Delete of address on first device"
+
+	run_cmd "$IP addr change dev dummy2 172.16.104.2/24 metric 259"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of address"
+
+	# verify prefix route removed on down
+	run_cmd "$IP li set dev dummy2 down"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		out=$($IP ro ls match 172.16.104.0/24)
+		check_expected "${out}" ""
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route removed on link down"
+
+	# verify prefix route re-inserted with assigned metric
+	run_cmd "$IP li set dev dummy2 up"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route with metric on link up"
+
+	# explicitly check for metric changes on edge scenarios
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.0/24 metric 259"
+	run_cmd "$IP addr change dev dummy2 172.16.104.0/24 metric 260"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.0 metric 260"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of .0/24 address"
+
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.1/32 peer 172.16.104.2 metric 260"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.2 dev dummy2 proto kernel scope link src 172.16.104.1 metric 260"
+		rc=$?
+	fi
+	log_test $rc 0 "Set metric of address with peer route"
+
+	run_cmd "$IP addr change dev dummy2 172.16.104.1/32 peer 172.16.104.3 metric 261"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.3 dev dummy2 proto kernel scope link src 172.16.104.1 metric 261"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric and peer address for peer route"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
+ipv4_route_metrics_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 route add / append tests"
+
+	route_setup
+
+	run_cmd "$IP ro add 172.16.111.0/24 via 172.16.101.2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.111.0/24 via 172.16.101.2 dev veth1 mtu 1400"
+		rc=$?
+	fi
+	log_test $rc 0 "Single path route with mtu metric"
+
+
+	run_cmd "$IP ro add 172.16.112.0/24 mtu 1400 nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.112.0/24 mtu 1400 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route with mtu metric"
+
+	$IP ro add 172.16.104.0/24 via 172.16.101.2 mtu 1300
+	run_cmd "ip netns exec ns1 ping -w1 -c1 -s 1500 172.16.104.1"
+	log_test $? 0 "Using route with mtu metric"
+
+	run_cmd "$IP ro add 172.16.111.0/24 via 172.16.101.2 congctl lock foo"
+	log_test $? 2 "Invalid metric (fails metric_convert)"
+
+	route_cleanup
+}
+
+ipv4_del_addr_test()
+{
+	echo
+	echo "IPv4 delete address route tests"
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li set dummy1 up
+	$IP li add dummy2 type dummy
+	$IP li set dummy2 up
+	$IP li add red type vrf table 1111
+	$IP li set red up
+	$IP ro add vrf red unreachable default
+	$IP li set dummy2 vrf red
+
+	$IP addr add dev dummy1 172.16.104.1/24
+	$IP addr add dev dummy1 172.16.104.11/24
+	$IP addr add dev dummy2 172.16.104.1/24
+	$IP addr add dev dummy2 172.16.104.11/24
+	$IP route add 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	set +e
+
+	# removing address from device in vrf should only remove route from vrf table
+	$IP addr del dev dummy2 172.16.104.11/24
+	$IP ro ls vrf red | grep -q 172.16.105.0/24
+	log_test $? 1 "Route removed from VRF when source address deleted"
+
+	$IP ro ls | grep -q 172.16.105.0/24
+	log_test $? 0 "Route in default VRF not removed"
+
+	$IP addr add dev dummy2 172.16.104.11/24
+	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+
+	$IP addr del dev dummy1 172.16.104.11/24
+	$IP ro ls | grep -q 172.16.105.0/24
+	log_test $? 1 "Route removed in default VRF when source address deleted"
+
+	$IP ro ls vrf red | grep -q 172.16.105.0/24
+	log_test $? 0 "Route in VRF is not removed by address delete"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
+
+ipv4_route_v6_gw_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 route with IPv6 gateway tests"
+
+	route_setup
+	sleep 2
+
+	#
+	# single path route
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route with IPv6 gateway"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 via inet6 2001:db8:101::2 dev veth1"
+	fi
+
+	run_cmd "ip netns exec ns1 ping -w1 -c1 172.16.104.1"
+	log_test $rc 0 "Single path route with IPv6 gateway - ping"
+
+	run_cmd "$IP ro del 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route delete"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.112.0/24"
+	fi
+
+	#
+	# multipath - v6 then v4
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v6 nexthop then v4"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	#
+	# multipath - v4 then v6
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v4 nexthop then v6"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 weight 1 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	route_cleanup
+}
+
+################################################################################
+# usage
+
+usage()
+{
+	cat <<EOF
+usage: ${0##*/} OPTS
+
+        -t <test>   Test(s) to run (default: all)
+                    (options: $TESTS)
+        -p          Pause on fail
+        -P          Pause after each test before cleanup
+        -v          verbose mode (show commands and output)
+EOF
+}
+
+################################################################################
+# main
+
+while getopts :t:pPhv o
+do
+	case $o in
+		t) TESTS=$OPTARG;;
+		p) PAUSE_ON_FAIL=yes;;
+		P) PAUSE=yes;;
+		v) VERBOSE=$(($VERBOSE + 1));;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
+done
+
+PEER_CMD="ip netns exec ${PEER_NS}"
+
+# make sure we don't pause twice
+[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip;
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
 	echo "SKIP: Could not run test without ip tool"
-	exit 0
+	exit $ksft_skip
 fi
 
 ip route help 2>&1 | grep -q fibmatch
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing fibmatch"
-	exit 0
+	exit $ksft_skip
 fi
 
 # start clean
 cleanup &> /dev/null
 
-fib_test
+for t in $TESTS
+do
+	case $t in
+	fib_unreg_test|unregister)	fib_unreg_test;;
+	fib_down_test|down)		fib_down_test;;
+	fib_carrier_test|carrier)	fib_carrier_test;;
+	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
+	fib_nexthop_test|nexthop)	fib_nexthop_test;;
+	fib_suppress_test|suppress)	fib_suppress_test;;
+	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
+	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
+	ipv6_addr_metric)		ipv6_addr_metric_test;;
+	ipv4_addr_metric)		ipv4_addr_metric_test;;
+	ipv4_del_addr)			ipv4_del_addr_test;;
+	ipv6_route_metrics)		ipv6_route_metrics_test;;
+	ipv4_route_metrics)		ipv4_route_metrics_test;;
+	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
+
+	help) echo "Test names: $TESTS"; exit 0;;
+	esac
+done
+
+if [ "$TESTS" != "none" ]; then
+	printf "\nTests passed: %3d\n" ${nsuccess}
+	printf "Tests failed: %3d\n"   ${nfail}
+fi
 
 exit $ret

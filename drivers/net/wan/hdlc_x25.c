@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic HDLC support routines for Linux
  * X.25 support
  *
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
@@ -24,7 +21,16 @@
 #include <linux/skbuff.h>
 #include <net/x25device.h>
 
+struct x25_state {
+	x25_hdlc_proto settings;
+};
+
 static int x25_ioctl(struct net_device *dev, struct ifreq *ifr);
+
+static struct x25_state *state(hdlc_device *hdlc)
+{
+	return hdlc->state;
+}
 
 /* These functions are callbacks called by LAPB layer */
 
@@ -65,10 +71,11 @@ static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 {
 	unsigned char *ptr;
 
-	skb_push(skb, 1);
-
 	if (skb_cow(skb, 1))
 		return NET_RX_DROP;
+
+	skb_push(skb, 1);
+	skb_reset_network_header(skb);
 
 	ptr  = skb->data;
 	*ptr = X25_IFACE_DATA;
@@ -82,6 +89,13 @@ static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+
+	skb_reset_network_header(skb);
+	skb->protocol = hdlc_type_trans(skb, dev);
+
+	if (dev_nit_active(dev))
+		dev_queue_xmit_nit(skb, dev);
+
 	hdlc->xmit(skb, dev); /* Ignore return value :-( */
 }
 
@@ -96,6 +110,7 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:	/* Data to be transmitted */
 		skb_pull(skb, 1);
+		skb_reset_network_header(skb);
 		if ((result = lapb_data_request(dev, skb)) != LAPB_OK)
 			dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -134,7 +149,6 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int x25_open(struct net_device *dev)
 {
-	int result;
 	static const struct lapb_register_struct cb = {
 		.connect_confirmation = x25_connected,
 		.connect_indication = x25_connected,
@@ -143,10 +157,33 @@ static int x25_open(struct net_device *dev)
 		.data_indication = x25_data_indication,
 		.data_transmit = x25_data_transmit,
 	};
+	hdlc_device *hdlc = dev_to_hdlc(dev);
+	struct lapb_parms_struct params;
+	int result;
 
 	result = lapb_register(dev, &cb);
 	if (result != LAPB_OK)
 		return result;
+
+	result = lapb_getparms(dev, &params);
+	if (result != LAPB_OK)
+		return result;
+
+	if (state(hdlc)->settings.dce)
+		params.mode = params.mode | LAPB_DCE;
+
+	if (state(hdlc)->settings.modulo == 128)
+		params.mode = params.mode | LAPB_EXTENDED;
+
+	params.window = state(hdlc)->settings.window;
+	params.t1 = state(hdlc)->settings.t1;
+	params.t2 = state(hdlc)->settings.t2;
+	params.n2 = state(hdlc)->settings.n2;
+
+	result = lapb_setparms(dev, &params);
+	if (result != LAPB_OK)
+		return result;
+
 	return 0;
 }
 
@@ -189,7 +226,10 @@ static struct hdlc_proto proto = {
 
 static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
+	x25_hdlc_proto __user *x25_s = ifr->ifr_settings.ifs_ifsu.x25;
+	const size_t size = sizeof(x25_hdlc_proto);
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+	x25_hdlc_proto new_settings;
 	int result;
 
 	switch (ifr->ifr_settings.type) {
@@ -197,7 +237,13 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
 		ifr->ifr_settings.type = IF_PROTO_X25;
-		return 0; /* return protocol only, no settable parameters */
+		if (ifr->ifr_settings.size < size) {
+			ifr->ifr_settings.size = size; /* data size wanted */
+			return -ENOBUFS;
+		}
+		if (copy_to_user(x25_s, &state(hdlc)->settings, size))
+			return -EFAULT;
+		return 0;
 
 	case IF_PROTO_X25:
 		if (!capable(CAP_NET_ADMIN))
@@ -206,12 +252,46 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
+		/* backward compatibility */
+		if (ifr->ifr_settings.size == 0) {
+			new_settings.dce = 0;
+			new_settings.modulo = 8;
+			new_settings.window = 7;
+			new_settings.t1 = 3;
+			new_settings.t2 = 1;
+			new_settings.n2 = 10;
+		}
+		else {
+			if (copy_from_user(&new_settings, x25_s, size))
+				return -EFAULT;
+
+			if ((new_settings.dce != 0 &&
+			new_settings.dce != 1) ||
+			(new_settings.modulo != 8 &&
+			new_settings.modulo != 128) ||
+			new_settings.window < 1 ||
+			(new_settings.modulo == 8 &&
+			new_settings.window > 7) ||
+			(new_settings.modulo == 128 &&
+			new_settings.window > 127) ||
+			new_settings.t1 < 1 ||
+			new_settings.t1 > 255 ||
+			new_settings.t2 < 1 ||
+			new_settings.t2 > 255 ||
+			new_settings.n2 < 1 ||
+			new_settings.n2 > 255)
+				return -EINVAL;
+		}
+
 		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
-		if ((result = attach_hdlc_protocol(dev, &proto, 0)))
+		if ((result = attach_hdlc_protocol(dev, &proto,
+						   sizeof(struct x25_state))))
 			return result;
+
+		memcpy(&state(hdlc)->settings, &new_settings, size);
 		dev->type = ARPHRD_X25;
 		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);

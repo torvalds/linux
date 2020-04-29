@@ -569,6 +569,7 @@ cuda_interrupt(int irq, void *arg)
     unsigned char ibuf[16];
     int ibuf_len = 0;
     int complete = 0;
+    bool full;
     
     spin_lock_irqsave(&cuda_lock, flags);
 
@@ -656,12 +657,13 @@ idle_state:
 	break;
 
     case reading:
-	if (reading_reply ? ARRAY_FULL(current_req->reply, reply_ptr)
-	                  : ARRAY_FULL(cuda_rbuf, reply_ptr))
+	full = reading_reply ? ARRAY_FULL(current_req->reply, reply_ptr)
+	                     : ARRAY_FULL(cuda_rbuf, reply_ptr);
+	if (full)
 	    (void)in_8(&via[SR]);
 	else
 	    *reply_ptr++ = in_8(&via[SR]);
-	if (!TREQ_asserted(status)) {
+	if (!TREQ_asserted(status) || full) {
 	    if (mcu_is_egret)
 		assert_TACK();
 	    /* that's all folks */
@@ -765,4 +767,39 @@ cuda_input(unsigned char *buf, int nb)
 	print_hex_dump(KERN_INFO, "cuda_input: ", DUMP_PREFIX_NONE, 32, 1,
 	               buf, nb, false);
     }
+}
+
+/* Offset between Unix time (1970-based) and Mac time (1904-based) */
+#define RTC_OFFSET	2082844800
+
+time64_t cuda_get_time(void)
+{
+	struct adb_request req;
+	u32 now;
+
+	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
+		return 0;
+	while (!req.complete)
+		cuda_poll();
+	if (req.reply_len != 7)
+		pr_err("%s: got %d byte reply\n", __func__, req.reply_len);
+	now = (req.reply[3] << 24) + (req.reply[4] << 16) +
+	      (req.reply[5] << 8) + req.reply[6];
+	return (time64_t)now - RTC_OFFSET;
+}
+
+int cuda_set_rtc_time(struct rtc_time *tm)
+{
+	u32 now;
+	struct adb_request req;
+
+	now = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
+	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
+	                 now >> 24, now >> 16, now >> 8, now) < 0)
+		return -ENXIO;
+	while (!req.complete)
+		cuda_poll();
+	if ((req.reply_len != 3) && (req.reply_len != 7))
+		pr_err("%s: got %d byte reply\n", __func__, req.reply_len);
+	return 0;
 }

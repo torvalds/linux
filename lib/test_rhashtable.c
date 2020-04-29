@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
  * Copyright (c) 2014-2015 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**************************************************************************
@@ -20,11 +17,11 @@
 #include <linux/module.h>
 #include <linux/rcupdate.h>
 #include <linux/rhashtable.h>
-#include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/random.h>
 #include <linux/vmalloc.h>
+#include <linux/wait.h>
 
 #define MAX_ENTRIES	1000000
 #define TEST_INSERT_FAIL INT_MAX
@@ -83,7 +80,7 @@ static u32 my_hashfn(const void *data, u32 len, u32 seed)
 {
 	const struct test_obj_rhl *obj = data;
 
-	return (obj->value.id % 10) << RHT_HASH_RESERVED_SPACE;
+	return (obj->value.id % 10);
 }
 
 static int my_cmpfn(struct rhashtable_compare_arg *arg, const void *obj)
@@ -99,7 +96,6 @@ static struct rhashtable_params test_rht_params = {
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
-	.nulls_base = (3U << RHT_BASE_SHIFT),
 };
 
 static struct rhashtable_params test_rht_params_dup = {
@@ -113,8 +109,8 @@ static struct rhashtable_params test_rht_params_dup = {
 	.automatic_shrinking = false,
 };
 
-static struct semaphore prestart_sem;
-static struct semaphore startup_sem = __SEMAPHORE_INITIALIZER(startup_sem, 0);
+static atomic_t startup_count;
+static DECLARE_WAIT_QUEUE_HEAD(startup_wait);
 
 static int insert_retry(struct rhashtable *ht, struct test_obj *obj,
                         const struct rhashtable_params params)
@@ -178,16 +174,11 @@ static int __init test_rht_lookup(struct rhashtable *ht, struct test_obj *array,
 
 static void test_bucket_stats(struct rhashtable *ht, unsigned int entries)
 {
-	unsigned int err, total = 0, chain_len = 0;
+	unsigned int total = 0, chain_len = 0;
 	struct rhashtable_iter hti;
 	struct rhash_head *pos;
 
-	err = rhashtable_walk_init(ht, &hti, GFP_KERNEL);
-	if (err) {
-		pr_warn("Test failed: allocation error");
-		return;
-	}
-
+	rhashtable_walk_enter(ht, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((pos = rhashtable_walk_next(&hti))) {
@@ -285,17 +276,17 @@ static int __init test_rhltable(unsigned int entries)
 	if (entries == 0)
 		entries = 1;
 
-	rhl_test_objects = vzalloc(sizeof(*rhl_test_objects) * entries);
+	rhl_test_objects = vzalloc(array_size(entries,
+					      sizeof(*rhl_test_objects)));
 	if (!rhl_test_objects)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	obj_in_table = vzalloc(BITS_TO_LONGS(entries) * sizeof(unsigned long));
+	obj_in_table = vzalloc(array_size(sizeof(unsigned long),
+					  BITS_TO_LONGS(entries)));
 	if (!obj_in_table)
 		goto out_free;
 
-	/* nulls_base not supported in rhlist interface */
-	test_rht_params.nulls_base = 0;
 	err = rhltable_init(&rhlt, &test_rht_params);
 	if (WARN_ON(err))
 		goto out_free;
@@ -396,7 +387,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element %d, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element %d, error %d not %d",
 			     i, err, -ENOENT))
 				continue;
 		}
@@ -441,7 +432,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
 				 err, -ENOENT))
 			continue;
 		}
@@ -499,12 +490,14 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 	unsigned int i, cnt = 0;
 
 	ht = &rhlt->ht;
+	/* Take the mutex to avoid RCU warning */
+	mutex_lock(&ht->mutex);
 	tbl = rht_dereference(ht->tbl, ht);
 	for (i = 0; i < tbl->size; i++) {
 		struct rhash_head *pos, *next;
 		struct test_obj_rhl *p;
 
-		pos = rht_dereference(tbl->buckets[i], ht);
+		pos = rht_ptr_exclusive(tbl->buckets + i);
 		next = !rht_is_a_nulls(pos) ? rht_dereference(pos->next, ht) : NULL;
 
 		if (!rht_is_a_nulls(pos)) {
@@ -532,6 +525,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 		}
 	}
 	printk(KERN_ERR "\n---- ht: ----%s\n-------------\n", buff);
+	mutex_unlock(&ht->mutex);
 
 	return cnt;
 }
@@ -539,38 +533,45 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 static int __init test_insert_dup(struct test_obj_rhl *rhl_test_objects,
 				  int cnt, bool slow)
 {
-	struct rhltable rhlt;
+	struct rhltable *rhlt;
 	unsigned int i, ret;
 	const char *key;
 	int err = 0;
 
-	err = rhltable_init(&rhlt, &test_rht_params_dup);
-	if (WARN_ON(err))
+	rhlt = kmalloc(sizeof(*rhlt), GFP_KERNEL);
+	if (WARN_ON(!rhlt))
+		return -EINVAL;
+
+	err = rhltable_init(rhlt, &test_rht_params_dup);
+	if (WARN_ON(err)) {
+		kfree(rhlt);
 		return err;
+	}
 
 	for (i = 0; i < cnt; i++) {
 		rhl_test_objects[i].value.tid = i;
-		key = rht_obj(&rhlt.ht, &rhl_test_objects[i].list_node.rhead);
+		key = rht_obj(&rhlt->ht, &rhl_test_objects[i].list_node.rhead);
 		key += test_rht_params_dup.key_offset;
 
 		if (slow) {
-			err = PTR_ERR(rhashtable_insert_slow(&rhlt.ht, key,
+			err = PTR_ERR(rhashtable_insert_slow(&rhlt->ht, key,
 							     &rhl_test_objects[i].list_node.rhead));
 			if (err == -EAGAIN)
 				err = 0;
 		} else
-			err = rhltable_insert(&rhlt,
+			err = rhltable_insert(rhlt,
 					      &rhl_test_objects[i].list_node,
 					      test_rht_params_dup);
 		if (WARN(err, "error %d on element %d/%d (%s)\n", err, i, cnt, slow? "slow" : "fast"))
 			goto skip_print;
 	}
 
-	ret = print_ht(&rhlt);
+	ret = print_ht(rhlt);
 	WARN(ret != cnt, "missing rhltable elements (%d != %d, %s)\n", ret, cnt, slow? "slow" : "fast");
 
 skip_print:
-	rhltable_destroy(&rhlt);
+	rhltable_destroy(rhlt);
+	kfree(rhlt);
 
 	return 0;
 }
@@ -632,9 +633,12 @@ static int threadfunc(void *data)
 	int i, step, err = 0, insert_retries = 0;
 	struct thread_data *tdata = data;
 
-	up(&prestart_sem);
-	if (down_interruptible(&startup_sem))
-		pr_err("  thread[%d]: down_interruptible failed\n", tdata->id);
+	if (atomic_dec_and_test(&startup_count))
+		wake_up(&startup_wait);
+	if (wait_event_interruptible(startup_wait, atomic_read(&startup_count) == -1)) {
+		pr_err("  thread[%d]: interrupted\n", tdata->id);
+		goto out;
+	}
 
 	for (i = 0; i < tdata->entries; i++) {
 		tdata->objs[i].value.id = i;
@@ -706,7 +710,8 @@ static int __init test_rht_init(void)
 	test_rht_params.max_size = max_size ? : roundup_pow_of_two(entries);
 	test_rht_params.nelem_hint = size;
 
-	objs = vzalloc((test_rht_params.max_size + 1) * sizeof(struct test_obj));
+	objs = vzalloc(array_size(sizeof(struct test_obj),
+				  test_rht_params.max_size + 1));
 	if (!objs)
 		return -ENOMEM;
 
@@ -752,11 +757,11 @@ static int __init test_rht_init(void)
 
 	pr_info("Testing concurrent rhashtable access from %d threads\n",
 	        tcount);
-	sema_init(&prestart_sem, 1 - tcount);
-	tdata = vzalloc(tcount * sizeof(struct thread_data));
+	atomic_set(&startup_count, tcount);
+	tdata = vzalloc(array_size(tcount, sizeof(struct thread_data)));
 	if (!tdata)
 		return -ENOMEM;
-	objs  = vzalloc(tcount * entries * sizeof(struct test_obj));
+	objs  = vzalloc(array3_size(sizeof(struct test_obj), tcount, entries));
 	if (!objs) {
 		vfree(tdata);
 		return -ENOMEM;
@@ -778,15 +783,18 @@ static int __init test_rht_init(void)
 		tdata[i].objs = objs + i * entries;
 		tdata[i].task = kthread_run(threadfunc, &tdata[i],
 		                            "rhashtable_thrad[%d]", i);
-		if (IS_ERR(tdata[i].task))
+		if (IS_ERR(tdata[i].task)) {
 			pr_err(" kthread_run failed for thread %d\n", i);
-		else
+			atomic_dec(&startup_count);
+		} else {
 			started_threads++;
+		}
 	}
-	if (down_interruptible(&prestart_sem))
-		pr_err("  down interruptible failed\n");
-	for (i = 0; i < tcount; i++)
-		up(&startup_sem);
+	if (wait_event_interruptible(startup_wait, atomic_read(&startup_count) == 0))
+		pr_err("  wait_event interruptible failed\n");
+	/* count is 0 now, set it to -1 and wake up all threads together */
+	atomic_dec(&startup_count);
+	wake_up_all(&startup_wait);
 	for (i = 0; i < tcount; i++) {
 		if (IS_ERR(tdata[i].task))
 			continue;

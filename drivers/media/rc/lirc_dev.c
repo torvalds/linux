@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LIRC base driver
  *
  * by Artur Lipowski <alipowski@interia.pl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -20,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/idr.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -28,7 +19,7 @@
 #include "rc-core-priv.h"
 #include <uapi/linux/lirc.h>
 
-#define LIRCBUF_SIZE	256
+#define LIRCBUF_SIZE	1024
 
 static dev_t lirc_base_dev;
 
@@ -103,6 +94,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
 			TO_US(ev.duration), TO_STR(ev.pulse));
 	}
+
+	/*
+	 * bpf does not care about the gap generated above; that exists
+	 * for backwards compatibility
+	 */
+	lirc_bpf_run(dev, sample);
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
@@ -188,7 +185,7 @@ static int ir_lirc_open(struct inode *inode, struct file *file)
 	list_add(&fh->list, &dev->lirc_fh);
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 out_kfifo:
@@ -272,12 +269,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 			goto out_unlock;
 		}
 
-		/*
-		 * The scancode field in lirc_scancode is 64-bit simply
-		 * to future-proof it, since there are IR protocols encode
-		 * use more than 32 bits. For now only 32-bit protocols
-		 * are supported.
-		 */
+		/* We only have encoders for 32-bit protocols. */
 		if (scan.scancode > U32_MAX ||
 		    !rc_validate_scancode(scan.rc_proto, scan.scancode)) {
 			ret = -EINVAL;
@@ -575,8 +567,15 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		}
 		break;
 
-	case LIRC_SET_REC_TIMEOUT_REPORTS:
+	case LIRC_GET_REC_TIMEOUT:
 		if (!dev->timeout)
+			ret = -ENOTTY;
+		else
+			val = DIV_ROUND_UP(dev->timeout, 1000);
+		break;
+
+	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
 		else
 			fh->send_timeout_reports = !!val;
@@ -716,9 +715,7 @@ static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
 	.unlocked_ioctl	= ir_lirc_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ir_lirc_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 	.read		= ir_lirc_read,
 	.poll		= ir_lirc_poll,
 	.open		= ir_lirc_open,
@@ -735,6 +732,7 @@ static void lirc_release_device(struct device *ld)
 
 int ir_lirc_register(struct rc_dev *dev)
 {
+	const char *rx_type, *tx_type;
 	int err, minor;
 
 	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
@@ -759,8 +757,25 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	get_device(&dev->dev);
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
-		 dev->driver_name, minor);
+	switch (dev->driver_type) {
+	case RC_DRIVER_SCANCODE:
+		rx_type = "scancode";
+		break;
+	case RC_DRIVER_IR_RAW:
+		rx_type = "raw IR";
+		break;
+	default:
+		rx_type = "no";
+		break;
+	}
+
+	if (dev->tx_ir)
+		tx_type = "raw IR";
+	else
+		tx_type = "no";
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
+		 dev->driver_name, minor, rx_type, tx_type);
 
 	return 0;
 
@@ -814,6 +829,29 @@ void __exit lirc_dev_exit(void)
 {
 	class_destroy(lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
+}
+
+struct rc_dev *rc_dev_get_from_fd(int fd)
+{
+	struct fd f = fdget(fd);
+	struct lirc_fh *fh;
+	struct rc_dev *dev;
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &lirc_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	fh = f.file->private_data;
+	dev = fh->rc;
+
+	get_device(&dev->dev);
+	fdput(f);
+
+	return dev;
 }
 
 MODULE_ALIAS("lirc_dev");

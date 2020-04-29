@@ -22,8 +22,7 @@ PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath);
  *
  * void __pv_queued_spin_unlock(struct qspinlock *lock)
  * {
- *	struct __qspinlock *l = (void *)lock;
- *	u8 lockval = cmpxchg(&l->locked, _Q_LOCKED_VAL, 0);
+ *	u8 lockval = cmpxchg(&lock->locked, _Q_LOCKED_VAL, 0);
  *
  *	if (likely(lockval == _Q_LOCKED_VAL))
  *		return;
@@ -44,7 +43,7 @@ asm    (".pushsection .text;"
 	"push  %rdx;"
 	"mov   $0x1,%eax;"
 	"xor   %edx,%edx;"
-	"lock cmpxchg %dl,(%rdi);"
+	LOCK_PREFIX "cmpxchg %dl,(%rdi);"
 	"cmp   $0x1,%al;"
 	"jne   .slowpath;"
 	"pop   %rdx;"

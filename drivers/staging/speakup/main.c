@@ -67,6 +67,8 @@ short spk_punc_mask;
 int spk_punc_level, spk_reading_punc;
 char spk_str_caps_start[MAXVARLEN + 1] = "\0";
 char spk_str_caps_stop[MAXVARLEN + 1] = "\0";
+char spk_str_pause[MAXVARLEN + 1] = "\0";
+bool spk_paused;
 const struct st_bits_data spk_punc_info[] = {
 	{"none", "", 0},
 	{"some", "/$%&@", SOME},
@@ -559,7 +561,7 @@ static u_long get_word(struct vc_data *vc)
 		return 0;
 	} else if (tmpx < vc->vc_cols - 2 &&
 		   (ch == SPACE || ch == 0 || (ch < 0x100 && IS_WDLM(ch))) &&
-		   get_char(vc, (u_short *)&tmp_pos + 1, &temp) > SPACE) {
+		   get_char(vc, (u_short *)tmp_pos + 1, &temp) > SPACE) {
 		tmp_pos += 2;
 		tmpx++;
 	} else {
@@ -899,7 +901,8 @@ static int get_sentence_buf(struct vc_data *vc, int read_punc)
 	while (start < end) {
 		sentbuf[bn][i] = get_char(vc, (u_short *)start, &tmp);
 		if (i > 0) {
-			if (sentbuf[bn][i] == SPACE && sentbuf[bn][i - 1] == '.' &&
+			if (sentbuf[bn][i] == SPACE &&
+			    sentbuf[bn][i - 1] == '.' &&
 			    numsentences[bn] < 9) {
 				/* Sentence Marker */
 				numsentences[bn]++;
@@ -1233,7 +1236,8 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	key_data_len = (states + 1) * (num_keys + 1);
 	if (key_data_len + SHIFT_TBL_SIZE + 4 >= sizeof(spk_key_buf)) {
 		pr_debug("too many key_infos (%d over %u)\n",
-			 key_data_len + SHIFT_TBL_SIZE + 4, (unsigned int)(sizeof(spk_key_buf)));
+			 key_data_len + SHIFT_TBL_SIZE + 4,
+			 (unsigned int)(sizeof(spk_key_buf)));
 		return -EINVAL;
 	}
 	memset(k_buffer, 0, SHIFT_TBL_SIZE);
@@ -1247,8 +1251,8 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	for (i = 1; i <= states; i++) {
 		ch = *cp1++;
 		if (ch >= SHIFT_TBL_SIZE) {
-			pr_debug("(%d) not valid shift state (max_allowed = %d)\n", ch,
-				 SHIFT_TBL_SIZE);
+			pr_debug("(%d) not valid shift state (max_allowed = %d)\n",
+				 ch, SHIFT_TBL_SIZE);
 			return -EINVAL;
 		}
 		spk_shift_table[ch] = i;
@@ -1256,7 +1260,8 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	keymap_flags = *cp1++;
 	while ((ch = *cp1)) {
 		if (ch >= MAX_KEY) {
-			pr_debug("(%d), not valid key, (max_allowed = %d)\n", ch, MAX_KEY);
+			pr_debug("(%d), not valid key, (max_allowed = %d)\n",
+				 ch, MAX_KEY);
 			return -EINVAL;
 		}
 		spk_our_keys[ch] = cp1;
@@ -1782,6 +1787,10 @@ static void speakup_con_update(struct vc_data *vc)
 		/* Speakup output, discard */
 		return;
 	speakup_date(vc);
+	if (vc->vc_mode == KD_GRAPHICS && !spk_paused && spk_str_pause[0]) {
+		synth_printf("%s", spk_str_pause);
+		spk_paused = true;
+	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
@@ -1973,6 +1982,7 @@ oops:
 		return 1;
 	}
 
+	/* Do not replace with kstrtoul: here we need cp to be updated */
 	goto_pos = simple_strtoul(goto_buf, &cp, 10);
 
 	if (*cp == 'x') {
@@ -2107,7 +2117,8 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 			spk_keydown = 0;
 			goto out;
 		}
-		value = spk_lastkey = pad_chars[value];
+		value = pad_chars[value];
+		spk_lastkey = value;
 		spk_keydown++;
 		spk_parked &= 0xfe;
 		goto no_map;
@@ -2309,6 +2320,7 @@ static void __exit speakup_exit(void)
 	unregister_keyboard_notifier(&keyboard_notifier_block);
 	unregister_vt_notifier(&vt_notifier_block);
 	speakup_unregister_devsynth();
+	speakup_cancel_selection();
 	speakup_cancel_paste();
 	del_timer_sync(&cursor_timer);
 	kthread_stop(speakup_task);

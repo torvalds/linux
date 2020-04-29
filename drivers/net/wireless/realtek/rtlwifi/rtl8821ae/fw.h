@@ -1,26 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #ifndef __RTL8821AE__FW__H__
 #define __RTL8821AE__FW__H__
@@ -137,20 +116,6 @@
 #define	FW_PWR_STATE_ACTIVE	((FW_PS_RF_ON) | (FW_PS_REGISTER_ACTIVE))
 #define	FW_PWR_STATE_RF_OFF	0
 
-enum rtl8812_c2h_evt {
-	C2H_8812_DBG = 0,
-	C2H_8812_LB = 1,
-	C2H_8812_TXBF = 2,
-	C2H_8812_TX_REPORT = 3,
-	C2H_8812_BT_INFO = 9,
-	C2H_8812_BT_MP = 11,
-	C2H_8812_RA_RPT = 12,
-
-	C2H_8812_FW_SWCHNL = 0x10,
-	C2H_8812_IQK_FINISH = 0x11,
-	MAX_8812_C2HEVENT
-};
-
 enum rtl8821a_h2c_cmd {
 	H2C_8821AE_RSVDPAGE = 0,
 	H2C_8821AE_MSRRPT = 1,
@@ -186,123 +151,115 @@ enum rtl8821a_h2c_cmd {
 #define pagenum_128(_len)	(u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 #define SET_8812_H2CCMD_WOWLAN_FUNC_ENABLE(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(0))
 #define SET_8812_H2CCMD_WOWLAN_PATTERN_MATCH_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(1))
 #define SET_8812_H2CCMD_WOWLAN_MAGIC_PKT_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 2, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(2))
 #define SET_8812_H2CCMD_WOWLAN_UNICAST_PKT_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 3, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(3))
 #define SET_8812_H2CCMD_WOWLAN_ALL_PKT_DROP(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 4, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(4))
 #define SET_8812_H2CCMD_WOWLAN_GPIO_ACTIVE(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 5, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(5))
 #define SET_8812_H2CCMD_WOWLAN_REKEY_WAKE_UP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 6, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(6))
 #define SET_8812_H2CCMD_WOWLAN_DISCONNECT_WAKE_UP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 7, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(7))
 #define SET_8812_H2CCMD_WOWLAN_GPIONUM(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd) + 1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value
 #define SET_8812_H2CCMD_WOWLAN_GPIO_DURATION(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd) + 2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)__ph2ccmd = __val
 #define SET_H2CCMD_PWRMODE_PARM_RLBM(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 4, __value)
+	u8p_replace_bits(__cmd + 1, __value, GENMASK(3, 0))
 #define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 4, 4, __value)
+	u8p_replace_bits(__cmd + 1, __value, GENMASK(7, 4))
 #define SET_H2CCMD_PWRMODE_PARM_AWAKE_INTERVAL(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value
 #define SET_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
+	*(u8 *)(__cmd + 3) = __value
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __value)
+	*(u8 *)(__cmd + 4) = __value
 #define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __value)
-#define GET_8821AE_H2CCMD_PWRMODE_PARM_MODE(__cmd)		\
-	LE_BITS_TO_1BYTE(__cmd, 0, 8)
+	*(u8 *)(__cmd + 5) = __value
 
-#define SET_H2CCMD_JOINBSSRPT_PARM_OPMODE(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val
 #define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+3, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 3) = __val
 #define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 4) = __val
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
+	u8p_replace_bits(__cmd + 1, __value, BIT(0))
 #define SET_H2CCMD_MSRRPT_PARM_MACID_IND(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
-#define SET_H2CCMD_MSRRPT_PARM_MACID(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd+1, 0, 8, __value)
-#define SET_H2CCMD_MSRRPT_PARM_MACID_END(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd+2, 0, 8, __value)
+	u8p_replace_bits(__cmd + 1, __value, BIT(1))
 
 /* AP_OFFLOAD */
 #define SET_H2CCMD_AP_OFFLOAD_ON(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 8, __value)
+	*(u8 *)__cmd = __value
 #define SET_H2CCMD_AP_OFFLOAD_HIDDEN(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value
 #define SET_H2CCMD_AP_OFFLOAD_DENYANY(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value
 #define SET_H2CCMD_AP_OFFLOAD_WAKEUP_EVT_RPT(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
+	*(u8 *)(__cmd + 3) = __value
 
 /* Keep Alive Control*/
 #define SET_8812_H2CCMD_KEEP_ALIVE_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(0))
 #define SET_8812_H2CCMD_KEEP_ALIVE_ACCPEPT_USER_DEFINED(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(1))
 #define SET_8812_H2CCMD_KEEP_ALIVE_PERIOD(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value
 
 /*REMOTE_WAKE_CTRL */
 #define SET_8812_H2CCMD_REMOTE_WAKECTRL_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(0))
 #define SET_8812_H2CCMD_REMOTE_WAKE_CTRL_ARP_OFFLOAD_EN(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(1))
 #define SET_8812_H2CCMD_REMOTE_WAKE_CTRL_NDP_OFFLOAD_EN(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 2, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(2))
 #define SET_8812_H2CCMD_REMOTE_WAKE_CTRL_GTK_OFFLOAD_EN(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 3, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(3))
 #define SET_8812_H2CCMD_REMOTE_WAKE_CTRL_REALWOWV2_EN(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 6, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(6))
 
 /* GTK_OFFLOAD */
 #define SET_8812_H2CCMD_AOAC_GLOBAL_INFO_PAIRWISE_ENC_ALG(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 8, __value)
+	*(u8 *)__cmd = __value
 #define SET_8812_H2CCMD_AOAC_GLOBAL_INFO_GROUP_ENC_ALG(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value
 
 /* AOAC_RSVDPAGE_LOC */
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd), 0, 8, __value)
+	*(u8 *)__cmd = __value
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_NEIGHBOR_ADV(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_RSP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
+	*(u8 *)(__cmd + 3) = __value
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_INFO(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __value)
+	*(u8 *)(__cmd + 4) = __value
 #define SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_EXT_MEM(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+5, 0, 8, __value)
+	*(u8 *)(__cmd + 5) = __value
 
 /* Disconnect_Decision_Control */
 #define SET_8812_H2CCMD_DISCONNECT_DECISION_CTRL_ENABLE(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(0))
 #define SET_8812_H2CCMD_DISCONNECT_DECISION_CTRL_USER_SETTING(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
+	u8p_replace_bits(__cmd, __value, BIT(1))
 #define SET_8812_H2CCMD_DISCONNECT_DECISION_CTRL_CHECK_PERIOD(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value) /* unit: beacon period */
+	*(u8 *)(__cmd + 1) = __value
 #define SET_8812_H2CCMD_DISCONNECT_DECISION_CTRL_TRYPKT_NUM(__cmd, __value)\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value
 
 int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw);
 #if (USE_SPECIFIC_FW_TO_SUPPORT_WOWLAN == 1)
@@ -331,9 +288,6 @@ void rtl8821ae_set_fw_keep_alive_cmd(struct ieee80211_hw *hw, bool func_en);
 void rtl8821ae_set_fw_disconnect_decision_ctrl_cmd(struct ieee80211_hw *hw,
 						   bool enabled);
 void rtl8821ae_set_fw_global_info_cmd(struct ieee80211_hw *hw);
-void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw,
-				  u8 *buffer, u8 length);
-void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
-				   u8 c2h_cmd_id, u8 c2h_cmd_len,
-				   u8 *tmp_buf);
+void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				     u8 *cmd_buf, u8 cmd_len);
 #endif

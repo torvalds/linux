@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     TDA10021  - Single Chip Cable Channel Receiver driver module
 	       used on the Siemens DVB-C cards
@@ -6,19 +7,6 @@
     Copyright (C) 2004 Markus Schulz <msc@antzsystem.de>
 		   Support for TDA10021
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/delay.h>
@@ -487,11 +475,11 @@ static const struct dvb_frontend_ops tda10021_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10021 DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min = 47000000,
-		.frequency_max = 862000000,
-		.symbol_rate_min = (XIN/2)/64,     /* SACLK/64 == (XIN/2)/64 */
-		.symbol_rate_max = (XIN/2)/4,      /* SACLK/4 */
+		.frequency_min_hz =  47 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 62500,
+		.symbol_rate_min = (XIN / 2) / 64,     /* SACLK/64 == (XIN/2)/64 */
+		.symbol_rate_max = (XIN / 2) / 4,      /* SACLK/4 */
 	#if 0
 		.frequency_tolerance = ???,
 		.symbol_rate_tolerance = ???,  /* ppm */  /* == 8% (spec p. 5) */

@@ -90,46 +90,6 @@
 					reg = <0x23>;
 				};
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-
-				/* Use Hardware BCH ECC */
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0000000 0x180000>;  /* 1.5MB */
-					read-only;
-				};
-
-				partition@180000 {
-					label = "u-boot-env";
-					reg = <0x180000 0x20000>;    /* 128KB */
-					read-only;
-				};
-
-				partition@200000 {
-					label = "uImage";
-					reg = <0x0200000 0x600000>;    /* 6MB */
-				};
-
-				partition@800000 {
-					label = "minirootfs";
-					reg = <0x0800000 0x400000>;    /* 4MB */
-				};
-
-				/* Last MB is for the BBT, i.e. not writable */
-				partition@c00000 {
-					label = "ubifs";
-					reg = <0x0c00000 0x7400000>; /* 116MB */
-				};
-			};
 		};
 	};
 
@@ -181,6 +141,20 @@
 			gpios = <&pca9554 3 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
+	};
+
+	auxdisplay {
+		compatible = "hit,hd44780";
+		data-gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>,
+				<&gpio1 26 GPIO_ACTIVE_HIGH>,
+				<&gpio1 27 GPIO_ACTIVE_HIGH>,
+				<&gpio1 29 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		rs-gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		rw-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+		display-height-chars = <2>;
+		display-width-chars = <16>;
 	};
 
 	gpio-keys {
@@ -274,5 +248,55 @@
 	reset_button_pin: reset-button-pin {
 		marvell,pins = "mpp65";
 		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+
+		/* Use Hardware BCH ECC */
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x180000>;  /* 1.5MB */
+				read-only;
+			};
+
+			partition@180000 {
+				label = "u-boot-env";
+				reg = <0x180000 0x20000>;    /* 128KB */
+				read-only;
+			};
+
+			partition@200000 {
+				label = "uImage";
+				reg = <0x0200000 0x600000>;    /* 6MB */
+			};
+
+			partition@800000 {
+				label = "minirootfs";
+				reg = <0x0800000 0x400000>;    /* 4MB */
+			};
+
+			/* Last MB is for the BBT, i.e. not writable */
+			partition@c00000 {
+				label = "ubifs";
+				reg = <0x0c00000 0x7400000>; /* 116MB */
+			};
+		};
 	};
 };

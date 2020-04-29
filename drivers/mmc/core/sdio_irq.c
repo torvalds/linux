@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/mmc/core/sdio_irq.c
  *
@@ -6,11 +7,6 @@
  * Copyright:   MontaVista Software Inc.
  *
  * Copyright 2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -31,32 +27,21 @@
 #include "core.h"
 #include "card.h"
 
-static int process_sdio_pending_irqs(struct mmc_host *host)
+static int sdio_get_pending_irqs(struct mmc_host *host, u8 *pending)
 {
 	struct mmc_card *card = host->card;
-	int i, ret, count;
-	unsigned char pending;
-	struct sdio_func *func;
+	int ret;
 
-	/*
-	 * Optimization, if there is only 1 function interrupt registered
-	 * and we know an IRQ was signaled then call irq handler directly.
-	 * Otherwise do the full probe.
-	 */
-	func = card->sdio_single_irq;
-	if (func && host->sdio_irq_pending) {
-		func->irq_handler(func);
-		return 1;
-	}
+	WARN_ON(!host->claimed);
 
-	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, pending);
 	if (ret) {
 		pr_debug("%s: error %d reading SDIO_CCCR_INTx\n",
 		       mmc_card_id(card), ret);
 		return ret;
 	}
 
-	if (pending && mmc_card_broken_irq_polling(card) &&
+	if (*pending && mmc_card_broken_irq_polling(card) &&
 	    !(host->caps & MMC_CAP_SDIO_IRQ)) {
 		unsigned char dummy;
 
@@ -66,6 +51,39 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 		 */
 		mmc_io_rw_direct(card, 0, 0, 0xff, 0, &dummy);
 	}
+
+	return 0;
+}
+
+static int process_sdio_pending_irqs(struct mmc_host *host)
+{
+	struct mmc_card *card = host->card;
+	int i, ret, count;
+	bool sdio_irq_pending = host->sdio_irq_pending;
+	unsigned char pending;
+	struct sdio_func *func;
+
+	/* Don't process SDIO IRQs if the card is suspended. */
+	if (mmc_card_suspended(card))
+		return 0;
+
+	/* Clear the flag to indicate that we have processed the IRQ. */
+	host->sdio_irq_pending = false;
+
+	/*
+	 * Optimization, if there is only 1 function interrupt registered
+	 * and we know an IRQ was signaled then call irq handler directly.
+	 * Otherwise do the full probe.
+	 */
+	func = card->sdio_single_irq;
+	if (func && sdio_irq_pending) {
+		func->irq_handler(func);
+		return 1;
+	}
+
+	ret = sdio_get_pending_irqs(host, &pending);
+	if (ret)
+		return ret;
 
 	count = 0;
 	for (i = 1; i <= 7; i++) {
@@ -92,18 +110,16 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 	return ret;
 }
 
-void sdio_run_irqs(struct mmc_host *host)
+static void sdio_run_irqs(struct mmc_host *host)
 {
 	mmc_claim_host(host);
 	if (host->sdio_irqs) {
-		host->sdio_irq_pending = true;
 		process_sdio_pending_irqs(host);
-		if (host->ops->ack_sdio_irq)
+		if (!host->sdio_irq_pending)
 			host->ops->ack_sdio_irq(host);
 	}
 	mmc_release_host(host);
 }
-EXPORT_SYMBOL_GPL(sdio_run_irqs);
 
 void sdio_irq_work(struct work_struct *work)
 {
@@ -115,6 +131,7 @@ void sdio_irq_work(struct work_struct *work)
 
 void sdio_signal_irq(struct mmc_host *host)
 {
+	host->sdio_irq_pending = true;
 	queue_delayed_work(system_wq, &host->sdio_irq_work, 0);
 }
 EXPORT_SYMBOL_GPL(sdio_signal_irq);
@@ -160,7 +177,6 @@ static int sdio_irq_thread(void *_host)
 		if (ret)
 			break;
 		ret = process_sdio_pending_irqs(host);
-		host->sdio_irq_pending = false;
 		mmc_release_host(host);
 
 		/*
@@ -260,14 +276,15 @@ static void sdio_single_irq_set(struct mmc_card *card)
 
 	card->sdio_single_irq = NULL;
 	if ((card->host->caps & MMC_CAP_SDIO_IRQ) &&
-	    card->host->sdio_irqs == 1)
+	    card->host->sdio_irqs == 1) {
 		for (i = 0; i < card->sdio_funcs; i++) {
-		       func = card->sdio_func[i];
-		       if (func && func->irq_handler) {
-			       card->sdio_single_irq = func;
-			       break;
-		       }
-	       }
+			func = card->sdio_func[i];
+			if (func && func->irq_handler) {
+				card->sdio_single_irq = func;
+				break;
+			}
+		}
+	}
 }
 
 /**

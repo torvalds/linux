@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * coupled.c - helper functions to enter the same idle state on multiple cpus
  *
  * Copyright (c) 2011 Google, Inc.
  *
  * Author: Colin Cross <ccross@android.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/kernel.h>
@@ -98,6 +89,7 @@
  * @coupled_cpus: mask of cpus that are part of the coupled set
  * @requested_state: array of requested states for cpus in the coupled set
  * @ready_waiting_counts: combined count of cpus  in ready or waiting loops
+ * @abort_barrier: synchronisation point for abort cases
  * @online_count: count of cpus that are online
  * @refcnt: reference count of cpuidle devices that are using this struct
  * @prevent: flag to prevent coupled idle while a cpu is hotplugging
@@ -347,7 +339,7 @@ static void cpuidle_coupled_poke(int cpu)
 
 /**
  * cpuidle_coupled_poke_others - wake up all other cpus that may be waiting
- * @dev: struct cpuidle_device for this cpu
+ * @this_cpu: target cpu
  * @coupled: the struct coupled that contains the current cpu
  *
  * Calls cpuidle_coupled_poke on all other online cpus.
@@ -364,7 +356,7 @@ static void cpuidle_coupled_poke_others(int this_cpu,
 
 /**
  * cpuidle_coupled_set_waiting - mark this cpu as in the wait loop
- * @dev: struct cpuidle_device for this cpu
+ * @cpu: target cpu
  * @coupled: the struct coupled that contains the current cpu
  * @next_state: the index in drv->states of the requested state for this cpu
  *
@@ -385,7 +377,7 @@ static int cpuidle_coupled_set_waiting(int cpu,
 
 /**
  * cpuidle_coupled_set_not_waiting - mark this cpu as leaving the wait loop
- * @dev: struct cpuidle_device for this cpu
+ * @cpu: target cpu
  * @coupled: the struct coupled that contains the current cpu
  *
  * Removes the requested idle state for the specified cpuidle device.
@@ -421,7 +413,7 @@ static void cpuidle_coupled_set_done(int cpu, struct cpuidle_coupled *coupled)
 
 /**
  * cpuidle_coupled_clear_pokes - spin until the poke interrupt is processed
- * @cpu - this cpu
+ * @cpu: this cpu
  *
  * Turns on interrupts and spins until any outstanding poke interrupts have
  * been processed and the poke bit has been cleared.

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2000-2001 Svenning Soerensen <svenning@post5.tele.dk>
  * Copyright (c) 2011 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/ip.h>
@@ -21,8 +18,8 @@
 static unsigned int
 netmap_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct nf_nat_range *range = par->targinfo;
-	struct nf_nat_range newrange;
+	const struct nf_nat_range2 *range = par->targinfo;
+	struct nf_nat_range2 newrange;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	union nf_inet_addr new_addr, netmask;
@@ -56,7 +53,7 @@ netmap_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 
 static int netmap_tg6_checkentry(const struct xt_tgchk_param *par)
 {
-	const struct nf_nat_range *range = par->targinfo;
+	const struct nf_nat_range2 *range = par->targinfo;
 
 	if (!(range->flags & NF_NAT_RANGE_MAP_IPS))
 		return -EINVAL;
@@ -75,7 +72,7 @@ netmap_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	enum ip_conntrack_info ctinfo;
 	__be32 new_ip, netmask;
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 
 	WARN_ON(xt_hooknum(par) != NF_INET_PRE_ROUTING &&
 		xt_hooknum(par) != NF_INET_POST_ROUTING &&

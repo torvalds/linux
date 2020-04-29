@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002, 2003 Andi Kleen, SuSE Labs.
- * Subject to the GNU Public License v.2
  *
  * Wrappers of assembly checksum functions for x86-64.
  */
@@ -27,7 +27,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	might_sleep();
 	*errp = 0;
 
-	if (!likely(access_ok(VERIFY_READ, src, len)))
+	if (!likely(access_ok(src, len)))
 		goto out_err;
 
 	/*
@@ -89,7 +89,7 @@ csum_partial_copy_to_user(const void *src, void __user *dst,
 
 	might_sleep();
 
-	if (unlikely(!access_ok(VERIFY_WRITE, dst, len))) {
+	if (unlikely(!access_ok(dst, len))) {
 		*errp = -EFAULT;
 		return 0;
 	}

@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
 
 #include <linux/spi/spi.h>
+#include <linux/regulator/consumer.h>
 #include <linux/ktime.h>
 
 #include <media/dvb_demux.h>
@@ -51,6 +52,7 @@ struct cxd2880_dvb_spi {
 	struct mutex spi_mutex; /* For SPI access exclusive control */
 	int feed_count;
 	int all_pid_feed_count;
+	struct regulator *vcc_supply;
 	u8 *ts_buf;
 	struct cxd2880_pid_filter_config filter_config;
 };
@@ -60,14 +62,13 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static int cxd2880_write_spi(struct spi_device *spi, u8 *data, u32 size)
 {
 	struct spi_message msg;
-	struct spi_transfer tx;
+	struct spi_transfer tx = {};
 
 	if (!spi || !data) {
 		pr_err("invalid arg\n");
 		return -EINVAL;
 	}
 
-	memset(&tx, 0, sizeof(tx));
 	tx.tx_buf = data;
 	tx.len = size;
 
@@ -88,7 +89,7 @@ static int cxd2880_write_reg(struct spi_device *spi,
 		pr_err("invalid arg\n");
 		return -EINVAL;
 	}
-	if (size > BURST_WRITE_MAX) {
+	if (size > BURST_WRITE_MAX || size > U8_MAX) {
 		pr_err("data size > WRITE_MAX\n");
 		return -EINVAL;
 	}
@@ -101,24 +102,14 @@ static int cxd2880_write_reg(struct spi_device *spi,
 	send_data[0] = 0x0e;
 	write_data_top = data;
 
-	while (size > 0) {
-		send_data[1] = sub_address;
-		if (size > 255)
-			send_data[2] = 255;
-		else
-			send_data[2] = (u8)size;
+	send_data[1] = sub_address;
+	send_data[2] = (u8)size;
 
-		memcpy(&send_data[3], write_data_top, send_data[2]);
+	memcpy(&send_data[3], write_data_top, send_data[2]);
 
-		ret = cxd2880_write_spi(spi, send_data, send_data[2] + 3);
-		if (ret) {
-			pr_err("write spi failed %d\n", ret);
-			break;
-		}
-		sub_address += send_data[2];
-		write_data_top += send_data[2];
-		size -= send_data[2];
-	}
+	ret = cxd2880_write_spi(spi, send_data, send_data[2] + 3);
+	if (ret)
+		pr_err("write spi failed %d\n", ret);
 
 	return ret;
 }
@@ -130,7 +121,7 @@ static int cxd2880_spi_read_ts(struct spi_device *spi,
 	int ret;
 	u8 data[3];
 	struct spi_message message;
-	struct spi_transfer transfer[2];
+	struct spi_transfer transfer[2] = {};
 
 	if (!spi || !read_data || !packet_num) {
 		pr_err("invalid arg\n");
@@ -146,7 +137,6 @@ static int cxd2880_spi_read_ts(struct spi_device *spi,
 	data[2] = packet_num;
 
 	spi_message_init(&message);
-	memset(transfer, 0, sizeof(transfer));
 
 	transfer[0].len = 3;
 	transfer[0].tx_buf = data;
@@ -383,7 +373,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 			}
 		}
 		if (i == CXD2880_MAX_FILTER_SIZE) {
-			pr_err("PID filter is full. Assumed bug.\n");
+			pr_err("PID filter is full.\n");
 			return -EINVAL;
 		}
 		if (!dvb_spi->all_pid_feed_count)
@@ -530,6 +520,19 @@ cxd2880_spi_probe(struct spi_device *spi)
 	if (!dvb_spi)
 		return -ENOMEM;
 
+	dvb_spi->vcc_supply = devm_regulator_get_optional(&spi->dev, "vcc");
+	if (IS_ERR(dvb_spi->vcc_supply)) {
+		if (PTR_ERR(dvb_spi->vcc_supply) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto fail_adapter;
+		}
+		dvb_spi->vcc_supply = NULL;
+	} else {
+		ret = regulator_enable(dvb_spi->vcc_supply);
+		if (ret)
+			goto fail_adapter;
+	}
+
 	dvb_spi->spi = spi;
 	mutex_init(&dvb_spi->spi_mutex);
 	dev_set_drvdata(&spi->dev, dvb_spi);
@@ -548,6 +551,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 
 	if (!dvb_attach(cxd2880_attach, &dvb_spi->dvb_fe, &config)) {
 		pr_err("cxd2880_attach failed\n");
+		ret = -ENODEV;
 		goto fail_attach;
 	}
 
@@ -641,6 +645,9 @@ cxd2880_spi_remove(struct spi_device *spi)
 	dvb_unregister_frontend(&dvb_spi->dvb_fe);
 	dvb_frontend_detach(&dvb_spi->dvb_fe);
 	dvb_unregister_adapter(&dvb_spi->adapter);
+
+	if (dvb_spi->vcc_supply)
+		regulator_disable(dvb_spi->vcc_supply);
 
 	kfree(dvb_spi);
 	pr_info("cxd2880_spi remove ok.\n");

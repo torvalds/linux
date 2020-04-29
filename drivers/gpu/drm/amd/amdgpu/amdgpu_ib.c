@@ -28,12 +28,16 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_debugfs.h>
+
 #include "amdgpu.h"
 #include "atom.h"
+#include "amdgpu_trace.h"
 
 #define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(1000)
+#define AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT	msecs_to_jiffies(2000)
 
 /*
  * IB
@@ -44,7 +48,6 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-static int amdgpu_debugfs_sa_init(struct amdgpu_device *adev);
 
 /**
  * amdgpu_ib_get - request an IB (Indirect Buffer)
@@ -127,6 +130,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct amdgpu_vm *vm;
 	uint64_t fence_ctx;
 	uint32_t status = 0, alloc_size;
+	unsigned fence_flags = 0;
 
 	unsigned i;
 	int r = 0;
@@ -138,13 +142,14 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		fence_ctx = job->fence_ctx;
+		fence_ctx = job->base.s_fence ?
+			job->base.s_fence->scheduled.context : 0;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
 	}
 
-	if (!ring->ready) {
+	if (!ring->sched.ready) {
 		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
@@ -163,10 +168,16 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
 	    ((tmp = amdgpu_sync_get_fence(&job->sched_sync, NULL)) ||
+	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
+
+		if (tmp)
+			trace_amdgpu_ib_pipe_sync(job, tmp);
+
 		dma_fence_put(tmp);
 	}
 
@@ -194,13 +205,13 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_asic_flush_hdp(adev, ring);
 	}
 
-	skip_preamble = ring->current_ctx == fence_ctx;
-	need_ctx_switch = ring->current_ctx != fence_ctx;
-	if (job && ring->funcs->emit_cntxcntl) {
-		if (need_ctx_switch)
-			status |= AMDGPU_HAVE_CTX_SWITCH;
-		status |= job->preamble_status;
+	if (need_ctx_switch)
+		status |= AMDGPU_HAVE_CTX_SWITCH;
 
+	skip_preamble = ring->current_ctx == fence_ctx;
+	if (job && ring->funcs->emit_cntxcntl) {
+		status |= job->preamble_status;
+		status |= job->preemption_status;
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
@@ -209,14 +220,14 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 		/* drop preamble IBs if we don't have a context switch */
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
-			skip_preamble &&
-			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST) &&
-			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
+		    skip_preamble &&
+		    !(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST) &&
+		    !amdgpu_mcbp &&
+		    !amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
-		amdgpu_ring_emit_ib(ring, ib, job ? job->vmid : 0,
-				    need_ctx_switch);
-		need_ctx_switch = false;
+		amdgpu_ring_emit_ib(ring, job, ib, status);
+		status &= ~AMDGPU_HAVE_CTX_SWITCH;
 	}
 
 	if (ring->funcs->emit_tmz)
@@ -227,7 +238,16 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 #endif
 		amdgpu_asic_invalidate_hdp(adev, ring);
 
-	r = amdgpu_fence_emit(ring, f);
+	if (ib->flags & AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE)
+		fence_flags |= AMDGPU_FENCE_FLAG_TC_WB_ONLY;
+
+	/* wrap the last IB with fence */
+	if (job && job->uf_addr) {
+		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
+				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
+	}
+
+	r = amdgpu_fence_emit(ring, f, fence_flags);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vmid)
@@ -238,12 +258,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (ring->funcs->insert_end)
 		ring->funcs->insert_end(ring);
-
-	/* wrap the last IB with fence */
-	if (job && job->uf_addr) {
-		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
-				       AMDGPU_FENCE_FLAG_64BIT);
-	}
 
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
@@ -280,9 +294,7 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 	}
 
 	adev->ib_pool_ready = true;
-	if (amdgpu_debugfs_sa_init(adev)) {
-		dev_err(adev->dev, "failed to register debugfs file for SA\n");
-	}
+
 	return 0;
 }
 
@@ -335,13 +347,18 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		 * cost waiting for it coming back under RUNTIME only
 		*/
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
+	} else if (adev->gmc.xgmi.hive_id) {
+		tmo_gfx = AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT;
 	}
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+	for (i = 0; i < adev->num_rings; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		long tmo;
 
-		if (!ring || !ring->ready)
+		/* KIQ rings don't have an IB test because we never submit IBs
+		 * to them and they have no interrupt support.
+		 */
+		if (!ring->sched.ready || !ring->funcs->test_ib)
 			continue;
 
 		/* MM engine need more time */
@@ -349,26 +366,30 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
 			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
-			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			tmo = tmo_mm;
 		else
 			tmo = tmo_gfx;
 
 		r = amdgpu_ring_test_ib(ring, tmo);
-		if (r) {
-			ring->ready = false;
+		if (!r) {
+			DRM_DEV_DEBUG(adev->dev, "ib test on %s succeeded\n",
+				      ring->name);
+			continue;
+		}
 
-			if (ring == &adev->gfx.gfx_ring[0]) {
-				/* oh, oh, that's really bad */
-				DRM_ERROR("amdgpu: failed testing IB on GFX ring (%d).\n", r);
-				adev->accel_working = false;
-				return r;
+		ring->sched.ready = false;
+		DRM_DEV_ERROR(adev->dev, "IB test failed on %s (%d).\n",
+			  ring->name, r);
 
-			} else {
-				/* still not good, but we can live with it */
-				DRM_ERROR("amdgpu: failed testing IB on ring %d (%d).\n", i, r);
-				ret = r;
-			}
+		if (ring == &adev->gfx.gfx_ring[0]) {
+			/* oh, oh, that's really bad */
+			adev->accel_working = false;
+			return r;
+
+		} else {
+			ret = r;
 		}
 	}
 	return ret;
@@ -397,7 +418,7 @@ static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
 
 #endif
 
-static int amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
+int amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_sa_list, 1);

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1-gpio - GPIO w1 bus master driver
  *
  * Copyright (C) 2007 Ville Syrjala <syrjala@sci.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl data for the NVIDIA Tegra20 pinmux
  *
@@ -8,17 +9,9 @@
  * Derived from code:
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2010 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -1996,13 +1989,13 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bank = 0,					\
 		.tri_bit = tri_b,				\
-		.parked_bit = -1,				\
 		.einput_bit = -1,				\
 		.odrain_bit = -1,				\
 		.lock_bit = -1,					\
 		.ioreset_bit = -1,				\
 		.rcv_sel_bit = -1,				\
 		.drv_reg = -1,					\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups with only pull up and pull down control */
@@ -2016,7 +2009,7 @@ static struct tegra_function tegra20_functions[] = {
 		.pupd_bank = 2,					\
 		.pupd_bit = pupd_b,				\
 		.drv_reg = -1,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups for drive strength registers (configurable version) */
@@ -2032,7 +2025,7 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = -1,					\
 		.drv_reg = ((r) - PINGROUP_REG_A),		\
 		.drv_bank = 3,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 		.hsm_bit = hsm_b,				\
 		.schmitt_bit = schmitt_b,			\
 		.lpmd_bit = lpmd_b,				\
@@ -2220,6 +2213,7 @@ static const struct tegra_pingroup tegra20_groups[] = {
 
 static const struct tegra_pinctrl_soc_data tegra20_pinctrl = {
 	.ngpios = NUM_GPIOS,
+	.gpio_compatible = "nvidia,tegra20-gpio",
 	.pins = tegra20_pins,
 	.npins = ARRAY_SIZE(tegra20_pins),
 	.functions = tegra20_functions,
@@ -2231,9 +2225,36 @@ static const struct tegra_pinctrl_soc_data tegra20_pinctrl = {
 	.drvtype_in_mux = false,
 };
 
+static const char *cdev1_parents[] = {
+	"dev1_osc_div", "pll_a_out0", "pll_m_out1", "audio",
+};
+
+static const char *cdev2_parents[] = {
+	"dev2_osc_div", "hclk", "pclk", "pll_p_out4",
+};
+
+static void tegra20_pinctrl_register_clock_muxes(struct platform_device *pdev)
+{
+	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
+
+	clk_register_mux(NULL, "cdev1_mux", cdev1_parents, 4, 0,
+			 pmx->regs[1] + 0x8, 2, 2, CLK_MUX_READ_ONLY, NULL);
+
+	clk_register_mux(NULL, "cdev2_mux", cdev2_parents, 4, 0,
+			 pmx->regs[1] + 0x8, 4, 2, CLK_MUX_READ_ONLY, NULL);
+}
+
 static int tegra20_pinctrl_probe(struct platform_device *pdev)
 {
-	return tegra_pinctrl_probe(pdev, &tegra20_pinctrl);
+	int err;
+
+	err = tegra_pinctrl_probe(pdev, &tegra20_pinctrl);
+	if (err)
+		return err;
+
+	tegra20_pinctrl_register_clock_muxes(pdev);
+
+	return 0;
 }
 
 static const struct of_device_id tegra20_pinctrl_of_match[] = {
@@ -2248,4 +2269,9 @@ static struct platform_driver tegra20_pinctrl_driver = {
 	},
 	.probe = tegra20_pinctrl_probe,
 };
-builtin_platform_driver(tegra20_pinctrl_driver);
+
+static int __init tegra20_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra20_pinctrl_driver);
+}
+arch_initcall(tegra20_pinctrl_init);

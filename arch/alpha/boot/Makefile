@@ -8,13 +8,13 @@
 # Copyright (C) 1994 by Linus Torvalds
 #
 
-hostprogs-y	:= tools/mkbb tools/objstrip
+hostprogs	:= tools/mkbb tools/objstrip
 targets		:= vmlinux.gz vmlinux \
 		   vmlinux.nh tools/lxboot tools/bootlx tools/bootph \
 		   tools/bootpzh bootloader bootpheader bootpzheader 
 OBJSTRIP	:= $(obj)/tools/objstrip
 
-HOSTCFLAGS	:= -Wall -I$(objtree)/usr/include
+KBUILD_HOSTCFLAGS := -Wall -I$(objtree)/usr/include
 BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
 
 # SRM bootable image.  Copy to offset 512 of a partition.

@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -444,11 +444,6 @@ static struct attribute *gpiochip_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gpiochip);
 
-static struct gpio_desc *gpio_to_valid_desc(int gpio)
-{
-	return gpio_is_valid(gpio) ? gpio_to_desc(gpio) : NULL;
-}
-
 /*
  * /sys/class/gpio/export ... write-only
  *	integer N ... number of GPIO to export (full access)
@@ -467,7 +462,7 @@ static ssize_t export_store(struct class *class,
 	if (status < 0)
 		goto done;
 
-	desc = gpio_to_valid_desc(gpio);
+	desc = gpio_to_desc(gpio);
 	/* reject invalid GPIOs */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
@@ -514,7 +509,7 @@ static ssize_t unexport_store(struct class *class,
 	if (status < 0)
 		goto done;
 
-	desc = gpio_to_valid_desc(gpio);
+	desc = gpio_to_desc(gpio);
 	/* reject bogus commands (gpio_unexport ignores them) */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
@@ -767,10 +762,9 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 		parent = &gdev->dev;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, parent,
-					MKDEV(0, 0),
-					chip, gpiochip_groups,
-					"gpiochip%d", chip->base);
+	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), chip,
+					gpiochip_groups, GPIOCHIP_NAME "%d",
+					chip->base);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 

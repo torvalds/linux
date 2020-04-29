@@ -43,9 +43,6 @@
 #include "fpga/sdk.h"
 #include "fpga/core.h"
 
-#define SBU_QP_QUEUE_SIZE 8
-#define MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC	(60 * 1000)
-
 enum mlx5_fpga_ipsec_cmd_status {
 	MLX5_FPGA_IPSEC_CMD_PENDING,
 	MLX5_FPGA_IPSEC_CMD_SEND_FAIL,
@@ -60,7 +57,7 @@ struct mlx5_fpga_ipsec_cmd_context {
 	struct completion complete;
 	struct mlx5_fpga_device *dev;
 	struct list_head list; /* Item in pending_cmds */
-	u8 command[0];
+	u8 command[];
 };
 
 struct mlx5_fpga_esp_xfrm;
@@ -86,8 +83,14 @@ struct mlx5_fpga_ipsec_rule {
 };
 
 static const struct rhashtable_params rhash_sa = {
-	.key_len = FIELD_SIZEOF(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
-	.key_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
+	/* Keep out "cmd" field from the key as it's
+	 * value is not constant during the lifetime
+	 * of the key object.
+	 */
+	.key_len = sizeof_field(struct mlx5_fpga_ipsec_sa_ctx, hw_sa) -
+		   sizeof_field(struct mlx5_ifc_fpga_ipsec_sa_v1, cmd),
+	.key_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hw_sa) +
+		      sizeof_field(struct mlx5_ifc_fpga_ipsec_sa_v1, cmd),
 	.head_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hash),
 	.automatic_shrinking = true,
 	.min_size = 1,
@@ -237,20 +240,18 @@ static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
 	context->buf.sg[0].data = &context->command;
 
 	spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-	list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
+	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
+	if (!res)
+		list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
 	spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
 
-	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
 	if (res) {
-		mlx5_fpga_warn(fdev, "Failure sending IPSec command: %d\n",
-			       res);
-		spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-		list_del(&context->list);
-		spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
+		mlx5_fpga_warn(fdev, "Failed to send IPSec command: %d\n", res);
 		kfree(context);
 		return ERR_PTR(res);
 	}
-	/* Context will be freed by wait func after completion */
+
+	/* Context should be freed by the caller after completion. */
 	return context;
 }
 
@@ -258,7 +259,7 @@ static int mlx5_fpga_ipsec_cmd_wait(void *ctx)
 {
 	struct mlx5_fpga_ipsec_cmd_context *context = ctx;
 	unsigned long timeout =
-		msecs_to_jiffies(MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC);
+		msecs_to_jiffies(MLX5_FPGA_CMD_TIMEOUT_MSEC);
 	int res;
 
 	res = wait_for_completion_timeout(&context->complete, timeout);
@@ -386,7 +387,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 
 	count = mlx5_fpga_ipsec_counters_count(mdev);
 
-	data = kzalloc(sizeof(*data) * count * 2, GFP_KERNEL);
+	data = kzalloc(array3_size(sizeof(*data), count, 2), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto out;
@@ -423,10 +424,8 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	cmd.cmd = htonl(MLX5_FPGA_IPSEC_CMD_OP_SET_CAP);
 	cmd.flags = htonl(flags);
 	context = mlx5_fpga_ipsec_cmd_exec(mdev, &cmd, sizeof(cmd));
-	if (IS_ERR(context)) {
-		err = PTR_ERR(context);
-		goto out;
-	}
+	if (IS_ERR(context))
+		return PTR_ERR(context);
 
 	err = mlx5_fpga_ipsec_cmd_wait(context);
 	if (err)
@@ -440,6 +439,7 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	}
 
 out:
+	kfree(context);
 	return err;
 }
 
@@ -636,7 +636,8 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 					   u8 match_criteria_enable,
 					   const u32 *match_c,
 					   const u32 *match_v,
-					   struct mlx5_flow_act *flow_act)
+					   struct mlx5_flow_act *flow_act,
+					   struct mlx5_flow_context *flow_context)
 {
 	const void *outer_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					   outer_headers);
@@ -655,7 +656,7 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 	    (match_criteria_enable &
 	     ~(MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS)) ||
 	    (flow_act->action & ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT | MLX5_FLOW_CONTEXT_ACTION_ALLOW)) ||
-	     flow_act->has_flow_tag)
+	     (flow_context->flags & FLOW_CONTEXT_HAS_TAG))
 		return false;
 
 	return true;
@@ -767,7 +768,8 @@ mlx5_fpga_ipsec_fs_create_sa_ctx(struct mlx5_core_dev *mdev,
 					    fg->mask.match_criteria_enable,
 					    fg->mask.match_criteria,
 					    fte->val,
-					    &fte->action))
+					    &fte->action,
+					    &fte->flow_context))
 		return ERR_PTR(-EINVAL);
 	else if (!mlx5_is_fpga_ipsec_rule(mdev,
 					  fg->mask.match_criteria_enable,
@@ -848,6 +850,7 @@ void mlx5_fpga_ipsec_delete_sa_ctx(void *context)
 	mutex_lock(&fpga_xfrm->lock);
 	if (!--fpga_xfrm->num_rules) {
 		mlx5_fpga_ipsec_release_sa_ctx(fpga_xfrm->sa_ctx);
+		kfree(fpga_xfrm->sa_ctx);
 		fpga_xfrm->sa_ctx = NULL;
 	}
 	mutex_unlock(&fpga_xfrm->lock);
@@ -989,32 +992,33 @@ static enum fs_flow_table_type egress_to_fs_ft(bool egress)
 	return egress ? FS_FT_NIC_TX : FS_FT_NIC_RX;
 }
 
-static int fpga_ipsec_fs_create_flow_group(struct mlx5_core_dev *dev,
+static int fpga_ipsec_fs_create_flow_group(struct mlx5_flow_root_namespace *ns,
 					   struct mlx5_flow_table *ft,
 					   u32 *in,
-					   unsigned int *group_id,
+					   struct mlx5_flow_group *fg,
 					   bool is_egress)
 {
-	int (*create_flow_group)(struct mlx5_core_dev *dev,
+	int (*create_flow_group)(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_table *ft, u32 *in,
-				 unsigned int *group_id) =
+				 struct mlx5_flow_group *fg) =
 		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->create_flow_group;
 	char *misc_params_c = MLX5_ADDR_OF(create_flow_group_in, in,
 					   match_criteria.misc_parameters);
+	struct mlx5_core_dev *dev = ns->dev;
 	u32 saved_outer_esp_spi_mask;
 	u8 match_criteria_enable;
 	int ret;
 
 	if (MLX5_CAP_FLOWTABLE(dev,
 			       flow_table_properties_nic_receive.ft_field_support.outer_esp_spi))
-		return create_flow_group(dev, ft, in, group_id);
+		return create_flow_group(ns, ft, in, fg);
 
 	match_criteria_enable =
 		MLX5_GET(create_flow_group_in, in, match_criteria_enable);
 	saved_outer_esp_spi_mask =
 		MLX5_GET(fte_match_set_misc, misc_params_c, outer_esp_spi);
 	if (!match_criteria_enable || !saved_outer_esp_spi_mask)
-		return create_flow_group(dev, ft, in, group_id);
+		return create_flow_group(ns, ft, in, fg);
 
 	MLX5_SET(fte_match_set_misc, misc_params_c, outer_esp_spi, 0);
 
@@ -1023,7 +1027,7 @@ static int fpga_ipsec_fs_create_flow_group(struct mlx5_core_dev *dev,
 		MLX5_SET(create_flow_group_in, in, match_criteria_enable,
 			 match_criteria_enable & ~MLX5_MATCH_MISC_PARAMETERS);
 
-	ret = create_flow_group(dev, ft, in, group_id);
+	ret = create_flow_group(ns, ft, in, fg);
 
 	MLX5_SET(fte_match_set_misc, misc_params_c, outer_esp_spi, saved_outer_esp_spi_mask);
 	MLX5_SET(create_flow_group_in, in, match_criteria_enable, match_criteria_enable);
@@ -1031,17 +1035,18 @@ static int fpga_ipsec_fs_create_flow_group(struct mlx5_core_dev *dev,
 	return ret;
 }
 
-static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
+static int fpga_ipsec_fs_create_fte(struct mlx5_flow_root_namespace *ns,
 				    struct mlx5_flow_table *ft,
 				    struct mlx5_flow_group *fg,
 				    struct fs_fte *fte,
 				    bool is_egress)
 {
-	int (*create_fte)(struct mlx5_core_dev *dev,
+	int (*create_fte)(struct mlx5_flow_root_namespace *ns,
 			  struct mlx5_flow_table *ft,
 			  struct mlx5_flow_group *fg,
 			  struct fs_fte *fte) =
 		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->create_fte;
+	struct mlx5_core_dev *dev = ns->dev;
 	struct mlx5_fpga_device *fdev = dev->fpga;
 	struct mlx5_fpga_ipsec *fipsec = fdev->ipsec;
 	struct mlx5_fpga_ipsec_rule *rule;
@@ -1053,7 +1058,7 @@ static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
 	    !(fte->action.action &
 	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
 	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
-		return create_fte(dev, ft, fg, fte);
+		return create_fte(ns, ft, fg, fte);
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
@@ -1070,7 +1075,7 @@ static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
 	WARN_ON(rule_insert(fipsec, rule));
 
 	modify_spec_mailbox(dev, fte, &mbox_mod);
-	ret = create_fte(dev, ft, fg, fte);
+	ret = create_fte(ns, ft, fg, fte);
 	restore_spec_mailbox(fte, &mbox_mod);
 	if (ret) {
 		_rule_delete(fipsec, rule);
@@ -1081,19 +1086,20 @@ static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
 	return ret;
 }
 
-static int fpga_ipsec_fs_update_fte(struct mlx5_core_dev *dev,
+static int fpga_ipsec_fs_update_fte(struct mlx5_flow_root_namespace *ns,
 				    struct mlx5_flow_table *ft,
-				    unsigned int group_id,
+				    struct mlx5_flow_group *fg,
 				    int modify_mask,
 				    struct fs_fte *fte,
 				    bool is_egress)
 {
-	int (*update_fte)(struct mlx5_core_dev *dev,
+	int (*update_fte)(struct mlx5_flow_root_namespace *ns,
 			  struct mlx5_flow_table *ft,
-			  unsigned int group_id,
+			  struct mlx5_flow_group *fg,
 			  int modify_mask,
 			  struct fs_fte *fte) =
 		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->update_fte;
+	struct mlx5_core_dev *dev = ns->dev;
 	bool is_esp = fte->action.esp_id;
 	struct mailbox_mod mbox_mod;
 	int ret;
@@ -1102,24 +1108,25 @@ static int fpga_ipsec_fs_update_fte(struct mlx5_core_dev *dev,
 	    !(fte->action.action &
 	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
 	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
-		return update_fte(dev, ft, group_id, modify_mask, fte);
+		return update_fte(ns, ft, fg, modify_mask, fte);
 
 	modify_spec_mailbox(dev, fte, &mbox_mod);
-	ret = update_fte(dev, ft, group_id, modify_mask, fte);
+	ret = update_fte(ns, ft, fg, modify_mask, fte);
 	restore_spec_mailbox(fte, &mbox_mod);
 
 	return ret;
 }
 
-static int fpga_ipsec_fs_delete_fte(struct mlx5_core_dev *dev,
+static int fpga_ipsec_fs_delete_fte(struct mlx5_flow_root_namespace *ns,
 				    struct mlx5_flow_table *ft,
 				    struct fs_fte *fte,
 				    bool is_egress)
 {
-	int (*delete_fte)(struct mlx5_core_dev *dev,
+	int (*delete_fte)(struct mlx5_flow_root_namespace *ns,
 			  struct mlx5_flow_table *ft,
 			  struct fs_fte *fte) =
 		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->delete_fte;
+	struct mlx5_core_dev *dev = ns->dev;
 	struct mlx5_fpga_device *fdev = dev->fpga;
 	struct mlx5_fpga_ipsec *fipsec = fdev->ipsec;
 	struct mlx5_fpga_ipsec_rule *rule;
@@ -1131,7 +1138,7 @@ static int fpga_ipsec_fs_delete_fte(struct mlx5_core_dev *dev,
 	    !(fte->action.action &
 	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
 	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
-		return delete_fte(dev, ft, fte);
+		return delete_fte(ns, ft, fte);
 
 	rule = rule_search(fipsec, fte);
 	if (!rule)
@@ -1141,84 +1148,84 @@ static int fpga_ipsec_fs_delete_fte(struct mlx5_core_dev *dev,
 	rule_delete(fipsec, rule);
 
 	modify_spec_mailbox(dev, fte, &mbox_mod);
-	ret = delete_fte(dev, ft, fte);
+	ret = delete_fte(ns, ft, fte);
 	restore_spec_mailbox(fte, &mbox_mod);
 
 	return ret;
 }
 
 static int
-mlx5_fpga_ipsec_fs_create_flow_group_egress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_create_flow_group_egress(struct mlx5_flow_root_namespace *ns,
 					    struct mlx5_flow_table *ft,
 					    u32 *in,
-					    unsigned int *group_id)
+					    struct mlx5_flow_group *fg)
 {
-	return fpga_ipsec_fs_create_flow_group(dev, ft, in, group_id, true);
+	return fpga_ipsec_fs_create_flow_group(ns, ft, in, fg, true);
 }
 
 static int
-mlx5_fpga_ipsec_fs_create_fte_egress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_create_fte_egress(struct mlx5_flow_root_namespace *ns,
 				     struct mlx5_flow_table *ft,
 				     struct mlx5_flow_group *fg,
 				     struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_create_fte(dev, ft, fg, fte, true);
+	return fpga_ipsec_fs_create_fte(ns, ft, fg, fte, true);
 }
 
 static int
-mlx5_fpga_ipsec_fs_update_fte_egress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_update_fte_egress(struct mlx5_flow_root_namespace *ns,
 				     struct mlx5_flow_table *ft,
-				     unsigned int group_id,
+				     struct mlx5_flow_group *fg,
 				     int modify_mask,
 				     struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_update_fte(dev, ft, group_id, modify_mask, fte,
+	return fpga_ipsec_fs_update_fte(ns, ft, fg, modify_mask, fte,
 					true);
 }
 
 static int
-mlx5_fpga_ipsec_fs_delete_fte_egress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_delete_fte_egress(struct mlx5_flow_root_namespace *ns,
 				     struct mlx5_flow_table *ft,
 				     struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_delete_fte(dev, ft, fte, true);
+	return fpga_ipsec_fs_delete_fte(ns, ft, fte, true);
 }
 
 static int
-mlx5_fpga_ipsec_fs_create_flow_group_ingress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_create_flow_group_ingress(struct mlx5_flow_root_namespace *ns,
 					     struct mlx5_flow_table *ft,
 					     u32 *in,
-					     unsigned int *group_id)
+					     struct mlx5_flow_group *fg)
 {
-	return fpga_ipsec_fs_create_flow_group(dev, ft, in, group_id, false);
+	return fpga_ipsec_fs_create_flow_group(ns, ft, in, fg, false);
 }
 
 static int
-mlx5_fpga_ipsec_fs_create_fte_ingress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_create_fte_ingress(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
 				      struct mlx5_flow_group *fg,
 				      struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_create_fte(dev, ft, fg, fte, false);
+	return fpga_ipsec_fs_create_fte(ns, ft, fg, fte, false);
 }
 
 static int
-mlx5_fpga_ipsec_fs_update_fte_ingress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_update_fte_ingress(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
-				      unsigned int group_id,
+				      struct mlx5_flow_group *fg,
 				      int modify_mask,
 				      struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_update_fte(dev, ft, group_id, modify_mask, fte,
+	return fpga_ipsec_fs_update_fte(ns, ft, fg, modify_mask, fte,
 					false);
 }
 
 static int
-mlx5_fpga_ipsec_fs_delete_fte_ingress(struct mlx5_core_dev *dev,
+mlx5_fpga_ipsec_fs_delete_fte_ingress(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
 				      struct fs_fte *fte)
 {
-	return fpga_ipsec_fs_delete_fte(dev, ft, fte, false);
+	return fpga_ipsec_fs_delete_fte(ns, ft, fte, false);
 }
 
 static struct mlx5_flow_cmds fpga_ipsec_ingress;
@@ -1472,7 +1479,7 @@ int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 	if (!memcmp(&xfrm->attrs, attrs, sizeof(xfrm->attrs)))
 		return 0;
 
-	if (!mlx5_fpga_esp_validate_xfrm_attrs(mdev, attrs)) {
+	if (mlx5_fpga_esp_validate_xfrm_attrs(mdev, attrs)) {
 		mlx5_core_warn(mdev, "Tried to create an esp with unsupported attrs\n");
 		return -EOPNOTSUPP;
 	}

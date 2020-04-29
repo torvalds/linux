@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Medion X10 OR22/OR24 RF remote keytable
  *
@@ -7,20 +8,6 @@
  * button. This has been tested with a "RF VISTA Remote Control", OR24V,
  * P/N 20035335, but should work with other variants that have the same
  * buttons, such as OR22V and OR24E.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/module.h>
@@ -65,16 +52,16 @@ static struct rc_map_table medion_x10_or2x[] = {
 	{ 0x29, KEY_PAUSE },
 	{ 0x27, KEY_RECORD },
 
-	{ 0x0d, KEY_1 },
-	{ 0x0e, KEY_2 },
-	{ 0x0f, KEY_3 },
-	{ 0x10, KEY_4 },
-	{ 0x11, KEY_5 },
-	{ 0x12, KEY_6 },
-	{ 0x13, KEY_7 },
-	{ 0x14, KEY_8 },
-	{ 0x15, KEY_9 },
-	{ 0x17, KEY_0 },
+	{ 0x0d, KEY_NUMERIC_1 },
+	{ 0x0e, KEY_NUMERIC_2 },
+	{ 0x0f, KEY_NUMERIC_3 },
+	{ 0x10, KEY_NUMERIC_4 },
+	{ 0x11, KEY_NUMERIC_5 },
+	{ 0x12, KEY_NUMERIC_6 },
+	{ 0x13, KEY_NUMERIC_7 },
+	{ 0x14, KEY_NUMERIC_8 },
+	{ 0x15, KEY_NUMERIC_9 },
+	{ 0x17, KEY_NUMERIC_0 },
 	{ 0x30, KEY_CLEAR },
 	{ 0x36, KEY_ENTER },
 	{ 0x37, KEY_NUMERIC_STAR },

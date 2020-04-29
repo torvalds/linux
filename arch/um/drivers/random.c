@@ -13,6 +13,7 @@
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <init.h>
 #include <irq_kern.h>
 #include <os.h>
 
@@ -21,8 +22,6 @@
  */
 #define RNG_VERSION "1.0.0"
 #define RNG_MODULE_NAME "hw_random"
-
-#define RNG_MISCDEV_MINOR		183 /* official */
 
 /* Changed at init time, in the non-modular case, and at module load
  * time, in the module case.  Presumably, the module subsystem
@@ -72,7 +71,6 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 				return ret ? : -EAGAIN;
 
 			atomic_inc(&host_sleep_count);
-			reactivate_fd(random_fd, RANDOM_IRQ);
 			add_sigio_fd(random_fd);
 
 			add_wait_queue(&host_read_wait, &wait);
@@ -104,7 +102,7 @@ static const struct file_operations rng_chrdev_ops = {
 
 /* rng_init shouldn't be called more than once at boot time */
 static struct miscdevice rng_miscdev = {
-	RNG_MISCDEV_MINOR,
+	HWRNG_MINOR,
 	RNG_MODULE_NAME,
 	&rng_chrdev_ops,
 };
@@ -154,7 +152,14 @@ err_out_cleanup_hw:
 /*
  * rng_cleanup - shutdown RNG module
  */
-static void __exit rng_cleanup (void)
+
+static void cleanup(void)
+{
+	free_irq_by_fd(random_fd);
+	os_close_file(random_fd);
+}
+
+static void __exit rng_cleanup(void)
 {
 	os_close_file(random_fd);
 	misc_deregister (&rng_miscdev);
@@ -162,6 +167,7 @@ static void __exit rng_cleanup (void)
 
 module_init (rng_init);
 module_exit (rng_cleanup);
+__uml_exitcall(cleanup);
 
 MODULE_DESCRIPTION("UML Host Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");

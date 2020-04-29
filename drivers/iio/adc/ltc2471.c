@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Linear Technology LTC2471 and LTC2473 voltage monitors
  * The LTC2473 is identical to the 2471, but reports a differential signal.
  *
  * Copyright (C) 2017 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
- *
- * License: GPLv2
  */
 
 #include <linux/err.h>

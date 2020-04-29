@@ -236,9 +236,9 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 			 * COMEDI 16-bit bipolar data value for 0V is 0x8000.
 			 */
 			if (msb & 0x80)
-				data[n] = (1 << 15) + magnitude;
+				data[n] = BIT(15) + magnitude;
 			else
-				data[n] = (1 << 15) - magnitude;
+				data[n] = BIT(15) - magnitude;
 		} else {
 			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
 			return -1;

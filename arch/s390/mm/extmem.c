@@ -16,9 +16,10 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ctype.h>
 #include <linux/ioport.h>
+#include <linux/refcount.h>
 #include <asm/diag.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -28,12 +29,7 @@
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
 
-#define DCSS_LOADSHR    0x00
-#define DCSS_LOADNSR    0x04
 #define DCSS_PURGESEG   0x08
-#define DCSS_FINDSEG    0x0c
-#define DCSS_LOADNOLY   0x10
-#define DCSS_SEGEXT     0x18
 #define DCSS_LOADSHRX	0x20
 #define DCSS_LOADNSRX	0x24
 #define DCSS_FINDSEGX	0x2c
@@ -53,20 +49,6 @@ struct qout64 {
 	struct qrange range[6];
 };
 
-struct qrange_old {
-	unsigned int start; /* last byte type */
-	unsigned int end;   /* last byte reserved */
-};
-
-/* output area format for the Diag x'64' old subcode x'18' */
-struct qout64_old {
-	int segstart;
-	int segend;
-	int segcnt;
-	int segrcnt;
-	struct qrange_old range[6];
-};
-
 struct qin64 {
 	char qopcode;
 	char rsrv1[3];
@@ -80,10 +62,10 @@ struct qin64 {
 struct dcss_segment {
 	struct list_head list;
 	char dcss_name[8];
-	char res_name[15];
+	char res_name[16];
 	unsigned long start_addr;
 	unsigned long end;
-	atomic_t ref_count;
+	refcount_t ref_count;
 	int do_nonshared;
 	unsigned int vm_segtype;
 	struct qrange range[6];
@@ -95,52 +77,10 @@ static DEFINE_MUTEX(dcss_lock);
 static LIST_HEAD(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
-static int loadshr_scode, loadnsr_scode;
-static int segext_scode, purgeseg_scode;
-static int scode_set;
-
-/* set correct Diag x'64' subcodes. */
-static int
-dcss_set_subcodes(void)
-{
-	char *name = kmalloc(8 * sizeof(char), GFP_KERNEL | GFP_DMA);
-	unsigned long rx, ry;
-	int rc;
-
-	if (name == NULL)
-		return -ENOMEM;
-
-	rx = (unsigned long) name;
-	ry = DCSS_FINDSEGX;
-
-	strcpy(name, "dummy");
-	diag_stat_inc(DIAG_STAT_X064);
-	asm volatile(
-		"	diag	%0,%1,0x64\n"
-		"0:	ipm	%2\n"
-		"	srl	%2,28\n"
-		"	j	2f\n"
-		"1:	la	%2,3\n"
-		"2:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc", "memory");
-
-	kfree(name);
-	/* Diag x'64' new subcodes are supported, set to new subcodes */
-	if (rc != 3) {
-		loadshr_scode = DCSS_LOADSHRX;
-		loadnsr_scode = DCSS_LOADNSRX;
-		purgeseg_scode = DCSS_PURGESEG;
-		segext_scode = DCSS_SEGEXTX;
-		return 0;
-	}
-	/* Diag x'64' new subcodes are not supported, set to old subcodes */
-	loadshr_scode = DCSS_LOADNOLY;
-	loadnsr_scode = DCSS_LOADNSR;
-	purgeseg_scode = DCSS_PURGESEG;
-	segext_scode = DCSS_SEGEXT;
-	return 0;
-}
+static int loadshr_scode = DCSS_LOADSHRX;
+static int loadnsr_scode = DCSS_LOADNSRX;
+static int purgeseg_scode = DCSS_PURGESEG;
+static int segext_scode = DCSS_SEGEXTX;
 
 /*
  * Create the 8 bytes, ebcdic VM segment name from
@@ -196,32 +136,15 @@ dcss_diag(int *func, void *parameter,
 	unsigned long rx, ry;
 	int rc;
 
-	if (scode_set == 0) {
-		rc = dcss_set_subcodes();
-		if (rc < 0)
-			return rc;
-		scode_set = 1;
-	}
 	rx = (unsigned long) parameter;
 	ry = (unsigned long) *func;
 
-	/* 64-bit Diag x'64' new subcode, keep in 64-bit addressing mode */
 	diag_stat_inc(DIAG_STAT_X064);
-	if (*func > DCSS_SEGEXT)
-		asm volatile(
-			"	diag	%0,%1,0x64\n"
-			"	ipm	%2\n"
-			"	srl	%2,28\n"
-			: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
-	/* 31-bit Diag x'64' old subcode, switch to 31-bit addressing mode */
-	else
-		asm volatile(
-			"	sam31\n"
-			"	diag	%0,%1,0x64\n"
-			"	sam64\n"
-			"	ipm	%2\n"
-			"	srl	%2,28\n"
-			: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+	asm volatile(
+		"	diag	%0,%1,0x64\n"
+		"	ipm	%2\n"
+		"	srl	%2,28\n"
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
 	*ret1 = rx;
 	*ret2 = ry;
 	return rc;
@@ -271,31 +194,6 @@ query_segment_type (struct dcss_segment *seg)
 		goto out_free;
 	}
 
-	/* Only old format of output area of Diagnose x'64' is supported,
-	   copy data for the new format. */
-	if (segext_scode == DCSS_SEGEXT) {
-		struct qout64_old *qout_old;
-		qout_old = kzalloc(sizeof(*qout_old), GFP_KERNEL | GFP_DMA);
-		if (qout_old == NULL) {
-			rc = -ENOMEM;
-			goto out_free;
-		}
-		memcpy(qout_old, qout, sizeof(struct qout64_old));
-		qout->segstart = (unsigned long) qout_old->segstart;
-		qout->segend = (unsigned long) qout_old->segend;
-		qout->segcnt = qout_old->segcnt;
-		qout->segrcnt = qout_old->segrcnt;
-
-		if (qout->segcnt > 6)
-			qout->segrcnt = 6;
-		for (i = 0; i < qout->segrcnt; i++) {
-			qout->range[i].start =
-				(unsigned long) qout_old->range[i].start;
-			qout->range[i].end =
-				(unsigned long) qout_old->range[i].end;
-		}
-		kfree(qout_old);
-	}
 	if (qout->segcnt > 6) {
 		rc = -EOPNOTSUPP;
 		goto out_free;
@@ -410,11 +308,9 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	if (rc < 0)
 		goto out_free;
 
-	if (loadshr_scode == DCSS_LOADSHRX) {
-		if (segment_overlaps_others(seg)) {
-			rc = -EBUSY;
-			goto out_free;
-		}
+	if (segment_overlaps_others(seg)) {
+		rc = -EBUSY;
+		goto out_free;
 	}
 
 	rc = vmem_add_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
@@ -433,7 +329,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	memcpy(&seg->res_name, seg->dcss_name, 8);
 	EBCASC(seg->res_name, 8);
 	seg->res_name[8] = '\0';
-	strncat(seg->res_name, " (DCSS)", 7);
+	strlcat(seg->res_name, " (DCSS)", sizeof(seg->res_name));
 	seg->res->name = seg->res_name;
 	rc = seg->vm_segtype;
 	if (rc == SEG_TYPE_SC ||
@@ -467,16 +363,16 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	seg->start_addr = start_addr;
 	seg->end = end_addr;
 	seg->do_nonshared = do_nonshared;
-	atomic_set(&seg->ref_count, 1);
+	refcount_set(&seg->ref_count, 1);
 	list_add(&seg->list, &dcss_list);
 	*addr = seg->start_addr;
 	*end  = seg->end;
 	if (do_nonshared)
-		pr_info("DCSS %s of range %p to %p and type %s loaded as "
+		pr_info("DCSS %s of range %px to %px and type %s loaded as "
 			"exclusive-writable\n", name, (void*) seg->start_addr,
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	else {
-		pr_info("DCSS %s of range %p to %p and type %s loaded in "
+		pr_info("DCSS %s of range %px to %px and type %s loaded in "
 			"shared access mode\n", name, (void*) seg->start_addr,
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	}
@@ -527,7 +423,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 		rc = __segment_load (name, do_nonshared, addr, end);
 	else {
 		if (do_nonshared == seg->do_nonshared) {
-			atomic_inc(&seg->ref_count);
+			refcount_inc(&seg->ref_count);
 			*addr = seg->start_addr;
 			*end  = seg->end;
 			rc    = seg->vm_segtype;
@@ -573,7 +469,7 @@ segment_modify_shared (char *name, int do_nonshared)
 		rc = 0;
 		goto out_unlock;
 	}
-	if (atomic_read (&seg->ref_count) != 1) {
+	if (refcount_read(&seg->ref_count) != 1) {
 		pr_warn("DCSS %s is in use and cannot be reloaded\n", name);
 		rc = -EAGAIN;
 		goto out_unlock;
@@ -649,7 +545,7 @@ segment_unload(char *name)
 		pr_err("Unloading unknown DCSS %s failed\n", name);
 		goto out_unlock;
 	}
-	if (atomic_dec_return(&seg->ref_count) != 0)
+	if (!refcount_dec_and_test(&seg->ref_count))
 		goto out_unlock;
 	release_resource(seg->res);
 	kfree(seg->res);

@@ -14,7 +14,28 @@ Related properties:	(none)
 
 Note:
 This enable method requires valid nodes compatible with
-"al,alpine-cpu-resume" and "al,alpine-nb-service"[1].
+"al,alpine-cpu-resume" and "al,alpine-nb-service".
+
+
+* Alpine CPU resume registers
+
+The CPU resume register are used to define required resume address after
+reset.
+
+Properties:
+- compatible : Should contain "al,alpine-cpu-resume".
+- reg : Offset and length of the register set for the device
+
+
+* Alpine System-Fabric Service Registers
+
+The System-Fabric Service Registers allow various operation on CPU and
+system fabric, like powering CPUs off.
+
+Properties:
+- compatible : Should contain "al,alpine-sysfabric-service" and "syscon".
+- reg : Offset and length of the register set for the device
+
 
 Example:
 
@@ -48,5 +69,12 @@ cpus {
 	};
 };
 
---
-[1] arm/al,alpine.txt
+cpu_resume {
+	compatible = "al,alpine-cpu-resume";
+	reg = <0xfbff5ed0 0x30>;
+};
+
+nb_service {
+        compatible = "al,alpine-sysfabric-service", "syscon";
+        reg = <0xfb070000 0x10000>;
+};

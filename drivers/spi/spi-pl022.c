@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A driver for the ARM PL022 PrimeCell SSP/SPI bus master.
  *
@@ -10,16 +11,6 @@
  *	linux-2.6.17-rc3-mm1/drivers/spi/pxa2xx_spi.c
  * Initial adoption to PL022 by:
  *      Sachin Verma <sachin.verma@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -253,6 +244,7 @@
 #define STATE_RUNNING			((void *) 1)
 #define STATE_DONE			((void *) 2)
 #define STATE_ERROR			((void *) -1)
+#define STATE_TIMEOUT			((void *) -2)
 
 /*
  * SSP State - Whether Enabled or Disabled
@@ -493,12 +485,11 @@ static void giveback(struct pl022 *pl022)
 					struct spi_transfer, transfer_list);
 
 	/* Delay if requested before any change in chip select */
-	if (last_transfer->delay_usecs)
-		/*
-		 * FIXME: This runs in interrupt context.
-		 * Is this really smart?
-		 */
-		udelay(last_transfer->delay_usecs);
+	/*
+	 * FIXME: This runs in interrupt context.
+	 * Is this really smart?
+	 */
+	spi_transfer_delay_exec(last_transfer);
 
 	if (!last_transfer->cs_change) {
 		struct spi_message *next_msg;
@@ -861,11 +852,10 @@ static void dma_callback(void *data)
 
 	/* Update total bytes transferred */
 	msg->actual_length += pl022->cur_transfer->len;
-	if (pl022->cur_transfer->cs_change)
-		pl022_cs_control(pl022, SSP_CHIP_DESELECT);
-
 	/* Move to next transfer */
 	msg->state = next_transfer(pl022);
+	if (msg->state != STATE_DONE && pl022->cur_transfer->cs_change)
+		pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 	tasklet_schedule(&pl022->pump_transfers);
 }
 
@@ -1168,7 +1158,7 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	int err;
 
 	/* automatically configure DMA channels from platform, normally using DT */
-	chan = dma_request_slave_channel_reason(dev, "rx");
+	chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
 		goto err_no_rxchan;
@@ -1176,7 +1166,7 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 
 	pl022->dma_rx_channel = chan;
 
-	chan = dma_request_slave_channel_reason(dev, "tx");
+	chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
 		goto err_no_txchan;
@@ -1333,10 +1323,10 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 		}
 		/* Update total bytes transferred */
 		msg->actual_length += pl022->cur_transfer->len;
-		if (pl022->cur_transfer->cs_change)
-			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		msg->state = next_transfer(pl022);
+		if (msg->state != STATE_DONE && pl022->cur_transfer->cs_change)
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		tasklet_schedule(&pl022->pump_transfers);
 		return IRQ_HANDLED;
 	}
@@ -1410,12 +1400,11 @@ static void pump_transfers(unsigned long data)
 		previous = list_entry(transfer->transfer_list.prev,
 					struct spi_transfer,
 					transfer_list);
-		if (previous->delay_usecs)
-			/*
-			 * FIXME: This runs in interrupt context.
-			 * Is this really smart?
-			 */
-			udelay(previous->delay_usecs);
+		/*
+		 * FIXME: This runs in interrupt context.
+		 * Is this really smart?
+		 */
+		spi_transfer_delay_exec(previous);
 
 		/* Reselect chip select only if cs_change was requested */
 		if (previous->cs_change)
@@ -1485,15 +1474,37 @@ err_config_dma:
 	writew(irqflags, SSP_IMSC(pl022->virtbase));
 }
 
+static void print_current_status(struct pl022 *pl022)
+{
+	u32 read_cr0;
+	u16 read_cr1, read_dmacr, read_sr;
+
+	if (pl022->vendor->extended_cr)
+		read_cr0 = readl(SSP_CR0(pl022->virtbase));
+	else
+		read_cr0 = readw(SSP_CR0(pl022->virtbase));
+	read_cr1 = readw(SSP_CR1(pl022->virtbase));
+	read_dmacr = readw(SSP_DMACR(pl022->virtbase));
+	read_sr = readw(SSP_SR(pl022->virtbase));
+
+	dev_warn(&pl022->adev->dev, "spi-pl022 CR0: %x\n", read_cr0);
+	dev_warn(&pl022->adev->dev, "spi-pl022 CR1: %x\n", read_cr1);
+	dev_warn(&pl022->adev->dev, "spi-pl022 DMACR: %x\n", read_dmacr);
+	dev_warn(&pl022->adev->dev, "spi-pl022 SR: %x\n", read_sr);
+	dev_warn(&pl022->adev->dev,
+			"spi-pl022 exp_fifo_level/fifodepth: %u/%d\n",
+			pl022->exp_fifo_level,
+			pl022->vendor->fifodepth);
+
+}
+
 static void do_polling_transfer(struct pl022 *pl022)
 {
 	struct spi_message *message = NULL;
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
-	struct chip_data *chip;
 	unsigned long time, timeout;
 
-	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
 
 	while (message->state != STATE_DONE) {
@@ -1507,8 +1518,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 			previous =
 			    list_entry(transfer->transfer_list.prev,
 				       struct spi_transfer, transfer_list);
-			if (previous->delay_usecs)
-				udelay(previous->delay_usecs);
+			spi_transfer_delay_exec(previous);
 			if (previous->cs_change)
 				pl022_cs_control(pl022, SSP_CHIP_SELECT);
 		} else {
@@ -1538,7 +1548,8 @@ static void do_polling_transfer(struct pl022 *pl022)
 			if (time_after(time, timeout)) {
 				dev_warn(&pl022->adev->dev,
 				"%s: timeout!\n", __func__);
-				message->state = STATE_ERROR;
+				message->state = STATE_TIMEOUT;
+				print_current_status(pl022);
 				goto out;
 			}
 			cpu_relax();
@@ -1546,15 +1557,18 @@ static void do_polling_transfer(struct pl022 *pl022)
 
 		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
-		if (pl022->cur_transfer->cs_change)
-			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
+		if (message->state != STATE_DONE
+		    && pl022->cur_transfer->cs_change)
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 	}
 out:
 	/* Handle end of message */
 	if (message->state == STATE_DONE)
 		message->status = 0;
+	else if (message->state == STATE_TIMEOUT)
+		message->status = -EAGAIN;
 	else
 		message->status = -EIO;
 
@@ -2135,7 +2149,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->master_info = platform_info;
 	pl022->adev = adev;
 	pl022->vendor = id->data;
-	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
+	pl022->chipselects = devm_kcalloc(dev, num_cs, sizeof(int),
 					  GFP_KERNEL);
 	if (!pl022->chipselects) {
 		status = -ENOMEM;
@@ -2325,10 +2339,8 @@ static int pl022_suspend(struct device *dev)
 	int ret;
 
 	ret = spi_master_suspend(pl022->master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
@@ -2353,9 +2365,7 @@ static int pl022_resume(struct device *dev)
 
 	/* Start the queue running */
 	ret = spi_master_resume(pl022->master);
-	if (ret)
-		dev_err(dev, "problem starting queue (%d)\n", ret);
-	else
+	if (!ret)
 		dev_dbg(dev, "resumed\n");
 
 	return ret;

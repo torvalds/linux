@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED driver : leds-ktd2692.c
  *
  * Copyright (C) 2015 Samsung Electronics
  * Ingi Kim <ingi2.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -22,7 +19,7 @@
 /* Value related the movie mode */
 #define KTD2692_MOVIE_MODE_CURRENT_LEVELS	16
 #define KTD2692_MM_TO_FL_RATIO(x)		((x) / 3)
-#define KTD2962_MM_MIN_CURR_THRESHOLD_SCALE	8
+#define KTD2692_MM_MIN_CURR_THRESHOLD_SCALE	8
 
 /* Value related the flash mode */
 #define KTD2692_FLASH_MODE_TIMEOUT_LEVELS	8
@@ -253,7 +250,7 @@ static void ktd2692_setup(struct ktd2692_context *led)
 	ktd2692_expresswire_reset(led);
 	gpiod_direction_output(led->aux_gpio, KTD2692_LOW);
 
-	ktd2692_expresswire_write(led, (KTD2962_MM_MIN_CURR_THRESHOLD_SCALE - 1)
+	ktd2692_expresswire_write(led, (KTD2692_MM_MIN_CURR_THRESHOLD_SCALE - 1)
 				 | KTD2692_REG_MM_MIN_CURR_THRESHOLD_BASE);
 	ktd2692_expresswire_write(led, KTD2692_FLASH_MODE_CURR_PERCENT(45)
 				 | KTD2692_REG_FLASH_CURRENT_BASE);

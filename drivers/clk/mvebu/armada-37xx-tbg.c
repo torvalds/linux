@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Marvell Armada 37xx SoC Time Base Generator clocks
  *
  * Copyright (C) 2016 Marvell
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2 or later. This program is licensed "as is"
- * without any warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -91,20 +89,21 @@ static int armada_3700_tbg_clock_probe(struct platform_device *pdev)
 	void __iomem *reg;
 	int i, ret;
 
-	hw_tbg_data = devm_kzalloc(&pdev->dev, sizeof(*hw_tbg_data)
-				   + sizeof(*hw_tbg_data->hws) * NUM_TBG,
+	hw_tbg_data = devm_kzalloc(&pdev->dev,
+				   struct_size(hw_tbg_data, hws, NUM_TBG),
 				   GFP_KERNEL);
 	if (!hw_tbg_data)
 		return -ENOMEM;
 	hw_tbg_data->num = NUM_TBG;
 	platform_set_drvdata(pdev, hw_tbg_data);
 
-	parent = devm_clk_get(dev, NULL);
+	parent = clk_get(dev, NULL);
 	if (IS_ERR(parent)) {
 		dev_err(dev, "Could get the clock parent\n");
 		return -EINVAL;
 	}
 	parent_name = __clk_get_name(parent);
+	clk_put(parent);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);

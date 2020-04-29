@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/include/debug/sti.S
  *
  * Debugging macro include header
  * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define STIH41X_COMMS_BASE              0xfed00000

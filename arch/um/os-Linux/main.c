@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <stdio.h>
@@ -37,17 +37,6 @@ static void set_stklim(void)
 			perror("setrlimit");
 			exit(1);
 		}
-	}
-}
-
-static __init void do_uml_initcalls(void)
-{
-	initcall_t *call;
-
-	call = &__uml_initcall_start;
-	while (call < &__uml_initcall_end) {
-		(*call)();
-		call++;
 	}
 }
 
@@ -151,7 +140,6 @@ int __init main(int argc, char **argv, char **envp)
 	scan_elf_aux(envp);
 #endif
 
-	do_uml_initcalls();
 	change_sig(SIGPIPE, 0);
 	ret = linux_main(argc, argv);
 

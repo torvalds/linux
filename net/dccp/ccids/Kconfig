@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "DCCP CCIDs Configuration"
 
 config IP_DCCP_CCID2_DEBUG

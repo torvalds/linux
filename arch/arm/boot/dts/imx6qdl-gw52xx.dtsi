@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013 Gateworks Corporation
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -60,6 +54,7 @@
 	};
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x20000000>;
 	};
 
@@ -317,6 +312,11 @@
 		interrupt-parent = <&gpio7>;
 		interrupts = <12 2>;
 		wakeup-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+	};
+
+	accel@1e {
+		compatible = "nxp,fxos8700";
+		reg = <0x1e>;
 	};
 };
 

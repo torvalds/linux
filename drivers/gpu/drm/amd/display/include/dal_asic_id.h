@@ -86,6 +86,7 @@
 #define VI_POLARIS10_P_A0 80
 #define VI_POLARIS11_M_A0 90
 #define VI_POLARIS12_V_A0 100
+#define VI_VEGAM_A0 110
 
 #define VI_UNKNOWN 0xFF
 
@@ -98,7 +99,9 @@
 		(eChipRev < VI_POLARIS11_M_A0))
 #define ASIC_REV_IS_POLARIS11_M(eChipRev) ((eChipRev >= VI_POLARIS11_M_A0) &&  \
 		(eChipRev < VI_POLARIS12_V_A0))
-#define ASIC_REV_IS_POLARIS12_V(eChipRev) (eChipRev >= VI_POLARIS12_V_A0)
+#define ASIC_REV_IS_POLARIS12_V(eChipRev) ((eChipRev >= VI_POLARIS12_V_A0) && \
+		(eChipRev < VI_VEGAM_A0))
+#define ASIC_REV_IS_VEGAM(eChipRev) (eChipRev >= VI_VEGAM_A0)
 
 /* DCE11 */
 #define CZ_CARRIZO_A0 0x01
@@ -110,25 +113,66 @@
 	((rev >= STONEY_A0) && (rev < CZ_UNKNOWN))
 
 /* DCE12 */
+#define AI_UNKNOWN 0xFF
 
 #define AI_GREENLAND_P_A0 1
 #define AI_GREENLAND_P_A1 2
+#define AI_UNKNOWN 0xFF
 
-#define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_UNKNOWN)
-#define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_UNKNOWN)
+#define AI_VEGA12_P_A0 20
+#define AI_VEGA20_P_A0 40
+#define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
+#define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
+
+#define ASICREV_IS_VEGA12_P(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_VEGA20_P_A0))
+#define ASICREV_IS_VEGA20_P(eChipRev) ((eChipRev >= AI_VEGA20_P_A0) && (eChipRev < AI_UNKNOWN))
 
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
 #define RAVEN_A0 0x01
 #define RAVEN_B0 0x21
-#define RAVEN_UNKNOWN 0xFF
-
-#define ASIC_REV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
+#define PICASSO_A0 0x41
+/* DCN1_01 */
+#define RAVEN2_A0 0x81
 #define RAVEN1_F0 0xF0
+#define RAVEN_UNKNOWN 0xFF
+#define RENOIR_A0 0x91
+#ifndef ASICREV_IS_RAVEN
+#define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
+#endif
+#define PRID_DALI_DE 0xDE
+#define PRID_DALI_DF 0xDF
+#define PRID_DALI_E3 0xE3
+#define PRID_DALI_E4 0xE4
+
+#define PRID_POLLOCK_94 0x94
+#define PRID_POLLOCK_95 0x95
+#define PRID_POLLOCK_E9 0xE9
+#define PRID_POLLOCK_EA 0xEA
+#define PRID_POLLOCK_EB 0xEB
+
+#define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
+#ifndef ASICREV_IS_RAVEN2
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < RENOIR_A0))
+#endif
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
 
-
 #define FAMILY_RV 142 /* DCN 1*/
+
+
+#define FAMILY_NV 143 /* DCN 2*/
+
+enum {
+	NV_NAVI10_P_A0      = 1,
+	NV_NAVI12_P_A0      = 10,
+	NV_NAVI14_M_A0      = 20,
+	NV_UNKNOWN          = 0xFF
+};
+
+#define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
+#define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
+#define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
+#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
 
 /*
  * ASIC chip ID
@@ -137,6 +181,9 @@
 #define DEVICE_ID_KALINDI_9834 0x9834
 #define DEVICE_ID_TEMASH_9839 0x9839
 #define DEVICE_ID_TEMASH_983D 0x983D
+
+/* RENOIR */
+#define DEVICE_ID_RENOIR_1636 0x1636
 
 /* Asic Family IDs for different asic family. */
 #define FAMILY_CI 120 /* Sea Islands: Hawaii (P), Bonaire (M) */
@@ -147,5 +194,7 @@
 #define FAMILY_AI 141
 
 #define	FAMILY_UNKNOWN 0xFF
+
+
 
 #endif /* __DAL_ASIC_ID_H__ */

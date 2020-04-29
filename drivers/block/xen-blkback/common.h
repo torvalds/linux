@@ -233,16 +233,6 @@ struct xen_vbd {
 
 struct backend_info;
 
-/* Number of available flags */
-#define PERSISTENT_GNT_FLAGS_SIZE	2
-/* This persistent grant is currently in use */
-#define PERSISTENT_GNT_ACTIVE		0
-/*
- * This persistent grant has been used, this flag is set when we remove the
- * PERSISTENT_GNT_ACTIVE, to know that this grant has been used recently.
- */
-#define PERSISTENT_GNT_WAS_ACTIVE	1
-
 /* Number of requests that we can fit in a ring */
 #define XEN_BLKIF_REQS_PER_PAGE		32
 
@@ -250,7 +240,8 @@ struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
 	grant_handle_t handle;
-	DECLARE_BITMAP(flags, PERSISTENT_GNT_FLAGS_SIZE);
+	unsigned long last_used;
+	bool active;
 	struct rb_node node;
 	struct list_head remove_node;
 };
@@ -278,7 +269,6 @@ struct xen_blkif_ring {
 	wait_queue_head_t	pending_free_wq;
 
 	/* Tree to store persistent grants. */
-	spinlock_t		pers_gnts_lock;
 	struct rb_root		persistent_gnts;
 	unsigned int		persistent_gnt_c;
 	atomic_t		persistent_gnt_in_use;
@@ -329,6 +319,7 @@ struct xen_blkif {
 	/* All rings for this device. */
 	struct xen_blkif_ring	*rings;
 	unsigned int		nr_rings;
+	unsigned long		buffer_squeeze_end;
 };
 
 struct seg_buf {
@@ -385,9 +376,12 @@ struct phys_req {
 	struct block_device	*bdev;
 	blkif_sector_t		sector_number;
 };
+
 int xen_blkif_interface_init(void);
+void xen_blkif_interface_fini(void);
 
 int xen_blkif_xenbus_init(void);
+void xen_blkif_xenbus_fini(void);
 
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);

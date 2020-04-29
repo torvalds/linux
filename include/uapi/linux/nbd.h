@@ -53,6 +53,9 @@ enum {
 /* These are client behavior specific flags. */
 #define NBD_CFLAG_DESTROY_ON_DISCONNECT	(1 << 0) /* delete the nbd device on
 						    disconnect. */
+#define NBD_CFLAG_DISCONNECT_ON_CLOSE (1 << 1) /* disconnect the nbd device on
+						*  close by last opener.
+						*/
 
 /* userspace doesn't need the nbd_device structure */
 

@@ -323,3 +323,40 @@ Description:
 
 		This is similar to /sys/bus/pci/drivers_autoprobe, but
 		affects only the VFs associated with a specific PF.
+
+What:		/sys/bus/pci/devices/.../p2pmem/size
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains the total amount of memory that the device
+		provides (in decimal).
+
+What:		/sys/bus/pci/devices/.../p2pmem/available
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains the amount of memory that has not been
+		allocated (in decimal).
+
+What:		/sys/bus/pci/devices/.../p2pmem/published
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains a '1' if the memory has been published for
+		use outside the driver that owns the device.
+
+What:		/sys/bus/pci/devices/.../link/clkpm
+		/sys/bus/pci/devices/.../link/l0s_aspm
+		/sys/bus/pci/devices/.../link/l1_aspm
+		/sys/bus/pci/devices/.../link/l1_1_aspm
+		/sys/bus/pci/devices/.../link/l1_2_aspm
+		/sys/bus/pci/devices/.../link/l1_1_pcipm
+		/sys/bus/pci/devices/.../link/l1_2_pcipm
+Date:		October 2019
+Contact:	Heiner Kallweit <hkallweit1@gmail.com>
+Description:	If ASPM is supported for an endpoint, these files can be
+		used to disable or enable the individual power management
+		states. Write y/1/on to enable, n/0/off to disable.

@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_v4l2.c  --  USB Video Class driver - V4L2 API
  *
  *      Copyright (C) 2005-2010
  *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
  */
 
 #include <linux/compat.h>
@@ -258,7 +253,6 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(format, frame);
 	fmt->fmt.pix.sizeimage = probe->dwMaxVideoFrameSize;
 	fmt->fmt.pix.colorspace = format->colorspace;
-	fmt->fmt.pix.priv = 0;
 
 	if (uvc_format != NULL)
 		*uvc_format = format;
@@ -295,7 +289,6 @@ static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(format, frame);
 	fmt->fmt.pix.sizeimage = stream->ctrl.dwMaxVideoFrameSize;
 	fmt->fmt.pix.colorspace = format->colorspace;
-	fmt->fmt.pix.priv = 0;
 
 done:
 	mutex_unlock(&stream->mutex);
@@ -591,8 +584,8 @@ static int uvc_ioctl_querycap(struct file *file, void *fh,
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 
-	strlcpy(cap->driver, "uvcvideo", sizeof(cap->driver));
-	strlcpy(cap->card, vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, "uvcvideo", sizeof(cap->driver));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	usb_make_path(stream->dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
 			  | chain->caps;
@@ -618,7 +611,7 @@ static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 	fmt->flags = 0;
 	if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 		fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
-	strlcpy(fmt->description, format->name, sizeof(fmt->description));
+	strscpy(fmt->description, format->name, sizeof(fmt->description));
 	fmt->description[sizeof(fmt->description) - 1] = 0;
 	fmt->pixelformat = format->fcc;
 	return 0;
@@ -751,7 +744,8 @@ static int uvc_ioctl_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	if (!uvc_has_privileges(handle))
 		return -EBUSY;
 
-	return uvc_queue_buffer(&stream->queue, buf);
+	return uvc_queue_buffer(&stream->queue,
+				stream->vdev.v4l2_dev->mdev, buf);
 }
 
 static int uvc_ioctl_expbuf(struct file *file, void *fh,
@@ -859,7 +853,7 @@ static int uvc_ioctl_enum_input(struct file *file, void *fh,
 
 	memset(input, 0, sizeof(*input));
 	input->index = index;
-	strlcpy(input->name, iterm->name, sizeof(input->name));
+	strscpy(input->name, iterm->name, sizeof(input->name));
 	if (UVC_ENTITY_TYPE(iterm) == UVC_ITT_CAMERA)
 		input->type = V4L2_INPUT_TYPE_CAMERA;
 
@@ -939,7 +933,7 @@ static int uvc_ioctl_query_ext_ctrl(struct file *file, void *fh,
 
 	qec->id = qc.id;
 	qec->type = qc.type;
-	strlcpy(qec->name, qc.name, sizeof(qec->name));
+	strscpy(qec->name, qc.name, sizeof(qec->name));
 	qec->minimum = qc.minimum;
 	qec->maximum = qc.maximum;
 	qec->step = qc.step;
@@ -994,7 +988,7 @@ static int uvc_ioctl_s_ctrl(struct file *file, void *fh,
 	if (ret < 0)
 		return ret;
 
-	ret = uvc_ctrl_set(chain, &xctrl);
+	ret = uvc_ctrl_set(handle, &xctrl);
 	if (ret < 0) {
 		uvc_ctrl_rollback(handle);
 		return ret;
@@ -1069,7 +1063,7 @@ static int uvc_ioctl_s_try_ext_ctrls(struct uvc_fh *handle,
 		return ret;
 
 	for (i = 0; i < ctrls->count; ++ctrl, ++i) {
-		ret = uvc_ctrl_set(chain, ctrl);
+		ret = uvc_ctrl_set(handle, ctrl);
 		if (ret < 0) {
 			uvc_ctrl_rollback(handle);
 			ctrls->error_idx = commit ? ctrls->count : i;

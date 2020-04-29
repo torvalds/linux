@@ -153,34 +153,3 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
 	/* Now change destination address */
 	iaddr->loc = p->locator;
 }
-
-static int __init ila_init(void)
-{
-	int ret;
-
-	ret = ila_lwt_init();
-
-	if (ret)
-		goto fail_lwt;
-
-	ret = ila_xlat_init();
-	if (ret)
-		goto fail_xlat;
-
-	return 0;
-fail_xlat:
-	ila_lwt_fini();
-fail_lwt:
-	return ret;
-}
-
-static void __exit ila_fini(void)
-{
-	ila_xlat_fini();
-	ila_lwt_fini();
-}
-
-module_init(ila_init);
-module_exit(ila_fini);
-MODULE_AUTHOR("Tom Herbert <tom@herbertland.com>");
-MODULE_LICENSE("GPL");

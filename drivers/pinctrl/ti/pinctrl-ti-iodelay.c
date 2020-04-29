@@ -263,9 +263,9 @@ static int ti_iodelay_pinconf_set(struct ti_iodelay_device *iod,
 	reg_val |= reg->unlock_val << __ffs(reg->lock_mask);
 	r = regmap_update_bits(iod->regmap, cfg->offset, reg_mask, reg_val);
 
-	dev_info(dev, "Set reg 0x%x Delay(a: %d g: %d), Elements(C=%d F=%d)0x%x\n",
-		 cfg->offset, cfg->a_delay, cfg->g_delay, c_elements,
-		 f_elements, reg_val);
+	dev_dbg(dev, "Set reg 0x%x Delay(a: %d g: %d), Elements(C=%d F=%d)0x%x\n",
+		cfg->offset, cfg->a_delay, cfg->g_delay, c_elements,
+		f_elements, reg_val);
 
 	return r;
 }
@@ -452,8 +452,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 
 	pin = ti_iodelay_offset_to_pin(iod, cfg[pin_index].offset);
 	if (pin < 0) {
-		dev_err(iod->dev, "could not add functions for %s %ux\n",
-			np->name, cfg[pin_index].offset);
+		dev_err(iod->dev, "could not add functions for %pOFn %ux\n",
+			np, cfg[pin_index].offset);
 		return -ENODEV;
 	}
 	pins[pin_index] = pin;
@@ -461,8 +461,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 	pd = &iod->pa[pin];
 	pd->drv_data = &cfg[pin_index];
 
-	dev_dbg(iod->dev, "%s offset=%x a_delay = %d g_delay = %d\n",
-		np->name, cfg[pin_index].offset, cfg[pin_index].a_delay,
+	dev_dbg(iod->dev, "%pOFn offset=%x a_delay = %d g_delay = %d\n",
+		np, cfg[pin_index].offset, cfg[pin_index].a_delay,
 		cfg[pin_index].g_delay);
 
 	return 0;
@@ -496,7 +496,7 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	rows = pinctrl_count_index_with_args(np, name);
-	if (rows == -EINVAL)
+	if (rows < 0)
 		return rows;
 
 	*map = devm_kzalloc(iod->dev, sizeof(**map), GFP_KERNEL);
@@ -510,11 +510,11 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 		goto free_map;
 	}
 
-	pins = devm_kzalloc(iod->dev, sizeof(*pins) * rows, GFP_KERNEL);
+	pins = devm_kcalloc(iod->dev, rows, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		goto free_group;
 
-	cfg = devm_kzalloc(iod->dev, sizeof(*cfg) * rows, GFP_KERNEL);
+	cfg = devm_kcalloc(iod->dev, rows, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
 		error = -ENOMEM;
 		goto free_pins;
@@ -749,7 +749,7 @@ static int ti_iodelay_alloc_pins(struct device *dev,
 	nr_pins = ti_iodelay_offset_to_pin(iod, r->regmap_config->max_register);
 	dev_dbg(dev, "Allocating %i pins\n", nr_pins);
 
-	iod->pa = devm_kzalloc(dev, sizeof(*iod->pa) * nr_pins, GFP_KERNEL);
+	iod->pa = devm_kcalloc(dev, nr_pins, sizeof(*iod->pa), GFP_KERNEL);
 	if (!iod->pa)
 		return -ENOMEM;
 
@@ -923,7 +923,6 @@ static struct platform_driver ti_iodelay_driver = {
 	.probe = ti_iodelay_probe,
 	.remove = ti_iodelay_remove,
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = DRIVER_NAME,
 		   .of_match_table = ti_iodelay_of_match,
 	},

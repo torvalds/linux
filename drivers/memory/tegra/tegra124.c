@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/of.h>
@@ -12,48 +9,6 @@
 #include <dt-bindings/memory/tegra124-mc.h>
 
 #include "mc.h"
-
-#define MC_EMEM_ARB_CFG				0x90
-#define MC_EMEM_ARB_OUTSTANDING_REQ		0x94
-#define MC_EMEM_ARB_TIMING_RCD			0x98
-#define MC_EMEM_ARB_TIMING_RP			0x9c
-#define MC_EMEM_ARB_TIMING_RC			0xa0
-#define MC_EMEM_ARB_TIMING_RAS			0xa4
-#define MC_EMEM_ARB_TIMING_FAW			0xa8
-#define MC_EMEM_ARB_TIMING_RRD			0xac
-#define MC_EMEM_ARB_TIMING_RAP2PRE		0xb0
-#define MC_EMEM_ARB_TIMING_WAP2PRE		0xb4
-#define MC_EMEM_ARB_TIMING_R2R			0xb8
-#define MC_EMEM_ARB_TIMING_W2W			0xbc
-#define MC_EMEM_ARB_TIMING_R2W			0xc0
-#define MC_EMEM_ARB_TIMING_W2R			0xc4
-#define MC_EMEM_ARB_DA_TURNS			0xd0
-#define MC_EMEM_ARB_DA_COVERS			0xd4
-#define MC_EMEM_ARB_MISC0			0xd8
-#define MC_EMEM_ARB_MISC1			0xdc
-#define MC_EMEM_ARB_RING1_THROTTLE		0xe0
-
-static const unsigned long tegra124_mc_emem_regs[] = {
-	MC_EMEM_ARB_CFG,
-	MC_EMEM_ARB_OUTSTANDING_REQ,
-	MC_EMEM_ARB_TIMING_RCD,
-	MC_EMEM_ARB_TIMING_RP,
-	MC_EMEM_ARB_TIMING_RC,
-	MC_EMEM_ARB_TIMING_RAS,
-	MC_EMEM_ARB_TIMING_FAW,
-	MC_EMEM_ARB_TIMING_RRD,
-	MC_EMEM_ARB_TIMING_RAP2PRE,
-	MC_EMEM_ARB_TIMING_WAP2PRE,
-	MC_EMEM_ARB_TIMING_R2R,
-	MC_EMEM_ARB_TIMING_W2W,
-	MC_EMEM_ARB_TIMING_R2W,
-	MC_EMEM_ARB_TIMING_W2R,
-	MC_EMEM_ARB_DA_TURNS,
-	MC_EMEM_ARB_DA_COVERS,
-	MC_EMEM_ARB_MISC0,
-	MC_EMEM_ARB_MISC1,
-	MC_EMEM_ARB_RING1_THROTTLE
-};
 
 static const struct tegra_mc_client tegra124_mc_clients[] = {
 	{
@@ -999,20 +954,80 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 	{ .name = "vi",        .swgroup = TEGRA_SWGROUP_VI,        .reg = 0x280 },
 };
 
-static const unsigned int tegra124_group_display[] = {
+static const unsigned int tegra124_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
+	TEGRA_SWGROUP_GPU,
+	TEGRA_SWGROUP_VIC,
 };
 
 static const struct tegra_smmu_group_soc tegra124_groups[] = {
 	{
-		.name = "display",
-		.swgroups = tegra124_group_display,
-		.num_swgroups = ARRAY_SIZE(tegra124_group_display),
+		.name = "drm",
+		.swgroups = tegra124_group_drm,
+		.num_swgroups = ARRAY_SIZE(tegra124_group_drm),
 	},
 };
 
+#define TEGRA124_MC_RESET(_name, _control, _status, _bit)	\
+	{							\
+		.name = #_name,					\
+		.id = TEGRA124_MC_RESET_##_name,		\
+		.control = _control,				\
+		.status = _status,				\
+		.bit = _bit,					\
+	}
+
+static const struct tegra_mc_reset tegra124_mc_resets[] = {
+	TEGRA124_MC_RESET(AFI,       0x200, 0x204,  0),
+	TEGRA124_MC_RESET(AVPC,      0x200, 0x204,  1),
+	TEGRA124_MC_RESET(DC,        0x200, 0x204,  2),
+	TEGRA124_MC_RESET(DCB,       0x200, 0x204,  3),
+	TEGRA124_MC_RESET(HC,        0x200, 0x204,  6),
+	TEGRA124_MC_RESET(HDA,       0x200, 0x204,  7),
+	TEGRA124_MC_RESET(ISP2,      0x200, 0x204,  8),
+	TEGRA124_MC_RESET(MPCORE,    0x200, 0x204,  9),
+	TEGRA124_MC_RESET(MPCORELP,  0x200, 0x204, 10),
+	TEGRA124_MC_RESET(MSENC,     0x200, 0x204, 11),
+	TEGRA124_MC_RESET(PPCS,      0x200, 0x204, 14),
+	TEGRA124_MC_RESET(SATA,      0x200, 0x204, 15),
+	TEGRA124_MC_RESET(VDE,       0x200, 0x204, 16),
+	TEGRA124_MC_RESET(VI,        0x200, 0x204, 17),
+	TEGRA124_MC_RESET(VIC,       0x200, 0x204, 18),
+	TEGRA124_MC_RESET(XUSB_HOST, 0x200, 0x204, 19),
+	TEGRA124_MC_RESET(XUSB_DEV,  0x200, 0x204, 20),
+	TEGRA124_MC_RESET(TSEC,      0x200, 0x204, 21),
+	TEGRA124_MC_RESET(SDMMC1,    0x200, 0x204, 22),
+	TEGRA124_MC_RESET(SDMMC2,    0x200, 0x204, 23),
+	TEGRA124_MC_RESET(SDMMC3,    0x200, 0x204, 25),
+	TEGRA124_MC_RESET(SDMMC4,    0x970, 0x974,  0),
+	TEGRA124_MC_RESET(ISP2B,     0x970, 0x974,  1),
+	TEGRA124_MC_RESET(GPU,       0x970, 0x974,  2),
+};
+
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
+static const unsigned long tegra124_mc_emem_regs[] = {
+	MC_EMEM_ARB_CFG,
+	MC_EMEM_ARB_OUTSTANDING_REQ,
+	MC_EMEM_ARB_TIMING_RCD,
+	MC_EMEM_ARB_TIMING_RP,
+	MC_EMEM_ARB_TIMING_RC,
+	MC_EMEM_ARB_TIMING_RAS,
+	MC_EMEM_ARB_TIMING_FAW,
+	MC_EMEM_ARB_TIMING_RRD,
+	MC_EMEM_ARB_TIMING_RAP2PRE,
+	MC_EMEM_ARB_TIMING_WAP2PRE,
+	MC_EMEM_ARB_TIMING_R2R,
+	MC_EMEM_ARB_TIMING_W2W,
+	MC_EMEM_ARB_TIMING_R2W,
+	MC_EMEM_ARB_TIMING_W2R,
+	MC_EMEM_ARB_DA_TURNS,
+	MC_EMEM_ARB_DA_COVERS,
+	MC_EMEM_ARB_MISC0,
+	MC_EMEM_ARB_MISC1,
+	MC_EMEM_ARB_RING1_THROTTLE
+};
+
 static const struct tegra_smmu_soc tegra124_smmu_soc = {
 	.clients = tegra124_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
@@ -1035,6 +1050,12 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.smmu = &tegra124_smmu_soc,
 	.emem_regs = tegra124_mc_emem_regs,
 	.num_emem_regs = ARRAY_SIZE(tegra124_mc_emem_regs),
+	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
+		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
+		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
+	.reset_ops = &tegra_mc_reset_ops_common,
+	.resets = tegra124_mc_resets,
+	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
 };
 #endif /* CONFIG_ARCH_TEGRA_124_SOC */
 
@@ -1059,5 +1080,11 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.atom_size = 32,
 	.client_id_mask = 0x7f,
 	.smmu = &tegra132_smmu_soc,
+	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
+		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
+		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
+	.reset_ops = &tegra_mc_reset_ops_common,
+	.resets = tegra124_mc_resets,
+	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */

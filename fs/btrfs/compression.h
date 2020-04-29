@@ -1,23 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_COMPRESSION_
-#define __BTRFS_COMPRESSION_
+#ifndef BTRFS_COMPRESSION_H
+#define BTRFS_COMPRESSION_H
+
+#include <linux/sizes.h>
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
@@ -72,8 +61,18 @@ struct compressed_bio {
 	 * the start of a variable length array of checksums only
 	 * used by reads
 	 */
-	u32 sums;
+	u8 sums[];
 };
+
+static inline unsigned int btrfs_compress_type(unsigned int type_level)
+{
+	return (type_level & 0xF);
+}
+
+static inline unsigned int btrfs_compress_level(unsigned int type_level)
+{
+	return ((type_level & 0xF0) >> 4);
+}
 
 void __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
@@ -94,50 +93,54 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
 				  unsigned long nr_pages,
-				  unsigned int write_flags);
+				  unsigned int write_flags,
+				  struct cgroup_subsys_state *blkcg_css);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
-unsigned btrfs_compress_str2level(const char *str);
+unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
 	BTRFS_COMPRESS_ZLIB  = 1,
 	BTRFS_COMPRESS_LZO   = 2,
 	BTRFS_COMPRESS_ZSTD  = 3,
-	BTRFS_COMPRESS_TYPES = 3,
+	BTRFS_NR_COMPRESS_TYPES = 4,
 };
+
+struct workspace_manager {
+	struct list_head idle_ws;
+	spinlock_t ws_lock;
+	/* Number of free workspaces */
+	int free_ws;
+	/* Total number of allocated workspaces */
+	atomic_t total_ws;
+	/* Waiters for a free workspace */
+	wait_queue_head_t ws_wait;
+};
+
+struct list_head *btrfs_get_workspace(int type, unsigned int level);
+void btrfs_put_workspace(int type, struct list_head *ws);
 
 struct btrfs_compress_op {
-	struct list_head *(*alloc_workspace)(void);
-
-	void (*free_workspace)(struct list_head *workspace);
-
-	int (*compress_pages)(struct list_head *workspace,
-			      struct address_space *mapping,
-			      u64 start,
-			      struct page **pages,
-			      unsigned long *out_pages,
-			      unsigned long *total_in,
-			      unsigned long *total_out);
-
-	int (*decompress_bio)(struct list_head *workspace,
-				struct compressed_bio *cb);
-
-	int (*decompress)(struct list_head *workspace,
-			  unsigned char *data_in,
-			  struct page *dest_page,
-			  unsigned long start_byte,
-			  size_t srclen, size_t destlen);
-
-	void (*set_level)(struct list_head *ws, unsigned int type);
+	struct workspace_manager *workspace_manager;
+	/* Maximum level supported by the compression algorithm */
+	unsigned int max_level;
+	unsigned int default_level;
 };
 
+/* The heuristic workspaces are managed via the 0th workspace manager */
+#define BTRFS_NR_WORKSPACE_MANAGERS	BTRFS_NR_COMPRESS_TYPES
+
+extern const struct btrfs_compress_op btrfs_heuristic_compress;
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
+bool btrfs_compress_is_valid_type(const char *str, size_t len);
+
+unsigned int btrfs_compress_set_level(int type, unsigned level);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

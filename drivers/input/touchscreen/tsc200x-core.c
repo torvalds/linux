@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TSC2004/TSC2005 touchscreen driver core
  *
@@ -7,16 +8,6 @@
  *
  * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
  * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -68,7 +59,8 @@ const struct regmap_config tsc200x_regmap_config = {
 	.read_flag_mask = TSC200X_REG_READ,
 	.write_flag_mask = TSC200X_REG_PND0,
 	.wr_table = &tsc200x_writable_table,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 EXPORT_SYMBOL_GPL(tsc200x_regmap_config);
 

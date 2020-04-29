@@ -3,7 +3,7 @@
  *
  * Module Name: evgpeinit - System GPE initialization and update
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -156,8 +156,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 			 * GPE0 and GPE1 do not have to be contiguous in the GPE number
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
-			gpe_number_max = acpi_gbl_FADT.gpe1_base +
-			    ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
 		}
 	}
 
@@ -169,7 +167,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "There are no GPE blocks defined in the FADT\n"));
-		status = AE_OK;
 		goto cleanup;
 	}
 
@@ -292,7 +289,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	acpi_status status;
 	u32 gpe_number;
 	u8 temp_gpe_number;
-	char name[ACPI_NAME_SIZE + 1];
+	char name[ACPI_NAMESEG_SIZE + 1];
 	u8 type;
 
 	ACPI_FUNCTION_TRACE(ev_match_gpe_method);
@@ -310,7 +307,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 * 1) Extract the method name and null terminate it
 	 */
 	ACPI_MOVE_32_TO_32(name, &method_node->name.integer);
-	name[ACPI_NAME_SIZE] = 0;
+	name[ACPI_NAMESEG_SIZE] = 0;
 
 	/* 2) Name must begin with an underscore */
 

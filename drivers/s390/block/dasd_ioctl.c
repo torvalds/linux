@@ -18,7 +18,6 @@
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 #include <linux/slab.h>
-#include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/schid.h>
 #include <asm/cmb.h>
@@ -334,6 +333,59 @@ out_err:
 	return rc;
 }
 
+static int dasd_release_space(struct dasd_device *device,
+			      struct format_data_t *rdata)
+{
+	if (!device->discipline->is_ese && !device->discipline->is_ese(device))
+		return -ENOTSUPP;
+	if (!device->discipline->release_space)
+		return -ENOTSUPP;
+
+	return device->discipline->release_space(device, rdata);
+}
+
+/*
+ * Release allocated space
+ */
+static int dasd_ioctl_release_space(struct block_device *bdev, void __user *argp)
+{
+	struct format_data_t rdata;
+	struct dasd_device *base;
+	int rc = 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	if (!argp)
+		return -EINVAL;
+
+	base = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!base)
+		return -ENODEV;
+	if (base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
+		rc = -EROFS;
+		goto out_err;
+	}
+	if (bdev != bdev->bd_contains) {
+		pr_warn("%s: The specified DASD is a partition and tracks cannot be released\n",
+			dev_name(&base->cdev->dev));
+		rc = -EINVAL;
+		goto out_err;
+	}
+
+	if (copy_from_user(&rdata, argp, sizeof(rdata))) {
+		rc = -EFAULT;
+		goto out_err;
+	}
+
+	rc = dasd_release_space(base, &rdata);
+
+out_err:
+	dasd_put_device(base);
+
+	return rc;
+}
+
 #ifdef CONFIG_DASD_PROFILE
 /*
  * Reset device profile information
@@ -413,6 +465,7 @@ static int dasd_ioctl_information(struct dasd_block *block,
 	struct ccw_dev_id dev_id;
 	struct dasd_device *base;
 	struct ccw_device *cdev;
+	struct list_head *l;
 	unsigned long flags;
 	int rc;
 
@@ -463,23 +516,10 @@ static int dasd_ioctl_information(struct dasd_block *block,
 
 	memcpy(dasd_info->type, base->discipline->name, 4);
 
-	if (block->request_queue->request_fn) {
-		struct list_head *l;
-#ifdef DASD_EXTENDED_PROFILING
-		{
-			struct list_head *l;
-			spin_lock_irqsave(&block->lock, flags);
-			list_for_each(l, &block->request_queue->queue_head)
-				dasd_info->req_queue_len++;
-			spin_unlock_irqrestore(&block->lock, flags);
-		}
-#endif				/* DASD_EXTENDED_PROFILING */
-		spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
-		list_for_each(l, &base->ccw_queue)
-			dasd_info->chanq_len++;
-		spin_unlock_irqrestore(get_ccwdev_lock(base->cdev),
-				       flags);
-	}
+	spin_lock_irqsave(&block->queue_lock, flags);
+	list_for_each(l, &base->ccw_queue)
+		dasd_info->chanq_len++;
+	spin_unlock_irqrestore(&block->queue_lock, flags);
 
 	rc = 0;
 	if (copy_to_user(argp, dasd_info,
@@ -607,6 +647,9 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	case BIODASDREADALLCMB:
 		rc = dasd_ioctl_readall_cmb(block, cmd, argp);
+		break;
+	case BIODASDRAS:
+		rc = dasd_ioctl_release_space(bdev, argp);
 		break;
 	default:
 		/* if the discipline has an ioctl method try it. */

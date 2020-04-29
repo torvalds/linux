@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Written by: Atul Gupta (atul.gupta@chelsio.com)
  */
@@ -97,7 +94,7 @@ static int chtls_set_tcb_field(struct sock *sk, u16 word, u64 mask, u64 val)
 int chtls_set_tcb_tflag(struct sock *sk, unsigned int bit_pos, int val)
 {
 	return chtls_set_tcb_field(sk, 1, 1ULL << bit_pos,
-				   val << bit_pos);
+				   (u64)val << bit_pos);
 }
 
 static int chtls_set_tcb_keyid(struct sock *sk, int keyid)
@@ -211,48 +208,64 @@ static void chtls_rxkey_ivauth(struct _key_ctx *kctx)
 
 static int chtls_key_info(struct chtls_sock *csk,
 			  struct _key_ctx *kctx,
-			  u32 keylen, u32 optname)
+			  u32 keylen, u32 optname,
+			  int cipher_type)
 {
-	unsigned char key[CHCR_KEYCTX_CIPHER_KEY_SIZE_256];
-	struct tls12_crypto_info_aes_gcm_128 *gcm_ctx;
+	unsigned char key[AES_MAX_KEY_SIZE];
+	unsigned char *key_p, *salt;
 	unsigned char ghash_h[AEAD_H_SIZE];
-	struct crypto_cipher *cipher;
-	int ck_size, key_ctx_size;
+	int ck_size, key_ctx_size, kctx_mackey_size, salt_size;
+	struct crypto_aes_ctx aes;
 	int ret;
-
-	gcm_ctx = (struct tls12_crypto_info_aes_gcm_128 *)
-		  &csk->tlshws.crypto_info;
 
 	key_ctx_size = sizeof(struct _key_ctx) +
 		       roundup(keylen, 16) + AEAD_H_SIZE;
 
-	if (keylen == AES_KEYSIZE_128) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
-	} else if (keylen == AES_KEYSIZE_192) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
-	} else if (keylen == AES_KEYSIZE_256) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
-	} else {
+	/* GCM mode of AES supports 128 and 256 bit encryption, so
+	 * prepare key context base on GCM cipher type
+	 */
+	switch (cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *gcm_ctx_128 =
+			(struct tls12_crypto_info_aes_gcm_128 *)
+					&csk->tlshws.crypto_info;
+		memcpy(key, gcm_ctx_128->key, keylen);
+
+		key_p            = gcm_ctx_128->key;
+		salt             = gcm_ctx_128->salt;
+		ck_size          = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
+		salt_size        = TLS_CIPHER_AES_GCM_128_SALT_SIZE;
+		kctx_mackey_size = CHCR_KEYCTX_MAC_KEY_SIZE_128;
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *gcm_ctx_256 =
+			(struct tls12_crypto_info_aes_gcm_256 *)
+					&csk->tlshws.crypto_info;
+		memcpy(key, gcm_ctx_256->key, keylen);
+
+		key_p            = gcm_ctx_256->key;
+		salt             = gcm_ctx_256->salt;
+		ck_size          = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
+		salt_size        = TLS_CIPHER_AES_GCM_256_SALT_SIZE;
+		kctx_mackey_size = CHCR_KEYCTX_MAC_KEY_SIZE_256;
+		break;
+	}
+	default:
 		pr_err("GCM: Invalid key length %d\n", keylen);
 		return -EINVAL;
 	}
-	memcpy(key, gcm_ctx->key, keylen);
 
 	/* Calculate the H = CIPH(K, 0 repeated 16 times).
 	 * It will go in key context
 	 */
-	cipher = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(cipher)) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = crypto_cipher_setkey(cipher, key, keylen);
+	ret = aes_expandkey(&aes, key, keylen);
 	if (ret)
-		goto out1;
+		return ret;
 
 	memset(ghash_h, 0, AEAD_H_SIZE);
-	crypto_cipher_encrypt_one(cipher, ghash_h, ghash_h);
+	aes_encrypt(&aes, ghash_h, ghash_h);
+	memzero_explicit(&aes, sizeof(aes));
 	csk->tlshws.keylen = key_ctx_size;
 
 	/* Copy the Key context */
@@ -261,25 +274,22 @@ static int chtls_key_info(struct chtls_sock *csk,
 
 		key_ctx = ((key_ctx_size >> 4) << 3);
 		kctx->ctx_hdr = FILL_KEY_CRX_HDR(ck_size,
-						 CHCR_KEYCTX_MAC_KEY_SIZE_128,
+						 kctx_mackey_size,
 						 0, 0, key_ctx);
 		chtls_rxkey_ivauth(kctx);
 	} else {
 		kctx->ctx_hdr = FILL_KEY_CTX_HDR(ck_size,
-						 CHCR_KEYCTX_MAC_KEY_SIZE_128,
+						 kctx_mackey_size,
 						 0, 0, key_ctx_size >> 4);
 	}
 
-	memcpy(kctx->salt, gcm_ctx->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
-	memcpy(kctx->key, gcm_ctx->key, keylen);
+	memcpy(kctx->salt, salt, salt_size);
+	memcpy(kctx->key, key_p, keylen);
 	memcpy(kctx->key + keylen, ghash_h, AEAD_H_SIZE);
 	/* erase key info from driver */
-	memset(gcm_ctx->key, 0, keylen);
+	memset(key_p, 0, keylen);
 
-out1:
-	crypto_free_cipher(cipher);
-out:
-	return ret;
+	return 0;
 }
 
 static void chtls_set_scmd(struct chtls_sock *csk)
@@ -303,7 +313,8 @@ static void chtls_set_scmd(struct chtls_sock *csk)
 		SCMD_TLS_FRAG_ENABLE_V(1);
 }
 
-int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
+int chtls_setkey(struct chtls_sock *csk, u32 keylen,
+		 u32 optname, int cipher_type)
 {
 	struct tls_key_req *kwr;
 	struct chtls_dev *cdev;
@@ -365,9 +376,10 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
 	kwr->sc_imm.cmd_more = cpu_to_be32(ULPTX_CMD_V(ULP_TX_SC_IMM));
 	kwr->sc_imm.len = cpu_to_be32(klen);
 
+	lock_sock(sk);
 	/* key info */
 	kctx = (struct _key_ctx *)(kwr + 1);
-	ret = chtls_key_info(csk, kctx, keylen, optname);
+	ret = chtls_key_info(csk, kctx, keylen, optname, cipher_type);
 	if (ret)
 		goto out_notcb;
 
@@ -403,8 +415,10 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 optname)
 		csk->tlshws.txkey = keyid;
 	}
 
+	release_sock(sk);
 	return ret;
 out_notcb:
+	release_sock(sk);
 	free_tls_keyid(sk);
 out_nokey:
 	kfree_skb(skb);

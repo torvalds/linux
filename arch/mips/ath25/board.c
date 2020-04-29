@@ -111,7 +111,7 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 	u8 *mac_addr;
 	u32 offset;
 
-	flash_base = ioremap_nocache(base, size);
+	flash_base = ioremap(base, size);
 	flash_limit = flash_base + size;
 
 	ath25_board.config = NULL;
@@ -146,10 +146,10 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 			pr_info("Fixing up empty mac addresses\n");
 			config->reset_config_gpio = 0xffff;
 			config->sys_led_gpio = 0xffff;
-			random_ether_addr(config->wlan0_mac);
+			eth_random_addr(config->wlan0_mac);
 			config->wlan0_mac[0] &= ~0x06;
-			random_ether_addr(config->enet0_mac);
-			random_ether_addr(config->enet1_mac);
+			eth_random_addr(config->enet0_mac);
+			eth_random_addr(config->enet1_mac);
 		}
 	}
 

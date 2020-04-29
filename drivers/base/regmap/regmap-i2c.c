@@ -1,14 +1,10 @@
-/*
- * Register map access API - I2C support
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - I2C support
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/regmap.h>
 #include <linux/i2c.h>
@@ -47,7 +43,7 @@ static int regmap_smbus_byte_reg_write(void *context, unsigned int reg,
 	return i2c_smbus_write_byte_data(i2c, reg, val);
 }
 
-static struct regmap_bus regmap_smbus_byte = {
+static const struct regmap_bus regmap_smbus_byte = {
 	.reg_write = regmap_smbus_byte_reg_write,
 	.reg_read = regmap_smbus_byte_reg_read,
 };
@@ -83,7 +79,7 @@ static int regmap_smbus_word_reg_write(void *context, unsigned int reg,
 	return i2c_smbus_write_word_data(i2c, reg, val);
 }
 
-static struct regmap_bus regmap_smbus_word = {
+static const struct regmap_bus regmap_smbus_word = {
 	.reg_write = regmap_smbus_word_reg_write,
 	.reg_read = regmap_smbus_word_reg_read,
 };
@@ -119,7 +115,7 @@ static int regmap_smbus_word_write_swapped(void *context, unsigned int reg,
 	return i2c_smbus_write_word_swapped(i2c, reg, val);
 }
 
-static struct regmap_bus regmap_smbus_word_swapped = {
+static const struct regmap_bus regmap_smbus_word_swapped = {
 	.reg_write = regmap_smbus_word_write_swapped,
 	.reg_read = regmap_smbus_word_read_swapped,
 };
@@ -201,7 +197,7 @@ static int regmap_i2c_read(void *context,
 		return -EIO;
 }
 
-static struct regmap_bus regmap_i2c = {
+static const struct regmap_bus regmap_i2c = {
 	.write = regmap_i2c_write,
 	.gather_write = regmap_i2c_gather_write,
 	.read = regmap_i2c_read,
@@ -243,7 +239,7 @@ static int regmap_i2c_smbus_i2c_read(void *context, const void *reg,
 		return -EIO;
 }
 
-static struct regmap_bus regmap_i2c_smbus_i2c_block = {
+static const struct regmap_bus regmap_i2c_smbus_i2c_block = {
 	.write = regmap_i2c_smbus_i2c_write,
 	.read = regmap_i2c_smbus_i2c_read,
 	.max_raw_read = I2C_SMBUS_BLOCK_MAX,

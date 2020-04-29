@@ -1,61 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO driver for LPC32xx SoC
  *
  * Author: Kevin Wells <kevin.wells@nxp.com>
  *
  * Copyright (C) 2010 NXP Semiconductors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
-#define LPC32XX_GPIO_P3_INP_STATE		_GPREG(0x000)
-#define LPC32XX_GPIO_P3_OUTP_SET		_GPREG(0x004)
-#define LPC32XX_GPIO_P3_OUTP_CLR		_GPREG(0x008)
-#define LPC32XX_GPIO_P3_OUTP_STATE		_GPREG(0x00C)
-#define LPC32XX_GPIO_P2_DIR_SET			_GPREG(0x010)
-#define LPC32XX_GPIO_P2_DIR_CLR			_GPREG(0x014)
-#define LPC32XX_GPIO_P2_DIR_STATE		_GPREG(0x018)
-#define LPC32XX_GPIO_P2_INP_STATE		_GPREG(0x01C)
-#define LPC32XX_GPIO_P2_OUTP_SET		_GPREG(0x020)
-#define LPC32XX_GPIO_P2_OUTP_CLR		_GPREG(0x024)
-#define LPC32XX_GPIO_P2_MUX_SET			_GPREG(0x028)
-#define LPC32XX_GPIO_P2_MUX_CLR			_GPREG(0x02C)
-#define LPC32XX_GPIO_P2_MUX_STATE		_GPREG(0x030)
-#define LPC32XX_GPIO_P0_INP_STATE		_GPREG(0x040)
-#define LPC32XX_GPIO_P0_OUTP_SET		_GPREG(0x044)
-#define LPC32XX_GPIO_P0_OUTP_CLR		_GPREG(0x048)
-#define LPC32XX_GPIO_P0_OUTP_STATE		_GPREG(0x04C)
-#define LPC32XX_GPIO_P0_DIR_SET			_GPREG(0x050)
-#define LPC32XX_GPIO_P0_DIR_CLR			_GPREG(0x054)
-#define LPC32XX_GPIO_P0_DIR_STATE		_GPREG(0x058)
-#define LPC32XX_GPIO_P1_INP_STATE		_GPREG(0x060)
-#define LPC32XX_GPIO_P1_OUTP_SET		_GPREG(0x064)
-#define LPC32XX_GPIO_P1_OUTP_CLR		_GPREG(0x068)
-#define LPC32XX_GPIO_P1_OUTP_STATE		_GPREG(0x06C)
-#define LPC32XX_GPIO_P1_DIR_SET			_GPREG(0x070)
-#define LPC32XX_GPIO_P1_DIR_CLR			_GPREG(0x074)
-#define LPC32XX_GPIO_P1_DIR_STATE		_GPREG(0x078)
+#define LPC32XX_GPIO_P3_INP_STATE		(0x000)
+#define LPC32XX_GPIO_P3_OUTP_SET		(0x004)
+#define LPC32XX_GPIO_P3_OUTP_CLR		(0x008)
+#define LPC32XX_GPIO_P3_OUTP_STATE		(0x00C)
+#define LPC32XX_GPIO_P2_DIR_SET			(0x010)
+#define LPC32XX_GPIO_P2_DIR_CLR			(0x014)
+#define LPC32XX_GPIO_P2_DIR_STATE		(0x018)
+#define LPC32XX_GPIO_P2_INP_STATE		(0x01C)
+#define LPC32XX_GPIO_P2_OUTP_SET		(0x020)
+#define LPC32XX_GPIO_P2_OUTP_CLR		(0x024)
+#define LPC32XX_GPIO_P2_MUX_SET			(0x028)
+#define LPC32XX_GPIO_P2_MUX_CLR			(0x02C)
+#define LPC32XX_GPIO_P2_MUX_STATE		(0x030)
+#define LPC32XX_GPIO_P0_INP_STATE		(0x040)
+#define LPC32XX_GPIO_P0_OUTP_SET		(0x044)
+#define LPC32XX_GPIO_P0_OUTP_CLR		(0x048)
+#define LPC32XX_GPIO_P0_OUTP_STATE		(0x04C)
+#define LPC32XX_GPIO_P0_DIR_SET			(0x050)
+#define LPC32XX_GPIO_P0_DIR_CLR			(0x054)
+#define LPC32XX_GPIO_P0_DIR_STATE		(0x058)
+#define LPC32XX_GPIO_P1_INP_STATE		(0x060)
+#define LPC32XX_GPIO_P1_OUTP_SET		(0x064)
+#define LPC32XX_GPIO_P1_OUTP_CLR		(0x068)
+#define LPC32XX_GPIO_P1_OUTP_STATE		(0x06C)
+#define LPC32XX_GPIO_P1_DIR_SET			(0x070)
+#define LPC32XX_GPIO_P1_DIR_CLR			(0x074)
+#define LPC32XX_GPIO_P1_DIR_STATE		(0x078)
 
 #define GPIO012_PIN_TO_BIT(x)			(1 << (x))
 #define GPIO3_PIN_TO_BIT(x)			(1 << ((x) + 25))
@@ -82,12 +69,12 @@
 #define LPC32XX_GPO_P3_GRP	(LPC32XX_GPI_P3_GRP + LPC32XX_GPI_P3_MAX)
 
 struct gpio_regs {
-	void __iomem *inp_state;
-	void __iomem *outp_state;
-	void __iomem *outp_set;
-	void __iomem *outp_clr;
-	void __iomem *dir_set;
-	void __iomem *dir_clr;
+	unsigned long inp_state;
+	unsigned long outp_state;
+	unsigned long outp_set;
+	unsigned long outp_clr;
+	unsigned long dir_set;
+	unsigned long dir_clr;
 };
 
 /*
@@ -175,16 +162,27 @@ static struct gpio_regs gpio_grp_regs_p3 = {
 struct lpc32xx_gpio_chip {
 	struct gpio_chip	chip;
 	struct gpio_regs	*gpio_grp;
+	void __iomem		*reg_base;
 };
+
+static inline u32 gpreg_read(struct lpc32xx_gpio_chip *group, unsigned long offset)
+{
+	return __raw_readl(group->reg_base + offset);
+}
+
+static inline void gpreg_write(struct lpc32xx_gpio_chip *group, u32 val, unsigned long offset)
+{
+	__raw_writel(val, group->reg_base + offset);
+}
 
 static void __set_gpio_dir_p012(struct lpc32xx_gpio_chip *group,
 	unsigned pin, int input)
 {
 	if (input)
-		__raw_writel(GPIO012_PIN_TO_BIT(pin),
+		gpreg_write(group, GPIO012_PIN_TO_BIT(pin),
 			group->gpio_grp->dir_clr);
 	else
-		__raw_writel(GPIO012_PIN_TO_BIT(pin),
+		gpreg_write(group, GPIO012_PIN_TO_BIT(pin),
 			group->gpio_grp->dir_set);
 }
 
@@ -194,19 +192,19 @@ static void __set_gpio_dir_p3(struct lpc32xx_gpio_chip *group,
 	u32 u = GPIO3_PIN_TO_BIT(pin);
 
 	if (input)
-		__raw_writel(u, group->gpio_grp->dir_clr);
+		gpreg_write(group, u, group->gpio_grp->dir_clr);
 	else
-		__raw_writel(u, group->gpio_grp->dir_set);
+		gpreg_write(group, u, group->gpio_grp->dir_set);
 }
 
 static void __set_gpio_level_p012(struct lpc32xx_gpio_chip *group,
 	unsigned pin, int high)
 {
 	if (high)
-		__raw_writel(GPIO012_PIN_TO_BIT(pin),
+		gpreg_write(group, GPIO012_PIN_TO_BIT(pin),
 			group->gpio_grp->outp_set);
 	else
-		__raw_writel(GPIO012_PIN_TO_BIT(pin),
+		gpreg_write(group, GPIO012_PIN_TO_BIT(pin),
 			group->gpio_grp->outp_clr);
 }
 
@@ -216,31 +214,31 @@ static void __set_gpio_level_p3(struct lpc32xx_gpio_chip *group,
 	u32 u = GPIO3_PIN_TO_BIT(pin);
 
 	if (high)
-		__raw_writel(u, group->gpio_grp->outp_set);
+		gpreg_write(group, u, group->gpio_grp->outp_set);
 	else
-		__raw_writel(u, group->gpio_grp->outp_clr);
+		gpreg_write(group, u, group->gpio_grp->outp_clr);
 }
 
 static void __set_gpo_level_p3(struct lpc32xx_gpio_chip *group,
 	unsigned pin, int high)
 {
 	if (high)
-		__raw_writel(GPO3_PIN_TO_BIT(pin), group->gpio_grp->outp_set);
+		gpreg_write(group, GPO3_PIN_TO_BIT(pin), group->gpio_grp->outp_set);
 	else
-		__raw_writel(GPO3_PIN_TO_BIT(pin), group->gpio_grp->outp_clr);
+		gpreg_write(group, GPO3_PIN_TO_BIT(pin), group->gpio_grp->outp_clr);
 }
 
 static int __get_gpio_state_p012(struct lpc32xx_gpio_chip *group,
 	unsigned pin)
 {
-	return GPIO012_PIN_IN_SEL(__raw_readl(group->gpio_grp->inp_state),
+	return GPIO012_PIN_IN_SEL(gpreg_read(group, group->gpio_grp->inp_state),
 		pin);
 }
 
 static int __get_gpio_state_p3(struct lpc32xx_gpio_chip *group,
 	unsigned pin)
 {
-	int state = __raw_readl(group->gpio_grp->inp_state);
+	int state = gpreg_read(group, group->gpio_grp->inp_state);
 
 	/*
 	 * P3 GPIO pin input mapping is not contiguous, GPIOP3-0..4 is mapped
@@ -252,13 +250,13 @@ static int __get_gpio_state_p3(struct lpc32xx_gpio_chip *group,
 static int __get_gpi_state_p3(struct lpc32xx_gpio_chip *group,
 	unsigned pin)
 {
-	return GPI3_PIN_IN_SEL(__raw_readl(group->gpio_grp->inp_state), pin);
+	return GPI3_PIN_IN_SEL(gpreg_read(group, group->gpio_grp->inp_state), pin);
 }
 
 static int __get_gpo_state_p3(struct lpc32xx_gpio_chip *group,
 	unsigned pin)
 {
-	return GPO3_PIN_IN_SEL(__raw_readl(group->gpio_grp->outp_state), pin);
+	return GPO3_PIN_IN_SEL(gpreg_read(group, group->gpio_grp->outp_state), pin);
 }
 
 /*
@@ -507,12 +505,18 @@ static int lpc32xx_of_xlate(struct gpio_chip *gc,
 static int lpc32xx_gpio_probe(struct platform_device *pdev)
 {
 	int i;
+	void __iomem *reg_base;
+
+	reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 
 	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++) {
 		if (pdev->dev.of_node) {
 			lpc32xx_gpiochip[i].chip.of_xlate = lpc32xx_of_xlate;
 			lpc32xx_gpiochip[i].chip.of_gpio_n_cells = 3;
 			lpc32xx_gpiochip[i].chip.of_node = pdev->dev.of_node;
+			lpc32xx_gpiochip[i].reg_base = reg_base;
 		}
 		devm_gpiochip_add_data(&pdev->dev, &lpc32xx_gpiochip[i].chip,
 				  &lpc32xx_gpiochip[i]);
@@ -537,3 +541,7 @@ static struct platform_driver lpc32xx_gpio_driver = {
 };
 
 module_platform_driver(lpc32xx_gpio_driver);
+
+MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIO driver for LPC32xx SoC");

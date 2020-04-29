@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO driver for AMD
  *
@@ -5,13 +6,8 @@
  * Authors: Ken Xue <Ken.Xue@amd.com>
  *      Wu, Jeff <Jeff.Wu@amd.com>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  * Contact Information: Nehal Shah <Nehal-bakulchandra.Shah@amd.com>
  *			Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
- *
  */
 
 #include <linux/err.h>
@@ -24,7 +20,7 @@
 #include <linux/errno.h>
 #include <linux/log2.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -50,7 +46,10 @@ static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	pin_reg = readl(gpio_dev->base + offset * 4);
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
-	return !(pin_reg & BIT(OUTPUT_ENABLE_OFF));
+	if (pin_reg & BIT(OUTPUT_ENABLE_OFF))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int amd_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -247,16 +246,16 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
+				u8 level = (pin_reg >> ACTIVE_LEVEL_OFF) &
+						ACTIVE_LEVEL_MASK;
 				interrupt_enable = "interrupt is enabled|";
 
-				if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
-				    !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
-					active_level = "Active low|";
-				else if (pin_reg & BIT(ACTIVE_LEVEL_OFF) &&
-					 !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
+				if (level == ACTIVE_LEVEL_HIGH)
 					active_level = "Active high|";
-				else if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
-					 pin_reg & BIT(ACTIVE_LEVEL_OFF + 1))
+				else if (level == ACTIVE_LEVEL_LOW)
+					active_level = "Active low|";
+				else if (!(pin_reg & BIT(LEVEL_TRIG_OFF)) &&
+					 level == ACTIVE_LEVEL_BOTH)
 					active_level = "Active on both|";
 				else
 					active_level = "Unknown Active level|";
@@ -348,21 +347,12 @@ static void amd_gpio_irq_enable(struct irq_data *d)
 	unsigned long flags;
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
-	u32 mask = BIT(INTERRUPT_ENABLE_OFF) | BIT(INTERRUPT_MASK_OFF);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
 	pin_reg |= BIT(INTERRUPT_ENABLE_OFF);
 	pin_reg |= BIT(INTERRUPT_MASK_OFF);
 	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
-	/*
-	 * When debounce logic is enabled it takes ~900 us before interrupts
-	 * can be enabled.  During this "debounce warm up" period the
-	 * "INTERRUPT_ENABLE" bit will read as 0. Poll the bit here until it
-	 * reads back as 1, signaling that interrupts are now enabled.
-	 */
-	while ((readl(gpio_dev->base + (d->hwirq)*4) & mask) != mask)
-		continue;
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 }
 
@@ -426,7 +416,7 @@ static void amd_gpio_irq_eoi(struct irq_data *d)
 static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	int ret = 0;
-	u32 pin_reg;
+	u32 pin_reg, pin_reg_irq_en, mask;
 	unsigned long flags, irq_flags;
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
@@ -495,6 +485,28 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	pin_reg |= CLR_INTR_STAT << INTERRUPT_STS_OFF;
+	/*
+	 * If WAKE_INT_MASTER_REG.MaskStsEn is set, a software write to the
+	 * debounce registers of any GPIO will block wake/interrupt status
+	 * generation for *all* GPIOs for a length of time that depends on
+	 * WAKE_INT_MASTER_REG.MaskStsLength[11:0].  During this period the
+	 * INTERRUPT_ENABLE bit will read as 0.
+	 *
+	 * We temporarily enable irq for the GPIO whose configuration is
+	 * changing, and then wait for it to read back as 1 to know when
+	 * debounce has settled and then disable the irq again.
+	 * We do this polling with the spinlock held to ensure other GPIO
+	 * access routines do not read an incorrect value for the irq enable
+	 * bit of other GPIOs.  We keep the GPIO masked while polling to avoid
+	 * spurious irqs, and disable the irq again after polling.
+	 */
+	mask = BIT(INTERRUPT_ENABLE_OFF);
+	pin_reg_irq_en = pin_reg;
+	pin_reg_irq_en |= mask;
+	pin_reg_irq_en &= ~BIT(INTERRUPT_MASK_OFF);
+	writel(pin_reg_irq_en, gpio_dev->base + (d->hwirq)*4);
+	while ((readl(gpio_dev->base + (d->hwirq)*4) & mask) != mask)
+		continue;
 	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
@@ -531,7 +543,8 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i, irqnr;
 	unsigned long flags;
-	u32 *regs, regval;
+	u32 __iomem *regs;
+	u32  regval;
 	u64 status, mask;
 
 	/* Read the wake status */
@@ -552,18 +565,29 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 		/* Each status bit covers four pins */
 		for (i = 0; i < 4; i++) {
 			regval = readl(regs + i);
-			if (!(regval & PIN_IRQ_PENDING))
+			if (!(regval & PIN_IRQ_PENDING) ||
+			    !(regval & BIT(INTERRUPT_MASK_OFF)))
 				continue;
 			irq = irq_find_mapping(gc->irq.domain, irqnr + i);
-			generic_handle_irq(irq);
+			if (irq != 0)
+				generic_handle_irq(irq);
 
 			/* Clear interrupt.
 			 * We must read the pin register again, in case the
 			 * value was changed while executing
 			 * generic_handle_irq() above.
+			 * If we didn't find a mapping for the interrupt,
+			 * disable it in order to avoid a system hang caused
+			 * by an interrupt storm.
 			 */
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 			regval = readl(regs + i);
+			if (irq == 0) {
+				regval &= ~BIT(INTERRUPT_ENABLE_OFF);
+				dev_dbg(&gpio_dev->pdev->dev,
+					"Disabling spurious GPIO IRQ %d\n",
+					irqnr + i);
+			}
 			writel(regval, regs + i);
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 			ret = IRQ_HANDLED;
@@ -777,8 +801,7 @@ static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
 
 static int amd_gpio_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct amd_gpio *gpio_dev = platform_get_drvdata(pdev);
+	struct amd_gpio *gpio_dev = dev_get_drvdata(dev);
 	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
 	int i;
 
@@ -796,8 +819,7 @@ static int amd_gpio_suspend(struct device *dev)
 
 static int amd_gpio_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct amd_gpio *gpio_dev = platform_get_drvdata(pdev);
+	struct amd_gpio *gpio_dev = dev_get_drvdata(dev);
 	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
 	int i;
 
@@ -847,16 +869,14 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_dev->base = devm_ioremap_nocache(&pdev->dev, res->start,
+	gpio_dev->base = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 	if (!gpio_dev->base)
 		return -ENOMEM;
 
 	irq_base = platform_get_irq(pdev, 0);
-	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Failed to get gpio IRQ: %d\n", irq_base);
+	if (irq_base < 0)
 		return irq_base;
-	}
 
 #ifdef CONFIG_PM_SLEEP
 	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
@@ -918,8 +938,8 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler, 0,
-			       KBUILD_MODNAME, gpio_dev);
+	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
 

@@ -30,10 +30,10 @@ struct tomoyo_domain_info tomoyo_kernel_domain;
  */
 int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 			 struct tomoyo_acl_param *param,
-			 bool (*check_duplicate) (const struct tomoyo_acl_head
-						  *,
-						  const struct tomoyo_acl_head
-						  *))
+			 bool (*check_duplicate)(const struct tomoyo_acl_head
+						 *,
+						 const struct tomoyo_acl_head
+						 *))
 {
 	int error = param->is_delete ? -ENOENT : -ENOMEM;
 	struct tomoyo_acl_head *entry;
@@ -41,7 +41,8 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -ENOMEM;
-	list_for_each_entry_rcu(entry, list, list) {
+	list_for_each_entry_rcu(entry, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		if (!check_duplicate(entry, new_entry))
@@ -90,13 +91,13 @@ static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *a,
  */
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 			 struct tomoyo_acl_param *param,
-			 bool (*check_duplicate) (const struct tomoyo_acl_info
-						  *,
-						  const struct tomoyo_acl_info
-						  *),
-			 bool (*merge_duplicate) (struct tomoyo_acl_info *,
-						  struct tomoyo_acl_info *,
-						  const bool))
+			 bool (*check_duplicate)(const struct tomoyo_acl_info
+						 *,
+						 const struct tomoyo_acl_info
+						 *),
+			 bool (*merge_duplicate)(struct tomoyo_acl_info *,
+						 struct tomoyo_acl_info *,
+						 const bool))
 {
 	const bool is_delete = param->is_delete;
 	int error = is_delete ? -ENOENT : -ENOMEM;
@@ -119,7 +120,8 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	}
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(entry, list, list) {
+	list_for_each_entry_rcu(entry, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
@@ -157,16 +159,17 @@ out:
  * Caller holds tomoyo_read_lock().
  */
 void tomoyo_check_acl(struct tomoyo_request_info *r,
-		      bool (*check_entry) (struct tomoyo_request_info *,
-					   const struct tomoyo_acl_info *))
+		      bool (*check_entry)(struct tomoyo_request_info *,
+					  const struct tomoyo_acl_info *))
 {
 	const struct tomoyo_domain_info *domain = r->domain;
 	struct tomoyo_acl_info *ptr;
-	bool retried = false;
 	const struct list_head *list = &domain->acl_info_list;
+	u16 i = 0;
 
 retry:
-	list_for_each_entry_rcu(ptr, list, list) {
+	list_for_each_entry_rcu(ptr, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (ptr->is_deleted || ptr->type != r->param_type)
 			continue;
 		if (!check_entry(r, ptr))
@@ -177,9 +180,10 @@ retry:
 		r->granted = true;
 		return;
 	}
-	if (!retried) {
-		retried = true;
-		list = &domain->ns->acl_group[domain->group];
+	for (; i < TOMOYO_MAX_ACL_GROUPS; i++) {
+		if (!test_bit(i, domain->group))
+			continue;
+		list = &domain->ns->acl_group[i++];
 		goto retry;
 	}
 	r->granted = false;
@@ -198,6 +202,7 @@ LIST_HEAD(tomoyo_domain_list);
 static const char *tomoyo_last_word(const char *name)
 {
 	const char *cp = strrchr(name, ' ');
+
 	if (cp)
 		return cp + 1;
 	return name;
@@ -220,6 +225,7 @@ static bool tomoyo_same_transition_control(const struct tomoyo_acl_head *a,
 	const struct tomoyo_transition_control *p2 = container_of(b,
 								  typeof(*p2),
 								  head);
+
 	return p1->type == p2->type && p1->is_last_name == p2->is_last_name
 		&& p1->domainname == p2->domainname
 		&& p1->program == p2->program;
@@ -240,6 +246,7 @@ int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 	int error = param->is_delete ? -ENOENT : -ENOMEM;
 	char *program = param->data;
 	char *domainname = strstr(program, " from ");
+
 	if (domainname) {
 		*domainname = '\0';
 		domainname += 6;
@@ -293,7 +300,9 @@ static inline bool tomoyo_scan_transition
  const enum tomoyo_transition_type type)
 {
 	const struct tomoyo_transition_control *ptr;
-	list_for_each_entry_rcu(ptr, list, head.list) {
+
+	list_for_each_entry_rcu(ptr, list, head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (ptr->head.is_deleted || ptr->type != type)
 			continue;
 		if (ptr->domainname) {
@@ -338,9 +347,11 @@ static enum tomoyo_transition_type tomoyo_transition_type
 {
 	const char *last_name = tomoyo_last_word(domainname->name);
 	enum tomoyo_transition_type type = TOMOYO_TRANSITION_CONTROL_NO_RESET;
+
 	while (type < TOMOYO_MAX_TRANSITION_TYPE) {
 		const struct list_head * const list =
 			&ns->policy_list[TOMOYO_ID_TRANSITION_CONTROL];
+
 		if (!tomoyo_scan_transition(list, domainname, program,
 					    last_name, type)) {
 			type++;
@@ -375,6 +386,7 @@ static bool tomoyo_same_aggregator(const struct tomoyo_acl_head *a,
 							  head);
 	const struct tomoyo_aggregator *p2 = container_of(b, typeof(*p2),
 							  head);
+
 	return p1->original_name == p2->original_name &&
 		p1->aggregated_name == p2->aggregated_name;
 }
@@ -394,6 +406,7 @@ int tomoyo_write_aggregator(struct tomoyo_acl_param *param)
 	int error = param->is_delete ? -ENOENT : -ENOMEM;
 	const char *original_name = tomoyo_read_token(param);
 	const char *aggregated_name = tomoyo_read_token(param);
+
 	if (!tomoyo_correct_word(original_name) ||
 	    !tomoyo_correct_path(aggregated_name))
 		return -EINVAL;
@@ -426,6 +439,7 @@ static struct tomoyo_policy_namespace *tomoyo_find_namespace
 (const char *name, const unsigned int len)
 {
 	struct tomoyo_policy_namespace *ns;
+
 	list_for_each_entry(ns, &tomoyo_namespace_list, namespace_list) {
 		if (strncmp(name, ns->name, len) ||
 		    (name[len] && name[len] != ' '))
@@ -451,6 +465,7 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace(const char *domainname)
 	struct tomoyo_policy_namespace *entry;
 	const char *cp = domainname;
 	unsigned int len = 0;
+
 	while (*cp && *cp++ != ' ')
 		len++;
 	ptr = tomoyo_find_namespace(domainname, len);
@@ -466,6 +481,7 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace(const char *domainname)
 	ptr = tomoyo_find_namespace(domainname, len);
 	if (!ptr && tomoyo_memory_ok(entry)) {
 		char *name = (char *) (entry + 1);
+
 		ptr = entry;
 		memmove(name, domainname, len);
 		name[len] = '\0';
@@ -490,6 +506,7 @@ static bool tomoyo_namespace_jump(const char *domainname)
 {
 	const char *namespace = tomoyo_current_namespace()->name;
 	const int len = strlen(namespace);
+
 	return strncmp(domainname, namespace, len) ||
 		(domainname[len] && domainname[len] != ' ');
 }
@@ -510,6 +527,7 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 	struct tomoyo_domain_info e = { };
 	struct tomoyo_domain_info *entry = tomoyo_find_domain(domainname);
 	bool created = false;
+
 	if (entry) {
 		if (transit) {
 			/*
@@ -546,8 +564,9 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 	 */
 	if (transit) {
 		const struct tomoyo_domain_info *domain = tomoyo_domain();
+
 		e.profile = domain->profile;
-		e.group = domain->group;
+		memcpy(e.group, domain->group, sizeof(e.group));
 	}
 	e.domainname = tomoyo_get_name(domainname);
 	if (!e.domainname)
@@ -569,12 +588,17 @@ out:
 	if (entry && transit) {
 		if (created) {
 			struct tomoyo_request_info r;
+			int i;
+
 			tomoyo_init_request_info(&r, entry,
 						 TOMOYO_MAC_FILE_EXECUTE);
 			r.granted = false;
 			tomoyo_write_log(&r, "use_profile %u\n",
 					 entry->profile);
-			tomoyo_write_log(&r, "use_group %u\n", entry->group);
+			for (i = 0; i < TOMOYO_MAX_ACL_GROUPS; i++)
+				if (test_bit(i, entry->group))
+					tomoyo_write_log(&r, "use_group %u\n",
+							 i);
 			tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
 		}
 	}
@@ -712,9 +736,11 @@ retry:
 		struct tomoyo_aggregator *ptr;
 		struct list_head *list =
 			&old_domain->ns->policy_list[TOMOYO_ID_AGGREGATOR];
+
 		/* Check 'aggregator' directive. */
 		candidate = &exename;
-		list_for_each_entry_rcu(ptr, list, head.list) {
+		list_for_each_entry_rcu(ptr, list, head.list,
+					srcu_read_lock_held(&tomoyo_ss)) {
 			if (ptr->head.is_deleted ||
 			    !tomoyo_path_matches_pattern(&exename,
 							 ptr->original_name))
@@ -747,6 +773,7 @@ retry:
 	 */
 	if (ee->transition) {
 		const char *domainname = ee->transition->name;
+
 		reject_on_transition_failure = true;
 		if (!strcmp(domainname, "keep"))
 			goto force_keep_domain;
@@ -758,6 +785,7 @@ retry:
 			goto force_initialize_domain;
 		if (!strcmp(domainname, "parent")) {
 			char *cp;
+
 			strncpy(ee->tmp, old_domain->domainname->name,
 				TOMOYO_EXEC_TMPSIZE - 1);
 			cp = strrchr(ee->tmp, ' ');
@@ -822,8 +850,7 @@ force_jump_domain:
 	if (domain)
 		retval = 0;
 	else if (reject_on_transition_failure) {
-		printk(KERN_WARNING "ERROR: Domain '%s' not ready.\n",
-		       ee->tmp);
+		pr_warn("ERROR: Domain '%s' not ready.\n", ee->tmp);
 		retval = -ENOMEM;
 	} else if (ee->r.mode == TOMOYO_CONFIG_ENFORCING)
 		retval = -ENOMEM;
@@ -834,16 +861,20 @@ force_jump_domain:
 			ee->r.granted = false;
 			tomoyo_write_log(&ee->r, "%s", tomoyo_dif
 					 [TOMOYO_DIF_TRANSITION_FAILED]);
-			printk(KERN_WARNING
-			       "ERROR: Domain '%s' not defined.\n", ee->tmp);
+			pr_warn("ERROR: Domain '%s' not defined.\n", ee->tmp);
 		}
 	}
  out:
 	if (!domain)
 		domain = old_domain;
 	/* Update reference count on "struct tomoyo_domain_info". */
-	atomic_inc(&domain->users);
-	bprm->cred->security = domain;
+	{
+		struct tomoyo_task *s = tomoyo_task(current);
+
+		s->old_domain_info = s->domain_info;
+		s->domain_info = domain;
+		atomic_inc(&domain->users);
+	}
 	kfree(exename.name);
 	if (!retval) {
 		ee->r.domain = domain;

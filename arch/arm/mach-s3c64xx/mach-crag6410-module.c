@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio/machine.h>
 
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
@@ -193,8 +194,8 @@ static struct wm8994_pdata wm8994_pdata = {
 		0x3,          /* IRQ out, active high, CMOS */
 	},
 	.ldo = {
-		 { .enable = S3C64XX_GPN(6), .init_data = &wm8994_ldo1, },
-		 { .enable = S3C64XX_GPN(4), .init_data = &wm8994_ldo2, },
+		 { .init_data = &wm8994_ldo1, },
+		 { .init_data = &wm8994_ldo2, },
 	},
 };
 
@@ -202,13 +203,22 @@ static const struct i2c_board_info wm1277_devs[] = {
 	{ I2C_BOARD_INFO("wm8958", 0x1a),  /* WM8958 is the superset */
 	  .platform_data = &wm8994_pdata,
 	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
+	  .dev_name = "wm8958",
+	},
+};
+
+static struct gpiod_lookup_table wm8994_gpiod_table = {
+	.dev_id = "i2c-wm8958", /* I2C device name */
+	.table = {
+		GPIO_LOOKUP("GPION", 6,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPION", 4,
+			    "wlf,ldo2ena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
 static struct arizona_pdata wm5102_reva_pdata = {
-	.ldo1 = {
-		.ldoena = S3C64XX_GPN(7),
-	},
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 4,
@@ -237,10 +247,16 @@ static struct spi_board_info wm5102_reva_spi_devs[] = {
 	},
 };
 
-static struct arizona_pdata wm5102_pdata = {
-	.ldo1 = {
-		.ldoena = S3C64XX_GPN(7),
+static struct gpiod_lookup_table wm5102_reva_gpiod_table = {
+	.dev_id = "spi0.1", /* SPI device name */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldoena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
+};
+
+static struct arizona_pdata wm5102_pdata = {
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 2,
@@ -261,6 +277,15 @@ static struct spi_board_info wm5102_spi_devs[] = {
 				  WM831X_IRQ_GPIO_2,
 		.controller_data = &codec_spi_csinfo,
 		.platform_data = &wm5102_pdata,
+	},
+};
+
+static struct gpiod_lookup_table wm5102_gpiod_table = {
+	.dev_id = "spi0.1", /* SPI device name */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -303,6 +328,8 @@ static const struct {
 	int num_i2c_devs;
 	const struct spi_board_info *spi_devs;
 	int num_spi_devs;
+
+	struct gpiod_lookup_table *gpiod_table;
 } gf_mods[] = {
 	{ .id = 0x01, .rev = 0xff, .name = "1250-EV1 Springbank" },
 	{ .id = 0x02, .rev = 0xff, .name = "1251-EV1 Jura" },
@@ -337,13 +364,16 @@ static const struct {
 	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs) },
 	{ .id = 0x3c, .rev = 0xff, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .rev = 0xff, .name = "1277-EV1 Littlemill",
-	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs) },
+	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs),
+	  .gpiod_table = &wm8994_gpiod_table },
 	{ .id = 0x3e, .rev = 0, .name = "WM5102-6271-EV1-CS127 Amrut",
 	  .spi_devs = wm5102_reva_spi_devs,
-	  .num_spi_devs = ARRAY_SIZE(wm5102_reva_spi_devs) },
+	  .num_spi_devs = ARRAY_SIZE(wm5102_reva_spi_devs),
+	  .gpiod_table = &wm5102_reva_gpiod_table },
 	{ .id = 0x3e, .rev = -1, .name = "WM5102-6271-EV1-CS127 Amrut",
 	  .spi_devs = wm5102_spi_devs,
-	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs) },
+	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs),
+	  .gpiod_table = &wm5102_gpiod_table },
 	{ .id = 0x3f, .rev = -1, .name = "WM2200-6271-CS90-M-REV1",
 	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c) },
 };
@@ -366,6 +396,10 @@ static int wlf_gf_module_probe(struct i2c_client *i2c,
 					    rev == gf_mods[i].rev))
 			break;
 
+	gpiod_add_lookup_table(&wm5102_reva_gpiod_table);
+	gpiod_add_lookup_table(&wm5102_gpiod_table);
+	gpiod_add_lookup_table(&wm8994_gpiod_table);
+
 	if (i < ARRAY_SIZE(gf_mods)) {
 		dev_info(&i2c->dev, "%s revision %d\n",
 			 gf_mods[i].name, rev + 1);
@@ -379,6 +413,9 @@ static int wlf_gf_module_probe(struct i2c_client *i2c,
 
 		spi_register_board_info(gf_mods[i].spi_devs,
 					gf_mods[i].num_spi_devs);
+
+		if (gf_mods[i].gpiod_table)
+			gpiod_add_lookup_table(gf_mods[i].gpiod_table);
 	} else {
 		dev_warn(&i2c->dev, "Unknown module ID 0x%x revision %d\n",
 			 id, rev + 1);

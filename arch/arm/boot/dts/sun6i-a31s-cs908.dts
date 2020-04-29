@@ -66,19 +66,22 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_mii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &ohci1 {
@@ -87,7 +90,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

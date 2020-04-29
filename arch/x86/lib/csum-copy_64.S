@@ -31,21 +31,25 @@
 
 	.macro source
 10:
-	_ASM_EXTABLE(10b, .Lbad_source)
+	_ASM_EXTABLE_UA(10b, .Lbad_source)
 	.endm
 
 	.macro dest
 20:
-	_ASM_EXTABLE(20b, .Lbad_dest)
+	_ASM_EXTABLE_UA(20b, .Lbad_dest)
 	.endm
 
+	/*
+	 * No _ASM_EXTABLE_UA; this is used for intentional prefetch on a
+	 * potentially unmapped kernel address.
+	 */
 	.macro ignore L=.Lignore
 30:
 	_ASM_EXTABLE(30b, \L)
 	.endm
 
 
-ENTRY(csum_partial_copy_generic)
+SYM_FUNC_START(csum_partial_copy_generic)
 	cmpl	$3*64, %edx
 	jle	.Lignore
 
@@ -221,4 +225,4 @@ ENTRY(csum_partial_copy_generic)
 	jz   .Lende
 	movl $-EFAULT, (%rax)
 	jmp .Lende
-ENDPROC(csum_partial_copy_generic)
+SYM_FUNC_END(csum_partial_copy_generic)

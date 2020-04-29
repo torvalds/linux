@@ -14,7 +14,7 @@
  * Based on the TPS65218 driver
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -33,7 +33,7 @@ static int lp873x_gpio_get_direction(struct gpio_chip *chip,
 				     unsigned int offset)
 {
 	/* This device is output only */
-	return 0;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int lp873x_gpio_direction_input(struct gpio_chip *chip,

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Rockchip eFuse Driver
  *
  * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
  * Author: Caesar Wang <wxt@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk.h>
@@ -122,7 +114,8 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 	addr_offset = offset % RK3399_NBYTES;
 	addr_len = addr_end - addr_start;
 
-	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
+	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
+		      GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto nomem;
@@ -174,7 +167,8 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 	addr_offset = offset % RK3399_NBYTES;
 	addr_len = addr_end - addr_start;
 
-	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
+	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
+		      GFP_KERNEL);
 	if (!buf) {
 		clk_disable_unprepare(efuse->clk);
 		return -ENOMEM;

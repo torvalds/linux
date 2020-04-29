@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_PGTABLE_H
@@ -33,6 +30,8 @@ extern int mem_init_done;
 #define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
 
 #define pgprot_noncached(x)	(x)
+#define pgprot_writecombine	pgprot_noncached
+#define pgprot_device		pgprot_noncached
 
 #define __swp_type(x)		(0)
 #define __swp_offset(x)		(0)
@@ -43,8 +42,6 @@ extern int mem_init_done;
 #define ZERO_PAGE(vaddr)	({ BUG(); NULL; })
 
 #define swapper_pg_dir ((pgd_t *) NULL)
-
-#define pgtable_cache_init()	do {} while (0)
 
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 
@@ -59,9 +56,7 @@ extern int mem_init_done;
 
 #else /* CONFIG_MMU */
 
-#include <asm-generic/4level-fixup.h>
-
-#define __PAGETABLE_PMD_FOLDED
+#include <asm-generic/pgtable-nopmd.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -81,10 +76,6 @@ extern pte_t *va_to_pte(unsigned long address);
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-
-static inline int pte_special(pte_t pte)	{ return 0; }
-
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /* Start and end of the vmalloc area. */
 /* Make sure to map the vmalloc area above the pinned kernel memory area
@@ -138,13 +129,8 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
  *
  */
 
-/* PMD_SHIFT determines the size of the area mapped by the PTE pages */
-#define PMD_SHIFT	(PAGE_SHIFT + PTE_SHIFT)
-#define PMD_SIZE	(1UL << PMD_SHIFT)
-#define PMD_MASK	(~(PMD_SIZE-1))
-
 /* PGDIR_SHIFT determines what a top-level page table entry can map */
-#define PGDIR_SHIFT	PMD_SHIFT
+#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_SHIFT)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -165,9 +151,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define pte_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pte "PTE_FMT".\n", \
 		__FILE__, __LINE__, pte_val(e))
-#define pmd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pmd %08lx.\n", \
-		__FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n", \
 		__FILE__, __LINE__, pgd_val(e))
@@ -198,7 +181,7 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
  * is cleared in the TLB miss handler before the TLB entry is loaded.
  * - All other bits of the PTE are loaded into TLBLO without
  *  * modification, leaving us only the bits 20, 21, 24, 25, 26, 30 for
- * software PTE bits.  We actually use use bits 21, 24, 25, and
+ * software PTE bits.  We actually use bits 21, 24, 25, and
  * 30 respectively for the software bits: ACCESSED, DIRTY, RW, and
  * PRESENT.
  */
@@ -313,18 +296,6 @@ extern unsigned long empty_zero_page[1024];
 	__pte(((pte_basic_t)(pfn) << PFN_SHIFT_OFFSET) | pgprot_val(prot))
 
 #ifndef __ASSEMBLY__
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-static inline int pgd_none(pgd_t pgd)		{ return 0; }
-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
-static inline int pgd_present(pgd_t pgd)	{ return 1; }
-#define pgd_clear(xp)				do { } while (0)
-#define pgd_page(pgd) \
-	((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
-
 /*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
@@ -479,12 +450,6 @@ static inline void ptep_mkdirty(struct mm_struct *mm,
 #define pgd_index(address)	 ((address) >> PGDIR_SHIFT)
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
-{
-	return (pmd_t *) dir;
-}
-
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)		\
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
@@ -524,11 +489,6 @@ extern unsigned long iopa(unsigned long addr);
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
-
 void do_page_fault(struct pt_regs *regs, unsigned long address,
 		   unsigned long error_code);
 
@@ -550,13 +510,6 @@ void __init *early_get_page(void);
 #include <asm-generic/pgtable.h>
 
 extern unsigned long ioremap_bot, ioremap_base;
-
-void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(size_t size, void *vaddr);
-void consistent_sync(void *vaddr, size_t size, int direction);
-void consistent_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction);
-unsigned long consistent_virt_to_pfn(void *vaddr);
 
 void setup_memory(void);
 #endif /* __ASSEMBLY__ */

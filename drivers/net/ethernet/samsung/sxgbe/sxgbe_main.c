@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 10G controller driver for Samsung SoCs
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Siva Reddy Kallam <siva.kallam@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -298,8 +295,8 @@ static int sxgbe_init_phy(struct net_device *ndev)
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (phy_iface == PHY_INTERFACE_MODE_RMII))
-		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
-					 SUPPORTED_1000baseT_Full);
+		phy_set_max_speed(phydev, SPEED_1000);
+
 	if (phydev->phy_id == 0) {
 		phy_disconnect(phydev);
 		return -ENODEV;
@@ -400,9 +397,9 @@ static int init_tx_ring(struct device *dev, u8 queue_no,
 	}
 
 	/* allocate memory for TX descriptors */
-	tx_ring->dma_tx = dma_zalloc_coherent(dev,
-					      tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
-					      &tx_ring->dma_tx_phy, GFP_KERNEL);
+	tx_ring->dma_tx = dma_alloc_coherent(dev,
+					     tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
+					     &tx_ring->dma_tx_phy, GFP_KERNEL);
 	if (!tx_ring->dma_tx)
 		return -ENOMEM;
 
@@ -479,9 +476,9 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 	rx_ring->queue_no = queue_no;
 
 	/* allocate memory for RX descriptors */
-	rx_ring->dma_rx = dma_zalloc_coherent(priv->device,
-					      rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
-					      &rx_ring->dma_rx_phy, GFP_KERNEL);
+	rx_ring->dma_rx = dma_alloc_coherent(priv->device,
+					     rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+					     &rx_ring->dma_rx_phy, GFP_KERNEL);
 
 	if (rx_ring->dma_rx == NULL)
 		return -ENOMEM;
@@ -1575,7 +1572,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
-static void sxgbe_tx_timeout(struct net_device *dev)
+static void sxgbe_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 
@@ -1942,9 +1939,7 @@ static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (!dev->phydev)
-			return -EINVAL;
-		ret = phy_mii_ioctl(dev->phydev, rq, cmd);
+		ret = phy_do_ioctl(dev, rq, cmd);
 		break;
 	default:
 		break;
@@ -2282,7 +2277,7 @@ static int __init sxgbe_cmdline_opt(char *str)
 	if (!str || !*str)
 		return -EINVAL;
 	while ((opt = strsep(&str, ",")) != NULL) {
-		if (!strncmp(opt, "eee_timer:", 6)) {
+		if (!strncmp(opt, "eee_timer:", 10)) {
 			if (kstrtoint(opt + 10, 0, &eee_timer))
 				goto err;
 		}
@@ -2299,7 +2294,7 @@ __setup("sxgbeeth=", sxgbe_cmdline_opt);
 
 
 
-MODULE_DESCRIPTION("SAMSUNG 10G/2.5G/1G Ethernet PLATFORM driver");
+MODULE_DESCRIPTION("Samsung 10G/2.5G/1G Ethernet PLATFORM driver");
 
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
 MODULE_PARM_DESC(eee_timer, "EEE-LPI Default LS timer value");

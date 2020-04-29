@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -123,7 +115,6 @@ struct io_req {
 	u32 command;
 	u32 status;
 	u8 *pbuf;
-	_sema	sema;
 
 	void (*_async_io_callback)(struct adapter *padater, struct io_req *pio_req, u8 *cnxt);
 	u8 *cnxt;
@@ -177,7 +168,7 @@ struct reg_protocol_rd {
 
 	u32 Byte2Access : 1;
 	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
+	u32 BurstMode :1;
 	u32 FixOrContinuous : 1;
 
 	u32 Reserved4 : 16;
@@ -233,7 +224,7 @@ struct reg_protocol_wt {
 
 	u32 Byte2Access : 1;
 	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
+	u32 BurstMode :1;
 	u32 FixOrContinuous : 1;
 
 	u32 Reserved4 : 16;
@@ -268,7 +259,7 @@ struct io_queue {
 	struct	intf_hdl	intf;
 };
 
-struct io_priv{
+struct io_priv {
 
 	struct adapter *padapter;
 

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  *
  * Misc librarized functions for cmdline poking.
  */

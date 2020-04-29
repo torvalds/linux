@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ARCH_ARM_MACH_OMAP2_CM_REGBITS_24XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM_REGBITS_24XX_H
 
@@ -8,10 +9,6 @@
  * Copyright (C) 2007 Nokia Corporation
  *
  * Written by Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define OMAP24XX_AUTOSTATE_MPU_MASK			(1 << 0)

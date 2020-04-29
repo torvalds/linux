@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Parallel port to Walkera WK-0701 TX joystick
  *
  *  Copyright (c) 2008 Peter Popovec
  *
- *  More about driver:  <file:Documentation/input/walkera0701.txt>
+ *  More about driver:  <file:Documentation/input/devices/walkera0701.rst>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
-*/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 

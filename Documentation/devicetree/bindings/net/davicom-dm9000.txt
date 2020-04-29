@@ -5,7 +5,6 @@ Required properties:
 - reg : physical addresses and sizes of registers, must contain 2 entries:
     first entry : address register,
     second entry : data register.
-- interrupt-parent : interrupt controller to which the device is connected
 - interrupts : interrupt specifier specific to interrupt controller
 
 Optional properties:

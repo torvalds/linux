@@ -1,32 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
  * based on exynos_drm_drv.c
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_of.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
@@ -184,7 +179,7 @@ err_mode_config_cleanup:
 err_free:
 	drm_dev->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 	return ret;
 }
 
@@ -204,7 +199,7 @@ static void rockchip_drm_unbind(struct device *dev)
 
 	drm_dev->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 }
 
 static const struct file_operations rockchip_drm_driver_fops = {
@@ -219,16 +214,13 @@ static const struct file_operations rockchip_drm_driver_fops = {
 };
 
 static struct drm_driver rockchip_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
-				  DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.lastclose		= drm_fb_helper_lastclose,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_get_sg_table	= rockchip_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= rockchip_gem_prime_import_sg_table,
 	.gem_prime_vmap		= rockchip_gem_prime_vmap,
@@ -243,60 +235,18 @@ static struct drm_driver rockchip_drm_driver = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-static void rockchip_drm_fb_suspend(struct drm_device *drm)
-{
-	struct rockchip_drm_private *priv = drm->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 1);
-	console_unlock();
-}
-
-static void rockchip_drm_fb_resume(struct drm_device *drm)
-{
-	struct rockchip_drm_private *priv = drm->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 0);
-	console_unlock();
-}
-
 static int rockchip_drm_sys_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct rockchip_drm_private *priv;
 
-	if (!drm)
-		return 0;
-
-	drm_kms_helper_poll_disable(drm);
-	rockchip_drm_fb_suspend(drm);
-
-	priv = drm->dev_private;
-	priv->state = drm_atomic_helper_suspend(drm);
-	if (IS_ERR(priv->state)) {
-		rockchip_drm_fb_resume(drm);
-		drm_kms_helper_poll_enable(drm);
-		return PTR_ERR(priv->state);
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm);
 }
 
 static int rockchip_drm_sys_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct rockchip_drm_private *priv;
 
-	if (!drm)
-		return 0;
-
-	priv = drm->dev_private;
-	drm_atomic_helper_resume(drm, priv->state);
-	rockchip_drm_fb_resume(drm);
-	drm_kms_helper_poll_enable(drm);
-
-	return 0;
+	return drm_mode_config_helper_resume(drm);
 }
 #endif
 
@@ -308,6 +258,53 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 #define MAX_ROCKCHIP_SUB_DRIVERS 16
 static struct platform_driver *rockchip_sub_drivers[MAX_ROCKCHIP_SUB_DRIVERS];
 static int num_rockchip_sub_drivers;
+
+/*
+ * Check if a vop endpoint is leading to a rockchip subdriver or bridge.
+ * Should be called from the component bind stage of the drivers
+ * to ensure that all subdrivers are probed.
+ *
+ * @ep: endpoint of a rockchip vop
+ *
+ * returns true if subdriver, false if external bridge and -ENODEV
+ * if remote port does not contain a device.
+ */
+int rockchip_drm_endpoint_is_subdriver(struct device_node *ep)
+{
+	struct device_node *node = of_graph_get_remote_port_parent(ep);
+	struct platform_device *pdev;
+	struct device_driver *drv;
+	int i;
+
+	if (!node)
+		return -ENODEV;
+
+	/* status disabled will prevent creation of platform-devices */
+	pdev = of_find_device_by_node(node);
+	of_node_put(node);
+	if (!pdev)
+		return -ENODEV;
+
+	/*
+	 * All rockchip subdrivers have probed at this point, so
+	 * any device not having a driver now is an external bridge.
+	 */
+	drv = pdev->dev.driver;
+	if (!drv) {
+		platform_device_put(pdev);
+		return false;
+	}
+
+	for (i = 0; i < num_rockchip_sub_drivers; i++) {
+		if (rockchip_sub_drivers[i] == to_platform_driver(drv)) {
+			platform_device_put(pdev);
+			return true;
+		}
+	}
+
+	platform_device_put(pdev);
+	return false;
+}
 
 static int compare_dev(struct device *dev, void *data)
 {
@@ -332,8 +329,7 @@ static struct component_match *rockchip_drm_match_add(struct device *dev)
 		struct device *p = NULL, *d;
 
 		do {
-			d = bus_find_device(&platform_bus_type, p, &drv->driver,
-					    (void *)platform_bus_type.match);
+			d = platform_find_device_by_driver(p, &drv->driver);
 			put_device(p);
 			p = d;
 
@@ -442,6 +438,14 @@ static int rockchip_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rockchip_drm_platform_shutdown(struct platform_device *pdev)
+{
+	struct drm_device *drm = platform_get_drvdata(pdev);
+
+	if (drm)
+		drm_atomic_helper_shutdown(drm);
+}
+
 static const struct of_device_id rockchip_drm_dt_ids[] = {
 	{ .compatible = "rockchip,display-subsystem", },
 	{ /* sentinel */ },
@@ -451,6 +455,7 @@ MODULE_DEVICE_TABLE(of, rockchip_drm_dt_ids);
 static struct platform_driver rockchip_drm_platform_driver = {
 	.probe = rockchip_drm_platform_probe,
 	.remove = rockchip_drm_platform_remove,
+	.shutdown = rockchip_drm_platform_shutdown,
 	.driver = {
 		.name = "rockchip-drm",
 		.of_match_table = rockchip_drm_dt_ids,
@@ -477,9 +482,11 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(cdn_dp_driver, CONFIG_ROCKCHIP_CDN_DP);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_hdmi_rockchip_pltfm_driver,
 				CONFIG_ROCKCHIP_DW_HDMI);
-	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_driver,
+	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_rockchip_driver,
 				CONFIG_ROCKCHIP_DW_MIPI_DSI);
 	ADD_ROCKCHIP_SUB_DRIVER(inno_hdmi_driver, CONFIG_ROCKCHIP_INNO_HDMI);
+	ADD_ROCKCHIP_SUB_DRIVER(rk3066_hdmi_driver,
+				CONFIG_ROCKCHIP_RK3066_HDMI);
 
 	ret = platform_register_drivers(rockchip_sub_drivers,
 					num_rockchip_sub_drivers);

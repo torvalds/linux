@@ -62,8 +62,8 @@
  * IO workloads.
  */
 
-static int xen_blkif_max_buffer_pages = 1024;
-module_param_named(max_buffer_pages, xen_blkif_max_buffer_pages, int, 0644);
+static int max_buffer_pages = 1024;
+module_param_named(max_buffer_pages, max_buffer_pages, int, 0644);
 MODULE_PARM_DESC(max_buffer_pages,
 "Maximum number of free pages to keep in each block backend buffer");
 
@@ -78,10 +78,22 @@ MODULE_PARM_DESC(max_buffer_pages,
  * algorithm.
  */
 
-static int xen_blkif_max_pgrants = 1056;
-module_param_named(max_persistent_grants, xen_blkif_max_pgrants, int, 0644);
+static int max_pgrants = 1056;
+module_param_named(max_persistent_grants, max_pgrants, int, 0644);
 MODULE_PARM_DESC(max_persistent_grants,
                  "Maximum number of grants to map persistently");
+
+/*
+ * How long a persistent grant is allowed to remain allocated without being in
+ * use. The time is in seconds, 0 means indefinitely long.
+ */
+
+static unsigned int pgrant_timeout = 60;
+module_param_named(persistent_grant_unused_seconds, pgrant_timeout,
+		   uint, 0644);
+MODULE_PARM_DESC(persistent_grant_unused_seconds,
+		 "Time in seconds an unused persistent grant is allowed to "
+		 "remain allocated. Default is 60, 0 means unlimited.");
 
 /*
  * Maximum number of rings/queues blkback supports, allow as many queues as there
@@ -98,7 +110,7 @@ MODULE_PARM_DESC(max_queues,
  * backend, 4KB page granularity is used.
  */
 unsigned int xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
-module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
+module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, 0444);
 MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
 /*
  * The LRU mechanism to clean the lists of persistent grants needs to
@@ -122,6 +134,12 @@ module_param(log_stats, int, 0644);
 
 /* Number of free pages to remove on each call to gnttab_free_pages */
 #define NUM_BATCH_FREE_PAGES 10
+
+static inline bool persistent_gnt_timeout(struct persistent_gnt *persistent_gnt)
+{
+	return pgrant_timeout && (jiffies - persistent_gnt->last_used >=
+			HZ * pgrant_timeout);
+}
 
 static inline int get_free_page(struct xen_blkif_ring *ring, struct page **page)
 {
@@ -215,7 +233,7 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 	struct persistent_gnt *this;
 	struct xen_blkif *blkif = ring->blkif;
 
-	if (ring->persistent_gnt_c >= xen_blkif_max_pgrants) {
+	if (ring->persistent_gnt_c >= max_pgrants) {
 		if (!blkif->vbd.overflow_max_grants)
 			blkif->vbd.overflow_max_grants = 1;
 		return -EBUSY;
@@ -236,8 +254,7 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 		}
 	}
 
-	bitmap_zero(persistent_gnt->flags, PERSISTENT_GNT_FLAGS_SIZE);
-	set_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->active = true;
 	/* Add new node and rebalance tree. */
 	rb_link_node(&(persistent_gnt->node), parent, new);
 	rb_insert_color(&(persistent_gnt->node), &ring->persistent_gnts);
@@ -261,11 +278,11 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 		else if (gref > data->gnt)
 			node = node->rb_right;
 		else {
-			if(test_bit(PERSISTENT_GNT_ACTIVE, data->flags)) {
+			if (data->active) {
 				pr_alert_ratelimited("requesting a grant already in use\n");
 				return NULL;
 			}
-			set_bit(PERSISTENT_GNT_ACTIVE, data->flags);
+			data->active = true;
 			atomic_inc(&ring->persistent_gnt_in_use);
 			return data;
 		}
@@ -276,10 +293,10 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 static void put_persistent_gnt(struct xen_blkif_ring *ring,
                                struct persistent_gnt *persistent_gnt)
 {
-	if(!test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+	if (!persistent_gnt->active)
 		pr_alert_ratelimited("freeing a grant already unused\n");
-	set_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
-	clear_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->last_used = jiffies;
+	persistent_gnt->active = false;
 	atomic_dec(&ring->persistent_gnt_in_use);
 }
 
@@ -371,26 +388,25 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
 	unsigned int num_clean, total;
-	bool scan_used = false, clean_used = false;
+	bool scan_used = false;
 	struct rb_root *root;
-
-	if (ring->persistent_gnt_c < xen_blkif_max_pgrants ||
-	    (ring->persistent_gnt_c == xen_blkif_max_pgrants &&
-	    !ring->blkif->vbd.overflow_max_grants)) {
-		goto out;
-	}
 
 	if (work_busy(&ring->persistent_purge_work)) {
 		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
 		goto out;
 	}
 
-	num_clean = (xen_blkif_max_pgrants / 100) * LRU_PERCENT_CLEAN;
-	num_clean = ring->persistent_gnt_c - xen_blkif_max_pgrants + num_clean;
-	num_clean = min(ring->persistent_gnt_c, num_clean);
-	if ((num_clean == 0) ||
-	    (num_clean > (ring->persistent_gnt_c - atomic_read(&ring->persistent_gnt_in_use))))
-		goto out;
+	if (ring->persistent_gnt_c < max_pgrants ||
+	    (ring->persistent_gnt_c == max_pgrants &&
+	    !ring->blkif->vbd.overflow_max_grants)) {
+		num_clean = 0;
+	} else {
+		num_clean = (max_pgrants / 100) * LRU_PERCENT_CLEAN;
+		num_clean = ring->persistent_gnt_c - max_pgrants + num_clean;
+		num_clean = min(ring->persistent_gnt_c, num_clean);
+		pr_debug("Going to purge at least %u persistent grants\n",
+			 num_clean);
+	}
 
 	/*
 	 * At this point, we can assure that there will be no calls
@@ -401,9 +417,7 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
          * number of grants.
 	 */
 
-	total = num_clean;
-
-	pr_debug("Going to purge %u persistent grants\n", num_clean);
+	total = 0;
 
 	BUG_ON(!list_empty(&ring->persistent_purge_list));
 	root = &ring->persistent_gnts;
@@ -412,46 +426,37 @@ purge_list:
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 
-		if (clean_used) {
-			clear_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+		if (persistent_gnt->active)
 			continue;
-		}
-
-		if (test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+		if (!scan_used && !persistent_gnt_timeout(persistent_gnt))
 			continue;
-		if (!scan_used &&
-		    (test_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags)))
+		if (scan_used && total >= num_clean)
 			continue;
 
 		rb_erase(&persistent_gnt->node, root);
 		list_add(&persistent_gnt->remove_node,
 			 &ring->persistent_purge_list);
-		if (--num_clean == 0)
-			goto finished;
+		total++;
 	}
 	/*
-	 * If we get here it means we also need to start cleaning
+	 * Check whether we also need to start cleaning
 	 * grants that were used since last purge in order to cope
 	 * with the requested num
 	 */
-	if (!scan_used && !clean_used) {
-		pr_debug("Still missing %u purged frames\n", num_clean);
+	if (!scan_used && total < num_clean) {
+		pr_debug("Still missing %u purged frames\n", num_clean - total);
 		scan_used = true;
 		goto purge_list;
 	}
-finished:
-	if (!clean_used) {
-		pr_debug("Finished scanning for grants to clean, removing used flag\n");
-		clean_used = true;
-		goto purge_list;
+
+	if (total) {
+		ring->persistent_gnt_c -= total;
+		ring->blkif->vbd.overflow_max_grants = 0;
+
+		/* We can defer this work */
+		schedule_work(&ring->persistent_purge_work);
+		pr_debug("Purged %u/%u\n", num_clean, total);
 	}
-
-	ring->persistent_gnt_c -= (total - num_clean);
-	ring->blkif->vbd.overflow_max_grants = 0;
-
-	/* We can defer this work */
-	schedule_work(&ring->persistent_purge_work);
-	pr_debug("Purged %u/%u\n", (total - num_clean), total);
 
 out:
 	return;
@@ -592,8 +597,7 @@ static void print_stats(struct xen_blkif_ring *ring)
 		 current->comm, ring->st_oo_req,
 		 ring->st_rd_req, ring->st_wr_req,
 		 ring->st_f_req, ring->st_ds_req,
-		 ring->persistent_gnt_c,
-		 xen_blkif_max_pgrants);
+		 ring->persistent_gnt_c, max_pgrants);
 	ring->st_print = jiffies + msecs_to_jiffies(10 * 1000);
 	ring->st_rd_req = 0;
 	ring->st_wr_req = 0;
@@ -649,8 +653,11 @@ purge_gnt_list:
 			ring->next_lru = jiffies + msecs_to_jiffies(LRU_INTERVAL);
 		}
 
-		/* Shrink if we have more than xen_blkif_max_buffer_pages */
-		shrink_free_pagepool(ring, xen_blkif_max_buffer_pages);
+		/* Shrink the free pages pool if it is too large. */
+		if (time_before(jiffies, blkif->buffer_squeeze_end))
+			shrink_free_pagepool(ring, 0);
+		else
+			shrink_free_pagepool(ring, max_buffer_pages);
 
 		if (log_stats && time_after(jiffies, ring->st_print))
 			print_stats(ring);
@@ -877,7 +884,7 @@ again:
 			continue;
 		}
 		if (use_persistent_gnts &&
-		    ring->persistent_gnt_c < xen_blkif_max_pgrants) {
+		    ring->persistent_gnt_c < max_pgrants) {
 			/*
 			 * We are using persistent grants, the grant is
 			 * not mapped but we might have room for it.
@@ -904,7 +911,7 @@ again:
 			pages[seg_idx]->persistent_gnt = persistent_gnt;
 			pr_debug("grant %u added to the tree of persistent grants, using %u/%u\n",
 				 persistent_gnt->gnt, ring->persistent_gnt_c,
-				 xen_blkif_max_pgrants);
+				 max_pgrants);
 			goto next;
 		}
 		if (use_persistent_gnts && !blkif->vbd.overflow_max_grants) {
@@ -929,6 +936,8 @@ next:
 out_of_memory:
 	pr_alert("%s: out of memory\n", __func__);
 	put_free_pages(ring, pages_to_gnt, segs_to_map);
+	for (i = last_map; i < num; i++)
+		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 	return -ENOMEM;
 }
 
@@ -1496,6 +1505,14 @@ static int __init xen_blkif_init(void)
 }
 
 module_init(xen_blkif_init);
+
+static void __exit xen_blkif_fini(void)
+{
+	xen_blkif_xenbus_fini();
+	xen_blkif_interface_fini();
+}
+
+module_exit(xen_blkif_fini);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("xen-backend:vbd");

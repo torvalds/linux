@@ -1,22 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * uClinux flat-format executables
  *
  * Copyright (C) 2005 John Williams <jwilliams@itee.uq.edu.au>
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License. See the file COPYING in the main directory of this
- * archive for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_FLAT_H
 #define _ASM_MICROBLAZE_FLAT_H
 
 #include <asm/unaligned.h>
-
-#define	flat_argvp_envp_on_stack()	0
-#define	flat_old_ram_flag(flags)	(flags)
-#define	flat_reloc_valid(reloc, size)	((reloc) <= (size))
-#define	flat_set_persistent(relval, p)		0
 
 /*
  * Microblaze works a little differently from other arches, because
@@ -33,7 +25,7 @@
  */
 
 static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
-					u32 *addr, u32 *persistent)
+					u32 *addr)
 {
 	u32 *p = (__force u32 *)rp;
 

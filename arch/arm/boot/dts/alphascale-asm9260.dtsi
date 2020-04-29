@@ -4,10 +4,11 @@
  * Licensed under the X11 license or the GPL v2 (or later)
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/alphascale,asm9260.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&icoll>;
 
 	memory {

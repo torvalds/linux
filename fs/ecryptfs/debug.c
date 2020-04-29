@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * eCryptfs: Linux filesystem encryption layer
  * Functions only useful for debugging.
  *
  * Copyright (C) 2006 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include "ecryptfs_kernel.h"
@@ -97,25 +83,9 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
  */
 void ecryptfs_dump_hex(char *data, int bytes)
 {
-	int i = 0;
-	int add_newline = 1;
-
 	if (ecryptfs_verbosity < 1)
 		return;
-	if (bytes != 0) {
-		printk(KERN_DEBUG "0x%.2x.", (unsigned char)data[i]);
-		i++;
-	}
-	while (i < bytes) {
-		printk("0x%.2x.", (unsigned char)data[i]);
-		i++;
-		if (i % 16 == 0) {
-			printk("\n");
-			add_newline = 0;
-		} else
-			add_newline = 1;
-	}
-	if (add_newline)
-		printk("\n");
-}
 
+	print_hex_dump(KERN_DEBUG, "ecryptfs: ", DUMP_PREFIX_OFFSET, 16, 1,
+		       data, bytes, false);
+}

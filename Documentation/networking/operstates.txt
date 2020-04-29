@@ -22,8 +22,9 @@ and changeable from userspace under certain rules.
 2. Querying from userspace
 
 Both admin and operational state can be queried via the netlink
-operation RTM_GETLINK. It is also possible to subscribe to RTMGRP_LINK
-to be notified of updates. This is important for setting from userspace.
+operation RTM_GETLINK. It is also possible to subscribe to RTNLGRP_LINK
+to be notified of updates while the interface is admin up. This is
+important for setting from userspace.
 
 These values contain interface state:
 
@@ -101,8 +102,9 @@ because some driver controlled protocol establishment has to
 complete. Corresponding functions are netif_dormant_on() to set the
 flag, netif_dormant_off() to clear it and netif_dormant() to query.
 
-On device allocation, networking core sets the flags equivalent to
-netif_carrier_ok() and !netif_dormant().
+On device allocation, both flags __LINK_STATE_NOCARRIER and
+__LINK_STATE_DORMANT are cleared, so the effective state is equivalent
+to netif_carrier_ok() and !netif_dormant().
 
 
 Whenever the driver CHANGES one of these flags, a workqueue event is
@@ -133,11 +135,11 @@ netif_carrier_ok() && !netif_dormant() is set by the
 driver. Afterwards, the userspace application can set IFLA_OPERSTATE
 to IF_OPER_DORMANT or IF_OPER_UP as long as the driver does not set
 netif_carrier_off() or netif_dormant_on(). Changes made by userspace
-are multicasted on the netlink group RTMGRP_LINK.
+are multicasted on the netlink group RTNLGRP_LINK.
 
 So basically a 802.1X supplicant interacts with the kernel like this:
 
--subscribe to RTMGRP_LINK
+-subscribe to RTNLGRP_LINK
 -set IFLA_LINKMODE to 1 via RTM_SETLINK
 -query RTM_GETLINK once to get initial state
 -if initial flags are not (IFF_LOWER_UP && !IFF_DORMANT), wait until

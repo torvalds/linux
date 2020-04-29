@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Marvell OcteonTX2 drivers configuration
+#
+
+config OCTEONTX2_MBOX
+	tristate
+
+config OCTEONTX2_AF
+	tristate "Marvell OcteonTX2 RVU Admin Function driver"
+	select OCTEONTX2_MBOX
+	depends on (64BIT && COMPILE_TEST) || ARM64
+	depends on PCI
+	help
+	  This driver supports Marvell's OcteonTX2 Resource Virtualization
+	  Unit's admin function manager which manages all RVU HW resources
+	  and provides a medium to other PF/VFs to configure HW. Should be
+	  enabled for other RVU device drivers to work.
+
+config NDC_DIS_DYNAMIC_CACHING
+	bool "Disable caching of dynamic entries in NDC"
+	depends on OCTEONTX2_AF
+	default n
+	---help---
+	  This config option disables caching of dynamic entries such as NIX SQEs
+	  , NPA stack pages etc in NDC. Also locks down NIX SQ/CQ/RQ/RSS and
+	  NPA Aura/Pool contexts.
+
+config OCTEONTX2_PF
+	tristate "Marvell OcteonTX2 NIC Physical Function driver"
+	select OCTEONTX2_MBOX
+	depends on (64BIT && COMPILE_TEST) || ARM64
+	depends on PCI
+	help
+	  This driver supports Marvell's OcteonTX2 NIC physical function.
+
+config OCTEONTX2_VF
+	tristate "Marvell OcteonTX2 NIC Virtual Function driver"
+	depends on OCTEONTX2_PF
+	help
+	  This driver supports Marvell's OcteonTX2 NIC virtual function.

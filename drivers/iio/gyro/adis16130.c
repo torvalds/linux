@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADIS16130 Digital Output, High Precision Angular Rate Sensor driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/mutex.h>
@@ -77,9 +76,7 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		/* Take the iio_dev status lock */
-		mutex_lock(&indio_dev->mlock);
 		ret = adis16130_spi_read(indio_dev, chan->address, &temp);
-		mutex_unlock(&indio_dev->mlock);
 		if (ret)
 			return ret;
 		*val = temp;

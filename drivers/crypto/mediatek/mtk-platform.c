@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for EIP97 cryptographic accelerator.
  *
  * Copyright (c) 2016 Ryder Lee <ryder.lee@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include "mtk-platform.h"
@@ -452,17 +449,17 @@ static int mtk_desc_ring_alloc(struct mtk_cryp *cryp)
 		if (!ring[i])
 			goto err_cleanup;
 
-		ring[i]->cmd_base = dma_zalloc_coherent(cryp->dev,
-					   MTK_DESC_RING_SZ,
-					   &ring[i]->cmd_dma,
-					   GFP_KERNEL);
+		ring[i]->cmd_base = dma_alloc_coherent(cryp->dev,
+						       MTK_DESC_RING_SZ,
+						       &ring[i]->cmd_dma,
+						       GFP_KERNEL);
 		if (!ring[i]->cmd_base)
 			goto err_cleanup;
 
-		ring[i]->res_base = dma_zalloc_coherent(cryp->dev,
-					   MTK_DESC_RING_SZ,
-					   &ring[i]->res_dma,
-					   GFP_KERNEL);
+		ring[i]->res_base = dma_alloc_coherent(cryp->dev,
+						       MTK_DESC_RING_SZ,
+						       &ring[i]->res_dma,
+						       GFP_KERNEL);
 		if (!ring[i]->res_base)
 			goto err_cleanup;
 
@@ -484,7 +481,6 @@ err_cleanup:
 
 static int mtk_crypto_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mtk_cryp *cryp;
 	int i, err;
 
@@ -492,16 +488,14 @@ static int mtk_crypto_probe(struct platform_device *pdev)
 	if (!cryp)
 		return -ENOMEM;
 
-	cryp->base = devm_ioremap_resource(&pdev->dev, res);
+	cryp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cryp->base))
 		return PTR_ERR(cryp->base);
 
 	for (i = 0; i < MTK_IRQ_NUM; i++) {
 		cryp->irq[i] = platform_get_irq(pdev, i);
-		if (cryp->irq[i] < 0) {
-			dev_err(cryp->dev, "no IRQ:%d resource info\n", i);
+		if (cryp->irq[i] < 0)
 			return cryp->irq[i];
-		}
 	}
 
 	cryp->clk_cryp = devm_clk_get(&pdev->dev, "cryp");

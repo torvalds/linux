@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This software may be redistributed and/or modified under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
- * for more details.
  *
  * File: via-velocity.h
  *
@@ -1492,6 +1483,7 @@ struct velocity_info {
 	struct velocity_context context;
 
 	u32 ticks;
+	u32 ethtool_ops_nesting;
 
 	u8 rev_id;
 
@@ -1518,7 +1510,7 @@ static inline int velocity_get_ip(struct velocity_info *vptr)
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(vptr->netdev);
 	if (in_dev != NULL) {
-		ifa = (struct in_ifaddr *) in_dev->ifa_list;
+		ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
 			memcpy(vptr->ip_addr, &ifa->ifa_address, 4);
 			res = 0;
