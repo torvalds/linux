@@ -135,6 +135,7 @@ struct rockchip_logo {
 	phys_addr_t size;
 	size_t iommu_map_size;
 	int count;
+	struct page **pages;
 };
 
 /*

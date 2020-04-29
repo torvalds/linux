@@ -221,7 +221,9 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 		dma_unmap_sg(drm->dev, logo->sgt->sgl,
 			     logo->sgt->nents, DMA_TO_DEVICE);
 	}
+	kfree(logo->pages);
 	sg_free_table(logo->sgt);
+	kfree(logo->sgt);
 	memblock_free(logo->start, logo->size);
 	free_reserved_area(start, end, -1, "drm_logo");
 	kfree(logo);
@@ -307,6 +309,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	logo->size = size;
 	logo->count = 1;
 	private->logo = logo;
+	logo->pages = pages;
 
 	return 0;
 
@@ -988,6 +991,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 
 	rockchip_free_loader_memory(drm_dev);
 	drm_atomic_state_put(old_state);
+	drm_atomic_state_put(state);
 
 	mode_config->loader_protect = true;
 	drm_modeset_unlock_all(drm_dev);
@@ -1447,6 +1451,7 @@ static void rockchip_drm_set_property_default(struct drm_device *drm)
 	WARN_ON(ret == -EDEADLK);
 	if (ret)
 		DRM_ERROR("Failed to update properties\n");
+	drm_atomic_state_put(state);
 
 err_unlock:
 	drm_modeset_unlock_all(drm);
