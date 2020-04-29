@@ -1802,41 +1802,6 @@ TRACE_EVENT(svcrdma_send_err,
 	)
 );
 
-DECLARE_EVENT_CLASS(svcrdma_sendcomp_event,
-	TP_PROTO(
-		const struct ib_wc *wc
-	),
-
-	TP_ARGS(wc),
-
-	TP_STRUCT__entry(
-		__field(const void *, cqe)
-		__field(unsigned int, status)
-		__field(unsigned int, vendor_err)
-	),
-
-	TP_fast_assign(
-		__entry->cqe = wc->wr_cqe;
-		__entry->status = wc->status;
-		if (wc->status)
-			__entry->vendor_err = wc->vendor_err;
-		else
-			__entry->vendor_err = 0;
-	),
-
-	TP_printk("cqe=%p status=%s (%u/0x%x)",
-		__entry->cqe, rdma_show_wc_status(__entry->status),
-		__entry->status, __entry->vendor_err
-	)
-);
-
-#define DEFINE_SENDCOMP_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_sendcomp_event, svcrdma_wc_##name,	\
-				TP_PROTO(				\
-					const struct ib_wc *wc		\
-				),					\
-				TP_ARGS(wc))
-
 TRACE_EVENT(svcrdma_post_send,
 	TP_PROTO(
 		const struct svc_rdma_send_ctxt *ctxt
@@ -1916,31 +1881,34 @@ TRACE_EVENT(svcrdma_rq_post_err,
 	)
 );
 
-TRACE_EVENT(svcrdma_post_rw,
+TRACE_EVENT(svcrdma_post_chunk,
 	TP_PROTO(
-		const void *cqe,
+		const struct rpc_rdma_cid *cid,
 		int sqecount
 	),
 
-	TP_ARGS(cqe, sqecount),
+	TP_ARGS(cid, sqecount),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(int, sqecount)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = cqe;
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->sqecount = sqecount;
 	),
 
-	TP_printk("cqe=%p sqecount=%d",
-		__entry->cqe, __entry->sqecount
+	TP_printk("cq.id=%u cid=%d sqecount=%d",
+		__entry->cq_id, __entry->completion_id,
+		__entry->sqecount
 	)
 );
 
-DEFINE_SENDCOMP_EVENT(read);
-DEFINE_SENDCOMP_EVENT(write);
+DEFINE_COMPLETION_EVENT(svcrdma_wc_read);
+DEFINE_COMPLETION_EVENT(svcrdma_wc_write);
 
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
