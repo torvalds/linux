@@ -35,6 +35,8 @@ static const char * const helper_name[] = {
 
 #undef BPF_HELPER_MAKE_ENTRY
 
+static bool full_mode;
+
 /* Miscellaneous utility functions */
 
 static bool check_procfs(void)
@@ -540,8 +542,7 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 
 static void
 probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
-			   const char *define_prefix, bool full_mode,
-			   __u32 ifindex)
+			   const char *define_prefix, __u32 ifindex)
 {
 	const char *ptype_name = prog_type_name[prog_type];
 	char feat_name[128];
@@ -678,8 +679,7 @@ static void section_map_types(const char *define_prefix, __u32 ifindex)
 }
 
 static void
-section_helpers(bool *supported_types, const char *define_prefix,
-		bool full_mode, __u32 ifindex)
+section_helpers(bool *supported_types, const char *define_prefix, __u32 ifindex)
 {
 	unsigned int i;
 
@@ -704,8 +704,8 @@ section_helpers(bool *supported_types, const char *define_prefix,
 		       define_prefix, define_prefix, define_prefix,
 		       define_prefix);
 	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
-		probe_helpers_for_progtype(i, supported_types[i],
-					   define_prefix, full_mode, ifindex);
+		probe_helpers_for_progtype(i, supported_types[i], define_prefix,
+					   ifindex);
 
 	print_end_section();
 }
@@ -725,7 +725,6 @@ static int do_probe(int argc, char **argv)
 	enum probe_component target = COMPONENT_UNSPEC;
 	const char *define_prefix = NULL;
 	bool supported_types[128] = {};
-	bool full_mode = false;
 	__u32 ifindex = 0;
 	char *ifname;
 
@@ -803,7 +802,7 @@ static int do_probe(int argc, char **argv)
 		goto exit_close_json;
 	section_program_types(supported_types, define_prefix, ifindex);
 	section_map_types(define_prefix, ifindex);
-	section_helpers(supported_types, define_prefix, full_mode, ifindex);
+	section_helpers(supported_types, define_prefix, ifindex);
 	section_misc(define_prefix, ifindex);
 
 exit_close_json:
