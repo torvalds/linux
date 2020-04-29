@@ -1766,6 +1766,8 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
+
+	pm_relax(rproc->dev.parent);
 }
 
 /**
@@ -2352,6 +2354,9 @@ void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
 		pr_err("NULL rproc pointer\n");
 		return;
 	}
+
+	/* Prevent suspend while the remoteproc is being recovered */
+	pm_stay_awake(rproc->dev.parent);
 
 	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
 		rproc->name, rproc_crash_to_string(type));
