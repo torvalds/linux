@@ -1277,7 +1277,7 @@ err:
 }
 
 int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
-		struct kgd_dev *kgd, struct kgd_mem *mem)
+		struct kgd_dev *kgd, struct kgd_mem *mem, uint64_t *size)
 {
 	struct amdkfd_process_info *process_info = mem->process_info;
 	unsigned long bo_size = mem->bo->tbo.mem.size;
@@ -1286,9 +1286,11 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	struct ttm_validate_buffer *bo_list_entry;
 	unsigned int mapped_to_gpu_memory;
 	int ret;
+	bool is_imported = 0;
 
 	mutex_lock(&mem->lock);
 	mapped_to_gpu_memory = mem->mapped_to_gpu_memory;
+	is_imported = mem->is_imported;
 	mutex_unlock(&mem->lock);
 	/* lock is not needed after this, since mem is unused and will
 	 * be freed anyway
@@ -1338,6 +1340,17 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	if (mem->bo->tbo.sg) {
 		sg_free_table(mem->bo->tbo.sg);
 		kfree(mem->bo->tbo.sg);
+	}
+
+	/* Update the size of the BO being freed if it was allocated from
+	 * VRAM and is not imported.
+	 */
+	if (size) {
+		if ((mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_VRAM) &&
+		    (!is_imported))
+			*size = bo_size;
+		else
+			*size = 0;
 	}
 
 	/* Free the BO*/
@@ -1694,6 +1707,7 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 	(*mem)->process_info = avm->process_info;
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, false);
 	amdgpu_sync_create(&(*mem)->sync);
+	(*mem)->is_imported = true;
 
 	return 0;
 }
