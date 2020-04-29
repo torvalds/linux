@@ -62,11 +62,7 @@
 #define IA_CSS_INCLUDE_STATES
 #include "ia_css_isp_states.h"
 
-#ifndef ISP2401
-#include "isp/kernels/io_ls/bayer_io_ls/ia_css_bayer_io.host.h"
-#else
 #include "isp/kernels/ipu2_io_ls/bayer_io_ls/ia_css_bayer_io.host.h"
-#endif
 
 struct sh_css_sp_group		sh_css_sp_group;
 struct sh_css_sp_stage		sh_css_sp_stage;
