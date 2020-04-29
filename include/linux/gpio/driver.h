@@ -349,30 +349,30 @@ struct gpio_chip {
 	struct module		*owner;
 
 	int			(*request)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 	void			(*free)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 	int			(*get_direction)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 	int			(*direction_input)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 	int			(*direction_output)(struct gpio_chip *gc,
-						unsigned offset, int value);
+						unsigned int offset, int value);
 	int			(*get)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 	int			(*get_multiple)(struct gpio_chip *gc,
 						unsigned long *mask,
 						unsigned long *bits);
 	void			(*set)(struct gpio_chip *gc,
-						unsigned offset, int value);
+						unsigned int offset, int value);
 	void			(*set_multiple)(struct gpio_chip *gc,
 						unsigned long *mask,
 						unsigned long *bits);
 	int			(*set_config)(struct gpio_chip *gc,
-					      unsigned offset,
+					      unsigned int offset,
 					      unsigned long config);
 	int			(*to_irq)(struct gpio_chip *gc,
-						unsigned offset);
+						unsigned int offset);
 
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *gc);
@@ -459,7 +459,7 @@ struct gpio_chip {
 };
 
 extern const char *gpiochip_is_requested(struct gpio_chip *gc,
-			unsigned offset);
+			unsigned int offset);
 
 /* add/remove chips */
 extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
@@ -657,9 +657,9 @@ static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gc,
 }
 #endif /* CONFIG_LOCKDEP */
 
-int gpiochip_generic_request(struct gpio_chip *gc, unsigned offset);
-void gpiochip_generic_free(struct gpio_chip *gc, unsigned offset);
-int gpiochip_generic_config(struct gpio_chip *gc, unsigned offset,
+int gpiochip_generic_request(struct gpio_chip *gc, unsigned int offset);
+void gpiochip_generic_free(struct gpio_chip *gc, unsigned int offset);
+int gpiochip_generic_config(struct gpio_chip *gc, unsigned int offset,
 			    unsigned long config);
 
 /**
