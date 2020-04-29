@@ -62,12 +62,12 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 		res = get_unaligned_le##bits(p + off);			\
 		return res;						\
 	}								\
-	err = map_private_extent_buffer(eb, offset, size,		\
+	err = map_private_extent_buffer(token->eb, offset, size,	\
 					&kaddr, &map_start, &map_len);	\
 	if (err) {							\
 		__le##bits leres;					\
 									\
-		read_extent_buffer(eb, &leres, offset, size);		\
+		read_extent_buffer(token->eb, &leres, offset, size);	\
 		return le##bits##_to_cpu(leres);			\
 	}								\
 	p = kaddr + part_offset - map_start;				\
@@ -125,13 +125,13 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 		put_unaligned_le##bits(val, p + off);			\
 		return;							\
 	}								\
-	err = map_private_extent_buffer(eb, offset, size,		\
+	err = map_private_extent_buffer(token->eb, offset, size,	\
 			&kaddr, &map_start, &map_len);			\
 	if (err) {							\
 		__le##bits val2;					\
 									\
 		val2 = cpu_to_le##bits(val);				\
-		write_extent_buffer(eb, &val2, offset, size);		\
+		write_extent_buffer(token->eb, &val2, offset, size);	\
 		return;							\
 	}								\
 	p = kaddr + part_offset - map_start;				\
