@@ -1384,7 +1384,7 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 			    u##bits val);				\
 u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 			 const void *ptr, unsigned long off);		\
-void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
+void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 		      unsigned long off, u##bits val);
 
 DECLARE_BTRFS_SETGET_BITS(8)
@@ -1399,7 +1399,7 @@ static inline u##bits btrfs_##name(const struct extent_buffer *eb,	\
 	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
 	return btrfs_get_##bits(eb, s, offsetof(type, member));		\
 }									\
-static inline void btrfs_set_##name(struct extent_buffer *eb, type *s,	\
+static inline void btrfs_set_##name(const struct extent_buffer *eb, type *s, \
 				    u##bits val)			\
 {									\
 	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
@@ -1425,7 +1425,7 @@ static inline u##bits btrfs_##name(const struct extent_buffer *eb)	\
 	u##bits res = le##bits##_to_cpu(p->member);			\
 	return res;							\
 }									\
-static inline void btrfs_set_##name(struct extent_buffer *eb,		\
+static inline void btrfs_set_##name(const struct extent_buffer *eb,	\
 				    u##bits val)			\
 {									\
 	type *p = page_address(eb->pages[0]);				\
@@ -1443,7 +1443,7 @@ static inline void btrfs_set_##name(type *s, u##bits val)		\
 }
 
 
-static inline u64 btrfs_device_total_bytes(struct extent_buffer *eb,
+static inline u64 btrfs_device_total_bytes(const struct extent_buffer *eb,
 					   struct btrfs_dev_item *s)
 {
 	BUILD_BUG_ON(sizeof(u64) !=
@@ -1451,7 +1451,7 @@ static inline u64 btrfs_device_total_bytes(struct extent_buffer *eb,
 	return btrfs_get_64(eb, s, offsetof(struct btrfs_dev_item,
 					    total_bytes));
 }
-static inline void btrfs_set_device_total_bytes(struct extent_buffer *eb,
+static inline void btrfs_set_device_total_bytes(const struct extent_buffer *eb,
 						struct btrfs_dev_item *s,
 						u64 val)
 {
@@ -1555,13 +1555,13 @@ static inline char *btrfs_stripe_dev_uuid_nr(struct btrfs_chunk *c, int nr)
 	return btrfs_stripe_dev_uuid(btrfs_stripe_nr(c, nr));
 }
 
-static inline u64 btrfs_stripe_offset_nr(struct extent_buffer *eb,
+static inline u64 btrfs_stripe_offset_nr(const struct extent_buffer *eb,
 					 struct btrfs_chunk *c, int nr)
 {
 	return btrfs_stripe_offset(eb, btrfs_stripe_nr(c, nr));
 }
 
-static inline u64 btrfs_stripe_devid_nr(struct extent_buffer *eb,
+static inline u64 btrfs_stripe_devid_nr(const struct extent_buffer *eb,
 					 struct btrfs_chunk *c, int nr)
 {
 	return btrfs_stripe_devid(eb, btrfs_stripe_nr(c, nr));
@@ -1648,14 +1648,14 @@ BTRFS_SETGET_FUNCS(extent_flags, struct btrfs_extent_item, flags, 64);
 
 BTRFS_SETGET_FUNCS(tree_block_level, struct btrfs_tree_block_info, level, 8);
 
-static inline void btrfs_tree_block_key(struct extent_buffer *eb,
+static inline void btrfs_tree_block_key(const struct extent_buffer *eb,
 					struct btrfs_tree_block_info *item,
 					struct btrfs_disk_key *key)
 {
 	read_eb_member(eb, item, struct btrfs_tree_block_info, key, key);
 }
 
-static inline void btrfs_set_tree_block_key(struct extent_buffer *eb,
+static inline void btrfs_set_tree_block_key(const struct extent_buffer *eb,
 					    struct btrfs_tree_block_info *item,
 					    struct btrfs_disk_key *key)
 {
@@ -1701,7 +1701,7 @@ BTRFS_SETGET_STACK_FUNCS(stack_key_blockptr, struct btrfs_key_ptr,
 BTRFS_SETGET_STACK_FUNCS(stack_key_generation, struct btrfs_key_ptr,
 			 generation, 64);
 
-static inline u64 btrfs_node_blockptr(struct extent_buffer *eb, int nr)
+static inline u64 btrfs_node_blockptr(const struct extent_buffer *eb, int nr)
 {
 	unsigned long ptr;
 	ptr = offsetof(struct btrfs_node, ptrs) +
@@ -1709,7 +1709,7 @@ static inline u64 btrfs_node_blockptr(struct extent_buffer *eb, int nr)
 	return btrfs_key_blockptr(eb, (struct btrfs_key_ptr *)ptr);
 }
 
-static inline void btrfs_set_node_blockptr(struct extent_buffer *eb,
+static inline void btrfs_set_node_blockptr(const struct extent_buffer *eb,
 					   int nr, u64 val)
 {
 	unsigned long ptr;
@@ -1718,7 +1718,7 @@ static inline void btrfs_set_node_blockptr(struct extent_buffer *eb,
 	btrfs_set_key_blockptr(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
-static inline u64 btrfs_node_ptr_generation(struct extent_buffer *eb, int nr)
+static inline u64 btrfs_node_ptr_generation(const struct extent_buffer *eb, int nr)
 {
 	unsigned long ptr;
 	ptr = offsetof(struct btrfs_node, ptrs) +
@@ -1726,7 +1726,7 @@ static inline u64 btrfs_node_ptr_generation(struct extent_buffer *eb, int nr)
 	return btrfs_key_generation(eb, (struct btrfs_key_ptr *)ptr);
 }
 
-static inline void btrfs_set_node_ptr_generation(struct extent_buffer *eb,
+static inline void btrfs_set_node_ptr_generation(const struct extent_buffer *eb,
 						 int nr, u64 val)
 {
 	unsigned long ptr;
@@ -1744,7 +1744,7 @@ static inline unsigned long btrfs_node_key_ptr_offset(int nr)
 void btrfs_node_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr);
 
-static inline void btrfs_set_node_key(struct extent_buffer *eb,
+static inline void btrfs_set_node_key(const struct extent_buffer *eb,
 				      struct btrfs_disk_key *disk_key, int nr)
 {
 	unsigned long ptr;

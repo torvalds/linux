@@ -131,7 +131,7 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 	leres = cpu_to_le##bits(val);					\
 	write_extent_buffer(token->eb, &leres, member_offset, size);	\
 }									\
-void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
+void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 		      unsigned long off, u##bits val)			\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
