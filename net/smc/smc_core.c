@@ -261,7 +261,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 			struct smc_link *lnk = &lgr->lnk[i];
 
 			if (smc_link_usable(lnk))
-				smc_llc_link_inactive(lnk);
+				lnk->state = SMC_LNK_INACTIVE;
 		}
 	}
 	smc_lgr_free(lgr);
@@ -692,7 +692,7 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 			struct smc_link *lnk = &lgr->lnk[i];
 
 			if (smc_link_usable(lnk))
-				smc_llc_link_inactive(lnk);
+				lnk->state = SMC_LNK_INACTIVE;
 		}
 	}
 }
@@ -706,16 +706,12 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 	struct smc_connection *conn;
 	struct smc_sock *smc;
 	struct rb_node *node;
-	int i;
 
 	if (lgr->terminating)
 		return;	/* lgr already terminating */
 	if (!soft)
 		cancel_delayed_work_sync(&lgr->free_work);
 	lgr->terminating = 1;
-	if (!lgr->is_smcd)
-		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
-			smc_llc_link_inactive(&lgr->lnk[i]);
 
 	/* kill remaining link group connections */
 	read_lock_bh(&lgr->conns_lock);

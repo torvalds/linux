@@ -660,22 +660,15 @@ void smc_llc_link_deleting(struct smc_link *link)
 	smc_wr_wakeup_tx_wait(link);
 }
 
-/* called in tasklet context */
-void smc_llc_link_inactive(struct smc_link *link)
-{
-	if (link->state == SMC_LNK_INACTIVE)
-		return;
-	link->state = SMC_LNK_INACTIVE;
-	cancel_delayed_work_sync(&link->llc_testlink_wrk);
-	smc_wr_wakeup_reg_wait(link);
-	smc_wr_wakeup_tx_wait(link);
-}
-
 /* called in worker context */
 void smc_llc_link_clear(struct smc_link *link)
 {
 	flush_workqueue(link->llc_wq);
 	destroy_workqueue(link->llc_wq);
+	complete(&link->llc_testlink_resp);
+	cancel_delayed_work_sync(&link->llc_testlink_wrk);
+	smc_wr_wakeup_reg_wait(link);
+	smc_wr_wakeup_tx_wait(link);
 }
 
 /* register a new rtoken at the remote peer */
