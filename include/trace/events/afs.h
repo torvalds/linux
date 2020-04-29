@@ -111,6 +111,7 @@ enum afs_vl_operation {
 	afs_VL_GetEntryByNameU	= 527,		/* AFS Get Vol Entry By Name operation ID */
 	afs_VL_GetAddrsU	= 533,		/* AFS Get FS server addresses */
 	afs_YFSVL_GetEndpoints	= 64002,	/* YFS Get FS & Vol server addresses */
+	afs_YFSVL_GetCellName	= 64014,	/* YFS Get actual cell name */
 	afs_VL_GetCapabilities	= 65537,	/* AFS Get VL server capabilities */
 };
 
@@ -143,6 +144,7 @@ enum afs_eproto_cause {
 	afs_eproto_bad_status,
 	afs_eproto_cb_count,
 	afs_eproto_cb_fid_count,
+	afs_eproto_cellname_len,
 	afs_eproto_file_type,
 	afs_eproto_ibulkst_cb_count,
 	afs_eproto_ibulkst_count,
@@ -316,6 +318,7 @@ enum afs_cb_break_reason {
 	EM(afs_VL_GetEntryByNameU,		"VL.GetEntryByNameU") \
 	EM(afs_VL_GetAddrsU,			"VL.GetAddrsU") \
 	EM(afs_YFSVL_GetEndpoints,		"YFSVL.GetEndpoints") \
+	EM(afs_YFSVL_GetCellName,		"YFSVL.GetCellName") \
 	E_(afs_VL_GetCapabilities,		"VL.GetCapabilities")
 
 #define afs_edit_dir_ops				  \
@@ -345,6 +348,7 @@ enum afs_cb_break_reason {
 	EM(afs_eproto_bad_status,	"BadStatus") \
 	EM(afs_eproto_cb_count,		"CbCount") \
 	EM(afs_eproto_cb_fid_count,	"CbFidCount") \
+	EM(afs_eproto_cellname_len,	"CellNameLen") \
 	EM(afs_eproto_file_type,	"FileTYpe") \
 	EM(afs_eproto_ibulkst_cb_count,	"IBS.CbCount") \
 	EM(afs_eproto_ibulkst_count,	"IBS.FidCount") \

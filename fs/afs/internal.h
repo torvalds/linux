@@ -116,6 +116,7 @@ struct afs_call {
 		long			ret0;	/* Value to reply with instead of 0 */
 		struct afs_addr_list	*ret_alist;
 		struct afs_vldb_entry	*ret_vldb;
+		char			*ret_str;
 	};
 	struct afs_operation	*op;
 	unsigned int		server_index;
@@ -1373,6 +1374,7 @@ extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uu
 extern struct afs_call *afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *,
 						struct key *, struct afs_vlserver *, unsigned int);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
+extern char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *);
 
 /*
  * vl_probe.c
