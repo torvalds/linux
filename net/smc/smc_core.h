@@ -120,7 +120,6 @@ struct smc_link {
 	struct smc_link_group	*lgr;		/* parent link group */
 
 	enum smc_link_state	state;		/* state of link */
-	struct workqueue_struct *llc_wq;	/* single thread work queue */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
@@ -233,6 +232,12 @@ struct smc_link_group {
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 			u8			next_link_id;
+			struct list_head	llc_event_q;
+						/* queue for llc events */
+			spinlock_t		llc_event_q_lock;
+						/* protects llc_event_q */
+			struct work_struct	llc_event_work;
+						/* llc event worker */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
