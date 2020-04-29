@@ -188,6 +188,7 @@ struct vop_plane_state {
 	unsigned long offset;
 	int pdaf_data_type;
 	bool async_commit;
+	struct vop_dump_list *planlist;
 };
 
 struct rockchip_mcu_timing {
@@ -1646,6 +1647,8 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 {
 	struct vop_win *win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
+	struct vop_plane_state *vop_plane_state =
+					to_vop_plane_state(plane->state);
 
 	if (!old_state->crtc)
 		return;
@@ -1662,6 +1665,9 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	if (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 5 &&
 	    win->win_id == 2)
 		VOP_WIN_SET(vop, win, yrgb_mst, 0);
+
+	kfree(vop_plane_state->planlist);
+	vop_plane_state->planlist = NULL;
 
 	spin_unlock(&vop->reg_lock);
 }
@@ -1827,6 +1833,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	 */
 	vop->is_iommu_needed = true;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	kfree(vop_plane_state->planlist);
+	vop_plane_state->planlist = NULL;
+
 	planlist = kmalloc(sizeof(*planlist), GFP_KERNEL);
 	if (planlist) {
 		planlist->dump_info.AFBC_flag = AFBC_flag;
@@ -1841,6 +1850,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		planlist->dump_info.height = actual_h;
 		planlist->dump_info.pixel_format = fb->format->format;
 		list_add_tail(&planlist->entry, &crtc->vop_dump_list_head);
+		vop_plane_state->planlist = planlist;
 	} else {
 		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
 		return;
@@ -2567,7 +2577,6 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	}
 	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
 		list_del(&pos->entry);
-		kfree(pos);
 	}
 	if (crtc->vop_dump_status == DUMP_KEEP ||
 	    crtc->vop_dump_times > 0) {
