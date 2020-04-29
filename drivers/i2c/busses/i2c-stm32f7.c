@@ -607,7 +607,7 @@ static u32 stm32f7_get_lower_rate(u32 rate)
 {
 	int i = ARRAY_SIZE(stm32f7_i2c_specs);
 
-	while (i--)
+	while (--i)
 		if (stm32f7_i2c_specs[i].rate < rate)
 			break;
 
