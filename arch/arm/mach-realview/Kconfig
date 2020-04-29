@@ -6,7 +6,6 @@ menuconfig ARCH_REALVIEW
 	select ARM_GIC
 	select ARM_TIMER_SP804
 	select CLK_SP810
-	select COMMON_CLK_VERSATILE
 	select GPIO_PL061 if GPIOLIB
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP

@@ -3,7 +3,6 @@ menuconfig ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V6
 	select ARM_AMBA
-	select COMMON_CLK_VERSATILE
 	select HAVE_TCM
 	select ICST
 	select MFD_SYSCON
