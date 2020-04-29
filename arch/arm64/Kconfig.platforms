@@ -278,8 +278,6 @@ config ARCH_VEXPRESS
 	select GPIOLIB
 	select PM
 	select PM_GENERIC_DOMAINS
-	select POWER_RESET_VEXPRESS
-	select VEXPRESS_CONFIG
 	help
 	  This enables support for the ARMv8 software model (Versatile
 	  Express).
