@@ -1033,16 +1033,16 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		struct perf_event_attr *attr = &pos->core.attr;
 
 		/* make sure these *are* set */
-		perf_evsel__set_sample_bit(pos, TID);
-		perf_evsel__set_sample_bit(pos, TIME);
-		perf_evsel__set_sample_bit(pos, CPU);
-		perf_evsel__set_sample_bit(pos, RAW);
+		evsel__set_sample_bit(pos, TID);
+		evsel__set_sample_bit(pos, TIME);
+		evsel__set_sample_bit(pos, CPU);
+		evsel__set_sample_bit(pos, RAW);
 		/* make sure these are *not*; want as small a sample as possible */
-		perf_evsel__reset_sample_bit(pos, PERIOD);
-		perf_evsel__reset_sample_bit(pos, IP);
-		perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-		perf_evsel__reset_sample_bit(pos, ADDR);
-		perf_evsel__reset_sample_bit(pos, READ);
+		evsel__reset_sample_bit(pos, PERIOD);
+		evsel__reset_sample_bit(pos, IP);
+		evsel__reset_sample_bit(pos, CALLCHAIN);
+		evsel__reset_sample_bit(pos, ADDR);
+		evsel__reset_sample_bit(pos, READ);
 		attr->mmap = 0;
 		attr->comm = 0;
 		attr->task = 0;

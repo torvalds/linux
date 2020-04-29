@@ -184,7 +184,7 @@ void evsel__calc_id_pos(struct evsel *evsel)
 	evsel->is_pos = __perf_evsel__calc_is_pos(evsel->core.attr.sample_type);
 }
 
-void __perf_evsel__set_sample_bit(struct evsel *evsel,
+void __evsel__set_sample_bit(struct evsel *evsel,
 				  enum perf_event_sample_format bit)
 {
 	if (!(evsel->core.attr.sample_type & bit)) {
@@ -194,7 +194,7 @@ void __perf_evsel__set_sample_bit(struct evsel *evsel,
 	}
 }
 
-void __perf_evsel__reset_sample_bit(struct evsel *evsel,
+void __evsel__reset_sample_bit(struct evsel *evsel,
 				    enum perf_event_sample_format bit)
 {
 	if (evsel->core.attr.sample_type & bit) {
@@ -204,14 +204,14 @@ void __perf_evsel__reset_sample_bit(struct evsel *evsel,
 	}
 }
 
-void perf_evsel__set_sample_id(struct evsel *evsel,
+void evsel__set_sample_id(struct evsel *evsel,
 			       bool can_sample_identifier)
 {
 	if (can_sample_identifier) {
-		perf_evsel__reset_sample_bit(evsel, ID);
-		perf_evsel__set_sample_bit(evsel, IDENTIFIER);
+		evsel__reset_sample_bit(evsel, ID);
+		evsel__set_sample_bit(evsel, IDENTIFIER);
 	} else {
-		perf_evsel__set_sample_bit(evsel, ID);
+		evsel__set_sample_bit(evsel, ID);
 	}
 	evsel->core.attr.read_format |= PERF_FORMAT_ID;
 }
@@ -689,7 +689,7 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
 
-	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
+	evsel__set_sample_bit(evsel, CALLCHAIN);
 
 	attr->sample_max_stack = param->max_stack;
 
@@ -704,7 +704,7 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 					   "to get user callchain information. "
 					   "Falling back to framepointers.\n");
 			} else {
-				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+				evsel__set_sample_bit(evsel, BRANCH_STACK);
 				attr->branch_sample_type = PERF_SAMPLE_BRANCH_USER |
 							PERF_SAMPLE_BRANCH_CALL_STACK |
 							PERF_SAMPLE_BRANCH_NO_CYCLES |
@@ -718,8 +718,8 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 
 	if (param->record_mode == CALLCHAIN_DWARF) {
 		if (!function) {
-			perf_evsel__set_sample_bit(evsel, REGS_USER);
-			perf_evsel__set_sample_bit(evsel, STACK_USER);
+			evsel__set_sample_bit(evsel, REGS_USER);
+			evsel__set_sample_bit(evsel, STACK_USER);
 			if (opts->sample_user_regs && DWARF_MINIMAL_REGS != PERF_REGS_MASK) {
 				attr->sample_regs_user |= DWARF_MINIMAL_REGS;
 				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
@@ -755,16 +755,16 @@ perf_evsel__reset_callgraph(struct evsel *evsel,
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 
-	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
+	evsel__reset_sample_bit(evsel, CALLCHAIN);
 	if (param->record_mode == CALLCHAIN_LBR) {
-		perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+		evsel__reset_sample_bit(evsel, BRANCH_STACK);
 		attr->branch_sample_type &= ~(PERF_SAMPLE_BRANCH_USER |
 					      PERF_SAMPLE_BRANCH_CALL_STACK |
 					      PERF_SAMPLE_BRANCH_HW_INDEX);
 	}
 	if (param->record_mode == CALLCHAIN_DWARF) {
-		perf_evsel__reset_sample_bit(evsel, REGS_USER);
-		perf_evsel__reset_sample_bit(evsel, STACK_USER);
+		evsel__reset_sample_bit(evsel, REGS_USER);
+		evsel__reset_sample_bit(evsel, STACK_USER);
 	}
 }
 
@@ -788,32 +788,32 @@ static void apply_config_terms(struct evsel *evsel,
 			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
 				attr->sample_period = term->val.period;
 				attr->freq = 0;
-				perf_evsel__reset_sample_bit(evsel, PERIOD);
+				evsel__reset_sample_bit(evsel, PERIOD);
 			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_FREQ:
 			if (!(term->weak && opts->user_freq != UINT_MAX)) {
 				attr->sample_freq = term->val.freq;
 				attr->freq = 1;
-				perf_evsel__set_sample_bit(evsel, PERIOD);
+				evsel__set_sample_bit(evsel, PERIOD);
 			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
-				perf_evsel__set_sample_bit(evsel, TIME);
+				evsel__set_sample_bit(evsel, TIME);
 			else
-				perf_evsel__reset_sample_bit(evsel, TIME);
+				evsel__reset_sample_bit(evsel, TIME);
 			break;
 		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
 			callgraph_buf = term->val.str;
 			break;
 		case PERF_EVSEL__CONFIG_TERM_BRANCH:
 			if (term->val.str && strcmp(term->val.str, "no")) {
-				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+				evsel__set_sample_bit(evsel, BRANCH_STACK);
 				parse_branch_str(term->val.str,
 						 &attr->branch_sample_type);
 			} else
-				perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+				evsel__reset_sample_bit(evsel, BRANCH_STACK);
 			break;
 		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
@@ -892,8 +892,8 @@ static void apply_config_terms(struct evsel *evsel,
 		/* set perf-event callgraph */
 		if (param.enabled) {
 			if (sample_address) {
-				perf_evsel__set_sample_bit(evsel, ADDR);
-				perf_evsel__set_sample_bit(evsel, DATA_SRC);
+				evsel__set_sample_bit(evsel, ADDR);
+				evsel__set_sample_bit(evsel, DATA_SRC);
 				evsel->core.attr.mmap_data = track;
 			}
 			evsel__config_callchain(evsel, opts, &param);
@@ -960,17 +960,17 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	attr->inherit	    = !opts->no_inherit;
 	attr->write_backward = opts->overwrite ? 1 : 0;
 
-	perf_evsel__set_sample_bit(evsel, IP);
-	perf_evsel__set_sample_bit(evsel, TID);
+	evsel__set_sample_bit(evsel, IP);
+	evsel__set_sample_bit(evsel, TID);
 
 	if (evsel->sample_read) {
-		perf_evsel__set_sample_bit(evsel, READ);
+		evsel__set_sample_bit(evsel, READ);
 
 		/*
 		 * We need ID even in case of single event, because
 		 * PERF_SAMPLE_READ process ID specific data.
 		 */
-		perf_evsel__set_sample_id(evsel, false);
+		evsel__set_sample_id(evsel, false);
 
 		/*
 		 * Apply group format only if we belong to group
@@ -989,7 +989,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	if (!attr->sample_period || (opts->user_freq != UINT_MAX ||
 				     opts->user_interval != ULLONG_MAX)) {
 		if (opts->freq) {
-			perf_evsel__set_sample_bit(evsel, PERIOD);
+			evsel__set_sample_bit(evsel, PERIOD);
 			attr->freq		= 1;
 			attr->sample_freq	= opts->freq;
 		} else {
@@ -1009,7 +1009,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	}
 
 	if (opts->sample_address) {
-		perf_evsel__set_sample_bit(evsel, ADDR);
+		evsel__set_sample_bit(evsel, ADDR);
 		attr->mmap_data = track;
 	}
 
@@ -1026,16 +1026,16 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;
-		perf_evsel__set_sample_bit(evsel, REGS_INTR);
+		evsel__set_sample_bit(evsel, REGS_INTR);
 	}
 
 	if (opts->sample_user_regs) {
 		attr->sample_regs_user |= opts->sample_user_regs;
-		perf_evsel__set_sample_bit(evsel, REGS_USER);
+		evsel__set_sample_bit(evsel, REGS_USER);
 	}
 
 	if (target__has_cpu(&opts->target) || opts->sample_cpu)
-		perf_evsel__set_sample_bit(evsel, CPU);
+		evsel__set_sample_bit(evsel, CPU);
 
 	/*
 	 * When the user explicitly disabled time don't force it here.
@@ -1044,31 +1044,31 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	    (!perf_missing_features.sample_id_all &&
 	    (!opts->no_inherit || target__has_cpu(&opts->target) || per_cpu ||
 	     opts->sample_time_set)))
-		perf_evsel__set_sample_bit(evsel, TIME);
+		evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples && !evsel->no_aux_samples) {
-		perf_evsel__set_sample_bit(evsel, TIME);
-		perf_evsel__set_sample_bit(evsel, RAW);
-		perf_evsel__set_sample_bit(evsel, CPU);
+		evsel__set_sample_bit(evsel, TIME);
+		evsel__set_sample_bit(evsel, RAW);
+		evsel__set_sample_bit(evsel, CPU);
 	}
 
 	if (opts->sample_address)
-		perf_evsel__set_sample_bit(evsel, DATA_SRC);
+		evsel__set_sample_bit(evsel, DATA_SRC);
 
 	if (opts->sample_phys_addr)
-		perf_evsel__set_sample_bit(evsel, PHYS_ADDR);
+		evsel__set_sample_bit(evsel, PHYS_ADDR);
 
 	if (opts->no_buffering) {
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
 	}
 	if (opts->branch_stack && !evsel->no_aux_samples) {
-		perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+		evsel__set_sample_bit(evsel, BRANCH_STACK);
 		attr->branch_sample_type = opts->branch_stack;
 	}
 
 	if (opts->sample_weight)
-		perf_evsel__set_sample_bit(evsel, WEIGHT);
+		evsel__set_sample_bit(evsel, WEIGHT);
 
 	attr->task  = track;
 	attr->mmap  = track;
@@ -1082,14 +1082,14 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 
 	if (opts->record_cgroup) {
 		attr->cgroup = track && !perf_missing_features.cgroup;
-		perf_evsel__set_sample_bit(evsel, CGROUP);
+		evsel__set_sample_bit(evsel, CGROUP);
 	}
 
 	if (opts->record_switch_events)
 		attr->context_switch = track;
 
 	if (opts->sample_transaction)
-		perf_evsel__set_sample_bit(evsel, TRANSACTION);
+		evsel__set_sample_bit(evsel, TRANSACTION);
 
 	if (opts->running_time) {
 		evsel->core.attr.read_format |=
@@ -1152,9 +1152,9 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	/* The --period option takes the precedence. */
 	if (opts->period_set) {
 		if (opts->period)
-			perf_evsel__set_sample_bit(evsel, PERIOD);
+			evsel__set_sample_bit(evsel, PERIOD);
 		else
-			perf_evsel__reset_sample_bit(evsel, PERIOD);
+			evsel__reset_sample_bit(evsel, PERIOD);
 	}
 
 	/*
@@ -1163,7 +1163,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * if BRANCH_STACK bit is set.
 	 */
 	if (opts->initial_delay && is_dummy_event(evsel))
-		perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+		evsel__reset_sample_bit(evsel, BRANCH_STACK);
 }
 
 int perf_evsel__set_filter(struct evsel *evsel, const char *filter)

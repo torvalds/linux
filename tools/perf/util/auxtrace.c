@@ -705,10 +705,10 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
 				return -EINVAL;
 			}
-			perf_evsel__set_sample_bit(evsel, AUX);
+			evsel__set_sample_bit(evsel, AUX);
 			opts->auxtrace_sample_mode = true;
 		} else {
-			perf_evsel__reset_sample_bit(evsel, AUX);
+			evsel__reset_sample_bit(evsel, AUX);
 		}
 	}
 

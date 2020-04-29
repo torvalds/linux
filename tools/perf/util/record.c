@@ -123,7 +123,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 
 	if (sample_id) {
 		evlist__for_each_entry(evlist, evsel)
-			perf_evsel__set_sample_id(evsel, use_sample_identifier);
+			evsel__set_sample_id(evsel, use_sample_identifier);
 	}
 
 	perf_evlist__set_id_pos(evlist);

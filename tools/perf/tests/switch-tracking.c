@@ -394,8 +394,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	switch_evsel = evlist__last(evlist);
 
-	perf_evsel__set_sample_bit(switch_evsel, CPU);
-	perf_evsel__set_sample_bit(switch_evsel, TIME);
+	evsel__set_sample_bit(switch_evsel, CPU);
+	evsel__set_sample_bit(switch_evsel, TIME);
 
 	switch_evsel->core.system_wide = true;
 	switch_evsel->no_aux_samples = true;
@@ -412,8 +412,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evsel__set_sample_bit(cycles_evsel, CPU);
-	perf_evsel__set_sample_bit(cycles_evsel, TIME);
+	evsel__set_sample_bit(cycles_evsel, CPU);
+	evsel__set_sample_bit(cycles_evsel, TIME);
 
 	/* Fourth event */
 	err = parse_events(evlist, "dummy:u", NULL);
@@ -429,7 +429,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	tracking_evsel->core.attr.freq = 0;
 	tracking_evsel->core.attr.sample_period = 1;
 
-	perf_evsel__set_sample_bit(tracking_evsel, TIME);
+	evsel__set_sample_bit(tracking_evsel, TIME);
 
 	/* Config events */
 	perf_evlist__config(evlist, &opts, NULL);

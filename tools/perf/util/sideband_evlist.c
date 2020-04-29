@@ -108,7 +108,7 @@ int perf_evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 		bool can_sample_identifier = perf_can_sample_identifier();
 
 		evlist__for_each_entry(evlist, counter)
-			perf_evsel__set_sample_id(counter, can_sample_identifier);
+			evsel__set_sample_id(counter, can_sample_identifier);
 
 		perf_evlist__set_id_pos(evlist);
 	}

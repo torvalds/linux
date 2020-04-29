@@ -948,7 +948,7 @@ void __perf_evlist__set_sample_bit(struct evlist *evlist,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
-		__perf_evsel__set_sample_bit(evsel, bit);
+		__evsel__set_sample_bit(evsel, bit);
 }
 
 void __perf_evlist__reset_sample_bit(struct evlist *evlist,
@@ -957,7 +957,7 @@ void __perf_evlist__reset_sample_bit(struct evlist *evlist,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
-		__perf_evsel__reset_sample_bit(evsel, bit);
+		__evsel__reset_sample_bit(evsel, bit);
 }
 
 int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
