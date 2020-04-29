@@ -239,12 +239,12 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	if (!path)
 		return NULL;
 
-	/*
-	 * Number of hops on a path is the distance between the two
-	 * switches plus the source adapter port.
-	 */
-	num_hops = abs(tb_route_length(tb_route(src->sw)) -
-		       tb_route_length(tb_route(dst->sw))) + 1;
+	i = 0;
+	tb_for_each_port_on_path(src, dst, in_port)
+		i++;
+
+	/* Each hop takes two ports */
+	num_hops = i / 2;
 
 	path->hops = kcalloc(num_hops, sizeof(*path->hops), GFP_KERNEL);
 	if (!path->hops) {
