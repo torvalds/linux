@@ -411,8 +411,6 @@ struct intel_fbc {
 			int adjusted_x;
 			int adjusted_y;
 
-			int y;
-
 			u16 pixel_blend_mode;
 		} plane;
 
@@ -421,6 +419,8 @@ struct intel_fbc {
 			unsigned int stride;
 			u64 modifier;
 		} fb;
+
+		unsigned int fence_y_offset;
 		u16 gen9_wa_cfb_stride;
 		s8 fence_id;
 	} state_cache;
@@ -436,7 +436,6 @@ struct intel_fbc {
 		struct {
 			enum pipe pipe;
 			enum i9xx_plane_id i9xx_plane;
-			unsigned int fence_y_offset;
 		} crtc;
 
 		struct {
@@ -445,6 +444,7 @@ struct intel_fbc {
 		} fb;
 
 		int cfb_size;
+		unsigned int fence_y_offset;
 		u16 gen9_wa_cfb_stride;
 		s8 fence_id;
 		bool plane_visible;
