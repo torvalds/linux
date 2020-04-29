@@ -32,6 +32,7 @@ enum smc_lgr_role {		/* possible roles of a link group */
 };
 
 enum smc_link_state {			/* possible states of a link */
+	SMC_LNK_UNUSED,		/* link is unused */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
 	SMC_LNK_ACTIVE,		/* link is active */
@@ -115,9 +116,10 @@ struct smc_link {
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
+	u8			link_idx;	/* index in lgr link array */
+	struct smc_link_group	*lgr;		/* parent link group */
 
 	enum smc_link_state	state;		/* state of link */
-	struct workqueue_struct *llc_wq;	/* single thread work queue */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
@@ -127,10 +129,10 @@ struct smc_link {
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
-	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
-	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
-	struct completion	llc_delete_rkey; /* wait 4 rx of del rkey */
-	int			llc_delete_rkey_rc; /* rc from del rkey msg */
+	struct completion	llc_confirm_rkey_resp; /* w4 rx of cnf rkey */
+	int			llc_confirm_rkey_resp_rc; /* rc from cnf rkey */
+	struct completion	llc_delete_rkey_resp; /* w4 rx of del rkey */
+	int			llc_delete_rkey_resp_rc; /* rc from del rkey */
 	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
@@ -150,25 +152,32 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			wr_reg	: 1;	/* mem region registered */
-	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */
-			struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];
-						/* virtual buffer */
-			struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
-						/* for rmb only: memory region
-						 * incl. rkey provided to peer
-						 */
-			u32			order;	/* allocation order */
+			struct sg_table	sgt[SMC_LINKS_PER_LGR_MAX];
+					/* virtual buffer */
+			struct ib_mr	*mr_rx[SMC_LINKS_PER_LGR_MAX];
+					/* for rmb only: memory region
+					 * incl. rkey provided to peer
+					 */
+			u32		order;	/* allocation order */
+
+			u8		is_conf_rkey;
+					/* confirm_rkey done */
+			u8		is_reg_mr[SMC_LINKS_PER_LGR_MAX];
+					/* mem region registered */
+			u8		is_map_ib[SMC_LINKS_PER_LGR_MAX];
+					/* mem region mapped to lnk */
+			u8		is_reg_err;
+					/* buffer registration err */
 		};
 		struct { /* SMC-D */
-			unsigned short		sba_idx;
-						/* SBA index number */
-			u64			token;
-						/* DMB token number */
-			dma_addr_t		dma_addr;
-						/* DMA address */
+			unsigned short	sba_idx;
+					/* SBA index number */
+			u64		token;
+					/* DMB token number */
+			dma_addr_t	dma_addr;
+					/* DMA address */
 		};
 	};
 };
@@ -196,9 +205,9 @@ struct smc_link_group {
 	unsigned short		vlan_id;	/* vlan id of link group */
 
 	struct list_head	sndbufs[SMC_RMBE_SIZES];/* tx buffers */
-	rwlock_t		sndbufs_lock;	/* protects tx buffers */
+	struct mutex		sndbufs_lock;	/* protects tx buffers */
 	struct list_head	rmbs[SMC_RMBE_SIZES];	/* rx buffers */
-	rwlock_t		rmbs_lock;	/* protects rx buffers */
+	struct mutex		rmbs_lock;	/* protects rx buffers */
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
@@ -222,6 +231,15 @@ struct smc_link_group {
 						/* remote addr/key pairs */
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
+			u8			next_link_id;
+			struct list_head	llc_event_q;
+						/* queue for llc events */
+			spinlock_t		llc_event_q_lock;
+						/* protects llc_event_q */
+			struct work_struct	llc_event_work;
+						/* llc event worker */
+			int			llc_testlink_time;
+						/* link keep alive time */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -285,6 +303,14 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
+/* returns true if the specified link is usable */
+static inline bool smc_link_usable(struct smc_link *lnk)
+{
+	if (lnk->state == SMC_LNK_UNUSED || lnk->state == SMC_LNK_INACTIVE)
+		return false;
+	return true;
+}
+
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;
@@ -299,10 +325,10 @@ void smc_smcd_terminate_all(struct smcd_dev *dev);
 void smc_smcr_terminate_all(struct smc_ib_device *smcibdev);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
-int smc_rmb_rtoken_handling(struct smc_connection *conn,
+int smc_rmb_rtoken_handling(struct smc_connection *conn, struct smc_link *link,
 			    struct smc_clc_msg_accept_confirm *clc);
-int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey);
-int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey);
+int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
+int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
@@ -317,6 +343,6 @@ void smc_core_exit(void);
 
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
 {
-	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	return link->lgr;
 }
 #endif
