@@ -1679,8 +1679,7 @@ static int perf_series_engines(void *arg)
 			p->engine = ps->ce[idx]->engine;
 			intel_engine_pm_get(p->engine);
 
-			if (intel_engine_supports_stats(p->engine) &&
-			    !intel_enable_engine_stats(p->engine))
+			if (intel_engine_supports_stats(p->engine))
 				p->busy = intel_engine_get_busy_time(p->engine) + 1;
 			p->runtime = -intel_context_get_total_runtime_ns(ce);
 			p->time = ktime_get();
@@ -1700,7 +1699,6 @@ static int perf_series_engines(void *arg)
 			if (p->busy) {
 				p->busy = ktime_sub(intel_engine_get_busy_time(p->engine),
 						    p->busy - 1);
-				intel_disable_engine_stats(p->engine);
 			}
 
 			err = switch_to_kernel_sync(ce, err);
@@ -1762,8 +1760,7 @@ static int p_sync0(void *arg)
 	}
 
 	busy = false;
-	if (intel_engine_supports_stats(engine) &&
-	    !intel_enable_engine_stats(engine)) {
+	if (intel_engine_supports_stats(engine)) {
 		p->busy = intel_engine_get_busy_time(engine);
 		busy = true;
 	}
@@ -1796,7 +1793,6 @@ static int p_sync0(void *arg)
 	if (busy) {
 		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
 				    p->busy);
-		intel_disable_engine_stats(engine);
 	}
 
 	err = switch_to_kernel_sync(ce, err);
@@ -1830,8 +1826,7 @@ static int p_sync1(void *arg)
 	}
 
 	busy = false;
-	if (intel_engine_supports_stats(engine) &&
-	    !intel_enable_engine_stats(engine)) {
+	if (intel_engine_supports_stats(engine)) {
 		p->busy = intel_engine_get_busy_time(engine);
 		busy = true;
 	}
@@ -1866,7 +1861,6 @@ static int p_sync1(void *arg)
 	if (busy) {
 		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
 				    p->busy);
-		intel_disable_engine_stats(engine);
 	}
 
 	err = switch_to_kernel_sync(ce, err);
@@ -1899,8 +1893,7 @@ static int p_many(void *arg)
 	}
 
 	busy = false;
-	if (intel_engine_supports_stats(engine) &&
-	    !intel_enable_engine_stats(engine)) {
+	if (intel_engine_supports_stats(engine)) {
 		p->busy = intel_engine_get_busy_time(engine);
 		busy = true;
 	}
@@ -1924,7 +1917,6 @@ static int p_many(void *arg)
 	if (busy) {
 		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
 				    p->busy);
-		intel_disable_engine_stats(engine);
 	}
 
 	err = switch_to_kernel_sync(ce, err);

@@ -532,27 +532,15 @@ struct intel_engine_cs {
 
 	struct {
 		/**
+		 * @active: Number of contexts currently scheduled in.
+		 */
+		atomic_t active;
+
+		/**
 		 * @lock: Lock protecting the below fields.
 		 */
 		seqlock_t lock;
-		/**
-		 * @enabled: Reference count indicating number of listeners.
-		 */
-		unsigned int enabled;
-		/**
-		 * @active: Number of contexts currently scheduled in.
-		 */
-		unsigned int active;
-		/**
-		 * @enabled_at: Timestamp when busy stats were enabled.
-		 */
-		ktime_t enabled_at;
-		/**
-		 * @start: Timestamp of the last idle to active transition.
-		 *
-		 * Idle is defined as active == 0, active is active > 0.
-		 */
-		ktime_t start;
+
 		/**
 		 * @total: Total time this engine was busy.
 		 *
@@ -560,6 +548,13 @@ struct intel_engine_cs {
 		 * where engine is currently busy (active > 0).
 		 */
 		ktime_t total;
+
+		/**
+		 * @start: Timestamp of the last idle to active transition.
+		 *
+		 * Idle is defined as active == 0, active is active > 0.
+		 */
+		ktime_t start;
 	} stats;
 
 	struct {
