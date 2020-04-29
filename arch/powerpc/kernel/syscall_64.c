@@ -102,6 +102,31 @@ notrace long system_call_exception(long r3, long r4, long r5,
 }
 
 /*
+ * local irqs must be disabled. Returns false if the caller must re-enable
+ * them, check for new work, and try again.
+ */
+static notrace inline bool prep_irq_for_enabled_exit(void)
+{
+	/* This must be done with RI=1 because tracing may touch vmaps */
+	trace_hardirqs_on();
+
+	/* This pattern matches prep_irq_for_idle */
+	__hard_EE_RI_disable();
+	if (unlikely(lazy_irq_pending_nocheck())) {
+		/* Took an interrupt, may have more exit work to do. */
+		__hard_RI_enable();
+		trace_hardirqs_off();
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+		return false;
+	}
+	local_paca->irq_happened = 0;
+	irq_soft_mask_set(IRQS_ENABLED);
+
+	return true;
+}
+
+/*
  * This should be called after a syscall returns, with r3 the return value
  * from the syscall. If this function returns non-zero, the system call
  * exit assembly should additionally load all GPR registers and CTR and XER
@@ -186,21 +211,10 @@ again:
 		}
 	}
 
-	/* This must be done with RI=1 because tracing may touch vmaps */
-	trace_hardirqs_on();
-
-	/* This pattern matches prep_irq_for_idle */
-	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending_nocheck())) {
-		__hard_RI_enable();
-		trace_hardirqs_off();
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+	if (unlikely(!prep_irq_for_enabled_exit())) {
 		local_irq_enable();
-		/* Took an interrupt, may have more exit work to do. */
 		goto again;
 	}
-	local_paca->irq_happened = 0;
-	irq_soft_mask_set(IRQS_ENABLED);
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
@@ -264,19 +278,11 @@ again:
 		}
 	}
 
-	trace_hardirqs_on();
-	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending_nocheck())) {
-		__hard_RI_enable();
-		trace_hardirqs_off();
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+	if (unlikely(!prep_irq_for_enabled_exit())) {
 		local_irq_enable();
 		local_irq_disable();
-		/* Took an interrupt, may have more exit work to do. */
 		goto again;
 	}
-	local_paca->irq_happened = 0;
-	irq_soft_mask_set(IRQS_ENABLED);
 
 #ifdef CONFIG_PPC_BOOK3E
 	if (unlikely(ts->debug.dbcr0 & DBCR0_IDM)) {
@@ -334,13 +340,7 @@ again:
 			}
 		}
 
-		trace_hardirqs_on();
-		__hard_EE_RI_disable();
-		if (unlikely(lazy_irq_pending_nocheck())) {
-			__hard_RI_enable();
-			irq_soft_mask_set(IRQS_ALL_DISABLED);
-			trace_hardirqs_off();
-			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+		if (unlikely(!prep_irq_for_enabled_exit())) {
 			/*
 			 * Can't local_irq_restore to replay if we were in
 			 * interrupt context. Must replay directly.
@@ -354,8 +354,6 @@ again:
 			/* Took an interrupt, may have more exit work to do. */
 			goto again;
 		}
-		local_paca->irq_happened = 0;
-		irq_soft_mask_set(IRQS_ENABLED);
 	} else {
 		/* Returning to a kernel context with local irqs disabled. */
 		__hard_EE_RI_disable();
