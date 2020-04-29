@@ -14,9 +14,17 @@
 #include <linux/slab.h>
 #include <linux/vexpress.h>
 
-#define SYS_CFGDATA		0x0
+#define SYS_MISC		0x0
+#define SYS_MISC_MASTERSITE	(1 << 14)
 
-#define SYS_CFGCTRL		0x4
+#define SYS_PROCID0		0x24
+#define SYS_PROCID1		0x28
+#define SYS_HBI_MASK		0xfff
+#define SYS_PROCIDx_HBI_SHIFT	0
+
+#define SYS_CFGDATA		0x40
+
+#define SYS_CFGCTRL		0x44
 #define SYS_CFGCTRL_START	(1 << 31)
 #define SYS_CFGCTRL_WRITE	(1 << 30)
 #define SYS_CFGCTRL_DCC(n)	(((n) & 0xf) << 26)
@@ -25,10 +33,14 @@
 #define SYS_CFGCTRL_POSITION(n)	(((n) & 0xf) << 12)
 #define SYS_CFGCTRL_DEVICE(n)	(((n) & 0xfff) << 0)
 
-#define SYS_CFGSTAT		0x8
+#define SYS_CFGSTAT		0x48
 #define SYS_CFGSTAT_ERR		(1 << 1)
 #define SYS_CFGSTAT_COMPLETE	(1 << 0)
 
+#define VEXPRESS_SITE_MB		0
+#define VEXPRESS_SITE_DB1		1
+#define VEXPRESS_SITE_DB2		2
+#define VEXPRESS_SITE_MASTER		0xf
 
 struct vexpress_syscfg {
 	struct device *dev;
@@ -59,7 +71,7 @@ static DEFINE_MUTEX(vexpress_config_mutex);
 static u32 vexpress_config_site_master = VEXPRESS_SITE_MASTER;
 
 
-void vexpress_config_set_master(u32 site)
+static void vexpress_config_set_master(u32 site)
 {
 	vexpress_config_site_master = site;
 }
@@ -340,6 +352,8 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct vexpress_config_bridge *bridge;
 	struct device_node *node;
+	int master;
+	u32 dt_hbi;
 
 	syscfg = devm_kzalloc(&pdev->dev, sizeof(*syscfg), GFP_KERNEL);
 	if (!syscfg)
@@ -360,6 +374,21 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 	bridge->context = syscfg;
 
 	dev_set_drvdata(&pdev->dev, bridge);
+
+	master = readl(syscfg->base + SYS_MISC) & SYS_MISC_MASTERSITE ?
+			VEXPRESS_SITE_DB2 : VEXPRESS_SITE_DB1;
+	vexpress_config_set_master(master);
+
+	/* Confirm board type against DT property, if available */
+	if (of_property_read_u32(of_root, "arm,hbi", &dt_hbi) == 0) {
+		u32 id = readl(syscfg->base + (master == VEXPRESS_SITE_DB1 ?
+				 SYS_PROCID0 : SYS_PROCID1));
+		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
+
+		if (WARN_ON(dt_hbi != hbi))
+			dev_warn(&pdev->dev, "DT HBI (%x) is not matching hardware (%x)!\n",
+					dt_hbi, hbi);
+	}
 
 	for_each_compatible_node(node, NULL, "arm,vexpress,config-bus") {
 		struct device_node *bridge_np;

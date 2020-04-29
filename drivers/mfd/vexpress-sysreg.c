@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
-#include <linux/vexpress.h>
 
 #define SYS_ID			0x000
 #define SYS_SW			0x004
@@ -36,11 +35,6 @@
 #define SYS_CFGDATA		0x0a0
 #define SYS_CFGCTRL		0x0a4
 #define SYS_CFGSTAT		0x0a8
-
-#define SYS_HBI_MASK		0xfff
-#define SYS_PROCIDx_HBI_SHIFT	0
-
-#define SYS_MISC_MASTERSITE	(1 << 14)
 
 /* The sysreg block is just a random collection of various functions... */
 
@@ -94,7 +88,7 @@ static struct mfd_cell vexpress_sysreg_cells[] = {
 		.name = "vexpress-syscfg",
 		.num_resources = 1,
 		.resources = (struct resource []) {
-			DEFINE_RES_MEM(SYS_CFGDATA, 0xc),
+			DEFINE_RES_MEM(SYS_MISC, 0x4c),
 		},
 	}
 };
@@ -104,8 +98,6 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	struct resource *mem;
 	void __iomem *base;
 	struct gpio_chip *mmc_gpio_chip;
-	int master;
-	u32 dt_hbi;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem)
@@ -114,21 +106,6 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!base)
 		return -ENOMEM;
-
-	master = readl(base + SYS_MISC) & SYS_MISC_MASTERSITE ?
-			VEXPRESS_SITE_DB2 : VEXPRESS_SITE_DB1;
-	vexpress_config_set_master(master);
-
-	/* Confirm board type against DT property, if available */
-	if (of_property_read_u32(of_root, "arm,hbi", &dt_hbi) == 0) {
-		u32 id = readl(base + (master == VEXPRESS_SITE_DB1 ?
-				 SYS_PROCID0 : SYS_PROCID1));
-		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
-
-		if (WARN_ON(dt_hbi != hbi))
-			dev_warn(&pdev->dev, "DT HBI (%x) is not matching hardware (%x)!\n",
-					dt_hbi, hbi);
-	}
 
 	/*
 	 * Duplicated SYS_MCI pseudo-GPIO controller for compatibility with
