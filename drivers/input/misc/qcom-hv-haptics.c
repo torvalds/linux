@@ -1232,6 +1232,10 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 	if (rc < 0)
 		return rc;
 
+	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
+	if (rc < 0)
+		return rc;
+
 	play->pattern_src = play->effect->src;
 	if (play->pattern_src != PATTERN1 &&
 			play->pattern_src != PATTERN2 &&
@@ -1393,6 +1397,10 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	play->brake = NULL;
 	play->vmax_mv = (magnitude * chip->custom_effect->vmax_mv) / 0x7fff;
 	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
+	if (rc < 0)
+		goto cleanup;
+
+	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
 	if (rc < 0)
 		goto cleanup;
 
