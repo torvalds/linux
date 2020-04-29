@@ -106,38 +106,30 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 			    const void *ptr, unsigned long off,		\
 			    u##bits val)				\
 {									\
-	unsigned long part_offset = (unsigned long)ptr;			\
-	unsigned long offset = part_offset + off;			\
-	void *p;							\
-	int err;							\
-	char *kaddr;							\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
-	int size = sizeof(u##bits);					\
+	const unsigned long member_offset = (unsigned long)ptr + off;	\
+	const unsigned long idx = member_offset >> PAGE_SHIFT;		\
+	const unsigned long oip = offset_in_page(member_offset);	\
+	const int size = sizeof(u##bits);				\
+	__le##bits leres;						\
 									\
 	ASSERT(token);							\
 	ASSERT(token->kaddr);						\
 	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
-	if (token->offset <= offset &&					\
-	   (token->offset + PAGE_SIZE >= offset + size)) {	\
-		kaddr = token->kaddr;					\
-		p = kaddr + part_offset - token->offset;		\
-		put_unaligned_le##bits(val, p + off);			\
+	if (token->offset <= member_offset &&				\
+	    member_offset + size <= token->offset + PAGE_SIZE) {	\
+		put_unaligned_le##bits(val, token->kaddr + oip);	\
 		return;							\
 	}								\
-	err = map_private_extent_buffer(token->eb, offset, size,	\
-			&kaddr, &map_start, &map_len);			\
-	if (err) {							\
-		__le##bits val2;					\
-									\
-		val2 = cpu_to_le##bits(val);				\
-		write_extent_buffer(token->eb, &val2, offset, size);	\
+	if (oip + size <= PAGE_SIZE) {					\
+		token->kaddr = page_address(token->eb->pages[idx]);	\
+		token->offset = idx << PAGE_SHIFT;			\
+		put_unaligned_le##bits(val, token->kaddr + oip);	\
 		return;							\
 	}								\
-	p = kaddr + part_offset - map_start;				\
-	put_unaligned_le##bits(val, p + off);				\
-	token->kaddr = kaddr;						\
-	token->offset = map_start;					\
+	token->kaddr = page_address(token->eb->pages[idx + 1]);		\
+	token->offset = (idx + 1) << PAGE_SHIFT;			\
+	leres = cpu_to_le##bits(val);					\
+	write_extent_buffer(token->eb, &leres, member_offset, size);	\
 }									\
 void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
 		      unsigned long off, u##bits val)			\
