@@ -8,6 +8,10 @@
 # We cannot go as far as adding -Wpedantic since it emits too many warnings.
 UAPI_CFLAGS := -std=c90 -Wall -Werror=implicit-function-declaration
 
+# In theory, we do not care -m32 or -m64 for header compile tests.
+# It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
+UAPI_CFLAGS += $(filter -m32 -m64, $(KBUILD_CFLAGS))
+
 override c_flags = $(UAPI_CFLAGS) -Wp,-MMD,$(depfile) -I$(objtree)/usr/include
 
 # The following are excluded for now because they fail to build.

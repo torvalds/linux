@@ -45,7 +45,9 @@ config CLANG_VERSION
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
 
 config CC_CAN_LINK
-	def_bool $(success,$(srctree)/scripts/cc-can-link.sh $(CC))
+	bool
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(m64-flag)) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(m32-flag))
 
 config CC_HAS_ASM_GOTO
 	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
