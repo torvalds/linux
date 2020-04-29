@@ -132,16 +132,43 @@ static int __ebs_rw_bio(struct ebs_c *ec, int rw, struct bio *bio)
 	return r;
 }
 
-/* 'Discard' blocks, i.e. release them from the bufio cache. */
-static int __ebs_forget_bio(struct ebs_c *ec, struct bio *bio)
+/*
+ * Discard bio's blocks, i.e. pass discards down.
+ *
+ * Avoid discarding partial blocks at beginning and end;
+ * return 0 in case no blocks can be discarded as a result.
+ */
+static int __ebs_discard_bio(struct ebs_c *ec, struct bio *bio)
+{
+	sector_t block, blocks, sector = bio->bi_iter.bi_sector;
+
+	block = __sector_to_block(ec, sector);
+	blocks = __nr_blocks(ec, bio);
+
+	/*
+	 * Partial first underlying block (__nr_blocks() may have
+	 * resulted in one block).
+	 */
+	if (__block_mod(sector, ec->u_bs)) {
+		block++;
+		blocks--;
+	}
+
+	/* Partial last underlying block if any. */
+	if (blocks && __block_mod(bio_end_sector(bio), ec->u_bs))
+		blocks--;
+
+	return blocks ? dm_bufio_issue_discard(ec->bufio, block, blocks) : 0;
+}
+
+/* Release blocks them from the bufio cache. */
+static void __ebs_forget_bio(struct ebs_c *ec, struct bio *bio)
 {
 	sector_t blocks, sector = bio->bi_iter.bi_sector;
 
 	blocks = __nr_blocks(ec, bio);
 	for (; blocks--; sector += ec->u_bs)
 		dm_bufio_forget(ec->bufio, __sector_to_block(ec, sector));
-
-	return 0;
 }
 
 /* Worker funtion to process incoming bios. */
@@ -183,8 +210,8 @@ static void __ebs_process_bios(struct work_struct *ws)
 			write = true;
 			r = __ebs_rw_bio(ec, WRITE, bio);
 		} else if (bio_op(bio) == REQ_OP_DISCARD) {
-			/* FIXME: (optionally) call dm_bufio_discard_buffers() once upstream. */
-			r = __ebs_forget_bio(ec, bio);
+			__ebs_forget_bio(ec, bio);
+			r = __ebs_discard_bio(ec, bio);
 		}
 
 		if (r < 0)
@@ -409,7 +436,7 @@ static int ebs_iterate_devices(struct dm_target *ti,
 
 static struct target_type ebs_target = {
 	.name		 = "ebs",
-	.version	 = {1, 0, 0},
+	.version	 = {1, 0, 1},
 	.features	 = DM_TARGET_PASSES_INTEGRITY,
 	.module		 = THIS_MODULE,
 	.ctr		 = ebs_ctr,
