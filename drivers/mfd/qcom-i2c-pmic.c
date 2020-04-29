@@ -553,7 +553,7 @@ static int i2c_pmic_toggle_stat(struct i2c_pmic *chip)
 			goto exit;
 		}
 
-		usleep_range(10000, 11000);
+		usleep_range(5000, 5500);
 
 		rc = regmap_write(chip->regmap,
 				chip->periph[0].addr | INT_TEST_VAL_OFFSET,
@@ -571,7 +571,7 @@ static int i2c_pmic_toggle_stat(struct i2c_pmic *chip)
 			goto exit;
 		}
 
-		usleep_range(10000, 11000);
+		usleep_range(5000, 5500);
 	}
 exit:
 	regmap_write(chip->regmap, chip->periph[0].addr | INT_TEST_OFFSET, 0);
