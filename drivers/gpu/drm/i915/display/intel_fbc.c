@@ -132,8 +132,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	/* enable it... */
-	fbc_ctl = intel_de_read(dev_priv, FBC_CONTROL);
-	fbc_ctl &= FBC_CTL_INTERVAL(0x3fff);
+	fbc_ctl = FBC_CTL_INTERVAL(params->interval);
 	fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
@@ -699,6 +698,9 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.modifier = fb->modifier;
 
+	/* This value was pulled out of someone's hat */
+	cache->interval = 500;
+
 	cache->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->flags & PLANE_HAS_FENCE &&
@@ -872,6 +874,8 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->fence_id = cache->fence_id;
 	params->fence_y_offset = cache->fence_y_offset;
+
+	params->interval = cache->interval;
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
@@ -1419,11 +1423,6 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		fbc->no_fbc_reason = "unsupported by this chipset";
 		return;
 	}
-
-	/* This value was pulled out of someone's hat */
-	if (INTEL_GEN(dev_priv) <= 4 && !IS_GM45(dev_priv))
-		intel_de_write(dev_priv, FBC_CONTROL,
-			       FBC_CTL_INTERVAL(500));
 
 	/* We still don't have any sort of hardware state readout for FBC, so
 	 * deactivate it in case the BIOS activated it to make sure software
