@@ -265,6 +265,27 @@ domain names are in general different. For a detailed discussion
 see the ``hostname(1)`` man page.
 
 
+ftrace_dump_on_oops
+===================
+
+Determines whether ``ftrace_dump()`` should be called on an oops (or
+kernel panic). This will output the contents of the ftrace buffers to
+the console.  This is very useful for capturing traces that lead to
+crashes and outputting them to a serial console.
+
+= ===================================================
+0 Disabled (default).
+1 Dump buffers of all CPUs.
+2 Dump the buffer of the CPU that triggered the oops.
+= ===================================================
+
+
+ftrace_enabled, stack_tracer_enabled
+====================================
+
+See :doc:`/trace/ftrace`.
+
+
 hardlockup_all_cpu_backtrace
 ============================
 
@@ -1189,6 +1210,33 @@ constant ``FUTEX_TID_MASK`` (0x3fffffff).
 
 If a value outside of this range is written to ``threads-max`` an
 ``EINVAL`` error occurs.
+
+
+traceoff_on_warning
+===================
+
+When set, disables tracing (see :doc:`/trace/ftrace`) when a
+``WARN()`` is hit.
+
+
+tracepoint_printk
+=================
+
+When tracepoints are sent to printk() (enabled by the ``tp_printk``
+boot parameter), this entry provides runtime control::
+
+    echo 0 > /proc/sys/kernel/tracepoint_printk
+
+will stop tracepoints from being sent to printk(), and::
+
+    echo 1 > /proc/sys/kernel/tracepoint_printk
+
+will send them to printk() again.
+
+This only works if the kernel was booted with ``tp_printk`` enabled.
+
+See :doc:`/admin-guide/kernel-parameters` and
+:doc:`/trace/boottime-trace`.
 
 
 unknown_nmi_panic
