@@ -57,8 +57,6 @@ struct bpf_cgroup_link {
 	enum bpf_attach_type type;
 };
 
-extern const struct bpf_link_ops bpf_cgroup_link_lops;
-
 struct bpf_prog_list {
 	struct list_head node;
 	struct bpf_prog *prog;

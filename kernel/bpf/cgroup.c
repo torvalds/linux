@@ -833,10 +833,48 @@ static void bpf_cgroup_link_dealloc(struct bpf_link *link)
 	kfree(cg_link);
 }
 
-const struct bpf_link_ops bpf_cgroup_link_lops = {
+static void bpf_cgroup_link_show_fdinfo(const struct bpf_link *link,
+					struct seq_file *seq)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	seq_printf(seq,
+		   "cgroup_id:\t%llu\n"
+		   "attach_type:\t%d\n",
+		   cg_id,
+		   cg_link->type);
+}
+
+static int bpf_cgroup_link_fill_link_info(const struct bpf_link *link,
+					  struct bpf_link_info *info)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	info->cgroup.cgroup_id = cg_id;
+	info->cgroup.attach_type = cg_link->type;
+	return 0;
+}
+
+static const struct bpf_link_ops bpf_cgroup_link_lops = {
 	.release = bpf_cgroup_link_release,
 	.dealloc = bpf_cgroup_link_dealloc,
 	.update_prog = cgroup_bpf_replace,
+	.show_fdinfo = bpf_cgroup_link_show_fdinfo,
+	.fill_link_info = bpf_cgroup_link_fill_link_info,
 };
 
 int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
@@ -858,7 +896,8 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		err = -ENOMEM;
 		goto out_put_cgroup;
 	}
-	bpf_link_init(&link->link, &bpf_cgroup_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_CGROUP, &bpf_cgroup_link_lops,
+		      prog);
 	link->cgroup = cgrp;
 	link->type = attr->link_create.attach_type;
 

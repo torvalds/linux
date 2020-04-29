@@ -51,9 +51,11 @@ static const struct bpf_map_ops * const bpf_map_types[] = {
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type)
 #define BPF_MAP_TYPE(_id, _ops) \
 	[_id] = &_ops,
+#define BPF_LINK_TYPE(_id, _name)
 #include <linux/bpf_types.h>
 #undef BPF_PROG_TYPE
 #undef BPF_MAP_TYPE
+#undef BPF_LINK_TYPE
 };
 
 /*
@@ -1548,9 +1550,11 @@ static const struct bpf_prog_ops * const bpf_prog_types[] = {
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	[_id] = & _name ## _prog_ops,
 #define BPF_MAP_TYPE(_id, _ops)
+#define BPF_LINK_TYPE(_id, _name)
 #include <linux/bpf_types.h>
 #undef BPF_PROG_TYPE
 #undef BPF_MAP_TYPE
+#undef BPF_LINK_TYPE
 };
 
 static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
@@ -2183,10 +2187,11 @@ static int bpf_obj_get(const union bpf_attr *attr)
 				attr->file_flags);
 }
 
-void bpf_link_init(struct bpf_link *link,
+void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
 		   const struct bpf_link_ops *ops, struct bpf_prog *prog)
 {
 	atomic64_set(&link->refcnt, 1);
+	link->type = type;
 	link->id = 0;
 	link->ops = ops;
 	link->prog = prog;
@@ -2266,27 +2271,23 @@ static int bpf_link_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-static const struct bpf_link_ops bpf_raw_tp_lops;
-static const struct bpf_link_ops bpf_tracing_link_lops;
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type)
+#define BPF_MAP_TYPE(_id, _ops)
+#define BPF_LINK_TYPE(_id, _name) [_id] = #_name,
+static const char *bpf_link_type_strs[] = {
+	[BPF_LINK_TYPE_UNSPEC] = "<invalid>",
+#include <linux/bpf_types.h>
+};
+#undef BPF_PROG_TYPE
+#undef BPF_MAP_TYPE
+#undef BPF_LINK_TYPE
 
+#ifdef CONFIG_PROC_FS
 static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_link *link = filp->private_data;
 	const struct bpf_prog *prog = link->prog;
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
-	const char *link_type;
-
-	if (link->ops == &bpf_raw_tp_lops)
-		link_type = "raw_tracepoint";
-	else if (link->ops == &bpf_tracing_link_lops)
-		link_type = "tracing";
-#ifdef CONFIG_CGROUP_BPF
-	else if (link->ops == &bpf_cgroup_link_lops)
-		link_type = "cgroup";
-#endif
-	else
-		link_type = "unknown";
 
 	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
@@ -2294,10 +2295,12 @@ static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "link_id:\t%u\n"
 		   "prog_tag:\t%s\n"
 		   "prog_id:\t%u\n",
-		   link_type,
+		   bpf_link_type_strs[link->type],
 		   link->id,
 		   prog_tag,
 		   prog->aux->id);
+	if (link->ops->show_fdinfo)
+		link->ops->show_fdinfo(link, m);
 }
 #endif
 
@@ -2403,6 +2406,7 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 
 struct bpf_tracing_link {
 	struct bpf_link link;
+	enum bpf_attach_type attach_type;
 };
 
 static void bpf_tracing_link_release(struct bpf_link *link)
@@ -2418,9 +2422,33 @@ static void bpf_tracing_link_dealloc(struct bpf_link *link)
 	kfree(tr_link);
 }
 
+static void bpf_tracing_link_show_fdinfo(const struct bpf_link *link,
+					 struct seq_file *seq)
+{
+	struct bpf_tracing_link *tr_link =
+		container_of(link, struct bpf_tracing_link, link);
+
+	seq_printf(seq,
+		   "attach_type:\t%d\n",
+		   tr_link->attach_type);
+}
+
+static int bpf_tracing_link_fill_link_info(const struct bpf_link *link,
+					   struct bpf_link_info *info)
+{
+	struct bpf_tracing_link *tr_link =
+		container_of(link, struct bpf_tracing_link, link);
+
+	info->tracing.attach_type = tr_link->attach_type;
+
+	return 0;
+}
+
 static const struct bpf_link_ops bpf_tracing_link_lops = {
 	.release = bpf_tracing_link_release,
 	.dealloc = bpf_tracing_link_dealloc,
+	.show_fdinfo = bpf_tracing_link_show_fdinfo,
+	.fill_link_info = bpf_tracing_link_fill_link_info,
 };
 
 static int bpf_tracing_prog_attach(struct bpf_prog *prog)
@@ -2460,7 +2488,9 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog)
 		err = -ENOMEM;
 		goto out_put_prog;
 	}
-	bpf_link_init(&link->link, &bpf_tracing_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_TRACING,
+		      &bpf_tracing_link_lops, prog);
+	link->attach_type = prog->expected_attach_type;
 
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err) {
@@ -2502,9 +2532,56 @@ static void bpf_raw_tp_link_dealloc(struct bpf_link *link)
 	kfree(raw_tp);
 }
 
+static void bpf_raw_tp_link_show_fdinfo(const struct bpf_link *link,
+					struct seq_file *seq)
+{
+	struct bpf_raw_tp_link *raw_tp_link =
+		container_of(link, struct bpf_raw_tp_link, link);
+
+	seq_printf(seq,
+		   "tp_name:\t%s\n",
+		   raw_tp_link->btp->tp->name);
+}
+
+static int bpf_raw_tp_link_fill_link_info(const struct bpf_link *link,
+					  struct bpf_link_info *info)
+{
+	struct bpf_raw_tp_link *raw_tp_link =
+		container_of(link, struct bpf_raw_tp_link, link);
+	char __user *ubuf = u64_to_user_ptr(info->raw_tracepoint.tp_name);
+	const char *tp_name = raw_tp_link->btp->tp->name;
+	u32 ulen = info->raw_tracepoint.tp_name_len;
+	size_t tp_len = strlen(tp_name);
+
+	if (ulen && !ubuf)
+		return -EINVAL;
+
+	info->raw_tracepoint.tp_name_len = tp_len + 1;
+
+	if (!ubuf)
+		return 0;
+
+	if (ulen >= tp_len + 1) {
+		if (copy_to_user(ubuf, tp_name, tp_len + 1))
+			return -EFAULT;
+	} else {
+		char zero = '\0';
+
+		if (copy_to_user(ubuf, tp_name, ulen - 1))
+			return -EFAULT;
+		if (put_user(zero, ubuf + ulen - 1))
+			return -EFAULT;
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 static const struct bpf_link_ops bpf_raw_tp_link_lops = {
 	.release = bpf_raw_tp_link_release,
 	.dealloc = bpf_raw_tp_link_dealloc,
+	.show_fdinfo = bpf_raw_tp_link_show_fdinfo,
+	.fill_link_info = bpf_raw_tp_link_fill_link_info,
 };
 
 #define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
@@ -2570,7 +2647,8 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 		err = -ENOMEM;
 		goto out_put_btp;
 	}
-	bpf_link_init(&link->link, &bpf_raw_tp_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_RAW_TRACEPOINT,
+		      &bpf_raw_tp_link_lops, prog);
 	link->btp = btp;
 
 	err = bpf_link_prime(&link->link, &link_primer);
@@ -3366,6 +3444,42 @@ static int bpf_btf_get_info_by_fd(struct btf *btf,
 	return btf_get_info_by_fd(btf, attr, uattr);
 }
 
+static int bpf_link_get_info_by_fd(struct bpf_link *link,
+				  const union bpf_attr *attr,
+				  union bpf_attr __user *uattr)
+{
+	struct bpf_link_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	struct bpf_link_info info;
+	u32 info_len = attr->info.info_len;
+	int err;
+
+	err = bpf_check_uarg_tail_zero(uinfo, sizeof(info), info_len);
+	if (err)
+		return err;
+	info_len = min_t(u32, sizeof(info), info_len);
+
+	memset(&info, 0, sizeof(info));
+	if (copy_from_user(&info, uinfo, info_len))
+		return -EFAULT;
+
+	info.type = link->type;
+	info.id = link->id;
+	info.prog_id = link->prog->aux->id;
+
+	if (link->ops->fill_link_info) {
+		err = link->ops->fill_link_info(link, &info);
+		if (err)
+			return err;
+	}
+
+	if (copy_to_user(uinfo, &info, info_len) ||
+	    put_user(info_len, &uattr->info.info_len))
+		return -EFAULT;
+
+	return 0;
+}
+
+
 #define BPF_OBJ_GET_INFO_BY_FD_LAST_FIELD info.info
 
 static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
@@ -3390,6 +3504,9 @@ static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
 					     uattr);
 	else if (f.file->f_op == &btf_fops)
 		err = bpf_btf_get_info_by_fd(f.file->private_data, attr, uattr);
+	else if (f.file->f_op == &bpf_link_fops)
+		err = bpf_link_get_info_by_fd(f.file->private_data,
+					      attr, uattr);
 	else
 		err = -EINVAL;
 
