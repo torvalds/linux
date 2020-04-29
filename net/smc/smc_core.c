@@ -385,8 +385,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	lgr->freefast = 0;
 	lgr->freeing = 0;
 	lgr->vlan_id = ini->vlan_id;
-	rwlock_init(&lgr->sndbufs_lock);
-	rwlock_init(&lgr->rmbs_lock);
+	mutex_init(&lgr->sndbufs_lock);
+	mutex_init(&lgr->rmbs_lock);
 	rwlock_init(&lgr->conns_lock);
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		INIT_LIST_HEAD(&lgr->sndbufs[i]);
@@ -456,9 +456,9 @@ static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
 	}
 	if (rmb_desc->is_reg_err) {
 		/* buf registration failed, reuse not possible */
-		write_lock_bh(&lgr->rmbs_lock);
+		mutex_lock(&lgr->rmbs_lock);
 		list_del(&rmb_desc->list);
-		write_unlock_bh(&lgr->rmbs_lock);
+		mutex_unlock(&lgr->rmbs_lock);
 
 		smc_buf_free(lgr, true, rmb_desc);
 	} else {
@@ -1059,19 +1059,19 @@ int smc_uncompress_bufsize(u8 compressed)
  * buffer size; if not available, return NULL
  */
 static struct smc_buf_desc *smc_buf_get_slot(int compressed_bufsize,
-					     rwlock_t *lock,
+					     struct mutex *lock,
 					     struct list_head *buf_list)
 {
 	struct smc_buf_desc *buf_slot;
 
-	read_lock_bh(lock);
+	mutex_lock(lock);
 	list_for_each_entry(buf_slot, buf_list, list) {
 		if (cmpxchg(&buf_slot->used, 0, 1) == 0) {
-			read_unlock_bh(lock);
+			mutex_unlock(lock);
 			return buf_slot;
 		}
 	}
-	read_unlock_bh(lock);
+	mutex_unlock(lock);
 	return NULL;
 }
 
@@ -1220,8 +1220,8 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 	struct smc_link_group *lgr = conn->lgr;
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
+	struct mutex *lock;	/* lock buffer list */
 	int sk_buf_size;
-	rwlock_t *lock;
 
 	if (is_rmb)
 		/* use socket recv buffer size (w/o overhead) as start value */
@@ -1262,9 +1262,9 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 			continue;
 
 		buf_desc->used = 1;
-		write_lock_bh(lock);
+		mutex_lock(lock);
 		list_add(&buf_desc->list, buf_list);
-		write_unlock_bh(lock);
+		mutex_unlock(lock);
 		break; /* found */
 	}
 
