@@ -654,7 +654,7 @@ int virt_wifi_register_network_simulation
 	priv->network_simulation = ops;
 	return 0;
 }
-EXPORT_SYMBOL(virt_wifi_register_network_simulation);
+EXPORT_SYMBOL_GPL(virt_wifi_register_network_simulation);
 
 int virt_wifi_unregister_network_simulation(void)
 {
@@ -664,7 +664,7 @@ int virt_wifi_unregister_network_simulation(void)
 	priv->network_simulation = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(virt_wifi_unregister_network_simulation);
+EXPORT_SYMBOL_GPL(virt_wifi_unregister_network_simulation);
 
 module_init(virt_wifi_init_module);
 module_exit(virt_wifi_cleanup_module);
