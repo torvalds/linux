@@ -716,8 +716,10 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 
 	master->dma_tx = dma_request_chan(&pdev->dev, "tx");
 	if (IS_ERR_OR_NULL(master->dma_tx)) {
-		if (PTR_ERR(master->dma_tx) == -EPROBE_DEFER)
+		if (PTR_ERR(master->dma_tx) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
 			goto out_disable_clk;
+		}
 		master->dma_tx = NULL;
 		dma_tx_burst = INT_MAX;
 	} else {
@@ -732,8 +734,10 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 
 	master->dma_rx = dma_request_chan(&pdev->dev, "rx");
 	if (IS_ERR_OR_NULL(master->dma_rx)) {
-		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER)
+		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
 			goto out_disable_clk;
+		}
 		master->dma_rx = NULL;
 		dma_rx_burst = INT_MAX;
 	} else {
