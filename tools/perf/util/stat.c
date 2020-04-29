@@ -108,7 +108,7 @@ static void perf_stat_evsel_id_init(struct evsel *evsel)
 	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
 
 	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
-		if (!strcmp(perf_evsel__name(evsel), id_str[i])) {
+		if (!strcmp(evsel__name(evsel), id_str[i])) {
 			ps->id = i;
 			break;
 		}
@@ -392,7 +392,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 
 	if (verbose > 0) {
 		fprintf(config->output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-			perf_evsel__name(counter), count[0], count[1], count[2]);
+			evsel__name(counter), count[0], count[1], count[2]);
 	}
 
 	/*

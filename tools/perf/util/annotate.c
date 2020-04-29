@@ -2344,7 +2344,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 	struct dso *dso = map->dso;
 	char *filename;
 	const char *d_filename;
-	const char *evsel_name = perf_evsel__name(evsel);
+	const char *evsel_name = evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct annotation_line *pos, *queue = NULL;
@@ -2505,7 +2505,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 				struct annotation_options *opts)
 {
-	const char *ev_name = perf_evsel__name(evsel);
+	const char *ev_name = evsel__name(evsel);
 	char buf[1024];
 	char *filename;
 	int err = -1;

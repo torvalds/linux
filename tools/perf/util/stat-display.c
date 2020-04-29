@@ -246,7 +246,7 @@ static const char *fixunit(char *buf, struct evsel *evsel,
 			   const char *unit)
 {
 	if (!strncmp(unit, "of all", 6)) {
-		snprintf(buf, 1024, "%s %s", perf_evsel__name(evsel),
+		snprintf(buf, 1024, "%s %s", evsel__name(evsel),
 			 unit);
 		return buf;
 	}
@@ -367,7 +367,7 @@ static void abs_printout(struct perf_stat_config *config,
 			config->csv_output ? 0 : config->unit_width,
 			evsel->unit, config->csv_sep);
 
-	fprintf(output, "%-*s", config->csv_output ? 0 : 25, perf_evsel__name(evsel));
+	fprintf(output, "%-*s", config->csv_output ? 0 : 25, evsel__name(evsel));
 
 	print_cgroup(config, evsel);
 }
@@ -461,8 +461,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 			counter->unit, config->csv_sep);
 
 		fprintf(config->output, "%*s",
-			config->csv_output ? 0 : -25,
-			perf_evsel__name(counter));
+			config->csv_output ? 0 : -25, evsel__name(counter));
 
 		print_cgroup(config, counter);
 
@@ -559,7 +558,7 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 
 	alias = list_prepare_entry(counter, &(evlist->core.entries), core.node);
 	list_for_each_entry_continue (alias, &evlist->core.entries, core.node) {
-		if (strcmp(perf_evsel__name(alias), perf_evsel__name(counter)) ||
+		if (strcmp(evsel__name(alias), evsel__name(counter)) ||
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
 		    strcmp(alias->unit, counter->unit) ||

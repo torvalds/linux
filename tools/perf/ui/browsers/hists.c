@@ -3416,7 +3416,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
-	const char *ev_name = perf_evsel__name(evsel);
+	const char *ev_name = evsel__name(evsel);
 	char bf[256], unit;
 	const char *warn = " ";
 	size_t printed;
@@ -3427,7 +3427,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	if (perf_evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
-		ev_name = perf_evsel__group_name(evsel);
+		ev_name = evsel__group_name(evsel);
 
 		for_each_group_member(pos, evsel) {
 			struct hists *pos_hists = evsel__hists(pos);
@@ -3587,7 +3587,7 @@ static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 	ui_helpline__push("Press ESC to exit");
 
 	evlist__for_each_entry(evlist, pos) {
-		const char *ev_name = perf_evsel__name(pos);
+		const char *ev_name = evsel__name(pos);
 		size_t line_len = strlen(ev_name) + 7;
 
 		if (menu.b.width < line_len)
@@ -3640,7 +3640,7 @@ static int block_hists_browser__title(struct hist_browser *browser, char *bf,
 				      size_t size)
 {
 	struct hists *hists = evsel__hists(browser->block_evsel);
-	const char *evname = perf_evsel__name(browser->block_evsel);
+	const char *evname = evsel__name(browser->block_evsel);
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	int ret;
 

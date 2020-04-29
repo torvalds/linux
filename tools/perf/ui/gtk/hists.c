@@ -635,7 +635,7 @@ int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
-		const char *evname = perf_evsel__name(pos);
+		const char *evname = evsel__name(pos);
 		GtkWidget *scrolled_window;
 		GtkWidget *tab_label;
 		char buf[512];

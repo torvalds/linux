@@ -2259,8 +2259,7 @@ static void print_c2c_info(FILE *out, struct perf_session *session)
 	fprintf(out, "=================================================\n");
 
 	evlist__for_each_entry(evlist, evsel) {
-		fprintf(out, "%-36s: %s\n", first ? "  Events" : "",
-			perf_evsel__name(evsel));
+		fprintf(out, "%-36s: %s\n", first ? "  Events" : "", evsel__name(evsel));
 		first = false;
 	}
 	fprintf(out, "  Cachelines sort on                : %s HITMs\n",

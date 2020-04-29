@@ -306,7 +306,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 		if (verbose > 1) {
 			fprintf(stat_config.output,
 				"%s: %d: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-					perf_evsel__name(counter),
+					evsel__name(counter),
 					cpu,
 					count->val, count->ena, count->run);
 		}
@@ -455,7 +455,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	    errno == ENXIO) {
 		if (verbose > 0)
 			ui__warning("%s event is not supported by the kernel.\n",
-				    perf_evsel__name(counter));
+				    evsel__name(counter));
 		counter->supported = false;
 		/*
 		 * errored is a sticky flag that means one of the counter's
@@ -605,7 +605,7 @@ try_again:
 				if (!counter->reset_group)
 					continue;
 try_again_reset:
-				pr_debug2("reopening weak %s\n", perf_evsel__name(counter));
+				pr_debug2("reopening weak %s\n", evsel__name(counter));
 				if (create_perf_stat_counter(counter, &stat_config, &target,
 							     counter->cpu_iter - 1) < 0) {
 
@@ -643,7 +643,7 @@ try_again_reset:
 
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			counter->filter, perf_evsel__name(counter), errno,
+			counter->filter, evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		return -1;
 	}

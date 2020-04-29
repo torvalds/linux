@@ -3037,7 +3037,7 @@ static struct evsel *intel_pt_find_sched_switch(struct evlist *evlist)
 	struct evsel *evsel;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
-		const char *name = perf_evsel__name(evsel);
+		const char *name = evsel__name(evsel);
 
 		if (!strcmp(name, "sched:sched_switch"))
 			return evsel;

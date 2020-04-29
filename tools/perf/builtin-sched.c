@@ -2136,7 +2136,7 @@ static bool is_idle_sample(struct perf_sample *sample,
 			   struct evsel *evsel)
 {
 	/* pid 0 == swapper == idle task */
-	if (strcmp(perf_evsel__name(evsel), "sched:sched_switch") == 0)
+	if (strcmp(evsel__name(evsel), "sched:sched_switch") == 0)
 		return perf_evsel__intval(evsel, sample, "prev_pid") == 0;
 
 	return sample->pid == 0;
@@ -2355,7 +2355,7 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 	}
 
 	if (sched->idle_hist) {
-		if (strcmp(perf_evsel__name(evsel), "sched:sched_switch"))
+		if (strcmp(evsel__name(evsel), "sched:sched_switch"))
 			rc = true;
 		else if (perf_evsel__intval(evsel, sample, "prev_pid") != 0 &&
 			 perf_evsel__intval(evsel, sample, "next_pid") != 0)

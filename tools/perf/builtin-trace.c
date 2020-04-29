@@ -2074,7 +2074,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 		if (verbose > 1) {
 			static u64 n;
 			fprintf(trace->output, "Invalid syscall %d id, skipping (%s, %" PRIu64 ") ...\n",
-				id, perf_evsel__name(evsel), ++n);
+				id, evsel__name(evsel), ++n);
 		}
 		return NULL;
 	}
@@ -2206,7 +2206,7 @@ static int trace__fprintf_sample(struct trace *trace, struct evsel *evsel,
 		double ts = (double)sample->time / NSEC_PER_MSEC;
 
 		printed += fprintf(trace->output, "%22s %10.3f %s %d/%d [%d]\n",
-				   perf_evsel__name(evsel), ts,
+				   evsel__name(evsel), ts,
 				   thread__comm_str(thread),
 				   sample->pid, sample->tid, sample->cpu);
 	}
@@ -2513,7 +2513,7 @@ errno_print: {
 	if (callchain_ret > 0)
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
-		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+		pr_err("Problem processing %s callchain, skipping...\n", evsel__name(evsel));
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -2795,7 +2795,7 @@ newline:
 	if (callchain_ret > 0)
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
-		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+		pr_err("Problem processing %s callchain, skipping...\n", evsel__name(evsel));
 
 	++trace->nr_events_printed;
 
@@ -2890,7 +2890,7 @@ static int trace__pgfault(struct trace *trace,
 	if (callchain_ret > 0)
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
-		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+		pr_err("Problem processing %s callchain, skipping...\n", evsel__name(evsel));
 
 	++trace->nr_events_printed;
 out:
@@ -3032,7 +3032,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 	}
 
 	evlist__for_each_entry_safe(evlist, evsel, tmp) {
-		if (!strstarts(perf_evsel__name(evsel), "probe:vfs_getname"))
+		if (!strstarts(evsel__name(evsel), "probe:vfs_getname"))
 			continue;
 
 		if (perf_evsel__field(evsel, "pathname")) {
@@ -3093,7 +3093,7 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT &&
 	    sample->raw_data == NULL) {
 		fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
-		       perf_evsel__name(evsel), sample->tid,
+		       evsel__name(evsel), sample->tid,
 		       sample->cpu, sample->raw_size);
 	} else {
 		tracepoint_handler handler = evsel->handler;
@@ -4108,7 +4108,7 @@ out_error:
 out_error_apply_filters:
 	fprintf(trace->output,
 		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
-		evsel->filter, perf_evsel__name(evsel), errno,
+		evsel->filter, evsel__name(evsel), errno,
 		str_error_r(errno, errbuf, sizeof(errbuf)));
 	goto out_delete_evlist;
 }
@@ -4989,7 +4989,7 @@ int cmd_trace(int argc, const char **argv)
 	 */
 	if (trace.syscalls.events.augmented) {
 		evlist__for_each_entry(trace.evlist, evsel) {
-			bool raw_syscalls_sys_exit = strcmp(perf_evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
+			bool raw_syscalls_sys_exit = strcmp(evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
 
 			if (raw_syscalls_sys_exit) {
 				trace.raw_augmented_syscalls = true;
@@ -4997,7 +4997,7 @@ int cmd_trace(int argc, const char **argv)
 			}
 
 			if (trace.syscalls.events.augmented->priv == NULL &&
-			    strstr(perf_evsel__name(evsel), "syscalls:sys_enter")) {
+			    strstr(evsel__name(evsel), "syscalls:sys_enter")) {
 				struct evsel *augmented = trace.syscalls.events.augmented;
 				if (perf_evsel__init_augmented_syscall_tp(augmented, evsel) ||
 				    perf_evsel__init_augmented_syscall_tp_args(augmented))
@@ -5020,7 +5020,7 @@ int cmd_trace(int argc, const char **argv)
 				evsel->handler = trace__sys_enter;
 			}
 
-			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_")) {
+			if (strstarts(evsel__name(evsel), "syscalls:sys_exit_")) {
 				struct syscall_tp *sc;
 init_augmented_syscall_tp:
 				if (perf_evsel__init_augmented_syscall_tp(evsel, evsel))

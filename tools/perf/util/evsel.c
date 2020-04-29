@@ -385,7 +385,7 @@ const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"ref-cycles",
 };
 
-static const char *__perf_evsel__hw_name(u64 config)
+static const char *__evsel__hw_name(u64 config)
 {
 	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
 		return perf_evsel__hw_names[config];
@@ -429,9 +429,9 @@ static int perf_evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
 	return r;
 }
 
-static int perf_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
+static int evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 {
-	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(evsel->core.attr.config));
+	int r = scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
@@ -448,20 +448,20 @@ const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"dummy",
 };
 
-static const char *__perf_evsel__sw_name(u64 config)
+static const char *__evsel__sw_name(u64 config)
 {
 	if (config < PERF_COUNT_SW_MAX && perf_evsel__sw_names[config])
 		return perf_evsel__sw_names[config];
 	return "unknown-software";
 }
 
-static int perf_evsel__sw_name(struct evsel *evsel, char *bf, size_t size)
+static int evsel__sw_name(struct evsel *evsel, char *bf, size_t size)
 {
-	int r = scnprintf(bf, size, "%s", __perf_evsel__sw_name(evsel->core.attr.config));
+	int r = scnprintf(bf, size, "%s", __evsel__sw_name(evsel->core.attr.config));
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
-static int __perf_evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
+static int __evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
 {
 	int r;
 
@@ -479,10 +479,10 @@ static int __perf_evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
 	return r;
 }
 
-static int perf_evsel__bp_name(struct evsel *evsel, char *bf, size_t size)
+static int evsel__bp_name(struct evsel *evsel, char *bf, size_t size)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	int r = __perf_evsel__bp_name(bf, size, attr->bp_addr, attr->bp_type);
+	int r = __evsel__bp_name(bf, size, attr->bp_addr, attr->bp_type);
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
@@ -539,8 +539,7 @@ bool perf_evsel__is_cache_op_valid(u8 type, u8 op)
 		return false;	/* invalid */
 }
 
-int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
-					    char *bf, size_t size)
+int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size)
 {
 	if (result) {
 		return scnprintf(bf, size, "%s-%s-%s", perf_evsel__hw_cache[type][0],
@@ -552,7 +551,7 @@ int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 			 perf_evsel__hw_cache_op[op][1]);
 }
 
-static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
+static int __evsel__hw_cache_name(u64 config, char *bf, size_t size)
 {
 	u8 op, result, type = (config >>  0) & 0xff;
 	const char *err = "unknown-ext-hardware-cache-type";
@@ -574,30 +573,30 @@ static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
 	if (!perf_evsel__is_cache_op_valid(type, op))
 		goto out_err;
 
-	return __perf_evsel__hw_cache_type_op_res_name(type, op, result, bf, size);
+	return __evsel__hw_cache_type_op_res_name(type, op, result, bf, size);
 out_err:
 	return scnprintf(bf, size, "%s", err);
 }
 
-static int perf_evsel__hw_cache_name(struct evsel *evsel, char *bf, size_t size)
+static int evsel__hw_cache_name(struct evsel *evsel, char *bf, size_t size)
 {
-	int ret = __perf_evsel__hw_cache_name(evsel->core.attr.config, bf, size);
+	int ret = __evsel__hw_cache_name(evsel->core.attr.config, bf, size);
 	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
-static int perf_evsel__raw_name(struct evsel *evsel, char *bf, size_t size)
+static int evsel__raw_name(struct evsel *evsel, char *bf, size_t size)
 {
 	int ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->core.attr.config);
 	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
-static int perf_evsel__tool_name(char *bf, size_t size)
+static int evsel__tool_name(char *bf, size_t size)
 {
 	int ret = scnprintf(bf, size, "duration_time");
 	return ret;
 }
 
-const char *perf_evsel__name(struct evsel *evsel)
+const char *evsel__name(struct evsel *evsel)
 {
 	char bf[128];
 
@@ -609,22 +608,22 @@ const char *perf_evsel__name(struct evsel *evsel)
 
 	switch (evsel->core.attr.type) {
 	case PERF_TYPE_RAW:
-		perf_evsel__raw_name(evsel, bf, sizeof(bf));
+		evsel__raw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_HARDWARE:
-		perf_evsel__hw_name(evsel, bf, sizeof(bf));
+		evsel__hw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_HW_CACHE:
-		perf_evsel__hw_cache_name(evsel, bf, sizeof(bf));
+		evsel__hw_cache_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_SOFTWARE:
 		if (evsel->tool_event)
-			perf_evsel__tool_name(bf, sizeof(bf));
+			evsel__tool_name(bf, sizeof(bf));
 		else
-			perf_evsel__sw_name(evsel, bf, sizeof(bf));
+			evsel__sw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_TRACEPOINT:
@@ -632,7 +631,7 @@ const char *perf_evsel__name(struct evsel *evsel)
 		break;
 
 	case PERF_TYPE_BREAKPOINT:
-		perf_evsel__bp_name(evsel, bf, sizeof(bf));
+		evsel__bp_name(evsel, bf, sizeof(bf));
 		break;
 
 	default:
@@ -649,7 +648,7 @@ out_unknown:
 	return "unknown";
 }
 
-const char *perf_evsel__group_name(struct evsel *evsel)
+const char *evsel__group_name(struct evsel *evsel)
 {
 	return evsel->group_name ?: "anon group";
 }
@@ -668,17 +667,15 @@ int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size)
 {
 	int ret = 0;
 	struct evsel *pos;
-	const char *group_name = perf_evsel__group_name(evsel);
+	const char *group_name = evsel__group_name(evsel);
 
 	if (!evsel->forced_leader)
 		ret = scnprintf(buf, size, "%s { ", group_name);
 
-	ret += scnprintf(buf + ret, size - ret, "%s",
-			 perf_evsel__name(evsel));
+	ret += scnprintf(buf + ret, size - ret, "%s", evsel__name(evsel));
 
 	for_each_group_member(pos, evsel)
-		ret += scnprintf(buf + ret, size - ret, ", %s",
-				 perf_evsel__name(pos));
+		ret += scnprintf(buf + ret, size - ret, ", %s", evsel__name(pos));
 
 	if (!evsel->forced_leader)
 		ret += scnprintf(buf + ret, size - ret, " }");
@@ -2421,7 +2418,7 @@ bool perf_evsel__fallback(struct evsel *evsel, int err,
 		return true;
 	} else if (err == EACCES && !evsel->core.attr.exclude_kernel &&
 		   (paranoid = perf_event_paranoid()) > 1) {
-		const char *name = perf_evsel__name(evsel);
+		const char *name = evsel__name(evsel);
 		char *new_name;
 		const char *sep = ":";
 
@@ -2499,8 +2496,7 @@ int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
 	case EACCES:
 		if (err == EPERM)
 			printed = scnprintf(msg, size,
-				"No permission to enable %s event.\n\n",
-				perf_evsel__name(evsel));
+				"No permission to enable %s event.\n\n", evsel__name(evsel));
 
 		return scnprintf(msg + printed, size - printed,
 		 "You may not have permission to collect %sstats.\n\n"
@@ -2519,8 +2515,7 @@ int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
 				 target->system_wide ? "system-wide " : "",
 				 perf_event_paranoid());
 	case ENOENT:
-		return scnprintf(msg, size, "The %s event is not supported.",
-				 perf_evsel__name(evsel));
+		return scnprintf(msg, size, "The %s event is not supported.", evsel__name(evsel));
 	case EMFILE:
 		return scnprintf(msg, size, "%s",
 			 "Too many events are opened.\n"
@@ -2544,7 +2539,7 @@ int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
 		if (evsel->core.attr.sample_period != 0)
 			return scnprintf(msg, size,
 	"%s: PMU Hardware doesn't support sampling/overflow-interrupts. Try 'perf stat'",
-					 perf_evsel__name(evsel));
+					 evsel__name(evsel));
 		if (evsel->core.attr.precise_ip)
 			return scnprintf(msg, size, "%s",
 	"\'precise\' request may not be supported. Try removing 'p' modifier.");
@@ -2577,8 +2572,7 @@ int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
 	return scnprintf(msg, size,
 	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"
 	"/bin/dmesg | grep -i perf may provide additional information.\n",
-			 err, str_error_r(err, sbuf, sizeof(sbuf)),
-			 perf_evsel__name(evsel));
+			 err, str_error_r(err, sbuf, sizeof(sbuf)), evsel__name(evsel));
 }
 
 struct perf_env *perf_evsel__env(struct evsel *evsel)

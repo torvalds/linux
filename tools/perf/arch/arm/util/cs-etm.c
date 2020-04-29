@@ -233,7 +233,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 		ret = perf_pmu__scan_file(pmu, path, "%x", &hash);
 		if (ret != 1) {
 			pr_err("failed to set sink \"%s\" on event %s with %d (%s)\n",
-			       sink, perf_evsel__name(evsel), errno,
+			       sink, evsel__name(evsel), errno,
 			       str_error_r(errno, msg, sizeof(msg)));
 			return ret;
 		}

@@ -981,7 +981,7 @@ static void data_process(void)
 
 		if (!quiet) {
 			fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
-				perf_evsel__name(evsel_base));
+				evsel__name(evsel_base));
 		}
 
 		first = false;

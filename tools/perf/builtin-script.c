@@ -273,7 +273,7 @@ static struct evsel_script *perf_evsel_script__new(struct evsel *evsel,
 	struct evsel_script *es = zalloc(sizeof(*es));
 
 	if (es != NULL) {
-		if (asprintf(&es->filename, "%s.%s.dump", data->file.path, perf_evsel__name(evsel)) < 0)
+		if (asprintf(&es->filename, "%s.%s.dump", data->file.path, evsel__name(evsel)) < 0)
 			goto out_free;
 		es->fp = fopen(es->filename, "w");
 		if (es->fp == NULL)
@@ -366,7 +366,7 @@ static int perf_evsel__do_check_stype(struct evsel *evsel,
 	if (output[type].user_set_fields & field) {
 		if (allow_user_set)
 			return 0;
-		evname = perf_evsel__name(evsel);
+		evname = evsel__name(evsel);
 		pr_err("Samples for '%s' event do not have %s attribute set. "
 		       "Cannot print '%s' field.\n",
 		       evname, sample_msg, output_field2str(field));
@@ -375,7 +375,7 @@ static int perf_evsel__do_check_stype(struct evsel *evsel,
 
 	/* user did not ask for it explicitly so remove from the default list */
 	output[type].fields &= ~field;
-	evname = perf_evsel__name(evsel);
+	evname = evsel__name(evsel);
 	pr_debug("Samples for '%s' event do not have %s attribute set. "
 		 "Skipping '%s' field.\n",
 		 evname, sample_msg, output_field2str(field));
@@ -1712,7 +1712,7 @@ static int perf_evlist__max_name_len(struct evlist *evlist)
 	int max = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		int len = strlen(perf_evsel__name(evsel));
+		int len = strlen(evsel__name(evsel));
 
 		max = MAX(len, max);
 	}
@@ -1886,7 +1886,7 @@ static void process_event(struct perf_script *script,
 		fprintf(fp, "%10" PRIu64 " ", sample->period);
 
 	if (PRINT_FIELD(EVNAME)) {
-		const char *evname = perf_evsel__name(evsel);
+		const char *evname = evsel__name(evsel);
 
 		if (!script->name_width)
 			script->name_width = perf_evlist__max_name_len(script->session->evlist);
@@ -2003,7 +2003,7 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 				counts->ena,
 				counts->run,
 				tstamp,
-				perf_evsel__name(counter));
+				evsel__name(counter));
 		}
 	}
 }
@@ -2975,7 +2975,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 
 			match = 0;
 			evlist__for_each_entry(session->evlist, pos) {
-				if (!strcmp(perf_evsel__name(pos), evname)) {
+				if (!strcmp(evsel__name(pos), evname)) {
 					match = 1;
 					break;
 				}

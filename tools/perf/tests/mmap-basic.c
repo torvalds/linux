@@ -150,7 +150,7 @@ out_init:
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
-				 perf_evsel__name(evsel), nr_events[evsel->idx]);
+				 evsel__name(evsel), nr_events[evsel->idx]);
 			err = -1;
 			goto out_delete_evlist;
 		}

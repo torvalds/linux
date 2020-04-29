@@ -1280,8 +1280,7 @@ static void dump_read(struct evsel *evsel, union perf_event *event)
 		return;
 
 	printf(": %d %d %s %" PRI_lu64 "\n", event->read.pid, event->read.tid,
-	       perf_evsel__name(evsel),
-	       event->read.value);
+	       evsel__name(evsel), event->read.value);
 
 	if (!evsel)
 		return;

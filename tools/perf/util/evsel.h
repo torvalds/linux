@@ -208,11 +208,10 @@ extern const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
 					      [PERF_EVSEL__MAX_ALIASES];
 extern const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX];
 extern const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX];
-int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
-					    char *bf, size_t size);
-const char *perf_evsel__name(struct evsel *evsel);
+int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
+const char *evsel__name(struct evsel *evsel);
 
-const char *perf_evsel__group_name(struct evsel *evsel);
+const char *evsel__group_name(struct evsel *evsel);
 int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
 
 void __perf_evsel__set_sample_bit(struct evsel *evsel,
