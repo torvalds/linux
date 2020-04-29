@@ -50,6 +50,23 @@ enum afs_server_trace {
 	afs_server_trace_update,
 };
 
+enum afs_volume_trace {
+	afs_volume_trace_alloc,
+	afs_volume_trace_free,
+	afs_volume_trace_get_alloc_sbi,
+	afs_volume_trace_get_cell_insert,
+	afs_volume_trace_get_new_op,
+	afs_volume_trace_get_query_alias,
+	afs_volume_trace_put_cell_dup,
+	afs_volume_trace_put_cell_root,
+	afs_volume_trace_put_destroy_sbi,
+	afs_volume_trace_put_free_fc,
+	afs_volume_trace_put_put_op,
+	afs_volume_trace_put_query_alias,
+	afs_volume_trace_put_validate_fc,
+	afs_volume_trace_remove,
+};
+
 enum afs_fs_operation {
 	afs_FS_FetchData		= 130,	/* AFS Fetch file data */
 	afs_FS_FetchACL			= 131,	/* AFS Fetch file ACL */
@@ -261,6 +278,22 @@ enum afs_cb_break_reason {
 	EM(afs_server_trace_put_slist_isort,	"PUT isort") \
 	EM(afs_server_trace_put_uuid_rsq,	"PUT u-req") \
 	E_(afs_server_trace_update,		"UPDATE")
+
+#define afs_volume_traces \
+	EM(afs_volume_trace_alloc,		"ALLOC         ") \
+	EM(afs_volume_trace_free,		"FREE          ") \
+	EM(afs_volume_trace_get_alloc_sbi,	"GET sbi-alloc ") \
+	EM(afs_volume_trace_get_cell_insert,	"GET cell-insrt") \
+	EM(afs_volume_trace_get_new_op,		"GET op-new    ") \
+	EM(afs_volume_trace_get_query_alias,	"GET cell-alias") \
+	EM(afs_volume_trace_put_cell_dup,	"PUT cell-dup  ") \
+	EM(afs_volume_trace_put_cell_root,	"PUT cell-root ") \
+	EM(afs_volume_trace_put_destroy_sbi,	"PUT sbi-destry") \
+	EM(afs_volume_trace_put_free_fc,	"PUT fc-free   ") \
+	EM(afs_volume_trace_put_put_op,		"PUT op-put    ") \
+	EM(afs_volume_trace_put_query_alias,	"PUT cell-alias") \
+	EM(afs_volume_trace_put_validate_fc,	"PUT fc-validat") \
+	E_(afs_volume_trace_remove,		"REMOVE        ")
 
 #define afs_fs_operations \
 	EM(afs_FS_FetchData,			"FS.FetchData") \
@@ -1300,6 +1333,29 @@ TRACE_EVENT(afs_server,
 		      __print_symbolic(__entry->reason, afs_server_traces),
 		      __entry->ref,
 		      __entry->active)
+	    );
+
+TRACE_EVENT(afs_volume,
+	    TP_PROTO(afs_volid_t vid, int ref, enum afs_volume_trace reason),
+
+	    TP_ARGS(vid, ref, reason),
+
+	    TP_STRUCT__entry(
+		    __field(afs_volid_t,		vid		)
+		    __field(int,			ref		)
+		    __field(enum afs_volume_trace,	reason		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vid = vid;
+		    __entry->ref = ref;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("V=%llx %s u=%d",
+		      __entry->vid,
+		      __print_symbolic(__entry->reason, afs_volume_traces),
+		      __entry->ref)
 	    );
 
 #endif /* _TRACE_AFS_H */

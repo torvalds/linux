@@ -52,6 +52,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 
 	refcount_set(&slist->usage, 1);
 	rcu_assign_pointer(volume->servers, slist);
+	trace_afs_volume(volume->vid, 1, afs_volume_trace_alloc);
 	return volume;
 
 error_1:
@@ -158,20 +159,38 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 
 	afs_put_serverlist(net, rcu_access_pointer(volume->servers));
 	afs_put_cell(net, volume->cell);
+	trace_afs_volume(volume->vid, atomic_read(&volume->usage),
+			 afs_volume_trace_free);
 	kfree(volume);
 
 	_leave(" [destroyed]");
 }
 
 /*
- * Drop a reference on a volume record.
+ * Get a reference on a volume record.
  */
-void afs_put_volume(struct afs_net *net, struct afs_volume *volume)
+struct afs_volume *afs_get_volume(struct afs_volume *volume,
+				  enum afs_volume_trace reason)
 {
 	if (volume) {
-		_enter("%s", volume->name);
+		int u = atomic_inc_return(&volume->usage);
+		trace_afs_volume(volume->vid, u, reason);
+	}
+	return volume;
+}
 
-		if (atomic_dec_and_test(&volume->usage))
+
+/*
+ * Drop a reference on a volume record.
+ */
+void afs_put_volume(struct afs_net *net, struct afs_volume *volume,
+		    enum afs_volume_trace reason)
+{
+	if (volume) {
+		afs_volid_t vid = volume->vid;
+		int u = atomic_dec_return(&volume->usage);
+		trace_afs_volume(vid, u, reason);
+		if (u == 0)
 			afs_destroy_volume(net, volume);
 	}
 }

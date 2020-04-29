@@ -482,7 +482,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 
 	ASSERTCMP(atomic_read(&cell->usage), ==, 0);
 
-	afs_put_volume(cell->net, cell->root_volume);
+	afs_put_volume(cell->net, cell->root_volume, afs_volume_trace_put_cell_root);
 	afs_put_vlserverlist(cell->net, rcu_access_pointer(cell->vl_servers));
 	afs_put_cell(cell->net, cell->alias_of);
 	key_put(cell->anonymous_key);

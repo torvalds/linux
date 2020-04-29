@@ -36,7 +36,7 @@ struct afs_operation *afs_alloc_operation(struct key *key, struct afs_volume *vo
 	}
 
 	op->key		= key;
-	op->volume	= afs_get_volume(volume);
+	op->volume	= afs_get_volume(volume, afs_volume_trace_get_new_op);
 	op->net		= volume->cell->net;
 	op->cb_v_break	= volume->cb_v_break;
 	op->debug_id	= atomic_inc_return(&afs_operation_debug_counter);
@@ -233,7 +233,7 @@ int afs_put_operation(struct afs_operation *op)
 	afs_end_cursor(&op->ac);
 	afs_put_cb_interest(op->net, op->cbi);
 	afs_put_serverlist(op->net, op->server_list);
-	afs_put_volume(op->net, op->volume);
+	afs_put_volume(op->net, op->volume, afs_volume_trace_put_put_op);
 	kfree(op);
 	return ret;
 }
