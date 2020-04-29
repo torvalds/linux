@@ -40,8 +40,4 @@ struct device *vexpress_config_bridge_register(struct device *parent,
 
 struct regmap *devm_regmap_init_vexpress_config(struct device *dev);
 
-/* Platform control */
-
-void vexpress_flags_set(u32 data);
-
 #endif

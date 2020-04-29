@@ -8,7 +8,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
-#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/syscon.h>
 #include <linux/platform_device.h>
@@ -41,24 +40,6 @@
 #define SYS_PROCIDx_HBI_SHIFT	0
 
 #define SYS_MISC_MASTERSITE	(1 << 14)
-
-void vexpress_flags_set(u32 data)
-{
-	static void __iomem *base;
-
-	if (!base) {
-		struct device_node *node = of_find_compatible_node(NULL, NULL,
-				"arm,vexpress-sysreg");
-
-		base = of_iomap(node, 0);
-	}
-
-	if (WARN_ON(!base))
-		return;
-
-	writel(~0, base + SYS_FLAGSCLR);
-	writel(data, base + SYS_FLAGSSET);
-}
 
 /* The sysreg block is just a random collection of various functions... */
 
