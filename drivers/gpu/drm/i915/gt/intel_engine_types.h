@@ -555,6 +555,11 @@ struct intel_engine_cs {
 		 * Idle is defined as active == 0, active is active > 0.
 		 */
 		ktime_t start;
+
+		/**
+		 * @rps: Utilisation at last RPS sampling.
+		 */
+		ktime_t rps;
 	} stats;
 
 	struct {

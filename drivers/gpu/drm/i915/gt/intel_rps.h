@@ -81,4 +81,19 @@ static inline void intel_rps_clear_interrupts(struct intel_rps *rps)
 	clear_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
 }
 
+static inline bool intel_rps_uses_timer(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_TIMER, &rps->flags);
+}
+
+static inline void intel_rps_set_timer(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_TIMER, &rps->flags);
+}
+
+static inline void intel_rps_clear_timer(struct intel_rps *rps)
+{
+	clear_bit(INTEL_RPS_TIMER, &rps->flags);
+}
+
 #endif /* INTEL_RPS_H */
