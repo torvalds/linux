@@ -1608,6 +1608,7 @@
 		resets = <&cru SRST_VENC_A>, <&cru SRST_VENC_H>,
 			<&cru SRST_VENC_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
+		operating-points-v2 = <&rkvenc_opp_table>;
 		iommus = <&rkvenc_mmu>;
 		node-name = "rkvenc";
 		rockchip,srv = <&mpp_srv>;
@@ -1615,6 +1616,28 @@
 		rockchip,resetgroup-node = <2>;
 		power-domains = <&power RV1126_PD_VEPU>;
 		status = "disabled";
+	};
+
+	rkvenc_opp_table: rkvenc-opp-table {
+		compatible = "operating-points-v2";
+
+		/* The source clock is CLK_VENC_CORE */
+		opp-297000000 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <725000 725000 1000000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <750000 750000 1000000>;
+		};
+		opp-594000000 {
+			opp-hz = /bits/ 64 <594000000>;
+			opp-microvolt = <800000 800000 1000000>;
+		};
 	};
 
 	rkvenc_mmu: iommu@ffbb0f00 {
