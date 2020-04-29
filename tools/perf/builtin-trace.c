@@ -370,7 +370,7 @@ static int perf_evsel__init_tp_uint_field(struct evsel *evsel,
 					  struct tp_field *field,
 					  const char *name)
 {
-	struct tep_format_field *format_field = perf_evsel__field(evsel, name);
+	struct tep_format_field *format_field = evsel__field(evsel, name);
 
 	if (format_field == NULL)
 		return -1;
@@ -386,7 +386,7 @@ static int perf_evsel__init_tp_ptr_field(struct evsel *evsel,
 					 struct tp_field *field,
 					 const char *name)
 {
-	struct tep_format_field *format_field = perf_evsel__field(evsel, name);
+	struct tep_format_field *format_field = evsel__field(evsel, name);
 
 	if (format_field == NULL)
 		return -1;
@@ -423,9 +423,9 @@ static int perf_evsel__init_augmented_syscall_tp(struct evsel *evsel, struct evs
 	struct syscall_tp *sc = evsel__syscall_tp(evsel);
 
 	if (sc != NULL) {
-		struct tep_format_field *syscall_id = perf_evsel__field(tp, "id");
+		struct tep_format_field *syscall_id = evsel__field(tp, "id");
 		if (syscall_id == NULL)
-			syscall_id = perf_evsel__field(tp, "__syscall_nr");
+			syscall_id = evsel__field(tp, "__syscall_nr");
 		if (syscall_id == NULL ||
 		    __tp_field__init_uint(&sc->id, syscall_id->size, syscall_id->offset, evsel->needs_swap))
 			return -EINVAL;
@@ -2531,7 +2531,7 @@ static int trace__vfs_getname(struct trace *trace, struct evsel *evsel,
 	size_t filename_len, entry_str_len, to_move;
 	ssize_t remaining_space;
 	char *pos;
-	const char *filename = perf_evsel__rawptr(evsel, sample, "pathname");
+	const char *filename = evsel__rawptr(evsel, sample, "pathname");
 
 	if (!thread)
 		goto out;
@@ -2587,7 +2587,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct evsel *evsel,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample)
 {
-        u64 runtime = perf_evsel__intval(evsel, sample, "runtime");
+        u64 runtime = evsel__intval(evsel, sample, "runtime");
 	double runtime_ms = (double)runtime / NSEC_PER_MSEC;
 	struct thread *thread = machine__findnew_thread(trace->host,
 							sample->pid,
@@ -2606,10 +2606,10 @@ out_put:
 out_dump:
 	fprintf(trace->output, "%s: comm=%s,pid=%u,runtime=%" PRIu64 ",vruntime=%" PRIu64 ")\n",
 	       evsel->name,
-	       perf_evsel__strval(evsel, sample, "comm"),
-	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
+	       evsel__strval(evsel, sample, "comm"),
+	       (pid_t)evsel__intval(evsel, sample, "pid"),
 	       runtime,
-	       perf_evsel__intval(evsel, sample, "vruntime"));
+	       evsel__intval(evsel, sample, "vruntime"));
 	goto out_put;
 }
 
@@ -3035,7 +3035,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 		if (!strstarts(evsel__name(evsel), "probe:vfs_getname"))
 			continue;
 
-		if (perf_evsel__field(evsel, "pathname")) {
+		if (evsel__field(evsel, "pathname")) {
 			evsel->handler = trace__vfs_getname;
 			found = true;
 			continue;

@@ -48,7 +48,7 @@ struct lock_stat {
 	struct rb_node		rb;		/* used for sorting */
 
 	/*
-	 * FIXME: perf_evsel__intval() returns u64,
+	 * FIXME: evsel__intval() returns u64,
 	 * so address of lockdep_map should be dealed as 64bit.
 	 * Is there more better solution?
 	 */
@@ -404,9 +404,9 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = perf_evsel__strval(evsel, sample, "name");
-	u64 tmp = perf_evsel__intval(evsel, sample, "lockdep_addr");
-	int flag = perf_evsel__intval(evsel, sample, "flag");
+	const char *name = evsel__strval(evsel, sample, "name");
+	u64 tmp	 = evsel__intval(evsel, sample, "lockdep_addr");
+	int flag = evsel__intval(evsel, sample, "flag");
 
 	memcpy(&addr, &tmp, sizeof(void *));
 
@@ -477,8 +477,8 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 contended_term;
-	const char *name = perf_evsel__strval(evsel, sample, "name");
-	u64 tmp = perf_evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = evsel__strval(evsel, sample, "name");
+	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
 
 	memcpy(&addr, &tmp, sizeof(void *));
 
@@ -539,8 +539,8 @@ static int report_lock_contended_event(struct evsel *evsel,
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = perf_evsel__strval(evsel, sample, "name");
-	u64 tmp = perf_evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = evsel__strval(evsel, sample, "name");
+	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
 
 	memcpy(&addr, &tmp, sizeof(void *));
 
@@ -594,8 +594,8 @@ static int report_lock_release_event(struct evsel *evsel,
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = perf_evsel__strval(evsel, sample, "name");
-	u64 tmp = perf_evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = evsel__strval(evsel, sample, "name");
+	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
 
 	memcpy(&addr, &tmp, sizeof(void *));
 

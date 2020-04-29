@@ -241,23 +241,19 @@ void evsel__close(struct evsel *evsel);
 
 struct perf_sample;
 
-void *perf_evsel__rawptr(struct evsel *evsel, struct perf_sample *sample,
-			 const char *name);
-u64 perf_evsel__intval(struct evsel *evsel, struct perf_sample *sample,
-		       const char *name);
+void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
+u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
-static inline char *perf_evsel__strval(struct evsel *evsel,
-				       struct perf_sample *sample,
-				       const char *name)
+static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
-	return perf_evsel__rawptr(evsel, sample, name);
+	return evsel__rawptr(evsel, sample, name);
 }
 
 struct tep_format_field;
 
 u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample, bool needs_swap);
 
-struct tep_format_field *perf_evsel__field(struct evsel *evsel, const char *name);
+struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->core.attr.type == PERF_TYPE_##t &&	\

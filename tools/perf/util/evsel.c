@@ -2314,15 +2314,14 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 	return 0;
 }
 
-struct tep_format_field *perf_evsel__field(struct evsel *evsel, const char *name)
+struct tep_format_field *evsel__field(struct evsel *evsel, const char *name)
 {
 	return tep_find_field(evsel->tp_format, name);
 }
 
-void *perf_evsel__rawptr(struct evsel *evsel, struct perf_sample *sample,
-			 const char *name)
+void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
-	struct tep_format_field *field = perf_evsel__field(evsel, name);
+	struct tep_format_field *field = evsel__field(evsel, name);
 	int offset;
 
 	if (!field)
@@ -2377,10 +2376,9 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 	return 0;
 }
 
-u64 perf_evsel__intval(struct evsel *evsel, struct perf_sample *sample,
-		       const char *name)
+u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
-	struct tep_format_field *field = perf_evsel__field(evsel, name);
+	struct tep_format_field *field = evsel__field(evsel, name);
 
 	if (!field)
 		return 0;

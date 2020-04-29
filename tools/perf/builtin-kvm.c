@@ -69,7 +69,7 @@ void exit_event_get_key(struct evsel *evsel,
 			struct event_key *key)
 {
 	key->info = 0;
-	key->key = perf_evsel__intval(evsel, sample, kvm_exit_reason);
+	key->key  = evsel__intval(evsel, sample, kvm_exit_reason);
 }
 
 bool kvm_exit_event(struct evsel *evsel)
@@ -416,8 +416,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample,
-							  vcpu_id_str);
+		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str);
 		thread__set_priv(thread, vcpu_record);
 	}
 

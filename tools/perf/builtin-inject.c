@@ -536,7 +536,7 @@ static int perf_inject__sched_stat(struct perf_tool *tool,
 	union perf_event *event_sw;
 	struct perf_sample sample_sw;
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u32 pid = perf_evsel__intval(evsel, sample, "pid");
+	u32 pid = evsel__intval(evsel, sample, "pid");
 
 	list_for_each_entry(ent, &inject->samples, node) {
 		if (pid == ent->tid)

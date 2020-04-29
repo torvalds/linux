@@ -114,7 +114,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 					goto out_delete_evlist;
 				}
 
-				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
+				tp_flags = evsel__intval(evsel, &sample, "flags");
 
 				if (flags != tp_flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",
