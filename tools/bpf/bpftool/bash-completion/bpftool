@@ -1079,7 +1079,7 @@ _bpftool()
                         COMPREPLY+=( $( compgen -W 'macros' -- "$cur" ) )
                     fi
                     _bpftool_one_of_list 'kernel dev'
-                    _bpftool_once_attr 'full'
+                    _bpftool_once_attr 'full unprivileged'
                     return 0
                     ;;
                 *)
