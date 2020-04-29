@@ -471,12 +471,15 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 int vnt_set_bss_mode(struct vnt_private *priv)
 {
-	int ret = 0;
+	int ret;
 
 	if (priv->rf_type == RF_AIROHA7230 && priv->bb_type == BB_TYPE_11A)
-		vnt_mac_set_bb_type(priv, BB_TYPE_11G);
+		ret = vnt_mac_set_bb_type(priv, BB_TYPE_11G);
 	else
-		vnt_mac_set_bb_type(priv, priv->bb_type);
+		ret = vnt_mac_set_bb_type(priv, priv->bb_type);
+
+	if (ret)
+		return ret;
 
 	priv->packet_type = vnt_get_pkt_type(priv);
 
@@ -492,8 +495,13 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 	if (ret)
 		return ret;
 
-	vnt_update_ifs(priv);
-	vnt_set_rspinf(priv, (u8)priv->bb_type);
+	ret = vnt_update_ifs(priv);
+	if (ret)
+		return ret;
+
+	ret = vnt_set_rspinf(priv, (u8)priv->bb_type);
+	if (ret)
+		return ret;
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		if (priv->rf_type == RF_AIROHA7230) {
@@ -521,6 +529,5 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 		priv->bb_vga[3] = 0x0;
 	}
 
-	vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
-	return 0;
+	return vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 }
