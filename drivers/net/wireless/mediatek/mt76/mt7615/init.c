@@ -130,6 +130,32 @@ void mt7615_mac_init(struct mt7615_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_init);
 
+void mt7615_check_offload_capability(struct mt7615_dev *dev)
+{
+	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct wiphy *wiphy = hw->wiphy;
+
+	if (mt7615_firmware_offload(dev)) {
+		ieee80211_hw_set(hw, SUPPORTS_PS);
+		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+
+		wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	} else {
+		dev->ops->hw_scan = NULL;
+		dev->ops->cancel_hw_scan = NULL;
+		dev->ops->sched_scan_start = NULL;
+		dev->ops->sched_scan_stop = NULL;
+
+		wiphy->max_sched_scan_plan_interval = 0;
+		wiphy->max_sched_scan_ie_len = 0;
+		wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		wiphy->max_sched_scan_ssids = 0;
+		wiphy->max_match_sets = 0;
+		wiphy->max_sched_scan_reqs = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(mt7615_check_offload_capability);
+
 bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev)
 {
 	flush_work(&dev->mcu_work);

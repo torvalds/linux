@@ -16,7 +16,6 @@ static void mt7615_init_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev = container_of(work, struct mt7615_dev,
 					      mcu_work);
-	struct ieee80211_hw *hw = mt76_hw(dev);
 
 	if (mt7615_mcu_init(dev))
 		return;
@@ -25,25 +24,7 @@ static void mt7615_init_work(struct work_struct *work)
 	mt7615_mac_init(dev);
 	mt7615_phy_init(dev);
 	mt7615_mcu_del_wtbl_all(dev);
-
-	if (mt7615_firmware_offload(dev)) {
-		ieee80211_hw_set(hw, SUPPORTS_PS);
-		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
-	} else {
-		struct wiphy *wiphy = hw->wiphy;
-
-		dev->ops->hw_scan = NULL;
-		dev->ops->cancel_hw_scan = NULL;
-		dev->ops->sched_scan_start = NULL;
-		dev->ops->sched_scan_stop = NULL;
-
-		wiphy->max_sched_scan_plan_interval = 0;
-		wiphy->max_sched_scan_ie_len = 0;
-		wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
-		wiphy->max_sched_scan_ssids = 0;
-		wiphy->max_match_sets = 0;
-		wiphy->max_sched_scan_reqs = 0;
-	}
+	mt7615_check_offload_capability(dev);
 }
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)

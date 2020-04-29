@@ -103,6 +103,7 @@ static void mt7663u_init_work(struct work_struct *work)
 	mt7615_mac_init(dev);
 	mt7615_phy_init(dev);
 	mt7615_mcu_del_wtbl_all(dev);
+	mt7615_check_offload_capability(dev);
 }
 
 int mt7663u_register_device(struct mt7615_dev *dev)
@@ -118,9 +119,6 @@ int mt7663u_register_device(struct mt7615_dev *dev)
 	err = mt7663u_init_hardware(dev);
 	if (err)
 		return err;
-
-	ieee80211_hw_set(hw, SUPPORTS_PS);
-	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 
 	hw->extra_tx_headroom += MT_USB_HDR_SIZE + MT_USB_TXD_SIZE;
 	/* check hw sg support in order to enable AMSDU */
