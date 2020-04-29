@@ -898,7 +898,7 @@ struct perf_pmu *evsel__find_pmu(struct evsel *evsel)
 	return pmu;
 }
 
-bool perf_evsel__is_aux_event(struct evsel *evsel)
+bool evsel__is_aux_event(struct evsel *evsel)
 {
 	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 

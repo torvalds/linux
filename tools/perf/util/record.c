@@ -24,7 +24,7 @@ static struct evsel *perf_evsel__read_sampler(struct evsel *evsel,
 {
 	struct evsel *leader = evsel->leader;
 
-	if (perf_evsel__is_aux_event(leader)) {
+	if (evsel__is_aux_event(leader)) {
 		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->leader == leader && evsel != evsel->leader)
 				return evsel;

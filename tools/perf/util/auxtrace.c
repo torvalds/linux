@@ -686,7 +686,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 	evlist__for_each_entry(evlist, evsel) {
 		sz = evsel->core.attr.aux_sample_size;
 		if (perf_evsel__is_group_leader(evsel)) {
-			has_aux_leader = perf_evsel__is_aux_event(evsel);
+			has_aux_leader = evsel__is_aux_event(evsel);
 			if (sz) {
 				if (has_aux_leader)
 					pr_err("Cannot add AUX area sampling to an AUX area event\n");
@@ -760,7 +760,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 	/* Set aux_sample_size based on --aux-sample option */
 	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel)) {
-			has_aux_leader = perf_evsel__is_aux_event(evsel);
+			has_aux_leader = evsel__is_aux_event(evsel);
 		} else if (has_aux_leader) {
 			evsel->core.attr.aux_sample_size = sz;
 		}
@@ -769,7 +769,7 @@ no_opt:
 	aux_evsel = NULL;
 	/* Override with aux_sample_size from config term */
 	evlist__for_each_entry(evlist, evsel) {
-		if (perf_evsel__is_aux_event(evsel))
+		if (evsel__is_aux_event(evsel))
 			aux_evsel = evsel;
 		term = perf_evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
 		if (term) {
