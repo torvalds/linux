@@ -206,7 +206,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 	return ret;
 }
 
-int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
+static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct elevator_queue *e = q->elevator;
