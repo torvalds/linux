@@ -67,4 +67,6 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx);
 
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
+void dcn30_hardware_release(struct dc *dc);
+
 #endif /* __DC_HWSS_DCN30_H__ */

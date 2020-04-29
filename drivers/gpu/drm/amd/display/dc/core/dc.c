@@ -3097,4 +3097,11 @@ bool dc_is_plane_eligible_for_idle_optimizaitons(struct dc *dc,
 {
 	return false;
 }
+
+/* cleanup on driver unload */
+void dc_hardware_release(struct dc *dc)
+{
+	if (dc->hwss.hardware_release)
+		dc->hwss.hardware_release(dc);
+}
 #endif

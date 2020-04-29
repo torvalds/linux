@@ -622,6 +622,10 @@ void dcn30_init_hw(struct dc *dc)
 
 	if (dc->clk_mgr->funcs->set_hard_max_memclk)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+
+	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		dc->res_pool->hubbub->funcs->force_pstate_change_control(
+				dc->res_pool->hubbub, false, false);
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -710,4 +714,13 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	}
 
 	return true;
+}
+
+void dcn30_hardware_release(struct dc *dc)
+{
+	/* if pstate unsupported, force it supported */
+	if (!dc->clk_mgr->clks.p_state_change_support &&
+			dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		dc->res_pool->hubbub->funcs->force_pstate_change_control(
+				dc->res_pool->hubbub, true, true);
 }

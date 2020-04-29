@@ -93,6 +93,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.apply_idle_power_optimizations = dcn30_apply_idle_power_optimizations,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
+	.hardware_release = dcn30_hardware_release,
 };
 
 static const struct hwseq_private_funcs dcn30_private_funcs = {
