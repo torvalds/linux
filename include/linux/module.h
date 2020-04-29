@@ -858,12 +858,6 @@ extern int module_sysfs_initialized;
 
 #define __MODULE_STRING(x) __stringify(x)
 
-#ifdef CONFIG_STRICT_MODULE_RWX
-extern void module_enable_ro(const struct module *mod, bool after_init);
-#else
-static inline void module_enable_ro(const struct module *mod, bool after_init) { }
-#endif
-
 #ifdef CONFIG_GENERIC_BUG
 void module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
 			 struct module *);
