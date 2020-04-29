@@ -10,7 +10,6 @@ function update_kasan_config() {
          -e CONFIG_PANIC_ON_WARN_DEFAULT_ENABLE \
          -d CONFIG_RANDOMIZE_BASE \
          -d CONFIG_KASAN_OUTLINE \
-         -d CONFIG_CC_WERROR \
          --set-val CONFIG_FRAME_WARN 0 \
          -d LTO \
          -d LTO_CLANG \
