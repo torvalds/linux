@@ -1392,19 +1392,20 @@ int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey)
 	return i;
 }
 
-/* delete an rtoken */
+/* delete an rtoken from all links */
 int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey)
 {
 	struct smc_link_group *lgr = smc_get_lgr(lnk);
 	u32 rkey = ntohl(nw_rkey);
-	int i;
+	int i, j;
 
 	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
 		if (lgr->rtokens[i][lnk->link_idx].rkey == rkey &&
 		    test_bit(i, lgr->rtokens_used_mask)) {
-			lgr->rtokens[i][lnk->link_idx].rkey = 0;
-			lgr->rtokens[i][lnk->link_idx].dma_addr = 0;
-
+			for (j = 0; j < SMC_LINKS_PER_LGR_MAX; j++) {
+				lgr->rtokens[i][j].rkey = 0;
+				lgr->rtokens[i][j].dma_addr = 0;
+			}
 			clear_bit(i, lgr->rtokens_used_mask);
 			return 0;
 		}
@@ -1414,9 +1415,10 @@ int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey)
 
 /* save rkey and dma_addr received from peer during clc handshake */
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
+			    struct smc_link *lnk,
 			    struct smc_clc_msg_accept_confirm *clc)
 {
-	conn->rtoken_idx = smc_rtoken_add(conn->lnk, clc->rmb_dma_addr,
+	conn->rtoken_idx = smc_rtoken_add(lnk, clc->rmb_dma_addr,
 					  clc->rmb_rkey);
 	if (conn->rtoken_idx < 0)
 		return conn->rtoken_idx;
