@@ -613,14 +613,15 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	/* receive TEST LINK response over RoCE fabric */
 	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
 						       SMC_LLC_WAIT_TIME);
+	if (link->state != SMC_LNK_ACTIVE)
+		return;		/* link state changed */
 	if (rc <= 0) {
 		smc_lgr_terminate_sched(smc_get_lgr(link));
 		return;
 	}
 	next_interval = link->llc_testlink_time;
 out:
-	queue_delayed_work(link->llc_wq, &link->llc_testlink_wrk,
-			   next_interval);
+	schedule_delayed_work(&link->llc_testlink_wrk, next_interval);
 }
 
 int smc_llc_link_init(struct smc_link *link)
@@ -648,8 +649,8 @@ void smc_llc_link_active(struct smc_link *link, int testlink_time)
 	link->state = SMC_LNK_ACTIVE;
 	if (testlink_time) {
 		link->llc_testlink_time = testlink_time * HZ;
-		queue_delayed_work(link->llc_wq, &link->llc_testlink_wrk,
-				   link->llc_testlink_time);
+		schedule_delayed_work(&link->llc_testlink_wrk,
+				      link->llc_testlink_time);
 	}
 }
 
@@ -665,7 +666,7 @@ void smc_llc_link_inactive(struct smc_link *link)
 	if (link->state == SMC_LNK_INACTIVE)
 		return;
 	link->state = SMC_LNK_INACTIVE;
-	cancel_delayed_work(&link->llc_testlink_wrk);
+	cancel_delayed_work_sync(&link->llc_testlink_wrk);
 	smc_wr_wakeup_reg_wait(link);
 	smc_wr_wakeup_tx_wait(link);
 }
