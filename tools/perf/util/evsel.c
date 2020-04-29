@@ -1863,9 +1863,7 @@ void evsel__close(struct evsel *evsel)
 	perf_evsel__free_id(&evsel->core);
 }
 
-int perf_evsel__open_per_cpu(struct evsel *evsel,
-			     struct perf_cpu_map *cpus,
-			     int cpu)
+int evsel__open_per_cpu(struct evsel *evsel, struct perf_cpu_map *cpus, int cpu)
 {
 	if (cpu == -1)
 		return evsel__open_cpu(evsel, cpus, NULL, 0,
@@ -1874,8 +1872,7 @@ int perf_evsel__open_per_cpu(struct evsel *evsel,
 	return evsel__open_cpu(evsel, cpus, NULL, cpu, cpu + 1);
 }
 
-int perf_evsel__open_per_thread(struct evsel *evsel,
-				struct perf_thread_map *threads)
+int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads)
 {
 	return evsel__open(evsel, NULL, threads);
 }
