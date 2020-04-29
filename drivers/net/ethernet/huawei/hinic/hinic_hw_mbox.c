@@ -598,7 +598,7 @@ static void write_mbox_msg_attr(struct hinic_mbox_func_to_func *func_to_func,
 			     HINIC_FUNC_CSR_MAILBOX_CONTROL_OFF, mbox_ctrl);
 }
 
-void dump_mox_reg(struct hinic_hwdev *hwdev)
+static void dump_mox_reg(struct hinic_hwdev *hwdev)
 {
 	u32 val;
 
