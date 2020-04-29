@@ -3645,13 +3645,10 @@ static int link_update(union bpf_attr *attr)
 		goto out_put_progs;
 	}
 
-#ifdef CONFIG_CGROUP_BPF
-	if (link->ops == &bpf_cgroup_link_lops) {
-		ret = cgroup_bpf_replace(link, old_prog, new_prog);
-		goto out_put_progs;
-	}
-#endif
-	ret = -EINVAL;
+	if (link->ops->update_prog)
+		ret = link->ops->update_prog(link, new_prog, old_prog);
+	else
+		ret = EINVAL;
 
 out_put_progs:
 	if (old_prog)

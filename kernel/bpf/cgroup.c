@@ -557,8 +557,9 @@ found:
  *
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_replace(struct cgroup *cgrp, struct bpf_cgroup_link *link,
-			 struct bpf_prog *new_prog)
+static int __cgroup_bpf_replace(struct cgroup *cgrp,
+				struct bpf_cgroup_link *link,
+				struct bpf_prog *new_prog)
 {
 	struct list_head *progs = &cgrp->bpf.progs[link->type];
 	struct bpf_prog *old_prog;
@@ -581,6 +582,30 @@ int __cgroup_bpf_replace(struct cgroup *cgrp, struct bpf_cgroup_link *link,
 	replace_effective_prog(cgrp, link->type, link);
 	bpf_prog_put(old_prog);
 	return 0;
+}
+
+static int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *new_prog,
+			      struct bpf_prog *old_prog)
+{
+	struct bpf_cgroup_link *cg_link;
+	int ret;
+
+	cg_link = container_of(link, struct bpf_cgroup_link, link);
+
+	mutex_lock(&cgroup_mutex);
+	/* link might have been auto-released by dying cgroup, so fail */
+	if (!cg_link->cgroup) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+	if (old_prog && link->prog != old_prog) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+	ret = __cgroup_bpf_replace(cg_link->cgroup, cg_link, new_prog);
+out_unlock:
+	mutex_unlock(&cgroup_mutex);
+	return ret;
 }
 
 static struct bpf_prog_list *find_detach_entry(struct list_head *progs,
@@ -811,6 +836,7 @@ static void bpf_cgroup_link_dealloc(struct bpf_link *link)
 const struct bpf_link_ops bpf_cgroup_link_lops = {
 	.release = bpf_cgroup_link_release,
 	.dealloc = bpf_cgroup_link_dealloc,
+	.update_prog = cgroup_bpf_replace,
 };
 
 int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)

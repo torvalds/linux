@@ -1093,7 +1093,8 @@ struct bpf_link {
 struct bpf_link_ops {
 	void (*release)(struct bpf_link *link);
 	void (*dealloc)(struct bpf_link *link);
-
+	int (*update_prog)(struct bpf_link *link, struct bpf_prog *new_prog,
+			   struct bpf_prog *old_prog);
 };
 
 void bpf_link_init(struct bpf_link *link, const struct bpf_link_ops *ops,
