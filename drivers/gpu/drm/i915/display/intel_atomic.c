@@ -253,6 +253,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
 	crtc_state->dsb = NULL;
+	crtc_state->mode_flags &= ~I915_MODE_FLAG_INHERITED;
 
 	return &crtc_state->uapi;
 }

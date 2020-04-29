@@ -777,7 +777,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	mode = &vblank->hwmode;
 
-	if (mode->private_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
+	if (crtc->mode_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
 		return __intel_get_crtc_scanline_from_timestamp(crtc);
 
 	vtotal = mode->crtc_vtotal;
@@ -836,7 +836,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	unsigned long irqflags;
 	bool use_scanline_counter = INTEL_GEN(dev_priv) >= 5 ||
 		IS_G4X(dev_priv) || IS_GEN(dev_priv, 2) ||
-		mode->private_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
+		crtc->mode_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (drm_WARN_ON(&dev_priv->drm, !mode->crtc_clock)) {
 		drm_dbg(&dev_priv->drm,

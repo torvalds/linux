@@ -6425,7 +6425,7 @@ static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_s
 	 * forcibly enable IPS on the first fastset.
 	 */
 	if (new_crtc_state->update_pipe &&
-	    old_crtc_state->hw.adjusted_mode.private_flags & I915_MODE_FLAG_INHERITED)
+	    old_crtc_state->mode_flags & I915_MODE_FLAG_INHERITED)
 		return true;
 
 	return !old_crtc_state->ips_enabled;
@@ -13605,8 +13605,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	bool ret = true;
 	u32 bp_gamma = 0;
 	bool fixup_inherited = fastset &&
-		(current_config->hw.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
-		!(pipe_config->hw.mode.private_flags & I915_MODE_FLAG_INHERITED);
+		(current_config->mode_flags & I915_MODE_FLAG_INHERITED) &&
+		!(pipe_config->mode_flags & I915_MODE_FLAG_INHERITED);
 
 	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -14414,6 +14414,8 @@ intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 
 	drm_calc_timestamping_constants(&crtc->base, adjusted_mode);
 
+	crtc->mode_flags = crtc_state->mode_flags;
+
 	/*
 	 * The scanline counter increments at the leading edge of hsync.
 	 *
@@ -14814,8 +14816,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	/* Catch I915_MODE_FLAG_INHERITED */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (new_crtc_state->uapi.mode.private_flags !=
-		    old_crtc_state->uapi.mode.private_flags)
+		if (new_crtc_state->mode_flags != old_crtc_state->mode_flags)
 			new_crtc_state->uapi.mode_changed = true;
 	}
 
@@ -15185,7 +15186,7 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	 * of enabling them on the CRTC's first fastset.
 	 */
 	if (new_crtc_state->update_pipe && !modeset &&
-	    old_crtc_state->hw.mode.private_flags & I915_MODE_FLAG_INHERITED)
+	    old_crtc_state->mode_flags & I915_MODE_FLAG_INHERITED)
 		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
@@ -17505,14 +17506,22 @@ void intel_modeset_init_hw(struct drm_i915_private *i915)
 static int sanitize_watermarks_add_affected(struct drm_atomic_state *state)
 {
 	struct drm_plane *plane;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 
-	drm_for_each_crtc(crtc, state->dev) {
-		struct drm_crtc_state *crtc_state;
+	for_each_intel_crtc(state->dev, crtc) {
+		struct intel_crtc_state *crtc_state;
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		crtc_state = intel_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
+
+		if (crtc_state->hw.active) {
+			/*
+			 * Preserve the inherited flag to avoid
+			 * taking the full modeset path.
+			 */
+			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
+		}
 	}
 
 	drm_for_each_plane(plane, state->dev) {
@@ -17654,6 +17663,15 @@ retry:
 		}
 
 		if (crtc_state->hw.active) {
+			/*
+			 * We've not yet detected sink capabilities
+			 * (audio,infoframes,etc.) and thus we don't want to
+			 * force a full state recomputation yet. We want that to
+			 * happen only for the first real commit from userspace.
+			 * So preserve the inherited flag for the time being.
+			 */
+			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
+
 			ret = drm_atomic_add_affected_planes(state, &crtc->base);
 			if (ret)
 				goto out;
@@ -18432,7 +18450,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * set a flag to indicate that a full recalculation is
 			 * needed on the next commit.
 			 */
-			mode->private_flags = I915_MODE_FLAG_INHERITED;
+			crtc_state->mode_flags |= I915_MODE_FLAG_INHERITED;
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 

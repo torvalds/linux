@@ -630,7 +630,7 @@ struct intel_crtc_scaler_state {
 	int scaler_id;
 };
 
-/* drm_mode->private_flags */
+/* {crtc,crtc_state}->mode_flags */
 #define I915_MODE_FLAG_INHERITED (1<<0)
 /* Flag to get scanline using frame time stamps */
 #define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
@@ -943,6 +943,9 @@ struct intel_crtc_state {
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 
+	/* I915_MODE_FLAG_* */
+	u8 mode_flags;
+
 	u8 lane_count;
 
 	/*
@@ -1108,6 +1111,10 @@ struct intel_crtc {
 	 */
 	bool active;
 	u8 plane_ids_mask;
+
+	/* I915_MODE_FLAG_* */
+	u8 mode_flags;
+
 	unsigned long long enabled_power_domains;
 	struct intel_overlay *overlay;
 
