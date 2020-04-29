@@ -1177,7 +1177,8 @@ do_io:
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
 		     bio_full(&w->io->op.wbio.bio, PAGE_SIZE) ||
-		     w->io->op.wbio.bio.bi_iter.bi_size >= (256U << 20) ||
+		     w->io->op.wbio.bio.bi_iter.bi_size + (sectors << 9) >=
+		     (BIO_MAX_VECS * PAGE_SIZE) ||
 		     bio_end_sector(&w->io->op.wbio.bio) != sector))
 			bch2_writepage_do_io(w);
 
@@ -1794,12 +1795,22 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		goto loop;
 
 	while (1) {
+		size_t extra = dio->iter.count -
+			min(BIO_MAX_VECS * PAGE_SIZE, dio->iter.count);
+
 		if (kthread)
 			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
 		current->faults_disabled_mapping = mapping;
 
+		/*
+		 * Don't issue more than 2MB at once, the bcachefs io path in
+		 * io.c can't bounce more than that:
+		 */
+
+		dio->iter.count -= extra;
 		ret = bio_iov_iter_get_pages(bio, &dio->iter);
+		dio->iter.count += extra;
 
 		current->faults_disabled_mapping = NULL;
 		if (kthread)
