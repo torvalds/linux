@@ -1839,27 +1839,31 @@ DECLARE_EVENT_CLASS(svcrdma_sendcomp_event,
 
 TRACE_EVENT(svcrdma_post_send,
 	TP_PROTO(
-		const struct ib_send_wr *wr
+		const struct svc_rdma_send_ctxt *ctxt
 	),
 
-	TP_ARGS(wr),
+	TP_ARGS(ctxt),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, num_sge)
 		__field(u32, inv_rkey)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = wr->wr_cqe;
+		const struct ib_send_wr *wr = &ctxt->sc_send_wr;
+
+		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
 		__entry->num_sge = wr->num_sge;
 		__entry->inv_rkey = (wr->opcode == IB_WR_SEND_WITH_INV) ?
 					wr->ex.invalidate_rkey : 0;
 	),
 
-	TP_printk("cqe=%p num_sge=%u inv_rkey=0x%08x",
-		__entry->cqe, __entry->num_sge,
-		__entry->inv_rkey
+	TP_printk("cq_id=%u cid=%d num_sge=%u inv_rkey=0x%08x",
+		__entry->cq_id, __entry->completion_id,
+		__entry->num_sge, __entry->inv_rkey
 	)
 );
 

@@ -298,13 +298,14 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 /**
  * svc_rdma_send - Post a single Send WR
  * @rdma: transport on which to post the WR
- * @wr: prepared Send WR to post
+ * @ctxt: send ctxt with a Send WR ready to post
  *
  * Returns zero the Send WR was posted successfully. Otherwise, a
  * negative errno is returned.
  */
-int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
+int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 {
+	struct ib_send_wr *wr = &ctxt->sc_send_wr;
 	int ret;
 
 	might_sleep();
@@ -330,7 +331,7 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 		}
 
 		svc_xprt_get(&rdma->sc_xprt);
-		trace_svcrdma_post_send(wr);
+		trace_svcrdma_post_send(ctxt);
 		ret = ib_post_send(rdma->sc_qp, wr, NULL);
 		if (ret)
 			break;
@@ -805,7 +806,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	} else {
 		sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	}
-	return svc_rdma_send(rdma, &sctxt->sc_send_wr);
+	return svc_rdma_send(rdma, sctxt);
 }
 
 /**
@@ -869,7 +870,7 @@ void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	sctxt->sc_send_wr.num_sge = 1;
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
-	if (svc_rdma_send(rdma, &sctxt->sc_send_wr))
+	if (svc_rdma_send(rdma, sctxt))
 		goto put_ctxt;
 	return;
 
