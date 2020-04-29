@@ -15,7 +15,7 @@
 #include "../perf-sys.h"
 
 /*
- * perf_evsel__config_leader_sampling() uses special rules for leader sampling.
+ * evsel__config_leader_sampling() uses special rules for leader sampling.
  * However, if the leader is an AUX area event, then assume the event to sample
  * is the next event.
  */
@@ -34,8 +34,7 @@ static struct evsel *perf_evsel__read_sampler(struct evsel *evsel,
 	return leader;
 }
 
-static void perf_evsel__config_leader_sampling(struct evsel *evsel,
-					       struct evlist *evlist)
+static void evsel__config_leader_sampling(struct evsel *evsel, struct evlist *evlist)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	struct evsel *leader = evsel->leader;
@@ -93,14 +92,14 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 	use_comm_exec = perf_can_comm_exec();
 
 	evlist__for_each_entry(evlist, evsel) {
-		perf_evsel__config(evsel, opts, callchain);
+		evsel__config(evsel, opts, callchain);
 		if (evsel->tracking && use_comm_exec)
 			evsel->core.attr.comm_exec = 1;
 	}
 
 	/* Configure leader sampling here now that the sample type is known */
 	evlist__for_each_entry(evlist, evsel)
-		perf_evsel__config_leader_sampling(evsel, evlist);
+		evsel__config_leader_sampling(evsel, evlist);
 
 	if (opts->full_auxtrace) {
 		/*

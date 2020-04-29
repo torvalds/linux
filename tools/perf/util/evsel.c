@@ -686,9 +686,8 @@ int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size)
 	return ret;
 }
 
-static void __perf_evsel__config_callchain(struct evsel *evsel,
-					   struct record_opts *opts,
-					   struct callchain_param *param)
+static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
+				      struct callchain_param *param)
 {
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
@@ -746,12 +745,11 @@ static void __perf_evsel__config_callchain(struct evsel *evsel,
 	}
 }
 
-void perf_evsel__config_callchain(struct evsel *evsel,
-				  struct record_opts *opts,
-				  struct callchain_param *param)
+void evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
+			     struct callchain_param *param)
 {
 	if (param->enabled)
-		return __perf_evsel__config_callchain(evsel, opts, param);
+		return __evsel__config_callchain(evsel, opts, param);
 }
 
 static void
@@ -832,7 +830,7 @@ static void apply_config_terms(struct evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_INHERIT:
 			/*
 			 * attr->inherit should has already been set by
-			 * perf_evsel__config. If user explicitly set
+			 * evsel__config. If user explicitly set
 			 * inherit using config terms, override global
 			 * opt->no_inherit setting.
 			 */
@@ -901,7 +899,7 @@ static void apply_config_terms(struct evsel *evsel,
 				perf_evsel__set_sample_bit(evsel, DATA_SRC);
 				evsel->core.attr.mmap_data = track;
 			}
-			perf_evsel__config_callchain(evsel, opts, &param);
+			evsel__config_callchain(evsel, opts, &param);
 		}
 	}
 }
@@ -953,8 +951,8 @@ struct perf_evsel_config_term *__perf_evsel__get_config_term(struct evsel *evsel
  *     enable/disable events specifically, as there's no
  *     initial traced exec call.
  */
-void perf_evsel__config(struct evsel *evsel, struct record_opts *opts,
-			struct callchain_param *callchain)
+void evsel__config(struct evsel *evsel, struct record_opts *opts,
+		   struct callchain_param *callchain)
 {
 	struct evsel *leader = evsel->leader;
 	struct perf_event_attr *attr = &evsel->core.attr;
@@ -1027,7 +1025,7 @@ void perf_evsel__config(struct evsel *evsel, struct record_opts *opts,
 		evsel->core.attr.exclude_callchain_user = 1;
 
 	if (callchain && callchain->enabled && !evsel->no_aux_samples)
-		perf_evsel__config_callchain(evsel, opts, callchain);
+		evsel__config_callchain(evsel, opts, callchain);
 
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;

@@ -188,12 +188,10 @@ void evsel__delete(struct evsel *evsel);
 
 struct callchain_param;
 
-void perf_evsel__config(struct evsel *evsel,
-			struct record_opts *opts,
-			struct callchain_param *callchain);
-void perf_evsel__config_callchain(struct evsel *evsel,
-				  struct record_opts *opts,
-				  struct callchain_param *callchain);
+void evsel__config(struct evsel *evsel, struct record_opts *opts,
+		   struct callchain_param *callchain);
+void evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
+			     struct callchain_param *callchain);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct evsel *evsel);
