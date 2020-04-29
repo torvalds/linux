@@ -505,13 +505,8 @@ insert:
 			 */
 			if (S_ISREG(btrfs_inode_mode(eb, src_item)) &&
 			    S_ISREG(btrfs_inode_mode(dst_eb, dst_item)) &&
-			    ino_size != 0) {
-				struct btrfs_map_token token;
-
-				btrfs_init_map_token(&token, dst_eb);
-				btrfs_set_token_inode_size(&token, dst_item,
-							   ino_size);
-			}
+			    ino_size != 0)
+				btrfs_set_inode_size(dst_eb, dst_item, ino_size);
 			goto no_copy;
 		}
 
