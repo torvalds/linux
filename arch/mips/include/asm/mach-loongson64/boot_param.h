@@ -193,8 +193,8 @@ struct boot_params {
 };
 
 enum loongson_bridge_type {
-	RS780E = 1,
-	LS7A = 2
+	LS7A = 1,
+	RS780E = 2
 };
 
 struct loongson_system_configuration {
