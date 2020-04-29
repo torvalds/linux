@@ -1352,7 +1352,8 @@ static inline void btrfs_init_map_token(struct btrfs_map_token *token,
 					struct extent_buffer *eb)
 {
 	token->eb = eb;
-	token->kaddr = NULL;
+	token->kaddr = page_address(eb->pages[0]);
+	token->offset = 0;
 }
 
 /* some macros to generate set/get functions for the struct fields.  This

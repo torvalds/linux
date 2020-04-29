@@ -52,8 +52,8 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 	u##bits res;							\
 									\
 	ASSERT(token);							\
-									\
-	if (token->kaddr && token->offset <= offset &&			\
+	ASSERT(token->kaddr);						\
+	if (token->offset <= offset &&					\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
@@ -113,8 +113,8 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 	int size = sizeof(u##bits);					\
 									\
 	ASSERT(token);							\
-									\
-	if (token->kaddr && token->offset <= offset &&			\
+	ASSERT(token->kaddr);						\
+	if (token->offset <= offset &&					\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
