@@ -526,6 +526,7 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 	unsigned int hblank_rise, hblank_early_prog;
 	unsigned int h_active, h_total, hblank_delta, pixel_clk;
 	unsigned int fec_coeff, cdclk, vdsc_bpp;
+	unsigned int link_clk, lanes;
 
 	h_active = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	h_total = crtc_state->hw.adjusted_mode.crtc_htotal;
@@ -534,40 +535,40 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 	cdclk = i915->cdclk.hw.cdclk;
 	/* fec= 0.972261, using rounding multiplier of 1000000 */
 	fec_coeff = 972261;
+	link_clk = crtc_state->port_clock;
+	lanes = crtc_state->lane_count;
 
 	drm_dbg_kms(&i915->drm, "h_active = %u link_clk = %u :"
 		    "lanes = %u vdsc_bpp = %u cdclk = %u\n",
-		    h_active, crtc_state->port_clock, crtc_state->lane_count,
-		    vdsc_bpp, cdclk);
+		    h_active, link_clk, lanes, vdsc_bpp, cdclk);
 
-	if (WARN_ON(!crtc_state->port_clock || !crtc_state->lane_count ||
-		    !crtc_state->dsc.compressed_bpp || !i915->cdclk.hw.cdclk))
+	if (WARN_ON(!link_clk || !lanes || !vdsc_bpp || !cdclk))
 		return 0;
 
 	link_clks_available = ((((h_total - h_active) *
-			       ((crtc_state->port_clock * ROUNDING_FACTOR) /
+			       ((link_clk * ROUNDING_FACTOR) /
 				pixel_clk)) / ROUNDING_FACTOR) - 28);
 	link_clks_required = DIV_ROUND_UP(192000, (1000 * pixel_clk / h_total)) * ((48 /
-					  crtc_state->lane_count) + 2);
+					  lanes) + 2);
 
 	if (link_clks_available > link_clks_required)
 		hblank_delta = 32;
 	else
 		hblank_delta = DIV_ROUND_UP(((((5 * ROUNDING_FACTOR) /
-					    crtc_state->port_clock) + ((5 *
+					    link_clk) + ((5 *
 					    ROUNDING_FACTOR) /
 					    cdclk)) * pixel_clk),
 					    ROUNDING_FACTOR);
 
-	tu_data = (pixel_clk * vdsc_bpp * 8) / ((crtc_state->port_clock *
-		   crtc_state->lane_count * fec_coeff) / 1000000);
-	tu_line = (((h_active * crtc_state->port_clock * fec_coeff) /
+	tu_data = (pixel_clk * vdsc_bpp * 8) / ((link_clk *
+		   lanes * fec_coeff) / 1000000);
+	tu_line = (((h_active * link_clk * fec_coeff) /
 		   1000000) / (64 * pixel_clk));
 	link_clks_active  = (tu_line - 1) * 64 + tu_data;
 
 	hblank_rise = ((link_clks_active + 6 * DIV_ROUND_UP(link_clks_active,
 			250) + 4) * ((pixel_clk * ROUNDING_FACTOR) /
-			crtc_state->port_clock)) / ROUNDING_FACTOR;
+			link_clk)) / ROUNDING_FACTOR;
 
 	hblank_early_prog = h_active - hblank_rise + hblank_delta;
 
@@ -577,16 +578,19 @@ static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder
 static unsigned int get_sample_room_req_config(const struct intel_crtc_state *crtc_state)
 {
 	unsigned int h_active, h_total, pixel_clk;
+	unsigned int link_clk, lanes;
 	unsigned int samples_room;
 
 	h_active = crtc_state->hw.adjusted_mode.hdisplay;
 	h_total = crtc_state->hw.adjusted_mode.htotal;
 	pixel_clk = crtc_state->hw.adjusted_mode.clock;
+	link_clk = crtc_state->port_clock;
+	lanes = crtc_state->lane_count;
 
-	samples_room = ((((h_total - h_active) * ((crtc_state->port_clock *
+	samples_room = ((((h_total - h_active) * ((link_clk *
 			ROUNDING_FACTOR) / pixel_clk)) /
 			ROUNDING_FACTOR) - 12) / ((48 /
-			crtc_state->lane_count) + 2);
+			lanes) + 2);
 
 	return samples_room;
 }
