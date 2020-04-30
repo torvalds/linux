@@ -561,6 +561,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  * Registers used only by the command parser
  */
 #define BCS_SWCTRL _MMIO(0x22200)
+#define   BCS_SRC_Y REG_BIT(0)
+#define   BCS_DST_Y REG_BIT(1)
 
 /* There are 16 GPR registers */
 #define BCS_GPR(n)	_MMIO(0x22600 + (n) * 8)
