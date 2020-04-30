@@ -695,7 +695,7 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
 	if (TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1)
 		return subflow->mp_capable;
 
-	if (mp_opt->use_ack) {
+	if (mp_opt->dss && mp_opt->use_ack) {
 		/* subflows are fully established as soon as we get any
 		 * additional ack.
 		 */
