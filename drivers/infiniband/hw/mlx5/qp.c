@@ -3218,10 +3218,12 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					  MLX5_QP_OPTPAR_RAE		|
 					  MLX5_QP_OPTPAR_RWE		|
 					  MLX5_QP_OPTPAR_PKEY_INDEX	|
-					  MLX5_QP_OPTPAR_PRI_PORT,
+					  MLX5_QP_OPTPAR_PRI_PORT	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 			[MLX5_QP_ST_UC] = MLX5_QP_OPTPAR_RWE		|
 					  MLX5_QP_OPTPAR_PKEY_INDEX	|
-					  MLX5_QP_OPTPAR_PRI_PORT,
+					  MLX5_QP_OPTPAR_PRI_PORT	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 			[MLX5_QP_ST_UD] = MLX5_QP_OPTPAR_PKEY_INDEX	|
 					  MLX5_QP_OPTPAR_Q_KEY		|
 					  MLX5_QP_OPTPAR_PRI_PORT,
@@ -3229,17 +3231,20 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					  MLX5_QP_OPTPAR_RAE		|
 					  MLX5_QP_OPTPAR_RWE		|
 					  MLX5_QP_OPTPAR_PKEY_INDEX	|
-					  MLX5_QP_OPTPAR_PRI_PORT,
+					  MLX5_QP_OPTPAR_PRI_PORT	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 		},
 		[MLX5_QP_STATE_RTR] = {
 			[MLX5_QP_ST_RC] = MLX5_QP_OPTPAR_ALT_ADDR_PATH  |
 					  MLX5_QP_OPTPAR_RRE            |
 					  MLX5_QP_OPTPAR_RAE            |
 					  MLX5_QP_OPTPAR_RWE            |
-					  MLX5_QP_OPTPAR_PKEY_INDEX,
+					  MLX5_QP_OPTPAR_PKEY_INDEX	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 			[MLX5_QP_ST_UC] = MLX5_QP_OPTPAR_ALT_ADDR_PATH  |
 					  MLX5_QP_OPTPAR_RWE            |
-					  MLX5_QP_OPTPAR_PKEY_INDEX,
+					  MLX5_QP_OPTPAR_PKEY_INDEX	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 			[MLX5_QP_ST_UD] = MLX5_QP_OPTPAR_PKEY_INDEX     |
 					  MLX5_QP_OPTPAR_Q_KEY,
 			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_PKEY_INDEX	|
@@ -3248,7 +3253,8 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					  MLX5_QP_OPTPAR_RRE            |
 					  MLX5_QP_OPTPAR_RAE            |
 					  MLX5_QP_OPTPAR_RWE            |
-					  MLX5_QP_OPTPAR_PKEY_INDEX,
+					  MLX5_QP_OPTPAR_PKEY_INDEX	|
+					  MLX5_QP_OPTPAR_LAG_TX_AFF,
 		},
 	},
 	[MLX5_QP_STATE_RTR] = {
@@ -3601,11 +3607,8 @@ static unsigned int get_tx_affinity_rr(struct mlx5_ib_dev *dev,
 
 static bool qp_supports_affinity(struct ib_qp *qp)
 {
-	struct mlx5_ib_qp *mqp = to_mqp(qp);
-
 	if ((qp->qp_type == IB_QPT_RC) ||
-	    (qp->qp_type == IB_QPT_UD &&
-	     !(mqp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)) ||
+	    (qp->qp_type == IB_QPT_UD) ||
 	    (qp->qp_type == IB_QPT_UC) ||
 	    (qp->qp_type == IB_QPT_RAW_PACKET) ||
 	    (qp->qp_type == IB_QPT_XRC_INI) ||
@@ -3614,7 +3617,9 @@ static bool qp_supports_affinity(struct ib_qp *qp)
 	return false;
 }
 
-static unsigned int get_tx_affinity(struct ib_qp *qp, u8 init,
+static unsigned int get_tx_affinity(struct ib_qp *qp,
+				    const struct ib_qp_attr *attr,
+				    int attr_mask, u8 init,
 				    struct ib_udata *udata)
 {
 	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
@@ -3624,10 +3629,18 @@ static unsigned int get_tx_affinity(struct ib_qp *qp, u8 init,
 	struct mlx5_ib_qp_base *qp_base;
 	unsigned int tx_affinity;
 
-	if (!(dev->lag_active && init && qp_supports_affinity(qp)))
+	if (!(dev->lag_active && qp_supports_affinity(qp)))
 		return 0;
 
-	tx_affinity = get_tx_affinity_rr(dev, udata);
+	if (mqp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)
+		tx_affinity = mqp->gsi_lag_port;
+	else if (init)
+		tx_affinity = get_tx_affinity_rr(dev, udata);
+	else if ((attr_mask & IB_QP_AV) && attr->xmit_slave)
+		tx_affinity =
+			mlx5_lag_get_slave_port(dev->mdev, attr->xmit_slave);
+	else
+		return 0;
 
 	qp_base = &mqp->trans_qp.base;
 	if (ucontext)
@@ -3712,7 +3725,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_qp_context *context;
 	struct mlx5_ib_pd *pd;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
-	enum mlx5_qp_optpar optpar;
+	enum mlx5_qp_optpar optpar = 0;
 	u32 set_id = 0;
 	int mlx5_st;
 	int err;
@@ -3746,10 +3759,15 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		}
 	}
 
-	tx_affinity = get_tx_affinity(ibqp,
+	tx_affinity = get_tx_affinity(ibqp, attr, attr_mask,
 				      cur_state == IB_QPS_RESET &&
 				      new_state == IB_QPS_INIT, udata);
-	context->flags |= cpu_to_be32(tx_affinity << 24);
+	if (tx_affinity) {
+		context->flags |= cpu_to_be32(tx_affinity << 24);
+		if (new_state == IB_QPS_RTR &&
+		    MLX5_CAP_GEN(dev->mdev, init2_lag_tx_port_affinity))
+			optpar |= MLX5_QP_OPTPAR_LAG_TX_AFF;
+	}
 
 	if (is_sqp(ibqp->qp_type)) {
 		context->mtu_msgmax = (IB_MTU_256 << 5) | 8;
@@ -3886,7 +3904,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	}
 
 	op = optab[mlx5_cur][mlx5_new];
-	optpar = ib_mask_to_mlx5_opt(attr_mask);
+	optpar |= ib_mask_to_mlx5_opt(attr_mask);
 	optpar &= opt_mask[mlx5_cur][mlx5_new][mlx5_st];
 
 	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET ||

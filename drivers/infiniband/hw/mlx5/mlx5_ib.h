@@ -461,6 +461,7 @@ struct mlx5_ib_qp {
 	 * but not take effective
 	 */
 	u32                     counter_pending;
+	u16			gsi_lag_port;
 };
 
 struct mlx5_ib_cq_buf {

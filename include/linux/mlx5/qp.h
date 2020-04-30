@@ -66,6 +66,7 @@ enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_RETRY_COUNT		= 1 << 12,
 	MLX5_QP_OPTPAR_RNR_RETRY		= 1 << 13,
 	MLX5_QP_OPTPAR_ACK_TIMEOUT		= 1 << 14,
+	MLX5_QP_OPTPAR_LAG_TX_AFF		= 1 << 15,
 	MLX5_QP_OPTPAR_PRI_PORT			= 1 << 16,
 	MLX5_QP_OPTPAR_SRQN			= 1 << 18,
 	MLX5_QP_OPTPAR_CQN_RCV			= 1 << 19,
@@ -321,6 +322,7 @@ struct mlx5_av {
 struct mlx5_ib_ah {
 	struct ib_ah		ibah;
 	struct mlx5_av		av;
+	u8			xmit_port;
 };
 
 static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)

@@ -33,8 +33,9 @@
 #include "mlx5_ib.h"
 
 static void create_ib_ah(struct mlx5_ib_dev *dev, struct mlx5_ib_ah *ah,
-			 struct rdma_ah_attr *ah_attr)
+			 struct rdma_ah_init_attr *init_attr)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	enum ib_gid_type gid_type;
 
 	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
@@ -51,6 +52,10 @@ static void create_ib_ah(struct mlx5_ib_dev *dev, struct mlx5_ib_ah *ah,
 	ah->av.stat_rate_sl = (rdma_ah_get_static_rate(ah_attr) << 4);
 
 	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		if (init_attr->xmit_slave)
+			ah->xmit_port =
+				mlx5_lag_get_slave_port(dev->mdev,
+							init_attr->xmit_slave);
 		gid_type = ah_attr->grh.sgid_attr->gid_type;
 
 		memcpy(ah->av.rmac, ah_attr->roce.dmac,
@@ -98,7 +103,7 @@ int mlx5_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 			return err;
 	}
 
-	create_ib_ah(dev, ah, ah_attr);
+	create_ib_ah(dev, ah, init_attr);
 	return 0;
 }
 
