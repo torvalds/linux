@@ -189,11 +189,20 @@ enum {
 
 #define NLA_TYPE_MAX (__NLA_TYPE_MAX - 1)
 
+struct netlink_range_validation {
+	u64 min, max;
+};
+
+struct netlink_range_validation_signed {
+	s64 min, max;
+};
+
 enum nla_policy_validation {
 	NLA_VALIDATE_NONE,
 	NLA_VALIDATE_RANGE,
 	NLA_VALIDATE_MIN,
 	NLA_VALIDATE_MAX,
+	NLA_VALIDATE_RANGE_PTR,
 	NLA_VALIDATE_FUNCTION,
 };
 
@@ -271,6 +280,22 @@ enum nla_policy_validation {
  *                         of s16 - do that as usual in the code instead.
  *                         Use the NLA_POLICY_MIN(), NLA_POLICY_MAX() and
  *                         NLA_POLICY_RANGE() macros.
+ *    NLA_U8,
+ *    NLA_U16,
+ *    NLA_U32,
+ *    NLA_U64              If the validation_type field instead is set to
+ *                         NLA_VALIDATE_RANGE_PTR, `range' must be a pointer
+ *                         to a struct netlink_range_validation that indicates
+ *                         the min/max values.
+ *                         Use NLA_POLICY_FULL_RANGE().
+ *    NLA_S8,
+ *    NLA_S16,
+ *    NLA_S32,
+ *    NLA_S64              If the validation_type field instead is set to
+ *                         NLA_VALIDATE_RANGE_PTR, `range_signed' must be a
+ *                         pointer to a struct netlink_range_validation_signed
+ *                         that indicates the min/max values.
+ *                         Use NLA_POLICY_FULL_RANGE_SIGNED().
  *    All other            Unused - but note that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
@@ -296,6 +321,8 @@ struct nla_policy {
 		const u32 bitfield32_valid;
 		const char *reject_message;
 		const struct nla_policy *nested_policy;
+		struct netlink_range_validation *range;
+		struct netlink_range_validation_signed *range_signed;
 		struct {
 			s16 min, max;
 		};
@@ -342,6 +369,12 @@ struct nla_policy {
 	{ .type = NLA_BITFIELD32, .bitfield32_valid = valid }
 
 #define __NLA_ENSURE(condition) BUILD_BUG_ON_ZERO(!(condition))
+#define NLA_ENSURE_UINT_TYPE(tp)			\
+	(__NLA_ENSURE(tp == NLA_U8 || tp == NLA_U16 ||	\
+		      tp == NLA_U32 || tp == NLA_U64) + tp)
+#define NLA_ENSURE_SINT_TYPE(tp)			\
+	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_S16  ||	\
+		      tp == NLA_S32 || tp == NLA_S64) + tp)
 #define NLA_ENSURE_INT_TYPE(tp)				\
 	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_U8 ||	\
 		      tp == NLA_S16 || tp == NLA_U16 ||	\
@@ -358,6 +391,18 @@ struct nla_policy {
 	.validation_type = NLA_VALIDATE_RANGE,		\
 	.min = _min,					\
 	.max = _max					\
+}
+
+#define NLA_POLICY_FULL_RANGE(tp, _range) {		\
+	.type = NLA_ENSURE_UINT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_RANGE_PTR,	\
+	.range = _range,				\
+}
+
+#define NLA_POLICY_FULL_RANGE_SIGNED(tp, _range) {	\
+	.type = NLA_ENSURE_SINT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_RANGE_PTR,	\
+	.range_signed = _range,				\
 }
 
 #define NLA_POLICY_MIN(tp, _min) {			\
