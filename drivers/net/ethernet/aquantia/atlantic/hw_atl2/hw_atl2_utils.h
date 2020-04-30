@@ -6,6 +6,8 @@
 #ifndef HW_ATL2_UTILS_H
 #define HW_ATL2_UTILS_H
 
+#include "aq_hw.h"
+
 /* F W    A P I */
 
 struct link_options_s {
@@ -589,6 +591,12 @@ struct fw_interface_out {
 #define  AQ_HOST_MODE_SLEEP_PROXY  2U
 #define  AQ_HOST_MODE_LOW_POWER    3U
 #define  AQ_HOST_MODE_SHUTDOWN     4U
+
+int hw_atl2_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops);
+
+int hw_atl2_utils_soft_reset(struct aq_hw_s *self);
+
+u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self);
 
 int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,
 						u8 *base_index, u8 *count);

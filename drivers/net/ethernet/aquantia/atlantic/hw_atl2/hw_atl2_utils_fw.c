@@ -301,6 +301,18 @@ static int aq_a2_fw_renegotiate(struct aq_hw_s *self)
 	return err;
 }
 
+u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
+{
+	struct version_s version;
+
+	hw_atl2_shared_buffer_read_safe(self, version, &version);
+
+	/* A2 FW version is stored in reverse order */
+	return version.mac.major << 24 |
+	       version.mac.minor << 16 |
+	       version.mac.build;
+}
+
 int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,
 						u8 *base_index, u8 *count)
 {
