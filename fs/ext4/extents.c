@@ -3829,20 +3829,14 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	}
 	/* IO end_io complete, convert the filled extent to written */
 	if (flags & EXT4_GET_BLOCKS_CONVERT) {
-		ret = ext4_convert_unwritten_extents_endio(handle, inode, map,
+		err = ext4_convert_unwritten_extents_endio(handle, inode, map,
 							   ppath);
-		if (ret >= 0)
-			ext4_update_inode_fsync_trans(handle, inode, 1);
-		else
-			err = ret;
-		map->m_flags |= EXT4_MAP_MAPPED;
-		map->m_pblk = newblock;
-		if (allocated > map->m_len)
-			allocated = map->m_len;
-		map->m_len = allocated;
-		goto out2;
+		if (err < 0)
+			goto out2;
+		ext4_update_inode_fsync_trans(handle, inode, 1);
+		goto map_out;
 	}
-	/* buffered IO case */
+	/* buffered IO cases */
 	/*
 	 * repeat fallocate creation request
 	 * we already have an unwritten extent
@@ -3876,18 +3870,14 @@ out:
 	} else
 		allocated = ret;
 	map->m_flags |= EXT4_MAP_NEW;
-	if (allocated > map->m_len)
-		allocated = map->m_len;
-	map->m_len = allocated;
-
 map_out:
 	map->m_flags |= EXT4_MAP_MAPPED;
 out1:
+	map->m_pblk = newblock;
 	if (allocated > map->m_len)
 		allocated = map->m_len;
-	ext4_ext_show_leaf(inode, path);
-	map->m_pblk = newblock;
 	map->m_len = allocated;
+	ext4_ext_show_leaf(inode, path);
 out2:
 	return err ? err : allocated;
 }
