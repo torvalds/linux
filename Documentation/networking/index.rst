@@ -83,6 +83,7 @@ Contents:
    netconsole
    netdev-features
    netdevices
+   netfilter-sysctl
 
 .. only::  subproject and html
 
