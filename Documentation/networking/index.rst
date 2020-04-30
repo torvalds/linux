@@ -77,6 +77,7 @@ Contents:
    l2tp
    lapb-module
    ltpc
+   mac80211-injection
 
 .. only::  subproject and html
 
