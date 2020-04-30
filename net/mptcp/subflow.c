@@ -523,7 +523,7 @@ out:
 	/* check for expected invariant - should never trigger, just help
 	 * catching eariler subtle bugs
 	 */
-	WARN_ON_ONCE(*own_req && child && tcp_sk(child)->is_mptcp &&
+	WARN_ON_ONCE(child && *own_req && tcp_sk(child)->is_mptcp &&
 		     (!mptcp_subflow_ctx(child) ||
 		      !mptcp_subflow_ctx(child)->conn));
 	return child;
