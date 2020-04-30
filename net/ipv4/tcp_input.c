@@ -4327,6 +4327,27 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 	}
 }
 
+static void tcp_sack_compress_send_ack(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!tp->compressed_ack)
+		return;
+
+	if (hrtimer_try_to_cancel(&tp->compressed_ack_timer) == 1)
+		__sock_put(sk);
+
+	/* Since we have to send one ack finally,
+	 * substract one from tp->compressed_ack to keep
+	 * LINUX_MIB_TCPACKCOMPRESSED accurate.
+	 */
+	NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPACKCOMPRESSED,
+		      tp->compressed_ack - 1);
+
+	tp->compressed_ack = 0;
+	tcp_send_ack(sk);
+}
+
 static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -4355,8 +4376,7 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 * If the sack array is full, forget about the last one.
 	 */
 	if (this_sack >= TCP_NUM_SACKS) {
-		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
-			tcp_send_ack(sk);
+		tcp_sack_compress_send_ack(sk);
 		this_sack--;
 		tp->rx_opt.num_sacks--;
 		sp--;
@@ -5275,15 +5295,13 @@ send_now:
 
 	if (tp->compressed_ack_rcv_nxt != tp->rcv_nxt) {
 		tp->compressed_ack_rcv_nxt = tp->rcv_nxt;
-		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
-			NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPACKCOMPRESSED,
-				      tp->compressed_ack - TCP_FASTRETRANS_THRESH);
-		tp->compressed_ack = 0;
+		tp->dup_ack_counter = 0;
 	}
-
-	if (++tp->compressed_ack <= TCP_FASTRETRANS_THRESH)
+	if (tp->dup_ack_counter < TCP_FASTRETRANS_THRESH) {
+		tp->dup_ack_counter++;
 		goto send_now;
-
+	}
+	tp->compressed_ack++;
 	if (hrtimer_is_queued(&tp->compressed_ack_timer))
 		return;
 
