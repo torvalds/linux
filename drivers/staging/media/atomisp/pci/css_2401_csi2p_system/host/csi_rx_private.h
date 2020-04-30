@@ -17,7 +17,7 @@
 
 #include "rx_csi_defs.h"
 #include "mipi_backend_defs.h"
-#include "csi_rx_public.h"
+#include "csi_rx.h"
 
 #include "device_access.h"	/* ia_css_device_load_uint32 */
 
@@ -26,9 +26,91 @@
 
 /*****************************************************
  *
+ * Device level interface (DLI).
+ *
+ *****************************************************/
+/**
+ * @brief Load the register value.
+ * Refer to "csi_rx_public.h" for details.
+ */
+static inline hrt_data csi_rx_fe_ctrl_reg_load(
+    const csi_rx_frontend_ID_t ID,
+    const hrt_address reg)
+{
+	assert(ID < N_CSI_RX_FRONTEND_ID);
+	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
+	return ia_css_device_load_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(
+					     hrt_data));
+}
+
+/**
+ * @brief Store a value to the register.
+ * Refer to "ibuf_ctrl_public.h" for details.
+ */
+static inline void csi_rx_fe_ctrl_reg_store(
+    const csi_rx_frontend_ID_t ID,
+    const hrt_address reg,
+    const hrt_data value)
+{
+	assert(ID < N_CSI_RX_FRONTEND_ID);
+	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
+
+	ia_css_device_store_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(hrt_data),
+				   value);
+}
+
+/**
+ * @brief Load the register value.
+ * Refer to "csi_rx_public.h" for details.
+ */
+static inline hrt_data csi_rx_be_ctrl_reg_load(
+    const csi_rx_backend_ID_t ID,
+    const hrt_address reg)
+{
+	assert(ID < N_CSI_RX_BACKEND_ID);
+	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
+	return ia_css_device_load_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(
+					     hrt_data));
+}
+
+/**
+ * @brief Store a value to the register.
+ * Refer to "ibuf_ctrl_public.h" for details.
+ */
+static inline void csi_rx_be_ctrl_reg_store(
+    const csi_rx_backend_ID_t ID,
+    const hrt_address reg,
+    const hrt_data value)
+{
+	assert(ID < N_CSI_RX_BACKEND_ID);
+	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
+
+	ia_css_device_store_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(hrt_data),
+				   value);
+}
+
+/* end of DLI */
+
+/*****************************************************
+ *
  * Native command interface (NCI).
  *
  *****************************************************/
+/**
+ * @brief Get the state of the csi rx fe dlane process.
+ * Refer to "csi_rx_public.h" for details.
+ */
+static inline void csi_rx_fe_ctrl_get_dlane_state(
+    const csi_rx_frontend_ID_t ID,
+    const u32 lane,
+    csi_rx_fe_ctrl_lane_t *dlane_state)
+{
+	dlane_state->termen =
+	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane));
+	dlane_state->settle =
+	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane));
+}
+
 /**
  * @brief Get the csi rx fe state.
  * Refer to "csi_rx_public.h" for details.
@@ -66,21 +148,6 @@ static inline void csi_rx_fe_ctrl_get_state(
 		    i,
 		    &state->dlane[i]);
 	}
-}
-
-/**
- * @brief Get the state of the csi rx fe dlane process.
- * Refer to "csi_rx_public.h" for details.
- */
-static inline void csi_rx_fe_ctrl_get_dlane_state(
-    const csi_rx_frontend_ID_t ID,
-    const u32 lane,
-    csi_rx_fe_ctrl_lane_t *dlane_state)
-{
-	dlane_state->termen =
-	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane));
-	dlane_state->settle =
-	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane));
 }
 
 /**
@@ -234,71 +301,5 @@ static inline void csi_rx_be_ctrl_dump_state(
 }
 
 /* end of NCI */
-/*****************************************************
- *
- * Device level interface (DLI).
- *
- *****************************************************/
-/**
- * @brief Load the register value.
- * Refer to "csi_rx_public.h" for details.
- */
-static inline hrt_data csi_rx_fe_ctrl_reg_load(
-    const csi_rx_frontend_ID_t ID,
-    const hrt_address reg)
-{
-	assert(ID < N_CSI_RX_FRONTEND_ID);
-	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(
-					     hrt_data));
-}
-
-/**
- * @brief Store a value to the register.
- * Refer to "ibuf_ctrl_public.h" for details.
- */
-static inline void csi_rx_fe_ctrl_reg_store(
-    const csi_rx_frontend_ID_t ID,
-    const hrt_address reg,
-    const hrt_data value)
-{
-	assert(ID < N_CSI_RX_FRONTEND_ID);
-	assert(CSI_RX_FE_CTRL_BASE[ID] != (hrt_address)-1);
-
-	ia_css_device_store_uint32(CSI_RX_FE_CTRL_BASE[ID] + reg * sizeof(hrt_data),
-				   value);
-}
-
-/**
- * @brief Load the register value.
- * Refer to "csi_rx_public.h" for details.
- */
-static inline hrt_data csi_rx_be_ctrl_reg_load(
-    const csi_rx_backend_ID_t ID,
-    const hrt_address reg)
-{
-	assert(ID < N_CSI_RX_BACKEND_ID);
-	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
-	return ia_css_device_load_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(
-					     hrt_data));
-}
-
-/**
- * @brief Store a value to the register.
- * Refer to "ibuf_ctrl_public.h" for details.
- */
-static inline void csi_rx_be_ctrl_reg_store(
-    const csi_rx_backend_ID_t ID,
-    const hrt_address reg,
-    const hrt_data value)
-{
-	assert(ID < N_CSI_RX_BACKEND_ID);
-	assert(CSI_RX_BE_CTRL_BASE[ID] != (hrt_address)-1);
-
-	ia_css_device_store_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg * sizeof(hrt_data),
-				   value);
-}
-
-/* end of DLI */
 
 #endif /* __CSI_RX_PRIVATE_H_INCLUDED__ */
