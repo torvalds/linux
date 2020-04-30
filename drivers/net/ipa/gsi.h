@@ -113,8 +113,7 @@ struct gsi_channel {
 	u16 tre_count;
 	u16 event_count;
 
-	struct completion completion;	/* signals channel state changes */
-	enum gsi_channel_state state;
+	struct completion completion;	/* signals channel command completion */
 
 	struct gsi_ring tre_ring;
 	u32 evt_ring_id;
