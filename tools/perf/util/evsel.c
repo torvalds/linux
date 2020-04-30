@@ -2382,8 +2382,7 @@ u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *n
 	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
 
-bool perf_evsel__fallback(struct evsel *evsel, int err,
-			  char *msg, size_t msgsize)
+bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize)
 {
 	int paranoid;
 
