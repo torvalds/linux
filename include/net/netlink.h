@@ -1933,4 +1933,10 @@ void nla_get_range_unsigned(const struct nla_policy *pt,
 void nla_get_range_signed(const struct nla_policy *pt,
 			  struct netlink_range_validation_signed *range);
 
+int netlink_policy_dump_start(const struct nla_policy *policy,
+			      unsigned int maxtype,
+			      unsigned long *state);
+bool netlink_policy_dump_loop(unsigned long *state);
+int netlink_policy_dump_write(struct sk_buff *skb, unsigned long state);
+
 #endif
