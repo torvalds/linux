@@ -280,6 +280,7 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
+	u32 val;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s id:%d %dx%d\n", __func__,
@@ -287,13 +288,30 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 		 stream->out_fmt.width,
 		 stream->out_fmt.height);
 
+	switch (stream->out_isp_fmt.fourcc) {
+	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SGBRG8:
+		val = CIF_CSI2_DT_RAW8;
+		break;
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SGBRG10:
+		val = CIF_CSI2_DT_RAW10;
+		break;
+	default:
+		val = CIF_CSI2_DT_RAW12;
+	}
+	isp_set_bits(base + CSI2RX_DATA_IDS_1,
+		     SW_CSI_ID0(0xff), SW_CSI_ID0(val));
 	raw_rd_set_pic_size(base,
 		stream->out_fmt.width,
 		stream->out_fmt.height);
 	isp_set_bits(base + CSI2RX_RAW_RD_CTRL, 0,
 		     dev->csi_dev.memory << 2 |
 		     1 << (stream->id - 1));
-
 	return 0;
 }
 
@@ -538,13 +556,13 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -1;
 
-	if (!stream->linked) {
-		v4l2_err(v4l2_dev, "link stream first\n");
-		return -EINVAL;
-	}
-
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
+
+	if (!stream->linked) {
+		v4l2_err(v4l2_dev, "check video link\n");
+		goto free_buf_queue;
+	}
 
 	if (atomic_read(&dev->cap_dev.refcnt) < 1) {
 		v4l2_err(v4l2_dev,

@@ -2280,17 +2280,14 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %d\n", __func__, stream->id);
 
-	if (!stream->linked) {
-		v4l2_err(v4l2_dev, "link stream first\n");
-		return -EINVAL;
-	}
-
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
 	atomic_inc(&dev->cap_dev.refcnt);
-	if (!dev->isp_inp)
+	if (!dev->isp_inp || !stream->linked) {
+		v4l2_err(v4l2_dev, "check video link or isp input\n");
 		goto buffer_done;
+	}
 
 	if (atomic_read(&dev->cap_dev.refcnt) == 1 &&
 	    (dev->isp_inp & INP_CSI || dev->isp_inp & INP_DVP)) {
@@ -2485,9 +2482,11 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		    !dev->csi_dev.memory &&
 		    stream->id != RKISP_STREAM_MP &&
 		    stream->id != RKISP_STREAM_SP)
-			bytesperline = width * fmt->bpp[i] / 8;
+			/* compact mode need bytesperline 4byte align */
+			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 4);
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
+
 		/* stride is only available for sp stream and y plane */
 		if (stream->id != RKISP_STREAM_SP || i != 0 ||
 		    plane_fmt->bytesperline < bytesperline)
