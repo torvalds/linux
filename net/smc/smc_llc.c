@@ -105,6 +105,7 @@ struct smc_llc_msg_confirm_rkey_cont {	/* type 0x08 */
 };
 
 #define SMC_LLC_DEL_RKEY_MAX	8
+#define SMC_LLC_FLAG_RKEY_RETRY	0x10
 #define SMC_LLC_FLAG_RKEY_NEG	0x20
 
 struct smc_llc_msg_delete_rkey {	/* type 0x09 */
@@ -563,21 +564,41 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 	smc_lgr_terminate_sched(lgr);
 }
 
-static void smc_llc_rx_confirm_rkey(struct smc_link *link,
-				    struct smc_llc_msg_confirm_rkey *llc)
+/* process a confirm_rkey request from peer, remote flow */
+static void smc_llc_rmt_conf_rkey(struct smc_link_group *lgr)
 {
-	int rc;
+	struct smc_llc_msg_confirm_rkey *llc;
+	struct smc_llc_qentry *qentry;
+	struct smc_link *link;
+	int num_entries;
+	int rk_idx;
+	int i;
 
-	rc = smc_rtoken_add(link,
-			    llc->rtoken[0].rmb_vaddr,
-			    llc->rtoken[0].rmb_key);
+	qentry = lgr->llc_flow_rmt.qentry;
+	llc = &qentry->msg.confirm_rkey;
+	link = qentry->link;
 
-	/* ignore rtokens for other links, we have only one link */
+	num_entries = llc->rtoken[0].num_rkeys;
+	/* first rkey entry is for receiving link */
+	rk_idx = smc_rtoken_add(link,
+				llc->rtoken[0].rmb_vaddr,
+				llc->rtoken[0].rmb_key);
+	if (rk_idx < 0)
+		goto out_err;
 
+	for (i = 1; i <= min_t(u8, num_entries, SMC_LLC_RKEYS_PER_MSG - 1); i++)
+		smc_rtoken_set2(lgr, rk_idx, llc->rtoken[i].link_id,
+				llc->rtoken[i].rmb_vaddr,
+				llc->rtoken[i].rmb_key);
+	/* max links is 3 so there is no need to support conf_rkey_cont msgs */
+	goto out;
+out_err:
+	llc->hd.flags |= SMC_LLC_FLAG_RKEY_NEG;
+	llc->hd.flags |= SMC_LLC_FLAG_RKEY_RETRY;
+out:
 	llc->hd.flags |= SMC_LLC_FLAG_RESP;
-	if (rc < 0)
-		llc->hd.flags |= SMC_LLC_FLAG_RKEY_NEG;
-	smc_llc_send_message(link, llc);
+	smc_llc_send_message(link, &qentry->msg);
+	smc_llc_flow_qentry_del(&lgr->llc_flow_rmt);
 }
 
 static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
@@ -666,8 +687,13 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		smc_llc_rx_delete_link(link, &llc->delete_link);
 		break;
 	case SMC_LLC_CONFIRM_RKEY:
-		smc_llc_rx_confirm_rkey(link, &llc->confirm_rkey);
-		break;
+		/* new request from remote, assign to remote flow */
+		if (smc_llc_flow_start(&lgr->llc_flow_rmt, qentry)) {
+			/* process here, does not wait for more llc msgs */
+			smc_llc_rmt_conf_rkey(lgr);
+			smc_llc_flow_stop(lgr, &lgr->llc_flow_rmt);
+		}
+		return;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		smc_llc_rx_confirm_rkey_cont(link, &llc->confirm_rkey_cont);
 		break;
