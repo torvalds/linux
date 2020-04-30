@@ -864,7 +864,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
        return HBA_IU_TYPE_SATA_REQ;
 }
 
-void aac_tmf_callback(void *context, struct fib *fibptr)
+static void aac_tmf_callback(void *context, struct fib *fibptr)
 {
 	struct aac_hba_resp *err =
 		&((struct aac_native_hba *)fibptr->hw_fib_va)->resp.err;
@@ -1078,7 +1078,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
  *	@scsi_cmd:	SCSI command block causing the reset
  *
  */
-int aac_eh_host_reset(struct scsi_cmnd *cmd)
+static int aac_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	struct scsi_device * dev = cmd->device;
 	struct Scsi_Host * host = dev->host;
