@@ -45,7 +45,7 @@ static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 };
 
 static int validate_nla_bitfield32(const struct nlattr *nla,
-				   const u32 *valid_flags_mask)
+				   const u32 valid_flags_mask)
 {
 	const struct nla_bitfield32 *bf = nla_data(nla);
 
@@ -53,11 +53,11 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 		return -EINVAL;
 
 	/*disallow invalid bit selector */
-	if (bf->selector & ~*valid_flags_mask)
+	if (bf->selector & ~valid_flags_mask)
 		return -EINVAL;
 
 	/*disallow invalid bit values */
-	if (bf->value & ~*valid_flags_mask)
+	if (bf->value & ~valid_flags_mask)
 		return -EINVAL;
 
 	/*disallow valid bit values that are not selected*/
@@ -206,9 +206,9 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		break;
 
 	case NLA_REJECT:
-		if (extack && pt->validation_data) {
+		if (extack && pt->reject_message) {
 			NL_SET_BAD_ATTR(extack, nla);
-			extack->_msg = pt->validation_data;
+			extack->_msg = pt->reject_message;
 			return -EINVAL;
 		}
 		err = -EINVAL;
@@ -223,7 +223,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (attrlen != sizeof(struct nla_bitfield32))
 			goto out_err;
 
-		err = validate_nla_bitfield32(nla, pt->validation_data);
+		err = validate_nla_bitfield32(nla, pt->bitfield32_valid);
 		if (err)
 			goto out_err;
 		break;
@@ -268,9 +268,9 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			break;
 		if (attrlen < NLA_HDRLEN)
 			goto out_err;
-		if (pt->validation_data) {
+		if (pt->nested_policy) {
 			err = __nla_validate(nla_data(nla), nla_len(nla), pt->len,
-					     pt->validation_data, validate,
+					     pt->nested_policy, validate,
 					     extack);
 			if (err < 0) {
 				/*
@@ -289,11 +289,11 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			break;
 		if (attrlen < NLA_HDRLEN)
 			goto out_err;
-		if (pt->validation_data) {
+		if (pt->nested_policy) {
 			int err;
 
 			err = nla_validate_array(nla_data(nla), nla_len(nla),
-						 pt->len, pt->validation_data,
+						 pt->len, pt->nested_policy,
 						 extack, validate);
 			if (err < 0) {
 				/*
