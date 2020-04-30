@@ -23,6 +23,7 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq);
 
 int mlx5e_health_cq_diag_fmsg(struct mlx5e_cq *cq, struct devlink_fmsg *fmsg);
 int mlx5e_health_cq_common_diag_fmsg(struct mlx5e_cq *cq, struct devlink_fmsg *fmsg);
+int mlx5e_health_eq_diag_fmsg(struct mlx5_eq_comp *eq, struct devlink_fmsg *fmsg);
 int mlx5e_health_fmsg_named_obj_nest_start(struct devlink_fmsg *fmsg, char *name);
 int mlx5e_health_fmsg_named_obj_nest_end(struct devlink_fmsg *fmsg);
 

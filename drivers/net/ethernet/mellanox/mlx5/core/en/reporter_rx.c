@@ -242,6 +242,10 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
+	err = mlx5e_health_eq_diag_fmsg(rq->cq.mcq.eq, fmsg);
+	if (err)
+		return err;
+
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
 		return err;

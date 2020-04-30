@@ -170,6 +170,10 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
+	err = mlx5e_health_eq_diag_fmsg(sq->cq.mcq.eq, fmsg);
+	if (err)
+		return err;
+
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
 		return err;

@@ -105,6 +105,37 @@ int mlx5e_health_cq_common_diag_fmsg(struct mlx5e_cq *cq, struct devlink_fmsg *f
 	return 0;
 }
 
+int mlx5e_health_eq_diag_fmsg(struct mlx5_eq_comp *eq, struct devlink_fmsg *fmsg)
+{
+	int err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "EQ");
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u8_pair_put(fmsg, "eqn", eq->core.eqn);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "irqn", eq->core.irqn);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "vecidx", eq->core.vecidx);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "ci", eq->core.cons_index);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "size", eq->core.nent);
+	if (err)
+		return err;
+
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
 void mlx5e_health_create_reporters(struct mlx5e_priv *priv)
 {
 	mlx5e_reporter_tx_create(priv);
