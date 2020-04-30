@@ -104,6 +104,7 @@ Contents:
    secid
    seg6-sysctl
    skfp
+   strparser
 
 .. only::  subproject and html
 
