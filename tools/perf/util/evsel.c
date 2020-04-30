@@ -2478,31 +2478,40 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE];
-	int printed = 0;
+	int printed = 0, enforced = 0;
 
 	switch (err) {
 	case EPERM:
 	case EACCES:
+		printed += scnprintf(msg + printed, size - printed,
+			"Access to performance monitoring and observability operations is limited.\n");
+
+		if (!sysfs__read_int("fs/selinux/enforce", &enforced)) {
+			if (enforced) {
+				printed += scnprintf(msg + printed, size - printed,
+					"Enforced MAC policy settings (SELinux) can limit access to performance\n"
+					"monitoring and observability operations. Inspect system audit records for\n"
+					"more perf_event access control information and adjusting the policy.\n");
+			}
+		}
+
 		if (err == EPERM)
-			printed = scnprintf(msg, size,
+			printed += scnprintf(msg, size,
 				"No permission to enable %s event.\n\n", evsel__name(evsel));
 
 		return scnprintf(msg + printed, size - printed,
-		 "You may not have permission to collect %sstats.\n\n"
-		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
-		 "which controls use of the performance events system by\n"
-		 "unprivileged users (without CAP_PERFMON or CAP_SYS_ADMIN).\n\n"
-		 "The current value is %d:\n\n"
+		 "Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\n"
+		 "access to performance monitoring and observability operations for users\n"
+		 "without CAP_PERFMON or CAP_SYS_ADMIN Linux capability.\n"
+		 "perf_event_paranoid setting is %d:\n"
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 "      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK\n"
-		 ">= 0: Disallow ftrace function tracepoint by users without CAP_PERFMON or CAP_SYS_ADMIN\n"
-		 "      Disallow raw tracepoint access by users without CAP_SYS_PERFMON or CAP_SYS_ADMIN\n"
-		 ">= 1: Disallow CPU event access by users without CAP_PERFMON or CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_PERFMON or CAP_SYS_ADMIN\n\n"
-		 "To make this setting permanent, edit /etc/sysctl.conf too, e.g.:\n\n"
-		 "	kernel.perf_event_paranoid = -1\n" ,
-				 target->system_wide ? "system-wide " : "",
-				 perf_event_paranoid());
+		 ">= 0: Disallow raw and ftrace function tracepoint access\n"
+		 ">= 1: Disallow CPU event access\n"
+		 ">= 2: Disallow kernel profiling\n"
+		 "To make the adjusted perf_event_paranoid setting permanent preserve it\n"
+		 "in /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)",
+		 perf_event_paranoid());
 	case ENOENT:
 		return scnprintf(msg, size, "The %s event is not supported.", evsel__name(evsel));
 	case EMFILE:
