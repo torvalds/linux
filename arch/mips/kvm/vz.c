@@ -1118,7 +1118,7 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 		break;
 	default:
 		break;
-	};
+	}
 
 	kvm_err("@ %#lx/%#lx CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
 		curr_pc, vcpu->arch.gprs[31], cache, op, base, arch->gprs[base],
@@ -1183,7 +1183,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 				trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR,
 					      KVM_TRACE_HWR(rd, sel), 0);
 				goto unknown;
-			};
+			}
 
 			trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR,
 				      KVM_TRACE_HWR(rd, sel), arch->gprs[rt]);
@@ -1192,7 +1192,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 			break;
 		default:
 			goto unknown;
-		};
+		}
 		break;
 unknown:
 
@@ -1946,7 +1946,7 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		default:
 			*v = (long)kvm_read_c0_guest_prid(cop0);
 			break;
-		};
+		}
 		break;
 	case KVM_REG_MIPS_CP0_EBASE:
 		*v = kvm_vz_read_gc0_ebase();
@@ -2185,7 +2185,7 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		default:
 			kvm_write_c0_guest_prid(cop0, v);
 			break;
-		};
+		}
 		break;
 	case KVM_REG_MIPS_CP0_EBASE:
 		kvm_vz_write_gc0_ebase(v);
