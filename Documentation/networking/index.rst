@@ -79,6 +79,7 @@ Contents:
    ltpc
    mac80211-injection
    mpls-sysctl
+   multiqueue
 
 .. only::  subproject and html
 

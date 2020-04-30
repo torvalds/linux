@@ -1639,7 +1639,7 @@ can safely be sent over either interface.  Such configurations may be achieved
 using the traffic control utilities inherent in linux.
 
 By default the bonding driver is multiqueue aware and 16 queues are created
-when the driver initializes (see Documentation/networking/multiqueue.txt
+when the driver initializes (see Documentation/networking/multiqueue.rst
 for details).  If more or less queues are desired the module parameter
 tx_queues can be used to change this value.  There is no sysfs parameter
 available as the allocation is done at module init time.
