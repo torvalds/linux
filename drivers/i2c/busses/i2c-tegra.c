@@ -1769,13 +1769,8 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 static int __maybe_unused tegra_i2c_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
-	int err;
 
 	i2c_mark_adapter_suspended(&i2c_dev->adapter);
-
-	err = pm_runtime_force_suspend(dev);
-	if (err < 0)
-		return err;
 
 	return 0;
 }
@@ -1795,10 +1790,6 @@ static int __maybe_unused tegra_i2c_resume(struct device *dev)
 
 	err = tegra_i2c_runtime_suspend(dev);
 	if (err)
-		return err;
-
-	err = pm_runtime_force_resume(dev);
-	if (err < 0)
 		return err;
 
 	i2c_mark_adapter_resumed(&i2c_dev->adapter);
