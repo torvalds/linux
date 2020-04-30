@@ -631,6 +631,7 @@ static int config_nr_shp(struct rkispp_device *dev)
 			base + RKISPP_SHARP_WR_VIR_STRIDE);
 		rkispp_set_bits(base + RKISPP_SHARP_CTRL,
 				SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
+		rkispp_clear_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
 	}
 
 	buf = &vdev->nr_buf.tmp_yuv;
