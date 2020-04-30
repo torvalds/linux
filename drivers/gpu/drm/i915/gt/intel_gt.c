@@ -7,6 +7,7 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_buffer_pool.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
@@ -28,6 +29,7 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	INIT_LIST_HEAD(&gt->closed_vma);
 	spin_lock_init(&gt->closed_lock);
 
+	intel_gt_init_buffer_pool(gt);
 	intel_gt_init_reset(gt);
 	intel_gt_init_requests(gt);
 	intel_gt_init_timelines(gt);
@@ -621,6 +623,7 @@ void intel_gt_driver_release(struct intel_gt *gt)
 
 	intel_gt_pm_fini(gt);
 	intel_gt_fini_scratch(gt);
+	intel_gt_fini_buffer_pool(gt);
 }
 
 void intel_gt_driver_late_release(struct intel_gt *gt)

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2018 Intel Corporation
  */
 
@@ -8,15 +7,15 @@
 
 #include "i915_drv.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
+#include "intel_gt_buffer_pool.h"
 
-static struct intel_engine_cs *to_engine(struct intel_engine_pool *pool)
+static struct intel_gt *to_gt(struct intel_gt_buffer_pool *pool)
 {
-	return container_of(pool, struct intel_engine_cs, pool);
+	return container_of(pool, struct intel_gt, buffer_pool);
 }
 
 static struct list_head *
-bucket_for_size(struct intel_engine_pool *pool, size_t sz)
+bucket_for_size(struct intel_gt_buffer_pool *pool, size_t sz)
 {
 	int n;
 
@@ -32,16 +31,50 @@ bucket_for_size(struct intel_engine_pool *pool, size_t sz)
 	return &pool->cache_list[n];
 }
 
-static void node_free(struct intel_engine_pool_node *node)
+static void node_free(struct intel_gt_buffer_pool_node *node)
 {
 	i915_gem_object_put(node->obj);
 	i915_active_fini(&node->active);
 	kfree(node);
 }
 
+static void pool_free_work(struct work_struct *wrk)
+{
+	struct intel_gt_buffer_pool *pool =
+		container_of(wrk, typeof(*pool), work.work);
+	struct intel_gt_buffer_pool_node *node, *next;
+	unsigned long old = jiffies - HZ;
+	bool active = false;
+	LIST_HEAD(stale);
+	int n;
+
+	/* Free buffers that have not been used in the past second */
+	spin_lock_irq(&pool->lock);
+	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
+		struct list_head *list = &pool->cache_list[n];
+
+		/* Most recent at head; oldest at tail */
+		list_for_each_entry_safe_reverse(node, next, list, link) {
+			if (time_before(node->age, old))
+				break;
+
+			list_move(&node->link, &stale);
+		}
+		active |= !list_empty(list);
+	}
+	spin_unlock_irq(&pool->lock);
+
+	list_for_each_entry_safe(node, next, &stale, link)
+		node_free(node);
+
+	if (active)
+		schedule_delayed_work(&pool->work,
+				      round_jiffies_up_relative(HZ));
+}
+
 static int pool_active(struct i915_active *ref)
 {
-	struct intel_engine_pool_node *node =
+	struct intel_gt_buffer_pool_node *node =
 		container_of(ref, typeof(*node), active);
 	struct dma_resv *resv = node->obj->base.resv;
 	int err;
@@ -64,13 +97,11 @@ static int pool_active(struct i915_active *ref)
 __i915_active_call
 static void pool_retire(struct i915_active *ref)
 {
-	struct intel_engine_pool_node *node =
+	struct intel_gt_buffer_pool_node *node =
 		container_of(ref, typeof(*node), active);
-	struct intel_engine_pool *pool = node->pool;
+	struct intel_gt_buffer_pool *pool = node->pool;
 	struct list_head *list = bucket_for_size(pool, node->obj->base.size);
 	unsigned long flags;
-
-	GEM_BUG_ON(!intel_engine_pm_is_awake(to_engine(pool)));
 
 	i915_gem_object_unpin_pages(node->obj);
 
@@ -78,15 +109,19 @@ static void pool_retire(struct i915_active *ref)
 	i915_gem_object_make_purgeable(node->obj);
 
 	spin_lock_irqsave(&pool->lock, flags);
+	node->age = jiffies;
 	list_add(&node->link, list);
 	spin_unlock_irqrestore(&pool->lock, flags);
+
+	schedule_delayed_work(&pool->work,
+			      round_jiffies_up_relative(HZ));
 }
 
-static struct intel_engine_pool_node *
-node_create(struct intel_engine_pool *pool, size_t sz)
+static struct intel_gt_buffer_pool_node *
+node_create(struct intel_gt_buffer_pool *pool, size_t sz)
 {
-	struct intel_engine_cs *engine = to_engine(pool);
-	struct intel_engine_pool_node *node;
+	struct intel_gt *gt = to_gt(pool);
+	struct intel_gt_buffer_pool_node *node;
 	struct drm_i915_gem_object *obj;
 
 	node = kmalloc(sizeof(*node),
@@ -97,7 +132,7 @@ node_create(struct intel_engine_pool *pool, size_t sz)
 	node->pool = pool;
 	i915_active_init(&node->active, pool_active, pool_retire);
 
-	obj = i915_gem_object_create_internal(engine->i915, sz);
+	obj = i915_gem_object_create_internal(gt->i915, sz);
 	if (IS_ERR(obj)) {
 		i915_active_fini(&node->active);
 		kfree(node);
@@ -110,25 +145,14 @@ node_create(struct intel_engine_pool *pool, size_t sz)
 	return node;
 }
 
-static struct intel_engine_pool *lookup_pool(struct intel_engine_cs *engine)
+struct intel_gt_buffer_pool_node *
+intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size)
 {
-	if (intel_engine_is_virtual(engine))
-		engine = intel_virtual_engine_get_sibling(engine, 0);
-
-	GEM_BUG_ON(!engine);
-	return &engine->pool;
-}
-
-struct intel_engine_pool_node *
-intel_engine_get_pool(struct intel_engine_cs *engine, size_t size)
-{
-	struct intel_engine_pool *pool = lookup_pool(engine);
-	struct intel_engine_pool_node *node;
+	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
+	struct intel_gt_buffer_pool_node *node;
 	struct list_head *list;
 	unsigned long flags;
 	int ret;
-
-	GEM_BUG_ON(!intel_engine_pm_is_awake(to_engine(pool)));
 
 	size = PAGE_ALIGN(size);
 	list = bucket_for_size(pool, size);
@@ -157,33 +181,47 @@ intel_engine_get_pool(struct intel_engine_cs *engine, size_t size)
 	return node;
 }
 
-void intel_engine_pool_init(struct intel_engine_pool *pool)
+void intel_gt_init_buffer_pool(struct intel_gt *gt)
 {
+	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
 	int n;
 
 	spin_lock_init(&pool->lock);
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++)
 		INIT_LIST_HEAD(&pool->cache_list[n]);
+	INIT_DELAYED_WORK(&pool->work, pool_free_work);
 }
 
-void intel_engine_pool_park(struct intel_engine_pool *pool)
+static void pool_free_imm(struct intel_gt_buffer_pool *pool)
 {
 	int n;
 
+	spin_lock_irq(&pool->lock);
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
+		struct intel_gt_buffer_pool_node *node, *next;
 		struct list_head *list = &pool->cache_list[n];
-		struct intel_engine_pool_node *node, *nn;
 
-		list_for_each_entry_safe(node, nn, list, link)
+		list_for_each_entry_safe(node, next, list, link)
 			node_free(node);
-
 		INIT_LIST_HEAD(list);
 	}
+	spin_unlock_irq(&pool->lock);
 }
 
-void intel_engine_pool_fini(struct intel_engine_pool *pool)
+void intel_gt_flush_buffer_pool(struct intel_gt *gt)
 {
+	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
+
+	if (cancel_delayed_work_sync(&pool->work))
+		pool_free_imm(pool);
+}
+
+void intel_gt_fini_buffer_pool(struct intel_gt *gt)
+{
+	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
 	int n;
+
+	intel_gt_flush_buffer_pool(gt);
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++)
 		GEM_BUG_ON(!list_empty(&pool->cache_list[n]));

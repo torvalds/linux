@@ -15,8 +15,8 @@
 
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_context.h"
-#include "gt/intel_engine_pool.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"
 
@@ -1194,13 +1194,13 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 			     unsigned int len)
 {
 	struct reloc_cache *cache = &eb->reloc_cache;
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	u32 *cmd;
 	int err;
 
-	pool = intel_engine_get_pool(eb->engine, PAGE_SIZE);
+	pool = intel_gt_get_buffer_pool(eb->engine->gt, PAGE_SIZE);
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
@@ -1229,7 +1229,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto err_unpin;
 	}
 
-	err = intel_engine_pool_mark_active(pool, rq);
+	err = intel_gt_buffer_pool_mark_active(pool, rq);
 	if (err)
 		goto err_request;
 
@@ -1270,7 +1270,7 @@ err_unpin:
 err_unmap:
 	i915_gem_object_unpin_map(pool->obj);
 out_pool:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 	return err;
 }
 
@@ -1887,7 +1887,7 @@ err_free:
 static int eb_parse(struct i915_execbuffer *eb)
 {
 	struct drm_i915_private *i915 = eb->i915;
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_vma *shadow, *trampoline;
 	unsigned int len;
 	int err;
@@ -1910,7 +1910,7 @@ static int eb_parse(struct i915_execbuffer *eb)
 		len += I915_CMD_PARSER_TRAMPOLINE_SIZE;
 	}
 
-	pool = intel_engine_get_pool(eb->engine, len);
+	pool = intel_gt_get_buffer_pool(eb->engine->gt, len);
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
@@ -1958,7 +1958,7 @@ err_trampoline:
 err_shadow:
 	i915_vma_unpin(shadow);
 err:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 	return err;
 }
 
@@ -2643,7 +2643,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 */
 	eb.request->batch = batch;
 	if (batch->private)
-		intel_engine_pool_mark_active(batch->private, eb.request);
+		intel_gt_buffer_pool_mark_active(batch->private, eb.request);
 
 	trace_i915_request_queue(eb.request, eb.batch_flags);
 	err = eb_submit(&eb, batch);
@@ -2672,7 +2672,7 @@ err_batch_unpin:
 		i915_vma_unpin(batch);
 err_parse:
 	if (batch->private)
-		intel_engine_pool_put(batch->private);
+		intel_gt_buffer_pool_put(batch->private);
 err_vma:
 	if (eb.trampoline)
 		i915_vma_unpin(eb.trampoline);

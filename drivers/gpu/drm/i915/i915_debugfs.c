@@ -32,6 +32,7 @@
 #include <drm/drm_debugfs.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_requests.h"
@@ -1483,6 +1484,9 @@ gt_drop_caches(struct intel_gt *gt, u64 val)
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(gt))
 		intel_gt_handle_error(gt, ALL_ENGINES, 0, NULL);
+
+	if (val & DROP_FREED)
+		intel_gt_flush_buffer_pool(gt);
 
 	return 0;
 }

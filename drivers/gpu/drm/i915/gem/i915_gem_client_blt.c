@@ -6,7 +6,6 @@
 #include "i915_drv.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
 
