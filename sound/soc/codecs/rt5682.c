@@ -857,7 +857,7 @@ static int rt5682_button_detect(struct snd_soc_component *component)
 	val = snd_soc_component_read32(component, RT5682_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5682_4BTN_IL_CMD_1, val);
-	pr_debug("%s btn_type=%x\n", __func__, btn_type);
+	dev_dbg(component->dev, "%s btn_type=%x\n", __func__, btn_type);
 	snd_soc_component_update_bits(component,
 		RT5682_SAR_IL_CMD_2, 0x10, 0x10);
 
@@ -1189,7 +1189,8 @@ static int rt5682_div_sel(struct rt5682_priv *rt5682,
 	int i;
 
 	if (rt5682->sysclk < target) {
-		pr_err("sysclk rate %d is too low\n", rt5682->sysclk);
+		dev_err(rt5682->component->dev,
+			"sysclk rate %d is too low\n", rt5682->sysclk);
 		return 0;
 	}
 
@@ -1206,7 +1207,8 @@ static int rt5682_div_sel(struct rt5682_priv *rt5682,
 	}
 
 	if (target * div[i] < rt5682->sysclk)
-		pr_err("sysclk rate %d is too high\n", rt5682->sysclk);
+		dev_err(rt5682->component->dev,
+			"sysclk rate %d is too high\n", rt5682->sysclk);
 
 	return size - 1;
 }
@@ -3272,7 +3274,7 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 	}
 
 	if (count >= 60)
-		pr_err("HP Calibration Failure\n");
+		dev_err(rt5682->component->dev, "HP Calibration Failure\n");
 
 	/* restore settings */
 	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0x02af);
@@ -3391,7 +3393,7 @@ int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 
 	regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
 	if (val != DEVICE_ID) {
-		pr_err("Device with ID register %x is not rt5682\n", val);
+		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
 		return -ENODEV;
 	}
 
@@ -3562,7 +3564,8 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
 	if (val != DEVICE_ID) {
-		pr_err("Device with ID register %x is not rt5682\n", val);
+		dev_err(&i2c->dev,
+			"Device with ID register %x is not rt5682\n", val);
 		return -ENODEV;
 	}
 
