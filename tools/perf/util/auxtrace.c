@@ -70,7 +70,7 @@ static int perf_evlist__regroup(struct evlist *evlist,
 	struct evsel *evsel;
 	bool grp;
 
-	if (!perf_evsel__is_group_leader(leader))
+	if (!evsel__is_group_leader(leader))
 		return -EINVAL;
 
 	grp = false;
@@ -685,7 +685,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, evsel) {
 		sz = evsel->core.attr.aux_sample_size;
-		if (perf_evsel__is_group_leader(evsel)) {
+		if (evsel__is_group_leader(evsel)) {
 			has_aux_leader = evsel__is_aux_event(evsel);
 			if (sz) {
 				if (has_aux_leader)
@@ -759,7 +759,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 
 	/* Set aux_sample_size based on --aux-sample option */
 	evlist__for_each_entry(evlist, evsel) {
-		if (perf_evsel__is_group_leader(evsel)) {
+		if (evsel__is_group_leader(evsel)) {
 			has_aux_leader = evsel__is_aux_event(evsel);
 		} else if (has_aux_leader) {
 			evsel->core.attr.aux_sample_size = sz;
@@ -1247,7 +1247,7 @@ static void unleader_auxtrace(struct perf_session *session)
 
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (auxtrace__evsel_is_auxtrace(session, evsel) &&
-		    perf_evsel__is_group_leader(evsel)) {
+		    evsel__is_group_leader(evsel)) {
 			unleader_evsel(session->evlist, evsel);
 		}
 	}

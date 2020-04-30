@@ -391,14 +391,14 @@ void evlist__disable(struct evlist *evlist)
 		evlist__for_each_entry(evlist, pos) {
 			if (evsel__cpu_iter_skip(pos, cpu))
 				continue;
-			if (pos->disabled || !perf_evsel__is_group_leader(pos) || !pos->core.fd)
+			if (pos->disabled || !evsel__is_group_leader(pos) || !pos->core.fd)
 				continue;
 			evsel__disable_cpu(pos, pos->cpu_iter - 1);
 		}
 	}
 	affinity__cleanup(&affinity);
 	evlist__for_each_entry(evlist, pos) {
-		if (!perf_evsel__is_group_leader(pos) || !pos->core.fd)
+		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		pos->disabled = true;
 	}
@@ -421,14 +421,14 @@ void evlist__enable(struct evlist *evlist)
 		evlist__for_each_entry(evlist, pos) {
 			if (evsel__cpu_iter_skip(pos, cpu))
 				continue;
-			if (!perf_evsel__is_group_leader(pos) || !pos->core.fd)
+			if (!evsel__is_group_leader(pos) || !pos->core.fd)
 				continue;
 			evsel__enable_cpu(pos, pos->cpu_iter - 1);
 		}
 	}
 	affinity__cleanup(&affinity);
 	evlist__for_each_entry(evlist, pos) {
-		if (!perf_evsel__is_group_leader(pos) || !pos->core.fd)
+		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		pos->disabled = false;
 	}

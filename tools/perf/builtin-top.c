@@ -298,8 +298,7 @@ static void perf_top__resort_hists(struct perf_top *t)
 		hists__collapse_resort(hists, NULL);
 
 		/* Non-group events are considered as leader */
-		if (symbol_conf.event_group &&
-		    !perf_evsel__is_group_leader(pos)) {
+		if (symbol_conf.event_group && !evsel__is_group_leader(pos)) {
 			struct hists *leader_hists = evsel__hists(pos->leader);
 
 			hists__match(leader_hists, hists);

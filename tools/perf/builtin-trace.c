@@ -2774,7 +2774,7 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 
 	fprintf(trace->output, "%s(", evsel->name);
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		bpf_output__fprintf(trace, sample);
 	} else if (evsel->tp_format) {
 		if (strncmp(evsel->tp_format->name, "sys_enter_", 10) ||

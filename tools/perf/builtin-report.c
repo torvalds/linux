@@ -459,7 +459,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		nr_events = hists->stats.total_non_filtered_period;
 	}
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
 		evsel__group_desc(evsel, buf, size);
@@ -539,8 +539,7 @@ static int perf_evlist__tty_browse_hists(struct evlist *evlist,
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = evsel__name(pos);
 
-		if (symbol_conf.event_group &&
-		    !perf_evsel__is_group_leader(pos))
+		if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 			continue;
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
@@ -682,8 +681,7 @@ static int report__collapse_hists(struct report *rep)
 			break;
 
 		/* Non-group events are considered as leader */
-		if (symbol_conf.event_group &&
-		    !perf_evsel__is_group_leader(pos)) {
+		if (symbol_conf.event_group && !evsel__is_group_leader(pos)) {
 			struct hists *leader_hists = evsel__hists(pos->leader);
 
 			hists__match(leader_hists, hists);

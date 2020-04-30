@@ -461,7 +461,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 			cache_op = parse_aliases(str, perf_evsel__hw_cache_op,
 						 PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
-				if (!perf_evsel__is_cache_op_valid(cache_type, cache_op))
+				if (!evsel__is_cache_op_valid(cache_type, cache_op))
 					return -EINVAL;
 				continue;
 			}
@@ -1871,7 +1871,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->precise_max         = mod.precise_max;
 		evsel->weak_group	   = mod.weak;
 
-		if (perf_evsel__is_group_leader(evsel))
+		if (evsel__is_group_leader(evsel))
 			evsel->core.attr.pinned = mod.pinned;
 	}
 
@@ -2627,7 +2627,7 @@ restart:
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
-			if (!perf_evsel__is_cache_op_valid(type, op))
+			if (!evsel__is_cache_op_valid(type, op))
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {

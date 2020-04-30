@@ -3424,7 +3424,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
 		ev_name = evsel__group_name(evsel);
@@ -3554,7 +3554,7 @@ static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 {
 	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 
-	if (symbol_conf.event_group && !perf_evsel__is_group_leader(evsel))
+	if (symbol_conf.event_group && !evsel__is_group_leader(evsel))
 		return true;
 
 	return false;
@@ -3622,7 +3622,7 @@ single_entry:
 
 		nr_entries = 0;
 		evlist__for_each_entry(evlist, pos) {
-			if (perf_evsel__is_group_leader(pos))
+			if (evsel__is_group_leader(pos))
 				nr_entries++;
 		}
 

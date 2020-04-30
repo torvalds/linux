@@ -217,14 +217,14 @@ void evsel__set_sample_id(struct evsel *evsel,
 }
 
 /**
- * perf_evsel__is_function_event - Return whether given evsel is a function
+ * evsel__is_function_event - Return whether given evsel is a function
  * trace event
  *
  * @evsel - evsel selector to be tested
  *
  * Return %true if event is function trace event
  */
-bool perf_evsel__is_function_event(struct evsel *evsel)
+bool evsel__is_function_event(struct evsel *evsel)
 {
 #define FUNCTION_EVENT "ftrace:function"
 
@@ -267,13 +267,13 @@ struct evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 		return NULL;
 	evsel__init(evsel, attr, idx);
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		evsel->core.attr.sample_type |= (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
 					    PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD),
 		evsel->core.attr.sample_period = 1;
 	}
 
-	if (perf_evsel__is_clock(evsel)) {
+	if (evsel__is_clock(evsel)) {
 		/*
 		 * The evsel->unit points to static alias->unit
 		 * so it's ok to use static string in here.
@@ -531,7 +531,7 @@ static unsigned long perf_evsel__hw_cache_stat[C(MAX)] = {
  [C(NODE)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
 };
 
-bool perf_evsel__is_cache_op_valid(u8 type, u8 op)
+bool evsel__is_cache_op_valid(u8 type, u8 op)
 {
 	if (perf_evsel__hw_cache_stat[type] & COP(op))
 		return true;	/* valid */
@@ -570,7 +570,7 @@ static int __evsel__hw_cache_name(u64 config, char *bf, size_t size)
 		goto out_err;
 
 	err = "invalid-cache";
-	if (!perf_evsel__is_cache_op_valid(type, op))
+	if (!evsel__is_cache_op_valid(type, op))
 		goto out_err;
 
 	return __evsel__hw_cache_type_op_res_name(type, op, result, bf, size);
@@ -686,7 +686,7 @@ int evsel__group_desc(struct evsel *evsel, char *buf, size_t size)
 static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
 				      struct callchain_param *param)
 {
-	bool function = perf_evsel__is_function_event(evsel);
+	bool function = evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
 
 	evsel__set_sample_bit(evsel, CALLCHAIN);
@@ -1018,7 +1018,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * event, due to issues with page faults while tracing page
 	 * fault handler and its overall trickiness nature.
 	 */
-	if (perf_evsel__is_function_event(evsel))
+	if (evsel__is_function_event(evsel))
 		evsel->core.attr.exclude_callchain_user = 1;
 
 	if (callchain && callchain->enabled && !evsel->no_aux_samples)
@@ -1103,15 +1103,15 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * Disabling only independent events or group leaders,
 	 * keeping group members enabled.
 	 */
-	if (perf_evsel__is_group_leader(evsel))
+	if (evsel__is_group_leader(evsel))
 		attr->disabled = 1;
 
 	/*
 	 * Setting enable_on_exec for independent events and
 	 * group leaders for traced executed by perf.
 	 */
-	if (target__none(&opts->target) && perf_evsel__is_group_leader(evsel) &&
-		!opts->initial_delay)
+	if (target__none(&opts->target) && evsel__is_group_leader(evsel) &&
+	    !opts->initial_delay)
 		attr->enable_on_exec = 1;
 
 	if (evsel->immediate) {
@@ -1389,7 +1389,7 @@ perf_evsel__read_group(struct evsel *leader, int cpu, int thread)
 	if (!(read_format & PERF_FORMAT_ID))
 		return -EINVAL;
 
-	if (!perf_evsel__is_group_leader(leader))
+	if (!evsel__is_group_leader(leader))
 		return -EINVAL;
 
 	if (!data) {
@@ -1445,7 +1445,7 @@ static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 	struct evsel *leader = evsel->leader;
 	int fd;
 
-	if (perf_evsel__is_group_leader(evsel))
+	if (evsel__is_group_leader(evsel))
 		return -1;
 
 	/*
@@ -1829,7 +1829,7 @@ try_fallback:
 	} else if (!perf_missing_features.group_read &&
 		    evsel->core.attr.inherit &&
 		   (evsel->core.attr.read_format & PERF_FORMAT_GROUP) &&
-		   perf_evsel__is_group_leader(evsel)) {
+		   evsel__is_group_leader(evsel)) {
 		perf_missing_features.group_read = true;
 		pr_debug2_peo("switching off group read\n");
 		goto fallback_missing_features;

@@ -467,7 +467,7 @@ static struct evsel *evsel_match(struct evsel *evsel,
 	struct evsel *e;
 
 	evlist__for_each_entry(evlist, e) {
-		if (perf_evsel__match2(evsel, e))
+		if (evsel__match2(evsel, e))
 			return e;
 	}
 

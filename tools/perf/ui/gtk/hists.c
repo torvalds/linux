@@ -642,7 +642,7 @@ int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 		size_t size = sizeof(buf);
 
 		if (symbol_conf.event_group) {
-			if (!perf_evsel__is_group_leader(pos))
+			if (!evsel__is_group_leader(pos))
 				continue;
 
 			if (pos->core.nr_members > 1) {

@@ -436,8 +436,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			evsel__reset_sample_bit(pos, CALLCHAIN);
 			perf_evsel__output_resort(pos, NULL);
 
-			if (symbol_conf.event_group &&
-			    !perf_evsel__is_group_leader(pos))
+			if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 				continue;
 
 			hists__find_annotations(hists, pos, ann);

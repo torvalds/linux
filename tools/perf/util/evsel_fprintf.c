@@ -44,7 +44,7 @@ int perf_evsel__fprintf(struct evsel *evsel,
 	if (details->event_group) {
 		struct evsel *pos;
 
-		if (!perf_evsel__is_group_leader(evsel))
+		if (!evsel__is_group_leader(evsel))
 			return 0;
 
 		if (evsel->core.nr_members > 1)

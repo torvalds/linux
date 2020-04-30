@@ -509,7 +509,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 	 * either manually by us or by kernel via enable_on_exec
 	 * set later.
 	 */
-	if (perf_evsel__is_group_leader(evsel)) {
+	if (evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
 
 		/*

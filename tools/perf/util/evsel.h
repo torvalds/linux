@@ -196,7 +196,7 @@ void evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
 int __evsel__sample_size(u64 sample_type);
 void evsel__calc_id_pos(struct evsel *evsel);
 
-bool perf_evsel__is_cache_op_valid(u8 type, u8 op);
+bool evsel__is_cache_op_valid(u8 type, u8 op);
 
 #define PERF_EVSEL__MAX_ALIASES 8
 
@@ -255,12 +255,11 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
 
-#define perf_evsel__match(evsel, t, c)		\
+#define evsel__match(evsel, t, c)		\
 	(evsel->core.attr.type == PERF_TYPE_##t &&	\
 	 evsel->core.attr.config == PERF_COUNT_##c)
 
-static inline bool perf_evsel__match2(struct evsel *e1,
-				      struct evsel *e2)
+static inline bool evsel__match2(struct evsel *e1, struct evsel *e2)
 {
 	return (e1->core.attr.type == e2->core.attr.type) &&
 	       (e1->core.attr.config == e2->core.attr.config);
@@ -321,44 +320,44 @@ static inline struct evsel *perf_evsel__prev(struct evsel *evsel)
 }
 
 /**
- * perf_evsel__is_group_leader - Return whether given evsel is a leader event
+ * evsel__is_group_leader - Return whether given evsel is a leader event
  *
  * @evsel - evsel selector to be tested
  *
  * Return %true if @evsel is a group leader or a stand-alone event
  */
-static inline bool perf_evsel__is_group_leader(const struct evsel *evsel)
+static inline bool evsel__is_group_leader(const struct evsel *evsel)
 {
 	return evsel->leader == evsel;
 }
 
 /**
- * perf_evsel__is_group_event - Return whether given evsel is a group event
+ * evsel__is_group_event - Return whether given evsel is a group event
  *
  * @evsel - evsel selector to be tested
  *
  * Return %true iff event group view is enabled and @evsel is a actual group
  * leader which has other members in the group
  */
-static inline bool perf_evsel__is_group_event(struct evsel *evsel)
+static inline bool evsel__is_group_event(struct evsel *evsel)
 {
 	if (!symbol_conf.event_group)
 		return false;
 
-	return perf_evsel__is_group_leader(evsel) && evsel->core.nr_members > 1;
+	return evsel__is_group_leader(evsel) && evsel->core.nr_members > 1;
 }
 
-bool perf_evsel__is_function_event(struct evsel *evsel);
+bool evsel__is_function_event(struct evsel *evsel);
 
-static inline bool perf_evsel__is_bpf_output(struct evsel *evsel)
+static inline bool evsel__is_bpf_output(struct evsel *evsel)
 {
-	return perf_evsel__match(evsel, SOFTWARE, SW_BPF_OUTPUT);
+	return evsel__match(evsel, SOFTWARE, SW_BPF_OUTPUT);
 }
 
-static inline bool perf_evsel__is_clock(struct evsel *evsel)
+static inline bool evsel__is_clock(struct evsel *evsel)
 {
-	return perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
-	       perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
+	return evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
+	       evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
 }
 
 bool perf_evsel__fallback(struct evsel *evsel, int err,
