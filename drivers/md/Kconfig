@@ -452,6 +452,17 @@ config DM_MULTIPATH_ST
 
 	  If unsure, say N.
 
+config DM_MULTIPATH_HST
+	tristate "I/O Path Selector based on historical service time"
+	depends on DM_MULTIPATH
+	help
+	  This path selector is a dynamic load balancer which selects
+	  the path expected to complete the incoming I/O in the shortest
+	  time by comparing estimated service time (based on historical
+	  service time).
+
+	  If unsure, say N.
+
 config DM_DELAY
 	tristate "I/O delaying target"
 	depends on BLK_DEV_DM
