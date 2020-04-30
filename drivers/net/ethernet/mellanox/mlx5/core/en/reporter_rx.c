@@ -284,11 +284,11 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_reporter_cq_common_diagnose(&generic_rq->cq, fmsg);
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_cq_common_diagnose(&generic_rq->cq, fmsg);
+	err = mlx5e_reporter_named_obj_nest_end(fmsg);
 	if (err)
 		goto unlock;
 
