@@ -803,6 +803,15 @@ mlxsw_sp_span_port_buffer_update(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 }
 
+static void mlxsw_sp_span_port_buffer_disable(struct mlxsw_sp *mlxsw_sp,
+					      u8 local_port)
+{
+	char sbib_pl[MLXSW_REG_SBIB_LEN];
+
+	mlxsw_reg_sbib_pack(sbib_pl, local_port, 0);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
+}
+
 int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 {
 	/* If port is egress mirrored, the shared buffer size should be
@@ -1154,15 +1163,13 @@ mlxsw_sp_span_analyzed_port_destroy(struct mlxsw_sp_span *span,
 				    analyzed_port)
 {
 	struct mlxsw_sp *mlxsw_sp = span->mlxsw_sp;
-	char sbib_pl[MLXSW_REG_SBIB_LEN];
 
 	/* Remove egress mirror buffer now that port is no longer analyzed
 	 * at egress.
 	 */
-	if (!analyzed_port->ingress) {
-		mlxsw_reg_sbib_pack(sbib_pl, analyzed_port->local_port, 0);
-		mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
-	}
+	if (!analyzed_port->ingress)
+		mlxsw_sp_span_port_buffer_disable(mlxsw_sp,
+						  analyzed_port->local_port);
 
 	list_del(&analyzed_port->list);
 	kfree(analyzed_port);
