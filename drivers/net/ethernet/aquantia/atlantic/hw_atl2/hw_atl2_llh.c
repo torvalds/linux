@@ -58,6 +58,55 @@ void hw_atl2_rpf_vlan_flr_tag_set(struct aq_hw_s *aq_hw, u32 tag, u32 filter)
 			    tag);
 }
 
+/* TX */
+
+void hw_atl2_tpb_tx_buf_clk_gate_en_set(struct aq_hw_s *aq_hw, u32 clk_gate_en)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_ADR,
+			    HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_MSK,
+			    HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_SHIFT,
+			    clk_gate_en);
+}
+
+void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
+						    u32 max_credit,
+						    u32 tc)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTCREDIT_MAX_ADR(tc),
+			    HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSK,
+			    HW_ATL2_TPS_DATA_TCTCREDIT_MAX_SHIFT,
+			    max_credit);
+}
+
+void hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
+						u32 tx_pkt_shed_tc_data_weight,
+						u32 tc)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTWEIGHT_ADR(tc),
+			    HW_ATL2_TPS_DATA_TCTWEIGHT_MSK,
+			    HW_ATL2_TPS_DATA_TCTWEIGHT_SHIFT,
+			    tx_pkt_shed_tc_data_weight);
+}
+
+u32 hw_atl2_get_hw_version(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL2_FPGA_VER_ADR);
+}
+
+void hw_atl2_init_launchtime(struct aq_hw_s *aq_hw)
+{
+	u32 hw_ver = hw_atl2_get_hw_version(aq_hw);
+
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_LT_CTRL_ADR,
+			    HW_ATL2_LT_CTRL_CLK_RATIO_MSK,
+			    HW_ATL2_LT_CTRL_CLK_RATIO_SHIFT,
+			    hw_ver  < HW_ATL2_FPGA_VER_U32(1, 0, 0, 0) ?
+			    HW_ATL2_LT_CTRL_CLK_RATIO_FULL_SPEED :
+			    hw_ver >= HW_ATL2_FPGA_VER_U32(1, 0, 85, 2) ?
+			    HW_ATL2_LT_CTRL_CLK_RATIO_HALF_SPEED :
+			    HW_ATL2_LT_CTRL_CLK_RATIO_QUATER_SPEED);
+}
+
 /* set action resolver record */
 void hw_atl2_rpf_act_rslvr_record_set(struct aq_hw_s *aq_hw, u8 location,
 				      u32 tag, u32 mask, u32 action)
@@ -127,4 +176,25 @@ u32 hw_atl2_mif_mcp_finished_read_get(struct aq_hw_s *aq_hw)
 	return aq_hw_read_reg_bit(aq_hw, HW_ATL2_MIF_MCP_FINISHED_READ_ADR,
 				  HW_ATL2_MIF_MCP_FINISHED_READ_MSK,
 				  HW_ATL2_MIF_MCP_FINISHED_READ_SHIFT);
+}
+
+u32 hw_atl2_mif_mcp_boot_reg_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL2_MIF_BOOT_REG_ADR);
+}
+
+void hw_atl2_mif_mcp_boot_reg_set(struct aq_hw_s *aq_hw, u32 val)
+{
+	return aq_hw_write_reg(aq_hw, HW_ATL2_MIF_BOOT_REG_ADR, val);
+}
+
+u32 hw_atl2_mif_host_req_int_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL2_MCP_HOST_REQ_INT_ADR);
+}
+
+void hw_atl2_mif_host_req_int_clr(struct aq_hw_s *aq_hw, u32 val)
+{
+	return aq_hw_write_reg(aq_hw, HW_ATL2_MCP_HOST_REQ_INT_CLR_ADR,
+			       val);
 }

@@ -29,6 +29,23 @@ void hw_atl2_new_rpf_rss_redir_set(struct aq_hw_s *aq_hw, u32 tc, u32 index,
 /* Set VLAN filter tag */
 void hw_atl2_rpf_vlan_flr_tag_set(struct aq_hw_s *aq_hw, u32 tag, u32 filter);
 
+/* set tx buffer clock gate enable */
+void hw_atl2_tpb_tx_buf_clk_gate_en_set(struct aq_hw_s *aq_hw, u32 clk_gate_en);
+
+/* set tx packet scheduler tc data max credit */
+void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
+						    u32 max_credit,
+						    u32 tc);
+
+/* set tx packet scheduler tc data weight */
+void hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
+						u32 tx_pkt_shed_tc_data_weight,
+						u32 tc);
+
+u32 hw_atl2_get_hw_version(struct aq_hw_s *aq_hw);
+
+void hw_atl2_init_launchtime(struct aq_hw_s *aq_hw);
+
 /* set action resolver record */
 void hw_atl2_rpf_act_rslvr_record_set(struct aq_hw_s *aq_hw, u8 location,
 				      u32 tag, u32 mask, u32 action);
@@ -53,5 +70,17 @@ void hw_atl2_mif_host_finished_write_set(struct aq_hw_s *aq_hw, u32 finish);
 
 /* get mcp finished read shared buffer indication */
 u32 hw_atl2_mif_mcp_finished_read_get(struct aq_hw_s *aq_hw);
+
+/* get mcp boot register */
+u32 hw_atl2_mif_mcp_boot_reg_get(struct aq_hw_s *aq_hw);
+
+/* set mcp boot register */
+void hw_atl2_mif_mcp_boot_reg_set(struct aq_hw_s *aq_hw, u32 val);
+
+/* get host interrupt request */
+u32 hw_atl2_mif_host_req_int_get(struct aq_hw_s *aq_hw);
+
+/* clear host interrupt request */
+void hw_atl2_mif_host_req_int_clr(struct aq_hw_s *aq_hw, u32 val);
 
 #endif /* HW_ATL2_LLH_H */
