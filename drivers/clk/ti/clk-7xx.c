@@ -328,7 +328,7 @@ static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data dra7_gpu_clkctrl_regs[] __initconst = {
-	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu_cm:clk:0000:24", },
+	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu-clkctrl:0000:24", },
 	{ 0 },
 };
 
