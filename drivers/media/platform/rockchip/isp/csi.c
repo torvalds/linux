@@ -134,6 +134,7 @@ static int rkisp_csi_s_stream(struct v4l2_subdev *sd, int on)
 	void __iomem *base = dev->base_addr;
 
 	memset(csi->tx_first, 0, sizeof(csi->tx_first));
+	memset(csi->filt_state, 0, sizeof(csi->filt_state));
 	if (on)
 		writel(SW_Y_STAT_EN, base + CSI2RX_Y_STAT_CTRL);
 	else
