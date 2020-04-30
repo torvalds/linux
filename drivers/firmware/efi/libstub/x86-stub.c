@@ -22,6 +22,7 @@
 
 const efi_system_table_t *efi_system_table;
 extern u32 image_offset;
+static efi_loaded_image_t *image = NULL;
 
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
@@ -355,7 +356,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 {
 	struct boot_params *boot_params;
 	struct setup_header *hdr;
-	efi_loaded_image_t *image;
 	void *image_base;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
@@ -414,30 +414,9 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
-	if (efi_is_native()) {
-		status = efi_parse_options(cmdline_ptr);
-		if (status != EFI_SUCCESS)
-			goto fail2;
-
-		if (!efi_noinitrd) {
-			status = efi_load_initrd(image, &ramdisk_addr,
-						 &ramdisk_size,
-						 hdr->initrd_addr_max,
-						 ULONG_MAX);
-			if (status != EFI_SUCCESS)
-				goto fail2;
-			efi_set_u64_split(ramdisk_addr, &hdr->ramdisk_image,
-					  &boot_params->ext_ramdisk_image);
-			efi_set_u64_split(ramdisk_size, &hdr->ramdisk_size,
-					  &boot_params->ext_ramdisk_size);
-		}
-	}
-
 	efi_stub_entry(handle, sys_table_arg, boot_params);
 	/* not reached */
 
-fail2:
-	efi_free(options_size, (unsigned long)cmdline_ptr);
 fail:
 	efi_free(sizeof(struct boot_params), (unsigned long)boot_params);
 
@@ -760,35 +739,42 @@ unsigned long efi_main(efi_handle_t handle,
 		image_offset = 0;
 	}
 
-	/*
-	 * efi_pe_entry() may have been called before efi_main(), in which
-	 * case this is the second time we parse the cmdline. This is ok,
-	 * parsing the cmdline multiple times does not have side-effects.
-	 */
 	cmdline_paddr = ((u64)hdr->cmd_line_ptr |
 			 ((u64)boot_params->ext_cmd_line_ptr << 32));
 	efi_parse_options((char *)cmdline_paddr);
 
 	/*
-	 * At this point, an initrd may already have been loaded, either by
-	 * the bootloader and passed via bootparams, or loaded from a initrd=
-	 * command line option by efi_pe_entry() above. In either case, we
-	 * permit an initrd loaded from the LINUX_EFI_INITRD_MEDIA_GUID device
-	 * path to supersede it.
+	 * At this point, an initrd may already have been loaded by the
+	 * bootloader and passed via bootparams. We permit an initrd loaded
+	 * from the LINUX_EFI_INITRD_MEDIA_GUID device path to supersede it.
+	 *
+	 * If the device path is not present, any command-line initrd=
+	 * arguments will be processed only if image is not NULL, which will be
+	 * the case only if we were loaded via the PE entry point.
 	 */
 	if (!efi_noinitrd) {
 		unsigned long addr, size;
 
 		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);
-		if (status == EFI_SUCCESS) {
-			efi_set_u64_split(addr, &hdr->ramdisk_image,
-					  &boot_params->ext_ramdisk_image);
-			efi_set_u64_split(size, &hdr->ramdisk_size,
-					  &boot_params->ext_ramdisk_size);
-		} else if (status != EFI_NOT_FOUND) {
-			efi_err("efi_load_initrd_dev_path() failed!\n");
+		if (status == EFI_NOT_FOUND) {
+			if (efi_is_native() && image != NULL) {
+				status = efi_load_initrd(image, &addr, &size,
+							 hdr->initrd_addr_max,
+							 ULONG_MAX);
+			} else {
+				addr = size = 0;
+				status = EFI_SUCCESS;
+			}
+		}
+
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to load initrd!\n");
 			goto fail;
 		}
+		efi_set_u64_split(addr, &hdr->ramdisk_image,
+				  &boot_params->ext_ramdisk_image);
+		efi_set_u64_split(size, &hdr->ramdisk_size,
+				  &boot_params->ext_ramdisk_size);
 	}
 
 	/*
