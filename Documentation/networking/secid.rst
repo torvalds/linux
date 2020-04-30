@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================
+LSM/SeLinux secid
+=================
+
 flowi structure:
 
 The secid member in the flow structure is used in LSMs (e.g. SELinux) to indicate

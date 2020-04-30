@@ -101,6 +101,7 @@ Contents:
    regulatory
    rxrpc
    sctp
+   secid
 
 .. only::  subproject and html
 
