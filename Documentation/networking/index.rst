@@ -76,6 +76,7 @@ Contents:
    kcm
    l2tp
    lapb-module
+   ltpc
 
 .. only::  subproject and html
 
