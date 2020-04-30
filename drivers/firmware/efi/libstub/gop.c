@@ -134,14 +134,14 @@ static u32 choose_mode_modenum(efi_graphics_output_protocol_t *gop)
 
 	max_mode = efi_table_attr(mode, max_mode);
 	if (cmdline.mode >= max_mode) {
-		efi_printk("Requested mode is invalid\n");
+		efi_err("Requested mode is invalid\n");
 		return cur_mode;
 	}
 
 	status = efi_call_proto(gop, query_mode, cmdline.mode,
 				&info_size, &info);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Couldn't get mode information\n");
+		efi_err("Couldn't get mode information\n");
 		return cur_mode;
 	}
 
@@ -150,7 +150,7 @@ static u32 choose_mode_modenum(efi_graphics_output_protocol_t *gop)
 	efi_bs_call(free_pool, info);
 
 	if (pf == PIXEL_BLT_ONLY || pf >= PIXEL_FORMAT_MAX) {
-		efi_printk("Invalid PixelFormat\n");
+		efi_err("Invalid PixelFormat\n");
 		return cur_mode;
 	}
 
@@ -222,7 +222,7 @@ static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 			return m;
 	}
 
-	efi_printk("Couldn't find requested mode\n");
+	efi_err("Couldn't find requested mode\n");
 
 	return cur_mode;
 }
@@ -316,7 +316,7 @@ static void set_mode(efi_graphics_output_protocol_t *gop)
 		return;
 
 	if (efi_call_proto(gop, set_mode, new_mode) != EFI_SUCCESS)
-		efi_printk("Failed to set requested mode\n");
+		efi_err("Failed to set requested mode\n");
 }
 
 static void find_bits(u32 mask, u8 *pos, u8 *size)
