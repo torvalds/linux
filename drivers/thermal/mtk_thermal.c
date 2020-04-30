@@ -120,18 +120,18 @@
  * MT2701 has 3 sensors and needs 3 VTS calibration data.
  * MT2712 has 4 sensors and needs 4 VTS calibration data.
  */
-#define CALIB_BUF0_VALID		BIT(0)
-#define CALIB_BUF1_ADC_GE(x)		(((x) >> 22) & 0x3ff)
-#define CALIB_BUF0_VTS_TS1(x)		(((x) >> 17) & 0x1ff)
-#define CALIB_BUF0_VTS_TS2(x)		(((x) >> 8) & 0x1ff)
-#define CALIB_BUF1_VTS_TS3(x)		(((x) >> 0) & 0x1ff)
-#define CALIB_BUF2_VTS_TS4(x)		(((x) >> 23) & 0x1ff)
-#define CALIB_BUF2_VTS_TS5(x)		(((x) >> 5) & 0x1ff)
-#define CALIB_BUF2_VTS_TSABB(x)		(((x) >> 14) & 0x1ff)
-#define CALIB_BUF0_DEGC_CALI(x)		(((x) >> 1) & 0x3f)
-#define CALIB_BUF0_O_SLOPE(x)		(((x) >> 26) & 0x3f)
-#define CALIB_BUF0_O_SLOPE_SIGN(x)	(((x) >> 7) & 0x1)
-#define CALIB_BUF1_ID(x)		(((x) >> 9) & 0x1)
+#define CALIB_BUF0_VALID_V1		BIT(0)
+#define CALIB_BUF1_ADC_GE_V1(x)		(((x) >> 22) & 0x3ff)
+#define CALIB_BUF0_VTS_TS1_V1(x)	(((x) >> 17) & 0x1ff)
+#define CALIB_BUF0_VTS_TS2_V1(x)	(((x) >> 8) & 0x1ff)
+#define CALIB_BUF1_VTS_TS3_V1(x)	(((x) >> 0) & 0x1ff)
+#define CALIB_BUF2_VTS_TS4_V1(x)	(((x) >> 23) & 0x1ff)
+#define CALIB_BUF2_VTS_TS5_V1(x)	(((x) >> 5) & 0x1ff)
+#define CALIB_BUF2_VTS_TSABB_V1(x)	(((x) >> 14) & 0x1ff)
+#define CALIB_BUF0_DEGC_CALI_V1(x)	(((x) >> 1) & 0x3f)
+#define CALIB_BUF0_O_SLOPE_V1(x)	(((x) >> 26) & 0x3f)
+#define CALIB_BUF0_O_SLOPE_SIGN_V1(x)	(((x) >> 7) & 0x1)
+#define CALIB_BUF1_ID_V1(x)		(((x) >> 9) & 0x1)
 
 enum {
 	VTS1,
@@ -525,7 +525,7 @@ static const struct mtk_thermal_data mt8183_thermal_data = {
  * This converts the raw ADC value to mcelsius using the SoC specific
  * calibration constants
  */
-static int raw_to_mcelsius(struct mtk_thermal *mt, int sensno, s32 raw)
+static int raw_to_mcelsius_v1(struct mtk_thermal *mt, int sensno, s32 raw)
 {
 	s32 tmp;
 
@@ -594,9 +594,9 @@ static int mtk_thermal_bank_temperature(struct mtk_thermal_bank *bank)
 		raw = readl(mt->thermal_base +
 			    conf->msr[conf->bank_data[bank->id].sensors[i]]);
 
-		temp = raw_to_mcelsius(mt,
-				       conf->bank_data[bank->id].sensors[i],
-				       raw);
+		temp = raw_to_mcelsius_v1(mt,
+					  conf->bank_data[bank->id].sensors[i],
+					  raw);
 
 		/*
 		 * The first read of a sensor often contains very high bogus
@@ -758,6 +758,51 @@ static u64 of_get_phys_base(struct device_node *np)
 	return of_translate_address(np, regaddr_p);
 }
 
+static int mtk_thermal_extract_efuse_v1(struct mtk_thermal *mt, u32 *buf)
+{
+	int i;
+
+	if (!(buf[0] & CALIB_BUF0_VALID_V1))
+		return -EINVAL;
+
+	mt->adc_ge = CALIB_BUF1_ADC_GE_V1(buf[1]);
+
+	for (i = 0; i < mt->conf->num_sensors; i++) {
+		switch (mt->conf->vts_index[i]) {
+		case VTS1:
+			mt->vts[VTS1] = CALIB_BUF0_VTS_TS1_V1(buf[0]);
+			break;
+		case VTS2:
+			mt->vts[VTS2] = CALIB_BUF0_VTS_TS2_V1(buf[0]);
+			break;
+		case VTS3:
+			mt->vts[VTS3] = CALIB_BUF1_VTS_TS3_V1(buf[1]);
+			break;
+		case VTS4:
+			mt->vts[VTS4] = CALIB_BUF2_VTS_TS4_V1(buf[2]);
+			break;
+		case VTS5:
+			mt->vts[VTS5] = CALIB_BUF2_VTS_TS5_V1(buf[2]);
+			break;
+		case VTSABB:
+			mt->vts[VTSABB] =
+				CALIB_BUF2_VTS_TSABB_V1(buf[2]);
+			break;
+		default:
+			break;
+		}
+	}
+
+	mt->degc_cali = CALIB_BUF0_DEGC_CALI_V1(buf[0]);
+	if (CALIB_BUF1_ID_V1(buf[1]) &
+	    CALIB_BUF0_O_SLOPE_SIGN_V1(buf[0]))
+		mt->o_slope = -CALIB_BUF0_O_SLOPE_V1(buf[0]);
+	else
+		mt->o_slope = CALIB_BUF0_O_SLOPE_V1(buf[0]);
+
+	return 0;
+}
+
 static int mtk_thermal_get_calibration_data(struct device *dev,
 					    struct mtk_thermal *mt)
 {
@@ -793,43 +838,8 @@ static int mtk_thermal_get_calibration_data(struct device *dev,
 		goto out;
 	}
 
-	if (buf[0] & CALIB_BUF0_VALID) {
-		mt->adc_ge = CALIB_BUF1_ADC_GE(buf[1]);
-
-		for (i = 0; i < mt->conf->num_sensors; i++) {
-			switch (mt->conf->vts_index[i]) {
-			case VTS1:
-				mt->vts[VTS1] = CALIB_BUF0_VTS_TS1(buf[0]);
-				break;
-			case VTS2:
-				mt->vts[VTS2] = CALIB_BUF0_VTS_TS2(buf[0]);
-				break;
-			case VTS3:
-				mt->vts[VTS3] = CALIB_BUF1_VTS_TS3(buf[1]);
-				break;
-			case VTS4:
-				mt->vts[VTS4] = CALIB_BUF2_VTS_TS4(buf[2]);
-				break;
-			case VTS5:
-				mt->vts[VTS5] = CALIB_BUF2_VTS_TS5(buf[2]);
-				break;
-			case VTSABB:
-				mt->vts[VTSABB] = CALIB_BUF2_VTS_TSABB(buf[2]);
-				break;
-			default:
-				break;
-			}
-		}
-
-		mt->degc_cali = CALIB_BUF0_DEGC_CALI(buf[0]);
-		if (CALIB_BUF1_ID(buf[1]) &
-		    CALIB_BUF0_O_SLOPE_SIGN(buf[0]))
-			mt->o_slope = -CALIB_BUF0_O_SLOPE(buf[0]);
-		else
-			mt->o_slope = CALIB_BUF0_O_SLOPE(buf[0]);
-	} else {
+	if (mtk_thermal_extract_efuse_v1(mt, buf))
 		dev_info(dev, "Device not calibrated, using default calibration values\n");
-	}
 
 out:
 	kfree(buf);
