@@ -590,4 +590,9 @@ struct fw_interface_out {
 #define  AQ_HOST_MODE_LOW_POWER    3U
 #define  AQ_HOST_MODE_SHUTDOWN     4U
 
+int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,
+						u8 *base_index, u8 *count);
+
+extern const struct aq_fw_ops aq_a2_fw_ops;
+
 #endif /* HW_ATL2_UTILS_H */
