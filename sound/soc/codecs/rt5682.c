@@ -3416,8 +3416,6 @@ int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 
 	pm_runtime_get_noresume(&slave->dev);
 
-	rt5682_reset(rt5682);
-
 	if (rt5682->first_hw_init) {
 		regcache_cache_only(rt5682->regmap, false);
 		regcache_cache_bypass(rt5682->regmap, true);
@@ -3568,8 +3566,6 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 			"Device with ID register %x is not rt5682\n", val);
 		return -ENODEV;
 	}
-
-	rt5682_reset(rt5682);
 
 	mutex_init(&rt5682->calibrate_mutex);
 	rt5682_calibrate(rt5682);
