@@ -87,6 +87,13 @@ extern const efi_system_table_t *efi_system_table;
 		((handle = efi_get_handle_at((array), i)) || true);	\
 	     i++)
 
+static inline
+void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
+{
+	*lo = lower_32_bits(data);
+	*hi = upper_32_bits(data);
+}
+
 /*
  * Allocation types for calls to boottime->allocate_pages.
  */

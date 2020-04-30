@@ -408,9 +408,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (!cmdline_ptr)
 		goto fail;
 
-	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
-	/* Fill in upper bits of command line address, NOP on 32 bit  */
-	boot_params->ext_cmd_line_ptr = (u64)(unsigned long)cmdline_ptr >> 32;
+	efi_set_u64_split((unsigned long)cmdline_ptr,
+			  &hdr->cmd_line_ptr, &boot_params->ext_cmd_line_ptr);
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
@@ -427,10 +426,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 						 ULONG_MAX);
 			if (status != EFI_SUCCESS)
 				goto fail2;
-			hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
-			hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
-			boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
-			boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
+			efi_set_u64_split(ramdisk_addr, &hdr->ramdisk_image,
+					  &boot_params->ext_ramdisk_image);
+			efi_set_u64_split(ramdisk_size, &hdr->ramdisk_size,
+					  &boot_params->ext_ramdisk_size);
 		}
 	}
 
@@ -639,16 +638,13 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 				   : EFI32_LOADER_SIGNATURE;
 	memcpy(&p->efi->efi_loader_signature, signature, sizeof(__u32));
 
-	p->efi->efi_systab		= (unsigned long)efi_system_table;
+	efi_set_u64_split((unsigned long)efi_system_table,
+			  &p->efi->efi_systab, &p->efi->efi_systab_hi);
 	p->efi->efi_memdesc_size	= *map->desc_size;
 	p->efi->efi_memdesc_version	= *map->desc_ver;
-	p->efi->efi_memmap		= (unsigned long)*map->map;
+	efi_set_u64_split((unsigned long)*map->map,
+			  &p->efi->efi_memmap, &p->efi->efi_memmap_hi);
 	p->efi->efi_memmap_size		= *map->map_size;
-
-#ifdef CONFIG_X86_64
-	p->efi->efi_systab_hi		= (unsigned long)efi_system_table >> 32;
-	p->efi->efi_memmap_hi		= (unsigned long)*map->map >> 32;
-#endif
 
 	return EFI_SUCCESS;
 }
@@ -785,10 +781,10 @@ unsigned long efi_main(efi_handle_t handle,
 
 		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);
 		if (status == EFI_SUCCESS) {
-			hdr->ramdisk_image		= (u32)addr;
-			hdr->ramdisk_size 		= (u32)size;
-			boot_params->ext_ramdisk_image	= (u64)addr >> 32;
-			boot_params->ext_ramdisk_size 	= (u64)size >> 32;
+			efi_set_u64_split(addr, &hdr->ramdisk_image,
+					  &boot_params->ext_ramdisk_image);
+			efi_set_u64_split(size, &hdr->ramdisk_size,
+					  &boot_params->ext_ramdisk_size);
 		} else if (status != EFI_NOT_FOUND) {
 			efi_printk("efi_load_initrd_dev_path() failed!\n");
 			goto fail;
