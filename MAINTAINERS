@@ -9515,7 +9515,7 @@ F:	drivers/soc/lantiq
 LAPB module
 L:	linux-x25@vger.kernel.org
 S:	Orphan
-F:	Documentation/networking/lapb-module.txt
+F:	Documentation/networking/lapb-module.rst
 F:	include/*/lapb.h
 F:	net/lapb/
 

@@ -75,6 +75,7 @@ Contents:
    ipvs-sysctl
    kcm
    l2tp
+   lapb-module
 
 .. only::  subproject and html
 

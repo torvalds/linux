@@ -15,7 +15,7 @@ config LAPB
 	  currently supports LAPB only over Ethernet connections. If you want
 	  to use LAPB connections over Ethernet, say Y here and to "LAPB over
 	  Ethernet driver" below. Read
-	  <file:Documentation/networking/lapb-module.txt> for technical
+	  <file:Documentation/networking/lapb-module.rst> for technical
 	  details.
 
 	  To compile this driver as a module, choose M here: the
