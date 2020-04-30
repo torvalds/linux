@@ -1790,7 +1790,7 @@ static enum emulation_result kvm_mips_guest_cache_op(int (*fn)(unsigned long),
 			return EMULATE_EXCEPT;
 		default:
 			break;
-		};
+		}
 	}
 }
 
@@ -1965,7 +1965,7 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 			break;
 		default:
 			goto unknown;
-		};
+		}
 		break;
 unknown:
 #endif
