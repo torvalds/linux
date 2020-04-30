@@ -106,6 +106,7 @@ Contents:
    skfp
    strparser
    switchdev
+   tc-actions-env-rules
 
 .. only::  subproject and html
 
