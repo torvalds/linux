@@ -367,7 +367,7 @@ xfs_bmap_update_finish_item(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				**state)
+	struct xfs_btree_cur		**state)
 {
 	struct xfs_bmap_intent		*bmap;
 	xfs_filblks_t			count;

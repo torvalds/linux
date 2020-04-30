@@ -366,7 +366,7 @@ xfs_refcount_update_finish_item(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				**state)
+	struct xfs_btree_cur		**state)
 {
 	struct xfs_refcount_intent	*refc;
 	xfs_fsblock_t			new_fsb;
@@ -375,11 +375,9 @@ xfs_refcount_update_finish_item(
 
 	refc = container_of(item, struct xfs_refcount_intent, ri_list);
 	error = xfs_trans_log_finish_refcount_update(tp, CUD_ITEM(done),
-			refc->ri_type,
-			refc->ri_startblock,
-			refc->ri_blockcount,
-			&new_fsb, &new_aglen,
-			(struct xfs_btree_cur **)state);
+			refc->ri_type, refc->ri_startblock, refc->ri_blockcount,
+			&new_fsb, &new_aglen, state);
+
 	/* Did we run out of reservation?  Requeue what we didn't finish. */
 	if (!error && new_aglen > 0) {
 		ASSERT(refc->ri_type == XFS_REFCOUNT_INCREASE ||
@@ -390,18 +388,6 @@ xfs_refcount_update_finish_item(
 	}
 	kmem_free(refc);
 	return error;
-}
-
-/* Clean up after processing deferred refcounts. */
-STATIC void
-xfs_refcount_update_finish_cleanup(
-	struct xfs_trans	*tp,
-	void			*state,
-	int			error)
-{
-	struct xfs_btree_cur	*rcur = state;
-
-	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 }
 
 /* Abort all pending CUIs. */
@@ -429,7 +415,7 @@ const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
 	.abort_intent	= xfs_refcount_update_abort_intent,
 	.create_done	= xfs_refcount_update_create_done,
 	.finish_item	= xfs_refcount_update_finish_item,
-	.finish_cleanup = xfs_refcount_update_finish_cleanup,
+	.finish_cleanup = xfs_refcount_finish_one_cleanup,
 	.cancel_item	= xfs_refcount_update_cancel_item,
 };
 

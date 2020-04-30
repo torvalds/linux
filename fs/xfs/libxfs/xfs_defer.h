@@ -6,6 +6,7 @@
 #ifndef __XFS_DEFER_H__
 #define	__XFS_DEFER_H__
 
+struct xfs_btree_cur;
 struct xfs_defer_op_type;
 
 /*
@@ -49,8 +50,9 @@ struct xfs_defer_op_type {
 	struct xfs_log_item *(*create_done)(struct xfs_trans *tp,
 			struct xfs_log_item *intent, unsigned int count);
 	int (*finish_item)(struct xfs_trans *tp, struct xfs_log_item *done,
-			struct list_head *item, void **state);
-	void (*finish_cleanup)(struct xfs_trans *, void *, int);
+			struct list_head *item, struct xfs_btree_cur **state);
+	void (*finish_cleanup)(struct xfs_trans *tp,
+			struct xfs_btree_cur *state, int error);
 	void (*cancel_item)(struct list_head *);
 	unsigned int		max_items;
 };

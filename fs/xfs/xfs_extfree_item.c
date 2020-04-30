@@ -474,7 +474,7 @@ xfs_extent_free_finish_item(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				**state)
+	struct xfs_btree_cur		**state)
 {
 	struct xfs_extent_free_item	*free;
 	int				error;
@@ -525,7 +525,7 @@ xfs_agfl_free_finish_item(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				**state)
+	struct xfs_btree_cur		**state)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);

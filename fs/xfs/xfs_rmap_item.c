@@ -418,34 +418,19 @@ xfs_rmap_update_finish_item(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				**state)
+	struct xfs_btree_cur		**state)
 {
 	struct xfs_rmap_intent		*rmap;
 	int				error;
 
 	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
 	error = xfs_trans_log_finish_rmap_update(tp, RUD_ITEM(done),
-			rmap->ri_type,
-			rmap->ri_owner, rmap->ri_whichfork,
-			rmap->ri_bmap.br_startoff,
-			rmap->ri_bmap.br_startblock,
-			rmap->ri_bmap.br_blockcount,
-			rmap->ri_bmap.br_state,
-			(struct xfs_btree_cur **)state);
+			rmap->ri_type, rmap->ri_owner, rmap->ri_whichfork,
+			rmap->ri_bmap.br_startoff, rmap->ri_bmap.br_startblock,
+			rmap->ri_bmap.br_blockcount, rmap->ri_bmap.br_state,
+			state);
 	kmem_free(rmap);
 	return error;
-}
-
-/* Clean up after processing deferred rmaps. */
-STATIC void
-xfs_rmap_update_finish_cleanup(
-	struct xfs_trans	*tp,
-	void			*state,
-	int			error)
-{
-	struct xfs_btree_cur	*rcur = state;
-
-	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 }
 
 /* Abort all pending RUIs. */
@@ -473,7 +458,7 @@ const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.abort_intent	= xfs_rmap_update_abort_intent,
 	.create_done	= xfs_rmap_update_create_done,
 	.finish_item	= xfs_rmap_update_finish_item,
-	.finish_cleanup = xfs_rmap_update_finish_cleanup,
+	.finish_cleanup = xfs_rmap_finish_one_cleanup,
 	.cancel_item	= xfs_rmap_update_cancel_item,
 };
 

@@ -361,7 +361,7 @@ xfs_defer_finish_one(
 	struct xfs_defer_pending	*dfp)
 {
 	const struct xfs_defer_op_type	*ops = defer_op_types[dfp->dfp_type];
-	void				*state = NULL;
+	struct xfs_btree_cur		*state = NULL;
 	struct list_head		*li, *n;
 	int				error;
 
