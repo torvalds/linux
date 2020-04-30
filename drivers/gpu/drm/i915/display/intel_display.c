@@ -15379,10 +15379,10 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_set_cdclk_pre_plane_update(state);
 
-		intel_sagv_pre_plane_update(state);
-
 		intel_modeset_verify_disabled(dev_priv, state);
 	}
+
+	intel_sagv_pre_plane_update(state);
 
 	/* Complete the events for pipes that have now been disabled */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -15476,11 +15476,10 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_check_cpu_fifo_underruns(dev_priv);
 	intel_check_pch_fifo_underruns(dev_priv);
 
-	if (state->modeset) {
+	if (state->modeset)
 		intel_verify_planes(state);
 
-		intel_sagv_post_plane_update(state);
-	}
+	intel_sagv_post_plane_update(state);
 
 	drm_atomic_helper_commit_hw_done(&state->base);
 

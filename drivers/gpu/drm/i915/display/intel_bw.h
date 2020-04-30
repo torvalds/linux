@@ -26,6 +26,9 @@ struct intel_bw_state {
 
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
+
+	/* bitmask of active pipes */
+	u8 active_pipes;
 };
 
 #define to_intel_bw_state(x) container_of((x), struct intel_bw_state, base)

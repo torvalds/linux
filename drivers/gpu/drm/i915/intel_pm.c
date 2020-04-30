@@ -3806,7 +3806,6 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 
 static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_plane *plane;
@@ -3818,13 +3817,6 @@ static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state
 
 	if (!crtc_state->hw.active)
 		return true;
-
-	/*
-	 * SKL+ workaround: bspec recommends we disable SAGV when we have
-	 * more then one pipe enabled
-	 */
-	if (hweight8(state->active_pipes) > 1)
-		return false;
 
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
@@ -3863,6 +3855,9 @@ static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state
 
 bool intel_can_enable_sagv(const struct intel_bw_state *bw_state)
 {
+	if (bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
+		return false;
+
 	return bw_state->pipe_sagv_reject == 0;
 }
 
@@ -3891,6 +3886,14 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 
 	if (!new_bw_state)
 		return 0;
+
+	new_bw_state->active_pipes =
+		intel_calc_active_pipes(state, old_bw_state->active_pipes);
+	if (new_bw_state->active_pipes != old_bw_state->active_pipes) {
+		ret = intel_atomic_lock_global_state(&new_bw_state->base);
+		if (ret)
+			return ret;
+	}
 
 	if (intel_can_enable_sagv(new_bw_state) != intel_can_enable_sagv(old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
@@ -5866,11 +5869,9 @@ skl_compute_wm(struct intel_atomic_state *state)
 	if (ret)
 		return ret;
 
-	if (state->modeset) {
-		ret = intel_compute_sagv_mask(state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_compute_sagv_mask(state);
+	if (ret)
+		return ret;
 
 	/*
 	 * skl_compute_ddb() will have adjusted the final watermarks
