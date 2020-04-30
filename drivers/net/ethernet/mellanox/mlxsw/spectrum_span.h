@@ -13,20 +13,6 @@
 struct mlxsw_sp;
 struct mlxsw_sp_port;
 
-enum mlxsw_sp_span_type {
-	MLXSW_SP_SPAN_EGRESS,
-	MLXSW_SP_SPAN_INGRESS
-};
-
-struct mlxsw_sp_span_inspected_port {
-	struct list_head list;
-	enum mlxsw_sp_span_type type;
-	u8 local_port;
-
-	/* Whether this is a directly bound mirror (port-to-port) or an ACL. */
-	bool bound;
-};
-
 struct mlxsw_sp_span_parms {
 	struct mlxsw_sp_port *dest_port; /* NULL for unoffloaded SPAN. */
 	unsigned int ttl;
@@ -52,7 +38,6 @@ struct mlxsw_sp_span_entry {
 	const struct net_device *to_dev;
 	const struct mlxsw_sp_span_entry_ops *ops;
 	struct mlxsw_sp_span_parms parms;
-	struct list_head bound_ports_list;
 	refcount_t ref_count;
 	int id;
 };
@@ -70,12 +55,6 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp);
 
-int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
-			     const struct net_device *to_dev,
-			     enum mlxsw_sp_span_type type,
-			     bool bind, int *p_span_id);
-void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
-			      enum mlxsw_sp_span_type type, bool bind);
 struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
 				 const struct net_device *to_dev);
