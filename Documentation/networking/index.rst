@@ -86,6 +86,7 @@ Contents:
    netfilter-sysctl
    netif-msg
    nf_conntrack-sysctl
+   nf_flowtable
 
 .. only::  subproject and html
 

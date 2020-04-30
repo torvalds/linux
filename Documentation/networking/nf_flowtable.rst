@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====================================
 Netfilter's flowtable infrastructure
 ====================================
 
@@ -31,15 +34,17 @@ to use this new alternative forwarding path via nftables policy.
 This is represented in Fig.1, which describes the classic forwarding path
 including the Netfilter hooks and the flowtable fastpath bypass.
 
-                                         userspace process
-                                          ^              |
-                                          |              |
-                                     _____|____     ____\/___
-                                    /          \   /         \
-                                    |   input   |  |  output  |
-                                    \__________/   \_________/
-                                         ^               |
-                                         |               |
+::
+
+					 userspace process
+					  ^              |
+					  |              |
+				     _____|____     ____\/___
+				    /          \   /         \
+				    |   input   |  |  output  |
+				    \__________/   \_________/
+					 ^               |
+					 |               |
       _________      __________      ---------     _____\/_____
      /         \    /          \     |Routing |   /            \
   -->  ingress  ---> prerouting ---> |decision|   | postrouting |--> neigh_xmit
@@ -59,7 +64,7 @@ including the Netfilter hooks and the flowtable fastpath bypass.
       \ /                                                                 |
        |__yes_________________fastpath bypass ____________________________|
 
-               Fig.1 Netfilter hooks and flowtable interactions
+	       Fig.1 Netfilter hooks and flowtable interactions
 
 The flowtable entry also stores the NAT configuration, so all packets are
 mangled according to the NAT policy that matches the initial packets that went
@@ -72,18 +77,18 @@ Example configuration
 ---------------------
 
 Enabling the flowtable bypass is relatively easy, you only need to create a
-flowtable and add one rule to your forward chain.
+flowtable and add one rule to your forward chain::
 
-        table inet x {
+	table inet x {
 		flowtable f {
 			hook ingress priority 0; devices = { eth0, eth1 };
 		}
-                chain y {
-                        type filter hook forward priority 0; policy accept;
-                        ip protocol tcp flow offload @f
-                        counter packets 0 bytes 0
-                }
-        }
+		chain y {
+			type filter hook forward priority 0; policy accept;
+			ip protocol tcp flow offload @f
+			counter packets 0 bytes 0
+		}
+	}
 
 This example adds the flowtable 'f' to the ingress hook of the eth0 and eth1
 netdevices. You can create as many flowtables as you want in case you need to
@@ -101,12 +106,12 @@ forwarding bypass.
 More reading
 ------------
 
-This documentation is based on the LWN.net articles [1][2]. Rafal Milecki also
-made a very complete and comprehensive summary called "A state of network
+This documentation is based on the LWN.net articles [1]_\ [2]_. Rafal Milecki
+also made a very complete and comprehensive summary called "A state of network
 acceleration" that describes how things were before this infrastructure was
-mailined [3] and it also makes a rough summary of this work [4].
+mailined [3]_ and it also makes a rough summary of this work [4]_.
 
-[1] https://lwn.net/Articles/738214/
-[2] https://lwn.net/Articles/742164/
-[3] http://lists.infradead.org/pipermail/lede-dev/2018-January/010830.html
-[4] http://lists.infradead.org/pipermail/lede-dev/2018-January/010829.html
+.. [1] https://lwn.net/Articles/738214/
+.. [2] https://lwn.net/Articles/742164/
+.. [3] http://lists.infradead.org/pipermail/lede-dev/2018-January/010830.html
+.. [4] http://lists.infradead.org/pipermail/lede-dev/2018-January/010829.html
