@@ -66,7 +66,8 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 	const unsigned long idx = member_offset >> PAGE_SHIFT;		\
 	const unsigned long oip = offset_in_page(member_offset);	\
 	const int size = sizeof(u##bits);				\
-	__le##bits leres;						\
+	u8 lebytes[sizeof(u##bits)];					\
+	const int part = PAGE_SIZE - oip;				\
 									\
 	ASSERT(token);							\
 	ASSERT(token->kaddr);						\
@@ -75,15 +76,16 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 	    member_offset + size <= token->offset + PAGE_SIZE) {	\
 		return get_unaligned_le##bits(token->kaddr + oip);	\
 	}								\
-	if (oip + size <= PAGE_SIZE) {					\
-		token->kaddr = page_address(token->eb->pages[idx]);	\
-		token->offset = idx << PAGE_SHIFT;			\
+	token->kaddr = page_address(token->eb->pages[idx]);		\
+	token->offset = idx << PAGE_SHIFT;				\
+	if (oip + size <= PAGE_SIZE)					\
 		return get_unaligned_le##bits(token->kaddr + oip);	\
-	}								\
+									\
+	memcpy(lebytes, token->kaddr + oip, part);			\
 	token->kaddr = page_address(token->eb->pages[idx + 1]);		\
 	token->offset = (idx + 1) << PAGE_SHIFT;			\
-	read_extent_buffer(token->eb, &leres, member_offset, size);	\
-	return le##bits##_to_cpu(leres);				\
+	memcpy(lebytes + part, token->kaddr, size - part);		\
+	return get_unaligned_le##bits(lebytes);				\
 }									\
 u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 			 const void *ptr, unsigned long off)		\
