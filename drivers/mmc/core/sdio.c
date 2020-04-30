@@ -543,12 +543,12 @@ out:
 	return err;
 }
 
-static void mmc_sdio_resend_if_cond(struct mmc_host *host,
+static void mmc_sdio_resend_if_cond(struct mmc_host *host, u32 ocr,
 				    struct mmc_card *card)
 {
 	sdio_reset(host);
 	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->ocr_avail);
+	mmc_send_if_cond(host, ocr);
 	mmc_remove_card(card);
 }
 
@@ -640,7 +640,7 @@ try_again:
 	if (rocr & ocr & R4_18V_PRESENT) {
 		err = mmc_set_uhs_voltage(host, ocr_card);
 		if (err == -EAGAIN) {
-			mmc_sdio_resend_if_cond(host, card);
+			mmc_sdio_resend_if_cond(host, ocr_card, card);
 			retries--;
 			goto try_again;
 		} else if (err) {
@@ -712,7 +712,7 @@ try_again:
 	 */
 	err = sdio_read_cccr(card, ocr);
 	if (err) {
-		mmc_sdio_resend_if_cond(host, card);
+		mmc_sdio_resend_if_cond(host, ocr_card, card);
 		if (ocr & R4_18V_PRESENT) {
 			/* Retry init sequence, but without R4_18V_PRESENT. */
 			retries = 0;
