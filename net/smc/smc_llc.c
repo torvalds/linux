@@ -719,11 +719,14 @@ again:
 }
 
 /* process llc responses in tasklet context */
-static void smc_llc_rx_response(struct smc_link *link, union smc_llc_msg *llc)
+static void smc_llc_rx_response(struct smc_link *link,
+				struct smc_llc_qentry *qentry)
 {
+	u8 llc_type = qentry->msg.raw.hdr.common.type;
+	union smc_llc_msg *llc = &qentry->msg;
 	int rc = 0;
 
-	switch (llc->raw.hdr.common.type) {
+	switch (llc_type) {
 	case SMC_LLC_TEST_LINK:
 		if (link->state == SMC_LNK_ACTIVE)
 			complete(&link->llc_testlink_resp);
@@ -759,27 +762,14 @@ static void smc_llc_rx_response(struct smc_link *link, union smc_llc_msg *llc)
 		complete(&link->llc_delete_rkey_resp);
 		break;
 	}
+	kfree(qentry);
 }
 
-/* copy received msg and add it to the event queue */
-static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
+static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
 {
-	struct smc_link *link = (struct smc_link *)wc->qp->qp_context;
 	struct smc_link_group *lgr = link->lgr;
 	struct smc_llc_qentry *qentry;
-	union smc_llc_msg *llc = buf;
 	unsigned long flags;
-
-	if (wc->byte_len < sizeof(*llc))
-		return; /* short message */
-	if (llc->raw.hdr.length != sizeof(*llc))
-		return; /* invalid message */
-
-	/* process responses immediately */
-	if (llc->raw.hdr.flags & SMC_LLC_FLAG_RESP) {
-		smc_llc_rx_response(link, llc);
-		return;
-	}
 
 	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
 	if (!qentry)
@@ -787,10 +777,32 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 	qentry->link = link;
 	INIT_LIST_HEAD(&qentry->list);
 	memcpy(&qentry->msg, llc, sizeof(union smc_llc_msg));
+
+	/* process responses immediately */
+	if (llc->raw.hdr.flags & SMC_LLC_FLAG_RESP) {
+		smc_llc_rx_response(link, qentry);
+		return;
+	}
+
+	/* add requests to event queue */
 	spin_lock_irqsave(&lgr->llc_event_q_lock, flags);
 	list_add_tail(&qentry->list, &lgr->llc_event_q);
 	spin_unlock_irqrestore(&lgr->llc_event_q_lock, flags);
 	schedule_work(&link->lgr->llc_event_work);
+}
+
+/* copy received msg and add it to the event queue */
+static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
+{
+	struct smc_link *link = (struct smc_link *)wc->qp->qp_context;
+	union smc_llc_msg *llc = buf;
+
+	if (wc->byte_len < sizeof(*llc))
+		return; /* short message */
+	if (llc->raw.hdr.length != sizeof(*llc))
+		return; /* invalid message */
+
+	smc_llc_enqueue(link, llc);
 }
 
 /***************************** worker, utils *********************************/
