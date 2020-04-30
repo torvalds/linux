@@ -5,7 +5,8 @@
 
 static int mlx5e_wait_for_sq_flush(struct mlx5e_txqsq *sq)
 {
-	unsigned long exp_time = jiffies + msecs_to_jiffies(2000);
+	unsigned long exp_time = jiffies +
+				 msecs_to_jiffies(MLX5E_REPORTER_FLUSH_TIMEOUT_MSEC);
 
 	while (time_before(jiffies, exp_time)) {
 		if (sq->cc == sq->pc)

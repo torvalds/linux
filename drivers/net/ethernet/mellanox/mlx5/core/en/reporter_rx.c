@@ -29,7 +29,8 @@ out:
 
 static int mlx5e_wait_for_icosq_flush(struct mlx5e_icosq *icosq)
 {
-	unsigned long exp_time = jiffies + msecs_to_jiffies(2000);
+	unsigned long exp_time = jiffies +
+				 msecs_to_jiffies(MLX5E_REPORTER_FLUSH_TIMEOUT_MSEC);
 
 	while (time_before(jiffies, exp_time)) {
 		if (icosq->cc == icosq->pc)
