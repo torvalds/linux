@@ -52,9 +52,67 @@ struct pvtm_config {
 	struct thermal_zone_device *tz;
 };
 
+struct lkg_conversion_table {
+	int temp;
+	int conv;
+};
+
 #define PVTM_CH_MAX	8
 #define PVTM_SUB_CH_MAX	8
+
+#define FRAC_BITS 10
+#define int_to_frac(x) ((x) << FRAC_BITS)
+#define frac_to_int(x) ((x) >> FRAC_BITS)
+
 static int pvtm_value[PVTM_CH_MAX][PVTM_SUB_CH_MAX];
+
+/*
+ * temp = temp * 10
+ * conv = exp(-ln(1.2) / 5 * (temp - 23)) * 100
+ */
+static const struct lkg_conversion_table conv_table[] = {
+	{ 200, 111 },
+	{ 205, 109 },
+	{ 210, 107 },
+	{ 215, 105 },
+	{ 220, 103 },
+	{ 225, 101 },
+	{ 230, 100 },
+	{ 235, 98 },
+	{ 240, 96 },
+	{ 245, 94 },
+	{ 250, 92 },
+	{ 255, 91 },
+	{ 260, 89 },
+	{ 265, 88 },
+	{ 270, 86 },
+	{ 275, 84 },
+	{ 280, 83 },
+	{ 285, 81 },
+	{ 290, 80 },
+	{ 295, 78 },
+	{ 300, 77 },
+	{ 305, 76 },
+	{ 310, 74 },
+	{ 315, 73 },
+	{ 320, 72 },
+	{ 325, 70 },
+	{ 330, 69 },
+	{ 335, 68 },
+	{ 340, 66 },
+	{ 345, 65 },
+	{ 350, 64 },
+	{ 355, 63 },
+	{ 360, 62 },
+	{ 365, 61 },
+	{ 370, 60 },
+	{ 375, 58 },
+	{ 380, 57 },
+	{ 385, 56 },
+	{ 390, 55 },
+	{ 395, 54 },
+	{ 400, 53 },
+};
 
 int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
 			     int *value)
@@ -356,11 +414,105 @@ pvtm_value_out:
 	return ret;
 }
 
+/**
+ * mul_frac() - multiply two fixed-point numbers
+ * @x:	first multiplicand
+ * @y:	second multiplicand
+ *
+ * Return: the result of multiplying two fixed-point numbers.  The
+ * result is also a fixed-point number.
+ */
+static inline s64 mul_frac(s64 x, s64 y)
+{
+	return (x * y) >> FRAC_BITS;
+}
+
+static int temp_to_conversion_rate(int temp)
+{
+	int high, low, mid;
+
+	low = 0;
+	high = ARRAY_SIZE(conv_table) - 1;
+	mid = (high + low) / 2;
+
+	/* No temp available, return max conversion_rate */
+	if (temp <= conv_table[low].temp)
+		return conv_table[low].conv;
+	if (temp >= conv_table[high].temp)
+		return conv_table[high].conv;
+
+	while (low <= high) {
+		if (temp <= conv_table[mid].temp && temp >
+		    conv_table[mid - 1].temp) {
+			return conv_table[mid - 1].conv +
+			    (conv_table[mid].conv - conv_table[mid - 1].conv) *
+			    (temp - conv_table[mid - 1].temp) /
+			    (conv_table[mid].temp - conv_table[mid - 1].temp);
+		} else if (temp > conv_table[mid].temp) {
+			low = mid + 1;
+		} else {
+			high = mid - 1;
+		}
+		mid = (low + high) / 2;
+	}
+
+	return 100;
+}
+
+static int rockchip_adjust_leakage(struct device *dev, struct device_node *np,
+				   int *leakage)
+{
+	struct nvmem_cell *cell;
+	u32 value = 0, temp;
+	int conversion;
+	int ret;
+
+	cell = of_nvmem_cell_get(np, "leakage_temp");
+	if (IS_ERR(cell))
+		goto next;
+	nvmem_cell_put(cell);
+	ret = rockchip_get_efuse_value(np, "leakage_temp", &value);
+	if (ret) {
+		dev_err(dev, "Failed to get leakage temp\n");
+		return -EINVAL;
+	}
+	/*
+	 * The ambient temperature range: 20C to 40C
+	 * In order to improve the precision, we do a conversion.
+	 * The temp in efuse : temp_efuse = (temp - 20) / (40 - 20) * 63
+	 * The ambient temp : temp = (temp_efuse / 63) * (40 - 20) + 20
+	 * Reserves a decimal point : temp = temp * 10
+	 */
+	temp = mul_frac((int_to_frac(value) / 63 * 20 + int_to_frac(20)),
+			int_to_frac(10));
+	conversion = temp_to_conversion_rate(frac_to_int(temp));
+	*leakage = *leakage * conversion / 100;
+
+next:
+	cell = of_nvmem_cell_get(np, "leakage_volt");
+	if (IS_ERR(cell))
+		return 0;
+	nvmem_cell_put(cell);
+	ret = rockchip_get_efuse_value(np, "leakage_volt", &value);
+	if (ret) {
+		dev_err(dev, "Failed to get leakage volt\n");
+		return -EINVAL;
+	}
+	/*
+	 * if ft write leakage use 1.35v, need convert to 1v.
+	 * leakage(1v) = leakage(1.35v) / 4
+	 */
+	if (value)
+		*leakage = *leakage / 4;
+
+	return 0;
+}
+
 int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage)
 {
 	struct device_node *np;
 	struct nvmem_cell *cell;
-	int ret;
+	int ret = 0;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np) {
@@ -375,13 +527,20 @@ int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage)
 		nvmem_cell_put(cell);
 		ret = rockchip_get_efuse_value(np, "leakage", leakage);
 	}
-	of_node_put(np);
 	if (ret) {
 		dev_err(dev, "Failed to get %s\n", lkg_name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	return 0;
+	ret = rockchip_adjust_leakage(dev, np, leakage);
+	if (ret)
+		dev_err(dev, "Failed to adjust leakage\n");
+
+out:
+	of_node_put(np);
+
+	return ret;
 }
 EXPORT_SYMBOL(rockchip_of_get_leakage);
 
@@ -405,6 +564,13 @@ void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 		dev_err(dev, "Failed to get leakage\n");
 		return;
 	}
+
+	ret = rockchip_adjust_leakage(dev, np, &leakage);
+	if (ret) {
+		dev_err(dev, "Failed to adjust leakage\n");
+		return;
+	}
+
 	dev_info(dev, "leakage=%d\n", leakage);
 
 	if (!volt_sel)
