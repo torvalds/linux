@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================================================
 PLIP: The Parallel Line Internet Protocol Device
+================================================
 
 Donald Becker (becker@super.org)
 I.D.A. Supercomputing Research Center, Bowie MD 20715
@@ -83,7 +87,7 @@ When the PLIP driver is used in IRQ mode, the timeout used for triggering a
 data transfer (the maximal time the PLIP driver would allow the other side
 before announcing a timeout, when trying to handshake a transfer of some
 data) is, by default, 500usec. As IRQ delivery is more or less immediate,
-this timeout is quite sufficient. 
+this timeout is quite sufficient.
 
 When in IRQ-less mode, the PLIP driver polls the parallel port HZ times
 per second (where HZ is typically 100 on most platforms, and 1024 on an
@@ -115,7 +119,7 @@ printer "null" cable to transfer data four bits at a time using
 data bit outputs connected to status bit inputs.
 
 The second data transfer method relies on both machines having
-bi-directional parallel ports, rather than output-only ``printer''
+bi-directional parallel ports, rather than output-only ``printer``
 ports.  This allows byte-wide transfers and avoids reconstructing
 nibbles into bytes, leading to much faster transfers.
 
@@ -132,7 +136,7 @@ bits with standard status register implementation.
 
 A cable that implements this protocol is available commercially as a
 "Null Printer" or "Turbo Laplink" cable.  It can be constructed with
-two DB-25 male connectors symmetrically connected as follows:
+two DB-25 male connectors symmetrically connected as follows::
 
     STROBE output	1*
     D0->ERROR	2 - 15		15 - 2
@@ -146,7 +150,8 @@ two DB-25 male connectors symmetrically connected as follows:
     SLCTIN	17 - 17
     extra grounds are 18*,19*,20*,21*,22*,23*,24*
     GROUND	25 - 25
-* Do not connect these pins on either end
+
+    * Do not connect these pins on either end
 
 If the cable you are using has a metallic shield it should be
 connected to the metallic DB-25 shell at one end only.
@@ -155,14 +160,14 @@ Parallel Transfer Mode 1
 ========================
 
 The second data transfer method relies on both machines having
-bi-directional parallel ports, rather than output-only ``printer''
+bi-directional parallel ports, rather than output-only ``printer``
 ports.  This allows byte-wide transfers, and avoids reconstructing
 nibbles into bytes.  This cable should not be used on unidirectional
-``printer'' (as opposed to ``parallel'') ports or when the machine
+``printer`` (as opposed to ``parallel``) ports or when the machine
 isn't configured for PLIP, as it will result in output driver
 conflicts and the (unlikely) possibility of damage.
 
-The cable for this transfer mode should be constructed as follows:
+The cable for this transfer mode should be constructed as follows::
 
     STROBE->BUSY 1 - 11
     D0->D0	2 - 2
@@ -179,7 +184,8 @@ The cable for this transfer mode should be constructed as follows:
     GND->ERROR	18 - 15
     extra grounds are 19*,20*,21*,22*,23*,24*
     GROUND	25 - 25
-* Do not connect these pins on either end
+
+    * Do not connect these pins on either end
 
 Once again, if the cable you are using has a metallic shield it should
 be connected to the metallic DB-25 shell at one end only.
@@ -188,7 +194,7 @@ PLIP Mode 0 transfer protocol
 =============================
 
 The PLIP driver is compatible with the "Crynwr" parallel port transfer
-standard in Mode 0.  That standard specifies the following protocol:
+standard in Mode 0.  That standard specifies the following protocol::
 
    send header nibble '0x8'
    count-low octet
@@ -196,20 +202,21 @@ standard in Mode 0.  That standard specifies the following protocol:
    ... data octets
    checksum octet
 
-Each octet is sent as
+Each octet is sent as::
+
 	<wait for rx. '0x1?'>	<send 0x10+(octet&0x0F)>
 	<wait for rx. '0x0?'>	<send 0x00+((octet>>4)&0x0F)>
 
 To start a transfer the transmitting machine outputs a nibble 0x08.
 That raises the ACK line, triggering an interrupt in the receiving
 machine.  The receiving machine disables interrupts and raises its own ACK
-line. 
+line.
 
-Restated:
+Restated::
 
-(OUT is bit 0-4, OUT.j is bit j from OUT. IN likewise)
-Send_Byte:
-   OUT := low nibble, OUT.4 := 1
-   WAIT FOR IN.4 = 1
-   OUT := high nibble, OUT.4 := 0
-   WAIT FOR IN.4 = 0
+  (OUT is bit 0-4, OUT.j is bit j from OUT. IN likewise)
+  Send_Byte:
+     OUT := low nibble, OUT.4 := 1
+     WAIT FOR IN.4 = 1
+     OUT := high nibble, OUT.4 := 0
+     WAIT FOR IN.4 = 0

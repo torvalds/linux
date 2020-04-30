@@ -92,6 +92,7 @@ Contents:
    packet_mmap
    phonet
    pktgen
+   plip
 
 .. only::  subproject and html
 
