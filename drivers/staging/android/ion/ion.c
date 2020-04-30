@@ -419,7 +419,7 @@ void ion_device_remove_heap(struct ion_heap *heap)
 	dev->heap_cnt--;
 	up_write(&dev->lock);
 }
-EXPORT_SYMBOL(ion_device_remove_heap);
+EXPORT_SYMBOL_GPL(ion_device_remove_heap);
 
 static ssize_t
 total_heaps_kb_show(struct kobject *kobj, struct kobj_attribute *attr,
