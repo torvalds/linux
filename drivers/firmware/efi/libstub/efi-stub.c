@@ -207,11 +207,21 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
 	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
-	    cmdline_size == 0)
-		efi_parse_options(CONFIG_CMDLINE);
+	    cmdline_size == 0) {
+		status = efi_parse_options(CONFIG_CMDLINE);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse options\n");
+			goto fail_free_cmdline;
+		}
+	}
 
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0)
-		efi_parse_options(cmdline_ptr);
+	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0) {
+		status = efi_parse_options(cmdline_ptr);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse options\n");
+			goto fail_free_cmdline;
+		}
+	}
 
 	efi_info("Booting Linux Kernel...\n");
 
@@ -223,7 +233,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 				     dram_base, image);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to relocate kernel\n");
-		goto fail_free_cmdline;
+		goto fail_free_screeninfo;
 	}
 
 	efi_retrieve_tpm2_eventlog();
@@ -326,8 +336,9 @@ fail_free_initrd:
 fail_free_image:
 	efi_free(image_size, image_addr);
 	efi_free(reserve_size, reserve_addr);
-fail_free_cmdline:
+fail_free_screeninfo:
 	free_screen_info(si);
+fail_free_cmdline:
 	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
 fail:
 	return status;
