@@ -77,4 +77,8 @@ void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu);
 void mlxsw_sp_span_speed_update_work(struct work_struct *work);
 
+int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp,
+			    const struct net_device *to_dev, int *p_span_id);
+void mlxsw_sp_span_agent_put(struct mlxsw_sp *mlxsw_sp, int span_id);
+
 #endif

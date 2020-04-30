@@ -1039,3 +1039,46 @@ void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 		return;
 	mlxsw_core_schedule_work(&mlxsw_sp->span->work);
 }
+
+int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp,
+			    const struct net_device *to_dev, int *p_span_id)
+{
+	const struct mlxsw_sp_span_entry_ops *ops;
+	struct mlxsw_sp_span_entry *span_entry;
+	struct mlxsw_sp_span_parms sparms;
+	int err;
+
+	ASSERT_RTNL();
+
+	ops = mlxsw_sp_span_entry_ops(mlxsw_sp, to_dev);
+	if (!ops) {
+		dev_err(mlxsw_sp->bus_info->dev, "Cannot mirror to requested destination\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&sparms, 0, sizeof(sparms));
+	err = ops->parms_set(to_dev, &sparms);
+	if (err)
+		return err;
+
+	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
+	if (!span_entry)
+		return -ENOBUFS;
+
+	*p_span_id = span_entry->id;
+
+	return 0;
+}
+
+void mlxsw_sp_span_agent_put(struct mlxsw_sp *mlxsw_sp, int span_id)
+{
+	struct mlxsw_sp_span_entry *span_entry;
+
+	ASSERT_RTNL();
+
+	span_entry = mlxsw_sp_span_entry_find_by_id(mlxsw_sp, span_id);
+	if (WARN_ON_ONCE(!span_entry))
+		return;
+
+	mlxsw_sp_span_entry_put(mlxsw_sp, span_entry);
+}
