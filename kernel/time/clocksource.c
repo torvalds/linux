@@ -842,7 +842,11 @@ static int __init clocksource_done_booting(void)
 	mutex_unlock(&clocksource_mutex);
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+pure_initcall(clocksource_done_booting);
+#else
 fs_initcall(clocksource_done_booting);
+#endif
 
 /*
  * Enqueue the clocksource sorted by rating
