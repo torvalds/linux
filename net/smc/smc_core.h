@@ -120,9 +120,6 @@ struct smc_link {
 	struct smc_link_group	*lgr;		/* parent link group */
 
 	enum smc_link_state	state;		/* state of link */
-	struct completion	llc_confirm;	/* wait for rx of conf link */
-	int			llc_confirm_rc; /* rc from confirm link msg */
-	struct completion	llc_add;	/* wait for rx of add link */
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
