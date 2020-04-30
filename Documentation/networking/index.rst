@@ -96,6 +96,7 @@ Contents:
    ppp_generic
    proc_net_tcp
    radiotap-headers
+   ray_cs
 
 .. only::  subproject and html
 

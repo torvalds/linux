@@ -57,7 +57,7 @@ config PCMCIA_RAYCS
 	---help---
 	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
 	  (PC-card) wireless Ethernet networking card to your computer.
-	  Please read the file <file:Documentation/networking/ray_cs.txt> for
+	  Please read the file <file:Documentation/networking/ray_cs.rst> for
 	  details.
 
 	  To compile this driver as a module, choose M here: the module will be
