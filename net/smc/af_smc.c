@@ -1019,8 +1019,10 @@ void smc_close_non_accepted(struct sock *sk)
 static int smcr_serv_conf_first_link(struct smc_sock *smc)
 {
 	struct smc_link *link = smc->conn.lnk;
-	int rest;
+	struct smc_llc_qentry *qentry;
 	int rc;
+
+	link->lgr->type = SMC_LGR_SINGLE;
 
 	if (smcr_link_reg_rmb(link, smc->conn.rmb_desc, false))
 		return SMC_CLC_DECL_ERR_REGRMB;
@@ -1031,40 +1033,27 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 		return SMC_CLC_DECL_TIMEOUT_CL;
 
 	/* receive CONFIRM LINK response from client over the RoCE fabric */
-	rest = wait_for_completion_interruptible_timeout(
-		&link->llc_confirm_resp,
-		SMC_LLC_WAIT_FIRST_TIME);
-	if (rest <= 0) {
+	qentry = smc_llc_wait(link->lgr, link, SMC_LLC_WAIT_TIME,
+			      SMC_LLC_CONFIRM_LINK);
+	if (!qentry) {
 		struct smc_clc_msg_decline dclc;
 
 		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
 				      SMC_CLC_DECLINE, CLC_WAIT_TIME_SHORT);
 		return rc == -EAGAIN ? SMC_CLC_DECL_TIMEOUT_CL : rc;
 	}
-
-	if (link->llc_confirm_resp_rc)
+	rc = smc_llc_eval_conf_link(qentry, SMC_LLC_RESP);
+	smc_llc_flow_qentry_del(&link->lgr->llc_flow_lcl);
+	if (rc)
 		return SMC_CLC_DECL_RMBE_EC;
 
-	/* send ADD LINK request to client over the RoCE fabric */
-	rc = smc_llc_send_add_link(link,
-				   link->smcibdev->mac[link->ibport - 1],
-				   link->gid, SMC_LLC_REQ);
-	if (rc < 0)
-		return SMC_CLC_DECL_TIMEOUT_AL;
-
-	/* receive ADD LINK response from client over the RoCE fabric */
-	rest = wait_for_completion_interruptible_timeout(&link->llc_add_resp,
-							 SMC_LLC_WAIT_TIME);
-	if (rest <= 0) {
-		struct smc_clc_msg_decline dclc;
-
-		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
-				      SMC_CLC_DECLINE, CLC_WAIT_TIME_SHORT);
-		return rc == -EAGAIN ? SMC_CLC_DECL_TIMEOUT_AL : rc;
-	}
+	/* confirm_rkey is implicit on 1st contact */
+	smc->conn.rmb_desc->is_conf_rkey = true;
 
 	smc_llc_link_active(link);
 
+	/* initial contact - try to establish second link */
+	/* tbd: call smc_llc_srv_add_link(link); */
 	return 0;
 }
 
@@ -1240,7 +1229,9 @@ static int smc_listen_rdma_finish(struct smc_sock *new_smc,
 			goto decline;
 		}
 		/* QP confirmation over RoCE fabric */
+		smc_llc_flow_initiate(link->lgr, SMC_LLC_FLOW_ADD_LINK);
 		reason_code = smcr_serv_conf_first_link(new_smc);
+		smc_llc_flow_stop(link->lgr, &link->lgr->llc_flow_lcl);
 		if (reason_code)
 			goto decline;
 	}

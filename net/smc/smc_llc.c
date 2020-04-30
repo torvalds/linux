@@ -724,26 +724,18 @@ static void smc_llc_rx_response(struct smc_link *link,
 {
 	u8 llc_type = qentry->msg.raw.hdr.common.type;
 	union smc_llc_msg *llc = &qentry->msg;
-	int rc = 0;
 
 	switch (llc_type) {
 	case SMC_LLC_TEST_LINK:
 		if (link->state == SMC_LNK_ACTIVE)
 			complete(&link->llc_testlink_resp);
 		break;
-	case SMC_LLC_CONFIRM_LINK:
-		if (!(llc->raw.hdr.flags & SMC_LLC_FLAG_NO_RMBE_EYEC))
-			rc = ENOTSUPP;
-		if (link->lgr->role == SMC_SERV &&
-		    link->state == SMC_LNK_ACTIVATING) {
-			link->llc_confirm_resp_rc = rc;
-			complete(&link->llc_confirm_resp);
-		}
-		break;
 	case SMC_LLC_ADD_LINK:
-		if (link->state == SMC_LNK_ACTIVATING)
-			complete(&link->llc_add_resp);
-		break;
+	case SMC_LLC_CONFIRM_LINK:
+		/* assign responses to the local flow, we requested them */
+		smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
+		wake_up_interruptible(&link->lgr->llc_waiter);
+		return;
 	case SMC_LLC_DELETE_LINK:
 		if (link->lgr->role == SMC_SERV)
 			smc_lgr_schedule_free_work_fast(link->lgr);
@@ -866,9 +858,7 @@ void smc_llc_lgr_clear(struct smc_link_group *lgr)
 int smc_llc_link_init(struct smc_link *link)
 {
 	init_completion(&link->llc_confirm);
-	init_completion(&link->llc_confirm_resp);
 	init_completion(&link->llc_add);
-	init_completion(&link->llc_add_resp);
 	init_completion(&link->llc_confirm_rkey_resp);
 	init_completion(&link->llc_delete_rkey_resp);
 	mutex_init(&link->llc_delete_rkey_mutex);

@@ -121,11 +121,8 @@ struct smc_link {
 
 	enum smc_link_state	state;		/* state of link */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
-	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
-	int			llc_confirm_resp_rc; /* rc from conf_resp msg */
 	struct completion	llc_add;	/* wait for rx of add link */
-	struct completion	llc_add_resp;	/* wait for rx of add link rsp*/
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
