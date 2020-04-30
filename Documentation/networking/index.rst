@@ -89,6 +89,7 @@ Contents:
    nf_flowtable
    openvswitch
    operstates
+   packet_mmap
 
 .. only::  subproject and html
 
