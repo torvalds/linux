@@ -1893,8 +1893,11 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 static void afs_done_fs_inline_bulk_status(struct afs_call *call)
 {
 	if (call->error == -ECONNABORTED &&
-	    call->abort_code == RX_INVALID_OPERATION)
+	    call->abort_code == RX_INVALID_OPERATION) {
 		set_bit(AFS_SERVER_FL_NO_IBULK, &call->server->flags);
+		if (call->op)
+			set_bit(AFS_VOLUME_MAYBE_NO_IBULK, &call->op->volume->flags);
+	}
 }
 
 /*
@@ -1919,7 +1922,7 @@ void afs_fs_inline_bulk_status(struct afs_operation *op)
 	__be32 *bp;
 	int i;
 
-	if (test_bit(AFS_SERVER_FL_NO_IBULK, &op->cbi->server->flags)) {
+	if (test_bit(AFS_SERVER_FL_NO_IBULK, &op->server->flags)) {
 		op->error = -ENOTSUPP;
 		return;
 	}

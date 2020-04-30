@@ -143,12 +143,6 @@ bool afs_begin_vnode_operation(struct afs_operation *op)
 		if (!afs_get_io_locks(op))
 			return false;
 
-	read_seqlock_excl(&vnode->cb_lock);
-	op->cbi = afs_get_cb_interest(
-		rcu_dereference_protected(vnode->cb_interest,
-					  lockdep_is_held(&vnode->cb_lock.lock)));
-	read_sequnlock_excl(&vnode->cb_lock);
-
 	afs_prepare_vnode(op, &op->file[0], 0);
 	afs_prepare_vnode(op, &op->file[1], 1);
 	op->cb_v_break = op->volume->cb_v_break;
@@ -183,8 +177,8 @@ void afs_wait_for_operation(struct afs_operation *op)
 	_enter("");
 
 	while (afs_select_fileserver(op)) {
-		op->cb_s_break = op->cbi->server->cb_s_break;
-		if (test_bit(AFS_SERVER_FL_IS_YFS, &op->cbi->server->flags) &&
+		op->cb_s_break = op->server->cb_s_break;
+		if (test_bit(AFS_SERVER_FL_IS_YFS, &op->server->flags) &&
 		    op->ops->issue_yfs_rpc)
 			op->ops->issue_yfs_rpc(op);
 		else
@@ -231,7 +225,6 @@ int afs_put_operation(struct afs_operation *op)
 	}
 
 	afs_end_cursor(&op->ac);
-	afs_put_cb_interest(op->net, op->cbi);
 	afs_put_serverlist(op->net, op->server_list);
 	afs_put_volume(op->net, op->volume, afs_volume_trace_put_put_op);
 	kfree(op);

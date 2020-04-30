@@ -103,7 +103,6 @@ struct afs_call {
 	struct afs_net		*net;		/* The network namespace */
 	struct afs_server	*server;	/* The fileserver record if fs op (pins ref) */
 	struct afs_vlserver	*vlserver;	/* The vlserver record if vl op */
-	struct afs_cb_interest	*cbi;		/* Callback interest for server used */
 	void			*request;	/* request data (first part) */
 	struct iov_iter		def_iter;	/* Default buffer/data iterator */
 	struct iov_iter		*iter;		/* Iterator currently in use */
@@ -375,9 +374,14 @@ struct afs_cell {
 	enum dns_lookup_status	dns_status:8;	/* Latest status of data from lookup */
 	unsigned int		dns_lookup_count; /* Counter of DNS lookups */
 
+	/* The volumes belonging to this cell */
+	struct rb_root		volumes;	/* Tree of volumes on this server */
+	struct hlist_head	proc_volumes;	/* procfs volume list */
+	seqlock_t		volume_lock;	/* For volumes */
+
 	/* Active fileserver interaction state. */
-	struct list_head	proc_volumes;	/* procfs volume list */
-	rwlock_t		proc_lock;
+	struct rb_root		fs_servers;	/* afs_server (by server UUID) */
+	seqlock_t		fs_lock;	/* For fs_servers  */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -481,7 +485,8 @@ struct afs_server {
 	};
 
 	struct afs_addr_list	__rcu *addresses;
-	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
+	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
+	struct rb_node		uuid_rb;	/* Link in cell->fs_servers */
 	struct list_head	probe_link;	/* Link in net->fs_probe_list */
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
@@ -507,9 +512,7 @@ struct afs_server {
 	rwlock_t		fs_lock;	/* access lock */
 
 	/* callback promise management */
-	struct rb_root		cb_volumes;	/* List of volume interests on this server */
 	unsigned		cb_s_break;	/* Break-everything counter. */
-	seqlock_t		cb_break_lock;	/* Volume finding lock */
 
 	/* Probe state */
 	unsigned long		probed_at;	/* Time last probe was dispatched (jiffies) */
@@ -528,36 +531,10 @@ struct afs_server {
 };
 
 /*
- * Volume collation in the server's callback interest list.
- */
-struct afs_vol_interest {
-	struct rb_node		srv_node;	/* Link in server->cb_volumes */
-	struct hlist_head	cb_interests;	/* List of callback interests on the server */
-	union {
-		struct rcu_head	rcu;
-		afs_volid_t	vid;		/* Volume ID to match */
-	};
-	unsigned int		usage;
-};
-
-/*
- * Interest by a superblock on a server.
- */
-struct afs_cb_interest {
-	struct hlist_node	cb_vlink;	/* Link in vol_interest->cb_interests */
-	struct afs_vol_interest	*vol_interest;
-	struct afs_server	*server;	/* Server on which this interest resides */
-	struct super_block	*sb;		/* Superblock on which inodes reside */
-	struct rcu_head		rcu;
-	refcount_t		usage;
-};
-
-/*
  * Replaceable volume server list.
  */
 struct afs_server_entry {
 	struct afs_server	*server;
-	struct afs_cb_interest	*cb_interest;
 };
 
 struct afs_server_list {
@@ -575,11 +552,16 @@ struct afs_server_list {
  * Live AFS volume management.
  */
 struct afs_volume {
-	afs_volid_t		vid;		/* volume ID */
+	union {
+		struct rcu_head	rcu;
+		afs_volid_t	vid;		/* volume ID */
+	};
 	atomic_t		usage;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
-	struct list_head	proc_link;	/* Link in cell->vl_proc */
+	struct rb_node		cell_node;	/* Link in cell->volumes */
+	struct hlist_node	proc_link;	/* Link in cell->proc_volumes */
+	struct super_block __rcu *sb;		/* Superblock on which inodes reside */
 	unsigned long		flags;
 #define AFS_VOLUME_NEEDS_UPDATE	0	/* - T if an update needs performing */
 #define AFS_VOLUME_UPDATING	1	/* - T if an update is in progress */
@@ -587,6 +569,7 @@ struct afs_volume {
 #define AFS_VOLUME_DELETED	3	/* - T if volume appears deleted */
 #define AFS_VOLUME_OFFLINE	4	/* - T if volume offline notice given */
 #define AFS_VOLUME_BUSY		5	/* - T if volume busy notice given */
+#define AFS_VOLUME_MAYBE_NO_IBULK 6	/* - T if some servers don't have InlineBulkStatus */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
@@ -598,7 +581,6 @@ struct afs_volume {
 	rwlock_t		cb_v_break_lock;
 
 	afs_voltype_t		type;		/* type of volume */
-	short			error;
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
 	u8			name_len;
 	u8			name[AFS_MAXVOLNAME + 1]; /* NUL-padded volume name */
@@ -659,11 +641,11 @@ struct afs_vnode {
 	afs_lock_type_t		lock_type : 8;
 
 	/* outstanding callback notification on this file */
-	struct afs_cb_interest __rcu *cb_interest; /* Server on which this resides */
+	void			*cb_server;	/* Server with callback/filelock */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
 	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
-	seqlock_t		cb_lock;	/* Lock for ->cb_interest, ->status, ->cb_*break */
+	seqlock_t		cb_lock;	/* Lock for ->cb_server, ->status, ->cb_*break */
 
 	time64_t		cb_expires_at;	/* time at which callback expires */
 };
@@ -833,7 +815,7 @@ struct afs_operation {
 	/* Fileserver iteration state */
 	struct afs_addr_cursor	ac;
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
-	struct afs_cb_interest	*cbi;		/* Server on which this resides (pins ref) */
+	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
 	struct afs_call		*call;
 	unsigned long		untried;	/* Bitmask of untried servers */
 	short			index;		/* Current server */
@@ -907,29 +889,15 @@ extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
 extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
 extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break *);
 
-extern int afs_register_server_cb_interest(struct afs_vnode *,
-					   struct afs_server_list *, unsigned int);
-extern void afs_put_cb_interest(struct afs_net *, struct afs_cb_interest *);
-extern void afs_clear_callback_interests(struct afs_net *, struct afs_server_list *);
-
-static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest *cbi)
-{
-	if (cbi)
-		refcount_inc(&cbi->usage);
-	return cbi;
-}
-
 static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 {
 	return vnode->cb_break + vnode->cb_v_break;
 }
 
 static inline bool afs_cb_is_broken(unsigned int cb_break,
-				    const struct afs_vnode *vnode,
-				    const struct afs_cb_interest *cbi)
+				    const struct afs_vnode *vnode)
 {
-	return !cbi || cb_break != (vnode->cb_break +
-				    vnode->volume->cb_v_break);
+	return cb_break != (vnode->cb_break + vnode->volume->cb_v_break);
 }
 
 /*
@@ -1182,7 +1150,6 @@ static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
  * rotate.c
  */
 extern bool afs_select_fileserver(struct afs_operation *);
-extern bool afs_select_current_fileserver(struct afs_operation *);
 extern void afs_dump_edestaddrreq(const struct afs_operation *);
 
 /*
@@ -1212,7 +1179,6 @@ static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *c
 	op->type = call->type;
 	call->op = op;
 	call->key = op->key;
-	call->cbi = afs_get_cb_interest(op->cbi);
 	call->intr = !(op->flags & AFS_OPERATION_UNINTR);
 	afs_make_call(&op->ac, call, gfp);
 }

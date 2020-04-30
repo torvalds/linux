@@ -132,11 +132,12 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 /*
  * Install a server record in the namespace tree
  */
-static struct afs_server *afs_install_server(struct afs_net *net,
+static struct afs_server *afs_install_server(struct afs_cell *cell,
 					     struct afs_server *candidate)
 {
 	const struct afs_addr_list *alist;
 	struct afs_server *server;
+	struct afs_net *net = cell->net;
 	struct rb_node **pp, *p;
 	int diff;
 
@@ -193,11 +194,12 @@ exists:
 /*
  * Allocate a new server record and mark it active.
  */
-static struct afs_server *afs_alloc_server(struct afs_net *net,
+static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 					   const uuid_t *uuid,
 					   struct afs_addr_list *alist)
 {
 	struct afs_server *server;
+	struct afs_net *net = cell->net;
 
 	_enter("");
 
@@ -212,11 +214,10 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	server->addr_version = alist->version;
 	server->uuid = *uuid;
 	rwlock_init(&server->fs_lock);
-	server->cb_volumes = RB_ROOT;
-	seqlock_init(&server->cb_break_lock);
 	init_waitqueue_head(&server->probe_wq);
 	INIT_LIST_HEAD(&server->probe_link);
 	spin_lock_init(&server->probe_lock);
+	server->cell = cell;
 
 	afs_inc_servers_outstanding(net);
 	trace_afs_server(server, 1, 1, afs_server_trace_alloc);
@@ -275,13 +276,13 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 	if (IS_ERR(alist))
 		return ERR_CAST(alist);
 
-	candidate = afs_alloc_server(cell->net, uuid, alist);
+	candidate = afs_alloc_server(cell, uuid, alist);
 	if (!candidate) {
 		afs_put_addrlist(alist);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	server = afs_install_server(cell->net, candidate);
+	server = afs_install_server(cell, candidate);
 	if (server != candidate) {
 		afs_put_addrlist(alist);
 		kfree(candidate);

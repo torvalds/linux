@@ -485,6 +485,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 			goto error;
 	} else {
 		sb->s_d_op = &afs_fs_dentry_operations;
+		rcu_assign_pointer(as->volume->sb, sb);
 	}
 
 	_leave(" = 0");
@@ -529,7 +530,6 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 static void afs_kill_super(struct super_block *sb)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_net *net = afs_net(as->net_ns);
 
 	if (as->dyn_root)
 		afs_dynroot_depopulate(sb);
@@ -538,8 +538,7 @@ static void afs_kill_super(struct super_block *sb)
 	 * deactivating the superblock.
 	 */
 	if (as->volume)
-		afs_clear_callback_interests(
-			net, rcu_access_pointer(as->volume->servers));
+		rcu_assign_pointer(as->volume->sb, NULL);
 	kill_anon_super(sb);
 	if (as->volume)
 		afs_deactivate_volume(as->volume);
@@ -689,7 +688,6 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->volume		= NULL;
 	vnode->lock_key		= NULL;
 	vnode->permit_cache	= NULL;
-	RCU_INIT_POINTER(vnode->cb_interest, NULL);
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache		= NULL;
 #endif
@@ -718,8 +716,6 @@ static void afs_destroy_inode(struct inode *inode)
 	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
 
 	_debug("DESTROY INODE %p", inode);
-
-	ASSERTCMP(rcu_access_pointer(vnode->cb_interest), ==, NULL);
 
 	atomic_dec(&afs_count_active_inodes);
 }

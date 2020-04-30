@@ -71,7 +71,6 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 				      struct afs_vnode_param *vp,
 				      struct afs_vnode *vnode)
 {
-	struct afs_cb_interest *old_cbi = NULL;
 	struct afs_file_status *status = &vp->scb.status;
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
 	struct timespec64 t;
@@ -150,18 +149,11 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 		vnode->cb_expires_at = ktime_get_real_seconds();
 	} else {
 		vnode->cb_expires_at = vp->scb.callback.expires_at;
-		old_cbi = rcu_dereference_protected(vnode->cb_interest,
-						    lockdep_is_held(&vnode->cb_lock.lock));
-		if (op->cbi != old_cbi)
-			rcu_assign_pointer(vnode->cb_interest,
-					   afs_get_cb_interest(op->cbi));
-		else
-			old_cbi = NULL;
+		vnode->cb_server = op->server;
 		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 	}
 
 	write_sequnlock(&vnode->cb_lock);
-	afs_put_cb_interest(afs_v2net(vnode), old_cbi);
 	return 0;
 }
 
@@ -255,18 +247,12 @@ static void afs_apply_status(struct afs_operation *op,
 static void afs_apply_callback(struct afs_operation *op,
 			       struct afs_vnode_param *vp)
 {
-	struct afs_cb_interest *old;
 	struct afs_callback *cb = &vp->scb.callback;
 	struct afs_vnode *vnode = vp->vnode;
 
-	if (!afs_cb_is_broken(vp->cb_break_before, vnode, op->cbi)) {
+	if (!afs_cb_is_broken(vp->cb_break_before, vnode)) {
 		vnode->cb_expires_at	= cb->expires_at;
-		old = rcu_dereference_protected(vnode->cb_interest,
-						lockdep_is_held(&vnode->cb_lock.lock));
-		if (old != op->cbi) {
-			rcu_assign_pointer(vnode->cb_interest, afs_get_cb_interest(op->cbi));
-			afs_put_cb_interest(afs_v2net(vnode), old);
-		}
+		vnode->cb_server	= op->server;
 		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 	}
 }
@@ -570,12 +556,30 @@ void afs_zap_data(struct afs_vnode *vnode)
 }
 
 /*
+ * Get the server reinit counter for a vnode's current server.
+ */
+static bool afs_get_s_break_rcu(struct afs_vnode *vnode, unsigned int *_s_break)
+{
+	struct afs_server_list *slist = rcu_dereference(vnode->volume->servers);
+	struct afs_server *server;
+	int i;
+
+	for (i = 0; i < slist->nr_servers; i++) {
+		server = slist->servers[i].server;
+		if (server == vnode->cb_server) {
+			*_s_break = READ_ONCE(server->cb_s_break);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
  * Check the validity of a vnode/inode.
  */
 bool afs_check_validity(struct afs_vnode *vnode)
 {
-	struct afs_cb_interest *cbi;
-	struct afs_server *server;
 	struct afs_volume *volume = vnode->volume;
 	enum afs_cb_break_reason need_clear = afs_cb_break_no_break;
 	time64_t now = ktime_get_real_seconds();
@@ -588,11 +592,8 @@ bool afs_check_validity(struct afs_vnode *vnode)
 		cb_v_break = READ_ONCE(volume->cb_v_break);
 		cb_break = vnode->cb_break;
 
-		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
-			cbi = rcu_dereference(vnode->cb_interest);
-			server = rcu_dereference(cbi->server);
-			cb_s_break = READ_ONCE(server->cb_s_break);
-
+		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags) &&
+		    afs_get_s_break_rcu(vnode, &cb_s_break)) {
 			if (vnode->cb_s_break != cb_s_break ||
 			    vnode->cb_v_break != cb_v_break) {
 				vnode->cb_s_break = cb_s_break;
@@ -739,7 +740,6 @@ int afs_drop_inode(struct inode *inode)
  */
 void afs_evict_inode(struct inode *inode)
 {
-	struct afs_cb_interest *cbi;
 	struct afs_vnode *vnode;
 
 	vnode = AFS_FS_I(inode);
@@ -755,15 +755,6 @@ void afs_evict_inode(struct inode *inode)
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-
-	write_seqlock(&vnode->cb_lock);
-	cbi = rcu_dereference_protected(vnode->cb_interest,
-					lockdep_is_held(&vnode->cb_lock.lock));
-	if (cbi) {
-		afs_put_cb_interest(afs_i2net(inode), cbi);
-		rcu_assign_pointer(vnode->cb_interest, NULL);
-	}
-	write_sequnlock(&vnode->cb_lock);
 
 	while (!list_empty(&vnode->wb_keys)) {
 		struct afs_wb_key *wbk = list_entry(vnode->wb_keys.next,

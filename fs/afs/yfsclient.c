@@ -854,7 +854,7 @@ void yfs_fs_remove_file(struct afs_operation *op)
 
 	_enter("");
 
-	if (!test_bit(AFS_SERVER_FL_NO_RM2, &op->cbi->server->flags))
+	if (!test_bit(AFS_SERVER_FL_NO_RM2, &op->server->flags))
 		return yfs_fs_remove_file2(op);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRemoveFile,

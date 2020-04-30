@@ -189,13 +189,13 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 	struct afs_volume *volume, *pvol = NULL;
 	int ret;
 
-	/* Arbitrarily pick the first volume in the list. */
-	read_lock(&p->proc_lock);
-	if (!list_empty(&p->proc_volumes))
-		pvol = afs_get_volume(list_first_entry(&p->proc_volumes,
-						       struct afs_volume, proc_link),
+	/* Arbitrarily pick a volume from the list. */
+	read_seqlock_excl(&p->volume_lock);
+	if (!RB_EMPTY_ROOT(&p->volumes))
+		pvol = afs_get_volume(rb_entry(p->volumes.rb_node,
+					       struct afs_volume, cell_node),
 				      afs_volume_trace_get_query_alias);
-	read_unlock(&p->proc_lock);
+	read_sequnlock_excl(&p->volume_lock);
 	if (!pvol)
 		return 0;
 
@@ -242,7 +242,7 @@ static int afs_query_for_alias(struct afs_cell *cell, struct key *key)
 	hlist_for_each_entry(p, &cell->net->proc_cells, proc_link) {
 		if (p == cell || p->alias_of)
 			continue;
-		if (list_empty(&p->proc_volumes))
+		if (RB_EMPTY_ROOT(&p->volumes))
 			continue;
 		if (p->root_volume)
 			continue; /* Ignore cells that have a root.cell volume. */

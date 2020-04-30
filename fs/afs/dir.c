@@ -703,6 +703,37 @@ static const struct afs_operation_ops afs_fetch_status_operation = {
 };
 
 /*
+ * See if we know that the server we expect to use doesn't support
+ * FS.InlineBulkStatus.
+ */
+static bool afs_server_supports_ibulk(struct afs_vnode *dvnode)
+{
+	struct afs_server_list *slist;
+	struct afs_volume *volume = dvnode->volume;
+	struct afs_server *server;
+	bool ret = true;
+	int i;
+
+	if (!test_bit(AFS_VOLUME_MAYBE_NO_IBULK, &volume->flags))
+		return true;
+
+	rcu_read_lock();
+	slist = rcu_dereference(volume->servers);
+
+	for (i = 0; i < slist->nr_servers; i++) {
+		server = slist->servers[i].server;
+		if (server == dvnode->cb_server) {
+			if (test_bit(AFS_SERVER_FL_NO_IBULK, &server->flags))
+				ret = false;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+	return ret;
+}
+
+/*
  * Do a lookup in a directory.  We make use of bulk lookup to query a slew of
  * files in one go and create inodes for them.  The inode of the file we were
  * asked for is returned.
@@ -711,10 +742,8 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 				   struct key *key)
 {
 	struct afs_lookup_cookie *cookie;
-	struct afs_cb_interest *dcbi;
 	struct afs_vnode_param *vp;
 	struct afs_operation *op;
-	struct afs_server *server;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct inode *inode = NULL, *ti;
 	afs_dataversion_t data_version = READ_ONCE(dvnode->status.data_version);
@@ -734,16 +763,8 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	cookie->nr_fids = 2; /* slot 0 is saved for the fid we actually want
 			      * and slot 1 for the directory */
 
-	read_seqlock_excl(&dvnode->cb_lock);
-	dcbi = rcu_dereference_protected(dvnode->cb_interest,
-					 lockdep_is_held(&dvnode->cb_lock.lock));
-	if (dcbi) {
-		server = dcbi->server;
-		if (server &&
-		    test_bit(AFS_SERVER_FL_NO_IBULK, &server->flags))
-			cookie->one_only = true;
-	}
-	read_sequnlock_excl(&dvnode->cb_lock);
+	if (!afs_server_supports_ibulk(dvnode))
+		cookie->one_only = true;
 
 	/* search the directory */
 	ret = afs_dir_iterate(dir, &cookie->ctx, key, &data_version);
