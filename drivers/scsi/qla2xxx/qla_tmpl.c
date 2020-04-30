@@ -1117,7 +1117,7 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		}
 
 		vha->hw->fw_dump_len = len;
-		vha->hw->fw_dumped = 1;
+		vha->hw->fw_dumped = true;
 
 		ql_log(ql_log_warn, vha, 0xd015,
 		    "-> Firmware dump saved to buffer (%lu/%p) <%lx>\n",

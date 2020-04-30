@@ -4177,7 +4177,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 		goto md_failed;
 	}
 
-	ha->fw_dumped = 0;
+	ha->fw_dumped = false;
 
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb038,
@@ -4357,7 +4357,7 @@ skip_nxt_entry:
 	ql_log(ql_log_info, vha, 0xb044,
 	    "Firmware dump saved to temp buffer (%ld/%p %ld/%p).\n",
 	    vha->host_no, ha->md_tmplt_hdr, vha->host_no, ha->md_dump);
-	ha->fw_dumped = 1;
+	ha->fw_dumped = true;
 	qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 
 md_failed:

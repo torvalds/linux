@@ -706,12 +706,12 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 		ql_log(ql_log_warn, vha, 0xd000,
 		    "Failed to dump firmware (%x), dump status flags (0x%lx).\n",
 		    rval, ha->fw_dump_cap_flags);
-		ha->fw_dumped = 0;
+		ha->fw_dumped = false;
 	} else {
 		ql_log(ql_log_info, vha, 0xd001,
 		    "Firmware dump saved to temp buffer (%ld/%p), dump status flags (0x%lx).\n",
 		    vha->host_no, ha->fw_dump, ha->fw_dump_cap_flags);
-		ha->fw_dumped = 1;
+		ha->fw_dumped = true;
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
 }

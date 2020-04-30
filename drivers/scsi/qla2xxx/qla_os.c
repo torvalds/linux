@@ -4622,7 +4622,7 @@ qla2x00_free_fw_dump(struct qla_hw_data *ha)
 	ha->flags.fce_enabled = 0;
 	ha->eft = NULL;
 	ha->eft_dma = 0;
-	ha->fw_dumped = 0;
+	ha->fw_dumped = false;
 	ha->fw_dump_cap_flags = 0;
 	ha->fw_dump_reading = 0;
 	ha->fw_dump = NULL;

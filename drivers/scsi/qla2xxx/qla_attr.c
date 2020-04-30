@@ -84,7 +84,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			qla82xx_md_prep(vha);
 		}
 		ha->fw_dump_reading = 0;
-		ha->fw_dumped = 0;
+		ha->fw_dumped = false;
 		break;
 	case 1:
 		if (ha->fw_dumped && !ha->fw_dump_reading) {
