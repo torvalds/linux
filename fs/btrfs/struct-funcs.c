@@ -90,17 +90,20 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long oip = offset_in_page(member_offset);	\
+	const unsigned long idx = member_offset >> PAGE_SHIFT;		\
+	char *kaddr = page_address(eb->pages[idx]);			\
 	const int size = sizeof(u##bits);				\
-	__le##bits leres;						\
+	const int part = PAGE_SIZE - oip;				\
+	u8 lebytes[sizeof(u##bits)];					\
 									\
 	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
-	if (oip + size <= PAGE_SIZE) {					\
-		const unsigned long idx = member_offset >> PAGE_SHIFT;	\
-		const char *kaddr = page_address(eb->pages[idx]);	\
+	if (oip + size <= PAGE_SIZE)					\
 		return get_unaligned_le##bits(kaddr + oip);		\
-	}								\
-	read_extent_buffer(eb, &leres, member_offset, size);		\
-	return le##bits##_to_cpu(leres);				\
+									\
+	memcpy(lebytes, kaddr + oip, part);				\
+	kaddr = page_address(eb->pages[idx + 1]);			\
+	memcpy(lebytes + part, kaddr, size - part);			\
+	return get_unaligned_le##bits(lebytes);				\
 }									\
 void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 			    const void *ptr, unsigned long off,		\
