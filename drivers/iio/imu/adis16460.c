@@ -129,16 +129,14 @@ DEFINE_DEBUGFS_ATTRIBUTE(adis16460_flash_count_fops,
 static int adis16460_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16460 *adis16460 = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
 	debugfs_create_file_unsafe("serial_number", 0400,
-			indio_dev->debugfs_dentry, adis16460,
-			&adis16460_serial_number_fops);
+			d, adis16460, &adis16460_serial_number_fops);
 	debugfs_create_file_unsafe("product_id", 0400,
-			indio_dev->debugfs_dentry, adis16460,
-			&adis16460_product_id_fops);
+			d, adis16460, &adis16460_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
-			indio_dev->debugfs_dentry, adis16460,
-			&adis16460_flash_count_fops);
+			d, adis16460, &adis16460_flash_count_fops);
 
 	return 0;
 }
