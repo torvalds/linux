@@ -37,7 +37,7 @@
 #define AQ_DEVICE_ID_AQC111S	0x91B1
 #define AQ_DEVICE_ID_AQC112S	0x92B1
 
-#define HW_ATL_NIC_NAME "aQuantia AQtion 10Gbit Network Adapter"
+#define HW_ATL_NIC_NAME "Marvell (aQuantia) AQtion 10Gbit Network Adapter"
 
 #define AQ_HWREV_ANY	0
 #define AQ_HWREV_1	1
