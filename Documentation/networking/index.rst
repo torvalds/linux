@@ -109,6 +109,7 @@ Contents:
    tc-actions-env-rules
    tcp-thin
    team
+   timestamping
 
 .. only::  subproject and html
 

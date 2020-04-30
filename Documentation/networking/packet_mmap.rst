@@ -1030,7 +1030,7 @@ the packet meta information for mmap(2)ed RX_RING and TX_RINGs.  If your
 NIC is capable of timestamping packets in hardware, you can request those
 hardware timestamps to be used. Note: you may need to enable the generation
 of hardware timestamps with SIOCSHWTSTAMP (see related information from
-Documentation/networking/timestamping.txt).
+Documentation/networking/timestamping.rst).
 
 PACKET_TIMESTAMP accepts the same integer bit field as SO_TIMESTAMPING::
 
@@ -1069,7 +1069,7 @@ TX_RING part only TP_STATUS_AVAILABLE is set, then the tp_sec and tp_{n,u}sec
 members do not contain a valid value. For TX_RINGs, by default no timestamp
 is generated!
 
-See include/linux/net_tstamp.h and Documentation/networking/timestamping.txt
+See include/linux/net_tstamp.h and Documentation/networking/timestamping.rst
 for more information on hardware timestamps.
 
 Miscellaneous bits
