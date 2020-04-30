@@ -2714,6 +2714,7 @@ struct ib_device {
 	/* Used by iWarp CM */
 	char iw_ifname[IFNAMSIZ];
 	u32 iw_driver_flags;
+	u32 lag_flags;
 };
 
 struct ib_client_nl_info;
