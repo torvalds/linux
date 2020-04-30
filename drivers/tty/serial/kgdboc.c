@@ -514,6 +514,10 @@ static struct kgdb_io kgdboc_earlycon_io_ops = {
 	.is_console		= true,
 };
 
+#define MAX_CONSOLE_NAME_LEN (sizeof((struct console *) 0)->name)
+static char kgdboc_earlycon_param[MAX_CONSOLE_NAME_LEN] __initdata;
+static bool kgdboc_earlycon_late_enable __initdata;
+
 static int __init kgdboc_earlycon_init(char *opt)
 {
 	struct console *con;
@@ -533,7 +537,23 @@ static int __init kgdboc_earlycon_init(char *opt)
 	}
 
 	if (!con) {
-		pr_info("Couldn't find kgdb earlycon\n");
+		/*
+		 * Both earlycon and kgdboc_earlycon are initialized during			 * early parameter parsing. We cannot guarantee earlycon gets
+		 * in first and, in any case, on ACPI systems earlycon may
+		 * defer its own initialization (usually to somewhere within
+		 * setup_arch() ). To cope with either of these situations
+		 * we can defer our own initialization to a little later in
+		 * the boot.
+		 */
+		if (!kgdboc_earlycon_late_enable) {
+			pr_info("No suitable earlycon yet, will try later\n");
+			if (opt)
+				strscpy(kgdboc_earlycon_param, opt,
+					sizeof(kgdboc_earlycon_param));
+			kgdboc_earlycon_late_enable = true;
+		} else {
+			pr_info("Couldn't find kgdb earlycon\n");
+		}
 		goto unlock;
 	}
 
@@ -556,6 +576,23 @@ unlock:
 }
 
 early_param("kgdboc_earlycon", kgdboc_earlycon_init);
+
+/*
+ * This is only intended for the late adoption of an early console.
+ *
+ * It is not a reliable way to adopt regular consoles because we can not
+ * control what order console initcalls are made and, in any case, many
+ * regular consoles are registered much later in the boot process than
+ * the console initcalls!
+ */
+static int __init kgdboc_earlycon_late_init(void)
+{
+	if (kgdboc_earlycon_late_enable)
+		kgdboc_earlycon_init(kgdboc_earlycon_param);
+	return 0;
+}
+console_initcall(kgdboc_earlycon_late_init);
+
 #endif /* IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
 
 module_init(init_kgdboc);
