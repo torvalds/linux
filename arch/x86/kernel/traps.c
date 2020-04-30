@@ -784,14 +784,19 @@ static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
 
+	instrumentation_begin();
 #ifdef CONFIG_KPROBES
-	if (kprobe_debug_handler(regs))
+	if (kprobe_debug_handler(regs)) {
+		instrumentation_end();
 		return;
+	}
 #endif
 
 	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, 0,
-		       SIGTRAP) == NOTIFY_STOP)
+		       SIGTRAP) == NOTIFY_STOP) {
+		instrumentation_end();
 		return;
+	}
 
 	/*
 	 * Let others (NMI) know that the debug stack is in use
@@ -827,6 +832,7 @@ static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
 out:
 	cond_local_irq_disable(regs);
 	debug_stack_usage_dec();
+	instrumentation_end();
 }
 
 static __always_inline void exc_debug_kernel(struct pt_regs *regs,
