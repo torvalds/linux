@@ -1318,14 +1318,14 @@ void hw_atl_tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en)
 			    HW_ATL_TPB_TX_BUF_EN_SHIFT, tx_buff_en);
 }
 
-u32 hw_atl_rpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw)
+u32 hw_atl_tpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw)
 {
 	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TPB_TX_TC_MODE_ADDR,
 			HW_ATL_TPB_TX_TC_MODE_MSK,
 			HW_ATL_TPB_TX_TC_MODE_SHIFT);
 }
 
-void hw_atl_rpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
+void hw_atl_tpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
 				   u32 tx_traf_class_mode)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TX_TC_MODE_ADDR,

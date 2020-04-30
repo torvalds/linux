@@ -33,4 +33,18 @@ extern const struct aq_hw_ops hw_atl_ops_b0;
 
 #define hw_atl_ops_b1 hw_atl_ops_b0
 
+int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
+			      struct aq_rss_parameters *rss_params);
+int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
+			 struct aq_rss_parameters *rss_params);
+
+int hw_atl_b0_hw_start(struct aq_hw_s *self);
+
+int hw_atl_b0_hw_irq_enable(struct aq_hw_s *self, u64 mask);
+int hw_atl_b0_hw_irq_disable(struct aq_hw_s *self, u64 mask);
+int hw_atl_b0_hw_irq_read(struct aq_hw_s *self, u64 *mask);
+
+int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
+				   unsigned int packet_filter);
+
 #endif /* HW_ATL_B0_H */
