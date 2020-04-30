@@ -100,6 +100,7 @@ Contents:
    rds
    regulatory
    rxrpc
+   sctp
 
 .. only::  subproject and html
 
