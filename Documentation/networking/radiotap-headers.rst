@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================
 How to use radiotap headers
 ===========================
 
@@ -5,9 +8,9 @@ Pointer to the radiotap include file
 ------------------------------------
 
 Radiotap headers are variable-length and extensible, you can get most of the
-information you need to know on them from:
+information you need to know on them from::
 
-./include/net/ieee80211_radiotap.h
+    ./include/net/ieee80211_radiotap.h
 
 This document gives an overview and warns on some corner cases.
 
@@ -20,6 +23,8 @@ if the possible argument associated with that bit is present or not.  So if b0
 of the it_present member of ieee80211_radiotap_header is set, it means that
 the header for argument index 0 (IEEE80211_RADIOTAP_TSFT) is present in the
 argument area.
+
+::
 
    < 8-byte ieee80211_radiotap_header >
    [ <possible argument bitmap extensions ... > ]
@@ -76,6 +81,8 @@ ieee80211_radiotap_header.
 Example valid radiotap header
 -----------------------------
 
+::
+
 	0x00, 0x00, // <-- radiotap version + pad byte
 	0x0b, 0x00, // <- radiotap header length
 	0x04, 0x0c, 0x00, 0x00, // <-- bitmap
@@ -89,64 +96,64 @@ Using the Radiotap Parser
 
 If you are having to parse a radiotap struct, you can radically simplify the
 job by using the radiotap parser that lives in net/wireless/radiotap.c and has
-its prototypes available in include/net/cfg80211.h.  You use it like this:
+its prototypes available in include/net/cfg80211.h.  You use it like this::
 
-#include <net/cfg80211.h>
+    #include <net/cfg80211.h>
 
-/* buf points to the start of the radiotap header part */
+    /* buf points to the start of the radiotap header part */
 
-int MyFunction(u8 * buf, int buflen)
-{
-	int pkt_rate_100kHz = 0, antenna = 0, pwr = 0;
-	struct ieee80211_radiotap_iterator iterator;
-	int ret = ieee80211_radiotap_iterator_init(&iterator, buf, buflen);
+    int MyFunction(u8 * buf, int buflen)
+    {
+	    int pkt_rate_100kHz = 0, antenna = 0, pwr = 0;
+	    struct ieee80211_radiotap_iterator iterator;
+	    int ret = ieee80211_radiotap_iterator_init(&iterator, buf, buflen);
 
-	while (!ret) {
+	    while (!ret) {
 
-		ret = ieee80211_radiotap_iterator_next(&iterator);
+		    ret = ieee80211_radiotap_iterator_next(&iterator);
 
-		if (ret)
-			continue;
+		    if (ret)
+			    continue;
 
-		/* see if this argument is something we can use */
+		    /* see if this argument is something we can use */
 
-		switch (iterator.this_arg_index) {
-		/*
-		 * You must take care when dereferencing iterator.this_arg
-		 * for multibyte types... the pointer is not aligned.  Use
-		 * get_unaligned((type *)iterator.this_arg) to dereference
-		 * iterator.this_arg for type "type" safely on all arches.
-		 */
-		case IEEE80211_RADIOTAP_RATE:
-			/* radiotap "rate" u8 is in
-			 * 500kbps units, eg, 0x02=1Mbps
-			 */
-			pkt_rate_100kHz = (*iterator.this_arg) * 5;
-			break;
+		    switch (iterator.this_arg_index) {
+		    /*
+		    * You must take care when dereferencing iterator.this_arg
+		    * for multibyte types... the pointer is not aligned.  Use
+		    * get_unaligned((type *)iterator.this_arg) to dereference
+		    * iterator.this_arg for type "type" safely on all arches.
+		    */
+		    case IEEE80211_RADIOTAP_RATE:
+			    /* radiotap "rate" u8 is in
+			    * 500kbps units, eg, 0x02=1Mbps
+			    */
+			    pkt_rate_100kHz = (*iterator.this_arg) * 5;
+			    break;
 
-		case IEEE80211_RADIOTAP_ANTENNA:
-			/* radiotap uses 0 for 1st ant */
-			antenna = *iterator.this_arg);
-			break;
+		    case IEEE80211_RADIOTAP_ANTENNA:
+			    /* radiotap uses 0 for 1st ant */
+			    antenna = *iterator.this_arg);
+			    break;
 
-		case IEEE80211_RADIOTAP_DBM_TX_POWER:
-			pwr = *iterator.this_arg;
-			break;
+		    case IEEE80211_RADIOTAP_DBM_TX_POWER:
+			    pwr = *iterator.this_arg;
+			    break;
 
-		default:
-			break;
-		}
-	}  /* while more rt headers */
+		    default:
+			    break;
+		    }
+	    }  /* while more rt headers */
 
-	if (ret != -ENOENT)
-		return TXRX_DROP;
+	    if (ret != -ENOENT)
+		    return TXRX_DROP;
 
-	/* discard the radiotap header part */
-	buf += iterator.max_length;
-	buflen -= iterator.max_length;
+	    /* discard the radiotap header part */
+	    buf += iterator.max_length;
+	    buflen -= iterator.max_length;
 
-	...
+	    ...
 
-}
+    }
 
 Andy Green <andy@warmcat.com>

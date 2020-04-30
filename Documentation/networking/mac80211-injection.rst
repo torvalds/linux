@@ -13,7 +13,7 @@ following format::
  [ payload ]
 
 The radiotap format is discussed in
-./Documentation/networking/radiotap-headers.txt.
+./Documentation/networking/radiotap-headers.rst.
 
 Despite many radiotap parameters being currently defined, most only make sense
 to appear on received packets.  The following information is parsed from the

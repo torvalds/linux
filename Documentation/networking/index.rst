@@ -95,6 +95,7 @@ Contents:
    plip
    ppp_generic
    proc_net_tcp
+   radiotap-headers
 
 .. only::  subproject and html
 

@@ -5211,7 +5211,7 @@ u32 ieee80211_mandatory_rates(struct ieee80211_supported_band *sband,
  * Radiotap parsing functions -- for controlled injection support
  *
  * Implemented in net/wireless/radiotap.c
- * Documentation in Documentation/networking/radiotap-headers.txt
+ * Documentation in Documentation/networking/radiotap-headers.rst
  */
 
 struct radiotap_align_size {
