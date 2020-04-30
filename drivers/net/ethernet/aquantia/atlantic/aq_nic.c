@@ -1032,11 +1032,7 @@ struct aq_nic_cfg_s *aq_nic_get_cfg(struct aq_nic_s *self)
 
 u32 aq_nic_get_fw_version(struct aq_nic_s *self)
 {
-	u32 fw_version = 0U;
-
-	self->aq_hw_ops->hw_get_fw_version(self->aq_hw, &fw_version);
-
-	return fw_version;
+	return self->aq_hw_ops->hw_get_fw_version(self->aq_hw);
 }
 
 int aq_nic_set_loopback(struct aq_nic_s *self)
