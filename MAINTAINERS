@@ -14219,7 +14219,7 @@ L:	linux-rdma@vger.kernel.org
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 W:	https://oss.oracle.com/projects/rds/
-F:	Documentation/networking/rds.txt
+F:	Documentation/networking/rds.rst
 F:	net/rds/
 
 RDT - RESOURCE ALLOCATION

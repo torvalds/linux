@@ -97,6 +97,7 @@ Contents:
    proc_net_tcp
    radiotap-headers
    ray_cs
+   rds
 
 .. only::  subproject and html
 
