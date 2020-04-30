@@ -563,13 +563,6 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 	smc_lgr_terminate_sched(lgr);
 }
 
-static void smc_llc_rx_test_link(struct smc_link *link,
-				 struct smc_llc_msg_test_link *llc)
-{
-	llc->hd.flags |= SMC_LLC_FLAG_RESP;
-	smc_llc_send_message(link, llc);
-}
-
 static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 				    struct smc_llc_msg_confirm_rkey *llc)
 {
@@ -640,7 +633,8 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 
 	switch (llc->raw.hdr.common.type) {
 	case SMC_LLC_TEST_LINK:
-		smc_llc_rx_test_link(link, &llc->test_link);
+		llc->test_link.hd.flags |= SMC_LLC_FLAG_RESP;
+		smc_llc_send_message(link, llc);
 		break;
 	case SMC_LLC_ADD_LINK:
 		if (list_empty(&lgr->list))
