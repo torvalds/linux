@@ -946,6 +946,17 @@ out:
 	return rc;
 }
 
+/* evaluate confirm link request or response */
+int smc_llc_eval_conf_link(struct smc_llc_qentry *qentry,
+			   enum smc_llc_reqresp type)
+{
+	if (type == SMC_LLC_REQ)	/* SMC server assigns link_id */
+		qentry->link->link_id = qentry->msg.confirm_link.link_num;
+	if (!(qentry->msg.raw.hdr.flags & SMC_LLC_FLAG_NO_RMBE_EYEC))
+		return -ENOTSUPP;
+	return 0;
+}
+
 /***************************** init, exit, misc ******************************/
 
 static struct smc_wr_rx_handler smc_llc_rx_handlers[] = {
