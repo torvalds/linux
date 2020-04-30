@@ -105,6 +105,7 @@ Contents:
    seg6-sysctl
    skfp
    strparser
+   switchdev
 
 .. only::  subproject and html
 
