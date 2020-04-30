@@ -2618,7 +2618,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	if (chain)
 		chain_nr = chain->nr;
 
-	if (perf_evsel__has_branch_callstack(evsel)) {
+	if (evsel__has_branch_callstack(evsel)) {
 		struct perf_env *env = perf_evsel__env(evsel);
 
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,

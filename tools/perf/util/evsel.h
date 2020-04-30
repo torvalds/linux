@@ -372,12 +372,12 @@ for ((_evsel) = _leader; 							\
      (_evsel) && (_evsel)->leader == (_leader);					\
      (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
-static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
+static inline bool evsel__has_branch_callstack(const struct evsel *evsel)
 {
 	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
 }
 
-static inline bool perf_evsel__has_branch_hw_idx(const struct evsel *evsel)
+static inline bool evsel__has_branch_hw_idx(const struct evsel *evsel)
 {
 	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX;
 }

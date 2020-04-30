@@ -2159,7 +2159,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			return -EFAULT;
 
 		sz = data->branch_stack->nr * sizeof(struct branch_entry);
-		if (perf_evsel__has_branch_hw_idx(evsel))
+		if (evsel__has_branch_hw_idx(evsel))
 			sz += sizeof(u64);
 		else
 			data->no_hw_idx = true;
