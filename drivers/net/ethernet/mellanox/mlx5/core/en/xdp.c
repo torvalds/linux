@@ -178,20 +178,43 @@ xdp_abort:
 	}
 }
 
-static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
+static u16 mlx5e_xdpsq_get_next_pi(struct mlx5e_xdpsq *sq, u16 size)
 {
-	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
-	struct mlx5e_xdpsq_stats *stats = sq->stats;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 pi, contig_wqebbs;
 
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_xdp_wqe_info *wi, *edge_wi;
 
-	if (unlikely(contig_wqebbs < MLX5_SEND_WQE_MAX_WQEBBS))
-		mlx5e_fill_xdpsq_frag_edge(sq, wq, pi, contig_wqebbs);
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
 
-	session->wqe = mlx5e_xdpsq_fetch_wqe(sq, &pi);
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_xdp_wqe_info) {
+				.num_wqebbs = 1,
+				.num_pkts = 0,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+		sq->stats->nops += contig_wqebbs;
+
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
+
+	return pi;
+}
+
+static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
+{
+	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_xdpsq_stats *stats = sq->stats;
+	u16 pi;
+
+	pi = mlx5e_xdpsq_get_next_pi(sq, MLX5_SEND_WQE_MAX_WQEBBS);
+	session->wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	prefetchw(session->wqe->data);
 	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;
@@ -408,22 +431,15 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 	i = 0;
 	do {
-		u16 wqe_counter;
+		struct mlx5e_xdp_wqe_info *wi;
+		u16 wqe_counter, ci;
 		bool last_wqe;
 
 		mlx5_cqwq_pop(&cq->wq);
 
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
-		if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ))
-			netdev_WARN_ONCE(sq->channel->netdev,
-					 "Bad OP in XDPSQ CQE: 0x%x\n",
-					 get_cqe_opcode(cqe));
-
 		do {
-			struct mlx5e_xdp_wqe_info *wi;
-			u16 ci;
-
 			last_wqe = (sqcc == wqe_counter);
 			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 			wi = &sq->db.wqe_info[ci];
@@ -432,6 +448,15 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 			mlx5e_free_xdpsq_desc(sq, wi, &xsk_frames, true);
 		} while (!last_wqe);
+
+		if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ)) {
+			netdev_WARN_ONCE(sq->channel->netdev,
+					 "Bad OP in XDPSQ CQE: 0x%x\n",
+					 get_cqe_opcode(cqe));
+			mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
+					     (struct mlx5_err_cqe *)cqe);
+			mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
+		}
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 	if (xsk_frames)

@@ -73,9 +73,7 @@ struct mlx5_ct_ft {
 struct mlx5_ct_entry {
 	u16 zone;
 	struct rhash_head node;
-	struct flow_rule *flow_rule;
 	struct mlx5_fc *counter;
-	unsigned long lastuse;
 	unsigned long cookie;
 	unsigned long restore_cookie;
 	struct mlx5_ct_zone_rule zone_rules[2];
@@ -384,7 +382,7 @@ mlx5_tc_ct_entry_create_nat(struct mlx5_tc_ct_priv *ct_priv,
 	char *modact;
 	int err, i;
 
-	action_size = MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto);
+	action_size = MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto);
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -603,7 +601,6 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 		return -ENOMEM;
 
 	entry->zone = ft->zone;
-	entry->flow_rule = flow_rule;
 	entry->cookie = flow->cookie;
 	entry->restore_cookie = meta_action->ct_metadata.cookie;
 
@@ -687,7 +684,7 @@ mlx5_tc_ct_block_flow_offload(enum tc_setup_type type, void *type_data,
 		return mlx5_tc_ct_block_flow_offload_stats(ft, f);
 	default:
 		break;
-	};
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -1131,7 +1128,7 @@ mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 {
 	bool clear_action = attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
-	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_handle *rule = ERR_PTR(-EINVAL);
 	int err;
 
 	if (!ct_priv)

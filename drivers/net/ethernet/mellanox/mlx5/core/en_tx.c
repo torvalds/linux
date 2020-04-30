@@ -324,7 +324,8 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		struct mlx5_wqe_ctrl_seg cur_ctrl = wqe->ctrl;
 #endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+		wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		wqe->eth = cur_eth;
 #endif
@@ -389,7 +390,8 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
-	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	/* might send skbs and update wqe and pi */
 	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
@@ -397,22 +399,6 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 
 	return mlx5e_sq_xmit(sq, skb, wqe, pi, netdev_xmit_more());
-}
-
-static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
-				 struct mlx5_err_cqe *err_cqe)
-{
-	struct mlx5_cqwq *wq = &sq->cq.wq;
-	u32 ci;
-
-	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
-
-	netdev_err(sq->channel->netdev,
-		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
-		   sq->cq.mcq.cqn, ci, sq->sqn,
-		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
-		   err_cqe->syndrome, err_cqe->vendor_err_synd);
-	mlx5_dump_err_cqe(sq->cq.mdev, err_cqe);
 }
 
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
@@ -501,7 +487,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
-				mlx5e_dump_error_cqe(sq,
+				mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
 						     (struct mlx5_err_cqe *)cqe);
 				mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 				queue_work(cq->channel->priv->wq,
@@ -586,7 +572,6 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey,
 			  bool xmit_more)
 {
-	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5i_tx_wqe *wqe;
 
 	struct mlx5_wqe_datagram_seg *datagram;
@@ -596,9 +581,9 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5e_tx_wqe_info *wi;
 
 	struct mlx5e_sq_stats *stats = sq->stats;
-	u16 headlen, ihs, pi, contig_wqebbs_room;
 	u16 ds_cnt, ds_cnt_inl = 0;
 	u8 num_wqebbs, opcode;
+	u16 headlen, ihs, pi;
 	u32 num_bytes;
 	int num_dma;
 	__be16 mss;
@@ -634,14 +619,8 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
-	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	}
-
-	mlx5i_sq_fetch_wqe(sq, &wqe, pi);
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
+	wqe = MLX5I_SQ_FETCH_WQE(sq, pi);
 
 	/* fill wqe */
 	wi       = &sq->db.wqe_info[pi];

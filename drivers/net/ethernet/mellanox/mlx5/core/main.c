@@ -206,8 +206,7 @@ static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 {
 	int driver_ver_sz = MLX5_FLD_SZ_BYTES(set_driver_version_in,
 					      driver_version);
-	u8 in[MLX5_ST_SZ_BYTES(set_driver_version_in)] = {0};
-	u8 out[MLX5_ST_SZ_BYTES(set_driver_version_out)] = {0};
+	u8 in[MLX5_ST_SZ_BYTES(set_driver_version_in)] = {};
 	int remaining_size = driver_ver_sz;
 	char *string;
 
@@ -234,7 +233,7 @@ static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 	MLX5_SET(set_driver_version_in, in, opcode,
 		 MLX5_CMD_OP_SET_DRIVER_VERSION);
 
-	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	mlx5_cmd_exec_in(dev, set_driver_version, in);
 }
 
 static int set_dma_caps(struct pci_dev *pdev)
@@ -366,7 +365,7 @@ static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
+	err = mlx5_cmd_exec_inout(dev, query_hca_cap, in, out);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
@@ -407,30 +406,25 @@ int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type)
 	return mlx5_core_get_caps_mode(dev, cap_type, HCA_CAP_OPMOD_GET_MAX);
 }
 
-static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz, int opmod)
+static int set_caps(struct mlx5_core_dev *dev, void *in, int opmod)
 {
-	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)] = {0};
-
 	MLX5_SET(set_hca_cap_in, in, opcode, MLX5_CMD_OP_SET_HCA_CAP);
 	MLX5_SET(set_hca_cap_in, in, op_mod, opmod << 1);
-	return mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, set_hca_cap, in);
 }
 
-static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
+static int handle_hca_cap_atomic(struct mlx5_core_dev *dev, void *set_ctx)
 {
-	void *set_ctx;
 	void *set_hca_cap;
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
 	int req_endianness;
 	int err;
 
-	if (MLX5_CAP_GEN(dev, atomic)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC);
-		if (err)
-			return err;
-	} else {
+	if (!MLX5_CAP_GEN(dev, atomic))
 		return 0;
-	}
+
+	err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC);
+	if (err)
+		return err;
 
 	req_endianness =
 		MLX5_CAP_ATOMIC(dev,
@@ -439,27 +433,18 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	if (req_endianness != MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS)
 		return 0;
 
-	set_ctx = kzalloc(set_sz, GFP_KERNEL);
-	if (!set_ctx)
-		return -ENOMEM;
-
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
 
 	/* Set requestor to host endianness */
 	MLX5_SET(atomic_caps, set_hca_cap, atomic_req_8B_endianness_mode,
 		 MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS);
 
-	err = set_caps(dev, set_ctx, set_sz, MLX5_SET_HCA_CAP_OP_MOD_ATOMIC);
-
-	kfree(set_ctx);
-	return err;
+	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_ATOMIC);
 }
 
-static int handle_hca_cap_odp(struct mlx5_core_dev *dev)
+static int handle_hca_cap_odp(struct mlx5_core_dev *dev, void *set_ctx)
 {
 	void *set_hca_cap;
-	void *set_ctx;
-	int set_sz;
 	bool do_set = false;
 	int err;
 
@@ -470,11 +455,6 @@ static int handle_hca_cap_odp(struct mlx5_core_dev *dev)
 	err = mlx5_core_get_caps(dev, MLX5_CAP_ODP);
 	if (err)
 		return err;
-
-	set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
-	set_ctx = kzalloc(set_sz, GFP_KERNEL);
-	if (!set_ctx)
-		return -ENOMEM;
 
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
 	memcpy(set_hca_cap, dev->caps.hca_cur[MLX5_CAP_ODP],
@@ -504,30 +484,21 @@ static int handle_hca_cap_odp(struct mlx5_core_dev *dev)
 	ODP_CAP_SET_MAX(dev, dc_odp_caps.read);
 	ODP_CAP_SET_MAX(dev, dc_odp_caps.atomic);
 
-	if (do_set)
-		err = set_caps(dev, set_ctx, set_sz,
-			       MLX5_SET_HCA_CAP_OP_MOD_ODP);
+	if (!do_set)
+		return 0;
 
-	kfree(set_ctx);
-
-	return err;
+	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_ODP);
 }
 
-static int handle_hca_cap(struct mlx5_core_dev *dev)
+static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 {
-	void *set_ctx = NULL;
 	struct mlx5_profile *prof = dev->profile;
-	int err = -ENOMEM;
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
 	void *set_hca_cap;
-
-	set_ctx = kzalloc(set_sz, GFP_KERNEL);
-	if (!set_ctx)
-		goto query_ex;
+	int err;
 
 	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL);
 	if (err)
-		goto query_ex;
+		return err;
 
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx,
 				   capability);
@@ -578,37 +549,76 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 			 num_vhca_ports,
 			 MLX5_CAP_GEN_MAX(dev, num_vhca_ports));
 
-	err = set_caps(dev, set_ctx, set_sz,
-		       MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
+	if (MLX5_CAP_GEN_MAX(dev, release_all_pages))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, release_all_pages, 1);
 
-query_ex:
-	kfree(set_ctx);
+	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
+}
+
+static int handle_hca_cap_roce(struct mlx5_core_dev *dev, void *set_ctx)
+{
+	void *set_hca_cap;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, roce))
+		return 0;
+
+	err = mlx5_core_get_caps(dev, MLX5_CAP_ROCE);
+	if (err)
+		return err;
+
+	if (MLX5_CAP_ROCE(dev, sw_r_roce_src_udp_port) ||
+	    !MLX5_CAP_ROCE_MAX(dev, sw_r_roce_src_udp_port))
+		return 0;
+
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+	memcpy(set_hca_cap, dev->caps.hca_cur[MLX5_CAP_ROCE],
+	       MLX5_ST_SZ_BYTES(roce_cap));
+	MLX5_SET(roce_cap, set_hca_cap, sw_r_roce_src_udp_port, 1);
+
+	err = set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_ROCE);
 	return err;
 }
 
 static int set_hca_cap(struct mlx5_core_dev *dev)
 {
+	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	void *set_ctx;
 	int err;
 
-	err = handle_hca_cap(dev);
+	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	if (!set_ctx)
+		return -ENOMEM;
+
+	err = handle_hca_cap(dev, set_ctx);
 	if (err) {
 		mlx5_core_err(dev, "handle_hca_cap failed\n");
 		goto out;
 	}
 
-	err = handle_hca_cap_atomic(dev);
+	memset(set_ctx, 0, set_sz);
+	err = handle_hca_cap_atomic(dev, set_ctx);
 	if (err) {
 		mlx5_core_err(dev, "handle_hca_cap_atomic failed\n");
 		goto out;
 	}
 
-	err = handle_hca_cap_odp(dev);
+	memset(set_ctx, 0, set_sz);
+	err = handle_hca_cap_odp(dev, set_ctx);
 	if (err) {
 		mlx5_core_err(dev, "handle_hca_cap_odp failed\n");
 		goto out;
 	}
 
+	memset(set_ctx, 0, set_sz);
+	err = handle_hca_cap_roce(dev, set_ctx);
+	if (err) {
+		mlx5_core_err(dev, "handle_hca_cap_roce failed\n");
+		goto out;
+	}
+
 out:
+	kfree(set_ctx);
 	return err;
 }
 
@@ -642,26 +652,24 @@ static int mlx5_core_set_hca_defaults(struct mlx5_core_dev *dev)
 
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
-	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(enable_hca_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(enable_hca_in)] = {};
 
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
 	MLX5_SET(enable_hca_in, in, function_id, func_id);
 	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
 		 dev->caps.embedded_cpu);
-	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, enable_hca, in);
 }
 
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
-	u32 out[MLX5_ST_SZ_DW(disable_hca_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(disable_hca_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(disable_hca_in)] = {};
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
 	MLX5_SET(disable_hca_in, in, function_id, func_id);
 	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
 		 dev->caps.embedded_cpu);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, disable_hca, in);
 }
 
 u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
@@ -686,14 +694,13 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
 
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
-	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)]   = {0};
-	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)] = {0};
+	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)] = {};
+	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)] = {};
 	u32 sup_issi;
 	int err;
 
 	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
-	err = mlx5_cmd_exec(dev, query_in, sizeof(query_in),
-			    query_out, sizeof(query_out));
+	err = mlx5_cmd_exec_inout(dev, query_issi, query_in, query_out);
 	if (err) {
 		u32 syndrome;
 		u8 status;
@@ -713,13 +720,11 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
 
 	if (sup_issi & (1 << 1)) {
-		u32 set_in[MLX5_ST_SZ_DW(set_issi_in)]   = {0};
-		u32 set_out[MLX5_ST_SZ_DW(set_issi_out)] = {0};
+		u32 set_in[MLX5_ST_SZ_DW(set_issi_in)] = {};
 
 		MLX5_SET(set_issi_in, set_in, opcode, MLX5_CMD_OP_SET_ISSI);
 		MLX5_SET(set_issi_in, set_in, current_issi, 1);
-		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in),
-				    set_out, sizeof(set_out));
+		err = mlx5_cmd_exec_in(dev, set_issi, set_in);
 		if (err) {
 			mlx5_core_err(dev, "Failed to set ISSI to 1 err(%d)\n",
 				      err);
@@ -836,8 +841,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	mlx5_cq_debugfs_init(dev);
 
-	mlx5_init_qp_table(dev);
-
 	mlx5_init_reserved_gids(dev);
 
 	mlx5_init_clock(dev);
@@ -896,7 +899,6 @@ err_rl_cleanup:
 err_tables_cleanup:
 	mlx5_geneve_destroy(dev->geneve);
 	mlx5_vxlan_destroy(dev->vxlan);
-	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
@@ -924,7 +926,6 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
-	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);

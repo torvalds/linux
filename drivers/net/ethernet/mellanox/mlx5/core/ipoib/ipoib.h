@@ -51,7 +51,7 @@ extern const struct ethtool_ops mlx5i_pkey_ethtool_ops;
 /* ipoib rdma netdev's private data structure */
 struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */
-	struct mlx5_core_qp qp;
+	u32 qpn;
 	bool   sub_interface;
 	u32    qkey;
 	u16    pkey_index;
@@ -62,8 +62,8 @@ struct mlx5i_priv {
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn);
 
 /* Underlay QP create/destroy functions */
-int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
-void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
+int mlx5i_create_underlay_qp(struct mlx5e_priv *priv);
+void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, u32 qpn);
 
 /* Underlay QP state modification init/uninit functions */
 int mlx5i_init_underlay_qp(struct mlx5e_priv *priv);
@@ -110,15 +110,8 @@ struct mlx5i_tx_wqe {
 	struct mlx5_wqe_data_seg     data[];
 };
 
-static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,
-				      struct mlx5i_tx_wqe **wqe,
-				      u16 pi)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-
-	*wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memset(*wqe, 0, sizeof(**wqe));
-}
+#define MLX5I_SQ_FETCH_WQE(sq, pi) \
+	((struct mlx5i_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, sizeof(struct mlx5i_tx_wqe)))
 
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey,

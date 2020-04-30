@@ -370,7 +370,7 @@ enum {
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 };
 
-struct mlx5e_sq_wqe_info {
+struct mlx5e_icosq_wqe_info {
 	u8  opcode;
 	u8 num_wqebbs;
 
@@ -552,7 +552,7 @@ struct mlx5e_icosq {
 
 	/* write@xmit, read@completion */
 	struct {
-		struct mlx5e_sq_wqe_info *ico_wqe;
+		struct mlx5e_icosq_wqe_info *wqe_info;
 	} db;
 
 	/* read only */
@@ -1013,7 +1013,7 @@ int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_rss_params *rss_params,
 				    const struct mlx5e_tirc_config *ttconfig,
 				    void *tirc, bool inner);
-void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen);
+void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in);
 struct mlx5e_tirc_config mlx5e_tirc_get_default_config(enum mlx5e_traffic_types tt);
 
 struct mlx5e_xsk_param;
@@ -1103,8 +1103,8 @@ void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
 void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
 #endif
 
-int mlx5e_create_tir(struct mlx5_core_dev *mdev,
-		     struct mlx5e_tir *tir, u32 *in, int inlen);
+int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir,
+		     u32 *in);
 void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir);
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
