@@ -1908,6 +1908,11 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	if (tx_fr == 1)
 		tx_fr = 0;
 
+	/* HW requires time limit to be set if frame limit is set */
+	if ((tx_fr && !ec->tx_coalesce_usecs) ||
+	    (rx_fr && !ec->rx_coalesce_usecs))
+		return -EINVAL;
+
 	w |= FIELD_PREP(RTL_COALESCE_TX_FRAMES, DIV_ROUND_UP(tx_fr, 4));
 	w |= FIELD_PREP(RTL_COALESCE_RX_FRAMES, DIV_ROUND_UP(rx_fr, 4));
 
