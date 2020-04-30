@@ -140,7 +140,12 @@
 		pinctrl-0 = <&i2c_gpio_1_default>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		/* TODO: this should be used by the ALPS HSCDTD008A compass sensor */
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+			avdd-supply = <&ab8500_ldo_aux1_reg>;
+			dvdd-supply = <&ab8500_ldo_aux8_reg>;
+		};
 	};
 
 	soc {
