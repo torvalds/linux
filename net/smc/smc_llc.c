@@ -545,7 +545,6 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 	struct smc_link_group *lgr = smc_get_lgr(link);
 
 	smc_lgr_forget(lgr);
-	smc_llc_link_deleting(link);
 	if (lgr->role == SMC_SERV) {
 		/* client asks to delete this link, send request */
 		smc_llc_prep_delete_link(llc, link, SMC_LLC_REQ, true);
@@ -876,12 +875,6 @@ void smc_llc_link_active(struct smc_link *link)
 		schedule_delayed_work(&link->llc_testlink_wrk,
 				      link->llc_testlink_time);
 	}
-}
-
-void smc_llc_link_deleting(struct smc_link *link)
-{
-	link->state = SMC_LNK_DELETING;
-	smc_wr_wakeup_tx_wait(link);
 }
 
 /* called in worker context */

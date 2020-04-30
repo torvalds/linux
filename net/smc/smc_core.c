@@ -200,7 +200,6 @@ static int smcr_link_send_delete(struct smc_link *lnk, bool orderly)
 {
 	if (lnk->state == SMC_LNK_ACTIVE &&
 	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, orderly)) {
-		smc_llc_link_deleting(lnk);
 		return 0;
 	}
 	return -ENOTCONN;
@@ -767,8 +766,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 			continue;
 		/* tbd - terminate only when no more links are active */
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (!smc_link_usable(&lgr->lnk[i]) ||
-			    lgr->lnk[i].state == SMC_LNK_DELETING)
+			if (!smc_link_usable(&lgr->lnk[i]))
 				continue;
 			if (lgr->lnk[i].smcibdev == smcibdev &&
 			    lgr->lnk[i].ibport == ibport) {

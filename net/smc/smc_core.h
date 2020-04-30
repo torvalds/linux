@@ -36,7 +36,6 @@ enum smc_link_state {			/* possible states of a link */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
 	SMC_LNK_ACTIVE,		/* link is active */
-	SMC_LNK_DELETING,	/* link is being deleted */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
