@@ -197,6 +197,20 @@ struct smc_rtoken {				/* address/key of remote RMB */
 
 struct smcd_dev;
 
+enum smc_llc_flowtype {
+	SMC_LLC_FLOW_NONE	= 0,
+	SMC_LLC_FLOW_ADD_LINK	= 2,
+	SMC_LLC_FLOW_DEL_LINK	= 4,
+	SMC_LLC_FLOW_RKEY	= 6,
+};
+
+struct smc_llc_qentry;
+
+struct smc_llc_flow {
+	enum smc_llc_flowtype type;
+	struct smc_llc_qentry *qentry;
+};
+
 struct smc_link_group {
 	struct list_head	list;
 	struct rb_root		conns_all;	/* connection tree */
@@ -238,6 +252,16 @@ struct smc_link_group {
 						/* protects llc_event_q */
 			struct work_struct	llc_event_work;
 						/* llc event worker */
+			wait_queue_head_t	llc_waiter;
+						/* w4 next llc event */
+			struct smc_llc_flow	llc_flow_lcl;
+						/* llc local control field */
+			struct smc_llc_flow	llc_flow_rmt;
+						/* llc remote control field */
+			struct smc_llc_qentry	*delayed_event;
+						/* arrived when flow active */
+			spinlock_t		llc_flow_lock;
+						/* protects llc flow */
 			int			llc_testlink_time;
 						/* link keep alive time */
 		};
