@@ -185,14 +185,12 @@ xfs_defer_create_intent(
 	bool				sort)
 {
 	const struct xfs_defer_op_type	*ops = defer_op_types[dfp->dfp_type];
-	struct list_head		*li;
 
 	if (sort)
 		list_sort(tp->t_mountp, &dfp->dfp_work, ops->diff_items);
 
-	dfp->dfp_intent = ops->create_intent(tp, dfp->dfp_count);
-	list_for_each(li, &dfp->dfp_work)
-		ops->log_item(tp, dfp->dfp_intent, li);
+	dfp->dfp_intent = ops->create_intent(tp, &dfp->dfp_work,
+			dfp->dfp_count);
 }
 
 /*
