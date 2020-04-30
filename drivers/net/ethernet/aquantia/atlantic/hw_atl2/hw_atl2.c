@@ -4,8 +4,16 @@
  */
 
 #include "aq_hw.h"
+#include "aq_hw_utils.h"
+#include "aq_nic.h"
+#include "hw_atl/hw_atl_utils.h"
+#include "hw_atl/hw_atl_llh.h"
 #include "hw_atl2_utils.h"
+#include "hw_atl2_llh.h"
 #include "hw_atl2_internal.h"
+
+static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
+				       u32 tag, u32 mask, u32 action);
 
 #define DEFAULT_BOARD_BASIC_CAPABILITIES \
 	.is_64_dma = true,		  \
@@ -55,6 +63,11 @@ const struct aq_hw_caps_s hw_atl2_caps_aqc113 = {
 			  AQ_NIC_RATE_10M,
 };
 
+static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)
+{
+	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL2_FW_SM_ACT_RSLVR);
+}
+
 static int hw_atl2_hw_reset(struct aq_hw_s *self)
 {
 	return -EOPNOTSUPP;
@@ -76,6 +89,60 @@ static int hw_atl2_hw_offload_set(struct aq_hw_s *self,
 				  struct aq_nic_cfg_s *aq_nic_cfg)
 {
 	return -EOPNOTSUPP;
+}
+
+static void hw_atl2_hw_new_rx_filter_vlan_promisc(struct aq_hw_s *self,
+						  bool promisc)
+{
+	u16 off_action = (!promisc &&
+			  !hw_atl_rpfl2promiscuous_mode_en_get(self)) ?
+				HW_ATL2_ACTION_DROP : HW_ATL2_ACTION_DISABLE;
+	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	u8 index;
+
+	index = priv->art_base_index + HW_ATL2_RPF_VLAN_PROMISC_OFF_INDEX;
+	hw_atl2_act_rslvr_table_set(self, index, 0,
+				    HW_ATL2_RPF_TAG_VLAN_MASK |
+				    HW_ATL2_RPF_TAG_UNTAG_MASK, off_action);
+}
+
+static void hw_atl2_hw_new_rx_filter_promisc(struct aq_hw_s *self, bool promisc)
+{
+	u16 off_action = promisc ? HW_ATL2_ACTION_DISABLE : HW_ATL2_ACTION_DROP;
+	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	bool vlan_promisc_enable;
+	u8 index;
+
+	index = priv->art_base_index + HW_ATL2_RPF_L2_PROMISC_OFF_INDEX;
+	hw_atl2_act_rslvr_table_set(self, index, 0,
+				    HW_ATL2_RPF_TAG_UC_MASK |
+				    HW_ATL2_RPF_TAG_ALLMC_MASK,
+				    off_action);
+
+	/* turn VLAN promisc mode too */
+	vlan_promisc_enable = hw_atl_rpf_vlan_prom_mode_en_get(self);
+	hw_atl2_hw_new_rx_filter_vlan_promisc(self, promisc |
+					      vlan_promisc_enable);
+}
+
+static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
+				       u32 tag, u32 mask, u32 action)
+{
+	u32 val;
+	int err;
+
+	err = readx_poll_timeout_atomic(hw_atl2_sem_act_rslvr_get,
+					self, val, val == 1,
+					1, 10000U);
+	if (err)
+		return err;
+
+	hw_atl2_rpf_act_rslvr_record_set(self, location, tag, mask,
+					 action);
+
+	hw_atl_reg_glb_cpu_sem_set(self, 1, HW_ATL2_FW_SM_ACT_RSLVR);
+
+	return err;
 }
 
 static int hw_atl2_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr)
@@ -170,6 +237,88 @@ static int hw_atl2_hw_irq_read(struct aq_hw_s *self, u64 *mask)
 	return -EOPNOTSUPP;
 }
 
+#define IS_FILTER_ENABLED(_F_) ((packet_filter & (_F_)) ? 1U : 0U)
+
+static int hw_atl2_hw_packet_filter_set(struct aq_hw_s *self,
+					unsigned int packet_filter)
+{
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
+	u32 vlan_promisc;
+	u32 l2_promisc;
+	unsigned int i;
+
+	l2_promisc = IS_FILTER_ENABLED(IFF_PROMISC) ||
+		     !!(cfg->priv_flags & BIT(AQ_HW_LOOPBACK_DMA_NET));
+	vlan_promisc = l2_promisc || cfg->is_vlan_force_promisc;
+
+	hw_atl_rpfl2promiscuous_mode_en_set(self, l2_promisc);
+
+	hw_atl_rpf_vlan_prom_mode_en_set(self, vlan_promisc);
+
+	hw_atl2_hw_new_rx_filter_promisc(self, IS_FILTER_ENABLED(IFF_PROMISC));
+
+	hw_atl_rpfl2multicast_flr_en_set(self,
+					 IS_FILTER_ENABLED(IFF_ALLMULTI) &&
+					 IS_FILTER_ENABLED(IFF_MULTICAST), 0);
+
+	hw_atl_rpfl2_accept_all_mc_packets_set(self,
+					      IS_FILTER_ENABLED(IFF_ALLMULTI) &&
+					      IS_FILTER_ENABLED(IFF_MULTICAST));
+
+	hw_atl_rpfl2broadcast_en_set(self, IS_FILTER_ENABLED(IFF_BROADCAST));
+
+	for (i = HW_ATL2_MAC_MIN; i < HW_ATL2_MAC_MAX; ++i)
+		hw_atl_rpfl2_uc_flr_en_set(self,
+					   (cfg->is_mc_list_enabled &&
+					    (i <= cfg->mc_list_count)) ?
+				    1U : 0U, i);
+
+	return aq_hw_err_from_flags(self);
+}
+
+#undef IS_FILTER_ENABLED
+
+static int hw_atl2_hw_multicast_list_set(struct aq_hw_s *self,
+					 u8 ar_mac
+					 [AQ_HW_MULTICAST_ADDRESS_MAX]
+					 [ETH_ALEN],
+					 u32 count)
+{
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
+	int err = 0;
+
+	if (count > (HW_ATL2_MAC_MAX - HW_ATL2_MAC_MIN)) {
+		err = -EBADRQC;
+		goto err_exit;
+	}
+	for (cfg->mc_list_count = 0U;
+			cfg->mc_list_count < count;
+			++cfg->mc_list_count) {
+		u32 i = cfg->mc_list_count;
+		u32 h = (ar_mac[i][0] << 8) | (ar_mac[i][1]);
+		u32 l = (ar_mac[i][2] << 24) | (ar_mac[i][3] << 16) |
+					(ar_mac[i][4] << 8) | ar_mac[i][5];
+
+		hw_atl_rpfl2_uc_flr_en_set(self, 0U, HW_ATL2_MAC_MIN + i);
+
+		hw_atl_rpfl2unicast_dest_addresslsw_set(self, l,
+							HW_ATL2_MAC_MIN + i);
+
+		hw_atl_rpfl2unicast_dest_addressmsw_set(self, h,
+							HW_ATL2_MAC_MIN + i);
+
+		hw_atl2_rpfl2_uc_flr_tag_set(self, 1, HW_ATL2_MAC_MIN + i);
+
+		hw_atl_rpfl2_uc_flr_en_set(self, (cfg->is_mc_list_enabled),
+					   HW_ATL2_MAC_MIN + i);
+	}
+
+	err = aq_hw_err_from_flags(self);
+
+err_exit:
+	return err;
+}
+
 static int hw_atl2_hw_interrupt_moderation_set(struct aq_hw_s *self)
 {
 	return -EOPNOTSUPP;
@@ -195,6 +344,61 @@ static struct aq_stats_s *hw_atl2_utils_get_hw_stats(struct aq_hw_s *self)
 	return &self->curr_stats;
 }
 
+static int hw_atl2_hw_vlan_set(struct aq_hw_s *self,
+			       struct aq_rx_filter_vlan *aq_vlans)
+{
+	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	u32 queue;
+	u8 index;
+	int i;
+
+	hw_atl_rpf_vlan_prom_mode_en_set(self, 1U);
+
+	for (i = 0; i < HW_ATL_VLAN_MAX_FILTERS; i++) {
+		queue = HW_ATL2_ACTION_ASSIGN_QUEUE(aq_vlans[i].queue);
+
+		hw_atl_rpf_vlan_flr_en_set(self, 0U, i);
+		hw_atl_rpf_vlan_rxq_en_flr_set(self, 0U, i);
+		index = priv->art_base_index + HW_ATL2_RPF_VLAN_USER_INDEX + i;
+		hw_atl2_act_rslvr_table_set(self, index, 0, 0,
+					    HW_ATL2_ACTION_DISABLE);
+		if (aq_vlans[i].enable) {
+			hw_atl_rpf_vlan_id_flr_set(self,
+						   aq_vlans[i].vlan_id, i);
+			hw_atl_rpf_vlan_flr_act_set(self, 1U, i);
+			hw_atl_rpf_vlan_flr_en_set(self, 1U, i);
+
+			if (aq_vlans[i].queue != 0xFF) {
+				hw_atl_rpf_vlan_rxq_flr_set(self,
+							    aq_vlans[i].queue,
+							    i);
+				hw_atl_rpf_vlan_rxq_en_flr_set(self, 1U, i);
+
+				hw_atl2_rpf_vlan_flr_tag_set(self, i + 2, i);
+
+				index = priv->art_base_index +
+					HW_ATL2_RPF_VLAN_USER_INDEX + i;
+				hw_atl2_act_rslvr_table_set(self, index,
+					(i + 2) << HW_ATL2_RPF_TAG_VLAN_OFFSET,
+					HW_ATL2_RPF_TAG_VLAN_MASK, queue);
+			} else {
+				hw_atl2_rpf_vlan_flr_tag_set(self, 1, i);
+			}
+		}
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl2_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
+{
+	/* set promisc in case of disabing the vlan filter */
+	hw_atl_rpf_vlan_prom_mode_en_set(self, !enable);
+	hw_atl2_hw_new_rx_filter_vlan_promisc(self, !enable);
+
+	return aq_hw_err_from_flags(self);
+}
+
 const struct aq_hw_ops hw_atl2_ops = {
 	.hw_set_mac_address   = hw_atl2_hw_mac_addr_set,
 	.hw_init              = hw_atl2_hw_init,
@@ -218,6 +422,10 @@ const struct aq_hw_ops hw_atl2_ops = {
 
 	.hw_ring_rx_init             = hw_atl2_hw_ring_rx_init,
 	.hw_ring_tx_init             = hw_atl2_hw_ring_tx_init,
+	.hw_packet_filter_set        = hw_atl2_hw_packet_filter_set,
+	.hw_filter_vlan_set          = hw_atl2_hw_vlan_set,
+	.hw_filter_vlan_ctrl         = hw_atl2_hw_vlan_ctrl,
+	.hw_multicast_list_set       = hw_atl2_hw_multicast_list_set,
 	.hw_interrupt_moderation_set = hw_atl2_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl2_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl2_hw_rss_hash_set,

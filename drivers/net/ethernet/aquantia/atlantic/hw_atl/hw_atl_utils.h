@@ -360,6 +360,8 @@ struct aq_rx_filter_vlan {
 	u8 queue;
 };
 
+#define HW_ATL_VLAN_MAX_FILTERS         16U
+
 struct aq_rx_filter_l2 {
 	s8 queue;
 	u8 location;
