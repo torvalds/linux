@@ -596,6 +596,8 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV24_10:
 		return VOP_FMT_YUV444SP;
+	case DRM_FORMAT_YUYV:
+		return VOP_FMT_YUYV;
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
 		return -EINVAL;
@@ -646,6 +648,17 @@ static bool is_yuv_support(uint32_t format)
 	case DRM_FORMAT_NV16_10:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV24_10:
+	case DRM_FORMAT_YUYV:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_yuyv_format(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUYV:
 		return true;
 	default:
 		return false;
@@ -1762,6 +1775,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
 	}
 	VOP_WIN_SET(vop, win, fmt_10, is_yuv_10bit(fb->format->format));
+	VOP_WIN_SET(vop, win, fmt_yuyv, is_yuyv_format(fb->format->format));
 
 	if (win->phy->scl)
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,

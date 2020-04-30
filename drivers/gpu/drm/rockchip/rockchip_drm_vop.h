@@ -68,7 +68,8 @@ enum vop_csc_mode {
 enum vop_data_format {
 	VOP_FMT_ARGB8888 = 0,
 	VOP_FMT_RGB888,
-	VOP_FMT_RGB565,
+	VOP_FMT_RGB565 = 2,
+	VOP_FMT_YUYV = 2,
 	VOP_FMT_YUV420SP = 4,
 	VOP_FMT_YUV422SP,
 	VOP_FMT_YUV444SP,
@@ -385,6 +386,7 @@ struct vop_win_phy {
 	struct vop_reg enable;
 	struct vop_reg format;
 	struct vop_reg fmt_10;
+	struct vop_reg fmt_yuyv;
 	struct vop_reg csc_mode;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;

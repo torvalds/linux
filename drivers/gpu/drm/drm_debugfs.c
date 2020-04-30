@@ -95,6 +95,8 @@ static char *get_format_str(uint32_t format)
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV24_10:
 		return "YUV444NV24";
+	case DRM_FORMAT_YUYV:
+		return "YUYV";
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
 		return "UNF";
@@ -135,6 +137,9 @@ int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV12_10:
 		bits = 12;
+		break;
+	case DRM_FORMAT_YUYV:
+		bits = 16;
 		break;
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
