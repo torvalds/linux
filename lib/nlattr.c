@@ -44,6 +44,20 @@ static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_S64]	= sizeof(s64),
 };
 
+/*
+ * Nested policies might refer back to the original
+ * policy in some cases, and userspace could try to
+ * abuse that and recurse by nesting in the right
+ * ways. Limit recursion to avoid this problem.
+ */
+#define MAX_POLICY_RECURSION_DEPTH	10
+
+static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
+				const struct nla_policy *policy,
+				unsigned int validate,
+				struct netlink_ext_ack *extack,
+				struct nlattr **tb, unsigned int depth);
+
 static int validate_nla_bitfield32(const struct nlattr *nla,
 				   const u32 valid_flags_mask)
 {
@@ -70,7 +84,7 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack,
-			      unsigned int validate)
+			      unsigned int validate, unsigned int depth)
 {
 	const struct nlattr *entry;
 	int rem;
@@ -87,8 +101,9 @@ static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 			return -ERANGE;
 		}
 
-		ret = __nla_validate(nla_data(entry), nla_len(entry),
-				     maxtype, policy, validate, extack);
+		ret = __nla_validate_parse(nla_data(entry), nla_len(entry),
+					   maxtype, policy, validate, extack,
+					   NULL, depth + 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -156,7 +171,7 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 
 static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy, unsigned int validate,
-			struct netlink_ext_ack *extack)
+			struct netlink_ext_ack *extack, unsigned int depth)
 {
 	u16 strict_start_type = policy[0].strict_start_type;
 	const struct nla_policy *pt;
@@ -269,9 +284,10 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (attrlen < NLA_HDRLEN)
 			goto out_err;
 		if (pt->nested_policy) {
-			err = __nla_validate(nla_data(nla), nla_len(nla), pt->len,
-					     pt->nested_policy, validate,
-					     extack);
+			err = __nla_validate_parse(nla_data(nla), nla_len(nla),
+						   pt->len, pt->nested_policy,
+						   validate, extack, NULL,
+						   depth + 1);
 			if (err < 0) {
 				/*
 				 * return directly to preserve the inner
@@ -294,7 +310,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 
 			err = nla_validate_array(nla_data(nla), nla_len(nla),
 						 pt->len, pt->nested_policy,
-						 extack, validate);
+						 extack, validate, depth);
 			if (err < 0) {
 				/*
 				 * return directly to preserve the inner
@@ -358,10 +374,16 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 				const struct nla_policy *policy,
 				unsigned int validate,
 				struct netlink_ext_ack *extack,
-				struct nlattr **tb)
+				struct nlattr **tb, unsigned int depth)
 {
 	const struct nlattr *nla;
 	int rem;
+
+	if (depth >= MAX_POLICY_RECURSION_DEPTH) {
+		NL_SET_ERR_MSG(extack,
+			       "allowed policy recursion depth exceeded");
+		return -EINVAL;
+	}
 
 	if (tb)
 		memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
@@ -379,7 +401,7 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 		}
 		if (policy) {
 			int err = validate_nla(nla, maxtype, policy,
-					       validate, extack);
+					       validate, extack, depth);
 
 			if (err < 0)
 				return err;
@@ -421,7 +443,7 @@ int __nla_validate(const struct nlattr *head, int len, int maxtype,
 		   struct netlink_ext_ack *extack)
 {
 	return __nla_validate_parse(head, len, maxtype, policy, validate,
-				    extack, NULL);
+				    extack, NULL, 0);
 }
 EXPORT_SYMBOL(__nla_validate);
 
@@ -476,7 +498,7 @@ int __nla_parse(struct nlattr **tb, int maxtype,
 		struct netlink_ext_ack *extack)
 {
 	return __nla_validate_parse(head, len, maxtype, policy, validate,
-				    extack, tb);
+				    extack, tb, 0);
 }
 EXPORT_SYMBOL(__nla_parse);
 
