@@ -1438,7 +1438,7 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 			isp_sd->out_crop = *crop;
 			isp_sd->out_crop.left = 0;
 			isp_sd->out_crop.top = 0;
-			dev->mpfbc_dev.crop = isp_sd->out_crop;
+			dev->br_dev.crop = isp_sd->out_crop;
 		}
 	} else {
 		if (dev->isp_ver == ISP_V20)
@@ -1446,16 +1446,14 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 		isp_sd->out_crop = *crop;
 	}
 
-	/* change fmt&size of MP/SP */
+	/* change size of MP/SP */
 	rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MP,
 				 isp_sd->out_crop.width,
-				 isp_sd->out_crop.height,
-				 V4L2_PIX_FMT_YUYV);
+				 isp_sd->out_crop.height, 0);
 	if (dev->isp_ver != ISP_V10_1)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
 					 isp_sd->out_crop.width,
-					 isp_sd->out_crop.height,
-					 V4L2_PIX_FMT_YUYV);
+					 isp_sd->out_crop.height, 0);
 	return 0;
 err:
 	return -EINVAL;
@@ -1636,19 +1634,19 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, SP_VDEV_NAME)) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
 		if (flags & MEDIA_LNK_FL_ENABLED &&
-		    dev->mpfbc_dev.linked)
+		    dev->br_dev.linked)
 			goto err;
 	} else if (!strcmp(remote->entity->name, MP_VDEV_NAME)) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
 		if (flags & MEDIA_LNK_FL_ENABLED &&
-		    dev->mpfbc_dev.linked)
+		    dev->br_dev.linked)
 			goto err;
-	} else if (!strcmp(remote->entity->name, MPFBC_DEV_NAME)) {
+	} else if (!strcmp(remote->entity->name, BRIDGE_DEV_NAME)) {
 		if (flags & MEDIA_LNK_FL_ENABLED &&
 		    (dev->cap_dev.stream[RKISP_STREAM_SP].linked ||
 		     dev->cap_dev.stream[RKISP_STREAM_MP].linked))
 			goto err;
-		dev->mpfbc_dev.linked = flags & MEDIA_LNK_FL_ENABLED;
+		dev->br_dev.linked = flags & MEDIA_LNK_FL_ENABLED;
 	} else {
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (dev->isp_inp & ~(INP_DVP | rawrd))
@@ -1673,7 +1671,7 @@ err:
 	v4l2_err(sd, "link error %s -> %s\n"
 		 "\tdmaread can't work with other input\n"
 		 "\tcsi dvp can't work together\n"
-		 "\tmpfbc can't work with mainpath/selfpath\n",
+		 "\tbridge can't work with mainpath/selfpath\n",
 		 local->entity->name, remote->entity->name);
 	return -EINVAL;
 }

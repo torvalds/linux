@@ -40,11 +40,15 @@ struct rkispp_buffer {
 };
 
 struct rkispp_dummy_buffer {
-	struct list_head queue;
+	struct list_head list;
+	struct dma_buf *dbuf;
 	dma_addr_t dma_addr;
+	void *mem_priv;
 	void *vaddr;
 	u32 size;
-	void *mem_priv;
+	u32 id;
+	bool is_need_vaddr;
+	bool is_need_dbuf;
 };
 
 extern int rkispp_debug;

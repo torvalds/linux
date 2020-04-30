@@ -782,7 +782,7 @@ static int rkisp_config_rsz(struct rkisp_stream *stream, bool async)
 	u32 xsubs_out = 1, ysubs_out = 1;
 
 	if (input_isp_fmt->fmt_type == FMT_BAYER ||
-	    dev->mpfbc_dev.en)
+	    dev->br_dev.en)
 		goto disable;
 
 	/* set input and output sizes for scale calculation */
@@ -1901,15 +1901,13 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(1000));
-		if (!ret) {
-			v4l2_warn(v4l2_dev, "waiting on event return error %d\n", ret);
-			stream->stopping = false;
-			stream->streaming = false;
-		}
-	} else {
-		stream->stopping = false;
-		stream->streaming = false;
+		if (!ret)
+			v4l2_warn(v4l2_dev, "%s id:%d timeout\n",
+				  __func__, stream->id);
 	}
+
+	stream->stopping = false;
+	stream->streaming = false;
 
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP) {
@@ -1979,7 +1977,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	 * also required because the sencond FE maybe corrupt especially
 	 * when run at 120fps.
 	 */
-	if (is_update && !dev->mpfbc_dev.en) {
+	if (is_update && !dev->br_dev.en) {
 		rkisp_stats_first_ddr_config(&dev->stats_vdev);
 		force_cfg_update(base);
 		mi_frame_end(stream);
@@ -2563,7 +2561,8 @@ void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 	struct v4l2_pix_format_mplane pixm;
 
 	memset(&pixm, 0, sizeof(pixm));
-	pixm.pixelformat = pixelformat;
+	if (pixelformat)
+		pixm.pixelformat = pixelformat;
 	pixm.width = width;
 	pixm.height = height;
 	rkisp_set_fmt(stream, &pixm, false);
@@ -2937,7 +2936,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
 
-	/* isp2 disable MP/SP, enable MPFBC default */
+	/* isp2 disable MP/SP, enable BRIDGE default */
 	if ((id == RKISP_STREAM_SP || id == RKISP_STREAM_MP) &&
 	    dev->isp_ver == ISP_V20)
 		stream->linked = false;
@@ -3111,8 +3110,8 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "mi isr:0x%x\n", mis_val);
 
-	if (mis_val & MI_MPFBC_FRAME)
-		rkisp_mpfbc_isr(mis_val, dev);
+	rkisp_bridge_isr(&mis_val, dev);
+
 	if (mis_val & CIF_MI_DMA_READY)
 		rkisp_dmarx_isr(mis_val, dev);
 

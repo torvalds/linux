@@ -4183,6 +4183,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 	priv_val->buf_3dlut_idx = 0;
 	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++) {
+		priv_val->buf_3dlut[i].is_need_vaddr = true;
 		priv_val->buf_3dlut[i].size = RKISP_PARAM_3DLUT_BUF_SIZE;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dlut[i]);
 		if (ret) {
@@ -4193,6 +4194,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 	priv_val->buf_lsclut_idx = 0;
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++) {
+		priv_val->buf_lsclut[i].is_need_vaddr = true;
 		priv_val->buf_lsclut[i].size = RKISP_PARAM_LSC_LUT_BUF_SIZE;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_lsclut[i]);
 		if (ret) {
@@ -4203,6 +4205,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 	priv_val->buf_ldch_idx = 0;
 	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++) {
+		priv_val->buf_ldch[i].is_need_vaddr = true;
 		priv_val->buf_ldch[i].size = ISP2X_LDCH_MESH_XY_NUM * sizeof(u16);
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_ldch[i]);
 		if (ret) {

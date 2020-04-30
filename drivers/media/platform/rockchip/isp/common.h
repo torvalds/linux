@@ -41,6 +41,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
 
@@ -103,9 +104,13 @@ struct rkisp_buffer {
 
 struct rkisp_dummy_buffer {
 	struct list_head queue;
-	void *vaddr;
+	struct dma_buf *dbuf;
 	dma_addr_t dma_addr;
+	void *mem_priv;
+	void *vaddr;
 	u32 size;
+	bool is_need_vaddr;
+	bool is_need_dbuf;
 };
 
 extern int rkisp_debug;
@@ -136,6 +141,9 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 static inline int rkisp_alloc_buffer(struct device *dev,
 				     struct rkisp_dummy_buffer *buf)
 {
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
+	void *mem_priv;
 	int ret = 0;
 
 	if (!buf->size) {
@@ -143,13 +151,19 @@ static inline int rkisp_alloc_buffer(struct device *dev,
 		goto err;
 	}
 
-	buf->vaddr = dma_alloc_coherent(dev, buf->size,
-					&buf->dma_addr, GFP_KERNEL);
-	if (!buf->vaddr) {
+	mem_priv = ops->alloc(dev, attrs, buf->size,
+			      DMA_BIDIRECTIONAL, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(mem_priv)) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
+	buf->mem_priv = mem_priv;
+	buf->dma_addr = *((dma_addr_t *)ops->cookie(mem_priv));
+	if (!attrs)
+		buf->vaddr = ops->vaddr(mem_priv);
+	if (buf->is_need_dbuf)
+		buf->dbuf = ops->get_dmabuf(mem_priv, O_RDWR);
 	if (rkisp_debug)
 		dev_info(dev, "%s buf:0x%x~0x%x size:%d\n", __func__,
 			 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
@@ -163,14 +177,21 @@ err:
 static inline void rkisp_free_buffer(struct device *dev,
 				     struct rkisp_dummy_buffer *buf)
 {
-	if (buf && buf->vaddr && buf->size) {
+	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+
+	if (buf && buf->mem_priv) {
 		if (rkisp_debug)
 			dev_info(dev, "%s buf:0x%x~0x%x\n", __func__,
 				 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size);
-		dma_free_coherent(dev, buf->size,
-				  buf->vaddr, buf->dma_addr);
+		if (buf->dbuf)
+			dma_buf_put(buf->dbuf);
+		ops->put(buf->mem_priv);
 		buf->size = 0;
+		buf->dbuf = NULL;
 		buf->vaddr = NULL;
+		buf->mem_priv = NULL;
+		buf->is_need_dbuf = false;
+		buf->is_need_vaddr = false;
 	}
 }
 

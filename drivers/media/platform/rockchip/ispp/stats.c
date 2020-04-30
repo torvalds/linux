@@ -28,7 +28,7 @@ static void update_addr(struct rkispp_stats_vdev *stats_vdev)
 
 	if (!stats_vdev->next_buf) {
 		dummy_buf = &stats_vdev->dummy_buf;
-		if (!dummy_buf->vaddr)
+		if (!dummy_buf->mem_priv)
 			return;
 
 		writel(dummy_buf->dma_addr, base + RKISPP_ORB_WR_BASE);

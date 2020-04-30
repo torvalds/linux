@@ -509,13 +509,13 @@ static int rkisp_register_platform_subdevs(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err_unreg_isp_subdev;
 
-	ret = rkisp_register_mpfbc_subdev(dev, &dev->v4l2_dev);
+	ret = rkisp_register_bridge_subdev(dev, &dev->v4l2_dev);
 	if (ret < 0)
 		goto err_unreg_csi_subdev;
 
 	ret = rkisp_register_stream_vdevs(dev);
 	if (ret < 0)
-		goto err_unreg_mpfbc_subdev;
+		goto err_unreg_bridge_subdev;
 
 	ret = rkisp_register_dmarx_vdev(dev);
 	if (ret < 0)
@@ -555,8 +555,8 @@ err_unreg_dmarx_vdev:
 	rkisp_unregister_dmarx_vdev(dev);
 err_unreg_stream_vdev:
 	rkisp_unregister_stream_vdevs(dev);
-err_unreg_mpfbc_subdev:
-	rkisp_unregister_mpfbc_subdev(dev);
+err_unreg_bridge_subdev:
+	rkisp_unregister_bridge_subdev(dev);
 err_unreg_csi_subdev:
 	rkisp_unregister_csi_subdev(dev);
 err_unreg_isp_subdev:
@@ -1108,7 +1108,7 @@ static int rkisp_plat_remove(struct platform_device *pdev)
 	rkisp_unregister_params_vdev(&isp_dev->params_vdev);
 	rkisp_unregister_stats_vdev(&isp_dev->stats_vdev);
 	rkisp_unregister_stream_vdevs(isp_dev);
-	rkisp_unregister_mpfbc_subdev(isp_dev);
+	rkisp_unregister_bridge_subdev(isp_dev);
 	rkisp_unregister_csi_subdev(isp_dev);
 	rkisp_unregister_isp_subdev(isp_dev);
 	media_device_cleanup(&isp_dev->media_dev);

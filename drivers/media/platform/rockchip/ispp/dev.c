@@ -40,6 +40,10 @@ int rkispp_debug;
 module_param_named(debug, rkispp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
 
+static int rkisp_ispp_mode = ISP_ISPP_422 | ISP_ISPP_FBC;
+module_param_named(mode, rkisp_ispp_mode, int, 0644);
+MODULE_PARM_DESC(mode, "isp->ispp mode: bit0 fbc, bit1 yuv422, bit2 quick");
+
 static char rkispp_version[RKISPP_VERNO_LEN];
 module_param_string(version, rkispp_version, RKISPP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
@@ -82,13 +86,12 @@ static void get_remote_node_dev(struct rkispp_device *ispp_dev)
 				of_node_full_name(remote));
 			continue;
 		} else {
-			rkisp_get_mpfbc_sd(remote_dev, &sd);
+			rkisp_get_bridge_sd(remote_dev, &sd);
 			if (!sd) {
-				dev_err(dev, "Failed to get remote mpfbc sd\n");
+				dev_err(dev, "Failed to get isp bridge sd\n");
 			} else {
 				ispp_dev->ispp_sdev.remote_sd = sd;
-				dev_info(dev, "get remote mpfbc sd:%s\n",
-					 sd->name);
+				v4l2_set_subdev_hostdata(sd, &ispp_dev->ispp_sdev.sd);
 				break;
 			}
 		}
@@ -225,6 +228,7 @@ static int rkispp_enable_sys_clk(struct rkispp_device *ispp_dev)
 {
 	int i, ret = -EINVAL;
 
+	ispp_dev->isp_mode = rkisp_ispp_mode;
 	for (i = 0; i < ispp_dev->clks_num; i++) {
 		ret = clk_prepare_enable(ispp_dev->clks[i]);
 		if (ret < 0)

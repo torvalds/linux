@@ -44,6 +44,7 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
 	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
+	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
 	void *mem_priv;
 	int ret = 0;
 
@@ -52,8 +53,8 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 		goto err;
 	}
 
-	mem_priv = ops->alloc(dev->dev, 0, buf->size,
-			DMA_BIDIRECTIONAL, GFP_KERNEL);
+	mem_priv = ops->alloc(dev->dev, attrs, buf->size,
+			      DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(mem_priv)) {
 		ret = -ENOMEM;
 		goto err;
@@ -61,7 +62,10 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 
 	buf->mem_priv = mem_priv;
 	buf->dma_addr = *((dma_addr_t *)ops->cookie(mem_priv));
-	buf->vaddr = ops->vaddr(mem_priv);
+	if (!attrs)
+		buf->vaddr = ops->vaddr(mem_priv);
+	if (buf->is_need_dbuf)
+		buf->dbuf = ops->get_dmabuf(mem_priv, O_RDWR);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s buf:0x%x~0x%x size:%d\n", __func__,
 		 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
@@ -80,9 +84,14 @@ void rkispp_free_buffer(struct rkispp_device *dev,
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 			 "%s buf:0x%x~0x%x\n", __func__,
 			 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size);
+		if (buf->dbuf)
+			dma_buf_put(buf->dbuf);
 		ops->put(buf->mem_priv);
 		buf->size = 0;
+		buf->dbuf = NULL;
 		buf->vaddr = NULL;
 		buf->mem_priv = NULL;
+		buf->is_need_dbuf = false;
+		buf->is_need_vaddr = false;
 	}
 }

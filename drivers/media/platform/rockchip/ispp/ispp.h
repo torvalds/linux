@@ -16,6 +16,11 @@ enum rkispp_pad {
 	RKISPP_PAD_MAX
 };
 
+enum rkispp_state {
+	ISPP_STOP = 0,
+	ISPP_START,
+};
+
 struct isppsd_fmt {
 	u32 mbus_code;
 	u32 fourcc;
@@ -32,6 +37,7 @@ struct rkispp_subdev {
 	struct v4l2_mbus_framefmt in_fmt;
 	struct isppsd_fmt out_fmt;
 	atomic_t frm_sync_seq;
+	enum rkispp_state state;
 };
 
 u32 cal_fec_mesh(u32 width, u32 height, u32 mode);

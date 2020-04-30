@@ -38,7 +38,7 @@
 #include "capture.h"
 #include "csi.h"
 #include "dmarx.h"
-#include "mpfbc.h"
+#include "bridge.h"
 #include "rkisp.h"
 #include "isp_params.h"
 #include "isp_stats.h"
@@ -69,7 +69,7 @@
 #define GRP_ID_ISP_MP			BIT(3)
 #define GRP_ID_ISP_SP			BIT(4)
 #define GRP_ID_ISP_DMARX		BIT(5)
-#define GRP_ID_ISP_MPFBC		BIT(6)
+#define GRP_ID_ISP_BRIDGE		BIT(6)
 #define GRP_ID_CSI			BIT(7)
 
 #define RKISP_MAX_BUS_CLK		8
@@ -171,7 +171,7 @@ struct rkisp_hdr {
  * @params_vdev: ISP input parameters device
  * @dmarx_dev: image input device
  * @csi_dev: mipi csi device
- * @mpfbc_dev: mpfbc output device
+ * @br_dev: bridge of isp and ispp device
  */
 struct rkisp_device {
 	struct list_head list;
@@ -195,7 +195,7 @@ struct rkisp_device {
 	struct rkisp_isp_params_vdev params_vdev;
 	struct rkisp_dmarx_device dmarx_dev;
 	struct rkisp_csi_device csi_dev;
-	struct rkisp_mpfbc_device mpfbc_dev;
+	struct rkisp_bridge_device br_dev;
 	struct rkisp_luma_vdev luma_vdev;
 	struct rkisp_pipeline pipe;
 	struct iommu_domain *domain;

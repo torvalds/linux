@@ -6,6 +6,7 @@
 
 #include "common.h"
 
+#define RKISPP_BUF_POOL_MAX (RKISP_ISPP_BUF_MAX + 1)
 struct rkispp_stream;
 
 /*
@@ -73,24 +74,55 @@ enum stream_type {
 	STREAM_OUTPUT,
 };
 
-/* tnr internal using buf */
-struct in_tnr_buf {
-	struct rkispp_dummy_buffer pic_cur;
-	struct rkispp_dummy_buffer pic_next;
-	struct rkispp_dummy_buffer gain_cur;
-	struct rkispp_dummy_buffer gain_next;
-	struct rkispp_dummy_buffer gain_kg;
-	struct rkispp_dummy_buffer iir;
-	struct rkispp_dummy_buffer pic_wr;
-	struct rkispp_dummy_buffer gain_wr;
+/* internal using buf */
+
+struct rkispp_isp_buf_pool {
+	struct rkisp_ispp_buf *dbufs;
+	void *mem_priv[GROUP_BUF_MAX];
+	dma_addr_t dma[GROUP_BUF_MAX];
 };
 
-/* nr internal using buf */
+struct in_tnr_buf {
+	struct rkispp_dummy_buffer iir;
+	struct rkispp_dummy_buffer gain_kg;
+	struct rkispp_dummy_buffer wr[RKISP_ISPP_BUF_MAX][GROUP_BUF_MAX];
+};
+
 struct in_nr_buf {
-	struct rkispp_dummy_buffer pic_cur;
-	struct rkispp_dummy_buffer gain_cur;
-	struct rkispp_dummy_buffer pic_wr;
 	struct rkispp_dummy_buffer tmp_yuv;
+	struct rkispp_dummy_buffer wr[RKISP_ISPP_BUF_MAX];
+};
+
+struct tnr_module {
+	struct in_tnr_buf buf;
+	struct list_head list_rd;
+	struct list_head list_wr;
+	spinlock_t buf_lock;
+	struct rkisp_ispp_buf *cur_rd;
+	struct rkisp_ispp_buf *nxt_rd;
+	struct rkisp_ispp_buf *cur_wr;
+	u32 uv_offset;
+	bool is_end;
+	bool is_3to1;
+};
+
+struct nr_module {
+	struct in_nr_buf buf;
+	struct list_head list_rd;
+	struct list_head list_wr;
+	spinlock_t buf_lock;
+	struct rkisp_ispp_buf *cur_rd;
+	struct rkispp_dummy_buffer *cur_wr;
+	u32 uv_offset;
+	bool is_end;
+};
+
+struct fec_module {
+	struct list_head list_rd;
+	struct rkispp_dummy_buffer *cur_rd;
+	spinlock_t buf_lock;
+	u32 uv_offset;
+	bool is_end;
 };
 
 /* fec internal using buf */
@@ -134,22 +166,29 @@ struct rkispp_stream {
 	struct capture_fmt out_cap_fmt;
 	struct v4l2_pix_format_mplane out_fmt;
 	u8 last_module;
-	u8 streaming;
-	u8 stopping;
-	u8 linked;
+	bool streaming;
+	bool stopping;
+	bool linked;
+	bool is_upd;
 };
 
 /* rkispp stream device */
 struct rkispp_stream_vdev {
 	struct rkispp_stream stream[STREAM_MAX];
-	struct in_tnr_buf tnr_buf;
-	struct in_nr_buf nr_buf;
+	struct rkispp_isp_buf_pool pool[RKISPP_BUF_POOL_MAX];
+	struct tnr_module tnr;
+	struct nr_module nr;
+	struct fec_module fec;
 	struct in_fec_buf fec_buf;
 	atomic_t refcnt;
 	u32 module_ens;
-	u8 is_update_manual;
+	u32 irq_ends;
 };
 
+void rkispp_free_pool(struct rkispp_stream_vdev *vdev);
+void rkispp_module_work_event(struct rkispp_device *dev,
+			      void *buf_rd, void *buf_wr,
+			      u32 module, bool is_isr);
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev);
 void rkispp_unregister_stream_vdevs(struct rkispp_device *dev);
 int rkispp_register_stream_vdevs(struct rkispp_device *dev);

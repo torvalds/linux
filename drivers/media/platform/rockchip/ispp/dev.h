@@ -52,5 +52,6 @@ struct rkispp_device {
 	/* lock for fec and ispp irq */
 	spinlock_t irq_lock;
 	enum rkispp_input inp;
+	u32 isp_mode;
 };
 #endif

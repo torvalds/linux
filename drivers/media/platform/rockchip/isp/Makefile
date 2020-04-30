@@ -13,5 +13,5 @@ video_rkisp-objs += rkisp.o \
 			capture.o \
 			dmarx.o \
 			csi.o \
-			mpfbc.o \
+			bridge.o \
 			isp_mipi_luma.o
