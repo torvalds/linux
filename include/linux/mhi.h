@@ -53,9 +53,9 @@ enum mhi_callback {
  * @MHI_CHAIN: Linked transfer
  */
 enum mhi_flags {
-	MHI_EOB,
-	MHI_EOT,
-	MHI_CHAIN,
+	MHI_EOB = BIT(0),
+	MHI_EOT = BIT(1),
+	MHI_CHAIN = BIT(2),
 };
 
 /**
