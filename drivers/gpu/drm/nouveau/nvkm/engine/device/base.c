@@ -2925,9 +2925,9 @@ nvkm_device_del(struct nvkm_device **pdevice)
 }
 
 static inline bool
-nvkm_device_endianness(void __iomem *pri)
+nvkm_device_endianness(struct nvkm_device *device)
 {
-	u32 boot1 = ioread32_native(pri + 0x000004) & 0x01000001;
+	u32 boot1 = nvkm_rd32(device, 0x000004) & 0x01000001;
 #ifdef __BIG_ENDIAN
 	if (!boot1)
 		return false;
@@ -2949,7 +2949,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	struct nvkm_subdev *subdev;
 	u64 mmio_base, mmio_size;
 	u32 boot0, boot1, strap;
-	void __iomem *map = NULL;
 	int ret = -EEXIST, i;
 	unsigned chipset;
 
@@ -2976,8 +2975,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	mmio_size = device->func->resource_size(device, 0);
 
 	if (detect || mmio) {
-		map = ioremap(mmio_base, mmio_size);
-		if (map == NULL) {
+		device->pri = ioremap(mmio_base, mmio_size);
+		if (device->pri == NULL) {
 			nvdev_error(device, "unable to map PRI\n");
 			ret = -ENOMEM;
 			goto done;
@@ -2987,10 +2986,10 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	/* identify the chipset, and determine classes of subdev/engines */
 	if (detect) {
 		/* switch mmio to cpu's native endianness */
-		if (!nvkm_device_endianness(map)) {
-			iowrite32_native(0x01000001, map + 0x000004);
-			ioread32_native(map);
-			if (!nvkm_device_endianness(map)) {
+		if (!nvkm_device_endianness(device)) {
+			nvkm_wr32(device, 0x000004, 0x01000001);
+			nvkm_rd32(device, 0x000000);
+			if (!nvkm_device_endianness(device)) {
 				nvdev_error(device,
 					    "GPU not supported on big-endian\n");
 				ret = -ENOSYS;
@@ -2998,7 +2997,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			}
 		}
 
-		boot0 = ioread32_native(map + 0x000000);
+		boot0 = nvkm_rd32(device, 0x000000);
 
 		/* chipset can be overridden for devel/testing purposes */
 		chipset = nvkm_longopt(device->cfgopt, "NvChipset", 0);
@@ -3157,7 +3156,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			   device->chip->name, boot0);
 
 		/* vGPU detection */
-		boot1 = ioread32_native(map + 0x000004);
+		boot1 = nvkm_rd32(device, 0x0000004);
 		if (device->card_type >= TU100 && (boot1 & 0x00030000)) {
 			nvdev_info(device, "vGPUs are not supported\n");
 			ret = -ENODEV;
@@ -3165,7 +3164,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		}
 
 		/* read strapping information */
-		strap = ioread32_native(map + 0x101000);
+		strap = nvkm_rd32(device, 0x101000);
 
 		/* determine frequency of timing crystal */
 		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
@@ -3186,10 +3185,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 	if (!device->name)
 		device->name = device->chip->name;
-
-	if (mmio) {
-		device->pri = map;
-	}
 
 	mutex_init(&device->mutex);
 
@@ -3278,9 +3273,9 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 	ret = 0;
 done:
-	if (map && (!mmio || ret)) {
+	if (device->pri && (!mmio || ret)) {
+		iounmap(device->pri);
 		device->pri = NULL;
-		iounmap(map);
 	}
 	mutex_unlock(&nv_devices_mutex);
 	return ret;
