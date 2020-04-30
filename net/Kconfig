@@ -344,7 +344,7 @@ config NET_PKTGEN
 	  what was just said, you don't need it: say N.
 
 	  Documentation on how to use the packet generator can be found
-	  at <file:Documentation/networking/pktgen.txt>.
+	  at <file:Documentation/networking/pktgen.rst>.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.

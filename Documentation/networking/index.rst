@@ -91,6 +91,7 @@ Contents:
    operstates
    packet_mmap
    phonet
+   pktgen
 
 .. only::  subproject and html
 
