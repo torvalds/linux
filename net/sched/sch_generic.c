@@ -1037,10 +1037,9 @@ static void attach_one_default_qdisc(struct net_device *dev,
 		ops = &pfifo_fast_ops;
 
 	qdisc = qdisc_create_dflt(dev_queue, ops, TC_H_ROOT, NULL);
-	if (!qdisc) {
-		netdev_info(dev, "activation failed\n");
+	if (!qdisc)
 		return;
-	}
+
 	if (!netif_is_multiqueue(dev))
 		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	dev_queue->qdisc_sleeping = qdisc;
@@ -1065,6 +1064,18 @@ static void attach_default_qdiscs(struct net_device *dev)
 			qdisc->ops->attach(qdisc);
 		}
 	}
+
+	/* Detect default qdisc setup/init failed and fallback to "noqueue" */
+	if (dev->qdisc == &noop_qdisc) {
+		netdev_warn(dev, "default qdisc (%s) fail, fallback to %s\n",
+			    default_qdisc_ops->id, noqueue_qdisc_ops.id);
+		dev->priv_flags |= IFF_NO_QUEUE;
+		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
+		dev->qdisc = txq->qdisc_sleeping;
+		qdisc_refcount_inc(dev->qdisc);
+		dev->priv_flags ^= IFF_NO_QUEUE;
+	}
+
 #ifdef CONFIG_NET_SCHED
 	if (dev->qdisc != &noop_qdisc)
 		qdisc_hash_add(dev->qdisc, false);
