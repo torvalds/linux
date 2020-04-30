@@ -4991,7 +4991,7 @@ int stmmac_dvr_probe(struct device *device,
 						 priv->plat->bsp_priv);
 
 		if (ret < 0)
-			return ret;
+			goto error_serdes_powerup;
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -5000,6 +5000,8 @@ int stmmac_dvr_probe(struct device *device,
 
 	return ret;
 
+error_serdes_powerup:
+	unregister_netdev(ndev);
 error_netdev_register:
 	phylink_destroy(priv->phylink);
 error_phy_setup:
