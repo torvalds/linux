@@ -19,8 +19,7 @@
  * However, if the leader is an AUX area event, then assume the event to sample
  * is the next event.
  */
-static struct evsel *perf_evsel__read_sampler(struct evsel *evsel,
-					      struct evlist *evlist)
+static struct evsel *evsel__read_sampler(struct evsel *evsel, struct evlist *evlist)
 {
 	struct evsel *leader = evsel->leader;
 
@@ -43,7 +42,7 @@ static void evsel__config_leader_sampling(struct evsel *evsel, struct evlist *ev
 	if (!leader->sample_read)
 		return;
 
-	read_sampler = perf_evsel__read_sampler(evsel, evlist);
+	read_sampler = evsel__read_sampler(evsel, evlist);
 
 	if (evsel == read_sampler)
 		return;

@@ -265,35 +265,32 @@ static inline bool evsel__match2(struct evsel *e1, struct evsel *e2)
 	       (e1->core.attr.config == e2->core.attr.config);
 }
 
-int perf_evsel__read_counter(struct evsel *evsel, int cpu, int thread);
+int evsel__read_counter(struct evsel *evsel, int cpu, int thread);
 
-int __perf_evsel__read_on_cpu(struct evsel *evsel,
-			      int cpu, int thread, bool scale);
+int __evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread, bool scale);
 
 /**
- * perf_evsel__read_on_cpu - Read out the results on a CPU and thread
+ * evsel__read_on_cpu - Read out the results on a CPU and thread
  *
  * @evsel - event selector to read value
  * @cpu - CPU of interest
  * @thread - thread of interest
  */
-static inline int perf_evsel__read_on_cpu(struct evsel *evsel,
-					  int cpu, int thread)
+static inline int evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread)
 {
-	return __perf_evsel__read_on_cpu(evsel, cpu, thread, false);
+	return __evsel__read_on_cpu(evsel, cpu, thread, false);
 }
 
 /**
- * perf_evsel__read_on_cpu_scaled - Read out the results on a CPU and thread, scaled
+ * evsel__read_on_cpu_scaled - Read out the results on a CPU and thread, scaled
  *
  * @evsel - event selector to read value
  * @cpu - CPU of interest
  * @thread - thread of interest
  */
-static inline int perf_evsel__read_on_cpu_scaled(struct evsel *evsel,
-						 int cpu, int thread)
+static inline int evsel__read_on_cpu_scaled(struct evsel *evsel, int cpu, int thread)
 {
-	return __perf_evsel__read_on_cpu(evsel, cpu, thread, true);
+	return __evsel__read_on_cpu(evsel, cpu, thread, true);
 }
 
 int perf_evsel__parse_sample(struct evsel *evsel, union perf_event *event,
