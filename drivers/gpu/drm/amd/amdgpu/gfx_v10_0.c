@@ -4273,7 +4273,7 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 		/* ===  CGCG /CGLS for GFX 3D Only === */
 		gfx_v10_0_update_3d_clock_gating(adev, enable);
 		/* ===  MGCG + MGLS === */
-		/* gfx_v10_0_update_medium_grain_clock_gating(adev, enable); */
+		gfx_v10_0_update_medium_grain_clock_gating(adev, enable);
 	}
 
 	if (adev->cg_flags &
