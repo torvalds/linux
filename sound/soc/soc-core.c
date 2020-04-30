@@ -3732,7 +3732,7 @@ int snd_soc_info_multi_ext(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = platform_max;
 	return 0;
 }
-EXPORT_SYMBOL(snd_soc_info_multi_ext);
+EXPORT_SYMBOL_GPL(snd_soc_info_multi_ext);
 
 int snd_soc_get_dai_name(struct of_phandle_args *args,
 				const char **dai_name)
