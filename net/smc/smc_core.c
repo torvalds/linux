@@ -446,13 +446,11 @@ out:
 }
 
 static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
-			   struct smc_link *lnk)
+			   struct smc_link_group *lgr)
 {
-	struct smc_link_group *lgr = lnk->lgr;
-
 	if (rmb_desc->is_conf_rkey && !list_empty(&lgr->list)) {
 		/* unregister rmb with peer */
-		smc_llc_do_delete_rkey(lnk, rmb_desc);
+		smc_llc_do_delete_rkey(lgr, rmb_desc);
 		rmb_desc->is_conf_rkey = false;
 	}
 	if (rmb_desc->is_reg_err) {
@@ -475,7 +473,7 @@ static void smc_buf_unuse(struct smc_connection *conn,
 	if (conn->rmb_desc && lgr->is_smcd)
 		conn->rmb_desc->used = 0;
 	else if (conn->rmb_desc)
-		smcr_buf_unuse(conn->rmb_desc, conn->lnk);
+		smcr_buf_unuse(conn->rmb_desc, lgr);
 }
 
 /* remove a finished connection from its link group */
@@ -1169,7 +1167,6 @@ static int smcr_buf_map_usable_links(struct smc_link_group *lgr,
 		if (!smc_link_usable(lnk))
 			continue;
 		if (smcr_buf_map_link(buf_desc, is_rmb, lnk)) {
-			smcr_buf_unuse(buf_desc, lnk);
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -1275,6 +1272,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 	if (!is_smcd) {
 		if (smcr_buf_map_usable_links(lgr, buf_desc, is_rmb)) {
+			smcr_buf_unuse(buf_desc, lgr);
 			return -ENOMEM;
 		}
 	}

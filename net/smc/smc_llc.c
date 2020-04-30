@@ -720,7 +720,6 @@ static void smc_llc_rx_response(struct smc_link *link,
 				struct smc_llc_qentry *qentry)
 {
 	u8 llc_type = qentry->msg.raw.hdr.common.type;
-	union smc_llc_msg *llc = &qentry->msg;
 
 	switch (llc_type) {
 	case SMC_LLC_TEST_LINK:
@@ -730,6 +729,7 @@ static void smc_llc_rx_response(struct smc_link *link,
 	case SMC_LLC_ADD_LINK:
 	case SMC_LLC_CONFIRM_LINK:
 	case SMC_LLC_CONFIRM_RKEY:
+	case SMC_LLC_DELETE_RKEY:
 		/* assign responses to the local flow, we requested them */
 		smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
 		wake_up_interruptible(&link->lgr->llc_waiter);
@@ -740,11 +740,6 @@ static void smc_llc_rx_response(struct smc_link *link,
 		break;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		/* unused as long as we don't send this type of msg */
-		break;
-	case SMC_LLC_DELETE_RKEY:
-		link->llc_delete_rkey_resp_rc = llc->raw.hdr.flags &
-						SMC_LLC_FLAG_RKEY_NEG;
-		complete(&link->llc_delete_rkey_resp);
 		break;
 	}
 	kfree(qentry);
@@ -850,8 +845,6 @@ void smc_llc_lgr_clear(struct smc_link_group *lgr)
 
 int smc_llc_link_init(struct smc_link *link)
 {
-	init_completion(&link->llc_delete_rkey_resp);
-	mutex_init(&link->llc_delete_rkey_mutex);
 	init_completion(&link->llc_testlink_resp);
 	INIT_DELAYED_WORK(&link->llc_testlink_wrk, smc_llc_testlink_work);
 	return 0;
@@ -909,27 +902,33 @@ out:
 }
 
 /* unregister an rtoken at the remote peer */
-int smc_llc_do_delete_rkey(struct smc_link *link,
+int smc_llc_do_delete_rkey(struct smc_link_group *lgr,
 			   struct smc_buf_desc *rmb_desc)
 {
+	struct smc_llc_qentry *qentry = NULL;
+	struct smc_link *send_link;
 	int rc = 0;
 
-	mutex_lock(&link->llc_delete_rkey_mutex);
-	if (link->state != SMC_LNK_ACTIVE)
-		goto out;
-	reinit_completion(&link->llc_delete_rkey_resp);
-	rc = smc_llc_send_delete_rkey(link, rmb_desc);
+	send_link = smc_llc_usable_link(lgr);
+	if (!send_link)
+		return -ENOLINK;
+
+	rc = smc_llc_flow_initiate(lgr, SMC_LLC_FLOW_RKEY);
+	if (rc)
+		return rc;
+	/* protected by llc_flow control */
+	rc = smc_llc_send_delete_rkey(send_link, rmb_desc);
 	if (rc)
 		goto out;
 	/* receive DELETE RKEY response from server over RoCE fabric */
-	rc = wait_for_completion_interruptible_timeout(
-			&link->llc_delete_rkey_resp, SMC_LLC_WAIT_TIME);
-	if (rc <= 0 || link->llc_delete_rkey_resp_rc)
+	qentry = smc_llc_wait(lgr, send_link, SMC_LLC_WAIT_TIME,
+			      SMC_LLC_DELETE_RKEY);
+	if (!qentry || (qentry->msg.raw.hdr.flags & SMC_LLC_FLAG_RKEY_NEG))
 		rc = -EFAULT;
-	else
-		rc = 0;
 out:
-	mutex_unlock(&link->llc_delete_rkey_mutex);
+	if (qentry)
+		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 	return rc;
 }
 
