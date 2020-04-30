@@ -80,7 +80,7 @@ struct error_hdr {
 static inline int convert_error(struct zcrypt_queue *zq,
 				struct ap_message *reply)
 {
-	struct error_hdr *ehdr = reply->message;
+	struct error_hdr *ehdr = reply->msg;
 	int card = AP_QID_CARD(zq->queue->qid);
 	int queue = AP_QID_QUEUE(zq->queue->qid);
 
@@ -127,7 +127,7 @@ static inline int convert_error(struct zcrypt_queue *zq,
 			struct {
 				struct type86_hdr hdr;
 				struct type86_fmt2_ext fmt2;
-			} __packed * head = reply->message;
+			} __packed * head = reply->msg;
 			unsigned int apfs = *((u32 *)head->fmt2.apfs);
 
 			ZCRYPT_DBF(DBF_ERR,

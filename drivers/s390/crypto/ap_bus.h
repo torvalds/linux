@@ -190,16 +190,17 @@ typedef enum ap_wait (ap_func_t)(struct ap_queue *queue);
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long long psmid;	/* Message id. */
-	void *message;			/* Pointer to message buffer. */
-	size_t length;			/* Message length. */
+	void *msg;			/* Pointer to message buffer. */
+	unsigned int len;		/* Message length. */
+	u32 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 	int rc;				/* Return code for this message */
-
 	void *private;			/* ap driver private pointer. */
-	unsigned int special:1;		/* Used for special commands. */
 	/* receive is called from tasklet context */
 	void (*receive)(struct ap_queue *, struct ap_message *,
 			struct ap_message *);
 };
+
+#define AP_MSG_FLAG_SPECIAL  (1 << 16)	/* flag msg as 'special' with NQAP */
 
 /**
  * ap_init_message() - Initialize ap_message.
@@ -218,7 +219,7 @@ static inline void ap_init_message(struct ap_message *ap_msg)
  */
 static inline void ap_release_message(struct ap_message *ap_msg)
 {
-	kzfree(ap_msg->message);
+	kzfree(ap_msg->msg);
 	kzfree(ap_msg->private);
 }
 

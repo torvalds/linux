@@ -87,24 +87,23 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	int rc, i;
 
 	ap_init_message(&ap_msg);
-	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg.message)
+	ap_msg.msg = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!ap_msg.msg)
 		return -ENOMEM;
 
 	rng_type6CPRB_msgX(&ap_msg, 4, &domain);
 
-	msg = ap_msg.message;
+	msg = ap_msg.msg;
 	msg->cprbx.domain = AP_QID_QUEUE(aq->qid);
 
-	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.message,
-		     ap_msg.length);
+	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.msg, ap_msg.len);
 	if (rc)
 		goto out_free;
 
 	/* Wait for the test message to complete. */
 	for (i = 0; i < 2 * HZ; i++) {
 		msleep(1000 / HZ);
-		rc = ap_recv(aq->qid, &psmid, ap_msg.message, 4096);
+		rc = ap_recv(aq->qid, &psmid, ap_msg.msg, 4096);
 		if (rc == 0 && psmid == 0x0102030405060708ULL)
 			break;
 	}
@@ -115,13 +114,13 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 		goto out_free;
 	}
 
-	reply = ap_msg.message;
+	reply = ap_msg.msg;
 	if (reply->cprbx.ccp_rtcode == 0 && reply->cprbx.ccp_rscode == 0)
 		rc = 1;
 	else
 		rc = 0;
 out_free:
-	free_page((unsigned long) ap_msg.message);
+	free_page((unsigned long) ap_msg.msg);
 	return rc;
 }
 

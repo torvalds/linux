@@ -69,9 +69,9 @@ static int ap_queue_enable_interruption(struct ap_queue *aq, void *ind)
  */
 static inline struct ap_queue_status
 __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
-	  unsigned int special)
+	  int special)
 {
-	if (special == 1)
+	if (special)
 		qid |= 0x400000UL;
 	return ap_nqap(qid, psmid, msg, length);
 }
@@ -137,7 +137,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	struct ap_message *ap_msg;
 
 	status = ap_dqap(aq->qid, &aq->reply->psmid,
-			 aq->reply->message, aq->reply->length);
+			 aq->reply->msg, aq->reply->len);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count--;
@@ -216,7 +216,8 @@ static enum ap_wait ap_sm_write(struct ap_queue *aq)
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(aq->requestq.next, struct ap_message, list);
 	status = __ap_send(aq->qid, ap_msg->psmid,
-			   ap_msg->message, ap_msg->length, ap_msg->special);
+			   ap_msg->msg, ap_msg->len,
+			   ap_msg->flags & AP_MSG_FLAG_SPECIAL);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count++;
