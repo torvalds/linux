@@ -296,13 +296,14 @@
  *	to get a list of all present wiphys.
  * @NL80211_CMD_SET_WIPHY: set wiphy parameters, needs %NL80211_ATTR_WIPHY or
  *	%NL80211_ATTR_IFINDEX; can be used to set %NL80211_ATTR_WIPHY_NAME,
- *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ (and the
- *	attributes determining the channel width; this is used for setting
- *	monitor mode channel),  %NL80211_ATTR_WIPHY_RETRY_SHORT,
- *	%NL80211_ATTR_WIPHY_RETRY_LONG, %NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
- *	and/or %NL80211_ATTR_WIPHY_RTS_THRESHOLD.
- *	However, for setting the channel, see %NL80211_CMD_SET_CHANNEL
- *	instead, the support here is for backward compatibility only.
+ *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ,
+ *	%NL80211_ATTR_WIPHY_FREQ_OFFSET (and the attributes determining the
+ *	channel width; this is used for setting monitor mode channel),
+ *	%NL80211_ATTR_WIPHY_RETRY_SHORT, %NL80211_ATTR_WIPHY_RETRY_LONG,
+ *	%NL80211_ATTR_WIPHY_FRAG_THRESHOLD, and/or
+ *	%NL80211_ATTR_WIPHY_RTS_THRESHOLD.  However, for setting the channel,
+ *	see %NL80211_CMD_SET_CHANNEL instead, the support here is for backward
+ *	compatibility only.
  * @NL80211_CMD_NEW_WIPHY: Newly created wiphy, response to get request
  *	or rename notification. Has attributes %NL80211_ATTR_WIPHY and
  *	%NL80211_ATTR_WIPHY_NAME.
@@ -351,7 +352,8 @@
  *	%NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_INACTIVITY_TIMEOUT,
  *	%NL80211_ATTR_ACL_POLICY and %NL80211_ATTR_MAC_ADDRS.
  *	The channel to use can be set on the interface or be given using the
- *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel width.
+ *	%NL80211_ATTR_WIPHY_FREQ and %NL80211_ATTR_WIPHY_FREQ_OFFSET, and the
+ *	attributes determining channel width.
  * @NL80211_CMD_NEW_BEACON: old alias for %NL80211_CMD_START_AP
  * @NL80211_CMD_STOP_AP: Stop AP operation on the given interface
  * @NL80211_CMD_DEL_BEACON: old alias for %NL80211_CMD_STOP_AP
@@ -536,11 +538,12 @@
  *	interface. %NL80211_ATTR_MAC is used to specify PeerSTAAddress (and
  *	BSSID in case of station mode). %NL80211_ATTR_SSID is used to specify
  *	the SSID (mainly for association, but is included in authentication
- *	request, too, to help BSS selection. %NL80211_ATTR_WIPHY_FREQ is used
- *	to specify the frequence of the channel in MHz. %NL80211_ATTR_AUTH_TYPE
- *	is used to specify the authentication type. %NL80211_ATTR_IE is used to
- *	define IEs (VendorSpecificInfo, but also including RSN IE and FT IEs)
- *	to be added to the frame.
+ *	request, too, to help BSS selection. %NL80211_ATTR_WIPHY_FREQ +
+ *	%NL80211_ATTR_WIPHY_FREQ_OFFSET is used to specify the frequence of the
+ *	channel in MHz. %NL80211_ATTR_AUTH_TYPE is used to specify the
+ *	authentication type. %NL80211_ATTR_IE is used to define IEs
+ *	(VendorSpecificInfo, but also including RSN IE and FT IEs) to be added
+ *	to the frame.
  *	When used as an event, this reports reception of an Authentication
  *	frame in station and IBSS modes when the local MLME processed the
  *	frame, i.e., it was for the local STA and was received in correct
@@ -595,8 +598,9 @@
  *	requests to connect to a specified network but without separating
  *	auth and assoc steps. For this, you need to specify the SSID in a
  *	%NL80211_ATTR_SSID attribute, and can optionally specify the association
- *	IEs in %NL80211_ATTR_IE, %NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_USE_MFP,
- *	%NL80211_ATTR_MAC, %NL80211_ATTR_WIPHY_FREQ, %NL80211_ATTR_CONTROL_PORT,
+ *	IEs in %NL80211_ATTR_IE, %NL80211_ATTR_AUTH_TYPE,
+ *	%NL80211_ATTR_USE_MFP, %NL80211_ATTR_MAC, %NL80211_ATTR_WIPHY_FREQ,
+ *	%NL80211_ATTR_WIPHY_FREQ_OFFSET, %NL80211_ATTR_CONTROL_PORT,
  *	%NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
  *	%NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT,
  *	%NL80211_ATTR_CONTROL_PORT_OVER_NL80211, %NL80211_ATTR_MAC_HINT, and
@@ -1433,7 +1437,8 @@ enum nl80211_commands {
  *	of &enum nl80211_chan_width, describing the channel width. See the
  *	documentation of the enum for more information.
  * @NL80211_ATTR_CENTER_FREQ1: Center frequency of the first part of the
- *	channel, used for anything but 20 MHz bandwidth
+ *	channel, used for anything but 20 MHz bandwidth. In S1G this is the
+ *	operating channel center frequency.
  * @NL80211_ATTR_CENTER_FREQ2: Center frequency of the second part of the
  *	channel, used only for 80+80 MHz bandwidth
  * @NL80211_ATTR_WIPHY_CHANNEL_TYPE: included with NL80211_ATTR_WIPHY_FREQ
@@ -2480,9 +2485,14 @@ enum nl80211_commands {
  *	entry without having to force a disconnection after the PMK timeout. If
  *	no roaming occurs between the reauth threshold and PMK expiration,
  *	disassociation is still forced.
- *
  * @NL80211_ATTR_RECEIVE_MULTICAST: multicast flag for the
  *	%NL80211_CMD_REGISTER_FRAME command, see the description there.
+ * @NL80211_ATTR_WIPHY_FREQ_OFFSET: offset of the associated
+ *	%NL80211_ATTR_WIPHY_FREQ in positive KHz. Only valid when supplied with
+ *	an %NL80211_ATTR_WIPHY_FREQ_OFFSET.
+ * @NL80211_ATTR_CENTER_FREQ1_OFFSET: Center frequency offset in KHz for the
+ *	first channel segment specified in %NL80211_ATTR_CENTER_FREQ1.
+ *
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2960,6 +2970,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_PMK_REAUTH_THRESHOLD,
 
 	NL80211_ATTR_RECEIVE_MULTICAST,
+	NL80211_ATTR_WIPHY_FREQ_OFFSET,
+	NL80211_ATTR_CENTER_FREQ1_OFFSET,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3682,6 +3694,7 @@ enum nl80211_wmm_rule {
  *	(see &enum nl80211_wmm_rule)
  * @NL80211_FREQUENCY_ATTR_NO_HE: HE operation is not allowed on this channel
  *	in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_OFFSET: frequency offset in KHz
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -3712,6 +3725,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
 	NL80211_FREQUENCY_ATTR_WMM,
 	NL80211_FREQUENCY_ATTR_NO_HE,
+	NL80211_FREQUENCY_ATTR_OFFSET,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4482,6 +4496,7 @@ enum nl80211_bss_scan_width {
  * @NL80211_BSS_CHAIN_SIGNAL: per-chain signal strength of last BSS update.
  *	Contains a nested array of signal strength attributes (u8, dBm),
  *	using the nesting index as the antenna number.
+ * @NL80211_BSS_FREQUENCY_OFFSET: frequency offset in KHz
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -4506,6 +4521,7 @@ enum nl80211_bss {
 	NL80211_BSS_PARENT_TSF,
 	NL80211_BSS_PARENT_BSSID,
 	NL80211_BSS_CHAIN_SIGNAL,
+	NL80211_BSS_FREQUENCY_OFFSET,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
