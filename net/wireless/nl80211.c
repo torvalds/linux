@@ -640,6 +640,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_PMK_REAUTH_THRESHOLD] = NLA_POLICY_RANGE(NLA_U8, 1, 100),
 	[NL80211_ATTR_RECEIVE_MULTICAST] = { .type = NLA_FLAG },
 	[NL80211_ATTR_WIPHY_FREQ_OFFSET] = NLA_POLICY_RANGE(NLA_U32, 0, 999),
+	[NL80211_ATTR_SCAN_FREQ_KHZ] = { .type = NLA_NESTED },
 };
 
 /* policy for the key attributes */
@@ -7719,6 +7720,8 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct wireless_dev *wdev = info->user_ptr[1];
 	struct cfg80211_scan_request *request;
+	struct nlattr *scan_freqs = NULL;
+	bool scan_freqs_khz = false;
 	struct nlattr *attr;
 	struct wiphy *wiphy;
 	int err, tmp, n_ssids = 0, n_channels, i;
@@ -7737,9 +7740,17 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
-		n_channels = validate_scan_freqs(
-				info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]);
+	if (info->attrs[NL80211_ATTR_SCAN_FREQ_KHZ]) {
+		if (!wiphy_ext_feature_isset(wiphy,
+					     NL80211_EXT_FEATURE_SCAN_FREQ_KHZ))
+			return -EOPNOTSUPP;
+		scan_freqs = info->attrs[NL80211_ATTR_SCAN_FREQ_KHZ];
+		scan_freqs_khz = true;
+	} else if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES])
+		scan_freqs = info->attrs[NL80211_ATTR_SCAN_FREQUENCIES];
+
+	if (scan_freqs) {
+		n_channels = validate_scan_freqs(scan_freqs);
 		if (!n_channels) {
 			err = -EINVAL;
 			goto unlock;
@@ -7787,13 +7798,16 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	i = 0;
-	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
+	if (scan_freqs) {
 		/* user specified, bail out if channel not found */
-		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_FREQUENCIES], tmp) {
+		nla_for_each_nested(attr, scan_freqs, tmp) {
 			struct ieee80211_channel *chan;
+			int freq = nla_get_u32(attr);
 
-			chan = ieee80211_get_channel(wiphy, nla_get_u32(attr));
+			if (!scan_freqs_khz)
+				freq = MHZ_TO_KHZ(freq);
 
+			chan = ieee80211_get_channel_khz(wiphy, freq);
 			if (!chan) {
 				err = -EINVAL;
 				goto out_free;
@@ -15231,14 +15245,27 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	}
 	nla_nest_end(msg, nest);
 
-	nest = nla_nest_start_noflag(msg, NL80211_ATTR_SCAN_FREQUENCIES);
-	if (!nest)
-		goto nla_put_failure;
-	for (i = 0; i < req->n_channels; i++) {
-		if (nla_put_u32(msg, i, req->channels[i]->center_freq))
+	if (req->flags & NL80211_SCAN_FLAG_FREQ_KHZ) {
+		nest = nla_nest_start(msg, NL80211_ATTR_SCAN_FREQ_KHZ);
+		if (!nest)
 			goto nla_put_failure;
+		for (i = 0; i < req->n_channels; i++) {
+			if (nla_put_u32(msg, i,
+				   ieee80211_channel_to_khz(req->channels[i])))
+				goto nla_put_failure;
+		}
+		nla_nest_end(msg, nest);
+	} else {
+		nest = nla_nest_start_noflag(msg,
+					     NL80211_ATTR_SCAN_FREQUENCIES);
+		if (!nest)
+			goto nla_put_failure;
+		for (i = 0; i < req->n_channels; i++) {
+			if (nla_put_u32(msg, i, req->channels[i]->center_freq))
+				goto nla_put_failure;
+		}
+		nla_nest_end(msg, nest);
 	}
-	nla_nest_end(msg, nest);
 
 	if (req->ie &&
 	    nla_put(msg, NL80211_ATTR_IE, req->ie_len, req->ie))
