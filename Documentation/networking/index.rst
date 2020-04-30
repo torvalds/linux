@@ -85,6 +85,7 @@ Contents:
    netdevices
    netfilter-sysctl
    netif-msg
+   nf_conntrack-sysctl
 
 .. only::  subproject and html
 

@@ -1,8 +1,15 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================================
+Netfilter Conntrack Sysfs variables
+===================================
+
 /proc/sys/net/netfilter/nf_conntrack_* Variables:
+=================================================
 
 nf_conntrack_acct - BOOLEAN
-	0 - disabled (default)
-	not 0 - enabled
+	- 0 - disabled (default)
+	- not 0 - enabled
 
 	Enable connection tracking flow accounting. 64-bit byte and packet
 	counters per flow are added.
@@ -16,8 +23,8 @@ nf_conntrack_buckets - INTEGER
 	This sysctl is only writeable in the initial net namespace.
 
 nf_conntrack_checksum - BOOLEAN
-	0 - disabled
-	not 0 - enabled (default)
+	- 0 - disabled
+	- not 0 - enabled (default)
 
 	Verify checksum of incoming packets. Packets with bad checksums are
 	in INVALID state. If this is enabled, such packets will not be
@@ -27,8 +34,8 @@ nf_conntrack_count - INTEGER (read-only)
 	Number of currently allocated flow entries.
 
 nf_conntrack_events - BOOLEAN
-	0 - disabled
-	not 0 - enabled (default)
+	- 0 - disabled
+	- not 0 - enabled (default)
 
 	If this option is enabled, the connection tracking code will
 	provide userspace with connection tracking events via ctnetlink.
@@ -62,8 +69,8 @@ nf_conntrack_generic_timeout - INTEGER (seconds)
 	protocols.
 
 nf_conntrack_helper - BOOLEAN
-	0 - disabled (default)
-	not 0 - enabled
+	- 0 - disabled (default)
+	- not 0 - enabled
 
 	Enable automatic conntrack helper assignment.
 	If disabled it is required to set up iptables rules to assign
@@ -81,14 +88,14 @@ nf_conntrack_icmpv6_timeout - INTEGER (seconds)
 	Default for ICMP6 timeout.
 
 nf_conntrack_log_invalid - INTEGER
-	0   - disable (default)
-	1   - log ICMP packets
-	6   - log TCP packets
-	17  - log UDP packets
-	33  - log DCCP packets
-	41  - log ICMPv6 packets
-	136 - log UDPLITE packets
-	255 - log packets of any protocol
+	- 0   - disable (default)
+	- 1   - log ICMP packets
+	- 6   - log TCP packets
+	- 17  - log UDP packets
+	- 33  - log DCCP packets
+	- 41  - log ICMPv6 packets
+	- 136 - log UDPLITE packets
+	- 255 - log packets of any protocol
 
 	Log invalid packets of a type specified by value.
 
@@ -97,15 +104,15 @@ nf_conntrack_max - INTEGER
 	nf_conntrack_buckets value * 4.
 
 nf_conntrack_tcp_be_liberal - BOOLEAN
-	0 - disabled (default)
-	not 0 - enabled
+	- 0 - disabled (default)
+	- not 0 - enabled
 
 	Be conservative in what you do, be liberal in what you accept from others.
 	If it's non-zero, we mark only out of window RST segments as INVALID.
 
 nf_conntrack_tcp_loose - BOOLEAN
-	0 - disabled
-	not 0 - enabled (default)
+	- 0 - disabled
+	- not 0 - enabled (default)
 
 	If it is set to zero, we disable picking up already established
 	connections.
@@ -148,8 +155,8 @@ nf_conntrack_tcp_timeout_unacknowledged - INTEGER (seconds)
 	default 300
 
 nf_conntrack_timestamp - BOOLEAN
-	0 - disabled (default)
-	not 0 - enabled
+	- 0 - disabled (default)
+	- not 0 - enabled
 
 	Enable connection tracking flow timestamping.
 
