@@ -950,6 +950,7 @@ static int rt5682_headset_detect(struct snd_soc_component *component,
 			break;
 		default:
 			rt5682->jack_type = SND_JACK_HEADPHONE;
+			break;
 		}
 	} else {
 		rt5682_enable_push_button_irq(component, false);
@@ -1526,9 +1527,6 @@ static int rt5682_hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 			RT5682_DAC_ADC_DIG_VOL1, 0x00c0, 0x0000);
 		break;
-
-	default:
-		return 0;
 	}
 
 	return 0;
@@ -1550,9 +1548,6 @@ static int set_dmic_power(struct snd_soc_dapm_widget *w,
 		/*Add delay to avoid pop noise*/
 		msleep(delay);
 		break;
-
-	default:
-		return 0;
 	}
 
 	return 0;
@@ -1576,9 +1571,6 @@ static int rt5682_set_verf(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(component,
 				RT5682_PWR_ANLG_1, RT5682_PWR_FV2, 0);
 			break;
-
-		default:
-			break;
 		}
 		break;
 
@@ -1596,14 +1588,8 @@ static int rt5682_set_verf(struct snd_soc_dapm_widget *w,
 				RT5682_PWR_ANLG_1, RT5682_PWR_FV2,
 				RT5682_PWR_FV2);
 			break;
-
-		default:
-			break;
 		}
 		break;
-
-	default:
-		return 0;
 	}
 
 	return 0;
@@ -2483,8 +2469,7 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_1,
 			RT5682_PWR_BG, 0);
 		break;
-
-	default:
+	case SND_SOC_BIAS_ON:
 		break;
 	}
 
