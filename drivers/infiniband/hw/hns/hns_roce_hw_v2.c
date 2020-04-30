@@ -3977,7 +3977,8 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	/* mtu*(2^LP_PKTN_INI) should not bigger than 1 message length 64kb */
 	roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
-		       V2_QPC_BYTE_56_LP_PKTN_INI_S, 0);
+		       V2_QPC_BYTE_56_LP_PKTN_INI_S,
+		       ilog2(hr_dev->caps.max_sq_inline / IB_MTU_4096));
 	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
 		       V2_QPC_BYTE_56_LP_PKTN_INI_S, 0);
 
