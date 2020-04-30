@@ -1816,7 +1816,7 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		goto disp_results;
 	}
 
-	if (auto_mode && status) {
+	if (status) {
 		ret = isst_pm_qos_config(cpu, 1, 1);
 		if (ret)
 			goto disp_results;
