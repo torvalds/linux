@@ -831,7 +831,21 @@ static struct platform_driver inno_mipi_dphy_driver = {
 	.remove = inno_mipi_dphy_remove,
 };
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init inno_mipi_dphy_driver_init(void)
+{
+	return platform_driver_register(&inno_mipi_dphy_driver);
+}
+fs_initcall(inno_mipi_dphy_driver_init);
+
+static void __exit inno_mipi_dphy_driver_exit(void)
+{
+	platform_driver_unregister(&inno_mipi_dphy_driver);
+}
+module_exit(inno_mipi_dphy_driver_exit);
+#else
 module_platform_driver(inno_mipi_dphy_driver);
+#endif
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
 MODULE_DESCRIPTION("Innosilicon MIPI D-PHY Driver");
