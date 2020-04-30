@@ -680,7 +680,6 @@ unsigned long efi_main(efi_handle_t handle,
 	unsigned long buffer_start, buffer_end;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
-	unsigned long cmdline_paddr;
 
 	efi_system_table = sys_table_arg;
 
@@ -739,9 +738,14 @@ unsigned long efi_main(efi_handle_t handle,
 		image_offset = 0;
 	}
 
-	cmdline_paddr = ((u64)hdr->cmd_line_ptr |
-			 ((u64)boot_params->ext_cmd_line_ptr << 32));
-	efi_parse_options((char *)cmdline_paddr);
+#ifdef CONFIG_CMDLINE_BOOL
+	efi_parse_options(CONFIG_CMDLINE);
+#endif
+	if (!IS_ENABLED(CONFIG_CMDLINE_OVERRIDE)) {
+		unsigned long cmdline_paddr = ((u64)hdr->cmd_line_ptr |
+					       ((u64)boot_params->ext_cmd_line_ptr << 32));
+		efi_parse_options((char *)cmdline_paddr);
+	}
 
 	/*
 	 * At this point, an initrd may already have been loaded by the
