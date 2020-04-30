@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install native dependencies
-        run: sudo apt-get install -y ditaa graphviz
+        run: sudo apt-get update -y && sudo apt-get install -y ditaa graphviz
       - name: Install pip dependencies
         run: sudo pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
       - name: Build documentation
