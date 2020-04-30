@@ -1928,4 +1928,9 @@ static inline bool nla_is_last(const struct nlattr *nla, int rem)
 	return nla->nla_len == rem;
 }
 
+void nla_get_range_unsigned(const struct nla_policy *pt,
+			    struct netlink_range_validation *range);
+void nla_get_range_signed(const struct nla_policy *pt,
+			  struct netlink_range_validation_signed *range);
+
 #endif
