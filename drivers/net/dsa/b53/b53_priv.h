@@ -117,7 +117,7 @@ struct b53_device {
 	u8 jumbo_pm_reg;
 	u8 jumbo_size_reg;
 	int reset_gpio;
-	u8 num_arl_entries;
+	u8 num_arl_bins;
 	enum dsa_tag_protocol tag_protocol;
 
 	/* used ports mask */
