@@ -530,6 +530,8 @@ typedef struct sk_buff *
 typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
+int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk);
+
 enum mlx5e_rq_flag {
 	MLX5E_RQ_FLAG_XDP_XMIT,
 	MLX5E_RQ_FLAG_XDP_REDIRECT,
@@ -812,6 +814,13 @@ struct mlx5e_priv {
 	struct mlx5e_scratchpad    scratchpad;
 };
 
+struct mlx5e_rx_handlers {
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
+};
+
+extern const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic;
+
 struct mlx5e_profile {
 	int	(*init)(struct mlx5_core_dev *mdev,
 			struct net_device *netdev,
@@ -828,10 +837,7 @@ struct mlx5e_profile {
 	void	(*update_carrier)(struct mlx5e_priv *priv);
 	unsigned int (*stats_grps_num)(struct mlx5e_priv *priv);
 	mlx5e_stats_grp_t *stats_grps;
-	struct {
-		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
-		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
-	} rx_handlers;
+	const struct mlx5e_rx_handlers *rx_handlers;
 	int	max_tc;
 	u8	rq_groups;
 };
@@ -860,26 +866,9 @@ void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info);
 void mlx5e_page_release_dynamic(struct mlx5e_rq *rq,
 				struct mlx5e_dma_info *dma_info,
 				bool recycle);
-void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
-void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
 int mlx5e_poll_ico_cq(struct mlx5e_cq *cq);
 bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
-void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
-void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
-struct sk_buff *
-mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
-				u16 cqe_bcnt, u32 head_offset, u32 page_idx);
-struct sk_buff *
-mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
-				   u16 cqe_bcnt, u32 head_offset, u32 page_idx);
-struct sk_buff *
-mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			  struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
-struct sk_buff *
-mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
-
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
 

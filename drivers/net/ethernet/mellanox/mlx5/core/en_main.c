@@ -45,7 +45,6 @@
 #include "en_tc.h"
 #include "en_rep.h"
 #include "en_accel/ipsec.h"
-#include "en_accel/ipsec_rxtx.h"
 #include "en_accel/en_accel.h"
 #include "en_accel/tls.h"
 #include "accel/ipsec.h"
@@ -65,7 +64,6 @@
 #include "en/hv_vhca_stats.h"
 #include "en/devlink.h"
 #include "lib/mlx5.h"
-#include "fpga/ipsec.h"
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 {
@@ -428,29 +426,6 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		pool_size = MLX5_MPWRQ_PAGES_PER_WQE <<
 			mlx5e_mpwqe_get_log_rq_size(params, xsk);
 
-		rq->post_wqes = mlx5e_post_rx_mpwqes;
-		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
-
-		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe_mpwqe;
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if (MLX5_IPSEC_DEV(mdev)) {
-			err = -EINVAL;
-			netdev_err(c->netdev, "MPWQE RQ with IPSec offload not supported\n");
-			goto err_rq_wq_destroy;
-		}
-#endif
-		if (!rq->handle_rx_cqe) {
-			err = -EINVAL;
-			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set, err %d\n", err);
-			goto err_rq_wq_destroy;
-		}
-
-		rq->mpwqe.skb_from_cqe_mpwrq = xsk ?
-			mlx5e_xsk_skb_from_cqe_mpwrq_linear :
-			mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL) ?
-				mlx5e_skb_from_cqe_mpwrq_linear :
-				mlx5e_skb_from_cqe_mpwrq_nonlinear;
-
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 		rq->mpwqe.num_strides =
 			BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk));
@@ -492,29 +467,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		if (err)
 			goto err_free;
 
-		rq->post_wqes = mlx5e_post_rx_wqes;
-		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
-
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
-		    c->priv->ipsec)
-			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
-		else
-#endif
-			rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
-		if (!rq->handle_rx_cqe) {
-			err = -EINVAL;
-			netdev_err(c->netdev, "RX handler of RQ is not set, err %d\n", err);
-			goto err_free;
-		}
-
-		rq->wqe.skb_from_cqe = xsk ?
-			mlx5e_xsk_skb_from_cqe_linear :
-			mlx5e_rx_is_linear_skb(params, NULL) ?
-				mlx5e_skb_from_cqe_linear :
-				mlx5e_skb_from_cqe_nonlinear;
 		rq->mkey_be = c->mkey_be;
 	}
+
+	err = mlx5e_rq_set_handlers(rq, params, xsk);
+	if (err)
+		goto err_free;
 
 	if (xsk) {
 		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
@@ -5288,8 +5246,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.update_rx	   = mlx5e_update_nic_rx,
 	.update_stats	   = mlx5e_update_ndo_stats,
 	.update_carrier	   = mlx5e_update_carrier,
-	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
-	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
+	.rx_handlers       = &mlx5e_rx_handlers_nic,
 	.max_tc		   = MLX5E_MAX_NUM_TC,
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps	   = mlx5e_nic_stats_grps,
