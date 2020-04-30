@@ -93,6 +93,7 @@ Contents:
    phonet
    pktgen
    plip
+   ppp_generic
 
 .. only::  subproject and html
 
