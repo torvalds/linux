@@ -157,6 +157,8 @@ atomisp-objs += \
 	pci/hive_isp_css_common/host/timed_ctrl.o \
 	pci/hive_isp_css_common/host/vmem.o \
 	pci/hive_isp_css_shared/host/tag.o \
+
+obj-byt = \
 	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_configs.o \
 	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_params.o \
 	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_states.o \
@@ -166,7 +168,7 @@ atomisp-objs += \
 # Keep them here handy for when we get to that point
 #
 
-obj-cht= \
+obj-cht = \
 	pci/css_2401_system/spmem_dump.o \
 	pci/css_2401_csi2p_system/spmem_dump.o \
 	pci/css_2401_csi2p_system/hive_isp_css_2401_system_csi2p_generated/ia_css_isp_configs.o \
@@ -176,17 +178,11 @@ obj-cht= \
 	pci/css_2401_csi2p_system/host/ibuf_ctrl.o \
 	pci/css_2401_csi2p_system/host/isys_dma.o \
 	pci/css_2401_csi2p_system/host/isys_irq.o \
-	pci/css_2401_csi2p_system/host/isys_stream2mmio.o \
-	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_configs.o \
-	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_params.o \
-	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_states.o \
+	pci/css_2401_csi2p_system/host/isys_stream2mmio.o
 
-#	-I$(atomisp)/pci/css_2401_system/hrt/ \
-#	-I$(atomisp)/pci/css_2401_csi2p_system/ \
-#	-I$(atomisp)/pci/css_2401_csi2p_system/host/ \
-#	-I$(atomisp)/pci/css_2401_csi2p_system/hrt/ \
-#	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
-#	-I$(atomisp)/pci/css_2401_csi2p_system/hive_isp_css_2401_system_csi2p_generated/ \
+#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_configs.o \
+#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_params.o \
+#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_states.o \
 
 INCLUDES += \
 	-I$(atomisp)/ \
@@ -199,9 +195,6 @@ INCLUDES += \
 	-I$(atomisp)/pci/base/refcount/interface/ \
 	-I$(atomisp)/pci/camera/pipe/interface/ \
 	-I$(atomisp)/pci/camera/util/interface/ \
-	-I$(atomisp)/pci/css_2400_system/ \
-	-I$(atomisp)/pci/css_2400_system/hive_isp_css_2400_system_generated/ \
-	-I$(atomisp)/pci/css_2400_system/hrt/ \
 	-I$(atomisp)/pci/hive_isp_css_common/ \
 	-I$(atomisp)/pci/hive_isp_css_common/host/ \
 	-I$(atomisp)/pci/hive_isp_css_include/ \
@@ -325,6 +318,21 @@ INCLUDES += \
 	-I$(atomisp)/pci/runtime/spctrl/interface/ \
 	-I$(atomisp)/pci/runtime/tagger/interface/
 
+INCLUDES_byt += \
+	-I$(atomisp)/pci/css_2400_system/ \
+	-I$(atomisp)/pci/css_2400_system/hive_isp_css_2400_system_generated/ \
+	-I$(atomisp)/pci/css_2400_system/hrt/ \
+
+INCLUDES_cht += \
+	-I$(atomisp)/pci/css_2401_csi2p_system/ \
+	-I$(atomisp)/pci/css_2401_csi2p_system/host/ \
+	-I$(atomisp)/pci/css_2401_csi2p_system/hive_isp_css_2400_system_generated/ \
+	-I$(atomisp)/pci/css_2401_csi2p_system/hrt/ \
+
+#	-I$(atomisp)/pci/css_2401_system/hrt/ \
+#	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
+
+
 ifeq ($(CONFIG_ION),y)
 INCLUDES += -I$(srctree)/drivers/staging/android/ion
 endif
@@ -337,8 +345,15 @@ DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 #DEFINES += -DPUNIT_CAMERA_BUSY
 #DEFINES += -DUSE_KMEM_CACHE
 
-DEFINES += -DATOMISP_POSTFIX=\"css2400b0_v21\"
-DEFINES += -DSYSTEM_hive_isp_css_2400_system -DISP2400
+ifeq ($(CONFIG_VIDEO_ATOMISP_ISP2401),y)
+atomisp-objs += $(obj-cht)
+INCLUDES += $(INCLUDES_cht)
+DEFINES += -DISP2401 -DISP2401_NEW_INPUT_SYSTEM -DSYSTEM_hive_isp_css_2401_system
+else
+atomisp-objs += $(obj-byt)
+INCLUDES += $(INCLUDES_byt)
+DEFINES += -DISP2400 -DSYSTEM_hive_isp_css_2400_system
+endif
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
 
