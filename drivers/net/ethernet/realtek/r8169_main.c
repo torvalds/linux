@@ -235,10 +235,8 @@ enum rtl_registers {
 #define RTL_COALESCE_RX_USECS	GENMASK(7, 4)
 #define RTL_COALESCE_RX_FRAMES	GENMASK(3, 0)
 
-#define RTL_COALESCE_MASK	0x0f
-#define RTL_COALESCE_SHIFT	4
-#define RTL_COALESCE_T_MAX	(RTL_COALESCE_MASK)
-#define RTL_COALESCE_FRAME_MAX	(RTL_COALESCE_MASK << 2)
+#define RTL_COALESCE_T_MAX	0x0fU
+#define RTL_COALESCE_FRAME_MAX	(RTL_COALESCE_T_MAX * 4)
 
 	RxDescAddrLow	= 0xe4,
 	RxDescAddrHigh	= 0xe8,
@@ -1878,57 +1876,49 @@ static int rtl_coalesce_choose_scale(struct rtl8169_private *tp, u32 usec,
 static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct {
-		u32 frames;
-		u32 usecs;
-	} coal_settings [] = {
-		{ ec->rx_max_coalesced_frames, ec->rx_coalesce_usecs },
-		{ ec->tx_max_coalesced_frames, ec->tx_coalesce_usecs }
-	}, *p = coal_settings;
+	u32 tx_fr = ec->tx_max_coalesced_frames;
+	u32 rx_fr = ec->rx_max_coalesced_frames;
+	u32 coal_usec_max, units;
 	u16 w = 0, cp01 = 0;
-	u32 coal_usec_max;
-	int scale, i;
+	int scale;
 
 	if (rtl_is_8125(tp))
 		return -EOPNOTSUPP;
+
+	if (rx_fr > RTL_COALESCE_FRAME_MAX || tx_fr > RTL_COALESCE_FRAME_MAX)
+		return -ERANGE;
 
 	coal_usec_max = max(ec->rx_coalesce_usecs, ec->tx_coalesce_usecs);
 	scale = rtl_coalesce_choose_scale(tp, coal_usec_max, &cp01);
 	if (scale < 0)
 		return scale;
 
-	for (i = 0; i < 2; i++, p++) {
-		u32 units;
+	/* Accept max_frames=1 we returned in rtl_get_coalesce. Accept it
+	 * not only when usecs=0 because of e.g. the following scenario:
+	 *
+	 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
+	 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
+	 * - then user does `ethtool -C eth0 rx-usecs 100`
+	 *
+	 * Since ethtool sends to kernel whole ethtool_coalesce settings,
+	 * if we want to ignore rx_frames then it has to be set to 0.
+	 */
+	if (rx_fr == 1)
+		rx_fr = 0;
+	if (tx_fr == 1)
+		tx_fr = 0;
 
-		/*
-		 * accept max_frames=1 we returned in rtl_get_coalesce.
-		 * accept it not only when usecs=0 because of e.g. the following scenario:
-		 *
-		 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
-		 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
-		 * - then user does `ethtool -C eth0 rx-usecs 100`
-		 *
-		 * since ethtool sends to kernel whole ethtool_coalesce
-		 * settings, if we want to ignore rx_frames then it has
-		 * to be set to 0.
-		 */
-		if (p->frames == 1) {
-			p->frames = 0;
-		}
+	w |= FIELD_PREP(RTL_COALESCE_TX_FRAMES, DIV_ROUND_UP(tx_fr, 4));
+	w |= FIELD_PREP(RTL_COALESCE_RX_FRAMES, DIV_ROUND_UP(rx_fr, 4));
 
-		units = DIV_ROUND_UP(p->usecs * 1000, scale);
-		if (p->frames > RTL_COALESCE_FRAME_MAX)
-			return -ERANGE;
-
-		w <<= RTL_COALESCE_SHIFT;
-		w |= units;
-		w <<= RTL_COALESCE_SHIFT;
-		w |= DIV_ROUND_UP(p->frames, 4);
-	}
+	units = DIV_ROUND_UP(ec->tx_coalesce_usecs * 1000U, scale);
+	w |= FIELD_PREP(RTL_COALESCE_TX_USECS, units);
+	units = DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000U, scale);
+	w |= FIELD_PREP(RTL_COALESCE_RX_USECS, units);
 
 	rtl_lock_work(tp);
 
-	RTL_W16(tp, IntrMitigate, swab16(w));
+	RTL_W16(tp, IntrMitigate, w);
 
 	tp->cp_cmd = (tp->cp_cmd & ~INTT_MASK) | cp01;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
