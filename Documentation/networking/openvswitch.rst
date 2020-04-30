@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=============================================
 Open vSwitch datapath developer documentation
 =============================================
 
@@ -80,13 +83,13 @@ The <linux/openvswitch.h> header file defines the exact format of the
 flow key attributes.  For informal explanatory purposes here, we write
 them as comma-separated strings, with parentheses indicating arguments
 and nesting.  For example, the following could represent a flow key
-corresponding to a TCP packet that arrived on vport 1:
+corresponding to a TCP packet that arrived on vport 1::
 
     in_port(1), eth(src=e0:91:f5:21:d0:b2, dst=00:02:e3:0f:80:a4),
     eth_type(0x0800), ipv4(src=172.16.0.20, dst=172.18.0.52, proto=17, tos=0,
     frag=no), tcp(src=49163, dst=80)
 
-Often we ellipsize arguments not important to the discussion, e.g.:
+Often we ellipsize arguments not important to the discussion, e.g.::
 
     in_port(1), eth(...), eth_type(0x0800), ipv4(...), tcp(...)
 
@@ -151,20 +154,20 @@ Some care is needed to really maintain forward and backward
 compatibility for applications that follow the rules listed under
 "Flow key compatibility" above.
 
-The basic rule is obvious:
+The basic rule is obvious::
 
-    ------------------------------------------------------------------
+    ==================================================================
     New network protocol support must only supplement existing flow
     key attributes.  It must not change the meaning of already defined
     flow key attributes.
-    ------------------------------------------------------------------
+    ==================================================================
 
 This rule does have less-obvious consequences so it is worth working
 through a few examples.  Suppose, for example, that the kernel module
 did not already implement VLAN parsing.  Instead, it just interpreted
 the 802.1Q TPID (0x8100) as the Ethertype then stopped parsing the
 packet.  The flow key for any packet with an 802.1Q header would look
-essentially like this, ignoring metadata:
+essentially like this, ignoring metadata::
 
     eth(...), eth_type(0x8100)
 
@@ -172,7 +175,7 @@ Naively, to add VLAN support, it makes sense to add a new "vlan" flow
 key attribute to contain the VLAN tag, then continue to decode the
 encapsulated headers beyond the VLAN tag using the existing field
 definitions.  With this change, a TCP packet in VLAN 10 would have a
-flow key much like this:
+flow key much like this::
 
     eth(...), vlan(vid=10, pcp=0), eth_type(0x0800), ip(proto=6, ...), tcp(...)
 
@@ -187,7 +190,7 @@ across kernel versions even though it follows the compatibility rules.
 
 The solution is to use a set of nested attributes.  This is, for
 example, why 802.1Q support uses nested attributes.  A TCP packet in
-VLAN 10 is actually expressed as:
+VLAN 10 is actually expressed as::
 
     eth(...), eth_type(0x8100), vlan(vid=10, pcp=0), encap(eth_type(0x0800),
     ip(proto=6, ...), tcp(...)))
@@ -215,14 +218,14 @@ For example, consider a packet that contains an IP header that
 indicates protocol 6 for TCP, but which is truncated just after the IP
 header, so that the TCP header is missing.  The flow key for this
 packet would include a tcp attribute with all-zero src and dst, like
-this:
+this::
 
     eth(...), eth_type(0x0800), ip(proto=6, ...), tcp(src=0, dst=0)
 
 As another example, consider a packet with an Ethernet type of 0x8100,
 indicating that a VLAN TCI should follow, but which is truncated just
 after the Ethernet type.  The flow key for this packet would include
-an all-zero-bits vlan and an empty encap attribute, like this:
+an all-zero-bits vlan and an empty encap attribute, like this::
 
     eth(...), eth_type(0x8100), vlan(0), encap()
 

@@ -87,6 +87,7 @@ Contents:
    netif-msg
    nf_conntrack-sysctl
    nf_flowtable
+   openvswitch
 
 .. only::  subproject and html
 
