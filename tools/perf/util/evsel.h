@@ -293,12 +293,11 @@ static inline int evsel__read_on_cpu_scaled(struct evsel *evsel, int cpu, int th
 	return __evsel__read_on_cpu(evsel, cpu, thread, true);
 }
 
-int perf_evsel__parse_sample(struct evsel *evsel, union perf_event *event,
-			     struct perf_sample *sample);
+int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
+			struct perf_sample *sample);
 
-int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
-				       union perf_event *event,
-				       u64 *timestamp);
+int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
+				  u64 *timestamp);
 
 static inline struct evsel *perf_evsel__next(struct evsel *evsel)
 {
