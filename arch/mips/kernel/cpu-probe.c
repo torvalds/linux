@@ -1999,8 +1999,11 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		 * Loongson-3 Classic did not implement MIPS standard TLBINV
 		 * but implemented TLBINVF and EHINV. As currently we're only
 		 * using these two features, enable MIPS_CPU_TLBINV as well.
+		 *
+		 * Also some early Loongson-3A2000 had wrong TLB type in Config
+		 * register, we correct it here.
 		 */
-		c->options |= MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
+		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
 			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
