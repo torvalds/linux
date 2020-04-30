@@ -693,6 +693,13 @@ void hw_atl_rpfl2multicast_flr_en_set(struct aq_hw_s *aq_hw,
 			    HW_ATL_RPFL2MC_ENF_SHIFT, l2multicast_flr_en);
 }
 
+u32 hw_atl_rpfl2promiscuous_mode_en_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RPFL2PROMIS_MODE_ADR,
+				  HW_ATL_RPFL2PROMIS_MODE_MSK,
+				  HW_ATL_RPFL2PROMIS_MODE_SHIFT);
+}
+
 void hw_atl_rpfl2promiscuous_mode_en_set(struct aq_hw_s *aq_hw,
 					 u32 l2promiscuous_mode_en)
 {
@@ -865,6 +872,13 @@ void hw_atl_rpf_vlan_prom_mode_en_set(struct aq_hw_s *aq_hw,
 			    HW_ATL_RPF_VL_PROMIS_MODE_MSK,
 			    HW_ATL_RPF_VL_PROMIS_MODE_SHIFT,
 			    vlan_prom_mode_en);
+}
+
+u32 hw_atl_rpf_vlan_prom_mode_en_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RPF_VL_PROMIS_MODE_ADR,
+				  HW_ATL_RPF_VL_PROMIS_MODE_MSK,
+				  HW_ATL_RPF_VL_PROMIS_MODE_SHIFT);
 }
 
 void hw_atl_rpf_vlan_accept_untagged_packets_set(struct aq_hw_s *aq_hw,
