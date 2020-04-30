@@ -222,6 +222,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct sock *parent = subflow->conn;
+	struct tcp_sock *tp = tcp_sk(sk);
 
 	subflow->icsk_af_ops->sk_rx_dst_set(sk, skb);
 
@@ -230,14 +231,35 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 		parent->sk_state_change(parent);
 	}
 
-	if (subflow->conn_finished || !tcp_sk(sk)->is_mptcp)
+	/* be sure no special action on any packet other than syn-ack */
+	if (subflow->conn_finished)
+		return;
+
+	subflow->conn_finished = 1;
+
+	if (subflow->request_mptcp && tp->rx_opt.mptcp.mp_capable) {
+		subflow->mp_capable = 1;
+		subflow->can_ack = 1;
+		subflow->remote_key = tp->rx_opt.mptcp.sndr_key;
+		pr_debug("subflow=%p, remote_key=%llu", subflow,
+			 subflow->remote_key);
+	} else if (subflow->request_join && tp->rx_opt.mptcp.mp_join) {
+		subflow->mp_join = 1;
+		subflow->thmac = tp->rx_opt.mptcp.thmac;
+		subflow->remote_nonce = tp->rx_opt.mptcp.nonce;
+		pr_debug("subflow=%p, thmac=%llu, remote_nonce=%u", subflow,
+			 subflow->thmac, subflow->remote_nonce);
+	} else if (subflow->request_mptcp) {
+		tp->is_mptcp = 0;
+	}
+
+	if (!tp->is_mptcp)
 		return;
 
 	if (subflow->mp_capable) {
 		pr_debug("subflow=%p, remote_key=%llu", mptcp_subflow_ctx(sk),
 			 subflow->remote_key);
 		mptcp_finish_connect(sk);
-		subflow->conn_finished = 1;
 
 		if (skb) {
 			pr_debug("synack seq=%u", TCP_SKB_CB(skb)->seq);
@@ -264,7 +286,6 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 		if (!mptcp_finish_join(sk))
 			goto do_reset;
 
-		subflow->conn_finished = 1;
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINSYNACKRX);
 	} else {
 do_reset:

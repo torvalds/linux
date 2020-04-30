@@ -344,28 +344,6 @@ bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
 	return false;
 }
 
-void mptcp_rcv_synsent(struct sock *sk)
-{
-	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (subflow->request_mptcp && tp->rx_opt.mptcp.mp_capable) {
-		subflow->mp_capable = 1;
-		subflow->can_ack = 1;
-		subflow->remote_key = tp->rx_opt.mptcp.sndr_key;
-		pr_debug("subflow=%p, remote_key=%llu", subflow,
-			 subflow->remote_key);
-	} else if (subflow->request_join && tp->rx_opt.mptcp.mp_join) {
-		subflow->mp_join = 1;
-		subflow->thmac = tp->rx_opt.mptcp.thmac;
-		subflow->remote_nonce = tp->rx_opt.mptcp.nonce;
-		pr_debug("subflow=%p, thmac=%llu, remote_nonce=%u", subflow,
-			 subflow->thmac, subflow->remote_nonce);
-	} else if (subflow->request_mptcp) {
-		tcp_sk(sk)->is_mptcp = 0;
-	}
-}
-
 /* MP_JOIN client subflow must wait for 4th ack before sending any data:
  * TCP can't schedule delack timer before the subflow is fully established.
  * MPTCP uses the delack timer to do 3rd ack retransmissions
