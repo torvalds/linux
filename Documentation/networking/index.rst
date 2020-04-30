@@ -103,6 +103,7 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   skfp
 
 .. only::  subproject and html
 
