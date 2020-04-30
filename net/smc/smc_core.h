@@ -123,8 +123,6 @@ struct smc_link {
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
-	struct completion	llc_confirm_rkey_resp; /* w4 rx of cnf rkey */
-	int			llc_confirm_rkey_resp_rc; /* rc from cnf rkey */
 	struct completion	llc_delete_rkey_resp; /* w4 rx of del rkey */
 	int			llc_delete_rkey_resp_rc; /* rc from del rkey */
 	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
