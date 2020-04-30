@@ -10,6 +10,11 @@
 
 struct aq_hw_s;
 
+/* Set TX Interrupt Moderation Control Register */
+void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
+					u32 tx_intr_moderation_ctl,
+					u32 queue);
+
 /** Set RSS HASH type */
 void hw_atl2_rpf_rss_hash_type_set(struct aq_hw_s *aq_hw, u32 rss_hash_type);
 

@@ -68,6 +68,14 @@ void hw_atl2_tpb_tx_buf_clk_gate_en_set(struct aq_hw_s *aq_hw, u32 clk_gate_en)
 			    clk_gate_en);
 }
 
+void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
+					u32 tx_intr_moderation_ctl,
+					u32 queue)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL2_TX_INTR_MODERATION_CTL_ADR(queue),
+			tx_intr_moderation_ctl);
+}
+
 void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 						    u32 max_credit,
 						    u32 tc)

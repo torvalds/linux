@@ -178,6 +178,14 @@
 /* default value of bitfield data_tc{t}_weight[8:0] */
 #define HW_ATL2_TPS_DATA_TCTWEIGHT_DEFAULT 0x0
 
+/* tx interrupt moderation control register definitions
+ * Preprocessor definitions for TX Interrupt Moderation Control Register
+ * Base Address: 0x00007c28
+ * Parameter: queue {Q} | stride size 0x4 | range [0, 31]
+ */
+
+#define HW_ATL2_TX_INTR_MODERATION_CTL_ADR(queue) (0x00007c28u + (queue) * 0x40)
+
 /* Launch time control register */
 #define HW_ATL2_LT_CTRL_ADR 0x00007a1c
 

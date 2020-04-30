@@ -5,6 +5,7 @@
 
 #include "aq_hw.h"
 #include "aq_hw_utils.h"
+#include "aq_ring.h"
 #include "aq_nic.h"
 #include "hw_atl/hw_atl_b0.h"
 #include "hw_atl/hw_atl_utils.h"
@@ -172,12 +173,6 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 		hw_atl2_new_rpf_rss_redir_set(self, 0, i, indirection_table[i]);
 
 	return hw_atl_b0_hw_rss_set(self, rss_params);
-}
-
-static int hw_atl2_hw_offload_set(struct aq_hw_s *self,
-				  struct aq_nic_cfg_s *aq_nic_cfg)
-{
-	return -EOPNOTSUPP;
 }
 
 static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
@@ -359,11 +354,6 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl2_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr)
-{
-	return -EOPNOTSUPP;
-}
-
 static int hw_atl2_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 {
 	static u32 aq_hw_atl2_igcr_table_[4][2] = {
@@ -390,7 +380,7 @@ static int hw_atl2_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	hw_atl2_hw_init_tx_path(self);
 	hw_atl2_hw_init_rx_path(self);
 
-	hw_atl2_hw_mac_addr_set(self, mac_addr);
+	hw_atl_b0_hw_mac_addr_set(self, mac_addr);
 
 	self->aq_fw_ops->set_link_speed(self, aq_nic_cfg->link_speed_msk);
 	self->aq_fw_ops->set_state(self, MPI_INIT);
@@ -424,61 +414,24 @@ static int hw_atl2_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 				   ((HW_ATL2_ERR_INT << 0x10) |
 				    (1U << 0x17)), 0U);
 
-	hw_atl2_hw_offload_set(self, aq_nic_cfg);
+	hw_atl_b0_hw_offload_set(self, aq_nic_cfg);
 
 err_exit:
 	return err;
-}
-
-static int hw_atl2_hw_ring_tx_start(struct aq_hw_s *self,
-				    struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_rx_start(struct aq_hw_s *self,
-				    struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_tx_xmit(struct aq_hw_s *self,
-				   struct aq_ring_s *ring,
-				   unsigned int frags)
-{
-	return -EOPNOTSUPP;
 }
 
 static int hw_atl2_hw_ring_rx_init(struct aq_hw_s *self,
 				   struct aq_ring_s *aq_ring,
 				   struct aq_ring_param_s *aq_ring_param)
 {
-	return -EOPNOTSUPP;
+	return hw_atl_b0_hw_ring_rx_init(self, aq_ring, aq_ring_param);
 }
 
 static int hw_atl2_hw_ring_tx_init(struct aq_hw_s *self,
 				   struct aq_ring_s *aq_ring,
 				   struct aq_ring_param_s *aq_ring_param)
 {
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_rx_fill(struct aq_hw_s *self, struct aq_ring_s *ring,
-				   unsigned int sw_tail_old)
-{
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_tx_head_update(struct aq_hw_s *self,
-					  struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_rx_receive(struct aq_hw_s *self,
-				      struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
+	return hw_atl_b0_hw_ring_tx_init(self, aq_ring, aq_ring_param);
 }
 
 #define IS_FILTER_ENABLED(_F_) ((packet_filter & (_F_)) ? 1U : 0U)
@@ -536,7 +489,94 @@ err_exit:
 
 static int hw_atl2_hw_interrupt_moderation_set(struct aq_hw_s *self)
 {
-	return -EOPNOTSUPP;
+	unsigned int i = 0U;
+	u32 itr_tx = 2U;
+	u32 itr_rx = 2U;
+
+	switch (self->aq_nic_cfg->itr) {
+	case  AQ_CFG_INTERRUPT_MODERATION_ON:
+	case  AQ_CFG_INTERRUPT_MODERATION_AUTO:
+		hw_atl_tdm_tx_desc_wr_wb_irq_en_set(self, 0U);
+		hw_atl_tdm_tdm_intr_moder_en_set(self, 1U);
+		hw_atl_rdm_rx_desc_wr_wb_irq_en_set(self, 0U);
+		hw_atl_rdm_rdm_intr_moder_en_set(self, 1U);
+
+		if (self->aq_nic_cfg->itr == AQ_CFG_INTERRUPT_MODERATION_ON) {
+			/* HW timers are in 2us units */
+			int tx_max_timer = self->aq_nic_cfg->tx_itr / 2;
+			int tx_min_timer = tx_max_timer / 2;
+
+			int rx_max_timer = self->aq_nic_cfg->rx_itr / 2;
+			int rx_min_timer = rx_max_timer / 2;
+
+			tx_max_timer = min(HW_ATL2_INTR_MODER_MAX,
+					   tx_max_timer);
+			tx_min_timer = min(HW_ATL2_INTR_MODER_MIN,
+					   tx_min_timer);
+			rx_max_timer = min(HW_ATL2_INTR_MODER_MAX,
+					   rx_max_timer);
+			rx_min_timer = min(HW_ATL2_INTR_MODER_MIN,
+					   rx_min_timer);
+
+			itr_tx |= tx_min_timer << 0x8U;
+			itr_tx |= tx_max_timer << 0x10U;
+			itr_rx |= rx_min_timer << 0x8U;
+			itr_rx |= rx_max_timer << 0x10U;
+		} else {
+			static unsigned int hw_atl2_timers_table_tx_[][2] = {
+				{0xfU, 0xffU}, /* 10Gbit */
+				{0xfU, 0x1ffU}, /* 5Gbit */
+				{0xfU, 0x1ffU}, /* 5Gbit 5GS */
+				{0xfU, 0x1ffU}, /* 2.5Gbit */
+				{0xfU, 0x1ffU}, /* 1Gbit */
+				{0xfU, 0x1ffU}, /* 100Mbit */
+			};
+			static unsigned int hw_atl2_timers_table_rx_[][2] = {
+				{0x6U, 0x38U},/* 10Gbit */
+				{0xCU, 0x70U},/* 5Gbit */
+				{0xCU, 0x70U},/* 5Gbit 5GS */
+				{0x18U, 0xE0U},/* 2.5Gbit */
+				{0x30U, 0x80U},/* 1Gbit */
+				{0x4U, 0x50U},/* 100Mbit */
+			};
+			unsigned int mbps = self->aq_link_status.mbps;
+			unsigned int speed_index;
+
+			speed_index = hw_atl_utils_mbps_2_speed_index(mbps);
+
+			/* Update user visible ITR settings */
+			self->aq_nic_cfg->tx_itr = hw_atl2_timers_table_tx_
+							[speed_index][1] * 2;
+			self->aq_nic_cfg->rx_itr = hw_atl2_timers_table_rx_
+							[speed_index][1] * 2;
+
+			itr_tx |= hw_atl2_timers_table_tx_
+						[speed_index][0] << 0x8U;
+			itr_tx |= hw_atl2_timers_table_tx_
+						[speed_index][1] << 0x10U;
+
+			itr_rx |= hw_atl2_timers_table_rx_
+						[speed_index][0] << 0x8U;
+			itr_rx |= hw_atl2_timers_table_rx_
+						[speed_index][1] << 0x10U;
+		}
+		break;
+	case AQ_CFG_INTERRUPT_MODERATION_OFF:
+		hw_atl_tdm_tx_desc_wr_wb_irq_en_set(self, 1U);
+		hw_atl_tdm_tdm_intr_moder_en_set(self, 0U);
+		hw_atl_rdm_rx_desc_wr_wb_irq_en_set(self, 1U);
+		hw_atl_rdm_rdm_intr_moder_en_set(self, 0U);
+		itr_tx = 0U;
+		itr_rx = 0U;
+		break;
+	}
+
+	for (i = HW_ATL2_RINGS_MAX; i--;) {
+		hw_atl2_reg_tx_intr_moder_ctrl_set(self, itr_tx, i);
+		hw_atl_reg_rx_intr_moder_ctrl_set(self, itr_rx, i);
+	}
+
+	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl2_hw_stop(struct aq_hw_s *self)
@@ -544,16 +584,6 @@ static int hw_atl2_hw_stop(struct aq_hw_s *self)
 	hw_atl_b0_hw_irq_disable(self, HW_ATL2_INT_MASK);
 
 	return 0;
-}
-
-static int hw_atl2_hw_ring_tx_stop(struct aq_hw_s *self, struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
-}
-
-static int hw_atl2_hw_ring_rx_stop(struct aq_hw_s *self, struct aq_ring_s *ring)
-{
-	return -EOPNOTSUPP;
 }
 
 static struct aq_stats_s *hw_atl2_utils_get_hw_stats(struct aq_hw_s *self)
@@ -619,21 +649,21 @@ static int hw_atl2_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 const struct aq_hw_ops hw_atl2_ops = {
 	.hw_soft_reset        = hw_atl2_utils_soft_reset,
 	.hw_prepare           = hw_atl2_utils_initfw,
-	.hw_set_mac_address   = hw_atl2_hw_mac_addr_set,
+	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl2_hw_init,
 	.hw_reset             = hw_atl2_hw_reset,
 	.hw_start             = hw_atl_b0_hw_start,
-	.hw_ring_tx_start     = hw_atl2_hw_ring_tx_start,
-	.hw_ring_tx_stop      = hw_atl2_hw_ring_tx_stop,
-	.hw_ring_rx_start     = hw_atl2_hw_ring_rx_start,
-	.hw_ring_rx_stop      = hw_atl2_hw_ring_rx_stop,
+	.hw_ring_tx_start     = hw_atl_b0_hw_ring_tx_start,
+	.hw_ring_tx_stop      = hw_atl_b0_hw_ring_tx_stop,
+	.hw_ring_rx_start     = hw_atl_b0_hw_ring_rx_start,
+	.hw_ring_rx_stop      = hw_atl_b0_hw_ring_rx_stop,
 	.hw_stop              = hw_atl2_hw_stop,
 
-	.hw_ring_tx_xmit         = hw_atl2_hw_ring_tx_xmit,
-	.hw_ring_tx_head_update  = hw_atl2_hw_ring_tx_head_update,
+	.hw_ring_tx_xmit         = hw_atl_b0_hw_ring_tx_xmit,
+	.hw_ring_tx_head_update  = hw_atl_b0_hw_ring_tx_head_update,
 
-	.hw_ring_rx_receive      = hw_atl2_hw_ring_rx_receive,
-	.hw_ring_rx_fill         = hw_atl2_hw_ring_rx_fill,
+	.hw_ring_rx_receive      = hw_atl_b0_hw_ring_rx_receive,
+	.hw_ring_rx_fill         = hw_atl_b0_hw_ring_rx_fill,
 
 	.hw_irq_enable           = hw_atl_b0_hw_irq_enable,
 	.hw_irq_disable          = hw_atl_b0_hw_irq_disable,
@@ -650,5 +680,5 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_rss_hash_set             = hw_atl_b0_hw_rss_hash_set,
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
-	.hw_set_offload              = hw_atl2_hw_offload_set,
+	.hw_set_offload              = hw_atl_b0_hw_offload_set,
 };
