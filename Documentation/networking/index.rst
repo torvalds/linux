@@ -74,6 +74,7 @@ Contents:
    ipvlan
    ipvs-sysctl
    kcm
+   l2tp
 
 .. only::  subproject and html
 
