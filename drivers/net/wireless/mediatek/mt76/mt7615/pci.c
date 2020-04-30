@@ -39,13 +39,21 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret)
-		return ret;
+		goto error;
 
 	mt76_pci_disable_aspm(pdev);
 
 	map = id->device == 0x7663 ? mt7663e_reg_map : mt7615e_reg_map;
-	return mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
-				 pdev->irq, map);
+	ret = mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+				pdev->irq, map);
+	if (ret)
+		goto error;
+
+	return 0;
+error:
+	pci_free_irq_vectors(pdev);
+
+	return ret;
 }
 
 static void mt7615_pci_remove(struct pci_dev *pdev)
@@ -54,6 +62,7 @@ static void mt7615_pci_remove(struct pci_dev *pdev)
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
 	mt7615_unregister_device(dev);
+	devm_free_irq(&pdev->dev, pdev->irq, dev);
 	pci_free_irq_vectors(pdev);
 }
 
