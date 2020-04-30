@@ -5255,10 +5255,6 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 				trans_offset_b;
 	} else {
 		res_blocks = wm0_sel_res_b + trans_offset_b;
-
-		/* WA BUG:1938466 add one block for non y-tile planes */
-		if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))
-			res_blocks += 1;
 	}
 
 	/*
@@ -6978,9 +6974,6 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	val = I915_READ(SLICE_UNIT_LEVEL_CLKGATE);
 	/* ReadHitWriteOnlyDisable:cnl */
 	val |= RCCUNIT_CLKGATE_DIS;
-	/* WaSarbUnitClockGatingDisable:cnl (pre-prod) */
-	if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_B0))
-		val |= SARBUNIT_CLKGATE_DIS;
 	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 
 	/* Wa_2201832410:cnl */
