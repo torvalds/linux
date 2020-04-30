@@ -108,8 +108,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200417"
-#define DRIVER_TIMESTAMP	1587105300
+#define DRIVER_DATE		"20200430"
+#define DRIVER_TIMESTAMP	1588234401
 
 struct drm_i915_gem_object;
 
