@@ -2116,6 +2116,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 
 	dev_info(ionic->dev, "FW Up: restarting LIFs\n");
 
+	ionic_init_devinfo(ionic);
 	err = ionic_qcqs_alloc(lif);
 	if (err)
 		goto err_out;
