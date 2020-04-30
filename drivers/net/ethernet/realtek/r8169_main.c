@@ -1909,21 +1909,21 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 		 * - then user does `ethtool -C eth0 rx-usecs 100`
 		 *
 		 * since ethtool sends to kernel whole ethtool_coalesce
-		 * settings, if we do not handle rx_usecs=!0, rx_frames=1
-		 * we'll reject it below in `frames % 4 != 0`.
+		 * settings, if we want to ignore rx_frames then it has
+		 * to be set to 0.
 		 */
 		if (p->frames == 1) {
 			p->frames = 0;
 		}
 
-		units = p->usecs * 1000 / scale;
-		if (p->frames > RTL_COALESCE_FRAME_MAX || p->frames % 4)
-			return -EINVAL;
+		units = DIV_ROUND_UP(p->usecs * 1000, scale);
+		if (p->frames > RTL_COALESCE_FRAME_MAX)
+			return -ERANGE;
 
 		w <<= RTL_COALESCE_SHIFT;
 		w |= units;
 		w <<= RTL_COALESCE_SHIFT;
-		w |= p->frames >> 2;
+		w |= DIV_ROUND_UP(p->frames, 4);
 	}
 
 	rtl_lock_work(tp);
