@@ -1902,7 +1902,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 
 
-	if (ramp->type == GAMMA_CUSTOM)
+	if (ramp && ramp->type == GAMMA_CUSTOM)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;

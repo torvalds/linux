@@ -75,9 +75,13 @@ struct hw_sequencer_funcs {
 	void (*wait_for_mpcc_disconnect)(struct dc *dc,
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
+	void (*edp_backlight_control)(
+			struct dc_link *link,
+			bool enable);
 	void (*program_triplebuffer)(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
+	void (*power_down)(struct dc *dc);
 
 	/* Pipe Lock Related */
 	void (*pipe_control_lock)(struct dc *dc,

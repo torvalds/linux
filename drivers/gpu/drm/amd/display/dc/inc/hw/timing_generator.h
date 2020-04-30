@@ -117,6 +117,9 @@ struct crc_params {
 
 	enum crc_selection selection;
 
+	uint8_t dsc_mode;
+	uint8_t odm_mode;
+
 	bool continuous_mode;
 	bool enable;
 };

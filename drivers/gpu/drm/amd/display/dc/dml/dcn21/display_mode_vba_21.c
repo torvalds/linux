@@ -5944,7 +5944,7 @@ static void CalculateMetaAndPTETimes(
 						* PixelPTEReqHeightY[k];
 			}
 			dpte_groups_per_row_luma_ub = dml_ceil(
-					dpte_row_width_luma_ub[k] / dpte_group_width_luma,
+					(float) dpte_row_width_luma_ub[k] / dpte_group_width_luma,
 					1);
 			time_per_pte_group_nom_luma[k] = DST_Y_PER_PTE_ROW_NOM_L[k] * HTotal[k]
 					/ PixelClock[k] / dpte_groups_per_row_luma_ub;
@@ -5968,7 +5968,7 @@ static void CalculateMetaAndPTETimes(
 							* PixelPTEReqHeightC[k];
 				}
 				dpte_groups_per_row_chroma_ub = dml_ceil(
-						dpte_row_width_chroma_ub[k]
+						(float) dpte_row_width_chroma_ub[k]
 								/ dpte_group_width_chroma,
 						1);
 				time_per_pte_group_nom_chroma[k] = DST_Y_PER_PTE_ROW_NOM_C[k]

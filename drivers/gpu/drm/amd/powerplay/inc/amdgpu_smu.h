@@ -405,7 +405,9 @@ struct smu_context
 	bool pm_enabled;
 	bool is_apu;
 
-	uint32_t smc_if_version;
+	uint32_t smc_driver_if_version;
+	uint32_t smc_fw_if_version;
+	uint32_t smc_fw_version;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
@@ -579,11 +581,6 @@ int smu_load_microcode(struct smu_context *smu);
 int smu_check_fw_status(struct smu_context *smu);
 
 int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
-
-#define smu_i2c_eeprom_init(smu, control) \
-		((smu)->ppt_funcs->i2c_eeprom_init ? (smu)->ppt_funcs->i2c_eeprom_init((control)) : -EINVAL)
-#define smu_i2c_eeprom_fini(smu, control) \
-		((smu)->ppt_funcs->i2c_eeprom_fini ? (smu)->ppt_funcs->i2c_eeprom_fini((control)) : -EINVAL)
 
 int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 

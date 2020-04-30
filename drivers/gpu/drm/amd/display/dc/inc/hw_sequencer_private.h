@@ -100,8 +100,6 @@ struct hwseq_private_funcs {
 			struct dc *dc);
 	void (*edp_backlight_control)(struct dc_link *link,
 			bool enable);
-	bool (*is_panel_backlight_on)(struct dc_link *link);
-	bool (*is_panel_powered_on)(struct dc_link *link);
 	void (*setup_vupdate_interrupt)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx);
 	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);

@@ -445,7 +445,7 @@ bool dm_helpers_dp_read_dpcd(
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+		DC_LOG_DC("Failed to find connector for link!\n");
 		return false;
 	}
 

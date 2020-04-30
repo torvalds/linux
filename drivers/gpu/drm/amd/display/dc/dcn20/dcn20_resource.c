@@ -61,6 +61,7 @@
 #include "dcn20_dccg.h"
 #include "dcn20_vmid.h"
 #include "dc_link_ddc.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "navi10_ip_offset.h"
 
@@ -687,6 +688,18 @@ static const struct dcn10_link_enc_mask le_mask = {
 	DPCS_DCN2_MASK_SH_LIST(_MASK)
 };
 
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCN_PANEL_CNTL_REG_LIST() }
+};
+
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
+};
+
 #define ipp_regs(id)\
 [id] = {\
 	IPP_REG_LIST_DCN20(id),\
@@ -1287,6 +1300,23 @@ struct link_encoder *dcn20_link_encoder_create(
 				      &le_mask);
 
 	return &enc20->enc10.base;
+}
+
+static struct panel_cntl *dcn20_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+{
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+
+	if (!panel_cntl)
+		return NULL;
+
+	dce_panel_cntl_construct(panel_cntl,
+			init_data,
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
+
+	return &panel_cntl->base;
 }
 
 struct clock_source *dcn20_clock_source_create(
@@ -2212,12 +2242,12 @@ int dcn20_populate_dml_pipes_from_context(
 					|| pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
-			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport.y;
-			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c.y;
-			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport.width;
-			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c.width;
-			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport.height;
-			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c.height;
+			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport_unadjusted.y;
+			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c_unadjusted.y;
+			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport_unadjusted.width;
+			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c_unadjusted.width;
+			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport_unadjusted.height;
+			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c_unadjusted.height;
 			pipes[pipe_cnt].pipe.src.surface_width_y = pln->plane_size.surface_size.width;
 			pipes[pipe_cnt].pipe.src.surface_height_y = pln->plane_size.surface_size.height;
 			pipes[pipe_cnt].pipe.src.surface_width_c = pln->plane_size.chroma_size.width;
@@ -3003,7 +3033,7 @@ void dcn20_calculate_dlg_params(
 				pipe_idx,
 				cstate_en,
 				context->bw_ctx.bw.dcn.clk.p_state_change_support,
-				false, false, false);
+				false, false, true);
 
 		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].rq_regs,
@@ -3189,6 +3219,7 @@ enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 static struct resource_funcs dcn20_res_pool_funcs = {
 	.destroy = dcn20_destroy_resource_pool,
 	.link_enc_create = dcn20_link_encoder_create,
+	.panel_cntl_create = dcn20_panel_cntl_create,
 	.validate_bandwidth = dcn20_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,

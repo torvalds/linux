@@ -90,6 +90,7 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
+	.power_down = dce110_power_down,
 };
 
 static const struct hwseq_private_funcs dcn21_private_funcs = {
@@ -105,8 +106,6 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn20_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,
-	.is_panel_backlight_on = dce110_is_panel_backlight_on,
-	.is_panel_powered_on = dce110_is_panel_powered_on,
 	.disable_stream_gating = dcn20_disable_stream_gating,
 	.enable_stream_gating = dcn20_enable_stream_gating,
 	.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt,

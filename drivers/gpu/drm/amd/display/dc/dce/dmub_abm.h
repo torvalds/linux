@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-16 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,17 +23,18 @@
  *
  */
 
-#include "core_types.h"
-#include "logger.h"
-#include "include/logger_interface.h"
-#include "dm_helpers.h"
+#ifndef __DMUB_ABM_H__
+#define __DMUB_ABM_H__
 
-void dc_conn_log_hex_linux(const uint8_t *hex_data, int hex_data_count)
-{
-	int i;
+#include "abm.h"
+#include "dce_abm.h"
 
-	if (hex_data)
-		for (i = 0; i < hex_data_count; i++)
-			DC_LOG_DEBUG("%2.2X ", hex_data[i]);
-}
+struct abm *dmub_abm_create(
+	struct dc_context *ctx,
+	const struct dce_abm_registers *regs,
+	const struct dce_abm_shift *abm_shift,
+	const struct dce_abm_mask *abm_mask);
 
+void dmub_abm_destroy(struct abm **abm);
+
+#endif

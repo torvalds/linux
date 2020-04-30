@@ -136,8 +136,8 @@ uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 /**
  * amdgpu_gmc_vram_location - try to find VRAM location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  * @base: base address at which to put VRAM
  *
  * Function will try to place VRAM at base address provided
@@ -165,8 +165,8 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 /**
  * amdgpu_gmc_gart_location - try to find GART location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to place GART before or after VRAM.
  *
@@ -207,8 +207,8 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 
 /**
  * amdgpu_gmc_agp_location - try to find AGP location
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to find a place for the AGP BAR in the MC address
  * space.

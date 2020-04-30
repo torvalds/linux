@@ -170,6 +170,9 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev,
 				"GCVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
+			dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
+				REG_GET_FIELD(status,
+				GCVM_L2_PROTECTION_FAULT_STATUS, CID));
 			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 				REG_GET_FIELD(status,
 				GCVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
@@ -369,7 +372,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * translation. Avoid this by doing the invalidation from the SDMA
 	 * itself.
 	 */
-	r = amdgpu_job_alloc_with_ib(adev, 16 * 4, &job);
+	r = amdgpu_job_alloc_with_ib(adev, 16 * 4, AMDGPU_IB_POOL_VM, &job);
 	if (r)
 		goto error_alloc;
 

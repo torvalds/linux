@@ -93,9 +93,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
-	bool (*compare_sram_data)(struct psp_context *psp,
-				  struct amdgpu_firmware_info *ucode,
-				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
 	int (*xgmi_get_node_id)(struct psp_context *psp, uint64_t *node_id);
@@ -104,7 +101,6 @@ struct psp_funcs
 				      struct psp_xgmi_topology_info *topology);
 	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
-	bool (*support_vmr_ring)(struct psp_context *psp);
 	int (*ras_trigger_error)(struct psp_context *psp,
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
@@ -161,6 +157,7 @@ struct psp_hdcp_context {
 	struct amdgpu_bo	*hdcp_shared_bo;
 	uint64_t		hdcp_shared_mc_addr;
 	void			*hdcp_shared_buf;
+	struct mutex		mutex;
 };
 
 struct psp_dtm_context {
@@ -169,6 +166,7 @@ struct psp_dtm_context {
 	struct amdgpu_bo	*dtm_shared_bo;
 	uint64_t		dtm_shared_mc_addr;
 	void			*dtm_shared_buf;
+	struct mutex		mutex;
 };
 
 #define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942
@@ -306,8 +304,6 @@ struct amdgpu_psp_funcs {
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
 #define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->funcs->ring_destroy((psp), (type)))
-#define psp_compare_sram_data(psp, ucode, type) \
-		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
 		((psp)->funcs->init_microcode ? (psp)->funcs->init_microcode((psp)) : 0)
 #define psp_bootloader_load_kdb(psp) \
@@ -318,8 +314,6 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
-#define psp_support_vmr_ring(psp) \
-		((psp)->funcs->support_vmr_ring ? (psp)->funcs->support_vmr_ring((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
 #define psp_xgmi_get_node_id(psp, node_id) \
@@ -340,8 +334,6 @@ struct amdgpu_psp_funcs {
 	((psp)->funcs->mem_training_fini ? (psp)->funcs->mem_training_fini((psp)) : 0)
 #define psp_mem_training(psp, ops) \
 	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
-
-#define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
 #define psp_ras_trigger_error(psp, info) \
 	((psp)->funcs->ras_trigger_error ? \
@@ -393,4 +385,8 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 			uint64_t cmd_buf_mc_addr,
 			uint64_t fence_mc_addr,
 			int index);
+int psp_init_asd_microcode(struct psp_context *psp,
+			   const char *chip_name);
+int psp_init_sos_microcode(struct psp_context *psp,
+			   const char *chip_name);
 #endif

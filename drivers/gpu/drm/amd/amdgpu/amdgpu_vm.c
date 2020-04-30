@@ -82,7 +82,7 @@ struct amdgpu_prt_cb {
 	struct dma_fence_cb cb;
 };
 
-/**
+/*
  * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
  * happens while holding this lock anywhere to prevent deadlocks when
  * an MMU notifier runs in reclaim-FS context.
@@ -2124,11 +2124,8 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
 	    (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)) {
 		bo_va->is_xgmi = true;
-		mutex_lock(&adev->vm_manager.lock_pstate);
 		/* Power up XGMI if it can be potentially used */
-		if (++adev->vm_manager.xgmi_map_counter == 1)
-			amdgpu_xgmi_set_pstate(adev, 1);
-		mutex_unlock(&adev->vm_manager.lock_pstate);
+		amdgpu_xgmi_set_pstate(adev, AMDGPU_XGMI_PSTATE_MAX_VEGA20);
 	}
 
 	return bo_va;
@@ -2551,12 +2548,8 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	dma_fence_put(bo_va->last_pt_update);
 
-	if (bo && bo_va->is_xgmi) {
-		mutex_lock(&adev->vm_manager.lock_pstate);
-		if (--adev->vm_manager.xgmi_map_counter == 0)
-			amdgpu_xgmi_set_pstate(adev, 0);
-		mutex_unlock(&adev->vm_manager.lock_pstate);
-	}
+	if (bo && bo_va->is_xgmi)
+		amdgpu_xgmi_set_pstate(adev, AMDGPU_XGMI_PSTATE_MIN);
 
 	kfree(bo_va);
 }
@@ -3166,9 +3159,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 
 	idr_init(&adev->vm_manager.pasid_idr);
 	spin_lock_init(&adev->vm_manager.pasid_lock);
-
-	adev->vm_manager.xgmi_map_counter = 0;
-	mutex_init(&adev->vm_manager.lock_pstate);
 }
 
 /**

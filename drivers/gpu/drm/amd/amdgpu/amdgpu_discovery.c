@@ -23,9 +23,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_discovery.h"
-#include "soc15_common.h"
 #include "soc15_hw_ip.h"
-#include "nbio/nbio_2_3_offset.h"
 #include "discovery.h"
 
 #define mmRCC_CONFIG_MEMSIZE	0xde3
@@ -158,7 +156,7 @@ static inline bool amdgpu_discovery_verify_checksum(uint8_t *data, uint32_t size
 	return !!(amdgpu_discovery_calculate_checksum(data, size) == expected);
 }
 
-int amdgpu_discovery_init(struct amdgpu_device *adev)
+static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
 	struct table_info *info;
 	struct binary_header *bhdr;
@@ -257,10 +255,12 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	uint8_t num_base_address;
 	int hw_ip;
 	int i, j, k;
+	int r;
 
-	if (!adev->discovery) {
-		DRM_ERROR("ip discovery uninitialized\n");
-		return -EINVAL;
+	r = amdgpu_discovery_init(adev);
+	if (r) {
+		DRM_ERROR("amdgpu_discovery_init failed\n");
+		return r;
 	}
 
 	bhdr = (struct binary_header *)adev->discovery;

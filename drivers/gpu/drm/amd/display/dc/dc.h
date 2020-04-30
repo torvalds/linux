@@ -29,6 +29,9 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+#include "hdcp_types.h"
+#endif
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
@@ -39,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.76"
+#define DC_VER "3.2.81"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -230,7 +233,7 @@ struct dc_config {
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
-	bool psr_on_dmub;
+	bool disable_dmcu;
 };
 
 enum visual_confirm {
@@ -238,6 +241,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SURFACE = 1,
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
+	VISUAL_CONFIRM_PSR = 5,
 };
 
 enum dcc_option {
@@ -987,6 +991,7 @@ struct dpcd_caps {
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;
+	struct psr_caps psr_caps;
 
 };
 
@@ -1003,6 +1008,35 @@ union dpcd_sink_ext_caps {
 	} bits;
 	uint8_t raw;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+union hdcp_rx_caps {
+	struct {
+		uint8_t version;
+		uint8_t reserved;
+		struct {
+			uint8_t repeater	: 1;
+			uint8_t hdcp_capable	: 1;
+			uint8_t reserved	: 6;
+		} byte0;
+	} fields;
+	uint8_t raw[3];
+};
+
+union hdcp_bcaps {
+	struct {
+		uint8_t HDCP_CAPABLE:1;
+		uint8_t REPEATER:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+struct hdcp_caps {
+	union hdcp_rx_caps rx_caps;
+	union hdcp_bcaps bcaps;
+};
+#endif
 
 #include "dc_link.h"
 
@@ -1046,7 +1080,7 @@ struct dc_sink {
 	void *priv;
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
-
+	bool is_mst_legacy;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
 
@@ -1073,6 +1107,7 @@ struct dc_sink_init_data {
 	struct dc_link *link;
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
+	bool sink_is_legacy;
 };
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
@@ -1104,9 +1139,16 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
-unsigned int dc_get_current_backlight_pwm(struct dc *dc);
-unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+/*
+ * HDCP Interfaces
+ */
+enum hdcp_message_status dc_process_hdcp_msg(
+		enum signal_type signal,
+		struct dc_link *link,
+		struct hdcp_protection_message *message_info);
+#endif
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);

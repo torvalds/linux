@@ -215,6 +215,11 @@ struct dmub_rb_cmd_dpphy_init {
 	uint8_t reserved[60];
 };
 
+struct dmub_psr_debug_flags {
+	uint8_t visual_confirm : 1;
+	uint8_t reserved : 7;
+};
+
 struct dmub_cmd_psr_copy_settings_data {
 	uint16_t psr_level;
 	uint8_t dpp_inst;
@@ -228,6 +233,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t smu_optimizations_en;
 	uint8_t frame_delay;
 	uint8_t frame_cap_ind;
+	struct dmub_psr_debug_flags debug;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -303,6 +309,16 @@ struct dmub_rb_cmd_abm_set_pwm_frac {
 	struct dmub_cmd_abm_set_pwm_frac_data abm_set_pwm_frac_data;
 };
 
+struct dmub_cmd_abm_init_config_data {
+	union dmub_addr src;
+	uint16_t bytes;
+};
+
+struct dmub_rb_cmd_abm_init_config {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_abm_init_config_data abm_init_config_data;
+};
+
 union dmub_rb_cmd {
 	struct dmub_rb_cmd_read_modify_write read_modify_write;
 	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
@@ -324,6 +340,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_set_level abm_set_level;
 	struct dmub_rb_cmd_abm_set_ambient_level abm_set_ambient_level;
 	struct dmub_rb_cmd_abm_set_pwm_frac abm_set_pwm_frac;
+	struct dmub_rb_cmd_abm_init_config abm_init_config;
 };
 
 #pragma pack(pop)
