@@ -17,6 +17,27 @@ static inline void put_unaligned_le8(u8 val, void *p)
        *(u8 *)p = val;
 }
 
+static bool check_setget_bounds(const struct extent_buffer *eb,
+				const void *ptr, unsigned off, int size)
+{
+	const unsigned long member_offset = (unsigned long)ptr + off;
+
+	if (member_offset > eb->len) {
+		btrfs_warn(eb->fs_info,
+	"bad eb member start: ptr 0x%lx start %llu member offset %lu size %d",
+			(unsigned long)ptr, eb->start, member_offset, size);
+		return false;
+	}
+	if (member_offset + size > eb->len) {
+		btrfs_warn(eb->fs_info,
+	"bad eb member end: ptr 0x%lx start %llu member offset %lu size %d",
+			(unsigned long)ptr, eb->start, member_offset, size);
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * this is some deeply nasty code.
  *
@@ -53,6 +74,7 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 									\
 	ASSERT(token);							\
 	ASSERT(token->kaddr);						\
+	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
 	if (token->offset <= offset &&					\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
@@ -87,6 +109,7 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	int size = sizeof(u##bits);					\
 	u##bits res;							\
 									\
+	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
 	err = map_private_extent_buffer(eb, offset, size,		\
 					&kaddr, &map_start, &map_len);	\
 	if (err) {							\
@@ -114,6 +137,7 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 									\
 	ASSERT(token);							\
 	ASSERT(token->kaddr);						\
+	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
 	if (token->offset <= offset &&					\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
@@ -147,6 +171,7 @@ void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
 	unsigned long map_len;						\
 	int size = sizeof(u##bits);					\
 									\
+	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
 	err = map_private_extent_buffer(eb, offset, size,		\
 			&kaddr, &map_start, &map_len);			\
 	if (err) {							\
