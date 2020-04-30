@@ -6,6 +6,7 @@
 #include "en/xdp.h"
 #include "en/params.h"
 #include <net/xdp_sock_drv.h>
+#include <linux/indirect_call_wrapper.h>
 
 int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
@@ -75,8 +76,12 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 	xdpi.mode = MLX5E_XDP_XMIT_MODE_XSK;
 
 	for (; budget; budget--) {
-		int check_result = sq->xmit_xdp_frame_check(sq);
+		int check_result = INDIRECT_CALL_2(sq->xmit_xdp_frame_check,
+						   mlx5e_xmit_xdp_frame_check_mpwqe,
+						   mlx5e_xmit_xdp_frame_check,
+						   sq);
 		struct xdp_desc desc;
+		bool ret;
 
 		if (unlikely(check_result < 0)) {
 			work_done = false;
@@ -98,7 +103,9 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 
 		xsk_buff_raw_dma_sync_for_device(umem, xdptxd.dma_addr, xdptxd.len);
 
-		if (unlikely(!sq->xmit_xdp_frame(sq, &xdptxd, &xdpi, check_result))) {
+		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
+				      mlx5e_xmit_xdp_frame, sq, &xdptxd, &xdpi, check_result);
+		if (unlikely(!ret)) {
 			if (sq->mpwqe.wqe)
 				mlx5e_xdp_mpwqe_complete(sq);
 
