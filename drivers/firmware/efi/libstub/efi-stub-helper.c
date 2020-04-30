@@ -331,6 +331,7 @@ static const struct {
  *		%EFI_OUT_OF_RESOURCES if memory allocation failed
  *		%EFI_LOAD_ERROR in all other cases
  */
+static
 efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 				      unsigned long *load_size,
 				      unsigned long max)
@@ -342,9 +343,6 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	unsigned long initrd_size;
 	efi_handle_t handle;
 	efi_status_t status;
-
-	if (!load_addr || !load_size)
-		return EFI_INVALID_PARAMETER;
 
 	dp = (efi_device_path_protocol_t *)&initrd_dev_path;
 	status = efi_bs_call(locate_device_path, &lf2_proto_guid, &dp, &handle);
@@ -374,4 +372,46 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	*load_addr = initrd_addr;
 	*load_size = initrd_size;
 	return EFI_SUCCESS;
+}
+
+static
+efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
+				     unsigned long *load_addr,
+				     unsigned long *load_size,
+				     unsigned long soft_limit,
+				     unsigned long hard_limit)
+{
+	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER) ||
+	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL))) {
+		*load_addr = *load_size = 0;
+		return EFI_SUCCESS;
+	}
+
+	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
+				    soft_limit, hard_limit,
+				    load_addr, load_size);
+}
+
+efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+			     unsigned long *load_addr,
+			     unsigned long *load_size,
+			     unsigned long soft_limit,
+			     unsigned long hard_limit)
+{
+	efi_status_t status;
+
+	if (!load_addr || !load_size)
+		return EFI_INVALID_PARAMETER;
+
+	status = efi_load_initrd_dev_path(load_addr, load_size, hard_limit);
+	if (status == EFI_SUCCESS) {
+		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+	} else if (status == EFI_NOT_FOUND) {
+		status = efi_load_initrd_cmdline(image, load_addr, load_size,
+						 soft_limit, hard_limit);
+		if (status == EFI_SUCCESS && *load_size > 0)
+			efi_info("Loaded initrd from command line option\n");
+	}
+
+	return status;
 }

@@ -677,21 +677,10 @@ static inline efi_status_t efi_load_dtb(efi_loaded_image_t *image,
 				    ULONG_MAX, ULONG_MAX, load_addr, load_size);
 }
 
-static inline efi_status_t efi_load_initrd(efi_loaded_image_t *image,
-					   unsigned long *load_addr,
-					   unsigned long *load_size,
-					   unsigned long soft_limit,
-					   unsigned long hard_limit)
-{
-	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER))
-		return EFI_SUCCESS;
-
-	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
-				    soft_limit, hard_limit, load_addr, load_size);
-}
-
-efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
-				      unsigned long *load_size,
-				      unsigned long max);
+efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+			     unsigned long *load_addr,
+			     unsigned long *load_size,
+			     unsigned long soft_limit,
+			     unsigned long hard_limit);
 
 #endif

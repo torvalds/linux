@@ -755,17 +755,8 @@ unsigned long efi_main(efi_handle_t handle,
 	if (!efi_noinitrd) {
 		unsigned long addr, size;
 
-		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);
-		if (status == EFI_NOT_FOUND) {
-			if (efi_is_native() && image != NULL) {
-				status = efi_load_initrd(image, &addr, &size,
-							 hdr->initrd_addr_max,
-							 ULONG_MAX);
-			} else {
-				addr = size = 0;
-				status = EFI_SUCCESS;
-			}
-		}
+		status = efi_load_initrd(image, &addr, &size,
+					 hdr->initrd_addr_max, ULONG_MAX);
 
 		if (status != EFI_SUCCESS) {
 			efi_err("Failed to load initrd!\n");
