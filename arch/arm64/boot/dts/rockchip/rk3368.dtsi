@@ -187,8 +187,9 @@
 			1   24   0
 			25  254  1
 		>;
-		nvmem-cells = <&cpu_leakage>;
-		nvmem-cell-names = "cpu_leakage";
+		nvmem-cells = <&cpu_leakage>, <&leakage_temp>, <&leakage_volt>;
+		nvmem-cell-names = "cpu_leakage", "leakage_temp",
+				   "leakage_volt";
 		rockchip,reboot-freq = <816000>;
 
 		opp-216000000 {
@@ -250,8 +251,9 @@
 			25  50   1
 			51  254  2
 		>;
-		nvmem-cells = <&cpu_leakage>;
-		nvmem-cell-names = "cpu_leakage";
+		nvmem-cells = <&cpu_leakage>, <&leakage_temp>, <&leakage_volt>;
+		nvmem-cell-names = "cpu_leakage", "leakage_temp",
+				   "leakage_volt";
 		rockchip,reboot-freq = <816000>;
 
 		opp-216000000 {
@@ -1855,6 +1857,14 @@
 		/* Data cells */
 		cpu_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
+		};
+		leakage_volt: leakage-volt@1a {
+			reg = <0x1a 0x1>;
+			bits = <7 1>;
+		};
+		leakage_temp: leakage-temp@1e {
+			reg = <0x1e 0x1>;
+			bits = <1 7>;
 		};
 		temp_adjust: temp-adjust@1f {
 			reg = <0x1f 0x1>;
