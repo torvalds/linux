@@ -50,16 +50,18 @@
 #define AQ_HWREV_1	1
 #define AQ_HWREV_2	2
 
-#define AQ_NIC_RATE_10G        BIT(0)
-#define AQ_NIC_RATE_5G         BIT(1)
-#define AQ_NIC_RATE_5GSR       BIT(2)
-#define AQ_NIC_RATE_2GS        BIT(3)
-#define AQ_NIC_RATE_1G         BIT(4)
-#define AQ_NIC_RATE_100M       BIT(5)
+#define AQ_NIC_RATE_10G		BIT(0)
+#define AQ_NIC_RATE_5G		BIT(1)
+#define AQ_NIC_RATE_5GSR	BIT(2)
+#define AQ_NIC_RATE_2GS		BIT(3)
+#define AQ_NIC_RATE_1G		BIT(4)
+#define AQ_NIC_RATE_100M	BIT(5)
+#define AQ_NIC_RATE_10M		BIT(6)
 
-#define AQ_NIC_RATE_EEE_10G	BIT(6)
-#define AQ_NIC_RATE_EEE_5G	BIT(7)
-#define AQ_NIC_RATE_EEE_2GS	BIT(8)
-#define AQ_NIC_RATE_EEE_1G	BIT(9)
+#define AQ_NIC_RATE_EEE_10G	BIT(7)
+#define AQ_NIC_RATE_EEE_5G	BIT(8)
+#define AQ_NIC_RATE_EEE_2GS	BIT(9)
+#define AQ_NIC_RATE_EEE_1G	BIT(10)
+#define AQ_NIC_RATE_EEE_100M	BIT(11)
 
 #endif /* AQ_COMMON_H */

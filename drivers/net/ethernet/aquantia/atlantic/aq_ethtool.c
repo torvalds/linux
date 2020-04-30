@@ -611,6 +611,9 @@ static enum hw_atl_fw2x_rate eee_mask_to_ethtool_mask(u32 speed)
 	if (speed & AQ_NIC_RATE_EEE_1G)
 		rate |= SUPPORTED_1000baseT_Full;
 
+	if (speed & AQ_NIC_RATE_EEE_100M)
+		rate |= SUPPORTED_100baseT_Full;
+
 	return rate;
 }
 
