@@ -601,31 +601,37 @@ out:
 	smc_llc_flow_qentry_del(&lgr->llc_flow_rmt);
 }
 
-static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
-				      struct smc_llc_msg_confirm_rkey_cont *llc)
+/* process a delete_rkey request from peer, remote flow */
+static void smc_llc_rmt_delete_rkey(struct smc_link_group *lgr)
 {
-	/* ignore rtokens for other links, we have only one link */
-	llc->hd.flags |= SMC_LLC_FLAG_RESP;
-	smc_llc_send_message(link, llc);
-}
-
-static void smc_llc_rx_delete_rkey(struct smc_link *link,
-				   struct smc_llc_msg_delete_rkey *llc)
-{
+	struct smc_llc_msg_delete_rkey *llc;
+	struct smc_llc_qentry *qentry;
+	struct smc_link *link;
 	u8 err_mask = 0;
 	int i, max;
+
+	qentry = lgr->llc_flow_rmt.qentry;
+	llc = &qentry->msg.delete_rkey;
+	link = qentry->link;
 
 	max = min_t(u8, llc->num_rkeys, SMC_LLC_DEL_RKEY_MAX);
 	for (i = 0; i < max; i++) {
 		if (smc_rtoken_delete(link, llc->rkey[i]))
 			err_mask |= 1 << (SMC_LLC_DEL_RKEY_MAX - 1 - i);
 	}
-
 	if (err_mask) {
 		llc->hd.flags |= SMC_LLC_FLAG_RKEY_NEG;
 		llc->err_mask = err_mask;
 	}
+	llc->hd.flags |= SMC_LLC_FLAG_RESP;
+	smc_llc_send_message(link, &qentry->msg);
+	smc_llc_flow_qentry_del(&lgr->llc_flow_rmt);
+}
 
+static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
+				      struct smc_llc_msg_confirm_rkey_cont *llc)
+{
+	/* ignore rtokens for other links, we have only one link */
 	llc->hd.flags |= SMC_LLC_FLAG_RESP;
 	smc_llc_send_message(link, llc);
 }
@@ -698,8 +704,13 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		smc_llc_rx_confirm_rkey_cont(link, &llc->confirm_rkey_cont);
 		break;
 	case SMC_LLC_DELETE_RKEY:
-		smc_llc_rx_delete_rkey(link, &llc->delete_rkey);
-		break;
+		/* new request from remote, assign to remote flow */
+		if (smc_llc_flow_start(&lgr->llc_flow_rmt, qentry)) {
+			/* process here, does not wait for more llc msgs */
+			smc_llc_rmt_delete_rkey(lgr);
+			smc_llc_flow_stop(lgr, &lgr->llc_flow_rmt);
+		}
+		return;
 	}
 out:
 	kfree(qentry);
