@@ -53,7 +53,7 @@ struct xfs_defer_op_type {
 			struct list_head *item, struct xfs_btree_cur **state);
 	void (*finish_cleanup)(struct xfs_trans *tp,
 			struct xfs_btree_cur *state, int error);
-	void (*cancel_item)(struct list_head *);
+	void (*cancel_item)(struct list_head *item);
 	unsigned int		max_items;
 };
 
