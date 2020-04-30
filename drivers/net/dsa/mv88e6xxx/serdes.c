@@ -534,21 +534,21 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
 	int err;
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				    MV88E6390_PCS_CONTROL_1, &val);
+				    MV88E6390_10G_CTRL1, &val);
 
 	if (err)
 		return err;
 
 	if (up)
-		new_val = val & ~(MV88E6390_PCS_CONTROL_1_RESET |
-				  MV88E6390_PCS_CONTROL_1_LOOPBACK |
-				  MV88E6390_PCS_CONTROL_1_PDOWN);
+		new_val = val & ~(MDIO_CTRL1_RESET |
+				  MDIO_PCS_CTRL1_LOOPBACK |
+				  MDIO_CTRL1_LPOWER);
 	else
-		new_val = val | MV88E6390_PCS_CONTROL_1_PDOWN;
+		new_val = val | MDIO_CTRL1_LPOWER;
 
 	if (val != new_val)
 		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-					     MV88E6390_PCS_CONTROL_1, new_val);
+					     MV88E6390_10G_CTRL1, new_val);
 
 	return err;
 }
