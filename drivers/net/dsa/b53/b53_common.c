@@ -1702,7 +1702,7 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 				break;
 		}
 
-	} while (count++ < 1024);
+	} while (count++ < b53_max_arl_entries(priv) / 2);
 
 	return 0;
 }
