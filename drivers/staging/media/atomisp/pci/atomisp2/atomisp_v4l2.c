@@ -1921,7 +1921,7 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
  * FIXME:
  * remove the ifs once we get rid of the ifs on other parts of the driver
  */
-#if defined(ISP2400) || defined(ISP2400B0)
+#if defined(ISP2400)
 	/* Merrifield */
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1178), .driver_data = HW_IS_ISP2400},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1179), .driver_data = HW_IS_ISP2400},
