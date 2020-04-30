@@ -3,6 +3,7 @@
 
 #include "health.h"
 #include "params.h"
+#include "txrx.h"
 
 static int mlx5e_query_rq_state(struct mlx5_core_dev *dev, u32 rqn, u8 *state)
 {
