@@ -182,6 +182,11 @@ struct aq_hw_ops {
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
 
+	int (*hw_soft_reset)(struct aq_hw_s *self);
+
+	int (*hw_prepare)(struct aq_hw_s *self,
+			  const struct aq_fw_ops **fw_ops);
+
 	int (*hw_reset)(struct aq_hw_s *self);
 
 	int (*hw_init)(struct aq_hw_s *self, u8 *mac_addr);

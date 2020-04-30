@@ -67,10 +67,6 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 {
 	int err = 0;
 
-	err = hw_atl_utils_soft_reset(self);
-	if (err)
-		return err;
-
 	hw_atl_utils_hw_chip_features_init(self,
 					   &self->chip_features);
 

@@ -257,6 +257,20 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		  AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
+static int aq_nic_hw_prepare(struct aq_nic_s *self)
+{
+	int err = 0;
+
+	err = self->aq_hw_ops->hw_soft_reset(self->aq_hw);
+	if (err)
+		goto exit;
+
+	err = self->aq_hw_ops->hw_prepare(self->aq_hw, &self->aq_fw_ops);
+
+exit:
+	return err;
+}
+
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -266,7 +280,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		goto err_exit;
 	}
 
-	err = hw_atl_utils_initfw(self->aq_hw, &self->aq_fw_ops);
+	err = aq_nic_hw_prepare(self);
 	if (err)
 		goto err_exit;
 
