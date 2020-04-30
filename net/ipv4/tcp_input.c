@@ -4348,6 +4348,12 @@ static void tcp_sack_compress_send_ack(struct sock *sk)
 	tcp_send_ack(sk);
 }
 
+/* Reasonable amount of sack blocks included in TCP SACK option
+ * The max is 4, but this becomes 3 if TCP timestamps are there.
+ * Given that SACK packets might be lost, be conservative and use 2.
+ */
+#define TCP_SACK_BLOCKS_EXPECTED 2
+
 static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -4360,6 +4366,8 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 
 	for (this_sack = 0; this_sack < cur_sacks; this_sack++, sp++) {
 		if (tcp_sack_extend(sp, seq, end_seq)) {
+			if (this_sack >= TCP_SACK_BLOCKS_EXPECTED)
+				tcp_sack_compress_send_ack(sk);
 			/* Rotate this_sack to the first one. */
 			for (; this_sack > 0; this_sack--, sp--)
 				swap(*sp, *(sp - 1));
@@ -4369,6 +4377,9 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 		}
 	}
 
+	if (this_sack >= TCP_SACK_BLOCKS_EXPECTED)
+		tcp_sack_compress_send_ack(sk);
+
 	/* Could not find an adjacent existing SACK, build a new one,
 	 * put it at the front, and shift everyone else down.  We
 	 * always know there is at least one SACK present already here.
@@ -4376,7 +4387,6 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 * If the sack array is full, forget about the last one.
 	 */
 	if (this_sack >= TCP_NUM_SACKS) {
-		tcp_sack_compress_send_ack(sk);
 		this_sack--;
 		tp->rx_opt.num_sacks--;
 		sp--;
