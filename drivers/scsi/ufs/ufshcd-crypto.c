@@ -71,7 +71,7 @@ int ufshcd_crypto_cap_find(struct ufs_hba *hba,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(ufshcd_crypto_cap_find);
+EXPORT_SYMBOL_GPL(ufshcd_crypto_cap_find);
 
 /**
  * ufshcd_crypto_cfg_entry_write_key - Write a key into a crypto_cfg_entry
