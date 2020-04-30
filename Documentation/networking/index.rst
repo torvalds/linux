@@ -84,6 +84,7 @@ Contents:
    netdev-features
    netdevices
    netfilter-sysctl
+   netif-msg
 
 .. only::  subproject and html
 
