@@ -1309,8 +1309,44 @@ DECLARE_EVENT_CLASS(svcrdma_xprt_event,
 				TP_ARGS(xprt))
 
 DEFINE_XPRT_EVENT(accept);
-DEFINE_XPRT_EVENT(fail);
 DEFINE_XPRT_EVENT(free);
+
+DECLARE_EVENT_CLASS(svcrdma_accept_class,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		long status
+	),
+
+	TP_ARGS(rdma, status),
+
+	TP_STRUCT__entry(
+		__field(long, status)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s status=%ld",
+		__get_str(addr), __entry->status
+	)
+);
+
+#define DEFINE_ACCEPT_EVENT(name) \
+		DEFINE_EVENT(svcrdma_accept_class, svcrdma_##name##_err, \
+				TP_PROTO( \
+					const struct svcxprt_rdma *rdma, \
+					long status \
+				), \
+				TP_ARGS(rdma, status))
+
+DEFINE_ACCEPT_EVENT(pd);
+DEFINE_ACCEPT_EVENT(qp);
+DEFINE_ACCEPT_EVENT(fabric);
+DEFINE_ACCEPT_EVENT(initdepth);
+DEFINE_ACCEPT_EVENT(accept);
 
 TRACE_DEFINE_ENUM(RDMA_MSG);
 TRACE_DEFINE_ENUM(RDMA_NOMSG);
