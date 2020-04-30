@@ -13262,7 +13262,7 @@ F:	drivers/input/joystick/pxrc.c
 PHONET PROTOCOL
 M:	Remi Denis-Courmont <courmisch@gmail.com>
 S:	Supported
-F:	Documentation/networking/phonet.txt
+F:	Documentation/networking/phonet.rst
 F:	include/linux/phonet.h
 F:	include/net/phonet/
 F:	include/uapi/linux/phonet.h

@@ -1,3 +1,7 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+============================
 Linux Phonet protocol family
 ============================
 
@@ -11,6 +15,7 @@ device attached to the modem. The modem takes care of routing.
 
 Phonet packets can be exchanged through various hardware connections
 depending on the device, such as:
+
   - USB with the CDC Phonet interface,
   - infrared,
   - Bluetooth,
@@ -21,7 +26,7 @@ depending on the device, such as:
 Packets format
 --------------
 
-Phonet packets have a common header as follows:
+Phonet packets have a common header as follows::
 
   struct phonethdr {
     uint8_t  pn_media;  /* Media type (link-layer identifier) */
@@ -72,7 +77,7 @@ only the (default) Linux FIFO qdisc should be used with them.
 Network layer
 -------------
 
-The Phonet socket address family maps the Phonet packet header:
+The Phonet socket address family maps the Phonet packet header::
 
   struct sockaddr_pn {
     sa_family_t spn_family;    /* AF_PHONET */
@@ -94,6 +99,8 @@ protocol from the PF_PHONET family. Each socket is bound to one of the
 2^10 object IDs available, and can send and receive packets with any
 other peer.
 
+::
+
   struct sockaddr_pn addr = { .spn_family = AF_PHONET, };
   ssize_t len;
   socklen_t addrlen = sizeof(addr);
@@ -105,7 +112,7 @@ other peer.
 
   sendto(fd, msg, msglen, 0, (struct sockaddr *)&addr, sizeof(addr));
   len = recvfrom(fd, buf, sizeof(buf), 0,
-                 (struct sockaddr *)&addr, &addrlen);
+		 (struct sockaddr *)&addr, &addrlen);
 
 This protocol follows the SOCK_DGRAM connection-less semantics.
 However, connect() and getpeername() are not supported, as they did
@@ -116,7 +123,7 @@ Resource subscription
 ---------------------
 
 A Phonet datagram socket can be subscribed to any number of 8-bits
-Phonet resources, as follow:
+Phonet resources, as follow::
 
   uint32_t res = 0xXX;
   ioctl(fd, SIOCPNADDRESOURCE, &res);
@@ -136,6 +143,8 @@ with end-to-end congestion control. It uses the passive listening
 socket paradigm. The listening socket is bound to an unique free object
 ID. Each listening socket can handle up to 255 simultaneous
 connections, one per accept()'d socket.
+
+::
 
   int lfd, cfd;
 
@@ -161,7 +170,7 @@ Connections are traditionally established between two endpoints by a
 As of Linux kernel version 2.6.39, it is also possible to connect
 two endpoints directly, using connect() on the active side. This is
 intended to support the newer Nokia Wireless Modem API, as found in
-e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform:
+e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
 
   struct sockaddr_spn spn;
   int fd;
@@ -177,38 +186,45 @@ e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform:
   close(fd);
 
 
-WARNING:
-When polling a connected pipe socket for writability, there is an
-intrinsic race condition whereby writability might be lost between the
-polling and the writing system calls. In this case, the socket will
-block until write becomes possible again, unless non-blocking mode
-is enabled.
+.. Warning:
+
+   When polling a connected pipe socket for writability, there is an
+   intrinsic race condition whereby writability might be lost between the
+   polling and the writing system calls. In this case, the socket will
+   block until write becomes possible again, unless non-blocking mode
+   is enabled.
 
 
 The pipe protocol provides two socket options at the SOL_PNPIPE level:
 
   PNPIPE_ENCAP accepts one integer value (int) of:
 
-    PNPIPE_ENCAP_NONE: The socket operates normally (default).
+    PNPIPE_ENCAP_NONE:
+      The socket operates normally (default).
 
-    PNPIPE_ENCAP_IP: The socket is used as a backend for a virtual IP
+    PNPIPE_ENCAP_IP:
+      The socket is used as a backend for a virtual IP
       interface. This requires CAP_NET_ADMIN capability. GPRS data
       support on Nokia modems can use this. Note that the socket cannot
       be reliably poll()'d or read() from while in this mode.
 
-  PNPIPE_IFINDEX is a read-only integer value. It contains the
-    interface index of the network interface created by PNPIPE_ENCAP,
-    or zero if encapsulation is off.
+  PNPIPE_IFINDEX
+      is a read-only integer value. It contains the
+      interface index of the network interface created by PNPIPE_ENCAP,
+      or zero if encapsulation is off.
 
-  PNPIPE_HANDLE is a read-only integer value. It contains the underlying
-    identifier ("pipe handle") of the pipe. This is only defined for
-    socket descriptors that are already connected or being connected.
+  PNPIPE_HANDLE
+      is a read-only integer value. It contains the underlying
+      identifier ("pipe handle") of the pipe. This is only defined for
+      socket descriptors that are already connected or being connected.
 
 
 Authors
 -------
 
 Linux Phonet was initially written by Sakari Ailus.
+
 Other contributors include Mikä Liljeberg, Andras Domokos,
 Carlos Chinea and Rémi Denis-Courmont.
-Copyright (C) 2008 Nokia Corporation.
+
+Copyright |copy| 2008 Nokia Corporation.

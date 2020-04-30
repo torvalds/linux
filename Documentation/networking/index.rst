@@ -90,6 +90,7 @@ Contents:
    openvswitch
    operstates
    packet_mmap
+   phonet
 
 .. only::  subproject and html
 

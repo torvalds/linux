@@ -1076,7 +1076,7 @@ Miscellaneous bits
 ==================
 
 - Packet sockets work well together with Linux socket filters, thus you also
-  might want to have a look at Documentation/networking/filter.txt
+  might want to have a look at Documentation/networking/filter.rst
 
 THANKS
 ======
