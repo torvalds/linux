@@ -13,6 +13,7 @@
 
 / {
 	model = "LS1043A RDB Board";
+	compatible = "fsl,ls1043a-rdb", "fsl,ls1043a";
 
 	aliases {
 		serial0 = &duart0;
