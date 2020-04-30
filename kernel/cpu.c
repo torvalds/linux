@@ -1327,7 +1327,7 @@ void bringup_nonboot_cpus(unsigned int setup_max_cpus)
 #ifdef CONFIG_PM_SLEEP_SMP
 static cpumask_var_t frozen_cpus;
 
-int __freeze_secondary_cpus(int primary, bool suspend)
+int freeze_secondary_cpus(int primary)
 {
 	int cpu, error = 0;
 
@@ -1352,7 +1352,7 @@ int __freeze_secondary_cpus(int primary, bool suspend)
 		if (cpu == primary)
 			continue;
 
-		if (suspend && pm_wakeup_pending()) {
+		if (pm_wakeup_pending()) {
 			pr_info("Wakeup pending. Abort CPU freeze\n");
 			error = -EBUSY;
 			break;
