@@ -26,7 +26,7 @@
 
 7. The ISP code depends on the exact FW version. The version defined in
    BYT: 
-   drivers/staging/media/atomisp/pci/atomisp2/css2400/sh_css_firmware.c
+   drivers/staging/media/atomisp/pci/atomisp2/pci/sh_css_firmware.c
    static const char *release_version = STR(irci_stable_candrpv_0415_20150521_0458);
    CHT:
    drivers/staging/media/atomisp/pci/atomisp2/css/sh_css_firmware.c
