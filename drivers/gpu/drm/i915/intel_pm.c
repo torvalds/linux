@@ -43,6 +43,7 @@
 #include "i915_fixed.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
+#include "display/intel_bw.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
@@ -3760,34 +3761,75 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *new_bw_state;
 
-	if (!intel_can_enable_sagv(state))
+	/*
+	 * Just return if we can't control SAGV or don't have it.
+	 * This is different from situation when we have SAGV but just can't
+	 * afford it due to DBuf limitation - in case if SAGV is completely
+	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * as it will throw an error. So have to check it here.
+	 */
+	if (!intel_has_sagv(dev_priv))
+		return;
+
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+	if (!new_bw_state)
+		return;
+
+	if (!intel_can_enable_sagv(new_bw_state))
 		intel_disable_sagv(dev_priv);
 }
 
 void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *new_bw_state;
 
-	if (intel_can_enable_sagv(state))
+	/*
+	 * Just return if we can't control SAGV or don't have it.
+	 * This is different from situation when we have SAGV but just can't
+	 * afford it due to DBuf limitation - in case if SAGV is completely
+	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * as it will throw an error. So have to check it here.
+	 */
+	if (!intel_has_sagv(dev_priv))
+		return;
+
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+	if (!new_bw_state)
+		return;
+
+	if (intel_can_enable_sagv(new_bw_state))
 		intel_enable_sagv(dev_priv);
 }
 
 static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc_state->uapi.crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_plane *plane;
+	const struct intel_plane_state *plane_state;
 	int level, latency;
+
+	if (!intel_has_sagv(dev_priv))
+		return false;
 
 	if (!crtc_state->hw.active)
 		return true;
 
+	/*
+	 * SKL+ workaround: bspec recommends we disable SAGV when we have
+	 * more then one pipe enabled
+	 */
+	if (hweight8(state->active_pipes) > 1)
+		return false;
+
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane->id];
 
@@ -3803,7 +3845,7 @@ static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state
 		latency = dev_priv->wm.skl_latency[level];
 
 		if (skl_needs_memory_bw_wa(dev_priv) &&
-		    plane->base.state->fb->modifier ==
+		    plane_state->uapi.fb->modifier ==
 		    I915_FORMAT_MOD_X_TILED)
 			latency += 15;
 
@@ -3819,35 +3861,48 @@ static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state
 	return true;
 }
 
-bool intel_can_enable_sagv(struct intel_atomic_state *state)
+bool intel_can_enable_sagv(const struct intel_bw_state *bw_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	return bw_state->pipe_sagv_reject == 0;
+}
+
+static int intel_compute_sagv_mask(struct intel_atomic_state *state)
+{
+	int ret;
 	struct intel_crtc *crtc;
-	const struct intel_crtc_state *crtc_state;
-	enum pipe pipe;
+	struct intel_crtc_state *new_crtc_state;
+	struct intel_bw_state *new_bw_state = NULL;
+	const struct intel_bw_state *old_bw_state = NULL;
+	int i;
 
-	if (!intel_has_sagv(dev_priv))
-		return false;
+	for_each_new_intel_crtc_in_state(state, crtc,
+					 new_crtc_state, i) {
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
 
-	/*
-	 * If there are no active CRTCs, no additional checks need be performed
-	 */
-	if (hweight8(state->active_pipes) == 0)
-		return true;
+		old_bw_state = intel_atomic_get_old_bw_state(state);
 
-	/*
-	 * SKL+ workaround: bspec recommends we disable SAGV when we have
-	 * more then one pipe enabled
-	 */
-	if (hweight8(state->active_pipes) > 1)
-		return false;
+		if (intel_crtc_can_enable_sagv(new_crtc_state))
+			new_bw_state->pipe_sagv_reject &= ~BIT(crtc->pipe);
+		else
+			new_bw_state->pipe_sagv_reject |= BIT(crtc->pipe);
+	}
 
-	/* Since we're now guaranteed to only have one active CRTC... */
-	pipe = ffs(state->active_pipes) - 1;
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	crtc_state = to_intel_crtc_state(crtc->base.state);
+	if (!new_bw_state)
+		return 0;
 
-	return intel_crtc_can_enable_sagv(crtc_state);
+	if (intel_can_enable_sagv(new_bw_state) != intel_can_enable_sagv(old_bw_state)) {
+		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
+		if (ret)
+			return ret;
+	} else if (new_bw_state->pipe_sagv_reject != old_bw_state->pipe_sagv_reject) {
+		ret = intel_atomic_lock_global_state(&new_bw_state->base);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /*
@@ -5810,6 +5865,12 @@ skl_compute_wm(struct intel_atomic_state *state)
 	ret = skl_compute_ddb(state);
 	if (ret)
 		return ret;
+
+	if (state->modeset) {
+		ret = intel_compute_sagv_mask(state);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * skl_compute_ddb() will have adjusted the final watermarks
