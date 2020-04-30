@@ -746,13 +746,40 @@ static int psp_ras_unload(struct psp_context *psp)
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+
 	/*
 	 * TODO: bypass the loading in sriov for now
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	return psp_ta_invoke(psp, ta_cmd_id, psp->ras.session_id);
+	ret = psp_ta_invoke(psp, ta_cmd_id, psp->ras.session_id);
+
+	if (ras_cmd->if_version > RAS_TA_HOST_IF_VER)
+	{
+		DRM_WARN("RAS: Unsupported Interface");
+		return -EINVAL;
+	}
+
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
+	if (!ret) {
+		if (ras_cmd->ras_out_message.flags.err_inject_switch_disable_flag) {
+			dev_warn(psp->adev->dev, "ECC switch disabled\n");
+
+			ras_cmd->ras_status = TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE;
+		}
+		else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
+			dev_warn(psp->adev->dev,
+				 "RAS internal register access blocked\n");
+	}
+
+	return ret;
 }
 
 int psp_ras_enable_features(struct psp_context *psp,
