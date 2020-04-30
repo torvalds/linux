@@ -1,4 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====================
+MPLS Sysfs variables
+====================
+
 /proc/sys/net/mpls/* Variables:
+===============================
 
 platform_labels - INTEGER
 	Number of entries in the platform label table.  It is not
@@ -17,6 +24,7 @@ platform_labels - INTEGER
 	no longer fit in the table.
 
 	Possible values: 0 - 1048575
+
 	Default: 0
 
 ip_ttl_propagate - BOOL
@@ -27,8 +35,8 @@ ip_ttl_propagate - BOOL
 	If disabled, the MPLS transport network will appear as a
 	single hop to transit traffic.
 
-	0 - disabled / RFC 3443 [Short] Pipe Model
-	1 - enabled / RFC 3443 Uniform Model (default)
+	* 0 - disabled / RFC 3443 [Short] Pipe Model
+	* 1 - enabled / RFC 3443 Uniform Model (default)
 
 default_ttl - INTEGER
 	Default TTL value to use for MPLS packets where it cannot be
@@ -36,6 +44,7 @@ default_ttl - INTEGER
 	or ip_ttl_propagate has been disabled.
 
 	Possible values: 1 - 255
+
 	Default: 255
 
 conf/<interface>/input - BOOL
@@ -44,5 +53,5 @@ conf/<interface>/input - BOOL
 	If disabled, packets will be discarded without further
 	processing.
 
-	0 - disabled (default)
-	not 0 - enabled
+	* 0 - disabled (default)
+	* not 0 - enabled

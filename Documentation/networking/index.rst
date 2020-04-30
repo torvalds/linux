@@ -78,6 +78,7 @@ Contents:
    lapb-module
    ltpc
    mac80211-injection
+   mpls-sysctl
 
 .. only::  subproject and html
 
