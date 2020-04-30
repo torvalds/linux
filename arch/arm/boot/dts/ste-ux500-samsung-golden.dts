@@ -24,6 +24,26 @@
 		stdout-path = &serial2;
 	};
 
+	i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio4 23 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_1_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+
+			avdd-supply = <&ab8500_ldo_aux1_reg>;
+			dvdd-supply = <&ab8500_ldo_aux8_reg>;
+		};
+	};
+
 	soc {
 		/* External Micro SD card slot */
 		sdi0_per1@80126000 {
@@ -379,6 +399,16 @@
 				       "GPIO91",	/* HOME_KEY */
 				       "GPIO92";	/* VOL_DOWN */
 				ste,config = <&gpio_in_pu>;
+			};
+		};
+	};
+
+	i2c-gpio-1 {
+		i2c_gpio_1_default: i2c_gpio_1 {
+			golden_cfg1 {
+				pins = "GPIO151",	/* COMP_SCL */
+				       "GPIO152";	/* COMP_SDA */
+				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
