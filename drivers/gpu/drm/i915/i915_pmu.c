@@ -442,6 +442,7 @@ static u64 count_interrupts(struct drm_i915_private *i915)
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
 	WARN_ON(event->parent);
+	module_put(THIS_MODULE);
 }
 
 static int
@@ -533,8 +534,10 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (!event->parent)
+	if (!event->parent) {
+		__module_get(THIS_MODULE);
 		event->destroy = i915_pmu_event_destroy;
+	}
 
 	return 0;
 }
