@@ -971,7 +971,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
  err1:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
  err0:
-	trace_svcrdma_send_failed(rqstp, ret);
+	trace_svcrdma_send_err(rqstp, ret);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 	return -ENOTCONN;
 }

@@ -1716,7 +1716,7 @@ TRACE_EVENT(svcrdma_send_pullup,
 	TP_printk("len=%u", __entry->len)
 );
 
-TRACE_EVENT(svcrdma_send_failed,
+TRACE_EVENT(svcrdma_send_err,
 	TP_PROTO(
 		const struct svc_rqst *rqst,
 		int status
@@ -1727,19 +1727,16 @@ TRACE_EVENT(svcrdma_send_failed,
 	TP_STRUCT__entry(
 		__field(int, status)
 		__field(u32, xid)
-		__field(const void *, xprt)
 		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->status = status;
 		__entry->xid = __be32_to_cpu(rqst->rq_xid);
-		__entry->xprt = rqst->rq_xprt;
 		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=%p addr=%s xid=0x%08x status=%d",
-		__entry->xprt, __get_str(addr),
+	TP_printk("addr=%s xid=0x%08x status=%d", __get_str(addr),
 		__entry->xid, __entry->status
 	)
 );
