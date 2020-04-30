@@ -172,6 +172,7 @@ struct aq_hw_s {
 	struct hw_atl_utils_fw_rpc rpc;
 	s64 ptp_clk_offset;
 	u16 phy_id;
+	void *priv;
 };
 
 struct aq_ring_s;
