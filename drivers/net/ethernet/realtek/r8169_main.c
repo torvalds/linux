@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/bitfield.h>
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
@@ -228,6 +229,11 @@ enum rtl_registers {
 	RxMaxSize	= 0xda,
 	CPlusCmd	= 0xe0,
 	IntrMitigate	= 0xe2,
+
+#define RTL_COALESCE_TX_USECS	GENMASK(15, 12)
+#define RTL_COALESCE_TX_FRAMES	GENMASK(11, 8)
+#define RTL_COALESCE_RX_USECS	GENMASK(7, 4)
+#define RTL_COALESCE_RX_FRAMES	GENMASK(3, 0)
 
 #define RTL_COALESCE_MASK	0x0f
 #define RTL_COALESCE_SHIFT	4
@@ -1815,16 +1821,8 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	const struct rtl_coalesce_info *ci;
-	struct {
-		u32 *max_frames;
-		u32 *usecs;
-	} coal_settings [] = {
-		{ &ec->rx_max_coalesced_frames, &ec->rx_coalesce_usecs },
-		{ &ec->tx_max_coalesced_frames, &ec->tx_coalesce_usecs }
-	}, *p = coal_settings;
-	u32 scale;
-	int i;
-	u16 w;
+	u32 scale, c_us, c_fr;
+	u16 intrmit;
 
 	if (rtl_is_8125(tp))
 		return -EOPNOTSUPP;
@@ -1838,24 +1836,20 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 
 	scale = ci->scale_nsecs[tp->cp_cmd & INTT_MASK];
 
-	/* read IntrMitigate and adjust according to scale */
-	for (w = RTL_R16(tp, IntrMitigate); w; w >>= RTL_COALESCE_SHIFT, p++) {
-		*p->max_frames = (w & RTL_COALESCE_MASK) << 2;
-		w >>= RTL_COALESCE_SHIFT;
-		*p->usecs = w & RTL_COALESCE_MASK;
-	}
+	intrmit = RTL_R16(tp, IntrMitigate);
 
-	for (i = 0; i < 2; i++) {
-		p = coal_settings + i;
-		*p->usecs = (*p->usecs * scale) / 1000;
+	c_us = FIELD_GET(RTL_COALESCE_TX_USECS, intrmit);
+	ec->tx_coalesce_usecs = DIV_ROUND_UP(c_us * scale, 1000);
 
-		/*
-		 * ethtool_coalesce says it is illegal to set both usecs and
-		 * max_frames to 0.
-		 */
-		if (!*p->usecs && !*p->max_frames)
-			*p->max_frames = 1;
-	}
+	c_fr = FIELD_GET(RTL_COALESCE_TX_FRAMES, intrmit);
+	/* ethtool_coalesce states usecs and max_frames must not both be 0 */
+	ec->tx_max_coalesced_frames = (c_us || c_fr) ? c_fr * 4 : 1;
+
+	c_us = FIELD_GET(RTL_COALESCE_RX_USECS, intrmit);
+	ec->rx_coalesce_usecs = DIV_ROUND_UP(c_us * scale, 1000);
+
+	c_fr = FIELD_GET(RTL_COALESCE_RX_FRAMES, intrmit);
+	ec->rx_max_coalesced_frames = (c_us || c_fr) ? c_fr * 4 : 1;
 
 	return 0;
 }
