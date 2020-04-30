@@ -502,6 +502,29 @@ struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 }
 /* obj end */
 
+void amdgpu_ras_parse_status_code(struct amdgpu_device* adev,
+				  const char* 		invoke_type,
+				  const char* 		block_name,
+				  enum ta_ras_status 	ret)
+{
+	switch (ret) {
+	case TA_RAS_STATUS__SUCCESS:
+		return;
+	case TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE:
+		dev_warn(adev->dev,
+			"RAS WARN: %s %s currently unavailable\n",
+			invoke_type,
+			block_name);
+		break;
+	default:
+		dev_err(adev->dev,
+			"RAS ERROR: %s %s error failed ret 0x%X\n",
+			invoke_type,
+			block_name,
+			ret);
+	}
+}
+
 /* feature ctl begin */
 static int amdgpu_ras_is_feature_allowed(struct amdgpu_device *adev,
 		struct ras_common_if *head)
@@ -592,11 +615,10 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!amdgpu_ras_intr_triggered()) {
 		ret = psp_ras_enable_features(&adev->psp, &info, enable);
 		if (ret) {
-			dev_err(adev->dev, "RAS ERROR: %s %s feature "
-					"failed ret %d\n",
-					enable ? "enable":"disable",
-					ras_block_str(head->block),
-					ret);
+			amdgpu_ras_parse_status_code(adev,
+						     enable ? "enable":"disable",
+						     ras_block_str(head->block),
+						    (enum ta_ras_status)ret);
 			if (ret == TA_RAS_STATUS__RESET_NEEDED)
 				return -EAGAIN;
 			return -EINVAL;
@@ -821,10 +843,10 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		ret = -EINVAL;
 	}
 
-	if (ret)
-		dev_err(adev->dev, "RAS ERROR: inject %s error failed ret %d\n",
-				ras_block_str(info->head.block),
-				ret);
+	amdgpu_ras_parse_status_code(adev,
+				     "inject",
+				     ras_block_str(info->head.block),
+				     (enum ta_ras_status)ret);
 
 	return ret;
 }
