@@ -197,6 +197,14 @@ struct smc_rtoken {				/* address/key of remote RMB */
 
 struct smcd_dev;
 
+enum smc_lgr_type {				/* redundancy state of lgr */
+	SMC_LGR_NONE,			/* no active links, lgr to be deleted */
+	SMC_LGR_SINGLE,			/* 1 active RNIC on each peer */
+	SMC_LGR_SYMMETRIC,		/* 2 active RNICs on each peer */
+	SMC_LGR_ASYMMETRIC_PEER,	/* local has 2, peer 1 active RNICs */
+	SMC_LGR_ASYMMETRIC_LOCAL,	/* local has 1, peer 2 active RNICs */
+};
+
 enum smc_llc_flowtype {
 	SMC_LLC_FLOW_NONE	= 0,
 	SMC_LLC_FLOW_ADD_LINK	= 2,
@@ -246,6 +254,8 @@ struct smc_link_group {
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 			u8			next_link_id;
+			enum smc_lgr_type	type;
+						/* redundancy state */
 			struct list_head	llc_event_q;
 						/* queue for llc events */
 			spinlock_t		llc_event_q_lock;
