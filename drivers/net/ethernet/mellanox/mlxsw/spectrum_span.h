@@ -37,6 +37,15 @@ struct mlxsw_sp_span_parms {
 	u16 vid;
 };
 
+enum mlxsw_sp_span_trigger {
+	MLXSW_SP_SPAN_TRIGGER_INGRESS,
+	MLXSW_SP_SPAN_TRIGGER_EGRESS,
+};
+
+struct mlxsw_sp_span_trigger_parms {
+	int span_id;
+};
+
 struct mlxsw_sp_span_entry_ops;
 
 struct mlxsw_sp_span_entry {
@@ -84,5 +93,14 @@ int mlxsw_sp_span_analyzed_port_get(struct mlxsw_sp_port *mlxsw_sp_port,
 				    bool ingress);
 void mlxsw_sp_span_analyzed_port_put(struct mlxsw_sp_port *mlxsw_sp_port,
 				     bool ingress);
+int mlxsw_sp_span_agent_bind(struct mlxsw_sp *mlxsw_sp,
+			     enum mlxsw_sp_span_trigger trigger,
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     const struct mlxsw_sp_span_trigger_parms *parms);
+void
+mlxsw_sp_span_agent_unbind(struct mlxsw_sp *mlxsw_sp,
+			   enum mlxsw_sp_span_trigger trigger,
+			   struct mlxsw_sp_port *mlxsw_sp_port,
+			   const struct mlxsw_sp_span_trigger_parms *parms);
 
 #endif
