@@ -49,9 +49,8 @@ struct xfs_defer_op_type {
 			void **);
 	void (*finish_cleanup)(struct xfs_trans *, void *, int);
 	void (*cancel_item)(struct list_head *);
-	int (*diff_items)(void *, struct list_head *, struct list_head *);
 	void *(*create_intent)(struct xfs_trans *tp, struct list_head *items,
-			unsigned int count);
+			unsigned int count, bool sort);
 	unsigned int		max_items;
 };
 
