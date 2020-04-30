@@ -122,6 +122,13 @@ svc_rdma_next_send_ctxt(struct list_head *list)
 					sc_list);
 }
 
+static void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
+				   struct rpc_rdma_cid *cid)
+{
+	cid->ci_queue_id = rdma->sc_sq_cq->res.id;
+	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
+}
+
 static struct svc_rdma_send_ctxt *
 svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
@@ -143,6 +150,8 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 				 rdma->sc_max_req_size, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_pd->device, addr))
 		goto fail2;
+
+	svc_rdma_send_cid_init(rdma, &ctxt->sc_cid);
 
 	ctxt->sc_send_wr.next = NULL;
 	ctxt->sc_send_wr.wr_cqe = &ctxt->sc_cqe;
@@ -268,14 +277,14 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct svcxprt_rdma *rdma = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
-	struct svc_rdma_send_ctxt *ctxt;
+	struct svc_rdma_send_ctxt *ctxt =
+		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
-	trace_svcrdma_wc_send(wc);
+	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
 
 	atomic_inc(&rdma->sc_sq_avail);
 	wake_up(&rdma->sc_send_wait);
 
-	ctxt = container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 	svc_rdma_send_ctxt_put(rdma, ctxt);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {

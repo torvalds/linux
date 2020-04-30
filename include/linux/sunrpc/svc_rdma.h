@@ -151,6 +151,8 @@ struct svc_rdma_recv_ctxt {
 
 struct svc_rdma_send_ctxt {
 	struct list_head	sc_list;
+	struct rpc_rdma_cid	sc_cid;
+
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
 	struct xdr_buf		sc_hdrbuf;

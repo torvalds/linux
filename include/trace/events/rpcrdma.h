@@ -1863,7 +1863,7 @@ TRACE_EVENT(svcrdma_post_send,
 	)
 );
 
-DEFINE_SENDCOMP_EVENT(send);
+DEFINE_COMPLETION_EVENT(svcrdma_wc_send);
 
 TRACE_EVENT(svcrdma_post_recv,
 	TP_PROTO(
