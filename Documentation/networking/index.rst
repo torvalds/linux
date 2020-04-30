@@ -110,6 +110,7 @@ Contents:
    tcp-thin
    team
    timestamping
+   tproxy
 
 .. only::  subproject and html
 

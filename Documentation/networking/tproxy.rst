@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=========================
 Transparent proxy support
 =========================
 
@@ -11,39 +14,39 @@ From Linux 4.18 transparent proxy support is also available in nf_tables.
 ================================
 
 The idea is that you identify packets with destination address matching a local
-socket on your box, set the packet mark to a certain value:
+socket on your box, set the packet mark to a certain value::
 
-# iptables -t mangle -N DIVERT
-# iptables -t mangle -A PREROUTING -p tcp -m socket -j DIVERT
-# iptables -t mangle -A DIVERT -j MARK --set-mark 1
-# iptables -t mangle -A DIVERT -j ACCEPT
+    # iptables -t mangle -N DIVERT
+    # iptables -t mangle -A PREROUTING -p tcp -m socket -j DIVERT
+    # iptables -t mangle -A DIVERT -j MARK --set-mark 1
+    # iptables -t mangle -A DIVERT -j ACCEPT
 
-Alternatively you can do this in nft with the following commands:
+Alternatively you can do this in nft with the following commands::
 
-# nft add table filter
-# nft add chain filter divert "{ type filter hook prerouting priority -150; }"
-# nft add rule filter divert meta l4proto tcp socket transparent 1 meta mark set 1 accept
+    # nft add table filter
+    # nft add chain filter divert "{ type filter hook prerouting priority -150; }"
+    # nft add rule filter divert meta l4proto tcp socket transparent 1 meta mark set 1 accept
 
 And then match on that value using policy routing to have those packets
-delivered locally:
+delivered locally::
 
-# ip rule add fwmark 1 lookup 100
-# ip route add local 0.0.0.0/0 dev lo table 100
+    # ip rule add fwmark 1 lookup 100
+    # ip route add local 0.0.0.0/0 dev lo table 100
 
 Because of certain restrictions in the IPv4 routing output code you'll have to
 modify your application to allow it to send datagrams _from_ non-local IP
 addresses. All you have to do is enable the (SOL_IP, IP_TRANSPARENT) socket
-option before calling bind:
+option before calling bind::
 
-fd = socket(AF_INET, SOCK_STREAM, 0);
-/* - 8< -*/
-int value = 1;
-setsockopt(fd, SOL_IP, IP_TRANSPARENT, &value, sizeof(value));
-/* - 8< -*/
-name.sin_family = AF_INET;
-name.sin_port = htons(0xCAFE);
-name.sin_addr.s_addr = htonl(0xDEADBEEF);
-bind(fd, &name, sizeof(name));
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    /* - 8< -*/
+    int value = 1;
+    setsockopt(fd, SOL_IP, IP_TRANSPARENT, &value, sizeof(value));
+    /* - 8< -*/
+    name.sin_family = AF_INET;
+    name.sin_port = htons(0xCAFE);
+    name.sin_addr.s_addr = htonl(0xDEADBEEF);
+    bind(fd, &name, sizeof(name));
 
 A trivial patch for netcat is available here:
 http://people.netfilter.org/hidden/tproxy/netcat-ip_transparent-support.patch
@@ -61,10 +64,10 @@ be able to find out the original destination address. Even in case of TCP
 getting the original destination address is racy.)
 
 The 'TPROXY' target provides similar functionality without relying on NAT. Simply
-add rules like this to the iptables ruleset above:
+add rules like this to the iptables ruleset above::
 
-# iptables -t mangle -A PREROUTING -p tcp --dport 80 -j TPROXY \
-  --tproxy-mark 0x1/0x1 --on-port 50080
+    # iptables -t mangle -A PREROUTING -p tcp --dport 80 -j TPROXY \
+      --tproxy-mark 0x1/0x1 --on-port 50080
 
 Or the following rule to nft:
 
@@ -82,10 +85,12 @@ nf_tables implementation.
 ====================================
 
 To use tproxy you'll need to have the following modules compiled for iptables:
+
  - NETFILTER_XT_MATCH_SOCKET
  - NETFILTER_XT_TARGET_TPROXY
 
 Or the floowing modules for nf_tables:
+
  - NFT_SOCKET
  - NFT_TPROXY
 
