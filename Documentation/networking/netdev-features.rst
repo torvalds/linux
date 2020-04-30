@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================================
 Netdev features mess and how to get out from it alive
 =====================================================
 
@@ -6,8 +9,8 @@ Author:
 
 
 
- Part I: Feature sets
-======================
+Part I: Feature sets
+====================
 
 Long gone are the days when a network card would just take and give packets
 verbatim.  Today's devices add multiple features and bugs (read: offloads)
@@ -39,8 +42,8 @@ one used internally by network core:
 
 
 
- Part II: Controlling enabled features
-=======================================
+Part II: Controlling enabled features
+=====================================
 
 When current feature set (netdev->features) is to be changed, new set
 is calculated and filtered by calling ndo_fix_features callback
@@ -65,8 +68,8 @@ driver except by means of ndo_fix_features callback.
 
 
 
- Part III: Implementation hints
-================================
+Part III: Implementation hints
+==============================
 
  * ndo_fix_features:
 
@@ -94,8 +97,8 @@ Errors returned are not (and cannot be) propagated anywhere except dmesg.
 
 
 
- Part IV: Features
-===================
+Part IV: Features
+=================
 
 For current list of features, see include/linux/netdev_features.h.
 This section describes semantics of some of them.

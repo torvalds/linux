@@ -81,6 +81,7 @@ Contents:
    mpls-sysctl
    multiqueue
    netconsole
+   netdev-features
 
 .. only::  subproject and html
 
