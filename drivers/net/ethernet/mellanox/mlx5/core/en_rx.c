@@ -1187,8 +1187,10 @@ static void trigger_report(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	struct mlx5_err_cqe *err_cqe = (struct mlx5_err_cqe *)cqe;
 
 	if (cqe_syndrome_needs_recover(err_cqe->syndrome) &&
-	    !test_and_set_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state))
+	    !test_and_set_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state)) {
+		mlx5e_dump_error_cqe(&rq->cq, rq->rqn, err_cqe);
 		queue_work(rq->channel->priv->wq, &rq->recover_work);
+	}
 }
 
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)

@@ -268,7 +268,7 @@ static inline void mlx5e_rqwq_reset(struct mlx5e_rq *rq)
 	}
 }
 
-static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 sqn,
+static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 qn,
 					struct mlx5_err_cqe *err_cqe)
 {
 	struct mlx5_cqwq *wq = &cq->wq;
@@ -277,8 +277,8 @@ static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 sqn,
 	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
 
 	netdev_err(cq->channel->netdev,
-		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
-		   cq->mcq.cqn, ci, sqn,
+		   "Error cqe on cqn 0x%x, ci 0x%x, qn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   cq->mcq.cqn, ci, qn,
 		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
 		   err_cqe->syndrome, err_cqe->vendor_err_synd);
 	mlx5_dump_err_cqe(cq->mdev, err_cqe);

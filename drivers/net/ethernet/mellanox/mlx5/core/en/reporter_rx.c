@@ -124,24 +124,8 @@ static int mlx5e_rq_to_ready(struct mlx5e_rq *rq, int curr_state)
 
 static int mlx5e_rx_reporter_err_rq_cqe_recover(void *ctx)
 {
-	struct mlx5_core_dev *mdev;
-	struct net_device *dev;
-	struct mlx5e_rq *rq;
-	u8 state;
+	struct mlx5e_rq *rq = ctx;
 	int err;
-
-	rq = ctx;
-	mdev = rq->mdev;
-	dev = rq->netdev;
-	err = mlx5e_query_rq_state(mdev, rq->rqn, &state);
-	if (err) {
-		netdev_err(dev, "Failed to query RQ 0x%x state. err = %d\n",
-			   rq->rqn, err);
-		goto out;
-	}
-
-	if (state != MLX5_RQC_STATE_ERR)
-		goto out;
 
 	mlx5e_deactivate_rq(rq);
 	mlx5e_free_rx_descs(rq);
