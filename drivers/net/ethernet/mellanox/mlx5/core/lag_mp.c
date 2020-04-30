@@ -131,7 +131,12 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 			struct net_device *nh_dev = nh->fib_nh_dev;
 			int i = mlx5_lag_dev_get_netdev_idx(ldev, nh_dev);
 
-			mlx5_lag_set_port_affinity(ldev, ++i);
+			if (i < 0)
+				i = MLX5_LAG_NORMAL_AFFINITY;
+			else
+				++i;
+
+			mlx5_lag_set_port_affinity(ldev, i);
 		}
 		return;
 	}
