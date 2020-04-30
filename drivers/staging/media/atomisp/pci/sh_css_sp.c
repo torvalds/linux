@@ -117,10 +117,6 @@ copy_isp_stage_to_sp_stage(void)
 	*/
 	sh_css_sp_stage.enable.sdis = sh_css_isp_stage.binary_info.enable.dis;
 	sh_css_sp_stage.enable.s3a = sh_css_isp_stage.binary_info.enable.s3a;
-#ifdef ISP2401
-	sh_css_sp_stage.enable.lace_stats =
-	    sh_css_isp_stage.binary_info.enable.lace_stats;
-#endif
 }
 
 void
@@ -827,11 +823,6 @@ configure_isp_from_args(
     const struct sh_css_binary_args *args,
     bool two_ppc,
     bool deinterleaved) {
-#ifdef ISP2401
-	struct ia_css_pipe *pipe = find_pipe_by_num(pipeline->pipe_num);
-	const struct ia_css_resolution *res;
-
-#endif
 	ia_css_fpn_configure(binary,  &binary->in_frame_info);
 	ia_css_crop_configure(binary, &args->delay_frames[0]->info);
 	ia_css_qplane_configure(pipeline, binary, &binary->in_frame_info);

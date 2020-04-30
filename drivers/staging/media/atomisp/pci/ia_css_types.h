@@ -589,10 +589,6 @@ struct ia_css_isp_config {
 	struct ia_css_output_config
 		*output_config;	/** Main Output Mirroring, flipping */
 
-	/* ISP 2401 */
-	struct ia_css_tnr3_kernel_config
-		*tnr3_config;           /** TNR3 config */
-
 	struct ia_css_scaler_config
 		*scaler_config;         /** Skylake: scaler config (optional) */
 	struct ia_css_formats_config

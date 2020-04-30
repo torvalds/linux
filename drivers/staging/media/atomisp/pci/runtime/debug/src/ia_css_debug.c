@@ -49,9 +49,6 @@
 #include "assert_support.h"
 #include "print_support.h"
 #include "string_support.h"
-#ifdef ISP2401
-#include "ia_css_system_ctrl.h"
-#endif
 
 #include "fifo_monitor.h"
 

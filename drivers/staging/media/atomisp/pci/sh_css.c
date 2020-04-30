@@ -1522,7 +1522,6 @@ sh_css_invalidate_shading_tables(struct ia_css_stream *stream)
 			    "sh_css_invalidate_shading_tables() leave: return_void\n");
 }
 
-#ifndef ISP2401
 static void
 enable_interrupts(enum ia_css_irq_type irq_type)
 {
@@ -1563,8 +1562,6 @@ enable_interrupts(enum ia_css_irq_type irq_type)
 
 	IA_CSS_LEAVE_PRIVATE("");
 }
-
-#endif
 
 static bool sh_css_setup_spctrl_config(const struct ia_css_fw_info *fw,
 				       const char *program,
@@ -1736,11 +1733,8 @@ ia_css_init(const struct ia_css_env *env,
 	enable = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_e)
 	| GPIO_FLASH_PIN_MASK;
 	sh_css_mmu_set_page_table_base_index(mmu_l1_base);
-#ifndef ISP2401
+
 	my_css_save.mmu_base = mmu_l1_base;
-#else
-	ia_css_save_mmu_base_addr(mmu_l1_base);
-#endif
 
 	ia_css_reset_defaults(&my_css);
 
@@ -1754,13 +1748,8 @@ ia_css_init(const struct ia_css_env *env,
 		return err;
 	}
 
-#ifndef ISP2401
 	IA_CSS_LOG("init: %d", my_css_save_initialized);
-#else
-	ia_css_save_restore_data_init();
-#endif
 
-#ifndef ISP2401
 	if (!my_css_save_initialized)
 	{
 		my_css_save_initialized = true;
@@ -1769,7 +1758,7 @@ ia_css_init(const struct ia_css_env *env,
 		       sizeof(struct sh_css_stream_seed) * MAX_ACTIVE_STREAMS);
 		IA_CSS_LOG("init: %d mode=%d", my_css_save_initialized, my_css_save.mode);
 	}
-#endif
+
 	mipi_init();
 
 #ifndef ISP2401
@@ -1779,11 +1768,9 @@ ia_css_init(const struct ia_css_env *env,
 
 #endif
 	my_css.irq_type = irq_type;
-#ifndef ISP2401
+
 	my_css_save.irq_type = irq_type;
-#else
-	ia_css_save_irq_type(irq_type);
-#endif
+
 	enable_interrupts(my_css.irq_type);
 
 	/* configure GPIO to output mode */
@@ -9442,12 +9429,9 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	int i, j;
 	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
 	struct ia_css_metadata_info md_info;
-#ifndef ISP2401
 	struct ia_css_resolution effective_res;
-#else
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
 	bool aspect_ratio_crop_enabled = false;
-#endif
 #endif
 
 	IA_CSS_ENTER("num_pipes=%d", num_pipes);
@@ -9934,6 +9918,8 @@ ia_css_stream_destroy(struct ia_css_stream *stream) {
 	    ia_css_pipeline_is_mapped(stream->last_pipe->pipe_num))
 	{
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
+		bool free_mpi;
+
 		for (i = 0; i < stream->num_pipes; i++) {
 			struct ia_css_pipe *entry = stream->pipes[i];
 			unsigned int sp_thread_id;
