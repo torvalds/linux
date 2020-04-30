@@ -52,7 +52,6 @@
 
 #define USE_INPUT_SYSTEM_VERSION_2401
 
-#define IS_ISP_2400_SYSTEM
 /*
  * Since this file is visible everywhere and the system definition
  * macros are not, detect the separate definitions for {host, SP, ISP}

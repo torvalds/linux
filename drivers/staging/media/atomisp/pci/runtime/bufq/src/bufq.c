@@ -33,8 +33,6 @@ static char prefix[BUFQ_DUMP_FILE_NAME_PREFIX_SIZE] = {0};
 /* Global Queue objects used by CSS                      */
 /*********************************************************/
 
-#ifndef ISP2401
-
 struct sh_css_queues {
 	/* Host2SP buffer queue */
 	ia_css_queue_t host2sp_buffer_queue_handles
@@ -59,36 +57,6 @@ struct sh_css_queues {
 	/* Tagger command queue */
 	ia_css_queue_t host2sp_tag_cmd_queue_handle;
 };
-
-#else
-
-struct sh_css_queues {
-	/* Host2SP buffer queue */
-	ia_css_queue_t host2sp_buffer_queue_handles
-	[SH_CSS_MAX_SP_THREADS][SH_CSS_MAX_NUM_QUEUES];
-	/* SP2Host buffer queue */
-	ia_css_queue_t sp2host_buffer_queue_handles
-	[SH_CSS_MAX_NUM_QUEUES];
-
-	/* Host2SP event queue */
-	ia_css_queue_t host2sp_psys_event_queue_handle;
-
-	/* SP2Host event queue */
-	ia_css_queue_t sp2host_psys_event_queue_handle;
-
-#if !defined(HAS_NO_INPUT_SYSTEM)
-	/* Host2SP ISYS event queue */
-	ia_css_queue_t host2sp_isys_event_queue_handle;
-
-	/* SP2Host ISYS event queue */
-	ia_css_queue_t sp2host_isys_event_queue_handle;
-
-	/* Tagger command queue */
-	ia_css_queue_t host2sp_tag_cmd_queue_handle;
-#endif
-};
-
-#endif
 
 /*******************************************************
 *** Static variables

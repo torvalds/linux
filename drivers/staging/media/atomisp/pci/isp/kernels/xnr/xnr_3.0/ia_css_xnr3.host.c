@@ -16,9 +16,7 @@
 #include "math_support.h"
 #include "sh_css_defs.h"
 #include "ia_css_types.h"
-#ifdef ISP2401
 #include "assert_support.h"
-#endif
 #include "ia_css_xnr3.host.h"
 
 /* Maximum value for alpha on ISP interface */
@@ -30,7 +28,6 @@
 #define XNR_MIN_SIGMA  (IA_CSS_XNR3_SIGMA_SCALE / 100)
 
 /*
-#ifdef ISP2401
  * division look-up table
  * Refers to XNR3.0.5
  */
@@ -79,27 +76,12 @@ static int32_t
 compute_alpha(int sigma)
 {
 	s32 alpha;
-#if defined(XNR_ATE_ROUNDING_BUG)
-	s32 alpha_unscaled;
-#else
 	int offset = sigma / 2;
-#endif
+
 	if (sigma < XNR_MIN_SIGMA) {
 		alpha = XNR_MAX_ALPHA;
 	} else {
-#if defined(XNR_ATE_ROUNDING_BUG)
-		/* The scale factor for alpha must be the same as on the ISP,
-		 * For sigma, it must match the public interface. The code
-		 * below mimics the rounding and unintended loss of precision
-		 * of the ATE reference code. It computes an unscaled alpha,
-		 * rounds down, and then scales it to get the required fixed
-		 * point representation. It would have been more precise to
-		 * round after scaling. */
-		alpha_unscaled = IA_CSS_XNR3_SIGMA_SCALE / sigma;
-		alpha = alpha_unscaled * XNR_ALPHA_SCALE_FACTOR;
-#else
 		alpha = ((IA_CSS_XNR3_SIGMA_SCALE * XNR_ALPHA_SCALE_FACTOR) + offset) / sigma;
-#endif
 
 		if (alpha > XNR_MAX_ALPHA)
 			alpha = XNR_MAX_ALPHA;
@@ -200,7 +182,7 @@ ia_css_xnr3_encode(
 	to->blending.strength = blending;
 }
 
-#ifdef ISP2401
+/* ISP2401 */
 /* (void) = ia_css_xnr3_vmem_encode(*to, *from)
  * -----------------------------------------------
  * VMEM Encode Function to translate UV parameters from userspace into ISP space
@@ -256,7 +238,6 @@ ia_css_xnr3_vmem_encode(
 	}
 }
 
-#endif
 /* Dummy Function added as the tool expects it*/
 void
 ia_css_xnr3_debug_dtrace(

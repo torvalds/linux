@@ -4797,10 +4797,8 @@ static void __atomisp_update_stream_env(struct atomisp_sub_device *asd,
 {
 	int i;
 
-#if defined(ISP2401_NEW_INPUT_SYSTEM)
 	/* assign virtual channel id return from sensor driver query */
 	asd->stream_env[stream_index].ch_id = stream_info->ch_id;
-#endif
 	asd->stream_env[stream_index].isys_configs = stream_info->isys_configs;
 	for (i = 0; i < stream_info->isys_configs; i++) {
 		asd->stream_env[stream_index].isys_info[i].input_format =

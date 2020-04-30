@@ -210,11 +210,9 @@ enum ia_css_err ia_css_util_check_input(
 	if (!stream_config)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
-#ifdef IS_ISP_2400_SYSTEM
 	if (stream_config->input_config.effective_res.width == 0 ||
 	    stream_config->input_config.effective_res.height == 0)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
-#endif
 	if (must_be_raw &&
 	    !ia_css_util_is_input_format_raw(stream_config->input_config.format))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;

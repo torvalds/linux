@@ -196,9 +196,7 @@ bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
 			     id, ptr, entry, entry->id, entry->count);
 	else
 		IA_CSS_ERROR("entry NULL\n");
-#ifdef ISP2401
 	assert(false);
-#endif
 
 	return false;
 }
@@ -246,14 +244,13 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 						    "ia_css_refcount_clear: using hmm_free: no clear_func\n");
 				hmm_free(entry->data);
 			}
-#ifndef ISP2401
 
-#else
-			assert(entry->count == 0);
-#endif
 			if (entry->count != 0) {
 				IA_CSS_WARNING("Ref count for entry %x is not zero!", entry->id);
 			}
+
+			assert(entry->count == 0);
+
 			entry->data = mmgr_NULL;
 			entry->count = 0;
 			entry->id = 0;

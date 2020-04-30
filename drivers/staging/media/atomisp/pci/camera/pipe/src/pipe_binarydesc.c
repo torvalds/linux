@@ -57,10 +57,8 @@ static void pipe_binarydesc_get_offline(
 	descr->enable_dz = true;
 	descr->enable_xnr = false;
 	descr->enable_dpc = false;
-#ifdef ISP2401
 	descr->enable_luma_only = false;
 	descr->enable_tnr = false;
-#endif
 	descr->enable_capture_pp_bli = false;
 	descr->enable_fractional_ds = false;
 	descr->dvs_env.width = 0;
@@ -391,12 +389,10 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 		    pipe->extra_config.enable_fractional_ds;
 		video_descr->enable_dpc =
 		    pipe->config.enable_dpc;
-#ifdef ISP2401
 		video_descr->enable_luma_only =
 		    pipe->config.enable_luma_only;
 		video_descr->enable_tnr =
 		    pipe->config.enable_tnr;
-#endif
 
 		if (pipe->extra_config.enable_raw_binning) {
 			if (pipe->config.bayer_ds_out_res.width != 0 &&
@@ -603,27 +599,24 @@ void ia_css_pipe_get_primary_binarydesc(
 		prim_descr->isp_pipe_version = pipe->config.isp_pipe_version;
 		prim_descr->enable_fractional_ds =
 		    pipe->extra_config.enable_fractional_ds;
-#ifdef ISP2401
 		prim_descr->enable_luma_only =
 		    pipe->config.enable_luma_only;
-#endif
 		/* We have both striped and non-striped primary binaries,
 		 * if continuous viewfinder is required, then we must select
 		 * a striped one. Otherwise we prefer to use a non-striped
 		 * since it has better performance. */
 		if (pipe_version == IA_CSS_PIPE_VERSION_2_6_1)
 			prim_descr->striped = false;
-		else
-#ifndef ISP2401
+		else if (!atomisp_hw_is_isp2401) {
 			prim_descr->striped = prim_descr->continuous &&
 					      (!pipe->stream->stop_copy_preview || !pipe->stream->disable_cont_vf);
-#else
+		} else {
 			prim_descr->striped = prim_descr->continuous && !pipe->stream->disable_cont_vf;
 
-		if ((pipe->config.default_capture_config.enable_xnr != 0) &&
-		    (pipe->extra_config.enable_dvs_6axis == true))
-			prim_descr->enable_xnr = true;
-#endif
+			if ((pipe->config.default_capture_config.enable_xnr != 0) &&
+			    (pipe->extra_config.enable_dvs_6axis == true))
+				prim_descr->enable_xnr = true;
+		}
 	}
 	IA_CSS_LEAVE_PRIVATE("");
 }
@@ -855,14 +848,15 @@ void ia_css_pipe_get_ldc_binarydesc(
 	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
-#ifndef ISP2401
-	*in_info = *out_info;
-#else
-	if (pipe->out_yuv_ds_input_info.res.width)
-		*in_info = pipe->out_yuv_ds_input_info;
-	else
+	if (!atomisp_hw_is_isp2401) {
 		*in_info = *out_info;
-#endif
+	} else {
+		if (pipe->out_yuv_ds_input_info.res.width)
+			*in_info = pipe->out_yuv_ds_input_info;
+		else
+			*in_info = *out_info;
+	}
+
 	in_info->format = IA_CSS_FRAME_FORMAT_YUV420;
 	in_info->raw_bit_depth = 0;
 	ia_css_frame_info_set_width(in_info, in_info->res.width, 0);

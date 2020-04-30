@@ -580,13 +580,11 @@ sh_css_config_input_network(struct ia_css_stream *stream) {
 		vblank_cycles = vblank_lines * (width + hblank_cycles);
 		sh_css_sp_configure_sync_gen(width, height, hblank_cycles,
 					     vblank_cycles);
-#if defined(IS_ISP_2400_SYSTEM)
 		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_TPG) {
 			/* TODO: move define to proper file in tools */
 #define GP_ISEL_TPG_MODE 0x90058
 			ia_css_device_store_uint32(GP_ISEL_TPG_MODE, 0);
 		}
-#endif
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_config_input_network() leave:\n");

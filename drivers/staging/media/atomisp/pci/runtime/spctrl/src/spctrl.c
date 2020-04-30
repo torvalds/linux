@@ -1,7 +1,6 @@
-#ifndef ISP2401
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
+ * Copyright (c) 2010 - 2015, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,21 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#else
-/*
-Support for Intel Camera Imaging ISP subsystem.
-Copyright (c) 2010 - 2015, Intel Corporation.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms and conditions of the GNU General Public License,
-version 2, as published by the Free Software Foundation.
-
-This program is distributed in the hope it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-*/
-#endif
 
 #include "ia_css_types.h"
 #define __INLINE_SP__
@@ -115,7 +99,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	return IA_CSS_SUCCESS;
 }
 
-#ifdef ISP2401
+/* ISP2401 */
 /* reload pre-loaded FW */
 void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 {
@@ -127,7 +111,6 @@ void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
 	spctrl_loaded[sp_id] = true;
 }
-#endif
 
 hrt_vaddress get_sp_code_addr(sp_ID_t  sp_id)
 {

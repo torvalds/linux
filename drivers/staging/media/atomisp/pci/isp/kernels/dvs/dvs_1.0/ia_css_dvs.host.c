@@ -66,9 +66,6 @@ convert_coords_to_ispparams(
     unsigned int uv_flag)
 {
 	unsigned int i, j;
-#ifndef ISP2401
-	/* Coverity CID 298073 - initialize */
-#endif
 	gdc_warp_param_mem_t s = { 0 };
 	unsigned int x00, x01, x10, x11,
 		 y00, y01, y10, y11;

@@ -111,20 +111,14 @@
 	(sizeof(char) * (binary)->in_frame_info.res.height * \
 	 (binary)->in_frame_info.padded_width)
 
-#ifndef ISP2401
-
-#define SCTBL_BYTES(binary) \
+#define ISP2400_SCTBL_BYTES(binary) \
 	(sizeof(unsigned short) * (binary)->sctbl_height * \
 	 (binary)->sctbl_aligned_width_per_color * IA_CSS_SC_NUM_COLORS)
 
-#else
-
-#define SCTBL_BYTES(binary) \
+#define ISP2401_SCTBL_BYTES(binary) \
 	(sizeof(unsigned short) * max((binary)->sctbl_height, (binary)->sctbl_legacy_height) * \
 			/* height should be the larger height between new api and legacy api */ \
 	 (binary)->sctbl_aligned_width_per_color * IA_CSS_SC_NUM_COLORS)
-
-#endif
 
 #define MORPH_PLANE_BYTES(binary) \
 	(SH_CSS_MORPH_TABLE_ELEM_BYTES * (binary)->morph_tbl_aligned_width * \
@@ -2166,20 +2160,21 @@ ia_css_set_param_exceptions(const struct ia_css_pipe *pipe,
 	params->dp_config.r  = params->wb_config.r;
 	params->dp_config.b  = params->wb_config.b;
 	params->dp_config.gb = params->wb_config.gb;
-#ifdef ISP2401
-	assert(pipe);
-	assert(pipe->mode < IA_CSS_PIPE_ID_NUM);
 
-	if (pipe->mode < IA_CSS_PIPE_ID_NUM) {
-		params->pipe_dp_config[pipe->mode].gr = params->wb_config.gr;
-		params->pipe_dp_config[pipe->mode].r  = params->wb_config.r;
-		params->pipe_dp_config[pipe->mode].b  = params->wb_config.b;
-		params->pipe_dp_config[pipe->mode].gb = params->wb_config.gb;
+	if (atomisp_hw_is_isp2401) {
+		assert(pipe);
+		assert(pipe->mode < IA_CSS_PIPE_ID_NUM);
+
+		if (pipe->mode < IA_CSS_PIPE_ID_NUM) {
+			params->pipe_dp_config[pipe->mode].gr = params->wb_config.gr;
+			params->pipe_dp_config[pipe->mode].r  = params->wb_config.r;
+			params->pipe_dp_config[pipe->mode].b  = params->wb_config.b;
+			params->pipe_dp_config[pipe->mode].gb = params->wb_config.gb;
+		}
 	}
-#endif
 }
 
-#ifdef ISP2401
+/* ISP2401 */
 static void
 sh_css_set_dp_config(const struct ia_css_pipe *pipe,
 		     struct ia_css_isp_parameters *params,
@@ -2200,7 +2195,6 @@ sh_css_set_dp_config(const struct ia_css_pipe *pipe,
 	}
 	IA_CSS_LEAVE_PRIVATE("void");
 }
-#endif
 
 static void
 sh_css_get_dp_config(const struct ia_css_pipe *pipe,
@@ -2630,15 +2624,16 @@ sh_css_init_isp_params_from_config(struct ia_css_pipe *pipe,
 
 	params->output_frame = config->output_frame;
 	params->isp_parameters_id = config->isp_config_id;
-#ifdef ISP2401
+
 	/* Currently we do not offer CSS interface to set different
 	 * configurations for DPC, i.e. depending on DPC being enabled
 	 * before (NORM+OBC) or after. The folllowing code to set the
 	 * DPC configuration should be updated when this interface is made
 	 * available */
-	sh_css_set_dp_config(pipe, params, config->dp_config);
-	ia_css_set_param_exceptions(pipe, params);
-#endif
+	if (atomisp_hw_is_isp2401) {
+		sh_css_set_dp_config(pipe, params, config->dp_config);
+		ia_css_set_param_exceptions(pipe, params);
+	}
 
 	if (IA_CSS_SUCCESS ==
 	    sh_css_select_dp_10bpp_config(pipe, &is_dp_10bpp))
@@ -2656,9 +2651,9 @@ sh_css_init_isp_params_from_config(struct ia_css_pipe *pipe,
 		goto exit;
 	}
 
-#ifndef ISP2401
-	ia_css_set_param_exceptions(pipe, params);
-#endif
+	if (!atomisp_hw_is_isp2401)
+		ia_css_set_param_exceptions(pipe, params);
+
 exit:
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -3072,31 +3067,31 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 		ia_css_set_tnr_config(params, &default_tnr_config);
 		ia_css_set_ob_config(params, &default_ob_config);
 		ia_css_set_dp_config(params, &default_dp_config);
-#ifndef ISP2401
-		ia_css_set_param_exceptions(pipe_in, params);
-#else
 
-		for (i = 0; i < stream->num_pipes; i++) {
-			if (sh_css_select_dp_10bpp_config(stream->pipes[i],
-							  &is_dp_10bpp) == IA_CSS_SUCCESS) {
-				/* set the return value as false if both DPC and
-				 * BDS is enabled by the user. But we do not return
-				 * the value immediately to enable internal firmware
-				 * feature testing. */
-				if (is_dp_10bpp) {
-					sh_css_set_dp_config(stream->pipes[i], params, &default_dp_10bpp_config);
+		if (!atomisp_hw_is_isp2401) {
+			ia_css_set_param_exceptions(pipe_in, params);
+		} else {
+			for (i = 0; i < stream->num_pipes; i++) {
+				if (sh_css_select_dp_10bpp_config(stream->pipes[i],
+								&is_dp_10bpp) == IA_CSS_SUCCESS) {
+					/* set the return value as false if both DPC and
+					* BDS is enabled by the user. But we do not return
+					* the value immediately to enable internal firmware
+					* feature testing. */
+					if (is_dp_10bpp) {
+						sh_css_set_dp_config(stream->pipes[i], params, &default_dp_10bpp_config);
+					} else {
+						sh_css_set_dp_config(stream->pipes[i], params, &default_dp_config);
+					}
 				} else {
-					sh_css_set_dp_config(stream->pipes[i], params, &default_dp_config);
+					retval = false;
+					goto exit;
 				}
-			} else {
-				retval = false;
-				goto exit;
-			}
 
-			ia_css_set_param_exceptions(stream->pipes[i], params);
+				ia_css_set_param_exceptions(stream->pipes[i], params);
+			}
 		}
 
-#endif
 		ia_css_set_de_config(params, &default_de_config);
 		ia_css_set_gc_config(params, &default_gc_config);
 		ia_css_set_anr_config(params, &default_anr_config);
@@ -3191,31 +3186,30 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 				 * BDS is enabled by the user. But we do not return
 				 * the value immediately to enable internal firmware
 				 * feature testing. */
-#ifndef ISP2401
-				retval = !is_dp_10bpp;
-#else
+
 				if (is_dp_10bpp) {
 					retval = false;
+					/* FIXME: should it ignore this error? */
 				}
 			} else {
 				retval = false;
 				goto exit;
 			}
-			if (stream->pipes[i]->mode < IA_CSS_PIPE_ID_NUM) {
-				sh_css_set_dp_config(stream->pipes[i], params,
-						     &stream_params->pipe_dp_config[stream->pipes[i]->mode]);
-				ia_css_set_param_exceptions(stream->pipes[i], params);
-#endif
-			} else {
-				retval = false;
-				goto exit;
+			if (atomisp_hw_is_isp2401) {
+				if (stream->pipes[i]->mode < IA_CSS_PIPE_ID_NUM) {
+					sh_css_set_dp_config(stream->pipes[i], params,
+							    &stream_params->pipe_dp_config[stream->pipes[i]->mode]);
+					ia_css_set_param_exceptions(stream->pipes[i], params);
+				} else {
+					retval = false;
+					goto exit;
+				}
 			}
 		}
 
-#ifndef ISP2401
-		ia_css_set_param_exceptions(pipe_in, params);
+		if (!atomisp_hw_is_isp2401)
+			ia_css_set_param_exceptions(pipe_in, params);
 
-#endif
 		params->fpn_config.data = stream_params->fpn_config.data;
 		params->config_changed[IA_CSS_FPN_ID] =
 		    stream_params->config_changed[IA_CSS_FPN_ID];
@@ -3335,11 +3329,8 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	const void *lut)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
-#ifndef ISP2401
-	bool store = true;
-#else
 	bool stream_started = false;
-#endif
+
 	IA_CSS_ENTER("pipe=%p lut=%p", pipe, lut);
 
 	if (!lut || !pipe) {
@@ -3355,11 +3346,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	if (pipe->stream && pipe->stream->started) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "unable to set scaler lut since stream has started\n");
-#ifndef ISP2401
-		store = false;
-#else
 		stream_started = true;
-#endif
 		err = IA_CSS_ERR_NOT_SUPPORTED;
 	}
 
@@ -3367,18 +3354,13 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	sh_css_params_free_gdc_lut(pipe->scaler_pp_lut);
 	pipe->scaler_pp_lut = mmgr_NULL;
 
-#ifndef ISP2401
-	if (store) {
-		pipe->scaler_pp_lut = mmgr_malloc(sizeof(zoom_table));
-#else
 	if (!stream_started) {
-		pipe->scaler_pp_lut = sh_css_params_alloc_gdc_lut();
-#endif
+		if (!atomisp_hw_is_isp2401)
+			pipe->scaler_pp_lut = mmgr_malloc(sizeof(zoom_table));
+		else
+			pipe->scaler_pp_lut = sh_css_params_alloc_gdc_lut();
+
 		if (pipe->scaler_pp_lut == mmgr_NULL) {
-#ifndef ISP2401
-			IA_CSS_LEAVE("lut(%u) err=%d", pipe->scaler_pp_lut, err);
-			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-#else
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 					    "unable to allocate scaler_pp_lut\n");
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -3388,15 +3370,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 			mmgr_store(pipe->scaler_pp_lut,
 				   (int *)interleaved_lut_temp,
 				   sizeof(zoom_table));
-#endif
 		}
-#ifndef ISP2401
-
-		gdc_lut_convert_to_isp_format((const int(*)[HRT_GDC_N])lut,
-					      interleaved_lut_temp);
-		mmgr_store(pipe->scaler_pp_lut, (int *)interleaved_lut_temp,
-			   sizeof(zoom_table));
-#endif
 	}
 
 	IA_CSS_LEAVE("lut(%u) err=%d", pipe->scaler_pp_lut, err);
@@ -3426,11 +3400,11 @@ enum ia_css_err sh_css_params_map_and_store_default_gdc_lut(void)
 
 	host_lut_store((void *)zoom_table);
 
-#ifndef ISP2401
-	default_gdc_lut = mmgr_malloc(sizeof(zoom_table));
-#else
-	default_gdc_lut = sh_css_params_alloc_gdc_lut();
-#endif
+	if (!atomisp_hw_is_isp2401)
+		default_gdc_lut = mmgr_malloc(sizeof(zoom_table));
+	else
+		default_gdc_lut = sh_css_params_alloc_gdc_lut();
+
 	if (default_gdc_lut == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
@@ -4036,12 +4010,19 @@ sh_css_params_write_to_ddr_internal(
 
 	if (binary->info->sp.enable.sc)
 	{
-		u32 enable_conv = params->
-				  shading_settings.enable_shading_table_conversion;
+		u32 enable_conv;
+		size_t bytes;
+
+		if (!atomisp_hw_is_isp2401)
+			bytes = ISP2400_SCTBL_BYTES(binary);
+		else
+			bytes = ISP2401_SCTBL_BYTES(binary);
+
+		enable_conv = params->shading_settings.enable_shading_table_conversion;
 
 		buff_realloced = reallocate_buffer(&ddr_map->sc_tbl,
 						   &ddr_map_size->sc_tbl,
-						   (size_t)(SCTBL_BYTES(binary)),
+						   bytes,
 						   params->sc_table_changed,
 						   &err);
 		if (err != IA_CSS_SUCCESS) {
@@ -4125,11 +4106,12 @@ sh_css_params_write_to_ddr_internal(
 			}
 		}
 	}
-#ifdef ISP2401
+
 	/* DPC configuration is made pipe specific to allow flexibility in positioning of the
 	 * DPC kernel. The code below sets the pipe specific configuration to
 	 * individual binaries. */
-	if (params->pipe_dpc_config_changed[pipe_id] && binary->info->sp.enable.dpc)
+	if (atomisp_hw_is_isp2401 &&
+	    params->pipe_dpc_config_changed[pipe_id] && binary->info->sp.enable.dpc)
 	{
 		unsigned int size   =
 		    stage->binary->info->mem_offsets.offsets.param->dmem.dp.size;
@@ -4141,15 +4123,13 @@ sh_css_params_write_to_ddr_internal(
 			ia_css_dp_encode((struct sh_css_isp_dp_params *)
 					 &binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset],
 					 &params->pipe_dp_config[pipe_id], size);
-#endif
 
-#ifdef ISP2401
 			params->isp_params_changed = true;
 			params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_DMEM] =
 			    true;
 		}
 	}
-#endif
+
 	if (params->config_changed[IA_CSS_MACC_ID] && binary->info->sp.enable.macc)
 	{
 		unsigned int i, j, idx;
@@ -4231,172 +4211,162 @@ sh_css_params_write_to_ddr_internal(
 
 			/* Generate default DVS unity table on start up*/
 			if (!params->pipe_dvs_6axis_config[pipe_id]) {
-#ifndef ISP2401
-				struct ia_css_resolution dvs_offset;
+				struct ia_css_resolution dvs_offset = {0};
 
-				dvs_offset.width  =
-#else
-				struct ia_css_resolution dvs_offset = {0, 0};
+				if (!atomisp_hw_is_isp2401) {
+					dvs_offset.width = (PIX_SHIFT_FILTER_RUN_IN_X + binary->dvs_envelope.width) / 2;
+				} else {
+					if (binary->dvs_envelope.width || binary->dvs_envelope.height) {
+						dvs_offset.width  = (PIX_SHIFT_FILTER_RUN_IN_X + binary->dvs_envelope.width) / 2;
+					}
+				}
+				dvs_offset.height = (PIX_SHIFT_FILTER_RUN_IN_Y + binary->dvs_envelope.height) / 2;
 
-				if (binary->dvs_envelope.width || binary->dvs_envelope.height) {
-					dvs_offset.width  =
-#endif
-				    (PIX_SHIFT_FILTER_RUN_IN_X + binary->dvs_envelope.width) / 2;
-#ifndef ISP2401
-				dvs_offset.height =
-#else
-				dvs_offset.height =
-#endif
-				    (PIX_SHIFT_FILTER_RUN_IN_Y + binary->dvs_envelope.height) / 2;
-#ifdef ISP2401
+				params->pipe_dvs_6axis_config[pipe_id] =
+				    generate_dvs_6axis_table(&binary->out_frame_info[0].res, &dvs_offset);
+				if (!params->pipe_dvs_6axis_config[pipe_id]) {
+					IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
+					return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+				}
+				params->pipe_dvs_6axis_config_changed[pipe_id] = true;
+
+				store_dvs_6axis_config(params->pipe_dvs_6axis_config[pipe_id],
+						    binary,
+						    dvs_in_frame_info,
+						    ddr_map->dvs_6axis_params_y);
+				params->isp_params_changed = true;
 			}
-#endif
-
-			params->pipe_dvs_6axis_config[pipe_id] =
-			    generate_dvs_6axis_table(&binary->out_frame_info[0].res, &dvs_offset);
-			if (!params->pipe_dvs_6axis_config[pipe_id]) {
-				IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
-				return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-			}
-			params->pipe_dvs_6axis_config_changed[pipe_id] = true;
-		}
-
-		store_dvs_6axis_config(params->pipe_dvs_6axis_config[pipe_id],
-				       binary,
-				       dvs_in_frame_info,
-				       ddr_map->dvs_6axis_params_y);
-		params->isp_params_changed = true;
-	}
-}
-
-if (binary->info->sp.enable.ca_gdc)
-{
-	unsigned int i;
-	hrt_vaddress *virt_addr_tetra_x[
-	 IA_CSS_MORPH_TABLE_NUM_PLANES];
-	size_t *virt_size_tetra_x[
-	 IA_CSS_MORPH_TABLE_NUM_PLANES];
-	hrt_vaddress *virt_addr_tetra_y[
-	 IA_CSS_MORPH_TABLE_NUM_PLANES];
-	size_t *virt_size_tetra_y[
-	 IA_CSS_MORPH_TABLE_NUM_PLANES];
-
-	virt_addr_tetra_x[0] = &ddr_map->tetra_r_x;
-	virt_addr_tetra_x[1] = &ddr_map->tetra_gr_x;
-	virt_addr_tetra_x[2] = &ddr_map->tetra_gb_x;
-	virt_addr_tetra_x[3] = &ddr_map->tetra_b_x;
-	virt_addr_tetra_x[4] = &ddr_map->tetra_ratb_x;
-	virt_addr_tetra_x[5] = &ddr_map->tetra_batr_x;
-
-	virt_size_tetra_x[0] = &ddr_map_size->tetra_r_x;
-	virt_size_tetra_x[1] = &ddr_map_size->tetra_gr_x;
-	virt_size_tetra_x[2] = &ddr_map_size->tetra_gb_x;
-	virt_size_tetra_x[3] = &ddr_map_size->tetra_b_x;
-	virt_size_tetra_x[4] = &ddr_map_size->tetra_ratb_x;
-	virt_size_tetra_x[5] = &ddr_map_size->tetra_batr_x;
-
-	virt_addr_tetra_y[0] = &ddr_map->tetra_r_y;
-	virt_addr_tetra_y[1] = &ddr_map->tetra_gr_y;
-	virt_addr_tetra_y[2] = &ddr_map->tetra_gb_y;
-	virt_addr_tetra_y[3] = &ddr_map->tetra_b_y;
-	virt_addr_tetra_y[4] = &ddr_map->tetra_ratb_y;
-	virt_addr_tetra_y[5] = &ddr_map->tetra_batr_y;
-
-	virt_size_tetra_y[0] = &ddr_map_size->tetra_r_y;
-	virt_size_tetra_y[1] = &ddr_map_size->tetra_gr_y;
-	virt_size_tetra_y[2] = &ddr_map_size->tetra_gb_y;
-	virt_size_tetra_y[3] = &ddr_map_size->tetra_b_y;
-	virt_size_tetra_y[4] = &ddr_map_size->tetra_ratb_y;
-	virt_size_tetra_y[5] = &ddr_map_size->tetra_batr_y;
-
-	buff_realloced = false;
-	for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
-		buff_realloced |=
-		    reallocate_buffer(virt_addr_tetra_x[i],
-				      virt_size_tetra_x[i],
-				      (size_t)
-				      (MORPH_PLANE_BYTES(binary)),
-				      params->morph_table_changed,
-				      &err);
-		if (err != IA_CSS_SUCCESS) {
-			IA_CSS_LEAVE_ERR_PRIVATE(err);
-			return err;
-		}
-		buff_realloced |=
-		    reallocate_buffer(virt_addr_tetra_y[i],
-				      virt_size_tetra_y[i],
-				      (size_t)
-				      (MORPH_PLANE_BYTES(binary)),
-				      params->morph_table_changed,
-				      &err);
-		if (err != IA_CSS_SUCCESS) {
-			IA_CSS_LEAVE_ERR_PRIVATE(err);
-			return err;
 		}
 	}
-	if (params->morph_table_changed || buff_realloced) {
-		const struct ia_css_morph_table *table = params->morph_table;
-		struct ia_css_morph_table *id_table = NULL;
 
-		if ((table) &&
-		    (table->width < binary->morph_tbl_width ||
-		     table->height < binary->morph_tbl_height)) {
-			table = NULL;
-		}
-		if (!table) {
-			err = sh_css_params_default_morph_table(&id_table,
-								binary);
+	if (binary->info->sp.enable.ca_gdc)
+	{
+		unsigned int i;
+		hrt_vaddress *virt_addr_tetra_x[
+		IA_CSS_MORPH_TABLE_NUM_PLANES];
+		size_t *virt_size_tetra_x[
+		IA_CSS_MORPH_TABLE_NUM_PLANES];
+		hrt_vaddress *virt_addr_tetra_y[
+		IA_CSS_MORPH_TABLE_NUM_PLANES];
+		size_t *virt_size_tetra_y[
+		IA_CSS_MORPH_TABLE_NUM_PLANES];
+
+		virt_addr_tetra_x[0] = &ddr_map->tetra_r_x;
+		virt_addr_tetra_x[1] = &ddr_map->tetra_gr_x;
+		virt_addr_tetra_x[2] = &ddr_map->tetra_gb_x;
+		virt_addr_tetra_x[3] = &ddr_map->tetra_b_x;
+		virt_addr_tetra_x[4] = &ddr_map->tetra_ratb_x;
+		virt_addr_tetra_x[5] = &ddr_map->tetra_batr_x;
+
+		virt_size_tetra_x[0] = &ddr_map_size->tetra_r_x;
+		virt_size_tetra_x[1] = &ddr_map_size->tetra_gr_x;
+		virt_size_tetra_x[2] = &ddr_map_size->tetra_gb_x;
+		virt_size_tetra_x[3] = &ddr_map_size->tetra_b_x;
+		virt_size_tetra_x[4] = &ddr_map_size->tetra_ratb_x;
+		virt_size_tetra_x[5] = &ddr_map_size->tetra_batr_x;
+
+		virt_addr_tetra_y[0] = &ddr_map->tetra_r_y;
+		virt_addr_tetra_y[1] = &ddr_map->tetra_gr_y;
+		virt_addr_tetra_y[2] = &ddr_map->tetra_gb_y;
+		virt_addr_tetra_y[3] = &ddr_map->tetra_b_y;
+		virt_addr_tetra_y[4] = &ddr_map->tetra_ratb_y;
+		virt_addr_tetra_y[5] = &ddr_map->tetra_batr_y;
+
+		virt_size_tetra_y[0] = &ddr_map_size->tetra_r_y;
+		virt_size_tetra_y[1] = &ddr_map_size->tetra_gr_y;
+		virt_size_tetra_y[2] = &ddr_map_size->tetra_gb_y;
+		virt_size_tetra_y[3] = &ddr_map_size->tetra_b_y;
+		virt_size_tetra_y[4] = &ddr_map_size->tetra_ratb_y;
+		virt_size_tetra_y[5] = &ddr_map_size->tetra_batr_y;
+
+		buff_realloced = false;
+		for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
+			buff_realloced |=
+			    reallocate_buffer(virt_addr_tetra_x[i],
+					    virt_size_tetra_x[i],
+					    (size_t)
+					    (MORPH_PLANE_BYTES(binary)),
+					    params->morph_table_changed,
+					    &err);
 			if (err != IA_CSS_SUCCESS) {
 				IA_CSS_LEAVE_ERR_PRIVATE(err);
 				return err;
 			}
-			table = id_table;
+			buff_realloced |=
+			    reallocate_buffer(virt_addr_tetra_y[i],
+					    virt_size_tetra_y[i],
+					    (size_t)
+					    (MORPH_PLANE_BYTES(binary)),
+					    params->morph_table_changed,
+					    &err);
+			if (err != IA_CSS_SUCCESS) {
+				IA_CSS_LEAVE_ERR_PRIVATE(err);
+				return err;
+			}
 		}
+		if (params->morph_table_changed || buff_realloced) {
+			const struct ia_css_morph_table *table = params->morph_table;
+			struct ia_css_morph_table *id_table = NULL;
 
-		for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
-			store_morph_plane(table->coordinates_x[i],
-					  table->width,
-					  table->height,
-					  *virt_addr_tetra_x[i],
-					  binary->morph_tbl_aligned_width);
-			store_morph_plane(table->coordinates_y[i],
-					  table->width,
-					  table->height,
-					  *virt_addr_tetra_y[i],
-					  binary->morph_tbl_aligned_width);
+			if ((table) &&
+			    (table->width < binary->morph_tbl_width ||
+			    table->height < binary->morph_tbl_height)) {
+				table = NULL;
+			}
+			if (!table) {
+				err = sh_css_params_default_morph_table(&id_table,
+									binary);
+				if (err != IA_CSS_SUCCESS) {
+					IA_CSS_LEAVE_ERR_PRIVATE(err);
+					return err;
+				}
+				table = id_table;
+			}
+
+			for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
+				store_morph_plane(table->coordinates_x[i],
+						table->width,
+						table->height,
+						*virt_addr_tetra_x[i],
+						binary->morph_tbl_aligned_width);
+				store_morph_plane(table->coordinates_y[i],
+						table->width,
+						table->height,
+						*virt_addr_tetra_y[i],
+						binary->morph_tbl_aligned_width);
+			}
+			if (id_table)
+				ia_css_morph_table_free(id_table);
 		}
-		if (id_table)
-			ia_css_morph_table_free(id_table);
 	}
-}
 
-/* After special cases like SC, FPN since they may change parameters */
-for (mem = 0; mem < N_IA_CSS_MEMORIES; mem++)
-{
-	const struct ia_css_isp_data *isp_data =
-	    ia_css_isp_param_get_isp_mem_init(&binary->info->sp.mem_initializers,
-					      IA_CSS_PARAM_CLASS_PARAM, mem);
-	size_t size = isp_data->size;
+	/* After special cases like SC, FPN since they may change parameters */
+	for (mem = 0; mem < N_IA_CSS_MEMORIES; mem++)
+	{
+		const struct ia_css_isp_data *isp_data =
+		    ia_css_isp_param_get_isp_mem_init(&binary->info->sp.mem_initializers,
+						    IA_CSS_PARAM_CLASS_PARAM, mem);
+		size_t size = isp_data->size;
 
-	if (!size) continue;
-	buff_realloced = reallocate_buffer(&ddr_map->isp_mem_param[stage_num][mem],
-					   &ddr_map_size->isp_mem_param[stage_num][mem],
-					   size,
-					   params->isp_mem_params_changed[pipe_id][stage_num][mem],
-					   &err);
-	if (err != IA_CSS_SUCCESS) {
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
+		if (!size) continue;
+		buff_realloced = reallocate_buffer(&ddr_map->isp_mem_param[stage_num][mem],
+						&ddr_map_size->isp_mem_param[stage_num][mem],
+						size,
+						params->isp_mem_params_changed[pipe_id][stage_num][mem],
+						&err);
+		if (err != IA_CSS_SUCCESS) {
+			IA_CSS_LEAVE_ERR_PRIVATE(err);
+			return err;
+		}
+		if (params->isp_mem_params_changed[pipe_id][stage_num][mem] || buff_realloced) {
+			sh_css_update_isp_mem_params_to_ddr(binary,
+							    ddr_map->isp_mem_param[stage_num][mem],
+							    ddr_map_size->isp_mem_param[stage_num][mem], mem);
+		}
 	}
-	if (params->isp_mem_params_changed[pipe_id][stage_num][mem] || buff_realloced) {
-		sh_css_update_isp_mem_params_to_ddr(binary,
-						    ddr_map->isp_mem_param[stage_num][mem],
-						    ddr_map_size->isp_mem_param[stage_num][mem], mem);
-	}
-}
 
-IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-return IA_CSS_SUCCESS;
+	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
+	return IA_CSS_SUCCESS;
 }
 
 const struct ia_css_fpn_table *ia_css_get_fpn_table(struct ia_css_stream
@@ -4612,22 +4582,14 @@ free_ia_css_isp_parameter_set_info(
 			continue;
 
 		/* sanity check - ptr must be valid */
-#ifndef ISP2401
 		if (!ia_css_refcount_is_valid(addrs[i])) {
-#else
-		if (ia_css_refcount_is_valid(addrs[i])) {
-			ia_css_refcount_decrement(IA_CSS_REFCOUNT_PARAM_BUFFER, addrs[i]);
-		} else {
-#endif
 			IA_CSS_ERROR("%s: IA_CSS_REFCOUNT_PARAM_BUFFER(0x%x) invalid arg", __func__,
 				     ptr);
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
 			continue;
 		}
-#ifndef ISP2401
 
 		ia_css_refcount_decrement(IA_CSS_REFCOUNT_PARAM_BUFFER, addrs[i]);
-#endif
 	}
 	ia_css_refcount_decrement(IA_CSS_REFCOUNT_PARAM_SET_POOL, ptr);
 

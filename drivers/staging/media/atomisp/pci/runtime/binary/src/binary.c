@@ -27,13 +27,9 @@
 #include "sh_css_legacy.h"
 
 #include "vf/vf_1.0/ia_css_vf.host.h"
-#ifdef ISP2401
 #include "sc/sc_1.0/ia_css_sc.host.h"
-#endif
 #include "sdis/sdis_1.0/ia_css_sdis.host.h"
-#ifdef ISP2401
 #include "fixedbds/fixedbds_1.0/ia_css_fixedbds_param.h"	/* FRAC_ACC */
-#endif
 
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
 
@@ -108,7 +104,7 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 			       binary_dvs_env.height);
 }
 
-#ifndef ISP2401
+/* ISP2400 */
 /* Computation results of the origin coordinate of bayer on the shading table. */
 struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 bayer_scale_hor_ratio_in;	/* Horizontal ratio (in) of bayer scaling. */
@@ -117,7 +113,9 @@ struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 bayer_scale_ver_ratio_out;	/* Vertical ratio (out) of bayer scaling. */
 	u32 sc_bayer_origin_x_bqs_on_shading_table; /* X coordinate (in bqs) of bayer origin on shading table. */
 	u32 sc_bayer_origin_y_bqs_on_shading_table; /* Y coordinate (in bqs) of bayer origin on shading table. */
-#else
+};
+
+/* ISP2401 */
 /* Requirements for the shading correction. */
 struct sh_css_binary_sc_requirements {
 	/* Bayer scaling factor, for the scaling which is applied before shading correction. */
@@ -131,7 +129,6 @@ struct sh_css_binary_sc_requirements {
 								at shading correction. */
 	u32 sensor_data_origin_y_bqs_on_internal; /* Y origin (in bqs) of sensor data on internal frame
 								at shading correction. */
-#endif
 };
 
 /* Get the requirements for the shading correction. */

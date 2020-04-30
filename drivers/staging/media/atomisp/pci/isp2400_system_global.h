@@ -46,7 +46,6 @@
  * N.B. the 3 input formatters are of 2 different classess
  */
 
-#define IS_ISP_2400_SYSTEM
 /*
  * Since this file is visible everywhere and the system definition
  * macros are not, detect the separate definitions for {host, SP, ISP}

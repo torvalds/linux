@@ -52,12 +52,8 @@ static struct firmware_header *firmware_header;
 /* The string STR is a place holder
  * which will be replaced with the actual RELEASE_VERSION
  * during package generation. Please do not modify  */
-#ifndef ISP2401
-static const char *release_version = STR(
-	irci_stable_candrpv_0415_20150521_0458);
-#else
-static const char *release_version = STR(irci_ecr - master_20150911_0724);
-#endif
+static const char *isp2400_release_version = STR(irci_stable_candrpv_0415_20150521_0458);
+static const char *isp2401_release_version = STR(irci_ecr - master_20150911_0724);
 
 #define MAX_FW_REL_VER_NAME	300
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
@@ -189,6 +185,13 @@ sh_css_check_firmware_version(const char *fw_data)
 {
 	struct sh_css_fw_bi_file_h *file_header;
 
+	const char *release_version;
+
+	if (!atomisp_hw_is_isp2401)
+		release_version = isp2400_release_version;
+	else
+		release_version = isp2401_release_version;
+
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
 
@@ -207,21 +210,23 @@ sh_css_load_firmware(const char *fw_data,
 	struct ia_css_fw_info *binaries;
 	struct sh_css_fw_bi_file_h *file_header;
 	bool valid_firmware = false;
+	const char *release_version;
+
+	if (!atomisp_hw_is_isp2401)
+		release_version = isp2400_release_version;
+	else
+		release_version = isp2401_release_version;
 
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
 	binaries = &firmware_header->binary_header;
 	strncpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)) - 1);
 	valid_firmware = sh_css_check_firmware_version(fw_data);
-	if (!valid_firmware)
-	{
-#if !defined(HRT_RTL)
+	if (!valid_firmware) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
 			     file_header->version, release_version);
 		return IA_CSS_ERR_VERSION_MISMATCH;
-#endif
-	} else
-	{
+	} else {
 		IA_CSS_LOG("successfully load firmware version %s", release_version);
 	}
 
@@ -241,8 +246,7 @@ sh_css_load_firmware(const char *fw_data,
 		    sizeof(*sh_css_blob_info), GFP_KERNEL);
 		if (!sh_css_blob_info)
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	} else
-	{
+	} else {
 		sh_css_blob_info = NULL;
 	}
 
