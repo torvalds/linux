@@ -818,7 +818,6 @@ void mt7615_scan_work(struct work_struct *work)
 			clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
 			ieee80211_scan_completed(phy->mt76->hw, &info);
 		} else {
-			clear_bit(MT76_HW_SCHED_SCANNING, &phy->mt76->state);
 			ieee80211_sched_scan_results(phy->mt76->hw);
 		}
 		dev_kfree_skb(skb);
