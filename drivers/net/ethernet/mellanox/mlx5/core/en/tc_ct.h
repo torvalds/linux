@@ -10,7 +10,7 @@
 
 #include "en.h"
 
-struct mlx5_esw_flow_attr;
+struct mlx5_flow_attr;
 struct mlx5e_tc_mod_hdr_acts;
 struct mlx5_rep_uplink_priv;
 struct mlx5e_tc_flow;
@@ -101,7 +101,7 @@ mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
 			    struct mlx5_flow_spec *spec);
 int
 mlx5_tc_ct_parse_action(struct mlx5e_priv *priv,
-			struct mlx5_esw_flow_attr *attr,
+			struct mlx5_flow_attr *attr,
 			const struct flow_action_entry *act,
 			struct netlink_ext_ack *extack);
 
@@ -109,12 +109,12 @@ struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_esw_flow_attr *attr,
+			struct mlx5_flow_attr *attr,
 			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 void
 mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
-		       struct mlx5_esw_flow_attr *attr);
+		       struct mlx5_flow_attr *attr);
 
 bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
@@ -162,7 +162,7 @@ mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
 
 static inline int
 mlx5_tc_ct_parse_action(struct mlx5e_priv *priv,
-			struct mlx5_esw_flow_attr *attr,
+			struct mlx5_flow_attr *attr,
 			const struct flow_action_entry *act,
 			struct netlink_ext_ack *extack)
 {
@@ -175,7 +175,7 @@ static inline struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_esw_flow_attr *attr,
+			struct mlx5_flow_attr *attr,
 			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
 {
 	return ERR_PTR(-EOPNOTSUPP);
@@ -184,7 +184,7 @@ mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 static inline void
 mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
-		       struct mlx5_esw_flow_attr *attr)
+		       struct mlx5_flow_attr *attr)
 {
 }
 

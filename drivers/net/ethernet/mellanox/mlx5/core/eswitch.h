@@ -328,7 +328,7 @@ struct mlx5_termtbl_handle;
 
 bool
 mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
-			      struct mlx5_esw_flow_attr *attr,
+			      struct mlx5_flow_attr *attr,
 			      struct mlx5_flow_act *flow_act,
 			      struct mlx5_flow_spec *spec);
 
@@ -348,19 +348,19 @@ mlx5_eswitch_termtbl_put(struct mlx5_eswitch *esw,
 struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
-				struct mlx5_esw_flow_attr *attr);
+				struct mlx5_flow_attr *attr);
 struct mlx5_flow_handle *
 mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 			  struct mlx5_flow_spec *spec,
-			  struct mlx5_esw_flow_attr *attr);
+			  struct mlx5_flow_attr *attr);
 void
 mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_handle *rule,
-				struct mlx5_esw_flow_attr *attr);
+				struct mlx5_flow_attr *attr);
 void
 mlx5_eswitch_del_fwd_rule(struct mlx5_eswitch *esw,
 			  struct mlx5_flow_handle *rule,
-			  struct mlx5_esw_flow_attr *attr);
+			  struct mlx5_flow_attr *attr);
 
 struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
@@ -400,7 +400,6 @@ struct mlx5_esw_flow_attr {
 	int split_count;
 	int out_count;
 
-	int	action;
 	__be16	vlan_proto[MLX5_FS_VLAN_DEPTH];
 	u16	vlan_vid[MLX5_FS_VLAN_DEPTH];
 	u8	vlan_prio[MLX5_FS_VLAN_DEPTH];
@@ -412,19 +411,7 @@ struct mlx5_esw_flow_attr {
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct  mlx5_modify_hdr *modify_hdr;
-	u8	inner_match_level;
-	u8	outer_match_level;
-	struct mlx5_fc *counter;
-	u32	chain;
-	u16	prio;
-	u32	dest_chain;
-	u32	flags;
-	struct mlx5_flow_table *fdb;
-	struct mlx5_flow_table *dest_ft;
-	struct mlx5_ct_attr ct_attr;
 	struct mlx5_pkt_reformat *decap_pkt_reformat;
-	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
@@ -450,9 +437,9 @@ int mlx5_devlink_port_function_hw_addr_set(struct devlink *devlink,
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
-				 struct mlx5_esw_flow_attr *attr);
+				 struct mlx5_flow_attr *attr);
 int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
-				 struct mlx5_esw_flow_attr *attr);
+				 struct mlx5_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
 
