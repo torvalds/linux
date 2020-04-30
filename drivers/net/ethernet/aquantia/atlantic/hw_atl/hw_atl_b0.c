@@ -324,7 +324,7 @@ static int hw_atl_b0_hw_init_tx_path(struct aq_hw_s *self)
 	hw_atl_tdm_tx_desc_wr_wb_irq_en_set(self, 1U);
 
 	/* misc */
-	aq_hw_write_reg(self, 0x00007040U, IS_CHIP_FEATURE(TPO2) ?
+	aq_hw_write_reg(self, 0x00007040U, ATL_HW_IS_CHIP_FEATURE(self, TPO2) ?
 			0x00010000U : 0x00000000U);
 	hw_atl_tdm_tx_dca_en_set(self, 0U);
 	hw_atl_tdm_tx_dca_mode_set(self, 0U);
@@ -372,8 +372,8 @@ static int hw_atl_b0_hw_init_rx_path(struct aq_hw_s *self)
 	hw_atl_rdm_rx_desc_wr_wb_irq_en_set(self, 1U);
 
 	/* misc */
-	aq_hw_write_reg(self, 0x00005040U,
-			IS_CHIP_FEATURE(RPF2) ? 0x000F0000U : 0x00000000U);
+	aq_hw_write_reg(self, 0x00005040U, ATL_HW_IS_CHIP_FEATURE(self, RPF2) ?
+			0x000F0000U : 0x00000000U);
 
 	hw_atl_rpfl2broadcast_flr_act_set(self, 1U);
 	hw_atl_rpfl2broadcast_count_threshold_set(self, 0xFFFFU & (~0U / 256U));

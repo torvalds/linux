@@ -136,6 +136,19 @@ enum aq_priv_flags {
 				 BIT(AQ_HW_LOOPBACK_PHYINT_SYS) |\
 				 BIT(AQ_HW_LOOPBACK_PHYEXT_SYS))
 
+#define ATL_HW_CHIP_MIPS         0x00000001U
+#define ATL_HW_CHIP_TPO2         0x00000002U
+#define ATL_HW_CHIP_RPF2         0x00000004U
+#define ATL_HW_CHIP_MPI_AQ       0x00000010U
+#define ATL_HW_CHIP_ATLANTIC     0x00800000U
+#define ATL_HW_CHIP_REVISION_A0  0x01000000U
+#define ATL_HW_CHIP_REVISION_B0  0x02000000U
+#define ATL_HW_CHIP_REVISION_B1  0x04000000U
+#define ATL_HW_CHIP_ANTIGUA      0x08000000U
+
+#define ATL_HW_IS_CHIP_FEATURE(_HW_, _F_) (!!(ATL_HW_CHIP_##_F_ & \
+	(_HW_)->chip_features))
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
