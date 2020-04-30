@@ -88,6 +88,7 @@ Contents:
    nf_conntrack-sysctl
    nf_flowtable
    openvswitch
+   operstates
 
 .. only::  subproject and html
 
