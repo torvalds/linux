@@ -36,7 +36,6 @@ enum smc_link_state {			/* possible states of a link */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
 	SMC_LNK_ACTIVE,		/* link is active */
-	SMC_LNK_DELETING,	/* link is being deleted */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
@@ -120,20 +119,9 @@ struct smc_link {
 	struct smc_link_group	*lgr;		/* parent link group */
 
 	enum smc_link_state	state;		/* state of link */
-	struct completion	llc_confirm;	/* wait for rx of conf link */
-	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
-	int			llc_confirm_rc; /* rc from confirm link msg */
-	int			llc_confirm_resp_rc; /* rc from conf_resp msg */
-	struct completion	llc_add;	/* wait for rx of add link */
-	struct completion	llc_add_resp;	/* wait for rx of add link rsp*/
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
-	struct completion	llc_confirm_rkey_resp; /* w4 rx of cnf rkey */
-	int			llc_confirm_rkey_resp_rc; /* rc from cnf rkey */
-	struct completion	llc_delete_rkey_resp; /* w4 rx of del rkey */
-	int			llc_delete_rkey_resp_rc; /* rc from del rkey */
-	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -197,6 +185,28 @@ struct smc_rtoken {				/* address/key of remote RMB */
 
 struct smcd_dev;
 
+enum smc_lgr_type {				/* redundancy state of lgr */
+	SMC_LGR_NONE,			/* no active links, lgr to be deleted */
+	SMC_LGR_SINGLE,			/* 1 active RNIC on each peer */
+	SMC_LGR_SYMMETRIC,		/* 2 active RNICs on each peer */
+	SMC_LGR_ASYMMETRIC_PEER,	/* local has 2, peer 1 active RNICs */
+	SMC_LGR_ASYMMETRIC_LOCAL,	/* local has 1, peer 2 active RNICs */
+};
+
+enum smc_llc_flowtype {
+	SMC_LLC_FLOW_NONE	= 0,
+	SMC_LLC_FLOW_ADD_LINK	= 2,
+	SMC_LLC_FLOW_DEL_LINK	= 4,
+	SMC_LLC_FLOW_RKEY	= 6,
+};
+
+struct smc_llc_qentry;
+
+struct smc_llc_flow {
+	enum smc_llc_flowtype type;
+	struct smc_llc_qentry *qentry;
+};
+
 struct smc_link_group {
 	struct list_head	list;
 	struct rb_root		conns_all;	/* connection tree */
@@ -232,12 +242,24 @@ struct smc_link_group {
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 			u8			next_link_id;
+			enum smc_lgr_type	type;
+						/* redundancy state */
 			struct list_head	llc_event_q;
 						/* queue for llc events */
 			spinlock_t		llc_event_q_lock;
 						/* protects llc_event_q */
 			struct work_struct	llc_event_work;
 						/* llc event worker */
+			wait_queue_head_t	llc_waiter;
+						/* w4 next llc event */
+			struct smc_llc_flow	llc_flow_lcl;
+						/* llc local control field */
+			struct smc_llc_flow	llc_flow_rmt;
+						/* llc remote control field */
+			struct smc_llc_qentry	*delayed_event;
+						/* arrived when flow active */
+			spinlock_t		llc_flow_lock;
+						/* protects llc flow */
 			int			llc_testlink_time;
 						/* link keep alive time */
 		};
@@ -329,6 +351,10 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn, struct smc_link *link,
 			    struct smc_clc_msg_accept_confirm *clc);
 int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
 int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
+void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
+		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey);
+void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
+		     __be64 nw_vaddr, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);

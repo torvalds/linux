@@ -200,7 +200,6 @@ static int smcr_link_send_delete(struct smc_link *lnk, bool orderly)
 {
 	if (lnk->state == SMC_LNK_ACTIVE &&
 	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, orderly)) {
-		smc_llc_link_deleting(lnk);
 		return 0;
 	}
 	return -ENOTCONN;
@@ -263,6 +262,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 			if (smc_link_usable(lnk))
 				lnk->state = SMC_LNK_INACTIVE;
 		}
+		wake_up_interruptible_all(&lgr->llc_waiter);
 	}
 	smc_lgr_free(lgr);
 }
@@ -445,13 +445,11 @@ out:
 }
 
 static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
-			   struct smc_link *lnk)
+			   struct smc_link_group *lgr)
 {
-	struct smc_link_group *lgr = lnk->lgr;
-
 	if (rmb_desc->is_conf_rkey && !list_empty(&lgr->list)) {
 		/* unregister rmb with peer */
-		smc_llc_do_delete_rkey(lnk, rmb_desc);
+		smc_llc_do_delete_rkey(lgr, rmb_desc);
 		rmb_desc->is_conf_rkey = false;
 	}
 	if (rmb_desc->is_reg_err) {
@@ -474,7 +472,7 @@ static void smc_buf_unuse(struct smc_connection *conn,
 	if (conn->rmb_desc && lgr->is_smcd)
 		conn->rmb_desc->used = 0;
 	else if (conn->rmb_desc)
-		smcr_buf_unuse(conn->rmb_desc, conn->lnk);
+		smcr_buf_unuse(conn->rmb_desc, lgr);
 }
 
 /* remove a finished connection from its link group */
@@ -696,6 +694,7 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 			if (smc_link_usable(lnk))
 				lnk->state = SMC_LNK_INACTIVE;
 		}
+		wake_up_interruptible_all(&lgr->llc_waiter);
 	}
 }
 
@@ -767,8 +766,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 			continue;
 		/* tbd - terminate only when no more links are active */
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (!smc_link_usable(&lgr->lnk[i]) ||
-			    lgr->lnk[i].state == SMC_LNK_DELETING)
+			if (!smc_link_usable(&lgr->lnk[i]))
 				continue;
 			if (lgr->lnk[i].smcibdev == smcibdev &&
 			    lgr->lnk[i].ibport == ibport) {
@@ -1167,7 +1165,6 @@ static int smcr_buf_map_usable_links(struct smc_link_group *lgr,
 		if (!smc_link_usable(lnk))
 			continue;
 		if (smcr_buf_map_link(buf_desc, is_rmb, lnk)) {
-			smcr_buf_unuse(buf_desc, lnk);
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -1273,6 +1270,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 	if (!is_smcd) {
 		if (smcr_buf_map_usable_links(lgr, buf_desc, is_rmb)) {
+			smcr_buf_unuse(buf_desc, lgr);
 			return -ENOMEM;
 		}
 	}
@@ -1366,6 +1364,53 @@ static inline int smc_rmb_reserve_rtoken_idx(struct smc_link_group *lgr)
 			return i;
 	}
 	return -ENOSPC;
+}
+
+static int smc_rtoken_find_by_link(struct smc_link_group *lgr, int lnk_idx,
+				   u32 rkey)
+{
+	int i;
+
+	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
+		if (test_bit(i, lgr->rtokens_used_mask) &&
+		    lgr->rtokens[i][lnk_idx].rkey == rkey)
+			return i;
+	}
+	return -ENOENT;
+}
+
+/* set rtoken for a new link to an existing rmb */
+void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
+		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey)
+{
+	int rtok_idx;
+
+	rtok_idx = smc_rtoken_find_by_link(lgr, link_idx, ntohl(nw_rkey_known));
+	if (rtok_idx == -ENOENT)
+		return;
+	lgr->rtokens[rtok_idx][link_idx_new].rkey = ntohl(nw_rkey);
+	lgr->rtokens[rtok_idx][link_idx_new].dma_addr = be64_to_cpu(nw_vaddr);
+}
+
+/* set rtoken for a new link whose link_id is given */
+void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
+		     __be64 nw_vaddr, __be32 nw_rkey)
+{
+	u64 dma_addr = be64_to_cpu(nw_vaddr);
+	u32 rkey = ntohl(nw_rkey);
+	bool found = false;
+	int link_idx;
+
+	for (link_idx = 0; link_idx < SMC_LINKS_PER_LGR_MAX; link_idx++) {
+		if (lgr->lnk[link_idx].link_id == link_id) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+	lgr->rtokens[rtok_idx][link_idx].rkey = rkey;
+	lgr->rtokens[rtok_idx][link_idx].dma_addr = dma_addr;
 }
 
 /* add a new rtoken from peer */
