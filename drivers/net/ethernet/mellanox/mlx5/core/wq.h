@@ -172,6 +172,11 @@ static inline int mlx5_wq_cyc_cc_bigger(u16 cc1, u16 cc2)
 	return !equal && !smaller;
 }
 
+static inline u16 mlx5_wq_cyc_get_counter(struct mlx5_wq_cyc *wq)
+{
+	return wq->wqe_ctr;
+}
+
 static inline u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
 {
 	return wq->fbc.sz_m1 + 1;
@@ -294,4 +299,10 @@ static inline u16 mlx5_wq_ll_get_head(struct mlx5_wq_ll *wq)
 {
 	return wq->head;
 }
+
+static inline u16 mlx5_wq_ll_get_counter(struct mlx5_wq_ll *wq)
+{
+	return wq->wqe_ctr;
+}
+
 #endif /* __MLX5_WQ_H__ */

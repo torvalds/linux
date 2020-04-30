@@ -183,6 +183,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	struct mlx5e_priv *priv = rq->channel->priv;
 	struct mlx5e_icosq *icosq;
 	u8 icosq_hw_state;
+	u16 wqe_counter;
 	int wqes_sz;
 	u8 hw_state;
 	u16 wq_head;
@@ -199,6 +200,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 
 	wqes_sz = mlx5e_rqwq_get_cur_sz(rq);
 	wq_head = mlx5e_rqwq_get_head(rq);
+	wqe_counter = mlx5e_rqwq_get_wqe_counter(rq);
 
 	err = devlink_fmsg_obj_nest_start(fmsg);
 	if (err)
@@ -217,6 +219,10 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 		return err;
 
 	err = devlink_fmsg_u8_pair_put(fmsg, "SW state", rq->state);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "WQE counter", wqe_counter);
 	if (err)
 		return err;
 
