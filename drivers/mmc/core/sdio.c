@@ -543,13 +543,33 @@ out:
 	return err;
 }
 
-static void mmc_sdio_resend_if_cond(struct mmc_host *host, u32 ocr,
-				    struct mmc_card *card)
+static int mmc_sdio_pre_init(struct mmc_host *host, u32 ocr,
+			     struct mmc_card *card)
 {
+	if (card)
+		mmc_remove_card(card);
+
+	/*
+	 * Reset the card by performing the same steps that are taken by
+	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
+	 *
+	 * sdio_reset() is technically not needed. Having just powered up the
+	 * hardware, it should already be in reset state. However, some
+	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
+	 * meaning that a reset is required when restoring power soon after
+	 * powering off. It is harmless in other cases.
+	 *
+	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
+	 * is not necessary for non-removable cards. However, it is required
+	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
+	 * harmless in other situations.
+	 *
+	 */
+
 	sdio_reset(host);
 	mmc_go_idle(host);
 	mmc_send_if_cond(host, ocr);
-	mmc_remove_card(card);
+	return mmc_send_io_op_cond(host, 0, NULL);
 }
 
 /*
@@ -640,7 +660,7 @@ try_again:
 	if (rocr & ocr & R4_18V_PRESENT) {
 		err = mmc_set_uhs_voltage(host, ocr_card);
 		if (err == -EAGAIN) {
-			mmc_sdio_resend_if_cond(host, ocr_card, card);
+			mmc_sdio_pre_init(host, ocr_card, card);
 			retries--;
 			goto try_again;
 		} else if (err) {
@@ -712,7 +732,7 @@ try_again:
 	 */
 	err = sdio_read_cccr(card, ocr);
 	if (err) {
-		mmc_sdio_resend_if_cond(host, ocr_card, card);
+		mmc_sdio_pre_init(host, ocr_card, card);
 		if (ocr & R4_18V_PRESENT) {
 			/* Retry init sequence, but without R4_18V_PRESENT. */
 			retries = 0;
@@ -813,28 +833,7 @@ static int mmc_sdio_reinit_card(struct mmc_host *host)
 {
 	int ret;
 
-	/*
-	 * Reset the card by performing the same steps that are taken by
-	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
-	 *
-	 * sdio_reset() is technically not needed. Having just powered up the
-	 * hardware, it should already be in reset state. However, some
-	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
-	 * meaning that a reset is required when restoring power soon after
-	 * powering off. It is harmless in other cases.
-	 *
-	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
-	 * is not necessary for non-removable cards. However, it is required
-	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
-	 * harmless in other situations.
-	 *
-	 */
-
-	sdio_reset(host);
-	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->card->ocr);
-
-	ret = mmc_send_io_op_cond(host, 0, NULL);
+	ret = mmc_sdio_pre_init(host, host->card->ocr, NULL);
 	if (ret)
 		return ret;
 
