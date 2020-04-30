@@ -3270,10 +3270,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
 {
-	struct bcmgenet_priv *priv = dev_id;
-
-	pm_wakeup_event(&priv->pdev->dev, 0);
-
+	/* Acknowledge the interrupt */
 	return IRQ_HANDLED;
 }
 
@@ -4174,6 +4171,38 @@ static void bcmgenet_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int bcmgenet_resume_noirq(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int ret;
+	u32 reg;
+
+	if (!netif_running(dev))
+		return 0;
+
+	/* Turn on the clock */
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	if (device_may_wakeup(d) && priv->wolopts) {
+		/* Account for Wake-on-LAN events and clear those events
+		 * (Some devices need more time between enabling the clocks
+		 *  and the interrupt register reflecting the wake event so
+		 *  read the register twice)
+		 */
+		reg = bcmgenet_intrl2_0_readl(priv, INTRL2_CPU_STAT);
+		reg = bcmgenet_intrl2_0_readl(priv, INTRL2_CPU_STAT);
+		if (reg & UMAC_IRQ_WAKE_EVENT)
+			pm_wakeup_event(&priv->pdev->dev, 0);
+	}
+
+	bcmgenet_intrl2_0_writel(priv, UMAC_IRQ_WAKE_EVENT, INTRL2_CPU_CLEAR);
+
+	return 0;
+}
+
 static int bcmgenet_resume(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
@@ -4184,11 +4213,6 @@ static int bcmgenet_resume(struct device *d)
 
 	if (!netif_running(dev))
 		return 0;
-
-	/* Turn on the clock */
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
 
 	/* From WOL-enabled suspend, switch to regular clock */
 	if (device_may_wakeup(d) && priv->wolopts)
@@ -4262,7 +4286,6 @@ static int bcmgenet_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	int ret = 0;
 	u32 offset;
 
 	if (!netif_running(dev))
@@ -4282,23 +4305,46 @@ static int bcmgenet_suspend(struct device *d)
 	priv->hfb_en[2] = bcmgenet_hfb_reg_readl(priv, offset + sizeof(u32));
 	bcmgenet_hfb_reg_writel(priv, 0, HFB_CTRL);
 
+	return 0;
+}
+
+static int bcmgenet_suspend_noirq(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int ret = 0;
+
+	if (!netif_running(dev))
+		return 0;
+
 	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
 	if (device_may_wakeup(d) && priv->wolopts)
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
 	else if (priv->internal_phy)
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 
+	/* Let the framework handle resumption and leave the clocks on */
+	if (ret)
+		return ret;
+
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);
 
-	if (ret)
-		bcmgenet_resume(d);
-
-	return ret;
+	return 0;
 }
+#else
+#define bcmgenet_suspend	NULL
+#define bcmgenet_suspend_noirq	NULL
+#define bcmgenet_resume		NULL
+#define bcmgenet_resume_noirq	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(bcmgenet_pm_ops, bcmgenet_suspend, bcmgenet_resume);
+static const struct dev_pm_ops bcmgenet_pm_ops = {
+	.suspend	= bcmgenet_suspend,
+	.suspend_noirq	= bcmgenet_suspend_noirq,
+	.resume		= bcmgenet_resume,
+	.resume_noirq	= bcmgenet_resume_noirq,
+};
 
 static const struct acpi_device_id genet_acpi_match[] = {
 	{ "BCM6E4E", (kernel_ulong_t)&bcm2711_plat_data },

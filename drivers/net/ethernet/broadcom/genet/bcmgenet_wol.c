@@ -193,6 +193,12 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
 
+	reg = UMAC_IRQ_MPD_R;
+	if (hfb_enable)
+		reg |=  UMAC_IRQ_HFB_SM | UMAC_IRQ_HFB_MM;
+
+	bcmgenet_intrl2_0_writel(priv, reg, INTRL2_CPU_MASK_CLEAR);
+
 	return 0;
 }
 

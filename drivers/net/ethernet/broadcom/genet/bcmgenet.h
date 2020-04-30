@@ -312,6 +312,8 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_HFB_SM			(1 << 10)
 #define UMAC_IRQ_HFB_MM			(1 << 11)
 #define UMAC_IRQ_MPD_R			(1 << 12)
+#define UMAC_IRQ_WAKE_EVENT		(UMAC_IRQ_HFB_SM | UMAC_IRQ_HFB_MM | \
+					 UMAC_IRQ_MPD_R)
 #define UMAC_IRQ_RXDMA_MBDONE		(1 << 13)
 #define UMAC_IRQ_RXDMA_PDONE		(1 << 14)
 #define UMAC_IRQ_RXDMA_BDONE		(1 << 15)
