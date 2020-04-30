@@ -1484,8 +1484,7 @@ static int b53_arl_rw_op(struct b53_device *dev, unsigned int op)
 }
 
 static int b53_arl_read(struct b53_device *dev, u64 mac,
-			u16 vid, struct b53_arl_entry *ent, u8 *idx,
-			bool is_valid)
+			u16 vid, struct b53_arl_entry *ent, u8 *idx)
 {
 	DECLARE_BITMAP(free_bins, B53_ARLTBL_MAX_BIN_ENTRIES);
 	unsigned int i;
@@ -1550,7 +1549,8 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	if (ret)
 		return ret;
 
-	ret = b53_arl_read(dev, mac, vid, &ent, &idx, is_valid);
+	ret = b53_arl_read(dev, mac, vid, &ent, &idx);
+
 	/* If this is a read, just finish now */
 	if (op)
 		return ret;
