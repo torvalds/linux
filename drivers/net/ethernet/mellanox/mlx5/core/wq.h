@@ -290,4 +290,8 @@ static inline void mlx5_wq_ll_update_db_record(struct mlx5_wq_ll *wq)
 	*wq->db = cpu_to_be32(wq->wqe_ctr);
 }
 
+static inline u16 mlx5_wq_ll_get_head(struct mlx5_wq_ll *wq)
+{
+	return wq->head;
+}
 #endif /* __MLX5_WQ_H__ */

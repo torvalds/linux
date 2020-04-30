@@ -304,6 +304,16 @@ static inline u32 mlx5e_rqwq_get_cur_sz(struct mlx5e_rq *rq)
 	}
 }
 
+static inline u16 mlx5e_rqwq_get_head(struct mlx5e_rq *rq)
+{
+	switch (rq->wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return mlx5_wq_ll_get_head(&rq->mpwqe.wq);
+	default:
+		return mlx5_wq_cyc_get_head(&rq->wqe.wq);
+	}
+}
+
 /* SW parser related functions */
 
 struct mlx5e_swp_spec {
