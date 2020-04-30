@@ -265,7 +265,7 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 	case MAC_ADDR_TYPE_CAM_MAC: {
 		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 		if (status)
-			goto exit;
+			break;
 		ql_write32(qdev, MAC_ADDR_IDX,
 			   (offset++) | /* offset */
 				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
@@ -273,11 +273,11 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 				   type); /* type */
 		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
 		if (status)
-			goto exit;
+			break;
 		*value++ = ql_read32(qdev, MAC_ADDR_DATA);
 		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 		if (status)
-			goto exit;
+			break;
 		ql_write32(qdev, MAC_ADDR_IDX,
 			   (offset++) | /* offset */
 				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
@@ -285,13 +285,13 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 				   type); /* type */
 		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
 		if (status)
-			goto exit;
+			break;
 		*value++ = ql_read32(qdev, MAC_ADDR_DATA);
 		if (type == MAC_ADDR_TYPE_CAM_MAC) {
 			status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX,
 						 MAC_ADDR_MW, 0);
 			if (status)
-				goto exit;
+				break;
 			ql_write32(qdev, MAC_ADDR_IDX,
 				   (offset++) | /* offset */
 					   (index
@@ -301,7 +301,7 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 			status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX,
 						 MAC_ADDR_MR, 0);
 			if (status)
-				goto exit;
+				break;
 			*value++ = ql_read32(qdev, MAC_ADDR_DATA);
 		}
 		break;
@@ -313,7 +313,6 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 			   "Address type %d not yet supported.\n", type);
 		status = -EPERM;
 	}
-exit:
 	return status;
 }
 
