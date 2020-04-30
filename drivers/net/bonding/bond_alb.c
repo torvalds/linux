@@ -1360,7 +1360,7 @@ netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 				struct bond_up_slave *slaves;
 				unsigned int count;
 
-				slaves = rcu_dereference(bond->slave_arr);
+				slaves = rcu_dereference(bond->usable_slaves);
 				count = slaves ? READ_ONCE(slaves->count) : 0;
 				if (likely(count))
 					tx_slave = slaves->arr[hash_index %
@@ -1494,7 +1494,7 @@ netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			struct bond_up_slave *slaves;
 			unsigned int count;
 
-			slaves = rcu_dereference(bond->slave_arr);
+			slaves = rcu_dereference(bond->usable_slaves);
 			count = slaves ? READ_ONCE(slaves->count) : 0;
 			if (likely(count))
 				tx_slave = slaves->arr[bond_xmit_hash(bond, skb) %
