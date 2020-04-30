@@ -22,13 +22,13 @@
 /*
  * item headers are in ri_buf[0].  Additional buffers follow.
  */
-typedef struct xlog_recover_item {
+struct xlog_recover_item {
 	struct list_head	ri_list;
 	int			ri_type;
 	int			ri_cnt;	/* count of regions found */
 	int			ri_total;	/* total regions */
 	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
-} xlog_recover_item_t;
+};
 
 struct xlog_recover {
 	struct hlist_node	r_list;
