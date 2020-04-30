@@ -388,14 +388,15 @@ static void mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 }
 
-static int mthca_ah_create(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-			   u32 flags, struct ib_udata *udata)
+static int mthca_ah_create(struct ib_ah *ibah,
+			   struct rdma_ah_init_attr *init_attr,
+			   struct ib_udata *udata)
 
 {
 	struct mthca_ah *ah = to_mah(ibah);
 
-	return mthca_create_ah(to_mdev(ibah->device), to_mpd(ibah->pd), ah_attr,
-			       ah);
+	return mthca_create_ah(to_mdev(ibah->device), to_mpd(ibah->pd),
+			       init_attr->ah_attr, ah);
 }
 
 static void mthca_ah_destroy(struct ib_ah *ah, u32 flags)

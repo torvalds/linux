@@ -502,6 +502,7 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     u32 flags,
 				     struct ib_udata *udata)
 {
+	struct rdma_ah_init_attr init_attr = {};
 	struct ib_device *device = pd->device;
 	struct ib_ah *ah;
 	int ret;
@@ -521,8 +522,10 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 	ah->pd = pd;
 	ah->type = ah_attr->type;
 	ah->sgid_attr = rdma_update_sgid_attr(ah_attr, NULL);
+	init_attr.ah_attr = ah_attr;
+	init_attr.flags = flags;
 
-	ret = device->ops.create_ah(ah, ah_attr, flags, udata);
+	ret = device->ops.create_ah(ah, &init_attr, udata);
 	if (ret) {
 		kfree(ah);
 		return ERR_PTR(ret);

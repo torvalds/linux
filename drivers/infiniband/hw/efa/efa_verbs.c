@@ -1639,10 +1639,10 @@ static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
 }
 
 int efa_create_ah(struct ib_ah *ibah,
-		  struct rdma_ah_attr *ah_attr,
-		  u32 flags,
+		  struct rdma_ah_init_attr *init_attr,
 		  struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	struct efa_dev *dev = to_edev(ibah->device);
 	struct efa_com_create_ah_params params = {};
 	struct efa_ibv_create_ah_resp resp = {};
@@ -1650,7 +1650,7 @@ int efa_create_ah(struct ib_ah *ibah,
 	struct efa_ah *ah = to_eah(ibah);
 	int err;
 
-	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
+	if (!(init_attr->flags & RDMA_CREATE_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Create address handle is not supported in atomic context\n");
 		err = -EOPNOTSUPP;

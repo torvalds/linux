@@ -2750,12 +2750,12 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	return 0;
 }
 
-int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		   struct ib_udata *udata)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 
-	rdma_copy_ah_attr(&ah->attr, attr);
+	rdma_copy_ah_attr(&ah->attr, init_attr->ah_attr);
 
 	return 0;
 }
