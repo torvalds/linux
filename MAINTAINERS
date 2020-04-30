@@ -15642,7 +15642,7 @@ F:	drivers/ssb/
 F:	include/linux/ssb/
 
 SONY IMX214 SENSOR DRIVER
-M:	Ricardo Ribalda <ricardo.ribalda@gmail.com>
+M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
@@ -16629,7 +16629,7 @@ S:	Maintained
 F:	sound/soc/ti/
 
 TEXAS INSTRUMENTS' DAC7612 DAC DRIVER
-M:	Ricardo Ribalda <ricardo@ribalda.com>
+M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.txt
