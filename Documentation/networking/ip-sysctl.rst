@@ -886,7 +886,7 @@ tcp_thin_linear_timeouts - BOOLEAN
 	initiated. This improves retransmission latency for
 	non-aggressive thin streams, often found to be time-dependent.
 	For more information on thin streams, see
-	Documentation/networking/tcp-thin.txt
+	Documentation/networking/tcp-thin.rst
 
 	Default: 0
 

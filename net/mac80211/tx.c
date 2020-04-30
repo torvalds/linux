@@ -2144,7 +2144,7 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 
 		/*
 		 * Please update the file
-		 * Documentation/networking/mac80211-injection.txt
+		 * Documentation/networking/mac80211-injection.rst
 		 * when parsing new fields here.
 		 */
 

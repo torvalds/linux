@@ -193,7 +193,7 @@ W:	https://wireless.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 F:	Documentation/driver-api/80211/cfg80211.rst
-F:	Documentation/networking/regulatory.txt
+F:	Documentation/networking/regulatory.rst
 F:	include/linux/ieee80211.h
 F:	include/net/cfg80211.h
 F:	include/net/ieee80211_radiotap.h
@@ -9515,7 +9515,7 @@ F:	drivers/soc/lantiq
 LAPB module
 L:	linux-x25@vger.kernel.org
 S:	Orphan
-F:	Documentation/networking/lapb-module.txt
+F:	Documentation/networking/lapb-module.rst
 F:	include/*/lapb.h
 F:	net/lapb/
 
@@ -10079,7 +10079,7 @@ S:	Maintained
 W:	https://wireless.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
-F:	Documentation/networking/mac80211-injection.txt
+F:	Documentation/networking/mac80211-injection.rst
 F:	Documentation/networking/mac80211_hwsim/mac80211_hwsim.rst
 F:	drivers/net/wireless/mac80211_hwsim.[ch]
 F:	include/net/mac80211.h
@@ -13262,7 +13262,7 @@ F:	drivers/input/joystick/pxrc.c
 PHONET PROTOCOL
 M:	Remi Denis-Courmont <courmisch@gmail.com>
 S:	Supported
-F:	Documentation/networking/phonet.txt
+F:	Documentation/networking/phonet.rst
 F:	include/linux/phonet.h
 F:	include/net/phonet/
 F:	include/uapi/linux/phonet.h
@@ -14219,7 +14219,7 @@ L:	linux-rdma@vger.kernel.org
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 W:	https://oss.oracle.com/projects/rds/
-F:	Documentation/networking/rds.txt
+F:	Documentation/networking/rds.rst
 F:	net/rds/
 
 RDT - RESOURCE ALLOCATION
@@ -14593,7 +14593,7 @@ M:	David Howells <dhowells@redhat.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 W:	https://www.infradead.org/~dhowells/kafs/
-F:	Documentation/networking/rxrpc.txt
+F:	Documentation/networking/rxrpc.rst
 F:	include/keys/rxrpc-type.h
 F:	include/net/af_rxrpc.h
 F:	include/trace/events/rxrpc.h
@@ -14999,7 +14999,7 @@ M:	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
 L:	linux-sctp@vger.kernel.org
 S:	Maintained
 W:	http://lksctp.sourceforge.net
-F:	Documentation/networking/sctp.txt
+F:	Documentation/networking/sctp.rst
 F:	include/linux/sctp.h
 F:	include/net/sctp/
 F:	include/uapi/linux/sctp.h
