@@ -3462,7 +3462,7 @@ int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 
 	ret = regmap_multi_reg_write(rt5682->regmap, patch_list,
 				    ARRAY_SIZE(patch_list));
-	if (ret != 0)
+	if (ret)
 		dev_warn(dev, "Failed to apply regmap patch: %d\n", ret);
 
 	regmap_write(rt5682->regmap, RT5682_DEPOP_1, 0x0000);
@@ -3536,8 +3536,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	rt5682 = devm_kzalloc(&i2c->dev, sizeof(struct rt5682_priv),
 		GFP_KERNEL);
-
-	if (rt5682 == NULL)
+	if (!rt5682)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5682);
@@ -3562,14 +3561,14 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(rt5682->supplies),
 				      rt5682->supplies);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(rt5682->supplies),
 				    rt5682->supplies);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
@@ -3599,7 +3598,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_multi_reg_write(rt5682->regmap, patch_list,
 				    ARRAY_SIZE(patch_list));
-	if (ret != 0)
+	if (ret)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
 	regmap_write(rt5682->regmap, RT5682_DEPOP_1, 0x0000);
