@@ -35,7 +35,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "lib/eq.h"
 
@@ -136,8 +135,8 @@ static struct fw_page *find_fw_page(struct mlx5_core_dev *dev, u64 addr)
 static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 				s32 *npages, int boot)
 {
-	u32 out[MLX5_ST_SZ_DW(query_pages_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(query_pages_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(query_pages_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_pages_in)] = {};
 	int err;
 
 	MLX5_SET(query_pages_in, in, opcode, MLX5_CMD_OP_QUERY_PAGES);
@@ -146,7 +145,7 @@ static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 		 MLX5_QUERY_PAGES_IN_OP_MOD_INIT_PAGES);
 	MLX5_SET(query_pages_in, in, embedded_cpu_function, mlx5_core_is_ecpf(dev));
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec_inout(dev, query_pages, in, out);
 	if (err)
 		return err;
 
@@ -257,8 +256,7 @@ err_mapping:
 static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id,
 			     bool ec_function)
 {
-	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(manage_pages_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(manage_pages_in)] = {};
 	int err;
 
 	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
@@ -266,7 +264,7 @@ static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id,
 	MLX5_SET(manage_pages_in, in, function_id, func_id);
 	MLX5_SET(manage_pages_in, in, embedded_cpu_function, ec_function);
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec_in(dev, manage_pages, in);
 	if (err)
 		mlx5_core_warn(dev, "page notify failed func_id(%d) err(%d)\n",
 			       func_id, err);
@@ -374,7 +372,7 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 			 int *nclaimed, bool ec_function)
 {
 	int outlen = MLX5_ST_SZ_BYTES(manage_pages_out);
-	u32 in[MLX5_ST_SZ_DW(manage_pages_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(manage_pages_in)] = {};
 	int num_claimed;
 	u32 *out;
 	int err;

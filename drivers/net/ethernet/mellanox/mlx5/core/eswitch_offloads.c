@@ -784,7 +784,8 @@ static bool mlx5_eswitch_reg_c1_loopback_supported(struct mlx5_eswitch *esw)
 static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 {
 	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {};
-	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {};
+	u32 min[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_esw_vport_context_in)] = {};
 	u8 curr, wanted;
 	int err;
 
@@ -792,8 +793,9 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 	    !mlx5_eswitch_vport_match_metadata_enabled(esw))
 		return 0;
 
-	err = mlx5_eswitch_query_esw_vport_context(esw->dev, 0, false,
-						   out, sizeof(out));
+	MLX5_SET(query_esw_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT);
+	err = mlx5_cmd_exec_inout(esw->dev, query_esw_vport_context, in, out);
 	if (err)
 		return err;
 
@@ -808,14 +810,12 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 	else
 		curr &= ~wanted;
 
-	MLX5_SET(modify_esw_vport_context_in, in,
+	MLX5_SET(modify_esw_vport_context_in, min,
 		 esw_vport_context.fdb_to_vport_reg_c_id, curr);
-
-	MLX5_SET(modify_esw_vport_context_in, in,
+	MLX5_SET(modify_esw_vport_context_in, min,
 		 field_select.fdb_to_vport_reg_c_id, 1);
 
-	err = mlx5_eswitch_modify_esw_vport_context(esw->dev, 0, false, in,
-						    sizeof(in));
+	err = mlx5_eswitch_modify_esw_vport_context(esw->dev, 0, false, min);
 	if (!err) {
 		if (enable && (curr & MLX5_FDB_TO_VPORT_REG_C_1))
 			esw->flags |= MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED;
@@ -1468,7 +1468,7 @@ query_vports:
 out:
 	*mode = mlx5_mode;
 	return 0;
-}       
+}
 
 static void esw_destroy_restore_table(struct mlx5_eswitch *esw)
 {
@@ -1484,7 +1484,7 @@ static void esw_destroy_restore_table(struct mlx5_eswitch *esw)
 
 static int esw_create_restore_table(struct mlx5_eswitch *esw)
 {
-	u8 modact[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	u8 modact[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1894,7 +1894,7 @@ static int esw_vport_ingress_prio_tag_config(struct mlx5_eswitch *esw,
 static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 						     struct mlx5_vport *vport)
 {
-	u8 action[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5_flow_act flow_act = {};
 	int err = 0;
 	u32 key;
