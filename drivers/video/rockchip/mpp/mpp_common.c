@@ -602,17 +602,19 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 	}
 
 	pdev = of_find_device_by_node(np);
+	of_node_put(np);
 	if (!pdev) {
 		dev_err(dev, "failed to get mpp service from node\n");
 		ret = -ENODEV;
-		goto fail;
+		goto err_put_pdev;
 	}
 
+	mpp->pdev_srv = pdev;
 	mpp->srv = platform_get_drvdata(pdev);
 	if (!mpp->srv) {
 		dev_err(&pdev->dev, "failed attach service\n");
 		ret = -EINVAL;
-		goto fail;
+		goto err_put_pdev;
 	}
 
 	of_property_read_u32(dev->of_node,
@@ -621,7 +623,7 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		dev_err(dev, "rockchip,taskqueue-node %d must less than %d\n",
 			taskqueue_node, mpp->srv->taskqueue_cnt);
 		ret = -ENODEV;
-		goto fail;
+		goto err_put_pdev;
 	}
 
 	of_property_read_u32(dev->of_node,
@@ -630,7 +632,7 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		dev_err(dev, "rockchip,resetgroup-node %d must less than %d\n",
 			reset_group_node, mpp->srv->reset_group_cnt);
 		ret = -ENODEV;
-		goto fail;
+		goto err_put_pdev;
 	}
 
 	device_lock(&pdev->dev);
@@ -642,10 +644,12 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 	mpp->reset_group = mpp->srv->reset_groups[reset_group_node];
 	mpp->srv->hw_support |= BIT(mpp->var->device_type);
 	device_unlock(&pdev->dev);
-	put_device(&pdev->dev);
 
-fail:
-	of_node_put(np);
+	return 0;
+
+err_put_pdev:
+	platform_device_put(pdev);
+
 	return ret;
 }
 
@@ -1523,6 +1527,7 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 		mpp->hw_ops->exit(mpp);
 
 	mpp_iommu_remove(mpp->iommu_info);
+	platform_device_put(mpp->pdev_srv);
 
 	if (mpp->workq) {
 		destroy_workqueue(mpp->workq);

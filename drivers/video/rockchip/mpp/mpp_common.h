@@ -200,6 +200,7 @@ struct mpp_dev {
 	struct mpp_taskqueue *queue;
 	struct mpp_reset_group *reset_group;
 	/* point to MPP Service */
+	struct platform_device *pdev_srv;
 	struct mpp_service *srv;
 };
 
