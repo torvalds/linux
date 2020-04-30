@@ -107,6 +107,7 @@ Contents:
    strparser
    switchdev
    tc-actions-env-rules
+   tcp-thin
 
 .. only::  subproject and html
 

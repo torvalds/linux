@@ -1,5 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====================
 Thin-streams and TCP
 ====================
+
 A wide range of Internet-based services that use reliable transport
 protocols display what we call thin-stream properties. This means
 that the application sends data with such a low rate that the
@@ -42,6 +46,7 @@ References
 ==========
 More information on the modifications, as well as a wide range of
 experimental data can be found here:
+
 "Improving latency for interactive, thin-stream applications over
 reliable transport"
 http://simula.no/research/nd/publications/Simula.nd.477/simula_pdf_file
