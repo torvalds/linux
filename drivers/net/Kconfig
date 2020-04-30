@@ -302,7 +302,7 @@ config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
 	  If you want to log kernel messages over the network, enable this.
-	  See <file:Documentation/networking/netconsole.txt> for details.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
@@ -312,7 +312,7 @@ config NETCONSOLE_DYNAMIC
 	  This option enables the ability to dynamically reconfigure target
 	  parameters (interface, IP addresses, port numbers, MAC addresses)
 	  at runtime through a userspace interface exported using configfs.
-	  See <file:Documentation/networking/netconsole.txt> for details.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETPOLL
 	def_bool NETCONSOLE

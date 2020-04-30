@@ -638,7 +638,7 @@
 
 			See Documentation/admin-guide/serial-console.rst for more
 			information.  See
-			Documentation/networking/netconsole.txt for an
+			Documentation/networking/netconsole.rst for an
 			alternative.
 
 		uart[8250],io,<addr>[,options]

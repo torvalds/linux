@@ -80,6 +80,7 @@ Contents:
    mac80211-injection
    mpls-sysctl
    multiqueue
+   netconsole
 
 .. only::  subproject and html
 
