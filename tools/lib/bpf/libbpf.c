@@ -5003,8 +5003,8 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 					 GElf_Shdr *shdr, Elf_Data *data)
 {
 	int i, j, nrels, new_sz, ptr_sz = sizeof(void *);
+	const struct btf_var_secinfo *vi = NULL;
 	const struct btf_type *sec, *var, *def;
-	const struct btf_var_secinfo *vi;
 	const struct btf_member *member;
 	struct bpf_map *map, *targ_map;
 	const char *name, *mname;
