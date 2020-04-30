@@ -98,6 +98,7 @@ Contents:
    radiotap-headers
    ray_cs
    rds
+   regulatory
 
 .. only::  subproject and html
 

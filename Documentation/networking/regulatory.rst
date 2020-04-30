@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=======================================
 Linux wireless regulatory documentation
----------------------------------------
+=======================================
 
 This document gives a brief review over how the Linux wireless
 regulatory infrastructure works.
@@ -57,7 +60,7 @@ Users can use iw:
 
 http://wireless.kernel.org/en/users/Documentation/iw
 
-An example:
+An example::
 
   # set regulatory domain to "Costa Rica"
   iw reg set CR
@@ -104,9 +107,9 @@ Example code - drivers hinting an alpha2:
 
 This example comes from the zd1211rw device driver. You can start
 by having a mapping of your device's EEPROM country/regulatory
-domain value to a specific alpha2 as follows:
+domain value to a specific alpha2 as follows::
 
-static struct zd_reg_alpha2_map reg_alpha2_map[] = {
+  static struct zd_reg_alpha2_map reg_alpha2_map[] = {
 	{ ZD_REGDOMAIN_FCC, "US" },
 	{ ZD_REGDOMAIN_IC, "CA" },
 	{ ZD_REGDOMAIN_ETSI, "DE" }, /* Generic ETSI, use most restrictive */
@@ -116,10 +119,10 @@ static struct zd_reg_alpha2_map reg_alpha2_map[] = {
 	{ ZD_REGDOMAIN_FRANCE, "FR" },
 
 Then you can define a routine to map your read EEPROM value to an alpha2,
-as follows:
+as follows::
 
-static int zd_reg2alpha2(u8 regdomain, char *alpha2)
-{
+  static int zd_reg2alpha2(u8 regdomain, char *alpha2)
+  {
 	unsigned int i;
 	struct zd_reg_alpha2_map *reg_map;
 		for (i = 0; i < ARRAY_SIZE(reg_alpha2_map); i++) {
@@ -131,11 +134,13 @@ static int zd_reg2alpha2(u8 regdomain, char *alpha2)
 		}
 	}
 	return 1;
-}
+  }
 
 Lastly, you can then hint to the core of your discovered alpha2, if a match
 was found. You need to do this after you have registered your wiphy. You
 are expected to do this during initialization.
+
+::
 
 	r = zd_reg2alpha2(mac->regdomain, alpha2);
 	if (!r)
@@ -156,9 +161,9 @@ call regulatory_hint() with the regulatory domain structure in it.
 Bellow is a simple example, with a regulatory domain cached using the stack.
 Your implementation may vary (read EEPROM cache instead, for example).
 
-Example cache of some regulatory domain
+Example cache of some regulatory domain::
 
-struct ieee80211_regdomain mydriver_jp_regdom = {
+  struct ieee80211_regdomain mydriver_jp_regdom = {
 	.n_reg_rules = 3,
 	.alpha2 =  "JP",
 	//.alpha2 =  "99", /* If I have no alpha2 to map it to */
@@ -173,9 +178,9 @@ struct ieee80211_regdomain mydriver_jp_regdom = {
 			NL80211_RRF_NO_IR|
 			NL80211_RRF_DFS),
 	}
-};
+  };
 
-Then in some part of your code after your wiphy has been registered:
+Then in some part of your code after your wiphy has been registered::
 
 	struct ieee80211_regdomain *rd;
 	int size_of_regd;

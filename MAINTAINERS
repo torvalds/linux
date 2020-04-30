@@ -193,7 +193,7 @@ W:	https://wireless.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 F:	Documentation/driver-api/80211/cfg80211.rst
-F:	Documentation/networking/regulatory.txt
+F:	Documentation/networking/regulatory.rst
 F:	include/linux/ieee80211.h
 F:	include/net/cfg80211.h
 F:	include/net/ieee80211_radiotap.h
