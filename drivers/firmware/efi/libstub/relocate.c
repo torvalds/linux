@@ -157,7 +157,7 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 					     min_addr);
 	}
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to allocate usable memory for kernel.\n");
+		efi_err("Failed to allocate usable memory for kernel.\n");
 		return status;
 	}
 

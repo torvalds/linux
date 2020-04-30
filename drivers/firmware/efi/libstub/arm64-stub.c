@@ -26,9 +26,9 @@ efi_status_t check_platform_features(void)
 	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
 	if (tg != ID_AA64MMFR0_TGRAN_SUPPORTED) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-			pr_efi_err("This 64 KB granular kernel is not supported by your CPU\n");
+			efi_err("This 64 KB granular kernel is not supported by your CPU\n");
 		else
-			pr_efi_err("This 16 KB granular kernel is not supported by your CPU\n");
+			efi_err("This 16 KB granular kernel is not supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -59,18 +59,18 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
-				pr_efi("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+				efi_info("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
 			} else if (status != EFI_SUCCESS) {
-				pr_efi_err("efi_get_random_bytes() failed\n");
+				efi_err("efi_get_random_bytes() failed\n");
 				return status;
 			}
 		} else {
-			pr_efi("KASLR disabled on kernel command line\n");
+			efi_info("KASLR disabled on kernel command line\n");
 		}
 	}
 
 	if (image->image_base != _text)
-		pr_efi_err("FIRMWARE BUG: efi_loaded_image_t::image_base has bogus value\n");
+		efi_err("FIRMWARE BUG: efi_loaded_image_t::image_base has bogus value\n");
 
 	kernel_size = _edata - _text;
 	kernel_memsize = kernel_size + (_end - _edata);
@@ -102,7 +102,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 						    ULONG_MAX, min_kimg_align);
 
 		if (status != EFI_SUCCESS) {
-			pr_efi_err("Failed to relocate kernel\n");
+			efi_err("Failed to relocate kernel\n");
 			*reserve_size = 0;
 			return status;
 		}

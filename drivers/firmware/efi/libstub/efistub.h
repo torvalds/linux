@@ -49,11 +49,11 @@ extern const efi_system_table_t *efi_system_table;
 #define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
 #endif
 
-#define pr_efi(msg)		do {			\
+#define efi_info(msg)		do {			\
 	if (!efi_quiet) efi_printk("EFI stub: "msg);	\
 } while (0)
 
-#define pr_efi_err(msg) efi_printk("EFI stub: ERROR: "msg)
+#define efi_err(msg) efi_printk("EFI stub: ERROR: "msg)
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var

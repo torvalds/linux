@@ -46,7 +46,7 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 
 	status = volume->open(volume, &fh, fi->filename, EFI_FILE_MODE_READ, 0);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to open file: ");
+		efi_err("Failed to open file: ");
 		efi_char16_printk(fi->filename);
 		efi_printk("\n");
 		return status;
@@ -55,7 +55,7 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 	info_sz = sizeof(struct finfo);
 	status = fh->get_info(fh, &info_guid, &info_sz, fi);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to get file info\n");
+		efi_err("Failed to get file info\n");
 		fh->close(fh);
 		return status;
 	}
@@ -75,13 +75,13 @@ static efi_status_t efi_open_volume(efi_loaded_image_t *image,
 	status = efi_bs_call(handle_protocol, image->device_handle, &fs_proto,
 			     (void **)&io);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to handle fs_proto\n");
+		efi_err("Failed to handle fs_proto\n");
 		return status;
 	}
 
 	status = io->open_volume(io, fh);
 	if (status != EFI_SUCCESS)
-		pr_efi_err("Failed to open volume\n");
+		efi_err("Failed to open volume\n");
 
 	return status;
 }
@@ -191,7 +191,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 							    &alloc_addr,
 							    hard_limit);
 			if (status != EFI_SUCCESS) {
-				pr_efi_err("Failed to allocate memory for files\n");
+				efi_err("Failed to allocate memory for files\n");
 				goto err_close_file;
 			}
 
@@ -215,7 +215,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 
 			status = file->read(file, &chunksize, addr);
 			if (status != EFI_SUCCESS) {
-				pr_efi_err("Failed to read file\n");
+				efi_err("Failed to read file\n");
 				goto err_close_file;
 			}
 			addr += chunksize;
