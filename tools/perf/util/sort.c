@@ -2354,7 +2354,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 
 		evsel = evlist__first(evlist);
 		while (--nr > 0)
-			evsel = perf_evsel__next(evsel);
+			evsel = evsel__next(evsel);
 
 		return evsel;
 	}

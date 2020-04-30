@@ -299,12 +299,12 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 				  u64 *timestamp);
 
-static inline struct evsel *perf_evsel__next(struct evsel *evsel)
+static inline struct evsel *evsel__next(struct evsel *evsel)
 {
 	return list_entry(evsel->core.node.next, struct evsel, core.node);
 }
 
-static inline struct evsel *perf_evsel__prev(struct evsel *evsel)
+static inline struct evsel *evsel__prev(struct evsel *evsel)
 {
 	return list_entry(evsel->core.node.prev, struct evsel, core.node);
 }

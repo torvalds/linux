@@ -53,7 +53,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 					ret = -1;
 				}
 
-				evsel = perf_evsel__next(evsel);
+				evsel = evsel__next(evsel);
 			}
 		}
 	}
