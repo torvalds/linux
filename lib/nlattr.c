@@ -151,6 +151,7 @@ static int nla_validate_int_range_unsigned(const struct nla_policy *pt,
 		value = nla_get_u32(nla);
 		break;
 	case NLA_U64:
+	case NLA_MSECS:
 		value = nla_get_u64(nla);
 		break;
 	default:
@@ -227,6 +228,7 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 	case NLA_U16:
 	case NLA_U32:
 	case NLA_U64:
+	case NLA_MSECS:
 		return nla_validate_int_range_unsigned(pt, nla, extack);
 	case NLA_S8:
 	case NLA_S16:

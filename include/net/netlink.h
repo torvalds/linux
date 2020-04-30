@@ -371,7 +371,8 @@ struct nla_policy {
 #define __NLA_ENSURE(condition) BUILD_BUG_ON_ZERO(!(condition))
 #define NLA_ENSURE_UINT_TYPE(tp)			\
 	(__NLA_ENSURE(tp == NLA_U8 || tp == NLA_U16 ||	\
-		      tp == NLA_U32 || tp == NLA_U64) + tp)
+		      tp == NLA_U32 || tp == NLA_U64 ||	\
+		      tp == NLA_MSECS) + tp)
 #define NLA_ENSURE_SINT_TYPE(tp)			\
 	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_S16  ||	\
 		      tp == NLA_S32 || tp == NLA_S64) + tp)
@@ -379,7 +380,8 @@ struct nla_policy {
 	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_U8 ||	\
 		      tp == NLA_S16 || tp == NLA_U16 ||	\
 		      tp == NLA_S32 || tp == NLA_U32 ||	\
-		      tp == NLA_S64 || tp == NLA_U64) + tp)
+		      tp == NLA_S64 || tp == NLA_U64 ||	\
+		      tp == NLA_MSECS) + tp)
 #define NLA_ENSURE_NO_VALIDATION_PTR(tp)		\
 	(__NLA_ENSURE(tp != NLA_BITFIELD32 &&		\
 		      tp != NLA_REJECT &&		\
