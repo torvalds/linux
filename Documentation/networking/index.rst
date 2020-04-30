@@ -108,6 +108,7 @@ Contents:
    switchdev
    tc-actions-env-rules
    tcp-thin
+   team
 
 .. only::  subproject and html
 
