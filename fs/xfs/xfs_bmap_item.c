@@ -352,21 +352,21 @@ xfs_bmap_update_create_intent(
 }
 
 /* Get an BUD so we can process all the deferred rmap updates. */
-STATIC void *
+static struct xfs_log_item *
 xfs_bmap_update_create_done(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return xfs_trans_get_bud(tp, BUI_ITEM(intent));
+	return &xfs_trans_get_bud(tp, BUI_ITEM(intent))->bud_item;
 }
 
 /* Process a deferred rmap update. */
 STATIC int
 xfs_bmap_update_finish_item(
 	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				*done_item,
 	void				**state)
 {
 	struct xfs_bmap_intent		*bmap;
@@ -375,7 +375,7 @@ xfs_bmap_update_finish_item(
 
 	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
 	count = bmap->bi_bmap.br_blockcount;
-	error = xfs_trans_log_finish_bmap_update(tp, done_item,
+	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done),
 			bmap->bi_type,
 			bmap->bi_owner, bmap->bi_whichfork,
 			bmap->bi_bmap.br_startoff,

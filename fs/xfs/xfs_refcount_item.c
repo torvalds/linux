@@ -351,21 +351,21 @@ xfs_refcount_update_create_intent(
 }
 
 /* Get an CUD so we can process all the deferred refcount updates. */
-STATIC void *
+static struct xfs_log_item *
 xfs_refcount_update_create_done(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return xfs_trans_get_cud(tp, CUI_ITEM(intent));
+	return &xfs_trans_get_cud(tp, CUI_ITEM(intent))->cud_item;
 }
 
 /* Process a deferred refcount update. */
 STATIC int
 xfs_refcount_update_finish_item(
 	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				*done_item,
 	void				**state)
 {
 	struct xfs_refcount_intent	*refc;
@@ -374,7 +374,7 @@ xfs_refcount_update_finish_item(
 	int				error;
 
 	refc = container_of(item, struct xfs_refcount_intent, ri_list);
-	error = xfs_trans_log_finish_refcount_update(tp, done_item,
+	error = xfs_trans_log_finish_refcount_update(tp, CUD_ITEM(done),
 			refc->ri_type,
 			refc->ri_startblock,
 			refc->ri_blockcount,

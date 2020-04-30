@@ -403,28 +403,28 @@ xfs_rmap_update_create_intent(
 }
 
 /* Get an RUD so we can process all the deferred rmap updates. */
-STATIC void *
+static struct xfs_log_item *
 xfs_rmap_update_create_done(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return xfs_trans_get_rud(tp, RUI_ITEM(intent));
+	return &xfs_trans_get_rud(tp, RUI_ITEM(intent))->rud_item;
 }
 
 /* Process a deferred rmap update. */
 STATIC int
 xfs_rmap_update_finish_item(
 	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				*done_item,
 	void				**state)
 {
 	struct xfs_rmap_intent		*rmap;
 	int				error;
 
 	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
-	error = xfs_trans_log_finish_rmap_update(tp, done_item,
+	error = xfs_trans_log_finish_rmap_update(tp, RUD_ITEM(done),
 			rmap->ri_type,
 			rmap->ri_owner, rmap->ri_whichfork,
 			rmap->ri_bmap.br_startoff,

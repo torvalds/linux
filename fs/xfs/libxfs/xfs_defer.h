@@ -29,7 +29,7 @@ struct xfs_defer_pending {
 	struct list_head		dfp_list;	/* pending items */
 	struct list_head		dfp_work;	/* work items */
 	struct xfs_log_item		*dfp_intent;	/* log intent item */
-	void				*dfp_done;	/* log done item */
+	struct xfs_log_item		*dfp_done;	/* log done item */
 	unsigned int			dfp_count;	/* # extent items */
 	enum xfs_defer_ops_type		dfp_type;
 };
@@ -46,10 +46,10 @@ struct xfs_defer_op_type {
 	struct xfs_log_item *(*create_intent)(struct xfs_trans *tp,
 			struct list_head *items, unsigned int count, bool sort);
 	void (*abort_intent)(struct xfs_log_item *intent);
-	void *(*create_done)(struct xfs_trans *tp, struct xfs_log_item *intent,
-			unsigned int count);
-	int (*finish_item)(struct xfs_trans *, struct list_head *, void *,
-			void **);
+	struct xfs_log_item *(*create_done)(struct xfs_trans *tp,
+			struct xfs_log_item *intent, unsigned int count);
+	int (*finish_item)(struct xfs_trans *tp, struct xfs_log_item *done,
+			struct list_head *item, void **state);
 	void (*finish_cleanup)(struct xfs_trans *, void *, int);
 	void (*cancel_item)(struct list_head *);
 	unsigned int		max_items;

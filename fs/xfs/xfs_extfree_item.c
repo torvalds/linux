@@ -459,28 +459,28 @@ xfs_extent_free_create_intent(
 }
 
 /* Get an EFD so we can process all the free extents. */
-STATIC void *
+static struct xfs_log_item *
 xfs_extent_free_create_done(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return xfs_trans_get_efd(tp, EFI_ITEM(intent), count);
+	return &xfs_trans_get_efd(tp, EFI_ITEM(intent), count)->efd_item;
 }
 
 /* Process a free extent. */
 STATIC int
 xfs_extent_free_finish_item(
 	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				*done_item,
 	void				**state)
 {
 	struct xfs_extent_free_item	*free;
 	int				error;
 
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
-	error = xfs_trans_free_extent(tp, done_item,
+	error = xfs_trans_free_extent(tp, EFD_ITEM(done),
 			free->xefi_startblock,
 			free->xefi_blockcount,
 			&free->xefi_oinfo, free->xefi_skip_discard);
@@ -523,12 +523,12 @@ const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 STATIC int
 xfs_agfl_free_finish_item(
 	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
 	struct list_head		*item,
-	void				*done_item,
 	void				**state)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_efd_log_item		*efdp = done_item;
+	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
 	struct xfs_extent_free_item	*free;
 	struct xfs_extent		*extp;
 	struct xfs_buf			*agbp;

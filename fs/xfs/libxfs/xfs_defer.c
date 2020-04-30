@@ -371,7 +371,7 @@ xfs_defer_finish_one(
 	list_for_each_safe(li, n, &dfp->dfp_work) {
 		list_del(li);
 		dfp->dfp_count--;
-		error = ops->finish_item(tp, li, dfp->dfp_done, &state);
+		error = ops->finish_item(tp, dfp->dfp_done, li, &state);
 		if (error == -EAGAIN) {
 			/*
 			 * Caller wants a fresh transaction; put the work item
