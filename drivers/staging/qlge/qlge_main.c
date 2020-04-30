@@ -262,52 +262,50 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 
 	switch (type) {
 	case MAC_ADDR_TYPE_MULTI_MAC:
-	case MAC_ADDR_TYPE_CAM_MAC:
-		{
-			status =
-			    ql_wait_reg_rdy(qdev,
-					    MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+	case MAC_ADDR_TYPE_CAM_MAC: {
+		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+		if (status)
+			goto exit;
+		ql_write32(qdev, MAC_ADDR_IDX,
+			   (offset++) | /* offset */
+				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
+				   MAC_ADDR_ADR | MAC_ADDR_RS |
+				   type); /* type */
+		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
+		if (status)
+			goto exit;
+		*value++ = ql_read32(qdev, MAC_ADDR_DATA);
+		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+		if (status)
+			goto exit;
+		ql_write32(qdev, MAC_ADDR_IDX,
+			   (offset++) | /* offset */
+				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
+				   MAC_ADDR_ADR | MAC_ADDR_RS |
+				   type); /* type */
+		status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
+		if (status)
+			goto exit;
+		*value++ = ql_read32(qdev, MAC_ADDR_DATA);
+		if (type == MAC_ADDR_TYPE_CAM_MAC) {
+			status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX,
+						 MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
-			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
-				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
-				   MAC_ADDR_ADR | MAC_ADDR_RS | type); /* type */
-			status =
-			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
+			ql_write32(qdev, MAC_ADDR_IDX,
+				   (offset++) | /* offset */
+					   (index
+					    << MAC_ADDR_IDX_SHIFT) | /* index */
+					   MAC_ADDR_ADR |
+					   MAC_ADDR_RS | type); /* type */
+			status = ql_wait_reg_rdy(qdev, MAC_ADDR_IDX,
+						 MAC_ADDR_MR, 0);
 			if (status)
 				goto exit;
 			*value++ = ql_read32(qdev, MAC_ADDR_DATA);
-			status =
-			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
-			if (status)
-				goto exit;
-			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
-				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
-				   MAC_ADDR_ADR | MAC_ADDR_RS | type); /* type */
-			status =
-			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
-			if (status)
-				goto exit;
-			*value++ = ql_read32(qdev, MAC_ADDR_DATA);
-			if (type == MAC_ADDR_TYPE_CAM_MAC) {
-				status =
-				    ql_wait_reg_rdy(qdev,
-						    MAC_ADDR_IDX, MAC_ADDR_MW,
-						    0);
-				if (status)
-					goto exit;
-				ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
-					   (index << MAC_ADDR_IDX_SHIFT) | /* index */
-					   MAC_ADDR_ADR | MAC_ADDR_RS | type); /* type */
-				status =
-				    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX,
-						    MAC_ADDR_MR, 0);
-				if (status)
-					goto exit;
-				*value++ = ql_read32(qdev, MAC_ADDR_DATA);
-			}
-			break;
 		}
+		break;
+	}
 	case MAC_ADDR_TYPE_VLAN:
 	case MAC_ADDR_TYPE_MULTI_FLTR:
 	default:
