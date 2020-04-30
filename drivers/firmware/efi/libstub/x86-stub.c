@@ -49,7 +49,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
 			     (void **)&rom);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate memory for 'rom'\n");
+		efi_err("Failed to allocate memory for 'rom'\n");
 		return status;
 	}
 
@@ -65,7 +65,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to read rom->vendor\n");
+		efi_err("Failed to read rom->vendor\n");
 		goto free_struct;
 	}
 
@@ -73,7 +73,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				PCI_DEVICE_ID, 1, &rom->devid);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to read rom->devid\n");
+		efi_err("Failed to read rom->devid\n");
 		goto free_struct;
 	}
 
@@ -118,7 +118,7 @@ static void setup_efi_pci(struct boot_params *params)
 				     (void **)&pci_handle);
 
 		if (status != EFI_SUCCESS) {
-			efi_printk("Failed to allocate memory for 'pci_handle'\n");
+			efi_err("Failed to allocate memory for 'pci_handle'\n");
 			return;
 		}
 
@@ -172,7 +172,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 		return;
 
 	if (efi_table_attr(p, version) != 0x10000) {
-		efi_printk("Unsupported properties proto version\n");
+		efi_err("Unsupported properties proto version\n");
 		return;
 	}
 
@@ -185,7 +185,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 				     size + sizeof(struct setup_data),
 				     (void **)&new);
 		if (status != EFI_SUCCESS) {
-			efi_printk("Failed to allocate memory for 'properties'\n");
+			efi_err("Failed to allocate memory for 'properties'\n");
 			return;
 		}
 
@@ -372,7 +372,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	status = efi_bs_call(handle_protocol, handle, &proto, (void **)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		efi_err("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		efi_exit(handle, status);
 	}
 
@@ -382,7 +382,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	status = efi_allocate_pages(sizeof(struct boot_params),
 				    (unsigned long *)&boot_params, ULONG_MAX);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate lowmem for boot params\n");
+		efi_err("Failed to allocate lowmem for boot params\n");
 		efi_exit(handle, status);
 	}
 
@@ -749,7 +749,7 @@ unsigned long efi_main(efi_handle_t handle,
 					     hdr->kernel_alignment,
 					     LOAD_PHYSICAL_ADDR);
 		if (status != EFI_SUCCESS) {
-			efi_printk("efi_relocate_kernel() failed!\n");
+			efi_err("efi_relocate_kernel() failed!\n");
 			goto fail;
 		}
 		/*
@@ -786,7 +786,7 @@ unsigned long efi_main(efi_handle_t handle,
 			efi_set_u64_split(size, &hdr->ramdisk_size,
 					  &boot_params->ext_ramdisk_size);
 		} else if (status != EFI_NOT_FOUND) {
-			efi_printk("efi_load_initrd_dev_path() failed!\n");
+			efi_err("efi_load_initrd_dev_path() failed!\n");
 			goto fail;
 		}
 	}
@@ -813,13 +813,13 @@ unsigned long efi_main(efi_handle_t handle,
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
-		efi_printk("exit_boot() failed!\n");
+		efi_err("exit_boot() failed!\n");
 		goto fail;
 	}
 
 	return bzimage_addr;
 fail:
-	efi_printk("efi_main() failed!\n");
+	efi_err("efi_main() failed!\n");
 
 	efi_exit(handle, status);
 }
