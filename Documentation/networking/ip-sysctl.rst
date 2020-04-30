@@ -651,6 +651,14 @@ tcp_comp_sack_delay_ns - LONG INTEGER
 
 	Default : 1,000,000 ns (1 ms)
 
+tcp_comp_sack_slack_ns - LONG INTEGER
+	This sysctl control the slack used when arming the
+	timer used by SACK compression. This gives extra time
+	for small RTT flows, and reduces system overhead by allowing
+	opportunistic reduction of timer interrupts.
+
+	Default : 100,000 ns (100 us)
+
 tcp_comp_sack_nr - INTEGER
 	Max number of SACK that can be compressed.
 	Using 0 disables SACK compression.

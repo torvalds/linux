@@ -4327,6 +4327,33 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 	}
 }
 
+static void tcp_sack_compress_send_ack(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!tp->compressed_ack)
+		return;
+
+	if (hrtimer_try_to_cancel(&tp->compressed_ack_timer) == 1)
+		__sock_put(sk);
+
+	/* Since we have to send one ack finally,
+	 * substract one from tp->compressed_ack to keep
+	 * LINUX_MIB_TCPACKCOMPRESSED accurate.
+	 */
+	NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPACKCOMPRESSED,
+		      tp->compressed_ack - 1);
+
+	tp->compressed_ack = 0;
+	tcp_send_ack(sk);
+}
+
+/* Reasonable amount of sack blocks included in TCP SACK option
+ * The max is 4, but this becomes 3 if TCP timestamps are there.
+ * Given that SACK packets might be lost, be conservative and use 2.
+ */
+#define TCP_SACK_BLOCKS_EXPECTED 2
+
 static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -4339,6 +4366,8 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 
 	for (this_sack = 0; this_sack < cur_sacks; this_sack++, sp++) {
 		if (tcp_sack_extend(sp, seq, end_seq)) {
+			if (this_sack >= TCP_SACK_BLOCKS_EXPECTED)
+				tcp_sack_compress_send_ack(sk);
 			/* Rotate this_sack to the first one. */
 			for (; this_sack > 0; this_sack--, sp--)
 				swap(*sp, *(sp - 1));
@@ -4348,6 +4377,9 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 		}
 	}
 
+	if (this_sack >= TCP_SACK_BLOCKS_EXPECTED)
+		tcp_sack_compress_send_ack(sk);
+
 	/* Could not find an adjacent existing SACK, build a new one,
 	 * put it at the front, and shift everyone else down.  We
 	 * always know there is at least one SACK present already here.
@@ -4355,8 +4387,6 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 * If the sack array is full, forget about the last one.
 	 */
 	if (this_sack >= TCP_NUM_SACKS) {
-		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
-			tcp_send_ack(sk);
 		this_sack--;
 		tp->rx_opt.num_sacks--;
 		sp--;
@@ -5275,15 +5305,13 @@ send_now:
 
 	if (tp->compressed_ack_rcv_nxt != tp->rcv_nxt) {
 		tp->compressed_ack_rcv_nxt = tp->rcv_nxt;
-		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
-			NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPACKCOMPRESSED,
-				      tp->compressed_ack - TCP_FASTRETRANS_THRESH);
-		tp->compressed_ack = 0;
+		tp->dup_ack_counter = 0;
 	}
-
-	if (++tp->compressed_ack <= TCP_FASTRETRANS_THRESH)
+	if (tp->dup_ack_counter < TCP_FASTRETRANS_THRESH) {
+		tp->dup_ack_counter++;
 		goto send_now;
-
+	}
+	tp->compressed_ack++;
 	if (hrtimer_is_queued(&tp->compressed_ack_timer))
 		return;
 
@@ -5296,8 +5324,9 @@ send_now:
 	delay = min_t(unsigned long, sock_net(sk)->ipv4.sysctl_tcp_comp_sack_delay_ns,
 		      rtt * (NSEC_PER_USEC >> 3)/20);
 	sock_hold(sk);
-	hrtimer_start(&tp->compressed_ack_timer, ns_to_ktime(delay),
-		      HRTIMER_MODE_REL_PINNED_SOFT);
+	hrtimer_start_range_ns(&tp->compressed_ack_timer, ns_to_ktime(delay),
+			       sock_net(sk)->ipv4.sysctl_tcp_comp_sack_slack_ns,
+			       HRTIMER_MODE_REL_PINNED_SOFT);
 }
 
 static inline void tcp_ack_snd_check(struct sock *sk)
