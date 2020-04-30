@@ -94,6 +94,7 @@ Contents:
    pktgen
    plip
    ppp_generic
+   proc_net_tcp
 
 .. only::  subproject and html
 
