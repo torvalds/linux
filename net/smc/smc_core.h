@@ -352,6 +352,10 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn, struct smc_link *link,
 			    struct smc_clc_msg_accept_confirm *clc);
 int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
 int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
+void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
+		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey);
+void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
+		     __be64 nw_vaddr, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);

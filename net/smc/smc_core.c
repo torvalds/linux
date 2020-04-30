@@ -1368,6 +1368,53 @@ static inline int smc_rmb_reserve_rtoken_idx(struct smc_link_group *lgr)
 	return -ENOSPC;
 }
 
+static int smc_rtoken_find_by_link(struct smc_link_group *lgr, int lnk_idx,
+				   u32 rkey)
+{
+	int i;
+
+	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
+		if (test_bit(i, lgr->rtokens_used_mask) &&
+		    lgr->rtokens[i][lnk_idx].rkey == rkey)
+			return i;
+	}
+	return -ENOENT;
+}
+
+/* set rtoken for a new link to an existing rmb */
+void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
+		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey)
+{
+	int rtok_idx;
+
+	rtok_idx = smc_rtoken_find_by_link(lgr, link_idx, ntohl(nw_rkey_known));
+	if (rtok_idx == -ENOENT)
+		return;
+	lgr->rtokens[rtok_idx][link_idx_new].rkey = ntohl(nw_rkey);
+	lgr->rtokens[rtok_idx][link_idx_new].dma_addr = be64_to_cpu(nw_vaddr);
+}
+
+/* set rtoken for a new link whose link_id is given */
+void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
+		     __be64 nw_vaddr, __be32 nw_rkey)
+{
+	u64 dma_addr = be64_to_cpu(nw_vaddr);
+	u32 rkey = ntohl(nw_rkey);
+	bool found = false;
+	int link_idx;
+
+	for (link_idx = 0; link_idx < SMC_LINKS_PER_LGR_MAX; link_idx++) {
+		if (lgr->lnk[link_idx].link_id == link_id) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+	lgr->rtokens[rtok_idx][link_idx].rkey = rkey;
+	lgr->rtokens[rtok_idx][link_idx].dma_addr = dma_addr;
+}
+
 /* add a new rtoken from peer */
 int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey)
 {
