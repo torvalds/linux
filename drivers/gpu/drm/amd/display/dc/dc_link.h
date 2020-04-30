@@ -101,6 +101,7 @@ struct dc_link {
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
 	bool is_lttpr_mode_transparent;
+	bool lttpr_non_transparent_mode;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
