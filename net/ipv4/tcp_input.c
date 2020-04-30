@@ -3926,10 +3926,6 @@ void tcp_parse_options(const struct net *net,
 				 */
 				break;
 #endif
-			case TCPOPT_MPTCP:
-				mptcp_parse_option(skb, ptr, opsize, opt_rx);
-				break;
-
 			case TCPOPT_FASTOPEN:
 				tcp_parse_fastopen_option(
 					opsize - TCPOLEN_FASTOPEN_BASE,

@@ -16,10 +16,10 @@ static bool mptcp_cap_flag_sha256(u8 flags)
 	return (flags & MPTCP_CAP_FLAG_MASK) == MPTCP_CAP_HMAC_SHA256;
 }
 
-void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
-			int opsize, struct tcp_options_received *opt_rx)
+static void mptcp_parse_option(const struct sk_buff *skb,
+			       const unsigned char *ptr, int opsize,
+			       struct mptcp_options_received *mp_opt)
 {
-	struct mptcp_options_received *mp_opt = &opt_rx->mptcp;
 	u8 subtype = *ptr >> 4;
 	int expected_opsize;
 	u8 version;
@@ -283,12 +283,20 @@ void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
 }
 
 void mptcp_get_options(const struct sk_buff *skb,
-		       struct tcp_options_received *opt_rx)
+		       struct mptcp_options_received *mp_opt)
 {
-	const unsigned char *ptr;
 	const struct tcphdr *th = tcp_hdr(skb);
-	int length = (th->doff * 4) - sizeof(struct tcphdr);
+	const unsigned char *ptr;
+	int length;
 
+	/* initialize option status */
+	mp_opt->mp_capable = 0;
+	mp_opt->mp_join = 0;
+	mp_opt->add_addr = 0;
+	mp_opt->rm_addr = 0;
+	mp_opt->dss = 0;
+
+	length = (th->doff * 4) - sizeof(struct tcphdr);
 	ptr = (const unsigned char *)(th + 1);
 
 	while (length > 0) {
@@ -308,7 +316,7 @@ void mptcp_get_options(const struct sk_buff *skb,
 			if (opsize > length)
 				return;	/* don't parse partial options */
 			if (opcode == TCPOPT_MPTCP)
-				mptcp_parse_option(skb, ptr, opsize, opt_rx);
+				mptcp_parse_option(skb, ptr, opsize, mp_opt);
 			ptr += opsize - 2;
 			length -= opsize;
 		}
@@ -797,41 +805,41 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
-	struct mptcp_options_received *mp_opt;
+	struct mptcp_options_received mp_opt;
 	struct mptcp_ext *mpext;
 
-	mp_opt = &opt_rx->mptcp;
-	if (!check_fully_established(msk, sk, subflow, skb, mp_opt))
+	mptcp_get_options(skb, &mp_opt);
+	if (!check_fully_established(msk, sk, subflow, skb, &mp_opt))
 		return;
 
-	if (mp_opt->add_addr && add_addr_hmac_valid(msk, mp_opt)) {
+	if (mp_opt.add_addr && add_addr_hmac_valid(msk, &mp_opt)) {
 		struct mptcp_addr_info addr;
 
-		addr.port = htons(mp_opt->port);
-		addr.id = mp_opt->addr_id;
-		if (mp_opt->family == MPTCP_ADDR_IPVERSION_4) {
+		addr.port = htons(mp_opt.port);
+		addr.id = mp_opt.addr_id;
+		if (mp_opt.family == MPTCP_ADDR_IPVERSION_4) {
 			addr.family = AF_INET;
-			addr.addr = mp_opt->addr;
+			addr.addr = mp_opt.addr;
 		}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-		else if (mp_opt->family == MPTCP_ADDR_IPVERSION_6) {
+		else if (mp_opt.family == MPTCP_ADDR_IPVERSION_6) {
 			addr.family = AF_INET6;
-			addr.addr6 = mp_opt->addr6;
+			addr.addr6 = mp_opt.addr6;
 		}
 #endif
-		if (!mp_opt->echo)
+		if (!mp_opt.echo)
 			mptcp_pm_add_addr_received(msk, &addr);
-		mp_opt->add_addr = 0;
+		mp_opt.add_addr = 0;
 	}
 
-	if (!mp_opt->dss)
+	if (!mp_opt.dss)
 		return;
 
 	/* we can't wait for recvmsg() to update the ack_seq, otherwise
 	 * monodirectional flows will stuck
 	 */
-	if (mp_opt->use_ack)
-		update_una(msk, mp_opt);
+	if (mp_opt.use_ack)
+		update_una(msk, &mp_opt);
 
 	mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
 	if (!mpext)
@@ -839,8 +847,8 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 
 	memset(mpext, 0, sizeof(*mpext));
 
-	if (mp_opt->use_map) {
-		if (mp_opt->mpc_map) {
+	if (mp_opt.use_map) {
+		if (mp_opt.mpc_map) {
 			/* this is an MP_CAPABLE carrying MPTCP data
 			 * we know this map the first chunk of data
 			 */
@@ -851,12 +859,12 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			mpext->dsn64 = 1;
 			mpext->mpc_map = 1;
 		} else {
-			mpext->data_seq = mp_opt->data_seq;
-			mpext->subflow_seq = mp_opt->subflow_seq;
-			mpext->dsn64 = mp_opt->dsn64;
-			mpext->data_fin = mp_opt->data_fin;
+			mpext->data_seq = mp_opt.data_seq;
+			mpext->subflow_seq = mp_opt.subflow_seq;
+			mpext->dsn64 = mp_opt.dsn64;
+			mpext->data_fin = mp_opt.data_fin;
 		}
-		mpext->data_len = mp_opt->data_len;
+		mpext->data_len = mp_opt.data_len;
 		mpext->use_map = 1;
 	}
 }
