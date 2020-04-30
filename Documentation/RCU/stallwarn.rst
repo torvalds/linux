@@ -87,6 +87,13 @@ warnings:
 	problem really has happened, and seems to be most likely to
 	result in RCU CPU stall warnings for CONFIG_NO_HZ_COMMON=n kernels.
 
+-	A hardware or software issue that prevents time-based wakeups
+	from occurring.  These issues can range from misconfigured or
+	buggy timer hardware through bugs in the interrupt or exception
+	path (whether hardware, firmware, or software) through bugs
+	in Linux's timer subsystem through bugs in the scheduler, and,
+	yes, even including bugs in RCU itself.
+
 -	A bug in the RCU implementation.
 
 -	A hardware failure.  This is quite unlikely, but has occurred
