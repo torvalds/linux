@@ -416,12 +416,13 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 }
 
 /* Return the hardware's notion of the current state of a channel */
-static enum gsi_channel_state
-gsi_channel_state(struct gsi *gsi, u32 channel_id)
+static enum gsi_channel_state gsi_channel_state(struct gsi_channel *channel)
 {
+	u32 channel_id = gsi_channel_id(channel);
+	void *virt = channel->gsi->virt;
 	u32 val;
 
-	val = ioread32(gsi->virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
+	val = ioread32(virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
 
 	return u32_get_bits(val, CHSTATE_FMASK);
 }
@@ -453,7 +454,7 @@ static int gsi_channel_alloc_command(struct gsi *gsi, u32 channel_id)
 	int ret;
 
 	/* Get initial channel state */
-	channel->state = gsi_channel_state(gsi, channel_id);
+	channel->state = gsi_channel_state(channel);
 
 	if (channel->state != GSI_CHANNEL_STATE_NOT_ALLOCATED)
 		return -EINVAL;
@@ -940,7 +941,7 @@ static void gsi_isr_chan_ctrl(struct gsi *gsi)
 		channel_mask ^= BIT(channel_id);
 
 		channel = &gsi->channel[channel_id];
-		channel->state = gsi_channel_state(gsi, channel_id);
+		channel->state = gsi_channel_state(channel);
 
 		complete(&channel->completion);
 	}
