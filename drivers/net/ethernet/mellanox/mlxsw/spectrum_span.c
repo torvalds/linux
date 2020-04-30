@@ -776,24 +776,6 @@ static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static bool mlxsw_sp_span_is_egress_mirror(struct mlxsw_sp_port *port)
-{
-	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
-	struct mlxsw_sp_span_inspected_port *p;
-	int i;
-
-	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
-
-		list_for_each_entry(p, &curr->bound_ports_list, list)
-			if (p->local_port == port->local_port &&
-			    p->type == MLXSW_SP_SPAN_EGRESS)
-				return true;
-	}
-
-	return false;
-}
-
 static int
 mlxsw_sp_span_port_buffer_update(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 {
@@ -823,20 +805,45 @@ static void mlxsw_sp_span_port_buffer_disable(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 }
 
+static struct mlxsw_sp_span_analyzed_port *
+mlxsw_sp_span_analyzed_port_find(struct mlxsw_sp_span *span, u8 local_port,
+				 bool ingress)
+{
+	struct mlxsw_sp_span_analyzed_port *analyzed_port;
+
+	list_for_each_entry(analyzed_port, &span->analyzed_ports_list, list) {
+		if (analyzed_port->local_port == local_port &&
+		    analyzed_port->ingress == ingress)
+			return analyzed_port;
+	}
+
+	return NULL;
+}
+
 int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 {
+	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
+	int err = 0;
+
 	/* If port is egress mirrored, the shared buffer size should be
 	 * updated according to the mtu value
 	 */
-	if (mlxsw_sp_span_is_egress_mirror(port))
-		return mlxsw_sp_span_port_buffer_update(port, mtu);
-	return 0;
+	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
+
+	if (mlxsw_sp_span_analyzed_port_find(mlxsw_sp->span, port->local_port,
+					     false))
+		err = mlxsw_sp_span_port_buffer_update(port, mtu);
+
+	mutex_unlock(&mlxsw_sp->span->analyzed_ports_lock);
+
+	return err;
 }
 
 void mlxsw_sp_span_speed_update_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp *mlxsw_sp;
 
 	mlxsw_sp_port = container_of(dwork, struct mlxsw_sp_port,
 				     span.speed_update_dw);
@@ -844,9 +851,15 @@ void mlxsw_sp_span_speed_update_work(struct work_struct *work)
 	/* If port is egress mirrored, the shared buffer size should be
 	 * updated according to the speed value.
 	 */
-	if (mlxsw_sp_span_is_egress_mirror(mlxsw_sp_port))
+	mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
+
+	if (mlxsw_sp_span_analyzed_port_find(mlxsw_sp->span,
+					     mlxsw_sp_port->local_port, false))
 		mlxsw_sp_span_port_buffer_update(mlxsw_sp_port,
 						 mlxsw_sp_port->dev->mtu);
+
+	mutex_unlock(&mlxsw_sp->span->analyzed_ports_lock);
 }
 
 static struct mlxsw_sp_span_inspected_port *
@@ -1115,21 +1128,6 @@ void mlxsw_sp_span_agent_put(struct mlxsw_sp *mlxsw_sp, int span_id)
 		return;
 
 	mlxsw_sp_span_entry_put(mlxsw_sp, span_entry);
-}
-
-static struct mlxsw_sp_span_analyzed_port *
-mlxsw_sp_span_analyzed_port_find(struct mlxsw_sp_span *span, u8 local_port,
-				 bool ingress)
-{
-	struct mlxsw_sp_span_analyzed_port *analyzed_port;
-
-	list_for_each_entry(analyzed_port, &span->analyzed_ports_list, list) {
-		if (analyzed_port->local_port == local_port &&
-		    analyzed_port->ingress == ingress)
-			return analyzed_port;
-	}
-
-	return NULL;
 }
 
 static struct mlxsw_sp_span_analyzed_port *
