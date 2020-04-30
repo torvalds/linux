@@ -858,6 +858,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			mpext->subflow_seq = 1;
 			mpext->dsn64 = 1;
 			mpext->mpc_map = 1;
+			mpext->data_fin = 0;
 		} else {
 			mpext->data_seq = mp_opt.data_seq;
 			mpext->subflow_seq = mp_opt.subflow_seq;
