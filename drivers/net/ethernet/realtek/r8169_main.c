@@ -1805,9 +1805,9 @@ static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
 #undef rxtx_x1822
 
 /* get rx/tx scale vector corresponding to current speed */
-static const struct rtl_coalesce_info *rtl_coalesce_info(struct net_device *dev)
+static const struct rtl_coalesce_info *
+rtl_coalesce_info(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
 	const struct rtl_coalesce_info *ci;
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
@@ -1844,7 +1844,7 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	memset(ec, 0, sizeof(*ec));
 
 	/* get rx/tx scale corresponding to current speed and CPlusCmd[0:1] */
-	ci = rtl_coalesce_info(dev);
+	ci = rtl_coalesce_info(tp);
 	if (IS_ERR(ci))
 		return PTR_ERR(ci);
 
@@ -1874,12 +1874,12 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 
 /* choose appropriate scale factor and CPlusCmd[0:1] for (speed, nsec) */
 static const struct rtl_coalesce_scale *rtl_coalesce_choose_scale(
-			struct net_device *dev, u32 nsec, u16 *cp01)
+			struct rtl8169_private *tp, u32 nsec, u16 *cp01)
 {
 	const struct rtl_coalesce_info *ci;
 	u16 i;
 
-	ci = rtl_coalesce_info(dev);
+	ci = rtl_coalesce_info(tp);
 	if (IS_ERR(ci))
 		return ERR_CAST(ci);
 
@@ -1912,7 +1912,7 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	if (rtl_is_8125(tp))
 		return -EOPNOTSUPP;
 
-	scale = rtl_coalesce_choose_scale(dev,
+	scale = rtl_coalesce_choose_scale(tp,
 			max(p[0].usecs, p[1].usecs) * 1000, &cp01);
 	if (IS_ERR(scale))
 		return PTR_ERR(scale);
