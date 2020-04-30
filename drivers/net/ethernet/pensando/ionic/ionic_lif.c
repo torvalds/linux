@@ -2101,6 +2101,7 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 		ionic_txrx_free(lif);
 	}
 	ionic_lifs_deinit(ionic);
+	ionic_reset(ionic);
 	ionic_qcqs_free(lif);
 
 	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
