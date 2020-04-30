@@ -102,6 +102,7 @@ Contents:
    rxrpc
    sctp
    secid
+   seg6-sysctl
 
 .. only::  subproject and html
 
