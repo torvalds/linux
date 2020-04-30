@@ -141,18 +141,22 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long oip = offset_in_page(member_offset);	\
+	const unsigned long idx = member_offset >> PAGE_SHIFT;		\
+	char *kaddr = page_address(eb->pages[idx]);			\
 	const int size = sizeof(u##bits);				\
-	__le##bits leres;						\
+	const int part = PAGE_SIZE - oip;				\
+	u8 lebytes[sizeof(u##bits)];					\
 									\
 	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
 	if (oip + size <= PAGE_SIZE) {					\
-		const unsigned long idx = member_offset >> PAGE_SHIFT;	\
-		char *kaddr = page_address(eb->pages[idx]);		\
 		put_unaligned_le##bits(val, kaddr + oip);		\
 		return;							\
 	}								\
-	leres = cpu_to_le##bits(val);					\
-	write_extent_buffer(eb, &leres, member_offset, size);		\
+									\
+	put_unaligned_le##bits(val, lebytes);				\
+	memcpy(kaddr + oip, lebytes, part);				\
+	kaddr = page_address(eb->pages[idx + 1]);			\
+	memcpy(kaddr, lebytes + part, size - part);			\
 }
 
 DEFINE_BTRFS_SETGET_BITS(8)
