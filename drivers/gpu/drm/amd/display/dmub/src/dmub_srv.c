@@ -98,12 +98,12 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 	uint32_t blob_size = 0;
 	uint32_t meta_offset = 0;
 
-	if (params->fw_bss_data) {
+	if (params->fw_bss_data && params->bss_data_size) {
 		/* Legacy metadata region. */
 		blob = params->fw_bss_data;
 		blob_size = params->bss_data_size;
 		meta_offset = DMUB_FW_META_OFFSET;
-	} else if (params->fw_inst_const) {
+	} else if (params->fw_inst_const && params->inst_const_size) {
 		/* Combined metadata region. */
 		blob = params->fw_inst_const;
 		blob_size = params->inst_const_size;
