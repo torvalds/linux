@@ -82,6 +82,7 @@ Contents:
    multiqueue
    netconsole
    netdev-features
+   netdevices
 
 .. only::  subproject and html
 

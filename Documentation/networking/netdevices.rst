@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+=====================================
 Network Devices, the Kernel, and You!
+=====================================
 
 
 Introduction
@@ -75,11 +78,12 @@ ndo_start_xmit:
 	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
-	         will be called with interrupts disabled by netconsole.
+		 will be called with interrupts disabled by netconsole.
 
-	Return codes: 
-	o NETDEV_TX_OK everything ok. 
-	o NETDEV_TX_BUSY Cannot transmit packet, try later 
+	Return codes:
+
+	* NETDEV_TX_OK everything ok.
+	* NETDEV_TX_BUSY Cannot transmit packet, try later
 	  Usually a bug, means queue start/stop flow control is broken in
 	  the driver. Note: the driver must NOT put the skb in its DMA ring.
 
@@ -95,10 +99,13 @@ ndo_set_rx_mode:
 struct napi_struct synchronization rules
 ========================================
 napi->poll:
-	Synchronization: NAPI_STATE_SCHED bit in napi->state.  Device
+	Synchronization:
+		NAPI_STATE_SCHED bit in napi->state.  Device
 		driver's ndo_stop method will invoke napi_disable() on
 		all NAPI instances which will do a sleeping poll on the
 		NAPI_STATE_SCHED napi->state bit, waiting for all pending
 		NAPI activity to cease.
-	Context: softirq
-	         will be called with interrupts disabled by netconsole.
+
+	Context:
+		 softirq
+		 will be called with interrupts disabled by netconsole.
