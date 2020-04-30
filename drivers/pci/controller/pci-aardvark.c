@@ -439,6 +439,13 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 
 	advk_pcie_train_link(pcie);
 
+	/*
+	 * FIXME: The following register update is suspicious. This register is
+	 * applicable only when the PCI controller is configured for Endpoint
+	 * mode, not as a Root Complex. But apparently when this code is
+	 * removed, some cards stop working. This should be investigated and
+	 * a comment explaining this should be put here.
+	 */
 	reg = advk_readl(pcie, PCIE_CORE_CMD_STATUS_REG);
 	reg |= PCIE_CORE_CMD_MEM_ACCESS_EN |
 		PCIE_CORE_CMD_IO_ACCESS_EN |
