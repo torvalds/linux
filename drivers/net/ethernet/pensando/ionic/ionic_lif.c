@@ -2549,8 +2549,6 @@ int ionic_lifs_register(struct ionic *ionic)
 		dev_err(ionic->dev, "Cannot register net device, aborting\n");
 		return err;
 	}
-
-	ionic_link_status_check_request(ionic->master_lif);
 	ionic->master_lif->registered = true;
 
 	return 0;
