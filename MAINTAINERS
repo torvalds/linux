@@ -14593,7 +14593,7 @@ M:	David Howells <dhowells@redhat.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 W:	https://www.infradead.org/~dhowells/kafs/
-F:	Documentation/networking/rxrpc.txt
+F:	Documentation/networking/rxrpc.rst
 F:	include/keys/rxrpc-type.h
 F:	include/net/af_rxrpc.h
 F:	include/trace/events/rxrpc.h

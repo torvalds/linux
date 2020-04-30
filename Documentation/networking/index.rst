@@ -99,6 +99,7 @@ Contents:
    ray_cs
    rds
    regulatory
+   rxrpc
 
 .. only::  subproject and html
 
