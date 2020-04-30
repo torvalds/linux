@@ -708,17 +708,15 @@ static int nic_pf_mbox_handler(void *hwdev, u16 vf_id, u8 cmd, void *buf_in,
 	struct hinic_hwdev *dev = hwdev;
 	struct hinic_func_to_io *nic_io;
 	struct hinic_pfhwdev *pfhwdev;
-	u32 i, cmd_number;
 	int err = 0;
+	u32 i;
 
 	if (!hwdev)
 		return -EFAULT;
 
-	cmd_number = sizeof(nic_vf_cmd_msg_handler) /
-			    sizeof(struct vf_cmd_msg_handle);
 	pfhwdev = container_of(dev, struct hinic_pfhwdev, hwdev);
 	nic_io = &dev->func_to_io;
-	for (i = 0; i < cmd_number; i++) {
+	for (i = 0; i < ARRAY_SIZE(nic_vf_cmd_msg_handler); i++) {
 		vf_msg_handle = &nic_vf_cmd_msg_handler[i];
 		if (cmd == vf_msg_handle->cmd &&
 		    vf_msg_handle->cmd_msg_handler) {
@@ -729,7 +727,7 @@ static int nic_pf_mbox_handler(void *hwdev, u16 vf_id, u8 cmd, void *buf_in,
 			break;
 		}
 	}
-	if (i == cmd_number)
+	if (i == ARRAY_SIZE(nic_vf_cmd_msg_handler))
 		err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC,
 					cmd, buf_in, in_size, buf_out,
 					out_size, HINIC_MGMT_MSG_SYNC);
