@@ -69,7 +69,7 @@ void efi_pci_disable_bridge_busmaster(void)
 		 * access to the framebuffer. Drivers for true PCIe graphics
 		 * controllers that are behind a PCIe root port do not use
 		 * DMA to implement the GOP framebuffer anyway [although they
-		 * may use it in their implentation of Gop->Blt()], and so
+		 * may use it in their implementation of Gop->Blt()], and so
 		 * disabling DMA in the PCI bridge should not interfere with
 		 * normal operation of the device.
 		 */
