@@ -261,7 +261,9 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	BUG_ON(pt->type > NLA_TYPE_MAX);
 
 	if ((nla_attr_len[pt->type] && attrlen != nla_attr_len[pt->type]) ||
-	    (pt->type == NLA_EXACT_LEN_WARN && attrlen != pt->len)) {
+	    (pt->type == NLA_EXACT_LEN &&
+	     pt->validation_type == NLA_VALIDATE_WARN_TOO_LONG &&
+	     attrlen != pt->len)) {
 		pr_warn_ratelimited("netlink: '%s': attribute type %d has an invalid length.\n",
 				    current->comm, type);
 		if (validate & NL_VALIDATE_STRICT_ATTRS) {
@@ -287,11 +289,6 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	}
 
 	switch (pt->type) {
-	case NLA_EXACT_LEN:
-		if (attrlen != pt->len)
-			goto out_err;
-		break;
-
 	case NLA_REJECT:
 		if (extack && pt->reject_message) {
 			NL_SET_BAD_ATTR(extack, nla);
@@ -405,6 +402,13 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			goto out_err;
 		break;
 
+	case NLA_EXACT_LEN:
+		if (pt->validation_type != NLA_VALIDATE_WARN_TOO_LONG) {
+			if (attrlen != pt->len)
+				goto out_err;
+			break;
+		}
+		/* fall through */
 	default:
 		if (pt->len)
 			minlen = pt->len;
