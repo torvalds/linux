@@ -162,6 +162,13 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 			goto errout;
 	}
 
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	if (nla_put_u64_64bit(skb, INET_DIAG_CGROUP_ID,
+			      cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)),
+			      INET_DIAG_PAD))
+		goto errout;
+#endif
+
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
 
