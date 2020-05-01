@@ -32,13 +32,17 @@
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-#define MIPI_FREQ			594000000
+#define MIPI_FREQ_360M			360000000
+#define MIPI_FREQ_594M			594000000
+
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-#define IMX347_PIXEL_RATE		(MIPI_FREQ * 2 / 10 * 2)
-#define IMX347_HDR2_PIXEL_RATE		(MIPI_FREQ * 2 / 10 * 4)
-#define IMX347_XVCLK_FREQ		37125000
+#define IMX347_10BIT_LINEAR_PIXEL_RATE	(MIPI_FREQ_594M * 2 / 10 * 2)
+#define IMX347_10BIT_HDR2_PIXEL_RATE	(MIPI_FREQ_594M * 2 / 10 * 4)
+#define IMX347_12BIT_PIXEL_RATE		(MIPI_FREQ_360M * 2 / 12 * 4)
+#define IMX347_XVCLK_FREQ_37M		37125000
+#define IMX347_XVCLK_FREQ_24M		24000000
 
 #define CHIP_ID				0x06
 #define IMX347_REG_CHIP_ID		0x3057
@@ -101,8 +105,8 @@
 #define IMX347_REG_VALUE_16BIT		2
 #define IMX347_REG_VALUE_24BIT		3
 
-#define IMX347_LANES			2
-#define IMX347_HDR_LANES		4
+#define IMX347_2LANES			2
+#define IMX347_4LANES			4
 #define IMX347_BITS_PER_SAMPLE		10
 
 #define RHS1_MAX			3113 // <2*BRL=2*1556 && 4n+1
@@ -170,6 +174,7 @@ struct imx347 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
@@ -177,6 +182,7 @@ struct imx347 {
 	u32			module_index;
 	u32			cfg_num;
 	u32			cur_pixel_rate;
+	u32			cur_link_freq;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
@@ -194,26 +200,46 @@ static const struct regval imx347_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx347_linear_2688x1520_regs[] = {
+static const struct regval imx347_linear_10bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
-	{0x302E, 0x98},//horizontal size
+	{0x3018, 0x00},
+	{0x302C, 0x24},
+	{0x302E, 0x98},
 	{0x302F, 0x0A},
 	{0x3030, 0xBC},
 	{0x3031, 0x07},
+	{0x3032, 0x00},
 	{0x3034, 0xDC},
 	{0x3035, 0x05},
+	{0x3048, 0x00},
+	{0x3049, 0x00},
+	{0x304A, 0x03},
+	{0x304B, 0x02},
+	{0x304C, 0x14},
 	{0x3050, 0x00},
 	{0x3056, 0x00},
 	{0x3057, 0x06},
+	{0x3058, 0x03},
+	{0x3059, 0x00},
+	{0x3068, 0xc9},
+	{0x3069, 0x00},
 	{0x30BE, 0x5E},
+	{0x30C6, 0x06},
+	{0x30CE, 0x04},
+	{0x30D8, 0x44},
+	{0x30D9, 0x06},
 	{0x3110, 0x02},
+	{0x314C, 0x80},
 	{0x315A, 0x02},
+	{0x3168, 0x68},
 	{0x316A, 0x7E},
 	{0x319D, 0x00},
+	{0x319E, 0x01},
 	{0x31A1, 0x00},
+	{0x31D7, 0x00},
 	{0x3202, 0x02},
 	{0x3288, 0x22},
 	{0x328A, 0x02},
@@ -276,23 +302,36 @@ static const struct regval imx347_linear_2688x1520_regs[] = {
 	{0x3794, 0xFE},
 	{0x3795, 0x06},
 	{0x3796, 0x7F},
+	{0x3200, 0x11},
 	{0x3798, 0xBF},
 	{0x3A01, 0x01},
+	{0x3A18, 0x8F},
+	{0x3A1A, 0x4F},
+	{0x3A1C, 0x47},
+	{0x3A1E, 0x37},
+	{0x3A1F, 0x01},
+	{0x3A20, 0x4F},
+	{0x3A22, 0x87},
+	{0x3A24, 0x4F},
+	{0x3A26, 0x7f},
+	{0x3A28, 0x3f},
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx347_hdr_2x_2688x1520_regs[] = {
+static const struct regval imx347_hdr_2x_10bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x00},
 	{0x300C, 0x5B},
 	{0x300D, 0x40},
+	{0x3018, 0x00},
+	{0x302C, 0x24},
+	{0x302E, 0x98},
+	{0x302F, 0x0A},
 	{0x3030, 0xac},
 	{0x3031, 0x09},
 	{0x3032, 0x00},
 	{0x3034, 0xEE},
 	{0x3035, 0x02},
-	{0x302E, 0x98},//horizontal size
-	{0x302F, 0x0A},
 	{0x3048, 0x01},
 	{0x3049, 0x01},
 	{0x304A, 0x04},
@@ -304,11 +343,19 @@ static const struct regval imx347_hdr_2x_2688x1520_regs[] = {
 	{0x3058, 0x4A},
 	{0x3059, 0x01},
 	{0x3068, 0xD1},
+	{0x3069, 0x00},
 	{0x30BE, 0x5E},
+	{0x30C6, 0x06},
+	{0x30CE, 0x04},
+	{0x30D8, 0x44},
+	{0x30D9, 0x06},
 	{0x3110, 0x02},
+	{0x314C, 0x80},
 	{0x315A, 0x02},
+	{0x3168, 0x68},
 	{0x316A, 0x7E},
 	{0x319D, 0x00},
+	{0x319E, 0x01},
 	{0x31A1, 0x00},
 	{0x31D7, 0x01},
 	{0x3202, 0x02},
@@ -375,6 +422,253 @@ static const struct regval imx347_hdr_2x_2688x1520_regs[] = {
 	{0x3796, 0x7F},
 	{0x3200, 0x00},
 	{0x3798, 0xBF},
+	{0x3A01, 0x03},
+	{0x3A18, 0x8F},
+	{0x3A1A, 0x4F},
+	{0x3A1C, 0x47},
+	{0x3A1E, 0x37},
+	{0x3A1F, 0x01},
+	{0x3A20, 0x4F},
+	{0x3A22, 0x87},
+	{0x3A24, 0x4F},
+	{0x3A26, 0x7f},
+	{0x3A28, 0x3f},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval imx347_linear_12bit_2688x1520_regs[] = {
+	{0x3000, 0x01},
+	{0x3002, 0x00},
+	{0x300C, 0x3B},
+	{0x300D, 0x2A},
+	{0x3018, 0x04},
+	{0x302C, 0x30},
+	{0x302E, 0x80},
+	{0x302F, 0x0A},
+	{0x3030, 0x6B},
+	{0x3031, 0x0A},
+	{0x3032, 0x00},
+	{0x3034, 0xee},
+	{0x3035, 0x02},
+	{0x3048, 0x00},
+	{0x3049, 0x00},
+	{0x304A, 0x03},
+	{0x304B, 0x02},
+	{0x304C, 0x14},
+	{0x3050, 0x01},
+	{0x3056, 0x02},
+	{0x3057, 0x06},
+	{0x3058, 0x03},
+	{0x3059, 0x00},
+	{0x3068, 0xc9},
+	{0x3069, 0x00},
+	{0x30BE, 0x5E},
+	{0x30C6, 0x00},
+	{0x30CE, 0x00},
+	{0x30D8, 0x4F},
+	{0x30D9, 0x64},
+	{0x3110, 0x02},
+	{0x314C, 0xF0},
+	{0x315A, 0x06},
+	{0x3168, 0x82},
+	{0x316A, 0x7E},
+	{0x319D, 0x01},
+	{0x319E, 0x02},
+	{0x31A1, 0x00},
+	{0x31D7, 0x00},
+	{0x3202, 0x02},
+	{0x3288, 0x22},
+	{0x328A, 0x02},
+	{0x328C, 0xA2},
+	{0x328E, 0x22},
+	{0x3415, 0x27},
+	{0x3418, 0x27},
+	{0x3428, 0xFE},
+	{0x349E, 0x6A},
+	{0x34A2, 0x9A},
+	{0x34A4, 0x8A},
+	{0x34A6, 0x8E},
+	{0x34AA, 0xD8},
+	{0x3648, 0x01},
+	{0x3678, 0x01},
+	{0x367C, 0x69},
+	{0x367E, 0x69},
+	{0x3680, 0x69},
+	{0x3682, 0x69},
+	{0x371D, 0x05},
+	{0x375D, 0x11},
+	{0x375E, 0x43},
+	{0x375F, 0x76},
+	{0x3760, 0x07},
+	{0x3768, 0x1B},
+	{0x3769, 0x1B},
+	{0x376A, 0x1A},
+	{0x376B, 0x19},
+	{0x376C, 0x17},
+	{0x376D, 0x0F},
+	{0x376E, 0x0B},
+	{0x376F, 0x0B},
+	{0x3770, 0x0B},
+	{0x3776, 0x89},
+	{0x3777, 0x00},
+	{0x3778, 0xCA},
+	{0x3779, 0x00},
+	{0x377A, 0x45},
+	{0x377B, 0x01},
+	{0x377C, 0x56},
+	{0x377D, 0x02},
+	{0x377E, 0xFE},
+	{0x377F, 0x03},
+	{0x3780, 0xFE},
+	{0x3781, 0x05},
+	{0x3782, 0xFE},
+	{0x3783, 0x06},
+	{0x3784, 0x7F},
+	{0x3788, 0x1F},
+	{0x378A, 0xCA},
+	{0x378B, 0x00},
+	{0x378C, 0x45},
+	{0x378D, 0x01},
+	{0x378E, 0x56},
+	{0x378F, 0x02},
+	{0x3790, 0xFE},
+	{0x3791, 0x03},
+	{0x3792, 0xFE},
+	{0x3793, 0x05},
+	{0x3794, 0xFE},
+	{0x3795, 0x06},
+	{0x3796, 0x7F},
+	{0x3200, 0x11},
+	{0x3798, 0xBF},
+	{0x3A01, 0x03},
+	{0x3A18, 0x6F},
+	{0x3A1A, 0x2F},
+	{0x3A1C, 0x2F},
+	{0x3A1E, 0xBF},
+	{0x3A1F, 0x00},
+	{0x3A20, 0x2F},
+	{0x3A22, 0x57},
+	{0x3A24, 0x2F},
+	{0x3A26, 0x4F},
+	{0x3A28, 0x27},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval imx347_hdr_2x_12bit_2688x1520_regs[] = {
+	{0x3000, 0x01},
+	{0x3002, 0x00},
+	{0x300C, 0x3B},
+	{0x300D, 0x2A},
+	{0x3018, 0x04},
+	{0x302C, 0x30},
+	{0x302E, 0x80},
+	{0x302F, 0x0A},
+	{0x3030, 0x40},
+	{0x3031, 0x06},
+	{0x3032, 0x00},
+	{0x3034, 0xee},
+	{0x3035, 0x02},
+	{0x3048, 0x01},
+	{0x3049, 0x01},
+	{0x304A, 0x04},
+	{0x304B, 0x04},
+	{0x304C, 0x13},
+	{0x3050, 0x01},
+	{0x3056, 0x02},
+	{0x3057, 0x06},
+	{0x3058, 0x20},
+	{0x3059, 0x03},
+	{0x3068, 0xD9},
+	{0x3069, 0x02},
+	{0x30BE, 0x5E},
+	{0x30C6, 0x00},
+	{0x30CE, 0x00},
+	{0x30D8, 0x4F},
+	{0x30D9, 0x64},
+	{0x3110, 0x02},
+	{0x314C, 0xF0},
+	{0x315A, 0x06},
+	{0x3168, 0x82},
+	{0x316A, 0x7E},
+	{0x319D, 0x01},
+	{0x319E, 0x02},
+	{0x31A1, 0x00},
+	{0x31D7, 0x01},
+	{0x3202, 0x02},
+	{0x3288, 0x22},
+	{0x328A, 0x02},
+	{0x328C, 0xA2},
+	{0x328E, 0x22},
+	{0x3415, 0x27},
+	{0x3418, 0x27},
+	{0x3428, 0xFE},
+	{0x349E, 0x6A},
+	{0x34A2, 0x9A},
+	{0x34A4, 0x8A},
+	{0x34A6, 0x8E},
+	{0x34AA, 0xD8},
+	{0x3648, 0x01},
+	{0x3678, 0x01},
+	{0x367C, 0x69},
+	{0x367E, 0x69},
+	{0x3680, 0x69},
+	{0x3682, 0x69},
+	{0x371D, 0x05},
+	{0x375D, 0x11},
+	{0x375E, 0x43},
+	{0x375F, 0x76},
+	{0x3760, 0x07},
+	{0x3768, 0x1B},
+	{0x3769, 0x1B},
+	{0x376A, 0x1A},
+	{0x376B, 0x19},
+	{0x376C, 0x17},
+	{0x376D, 0x0F},
+	{0x376E, 0x0B},
+	{0x376F, 0x0B},
+	{0x3770, 0x0B},
+	{0x3776, 0x89},
+	{0x3777, 0x00},
+	{0x3778, 0xCA},
+	{0x3779, 0x00},
+	{0x377A, 0x45},
+	{0x377B, 0x01},
+	{0x377C, 0x56},
+	{0x377D, 0x02},
+	{0x377E, 0xFE},
+	{0x377F, 0x03},
+	{0x3780, 0xFE},
+	{0x3781, 0x05},
+	{0x3782, 0xFE},
+	{0x3783, 0x06},
+	{0x3784, 0x7F},
+	{0x3788, 0x1F},
+	{0x378A, 0xCA},
+	{0x378B, 0x00},
+	{0x378C, 0x45},
+	{0x378D, 0x01},
+	{0x378E, 0x56},
+	{0x378F, 0x02},
+	{0x3790, 0xFE},
+	{0x3791, 0x03},
+	{0x3792, 0xFE},
+	{0x3793, 0x05},
+	{0x3794, 0xFE},
+	{0x3795, 0x06},
+	{0x3796, 0x7F},
+	{0x3200, 0x11},
+	{0x3798, 0xBF},
+	{0x3A01, 0x03},
+	{0x3A18, 0x6F},
+	{0x3A1A, 0x2F},
+	{0x3A1C, 0x2F},
+	{0x3A1E, 0xBF},
+	{0x3A1F, 0x00},
+	{0x3A20, 0x2F},
+	{0x3A22, 0x57},
+	{0x3A24, 0x2F},
+	{0x3A26, 0x4F},
+	{0x3A28, 0x27},
 	{REG_NULL, 0x00},
 };
 
@@ -402,7 +696,7 @@ static const struct imx347_mode supported_modes[] = {
 		.exp_def = 0x0240,
 		.hts_def = 0x05dc * 2,
 		.vts_def = 0x07bc,
-		.reg_list = imx347_linear_2688x1520_regs,
+		.reg_list = imx347_linear_10bit_2688x1520_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -417,7 +711,40 @@ static const struct imx347_mode supported_modes[] = {
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
 		.vts_def = 0x09ac,
-		.reg_list = imx347_hdr_2x_2688x1520_regs,
+		.reg_list = imx347_hdr_2x_10bit_2688x1520_regs,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.width = 2688,
+		.height = 1538,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 299960,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x02EE * 4,
+		.vts_def = 0x0A6B,
+		.reg_list = imx347_linear_12bit_2688x1520_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.width = 2688,
+		.height = 1538,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x02ee * 4,
+		.vts_def = 0x0640,
+		.reg_list = imx347_hdr_2x_12bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
@@ -427,7 +754,8 @@ static const struct imx347_mode supported_modes[] = {
 };
 
 static const s64 link_freq_menu_items[] = {
-	MIPI_FREQ
+	MIPI_FREQ_360M,
+	MIPI_FREQ_594M,
 };
 
 /* Write registers up to 4 at a time */
@@ -542,6 +870,8 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 	struct imx347 *imx347 = to_imx347(sd);
 	const struct imx347_mode *mode;
 	s64 h_blank, vblank_def;
+	struct device *dev = &imx347->client->dev;
+	int ret = 0;
 
 	mutex_lock(&imx347->mutex);
 
@@ -566,12 +896,38 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx347->vblank, vblank_def,
 					 IMX347_VTS_MAX - mode->height,
 					 1, vblank_def);
-		if (mode->hdr_mode == NO_HDR)
-			imx347->cur_pixel_rate = IMX347_PIXEL_RATE;
-		else if (mode->hdr_mode == HDR_X2)
-			imx347->cur_pixel_rate = IMX347_HDR2_PIXEL_RATE;
+		if (mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
+			if (mode->hdr_mode == NO_HDR)
+				imx347->cur_pixel_rate = IMX347_10BIT_LINEAR_PIXEL_RATE;
+			else if (mode->hdr_mode == HDR_X2)
+				imx347->cur_pixel_rate = IMX347_10BIT_HDR2_PIXEL_RATE;
+			imx347->cur_link_freq = MIPI_FREQ_594M;
+			clk_disable_unprepare(imx347->xvclk);
+			ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ_37M);
+			if (ret < 0)
+				dev_err(dev, "Failed to set xvclk rate\n");
+			if (clk_get_rate(imx347->xvclk) != IMX347_XVCLK_FREQ_37M)
+				dev_err(dev, "xvclk mismatched\n");
+			ret = clk_prepare_enable(imx347->xvclk);
+			if (ret < 0)
+				dev_err(dev, "Failed to enable xvclk\n");
+		} else {
+			imx347->cur_pixel_rate = IMX347_12BIT_PIXEL_RATE;
+			imx347->cur_link_freq = MIPI_FREQ_360M;
+			clk_disable_unprepare(imx347->xvclk);
+			ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ_24M);
+			if (ret < 0)
+				dev_err(dev, "Failed to set xvclk rate\n");
+			if (clk_get_rate(imx347->xvclk) != IMX347_XVCLK_FREQ_24M)
+				dev_err(dev, "xvclk mismatched\n");
+			ret = clk_prepare_enable(imx347->xvclk);
+			if (ret < 0)
+				dev_err(dev, "Failed to enable xvclk\n");
+		}
 		__v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
 				imx347->cur_pixel_rate);
+		__v4l2_ctrl_s_ctrl(imx347->link_freq,
+				   imx347->cur_link_freq);
 	}
 
 	mutex_unlock(&imx347->mutex);
@@ -662,12 +1018,18 @@ static int imx347_g_mbus_config(struct v4l2_subdev *sd,
 	const struct imx347_mode *mode = imx347->cur_mode;
 	u32 val = 0;
 
-	if (mode->hdr_mode == NO_HDR)
-		val = 1 << (IMX347_LANES - 1) |
-		V4L2_MBUS_CSI2_CHANNEL_0 |
-		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	if (mode->hdr_mode == NO_HDR) {
+		if (mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10)
+			val = 1 << (IMX347_2LANES - 1) |
+			V4L2_MBUS_CSI2_CHANNEL_0 |
+			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+		else
+			val = 1 << (IMX347_4LANES - 1) |
+			V4L2_MBUS_CSI2_CHANNEL_0 |
+			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	}
 	if (mode->hdr_mode == HDR_X2)
-		val = 1 << (IMX347_HDR_LANES - 1) |
+		val = 1 << (IMX347_4LANES - 1) |
 		V4L2_MBUS_CSI2_CHANNEL_0 |
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
@@ -1103,7 +1465,7 @@ unlock_and_return:
 /* Calculate the delay in us by clock rate and clock cycles */
 static inline u32 imx347_cal_delay(u32 cycles)
 {
-	return DIV_ROUND_UP(cycles, IMX347_XVCLK_FREQ / 1000 / 1000);
+	return DIV_ROUND_UP(cycles, IMX347_XVCLK_FREQ_37M / 1000 / 1000);
 }
 
 static int __imx347_power_on(struct imx347 *imx347)
@@ -1111,6 +1473,7 @@ static int __imx347_power_on(struct imx347 *imx347)
 	int ret;
 	u32 delay_us;
 	struct device *dev = &imx347->client->dev;
+	unsigned long mclk = 0;
 
 	if (!IS_ERR_OR_NULL(imx347->pins_default)) {
 		ret = pinctrl_select_state(imx347->pinctrl,
@@ -1118,11 +1481,15 @@ static int __imx347_power_on(struct imx347 *imx347)
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-	ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ);
+	if (imx347->cur_mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10)
+		mclk = IMX347_XVCLK_FREQ_37M;
+	else
+		mclk = IMX347_XVCLK_FREQ_24M;
+	ret = clk_set_rate(imx347->xvclk, mclk);
 	if (ret < 0)
-		dev_warn(dev, "Failed to set xvclk rate (37.125MHz)\n");
-	if (clk_get_rate(imx347->xvclk) != IMX347_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
+		dev_warn(dev, "Failed to set xvclk rate\n");
+	if (clk_get_rate(imx347->xvclk) != mclk)
+		dev_warn(dev, "xvclk mismatched\n");
 	ret = clk_prepare_enable(imx347->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
@@ -1388,7 +1755,6 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 {
 	const struct imx347_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1400,16 +1766,26 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 		return ret;
 	handler->lock = &imx347->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
-	if (imx347->cur_mode->hdr_mode == NO_HDR)
-		imx347->cur_pixel_rate = IMX347_PIXEL_RATE;
-	else if (imx347->cur_mode->hdr_mode == HDR_X2)
-		imx347->cur_pixel_rate = IMX347_HDR2_PIXEL_RATE;
+	imx347->link_freq = v4l2_ctrl_new_int_menu(handler,
+				NULL, V4L2_CID_LINK_FREQ,
+				0, 0, link_freq_menu_items);
+	if (imx347->cur_mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
+		imx347->cur_link_freq = MIPI_FREQ_594M;
+		if (imx347->cur_mode->hdr_mode == NO_HDR)
+			imx347->cur_pixel_rate =
+				IMX347_10BIT_LINEAR_PIXEL_RATE;
+		else if (imx347->cur_mode->hdr_mode == HDR_X2)
+			imx347->cur_pixel_rate =
+				IMX347_10BIT_HDR2_PIXEL_RATE;
+	} else {
+		imx347->cur_link_freq = MIPI_FREQ_360M;
+		imx347->cur_pixel_rate =
+				IMX347_12BIT_PIXEL_RATE;
+	}
+	__v4l2_ctrl_s_ctrl(imx347->link_freq,
+				   imx347->cur_link_freq);
 	imx347->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
-		V4L2_CID_PIXEL_RATE, 0, IMX347_HDR2_PIXEL_RATE,
+		V4L2_CID_PIXEL_RATE, 0, IMX347_10BIT_HDR2_PIXEL_RATE,
 		1, imx347->cur_pixel_rate);
 
 	h_blank = mode->hts_def - mode->width;
