@@ -159,9 +159,9 @@ atomisp-objs += \
 	pci/hive_isp_css_shared/host/tag.o \
 
 obj-byt = \
-	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_configs.o \
-	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_params.o \
-	pci/css_2400_system/hive_isp_css_2400_system_generated/ia_css_isp_states.o \
+	pci/css_2400_system/hive/ia_css_isp_configs.o \
+	pci/css_2400_system/hive/ia_css_isp_params.o \
+	pci/css_2400_system/hive/ia_css_isp_states.o \
 	pci/css_2400_system/spmem_dump.o \
 
 # These will be needed when clean merge CHT support nicely into the driver
@@ -170,19 +170,15 @@ obj-byt = \
 
 obj-cht = \
 	pci/css_2401_system/spmem_dump.o \
-	pci/css_2401_csi2p_system/spmem_dump.o \
-	pci/css_2401_csi2p_system/hive_isp_css_2401_system_csi2p_generated/ia_css_isp_configs.o \
-	pci/css_2401_csi2p_system/hive_isp_css_2401_system_csi2p_generated/ia_css_isp_params.o \
-	pci/css_2401_csi2p_system/hive_isp_css_2401_system_csi2p_generated/ia_css_isp_states.o \
-	pci/css_2401_csi2p_system/host/csi_rx.o \
-	pci/css_2401_csi2p_system/host/ibuf_ctrl.o \
-	pci/css_2401_csi2p_system/host/isys_dma.o \
-	pci/css_2401_csi2p_system/host/isys_irq.o \
-	pci/css_2401_csi2p_system/host/isys_stream2mmio.o
-
-#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_configs.o \
-#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_params.o \
-#	pci/css_2401_system/hive_isp_css_2401_system_generated/ia_css_isp_states.o \
+	pci/css_2401_system/spmem_dump.o \
+	pci/css_2401_system/hive/ia_css_isp_configs.o \
+	pci/css_2401_system/hive/ia_css_isp_params.o \
+	pci/css_2401_system/hive/ia_css_isp_states.o \
+	pci/css_2401_system/host/csi_rx.o \
+	pci/css_2401_system/host/ibuf_ctrl.o \
+	pci/css_2401_system/host/isys_dma.o \
+	pci/css_2401_system/host/isys_irq.o \
+	pci/css_2401_system/host/isys_stream2mmio.o
 
 INCLUDES += \
 	-I$(atomisp)/ \
@@ -320,14 +316,14 @@ INCLUDES += \
 
 INCLUDES_byt += \
 	-I$(atomisp)/pci/css_2400_system/ \
-	-I$(atomisp)/pci/css_2400_system/hive_isp_css_2400_system_generated/ \
+	-I$(atomisp)/pci/css_2400_system/hive/ \
 	-I$(atomisp)/pci/css_2400_system/hrt/ \
 
 INCLUDES_cht += \
-	-I$(atomisp)/pci/css_2401_csi2p_system/ \
-	-I$(atomisp)/pci/css_2401_csi2p_system/host/ \
-	-I$(atomisp)/pci/css_2401_csi2p_system/hive_isp_css_2400_system_generated/ \
-	-I$(atomisp)/pci/css_2401_csi2p_system/hrt/ \
+	-I$(atomisp)/pci/css_2401_system/ \
+	-I$(atomisp)/pci/css_2401_system/host/ \
+	-I$(atomisp)/pci/css_2401_system/hive/ \
+	-I$(atomisp)/pci/css_2401_system/hrt/ \
 
 #	-I$(atomisp)/pci/css_2401_system/hrt/ \
 #	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
