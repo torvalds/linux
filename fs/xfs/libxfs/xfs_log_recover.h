@@ -37,6 +37,26 @@ struct xlog_recover_item_ops {
 
 	/* Do whatever work we need to do for pass1, if provided. */
 	int (*commit_pass1)(struct xlog *log, struct xlog_recover_item *item);
+
+	/*
+	 * This function should do whatever work is needed for pass2 of log
+	 * recovery, if provided.
+	 *
+	 * If the recovered item is an intent item, this function should parse
+	 * the recovered item to construct an in-core log intent item and
+	 * insert it into the AIL.  The in-core log intent item should have 1
+	 * refcount so that the item is freed either (a) when we commit the
+	 * recovered log item for the intent-done item; (b) replay the work and
+	 * log a new intent-done item; or (c) recovery fails and we have to
+	 * abort.
+	 *
+	 * If the recovered item is an intent-done item, this function should
+	 * parse the recovered item to find the id of the corresponding intent
+	 * log item.  Next, it should find the in-core log intent item in the
+	 * AIL and release it.
+	 */
+	int (*commit_pass2)(struct xlog *log, struct list_head *buffer_list,
+			    struct xlog_recover_item *item, xfs_lsn_t lsn);
 };
 
 extern const struct xlog_recover_item_ops xlog_icreate_item_ops;
@@ -101,5 +121,8 @@ struct xlog_recover {
 void xlog_buf_readahead(struct xlog *log, xfs_daddr_t blkno, uint len,
 		const struct xfs_buf_ops *ops);
 bool xlog_add_buffer_cancelled(struct xlog *log, xfs_daddr_t blkno, uint len);
+bool xlog_is_buffer_cancelled(struct xlog *log, xfs_daddr_t blkno, uint len);
+bool xlog_put_buffer_cancelled(struct xlog *log, xfs_daddr_t blkno, uint len);
+void xlog_recover_iodone(struct xfs_buf *bp);
 
 #endif	/* __XFS_LOG_RECOVER_H__ */
