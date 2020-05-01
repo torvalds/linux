@@ -355,25 +355,38 @@ static void doc2000_readbuf(struct nand_chip *this, u_char *buf, int len)
 	}
 }
 
+/*
+ * We need our own readid() here because it's called before the NAND chip
+ * has been initialized, and calling nand_op_readid() would lead to a NULL
+ * pointer exception when dereferencing the NAND timings.
+ */
+static void doc200x_readid(struct nand_chip *this, unsigned int cs, u8 *id)
+{
+	u8 addr = 0;
+	struct nand_op_instr instrs[] = {
+		NAND_OP_CMD(NAND_CMD_READID, 0),
+		NAND_OP_ADDR(1, &addr, 50),
+		NAND_OP_8BIT_DATA_IN(2, id, 0),
+	};
+
+	struct nand_operation op = NAND_OPERATION(cs, instrs);
+
+	if (!id)
+		op.ninstrs--;
+
+	this->controller->ops->exec_op(this, &op, false);
+}
+
 static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	uint16_t ret;
+	u8 id[2];
 
-	doc200x_select_chip(this, nr);
-	doc200x_hwcontrol(this, NAND_CMD_READID,
-			  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-	doc200x_hwcontrol(this, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
-	doc200x_hwcontrol(this, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
+	doc200x_readid(this, nr, id);
 
-	/* We can't use dev_ready here, but at least we wait for the
-	 * command to complete
-	 */
-	udelay(50);
-
-	ret = this->legacy.read_byte(this) << 8;
-	ret |= this->legacy.read_byte(this);
+	ret = ((u16)id[0] << 8) | id[1];
 
 	if (doc->ChipID == DOC_ChipID_Doc2k && try_dword && !nr) {
 		/* First chip probe. See if we get same results by 32-bit access */
@@ -383,13 +396,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		} ident;
 		void __iomem *docptr = doc->virtadr;
 
-		doc200x_hwcontrol(this, NAND_CMD_READID,
-				  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-		doc200x_hwcontrol(this, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
-		doc200x_hwcontrol(this, NAND_CMD_NONE,
-				  NAND_NCE | NAND_CTRL_CHANGE);
-
-		udelay(50);
+		doc200x_readid(this, nr, NULL);
 
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
@@ -628,6 +635,166 @@ static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 		else
 			doc2001_write_byte(this, cmd);
 	}
+}
+
+static void doc200x_write_control(struct doc_priv *doc, u8 value)
+{
+	WriteDOC(value, doc->virtadr, CDSNControl);
+	/* 11.4.3 -- 4 NOPs after CSDNControl write */
+	DoC_Delay(doc, 4);
+}
+
+static void doc200x_exec_instr(struct nand_chip *this,
+			       const struct nand_op_instr *instr)
+{
+	struct doc_priv *doc = nand_get_controller_data(this);
+	unsigned int i;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		doc200x_write_control(doc, CDSN_CTRL_CE | CDSN_CTRL_CLE);
+		doc2000_write_byte(this, instr->ctx.cmd.opcode);
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		doc200x_write_control(doc, CDSN_CTRL_CE | CDSN_CTRL_ALE);
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			u8 addr = instr->ctx.addr.addrs[i];
+
+			if (DoC_is_2000(doc))
+				doc2000_write_byte(this, addr);
+			else
+				doc2001_write_byte(this, addr);
+		}
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		doc200x_write_control(doc, CDSN_CTRL_CE);
+		if (DoC_is_2000(doc))
+			doc2000_readbuf(this, instr->ctx.data.buf.in,
+					instr->ctx.data.len);
+		else
+			doc2001_readbuf(this, instr->ctx.data.buf.in,
+					instr->ctx.data.len);
+		break;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		doc200x_write_control(doc, CDSN_CTRL_CE);
+		if (DoC_is_2000(doc))
+			doc2000_writebuf(this, instr->ctx.data.buf.out,
+					 instr->ctx.data.len);
+		else
+			doc2001_writebuf(this, instr->ctx.data.buf.out,
+					 instr->ctx.data.len);
+		break;
+
+	case NAND_OP_WAITRDY_INSTR:
+		DoC_WaitReady(doc);
+		break;
+	}
+
+	if (instr->delay_ns)
+		ndelay(instr->delay_ns);
+}
+
+static int doc200x_exec_op(struct nand_chip *this,
+			   const struct nand_operation *op,
+			   bool check_only)
+{
+	struct doc_priv *doc = nand_get_controller_data(this);
+	unsigned int i;
+
+	if (check_only)
+		return true;
+
+	doc->curchip = op->cs % doc->chips_per_floor;
+	doc->curfloor = op->cs / doc->chips_per_floor;
+
+	WriteDOC(doc->curfloor, doc->virtadr, FloorSelect);
+	WriteDOC(doc->curchip, doc->virtadr, CDSNDeviceSelect);
+
+	/* Assert CE pin */
+	doc200x_write_control(doc, CDSN_CTRL_CE);
+
+	for (i = 0; i < op->ninstrs; i++)
+		doc200x_exec_instr(this, &op->instrs[i]);
+
+	/* De-assert CE pin */
+	doc200x_write_control(doc, 0);
+
+	return 0;
+}
+
+static void doc2001plus_write_pipe_term(struct doc_priv *doc)
+{
+	WriteDOC(0x00, doc->virtadr, Mplus_WritePipeTerm);
+	WriteDOC(0x00, doc->virtadr, Mplus_WritePipeTerm);
+}
+
+static void doc2001plus_exec_instr(struct nand_chip *this,
+				   const struct nand_op_instr *instr)
+{
+	struct doc_priv *doc = nand_get_controller_data(this);
+	unsigned int i;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		WriteDOC(instr->ctx.cmd.opcode, doc->virtadr, Mplus_FlashCmd);
+		doc2001plus_write_pipe_term(doc);
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			u8 addr = instr->ctx.addr.addrs[i];
+
+			WriteDOC(addr, doc->virtadr, Mplus_FlashAddress);
+		}
+		doc2001plus_write_pipe_term(doc);
+		/* deassert ALE */
+		WriteDOC(0, doc->virtadr, Mplus_FlashControl);
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		doc2001plus_readbuf(this, instr->ctx.data.buf.in,
+				    instr->ctx.data.len);
+		break;
+	case NAND_OP_DATA_OUT_INSTR:
+		doc2001plus_writebuf(this, instr->ctx.data.buf.out,
+				     instr->ctx.data.len);
+		doc2001plus_write_pipe_term(doc);
+		break;
+	case NAND_OP_WAITRDY_INSTR:
+		DoC_WaitReady(doc);
+		break;
+	}
+
+	if (instr->delay_ns)
+		ndelay(instr->delay_ns);
+}
+
+static int doc2001plus_exec_op(struct nand_chip *this,
+			       const struct nand_operation *op,
+			       bool check_only)
+{
+	struct doc_priv *doc = nand_get_controller_data(this);
+	unsigned int i;
+
+	if (check_only)
+		return true;
+
+	doc->curchip = op->cs % doc->chips_per_floor;
+	doc->curfloor = op->cs / doc->chips_per_floor;
+
+	/* Assert ChipEnable and deassert WriteProtect */
+	WriteDOC(DOC_FLASH_CE, doc->virtadr, Mplus_FlashSelect);
+
+	for (i = 0; i < op->ninstrs; i++)
+		doc2001plus_exec_instr(this, &op->instrs[i]);
+
+	/* De-assert ChipEnable */
+	WriteDOC(0, doc->virtadr, Mplus_FlashSelect);
+
+	return 0;
 }
 
 static void doc2001plus_command(struct nand_chip *this, unsigned command,
@@ -1390,6 +1557,14 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	return 1;
 }
 
+static const struct nand_controller_ops doc200x_ops = {
+	.exec_op = doc200x_exec_op,
+};
+
+static const struct nand_controller_ops doc2001plus_ops = {
+	.exec_op = doc2001plus_exec_op,
+};
+
 static int __init doc_probe(unsigned long physadr)
 {
 	struct nand_chip *nand = NULL;
@@ -1533,7 +1708,6 @@ static int __init doc_probe(unsigned long physadr)
 		goto fail;
 	}
 
-
 	/*
 	 * Allocate a RS codec instance
 	 *
@@ -1552,6 +1726,11 @@ static int __init doc_probe(unsigned long physadr)
 	}
 
 	nand_controller_init(&doc->base);
+	if (ChipID == DOC_ChipID_DocMilPlus16)
+		doc->base.ops = &doc2001plus_ops;
+	else
+		doc->base.ops = &doc200x_ops;
+
 	mtd			= nand_to_mtd(nand);
 	nand->bbt_td		= (struct nand_bbt_descr *) (doc + 1);
 	nand->bbt_md		= nand->bbt_td + 1;
