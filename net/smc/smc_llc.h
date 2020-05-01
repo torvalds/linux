@@ -35,6 +35,19 @@ enum smc_llc_msg_type {
 	SMC_LLC_DELETE_RKEY		= 0x09,
 };
 
+#define smc_link_downing(state) \
+	(cmpxchg(state, SMC_LNK_ACTIVE, SMC_LNK_INACTIVE) == SMC_LNK_ACTIVE)
+
+/* LLC DELETE LINK Request Reason Codes */
+#define SMC_LLC_DEL_LOST_PATH		0x00010000
+#define SMC_LLC_DEL_OP_INIT_TERM	0x00020000
+#define SMC_LLC_DEL_PROG_INIT_TERM	0x00030000
+#define SMC_LLC_DEL_PROT_VIOL		0x00040000
+#define SMC_LLC_DEL_NO_ASYM_NEEDED	0x00050000
+/* LLC DELETE LINK Response Reason Codes */
+#define SMC_LLC_DEL_NOLNK	0x00100000  /* Unknown Link ID (no link) */
+#define SMC_LLC_DEL_NOLGR	0x00200000  /* Unknown Link Group */
+
 /* returns a usable link of the link group, or NULL */
 static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)
 {
@@ -50,9 +63,11 @@ static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)
 int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);
 int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
+			  struct smc_link *link_new,
 			  enum smc_llc_reqresp reqresp);
-int smc_llc_send_delete_link(struct smc_link *link,
-			     enum smc_llc_reqresp reqresp, bool orderly);
+int smc_llc_send_delete_link(struct smc_link *link, u8 link_del_id,
+			     enum smc_llc_reqresp reqresp, bool orderly,
+			     u32 reason);
 void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc);
 void smc_llc_lgr_clear(struct smc_link_group *lgr);
 int smc_llc_link_init(struct smc_link *link);
