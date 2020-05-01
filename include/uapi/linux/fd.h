@@ -371,9 +371,14 @@ struct floppy_raw_cmd {
 	 */
 
 	unsigned char cmd_count;
-	unsigned char cmd[FD_RAW_CMD_SIZE];
-	unsigned char reply_count;
-	unsigned char reply[FD_RAW_REPLY_SIZE];
+	union {
+		struct {
+			unsigned char cmd[FD_RAW_CMD_SIZE];
+			unsigned char reply_count;
+			unsigned char reply[FD_RAW_REPLY_SIZE];
+		};
+		unsigned char fullcmd[FD_RAW_CMD_FULLSIZE];
+	};
 	int track;
 	int resultcode;
 

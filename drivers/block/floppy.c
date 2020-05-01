@@ -1070,7 +1070,7 @@ static void setup_DMA(void)
 	if (raw_cmd->length == 0) {
 		print_hex_dump(KERN_INFO, "zero dma transfer size: ",
 			       DUMP_PREFIX_NONE, 16, 1,
-			       raw_cmd->cmd, raw_cmd->cmd_count, false);
+			       raw_cmd->fullcmd, raw_cmd->cmd_count, false);
 		cont->done(0);
 		fdc_state[current_fdc].reset = 1;
 		return;
@@ -1515,7 +1515,7 @@ static void setup_rw_floppy(void)
 
 	r = 0;
 	for (i = 0; i < raw_cmd->cmd_count; i++)
-		r |= output_byte(current_fdc, raw_cmd->cmd[i]);
+		r |= output_byte(current_fdc, raw_cmd->fullcmd[i]);
 
 	debugt(__func__, "rw_command");
 
