@@ -51,6 +51,19 @@ static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
+static const u32 vimc_deb_src_mbus_codes[] = {
+	MEDIA_BUS_FMT_GBR888_1X24,
+	MEDIA_BUS_FMT_BGR888_1X24,
+	MEDIA_BUS_FMT_BGR888_3X8,
+	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB888_2X12_BE,
+	MEDIA_BUS_FMT_RGB888_2X12_LE,
+	MEDIA_BUS_FMT_RGB888_3X8,
+	MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+	MEDIA_BUS_FMT_RGB888_1X32_PADHI,
+};
+
 static const struct vimc_deb_pix_map vimc_deb_pix_map_list[] = {
 	{
 		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
@@ -125,6 +138,17 @@ static const struct vimc_deb_pix_map *vimc_deb_pix_map_by_code(u32 code)
 	return NULL;
 }
 
+static bool vimc_deb_src_code_is_valid(u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(vimc_deb_src_mbus_codes); i++)
+		if (vimc_deb_src_mbus_codes[i] == code)
+			return true;
+
+	return false;
+}
+
 static int vimc_deb_init_cfg(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg)
 {
@@ -148,14 +172,11 @@ static int vimc_deb_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
-	/* We only support one format for source pads */
 	if (VIMC_IS_SRC(code->pad)) {
-		struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-
-		if (code->index)
+		if (code->index >= ARRAY_SIZE(vimc_deb_src_mbus_codes))
 			return -EINVAL;
 
-		code->code = vdeb->src_code;
+		code->code = vimc_deb_src_mbus_codes[code->index];
 	} else {
 		if (code->index >= ARRAY_SIZE(vimc_deb_pix_map_list))
 			return -EINVAL;
@@ -170,8 +191,6 @@ static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-
 	if (fse->index)
 		return -EINVAL;
 
@@ -181,7 +200,7 @@ static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
 
 		if (!vpix)
 			return -EINVAL;
-	} else if (fse->code != vdeb->src_code) {
+	} else if (!vimc_deb_src_code_is_valid(fse->code)) {
 		return -EINVAL;
 	}
 
@@ -237,6 +256,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *sink_fmt;
+	u32 *src_code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
@@ -244,8 +264,10 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 			return -EBUSY;
 
 		sink_fmt = &vdeb->sink_fmt;
+		src_code = &vdeb->src_code;
 	} else {
 		sink_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		src_code = &v4l2_subdev_get_try_format(sd, cfg, 1)->code;
 	}
 
 	/*
@@ -253,9 +275,14 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 	 * it is propagated from the sink
 	 */
 	if (VIMC_IS_SRC(fmt->pad)) {
+		u32 code = fmt->format.code;
+
 		fmt->format = *sink_fmt;
-		/* TODO: Add support for other formats */
-		fmt->format.code = vdeb->src_code;
+
+		if (vimc_deb_src_code_is_valid(code))
+			*src_code = code;
+
+		fmt->format.code = *src_code;
 	} else {
 		/* Set the new format in the sink pad */
 		vimc_deb_adjust_sink_fmt(&fmt->format);
@@ -286,16 +313,26 @@ static const struct v4l2_subdev_pad_ops vimc_deb_pad_ops = {
 	.set_fmt		= vimc_deb_set_fmt,
 };
 
-static void vimc_deb_set_rgb_mbus_fmt_rgb888_1x24(struct vimc_deb_device *vdeb,
-						  unsigned int lin,
-						  unsigned int col,
-						  unsigned int rgb[3])
+static void vimc_deb_process_rgb_frame(struct vimc_deb_device *vdeb,
+				       unsigned int lin,
+				       unsigned int col,
+				       unsigned int rgb[3])
 {
+	const struct vimc_pix_map *vpix;
 	unsigned int i, index;
 
+	vpix = vimc_pix_map_by_code(vdeb->src_code);
 	index = VIMC_FRAME_INDEX(lin, col, vdeb->sink_fmt.width, 3);
-	for (i = 0; i < 3; i++)
-		vdeb->src_frame[index + i] = rgb[i];
+	for (i = 0; i < 3; i++) {
+		switch (vpix->pixelformat) {
+		case V4L2_PIX_FMT_RGB24:
+			vdeb->src_frame[index + i] = rgb[i];
+			break;
+		case V4L2_PIX_FMT_BGR24:
+			vdeb->src_frame[index + i] = rgb[2 - i];
+			break;
+		}
+	}
 }
 
 static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
@@ -568,7 +605,7 @@ static struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	 * for the code
 	 */
 	vdeb->src_code = MEDIA_BUS_FMT_RGB888_1X24;
-	vdeb->set_rgb_src = vimc_deb_set_rgb_mbus_fmt_rgb888_1x24;
+	vdeb->set_rgb_src = vimc_deb_process_rgb_frame;
 
 	return &vdeb->ved;
 
