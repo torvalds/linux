@@ -78,9 +78,4 @@ struct xfs_efd_log_item {
 extern struct kmem_zone	*xfs_efi_zone;
 extern struct kmem_zone	*xfs_efd_zone;
 
-void			xfs_efi_release(struct xfs_efi_log_item *);
-
-int			xfs_efi_recover(struct xfs_mount *mp,
-					struct xfs_efi_log_item *efip);
-
 #endif	/* __XFS_EXTFREE_ITEM_H__ */
