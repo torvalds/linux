@@ -1,7 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
 
 ===============================================
 XFRM device - offloading the IPsec computations
 ===============================================
+
 Shannon Nelson <shannon.nelson@oracle.com>
 
 
@@ -19,7 +21,7 @@ hardware offload.
 Userland access to the offload is typically through a system such as
 libreswan or KAME/raccoon, but the iproute2 'ip xfrm' command set can
 be handy when experimenting.  An example command might look something
-like this:
+like this::
 
   ip x s add proto esp dst 14.0.0.70 src 14.0.0.52 spi 0x07 mode transport \
      reqid 0x07 replay-window 32 \
@@ -34,15 +36,17 @@ Yes, that's ugly, but that's what shell scripts and/or libreswan are for.
 Callbacks to implement
 ======================
 
-/* from include/linux/netdevice.h */
-struct xfrmdev_ops {
+::
+
+  /* from include/linux/netdevice.h */
+  struct xfrmdev_ops {
 	int	(*xdo_dev_state_add) (struct xfrm_state *x);
 	void	(*xdo_dev_state_delete) (struct xfrm_state *x);
 	void	(*xdo_dev_state_free) (struct xfrm_state *x);
 	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
 				       struct xfrm_state *x);
 	void    (*xdo_dev_state_advance_esn) (struct xfrm_state *x);
-};
+  };
 
 The NIC driver offering ipsec offload will need to implement these
 callbacks to make the offload available to the network stack's
@@ -58,6 +62,8 @@ At probe time and before the call to register_netdev(), the driver should
 set up local data structures and XFRM callbacks, and set the feature bits.
 The XFRM code's listener will finish the setup on NETDEV_REGISTER.
 
+::
+
 		adapter->netdev->xfrmdev_ops = &ixgbe_xfrmdev_ops;
 		adapter->netdev->features |= NETIF_F_HW_ESP;
 		adapter->netdev->hw_enc_features |= NETIF_F_HW_ESP;
@@ -65,16 +71,20 @@ The XFRM code's listener will finish the setup on NETDEV_REGISTER.
 When new SAs are set up with a request for "offload" feature, the
 driver's xdo_dev_state_add() will be given the new SA to be offloaded
 and an indication of whether it is for Rx or Tx.  The driver should
+
 	- verify the algorithm is supported for offloads
 	- store the SA information (key, salt, target-ip, protocol, etc)
 	- enable the HW offload of the SA
 	- return status value:
+
+		===========   ===================================
 		0             success
 		-EOPNETSUPP   offload not supported, try SW IPsec
 		other         fail the request
+		===========   ===================================
 
 The driver can also set an offload_handle in the SA, an opaque void pointer
-that can be used to convey context into the fast-path offload requests.
+that can be used to convey context into the fast-path offload requests::
 
 		xs->xso.offload_handle = context;
 
@@ -88,7 +98,7 @@ return true of false to signify its support.
 
 When ready to send, the driver needs to inspect the Tx packet for the
 offload information, including the opaque context, and set up the packet
-send accordingly.
+send accordingly::
 
 		xs = xfrm_input_state(skb);
 		context = xs->xso.offload_handle;
@@ -105,18 +115,21 @@ the packet's skb.  At this point the data should be decrypted but the
 IPsec headers are still in the packet data; they are removed later up
 the stack in xfrm_input().
 
-	find and hold the SA that was used to the Rx skb
+	find and hold the SA that was used to the Rx skb::
+
 		get spi, protocol, and destination IP from packet headers
 		xs = find xs from (spi, protocol, dest_IP)
 		xfrm_state_hold(xs);
 
-	store the state information into the skb
+	store the state information into the skb::
+
 		sp = secpath_set(skb);
 		if (!sp) return;
 		sp->xvec[sp->len++] = xs;
 		sp->olen++;
 
-	indicate the success and/or error status of the offload
+	indicate the success and/or error status of the offload::
+
 		xo = xfrm_offload(skb);
 		xo->flags = CRYPTO_DONE;
 		xo->status = crypto_status;
@@ -136,5 +149,3 @@ hardware needs.
 As a netdev is set to DOWN the XFRM stack's netdev listener will call
 xdo_dev_state_delete() and xdo_dev_state_free() on any remaining offloaded
 states.
-
-

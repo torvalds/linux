@@ -117,6 +117,7 @@ Contents:
    vxlan
    x25-iface
    x25
+   xfrm_device
 
 .. only::  subproject and html
 
