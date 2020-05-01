@@ -56,17 +56,6 @@ xlog_do_recovery_pass(
         struct xlog *, xfs_daddr_t, xfs_daddr_t, int, xfs_daddr_t *);
 
 /*
- * This structure is used during recovery to record the buf log items which
- * have been canceled and should not be replayed.
- */
-struct xfs_buf_cancel {
-	xfs_daddr_t		bc_blkno;
-	uint			bc_len;
-	int			bc_refcount;
-	struct list_head	bc_list;
-};
-
-/*
  * Sector aligned buffer routines for buffer create/read/write/access
  */
 
@@ -1962,97 +1951,6 @@ xlog_recover_reorder_trans(
 	if (!list_empty(&cancel_list))
 		list_splice_tail(&cancel_list, &trans->r_itemq);
 	return error;
-}
-
-static struct xfs_buf_cancel *
-xlog_find_buffer_cancelled(
-	struct xlog		*log,
-	xfs_daddr_t		blkno,
-	uint			len)
-{
-	struct list_head	*bucket;
-	struct xfs_buf_cancel	*bcp;
-
-	if (!log->l_buf_cancel_table)
-		return NULL;
-
-	bucket = XLOG_BUF_CANCEL_BUCKET(log, blkno);
-	list_for_each_entry(bcp, bucket, bc_list) {
-		if (bcp->bc_blkno == blkno && bcp->bc_len == len)
-			return bcp;
-	}
-
-	return NULL;
-}
-
-bool
-xlog_add_buffer_cancelled(
-	struct xlog		*log,
-	xfs_daddr_t		blkno,
-	uint			len)
-{
-	struct xfs_buf_cancel	*bcp;
-
-	/*
-	 * If we find an existing cancel record, this indicates that the buffer
-	 * was cancelled multiple times.  To ensure that during pass 2 we keep
-	 * the record in the table until we reach its last occurrence in the
-	 * log, a reference count is kept to tell how many times we expect to
-	 * see this record during the second pass.
-	 */
-	bcp = xlog_find_buffer_cancelled(log, blkno, len);
-	if (bcp) {
-		bcp->bc_refcount++;
-		return false;
-	}
-
-	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
-	bcp->bc_blkno = blkno;
-	bcp->bc_len = len;
-	bcp->bc_refcount = 1;
-	list_add_tail(&bcp->bc_list, XLOG_BUF_CANCEL_BUCKET(log, blkno));
-	return true;
-}
-
-/*
- * Check if there is and entry for blkno, len in the buffer cancel record table.
- */
-bool
-xlog_is_buffer_cancelled(
-	struct xlog		*log,
-	xfs_daddr_t		blkno,
-	uint			len)
-{
-	return xlog_find_buffer_cancelled(log, blkno, len) != NULL;
-}
-
-/*
- * Check if there is and entry for blkno, len in the buffer cancel record table,
- * and decremented the reference count on it if there is one.
- *
- * Remove the cancel record once the refcount hits zero, so that if the same
- * buffer is re-used again after its last cancellation we actually replay the
- * changes made at that point.
- */
-bool
-xlog_put_buffer_cancelled(
-	struct xlog		*log,
-	xfs_daddr_t		blkno,
-	uint			len)
-{
-	struct xfs_buf_cancel	*bcp;
-
-	bcp = xlog_find_buffer_cancelled(log, blkno, len);
-	if (!bcp) {
-		ASSERT(0);
-		return false;
-	}
-
-	if (--bcp->bc_refcount == 0) {
-		list_del(&bcp->bc_list);
-		kmem_free(bcp);
-	}
-	return true;
 }
 
 void
