@@ -169,6 +169,9 @@
 			max8998,pmic-buck2-dvs-gpio = <&gph0 5 GPIO_ACTIVE_HIGH>;
 			max8998,pmic-buck2-dvs-voltage = <1100000>, <1000000>;
 
+			pinctrl-names = "default";
+			pinctrl-0 = <&pmic_dvs_pins &pmic_irq>;
+
 			regulators {
 				ldo2_reg: LDO2 {
 					regulator-name = "VALIVE_1.2V";
@@ -615,6 +618,21 @@
 		samsung,pins = "gpg1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+	};
+
+	pmic_dvs_pins: pmic-dvs-pins {
+		samsung,pins = "gph0-3", "gph0-4", "gph0-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-val = <0>;
+	};
+
+	pmic_irq: pmic-irq {
+		samsung,pins = "gph0-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	wifi_host_wake: wifi-host-wake {
