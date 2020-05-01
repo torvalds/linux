@@ -2321,38 +2321,6 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		spin_unlock_irq(&vport->phba->hbalock);
 		rport = remote_port->private;
 		if (oldrport) {
-			/* New remoteport record does not guarantee valid
-			 * host private memory area.
-			 */
-			if (oldrport == remote_port->private) {
-				/* Same remoteport - ndlp should match.
-				 * Just reuse.
-				 */
-				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
-						 LOG_NVME_DISC,
-						 "6014 Rebind lport to current "
-						 "remoteport x%px wwpn 0x%llx, "
-						 "Data: x%x x%x x%px x%px x%x "
-						 " x%06x\n",
-						 remote_port,
-						 remote_port->port_name,
-						 remote_port->port_id,
-						 remote_port->port_role,
-						 oldrport->ndlp,
-						 ndlp,
-						 ndlp->nlp_type,
-						 ndlp->nlp_DID);
-
-				/* It's a complete rebind only if the driver
-				 * is registering with the same ndlp. Otherwise
-				 * the driver likely executed a node swap
-				 * prior to this registration and the ndlp to
-				 * remoteport binding needs to be redone.
-				 */
-				if (prev_ndlp == ndlp)
-					return 0;
-
-			}
 
 			/* Sever the ndlp<->rport association
 			 * before dropping the ndlp ref from
