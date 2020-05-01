@@ -1179,6 +1179,7 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 static const struct media_entity_operations imx7_csi_entity_ops = {
 	.link_setup	= imx7_csi_link_setup,
 	.link_validate	= v4l2_subdev_link_validate,
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
 static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
