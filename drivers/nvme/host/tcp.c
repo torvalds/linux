@@ -76,6 +76,7 @@ struct nvme_tcp_queue {
 	int			io_cpu;
 
 	spinlock_t		lock;
+	struct mutex		send_mutex;
 	struct list_head	send_list;
 
 	/* recv state */
@@ -132,6 +133,7 @@ static DEFINE_MUTEX(nvme_tcp_ctrl_mutex);
 static struct workqueue_struct *nvme_tcp_wq;
 static struct blk_mq_ops nvme_tcp_mq_ops;
 static struct blk_mq_ops nvme_tcp_admin_mq_ops;
+static int nvme_tcp_try_send(struct nvme_tcp_queue *queue);
 
 static inline struct nvme_tcp_ctrl *to_tcp_ctrl(struct nvme_ctrl *ctrl)
 {
@@ -258,15 +260,29 @@ static inline void nvme_tcp_advance_req(struct nvme_tcp_request *req,
 	}
 }
 
-static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req)
+static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
+		bool sync)
 {
 	struct nvme_tcp_queue *queue = req->queue;
+	bool empty;
 
 	spin_lock(&queue->lock);
+	empty = list_empty(&queue->send_list) && !queue->request;
 	list_add_tail(&req->entry, &queue->send_list);
 	spin_unlock(&queue->lock);
 
-	queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
+	/*
+	 * if we're the first on the send_list and we can try to send
+	 * directly, otherwise queue io_work. Also, only do that if we
+	 * are on the same cpu, so we don't introduce contention.
+	 */
+	if (queue->io_cpu == smp_processor_id() &&
+	    sync && empty && mutex_trylock(&queue->send_mutex)) {
+		nvme_tcp_try_send(queue);
+		mutex_unlock(&queue->send_mutex);
+	} else {
+		queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
+	}
 }
 
 static inline struct nvme_tcp_request *
@@ -579,7 +595,7 @@ static int nvme_tcp_handle_r2t(struct nvme_tcp_queue *queue,
 	req->state = NVME_TCP_SEND_H2C_PDU;
 	req->offset = 0;
 
-	nvme_tcp_queue_request(req);
+	nvme_tcp_queue_request(req, false);
 
 	return 0;
 }
@@ -1065,11 +1081,14 @@ static void nvme_tcp_io_work(struct work_struct *w)
 		bool pending = false;
 		int result;
 
-		result = nvme_tcp_try_send(queue);
-		if (result > 0)
-			pending = true;
-		else if (unlikely(result < 0))
-			break;
+		if (mutex_trylock(&queue->send_mutex)) {
+			result = nvme_tcp_try_send(queue);
+			mutex_unlock(&queue->send_mutex);
+			if (result > 0)
+				pending = true;
+			else if (unlikely(result < 0))
+				break;
+		}
 
 		result = nvme_tcp_try_recv(queue);
 		if (result > 0)
@@ -1321,6 +1340,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 	queue->ctrl = ctrl;
 	INIT_LIST_HEAD(&queue->send_list);
 	spin_lock_init(&queue->lock);
+	mutex_init(&queue->send_mutex);
 	INIT_WORK(&queue->io_work, nvme_tcp_io_work);
 	queue->queue_size = queue_size;
 
@@ -1545,6 +1565,7 @@ static struct blk_mq_tag_set *nvme_tcp_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 		set->reserved_tags = 2; /* connect + keep-alive */
 		set->numa_node = NUMA_NO_NODE;
+		set->flags = BLK_MQ_F_BLOCKING;
 		set->cmd_size = sizeof(struct nvme_tcp_request);
 		set->driver_data = ctrl;
 		set->nr_hw_queues = 1;
@@ -1556,7 +1577,7 @@ static struct blk_mq_tag_set *nvme_tcp_alloc_tagset(struct nvme_ctrl *nctrl,
 		set->queue_depth = nctrl->sqsize + 1;
 		set->reserved_tags = 1; /* fabric connect */
 		set->numa_node = NUMA_NO_NODE;
-		set->flags = BLK_MQ_F_SHOULD_MERGE;
+		set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 		set->cmd_size = sizeof(struct nvme_tcp_request);
 		set->driver_data = ctrl;
 		set->nr_hw_queues = nctrl->queue_count - 1;
@@ -2115,7 +2136,7 @@ static void nvme_tcp_submit_async_event(struct nvme_ctrl *arg)
 	ctrl->async_req.curr_bio = NULL;
 	ctrl->async_req.data_len = 0;
 
-	nvme_tcp_queue_request(&ctrl->async_req);
+	nvme_tcp_queue_request(&ctrl->async_req, true);
 }
 
 static enum blk_eh_timer_return
@@ -2246,7 +2267,7 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	nvme_tcp_queue_request(req);
+	nvme_tcp_queue_request(req, true);
 
 	return BLK_STS_OK;
 }
