@@ -34,6 +34,9 @@ struct xlog_recover_item_ops {
 
 	/* Start readahead for pass2, if provided. */
 	void (*ra_pass2)(struct xlog *log, struct xlog_recover_item *item);
+
+	/* Do whatever work we need to do for pass1, if provided. */
+	int (*commit_pass1)(struct xlog *log, struct xlog_recover_item *item);
 };
 
 extern const struct xlog_recover_item_ops xlog_icreate_item_ops;
@@ -97,5 +100,6 @@ struct xlog_recover {
 
 void xlog_buf_readahead(struct xlog *log, xfs_daddr_t blkno, uint len,
 		const struct xfs_buf_ops *ops);
+bool xlog_add_buffer_cancelled(struct xlog *log, xfs_daddr_t blkno, uint len);
 
 #endif	/* __XFS_LOG_RECOVER_H__ */
