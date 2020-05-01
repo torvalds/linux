@@ -2065,7 +2065,7 @@ use_tempaddr - INTEGER
 temp_valid_lft - INTEGER
 	valid lifetime (in seconds) for temporary addresses.
 
-	Default: 604800 (7 days)
+	Default: 172800 (2 days)
 
 temp_prefered_lft - INTEGER
 	Preferred lifetime (in seconds) for temporary addresses.
