@@ -121,6 +121,7 @@ Contents:
    xfrm_proc
    xfrm_sync
    xfrm_sysctl
+   z8530drv
 
 .. only::  subproject and html
 
