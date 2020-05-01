@@ -12,6 +12,7 @@
 	compatible = "samsung,aries", "samsung,s5pv210";
 
 	aliases {
+		i2c4 = &i2c_sound;
 		i2c6 = &i2c_pmic;
 		i2c9 = &i2c_fuel;
 	};
@@ -57,7 +58,55 @@
 		power-off-delay-us = <500>;
 	};
 
-	i2c_pmic: i2c-gpio-0 {
+	i2c_sound: i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&mp05 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&mp05 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sound_i2c_pins>;
+
+		wm8994: wm8994@1a {
+			compatible = "wlf,wm8994";
+			reg = <0x1a>;
+
+			#sound-dai-cells = <0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			clocks = <&clocks MOUT_CLKOUT>;
+			clock-names = "MCLK1";
+
+			AVDD2-supply = <&buck3_reg>;
+			DBVDD-supply = <&buck3_reg>;
+			CPVDD-supply = <&buck3_reg>;
+			SPKVDD1-supply = <&buck3_reg>;
+			SPKVDD2-supply = <&buck3_reg>;
+
+			wlf,gpio-cfg = <0xa101 0x8100 0x0100 0x0100 0x8100
+					0xa101 0x0100 0x8100 0x0100 0x0100
+					0x0100>;
+
+			wlf,ldo1ena = <&gpf3 4 GPIO_ACTIVE_HIGH>;
+			wlf,ldo2ena = <&gpf3 4 GPIO_ACTIVE_HIGH>;
+
+			wlf,lineout1-se;
+			wlf,lineout2-se;
+
+			assigned-clocks = <&clocks MOUT_CLKOUT>;
+			assigned-clock-rates = <0>;
+			assigned-clock-parents = <&xusbxti>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&codec_ldo>;
+		};
+	};
+
+	i2c_pmic: i2c-gpio-2 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpj4 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		scl-gpios = <&gpj4 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
@@ -309,7 +358,7 @@
 		};
 	};
 
-	i2c_fuel: i2c-gpio-1 {
+	i2c_fuel: i2c-gpio-4 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&mp05 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		scl-gpios = <&mp05 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
@@ -405,6 +454,12 @@
 		samsung,pin-val = <1>;
 	};
 
+	codec_ldo: codec-ldo {
+		samsung,pins = "gpf3-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+	};
+
 	wlan_gpio_rst: wlan-gpio-rst {
 		samsung,pins = "gpg1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
@@ -453,6 +508,12 @@
 
 	fg_i2c_pins: fg-i2c-pins {
 		samsung,pins = "mp05-0", "mp05-1";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	sound_i2c_pins: sound-i2c-pins {
+		samsung,pins = "mp05-2", "mp05-3";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};

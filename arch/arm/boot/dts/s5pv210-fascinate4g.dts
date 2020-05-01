@@ -279,3 +279,9 @@
 		PIN_SLP(mp07-7, INPUT, DOWN);
 	};
 };
+
+&wm8994 {
+	/* GPIO3 (BCLK2) and GPIO4 (LRCLK2) as outputs */
+	wlf,gpio-cfg = <0xa101 0x8100 0x8100 0x8100 0x8100 0xa101
+			0x0100 0x8100 0x0100 0x0100 0x0100>;
+};
