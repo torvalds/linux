@@ -1807,8 +1807,7 @@ mt7615_update_beacons(struct mt7615_dev *dev)
 		mt7615_update_vif_beacon, dev->mt76.phy2->hw);
 }
 
-static void
-mt7615_dma_reset(struct mt7615_dev *dev)
+void mt7615_dma_reset(struct mt7615_dev *dev)
 {
 	int i;
 
@@ -1827,6 +1826,7 @@ mt7615_dma_reset(struct mt7615_dev *dev)
 		 MT_WPDMA_GLO_CFG_RX_DMA_EN | MT_WPDMA_GLO_CFG_TX_DMA_EN |
 		 MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 }
+EXPORT_SYMBOL_GPL(mt7615_dma_reset);
 
 void mt7615_mac_reset_work(struct work_struct *work)
 {

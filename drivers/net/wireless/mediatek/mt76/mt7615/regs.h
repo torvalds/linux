@@ -12,6 +12,8 @@ enum mt7615_reg_base {
 	MT_ARB_BASE,
 	MT_HIF_BASE,
 	MT_CSR_BASE,
+	MT_PLE_BASE,
+	MT_PSE_BASE,
 	MT_PHY_BASE,
 	MT_CFG_BASE,
 	MT_AGG_BASE,
@@ -62,6 +64,17 @@ enum mt7615_reg_base {
 #define MT_HIF(ofs)			((dev)->reg_map[MT_HIF_BASE] + (ofs))
 #define MT_HIF_RST			MT_HIF(0x100)
 #define MT_HIF_LOGIC_RST_N		BIT(4)
+
+#define MT_PDMA_SLP_PROT		MT_HIF(0x154)
+#define MT_PDMA_AXI_SLPPROT_ENABLE	BIT(0)
+#define MT_PDMA_AXI_SLPPROT_RDY		BIT(16)
+
+#define MT_PDMA_BUSY_STATUS		MT_HIF(0x168)
+#define MT_PDMA_TX_IDX_BUSY		BIT(2)
+#define MT_PDMA_BUSY_IDX		BIT(31)
+
+#define MT_WPDMA_TX_RING0_CTRL0		MT_HIF(0x300)
+#define MT_WPDMA_TX_RING0_CTRL1		MT_HIF(0x304)
 
 #define MT7663_MCU_PCIE_REMAP_2_OFFSET	GENMASK(15, 0)
 #define MT7663_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 16)
@@ -138,8 +151,7 @@ enum mt7615_reg_base {
 #define MT_CSR(ofs)			((dev)->reg_map[MT_CSR_BASE] + (ofs))
 #define MT_CONN_HIF_ON_LPCTL		MT_CSR(0x000)
 
-#define MT_PLE_BASE			0x8000
-#define MT_PLE(ofs)			(MT_PLE_BASE + (ofs))
+#define MT_PLE(ofs)			((dev)->reg_map[MT_PLE_BASE] + (ofs))
 
 #define MT_PLE_FL_Q0_CTRL		MT_PLE(0x1b0)
 #define MT_PLE_FL_Q1_CTRL		MT_PLE(0x1b4)
@@ -148,6 +160,14 @@ enum mt7615_reg_base {
 
 #define MT_PLE_AC_QEMPTY(ac, n)		MT_PLE(0x300 + 0x10 * (ac) + \
 					       ((n) << 2))
+
+#define MT_PSE(ofs)			((dev)->reg_map[MT_PSE_BASE] + (ofs))
+#define MT_PSE_QUEUE_EMPTY		MT_PSE(0x0b4)
+#define MT_HIF_0_EMPTY_MASK		BIT(16)
+#define MT_HIF_1_EMPTY_MASK		BIT(17)
+#define MT_HIF_ALL_EMPTY_MASK		GENMASK(17, 16)
+#define MT_PSE_PG_INFO			MT_PSE(0x194)
+#define MT_PSE_SRC_CNT			GENMASK(27, 16)
 
 #define MT_WF_PHY_BASE			((dev)->reg_map[MT_PHY_BASE])
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
@@ -481,6 +501,10 @@ enum mt7615_reg_base {
 #define MT_LED_STATUS_OFF		GENMASK(31, 24)
 #define MT_LED_STATUS_ON		GENMASK(23, 16)
 #define MT_LED_STATUS_DURATION		GENMASK(15, 0)
+
+#define MT_PDMA_BUSY			0x82000504
+#define MT_PDMA_TX_BUSY			BIT(0)
+#define MT_PDMA_RX_BUSY			BIT(1)
 
 #define MT_EFUSE_BASE			((dev)->reg_map[MT_EFUSE_ADDR_BASE])
 #define MT_EFUSE_BASE_CTRL		0x000

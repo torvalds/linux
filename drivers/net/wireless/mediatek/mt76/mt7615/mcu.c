@@ -1683,7 +1683,7 @@ static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
 			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
 }
 
-static int mt7615_driver_own(struct mt7615_dev *dev)
+int mt7615_driver_own(struct mt7615_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	u32 addr;
@@ -1703,8 +1703,9 @@ static int mt7615_driver_own(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_driver_own);
 
-static int mt7615_firmware_own(struct mt7615_dev *dev)
+int mt7615_firmware_own(struct mt7615_dev *dev)
 {
 	u32 addr;
 
@@ -1723,6 +1724,7 @@ static int mt7615_firmware_own(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_firmware_own);
 
 static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 {

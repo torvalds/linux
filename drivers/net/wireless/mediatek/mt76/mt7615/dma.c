@@ -130,6 +130,43 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 	return 0;
 }
 
+int mt7615_wait_pdma_busy(struct mt7615_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (!is_mt7663(mdev)) {
+		u32 mask = MT_PDMA_TX_BUSY | MT_PDMA_RX_BUSY;
+		u32 reg = mt7615_reg_map(dev, MT_PDMA_BUSY);
+
+		if (!mt76_poll_msec(dev, reg, mask, 0, 1000)) {
+			dev_err(mdev->dev, "PDMA engine busy\n");
+			return -EIO;
+		}
+
+		return 0;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PDMA_BUSY_STATUS,
+			    MT_PDMA_TX_IDX_BUSY, 0, 1000)) {
+		dev_err(mdev->dev, "PDMA engine tx busy\n");
+		return -EIO;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PSE_PG_INFO,
+			    MT_PSE_SRC_CNT, 0, 1000)) {
+		dev_err(mdev->dev, "PSE engine busy\n");
+		return -EIO;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PDMA_BUSY_STATUS,
+			    MT_PDMA_BUSY_IDX, 0, 1000)) {
+		dev_err(mdev->dev, "PDMA engine busy\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void mt7622_dma_sched_init(struct mt7615_dev *dev)
 {
 	u32 reg = mt7615_reg_map(dev, MT_DMASHDL_BASE);
