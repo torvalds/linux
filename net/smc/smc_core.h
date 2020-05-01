@@ -128,7 +128,7 @@ struct smc_link {
 /* For now we just allow one parallel link per link group. The SMC protocol
  * allows more (up to 8).
  */
-#define SMC_LINKS_PER_LGR_MAX	1
+#define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
 
 #define SMC_FIRST_CONTACT	1		/* first contact to a peer */
