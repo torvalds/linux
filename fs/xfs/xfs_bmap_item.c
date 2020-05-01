@@ -28,6 +28,8 @@
 kmem_zone_t	*xfs_bui_zone;
 kmem_zone_t	*xfs_bud_zone;
 
+static const struct xfs_item_ops xfs_bui_item_ops;
+
 static inline struct xfs_bui_log_item *BUI_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_bui_log_item, bui_item);
@@ -47,7 +49,7 @@ xfs_bui_item_free(
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the BUI.
  */
-void
+STATIC void
 xfs_bui_release(
 	struct xfs_bui_log_item	*buip)
 {
@@ -125,13 +127,6 @@ xfs_bui_item_release(
 {
 	xfs_bui_release(BUI_ITEM(lip));
 }
-
-static const struct xfs_item_ops xfs_bui_item_ops = {
-	.iop_size	= xfs_bui_item_size,
-	.iop_format	= xfs_bui_item_format,
-	.iop_unpin	= xfs_bui_item_unpin,
-	.iop_release	= xfs_bui_item_release,
-};
 
 /*
  * Allocate and initialize an bui item with the given number of extents.
@@ -425,7 +420,7 @@ const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
  * Process a bmap update intent item that was recovered from the log.
  * We need to update some inode's bmbt.
  */
-int
+STATIC int
 xfs_bui_recover(
 	struct xfs_trans		*parent_tp,
 	struct xfs_bui_log_item		*buip)
@@ -559,6 +554,37 @@ err_inode:
 	}
 	return error;
 }
+
+/* Recover the BUI if necessary. */
+STATIC int
+xfs_bui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*tp)
+{
+	struct xfs_ail			*ailp = lip->li_ailp;
+	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
+	int				error;
+
+	/*
+	 * Skip BUIs that we've already processed.
+	 */
+	if (test_bit(XFS_BUI_RECOVERED, &buip->bui_flags))
+		return 0;
+
+	spin_unlock(&ailp->ail_lock);
+	error = xfs_bui_recover(tp, buip);
+	spin_lock(&ailp->ail_lock);
+
+	return error;
+}
+
+static const struct xfs_item_ops xfs_bui_item_ops = {
+	.iop_size	= xfs_bui_item_size,
+	.iop_format	= xfs_bui_item_format,
+	.iop_unpin	= xfs_bui_item_unpin,
+	.iop_release	= xfs_bui_item_release,
+	.iop_recover	= xfs_bui_item_recover,
+};
 
 /*
  * Copy an BUI format buffer from the given buf, and into the destination
