@@ -1,7 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================
 DM9000 Network driver
 =====================
 
 Copyright 2008 Simtec Electronics,
+
 	  Ben Dooks <ben@simtec.co.uk> <ben-linux@fluff.org>
 
 
@@ -30,9 +34,9 @@ These resources should be specified in that order, as the ordering of the
 two address regions is important (the driver expects these to be address
 and then data).
 
-An example from arch/arm/mach-s3c2410/mach-bast.c is:
+An example from arch/arm/mach-s3c2410/mach-bast.c is::
 
-static struct resource bast_dm9k_resource[] = {
+  static struct resource bast_dm9k_resource[] = {
 	[0] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 3,
@@ -48,14 +52,14 @@ static struct resource bast_dm9k_resource[] = {
 		.end   = IRQ_DM9000,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
-};
+  };
 
-static struct platform_device bast_device_dm9k = {
+  static struct platform_device bast_device_dm9k = {
 	.name		= "dm9000",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(bast_dm9k_resource),
 	.resource	= bast_dm9k_resource,
-};
+  };
 
 Note the setting of the IRQ trigger flag in bast_dm9k_resource[2].flags,
 as this will generate a warning if it is not present. The trigger from
@@ -64,13 +68,13 @@ handler to ensure that the IRQ is setup correctly.
 
 This shows a typical platform device, without the optional configuration
 platform data supplied. The next example uses the same resources, but adds
-the optional platform data to pass extra configuration data:
+the optional platform data to pass extra configuration data::
 
-static struct dm9000_plat_data bast_dm9k_platdata = {
+  static struct dm9000_plat_data bast_dm9k_platdata = {
 	.flags		= DM9000_PLATF_16BITONLY,
-};
+  };
 
-static struct platform_device bast_device_dm9k = {
+  static struct platform_device bast_device_dm9k = {
 	.name		= "dm9000",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(bast_dm9k_resource),
@@ -78,7 +82,7 @@ static struct platform_device bast_device_dm9k = {
 	.dev		= {
 		.platform_data = &bast_dm9k_platdata,
 	}
-};
+  };
 
 The platform data is defined in include/linux/dm9000.h and described below.
 
