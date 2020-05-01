@@ -609,6 +609,19 @@ static void bch2_btree_update_free(struct btree_update *as)
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
+static inline bool six_trylock_intentwrite(struct six_lock *lock)
+{
+	if (!six_trylock_intent(lock))
+		return false;
+
+	if (!six_trylock_write(lock)) {
+		six_unlock_intent(lock);
+		return false;
+	}
+
+	return true;
+}
+
 static void btree_update_nodes_written(struct closure *cl)
 {
 	struct btree_update *as = container_of(cl, struct btree_update, cl);
@@ -637,10 +650,15 @@ again:
 	}
 
 	b = as->b;
-	if (b && !six_trylock_intent(&b->c.lock)) {
+	if (b && !six_trylock_intentwrite(&b->c.lock)) {
 		mutex_unlock(&c->btree_interior_update_lock);
+
 		btree_node_lock_type(c, b, SIX_LOCK_intent);
+		six_lock_write(&b->c.lock, NULL, NULL);
+
+		six_unlock_write(&b->c.lock);
 		six_unlock_intent(&b->c.lock);
+
 		mutex_lock(&c->btree_interior_update_lock);
 		goto again;
 	}
@@ -648,7 +666,25 @@ again:
 	list_del(&as->unwritten_list);
 
 	ret = bch2_journal_res_get(&c->journal, &res, as->journal_u64s,
+				   JOURNAL_RES_GET_NONBLOCK|
 				   JOURNAL_RES_GET_RESERVED);
+	if (ret == -EAGAIN) {
+		unsigned u64s = as->journal_u64s;
+
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
+
+		mutex_unlock(&c->btree_interior_update_lock);
+
+		ret = bch2_journal_res_get(&c->journal, &res, u64s,
+					   JOURNAL_RES_GET_CHECK|
+					   JOURNAL_RES_GET_RESERVED);
+		if (!ret) {
+			mutex_lock(&c->btree_interior_update_lock);
+			goto again;
+		}
+	}
+
 	if (ret) {
 		BUG_ON(!bch2_journal_error(&c->journal));
 		/* can't unblock btree writes */
@@ -671,7 +707,6 @@ again:
 		/* @b is the node we did the final insert into: */
 		BUG_ON(!res.ref);
 
-		six_lock_write(&b->c.lock, NULL, NULL);
 		list_del(&as->write_blocked_list);
 
 		i = btree_bset_last(b);
@@ -680,7 +715,6 @@ again:
 			    le64_to_cpu(i->journal_seq)));
 
 		bch2_btree_add_journal_pin(c, b, res.seq);
-		six_unlock_write(&b->c.lock);
 		break;
 
 	case BTREE_INTERIOR_UPDATING_AS:
@@ -709,6 +743,7 @@ again:
 free_update:
 	/* Do btree write after dropping journal res: */
 	if (b) {
+		six_unlock_write(&b->c.lock);
 		/*
 		 * b->write_blocked prevented it from being written, so
 		 * write it now if it needs to be written:
