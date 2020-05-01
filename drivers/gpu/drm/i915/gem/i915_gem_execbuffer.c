@@ -1285,6 +1285,7 @@ static int reloc_move_to_gpu(struct i915_request *rq, struct i915_vma *vma)
 }
 
 static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
+			     struct intel_engine_cs *engine,
 			     unsigned int len)
 {
 	struct reloc_cache *cache = &eb->reloc_cache;
@@ -1294,7 +1295,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
-	pool = intel_gt_get_buffer_pool(eb->engine->gt, PAGE_SIZE);
+	pool = intel_gt_get_buffer_pool(engine->gt, PAGE_SIZE);
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
@@ -1317,7 +1318,23 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_unmap;
 
-	rq = i915_request_create(eb->context);
+	if (engine == eb->context->engine) {
+		rq = i915_request_create(eb->context);
+	} else {
+		struct intel_context *ce;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(rq);
+			goto err_unpin;
+		}
+
+		i915_vm_put(ce->vm);
+		ce->vm = i915_vm_get(eb->context->vm);
+
+		rq = intel_context_create_request(ce);
+		intel_context_put(ce);
+	}
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1368,10 +1385,15 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 	int err;
 
 	if (unlikely(!cache->rq)) {
-		if (!intel_engine_can_store_dword(eb->engine))
-			return ERR_PTR(-ENODEV);
+		struct intel_engine_cs *engine = eb->engine;
 
-		err = __reloc_gpu_alloc(eb, len);
+		if (!intel_engine_can_store_dword(engine)) {
+			engine = engine->gt->engine_class[COPY_ENGINE_CLASS][0];
+			if (!engine || !intel_engine_can_store_dword(engine))
+				return ERR_PTR(-ENODEV);
+		}
+
+		err = __reloc_gpu_alloc(eb, engine, len);
 		if (unlikely(err))
 			return ERR_PTR(err);
 	}
