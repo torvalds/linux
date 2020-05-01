@@ -7343,7 +7343,7 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	 * it could cause shutdown to hang.
 	 */
 	while (ctx->sqo_thread && !wq_has_sleeper(&ctx->sqo_wait))
-		cpu_relax();
+		cond_resched();
 
 	io_kill_timeouts(ctx);
 	io_poll_remove_all(ctx);
