@@ -118,6 +118,7 @@ Contents:
    x25-iface
    x25
    xfrm_device
+   xfrm_proc
 
 .. only::  subproject and html
 
