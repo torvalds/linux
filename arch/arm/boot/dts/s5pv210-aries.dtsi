@@ -52,6 +52,9 @@
 		regulator-name = "vibrator-en";
 		enable-active-high;
 		gpio = <&gpj1 1 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctr-0 = <&vibrator_ena>;
 	};
 
 	touchkey_vdd: regulator-fixed-1 {
@@ -652,6 +655,12 @@
 	ts_irq: ts-irq {
 		samsung,pins = "gpj0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	vibrator_ena: vibrator-ena {
+		samsung,pins = "gpj1-1";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
