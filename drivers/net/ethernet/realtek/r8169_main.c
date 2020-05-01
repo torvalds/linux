@@ -2507,10 +2507,8 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 		return;
 
 	rtl_fw = kzalloc(sizeof(*rtl_fw), GFP_KERNEL);
-	if (!rtl_fw) {
-		netif_warn(tp, ifup, tp->dev, "Unable to load firmware, out of memory\n");
+	if (!rtl_fw)
 		return;
-	}
 
 	rtl_fw->phy_write = rtl_writephy;
 	rtl_fw->phy_read = rtl_readphy;
