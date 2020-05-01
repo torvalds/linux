@@ -601,13 +601,12 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				index = 0;
 			}
 
-			crypto_shash_init(shash);
 			data = kmap_atomic(bvec.bv_page);
-			crypto_shash_update(shash, data + bvec.bv_offset
+			crypto_shash_digest(shash, data + bvec.bv_offset
 					    + (i * fs_info->sectorsize),
-					    fs_info->sectorsize);
+					    fs_info->sectorsize,
+					    sums->sums + index);
 			kunmap_atomic(data);
-			crypto_shash_final(shash, (char *)(sums->sums + index));
 			index += csum_size;
 			offset += fs_info->sectorsize;
 			this_sum_bytes += fs_info->sectorsize;

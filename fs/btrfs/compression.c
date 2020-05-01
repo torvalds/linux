@@ -194,11 +194,9 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 	for (i = 0; i < cb->nr_pages; i++) {
 		page = cb->compressed_pages[i];
 
-		crypto_shash_init(shash);
 		kaddr = kmap_atomic(page);
-		crypto_shash_update(shash, kaddr, PAGE_SIZE);
+		crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 		kunmap_atomic(kaddr);
-		crypto_shash_final(shash, (u8 *)&csum);
 
 		if (memcmp(&csum, cb_sum, csum_size)) {
 			btrfs_print_data_csum_error(inode, disk_start,

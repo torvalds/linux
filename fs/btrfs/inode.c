@@ -2742,9 +2742,7 @@ static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
 	kaddr = kmap_atomic(page);
 	shash->tfm = fs_info->csum_shash;
 
-	crypto_shash_init(shash);
-	crypto_shash_update(shash, kaddr + pgoff, len);
-	crypto_shash_final(shash, csum);
+	crypto_shash_digest(shash, kaddr + pgoff, len, csum);
 
 	if (memcmp(csum, csum_expected, csum_size))
 		goto zeroit;
