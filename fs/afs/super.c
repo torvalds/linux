@@ -729,7 +729,10 @@ static void afs_get_volume_status_success(struct afs_operation *op)
 		buf->f_blocks = vs->part_max_blocks;
 	else
 		buf->f_blocks = vs->max_quota;
-	buf->f_bavail = buf->f_bfree = buf->f_blocks - vs->blocks_in_use;
+
+	if (buf->f_blocks > vs->blocks_in_use)
+		buf->f_bavail = buf->f_bfree =
+			buf->f_blocks - vs->blocks_in_use;
 }
 
 static const struct afs_operation_ops afs_get_volume_status_operation = {
