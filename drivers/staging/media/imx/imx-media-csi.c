@@ -58,6 +58,8 @@ struct csi_priv {
 	struct ipu_soc *ipu;
 	struct v4l2_subdev sd;
 	struct media_pad pad[CSI_NUM_PADS];
+	struct v4l2_async_notifier notifier;
+
 	/* the video device at IDMAC output pad */
 	struct imx_media_video_dev *vdev;
 	struct imx_media_fim *fim;
@@ -1869,59 +1871,49 @@ static const struct v4l2_subdev_internal_ops csi_internal_ops = {
 	.unregistered = csi_unregistered,
 };
 
-static int imx_csi_parse_endpoint(struct device *dev,
-				  struct v4l2_fwnode_endpoint *vep,
-				  struct v4l2_async_subdev *asd)
-{
-	return fwnode_device_is_available(asd->match.fwnode) ? 0 : -ENOTCONN;
-}
-
 static int imx_csi_async_register(struct csi_priv *priv)
 {
-	struct v4l2_async_notifier *notifier;
-	struct fwnode_handle *fwnode;
+	struct v4l2_async_subdev *asd = NULL;
+	struct fwnode_handle *ep;
 	unsigned int port;
 	int ret;
 
-	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
-	if (!notifier)
-		return -ENOMEM;
-
-	v4l2_async_notifier_init(notifier);
-
-	fwnode = dev_fwnode(priv->dev);
+	v4l2_async_notifier_init(&priv->notifier);
 
 	/* get this CSI's port id */
-	ret = fwnode_property_read_u32(fwnode, "reg", &port);
+	ret = fwnode_property_read_u32(dev_fwnode(priv->dev), "reg", &port);
 	if (ret < 0)
-		goto out_free;
+		return ret;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		priv->dev->parent, notifier, sizeof(struct v4l2_async_subdev),
-		port, imx_csi_parse_endpoint);
-	if (ret < 0)
-		goto out_cleanup;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev->parent),
+					     port, 0,
+					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	if (ep) {
+		asd = kzalloc(sizeof(*asd), GFP_KERNEL);
+		if (!asd) {
+			fwnode_handle_put(ep);
+			return -ENOMEM;
+		}
 
-	ret = v4l2_async_subdev_notifier_register(&priv->sd, notifier);
-	if (ret < 0)
-		goto out_cleanup;
+		ret = v4l2_async_notifier_add_fwnode_remote_subdev(
+			&priv->notifier, ep, asd);
 
-	ret = v4l2_async_register_subdev(&priv->sd);
-	if (ret < 0)
-		goto out_unregister;
+		fwnode_handle_put(ep);
 
-	priv->sd.subdev_notifier = notifier;
+		if (ret) {
+			kfree(asd);
+			/* OK if asd already exists */
+			if (ret != -EEXIST)
+				return ret;
+		}
+	}
 
-	return 0;
+	ret = v4l2_async_subdev_notifier_register(&priv->sd,
+						  &priv->notifier);
+	if (ret)
+		return ret;
 
-out_unregister:
-	v4l2_async_notifier_unregister(notifier);
-out_cleanup:
-	v4l2_async_notifier_cleanup(notifier);
-out_free:
-	kfree(notifier);
-
-	return ret;
+	return v4l2_async_register_subdev(&priv->sd);
 }
 
 static int imx_csi_probe(struct platform_device *pdev)
@@ -2001,9 +1993,13 @@ static int imx_csi_probe(struct platform_device *pdev)
 
 	ret = imx_csi_async_register(priv);
 	if (ret)
-		goto free;
+		goto cleanup;
 
 	return 0;
+
+cleanup:
+	v4l2_async_notifier_unregister(&priv->notifier);
+	v4l2_async_notifier_cleanup(&priv->notifier);
 free:
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
@@ -2017,6 +2013,8 @@ static int imx_csi_remove(struct platform_device *pdev)
 
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
+	v4l2_async_notifier_unregister(&priv->notifier);
+	v4l2_async_notifier_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 
