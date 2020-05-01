@@ -100,6 +100,7 @@ struct fq_sched_data {
 
 	struct rb_root	delayed;	/* for rate limited flows */
 	u64		time_next_delayed_flow;
+	u64		ktime_cache;	/* copy of last ktime_get_ns() */
 	unsigned long	unthrottle_latency_ns;
 
 	struct fq_flow	internal;	/* for non classified or high prio packets */
@@ -109,12 +110,13 @@ struct fq_sched_data {
 	u32		flow_plimit;	/* max packets per flow */
 	unsigned long	flow_max_rate;	/* optional max rate per flow */
 	u64		ce_threshold;
+	u64		horizon;	/* horizon in ns */
 	u32		orphan_mask;	/* mask for orphaned skb */
 	u32		low_rate_threshold;
 	struct rb_root	*fq_root;
 	u8		rate_enable;
 	u8		fq_trees_log;
-
+	u8		horizon_drop;
 	u32		flows;
 	u32		inactive_flows;
 	u32		throttled_flows;
@@ -123,6 +125,8 @@ struct fq_sched_data {
 	u64		stat_internal_packets;
 	u64		stat_throttled;
 	u64		stat_ce_mark;
+	u64		stat_horizon_drops;
+	u64		stat_horizon_caps;
 	u64		stat_flows_plimit;
 	u64		stat_pkts_too_long;
 	u64		stat_allocation_errors;
@@ -402,8 +406,6 @@ static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 	struct rb_node **p, *parent;
 	struct sk_buff *head, *aux;
 
-	fq_skb_cb(skb)->time_to_send = skb->tstamp ?: ktime_get_ns();
-
 	head = flow->head;
 	if (!head ||
 	    fq_skb_cb(skb)->time_to_send >= fq_skb_cb(flow->tail)->time_to_send) {
@@ -431,6 +433,12 @@ static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 	rb_insert_color(&skb->rbnode, &flow->t_root);
 }
 
+static bool fq_packet_beyond_horizon(const struct sk_buff *skb,
+				    const struct fq_sched_data *q)
+{
+	return unlikely((s64)skb->tstamp > (s64)(q->ktime_cache + q->horizon));
+}
+
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		      struct sk_buff **to_free)
 {
@@ -439,6 +447,28 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	if (unlikely(sch->q.qlen >= sch->limit))
 		return qdisc_drop(skb, sch, to_free);
+
+	if (!skb->tstamp) {
+		fq_skb_cb(skb)->time_to_send = q->ktime_cache = ktime_get_ns();
+	} else {
+		/* Check if packet timestamp is too far in the future.
+		 * Try first if our cached value, to avoid ktime_get_ns()
+		 * cost in most cases.
+		 */
+		if (fq_packet_beyond_horizon(skb, q)) {
+			/* Refresh our cache and check another time */
+			q->ktime_cache = ktime_get_ns();
+			if (fq_packet_beyond_horizon(skb, q)) {
+				if (q->horizon_drop) {
+					q->stat_horizon_drops++;
+					return qdisc_drop(skb, sch, to_free);
+				}
+				q->stat_horizon_caps++;
+				skb->tstamp = q->ktime_cache + q->horizon;
+			}
+		}
+		fq_skb_cb(skb)->time_to_send = skb->tstamp;
+	}
 
 	f = fq_classify(skb, q);
 	if (unlikely(f->qlen >= q->flow_plimit && f != &q->internal)) {
@@ -512,7 +542,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 		goto out;
 	}
 
-	now = ktime_get_ns();
+	q->ktime_cache = now = ktime_get_ns();
 	fq_check_throttled(q, now);
 begin:
 	head = &q->new_flows;
@@ -765,6 +795,8 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 	[TCA_FQ_LOW_RATE_THRESHOLD]	= { .type = NLA_U32 },
 	[TCA_FQ_CE_THRESHOLD]		= { .type = NLA_U32 },
 	[TCA_FQ_TIMER_SLACK]		= { .type = NLA_U32 },
+	[TCA_FQ_HORIZON]		= { .type = NLA_U32 },
+	[TCA_FQ_HORIZON_DROP]		= { .type = NLA_U8 },
 };
 
 static int fq_change(struct Qdisc *sch, struct nlattr *opt,
@@ -854,7 +886,15 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_FQ_TIMER_SLACK])
 		q->timer_slack = nla_get_u32(tb[TCA_FQ_TIMER_SLACK]);
 
+	if (tb[TCA_FQ_HORIZON])
+		q->horizon = (u64)NSEC_PER_USEC *
+				  nla_get_u32(tb[TCA_FQ_HORIZON]);
+
+	if (tb[TCA_FQ_HORIZON_DROP])
+		q->horizon_drop = nla_get_u8(tb[TCA_FQ_HORIZON_DROP]);
+
 	if (!err) {
+
 		sch_tree_unlock(sch);
 		err = fq_resize(sch, fq_log);
 		sch_tree_lock(sch);
@@ -907,6 +947,9 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 
 	q->timer_slack = 10 * NSEC_PER_USEC; /* 10 usec of hrtimer slack */
 
+	q->horizon = 10ULL * NSEC_PER_SEC; /* 10 seconds */
+	q->horizon_drop = 1; /* by default, drop packets beyond horizon */
+
 	/* Default ce_threshold of 4294 seconds */
 	q->ce_threshold		= (u64)NSEC_PER_USEC * ~0U;
 
@@ -924,6 +967,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	u64 ce_threshold = q->ce_threshold;
+	u64 horizon = q->horizon;
 	struct nlattr *opts;
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
@@ -933,6 +977,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore */
 
 	do_div(ce_threshold, NSEC_PER_USEC);
+	do_div(horizon, NSEC_PER_USEC);
 
 	if (nla_put_u32(skb, TCA_FQ_PLIMIT, sch->limit) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_PLIMIT, q->flow_plimit) ||
@@ -948,7 +993,9 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 			q->low_rate_threshold) ||
 	    nla_put_u32(skb, TCA_FQ_CE_THRESHOLD, (u32)ce_threshold) ||
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log) ||
-	    nla_put_u32(skb, TCA_FQ_TIMER_SLACK, q->timer_slack))
+	    nla_put_u32(skb, TCA_FQ_TIMER_SLACK, q->timer_slack) ||
+	    nla_put_u32(skb, TCA_FQ_HORIZON, (u32)horizon) ||
+	    nla_put_u8(skb, TCA_FQ_HORIZON_DROP, q->horizon_drop))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
@@ -979,6 +1026,8 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	st.unthrottle_latency_ns  = min_t(unsigned long,
 					  q->unthrottle_latency_ns, ~0U);
 	st.ce_mark		  = q->stat_ce_mark;
+	st.horizon_drops	  = q->stat_horizon_drops;
+	st.horizon_caps		  = q->stat_horizon_caps;
 	sch_tree_unlock(sch);
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
