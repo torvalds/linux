@@ -8742,7 +8742,7 @@ INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
 M:	Stanislav Yakovlev <stas.yakovlev@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/intel/ipw2100.txt
+F:	Documentation/networking/device_drivers/intel/ipw2100.rst
 F:	Documentation/networking/device_drivers/intel/ipw2200.txt
 F:	drivers/net/wireless/intel/ipw2x00/
 
