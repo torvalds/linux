@@ -413,7 +413,7 @@ to have a more complete understanding of a certain aspect.
 
 The main advantages of the Linux kernel are the access to sources and
 the open development system. Because of this, the Internet offers a
-larger number of documentation for kernel.
+larger number of documentation for the kernel.
 
 A few links related to the Linux kernel are shown bellow:
 

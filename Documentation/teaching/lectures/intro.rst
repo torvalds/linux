@@ -552,7 +552,7 @@ Symmetric MultiProcessing (SMP)
 -------------------------------
 
 As opposed to ASMP, in SMP mode the kernel can run on any of the
-existing processes, just as user processes. This approach is more
+existing processors, just as user processes. This approach is more
 difficult to implement, because it creates race conditions in the
 kernel if two processes run kernel functions that access the same
 memory locations.

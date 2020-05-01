@@ -496,7 +496,7 @@ processor.
 Nested interrupts and exceptions
 --------------------------------
 
-Nesting interrupts is permitted on many architectures. Some architecture define
+Nesting interrupts is permitted on many architectures. Some architectures define
 interrupt levels that allow preemption of an interrupt only if the pending
 interrupt has a greater priority then the current (settable) level (e.g see
 ARM's priority mask).
@@ -589,7 +589,7 @@ In Linux there are three types of deferrable actions:
     * tasklet
 
       * runs in interrupt context
-      * can be dinamically allocated
+      * can be dynamically allocated
       * same handler runs are serialized
 
     * workqueues

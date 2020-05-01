@@ -560,7 +560,7 @@ transitions, as exemplified below:
 
 
 .. note:: The most important characteristic of the MESI protocol is
-          that is a write-invalidate cache protocol. When writing to a
+          that it is a write-invalidate cache protocol. When writing to a
 	  shared location all other caches are invalidated.
 
 This has important performance impact in certain access patterns, and
@@ -725,8 +725,8 @@ as we can have the process running on one CPU core and the interrupt
 context running on a different CPU core.
 
 Using a spin lock, which was designed for multi-processor systems,
-seems like the right solution, but doing so will can cause common
-deadlock condition, as detailed by the following scenario:
+seems like the right solution, but doing so can cause common
+deadlock conditions, as detailed by the following scenario:
 
 
 .. slide:: Process and Interrupt Handler Synchronization Deadlock
@@ -844,13 +844,13 @@ the two:
    :inline-contents: True
    :level: 2
 
-   * They don't "waste" CPU cycles; system throughput is better then
-     spin locks if context switch overhead is lower then medium
+   * They don't "waste" CPU cycles; system throughput is better than
+     spin locks if context switch overhead is lower than medium
      spinning time
 
    * They can't be used in interrupt context
 
-   * They have a higher latency then spin locks
+   * They have a higher latency than spin locks
 
 Conceptually, the :c:func:`mutex_lock` operation is relatively simple:
 if the mutex is not acquired we an take the fast path via an atomic
@@ -993,7 +993,7 @@ Per CPU data
 
 Per CPU data avoids race conditions by avoiding to use shared
 data. Instead, an array sized to the maximum possible CPU cores is
-used and each core will used its own array entry to read and write
+used and each core will use its own array entry to read and write
 data. This approach certainly has advantages:
 
 
@@ -1001,7 +1001,7 @@ data. This approach certainly has advantages:
    :inline-contents: True
    :level: 2
 
-   * No need to synchronization to access the data
+   * No need to synchronize to access the data
 
    * No contention, no performance impact
 

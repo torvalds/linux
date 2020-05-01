@@ -974,7 +974,7 @@ copy the module to the VM, by running the following commands in
   $ make build
   $ make copy
 
-The these commands will build and copy all the modules in the current
+These commands will build and copy all the modules in the current
 lab skeleton.
 
 .. warning::

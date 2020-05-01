@@ -479,7 +479,7 @@ Read and write
 ==============
 
 The read and write operations are reaching the device driver as a
-result of a userpsace program calling the read of write system calls:
+result of a userspace program calling the read or write system calls:
 
 .. code-block:: c
 

@@ -280,7 +280,7 @@ read system call then it can corrupt kernel memory.
 
 
 Likewise, if a pointer passed by the application is invalid
-(e.g. unmaped, read-only for cases where its need to be written), it
+(e.g. unmapped, read-only for cases where it is used for writing), it
 could "crash" the kernel. There two approaches that could be used:
 
 .. slide:: Invalid pointers handling approaches
