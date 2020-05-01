@@ -28,6 +28,7 @@ Contents:
    pensando/ionic
    stmicro/stmmac
    3com/3c509
+   3com/vortex
 
 .. only::  subproject and html
 
