@@ -111,6 +111,7 @@ Contents:
    team
    timestamping
    tproxy
+   tuntap
 
 .. only::  subproject and html
 

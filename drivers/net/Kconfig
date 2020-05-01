@@ -355,7 +355,7 @@ config TUN
 	  devices, driver will automatically delete tunXX or tapXX device and
 	  all routes corresponding to it.
 
-	  Please read <file:Documentation/networking/tuntap.txt> for more
+	  Please read <file:Documentation/networking/tuntap.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module

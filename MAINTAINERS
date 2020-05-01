@@ -17161,7 +17161,7 @@ TUN/TAP driver
 M:	Maxim Krasnyansky <maxk@qti.qualcomm.com>
 S:	Maintained
 W:	http://vtun.sourceforge.net/tun
-F:	Documentation/networking/tuntap.txt
+F:	Documentation/networking/tuntap.rst
 F:	arch/um/os-Linux/drivers/
 
 TURBOCHANNEL SUBSYSTEM
