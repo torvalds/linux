@@ -187,8 +187,8 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
-				     struct aq_rss_parameters *rss_params)
+int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
+			      struct aq_rss_parameters *rss_params)
 {
 	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	unsigned int addr = 0U;
@@ -215,8 +215,8 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
-				struct aq_rss_parameters *rss_params)
+int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
+			 struct aq_rss_parameters *rss_params)
 {
 	u32 num_rss_queues = max(1U, self->aq_nic_cfg->num_rss_queues);
 	u8 *indirection_table =	rss_params->indirection_table;
@@ -251,9 +251,10 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
-				    struct aq_nic_cfg_s *aq_nic_cfg)
+int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
+			     struct aq_nic_cfg_s *aq_nic_cfg)
 {
+	u64 rxcsum = !!(aq_nic_cfg->features & NETIF_F_RXCSUM);
 	unsigned int i;
 
 	/* TX checksums offloads*/
@@ -261,10 +262,8 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 	hw_atl_tpo_tcp_udp_crc_offload_en_set(self, 1);
 
 	/* RX checksums offloads*/
-	hw_atl_rpo_ipv4header_crc_offload_en_set(self, !!(aq_nic_cfg->features &
-						 NETIF_F_RXCSUM));
-	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, !!(aq_nic_cfg->features &
-					      NETIF_F_RXCSUM));
+	hw_atl_rpo_ipv4header_crc_offload_en_set(self, rxcsum);
+	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, rxcsum);
 
 	/* LSO offloads*/
 	hw_atl_tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
@@ -272,7 +271,7 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 	/* Outer VLAN tag offload */
 	hw_atl_rpo_outer_vlan_tag_mode_set(self, 1U);
 
-/* LRO offloads */
+	/* LRO offloads */
 	{
 		unsigned int val = (8U < HW_ATL_B0_LRO_RXD_MAX) ? 0x3U :
 			((4U < HW_ATL_B0_LRO_RXD_MAX) ? 0x2U :
@@ -314,7 +313,7 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 static int hw_atl_b0_hw_init_tx_path(struct aq_hw_s *self)
 {
 	/* Tx TC/Queue number config */
-	hw_atl_rpb_tps_tx_tc_mode_set(self, 1U);
+	hw_atl_tpb_tps_tx_tc_mode_set(self, 1U);
 
 	hw_atl_thm_lso_tcp_flag_of_first_pkt_set(self, 0x0FF6U);
 	hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(self, 0x0FF6U);
@@ -324,7 +323,7 @@ static int hw_atl_b0_hw_init_tx_path(struct aq_hw_s *self)
 	hw_atl_tdm_tx_desc_wr_wb_irq_en_set(self, 1U);
 
 	/* misc */
-	aq_hw_write_reg(self, 0x00007040U, IS_CHIP_FEATURE(TPO2) ?
+	aq_hw_write_reg(self, 0x00007040U, ATL_HW_IS_CHIP_FEATURE(self, TPO2) ?
 			0x00010000U : 0x00000000U);
 	hw_atl_tdm_tx_dca_en_set(self, 0U);
 	hw_atl_tdm_tx_dca_mode_set(self, 0U);
@@ -372,8 +371,8 @@ static int hw_atl_b0_hw_init_rx_path(struct aq_hw_s *self)
 	hw_atl_rdm_rx_desc_wr_wb_irq_en_set(self, 1U);
 
 	/* misc */
-	aq_hw_write_reg(self, 0x00005040U,
-			IS_CHIP_FEATURE(RPF2) ? 0x000F0000U : 0x00000000U);
+	aq_hw_write_reg(self, 0x00005040U, ATL_HW_IS_CHIP_FEATURE(self, RPF2) ?
+			0x000F0000U : 0x00000000U);
 
 	hw_atl_rpfl2broadcast_flr_act_set(self, 1U);
 	hw_atl_rpfl2broadcast_count_threshold_set(self, 0xFFFFU & (~0U / 256U));
@@ -384,7 +383,7 @@ static int hw_atl_b0_hw_init_rx_path(struct aq_hw_s *self)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr)
+int hw_atl_b0_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr)
 {
 	unsigned int h = 0U;
 	unsigned int l = 0U;
@@ -479,23 +478,21 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_ring_tx_start(struct aq_hw_s *self,
-				      struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_tx_start(struct aq_hw_s *self, struct aq_ring_s *ring)
 {
 	hw_atl_tdm_tx_desc_en_set(self, 1, ring->idx);
 
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_rx_start(struct aq_hw_s *self,
-				      struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_rx_start(struct aq_hw_s *self, struct aq_ring_s *ring)
 {
 	hw_atl_rdm_rx_desc_en_set(self, 1, ring->idx);
 
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_start(struct aq_hw_s *self)
+int hw_atl_b0_hw_start(struct aq_hw_s *self)
 {
 	hw_atl_tpb_tx_buff_en_set(self, 1);
 	hw_atl_rpb_rx_buff_en_set(self, 1);
@@ -511,9 +508,8 @@ static int hw_atl_b0_hw_tx_ring_tail_update(struct aq_hw_s *self,
 	return 0;
 }
 
-static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
-				     struct aq_ring_s *ring,
-				     unsigned int frags)
+int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self, struct aq_ring_s *ring,
+			      unsigned int frags)
 {
 	struct aq_ring_buff_s *buff = NULL;
 	struct hw_atl_txd_s *txd = NULL;
@@ -600,9 +596,8 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
-				     struct aq_ring_s *aq_ring,
-				     struct aq_ring_param_s *aq_ring_param)
+int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
+			      struct aq_ring_param_s *aq_ring_param)
 {
 	u32 dma_desc_addr_msw = (u32)(((u64)aq_ring->dx_ring_pa) >> 32);
 	u32 vlan_rx_stripping = self->aq_nic_cfg->is_vlan_rx_strip;
@@ -643,9 +638,8 @@ static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_tx_init(struct aq_hw_s *self,
-				     struct aq_ring_s *aq_ring,
-				     struct aq_ring_param_s *aq_ring_param)
+int hw_atl_b0_hw_ring_tx_init(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
+			      struct aq_ring_param_s *aq_ring_param)
 {
 	u32 dma_desc_msw_addr = (u32)(((u64)aq_ring->dx_ring_pa) >> 32);
 	u32 dma_desc_lsw_addr = (u32)aq_ring->dx_ring_pa;
@@ -673,9 +667,8 @@ static int hw_atl_b0_hw_ring_tx_init(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_rx_fill(struct aq_hw_s *self,
-				     struct aq_ring_s *ring,
-				     unsigned int sw_tail_old)
+int hw_atl_b0_hw_ring_rx_fill(struct aq_hw_s *self, struct aq_ring_s *ring,
+			      unsigned int sw_tail_old)
 {
 	for (; sw_tail_old != ring->sw_tail;
 		sw_tail_old = aq_ring_next_dx(ring, sw_tail_old)) {
@@ -734,8 +727,8 @@ static int hw_atl_b0_hw_ring_hwts_rx_receive(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
-					    struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
+				     struct aq_ring_s *ring)
 {
 	unsigned int hw_head_;
 	int err = 0;
@@ -753,8 +746,7 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
-					struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self, struct aq_ring_s *ring)
 {
 	for (; ring->hw_head != ring->sw_tail;
 		ring->hw_head = aq_ring_next_dx(ring, ring->hw_head)) {
@@ -854,14 +846,14 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_irq_enable(struct aq_hw_s *self, u64 mask)
+int hw_atl_b0_hw_irq_enable(struct aq_hw_s *self, u64 mask)
 {
 	hw_atl_itr_irq_msk_setlsw_set(self, LODWORD(mask));
 
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_irq_disable(struct aq_hw_s *self, u64 mask)
+int hw_atl_b0_hw_irq_disable(struct aq_hw_s *self, u64 mask)
 {
 	hw_atl_itr_irq_msk_clearlsw_set(self, LODWORD(mask));
 	hw_atl_itr_irq_status_clearlsw_set(self, LODWORD(mask));
@@ -871,7 +863,7 @@ static int hw_atl_b0_hw_irq_disable(struct aq_hw_s *self, u64 mask)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_irq_read(struct aq_hw_s *self, u64 *mask)
+int hw_atl_b0_hw_irq_read(struct aq_hw_s *self, u64 *mask)
 {
 	*mask = hw_atl_itr_irq_statuslsw_get(self);
 
@@ -880,8 +872,8 @@ static int hw_atl_b0_hw_irq_read(struct aq_hw_s *self, u64 *mask)
 
 #define IS_FILTER_ENABLED(_F_) ((packet_filter & (_F_)) ? 1U : 0U)
 
-static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
-					  unsigned int packet_filter)
+int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
+				   unsigned int packet_filter)
 {
 	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	unsigned int i = 0U;
@@ -1071,16 +1063,14 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_ring_tx_stop(struct aq_hw_s *self,
-				     struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_tx_stop(struct aq_hw_s *self, struct aq_ring_s *ring)
 {
 	hw_atl_tdm_tx_desc_en_set(self, 0U, ring->idx);
 
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
-				     struct aq_ring_s *ring)
+int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self, struct aq_ring_s *ring)
 {
 	hw_atl_rdm_rx_desc_en_set(self, 0U, ring->idx);
 
@@ -1089,7 +1079,7 @@ static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
 
 static int hw_atl_b0_tx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
 {
-	*tc_mode = hw_atl_rpb_tps_tx_tc_mode_get(self);
+	*tc_mode = hw_atl_tpb_tps_tx_tc_mode_get(self);
 	return aq_hw_err_from_flags(self);
 }
 
@@ -1478,6 +1468,8 @@ static int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
 }
 
 const struct aq_hw_ops hw_atl_ops_b0 = {
+	.hw_soft_reset        = hw_atl_utils_soft_reset,
+	.hw_prepare           = hw_atl_utils_initfw,
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl_b0_hw_init,
 	.hw_reset             = hw_atl_b0_hw_reset,

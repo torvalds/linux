@@ -360,6 +360,8 @@ struct aq_rx_filter_vlan {
 	u8 queue;
 };
 
+#define HW_ATL_VLAN_MAX_FILTERS         16U
+
 struct aq_rx_filter_l2 {
 	s8 queue;
 	u8 location;
@@ -405,17 +407,6 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 
 #define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
-
-#define HAL_ATLANTIC_UTILS_CHIP_MIPS         0x00000001U
-#define HAL_ATLANTIC_UTILS_CHIP_TPO2         0x00000002U
-#define HAL_ATLANTIC_UTILS_CHIP_RPF2         0x00000004U
-#define HAL_ATLANTIC_UTILS_CHIP_MPI_AQ       0x00000010U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_A0  0x01000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B0  0x02000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B1  0x04000000U
-
-#define IS_CHIP_FEATURE(_F_) (HAL_ATLANTIC_UTILS_CHIP_##_F_ & \
-	self->chip_features)
 
 enum hal_atl_utils_fw_state_e {
 	MPI_DEINIT = 0,
@@ -622,7 +613,7 @@ int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
 
 int hw_atl_utils_hw_deinit(struct aq_hw_s *self);
 
-int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
+u32 hw_atl_utils_get_fw_version(struct aq_hw_s *self);
 
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
@@ -642,6 +633,8 @@ int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
 
 int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 			     struct hw_atl_utils_fw_rpc **rpc);
+
+int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
 extern const struct aq_fw_ops aq_fw_2x_ops;

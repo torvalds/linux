@@ -349,6 +349,9 @@ void hw_atl_rpfl2multicast_flr_en_set(struct aq_hw_s *aq_hw,
 				      u32 l2multicast_flr_en,
 				      u32 filter);
 
+/* get l2 promiscuous mode enable */
+u32 hw_atl_rpfl2promiscuous_mode_en_get(struct aq_hw_s *aq_hw);
+
 /* set l2 promiscuous mode enable */
 void hw_atl_rpfl2promiscuous_mode_en_set(struct aq_hw_s *aq_hw,
 					 u32 l2promiscuous_mode_en);
@@ -419,6 +422,9 @@ void hw_atl_rpf_vlan_outer_etht_set(struct aq_hw_s *aq_hw, u32 vlan_outer_etht);
 /* set vlan promiscuous mode enable */
 void hw_atl_rpf_vlan_prom_mode_en_set(struct aq_hw_s *aq_hw,
 				      u32 vlan_prom_mode_en);
+
+/* Get VLAN promiscuous mode enable */
+u32 hw_atl_rpf_vlan_prom_mode_en_get(struct aq_hw_s *aq_hw);
 
 /* Set VLAN untagged action */
 void hw_atl_rpf_vlan_untagged_act_set(struct aq_hw_s *aq_hw,
@@ -610,11 +616,11 @@ void hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(struct aq_hw_s *aq_hw,
 /* tpb */
 
 /* set TX Traffic Class Mode */
-void hw_atl_rpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
+void hw_atl_tpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
 				   u32 tx_traf_class_mode);
 
 /* get TX Traffic Class Mode */
-u32 hw_atl_rpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw);
+u32 hw_atl_tpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw);
 
 /* set tx buffer enable */
 void hw_atl_tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en);

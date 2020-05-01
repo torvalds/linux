@@ -55,6 +55,7 @@ struct aq_hw_caps_s {
 	u8 rx_rings;
 	bool flow_control;
 	bool is_64_dma;
+	u32 priv_data_len;
 };
 
 struct aq_hw_link_status_s {
@@ -136,6 +137,19 @@ enum aq_priv_flags {
 				 BIT(AQ_HW_LOOPBACK_PHYINT_SYS) |\
 				 BIT(AQ_HW_LOOPBACK_PHYEXT_SYS))
 
+#define ATL_HW_CHIP_MIPS         0x00000001U
+#define ATL_HW_CHIP_TPO2         0x00000002U
+#define ATL_HW_CHIP_RPF2         0x00000004U
+#define ATL_HW_CHIP_MPI_AQ       0x00000010U
+#define ATL_HW_CHIP_ATLANTIC     0x00800000U
+#define ATL_HW_CHIP_REVISION_A0  0x01000000U
+#define ATL_HW_CHIP_REVISION_B0  0x02000000U
+#define ATL_HW_CHIP_REVISION_B1  0x04000000U
+#define ATL_HW_CHIP_ANTIGUA      0x08000000U
+
+#define ATL_HW_IS_CHIP_FEATURE(_HW_, _F_) (!!(ATL_HW_CHIP_##_F_ & \
+	(_HW_)->chip_features))
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -159,6 +173,7 @@ struct aq_hw_s {
 	struct hw_atl_utils_fw_rpc rpc;
 	s64 ptp_clk_offset;
 	u16 phy_id;
+	void *priv;
 };
 
 struct aq_ring_s;
@@ -181,6 +196,11 @@ struct aq_hw_ops {
 				      struct aq_ring_s *aq_ring);
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
+
+	int (*hw_soft_reset)(struct aq_hw_s *self);
+
+	int (*hw_prepare)(struct aq_hw_s *self,
+			  const struct aq_fw_ops **fw_ops);
 
 	int (*hw_reset)(struct aq_hw_s *self);
 
@@ -254,7 +274,7 @@ struct aq_hw_ops {
 
 	struct aq_stats_s *(*hw_get_hw_stats)(struct aq_hw_s *self);
 
-	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
+	u32 (*hw_get_fw_version)(struct aq_hw_s *self);
 
 	int (*hw_set_offload)(struct aq_hw_s *self,
 			      struct aq_nic_cfg_s *aq_nic_cfg);

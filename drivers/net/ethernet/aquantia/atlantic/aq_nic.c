@@ -257,6 +257,20 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		  AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
+static int aq_nic_hw_prepare(struct aq_nic_s *self)
+{
+	int err = 0;
+
+	err = self->aq_hw_ops->hw_soft_reset(self->aq_hw);
+	if (err)
+		goto exit;
+
+	err = self->aq_hw_ops->hw_prepare(self->aq_hw, &self->aq_fw_ops);
+
+exit:
+	return err;
+}
+
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -266,7 +280,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		goto err_exit;
 	}
 
-	err = hw_atl_utils_initfw(self->aq_hw, &self->aq_fw_ops);
+	err = aq_nic_hw_prepare(self);
 	if (err)
 		goto err_exit;
 
@@ -364,7 +378,8 @@ int aq_nic_init(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_TP) {
+	if (ATL_HW_IS_CHIP_FEATURE(self->aq_hw, ATLANTIC) &&
+	    self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_TP) {
 		self->aq_hw->phy_id = HW_ATL_PHY_ID_MAX;
 		err = aq_phy_init(self->aq_hw);
 	}
@@ -764,6 +779,9 @@ int aq_nic_get_regs(struct aq_nic_s *self, struct ethtool_regs *regs, void *p)
 	u32 *regs_buff = p;
 	int err = 0;
 
+	if (unlikely(!self->aq_hw_ops->hw_get_regs))
+		return -EOPNOTSUPP;
+
 	regs->version = 1;
 
 	err = self->aq_hw_ops->hw_get_regs(self->aq_hw,
@@ -778,6 +796,9 @@ err_exit:
 
 int aq_nic_get_regs_count(struct aq_nic_s *self)
 {
+	if (unlikely(!self->aq_hw_ops->hw_get_regs))
+		return 0;
+
 	return self->aq_nic_cfg.aq_hw_caps->mac_regs_count;
 }
 
@@ -885,6 +906,10 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     100baseT_Full);
 
+	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_10M)
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     10baseT_Full);
+
 	if (self->aq_nic_cfg.aq_hw_caps->flow_control) {
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     Pause);
@@ -924,6 +949,10 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
+	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_10M)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     10baseT_Full);
+
 	if (self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
@@ -954,6 +983,10 @@ int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 		speed = cmd->base.speed;
 
 		switch (speed) {
+		case SPEED_10:
+			rate = AQ_NIC_RATE_10M;
+			break;
+
 		case SPEED_100:
 			rate = AQ_NIC_RATE_100M;
 			break;
@@ -1006,11 +1039,7 @@ struct aq_nic_cfg_s *aq_nic_get_cfg(struct aq_nic_s *self)
 
 u32 aq_nic_get_fw_version(struct aq_nic_s *self)
 {
-	u32 fw_version = 0U;
-
-	self->aq_hw_ops->hw_get_fw_version(self->aq_hw, &fw_version);
-
-	return fw_version;
+	return self->aq_hw_ops->hw_get_fw_version(self->aq_hw);
 }
 
 int aq_nic_set_loopback(struct aq_nic_s *self)
