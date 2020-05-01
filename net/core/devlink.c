@@ -3716,24 +3716,26 @@ nla_put_failure:
 	return err;
 }
 
-static void devlink_nl_region_notify(struct devlink_region *region,
-				     struct devlink_snapshot *snapshot,
-				     enum devlink_command cmd)
+static struct sk_buff *
+devlink_nl_region_notify_build(struct devlink_region *region,
+			       struct devlink_snapshot *snapshot,
+			       enum devlink_command cmd, u32 portid, u32 seq)
 {
 	struct devlink *devlink = region->devlink;
 	struct sk_buff *msg;
 	void *hdr;
 	int err;
 
-	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	hdr = genlmsg_put(msg, 0, 0, &devlink_nl_family, 0, cmd);
-	if (!hdr)
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, 0, cmd);
+	if (!hdr) {
+		err = -EMSGSIZE;
 		goto out_free_msg;
+	}
 
 	err = devlink_nl_put_handle(msg, devlink);
 	if (err)
@@ -3757,15 +3759,30 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 	}
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
-
-	return;
+	return msg;
 
 out_cancel_msg:
 	genlmsg_cancel(msg, hdr);
 out_free_msg:
 	nlmsg_free(msg);
+	return ERR_PTR(err);
+}
+
+static void devlink_nl_region_notify(struct devlink_region *region,
+				     struct devlink_snapshot *snapshot,
+				     enum devlink_command cmd)
+{
+	struct devlink *devlink = region->devlink;
+	struct sk_buff *msg;
+
+	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
+
+	msg = devlink_nl_region_notify_build(region, snapshot, cmd, 0, 0);
+	if (IS_ERR(msg))
+		return;
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
 /**
