@@ -101,70 +101,6 @@ to_cs553x(struct nand_controller *controller)
 	return container_of(controller, struct cs553x_nand_controller, base);
 }
 
-static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-
-	while (unlikely(len > 0x800)) {
-		memcpy_fromio(buf, cs553x->mmio, 0x800);
-		buf += 0x800;
-		len -= 0x800;
-	}
-	memcpy_fromio(buf, cs553x->mmio, len);
-}
-
-static void cs553x_write_buf(struct nand_chip *this, const u_char *buf, int len)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-
-	while (unlikely(len > 0x800)) {
-		memcpy_toio(cs553x->mmio, buf, 0x800);
-		buf += 0x800;
-		len -= 0x800;
-	}
-	memcpy_toio(cs553x->mmio, buf, len);
-}
-
-static unsigned char cs553x_read_byte(struct nand_chip *this)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-
-	return readb(cs553x->mmio);
-}
-
-static void cs553x_write_byte(struct nand_chip *this, u_char byte)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-	int i = 100000;
-
-	while (i && readb(cs553x->mmio + MM_NAND_STS) & CS_NAND_CTLR_BUSY) {
-		udelay(1);
-		i--;
-	}
-	writeb(byte, cs553x->mmio + 0x801);
-}
-
-static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
-			     unsigned int ctrl)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-
-	if (ctrl & NAND_CTRL_CHANGE) {
-		unsigned char ctl = (ctrl & ~NAND_CTRL_CHANGE ) ^ 0x01;
-		writeb(ctl, cs553x->mmio + MM_NAND_CTL);
-	}
-	if (cmd != NAND_CMD_NONE)
-		cs553x_write_byte(this, cmd);
-}
-
-static int cs553x_device_ready(struct nand_chip *this)
-{
-	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
-	unsigned char foo = readb(cs553x->mmio + MM_NAND_STS);
-
-	return (foo & CS_NAND_STS_FLASH_RDY) && !(foo & CS_NAND_CTLR_BUSY);
-}
-
 static int cs553x_write_ctrl_byte(struct cs553x_nand_controller *cs553x,
 				  u32 ctl, u8 data)
 {
@@ -349,14 +285,6 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 		err = -EIO;
 		goto out_mtd;
 	}
-
-	this->legacy.cmd_ctrl = cs553x_hwcontrol;
-	this->legacy.dev_ready = cs553x_device_ready;
-	this->legacy.read_byte = cs553x_read_byte;
-	this->legacy.read_buf = cs553x_read_buf;
-	this->legacy.write_buf = cs553x_write_buf;
-
-	this->legacy.chip_delay = 0;
 
 	this->ecc.mode = NAND_ECC_HW;
 	this->ecc.size = 256;
