@@ -2608,7 +2608,7 @@ static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp)
 	RTL_W32(tp, RxDescAddrLow, ((u64) tp->RxPhyAddr) & DMA_BIT_MASK(32));
 }
 
-static void rtl8169_set_magic_reg(struct rtl8169_private *tp, unsigned mac_version)
+static void rtl8169_set_magic_reg(struct rtl8169_private *tp)
 {
 	u32 val;
 
@@ -3811,7 +3811,7 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
-	rtl8169_set_magic_reg(tp, tp->mac_version);
+	rtl8169_set_magic_reg(tp);
 
 	/* disable interrupt coalescing */
 	RTL_W16(tp, IntrMitigate, 0x0000);
