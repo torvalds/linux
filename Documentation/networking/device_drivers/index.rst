@@ -36,6 +36,7 @@ Contents:
    davicom/dm9000
    dec/de4x5
    dec/dmfe
+   dlink/dl2k
 
 .. only::  subproject and html
 
