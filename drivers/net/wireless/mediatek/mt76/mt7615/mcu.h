@@ -280,6 +280,7 @@ enum {
 	MCU_UNI_CMD_DEV_INFO_UPDATE = MCU_UNI_PREFIX | 0x01,
 	MCU_UNI_CMD_BSS_INFO_UPDATE = MCU_UNI_PREFIX | 0x02,
 	MCU_UNI_CMD_STA_REC_UPDATE = MCU_UNI_PREFIX | 0x03,
+	MCU_UNI_CMD_SUSPEND = MCU_UNI_PREFIX | 0x05,
 	MCU_UNI_CMD_HIF_CTRL = MCU_UNI_PREFIX | 0x07,
 };
 
@@ -415,6 +416,59 @@ struct mt7615_mcu_bss_event {
 	u8 pad;
 } __packed;
 
+struct mt7615_wow_ctrl_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 cmd; /* 0x1: PM_WOWLAN_REQ_START
+		 * 0x2: PM_WOWLAN_REQ_STOP
+		 * 0x3: PM_WOWLAN_PARAM_CLEAR
+		 */
+	u8 trigger; /* 0: NONE
+		     * BIT(0): NL80211_WOWLAN_TRIG_MAGIC_PKT
+		     * BIT(1): NL80211_WOWLAN_TRIG_ANY
+		     * BIT(2): NL80211_WOWLAN_TRIG_DISCONNECT
+		     * BIT(3): NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE
+		     * BIT(4): BEACON_LOST
+		     * BIT(5): NL80211_WOWLAN_TRIG_NET_DETECT
+		     */
+	u8 wakeup_hif; /* 0x0: HIF_SDIO
+			* 0x1: HIF_USB
+			* 0x2: HIF_PCIE
+			* 0x3: HIF_GPIO
+			*/
+	u8 pad;
+	u8 rsv[4];
+} __packed;
+
+#define MT7615_WOW_MASK_MAX_LEN		16
+#define MT7615_WOW_PATTEN_MAX_LEN	128
+struct mt7615_wow_pattern_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 index; /* pattern index */
+	u8 enable; /* 0: disable
+		    * 1: enable
+		    */
+	u8 data_len; /* pattern length */
+	u8 pad;
+	u8 mask[MT7615_WOW_MASK_MAX_LEN];
+	u8 pattern[MT7615_WOW_PATTEN_MAX_LEN];
+	u8 rsv[4];
+} __packed;
+
+struct mt7615_suspend_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 enable; /* 0: suspend mode disabled
+		    * 1: suspend mode enabled
+		    */
+	u8 mdtim; /* LP parameter */
+	u8 wow_suspend; /* 0: update by origin policy
+			 * 1: update by wow dtim
+			 */
+	u8 pad[5];
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
@@ -437,6 +491,14 @@ enum {
 	UNI_BSS_INFO_BASIC = 0,
 	UNI_BSS_INFO_RLM = 2,
 	UNI_BSS_INFO_BCN_CONTENT = 7,
+};
+
+enum {
+	UNI_SUSPEND_MODE_SETTING,
+	UNI_SUSPEND_WOW_CTRL,
+	UNI_SUSPEND_WOW_GPIO_PARAM,
+	UNI_SUSPEND_WOW_WAKEUP_PORT,
+	UNI_SUSPEND_WOW_PATTERN,
 };
 
 enum {
