@@ -114,7 +114,7 @@ config DE4X5
 	  These include the DE425, DE434, DE435, DE450 and DE500 models.  If
 	  you have a network card of this type, say Y.  More specific
 	  information is contained in
-	  <file:Documentation/networking/device_drivers/dec/de4x5.txt>.
+	  <file:Documentation/networking/device_drivers/dec/de4x5.rst>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called de4x5.

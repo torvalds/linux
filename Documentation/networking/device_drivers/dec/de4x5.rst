@@ -1,48 +1,54 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================================
+DEC EtherWORKS Ethernet De4x5 cards
+===================================
+
     Originally,   this  driver  was    written  for the  Digital   Equipment
     Corporation series of EtherWORKS Ethernet cards:
 
-        DE425 TP/COAX EISA
-	DE434 TP PCI
-	DE435 TP/COAX/AUI PCI
-	DE450 TP/COAX/AUI PCI
-	DE500 10/100 PCI Fasternet
+	 - DE425 TP/COAX EISA
+	 - DE434 TP PCI
+	 - DE435 TP/COAX/AUI PCI
+	 - DE450 TP/COAX/AUI PCI
+	 - DE500 10/100 PCI Fasternet
 
     but it  will  now attempt  to  support all  cards which   conform to the
     Digital Semiconductor   SROM   Specification.    The  driver   currently
     recognises the following chips:
 
-        DC21040  (no SROM) 
-	DC21041[A]  
-	DC21140[A] 
-	DC21142 
-	DC21143 
+	 - DC21040  (no SROM)
+	 - DC21041[A]
+	 - DC21140[A]
+	 - DC21142
+	 - DC21143
 
     So far the driver is known to work with the following cards:
 
-        KINGSTON
-	Linksys
-	ZNYX342
-	SMC8432
-	SMC9332 (w/new SROM)
-	ZNYX31[45]
-	ZNYX346 10/100 4 port (can act as a 10/100 bridge!) 
+	 - KINGSTON
+	 - Linksys
+	 - ZNYX342
+	 - SMC8432
+	 - SMC9332 (w/new SROM)
+	 - ZNYX31[45]
+	 - ZNYX346 10/100 4 port (can act as a 10/100 bridge!)
 
     The driver has been tested on a relatively busy network using the DE425,
     DE434, DE435 and DE500 cards and benchmarked with 'ttcp': it transferred
-    16M of data to a DECstation 5000/200 as follows:
+    16M of data to a DECstation 5000/200 as follows::
 
-                TCP           UDP
-             TX     RX     TX     RX
-    DE425   1030k  997k   1170k  1128k
-    DE434   1063k  995k   1170k  1125k
-    DE435   1063k  995k   1170k  1125k
-    DE500   1063k  998k   1170k  1125k  in 10Mb/s mode
+		  TCP           UDP
+	       TX     RX     TX     RX
+      DE425   1030k  997k   1170k  1128k
+      DE434   1063k  995k   1170k  1125k
+      DE435   1063k  995k   1170k  1125k
+      DE500   1063k  998k   1170k  1125k  in 10Mb/s mode
 
     All  values are typical (in   kBytes/sec) from a  sample  of 4 for  each
     measurement. Their error is +/-20k on a quiet (private) network and also
     depend on what load the CPU has.
 
-    =========================================================================
+----------------------------------------------------------------------------
 
     The ability to load this  driver as a loadable  module has been included
     and used extensively  during the driver development  (to save those long
@@ -55,31 +61,33 @@
 
     0) have a copy of the loadable modules code installed on your system.
     1) copy de4x5.c from the  /linux/drivers/net directory to your favourite
-    temporary directory.
+       temporary directory.
     2) for fixed  autoprobes (not  recommended),  edit the source code  near
-    line 5594 to reflect the I/O address  you're using, or assign these when
-    loading by:
+       line 5594 to reflect the I/O address  you're using, or assign these when
+       loading by::
 
-                   insmod de4x5 io=0xghh           where g = bus number
-		                                        hh = device number   
+		   insmod de4x5 io=0xghh           where g = bus number
+							hh = device number
 
-       NB: autoprobing for modules is now supported by default. You may just
-           use:
+       .. note::
 
-                   insmod de4x5
+	   autoprobing for modules is now supported by default. You may just
+	   use::
 
-           to load all available boards. For a specific board, still use
+		   insmod de4x5
+
+	   to load all available boards. For a specific board, still use
 	   the 'io=?' above.
     3) compile  de4x5.c, but include -DMODULE in  the command line to ensure
-    that the correct bits are compiled (see end of source code).
+       that the correct bits are compiled (see end of source code).
     4) if you are wanting to add a new  card, goto 5. Otherwise, recompile a
-    kernel with the de4x5 configuration turned off and reboot.
+       kernel with the de4x5 configuration turned off and reboot.
     5) insmod de4x5 [io=0xghh]
-    6) run the net startup bits for your new eth?? interface(s) manually 
-    (usually /etc/rc.inet[12] at boot time). 
+    6) run the net startup bits for your new eth?? interface(s) manually
+       (usually /etc/rc.inet[12] at boot time).
     7) enjoy!
 
-    To unload a module, turn off the associated interface(s) 
+    To unload a module, turn off the associated interface(s)
     'ifconfig eth?? down' then 'rmmod de4x5'.
 
     Automedia detection is included so that in  principle you can disconnect
@@ -90,7 +98,7 @@
     By  default,  the driver will  now   autodetect any  DECchip based card.
     Should you have a need to restrict the driver to DIGITAL only cards, you
     can compile with a  DEC_ONLY define, or if  loading as a module, use the
-    'dec_only=1'  parameter. 
+    'dec_only=1'  parameter.
 
     I've changed the timing routines to  use the kernel timer and scheduling
     functions  so that the  hangs  and other assorted problems that occurred
@@ -158,18 +166,21 @@
     either at the end of the parameter list or with another board name.  The
     following parameters are allowed:
 
-            fdx        for full duplex
-	    autosense  to set the media/speed; with the following 
-	               sub-parameters:
+	    =========  ===============================================
+	    fdx        for full duplex
+	    autosense  to set the media/speed; with the following
+		       sub-parameters:
 		       TP, TP_NW, BNC, AUI, BNC_AUI, 100Mb, 10Mb, AUTO
+	    =========  ===============================================
 
     Case sensitivity is important  for  the sub-parameters. They *must*   be
-    upper case. Examples:
+    upper case. Examples::
 
-        insmod de4x5 args='eth1:fdx autosense=BNC eth0:autosense=100Mb'.
+	insmod de4x5 args='eth1:fdx autosense=BNC eth0:autosense=100Mb'.
 
-    For a compiled in driver, in linux/drivers/net/CONFIG, place e.g.
-	DE4X5_OPTS = -DDE4X5_PARM='"eth0:fdx autosense=AUI eth2:autosense=TP"' 
+    For a compiled in driver, in linux/drivers/net/CONFIG, place e.g.::
+
+	DE4X5_OPTS = -DDE4X5_PARM='"eth0:fdx autosense=AUI eth2:autosense=TP"'
 
     Yes,  I know full duplex  isn't permissible on BNC  or AUI; they're just
     examples. By default, full duplex is turned  off and AUTO is the default
