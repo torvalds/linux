@@ -2188,7 +2188,9 @@ static int arm_smmu_legacy_bus_init(void)
 		arm_smmu_bus_init();
 	return 0;
 }
+#ifndef MODULE
 device_initcall_sync(arm_smmu_legacy_bus_init);
+#endif
 
 static int arm_smmu_device_remove(struct platform_device *pdev)
 {
@@ -2230,7 +2232,26 @@ static struct platform_driver arm_smmu_driver = {
 	.remove	= arm_smmu_device_remove,
 	.shutdown = arm_smmu_device_shutdown,
 };
-module_platform_driver(arm_smmu_driver);
+
+static int __init arm_smmu_driver_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&arm_smmu_driver);
+#ifdef MODULE
+	if (!ret)
+		arm_smmu_legacy_bus_init();
+#endif
+	return ret;
+}
+
+static void __exit arm_smmu_driver_exit(void)
+{
+	platform_driver_unregister(&arm_smmu_driver);
+}
+
+subsys_initcall(arm_smmu_driver_init);
+module_exit(arm_smmu_driver_exit);
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
