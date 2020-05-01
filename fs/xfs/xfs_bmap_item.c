@@ -421,25 +421,26 @@ const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
  * We need to update some inode's bmbt.
  */
 STATIC int
-xfs_bui_recover(
-	struct xfs_trans		*parent_tp,
-	struct xfs_bui_log_item		*buip)
+xfs_bui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*parent_tp)
 {
-	int				error = 0;
-	unsigned int			bui_type;
+	struct xfs_bmbt_irec		irec;
+	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
+	struct xfs_trans		*tp;
+	struct xfs_inode		*ip = NULL;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
 	struct xfs_map_extent		*bmap;
+	struct xfs_bud_log_item		*budp;
 	xfs_fsblock_t			startblock_fsb;
 	xfs_fsblock_t			inode_fsb;
 	xfs_filblks_t			count;
-	bool				op_ok;
-	struct xfs_bud_log_item		*budp;
-	enum xfs_bmap_intent_type	type;
-	int				whichfork;
 	xfs_exntst_t			state;
-	struct xfs_trans		*tp;
-	struct xfs_inode		*ip = NULL;
-	struct xfs_bmbt_irec		irec;
-	struct xfs_mount		*mp = parent_tp->t_mountp;
+	enum xfs_bmap_intent_type	type;
+	bool				op_ok;
+	unsigned int			bui_type;
+	int				whichfork;
+	int				error = 0;
 
 	ASSERT(!test_bit(XFS_LI_RECOVERED, &buip->bui_item.li_flags));
 
@@ -552,29 +553,6 @@ err_inode:
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		xfs_irele(ip);
 	}
-	return error;
-}
-
-/* Recover the BUI if necessary. */
-STATIC int
-xfs_bui_item_recover(
-	struct xfs_log_item		*lip,
-	struct xfs_trans		*tp)
-{
-	struct xfs_ail			*ailp = lip->li_ailp;
-	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
-	int				error;
-
-	/*
-	 * Skip BUIs that we've already processed.
-	 */
-	if (test_bit(XFS_LI_RECOVERED, &buip->bui_item.li_flags))
-		return 0;
-
-	spin_unlock(&ailp->ail_lock);
-	error = xfs_bui_recover(tp, buip);
-	spin_lock(&ailp->ail_lock);
-
 	return error;
 }
 

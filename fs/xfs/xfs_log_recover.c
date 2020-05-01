@@ -2643,7 +2643,7 @@ xlog_recover_process_intents(
 	struct xfs_ail_cursor	cur;
 	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
-	int			error;
+	int			error = 0;
 #if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
 #endif
@@ -2693,7 +2693,11 @@ xlog_recover_process_intents(
 		 * this routine or else those subsequent intents will get
 		 * replayed in the wrong order!
 		 */
-		error = lip->li_ops->iop_recover(lip, parent_tp);
+		if (!test_bit(XFS_LI_RECOVERED, &lip->li_flags)) {
+			spin_unlock(&ailp->ail_lock);
+			error = lip->li_ops->iop_recover(lip, parent_tp);
+			spin_lock(&ailp->ail_lock);
+		}
 		if (error)
 			goto out;
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);

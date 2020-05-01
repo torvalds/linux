@@ -464,21 +464,23 @@ const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
  * We need to update the rmapbt.
  */
 STATIC int
-xfs_rui_recover(
-	struct xfs_mount		*mp,
-	struct xfs_rui_log_item		*ruip)
+xfs_rui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*parent_tp)
 {
-	int				i;
-	int				error = 0;
+	struct xfs_rui_log_item		*ruip = RUI_ITEM(lip);
 	struct xfs_map_extent		*rmap;
-	xfs_fsblock_t			startblock_fsb;
-	bool				op_ok;
 	struct xfs_rud_log_item		*rudp;
-	enum xfs_rmap_intent_type	type;
-	int				whichfork;
-	xfs_exntst_t			state;
 	struct xfs_trans		*tp;
 	struct xfs_btree_cur		*rcur = NULL;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
+	xfs_fsblock_t			startblock_fsb;
+	enum xfs_rmap_intent_type	type;
+	xfs_exntst_t			state;
+	bool				op_ok;
+	int				i;
+	int				whichfork;
+	int				error = 0;
 
 	ASSERT(!test_bit(XFS_LI_RECOVERED, &ruip->rui_item.li_flags));
 
@@ -580,29 +582,6 @@ xfs_rui_recover(
 abort_error:
 	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 	xfs_trans_cancel(tp);
-	return error;
-}
-
-/* Recover the RUI if necessary. */
-STATIC int
-xfs_rui_item_recover(
-	struct xfs_log_item		*lip,
-	struct xfs_trans		*tp)
-{
-	struct xfs_ail			*ailp = lip->li_ailp;
-	struct xfs_rui_log_item		*ruip = RUI_ITEM(lip);
-	int				error;
-
-	/*
-	 * Skip RUIs that we've already processed.
-	 */
-	if (test_bit(XFS_LI_RECOVERED, &ruip->rui_item.li_flags))
-		return 0;
-
-	spin_unlock(&ailp->ail_lock);
-	error = xfs_rui_recover(tp->t_mountp, ruip);
-	spin_lock(&ailp->ail_lock);
-
 	return error;
 }
 

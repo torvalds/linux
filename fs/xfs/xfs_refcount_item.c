@@ -421,25 +421,26 @@ const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
  * We need to update the refcountbt.
  */
 STATIC int
-xfs_cui_recover(
-	struct xfs_trans		*parent_tp,
-	struct xfs_cui_log_item		*cuip)
+xfs_cui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*parent_tp)
 {
-	int				i;
-	int				error = 0;
-	unsigned int			refc_type;
+	struct xfs_bmbt_irec		irec;
+	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
 	struct xfs_phys_extent		*refc;
-	xfs_fsblock_t			startblock_fsb;
-	bool				op_ok;
 	struct xfs_cud_log_item		*cudp;
 	struct xfs_trans		*tp;
 	struct xfs_btree_cur		*rcur = NULL;
-	enum xfs_refcount_intent_type	type;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
+	xfs_fsblock_t			startblock_fsb;
 	xfs_fsblock_t			new_fsb;
 	xfs_extlen_t			new_len;
-	struct xfs_bmbt_irec		irec;
+	unsigned int			refc_type;
+	bool				op_ok;
 	bool				requeue_only = false;
-	struct xfs_mount		*mp = parent_tp->t_mountp;
+	enum xfs_refcount_intent_type	type;
+	int				i;
+	int				error = 0;
 
 	ASSERT(!test_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags));
 
@@ -565,29 +566,6 @@ abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
-	return error;
-}
-
-/* Recover the CUI if necessary. */
-STATIC int
-xfs_cui_item_recover(
-	struct xfs_log_item		*lip,
-	struct xfs_trans		*tp)
-{
-	struct xfs_ail			*ailp = lip->li_ailp;
-	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
-	int				error;
-
-	/*
-	 * Skip CUIs that we've already processed.
-	 */
-	if (test_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags))
-		return 0;
-
-	spin_unlock(&ailp->ail_lock);
-	error = xfs_cui_recover(tp, cuip);
-	spin_lock(&ailp->ail_lock);
-
 	return error;
 }
 
