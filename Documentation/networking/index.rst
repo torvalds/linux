@@ -116,6 +116,7 @@ Contents:
    vrf
    vxlan
    x25-iface
+   x25
 
 .. only::  subproject and html
 

@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==================
 Linux X.25 Project
+==================
 
 As my third year dissertation at University I have taken it upon myself to
 write an X.25 implementation for Linux. My aim is to provide a complete X.25
