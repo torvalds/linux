@@ -981,6 +981,18 @@ config NET_ACT_CT
 	  To compile this code as a module, choose M here: the
 	  module will be called act_ct.
 
+config NET_ACT_GATE
+	tristate "Frame gate entry list control tc action"
+	depends on NET_CLS_ACT
+	help
+	  Say Y here to allow to control the ingress flow to be passed at
+	  specific time slot and be dropped at other specific time slot by
+	  the gate entry list.
+
+	  If unsure, say N.
+	  To compile this code as a module, choose M here: the
+	  module will be called act_gate.
+
 config NET_IFE_SKBMARK
 	tristate "Support to encoding decoding skb mark on IFE action"
 	depends on NET_ACT_IFE
