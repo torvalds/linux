@@ -40,6 +40,7 @@ Contents:
    freescale/dpaa
    freescale/gianfar
    intel/ipw2100
+   intel/ipw2200
 
 .. only::  subproject and html
 
