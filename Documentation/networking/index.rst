@@ -25,6 +25,7 @@ Contents:
    failover
    net_dim
    net_failover
+   page_pool
    phy
    sfp-phylink
    alias
