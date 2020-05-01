@@ -247,6 +247,9 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			int index;
 
 			index = mt7615_eeprom_get_power_index(dev, chan, j);
+			if (index < 0)
+				continue;
+
 			target_power = max(target_power, eep[index]);
 		}
 
