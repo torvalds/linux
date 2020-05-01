@@ -3442,8 +3442,12 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_queue_down_tx(mgr, txmsg);
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
-	if (ret > 0 && txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-		ret = -EIO;
+	if (ret > 0) {
+		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
+			ret = -EIO;
+		else
+			ret = size;
+	}
 
 	kfree(txmsg);
 fail_put:
