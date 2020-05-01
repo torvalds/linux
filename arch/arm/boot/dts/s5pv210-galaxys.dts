@@ -355,4 +355,8 @@
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4>;
 	pinctrl-names = "default";
 	status = "okay";
+
+	assigned-clocks = <&clocks MOUT_MMC0>, <&clocks SCLK_MMC0>;
+	assigned-clock-rates = <0>, <52000000>;
+	assigned-clock-parents = <&clocks MOUT_MPLL>;
 };
