@@ -120,6 +120,7 @@ Contents:
    xfrm_device
    xfrm_proc
    xfrm_sync
+   xfrm_sysctl
 
 .. only::  subproject and html
 
