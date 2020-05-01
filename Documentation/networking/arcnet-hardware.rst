@@ -1296,8 +1296,8 @@ DIP Switches:
 	11111           0xC400 (guessed - crashes tested system)
 	=============   ============================================
 
-CNet Technology Inc.
-====================
+CNet Technology Inc. (8-bit cards)
+==================================
 
 120 Series (8-bit cards)
 ------------------------
@@ -1520,8 +1520,8 @@ The jumpers labeled EXT1 and EXT2 are used to determine the timeout
 parameters. These two jumpers are normally left open.
 
 
-CNet Technology Inc.
-====================
+CNet Technology Inc. (16-bit cards)
+===================================
 
 160 Series (16-bit cards)
 -------------------------
