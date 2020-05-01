@@ -46,7 +46,18 @@ xlog_recover_buf_reorder(
 	return XLOG_REORDER_BUFFER_LIST;
 }
 
+STATIC void
+xlog_recover_buf_ra_pass2(
+	struct xlog                     *log,
+	struct xlog_recover_item        *item)
+{
+	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
+
+	xlog_buf_readahead(log, buf_f->blf_blkno, buf_f->blf_len, NULL);
+}
+
 const struct xlog_recover_item_ops xlog_buf_item_ops = {
 	.item_type		= XFS_LI_BUF,
 	.reorder		= xlog_recover_buf_reorder,
+	.ra_pass2		= xlog_recover_buf_ra_pass2,
 };

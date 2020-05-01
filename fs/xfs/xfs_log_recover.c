@@ -2023,7 +2023,7 @@ xlog_put_buffer_cancelled(
 	return true;
 }
 
-static void
+void
 xlog_buf_readahead(
 	struct xlog		*log,
 	xfs_daddr_t		blkno,
@@ -3890,96 +3890,6 @@ xlog_recover_do_icreate_pass2(
 				     length, be32_to_cpu(icl->icl_gen));
 }
 
-STATIC void
-xlog_recover_buffer_ra_pass2(
-	struct xlog                     *log,
-	struct xlog_recover_item        *item)
-{
-	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
-
-	xlog_buf_readahead(log, buf_f->blf_blkno, buf_f->blf_len, NULL);
-}
-
-STATIC void
-xlog_recover_inode_ra_pass2(
-	struct xlog                     *log,
-	struct xlog_recover_item        *item)
-{
-	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
-		struct xfs_inode_log_format	*ilfp = item->ri_buf[0].i_addr;
-
-		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
-				   &xfs_inode_buf_ra_ops);
-	} else {
-		struct xfs_inode_log_format_32	*ilfp = item->ri_buf[0].i_addr;
-
-		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
-				   &xfs_inode_buf_ra_ops);
-	}
-}
-
-STATIC void
-xlog_recover_dquot_ra_pass2(
-	struct xlog			*log,
-	struct xlog_recover_item	*item)
-{
-	struct xfs_mount	*mp = log->l_mp;
-	struct xfs_disk_dquot	*recddq;
-	struct xfs_dq_logformat	*dq_f;
-	uint			type;
-
-	if (mp->m_qflags == 0)
-		return;
-
-	recddq = item->ri_buf[1].i_addr;
-	if (recddq == NULL)
-		return;
-	if (item->ri_buf[1].i_len < sizeof(struct xfs_disk_dquot))
-		return;
-
-	type = recddq->d_flags & (XFS_DQ_USER | XFS_DQ_PROJ | XFS_DQ_GROUP);
-	ASSERT(type);
-	if (log->l_quotaoffs_flag & type)
-		return;
-
-	dq_f = item->ri_buf[0].i_addr;
-	ASSERT(dq_f);
-	ASSERT(dq_f->qlf_len == 1);
-
-	xlog_buf_readahead(log, dq_f->qlf_blkno,
-			XFS_FSB_TO_BB(mp, dq_f->qlf_len),
-			&xfs_dquot_buf_ra_ops);
-}
-
-STATIC void
-xlog_recover_ra_pass2(
-	struct xlog			*log,
-	struct xlog_recover_item	*item)
-{
-	switch (ITEM_TYPE(item)) {
-	case XFS_LI_BUF:
-		xlog_recover_buffer_ra_pass2(log, item);
-		break;
-	case XFS_LI_INODE:
-		xlog_recover_inode_ra_pass2(log, item);
-		break;
-	case XFS_LI_DQUOT:
-		xlog_recover_dquot_ra_pass2(log, item);
-		break;
-	case XFS_LI_EFI:
-	case XFS_LI_EFD:
-	case XFS_LI_QUOTAOFF:
-	case XFS_LI_RUI:
-	case XFS_LI_RUD:
-	case XFS_LI_CUI:
-	case XFS_LI_CUD:
-	case XFS_LI_BUI:
-	case XFS_LI_BUD:
-	default:
-		break;
-	}
-}
-
 STATIC int
 xlog_recover_commit_pass1(
 	struct xlog			*log,
@@ -4116,7 +4026,8 @@ xlog_recover_commit_trans(
 			error = xlog_recover_commit_pass1(log, trans, item);
 			break;
 		case XLOG_RECOVER_PASS2:
-			xlog_recover_ra_pass2(log, item);
+			if (item->ri_ops->ra_pass2)
+				item->ri_ops->ra_pass2(log, item);
 			list_move_tail(&item->ri_list, &ra_list);
 			items_queued++;
 			if (items_queued >= XLOG_RECOVER_COMMIT_QUEUE_MAX) {
