@@ -936,6 +936,13 @@ static void mt7615_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 
 	device_set_wakeup_enable(mdev->dev, enabled);
 }
+
+static void mt7615_set_rekey_data(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct cfg80211_gtk_rekey_data *data)
+{
+	mt7615_mcu_update_gtk_rekey(hw, vif, data);
+}
 #endif /* CONFIG_PM */
 
 const struct ieee80211_ops mt7615_ops = {
@@ -975,6 +982,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.suspend = mt7615_suspend,
 	.resume = mt7615_resume,
 	.set_wakeup = mt7615_set_wakeup,
+	.set_rekey_data = mt7615_set_rekey_data,
 #endif /* CONFIG_PM */
 };
 EXPORT_SYMBOL_GPL(mt7615_ops);

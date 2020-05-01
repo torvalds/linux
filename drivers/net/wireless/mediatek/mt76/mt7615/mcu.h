@@ -281,6 +281,7 @@ enum {
 	MCU_UNI_CMD_BSS_INFO_UPDATE = MCU_UNI_PREFIX | 0x02,
 	MCU_UNI_CMD_STA_REC_UPDATE = MCU_UNI_PREFIX | 0x03,
 	MCU_UNI_CMD_SUSPEND = MCU_UNI_PREFIX | 0x05,
+	MCU_UNI_CMD_OFFLOAD = MCU_UNI_PREFIX | 0x06,
 	MCU_UNI_CMD_HIF_CTRL = MCU_UNI_PREFIX | 0x07,
 };
 
@@ -469,6 +470,27 @@ struct mt7615_suspend_tlv {
 	u8 pad[5];
 } __packed;
 
+struct mt7615_gtk_rekey_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 kek[NL80211_KEK_LEN];
+	u8 kck[NL80211_KCK_LEN];
+	u8 replay_ctr[NL80211_REPLAY_CTR_LEN];
+	u8 rekey_mode; /* 0: rekey offload enable
+			* 1: rekey offload disable
+			* 2: rekey update
+			*/
+	u8 keyid;
+	u8 pad[2];
+	__le32 proto; /* WPA-RSN-WAPI-OPSN */
+	__le32 pairwise_cipher;
+	__le32 group_cipher;
+	__le32 key_mgmt; /* NONE-PSK-IEEE802.1X */
+	__le32 mgmt_group_cipher;
+	u8 option; /* 1: rekey data update without enabling offload */
+	u8 reserverd[3];
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
@@ -499,6 +521,13 @@ enum {
 	UNI_SUSPEND_WOW_GPIO_PARAM,
 	UNI_SUSPEND_WOW_WAKEUP_PORT,
 	UNI_SUSPEND_WOW_PATTERN,
+};
+
+enum {
+	UNI_OFFLOAD_OFFLOAD_ARPNS_IPV4,
+	UNI_OFFLOAD_OFFLOAD_ARPNS_IPV6,
+	UNI_OFFLOAD_OFFLOAD_GTK_REKEY,
+	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
 };
 
 enum {

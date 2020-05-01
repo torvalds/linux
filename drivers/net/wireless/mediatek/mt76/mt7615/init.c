@@ -145,6 +145,7 @@ void mt7615_check_offload_capability(struct mt7615_dev *dev)
 		dev->ops->cancel_hw_scan = NULL;
 		dev->ops->sched_scan_start = NULL;
 		dev->ops->sched_scan_stop = NULL;
+		dev->ops->set_rekey_data = NULL;
 
 		wiphy->max_sched_scan_plan_interval = 0;
 		wiphy->max_sched_scan_ie_len = 0;
