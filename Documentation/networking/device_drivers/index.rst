@@ -42,6 +42,7 @@ Contents:
    intel/ipw2100
    intel/ipw2200
    microsoft/netvsc
+   neterion/s2io
 
 .. only::  subproject and html
 

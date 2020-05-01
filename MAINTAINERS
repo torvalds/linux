@@ -11656,7 +11656,7 @@ NETERION 10GbE DRIVERS (s2io/vxge)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/neterion/s2io.txt
+F:	Documentation/networking/device_drivers/neterion/s2io.rst
 F:	Documentation/networking/device_drivers/neterion/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
