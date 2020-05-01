@@ -61,6 +61,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
+	iovad->best_fit = false;
 	init_iova_rcaches(iovad);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
@@ -186,6 +187,24 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+#ifdef CONFIG_ARM64_DMA_IOMMU_ALIGNMENT
+static unsigned long limit_align(struct iova_domain *iovad,
+					unsigned long shift)
+{
+	unsigned long max;
+
+	max = CONFIG_ARM64_DMA_IOMMU_ALIGNMENT + PAGE_SHIFT
+		- iova_shift(iovad);
+	return min(shift, max);
+}
+#else
+static unsigned long limit_align(struct iova_domain *iovad,
+					unsigned long shift)
+{
+	return shift;
+}
+#endif
+
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
@@ -197,7 +216,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long align_mask = ~0UL;
 
 	if (size_aligned)
-		align_mask <<= fls_long(size - 1);
+		align_mask <<= limit_align(iovad, fls_long(size - 1));
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
@@ -227,6 +246,69 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 
 
+	return 0;
+}
+
+static int __alloc_and_insert_iova_best_fit(struct iova_domain *iovad,
+		unsigned long size, unsigned long limit_pfn,
+			struct iova *new, bool size_aligned)
+{
+	struct rb_node *curr, *prev;
+	struct iova *curr_iova, *prev_iova;
+	unsigned long flags;
+	unsigned long align_mask = ~0UL;
+	struct rb_node *candidate_rb_parent;
+	unsigned long new_pfn, candidate_pfn = ~0UL;
+	unsigned long gap, candidate_gap = ~0UL;
+
+	if (size_aligned)
+		align_mask <<= limit_align(iovad, fls_long(size - 1));
+
+	/* Walk the tree backwards */
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	curr = &iovad->anchor.node;
+	prev = rb_prev(curr);
+	for (; prev; curr = prev, prev = rb_prev(curr)) {
+		curr_iova = rb_entry(curr, struct iova, node);
+		prev_iova = rb_entry(prev, struct iova, node);
+
+		limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
+		new_pfn = (limit_pfn - size) & align_mask;
+		gap = curr_iova->pfn_lo - prev_iova->pfn_hi - 1;
+		if ((limit_pfn >= size) && (new_pfn > prev_iova->pfn_hi)
+				&& (gap < candidate_gap)) {
+			candidate_gap = gap;
+			candidate_pfn = new_pfn;
+			candidate_rb_parent = curr;
+			if (gap == size)
+				goto insert;
+		}
+	}
+
+	curr_iova = rb_entry(curr, struct iova, node);
+	limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
+	new_pfn = (limit_pfn - size) & align_mask;
+	gap = curr_iova->pfn_lo - iovad->start_pfn;
+	if (limit_pfn >= size && new_pfn >= iovad->start_pfn &&
+			gap < candidate_gap) {
+		candidate_gap = gap;
+		candidate_pfn = new_pfn;
+		candidate_rb_parent = curr;
+	}
+
+insert:
+	if (candidate_pfn == ~0UL) {
+		spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+		return -ENOMEM;
+	}
+
+	/* pfn_lo will point to size aligned address if size_aligned is set */
+	new->pfn_lo = candidate_pfn;
+	new->pfn_hi = new->pfn_lo + size - 1;
+
+	/* If we have 'prev', it's a valid place to start the insertion. */
+	iova_insert_rbtree(&iovad->rbroot, new, candidate_rb_parent);
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return 0;
 }
 
@@ -305,8 +387,13 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	if (!new_iova)
 		return NULL;
 
-	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
-			new_iova, size_aligned);
+	if (iovad->best_fit) {
+		ret = __alloc_and_insert_iova_best_fit(iovad, size,
+				limit_pfn + 1, new_iova, size_aligned);
+	} else {
+		ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
+				new_iova, size_aligned);
+	}
 
 	if (ret) {
 		free_iova_mem(new_iova);
