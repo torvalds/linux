@@ -1217,10 +1217,9 @@ int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 		mlx5_register_device(dev);
 
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
-out:
-	mutex_unlock(&dev->intf_state_mutex);
 
-	return err;
+	mutex_unlock(&dev->intf_state_mutex);
+	return 0;
 
 err_devlink_reg:
 	mlx5_unload(dev);
@@ -1230,8 +1229,8 @@ err_load:
 function_teardown:
 	mlx5_function_teardown(dev, boot);
 	dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
+out:
 	mutex_unlock(&dev->intf_state_mutex);
-
 	return err;
 }
 
