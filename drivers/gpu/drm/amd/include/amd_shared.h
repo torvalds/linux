@@ -150,6 +150,13 @@ enum DC_FEATURE_MASK {
 	DC_PSR_MASK = 0x8,
 };
 
+enum DC_DEBUG_MASK {
+	DC_DISABLE_PIPE_SPLIT = 0x1,
+	DC_DISABLE_STUTTER = 0x2,
+	DC_DISABLE_DSC = 0x4,
+	DC_DISABLE_CLOCK_GATING = 0x8
+};
+
 enum amd_dpm_forced_level;
 /**
  * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
