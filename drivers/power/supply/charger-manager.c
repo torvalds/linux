@@ -1729,7 +1729,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	memcpy(properties, default_charger_props,
 		sizeof(enum power_supply_property) *
 		ARRAY_SIZE(default_charger_props));
-	num_properties = psy_default.num_properties;
+	num_properties = ARRAY_SIZE(default_charger_props);
 
 	/* Find which optional psy-properties are available */
 	fuel_gauge = power_supply_get_by_name(desc->psy_fuel_gauge);
