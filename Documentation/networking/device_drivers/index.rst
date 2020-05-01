@@ -48,6 +48,7 @@ Contents:
    sb1000
    smsc/smc9
    ti/cpsw_switchdev
+   ti/cpsw
 
 .. only::  subproject and html
 
