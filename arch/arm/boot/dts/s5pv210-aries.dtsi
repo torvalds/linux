@@ -13,10 +13,13 @@
 
 	aliases {
 		i2c4 = &i2c_sound;
+		i2c5 = &i2c_accel;
 		i2c6 = &i2c_pmic;
 		i2c7 = &i2c_musb;
 		i2c9 = &i2c_fuel;
 		i2c10 = &i2c_touchkey;
+		i2c11 = &i2c_prox;
+		i2c12 = &i2c_magnetometer;
 	};
 
 	memory@30000000 {
@@ -118,6 +121,22 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&codec_ldo>;
 		};
+	};
+
+	i2c_accel: i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpj3 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpj3 7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_i2c_pins>;
+
+		status = "disabled";
+
+		/* bma023 accelerometer, no mainline binding */
 	};
 
 	i2c_pmic: i2c-gpio-2 {
@@ -435,6 +454,38 @@
 		};
 	};
 
+	i2c_prox: i2c-gpio-6 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpg2 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpg0 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&prox_i2c_pins>;
+
+		status = "disabled";
+
+		/* Sharp gp2a prox/light sensor, incomplete mainline binding */
+	};
+
+	i2c_magnetometer: i2c-gpio-7 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpj0 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpj0 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&magnetometer_i2c_pins>;
+
+		status = "disabled";
+
+		/* Yamaha yas529 magnetometer, no mainline binding */
+	};
+
 	vibrator: pwm-vibrator {
 		compatible = "pwm-vibrator";
 		pwms = <&pwm 1 44642 0>;
@@ -546,6 +597,12 @@
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
+	prox_i2c_pins: gp2a-i2c-pins {
+		samsung,pins = "gpg0-2", "gpg2-2";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	wlan_gpio_rst: wlan-gpio-rst {
 		samsung,pins = "gpg1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
@@ -586,6 +643,12 @@
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
+	magnetometer_i2c_pins: yas529-i2c-pins {
+		samsung,pins = "gpj0-0", "gpj0-1";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	ts_irq: ts-irq {
 		samsung,pins = "gpj0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
@@ -607,6 +670,12 @@
 
 	musb_i2c_pins: musb-i2c-pins {
 		samsung,pins = "gpj3-4", "gpj3-5";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	accel_i2c_pins: accel-i2c-pins {
+		samsung,pins = "gpj3-6", "gpj3-7";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
