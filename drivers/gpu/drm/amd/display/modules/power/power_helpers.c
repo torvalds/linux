@@ -27,6 +27,7 @@
 #include "dc/inc/hw/abm.h"
 #include "dc.h"
 #include "core_types.h"
+#include "dmub_cmd_dal.h"
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \
@@ -658,17 +659,55 @@ void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 bool dmub_init_abm_config(struct abm *abm,
 	struct dmcu_iram_parameters params)
 {
-	unsigned char ram_table[IRAM_SIZE];
+	struct iram_table_v_2_2 ram_table;
+	struct abm_config_table config;
 	bool result = false;
+	uint32_t i, j = 0;
 
 	if (abm == NULL)
 		return false;
 
 	memset(&ram_table, 0, sizeof(ram_table));
+	memset(&config, 0, sizeof(config));
 
-	fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, false);
+	fill_iram_v_2_3(&ram_table, params, false);
+
+	// We must copy to structure that is aligned to 32-bit
+	for (i = 0; i < NUM_POWER_FN_SEGS; i++) {
+		config.crgb_thresh[i] = ram_table.crgb_thresh[i];
+		config.crgb_offset[i] = ram_table.crgb_offset[i];
+		config.crgb_slope[i] = ram_table.crgb_slope[i];
+	}
+
+	for (i = 0; i < NUM_BL_CURVE_SEGS; i++) {
+		config.backlight_thresholds[i] = ram_table.backlight_thresholds[i];
+		config.backlight_offsets[i] = ram_table.backlight_offsets[i];
+	}
+
+	for (i = 0; i < NUM_AMBI_LEVEL; i++)
+		config.iir_curve[i] = ram_table.iir_curve[i];
+
+	for (i = 0; i < NUM_AMBI_LEVEL; i++) {
+		for (j = 0; j < NUM_AGGR_LEVEL; j++) {
+			config.min_reduction[i][j] = ram_table.min_reduction[i][j];
+			config.max_reduction[i][j] = ram_table.max_reduction[i][j];
+			config.bright_pos_gain[i][j] = ram_table.bright_pos_gain[i][j];
+			config.dark_pos_gain[i][j] = ram_table.dark_pos_gain[i][j];
+		}
+	}
+
+	for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+		config.hybrid_factor[i] = ram_table.hybrid_factor[i];
+		config.contrast_factor[i] = ram_table.contrast_factor[i];
+		config.deviation_gain[i] = ram_table.deviation_gain[i];
+		config.min_knee[i] = ram_table.min_knee[i];
+		config.max_knee[i] = ram_table.max_knee[i];
+	}
+
+	config.min_abm_backlight = ram_table.min_abm_backlight;
+
 	result = abm->funcs->init_abm_config(
-		abm, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+		abm, (char *)(&config), sizeof(struct abm_config_table));
 
 	return result;
 }
