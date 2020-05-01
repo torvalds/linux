@@ -1751,7 +1751,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 
 	atomisp_msi_irq_init(isp, dev);
 
-	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	/*
 	 * for MRFLD, Software/firmware needs to write a 1 to bit 0 of
