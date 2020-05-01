@@ -1385,7 +1385,16 @@ static struct rt6_info *ip6_rt_pcpu_alloc(const struct fib6_result *res)
 	}
 	ip6_rt_copy_init(pcpu_rt, res);
 	pcpu_rt->rt6i_flags |= RTF_PCPU;
+
+	if (f6i->nh)
+		pcpu_rt->sernum = rt_genid_ipv6(dev_net(dev));
+
 	return pcpu_rt;
+}
+
+static bool rt6_is_valid(const struct rt6_info *rt6)
+{
+	return rt6->sernum == rt_genid_ipv6(dev_net(rt6->dst.dev));
 }
 
 /* It should be called with rcu_read_lock() acquired */
@@ -1394,6 +1403,19 @@ static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 	struct rt6_info *pcpu_rt;
 
 	pcpu_rt = this_cpu_read(*res->nh->rt6i_pcpu);
+
+	if (pcpu_rt && pcpu_rt->sernum && !rt6_is_valid(pcpu_rt)) {
+		struct rt6_info *prev, **p;
+
+		p = this_cpu_ptr(res->nh->rt6i_pcpu);
+		prev = xchg(p, NULL);
+		if (prev) {
+			dst_dev_put(&prev->dst);
+			dst_release(&prev->dst);
+		}
+
+		pcpu_rt = NULL;
+	}
 
 	return pcpu_rt;
 }
@@ -2592,6 +2614,9 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 	struct rt6_info *rt;
 
 	rt = container_of(dst, struct rt6_info, dst);
+
+	if (rt->sernum)
+		return rt6_is_valid(rt) ? dst : NULL;
 
 	rcu_read_lock();
 
