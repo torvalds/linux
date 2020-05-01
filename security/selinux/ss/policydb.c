@@ -2540,6 +2540,7 @@ int policydb_read(struct policydb *p, void *fp)
 		goto bad;
 	nel = le32_to_cpu(buf[0]);
 
+	rc = -ENOMEM;
 	p->role_tr = hashtab_create(role_trans_hash, role_trans_cmp, nel);
 	if (!p->role_tr)
 		goto bad;
