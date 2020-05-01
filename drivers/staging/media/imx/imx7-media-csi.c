@@ -169,8 +169,6 @@ struct imx7_csi {
 
 	struct media_entity *sink;
 
-	struct v4l2_fwnode_endpoint upstream_ep;
-
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
 	struct v4l2_fract frame_interval[IMX7_CSI_PADS_NUM];
@@ -435,61 +433,6 @@ static void imx7_csi_deinit(struct imx7_csi *csi)
 	csi->is_init = false;
 }
 
-static int imx7_csi_get_upstream_endpoint(struct imx7_csi *csi,
-					  struct v4l2_fwnode_endpoint *ep,
-					  bool skip_mux)
-{
-	struct device_node *endpoint, *port;
-	struct media_entity *src;
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-
-	if (!csi->src_sd)
-		return -EPIPE;
-
-	src = &csi->src_sd->entity;
-
-	/*
-	 * if the source is neither a mux or csi2 get the one directly upstream
-	 * from this csi
-	 */
-	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
-	    src->function != MEDIA_ENT_F_VID_MUX)
-		src = &csi->sd.entity;
-
-skip_video_mux:
-	/* get source pad of entity directly upstream from src */
-	pad = imx_media_pipeline_pad(src, 0, 0, true);
-	if (!pad)
-		return -ENODEV;
-
-	sd = media_entity_to_v4l2_subdev(pad->entity);
-
-	/* To get bus type we may need to skip video mux */
-	if (skip_mux && src->function == MEDIA_ENT_F_VID_MUX) {
-		src = &sd->entity;
-		goto skip_video_mux;
-	}
-
-	/*
-	 * NOTE: this assumes an OF-graph port id is the same as a
-	 * media pad index.
-	 */
-	port = of_graph_get_port_by_id(sd->dev->of_node, pad->index);
-	if (!port)
-		return -ENODEV;
-
-	endpoint = of_get_next_child(port, NULL);
-	of_node_put(port);
-	if (!endpoint)
-		return -ENODEV;
-
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), ep);
-	of_node_put(endpoint);
-
-	return 0;
-}
-
 static int imx7_csi_link_setup(struct media_entity *entity,
 			       const struct media_pad *local,
 			       const struct media_pad *remote, u32 flags)
@@ -556,23 +499,27 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep = {};
+	struct media_pad *pad;
 	int ret;
 
 	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
 	if (ret)
 		return ret;
 
-	ret = imx7_csi_get_upstream_endpoint(csi, &upstream_ep, true);
-	if (ret) {
-		v4l2_err(&csi->sd, "failed to find upstream endpoint\n");
-		return ret;
-	}
+	if (!csi->src_sd)
+		return -EPIPE;
+
+	/*
+	 * find the entity that is selected by the CSI mux. This is needed
+	 * to distinguish between a parallel or CSI-2 pipeline.
+	 */
+	pad = imx_media_pipeline_pad(&csi->src_sd->entity, 0, 0, true);
+	if (!pad)
+		return -ENODEV;
 
 	mutex_lock(&csi->lock);
 
-	csi->upstream_ep = upstream_ep;
-	csi->is_csi2 = (upstream_ep.bus_type == V4L2_MBUS_CSI2_DPHY);
+	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
 
 	mutex_unlock(&csi->lock);
 
