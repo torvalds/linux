@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/bitfield.h>
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
@@ -229,10 +230,13 @@ enum rtl_registers {
 	CPlusCmd	= 0xe0,
 	IntrMitigate	= 0xe2,
 
-#define RTL_COALESCE_MASK	0x0f
-#define RTL_COALESCE_SHIFT	4
-#define RTL_COALESCE_T_MAX	(RTL_COALESCE_MASK)
-#define RTL_COALESCE_FRAME_MAX	(RTL_COALESCE_MASK << 2)
+#define RTL_COALESCE_TX_USECS	GENMASK(15, 12)
+#define RTL_COALESCE_TX_FRAMES	GENMASK(11, 8)
+#define RTL_COALESCE_RX_USECS	GENMASK(7, 4)
+#define RTL_COALESCE_RX_FRAMES	GENMASK(3, 0)
+
+#define RTL_COALESCE_T_MAX	0x0fU
+#define RTL_COALESCE_FRAME_MAX	(RTL_COALESCE_T_MAX * 4)
 
 	RxDescAddrLow	= 0xe4,
 	RxDescAddrHigh	= 0xe8,
@@ -1768,46 +1772,34 @@ static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
  * 1 1                     160us           81.92us         1.31ms
  */
 
-/* rx/tx scale factors for one particular CPlusCmd[0:1] value */
-struct rtl_coalesce_scale {
-	/* Rx / Tx */
-	u32 nsecs[2];
-};
-
 /* rx/tx scale factors for all CPlusCmd[0:1] cases */
 struct rtl_coalesce_info {
 	u32 speed;
-	struct rtl_coalesce_scale scalev[4];	/* each CPlusCmd[0:1] case */
+	u32 scale_nsecs[4];
 };
 
-/* produce (r,t) pairs with each being in series of *1, *8, *8*2, *8*2*2 */
-#define rxtx_x1822(r, t) {		\
-	{{(r),		(t)}},		\
-	{{(r)*8,	(t)*8}},	\
-	{{(r)*8*2,	(t)*8*2}},	\
-	{{(r)*8*2*2,	(t)*8*2*2}},	\
-}
+/* produce array with base delay *1, *8, *8*2, *8*2*2 */
+#define COALESCE_DELAY(d) { (d), 8 * (d), 16 * (d), 32 * (d) }
+
 static const struct rtl_coalesce_info rtl_coalesce_info_8169[] = {
-	/* speed	delays:     rx00   tx00	*/
-	{ SPEED_10,	rxtx_x1822(40960, 40960)	},
-	{ SPEED_100,	rxtx_x1822( 2560,  2560)	},
-	{ SPEED_1000,	rxtx_x1822(  320,   320)	},
+	{ SPEED_10,	COALESCE_DELAY(40960) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_1000,	COALESCE_DELAY(320) },
 	{ 0 },
 };
 
 static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
-	/* speed	delays:     rx00   tx00	*/
-	{ SPEED_10,	rxtx_x1822(40960, 40960)	},
-	{ SPEED_100,	rxtx_x1822( 2560,  2560)	},
-	{ SPEED_1000,	rxtx_x1822( 5000,  5000)	},
+	{ SPEED_10,	COALESCE_DELAY(40960) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_1000,	COALESCE_DELAY(5000) },
 	{ 0 },
 };
-#undef rxtx_x1822
+#undef COALESCE_DELAY
 
 /* get rx/tx scale vector corresponding to current speed */
-static const struct rtl_coalesce_info *rtl_coalesce_info(struct net_device *dev)
+static const struct rtl_coalesce_info *
+rtl_coalesce_info(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
 	const struct rtl_coalesce_info *ci;
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
@@ -1827,16 +1819,8 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	const struct rtl_coalesce_info *ci;
-	const struct rtl_coalesce_scale *scale;
-	struct {
-		u32 *max_frames;
-		u32 *usecs;
-	} coal_settings [] = {
-		{ &ec->rx_max_coalesced_frames, &ec->rx_coalesce_usecs },
-		{ &ec->tx_max_coalesced_frames, &ec->tx_coalesce_usecs }
-	}, *p = coal_settings;
-	int i;
-	u16 w;
+	u32 scale, c_us, c_fr;
+	u16 intrmit;
 
 	if (rtl_is_8125(tp))
 		return -EOPNOTSUPP;
@@ -1844,111 +1828,102 @@ static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	memset(ec, 0, sizeof(*ec));
 
 	/* get rx/tx scale corresponding to current speed and CPlusCmd[0:1] */
-	ci = rtl_coalesce_info(dev);
+	ci = rtl_coalesce_info(tp);
 	if (IS_ERR(ci))
 		return PTR_ERR(ci);
 
-	scale = &ci->scalev[tp->cp_cmd & INTT_MASK];
+	scale = ci->scale_nsecs[tp->cp_cmd & INTT_MASK];
 
-	/* read IntrMitigate and adjust according to scale */
-	for (w = RTL_R16(tp, IntrMitigate); w; w >>= RTL_COALESCE_SHIFT, p++) {
-		*p->max_frames = (w & RTL_COALESCE_MASK) << 2;
-		w >>= RTL_COALESCE_SHIFT;
-		*p->usecs = w & RTL_COALESCE_MASK;
-	}
+	intrmit = RTL_R16(tp, IntrMitigate);
 
-	for (i = 0; i < 2; i++) {
-		p = coal_settings + i;
-		*p->usecs = (*p->usecs * scale->nsecs[i]) / 1000;
+	c_us = FIELD_GET(RTL_COALESCE_TX_USECS, intrmit);
+	ec->tx_coalesce_usecs = DIV_ROUND_UP(c_us * scale, 1000);
 
-		/*
-		 * ethtool_coalesce says it is illegal to set both usecs and
-		 * max_frames to 0.
-		 */
-		if (!*p->usecs && !*p->max_frames)
-			*p->max_frames = 1;
-	}
+	c_fr = FIELD_GET(RTL_COALESCE_TX_FRAMES, intrmit);
+	/* ethtool_coalesce states usecs and max_frames must not both be 0 */
+	ec->tx_max_coalesced_frames = (c_us || c_fr) ? c_fr * 4 : 1;
+
+	c_us = FIELD_GET(RTL_COALESCE_RX_USECS, intrmit);
+	ec->rx_coalesce_usecs = DIV_ROUND_UP(c_us * scale, 1000);
+
+	c_fr = FIELD_GET(RTL_COALESCE_RX_FRAMES, intrmit);
+	ec->rx_max_coalesced_frames = (c_us || c_fr) ? c_fr * 4 : 1;
 
 	return 0;
 }
 
-/* choose appropriate scale factor and CPlusCmd[0:1] for (speed, nsec) */
-static const struct rtl_coalesce_scale *rtl_coalesce_choose_scale(
-			struct net_device *dev, u32 nsec, u16 *cp01)
+/* choose appropriate scale factor and CPlusCmd[0:1] for (speed, usec) */
+static int rtl_coalesce_choose_scale(struct rtl8169_private *tp, u32 usec,
+				     u16 *cp01)
 {
 	const struct rtl_coalesce_info *ci;
 	u16 i;
 
-	ci = rtl_coalesce_info(dev);
+	ci = rtl_coalesce_info(tp);
 	if (IS_ERR(ci))
-		return ERR_CAST(ci);
+		return PTR_ERR(ci);
 
 	for (i = 0; i < 4; i++) {
-		u32 rxtx_maxscale = max(ci->scalev[i].nsecs[0],
-					ci->scalev[i].nsecs[1]);
-		if (nsec <= rxtx_maxscale * RTL_COALESCE_T_MAX) {
+		if (usec <= ci->scale_nsecs[i] * RTL_COALESCE_T_MAX / 1000U) {
 			*cp01 = i;
-			return &ci->scalev[i];
+			return ci->scale_nsecs[i];
 		}
 	}
 
-	return ERR_PTR(-EINVAL);
+	return -ERANGE;
 }
 
 static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	const struct rtl_coalesce_scale *scale;
-	struct {
-		u32 frames;
-		u32 usecs;
-	} coal_settings [] = {
-		{ ec->rx_max_coalesced_frames, ec->rx_coalesce_usecs },
-		{ ec->tx_max_coalesced_frames, ec->tx_coalesce_usecs }
-	}, *p = coal_settings;
-	u16 w = 0, cp01;
-	int i;
+	u32 tx_fr = ec->tx_max_coalesced_frames;
+	u32 rx_fr = ec->rx_max_coalesced_frames;
+	u32 coal_usec_max, units;
+	u16 w = 0, cp01 = 0;
+	int scale;
 
 	if (rtl_is_8125(tp))
 		return -EOPNOTSUPP;
 
-	scale = rtl_coalesce_choose_scale(dev,
-			max(p[0].usecs, p[1].usecs) * 1000, &cp01);
-	if (IS_ERR(scale))
-		return PTR_ERR(scale);
+	if (rx_fr > RTL_COALESCE_FRAME_MAX || tx_fr > RTL_COALESCE_FRAME_MAX)
+		return -ERANGE;
 
-	for (i = 0; i < 2; i++, p++) {
-		u32 units;
+	coal_usec_max = max(ec->rx_coalesce_usecs, ec->tx_coalesce_usecs);
+	scale = rtl_coalesce_choose_scale(tp, coal_usec_max, &cp01);
+	if (scale < 0)
+		return scale;
 
-		/*
-		 * accept max_frames=1 we returned in rtl_get_coalesce.
-		 * accept it not only when usecs=0 because of e.g. the following scenario:
-		 *
-		 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
-		 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
-		 * - then user does `ethtool -C eth0 rx-usecs 100`
-		 *
-		 * since ethtool sends to kernel whole ethtool_coalesce
-		 * settings, if we do not handle rx_usecs=!0, rx_frames=1
-		 * we'll reject it below in `frames % 4 != 0`.
-		 */
-		if (p->frames == 1) {
-			p->frames = 0;
-		}
+	/* Accept max_frames=1 we returned in rtl_get_coalesce. Accept it
+	 * not only when usecs=0 because of e.g. the following scenario:
+	 *
+	 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
+	 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
+	 * - then user does `ethtool -C eth0 rx-usecs 100`
+	 *
+	 * Since ethtool sends to kernel whole ethtool_coalesce settings,
+	 * if we want to ignore rx_frames then it has to be set to 0.
+	 */
+	if (rx_fr == 1)
+		rx_fr = 0;
+	if (tx_fr == 1)
+		tx_fr = 0;
 
-		units = p->usecs * 1000 / scale->nsecs[i];
-		if (p->frames > RTL_COALESCE_FRAME_MAX || p->frames % 4)
-			return -EINVAL;
+	/* HW requires time limit to be set if frame limit is set */
+	if ((tx_fr && !ec->tx_coalesce_usecs) ||
+	    (rx_fr && !ec->rx_coalesce_usecs))
+		return -EINVAL;
 
-		w <<= RTL_COALESCE_SHIFT;
-		w |= units;
-		w <<= RTL_COALESCE_SHIFT;
-		w |= p->frames >> 2;
-	}
+	w |= FIELD_PREP(RTL_COALESCE_TX_FRAMES, DIV_ROUND_UP(tx_fr, 4));
+	w |= FIELD_PREP(RTL_COALESCE_RX_FRAMES, DIV_ROUND_UP(rx_fr, 4));
+
+	units = DIV_ROUND_UP(ec->tx_coalesce_usecs * 1000U, scale);
+	w |= FIELD_PREP(RTL_COALESCE_TX_USECS, units);
+	units = DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000U, scale);
+	w |= FIELD_PREP(RTL_COALESCE_RX_USECS, units);
 
 	rtl_lock_work(tp);
 
-	RTL_W16(tp, IntrMitigate, swab16(w));
+	RTL_W16(tp, IntrMitigate, w);
 
 	tp->cp_cmd = (tp->cp_cmd & ~INTT_MASK) | cp01;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
