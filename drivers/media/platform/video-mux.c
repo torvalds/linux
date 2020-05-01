@@ -97,6 +97,7 @@ out:
 static const struct media_entity_operations video_mux_ops = {
 	.link_setup = video_mux_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
 static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
