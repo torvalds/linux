@@ -1127,6 +1127,22 @@ free_table:
 	return rc;
 }
 
+/* register a new rmb on IB device */
+int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
+{
+	if (list_empty(&link->lgr->list))
+		return -ENOLINK;
+	if (!rmb_desc->is_reg_mr[link->link_idx]) {
+		/* register memory region for new rmb */
+		if (smc_wr_reg_send(link, rmb_desc->mr_rx[link->link_idx])) {
+			rmb_desc->is_reg_err = true;
+			return -EFAULT;
+		}
+		rmb_desc->is_reg_mr[link->link_idx] = true;
+	}
+	return 0;
+}
+
 static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
 						bool is_rmb, int bufsize)
 {
