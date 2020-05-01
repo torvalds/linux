@@ -130,14 +130,15 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
-	u8 tx_mask;
+	u8 tx_mask, max_nss;
 
 	mt7615_eeprom_parse_hw_band_cap(dev);
 
 	if (is_mt7663(&dev->mt76)) {
-		tx_mask = 2;
+		max_nss = 2;
+		tx_mask = FIELD_GET(MT_EE_HW_CONF1_TX_MASK,
+				    eeprom[MT7663_EE_HW_CONF1]);
 	} else {
-		u8 max_nss;
 		u32 val;
 
 		/* read tx-rx mask from eeprom */
@@ -146,9 +147,9 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 
 		tx_mask =  FIELD_GET(MT_EE_NIC_CONF_TX_MASK,
 				     eeprom[MT_EE_NIC_CONF_0]);
-		if (!tx_mask || tx_mask > max_nss)
-			tx_mask = max_nss;
 	}
+	if (!tx_mask || tx_mask > max_nss)
+		tx_mask = max_nss;
 
 	dev->chainmask = BIT(tx_mask) - 1;
 	dev->mphy.antenna_mask = dev->chainmask;
