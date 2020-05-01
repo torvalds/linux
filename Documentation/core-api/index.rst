@@ -98,6 +98,7 @@ Interfaces for kernel debugging
 
    debug-objects
    tracepoint
+   debugging-via-ohci1394
 
 Everything else
 ===============
