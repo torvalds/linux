@@ -165,7 +165,6 @@ static int csi_get_upstream_endpoint(struct csi_priv *priv,
 				     struct v4l2_fwnode_endpoint *ep)
 {
 	struct device_node *endpoint, *port;
-	struct media_entity *src;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
 
@@ -176,30 +175,33 @@ static int csi_get_upstream_endpoint(struct csi_priv *priv,
 		return -EPIPE;
 
 	sd = priv->src_sd;
-	src = &sd->entity;
 
-	if (src->function == MEDIA_ENT_F_VID_MUX) {
+	switch (sd->grp_id) {
+	case IMX_MEDIA_GRP_ID_CSI_MUX:
 		/*
-		 * CSI is connected directly to video mux, skip up to
+		 * CSI is connected directly to CSI mux, skip up to
 		 * CSI-2 receiver if it is in the path, otherwise stay
-		 * with video mux.
+		 * with the CSI mux.
 		 */
-		sd = imx_media_pipeline_subdev(src, IMX_MEDIA_GRP_ID_CSI2,
+		sd = imx_media_pipeline_subdev(&sd->entity,
+					       IMX_MEDIA_GRP_ID_CSI2,
 					       true);
-		if (!IS_ERR(sd))
-			src = &sd->entity;
+		if (IS_ERR(sd))
+			sd = priv->src_sd;
+		break;
+	case IMX_MEDIA_GRP_ID_CSI2:
+		break;
+	default:
+		/*
+		 * the source is neither the CSI mux nor the CSI-2 receiver,
+		 * get the source pad directly upstream from CSI itself.
+		 */
+		sd = &priv->sd;
+		break;
 	}
 
-	/*
-	 * If the source is neither the video mux nor the CSI-2 receiver,
-	 * get the source pad directly upstream from CSI itself.
-	 */
-	if (src->function != MEDIA_ENT_F_VID_MUX &&
-	    sd->grp_id != IMX_MEDIA_GRP_ID_CSI2)
-		src = &priv->sd.entity;
-
-	/* get source pad of entity directly upstream from src */
-	pad = imx_media_pipeline_pad(src, 0, 0, true);
+	/* get source pad of entity directly upstream from sd */
+	pad = imx_media_pipeline_pad(&sd->entity, 0, 0, true);
 	if (!pad)
 		return -ENODEV;
 
@@ -1905,6 +1907,13 @@ static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
 {
 	struct csi_priv *priv = notifier_to_dev(notifier);
 	struct media_pad *sink = &priv->sd.entity.pads[CSI_SINK_PAD];
+
+	/*
+	 * If the subdev is a video mux, it must be one of the CSI
+	 * muxes. Mark it as such via its group id.
+	 */
+	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
+		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
 
 	return v4l2_create_fwnode_links_to_pad(sd, sink);
 }

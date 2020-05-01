@@ -311,5 +311,6 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRP    BIT(13)
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRPENC BIT(14)
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRPVF  BIT(15)
+#define IMX_MEDIA_GRP_ID_CSI_MUX       BIT(16)
 
 #endif
