@@ -906,6 +906,7 @@ static const struct v4l2_subdev_core_ops mipi_csis_core_ops = {
 static const struct media_entity_operations mipi_csis_entity_ops = {
 	.link_setup	= mipi_csis_link_setup,
 	.link_validate	= v4l2_subdev_link_validate,
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
 static const struct v4l2_subdev_video_ops mipi_csis_video_ops = {
