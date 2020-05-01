@@ -89,6 +89,11 @@
 #define CS_NAND_ECC_CLRECC	(1<<1)
 #define CS_NAND_ECC_ENECC	(1<<0)
 
+struct cs553x_nand_controller {
+	struct nand_controller base;
+	struct nand_chip chip;
+};
+
 static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	while (unlikely(len > 0x800)) {
@@ -166,10 +171,11 @@ static int cs_calculate_ecc(struct nand_chip *this, const u_char *dat,
 	return 0;
 }
 
-static struct mtd_info *cs553x_mtd[4];
+static struct cs553x_nand_controller *controllers[4];
 
 static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 {
+	struct cs553x_nand_controller *controller;
 	int err = 0;
 	struct nand_chip *this;
 	struct mtd_info *new_mtd;
@@ -183,12 +189,15 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	}
 
 	/* Allocate memory for MTD device structure and private data */
-	this = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
-	if (!this) {
+	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
+	if (!controller) {
 		err = -ENOMEM;
 		goto out;
 	}
 
+	this = &controller->chip;
+	nand_controller_init(&controller->base);
+	this->controller = &controller->base;
 	new_mtd = nand_to_mtd(this);
 
 	/* Link the private data with the MTD structure */
@@ -232,7 +241,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	if (err)
 		goto out_free;
 
-	cs553x_mtd[cs] = new_mtd;
+	controllers[cs] = controller;
 	goto out;
 
 out_free:
@@ -240,7 +249,7 @@ out_free:
 out_ior:
 	iounmap(this->legacy.IO_ADDR_R);
 out_mtd:
-	kfree(this);
+	kfree(controller);
 out:
 	return err;
 }
@@ -295,9 +304,10 @@ static int __init cs553x_init(void)
 	/* Register all devices together here. This means we can easily hack it to
 	   do mtdconcat etc. if we want to. */
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
-		if (cs553x_mtd[i]) {
+		if (controllers[i]) {
 			/* If any devices registered, return success. Else the last error. */
-			mtd_device_register(cs553x_mtd[i], NULL, 0);
+			mtd_device_register(nand_to_mtd(&controllers[i]->chip),
+					    NULL, 0);
 			err = 0;
 		}
 	}
@@ -312,9 +322,10 @@ static void __exit cs553x_cleanup(void)
 	int i;
 
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
-		struct mtd_info *mtd = cs553x_mtd[i];
-		struct nand_chip *this;
 		void __iomem *mmio_base;
+		struct cs553x_nand_controller *controller = controllers[i];
+		struct nand_chip *this = &controller->chip;
+		struct mtd_info *mtd = nand_to_mtd(this);
 
 		if (!mtd)
 			continue;
@@ -325,13 +336,13 @@ static void __exit cs553x_cleanup(void)
 		/* Release resources, unregister device */
 		nand_release(this);
 		kfree(mtd->name);
-		cs553x_mtd[i] = NULL;
+		controllers[i] = NULL;
 
 		/* unmap physical address */
 		iounmap(mmio_base);
 
 		/* Free the MTD device structure */
-		kfree(this);
+		kfree(controller);
 	}
 }
 
