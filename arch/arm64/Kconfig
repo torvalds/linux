@@ -770,6 +770,18 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
+# The GPIO number here must be sorted by descending number. In case of
+# a multiplatform kernel, we just want the highest value required by the
+# selected platforms.
+config ARCH_NR_GPIO
+	int "Number of GPIOs in the system"
+	default 1280 if ARCH_QCOM
+	default 256
+	help
+	  Maximum number of GPIOs in the system.
+
+	  If unsure, leave the default value.
+
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"
