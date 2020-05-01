@@ -372,18 +372,50 @@ static void mt7663u_disconnect(struct usb_interface *usb_intf)
 	ieee80211_free_hw(dev->mt76.hw);
 }
 
-static int __maybe_unused
-mt7663u_suspend(struct usb_interface *intf,
-		pm_message_t state)
+#ifdef CONFIG_PM
+static int mt7663u_suspend(struct usb_interface *intf, pm_message_t state)
 {
+	struct mt7615_dev *dev = usb_get_intfdata(intf);
+
+	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state) &&
+	    mt7615_firmware_offload(dev)) {
+		int err;
+
+		err = mt7615_mcu_set_hif_suspend(dev, true);
+		if (err < 0)
+			return err;
+	}
+
+	mt76u_stop_rx(&dev->mt76);
+
+	mt76u_stop_tx(&dev->mt76);
+	tasklet_kill(&dev->mt76.tx_tasklet);
+
 	return 0;
 }
 
-static int __maybe_unused
-mt7663u_resume(struct usb_interface *intf)
+static int mt7663u_resume(struct usb_interface *intf)
 {
-	return 0;
+	struct mt7615_dev *dev = usb_get_intfdata(intf);
+	int err;
+
+	err = mt76u_vendor_request(&dev->mt76, MT_VEND_FEATURE_SET,
+				   USB_DIR_OUT | USB_TYPE_VENDOR,
+				   0x5, 0x0, NULL, 0);
+	if (err)
+		return err;
+
+	err = mt76u_resume_rx(&dev->mt76);
+	if (err < 0)
+		return err;
+
+	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state) &&
+	    mt7615_firmware_offload(dev))
+		err = mt7615_mcu_set_hif_suspend(dev, false);
+
+	return err;
 }
+#endif /* CONFIG_PM */
 
 MODULE_DEVICE_TABLE(usb, mt7615_device_table);
 MODULE_FIRMWARE(MT7663_OFFLOAD_FIRMWARE_N9);

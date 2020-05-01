@@ -381,6 +381,7 @@ enum mt_vendor_req {
 	MT_VEND_READ_CFG =	0x47,
 	MT_VEND_READ_EXT =	0x63,
 	MT_VEND_WRITE_EXT =	0x66,
+	MT_VEND_FEATURE_SET =	0x91,
 };
 
 enum mt76u_in_ep {
