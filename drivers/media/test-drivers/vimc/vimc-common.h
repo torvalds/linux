@@ -32,7 +32,7 @@
 #define VIMC_IS_SRC(pad)	(pad)
 #define VIMC_IS_SINK(pad)	(!(pad))
 
-#define VIMC_PIX_FMT_MAX_CODES 1
+#define VIMC_PIX_FMT_MAX_CODES 8
 
 /**
  * vimc_colorimetry_clamp - Adjust colorimetry parameters
