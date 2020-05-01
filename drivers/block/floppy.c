@@ -1069,12 +1069,9 @@ static void setup_DMA(void)
 	unsigned long f;
 
 	if (raw_cmd->length == 0) {
-		int i;
-
-		pr_info("zero dma transfer size:");
-		for (i = 0; i < raw_cmd->cmd_count; i++)
-			pr_cont("%x,", raw_cmd->cmd[i]);
-		pr_cont("\n");
+		print_hex_dump(KERN_INFO, "zero dma transfer size: ",
+			       DUMP_PREFIX_NONE, 16, 1,
+			       raw_cmd->cmd, raw_cmd->cmd_count, false);
 		cont->done(0);
 		fdc_state[current_fdc].reset = 1;
 		return;
