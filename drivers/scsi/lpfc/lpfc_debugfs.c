@@ -2436,7 +2436,8 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 		return 0;
 
 	if (dent == phba->debug_InjErrLBA) {
-		if ((buf[0] == 'o') && (buf[1] == 'f') && (buf[2] == 'f'))
+		if ((dstbuf[0] == 'o') && (dstbuf[1] == 'f') &&
+		    (dstbuf[2] == 'f'))
 			tmp = (uint64_t)(-1);
 	}
 

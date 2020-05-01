@@ -14272,7 +14272,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	int ecount = 0;
 	int hba_eqidx;
 	struct lpfc_eq_intr_info *eqi;
-	uint32_t icnt;
 
 	/* Get the driver's phba structure from the dev_id */
 	hba_eq_hdl = (struct lpfc_hba_eq_hdl *)dev_id;
@@ -14300,11 +14299,12 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	eqi = phba->sli4_hba.eq_info;
-	icnt = this_cpu_inc_return(eqi->icnt);
+	eqi = this_cpu_ptr(phba->sli4_hba.eq_info);
+	eqi->icnt++;
+
 	fpeq->last_cpu = raw_smp_processor_id();
 
-	if (icnt > LPFC_EQD_ISR_TRIGGER &&
+	if (eqi->icnt > LPFC_EQD_ISR_TRIGGER &&
 	    fpeq->q_flag & HBA_EQ_DELAY_CHK &&
 	    phba->cfg_auto_imax &&
 	    fpeq->q_mode != LPFC_MAX_AUTO_EQ_DELAY &&
