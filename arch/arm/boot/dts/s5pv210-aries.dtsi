@@ -200,8 +200,6 @@
 					regulator-name = "VLCD_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
-					/* Till we get panel driver */
-					regulator-always-on;
 
 					regulator-state-mem {
 						regulator-off-in-suspend;
@@ -300,8 +298,6 @@
 					regulator-name = "VCC_3.0V_LCD";
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;
-					/* Till we get panel driver */
-					regulator-always-on;
 
 					regulator-state-mem {
 						regulator-off-in-suspend;
@@ -454,6 +450,39 @@
 		offset = <0x681c>; /* PS_HOLD_CONTROL */
 		value = <0x5200>;
 	};
+
+	spi_lcd: spi-gpio-0 {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sck-gpios = <&mp04 1 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&mp04 3 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&mp01 1 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_spi_pins>;
+
+		panel@0 {
+			compatible = "samsung,s6e63m0";
+			reg = <0>;
+			reset-gpios = <&mp05 5 GPIO_ACTIVE_LOW>;
+			vdd3-supply = <&ldo7_reg>;
+			vci-supply = <&ldo17_reg>;
+			spi-cs-high;
+			spi-max-frequency = <1200000>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&panel_rst>;
+
+			port {
+				lcd_ep: endpoint {
+					remote-endpoint = <&fimd_ep>;
+				};
+			};
+		};
+	};
 };
 
 &fimd {
@@ -464,18 +493,13 @@
 	samsung,invert-vden;
 	samsung,invert-vclk;
 
-	display-timings {
-		timing-0 {
-			/* 480x800@60Hz */
-			clock-frequency = <25628040>;
-			hactive = <480>;
-			vactive = <800>;
-			hfront-porch = <16>;
-			hback-porch = <16>;
-			hsync-len = <2>;
-			vfront-porch = <28>;
-			vback-porch = <1>;
-			vsync-len = <2>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@3 {
+		reg = <3>;
+		fimd_ep: endpoint {
+			remote-endpoint = <&lcd_ep>;
 		};
 	};
 };
@@ -600,6 +624,12 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
+	lcd_spi_pins: spi-lcd-pins {
+		samsung,pins = "mp01-1", "mp04-1", "mp04-3";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	fg_i2c_pins: fg-i2c-pins {
 		samsung,pins = "mp05-0", "mp05-1";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
@@ -608,6 +638,12 @@
 
 	sound_i2c_pins: sound-i2c-pins {
 		samsung,pins = "mp05-2", "mp05-3";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	panel_rst: panel-rst {
+		samsung,pins = "mp05-5";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
