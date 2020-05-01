@@ -115,6 +115,7 @@ Contents:
    udplite
    vrf
    vxlan
+   x25-iface
 
 .. only::  subproject and html
 
