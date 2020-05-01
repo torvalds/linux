@@ -112,6 +112,7 @@ Contents:
    timestamping
    tproxy
    tuntap
+   udplite
 
 .. only::  subproject and html
 
