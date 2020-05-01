@@ -263,7 +263,8 @@ needs to:
 Hierarchy irq_domain is in no way x86 specific, and is heavily used to
 support other architectures, such as ARM, ARM64 etc.
 
-=== Debugging ===
+Debugging
+=========
 
 Most of the internals of the IRQ subsystem are exposed in debugfs by
 turning CONFIG_GENERIC_IRQ_DEBUGFS on.

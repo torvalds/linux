@@ -52,6 +52,7 @@ How Linux keeps everything from happening at the same time.  See
 
    atomic_ops
    refcount-vs-atomic
+   irq/index
    local_ops
    padata
    ../RCU/index
