@@ -58,7 +58,13 @@ struct smc_llc_msg_add_link {		/* type 0x02 */
 	u8 sender_gid[SMC_GID_SIZE];
 	u8 sender_qp_num[3];
 	u8 link_num;
-	u8 flags2;	/* QP mtu */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 reserved3 : 4,
+	   qp_mtu   : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 qp_mtu   : 4,
+	   reserved3 : 4;
+#endif
 	u8 initial_psn[3];
 	u8 reserved[8];
 };
@@ -427,26 +433,9 @@ static int smc_llc_send_delete_rkey(struct smc_link *link,
 	return rc;
 }
 
-/* prepare an add link message */
-static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
-				  struct smc_link *link, u8 mac[], u8 gid[],
-				  enum smc_llc_reqresp reqresp)
-{
-	memset(addllc, 0, sizeof(*addllc));
-	addllc->hd.common.type = SMC_LLC_ADD_LINK;
-	addllc->hd.length = sizeof(struct smc_llc_msg_add_link);
-	if (reqresp == SMC_LLC_RESP) {
-		addllc->hd.flags |= SMC_LLC_FLAG_RESP;
-		/* always reject more links for now */
-		addllc->hd.flags |= SMC_LLC_FLAG_ADD_LNK_REJ;
-		addllc->hd.add_link_rej_rsn = SMC_LLC_REJ_RSN_NO_ALT_PATH;
-	}
-	memcpy(addllc->sender_mac, mac, ETH_ALEN);
-	memcpy(addllc->sender_gid, gid, SMC_GID_SIZE);
-}
-
 /* send ADD LINK request or response */
 int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
+			  struct smc_link *link_new,
 			  enum smc_llc_reqresp reqresp)
 {
 	struct smc_llc_msg_add_link *addllc;
@@ -458,32 +447,33 @@ int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 	if (rc)
 		return rc;
 	addllc = (struct smc_llc_msg_add_link *)wr_buf;
-	smc_llc_prep_add_link(addllc, link, mac, gid, reqresp);
+
+	memset(addllc, 0, sizeof(*addllc));
+	addllc->hd.common.type = SMC_LLC_ADD_LINK;
+	addllc->hd.length = sizeof(struct smc_llc_msg_add_link);
+	if (reqresp == SMC_LLC_RESP)
+		addllc->hd.flags |= SMC_LLC_FLAG_RESP;
+	memcpy(addllc->sender_mac, mac, ETH_ALEN);
+	memcpy(addllc->sender_gid, gid, SMC_GID_SIZE);
+	if (link_new) {
+		addllc->link_num = link_new->link_id;
+		hton24(addllc->sender_qp_num, link_new->roce_qp->qp_num);
+		hton24(addllc->initial_psn, link_new->psn_initial);
+		if (reqresp == SMC_LLC_REQ)
+			addllc->qp_mtu = link_new->path_mtu;
+		else
+			addllc->qp_mtu = min(link_new->path_mtu,
+					     link_new->peer_mtu);
+	}
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
 }
 
-/* prepare a delete link message */
-static void smc_llc_prep_delete_link(struct smc_llc_msg_del_link *delllc,
-				     struct smc_link *link,
-				     enum smc_llc_reqresp reqresp, bool orderly)
-{
-	memset(delllc, 0, sizeof(*delllc));
-	delllc->hd.common.type = SMC_LLC_DELETE_LINK;
-	delllc->hd.length = sizeof(struct smc_llc_msg_add_link);
-	if (reqresp == SMC_LLC_RESP)
-		delllc->hd.flags |= SMC_LLC_FLAG_RESP;
-	/* DEL_LINK_ALL because only 1 link supported */
-	delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ALL;
-	if (orderly)
-		delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
-	delllc->link_num = link->link_id;
-}
-
 /* send DELETE LINK request or response */
-int smc_llc_send_delete_link(struct smc_link *link,
-			     enum smc_llc_reqresp reqresp, bool orderly)
+int smc_llc_send_delete_link(struct smc_link *link, u8 link_del_id,
+			     enum smc_llc_reqresp reqresp, bool orderly,
+			     u32 reason)
 {
 	struct smc_llc_msg_del_link *delllc;
 	struct smc_wr_tx_pend_priv *pend;
@@ -494,7 +484,19 @@ int smc_llc_send_delete_link(struct smc_link *link,
 	if (rc)
 		return rc;
 	delllc = (struct smc_llc_msg_del_link *)wr_buf;
-	smc_llc_prep_delete_link(delllc, link, reqresp, orderly);
+
+	memset(delllc, 0, sizeof(*delllc));
+	delllc->hd.common.type = SMC_LLC_DELETE_LINK;
+	delllc->hd.length = sizeof(struct smc_llc_msg_del_link);
+	if (reqresp == SMC_LLC_RESP)
+		delllc->hd.flags |= SMC_LLC_FLAG_RESP;
+	if (orderly)
+		delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
+	if (link_del_id)
+		delllc->link_num = link_del_id;
+	else
+		delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ALL;
+	delllc->reason = htonl(reason);
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
@@ -547,12 +549,13 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 	smc_lgr_forget(lgr);
 	if (lgr->role == SMC_SERV) {
 		/* client asks to delete this link, send request */
-		smc_llc_prep_delete_link(llc, link, SMC_LLC_REQ, true);
+		smc_llc_send_delete_link(link, 0, SMC_LLC_REQ, true,
+					 SMC_LLC_DEL_PROG_INIT_TERM);
 	} else {
 		/* server requests to delete this link, send response */
-		smc_llc_prep_delete_link(llc, link, SMC_LLC_RESP, true);
+		smc_llc_send_delete_link(link, 0, SMC_LLC_RESP, true,
+					 SMC_LLC_DEL_PROG_INIT_TERM);
 	}
-	smc_llc_send_message(link, llc);
 	smc_lgr_terminate_sched(lgr);
 }
 

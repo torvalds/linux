@@ -199,7 +199,8 @@ void smc_lgr_cleanup_early(struct smc_connection *conn)
 static int smcr_link_send_delete(struct smc_link *lnk, bool orderly)
 {
 	if (lnk->state == SMC_LNK_ACTIVE &&
-	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, orderly)) {
+	    !smc_llc_send_delete_link(lnk, 0, SMC_LLC_REQ, orderly,
+				      SMC_LLC_DEL_PROG_INIT_TERM)) {
 		return 0;
 	}
 	return -ENOTCONN;
