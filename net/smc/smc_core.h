@@ -244,6 +244,8 @@ struct smc_link_group {
 			u8			next_link_id;
 			enum smc_lgr_type	type;
 						/* redundancy state */
+			u8			pnet_id[SMC_MAX_PNETID_LEN + 1];
+						/* pnet id of this lgr */
 			struct list_head	llc_event_q;
 						/* queue for llc events */
 			spinlock_t		llc_event_q_lock;
