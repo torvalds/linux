@@ -531,6 +531,21 @@ exit:
 }
 
 /**
+ * rpmh_write_sleep_and_wake: Writes the buffered wake and sleep sets to TCSes
+ *
+ * @dev: The device making the request
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_write_sleep_and_wake(const struct device *dev)
+{
+	return rpmh_flush(get_rpmh_ctrlr(dev));
+}
+EXPORT_SYMBOL(rpmh_write_sleep_and_wake);
+
+/**
  * rpmh_invalidate: Invalidate sleep and wake sets in batch_cache
  *
  * @dev: The device making the request

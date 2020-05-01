@@ -22,6 +22,8 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 
 int rpmh_mode_solver_set(const struct device *dev, bool enable);
 
+int rpmh_write_sleep_and_wake(const struct device *dev);
+
 void rpmh_invalidate(const struct device *dev);
 
 #else
@@ -41,6 +43,9 @@ static inline int rpmh_write_batch(const struct device *dev,
 { return -ENODEV; }
 
 static int rpmh_mode_solver_set(const struct device *dev, bool enable)
+{ return -ENODEV; }
+
+static int rpmh_write_sleep_and_wake(const struct device *dev)
 { return -ENODEV; }
 
 static inline void rpmh_invalidate(const struct device *dev)
