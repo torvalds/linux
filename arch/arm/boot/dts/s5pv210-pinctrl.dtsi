@@ -202,7 +202,7 @@
 		#interrupt-cells = <2>;
 	};
 
-	gpgi: gpgi {
+	gpi: gpi {
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
