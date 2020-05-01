@@ -14,6 +14,10 @@ Region snapshots are collected by the driver, and can be accessed via read
 or dump commands. This allows future analysis on the created snapshots.
 Regions may optionally support triggering snapshots on demand.
 
+Snapshot identifiers are scoped to the devlink instance, not a region.
+All snapshots with the same snapshot id within a devlink instance
+correspond to the same event.
+
 The major benefit to creating a region is to provide access to internal
 address regions that are otherwise inaccessible to the user.
 
