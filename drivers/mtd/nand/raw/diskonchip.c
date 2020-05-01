@@ -58,6 +58,7 @@ static unsigned long doc_locations[] __initdata = {
 static struct mtd_info *doclist = NULL;
 
 struct doc_priv {
+	struct nand_controller base;
 	void __iomem *virtadr;
 	unsigned long physadr;
 	u_char ChipID;
@@ -1550,6 +1551,7 @@ static int __init doc_probe(unsigned long physadr)
 		goto fail;
 	}
 
+	nand_controller_init(&doc->base);
 	mtd			= nand_to_mtd(nand);
 	nand->bbt_td		= (struct nand_bbt_descr *) (doc + 1);
 	nand->bbt_md		= nand->bbt_td + 1;
@@ -1557,6 +1559,7 @@ static int __init doc_probe(unsigned long physadr)
 	mtd->owner		= THIS_MODULE;
 	mtd_set_ooblayout(mtd, &doc200x_ooblayout_ops);
 
+	nand->controller	= &doc->base;
 	nand_set_controller_data(nand, doc);
 	nand->legacy.select_chip	= doc200x_select_chip;
 	nand->legacy.cmd_ctrl		= doc200x_hwcontrol;
