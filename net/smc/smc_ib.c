@@ -252,6 +252,7 @@ static void smc_ib_port_event_work(struct work_struct *work)
 			smc_port_terminate(smcibdev, port_idx + 1);
 		} else {
 			clear_bit(port_idx, smcibdev->ports_going_away);
+			smcr_port_add(smcibdev, port_idx + 1);
 		}
 	}
 }
