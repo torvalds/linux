@@ -59,12 +59,12 @@ static __inline int verify_cc(struct bpf_sock_addr *ctx,
 
 static __inline int set_cc(struct bpf_sock_addr *ctx)
 {
-	char dctcp[TCP_CA_NAME_MAX] = "dctcp";
+	char reno[TCP_CA_NAME_MAX] = "reno";
 	char cubic[TCP_CA_NAME_MAX] = "cubic";
 
-	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &dctcp, sizeof(dctcp)))
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &reno, sizeof(reno)))
 		return 1;
-	if (verify_cc(ctx, dctcp))
+	if (verify_cc(ctx, reno))
 		return 1;
 
 	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &cubic, sizeof(cubic)))
