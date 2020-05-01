@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 
 config SND_SOC_SOF_IMX_TOPLEVEL
 	bool "SOF support for NXP i.MX audio DSPs"

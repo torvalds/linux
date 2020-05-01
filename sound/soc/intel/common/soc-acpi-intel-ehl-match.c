@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * soc-apci-intel-ehl-match.c - tables and support for EHL ACPI enumeration.
  *

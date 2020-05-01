@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 snd-sof-imx8-objs := imx8.o
 snd-sof-imx8m-objs := imx8m.o
 
