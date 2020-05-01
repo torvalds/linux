@@ -23,6 +23,8 @@ struct dma_iommu_mapping {
 	void			*bitmap;
 	size_t			bits;
 	dma_addr_t		base;
+
+	struct dma_fast_smmu_mapping *fast;
 };
 
 #ifdef CONFIG_ARM64_DMA_USE_IOMMU

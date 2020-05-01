@@ -37,6 +37,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/dma-iommu.h>
+#include <linux/dma-mapping-fast.h>
 
 static int swiotlb __ro_after_init;
 
@@ -1009,16 +1010,19 @@ iommu_init_mapping(struct device *dev, struct dma_iommu_mapping *mapping)
 static int arm_iommu_get_dma_cookie(struct device *dev,
 				    struct dma_iommu_mapping *mapping)
 {
-	int s1_bypass = 0;
+	int s1_bypass = 0, is_fast = 0;
 	int err = 0;
 
 	mutex_lock(&iommu_dma_init_mutex);
 
 	iommu_domain_get_attr(mapping->domain, DOMAIN_ATTR_S1_BYPASS,
 					&s1_bypass);
+	iommu_domain_get_attr(mapping->domain, DOMAIN_ATTR_FAST, &is_fast);
 
 	if (s1_bypass)
 		mapping->ops = &arm64_swiotlb_dma_ops;
+	else if (is_fast)
+		err = fast_smmu_init_mapping(dev, mapping);
 	else
 		err = iommu_init_mapping(dev, mapping);
 

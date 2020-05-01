@@ -58,6 +58,18 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 	  If unsure, say N here.
 
+config IOMMU_IO_PGTABLE_FAST
+	bool "Fast ARMv7/v8 Long Descriptor Format"
+	depends on ARM64_DMA_USE_IOMMU && IOMMU_DMA
+	help
+          Enable support for a subset of the ARM long descriptor pagetable
+	  format.  This allocator achieves fast performance by
+	  pre-allocating and pre-populating page table memory up front.
+	  only supports a 32 bit virtual address space.
+
+          This implementation is mainly optimized for use cases where the
+          buffers are small (<= 64K) since it only supports 4K page sizes.
+
 endmenu
 
 config IOMMU_DEBUGFS

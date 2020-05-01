@@ -12,6 +12,7 @@ enum io_pgtable_fmt {
 	ARM_64_LPAE_S1,
 	ARM_64_LPAE_S2,
 	ARM_V7S,
+	ARM_V8L_FAST,
 	IO_PGTABLE_NUM_FMTS,
 };
 
@@ -103,6 +104,13 @@ struct io_pgtable_cfg {
 			u32	nmrr;
 			u32	prrr;
 		} arm_v7s_cfg;
+
+		struct {
+			u64	ttbr[2];
+			u64	tcr;
+			u64	mair[2];
+			void	*pmds;
+		} av8l_fast_cfg;
 	};
 };
 
@@ -204,5 +212,6 @@ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_v7s_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_av8l_fast_init_fns;
 
 #endif /* __IO_PGTABLE_H */
