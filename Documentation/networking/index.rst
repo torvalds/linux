@@ -25,6 +25,7 @@ Contents:
    failover
    net_dim
    net_failover
+   page_pool
    phy
    sfp-phylink
    alias
@@ -111,6 +112,17 @@ Contents:
    team
    timestamping
    tproxy
+   tuntap
+   udplite
+   vrf
+   vxlan
+   x25-iface
+   x25
+   xfrm_device
+   xfrm_proc
+   xfrm_sync
+   xfrm_sysctl
+   z8530drv
 
 .. only::  subproject and html
 

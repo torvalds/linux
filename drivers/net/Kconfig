@@ -355,7 +355,7 @@ config TUN
 	  devices, driver will automatically delete tunXX or tapXX device and
 	  all routes corresponding to it.
 
-	  Please read <file:Documentation/networking/tuntap.txt> for more
+	  Please read <file:Documentation/networking/tuntap.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -460,7 +460,7 @@ config NET_SB1000
 
 	  At present this driver only compiles as a module, so say M here if
 	  you have this card. The module will be called sb1000. Then read
-	  <file:Documentation/networking/device_drivers/sb1000.txt> for
+	  <file:Documentation/networking/device_drivers/sb1000.rst> for
 	  information on how to use this module, as it needs special ppp
 	  scripts for establishing a connection. Further documentation
 	  and the necessary scripts can be found at:

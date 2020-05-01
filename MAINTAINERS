@@ -147,7 +147,7 @@ Maintainers List
 M:	Steffen Klassert <klassert@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Odd Fixes
-F:	Documentation/networking/device_drivers/3com/vortex.txt
+F:	Documentation/networking/device_drivers/3com/vortex.rst
 F:	drivers/net/ethernet/3com/3c59x.c
 
 3CR990 NETWORK DRIVER
@@ -815,7 +815,7 @@ R:	Saeed Bishara <saeedb@amazon.com>
 R:	Zorik Machulsky <zorik@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/amazon/ena.txt
+F:	Documentation/networking/device_drivers/amazon/ena.rst
 F:	drivers/net/ethernet/amazon/
 
 AMAZON RDMA EFA DRIVER
@@ -1275,7 +1275,7 @@ L:	netdev@vger.kernel.org
 S:	Supported
 W:	https://www.marvell.com/
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
-F:	Documentation/networking/device_drivers/aquantia/atlantic.txt
+F:	Documentation/networking/device_drivers/aquantia/atlantic.rst
 F:	drivers/net/ethernet/aquantia/atlantic/
 
 AQUANTIA ETHERNET DRIVER PTP SUBSYSTEM
@@ -4694,7 +4694,7 @@ F:	net/ax25/sysctl_net_ax25.c
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 L:	netdev@vger.kernel.org
 S:	Orphan
-F:	Documentation/networking/device_drivers/dec/dmfe.txt
+F:	Documentation/networking/device_drivers/dec/dmfe.rst
 F:	drivers/net/ethernet/dec/tulip/dmfe.c
 
 DC390/AM53C974 SCSI driver
@@ -7867,7 +7867,7 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
 F:	Documentation/ABI/stable/sysfs-bus-vmbus
 F:	Documentation/ABI/testing/debugfs-hyperv
-F:	Documentation/networking/device_drivers/microsoft/netvsc.txt
+F:	Documentation/networking/device_drivers/microsoft/netvsc.rst
 F:	arch/x86/hyperv
 F:	arch/x86/include/asm/hyperv-tlfs.h
 F:	arch/x86/include/asm/mshyperv.h
@@ -8742,8 +8742,8 @@ INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
 M:	Stanislav Yakovlev <stas.yakovlev@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/intel/ipw2100.txt
-F:	Documentation/networking/device_drivers/intel/ipw2200.txt
+F:	Documentation/networking/device_drivers/intel/ipw2100.rst
+F:	Documentation/networking/device_drivers/intel/ipw2200.rst
 F:	drivers/net/wireless/intel/ipw2x00/
 
 INTEL PSTATE DRIVER
@@ -11656,8 +11656,8 @@ NETERION 10GbE DRIVERS (s2io/vxge)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/neterion/s2io.txt
-F:	Documentation/networking/device_drivers/neterion/vxge.txt
+F:	Documentation/networking/device_drivers/neterion/s2io.rst
+F:	Documentation/networking/device_drivers/neterion/vxge.rst
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER
@@ -14031,7 +14031,7 @@ M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
 M:	Sean Tranchetti <stranche@codeaurora.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/qualcomm/rmnet.txt
+F:	Documentation/networking/device_drivers/qualcomm/rmnet.rst
 F:	drivers/net/ethernet/qualcomm/rmnet/
 F:	include/linux/if_rmnet.h
 
@@ -15874,7 +15874,7 @@ SPIDERNET NETWORK DRIVER for CELL
 M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/toshiba/spider_net.txt
+F:	Documentation/networking/device_drivers/toshiba/spider_net.rst
 F:	drivers/net/ethernet/toshiba/spider_net*
 
 SPMI SUBSYSTEM
@@ -16971,7 +16971,7 @@ M:	Samuel Chessman <chessman@tux.org>
 L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 W:	http://sourceforge.net/projects/tlan/
-F:	Documentation/networking/device_drivers/ti/tlan.txt
+F:	Documentation/networking/device_drivers/ti/tlan.rst
 F:	drivers/net/ethernet/ti/tlan.*
 
 TM6000 VIDEO4LINUX DRIVER
@@ -17161,7 +17161,7 @@ TUN/TAP driver
 M:	Maxim Krasnyansky <maxk@qti.qualcomm.com>
 S:	Maintained
 W:	http://vtun.sourceforge.net/tun
-F:	Documentation/networking/tuntap.txt
+F:	Documentation/networking/tuntap.rst
 F:	arch/um/os-Linux/drivers/
 
 TURBOCHANNEL SUBSYSTEM
@@ -18106,7 +18106,7 @@ M:	David Ahern <dsahern@kernel.org>
 M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/vrf.txt
+F:	Documentation/networking/vrf.rst
 F:	drivers/net/vrf.c
 
 VSPRINTF
@@ -18644,7 +18644,7 @@ L:	linux-hams@vger.kernel.org
 S:	Maintained
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
-F:	Documentation/networking/z8530drv.txt
+F:	Documentation/networking/z8530drv.rst
 F:	drivers/net/hamradio/*scc.c
 F:	drivers/net/hamradio/z8530.h
 
