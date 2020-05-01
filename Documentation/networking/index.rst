@@ -119,6 +119,7 @@ Contents:
    x25
    xfrm_device
    xfrm_proc
+   xfrm_sync
 
 .. only::  subproject and html
 

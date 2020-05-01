@@ -1,3 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====
+XFRM
+====
 
 The sync patches work is based on initial patches from
 Krisztian <hidden@balabit.hu> and others and additional patches
@@ -40,30 +45,32 @@ The netlink message types are:
 XFRM_MSG_NEWAE and XFRM_MSG_GETAE.
 
 A XFRM_MSG_GETAE does not have TLVs.
+
 A XFRM_MSG_NEWAE will have at least two TLVs (as is
 discussed further below).
 
-aevent_id structure looks like:
+aevent_id structure looks like::
 
    struct xfrm_aevent_id {
-             struct xfrm_usersa_id           sa_id;
-             xfrm_address_t                  saddr;
-             __u32                           flags;
-             __u32                           reqid;
+	     struct xfrm_usersa_id           sa_id;
+	     xfrm_address_t                  saddr;
+	     __u32                           flags;
+	     __u32                           reqid;
    };
 
 The unique SA is identified by the combination of xfrm_usersa_id,
 reqid and saddr.
 
 flags are used to indicate different things. The possible
-flags are:
-        XFRM_AE_RTHR=1, /* replay threshold*/
-        XFRM_AE_RVAL=2, /* replay value */
-        XFRM_AE_LVAL=4, /* lifetime value */
-        XFRM_AE_ETHR=8, /* expiry timer threshold */
-        XFRM_AE_CR=16, /* Event cause is replay update */
-        XFRM_AE_CE=32, /* Event cause is timer expiry */
-        XFRM_AE_CU=64, /* Event cause is policy update */
+flags are::
+
+	XFRM_AE_RTHR=1, /* replay threshold*/
+	XFRM_AE_RVAL=2, /* replay value */
+	XFRM_AE_LVAL=4, /* lifetime value */
+	XFRM_AE_ETHR=8, /* expiry timer threshold */
+	XFRM_AE_CR=16, /* Event cause is replay update */
+	XFRM_AE_CE=32, /* Event cause is timer expiry */
+	XFRM_AE_CU=64, /* Event cause is policy update */
 
 How these flags are used is dependent on the direction of the
 message (kernel<->user) as well the cause (config, query or event).
@@ -80,23 +87,27 @@ to get notified of these events.
 -----------------------------------------
 
 a) byte value (XFRMA_LTIME_VAL)
+
 This TLV carries the running/current counter for byte lifetime since
 last event.
 
 b)replay value (XFRMA_REPLAY_VAL)
+
 This TLV carries the running/current counter for replay sequence since
 last event.
 
 c)replay threshold (XFRMA_REPLAY_THRESH)
+
 This TLV carries the threshold being used by the kernel to trigger events
 when the replay sequence is exceeded.
 
 d) expiry timer (XFRMA_ETIMER_THRESH)
+
 This is a timer value in milliseconds which is used as the nagle
 value to rate limit the events.
 
 3) Default configurations for the parameters:
-----------------------------------------------
+---------------------------------------------
 
 By default these events should be turned off unless there is
 at least one listener registered to listen to the multicast
@@ -108,6 +119,7 @@ we also provide default threshold values for these different parameters
 in case they are not specified.
 
 the two sysctls/proc entries are:
+
 a) /proc/sys/net/core/sysctl_xfrm_aevent_etime
 used to provide default values for the XFRMA_ETIMER_THRESH in incremental
 units of time of 100ms. The default is 10 (1 second)
@@ -120,37 +132,45 @@ in incremental packet count. The default is two packets.
 ----------------
 
 a) XFRM_MSG_GETAE issued by user-->kernel.
-XFRM_MSG_GETAE does not carry any TLVs.
+   XFRM_MSG_GETAE does not carry any TLVs.
+
 The response is a XFRM_MSG_NEWAE which is formatted based on what
 XFRM_MSG_GETAE queried for.
+
 The response will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
-*if XFRM_AE_RTHR flag is set, then XFRMA_REPLAY_THRESH is also retrieved
-*if XFRM_AE_ETHR flag is set, then XFRMA_ETIMER_THRESH is also retrieved
+* if XFRM_AE_RTHR flag is set, then XFRMA_REPLAY_THRESH is also retrieved
+* if XFRM_AE_ETHR flag is set, then XFRMA_ETIMER_THRESH is also retrieved
 
 b) XFRM_MSG_NEWAE is issued by either user space to configure
-or kernel to announce events or respond to a XFRM_MSG_GETAE.
+   or kernel to announce events or respond to a XFRM_MSG_GETAE.
 
 i) user --> kernel to configure a specific SA.
+
 any of the values or threshold parameters can be updated by passing the
 appropriate TLV.
+
 A response is issued back to the sender in user space to indicate success
 or failure.
+
 In the case of success, additionally an event with
 XFRM_MSG_NEWAE is also issued to any listeners as described in iii).
 
 ii) kernel->user direction as a response to XFRM_MSG_GETAE
+
 The response will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
+
 The threshold TLVs will be included if explicitly requested in
 the XFRM_MSG_GETAE message.
 
 iii) kernel->user to report as event if someone sets any values or
-thresholds for an SA using XFRM_MSG_NEWAE (as described in #i above).
-In such a case XFRM_AE_CU flag is set to inform the user that
-the change happened as a result of an update.
-The message will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
+     thresholds for an SA using XFRM_MSG_NEWAE (as described in #i above).
+     In such a case XFRM_AE_CU flag is set to inform the user that
+     the change happened as a result of an update.
+     The message will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
 
 iv) kernel->user to report event when replay threshold or a timeout
-is exceeded.
+    is exceeded.
+
 In such a case either XFRM_AE_CR (replay exceeded) or XFRM_AE_CE (timeout
 happened) is set to inform the user what happened.
 Note the two flags are mutually exclusive.
