@@ -324,6 +324,21 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 
 endif ## SND_SOC_INTEL_APL
 
+if SND_SOC_SOF_APOLLOLAKE
+
+config SND_SOC_INTEL_SOF_WM8804_MACH
+	tristate "SOF with Wolfson/Cirrus WM8804 codec"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_WM8804_I2C
+	help
+	  This adds support for ASoC machine driver for Intel platforms
+	  with the Wolfson/Cirrus WM8804 I2S audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+endif ## SND_SOC_SOF_APOLLOLAKE
+
 if SND_SOC_INTEL_KBL
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
