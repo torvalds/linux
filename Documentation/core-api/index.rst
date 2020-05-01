@@ -31,6 +31,7 @@ Library functionality that is used throughout the kernel.
    :maxdepth: 1
 
    kobject
+   kref
    assoc_array
    xarray
    idr
