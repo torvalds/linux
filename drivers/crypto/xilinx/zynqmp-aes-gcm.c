@@ -85,6 +85,7 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	dma_addr_t dma_addr_data, dma_addr_hw_req;
 	unsigned int data_size;
 	unsigned int status;
+	int ret;
 	size_t dma_size;
 	char *kbuf;
 	int err;
@@ -132,9 +133,12 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		hwreq->key = 0;
 	}
 
-	zynqmp_pm_aes_engine(dma_addr_hw_req, &status);
+	ret = zynqmp_pm_aes_engine(dma_addr_hw_req, &status);
 
-	if (status) {
+	if (ret) {
+		dev_err(dev, "ERROR: AES PM API failed\n");
+		err = ret;
+	} else if (status) {
 		switch (status) {
 		case ZYNQMP_AES_GCM_TAG_MISMATCH_ERR:
 			dev_err(dev, "ERROR: Gcm Tag mismatch\n");
