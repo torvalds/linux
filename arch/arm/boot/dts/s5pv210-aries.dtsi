@@ -16,6 +16,7 @@
 		i2c6 = &i2c_pmic;
 		i2c7 = &i2c_musb;
 		i2c9 = &i2c_fuel;
+		i2c10 = &i2c_touchkey;
 	};
 
 	memory@30000000 {
@@ -48,6 +49,18 @@
 		regulator-name = "vibrator-en";
 		enable-active-high;
 		gpio = <&gpj1 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	touchkey_vdd: regulator-fixed-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VTOUCH_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpj3 2 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchkey_vdd_ena>;
 	};
 
 	wifi_pwrseq: wifi-pwrseq {
@@ -400,6 +413,32 @@
 		};
 	};
 
+	i2c_touchkey: i2c-gpio-5 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpj3 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpj3 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchkey_i2c_pins>;
+
+		touchkey@20 {
+			compatible = "cypress,aries-touchkey";
+			reg = <0x20>;
+			vdd-supply = <&touchkey_vdd>;
+			vcc-supply = <&buck3_reg>;
+			linux,keycodes = <KEY_MENU KEY_BACK
+					  KEY_HOMEPAGE KEY_SEARCH>;
+			interrupt-parent = <&gpj4>;
+			interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&touchkey_irq>;
+		};
+	};
+
 	vibrator: pwm-vibrator {
 		compatible = "pwm-vibrator";
 		pwms = <&pwm 1 44642 0>;
@@ -530,6 +569,18 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
+	touchkey_i2c_pins: touchkey-i2c-pins {
+		samsung,pins = "gpj3-0", "gpj3-1";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	touchkey_vdd_ena: touchkey-vdd-ena {
+		samsung,pins = "gpj3-2";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	musb_i2c_pins: musb-i2c-pins {
 		samsung,pins = "gpj3-4", "gpj3-5";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
@@ -539,6 +590,13 @@
 	pmic_i2c_pins: pmic-i2c-pins {
 		samsung,pins = "gpj4-0", "gpj4-3";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	touchkey_irq: touchkey-irq {
+		samsung,pins = "gpj4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
