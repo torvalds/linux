@@ -86,9 +86,9 @@ static inline double dml_round(double a)
 		return floor;
 }
 
-static inline int dml_log2(double x)
+static inline double dml_log2(double x)
 {
-	return dml_round((double)dcn_bw_log(x, 2));
+	return (double) dcn_bw_log(x, 2);
 }
 
 static inline double dml_pow(double a, int exp)
