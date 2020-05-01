@@ -202,20 +202,6 @@ void smc_lgr_cleanup_early(struct smc_connection *conn)
 	smc_lgr_schedule_free_work_fast(lgr);
 }
 
-/* Send delete link, either as client to request the initiation
- * of the DELETE LINK sequence from server; or as server to
- * initiate the delete processing. See smc_llc_rx_delete_link().
- */
-static int smcr_link_send_delete(struct smc_link *lnk, bool orderly)
-{
-	if (lnk->state == SMC_LNK_ACTIVE &&
-	    !smc_llc_send_delete_link(lnk, 0, SMC_LLC_REQ, orderly,
-				      SMC_LLC_DEL_PROG_INIT_TERM)) {
-		return 0;
-	}
-	return -ENOTCONN;
-}
-
 static void smc_lgr_free(struct smc_link_group *lgr);
 
 static void smc_lgr_free_work(struct work_struct *work)
@@ -241,25 +227,6 @@ static void smc_lgr_free_work(struct work_struct *work)
 		return;
 	}
 	list_del_init(&lgr->list); /* remove from smc_lgr_list */
-
-	if (!lgr->is_smcd && !lgr->terminating)	{
-		bool do_wait = false;
-
-		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			struct smc_link *lnk = &lgr->lnk[i];
-			/* try to send del link msg, on err free immediately */
-			if (lnk->state == SMC_LNK_ACTIVE &&
-			    !smcr_link_send_delete(lnk, true)) {
-				/* reschedule in case we never receive a resp */
-				smc_lgr_schedule_free_work(lgr);
-				do_wait = true;
-			}
-		}
-		if (do_wait) {
-			spin_unlock_bh(lgr_lock);
-			return; /* wait for resp, see smc_llc_rx_delete_link */
-		}
-	}
 	lgr->freeing = 1; /* this instance does the freeing, no new schedule */
 	spin_unlock_bh(lgr_lock);
 	cancel_delayed_work(&lgr->free_work);
