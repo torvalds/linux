@@ -114,6 +114,7 @@ Contents:
    tuntap
    udplite
    vrf
+   vxlan
 
 .. only::  subproject and html
 

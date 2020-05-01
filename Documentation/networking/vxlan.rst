@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======================================================
 Virtual eXtensible Local Area Networking documentation
 ======================================================
 
@@ -21,8 +24,9 @@ neighbors GRE and VLAN. Configuring VXLAN requires the version of
 iproute2 that matches the kernel release where VXLAN was first merged
 upstream.
 
-1. Create vxlan device
- # ip link add vxlan0 type vxlan id 42 group 239.1.1.1 dev eth1 dstport 4789
+1. Create vxlan device::
+
+    # ip link add vxlan0 type vxlan id 42 group 239.1.1.1 dev eth1 dstport 4789
 
 This creates a new device named vxlan0.  The device uses the multicast
 group 239.1.1.1 over eth1 to handle traffic for which there is no
@@ -32,20 +36,25 @@ pre-dates the IANA's selection of a standard destination port number
 and uses the Linux-selected value by default to maintain backwards
 compatibility.
 
-2. Delete vxlan device
-  # ip link delete vxlan0
+2. Delete vxlan device::
 
-3. Show vxlan info
-  # ip -d link show vxlan0
+    # ip link delete vxlan0
+
+3. Show vxlan info::
+
+    # ip -d link show vxlan0
 
 It is possible to create, destroy and display the vxlan
 forwarding table using the new bridge command.
 
-1. Create forwarding table entry
-  # bridge fdb add to 00:17:42:8a:b4:05 dst 192.19.0.2 dev vxlan0
+1. Create forwarding table entry::
 
-2. Delete forwarding table entry
-  # bridge fdb delete 00:17:42:8a:b4:05 dev vxlan0
+    # bridge fdb add to 00:17:42:8a:b4:05 dst 192.19.0.2 dev vxlan0
 
-3. Show forwarding table
-  # bridge fdb show dev vxlan0
+2. Delete forwarding table entry::
+
+    # bridge fdb delete 00:17:42:8a:b4:05 dev vxlan0
+
+3. Show forwarding table::
+
+    # bridge fdb show dev vxlan0
