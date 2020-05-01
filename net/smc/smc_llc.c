@@ -848,6 +848,7 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
 	spin_lock_init(&lgr->llc_event_q_lock);
 	spin_lock_init(&lgr->llc_flow_lock);
 	init_waitqueue_head(&lgr->llc_waiter);
+	mutex_init(&lgr->llc_conf_mutex);
 	lgr->llc_testlink_time = net->ipv4.sysctl_tcp_keepalive_time;
 }
 
@@ -897,9 +898,6 @@ int smc_llc_do_confirm_rkey(struct smc_link *send_link,
 	struct smc_llc_qentry *qentry = NULL;
 	int rc = 0;
 
-	rc = smc_llc_flow_initiate(lgr, SMC_LLC_FLOW_RKEY);
-	if (rc)
-		return rc;
 	rc = smc_llc_send_confirm_rkey(send_link, rmb_desc);
 	if (rc)
 		goto out;
@@ -911,7 +909,6 @@ int smc_llc_do_confirm_rkey(struct smc_link *send_link,
 out:
 	if (qentry)
 		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
-	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 	return rc;
 }
 
@@ -927,9 +924,6 @@ int smc_llc_do_delete_rkey(struct smc_link_group *lgr,
 	if (!send_link)
 		return -ENOLINK;
 
-	rc = smc_llc_flow_initiate(lgr, SMC_LLC_FLOW_RKEY);
-	if (rc)
-		return rc;
 	/* protected by llc_flow control */
 	rc = smc_llc_send_delete_rkey(send_link, rmb_desc);
 	if (rc)
@@ -942,7 +936,6 @@ int smc_llc_do_delete_rkey(struct smc_link_group *lgr,
 out:
 	if (qentry)
 		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
-	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 	return rc;
 }
 

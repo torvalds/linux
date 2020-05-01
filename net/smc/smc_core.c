@@ -448,11 +448,21 @@ out:
 static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
 			   struct smc_link_group *lgr)
 {
+	int rc;
+
 	if (rmb_desc->is_conf_rkey && !list_empty(&lgr->list)) {
 		/* unregister rmb with peer */
-		smc_llc_do_delete_rkey(lgr, rmb_desc);
-		rmb_desc->is_conf_rkey = false;
+		rc = smc_llc_flow_initiate(lgr, SMC_LLC_FLOW_RKEY);
+		if (!rc) {
+			/* protect against smc_llc_cli_rkey_exchange() */
+			mutex_lock(&lgr->llc_conf_mutex);
+			smc_llc_do_delete_rkey(lgr, rmb_desc);
+			rmb_desc->is_conf_rkey = false;
+			mutex_unlock(&lgr->llc_conf_mutex);
+			smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
+		}
 	}
+
 	if (rmb_desc->is_reg_err) {
 		/* buf registration failed, reuse not possible */
 		mutex_lock(&lgr->rmbs_lock);
@@ -552,6 +562,7 @@ static void smcr_rtoken_clear_link(struct smc_link *lnk)
 	}
 }
 
+/* must be called under lgr->llc_conf_mutex lock */
 void smcr_link_clear(struct smc_link *lnk)
 {
 	struct smc_ib_device *smcibdev;
@@ -1170,7 +1181,9 @@ free_table:
 	return rc;
 }
 
-/* register a new rmb on IB device */
+/* register a new rmb on IB device,
+ * must be called under lgr->llc_conf_mutex lock
+ */
 int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
 {
 	if (list_empty(&link->lgr->list))
@@ -1224,7 +1237,9 @@ int smcr_buf_map_lgr(struct smc_link *lnk)
 	return 0;
 }
 
-/* register all used buffers of lgr for a new link */
+/* register all used buffers of lgr for a new link,
+ * must be called under lgr->llc_conf_mutex lock
+ */
 int smcr_buf_reg_lgr(struct smc_link *lnk)
 {
 	struct smc_link_group *lgr = lnk->lgr;
@@ -1278,6 +1293,8 @@ static int smcr_buf_map_usable_links(struct smc_link_group *lgr,
 {
 	int i, rc = 0;
 
+	/* protect against parallel link reconfiguration */
+	mutex_lock(&lgr->llc_conf_mutex);
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 		struct smc_link *lnk = &lgr->lnk[i];
 
@@ -1289,6 +1306,7 @@ static int smcr_buf_map_usable_links(struct smc_link_group *lgr,
 		}
 	}
 out:
+	mutex_unlock(&lgr->llc_conf_mutex);
 	return rc;
 }
 

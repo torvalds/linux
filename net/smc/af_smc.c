@@ -344,6 +344,13 @@ static int smcr_lgr_reg_rmbs(struct smc_link *link,
 	struct smc_link_group *lgr = link->lgr;
 	int i, rc = 0;
 
+	rc = smc_llc_flow_initiate(lgr, SMC_LLC_FLOW_RKEY);
+	if (rc)
+		return rc;
+	/* protect against parallel smc_llc_cli_rkey_exchange() and
+	 * parallel smcr_link_reg_rmb()
+	 */
+	mutex_lock(&lgr->llc_conf_mutex);
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 		if (lgr->lnk[i].state != SMC_LNK_ACTIVE)
 			continue;
@@ -360,6 +367,8 @@ static int smcr_lgr_reg_rmbs(struct smc_link *link,
 	}
 	rmb_desc->is_conf_rkey = true;
 out:
+	mutex_unlock(&lgr->llc_conf_mutex);
+	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 	return rc;
 }
 
