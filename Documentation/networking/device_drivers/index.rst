@@ -38,6 +38,7 @@ Contents:
    dec/dmfe
    dlink/dl2k
    freescale/dpaa
+   freescale/gianfar
 
 .. only::  subproject and html
 
