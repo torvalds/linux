@@ -556,7 +556,7 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 		smc_llc_send_delete_link(link, 0, SMC_LLC_RESP, true,
 					 SMC_LLC_DEL_PROG_INIT_TERM);
 	}
-	smc_lgr_terminate_sched(lgr);
+	smcr_link_down_cond(link);
 }
 
 /* process a confirm_rkey request from peer, remote flow */
@@ -831,7 +831,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	if (link->state != SMC_LNK_ACTIVE)
 		return;		/* link state changed */
 	if (rc <= 0) {
-		smc_lgr_terminate_sched(smc_get_lgr(link));
+		smcr_link_down_cond_sched(link);
 		return;
 	}
 	next_interval = link->llc_testlink_time;

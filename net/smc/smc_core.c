@@ -884,11 +884,8 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 	} else {
 		list_for_each_entry_safe(lgr, lg, &smc_lgr_list.list, list) {
 			for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-				if (lgr->lnk[i].smcibdev == smcibdev) {
-					list_move(&lgr->list, &lgr_free_list);
-					lgr->freeing = 1;
-					break;
-				}
+				if (lgr->lnk[i].smcibdev == smcibdev)
+					smcr_link_down_cond_sched(&lgr->lnk[i]);
 			}
 		}
 	}
