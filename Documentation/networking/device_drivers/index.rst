@@ -27,6 +27,7 @@ Contents:
    netronome/nfp
    pensando/ionic
    stmicro/stmmac
+   3com/3c509
 
 .. only::  subproject and html
 
