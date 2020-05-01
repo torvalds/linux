@@ -442,8 +442,6 @@ xfs_cui_item_recover(
 	int				i;
 	int				error = 0;
 
-	ASSERT(!test_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags));
-
 	/*
 	 * First check the validity of the extents described by the
 	 * CUI.  If any are bad, then assume that all are bad and
@@ -473,7 +471,6 @@ xfs_cui_item_recover(
 			 * This will pull the CUI from the AIL and
 			 * free the memory associated with it.
 			 */
-			set_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags);
 			xfs_cui_release(cuip);
 			return -EFSCORRUPTED;
 		}
@@ -557,7 +554,6 @@ xfs_cui_item_recover(
 	}
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	set_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags);
 	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	return error;

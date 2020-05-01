@@ -482,8 +482,6 @@ xfs_rui_item_recover(
 	int				whichfork;
 	int				error = 0;
 
-	ASSERT(!test_bit(XFS_LI_RECOVERED, &ruip->rui_item.li_flags));
-
 	/*
 	 * First check the validity of the extents described by the
 	 * RUI.  If any are bad, then assume that all are bad and
@@ -517,7 +515,6 @@ xfs_rui_item_recover(
 			 * This will pull the RUI from the AIL and
 			 * free the memory associated with it.
 			 */
-			set_bit(XFS_LI_RECOVERED, &ruip->rui_item.li_flags);
 			xfs_rui_release(ruip);
 			return -EFSCORRUPTED;
 		}
@@ -575,7 +572,6 @@ xfs_rui_item_recover(
 	}
 
 	xfs_rmap_finish_one_cleanup(tp, rcur, error);
-	set_bit(XFS_LI_RECOVERED, &ruip->rui_item.li_flags);
 	error = xfs_trans_commit(tp);
 	return error;
 

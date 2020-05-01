@@ -594,8 +594,6 @@ xfs_efi_item_recover(
 	int				i;
 	int				error = 0;
 
-	ASSERT(!test_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags));
-
 	/*
 	 * First check the validity of the extents described by the
 	 * EFI.  If any are bad, then assume that all are bad and
@@ -613,7 +611,6 @@ xfs_efi_item_recover(
 			 * This will pull the EFI from the AIL and
 			 * free the memory associated with it.
 			 */
-			set_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags);
 			xfs_efi_release(efip);
 			return -EFSCORRUPTED;
 		}
@@ -634,7 +631,6 @@ xfs_efi_item_recover(
 
 	}
 
-	set_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags);
 	error = xfs_trans_commit(tp);
 	return error;
 
