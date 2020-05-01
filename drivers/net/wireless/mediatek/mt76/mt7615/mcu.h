@@ -83,6 +83,7 @@ enum {
 	MCU_EVENT_MT_PATCH_SEM = 0x04,
 	MCU_EVENT_SCAN_DONE = 0x0d,
 	MCU_EVENT_BSS_ABSENCE  = 0x11,
+	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
 	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_EXT = 0xed,
@@ -289,6 +290,12 @@ struct mt7615_mcu_uni_event {
 	u8 cid;
 	u8 pad[3];
 	__le32 status; /* 0: success, others: fail */
+} __packed;
+
+struct mt7615_beacon_loss_event {
+	u8 bss_idx;
+	u8 reason;
+	u8 pad[2];
 } __packed;
 
 struct mt7615_mcu_scan_ssid {
