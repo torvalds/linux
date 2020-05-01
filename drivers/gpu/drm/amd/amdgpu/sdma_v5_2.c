@@ -707,7 +707,7 @@ static int sdma_v5_2_gfx_resume(struct amdgpu_device *adev)
 		temp &= 0xFF0FFF;
 		temp |= ((CACHE_READ_POLICY_L2__DEFAULT << 12) |
 			 (CACHE_WRITE_POLICY_L2__DEFAULT << 14) |
-			 0x01000000);
+			 SDMA0_UTCL1_PAGE__LLC_NOALLOC_MASK);
 		WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_UTCL1_PAGE), temp);
 
 		if (!amdgpu_sriov_vf(adev)) {

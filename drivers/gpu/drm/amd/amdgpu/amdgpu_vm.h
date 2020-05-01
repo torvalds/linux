@@ -76,6 +76,9 @@ struct amdgpu_bo_list_entry;
 /* PTE is handled as PDE for VEGA10 (Translate Further) */
 #define AMDGPU_PTE_TF		(1ULL << 56)
 
+/* MALL noalloc for sienna_cichlid, reserved for older ASICs  */
+#define AMDGPU_PTE_NOALLOC	(1ULL << 58)
+
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
