@@ -24,6 +24,8 @@
 kmem_zone_t	*xfs_cui_zone;
 kmem_zone_t	*xfs_cud_zone;
 
+static const struct xfs_item_ops xfs_cui_item_ops;
+
 static inline struct xfs_cui_log_item *CUI_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_cui_log_item, cui_item);
@@ -46,7 +48,7 @@ xfs_cui_item_free(
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the CUI.
  */
-void
+STATIC void
 xfs_cui_release(
 	struct xfs_cui_log_item	*cuip)
 {
@@ -124,13 +126,6 @@ xfs_cui_item_release(
 {
 	xfs_cui_release(CUI_ITEM(lip));
 }
-
-static const struct xfs_item_ops xfs_cui_item_ops = {
-	.iop_size	= xfs_cui_item_size,
-	.iop_format	= xfs_cui_item_format,
-	.iop_unpin	= xfs_cui_item_unpin,
-	.iop_release	= xfs_cui_item_release,
-};
 
 /*
  * Allocate and initialize an cui item with the given number of extents.
@@ -425,7 +420,7 @@ const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
  * Process a refcount update intent item that was recovered from the log.
  * We need to update the refcountbt.
  */
-int
+STATIC int
 xfs_cui_recover(
 	struct xfs_trans		*parent_tp,
 	struct xfs_cui_log_item		*cuip)
@@ -572,6 +567,37 @@ abort_error:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+/* Recover the CUI if necessary. */
+STATIC int
+xfs_cui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*tp)
+{
+	struct xfs_ail			*ailp = lip->li_ailp;
+	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
+	int				error;
+
+	/*
+	 * Skip CUIs that we've already processed.
+	 */
+	if (test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags))
+		return 0;
+
+	spin_unlock(&ailp->ail_lock);
+	error = xfs_cui_recover(tp, cuip);
+	spin_lock(&ailp->ail_lock);
+
+	return error;
+}
+
+static const struct xfs_item_ops xfs_cui_item_ops = {
+	.iop_size	= xfs_cui_item_size,
+	.iop_format	= xfs_cui_item_format,
+	.iop_unpin	= xfs_cui_item_unpin,
+	.iop_release	= xfs_cui_item_release,
+	.iop_recover	= xfs_cui_item_recover,
+};
 
 /*
  * Copy an CUI format buffer from the given buf, and into the destination
