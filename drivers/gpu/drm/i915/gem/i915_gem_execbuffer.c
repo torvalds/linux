@@ -268,6 +268,7 @@ struct i915_execbuffer {
 		bool has_fence : 1;
 		bool needs_unfenced : 1;
 
+		struct i915_vma *target;
 		struct i915_request *rq;
 		struct i915_vma *rq_vma;
 		u32 *rq_cmd;
@@ -1051,14 +1052,14 @@ static unsigned int reloc_bb_flags(const struct reloc_cache *cache)
 	return cache->gen > 5 ? 0 : I915_DISPATCH_SECURE;
 }
 
-static void reloc_gpu_flush(struct reloc_cache *cache)
+static int reloc_gpu_flush(struct reloc_cache *cache)
 {
 	struct i915_request *rq;
 	int err;
 
 	rq = fetch_and_zero(&cache->rq);
 	if (!rq)
-		return;
+		return 0;
 
 	if (cache->rq_vma) {
 		struct drm_i915_gem_object *obj = cache->rq_vma->obj;
@@ -1084,14 +1085,13 @@ static void reloc_gpu_flush(struct reloc_cache *cache)
 
 	intel_gt_chipset_flush(rq->engine->gt);
 	i915_request_add(rq);
+
+	return err;
 }
 
 static void reloc_cache_reset(struct reloc_cache *cache)
 {
 	void *vaddr;
-
-	if (cache->rq)
-		reloc_gpu_flush(cache);
 
 	if (!cache->vaddr)
 		return;
@@ -1285,7 +1285,6 @@ static int reloc_move_to_gpu(struct i915_request *rq, struct i915_vma *vma)
 }
 
 static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
-			     struct i915_vma *vma,
 			     unsigned int len)
 {
 	struct reloc_cache *cache = &eb->reloc_cache;
@@ -1308,7 +1307,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto out_pool;
 	}
 
-	batch = i915_vma_instance(pool->obj, vma->vm, NULL);
+	batch = i915_vma_instance(pool->obj, eb->context->vm, NULL);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
 		goto err_unmap;
@@ -1325,10 +1324,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	}
 
 	err = intel_gt_buffer_pool_mark_active(pool, rq);
-	if (err)
-		goto err_request;
-
-	err = reloc_move_to_gpu(rq, vma);
 	if (err)
 		goto err_request;
 
@@ -1376,9 +1371,19 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 		if (!intel_engine_can_store_dword(eb->engine))
 			return ERR_PTR(-ENODEV);
 
-		err = __reloc_gpu_alloc(eb, vma, len);
+		err = __reloc_gpu_alloc(eb, len);
 		if (unlikely(err))
 			return ERR_PTR(err);
+	}
+
+	if (vma != cache->target) {
+		err = reloc_move_to_gpu(cache->rq, vma);
+		if (unlikely(err)) {
+			i915_request_set_error_once(cache->rq, err);
+			return ERR_PTR(err);
+		}
+
+		cache->target = vma;
 	}
 
 	if (unlikely(cache->rq_size + len >
@@ -1692,15 +1697,20 @@ static int eb_relocate(struct i915_execbuffer *eb)
 	/* The objects are in their final locations, apply the relocations. */
 	if (eb->args->flags & __EXEC_HAS_RELOC) {
 		struct eb_vma *ev;
+		int flush;
 
 		list_for_each_entry(ev, &eb->relocs, reloc_link) {
 			err = eb_relocate_vma(eb, ev);
 			if (err)
-				return err;
+				break;
 		}
+
+		flush = reloc_gpu_flush(&eb->reloc_cache);
+		if (!err)
+			err = flush;
 	}
 
-	return 0;
+	return err;
 }
 
 static int eb_move_to_gpu(struct i915_execbuffer *eb)
