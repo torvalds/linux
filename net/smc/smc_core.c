@@ -498,14 +498,69 @@ void smc_conn_free(struct smc_connection *conn)
 		smc_lgr_schedule_free_work(lgr);
 }
 
-static void smcr_link_clear(struct smc_link *lnk)
+/* unregister a link from a buf_desc */
+static void smcr_buf_unmap_link(struct smc_buf_desc *buf_desc, bool is_rmb,
+				struct smc_link *lnk)
+{
+	if (is_rmb)
+		buf_desc->is_reg_mr[lnk->link_idx] = false;
+	if (!buf_desc->is_map_ib[lnk->link_idx])
+		return;
+	if (is_rmb) {
+		if (buf_desc->mr_rx[lnk->link_idx]) {
+			smc_ib_put_memory_region(
+					buf_desc->mr_rx[lnk->link_idx]);
+			buf_desc->mr_rx[lnk->link_idx] = NULL;
+		}
+		smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_FROM_DEVICE);
+	} else {
+		smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_TO_DEVICE);
+	}
+	sg_free_table(&buf_desc->sgt[lnk->link_idx]);
+	buf_desc->is_map_ib[lnk->link_idx] = false;
+}
+
+/* unmap all buffers of lgr for a deleted link */
+static void smcr_buf_unmap_lgr(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr = lnk->lgr;
+	struct smc_buf_desc *buf_desc, *bf;
+	int i;
+
+	for (i = 0; i < SMC_RMBE_SIZES; i++) {
+		mutex_lock(&lgr->rmbs_lock);
+		list_for_each_entry_safe(buf_desc, bf, &lgr->rmbs[i], list)
+			smcr_buf_unmap_link(buf_desc, true, lnk);
+		mutex_unlock(&lgr->rmbs_lock);
+		mutex_lock(&lgr->sndbufs_lock);
+		list_for_each_entry_safe(buf_desc, bf, &lgr->sndbufs[i],
+					 list)
+			smcr_buf_unmap_link(buf_desc, false, lnk);
+		mutex_unlock(&lgr->sndbufs_lock);
+	}
+}
+
+static void smcr_rtoken_clear_link(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr = lnk->lgr;
+	int i;
+
+	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
+		lgr->rtokens[i][lnk->link_idx].rkey = 0;
+		lgr->rtokens[i][lnk->link_idx].dma_addr = 0;
+	}
+}
+
+void smcr_link_clear(struct smc_link *lnk)
 {
 	struct smc_ib_device *smcibdev;
 
-	if (lnk->peer_qpn == 0)
+	if (!lnk->lgr || lnk->state == SMC_LNK_UNUSED)
 		return;
 	lnk->peer_qpn = 0;
 	smc_llc_link_clear(lnk);
+	smcr_buf_unmap_lgr(lnk);
+	smcr_rtoken_clear_link(lnk);
 	smc_ib_modify_qp_reset(lnk);
 	smc_wr_free_link(lnk);
 	smc_ib_destroy_queue_pair(lnk);
@@ -522,23 +577,10 @@ static void smcr_link_clear(struct smc_link *lnk)
 static void smcr_buf_free(struct smc_link_group *lgr, bool is_rmb,
 			  struct smc_buf_desc *buf_desc)
 {
-	struct smc_link *lnk;
 	int i;
 
-	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		lnk = &lgr->lnk[i];
-		if (!buf_desc->is_map_ib[lnk->link_idx])
-			continue;
-		if (is_rmb) {
-			if (buf_desc->mr_rx[lnk->link_idx])
-				smc_ib_put_memory_region(
-						buf_desc->mr_rx[lnk->link_idx]);
-			smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_FROM_DEVICE);
-		} else {
-			smc_ib_buf_unmap_sg(lnk, buf_desc, DMA_TO_DEVICE);
-		}
-		sg_free_table(&buf_desc->sgt[lnk->link_idx]);
-	}
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
+		smcr_buf_unmap_link(buf_desc, is_rmb, &lgr->lnk[i]);
 
 	if (buf_desc->pages)
 		__free_pages(buf_desc->pages, buf_desc->order);
