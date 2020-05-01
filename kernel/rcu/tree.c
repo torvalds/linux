@@ -2443,6 +2443,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	local_irq_save(flags);
 	rcu_nocb_lock(rdp);
 	count = -rcl.len;
+	rdp->n_cbs_invoked += count;
 	trace_rcu_batch_end(rcu_state.name, count, !!rcl.head, need_resched(),
 			    is_idle_task(current), rcu_is_callbacks_kthread());
 
