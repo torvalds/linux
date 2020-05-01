@@ -550,9 +550,12 @@ static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 	}
 
 	/* Terminate read pipeline */
-	buf[len - 2] = ReadDOC(docptr, Mplus_LastDataRead);
-	if (debug && i < 16)
-		printk("%02x ", buf[len - 2]);
+	if (len >= 2) {
+		buf[len - 2] = ReadDOC(docptr, Mplus_LastDataRead);
+		if (debug && i < 16)
+			printk("%02x ", buf[len - 2]);
+	}
+
 	buf[len - 1] = ReadDOC(docptr, Mplus_LastDataRead);
 	if (debug && i < 16)
 		printk("%02x ", buf[len - 1]);
