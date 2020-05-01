@@ -2768,15 +2768,6 @@ static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static bool io_splice_punt(struct file *file, int rw)
-{
-	if (get_pipe_info(file))
-		return false;
-	if (!io_file_supports_async(file, rw))
-		return true;
-	return !(file->f_flags & O_NONBLOCK);
-}
-
 static int io_splice(struct io_kiocb *req, bool force_nonblock)
 {
 	struct io_splice *sp = &req->splice;
@@ -2786,11 +2777,8 @@ static int io_splice(struct io_kiocb *req, bool force_nonblock)
 	loff_t *poff_in, *poff_out;
 	long ret;
 
-	if (force_nonblock) {
-		if (io_splice_punt(in, READ) || io_splice_punt(out, WRITE))
-			return -EAGAIN;
-		flags |= SPLICE_F_NONBLOCK;
-	}
+	if (force_nonblock)
+		return -EAGAIN;
 
 	poff_in = (sp->off_in == -1) ? NULL : &sp->off_in;
 	poff_out = (sp->off_out == -1) ? NULL : &sp->off_out;
