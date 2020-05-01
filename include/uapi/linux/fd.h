@@ -360,10 +360,20 @@ struct floppy_raw_cmd {
 	int buffer_length; /* length of allocated buffer */
 
 	unsigned char rate;
+
+#define FD_RAW_CMD_SIZE 16
+#define FD_RAW_REPLY_SIZE 16
+#define FD_RAW_CMD_FULLSIZE (FD_RAW_CMD_SIZE + 1 + FD_RAW_REPLY_SIZE)
+
+	/* The command may take up the space initially intended for the reply
+	 * and the reply count. Needed for long 82078 commands such as RESTORE,
+	 * which takes 17 command bytes.
+	 */
+
 	unsigned char cmd_count;
-	unsigned char cmd[16];
+	unsigned char cmd[FD_RAW_CMD_SIZE];
 	unsigned char reply_count;
-	unsigned char reply[16];
+	unsigned char reply[FD_RAW_REPLY_SIZE];
 	int track;
 	int resultcode;
 

@@ -337,8 +337,7 @@ static bool initialized;
 /*
  * globals used by 'result()'
  */
-#define MAX_REPLIES 16
-static unsigned char reply_buffer[MAX_REPLIES];
+static unsigned char reply_buffer[FD_RAW_REPLY_SIZE];
 static int inr;		/* size of reply buffer, when called from interrupt */
 #define ST0		0
 #define ST1		1
@@ -1162,7 +1161,7 @@ static int result(int fdc)
 	int i;
 	int status = 0;
 
-	for (i = 0; i < MAX_REPLIES; i++) {
+	for (i = 0; i < FD_RAW_REPLY_SIZE; i++) {
 		status = wait_til_ready(fdc);
 		if (status < 0)
 			break;
@@ -3079,7 +3078,7 @@ static void raw_cmd_done(int flag)
 		raw_cmd->flags |= FD_RAW_HARDFAILURE;
 	} else {
 		raw_cmd->reply_count = inr;
-		if (raw_cmd->reply_count > MAX_REPLIES)
+		if (raw_cmd->reply_count > FD_RAW_REPLY_SIZE)
 			raw_cmd->reply_count = 0;
 		for (i = 0; i < raw_cmd->reply_count; i++)
 			raw_cmd->reply[i] = reply_buffer[i];
@@ -3190,18 +3189,10 @@ loop:
 	if (ret)
 		return -EFAULT;
 	param += sizeof(struct floppy_raw_cmd);
-	if (ptr->cmd_count > 33)
-			/* the command may now also take up the space
-			 * initially intended for the reply & the
-			 * reply count. Needed for long 82078 commands
-			 * such as RESTORE, which takes ... 17 command
-			 * bytes. Murphy's law #137: When you reserve
-			 * 16 bytes for a structure, you'll one day
-			 * discover that you really need 17...
-			 */
+	if (ptr->cmd_count > FD_RAW_CMD_FULLSIZE)
 		return -EINVAL;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < FD_RAW_REPLY_SIZE; i++)
 		ptr->reply[i] = 0;
 	ptr->resultcode = 0;
 
