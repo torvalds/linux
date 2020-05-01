@@ -1185,6 +1185,66 @@ int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc)
 	return 0;
 }
 
+static int _smcr_buf_map_lgr(struct smc_link *lnk, struct mutex *lock,
+			     struct list_head *lst, bool is_rmb)
+{
+	struct smc_buf_desc *buf_desc, *bf;
+	int rc = 0;
+
+	mutex_lock(lock);
+	list_for_each_entry_safe(buf_desc, bf, lst, list) {
+		if (!buf_desc->used)
+			continue;
+		rc = smcr_buf_map_link(buf_desc, is_rmb, lnk);
+		if (rc)
+			goto out;
+	}
+out:
+	mutex_unlock(lock);
+	return rc;
+}
+
+/* map all used buffers of lgr for a new link */
+int smcr_buf_map_lgr(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr = lnk->lgr;
+	int i, rc = 0;
+
+	for (i = 0; i < SMC_RMBE_SIZES; i++) {
+		rc = _smcr_buf_map_lgr(lnk, &lgr->rmbs_lock,
+				       &lgr->rmbs[i], true);
+		if (rc)
+			return rc;
+		rc = _smcr_buf_map_lgr(lnk, &lgr->sndbufs_lock,
+				       &lgr->sndbufs[i], false);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+/* register all used buffers of lgr for a new link */
+int smcr_buf_reg_lgr(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr = lnk->lgr;
+	struct smc_buf_desc *buf_desc, *bf;
+	int i, rc = 0;
+
+	mutex_lock(&lgr->rmbs_lock);
+	for (i = 0; i < SMC_RMBE_SIZES; i++) {
+		list_for_each_entry_safe(buf_desc, bf, &lgr->rmbs[i], list) {
+			if (!buf_desc->used)
+				continue;
+			rc = smcr_link_reg_rmb(lnk, buf_desc);
+			if (rc)
+				goto out;
+		}
+	}
+out:
+	mutex_unlock(&lgr->rmbs_lock);
+	return rc;
+}
+
 static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
 						bool is_rmb, int bufsize)
 {
