@@ -32,6 +32,8 @@
 #define VIMC_IS_SRC(pad)	(pad)
 #define VIMC_IS_SINK(pad)	(!(pad))
 
+#define VIMC_PIX_FMT_MAX_CODES 1
+
 /**
  * vimc_colorimetry_clamp - Adjust colorimetry parameters
  *
@@ -70,7 +72,7 @@ do {									\
  * V4L2_PIX_FMT_* fourcc pixelformat and its bytes per pixel (bpp)
  */
 struct vimc_pix_map {
-	unsigned int code;
+	unsigned int code[VIMC_PIX_FMT_MAX_CODES];
 	unsigned int bpp;
 	u32 pixelformat;
 	bool bayer;
@@ -168,6 +170,15 @@ extern struct vimc_ent_type vimc_cap_type;
  * @i:			index of the vimc_pix_map struct in vimc_pix_map_list
  */
 const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i);
+
+/**
+ * vimc_mbus_code_by_index - get mbus code by its index
+ *
+ * @index:		index of the mbus code in vimc_pix_map_list
+ *
+ * Returns 0 if no mbus code is found for the given index.
+ */
+u32 vimc_mbus_code_by_index(unsigned int index);
 
 /**
  * vimc_pix_map_by_code - get vimc_pix_map struct by media bus code

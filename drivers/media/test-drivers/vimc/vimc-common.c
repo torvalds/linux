@@ -19,19 +19,19 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 
 	/* RGB formats */
 	{
-		.code = MEDIA_BUS_FMT_BGR888_1X24,
+		.code = { MEDIA_BUS_FMT_BGR888_1X24 },
 		.pixelformat = V4L2_PIX_FMT_BGR24,
 		.bpp = 3,
 		.bayer = false,
 	},
 	{
-		.code = MEDIA_BUS_FMT_RGB888_1X24,
+		.code = { MEDIA_BUS_FMT_RGB888_1X24 },
 		.pixelformat = V4L2_PIX_FMT_RGB24,
 		.bpp = 3,
 		.bayer = false,
 	},
 	{
-		.code = MEDIA_BUS_FMT_ARGB8888_1X32,
+		.code = { MEDIA_BUS_FMT_ARGB8888_1X32 },
 		.pixelformat = V4L2_PIX_FMT_ARGB32,
 		.bpp = 4,
 		.bayer = false,
@@ -39,49 +39,49 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 
 	/* Bayer formats */
 	{
-		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
+		.code = { MEDIA_BUS_FMT_SBGGR8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.code = { MEDIA_BUS_FMT_SGBRG8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGBRG8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.code = { MEDIA_BUS_FMT_SGRBG8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGRBG8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.code = { MEDIA_BUS_FMT_SRGGB8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SRGGB8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.code = { MEDIA_BUS_FMT_SBGGR10_1X10 },
 		.pixelformat = V4L2_PIX_FMT_SBGGR10,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.code = { MEDIA_BUS_FMT_SGBRG10_1X10 },
 		.pixelformat = V4L2_PIX_FMT_SGBRG10,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.code = { MEDIA_BUS_FMT_SGRBG10_1X10 },
 		.pixelformat = V4L2_PIX_FMT_SGRBG10,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.code = { MEDIA_BUS_FMT_SRGGB10_1X10 },
 		.pixelformat = V4L2_PIX_FMT_SRGGB10,
 		.bpp = 2,
 		.bayer = true,
@@ -89,25 +89,25 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 
 	/* 10bit raw bayer a-law compressed to 8 bits */
 	{
-		.code = MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8,
+		.code = { MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SBGGR10ALAW8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8,
+		.code = { MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGBRG10ALAW8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
+		.code = { MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGRBG10ALAW8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8,
+		.code = { MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SRGGB10ALAW8,
 		.bpp = 1,
 		.bayer = true,
@@ -115,49 +115,49 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 
 	/* 10bit raw bayer DPCM compressed to 8 bits */
 	{
-		.code = MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8,
+		.code = { MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SBGGR10DPCM8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8,
+		.code = { MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGBRG10DPCM8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+		.code = { MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8,
+		.code = { MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8 },
 		.pixelformat = V4L2_PIX_FMT_SRGGB10DPCM8,
 		.bpp = 1,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.code = { MEDIA_BUS_FMT_SBGGR12_1X12 },
 		.pixelformat = V4L2_PIX_FMT_SBGGR12,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.code = { MEDIA_BUS_FMT_SGBRG12_1X12 },
 		.pixelformat = V4L2_PIX_FMT_SGBRG12,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.code = { MEDIA_BUS_FMT_SGRBG12_1X12 },
 		.pixelformat = V4L2_PIX_FMT_SGRBG12,
 		.bpp = 2,
 		.bayer = true,
 	},
 	{
-		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.code = { MEDIA_BUS_FMT_SRGGB12_1X12 },
 		.pixelformat = V4L2_PIX_FMT_SRGGB12,
 		.bpp = 2,
 		.bayer = true,
@@ -182,13 +182,32 @@ const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 	return &vimc_pix_map_list[i];
 }
 
-const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
+u32 vimc_mbus_code_by_index(unsigned int index)
 {
-	unsigned int i;
+	unsigned int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(vimc_pix_map_list); i++) {
-		if (vimc_pix_map_list[i].code == code)
-			return &vimc_pix_map_list[i];
+		for (j = 0; j < ARRAY_SIZE(vimc_pix_map_list[i].code); j++) {
+			if (!vimc_pix_map_list[i].code[j])
+				break;
+
+			if (!index)
+				return vimc_pix_map_list[i].code[j];
+			index--;
+		}
+	}
+	return 0;
+}
+
+const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(vimc_pix_map_list); i++) {
+		for (j = 0; j < ARRAY_SIZE(vimc_pix_map_list[i].code); j++) {
+			if (vimc_pix_map_list[i].code[j] == code)
+				return &vimc_pix_map_list[i];
+		}
 	}
 	return NULL;
 }

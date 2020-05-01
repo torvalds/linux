@@ -110,13 +110,19 @@ static int vimc_sca_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
-	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(code->index);
+	u32 mbus_code = vimc_mbus_code_by_index(code->index);
+	const struct vimc_pix_map *vpix;
+
+	if (!mbus_code)
+		return -EINVAL;
+
+	vpix = vimc_pix_map_by_code(mbus_code);
 
 	/* We don't support bayer format */
 	if (!vpix || vpix->bayer)
 		return -EINVAL;
 
-	code->code = vpix->code;
+	code->code = mbus_code;
 
 	return 0;
 }
