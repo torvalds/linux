@@ -1404,6 +1404,10 @@ static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 {
 	u64 busy_cycles, busy_time;
 
+	/* Only read the gpu busy if the hardware is already active */
+	if (pm_runtime_get_if_in_use(&gpu->pdev->dev) == 0)
+		return 0;
+
 	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
 			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
 
@@ -1411,6 +1415,8 @@ static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 	do_div(busy_time, clk_get_rate(gpu->core_clk) / 1000000);
 
 	gpu->devfreq.busy_cycles = busy_cycles;
+
+	pm_runtime_put(&gpu->pdev->dev);
 
 	if (WARN_ON(busy_time > ~0LU))
 		return ~0LU;
