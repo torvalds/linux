@@ -1521,6 +1521,8 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return enetc_setup_tc_cbs(ndev, type_data);
 	case TC_SETUP_QDISC_ETF:
 		return enetc_setup_tc_txtime(ndev, type_data);
+	case TC_SETUP_BLOCK:
+		return enetc_setup_tc_psfp(ndev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1573,16 +1575,22 @@ static int enetc_set_rss(struct net_device *ndev, int en)
 static int enetc_set_psfp(struct net_device *ndev, int en)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int err;
 
 	if (en) {
+		err = enetc_psfp_enable(priv);
+		if (err)
+			return err;
+
 		priv->active_offloads |= ENETC_F_QCI;
-		enetc_get_max_cap(priv);
-		enetc_psfp_enable(&priv->si->hw);
-	} else {
-		priv->active_offloads &= ~ENETC_F_QCI;
-		memset(&priv->psfp_cap, 0, sizeof(struct psfp_cap));
-		enetc_psfp_disable(&priv->si->hw);
+		return 0;
 	}
+
+	err = enetc_psfp_disable(priv);
+	if (err)
+		return err;
+
+	priv->active_offloads &= ~ENETC_F_QCI;
 
 	return 0;
 }
@@ -1591,14 +1599,15 @@ int enetc_set_features(struct net_device *ndev,
 		       netdev_features_t features)
 {
 	netdev_features_t changed = ndev->features ^ features;
+	int err = 0;
 
 	if (changed & NETIF_F_RXHASH)
 		enetc_set_rss(ndev, !!(features & NETIF_F_RXHASH));
 
 	if (changed & NETIF_F_HW_TC)
-		enetc_set_psfp(ndev, !!(features & NETIF_F_HW_TC));
+		err = enetc_set_psfp(ndev, !!(features & NETIF_F_HW_TC));
 
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
