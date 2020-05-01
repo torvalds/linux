@@ -815,6 +815,17 @@ xfs_trans_ail_update_bulk(
 	xfs_ail_update_finish(ailp, tail_lsn);
 }
 
+/* Insert a log item into the AIL. */
+void
+xfs_trans_ail_insert(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
+{
+	spin_lock(&ailp->ail_lock);
+	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
+}
+
 /*
  * Delete one log item from the AIL.
  *
