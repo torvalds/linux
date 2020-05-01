@@ -2073,7 +2073,8 @@ static int next_valid_format(int drive)
 
 	probed_format = drive_state[drive].probed_format;
 	while (1) {
-		if (probed_format >= 8 || !drive_params[drive].autodetect[probed_format]) {
+		if (probed_format >= FD_AUTODETECT_SIZE ||
+		    !drive_params[drive].autodetect[probed_format]) {
 			drive_state[drive].probed_format = 0;
 			return 1;
 		}
@@ -3442,13 +3443,13 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static bool valid_floppy_drive_params(const short autodetect[8],
+static bool valid_floppy_drive_params(const short autodetect[FD_AUTODETECT_SIZE],
 		int native_format)
 {
 	size_t floppy_type_size = ARRAY_SIZE(floppy_type);
 	size_t i = 0;
 
-	for (i = 0; i < 8; ++i) {
+	for (i = 0; i < FD_AUTODETECT_SIZE; ++i) {
 		if (autodetect[i] < 0 ||
 		    autodetect[i] >= floppy_type_size)
 			return false;
@@ -3673,7 +3674,7 @@ struct compat_floppy_drive_params {
 	struct floppy_max_errors max_errors;
 	char		flags;
 	char		read_track;
-	short		autodetect[8];
+	short		autodetect[FD_AUTODETECT_SIZE];
 	compat_int_t	checkfreq;
 	compat_int_t	native_format;
 };

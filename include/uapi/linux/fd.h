@@ -172,7 +172,10 @@ struct floppy_drive_params {
  * used in succession to try to read the disk. If the FDC cannot lock onto
  * the disk, the next format is tried. This uses the variable 'probing'.
  */
-	short autodetect[8];		/* autodetected formats */
+
+#define FD_AUTODETECT_SIZE 8
+
+	short autodetect[FD_AUTODETECT_SIZE]; /* autodetected formats */
 	
 	int checkfreq; /* how often should the drive be checked for disk 
 			* changes */
