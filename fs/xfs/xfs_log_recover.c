@@ -2035,31 +2035,6 @@ xlog_buf_readahead(
 }
 
 STATIC int
-xlog_recover_commit_pass2(
-	struct xlog			*log,
-	struct xlog_recover		*trans,
-	struct list_head		*buffer_list,
-	struct xlog_recover_item	*item)
-{
-	trace_xfs_log_recover_item_recover(log, trans, item, XLOG_RECOVER_PASS2);
-
-	if (item->ri_ops->commit_pass2)
-		return item->ri_ops->commit_pass2(log, buffer_list, item,
-				trans->r_lsn);
-
-	switch (ITEM_TYPE(item)) {
-	case XFS_LI_QUOTAOFF:
-		/* nothing to do in pass2 */
-		return 0;
-	default:
-		xfs_warn(log->l_mp, "%s: invalid item type (%d)",
-			__func__, ITEM_TYPE(item));
-		ASSERT(0);
-		return -EFSCORRUPTED;
-	}
-}
-
-STATIC int
 xlog_recover_items_pass2(
 	struct xlog                     *log,
 	struct xlog_recover             *trans,
@@ -2070,8 +2045,12 @@ xlog_recover_items_pass2(
 	int				error = 0;
 
 	list_for_each_entry(item, item_list, ri_list) {
-		error = xlog_recover_commit_pass2(log, trans,
-					  buffer_list, item);
+		trace_xfs_log_recover_item_recover(log, trans, item,
+				XLOG_RECOVER_PASS2);
+
+		if (item->ri_ops->commit_pass2)
+			error = item->ri_ops->commit_pass2(log, buffer_list,
+					item, trans->r_lsn);
 		if (error)
 			return error;
 	}

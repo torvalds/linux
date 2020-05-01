@@ -197,4 +197,5 @@ xlog_recover_quotaoff_commit_pass1(
 const struct xlog_recover_item_ops xlog_quotaoff_item_ops = {
 	.item_type		= XFS_LI_QUOTAOFF,
 	.commit_pass1		= xlog_recover_quotaoff_commit_pass1,
+	/* nothing to commit in pass2 */
 };
