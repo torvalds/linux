@@ -1,6 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-            The Spidernet Device Driver
-            ===========================
+===========================
+The Spidernet Device Driver
+===========================
 
 Written by Linas Vepstas <linas@austin.ibm.com>
 
@@ -78,15 +80,15 @@ GDACTDPA, tail and head pointers. It will also summarize the contents
 of the ring, starting at the tail pointer, and listing the status
 of the descrs that follow.
 
-A typical example of the output, for a nearly idle system, might be
+A typical example of the output, for a nearly idle system, might be::
 
-net eth1: Total number of descrs=256
-net eth1: Chain tail located at descr=20
-net eth1: Chain head is at 20
-net eth1: HW curr desc (GDACTDPA) is at 21
-net eth1: Have 1 descrs with stat=x40800101
-net eth1: HW next desc (GDACNEXTDA) is at 22
-net eth1: Last 255 descrs with stat=xa0800000
+    net eth1: Total number of descrs=256
+    net eth1: Chain tail located at descr=20
+    net eth1: Chain head is at 20
+    net eth1: HW curr desc (GDACTDPA) is at 21
+    net eth1: Have 1 descrs with stat=x40800101
+    net eth1: HW next desc (GDACNEXTDA) is at 22
+    net eth1: Last 255 descrs with stat=xa0800000
 
 In the above, the hardware has filled in one descr, number 20. Both
 head and tail are pointing at 20, because it has not yet been emptied.
@@ -101,11 +103,11 @@ The status x4... corresponds to "full" and status xa... corresponds
 to "empty". The actual value printed is RXCOMST_A.
 
 In the device driver source code, a different set of names are
-used for these same concepts, so that
+used for these same concepts, so that::
 
-"empty" == SPIDER_NET_DESCR_CARDOWNED == 0xa
-"full"  == SPIDER_NET_DESCR_FRAME_END == 0x4
-"not in use" == SPIDER_NET_DESCR_NOT_IN_USE == 0xf
+    "empty" == SPIDER_NET_DESCR_CARDOWNED == 0xa
+    "full"  == SPIDER_NET_DESCR_FRAME_END == 0x4
+    "not in use" == SPIDER_NET_DESCR_NOT_IN_USE == 0xf
 
 
 The RX RAM full bug/feature
@@ -137,19 +139,19 @@ while the hardware is waiting for a different set of descrs to become
 empty.
 
 A call to show_rx_chain() at this point indicates the nature of the
-problem. A typical print when the network is hung shows the following:
+problem. A typical print when the network is hung shows the following::
 
-net eth1: Spider RX RAM full, incoming packets might be discarded!
-net eth1: Total number of descrs=256
-net eth1: Chain tail located at descr=255
-net eth1: Chain head is at 255
-net eth1: HW curr desc (GDACTDPA) is at 0
-net eth1: Have 1 descrs with stat=xa0800000
-net eth1: HW next desc (GDACNEXTDA) is at 1
-net eth1: Have 127 descrs with stat=x40800101
-net eth1: Have 1 descrs with stat=x40800001
-net eth1: Have 126 descrs with stat=x40800101
-net eth1: Last 1 descrs with stat=xa0800000
+    net eth1: Spider RX RAM full, incoming packets might be discarded!
+    net eth1: Total number of descrs=256
+    net eth1: Chain tail located at descr=255
+    net eth1: Chain head is at 255
+    net eth1: HW curr desc (GDACTDPA) is at 0
+    net eth1: Have 1 descrs with stat=xa0800000
+    net eth1: HW next desc (GDACNEXTDA) is at 1
+    net eth1: Have 127 descrs with stat=x40800101
+    net eth1: Have 1 descrs with stat=x40800001
+    net eth1: Have 126 descrs with stat=x40800101
+    net eth1: Last 1 descrs with stat=xa0800000
 
 Both the tail and head pointers are pointing at descr 255, which is
 marked xa... which is "empty". Thus, from the OS point of view, there
@@ -198,7 +200,3 @@ For large packets, this mechanism generates a relatively small number
 of interrupts, about 1K/sec. For smaller packets, this will drop to zero
 interrupts, as the hardware can empty the queue faster than the kernel
 can fill it.
-
-
- ======= END OF DOCUMENT ========
-
