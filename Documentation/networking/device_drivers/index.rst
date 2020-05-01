@@ -35,6 +35,7 @@ Contents:
    cirrus/cs89x0
    davicom/dm9000
    dec/de4x5
+   dec/dmfe
 
 .. only::  subproject and html
 

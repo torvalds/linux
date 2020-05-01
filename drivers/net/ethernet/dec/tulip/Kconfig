@@ -138,7 +138,7 @@ config DM9102
 	  This driver is for DM9102(A)/DM9132/DM9801 compatible PCI cards from
 	  Davicom (<http://www.davicom.com.tw/>).  If you have such a network
 	  (Ethernet) card, say Y.  Some information is contained in the file
-	  <file:Documentation/networking/device_drivers/dec/dmfe.txt>.
+	  <file:Documentation/networking/device_drivers/dec/dmfe.rst>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called dmfe.
