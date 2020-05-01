@@ -24,6 +24,8 @@
 kmem_zone_t	*xfs_rui_zone;
 kmem_zone_t	*xfs_rud_zone;
 
+static const struct xfs_item_ops xfs_rui_item_ops;
+
 static inline struct xfs_rui_log_item *RUI_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_rui_log_item, rui_item);
@@ -46,7 +48,7 @@ xfs_rui_item_free(
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the RUI.
  */
-void
+STATIC void
 xfs_rui_release(
 	struct xfs_rui_log_item	*ruip)
 {
@@ -123,13 +125,6 @@ xfs_rui_item_release(
 {
 	xfs_rui_release(RUI_ITEM(lip));
 }
-
-static const struct xfs_item_ops xfs_rui_item_ops = {
-	.iop_size	= xfs_rui_item_size,
-	.iop_format	= xfs_rui_item_format,
-	.iop_unpin	= xfs_rui_item_unpin,
-	.iop_release	= xfs_rui_item_release,
-};
 
 /*
  * Allocate and initialize an rui item with the given number of extents.
@@ -468,7 +463,7 @@ const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
  * Process an rmap update intent item that was recovered from the log.
  * We need to update the rmapbt.
  */
-int
+STATIC int
 xfs_rui_recover(
 	struct xfs_mount		*mp,
 	struct xfs_rui_log_item		*ruip)
@@ -587,6 +582,37 @@ abort_error:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+/* Recover the RUI if necessary. */
+STATIC int
+xfs_rui_item_recover(
+	struct xfs_log_item		*lip,
+	struct xfs_trans		*tp)
+{
+	struct xfs_ail			*ailp = lip->li_ailp;
+	struct xfs_rui_log_item		*ruip = RUI_ITEM(lip);
+	int				error;
+
+	/*
+	 * Skip RUIs that we've already processed.
+	 */
+	if (test_bit(XFS_RUI_RECOVERED, &ruip->rui_flags))
+		return 0;
+
+	spin_unlock(&ailp->ail_lock);
+	error = xfs_rui_recover(tp->t_mountp, ruip);
+	spin_lock(&ailp->ail_lock);
+
+	return error;
+}
+
+static const struct xfs_item_ops xfs_rui_item_ops = {
+	.iop_size	= xfs_rui_item_size,
+	.iop_format	= xfs_rui_item_format,
+	.iop_unpin	= xfs_rui_item_unpin,
+	.iop_release	= xfs_rui_item_release,
+	.iop_recover	= xfs_rui_item_recover,
+};
 
 /*
  * This routine is called to create an in-core extent rmap update
