@@ -13,6 +13,11 @@ struct power_supply_hwmon {
 	unsigned long *props;
 };
 
+static const char *const ps_temp_label[] = {
+	"temp",
+	"ambient temp",
+};
+
 static int power_supply_hwmon_in_to_property(u32 attr)
 {
 	switch (attr) {
@@ -180,7 +185,20 @@ static int power_supply_hwmon_read_string(struct device *dev,
 					  u32 attr, int channel,
 					  const char **str)
 {
-	*str = channel ? "temp ambient" : "temp";
+	switch (type) {
+	case hwmon_temp:
+		*str = ps_temp_label[channel];
+		break;
+	default:
+		/* unreachable, but see:
+		 * gcc bug #51513 [1] and clang bug #978 [2]
+		 *
+		 * [1] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51513
+		 * [2] https://github.com/ClangBuiltLinux/linux/issues/978
+		 */
+		break;
+	}
+
 	return 0;
 }
 
