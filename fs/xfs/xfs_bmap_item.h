@@ -33,11 +33,6 @@ struct kmem_zone;
 #define	XFS_BUI_MAX_FAST_EXTENTS	1
 
 /*
- * Define BUI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_BUI_RECOVERED		1
-
-/*
  * This is the "bmap update intent" log item.  It is used to log the fact that
  * some reverse mappings need to change.  It is used in conjunction with the
  * "bmap update done" log item described below.
@@ -49,7 +44,6 @@ struct xfs_bui_log_item {
 	struct xfs_log_item		bui_item;
 	atomic_t			bui_refcount;
 	atomic_t			bui_next_extent;
-	unsigned long			bui_flags;	/* misc flags */
 	struct xfs_bui_log_format	bui_format;
 };
 

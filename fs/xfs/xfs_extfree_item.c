@@ -592,7 +592,7 @@ xfs_efi_recover(
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
 
-	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
+	ASSERT(!test_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags));
 
 	/*
 	 * First check the validity of the extents described by the
@@ -611,7 +611,7 @@ xfs_efi_recover(
 			 * This will pull the EFI from the AIL and
 			 * free the memory associated with it.
 			 */
-			set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
+			set_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags);
 			xfs_efi_release(efip);
 			return -EFSCORRUPTED;
 		}
@@ -632,7 +632,7 @@ xfs_efi_recover(
 
 	}
 
-	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
+	set_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags);
 	error = xfs_trans_commit(tp);
 	return error;
 
@@ -655,7 +655,7 @@ xfs_efi_item_recover(
 	 * Skip EFIs that we've already processed.
 	 */
 	efip = container_of(lip, struct xfs_efi_log_item, efi_item);
-	if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
+	if (test_bit(XFS_LI_RECOVERED, &efip->efi_item.li_flags))
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);

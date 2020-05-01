@@ -441,7 +441,7 @@ xfs_cui_recover(
 	bool				requeue_only = false;
 	struct xfs_mount		*mp = parent_tp->t_mountp;
 
-	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
+	ASSERT(!test_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags));
 
 	/*
 	 * First check the validity of the extents described by the
@@ -472,7 +472,7 @@ xfs_cui_recover(
 			 * This will pull the CUI from the AIL and
 			 * free the memory associated with it.
 			 */
-			set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+			set_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags);
 			xfs_cui_release(cuip);
 			return -EFSCORRUPTED;
 		}
@@ -556,7 +556,7 @@ xfs_cui_recover(
 	}
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+	set_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags);
 	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	return error;
@@ -581,7 +581,7 @@ xfs_cui_item_recover(
 	/*
 	 * Skip CUIs that we've already processed.
 	 */
-	if (test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags))
+	if (test_bit(XFS_LI_RECOVERED, &cuip->cui_item.li_flags))
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);

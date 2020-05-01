@@ -17,11 +17,6 @@ struct kmem_zone;
 #define	XFS_EFI_MAX_FAST_EXTENTS	16
 
 /*
- * Define EFI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_EFI_RECOVERED	1
-
-/*
  * This is the "extent free intention" log item.  It is used to log the fact
  * that some extents need to be free.  It is used in conjunction with the
  * "extent free done" log item described below.
@@ -54,7 +49,6 @@ struct xfs_efi_log_item {
 	struct xfs_log_item	efi_item;
 	atomic_t		efi_refcount;
 	atomic_t		efi_next_extent;
-	unsigned long		efi_flags;	/* misc flags */
 	xfs_efi_log_format_t	efi_format;
 };
 
