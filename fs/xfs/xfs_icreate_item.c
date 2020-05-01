@@ -11,6 +11,8 @@
 #include "xfs_trans_priv.h"
 #include "xfs_icreate_item.h"
 #include "xfs_log.h"
+#include "xfs_log_priv.h"
+#include "xfs_log_recover.h"
 
 kmem_zone_t	*xfs_icreate_zone;		/* inode create item zone */
 
@@ -107,3 +109,21 @@ xfs_icreate_log(
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	set_bit(XFS_LI_DIRTY, &icp->ic_item.li_flags);
 }
+
+static enum xlog_recover_reorder
+xlog_recover_icreate_reorder(
+		struct xlog_recover_item *item)
+{
+	/*
+	 * Inode allocation buffers must be replayed before subsequent inode
+	 * items try to modify those buffers.  ICREATE items are the logical
+	 * equivalent of logging a newly initialized inode buffer, so recover
+	 * these at the same time that we recover logged buffers.
+	 */
+	return XLOG_REORDER_BUFFER_LIST;
+}
+
+const struct xlog_recover_item_ops xlog_icreate_item_ops = {
+	.item_type		= XFS_LI_ICREATE,
+	.reorder		= xlog_recover_icreate_reorder,
+};

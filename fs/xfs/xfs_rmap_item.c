@@ -18,6 +18,7 @@
 #include "xfs_log.h"
 #include "xfs_rmap.h"
 #include "xfs_error.h"
+#include "xfs_log_recover.h"
 
 kmem_zone_t	*xfs_rui_zone;
 kmem_zone_t	*xfs_rud_zone;
@@ -585,3 +586,11 @@ abort_error:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+const struct xlog_recover_item_ops xlog_rui_item_ops = {
+	.item_type		= XFS_LI_RUI,
+};
+
+const struct xlog_recover_item_ops xlog_rud_item_ops = {
+	.item_type		= XFS_LI_RUD,
+};
