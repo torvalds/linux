@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
 Hyper-V network driver
 ======================
 
@@ -10,15 +13,15 @@ Windows 10.
 Features
 ========
 
-  Checksum offload
-  ----------------
+Checksum offload
+----------------
   The netvsc driver supports checksum offload as long as the
   Hyper-V host version does. Windows Server 2016 and Azure
   support checksum offload for TCP and UDP for both IPv4 and
   IPv6. Windows Server 2012 only supports checksum offload for TCP.
 
-  Receive Side Scaling
-  --------------------
+Receive Side Scaling
+--------------------
   Hyper-V supports receive side scaling. For TCP & UDP, packets can
   be distributed among available queues based on IP address and port
   number.
@@ -32,30 +35,37 @@ Features
   hashing. Using L3 hashing is recommended in this case.
 
   For example, for UDP over IPv4 on eth0:
-  To include UDP port numbers in hashing:
-        ethtool -N eth0 rx-flow-hash udp4 sdfn
-  To exclude UDP port numbers in hashing:
-        ethtool -N eth0 rx-flow-hash udp4 sd
-  To show UDP hash level:
-        ethtool -n eth0 rx-flow-hash udp4
 
-  Generic Receive Offload, aka GRO
-  --------------------------------
+  To include UDP port numbers in hashing::
+
+	ethtool -N eth0 rx-flow-hash udp4 sdfn
+
+  To exclude UDP port numbers in hashing::
+
+	ethtool -N eth0 rx-flow-hash udp4 sd
+
+  To show UDP hash level::
+
+	ethtool -n eth0 rx-flow-hash udp4
+
+Generic Receive Offload, aka GRO
+--------------------------------
   The driver supports GRO and it is enabled by default. GRO coalesces
   like packets and significantly reduces CPU usage under heavy Rx
   load.
 
-  Large Receive Offload (LRO), or Receive Side Coalescing (RSC)
-  -------------------------------------------------------------
+Large Receive Offload (LRO), or Receive Side Coalescing (RSC)
+-------------------------------------------------------------
   The driver supports LRO/RSC in the vSwitch feature. It reduces the per packet
   processing overhead by coalescing multiple TCP segments when possible. The
   feature is enabled by default on VMs running on Windows Server 2019 and
-  later. It may be changed by ethtool command:
+  later. It may be changed by ethtool command::
+
 	ethtool -K eth0 lro on
 	ethtool -K eth0 lro off
 
-  SR-IOV support
-  --------------
+SR-IOV support
+--------------
   Hyper-V supports SR-IOV as a hardware acceleration option. If SR-IOV
   is enabled in both the vSwitch and the guest configuration, then the
   Virtual Function (VF) device is passed to the guest as a PCI
@@ -70,8 +80,8 @@ Features
   flow direction is desired, these should be applied directly to the
   VF slave device.
 
-  Receive Buffer
-  --------------
+Receive Buffer
+--------------
   Packets are received into a receive area which is created when device
   is probed. The receive area is broken into MTU sized chunks and each may
   contain one or more packets. The number of receive sections may be changed
@@ -83,8 +93,8 @@ Features
   will use slower method to handle very large packets or if the send buffer
   area is exhausted.
 
-  XDP support
-  -----------
+XDP support
+-----------
   XDP (eXpress Data Path) is a feature that runs eBPF bytecode at the early
   stage when packets arrive at a NIC card. The goal is to increase performance
   for packet processing, reducing the overhead of SKB allocation and other
@@ -99,7 +109,8 @@ Features
   overwritten by setting of synthetic NIC.
 
   XDP program cannot run with LRO (RSC) enabled, so you need to disable LRO
-  before running XDP:
+  before running XDP::
+
 	ethtool -K eth0 lro off
 
   XDP_REDIRECT action is not yet supported.

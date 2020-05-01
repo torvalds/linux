@@ -41,6 +41,7 @@ Contents:
    freescale/gianfar
    intel/ipw2100
    intel/ipw2200
+   microsoft/netvsc
 
 .. only::  subproject and html
 
