@@ -11,7 +11,7 @@
 / {
 	compatible = "samsung,aries", "samsung,s5pv210";
 
-	aliases {
+	aliases: aliases {
 		i2c4 = &i2c_sound;
 		i2c5 = &i2c_accel;
 		i2c6 = &i2c_pmic;

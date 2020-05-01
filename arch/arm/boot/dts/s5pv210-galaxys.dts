@@ -49,11 +49,58 @@
 			wakeup-source;
 		};
 	};
+
+	i2c_fmradio: i2c-gpio-8 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpd1 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpd1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fm_i2c_pins>;
+
+		fmradio@10 {
+			compatible = "silabs,si470x";
+			reg = <0x10>;
+			interrupt-parent = <&gpj2>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+			reset-gpios = <&gpj2 5 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&fm_irq &fm_rst>;
+		};
+	};
+};
+
+&aliases {
+	i2c8 = &i2c_fmradio;
 };
 
 &pinctrl0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_cfg>;
+
+	fm_i2c_pins: fm-i2c-pins {
+		samsung,pins = "gpd1-2", "gpd1-3";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	fm_irq: fm-irq {
+		samsung,pins = "gpj2-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	fm_rst: fm-rst {
+		samsung,pins = "gpj2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
 
 	massmemory_en: massmemory-en {
 		samsung,pins = "gpj2-7";
