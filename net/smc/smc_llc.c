@@ -565,6 +565,24 @@ static int smc_llc_alloc_alt_link(struct smc_link_group *lgr,
 	return -EMLINK;
 }
 
+/* worker to process an add link message */
+static void smc_llc_add_link_work(struct work_struct *work)
+{
+	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
+						  llc_add_link_work);
+
+	if (list_empty(&lgr->list)) {
+		/* link group is terminating */
+		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+		goto out;
+	}
+
+	/* tbd: call smc_llc_process_cli_add_link(lgr); */
+	/* tbd: call smc_llc_process_srv_add_link(lgr); */
+out:
+	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
+}
+
 static void smc_llc_rx_delete_link(struct smc_link *link,
 				   struct smc_llc_msg_del_link *llc)
 {
@@ -685,11 +703,11 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 				wake_up_interruptible(&lgr->llc_waiter);
 			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
 						      qentry)) {
-				/* tbd: schedule_work(&lgr->llc_add_link_work); */
+				schedule_work(&lgr->llc_add_link_work);
 			}
 		} else if (smc_llc_flow_start(&lgr->llc_flow_lcl, qentry)) {
 			/* as smc server, handle client suggestion */
-			/* tbd: schedule_work(&lgr->llc_add_link_work); */
+			schedule_work(&lgr->llc_add_link_work);
 		}
 		return;
 	case SMC_LLC_CONFIRM_LINK:
@@ -868,6 +886,7 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
 	struct net *net = sock_net(smc->clcsock->sk);
 
 	INIT_WORK(&lgr->llc_event_work, smc_llc_event_work);
+	INIT_WORK(&lgr->llc_add_link_work, smc_llc_add_link_work);
 	INIT_LIST_HEAD(&lgr->llc_event_q);
 	spin_lock_init(&lgr->llc_event_q_lock);
 	spin_lock_init(&lgr->llc_flow_lock);
@@ -882,6 +901,7 @@ void smc_llc_lgr_clear(struct smc_link_group *lgr)
 	smc_llc_event_flush(lgr);
 	wake_up_interruptible_all(&lgr->llc_waiter);
 	cancel_work_sync(&lgr->llc_event_work);
+	cancel_work_sync(&lgr->llc_add_link_work);
 	if (lgr->delayed_event) {
 		kfree(lgr->delayed_event);
 		lgr->delayed_event = NULL;

@@ -253,6 +253,7 @@ struct smc_link_group {
 						/* protects llc_event_q */
 			struct mutex		llc_conf_mutex;
 						/* protects lgr reconfig. */
+			struct work_struct	llc_add_link_work;
 			struct work_struct	llc_event_work;
 						/* llc event worker */
 			wait_queue_head_t	llc_waiter;
