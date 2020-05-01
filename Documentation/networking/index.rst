@@ -113,6 +113,7 @@ Contents:
    tproxy
    tuntap
    udplite
+   vrf
 
 .. only::  subproject and html
 

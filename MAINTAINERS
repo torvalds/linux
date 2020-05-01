@@ -18106,7 +18106,7 @@ M:	David Ahern <dsahern@kernel.org>
 M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/vrf.txt
+F:	Documentation/networking/vrf.rst
 F:	drivers/net/vrf.c
 
 VSPRINTF
