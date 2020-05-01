@@ -49,6 +49,7 @@ Contents:
    smsc/smc9
    ti/cpsw_switchdev
    ti/cpsw
+   ti/tlan
 
 .. only::  subproject and html
 
