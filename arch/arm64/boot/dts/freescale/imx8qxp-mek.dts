@@ -216,7 +216,7 @@
 		>;
 	};
 
-	pinctrl_ioexp_rst: ioexp_rst_grp {
+	pinctrl_ioexp_rst: ioexprstgrp {
 		fsl,pins = <
 			IMX8QXP_SPI2_SDO_LSIO_GPIO1_IO01			0x06000021
 		>;
