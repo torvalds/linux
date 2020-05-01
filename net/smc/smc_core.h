@@ -117,6 +117,7 @@ struct smc_link {
 	u8			link_id;	/* unique # within link group */
 	u8			link_idx;	/* index in lgr link array */
 	struct smc_link_group	*lgr;		/* parent link group */
+	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 
 	enum smc_link_state	state;		/* state of link */
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
@@ -344,8 +345,8 @@ struct smc_clc_msg_local;
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_cleanup_early(struct smc_connection *conn);
 void smc_lgr_terminate_sched(struct smc_link_group *lgr);
-void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport);
+void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport);
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
 			unsigned short vlan);
 void smc_smcd_terminate_all(struct smcd_dev *dev);
@@ -376,6 +377,9 @@ void smcr_link_clear(struct smc_link *lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);
 int smcr_buf_reg_lgr(struct smc_link *lnk);
 int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc);
+void smcr_link_down_cond(struct smc_link *lnk);
+void smcr_link_down_cond_sched(struct smc_link *lnk);
+
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
 {
 	return link->lgr;

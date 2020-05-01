@@ -56,6 +56,7 @@ static void smc_buf_free(struct smc_link_group *lgr, bool is_rmb,
 static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft);
 
 static void smc_link_up_work(struct work_struct *work);
+static void smc_link_down_work(struct work_struct *work);
 
 /* return head of link group list and its lock for a given link group */
 static inline struct list_head *smc_lgr_list_head(struct smc_link_group *lgr,
@@ -320,6 +321,7 @@ static int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	lnk->smcibdev = ini->ib_dev;
 	lnk->ibport = ini->ib_port;
 	lnk->path_mtu = ini->ib_dev->pattr[ini->ib_port - 1].active_mtu;
+	INIT_WORK(&lnk->link_down_wrk, smc_link_down_work);
 	if (!ini->ib_dev->initialized) {
 		rc = (int)smc_ib_setup_per_ibdev(ini->ib_dev);
 		if (rc)
@@ -818,36 +820,6 @@ void smc_lgr_terminate_sched(struct smc_link_group *lgr)
 	schedule_work(&lgr->terminate_work);
 }
 
-/* Called when IB port is terminated */
-void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
-{
-	struct smc_link_group *lgr, *l;
-	LIST_HEAD(lgr_free_list);
-	int i;
-
-	spin_lock_bh(&smc_lgr_list.lock);
-	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
-		if (lgr->is_smcd)
-			continue;
-		/* tbd - terminate only when no more links are active */
-		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-			if (!smc_link_usable(&lgr->lnk[i]))
-				continue;
-			if (lgr->lnk[i].smcibdev == smcibdev &&
-			    lgr->lnk[i].ibport == ibport) {
-				list_move(&lgr->list, &lgr_free_list);
-				lgr->freeing = 1;
-			}
-		}
-	}
-	spin_unlock_bh(&smc_lgr_list.lock);
-
-	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
-		list_del_init(&lgr->list);
-		__smc_lgr_terminate(lgr, false);
-	}
-}
-
 /* Called when peer lgr shutdown (regularly or abnormally) is received */
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 {
@@ -1000,6 +972,79 @@ void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport)
 	}
 }
 
+/* link is down - switch connections to alternate link,
+ * must be called under lgr->llc_conf_mutex lock
+ */
+static void smcr_link_down(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr = lnk->lgr;
+	struct smc_link *to_lnk;
+	int del_link_id;
+
+	if (!lgr || lnk->state == SMC_LNK_UNUSED || list_empty(&lgr->list))
+		return;
+
+	smc_ib_modify_qp_reset(lnk);
+	to_lnk = NULL;
+	/* tbd: call to_lnk = smc_switch_conns(lgr, lnk, true); */
+	if (!to_lnk) { /* no backup link available */
+		smcr_link_clear(lnk);
+		return;
+	}
+	lgr->type = SMC_LGR_SINGLE;
+	del_link_id = lnk->link_id;
+
+	if (lgr->role == SMC_SERV) {
+		/* trigger local delete link processing */
+	} else {
+		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
+			/* another llc task is ongoing */
+			mutex_unlock(&lgr->llc_conf_mutex);
+			wait_event_interruptible_timeout(lgr->llc_waiter,
+				(lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
+				SMC_LLC_WAIT_TIME);
+			mutex_lock(&lgr->llc_conf_mutex);
+		}
+		smc_llc_send_delete_link(to_lnk, del_link_id, SMC_LLC_REQ, true,
+					 SMC_LLC_DEL_LOST_PATH);
+	}
+}
+
+/* must be called under lgr->llc_conf_mutex lock */
+void smcr_link_down_cond(struct smc_link *lnk)
+{
+	if (smc_link_downing(&lnk->state))
+		smcr_link_down(lnk);
+}
+
+/* will get the lgr->llc_conf_mutex lock */
+void smcr_link_down_cond_sched(struct smc_link *lnk)
+{
+	if (smc_link_downing(&lnk->state))
+		schedule_work(&lnk->link_down_wrk);
+}
+
+void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	struct smc_link_group *lgr, *n;
+	int i;
+
+	list_for_each_entry_safe(lgr, n, &smc_lgr_list.list, list) {
+		if (strncmp(smcibdev->pnetid[ibport - 1], lgr->pnet_id,
+			    SMC_MAX_PNETID_LEN))
+			continue; /* lgr is not affected */
+		if (list_empty(&lgr->list))
+			continue;
+		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+			struct smc_link *lnk = &lgr->lnk[i];
+
+			if (smc_link_usable(lnk) &&
+			    lnk->smcibdev == smcibdev && lnk->ibport == ibport)
+				smcr_link_down_cond_sched(lnk);
+		}
+	}
+}
+
 static void smc_link_up_work(struct work_struct *work)
 {
 	struct smc_ib_up_work *ib_work = container_of(work,
@@ -1012,6 +1057,20 @@ static void smc_link_up_work(struct work_struct *work)
 	smcr_link_up(lgr, ib_work->smcibdev, ib_work->ibport);
 out:
 	kfree(ib_work);
+}
+
+static void smc_link_down_work(struct work_struct *work)
+{
+	struct smc_link *link = container_of(work, struct smc_link,
+					     link_down_wrk);
+	struct smc_link_group *lgr = link->lgr;
+
+	if (list_empty(&lgr->list))
+		return;
+	wake_up_interruptible_all(&lgr->llc_waiter);
+	mutex_lock(&lgr->llc_conf_mutex);
+	smcr_link_down(link);
+	mutex_unlock(&lgr->llc_conf_mutex);
 }
 
 /* Determine vlan of internal TCP socket.
