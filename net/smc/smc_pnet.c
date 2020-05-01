@@ -777,7 +777,8 @@ static int smc_pnet_find_ndev_pnetid_by_table(struct net_device *ndev,
 
 /* find a roce device for the given pnetid */
 static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
-					  struct smc_init_info *ini)
+					  struct smc_init_info *ini,
+					  struct smc_ib_device *known_dev)
 {
 	struct smc_ib_device *ibdev;
 	int i;
@@ -785,6 +786,8 @@ static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
 	ini->ib_dev = NULL;
 	spin_lock(&smc_ib_devices.lock);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
+		if (ibdev == known_dev)
+			continue;
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
 			if (!rdma_is_port_valid(ibdev->ibdev, i))
 				continue;
@@ -801,6 +804,14 @@ static void _smc_pnet_find_roce_by_pnetid(u8 *pnet_id,
 	}
 out:
 	spin_unlock(&smc_ib_devices.lock);
+}
+
+/* find alternate roce device with same pnet_id and vlan_id */
+void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
+			    struct smc_init_info *ini,
+			    struct smc_ib_device *known_dev)
+{
+	_smc_pnet_find_roce_by_pnetid(lgr->pnet_id, ini, known_dev);
 }
 
 /* if handshake network device belongs to a roce device, return its
@@ -857,7 +868,7 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 		smc_pnet_find_rdma_dev(ndev, ini);
 		return; /* pnetid could not be determined */
 	}
-	_smc_pnet_find_roce_by_pnetid(ndev_pnetid, ini);
+	_smc_pnet_find_roce_by_pnetid(ndev_pnetid, ini, NULL);
 }
 
 static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
