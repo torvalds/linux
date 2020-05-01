@@ -59,9 +59,6 @@
 #define FIRMWARE_8107E_2	"rtl_nic/rtl8107e-2.fw"
 #define FIRMWARE_8125A_3	"rtl_nic/rtl8125a-3.fw"
 
-#define R8169_MSG_DEFAULT \
-	(NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
-
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 #define	MC_FILTER_LIMIT	32
@@ -178,10 +175,6 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
-
-static struct {
-	u32 msg_enable;
-} debug = { -1 };
 
 enum rtl_registers {
 	MAC0		= 0,	/* Ethernet hardware address. */
@@ -604,7 +597,6 @@ struct rtl8169_private {
 	struct net_device *dev;
 	struct phy_device *phydev;
 	struct napi_struct napi;
-	u32 msg_enable;
 	enum mac_version mac_version;
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
@@ -646,8 +638,6 @@ typedef void (*rtl_generic_fct)(struct rtl8169_private *tp);
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
-module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_SOFTDEP("pre: realtek");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_8168D_1);
@@ -751,8 +741,10 @@ static bool rtl_loop_wait(struct rtl8169_private *tp, const struct rtl_cond *c,
 			return true;
 		delay(d);
 	}
-	netif_err(tp, drv, tp->dev, "%s == %d (loop: %d, delay: %d).\n",
-		  c->msg, !high, n, d);
+
+	if (net_ratelimit())
+		netdev_err(tp->dev, "%s == %d (loop: %d, delay: %d).\n",
+			   c->msg, !high, n, d);
 	return false;
 }
 
@@ -797,7 +789,8 @@ static bool name ## _check(struct rtl8169_private *tp)
 static bool rtl_ocp_reg_failure(struct rtl8169_private *tp, u32 reg)
 {
 	if (reg & 0xffff0001) {
-		netif_err(tp, drv, tp->dev, "Invalid ocp reg %x!\n", reg);
+		if (net_ratelimit())
+			netdev_err(tp->dev, "Invalid ocp reg %x!\n", reg);
 		return true;
 	}
 	return false;
@@ -1580,20 +1573,6 @@ static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	rtl_unlock_work(tp);
 }
 
-static u32 rtl8169_get_msglevel(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	return tp->msg_enable;
-}
-
-static void rtl8169_set_msglevel(struct net_device *dev, u32 value)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	tp->msg_enable = value;
-}
-
 static const char rtl8169_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_packets",
 	"rx_packets",
@@ -1985,8 +1964,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= rtl_get_coalesce,
 	.set_coalesce		= rtl_set_coalesce,
-	.get_msglevel		= rtl8169_get_msglevel,
-	.set_msglevel		= rtl8169_set_msglevel,
 	.get_regs		= rtl8169_get_regs,
 	.get_wol		= rtl8169_get_wol,
 	.set_wol		= rtl8169_set_wol,
@@ -3868,8 +3845,7 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 
 	mapping = dma_map_page(d, data, 0, R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(d, mapping))) {
-		if (net_ratelimit())
-			netif_err(tp, drv, tp->dev, "Failed to map RX DMA!\n");
+		netdev_err(tp->dev, "Failed to map RX DMA!\n");
 		__free_pages(data, get_order(R8169_RX_BUF_SIZE));
 		return NULL;
 	}
@@ -4006,7 +3982,7 @@ static int rtl8169_tx_map(struct rtl8169_private *tp, const u32 *opts, u32 len,
 	ret = dma_mapping_error(d, mapping);
 	if (unlikely(ret)) {
 		if (net_ratelimit())
-			netif_err(tp, drv, tp->dev, "Failed to map TX data!\n");
+			netdev_err(tp->dev, "Failed to map TX data!\n");
 		return ret;
 	}
 
@@ -4172,7 +4148,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	txd_first = tp->TxDescArray + entry;
 
 	if (unlikely(!rtl_tx_slots_avail(tp, frags))) {
-		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
+		if (net_ratelimit())
+			netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
 
@@ -4334,9 +4311,9 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 
 	pci_status_errs = pci_status_get_and_clear_errors(pdev);
 
-	netif_err(tp, intr, dev, "PCI error (cmd = 0x%04x, status_errs = 0x%04x)\n",
-		  pci_cmd, pci_status_errs);
-
+	if (net_ratelimit())
+		netdev_err(dev, "PCI error (cmd = 0x%04x, status_errs = 0x%04x)\n",
+			   pci_cmd, pci_status_errs);
 	/*
 	 * The recovery sequence below admits a very elaborated explanation:
 	 * - it seems to work;
@@ -4454,8 +4431,9 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 		dma_rmb();
 
 		if (unlikely(status & RxRES)) {
-			netif_info(tp, rx_err, dev, "Rx ERROR. status = %08x\n",
-				   status);
+			if (net_ratelimit())
+				netdev_warn(dev, "Rx ERROR. status = %08x\n",
+					    status);
 			dev->stats.rx_errors++;
 			if (status & (RxRWT | RxRUNT))
 				dev->stats.rx_length_errors++;
@@ -5326,7 +5304,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp = netdev_priv(dev);
 	tp->dev = dev;
 	tp->pci_dev = pdev;
-	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
 	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
 	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
@@ -5484,15 +5461,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	netif_info(tp, probe, dev, "%s, %pM, XID %03x, IRQ %d\n",
-		   rtl_chip_infos[chipset].name, dev->dev_addr, xid,
-		   pci_irq_vector(pdev, 0));
+	netdev_info(dev, "%s, %pM, XID %03x, IRQ %d\n",
+		    rtl_chip_infos[chipset].name, dev->dev_addr, xid,
+		    pci_irq_vector(pdev, 0));
 
 	if (jumbo_max)
-		netif_info(tp, probe, dev,
-			   "jumbo features [frames: %d bytes, tx checksumming: %s]\n",
-			   jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
-			   "ok" : "ko");
+		netdev_info(dev, "jumbo features [frames: %d bytes, tx checksumming: %s]\n",
+			    jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
+			    "ok" : "ko");
 
 	if (r8168_check_dash(tp))
 		rtl8168_driver_start(tp);
