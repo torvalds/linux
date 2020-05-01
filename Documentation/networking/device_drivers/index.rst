@@ -43,6 +43,7 @@ Contents:
    intel/ipw2200
    microsoft/netvsc
    neterion/s2io
+   neterion/vxge
 
 .. only::  subproject and html
 

@@ -11657,7 +11657,7 @@ M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/neterion/s2io.rst
-F:	Documentation/networking/device_drivers/neterion/vxge.txt
+F:	Documentation/networking/device_drivers/neterion/vxge.rst
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER
