@@ -39,6 +39,7 @@ available subsections can be seen below.
    spi
    i2c
    ipmb
+   ipmi
    i3c/index
    interconnect
    devfreq
