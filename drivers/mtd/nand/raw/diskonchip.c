@@ -69,6 +69,7 @@ struct doc_priv {
 	int mh1_page;
 	struct rs_control *rs_decoder;
 	struct mtd_info *nextdoc;
+	bool supports_32b_reads;
 
 	/* Handle the last stage of initialization (BBT scan, partitioning) */
 	int (*late_init)(struct mtd_info *mtd);
@@ -337,32 +338,19 @@ static void doc2000_readbuf(struct nand_chip *this, u_char *buf, int len)
 {
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
+	u32 *buf32 = (u32 *)buf;
 	int i;
 
 	if (debug)
 		printk("readbuf of %d bytes: ", len);
 
-	for (i = 0; i < len; i++)
-		buf[i] = ReadDOC(docptr, 2k_CDSN_IO + i);
-}
-
-static void doc2000_readbuf_dword(struct nand_chip *this, u_char *buf, int len)
-{
-	struct doc_priv *doc = nand_get_controller_data(this);
-	void __iomem *docptr = doc->virtadr;
-	int i;
-
-	if (debug)
-		printk("readbuf_dword of %d bytes: ", len);
-
-	if (unlikely((((unsigned long)buf) | len) & 3)) {
-		for (i = 0; i < len; i++) {
-			*(uint8_t *) (&buf[i]) = ReadDOC(docptr, 2k_CDSN_IO + i);
-		}
+	if (!doc->supports_32b_reads ||
+	    ((((unsigned long)buf) | len) & 3)) {
+		for (i = 0; i < len; i++)
+			buf[i] = ReadDOC(docptr, 2k_CDSN_IO + i);
 	} else {
-		for (i = 0; i < len; i += 4) {
-			*(uint32_t *) (&buf[i]) = readl(docptr + DoC_2k_CDSN_IO + i);
-		}
+		for (i = 0; i < len / 4; i++)
+			buf32[i] = readl(docptr + DoC_2k_CDSN_IO + i);
 	}
 }
 
@@ -405,7 +393,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
 			pr_info("DiskOnChip 2000 responds to DWORD access\n");
-			this->legacy.read_buf = &doc2000_readbuf_dword;
+			doc->supports_32b_reads = true;
 		}
 	}
 
