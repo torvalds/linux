@@ -26,6 +26,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
 #define CSIS_DRIVER_NAME			"imx7-mipi-csis"
@@ -383,6 +384,12 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 	}
 
 	return 0;
+}
+
+static struct csi_state *
+mipi_notifier_to_csis_state(struct v4l2_async_notifier *n)
+{
+	return container_of(n, struct csi_state, notifier);
 }
 
 static struct csi_state *mipi_sd_to_csis_state(struct v4l2_subdev *sdev)
@@ -948,6 +955,20 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 
 static int mipi_csis_pm_resume(struct device *dev, bool runtime);
 
+static int mipi_csis_notify_bound(struct v4l2_async_notifier *notifier,
+				  struct v4l2_subdev *sd,
+				  struct v4l2_async_subdev *asd)
+{
+	struct csi_state *state = mipi_notifier_to_csis_state(notifier);
+	struct media_pad *sink = &state->mipi_sd.entity.pads[CSIS_PAD_SINK];
+
+	return v4l2_create_fwnode_links_to_pad(sd, sink);
+}
+
+static const struct v4l2_async_notifier_operations mipi_csis_notify_ops = {
+	.bound = mipi_csis_notify_bound,
+};
+
 static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 				 struct platform_device *pdev,
 				 const struct v4l2_subdev_ops *ops)
@@ -1015,6 +1036,8 @@ static int mipi_csis_async_register(struct csi_state *state)
 		goto err_parse;
 
 	fwnode_handle_put(ep);
+
+	state->notifier.ops = &mipi_csis_notify_ops;
 
 	ret = v4l2_async_subdev_notifier_register(&state->mipi_sd,
 						  &state->notifier);
