@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include "imx-media.h"
 
@@ -89,6 +90,11 @@ struct csi2_dev {
 static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
 {
 	return container_of(sdev, struct csi2_dev, sd);
+}
+
+static inline struct csi2_dev *notifier_to_dev(struct v4l2_async_notifier *n)
+{
+	return container_of(n, struct csi2_dev, notifier);
 }
 
 /*
@@ -532,6 +538,20 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
 	.registered = csi2_registered,
 };
 
+static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
+			     struct v4l2_subdev *sd,
+			     struct v4l2_async_subdev *asd)
+{
+	struct csi2_dev *csi2 = notifier_to_dev(notifier);
+	struct media_pad *sink = &csi2->sd.entity.pads[CSI2_SINK_PAD];
+
+	return v4l2_create_fwnode_links_to_pad(sd, sink);
+}
+
+static const struct v4l2_async_notifier_operations csi2_notify_ops = {
+	.bound = csi2_notify_bound,
+};
+
 static int csi2_async_register(struct csi2_dev *csi2)
 {
 	struct v4l2_fwnode_endpoint vep = {
@@ -569,6 +589,8 @@ static int csi2_async_register(struct csi2_dev *csi2)
 		goto err_parse;
 
 	fwnode_handle_put(ep);
+
+	csi2->notifier.ops = &csi2_notify_ops;
 
 	ret = v4l2_async_subdev_notifier_register(&csi2->sd,
 						  &csi2->notifier);
