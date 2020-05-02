@@ -832,7 +832,6 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 				 struct crypto_authenc_keys *keys)
 {
 	struct crypto_shash *hash_tfm = ctx->hash_tfm;
-	SHASH_DESC_ON_STACK(shash, hash_tfm);
 	int blocksize, ret;
 
 	if (!keys->authkeylen) {
@@ -842,8 +841,8 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 
 	blocksize = crypto_shash_blocksize(hash_tfm);
 	if (keys->authkeylen > blocksize) {
-		ret = crypto_shash_digest(shash, keys->authkey,
-					  keys->authkeylen, ctx->a_key);
+		ret = crypto_shash_tfm_digest(hash_tfm, keys->authkey,
+					      keys->authkeylen, ctx->a_key);
 		if (ret) {
 			pr_err("hisi_sec2: aead auth digest error!\n");
 			return -EINVAL;
