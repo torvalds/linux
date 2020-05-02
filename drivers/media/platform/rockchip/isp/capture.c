@@ -1570,16 +1570,14 @@ static int mi_frame_end(struct rkisp_stream *stream)
 					rkisp_buf_queue(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf);
 				}
 				cap->rdbk_buf[RDBK_L] = stream->curr_buf;
-			}
-			if (stream->id == RKISP_STREAM_DMATX1) {
+			} else if (stream->id == RKISP_STREAM_DMATX1) {
 				if (cap->rdbk_buf[RDBK_M]) {
 					v4l2_err(&isp_dev->v4l2_dev,
 						"multiple middle data in hdr frame\n");
 					rkisp_buf_queue(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf);
 				}
 				cap->rdbk_buf[RDBK_M] = stream->curr_buf;
-			}
-			if (stream->id == RKISP_STREAM_DMATX2) {
+			} else if (stream->id == RKISP_STREAM_DMATX2) {
 				if (cap->rdbk_buf[RDBK_S]) {
 					v4l2_err(&isp_dev->v4l2_dev,
 						"multiple short data in hdr frame\n");
@@ -1587,6 +1585,9 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				}
 				cap->rdbk_buf[RDBK_S] = stream->curr_buf;
 				rdbk_frame_end(stream);
+			} else {
+				vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+						VB2_BUF_STATE_DONE);
 			}
 		}
 
