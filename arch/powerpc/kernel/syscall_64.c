@@ -189,7 +189,7 @@ again:
 
 	/* This pattern matches prep_irq_for_idle */
 	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending())) {
+	if (unlikely(lazy_irq_pending_nocheck())) {
 		__hard_RI_enable();
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -264,7 +264,7 @@ again:
 
 	trace_hardirqs_on();
 	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending())) {
+	if (unlikely(lazy_irq_pending_nocheck())) {
 		__hard_RI_enable();
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -334,7 +334,7 @@ again:
 
 		trace_hardirqs_on();
 		__hard_EE_RI_disable();
-		if (unlikely(lazy_irq_pending())) {
+		if (unlikely(lazy_irq_pending_nocheck())) {
 			__hard_RI_enable();
 			irq_soft_mask_set(IRQS_ALL_DISABLED);
 			trace_hardirqs_off();
