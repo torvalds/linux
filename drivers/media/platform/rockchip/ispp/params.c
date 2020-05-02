@@ -347,12 +347,6 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 	rkispp_write(base + RKISPP_SHARP_TILE_IDX,
 		(arg->tile_ycnt & 0x1F) << 8 | (arg->tile_xcnt & 0xFF));
 
-	val = arg->alpha_adp_en << 1 | arg->yin_flt_en << 3 |
-		arg->edge_avg_en << 4;
-	rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
-			SW_SHP_ALPHA_ADP_EN | SW_SHP_YIN_FLT_EN |
-			SW_SHP_EDGE_AVG_EN, val);
-
 	rkispp_write(base + RKISPP_SHARP_HBF_FACTOR, arg->hbf_ratio |
 		arg->ehf_th << 16 | arg->pbf_ratio << 24);
 	rkispp_write(base + RKISPP_SHARP_EDGE_TH, arg->edge_thed |
@@ -456,10 +450,12 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 	rkispp_write(base + RKISPP_SHARP_GRAD_RATIO, val);
 }
 
-static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en)
+static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en,
+		       struct rkispp_sharp_config *arg)
 {
 	void __iomem *base = params_vdev->dev->base_addr;
 	u32 ens = params_vdev->dev->stream_vdev.module_ens;
+	u32 val;
 
 	if (en && !(ens & ISPP_MODULE_FEC)) {
 		rkispp_set_bits(base + RKISPP_SCL0_CTRL,
@@ -473,7 +469,14 @@ static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en)
 		rkispp_clear_bits(base + RKISPP_SCL1_CTRL, SW_SCL_FIRST_MODE);
 		rkispp_clear_bits(base + RKISPP_SCL2_CTRL, SW_SCL_FIRST_MODE);
 	}
-	rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_EN, en);
+
+	val = arg->alpha_adp_en << 1 | arg->yin_flt_en << 3 |
+	      arg->edge_avg_en << 4;
+	if (en)
+		val |= SW_SHP_EN;
+	rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
+			SW_SHP_ALPHA_ADP_EN | SW_SHP_YIN_FLT_EN |
+			SW_SHP_EDGE_AVG_EN | SW_SHP_EN, val);
 }
 
 static void fec_config(struct rkispp_params_vdev *params_vdev,
@@ -846,7 +849,8 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	if (module_en_update & ISPP_MODULE_SHP &&
 	    mis & SHP_INT) {
 		shp_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_SHP));
+			   !!(module_ens & ISPP_MODULE_SHP),
+			   &new_params->shp_cfg);
 		module_en_update &= ~ISPP_MODULE_SHP;
 	}
 
@@ -910,7 +914,8 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 			   &params_vdev->cur_params->shp_cfg);
 	if (module_en_update & ISPP_MODULE_SHP)
 		shp_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_SHP));
+			   !!(module_ens & ISPP_MODULE_SHP),
+			   &params_vdev->cur_params->shp_cfg);
 
 	if (module_cfg_update & ISPP_MODULE_FEC)
 		fec_config(params_vdev,
