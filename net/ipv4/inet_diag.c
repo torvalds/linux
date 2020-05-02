@@ -746,7 +746,8 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 	else
 		entry.mark = 0;
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	entry.cgroup_id = cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data));
+	entry.cgroup_id = sk_fullsock(sk) ?
+		cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
 #endif
 
 	return inet_diag_bc_run(bc, &entry);
