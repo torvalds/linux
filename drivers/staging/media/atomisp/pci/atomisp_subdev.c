@@ -1341,29 +1341,57 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 				     struct v4l2_device *vdev)
 {
 	int ret;
+	u32 device_caps;
+
+	/*
+	 * FIXME: check if all device caps are properly initialized.
+	 * Should any of those use V4L2_CAP_META_OUTPUT? Probably yes.
+	 */
+
+	device_caps = V4L2_CAP_IO_MC |
+		      V4L2_CAP_VIDEO_CAPTURE |
+		      V4L2_CAP_STREAMING;
 
 	/* Register the subdev and video node. */
+
 	ret = v4l2_device_register_subdev(vdev, &asd->subdev);
 	if (ret < 0)
 		goto error;
 
-	ret = atomisp_video_register(&asd->video_out_capture, vdev);
+	asd->video_out_capture.vdev.v4l2_dev = vdev;
+	asd->video_out_capture.vdev.device_caps = device_caps |
+						  V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_out_capture.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 
-	ret = atomisp_video_register(&asd->video_out_vf, vdev);
+	asd->video_out_vf.vdev.v4l2_dev = vdev;
+	asd->video_out_vf.vdev.device_caps = device_caps |
+					     V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_out_vf.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
-
-	ret = atomisp_video_register(&asd->video_out_preview, vdev);
+	asd->video_out_preview.vdev.v4l2_dev = vdev;
+	asd->video_out_preview.vdev.device_caps = device_caps |
+						  V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_out_preview.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
-
-	ret = atomisp_video_register(&asd->video_out_video_capture, vdev);
+	asd->video_out_video_capture.vdev.v4l2_dev = vdev;
+	asd->video_out_video_capture.vdev.device_caps = device_caps |
+							V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_out_video_capture.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
-
-	ret = atomisp_acc_register(&asd->video_acc, vdev);
+	asd->video_acc.vdev.v4l2_dev = vdev;
+	asd->video_acc.vdev.device_caps = device_caps |
+					  V4L2_CAP_VIDEO_OUTPUT;
+	ret = video_register_device(&asd->video_acc.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 
@@ -1373,7 +1401,12 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 	 */
 	if (asd->index)
 		return 0;
-	ret = atomisp_video_register(&asd->video_in, vdev);
+
+	asd->video_in.vdev.v4l2_dev = vdev;
+	asd->video_in.vdev.device_caps = device_caps |
+					  V4L2_CAP_VIDEO_CAPTURE;
+	ret = video_register_device(&asd->video_in.vdev,
+				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 

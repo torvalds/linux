@@ -541,36 +541,6 @@ void atomisp_acc_init(struct atomisp_acc_pipe *video, const char *name)
 	video_set_drvdata(&video->vdev, video->isp);
 }
 
-int atomisp_video_register(struct atomisp_video_pipe *video,
-			   struct v4l2_device *vdev)
-{
-	int ret;
-
-	video->vdev.v4l2_dev = vdev;
-
-	ret = video_register_device(&video->vdev, VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		dev_err(vdev->dev, "%s: could not register video device (%d)\n",
-			__func__, ret);
-
-	return ret;
-}
-
-int atomisp_acc_register(struct atomisp_acc_pipe *video,
-			 struct v4l2_device *vdev)
-{
-	int ret;
-
-	video->vdev.v4l2_dev = vdev;
-
-	ret = video_register_device(&video->vdev, VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		dev_err(vdev->dev, "%s: could not register video device (%d)\n",
-			__func__, ret);
-
-	return ret;
-}
-
 void atomisp_video_unregister(struct atomisp_video_pipe *video)
 {
 	if (video_is_registered(&video->vdev)) {
