@@ -55,6 +55,7 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 struct intel_vbtn_priv {
 	struct key_entry keymap[KEYMAP_LEN];
 	struct input_dev *input_dev;
+	bool has_buttons;
 	bool has_switches;
 	bool wakeup_mode;
 };
@@ -64,7 +65,7 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 	int ret, keymap_len = 0;
 
-	if (true) {
+	if (priv->has_buttons) {
 		memcpy(&priv->keymap[keymap_len], intel_vbtn_keymap,
 		       ARRAY_SIZE(intel_vbtn_keymap) *
 		       sizeof(struct key_entry));
@@ -155,6 +156,14 @@ static void detect_tablet_mode(struct platform_device *device)
 	input_report_switch(priv->input_dev, SW_DOCK, m);
 }
 
+static bool intel_vbtn_has_buttons(acpi_handle handle)
+{
+	acpi_status status;
+
+	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
+	return ACPI_SUCCESS(status);
+}
+
 static bool intel_vbtn_has_switches(acpi_handle handle)
 {
 	const char *chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
@@ -181,12 +190,15 @@ static bool intel_vbtn_has_switches(acpi_handle handle)
 static int intel_vbtn_probe(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	bool has_buttons, has_switches;
 	struct intel_vbtn_priv *priv;
 	acpi_status status;
 	int err;
 
-	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	if (ACPI_FAILURE(status)) {
+	has_buttons = intel_vbtn_has_buttons(handle);
+	has_switches = intel_vbtn_has_switches(handle);
+
+	if (!has_buttons && !has_switches) {
 		dev_warn(&device->dev, "failed to read Intel Virtual Button driver\n");
 		return -ENODEV;
 	}
@@ -196,7 +208,8 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);
 
-	priv->has_switches = intel_vbtn_has_switches(handle);
+	priv->has_buttons = has_buttons;
+	priv->has_switches = has_switches;
 
 	err = intel_vbtn_input_setup(device);
 	if (err) {
