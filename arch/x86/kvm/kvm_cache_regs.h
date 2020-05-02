@@ -116,8 +116,9 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
 	ulong tmask = mask & KVM_POSSIBLE_CR0_GUEST_BITS;
-	if (tmask & vcpu->arch.cr0_guest_owned_bits)
-		kvm_x86_ops.decache_cr0_guest_bits(vcpu);
+	if ((tmask & vcpu->arch.cr0_guest_owned_bits) &&
+	    !kvm_register_is_available(vcpu, VCPU_EXREG_CR0))
+		kvm_x86_ops.cache_reg(vcpu, VCPU_EXREG_CR0);
 	return vcpu->arch.cr0 & mask;
 }
 

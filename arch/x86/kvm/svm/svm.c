@@ -1521,10 +1521,6 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 	mark_dirty(svm->vmcb, VMCB_DT);
 }
 
-static void svm_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
-{
-}
-
 static void update_cr0_intercept(struct vcpu_svm *svm)
 {
 	ulong gcr0 = svm->vcpu.arch.cr0;
@@ -4002,7 +3998,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.set_segment = svm_set_segment,
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
-	.decache_cr0_guest_bits = svm_decache_cr0_guest_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,
