@@ -114,6 +114,16 @@ extern int crypto_sha512_finup(struct shash_desc *desc, const u8 *data,
 			       unsigned int len, u8 *hash);
 
 /*
+ * An implementation of SHA-1's compression function.  Don't use in new code!
+ * You shouldn't be using SHA-1, and even if you *have* to use SHA-1, this isn't
+ * the correct way to hash something with SHA-1 (use crypto_shash instead).
+ */
+#define SHA1_DIGEST_WORDS	(SHA1_DIGEST_SIZE / 4)
+#define SHA1_WORKSPACE_WORDS	16
+void sha1_init(__u32 *buf);
+void sha1_transform(__u32 *digest, const char *data, __u32 *W);
+
+/*
  * Stand-alone implementation of the SHA256 algorithm. It is designed to
  * have as little dependencies as possible so it can be used in the
  * kexec_file purgatory. In other cases you should generally use the
