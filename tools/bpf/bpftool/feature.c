@@ -6,6 +6,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
+#ifdef USE_LIBCAP
+#include <sys/capability.h>
+#endif
 #include <sys/utsname.h>
 #include <sys/vfs.h>
 
@@ -34,6 +37,11 @@ static const char * const helper_name[] = {
 };
 
 #undef BPF_HELPER_MAKE_ENTRY
+
+static bool full_mode;
+#ifdef USE_LIBCAP
+static bool run_as_unprivileged;
+#endif
 
 /* Miscellaneous utility functions */
 
@@ -471,6 +479,13 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 		}
 
 	res = bpf_probe_prog_type(prog_type, ifindex);
+#ifdef USE_LIBCAP
+	/* Probe may succeed even if program load fails, for unprivileged users
+	 * check that we did not fail because of insufficient permissions
+	 */
+	if (run_as_unprivileged && errno == EPERM)
+		res = false;
+#endif
 
 	supported_types[prog_type] |= res;
 
@@ -499,6 +514,10 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 
 	res = bpf_probe_map_type(map_type, ifindex);
 
+	/* Probe result depends on the success of map creation, no additional
+	 * check required for unprivileged users
+	 */
+
 	maxlen = sizeof(plain_desc) - strlen(plain_comment) - 1;
 	if (strlen(map_type_name[map_type]) > maxlen) {
 		p_info("map type name too long");
@@ -518,12 +537,19 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 			  const char *define_prefix, unsigned int id,
 			  const char *ptype_name, __u32 ifindex)
 {
-	bool res;
+	bool res = false;
 
-	if (!supported_type)
-		res = false;
-	else
+	if (supported_type) {
 		res = bpf_probe_helper(id, prog_type, ifindex);
+#ifdef USE_LIBCAP
+		/* Probe may succeed even if program load fails, for
+		 * unprivileged users check that we did not fail because of
+		 * insufficient permissions
+		 */
+		if (run_as_unprivileged && errno == EPERM)
+			res = false;
+#endif
+	}
 
 	if (json_output) {
 		if (res)
@@ -540,8 +566,7 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 
 static void
 probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
-			   const char *define_prefix, bool full_mode,
-			   __u32 ifindex)
+			   const char *define_prefix, __u32 ifindex)
 {
 	const char *ptype_name = prog_type_name[prog_type];
 	char feat_name[128];
@@ -678,8 +703,7 @@ static void section_map_types(const char *define_prefix, __u32 ifindex)
 }
 
 static void
-section_helpers(bool *supported_types, const char *define_prefix,
-		bool full_mode, __u32 ifindex)
+section_helpers(bool *supported_types, const char *define_prefix, __u32 ifindex)
 {
 	unsigned int i;
 
@@ -704,8 +728,8 @@ section_helpers(bool *supported_types, const char *define_prefix,
 		       define_prefix, define_prefix, define_prefix,
 		       define_prefix);
 	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
-		probe_helpers_for_progtype(i, supported_types[i],
-					   define_prefix, full_mode, ifindex);
+		probe_helpers_for_progtype(i, supported_types[i], define_prefix,
+					   ifindex);
 
 	print_end_section();
 }
@@ -720,22 +744,85 @@ static void section_misc(const char *define_prefix, __u32 ifindex)
 	print_end_section();
 }
 
+static int handle_perms(void)
+{
+#ifdef USE_LIBCAP
+	cap_value_t cap_list[1] = { CAP_SYS_ADMIN };
+	bool has_sys_admin_cap = false;
+	cap_flag_value_t val;
+	int res = -1;
+	cap_t caps;
+
+	caps = cap_get_proc();
+	if (!caps) {
+		p_err("failed to get capabilities for process: %s",
+		      strerror(errno));
+		return -1;
+	}
+
+	if (cap_get_flag(caps, CAP_SYS_ADMIN, CAP_EFFECTIVE, &val)) {
+		p_err("bug: failed to retrieve CAP_SYS_ADMIN status");
+		goto exit_free;
+	}
+	if (val == CAP_SET)
+		has_sys_admin_cap = true;
+
+	if (!run_as_unprivileged && !has_sys_admin_cap) {
+		p_err("full feature probing requires CAP_SYS_ADMIN, run as root or use 'unprivileged'");
+		goto exit_free;
+	}
+
+	if ((run_as_unprivileged && !has_sys_admin_cap) ||
+	    (!run_as_unprivileged && has_sys_admin_cap)) {
+		/* We are all good, exit now */
+		res = 0;
+		goto exit_free;
+	}
+
+	/* if (run_as_unprivileged && has_sys_admin_cap), drop CAP_SYS_ADMIN */
+
+	if (cap_set_flag(caps, CAP_EFFECTIVE, ARRAY_SIZE(cap_list), cap_list,
+			 CAP_CLEAR)) {
+		p_err("bug: failed to clear CAP_SYS_ADMIN from capabilities");
+		goto exit_free;
+	}
+
+	if (cap_set_proc(caps)) {
+		p_err("failed to drop CAP_SYS_ADMIN: %s", strerror(errno));
+		goto exit_free;
+	}
+
+	res = 0;
+
+exit_free:
+	if (cap_free(caps) && !res) {
+		p_err("failed to clear storage object for capabilities: %s",
+		      strerror(errno));
+		res = -1;
+	}
+
+	return res;
+#else
+	/* Detection assumes user has sufficient privileges (CAP_SYS_ADMIN).
+	 * We do not use libpcap so let's approximate, and restrict usage to
+	 * root user only.
+	 */
+	if (geteuid()) {
+		p_err("full feature probing requires root privileges");
+		return -1;
+	}
+
+	return 0;
+#endif /* USE_LIBCAP */
+}
+
 static int do_probe(int argc, char **argv)
 {
 	enum probe_component target = COMPONENT_UNSPEC;
 	const char *define_prefix = NULL;
 	bool supported_types[128] = {};
-	bool full_mode = false;
 	__u32 ifindex = 0;
 	char *ifname;
-
-	/* Detection assumes user has sufficient privileges (CAP_SYS_ADMIN).
-	 * Let's approximate, and restrict usage to root user only.
-	 */
-	if (geteuid()) {
-		p_err("please run this command as root user");
-		return -1;
-	}
 
 	set_max_rlimit();
 
@@ -785,12 +872,26 @@ static int do_probe(int argc, char **argv)
 			if (!REQ_ARGS(1))
 				return -1;
 			define_prefix = GET_ARG();
+		} else if (is_prefix(*argv, "unprivileged")) {
+#ifdef USE_LIBCAP
+			run_as_unprivileged = true;
+			NEXT_ARG();
+#else
+			p_err("unprivileged run not supported, recompile bpftool with libcap");
+			return -1;
+#endif
 		} else {
 			p_err("expected no more arguments, 'kernel', 'dev', 'macros' or 'prefix', got: '%s'?",
 			      *argv);
 			return -1;
 		}
 	}
+
+	/* Full feature detection requires CAP_SYS_ADMIN privilege.
+	 * Let's approximate, and warn if user is not root.
+	 */
+	if (handle_perms())
+		return -1;
 
 	if (json_output) {
 		define_prefix = NULL;
@@ -803,7 +904,7 @@ static int do_probe(int argc, char **argv)
 		goto exit_close_json;
 	section_program_types(supported_types, define_prefix, ifindex);
 	section_map_types(define_prefix, ifindex);
-	section_helpers(supported_types, define_prefix, full_mode, ifindex);
+	section_helpers(supported_types, define_prefix, ifindex);
 	section_misc(define_prefix, ifindex);
 
 exit_close_json:
@@ -822,7 +923,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s probe [COMPONENT] [full] [macros [prefix PREFIX]]\n"
+		"Usage: %s %s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
 		"       %s %s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"

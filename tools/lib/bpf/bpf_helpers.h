@@ -2,10 +2,17 @@
 #ifndef __BPF_HELPERS__
 #define __BPF_HELPERS__
 
+/*
+ * Note that bpf programs need to include either
+ * vmlinux.h (auto-generated from BTF) or linux/types.h
+ * in advance since bpf_helper_defs.h uses such types
+ * as __u64.
+ */
 #include "bpf_helper_defs.h"
 
 #define __uint(name, val) int (*name)[val]
 #define __type(name, val) typeof(val) *name
+#define __array(name, val) typeof(val) *name[]
 
 /* Helper macro to print out debug messages */
 #define bpf_printk(fmt, ...)				\

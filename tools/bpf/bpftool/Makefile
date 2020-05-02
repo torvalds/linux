@@ -55,16 +55,15 @@ ifneq ($(EXTRA_LDFLAGS),)
 LDFLAGS += $(EXTRA_LDFLAGS)
 endif
 
-LIBS = $(LIBBPF) -lelf -lz
-
 INSTALL ?= install
 RM ?= rm -f
 CLANG ?= clang
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib \
+FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib libcap \
 	clang-bpf-global-var
-FEATURE_DISPLAY = libbfd disassembler-four-args zlib clang-bpf-global-var
+FEATURE_DISPLAY = libbfd disassembler-four-args zlib libcap \
+	clang-bpf-global-var
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -88,6 +87,12 @@ endif
 
 ifeq ($(feature-reallocarray), 0)
 CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
+endif
+
+LIBS = $(LIBBPF) -lelf -lz
+ifeq ($(feature-libcap), 1)
+CFLAGS += -DUSE_LIBCAP
+LIBS += -lcap
 endif
 
 include $(wildcard $(OUTPUT)*.d)

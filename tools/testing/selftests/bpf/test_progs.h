@@ -105,6 +105,13 @@ struct ipv6_packet {
 } __packed;
 extern struct ipv6_packet pkt_v6;
 
+#define PRINT_FAIL(format...)                                                  \
+	({                                                                     \
+		test__fail();                                                  \
+		fprintf(stdout, "%s:FAIL:%d ", __func__, __LINE__);            \
+		fprintf(stdout, ##format);                                     \
+	})
+
 #define _CHECK(condition, tag, duration, format...) ({			\
 	int __ret = !!(condition);					\
 	int __save_errno = errno;					\

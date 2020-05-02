@@ -519,7 +519,7 @@ static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
 static int
 nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 

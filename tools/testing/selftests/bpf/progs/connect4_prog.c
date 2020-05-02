@@ -8,6 +8,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
@@ -15,6 +16,10 @@
 #define SRC_REWRITE_IP4		0x7f000004U
 #define DST_REWRITE_IP4		0x7f000001U
 #define DST_REWRITE_PORT4	4444
+
+#ifndef TCP_CA_NAME_MAX
+#define TCP_CA_NAME_MAX 16
+#endif
 
 int _version SEC("version") = 1;
 
@@ -31,6 +36,43 @@ int do_bind(struct bpf_sock_addr *ctx)
 		return 0;
 
 	return 1;
+}
+
+static __inline int verify_cc(struct bpf_sock_addr *ctx,
+			      char expected[TCP_CA_NAME_MAX])
+{
+	char buf[TCP_CA_NAME_MAX];
+	int i;
+
+	if (bpf_getsockopt(ctx, SOL_TCP, TCP_CONGESTION, &buf, sizeof(buf)))
+		return 1;
+
+	for (i = 0; i < TCP_CA_NAME_MAX; i++) {
+		if (buf[i] != expected[i])
+			return 1;
+		if (buf[i] == 0)
+			break;
+	}
+
+	return 0;
+}
+
+static __inline int set_cc(struct bpf_sock_addr *ctx)
+{
+	char reno[TCP_CA_NAME_MAX] = "reno";
+	char cubic[TCP_CA_NAME_MAX] = "cubic";
+
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &reno, sizeof(reno)))
+		return 1;
+	if (verify_cc(ctx, reno))
+		return 1;
+
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &cubic, sizeof(cubic)))
+		return 1;
+	if (verify_cc(ctx, cubic))
+		return 1;
+
+	return 0;
 }
 
 SEC("cgroup/connect4")
@@ -65,6 +107,10 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 	}
 
 	bpf_sk_release(sk);
+
+	/* Rewrite congestion control. */
+	if (ctx->type == SOCK_STREAM && set_cc(ctx))
+		return 0;
 
 	/* Rewrite destination. */
 	ctx->user_ip4 = bpf_htonl(DST_REWRITE_IP4);
