@@ -3023,13 +3023,21 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmx->emulation_required = emulation_required(vcpu);
 }
 
+static int vmx_get_tdp_level(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(is_guest_mode(vcpu) && nested_cpu_has_ept(get_vmcs12(vcpu)));
+
+	if (cpu_has_vmx_ept_5levels() && (cpuid_maxphyaddr(vcpu) > 48))
+		return 5;
+	return 4;
+}
+
 static int get_ept_level(struct kvm_vcpu *vcpu)
 {
 	if (is_guest_mode(vcpu) && nested_cpu_has_ept(get_vmcs12(vcpu)))
 		return vmx_eptp_page_walk_level(nested_ept_get_eptp(vcpu));
-	if (cpu_has_vmx_ept_5levels() && (cpuid_maxphyaddr(vcpu) > 48))
-		return 5;
-	return 4;
+
+	return vmx_get_tdp_level(vcpu);
 }
 
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
@@ -7859,7 +7867,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.set_identity_map_addr = vmx_set_identity_map_addr,
-	.get_tdp_level = get_ept_level,
+	.get_tdp_level = vmx_get_tdp_level,
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
