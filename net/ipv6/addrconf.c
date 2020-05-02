@@ -3222,11 +3222,11 @@ static int ipv6_generate_stable_address(struct in6_addr *address,
 					const struct inet6_dev *idev)
 {
 	static DEFINE_SPINLOCK(lock);
-	static __u32 digest[SHA_DIGEST_WORDS];
-	static __u32 workspace[SHA_WORKSPACE_WORDS];
+	static __u32 digest[SHA1_DIGEST_WORDS];
+	static __u32 workspace[SHA1_WORKSPACE_WORDS];
 
 	static union {
-		char __data[SHA_MESSAGE_BYTES];
+		char __data[SHA1_BLOCK_SIZE];
 		struct {
 			struct in6_addr secret;
 			__be32 prefix[2];
@@ -3251,7 +3251,7 @@ static int ipv6_generate_stable_address(struct in6_addr *address,
 retry:
 	spin_lock_bh(&lock);
 
-	sha_init(digest);
+	sha1_init(digest);
 	memset(&data, 0, sizeof(data));
 	memset(workspace, 0, sizeof(workspace));
 	memcpy(data.hwaddr, idev->dev->perm_addr, idev->dev->addr_len);
@@ -3260,7 +3260,7 @@ retry:
 	data.secret = secret;
 	data.dad_count = dad_count;
 
-	sha_transform(digest, data.__data, workspace);
+	sha1_transform(digest, data.__data, workspace);
 
 	temp = *address;
 	temp.s6_addr32[2] = (__force __be32)digest[0];
