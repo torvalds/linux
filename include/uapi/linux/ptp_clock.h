@@ -89,7 +89,9 @@ struct ptp_clock_caps {
 	int n_pins;    /* Number of input/output pins. */
 	/* Whether the clock supports precise system-device cross timestamps */
 	int cross_timestamping;
-	int rsv[13];   /* Reserved for future use. */
+	/* Whether the clock supports adjust phase */
+	int adjust_phase;
+	int rsv[12];   /* Reserved for future use. */
 };
 
 struct ptp_extts_request {
