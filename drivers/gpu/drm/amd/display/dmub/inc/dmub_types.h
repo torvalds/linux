@@ -63,9 +63,12 @@ union dmub_addr {
 	uint64_t quad_part;
 };
 
-struct dmub_psr_debug_flags {
-	uint8_t visual_confirm : 1;
-	uint8_t reserved : 7;
+union dmub_psr_debug_flags {
+	struct {
+		uint8_t visual_confirm : 1;
+	} bitfields;
+
+	unsigned int u32All;
 };
 
 #if defined(__cplusplus)

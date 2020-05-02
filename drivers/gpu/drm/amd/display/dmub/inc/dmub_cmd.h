@@ -219,6 +219,7 @@ struct dmub_rb_cmd_dpphy_init {
 };
 
 struct dmub_cmd_psr_copy_settings_data {
+	union dmub_psr_debug_flags debug;
 	uint16_t psr_level;
 	uint8_t dpp_inst;
 	uint8_t mpcc_inst;
@@ -231,7 +232,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t smu_optimizations_en;
 	uint8_t frame_delay;
 	uint8_t frame_cap_ind;
-	struct dmub_psr_debug_flags debug;
+	uint8_t pad[3];
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -241,6 +242,7 @@ struct dmub_rb_cmd_psr_copy_settings {
 
 struct dmub_cmd_psr_set_level_data {
 	uint16_t psr_level;
+	uint8_t pad[2];
 };
 
 struct dmub_rb_cmd_psr_set_level {
@@ -262,10 +264,10 @@ struct dmub_rb_cmd_psr_set_version {
 };
 
 struct dmub_cmd_abm_set_pipe_data {
-	uint32_t ramping_boundary;
-	uint32_t otg_inst;
-	uint32_t panel_inst;
-	uint32_t set_pipe_option;
+	uint8_t otg_inst;
+	uint8_t panel_inst;
+	uint8_t set_pipe_option;
+	uint8_t ramping_boundary; // TODO: Remove this
 };
 
 struct dmub_rb_cmd_abm_set_pipe {

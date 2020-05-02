@@ -26,6 +26,11 @@
 #ifndef _DMUB_CMD_DAL_H_
 #define _DMUB_CMD_DAL_H_
 
+#define NUM_AMBI_LEVEL                  5
+#define NUM_AGGR_LEVEL                  4
+#define NUM_POWER_FN_SEGS               8
+#define NUM_BL_CURVE_SEGS               16
+
 /*
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
@@ -51,6 +56,36 @@ enum dmub_cmd_abm_type {
 	DMUB_CMD__ABM_SET_LEVEL		= 3,
 	DMUB_CMD__ABM_SET_AMBIENT_LEVEL	= 4,
 	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
+};
+
+/*
+ * Parameters for ABM2.4 algorithm.
+ * Padded explicitly to 32-bit boundary.
+ */
+struct abm_config_table {
+	/* Parameters for crgb conversion */
+	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];                 // 0B
+	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 15B
+	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 31B
+
+	/* Parameters for custom curve */
+	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 47B
+	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 79B
+
+	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 111B
+	uint16_t min_abm_backlight;                              // 121B
+
+	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 123B
+	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 143B
+	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 163B
+	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 183B
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 203B
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 207B
+	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 211B
+	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 215B
+	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 219B
+	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 223B
+	uint8_t pad3[3];                                         // 228B
 };
 
 #endif /* _DMUB_CMD_DAL_H_ */
