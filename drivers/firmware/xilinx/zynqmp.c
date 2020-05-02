@@ -755,6 +755,7 @@ int zynqmp_pm_fpga_load(const u64 address, const u32 size, const u32 flags)
 	return zynqmp_pm_invoke_fn(PM_FPGA_LOAD, lower_32_bits(address),
 				   upper_32_bits(address), size, flags, NULL);
 }
+EXPORT_SYMBOL_GPL(zynqmp_pm_fpga_load);
 
 /**
  * zynqmp_pm_fpga_get_status - Read value from PCAP status register
@@ -778,6 +779,7 @@ int zynqmp_pm_fpga_get_status(u32 *value)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(zynqmp_pm_fpga_get_status);
 
 /**
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller
