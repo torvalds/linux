@@ -900,7 +900,7 @@ static void loongson3_reset_counters(void *arg)
 		mipspmu.write_counter(0, 0);
 		mipsxx_pmu_write_control(0, 575<<5);
 		mipspmu.write_counter(0, 0);
-		fallthrough;
+		break;
 	}
 }
 
@@ -929,7 +929,7 @@ static void reset_counters(void *arg)
 	case 1:
 		mipsxx_pmu_write_control(0, 0);
 		mipspmu.write_counter(0, 0);
-		fallthrough;
+		break;
 	}
 }
 
