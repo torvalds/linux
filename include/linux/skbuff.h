@@ -249,6 +249,7 @@ struct nf_conntrack {
 	atomic_t use;
 };
 #endif
+#include <linux/android_kabi.h>
 
 struct nf_bridge_info {
 	refcount_t		use;
@@ -844,6 +845,9 @@ struct sk_buff {
 	/* private: */
 	__u32			headers_end[0];
 	/* public: */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
