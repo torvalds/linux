@@ -15,6 +15,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/compat.h>
+#include <linux/android_kabi.h>
 #include <uapi/linux/ethtool.h>
 
 #ifdef CONFIG_COMPAT
@@ -412,5 +413,10 @@ struct ethtool_ops {
 				      struct ethtool_fecparam *);
 	void	(*get_ethtool_phy_stats)(struct net_device *,
 					 struct ethtool_stats *, u64 *);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 #endif /* _LINUX_ETHTOOL_H */
