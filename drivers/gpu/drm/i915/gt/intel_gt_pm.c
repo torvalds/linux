@@ -171,6 +171,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 		if (engine->reset.finish)
 			engine->reset.finish(engine);
 
+	intel_rps_sanitize(&gt->rps);
+
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
