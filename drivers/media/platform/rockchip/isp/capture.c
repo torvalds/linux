@@ -2362,6 +2362,7 @@ destroy_dummy_buf:
 buffer_done:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	atomic_dec(&dev->cap_dev.refcnt);
+	stream->streaming = false;
 	return ret;
 }
 

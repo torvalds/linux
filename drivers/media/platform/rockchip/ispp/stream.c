@@ -1336,6 +1336,7 @@ free_dummy_buf:
 free_buf_queue:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	atomic_dec(&dev->stream_vdev.refcnt);
+	stream->streaming = false;
 	v4l2_err(&dev->v4l2_dev,
 		 "ispp stream:%d on failed ret:%d\n",
 		 stream->id, ret);
