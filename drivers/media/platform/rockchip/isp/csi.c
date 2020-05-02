@@ -455,7 +455,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "isp readback frame:%d time:%d\n",
 		 cur_frame_id, dma2frm + 1);
-	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);
+	writel(SW_DMA_2FRM_MODE(dma2frm) | SW_IBUF_OP_MODE(dev->hdr.op_mode) |
+		   SW_CSI2RX_EN | readl(addr), addr);
 }
 
 /* handle read back event from user or isp idle isr */

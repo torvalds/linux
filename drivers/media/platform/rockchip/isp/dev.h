@@ -212,6 +212,14 @@ struct rkisp_device {
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */
 	wait_queue_head_t sync_onoff;
+
+	const struct isp_match_data *match_data;
+	struct platform_device *pdev;
+	phys_addr_t resmem_pa;
+	size_t resmem_size;
+	bool is_thunderboot;
 };
+
+int rkisp_register_irq(struct rkisp_device *isp_dev);
 
 #endif

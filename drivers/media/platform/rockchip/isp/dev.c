@@ -38,6 +38,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
@@ -615,6 +616,9 @@ static irqreturn_t rkisp_isp_irq_hdl(int irq, void *ctx)
 	struct rkisp_device *rkisp_dev = dev_get_drvdata(dev);
 	unsigned int mis_val, mis_3a = 0;
 
+	if (rkisp_dev->is_thunderboot)
+		return IRQ_HANDLED;
+
 	mis_val = readl(rkisp_dev->base_addr + CIF_ISP_MIS);
 	if (rkisp_dev->isp_ver == ISP_V20)
 		mis_3a = readl(rkisp_dev->base_addr + ISP_ISP3A_MIS);
@@ -630,6 +634,9 @@ static irqreturn_t rkisp_mi_irq_hdl(int irq, void *ctx)
 	struct rkisp_device *rkisp_dev = dev_get_drvdata(dev);
 	unsigned int mis_val;
 
+	if (rkisp_dev->is_thunderboot)
+		return IRQ_HANDLED;
+
 	mis_val = readl(rkisp_dev->base_addr + CIF_MI_MIS);
 	if (mis_val)
 		rkisp_mi_isr(mis_val, rkisp_dev);
@@ -641,6 +648,9 @@ static irqreturn_t rkisp_mipi_irq_hdl(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct rkisp_device *rkisp_dev = dev_get_drvdata(dev);
+
+	if (rkisp_dev->is_thunderboot)
+		return IRQ_HANDLED;
 
 	if (rkisp_dev->isp_ver == ISP_V13 ||
 		rkisp_dev->isp_ver == ISP_V12) {
@@ -953,56 +963,42 @@ static const struct media_device_ops rkisp_media_ops = {
 	.link_notify = v4l2_pipeline_link_notify,
 };
 
-static int rkisp_plat_probe(struct platform_device *pdev)
+static int rkisp_get_reserved_mem(struct rkisp_device *isp_dev)
 {
-	const struct of_device_id *match;
-	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = isp_dev->dev;
+	struct device_node *np;
+	struct resource r;
+	int ret;
+
+	/* Get reserved memory region from Device-tree */
+	np = of_parse_phandle(dev->of_node, "memory-region-thunderboot", 0);
+	if (!np) {
+		dev_err(dev, "No %s specified\n", "memory-region-thunderboot");
+		return -1;
+	}
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret) {
+		dev_err(dev, "No memory address assigned to the region\n");
+		return -1;
+	}
+
+	isp_dev->resmem_pa = r.start;
+	isp_dev->resmem_size = resource_size(&r);
+	dev_info(dev, "Allocated reserved memory, paddr: 0x%x\n",
+		(u32)isp_dev->resmem_pa);
+
+	return 0;
+}
+
+int rkisp_register_irq(struct rkisp_device *isp_dev)
+{
+	const struct isp_match_data *match_data = isp_dev->match_data;
+	struct platform_device *pdev = isp_dev->pdev;
 	struct device *dev = &pdev->dev;
-	struct v4l2_device *v4l2_dev;
-	struct rkisp_device *isp_dev;
-	const struct isp_match_data *match_data;
 	struct resource *res;
 	int i, ret, irq;
 
-	sprintf(rkisp_version, "v%02x.%02x.%02x",
-		RKISP_DRIVER_VERSION >> 16,
-		(RKISP_DRIVER_VERSION & 0xff00) >> 8,
-		RKISP_DRIVER_VERSION & 0x00ff);
-
-	dev_info(dev, "rkisp driver version: %s\n", rkisp_version);
-
-	match = of_match_node(rkisp_plat_of_match, node);
-	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
-	if (!isp_dev)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, isp_dev);
-	isp_dev->dev = dev;
-
-	isp_dev->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-		"rockchip,grf");
-	if (IS_ERR(isp_dev->grf))
-		dev_warn(dev, "Missing rockchip,grf property\n");
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "get resource failed\n");
-		return -EINVAL;
-	}
-	isp_dev->base_addr = devm_ioremap_resource(dev, res);
-	if (PTR_ERR(isp_dev->base_addr) == -EBUSY) {
-		resource_size_t offset = res->start;
-		resource_size_t size = resource_size(res);
-
-		isp_dev->base_addr = devm_ioremap(dev, offset, size);
-	}
-	if (IS_ERR(isp_dev->base_addr)) {
-		dev_err(dev, "ioremap failed\n");
-		return PTR_ERR(isp_dev->base_addr);
-	}
-
-	match_data = match->data;
-	isp_dev->mipi_irq = -1;
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   match_data->irqs[0].name);
 	if (res) {
@@ -1055,6 +1051,69 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		}
 	}
 
+	return 0;
+}
+
+static int rkisp_plat_probe(struct platform_device *pdev)
+{
+	const struct of_device_id *match;
+	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct v4l2_device *v4l2_dev;
+	struct rkisp_device *isp_dev;
+	const struct isp_match_data *match_data;
+	struct resource *res;
+	int i, ret;
+
+	sprintf(rkisp_version, "v%02x.%02x.%02x",
+		RKISP_DRIVER_VERSION >> 16,
+		(RKISP_DRIVER_VERSION & 0xff00) >> 8,
+		RKISP_DRIVER_VERSION & 0x00ff);
+
+	dev_info(dev, "rkisp driver version: %s\n", rkisp_version);
+
+	match = of_match_node(rkisp_plat_of_match, node);
+	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
+	if (!isp_dev)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, isp_dev);
+	isp_dev->dev = dev;
+	isp_dev->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+	dev_info(dev, "is_thunderboot: %d\n", isp_dev->is_thunderboot);
+
+	isp_dev->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+		"rockchip,grf");
+	if (IS_ERR(isp_dev->grf))
+		dev_warn(dev, "Missing rockchip,grf property\n");
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "get resource failed\n");
+		return -EINVAL;
+	}
+	isp_dev->base_addr = devm_ioremap_resource(dev, res);
+	if (PTR_ERR(isp_dev->base_addr) == -EBUSY) {
+		resource_size_t offset = res->start;
+		resource_size_t size = resource_size(res);
+
+		isp_dev->base_addr = devm_ioremap(dev, offset, size);
+	}
+	if (IS_ERR(isp_dev->base_addr)) {
+		dev_err(dev, "ioremap failed\n");
+		return PTR_ERR(isp_dev->base_addr);
+	}
+	rkisp_get_reserved_mem(isp_dev);
+
+	match_data = match->data;
+	isp_dev->mipi_irq = -1;
+	isp_dev->isp_ver = match_data->isp_ver;
+
+	isp_dev->pdev = pdev;
+	isp_dev->match_data = match_data;
+	if (!isp_dev->is_thunderboot)
+		rkisp_register_irq(isp_dev);
+
 	for (i = 0; i < match_data->num_clks; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
@@ -1063,7 +1122,6 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		isp_dev->clks[i] = clk;
 	}
 	isp_dev->num_clks = match_data->num_clks;
-	isp_dev->isp_ver = match_data->isp_ver;
 	isp_dev->clk_rate_tbl = match_data->clk_rate_tbl;
 	isp_dev->num_clk_rate_tbl = match_data->num_clk_rate_tbl;
 
@@ -1124,6 +1182,8 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		goto err_unreg_media_dev;
 
 	pm_runtime_enable(&pdev->dev);
+	if (isp_dev->is_thunderboot)
+		pm_runtime_get_sync(&pdev->dev);
 
 	ret = rkisp_vs_irq_parse(pdev);
 	if (ret)
@@ -1167,13 +1227,19 @@ static int rkisp_plat_remove(struct platform_device *pdev)
 static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 {
 	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
+	int ret = 0;
 
 	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
 		if (isp_dev->mipi_irq >= 0)
 			disable_irq(isp_dev->mipi_irq);
 	}
-	rkisp_disable_sys_clk(isp_dev);
-	return pinctrl_pm_select_sleep_state(dev);
+
+	if (!isp_dev->is_thunderboot) {
+		rkisp_disable_sys_clk(isp_dev);
+		ret = pinctrl_pm_select_sleep_state(dev);
+	}
+
+	return ret;
 }
 
 static int __maybe_unused rkisp_runtime_resume(struct device *dev)
@@ -1181,10 +1247,12 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
 	int ret;
 
-	ret = pinctrl_pm_select_default_state(dev);
-	if (ret < 0)
-		return ret;
-	rkisp_enable_sys_clk(isp_dev);
+	if (!isp_dev->is_thunderboot) {
+		ret = pinctrl_pm_select_default_state(dev);
+		if (ret < 0)
+			return ret;
+		rkisp_enable_sys_clk(isp_dev);
+	}
 
 	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
 		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK1);

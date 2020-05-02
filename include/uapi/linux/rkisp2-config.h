@@ -16,6 +16,12 @@
 #define RKISP_CMD_CSI_MEMORY_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 1, int)
 
+#define RKISP_CMD_GET_SHARED_BUF \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_thunderboot_resmem)
+
+#define RKISP_CMD_FREE_SHARED_BUF \
+	_IO('V', BASE_VIDIOC_PRIVATE + 3)
+
 #define ISP2X_MODULE_DPCC		BIT_ULL(0)
 #define ISP2X_MODULE_BLS		BIT_ULL(1)
 #define ISP2X_MODULE_SDG		BIT_ULL(2)
@@ -140,6 +146,8 @@
 #define ISP2X_3DLUT_DATA_NUM		729
 
 #define ISP2X_LDCH_MESH_XY_NUM		0x80000
+
+#define ISP2X_THUNDERBOOT_VIDEO_BUF_NUM	30
 
 struct isp2x_csi_trigger {
 	/* timestamp in ns */
@@ -1551,6 +1559,44 @@ struct rkisp_isp2x_luma_buffer {
 	unsigned int meas_type;
 	unsigned int frame_id;
 	struct rkisp_mipi_luma luma[ISP2X_MIPI_RAW_MAX];
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_thunderboot_video_buf
+ */
+struct rkisp_thunderboot_video_buf {
+	u32 index;
+	u32 frame_id;
+	u32 timestamp;
+	u32 time_reg;
+	u32 gain_reg;
+	u32 bufaddr;
+	u32 bufsize;
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_thunderboot_resmem_head
+ */
+struct rkisp_thunderboot_resmem_head {
+	u16 enable;
+	u16 complete;
+	u16 frm_total;
+	u16 hdr_mode;
+	u16 width;
+	u16 height;
+	u32 bus_fmt;
+
+	struct rkisp_thunderboot_video_buf l_buf[ISP2X_THUNDERBOOT_VIDEO_BUF_NUM];
+	struct rkisp_thunderboot_video_buf m_buf[ISP2X_THUNDERBOOT_VIDEO_BUF_NUM];
+	struct rkisp_thunderboot_video_buf s_buf[ISP2X_THUNDERBOOT_VIDEO_BUF_NUM];
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_thunderboot_resmem - shared buffer for thunderboot with risc-v side
+ */
+struct rkisp_thunderboot_resmem {
+	u32 resmem_padr;
+	u32 resmem_size;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKISP2_CONFIG_H */

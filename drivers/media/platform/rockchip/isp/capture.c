@@ -2028,6 +2028,7 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 			plane_fmt->sizeimage;
 	}
 
+	rkisp_chk_tb_over(dev);
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
 		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 

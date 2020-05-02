@@ -49,6 +49,7 @@
 
 #include "common.h"
 #include "regs.h"
+#include "rkisp_tb_helper.h"
 
 #define ISP_SUBDEV_NAME DRIVER_NAME "-isp-subdev"
 /*
@@ -1590,6 +1591,27 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	return rkisp_isp_start(isp_dev);
 }
 
+static void rkisp_isp_soft_reset(struct rkisp_device *isp_dev)
+{
+	void __iomem *base = isp_dev->base_addr;
+
+	if (isp_dev->isp_ver == ISP_V20) {
+		struct iommu_domain *domain =
+			iommu_get_domain_for_dev(isp_dev->dev);
+
+		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601,
+		       base + CIF_ISP_CTRL);
+		writel(0xffff, base + CIF_IRCL);
+		usleep_range(100, 200);
+		if (domain) {
+#ifdef CONFIG_IOMMU_API
+			domain->ops->detach_dev(domain, isp_dev->dev);
+			domain->ops->attach_dev(domain, isp_dev->dev);
+#endif
+		}
+	}
+}
+
 static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -1603,23 +1625,11 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			return ret;
 
-		if (isp_dev->isp_ver == ISP_V20) {
-			struct iommu_domain *domain =
-				iommu_get_domain_for_dev(isp_dev->dev);
-
-			writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601,
-			       base + CIF_ISP_CTRL);
-			writel(0xffff, base + CIF_IRCL);
-			usleep_range(100, 200);
-			if (domain) {
-#ifdef CONFIG_IOMMU_API
-				domain->ops->detach_dev(domain, isp_dev->dev);
-				domain->ops->attach_dev(domain, isp_dev->dev);
-#endif
-			}
+		if (!isp_dev->is_thunderboot) {
+			rkisp_isp_soft_reset(isp_dev);
+			rkisp_config_clk(isp_dev, on);
 		}
 
-		rkisp_config_clk(isp_dev, on);
 		if (isp_dev->isp_ver == ISP_V12 ||
 		    isp_dev->isp_ver == ISP_V13) {
 			/* disable csi_rx interrupt */
@@ -1629,7 +1639,8 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 			writel(0, base + CIF_ISP_CSI0_MASK3);
 		}
 	} else {
-		rkisp_config_clk(isp_dev, on);
+		if (!isp_dev->is_thunderboot)
+			rkisp_config_clk(isp_dev, on);
 		ret = pm_runtime_put(isp_dev->dev);
 		if (ret < 0)
 			return ret;
@@ -1808,9 +1819,12 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
+	struct rkisp_thunderboot_resmem *resmem;
+	struct rkisp_thunderboot_resmem_head *head;
+	void *resmem_va;
 	long ret = 0;
 
-	if (!arg)
+	if (!arg && cmd != RKISP_CMD_FREE_SHARED_BUF)
 		return -EINVAL;
 
 	switch (cmd) {
@@ -1826,6 +1840,46 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			isp_dev->csi_dev.memory = 0;
 		break;
+	case RKISP_CMD_GET_SHARED_BUF:
+		resmem = (struct rkisp_thunderboot_resmem *)arg;
+		resmem->resmem_padr = isp_dev->resmem_pa;
+		resmem->resmem_size = isp_dev->resmem_size;
+		if (!isp_dev->resmem_pa || !isp_dev->resmem_size) {
+			v4l2_info(sd, "no reserved memory for thunderboot\n");
+			break;
+		}
+
+		rkisp_chk_tb_over(isp_dev);
+		resmem_va = phys_to_virt(isp_dev->resmem_pa);
+		head = (struct rkisp_thunderboot_resmem_head *)resmem_va;
+		if (head->complete != RKISP_TB_OK) {
+			resmem->resmem_size = 0;
+			free_reserved_area(phys_to_virt(isp_dev->resmem_pa),
+					   phys_to_virt(isp_dev->resmem_pa) + isp_dev->resmem_size,
+					   -1, "rkisp_thunderboot");
+
+			isp_dev->resmem_pa = 0;
+			isp_dev->resmem_size = 0;
+		}
+
+		v4l2_info(sd, "thunderboot info: %d, %d, %d, %d, %d, %d, 0x%x\n",
+			  head->enable,
+			  head->complete,
+			  head->frm_total,
+			  head->hdr_mode,
+			  head->width,
+			  head->height,
+			  head->bus_fmt);
+		break;
+	case RKISP_CMD_FREE_SHARED_BUF:
+		if (isp_dev->resmem_pa && isp_dev->resmem_size)
+			free_reserved_area(phys_to_virt(isp_dev->resmem_pa),
+					   phys_to_virt(isp_dev->resmem_pa) + isp_dev->resmem_size,
+					   -1, "rkisp_thunderboot");
+
+		isp_dev->resmem_pa = 0;
+		isp_dev->resmem_size = 0;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -1839,10 +1893,11 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct isp2x_csi_trigger trigger;
+	struct rkisp_thunderboot_resmem resmem;
 	long ret = 0;
 	int mode;
 
-	if (!up)
+	if (!up && cmd != RKISP_CMD_FREE_SHARED_BUF)
 		return -EINVAL;
 
 	switch (cmd) {
@@ -1855,6 +1910,14 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&mode, up, sizeof(int));
 		if (!ret)
 			ret = rkisp_ioctl(sd, cmd, &mode);
+		break;
+	case RKISP_CMD_GET_SHARED_BUF:
+		ret = rkisp_ioctl(sd, cmd, &resmem);
+		if (!ret)
+			ret = copy_to_user(up, &resmem, sizeof(resmem));
+		break;
+	case RKISP_CMD_FREE_SHARED_BUF:
+		ret = rkisp_ioctl(sd, cmd, NULL);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1973,6 +2036,48 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 }
+
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
+{
+	struct rkisp_thunderboot_resmem_head *head;
+	void *resmem_va;
+	u32 i;
+
+	if (!isp_dev->resmem_pa || !isp_dev->resmem_size) {
+		v4l2_info(&isp_dev->v4l2_dev,
+			  "no reserved memory for thunderboot\n");
+		return;
+	}
+
+	resmem_va = phys_to_virt(isp_dev->resmem_pa);
+	head = (struct rkisp_thunderboot_resmem_head *)resmem_va;
+	if (isp_dev->is_thunderboot) {
+		if ((!head->complete)) {
+			for (i = 0; i < 100; i++) {
+				usleep_range(5000, 6000);
+				if (head->complete)
+					break;
+			}
+
+			if (!head->complete)
+				v4l2_info(&isp_dev->v4l2_dev,
+					  "wait thunderboot over timeout\n");
+		}
+
+		if (head->complete != RKISP_TB_OK)
+			head->frm_total = 0;
+
+		rkisp_tb_set_state((enum rkisp_tb_state)head->complete);
+		rkisp_tb_unprotect_clk();
+		rkisp_register_irq(isp_dev);
+		isp_dev->is_thunderboot = false;
+		rkisp_isp_soft_reset(isp_dev);
+		rkisp_config_clk(isp_dev, 1);
+		pm_runtime_put(isp_dev->dev);
+	}
+}
+#endif
 
 /****************  Interrupter Handler ****************/
 
