@@ -1334,11 +1334,11 @@ out:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+struct slave *bond_xmit_tlb_slave_get(struct bonding *bond,
+				      struct sk_buff *skb)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct ethhdr *eth_data;
 	struct slave *tx_slave = NULL;
+	struct ethhdr *eth_data;
 	u32 hash_index;
 
 	skb_reset_mac_header(skb);
@@ -1360,7 +1360,7 @@ netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 				struct bond_up_slave *slaves;
 				unsigned int count;
 
-				slaves = rcu_dereference(bond->slave_arr);
+				slaves = rcu_dereference(bond->usable_slaves);
 				count = slaves ? READ_ONCE(slaves->count) : 0;
 				if (likely(count))
 					tx_slave = slaves->arr[hash_index %
@@ -1369,20 +1369,29 @@ netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 	}
+	return tx_slave;
+}
+
+netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *tx_slave;
+
+	tx_slave = bond_xmit_tlb_slave_get(bond, skb);
 	return bond_do_alb_xmit(skb, bond, tx_slave);
 }
 
-netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+struct slave *bond_xmit_alb_slave_get(struct bonding *bond,
+				      struct sk_buff *skb)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct ethhdr *eth_data;
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct slave *tx_slave = NULL;
 	static const __be32 ip_bcast = htonl(0xffffffff);
-	int hash_size = 0;
-	bool do_tx_balance = true;
-	u32 hash_index = 0;
+	struct slave *tx_slave = NULL;
 	const u8 *hash_start = NULL;
+	bool do_tx_balance = true;
+	struct ethhdr *eth_data;
+	u32 hash_index = 0;
+	int hash_size = 0;
 
 	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
@@ -1494,14 +1503,22 @@ netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			struct bond_up_slave *slaves;
 			unsigned int count;
 
-			slaves = rcu_dereference(bond->slave_arr);
+			slaves = rcu_dereference(bond->usable_slaves);
 			count = slaves ? READ_ONCE(slaves->count) : 0;
 			if (likely(count))
 				tx_slave = slaves->arr[bond_xmit_hash(bond, skb) %
 						       count];
 		}
 	}
+	return tx_slave;
+}
 
+netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *tx_slave = NULL;
+
+	tx_slave = bond_xmit_alb_slave_get(bond, skb);
 	return bond_do_alb_xmit(skb, bond, tx_slave);
 }
 
