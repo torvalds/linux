@@ -2,7 +2,7 @@
 Converting old watchdog drivers to the watchdog framework
 =========================================================
 
-by Wolfram Sang <w.sang@pengutronix.de>
+by Wolfram Sang <wsa@kernel.org>
 
 Before the watchdog framework came into the kernel, every driver had to
 implement the API on its own. Now, as the framework factored out the common
