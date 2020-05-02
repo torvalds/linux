@@ -42,10 +42,13 @@ static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server
 	bool responded = server->probe.responded;
 
 	write_seqlock(&net->fs_lock);
-	if (responded)
+	if (responded) {
 		list_add_tail(&server->probe_link, &net->fs_probe_slow);
-	else
+	} else {
+		server->rtt = UINT_MAX;
+		clear_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 		list_add_tail(&server->probe_link, &net->fs_probe_fast);
+	}
 	write_sequnlock(&net->fs_lock);
 
 	afs_schedule_fs_probe(net, server, !responded);
@@ -161,12 +164,14 @@ responded:
 	rtt_us = rxrpc_kernel_get_srtt(call->net->socket, call->rxcall);
 	if (rtt_us < server->probe.rtt) {
 		server->probe.rtt = rtt_us;
+		server->rtt = rtt_us;
 		alist->preferred = index;
 	}
 
 	smp_wmb(); /* Set rtt before responded. */
 	server->probe.responded = true;
 	set_bit(index, &alist->responded);
+	set_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 out:
 	spin_unlock(&server->probe_lock);
 
@@ -224,7 +229,7 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 {
 	struct wait_queue_entry *waits;
 	struct afs_server *server;
-	unsigned int rtt = UINT_MAX;
+	unsigned int rtt = UINT_MAX, rtt_s;
 	bool have_responders = false;
 	int pref = -1, i;
 
@@ -280,10 +285,11 @@ stop:
 	for (i = 0; i < slist->nr_servers; i++) {
 		if (test_bit(i, &untried)) {
 			server = slist->servers[i].server;
-			if (server->probe.responded &&
-			    server->probe.rtt < rtt) {
+			rtt_s = READ_ONCE(server->rtt);
+			if (test_bit(AFS_SERVER_FL_RESPONDING, &server->flags) &&
+			    rtt_s < rtt) {
 				pref = i;
-				rtt = server->probe.rtt;
+				rtt = rtt_s;
 			}
 
 			remove_wait_queue(&server->probe_wq, &waits[i]);
