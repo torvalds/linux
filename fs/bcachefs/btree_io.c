@@ -1626,6 +1626,11 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	 * reflect that those writes were done and the data flushed from the
 	 * journal:
 	 *
+	 * Also on journal error, the pending write may have updates that were
+	 * never journalled (interior nodes, see btree_update_nodes_written()) -
+	 * it's critical that we don't do the write in that case otherwise we
+	 * will have updates visible that weren't in the journal:
+	 *
 	 * Make sure to update b->written so bch2_btree_init_next() doesn't
 	 * break:
 	 */

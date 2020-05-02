@@ -586,12 +586,12 @@ static void __bch2_btree_update_free(struct btree_update *as)
 	bch2_journal_pin_drop(&c->journal, &as->journal);
 	bch2_journal_pin_flush(&c->journal, &as->journal);
 
-	BUG_ON((as->nr_new_nodes || as->nr_pending) &&
-	       !bch2_journal_error(&c->journal));;
+	BUG_ON(as->nr_new_nodes || as->nr_pending);
 
 	if (as->reserve)
 		bch2_btree_reserve_put(c, as->reserve);
 
+	list_del(&as->unwritten_list);
 	list_del(&as->list);
 
 	closure_debug_destroy(&as->cl);
@@ -625,12 +625,12 @@ static inline bool six_trylock_intentwrite(struct six_lock *lock)
 static void btree_update_nodes_written(struct closure *cl)
 {
 	struct btree_update *as = container_of(cl, struct btree_update, cl);
-	struct btree *new_nodes[BTREE_MAX_DEPTH * 2 + GC_MERGE_NODES];
-	unsigned nr_new_nodes;
+	struct btree *nodes_need_write[BTREE_MAX_DEPTH * 2 + GC_MERGE_NODES + 1];
+	unsigned nr_nodes_need_write;
 	struct journal_res res = { 0 };
 	struct bch_fs *c = as->c;
+	struct btree_root *r;
 	struct btree *b;
-	struct bset *i;
 	int ret;
 
 	/*
@@ -641,7 +641,7 @@ static void btree_update_nodes_written(struct closure *cl)
 	mutex_lock(&c->btree_interior_update_lock);
 	as->nodes_written = true;
 again:
-	nr_new_nodes = 0;
+	nr_nodes_need_write = 0;
 	as = list_first_entry_or_null(&c->btree_interior_updates_unwritten,
 				      struct btree_update, unwritten_list);
 	if (!as || !as->nodes_written) {
@@ -663,16 +663,16 @@ again:
 		goto again;
 	}
 
-	list_del(&as->unwritten_list);
-
 	ret = bch2_journal_res_get(&c->journal, &res, as->journal_u64s,
 				   JOURNAL_RES_GET_NONBLOCK|
 				   JOURNAL_RES_GET_RESERVED);
 	if (ret == -EAGAIN) {
 		unsigned u64s = as->journal_u64s;
 
-		six_unlock_write(&b->c.lock);
-		six_unlock_intent(&b->c.lock);
+		if (b) {
+			six_unlock_write(&b->c.lock);
+			six_unlock_intent(&b->c.lock);
+		}
 
 		mutex_unlock(&c->btree_interior_update_lock);
 
@@ -685,19 +685,22 @@ again:
 		}
 	}
 
-	if (ret) {
-		BUG_ON(!bch2_journal_error(&c->journal));
-		/* can't unblock btree writes */
-		goto free_update;
-	}
-
-	{
+	if (!ret) {
 		struct journal_buf *buf = &c->journal.buf[res.idx];
 		struct jset_entry *entry = vstruct_idx(buf->data, res.offset);
 
 		res.offset	+= as->journal_u64s;
 		res.u64s	-= as->journal_u64s;
 		memcpy_u64s(entry, as->journal_entries, as->journal_u64s);
+	} else {
+		/*
+		 * On journal error we have to run most of the normal path so
+		 * that shutdown works - unblocking btree node writes in
+		 * particular and writing them if needed - except for
+		 * journalling the update:
+		 */
+
+		BUG_ON(!bch2_journal_error(&c->journal));
 	}
 
 	switch (as->mode) {
@@ -705,24 +708,41 @@ again:
 		BUG();
 	case BTREE_INTERIOR_UPDATING_NODE:
 		/* @b is the node we did the final insert into: */
-		BUG_ON(!res.ref);
+
+		/*
+		 * On failure to get a journal reservation, we still have to
+		 * unblock the write and allow most of the write path to happen
+		 * so that shutdown works, but the i->journal_seq mechanism
+		 * won't work to prevent the btree write from being visible (we
+		 * didn't get a journal sequence number) - instead
+		 * __bch2_btree_node_write() doesn't do the actual write if
+		 * we're in journal error state:
+		 */
 
 		list_del(&as->write_blocked_list);
 
-		i = btree_bset_last(b);
-		i->journal_seq = cpu_to_le64(
-			max(res.seq,
-			    le64_to_cpu(i->journal_seq)));
+		if (!ret) {
+			struct bset *i = btree_bset_last(b);
 
-		bch2_btree_add_journal_pin(c, b, res.seq);
+			i->journal_seq = cpu_to_le64(
+				max(res.seq,
+				    le64_to_cpu(i->journal_seq)));
+
+			bch2_btree_add_journal_pin(c, b, res.seq);
+		}
+
+		nodes_need_write[nr_nodes_need_write++] = b;
+
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
 		break;
 
 	case BTREE_INTERIOR_UPDATING_AS:
 		BUG_ON(b);
 		break;
 
-	case BTREE_INTERIOR_UPDATING_ROOT: {
-		struct btree_root *r = &c->btree_roots[as->btree_id];
+	case BTREE_INTERIOR_UPDATING_ROOT:
+		r = &c->btree_roots[as->btree_id];
 
 		BUG_ON(b);
 
@@ -734,41 +754,24 @@ again:
 		mutex_unlock(&c->btree_root_lock);
 		break;
 	}
-	}
 
 	bch2_journal_pin_drop(&c->journal, &as->journal);
 
 	bch2_journal_res_put(&c->journal, &res);
 	bch2_journal_preres_put(&c->journal, &as->journal_preres);
-free_update:
-	/* Do btree write after dropping journal res: */
-	if (b) {
-		six_unlock_write(&b->c.lock);
-		/*
-		 * b->write_blocked prevented it from being written, so
-		 * write it now if it needs to be written:
-		 */
-		btree_node_write_if_need(c, b, SIX_LOCK_intent);
-		six_unlock_intent(&b->c.lock);
+
+	while (as->nr_new_nodes) {
+		b = as->new_nodes[--as->nr_new_nodes];
+
+		BUG_ON(b->will_make_reachable != (unsigned long) as);
+		b->will_make_reachable = 0;
+
+		nodes_need_write[nr_nodes_need_write++] = b;
 	}
 
-	if (!ret) {
-		nr_new_nodes = as->nr_new_nodes;
-		memcpy(new_nodes,
-		       as->new_nodes,
-		       as->nr_new_nodes * sizeof(struct btree *));
-
-		while (as->nr_new_nodes) {
-			struct btree *b = as->new_nodes[--as->nr_new_nodes];
-
-			BUG_ON(b->will_make_reachable != (unsigned long) as);
-			b->will_make_reachable = 0;
-		}
-
-		while (as->nr_pending)
-			bch2_btree_node_free_ondisk(c,
-				&as->pending[--as->nr_pending], res.seq);
-	}
+	while (as->nr_pending)
+		bch2_btree_node_free_ondisk(c,
+			&as->pending[--as->nr_pending], res.seq);
 
 	__bch2_btree_update_free(as);
 	/*
@@ -782,8 +785,10 @@ free_update:
 	 * */
 	mutex_unlock(&c->btree_interior_update_lock);
 
-	while (nr_new_nodes) {
-		struct btree *b = new_nodes[--nr_new_nodes];
+	/* Do btree writes after dropping journal res/locks: */
+	while (nr_nodes_need_write) {
+		b = nodes_need_write[--nr_nodes_need_write];
+
 		btree_node_lock_type(c, b, SIX_LOCK_read);
 		bch2_btree_node_write_cond(c, b, btree_node_need_write(b));
 		six_unlock_read(&b->c.lock);
@@ -1036,6 +1041,7 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 	as->btree_id	= id;
 	as->reserve	= reserve;
 	INIT_LIST_HEAD(&as->write_blocked_list);
+	INIT_LIST_HEAD(&as->unwritten_list);
 	as->journal_preres = journal_preres;
 
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
