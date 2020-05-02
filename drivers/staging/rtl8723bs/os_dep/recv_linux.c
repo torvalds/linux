@@ -230,7 +230,7 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 
 		if (rx_pid == psta->pid) {
 			int i;
-			u16 len = *(u16*)(skb->data+ETH_HLEN+2);
+			u16 len = *(u16 *)(skb->data+ETH_HLEN+2);
 			DBG_871X("eth, RC: len = 0x%x\n", len);
 
 			for (i = 0; i < len; i++)
