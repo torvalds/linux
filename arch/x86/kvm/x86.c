@@ -1910,7 +1910,7 @@ static void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
 
 static void update_ia32_tsc_adjust_msr(struct kvm_vcpu *vcpu, s64 offset)
 {
-	u64 curr_offset = kvm_x86_ops.read_l1_tsc_offset(vcpu);
+	u64 curr_offset = vcpu->arch.l1_tsc_offset;
 	vcpu->arch.ia32_tsc_adjust_msr += offset - curr_offset;
 }
 
@@ -1952,14 +1952,13 @@ static u64 kvm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 
 u64 kvm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 {
-	u64 tsc_offset = kvm_x86_ops.read_l1_tsc_offset(vcpu);
-
-	return tsc_offset + kvm_scale_tsc(vcpu, host_tsc);
+	return vcpu->arch.l1_tsc_offset + kvm_scale_tsc(vcpu, host_tsc);
 }
 EXPORT_SYMBOL_GPL(kvm_read_l1_tsc);
 
 static void kvm_vcpu_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
+	vcpu->arch.l1_tsc_offset = offset;
 	vcpu->arch.tsc_offset = kvm_x86_ops.write_l1_tsc_offset(vcpu, offset);
 }
 
@@ -2084,7 +2083,7 @@ EXPORT_SYMBOL_GPL(kvm_write_tsc);
 static inline void adjust_tsc_offset_guest(struct kvm_vcpu *vcpu,
 					   s64 adjustment)
 {
-	u64 tsc_offset = kvm_x86_ops.read_l1_tsc_offset(vcpu);
+	u64 tsc_offset = vcpu->arch.l1_tsc_offset;
 	kvm_vcpu_write_tsc_offset(vcpu, tsc_offset + adjustment);
 }
 

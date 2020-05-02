@@ -708,6 +708,7 @@ struct kvm_vcpu_arch {
 		struct gfn_to_pfn_cache cache;
 	} st;
 
+	u64 l1_tsc_offset;
 	u64 tsc_offset;
 	u64 last_guest_tsc;
 	u64 last_host_tsc;
@@ -1165,7 +1166,6 @@ struct kvm_x86_ops {
 
 	bool (*has_wbinvd_exit)(void);
 
-	u64 (*read_l1_tsc_offset)(struct kvm_vcpu *vcpu);
 	/* Returns actual tsc_offset set in active VMCS */
 	u64 (*write_l1_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 

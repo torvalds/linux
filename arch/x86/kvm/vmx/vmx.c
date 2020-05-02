@@ -1740,17 +1740,6 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		vmx_update_msr_bitmap(&vmx->vcpu);
 }
 
-static u64 vmx_read_l1_tsc_offset(struct kvm_vcpu *vcpu)
-{
-	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-
-	if (is_guest_mode(vcpu) &&
-	    (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETTING))
-		return vcpu->arch.tsc_offset - vmcs12->tsc_offset;
-
-	return vcpu->arch.tsc_offset;
-}
-
 static u64 vmx_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
@@ -7881,7 +7870,6 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
-	.read_l1_tsc_offset = vmx_read_l1_tsc_offset,
 	.write_l1_tsc_offset = vmx_write_l1_tsc_offset,
 
 	.load_mmu_pgd = vmx_load_mmu_pgd,
