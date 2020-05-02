@@ -16,12 +16,11 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/sha.h>
 #include <asm/byteorder.h>
 
-extern void powerpc_sha_transform(u32 *state, const u8 *src, u32 *temp);
+void powerpc_sha_transform(u32 *state, const u8 *src);
 
 static int sha1_init(struct shash_desc *desc)
 {
@@ -47,7 +46,6 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 	src = data;
 
 	if ((partial + len) > 63) {
-		u32 temp[SHA_WORKSPACE_WORDS];
 
 		if (partial) {
 			done = -partial;
@@ -56,12 +54,11 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 		}
 
 		do {
-			powerpc_sha_transform(sctx->state, src, temp);
+			powerpc_sha_transform(sctx->state, src);
 			done += 64;
 			src = data + done;
 		} while (done + 63 < len);
 
-		memzero_explicit(temp, sizeof(temp));
 		partial = 0;
 	}
 	memcpy(sctx->buffer + partial, src, len - done);
