@@ -386,9 +386,13 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   &server->uuid,
 		   atomic_read(&server->ref),
 		   atomic_read(&server->active));
-	seq_printf(m, "  - ALIST v=%u osp=%u r=%lx f=%lx\n",
-		   alist->version, atomic_read(&server->probe_outstanding),
-		   alist->responded, alist->failed);
+	seq_printf(m, "  - info: fl=%lx rtt=%u brk=%x\n",
+		   server->flags, server->rtt, server->cb_s_break);
+	seq_printf(m, "  - probe: last=%d out=%d\n",
+		   (int)(jiffies - server->probed_at) / HZ,
+		   atomic_read(&server->probe_outstanding));
+	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
+		   alist->version, alist->responded, alist->failed);
 	for (i = 0; i < alist->nr_addrs; i++)
 		seq_printf(m, "    [%x] %pISpc%s\n",
 			   i, &alist->addrs[i].transport,
