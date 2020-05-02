@@ -541,30 +541,6 @@ static int smc_llc_send_message(struct smc_link *link, void *llcbuf)
 
 /********************************* receive ***********************************/
 
-static int smc_llc_alloc_alt_link(struct smc_link_group *lgr,
-				  enum smc_lgr_type lgr_new_t)
-{
-	int i;
-
-	if (lgr->type == SMC_LGR_SYMMETRIC ||
-	    (lgr->type != SMC_LGR_SINGLE &&
-	     (lgr_new_t == SMC_LGR_ASYMMETRIC_LOCAL ||
-	      lgr_new_t == SMC_LGR_ASYMMETRIC_PEER)))
-		return -EMLINK;
-
-	if (lgr_new_t == SMC_LGR_ASYMMETRIC_LOCAL ||
-	    lgr_new_t == SMC_LGR_ASYMMETRIC_PEER) {
-		for (i = SMC_LINKS_PER_LGR_MAX - 1; i >= 0; i--)
-			if (lgr->lnk[i].state == SMC_LNK_UNUSED)
-				return i;
-	} else {
-		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
-			if (lgr->lnk[i].state == SMC_LNK_UNUSED)
-				return i;
-	}
-	return -EMLINK;
-}
-
 /* worker to process an add link message */
 static void smc_llc_add_link_work(struct work_struct *work)
 {
