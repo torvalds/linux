@@ -32,6 +32,13 @@ enum bq25890_chip_version {
 	BQ25896,
 };
 
+static const char *const bq25890_chip_name[] = {
+	"BQ25890",
+	"BQ25892",
+	"BQ25895",
+	"BQ25896",
+};
+
 enum bq25890_fields {
 	F_EN_HIZ, F_EN_ILIM, F_IILIM,				     /* Reg00 */
 	F_BHOT, F_BCOLD, F_VINDPM_OFS,				     /* Reg01 */
@@ -400,17 +407,7 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		if (bq->chip_version == BQ25890)
-			val->strval = "BQ25890";
-		else if (bq->chip_version == BQ25892)
-			val->strval = "BQ25892";
-		else if (bq->chip_version == BQ25895)
-			val->strval = "BQ25895";
-		else if (bq->chip_version == BQ25896)
-			val->strval = "BQ25896";
-		else
-			val->strval = "UNKNOWN";
-
+		val->strval = bq25890_chip_name[bq->chip_version];
 		break;
 
 	case POWER_SUPPLY_PROP_ONLINE:
