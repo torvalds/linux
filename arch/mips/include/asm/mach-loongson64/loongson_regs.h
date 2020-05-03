@@ -77,12 +77,12 @@ static inline u32 read_cpucfg(u32 reg)
 #define LOONGSON_CFG2_LBT3	BIT(6)
 #define LOONGSON_CFG2_LBTMMU	BIT(7)
 #define LOONGSON_CFG2_LPMP	BIT(8)
-#define LOONGSON_CFG2_LPMPREV	GENMASK(11, 9)
+#define LOONGSON_CFG2_LPMREV	GENMASK(11, 9)
 #define LOONGSON_CFG2_LAMO	BIT(12)
 #define LOONGSON_CFG2_LPIXU	BIT(13)
-#define LOONGSON_CFG2_LPIXUN	BIT(14)
-#define LOONGSON_CFG2_LZVP	BIT(15)
-#define LOONGSON_CFG2_LZVREV	GENMASK(18, 16)
+#define LOONGSON_CFG2_LPIXNU	BIT(14)
+#define LOONGSON_CFG2_LVZP	BIT(15)
+#define LOONGSON_CFG2_LVZREV	GENMASK(18, 16)
 #define LOONGSON_CFG2_LGFTP	BIT(19)
 #define LOONGSON_CFG2_LGFTPREV	GENMASK(22, 20)
 #define LOONGSON_CFG2_LLFTP	BIT(23)
@@ -139,7 +139,7 @@ static inline u64 csr_readq(u32 reg)
 {
 	u64 __res;
 
-	/* DWRCSR reg, val */
+	/* DRDCSR reg, val */
 	__asm__ __volatile__(
 		"parse_r __res,%0\n\t"
 		"parse_r reg,%1\n\t"
