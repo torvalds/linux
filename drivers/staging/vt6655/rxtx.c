@@ -260,13 +260,13 @@ s_uGetDataDuration(
 						     byPktType, 14,
 						     pDevice->byTopCCKBasicRate);
 		}
-		if (((uMACfragNum == 1)) || bLastFrag) {/* Non Frag or Last Frag */
-			if (bNeedAck) {
-				return pDevice->uSIFS + uAckTime;
-			} else {
+		/* Non Frag or Last Frag */
+		if ((uMACfragNum == 1) || bLastFrag) {
+			if (!bNeedAck)
 				return 0;
-			}
-		} else {/* First Frag or Mid Frag */
+			return pDevice->uSIFS + uAckTime;
+		} else {
+			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len, wRate, bNeedAck);
 
 			return pDevice->uSIFS + uAckTime + uNextPktTime;
@@ -279,13 +279,13 @@ s_uGetDataDuration(
 						     byPktType, 14,
 						     pDevice->byTopOFDMBasicRate);
 		}
-		if (((uMACfragNum == 1)) || bLastFrag) {/* Non Frag or Last Frag */
-			if (bNeedAck) {
-				return pDevice->uSIFS + uAckTime;
-			} else {
+		/* Non Frag or Last Frag */
+		if ((uMACfragNum == 1) || bLastFrag) {
+			if (!bNeedAck)
 				return 0;
-			}
-		} else {/* First Frag or Mid Frag */
+			return pDevice->uSIFS + uAckTime;
+		} else {
+			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len,
 						       wRate, bNeedAck);
 
@@ -300,13 +300,13 @@ s_uGetDataDuration(
 						     byPktType, 14,
 						     pDevice->byTopOFDMBasicRate);
 		}
-		if (((uMACfragNum == 1)) || bLastFrag) { /* Non Frag or Last Frag */
-			if (bNeedAck) {
-				return pDevice->uSIFS + uAckTime;
-			} else {
+		/* Non Frag or Last Frag */
+		if ((uMACfragNum == 1) || bLastFrag) {
+			if (!bNeedAck)
 				return 0;
-			}
-		} else { /* First Frag or Mid Frag */
+			return pDevice->uSIFS + uAckTime;
+		} else {
+			/* First Frag or Mid Frag */
 			if (wRate < RATE_18M)
 				wRate = RATE_18M;
 			else if (wRate > RATE_54M)
