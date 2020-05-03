@@ -1443,6 +1443,31 @@ void setup_new_exec(struct linux_binprm * bprm)
 	   group */
 	WRITE_ONCE(current->self_exec_id, current->self_exec_id + 1);
 	flush_signal_handlers(current, 0);
+
+	/*
+	 * install the new credentials for this executable
+	 */
+	security_bprm_committing_creds(bprm);
+
+	commit_creds(bprm->cred);
+	bprm->cred = NULL;
+
+	/*
+	 * Disable monitoring for regular users
+	 * when executing setuid binaries. Must
+	 * wait until new credentials are committed
+	 * by commit_creds() above
+	 */
+	if (get_dumpable(current->mm) != SUID_DUMP_USER)
+		perf_event_exit_task(current);
+	/*
+	 * cred_guard_mutex must be held at least to this point to prevent
+	 * ptrace_attach() from altering our determination of the task's
+	 * credentials; any time after this it may be unlocked.
+	 */
+	security_bprm_committed_creds(bprm);
+	mutex_unlock(&current->signal->exec_update_mutex);
+	mutex_unlock(&current->signal->cred_guard_mutex);
 }
 EXPORT_SYMBOL(setup_new_exec);
 
@@ -1458,7 +1483,7 @@ EXPORT_SYMBOL(finalize_exec);
 
 /*
  * Prepare credentials and lock ->cred_guard_mutex.
- * install_exec_creds() commits the new creds and drops the lock.
+ * setup_new_exec() commits the new creds and drops the lock.
  * Or, if exec fails before, free_bprm() should release ->cred and
  * and unlock.
  */
@@ -1503,35 +1528,6 @@ int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 	return 0;
 }
 EXPORT_SYMBOL(bprm_change_interp);
-
-/*
- * install the new credentials for this executable
- */
-void install_exec_creds(struct linux_binprm *bprm)
-{
-	security_bprm_committing_creds(bprm);
-
-	commit_creds(bprm->cred);
-	bprm->cred = NULL;
-
-	/*
-	 * Disable monitoring for regular users
-	 * when executing setuid binaries. Must
-	 * wait until new credentials are committed
-	 * by commit_creds() above
-	 */
-	if (get_dumpable(current->mm) != SUID_DUMP_USER)
-		perf_event_exit_task(current);
-	/*
-	 * cred_guard_mutex must be held at least to this point to prevent
-	 * ptrace_attach() from altering our determination of the task's
-	 * credentials; any time after this it may be unlocked.
-	 */
-	security_bprm_committed_creds(bprm);
-	mutex_unlock(&current->signal->exec_update_mutex);
-	mutex_unlock(&current->signal->cred_guard_mutex);
-}
-EXPORT_SYMBOL(install_exec_creds);
 
 /*
  * determine how safe it is to execute the proposed program

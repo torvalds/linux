@@ -353,7 +353,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		current->personality |= READ_IMPLIES_EXEC;
 
 	setup_new_exec(bprm);
-	install_exec_creds(bprm);
 
 	set_binfmt(&elf_fdpic_format);
 
