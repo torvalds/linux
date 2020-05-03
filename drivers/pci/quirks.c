@@ -5282,3 +5282,21 @@ out_disable:
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, 0x13b1,
 			      PCI_CLASS_DISPLAY_VGA, 8,
 			      quirk_reset_lenovo_thinkpad_p50_nvgpu);
+
+/*
+ * Device [1b21:2142]
+ * When in D0, PME# doesn't get asserted when plugging USB 3.0 device.
+ */
+static void pci_fixup_no_d0_pme(struct pci_dev *dev)
+{
+	pci_info(dev, "PME# does not work under D0, disabling it\n");
+	dev->pme_support &= ~(PCI_PM_CAP_PME_D0 >> PCI_PM_CAP_PME_SHIFT);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ASMEDIA, 0x2142, pci_fixup_no_d0_pme);
+
+static void apex_pci_fixup_class(struct pci_dev *pdev)
+{
+	pdev->class = (PCI_CLASS_SYSTEM_OTHER << 8) | pdev->class;
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(0x1ac1, 0x089a,
+			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
