@@ -225,6 +225,23 @@ int mt7615_eeprom_get_target_power_index(struct mt7615_dev *dev,
 	return index;
 }
 
+int mt7615_eeprom_get_power_delta_index(struct mt7615_dev *dev,
+					enum nl80211_band band)
+{
+	/* assume the first rate has the highest power offset */
+	if (is_mt7663(&dev->mt76)) {
+		if (band == NL80211_BAND_2GHZ)
+			return MT_EE_TX0_5G_G0_TARGET_POWER;
+		else
+			return MT7663_EE_5G_RATE_POWER;
+	}
+
+	if (band == NL80211_BAND_2GHZ)
+		return MT_EE_2G_RATE_POWER;
+	else
+		return MT_EE_5G_RATE_POWER;
+}
+
 static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 {
 	static const u16 ical[] = {

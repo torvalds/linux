@@ -222,17 +222,13 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband)
 {
 	int i, n_chains = hweight8(dev->mphy.antenna_mask), target_chains;
+	int delta_idx, delta = mt76_tx_power_nss_delta(n_chains);
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = sband->band;
-	int delta = mt76_tx_power_nss_delta(n_chains);
 	u8 rate_val;
 
-	/* assume the first rate has the highest power offset */
-	if (band == NL80211_BAND_2GHZ)
-		rate_val = eep[MT_EE_2G_RATE_POWER];
-	else
-		rate_val = eep[MT_EE_5G_RATE_POWER];
-
+	delta_idx = mt7615_eeprom_get_power_delta_index(dev, band);
+	rate_val = eep[delta_idx];
 	if ((rate_val & ~MT_EE_RATE_POWER_MASK) ==
 	    (MT_EE_RATE_POWER_EN | MT_EE_RATE_POWER_SIGN))
 		delta += rate_val & MT_EE_RATE_POWER_MASK;
