@@ -4503,7 +4503,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	inode_lock(inode);
 
 	/*
-	 * Indirect files do not support unwritten extnets
+	 * Indirect files do not support unwritten extents
 	 */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		ret = -EOPNOTSUPP;
