@@ -510,74 +510,50 @@ static int bq25890_get_chip_state(struct bq25890_device *bq,
 	return 0;
 }
 
-static bool bq25890_state_changed(struct bq25890_device *bq,
-				  struct bq25890_state *new_state)
+static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 {
-	struct bq25890_state old_state;
-
-	mutex_lock(&bq->lock);
-	old_state = bq->state;
-	mutex_unlock(&bq->lock);
-
-	return (old_state.chrg_status != new_state->chrg_status ||
-		old_state.chrg_fault != new_state->chrg_fault	||
-		old_state.online != new_state->online		||
-		old_state.bat_fault != new_state->bat_fault	||
-		old_state.boost_fault != new_state->boost_fault ||
-		old_state.vsys_status != new_state->vsys_status);
-}
-
-static void bq25890_handle_state_change(struct bq25890_device *bq,
-					struct bq25890_state *new_state)
-{
+	struct bq25890_state new_state;
 	int ret;
-	struct bq25890_state old_state;
 
-	mutex_lock(&bq->lock);
-	old_state = bq->state;
-	mutex_unlock(&bq->lock);
+	ret = bq25890_get_chip_state(bq, &new_state);
+	if (ret < 0)
+		return IRQ_NONE;
 
-	if (!new_state->online) {			     /* power removed */
+	if (!memcmp(&bq->state, &new_state, sizeof(new_state)))
+		return IRQ_NONE;
+
+	if (!new_state.online && bq->state.online) {	    /* power removed */
 		/* disable ADC */
 		ret = bq25890_field_write(bq, F_CONV_START, 0);
 		if (ret < 0)
 			goto error;
-	} else if (!old_state.online) {			    /* power inserted */
+	} else if (new_state.online && !bq->state.online) { /* power inserted */
 		/* enable ADC, to have control of charge current/voltage */
 		ret = bq25890_field_write(bq, F_CONV_START, 1);
 		if (ret < 0)
 			goto error;
 	}
 
-	return;
+	bq->state = new_state;
+	power_supply_changed(bq->charger);
 
+	return IRQ_HANDLED;
 error:
-	dev_err(bq->dev, "Error communicating with the chip.\n");
+	dev_err(bq->dev, "Error communicating with the chip: %pe\n",
+		ERR_PTR(ret));
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t bq25890_irq_handler_thread(int irq, void *private)
 {
 	struct bq25890_device *bq = private;
-	int ret;
-	struct bq25890_state state;
-
-	ret = bq25890_get_chip_state(bq, &state);
-	if (ret < 0)
-		goto handled;
-
-	if (!bq25890_state_changed(bq, &state))
-		goto handled;
-
-	bq25890_handle_state_change(bq, &state);
+	irqreturn_t ret;
 
 	mutex_lock(&bq->lock);
-	bq->state = state;
+	ret = __bq25890_handle_irq(bq);
 	mutex_unlock(&bq->lock);
 
-	power_supply_changed(bq->charger);
-
-handled:
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int bq25890_chip_reset(struct bq25890_device *bq)
@@ -607,7 +583,6 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 {
 	int ret;
 	int i;
-	struct bq25890_state state;
 
 	const struct {
 		enum bq25890_fields id;
@@ -655,15 +630,11 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		return ret;
 	}
 
-	ret = bq25890_get_chip_state(bq, &state);
+	ret = bq25890_get_chip_state(bq, &bq->state);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Get state failed %d\n", ret);
 		return ret;
 	}
-
-	mutex_lock(&bq->lock);
-	bq->state = state;
-	mutex_unlock(&bq->lock);
 
 	return 0;
 }
@@ -1001,19 +972,16 @@ static int bq25890_suspend(struct device *dev)
 static int bq25890_resume(struct device *dev)
 {
 	int ret;
-	struct bq25890_state state;
 	struct bq25890_device *bq = dev_get_drvdata(dev);
 
-	ret = bq25890_get_chip_state(bq, &state);
+	mutex_lock(&bq->lock);
+
+	ret = bq25890_get_chip_state(bq, &bq->state);
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&bq->lock);
-	bq->state = state;
-	mutex_unlock(&bq->lock);
-
 	/* Re-enable ADC only if charger is plugged in. */
-	if (state.online) {
+	if (bq->state.online) {
 		ret = bq25890_field_write(bq, F_CONV_START, 1);
 		if (ret < 0)
 			return ret;
@@ -1021,6 +989,8 @@ static int bq25890_resume(struct device *dev)
 
 	/* signal userspace, maybe state changed while suspended */
 	power_supply_changed(bq->charger);
+
+	mutex_unlock(&bq->lock);
 
 	return 0;
 }
