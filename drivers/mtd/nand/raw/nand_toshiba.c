@@ -196,8 +196,11 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 
 static int tc58teg5dclta00_init(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	chip->onfi_timing_mode_default = 5;
 	chip->options |= NAND_NEED_SCRAMBLING;
+	mtd_set_pairing_scheme(mtd, &dist3_pairing_scheme);
 
 	return 0;
 }
