@@ -1187,6 +1187,76 @@ out:
 	kfree(qentry);
 }
 
+static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
+{
+	struct smc_llc_msg_del_link *del_llc;
+	struct smc_link *lnk, *lnk_del;
+	struct smc_llc_qentry *qentry;
+	int active_links;
+	int i;
+
+	mutex_lock(&lgr->llc_conf_mutex);
+	qentry = smc_llc_flow_qentry_clr(&lgr->llc_flow_lcl);
+	lnk = qentry->link;
+	del_llc = &qentry->msg.delete_link;
+
+	if (qentry->msg.delete_link.hd.flags & SMC_LLC_FLAG_DEL_LINK_ALL) {
+		/* delete entire lgr */
+		smc_lgr_terminate_sched(lgr);
+		goto out;
+	}
+	/* delete single link */
+	lnk_del = NULL;
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+		if (lgr->lnk[i].link_id == del_llc->link_num) {
+			lnk_del = &lgr->lnk[i];
+			break;
+		}
+	}
+	if (!lnk_del)
+		goto out; /* asymmetric link already deleted */
+
+	if (smc_link_downing(&lnk_del->state)) {
+		/* tbd: call smc_switch_conns(lgr, lnk_del, false); */
+		smc_wr_tx_wait_no_pending_sends(lnk_del);
+	}
+	if (!list_empty(&lgr->list)) {
+		/* qentry is either a request from peer (send it back to
+		 * initiate the DELETE_LINK processing), or a locally
+		 * enqueued DELETE_LINK request (forward it)
+		 */
+		if (!smc_llc_send_message(lnk, &qentry->msg)) {
+			struct smc_llc_msg_del_link *del_llc_resp;
+			struct smc_llc_qentry *qentry2;
+
+			qentry2 = smc_llc_wait(lgr, lnk, SMC_LLC_WAIT_TIME,
+					       SMC_LLC_DELETE_LINK);
+			if (!qentry2) {
+			} else {
+				del_llc_resp = &qentry2->msg.delete_link;
+				smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+			}
+		}
+	}
+	smcr_link_clear(lnk_del);
+
+	active_links = smc_llc_active_link_count(lgr);
+	if (active_links == 1) {
+		lgr->type = SMC_LGR_SINGLE;
+	} else if (!active_links) {
+		lgr->type = SMC_LGR_NONE;
+		smc_lgr_terminate_sched(lgr);
+	}
+
+	if (lgr->type == SMC_LGR_SINGLE && !list_empty(&lgr->list)) {
+		/* trigger setup of asymm alt link */
+		/* tbd: call smc_llc_srv_add_link_local(lnk); */
+	}
+out:
+	mutex_unlock(&lgr->llc_conf_mutex);
+	kfree(qentry);
+}
+
 static void smc_llc_delete_link_work(struct work_struct *work)
 {
 	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
@@ -1200,6 +1270,8 @@ static void smc_llc_delete_link_work(struct work_struct *work)
 
 	if (lgr->role == SMC_CLNT)
 		smc_llc_process_cli_delete_link(lgr);
+	else
+		smc_llc_process_srv_delete_link(lgr);
 out:
 	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 }
