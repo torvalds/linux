@@ -681,6 +681,10 @@
 #define MIPS_CONF6_FTLBDIS	(_ULCAST_(1) << 22)
 /* FTLB probability bits */
 #define MIPS_CONF6_FTLBP_SHIFT	(16)
+/* Loongson-3 feature bits */
+#define MIPS_CONF6_LOONGSON_SCRAND	(_ULCAST_(1) << 17)
+#define MIPS_CONF6_LOONGSON_LLEXC	(_ULCAST_(1) << 16)
+#define MIPS_CONF6_LOONGSON_STFILL	(_ULCAST_(1) << 8)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
@@ -997,6 +1001,8 @@
 #define LOONGSON_DIAG_ITLB	(_ULCAST_(1) << 2)
 /* Flush DTLB */
 #define LOONGSON_DIAG_DTLB	(_ULCAST_(1) << 3)
+/* Allow some CACHE instructions (CACHE0, 1, 3, 21 and 23) in user mode */
+#define LOONGSON_DIAG_UCAC	(_ULCAST_(1) << 8)
 /* Flush VTLB */
 #define LOONGSON_DIAG_VTLB	(_ULCAST_(1) << 12)
 /* Flush FTLB */
