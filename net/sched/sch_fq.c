@@ -214,9 +214,10 @@ static void fq_gc(struct fq_sched_data *q,
 		  struct rb_root *root,
 		  struct sock *sk)
 {
-	struct fq_flow *f, *tofree[FQ_GC_MAX];
 	struct rb_node **p, *parent;
-	int fcnt = 0;
+	void *tofree[FQ_GC_MAX];
+	struct fq_flow *f;
+	int i, fcnt = 0;
 
 	p = &root->rb_node;
 	parent = NULL;
@@ -239,15 +240,18 @@ static void fq_gc(struct fq_sched_data *q,
 			p = &parent->rb_left;
 	}
 
+	if (!fcnt)
+		return;
+
+	for (i = fcnt; i > 0; ) {
+		f = tofree[--i];
+		rb_erase(&f->fq_node, root);
+	}
 	q->flows -= fcnt;
 	q->inactive_flows -= fcnt;
 	q->stat_gc_flows += fcnt;
-	while (fcnt) {
-		struct fq_flow *f = tofree[--fcnt];
 
-		rb_erase(&f->fq_node, root);
-		kmem_cache_free(fq_flow_cachep, f);
-	}
+	kmem_cache_free_bulk(fq_flow_cachep, fcnt, tofree);
 }
 
 static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
