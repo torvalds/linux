@@ -66,22 +66,27 @@ static inline struct fq_skb_cb *fq_skb_cb(struct sk_buff *skb)
  * in linear list (head,tail), otherwise are placed in a rbtree (t_root).
  */
 struct fq_flow {
+/* First cache line : used in fq_gc(), fq_enqueue(), fq_dequeue() */
 	struct rb_root	t_root;
 	struct sk_buff	*head;		/* list of skbs for this flow : first skb */
 	union {
 		struct sk_buff *tail;	/* last skb in the list */
-		unsigned long  age;	/* jiffies when flow was emptied, for gc */
+		unsigned long  age;	/* (jiffies | 1UL) when flow was emptied, for gc */
 	};
 	struct rb_node	fq_node;	/* anchor in fq_root[] trees */
 	struct sock	*sk;
-	int		qlen;		/* number of packets in flow queue */
-	int		credit;
 	u32		socket_hash;	/* sk_hash */
-	struct fq_flow *next;		/* next pointer in RR lists, or &detached */
+	int		qlen;		/* number of packets in flow queue */
+
+/* Second cache line, used in fq_dequeue() */
+	int		credit;
+	/* 32bit hole on 64bit arches */
+
+	struct fq_flow *next;		/* next pointer in RR lists */
 
 	struct rb_node  rate_node;	/* anchor in q->delayed tree */
 	u64		time_next_packet;
-};
+} ____cacheline_aligned_in_smp;
 
 struct fq_flow_head {
 	struct fq_flow *first;
@@ -126,19 +131,24 @@ struct fq_sched_data {
 	struct qdisc_watchdog watchdog;
 };
 
-/* special value to mark a detached flow (not on old/new list) */
-static struct fq_flow detached, throttled;
-
+/*
+ * f->tail and f->age share the same location.
+ * We can use the low order bit to differentiate if this location points
+ * to a sk_buff or contains a jiffies value, if we force this value to be odd.
+ * This assumes f->tail low order bit must be 0 since alignof(struct sk_buff) >= 2
+ */
 static void fq_flow_set_detached(struct fq_flow *f)
 {
-	f->next = &detached;
-	f->age = jiffies;
+	f->age = jiffies | 1UL;
 }
 
 static bool fq_flow_is_detached(const struct fq_flow *f)
 {
-	return f->next == &detached;
+	return !!(f->age & 1UL);
 }
+
+/* special value to mark a throttled flow (not on old/new list) */
+static struct fq_flow throttled;
 
 static bool fq_flow_is_throttled(const struct fq_flow *f)
 {
@@ -204,9 +214,10 @@ static void fq_gc(struct fq_sched_data *q,
 		  struct rb_root *root,
 		  struct sock *sk)
 {
-	struct fq_flow *f, *tofree[FQ_GC_MAX];
 	struct rb_node **p, *parent;
-	int fcnt = 0;
+	void *tofree[FQ_GC_MAX];
+	struct fq_flow *f;
+	int i, fcnt = 0;
 
 	p = &root->rb_node;
 	parent = NULL;
@@ -229,15 +240,18 @@ static void fq_gc(struct fq_sched_data *q,
 			p = &parent->rb_left;
 	}
 
+	if (!fcnt)
+		return;
+
+	for (i = fcnt; i > 0; ) {
+		f = tofree[--i];
+		rb_erase(&f->fq_node, root);
+	}
 	q->flows -= fcnt;
 	q->inactive_flows -= fcnt;
 	q->stat_gc_flows += fcnt;
-	while (fcnt) {
-		struct fq_flow *f = tofree[--fcnt];
 
-		rb_erase(&f->fq_node, root);
-		kmem_cache_free(fq_flow_cachep, f);
-	}
+	kmem_cache_free_bulk(fq_flow_cachep, fcnt, tofree);
 }
 
 static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
@@ -370,19 +384,17 @@ static void fq_erase_head(struct Qdisc *sch, struct fq_flow *flow,
 	}
 }
 
-/* remove one skb from head of flow queue */
-static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
+/* Remove one skb from flow queue.
+ * This skb must be the return value of prior fq_peek().
+ */
+static void fq_dequeue_skb(struct Qdisc *sch, struct fq_flow *flow,
+			   struct sk_buff *skb)
 {
-	struct sk_buff *skb = fq_peek(flow);
-
-	if (skb) {
-		fq_erase_head(sch, flow, skb);
-		skb_mark_not_on_list(skb);
-		flow->qlen--;
-		qdisc_qstats_backlog_dec(sch, skb);
-		sch->q.qlen--;
-	}
-	return skb;
+	fq_erase_head(sch, flow, skb);
+	skb_mark_not_on_list(skb);
+	flow->qlen--;
+	qdisc_qstats_backlog_dec(sch, skb);
+	sch->q.qlen--;
 }
 
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
@@ -494,9 +506,11 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	if (!sch->q.qlen)
 		return NULL;
 
-	skb = fq_dequeue_head(sch, &q->internal);
-	if (skb)
+	skb = fq_peek(&q->internal);
+	if (unlikely(skb)) {
+		fq_dequeue_skb(sch, &q->internal, skb);
 		goto out;
+	}
 
 	now = ktime_get_ns();
 	fq_check_throttled(q, now);
@@ -532,14 +546,13 @@ begin:
 			fq_flow_set_throttled(q, f);
 			goto begin;
 		}
+		prefetch(&skb->end);
 		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}
-	}
-
-	skb = fq_dequeue_head(sch, f);
-	if (!skb) {
+		fq_dequeue_skb(sch, f, skb);
+	} else {
 		head->first = f->next;
 		/* force a pass through old_flows to prevent starvation */
 		if ((head == &q->new_flows) && q->old_flows.first) {
@@ -550,7 +563,6 @@ begin:
 		}
 		goto begin;
 	}
-	prefetch(&skb->end);
 	plen = qdisc_pkt_len(skb);
 	f->credit -= plen;
 
