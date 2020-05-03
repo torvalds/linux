@@ -67,15 +67,21 @@
 #endif
 	.endm
 
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+#if defined(CONFIG_CPU_SW_DOMAIN_PAN) || defined(CONFIG_CPU_USE_DOMAINS)
 #define DACR(x...)	x
 #else
 #define DACR(x...)
 #endif
 
 	/*
-	 * Save the address limit on entry to a privileged exception and
-	 * if using PAN, save and disable usermode access.
+	 * Save the address limit on entry to a privileged exception.
+	 *
+	 * If we are using the DACR for kernel access by the user accessors
+	 * (CONFIG_CPU_USE_DOMAINS=y), always reset the DACR kernel domain
+	 * back to client mode, whether or not \disable is set.
+	 *
+	 * If we are using SW PAN, set the DACR user domain to no access
+	 * if \disable is set.
 	 */
 	.macro	uaccess_entry, tsk, tmp0, tmp1, tmp2, disable
 	ldr	\tmp1, [\tsk, #TI_ADDR_LIMIT]
@@ -84,8 +90,17 @@
  DACR(	mrc	p15, 0, \tmp0, c3, c0, 0)
  DACR(	str	\tmp0, [sp, #SVC_DACR])
 	str	\tmp1, [sp, #SVC_ADDR_LIMIT]
-	.if \disable
-	uaccess_disable \tmp0
+	.if \disable && IS_ENABLED(CONFIG_CPU_SW_DOMAIN_PAN)
+	/* kernel=client, user=no access */
+	mov	\tmp2, #DACR_UACCESS_DISABLE
+	mcr	p15, 0, \tmp2, c3, c0, 0
+	instr_sync
+	.elseif IS_ENABLED(CONFIG_CPU_USE_DOMAINS)
+	/* kernel=client */
+	bic	\tmp2, \tmp0, #domain_mask(DOMAIN_KERNEL)
+	orr	\tmp2, \tmp2, #domain_val(DOMAIN_KERNEL, DOMAIN_CLIENT)
+	mcr	p15, 0, \tmp2, c3, c0, 0
+	instr_sync
 	.endif
 	.endm
 
