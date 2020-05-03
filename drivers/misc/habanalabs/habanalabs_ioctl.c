@@ -71,6 +71,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
 
 	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
+	hw_ip.module_id = le32_to_cpu(prop->armcp_info.card_location);
+
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;

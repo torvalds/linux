@@ -125,7 +125,8 @@ struct hl_info_hw_ip_info {
 	__u32 sram_size;
 	__u32 num_of_events;
 	__u32 device_id; /* PCI Device ID */
-	__u32 reserved[3];
+	__u32 module_id; /* For mezzanine cards in servers (From OCP spec.) */
+	__u32 reserved[2];
 	__u32 armcp_cpld_version;
 	__u32 psoc_pci_pll_nr;
 	__u32 psoc_pci_pll_nf;

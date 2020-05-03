@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -35,7 +35,8 @@ struct hl_eq_entry {
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,
-	PQ_INIT_STATUS_READY_FOR_HOST
+	PQ_INIT_STATUS_READY_FOR_HOST,
+	PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI
 };
 
 /*
@@ -351,10 +352,23 @@ struct armcp_sensor {
 };
 
 /**
+ * struct armcp_card_types - ASIC card type.
+ * @armcp_card_type_pci: PCI card.
+ * @armcp_card_type_pmc: PCI Mezzanine Card.
+ */
+enum armcp_card_types {
+	armcp_card_type_pci,
+	armcp_card_type_pmc
+};
+
+/**
  * struct armcp_info - Info from ArmCP that is necessary to the host's driver
  * @sensors: available sensors description.
  * @kernel_version: ArmCP linux kernel version.
  * @reserved: reserved field.
+ * @card_type: card configuration type.
+ * @card_location: in a server, each card has different connections topology
+ *                 depending on its location (relevant for PMC card type)
  * @cpld_version: CPLD programmed F/W version.
  * @infineon_version: Infineon main DC-DC version.
  * @fuse_version: silicon production FUSE information.
@@ -366,7 +380,9 @@ struct armcp_sensor {
 struct armcp_info {
 	struct armcp_sensor sensors[ARMCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
-	__le32 reserved[3];
+	__le32 reserved;
+	__le32 card_type;
+	__le32 card_location;
 	__le32 cpld_version;
 	__le32 infineon_version;
 	__u8 fuse_version[VERSION_MAX_LEN];
