@@ -28,6 +28,7 @@ enum smc_llc_reqresp {
 enum smc_llc_msg_type {
 	SMC_LLC_CONFIRM_LINK		= 0x01,
 	SMC_LLC_ADD_LINK		= 0x02,
+	SMC_LLC_ADD_LINK_CONT		= 0x03,
 	SMC_LLC_DELETE_LINK		= 0x04,
 	SMC_LLC_CONFIRM_RKEY		= 0x06,
 	SMC_LLC_TEST_LINK		= 0x07,

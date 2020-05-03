@@ -70,6 +70,23 @@ struct smc_llc_msg_add_link {		/* type 0x02 */
 	u8 reserved[8];
 };
 
+struct smc_llc_msg_add_link_cont_rt {
+	__be32 rmb_key;
+	__be32 rmb_key_new;
+	__be64 rmb_vaddr_new;
+};
+
+#define SMC_LLC_RKEYS_PER_CONT_MSG	2
+
+struct smc_llc_msg_add_link_cont {	/* type 0x03 */
+	struct smc_llc_hdr hd;
+	u8 link_num;
+	u8 num_rkeys;
+	u8 reserved2[2];
+	struct smc_llc_msg_add_link_cont_rt rt[SMC_LLC_RKEYS_PER_CONT_MSG];
+	u8 reserved[4];
+} __packed;			/* format defined in RFC7609 */
+
 #define SMC_LLC_FLAG_DEL_LINK_ALL	0x40
 #define SMC_LLC_FLAG_DEL_LINK_ORDERLY	0x20
 
@@ -121,6 +138,7 @@ struct smc_llc_msg_delete_rkey {	/* type 0x09 */
 union smc_llc_msg {
 	struct smc_llc_msg_confirm_link confirm_link;
 	struct smc_llc_msg_add_link add_link;
+	struct smc_llc_msg_add_link_cont add_link_cont;
 	struct smc_llc_msg_del_link delete_link;
 
 	struct smc_llc_msg_confirm_rkey confirm_rkey;
@@ -566,6 +584,137 @@ static int smc_llc_alloc_alt_link(struct smc_link_group *lgr,
 	return -EMLINK;
 }
 
+/* return first buffer from any of the next buf lists */
+static struct smc_buf_desc *_smc_llc_get_next_rmb(struct smc_link_group *lgr,
+						  int *buf_lst)
+{
+	struct smc_buf_desc *buf_pos;
+
+	while (*buf_lst < SMC_RMBE_SIZES) {
+		buf_pos = list_first_entry_or_null(&lgr->rmbs[*buf_lst],
+						   struct smc_buf_desc, list);
+		if (buf_pos)
+			return buf_pos;
+		(*buf_lst)++;
+	}
+	return NULL;
+}
+
+/* return next rmb from buffer lists */
+static struct smc_buf_desc *smc_llc_get_next_rmb(struct smc_link_group *lgr,
+						 int *buf_lst,
+						 struct smc_buf_desc *buf_pos)
+{
+	struct smc_buf_desc *buf_next;
+
+	if (!buf_pos || list_is_last(&buf_pos->list, &lgr->rmbs[*buf_lst])) {
+		(*buf_lst)++;
+		return _smc_llc_get_next_rmb(lgr, buf_lst);
+	}
+	buf_next = list_next_entry(buf_pos, list);
+	return buf_next;
+}
+
+static struct smc_buf_desc *smc_llc_get_first_rmb(struct smc_link_group *lgr,
+						  int *buf_lst)
+{
+	*buf_lst = 0;
+	return smc_llc_get_next_rmb(lgr, buf_lst, NULL);
+}
+
+/* send one add_link_continue msg */
+static int smc_llc_add_link_cont(struct smc_link *link,
+				 struct smc_link *link_new, u8 *num_rkeys_todo,
+				 int *buf_lst, struct smc_buf_desc **buf_pos)
+{
+	struct smc_llc_msg_add_link_cont *addc_llc;
+	struct smc_link_group *lgr = link->lgr;
+	int prim_lnk_idx, lnk_idx, i, rc;
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	struct smc_buf_desc *rmb;
+	u8 n;
+
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	addc_llc = (struct smc_llc_msg_add_link_cont *)wr_buf;
+	memset(addc_llc, 0, sizeof(*addc_llc));
+
+	prim_lnk_idx = link->link_idx;
+	lnk_idx = link_new->link_idx;
+	addc_llc->link_num = link_new->link_id;
+	addc_llc->num_rkeys = *num_rkeys_todo;
+	n = *num_rkeys_todo;
+	for (i = 0; i < min_t(u8, n, SMC_LLC_RKEYS_PER_CONT_MSG); i++) {
+		if (!*buf_pos) {
+			addc_llc->num_rkeys = addc_llc->num_rkeys -
+					      *num_rkeys_todo;
+			*num_rkeys_todo = 0;
+			break;
+		}
+		rmb = *buf_pos;
+
+		addc_llc->rt[i].rmb_key = htonl(rmb->mr_rx[prim_lnk_idx]->rkey);
+		addc_llc->rt[i].rmb_key_new = htonl(rmb->mr_rx[lnk_idx]->rkey);
+		addc_llc->rt[i].rmb_vaddr_new =
+			cpu_to_be64((u64)sg_dma_address(rmb->sgt[lnk_idx].sgl));
+
+		(*num_rkeys_todo)--;
+		*buf_pos = smc_llc_get_next_rmb(lgr, buf_lst, *buf_pos);
+		while (*buf_pos && !(*buf_pos)->used)
+			*buf_pos = smc_llc_get_next_rmb(lgr, buf_lst, *buf_pos);
+	}
+	addc_llc->hd.common.type = SMC_LLC_ADD_LINK_CONT;
+	addc_llc->hd.length = sizeof(struct smc_llc_msg_add_link_cont);
+	if (lgr->role == SMC_CLNT)
+		addc_llc->hd.flags |= SMC_LLC_FLAG_RESP;
+	return smc_wr_tx_send(link, pend);
+}
+
+static int smc_llc_cli_rkey_exchange(struct smc_link *link,
+				     struct smc_link *link_new)
+{
+	struct smc_llc_msg_add_link_cont *addc_llc;
+	struct smc_link_group *lgr = link->lgr;
+	u8 max, num_rkeys_send, num_rkeys_recv;
+	struct smc_llc_qentry *qentry;
+	struct smc_buf_desc *buf_pos;
+	int buf_lst;
+	int rc = 0;
+	int i;
+
+	mutex_lock(&lgr->rmbs_lock);
+	num_rkeys_send = lgr->conns_num;
+	buf_pos = smc_llc_get_first_rmb(lgr, &buf_lst);
+	do {
+		qentry = smc_llc_wait(lgr, NULL, SMC_LLC_WAIT_TIME,
+				      SMC_LLC_ADD_LINK_CONT);
+		if (!qentry) {
+			rc = -ETIMEDOUT;
+			break;
+		}
+		addc_llc = &qentry->msg.add_link_cont;
+		num_rkeys_recv = addc_llc->num_rkeys;
+		max = min_t(u8, num_rkeys_recv, SMC_LLC_RKEYS_PER_CONT_MSG);
+		for (i = 0; i < max; i++) {
+			smc_rtoken_set(lgr, link->link_idx, link_new->link_idx,
+				       addc_llc->rt[i].rmb_key,
+				       addc_llc->rt[i].rmb_vaddr_new,
+				       addc_llc->rt[i].rmb_key_new);
+			num_rkeys_recv--;
+		}
+		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+		rc = smc_llc_add_link_cont(link, link_new, &num_rkeys_send,
+					   &buf_lst, &buf_pos);
+		if (rc)
+			break;
+	} while (num_rkeys_send || num_rkeys_recv);
+
+	mutex_unlock(&lgr->rmbs_lock);
+	return rc;
+}
+
 /* prepare and send an add link reject response */
 static int smc_llc_cli_add_link_reject(struct smc_llc_qentry *qentry)
 {
@@ -631,7 +780,7 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 				   lnk_new->gid, lnk_new, SMC_LLC_RESP);
 	if (rc)
 		goto out_clear_lnk;
-	/* tbd: rc = smc_llc_cli_rkey_exchange(link, lnk_new); */
+	rc = smc_llc_cli_rkey_exchange(link, lnk_new);
 	if (rc) {
 		rc = 0;
 		goto out_clear_lnk;
@@ -794,6 +943,7 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		}
 		return;
 	case SMC_LLC_CONFIRM_LINK:
+	case SMC_LLC_ADD_LINK_CONT:
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* a flow is waiting for this message */
 			smc_llc_flow_qentry_set(&lgr->llc_flow_lcl, qentry);
@@ -873,6 +1023,7 @@ static void smc_llc_rx_response(struct smc_link *link,
 		break;
 	case SMC_LLC_ADD_LINK:
 	case SMC_LLC_CONFIRM_LINK:
+	case SMC_LLC_ADD_LINK_CONT:
 	case SMC_LLC_CONFIRM_RKEY:
 	case SMC_LLC_DELETE_RKEY:
 		/* assign responses to the local flow, we requested them */
@@ -1091,6 +1242,10 @@ static struct smc_wr_rx_handler smc_llc_rx_handlers[] = {
 	{
 		.handler	= smc_llc_rx_handler,
 		.type		= SMC_LLC_ADD_LINK
+	},
+	{
+		.handler	= smc_llc_rx_handler,
+		.type		= SMC_LLC_ADD_LINK_CONT
 	},
 	{
 		.handler	= smc_llc_rx_handler,
