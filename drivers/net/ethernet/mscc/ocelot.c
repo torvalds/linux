@@ -1451,8 +1451,15 @@ static void ocelot_port_attr_stp_state_set(struct ocelot *ocelot, int port,
 
 void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs)
 {
-	ocelot_write(ocelot, ANA_AUTOAGE_AGE_PERIOD(msecs / 2),
-		     ANA_AUTOAGE);
+	unsigned int age_period = ANA_AUTOAGE_AGE_PERIOD(msecs / 2000);
+
+	/* Setting AGE_PERIOD to zero effectively disables automatic aging,
+	 * which is clearly not what our intention is. So avoid that.
+	 */
+	if (!age_period)
+		age_period = 1;
+
+	ocelot_rmw(ocelot, age_period, ANA_AUTOAGE_AGE_PERIOD_M, ANA_AUTOAGE);
 }
 EXPORT_SYMBOL(ocelot_set_ageing_time);
 
