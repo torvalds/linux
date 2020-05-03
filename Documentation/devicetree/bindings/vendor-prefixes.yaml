@@ -1075,6 +1075,8 @@ patternProperties:
     description: Aigo Digital Technology Co., Ltd.
   "^v3,.*":
     description: V3 Semiconductor
+  "^vaisala,.*":
+    description: Vaisala
   "^vamrs,.*":
     description: Vamrs Ltd.
   "^variscite,.*":
