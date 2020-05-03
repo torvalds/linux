@@ -384,19 +384,17 @@ static void fq_erase_head(struct Qdisc *sch, struct fq_flow *flow,
 	}
 }
 
-/* remove one skb from head of flow queue */
-static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
+/* Remove one skb from flow queue.
+ * This skb must be the return value of prior fq_peek().
+ */
+static void fq_dequeue_skb(struct Qdisc *sch, struct fq_flow *flow,
+			   struct sk_buff *skb)
 {
-	struct sk_buff *skb = fq_peek(flow);
-
-	if (skb) {
-		fq_erase_head(sch, flow, skb);
-		skb_mark_not_on_list(skb);
-		flow->qlen--;
-		qdisc_qstats_backlog_dec(sch, skb);
-		sch->q.qlen--;
-	}
-	return skb;
+	fq_erase_head(sch, flow, skb);
+	skb_mark_not_on_list(skb);
+	flow->qlen--;
+	qdisc_qstats_backlog_dec(sch, skb);
+	sch->q.qlen--;
 }
 
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
@@ -508,9 +506,11 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	if (!sch->q.qlen)
 		return NULL;
 
-	skb = fq_dequeue_head(sch, &q->internal);
-	if (skb)
+	skb = fq_peek(&q->internal);
+	if (unlikely(skb)) {
+		fq_dequeue_skb(sch, &q->internal, skb);
 		goto out;
+	}
 
 	now = ktime_get_ns();
 	fq_check_throttled(q, now);
@@ -550,10 +550,8 @@ begin:
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}
-	}
-
-	skb = fq_dequeue_head(sch, f);
-	if (!skb) {
+		fq_dequeue_skb(sch, f, skb);
+	} else {
 		head->first = f->next;
 		/* force a pass through old_flows to prevent starvation */
 		if ((head == &q->new_flows) && q->old_flows.first) {
