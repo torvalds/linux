@@ -491,6 +491,17 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 	}
 }
 
+static void ov6650_bind_align_crop_rectangle(struct v4l2_rect *rect)
+{
+	v4l_bound_align_image(&rect->width, 2, W_CIF, 1,
+			      &rect->height, 2, H_CIF, 1, 0);
+	v4l_bound_align_image(&rect->left, DEF_HSTRT << 1,
+			      (DEF_HSTRT << 1) + W_CIF - (__s32)rect->width, 1,
+			      &rect->top, DEF_VSTRT << 1,
+			      (DEF_VSTRT << 1) + H_CIF - (__s32)rect->height,
+			      1, 0);
+}
+
 static int ov6650_set_selection(struct v4l2_subdev *sd,
 		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_selection *sel)
@@ -503,13 +514,7 @@ static int ov6650_set_selection(struct v4l2_subdev *sd,
 	    sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	v4l_bound_align_image(&sel->r.width, 2, W_CIF, 1,
-			      &sel->r.height, 2, H_CIF, 1, 0);
-	v4l_bound_align_image(&sel->r.left, DEF_HSTRT << 1,
-			      (DEF_HSTRT << 1) + W_CIF - (__s32)sel->r.width, 1,
-			      &sel->r.top, DEF_VSTRT << 1,
-			      (DEF_VSTRT << 1) + H_CIF - (__s32)sel->r.height,
-			      1, 0);
+	ov6650_bind_align_crop_rectangle(&sel->r);
 
 	ret = ov6650_reg_write(client, REG_HSTRT, sel->r.left >> 1);
 	if (!ret) {
@@ -570,22 +575,10 @@ static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
 #define to_clkrc(div)	((div) - 1)
 
 /* set the format we will capture in */
-static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
+static int ov6650_s_fmt(struct v4l2_subdev *sd, u32 code, bool half_scale)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	bool half_scale = !is_unscaled_ok(mf->width, mf->height, &priv->rect);
-	struct v4l2_subdev_selection sel = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-		.target = V4L2_SEL_TGT_CROP,
-		.r.left = priv->rect.left + (priv->rect.width >> 1) -
-			(mf->width >> (1 - half_scale)),
-		.r.top = priv->rect.top + (priv->rect.height >> 1) -
-			(mf->height >> (1 - half_scale)),
-		.r.width = mf->width << half_scale,
-		.r.height = mf->height << half_scale,
-	};
-	u32 code = mf->code;
 	u8 coma_set = 0, coma_mask = 0, coml_set, coml_mask;
 	int ret;
 
@@ -653,9 +646,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 		coma_mask |= COMA_QCIF;
 	}
 
-	ret = ov6650_set_selection(sd, NULL, &sel);
-	if (!ret)
-		ret = ov6650_reg_rmw(client, REG_COMA, coma_set, coma_mask);
+	ret = ov6650_reg_rmw(client, REG_COMA, coma_set, coma_mask);
 	if (!ret) {
 		priv->half_scale = half_scale;
 
@@ -674,13 +665,15 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
+	struct v4l2_subdev_selection sel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = V4L2_SEL_TGT_CROP,
+	};
+	struct v4l2_rect *crop = &sel.r;
+	bool half_scale;
 
 	if (format->pad)
 		return -EINVAL;
-
-	if (is_unscaled_ok(mf->width, mf->height, &priv->rect))
-		v4l_bound_align_image(&mf->width, 2, W_CIF, 1,
-				&mf->height, 2, H_CIF, 1, 0);
 
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_Y10_1X10:
@@ -699,10 +692,24 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		break;
 	}
 
+	*crop = priv->rect;
+	half_scale = !is_unscaled_ok(mf->width, mf->height, crop);
+
+	/* adjust new crop rectangle position against its current center */
+	crop->left += (crop->width - (mf->width << half_scale)) / 2;
+	crop->top += (crop->height - (mf->height << half_scale)) / 2;
+	/* adjust new crop rectangle size */
+	crop->width = mf->width << half_scale;
+	crop->height = mf->height << half_scale;
+
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		/* store media bus format code and frame size in pad config */
-		sd_state->pads->try_fmt.width = mf->width;
-		sd_state->pads->try_fmt.height = mf->height;
+		/* store new crop rectangle, hadware bound, in pad config */
+		ov6650_bind_align_crop_rectangle(crop);
+		sd_state->pads->try_crop = *crop;
+
+		/* store new mbus frame format code and size in pad config */
+		sd_state->pads->try_fmt.width = crop->width >> half_scale;
+		sd_state->pads->try_fmt.height = crop->height >> half_scale;
 		sd_state->pads->try_fmt.code = mf->code;
 
 		/* return default mbus frame format updated with pad config */
@@ -712,9 +719,16 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		mf->code = sd_state->pads->try_fmt.code;
 
 	} else {
-		/* apply new media bus format code and frame size */
-		int ret = ov6650_s_fmt(sd, mf);
+		int ret;
 
+		/* apply new crop rectangle */
+		ret = ov6650_set_selection(sd, NULL, &sel);
+		if (ret)
+			return ret;
+
+		/* apply new media bus frame format and scaling if changed */
+		if (mf->code != priv->code || half_scale != priv->half_scale)
+			ret = ov6650_s_fmt(sd, mf->code, half_scale);
 		if (ret)
 			return ret;
 
@@ -890,9 +904,8 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 	if (!ret)
 		ret = ov6650_prog_dflt(client, xclk->clkrc);
 	if (!ret) {
-		struct v4l2_mbus_framefmt mf = ov6650_def_fmt;
-
-		ret = ov6650_s_fmt(sd, &mf);
+		/* driver default frame format, no scaling */
+		ret = ov6650_s_fmt(sd, ov6650_def_fmt.code, false);
 	}
 	if (!ret)
 		ret = v4l2_ctrl_handler_setup(&priv->hdl);
