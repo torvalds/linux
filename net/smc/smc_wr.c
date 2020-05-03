@@ -61,7 +61,7 @@ static inline bool smc_wr_is_tx_pend(struct smc_link *link)
 }
 
 /* wait till all pending tx work requests on the given link are completed */
-static inline int smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
+int smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
 {
 	if (wait_event_timeout(link->wr_tx_wait, !smc_wr_is_tx_pend(link),
 			       SMC_WR_TX_WAIT_PENDING_TIME))

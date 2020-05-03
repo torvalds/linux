@@ -863,6 +863,85 @@ static void smc_llc_process_cli_add_link(struct smc_link_group *lgr)
 	mutex_unlock(&lgr->llc_conf_mutex);
 }
 
+/* find the asymmetric link when 3 links are established  */
+static struct smc_link *smc_llc_find_asym_link(struct smc_link_group *lgr)
+{
+	int asym_idx = -ENOENT;
+	int i, j, k;
+	bool found;
+
+	/* determine asymmetric link */
+	found = false;
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+		for (j = i + 1; j < SMC_LINKS_PER_LGR_MAX; j++) {
+			if (!smc_link_usable(&lgr->lnk[i]) ||
+			    !smc_link_usable(&lgr->lnk[j]))
+				continue;
+			if (!memcmp(lgr->lnk[i].gid, lgr->lnk[j].gid,
+				    SMC_GID_SIZE)) {
+				found = true;	/* asym_lnk is i or j */
+				break;
+			}
+		}
+		if (found)
+			break;
+	}
+	if (!found)
+		goto out; /* no asymmetric link */
+	for (k = 0; k < SMC_LINKS_PER_LGR_MAX; k++) {
+		if (!smc_link_usable(&lgr->lnk[k]))
+			continue;
+		if (k != i &&
+		    !memcmp(lgr->lnk[i].peer_gid, lgr->lnk[k].peer_gid,
+			    SMC_GID_SIZE)) {
+			asym_idx = i;
+			break;
+		}
+		if (k != j &&
+		    !memcmp(lgr->lnk[j].peer_gid, lgr->lnk[k].peer_gid,
+			    SMC_GID_SIZE)) {
+			asym_idx = j;
+			break;
+		}
+	}
+out:
+	return (asym_idx < 0) ? NULL : &lgr->lnk[asym_idx];
+}
+
+static void smc_llc_delete_asym_link(struct smc_link_group *lgr)
+{
+	struct smc_link *lnk_new = NULL, *lnk_asym;
+	struct smc_llc_qentry *qentry;
+	int rc;
+
+	lnk_asym = smc_llc_find_asym_link(lgr);
+	if (!lnk_asym)
+		return; /* no asymmetric link */
+	if (!smc_link_downing(&lnk_asym->state))
+		return;
+	/* tbd: lnk_new = smc_switch_conns(lgr, lnk_asym, false); */
+	smc_wr_tx_wait_no_pending_sends(lnk_asym);
+	if (!lnk_new)
+		goto out_free;
+	/* change flow type from ADD_LINK into DEL_LINK */
+	lgr->llc_flow_lcl.type = SMC_LLC_FLOW_DEL_LINK;
+	rc = smc_llc_send_delete_link(lnk_new, lnk_asym->link_id, SMC_LLC_REQ,
+				      true, SMC_LLC_DEL_NO_ASYM_NEEDED);
+	if (rc) {
+		smcr_link_down_cond(lnk_new);
+		goto out_free;
+	}
+	qentry = smc_llc_wait(lgr, lnk_new, SMC_LLC_WAIT_TIME,
+			      SMC_LLC_DELETE_LINK);
+	if (!qentry) {
+		smcr_link_down_cond(lnk_new);
+		goto out_free;
+	}
+	smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+out_free:
+	smcr_link_clear(lnk_asym);
+}
+
 static int smc_llc_srv_rkey_exchange(struct smc_link *link,
 				     struct smc_link *link_new)
 {
@@ -1014,7 +1093,7 @@ static void smc_llc_process_srv_add_link(struct smc_link_group *lgr)
 	rc = smc_llc_srv_add_link(link);
 	if (!rc && lgr->type == SMC_LGR_SYMMETRIC) {
 		/* delete any asymmetric link */
-		/* tbd: smc_llc_delete_asym_link(lgr); */
+		smc_llc_delete_asym_link(lgr);
 	}
 	mutex_unlock(&lgr->llc_conf_mutex);
 }
