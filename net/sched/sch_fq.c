@@ -70,14 +70,14 @@ struct fq_flow {
 	struct sk_buff	*head;		/* list of skbs for this flow : first skb */
 	union {
 		struct sk_buff *tail;	/* last skb in the list */
-		unsigned long  age;	/* jiffies when flow was emptied, for gc */
+		unsigned long  age;	/* (jiffies | 1UL) when flow was emptied, for gc */
 	};
 	struct rb_node	fq_node;	/* anchor in fq_root[] trees */
 	struct sock	*sk;
 	int		qlen;		/* number of packets in flow queue */
 	int		credit;
 	u32		socket_hash;	/* sk_hash */
-	struct fq_flow *next;		/* next pointer in RR lists, or &detached */
+	struct fq_flow *next;		/* next pointer in RR lists */
 
 	struct rb_node  rate_node;	/* anchor in q->delayed tree */
 	u64		time_next_packet;
@@ -126,19 +126,24 @@ struct fq_sched_data {
 	struct qdisc_watchdog watchdog;
 };
 
-/* special value to mark a detached flow (not on old/new list) */
-static struct fq_flow detached, throttled;
-
+/*
+ * f->tail and f->age share the same location.
+ * We can use the low order bit to differentiate if this location points
+ * to a sk_buff or contains a jiffies value, if we force this value to be odd.
+ * This assumes f->tail low order bit must be 0 since alignof(struct sk_buff) >= 2
+ */
 static void fq_flow_set_detached(struct fq_flow *f)
 {
-	f->next = &detached;
-	f->age = jiffies;
+	f->age = jiffies | 1UL;
 }
 
 static bool fq_flow_is_detached(const struct fq_flow *f)
 {
-	return f->next == &detached;
+	return !!(f->age & 1UL);
 }
+
+/* special value to mark a throttled flow (not on old/new list) */
+static struct fq_flow throttled;
 
 static bool fq_flow_is_throttled(const struct fq_flow *f)
 {
