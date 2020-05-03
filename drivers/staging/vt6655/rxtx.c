@@ -264,14 +264,12 @@ s_uGetDataDuration(
 		if ((uMACfragNum == 1) || bLastFrag) {
 			if (!bNeedAck)
 				return 0;
-			return pDevice->uSIFS + uAckTime;
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len, wRate, bNeedAck);
-
-			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
-		break;
+
+		return pDevice->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A:    /* DATADUR_A */
 		if (bNeedAck) {
@@ -283,15 +281,13 @@ s_uGetDataDuration(
 		if ((uMACfragNum == 1) || bLastFrag) {
 			if (!bNeedAck)
 				return 0;
-			return pDevice->uSIFS + uAckTime;
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len,
 						       wRate, bNeedAck);
-
-			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
-		break;
+
+		return pDevice->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A_F0:    /* DATADUR_A_F0 */
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
@@ -304,7 +300,6 @@ s_uGetDataDuration(
 		if ((uMACfragNum == 1) || bLastFrag) {
 			if (!bNeedAck)
 				return 0;
-			return pDevice->uSIFS + uAckTime;
 		} else {
 			/* First Frag or Mid Frag */
 			if (wRate < RATE_18M)
@@ -323,10 +318,9 @@ s_uGetDataDuration(
 							       wFB_Opt1[FB_RATE0][wRate - RATE_18M],
 							       bNeedAck);
 			}
-
-			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
-		break;
+
+		return pDevice->uSIFS + uAckTime + uNextPktTime;
 
 	default:
 		break;
