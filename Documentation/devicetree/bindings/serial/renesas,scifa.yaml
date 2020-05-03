@@ -24,6 +24,7 @@ properties:
 
       - items:
           - enum:
+              - renesas,scifa-r8a7742      # R8A7742 RZ/G1H
               - renesas,scifa-r8a7743      # R8A7743 RZ/G1M
               - renesas,scifa-r8a7744      # R8A7744 RZ/G1N
               - renesas,scifa-r8a7745      # R8A7745 RZ/G1E
