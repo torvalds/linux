@@ -693,11 +693,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	struct v4l2_subdev_selection sel = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-		.target = V4L2_SEL_TGT_CROP,
-	};
-	struct v4l2_rect *crop = &sel.r;
+	struct v4l2_rect *crop;
 	bool half_scale;
 
 	if (format->pad)
@@ -721,24 +717,13 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*crop = sd_state->pads->try_crop;
+		crop = &sd_state->pads->try_crop;
 	else
-		*crop = priv->rect;
+		crop = &priv->rect;
 
 	half_scale = !is_unscaled_ok(mf->width, mf->height, crop);
 
-	/* adjust new crop rectangle position against its current center */
-	crop->left += (crop->width - (mf->width << half_scale)) / 2;
-	crop->top += (crop->height - (mf->height << half_scale)) / 2;
-	/* adjust new crop rectangle size */
-	crop->width = mf->width << half_scale;
-	crop->height = mf->height << half_scale;
-
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		/* store new crop rectangle, hadware bound, in pad config */
-		ov6650_bind_align_crop_rectangle(crop);
-		sd_state->pads->try_crop = *crop;
-
 		/* store new mbus frame format code and size in pad config */
 		sd_state->pads->try_fmt.width = crop->width >> half_scale;
 		sd_state->pads->try_fmt.height = crop->height >> half_scale;
@@ -751,12 +736,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		mf->code = sd_state->pads->try_fmt.code;
 
 	} else {
-		int ret;
-
-		/* apply new crop rectangle */
-		ret = ov6650_set_selection(sd, NULL, &sel);
-		if (ret)
-			return ret;
+		int ret = 0;
 
 		/* apply new media bus frame format and scaling if changed */
 		if (mf->code != priv->code || half_scale != priv->half_scale)
