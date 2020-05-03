@@ -255,9 +255,13 @@ s_uGetDataDuration(
 
 	switch (byDurType) {
 	case DATADUR_B:    /* DATADUR_B */
+		if (bNeedAck) {
+			uAckTime = bb_get_frame_time(pDevice->byPreambleType,
+						     byPktType, 14,
+						     pDevice->byTopCCKBasicRate);
+		}
 		if (((uMACfragNum == 1)) || bLastFrag) {/* Non Frag or Last Frag */
 			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
 				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
@@ -265,19 +269,18 @@ s_uGetDataDuration(
 		} else {/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len, wRate, bNeedAck);
 
-			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType,
-							     byPktType, 14,
-							     pDevice->byTopCCKBasicRate);
-			}
 			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
 		break;
 
 	case DATADUR_A:    /* DATADUR_A */
+		if (bNeedAck) {
+			uAckTime = bb_get_frame_time(pDevice->byPreambleType,
+						     byPktType, 14,
+						     pDevice->byTopOFDMBasicRate);
+		}
 		if (((uMACfragNum == 1)) || bLastFrag) {/* Non Frag or Last Frag */
 			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
@@ -286,20 +289,19 @@ s_uGetDataDuration(
 			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, len,
 						       wRate, bNeedAck);
 
-			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType,
-							     byPktType, 14,
-							     pDevice->byTopOFDMBasicRate);
-			}
 			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
 		break;
 
 	case DATADUR_A_F0:    /* DATADUR_A_F0 */
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
+		if (bNeedAck) {
+			uAckTime = bb_get_frame_time(pDevice->byPreambleType,
+						     byPktType, 14,
+						     pDevice->byTopOFDMBasicRate);
+		}
 		if (((uMACfragNum == 1)) || bLastFrag) { /* Non Frag or Last Frag */
 			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
@@ -322,11 +324,6 @@ s_uGetDataDuration(
 							       bNeedAck);
 			}
 
-			if (bNeedAck) {
-				uAckTime = bb_get_frame_time(pDevice->byPreambleType,
-							     byPktType, 14,
-							     pDevice->byTopOFDMBasicRate);
-			}
 			return pDevice->uSIFS + uAckTime + uNextPktTime;
 		}
 		break;
