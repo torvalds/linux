@@ -66,6 +66,7 @@ static inline struct fq_skb_cb *fq_skb_cb(struct sk_buff *skb)
  * in linear list (head,tail), otherwise are placed in a rbtree (t_root).
  */
 struct fq_flow {
+/* First cache line : used in fq_gc(), fq_enqueue(), fq_dequeue() */
 	struct rb_root	t_root;
 	struct sk_buff	*head;		/* list of skbs for this flow : first skb */
 	union {
@@ -74,14 +75,18 @@ struct fq_flow {
 	};
 	struct rb_node	fq_node;	/* anchor in fq_root[] trees */
 	struct sock	*sk;
-	int		qlen;		/* number of packets in flow queue */
-	int		credit;
 	u32		socket_hash;	/* sk_hash */
+	int		qlen;		/* number of packets in flow queue */
+
+/* Second cache line, used in fq_dequeue() */
+	int		credit;
+	/* 32bit hole on 64bit arches */
+
 	struct fq_flow *next;		/* next pointer in RR lists */
 
 	struct rb_node  rate_node;	/* anchor in q->delayed tree */
 	u64		time_next_packet;
-};
+} ____cacheline_aligned_in_smp;
 
 struct fq_flow_head {
 	struct fq_flow *first;
