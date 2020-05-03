@@ -1118,22 +1118,18 @@ out:
 	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 }
 
-static void smc_llc_rx_delete_link(struct smc_link *link,
-				   struct smc_llc_msg_del_link *llc)
+static void smc_llc_delete_link_work(struct work_struct *work)
 {
-	struct smc_link_group *lgr = smc_get_lgr(link);
+	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
+						  llc_del_link_work);
 
-	smc_lgr_forget(lgr);
-	if (lgr->role == SMC_SERV) {
-		/* client asks to delete this link, send request */
-		smc_llc_send_delete_link(link, 0, SMC_LLC_REQ, true,
-					 SMC_LLC_DEL_PROG_INIT_TERM);
-	} else {
-		/* server requests to delete this link, send response */
-		smc_llc_send_delete_link(link, 0, SMC_LLC_RESP, true,
-					 SMC_LLC_DEL_PROG_INIT_TERM);
+	if (list_empty(&lgr->list)) {
+		/* link group is terminating */
+		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
+		goto out;
 	}
-	smcr_link_down_cond(link);
+out:
+	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
 }
 
 /* process a confirm_rkey request from peer, remote flow */
@@ -1255,8 +1251,30 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		}
 		break;
 	case SMC_LLC_DELETE_LINK:
-		smc_llc_rx_delete_link(link, &llc->delete_link);
-		break;
+		if (lgr->role == SMC_CLNT) {
+			/* server requests to delete this link, send response */
+			if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
+				/* DEL LINK REQ during ADD LINK SEQ */
+				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
+							qentry);
+				wake_up_interruptible(&lgr->llc_waiter);
+			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
+						      qentry)) {
+				schedule_work(&lgr->llc_del_link_work);
+			}
+		} else {
+			if (lgr->llc_flow_lcl.type == SMC_LLC_FLOW_ADD_LINK &&
+			    !lgr->llc_flow_lcl.qentry) {
+				/* DEL LINK REQ during ADD LINK SEQ */
+				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
+							qentry);
+				wake_up_interruptible(&lgr->llc_waiter);
+			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
+						      qentry)) {
+				schedule_work(&lgr->llc_del_link_work);
+			}
+		}
+		return;
 	case SMC_LLC_CONFIRM_RKEY:
 		/* new request from remote, assign to remote flow */
 		if (smc_llc_flow_start(&lgr->llc_flow_rmt, qentry)) {
@@ -1325,6 +1343,7 @@ static void smc_llc_rx_response(struct smc_link *link,
 			complete(&link->llc_testlink_resp);
 		break;
 	case SMC_LLC_ADD_LINK:
+	case SMC_LLC_DELETE_LINK:
 	case SMC_LLC_CONFIRM_LINK:
 	case SMC_LLC_ADD_LINK_CONT:
 	case SMC_LLC_CONFIRM_RKEY:
@@ -1333,10 +1352,6 @@ static void smc_llc_rx_response(struct smc_link *link,
 		smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
 		wake_up_interruptible(&link->lgr->llc_waiter);
 		return;
-	case SMC_LLC_DELETE_LINK:
-		if (link->lgr->role == SMC_SERV)
-			smc_lgr_schedule_free_work_fast(link->lgr);
-		break;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		/* not used because max links is 3 */
 		break;
@@ -1424,6 +1439,7 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
 
 	INIT_WORK(&lgr->llc_event_work, smc_llc_event_work);
 	INIT_WORK(&lgr->llc_add_link_work, smc_llc_add_link_work);
+	INIT_WORK(&lgr->llc_del_link_work, smc_llc_delete_link_work);
 	INIT_LIST_HEAD(&lgr->llc_event_q);
 	spin_lock_init(&lgr->llc_event_q_lock);
 	spin_lock_init(&lgr->llc_flow_lock);
@@ -1439,6 +1455,7 @@ void smc_llc_lgr_clear(struct smc_link_group *lgr)
 	wake_up_interruptible_all(&lgr->llc_waiter);
 	cancel_work_sync(&lgr->llc_event_work);
 	cancel_work_sync(&lgr->llc_add_link_work);
+	cancel_work_sync(&lgr->llc_del_link_work);
 	if (lgr->delayed_event) {
 		kfree(lgr->delayed_event);
 		lgr->delayed_event = NULL;

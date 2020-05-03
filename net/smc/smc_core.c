@@ -193,12 +193,19 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 void smc_lgr_cleanup_early(struct smc_connection *conn)
 {
 	struct smc_link_group *lgr = conn->lgr;
+	struct list_head *lgr_list;
+	spinlock_t *lgr_lock;
 
 	if (!lgr)
 		return;
 
 	smc_conn_free(conn);
-	smc_lgr_forget(lgr);
+	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
+	spin_lock_bh(lgr_lock);
+	/* do not use this link group for new connections */
+	if (!list_empty(lgr_list))
+		list_del_init(lgr_list);
+	spin_unlock_bh(lgr_lock);
 	smc_lgr_schedule_free_work_fast(lgr);
 }
 
@@ -651,19 +658,6 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 			wake_up(&lgrs_deleted);
 	}
 	kfree(lgr);
-}
-
-void smc_lgr_forget(struct smc_link_group *lgr)
-{
-	struct list_head *lgr_list;
-	spinlock_t *lgr_lock;
-
-	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
-	spin_lock_bh(lgr_lock);
-	/* do not use this link group for new connections */
-	if (!list_empty(lgr_list))
-		list_del_init(lgr_list);
-	spin_unlock_bh(lgr_lock);
 }
 
 static void smcd_unregister_all_dmbs(struct smc_link_group *lgr)
