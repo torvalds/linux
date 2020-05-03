@@ -156,11 +156,36 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 	dev->phy.chainmask = dev->chainmask;
 }
 
-int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
-				  struct ieee80211_channel *chan,
-				  u8 chain_idx)
+static int mt7663_eeprom_get_target_power_index(struct mt7615_dev *dev,
+						struct ieee80211_channel *chan,
+						u8 chain_idx)
+{
+	int index, group;
+
+	if (chain_idx > 1)
+		return -EINVAL;
+
+	if (chan->band == NL80211_BAND_2GHZ)
+		return MT7663_EE_TX0_2G_TARGET_POWER + (chain_idx << 4);
+
+	group = mt7615_get_channel_group(chan->hw_value);
+	if (chain_idx == 1)
+		index = MT7663_EE_TX1_5G_G0_TARGET_POWER;
+	else
+		index = MT7663_EE_TX0_5G_G0_TARGET_POWER;
+
+	return index + group * 3;
+}
+
+int mt7615_eeprom_get_target_power_index(struct mt7615_dev *dev,
+					 struct ieee80211_channel *chan,
+					 u8 chain_idx)
 {
 	int index;
+
+	if (is_mt7663(&dev->mt76))
+		return mt7663_eeprom_get_target_power_index(dev, chan,
+							    chain_idx);
 
 	if (chain_idx > 3)
 		return -EINVAL;

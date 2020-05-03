@@ -237,7 +237,11 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 	    (MT_EE_RATE_POWER_EN | MT_EE_RATE_POWER_SIGN))
 		delta += rate_val & MT_EE_RATE_POWER_MASK;
 
-	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
+	if (!is_mt7663(&dev->mt76) && mt7615_ext_pa_enabled(dev, band))
+		target_chains = 1;
+	else
+		target_chains = n_chains;
+
 	for (i = 0; i < sband->n_channels; i++) {
 		struct ieee80211_channel *chan = &sband->channels[i];
 		u8 target_power = 0;
@@ -246,7 +250,7 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 		for (j = 0; j < target_chains; j++) {
 			int index;
 
-			index = mt7615_eeprom_get_power_index(dev, chan, j);
+			index = mt7615_eeprom_get_target_power_index(dev, chan, j);
 			if (index < 0)
 				continue;
 
