@@ -3172,6 +3172,7 @@ static void ena_get_stats64(struct net_device *netdev,
 	struct ena_ring *rx_ring, *tx_ring;
 	unsigned int start;
 	u64 rx_drops;
+	u64 tx_drops;
 	int i;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
@@ -3206,9 +3207,11 @@ static void ena_get_stats64(struct net_device *netdev,
 	do {
 		start = u64_stats_fetch_begin_irq(&adapter->syncp);
 		rx_drops = adapter->dev_stats.rx_drops;
+		tx_drops = adapter->dev_stats.tx_drops;
 	} while (u64_stats_fetch_retry_irq(&adapter->syncp, start));
 
 	stats->rx_dropped = rx_drops;
+	stats->tx_dropped = tx_drops;
 
 	stats->multicast = 0;
 	stats->collisions = 0;
@@ -4517,14 +4520,17 @@ static void ena_keep_alive_wd(void *adapter_data,
 	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
 	struct ena_admin_aenq_keep_alive_desc *desc;
 	u64 rx_drops;
+	u64 tx_drops;
 
 	desc = (struct ena_admin_aenq_keep_alive_desc *)aenq_e;
 	adapter->last_keep_alive_jiffies = jiffies;
 
 	rx_drops = ((u64)desc->rx_drops_high << 32) | desc->rx_drops_low;
+	tx_drops = ((u64)desc->tx_drops_high << 32) | desc->tx_drops_low;
 
 	u64_stats_update_begin(&adapter->syncp);
 	adapter->dev_stats.rx_drops = rx_drops;
+	adapter->dev_stats.tx_drops = tx_drops;
 	u64_stats_update_end(&adapter->syncp);
 }
 

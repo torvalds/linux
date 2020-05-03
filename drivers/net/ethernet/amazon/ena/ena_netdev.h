@@ -334,6 +334,7 @@ struct ena_stats_dev {
 	u64 interface_down;
 	u64 admin_q_pause;
 	u64 rx_drops;
+	u64 tx_drops;
 };
 
 enum ena_flags_t {
