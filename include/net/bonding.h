@@ -237,7 +237,6 @@ struct bonding {
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
 	struct rtnl_link_stats64 bond_stats;
-	struct lock_class_key stats_lock_key;
 };
 
 #define bond_slave_get_rcu(dev) \
