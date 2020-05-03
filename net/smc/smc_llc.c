@@ -159,6 +159,8 @@ struct smc_llc_qentry {
 	union smc_llc_msg msg;
 };
 
+static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc);
+
 struct smc_llc_qentry *smc_llc_flow_qentry_clr(struct smc_llc_flow *flow)
 {
 	struct smc_llc_qentry *qentry = flow->qentry;
@@ -1110,6 +1112,17 @@ static void smc_llc_process_srv_add_link(struct smc_link_group *lgr)
 	mutex_unlock(&lgr->llc_conf_mutex);
 }
 
+/* enqueue a local add_link req to trigger a new add_link flow, only as SERV */
+void smc_llc_srv_add_link_local(struct smc_link *link)
+{
+	struct smc_llc_msg_add_link add_llc = {0};
+
+	add_llc.hd.length = sizeof(add_llc);
+	add_llc.hd.common.type = SMC_LLC_ADD_LINK;
+	/* no dev and port needed, we as server ignore client data anyway */
+	smc_llc_enqueue(link, (union smc_llc_msg *)&add_llc);
+}
+
 /* worker to process an add link message */
 static void smc_llc_add_link_work(struct work_struct *work)
 {
@@ -1128,6 +1141,21 @@ static void smc_llc_add_link_work(struct work_struct *work)
 		smc_llc_process_srv_add_link(lgr);
 out:
 	smc_llc_flow_stop(lgr, &lgr->llc_flow_lcl);
+}
+
+/* enqueue a local del_link msg to trigger a new del_link flow,
+ * called only for role SMC_SERV
+ */
+void smc_llc_srv_delete_link_local(struct smc_link *link, u8 del_link_id)
+{
+	struct smc_llc_msg_del_link del_llc = {0};
+
+	del_llc.hd.length = sizeof(del_llc);
+	del_llc.hd.common.type = SMC_LLC_DELETE_LINK;
+	del_llc.link_num = del_link_id;
+	del_llc.reason = htonl(SMC_LLC_DEL_LOST_PATH);
+	del_llc.hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
+	smc_llc_enqueue(link, (union smc_llc_msg *)&del_llc);
 }
 
 static void smc_llc_process_cli_delete_link(struct smc_link_group *lgr)
@@ -1250,7 +1278,7 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 
 	if (lgr->type == SMC_LGR_SINGLE && !list_empty(&lgr->list)) {
 		/* trigger setup of asymm alt link */
-		/* tbd: call smc_llc_srv_add_link_local(lnk); */
+		smc_llc_srv_add_link_local(lnk);
 	}
 out:
 	mutex_unlock(&lgr->llc_conf_mutex);

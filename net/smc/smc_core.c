@@ -883,7 +883,7 @@ static void smcr_link_up(struct smc_link_group *lgr,
 		link = smc_llc_usable_link(lgr);
 		if (!link)
 			return;
-		/* tbd: call smc_llc_srv_add_link_local(link); */
+		smc_llc_srv_add_link_local(link);
 	} else {
 		/* invite server to start add link processing */
 		u8 gid[SMC_GID_SIZE];
@@ -954,6 +954,7 @@ static void smcr_link_down(struct smc_link *lnk)
 
 	if (lgr->role == SMC_SERV) {
 		/* trigger local delete link processing */
+		smc_llc_srv_delete_link_local(to_lnk, del_link_id);
 	} else {
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* another llc task is ongoing */
