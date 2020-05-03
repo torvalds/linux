@@ -27,6 +27,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
+#include <linux/sched/sysctl.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -1825,6 +1826,17 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 		__set_current_state(TASK_RUNNING);
 	else
 		wake_up_process(waiter);
+}
+
+static inline void blk_io_schedule(void)
+{
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	unsigned long timeout = sysctl_hung_task_timeout_secs * HZ / 2;
+
+	if (timeout)
+		io_schedule_timeout(timeout);
+	else
+		io_schedule();
 }
 
 #endif

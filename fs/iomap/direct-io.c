@@ -561,7 +561,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			    !dio->submit.last_queue ||
 			    !blk_poll(dio->submit.last_queue,
 					 dio->submit.cookie, true))
-				io_schedule();
+				blk_io_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
 	}
