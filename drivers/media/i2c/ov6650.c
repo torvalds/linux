@@ -472,9 +472,16 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
+	struct v4l2_rect *rect;
 
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+		/* pre-select try crop rectangle */
+		rect = &sd_state->pads->try_crop;
+
+	} else {
+		/* pre-select active crop rectangle */
+		rect = &priv->rect;
+	}
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -483,12 +490,20 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = W_CIF;
 		sel->r.height = H_CIF;
 		return 0;
+
 	case V4L2_SEL_TGT_CROP:
-		sel->r = priv->rect;
+		/* use selected crop rectangle */
+		sel->r = *rect;
 		return 0;
+
 	default:
 		return -EINVAL;
 	}
+}
+
+static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
+{
+	return width > rect->width >> 1 || height > rect->height >> 1;
 }
 
 static void ov6650_bind_align_crop_rectangle(struct v4l2_rect *rect)
@@ -510,12 +525,30 @@ static int ov6650_set_selection(struct v4l2_subdev *sd,
 	struct ov6650 *priv = to_ov6650(client);
 	int ret;
 
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
-	    sel->target != V4L2_SEL_TGT_CROP)
+	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
 	ov6650_bind_align_crop_rectangle(&sel->r);
 
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+		struct v4l2_rect *crop = &sd_state->pads->try_crop;
+		struct v4l2_mbus_framefmt *mf = &sd_state->pads->try_fmt;
+		/* detect current pad config scaling factor */
+		bool half_scale = !is_unscaled_ok(mf->width, mf->height, crop);
+
+		/* store new crop rectangle */
+		*crop = sel->r;
+
+		/* adjust frame size */
+		mf->width = crop->width >> half_scale;
+		mf->height = crop->height >> half_scale;
+
+		return 0;
+	}
+
+	/* V4L2_SUBDEV_FORMAT_ACTIVE */
+
+	/* apply new crop rectangle */
 	ret = ov6650_reg_write(client, REG_HSTRT, sel->r.left >> 1);
 	if (!ret) {
 		priv->rect.width += priv->rect.left - sel->r.left;
@@ -565,11 +598,6 @@ static int ov6650_get_fmt(struct v4l2_subdev *sd,
 		mf->code = priv->code;
 	}
 	return 0;
-}
-
-static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
-{
-	return width > rect->width >> 1 || height > rect->height >> 1;
 }
 
 #define to_clkrc(div)	((div) - 1)
@@ -692,7 +720,11 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		break;
 	}
 
-	*crop = priv->rect;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		*crop = sd_state->pads->try_crop;
+	else
+		*crop = priv->rect;
+
 	half_scale = !is_unscaled_ok(mf->width, mf->height, crop);
 
 	/* adjust new crop rectangle position against its current center */
