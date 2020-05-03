@@ -170,10 +170,14 @@ s_uGetTxRsvTime(
 	if (!bNeedAck)
 		return uDataTime;
 
-	if (byPktType == PK_TYPE_11B) /* llb,CCK mode */
-		uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14, (unsigned short)pDevice->byTopCCKBasicRate);
-	else /* 11g 2.4G OFDM mode & 11a 5G OFDM mode */
-		uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14, (unsigned short)pDevice->byTopOFDMBasicRate);
+	/*
+	 * CCK mode  - 11b
+	 * OFDM mode - 11g 2.4G & 11a 5G
+	 */
+	uAckTime = bb_get_frame_time(pDevice->byPreambleType, byPktType, 14,
+				     byPktType == PK_TYPE_11B ?
+				     pDevice->byTopCCKBasicRate :
+				     pDevice->byTopOFDMBasicRate);
 
 	return uDataTime + pDevice->uSIFS + uAckTime;
 }
