@@ -540,6 +540,9 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
+	if (WARN_ON(intel_fbc_hw_is_active(dev_priv)))
+		return;
+
 	if (!drm_mm_node_allocated(&fbc->compressed_fb))
 		return;
 
