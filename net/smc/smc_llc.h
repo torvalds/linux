@@ -28,6 +28,7 @@ enum smc_llc_reqresp {
 enum smc_llc_msg_type {
 	SMC_LLC_CONFIRM_LINK		= 0x01,
 	SMC_LLC_ADD_LINK		= 0x02,
+	SMC_LLC_ADD_LINK_CONT		= 0x03,
 	SMC_LLC_DELETE_LINK		= 0x04,
 	SMC_LLC_CONFIRM_RKEY		= 0x06,
 	SMC_LLC_TEST_LINK		= 0x07,
@@ -68,6 +69,7 @@ int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 int smc_llc_send_delete_link(struct smc_link *link, u8 link_del_id,
 			     enum smc_llc_reqresp reqresp, bool orderly,
 			     u32 reason);
+void smc_llc_srv_delete_link_local(struct smc_link *link, u8 del_link_id);
 void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc);
 void smc_llc_lgr_clear(struct smc_link_group *lgr);
 int smc_llc_link_init(struct smc_link *link);
@@ -87,6 +89,9 @@ struct smc_llc_qentry *smc_llc_wait(struct smc_link_group *lgr,
 				    int time_out, u8 exp_msg);
 struct smc_llc_qentry *smc_llc_flow_qentry_clr(struct smc_llc_flow *flow);
 void smc_llc_flow_qentry_del(struct smc_llc_flow *flow);
+int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry);
+int smc_llc_srv_add_link(struct smc_link *link);
+void smc_llc_srv_add_link_local(struct smc_link *link);
 int smc_llc_init(void) __init;
 
 #endif /* SMC_LLC_H */

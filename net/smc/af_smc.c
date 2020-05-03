@@ -427,7 +427,7 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 		return rc;
 	}
 	smc_llc_flow_qentry_clr(&link->lgr->llc_flow_lcl);
-	/* tbd: call smc_llc_cli_add_link(link, qentry); */
+	smc_llc_cli_add_link(link, qentry);
 	return 0;
 }
 
@@ -1067,7 +1067,7 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 	smc_llc_link_active(link);
 
 	/* initial contact - try to establish second link */
-	/* tbd: call smc_llc_srv_add_link(link); */
+	smc_llc_srv_add_link(link);
 	return 0;
 }
 

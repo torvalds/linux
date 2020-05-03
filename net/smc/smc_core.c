@@ -193,12 +193,19 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 void smc_lgr_cleanup_early(struct smc_connection *conn)
 {
 	struct smc_link_group *lgr = conn->lgr;
+	struct list_head *lgr_list;
+	spinlock_t *lgr_lock;
 
 	if (!lgr)
 		return;
 
 	smc_conn_free(conn);
-	smc_lgr_forget(lgr);
+	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
+	spin_lock_bh(lgr_lock);
+	/* do not use this link group for new connections */
+	if (!list_empty(lgr_list))
+		list_del_init(lgr_list);
+	spin_unlock_bh(lgr_lock);
 	smc_lgr_schedule_free_work_fast(lgr);
 }
 
@@ -273,8 +280,8 @@ static u8 smcr_next_link_id(struct smc_link_group *lgr)
 	return link_id;
 }
 
-static int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
-			  u8 link_idx, struct smc_init_info *ini)
+int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
+		   u8 link_idx, struct smc_init_info *ini)
 {
 	u8 rndvec[3];
 	int rc;
@@ -653,19 +660,6 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	kfree(lgr);
 }
 
-void smc_lgr_forget(struct smc_link_group *lgr)
-{
-	struct list_head *lgr_list;
-	spinlock_t *lgr_lock;
-
-	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
-	spin_lock_bh(lgr_lock);
-	/* do not use this link group for new connections */
-	if (!list_empty(lgr_list))
-		list_del_init(lgr_list);
-	spin_unlock_bh(lgr_lock);
-}
-
 static void smcd_unregister_all_dmbs(struct smc_link_group *lgr)
 {
 	int i;
@@ -889,7 +883,7 @@ static void smcr_link_up(struct smc_link_group *lgr,
 		link = smc_llc_usable_link(lgr);
 		if (!link)
 			return;
-		/* tbd: call smc_llc_srv_add_link_local(link); */
+		smc_llc_srv_add_link_local(link);
 	} else {
 		/* invite server to start add link processing */
 		u8 gid[SMC_GID_SIZE];
@@ -960,6 +954,7 @@ static void smcr_link_down(struct smc_link *lnk)
 
 	if (lgr->role == SMC_SERV) {
 		/* trigger local delete link processing */
+		smc_llc_srv_delete_link_local(to_lnk, del_link_id);
 	} else {
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* another llc task is ongoing */
