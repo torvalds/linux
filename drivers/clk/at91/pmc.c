@@ -274,6 +274,8 @@ static int __init pmc_register_ops(void)
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, sama5d2_pmc_dt_ids);
+	if (!np)
+		return -ENODEV;
 
 	pmcreg = device_node_to_regmap(np);
 	if (IS_ERR(pmcreg))
