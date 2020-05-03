@@ -1031,10 +1031,8 @@ int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 {
 	int i, j;
 
-	/* Loop through all the mac tables entries. There are 1024 rows of 4
-	 * entries.
-	 */
-	for (i = 0; i < 1024; i++) {
+	/* Loop through all the mac tables entries. */
+	for (i = 0; i < ocelot->num_mact_rows; i++) {
 		for (j = 0; j < 4; j++) {
 			struct ocelot_mact_entry entry;
 			bool is_static;
