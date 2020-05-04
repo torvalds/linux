@@ -137,7 +137,7 @@ reset_coalesce:
 	return rc;
 }
 
-static const char * const bnxt_ring_stats_str[] = {
+static const char * const bnxt_ring_rx_stats_str[] = {
 	"rx_ucast_packets",
 	"rx_mcast_packets",
 	"rx_bcast_packets",
@@ -146,6 +146,9 @@ static const char * const bnxt_ring_stats_str[] = {
 	"rx_ucast_bytes",
 	"rx_mcast_bytes",
 	"rx_bcast_bytes",
+};
+
+static const char * const bnxt_ring_tx_stats_str[] = {
 	"tx_ucast_packets",
 	"tx_mcast_packets",
 	"tx_bcast_packets",
@@ -305,6 +308,11 @@ static struct {
 	{0, "rx_total_discard_pkts"},
 	{0, "tx_total_discard_pkts"},
 };
+
+#define NUM_RING_RX_SW_STATS		ARRAY_SIZE(bnxt_rx_sw_stats_str)
+#define NUM_RING_CMN_SW_STATS		ARRAY_SIZE(bnxt_cmn_sw_stats_str)
+#define NUM_RING_RX_HW_STATS		ARRAY_SIZE(bnxt_ring_rx_stats_str)
+#define NUM_RING_TX_HW_STATS		ARRAY_SIZE(bnxt_ring_tx_stats_str)
 
 static const struct {
 	long offset;
@@ -485,13 +493,13 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 
 static int bnxt_get_num_ring_stats(struct bnxt *bp)
 {
-	int num_stats;
+	int rx, tx, cmn;
 
-	num_stats = ARRAY_SIZE(bnxt_ring_stats_str) +
-		    ARRAY_SIZE(bnxt_rx_sw_stats_str) +
-		    ARRAY_SIZE(bnxt_cmn_sw_stats_str) +
-		    bnxt_get_num_tpa_ring_stats(bp);
-	return num_stats * bp->cp_nr_rings;
+	rx = NUM_RING_RX_HW_STATS + NUM_RING_RX_SW_STATS +
+	     bnxt_get_num_tpa_ring_stats(bp);
+	tx = NUM_RING_TX_HW_STATS;
+	cmn = NUM_RING_CMN_SW_STATS;
+	return (rx + tx + cmn) * bp->cp_nr_rings;
 }
 
 static int bnxt_get_num_stats(struct bnxt *bp)
@@ -537,7 +545,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 {
 	u32 i, j = 0;
 	struct bnxt *bp = netdev_priv(dev);
-	u32 stat_fields = ARRAY_SIZE(bnxt_ring_stats_str) +
+	u32 stat_fields = NUM_RING_RX_HW_STATS + NUM_RING_TX_HW_STATS +
 			  bnxt_get_num_tpa_ring_stats(bp);
 
 	if (!bp->bnapi) {
@@ -559,11 +567,11 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 			buf[j] = le64_to_cpu(hw_stats[k]);
 
 		sw = (u64 *)&cpr->sw_stats.rx;
-		for (k = 0; k < ARRAY_SIZE(bnxt_rx_sw_stats_str); j++, k++)
+		for (k = 0; k < NUM_RING_RX_SW_STATS; j++, k++)
 			buf[j] = sw[k];
 
 		sw = (u64 *)&cpr->sw_stats.cmn;
-		for (k = 0; k < ARRAY_SIZE(bnxt_cmn_sw_stats_str); j++, k++)
+		for (k = 0; k < NUM_RING_CMN_SW_STATS; j++, k++)
 			buf[j] = sw[k];
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
@@ -642,34 +650,39 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < bp->cp_nr_rings; i++) {
-			num_str = ARRAY_SIZE(bnxt_ring_stats_str);
+			num_str = NUM_RING_RX_HW_STATS;
 			for (j = 0; j < num_str; j++) {
 				sprintf(buf, "[%d]: %s", i,
-					bnxt_ring_stats_str[j]);
+					bnxt_ring_rx_stats_str[j]);
 				buf += ETH_GSTRING_LEN;
 			}
-			if (!BNXT_SUPPORTS_TPA(bp))
+			num_str = NUM_RING_TX_HW_STATS;
+			for (j = 0; j < num_str; j++) {
+				sprintf(buf, "[%d]: %s", i,
+					bnxt_ring_tx_stats_str[j]);
+				buf += ETH_GSTRING_LEN;
+			}
+			num_str = bnxt_get_num_tpa_ring_stats(bp);
+			if (!num_str)
 				goto skip_tpa_stats;
 
-			if (bp->max_tpa_v2) {
-				num_str = ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
+			if (bp->max_tpa_v2)
 				str = bnxt_ring_tpa2_stats_str;
-			} else {
-				num_str = ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+			else
 				str = bnxt_ring_tpa_stats_str;
-			}
+
 			for (j = 0; j < num_str; j++) {
 				sprintf(buf, "[%d]: %s", i, str[j]);
 				buf += ETH_GSTRING_LEN;
 			}
 skip_tpa_stats:
-			num_str = ARRAY_SIZE(bnxt_rx_sw_stats_str);
+			num_str = NUM_RING_RX_SW_STATS;
 			for (j = 0; j < num_str; j++) {
 				sprintf(buf, "[%d]: %s", i,
 					bnxt_rx_sw_stats_str[j]);
 				buf += ETH_GSTRING_LEN;
 			}
-			num_str = ARRAY_SIZE(bnxt_cmn_sw_stats_str);
+			num_str = NUM_RING_CMN_SW_STATS;
 			for (j = 0; j < num_str; j++) {
 				sprintf(buf, "[%d]: %s", i,
 					bnxt_cmn_sw_stats_str[j]);
