@@ -1752,6 +1752,8 @@ static int db_interception(struct vcpu_svm *svm)
 	if (svm->vcpu.guest_debug &
 	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) {
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
+		kvm_run->debug.arch.dr6 = svm->vmcb->save.dr6;
+		kvm_run->debug.arch.dr7 = svm->vmcb->save.dr7;
 		kvm_run->debug.arch.pc =
 			svm->vmcb->save.cs.base + svm->vmcb->save.rip;
 		kvm_run->debug.arch.exception = DB_VECTOR;
