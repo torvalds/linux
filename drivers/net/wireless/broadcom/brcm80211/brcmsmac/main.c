@@ -1057,7 +1057,7 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 		txs->lasttxtime = 0;
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
-		if (*fatal == true)
+		if (*fatal)
 			return false;
 		n++;
 	}
