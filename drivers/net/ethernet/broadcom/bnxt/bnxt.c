@@ -6434,23 +6434,13 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 	if (!rc) {
 		struct bnxt_ctx_pg_info *ctx_pg;
 		struct bnxt_ctx_mem_info *ctx;
-		int i;
+		int i, tqm_rings;
 
 		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 		if (!ctx) {
 			rc = -ENOMEM;
 			goto ctx_err;
 		}
-		ctx_pg = kzalloc(sizeof(*ctx_pg) * (bp->max_q + 1), GFP_KERNEL);
-		if (!ctx_pg) {
-			kfree(ctx);
-			rc = -ENOMEM;
-			goto ctx_err;
-		}
-		for (i = 0; i < bp->max_q + 1; i++, ctx_pg++)
-			ctx->tqm_mem[i] = ctx_pg;
-
-		bp->ctx = ctx;
 		ctx->qp_max_entries = le32_to_cpu(resp->qp_max_entries);
 		ctx->qp_min_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
 		ctx->qp_max_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
@@ -6483,6 +6473,20 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
 		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
 		ctx->ctx_kind_initializer = resp->ctx_kind_initializer;
+		ctx->tqm_fp_rings_count = resp->tqm_fp_rings_count;
+		if (!ctx->tqm_fp_rings_count)
+			ctx->tqm_fp_rings_count = bp->max_q;
+
+		tqm_rings = ctx->tqm_fp_rings_count + 1;
+		ctx_pg = kcalloc(tqm_rings, sizeof(*ctx_pg), GFP_KERNEL);
+		if (!ctx_pg) {
+			kfree(ctx);
+			rc = -ENOMEM;
+			goto ctx_err;
+		}
+		for (i = 0; i < tqm_rings; i++, ctx_pg++)
+			ctx->tqm_mem[i] = ctx_pg;
+		bp->ctx = ctx;
 	} else {
 		rc = 0;
 	}
@@ -6735,7 +6739,7 @@ static void bnxt_free_ctx_mem(struct bnxt *bp)
 		return;
 
 	if (ctx->tqm_mem[0]) {
-		for (i = 0; i < bp->max_q + 1; i++)
+		for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++)
 			bnxt_free_ctx_pg_tbls(bp, ctx->tqm_mem[i]);
 		kfree(ctx->tqm_mem[0]);
 		ctx->tqm_mem[0] = NULL;
@@ -6849,7 +6853,7 @@ skip_rdma:
 	entries = roundup(entries, ctx->tqm_entries_multiple);
 	entries = clamp_t(u32, entries, ctx->tqm_min_entries_per_ring,
 			  ctx->tqm_max_entries_per_ring);
-	for (i = 0; i < bp->max_q + 1; i++) {
+	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = entries;
 		mem_size = ctx->tqm_entry_size * entries;
