@@ -39,7 +39,7 @@ struct wmi_cmd_hdr {
 
 struct wmi_tlv {
 	u32 header;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 #define WMI_TLV_LEN	GENMASK(15, 0)
