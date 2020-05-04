@@ -151,6 +151,82 @@ found:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg);
 
+int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
+		     __le32 *black_list_array,
+		     int *black_list_size)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret, tbl_rev, i;
+	bool enabled;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WTAS_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    tbl_rev != 0) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!wifi_pkg->package.elements[0].integer.value;
+
+	if (!enabled) {
+		*black_list_size = -1;
+		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
+		ret = 0;
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
+	    wifi_pkg->package.elements[1].integer.value >
+	    APCI_WTAS_BLACK_LIST_MAX) {
+		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %llu\n",
+				wifi_pkg->package.elements[1].integer.value);
+		ret = -EINVAL;
+		goto out_free;
+	}
+	*black_list_size = wifi_pkg->package.elements[1].integer.value;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *black_list_size);
+	if (*black_list_size > APCI_WTAS_BLACK_LIST_MAX) {
+		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
+				*black_list_size);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	for (i = 0; i < *black_list_size; i++) {
+		u32 country;
+
+		if (wifi_pkg->package.elements[2 + i].type !=
+		    ACPI_TYPE_INTEGER) {
+			IWL_DEBUG_RADIO(fwrt,
+					"TAS invalid array elem %d\n", 2 + i);
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		country = wifi_pkg->package.elements[2 + i].integer.value;
+		black_list_array[i] = cpu_to_le32(country);
+		IWL_DEBUG_RADIO(fwrt, "TAS black list country %d\n", country);
+	}
+
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_tas);
+
 int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {
 	union acpi_object *wifi_pkg, *data;
