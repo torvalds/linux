@@ -2609,6 +2609,65 @@ failure:
 	return TEST_FAILURE;
 }
 
+static int large_file(char *mount_dir)
+{
+	char *backing_dir;
+	int cmd_fd = -1;
+	int i;
+	int result = TEST_FAILURE;
+	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE] = {};
+	int block_count = 3LL * 1024 * 1024 * 1024 / INCFS_DATA_FILE_BLOCK_SIZE;
+	struct incfs_fill_block *block_buf =
+		calloc(block_count, sizeof(struct incfs_fill_block));
+	struct incfs_fill_blocks fill_blocks = {
+		.count = block_count,
+		.fill_blocks = ptr_to_u64(block_buf),
+	};
+	incfs_uuid_t id;
+	int fd;
+
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	if (emit_file(cmd_fd, NULL, "very_large_file", &id,
+		      (uint64_t)block_count * INCFS_DATA_FILE_BLOCK_SIZE,
+		      NULL) < 0)
+		goto failure;
+
+	for (i = 0; i < block_count; i++) {
+		block_buf[i].compression = COMPRESSION_NONE;
+		block_buf[i].block_index = i;
+		block_buf[i].data_len = INCFS_DATA_FILE_BLOCK_SIZE;
+		block_buf[i].data = ptr_to_u64(data);
+	}
+
+	fd = open_file_by_id(mount_dir, id, true);
+	if (fd < 0)
+		goto failure;
+
+	if (ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks) != block_count)
+		goto failure;
+
+	if (emit_file(cmd_fd, NULL, "very_very_large_file", &id, 1LL << 40,
+		      NULL) < 0)
+		goto failure;
+
+	result = TEST_SUCCESS;
+
+failure:
+	close(fd);
+	close(cmd_fd);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -2678,6 +2737,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(read_log_test),
 		MAKE_TEST(get_blocks_test),
 		MAKE_TEST(get_hash_blocks_test),
+		MAKE_TEST(large_file),
 	};
 #undef MAKE_TEST
 

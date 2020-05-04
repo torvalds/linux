@@ -893,7 +893,8 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 		.mnt = mi->mi_backing_dir_path.mnt,
 		.dentry = dentry
 	};
-	new_file = dentry_open(&path, O_RDWR | O_NOATIME, mi->mi_owner);
+	new_file = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
+			       mi->mi_owner);
 
 	if (IS_ERR(new_file)) {
 		error = PTR_ERR(new_file);
@@ -1901,8 +1902,8 @@ static int file_open(struct inode *inode, struct file *file)
 	int err = 0;
 
 	get_incfs_backing_path(file->f_path.dentry, &backing_path);
-	backing_file = dentry_open(&backing_path, O_RDWR | O_NOATIME,
-				mi->mi_owner);
+	backing_file = dentry_open(
+		&backing_path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
 	path_put(&backing_path);
 
 	if (IS_ERR(backing_file)) {
