@@ -368,7 +368,7 @@ __AARCH64_INSN_FUNCS(msr_reg,	0xFFF00000, 0xD5100000)
 
 #undef	__AARCH64_INSN_FUNCS
 
-bool aarch64_insn_is_nop(u32 insn);
+bool aarch64_insn_is_steppable_hint(u32 insn);
 bool aarch64_insn_is_branch_imm(u32 insn);
 
 static inline bool aarch64_insn_is_adr_adrp(u32 insn)

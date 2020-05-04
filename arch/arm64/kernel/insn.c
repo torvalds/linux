@@ -51,8 +51,7 @@ enum aarch64_insn_encoding_class __kprobes aarch64_get_insn_class(u32 insn)
 	return aarch64_insn_encoding_class[(insn >> 25) & 0xf];
 }
 
-/* NOP is an alias of HINT */
-bool __kprobes aarch64_insn_is_nop(u32 insn)
+bool __kprobes aarch64_insn_is_steppable_hint(u32 insn)
 {
 	if (!aarch64_insn_is_hint(insn))
 		return false;
