@@ -12,14 +12,14 @@
 #include <linux/stacktrace.h>
 #include <linux/ftrace.h>
 
+register unsigned long sp_in_global __asm__("sp");
+
 #ifdef CONFIG_FRAME_POINTER
 
 struct stackframe {
 	unsigned long fp;
 	unsigned long ra;
 };
-
-register unsigned long sp_in_global __asm__("sp");
 
 void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 			     bool (*fn)(unsigned long, void *), void *arg)

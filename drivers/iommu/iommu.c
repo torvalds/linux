@@ -170,6 +170,7 @@ static struct dev_iommu *dev_iommu_get(struct device *dev)
 
 static void dev_iommu_free(struct device *dev)
 {
+	iommu_fwspec_free(dev);
 	kfree(dev->iommu);
 	dev->iommu = NULL;
 }
