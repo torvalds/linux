@@ -66,6 +66,7 @@
 #define P2P_CHANNEL_SYNC_RETRY		5
 #define P2P_AF_FRM_SCAN_MAX_WAIT	msecs_to_jiffies(450)
 #define P2P_DEFAULT_SLEEP_TIME_VSDB	200
+#define P2P_AF_RETRY_DELAY_TIME		40
 
 /* WiFi P2P Public Action Frame OUI Subtypes */
 #define P2P_PAF_GON_REQ		0	/* Group Owner Negotiation Req */
@@ -1827,6 +1828,9 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 	while (!p2p->block_gon_req_tx &&
 	       (!ack) && (tx_retry < P2P_AF_TX_MAX_RETRY) &&
 		!dwell_overflow) {
+		if (af_params->channel)
+			msleep(P2P_AF_RETRY_DELAY_TIME);
+
 		ack = !brcmf_p2p_tx_action_frame(p2p, af_params);
 		tx_retry++;
 		dwell_overflow = brcmf_p2p_check_dwell_overflow(requested_dwell,
