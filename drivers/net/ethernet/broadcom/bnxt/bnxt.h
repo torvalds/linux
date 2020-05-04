@@ -1820,6 +1820,7 @@ struct bnxt {
 	/* ensure atomic 64-bit doorbell writes on 32-bit systems. */
 	spinlock_t		db_lock;
 #endif
+	int			db_size;
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
 #define BNXT_NTP_FLTR_HASH_SIZE	512

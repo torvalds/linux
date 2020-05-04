@@ -6364,6 +6364,7 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_input req = {0};
 	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	u32 min_db_offset = 0;
 	u16 flags;
 	int rc;
 
@@ -6411,6 +6412,21 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	bp->max_mtu = le16_to_cpu(resp->max_mtu_configured);
 	if (!bp->max_mtu)
 		bp->max_mtu = BNXT_MAX_MTU;
+
+	if (bp->db_size)
+		goto func_qcfg_exit;
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		if (BNXT_PF(bp))
+			min_db_offset = DB_PF_OFFSET_P5;
+		else
+			min_db_offset = DB_VF_OFFSET_P5;
+	}
+	bp->db_size = PAGE_ALIGN(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
+				 1024);
+	if (!bp->db_size || bp->db_size > pci_resource_len(bp->pdev, 2) ||
+	    bp->db_size <= min_db_offset)
+		bp->db_size = pci_resource_len(bp->pdev, 2);
 
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -10898,16 +10914,12 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->dev = dev;
 	bp->pdev = pdev;
 
+	/* Doorbell BAR bp->bar1 is mapped after bnxt_fw_init_one_p2()
+	 * determines the BAR size.
+	 */
 	bp->bar0 = pci_ioremap_bar(pdev, 0);
 	if (!bp->bar0) {
 		dev_err(&pdev->dev, "Cannot map device registers, aborting\n");
-		rc = -ENOMEM;
-		goto init_err_release;
-	}
-
-	bp->bar1 = pci_ioremap_bar(pdev, 2);
-	if (!bp->bar1) {
-		dev_err(&pdev->dev, "Cannot map doorbell registers, aborting\n");
 		rc = -ENOMEM;
 		goto init_err_release;
 	}
@@ -11833,6 +11845,16 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 	return 0;
 }
 
+static int bnxt_map_db_bar(struct bnxt *bp)
+{
+	if (!bp->db_size)
+		return -ENODEV;
+	bp->bar1 = pci_iomap(bp->pdev, 2, bp->db_size);
+	if (!bp->bar1)
+		return -ENOMEM;
+	return 0;
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -11892,6 +11914,13 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_fw_init_one_p2(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	rc = bnxt_map_db_bar(bp);
+	if (rc) {
+		dev_err(&pdev->dev, "Cannot map doorbell BAR rc = %d, aborting\n",
+			rc);
+		goto init_err_pci_clean;
+	}
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
