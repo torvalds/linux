@@ -26,6 +26,7 @@
 #define FW_START_ADDR_LEGACY		0x1000
 
 enum rtw_c2h_cmd_id {
+	C2H_CCX_TX_RPT = 0x03,
 	C2H_BT_INFO = 0x09,
 	C2H_BT_MP_INFO = 0x0b,
 	C2H_RA_RPT = 0x0c,
@@ -218,8 +219,10 @@ struct rtw_fw_hdr_legacy {
 } __packed;
 
 /* C2H */
-#define GET_CCX_REPORT_SEQNUM(c2h_payload)	(c2h_payload[8] & 0xfc)
-#define GET_CCX_REPORT_STATUS(c2h_payload)	(c2h_payload[9] & 0xc0)
+#define GET_CCX_REPORT_SEQNUM_V0(c2h_payload)	(c2h_payload[6] & 0xfc)
+#define GET_CCX_REPORT_STATUS_V0(c2h_payload)	(c2h_payload[0] & 0xc0)
+#define GET_CCX_REPORT_SEQNUM_V1(c2h_payload)	(c2h_payload[8] & 0xfc)
+#define GET_CCX_REPORT_STATUS_V1(c2h_payload)	(c2h_payload[9] & 0xc0)
 
 #define GET_RA_REPORT_RATE(c2h_payload)		(c2h_payload[0] & 0x7f)
 #define GET_RA_REPORT_SGI(c2h_payload)		((c2h_payload[0] & 0x80) >> 7)
