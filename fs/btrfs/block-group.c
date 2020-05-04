@@ -2071,13 +2071,32 @@ error:
 	return ret;
 }
 
+static int insert_block_group_item(struct btrfs_trans_handle *trans,
+				   struct btrfs_block_group *block_group)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_block_group_item bgi;
+	struct btrfs_root *root;
+	struct btrfs_key key;
+
+	spin_lock(&block_group->lock);
+	btrfs_set_stack_block_group_used(&bgi, block_group->used);
+	btrfs_set_stack_block_group_chunk_objectid(&bgi,
+				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
+	btrfs_set_stack_block_group_flags(&bgi, block_group->flags);
+	key.objectid = block_group->start;
+	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	key.offset = block_group->length;
+	spin_unlock(&block_group->lock);
+
+	root = fs_info->extent_root;
+	return btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
+}
+
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group *block_group;
-	struct btrfs_root *extent_root = fs_info->extent_root;
-	struct btrfs_block_group_item item;
-	struct btrfs_key key;
 	int ret = 0;
 
 	if (!trans->can_flush_pending_bgs)
@@ -2090,21 +2109,11 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 		if (ret)
 			goto next;
 
-		spin_lock(&block_group->lock);
-		btrfs_set_stack_block_group_used(&item, block_group->used);
-		btrfs_set_stack_block_group_chunk_objectid(&item,
-				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
-		btrfs_set_stack_block_group_flags(&item, block_group->flags);
-		key.objectid = block_group->start;
-		key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
-		key.offset = block_group->length;
-		spin_unlock(&block_group->lock);
-
-		ret = btrfs_insert_item(trans, extent_root, &key, &item,
-					sizeof(item));
+		ret = insert_block_group_item(trans, block_group);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
-		ret = btrfs_finish_chunk_alloc(trans, key.objectid, key.offset);
+		ret = btrfs_finish_chunk_alloc(trans, block_group->start,
+					block_group->length);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
 		add_block_group_free_space(trans, block_group);
