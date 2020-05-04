@@ -640,6 +640,7 @@ static int ci_usb_role_switch_set(struct usb_role_switch *sw,
 static struct usb_role_switch_desc ci_role_switch = {
 	.set = ci_usb_role_switch_set,
 	.get = ci_usb_role_switch_get,
+	.allow_userspace_control = true,
 };
 
 static int ci_get_platdata(struct device *dev,
