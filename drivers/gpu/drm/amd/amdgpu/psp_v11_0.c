@@ -524,123 +524,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	return 0;
 }
 
-/* TODO: Fill in follow functions once PSP firmware interface for XGMI is ready.
- * For now, return success and hack the hive_id so high level code can
- * start testing
- */
-static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
-	int number_devices, struct psp_xgmi_topology_info *topology)
-{
-	struct ta_xgmi_shared_memory *xgmi_cmd;
-	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
-	struct ta_xgmi_cmd_get_topology_info_output *topology_info_output;
-	int i;
-	int ret;
-
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
-		return -EINVAL;
-
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
-	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
-
-	/* Fill in the shared memory with topology information as input */
-	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
-
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
-	}
-
-	/* Invoke xgmi ta to get the topology information */
-	ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO);
-	if (ret)
-		return ret;
-
-	/* Read the output topology information from the shared memory */
-	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
-	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
-	for (i = 0; i < topology->num_nodes; i++) {
-		topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
-		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
-		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
-		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
-	}
-
-	return 0;
-}
-
-static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
-	int number_devices, struct psp_xgmi_topology_info *topology)
-{
-	struct ta_xgmi_shared_memory *xgmi_cmd;
-	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
-	int i;
-
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
-		return -EINVAL;
-
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
-	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
-
-	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
-
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = 1;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
-	}
-
-	/* Invoke xgmi ta to set topology information */
-	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
-}
-
-static int psp_v11_0_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
-{
-	struct ta_xgmi_shared_memory *xgmi_cmd;
-	int ret;
-
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
-	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
-
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
-
-	/* Invoke xgmi ta to get hive id */
-	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
-	if (ret)
-		return ret;
-
-	*hive_id = xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
-
-	return 0;
-}
-
-static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
-{
-	struct ta_xgmi_shared_memory *xgmi_cmd;
-	int ret;
-
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
-	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
-
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
-
-	/* Invoke xgmi ta to get the node id */
-	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
-	if (ret)
-		return ret;
-
-	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
-
-	return 0;
-}
-
 static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
 		struct ta_ras_trigger_error_input *info)
 {
@@ -995,10 +878,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,
 	.mode1_reset = psp_v11_0_mode1_reset,
-	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
-	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
-	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
-	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
 	.ras_trigger_error = psp_v11_0_ras_trigger_error,
 	.ras_cure_posion = psp_v11_0_ras_cure_posion,
 	.rlc_autoload_start = psp_v11_0_rlc_autoload_start,

@@ -95,12 +95,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*xgmi_get_node_id)(struct psp_context *psp, uint64_t *node_id);
-	int (*xgmi_get_hive_id)(struct psp_context *psp, uint64_t *hive_id);
-	int (*xgmi_get_topology_info)(struct psp_context *psp, int number_devices,
-				      struct psp_xgmi_topology_info *topology);
-	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
-				      struct psp_xgmi_topology_info *topology);
 	int (*ras_trigger_error)(struct psp_context *psp,
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
@@ -316,16 +310,6 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
-#define psp_xgmi_get_node_id(psp, node_id) \
-		((psp)->funcs->xgmi_get_node_id ? (psp)->funcs->xgmi_get_node_id((psp), (node_id)) : -EINVAL)
-#define psp_xgmi_get_hive_id(psp, hive_id) \
-		((psp)->funcs->xgmi_get_hive_id ? (psp)->funcs->xgmi_get_hive_id((psp), (hive_id)) : -EINVAL)
-#define psp_xgmi_get_topology_info(psp, num_device, topology) \
-		((psp)->funcs->xgmi_get_topology_info ? \
-		(psp)->funcs->xgmi_get_topology_info((psp), (num_device), (topology)) : -EINVAL)
-#define psp_xgmi_set_topology_info(psp, num_device, topology) \
-		((psp)->funcs->xgmi_set_topology_info ?	 \
-		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
 #define psp_rlc_autoload(psp) \
 		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
 #define psp_mem_training_init(psp) \
@@ -369,6 +353,14 @@ int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 int psp_xgmi_initialize(struct psp_context *psp);
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id);
+int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id);
+int psp_xgmi_get_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology);
+int psp_xgmi_set_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology);
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
