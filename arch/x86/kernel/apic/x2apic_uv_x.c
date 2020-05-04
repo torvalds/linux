@@ -385,11 +385,10 @@ int is_uv_hubbed(int uvtype)
 }
 EXPORT_SYMBOL_GPL(is_uv_hubbed);
 
-int is_uv_hubless(int uvtype)
+static int is_uv_hubless(int uvtype)
 {
 	return (uv_hubless_system & uvtype);
 }
-EXPORT_SYMBOL_GPL(is_uv_hubless);
 
 void **__uv_hub_info_list;
 EXPORT_SYMBOL_GPL(__uv_hub_info_list);
