@@ -364,6 +364,9 @@ struct hdac_bus {
 	/* link management */
 	struct list_head hlink_list;
 	bool cmd_dma_state;
+
+	/* factor used to derive STRIPE control value */
+	unsigned int sdo_limit;
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
