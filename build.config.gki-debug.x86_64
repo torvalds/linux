@@ -1,2 +1,3 @@
 . ${ROOT_DIR}/common/build.config.gki.x86_64
 TRIM_NONLISTED_KMI=""
+KMI_WHITELIST_STRICT_MODE=""
