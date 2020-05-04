@@ -1602,8 +1602,6 @@ int super_setup_bdi_name(struct super_block *sb, char *fmt, ...)
 	if (!bdi)
 		return -ENOMEM;
 
-	bdi->name = sb->s_type->name;
-
 	va_start(args, fmt);
 	err = bdi_register_va(bdi, fmt, args);
 	va_end(args);
