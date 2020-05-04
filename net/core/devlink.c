@@ -3716,24 +3716,26 @@ nla_put_failure:
 	return err;
 }
 
-static void devlink_nl_region_notify(struct devlink_region *region,
-				     struct devlink_snapshot *snapshot,
-				     enum devlink_command cmd)
+static struct sk_buff *
+devlink_nl_region_notify_build(struct devlink_region *region,
+			       struct devlink_snapshot *snapshot,
+			       enum devlink_command cmd, u32 portid, u32 seq)
 {
 	struct devlink *devlink = region->devlink;
 	struct sk_buff *msg;
 	void *hdr;
 	int err;
 
-	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	hdr = genlmsg_put(msg, 0, 0, &devlink_nl_family, 0, cmd);
-	if (!hdr)
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, 0, cmd);
+	if (!hdr) {
+		err = -EMSGSIZE;
 		goto out_free_msg;
+	}
 
 	err = devlink_nl_put_handle(msg, devlink);
 	if (err)
@@ -3757,15 +3759,30 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 	}
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
-
-	return;
+	return msg;
 
 out_cancel_msg:
 	genlmsg_cancel(msg, hdr);
 out_free_msg:
 	nlmsg_free(msg);
+	return ERR_PTR(err);
+}
+
+static void devlink_nl_region_notify(struct devlink_region *region,
+				     struct devlink_snapshot *snapshot,
+				     enum devlink_command cmd)
+{
+	struct devlink *devlink = region->devlink;
+	struct sk_buff *msg;
+
+	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
+
+	msg = devlink_nl_region_notify_build(region, snapshot, cmd, 0, 0);
+	if (IS_ERR(msg))
+		return;
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
 /**
@@ -4069,6 +4086,8 @@ static int
 devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_snapshot *snapshot;
+	struct nlattr *snapshot_id_attr;
 	struct devlink_region *region;
 	const char *region_name;
 	u32 snapshot_id;
@@ -4077,11 +4096,6 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 
 	if (!info->attrs[DEVLINK_ATTR_REGION_NAME]) {
 		NL_SET_ERR_MSG_MOD(info->extack, "No region name provided");
-		return -EINVAL;
-	}
-
-	if (!info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
-		NL_SET_ERR_MSG_MOD(info->extack, "No snapshot id provided");
 		return -EINVAL;
 	}
 
@@ -4102,16 +4116,25 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 		return -ENOSPC;
 	}
 
-	snapshot_id = nla_get_u32(info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+	snapshot_id_attr = info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
+	if (snapshot_id_attr) {
+		snapshot_id = nla_get_u32(snapshot_id_attr);
 
-	if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
-		NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
-		return -EEXIST;
+		if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
+			NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
+			return -EEXIST;
+		}
+
+		err = __devlink_snapshot_id_insert(devlink, snapshot_id);
+		if (err)
+			return err;
+	} else {
+		err = __devlink_region_snapshot_id_get(devlink, &snapshot_id);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(info->extack, "Failed to allocate a new snapshot id");
+			return err;
+		}
 	}
-
-	err = __devlink_snapshot_id_insert(devlink, snapshot_id);
-	if (err)
-		return err;
 
 	err = region->ops->snapshot(devlink, info->extack, &data);
 	if (err)
@@ -4121,12 +4144,37 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_snapshot_create;
 
+	if (!snapshot_id_attr) {
+		struct sk_buff *msg;
+
+		snapshot = devlink_region_snapshot_get_by_id(region,
+							     snapshot_id);
+		if (WARN_ON(!snapshot))
+			return -EINVAL;
+
+		msg = devlink_nl_region_notify_build(region, snapshot,
+						     DEVLINK_CMD_REGION_NEW,
+						     info->snd_portid,
+						     info->snd_seq);
+		err = PTR_ERR_OR_ZERO(msg);
+		if (err)
+			goto err_notify;
+
+		err = genlmsg_reply(msg, info);
+		if (err)
+			goto err_notify;
+	}
+
 	return 0;
 
 err_snapshot_create:
 	region->ops->destructor(data);
 err_snapshot_capture:
 	__devlink_snapshot_id_decrement(devlink, snapshot_id);
+	return err;
+
+err_notify:
+	devlink_region_snapshot_del(region, snapshot);
 	return err;
 }
 
