@@ -657,32 +657,28 @@ static struct trace_lock_handler report_lock_ops  = {
 
 static struct trace_lock_handler *trace_handler;
 
-static int perf_evsel__process_lock_acquire(struct evsel *evsel,
-					     struct perf_sample *sample)
+static int evsel__process_lock_acquire(struct evsel *evsel, struct perf_sample *sample)
 {
 	if (trace_handler->acquire_event)
 		return trace_handler->acquire_event(evsel, sample);
 	return 0;
 }
 
-static int perf_evsel__process_lock_acquired(struct evsel *evsel,
-					      struct perf_sample *sample)
+static int evsel__process_lock_acquired(struct evsel *evsel, struct perf_sample *sample)
 {
 	if (trace_handler->acquired_event)
 		return trace_handler->acquired_event(evsel, sample);
 	return 0;
 }
 
-static int perf_evsel__process_lock_contended(struct evsel *evsel,
-					      struct perf_sample *sample)
+static int evsel__process_lock_contended(struct evsel *evsel, struct perf_sample *sample)
 {
 	if (trace_handler->contended_event)
 		return trace_handler->contended_event(evsel, sample);
 	return 0;
 }
 
-static int perf_evsel__process_lock_release(struct evsel *evsel,
-					    struct perf_sample *sample)
+static int evsel__process_lock_release(struct evsel *evsel, struct perf_sample *sample)
 {
 	if (trace_handler->release_event)
 		return trace_handler->release_event(evsel, sample);
@@ -849,10 +845,10 @@ static void sort_result(void)
 }
 
 static const struct evsel_str_handler lock_tracepoints[] = {
-	{ "lock:lock_acquire",	 perf_evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
-	{ "lock:lock_acquired",	 perf_evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_contended", perf_evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_release",	 perf_evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
+	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
+	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_contended", evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_release",	 evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
 };
 
 static bool force;
