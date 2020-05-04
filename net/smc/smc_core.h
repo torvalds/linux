@@ -117,6 +117,7 @@ struct smc_link {
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
 	u8			link_idx;	/* index in lgr link array */
+	u8			link_is_asym;	/* is link asymmetric? */
 	struct smc_link_group	*lgr;		/* parent link group */
 	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 
@@ -380,6 +381,9 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 void smcr_link_clear(struct smc_link *lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);
 int smcr_buf_reg_lgr(struct smc_link *lnk);
+void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);
+void smcr_lgr_set_type_asym(struct smc_link_group *lgr,
+			    enum smc_lgr_type new_type, int asym_lnk_idx);
 int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc);
 struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 				  struct smc_link *from_lnk, bool is_dev_err);

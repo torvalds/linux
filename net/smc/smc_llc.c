@@ -796,7 +796,11 @@ static int smc_llc_cli_conf_link(struct smc_link *link,
 		return -ENOLINK;
 	}
 	smc_llc_link_active(link_new);
-	lgr->type = lgr_new_t;
+	if (lgr_new_t == SMC_LGR_ASYMMETRIC_LOCAL ||
+	    lgr_new_t == SMC_LGR_ASYMMETRIC_PEER)
+		smcr_lgr_set_type_asym(lgr, lgr_new_t, link_new->link_idx);
+	else
+		smcr_lgr_set_type(lgr, lgr_new_t);
 	return 0;
 }
 
@@ -1038,7 +1042,11 @@ static int smc_llc_srv_conf_link(struct smc_link *link,
 		return -ENOLINK;
 	}
 	smc_llc_link_active(link_new);
-	lgr->type = lgr_new_t;
+	if (lgr_new_t == SMC_LGR_ASYMMETRIC_LOCAL ||
+	    lgr_new_t == SMC_LGR_ASYMMETRIC_PEER)
+		smcr_lgr_set_type_asym(lgr, lgr_new_t, link_new->link_idx);
+	else
+		smcr_lgr_set_type(lgr, lgr_new_t);
 	smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
 	return 0;
 }
@@ -1223,9 +1231,9 @@ static void smc_llc_process_cli_delete_link(struct smc_link_group *lgr)
 	if (lnk_del == lnk_asym) {
 		/* expected deletion of asym link, don't change lgr state */
 	} else if (active_links == 1) {
-		lgr->type = SMC_LGR_SINGLE;
+		smcr_lgr_set_type(lgr, SMC_LGR_SINGLE);
 	} else if (!active_links) {
-		lgr->type = SMC_LGR_NONE;
+		smcr_lgr_set_type(lgr, SMC_LGR_NONE);
 		smc_lgr_terminate_sched(lgr);
 	}
 out_unlock:
@@ -1314,9 +1322,9 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 
 	active_links = smc_llc_active_link_count(lgr);
 	if (active_links == 1) {
-		lgr->type = SMC_LGR_SINGLE;
+		smcr_lgr_set_type(lgr, SMC_LGR_SINGLE);
 	} else if (!active_links) {
-		lgr->type = SMC_LGR_NONE;
+		smcr_lgr_set_type(lgr, SMC_LGR_NONE);
 		smc_lgr_terminate_sched(lgr);
 	}
 

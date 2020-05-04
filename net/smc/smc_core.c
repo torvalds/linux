@@ -132,7 +132,7 @@ static int smcr_lgr_conn_assign_link(struct smc_connection *conn, bool first)
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 		struct smc_link *lnk = &conn->lgr->lnk[i];
 
-		if (lnk->state != expected)
+		if (lnk->state != expected || lnk->link_is_asym)
 			continue;
 		if (conn->lgr->role == SMC_CLNT) {
 			conn->lnk = lnk; /* temporary, SMC server assigns link*/
@@ -143,7 +143,8 @@ static int smcr_lgr_conn_assign_link(struct smc_connection *conn, bool first)
 				struct smc_link *lnk2;
 
 				lnk2 = &conn->lgr->lnk[j];
-				if (lnk2->state == expected) {
+				if (lnk2->state == expected &&
+				    !lnk2->link_is_asym) {
 					conn->lnk = lnk2;
 					break;
 				}
@@ -1030,6 +1031,25 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 	}
 }
 
+/* set new lgr type and clear all asymmetric link tagging */
+void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type)
+{
+	int i;
+
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
+		if (smc_link_usable(&lgr->lnk[i]))
+			lgr->lnk[i].link_is_asym = false;
+	lgr->type = new_type;
+}
+
+/* set new lgr type and tag a link as asymmetric */
+void smcr_lgr_set_type_asym(struct smc_link_group *lgr,
+			    enum smc_lgr_type new_type, int asym_lnk_idx)
+{
+	smcr_lgr_set_type(lgr, new_type);
+	lgr->lnk[asym_lnk_idx].link_is_asym = true;
+}
+
 /* abort connection, abort_work scheduled from tasklet context */
 static void smc_conn_abort_work(struct work_struct *work)
 {
@@ -1123,7 +1143,7 @@ static void smcr_link_down(struct smc_link *lnk)
 		smcr_link_clear(lnk);
 		return;
 	}
-	lgr->type = SMC_LGR_SINGLE;
+	smcr_lgr_set_type(lgr, SMC_LGR_SINGLE);
 	del_link_id = lnk->link_id;
 
 	if (lgr->role == SMC_SERV) {
