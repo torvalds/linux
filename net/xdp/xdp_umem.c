@@ -279,7 +279,7 @@ void xdp_put_umem(struct xdp_umem *umem)
 	}
 }
 
-static int xdp_umem_pin_pages(struct xdp_umem *umem)
+static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 {
 	unsigned int gup_flags = FOLL_WRITE;
 	long npgs;
@@ -291,7 +291,7 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 		return -ENOMEM;
 
 	down_read(&current->mm->mmap_sem);
-	npgs = pin_user_pages(umem->address, umem->npgs,
+	npgs = pin_user_pages(address, umem->npgs,
 			      gup_flags | FOLL_LONGTERM, &umem->pgs[0], NULL);
 	up_read(&current->mm->mmap_sem);
 
@@ -385,7 +385,6 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (headroom >= chunk_size - XDP_PACKET_HEADROOM)
 		return -EINVAL;
 
-	umem->address = (unsigned long)addr;
 	umem->chunk_mask = unaligned_chunks ? XSK_UNALIGNED_BUF_ADDR_MASK
 					    : ~((u64)chunk_size - 1);
 	umem->size = size;
@@ -404,7 +403,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (err)
 		return err;
 
-	err = xdp_umem_pin_pages(umem);
+	err = xdp_umem_pin_pages(umem, (unsigned long)addr);
 	if (err)
 		goto out_account;
 
