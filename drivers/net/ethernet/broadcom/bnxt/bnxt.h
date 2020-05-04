@@ -537,6 +537,9 @@ struct nqe_cn {
 #define DBR_TYPE_NQ_ARM					(0xbULL << 60)
 #define DBR_TYPE_NULL					(0xfULL << 60)
 
+#define DB_PF_OFFSET_P5					0x10000
+#define DB_VF_OFFSET_P5					0x4000
+
 #define INVALID_HW_RING_ID	((u16)-1)
 
 /* The hardware supports certain page sizes.  Use the supported page sizes
@@ -907,6 +910,20 @@ struct bnxt_rx_ring_info {
 	struct page_pool	*page_pool;
 };
 
+struct bnxt_rx_sw_stats {
+	u64			rx_l4_csum_errors;
+	u64			rx_buf_errors;
+};
+
+struct bnxt_cmn_sw_stats {
+	u64			missed_irqs;
+};
+
+struct bnxt_sw_stats {
+	struct bnxt_rx_sw_stats rx;
+	struct bnxt_cmn_sw_stats cmn;
+};
+
 struct bnxt_cp_ring_info {
 	struct bnxt_napi	*bnapi;
 	u32			cp_raw_cons;
@@ -934,9 +951,8 @@ struct bnxt_cp_ring_info {
 	struct ctx_hw_stats	*hw_stats;
 	dma_addr_t		hw_stats_map;
 	u32			hw_stats_ctx_id;
-	u64			rx_l4_csum_errors;
-	u64			rx_buf_errors;
-	u64			missed_irqs;
+
+	struct bnxt_sw_stats	sw_stats;
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
@@ -1357,6 +1373,7 @@ struct bnxt_ctx_mem_info {
 	u16	mrav_num_entries_units;
 	u8	tqm_entries_multiple;
 	u8	ctx_kind_initializer;
+	u8	tqm_fp_rings_count;
 
 	u32	flags;
 	#define BNXT_CTX_FLAG_INITED	0x01
@@ -1816,6 +1833,7 @@ struct bnxt {
 	/* ensure atomic 64-bit doorbell writes on 32-bit systems. */
 	spinlock_t		db_lock;
 #endif
+	int			db_size;
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
 #define BNXT_NTP_FLTR_HASH_SIZE	512
