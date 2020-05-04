@@ -44,6 +44,7 @@ struct smc_wr_tx_pend {	/* control data for a pending send request */
 	struct smc_link		*link;
 	u32			idx;
 	struct smc_wr_tx_pend_priv priv;
+	u8			compl_requested;
 };
 
 /******************************** send queue *********************************/
@@ -103,6 +104,8 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	if (pnd_snd_idx == link->wr_tx_cnt)
 		return;
 	link->wr_tx_pends[pnd_snd_idx].wc_status = wc->status;
+	if (link->wr_tx_pends[pnd_snd_idx].compl_requested)
+		complete(&link->wr_tx_compl[pnd_snd_idx]);
 	memcpy(&pnd_snd, &link->wr_tx_pends[pnd_snd_idx], sizeof(pnd_snd));
 	/* clear the full struct smc_wr_tx_pend including .priv */
 	memset(&link->wr_tx_pends[pnd_snd_idx], 0,
@@ -272,6 +275,33 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 		smc_wr_tx_put_slot(link, priv);
 		smcr_link_down_cond_sched(link);
 	}
+	return rc;
+}
+
+/* Send prepared WR slot via ib_post_send and wait for send completion
+ * notification.
+ * @priv: pointer to smc_wr_tx_pend_priv identifying prepared message buffer
+ */
+int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
+			unsigned long timeout)
+{
+	struct smc_wr_tx_pend *pend;
+	int rc;
+
+	pend = container_of(priv, struct smc_wr_tx_pend, priv);
+	pend->compl_requested = 1;
+	init_completion(&link->wr_tx_compl[pend->idx]);
+
+	rc = smc_wr_tx_send(link, priv);
+	if (rc)
+		return rc;
+	/* wait for completion by smc_wr_tx_process_cqe() */
+	rc = wait_for_completion_interruptible_timeout(
+					&link->wr_tx_compl[pend->idx], timeout);
+	if (rc <= 0)
+		rc = -ENODATA;
+	if (rc > 0)
+		rc = 0;
 	return rc;
 }
 
@@ -555,6 +585,8 @@ void smc_wr_free_link(struct smc_link *lnk)
 
 void smc_wr_free_link_mem(struct smc_link *lnk)
 {
+	kfree(lnk->wr_tx_compl);
+	lnk->wr_tx_compl = NULL;
 	kfree(lnk->wr_tx_pends);
 	lnk->wr_tx_pends = NULL;
 	kfree(lnk->wr_tx_mask);
@@ -625,8 +657,15 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				    GFP_KERNEL);
 	if (!link->wr_tx_pends)
 		goto no_mem_wr_tx_mask;
+	link->wr_tx_compl = kcalloc(SMC_WR_BUF_CNT,
+				    sizeof(link->wr_tx_compl[0]),
+				    GFP_KERNEL);
+	if (!link->wr_tx_compl)
+		goto no_mem_wr_tx_pends;
 	return 0;
 
+no_mem_wr_tx_pends:
+	kfree(link->wr_tx_pends);
 no_mem_wr_tx_mask:
 	kfree(link->wr_tx_mask);
 no_mem_wr_rx_sges:
