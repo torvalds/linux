@@ -95,8 +95,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*ras_trigger_error)(struct psp_context *psp,
-			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 	int (*rlc_autoload_start)(struct psp_context *psp);
 	int (*mem_training_init)(struct psp_context *psp);
@@ -319,9 +317,6 @@ struct amdgpu_psp_funcs {
 #define psp_mem_training(psp, ops) \
 	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
 
-#define psp_ras_trigger_error(psp, info) \
-	((psp)->funcs->ras_trigger_error ? \
-	(psp)->funcs->ras_trigger_error((psp), (info)) : -EINVAL)
 #define psp_ras_cure_posion(psp, addr) \
 	((psp)->funcs->ras_cure_posion ? \
 	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
@@ -365,6 +360,9 @@ int psp_xgmi_set_topology_info(struct psp_context *psp,
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
+int psp_ras_trigger_error(struct psp_context *psp,
+			  struct ta_ras_trigger_error_input *info);
+
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
