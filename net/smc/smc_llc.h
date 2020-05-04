@@ -60,6 +60,14 @@ static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)
 	return NULL;
 }
 
+/* set the termination reason code for the link group */
+static inline void smc_llc_set_termination_rsn(struct smc_link_group *lgr,
+					       u32 rsn)
+{
+	if (!lgr->llc_termination_rsn)
+		lgr->llc_termination_rsn = rsn;
+}
+
 /* transmit */
 int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);

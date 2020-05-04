@@ -878,8 +878,11 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
 		put_device(&lgr->smcd->dev);
 	} else {
-		smc_llc_send_link_delete_all(lgr, false,
-					     SMC_LLC_DEL_OP_INIT_TERM);
+		u32 rsn = lgr->llc_termination_rsn;
+
+		if (!rsn)
+			rsn = SMC_LLC_DEL_PROG_INIT_TERM;
+		smc_llc_send_link_delete_all(lgr, false, rsn);
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *lnk = &lgr->lnk[i];
 
@@ -1018,6 +1021,7 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 
 	list_for_each_entry_safe(lgr, lg, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
+		smc_llc_set_termination_rsn(lgr, SMC_LLC_DEL_OP_INIT_TERM);
 		__smc_lgr_terminate(lgr, false);
 	}
 

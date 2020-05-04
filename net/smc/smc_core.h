@@ -271,6 +271,8 @@ struct smc_link_group {
 						/* protects llc flow */
 			int			llc_testlink_time;
 						/* link keep alive time */
+			u32			llc_termination_rsn;
+						/* rsn code for termination */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;

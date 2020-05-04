@@ -1420,6 +1420,14 @@ static void smc_llc_rmt_delete_rkey(struct smc_link_group *lgr)
 	smc_llc_flow_qentry_del(&lgr->llc_flow_rmt);
 }
 
+static void smc_llc_protocol_violation(struct smc_link_group *lgr, u8 type)
+{
+	pr_warn_ratelimited("smc: SMC-R lg %*phN LLC protocol violation: "
+			    "llc_type %d\n", SMC_LGR_ID_SIZE, &lgr->id, type);
+	smc_llc_set_termination_rsn(lgr, SMC_LLC_DEL_PROT_VIOL);
+	smc_lgr_terminate_sched(lgr);
+}
+
 /* flush the llc event queue */
 static void smc_llc_event_flush(struct smc_link_group *lgr)
 {
@@ -1520,6 +1528,9 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 			smc_llc_flow_stop(lgr, &lgr->llc_flow_rmt);
 		}
 		return;
+	default:
+		smc_llc_protocol_violation(lgr, llc->raw.hdr.common.type);
+		break;
 	}
 out:
 	kfree(qentry);
@@ -1578,6 +1589,9 @@ static void smc_llc_rx_response(struct smc_link *link,
 		return;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		/* not used because max links is 3 */
+		break;
+	default:
+		smc_llc_protocol_violation(link->lgr, llc_type);
 		break;
 	}
 	kfree(qentry);
