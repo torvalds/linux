@@ -287,6 +287,166 @@ static void rtw8723d_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	rtw_rx_fill_rx_status(rtwdev, pkt_stat, hdr, rx_status, phy_status);
 }
 
+static bool rtw8723d_check_spur_ov_thres(struct rtw_dev *rtwdev,
+					 u8 channel, u32 thres)
+{
+	u32 freq;
+	bool ret = false;
+
+	if (channel == 13)
+		freq = FREQ_CH13;
+	else if (channel == 14)
+		freq = FREQ_CH14;
+	else
+		return false;
+
+	rtw_write32(rtwdev, REG_ANALOG_P4, DIS_3WIRE);
+	rtw_write32(rtwdev, REG_PSDFN, freq);
+	rtw_write32(rtwdev, REG_PSDFN, START_PSD | freq);
+
+	msleep(30);
+	if (rtw_read32(rtwdev, REG_PSDRPT) >= thres)
+		ret = true;
+
+	rtw_write32(rtwdev, REG_PSDFN, freq);
+	rtw_write32(rtwdev, REG_ANALOG_P4, EN_3WIRE);
+
+	return ret;
+}
+
+static void rtw8723d_cfg_notch(struct rtw_dev *rtwdev, u8 channel, bool notch)
+{
+	if (!notch) {
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_MASK_RXDSP, 0x1f);
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_EN_RXDSP, 0x0);
+		rtw_write32(rtwdev, REG_OFDM1_CSI1, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI2, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI3, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI4, 0x00000000);
+		rtw_write32_mask(rtwdev, REG_OFDM1_CFOTRK, BIT_EN_CFOTRK, 0x0);
+		return;
+	}
+
+	switch (channel) {
+	case 13:
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_MASK_RXDSP, 0xb);
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_EN_RXDSP, 0x1);
+		rtw_write32(rtwdev, REG_OFDM1_CSI1, 0x04000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI2, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI3, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI4, 0x00000000);
+		rtw_write32_mask(rtwdev, REG_OFDM1_CFOTRK, BIT_EN_CFOTRK, 0x1);
+		break;
+	case 14:
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_MASK_RXDSP, 0x5);
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_EN_RXDSP, 0x1);
+		rtw_write32(rtwdev, REG_OFDM1_CSI1, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI2, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI3, 0x00000000);
+		rtw_write32(rtwdev, REG_OFDM1_CSI4, 0x00080000);
+		rtw_write32_mask(rtwdev, REG_OFDM1_CFOTRK, BIT_EN_CFOTRK, 0x1);
+		break;
+	default:
+		rtw_write32_mask(rtwdev, REG_OFDM0_RXDSP, BIT_EN_RXDSP, 0x0);
+		rtw_write32_mask(rtwdev, REG_OFDM1_CFOTRK, BIT_EN_CFOTRK, 0x0);
+		break;
+	}
+}
+
+static void rtw8723d_spur_cal(struct rtw_dev *rtwdev, u8 channel)
+{
+	bool notch;
+
+	if (channel < 13) {
+		rtw8723d_cfg_notch(rtwdev, channel, false);
+		return;
+	}
+
+	notch = rtw8723d_check_spur_ov_thres(rtwdev, channel, SPUR_THRES);
+	rtw8723d_cfg_notch(rtwdev, channel, notch);
+}
+
+static void rtw8723d_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
+{
+	u32 rf_cfgch_a, rf_cfgch_b;
+
+	rf_cfgch_a = rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK);
+	rf_cfgch_b = rtw_read_rf(rtwdev, RF_PATH_B, RF_CFGCH, RFREG_MASK);
+
+	rf_cfgch_a &= ~RFCFGCH_CHANNEL_MASK;
+	rf_cfgch_b &= ~RFCFGCH_CHANNEL_MASK;
+	rf_cfgch_a |= (channel & RFCFGCH_CHANNEL_MASK);
+	rf_cfgch_b |= (channel & RFCFGCH_CHANNEL_MASK);
+
+	rf_cfgch_a &= ~RFCFGCH_BW_MASK;
+	switch (bw) {
+	case RTW_CHANNEL_WIDTH_20:
+		rf_cfgch_a |= RFCFGCH_BW_20M;
+		break;
+	case RTW_CHANNEL_WIDTH_40:
+		rf_cfgch_a |= RFCFGCH_BW_40M;
+		break;
+	default:
+		break;
+	}
+
+	rtw_write_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK, rf_cfgch_a);
+	rtw_write_rf(rtwdev, RF_PATH_B, RF_CFGCH, RFREG_MASK, rf_cfgch_b);
+
+	rtw8723d_spur_cal(rtwdev, channel);
+}
+
+static const struct rtw_backup_info cck_dfir_cfg[][CCK_DFIR_NR] = {
+	[0] = {
+		{ .len = 4, .reg = 0xA24, .val = 0x64B80C1C },
+		{ .len = 4, .reg = 0xA28, .val = 0x00008810 },
+		{ .len = 4, .reg = 0xAAC, .val = 0x01235667 },
+	},
+	[1] = {
+		{ .len = 4, .reg = 0xA24, .val = 0x0000B81C },
+		{ .len = 4, .reg = 0xA28, .val = 0x00000000 },
+		{ .len = 4, .reg = 0xAAC, .val = 0x00003667 },
+	},
+};
+
+static void rtw8723d_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
+				    u8 primary_ch_idx)
+{
+	const struct rtw_backup_info *cck_dfir;
+	int i;
+
+	cck_dfir = channel <= 13 ? cck_dfir_cfg[0] : cck_dfir_cfg[1];
+
+	for (i = 0; i < CCK_DFIR_NR; i++, cck_dfir++)
+		rtw_write32(rtwdev, cck_dfir->reg, cck_dfir->val);
+
+	switch (bw) {
+	case RTW_CHANNEL_WIDTH_20:
+		rtw_write32_mask(rtwdev, REG_FPGA0_RFMOD, BIT_MASK_RFMOD, 0x0);
+		rtw_write32_mask(rtwdev, REG_FPGA1_RFMOD, BIT_MASK_RFMOD, 0x0);
+		rtw_write32_mask(rtwdev, REG_BBRX_DFIR, BIT_RXBB_DFIR_EN, 1);
+		rtw_write32_mask(rtwdev, REG_BBRX_DFIR, BIT_MASK_RXBB_DFIR, 0xa);
+		break;
+	case RTW_CHANNEL_WIDTH_40:
+		rtw_write32_mask(rtwdev, REG_FPGA0_RFMOD, BIT_MASK_RFMOD, 0x1);
+		rtw_write32_mask(rtwdev, REG_FPGA1_RFMOD, BIT_MASK_RFMOD, 0x1);
+		rtw_write32_mask(rtwdev, REG_BBRX_DFIR, BIT_RXBB_DFIR_EN, 0);
+		rtw_write32_mask(rtwdev, REG_CCK0_SYS, BIT_CCK_SIDE_BAND,
+				 (primary_ch_idx == RTW_SC_20_UPPER ? 1 : 0));
+		break;
+	default:
+		break;
+	}
+}
+
+static void rtw8723d_set_channel(struct rtw_dev *rtwdev, u8 channel, u8 bw,
+				 u8 primary_chan_idx)
+{
+	rtw8723d_set_channel_rf(rtwdev, channel, bw);
+	rtw_set_channel_mac(rtwdev, channel, bw, primary_chan_idx);
+	rtw8723d_set_channel_bb(rtwdev, channel, bw, primary_chan_idx);
+}
+
 #define BIT_CFENDFORM		BIT(9)
 #define BIT_WMAC_TCR_ERR0	BIT(12)
 #define BIT_WMAC_TCR_ERR1	BIT(13)
@@ -383,6 +543,7 @@ static struct rtw_chip_ops rtw8723d_ops = {
 	.phy_set_param		= rtw8723d_phy_set_param,
 	.read_efuse		= rtw8723d_read_efuse,
 	.query_rx_desc		= rtw8723d_query_rx_desc,
+	.set_channel		= rtw8723d_set_channel,
 	.mac_init		= rtw8723d_mac_init,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,

@@ -66,7 +66,38 @@ struct rtw8723d_efuse {
 #define GET_PHY_STAT_P1_RXSNR_A(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(7, 0))
 
+#define SPUR_THRES		0x16
+#define CCK_DFIR_NR		3
+#define DIS_3WIRE		0xccf000c0
+#define EN_3WIRE		0xccc000c0
+#define START_PSD		0x400000
+#define FREQ_CH13		0xfccd
+#define FREQ_CH14		0xff9a
+#define RFCFGCH_CHANNEL_MASK	GENMASK(7, 0)
+#define RFCFGCH_BW_MASK		(BIT(11) | BIT(10))
+#define RFCFGCH_BW_20M		(BIT(11) | BIT(10))
+#define RFCFGCH_BW_40M		BIT(10)
+#define BIT_MASK_RFMOD		BIT(0)
+
+#define REG_PSDFN		0x0808
+#define REG_ANALOG_P4		0x088c
+#define REG_PSDRPT		0x08b4
+#define REG_FPGA1_RFMOD		0x0900
+#define REG_BBRX_DFIR		0x0954
+#define BIT_MASK_RXBB_DFIR	GENMASK(27, 24)
+#define BIT_RXBB_DFIR_EN	BIT(19)
+#define REG_CCK0_SYS		0x0a00
+#define BIT_CCK_SIDE_BAND	BIT(4)
+#define REG_OFDM0_RXDSP		0x0c40
+#define BIT_MASK_RXDSP		GENMASK(28, 24)
+#define BIT_EN_RXDSP		BIT(9)
 #define REG_OFDM0_XAAGC1	0x0c50
 #define REG_OFDM0_XBAGC1	0x0c58
+#define REG_OFDM1_CFOTRK	0x0d2c
+#define BIT_EN_CFOTRK		BIT(28)
+#define REG_OFDM1_CSI1		0x0d40
+#define REG_OFDM1_CSI2		0x0d44
+#define REG_OFDM1_CSI3		0x0d48
+#define REG_OFDM1_CSI4		0x0d4c
 
 #endif

@@ -40,6 +40,9 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	}
 	rtw_write32(rtwdev, REG_WMAC_TRXPTCL_CTL, value32);
 
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return;
+
 	value32 = rtw_read32(rtwdev, REG_AFE_CTRL1) & ~(BIT_MAC_CLK_SEL);
 	value32 |= (MAC_CLK_HW_DEF_80M << BIT_SHIFT_MAC_CLK_SEL);
 	rtw_write32(rtwdev, REG_AFE_CTRL1, value32);
