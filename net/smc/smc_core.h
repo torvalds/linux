@@ -70,6 +70,8 @@ struct smc_rdma_wr {				/* work requests per message
 	struct ib_rdma_wr	wr_tx_rdma[SMC_MAX_RDMA_WRITES];
 };
 
+#define SMC_LGR_ID_SIZE		4
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -85,6 +87,7 @@ struct smc_link {
 	struct smc_rdma_sges	*wr_tx_rdma_sges;/*RDMA WRITE gather meta data*/
 	struct smc_rdma_wr	*wr_tx_rdmas;	/* WR RDMA WRITE */
 	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
+	struct completion	*wr_tx_compl;	/* WR send CQE completion */
 	/* above four vectors have wr_tx_cnt elements and use the same index */
 	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
 	atomic_long_t		wr_tx_id;	/* seq # of last sent WR */
@@ -115,7 +118,10 @@ struct smc_link {
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
+	u8			link_uid[SMC_LGR_ID_SIZE]; /* unique lnk id */
+	u8			peer_link_uid[SMC_LGR_ID_SIZE]; /* peer uid */
 	u8			link_idx;	/* index in lgr link array */
+	u8			link_is_asym;	/* is link asymmetric? */
 	struct smc_link_group	*lgr;		/* parent link group */
 	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 
@@ -176,7 +182,6 @@ struct smc_rtoken {				/* address/key of remote RMB */
 	u32			rkey;
 };
 
-#define SMC_LGR_ID_SIZE		4
 #define SMC_BUF_MIN_SIZE	16384	/* minimum size of an RMB */
 #define SMC_RMBE_SIZES		16	/* number of distinct RMBE sizes */
 /* theoretically, the RFC states that largest size would be 512K,
@@ -269,6 +274,8 @@ struct smc_link_group {
 						/* protects llc flow */
 			int			llc_testlink_time;
 						/* link keep alive time */
+			u32			llc_termination_rsn;
+						/* rsn code for termination */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -379,7 +386,12 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 void smcr_link_clear(struct smc_link *lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);
 int smcr_buf_reg_lgr(struct smc_link *lnk);
+void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);
+void smcr_lgr_set_type_asym(struct smc_link_group *lgr,
+			    enum smc_lgr_type new_type, int asym_lnk_idx);
 int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc);
+struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
+				  struct smc_link *from_lnk, bool is_dev_err);
 void smcr_link_down_cond(struct smc_link *lnk);
 void smcr_link_down_cond_sched(struct smc_link *lnk);
 

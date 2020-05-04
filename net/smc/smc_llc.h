@@ -60,6 +60,14 @@ static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)
 	return NULL;
 }
 
+/* set the termination reason code for the link group */
+static inline void smc_llc_set_termination_rsn(struct smc_link_group *lgr,
+					       u32 rsn)
+{
+	if (!lgr->llc_termination_rsn)
+		lgr->llc_termination_rsn = rsn;
+}
+
 /* transmit */
 int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);
@@ -84,11 +92,15 @@ int smc_llc_flow_initiate(struct smc_link_group *lgr,
 void smc_llc_flow_stop(struct smc_link_group *lgr, struct smc_llc_flow *flow);
 int smc_llc_eval_conf_link(struct smc_llc_qentry *qentry,
 			   enum smc_llc_reqresp type);
+void smc_llc_link_set_uid(struct smc_link *link);
+void smc_llc_save_peer_uid(struct smc_llc_qentry *qentry);
 struct smc_llc_qentry *smc_llc_wait(struct smc_link_group *lgr,
 				    struct smc_link *lnk,
 				    int time_out, u8 exp_msg);
 struct smc_llc_qentry *smc_llc_flow_qentry_clr(struct smc_llc_flow *flow);
 void smc_llc_flow_qentry_del(struct smc_llc_flow *flow);
+void smc_llc_send_link_delete_all(struct smc_link_group *lgr, bool ord,
+				  u32 rsn);
 int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry);
 int smc_llc_srv_add_link(struct smc_link *link);
 void smc_llc_srv_add_link_local(struct smc_link *link);

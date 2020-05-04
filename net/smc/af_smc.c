@@ -390,6 +390,7 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 				      SMC_CLC_DECLINE, CLC_WAIT_TIME_SHORT);
 		return rc == -EAGAIN ? SMC_CLC_DECL_TIMEOUT_CL : rc;
 	}
+	smc_llc_save_peer_uid(qentry);
 	rc = smc_llc_eval_conf_link(qentry, SMC_LLC_REQ);
 	smc_llc_flow_qentry_del(&link->lgr->llc_flow_lcl);
 	if (rc)
@@ -1056,6 +1057,7 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 				      SMC_CLC_DECLINE, CLC_WAIT_TIME_SHORT);
 		return rc == -EAGAIN ? SMC_CLC_DECL_TIMEOUT_CL : rc;
 	}
+	smc_llc_save_peer_uid(qentry);
 	rc = smc_llc_eval_conf_link(qentry, SMC_LLC_RESP);
 	smc_llc_flow_qentry_del(&link->lgr->llc_flow_lcl);
 	if (rc)
