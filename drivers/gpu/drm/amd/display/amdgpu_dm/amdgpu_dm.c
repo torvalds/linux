@@ -1571,7 +1571,6 @@ static int dm_suspend(void *handle)
 {
 	struct amdgpu_device *adev = handle;
 	struct amdgpu_display_manager *dm = &adev->dm;
-	int ret = 0;
 
 	WARN_ON(adev->dm.cached_state);
 	adev->dm.cached_state = drm_atomic_helper_suspend(adev->ddev);
@@ -1583,7 +1582,7 @@ static int dm_suspend(void *handle)
 
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D3);
 
-	return ret;
+	return 0;
 }
 
 static struct amdgpu_dm_connector *
