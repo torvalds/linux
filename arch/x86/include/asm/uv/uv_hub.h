@@ -219,20 +219,6 @@ static inline struct uv_hub_info_s *uv_cpu_hub_info(int cpu)
 	return (struct uv_hub_info_s *)uv_cpu_info_per(cpu)->p_uv_hub_info;
 }
 
-#define	UV_HUB_INFO_VERSION	0x7150
-extern int uv_hub_info_version(void);
-static inline int uv_hub_info_check(int version)
-{
-	if (uv_hub_info_version() == version)
-		return 0;
-
-	pr_crit("UV: uv_hub_info version(%x) mismatch, expecting(%x)\n",
-		uv_hub_info_version(), version);
-
-	BUG();	/* Catastrophic - cannot continue on unknown UV system */
-}
-#define	_uv_hub_info_check()	uv_hub_info_check(UV_HUB_INFO_VERSION)
-
 /*
  * HUB revision ranges for each UV HUB architecture.
  * This is a software convention - NOT the hardware revision numbers in
