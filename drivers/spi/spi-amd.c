@@ -287,7 +287,6 @@ static int amd_spi_probe(struct platform_device *pdev)
 		dev_err(dev, "error %d registering SPI controller\n", err);
 		goto err_free_master;
 	}
-	platform_set_drvdata(pdev, amd_spi);
 
 	return 0;
 
@@ -303,7 +302,6 @@ static int amd_spi_remove(struct platform_device *pdev)
 
 	spi_unregister_master(amd_spi->master);
 	spi_master_put(amd_spi->master);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
