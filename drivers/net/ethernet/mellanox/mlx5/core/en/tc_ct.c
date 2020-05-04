@@ -1400,12 +1400,11 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
  * + fte_id match +------------------------>
  * +--------------+
  */
-static int
+static struct mlx5_flow_handle *
 __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			  struct mlx5e_tc_flow *flow,
 			  struct mlx5_flow_spec *orig_spec,
-			  struct mlx5_esw_flow_attr *attr,
-			  struct mlx5_flow_handle **flow_rule)
+			  struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
 	bool nat = attr->ct_attr.ct_action & TCA_CT_ACT_NAT;
@@ -1425,7 +1424,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	if (!post_ct_spec || !ct_flow) {
 		kfree(post_ct_spec);
 		kfree(ct_flow);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* Register for CT established events */
@@ -1546,11 +1545,10 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	}
 
 	attr->ct_attr.ct_flow = ct_flow;
-	*flow_rule = ct_flow->post_ct_rule;
 	dealloc_mod_hdr_actions(&pre_mod_acts);
 	kfree(post_ct_spec);
 
-	return 0;
+	return rule;
 
 err_insert_orig:
 	mlx5_eswitch_del_offloaded_rule(ct_priv->esw, ct_flow->post_ct_rule,
@@ -1568,16 +1566,15 @@ err_ft:
 	kfree(post_ct_spec);
 	kfree(ct_flow);
 	netdev_warn(priv->netdev, "Failed to offload ct flow, err %d\n", err);
-	return err;
+	return ERR_PTR(err);
 }
 
-static int
+static struct mlx5_flow_handle *
 __mlx5_tc_ct_flow_offload_clear(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
 				struct mlx5_flow_spec *orig_spec,
 				struct mlx5_esw_flow_attr *attr,
-				struct mlx5e_tc_mod_hdr_acts *mod_acts,
-				struct mlx5_flow_handle **flow_rule)
+				struct mlx5e_tc_mod_hdr_acts *mod_acts)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
 	struct mlx5_eswitch *esw = ct_priv->esw;
@@ -1589,7 +1586,7 @@ __mlx5_tc_ct_flow_offload_clear(struct mlx5e_priv *priv,
 
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
 	if (!ct_flow)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/* Base esw attributes on original rule attribute */
 	pre_ct_attr = &ct_flow->pre_ct_attr;
@@ -1624,16 +1621,14 @@ __mlx5_tc_ct_flow_offload_clear(struct mlx5e_priv *priv,
 
 	attr->ct_attr.ct_flow = ct_flow;
 	ct_flow->pre_ct_rule = rule;
-	*flow_rule = rule;
-
-	return 0;
+	return rule;
 
 err_insert:
 	mlx5_modify_header_dealloc(priv->mdev, mod_hdr);
 err_set_registers:
 	netdev_warn(priv->netdev,
 		    "Failed to offload ct clear flow, err %d\n", err);
-	return err;
+	return ERR_PTR(err);
 }
 
 struct mlx5_flow_handle *
@@ -1645,22 +1640,18 @@ mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 {
 	bool clear_action = attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
-	struct mlx5_flow_handle *rule = ERR_PTR(-EINVAL);
-	int err;
+	struct mlx5_flow_handle *rule;
 
 	if (!ct_priv)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mutex_lock(&ct_priv->control_lock);
+
 	if (clear_action)
-		err = __mlx5_tc_ct_flow_offload_clear(priv, flow, spec, attr,
-						      mod_hdr_acts, &rule);
+		rule = __mlx5_tc_ct_flow_offload_clear(priv, flow, spec, attr, mod_hdr_acts);
 	else
-		err = __mlx5_tc_ct_flow_offload(priv, flow, spec, attr,
-						&rule);
+		rule = __mlx5_tc_ct_flow_offload(priv, flow, spec, attr);
 	mutex_unlock(&ct_priv->control_lock);
-	if (err)
-		return ERR_PTR(err);
 
 	return rule;
 }
