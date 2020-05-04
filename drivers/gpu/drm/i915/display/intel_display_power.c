@@ -1943,22 +1943,29 @@ static u64 __async_put_domains_mask(struct i915_power_domains *power_domains)
 static bool
 assert_async_put_domain_masks_disjoint(struct i915_power_domains *power_domains)
 {
-	return !WARN_ON(power_domains->async_put_domains[0] &
-			power_domains->async_put_domains[1]);
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
+	return !drm_WARN_ON(&i915->drm, power_domains->async_put_domains[0] &
+			    power_domains->async_put_domains[1]);
 }
 
 static bool
 __async_put_domains_state_ok(struct i915_power_domains *power_domains)
 {
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
 	enum intel_display_power_domain domain;
 	bool err = false;
 
 	err |= !assert_async_put_domain_masks_disjoint(power_domains);
-	err |= WARN_ON(!!power_domains->async_put_wakeref !=
-		       !!__async_put_domains_mask(power_domains));
+	err |= drm_WARN_ON(&i915->drm, !!power_domains->async_put_wakeref !=
+			   !!__async_put_domains_mask(power_domains));
 
 	for_each_power_domain(domain, __async_put_domains_mask(power_domains))
-		err |= WARN_ON(power_domains->domain_use_count[domain] != 1);
+		err |= drm_WARN_ON(&i915->drm,
+				   power_domains->domain_use_count[domain] != 1);
 
 	return !err;
 }
@@ -2200,11 +2207,14 @@ static void
 queue_async_put_domains_work(struct i915_power_domains *power_domains,
 			     intel_wakeref_t wakeref)
 {
-	WARN_ON(power_domains->async_put_wakeref);
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
+	drm_WARN_ON(&i915->drm, power_domains->async_put_wakeref);
 	power_domains->async_put_wakeref = wakeref;
-	WARN_ON(!queue_delayed_work(system_unbound_wq,
-				    &power_domains->async_put_work,
-				    msecs_to_jiffies(100)));
+	drm_WARN_ON(&i915->drm, !queue_delayed_work(system_unbound_wq,
+						    &power_domains->async_put_work,
+						    msecs_to_jiffies(100)));
 }
 
 static void
@@ -4365,6 +4375,9 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		  const struct i915_power_well_desc *power_well_descs,
 		  int power_well_count)
 {
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
 	u64 power_well_ids = 0;
 	int i;
 
@@ -4384,8 +4397,8 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		if (id == DISP_PW_ID_NONE)
 			continue;
 
-		WARN_ON(id >= sizeof(power_well_ids) * 8);
-		WARN_ON(power_well_ids & BIT_ULL(id));
+		drm_WARN_ON(&i915->drm, id >= sizeof(power_well_ids) * 8);
+		drm_WARN_ON(&i915->drm, power_well_ids & BIT_ULL(id));
 		power_well_ids |= BIT_ULL(id);
 	}
 
