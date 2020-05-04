@@ -19,7 +19,6 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
-#include <linux/crc32.h>
 #include <linux/in.h>
 #include <linux/io.h>
 #include <linux/ip.h>
@@ -2610,7 +2609,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 
 		mc_filter[1] = mc_filter[0] = 0;
 		netdev_for_each_mc_addr(ha, dev) {
-			u32 bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+			u32 bit_nr = eth_hw_addr_crc(ha) >> 26;
 			mc_filter[bit_nr >> 5] |= BIT(bit_nr & 31);
 		}
 
