@@ -34,7 +34,8 @@ static struct sk_buff *rdma_build_skb(struct ib_device *device,
 	skb_push(skb, sizeof(struct udphdr));
 	skb_reset_transport_header(skb);
 	uh = udp_hdr(skb);
-	uh->source = htons(0xC000);
+	uh->source =
+		htons(rdma_flow_label_to_udp_sport(ah_attr->grh.flow_label));
 	uh->dest = htons(ROCE_V2_UDP_DPORT);
 	uh->len = htons(sizeof(struct udphdr));
 
@@ -114,7 +115,8 @@ struct net_device *rdma_lag_get_ah_roce_slave(struct ib_device *device,
 	struct net_device *master;
 
 	if (!(ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE &&
-	      ah_attr->grh.sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP))
+	      ah_attr->grh.sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP &&
+	      ah_attr->grh.flow_label))
 		return NULL;
 
 	rcu_read_lock();
