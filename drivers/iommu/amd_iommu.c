@@ -1446,15 +1446,18 @@ static bool increase_address_space(struct protection_domain *domain,
 {
 	struct domain_pgtable pgtable;
 	unsigned long flags;
-	bool ret = false;
+	bool ret = true;
 	u64 *pte, root;
 
 	spin_lock_irqsave(&domain->lock, flags);
 
 	amd_iommu_domain_get_pgtable(domain, &pgtable);
 
-	if (address <= PM_LEVEL_SIZE(pgtable.mode) ||
-	    WARN_ON_ONCE(pgtable.mode == PAGE_MODE_6_LEVEL))
+	if (address <= PM_LEVEL_SIZE(pgtable.mode))
+		goto out;
+
+	ret = false;
+	if (WARN_ON_ONCE(pgtable.mode == PAGE_MODE_6_LEVEL))
 		goto out;
 
 	pte = (void *)get_zeroed_page(gfp);
@@ -1499,19 +1502,15 @@ static u64 *alloc_pte(struct protection_domain *domain,
 	amd_iommu_domain_get_pgtable(domain, &pgtable);
 
 	while (address > PM_LEVEL_SIZE(pgtable.mode)) {
-		bool upd = increase_address_space(domain, address, gfp);
-
-		/* Read new values to check if update was successful */
-		amd_iommu_domain_get_pgtable(domain, &pgtable);
-
 		/*
 		 * Return an error if there is no memory to update the
 		 * page-table.
 		 */
-		if (!upd && (address > PM_LEVEL_SIZE(pgtable.mode)))
+		if (!increase_address_space(domain, address, gfp))
 			return NULL;
 
-		*updated = *updated || upd;
+		/* Read new values to check if update was successful */
+		amd_iommu_domain_get_pgtable(domain, &pgtable);
 	}
 
 
@@ -1719,7 +1718,13 @@ out:
 		unsigned long flags;
 
 		spin_lock_irqsave(&dom->lock, flags);
-		update_domain(dom);
+		/*
+		 * Flush domain TLB(s) and wait for completion. Any Device-Table
+		 * Updates and flushing already happened in
+		 * increase_address_space().
+		 */
+		domain_flush_tlb_pde(dom);
+		domain_flush_complete(dom);
 		spin_unlock_irqrestore(&dom->lock, flags);
 	}
 
