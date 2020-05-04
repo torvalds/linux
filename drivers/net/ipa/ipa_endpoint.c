@@ -293,7 +293,14 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	u32 mask;
 	u32 val;
 
-	/* assert(ipa->version == IPA_VERSION_3_5_1 */
+	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
+	 * correctly on IPA v4.2.
+	 *
+	 * if (endpoint->toward_ipa)
+	 * 	assert(ipa->version != IPA_VERSION_4.2);
+	 * else
+	 * 	assert(ipa->version == IPA_VERSION_3_5_1);
+	 */
 	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 
 	val = ioread32(ipa->reg_virt + offset);
@@ -307,13 +314,31 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	return state;
 }
 
+/* We currently don't care what the previous state was for delay mode */
+static void
+ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
+{
+	/* assert(endpoint->toward_ipa); */
+
+	(void)ipa_endpoint_init_ctrl(endpoint, enable);
+}
+
+/* Returns previous suspend state (true means it was enabled) */
+static bool
+ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
+{
+	/* assert(!endpoint->toward_ipa); */
+
+	return ipa_endpoint_init_ctrl(endpoint, enable);
+}
+
 /* Enable or disable delay or suspend mode on all modem endpoints */
 void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 {
 	bool support_suspend;
 	u32 endpoint_id;
 
-	/* DELAY mode doesn't work right on IPA v4.2 */
+	/* DELAY mode doesn't work correctly on IPA v4.2 */
 	if (ipa->version == IPA_VERSION_4_2)
 		return;
 
@@ -327,8 +352,10 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 			continue;
 
 		/* Set TX delay mode, or for IPA v3.5.1 RX suspend mode */
-		if (endpoint->toward_ipa || support_suspend)
-			(void)ipa_endpoint_init_ctrl(endpoint, enable);
+		if (endpoint->toward_ipa)
+			ipa_endpoint_program_delay(endpoint, enable);
+		else if (support_suspend)
+			(void)ipa_endpoint_program_suspend(endpoint, enable);
 	}
 }
 
@@ -1135,8 +1162,8 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct ipa *ipa = endpoint->ipa;
-	bool endpoint_suspended = false;
 	struct gsi *gsi = &ipa->gsi;
+	bool suspended = false;
 	dma_addr_t addr;
 	bool legacy;
 	u32 retries;
@@ -1166,7 +1193,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 
 	/* Make sure the channel isn't suspended */
 	if (endpoint->ipa->version == IPA_VERSION_3_5_1)
-		endpoint_suspended = ipa_endpoint_init_ctrl(endpoint, false);
+		suspended = ipa_endpoint_program_suspend(endpoint, false);
 
 	/* Start channel and do a 1 byte read */
 	ret = gsi_channel_start(gsi, endpoint->channel_id);
@@ -1211,8 +1238,8 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 err_endpoint_stop:
 	ipa_endpoint_stop(endpoint);
 out_suspend_again:
-	if (endpoint_suspended)
-		(void)ipa_endpoint_init_ctrl(endpoint, true);
+	if (suspended)
+		(void)ipa_endpoint_program_suspend(endpoint, true);
 	dma_unmap_single(dev, addr, len, DMA_FROM_DEVICE);
 out_kfree:
 	kfree(virt);
@@ -1313,30 +1340,18 @@ int ipa_endpoint_stop(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
-	struct device *dev = &endpoint->ipa->pdev->dev;
-	int ret;
-
 	if (endpoint->toward_ipa) {
 		bool delay_mode = endpoint->data->tx.delay;
 
-		/* Endpoint is expected to not be in delay mode */
-		if (ipa_endpoint_init_ctrl(endpoint, delay_mode))
-			dev_warn(dev,
-				"TX endpoint %u was %sin delay mode\n",
-				endpoint->endpoint_id,
-				delay_mode ? "already " : "");
+		if (endpoint->ipa->version != IPA_VERSION_4_2)
+			ipa_endpoint_program_delay(endpoint, delay_mode);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
 		ipa_endpoint_init_deaggr(endpoint);
 		ipa_endpoint_init_seq(endpoint);
 	} else {
-		/* Endpoint is expected to not be suspended */
-		if (endpoint->ipa->version == IPA_VERSION_3_5_1) {
-			if (ipa_endpoint_init_ctrl(endpoint, false))
-				dev_warn(dev,
-					"RX endpoint %u was suspended\n",
-					endpoint->endpoint_id);
-		}
+		if (endpoint->ipa->version == IPA_VERSION_3_5_1)
+			(void)ipa_endpoint_program_suspend(endpoint, false);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
 	}
@@ -1448,7 +1463,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		 * aggregation frame, then simulating the arrival of such
 		 * an interrupt.
 		 */
-		WARN_ON(ipa_endpoint_init_ctrl(endpoint, true));
+		(void)ipa_endpoint_program_suspend(endpoint, true);
 		ipa_endpoint_suspend_aggr(endpoint);
 	}
 
@@ -1471,7 +1486,7 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	/* IPA v3.5.1 doesn't use channel start for resume */
 	start_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
 	if (!endpoint->toward_ipa && !start_channel)
-		WARN_ON(!ipa_endpoint_init_ctrl(endpoint, false));
+		(void)ipa_endpoint_program_suspend(endpoint, false);
 
 	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
 	if (ret)
