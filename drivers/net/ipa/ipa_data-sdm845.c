@@ -321,6 +321,8 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 static struct ipa_mem_data ipa_mem_data = {
 	.local_count	= ARRAY_SIZE(ipa_mem_local_data),
 	.local		= ipa_mem_local_data,
+	.imem_addr	= 0x146bd000,
+	.imem_size	= 0x00002000,
 };
 
 /* Configuration data for the SDM845 SoC. */

@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bug.h>
 #include <linux/dma-mapping.h>
+#include <linux/iommu.h>
 #include <linux/io.h>
 
 #include "ipa.h"
@@ -266,6 +267,79 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 	return 0;
 }
 
+/**
+ * ipa_imem_init() - Initialize IMEM memory used by the IPA
+ * @ipa:	IPA pointer
+ * @addr:	Physical address of the IPA region in IMEM
+ * @size:	Size (bytes) of the IPA region in IMEM
+ *
+ * IMEM is a block of shared memory separate from system DRAM, and
+ * a portion of this memory is available for the IPA to use.  The
+ * modem accesses this memory directly, but the IPA accesses it
+ * via the IOMMU, using the AP's credentials.
+ *
+ * If this region exists (size > 0) we map it for read/write access
+ * through the IOMMU using the IPA device.
+ *
+ * Note: @addr and @size are not guaranteed to be page-aligned.
+ */
+static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
+{
+	struct device *dev = &ipa->pdev->dev;
+	struct iommu_domain *domain;
+	unsigned long iova;
+	phys_addr_t phys;
+	int ret;
+
+	if (!size)
+		return 0;	/* IMEM memory not used */
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain) {
+		dev_err(dev, "no IOMMU domain found for IMEM\n");
+		return -EINVAL;
+	}
+
+	/* Align the address down and the size up to page boundaries */
+	phys = addr & PAGE_MASK;
+	size = PAGE_ALIGN(size + addr - phys);
+	iova = phys;	/* We just want a direct mapping */
+
+	ret = iommu_map(domain, iova, phys, size, IOMMU_READ | IOMMU_WRITE);
+	if (ret)
+		return ret;
+
+	ipa->imem_iova = iova;
+	ipa->imem_size = size;
+
+	return 0;
+}
+
+static void ipa_imem_exit(struct ipa *ipa)
+{
+	struct iommu_domain *domain;
+	struct device *dev;
+
+	if (!ipa->imem_size)
+		return;
+
+	dev = &ipa->pdev->dev;
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain) {
+		size_t size;
+
+		size = iommu_unmap(domain, ipa->imem_iova, ipa->imem_size);
+		if (size != ipa->imem_size)
+			dev_warn(dev, "unmapped %zu IMEM bytes, expected %lu\n",
+				 size, ipa->imem_size);
+	} else {
+		dev_err(dev, "couldn't get IPA IOMMU domain for IMEM\n");
+	}
+
+	ipa->imem_size = 0;
+	ipa->imem_iova = 0;
+}
+
 /* Perform memory region-related initialization */
 int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
@@ -305,11 +379,21 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
 	ipa->mem = mem_data->local;
 
+	ret = ipa_imem_init(ipa, mem_data->imem_addr, mem_data->imem_size);
+	if (ret)
+		goto err_unmap;
+
 	return 0;
+
+err_unmap:
+	memunmap(ipa->mem_virt);
+
+	return ret;
 }
 
 /* Inverse of ipa_mem_init() */
 void ipa_mem_exit(struct ipa *ipa)
 {
+	ipa_imem_exit(ipa);
 	memunmap(ipa->mem_virt);
 }

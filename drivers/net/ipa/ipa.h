@@ -47,6 +47,8 @@ struct ipa_interrupt;
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
  * @mem_size:		Total size (bytes) of memory at @mem_virt
  * @mem:		Array of IPA-local memory region descriptors
+ * @imem_iova:		I/O virtual address of IPA region in IMEM
+ * @imem_size;		Size of IMEM region
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
@@ -87,6 +89,9 @@ struct ipa {
 	u32 mem_offset;
 	u32 mem_size;
 	const struct ipa_mem *mem;
+
+	unsigned long imem_iova;
+	size_t imem_size;
 
 	dma_addr_t zero_addr;
 	void *zero_virt;
