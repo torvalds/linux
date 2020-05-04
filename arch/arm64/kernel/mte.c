@@ -3,11 +3,25 @@
  * Copyright (C) 2020 ARM Ltd.
  */
 
+#include <linux/bitops.h>
+#include <linux/mm.h>
 #include <linux/thread_info.h>
 
 #include <asm/cpufeature.h>
 #include <asm/mte.h>
 #include <asm/sysreg.h>
+
+void mte_sync_tags(pte_t *ptep, pte_t pte)
+{
+	struct page *page = pte_page(pte);
+	long i, nr_pages = compound_nr(page);
+
+	/* if PG_mte_tagged is set, tags have already been initialised */
+	for (i = 0; i < nr_pages; i++, page++) {
+		if (!test_and_set_bit(PG_mte_tagged, &page->flags))
+			mte_clear_page_tags(page_address(page));
+	}
+}
 
 void flush_mte_state(void)
 {

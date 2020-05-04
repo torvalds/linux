@@ -9,6 +9,7 @@
 #include <asm/proc-fns.h>
 
 #include <asm/memory.h>
+#include <asm/mte.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable-prot.h>
 #include <asm/tlbflush.h>
@@ -90,6 +91,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_user_exec(pte)	(!(pte_val(pte) & PTE_UXN))
 #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
 #define pte_devmap(pte)		(!!(pte_val(pte) & PTE_DEVMAP))
+#define pte_tagged(pte)		((pte_val(pte) & PTE_ATTRINDX_MASK) == \
+				 PTE_ATTRINDX(MT_NORMAL_TAGGED))
 
 #define pte_cont_addr_end(addr, end)						\
 ({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
@@ -283,6 +286,10 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
 		__sync_icache_dcache(pte);
+
+	if (system_supports_mte() &&
+	    pte_present(pte) && pte_tagged(pte) && !pte_special(pte))
+		mte_sync_tags(ptep, pte);
 
 	__check_racy_pte_update(mm, ptep, pte);
 

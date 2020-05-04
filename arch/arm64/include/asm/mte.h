@@ -7,12 +7,28 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/page-flags.h>
+
+#include <asm/pgtable-types.h>
+
+void mte_clear_page_tags(void *addr);
+
 #ifdef CONFIG_ARM64_MTE
 
+/* track which pages have valid allocation tags */
+#define PG_mte_tagged	PG_arch_2
+
+void mte_sync_tags(pte_t *ptep, pte_t pte);
 void flush_mte_state(void);
 
 #else
 
+/* unused if !CONFIG_ARM64_MTE, silence the compiler */
+#define PG_mte_tagged	0
+
+static inline void mte_sync_tags(pte_t *ptep, pte_t pte)
+{
+}
 static inline void flush_mte_state(void)
 {
 }
