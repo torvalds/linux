@@ -2447,6 +2447,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
+	.rx_ldpc = true,
 
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,

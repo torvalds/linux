@@ -1085,6 +1085,7 @@ struct rtw_chip_info {
 	u8 dig_min;
 	u8 txgi_factor;
 	bool is_pwr_by_rate_dec;
+	bool rx_ldpc;
 	u8 max_power_index;
 
 	bool ht_supported;
@@ -1741,6 +1742,11 @@ static inline bool rtw_chip_wcpu_11n(struct rtw_dev *rtwdev)
 static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
 {
 	return rtwdev->chip->wlan_cpu == RTW_WCPU_11AC;
+}
+
+static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->rx_ldpc;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

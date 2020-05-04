@@ -1039,6 +1039,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.rf_tbl = {&rtw8723d_rf_a_tbl},
 	.rfe_defs = rtw8723d_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8723d_rfe_defs),
+	.rx_ldpc = false,
 };
 EXPORT_SYMBOL(rtw8723d_hw_spec);
 
