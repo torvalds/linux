@@ -179,8 +179,40 @@ static int hwmon_thermal_add_sensor(struct device *dev, int index)
 
 	return 0;
 }
+
+static int hwmon_thermal_register_sensors(struct device *dev)
+{
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
+	const struct hwmon_chip_info *chip = hwdev->chip;
+	const struct hwmon_channel_info **info = chip->info;
+	void *drvdata = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 1; info[i]; i++) {
+		int j;
+
+		if (info[i]->type != hwmon_temp)
+			continue;
+
+		for (j = 0; info[i]->config[j]; j++) {
+			int err;
+
+			if (!(info[i]->config[j] & HWMON_T_INPUT) ||
+			    !chip->ops->is_visible(drvdata, hwmon_temp,
+						   hwmon_temp_input, j))
+				continue;
+
+			err = hwmon_thermal_add_sensor(dev, j);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 #else
-static int hwmon_thermal_add_sensor(struct device *dev, int index)
+static int hwmon_thermal_register_sensors(struct device *dev)
 {
 	return 0;
 }
@@ -596,7 +628,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 {
 	struct hwmon_device *hwdev;
 	struct device *hdev;
-	int i, j, err, id;
+	int i, err, id;
 
 	/* Complain about invalid characters in hwmon name attribute */
 	if (name && (!strlen(name) || strpbrk(name, "-* \t\n")))
@@ -664,30 +696,14 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	if (dev && dev->of_node && chip && chip->ops->read &&
 	    chip->info[0]->type == hwmon_chip &&
 	    (chip->info[0]->config[0] & HWMON_C_REGISTER_TZ)) {
-		const struct hwmon_channel_info **info = chip->info;
-
-		for (i = 1; info[i]; i++) {
-			if (info[i]->type != hwmon_temp)
-				continue;
-
-			for (j = 0; info[i]->config[j]; j++) {
-				if (!chip->ops->is_visible(drvdata, hwmon_temp,
-							   hwmon_temp_input, j))
-					continue;
-				if (info[i]->config[j] & HWMON_T_INPUT) {
-					err = hwmon_thermal_add_sensor(hdev, j);
-					if (err) {
-						device_unregister(hdev);
-						/*
-						 * Don't worry about hwdev;
-						 * hwmon_dev_release(), called
-						 * from device_unregister(),
-						 * will free it.
-						 */
-						goto ida_remove;
-					}
-				}
-			}
+		err = hwmon_thermal_register_sensors(hdev);
+		if (err) {
+			device_unregister(hdev);
+			/*
+			 * Don't worry about hwdev; hwmon_dev_release(), called
+			 * from device_unregister(), will free it.
+			 */
+			goto ida_remove;
 		}
 	}
 
