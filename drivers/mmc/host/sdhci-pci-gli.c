@@ -26,6 +26,9 @@
 #define   SDHCI_GLI_9750_DRIVING_2    GENMASK(27, 26)
 #define   GLI_9750_DRIVING_1_VALUE    0xFFF
 #define   GLI_9750_DRIVING_2_VALUE    0x3
+#define   SDHCI_GLI_9750_SEL_1        BIT(29)
+#define   SDHCI_GLI_9750_SEL_2        BIT(31)
+#define   SDHCI_GLI_9750_ALL_RST      (BIT(24)|BIT(25)|BIT(28)|BIT(30))
 
 #define SDHCI_GLI_9750_PLL	      0x864
 #define   SDHCI_GLI_9750_PLL_TX2_INV    BIT(23)
@@ -122,6 +125,8 @@ static void gli_set_9750(struct sdhci_host *host)
 				    GLI_9750_DRIVING_1_VALUE);
 	driving_value |= FIELD_PREP(SDHCI_GLI_9750_DRIVING_2,
 				    GLI_9750_DRIVING_2_VALUE);
+	driving_value &= ~(SDHCI_GLI_9750_SEL_1|SDHCI_GLI_9750_SEL_2|SDHCI_GLI_9750_ALL_RST);
+	driving_value |= SDHCI_GLI_9750_SEL_2;
 	sdhci_writel(host, driving_value, SDHCI_GLI_9750_DRIVING);
 
 	sw_ctrl_value &= ~SDHCI_GLI_9750_SW_CTRL_4;
