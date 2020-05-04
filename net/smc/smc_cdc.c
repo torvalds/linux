@@ -56,11 +56,11 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 }
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
+			  struct smc_link *link,
 			  struct smc_wr_buf **wr_buf,
 			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend)
 {
-	struct smc_link *link = conn->lnk;
 	int rc;
 
 	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
@@ -119,13 +119,27 @@ static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 {
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
+	struct smc_link *link;
+	bool again = false;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(conn, &wr_buf, NULL, &pend);
+again:
+	link = conn->lnk;
+	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, NULL, &pend);
 	if (rc)
 		return rc;
 
 	spin_lock_bh(&conn->send_lock);
+	if (link != conn->lnk) {
+		/* link of connection changed, try again one time*/
+		spin_unlock_bh(&conn->send_lock);
+		smc_wr_tx_put_slot(link,
+				   (struct smc_wr_tx_pend_priv *)pend);
+		if (again)
+			return -ENOLINK;
+		again = true;
+		goto again;
+	}
 	rc = smc_cdc_msg_send(conn, wr_buf, pend);
 	spin_unlock_bh(&conn->send_lock);
 	return rc;

@@ -482,12 +482,13 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
 static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
 	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
+	struct smc_link *link = conn->lnk;
 	struct smc_rdma_wr *wr_rdma_buf;
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(conn, &wr_buf, &wr_rdma_buf, &pend);
+	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, &wr_rdma_buf, &pend);
 	if (rc < 0) {
 		if (rc == -EBUSY) {
 			struct smc_sock *smc =
@@ -505,10 +506,17 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 	spin_lock_bh(&conn->send_lock);
+	if (link != conn->lnk) {
+		/* link of connection changed, tx_work will restart */
+		smc_wr_tx_put_slot(link,
+				   (struct smc_wr_tx_pend_priv *)pend);
+		rc = -ENOLINK;
+		goto out_unlock;
+	}
 	if (!pflags->urg_data_present) {
 		rc = smc_tx_rdma_writes(conn, wr_rdma_buf);
 		if (rc) {
-			smc_wr_tx_put_slot(conn->lnk,
+			smc_wr_tx_put_slot(link,
 					   (struct smc_wr_tx_pend_priv *)pend);
 			goto out_unlock;
 		}
