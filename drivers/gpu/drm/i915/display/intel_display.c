@@ -12505,7 +12505,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 			continue;
 
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, linked) {
-			if (!icl_is_nv12_y_plane(linked->id))
+			if (!icl_is_nv12_y_plane(dev_priv, linked->id))
 				continue;
 
 			if (crtc_state->active_planes & BIT(linked->id))
@@ -12551,6 +12551,10 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 				plane_state->cus_ctl |= PLANE_CUS_PLANE_7;
 			else if (linked->id == PLANE_SPRITE4)
 				plane_state->cus_ctl |= PLANE_CUS_PLANE_6;
+			else if (linked->id == PLANE_SPRITE3)
+				plane_state->cus_ctl |= PLANE_CUS_PLANE_5_RKL;
+			else if (linked->id == PLANE_SPRITE2)
+				plane_state->cus_ctl |= PLANE_CUS_PLANE_4_RKL;
 			else
 				MISSING_CASE(linked->id);
 		}
