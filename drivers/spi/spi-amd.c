@@ -38,7 +38,6 @@ struct amd_spi {
 	void __iomem *io_remap_addr;
 	unsigned long io_base_addr;
 	u32 rom_addr;
-	struct spi_master *master;
 	u8 chip_select;
 };
 
@@ -164,9 +163,9 @@ static int amd_spi_master_setup(struct spi_device *spi)
 }
 
 static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
+				    struct spi_master *master,
 				    struct spi_message *message)
 {
-	struct spi_master *master = amd_spi->master;
 	struct spi_transfer *xfer = NULL;
 	u8 cmd_opcode;
 	u8 *buf = NULL;
@@ -241,7 +240,7 @@ static int amd_spi_master_transfer(struct spi_master *master,
 	 * Extract spi_transfers from the spi message and
 	 * program the controller.
 	 */
-	amd_spi_fifo_xfer(amd_spi, msg);
+	amd_spi_fifo_xfer(amd_spi, master, msg);
 
 	return 0;
 }
@@ -262,7 +261,6 @@ static int amd_spi_probe(struct platform_device *pdev)
 	}
 
 	amd_spi = spi_master_get_devdata(master);
-	amd_spi->master = master;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	amd_spi->io_remap_addr = devm_ioremap_resource(&pdev->dev, res);
