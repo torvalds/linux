@@ -33,11 +33,12 @@ static struct nvmet_type_name_map nvmet_transport[] = {
 };
 
 static const struct nvmet_type_name_map nvmet_addr_family[] = {
-	{ NVMF_ADDR_FAMILY_PCI,	"pcie" },
-	{ NVMF_ADDR_FAMILY_IP4,	"ipv4" },
-	{ NVMF_ADDR_FAMILY_IP6,	"ipv6" },
-	{ NVMF_ADDR_FAMILY_IB,	"ib" },
-	{ NVMF_ADDR_FAMILY_FC,	"fc" },
+	{ NVMF_ADDR_FAMILY_PCI,		"pcie" },
+	{ NVMF_ADDR_FAMILY_IP4,		"ipv4" },
+	{ NVMF_ADDR_FAMILY_IP6,		"ipv6" },
+	{ NVMF_ADDR_FAMILY_IB,		"ib" },
+	{ NVMF_ADDR_FAMILY_FC,		"fc" },
+	{ NVMF_ADDR_FAMILY_LOOP,	"loop" },
 };
 
 static bool nvmet_is_port_enabled(struct nvmet_port *p, const char *caller)
@@ -83,7 +84,7 @@ static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 	return -EINVAL;
 
 found:
-	port->disc_addr.adrfam = i;
+	port->disc_addr.adrfam = nvmet_addr_family[i].type;
 	return count;
 }
 
@@ -1338,6 +1339,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	port->inline_data_size = -1;	/* < 0 == let the transport choose */
 
 	port->disc_addr.portid = cpu_to_le16(portid);
+	port->disc_addr.adrfam = NVMF_ADDR_FAMILY_MAX;
 	port->disc_addr.treq = NVMF_TREQ_DISABLE_SQFLOW;
 	config_group_init_type_name(&port->group, name, &nvmet_port_type);
 
