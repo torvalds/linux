@@ -17,6 +17,7 @@
 #include "fwil_types.h"
 #include "p2p.h"
 #include "cfg80211.h"
+#include "feature.h"
 
 /* parameters used for p2p escan */
 #define P2PAPI_SCAN_NPROBES 1
@@ -488,9 +489,13 @@ static void brcmf_p2p_generate_bss_mac(struct brcmf_p2p_info *p2p, u8 *dev_addr)
 	 * BSSCFGs need to simultaneously co-exist, then this address must be
 	 * different from the P2P Device Address, but also locally administered.
 	 */
-	memcpy(p2p->int_addr, p2p->dev_addr, ETH_ALEN);
-	p2p->int_addr[0] |= 0x02;
-	p2p->int_addr[4] ^= 0x80;
+	memcpy(p2p->conn_int_addr, p2p->dev_addr, ETH_ALEN);
+	p2p->conn_int_addr[0] |= 0x02;
+	p2p->conn_int_addr[4] ^= 0x80;
+
+	memcpy(p2p->conn2_int_addr, p2p->dev_addr, ETH_ALEN);
+	p2p->conn2_int_addr[0] |= 0x02;
+	p2p->conn2_int_addr[4] ^= 0x90;
 }
 
 /**
@@ -2015,7 +2020,7 @@ int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,
 
 	if_request.type = cpu_to_le16((u16)if_type);
 	if_request.chspec = cpu_to_le16(chanspec);
-	memcpy(if_request.addr, p2p->int_addr, sizeof(if_request.addr));
+	memcpy(if_request.addr, p2p->conn_int_addr, sizeof(if_request.addr));
 
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
 	err = brcmf_fil_iovar_data_set(vif->ifp, "p2p_ifupd", &if_request,
@@ -2170,6 +2175,27 @@ fail:
 	return ERR_PTR(err);
 }
 
+int brcmf_p2p_get_conn_idx(struct brcmf_cfg80211_info *cfg)
+{
+	int i;
+	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+
+	if (!ifp)
+		return -ENODEV;
+
+	for (i = P2PAPI_BSSCFG_CONNECTION; i < P2PAPI_BSSCFG_MAX; i++) {
+		if (!cfg->p2p.bss_idx[i].vif) {
+			if (i == P2PAPI_BSSCFG_CONNECTION2 &&
+			    !(brcmf_feat_is_enabled(ifp, BRCMF_FEAT_RSDB))) {
+				brcmf_err("Multi p2p not supported");
+				return -EIO;
+			}
+			return i;
+		}
+	}
+	return -EIO;
+}
+
 /**
  * brcmf_p2p_add_vif() - create a new P2P virtual interface.
  *
@@ -2189,7 +2215,9 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_cfg80211_vif *vif;
 	enum brcmf_fil_p2p_if_types iftype;
-	int err;
+	int err = 0;
+	int connidx;
+	u8 *p2p_intf_addr;
 
 	if (brcmf_cfg80211_vif_event_armed(cfg))
 		return ERR_PTR(-EBUSY);
@@ -2215,9 +2243,21 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 		return (struct wireless_dev *)vif;
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
 
-	err = brcmf_p2p_request_p2p_if(&cfg->p2p, ifp, cfg->p2p.int_addr,
-				       iftype);
+	connidx = brcmf_p2p_get_conn_idx(cfg);
+
+	if (connidx == P2PAPI_BSSCFG_CONNECTION)
+		p2p_intf_addr = cfg->p2p.conn_int_addr;
+	else if (connidx == P2PAPI_BSSCFG_CONNECTION2)
+		p2p_intf_addr = cfg->p2p.conn2_int_addr;
+	else
+		err = -EINVAL;
+
+	if (!err)
+		err =  brcmf_p2p_request_p2p_if(&cfg->p2p, ifp,
+						p2p_intf_addr, iftype);
+
 	if (err) {
+		brcmf_err("request p2p interface failed\n");
 		brcmf_cfg80211_arm_vif_event(cfg, NULL);
 		goto fail;
 	}
@@ -2249,7 +2289,7 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 		goto fail;
 	}
 
-	cfg->p2p.bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = vif;
+	cfg->p2p.bss_idx[connidx].vif = vif;
 	/* Disable firmware roaming for P2P interface  */
 	brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
 	if (iftype == BRCMF_FIL_P2P_IF_GO) {
