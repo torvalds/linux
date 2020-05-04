@@ -361,7 +361,6 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 int smc_llc_send_confirm_link(struct smc_link *link,
 			      enum smc_llc_reqresp reqresp)
 {
-	struct smc_link_group *lgr = smc_get_lgr(link);
 	struct smc_llc_msg_confirm_link *confllc;
 	struct smc_wr_tx_pend_priv *pend;
 	struct smc_wr_buf *wr_buf;
@@ -382,7 +381,7 @@ int smc_llc_send_confirm_link(struct smc_link *link,
 	memcpy(confllc->sender_gid, link->gid, SMC_GID_SIZE);
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	confllc->link_num = link->link_id;
-	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);
+	memcpy(confllc->link_uid, link->link_uid, SMC_LGR_ID_SIZE);
 	confllc->max_links = SMC_LLC_ADD_LNK_MAX_LINKS;
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
@@ -845,7 +844,8 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	if (rc)
 		goto out_reject;
 	smc_llc_save_add_link_info(lnk_new, llc);
-	lnk_new->link_id = llc->link_num;
+	lnk_new->link_id = llc->link_num;	/* SMC server assigns link id */
+	smc_llc_link_set_uid(lnk_new);
 
 	rc = smc_ib_ready_link(lnk_new);
 	if (rc)
@@ -1775,12 +1775,22 @@ out:
 	return rc;
 }
 
+void smc_llc_link_set_uid(struct smc_link *link)
+{
+	__be32 link_uid;
+
+	link_uid = htonl(*((u32 *)link->lgr->id) + link->link_id);
+	memcpy(link->link_uid, &link_uid, SMC_LGR_ID_SIZE);
+}
+
 /* evaluate confirm link request or response */
 int smc_llc_eval_conf_link(struct smc_llc_qentry *qentry,
 			   enum smc_llc_reqresp type)
 {
-	if (type == SMC_LLC_REQ)	/* SMC server assigns link_id */
+	if (type == SMC_LLC_REQ) {	/* SMC server assigns link_id */
 		qentry->link->link_id = qentry->msg.confirm_link.link_num;
+		smc_llc_link_set_uid(qentry->link);
+	}
 	if (!(qentry->msg.raw.hdr.flags & SMC_LLC_FLAG_NO_RMBE_EYEC))
 		return -ENOTSUPP;
 	return 0;

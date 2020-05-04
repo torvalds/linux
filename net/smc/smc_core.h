@@ -70,6 +70,8 @@ struct smc_rdma_wr {				/* work requests per message
 	struct ib_rdma_wr	wr_tx_rdma[SMC_MAX_RDMA_WRITES];
 };
 
+#define SMC_LGR_ID_SIZE		4
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -116,6 +118,7 @@ struct smc_link {
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
+	u8			link_uid[SMC_LGR_ID_SIZE]; /* unique lnk id */
 	u8			link_idx;	/* index in lgr link array */
 	u8			link_is_asym;	/* is link asymmetric? */
 	struct smc_link_group	*lgr;		/* parent link group */
@@ -178,7 +181,6 @@ struct smc_rtoken {				/* address/key of remote RMB */
 	u32			rkey;
 };
 
-#define SMC_LGR_ID_SIZE		4
 #define SMC_BUF_MIN_SIZE	16384	/* minimum size of an RMB */
 #define SMC_RMBE_SIZES		16	/* number of distinct RMBE sizes */
 /* theoretically, the RFC states that largest size would be 512K,
