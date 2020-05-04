@@ -1004,14 +1004,14 @@ static int reloc_gpu_chain(struct reloc_cache *cache)
 	GEM_BUG_ON(cache->rq_size + RELOC_TAIL > PAGE_SIZE  / sizeof(u32));
 	cmd = cache->rq_cmd + cache->rq_size;
 	*cmd++ = MI_ARB_CHECK;
-	if (cache->gen >= 8) {
+	if (cache->gen >= 8)
 		*cmd++ = MI_BATCH_BUFFER_START_GEN8;
-		*cmd++ = lower_32_bits(batch->node.start);
-		*cmd++ = upper_32_bits(batch->node.start);
-	} else {
+	else if (cache->gen >= 6)
 		*cmd++ = MI_BATCH_BUFFER_START;
-		*cmd++ = lower_32_bits(batch->node.start);
-	}
+	else
+		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT;
+	*cmd++ = lower_32_bits(batch->node.start);
+	*cmd++ = upper_32_bits(batch->node.start); /* Always 0 for gen<8 */
 	i915_gem_object_flush_map(cache->rq_vma->obj);
 	i915_gem_object_unpin_map(cache->rq_vma->obj);
 	cache->rq_vma = NULL;
