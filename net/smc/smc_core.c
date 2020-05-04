@@ -615,6 +615,8 @@ void smc_conn_free(struct smc_connection *conn)
 		tasklet_kill(&conn->rx_tsklet);
 	} else {
 		smc_cdc_tx_dismiss_slots(conn);
+		if (current_work() != &conn->abort_work)
+			cancel_work_sync(&conn->abort_work);
 	}
 	if (!list_empty(&lgr->list)) {
 		smc_lgr_unregister_conn(conn);
@@ -996,6 +998,18 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 	}
 }
 
+/* abort connection, abort_work scheduled from tasklet context */
+static void smc_conn_abort_work(struct work_struct *work)
+{
+	struct smc_connection *conn = container_of(work,
+						   struct smc_connection,
+						   abort_work);
+	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
+
+	smc_conn_kill(conn, true);
+	sock_put(&smc->sk); /* sock_hold done by schedulers of abort_work */
+}
+
 /* link is up - establish alternate link if applicable */
 static void smcr_link_up(struct smc_link_group *lgr,
 			 struct smc_ib_device *smcibdev, u8 ibport)
@@ -1302,6 +1316,7 @@ create:
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;
 	conn->urg_state = SMC_URG_READ;
+	INIT_WORK(&smc->conn.abort_work, smc_conn_abort_work);
 	if (ini->is_smcd) {
 		conn->rx_off = sizeof(struct smcd_cdc_msg);
 		smcd_cdc_rx_init(conn); /* init tasklet for this conn */

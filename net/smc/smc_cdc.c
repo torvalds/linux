@@ -282,6 +282,28 @@ static void smc_cdc_handle_urg_data_arrival(struct smc_sock *smc,
 	sk_send_sigurg(&smc->sk);
 }
 
+static void smc_cdc_msg_validate(struct smc_sock *smc, struct smc_cdc_msg *cdc,
+				 struct smc_link *link)
+{
+	struct smc_connection *conn = &smc->conn;
+	u16 recv_seq = ntohs(cdc->seqno);
+	s16 diff;
+
+	/* check that seqnum was seen before */
+	diff = conn->local_rx_ctrl.seqno - recv_seq;
+	if (diff < 0) { /* diff larger than 0x7fff */
+		/* drop connection */
+		conn->out_of_sync = 1;	/* prevent any further receives */
+		spin_lock_bh(&conn->send_lock);
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+		conn->lnk = link;
+		spin_unlock_bh(&conn->send_lock);
+		sock_hold(&smc->sk); /* sock_put in abort_work */
+		if (!schedule_work(&conn->abort_work))
+			sock_put(&smc->sk);
+	}
+}
+
 static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 				    struct smc_cdc_msg *cdc)
 {
@@ -412,16 +434,19 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 	read_lock_bh(&lgr->conns_lock);
 	conn = smc_lgr_find_conn(ntohl(cdc->token), lgr);
 	read_unlock_bh(&lgr->conns_lock);
-	if (!conn)
+	if (!conn || conn->out_of_sync)
 		return;
 	smc = container_of(conn, struct smc_sock, conn);
 
-	if (!cdc->prod_flags.failover_validation) {
-		if (smc_cdc_before(ntohs(cdc->seqno),
-				   conn->local_rx_ctrl.seqno))
-			/* received seqno is old */
-			return;
+	if (cdc->prod_flags.failover_validation) {
+		smc_cdc_msg_validate(smc, cdc, link);
+		return;
 	}
+	if (smc_cdc_before(ntohs(cdc->seqno),
+			   conn->local_rx_ctrl.seqno))
+		/* received seqno is old */
+		return;
+
 	smc_cdc_msg_recv(smc, cdc);
 }
 
