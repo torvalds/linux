@@ -2965,8 +2965,8 @@ static int ath11k_dp_rx_h_verify_tkip_mic(struct ath11k *ar, struct ath11k_peer 
 	return 0;
 
 mic_fail:
-	(ATH11K_SKB_RXCB(msdu))->is_first_msdu = 1;
-	(ATH11K_SKB_RXCB(msdu))->is_last_msdu = 1;
+	(ATH11K_SKB_RXCB(msdu))->is_first_msdu = true;
+	(ATH11K_SKB_RXCB(msdu))->is_last_msdu = true;
 
 	rxs->flag |= RX_FLAG_MMIC_ERROR | RX_FLAG_MMIC_STRIPPED |
 		    RX_FLAG_IV_STRIPPED | RX_FLAG_DECRYPTED;
