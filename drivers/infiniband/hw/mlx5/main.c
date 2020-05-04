@@ -4200,18 +4200,17 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 
 	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR) {
 		dst[dst_num].type = dest_type;
-		dst[dst_num].tir_num = dest_id;
+		dst[dst_num++].tir_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	} else if (dest_type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) {
 		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
-		dst[dst_num].ft_num = dest_id;
+		dst[dst_num++].ft_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else {
-		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_PORT;
+	} else  if (dest_type == MLX5_FLOW_DESTINATION_TYPE_PORT) {
+		dst[dst_num++].type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	}
 
-	dst_num++;
 
 	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;

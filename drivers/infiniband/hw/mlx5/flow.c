@@ -69,19 +69,32 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 
 static int get_dests(struct uverbs_attr_bundle *attrs,
 		     struct mlx5_ib_flow_matcher *fs_matcher, int *dest_id,
-		     int *dest_type, struct ib_qp **qp)
+		     int *dest_type, struct ib_qp **qp, bool *def_miss)
 {
 	bool dest_devx, dest_qp;
 	void *devx_obj;
+	u32 flags;
+	int err;
 
 	dest_devx = uverbs_attr_is_valid(attrs,
 					 MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
 	dest_qp = uverbs_attr_is_valid(attrs,
 				       MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
 
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS &&
-	    ((dest_devx && dest_qp) || (!dest_devx && !dest_qp)))
-		return -EINVAL;
+	*def_miss = false;
+	err = uverbs_get_flags32(&flags, attrs,
+				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
+				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS);
+	if (err)
+		return err;
+	*def_miss = flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS;
+
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
+		if (dest_devx && (dest_qp || *def_miss))
+			return -EINVAL;
+		else if (dest_qp && *def_miss)
+			return -EINVAL;
+	}
 
 	/* Allow only DEVX object as dest when inserting to FDB */
 	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !dest_devx)
@@ -153,6 +166,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	void *devx_obj, *cmd_in;
 	struct ib_uobject *uobj;
 	struct mlx5_ib_dev *dev;
+	bool def_miss;
 
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
@@ -162,8 +176,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	uobj =  uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
 	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 
-	if (get_dests(attrs, fs_matcher, &dest_id, &dest_type, &qp))
+	if (get_dests(attrs, fs_matcher, &dest_id, &dest_type, &qp, &def_miss))
 		return -EINVAL;
+
+	if (def_miss)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS;
 
 	len = uverbs_attr_get_uobjs_arr(attrs,
 		MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX, &arr_flow_actions);
@@ -636,7 +653,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX_OFFSET,
 			   UVERBS_ATTR_MIN_SIZE(sizeof(u32)),
 			   UA_OPTIONAL,
-			   UA_ALLOC_AND_COPY));
+			   UA_ALLOC_AND_COPY),
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
+			     enum mlx5_ib_create_flow_flags,
+			     UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DESTROY_FLOW,
