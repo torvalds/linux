@@ -1571,7 +1571,6 @@ err_ft:
 
 static struct mlx5_flow_handle *
 __mlx5_tc_ct_flow_offload_clear(struct mlx5e_priv *priv,
-				struct mlx5e_tc_flow *flow,
 				struct mlx5_flow_spec *orig_spec,
 				struct mlx5_esw_flow_attr *attr,
 				struct mlx5e_tc_mod_hdr_acts *mod_acts)
@@ -1648,7 +1647,7 @@ mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	mutex_lock(&ct_priv->control_lock);
 
 	if (clear_action)
-		rule = __mlx5_tc_ct_flow_offload_clear(priv, flow, spec, attr, mod_hdr_acts);
+		rule = __mlx5_tc_ct_flow_offload_clear(priv, spec, attr, mod_hdr_acts);
 	else
 		rule = __mlx5_tc_ct_flow_offload(priv, flow, spec, attr);
 	mutex_unlock(&ct_priv->control_lock);
