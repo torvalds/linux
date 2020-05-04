@@ -1153,10 +1153,7 @@ static const struct config_item_type nvmet_referrals_type = {
 	.ct_group_ops	= &nvmet_referral_group_ops,
 };
 
-static struct {
-	enum nvme_ana_state	state;
-	const char		*name;
-} nvmet_ana_state_names[] = {
+struct nvmet_type_name_map nvmet_ana_state[] = {
 	{ NVME_ANA_OPTIMIZED,		"optimized" },
 	{ NVME_ANA_NONOPTIMIZED,	"non-optimized" },
 	{ NVME_ANA_INACCESSIBLE,	"inaccessible" },
@@ -1171,10 +1168,9 @@ static ssize_t nvmet_ana_group_ana_state_show(struct config_item *item,
 	enum nvme_ana_state state = grp->port->ana_state[grp->grpid];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state_names); i++) {
-		if (state != nvmet_ana_state_names[i].state)
-			continue;
-		return sprintf(page, "%s\n", nvmet_ana_state_names[i].name);
+	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state); i++) {
+		if (state == nvmet_ana_state[i].type)
+			return sprintf(page, "%s\n", nvmet_ana_state[i].name);
 	}
 
 	return sprintf(page, "\n");
@@ -1184,10 +1180,11 @@ static ssize_t nvmet_ana_group_ana_state_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_ana_group *grp = to_ana_group(item);
+	enum nvme_ana_state *ana_state = grp->port->ana_state;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state_names); i++) {
-		if (sysfs_streq(page, nvmet_ana_state_names[i].name))
+	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state); i++) {
+		if (sysfs_streq(page, nvmet_ana_state[i].name))
 			goto found;
 	}
 
@@ -1196,10 +1193,9 @@ static ssize_t nvmet_ana_group_ana_state_store(struct config_item *item,
 
 found:
 	down_write(&nvmet_ana_sem);
-	grp->port->ana_state[grp->grpid] = nvmet_ana_state_names[i].state;
+	ana_state[grp->grpid] = (enum nvme_ana_state) nvmet_ana_state[i].type;
 	nvmet_ana_chgcnt++;
 	up_write(&nvmet_ana_sem);
-
 	nvmet_port_send_ana_event(grp->port);
 	return count;
 }
