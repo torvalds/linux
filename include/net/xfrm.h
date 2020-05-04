@@ -362,8 +362,6 @@ struct xfrm_state_afinfo {
 
 	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int			(*output_finish)(struct sock *sk, struct sk_buff *skb);
-	int			(*extract_output)(struct xfrm_state *x,
-						  struct sk_buff *skb);
 	int			(*transport_finish)(struct sk_buff *skb,
 						    int async);
 	void			(*local_error)(struct sk_buff *skb, u32 mtu);
@@ -1601,7 +1599,6 @@ int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
 __be32 xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr);
-int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb);
 int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,

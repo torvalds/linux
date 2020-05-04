@@ -17,6 +17,11 @@
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 
+#if IS_ENABLED(CONFIG_IPV6)
+#include <net/ip6_route.h>
+#include <net/ipv6_stubs.h>
+#endif
+
 #include "xfrm_inout.h"
 
 static int xfrm_output2(struct net *net, struct sock *sk, struct sk_buff *skb);
@@ -651,11 +656,60 @@ static int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static int xfrm6_tunnel_check_size(struct sk_buff *skb)
+{
+	int mtu, ret = 0;
+	struct dst_entry *dst = skb_dst(skb);
+
+	if (skb->ignore_df)
+		goto out;
+
+	mtu = dst_mtu(dst);
+	if (mtu < IPV6_MIN_MTU)
+		mtu = IPV6_MIN_MTU;
+
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) &&
+	     !skb_gso_validate_network_len(skb, ip6_skb_dst_mtu(skb)))) {
+		skb->dev = dst->dev;
+		skb->protocol = htons(ETH_P_IPV6);
+
+		if (xfrm6_local_dontfrag(skb->sk))
+			ipv6_stub->xfrm6_local_rxpmtu(skb, mtu);
+		else if (skb->sk)
+			xfrm_local_error(skb, mtu);
+		else
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		ret = -EMSGSIZE;
+	}
+out:
+	return ret;
+}
+#endif
+
+static int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	int err;
+
+	err = xfrm6_tunnel_check_size(skb);
+	if (err)
+		return err;
+
+	XFRM_MODE_SKB_CB(skb)->protocol = ipv6_hdr(skb)->nexthdr;
+
+	xfrm6_extract_header(skb);
+	return 0;
+#else
+	WARN_ON_ONCE(1);
+	return -EAFNOSUPPORT;
+#endif
+}
+
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	const struct xfrm_state_afinfo *afinfo;
 	const struct xfrm_mode *inner_mode;
-	int err = -EAFNOSUPPORT;
 
 	if (x->sel.family == AF_UNSPEC)
 		inner_mode = xfrm_ip2inner_mode(x,
@@ -669,14 +723,11 @@ static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	switch (inner_mode->family) {
 	case AF_INET:
 		return xfrm4_extract_output(x, skb);
+	case AF_INET6:
+		return xfrm6_extract_output(x, skb);
 	}
-	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
-	if (likely(afinfo))
-		err = afinfo->extract_output(x, skb);
-	rcu_read_unlock();
 
-	return err;
+	return -EAFNOSUPPORT;
 }
 
 void xfrm_local_error(struct sk_buff *skb, int mtu)

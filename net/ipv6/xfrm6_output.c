@@ -47,64 +47,6 @@ void xfrm6_local_error(struct sk_buff *skb, u32 mtu)
 	ipv6_local_error(sk, EMSGSIZE, &fl6, mtu);
 }
 
-static int xfrm6_tunnel_check_size(struct sk_buff *skb)
-{
-	int mtu, ret = 0;
-	struct dst_entry *dst = skb_dst(skb);
-
-	if (skb->ignore_df)
-		goto out;
-
-	mtu = dst_mtu(dst);
-	if (mtu < IPV6_MIN_MTU)
-		mtu = IPV6_MIN_MTU;
-
-	if ((!skb_is_gso(skb) && skb->len > mtu) ||
-	    (skb_is_gso(skb) &&
-	     !skb_gso_validate_network_len(skb, ip6_skb_dst_mtu(skb)))) {
-		skb->dev = dst->dev;
-		skb->protocol = htons(ETH_P_IPV6);
-
-		if (xfrm6_local_dontfrag(skb->sk))
-			xfrm6_local_rxpmtu(skb, mtu);
-		else if (skb->sk)
-			xfrm_local_error(skb, mtu);
-		else
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
-		ret = -EMSGSIZE;
-	}
-out:
-	return ret;
-}
-
-static void __xfrm6_extract_header(struct sk_buff *skb)
-{
-	struct ipv6hdr *iph = ipv6_hdr(skb);
-
-	XFRM_MODE_SKB_CB(skb)->ihl = sizeof(*iph);
-	XFRM_MODE_SKB_CB(skb)->id = 0;
-	XFRM_MODE_SKB_CB(skb)->frag_off = htons(IP_DF);
-	XFRM_MODE_SKB_CB(skb)->tos = ipv6_get_dsfield(iph);
-	XFRM_MODE_SKB_CB(skb)->ttl = iph->hop_limit;
-	XFRM_MODE_SKB_CB(skb)->optlen = 0;
-	memcpy(XFRM_MODE_SKB_CB(skb)->flow_lbl, iph->flow_lbl,
-	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
-}
-
-int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err;
-
-	err = xfrm6_tunnel_check_size(skb);
-	if (err)
-		return err;
-
-	XFRM_MODE_SKB_CB(skb)->protocol = ipv6_hdr(skb)->nexthdr;
-
-	__xfrm6_extract_header(skb);
-	return 0;
-}
-
 int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 {
 	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));

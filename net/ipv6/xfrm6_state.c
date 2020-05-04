@@ -19,7 +19,6 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.proto			= IPPROTO_IPV6,
 	.output			= xfrm6_output,
 	.output_finish		= xfrm6_output_finish,
-	.extract_output		= xfrm6_extract_output,
 	.transport_finish	= xfrm6_transport_finish,
 	.local_error		= xfrm6_local_error,
 };
