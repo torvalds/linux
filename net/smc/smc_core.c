@@ -238,6 +238,9 @@ static void smc_lgr_free_work(struct work_struct *work)
 	spin_unlock_bh(lgr_lock);
 	cancel_delayed_work(&lgr->free_work);
 
+	if (!lgr->is_smcd && !lgr->terminating)
+		smc_llc_send_link_delete_all(lgr, true,
+					     SMC_LLC_DEL_PROG_INIT_TERM);
 	if (lgr->is_smcd && !lgr->terminating)
 		smc_ism_signal_shutdown(lgr);
 	if (!lgr->is_smcd) {
@@ -847,6 +850,8 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
 		put_device(&lgr->smcd->dev);
 	} else {
+		smc_llc_send_link_delete_all(lgr, false,
+					     SMC_LLC_DEL_OP_INIT_TERM);
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			struct smc_link *lnk = &lgr->lnk[i];
 

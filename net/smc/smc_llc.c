@@ -560,6 +560,25 @@ static int smc_llc_send_message(struct smc_link *link, void *llcbuf)
 	return smc_wr_tx_send(link, pend);
 }
 
+/* schedule an llc send on link, may wait for buffers,
+ * and wait for send completion notification.
+ * @return 0 on success
+ */
+static int smc_llc_send_message_wait(struct smc_link *link, void *llcbuf)
+{
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	int rc;
+
+	if (!smc_link_usable(link))
+		return -ENOLINK;
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	memcpy(wr_buf, llcbuf, sizeof(union smc_llc_msg));
+	return smc_wr_tx_send_wait(link, pend, SMC_LLC_WAIT_TIME);
+}
+
 /********************************* receive ***********************************/
 
 static int smc_llc_alloc_alt_link(struct smc_link_group *lgr,
@@ -1215,6 +1234,29 @@ out:
 	kfree(qentry);
 }
 
+/* try to send a DELETE LINK ALL request on any active link,
+ * waiting for send completion
+ */
+void smc_llc_send_link_delete_all(struct smc_link_group *lgr, bool ord, u32 rsn)
+{
+	struct smc_llc_msg_del_link delllc = {0};
+	int i;
+
+	delllc.hd.common.type = SMC_LLC_DELETE_LINK;
+	delllc.hd.length = sizeof(delllc);
+	if (ord)
+		delllc.hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
+	delllc.hd.flags |= SMC_LLC_FLAG_DEL_LINK_ALL;
+	delllc.reason = htonl(rsn);
+
+	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
+		if (!smc_link_usable(&lgr->lnk[i]))
+			continue;
+		if (!smc_llc_send_message_wait(&lgr->lnk[i], &delllc))
+			break;
+	}
+}
+
 static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 {
 	struct smc_llc_msg_del_link *del_llc;
@@ -1230,6 +1272,8 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 
 	if (qentry->msg.delete_link.hd.flags & SMC_LLC_FLAG_DEL_LINK_ALL) {
 		/* delete entire lgr */
+		smc_llc_send_link_delete_all(lgr, true, ntohl(
+					      qentry->msg.delete_link.reason));
 		smc_lgr_terminate_sched(lgr);
 		goto out;
 	}
