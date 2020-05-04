@@ -169,8 +169,7 @@ static int insert_caller_stat(unsigned long call_site,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_event(struct evsel *evsel,
-					   struct perf_sample *sample)
+static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	unsigned long ptr = evsel__intval(evsel, sample, "ptr"),
 		      call_site = evsel__intval(evsel, sample, "call_site");
@@ -188,10 +187,9 @@ static int perf_evsel__process_alloc_event(struct evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_node_event(struct evsel *evsel,
-						struct perf_sample *sample)
+static int evsel__process_alloc_node_event(struct evsel *evsel, struct perf_sample *sample)
 {
-	int ret = perf_evsel__process_alloc_event(evsel, sample);
+	int ret = evsel__process_alloc_event(evsel, sample);
 
 	if (!ret) {
 		int node1 = cpu__get_node(sample->cpu),
@@ -232,8 +230,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static int perf_evsel__process_free_event(struct evsel *evsel,
-					  struct perf_sample *sample)
+static int evsel__process_free_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	unsigned long ptr = evsel__intval(evsel, sample, "ptr");
 	struct alloc_stat *s_alloc, *s_caller;
@@ -784,8 +781,7 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 	return 0;
 }
 
-static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
-						struct perf_sample *sample)
+static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	u64 page;
 	unsigned int order = evsel__intval(evsel, sample, "order");
@@ -857,8 +853,7 @@ static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_page_free_event(struct evsel *evsel,
-						struct perf_sample *sample)
+static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	u64 page;
 	unsigned int order = evsel__intval(evsel, sample, "order");
@@ -1371,15 +1366,15 @@ static int __cmd_kmem(struct perf_session *session)
 	struct evsel *evsel;
 	const struct evsel_str_handler kmem_tracepoints[] = {
 		/* slab allocator */
-		{ "kmem:kmalloc",		perf_evsel__process_alloc_event, },
-    		{ "kmem:kmem_cache_alloc",	perf_evsel__process_alloc_event, },
-		{ "kmem:kmalloc_node",		perf_evsel__process_alloc_node_event, },
-    		{ "kmem:kmem_cache_alloc_node", perf_evsel__process_alloc_node_event, },
-		{ "kmem:kfree",			perf_evsel__process_free_event, },
-    		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
+		{ "kmem:kmalloc",		evsel__process_alloc_event, },
+		{ "kmem:kmem_cache_alloc",	evsel__process_alloc_event, },
+		{ "kmem:kmalloc_node",		evsel__process_alloc_node_event, },
+		{ "kmem:kmem_cache_alloc_node", evsel__process_alloc_node_event, },
+		{ "kmem:kfree",			evsel__process_free_event, },
+		{ "kmem:kmem_cache_free",	evsel__process_free_event, },
 		/* page allocator */
-		{ "kmem:mm_page_alloc",		perf_evsel__process_page_alloc_event, },
-		{ "kmem:mm_page_free",		perf_evsel__process_page_free_event, },
+		{ "kmem:mm_page_alloc",		evsel__process_page_alloc_event, },
+		{ "kmem:mm_page_free",		evsel__process_page_free_event, },
 	};
 
 	if (!perf_session__has_traces(session, "kmem record"))
