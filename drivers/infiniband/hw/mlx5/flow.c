@@ -69,11 +69,10 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 
 static int get_dests(struct uverbs_attr_bundle *attrs,
 		     struct mlx5_ib_flow_matcher *fs_matcher, int *dest_id,
-		     int *dest_type, struct ib_qp **qp, bool *def_miss)
+		     int *dest_type, struct ib_qp **qp, u32 *flags)
 {
 	bool dest_devx, dest_qp;
 	void *devx_obj;
-	u32 flags;
 	int err;
 
 	dest_devx = uverbs_attr_is_valid(attrs,
@@ -81,23 +80,28 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 	dest_qp = uverbs_attr_is_valid(attrs,
 				       MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
 
-	*def_miss = false;
-	err = uverbs_get_flags32(&flags, attrs,
-				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
-				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS);
+	*flags = 0;
+	err = uverbs_get_flags32(flags, attrs, MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
+				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS |
+					 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP);
 	if (err)
 		return err;
-	*def_miss = flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS;
+
+	/* Both flags are not allowed */
+	if (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS &&
+	    *flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)
+		return -EINVAL;
 
 	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
-		if (dest_devx && (dest_qp || *def_miss))
+		if (dest_devx && (dest_qp || *flags))
 			return -EINVAL;
-		else if (dest_qp && *def_miss)
+		else if (dest_qp && *flags)
 			return -EINVAL;
 	}
 
-	/* Allow only DEVX object as dest when inserting to FDB */
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !dest_devx)
+	/* Allow only DEVX object, drop as dest for FDB */
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !(dest_devx ||
+	     (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)))
 		return -EINVAL;
 
 	/* Allow only DEVX object or QP as dest when inserting to RDMA_RX */
@@ -166,7 +170,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	void *devx_obj, *cmd_in;
 	struct ib_uobject *uobj;
 	struct mlx5_ib_dev *dev;
-	bool def_miss;
+	u32 flags;
 
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
@@ -176,11 +180,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	uobj =  uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
 	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 
-	if (get_dests(attrs, fs_matcher, &dest_id, &dest_type, &qp, &def_miss))
+	if (get_dests(attrs, fs_matcher, &dest_id, &dest_type, &qp, &flags))
 		return -EINVAL;
 
-	if (def_miss)
+	if (flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS)
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS;
+
+	if (flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
 
 	len = uverbs_attr_get_uobjs_arr(attrs,
 		MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX, &arr_flow_actions);
