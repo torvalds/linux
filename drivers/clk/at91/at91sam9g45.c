@@ -115,7 +115,7 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	at91sam9g45_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	at91sam9g45_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					    nck(at91sam9g45_systemck),
 					    nck(at91sam9g45_periphck), 0, 2);
 	if (!at91sam9g45_pmc)
@@ -142,6 +142,8 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 	hw = at91_clk_register_plldiv(regmap, "plladivck", "pllack");
 	if (IS_ERR(hw))
 		goto err_free;
+
+	at91sam9g45_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))

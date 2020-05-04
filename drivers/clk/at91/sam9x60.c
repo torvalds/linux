@@ -182,7 +182,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	sam9x60_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	sam9x60_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					nck(sam9x60_systemck),
 					nck(sam9x60_periphck),
 					nck(sam9x60_gck), 8);
@@ -213,6 +213,8 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 				      "mainck", 0, &plla_characteristics);
 	if (IS_ERR(hw))
 		goto err_free;
+
+	sam9x60_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = sam9x60_clk_register_pll(regmap, &pmc_pll_lock, "upllck",
 				      "main_osc", 1, &upll_characteristics);

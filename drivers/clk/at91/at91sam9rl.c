@@ -87,7 +87,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	at91sam9rl_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	at91sam9rl_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					   nck(at91sam9rl_systemck),
 					   nck(at91sam9rl_periphck), 0, 2);
 	if (!at91sam9rl_pmc)
@@ -104,6 +104,8 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 				   &sam9rl_plla_characteristics);
 	if (IS_ERR(hw))
 		goto err_free;
+
+	at91sam9rl_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))

@@ -125,7 +125,7 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	sama5d3_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	sama5d3_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					nck(sama5d3_systemck),
 					nck(sama5d3_periphck), 0, 3);
 	if (!sama5d3_pmc)
@@ -157,6 +157,8 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 	hw = at91_clk_register_plldiv(regmap, "plladivck", "pllack");
 	if (IS_ERR(hw))
 		goto err_free;
+
+	sama5d3_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))
