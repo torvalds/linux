@@ -387,6 +387,8 @@ static bool bq25890_is_adc_property(enum power_supply_property psp)
 	}
 }
 
+static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq);
+
 static int bq25890_power_supply_get_property(struct power_supply *psy,
 					     enum power_supply_property psp,
 					     union power_supply_propval *val)
@@ -397,6 +399,8 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	int ret;
 
 	mutex_lock(&bq->lock);
+	/* update state in case we lost an interrupt */
+	__bq25890_handle_irq(bq);
 	state = bq->state;
 	do_adc_conv = !state.online && bq25890_is_adc_property(psp);
 	if (do_adc_conv)
