@@ -80,6 +80,8 @@ struct ath_pktlog_hdr {
 	u8 payload[0];
 };
 
+#define ATH11K_HTT_PEER_STATS_RESET BIT(16)
+
 #define ATH11K_HTT_STATS_BUF_SIZE (1024 * 512)
 #define ATH11K_FW_STATS_BUF_SIZE (1024 * 1024)
 
