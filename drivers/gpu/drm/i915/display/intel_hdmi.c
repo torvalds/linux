@@ -1540,7 +1540,7 @@ int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *intel_dig_port,
 }
 
 static
-bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
+bool intel_hdmi_hdcp_check_link_once(struct intel_digital_port *intel_dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	struct intel_connector *connector =
@@ -1563,13 +1563,26 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	if (wait_for((intel_de_read(i915, HDCP_STATUS(i915, cpu_transcoder, port)) &
 		      (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC)) ==
 		     (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1)) {
-		drm_err(&i915->drm,
-			"Ri' mismatch detected, link check failed (%x)\n",
+		drm_dbg_kms(&i915->drm, "Ri' mismatch detected (%x)\n",
 			intel_de_read(i915, HDCP_STATUS(i915, cpu_transcoder,
 							port)));
 		return false;
 	}
 	return true;
+}
+
+static
+bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
+	int retry;
+
+	for (retry = 0; retry < 3; retry++)
+		if (intel_hdmi_hdcp_check_link_once(intel_dig_port))
+			return true;
+
+	drm_err(&i915->drm, "Link check failed\n");
+	return false;
 }
 
 struct hdcp2_hdmi_msg_timeout {
