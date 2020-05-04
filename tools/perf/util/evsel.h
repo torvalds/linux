@@ -351,10 +351,10 @@ static inline bool evsel__is_clock(struct evsel *evsel)
 }
 
 bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize);
-int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
-			      int err, char *msg, size_t size);
+int evsel__open_strerror(struct evsel *evsel, struct target *target,
+			 int err, char *msg, size_t size);
 
-static inline int perf_evsel__group_idx(struct evsel *evsel)
+static inline int evsel__group_idx(struct evsel *evsel)
 {
 	return evsel->idx - evsel->leader->idx;
 }

@@ -857,8 +857,7 @@ try_again:
 				goto try_again;
 			}
 			rc = -errno;
-			perf_evsel__open_strerror(pos, &opts->target,
-						  errno, msg, sizeof(msg));
+			evsel__open_strerror(pos, &opts->target, errno, msg, sizeof(msg));
 			ui__error("%s\n", msg);
 			goto out;
 		}

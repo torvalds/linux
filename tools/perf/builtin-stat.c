@@ -484,8 +484,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		}
 	}
 
-	perf_evsel__open_strerror(counter, &target,
-				  errno, msg, sizeof(msg));
+	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)

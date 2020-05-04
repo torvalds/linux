@@ -1721,8 +1721,7 @@ retry_open:
 
 			/*
 			 * If we succeeded but had to kill clockid, fail and
-			 * have perf_evsel__open_strerror() print us a nice
-			 * error.
+			 * have evsel__open_strerror() print us a nice error.
 			 */
 			if (perf_missing_features.clockid ||
 			    perf_missing_features.clockid_wrong) {
@@ -2474,8 +2473,8 @@ static bool find_process(const char *name)
 	return ret ? false : true;
 }
 
-int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
-			      int err, char *msg, size_t size)
+int evsel__open_strerror(struct evsel *evsel, struct target *target,
+			 int err, char *msg, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE];
 	int printed = 0;
