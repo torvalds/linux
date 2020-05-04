@@ -80,6 +80,7 @@ enum intel_platform {
 	INTEL_ELKHARTLAKE,
 	/* gen12 */
 	INTEL_TIGERLAKE,
+	INTEL_ROCKETLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
