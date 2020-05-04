@@ -775,38 +775,11 @@ static __always_inline void debug_exit(unsigned long dr7)
  *
  * May run on IST stack.
  */
-static noinstr void handle_debug(struct pt_regs *regs, unsigned long dr6)
+static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
+				 bool user_icebp)
 {
 	struct task_struct *tsk = current;
-	int user_icebp = 0;
 	int si_code;
-
-	/*
-	 * The SDM says "The processor clears the BTF flag when it
-	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
-	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
-	 */
-	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
-
-	if (unlikely(!user_mode(regs) && (dr6 & DR_STEP) &&
-		     is_sysenter_singlestep(regs))) {
-		dr6 &= ~DR_STEP;
-		if (!dr6)
-			return;
-		/*
-		 * else we might have gotten a single-step trap and hit a
-		 * watchpoint at the same time, in which case we should fall
-		 * through and handle the watchpoint.
-		 */
-	}
-
-	/*
-	 * If dr6 has no reason to give us about the origin of this trap,
-	 * then it's very likely the result of an icebp/int01 trap.
-	 * User wants a sigtrap for that.
-	 */
-	if (!dr6 && user_mode(regs))
-		user_icebp = 1;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
@@ -832,9 +805,7 @@ static noinstr void handle_debug(struct pt_regs *regs, unsigned long dr6)
 	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, 0,
 				 X86_TRAP_DB);
-		cond_local_irq_disable(regs);
-		debug_stack_usage_dec();
-		return;
+		goto out;
 	}
 
 	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
@@ -848,9 +819,12 @@ static noinstr void handle_debug(struct pt_regs *regs, unsigned long dr6)
 		set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 		regs->flags &= ~X86_EFLAGS_TF;
 	}
+
 	si_code = get_si_code(tsk->thread.debugreg6);
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(regs, 0, si_code);
+
+out:
 	cond_local_irq_disable(regs);
 	debug_stack_usage_dec();
 }
@@ -859,7 +833,27 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 					     unsigned long dr6)
 {
 	nmi_enter();
-	handle_debug(regs, dr6);
+	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_thread_flag(TIF_BLOCKSTEP);
+
+	/*
+	 * Catch SYSENTER with TF set and clear DR_STEP. If this hit a
+	 * watchpoint at the same time then that will still be handled.
+	 */
+	if ((dr6 & DR_STEP) && is_sysenter_singlestep(regs))
+		dr6 &= ~DR_STEP;
+
+	/*
+	 * If DR6 is zero, no point in trying to handle it. The kernel is
+	 * not using INT1.
+	 */
+	if (dr6)
+		handle_debug(regs, dr6, false);
+
 	nmi_exit();
 }
 
@@ -867,7 +861,14 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 					   unsigned long dr6)
 {
 	idtentry_enter(regs);
-	handle_debug(regs, dr6);
+	clear_thread_flag(TIF_BLOCKSTEP);
+
+	/*
+	 * If dr6 has no reason to give us about the origin of this trap,
+	 * then it's very likely the result of an icebp/int01 trap.
+	 * User wants a sigtrap for that.
+	 */
+	handle_debug(regs, dr6, !dr6);
 	idtentry_exit(regs);
 }
 
