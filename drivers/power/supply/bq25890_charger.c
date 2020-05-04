@@ -126,6 +126,7 @@ static const struct regmap_access_table bq25890_writeable_regs = {
 
 static const struct regmap_range bq25890_volatile_reg_ranges[] = {
 	regmap_reg_range(0x00, 0x00),
+	regmap_reg_range(0x02, 0x02),
 	regmap_reg_range(0x09, 0x09),
 	regmap_reg_range(0x0b, 0x14),
 };
@@ -374,17 +375,37 @@ enum bq25890_chrg_fault {
 	CHRG_FAULT_TIMER_EXPIRED,
 };
 
+static bool bq25890_is_adc_property(enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 static int bq25890_power_supply_get_property(struct power_supply *psy,
 					     enum power_supply_property psp,
 					     union power_supply_propval *val)
 {
-	int ret;
 	struct bq25890_device *bq = power_supply_get_drvdata(psy);
 	struct bq25890_state state;
+	bool do_adc_conv;
+	int ret;
 
 	mutex_lock(&bq->lock);
 	state = bq->state;
+	do_adc_conv = !state.online && bq25890_is_adc_property(psp);
+	if (do_adc_conv)
+		bq25890_field_write(bq, F_CONV_START, 1);
 	mutex_unlock(&bq->lock);
+
+	if (do_adc_conv)
+		regmap_field_read_poll_timeout(bq->rmap_fields[F_CONV_START],
+			ret, !ret, 25000, 1000000);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -623,8 +644,8 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		}
 	}
 
-	/* Configure ADC for continuous conversions. This does not enable it. */
-	ret = bq25890_field_write(bq, F_CONV_RATE, 1);
+	/* Configure ADC for continuous conversions when charging */
+	ret = bq25890_field_write(bq, F_CONV_RATE, !!bq->state.online);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
 		return ret;
@@ -966,7 +987,7 @@ static int bq25890_suspend(struct device *dev)
 	 * If charger is removed, while in suspend, make sure ADC is diabled
 	 * since it consumes slightly more power.
 	 */
-	return bq25890_field_write(bq, F_CONV_START, 0);
+	return bq25890_field_write(bq, F_CONV_RATE, 0);
 }
 
 static int bq25890_resume(struct device *dev)
@@ -982,7 +1003,7 @@ static int bq25890_resume(struct device *dev)
 
 	/* Re-enable ADC only if charger is plugged in. */
 	if (bq->state.online) {
-		ret = bq25890_field_write(bq, F_CONV_START, 1);
+		ret = bq25890_field_write(bq, F_CONV_RATE, 1);
 		if (ret < 0)
 			goto unlock;
 	}
