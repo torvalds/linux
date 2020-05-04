@@ -33,20 +33,14 @@ extern bool efi_novamap;
 
 extern const efi_system_table_t *efi_system_table;
 
-#ifndef efi_bs_call
-#define efi_bs_call(func, ...)	efi_system_table->boottime->func(__VA_ARGS__)
-#endif
-#ifndef efi_rt_call
-#define efi_rt_call(func, ...)	efi_system_table->runtime->func(__VA_ARGS__)
-#endif
-#ifndef efi_is_native
+#ifndef ARCH_HAS_EFISTUB_WRAPPERS
+
 #define efi_is_native()		(true)
-#endif
-#ifndef efi_table_attr
+#define efi_bs_call(func, ...)	efi_system_table->boottime->func(__VA_ARGS__)
+#define efi_rt_call(func, ...)	efi_system_table->runtime->func(__VA_ARGS__)
 #define efi_table_attr(inst, attr)	(inst->attr)
-#endif
-#ifndef efi_call_proto
 #define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
+
 #endif
 
 #define efi_info(msg)		do {			\
