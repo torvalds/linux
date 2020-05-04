@@ -427,15 +427,6 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		break;
 
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
-		ret = bq25890_field_read(bq, F_ICHGR); /* read measured value */
-		if (ret < 0)
-			return ret;
-
-		/* converted_val = ADC_val * 50mA (table 10.3.19) */
-		val->intval = ret * 50000;
-		break;
-
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
 		break;
@@ -469,6 +460,15 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 
 		/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
 		val->intval = 2304000 + ret * 20000;
+		break;
+
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		ret = bq25890_field_read(bq, F_ICHGR); /* read measured value */
+		if (ret < 0)
+			return ret;
+
+		/* converted_val = ADC_val * 50mA (table 10.3.19) */
+		val->intval = ret * -50000;
 		break;
 
 	default:
@@ -645,12 +645,12 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_HEALTH,
-	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static char *bq25890_charger_supplied_to[] = {
