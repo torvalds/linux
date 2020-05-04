@@ -837,26 +837,6 @@ static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 }
 
 extern unsigned int uv_apicid_hibits;
-static unsigned long uv_hub_ipi_value(int apicid, int vector, int mode)
-{
-	apicid |= uv_apicid_hibits;
-	return (1UL << UVH_IPI_INT_SEND_SHFT) |
-			((apicid) << UVH_IPI_INT_APIC_ID_SHFT) |
-			(mode << UVH_IPI_INT_DELIVERY_MODE_SHFT) |
-			(vector << UVH_IPI_INT_VECTOR_SHFT);
-}
-
-static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
-{
-	unsigned long val;
-	unsigned long dmode = dest_Fixed;
-
-	if (vector == NMI_VECTOR)
-		dmode = dest_NMI;
-
-	val = uv_hub_ipi_value(apicid, vector, dmode);
-	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
-}
 
 /*
  * Get the minimum revision number of the hub chips within the partition.

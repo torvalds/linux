@@ -588,12 +588,21 @@ static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 
 static void uv_send_IPI_one(int cpu, int vector)
 {
-	unsigned long apicid;
-	int pnode;
+	unsigned long apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	int pnode = uv_apicid_to_pnode(apicid);
+	unsigned long dmode, val;
 
-	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	pnode = uv_apicid_to_pnode(apicid);
-	uv_hub_send_ipi(pnode, apicid, vector);
+	if (vector == NMI_VECTOR)
+		dmode = dest_NMI;
+	else
+		dmode = dest_Fixed;
+
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+		((apicid | uv_apicid_hibits) << UVH_IPI_INT_APIC_ID_SHFT) |
+		(dmode << UVH_IPI_INT_DELIVERY_MODE_SHFT) |
+		(vector << UVH_IPI_INT_VECTOR_SHFT);
+
+	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
 static void uv_send_IPI_mask(const struct cpumask *mask, int vector)
