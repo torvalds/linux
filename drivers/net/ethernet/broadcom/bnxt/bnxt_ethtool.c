@@ -1768,10 +1768,10 @@ static int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,
 	return rc;
 }
 
-static int bnxt_firmware_reset(struct net_device *dev, u16 dir_type)
+static int bnxt_firmware_reset(struct net_device *dev,
+			       enum bnxt_nvm_directory_type dir_type)
 {
 	u8 self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE;
-	struct bnxt *bp = netdev_priv(dev);
 	u8 proc_type, flags = 0;
 
 	/* TODO: Address self-reset of APE/KONG/BONO/TANG or ungraceful reset */
@@ -1798,20 +1798,32 @@ static int bnxt_firmware_reset(struct net_device *dev, u16 dir_type)
 	case BNX_DIR_TYPE_BONO_PATCH:
 		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE;
 		break;
-	case BNXT_FW_RESET_CHIP:
-		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
-		self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
-		if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
-			flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
-		break;
-	case BNXT_FW_RESET_AP:
-		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
-		break;
 	default:
 		return -EINVAL;
 	}
 
 	return bnxt_hwrm_firmware_reset(dev, proc_type, self_reset, flags);
+}
+
+static int bnxt_firmware_reset_chip(struct net_device *dev)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	u8 flags = 0;
+
+	if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
+		flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
+
+	return bnxt_hwrm_firmware_reset(dev,
+					FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP,
+					FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP,
+					flags);
+}
+
+static int bnxt_firmware_reset_ap(struct net_device *dev)
+{
+	return bnxt_hwrm_firmware_reset(dev, FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP,
+					FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE,
+					0);
 }
 
 static int bnxt_flash_firmware(struct net_device *dev,
@@ -3006,7 +3018,7 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
-		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
+		rc = bnxt_firmware_reset_chip(dev);
 		if (!rc) {
 			netdev_info(dev, "Reset request successful.\n");
 			if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET))
@@ -3018,7 +3030,7 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
-		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_AP);
+		rc = bnxt_firmware_reset_ap(dev);
 		if (!rc) {
 			netdev_info(dev, "Reset Application Processor request successful.\n");
 			*flags = 0;
