@@ -537,6 +537,9 @@ struct nqe_cn {
 #define DBR_TYPE_NQ_ARM					(0xbULL << 60)
 #define DBR_TYPE_NULL					(0xfULL << 60)
 
+#define DB_PF_OFFSET_P5					0x10000
+#define DB_VF_OFFSET_P5					0x4000
+
 #define INVALID_HW_RING_ID	((u16)-1)
 
 /* The hardware supports certain page sizes.  Use the supported page sizes

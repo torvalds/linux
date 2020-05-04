@@ -5355,9 +5355,9 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
 		if (BNXT_PF(bp))
-			db->doorbell = bp->bar1 + 0x10000;
+			db->doorbell = bp->bar1 + DB_PF_OFFSET_P5;
 		else
-			db->doorbell = bp->bar1 + 0x4000;
+			db->doorbell = bp->bar1 + DB_VF_OFFSET_P5;
 		switch (ring_type) {
 		case HWRM_RING_ALLOC_TX:
 			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SQ;
