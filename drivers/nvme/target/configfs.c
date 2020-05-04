@@ -32,31 +32,36 @@ static struct nvmet_type_name_map nvmet_transport[] = {
 	{ NVMF_TRTYPE_LOOP,	"loop" },
 };
 
+static const struct nvmet_type_name_map nvmet_addr_family[] = {
+	{ NVMF_ADDR_FAMILY_PCI,	"pcie" },
+	{ NVMF_ADDR_FAMILY_IP4,	"ipv4" },
+	{ NVMF_ADDR_FAMILY_IP6,	"ipv6" },
+	{ NVMF_ADDR_FAMILY_IB,	"ib" },
+	{ NVMF_ADDR_FAMILY_FC,	"fc" },
+};
+
 /*
  * nvmet_port Generic ConfigFS definitions.
  * Used in any place in the ConfigFS tree that refers to an address.
  */
-static ssize_t nvmet_addr_adrfam_show(struct config_item *item,
-		char *page)
+static ssize_t nvmet_addr_adrfam_show(struct config_item *item, char *page)
 {
-	switch (to_nvmet_port(item)->disc_addr.adrfam) {
-	case NVMF_ADDR_FAMILY_IP4:
-		return sprintf(page, "ipv4\n");
-	case NVMF_ADDR_FAMILY_IP6:
-		return sprintf(page, "ipv6\n");
-	case NVMF_ADDR_FAMILY_IB:
-		return sprintf(page, "ib\n");
-	case NVMF_ADDR_FAMILY_FC:
-		return sprintf(page, "fc\n");
-	default:
-		return sprintf(page, "\n");
+	u8 adrfam = to_nvmet_port(item)->disc_addr.adrfam;
+	int i;
+
+	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
+		if (nvmet_addr_family[i].type == adrfam)
+			return sprintf(page, "%s\n", nvmet_addr_family[i].name);
 	}
+
+	return sprintf(page, "\n");
 }
 
 static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
+	int i;
 
 	if (port->enabled) {
 		pr_err("Cannot modify address while enabled\n");
@@ -64,19 +69,16 @@ static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 		return -EACCES;
 	}
 
-	if (sysfs_streq(page, "ipv4")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IP4;
-	} else if (sysfs_streq(page, "ipv6")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IP6;
-	} else if (sysfs_streq(page, "ib")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IB;
-	} else if (sysfs_streq(page, "fc")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_FC;
-	} else {
-		pr_err("Invalid value '%s' for adrfam\n", page);
-		return -EINVAL;
+	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
+		if (sysfs_streq(page, nvmet_addr_family[i].name))
+			goto found;
 	}
 
+	pr_err("Invalid value '%s' for adrfam\n", page);
+	return -EINVAL;
+
+found:
+	port->disc_addr.adrfam = i;
 	return count;
 }
 
@@ -290,6 +292,7 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 
 	pr_err("Invalid value '%s' for trtype\n", page);
 	return -EINVAL;
+
 found:
 	memset(&port->disc_addr.tsas, 0, NVMF_TSAS_SIZE);
 	port->disc_addr.trtype = nvmet_transport[i].type;
