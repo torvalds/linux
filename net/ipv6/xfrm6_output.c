@@ -23,23 +23,6 @@ int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(xfrm6_find_1stfragopt);
 
-static int xfrm6_local_dontfrag(struct sk_buff *skb)
-{
-	int proto;
-	struct sock *sk = skb->sk;
-
-	if (sk) {
-		if (sk->sk_family != AF_INET6)
-			return 0;
-
-		proto = sk->sk_protocol;
-		if (proto == IPPROTO_UDP || proto == IPPROTO_RAW)
-			return inet6_sk(sk)->dontfrag;
-	}
-
-	return 0;
-}
-
 void xfrm6_local_rxpmtu(struct sk_buff *skb, u32 mtu)
 {
 	struct flowi6 fl6;
@@ -82,7 +65,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 		skb->dev = dst->dev;
 		skb->protocol = htons(ETH_P_IPV6);
 
-		if (xfrm6_local_dontfrag(skb))
+		if (xfrm6_local_dontfrag(skb->sk))
 			xfrm6_local_rxpmtu(skb, mtu);
 		else if (skb->sk)
 			xfrm_local_error(skb, mtu);
@@ -181,7 +164,7 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	toobig = skb->len > mtu && !skb_is_gso(skb);
 
-	if (toobig && xfrm6_local_dontfrag(skb)) {
+	if (toobig && xfrm6_local_dontfrag(skb->sk)) {
 		xfrm6_local_rxpmtu(skb, mtu);
 		kfree_skb(skb);
 		return -EMSGSIZE;
