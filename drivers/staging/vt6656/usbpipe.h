@@ -52,7 +52,7 @@ int vnt_control_out_u8(struct vnt_private *priv, u8 reg, u8 ref_off, u8 data);
 int vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data);
 
 int vnt_control_out_blocks(struct vnt_private *priv,
-			   u16 block, u8 reg, u16 len, u8 *data);
+			   u16 block, u8 reg, u16 len, const u8 *data);
 
 int vnt_start_interrupt_urb(struct vnt_private *priv);
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb);

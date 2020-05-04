@@ -77,7 +77,7 @@ int vnt_control_out_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 data)
 }
 
 int vnt_control_out_blocks(struct vnt_private *priv,
-			   u16 block, u8 reg, u16 length, u8 *data)
+			   u16 block, u8 reg, u16 length, const u8 *data)
 {
 	int ret = 0, i;
 

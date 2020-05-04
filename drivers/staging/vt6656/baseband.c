@@ -31,7 +31,7 @@
 #include "rf.h"
 #include "usbpipe.h"
 
-static u8 vnt_vt3184_agc[] = {
+static const u8 vnt_vt3184_agc[] = {
 	0x00, 0x00, 0x02, 0x02, 0x04, 0x04, 0x06, 0x06,
 	0x08, 0x08, 0x0a, 0x0a, 0x0c, 0x0c, 0x0e, 0x0e, /* 0x0f */
 	0x10, 0x10, 0x12, 0x12, 0x14, 0x14, 0x16, 0x16,
@@ -78,7 +78,7 @@ static u8 vnt_vt3184_al2230[] = {
 };
 
 /* {{RobertYu:20060515, new BB setting for VT3226D0 */
-static u8 vnt_vt3184_vt3226d0[] = {
+static const u8 vnt_vt3184_vt3226d0[] = {
 	0x31, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
 	0x70, 0x45, 0x2a, 0x76, 0x00, 0x00, 0x80, 0x00, /* 0x0f */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -243,7 +243,8 @@ int vnt_vt3184_init(struct vnt_private *priv)
 {
 	int ret;
 	u16 length;
-	u8 *addr;
+	u8 *addr = NULL;
+	const u8 *c_addr;
 	u8 data;
 
 	ret = vnt_control_in(priv, MESSAGE_TYPE_READ, 0, MESSAGE_REQUEST_EEPROM,
@@ -275,7 +276,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		   (priv->rf_type == RF_VT3342A0)) {
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
-		addr = vnt_vt3184_vt3226d0;
+		c_addr = vnt_vt3184_vt3226d0;
 
 		priv->bb_vga[0] = 0x20;
 		priv->bb_vga[1] = 0x10;
@@ -291,8 +292,11 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		goto end;
 	}
 
+	if (addr)
+		c_addr = addr;
+
 	ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
-				     MESSAGE_REQUEST_BBREG, length, addr);
+				     MESSAGE_REQUEST_BBREG, length, c_addr);
 	if (ret)
 		goto end;
 
