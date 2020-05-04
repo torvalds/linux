@@ -840,9 +840,9 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
 
 	mutex_lock(&gsi->mutex);
 
-	/* Due to a hardware quirk we need to reset RX channels twice. */
 	gsi_channel_reset_command(channel);
-	if (!channel->toward_ipa)
+	/* Due to a hardware quirk we may need to reset RX channels twice. */
+	if (legacy && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
 	gsi_channel_program(channel, legacy);
