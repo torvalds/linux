@@ -238,9 +238,8 @@ static int write_stat_round_event(u64 tm, u64 type)
 
 #define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
-static int
-perf_evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
-			     struct perf_counts_values *count)
+static int evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
+				   struct perf_counts_values *count)
 {
 	struct perf_sample_id *sid = SID(counter, cpu, thread);
 
@@ -297,7 +296,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 		perf_counts__set_loaded(counter->counts, cpu, thread, false);
 
 		if (STAT_RECORD) {
-			if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
+			if (evsel__write_stat_event(counter, cpu, thread, count)) {
 				pr_err("failed to write stat event\n");
 				return -1;
 			}
@@ -410,7 +409,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static bool perf_evsel__should_store_id(struct evsel *counter)
+static bool evsel__should_store_id(struct evsel *counter)
 {
 	return STAT_RECORD || counter->core.attr.read_format & PERF_FORMAT_ID;
 }
@@ -635,7 +634,7 @@ try_again_reset:
 		if (l > stat_config.unit_width)
 			stat_config.unit_width = l;
 
-		if (perf_evsel__should_store_id(counter) &&
+		if (evsel__should_store_id(counter) &&
 		    evsel__store_ids(counter, evsel_list))
 			return -1;
 	}
