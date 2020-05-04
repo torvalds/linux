@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_address.h>
 
 #include "ce.h"
 #include "coredump.h"
@@ -1393,7 +1394,6 @@ static int ath10k_hw_power_off(struct ath10k *ar)
 static void ath10k_msa_dump_memory(struct ath10k *ar,
 				   struct ath10k_fw_crash_data *crash_data)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	const struct ath10k_hw_mem_layout *mem_layout;
 	const struct ath10k_mem_region *current_region;
 	struct ath10k_dump_ram_data_hdr *hdr;
@@ -1419,15 +1419,15 @@ static void ath10k_msa_dump_memory(struct ath10k *ar,
 	buf_len -= sizeof(*hdr);
 
 	hdr->region_type = cpu_to_le32(current_region->type);
-	hdr->start = cpu_to_le32((unsigned long)ar_snoc->qmi->msa_va);
-	hdr->length = cpu_to_le32(ar_snoc->qmi->msa_mem_size);
+	hdr->start = cpu_to_le32((unsigned long)ar->msa.vaddr);
+	hdr->length = cpu_to_le32(ar->msa.mem_size);
 
-	if (current_region->len < ar_snoc->qmi->msa_mem_size) {
-		memcpy(buf, ar_snoc->qmi->msa_va, current_region->len);
+	if (current_region->len < ar->msa.mem_size) {
+		memcpy(buf, ar->msa.vaddr, current_region->len);
 		ath10k_warn(ar, "msa dump length is less than msa size %x, %x\n",
-			    current_region->len, ar_snoc->qmi->msa_mem_size);
+			    current_region->len, ar->msa.mem_size);
 	} else {
-		memcpy(buf, ar_snoc->qmi->msa_va, ar_snoc->qmi->msa_mem_size);
+		memcpy(buf, ar->msa.vaddr, ar->msa.mem_size);
 	}
 }
 
@@ -1453,6 +1453,50 @@ void ath10k_snoc_fw_crashed_dump(struct ath10k *ar)
 	ath10k_print_driver_info(ar);
 	ath10k_msa_dump_memory(ar, crash_data);
 	mutex_unlock(&ar->dump_mutex);
+}
+
+static int ath10k_setup_msa_resources(struct ath10k *ar, u32 msa_size)
+{
+	struct device *dev = ar->dev;
+	struct device_node *node;
+	struct resource r;
+	int ret;
+
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (node) {
+		ret = of_address_to_resource(node, 0, &r);
+		if (ret) {
+			dev_err(dev, "failed to resolve msa fixed region\n");
+			return ret;
+		}
+		of_node_put(node);
+
+		ar->msa.paddr = r.start;
+		ar->msa.mem_size = resource_size(&r);
+		ar->msa.vaddr = devm_memremap(dev, ar->msa.paddr,
+					      ar->msa.mem_size,
+					      MEMREMAP_WT);
+		if (IS_ERR(ar->msa.vaddr)) {
+			dev_err(dev, "failed to map memory region: %pa\n",
+				&r.start);
+			return PTR_ERR(ar->msa.vaddr);
+		}
+	} else {
+		ar->msa.vaddr = dmam_alloc_coherent(dev, msa_size,
+						    &ar->msa.paddr,
+						    GFP_KERNEL);
+		if (!ar->msa.vaddr) {
+			ath10k_err(ar, "failed to allocate dma memory for msa region\n");
+			return -ENOMEM;
+		}
+		ar->msa.mem_size = msa_size;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi msa.paddr: %pad , msa.vaddr: 0x%p\n",
+		   &ar->msa.paddr,
+		   ar->msa.vaddr);
+
+	return 0;
 }
 
 static const struct of_device_id ath10k_snoc_dt_match[] = {
@@ -1555,6 +1599,12 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	if (ret) {
 		ath10k_err(ar, "failed to power on device: %d\n", ret);
 		goto err_free_irq;
+	}
+
+	ret = ath10k_setup_msa_resources(ar, msa_size);
+	if (ret) {
+		ath10k_warn(ar, "failed to setup msa resources: %d\n", ret);
+		goto err_power_off;
 	}
 
 	ret = ath10k_qmi_init(ar, msa_size);
