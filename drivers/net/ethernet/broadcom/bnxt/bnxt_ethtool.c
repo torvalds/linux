@@ -1749,8 +1749,8 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	return rc;
 }
 
-static int bnxt_firmware_reset(struct net_device *dev,
-			       u16 dir_type)
+static int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,
+				    u8 self_reset, u8 flags)
 {
 	struct hwrm_fw_reset_input req = {0};
 	struct bnxt *bp = netdev_priv(dev);
@@ -1758,48 +1758,60 @@ static int bnxt_firmware_reset(struct net_device *dev,
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
 
+	req.embedded_proc_type = proc_type;
+	req.selfrst_status = self_reset;
+	req.flags = flags;
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc == -EACCES)
+		bnxt_print_admin_err(bp);
+	return rc;
+}
+
+static int bnxt_firmware_reset(struct net_device *dev, u16 dir_type)
+{
+	u8 self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE;
+	struct bnxt *bp = netdev_priv(dev);
+	u8 proc_type, flags = 0;
+
 	/* TODO: Address self-reset of APE/KONG/BONO/TANG or ungraceful reset */
 	/*       (e.g. when firmware isn't already running) */
 	switch (dir_type) {
 	case BNX_DIR_TYPE_CHIMP_PATCH:
 	case BNX_DIR_TYPE_BOOTCODE:
 	case BNX_DIR_TYPE_BOOTCODE_2:
-		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT;
 		/* Self-reset ChiMP upon next PCIe reset: */
-		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST;
+		self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST;
 		break;
 	case BNX_DIR_TYPE_APE_FW:
 	case BNX_DIR_TYPE_APE_PATCH:
-		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT;
 		/* Self-reset APE upon next PCIe reset: */
-		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST;
+		self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST;
 		break;
 	case BNX_DIR_TYPE_KONG_FW:
 	case BNX_DIR_TYPE_KONG_PATCH:
-		req.embedded_proc_type =
-			FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL;
 		break;
 	case BNX_DIR_TYPE_BONO_FW:
 	case BNX_DIR_TYPE_BONO_PATCH:
-		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE;
 		break;
 	case BNXT_FW_RESET_CHIP:
-		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
-		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
+		self_reset = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
-			req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
+			flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
 		break;
 	case BNXT_FW_RESET_AP:
-		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
+		proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc == -EACCES)
-		bnxt_print_admin_err(bp);
-	return rc;
+	return bnxt_hwrm_firmware_reset(dev, proc_type, self_reset, flags);
 }
 
 static int bnxt_flash_firmware(struct net_device *dev,
