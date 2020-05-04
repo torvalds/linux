@@ -47,39 +47,9 @@ void xfrm6_local_error(struct sk_buff *skb, u32 mtu)
 	ipv6_local_error(sk, EMSGSIZE, &fl6, mtu);
 }
 
-int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
-{
-	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
-
-#ifdef CONFIG_NETFILTER
-	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
-#endif
-
-	return xfrm_output(sk, skb);
-}
-
-static int __xfrm6_output_state_finish(struct xfrm_state *x, struct sock *sk,
-				       struct sk_buff *skb)
-{
-	const struct xfrm_state_afinfo *afinfo;
-	int ret = -EAFNOSUPPORT;
-
-	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
-	if (likely(afinfo))
-		ret = afinfo->output_finish(sk, skb);
-	else
-		kfree_skb(skb);
-	rcu_read_unlock();
-
-	return ret;
-}
-
 static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct xfrm_state *x = skb_dst(skb)->xfrm;
-
-	return __xfrm6_output_state_finish(x, sk, skb);
+	return xfrm_output(sk, skb);
 }
 
 static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -121,7 +91,7 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 				    __xfrm6_output_finish);
 
 skip_frag:
-	return __xfrm6_output_state_finish(x, sk, skb);
+	return xfrm_output(sk, skb);
 }
 
 int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)

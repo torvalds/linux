@@ -571,6 +571,22 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
 	int err;
 
+	switch (x->outer_mode.family) {
+	case AF_INET:
+		memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
+#ifdef CONFIG_NETFILTER
+		IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
+#endif
+		break;
+	case AF_INET6:
+		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+
+#ifdef CONFIG_NETFILTER
+		IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
+		break;
+	}
+
 	secpath_reset(skb);
 
 	if (xfrm_dev_offload_ok(skb, x)) {
