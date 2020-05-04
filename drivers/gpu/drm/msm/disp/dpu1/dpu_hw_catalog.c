@@ -537,8 +537,8 @@ static const struct dpu_perf_cfg sdm845_perf_data = {
 };
 
 static const struct dpu_perf_cfg sc7180_perf_data = {
-	.max_bw_low = 3900000,
-	.max_bw_high = 5500000,
+	.max_bw_low = 6800000,
+	.max_bw_high = 6800000,
 	.min_core_ib = 2400000,
 	.min_llcc_ib = 800000,
 	.min_dram_ib = 1600000,
