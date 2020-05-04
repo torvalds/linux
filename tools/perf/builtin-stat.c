@@ -636,7 +636,7 @@ try_again_reset:
 			stat_config.unit_width = l;
 
 		if (perf_evsel__should_store_id(counter) &&
-		    perf_evsel__store_ids(counter, evsel_list))
+		    evsel__store_ids(counter, evsel_list))
 			return -1;
 	}
 

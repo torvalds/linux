@@ -403,5 +403,5 @@ static inline bool evsel__has_br_stack(const struct evsel *evsel)
 
 struct perf_env *evsel__env(struct evsel *evsel);
 
-int perf_evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
+int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 #endif /* __PERF_EVSEL_H */
