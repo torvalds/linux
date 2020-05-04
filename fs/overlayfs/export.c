@@ -231,12 +231,9 @@ static int ovl_dentry_to_fid(struct dentry *dentry, u32 *fid, int buflen)
 	if (IS_ERR(fh))
 		return PTR_ERR(fh);
 
-	err = -EOVERFLOW;
 	len = OVL_FH_LEN(fh);
-	if (len > buflen)
-		goto fail;
-
-	memcpy(fid, fh, len);
+	if (len <= buflen)
+		memcpy(fid, fh, len);
 	err = len;
 
 out:
@@ -244,9 +241,8 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("failed to encode file handle (%pd2, err=%i, buflen=%d, len=%d, type=%d)\n",
-			    dentry, err, buflen, fh ? (int)fh->fb.len : 0,
-			    fh ? fh->fb.type : 0);
+	pr_warn_ratelimited("failed to encode file handle (%pd2, err=%i)\n",
+			    dentry, err);
 	goto out;
 }
 
@@ -254,7 +250,7 @@ static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
 			 struct inode *parent)
 {
 	struct dentry *dentry;
-	int bytes = *max_len << 2;
+	int bytes, buflen = *max_len << 2;
 
 	/* TODO: encode connectable file handles */
 	if (parent)
@@ -264,12 +260,14 @@ static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
 	if (WARN_ON(!dentry))
 		return FILEID_INVALID;
 
-	bytes = ovl_dentry_to_fid(dentry, fid, bytes);
+	bytes = ovl_dentry_to_fid(dentry, fid, buflen);
 	dput(dentry);
 	if (bytes <= 0)
 		return FILEID_INVALID;
 
 	*max_len = bytes >> 2;
+	if (bytes > buflen)
+		return FILEID_INVALID;
 
 	return OVL_FILEID_V1;
 }
