@@ -5177,6 +5177,7 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 {
 	struct i915_vma *batch;
 	u32 dw, x, *cs, *hw;
+	u32 *defaults;
 
 	batch = create_user_vma(ce->vm, SZ_64K);
 	if (IS_ERR(batch))
@@ -5188,9 +5189,16 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 		return ERR_CAST(cs);
 	}
 
+	defaults = shmem_pin_map(ce->engine->default_state);
+	if (!defaults) {
+		i915_gem_object_unpin_map(batch->obj);
+		i915_vma_put(batch);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	x = 0;
 	dw = 0;
-	hw = ce->engine->pinned_default_state;
+	hw = defaults;
 	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
@@ -5220,6 +5228,8 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 		 (hw[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
 
 	*cs++ = MI_BATCH_BUFFER_END;
+
+	shmem_unpin_map(ce->engine->default_state, defaults);
 
 	i915_gem_object_flush_map(batch->obj);
 	i915_gem_object_unpin_map(batch->obj);
@@ -5331,6 +5341,7 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 {
 	struct i915_vma *batch;
 	u32 dw, *cs, *hw;
+	u32 *defaults;
 
 	batch = create_user_vma(ce->vm, SZ_64K);
 	if (IS_ERR(batch))
@@ -5342,8 +5353,15 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 		return ERR_CAST(cs);
 	}
 
+	defaults = shmem_pin_map(ce->engine->default_state);
+	if (!defaults) {
+		i915_gem_object_unpin_map(batch->obj);
+		i915_vma_put(batch);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	dw = 0;
-	hw = ce->engine->pinned_default_state;
+	hw = defaults;
 	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
@@ -5370,6 +5388,8 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 		 (hw[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
 
 	*cs++ = MI_BATCH_BUFFER_END;
+
+	shmem_unpin_map(ce->engine->default_state, defaults);
 
 	i915_gem_object_flush_map(batch->obj);
 	i915_gem_object_unpin_map(batch->obj);
@@ -5438,6 +5458,7 @@ static int compare_isolation(struct intel_engine_cs *engine,
 {
 	u32 x, dw, *hw, *lrc;
 	u32 *A[2], *B[2];
+	u32 *defaults;
 	int err = 0;
 
 	A[0] = i915_gem_object_pin_map(ref[0]->obj, I915_MAP_WC);
@@ -5470,9 +5491,15 @@ static int compare_isolation(struct intel_engine_cs *engine,
 	}
 	lrc += LRC_STATE_OFFSET / sizeof(*hw);
 
+	defaults = shmem_pin_map(ce->engine->default_state);
+	if (!defaults) {
+		err = -ENOMEM;
+		goto err_lrc;
+	}
+
 	x = 0;
 	dw = 0;
-	hw = engine->pinned_default_state;
+	hw = defaults;
 	hw += LRC_STATE_OFFSET / sizeof(*hw);
 	do {
 		u32 len = hw[dw] & 0x7f;
@@ -5512,6 +5539,8 @@ static int compare_isolation(struct intel_engine_cs *engine,
 	} while (dw < PAGE_SIZE / sizeof(u32) &&
 		 (hw[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
 
+	shmem_unpin_map(ce->engine->default_state, defaults);
+err_lrc:
 	i915_gem_object_unpin_map(ce->state->obj);
 err_B1:
 	i915_gem_object_unpin_map(result[1]->obj);
@@ -5661,18 +5690,16 @@ static int live_lrc_isolation(void *arg)
 			continue;
 
 		intel_engine_pm_get(engine);
-		if (engine->pinned_default_state) {
-			for (i = 0; i < ARRAY_SIZE(poison); i++) {
-				int result;
+		for (i = 0; i < ARRAY_SIZE(poison); i++) {
+			int result;
 
-				result = __lrc_isolation(engine, poison[i]);
-				if (result && !err)
-					err = result;
+			result = __lrc_isolation(engine, poison[i]);
+			if (result && !err)
+				err = result;
 
-				result = __lrc_isolation(engine, ~poison[i]);
-				if (result && !err)
-					err = result;
-			}
+			result = __lrc_isolation(engine, ~poison[i]);
+			if (result && !err)
+				err = result;
 		}
 		intel_engine_pm_put(engine);
 		if (igt_flush_test(gt->i915)) {

@@ -1271,14 +1271,11 @@ execlists_check_context(const struct intel_context *ce,
 static void restore_default_state(struct intel_context *ce,
 				  struct intel_engine_cs *engine)
 {
-	u32 *regs = ce->lrc_reg_state;
+	u32 *regs;
 
-	if (engine->pinned_default_state)
-		memcpy(regs, /* skip restoring the vanilla PPHWSP */
-		       engine->pinned_default_state + LRC_STATE_OFFSET,
-		       engine->context_size - PAGE_SIZE);
+	regs = memset(ce->lrc_reg_state, 0, engine->context_size - PAGE_SIZE);
+	execlists_init_reg_state(regs, ce, engine, ce->ring, true);
 
-	execlists_init_reg_state(regs, ce, engine, ce->ring, false);
 	ce->runtime.last = intel_context_get_runtime(ce);
 }
 
@@ -4168,8 +4165,6 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * image back to the expected values to skip over the guilty request.
 	 */
 	__i915_request_reset(rq, stalled);
-	if (!stalled)
-		goto out_replay;
 
 	/*
 	 * We want a simple context + ring to execute the breadcrumb update.
@@ -4179,9 +4174,6 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	GEM_BUG_ON(!intel_context_is_pinned(ce));
-	restore_default_state(ce, engine);
-
 out_replay:
 	ENGINE_TRACE(engine, "replay {head:%04x, tail:%04x}\n",
 		     head, ce->ring->tail);
