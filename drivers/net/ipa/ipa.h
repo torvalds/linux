@@ -49,6 +49,8 @@ struct ipa_interrupt;
  * @mem:		Array of IPA-local memory region descriptors
  * @imem_iova:		I/O virtual address of IPA region in IMEM
  * @imem_size;		Size of IMEM region
+ * @smem_iova:		I/O virtual address of IPA region in SMEM
+ * @smem_size;		Size of SMEM region
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
@@ -92,6 +94,9 @@ struct ipa {
 
 	unsigned long imem_iova;
 	size_t imem_size;
+
+	unsigned long smem_iova;
+	size_t smem_size;
 
 	dma_addr_t zero_addr;
 	void *zero_virt;

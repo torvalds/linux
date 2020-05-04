@@ -250,12 +250,16 @@ struct ipa_resource_data {
  * @local:		array of IPA-local memory region descriptors
  * @imem_addr:		physical address of IPA region within IMEM
  * @imem_size:		size in bytes of IPA IMEM region
+ * @smem_id:		item identifier for IPA region within SMEM memory
+ * @imem_size:		size in bytes of the IPA SMEM region
  */
 struct ipa_mem_data {
 	u32 local_count;
 	const struct ipa_mem *local;
 	u32 imem_addr;
 	u32 imem_size;
+	u32 smem_id;
+	u32 smem_size;
 };
 
 /**
