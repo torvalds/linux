@@ -285,14 +285,12 @@ static int amd_spi_probe(struct platform_device *pdev)
 	err = spi_register_master(master);
 	if (err) {
 		dev_err(dev, "error %d registering SPI controller\n", err);
-		goto err_iounmap;
+		goto err_free_master;
 	}
 	platform_set_drvdata(pdev, amd_spi);
 
 	return 0;
 
-err_iounmap:
-	iounmap(amd_spi->io_remap_addr);
 err_free_master:
 	spi_master_put(master);
 
