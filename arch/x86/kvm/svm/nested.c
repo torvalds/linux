@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 
 #include <asm/msr-index.h>
+#include <asm/debugreg.h>
 
 #include "kvm_emulate.h"
 #include "trace.h"
@@ -267,7 +268,8 @@ void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 	svm->vmcb->save.rsp = nested_vmcb->save.rsp;
 	svm->vmcb->save.rip = nested_vmcb->save.rip;
 	svm->vmcb->save.dr7 = nested_vmcb->save.dr7;
-	svm->vmcb->save.dr6 = nested_vmcb->save.dr6;
+	svm->vcpu.arch.dr6  = nested_vmcb->save.dr6;
+	kvm_update_dr6(&svm->vcpu);
 	svm->vmcb->save.cpl = nested_vmcb->save.cpl;
 
 	svm->nested.vmcb_msrpm = nested_vmcb->control.msrpm_base_pa & ~0x0fffULL;
@@ -482,7 +484,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.rsp    = vmcb->save.rsp;
 	nested_vmcb->save.rax    = vmcb->save.rax;
 	nested_vmcb->save.dr7    = vmcb->save.dr7;
-	nested_vmcb->save.dr6    = vmcb->save.dr6;
+	nested_vmcb->save.dr6    = svm->vcpu.arch.dr6;
 	nested_vmcb->save.cpl    = vmcb->save.cpl;
 
 	nested_vmcb->control.int_ctl           = vmcb->control.int_ctl;
@@ -606,7 +608,7 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 /* DB exceptions for our internal use must not cause vmexit */
 static int nested_svm_intercept_db(struct vcpu_svm *svm)
 {
-	unsigned long dr6;
+	unsigned long dr6 = svm->vmcb->save.dr6;
 
 	/* Always catch it and pass it to userspace if debugging.  */
 	if (svm->vcpu.guest_debug &
@@ -615,22 +617,28 @@ static int nested_svm_intercept_db(struct vcpu_svm *svm)
 
 	/* if we're not singlestepping, it's not ours */
 	if (!svm->nmi_singlestep)
-		return NESTED_EXIT_DONE;
+		goto reflected_db;
 
 	/* if it's not a singlestep exception, it's not ours */
-	if (kvm_get_dr(&svm->vcpu, 6, &dr6))
-		return NESTED_EXIT_DONE;
 	if (!(dr6 & DR6_BS))
-		return NESTED_EXIT_DONE;
+		goto reflected_db;
 
 	/* if the guest is singlestepping, it should get the vmexit */
 	if (svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF) {
 		disable_nmi_singlestep(svm);
-		return NESTED_EXIT_DONE;
+		goto reflected_db;
 	}
 
 	/* it's ours, the nested hypervisor must not see this one */
 	return NESTED_EXIT_HOST;
+
+reflected_db:
+	/*
+	 * Synchronize guest DR6 here just like in db_interception; it will
+	 * be moved into the nested VMCB by nested_svm_vmexit.
+	 */
+	svm->vcpu.arch.dr6 = dr6;
+	return NESTED_EXIT_DONE;
 }
 
 static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
