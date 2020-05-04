@@ -32,8 +32,6 @@
 /* The amount of RX buffer space consumed by standard skb overhead */
 #define IPA_RX_BUFFER_OVERHEAD	(PAGE_SIZE - SKB_MAX_ORDER(NET_SKB_PAD, 0))
 
-#define IPA_ENDPOINT_STOP_RX_RETRIES		10
-
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
 #define IPA_AGGR_TIME_LIMIT_DEFAULT		1000	/* microseconds */
 
@@ -1282,20 +1280,9 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
  */
 int ipa_endpoint_stop(struct ipa_endpoint *endpoint)
 {
-	u32 retries = IPA_ENDPOINT_STOP_RX_RETRIES;
-	int ret;
+	struct gsi *gsi = &endpoint->ipa->gsi;
 
-	do {
-		struct gsi *gsi = &endpoint->ipa->gsi;
-
-		ret = gsi_channel_stop(gsi, endpoint->channel_id);
-		if (ret != -EAGAIN || endpoint->toward_ipa)
-			break;
-
-		msleep(1);
-	} while (retries--);
-
-	return retries ? ret : -EIO;
+	return gsi_channel_stop(gsi, endpoint->channel_id);
 }
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
