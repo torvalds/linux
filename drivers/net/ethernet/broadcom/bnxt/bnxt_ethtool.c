@@ -171,9 +171,12 @@ static const char * const bnxt_ring_tpa2_stats_str[] = {
 	"rx_tpa_errors",
 };
 
-static const char * const bnxt_ring_sw_stats_str[] = {
+static const char * const bnxt_rx_sw_stats_str[] = {
 	"rx_l4_csum_errors",
 	"rx_buf_errors",
+};
+
+static const char * const bnxt_cmn_sw_stats_str[] = {
 	"missed_irqs",
 };
 
@@ -485,7 +488,8 @@ static int bnxt_get_num_ring_stats(struct bnxt *bp)
 	int num_stats;
 
 	num_stats = ARRAY_SIZE(bnxt_ring_stats_str) +
-		    ARRAY_SIZE(bnxt_ring_sw_stats_str) +
+		    ARRAY_SIZE(bnxt_rx_sw_stats_str) +
+		    ARRAY_SIZE(bnxt_cmn_sw_stats_str) +
 		    bnxt_get_num_tpa_ring_stats(bp);
 	return num_stats * bp->cp_nr_rings;
 }
@@ -548,13 +552,19 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		__le64 *hw_stats = (__le64 *)cpr->hw_stats;
+		u64 *sw;
 		int k;
 
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
-		buf[j++] = cpr->rx_l4_csum_errors;
-		buf[j++] = cpr->rx_buf_errors;
-		buf[j++] = cpr->missed_irqs;
+
+		sw = (u64 *)&cpr->sw_stats.rx;
+		for (k = 0; k < ARRAY_SIZE(bnxt_rx_sw_stats_str); j++, k++)
+			buf[j] = sw[k];
+
+		sw = (u64 *)&cpr->sw_stats.cmn;
+		for (k = 0; k < ARRAY_SIZE(bnxt_cmn_sw_stats_str); j++, k++)
+			buf[j] = sw[k];
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
 			le64_to_cpu(cpr->hw_stats->rx_discard_pkts);
@@ -653,10 +663,16 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				buf += ETH_GSTRING_LEN;
 			}
 skip_tpa_stats:
-			num_str = ARRAY_SIZE(bnxt_ring_sw_stats_str);
+			num_str = ARRAY_SIZE(bnxt_rx_sw_stats_str);
 			for (j = 0; j < num_str; j++) {
 				sprintf(buf, "[%d]: %s", i,
-					bnxt_ring_sw_stats_str[j]);
+					bnxt_rx_sw_stats_str[j]);
+				buf += ETH_GSTRING_LEN;
+			}
+			num_str = ARRAY_SIZE(bnxt_cmn_sw_stats_str);
+			for (j = 0; j < num_str; j++) {
+				sprintf(buf, "[%d]: %s", i,
+					bnxt_cmn_sw_stats_str[j]);
 				buf += ETH_GSTRING_LEN;
 			}
 		}

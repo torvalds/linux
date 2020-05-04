@@ -1766,7 +1766,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 		rc = -EIO;
 		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
-			bnapi->cp_ring.rx_buf_errors++;
+			bnapi->cp_ring.sw_stats.rx.rx_buf_errors++;
 			if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 				netdev_warn(bp->dev, "RX buffer error %x\n",
 					    rx_err);
@@ -1849,7 +1849,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	} else {
 		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS) {
 			if (dev->features & NETIF_F_RXCSUM)
-				bnapi->cp_ring.rx_l4_csum_errors++;
+				bnapi->cp_ring.sw_stats.rx.rx_l4_csum_errors++;
 		}
 	}
 
@@ -10285,7 +10285,7 @@ static void bnxt_chk_missed_irq(struct bnxt *bp)
 			bnxt_dbg_hwrm_ring_info_get(bp,
 				DBG_RING_INFO_GET_REQ_RING_TYPE_L2_CMPL,
 				fw_ring_id, &val[0], &val[1]);
-			cpr->missed_irqs++;
+			cpr->sw_stats.cmn.missed_irqs++;
 		}
 	}
 }
