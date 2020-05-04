@@ -1401,8 +1401,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			force_sig(SIGILL);
 			break;
 		}
-		/* Fall through.  */
-
+		fallthrough;
 	case 1: {
 		void __user *fault_addr;
 		unsigned long fcr31;

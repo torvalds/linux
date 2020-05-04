@@ -202,7 +202,7 @@ void __init check_wait(void)
 		 */
 		if (IS_ENABLED(CONFIG_MIPS_EJTAG_FDC_TTY))
 			break;
-		/* fall through */
+		fallthrough;
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:

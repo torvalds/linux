@@ -824,7 +824,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->regs[2] = EINTR;
 				break;
 			}
-		/* fallthrough */
+			fallthrough;
 		case ERESTARTNOINTR:
 			regs->regs[7] = regs->regs[26];
 			regs->regs[2] = regs->regs[0];

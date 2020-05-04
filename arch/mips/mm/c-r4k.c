@@ -1200,7 +1200,7 @@ static void probe_pcache(void)
 
 	case CPU_VR4133:
 		write_c0_config(config & ~VR41_CONF_P4K);
-		/* fall through */
+		fallthrough;
 	case CPU_VR4131:
 		/* Workaround for cache instruction bug of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
@@ -1426,7 +1426,7 @@ static void probe_pcache(void)
 	case CPU_74K:
 	case CPU_1074K:
 		has_74k_erratum = alias_74k_erratum(c);
-		/* Fall through. */
+		fallthrough;
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:
@@ -1450,7 +1450,7 @@ static void probe_pcache(void)
 			c->dcache.flags |= MIPS_CACHE_PINDEX;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		if (has_74k_erratum || c->dcache.waysize > PAGE_SIZE)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;

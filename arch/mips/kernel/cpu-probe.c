@@ -535,19 +535,19 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	case MIPS_CPU_ISA_M64R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2;
 		set_elf_base_platform("mips64r2");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_M64R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1;
 		set_elf_base_platform("mips64");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_V:
 		c->isa_level |= MIPS_CPU_ISA_V;
 		set_elf_base_platform("mips5");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_IV:
 		c->isa_level |= MIPS_CPU_ISA_IV;
 		set_elf_base_platform("mips4");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_III:
 		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
 		set_elf_base_platform("mips3");
@@ -557,7 +557,7 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	case MIPS_CPU_ISA_M64R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6;
 		set_elf_base_platform("mips64r6");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_M32R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6;
 		set_elf_base_platform("mips32r6");
@@ -566,11 +566,11 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
 		set_elf_base_platform("mips32r2");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_M32R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1;
 		set_elf_base_platform("mips32");
-		/* fall through */
+		fallthrough;
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
 		set_elf_base_platform("mips2");
@@ -850,7 +850,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 				  MIPS_CONF4_VTLBSIZEEXT_SHIFT) * 0x40;
 			c->tlbsize = c->tlbsizevtlb;
 			ftlb_page = MIPS_CONF4_VFTLBPAGESIZE;
-			/* fall through */
+			fallthrough;
 		case MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT:
 			if (mips_ftlb_disabled)
 				break;
@@ -1753,10 +1753,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	switch (__get_cpu_type(c->cputype)) {
 	case CPU_I6500:
 		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
-		/* fall-through */
+		fallthrough;
 	case CPU_I6400:
 		c->options |= MIPS_CPU_SHARED_FTLB_RAM;
-		/* fall-through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -2077,7 +2077,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		default:
 			break;
 		}
-	/* fall-through */
+		fallthrough;
 	case PRID_IMP_XBURST_REV2:
 		c->cputype = CPU_XBURST;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
