@@ -659,7 +659,6 @@ static inline int uv_cpu_blade_processor_id(int cpu)
 {
 	return uv_cpu_info_per(cpu)->blade_cpu_id;
 }
-#define _uv_cpu_blade_processor_id 1	/* indicate function available */
 
 /* Blade number to Node number (UV1..UV4 is 1:1) */
 static inline int uv_blade_to_node(int blade)
