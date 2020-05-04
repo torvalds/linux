@@ -123,12 +123,6 @@ enum uv_memprotect {
 	UV_MEMPROT_ALLOW_RW
 };
 
-/*
- * bios calls have 6 parameters
- */
-extern s64 uv_bios_call(enum uv_bios_cmd, u64, u64, u64, u64, u64);
-extern s64 uv_bios_call_irqsave(enum uv_bios_cmd, u64, u64, u64, u64, u64);
-
 extern s64 uv_bios_get_sn_info(int, int *, long *, long *, long *, long *);
 extern s64 uv_bios_freq_base(u64, u64 *);
 extern int uv_bios_mq_watchlist_alloc(unsigned long, unsigned int,
