@@ -819,6 +819,9 @@ static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
 	case CPU_PM_EXIT:
 		cpumask_clear_cpu(smp_processor_id(), &drv->cpus_entered_pm);
 		goto exit;
+	default:
+		ret = NOTIFY_DONE;
+		goto exit;
 	}
 
 	ret = rpmh_rsc_ctrlr_is_busy(drv);
