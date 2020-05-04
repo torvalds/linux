@@ -770,6 +770,7 @@ static int smc_llc_cli_conf_link(struct smc_link *link,
 		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
 		return -ENOLINK;
 	}
+	smc_llc_save_peer_uid(qentry);
 	smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
 
 	rc = smc_ib_modify_qp_rts(link_new);
@@ -1041,6 +1042,7 @@ static int smc_llc_srv_conf_link(struct smc_link *link,
 					 false, SMC_LLC_DEL_LOST_PATH);
 		return -ENOLINK;
 	}
+	smc_llc_save_peer_uid(qentry);
 	smc_llc_link_active(link_new);
 	if (lgr_new_t == SMC_LGR_ASYMMETRIC_LOCAL ||
 	    lgr_new_t == SMC_LGR_ASYMMETRIC_PEER)
@@ -1781,6 +1783,13 @@ void smc_llc_link_set_uid(struct smc_link *link)
 
 	link_uid = htonl(*((u32 *)link->lgr->id) + link->link_id);
 	memcpy(link->link_uid, &link_uid, SMC_LGR_ID_SIZE);
+}
+
+/* save peers link user id, used for debug purposes */
+void smc_llc_save_peer_uid(struct smc_llc_qentry *qentry)
+{
+	memcpy(qentry->link->peer_link_uid, qentry->msg.confirm_link.link_uid,
+	       SMC_LGR_ID_SIZE);
 }
 
 /* evaluate confirm link request or response */
