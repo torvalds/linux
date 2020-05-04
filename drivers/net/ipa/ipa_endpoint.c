@@ -1214,7 +1214,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 
 	gsi_trans_read_byte_done(gsi, endpoint->channel_id);
 
-	ret = ipa_endpoint_stop(endpoint);
+	ret = gsi_channel_stop(gsi, endpoint->channel_id);
 	if (ret)
 		goto out_suspend_again;
 
@@ -1231,7 +1231,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	goto out_suspend_again;
 
 err_endpoint_stop:
-	ipa_endpoint_stop(endpoint);
+	(void)gsi_channel_stop(gsi, endpoint->channel_id);
 out_suspend_again:
 	if (suspended)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
@@ -1267,22 +1267,6 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 		dev_err(&ipa->pdev->dev,
 			"error %d resetting channel %u for endpoint %u\n",
 			ret, endpoint->channel_id, endpoint->endpoint_id);
-}
-
-/**
- * ipa_endpoint_stop() - Stops a GSI channel in IPA
- * @client:	Client whose endpoint should be stopped
- *
- * This function implements the sequence to stop a GSI channel
- * in IPA. This function returns when the channel is is STOP state.
- *
- * Return value: 0 on success, negative otherwise
- */
-int ipa_endpoint_stop(struct ipa_endpoint *endpoint)
-{
-	struct gsi *gsi = &endpoint->ipa->gsi;
-
-	return gsi_channel_stop(gsi, endpoint->channel_id);
 }
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
@@ -1337,12 +1321,13 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 {
 	u32 mask = BIT(endpoint->endpoint_id);
 	struct ipa *ipa = endpoint->ipa;
+	struct gsi *gsi = &ipa->gsi;
 	int ret;
 
-	if (!(endpoint->ipa->enabled & mask))
+	if (!(ipa->enabled & mask))
 		return;
 
-	endpoint->ipa->enabled ^= mask;
+	ipa->enabled ^= mask;
 
 	if (!endpoint->toward_ipa) {
 		ipa_endpoint_replenish_disable(endpoint);
@@ -1351,7 +1336,7 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 	}
 
 	/* Note that if stop fails, the channel's state is not well-defined */
-	ret = ipa_endpoint_stop(endpoint);
+	ret = gsi_channel_stop(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(&ipa->pdev->dev,
 			"error %d attempting to stop endpoint %u\n", ret,
