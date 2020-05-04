@@ -20,10 +20,12 @@ static const struct config_item_type nvmet_subsys_type;
 static LIST_HEAD(nvmet_ports_list);
 struct list_head *nvmet_ports = &nvmet_ports_list;
 
-static const struct nvmet_transport_name {
+struct nvmet_type_name_map {
 	u8		type;
 	const char	*name;
-} nvmet_transport_names[] = {
+};
+
+static struct nvmet_type_name_map nvmet_transport[] = {
 	{ NVMF_TRTYPE_RDMA,	"rdma" },
 	{ NVMF_TRTYPE_FC,	"fc" },
 	{ NVMF_TRTYPE_TCP,	"tcp" },
@@ -254,10 +256,9 @@ static ssize_t nvmet_addr_trtype_show(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_transport_names); i++) {
-		if (port->disc_addr.trtype != nvmet_transport_names[i].type)
-			continue;
-		return sprintf(page, "%s\n", nvmet_transport_names[i].name);
+	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
+		if (port->disc_addr.trtype == nvmet_transport[i].type)
+			return sprintf(page, "%s\n", nvmet_transport[i].name);
 	}
 
 	return sprintf(page, "\n");
@@ -282,8 +283,8 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 		return -EACCES;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_transport_names); i++) {
-		if (sysfs_streq(page, nvmet_transport_names[i].name))
+	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
+		if (sysfs_streq(page, nvmet_transport[i].name))
 			goto found;
 	}
 
@@ -291,7 +292,7 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 	return -EINVAL;
 found:
 	memset(&port->disc_addr.tsas, 0, NVMF_TSAS_SIZE);
-	port->disc_addr.trtype = nvmet_transport_names[i].type;
+	port->disc_addr.trtype = nvmet_transport[i].type;
 	if (port->disc_addr.trtype == NVMF_TRTYPE_RDMA)
 		nvmet_port_init_tsas_rdma(port);
 	return count;
