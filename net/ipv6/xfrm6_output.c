@@ -40,7 +40,7 @@ static int xfrm6_local_dontfrag(struct sk_buff *skb)
 	return 0;
 }
 
-static void xfrm6_local_rxpmtu(struct sk_buff *skb, u32 mtu)
+void xfrm6_local_rxpmtu(struct sk_buff *skb, u32 mtu)
 {
 	struct flowi6 fl6;
 	struct sock *sk = skb->sk;
