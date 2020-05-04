@@ -561,8 +561,7 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static int perf_evsel__check_stype(struct evsel *evsel,
-				   u64 sample_type, const char *sample_msg)
+static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *sample_msg)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *name = evsel__name(evsel);
@@ -625,7 +624,7 @@ static int __cmd_inject(struct perf_inject *inject)
 			const char *name = evsel__name(evsel);
 
 			if (!strcmp(name, "sched:sched_switch")) {
-				if (perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
+				if (evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
 					return -EINVAL;
 
 				evsel->handler = perf_inject__sched_switch;
