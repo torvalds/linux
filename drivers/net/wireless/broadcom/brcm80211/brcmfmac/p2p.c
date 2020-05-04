@@ -60,7 +60,7 @@
 #define P2P_AF_MIN_DWELL_TIME		100
 #define P2P_AF_MED_DWELL_TIME		400
 #define P2P_AF_LONG_DWELL_TIME		1000
-#define P2P_AF_TX_MAX_RETRY		1
+#define P2P_AF_TX_MAX_RETRY		5
 #define P2P_AF_MAX_WAIT_TIME		msecs_to_jiffies(2000)
 #define P2P_INVALID_CHANNEL		-1
 #define P2P_CHANNEL_SYNC_RETRY		5
@@ -93,6 +93,9 @@
 #define P2PSD_ACTION_ID_GAS_CRESP	0x0d	/* GAS Comback Response AF */
 
 #define BRCMF_P2P_DISABLE_TIMEOUT	msecs_to_jiffies(500)
+
+/* Mask for retry counter of custom dwell time */
+#define CUSTOM_RETRY_MASK 0xff000000
 /**
  * struct brcmf_p2p_disc_st_le - set discovery state in firmware.
  *
@@ -1666,6 +1669,17 @@ static s32 brcmf_p2p_pub_af_tx(struct brcmf_cfg80211_info *cfg,
 	return err;
 }
 
+static bool brcmf_p2p_check_dwell_overflow(s32 requested_dwell,
+					   unsigned long dwell_jiffies)
+{
+	if ((requested_dwell & CUSTOM_RETRY_MASK) &&
+	    (jiffies_to_msecs(jiffies - dwell_jiffies) >
+	    (requested_dwell & ~CUSTOM_RETRY_MASK))) {
+		brcmf_err("Action frame TX retry time over dwell time!\n");
+		return true;
+	}
+	return false;
+}
 /**
  * brcmf_p2p_send_action_frame() - send action frame .
  *
@@ -1690,6 +1704,10 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 	s32 tx_retry;
 	s32 extra_listen_time;
 	uint delta_ms;
+	unsigned long dwell_jiffies = 0;
+	bool dwell_overflow = false;
+
+	s32 requested_dwell = af_params->dwell_time;
 
 	action_frame = &af_params->action_frame;
 	action_frame_len = le16_to_cpu(action_frame->len);
@@ -1801,12 +1819,18 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 		/* update channel */
 		af_params->channel = cpu_to_le32(afx_hdl->peer_chan);
 	}
+	dwell_jiffies = jiffies;
+	dwell_overflow = brcmf_p2p_check_dwell_overflow(requested_dwell,
+							dwell_jiffies);
 
 	tx_retry = 0;
 	while (!p2p->block_gon_req_tx &&
-	       (ack == false) && (tx_retry < P2P_AF_TX_MAX_RETRY)) {
+	       (!ack) && (tx_retry < P2P_AF_TX_MAX_RETRY) &&
+		!dwell_overflow) {
 		ack = !brcmf_p2p_tx_action_frame(p2p, af_params);
 		tx_retry++;
+		dwell_overflow = brcmf_p2p_check_dwell_overflow(requested_dwell,
+								dwell_jiffies);
 	}
 	if (ack == false) {
 		bphy_err(drvr, "Failed to send Action Frame(retry %d)\n",
