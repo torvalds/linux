@@ -244,51 +244,32 @@ static inline int uv_hub_info_check(int version)
 #define UV4_HUB_REVISION_BASE		7
 #define UV4A_HUB_REVISION_BASE		8	/* UV4 (fixed) rev 2 */
 
-/* WARNING: UVx_HUB_IS_SUPPORTED defines are deprecated and will be removed */
 static inline int is_uv1_hub(void)
 {
-#ifdef	UV1_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(1));
-#else
-	return 0;
-#endif
 }
 
 static inline int is_uv2_hub(void)
 {
-#ifdef	UV2_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(2));
-#else
-	return 0;
-#endif
 }
 
 static inline int is_uv3_hub(void)
 {
-#ifdef	UV3_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(3));
-#else
-	return 0;
-#endif
 }
 
 /* First test "is UV4A", then "is UV4" */
 static inline int is_uv4a_hub(void)
 {
-#ifdef	UV4A_HUB_IS_SUPPORTED
 	if (is_uv_hubbed(uv(4)))
 		return (uv_hub_info->hub_revision == UV4A_HUB_REVISION_BASE);
-#endif
 	return 0;
 }
 
 static inline int is_uv4_hub(void)
 {
-#ifdef	UV4_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(4));
-#else
-	return 0;
-#endif
 }
 
 static inline int is_uvx_hub(void)
