@@ -294,7 +294,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 err_free_master:
 	spi_master_put(master);
 
-	return 0;
+	return err;
 }
 
 static int amd_spi_remove(struct platform_device *pdev)
