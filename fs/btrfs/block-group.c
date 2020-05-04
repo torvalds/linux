@@ -2349,13 +2349,13 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group *cache)
 	spin_unlock(&sinfo->lock);
 }
 
-static int write_one_cache_group(struct btrfs_trans_handle *trans,
-				 struct btrfs_path *path,
-				 struct btrfs_block_group *cache)
+static int update_block_group_item(struct btrfs_trans_handle *trans,
+				   struct btrfs_path *path,
+				   struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_root *root = fs_info->extent_root;
 	unsigned long bi;
 	struct extent_buffer *leaf;
 	struct btrfs_block_group_item bgi;
@@ -2365,7 +2365,7 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = cache->length;
 
-	ret = btrfs_search_slot(trans, extent_root, &key, path, 0, 1);
+	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret) {
 		if (ret > 0)
 			ret = -ENOENT;
@@ -2677,7 +2677,7 @@ again:
 			}
 		}
 		if (!ret) {
-			ret = write_one_cache_group(trans, path, cache);
+			ret = update_block_group_item(trans, path, cache);
 			/*
 			 * Our block group might still be attached to the list
 			 * of new block groups in the transaction handle of some
@@ -2826,7 +2826,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 			}
 		}
 		if (!ret) {
-			ret = write_one_cache_group(trans, path, cache);
+			ret = update_block_group_item(trans, path, cache);
 			/*
 			 * One of the free space endio workers might have
 			 * created a new block group while updating a free space
@@ -2843,7 +2843,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 			if (ret == -ENOENT) {
 				wait_event(cur_trans->writer_wait,
 				   atomic_read(&cur_trans->num_writers) == 1);
-				ret = write_one_cache_group(trans, path, cache);
+				ret = update_block_group_item(trans, path, cache);
 			}
 			if (ret)
 				btrfs_abort_transaction(trans, ret);
