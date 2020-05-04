@@ -5045,8 +5045,7 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	req.dflt_ring_grp = cpu_to_le16(bp->grp_info[grp_idx].fw_grp_id);
 	req.lb_rule = cpu_to_le16(0xffff);
 vnic_mru:
-	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN +
-			      VLAN_HLEN);
+	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + VLAN_HLEN);
 
 	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 #ifdef CONFIG_BNXT_SRIOV
