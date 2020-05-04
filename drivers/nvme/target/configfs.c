@@ -147,20 +147,24 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 
 CONFIGFS_ATTR(nvmet_, addr_traddr);
 
-static ssize_t nvmet_addr_treq_show(struct config_item *item,
-		char *page)
+static const struct nvmet_type_name_map nvmet_addr_treq[] = {
+	{ NVMF_TREQ_NOT_SPECIFIED,	"not specified" },
+	{ NVMF_TREQ_REQUIRED,		"required" },
+	{ NVMF_TREQ_NOT_REQUIRED,	"not required" },
+};
+
+static ssize_t nvmet_addr_treq_show(struct config_item *item, char *page)
 {
-	switch (to_nvmet_port(item)->disc_addr.treq &
-		NVME_TREQ_SECURE_CHANNEL_MASK) {
-	case NVMF_TREQ_NOT_SPECIFIED:
-		return sprintf(page, "not specified\n");
-	case NVMF_TREQ_REQUIRED:
-		return sprintf(page, "required\n");
-	case NVMF_TREQ_NOT_REQUIRED:
-		return sprintf(page, "not required\n");
-	default:
-		return sprintf(page, "\n");
+	u8 treq = to_nvmet_port(item)->disc_addr.treq &
+		NVME_TREQ_SECURE_CHANNEL_MASK;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
+		if (treq == nvmet_addr_treq[i].type)
+			return sprintf(page, "%s\n", nvmet_addr_treq[i].name);
 	}
+
+	return sprintf(page, "\n");
 }
 
 static ssize_t nvmet_addr_treq_store(struct config_item *item,
@@ -168,6 +172,7 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 	u8 treq = port->disc_addr.treq & ~NVME_TREQ_SECURE_CHANNEL_MASK;
+	int i;
 
 	if (port->enabled) {
 		pr_err("Cannot modify address while enabled\n");
@@ -175,18 +180,17 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 		return -EACCES;
 	}
 
-	if (sysfs_streq(page, "not specified")) {
-		treq |= NVMF_TREQ_NOT_SPECIFIED;
-	} else if (sysfs_streq(page, "required")) {
-		treq |= NVMF_TREQ_REQUIRED;
-	} else if (sysfs_streq(page, "not required")) {
-		treq |= NVMF_TREQ_NOT_REQUIRED;
-	} else {
-		pr_err("Invalid value '%s' for treq\n", page);
-		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
+		if (sysfs_streq(page, nvmet_addr_treq[i].name))
+			goto found;
 	}
-	port->disc_addr.treq = treq;
 
+	pr_err("Invalid value '%s' for treq\n", page);
+	return -EINVAL;
+
+found:
+	treq |= nvmet_addr_treq[i].type;
+	port->disc_addr.treq = treq;
 	return count;
 }
 
