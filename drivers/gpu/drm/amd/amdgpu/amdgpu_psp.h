@@ -95,7 +95,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 	int (*rlc_autoload_start)(struct psp_context *psp);
 	int (*mem_training_init)(struct psp_context *psp);
 	void (*mem_training_fini)(struct psp_context *psp);
@@ -316,10 +315,6 @@ struct amdgpu_psp_funcs {
 	((psp)->funcs->mem_training_fini ? (psp)->funcs->mem_training_fini((psp)) : 0)
 #define psp_mem_training(psp, ops) \
 	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
-
-#define psp_ras_cure_posion(psp, addr) \
-	((psp)->funcs->ras_cure_posion ? \
-	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
 
 #define psp_ring_get_wptr(psp) (psp)->funcs->ring_get_wptr((psp))
 #define psp_ring_set_wptr(psp, value) (psp)->funcs->ring_set_wptr((psp), (value))
