@@ -5,7 +5,7 @@ CC=clang
 LD=ld.lld
 NM=llvm-nm
 OBJCOPY=llvm-objcopy
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r377782c/bin
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r383902/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
 
 EXTRA_CMDS=''
