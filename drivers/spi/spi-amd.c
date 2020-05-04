@@ -282,7 +282,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = amd_spi_master_transfer;
 
 	/* Register the controller with SPI framework */
-	err = spi_register_master(master);
+	err = devm_spi_register_master(dev, master);
 	if (err) {
 		dev_err(dev, "error %d registering SPI controller\n", err);
 		goto err_free_master;
@@ -294,16 +294,6 @@ err_free_master:
 	spi_master_put(master);
 
 	return err;
-}
-
-static int amd_spi_remove(struct platform_device *pdev)
-{
-	struct amd_spi *amd_spi = platform_get_drvdata(pdev);
-
-	spi_unregister_master(amd_spi->master);
-	spi_master_put(amd_spi->master);
-
-	return 0;
 }
 
 static const struct acpi_device_id spi_acpi_match[] = {
@@ -318,7 +308,6 @@ static struct platform_driver amd_spi_driver = {
 		.acpi_match_table = ACPI_PTR(spi_acpi_match),
 	},
 	.probe = amd_spi_probe,
-	.remove = amd_spi_remove,
 };
 
 module_platform_driver(amd_spi_driver);
