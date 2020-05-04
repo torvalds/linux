@@ -95,7 +95,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*rlc_autoload_start)(struct psp_context *psp);
 	int (*mem_training_init)(struct psp_context *psp);
 	void (*mem_training_fini)(struct psp_context *psp);
 	int (*mem_training)(struct psp_context *psp, uint32_t ops);
@@ -307,8 +306,6 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
-#define psp_rlc_autoload(psp) \
-		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
 #define psp_mem_training_init(psp) \
 	((psp)->funcs->mem_training_init ? (psp)->funcs->mem_training_init((psp)) : 0)
 #define psp_mem_training_fini(psp) \

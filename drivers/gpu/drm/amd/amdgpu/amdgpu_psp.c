@@ -1646,7 +1646,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 		/* Start rlc autoload after psp recieved all the gfx firmware */
 		if (psp->autoload_supported && ucode->ucode_id == (amdgpu_sriov_vf(adev) ?
 		    AMDGPU_UCODE_ID_CP_MEC2 : AMDGPU_UCODE_ID_RLC_G)) {
-			ret = psp_rlc_autoload(psp);
+			ret = psp_rlc_autoload_start(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");
 				return ret;

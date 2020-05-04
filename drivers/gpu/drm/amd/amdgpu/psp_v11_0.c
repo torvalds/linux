@@ -524,11 +524,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	return 0;
 }
 
-static int psp_v11_0_rlc_autoload_start(struct psp_context *psp)
-{
-	return psp_rlc_autoload_start(psp);
-}
-
 static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 {
 	int ret;
@@ -825,7 +820,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,
 	.mode1_reset = psp_v11_0_mode1_reset,
-	.rlc_autoload_start = psp_v11_0_rlc_autoload_start,
 	.mem_training_init = psp_v11_0_memory_training_init,
 	.mem_training_fini = psp_v11_0_memory_training_fini,
 	.mem_training = psp_v11_0_memory_training,
