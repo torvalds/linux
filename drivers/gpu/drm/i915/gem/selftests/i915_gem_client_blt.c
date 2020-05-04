@@ -302,35 +302,6 @@ static void fill_scratch(struct tiled_blits *t, u32 *vaddr, u32 val)
 	i915_gem_object_flush_map(t->scratch.vma->obj);
 }
 
-static void hexdump(const void *buf, size_t len)
-{
-	const size_t rowsize = 8 * sizeof(u32);
-	const void *prev = NULL;
-	bool skip = false;
-	size_t pos;
-
-	for (pos = 0; pos < len; pos += rowsize) {
-		char line[128];
-
-		if (prev && !memcmp(prev, buf + pos, rowsize)) {
-			if (!skip) {
-				pr_info("*\n");
-				skip = true;
-			}
-			continue;
-		}
-
-		WARN_ON_ONCE(hex_dump_to_buffer(buf + pos, len - pos,
-						rowsize, sizeof(u32),
-						line, sizeof(line),
-						false) >= sizeof(line));
-		pr_info("[%04zx] %s\n", pos, line);
-
-		prev = buf + pos;
-		skip = false;
-	}
-}
-
 static u64 swizzle_bit(unsigned int bit, u64 offset)
 {
 	return (offset & BIT_ULL(bit)) >> (bit - 6);
@@ -426,7 +397,7 @@ static int verify_buffer(const struct tiled_blits *t,
 		pr_err("Invalid %s tiling detected at (%d, %d), start_val %x\n",
 		       repr_tiling(buf->tiling),
 		       x, y, buf->start_val);
-		hexdump(vaddr, 4096);
+		igt_hexdump(vaddr, 4096);
 	}
 
 	i915_gem_object_unpin_map(buf->vma->obj);

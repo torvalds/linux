@@ -4342,35 +4342,6 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 	return intel_gt_live_subtests(tests, &i915->gt);
 }
 
-static void hexdump(const void *buf, size_t len)
-{
-	const size_t rowsize = 8 * sizeof(u32);
-	const void *prev = NULL;
-	bool skip = false;
-	size_t pos;
-
-	for (pos = 0; pos < len; pos += rowsize) {
-		char line[128];
-
-		if (prev && !memcmp(prev, buf + pos, rowsize)) {
-			if (!skip) {
-				pr_info("*\n");
-				skip = true;
-			}
-			continue;
-		}
-
-		WARN_ON_ONCE(hex_dump_to_buffer(buf + pos, len - pos,
-						rowsize, sizeof(u32),
-						line, sizeof(line),
-						false) >= sizeof(line));
-		pr_info("[%04zx] %s\n", pos, line);
-
-		prev = buf + pos;
-		skip = false;
-	}
-}
-
 static int emit_semaphore_signal(struct intel_context *ce, void *slot)
 {
 	const u32 offset =
@@ -4518,10 +4489,10 @@ static int live_lrc_layout(void *arg)
 
 		if (err) {
 			pr_info("%s: HW register image:\n", engine->name);
-			hexdump(hw, PAGE_SIZE);
+			igt_hexdump(hw, PAGE_SIZE);
 
 			pr_info("%s: SW register image:\n", engine->name);
-			hexdump(lrc, PAGE_SIZE);
+			igt_hexdump(lrc, PAGE_SIZE);
 		}
 
 		shmem_unpin_map(engine->default_state, hw);

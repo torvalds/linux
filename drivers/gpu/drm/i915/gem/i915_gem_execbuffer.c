@@ -955,7 +955,7 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->needs_unfenced = INTEL_INFO(i915)->unfenced_needs_alignment;
 	cache->node.flags = 0;
 	cache->rq = NULL;
-	cache->rq_size = 0;
+	cache->target = NULL;
 }
 
 static inline void *unmask_page(unsigned long p)
@@ -1325,7 +1325,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
-			err = PTR_ERR(rq);
+			err = PTR_ERR(ce);
 			goto err_unpin;
 		}
 
@@ -1376,6 +1376,11 @@ out_pool:
 	return err;
 }
 
+static bool reloc_can_use_engine(const struct intel_engine_cs *engine)
+{
+	return engine->class != VIDEO_DECODE_CLASS || !IS_GEN(engine->i915, 6);
+}
+
 static u32 *reloc_gpu(struct i915_execbuffer *eb,
 		      struct i915_vma *vma,
 		      unsigned int len)
@@ -1387,9 +1392,9 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 	if (unlikely(!cache->rq)) {
 		struct intel_engine_cs *engine = eb->engine;
 
-		if (!intel_engine_can_store_dword(engine)) {
+		if (!reloc_can_use_engine(engine)) {
 			engine = engine->gt->engine_class[COPY_ENGINE_CLASS][0];
-			if (!engine || !intel_engine_can_store_dword(engine))
+			if (!engine)
 				return ERR_PTR(-ENODEV);
 		}
 
@@ -1435,91 +1440,138 @@ static inline bool use_reloc_gpu(struct i915_vma *vma)
 	return !dma_resv_test_signaled_rcu(vma->resv, true);
 }
 
+static unsigned long vma_phys_addr(struct i915_vma *vma, u32 offset)
+{
+	struct page *page;
+	unsigned long addr;
+
+	GEM_BUG_ON(vma->pages != vma->obj->mm.pages);
+
+	page = i915_gem_object_get_page(vma->obj, offset >> PAGE_SHIFT);
+	addr = PFN_PHYS(page_to_pfn(page));
+	GEM_BUG_ON(overflows_type(addr, u32)); /* expected dma32 */
+
+	return addr + offset_in_page(offset);
+}
+
+static bool __reloc_entry_gpu(struct i915_execbuffer *eb,
+			      struct i915_vma *vma,
+			      u64 offset,
+			      u64 target_addr)
+{
+	const unsigned int gen = eb->reloc_cache.gen;
+	unsigned int len;
+	u32 *batch;
+	u64 addr;
+
+	if (gen >= 8)
+		len = offset & 7 ? 8 : 5;
+	else if (gen >= 4)
+		len = 4;
+	else
+		len = 3;
+
+	batch = reloc_gpu(eb, vma, len);
+	if (IS_ERR(batch))
+		return false;
+
+	addr = gen8_canonical_addr(vma->node.start + offset);
+	if (gen >= 8) {
+		if (offset & 7) {
+			*batch++ = MI_STORE_DWORD_IMM_GEN4;
+			*batch++ = lower_32_bits(addr);
+			*batch++ = upper_32_bits(addr);
+			*batch++ = lower_32_bits(target_addr);
+
+			addr = gen8_canonical_addr(addr + 4);
+
+			*batch++ = MI_STORE_DWORD_IMM_GEN4;
+			*batch++ = lower_32_bits(addr);
+			*batch++ = upper_32_bits(addr);
+			*batch++ = upper_32_bits(target_addr);
+		} else {
+			*batch++ = (MI_STORE_DWORD_IMM_GEN4 | (1 << 21)) + 1;
+			*batch++ = lower_32_bits(addr);
+			*batch++ = upper_32_bits(addr);
+			*batch++ = lower_32_bits(target_addr);
+			*batch++ = upper_32_bits(target_addr);
+		}
+	} else if (gen >= 6) {
+		*batch++ = MI_STORE_DWORD_IMM_GEN4;
+		*batch++ = 0;
+		*batch++ = addr;
+		*batch++ = target_addr;
+	} else if (IS_I965G(eb->i915)) {
+		*batch++ = MI_STORE_DWORD_IMM_GEN4;
+		*batch++ = 0;
+		*batch++ = vma_phys_addr(vma, offset);
+		*batch++ = target_addr;
+	} else if (gen >= 4) {
+		*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+		*batch++ = 0;
+		*batch++ = addr;
+		*batch++ = target_addr;
+	} else if (gen >= 3 &&
+		   !(IS_I915G(eb->i915) || IS_I915GM(eb->i915))) {
+		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
+		*batch++ = addr;
+		*batch++ = target_addr;
+	} else {
+		*batch++ = MI_STORE_DWORD_IMM;
+		*batch++ = vma_phys_addr(vma, offset);
+		*batch++ = target_addr;
+	}
+
+	return true;
+}
+
+static bool reloc_entry_gpu(struct i915_execbuffer *eb,
+			    struct i915_vma *vma,
+			    u64 offset,
+			    u64 target_addr)
+{
+	if (eb->reloc_cache.vaddr)
+		return false;
+
+	if (!use_reloc_gpu(vma))
+		return false;
+
+	return __reloc_entry_gpu(eb, vma, offset, target_addr);
+}
+
 static u64
 relocate_entry(struct i915_vma *vma,
 	       const struct drm_i915_gem_relocation_entry *reloc,
 	       struct i915_execbuffer *eb,
 	       const struct i915_vma *target)
 {
+	u64 target_addr = relocation_target(reloc, target);
 	u64 offset = reloc->offset;
-	u64 target_offset = relocation_target(reloc, target);
-	bool wide = eb->reloc_cache.use_64bit_reloc;
-	void *vaddr;
 
-	if (!eb->reloc_cache.vaddr && use_reloc_gpu(vma)) {
-		const unsigned int gen = eb->reloc_cache.gen;
-		unsigned int len;
-		u32 *batch;
-		u64 addr;
-
-		if (wide)
-			len = offset & 7 ? 8 : 5;
-		else if (gen >= 4)
-			len = 4;
-		else
-			len = 3;
-
-		batch = reloc_gpu(eb, vma, len);
-		if (IS_ERR(batch))
-			goto repeat;
-
-		addr = gen8_canonical_addr(vma->node.start + offset);
-		if (wide) {
-			if (offset & 7) {
-				*batch++ = MI_STORE_DWORD_IMM_GEN4;
-				*batch++ = lower_32_bits(addr);
-				*batch++ = upper_32_bits(addr);
-				*batch++ = lower_32_bits(target_offset);
-
-				addr = gen8_canonical_addr(addr + 4);
-
-				*batch++ = MI_STORE_DWORD_IMM_GEN4;
-				*batch++ = lower_32_bits(addr);
-				*batch++ = upper_32_bits(addr);
-				*batch++ = upper_32_bits(target_offset);
-			} else {
-				*batch++ = (MI_STORE_DWORD_IMM_GEN4 | (1 << 21)) + 1;
-				*batch++ = lower_32_bits(addr);
-				*batch++ = upper_32_bits(addr);
-				*batch++ = lower_32_bits(target_offset);
-				*batch++ = upper_32_bits(target_offset);
-			}
-		} else if (gen >= 6) {
-			*batch++ = MI_STORE_DWORD_IMM_GEN4;
-			*batch++ = 0;
-			*batch++ = addr;
-			*batch++ = target_offset;
-		} else if (gen >= 4) {
-			*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
-			*batch++ = 0;
-			*batch++ = addr;
-			*batch++ = target_offset;
-		} else {
-			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
-			*batch++ = addr;
-			*batch++ = target_offset;
-		}
-
-		goto out;
-	}
+	if (!reloc_entry_gpu(eb, vma, offset, target_addr)) {
+		bool wide = eb->reloc_cache.use_64bit_reloc;
+		void *vaddr;
 
 repeat:
-	vaddr = reloc_vaddr(vma->obj, &eb->reloc_cache, offset >> PAGE_SHIFT);
-	if (IS_ERR(vaddr))
-		return PTR_ERR(vaddr);
+		vaddr = reloc_vaddr(vma->obj,
+				    &eb->reloc_cache,
+				    offset >> PAGE_SHIFT);
+		if (IS_ERR(vaddr))
+			return PTR_ERR(vaddr);
 
-	clflush_write32(vaddr + offset_in_page(offset),
-			lower_32_bits(target_offset),
-			eb->reloc_cache.vaddr);
+		GEM_BUG_ON(!IS_ALIGNED(offset, sizeof(u32)));
+		clflush_write32(vaddr + offset_in_page(offset),
+				lower_32_bits(target_addr),
+				eb->reloc_cache.vaddr);
 
-	if (wide) {
-		offset += sizeof(u32);
-		target_offset >>= 32;
-		wide = false;
-		goto repeat;
+		if (wide) {
+			offset += sizeof(u32);
+			target_addr >>= 32;
+			wide = false;
+			goto repeat;
+		}
 	}
 
-out:
 	return target->node.start | UPDATE;
 }
 
@@ -3022,3 +3074,7 @@ end:;
 	kvfree(exec2_list);
 	return err;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/i915_gem_execbuffer.c"
+#endif
