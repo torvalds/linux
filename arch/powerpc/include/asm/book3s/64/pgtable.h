@@ -1159,8 +1159,11 @@ extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
 extern pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot);
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
-extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
-				 pmd_t *pmd);
+static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
+					unsigned long addr, pmd_t *pmd)
+{
+}
+
 extern int hash__has_transparent_hugepage(void);
 static inline int has_transparent_hugepage(void)
 {
