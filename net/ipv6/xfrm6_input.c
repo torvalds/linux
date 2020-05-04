@@ -17,11 +17,6 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	return xfrm6_extract_header(skb);
-}
-
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi,
 		  struct ip6_tnl *t)
 {

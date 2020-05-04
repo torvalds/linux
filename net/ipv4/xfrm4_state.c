@@ -36,7 +36,6 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.proto			= IPPROTO_IPIP,
 	.output			= xfrm4_output,
 	.output_finish		= xfrm4_output_finish,
-	.extract_input		= xfrm4_extract_input,
 	.transport_finish	= xfrm4_transport_finish,
 	.local_error		= xfrm4_local_error,
 };

@@ -6,6 +6,24 @@
 #ifndef XFRM_INOUT_H
 #define XFRM_INOUT_H 1
 
+static inline void xfrm6_extract_header(struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+
+	XFRM_MODE_SKB_CB(skb)->ihl = sizeof(*iph);
+	XFRM_MODE_SKB_CB(skb)->id = 0;
+	XFRM_MODE_SKB_CB(skb)->frag_off = htons(IP_DF);
+	XFRM_MODE_SKB_CB(skb)->tos = ipv6_get_dsfield(iph);
+	XFRM_MODE_SKB_CB(skb)->ttl = iph->hop_limit;
+	XFRM_MODE_SKB_CB(skb)->optlen = 0;
+	memcpy(XFRM_MODE_SKB_CB(skb)->flow_lbl, iph->flow_lbl,
+	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
+#else
+	WARN_ON_ONCE(1);
+#endif
+}
+
 static inline void xfrm6_beet_make_header(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
