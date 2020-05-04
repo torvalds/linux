@@ -40,6 +40,14 @@ static const struct nvmet_type_name_map nvmet_addr_family[] = {
 	{ NVMF_ADDR_FAMILY_FC,	"fc" },
 };
 
+static bool nvmet_is_port_enabled(struct nvmet_port *p, const char *caller)
+{
+	if (p->enabled)
+		pr_err("Disable port '%u' before changing attribute in %s\n",
+				le16_to_cpu(p->disc_addr.portid), caller);
+	return p->enabled;
+}
+
 /*
  * nvmet_port Generic ConfigFS definitions.
  * Used in any place in the ConfigFS tree that refers to an address.
@@ -63,11 +71,8 @@ static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
 		if (sysfs_streq(page, nvmet_addr_family[i].name))
@@ -104,11 +109,9 @@ static ssize_t nvmet_addr_portid_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
+
 	port->disc_addr.portid = cpu_to_le16(portid);
 	return count;
 }
@@ -134,11 +137,8 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	if (sscanf(page, "%s\n", port->disc_addr.traddr) != 1)
 		return -EINVAL;
@@ -174,11 +174,8 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 	u8 treq = port->disc_addr.treq & ~NVME_TREQ_SECURE_CHANNEL_MASK;
 	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
 		if (sysfs_streq(page, nvmet_addr_treq[i].name))
@@ -214,11 +211,8 @@ static ssize_t nvmet_addr_trsvcid_store(struct config_item *item,
 		pr_err("Invalid value '%s' for trsvcid\n", page);
 		return -EINVAL;
 	}
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	if (sscanf(page, "%s\n", port->disc_addr.trsvcid) != 1)
 		return -EINVAL;
@@ -241,11 +235,8 @@ static ssize_t nvmet_param_inline_data_size_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int ret;
 
-	if (port->enabled) {
-		pr_err("Cannot modify inline_data_size while port enabled\n");
-		pr_err("Disable the port before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 	ret = kstrtoint(page, 0, &port->inline_data_size);
 	if (ret) {
 		pr_err("Invalid value '%s' for inline_data_size\n", page);
@@ -283,11 +274,8 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
 		if (sysfs_streq(page, nvmet_transport[i].name))
