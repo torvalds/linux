@@ -254,7 +254,7 @@ static void del_sw_flow_group(struct fs_node *node);
 static void del_sw_fte(struct fs_node *node);
 static void del_sw_prio(struct fs_node *node);
 static void del_sw_ns(struct fs_node *node);
-/* Delete rule (destination) is special case that 
+/* Delete rule (destination) is special case that
  * requires to lock the FTE for all the deletion process.
  */
 static void del_sw_hw_rule(struct fs_node *node);
@@ -1899,48 +1899,61 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	static const struct mlx5_flow_spec zero_spec = {};
-	struct mlx5_flow_destination gen_dest = {};
+	struct mlx5_flow_destination *gen_dest = NULL;
 	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_handle *handle = NULL;
 	u32 sw_action = flow_act->action;
 	struct fs_prio *prio;
+	int i;
 
 	if (!spec)
 		spec = &zero_spec;
 
+	if (!(sw_action & MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO))
+		return _mlx5_add_flow_rules(ft, spec, flow_act, dest, num_dest);
+
+	if (!fwd_next_prio_supported(ft))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mutex_lock(&root->chain_lock);
 	fs_get_obj(prio, ft->node.parent);
-	if (flow_act->action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
-		if (!fwd_next_prio_supported(ft))
-			return ERR_PTR(-EOPNOTSUPP);
-		if (num_dest)
-			return ERR_PTR(-EINVAL);
-		mutex_lock(&root->chain_lock);
-		next_ft = find_next_chained_ft(prio);
-		if (next_ft) {
-			gen_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-			gen_dest.ft = next_ft;
-			dest = &gen_dest;
-			num_dest = 1;
-			flow_act->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-		} else {
-			mutex_unlock(&root->chain_lock);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
+	next_ft = find_next_chained_ft(prio);
+	if (!next_ft) {
+		handle = ERR_PTR(-EOPNOTSUPP);
+		goto unlock;
 	}
 
+	gen_dest = kcalloc(num_dest + 1, sizeof(*dest),
+			   GFP_KERNEL);
+	if (!gen_dest) {
+		handle = ERR_PTR(-ENOMEM);
+		goto unlock;
+	}
+	for (i = 0; i < num_dest; i++)
+		gen_dest[i] = dest[i];
+	gen_dest[i].type =
+		MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	gen_dest[i].ft = next_ft;
+	dest = gen_dest;
+	num_dest++;
+	flow_act->action &=
+		~MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
+	flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, num_dest);
+	if (IS_ERR(handle))
+		goto unlock;
 
-	if (sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
-		if (!IS_ERR_OR_NULL(handle) &&
-		    (list_empty(&handle->rule[0]->next_ft))) {
-			mutex_lock(&next_ft->lock);
-			list_add(&handle->rule[0]->next_ft,
-				 &next_ft->fwd_rules);
-			mutex_unlock(&next_ft->lock);
-			handle->rule[0]->sw_action = MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
-		}
-		mutex_unlock(&root->chain_lock);
+	if (list_empty(&handle->rule[num_dest - 1]->next_ft)) {
+		mutex_lock(&next_ft->lock);
+		list_add(&handle->rule[num_dest - 1]->next_ft,
+			 &next_ft->fwd_rules);
+		mutex_unlock(&next_ft->lock);
+		handle->rule[num_dest - 1]->sw_action =
+			MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	}
+unlock:
+	mutex_unlock(&root->chain_lock);
+	kfree(gen_dest);
 	return handle;
 }
 EXPORT_SYMBOL(mlx5_add_flow_rules);
