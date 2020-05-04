@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 
+struct am65_cpts;
+
 #define HOST_PORT_NUM		0
 
 #define AM65_CPSW_MAX_TX_QUEUES	8
@@ -37,6 +39,8 @@ struct am65_cpsw_port {
 	void __iomem			*stat_base;
 	bool				disabled;
 	struct am65_cpsw_slave_data	slave;
+	bool				tx_ts_enabled;
+	bool				rx_ts_enabled;
 };
 
 struct am65_cpsw_host {
@@ -96,8 +100,8 @@ struct am65_cpsw_common {
 
 	u32			nuss_ver;
 	u32			cpsw_ver;
-
 	bool			pf_p0_rx_ptype_rrobin;
+	struct am65_cpts	*cpts;
 };
 
 struct am65_cpsw_ndev_stats {

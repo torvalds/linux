@@ -144,6 +144,13 @@ patternProperties:
     description:
       CPSW MDIO bus.
 
+  "^cpts$":
+    type: object
+    allOf:
+      - $ref: "ti,am654-cpts.yaml#"
+    description:
+      CPSW Common Platform Time Sync (CPTS) module.
+
 required:
   - compatible
   - reg
