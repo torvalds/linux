@@ -408,6 +408,37 @@ void power_supply_init_attrs(struct device_type *dev_type)
 	}
 }
 
+static int add_prop_uevent(struct device *dev, struct kobj_uevent_env *env,
+			   enum power_supply_property prop, char *prop_buf)
+{
+	int ret = 0;
+	struct power_supply_attr *pwr_attr;
+	struct device_attribute *dev_attr;
+	char *line;
+
+	pwr_attr = &power_supply_attrs[prop];
+	dev_attr = &pwr_attr->dev_attr;
+
+	ret = power_supply_show_property(dev, dev_attr, prop_buf);
+	if (ret == -ENODEV || ret == -ENODATA) {
+		/*
+		 * When a battery is absent, we expect -ENODEV. Don't abort;
+		 * send the uevent with at least the the PRESENT=0 property
+		 */
+		return 0;
+	}
+
+	if (ret < 0)
+		return ret;
+
+	line = strchr(prop_buf, '\n');
+	if (line)
+		*line = 0;
+
+	return add_uevent_var(env, "POWER_SUPPLY_%s=%s",
+			      pwr_attr->prop_name, prop_buf);
+}
+
 int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
@@ -427,31 +458,13 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (!prop_buf)
 		return -ENOMEM;
 
+	ret = add_prop_uevent(dev, env, POWER_SUPPLY_PROP_TYPE, prop_buf);
+	if (ret)
+		goto out;
+
 	for (j = 0; j < psy->desc->num_properties; j++) {
-		struct power_supply_attr *pwr_attr;
-		struct device_attribute *dev_attr;
-		char *line;
-
-		pwr_attr = &power_supply_attrs[psy->desc->properties[j]];
-		dev_attr = &pwr_attr->dev_attr;
-
-		ret = power_supply_show_property(dev, dev_attr, prop_buf);
-		if (ret == -ENODEV || ret == -ENODATA) {
-			/* When a battery is absent, we expect -ENODEV. Don't abort;
-			   send the uevent with at least the the PRESENT=0 property */
-			ret = 0;
-			continue;
-		}
-
-		if (ret < 0)
-			goto out;
-
-		line = strchr(prop_buf, '\n');
-		if (line)
-			*line = 0;
-
-		ret = add_uevent_var(env, "POWER_SUPPLY_%s=%s",
-				     pwr_attr->prop_name, prop_buf);
+		ret = add_prop_uevent(dev, env, psy->desc->properties[j],
+				      prop_buf);
 		if (ret)
 			goto out;
 	}
