@@ -12,6 +12,7 @@
 
 #include "ipa.h"
 #include "ipa_reg.h"
+#include "ipa_data.h"
 #include "ipa_cmd.h"
 #include "ipa_mem.h"
 #include "ipa_data.h"
@@ -266,15 +267,15 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 }
 
 /* Perform memory region-related initialization */
-int ipa_mem_init(struct ipa *ipa, u32 count, const struct ipa_mem *mem)
+int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
 	struct device *dev = &ipa->pdev->dev;
 	struct resource *res;
 	int ret;
 
-	if (count > IPA_MEM_COUNT) {
+	if (mem_data->local_count > IPA_MEM_COUNT) {
 		dev_err(dev, "to many memory regions (%u > %u)\n",
-			count, IPA_MEM_COUNT);
+			mem_data->local_count, IPA_MEM_COUNT);
 		return -EINVAL;
 	}
 
@@ -302,7 +303,7 @@ int ipa_mem_init(struct ipa *ipa, u32 count, const struct ipa_mem *mem)
 	ipa->mem_size = resource_size(res);
 
 	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
-	ipa->mem = mem;
+	ipa->mem = mem_data->local;
 
 	return 0;
 }
