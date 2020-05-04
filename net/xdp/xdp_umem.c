@@ -30,9 +30,9 @@ void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&umem->xsk_list_lock, flags);
-	list_add_rcu(&xs->list, &umem->xsk_list);
-	spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+	spin_lock_irqsave(&umem->xsk_tx_list_lock, flags);
+	list_add_rcu(&xs->list, &umem->xsk_tx_list);
+	spin_unlock_irqrestore(&umem->xsk_tx_list_lock, flags);
 }
 
 void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
@@ -42,9 +42,9 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&umem->xsk_list_lock, flags);
+	spin_lock_irqsave(&umem->xsk_tx_list_lock, flags);
 	list_del_rcu(&xs->list);
-	spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+	spin_unlock_irqrestore(&umem->xsk_tx_list_lock, flags);
 }
 
 /* The umem is stored both in the _rx struct and the _tx struct as we do
@@ -395,8 +395,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	umem->pgs = NULL;
 	umem->user = NULL;
 	umem->flags = mr->flags;
-	INIT_LIST_HEAD(&umem->xsk_list);
-	spin_lock_init(&umem->xsk_list_lock);
+	INIT_LIST_HEAD(&umem->xsk_tx_list);
+	spin_lock_init(&umem->xsk_tx_list_lock);
 
 	refcount_set(&umem->users, 1);
 
