@@ -483,7 +483,7 @@ static int smc_switch_cursor(struct smc_sock *smc)
 
 	if (smc->sk.sk_state != SMC_INIT &&
 	    smc->sk.sk_state != SMC_CLOSED) {
-		/* tbd: call rc = smc_cdc_get_slot_and_msg_send(conn); */
+		rc = smcr_cdc_msg_send_validation(conn);
 		if (!rc) {
 			schedule_delayed_work(&conn->tx_work, 0);
 			smc->sk.sk_data_ready(&smc->sk);

@@ -115,6 +115,31 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 	return rc;
 }
 
+/* send a validation msg indicating the move of a conn to an other QP link */
+int smcr_cdc_msg_send_validation(struct smc_connection *conn)
+{
+	struct smc_host_cdc_msg *local = &conn->local_tx_ctrl;
+	struct smc_link *link = conn->lnk;
+	struct smc_cdc_tx_pend *pend;
+	struct smc_wr_buf *wr_buf;
+	struct smc_cdc_msg *peer;
+	int rc;
+
+	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, NULL, &pend);
+	if (rc)
+		return rc;
+
+	peer = (struct smc_cdc_msg *)wr_buf;
+	peer->common.type = local->common.type;
+	peer->len = local->len;
+	peer->seqno = htons(conn->tx_cdc_seq_fin); /* seqno last compl. tx */
+	peer->token = htonl(local->token);
+	peer->prod_flags.failover_validation = 1;
+
+	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
+	return rc;
+}
+
 static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 {
 	struct smc_cdc_tx_pend *pend;
