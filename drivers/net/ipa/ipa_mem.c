@@ -17,7 +17,6 @@
 #include "ipa_data.h"
 #include "ipa_cmd.h"
 #include "ipa_mem.h"
-#include "ipa_data.h"
 #include "ipa_table.h"
 #include "gsi_trans.h"
 
