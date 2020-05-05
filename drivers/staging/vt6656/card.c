@@ -149,38 +149,6 @@ int vnt_update_ifs(struct vnt_private *priv)
 
 	priv->eifs = C_EIFS;
 
-	switch (priv->rf_type) {
-	case RF_VT3226D0:
-		if (priv->bb_type != BB_TYPE_11B) {
-			priv->sifs -= 1;
-			priv->difs -= 1;
-			break;
-		}
-		/* fall through */
-	case RF_AIROHA7230:
-	case RF_AL2230:
-	case RF_AL2230S:
-		if (priv->bb_type != BB_TYPE_11B)
-			break;
-		/* fall through */
-	case RF_RFMD2959:
-	case RF_VT3226:
-	case RF_VT3342A0:
-		priv->sifs -= 3;
-		priv->difs -= 3;
-		break;
-	case RF_MAXIM2829:
-		if (priv->bb_type == BB_TYPE_11A) {
-			priv->sifs -= 5;
-			priv->difs -= 5;
-		} else {
-			priv->sifs -= 2;
-			priv->difs -= 2;
-		}
-
-		break;
-	}
-
 	data[0] = (u8)priv->sifs;
 	data[1] = (u8)priv->difs;
 	data[2] = (u8)priv->eifs;
