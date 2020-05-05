@@ -383,7 +383,7 @@ void smc_core_exit(void);
 
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini);
-void smcr_link_clear(struct smc_link *lnk);
+void smcr_link_clear(struct smc_link *lnk, bool log);
 int smcr_buf_map_lgr(struct smc_link *lnk);
 int smcr_buf_reg_lgr(struct smc_link *lnk);
 void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);

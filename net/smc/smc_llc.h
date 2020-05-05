@@ -82,7 +82,7 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc);
 void smc_llc_lgr_clear(struct smc_link_group *lgr);
 int smc_llc_link_init(struct smc_link *link);
 void smc_llc_link_active(struct smc_link *link);
-void smc_llc_link_clear(struct smc_link *link);
+void smc_llc_link_clear(struct smc_link *link, bool log);
 int smc_llc_do_confirm_rkey(struct smc_link *send_link,
 			    struct smc_buf_desc *rmb_desc);
 int smc_llc_do_delete_rkey(struct smc_link_group *lgr,
