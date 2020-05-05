@@ -302,6 +302,8 @@ struct sja1105_vl_lookup_entry {
 			u64 vlid;
 		};
 	};
+	/* Not part of hardware structure */
+	unsigned long flow_cookie;
 };
 
 struct sja1105_vl_policing_entry {

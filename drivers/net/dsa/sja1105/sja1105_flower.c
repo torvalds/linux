@@ -309,7 +309,9 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 	const struct flow_action_entry *act;
 	unsigned long cookie = cls->cookie;
+	bool routing_rule = false;
 	struct sja1105_key key;
+	bool gate_rule = false;
 	bool vl_rule = false;
 	int rc, i;
 
@@ -332,6 +334,7 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 		case FLOW_ACTION_TRAP: {
 			int cpu = dsa_upstream_port(ds, port);
 
+			routing_rule = true;
 			vl_rule = true;
 
 			rc = sja1105_vl_redirect(priv, port, extack, cookie,
@@ -350,6 +353,7 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 				return -EOPNOTSUPP;
 			}
 
+			routing_rule = true;
 			vl_rule = true;
 
 			rc = sja1105_vl_redirect(priv, port, extack, cookie,
@@ -366,6 +370,21 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			if (rc)
 				goto out;
 			break;
+		case FLOW_ACTION_GATE:
+			gate_rule = true;
+			vl_rule = true;
+
+			rc = sja1105_vl_gate(priv, port, extack, cookie,
+					     &key, act->gate.index,
+					     act->gate.prio,
+					     act->gate.basetime,
+					     act->gate.cycletime,
+					     act->gate.cycletimeext,
+					     act->gate.num_entries,
+					     act->gate.entries);
+			if (rc)
+				goto out;
+			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Action not supported");
@@ -374,8 +393,23 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 		}
 	}
 
-	if (vl_rule && !rc)
+	if (vl_rule && !rc) {
+		/* Delay scheduling configuration until DESTPORTS has been
+		 * populated by all other actions.
+		 */
+		if (gate_rule) {
+			if (!routing_rule) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Can only offload gate action together with redirect or trap");
+				return -EOPNOTSUPP;
+			}
+			rc = sja1105_init_scheduling(priv);
+			if (rc)
+				goto out;
+		}
+
 		rc = sja1105_static_config_reload(priv, SJA1105_VIRTUAL_LINKS);
+	}
 
 out:
 	return rc;
@@ -419,6 +453,27 @@ int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 	}
 
 	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
+}
+
+int sja1105_cls_flower_stats(struct dsa_switch *ds, int port,
+			     struct flow_cls_offload *cls, bool ingress)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_rule *rule = sja1105_rule_find(priv, cls->cookie);
+	int rc;
+
+	if (!rule)
+		return 0;
+
+	if (rule->type != SJA1105_RULE_VL)
+		return 0;
+
+	rc = sja1105_vl_stats(priv, port, rule, &cls->stats,
+			      cls->common.extack);
+	if (rc)
+		return rc;
+
+	return 0;
 }
 
 void sja1105_flower_setup(struct dsa_switch *ds)

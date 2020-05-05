@@ -36,6 +36,7 @@ struct sja1105_regs {
 	u64 status;
 	u64 port_control;
 	u64 rgu;
+	u64 vl_status;
 	u64 config;
 	u64 sgmii;
 	u64 rmii_pll1;
@@ -156,8 +157,16 @@ struct sja1105_rule {
 
 		/* SJA1105_RULE_VL */
 		struct {
-			unsigned long destports;
 			enum sja1105_vl_type type;
+			unsigned long destports;
+			int sharindx;
+			int maxlen;
+			int ipv;
+			u64 base_time;
+			u64 cycle_time;
+			int num_entries;
+			struct action_gate_entry *entries;
+			struct flow_stats stats;
 		} vl;
 	};
 };
@@ -304,6 +313,8 @@ int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress);
 int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress);
+int sja1105_cls_flower_stats(struct dsa_switch *ds, int port,
+			     struct flow_cls_offload *cls, bool ingress);
 void sja1105_flower_setup(struct dsa_switch *ds);
 void sja1105_flower_teardown(struct dsa_switch *ds);
 struct sja1105_rule *sja1105_rule_find(struct sja1105_private *priv,

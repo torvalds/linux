@@ -2369,6 +2369,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_policer_del	= sja1105_port_policer_del,
 	.cls_flower_add		= sja1105_cls_flower_add,
 	.cls_flower_del		= sja1105_cls_flower_del,
+	.cls_flower_stats	= sja1105_cls_flower_stats,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
