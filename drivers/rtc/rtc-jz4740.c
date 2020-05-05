@@ -309,19 +309,13 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_rtc *rtc;
-	const struct platform_device_id *id = platform_get_device_id(pdev);
-	const struct of_device_id *of_id = of_match_device(
-			jz4740_rtc_of_match, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	if (of_id)
-		rtc->type = (enum jz4740_rtc_type)of_id->data;
-	else
-		rtc->type = id->driver_data;
+	rtc->type = (enum jz4740_rtc_type)device_get_match_data(dev);
 
 	rtc->irq = platform_get_irq(pdev, 0);
 	if (rtc->irq < 0)
@@ -370,7 +364,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (np && of_device_is_system_power_controller(np)) {
+	if (of_device_is_system_power_controller(np)) {
 		if (!pm_power_off) {
 			/* Default: 60ms */
 			rtc->reset_pin_assert_time = 60;
@@ -395,20 +389,12 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id jz4740_rtc_ids[] = {
-	{ "jz4740-rtc", ID_JZ4740 },
-	{ "jz4780-rtc", ID_JZ4780 },
-	{}
-};
-MODULE_DEVICE_TABLE(platform, jz4740_rtc_ids);
-
 static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
 	.driver	 = {
 		.name  = "jz4740-rtc",
-		.of_match_table = of_match_ptr(jz4740_rtc_of_match),
+		.of_match_table = jz4740_rtc_of_match,
 	},
-	.id_table = jz4740_rtc_ids,
 };
 
 module_platform_driver(jz4740_rtc_driver);
