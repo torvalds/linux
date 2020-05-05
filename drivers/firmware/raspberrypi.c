@@ -12,12 +12,16 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+#include <linux/delay.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #define MBOX_MSG(chan, data28)		(((data28) & ~0xf) | ((chan) & 0xf))
 #define MBOX_CHAN(msg)			((msg) & 0xf)
 #define MBOX_DATA28(msg)		((msg) & ~0xf)
 #define MBOX_CHAN_PROPERTY		8
+
+#define VL805_PCI_CONFIG_VERSION_OFFSET		0x50
 
 static struct platform_device *rpi_hwmon;
 static struct platform_device *rpi_clk;
@@ -285,6 +289,63 @@ struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node)
 	return platform_get_drvdata(pdev);
 }
 EXPORT_SYMBOL_GPL(rpi_firmware_get);
+
+/*
+ * The Raspberry Pi 4 gets its USB functionality from VL805, a PCIe chip that
+ * implements xHCI. After a PCI reset, VL805's firmware may either be loaded
+ * directly from an EEPROM or, if not present, by the SoC's co-processor,
+ * VideoCore. RPi4's VideoCore OS contains both the non public firmware load
+ * logic and the VL805 firmware blob. This function triggers the aforementioned
+ * process.
+ */
+int rpi_firmware_init_vl805(struct pci_dev *pdev)
+{
+	struct device_node *fw_np;
+	struct rpi_firmware *fw;
+	u32 dev_addr, version;
+	int ret;
+
+	fw_np = of_find_compatible_node(NULL, NULL,
+					"raspberrypi,bcm2835-firmware");
+	if (!fw_np)
+		return 0;
+
+	fw = rpi_firmware_get(fw_np);
+	of_node_put(fw_np);
+	if (!fw)
+		return -ENODEV;
+
+	/*
+	 * Make sure we don't trigger a firmware load unnecessarily.
+	 *
+	 * If something went wrong with PCI, this whole exercise would be
+	 * futile as VideoCore expects from us a configured PCI bus. Just take
+	 * the faulty version (likely ~0) and let xHCI's registration fail
+	 * further down the line.
+	 */
+	pci_read_config_dword(pdev, VL805_PCI_CONFIG_VERSION_OFFSET, &version);
+	if (version)
+		goto exit;
+
+	dev_addr = pdev->bus->number << 20 | PCI_SLOT(pdev->devfn) << 15 |
+		   PCI_FUNC(pdev->devfn) << 12;
+
+	ret = rpi_firmware_property(fw, RPI_FIRMWARE_NOTIFY_XHCI_RESET,
+				    &dev_addr, sizeof(dev_addr));
+	if (ret)
+		return ret;
+
+	/* Wait for vl805 to startup */
+	usleep_range(200, 1000);
+
+	pci_read_config_dword(pdev, VL805_PCI_CONFIG_VERSION_OFFSET,
+			      &version);
+exit:
+	pci_info(pdev, "VL805 firmware version %08x\n", version);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rpi_firmware_init_vl805);
 
 static const struct of_device_id rpi_firmware_of_match[] = {
 	{ .compatible = "raspberrypi,bcm2835-firmware", },
