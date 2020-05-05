@@ -14,6 +14,7 @@
 #include <asm/book3s/64/mmu-hash.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/ppc-opcode.h>
+#include <asm/pte-walk.h>
 
 #ifdef CONFIG_PPC_PSERIES
 static inline bool kvmhv_on_pseries(void)
@@ -633,6 +634,18 @@ extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
 				const struct kvm_memory_slot *memslot,
 				unsigned long gpa, unsigned long hpa,
 				unsigned long nbytes);
+
+static inline pte_t *find_kvm_secondary_pte(struct kvm *kvm, unsigned long ea,
+					    unsigned *hshift)
+{
+	pte_t *pte;
+
+	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
+		"%s called with kvm mmu_lock not held \n", __func__);
+	pte = __find_linux_pte(kvm->arch.pgtable, ea, NULL, hshift);
+
+	return pte;
+}
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
