@@ -195,27 +195,6 @@ static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
 							[rate % MAX_RATE]);
 }
 
-static u32 vnt_get_rsvtime(struct vnt_private *priv, u8 pkt_type,
-			   u32 frame_length, u16 rate, int need_ack)
-{
-	u32 data_time, ack_time;
-
-	data_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
-				       frame_length, rate);
-
-	if (pkt_type == PK_TYPE_11B)
-		ack_time = vnt_get_frame_time(priv->preamble_type, pkt_type, 14,
-					      (u16)priv->top_cck_basic_rate);
-	else
-		ack_time = vnt_get_frame_time(priv->preamble_type, pkt_type, 14,
-					      (u16)priv->top_ofdm_basic_rate);
-
-	if (need_ack)
-		return data_time + priv->sifs + ack_time;
-
-	return data_time;
-}
-
 static __le16 vnt_rxtx_rsvtime_le16(struct vnt_usb_send_context *context)
 {
 	struct vnt_private *priv = context->priv;
@@ -285,9 +264,6 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 					 u8 dur_type, u8 pkt_type, u16 rate)
 {
 	struct vnt_private *priv = context->priv;
-	u32 dur_time = 0;
-	u32 frame_length = context->frame_len;
-	u8 need_ack = context->need_ack;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(context->skb);
 
 	switch (dur_type) {
@@ -298,15 +274,13 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 		return ieee80211_rts_duration(priv->hw, priv->vif,
 					      context->frame_len, info);
 	case CTSDUR_BA:
-		dur_time = priv->sifs + vnt_get_rsvtime(priv,
-				pkt_type, frame_length, rate, need_ack);
-		break;
-
+		return ieee80211_ctstoself_duration(priv->hw, priv->vif,
+						    context->frame_len, info);
 	default:
 		break;
 	}
 
-	return cpu_to_le16((u16)dur_time);
+	return cpu_to_le16(0);
 }
 
 static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
