@@ -645,9 +645,9 @@ static int vop_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 		s->enable_afbc = false;
 	}
 
-	spin_unlock(&vop->reg_lock);
-
 	vop_cfg_done(vop);
+
+	spin_unlock(&vop->reg_lock);
 
 	/*
 	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
