@@ -320,6 +320,7 @@ void wfx_bh_poll_irq(struct wfx_dev *wdev)
 	ktime_t now, start;
 	u32 reg;
 
+	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
 	start = ktime_get();
 	for (;;) {
 		control_reg_read(wdev, &reg);

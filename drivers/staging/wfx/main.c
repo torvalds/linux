@@ -363,22 +363,24 @@ int wfx_probe(struct wfx_dev *wdev)
 	// prevent bh() to touch it.
 	gpio_saved = wdev->pdata.gpio_wakeup;
 	wdev->pdata.gpio_wakeup = NULL;
+	wdev->poll_irq = true;
 
 	wfx_bh_register(wdev);
 
 	err = wfx_init_device(wdev);
 	if (err)
-		goto err1;
+		goto err0;
 
+	wfx_bh_poll_irq(wdev);
 	err = wait_for_completion_timeout(&wdev->firmware_ready, 1 * HZ);
 	if (err <= 0) {
 		if (err == 0) {
-			dev_err(wdev->dev, "timeout while waiting for startup indication. IRQ configuration error?\n");
+			dev_err(wdev->dev, "timeout while waiting for startup indication\n");
 			err = -ETIMEDOUT;
 		} else if (err == -ERESTARTSYS) {
 			dev_info(wdev->dev, "probe interrupted by user\n");
 		}
-		goto err1;
+		goto err0;
 	}
 
 	// FIXME: fill wiphy::hw_version
@@ -400,14 +402,14 @@ int wfx_probe(struct wfx_dev *wdev)
 			"unsupported firmware API version (expect 1 while firmware returns %d)\n",
 			wdev->hw_caps.api_version_major);
 		err = -ENOTSUPP;
-		goto err1;
+		goto err0;
 	}
 
 	err = wfx_sl_init(wdev);
 	if (err && wdev->hw_caps.capabilities.link_mode == SEC_LINK_ENFORCED) {
 		dev_err(wdev->dev,
 			"chip require secure_link, but can't negociate it\n");
-		goto err1;
+		goto err0;
 	}
 
 	if (wdev->hw_caps.regul_sel_mode_info.region_sel_mode) {
@@ -420,7 +422,16 @@ int wfx_probe(struct wfx_dev *wdev)
 		wdev->pdata.file_pds);
 	err = wfx_send_pdata_pds(wdev);
 	if (err < 0)
-		goto err1;
+		goto err0;
+
+	wdev->poll_irq = false;
+	err = wdev->hwbus_ops->irq_subscribe(wdev->hwbus_priv);
+	if (err)
+		goto err0;
+
+	err = hif_use_multi_tx_conf(wdev, true);
+	if (err)
+		dev_err(wdev->dev, "misconfigured IRQ?\n");
 
 	wdev->pdata.gpio_wakeup = gpio_saved;
 	if (wdev->pdata.gpio_wakeup) {
@@ -434,8 +445,6 @@ int wfx_probe(struct wfx_dev *wdev)
 	} else {
 		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_DOZE);
 	}
-
-	hif_use_multi_tx_conf(wdev, true);
 
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
@@ -470,6 +479,8 @@ int wfx_probe(struct wfx_dev *wdev)
 err2:
 	ieee80211_unregister_hw(wdev->hw);
 err1:
+	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
+err0:
 	wfx_bh_unregister(wdev);
 	return err;
 }
@@ -478,6 +489,7 @@ void wfx_release(struct wfx_dev *wdev)
 {
 	ieee80211_unregister_hw(wdev->hw);
 	hif_shutdown(wdev);
+	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
 	wfx_bh_unregister(wdev);
 	wfx_sl_deinit(wdev);
 }

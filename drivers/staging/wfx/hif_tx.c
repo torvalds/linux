@@ -82,6 +82,9 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply,
 	if (async)
 		return 0;
 
+	if (wdev->poll_irq)
+		wfx_bh_poll_irq(wdev);
+
 	ret = wait_for_completion_timeout(&wdev->hif_cmd.done, 1 * HZ);
 	if (!ret) {
 		dev_err(wdev->dev, "chip is abnormally long to answer\n");

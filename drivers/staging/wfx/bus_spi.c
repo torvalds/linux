@@ -12,6 +12,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/of.h>
 
 #include "bus.h"
@@ -143,8 +144,9 @@ static irqreturn_t wfx_spi_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int wfx_spi_irq_subscribe(struct wfx_spi_priv *bus)
+static int wfx_spi_irq_subscribe(void *priv)
 {
+	struct wfx_spi_priv *bus = priv;
 	u32 flags;
 
 	flags = irq_get_trigger_type(bus->func->irq);
@@ -156,6 +158,14 @@ static int wfx_spi_irq_subscribe(struct wfx_spi_priv *bus)
 					 "wfx", bus);
 }
 
+static int wfx_spi_irq_unsubscribe(void *priv)
+{
+	struct wfx_spi_priv *bus = priv;
+
+	devm_free_irq(&bus->func->dev, bus->func->irq, bus);
+	return 0;
+}
+
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
 	// Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
@@ -165,6 +175,8 @@ static size_t wfx_spi_align_size(void *priv, size_t size)
 static const struct hwbus_ops wfx_spi_hwbus_ops = {
 	.copy_from_io = wfx_spi_copy_from_io,
 	.copy_to_io = wfx_spi_copy_to_io,
+	.irq_subscribe = wfx_spi_irq_subscribe,
+	.irq_unsubscribe = wfx_spi_irq_unsubscribe,
 	.lock			= wfx_spi_lock,
 	.unlock			= wfx_spi_unlock,
 	.align_size		= wfx_spi_align_size,
@@ -215,8 +227,6 @@ static int wfx_spi_probe(struct spi_device *func)
 				    &wfx_spi_hwbus_ops, bus);
 	if (!bus->core)
 		return -EIO;
-
-	wfx_spi_irq_subscribe(bus);
 
 	return wfx_probe(bus->core);
 }

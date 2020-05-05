@@ -106,8 +106,9 @@ static irqreturn_t wfx_sdio_irq_handler_ext(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int wfx_sdio_irq_subscribe(struct wfx_sdio_priv *bus)
+static int wfx_sdio_irq_subscribe(void *priv)
 {
+	struct wfx_sdio_priv *bus = priv;
 	u32 flags;
 	int ret;
 	u8 cccr;
@@ -134,8 +135,9 @@ static int wfx_sdio_irq_subscribe(struct wfx_sdio_priv *bus)
 					 "wfx", bus);
 }
 
-static int wfx_sdio_irq_unsubscribe(struct wfx_sdio_priv *bus)
+static int wfx_sdio_irq_unsubscribe(void *priv)
 {
+	struct wfx_sdio_priv *bus = priv;
 	int ret;
 
 	if (bus->of_irq)
@@ -156,6 +158,8 @@ static size_t wfx_sdio_align_size(void *priv, size_t size)
 static const struct hwbus_ops wfx_sdio_hwbus_ops = {
 	.copy_from_io = wfx_sdio_copy_from_io,
 	.copy_to_io = wfx_sdio_copy_to_io,
+	.irq_subscribe = wfx_sdio_irq_subscribe,
+	.irq_unsubscribe = wfx_sdio_irq_unsubscribe,
 	.lock			= wfx_sdio_lock,
 	.unlock			= wfx_sdio_unlock,
 	.align_size		= wfx_sdio_align_size,
@@ -218,18 +222,12 @@ static int wfx_sdio_probe(struct sdio_func *func,
 		goto err1;
 	}
 
-	ret = wfx_sdio_irq_subscribe(bus);
+	ret = wfx_probe(bus->core);
 	if (ret)
 		goto err1;
 
-	ret = wfx_probe(bus->core);
-	if (ret)
-		goto err2;
-
 	return 0;
 
-err2:
-	wfx_sdio_irq_unsubscribe(bus);
 err1:
 	sdio_claim_host(func);
 	sdio_disable_func(func);
@@ -243,7 +241,6 @@ static void wfx_sdio_remove(struct sdio_func *func)
 	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
 
 	wfx_release(bus->core);
-	wfx_sdio_irq_unsubscribe(bus);
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);

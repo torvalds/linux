@@ -46,6 +46,7 @@ struct wfx_dev {
 	struct wfx_hif		hif;
 	struct sl_context	sl;
 	struct delayed_work	cooling_timeout_work;
+	bool			poll_irq;
 	bool			chip_frozen;
 	struct mutex		conf_mutex;
 
