@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/net/ti,am654-cpts.yaml#
+$id: http://devicetree.org/schemas/net/ti,k3-am654-cpts.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: The TI AM654x/J721E Common Platform Time Sync (CPTS) module Device Tree Bindings
