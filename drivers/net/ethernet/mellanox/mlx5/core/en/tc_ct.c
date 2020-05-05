@@ -17,6 +17,7 @@
 #include "esw/chains.h"
 #include "en/tc_ct.h"
 #include "en/mod_hdr.h"
+#include "en/mapping.h"
 #include "en.h"
 #include "en_tc.h"
 #include "en_rep.h"
@@ -46,6 +47,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_flow_table *ct_nat;
 	struct mlx5_flow_table *post_ct;
 	struct mutex control_lock; /* guards parallel adds/dels */
+	struct mapping_ctx *zone_mapping;
 };
 
 struct mlx5_ct_flow {
@@ -77,6 +79,7 @@ struct mlx5_tc_ct_pre {
 struct mlx5_ct_ft {
 	struct rhash_head node;
 	u16 zone;
+	u32 zone_restore_id;
 	refcount_t refcount;
 	struct nf_flowtable *nf_ft;
 	struct mlx5_tc_ct_priv *ct_priv;
@@ -434,7 +437,7 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 			       u8 ct_state,
 			       u32 mark,
 			       u32 label,
-			       u16 zone)
+			       u8 zone_restore_id)
 {
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	int err;
@@ -455,7 +458,7 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 		return err;
 
 	err = mlx5e_tc_match_to_reg_set(esw->dev, mod_acts,
-					ZONE_RESTORE_TO_REG, zone + 1);
+					ZONE_RESTORE_TO_REG, zone_restore_id);
 	if (err)
 		return err;
 
@@ -583,7 +586,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 				struct mlx5_esw_flow_attr *attr,
 				struct flow_rule *flow_rule,
 				struct mlx5e_mod_hdr_handle **mh,
-				u16 zone, bool nat)
+				u8 zone_restore_id, bool nat)
 {
 	struct mlx5e_tc_mod_hdr_acts mod_acts = {};
 	struct flow_action_entry *meta;
@@ -615,7 +618,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 					     ct_state,
 					     meta->ct_metadata.mark,
 					     meta->ct_metadata.labels[0],
-					     zone);
+					     zone_restore_id);
 	if (err)
 		goto err_mapping;
 
@@ -641,7 +644,7 @@ static int
 mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 			  struct flow_rule *flow_rule,
 			  struct mlx5_ct_entry *entry,
-			  bool nat)
+			  bool nat, u8 zone_restore_id)
 {
 	struct mlx5_ct_zone_rule *zone_rule = &entry->zone_rules[nat];
 	struct mlx5_esw_flow_attr *attr = &zone_rule->attr;
@@ -657,7 +660,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	err = mlx5_tc_ct_entry_create_mod_hdr(ct_priv, attr, flow_rule,
 					      &zone_rule->mh,
-					      entry->tuple.zone, nat);
+					      zone_restore_id, nat);
 	if (err) {
 		ct_dbg("Failed to create ct entry mod hdr");
 		goto err_mod_hdr;
@@ -701,7 +704,8 @@ err_mod_hdr:
 static int
 mlx5_tc_ct_entry_add_rules(struct mlx5_tc_ct_priv *ct_priv,
 			   struct flow_rule *flow_rule,
-			   struct mlx5_ct_entry *entry)
+			   struct mlx5_ct_entry *entry,
+			   u8 zone_restore_id)
 {
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	int err;
@@ -713,11 +717,13 @@ mlx5_tc_ct_entry_add_rules(struct mlx5_tc_ct_priv *ct_priv,
 		return err;
 	}
 
-	err = mlx5_tc_ct_entry_add_rule(ct_priv, flow_rule, entry, false);
+	err = mlx5_tc_ct_entry_add_rule(ct_priv, flow_rule, entry, false,
+					zone_restore_id);
 	if (err)
 		goto err_orig;
 
-	err = mlx5_tc_ct_entry_add_rule(ct_priv, flow_rule, entry, true);
+	err = mlx5_tc_ct_entry_add_rule(ct_priv, flow_rule, entry, true,
+					zone_restore_id);
 	if (err)
 		goto err_nat;
 
@@ -781,7 +787,8 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 			goto err_tuple_nat;
 	}
 
-	err = mlx5_tc_ct_entry_add_rules(ct_priv, flow_rule, entry);
+	err = mlx5_tc_ct_entry_add_rules(ct_priv, flow_rule, entry,
+					 ft->zone_restore_id);
 	if (err)
 		goto err_rules;
 
@@ -1007,7 +1014,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	}
 
 	if (mask->ct_zone)
-		mlx5e_tc_match_to_reg_match(spec, ZONE_RESTORE_TO_REG,
+		mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG,
 					    key->ct_zone, MLX5_CT_ZONE_MASK);
 	if (ctstate_mask)
 		mlx5e_tc_match_to_reg_match(spec, CTSTATE_TO_REG,
@@ -1034,18 +1041,6 @@ mlx5_tc_ct_parse_action(struct mlx5e_priv *priv,
 	if (!ct_priv) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "offload of ct action isn't available");
-		return -EOPNOTSUPP;
-	}
-
-	/* To mark that the need restore ct state on a skb, we mark the
-	 * packet with the zone restore register. To distinguise from an
-	 * uninitalized 0 value for this register, we write zone + 1 on the
-	 * packet.
-	 *
-	 * This restricts us to a max zone of 0xFFFE.
-	 */
-	if (act->ct.zone == (u16)~0) {
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported ct zone");
 		return -EOPNOTSUPP;
 	}
 
@@ -1305,6 +1300,10 @@ mlx5_tc_ct_add_ft_cb(struct mlx5_tc_ct_priv *ct_priv, u16 zone,
 	if (!ft)
 		return ERR_PTR(-ENOMEM);
 
+	err = mapping_add(ct_priv->zone_mapping, &zone, &ft->zone_restore_id);
+	if (err)
+		goto err_mapping;
+
 	ft->zone = zone;
 	ft->nf_ft = nf_ft;
 	ft->ct_priv = ct_priv;
@@ -1337,6 +1336,8 @@ err_insert:
 err_init:
 	mlx5_tc_ct_free_pre_ct_tables(ft);
 err_alloc_pre_ct:
+	mapping_remove(ct_priv->zone_mapping, ft->zone_restore_id);
+err_mapping:
 	kfree(ft);
 	return ERR_PTR(err);
 }
@@ -1363,6 +1364,7 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 				    mlx5_tc_ct_flush_ft_entry,
 				    ct_priv);
 	mlx5_tc_ct_free_pre_ct_tables(ft);
+	mapping_remove(ct_priv->zone_mapping, ft->zone_restore_id);
 	kfree(ft);
 }
 
@@ -1786,6 +1788,12 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 		goto err_alloc;
 	}
 
+	ct_priv->zone_mapping = mapping_create(sizeof(u16), 0, true);
+	if (IS_ERR(ct_priv->zone_mapping)) {
+		err = PTR_ERR(ct_priv->zone_mapping);
+		goto err_mapping;
+	}
+
 	ct_priv->esw = esw;
 	ct_priv->netdev = rpriv->netdev;
 	ct_priv->ct = mlx5_esw_chains_create_global_table(esw);
@@ -1827,6 +1835,8 @@ err_post_ct_tbl:
 err_ct_nat_tbl:
 	mlx5_esw_chains_destroy_global_table(esw, ct_priv->ct);
 err_ct_tbl:
+	mapping_destroy(ct_priv->zone_mapping);
+err_mapping:
 	kfree(ct_priv);
 err_alloc:
 err_support:
@@ -1845,6 +1855,7 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->post_ct);
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct_nat);
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct);
+	mapping_destroy(ct_priv->zone_mapping);
 
 	rhashtable_destroy(&ct_priv->ct_tuples_ht);
 	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);
@@ -1858,16 +1869,20 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 
 bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
-			 struct sk_buff *skb, u16 zone)
+			 struct sk_buff *skb, u8 zone_restore_id)
 {
 	struct mlx5_tc_ct_priv *ct_priv = uplink_priv->ct_priv;
 	struct mlx5_ct_tuple tuple = {};
 	struct mlx5_ct_entry *entry;
+	u16 zone;
 
-	if (!ct_priv || !zone)
+	if (!ct_priv || !zone_restore_id)
 		return true;
 
-	if (!mlx5_tc_ct_skb_to_tuple(skb, &tuple, zone - 1))
+	if (mapping_find(ct_priv->zone_mapping, zone_restore_id, &zone))
+		return false;
+
+	if (!mlx5_tc_ct_skb_to_tuple(skb, &tuple, zone))
 		return false;
 
 	entry = rhashtable_lookup_fast(&ct_priv->ct_tuples_ht, &tuple,

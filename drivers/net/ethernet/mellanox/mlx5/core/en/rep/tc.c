@@ -594,7 +594,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			     struct mlx5e_tc_update_priv *tc_priv)
 {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
-	u32 chain = 0, reg_c0, reg_c1, tunnel_id, zone;
+	u32 chain = 0, reg_c0, reg_c1, tunnel_id, zone_restore_id;
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct tc_skb_ext *tc_skb_ext;
@@ -631,11 +631,12 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 		tc_skb_ext->chain = chain;
 
-		zone = reg_c1 & ZONE_RESTORE_MAX;
+		zone_restore_id = reg_c1 & ZONE_RESTORE_MAX;
 
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		uplink_priv = &uplink_rpriv->uplink_priv;
-		if (!mlx5e_tc_ct_restore_flow(uplink_priv, skb, zone))
+		if (!mlx5e_tc_ct_restore_flow(uplink_priv, skb,
+					      zone_restore_id))
 			return false;
 	}
 

@@ -70,9 +70,9 @@ struct mlx5_ct_attr {
 #define zone_restore_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_1,\
 	.moffset = 0,\
-	.mlen = 2,\
+	.mlen = 1,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
-				 misc_parameters_2.metadata_reg_c_1),\
+				 misc_parameters_2.metadata_reg_c_1) + 3,\
 }
 
 #define REG_MAPPING_MLEN(reg) (mlx5e_tc_attr_to_reg_mappings[reg].mlen)
@@ -113,7 +113,7 @@ mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 
 bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
-			 struct sk_buff *skb, u16 zone);
+			 struct sk_buff *skb, u8 zone_restore_id);
 
 #else /* CONFIG_MLX5_TC_CT */
 
@@ -181,9 +181,9 @@ mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 
 static inline bool
 mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
-			 struct sk_buff *skb, u16 zone)
+			 struct sk_buff *skb, u8 zone_restore_id)
 {
-	if (!zone)
+	if (!zone_restore_id)
 		return true;
 
 	return false;
