@@ -657,6 +657,9 @@ void pstore_unregister(struct pstore_info *psi)
 	del_timer_sync(&pstore_timer);
 	flush_work(&pstore_work);
 
+	/* Remove all backend records from filesystem tree. */
+	pstore_put_backend_records(psi);
+
 	free_buf_for_compression();
 
 	psinfo = NULL;
