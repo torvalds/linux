@@ -618,12 +618,18 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 
 int rdt_get_mon_l3_config(struct rdt_resource *r)
 {
+	unsigned int mbm_offset = boot_cpu_data.x86_cache_mbm_width_offset;
 	unsigned int cl_size = boot_cpu_data.x86_cache_size;
 	int ret;
 
 	r->mon_scale = boot_cpu_data.x86_cache_occ_scale;
 	r->num_rmid = boot_cpu_data.x86_cache_max_rmid + 1;
-	r->mbm_width = MBM_CNTR_WIDTH;
+	r->mbm_width = MBM_CNTR_WIDTH_BASE;
+
+	if (mbm_offset > 0 && mbm_offset <= MBM_CNTR_WIDTH_OFFSET_MAX)
+		r->mbm_width += mbm_offset;
+	else if (mbm_offset > MBM_CNTR_WIDTH_OFFSET_MAX)
+		pr_warn("Ignoring impossible MBM counter offset\n");
 
 	/*
 	 * A reasonable upper limit on the max threshold is the number
