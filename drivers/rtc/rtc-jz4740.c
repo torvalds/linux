@@ -264,8 +264,6 @@ static void jz4740_rtc_power_off(void)
 	unsigned long wakeup_filter_ticks;
 	unsigned long reset_counter_ticks;
 
-	clk_prepare_enable(rtc->clk);
-
 	rtc_rate = clk_get_rate(rtc->clk);
 
 	/*
@@ -295,6 +293,11 @@ static void jz4740_rtc_power_off(void)
 
 	jz4740_rtc_poweroff(dev_for_power_off);
 	kernel_halt();
+}
+
+static void jz4740_rtc_clk_disable(void *data)
+{
+	clk_disable_unprepare(data);
 }
 
 static const struct of_device_id jz4740_rtc_of_match[] = {
@@ -330,6 +333,18 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->clk)) {
 		dev_err(dev, "Failed to get RTC clock\n");
 		return PTR_ERR(rtc->clk);
+	}
+
+	ret = clk_prepare_enable(rtc->clk);
+	if (ret) {
+		dev_err(dev, "Failed to enable clock\n");
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, jz4740_rtc_clk_disable, rtc->clk);
+	if (ret) {
+		dev_err(dev, "Failed to register devm action\n");
+		return ret;
 	}
 
 	spin_lock_init(&rtc->lock);
