@@ -13,7 +13,6 @@
  *
  * Functions:
  *      vnt_generate_tx_parameter - Generate tx dma required parameter.
- *      vnt_get_rtscts_duration_le- get rtx/cts required duration
  *      vnt_get_rtscts_rsvtime_le- get rts/cts reserved time
  *      vnt_get_rsvtime- get frame reserved time
  *      vnt_fill_cts_head- fulfill CTS ctl header
@@ -38,10 +37,6 @@ static const u16 vnt_time_stampoff[2][MAX_RATE] = {
 	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},
 };
 
-#define RTSDUR_BB       0
-#define RTSDUR_BA       1
-#define RTSDUR_AA       2
-#define CTSDUR_BA       3
 #define DATADUR_B       10
 #define DATADUR_A       11
 
@@ -260,27 +255,22 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
 	return cpu_to_le16((u16)rrv_time);
 }
 
-static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
-					 u8 dur_type, u8 pkt_type, u16 rate)
+static __le16 vnt_get_rts_duration(struct vnt_usb_send_context *context)
 {
 	struct vnt_private *priv = context->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(context->skb);
 
-	switch (dur_type) {
-	/* fall through */
-	case RTSDUR_BB:
-	case RTSDUR_BA:
-	case RTSDUR_AA:
-		return ieee80211_rts_duration(priv->hw, priv->vif,
-					      context->frame_len, info);
-	case CTSDUR_BA:
-		return ieee80211_ctstoself_duration(priv->hw, priv->vif,
-						    context->frame_len, info);
-	default:
-		break;
-	}
+	return ieee80211_rts_duration(priv->hw, priv->vif,
+				      context->frame_len, info);
+}
 
-	return cpu_to_le16(0);
+static __le16 vnt_get_cts_duration(struct vnt_usb_send_context *context)
+{
+	struct vnt_private *priv = context->priv;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(context->skb);
+
+	return ieee80211_ctstoself_duration(priv->hw, priv->vif,
+					    context->frame_len, info);
 }
 
 static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
@@ -359,22 +349,15 @@ static void vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 {
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
-	u16 current_rate = tx_context->tx_rate;
 
 	vnt_get_phy_field(priv, rts_frame_len, priv->top_cck_basic_rate,
 			  PK_TYPE_11B, &buf->b);
 	vnt_get_phy_field(priv, rts_frame_len, priv->top_ofdm_basic_rate,
 			  tx_context->pkt_type, &buf->a);
 
-	buf->duration_bb = vnt_get_rtscts_duration_le(tx_context, RTSDUR_BB,
-						      PK_TYPE_11B,
-						      priv->top_cck_basic_rate);
-	buf->duration_aa = vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA,
-						      tx_context->pkt_type,
-						      current_rate);
-	buf->duration_ba = vnt_get_rtscts_duration_le(tx_context, RTSDUR_BA,
-						      tx_context->pkt_type,
-						      current_rate);
+	buf->duration_bb = vnt_get_rts_duration(tx_context);
+	buf->duration_aa = buf->duration_bb;
+	buf->duration_ba = buf->duration_bb;
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration_aa);
 
@@ -385,15 +368,12 @@ static void vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 				 struct vnt_rts_ab *buf)
 {
 	struct vnt_private *priv = tx_context->priv;
-	u16 current_rate = tx_context->tx_rate;
 	u16 rts_frame_len = 20;
 
 	vnt_get_phy_field(priv, rts_frame_len, priv->top_ofdm_basic_rate,
 			  tx_context->pkt_type, &buf->ab);
 
-	buf->duration = vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA,
-						   tx_context->pkt_type,
-						   current_rate);
+	buf->duration = vnt_get_rts_duration(tx_context);
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
 
@@ -406,16 +386,12 @@ static void vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_cts *buf = &head->cts_g;
 	u32 cts_frame_len = 14;
-	u16 current_rate = tx_context->tx_rate;
 
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, cts_frame_len, priv->top_cck_basic_rate,
 			  PK_TYPE_11B, &buf->b);
 	/* Get CTSDuration_ba */
-	buf->duration_ba =
-		vnt_get_rtscts_duration_le(tx_context, CTSDUR_BA,
-					   tx_context->pkt_type,
-					   current_rate);
+	buf->duration_ba = vnt_get_cts_duration(tx_context);
 	/*Get CTS Frame body*/
 	buf->data.duration = buf->duration_ba;
 	buf->data.frame_control =
