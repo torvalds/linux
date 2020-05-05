@@ -237,12 +237,6 @@ static inline void cas_lock_tx(struct cas *cp)
 		spin_lock_nested(&cp->tx_lock[i], i);
 }
 
-static inline void cas_lock_all(struct cas *cp)
-{
-	spin_lock_irq(&cp->lock);
-	cas_lock_tx(cp);
-}
-
 /* WTZ: QA was finding deadlock problems with the previous
  * versions after long test runs with multiple cards per machine.
  * See if replacing cas_lock_all with safer versions helps. The
@@ -264,12 +258,6 @@ static inline void cas_unlock_tx(struct cas *cp)
 
 	for (i = N_TX_RINGS; i > 0; i--)
 		spin_unlock(&cp->tx_lock[i - 1]);
-}
-
-static inline void cas_unlock_all(struct cas *cp)
-{
-	cas_unlock_tx(cp);
-	spin_unlock_irq(&cp->lock);
 }
 
 #define cas_unlock_all_restore(cp, flags) \
