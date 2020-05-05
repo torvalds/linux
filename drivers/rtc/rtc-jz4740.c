@@ -55,9 +55,6 @@ struct jz4740_rtc {
 	enum jz4740_rtc_type type;
 
 	struct rtc_device *rtc;
-	struct clk *clk;
-
-	int irq;
 
 	spinlock_t lock;
 };
@@ -313,9 +310,10 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	int ret;
 	struct jz4740_rtc *rtc;
 	unsigned long rate;
+	struct clk *clk;
+	int ret, irq;
 
 	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
@@ -323,27 +321,27 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	rtc->type = (enum jz4740_rtc_type)device_get_match_data(dev);
 
-	rtc->irq = platform_get_irq(pdev, 0);
-	if (rtc->irq < 0)
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
 		return -ENOENT;
 
 	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
 		return PTR_ERR(rtc->base);
 
-	rtc->clk = devm_clk_get(dev, "rtc");
-	if (IS_ERR(rtc->clk)) {
+	clk = devm_clk_get(dev, "rtc");
+	if (IS_ERR(clk)) {
 		dev_err(dev, "Failed to get RTC clock\n");
-		return PTR_ERR(rtc->clk);
+		return PTR_ERR(clk);
 	}
 
-	ret = clk_prepare_enable(rtc->clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
 		dev_err(dev, "Failed to enable clock\n");
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev, jz4740_rtc_clk_disable, rtc->clk);
+	ret = devm_add_action_or_reset(dev, jz4740_rtc_clk_disable, clk);
 	if (ret) {
 		dev_err(dev, "Failed to register devm action\n");
 		return ret;
@@ -355,7 +353,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(dev, 1);
 
-	ret = dev_pm_set_wake_irq(dev, rtc->irq);
+	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret) {
 		dev_err(dev, "Failed to set wake irq: %d\n", ret);
 		return ret;
@@ -371,14 +369,14 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->ops = &jz4740_rtc_ops;
 	rtc->rtc->range_max = U32_MAX;
 
-	rate = clk_get_rate(rtc->clk);
+	rate = clk_get_rate(clk);
 	jz4740_rtc_set_wakeup_params(rtc, np, rate);
 
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(dev, rtc->irq, jz4740_rtc_irq, 0,
+	ret = devm_request_irq(dev, irq, jz4740_rtc_irq, 0,
 			       pdev->name, rtc);
 	if (ret) {
 		dev_err(dev, "Failed to request rtc irq: %d\n", ret);
