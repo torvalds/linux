@@ -12,7 +12,11 @@
 static enum hal_tcl_encap_type
 ath11k_dp_tx_get_encap_type(struct ath11k_vif *arvif, struct sk_buff *skb)
 {
-	/* TODO: Determine encap type based on vif_type and configuration */
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+
+	if (tx_info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)
+		return HAL_TCL_ENCAP_TYPE_ETHERNET;
+
 	return HAL_TCL_ENCAP_TYPE_NATIVE_WIFI;
 }
 
@@ -36,8 +40,11 @@ static void ath11k_dp_tx_encap_nwifi(struct sk_buff *skb)
 static u8 ath11k_dp_tx_get_tid(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ath11k_skb_cb *cb = ATH11K_SKB_CB(skb);
 
-	if (!ieee80211_is_data_qos(hdr->frame_control))
+	if (cb->flags & ATH11K_SKB_HW_80211_ENCAP)
+		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	else if (!ieee80211_is_data_qos(hdr->frame_control))
 		return HAL_DESC_REO_NON_QOS_TID;
 	else
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
@@ -86,7 +93,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
 		return -ESHUTDOWN;
 
-	if (!ieee80211_is_data(hdr->frame_control))
+	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) &&
+	    !ieee80211_is_data(hdr->frame_control))
 		return -ENOTSUPP;
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
@@ -166,7 +174,10 @@ tcl_ring_sel:
 		 *	  skb_checksum_help() is needed
 		 */
 	case HAL_TCL_ENCAP_TYPE_ETHERNET:
+		/* no need to encap */
+		break;
 	case HAL_TCL_ENCAP_TYPE_802_3:
+	default:
 		/* TODO: Take care of other encap modes as well */
 		ret = -EINVAL;
 		goto fail_remove_idr;

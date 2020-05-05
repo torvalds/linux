@@ -33,6 +33,12 @@
 	.max_power              = 30, \
 }
 
+/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
+static unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
+module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
+MODULE_PARM_DESC(frame_mode,
+		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
 static const struct ieee80211_channel ath11k_2ghz_channels[] = {
 	CHAN2G(1, 2412, 0),
 	CHAN2G(2, 2417, 0),
@@ -3686,10 +3692,10 @@ static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
 
 int ath11k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx)
 {
+	struct sk_buff *msdu = skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(msdu);
 	struct ath11k *ar = ctx;
 	struct ath11k_base *ab = ar->ab;
-	struct sk_buff *msdu = skb;
-	struct ieee80211_tx_info *info;
 
 	spin_lock_bh(&ar->txmgmt_idr_lock);
 	idr_remove(&ar->txmgmt_idr, buf_id);
@@ -3729,6 +3735,7 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info;
 	dma_addr_t paddr;
 	int buf_id;
 	int ret;
@@ -3740,11 +3747,14 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (buf_id < 0)
 		return -ENOSPC;
 
-	if ((ieee80211_is_action(hdr->frame_control) ||
-	     ieee80211_is_deauth(hdr->frame_control) ||
-	     ieee80211_is_disassoc(hdr->frame_control)) &&
-	     ieee80211_has_protected(hdr->frame_control)) {
-		skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+	info = IEEE80211_SKB_CB(skb);
+	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)) {
+		if ((ieee80211_is_action(hdr->frame_control) ||
+		     ieee80211_is_deauth(hdr->frame_control) ||
+		     ieee80211_is_disassoc(hdr->frame_control)) &&
+		     ieee80211_has_protected(hdr->frame_control)) {
+			skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+		}
 	}
 
 	paddr = dma_map_single(ab->dev, skb->data, skb->len, DMA_TO_DEVICE);
@@ -3856,6 +3866,7 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_control *control,
 			     struct sk_buff *skb)
 {
+	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 	struct ath11k *ar = hw->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
@@ -3864,7 +3875,9 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 	bool is_prb_rsp;
 	int ret;
 
-	if (ieee80211_is_mgmt(hdr->frame_control)) {
+	if (info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) {
+		skb_cb->flags |= ATH11K_SKB_HW_80211_ENCAP;
+	} else if (ieee80211_is_mgmt(hdr->frame_control)) {
 		is_prb_rsp = ieee80211_is_probe_resp(hdr->frame_control);
 		ret = ath11k_mac_mgmt_tx(ar, skb, is_prb_rsp);
 		if (ret) {
@@ -4145,6 +4158,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	struct vdev_create_params vdev_param = {0};
 	struct peer_create_params peer_param;
 	u32 param_id, param_value;
+	int hw_encap = 0;
 	u16 nss;
 	int i;
 	int ret;
@@ -4239,7 +4253,22 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	spin_unlock_bh(&ar->data_lock);
 
 	param_id = WMI_VDEV_PARAM_TX_ENCAP_TYPE;
-	param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_ETHERNET)
+		switch (vif->type) {
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_AP:
+			hw_encap = 1;
+			break;
+		default:
+			break;
+		}
+
+	if (ieee80211_set_hw_80211_encap(vif, hw_encap))
+		param_value = ATH11K_HW_TXRX_ETHERNET;
+	else
+		param_value = ATH11K_HW_TXRX_NATIVE_WIFI;
+
 	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
 					    param_id, param_value);
 	if (ret) {

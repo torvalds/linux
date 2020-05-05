@@ -4568,6 +4568,9 @@ enum wmi_sta_ps_param_rx_wake_policy {
 	WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD = 1,
 };
 
+/* Do not change existing values! Used by ath11k_frame_mode parameter
+ * module parameter.
+ */
 enum ath11k_hw_txrx_mode {
 	ATH11K_HW_TXRX_RAW = 0,
 	ATH11K_HW_TXRX_NATIVE_WIFI = 1,
