@@ -298,6 +298,26 @@ This region is exposed via region type VFIO_REGION_SUBTYPE_CCW_SCHIB.
 Reading this region triggers a STORE SUBCHANNEL to be issued to the
 associated hardware.
 
+vfio-ccw crw region
+---------------------
+
+The vfio-ccw crw region is used to return Channel Report Word (CRW)
+data to userspace::
+
+  struct ccw_crw_region {
+         __u32 crw;
+         __u32 pad;
+  } __packed;
+
+This region is exposed via region type VFIO_REGION_SUBTYPE_CCW_CRW.
+
+Reading this region returns a CRW if one that is relevant for this
+subchannel (e.g. one reporting changes in channel path state) is
+pending, or all zeroes if not. If multiple CRWs are pending (including
+possibly chained CRWs), reading this region again will return the next
+one, until no more CRWs are pending and zeroes are returned. This is
+similar to how STORE CHANNEL REPORT WORD works.
+
 vfio-ccw operation details
 --------------------------
 
