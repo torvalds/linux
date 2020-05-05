@@ -210,7 +210,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	pte_t *ptep;
 	unsigned int writing;
 	unsigned long mmu_seq;
-	unsigned long rcbits, irq_flags = 0;
+	unsigned long rcbits;
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
@@ -248,17 +248,9 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	/* Translate to host virtual address */
 	hva = __gfn_to_hva_memslot(memslot, gfn);
-	/*
-	 * If we had a page table table change after lookup, we would
-	 * retry via mmu_notifier_retry.
-	 */
-	if (!realmode)
-		local_irq_save(irq_flags);
-	/*
-	 * If called in real mode we have MSR_EE = 0. Otherwise
-	 * we disable irq above.
-	 */
-	ptep = __find_linux_pte(pgdir, hva, NULL, &hpage_shift);
+
+	arch_spin_lock(&kvm->mmu_lock.rlock.raw_lock);
+	ptep = find_kvm_host_pte(kvm, mmu_seq, hva, &hpage_shift);
 	if (ptep) {
 		pte_t pte;
 		unsigned int host_pte_size;
@@ -272,8 +264,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		 * to <= host page size, if host is using hugepage
 		 */
 		if (host_pte_size < psize) {
-			if (!realmode)
-				local_irq_restore(flags);
+			arch_spin_unlock(&kvm->mmu_lock.rlock.raw_lock);
 			return H_PARAMETER;
 		}
 		pte = kvmppc_read_update_linux_pte(ptep, writing);
@@ -287,8 +278,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			pa |= gpa & ~PAGE_MASK;
 		}
 	}
-	if (!realmode)
-		local_irq_restore(irq_flags);
+	arch_spin_unlock(&kvm->mmu_lock.rlock.raw_lock);
 
 	ptel &= HPTE_R_KEY | HPTE_R_PP0 | (psize-1);
 	ptel |= pa;
