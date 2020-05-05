@@ -295,7 +295,7 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			 phydev->advertising, autoneg == AUTONEG_ENABLE);
 
 	phydev->duplex = duplex;
-
+	phydev->master_slave_set = cmd->base.master_slave_cfg;
 	phydev->mdix_ctrl = cmd->base.eth_tp_mdix_ctrl;
 
 	/* Restart the PHY */
@@ -314,6 +314,8 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 
 	cmd->base.speed = phydev->speed;
 	cmd->base.duplex = phydev->duplex;
+	cmd->base.master_slave_cfg = phydev->master_slave_get;
+	cmd->base.master_slave_state = phydev->master_slave_state;
 	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
 		cmd->base.port = PORT_BNC;
 	else
