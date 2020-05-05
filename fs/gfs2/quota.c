@@ -1270,7 +1270,9 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	if (ip->i_diskflags & GFS2_DIF_SYSTEM)
 		return;
 
-	BUG_ON(ip->i_qadata->qa_ref <= 0);
+	if (gfs2_assert_withdraw(sdp, ip->i_qadata &&
+				 ip->i_qadata->qa_ref > 0))
+		return;
 	for (x = 0; x < ip->i_qadata->qa_qd_num; x++) {
 		qd = ip->i_qadata->qa_qd[x];
 
