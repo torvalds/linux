@@ -110,11 +110,18 @@ static inline u32 kvm_x2apic_id(struct kvm_lapic *apic)
 	return apic->vcpu->vcpu_id;
 }
 
-bool kvm_can_post_timer_interrupt(struct kvm_vcpu *vcpu)
+static bool kvm_can_post_timer_interrupt(struct kvm_vcpu *vcpu)
 {
 	return pi_inject_timer && kvm_vcpu_apicv_active(vcpu);
 }
-EXPORT_SYMBOL_GPL(kvm_can_post_timer_interrupt);
+
+bool kvm_can_use_hv_timer(struct kvm_vcpu *vcpu)
+{
+	return kvm_x86_ops.set_hv_timer
+	       && !(kvm_mwait_in_guest(vcpu->kvm) ||
+		    kvm_can_post_timer_interrupt(vcpu));
+}
+EXPORT_SYMBOL_GPL(kvm_can_use_hv_timer);
 
 static bool kvm_use_posted_timer_interrupt(struct kvm_vcpu *vcpu)
 {
@@ -1788,7 +1795,7 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	bool expired;
 
 	WARN_ON(preemptible());
-	if (!kvm_x86_ops.set_hv_timer)
+	if (!kvm_can_use_hv_timer(vcpu))
 		return false;
 
 	if (!ktimer->tscdeadline)
