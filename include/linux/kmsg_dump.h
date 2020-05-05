@@ -26,6 +26,7 @@ enum kmsg_dump_reason {
 	KMSG_DUMP_OOPS,
 	KMSG_DUMP_EMERG,
 	KMSG_DUMP_SHUTDOWN,
+	KMSG_DUMP_MAX
 };
 
 /**
