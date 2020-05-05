@@ -750,8 +750,8 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 					  "Failed to map user SQ doorbell\n");
 				goto err_out;
 			}
-			hr_qp->sdb_en = 1;
-			resp->cap_flags |= HNS_ROCE_SUPPORT_SQ_RECORD_DB;
+			hr_qp->en_flags |= HNS_ROCE_QP_CAP_SQ_RECORD_DB;
+			resp->cap_flags |= HNS_ROCE_QP_CAP_SQ_RECORD_DB;
 		}
 
 		if (user_qp_has_rdb(hr_dev, init_attr, udata, resp)) {
@@ -762,8 +762,8 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 					  "Failed to map user RQ doorbell\n");
 				goto err_sdb;
 			}
-			hr_qp->rdb_en = 1;
-			resp->cap_flags |= HNS_ROCE_SUPPORT_RQ_RECORD_DB;
+			hr_qp->en_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
+			resp->cap_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
 		}
 	} else {
 		/* QP doorbell register address */
@@ -780,13 +780,13 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 				goto err_out;
 			}
 			*hr_qp->rdb.db_record = 0;
-			hr_qp->rdb_en = 1;
+			hr_qp->en_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
 		}
 	}
 
 	return 0;
 err_sdb:
-	if (udata && hr_qp->sdb_en)
+	if (udata && hr_qp->en_flags & HNS_ROCE_QP_CAP_SQ_RECORD_DB)
 		hns_roce_db_unmap_user(uctx, &hr_qp->sdb);
 err_out:
 	return ret;
@@ -799,12 +799,12 @@ static void free_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		udata, struct hns_roce_ucontext, ibucontext);
 
 	if (udata) {
-		if (hr_qp->rdb_en)
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)
 			hns_roce_db_unmap_user(uctx, &hr_qp->rdb);
-		if (hr_qp->sdb_en)
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_SQ_RECORD_DB)
 			hns_roce_db_unmap_user(uctx, &hr_qp->sdb);
 	} else {
-		if (hr_qp->rdb_en)
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)
 			hns_roce_free_db(hr_dev, &hr_qp->rdb);
 	}
 }
@@ -1178,10 +1178,10 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (ibqp->uobject &&
 	    (attr_mask & IB_QP_STATE) && new_state == IB_QPS_ERR) {
-		if (hr_qp->sdb_en == 1) {
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_SQ_RECORD_DB) {
 			hr_qp->sq.head = *(int *)(hr_qp->sdb.virt_addr);
 
-			if (hr_qp->rdb_en == 1)
+			if (hr_qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)
 				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
 			ibdev_warn(&hr_dev->ib_dev,

@@ -131,8 +131,8 @@ enum {
 };
 
 enum {
-	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
-	HNS_ROCE_SUPPORT_SQ_RECORD_DB = 1 << 1,
+	HNS_ROCE_QP_CAP_RQ_RECORD_DB = BIT(0),
+	HNS_ROCE_QP_CAP_SQ_RECORD_DB = BIT(1),
 };
 
 enum {
@@ -623,8 +623,7 @@ struct hns_roce_qp {
 	struct hns_roce_wq	rq;
 	struct hns_roce_db	rdb;
 	struct hns_roce_db	sdb;
-	u8			rdb_en;
-	u8			sdb_en;
+	unsigned long		en_flags;
 	u32			doorbell_qpn;
 	u32			sq_signal_bits;
 	struct hns_roce_wq	sq;
