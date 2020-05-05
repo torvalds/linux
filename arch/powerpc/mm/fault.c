@@ -320,14 +320,6 @@ static bool access_pkey_error(bool is_write, bool is_exec, bool is_pkey,
 			      struct vm_area_struct *vma)
 {
 	/*
-	 * Read or write was blocked by protection keys.  This is
-	 * always an unconditional error and can never result in
-	 * a follow-up action to resolve the fault, like a COW.
-	 */
-	if (is_pkey)
-		return true;
-
-	/*
 	 * Make sure to check the VMA so that we do not perform
 	 * faults just to hit a pkey fault as soon as we fill in a
 	 * page. Only called for current mm, hence foreign == 0
