@@ -958,6 +958,7 @@ static __init void rdt_init_res_defs(void)
 
 static enum cpuhp_state rdt_online;
 
+/* Runs once on the BSP during boot. */
 void resctrl_cpu_detect(struct cpuinfo_x86 *c)
 {
 	if (!cpu_has(c, X86_FEATURE_CQM_LLC)) {
