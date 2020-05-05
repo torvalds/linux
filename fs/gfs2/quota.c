@@ -1210,9 +1210,6 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 	if (!test_bit(GIF_QD_LOCKED, &ip->i_flags))
 		return 0;
 
-        if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
-                return 0;
-
 	for (x = 0; x < ip->i_qadata->qa_qd_num; x++) {
 		qd = ip->i_qadata->qa_qd[x];
 
