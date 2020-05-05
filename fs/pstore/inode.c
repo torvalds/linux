@@ -31,6 +31,9 @@
 static DEFINE_MUTEX(records_list_lock);
 static LIST_HEAD(records_list);
 
+static DEFINE_MUTEX(pstore_sb_lock);
+static struct super_block *pstore_sb;
+
 struct pstore_private {
 	struct list_head list;
 	struct pstore_record *record;
@@ -282,11 +285,25 @@ static const struct super_operations pstore_ops = {
 	.show_options	= pstore_show_options,
 };
 
-static struct super_block *pstore_sb;
-
-bool pstore_is_mounted(void)
+static struct dentry *psinfo_lock_root(void)
 {
-	return pstore_sb != NULL;
+	struct dentry *root;
+
+	mutex_lock(&pstore_sb_lock);
+	/*
+	 * Having no backend is fine -- no records appear.
+	 * Not being mounted is fine -- nothing to do.
+	 */
+	if (!psinfo || !pstore_sb) {
+		mutex_unlock(&pstore_sb_lock);
+		return NULL;
+	}
+
+	root = pstore_sb->s_root;
+	inode_lock(d_inode(root));
+	mutex_unlock(&pstore_sb_lock);
+
+	return root;
 }
 
 /*
@@ -303,20 +320,18 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 	struct pstore_private	*private, *pos;
 	size_t			size = record->size + record->ecc_notice_size;
 
-	WARN_ON(!inode_is_locked(d_inode(root)));
+	if (WARN_ON(!inode_is_locked(d_inode(root))))
+		return -EINVAL;
 
+	rc = -EEXIST;
+	/* Skip records that are already present in the filesystem. */
 	mutex_lock(&records_list_lock);
 	list_for_each_entry(pos, &records_list, list) {
 		if (pos->record->type == record->type &&
 		    pos->record->id == record->id &&
-		    pos->record->psi == record->psi) {
-			rc = -EEXIST;
-			break;
-		}
+		    pos->record->psi == record->psi)
+			goto fail;
 	}
-	mutex_unlock(&records_list_lock);
-	if (rc)
-		return rc;
 
 	rc = -ENOMEM;
 	inode = pstore_get_inode(root->d_sb);
@@ -346,7 +361,6 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	d_add(dentry, inode);
 
-	mutex_lock(&records_list_lock);
 	list_add(&private->list, &records_list);
 	mutex_unlock(&records_list_lock);
 
@@ -356,8 +370,8 @@ fail_private:
 	free_pstore_private(private);
 fail_inode:
 	iput(inode);
-
 fail:
+	mutex_unlock(&records_list_lock);
 	return rc;
 }
 
@@ -369,24 +383,19 @@ fail:
  */
 void pstore_get_records(int quiet)
 {
-	struct pstore_info *psi = psinfo;
 	struct dentry *root;
 
-	if (!psi || !pstore_sb)
+	root = psinfo_lock_root();
+	if (!root)
 		return;
 
-	root = pstore_sb->s_root;
-
-	inode_lock(d_inode(root));
-	pstore_get_backend_records(psi, root, quiet);
+	pstore_get_backend_records(psinfo, root, quiet);
 	inode_unlock(d_inode(root));
 }
 
 static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
-
-	pstore_sb = sb;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
 	sb->s_blocksize		= PAGE_SIZE;
@@ -408,6 +417,10 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		return -ENOMEM;
 
+	mutex_lock(&pstore_sb_lock);
+	pstore_sb = sb;
+	mutex_unlock(&pstore_sb_lock);
+
 	pstore_get_records(0);
 
 	return 0;
@@ -421,9 +434,17 @@ static struct dentry *pstore_mount(struct file_system_type *fs_type,
 
 static void pstore_kill_sb(struct super_block *sb)
 {
+	mutex_lock(&pstore_sb_lock);
+	WARN_ON(pstore_sb != sb);
+
 	kill_litter_super(sb);
 	pstore_sb = NULL;
+
+	mutex_lock(&records_list_lock);
 	INIT_LIST_HEAD(&records_list);
+	mutex_unlock(&records_list_lock);
+
+	mutex_unlock(&pstore_sb_lock);
 }
 
 static struct file_system_type pstore_fs_type = {

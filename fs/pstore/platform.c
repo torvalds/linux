@@ -460,7 +460,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		}
 
 		ret = psinfo->write(&record);
-		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
+		if (ret == 0 && reason == KMSG_DUMP_OOPS)
 			pstore_new_entry = 1;
 
 		total += record.size;
@@ -592,8 +592,7 @@ int pstore_register(struct pstore_info *psi)
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		allocate_buf_for_compression();
 
-	if (pstore_is_mounted())
-		pstore_get_records(0);
+	pstore_get_records(0);
 
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		pstore_register_kmsg();
