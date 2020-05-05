@@ -1054,8 +1054,8 @@ static unsigned int adjust_ctr_overflow(u8 *iv, u32 bytes)
 	u32 temp = be32_to_cpu(*--b);
 
 	temp = ~temp;
-	c = (u64)temp +  1; // No of block can processed withou overflow
-	if ((bytes / AES_BLOCK_SIZE) > c)
+	c = (u64)temp +  1; // No of block can processed without overflow
+	if ((bytes / AES_BLOCK_SIZE) >= c)
 		bytes = c * AES_BLOCK_SIZE;
 	return bytes;
 }
@@ -1158,15 +1158,16 @@ static int chcr_final_cipher_iv(struct skcipher_request *req,
 static int chcr_handle_cipher_resp(struct skcipher_request *req,
 				   unsigned char *input, int err)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct chcr_context *ctx = c_ctx(tfm);
-	struct uld_ctx *u_ctx = ULD_CTX(c_ctx(tfm));
-	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(tfm));
-	struct sk_buff *skb;
-	struct cpl_fw6_pld *fw6_pld = (struct cpl_fw6_pld *)input;
 	struct chcr_skcipher_req_ctx *reqctx = skcipher_request_ctx(req);
-	struct cipher_wr_param wrparam;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct cpl_fw6_pld *fw6_pld = (struct cpl_fw6_pld *)input;
+	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(tfm));
+	struct uld_ctx *u_ctx = ULD_CTX(c_ctx(tfm));
 	struct chcr_dev *dev = c_ctx(tfm)->dev;
+	struct chcr_context *ctx = c_ctx(tfm);
+	struct adapter *adap = padap(ctx->dev);
+	struct cipher_wr_param wrparam;
+	struct sk_buff *skb;
 	int bytes;
 
 	if (err)
@@ -1197,6 +1198,8 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 	if (unlikely(bytes == 0)) {
 		chcr_cipher_dma_unmap(&ULD_CTX(c_ctx(tfm))->lldi.pdev->dev,
 				      req);
+		memcpy(req->iv, reqctx->init_iv, IV);
+		atomic_inc(&adap->chcr_stats.fallback);
 		err = chcr_cipher_fallback(ablkctx->sw_cipher,
 				     req->base.flags,
 				     req->src,
@@ -1248,20 +1251,28 @@ static int process_cipher(struct skcipher_request *req,
 				  struct sk_buff **skb,
 				  unsigned short op_type)
 {
+	struct chcr_skcipher_req_ctx *reqctx = skcipher_request_ctx(req);
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
-	struct chcr_skcipher_req_ctx *reqctx = skcipher_request_ctx(req);
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(tfm));
+	struct adapter *adap = padap(c_ctx(tfm)->dev);
 	struct	cipher_wr_param wrparam;
 	int bytes, err = -EINVAL;
+	int subtype;
 
 	reqctx->processed = 0;
 	reqctx->partial_req = 0;
 	if (!req->iv)
 		goto error;
+	subtype = get_cryptoalg_subtype(tfm);
 	if ((ablkctx->enckey_len == 0) || (ivsize > AES_BLOCK_SIZE) ||
 	    (req->cryptlen == 0) ||
 	    (req->cryptlen % crypto_skcipher_blocksize(tfm))) {
+		if (req->cryptlen == 0 && subtype != CRYPTO_ALG_SUB_TYPE_XTS)
+			goto fallback;
+		else if (req->cryptlen % crypto_skcipher_blocksize(tfm) &&
+			 subtype == CRYPTO_ALG_SUB_TYPE_XTS)
+			goto fallback;
 		pr_err("AES: Invalid value of Key Len %d nbytes %d IV Len %d\n",
 		       ablkctx->enckey_len, req->cryptlen, ivsize);
 		goto error;
@@ -1302,12 +1313,10 @@ static int process_cipher(struct skcipher_request *req,
 	} else {
 		bytes = req->cryptlen;
 	}
-	if (get_cryptoalg_subtype(tfm) ==
-	    CRYPTO_ALG_SUB_TYPE_CTR) {
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR) {
 		bytes = adjust_ctr_overflow(req->iv, bytes);
 	}
-	if (get_cryptoalg_subtype(tfm) ==
-	    CRYPTO_ALG_SUB_TYPE_CTR_RFC3686) {
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_RFC3686) {
 		memcpy(reqctx->iv, ablkctx->nonce, CTR_RFC3686_NONCE_SIZE);
 		memcpy(reqctx->iv + CTR_RFC3686_NONCE_SIZE, req->iv,
 				CTR_RFC3686_IV_SIZE);
@@ -1315,20 +1324,25 @@ static int process_cipher(struct skcipher_request *req,
 		/* initialize counter portion of counter block */
 		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
 			CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
+		memcpy(reqctx->init_iv, reqctx->iv, IV);
 
 	} else {
 
 		memcpy(reqctx->iv, req->iv, IV);
+		memcpy(reqctx->init_iv, req->iv, IV);
 	}
 	if (unlikely(bytes == 0)) {
 		chcr_cipher_dma_unmap(&ULD_CTX(c_ctx(tfm))->lldi.pdev->dev,
 				      req);
+fallback:       atomic_inc(&adap->chcr_stats.fallback);
 		err = chcr_cipher_fallback(ablkctx->sw_cipher,
 					   req->base.flags,
 					   req->src,
 					   req->dst,
 					   req->cryptlen,
-					   reqctx->iv,
+					   subtype ==
+					   CRYPTO_ALG_SUB_TYPE_CTR_RFC3686 ?
+					   reqctx->iv : req->iv,
 					   op_type);
 		goto error;
 	}
