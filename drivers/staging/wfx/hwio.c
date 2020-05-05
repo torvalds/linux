@@ -106,8 +106,8 @@ err:
 	return ret;
 }
 
-static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf,
-			 size_t len)
+static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
+			 void *buf, size_t len)
 {
 	int ret;
 	int i;
@@ -195,8 +195,8 @@ static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr,
 	return ret;
 }
 
-static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr,
-				  u32 *val)
+static int indirect_read32_locked(struct wfx_dev *wdev, int reg,
+				  u32 addr, u32 *val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -212,8 +212,8 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr,
 	return ret;
 }
 
-static int indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr,
-				   u32 val)
+static int indirect_write32_locked(struct wfx_dev *wdev, int reg,
+				   u32 addr, u32 val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);

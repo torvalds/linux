@@ -139,10 +139,8 @@ u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
 	return 0;
 }
 
-void wfx_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags,
-			     u64 unused)
+void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
+			  unsigned int *total_flags, u64 unused)
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
@@ -532,10 +530,8 @@ static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 	hif_beacon_transmit(wvif, enable);
 }
 
-void wfx_bss_info_changed(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *info,
-			     u32 changed)
+void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
@@ -800,8 +796,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return ret;
 }
 
-void wfx_remove_interface(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif)
+void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;

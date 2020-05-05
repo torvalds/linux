@@ -23,8 +23,8 @@ void wfx_init_hif_cmd(struct wfx_hif_cmd *hif_cmd)
 	mutex_init(&hif_cmd->key_renew_lock);
 }
 
-static void wfx_fill_header(struct hif_msg *hif, int if_id, unsigned int cmd,
-			    size_t size)
+static void wfx_fill_header(struct hif_msg *hif, int if_id,
+			    unsigned int cmd, size_t size)
 {
 	if (if_id == -1)
 		if_id = 2;
@@ -47,8 +47,8 @@ static void *wfx_alloc_hif(size_t body_len, struct hif_msg **hif)
 		return NULL;
 }
 
-int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply,
-		 size_t reply_len, bool async)
+int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
+		 void *reply, size_t reply_len, bool async)
 {
 	const char *mib_name = "";
 	const char *mib_sep = "";
@@ -176,8 +176,8 @@ int hif_reset(struct wfx_vif *wvif, bool reset_stat)
 	return ret;
 }
 
-int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
-		 size_t val_len)
+int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
+		 void *val, size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -207,8 +207,8 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
 	return ret;
 }
 
-int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
-		  size_t val_len)
+int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
+		  void *val, size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -494,8 +494,8 @@ int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
 	return ret;
 }
 
-int hif_sl_send_pub_keys(struct wfx_dev *wdev, const uint8_t *pubkey,
-			 const uint8_t *pubkey_hmac)
+int hif_sl_send_pub_keys(struct wfx_dev *wdev,
+			 const uint8_t *pubkey, const uint8_t *pubkey_hmac)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -529,8 +529,8 @@ int hif_sl_config(struct wfx_dev *wdev, const unsigned long *bitmap)
 	return ret;
 }
 
-int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key,
-		       int destination)
+int hif_sl_set_mac_key(struct wfx_dev *wdev,
+		       const uint8_t *slk_key, int destination)
 {
 	int ret;
 	struct hif_msg *hif;

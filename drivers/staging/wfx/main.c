@@ -170,8 +170,8 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	return false;
 }
 
-struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
-			       const char *label)
+struct gpio_desc *wfx_get_gpio(struct device *dev,
+			       int override, const char *label)
 {
 	struct gpio_desc *ret;
 	char label_buf[256];

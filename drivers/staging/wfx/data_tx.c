@@ -106,8 +106,7 @@ static int wfx_tx_policy_release(struct tx_policy_cache *cache,
 }
 
 static int wfx_tx_policy_get(struct wfx_vif *wvif,
-			     struct ieee80211_tx_rate *rates,
-			     bool *renew)
+			     struct ieee80211_tx_rate *rates, bool *renew)
 {
 	int idx;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
