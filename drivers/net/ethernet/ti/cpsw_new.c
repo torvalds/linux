@@ -1228,7 +1228,7 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 	data->active_slave = 0;
 	data->channels = CPSW_MAX_QUEUES;
 	data->ale_entries = CPSW_ALE_NUM_ENTRIES;
-	data->dual_emac = 1;
+	data->dual_emac = true;
 	data->bd_ram_size = CPSW_BD_RAM_SIZE;
 	data->mac_control = 0;
 
@@ -1921,7 +1921,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	soc = soc_device_match(cpsw_soc_devices);
 	if (soc)
-		cpsw->quirk_irq = 1;
+		cpsw->quirk_irq = true;
 
 	cpsw->rx_packet_max = rx_packet_max;
 	cpsw->descs_pool_size = descs_pool_size;
