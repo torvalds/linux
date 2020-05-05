@@ -203,7 +203,7 @@ struct gpio_desc *wfx_get_gpio(struct device *dev,
 }
 
 /* NOTE: wfx_send_pds() destroy buf */
-int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len)
+int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 {
 	int ret;
 	int start, brace_level, i;
@@ -252,7 +252,7 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 {
 	int ret = 0;
 	const struct firmware *pds;
-	unsigned char *tmp_buf;
+	u8 *tmp_buf;
 
 	ret = request_firmware(&pds, wdev->pdata.file_pds, wdev->dev);
 	if (ret) {

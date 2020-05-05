@@ -36,7 +36,7 @@ int hif_set_block_ack_policy(struct wfx_vif *wvif,
 int hif_set_association_mode(struct wfx_vif *wvif,
 			     struct ieee80211_bss_conf *info);
 int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
-				 int policy_index, uint8_t *rates);
+				 int policy_index, u8 *rates);
 int hif_set_mac_addr_condition(struct wfx_vif *wvif,
 			       int idx, const u8 *mac_addr);
 int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif,

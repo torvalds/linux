@@ -495,7 +495,7 @@ int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
 }
 
 int hif_sl_send_pub_keys(struct wfx_dev *wdev,
-			 const uint8_t *pubkey, const uint8_t *pubkey_hmac)
+			 const u8 *pubkey, const u8 *pubkey_hmac)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -529,8 +529,7 @@ int hif_sl_config(struct wfx_dev *wdev, const unsigned long *bitmap)
 	return ret;
 }
 
-int hif_sl_set_mac_key(struct wfx_dev *wdev,
-		       const uint8_t *slk_key, int destination)
+int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key, int destination)
 {
 	int ret;
 	struct hif_msg *hif;

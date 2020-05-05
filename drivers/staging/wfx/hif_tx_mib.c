@@ -215,7 +215,7 @@ int hif_set_association_mode(struct wfx_vif *wvif,
 }
 
 int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
-				 int policy_index, uint8_t *rates)
+				 int policy_index, u8 *rates)
 {
 	struct hif_mib_set_tx_rate_retry_policy *arg;
 	size_t size = struct_size(arg, tx_rate_retry_policy, 1);
