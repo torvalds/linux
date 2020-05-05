@@ -137,8 +137,7 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = buf[PCF2127_REG_DW] & 0x07;
 	tm->tm_mon = bcd2bin(buf[PCF2127_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(buf[PCF2127_REG_YR]);
-	if (tm->tm_year < 70)
-		tm->tm_year += 100;	/* assume we are in 1970...2069 */
+	tm->tm_year += 100;
 
 	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -172,7 +171,7 @@ static int pcf2127_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[i++] = bin2bcd(tm->tm_mon + 1);
 
 	/* year */
-	buf[i++] = bin2bcd(tm->tm_year % 100);
+	buf[i++] = bin2bcd(tm->tm_year - 100);
 
 	/* write register's data */
 	err = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_SC, buf, i);
@@ -433,6 +432,9 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		return PTR_ERR(pcf2127->rtc);
 
 	pcf2127->rtc->ops = &pcf2127_rtc_ops;
+	pcf2127->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pcf2127->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
 
 	pcf2127->wdd.parent = dev;
 	pcf2127->wdd.info = &pcf2127_wdt_info;
