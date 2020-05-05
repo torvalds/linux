@@ -1077,7 +1077,14 @@ static int chcr_update_tweak(struct skcipher_request *req, u8 *iv,
 
 	keylen = ablkctx->enckey_len / 2;
 	key = ablkctx->key + keylen;
-	ret = aes_expandkey(&aes, key, keylen);
+	/* For a 192 bit key remove the padded zeroes which was
+	 * added in chcr_xts_setkey
+	 */
+	if (KEY_CONTEXT_CK_SIZE_G(ntohl(ablkctx->key_ctx_hdr))
+			== CHCR_KEYCTX_CIPHER_KEY_SIZE_192)
+		ret = aes_expandkey(&aes, key, keylen - 8);
+	else
+		ret = aes_expandkey(&aes, key, keylen);
 	if (ret)
 		return ret;
 	aes_encrypt(&aes, iv, iv);
@@ -2264,12 +2271,28 @@ static int chcr_aes_xts_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	ablkctx->enckey_len = key_len;
 	get_aes_decrypt_key(ablkctx->rrkey, ablkctx->key, key_len << 2);
 	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD + key_len) >> 4;
-	ablkctx->key_ctx_hdr =
+	/* Both keys for xts must be aligned to 16 byte boundary
+	 * by padding with zeros. So for 24 byte keys padding 8 zeroes.
+	 */
+	if (key_len == 48) {
+		context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD + key_len
+				+ 16) >> 4;
+		memmove(ablkctx->key + 32, ablkctx->key + 24, 24);
+		memset(ablkctx->key + 24, 0, 8);
+		memset(ablkctx->key + 56, 0, 8);
+		ablkctx->enckey_len = 64;
+		ablkctx->key_ctx_hdr =
+			FILL_KEY_CTX_HDR(CHCR_KEYCTX_CIPHER_KEY_SIZE_192,
+					 CHCR_KEYCTX_NO_KEY, 1,
+					 0, context_size);
+	} else {
+		ablkctx->key_ctx_hdr =
 		FILL_KEY_CTX_HDR((key_len == AES_KEYSIZE_256) ?
 				 CHCR_KEYCTX_CIPHER_KEY_SIZE_128 :
 				 CHCR_KEYCTX_CIPHER_KEY_SIZE_256,
 				 CHCR_KEYCTX_NO_KEY, 1,
 				 0, context_size);
+	}
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_XTS;
 	return 0;
 badkey_err:
