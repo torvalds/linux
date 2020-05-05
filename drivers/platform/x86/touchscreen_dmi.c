@@ -742,6 +742,20 @@ static const struct ts_dmi_data trekstor_surftab_wintron70_data = {
 	.properties	= trekstor_surftab_wintron70_props,
 };
 
+static const struct property_entry vinga_twizzle_j116_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1920),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-vinga-twizzle_j116.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data vinga_twizzle_j116_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= vinga_twizzle_j116_props,
+};
+
 /* NOTE: Please keep this table sorted alphabetically */
 const struct dmi_system_id touchscreen_dmi_table[] = {
 	{
@@ -1181,6 +1195,13 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab wintron 7.0 ST70416-6"),
 			/* Exact match, different versions need different fw */
 			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA05"),
+		},
+	},
+	{
+		/* Vinga Twizzle J116 */
+		.driver_data = (void *)&vinga_twizzle_j116_data,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "VINGA Twizzle J116"),
 		},
 	},
 	{
