@@ -7760,7 +7760,8 @@ err:
 	return ret;
 }
 
-static int io_uring_create(unsigned entries, struct io_uring_params *p)
+static int io_uring_create(unsigned entries, struct io_uring_params *p,
+			   struct io_uring_params __user *params)
 {
 	struct user_struct *user = NULL;
 	struct io_ring_ctx *ctx;
@@ -7852,6 +7853,14 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 	p->cq_off.overflow = offsetof(struct io_rings, cq_overflow);
 	p->cq_off.cqes = offsetof(struct io_rings, cqes);
 
+	p->features = IORING_FEAT_SINGLE_MMAP | IORING_FEAT_NODROP |
+			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS |
+			IORING_FEAT_CUR_PERSONALITY | IORING_FEAT_FAST_POLL;
+
+	if (copy_to_user(params, p, sizeof(*p))) {
+		ret = -EFAULT;
+		goto err;
+	}
 	/*
 	 * Install ring fd as the very last thing, so we don't risk someone
 	 * having closed it before we finish setup
@@ -7860,9 +7869,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 	if (ret < 0)
 		goto err;
 
-	p->features = IORING_FEAT_SINGLE_MMAP | IORING_FEAT_NODROP |
-			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS |
-			IORING_FEAT_CUR_PERSONALITY | IORING_FEAT_FAST_POLL;
 	trace_io_uring_create(ret, ctx, p->sq_entries, p->cq_entries, p->flags);
 	return ret;
 err:
@@ -7878,7 +7884,6 @@ err:
 static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 {
 	struct io_uring_params p;
-	long ret;
 	int i;
 
 	if (copy_from_user(&p, params, sizeof(p)))
@@ -7893,14 +7898,7 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_CLAMP | IORING_SETUP_ATTACH_WQ))
 		return -EINVAL;
 
-	ret = io_uring_create(entries, &p);
-	if (ret < 0)
-		return ret;
-
-	if (copy_to_user(params, &p, sizeof(p)))
-		return -EFAULT;
-
-	return ret;
+	return  io_uring_create(entries, &p, params);
 }
 
 SYSCALL_DEFINE2(io_uring_setup, u32, entries,
