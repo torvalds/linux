@@ -26,20 +26,15 @@ bool __pure __efi_soft_reserve_enabled(void)
 	return !efi_nosoftreserve;
 }
 
-void efi_printk(char *str)
+void efi_printk(const char *str)
 {
-	char *s8;
+	while (*str) {
+		efi_char16_t ch[] = { *str++, L'\0' };
 
-	for (s8 = str; *s8; s8++) {
-		efi_char16_t ch[2] = { 0 };
-
-		ch[0] = *s8;
-		if (*s8 == '\n') {
-			efi_char16_t nl[2] = { '\r', 0 };
-			efi_char16_printk(nl);
-		}
-
-		efi_char16_printk(ch);
+		if (ch[0] == L'\n')
+			efi_char16_printk(L"\r\n");
+		else
+			efi_char16_printk(ch);
 	}
 }
 
