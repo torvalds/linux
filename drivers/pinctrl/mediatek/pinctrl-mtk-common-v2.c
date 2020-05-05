@@ -993,3 +993,7 @@ int mtk_pinconf_adv_drive_get(struct mtk_pinctrl *hw,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mtk_pinconf_adv_drive_get);
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
+MODULE_DESCRIPTION("Pin configuration library module for mediatek SoCs");
