@@ -2556,7 +2556,7 @@ int chcr_aead_dma_map(struct device *dev,
 	int dst_size;
 
 	dst_size = req->assoclen + req->cryptlen + (op_type ?
-				-authsize : authsize);
+				0 : authsize);
 	if (!req->cryptlen || !dst_size)
 		return 0;
 	reqctx->iv_dma = dma_map_single(dev, reqctx->iv, (IV + reqctx->b0_len),
@@ -2603,15 +2603,16 @@ void chcr_aead_dma_unmap(struct device *dev,
 	int dst_size;
 
 	dst_size = req->assoclen + req->cryptlen + (op_type ?
-					-authsize : authsize);
+					0 : authsize);
 	if (!req->cryptlen || !dst_size)
 		return;
 
 	dma_unmap_single(dev, reqctx->iv_dma, (IV + reqctx->b0_len),
 					DMA_BIDIRECTIONAL);
 	if (req->src == req->dst) {
-		dma_unmap_sg(dev, req->src, sg_nents(req->src),
-				   DMA_BIDIRECTIONAL);
+		dma_unmap_sg(dev, req->src,
+			     sg_nents_for_len(req->src, dst_size),
+			     DMA_BIDIRECTIONAL);
 	} else {
 		dma_unmap_sg(dev, req->src, sg_nents(req->src),
 				   DMA_TO_DEVICE);
@@ -3700,6 +3701,13 @@ static int chcr_aead_op(struct aead_request *req,
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))) {
 			chcr_dec_wrcount(cdev);
 			return -ENOSPC;
+	}
+
+	if (get_aead_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106 &&
+	    crypto_ipsec_check_assoclen(req->assoclen) != 0) {
+		pr_err("RFC4106: Invalid value of assoclen %d\n",
+		       req->assoclen);
+		return -EINVAL;
 	}
 
 	/* Form a WR from req */
