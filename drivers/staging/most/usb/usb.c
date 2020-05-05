@@ -1221,11 +1221,39 @@ static void hdm_disconnect(struct usb_interface *interface)
 	put_device(&mdev->dev);
 }
 
+static int hdm_suspend(struct usb_interface *interface, pm_message_t message)
+{
+	struct most_dev *mdev = usb_get_intfdata(interface);
+	int i;
+
+	mutex_lock(&mdev->io_mutex);
+	for (i = 0; i < mdev->iface.num_channels; i++) {
+		most_stop_enqueue(&mdev->iface, i);
+		usb_kill_anchored_urbs(&mdev->busy_urbs[i]);
+	}
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
+}
+
+static int hdm_resume(struct usb_interface *interface)
+{
+	struct most_dev *mdev = usb_get_intfdata(interface);
+	int i;
+
+	mutex_lock(&mdev->io_mutex);
+	for (i = 0; i < mdev->iface.num_channels; i++)
+		most_resume_enqueue(&mdev->iface, i);
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
+}
+
 static struct usb_driver hdm_usb = {
 	.name = "hdm_usb",
 	.id_table = usbid,
 	.probe = hdm_probe,
 	.disconnect = hdm_disconnect,
+	.resume = hdm_resume,
+	.suspend = hdm_suspend,
 };
 
 module_usb_driver(hdm_usb);
