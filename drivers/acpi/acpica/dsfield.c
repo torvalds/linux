@@ -177,7 +177,10 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 					arg->common.value.string, ACPI_TYPE_ANY,
 					ACPI_IMODE_LOAD_PASS1, flags,
 					walk_state, &node);
-		if (ACPI_FAILURE(status)) {
+		if ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE)
+		    && status == AE_ALREADY_EXISTS) {
+			status = AE_OK;
+		} else if (ACPI_FAILURE(status)) {
 			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
 					     arg->common.value.string, status);
 			return_ACPI_STATUS(status);
