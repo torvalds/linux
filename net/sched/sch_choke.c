@@ -142,11 +142,6 @@ static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
 	return (struct choke_skb_cb *)qdisc_skb_cb(skb)->data;
 }
 
-static inline void choke_set_classid(struct sk_buff *skb, u16 classid)
-{
-	choke_skb_cb(skb)->classid = classid;
-}
-
 /*
  * Compare flow of two packets
  *  Returns true only if source and destination address and port match.
