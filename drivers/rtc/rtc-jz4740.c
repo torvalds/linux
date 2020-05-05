@@ -307,11 +307,12 @@ MODULE_DEVICE_TABLE(of, jz4740_rtc_of_match);
 
 static int jz4740_rtc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	int ret;
 	struct jz4740_rtc *rtc;
-	struct device_node *np = pdev->dev.of_node;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
@@ -325,9 +326,9 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->base))
 		return PTR_ERR(rtc->base);
 
-	rtc->clk = devm_clk_get(&pdev->dev, "rtc");
+	rtc->clk = devm_clk_get(dev, "rtc");
 	if (IS_ERR(rtc->clk)) {
-		dev_err(&pdev->dev, "Failed to get RTC clock\n");
+		dev_err(dev, "Failed to get RTC clock\n");
 		return PTR_ERR(rtc->clk);
 	}
 
@@ -335,18 +336,18 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(dev, 1);
 
-	ret = dev_pm_set_wake_irq(&pdev->dev, rtc->irq);
+	ret = dev_pm_set_wake_irq(dev, rtc->irq);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to set wake irq: %d\n", ret);
+		dev_err(dev, "Failed to set wake irq: %d\n", ret);
 		return ret;
 	}
 
-	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	rtc->rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
-		dev_err(&pdev->dev, "Failed to allocate rtc device: %d\n", ret);
+		dev_err(dev, "Failed to allocate rtc device: %d\n", ret);
 		return ret;
 	}
 
@@ -357,10 +358,10 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(&pdev->dev, rtc->irq, jz4740_rtc_irq, 0,
-				pdev->name, rtc);
+	ret = devm_request_irq(dev, rtc->irq, jz4740_rtc_irq, 0,
+			       pdev->name, rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to request rtc irq: %d\n", ret);
+		dev_err(dev, "Failed to request rtc irq: %d\n", ret);
 		return ret;
 	}
 
@@ -378,11 +379,10 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 					     "ingenic,min-wakeup-pin-assert-time-ms",
 					     &rtc->min_wakeup_pin_assert_time);
 
-			dev_for_power_off = &pdev->dev;
+			dev_for_power_off = dev;
 			pm_power_off = jz4740_rtc_power_off;
 		} else {
-			dev_warn(&pdev->dev,
-				 "Poweroff handler already present!\n");
+			dev_warn(dev, "Poweroff handler already present!\n");
 		}
 	}
 
