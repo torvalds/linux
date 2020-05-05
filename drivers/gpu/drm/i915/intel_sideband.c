@@ -371,6 +371,8 @@ static int gen7_check_mailbox_status(u32 mbox)
 		return -ENXIO;
 	case GEN11_PCODE_LOCKED:
 		return -EBUSY;
+	case GEN11_PCODE_REJECTED:
+		return -EACCES;
 	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
 		return -EOVERFLOW;
 	default:
