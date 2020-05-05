@@ -233,7 +233,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 	unsigned long flags;
 	spinlock_t *lock; /* temp. lock */
 
-	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
+	if (channel < 0 || channel >= iface->num_channels) {
 		dev_warn(&mdev->usb_device->dev, "Channel ID out of range.\n");
 		return -ECHRNG;
 	}
@@ -555,9 +555,9 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	unsigned long length;
 	void *virt_address;
 
-	if (unlikely(!mbo))
+	if (!mbo)
 		return -EINVAL;
-	if (unlikely(iface->num_channels <= channel || channel < 0))
+	if (iface->num_channels <= channel || channel < 0)
 		return -ECHRNG;
 
 	mdev = to_mdev(iface);
@@ -670,11 +670,11 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	mdev->clear_work[channel].mdev = mdev;
 	INIT_WORK(&mdev->clear_work[channel].ws, wq_clear_halt);
 
-	if (unlikely(!conf)) {
+	if (!conf) {
 		dev_err(dev, "Bad config pointer.\n");
 		return -EINVAL;
 	}
-	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
+	if (channel < 0 || channel >= iface->num_channels) {
 		dev_err(dev, "Channel ID out of range.\n");
 		return -EINVAL;
 	}
