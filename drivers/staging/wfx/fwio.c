@@ -99,8 +99,8 @@ static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
 	return ret;
 }
 
-int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
-		 const struct firmware **fw, int *file_offset)
+static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
+			const struct firmware **fw, int *file_offset)
 {
 	int keyset_file;
 	char filename[256];
