@@ -2005,7 +2005,7 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	req_ctx->data_len += params.bfr_len + params.sg_len;
 
 	if (req->nbytes == 0) {
-		create_last_hash_block(req_ctx->reqbfr, bs, 0);
+		create_last_hash_block(req_ctx->reqbfr, bs, req_ctx->data_len);
 		params.more = 1;
 		params.bfr_len = bs;
 	}
