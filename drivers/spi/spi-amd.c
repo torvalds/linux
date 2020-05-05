@@ -38,7 +38,6 @@ struct amd_spi {
 	void __iomem *io_remap_addr;
 	unsigned long io_base_addr;
 	u32 rom_addr;
-	struct spi_master *master;
 	u8 chip_select;
 };
 
@@ -164,9 +163,9 @@ static int amd_spi_master_setup(struct spi_device *spi)
 }
 
 static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
+				    struct spi_master *master,
 				    struct spi_message *message)
 {
-	struct spi_master *master = amd_spi->master;
 	struct spi_transfer *xfer = NULL;
 	u8 cmd_opcode;
 	u8 *buf = NULL;
@@ -241,7 +240,7 @@ static int amd_spi_master_transfer(struct spi_master *master,
 	 * Extract spi_transfers from the spi message and
 	 * program the controller.
 	 */
-	amd_spi_fifo_xfer(amd_spi, msg);
+	amd_spi_fifo_xfer(amd_spi, master, msg);
 
 	return 0;
 }
@@ -262,7 +261,6 @@ static int amd_spi_probe(struct platform_device *pdev)
 	}
 
 	amd_spi = spi_master_get_devdata(master);
-	amd_spi->master = master;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	amd_spi->io_remap_addr = devm_ioremap_resource(&pdev->dev, res);
@@ -282,32 +280,18 @@ static int amd_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = amd_spi_master_transfer;
 
 	/* Register the controller with SPI framework */
-	err = spi_register_master(master);
+	err = devm_spi_register_master(dev, master);
 	if (err) {
 		dev_err(dev, "error %d registering SPI controller\n", err);
-		goto err_iounmap;
+		goto err_free_master;
 	}
-	platform_set_drvdata(pdev, amd_spi);
 
 	return 0;
 
-err_iounmap:
-	iounmap(amd_spi->io_remap_addr);
 err_free_master:
 	spi_master_put(master);
 
-	return 0;
-}
-
-static int amd_spi_remove(struct platform_device *pdev)
-{
-	struct amd_spi *amd_spi = platform_get_drvdata(pdev);
-
-	spi_unregister_master(amd_spi->master);
-	spi_master_put(amd_spi->master);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
+	return err;
 }
 
 static const struct acpi_device_id spi_acpi_match[] = {
@@ -322,7 +306,6 @@ static struct platform_driver amd_spi_driver = {
 		.acpi_match_table = ACPI_PTR(spi_acpi_match),
 	},
 	.probe = amd_spi_probe,
-	.remove = amd_spi_remove,
 };
 
 module_platform_driver(amd_spi_driver);
