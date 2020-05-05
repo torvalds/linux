@@ -277,6 +277,39 @@ u32 dw_spi_update_cr0(struct spi_controller *master, struct spi_device *spi,
 }
 EXPORT_SYMBOL_GPL(dw_spi_update_cr0);
 
+/* Configure CTRLR0 for DWC_ssi */
+u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
+			     struct spi_device *spi,
+			     struct spi_transfer *transfer)
+{
+	struct dw_spi *dws = spi_controller_get_devdata(master);
+	struct chip_data *chip = spi_get_ctldata(spi);
+	u32 cr0;
+
+	/* CTRLR0[ 4: 0] Data Frame Size */
+	cr0 = (transfer->bits_per_word - 1);
+
+	/* CTRLR0[ 7: 6] Frame Format */
+	cr0 |= chip->type << DWC_SSI_CTRLR0_FRF_OFFSET;
+
+	/*
+	 * SPI mode (SCPOL|SCPH)
+	 * CTRLR0[ 8] Serial Clock Phase
+	 * CTRLR0[ 9] Serial Clock Polarity
+	 */
+	cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << DWC_SSI_CTRLR0_SCPOL_OFFSET;
+	cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << DWC_SSI_CTRLR0_SCPH_OFFSET;
+
+	/* CTRLR0[11:10] Transfer Mode */
+	cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
+
+	/* CTRLR0[13] Shift Register Loop */
+	cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DWC_SSI_CTRLR0_SRL_OFFSET;
+
+	return cr0;
+}
+EXPORT_SYMBOL_GPL(dw_spi_update_cr0_v1_01a);
+
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
 {

@@ -57,6 +57,15 @@
 #define SPI_SRL_OFFSET			11
 #define SPI_CFS_OFFSET			12
 
+/* Bit fields in CTRLR0 based on DWC_ssi_databook.pdf v1.01a */
+#define DWC_SSI_CTRLR0_SRL_OFFSET	13
+#define DWC_SSI_CTRLR0_TMOD_OFFSET	10
+#define DWC_SSI_CTRLR0_TMOD_MASK	GENMASK(11, 10)
+#define DWC_SSI_CTRLR0_SCPOL_OFFSET	9
+#define DWC_SSI_CTRLR0_SCPH_OFFSET	8
+#define DWC_SSI_CTRLR0_FRF_OFFSET	6
+#define DWC_SSI_CTRLR0_DFS_OFFSET	0
+
 /* Bit fields in SR, 7 bits */
 #define SR_MASK				0x7f		/* cover 7 bits */
 #define SR_BUSY				(1 << 0)
@@ -245,6 +254,9 @@ extern int dw_spi_resume_host(struct dw_spi *dws);
 extern u32 dw_spi_update_cr0(struct spi_controller *master,
 			     struct spi_device *spi,
 			     struct spi_transfer *transfer);
+extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
+				    struct spi_device *spi,
+				    struct spi_transfer *transfer);
 
 /* platform related setup */
 extern int dw_spi_mid_init(struct dw_spi *dws); /* Intel MID platforms */
