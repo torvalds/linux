@@ -53,6 +53,11 @@
  *   arbitrary physical CPUs, but some features not present on the host are
  *   also advertised and emulated. Look at sys_reg_descs[] for the gory
  *   details.
+ *
+ * - If the arm64_ftr_bits[] for a register has a missing field, then this
+ *   field is treated as STRICT RES0, including for read_sanitised_ftr_reg().
+ *   This is stronger than FTR_HIDDEN and can be used to hide features from
+ *   KVM guests.
  */
 
 #define pr_fmt(fmt) "CPU features: " fmt
