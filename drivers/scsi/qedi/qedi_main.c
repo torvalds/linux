@@ -662,8 +662,6 @@ exit_setup_shost:
 static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 {
 	struct qedi_ctx *qedi = (struct qedi_ctx *)cookie;
-	struct qedi_uio_dev *udev;
-	struct qedi_uio_ctrl *uctrl;
 	struct skb_work_list *work;
 	struct ethhdr *eh;
 
@@ -701,9 +699,6 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
 		  "Allowed frame ethertype [0x%x] len [0x%x].\n",
 		  eh->h_proto, skb->len);
-
-	udev = qedi->udev;
-	uctrl = udev->uctrl;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
