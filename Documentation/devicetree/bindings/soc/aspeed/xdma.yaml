@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/aspeed/xdma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aspeed AST25XX and AST26XX XDMA Engine
+
+maintainers:
+  - Eddie James <eajames@linux.ibm.com>
+
+description: |
+  This binding describes the XDMA Engine embedded in the AST2500 and AST2600
+  SOCs. The XDMA engine can perform automatic DMA operations over PCI between
+  the SOC (acting as a BMC) and a host processor.
+
+properties:
+  compatible:
+    enum:
+      - aspeed,ast2500-xdma
+      - aspeed,ast2600-xdma
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: device
+      - const: root-complex
+
+  interrupts:
+    items:
+      - description: global interrupt for the XDMA engine
+      - description: PCI-E reset or PERST interrupt
+
+  aspeed,scu:
+    description: a reference to the System Control Unit node of the Aspeed SOC.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/phandle
+
+  aspeed,pcie-device:
+    description: describes which PCI-E device the XDMA engine should use
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/string
+      - enum: [ bmc, vga ]
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+  - interrupts-extended
+  - aspeed,scu
+  - memory-region
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: aspeed,ast2600-xdma
+then:
+  required:
+    - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ast2600-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
+    syscon: syscon@1e6e2000 {
+        reg = <0x1e6e2000 0x1000>;
+        ranges = <0 0x1e6e2000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+        scu_ic0: interrupt-controller@560 {
+            reg = <0x560 0x4>;
+            interrupt-controller;
+            #interrupt-cells = <1>;
+        };
+    };
+    xdma@1e6e7000 {
+        compatible = "aspeed,ast2600-xdma";
+        reg = <0x1e6e7000 0x100>;
+        clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
+        resets = <&syscon ASPEED_RESET_DEV_XDMA>, <&syscon ASPEED_RESET_RC_XDMA>;
+        reset-names = "device", "root-complex";
+        interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+                              <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+        aspeed,scu = <&syscon>;
+        aspeed,pcie-device = "bmc";
+        memory-region = <&vga_memory>;
+    };
