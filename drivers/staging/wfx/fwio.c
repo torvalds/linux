@@ -360,7 +360,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "initial config register value: %08x\n", reg);
 
 	hw_revision = FIELD_GET(CFG_DEVICE_ID_MAJOR, reg);
-	if (hw_revision == 0 || hw_revision > 2) {
+	if (hw_revision == 0) {
 		dev_err(wdev->dev, "bad hardware revision number: %d\n",
 			hw_revision);
 		return -ENODEV;
