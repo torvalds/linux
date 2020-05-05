@@ -184,7 +184,6 @@ static int pcf2127_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-#ifdef CONFIG_RTC_INTF_DEV
 static int pcf2127_rtc_ioctl(struct device *dev,
 				unsigned int cmd, unsigned long arg)
 {
@@ -205,9 +204,6 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 		return -ENOIOCTLCMD;
 	}
 }
-#else
-#define pcf2127_rtc_ioctl NULL
-#endif
 
 static const struct rtc_class_ops pcf2127_rtc_ops = {
 	.ioctl		= pcf2127_rtc_ioctl,
