@@ -166,13 +166,13 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 
 	do {
 		spin_lock_bh(&wvif->tx_policy_cache.lock);
-		for (i = 0; i < HIF_TX_RETRY_POLICY_MAX; ++i) {
+		for (i = 0; i < ARRAY_SIZE(wvif->tx_policy_cache.cache); ++i) {
 			is_used = memzcmp(policies[i].rates,
 					  sizeof(policies[i].rates));
 			if (!policies[i].uploaded && is_used)
 				break;
 		}
-		if (i < HIF_TX_RETRY_POLICY_MAX) {
+		if (i < ARRAY_SIZE(wvif->tx_policy_cache.cache)) {
 			policies[i].uploaded = true;
 			memcpy(tmp_rates, policies[i].rates, sizeof(tmp_rates));
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
@@ -180,7 +180,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 		} else {
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
 		}
-	} while (i < HIF_TX_RETRY_POLICY_MAX);
+	} while (i < ARRAY_SIZE(wvif->tx_policy_cache.cache));
 	return 0;
 }
 
@@ -204,7 +204,7 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 	INIT_LIST_HEAD(&cache->used);
 	INIT_LIST_HEAD(&cache->free);
 
-	for (i = 0; i < HIF_TX_RETRY_POLICY_MAX; ++i)
+	for (i = 0; i < ARRAY_SIZE(cache->cache); ++i)
 		list_add(&cache->cache[i].link, &cache->free);
 }
 
