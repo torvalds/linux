@@ -378,8 +378,6 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 	struct smc_llc_qentry *qentry;
 	int rc;
 
-	link->lgr->type = SMC_LGR_SINGLE;
-
 	/* receive CONFIRM LINK request from server over RoCE fabric */
 	qentry = smc_llc_wait(link->lgr, NULL, SMC_LLC_WAIT_TIME,
 			      SMC_LLC_CONFIRM_LINK);
@@ -414,6 +412,7 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 		return SMC_CLC_DECL_TIMEOUT_CL;
 
 	smc_llc_link_active(link);
+	smcr_lgr_set_type(link->lgr, SMC_LGR_SINGLE);
 
 	/* optional 2nd link, receive ADD LINK request from server */
 	qentry = smc_llc_wait(link->lgr, NULL, SMC_LLC_WAIT_TIME,
@@ -1037,8 +1036,6 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 	struct smc_llc_qentry *qentry;
 	int rc;
 
-	link->lgr->type = SMC_LGR_SINGLE;
-
 	if (smcr_link_reg_rmb(link, smc->conn.rmb_desc))
 		return SMC_CLC_DECL_ERR_REGRMB;
 
@@ -1067,6 +1064,7 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 	smc->conn.rmb_desc->is_conf_rkey = true;
 
 	smc_llc_link_active(link);
+	smcr_lgr_set_type(link->lgr, SMC_LGR_SINGLE);
 
 	/* initial contact - try to establish second link */
 	smc_llc_srv_add_link(link);

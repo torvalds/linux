@@ -369,7 +369,7 @@ dealloc_pd:
 free_link_mem:
 	smc_wr_free_link_mem(lnk);
 clear_llc_lnk:
-	smc_llc_link_clear(lnk);
+	smc_llc_link_clear(lnk, false);
 out:
 	put_device(&ini->ib_dev->ibdev->dev);
 	memset(lnk, 0, sizeof(struct smc_link));
@@ -718,14 +718,14 @@ static void smcr_rtoken_clear_link(struct smc_link *lnk)
 }
 
 /* must be called under lgr->llc_conf_mutex lock */
-void smcr_link_clear(struct smc_link *lnk)
+void smcr_link_clear(struct smc_link *lnk, bool log)
 {
 	struct smc_ib_device *smcibdev;
 
 	if (!lnk->lgr || lnk->state == SMC_LNK_UNUSED)
 		return;
 	lnk->peer_qpn = 0;
-	smc_llc_link_clear(lnk);
+	smc_llc_link_clear(lnk, log);
 	smcr_buf_unmap_lgr(lnk);
 	smcr_rtoken_clear_link(lnk);
 	smc_ib_modify_qp_reset(lnk);
@@ -812,7 +812,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 		mutex_lock(&lgr->llc_conf_mutex);
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			if (lgr->lnk[i].state != SMC_LNK_UNUSED)
-				smcr_link_clear(&lgr->lnk[i]);
+				smcr_link_clear(&lgr->lnk[i], false);
 		}
 		mutex_unlock(&lgr->llc_conf_mutex);
 		smc_llc_lgr_clear(lgr);
@@ -1040,12 +1040,36 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 /* set new lgr type and clear all asymmetric link tagging */
 void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type)
 {
+	char *lgr_type = "";
 	int i;
 
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++)
 		if (smc_link_usable(&lgr->lnk[i]))
 			lgr->lnk[i].link_is_asym = false;
+	if (lgr->type == new_type)
+		return;
 	lgr->type = new_type;
+
+	switch (lgr->type) {
+	case SMC_LGR_NONE:
+		lgr_type = "NONE";
+		break;
+	case SMC_LGR_SINGLE:
+		lgr_type = "SINGLE";
+		break;
+	case SMC_LGR_SYMMETRIC:
+		lgr_type = "SYMMETRIC";
+		break;
+	case SMC_LGR_ASYMMETRIC_PEER:
+		lgr_type = "ASYMMETRIC_PEER";
+		break;
+	case SMC_LGR_ASYMMETRIC_LOCAL:
+		lgr_type = "ASYMMETRIC_LOCAL";
+		break;
+	}
+	pr_warn_ratelimited("smc: SMC-R lg %*phN state changed: "
+			    "%s, pnetid %.16s\n", SMC_LGR_ID_SIZE, &lgr->id,
+			    lgr_type, lgr->pnet_id);
 }
 
 /* set new lgr type and tag a link as asymmetric */
@@ -1146,7 +1170,7 @@ static void smcr_link_down(struct smc_link *lnk)
 	smc_ib_modify_qp_reset(lnk);
 	to_lnk = smc_switch_conns(lgr, lnk, true);
 	if (!to_lnk) { /* no backup link available */
-		smcr_link_clear(lnk);
+		smcr_link_clear(lnk, true);
 		return;
 	}
 	smcr_lgr_set_type(lgr, SMC_LGR_SINGLE);

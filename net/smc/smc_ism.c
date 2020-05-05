@@ -321,12 +321,18 @@ int smcd_register_dev(struct smcd_dev *smcd)
 	list_add_tail(&smcd->list, &smcd_dev_list.list);
 	spin_unlock(&smcd_dev_list.lock);
 
+	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
+			    dev_name(&smcd->dev), smcd->pnetid,
+			    smcd->pnetid_by_user ? " (user defined)" : "");
+
 	return device_add(&smcd->dev);
 }
 EXPORT_SYMBOL_GPL(smcd_register_dev);
 
 void smcd_unregister_dev(struct smcd_dev *smcd)
 {
+	pr_warn_ratelimited("smc: removing smcd device %s\n",
+			    dev_name(&smcd->dev));
 	spin_lock(&smcd_dev_list.lock);
 	list_del_init(&smcd->list);
 	spin_unlock(&smcd_dev_list.lock);
