@@ -634,6 +634,7 @@ static int pcf2127_i2c_probe(struct i2c_client *client,
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x1d,
 	};
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -701,6 +702,7 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 		.val_bits = 8,
 		.read_flag_mask = 0xa0,
 		.write_flag_mask = 0x20,
+		.max_register = 0x1d,
 	};
 	struct regmap *regmap;
 
