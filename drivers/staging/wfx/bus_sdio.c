@@ -6,10 +6,12 @@
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/module.h>
+#include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
+#include <linux/irq.h>
 
 #include "bus.h"
 #include "wfx.h"
@@ -106,31 +108,41 @@ static irqreturn_t wfx_sdio_irq_handler_ext(int irq, void *priv)
 
 static int wfx_sdio_irq_subscribe(struct wfx_sdio_priv *bus)
 {
+	u32 flags;
 	int ret;
+	u8 cccr;
 
-	if (bus->of_irq) {
-		ret = request_irq(bus->of_irq, wfx_sdio_irq_handler_ext,
-				  IRQF_TRIGGER_RISING, "wfx", bus);
-	} else {
+	if (!bus->of_irq) {
 		sdio_claim_host(bus->func);
 		ret = sdio_claim_irq(bus->func, wfx_sdio_irq_handler);
 		sdio_release_host(bus->func);
+		return ret;
 	}
-	return ret;
+
+	sdio_claim_host(bus->func);
+	cccr = sdio_f0_readb(bus->func, SDIO_CCCR_IENx, NULL);
+	cccr |= BIT(0);
+	cccr |= BIT(bus->func->num);
+	sdio_f0_writeb(bus->func, cccr, SDIO_CCCR_IENx, NULL);
+	sdio_release_host(bus->func);
+	flags = irq_get_trigger_type(bus->of_irq);
+	if (!flags)
+		flags = IRQF_TRIGGER_HIGH;
+	flags |= IRQF_ONESHOT;
+	return devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
+					 wfx_sdio_irq_handler_ext, flags,
+					 "wfx", bus);
 }
 
 static int wfx_sdio_irq_unsubscribe(struct wfx_sdio_priv *bus)
 {
 	int ret;
 
-	if (bus->of_irq) {
-		free_irq(bus->of_irq, bus);
-		ret = 0;
-	} else {
-		sdio_claim_host(bus->func);
-		ret = sdio_release_irq(bus->func);
-		sdio_release_host(bus->func);
-	}
+	if (bus->of_irq)
+		devm_free_irq(&bus->func->dev, bus->of_irq, bus);
+	sdio_claim_host(bus->func);
+	ret = sdio_release_irq(bus->func);
+	sdio_release_host(bus->func);
 	return ret;
 }
 
