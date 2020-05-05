@@ -13,10 +13,10 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 
-#include "bus.h"
 #include "hif_api_general.h"
 
 struct wfx_dev;
+struct hwbus_ops;
 
 struct wfx_platform_data {
 	/* Keyset and ".sec" extention will appended to this string */

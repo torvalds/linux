@@ -10,12 +10,11 @@
 #ifndef WFX_HIF_TX_H
 #define WFX_HIF_TX_H
 
-#include "hif_api_cmd.h"
-
 struct ieee80211_channel;
 struct ieee80211_bss_conf;
 struct ieee80211_tx_queue_params;
 struct cfg80211_scan_request;
+struct hif_req_add_key;
 struct wfx_dev;
 struct wfx_vif;
 

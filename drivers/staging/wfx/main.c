@@ -28,6 +28,7 @@
 #include "bh.h"
 #include "sta.h"
 #include "key.h"
+#include "scan.h"
 #include "debug.h"
 #include "data_tx.h"
 #include "secure_link.h"

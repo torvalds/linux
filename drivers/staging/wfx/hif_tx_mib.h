@@ -9,8 +9,6 @@
 #ifndef WFX_HIF_TX_MIB_H
 #define WFX_HIF_TX_MIB_H
 
-#include "hif_api_mib.h"
-
 struct wfx_vif;
 struct sk_buff;
 

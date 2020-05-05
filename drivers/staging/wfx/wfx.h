@@ -21,10 +21,7 @@
 #include "main.h"
 #include "queue.h"
 #include "secure_link.h"
-#include "sta.h"
-#include "scan.h"
 #include "hif_tx.h"
-#include "hif_api_general.h"
 
 #define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
 #define USEC_PER_TU 1024
