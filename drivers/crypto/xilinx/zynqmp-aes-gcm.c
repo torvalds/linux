@@ -79,8 +79,6 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	struct zynqmp_aead_tfm_ctx *tfm_ctx = crypto_aead_ctx(aead);
 	struct zynqmp_aead_req_ctx *rq_ctx = aead_request_ctx(req);
 	struct device *dev = tfm_ctx->dev;
-	struct aead_alg *alg = crypto_aead_alg(aead);
-	struct zynqmp_aead_drv_ctx *drv_ctx;
 	struct zynqmp_aead_hw_req *hwreq;
 	dma_addr_t dma_addr_data, dma_addr_hw_req;
 	unsigned int data_size;
@@ -89,8 +87,6 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	size_t dma_size;
 	char *kbuf;
 	int err;
-
-	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead);
 
 	if (tfm_ctx->keysrc == ZYNQMP_AES_KUP_KEY)
 		dma_size = req->cryptlen + ZYNQMP_AES_KEY_SIZE
