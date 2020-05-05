@@ -1733,6 +1733,11 @@ static struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
 	return container_of(ns, struct mnt_namespace, ns);
 }
 
+struct ns_common *from_mnt_ns(struct mnt_namespace *mnt)
+{
+	return &mnt->ns;
+}
+
 static bool mnt_ns_loop(struct dentry *dentry)
 {
 	/* Could bind mounting the mount namespace inode cause a
