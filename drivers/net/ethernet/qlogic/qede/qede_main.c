@@ -1714,7 +1714,7 @@ static void qede_init_fp(struct qede_dev *edev)
 				txq->ndev_txq_id = ndev_tx_id;
 
 				if (edev->dev_info.is_legacy)
-					txq->is_legacy = 1;
+					txq->is_legacy = true;
 				txq->dev = &edev->pdev->dev;
 			}
 
