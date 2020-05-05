@@ -28,7 +28,6 @@ config KVM
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
-	select KVM_ARM_HOST
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
 	select KVM_VFIO
@@ -49,11 +48,6 @@ config KVM
 	  levels of fake page tables.
 
 	  If unsure, say N.
-
-config KVM_ARM_HOST
-	bool
-	---help---
-	  Provides host support for ARM processors.
 
 config KVM_ARM_PMU
 	bool
