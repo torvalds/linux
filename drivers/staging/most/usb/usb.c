@@ -548,7 +548,7 @@ static void hdm_read_completion(struct urb *urb)
 static int hdm_enqueue(struct most_interface *iface, int channel,
 		       struct mbo *mbo)
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = to_mdev(iface);
 	struct most_channel_config *conf;
 	int retval = 0;
 	struct urb *urb;
@@ -560,7 +560,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	if (iface->num_channels <= channel || channel < 0)
 		return -ECHRNG;
 
-	mdev = to_mdev(iface);
 	conf = &mdev->conf[channel];
 
 	mutex_lock(&mdev->io_mutex);
@@ -741,9 +740,8 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
 						   unsigned char,
 						   unsigned char *))
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = to_mdev(iface);
 
-	mdev = to_mdev(iface);
 	mdev->on_netinfo = on_netinfo;
 	if (!on_netinfo)
 		return;
