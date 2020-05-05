@@ -1040,6 +1040,9 @@ static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 	    !(*flags & AMDGPU_PTE_SYSTEM) &&
 	    mapping->bo_va->is_xgmi)
 		*flags |= AMDGPU_PTE_SNOOPED;
+
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		*flags |= mapping->flags & AMDGPU_PTE_SNOOPED;
 }
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
