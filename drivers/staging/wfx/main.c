@@ -370,8 +370,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	if (err)
 		goto err1;
 
-	err = wait_for_completion_interruptible_timeout(&wdev->firmware_ready,
-							10 * HZ);
+	err = wait_for_completion_timeout(&wdev->firmware_ready, 1 * HZ);
 	if (err <= 0) {
 		if (err == 0) {
 			dev_err(wdev->dev, "timeout while waiting for startup indication. IRQ configuration error?\n");
