@@ -282,6 +282,21 @@ for each access of the region. The following values may occur:
 ``-EBUSY``
   The subchannel was status pending or busy while processing a halt request.
 
+vfio-ccw schib region
+---------------------
+
+The vfio-ccw schib region is used to return Subchannel-Information
+Block (SCHIB) data to userspace::
+
+  struct ccw_schib_region {
+  #define SCHIB_AREA_SIZE 52
+         __u8 schib_area[SCHIB_AREA_SIZE];
+  } __packed;
+
+This region is exposed via region type VFIO_REGION_SUBTYPE_CCW_SCHIB.
+
+Reading this region triggers a STORE SUBCHANNEL to be issued to the
+associated hardware.
 
 vfio-ccw operation details
 --------------------------
@@ -385,7 +400,8 @@ through DASD/ECKD device online in a guest now and use it as a block
 device.
 
 The current code allows the guest to start channel programs via
-START SUBCHANNEL, and to issue HALT SUBCHANNEL and CLEAR SUBCHANNEL.
+START SUBCHANNEL, and to issue HALT SUBCHANNEL, CLEAR SUBCHANNEL,
+and STORE SUBCHANNEL.
 
 Currently all channel programs are prefetched, regardless of the
 p-bit setting in the ORB.  As a result, self modifying channel
