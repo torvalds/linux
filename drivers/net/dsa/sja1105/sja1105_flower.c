@@ -2,9 +2,10 @@
 /* Copyright 2020, NXP Semiconductors
  */
 #include "sja1105.h"
+#include "sja1105_vl.h"
 
-static struct sja1105_rule *sja1105_rule_find(struct sja1105_private *priv,
-					      unsigned long cookie)
+struct sja1105_rule *sja1105_rule_find(struct sja1105_private *priv,
+				       unsigned long cookie)
 {
 	struct sja1105_rule *rule;
 
@@ -173,7 +174,8 @@ out:
 
 static int sja1105_flower_policer(struct sja1105_private *priv, int port,
 				  struct netlink_ext_ack *extack,
-				  unsigned long cookie, struct sja1105_key *key,
+				  unsigned long cookie,
+				  struct sja1105_key *key,
 				  u64 rate_bytes_per_sec,
 				  s64 burst)
 {
@@ -308,6 +310,7 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	const struct flow_action_entry *act;
 	unsigned long cookie = cls->cookie;
 	struct sja1105_key key;
+	bool vl_rule = false;
 	int rc, i;
 
 	rc = sja1105_flower_parse_key(priv, extack, cls, &key);
@@ -319,10 +322,47 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	flow_action_for_each(i, act, &rule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
-			rc = sja1105_flower_policer(priv, port,
-						    extack, cookie, &key,
+			rc = sja1105_flower_policer(priv, port, extack, cookie,
+						    &key,
 						    act->police.rate_bytes_ps,
 						    act->police.burst);
+			if (rc)
+				goto out;
+			break;
+		case FLOW_ACTION_TRAP: {
+			int cpu = dsa_upstream_port(ds, port);
+
+			vl_rule = true;
+
+			rc = sja1105_vl_redirect(priv, port, extack, cookie,
+						 &key, BIT(cpu), true);
+			if (rc)
+				goto out;
+			break;
+		}
+		case FLOW_ACTION_REDIRECT: {
+			struct dsa_port *to_dp;
+
+			to_dp = dsa_port_from_netdev(act->dev);
+			if (IS_ERR(to_dp)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Destination not a switch port");
+				return -EOPNOTSUPP;
+			}
+
+			vl_rule = true;
+
+			rc = sja1105_vl_redirect(priv, port, extack, cookie,
+						 &key, BIT(to_dp->index), true);
+			if (rc)
+				goto out;
+			break;
+		}
+		case FLOW_ACTION_DROP:
+			vl_rule = true;
+
+			rc = sja1105_vl_redirect(priv, port, extack, cookie,
+						 &key, 0, false);
 			if (rc)
 				goto out;
 			break;
@@ -333,6 +373,10 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			goto out;
 		}
 	}
+
+	if (vl_rule && !rc)
+		rc = sja1105_static_config_reload(priv, SJA1105_VIRTUAL_LINKS);
+
 out:
 	return rc;
 }
@@ -347,6 +391,9 @@ int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 
 	if (!rule)
 		return 0;
+
+	if (rule->type == SJA1105_RULE_VL)
+		return sja1105_vl_delete(priv, port, rule, cls->common.extack);
 
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
