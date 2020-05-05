@@ -180,6 +180,11 @@ struct intel_engine_execlists {
 	u32 error_interrupt;
 
 	/**
+	 * @reset_ccid: Active CCID [EXECLISTS_STATUS_HI] at the time of reset
+	 */
+	u32 reset_ccid;
+
+	/**
 	 * @no_priolist: priority lists disabled
 	 */
 	bool no_priolist;

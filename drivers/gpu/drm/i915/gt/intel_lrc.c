@@ -4074,6 +4074,8 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	ring_set_paused(engine, 1);
 	intel_engine_stop_cs(engine);
+
+	engine->execlists.reset_ccid = active_ccid(engine);
 }
 
 static void __reset_stop_ring(u32 *regs, const struct intel_engine_cs *engine)
@@ -4116,7 +4118,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * its request, it was still running at the time of the
 	 * reset and will have been clobbered.
 	 */
-	rq = execlists_active(execlists);
+	rq = active_context(engine, engine->execlists.reset_ccid);
 	if (!rq)
 		goto unwind;
 
