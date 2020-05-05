@@ -39,7 +39,6 @@ struct wfx_spi_priv {
 	struct spi_device *func;
 	struct wfx_dev *core;
 	struct gpio_desc *gpio_reset;
-	struct work_struct request_rx;
 	bool need_swab;
 };
 
@@ -140,21 +139,21 @@ static irqreturn_t wfx_spi_irq_handler(int irq, void *priv)
 {
 	struct wfx_spi_priv *bus = priv;
 
-	queue_work(system_highpri_wq, &bus->request_rx);
+	wfx_bh_request_rx(bus->core);
 	return IRQ_HANDLED;
 }
 
-static void wfx_spi_request_rx(struct work_struct *work)
+static int wfx_spi_irq_subscribe(struct wfx_spi_priv *bus)
 {
-	struct wfx_spi_priv *bus =
-		container_of(work, struct wfx_spi_priv, request_rx);
+	u32 flags;
 
-	wfx_bh_request_rx(bus->core);
-}
-
-static void wfx_flush_irq_work(void *w)
-{
-	flush_work(w);
+	flags = irq_get_trigger_type(bus->func->irq);
+	if (!flags)
+		flags = IRQF_TRIGGER_HIGH;
+	flags |= IRQF_ONESHOT;
+	return devm_request_threaded_irq(&bus->func->dev, bus->func->irq, NULL,
+					 wfx_spi_irq_handler, IRQF_ONESHOT,
+					 "wfx", bus);
 }
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
@@ -212,21 +211,12 @@ static int wfx_spi_probe(struct spi_device *func)
 		usleep_range(2000, 2500);
 	}
 
-	INIT_WORK(&bus->request_rx, wfx_spi_request_rx);
 	bus->core = wfx_init_common(&func->dev, &wfx_spi_pdata,
 				    &wfx_spi_hwbus_ops, bus);
 	if (!bus->core)
 		return -EIO;
 
-	ret = devm_add_action_or_reset(&func->dev, wfx_flush_irq_work,
-				       &bus->request_rx);
-	if (ret)
-		return ret;
-
-	ret = devm_request_irq(&func->dev, func->irq, wfx_spi_irq_handler,
-			       IRQF_TRIGGER_RISING, "wfx", bus);
-	if (ret)
-		return ret;
+	wfx_spi_irq_subscribe(bus);
 
 	return wfx_probe(bus->core);
 }
