@@ -885,7 +885,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 		if (last && !queue->data_digest)
 			flags |= MSG_EOR;
 		else
-			flags |= MSG_MORE;
+			flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
 
 		/* can't zcopy slab pages */
 		if (unlikely(PageSlab(page))) {
@@ -924,10 +924,15 @@ static int nvme_tcp_try_send_cmd_pdu(struct nvme_tcp_request *req)
 	struct nvme_tcp_queue *queue = req->queue;
 	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
 	bool inline_data = nvme_tcp_has_inline_data(req);
-	int flags = MSG_DONTWAIT | (inline_data ? MSG_MORE : MSG_EOR);
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
 	int len = sizeof(*pdu) + hdgst - req->offset;
+	int flags = MSG_DONTWAIT;
 	int ret;
+
+	if (inline_data)
+		flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
+	else
+		flags |= MSG_EOR;
 
 	if (queue->hdr_digest && !req->offset)
 		nvme_tcp_hdgst(queue->snd_hash, pdu, sizeof(*pdu));
@@ -967,7 +972,7 @@ static int nvme_tcp_try_send_data_pdu(struct nvme_tcp_request *req)
 
 	ret = kernel_sendpage(queue->sock, virt_to_page(pdu),
 			offset_in_page(pdu) + req->offset, len,
-			MSG_DONTWAIT | MSG_MORE);
+			MSG_DONTWAIT | MSG_MORE | MSG_SENDPAGE_NOTLAST);
 	if (unlikely(ret <= 0))
 		return ret;
 
