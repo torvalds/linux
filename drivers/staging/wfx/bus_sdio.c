@@ -91,20 +91,13 @@ static void wfx_sdio_irq_handler(struct sdio_func *func)
 {
 	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
 
-	if (bus->core)
-		wfx_bh_request_rx(bus->core);
-	else
-		WARN(!bus->core, "race condition in driver init/deinit");
+	wfx_bh_request_rx(bus->core);
 }
 
 static irqreturn_t wfx_sdio_irq_handler_ext(int irq, void *priv)
 {
 	struct wfx_sdio_priv *bus = priv;
 
-	if (!bus->core) {
-		WARN(!bus->core, "race condition in driver init/deinit");
-		return IRQ_NONE;
-	}
 	sdio_claim_host(bus->func);
 	wfx_bh_request_rx(bus->core);
 	sdio_release_host(bus->func);
