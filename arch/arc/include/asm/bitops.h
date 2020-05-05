@@ -114,7 +114,7 @@ static inline __attribute__ ((const)) unsigned long __ffs(unsigned long word)
  * @result: [1-32]
  * fls(1) = 1, fls(0x80000000) = 32, fls(0) = 0
  */
-static inline __attribute__ ((const)) int fls(unsigned long x)
+static inline __attribute__ ((const)) int fls(unsigned int x)
 {
 	int n;
 
@@ -141,7 +141,7 @@ static inline __attribute__ ((const)) int __fls(unsigned long x)
  * ffs = Find First Set in word (LSB to MSB)
  * @result: [1-32], 0 if all 0's
  */
-static inline __attribute__ ((const)) int ffs(unsigned long x)
+static inline __attribute__ ((const)) int ffs(unsigned int x)
 {
 	int n;
 
