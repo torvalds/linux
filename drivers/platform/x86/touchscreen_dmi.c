@@ -1212,7 +1212,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Y8W81"),
 		},
 	},
-	{ },
+	{ }
 };
 
 static const struct ts_dmi_data *ts_data;
