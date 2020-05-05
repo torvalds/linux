@@ -390,7 +390,7 @@ int wfx_probe(struct wfx_dev *wdev)
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
 		 wdev->hw_caps.api_version_major,
 		 wdev->hw_caps.api_version_minor,
-		 wdev->keyset, *((u32 *) &wdev->hw_caps.capabilities));
+		 wdev->keyset, *((u32 *)&wdev->hw_caps.capabilities));
 	snprintf(wdev->hw->wiphy->fw_version,
 		 sizeof(wdev->hw->wiphy->fw_version),
 		 "%d.%d.%d",

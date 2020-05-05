@@ -251,7 +251,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params)
 {
 	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	int old_uapsd = wvif->uapsd_mask;
 
 	WARN_ON(queue >= hw->queues);
@@ -345,8 +345,7 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 
 	rcu_read_lock();
 	if (bss)
-		ptr = (const u16 *) ieee80211_bss_get_ie(bss,
-							      WLAN_EID_RSN);
+		ptr = (const u16 *)ieee80211_bss_get_ie(bss, WLAN_EID_RSN);
 
 	if (ptr) {
 		ptr += pairwise_cipher_suite_count_offset;
@@ -411,8 +410,8 @@ static void wfx_do_join(struct wfx_vif *wvif)
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta)
 {
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
 	spin_lock_init(&sta_priv->lock);
 	sta_priv->vif_id = wvif->id;
@@ -432,8 +431,8 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
@@ -534,7 +533,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	int i;
 
 	mutex_lock(&wdev->conf_mutex);
@@ -703,7 +702,7 @@ void wfx_change_chanctx(struct ieee80211_hw *hw,
 int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_chanctx_conf *conf)
 {
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct ieee80211_channel *ch = conf->def.chan;
 
 	WARN(wvif->channel, "channel overwrite");
@@ -716,7 +715,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_chanctx_conf *conf)
 {
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct ieee80211_channel *ch = conf->def.chan;
 
 	WARN(wvif->channel != ch, "channel mismatch");
@@ -732,7 +731,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	int i, ret = 0;
 	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 			     IEEE80211_VIF_SUPPORTS_UAPSD |
@@ -799,7 +798,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wait_for_completion_timeout(&wvif->set_pm_mode_complete, msecs_to_jiffies(300));
 

@@ -228,7 +228,7 @@ int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		struct ieee80211_key_conf *key)
 {
 	int ret = -EOPNOTSUPP;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	mutex_lock(&wvif->wdev->conf_mutex);
 	if (cmd == SET_KEY)

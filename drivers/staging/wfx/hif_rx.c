@@ -263,7 +263,7 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_STRING:
 		dev_info(wdev->dev, "firmware says: %s\n",
-			 (char *) body->indication_data.raw_data);
+			 (char *)body->indication_data.raw_data);
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_RX_STATS:
 		mutex_lock(&wdev->rx_stats_lock);

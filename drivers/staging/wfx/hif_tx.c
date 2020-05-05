@@ -106,7 +106,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 
 	if (ret &&
 	    (cmd == HIF_REQ_ID_READ_MIB || cmd == HIF_REQ_ID_WRITE_MIB)) {
-		mib_name = get_mib_name(((u16 *) request)[2]);
+		mib_name = get_mib_name(((u16 *)request)[2]);
 		mib_sep = "/";
 	}
 	if (ret < 0)
@@ -470,7 +470,7 @@ int hif_map_link(struct wfx_vif *wvif, u8 *mac_addr, int flags, int sta_id)
 
 	if (mac_addr)
 		ether_addr_copy(body->mac_addr, mac_addr);
-	body->map_link_flags = *(struct hif_map_link_flags *) &flags;
+	body->map_link_flags = *(struct hif_map_link_flags *)&flags;
 	body->peer_sta_id = sta_id;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_MAP_LINK, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
