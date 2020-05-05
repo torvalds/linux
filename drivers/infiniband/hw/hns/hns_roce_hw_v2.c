@@ -1887,6 +1887,9 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->flags = roce_get_field(resp_c->cap_flags_num_pds,
 				     V2_QUERY_PF_CAPS_C_CAP_FLAGS_M,
 				     V2_QUERY_PF_CAPS_C_CAP_FLAGS_S);
+	caps->flags |= le16_to_cpu(resp_d->cap_flags_ex) <<
+		       HNS_ROCE_CAP_FLAGS_EX_SHIFT;
+
 	caps->num_cqs = 1 << roce_get_field(resp_c->max_gid_num_cqs,
 					    V2_QUERY_PF_CAPS_C_NUM_CQS_M,
 					    V2_QUERY_PF_CAPS_C_NUM_CQS_S);

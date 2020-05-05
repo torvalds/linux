@@ -1647,7 +1647,7 @@ struct hns_roce_query_pf_caps_c {
 struct hns_roce_query_pf_caps_d {
 	__le32 wq_hop_num_max_srqs;
 	__le16 srq_depth;
-	__le16 rsv;
+	__le16 cap_flags_ex;
 	__le32 num_ceqs_ceq_depth;
 	__le32 arm_st_aeq_depth;
 	__le32 num_uars_rsv_pds;
