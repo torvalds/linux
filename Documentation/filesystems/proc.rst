@@ -1870,7 +1870,7 @@ unbindable        mount is unbindable
 
 For more information on mount propagation see:
 
-  Documentation/filesystems/sharedsubtree.txt
+  Documentation/filesystems/sharedsubtree.rst
 
 
 3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm

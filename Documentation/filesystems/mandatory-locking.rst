@@ -1,8 +1,13 @@
-	Mandatory File Locking For The Linux Operating System
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================================
+Mandatory File Locking For The Linux Operating System
+=====================================================
 
 		Andy Walker <andy@lysaker.kvaerner.no>
 
 			   15 April 1996
+
 		     (Updated September 2007)
 
 0. Why you should avoid mandatory locking
@@ -53,15 +58,17 @@ possible on existing user code. The scheme is based on marking individual files
 as candidates for mandatory locking, and using the existing fcntl()/lockf()
 interface for applying locks just as if they were normal, advisory locks.
 
-Note 1: In saying "file" in the paragraphs above I am actually not telling
-the whole truth. System V locking is based on fcntl(). The granularity of
-fcntl() is such that it allows the locking of byte ranges in files, in addition
-to entire files, so the mandatory locking rules also have byte level
-granularity.
+.. Note::
 
-Note 2: POSIX.1 does not specify any scheme for mandatory locking, despite
-borrowing the fcntl() locking scheme from System V. The mandatory locking
-scheme is defined by the System V Interface Definition (SVID) Version 3.
+   1. In saying "file" in the paragraphs above I am actually not telling
+      the whole truth. System V locking is based on fcntl(). The granularity of
+      fcntl() is such that it allows the locking of byte ranges in files, in
+      addition to entire files, so the mandatory locking rules also have byte
+      level granularity.
+
+   2. POSIX.1 does not specify any scheme for mandatory locking, despite
+      borrowing the fcntl() locking scheme from System V. The mandatory locking
+      scheme is defined by the System V Interface Definition (SVID) Version 3.
 
 2. Marking a file for mandatory locking
 ---------------------------------------

@@ -1,4 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+===============
 Quota subsystem
 ===============
 
@@ -39,6 +41,7 @@ Currently, the interface supports only one message type QUOTA_NL_C_WARNING.
 This command is used to send a notification about any of the above mentioned
 events. Each message has six attributes. These are (type of the argument is
 in parentheses):
+
         QUOTA_NL_A_QTYPE (u32)
 	  - type of quota being exceeded (one of USRQUOTA, GRPQUOTA)
         QUOTA_NL_A_EXCESS_ID (u64)
@@ -48,20 +51,34 @@ in parentheses):
 	  - UID of a user who caused the event
         QUOTA_NL_A_WARNING (u32)
 	  - what kind of limit is exceeded:
-		QUOTA_NL_IHARDWARN - inode hardlimit
-		QUOTA_NL_ISOFTLONGWARN - inode softlimit is exceeded longer
-		  than given grace period
-		QUOTA_NL_ISOFTWARN - inode softlimit
-		QUOTA_NL_BHARDWARN - space (block) hardlimit
-		QUOTA_NL_BSOFTLONGWARN - space (block) softlimit is exceeded
-		  longer than given grace period.
-		QUOTA_NL_BSOFTWARN - space (block) softlimit
+
+		QUOTA_NL_IHARDWARN
+		    inode hardlimit
+		QUOTA_NL_ISOFTLONGWARN
+		    inode softlimit is exceeded longer
+		    than given grace period
+		QUOTA_NL_ISOFTWARN
+		    inode softlimit
+		QUOTA_NL_BHARDWARN
+		    space (block) hardlimit
+		QUOTA_NL_BSOFTLONGWARN
+		    space (block) softlimit is exceeded
+		    longer than given grace period.
+		QUOTA_NL_BSOFTWARN
+		    space (block) softlimit
+
 	  - four warnings are also defined for the event when user stops
 	    exceeding some limit:
-		QUOTA_NL_IHARDBELOW - inode hardlimit
-		QUOTA_NL_ISOFTBELOW - inode softlimit
-		QUOTA_NL_BHARDBELOW - space (block) hardlimit
-		QUOTA_NL_BSOFTBELOW - space (block) softlimit
+
+		QUOTA_NL_IHARDBELOW
+		    inode hardlimit
+		QUOTA_NL_ISOFTBELOW
+		    inode softlimit
+		QUOTA_NL_BHARDBELOW
+		    space (block) hardlimit
+		QUOTA_NL_BSOFTBELOW
+		    space (block) softlimit
+
         QUOTA_NL_A_DEV_MAJOR (u32)
 	  - major number of a device with the affected filesystem
         QUOTA_NL_A_DEV_MINOR (u32)
