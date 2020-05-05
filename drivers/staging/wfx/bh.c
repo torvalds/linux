@@ -307,6 +307,34 @@ void wfx_bh_request_tx(struct wfx_dev *wdev)
 	queue_work(system_highpri_wq, &wdev->hif.bh);
 }
 
+/*
+ * If IRQ is not available, this function allow to manually poll the control
+ * register and simulate an IRQ ahen an event happened.
+ *
+ * Note that the device has a bug: If an IRQ raise while host read control
+ * register, the IRQ is lost. So, use this function carefully (only duing
+ * device initialisation).
+ */
+void wfx_bh_poll_irq(struct wfx_dev *wdev)
+{
+	ktime_t now, start;
+	u32 reg;
+
+	start = ktime_get();
+	for (;;) {
+		control_reg_read(wdev, &reg);
+		now = ktime_get();
+		if (reg & 0xFFF)
+			break;
+		if (ktime_after(now, ktime_add_ms(start, 1000))) {
+			dev_err(wdev->dev, "time out while polling control register\n");
+			return;
+		}
+		udelay(200);
+	}
+	wfx_bh_request_rx(wdev);
+}
+
 void wfx_bh_register(struct wfx_dev *wdev)
 {
 	INIT_WORK(&wdev->hif.bh, bh_work);
