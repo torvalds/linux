@@ -274,13 +274,13 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 	unsigned int j, num_frames;
 
 	if (!frame_size)
-		return -EIO;
+		return -EINVAL;
 	num_frames = mbo->buffer_length / frame_size;
 
 	if (num_frames < 1) {
 		dev_err(&mdev->usb_device->dev,
 			"Missed minimal transfer unit.\n");
-		return -EIO;
+		return -EINVAL;
 	}
 
 	for (j = num_frames - 1; j > 0; j--)
@@ -308,7 +308,7 @@ static int hdm_remove_padding(struct most_dev *mdev, int channel,
 	unsigned int j, num_frames;
 
 	if (!frame_size)
-		return -EIO;
+		return -EINVAL;
 	num_frames = mbo->processed_length / USB_MTU;
 
 	for (j = 1; j < num_frames; j++)
@@ -556,7 +556,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	void *virt_address;
 
 	if (unlikely(!mbo))
-		return -EIO;
+		return -EINVAL;
 	if (unlikely(iface->num_channels <= channel || channel < 0))
 		return -ECHRNG;
 
@@ -577,7 +577,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
 	    hdm_add_padding(mdev, channel, mbo)) {
-		retval = -EIO;
+		retval = -EINVAL;
 		goto err_free_urb;
 	}
 
