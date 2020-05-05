@@ -372,6 +372,9 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	rate = clk_get_rate(clk);
 	jz4740_rtc_set_wakeup_params(rtc, np, rate);
 
+	/* Each 1 Hz pulse should happen after (rate) ticks */
+	jz4740_rtc_reg_write(rtc, JZ_REG_RTC_REGULATOR, rate - 1);
+
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)
 		return ret;
