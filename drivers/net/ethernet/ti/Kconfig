@@ -100,7 +100,7 @@ config TI_K3_AM65_CPSW_NUSS
 	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
 	select TI_DAVINCI_MDIO
 	imply PHY_TI_GMII_SEL
-	imply TI_AM65_CPTS
+	depends on TI_K3_AM65_CPTS || !TI_K3_AM65_CPTS
 	help
 	  This driver supports TI K3 AM654/J721E CPSW2G Ethernet SubSystem.
 	  The two-port Gigabit Ethernet MAC (MCU_CPSW0) subsystem provides
@@ -113,9 +113,8 @@ config TI_K3_AM65_CPSW_NUSS
 
 config TI_K3_AM65_CPTS
 	tristate "TI K3 AM65x CPTS"
-	depends on ARCH_K3 && OF && PTP_1588_CLOCK
+	depends on ARCH_K3 && OF
 	depends on PTP_1588_CLOCK
-	select NET_PTP_CLASSIFY
 	help
 	  Say y here to support the TI K3 AM65x CPTS with 1588 features such as
 	  PTP hardware clock for each CPTS device and network packets
