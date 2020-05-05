@@ -519,7 +519,7 @@ void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_do_unjoin(wvif);
 }
 
-void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
+static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 {
 	// Driver has Content After DTIM Beacon in queue. Driver is waiting for
 	// a signal from the firmware. Since we are going to stop to send
