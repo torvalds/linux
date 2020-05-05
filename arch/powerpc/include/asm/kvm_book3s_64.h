@@ -435,7 +435,7 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 			continue;
 		}
 		/* If pte is not present return None */
-		if (unlikely(!(pte_val(old_pte) & _PAGE_PRESENT)))
+		if (unlikely(!pte_present(old_pte)))
 			return __pte(0);
 
 		new_pte = pte_mkyoung(old_pte);
