@@ -88,6 +88,7 @@ perf-y += counts.o
 perf-y += stat.o
 perf-y += stat-shadow.o
 perf-y += stat-display.o
+perf-y += perf_api_probe.o
 perf-y += record.o
 perf-y += srcline.o
 perf-y += srccode.o

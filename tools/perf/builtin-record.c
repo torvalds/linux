@@ -34,6 +34,7 @@
 #include "util/tsc.h"
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
+#include "util/perf_api_probe.h"
 #include "util/llvm-utils.h"
 #include "util/bpf-loader.h"
 #include "util/trigger.h"

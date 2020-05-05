@@ -23,6 +23,7 @@
 #include "asm/bug.h"
 #include "bpf-event.h"
 #include "util/string2.h"
+#include "util/perf_api_probe.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>

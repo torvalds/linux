@@ -173,10 +173,6 @@ void evlist__close(struct evlist *evlist);
 struct callchain_param;
 
 void perf_evlist__set_id_pos(struct evlist *evlist);
-bool perf_can_sample_identifier(void);
-bool perf_can_record_switch_events(void);
-bool perf_can_record_cpu_wide(void);
-bool perf_can_aux_sample(void);
 void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);

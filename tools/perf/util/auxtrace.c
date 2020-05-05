@@ -33,6 +33,7 @@
 #include "evsel.h"
 #include "evsel_config.h"
 #include "symbol.h"
+#include "util/perf_api_probe.h"
 #include "util/synthetic-events.h"
 #include "thread_map.h"
 #include "asm/bug.h"

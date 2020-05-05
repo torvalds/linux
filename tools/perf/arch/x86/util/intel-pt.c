@@ -25,6 +25,7 @@
 #include "../../../util/pmu.h"
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
+#include "../../../util/perf_api_probe.h"
 #include "../../../util/record.h"
 #include "../../../util/target.h"
 #include "../../../util/tsc.h"
