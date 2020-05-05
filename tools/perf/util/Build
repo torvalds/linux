@@ -183,6 +183,8 @@ perf-$(CONFIG_LIBBPF) += bpf-event.o
 
 perf-$(CONFIG_CXX) += c++/
 
+perf-$(CONFIG_LIBPFM4) += pfm.o
+
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_llvm-utils.o += -DPERF_INCLUDE_DIR="BUILD_STR($(perf_include_dir_SQ))"
 

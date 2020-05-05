@@ -45,6 +45,7 @@
 #include "util/units.h"
 #include "util/bpf-event.h"
 #include "util/util.h"
+#include "util/pfm.h"
 #include "asm/bug.h"
 #include "perf.h"
 
@@ -2555,6 +2556,11 @@ static struct option __record_options[] = {
 	OPT_UINTEGER(0, "num-thread-synthesize",
 		     &record.opts.nr_threads_synthesize,
 		     "number of threads to run for event synthesis"),
+#ifdef HAVE_LIBPFM
+	OPT_CALLBACK(0, "pfm-events", &record.evlist, "event",
+		"libpfm4 event selector. use 'perf list' to list available events",
+		parse_libpfm_events_option),
+#endif
 	OPT_END()
 };
 

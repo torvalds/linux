@@ -53,6 +53,7 @@
 
 #include "util/debug.h"
 #include "util/ordered-events.h"
+#include "util/pfm.h"
 
 #include <assert.h>
 #include <elf.h>
@@ -1575,6 +1576,11 @@ int cmd_top(int argc, const char **argv)
 		    "WARNING: should be used on grouped events."),
 	OPT_BOOLEAN(0, "stitch-lbr", &top.stitch_lbr,
 		    "Enable LBR callgraph stitching approach"),
+#ifdef HAVE_LIBPFM
+	OPT_CALLBACK(0, "pfm-events", &top.evlist, "event",
+		"libpfm4 event selector. use 'perf list' to list available events",
+		parse_libpfm_events_option),
+#endif
 	OPTS_EVSWITCH(&top.evswitch),
 	OPT_END()
 	};

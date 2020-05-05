@@ -36,6 +36,7 @@
 #include "metricgroup.h"
 #include "util/evsel_config.h"
 #include "util/event.h"
+#include "util/pfm.h"
 
 #define MAX_NAME_LEN 100
 
@@ -345,6 +346,7 @@ static char *get_config_name(struct list_head *head_terms)
 static struct evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
+	    bool init_attr,
 	    char *name, struct perf_pmu *pmu,
 	    struct list_head *config_terms, bool auto_merge_stats,
 	    const char *cpu_list)
@@ -353,7 +355,8 @@ __add_event(struct list_head *list, int *idx,
 	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
 			       cpu_list ? perf_cpu_map__new(cpu_list) : NULL;
 
-	event_attr_init(attr);
+	if (init_attr)
+		event_attr_init(attr);
 
 	evsel = evsel__new_idx(attr, *idx);
 	if (!evsel)
@@ -371,15 +374,25 @@ __add_event(struct list_head *list, int *idx,
 	if (config_terms)
 		list_splice(config_terms, &evsel->config_terms);
 
-	list_add_tail(&evsel->core.node, list);
+	if (list)
+		list_add_tail(&evsel->core.node, list);
+
 	return evsel;
+}
+
+struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
+					char *name, struct perf_pmu *pmu)
+{
+	return __add_event(NULL, &idx, attr, false, name, pmu, NULL, false,
+			   NULL);
 }
 
 static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name,
 		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name, NULL, config_terms, false, NULL) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, true, name, NULL, config_terms,
+			   false, NULL) ? 0 : -ENOMEM;
 }
 
 static int add_event_tool(struct list_head *list, int *idx,
@@ -391,7 +404,8 @@ static int add_event_tool(struct list_head *list, int *idx,
 		.config = PERF_COUNT_SW_DUMMY,
 	};
 
-	evsel = __add_event(list, idx, &attr, NULL, NULL, NULL, false, "0");
+	evsel = __add_event(list, idx, &attr, true, NULL, NULL, NULL, false,
+			    "0");
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
@@ -1458,8 +1472,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL,
-				    auto_merge_stats, NULL);
+		evsel = __add_event(list, &parse_state->idx, &attr, true, NULL,
+				    pmu, NULL, auto_merge_stats, NULL);
 		if (evsel) {
 			evsel->pmu_name = name ? strdup(name) : NULL;
 			evsel->use_uncore_alias = use_uncore_alias;
@@ -1514,7 +1528,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 	}
 
-	evsel = __add_event(list, &parse_state->idx, &attr,
+	evsel = __add_event(list, &parse_state->idx, &attr, true,
 			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats, NULL);
 	if (evsel) {
@@ -2846,6 +2860,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 	print_sdt_events(NULL, NULL, name_only);
 
 	metricgroup__print(true, true, NULL, name_only, details_flag);
+
+	print_libpfm_events(name_only, long_desc);
 }
 
 int parse_events__is_hardcoded_term(struct parse_events_term *term)

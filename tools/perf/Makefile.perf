@@ -121,6 +121,9 @@ include ../scripts/utilities.mak
 # Define NO_SYSCALL_TABLE=1 to disable the use of syscall id to/from name tables
 # generated from the kernel .tbl or unistd.h files and use, if available, libaudit
 # for doing the conversions to/from strings/id.
+#
+# Define LIBPFM4 to enable libpfm4 events extension.
+#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL

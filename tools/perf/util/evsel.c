@@ -2417,7 +2417,7 @@ bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize)
 
 		/* Is there already the separator in the name. */
 		if (strchr(name, '/') ||
-		    strchr(name, ':'))
+		    (strchr(name, ':') && !evsel->is_libpfm_event))
 			sep = "";
 
 		if (asprintf(&new_name, "%s%su", name, sep) < 0)

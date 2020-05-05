@@ -66,6 +66,7 @@
 #include "util/time-utils.h"
 #include "util/top.h"
 #include "util/affinity.h"
+#include "util/pfm.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -1012,6 +1013,11 @@ static struct option stat_options[] = {
 		    "Use with 'percore' event qualifier to show the event "
 		    "counts of one hardware thread by sum up total hardware "
 		    "threads of same physical core"),
+#ifdef HAVE_LIBPFM
+	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
+		"libpfm4 event selector. use 'perf list' to list available events",
+		parse_libpfm_events_option),
+#endif
 	OPT_END()
 };
 

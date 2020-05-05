@@ -317,6 +317,15 @@ static struct test generic_tests[] = {
 		.func = test__jit_write_elf,
 	},
 	{
+		.desc = "Test libpfm4 support",
+		.func = test__pfm,
+		.subtest = {
+			.skip_if_fail	= true,
+			.get_nr		= test__pfm_subtest_get_nr,
+			.get_desc	= test__pfm_subtest_get_desc,
+		}
+	},
+	{
 		.desc = "Test api io",
 		.func = test__api_io,
 	},
