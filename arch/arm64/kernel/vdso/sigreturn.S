@@ -9,6 +9,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/unistd.h>
 
 	.text
@@ -24,3 +25,5 @@ SYM_FUNC_START(__kernel_rt_sigreturn)
 	svc	#0
 	.cfi_endproc
 SYM_FUNC_END(__kernel_rt_sigreturn)
+
+emit_aarch64_feature_1_and
