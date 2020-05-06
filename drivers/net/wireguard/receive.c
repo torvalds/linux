@@ -516,6 +516,8 @@ void wg_packet_decrypt_worker(struct work_struct *work)
 				&PACKET_CB(skb)->keypair->receiving)) ?
 				PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 		wg_queue_enqueue_per_peer_napi(skb, state);
+		if (need_resched())
+			cond_resched();
 	}
 }
 
