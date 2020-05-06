@@ -48,18 +48,18 @@ static void perf_counts__reset(struct perf_counts *counts)
 	xyarray__reset(counts->values);
 }
 
-void perf_evsel__reset_counts(struct evsel *evsel)
+void evsel__reset_counts(struct evsel *evsel)
 {
 	perf_counts__reset(evsel->counts);
 }
 
-int perf_evsel__alloc_counts(struct evsel *evsel, int ncpus, int nthreads)
+int evsel__alloc_counts(struct evsel *evsel, int ncpus, int nthreads)
 {
 	evsel->counts = perf_counts__new(ncpus, nthreads);
 	return evsel->counts != NULL ? 0 : -ENOMEM;
 }
 
-void perf_evsel__free_counts(struct evsel *evsel)
+void evsel__free_counts(struct evsel *evsel)
 {
 	perf_counts__delete(evsel->counts);
 	evsel->counts = NULL;
