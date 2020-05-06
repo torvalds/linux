@@ -101,8 +101,8 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define DMA_MDELAY		10
 
 #define MSG_TRIES		1000
-#define MSG_UDELAY_LOW		1000
-#define MSG_UDELAY_HIGH		2000
+#define MSG_UDELAY_LOW		1000000
+#define MSG_UDELAY_HIGH		2000000
 
 #define PERF_BUF_LEN 1024
 
