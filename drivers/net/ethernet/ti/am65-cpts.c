@@ -1014,10 +1014,7 @@ static int am65_cpts_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	cpts = am65_cpts_create(dev, base, node);
-	if (IS_ERR(cpts))
-		return PTR_ERR(cpts);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(cpts);
 }
 
 static const struct of_device_id am65_cpts_of_match[] = {
