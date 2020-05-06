@@ -275,17 +275,20 @@ static ssize_t qeth_dev_recover_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i;
+	bool reset;
+	int rc;
+
+	rc = kstrtobool(buf, &reset);
+	if (rc)
+		return rc;
 
 	if (!qeth_card_hw_is_reachable(card))
 		return -EPERM;
 
-	i = simple_strtoul(buf, &tmp, 16);
-	if (i == 1)
-		qeth_schedule_recovery(card);
+	if (reset)
+		rc = qeth_schedule_recovery(card);
 
-	return count;
+	return rc ? rc : count;
 }
 
 static DEVICE_ATTR(recover, 0200, NULL, qeth_dev_recover_store);
