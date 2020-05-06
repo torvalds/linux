@@ -768,7 +768,7 @@ xfs_iflush_abort(
 	struct xfs_inode_log_item *iip = ip->i_itemp;
 
 	if (iip) {
-		xfs_trans_ail_remove(&iip->ili_item);
+		xfs_trans_ail_delete(&iip->ili_item, 0);
 		iip->ili_logged = 0;
 		/*
 		 * Clear the ili_last_fields bits now that we know that the
