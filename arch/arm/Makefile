@@ -406,7 +406,7 @@ LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
 LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
 endif
 
-%.img: %.dtb kernel.img Image.gz Image.lz4 $(LOGO) $(LOGO_KERNEL)
+%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
 	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
 
 CLEAN_DIRS += out
