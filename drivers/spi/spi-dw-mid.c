@@ -5,15 +5,14 @@
  * Copyright (c) 2009, 2014 Intel Corporation.
  */
 
-#include <linux/dma-mapping.h>
-#include <linux/dmaengine.h>
-#include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 
 #include "spi-dw.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/irqreturn.h>
 #include <linux/pci.h>
 #include <linux/platform_data/dma-dw.h>
