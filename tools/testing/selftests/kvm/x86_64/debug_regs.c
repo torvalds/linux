@@ -11,10 +11,13 @@
 
 #define VCPU_ID 0
 
+#define DR6_BD		(1 << 13)
+#define DR7_GD		(1 << 13)
+
 /* For testing data access debug BP */
 uint32_t guest_value;
 
-extern unsigned char sw_bp, hw_bp, write_data, ss_start;
+extern unsigned char sw_bp, hw_bp, write_data, ss_start, bd_start;
 
 static void guest_code(void)
 {
@@ -43,6 +46,8 @@ static void guest_code(void)
 		     "rdmsr\n\t"
 		     : : : "rax", "ecx");
 
+	/* DR6.BD test */
+	asm volatile("bd_start: mov %%dr0, %%rax" : : : "rax");
 	GUEST_DONE();
 }
 
@@ -164,6 +169,23 @@ int main(void)
 			    run->debug.arch.pc, target_rip, run->debug.arch.dr6,
 			    target_dr6);
 	}
+
+	/* Finally test global disable */
+	CLEAR_DEBUG();
+	debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW_BP;
+	debug.arch.debugreg[7] = 0x400 | DR7_GD;
+	APPLY_DEBUG();
+	vcpu_run(vm, VCPU_ID);
+	target_dr6 = 0xffff0ff0 | DR6_BD;
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
+		    run->debug.arch.exception == DB_VECTOR &&
+		    run->debug.arch.pc == CAST_TO_RIP(bd_start) &&
+		    run->debug.arch.dr6 == target_dr6,
+			    "DR7.GD: exit %d exception %d rip 0x%llx "
+			    "(should be 0x%llx) dr6 0x%llx (should be 0x%llx)",
+			    run->exit_reason, run->debug.arch.exception,
+			    run->debug.arch.pc, target_rip, run->debug.arch.dr6,
+			    target_dr6);
 
 	/* Disable all debug controls, run to the end */
 	CLEAR_DEBUG();
