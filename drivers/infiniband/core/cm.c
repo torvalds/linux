@@ -686,9 +686,10 @@ static struct cm_id_private * cm_find_listen(struct ib_device *device,
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
 		if ((cm_id_priv->id.service_mask & service_id) ==
 		     cm_id_priv->id.service_id &&
-		    (cm_id_priv->id.device == device))
+		    (cm_id_priv->id.device == device)) {
+			refcount_inc(&cm_id_priv->refcount);
 			return cm_id_priv;
-
+		}
 		if (device < cm_id_priv->id.device)
 			node = node->rb_left;
 		else if (device > cm_id_priv->id.device)
@@ -2005,7 +2006,6 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 			     NULL, 0);
 		return NULL;
 	}
-	refcount_inc(&listen_cm_id_priv->refcount);
 	spin_unlock_irq(&cm.lock);
 	return listen_cm_id_priv;
 }
@@ -3564,7 +3564,6 @@ static int cm_sidr_req_handler(struct cm_work *work)
 					    .status = IB_SIDR_UNSUPPORTED });
 		goto out; /* No match. */
 	}
-	refcount_inc(&listen_cm_id_priv->refcount);
 	spin_unlock_irq(&cm.lock);
 
 	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
