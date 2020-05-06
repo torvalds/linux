@@ -563,7 +563,7 @@ u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	rkflash_print_dio("%s %x %x\n", __func__, addr, p_page_buf[0]);
 
 	if (ret != SFC_OK)
-		return SFC_NAND_ECC_ERROR;
+		return SFC_NAND_HW_ERROR;
 
 	return ecc_result;
 }
@@ -583,6 +583,9 @@ u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)
 		p_spare[2] = gp_page_buf[(data_size + meta->off2) / 4];
 		p_spare[3] = gp_page_buf[(data_size + meta->off3) / 4];
 	}
+
+	if (ret == SFC_NAND_HW_ERROR)
+		ret = SFC_NAND_ECC_ERROR;
 
 	if (ret != SFC_NAND_ECC_OK) {
 		rkflash_print_error("%s[0x%x], ret=0x%x\n", __func__, addr, ret);
