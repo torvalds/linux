@@ -10,6 +10,7 @@
 #include <asm/processor.h>
 #include <asm/switch_to.h>
 #include <linux/uaccess.h>
+#include <asm/inst.h>
 
 /* Functions in vector.S */
 extern void vaddfp(vector128 *dst, vector128 *a, vector128 *b);
@@ -268,7 +269,7 @@ int emulate_altivec(struct pt_regs *regs)
 		return -EFAULT;
 
 	word = ppc_inst_val(instr);
-	if ((word >> 26) != 4)
+	if (ppc_inst_primary_opcode(instr) != 4)
 		return -EINVAL;		/* not an altivec instruction */
 	vd = (word >> 21) & 0x1f;
 	va = (word >> 16) & 0x1f;

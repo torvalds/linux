@@ -13,4 +13,9 @@ static inline u32 ppc_inst_val(u32 x)
 	return x;
 }
 
+static inline int ppc_inst_primary_opcode(u32 x)
+{
+	return ppc_inst_val(x) >> 26;
+}
+
 #endif /* _ASM_POWERPC_INST_H */

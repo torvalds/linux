@@ -1175,7 +1175,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	word = ppc_inst_val(instr);
 	op->type = COMPUTE;
 
-	opcode = instr >> 26;
+	opcode = ppc_inst_primary_opcode(instr);
 	switch (opcode) {
 	case 16:	/* bc */
 		op->type = BRANCH;
