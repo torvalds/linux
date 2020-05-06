@@ -15,8 +15,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
