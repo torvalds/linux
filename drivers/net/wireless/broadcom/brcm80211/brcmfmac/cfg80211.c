@@ -4614,6 +4614,48 @@ brcmf_config_ap_mgmt_ie(struct brcmf_cfg80211_vif *vif,
 }
 
 static s32
+brcmf_parse_configure_security(struct brcmf_if *ifp,
+			       struct cfg80211_ap_settings *settings,
+			       enum nl80211_iftype dev_role)
+{
+	const struct brcmf_tlv *rsn_ie;
+	const struct brcmf_vs_tlv *wpa_ie;
+	s32 err = 0;
+
+	/* find the RSN_IE */
+	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+				  settings->beacon.tail_len, WLAN_EID_RSN);
+
+	/* find the WPA_IE */
+	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
+				  settings->beacon.tail_len);
+
+	if (wpa_ie || rsn_ie) {
+		brcmf_dbg(TRACE, "WPA(2) IE is found\n");
+		if (wpa_ie) {
+			/* WPA IE */
+			err = brcmf_configure_wpaie(ifp, wpa_ie, false);
+			if (err < 0)
+				return err;
+		} else {
+			struct brcmf_vs_tlv *tmp_ie;
+
+			tmp_ie = (struct brcmf_vs_tlv *)rsn_ie;
+
+			/* RSN IE */
+			err = brcmf_configure_wpaie(ifp, tmp_ie, true);
+			if (err < 0)
+				return err;
+		}
+	} else {
+		brcmf_dbg(TRACE, "No WPA(2) IEs found\n");
+		brcmf_configure_opensecurity(ifp);
+	}
+
+	return err;
+}
+
+static s32
 brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			struct cfg80211_ap_settings *settings)
 {
@@ -4625,8 +4667,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	const struct brcmf_tlv *country_ie;
 	struct brcmf_ssid_le ssid_le;
 	s32 err = -EPERM;
-	const struct brcmf_tlv *rsn_ie;
-	const struct brcmf_vs_tlv *wpa_ie;
 	struct brcmf_join_params join_params;
 	enum nl80211_iftype dev_role;
 	struct brcmf_fil_bss_enable_le bss_enable;
@@ -4678,36 +4718,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	if (!mbss) {
 		brcmf_set_mpc(ifp, 0);
 		brcmf_configure_arp_nd_offload(ifp, false);
-	}
-
-	/* find the RSN_IE */
-	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
-				  settings->beacon.tail_len, WLAN_EID_RSN);
-
-	/* find the WPA_IE */
-	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
-				  settings->beacon.tail_len);
-
-	if ((wpa_ie != NULL || rsn_ie != NULL)) {
-		brcmf_dbg(TRACE, "WPA(2) IE is found\n");
-		if (wpa_ie != NULL) {
-			/* WPA IE */
-			err = brcmf_configure_wpaie(ifp, wpa_ie, false);
-			if (err < 0)
-				goto exit;
-		} else {
-			struct brcmf_vs_tlv *tmp_ie;
-
-			tmp_ie = (struct brcmf_vs_tlv *)rsn_ie;
-
-			/* RSN IE */
-			err = brcmf_configure_wpaie(ifp, tmp_ie, true);
-			if (err < 0)
-				goto exit;
-		}
-	} else {
-		brcmf_dbg(TRACE, "No WPA(2) IEs found\n");
-		brcmf_configure_opensecurity(ifp);
 	}
 
 	/* Parameters shared by all radio interfaces */
@@ -4791,6 +4801,14 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			bphy_err(drvr, "BRCMF_C_UP error (%d)\n", err);
 			goto exit;
 		}
+
+		err = brcmf_parse_configure_security(ifp, settings,
+						     NL80211_IFTYPE_AP);
+		if (err < 0) {
+			bphy_err(drvr, "brcmf_parse_configure_security error\n");
+			goto exit;
+		}
+
 		/* On DOWN the firmware removes the WEP keys, reconfigure
 		 * them if they were set.
 		 */
@@ -4823,6 +4841,14 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 				 chanspec, err);
 			goto exit;
 		}
+
+		err = brcmf_parse_configure_security(ifp, settings,
+						     NL80211_IFTYPE_P2P_GO);
+		if (err < 0) {
+			brcmf_err("brcmf_parse_configure_security error\n");
+			goto exit;
+		}
+
 		err = brcmf_fil_bsscfg_data_set(ifp, "ssid", &ssid_le,
 						sizeof(ssid_le));
 		if (err < 0) {
