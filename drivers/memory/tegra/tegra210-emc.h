@@ -7,7 +7,6 @@
 #define TEGRA210_EMC_H
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clk/tegra.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
