@@ -848,7 +848,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	struct ppc_inst old, new;
 	int ret;
 
-	old = *(struct ppc_inst *)&ftrace_call;
+	old = ppc_inst_read((struct ppc_inst *)&ftrace_call);
 	new = ftrace_call_replace(ip, (unsigned long)func, 1);
 	ret = ftrace_modify_code(ip, old, new);
 
@@ -856,7 +856,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	/* Also update the regs callback function */
 	if (!ret) {
 		ip = (unsigned long)(&ftrace_regs_call);
-		old = *(struct ppc_inst *)&ftrace_regs_call;
+		old = ppc_inst_read((struct ppc_inst *)&ftrace_regs_call);
 		new = ftrace_call_replace(ip, (unsigned long)func, 1);
 		ret = ftrace_modify_code(ip, old, new);
 	}

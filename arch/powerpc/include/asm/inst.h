@@ -27,6 +27,11 @@ static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
 	return ppc_inst(swab32(ppc_inst_val(x)));
 }
 
+static inline struct ppc_inst ppc_inst_read(const struct ppc_inst *ptr)
+{
+	return *ptr;
+}
+
 static inline bool ppc_inst_equal(struct ppc_inst x, struct ppc_inst y)
 {
 	return ppc_inst_val(x) == ppc_inst_val(y);

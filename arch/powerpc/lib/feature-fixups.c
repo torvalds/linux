@@ -48,7 +48,7 @@ static int patch_alt_instruction(struct ppc_inst *src, struct ppc_inst *dest,
 	int err;
 	struct ppc_inst instr;
 
-	instr = *src;
+	instr = ppc_inst_read(src);
 
 	if (instr_is_relative_branch(*src)) {
 		struct ppc_inst *target = (struct ppc_inst *)branch_target(src);
@@ -403,7 +403,7 @@ static void do_final_fixups(void)
 	length = (__end_interrupts - _stext) / sizeof(struct ppc_inst);
 
 	while (length--) {
-		raw_patch_instruction(dest, *src);
+		raw_patch_instruction(dest, ppc_inst_read(src));
 		src++;
 		dest++;
 	}
