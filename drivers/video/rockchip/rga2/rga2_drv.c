@@ -2745,7 +2745,11 @@ void rga2_test_0(void)
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+module_init(rga2_init);
+#else
 late_initcall(rga2_init);
+#endif
 #else
 fs_initcall(rga2_init);
 #endif
