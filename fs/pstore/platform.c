@@ -516,12 +516,16 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 static struct console pstore_console = {
 	.name	= "pstore",
 	.write	= pstore_console_write,
-	.flags	= CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME,
 	.index	= -1,
 };
 
 static void pstore_register_console(void)
 {
+	/*
+	 * Always initialize flags here since prior unregister_console()
+	 * calls may have changed settings (specifically CON_ENABLED).
+	 */
+	pstore_console.flags = CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME;
 	register_console(&pstore_console);
 }
 
