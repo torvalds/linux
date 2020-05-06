@@ -614,6 +614,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	}
 
 	mutex_init(&bus->mdio_lock);
+	mutex_init(&bus->shared_lock);
 
 	/* de-assert bus level PHY GPIO reset */
 	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
