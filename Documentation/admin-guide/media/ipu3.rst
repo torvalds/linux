@@ -232,7 +232,8 @@ The IPU3 ImgU pipelines can be configured using the Media Controller, defined at
 :ref:`media_controller`.
 
 Running mode and firmware binary selection
--------------------------
+------------------------------------------
+
 ImgU works based on firmware, currently the ImgU firmware support run 2 pipes in
 time-sharing with single input frame data. Each pipe can run at certain mode -
 "VIDEO" or "STILL", "VIDEO" mode is commonly used for video frames capture, and
