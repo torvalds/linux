@@ -1235,7 +1235,6 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 n = mlx4_en_get_rxfh_indir_size(dev);
 	u32 i, rss_rings;
-	int err = 0;
 
 	rss_rings = priv->prof->rss_rings ?: n;
 	rss_rings = rounddown_pow_of_two(rss_rings);
@@ -1249,7 +1248,7 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
 	if (hfunc)
 		*hfunc = priv->rss_hash_fn;
-	return err;
+	return 0;
 }
 
 static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
