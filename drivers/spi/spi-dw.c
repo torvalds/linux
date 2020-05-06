@@ -261,7 +261,6 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 u32 dw_spi_update_cr0(struct spi_controller *master, struct spi_device *spi,
 		      struct spi_transfer *transfer)
 {
-	struct dw_spi *dws = spi_controller_get_devdata(master);
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0;
 
@@ -282,7 +281,6 @@ u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 			     struct spi_device *spi,
 			     struct spi_transfer *transfer)
 {
-	struct dw_spi *dws = spi_controller_get_devdata(master);
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0;
 
