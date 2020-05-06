@@ -34,7 +34,7 @@ static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static int mid_spi_dma_init_mfld(struct dw_spi *dws)
+static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 {
 	struct pci_dev *dma_dev;
 	struct dw_dma_slave *tx = dws->dma_tx;

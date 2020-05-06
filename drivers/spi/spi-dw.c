@@ -506,7 +506,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	spi_hw_init(dev, dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
-		ret = dws->dma_ops->dma_init(dws);
+		ret = dws->dma_ops->dma_init(dev, dws);
 		if (ret) {
 			dev_warn(dev, "DMA init failed\n");
 			dws->dma_inited = 0;
