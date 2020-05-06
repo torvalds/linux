@@ -1331,7 +1331,7 @@ static inline int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb)
 
 static inline bool br_mrp_enabled(struct net_bridge *br)
 {
-	return 0;
+	return false;
 }
 
 static inline void br_mrp_port_del(struct net_bridge *br,
