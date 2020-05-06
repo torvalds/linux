@@ -177,8 +177,8 @@ enum odm_combine_policy {
 };
 
 enum immediate_flip_requirement {
-	dm_immediate_flip_required,
 	dm_immediate_flip_not_required,
+	dm_immediate_flip_required,
 };
 
 enum unbounded_requesting_policy {

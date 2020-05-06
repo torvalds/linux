@@ -385,6 +385,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		visited[k] = false;
 
 	mode_lib->vba.NumberOfActivePlanes = 0;
+	mode_lib->vba.ImmediateFlipSupport = false;
+	mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_not_required;
 	for (j = 0; j < mode_lib->vba.cache_num_pipes; ++j) {
 		display_pipe_source_params_st *src = &pipes[j].pipe.src;
 		display_pipe_dest_params_st *dst = &pipes[j].pipe.dest;
@@ -635,8 +637,10 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			}
 		}
 
-		if (pipes[k].pipe.src.immediate_flip)
+		if (pipes[k].pipe.src.immediate_flip) {
 			mode_lib->vba.ImmediateFlipSupport = true;
+			mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_required;
+		}
 
 		mode_lib->vba.NumberOfActivePlanes++;
 	}
