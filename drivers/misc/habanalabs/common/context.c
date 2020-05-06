@@ -45,6 +45,9 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 
+		/* Scrub both SRAM and DRAM */
+		hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
+
 		if ((!hdev->pldm) && (hdev->pdev) &&
 				(!hdev->asic_funcs->is_device_idle(hdev,
 							&idle_mask, NULL)))

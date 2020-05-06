@@ -46,7 +46,7 @@
  * @ret_handle          : result handle
  *
  * This function does the following:
- * - Allocate the requested size rounded up to 2MB pages
+ * - Allocate the requested size rounded up to 'dram_page_size' pages
  * - Return unique handle
  */
 static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
@@ -80,6 +80,16 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 				"failed to allocate %llu contiguous pages with total size of %llu\n",
 				num_pgs, total_size);
 			return -ENOMEM;
+		}
+
+		if (hdev->memory_scrub) {
+			rc = hdev->asic_funcs->scrub_device_mem(hdev, paddr,
+					total_size);
+			if (rc) {
+				dev_err(hdev->dev,
+					"Failed to scrub contiguous device memory\n");
+				goto pages_pack_err;
+			}
 		}
 	}
 
@@ -116,6 +126,17 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 					"Failed to allocate device memory (out of memory)\n");
 				rc = -ENOMEM;
 				goto page_err;
+			}
+
+			if (hdev->memory_scrub) {
+				rc = hdev->asic_funcs->scrub_device_mem(hdev,
+						phys_pg_pack->pages[i],
+						page_size);
+				if (rc) {
+					dev_err(hdev->dev,
+						"Failed to scrub device memory\n");
+					goto page_err;
+				}
 			}
 
 			num_curr_pgs++;

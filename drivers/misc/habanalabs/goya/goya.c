@@ -2795,6 +2795,11 @@ static void goya_dma_free_coherent(struct hl_device *hdev, size_t size,
 	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
+int goya_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
+{
+	return 0;
+}
+
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle,	u16 *queue_len)
 {
@@ -5370,6 +5375,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.pqe_write = goya_pqe_write,
 	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
 	.asic_dma_free_coherent = goya_dma_free_coherent,
+	.scrub_device_mem = goya_scrub_device_mem,
 	.get_int_queue_base = goya_get_int_queue_base,
 	.test_queues = goya_test_queues,
 	.asic_dma_pool_zalloc = goya_dma_pool_zalloc,

@@ -746,6 +746,7 @@ enum div_select_defs {
  *                           dma_free_coherent(). This is ASIC function because
  *                           its implementation is not trivial when the driver
  *                           is loaded in simulation mode (not upstreamed).
+ * @scrub_device_mem: Scrub device memory given an address and size
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
  * @asic_dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
@@ -837,6 +838,7 @@ struct hl_asic_funcs {
 					dma_addr_t *dma_handle, gfp_t flag);
 	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
+	int (*scrub_device_mem)(struct hl_device *hdev, u64 addr, u64 size);
 	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle, u16 *queue_len);
 	int (*test_queues)(struct hl_device *hdev);
@@ -1698,6 +1700,8 @@ struct hl_mmu_funcs {
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
+ * @memory_scrub: true to perform device memory scrub in various locations,
+ *                such as context-switch, context close, page free, etc.
  * @pmmu_huge_range: is a different virtual addresses range used for PMMU with
  *                   huge pages.
  * @init_done: is the initialization of the device done.
@@ -1802,6 +1806,7 @@ struct hl_device {
 	u8				reset_on_lockup;
 	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
+	u8				memory_scrub;
 	u8				pmmu_huge_range;
 	u8				init_done;
 	u8				device_cpu_disabled;

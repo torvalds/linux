@@ -103,6 +103,8 @@
 		BIT(GAUDI_ENGINE_ID_MME_2) |\
 		GENMASK_ULL(GAUDI_ENGINE_ID_TPC_7, GAUDI_ENGINE_ID_TPC_0))
 
+#define HBM_SCRUBBING_TIMEOUT_US	1000000 /* 1s */
+
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -4389,6 +4391,121 @@ static void gaudi_dma_free_coherent(struct hl_device *hdev, size_t size,
 	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
+static int gaudi_hbm_scrubbing(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64  cur_addr = DRAM_BASE_ADDR_USER;
+	u32 val;
+	u32 chunk_size;
+	int rc, dma_id;
+
+	while (cur_addr < prop->dram_end_address) {
+		for (dma_id = 0 ; dma_id < DMA_NUMBER_OF_CHANNELS ; dma_id++) {
+			u32 dma_offset = dma_id * DMA_CORE_OFFSET;
+
+			chunk_size =
+			min((u64)SZ_2G, prop->dram_end_address - cur_addr);
+
+			dev_dbg(hdev->dev,
+				"Doing HBM scrubbing for 0x%09llx - 0x%09llx\n",
+				cur_addr, cur_addr + chunk_size);
+
+			WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset, 0);
+			WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset, 0);
+			WREG32(mmDMA0_CORE_DST_BASE_LO + dma_offset,
+						lower_32_bits(cur_addr));
+			WREG32(mmDMA0_CORE_DST_BASE_HI + dma_offset,
+						upper_32_bits(cur_addr));
+			WREG32(mmDMA0_CORE_DST_TSIZE_0 + dma_offset,
+					chunk_size);
+			WREG32(mmDMA0_CORE_COMMIT + dma_offset,
+					((1 << DMA0_CORE_COMMIT_LIN_SHIFT) |
+					(1 << DMA0_CORE_COMMIT_MEM_SET_SHIFT)));
+
+			cur_addr += chunk_size;
+
+			if (cur_addr == prop->dram_end_address)
+				break;
+		}
+
+		for (dma_id = 0 ; dma_id < DMA_NUMBER_OF_CHANNELS ; dma_id++) {
+			u32 dma_offset = dma_id * DMA_CORE_OFFSET;
+
+			rc = hl_poll_timeout(
+				hdev,
+				mmDMA0_CORE_STS0 + dma_offset,
+				val,
+				((val & DMA0_CORE_STS0_BUSY_MASK) == 0),
+				1000,
+				HBM_SCRUBBING_TIMEOUT_US);
+
+			if (rc) {
+				dev_err(hdev->dev,
+					"DMA Timeout during HBM scrubbing of DMA #%d\n",
+					dma_id);
+				return -EIO;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int gaudi_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct gaudi_device *gaudi = hdev->asic_specific;
+	u64 idle_mask = 0;
+	int rc = 0;
+	u64 val = 0;
+
+	if (!hdev->memory_scrub)
+		return 0;
+
+	if (!addr && !size) {
+		/* Wait till device is idle */
+		rc = hl_poll_timeout(
+				hdev,
+				mmDMA0_CORE_STS0/* dummy */,
+				val/* dummy */,
+				(hdev->asic_funcs->is_device_idle(hdev,
+						&idle_mask, NULL)),
+						1000,
+						HBM_SCRUBBING_TIMEOUT_US);
+		if (rc) {
+			dev_err(hdev->dev, "waiting for idle timeout\n");
+			return -EIO;
+		}
+
+		/* Scrub SRAM */
+		addr = prop->sram_user_base_address;
+		size = hdev->pldm ? 0x10000 :
+				(prop->sram_size - SRAM_USER_BASE_OFFSET);
+		val = 0x7777777777777777ull;
+
+		rc = gaudi_memset_device_memory(hdev, addr, size, val);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed to clear SRAM in mem scrub all\n");
+			return rc;
+		}
+
+		mutex_lock(&gaudi->clk_gate_mutex);
+		hdev->asic_funcs->disable_clock_gating(hdev);
+
+		/* Scrub HBM using all DMA channels in parallel */
+		rc = gaudi_hbm_scrubbing(hdev);
+		if (rc)
+			dev_err(hdev->dev,
+				"Failed to clear HBM in mem scrub all\n");
+
+		hdev->asic_funcs->set_clock_gating(hdev);
+		mutex_unlock(&gaudi->clk_gate_mutex);
+	}
+
+	return rc;
+}
+
 static void *gaudi_get_int_queue_base(struct hl_device *hdev,
 				u32 queue_id, dma_addr_t *dma_handle,
 				u16 *queue_len)
@@ -5489,19 +5606,6 @@ static void gaudi_restore_user_registers(struct hl_device *hdev)
 
 static int gaudi_context_switch(struct hl_device *hdev, u32 asid)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 addr = prop->sram_user_base_address;
-	u32 size = hdev->pldm ? 0x10000 :
-			(prop->sram_size - SRAM_USER_BASE_OFFSET);
-	u64 val = 0x7777777777777777ull;
-	int rc;
-
-	rc = gaudi_memset_device_memory(hdev, addr, size, val);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to clear SRAM in context switch\n");
-		return rc;
-	}
-
 	gaudi_restore_user_registers(hdev);
 
 	return 0;
@@ -8099,6 +8203,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.pqe_write = gaudi_pqe_write,
 	.asic_dma_alloc_coherent = gaudi_dma_alloc_coherent,
 	.asic_dma_free_coherent = gaudi_dma_free_coherent,
+	.scrub_device_mem = gaudi_scrub_device_mem,
 	.get_int_queue_base = gaudi_get_int_queue_base,
 	.test_queues = gaudi_test_queues,
 	.asic_dma_pool_zalloc = gaudi_dma_pool_zalloc,
