@@ -1131,16 +1131,18 @@ static int qeth_set_thread_start_bit(struct qeth_card *card,
 		unsigned long thread)
 {
 	unsigned long flags;
+	int rc = 0;
 
 	spin_lock_irqsave(&card->thread_mask_lock, flags);
-	if (!(card->thread_allowed_mask & thread) ||
-	      (card->thread_start_mask & thread)) {
-		spin_unlock_irqrestore(&card->thread_mask_lock, flags);
-		return -EPERM;
-	}
-	card->thread_start_mask |= thread;
+	if (!(card->thread_allowed_mask & thread))
+		rc = -EPERM;
+	else if (card->thread_start_mask & thread)
+		rc = -EBUSY;
+	else
+		card->thread_start_mask |= thread;
 	spin_unlock_irqrestore(&card->thread_mask_lock, flags);
-	return 0;
+
+	return rc;
 }
 
 static void qeth_clear_thread_start_bit(struct qeth_card *card,
@@ -1193,11 +1195,17 @@ static int qeth_do_run_thread(struct qeth_card *card, unsigned long thread)
 	return rc;
 }
 
-void qeth_schedule_recovery(struct qeth_card *card)
+int qeth_schedule_recovery(struct qeth_card *card)
 {
+	int rc;
+
 	QETH_CARD_TEXT(card, 2, "startrec");
-	if (qeth_set_thread_start_bit(card, QETH_RECOVER_THREAD) == 0)
+
+	rc = qeth_set_thread_start_bit(card, QETH_RECOVER_THREAD);
+	if (!rc)
 		schedule_work(&card->kernel_thread_starter);
+
+	return rc;
 }
 
 static int qeth_get_problem(struct qeth_card *card, struct ccw_device *cdev,
