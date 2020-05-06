@@ -279,6 +279,30 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			DRM_DEBUG("kdb_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_2->kdb_size_bytes));
 		}
+		if (version_minor == 3) {
+			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
+				container_of(psp_hdr, struct psp_firmware_header_v1_1, v1_0);
+			const struct psp_firmware_header_v1_3 *psp_hdr_v1_3 =
+				container_of(psp_hdr_v1_1, struct psp_firmware_header_v1_3, v1_1);
+			DRM_DEBUG("toc_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_header_version));
+			DRM_DEBUG("toc_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_offset_bytes));
+			DRM_DEBUG("toc_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_size_bytes));
+			DRM_DEBUG("kdb_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_header_version));
+			DRM_DEBUG("kdb_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_offset_bytes));
+			DRM_DEBUG("kdb_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_size_bytes));
+			DRM_DEBUG("spl_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_header_version));
+			DRM_DEBUG("spl_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_offset_bytes));
+			DRM_DEBUG("spl_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_size_bytes));
+		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
 			  version_major, version_minor);
