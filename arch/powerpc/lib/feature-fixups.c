@@ -392,20 +392,20 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 static void do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
-	struct ppc_inst *src, *dest;
-	unsigned long length;
+	struct ppc_inst inst, *src, *dest, *end;
 
 	if (PHYSICAL_START == 0)
 		return;
 
 	src = (struct ppc_inst *)(KERNELBASE + PHYSICAL_START);
 	dest = (struct ppc_inst *)KERNELBASE;
-	length = (__end_interrupts - _stext) / sizeof(struct ppc_inst);
+	end = (void *)src + (__end_interrupts - _stext);
 
-	while (length--) {
-		raw_patch_instruction(dest, ppc_inst_read(src));
-		src++;
-		dest++;
+	while (src < end) {
+		inst = ppc_inst_read(src);
+		raw_patch_instruction(dest, inst);
+		src = (void *)src + ppc_inst_len(inst);
+		dest = (void *)dest + ppc_inst_len(inst);
 	}
 #endif
 }
