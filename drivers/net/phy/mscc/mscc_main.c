@@ -691,27 +691,23 @@ out_unlock:
 /* phydev->bus->mdio_lock should be locked when using this function */
 static int phy_base_write(struct phy_device *phydev, u32 regnum, u16 val)
 {
-	struct vsc8531_private *priv = phydev->priv;
-
 	if (unlikely(!mutex_is_locked(&phydev->mdio.bus->mdio_lock))) {
 		dev_err(&phydev->mdio.dev, "MDIO bus lock not held!\n");
 		dump_stack();
 	}
 
-	return __mdiobus_write(phydev->mdio.bus, priv->base_addr, regnum, val);
+	return __phy_package_write(phydev, regnum, val);
 }
 
 /* phydev->bus->mdio_lock should be locked when using this function */
 static int phy_base_read(struct phy_device *phydev, u32 regnum)
 {
-	struct vsc8531_private *priv = phydev->priv;
-
 	if (unlikely(!mutex_is_locked(&phydev->mdio.bus->mdio_lock))) {
 		dev_err(&phydev->mdio.dev, "MDIO bus lock not held!\n");
 		dump_stack();
 	}
 
-	return __mdiobus_read(phydev->mdio.bus, priv->base_addr, regnum);
+	return __phy_package_read(phydev, regnum);
 }
 
 /* bus->mdio_lock should be locked when using this function */
@@ -1287,64 +1283,37 @@ out:
 	return ret;
 }
 
-/* Check if one PHY has already done the init of the parts common to all PHYs
- * in the Quad PHY package.
- */
-static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
+static void vsc8584_get_base_addr(struct phy_device *phydev)
 {
-	struct mii_bus *bus = phydev->mdio.bus;
-	struct vsc8531_private *vsc8531;
-	struct phy_device *phy;
-	int i, addr;
+	struct vsc8531_private *vsc8531 = phydev->priv;
+	u16 val, addr;
 
-	/* VSC8584 is a Quad PHY */
-	for (i = 0; i < 4; i++) {
-		vsc8531 = phydev->priv;
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	__phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED);
 
-		if (reversed)
-			addr = vsc8531->base_addr - i;
-		else
-			addr = vsc8531->base_addr + i;
+	addr = __phy_read(phydev, MSCC_PHY_EXT_PHY_CNTL_4);
+	addr >>= PHY_CNTL_4_ADDR_POS;
 
-		phy = mdiobus_get_phy(bus, addr);
-		if (!phy)
-			continue;
+	val = __phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
 
-		if ((phy->phy_id & phydev->drv->phy_id_mask) !=
-		    (phydev->drv->phy_id & phydev->drv->phy_id_mask))
-			continue;
+	__phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
-		vsc8531 = phy->priv;
-
-		if (vsc8531 && vsc8531->pkg_init)
-			return true;
-	}
-
-	return false;
+	if (val & PHY_ADDR_REVERSED)
+		vsc8531->base_addr = phydev->mdio.addr + addr;
+	else
+		vsc8531->base_addr = phydev->mdio.addr - addr;
 }
 
 static int vsc8584_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
-	u16 addr, val;
 	int ret, i;
+	u16 val;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
 	mutex_lock(&phydev->mdio.bus->mdio_lock);
-
-	__mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
-			MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED);
-	addr = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
-			      MSCC_PHY_EXT_PHY_CNTL_4);
-	addr >>= PHY_CNTL_4_ADDR_POS;
-
-	val = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
-			     MSCC_PHY_ACTIPHY_CNTL);
-	if (val & PHY_ADDR_REVERSED)
-		vsc8531->base_addr = phydev->mdio.addr + addr;
-	else
-		vsc8531->base_addr = phydev->mdio.addr - addr;
 
 	/* Some parts of the init sequence are identical for every PHY in the
 	 * package. Some parts are modifying the GPIO register bank which is a
@@ -1359,7 +1328,7 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	 * do the correct init sequence for all PHYs that are package-critical
 	 * in this pre-init function.
 	 */
-	if (!vsc8584_is_pkg_init(phydev, val & PHY_ADDR_REVERSED ? 1 : 0)) {
+	if (phy_package_init_once(phydev)) {
 		/* The following switch statement assumes that the lowest
 		 * nibble of the phy_id_mask is always 0. This works because
 		 * the lowest nibble of the PHY_ID's below are also 0.
@@ -1387,8 +1356,6 @@ static int vsc8584_config_init(struct phy_device *phydev)
 		if (ret)
 			goto err;
 	}
-
-	vsc8531->pkg_init = true;
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
 		       MSCC_PHY_PAGE_EXTENDED_GPIO);
@@ -1427,7 +1394,8 @@ static int vsc8584_config_init(struct phy_device *phydev)
 
 	/* Disable SerDes for 100Base-FX */
 	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
-			  PROC_CMD_FIBER_PORT(addr) | PROC_CMD_FIBER_DISABLE |
+			  PROC_CMD_FIBER_PORT(vsc8531->base_addr) |
+			  PROC_CMD_FIBER_DISABLE |
 			  PROC_CMD_READ_MOD_WRITE_PORT |
 			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_100BASE_FX);
 	if (ret)
@@ -1435,7 +1403,8 @@ static int vsc8584_config_init(struct phy_device *phydev)
 
 	/* Disable SerDes for 1000Base-X */
 	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
-			  PROC_CMD_FIBER_PORT(addr) | PROC_CMD_FIBER_DISABLE |
+			  PROC_CMD_FIBER_PORT(vsc8531->base_addr) |
+			  PROC_CMD_FIBER_DISABLE |
 			  PROC_CMD_READ_MOD_WRITE_PORT |
 			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_1000BASE_X);
 	if (ret)
@@ -1750,25 +1719,13 @@ static int vsc8514_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
 	unsigned long deadline;
-	u16 val, addr;
 	int ret, i;
+	u16 val;
 	u32 reg;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
 	mutex_lock(&phydev->mdio.bus->mdio_lock);
-
-	__phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED);
-
-	addr = __phy_read(phydev, MSCC_PHY_EXT_PHY_CNTL_4);
-	addr >>= PHY_CNTL_4_ADDR_POS;
-
-	val = __phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
-
-	if (val & PHY_ADDR_REVERSED)
-		vsc8531->base_addr = phydev->mdio.addr + addr;
-	else
-		vsc8531->base_addr = phydev->mdio.addr - addr;
 
 	/* Some parts of the init sequence are identical for every PHY in the
 	 * package. Some parts are modifying the GPIO register bank which is a
@@ -1781,10 +1738,8 @@ static int vsc8514_config_init(struct phy_device *phydev)
 	 * do the correct init sequence for all PHYs that are package-critical
 	 * in this pre-init function.
 	 */
-	if (!vsc8584_is_pkg_init(phydev, val & PHY_ADDR_REVERSED ? 1 : 0))
+	if (phy_package_init_once(phydev))
 		vsc8514_config_pre_init(phydev);
-
-	vsc8531->pkg_init = true;
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
 		       MSCC_PHY_PAGE_EXTENDED_GPIO);
@@ -1991,6 +1946,10 @@ static int vsc8514_probe(struct phy_device *phydev)
 
 	phydev->priv = vsc8531;
 
+	vsc8584_get_base_addr(phydev);
+	devm_phy_package_join(&phydev->mdio.dev, phydev,
+			      vsc8531->base_addr, 0);
+
 	vsc8531->nleds = 4;
 	vsc8531->supp_led_modes = VSC85XX_SUPP_LED_MODES;
 	vsc8531->hw_stats = vsc85xx_hw_stats;
@@ -2045,6 +2004,10 @@ static int vsc8584_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	phydev->priv = vsc8531;
+
+	vsc8584_get_base_addr(phydev);
+	devm_phy_package_join(&phydev->mdio.dev, phydev,
+			      vsc8531->base_addr, 0);
 
 	vsc8531->nleds = 4;
 	vsc8531->supp_led_modes = VSC8584_SUPP_LED_MODES;
