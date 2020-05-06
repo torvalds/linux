@@ -1882,10 +1882,11 @@ mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
 
 static const struct wiphy_wowlan_support mt7615_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
-		 WIPHY_WOWLAN_SUPPORTS_GTK_REKEY,
+		 WIPHY_WOWLAN_SUPPORTS_GTK_REKEY | WIPHY_WOWLAN_NET_DETECT,
 	.n_patterns = 1,
 	.pattern_min_len = 1,
 	.pattern_max_len = MT7615_WOW_PATTEN_MAX_LEN,
+	.max_nd_match_sets = 10,
 };
 
 static int mt7615_load_n9(struct mt7615_dev *dev, const char *name)
@@ -3316,10 +3317,11 @@ mt7615_mcu_set_bss_pm(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 }
 
 static int
-mt7615_mcu_set_wow_ctrl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+mt7615_mcu_set_wow_ctrl(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			bool suspend, struct cfg80211_wowlan *wowlan)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = phy->dev;
 	struct {
 		struct {
 			u8 bss_idx;
@@ -3341,6 +3343,11 @@ mt7615_mcu_set_wow_ctrl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		req.wow_ctrl_tlv.trigger |= BIT(0);
 	if (wowlan->disconnect)
 		req.wow_ctrl_tlv.trigger |= BIT(2);
+	if (wowlan->nd_config) {
+		mt7615_mcu_sched_scan_req(phy, vif, wowlan->nd_config);
+		req.wow_ctrl_tlv.trigger |= BIT(5);
+	}
+	mt7615_mcu_sched_scan_enable(phy, vif, suspend);
 
 	if (mt76_is_mmio(&dev->mt76))
 		req.wow_ctrl_tlv.wakeup_hif = 2;
@@ -3461,7 +3468,7 @@ void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 	for (i = 0; i < wowlan->n_patterns; i++)
 		mt7615_mcu_set_wow_pattern(phy->dev, vif, i, suspend,
 					   &wowlan->patterns[i]);
-	mt7615_mcu_set_wow_ctrl(phy->dev, vif, suspend, wowlan);
+	mt7615_mcu_set_wow_ctrl(phy, vif, suspend, wowlan);
 }
 
 static void
