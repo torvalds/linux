@@ -144,7 +144,7 @@ patternProperties:
     description:
       CPSW MDIO bus.
 
-  "^cpts$":
+  "^cpts@[0-9a-f]+":
     type: object
     allOf:
       - $ref: "ti,k3-am654-cpts.yaml#"
@@ -171,6 +171,8 @@ examples:
     #include <dt-bindings/pinctrl/k3.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     #include <dt-bindings/net/ti-dp83867.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     mcu_cpsw: ethernet@46000000 {
         compatible = "ti,am654-cpsw-nuss";
@@ -228,5 +230,16 @@ examples:
                     ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
                     ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
               };
+        };
+
+        cpts@3d000 {
+             compatible = "ti,am65-cpts";
+             reg = <0x0 0x3d000 0x0 0x400>;
+             clocks = <&k3_clks 18 2>;
+             clock-names = "cpts";
+             interrupts-extended = <&gic500 GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
+             interrupt-names = "cpts";
+             ti,cpts-ext-ts-inputs = <4>;
+             ti,cpts-periodic-outputs = <2>;
         };
     };
