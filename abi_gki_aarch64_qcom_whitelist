@@ -753,6 +753,7 @@
   __regmap_init
   regmap_multi_reg_write
   regmap_raw_read
+  regmap_raw_write
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -1430,6 +1431,7 @@
   snd_soc_dai_set_pll
   snd_soc_dai_set_sysclk
   snd_soc_dai_set_tdm_slot
+  snd_soc_get_pcm_runtime
   snd_soc_of_get_dai_link_codecs
   snd_soc_of_parse_audio_routing
   snd_soc_of_parse_card_name
@@ -2361,7 +2363,6 @@
 
 # required by snd-soc-wm-adsp.ko
   regmap_async_complete
-  regmap_raw_write
   regmap_raw_write_async
   snd_compr_stop_error
   snd_soc_component_disable_pin
