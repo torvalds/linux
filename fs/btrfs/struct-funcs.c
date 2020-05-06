@@ -39,23 +39,27 @@ static bool check_setget_bounds(const struct extent_buffer *eb,
 }
 
 /*
- * this is some deeply nasty code.
+ * Macro templates that define helpers to read/write extent buffer data of a
+ * given size, that are also used via ctree.h for access to item members by
+ * specialized helpers.
  *
- * The end result is that anyone who #includes ctree.h gets a
- * declaration for the btrfs_set_foo functions and btrfs_foo functions,
- * which are wrappers of btrfs_set_token_#bits functions and
- * btrfs_get_token_#bits functions, which are defined in this file.
+ * Generic helpers:
+ * - btrfs_set_8 (for 8/16/32/64)
+ * - btrfs_get_8 (for 8/16/32/64)
  *
- * These setget functions do all the extent_buffer related mapping
- * required to efficiently read and write specific fields in the extent
- * buffers.  Every pointer to metadata items in btrfs is really just
- * an unsigned long offset into the extent buffer which has been
- * cast to a specific type.  This gives us all the gcc type checking.
+ * Generic helpers with a token (cached address of the most recently accessed
+ * page):
+ * - btrfs_set_token_8 (for 8/16/32/64)
+ * - btrfs_get_token_8 (for 8/16/32/64)
  *
- * The extent buffer api is used to do the page spanning work required to
- * have a metadata blocksize different from the page size.
+ * The set/get functions handle data spanning two pages transparently, in case
+ * metadata block size is larger than page.  Every pointer to metadata items is
+ * an offset into the extent buffer page array, cast to a specific type.  This
+ * gives us all the type checking.
  *
- * There are 2 variants defined, one with a token pointer and one without.
+ * The extent buffer pages stored in the array pages do not form a contiguous
+ * phyusical range, but the API functions assume the linear offset to the range
+ * from 0 to metadata node size.
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
