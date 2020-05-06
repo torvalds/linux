@@ -38,7 +38,7 @@ endif
 
 menuconfig RTL_WIRELESS_SOLUTION
 	bool "Realtek Wireless Device Driver Support"
-	default n
+	default y
 
 if RTL_WIRELESS_SOLUTION
 source "drivers/net/wireless/rockchip_wlan/rtl8723cs/Kconfig"
