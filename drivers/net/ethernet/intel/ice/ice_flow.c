@@ -42,7 +42,10 @@ struct ice_flow_field_info ice_flds_info[ICE_FLOW_FIELD_IDX_MAX] = {
 	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_SCTP, 0, sizeof(__be16)),
 	/* ICE_FLOW_FIELD_IDX_SCTP_DST_PORT */
 	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_SCTP, 2, sizeof(__be16)),
-
+	/* GRE */
+	/* ICE_FLOW_FIELD_IDX_GRE_KEYID */
+	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_GRE, 12,
+			  sizeof_field(struct gre_full_hdr, key)),
 };
 
 /* Bitmaps indicating relevant packet types for a particular protocol header
@@ -126,6 +129,18 @@ static const u32 ice_ptypes_tcp_il[] = {
 static const u32 ice_ptypes_sctp_il[] = {
 	0x08000000, 0x01020204, 0x20000081, 0x04080810,
 	0x00000204, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+};
+
+/* Packet types for packets with an Outermost/First GRE header */
+static const u32 ice_ptypes_gre_of[] = {
+	0x00000000, 0xBFBF7800, 0x000001DF, 0xFEFDE000,
+	0x0000017E, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -225,6 +240,12 @@ ice_flow_proc_seg_hdrs(struct ice_flow_prof_params *params)
 			src = (const unsigned long *)ice_ptypes_sctp_il;
 			bitmap_and(params->ptypes, params->ptypes, src,
 				   ICE_FLOW_PTYPE_MAX);
+		} else if (hdrs & ICE_FLOW_SEG_HDR_GRE) {
+			if (!i) {
+				src = (const unsigned long *)ice_ptypes_gre_of;
+				bitmap_and(params->ptypes, params->ptypes,
+					   src, ICE_FLOW_PTYPE_MAX);
+			}
 		}
 	}
 
@@ -274,6 +295,9 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 	case ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT:
 	case ICE_FLOW_FIELD_IDX_SCTP_DST_PORT:
 		prot_id = ICE_PROT_SCTP_IL;
+		break;
+	case ICE_FLOW_FIELD_IDX_GRE_KEYID:
+		prot_id = ICE_PROT_GRE_OF;
 		break;
 	default:
 		return ICE_ERR_NOT_IMPL;
@@ -945,6 +969,7 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 #define ICE_FLOW_PROF_ENCAP_M	(BIT_ULL(ICE_FLOW_PROF_ENCAP_S))
 
 #define ICE_RSS_OUTER_HEADERS	1
+#define ICE_RSS_INNER_HEADERS	2
 
 /* Flow profile ID format:
  * [0:31] - Packet match fields
@@ -1085,6 +1110,9 @@ ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 	mutex_lock(&hw->rss_locks);
 	status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds, addl_hdrs,
 				      ICE_RSS_OUTER_HEADERS);
+	if (!status)
+		status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds,
+					      addl_hdrs, ICE_RSS_INNER_HEADERS);
 	mutex_unlock(&hw->rss_locks);
 
 	return status;
@@ -1236,6 +1264,12 @@ enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 						      r->hashed_flds,
 						      r->packet_hdr,
 						      ICE_RSS_OUTER_HEADERS);
+			if (status)
+				break;
+			status = ice_add_rss_cfg_sync(hw, vsi_handle,
+						      r->hashed_flds,
+						      r->packet_hdr,
+						      ICE_RSS_INNER_HEADERS);
 			if (status)
 				break;
 		}

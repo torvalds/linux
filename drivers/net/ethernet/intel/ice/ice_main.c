@@ -2342,12 +2342,26 @@ static void ice_set_netdev_features(struct net_device *netdev)
 			 NETIF_F_HW_VLAN_CTAG_TX     |
 			 NETIF_F_HW_VLAN_CTAG_RX;
 
-	tso_features = NETIF_F_TSO		|
+	tso_features = NETIF_F_TSO			|
+		       NETIF_F_TSO_ECN			|
+		       NETIF_F_TSO6			|
+		       NETIF_F_GSO_GRE			|
+		       NETIF_F_GSO_UDP_TUNNEL		|
+		       NETIF_F_GSO_GRE_CSUM		|
+		       NETIF_F_GSO_UDP_TUNNEL_CSUM	|
+		       NETIF_F_GSO_PARTIAL		|
+		       NETIF_F_GSO_IPXIP4		|
+		       NETIF_F_GSO_IPXIP6		|
 		       NETIF_F_GSO_UDP_L4;
 
+	netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					NETIF_F_GSO_GRE_CSUM;
 	/* set features that user can change */
 	netdev->hw_features = dflt_features | csumo_features |
 			      vlano_features | tso_features;
+
+	/* add support for HW_CSUM on packets with MPLS header */
+	netdev->mpls_features =  NETIF_F_HW_CSUM;
 
 	/* enable features */
 	netdev->features |= netdev->hw_features;
@@ -5158,6 +5172,70 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 }
 
 /**
+ * ice_udp_tunnel_add - Get notifications about UDP tunnel ports that come up
+ * @netdev: This physical port's netdev
+ * @ti: Tunnel endpoint information
+ */
+static void
+ice_udp_tunnel_add(struct net_device *netdev, struct udp_tunnel_info *ti)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	enum ice_tunnel_type tnl_type;
+	u16 port = ntohs(ti->port);
+	enum ice_status status;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		tnl_type = TNL_VXLAN;
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		tnl_type = TNL_GENEVE;
+		break;
+	default:
+		netdev_err(netdev, "Unknown tunnel type\n");
+		return;
+	}
+
+	status = ice_create_tunnel(&pf->hw, tnl_type, port);
+	if (status == ICE_ERR_OUT_OF_RANGE)
+		netdev_info(netdev, "Max tunneled UDP ports reached, port %d not added\n",
+			    port);
+	else if (status)
+		netdev_err(netdev, "Error adding UDP tunnel - %d\n",
+			   status);
+}
+
+/**
+ * ice_udp_tunnel_del - Get notifications about UDP tunnel ports that go away
+ * @netdev: This physical port's netdev
+ * @ti: Tunnel endpoint information
+ */
+static void
+ice_udp_tunnel_del(struct net_device *netdev, struct udp_tunnel_info *ti)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u16 port = ntohs(ti->port);
+	enum ice_status status;
+	bool retval;
+
+	retval = ice_tunnel_port_in_use(&pf->hw, port, NULL);
+	if (!retval) {
+		netdev_info(netdev, "port %d not found in UDP tunnels list\n",
+			    port);
+		return;
+	}
+
+	status = ice_destroy_tunnel(&pf->hw, port, false);
+	if (status)
+		netdev_err(netdev, "error deleting port %d from UDP tunnels list\n",
+			   port);
+}
+
+/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -5213,6 +5291,10 @@ int ice_open(struct net_device *netdev)
 	if (err)
 		netdev_err(netdev, "Failed to open VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
+
+	/* Update existing tunnels information */
+	udp_tunnel_get_rx_info(netdev);
+
 	return err;
 }
 
@@ -5263,21 +5345,21 @@ ice_features_check(struct sk_buff *skb,
 		features &= ~NETIF_F_GSO_MASK;
 
 	len = skb_network_header(skb) - skb->data;
-	if (len & ~(ICE_TXD_MACLEN_MAX))
+	if (len > ICE_TXD_MACLEN_MAX || len & 0x1)
 		goto out_rm_features;
 
 	len = skb_transport_header(skb) - skb_network_header(skb);
-	if (len & ~(ICE_TXD_IPLEN_MAX))
+	if (len > ICE_TXD_IPLEN_MAX || len & 0x1)
 		goto out_rm_features;
 
 	if (skb->encapsulation) {
 		len = skb_inner_network_header(skb) - skb_transport_header(skb);
-		if (len & ~(ICE_TXD_L4LEN_MAX))
+		if (len > ICE_TXD_L4LEN_MAX || len & 0x1)
 			goto out_rm_features;
 
 		len = skb_inner_transport_header(skb) -
 		      skb_inner_network_header(skb);
-		if (len & ~(ICE_TXD_IPLEN_MAX))
+		if (len > ICE_TXD_IPLEN_MAX || len & 0x1)
 			goto out_rm_features;
 	}
 
@@ -5326,4 +5408,6 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_bpf = ice_xdp,
 	.ndo_xdp_xmit = ice_xdp_xmit,
 	.ndo_xsk_wakeup = ice_xsk_wakeup,
+	.ndo_udp_tunnel_add = ice_udp_tunnel_add,
+	.ndo_udp_tunnel_del = ice_udp_tunnel_del,
 };

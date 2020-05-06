@@ -746,6 +746,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	status = ice_init_hw_tbls(hw);
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
+	mutex_init(&hw->tnl_lock);
 	return 0;
 
 err_unroll_fltr_mgmt_struct:
@@ -775,6 +776,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 	ice_sched_clear_agg(hw);
 	ice_free_seg(hw);
 	ice_free_hw_tbls(hw);
+	mutex_destroy(&hw->tnl_lock);
 
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);

@@ -37,6 +37,10 @@
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
+#include <net/geneve.h>
+#include <net/gre.h>
+#include <net/udp_tunnel.h>
+#include <net/vxlan.h>
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"

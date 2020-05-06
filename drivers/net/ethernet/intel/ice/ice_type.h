@@ -579,6 +579,10 @@ struct ice_hw {
 	u8 *pkg_copy;
 	u32 pkg_size;
 
+	/* tunneling info */
+	struct mutex tnl_lock;
+	struct ice_tunnel_table tnl;
+
 	/* HW block tables */
 	struct ice_blk_info blk[ICE_BLK_COUNT];
 	struct mutex fl_profs_locks[ICE_BLK_COUNT];	/* lock fltr profiles */

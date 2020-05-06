@@ -5,6 +5,15 @@
 #include "ice_flex_pipe.h"
 #include "ice_flow.h"
 
+/* To support tunneling entries by PF, the package will append the PF number to
+ * the label; for example TNL_VXLAN_PF0, TNL_VXLAN_PF1, TNL_VXLAN_PF2, etc.
+ */
+static const struct ice_tunnel_type_scan tnls[] = {
+	{ TNL_VXLAN,		"TNL_VXLAN_PF" },
+	{ TNL_GENEVE,		"TNL_GENEVE_PF" },
+	{ TNL_LAST,		"" }
+};
+
 static const u32 ice_sect_lkup[ICE_BLK_COUNT][ICE_SECT_COUNT] = {
 	/* SWITCH */
 	{
@@ -237,6 +246,268 @@ ice_pkg_enum_section(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
 		le16_to_cpu(state->buf->section_entry[state->sect_idx].offset);
 
 	return state->sect;
+}
+
+/**
+ * ice_pkg_enum_entry
+ * @ice_seg: pointer to the ice segment (or NULL on subsequent calls)
+ * @state: pointer to the enum state
+ * @sect_type: section type to enumerate
+ * @offset: pointer to variable that receives the offset in the table (optional)
+ * @handler: function that handles access to the entries into the section type
+ *
+ * This function will enumerate all the entries in particular section type in
+ * the ice segment. The first call is made with the ice_seg parameter non-NULL;
+ * on subsequent calls, ice_seg is set to NULL which continues the enumeration.
+ * When the function returns a NULL pointer, then the end of the entries has
+ * been reached.
+ *
+ * Since each section may have a different header and entry size, the handler
+ * function is needed to determine the number and location entries in each
+ * section.
+ *
+ * The offset parameter is optional, but should be used for sections that
+ * contain an offset for each section table. For such cases, the section handler
+ * function must return the appropriate offset + index to give the absolution
+ * offset for each entry. For example, if the base for a section's header
+ * indicates a base offset of 10, and the index for the entry is 2, then
+ * section handler function should set the offset to 10 + 2 = 12.
+ */
+static void *
+ice_pkg_enum_entry(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
+		   u32 sect_type, u32 *offset,
+		   void *(*handler)(u32 sect_type, void *section,
+				    u32 index, u32 *offset))
+{
+	void *entry;
+
+	if (ice_seg) {
+		if (!handler)
+			return NULL;
+
+		if (!ice_pkg_enum_section(ice_seg, state, sect_type))
+			return NULL;
+
+		state->entry_idx = 0;
+		state->handler = handler;
+	} else {
+		state->entry_idx++;
+	}
+
+	if (!state->handler)
+		return NULL;
+
+	/* get entry */
+	entry = state->handler(state->sect_type, state->sect, state->entry_idx,
+			       offset);
+	if (!entry) {
+		/* end of a section, look for another section of this type */
+		if (!ice_pkg_enum_section(NULL, state, 0))
+			return NULL;
+
+		state->entry_idx = 0;
+		entry = state->handler(state->sect_type, state->sect,
+				       state->entry_idx, offset);
+	}
+
+	return entry;
+}
+
+/**
+ * ice_boost_tcam_handler
+ * @sect_type: section type
+ * @section: pointer to section
+ * @index: index of the boost TCAM entry to be returned
+ * @offset: pointer to receive absolute offset, always 0 for boost TCAM sections
+ *
+ * This is a callback function that can be passed to ice_pkg_enum_entry.
+ * Handles enumeration of individual boost TCAM entries.
+ */
+static void *
+ice_boost_tcam_handler(u32 sect_type, void *section, u32 index, u32 *offset)
+{
+	struct ice_boost_tcam_section *boost;
+
+	if (!section)
+		return NULL;
+
+	if (sect_type != ICE_SID_RXPARSER_BOOST_TCAM)
+		return NULL;
+
+	if (index > ICE_MAX_BST_TCAMS_IN_BUF)
+		return NULL;
+
+	if (offset)
+		*offset = 0;
+
+	boost = section;
+	if (index >= le16_to_cpu(boost->count))
+		return NULL;
+
+	return boost->tcam + index;
+}
+
+/**
+ * ice_find_boost_entry
+ * @ice_seg: pointer to the ice segment (non-NULL)
+ * @addr: Boost TCAM address of entry to search for
+ * @entry: returns pointer to the entry
+ *
+ * Finds a particular Boost TCAM entry and returns a pointer to that entry
+ * if it is found. The ice_seg parameter must not be NULL since the first call
+ * to ice_pkg_enum_entry requires a pointer to an actual ice_segment structure.
+ */
+static enum ice_status
+ice_find_boost_entry(struct ice_seg *ice_seg, u16 addr,
+		     struct ice_boost_tcam_entry **entry)
+{
+	struct ice_boost_tcam_entry *tcam;
+	struct ice_pkg_enum state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (!ice_seg)
+		return ICE_ERR_PARAM;
+
+	do {
+		tcam = ice_pkg_enum_entry(ice_seg, &state,
+					  ICE_SID_RXPARSER_BOOST_TCAM, NULL,
+					  ice_boost_tcam_handler);
+		if (tcam && le16_to_cpu(tcam->addr) == addr) {
+			*entry = tcam;
+			return 0;
+		}
+
+		ice_seg = NULL;
+	} while (tcam);
+
+	*entry = NULL;
+	return ICE_ERR_CFG;
+}
+
+/**
+ * ice_label_enum_handler
+ * @sect_type: section type
+ * @section: pointer to section
+ * @index: index of the label entry to be returned
+ * @offset: pointer to receive absolute offset, always zero for label sections
+ *
+ * This is a callback function that can be passed to ice_pkg_enum_entry.
+ * Handles enumeration of individual label entries.
+ */
+static void *
+ice_label_enum_handler(u32 __always_unused sect_type, void *section, u32 index,
+		       u32 *offset)
+{
+	struct ice_label_section *labels;
+
+	if (!section)
+		return NULL;
+
+	if (index > ICE_MAX_LABELS_IN_BUF)
+		return NULL;
+
+	if (offset)
+		*offset = 0;
+
+	labels = section;
+	if (index >= le16_to_cpu(labels->count))
+		return NULL;
+
+	return labels->label + index;
+}
+
+/**
+ * ice_enum_labels
+ * @ice_seg: pointer to the ice segment (NULL on subsequent calls)
+ * @type: the section type that will contain the label (0 on subsequent calls)
+ * @state: ice_pkg_enum structure that will hold the state of the enumeration
+ * @value: pointer to a value that will return the label's value if found
+ *
+ * Enumerates a list of labels in the package. The caller will call
+ * ice_enum_labels(ice_seg, type, ...) to start the enumeration, then call
+ * ice_enum_labels(NULL, 0, ...) to continue. When the function returns a NULL
+ * the end of the list has been reached.
+ */
+static char *
+ice_enum_labels(struct ice_seg *ice_seg, u32 type, struct ice_pkg_enum *state,
+		u16 *value)
+{
+	struct ice_label *label;
+
+	/* Check for valid label section on first call */
+	if (type && !(type >= ICE_SID_LBL_FIRST && type <= ICE_SID_LBL_LAST))
+		return NULL;
+
+	label = ice_pkg_enum_entry(ice_seg, state, type, NULL,
+				   ice_label_enum_handler);
+	if (!label)
+		return NULL;
+
+	*value = le16_to_cpu(label->value);
+	return label->name;
+}
+
+/**
+ * ice_init_pkg_hints
+ * @hw: pointer to the HW structure
+ * @ice_seg: pointer to the segment of the package scan (non-NULL)
+ *
+ * This function will scan the package and save off relevant information
+ * (hints or metadata) for driver use. The ice_seg parameter must not be NULL
+ * since the first call to ice_enum_labels requires a pointer to an actual
+ * ice_seg structure.
+ */
+static void ice_init_pkg_hints(struct ice_hw *hw, struct ice_seg *ice_seg)
+{
+	struct ice_pkg_enum state;
+	char *label_name;
+	u16 val;
+	int i;
+
+	memset(&hw->tnl, 0, sizeof(hw->tnl));
+	memset(&state, 0, sizeof(state));
+
+	if (!ice_seg)
+		return;
+
+	label_name = ice_enum_labels(ice_seg, ICE_SID_LBL_RXPARSER_TMEM, &state,
+				     &val);
+
+	while (label_name && hw->tnl.count < ICE_TUNNEL_MAX_ENTRIES) {
+		for (i = 0; tnls[i].type != TNL_LAST; i++) {
+			size_t len = strlen(tnls[i].label_prefix);
+
+			/* Look for matching label start, before continuing */
+			if (strncmp(label_name, tnls[i].label_prefix, len))
+				continue;
+
+			/* Make sure this label matches our PF. Note that the PF
+			 * character ('0' - '7') will be located where our
+			 * prefix string's null terminator is located.
+			 */
+			if ((label_name[len] - '0') == hw->pf_id) {
+				hw->tnl.tbl[hw->tnl.count].type = tnls[i].type;
+				hw->tnl.tbl[hw->tnl.count].valid = false;
+				hw->tnl.tbl[hw->tnl.count].in_use = false;
+				hw->tnl.tbl[hw->tnl.count].marked = false;
+				hw->tnl.tbl[hw->tnl.count].boost_addr = val;
+				hw->tnl.tbl[hw->tnl.count].port = 0;
+				hw->tnl.count++;
+				break;
+			}
+		}
+
+		label_name = ice_enum_labels(NULL, 0, &state, &val);
+	}
+
+	/* Cache the appropriate boost TCAM entry pointers */
+	for (i = 0; i < hw->tnl.count; i++) {
+		ice_find_boost_entry(ice_seg, hw->tnl.tbl[i].boost_addr,
+				     &hw->tnl.tbl[i].boost_entry);
+		if (hw->tnl.tbl[i].boost_entry)
+			hw->tnl.tbl[i].valid = true;
+	}
 }
 
 /* Key creation */
@@ -1050,7 +1321,8 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 		return ICE_ERR_CFG;
 	}
 
-	/* download package */
+	/* initialize package hints and then download package */
+	ice_init_pkg_hints(hw, seg);
 	status = ice_download_pkg(hw, seg);
 	if (status == ICE_ERR_AQ_NO_WORK) {
 		ice_debug(hw, ICE_DBG_INIT,
@@ -1290,6 +1562,256 @@ static struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
 		return NULL;
 
 	return &bld->buf;
+}
+
+/**
+ * ice_tunnel_port_in_use_hlpr - helper function to determine tunnel usage
+ * @hw: pointer to the HW structure
+ * @port: port to search for
+ * @index: optionally returns index
+ *
+ * Returns whether a port is already in use as a tunnel, and optionally its
+ * index
+ */
+static bool ice_tunnel_port_in_use_hlpr(struct ice_hw *hw, u16 port, u16 *index)
+{
+	u16 i;
+
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].in_use && hw->tnl.tbl[i].port == port) {
+			if (index)
+				*index = i;
+			return true;
+		}
+
+	return false;
+}
+
+/**
+ * ice_tunnel_port_in_use
+ * @hw: pointer to the HW structure
+ * @port: port to search for
+ * @index: optionally returns index
+ *
+ * Returns whether a port is already in use as a tunnel, and optionally its
+ * index
+ */
+bool ice_tunnel_port_in_use(struct ice_hw *hw, u16 port, u16 *index)
+{
+	bool res;
+
+	mutex_lock(&hw->tnl_lock);
+	res = ice_tunnel_port_in_use_hlpr(hw, port, index);
+	mutex_unlock(&hw->tnl_lock);
+
+	return res;
+}
+
+/**
+ * ice_find_free_tunnel_entry
+ * @hw: pointer to the HW structure
+ * @type: tunnel type
+ * @index: optionally returns index
+ *
+ * Returns whether there is a free tunnel entry, and optionally its index
+ */
+static bool
+ice_find_free_tunnel_entry(struct ice_hw *hw, enum ice_tunnel_type type,
+			   u16 *index)
+{
+	u16 i;
+
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].valid && !hw->tnl.tbl[i].in_use &&
+		    hw->tnl.tbl[i].type == type) {
+			if (index)
+				*index = i;
+			return true;
+		}
+
+	return false;
+}
+
+/**
+ * ice_create_tunnel
+ * @hw: pointer to the HW structure
+ * @type: type of tunnel
+ * @port: port of tunnel to create
+ *
+ * Create a tunnel by updating the parse graph in the parser. We do that by
+ * creating a package buffer with the tunnel info and issuing an update package
+ * command.
+ */
+enum ice_status
+ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port)
+{
+	struct ice_boost_tcam_section *sect_rx, *sect_tx;
+	enum ice_status status = ICE_ERR_MAX_LIMIT;
+	struct ice_buf_build *bld;
+	u16 index;
+
+	mutex_lock(&hw->tnl_lock);
+
+	if (ice_tunnel_port_in_use_hlpr(hw, port, &index)) {
+		hw->tnl.tbl[index].ref++;
+		status = 0;
+		goto ice_create_tunnel_end;
+	}
+
+	if (!ice_find_free_tunnel_entry(hw, type, &index)) {
+		status = ICE_ERR_OUT_OF_RANGE;
+		goto ice_create_tunnel_end;
+	}
+
+	bld = ice_pkg_buf_alloc(hw);
+	if (!bld) {
+		status = ICE_ERR_NO_MEMORY;
+		goto ice_create_tunnel_end;
+	}
+
+	/* allocate 2 sections, one for Rx parser, one for Tx parser */
+	if (ice_pkg_buf_reserve_section(bld, 2))
+		goto ice_create_tunnel_err;
+
+	sect_rx = ice_pkg_buf_alloc_section(bld, ICE_SID_RXPARSER_BOOST_TCAM,
+					    sizeof(*sect_rx));
+	if (!sect_rx)
+		goto ice_create_tunnel_err;
+	sect_rx->count = cpu_to_le16(1);
+
+	sect_tx = ice_pkg_buf_alloc_section(bld, ICE_SID_TXPARSER_BOOST_TCAM,
+					    sizeof(*sect_tx));
+	if (!sect_tx)
+		goto ice_create_tunnel_err;
+	sect_tx->count = cpu_to_le16(1);
+
+	/* copy original boost entry to update package buffer */
+	memcpy(sect_rx->tcam, hw->tnl.tbl[index].boost_entry,
+	       sizeof(*sect_rx->tcam));
+
+	/* over-write the never-match dest port key bits with the encoded port
+	 * bits
+	 */
+	ice_set_key((u8 *)&sect_rx->tcam[0].key, sizeof(sect_rx->tcam[0].key),
+		    (u8 *)&port, NULL, NULL, NULL,
+		    offsetof(struct ice_boost_key_value, hv_dst_port_key),
+		    sizeof(sect_rx->tcam[0].key.key.hv_dst_port_key));
+
+	/* exact copy of entry to Tx section entry */
+	memcpy(sect_tx->tcam, sect_rx->tcam, sizeof(*sect_tx->tcam));
+
+	status = ice_update_pkg(hw, ice_pkg_buf(bld), 1);
+	if (!status) {
+		hw->tnl.tbl[index].port = port;
+		hw->tnl.tbl[index].in_use = true;
+		hw->tnl.tbl[index].ref = 1;
+	}
+
+ice_create_tunnel_err:
+	ice_pkg_buf_free(hw, bld);
+
+ice_create_tunnel_end:
+	mutex_unlock(&hw->tnl_lock);
+
+	return status;
+}
+
+/**
+ * ice_destroy_tunnel
+ * @hw: pointer to the HW structure
+ * @port: port of tunnel to destroy (ignored if the all parameter is true)
+ * @all: flag that states to destroy all tunnels
+ *
+ * Destroys a tunnel or all tunnels by creating an update package buffer
+ * targeting the specific updates requested and then performing an update
+ * package.
+ */
+enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
+{
+	struct ice_boost_tcam_section *sect_rx, *sect_tx;
+	enum ice_status status = ICE_ERR_MAX_LIMIT;
+	struct ice_buf_build *bld;
+	u16 count = 0;
+	u16 index;
+	u16 size;
+	u16 i;
+
+	mutex_lock(&hw->tnl_lock);
+
+	if (!all && ice_tunnel_port_in_use_hlpr(hw, port, &index))
+		if (hw->tnl.tbl[index].ref > 1) {
+			hw->tnl.tbl[index].ref--;
+			status = 0;
+			goto ice_destroy_tunnel_end;
+		}
+
+	/* determine count */
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
+		    (all || hw->tnl.tbl[i].port == port))
+			count++;
+
+	if (!count) {
+		status = ICE_ERR_PARAM;
+		goto ice_destroy_tunnel_end;
+	}
+
+	/* size of section - there is at least one entry */
+	size = struct_size(sect_rx, tcam, count - 1);
+
+	bld = ice_pkg_buf_alloc(hw);
+	if (!bld) {
+		status = ICE_ERR_NO_MEMORY;
+		goto ice_destroy_tunnel_end;
+	}
+
+	/* allocate 2 sections, one for Rx parser, one for Tx parser */
+	if (ice_pkg_buf_reserve_section(bld, 2))
+		goto ice_destroy_tunnel_err;
+
+	sect_rx = ice_pkg_buf_alloc_section(bld, ICE_SID_RXPARSER_BOOST_TCAM,
+					    size);
+	if (!sect_rx)
+		goto ice_destroy_tunnel_err;
+	sect_rx->count = cpu_to_le16(1);
+
+	sect_tx = ice_pkg_buf_alloc_section(bld, ICE_SID_TXPARSER_BOOST_TCAM,
+					    size);
+	if (!sect_tx)
+		goto ice_destroy_tunnel_err;
+	sect_tx->count = cpu_to_le16(1);
+
+	/* copy original boost entry to update package buffer, one copy to Rx
+	 * section, another copy to the Tx section
+	 */
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
+		    (all || hw->tnl.tbl[i].port == port)) {
+			memcpy(sect_rx->tcam + i, hw->tnl.tbl[i].boost_entry,
+			       sizeof(*sect_rx->tcam));
+			memcpy(sect_tx->tcam + i, hw->tnl.tbl[i].boost_entry,
+			       sizeof(*sect_tx->tcam));
+			hw->tnl.tbl[i].marked = true;
+		}
+
+	status = ice_update_pkg(hw, ice_pkg_buf(bld), 1);
+	if (!status)
+		for (i = 0; i < hw->tnl.count &&
+		     i < ICE_TUNNEL_MAX_ENTRIES; i++)
+			if (hw->tnl.tbl[i].marked) {
+				hw->tnl.tbl[i].ref = 0;
+				hw->tnl.tbl[i].port = 0;
+				hw->tnl.tbl[i].in_use = false;
+				hw->tnl.tbl[i].marked = false;
+			}
+
+ice_destroy_tunnel_err:
+	ice_pkg_buf_free(hw, bld);
+
+ice_destroy_tunnel_end:
+	mutex_unlock(&hw->tnl_lock);
+
+	return status;
 }
 
 /* PTG Management */
