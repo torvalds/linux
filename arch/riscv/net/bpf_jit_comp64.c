@@ -796,7 +796,13 @@ out_be:
 	case BPF_JMP32 | BPF_JSET | BPF_K:
 		rvoff = rv_offset(i, off, ctx);
 		s = ctx->ninsns;
-		emit_imm(RV_REG_T1, imm, ctx);
+		if (imm) {
+			emit_imm(RV_REG_T1, imm, ctx);
+			rs = RV_REG_T1;
+		} else {
+			/* If imm is 0, simply use zero register. */
+			rs = RV_REG_ZERO;
+		}
 		if (!is64) {
 			if (is_signed_bpf_cond(BPF_OP(code)))
 				emit_sext_32_rd(&rd, ctx);
@@ -811,11 +817,10 @@ out_be:
 		if (BPF_OP(code) == BPF_JSET) {
 			/* Adjust for and */
 			rvoff -= 4;
-			emit(rv_and(RV_REG_T1, rd, RV_REG_T1), ctx);
-			emit_branch(BPF_JNE, RV_REG_T1, RV_REG_ZERO, rvoff,
-				    ctx);
+			emit(rv_and(rs, rd, rs), ctx);
+			emit_branch(BPF_JNE, rs, RV_REG_ZERO, rvoff, ctx);
 		} else {
-			emit_branch(BPF_OP(code), rd, RV_REG_T1, rvoff, ctx);
+			emit_branch(BPF_OP(code), rd, rs, rvoff, ctx);
 		}
 		break;
 
