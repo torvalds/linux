@@ -681,6 +681,27 @@ struct mgmt_rp_read_security_info {
 	__u8     sec[];
 } __packed;
 
+#define MGMT_OP_READ_EXP_FEATURES_INFO	0x0049
+#define MGMT_READ_EXP_FEATURES_INFO_SIZE 0
+struct mgmt_rp_read_exp_features_info {
+	__le16 feature_count;
+	struct {
+		__u8   uuid[16];
+		__le32 flags;
+	} features[];
+} __packed;
+
+#define MGMT_OP_SET_EXP_FEATURE		0x004a
+struct mgmt_cp_set_exp_feature {
+	__u8   uuid[16];
+	__u8   param[];
+} __packed;
+#define MGMT_SET_EXP_FEATURE_SIZE	16
+struct mgmt_rp_set_exp_feature {
+	__u8   uuid[16];
+	__le32 flags;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
@@ -905,4 +926,10 @@ struct mgmt_ev_ext_info_changed {
 #define MGMT_EV_PHY_CONFIGURATION_CHANGED	0x0026
 struct mgmt_ev_phy_configuration_changed {
 	__le32	selected_phys;
+} __packed;
+
+#define MGMT_EV_EXP_FEATURE_CHANGED	0x0027
+struct mgmt_ev_exp_feature_changed {
+	__u8	uuid[16];
+	__le32	flags;
 } __packed;
