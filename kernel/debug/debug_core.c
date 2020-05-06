@@ -67,9 +67,7 @@ static int kgdb_break_asap;
 
 struct debuggerinfo_struct kgdb_info[NR_CPUS];
 
-/**
- * kgdb_connected - Is a host GDB connected to us?
- */
+/* kgdb_connected - Is a host GDB connected to us? */
 int				kgdb_connected;
 EXPORT_SYMBOL_GPL(kgdb_connected);
 
