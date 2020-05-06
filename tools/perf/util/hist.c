@@ -1930,8 +1930,8 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	}
 }
 
-void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
-				  hists__resort_cb_t cb, void *cb_arg)
+void evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
+			     hists__resort_cb_t cb, void *cb_arg)
 {
 	bool use_callchain;
 
@@ -1945,9 +1945,9 @@ void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
 	output_resort(evsel__hists(evsel), prog, use_callchain, cb, cb_arg);
 }
 
-void perf_evsel__output_resort(struct evsel *evsel, struct ui_progress *prog)
+void evsel__output_resort(struct evsel *evsel, struct ui_progress *prog)
 {
-	return perf_evsel__output_resort_cb(evsel, prog, NULL, NULL);
+	return evsel__output_resort_cb(evsel, prog, NULL, NULL);
 }
 
 void hists__output_resort(struct hists *hists, struct ui_progress *prog)

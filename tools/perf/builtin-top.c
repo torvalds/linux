@@ -307,7 +307,7 @@ static void perf_top__resort_hists(struct perf_top *t)
 	}
 
 	evlist__for_each_entry(evlist, pos) {
-		perf_evsel__output_resort(pos, NULL);
+		evsel__output_resort(pos, NULL);
 	}
 }
 
