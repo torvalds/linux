@@ -738,12 +738,14 @@ static struct cm_timewait_info * cm_insert_remote_id(struct cm_timewait_info
 	return NULL;
 }
 
-static struct cm_timewait_info * cm_find_remote_id(__be64 remote_ca_guid,
-						   __be32 remote_id)
+static struct cm_id_private *cm_find_remote_id(__be64 remote_ca_guid,
+					       __be32 remote_id)
 {
 	struct rb_node *node = cm.remote_id_table.rb_node;
 	struct cm_timewait_info *timewait_info;
+	struct cm_id_private *res = NULL;
 
+	spin_lock_irq(&cm.lock);
 	while (node) {
 		timewait_info = rb_entry(node, struct cm_timewait_info,
 					 remote_id_node);
@@ -755,10 +757,14 @@ static struct cm_timewait_info * cm_find_remote_id(__be64 remote_ca_guid,
 			node = node->rb_left;
 		else if (be64_gt(remote_ca_guid, timewait_info->remote_ca_guid))
 			node = node->rb_right;
-		else
-			return timewait_info;
+		else {
+			res = cm_acquire_id(timewait_info->work.local_id,
+					     timewait_info->work.remote_id);
+			break;
+		}
 	}
-	return NULL;
+	spin_unlock_irq(&cm.lock);
+	return res;
 }
 
 static struct cm_timewait_info * cm_insert_remote_qpn(struct cm_timewait_info
@@ -2966,24 +2972,15 @@ static void cm_format_rej_event(struct cm_work *work)
 
 static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 {
-	struct cm_timewait_info *timewait_info;
 	struct cm_id_private *cm_id_priv;
 	__be32 remote_id;
 
 	remote_id = cpu_to_be32(IBA_GET(CM_REJ_LOCAL_COMM_ID, rej_msg));
 
 	if (IBA_GET(CM_REJ_REASON, rej_msg) == IB_CM_REJ_TIMEOUT) {
-		spin_lock_irq(&cm.lock);
-		timewait_info = cm_find_remote_id(
+		cm_id_priv = cm_find_remote_id(
 			*((__be64 *)IBA_GET_MEM_PTR(CM_REJ_ARI, rej_msg)),
 			remote_id);
-		if (!timewait_info) {
-			spin_unlock_irq(&cm.lock);
-			return NULL;
-		}
-		cm_id_priv =
-			cm_acquire_id(timewait_info->work.local_id, remote_id);
-		spin_unlock_irq(&cm.lock);
 	} else if (IBA_GET(CM_REJ_MESSAGE_REJECTED, rej_msg) ==
 		   CM_MSG_RESPONSE_REQ)
 		cm_id_priv = cm_acquire_id(
