@@ -1122,7 +1122,7 @@ static void mtk_stop_queue(struct mtk_eth *eth)
 	}
 }
 
-static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
