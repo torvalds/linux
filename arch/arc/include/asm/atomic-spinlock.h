@@ -42,7 +42,7 @@ static inline void arch_atomic_##op(int i, atomic_t *v)			\
 static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
-	unsigned long temp;						\
+	unsigned int temp;						\
 									\
 	/*								\
 	 * spin lock/unlock provides the needed smp_mb() before/after	\
@@ -60,7 +60,7 @@ static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
-	unsigned long orig;						\
+	unsigned int orig;						\
 									\
 	/*								\
 	 * spin lock/unlock provides the needed smp_mb() before/after	\
