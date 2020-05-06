@@ -405,10 +405,11 @@ struct mt7615_sched_scan_req {
 	u8 channel_type;
 	u8 channels_num;
 	u8 intervals_num;
-	u8 scan_func;
+	u8 scan_func; /* BIT(0) eable random mac address */
 	struct mt7615_mcu_scan_channel channels[64];
 	__le16 intervals[MT7615_MAX_SCHED_SCAN_INTERVAL];
-	u8 pad2[64];
+	u8 random_mac[ETH_ALEN]; /* valid when BIT(0) in scan_func is set */
+	u8 pad2[58];
 } __packed;
 
 struct nt7615_sched_scan_done {

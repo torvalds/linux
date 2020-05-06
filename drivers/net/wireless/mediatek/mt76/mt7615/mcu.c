@@ -2907,7 +2907,12 @@ int mt7615_mcu_sched_scan_req(struct mt7615_phy *phy,
 	req = (struct mt7615_sched_scan_req *)skb_put(skb, sizeof(*req));
 	req->version = 1;
 	req->seq_num = mvif->scan_seq_num | ext_phy << 7;
-	req->scan_func = !!(sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR);
+
+	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		get_random_mask_addr(req->random_mac, sreq->mac_addr,
+				     sreq->mac_addr_mask);
+		req->scan_func = 1;
+	}
 
 	req->ssids_num = sreq->n_ssids;
 	for (i = 0; i < req->ssids_num; i++) {
