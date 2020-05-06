@@ -79,4 +79,7 @@ void asswarn(struct xfs_mount *mp, char *expr, char *f, int l);
 
 extern void xfs_hex_dump(const void *p, int length);
 
+void xfs_buf_alert_ratelimited(struct xfs_buf *bp, const char *rlmsg,
+			       const char *fmt, ...);
+
 #endif	/* __XFS_MESSAGE_H */

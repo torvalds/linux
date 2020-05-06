@@ -91,6 +91,7 @@ typedef struct xfs_buftarg {
 	struct list_lru		bt_lru;
 
 	struct percpu_counter	bt_io_count;
+	struct ratelimit_state	bt_ioerror_rl;
 } xfs_buftarg_t;
 
 struct xfs_buf;
