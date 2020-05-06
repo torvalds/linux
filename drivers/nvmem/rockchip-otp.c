@@ -54,6 +54,9 @@
 
 #define OTPC_TIMEOUT			10000
 
+#define RV1126_OTP_NVM_CEB		0x00
+#define RV1126_OTP_NVM_RSTB		0x04
+#define RV1126_OTP_NVM_ST		0x18
 #define RV1126_OTP_NVM_RADDR		0x1C
 #define RV1126_OTP_NVM_RSTART		0x20
 #define RV1126_OTP_NVM_RDATA		0x24
@@ -184,6 +187,30 @@ disable_clks:
 	return ret;
 }
 
+static int rv1126_otp_init(struct rockchip_otp *otp)
+{
+	u32 status = 0;
+	int ret;
+
+	writel(0x0, otp->base + RV1126_OTP_NVM_CEB);
+	ret = readl_poll_timeout_atomic(otp->base + RV1126_OTP_NVM_ST, status,
+					status & 0x1, 1, OTPC_TIMEOUT);
+	if (ret < 0) {
+		dev_err(otp->dev, "timeout during set ceb\n");
+		return ret;
+	}
+
+	writel(0x1, otp->base + RV1126_OTP_NVM_RSTB);
+	ret = readl_poll_timeout_atomic(otp->base + RV1126_OTP_NVM_ST, status,
+					status & 0x4, 1, OTPC_TIMEOUT);
+	if (ret < 0) {
+		dev_err(otp->dev, "timeout during set rstb\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rv1126_otp_read(void *context, unsigned int offset, void *val,
 			   size_t bytes)
 {
@@ -236,6 +263,7 @@ static const struct rockchip_data rv1126_data = {
 	.size = 0x200,
 	.clocks = rv1126_otp_clocks,
 	.num_clks = ARRAY_SIZE(rv1126_otp_clocks),
+	.init = rv1126_otp_init,
 	.reg_read = rv1126_otp_read,
 };
 
