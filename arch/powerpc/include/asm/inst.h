@@ -8,4 +8,9 @@
 
 #define ppc_inst(x) (x)
 
+static inline u32 ppc_inst_val(u32 x)
+{
+	return x;
+}
+
 #endif /* _ASM_POWERPC_INST_H */

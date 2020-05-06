@@ -1169,26 +1169,28 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	unsigned long int imm;
 	unsigned long int val, val2;
 	unsigned int mb, me, sh;
+	unsigned int word;
 	long ival;
 
+	word = ppc_inst_val(instr);
 	op->type = COMPUTE;
 
 	opcode = instr >> 26;
 	switch (opcode) {
 	case 16:	/* bc */
 		op->type = BRANCH;
-		imm = (signed short)(instr & 0xfffc);
-		if ((instr & 2) == 0)
+		imm = (signed short)(word & 0xfffc);
+		if ((word & 2) == 0)
 			imm += regs->nip;
 		op->val = truncate_if_32bit(regs->msr, imm);
-		if (instr & 1)
+		if (word & 1)
 			op->type |= SETLK;
-		if (branch_taken(instr, regs, op))
+		if (branch_taken(word, regs, op))
 			op->type |= BRTAKEN;
 		return 1;
 #ifdef CONFIG_PPC64
 	case 17:	/* sc */
-		if ((instr & 0xfe2) == 2)
+		if ((word & 0xfe2) == 2)
 			op->type = SYSCALL;
 		else
 			op->type = UNKNOWN;
@@ -1196,21 +1198,21 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #endif
 	case 18:	/* b */
 		op->type = BRANCH | BRTAKEN;
-		imm = instr & 0x03fffffc;
+		imm = word & 0x03fffffc;
 		if (imm & 0x02000000)
 			imm -= 0x04000000;
-		if ((instr & 2) == 0)
+		if ((word & 2) == 0)
 			imm += regs->nip;
 		op->val = truncate_if_32bit(regs->msr, imm);
-		if (instr & 1)
+		if (word & 1)
 			op->type |= SETLK;
 		return 1;
 	case 19:
-		switch ((instr >> 1) & 0x3ff) {
+		switch ((word >> 1) & 0x3ff) {
 		case 0:		/* mcrf */
 			op->type = COMPUTE + SETCC;
-			rd = 7 - ((instr >> 23) & 0x7);
-			ra = 7 - ((instr >> 18) & 0x7);
+			rd = 7 - ((word >> 23) & 0x7);
+			ra = 7 - ((word >> 18) & 0x7);
 			rd *= 4;
 			ra *= 4;
 			val = (regs->ccr >> ra) & 0xf;
@@ -1220,11 +1222,11 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 16:	/* bclr */
 		case 528:	/* bcctr */
 			op->type = BRANCH;
-			imm = (instr & 0x400)? regs->ctr: regs->link;
+			imm = (word & 0x400)? regs->ctr: regs->link;
 			op->val = truncate_if_32bit(regs->msr, imm);
-			if (instr & 1)
+			if (word & 1)
 				op->type |= SETLK;
-			if (branch_taken(instr, regs, op))
+			if (branch_taken(word, regs, op))
 				op->type |= BRTAKEN;
 			return 1;
 
@@ -1247,23 +1249,23 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 417:	/* crorc */
 		case 449:	/* cror */
 			op->type = COMPUTE + SETCC;
-			ra = (instr >> 16) & 0x1f;
-			rb = (instr >> 11) & 0x1f;
-			rd = (instr >> 21) & 0x1f;
+			ra = (word >> 16) & 0x1f;
+			rb = (word >> 11) & 0x1f;
+			rd = (word >> 21) & 0x1f;
 			ra = (regs->ccr >> (31 - ra)) & 1;
 			rb = (regs->ccr >> (31 - rb)) & 1;
-			val = (instr >> (6 + ra * 2 + rb)) & 1;
+			val = (word >> (6 + ra * 2 + rb)) & 1;
 			op->ccval = (regs->ccr & ~(1UL << (31 - rd))) |
 				(val << (31 - rd));
 			return 1;
 		}
 		break;
 	case 31:
-		switch ((instr >> 1) & 0x3ff) {
+		switch ((word >> 1) & 0x3ff) {
 		case 598:	/* sync */
 			op->type = BARRIER + BARRIER_SYNC;
 #ifdef __powerpc64__
-			switch ((instr >> 21) & 3) {
+			switch ((word >> 21) & 3) {
 			case 1:		/* lwsync */
 				op->type = BARRIER + BARRIER_LWSYNC;
 				break;
@@ -1285,20 +1287,20 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	if (!FULL_REGS(regs))
 		return -1;
 
-	rd = (instr >> 21) & 0x1f;
-	ra = (instr >> 16) & 0x1f;
-	rb = (instr >> 11) & 0x1f;
-	rc = (instr >> 6) & 0x1f;
+	rd = (word >> 21) & 0x1f;
+	ra = (word >> 16) & 0x1f;
+	rb = (word >> 11) & 0x1f;
+	rc = (word >> 6) & 0x1f;
 
 	switch (opcode) {
 #ifdef __powerpc64__
 	case 2:		/* tdi */
-		if (rd & trap_compare(regs->gpr[ra], (short) instr))
+		if (rd & trap_compare(regs->gpr[ra], (short) word))
 			goto trap;
 		return 1;
 #endif
 	case 3:		/* twi */
-		if (rd & trap_compare((int)regs->gpr[ra], (short) instr))
+		if (rd & trap_compare((int)regs->gpr[ra], (short) word))
 			goto trap;
 		return 1;
 
@@ -1307,7 +1309,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
 			return -1;
 
-		switch (instr & 0x3f) {
+		switch (word & 0x3f) {
 		case 48:	/* maddhd */
 			asm volatile(PPC_MADDHD(%0, %1, %2, %3) :
 				     "=r" (op->val) : "r" (regs->gpr[ra]),
@@ -1335,16 +1337,16 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #endif
 
 	case 7:		/* mulli */
-		op->val = regs->gpr[ra] * (short) instr;
+		op->val = regs->gpr[ra] * (short) word;
 		goto compute_done;
 
 	case 8:		/* subfic */
-		imm = (short) instr;
+		imm = (short) word;
 		add_with_carry(regs, op, rd, ~regs->gpr[ra], imm, 1);
 		return 1;
 
 	case 10:	/* cmpli */
-		imm = (unsigned short) instr;
+		imm = (unsigned short) word;
 		val = regs->gpr[ra];
 #ifdef __powerpc64__
 		if ((rd & 1) == 0)
@@ -1354,7 +1356,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		return 1;
 
 	case 11:	/* cmpi */
-		imm = (short) instr;
+		imm = (short) word;
 		val = regs->gpr[ra];
 #ifdef __powerpc64__
 		if ((rd & 1) == 0)
@@ -1364,35 +1366,35 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		return 1;
 
 	case 12:	/* addic */
-		imm = (short) instr;
+		imm = (short) word;
 		add_with_carry(regs, op, rd, regs->gpr[ra], imm, 0);
 		return 1;
 
 	case 13:	/* addic. */
-		imm = (short) instr;
+		imm = (short) word;
 		add_with_carry(regs, op, rd, regs->gpr[ra], imm, 0);
 		set_cr0(regs, op);
 		return 1;
 
 	case 14:	/* addi */
-		imm = (short) instr;
+		imm = (short) word;
 		if (ra)
 			imm += regs->gpr[ra];
 		op->val = imm;
 		goto compute_done;
 
 	case 15:	/* addis */
-		imm = ((short) instr) << 16;
+		imm = ((short) word) << 16;
 		if (ra)
 			imm += regs->gpr[ra];
 		op->val = imm;
 		goto compute_done;
 
 	case 19:
-		if (((instr >> 1) & 0x1f) == 2) {
+		if (((word >> 1) & 0x1f) == 2) {
 			/* addpcis */
-			imm = (short) (instr & 0xffc1);	/* d0 + d2 fields */
-			imm |= (instr >> 15) & 0x3e;	/* d1 field */
+			imm = (short) (word & 0xffc1);	/* d0 + d2 fields */
+			imm |= (word >> 15) & 0x3e;	/* d1 field */
 			op->val = regs->nip + (imm << 16) + 4;
 			goto compute_done;
 		}
@@ -1400,65 +1402,65 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		return 0;
 
 	case 20:	/* rlwimi */
-		mb = (instr >> 6) & 0x1f;
-		me = (instr >> 1) & 0x1f;
+		mb = (word >> 6) & 0x1f;
+		me = (word >> 1) & 0x1f;
 		val = DATA32(regs->gpr[rd]);
 		imm = MASK32(mb, me);
 		op->val = (regs->gpr[ra] & ~imm) | (ROTATE(val, rb) & imm);
 		goto logical_done;
 
 	case 21:	/* rlwinm */
-		mb = (instr >> 6) & 0x1f;
-		me = (instr >> 1) & 0x1f;
+		mb = (word >> 6) & 0x1f;
+		me = (word >> 1) & 0x1f;
 		val = DATA32(regs->gpr[rd]);
 		op->val = ROTATE(val, rb) & MASK32(mb, me);
 		goto logical_done;
 
 	case 23:	/* rlwnm */
-		mb = (instr >> 6) & 0x1f;
-		me = (instr >> 1) & 0x1f;
+		mb = (word >> 6) & 0x1f;
+		me = (word >> 1) & 0x1f;
 		rb = regs->gpr[rb] & 0x1f;
 		val = DATA32(regs->gpr[rd]);
 		op->val = ROTATE(val, rb) & MASK32(mb, me);
 		goto logical_done;
 
 	case 24:	/* ori */
-		op->val = regs->gpr[rd] | (unsigned short) instr;
+		op->val = regs->gpr[rd] | (unsigned short) word;
 		goto logical_done_nocc;
 
 	case 25:	/* oris */
-		imm = (unsigned short) instr;
+		imm = (unsigned short) word;
 		op->val = regs->gpr[rd] | (imm << 16);
 		goto logical_done_nocc;
 
 	case 26:	/* xori */
-		op->val = regs->gpr[rd] ^ (unsigned short) instr;
+		op->val = regs->gpr[rd] ^ (unsigned short) word;
 		goto logical_done_nocc;
 
 	case 27:	/* xoris */
-		imm = (unsigned short) instr;
+		imm = (unsigned short) word;
 		op->val = regs->gpr[rd] ^ (imm << 16);
 		goto logical_done_nocc;
 
 	case 28:	/* andi. */
-		op->val = regs->gpr[rd] & (unsigned short) instr;
+		op->val = regs->gpr[rd] & (unsigned short) word;
 		set_cr0(regs, op);
 		goto logical_done_nocc;
 
 	case 29:	/* andis. */
-		imm = (unsigned short) instr;
+		imm = (unsigned short) word;
 		op->val = regs->gpr[rd] & (imm << 16);
 		set_cr0(regs, op);
 		goto logical_done_nocc;
 
 #ifdef __powerpc64__
 	case 30:	/* rld* */
-		mb = ((instr >> 6) & 0x1f) | (instr & 0x20);
+		mb = ((word >> 6) & 0x1f) | (word & 0x20);
 		val = regs->gpr[rd];
-		if ((instr & 0x10) == 0) {
-			sh = rb | ((instr & 2) << 4);
+		if ((word & 0x10) == 0) {
+			sh = rb | ((word & 2) << 4);
 			val = ROTATE(val, sh);
-			switch ((instr >> 2) & 3) {
+			switch ((word >> 2) & 3) {
 			case 0:		/* rldicl */
 				val &= MASK64_L(mb);
 				break;
@@ -1478,7 +1480,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		} else {
 			sh = regs->gpr[rb] & 0x3f;
 			val = ROTATE(val, sh);
-			switch ((instr >> 1) & 7) {
+			switch ((word >> 1) & 7) {
 			case 0:		/* rldcl */
 				op->val = val & MASK64_L(mb);
 				goto logical_done;
@@ -1493,8 +1495,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 	case 31:
 		/* isel occupies 32 minor opcodes */
-		if (((instr >> 1) & 0x1f) == 15) {
-			mb = (instr >> 6) & 0x1f; /* bc field */
+		if (((word >> 1) & 0x1f) == 15) {
+			mb = (word >> 6) & 0x1f; /* bc field */
 			val = (regs->ccr >> (31 - mb)) & 1;
 			val2 = (ra) ? regs->gpr[ra] : 0;
 
@@ -1502,7 +1504,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			goto compute_done;
 		}
 
-		switch ((instr >> 1) & 0x3ff) {
+		switch ((word >> 1) & 0x3ff) {
 		case 4:		/* tw */
 			if (rd == 0x1f ||
 			    (rd & trap_compare((int)regs->gpr[ra],
@@ -1536,17 +1538,17 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->reg = rd;
 			/* only MSR_EE and MSR_RI get changed if bit 15 set */
 			/* mtmsrd doesn't change MSR_HV, MSR_ME or MSR_LE */
-			imm = (instr & 0x10000)? 0x8002: 0xefffffffffffeffeUL;
+			imm = (word & 0x10000)? 0x8002: 0xefffffffffffeffeUL;
 			op->val = imm;
 			return 0;
 #endif
 
 		case 19:	/* mfcr */
 			imm = 0xffffffffUL;
-			if ((instr >> 20) & 1) {
+			if ((word >> 20) & 1) {
 				imm = 0xf0000000UL;
 				for (sh = 0; sh < 8; ++sh) {
-					if (instr & (0x80000 >> sh))
+					if (word & (0x80000 >> sh))
 						break;
 					imm >>= 4;
 				}
@@ -1560,7 +1562,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			val = regs->gpr[rd];
 			op->ccval = regs->ccr;
 			for (sh = 0; sh < 8; ++sh) {
-				if (instr & (0x80000 >> sh))
+				if (word & (0x80000 >> sh))
 					op->ccval = (op->ccval & ~imm) |
 						(val & imm);
 				imm >>= 4;
@@ -1568,7 +1570,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			return 1;
 
 		case 339:	/* mfspr */
-			spr = ((instr >> 16) & 0x1f) | ((instr >> 6) & 0x3e0);
+			spr = ((word >> 16) & 0x1f) | ((word >> 6) & 0x3e0);
 			op->type = MFSPR;
 			op->reg = rd;
 			op->spr = spr;
@@ -1578,7 +1580,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			return 0;
 
 		case 467:	/* mtspr */
-			spr = ((instr >> 16) & 0x1f) | ((instr >> 6) & 0x3e0);
+			spr = ((word >> 16) & 0x1f) | ((word >> 6) & 0x3e0);
 			op->type = MTSPR;
 			op->val = regs->gpr[rd];
 			op->spr = spr;
@@ -1948,7 +1950,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 826:	/* sradi with sh_5 = 0 */
 		case 827:	/* sradi with sh_5 = 1 */
 			op->type = COMPUTE + SETREG + SETXER;
-			sh = rb | ((instr & 2) << 4);
+			sh = rb | ((word & 2) << 4);
 			ival = (signed long int) regs->gpr[rd];
 			op->val = ival >> sh;
 			op->xerval = regs->xer;
@@ -1964,7 +1966,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			if (!cpu_has_feature(CPU_FTR_ARCH_300))
 				return -1;
 			op->type = COMPUTE + SETREG;
-			sh = rb | ((instr & 2) << 4);
+			sh = rb | ((word & 2) << 4);
 			val = (signed int) regs->gpr[rd];
 			if (sh)
 				op->val = ROTATE(val, sh) & MASK64(0, 63 - sh);
@@ -1979,34 +1981,34 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
  */
 		case 54:	/* dcbst */
 			op->type = MKOP(CACHEOP, DCBST, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			return 0;
 
 		case 86:	/* dcbf */
 			op->type = MKOP(CACHEOP, DCBF, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			return 0;
 
 		case 246:	/* dcbtst */
 			op->type = MKOP(CACHEOP, DCBTST, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			op->reg = rd;
 			return 0;
 
 		case 278:	/* dcbt */
 			op->type = MKOP(CACHEOP, DCBTST, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			op->reg = rd;
 			return 0;
 
 		case 982:	/* icbi */
 			op->type = MKOP(CACHEOP, ICBI, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			return 0;
 
 		case 1014:	/* dcbz */
 			op->type = MKOP(CACHEOP, DCBZ, 0);
-			op->ea = xform_ea(instr, regs);
+			op->ea = xform_ea(word, regs);
 			return 0;
 		}
 		break;
@@ -2019,14 +2021,14 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	op->update_reg = ra;
 	op->reg = rd;
 	op->val = regs->gpr[rd];
-	u = (instr >> 20) & UPDATE;
+	u = (word >> 20) & UPDATE;
 	op->vsx_flags = 0;
 
 	switch (opcode) {
 	case 31:
-		u = instr & UPDATE;
-		op->ea = xform_ea(instr, regs);
-		switch ((instr >> 1) & 0x3ff) {
+		u = word & UPDATE;
+		op->ea = xform_ea(word, regs);
+		switch ((word >> 1) & 0x3ff) {
 		case 20:	/* lwarx */
 			op->type = MKOP(LARX, 0, 4);
 			break;
@@ -2271,25 +2273,25 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 #ifdef CONFIG_VSX
 		case 12:	/* lxsiwzx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 4);
 			op->element_size = 8;
 			break;
 
 		case 76:	/* lxsiwax */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, SIGNEXT, 4);
 			op->element_size = 8;
 			break;
 
 		case 140:	/* stxsiwx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 4);
 			op->element_size = 8;
 			break;
 
 		case 268:	/* lxvx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 16;
 			op->vsx_flags = VSX_CHECK_VEC;
@@ -2298,33 +2300,33 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 269:	/* lxvl */
 		case 301: {	/* lxvll */
 			int nb;
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->ea = ra ? regs->gpr[ra] : 0;
 			nb = regs->gpr[rb] & 0xff;
 			if (nb > 16)
 				nb = 16;
 			op->type = MKOP(LOAD_VSX, 0, nb);
 			op->element_size = 16;
-			op->vsx_flags = ((instr & 0x20) ? VSX_LDLEFT : 0) |
+			op->vsx_flags = ((word & 0x20) ? VSX_LDLEFT : 0) |
 				VSX_CHECK_VEC;
 			break;
 		}
 		case 332:	/* lxvdsx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 8);
 			op->element_size = 8;
 			op->vsx_flags = VSX_SPLAT;
 			break;
 
 		case 364:	/* lxvwsx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 4);
 			op->element_size = 4;
 			op->vsx_flags = VSX_SPLAT | VSX_CHECK_VEC;
 			break;
 
 		case 396:	/* stxvx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 16;
 			op->vsx_flags = VSX_CHECK_VEC;
@@ -2333,118 +2335,118 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 397:	/* stxvl */
 		case 429: {	/* stxvll */
 			int nb;
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->ea = ra ? regs->gpr[ra] : 0;
 			nb = regs->gpr[rb] & 0xff;
 			if (nb > 16)
 				nb = 16;
 			op->type = MKOP(STORE_VSX, 0, nb);
 			op->element_size = 16;
-			op->vsx_flags = ((instr & 0x20) ? VSX_LDLEFT : 0) |
+			op->vsx_flags = ((word & 0x20) ? VSX_LDLEFT : 0) |
 				VSX_CHECK_VEC;
 			break;
 		}
 		case 524:	/* lxsspx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 4);
 			op->element_size = 8;
 			op->vsx_flags = VSX_FPCONV;
 			break;
 
 		case 588:	/* lxsdx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 8);
 			op->element_size = 8;
 			break;
 
 		case 652:	/* stxsspx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 4);
 			op->element_size = 8;
 			op->vsx_flags = VSX_FPCONV;
 			break;
 
 		case 716:	/* stxsdx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 8);
 			op->element_size = 8;
 			break;
 
 		case 780:	/* lxvw4x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 4;
 			break;
 
 		case 781:	/* lxsibzx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 1);
 			op->element_size = 8;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 812:	/* lxvh8x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 2;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 813:	/* lxsihzx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 2);
 			op->element_size = 8;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 844:	/* lxvd2x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 8;
 			break;
 
 		case 876:	/* lxvb16x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 1;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 908:	/* stxvw4x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 4;
 			break;
 
 		case 909:	/* stxsibx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 1);
 			op->element_size = 8;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 940:	/* stxvh8x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 2;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 941:	/* stxsihx */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 2);
 			op->element_size = 8;
 			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 972:	/* stxvd2x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 8;
 			break;
 
 		case 1004:	/* stxvb16x */
-			op->reg = rd | ((instr & 1) << 5);
+			op->reg = rd | ((word & 1) << 5);
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 1;
 			op->vsx_flags = VSX_CHECK_VEC;
@@ -2457,80 +2459,80 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	case 32:	/* lwz */
 	case 33:	/* lwzu */
 		op->type = MKOP(LOAD, u, 4);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 34:	/* lbz */
 	case 35:	/* lbzu */
 		op->type = MKOP(LOAD, u, 1);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 36:	/* stw */
 	case 37:	/* stwu */
 		op->type = MKOP(STORE, u, 4);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 38:	/* stb */
 	case 39:	/* stbu */
 		op->type = MKOP(STORE, u, 1);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 40:	/* lhz */
 	case 41:	/* lhzu */
 		op->type = MKOP(LOAD, u, 2);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 42:	/* lha */
 	case 43:	/* lhau */
 		op->type = MKOP(LOAD, SIGNEXT | u, 2);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 44:	/* sth */
 	case 45:	/* sthu */
 		op->type = MKOP(STORE, u, 2);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 46:	/* lmw */
 		if (ra >= rd)
 			break;		/* invalid form, ra in range to load */
 		op->type = MKOP(LOAD_MULTI, 0, 4 * (32 - rd));
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 47:	/* stmw */
 		op->type = MKOP(STORE_MULTI, 0, 4 * (32 - rd));
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 #ifdef CONFIG_PPC_FPU
 	case 48:	/* lfs */
 	case 49:	/* lfsu */
 		op->type = MKOP(LOAD_FP, u | FPCONV, 4);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 50:	/* lfd */
 	case 51:	/* lfdu */
 		op->type = MKOP(LOAD_FP, u, 8);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 52:	/* stfs */
 	case 53:	/* stfsu */
 		op->type = MKOP(STORE_FP, u | FPCONV, 4);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 
 	case 54:	/* stfd */
 	case 55:	/* stfdu */
 		op->type = MKOP(STORE_FP, u, 8);
-		op->ea = dform_ea(instr, regs);
+		op->ea = dform_ea(word, regs);
 		break;
 #endif
 
@@ -2538,14 +2540,14 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	case 56:	/* lq */
 		if (!((rd & 1) || (rd == ra)))
 			op->type = MKOP(LOAD, 0, 16);
-		op->ea = dqform_ea(instr, regs);
+		op->ea = dqform_ea(word, regs);
 		break;
 #endif
 
 #ifdef CONFIG_VSX
 	case 57:	/* lfdp, lxsd, lxssp */
-		op->ea = dsform_ea(instr, regs);
-		switch (instr & 3) {
+		op->ea = dsform_ea(word, regs);
+		switch (word & 3) {
 		case 0:		/* lfdp */
 			if (rd & 1)
 				break;		/* reg must be even */
@@ -2569,8 +2571,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 #ifdef __powerpc64__
 	case 58:	/* ld[u], lwa */
-		op->ea = dsform_ea(instr, regs);
-		switch (instr & 3) {
+		op->ea = dsform_ea(word, regs);
+		switch (word & 3) {
 		case 0:		/* ld */
 			op->type = MKOP(LOAD, 0, 8);
 			break;
@@ -2586,16 +2588,16 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 #ifdef CONFIG_VSX
 	case 61:	/* stfdp, lxv, stxsd, stxssp, stxv */
-		switch (instr & 7) {
+		switch (word & 7) {
 		case 0:		/* stfdp with LSB of DS field = 0 */
 		case 4:		/* stfdp with LSB of DS field = 1 */
-			op->ea = dsform_ea(instr, regs);
+			op->ea = dsform_ea(word, regs);
 			op->type = MKOP(STORE_FP, 0, 16);
 			break;
 
 		case 1:		/* lxv */
-			op->ea = dqform_ea(instr, regs);
-			if (instr & 8)
+			op->ea = dqform_ea(word, regs);
+			if (word & 8)
 				op->reg = rd + 32;
 			op->type = MKOP(LOAD_VSX, 0, 16);
 			op->element_size = 16;
@@ -2604,7 +2606,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 2:		/* stxsd with LSB of DS field = 0 */
 		case 6:		/* stxsd with LSB of DS field = 1 */
-			op->ea = dsform_ea(instr, regs);
+			op->ea = dsform_ea(word, regs);
 			op->reg = rd + 32;
 			op->type = MKOP(STORE_VSX, 0, 8);
 			op->element_size = 8;
@@ -2613,7 +2615,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 3:		/* stxssp with LSB of DS field = 0 */
 		case 7:		/* stxssp with LSB of DS field = 1 */
-			op->ea = dsform_ea(instr, regs);
+			op->ea = dsform_ea(word, regs);
 			op->reg = rd + 32;
 			op->type = MKOP(STORE_VSX, 0, 4);
 			op->element_size = 8;
@@ -2621,8 +2623,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			break;
 
 		case 5:		/* stxv */
-			op->ea = dqform_ea(instr, regs);
-			if (instr & 8)
+			op->ea = dqform_ea(word, regs);
+			if (word & 8)
 				op->reg = rd + 32;
 			op->type = MKOP(STORE_VSX, 0, 16);
 			op->element_size = 16;
@@ -2634,8 +2636,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 #ifdef __powerpc64__
 	case 62:	/* std[u] */
-		op->ea = dsform_ea(instr, regs);
-		switch (instr & 3) {
+		op->ea = dsform_ea(word, regs);
+		switch (word & 3) {
 		case 0:		/* std */
 			op->type = MKOP(STORE, 0, 8);
 			break;
@@ -2663,7 +2665,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	return 0;
 
  logical_done:
-	if (instr & 1)
+	if (word & 1)
 		set_cr0(regs, op);
  logical_done_nocc:
 	op->reg = ra;
@@ -2671,7 +2673,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	return 1;
 
  arith_done:
-	if (instr & 1)
+	if (word & 1)
 		set_cr0(regs, op);
  compute_done:
 	op->reg = rd;

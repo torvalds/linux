@@ -236,7 +236,7 @@ bool is_conditional_branch(unsigned int instr)
 	if (opcode == 16)       /* bc, bca, bcl, bcla */
 		return true;
 	if (opcode == 19) {
-		switch ((instr >> 1) & 0x3ff) {
+		switch ((ppc_inst_val(instr) >> 1) & 0x3ff) {
 		case 16:        /* bclr, bclrl */
 		case 528:       /* bcctr, bcctrl */
 		case 560:       /* bctar, bctarl */
@@ -304,7 +304,7 @@ static int instr_is_branch_bform(unsigned int instr)
 
 int instr_is_relative_branch(unsigned int instr)
 {
-	if (instr & BRANCH_ABSOLUTE)
+	if (ppc_inst_val(instr) & BRANCH_ABSOLUTE)
 		return 0;
 
 	return instr_is_branch_iform(instr) || instr_is_branch_bform(instr);
@@ -312,20 +312,20 @@ int instr_is_relative_branch(unsigned int instr)
 
 int instr_is_relative_link_branch(unsigned int instr)
 {
-	return instr_is_relative_branch(instr) && (instr & BRANCH_SET_LINK);
+	return instr_is_relative_branch(instr) && (ppc_inst_val(instr) & BRANCH_SET_LINK);
 }
 
 static unsigned long branch_iform_target(const unsigned int *instr)
 {
 	signed long imm;
 
-	imm = *instr & 0x3FFFFFC;
+	imm = ppc_inst_val(*instr) & 0x3FFFFFC;
 
 	/* If the top bit of the immediate value is set this is negative */
 	if (imm & 0x2000000)
 		imm -= 0x4000000;
 
-	if ((*instr & BRANCH_ABSOLUTE) == 0)
+	if ((ppc_inst_val(*instr) & BRANCH_ABSOLUTE) == 0)
 		imm += (unsigned long)instr;
 
 	return (unsigned long)imm;
@@ -335,13 +335,13 @@ static unsigned long branch_bform_target(const unsigned int *instr)
 {
 	signed long imm;
 
-	imm = *instr & 0xFFFC;
+	imm = ppc_inst_val(*instr) & 0xFFFC;
 
 	/* If the top bit of the immediate value is set this is negative */
 	if (imm & 0x8000)
 		imm -= 0x10000;
 
-	if ((*instr & BRANCH_ABSOLUTE) == 0)
+	if ((ppc_inst_val(*instr) & BRANCH_ABSOLUTE) == 0)
 		imm += (unsigned long)instr;
 
 	return (unsigned long)imm;
@@ -373,9 +373,9 @@ int translate_branch(unsigned int *instr, const unsigned int *dest,
 	target = branch_target(src);
 
 	if (instr_is_branch_iform(*src))
-		return create_branch(instr, dest, target, *src);
+		return create_branch(instr, dest, target, ppc_inst_val(*src));
 	else if (instr_is_branch_bform(*src))
-		return create_cond_branch(instr, dest, target, *src);
+		return create_cond_branch(instr, dest, target, ppc_inst_val(*src));
 
 	return 1;
 }

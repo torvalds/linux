@@ -260,21 +260,23 @@ static unsigned int rfin(unsigned int x)
 
 int emulate_altivec(struct pt_regs *regs)
 {
-	unsigned int instr, i;
+	unsigned int instr, i, word;
 	unsigned int va, vb, vc, vd;
 	vector128 *vrs;
 
 	if (get_user(instr, (unsigned int __user *) regs->nip))
 		return -EFAULT;
-	if ((instr >> 26) != 4)
+
+	word = ppc_inst_val(instr);
+	if ((word >> 26) != 4)
 		return -EINVAL;		/* not an altivec instruction */
-	vd = (instr >> 21) & 0x1f;
-	va = (instr >> 16) & 0x1f;
-	vb = (instr >> 11) & 0x1f;
-	vc = (instr >> 6) & 0x1f;
+	vd = (word >> 21) & 0x1f;
+	va = (word >> 16) & 0x1f;
+	vb = (word >> 11) & 0x1f;
+	vc = (word >> 6) & 0x1f;
 
 	vrs = current->thread.vr_state.vr;
-	switch (instr & 0x3f) {
+	switch (word & 0x3f) {
 	case 10:
 		switch (vc) {
 		case 0:	/* vaddfp */

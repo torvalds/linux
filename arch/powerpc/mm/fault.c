@@ -49,7 +49,7 @@
 static bool store_updates_sp(unsigned int inst)
 {
 	/* check for 1 in the rA field */
-	if (((inst >> 16) & 0x1f) != 1)
+	if (((ppc_inst_val(inst) >> 16) & 0x1f) != 1)
 		return false;
 	/* check major opcode */
 	switch (inst >> 26) {
@@ -60,10 +60,10 @@ static bool store_updates_sp(unsigned int inst)
 	case OP_STFDU:
 		return true;
 	case OP_STD:	/* std or stdu */
-		return (inst & 3) == 1;
+		return (ppc_inst_val(inst) & 3) == 1;
 	case OP_31:
 		/* check minor opcode */
-		switch ((inst >> 1) & 0x3ff) {
+		switch ((ppc_inst_val(inst) >> 1) & 0x3ff) {
 		case OP_31_XOP_STDUX:
 		case OP_31_XOP_STWUX:
 		case OP_31_XOP_STBUX:
