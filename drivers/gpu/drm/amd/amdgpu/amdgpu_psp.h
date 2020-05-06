@@ -222,10 +222,12 @@ struct psp_context
 	uint32_t			sos_bin_size;
 	uint32_t			toc_bin_size;
 	uint32_t			kdb_bin_size;
+	uint32_t			spl_bin_size;
 	uint8_t				*sys_start_addr;
 	uint8_t				*sos_start_addr;
 	uint8_t				*toc_start_addr;
 	uint8_t				*kdb_start_addr;
+	uint8_t				*spl_start_addr;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;

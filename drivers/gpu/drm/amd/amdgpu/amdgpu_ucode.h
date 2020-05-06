@@ -99,6 +99,14 @@ struct psp_firmware_header_v1_2 {
 	uint32_t kdb_size_bytes;
 };
 
+/* version_major=1, version_minor=3 */
+struct psp_firmware_header_v1_3 {
+	struct psp_firmware_header_v1_1 v1_1;
+	uint32_t spl_header_version;
+	uint32_t spl_offset_bytes;
+	uint32_t spl_size_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -266,6 +274,7 @@ union amdgpu_firmware_header {
 	struct smc_firmware_header_v2_0 smc_v2_0;
 	struct psp_firmware_header_v1_0 psp;
 	struct psp_firmware_header_v1_1 psp_v1_1;
+	struct psp_firmware_header_v1_3 psp_v1_3;
 	struct ta_firmware_header_v1_0 ta;
 	struct gfx_firmware_header_v1_0 gfx;
 	struct rlc_firmware_header_v1_0 rlc;
