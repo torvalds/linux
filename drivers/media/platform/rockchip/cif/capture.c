@@ -1641,14 +1641,12 @@ static int rkcif_fh_open(struct file *filp)
 	int ret;
 
 	/* Make sure active sensor is valid before .set_fmt() */
-	if (!cifdev->active_sensor) {
-		ret = rkcif_update_sensor_info(stream);
-		if (ret < 0) {
-			v4l2_err(vdev,
-				 "update sensor info failed %d\n",
-				 ret);
-			return ret;
-		}
+	ret = rkcif_update_sensor_info(stream);
+	if (ret < 0) {
+		v4l2_err(vdev,
+			 "update sensor info failed %d\n",
+			 ret);
+		return ret;
 	}
 
 	/*
@@ -1700,6 +1698,7 @@ static int rkcif_fh_release(struct file *filp)
 	else if (atomic_read(&cifdev->fh_cnt) < 0)
 		atomic_set(&cifdev->fh_cnt, 0);
 	mutex_unlock(&cifdev->stream_lock);
+	stream->cifdev->active_sensor = NULL;
 
 	return ret;
 }
