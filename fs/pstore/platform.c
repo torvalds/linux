@@ -44,7 +44,7 @@ static int pstore_update_ms = -1;
 module_param_named(update_ms, pstore_update_ms, int, 0600);
 MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
 		 "(default is -1, which means runtime updates are disabled; "
-		 "enabling this option is not safe, it may lead to further "
+		 "enabling this option may not be safe; it may lead to further "
 		 "corruption on Oopses)");
 
 /* Names should be in the same order as the enum pstore_type_id */
@@ -148,6 +148,14 @@ static const char *get_reason_str(enum kmsg_dump_reason reason)
 	default:
 		return "Unknown";
 	}
+}
+
+static void pstore_timer_kick(void)
+{
+	if (pstore_update_ms < 0)
+		return;
+
+	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
 /*
@@ -460,8 +468,10 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		}
 
 		ret = psinfo->write(&record);
-		if (ret == 0 && reason == KMSG_DUMP_OOPS)
+		if (ret == 0 && reason == KMSG_DUMP_OOPS) {
 			pstore_new_entry = 1;
+			pstore_timer_kick();
+		}
 
 		total += record.size;
 		part++;
@@ -604,11 +614,7 @@ int pstore_register(struct pstore_info *psi)
 		pstore_register_pmsg();
 
 	/* Start watching for new records, if desired. */
-	if (pstore_update_ms >= 0) {
-		pstore_timer.expires = jiffies +
-			msecs_to_jiffies(pstore_update_ms);
-		add_timer(&pstore_timer);
-	}
+	pstore_timer_kick();
 
 	/*
 	 * Update the module parameter backend, so it is visible
@@ -637,11 +643,7 @@ void pstore_unregister(struct pstore_info *psi)
 		return;
 	}
 
-	/* Stop timer and make sure all work has finished. */
-	pstore_update_ms = -1;
-	del_timer_sync(&pstore_timer);
-	flush_work(&pstore_work);
-
+	/* Unregister all callbacks. */
 	if (psi->flags & PSTORE_FLAGS_PMSG)
 		pstore_unregister_pmsg();
 	if (psi->flags & PSTORE_FLAGS_FTRACE)
@@ -650,6 +652,10 @@ void pstore_unregister(struct pstore_info *psi)
 		pstore_unregister_console();
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		pstore_unregister_kmsg();
+
+	/* Stop timer and make sure all work has finished. */
+	del_timer_sync(&pstore_timer);
+	flush_work(&pstore_work);
 
 	free_buf_for_compression();
 
@@ -792,9 +798,7 @@ static void pstore_timefunc(struct timer_list *unused)
 		schedule_work(&pstore_work);
 	}
 
-	if (pstore_update_ms >= 0)
-		mod_timer(&pstore_timer,
-			  jiffies + msecs_to_jiffies(pstore_update_ms));
+	pstore_timer_kick();
 }
 
 static void __init pstore_choose_compression(void)
