@@ -771,7 +771,7 @@ extern int qlafx00_fw_ready(scsi_qla_host_t *);
 extern int qlafx00_configure_devices(scsi_qla_host_t *);
 extern int qlafx00_reset_initialize(scsi_qla_host_t *);
 extern int qlafx00_fx_disc(scsi_qla_host_t *, fc_port_t *, uint16_t);
-extern int qlafx00_process_aen(struct scsi_qla_host *, struct qla_work_evt *);
+extern void qlafx00_process_aen(struct scsi_qla_host *, struct qla_work_evt *);
 extern int qlafx00_post_aenfx_work(struct scsi_qla_host *,  uint32_t,
 				   uint32_t *, int);
 extern uint32_t qlafx00_fw_state_show(struct device *,
