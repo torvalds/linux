@@ -29,7 +29,6 @@
 
 #define TEST_FAILURE 1
 #define TEST_SUCCESS 0
-#define INCFS_MAX_MTREE_LEVELS 8
 
 #define INCFS_ROOT_INODE 0
 
@@ -2624,7 +2623,7 @@ static int large_file(char *mount_dir)
 		.fill_blocks = ptr_to_u64(block_buf),
 	};
 	incfs_uuid_t id;
-	int fd;
+	int fd = -1;
 
 	backing_dir = create_backing_dir(mount_dir);
 	if (!backing_dir)
