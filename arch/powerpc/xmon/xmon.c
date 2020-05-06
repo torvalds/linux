@@ -62,6 +62,7 @@
 
 #include "nonstdio.h"
 #include "dis-asm.h"
+#include "xmon_bpts.h"
 
 #ifdef CONFIG_SMP
 static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
@@ -109,17 +110,12 @@ struct bpt {
 #define BP_TRAP		2
 #define BP_DABR		4
 
-#define NBPTS	256
 static struct bpt bpts[NBPTS];
 static struct bpt dabr;
 static struct bpt *iabr;
 static unsigned bpinstr = 0x7fe00008;	/* trap */
 
 #define BP_NUM(bp)	((bp) - bpts + 1)
-
-#define BPT_SIZE       (sizeof(unsigned int) * 2)
-#define BPT_WORDS      (BPT_SIZE / sizeof(unsigned int))
-static unsigned int bpt_table[NBPTS * BPT_WORDS];
 
 /* Prototypes */
 static int cmds(struct pt_regs *);
