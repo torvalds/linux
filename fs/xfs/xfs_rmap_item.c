@@ -50,7 +50,7 @@ xfs_rui_release(
 {
 	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
 	if (atomic_dec_and_test(&ruip->rui_refcount)) {
-		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_trans_ail_delete(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_rui_item_free(ruip);
 	}
 }

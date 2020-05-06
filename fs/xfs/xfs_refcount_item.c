@@ -50,7 +50,7 @@ xfs_cui_release(
 {
 	ASSERT(atomic_read(&cuip->cui_refcount) > 0);
 	if (atomic_dec_and_test(&cuip->cui_refcount)) {
-		xfs_trans_ail_remove(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_trans_ail_delete(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_cui_item_free(cuip);
 	}
 }

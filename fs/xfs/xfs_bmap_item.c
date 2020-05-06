@@ -51,7 +51,7 @@ xfs_bui_release(
 {
 	ASSERT(atomic_read(&buip->bui_refcount) > 0);
 	if (atomic_dec_and_test(&buip->bui_refcount)) {
-		xfs_trans_ail_remove(&buip->bui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_trans_ail_delete(&buip->bui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_bui_item_free(buip);
 	}
 }
