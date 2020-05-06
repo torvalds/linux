@@ -58,6 +58,9 @@ struct keyslot_manager *keyslot_manager_create(
 	const unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX],
 	void *ll_priv_data);
 
+void keyslot_manager_set_max_dun_bytes(struct keyslot_manager *ksm,
+				       unsigned int max_dun_bytes);
+
 int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 				     const struct blk_crypto_key *key);
 
@@ -67,6 +70,7 @@ void keyslot_manager_put_slot(struct keyslot_manager *ksm, unsigned int slot);
 
 bool keyslot_manager_crypto_mode_supported(struct keyslot_manager *ksm,
 					   enum blk_crypto_mode_num crypto_mode,
+					   unsigned int dun_bytes,
 					   unsigned int data_unit_size,
 					   bool is_hw_wrapped_key);
 

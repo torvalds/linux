@@ -108,9 +108,10 @@ int blk_crypto_submit_bio(struct bio **bio_ptr)
 
 	/* Get device keyslot if supported */
 	if (keyslot_manager_crypto_mode_supported(q->ksm,
-						  bc->bc_key->crypto_mode,
-						  bc->bc_key->data_unit_size,
-						  bc->bc_key->is_hw_wrapped)) {
+				bc->bc_key->crypto_mode,
+				blk_crypto_key_dun_bytes(bc->bc_key),
+				bc->bc_key->data_unit_size,
+				bc->bc_key->is_hw_wrapped)) {
 		err = bio_crypt_ctx_acquire_keyslot(bc, q->ksm);
 		if (!err)
 			return 0;
@@ -180,6 +181,8 @@ bool blk_crypto_endio(struct bio *bio)
  *                @is_hw_wrapped has to be set for such keys)
  * @is_hw_wrapped: Denotes @raw_key is wrapped.
  * @crypto_mode: identifier for the encryption algorithm to use
+ * @dun_bytes: number of bytes that will be used to specify the DUN when this
+ *	       key is used
  * @data_unit_size: the data unit size to use for en/decryption
  *
  * Return: The blk_crypto_key that was prepared, or an ERR_PTR() on error.  When
@@ -189,10 +192,12 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			const u8 *raw_key, unsigned int raw_key_size,
 			bool is_hw_wrapped,
 			enum blk_crypto_mode_num crypto_mode,
+			unsigned int dun_bytes,
 			unsigned int data_unit_size)
 {
 	const struct blk_crypto_mode *mode;
 	static siphash_key_t hash_key;
+	u32 hash;
 
 	memset(blk_key, 0, sizeof(*blk_key));
 
@@ -211,6 +216,9 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			return -EINVAL;
 	}
 
+	if (dun_bytes <= 0 || dun_bytes > BLK_CRYPTO_MAX_IV_SIZE)
+		return -EINVAL;
+
 	if (!is_power_of_2(data_unit_size))
 		return -EINVAL;
 
@@ -227,7 +235,8 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 	 * precomputed here so that it only needs to be computed once per key.
 	 */
 	get_random_once(&hash_key, sizeof(hash_key));
-	blk_key->hash = siphash(raw_key, raw_key_size, &hash_key);
+	hash = (u32)siphash(raw_key, raw_key_size, &hash_key);
+	blk_crypto_key_set_hash_and_dun_bytes(blk_key, hash, dun_bytes);
 
 	return 0;
 }
@@ -236,6 +245,7 @@ EXPORT_SYMBOL_GPL(blk_crypto_init_key);
 /**
  * blk_crypto_start_using_mode() - Start using blk-crypto on a device
  * @crypto_mode: the crypto mode that will be used
+ * @dun_bytes: number of bytes that will be used to specify the DUN
  * @data_unit_size: the data unit size that will be used
  * @is_hw_wrapped_key: whether the key will be hardware-wrapped
  * @q: the request queue for the device
@@ -249,12 +259,13 @@ EXPORT_SYMBOL_GPL(blk_crypto_init_key);
  *	   algorithm is disabled in the crypto API; or another -errno code.
  */
 int blk_crypto_start_using_mode(enum blk_crypto_mode_num crypto_mode,
+				unsigned int dun_bytes,
 				unsigned int data_unit_size,
 				bool is_hw_wrapped_key,
 				struct request_queue *q)
 {
 	if (keyslot_manager_crypto_mode_supported(q->ksm, crypto_mode,
-						  data_unit_size,
+						  dun_bytes, data_unit_size,
 						  is_hw_wrapped_key))
 		return 0;
 	if (is_hw_wrapped_key) {
@@ -285,6 +296,7 @@ int blk_crypto_evict_key(struct request_queue *q,
 {
 	if (q->ksm &&
 	    keyslot_manager_crypto_mode_supported(q->ksm, key->crypto_mode,
+						  blk_crypto_key_dun_bytes(key),
 						  key->data_unit_size,
 						  key->is_hw_wrapped))
 		return keyslot_manager_evict_key(q->ksm, key);
