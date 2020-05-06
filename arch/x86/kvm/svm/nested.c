@@ -269,7 +269,6 @@ void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 	svm->vmcb->save.rip = nested_vmcb->save.rip;
 	svm->vmcb->save.dr7 = nested_vmcb->save.dr7;
 	svm->vcpu.arch.dr6  = nested_vmcb->save.dr6;
-	kvm_update_dr6(&svm->vcpu);
 	svm->vmcb->save.cpl = nested_vmcb->save.cpl;
 
 	svm->nested.vmcb_msrpm = nested_vmcb->control.msrpm_base_pa & ~0x0fffULL;
@@ -634,10 +633,18 @@ static int nested_svm_intercept_db(struct vcpu_svm *svm)
 
 reflected_db:
 	/*
-	 * Synchronize guest DR6 here just like in db_interception; it will
-	 * be moved into the nested VMCB by nested_svm_vmexit.
+	 * Synchronize guest DR6 here just like in kvm_deliver_exception_payload;
+	 * it will be moved into the nested VMCB by nested_svm_vmexit.  Once
+	 * exceptions will be moved to svm_check_nested_events, all this stuff
+	 * will just go away and we could just return NESTED_EXIT_HOST
+	 * unconditionally.  db_interception will queue the exception, which
+	 * will be processed by svm_check_nested_events if a nested vmexit is
+	 * required, and we will just use kvm_deliver_exception_payload to copy
+	 * the payload to DR6 before vmexit.
 	 */
-	svm->vcpu.arch.dr6 = dr6;
+	WARN_ON(svm->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT);
+	svm->vcpu.arch.dr6 &= ~(DR_TRAP_BITS | DR6_RTM);
+	svm->vcpu.arch.dr6 |= dr6 & ~DR6_FIXED_1;
 	return NESTED_EXIT_DONE;
 }
 
