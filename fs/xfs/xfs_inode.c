@@ -2172,7 +2172,7 @@ xfs_iunlink_update_inode(
 
 	ASSERT(xfs_verify_agino_or_null(mp, agno, next_agino));
 
-	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &ibp, 0, 0);
+	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &ibp, 0);
 	if (error)
 		return error;
 
@@ -2302,7 +2302,7 @@ xfs_iunlink_map_ino(
 		return error;
 	}
 
-	error = xfs_imap_to_bp(mp, tp, imap, dipp, bpp, 0, 0);
+	error = xfs_imap_to_bp(mp, tp, imap, dipp, bpp, 0);
 	if (error) {
 		xfs_warn(mp, "%s: xfs_imap_to_bp returned error %d.",
 				__func__, error);
@@ -3665,8 +3665,7 @@ xfs_iflush(
 	 * If we get any other error, we effectively have a corruption situation
 	 * and we cannot flush the inode. Abort the flush and shut down.
 	 */
-	error = xfs_imap_to_bp(mp, NULL, &ip->i_imap, &dip, &bp, XBF_TRYLOCK,
-			       0);
+	error = xfs_imap_to_bp(mp, NULL, &ip->i_imap, &dip, &bp, XBF_TRYLOCK);
 	if (error == -EAGAIN) {
 		xfs_ifunlock(ip);
 		return error;

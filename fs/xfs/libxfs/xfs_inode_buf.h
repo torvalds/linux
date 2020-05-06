@@ -48,7 +48,7 @@ struct xfs_imap {
 
 int	xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
 		       struct xfs_imap *, struct xfs_dinode **,
-		       struct xfs_buf **, uint, uint);
+		       struct xfs_buf **, uint);
 int	xfs_iread(struct xfs_mount *, struct xfs_trans *,
 		  struct xfs_inode *, uint);
 void	xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
