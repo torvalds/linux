@@ -580,11 +580,6 @@ static u32 cm_local_id(__be32 local_id)
 	return (__force u32) (local_id ^ cm.random_id_operand);
 }
 
-static void cm_free_id(__be32 local_id)
-{
-	xa_erase_irq(&cm.local_id_table, cm_local_id(local_id));
-}
-
 static struct cm_id_private *cm_acquire_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
@@ -1136,7 +1131,7 @@ retest:
 	case IB_CM_TIMEWAIT:
 		/*
 		 * The cm_acquire_id in cm_timewait_handler will stop working
-		 * once we do cm_free_id() below, so just move to idle here for
+		 * once we do xa_erase below, so just move to idle here for
 		 * consistency.
 		 */
 		cm_id->state = IB_CM_IDLE;
@@ -1166,7 +1161,7 @@ retest:
 	spin_unlock(&cm.lock);
 	spin_unlock_irq(&cm_id_priv->lock);
 
-	cm_free_id(cm_id->local_id);
+	xa_erase_irq(&cm.local_id_table, cm_local_id(cm_id->local_id));
 	cm_deref_id(cm_id_priv);
 	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
