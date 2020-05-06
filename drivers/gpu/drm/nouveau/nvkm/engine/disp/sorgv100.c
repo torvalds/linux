@@ -103,7 +103,7 @@ gv100_sor = {
 	.hda = {
 		.hpd = gf119_hda_hpd,
 		.eld = gf119_hda_eld,
-		.device_entry = gf119_hda_device_entry,
+		.device_entry = gv100_hda_device_entry,
 	},
 };
 
