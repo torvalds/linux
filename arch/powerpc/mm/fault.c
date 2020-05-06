@@ -282,7 +282,7 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 	 * expand to 1MB without further checks.
 	 */
 	if (address + 0x100000 < vma->vm_end) {
-		unsigned int __user *nip = (unsigned int __user *)regs->nip;
+		struct ppc_inst __user *nip = (struct ppc_inst __user *)regs->nip;
 		/* get user regs even if this fault is in kernel mode */
 		struct pt_regs *uregs = current->thread.regs;
 		if (uregs == NULL)
@@ -307,7 +307,7 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 		    access_ok(nip, sizeof(*nip))) {
 			struct ppc_inst inst;
 
-			if (!probe_user_read(&inst, nip, sizeof(inst)))
+			if (!probe_user_read_inst(&inst, nip))
 				return !store_updates_sp(inst);
 			*must_retry = true;
 		}
