@@ -978,21 +978,22 @@ static int bq25890_resume(struct device *dev)
 
 	ret = bq25890_get_chip_state(bq, &bq->state);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	/* Re-enable ADC only if charger is plugged in. */
 	if (bq->state.online) {
 		ret = bq25890_field_write(bq, F_CONV_START, 1);
 		if (ret < 0)
-			return ret;
+			goto unlock;
 	}
 
 	/* signal userspace, maybe state changed while suspended */
 	power_supply_changed(bq->charger);
 
+unlock:
 	mutex_unlock(&bq->lock);
 
-	return 0;
+	return ret;
 }
 #endif
 
