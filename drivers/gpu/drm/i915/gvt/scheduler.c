@@ -379,7 +379,11 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 		for (i = 0; i < GVT_RING_CTX_NR_PDPS; i++) {
 			struct i915_page_directory * const pd =
 				i915_pd_entry(ppgtt->pd, i);
-
+			/* skip now as current i915 ppgtt alloc won't allocate
+			   top level pdp for non 4-level table, won't impact
+			   shadow ppgtt. */
+			if (!pd)
+				break;
 			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
