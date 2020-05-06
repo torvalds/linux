@@ -161,24 +161,24 @@ int evsel__object_config(size_t object_size,
 struct perf_pmu *evsel__find_pmu(struct evsel *evsel);
 bool evsel__is_aux_event(struct evsel *evsel);
 
-struct evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
+struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx);
 
 static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 {
-	return perf_evsel__new_idx(attr, 0);
+	return evsel__new_idx(attr, 0);
 }
 
-struct evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
-static inline struct evsel *perf_evsel__newtp(const char *sys, const char *name)
+static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
-	return perf_evsel__newtp_idx(sys, name, 0);
+	return evsel__newtp_idx(sys, name, 0);
 }
 
-struct evsel *perf_evsel__new_cycles(bool precise);
+struct evsel *evsel__new_cycles(bool precise);
 
 struct tep_event *event_format__new(const char *sys, const char *name);
 

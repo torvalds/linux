@@ -461,11 +461,11 @@ static int evsel__init_raw_syscall_tp(struct evsel *evsel, void *handler)
 
 static struct evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *handler)
 {
-	struct evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+	struct evsel *evsel = evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
 	if (IS_ERR(evsel))
-		evsel = perf_evsel__newtp("syscalls", direction);
+		evsel = evsel__newtp("syscalls", direction);
 
 	if (IS_ERR(evsel))
 		return NULL;
@@ -3045,7 +3045,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 	return found;
 }
 
-static struct evsel *perf_evsel__new_pgfault(u64 config)
+static struct evsel *evsel__new_pgfault(u64 config)
 {
 	struct evsel *evsel;
 	struct perf_event_attr attr = {
@@ -3841,7 +3841,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ)) {
-		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
+		pgfault_maj = evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
 		if (pgfault_maj == NULL)
 			goto out_error_mem;
 		evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
@@ -3849,7 +3849,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMIN)) {
-		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
+		pgfault_min = evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
 		if (pgfault_min == NULL)
 			goto out_error_mem;
 		evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);

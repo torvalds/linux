@@ -233,7 +233,7 @@ void perf_evlist__set_leader(struct evlist *evlist)
 
 int __perf_evlist__add_default(struct evlist *evlist, bool precise)
 {
-	struct evsel *evsel = perf_evsel__new_cycles(precise);
+	struct evsel *evsel = evsel__new_cycles(precise);
 
 	if (evsel == NULL)
 		return -ENOMEM;
@@ -249,7 +249,7 @@ int perf_evlist__add_dummy(struct evlist *evlist)
 		.config = PERF_COUNT_SW_DUMMY,
 		.size	= sizeof(attr), /* to capture ABI version */
 	};
-	struct evsel *evsel = perf_evsel__new_idx(&attr, evlist->core.nr_entries);
+	struct evsel *evsel = evsel__new_idx(&attr, evlist->core.nr_entries);
 
 	if (evsel == NULL)
 		return -ENOMEM;
@@ -266,7 +266,7 @@ static int evlist__add_attrs(struct evlist *evlist,
 	size_t i;
 
 	for (i = 0; i < nr_attrs; i++) {
-		evsel = perf_evsel__new_idx(attrs + i, evlist->core.nr_entries + i);
+		evsel = evsel__new_idx(attrs + i, evlist->core.nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
 		list_add_tail(&evsel->core.node, &head);
@@ -325,7 +325,7 @@ perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 int perf_evlist__add_newtp(struct evlist *evlist,
 			   const char *sys, const char *name, void *handler)
 {
-	struct evsel *evsel = perf_evsel__newtp(sys, name);
+	struct evsel *evsel = evsel__newtp(sys, name);
 
 	if (IS_ERR(evsel))
 		return -1;

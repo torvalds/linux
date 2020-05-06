@@ -354,7 +354,7 @@ __add_event(struct list_head *list, int *idx,
 
 	event_attr_init(attr);
 
-	evsel = perf_evsel__new_idx(attr, *idx);
+	evsel = evsel__new_idx(attr, *idx);
 	if (!evsel)
 		return NULL;
 
@@ -538,9 +538,8 @@ static int add_tracepoint(struct list_head *list, int *idx,
 			  struct parse_events_error *err,
 			  struct list_head *head_config)
 {
-	struct evsel *evsel;
+	struct evsel *evsel = evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 
-	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 	if (IS_ERR(evsel)) {
 		tracepoint_error(err, PTR_ERR(evsel), sys_name, evt_name);
 		return PTR_ERR(evsel);
