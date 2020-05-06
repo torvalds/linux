@@ -1,10 +1,6 @@
 #
 # These are all rather similar so we consider them a single platform
 #
-platform-$(CONFIG_SIBYTE_BCM112X)	+= sibyte/
-platform-$(CONFIG_SIBYTE_SB1250)	+= sibyte/
-platform-$(CONFIG_SIBYTE_BCM1x55)	+= sibyte/
-platform-$(CONFIG_SIBYTE_BCM1x80)	+= sibyte/
 
 #
 # Sibyte SB1250 / BCM1480 family of SOCs
