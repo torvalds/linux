@@ -21,8 +21,10 @@
 #include <linux/seq_file.h>
 #include <linux/hashtable.h>
 #include <linux/ip.h>
+#include <linux/rcupdate.h>
 #include <linux/refcount.h>
 #include <linux/timer.h>
+#include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -355,6 +357,12 @@ static inline bool qeth_l3_same_next_hop(struct qeth_hdr_layer3 *h1,
 	       ipv6_addr_equal(&h1->next_hop.ipv6_addr,
 			       &h2->next_hop.ipv6_addr);
 }
+
+struct qeth_local_addr {
+	struct hlist_node hnode;
+	struct rcu_head rcu;
+	struct in6_addr addr;
+};
 
 enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
@@ -800,6 +808,10 @@ struct qeth_card {
 	wait_queue_head_t wait_q;
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
+	DECLARE_HASHTABLE(local_addrs4, 4);
+	DECLARE_HASHTABLE(local_addrs6, 4);
+	spinlock_t local_addrs4_lock;
+	spinlock_t local_addrs6_lock;
 	struct mutex ip_lock;
 	DECLARE_HASHTABLE(ip_mc_htable, 4);
 	struct work_struct rx_mode_work;
@@ -1025,6 +1037,7 @@ void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
 void qeth_schedule_recovery(struct qeth_card *);
+void qeth_flush_local_addrs(struct qeth_card *card);
 int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);

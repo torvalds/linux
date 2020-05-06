@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/netdevice.h>
 #include <linux/netdev_features.h>
+#include <linux/rcutree.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 
@@ -623,6 +624,187 @@ void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason)
 }
 EXPORT_SYMBOL_GPL(qeth_notify_cmd);
 
+static void qeth_flush_local_addrs4(struct qeth_card *card)
+{
+	struct qeth_local_addr *addr;
+	struct hlist_node *tmp;
+	unsigned int i;
+
+	spin_lock_irq(&card->local_addrs4_lock);
+	hash_for_each_safe(card->local_addrs4, i, tmp, addr, hnode) {
+		hash_del_rcu(&addr->hnode);
+		kfree_rcu(addr, rcu);
+	}
+	spin_unlock_irq(&card->local_addrs4_lock);
+}
+
+static void qeth_flush_local_addrs6(struct qeth_card *card)
+{
+	struct qeth_local_addr *addr;
+	struct hlist_node *tmp;
+	unsigned int i;
+
+	spin_lock_irq(&card->local_addrs6_lock);
+	hash_for_each_safe(card->local_addrs6, i, tmp, addr, hnode) {
+		hash_del_rcu(&addr->hnode);
+		kfree_rcu(addr, rcu);
+	}
+	spin_unlock_irq(&card->local_addrs6_lock);
+}
+
+void qeth_flush_local_addrs(struct qeth_card *card)
+{
+	qeth_flush_local_addrs4(card);
+	qeth_flush_local_addrs6(card);
+}
+EXPORT_SYMBOL_GPL(qeth_flush_local_addrs);
+
+static void qeth_add_local_addrs4(struct qeth_card *card,
+				  struct qeth_ipacmd_local_addrs4 *cmd)
+{
+	unsigned int i;
+
+	if (cmd->addr_length !=
+	    sizeof_field(struct qeth_ipacmd_local_addr4, addr)) {
+		dev_err_ratelimited(&card->gdev->dev,
+				    "Dropped IPv4 ADD LOCAL ADDR event with bad length %u\n",
+				    cmd->addr_length);
+		return;
+	}
+
+	spin_lock(&card->local_addrs4_lock);
+	for (i = 0; i < cmd->count; i++) {
+		unsigned int key = ipv4_addr_hash(cmd->addrs[i].addr);
+		struct qeth_local_addr *addr;
+		bool duplicate = false;
+
+		hash_for_each_possible(card->local_addrs4, addr, hnode, key) {
+			if (addr->addr.s6_addr32[3] == cmd->addrs[i].addr) {
+				duplicate = true;
+				break;
+			}
+		}
+
+		if (duplicate)
+			continue;
+
+		addr = kmalloc(sizeof(*addr), GFP_ATOMIC);
+		if (!addr) {
+			dev_err(&card->gdev->dev,
+				"Failed to allocate local addr object. Traffic to %pI4 might suffer.\n",
+				&cmd->addrs[i].addr);
+			continue;
+		}
+
+		ipv6_addr_set(&addr->addr, 0, 0, 0, cmd->addrs[i].addr);
+		hash_add_rcu(card->local_addrs4, &addr->hnode, key);
+	}
+	spin_unlock(&card->local_addrs4_lock);
+}
+
+static void qeth_add_local_addrs6(struct qeth_card *card,
+				  struct qeth_ipacmd_local_addrs6 *cmd)
+{
+	unsigned int i;
+
+	if (cmd->addr_length !=
+	    sizeof_field(struct qeth_ipacmd_local_addr6, addr)) {
+		dev_err_ratelimited(&card->gdev->dev,
+				    "Dropped IPv6 ADD LOCAL ADDR event with bad length %u\n",
+				    cmd->addr_length);
+		return;
+	}
+
+	spin_lock(&card->local_addrs6_lock);
+	for (i = 0; i < cmd->count; i++) {
+		u32 key = ipv6_addr_hash(&cmd->addrs[i].addr);
+		struct qeth_local_addr *addr;
+		bool duplicate = false;
+
+		hash_for_each_possible(card->local_addrs6, addr, hnode, key) {
+			if (ipv6_addr_equal(&addr->addr, &cmd->addrs[i].addr)) {
+				duplicate = true;
+				break;
+			}
+		}
+
+		if (duplicate)
+			continue;
+
+		addr = kmalloc(sizeof(*addr), GFP_ATOMIC);
+		if (!addr) {
+			dev_err(&card->gdev->dev,
+				"Failed to allocate local addr object. Traffic to %pI6c might suffer.\n",
+				&cmd->addrs[i].addr);
+			continue;
+		}
+
+		addr->addr = cmd->addrs[i].addr;
+		hash_add_rcu(card->local_addrs6, &addr->hnode, key);
+	}
+	spin_unlock(&card->local_addrs6_lock);
+}
+
+static void qeth_del_local_addrs4(struct qeth_card *card,
+				  struct qeth_ipacmd_local_addrs4 *cmd)
+{
+	unsigned int i;
+
+	if (cmd->addr_length !=
+	    sizeof_field(struct qeth_ipacmd_local_addr4, addr)) {
+		dev_err_ratelimited(&card->gdev->dev,
+				    "Dropped IPv4 DEL LOCAL ADDR event with bad length %u\n",
+				    cmd->addr_length);
+		return;
+	}
+
+	spin_lock(&card->local_addrs4_lock);
+	for (i = 0; i < cmd->count; i++) {
+		struct qeth_ipacmd_local_addr4 *addr = &cmd->addrs[i];
+		unsigned int key = ipv4_addr_hash(addr->addr);
+		struct qeth_local_addr *tmp;
+
+		hash_for_each_possible(card->local_addrs4, tmp, hnode, key) {
+			if (tmp->addr.s6_addr32[3] == addr->addr) {
+				hash_del_rcu(&tmp->hnode);
+				kfree_rcu(tmp, rcu);
+				break;
+			}
+		}
+	}
+	spin_unlock(&card->local_addrs4_lock);
+}
+
+static void qeth_del_local_addrs6(struct qeth_card *card,
+				  struct qeth_ipacmd_local_addrs6 *cmd)
+{
+	unsigned int i;
+
+	if (cmd->addr_length !=
+	    sizeof_field(struct qeth_ipacmd_local_addr6, addr)) {
+		dev_err_ratelimited(&card->gdev->dev,
+				    "Dropped IPv6 DEL LOCAL ADDR event with bad length %u\n",
+				    cmd->addr_length);
+		return;
+	}
+
+	spin_lock(&card->local_addrs6_lock);
+	for (i = 0; i < cmd->count; i++) {
+		struct qeth_ipacmd_local_addr6 *addr = &cmd->addrs[i];
+		u32 key = ipv6_addr_hash(&addr->addr);
+		struct qeth_local_addr *tmp;
+
+		hash_for_each_possible(card->local_addrs6, tmp, hnode, key) {
+			if (ipv6_addr_equal(&tmp->addr, &addr->addr)) {
+				hash_del_rcu(&tmp->hnode);
+				kfree_rcu(tmp, rcu);
+				break;
+			}
+		}
+	}
+	spin_unlock(&card->local_addrs6_lock);
+}
+
 static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 		struct qeth_card *card)
 {
@@ -686,9 +868,19 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 	case IPA_CMD_MODCCID:
 		return cmd;
 	case IPA_CMD_REGISTER_LOCAL_ADDR:
+		if (cmd->hdr.prot_version == QETH_PROT_IPV4)
+			qeth_add_local_addrs4(card, &cmd->data.local_addrs4);
+		else if (cmd->hdr.prot_version == QETH_PROT_IPV6)
+			qeth_add_local_addrs6(card, &cmd->data.local_addrs6);
+
 		QETH_CARD_TEXT(card, 3, "irla");
 		return NULL;
 	case IPA_CMD_UNREGISTER_LOCAL_ADDR:
+		if (cmd->hdr.prot_version == QETH_PROT_IPV4)
+			qeth_del_local_addrs4(card, &cmd->data.local_addrs4);
+		else if (cmd->hdr.prot_version == QETH_PROT_IPV6)
+			qeth_del_local_addrs6(card, &cmd->data.local_addrs6);
+
 		QETH_CARD_TEXT(card, 3, "urla");
 		return NULL;
 	default:
@@ -1376,6 +1568,10 @@ static void qeth_setup_card(struct qeth_card *card)
 	qeth_init_qdio_info(card);
 	INIT_DELAYED_WORK(&card->buffer_reclaim_work, qeth_buffer_reclaim_work);
 	INIT_WORK(&card->close_dev_work, qeth_close_dev_handler);
+	hash_init(card->local_addrs4);
+	hash_init(card->local_addrs6);
+	spin_lock_init(&card->local_addrs4_lock);
+	spin_lock_init(&card->local_addrs6_lock);
 }
 
 static void qeth_core_sl_print(struct seq_file *m, struct service_level *slr)
@@ -6496,6 +6692,24 @@ void qeth_enable_hw_features(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(qeth_enable_hw_features);
 
+static void qeth_check_restricted_features(struct qeth_card *card,
+					   netdev_features_t changed,
+					   netdev_features_t actual)
+{
+	netdev_features_t ipv6_features = NETIF_F_TSO6;
+	netdev_features_t ipv4_features = NETIF_F_TSO;
+
+	if (!card->info.has_lp2lp_cso_v6)
+		ipv6_features |= NETIF_F_IPV6_CSUM;
+	if (!card->info.has_lp2lp_cso_v4)
+		ipv4_features |= NETIF_F_IP_CSUM;
+
+	if ((changed & ipv6_features) && !(actual & ipv6_features))
+		qeth_flush_local_addrs6(card);
+	if ((changed & ipv4_features) && !(actual & ipv4_features))
+		qeth_flush_local_addrs4(card);
+}
+
 int qeth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
@@ -6536,6 +6750,9 @@ int qeth_set_features(struct net_device *dev, netdev_features_t features)
 		if (rc)
 			changed ^= NETIF_F_TSO6;
 	}
+
+	qeth_check_restricted_features(card, dev->features ^ features,
+				       dev->features ^ changed);
 
 	/* everything changed successfully? */
 	if ((dev->features ^ features) == changed)

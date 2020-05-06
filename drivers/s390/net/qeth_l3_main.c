@@ -1176,6 +1176,7 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
+	qeth_flush_local_addrs(card);
 	card->info.promisc_mode = 0;
 }
 
