@@ -8119,8 +8119,7 @@ static __init int hardware_setup(void)
 		nested_vmx_setup_ctls_msrs(&vmcs_config.nested,
 					   vmx_capability.ept);
 
-		r = nested_vmx_hardware_setup(&vmx_x86_ops,
-					      kvm_vmx_exit_handlers);
+		r = nested_vmx_hardware_setup(kvm_vmx_exit_handlers);
 		if (r)
 			return r;
 	}

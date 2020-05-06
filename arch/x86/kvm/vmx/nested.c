@@ -6421,8 +6421,7 @@ void nested_vmx_hardware_unsetup(void)
 	}
 }
 
-__init int nested_vmx_hardware_setup(struct kvm_x86_ops *ops,
-				     int (*exit_handlers[])(struct kvm_vcpu *))
+__init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 {
 	int i;
 
