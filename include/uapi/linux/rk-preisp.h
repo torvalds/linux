@@ -57,6 +57,15 @@ struct preisp_hdrae_para_s {
 	int lsc_table[PREISP_LSCTBL_SIZE];
 };
 
+/*
+ * enum cg_mode_e conversion gain
+ *
+ */
+enum cg_mode_e {
+		GAIN_MODE_LCG,
+		GAIN_MODE_HCG,
+};
+
 /**
  * struct preisp_hdrae_exp_s - hdrae exposure
  *
@@ -74,6 +83,9 @@ struct preisp_hdrae_exp_s {
 	unsigned int middle_gain_val;
 	unsigned int short_exp_val;
 	unsigned int short_gain_val;
+	unsigned char long_cg_mode;
+	unsigned char middle_cg_mode;
+	unsigned char short_cg_mode;
 };
 
 #endif /* _UAPI_RKPREISP_H */

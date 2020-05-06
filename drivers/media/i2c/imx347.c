@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version
+ * V0.0X01.0X01 add conversion gain control
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -94,6 +95,10 @@
 #define IMX347_FETCH_VTS_H(VAL)		(((VAL) >> 16) & 0x0F)
 #define IMX347_FETCH_VTS_M(VAL)		(((VAL) >> 8) & 0xFF)
 #define IMX347_FETCH_VTS_L(VAL)		((VAL) & 0xFF)
+
+#define IMX347_GROUP_HOLD_REG		0x3001
+#define IMX347_GROUP_HOLD_START		0x01
+#define IMX347_GROUP_HOLD_END		0x00
 
 #define IMX347_VTS_REG_L		0x3030
 #define IMX347_VTS_REG_M		0x3031
@@ -706,7 +711,7 @@ static const struct imx347_mode supported_modes[] = {
 		.height = 1536,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 250000 * 2,
 		},
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
@@ -739,7 +744,7 @@ static const struct imx347_mode supported_modes[] = {
 		.height = 1538,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 250000 * 2,
 		},
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
@@ -901,7 +906,7 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 				imx347->cur_pixel_rate = IMX347_10BIT_LINEAR_PIXEL_RATE;
 			else if (mode->hdr_mode == HDR_X2)
 				imx347->cur_pixel_rate = IMX347_10BIT_HDR2_PIXEL_RATE;
-			imx347->cur_link_freq = MIPI_FREQ_594M;
+			imx347->cur_link_freq = 1;
 			clk_disable_unprepare(imx347->xvclk);
 			ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ_37M);
 			if (ret < 0)
@@ -913,7 +918,7 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 				dev_err(dev, "Failed to enable xvclk\n");
 		} else {
 			imx347->cur_pixel_rate = IMX347_12BIT_PIXEL_RATE;
-			imx347->cur_link_freq = MIPI_FREQ_360M;
+			imx347->cur_link_freq = 0;
 			clk_disable_unprepare(imx347->xvclk);
 			ret = clk_set_rate(imx347->xvclk, IMX347_XVCLK_FREQ_24M);
 			if (ret < 0)
@@ -924,10 +929,10 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 			if (ret < 0)
 				dev_err(dev, "Failed to enable xvclk\n");
 		}
-		__v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
-				imx347->cur_pixel_rate);
-		__v4l2_ctrl_s_ctrl(imx347->link_freq,
-				   imx347->cur_link_freq);
+		v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
+				       imx347->cur_pixel_rate);
+		v4l2_ctrl_s_ctrl(imx347->link_freq,
+				 imx347->cur_link_freq);
 	}
 
 	mutex_unlock(&imx347->mutex);
@@ -1065,6 +1070,7 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	int rhs1_change_limit;
 	int ret = 0;
 	u32 fsc = imx347->cur_vts * 2;
+	u8 cg_mode = 0;
 
 	if (!imx347->has_init_exp && !imx347->streaming) {
 		imx347->init_hdrae_exp = *ae;
@@ -1087,26 +1093,19 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 		//2 stagger
 		l_a_gain = m_a_gain;
 		l_exp_time = m_exp_time;
+		cg_mode = ae->middle_cg_mode;
 	}
-	//long gain and short gain
-	if (l_a_gain > 100) {
-		l_a_gain -= 27; //8.1db
-		s_a_gain = (s_a_gain < 27) ? 0 : (s_a_gain - 27);
-		if (!g_isHCG) {
-			gain_switch = 0x01 | 0x100;
-			g_isHCG = true;
-		}
-	} else if (l_a_gain < 44) {
-		if (g_isHCG) {
-			gain_switch = 0x00 | 0x100;
-			g_isHCG = false;
-		}
-	} else {
-		if (g_isHCG) {
-			l_a_gain -= 27;
-			s_a_gain = (s_a_gain < 27) ? 0 : (s_a_gain - 27);
-		}
+	if (!g_isHCG && cg_mode == GAIN_MODE_HCG) {
+		gain_switch = 0x01 | 0x100;
+		g_isHCG = true;
+	} else if (g_isHCG && cg_mode == GAIN_MODE_LCG) {
+		gain_switch = 0x00 | 0x100;
+		g_isHCG = false;
 	}
+	ret = imx347_write_reg(client,
+		IMX347_GROUP_HOLD_REG,
+		IMX347_REG_VALUE_08BIT,
+		IMX347_GROUP_HOLD_START);
 	//gain effect n+1
 	ret |= imx347_write_reg(client,
 		IMX347_LF_GAIN_REG_H,
@@ -1216,6 +1215,40 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 		IMX347_LF_EXPO_REG_H,
 		IMX347_REG_VALUE_08BIT,
 		IMX347_FETCH_EXP_H(shr0));
+	ret |= imx347_write_reg(client,
+		IMX347_GROUP_HOLD_REG,
+		IMX347_REG_VALUE_08BIT,
+		IMX347_GROUP_HOLD_END);
+	return ret;
+}
+
+static int imx347_set_conversion_gain(struct imx347 *imx347, u32 *cg)
+{
+	int ret = 0;
+	struct i2c_client *client = imx347->client;
+	int cur_cg = *cg;
+	u32 gain_switch = 0;
+
+	if (g_isHCG && cur_cg == GAIN_MODE_LCG) {
+		gain_switch = 0x00 | 0x100;
+		g_isHCG = false;
+	} else if (!g_isHCG && cur_cg == GAIN_MODE_HCG) {
+		gain_switch = 0x01 | 0x100;
+		g_isHCG = true;
+	}
+	ret = imx347_write_reg(client,
+			IMX347_GROUP_HOLD_REG,
+			IMX347_REG_VALUE_08BIT,
+			IMX347_GROUP_HOLD_START);
+	if (gain_switch & 0x100)
+		ret |= imx347_write_reg(client,
+			IMX347_GAIN_SWITCH_REG,
+			IMX347_REG_VALUE_08BIT,
+			gain_switch & 0xff);
+	ret |= imx347_write_reg(client,
+			IMX347_GROUP_HOLD_REG,
+			IMX347_REG_VALUE_08BIT,
+			IMX347_GROUP_HOLD_END);
 	return ret;
 }
 
@@ -1264,6 +1297,9 @@ static long imx347_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				1, h);
 		}
 		break;
+	case RKMODULE_SET_CONVERSION_GAIN:
+		ret = imx347_set_conversion_gain(imx347, (u32 *)arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1282,6 +1318,7 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
+	u32 cg = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1344,6 +1381,11 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = imx347_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
+	case RKMODULE_SET_CONVERSION_GAIN:
+		ret = copy_from_user(&cg, up, sizeof(cg));
+		if (!ret)
+			ret = imx347_ioctl(sd, cmd, &cg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1353,11 +1395,28 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+static int imx347_init_conversion_gain(struct imx347 *imx347)
+{
+	int ret = 0;
+	struct i2c_client *client = imx347->client;
+
+	ret = imx347_write_reg(client,
+		IMX347_GAIN_SWITCH_REG,
+		IMX347_REG_VALUE_08BIT,
+		0X00);
+	if (!ret)
+		g_isHCG = false;
+	return ret;
+}
+
 static int __imx347_start_stream(struct imx347 *imx347)
 {
 	int ret;
 
 	ret = imx347_write_array(imx347->client, imx347->cur_mode->reg_list);
+	if (ret)
+		return ret;
+	ret = imx347_init_conversion_gain(imx347);
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
@@ -1768,9 +1827,9 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 
 	imx347->link_freq = v4l2_ctrl_new_int_menu(handler,
 				NULL, V4L2_CID_LINK_FREQ,
-				0, 0, link_freq_menu_items);
+				1, 0, link_freq_menu_items);
 	if (imx347->cur_mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
-		imx347->cur_link_freq = MIPI_FREQ_594M;
+		imx347->cur_link_freq = 1;
 		if (imx347->cur_mode->hdr_mode == NO_HDR)
 			imx347->cur_pixel_rate =
 				IMX347_10BIT_LINEAR_PIXEL_RATE;
@@ -1778,12 +1837,12 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 			imx347->cur_pixel_rate =
 				IMX347_10BIT_HDR2_PIXEL_RATE;
 	} else {
-		imx347->cur_link_freq = MIPI_FREQ_360M;
+		imx347->cur_link_freq = 0;
 		imx347->cur_pixel_rate =
 				IMX347_12BIT_PIXEL_RATE;
 	}
-	__v4l2_ctrl_s_ctrl(imx347->link_freq,
-				   imx347->cur_link_freq);
+	v4l2_ctrl_s_ctrl(imx347->link_freq,
+			 imx347->cur_link_freq);
 	imx347->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 		V4L2_CID_PIXEL_RATE, 0, IMX347_10BIT_HDR2_PIXEL_RATE,
 		1, imx347->cur_pixel_rate);
