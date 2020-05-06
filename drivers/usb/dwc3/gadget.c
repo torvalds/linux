@@ -2844,9 +2844,16 @@ static void dwc3_gadget_endpoint_stream_event(struct dwc3_ep *dep,
 		 * hosts, force to reinitate the stream until the host is ready
 		 * instead of waiting for the host to prime the endpoint.
 		 */
-		dep->flags |= DWC3_EP_DELAY_START;
-		dwc3_stop_active_transfer(dep, true, true);
-		return;
+		if (DWC3_VER_IS_WITHIN(DWC32, 100A, ANY)) {
+			unsigned int cmd = DWC3_DGCMD_SET_ENDPOINT_PRIME;
+
+			dwc3_send_gadget_generic_command(dwc, cmd, dep->number);
+		} else {
+			dep->flags |= DWC3_EP_DELAY_START;
+			dwc3_stop_active_transfer(dep, true, true);
+			return;
+		}
+		break;
 	}
 
 out:
