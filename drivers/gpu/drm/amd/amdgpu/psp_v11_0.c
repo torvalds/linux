@@ -252,6 +252,39 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	return ret;
 }
 
+static int psp_v11_0_bootloader_load_spl(struct psp_context *psp)
+{
+	int ret;
+	uint32_t psp_gfxdrv_command_reg = 0;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* Check tOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	if (psp_v11_0_is_sos_alive(psp))
+		return 0;
+
+	ret = psp_v11_0_wait_for_bootloader(psp);
+	if (ret)
+		return ret;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+
+	/* Copy PSP SPL binary to memory */
+	memcpy(psp->fw_pri_buf, psp->spl_start_addr, psp->spl_bin_size);
+
+	/* Provide the PSP SPL to bootloader */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
+	psp_gfxdrv_command_reg = PSP_BL__LOAD_TOS_SPL_TABLE;
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
+	       psp_gfxdrv_command_reg);
+
+	ret = psp_v11_0_wait_for_bootloader(psp);
+
+	return ret;
+}
+
 static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 {
 	int ret;
@@ -785,6 +818,7 @@ static int psp_v11_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_kdb = psp_v11_0_bootloader_load_kdb,
+	.bootloader_load_spl = psp_v11_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
 	.bootloader_load_sos = psp_v11_0_bootloader_load_sos,
 	.ring_init = psp_v11_0_ring_init,

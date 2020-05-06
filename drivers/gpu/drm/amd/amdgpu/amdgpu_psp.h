@@ -50,6 +50,7 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
 	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
 	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
+	PSP_BL__LOAD_TOS_SPL_TABLE	= 0x10000000,
 };
 
 enum psp_ring_type
@@ -84,6 +85,7 @@ struct psp_funcs
 {
 	int (*init_microcode)(struct psp_context *psp);
 	int (*bootloader_load_kdb)(struct psp_context *psp);
+	int (*bootloader_load_spl)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
@@ -298,6 +300,8 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->init_microcode ? (psp)->funcs->init_microcode((psp)) : 0)
 #define psp_bootloader_load_kdb(psp) \
 		((psp)->funcs->bootloader_load_kdb ? (psp)->funcs->bootloader_load_kdb((psp)) : 0)
+#define psp_bootloader_load_spl(psp) \
+		((psp)->funcs->bootloader_load_spl ? (psp)->funcs->bootloader_load_spl((psp)) : 0)
 #define psp_bootloader_load_sysdrv(psp) \
 		((psp)->funcs->bootloader_load_sysdrv ? (psp)->funcs->bootloader_load_sysdrv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \

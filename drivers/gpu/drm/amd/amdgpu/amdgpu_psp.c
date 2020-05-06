@@ -1355,6 +1355,14 @@ static int psp_hw_start(struct psp_context *psp)
 			}
 		}
 
+		if (psp->spl_bin_size) {
+			ret = psp_bootloader_load_spl(psp);
+			if (ret) {
+				DRM_ERROR("PSP load spl failed!\n");
+				return ret;
+			}
+		}
+
 		ret = psp_bootloader_load_sysdrv(psp);
 		if (ret) {
 			DRM_ERROR("PSP load sysdrv failed!\n");
