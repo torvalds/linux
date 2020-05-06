@@ -1162,7 +1162,7 @@ xfs_qm_dqflush(
 
 out_abort:
 	dqp->dq_flags &= ~XFS_DQ_DIRTY;
-	xfs_trans_ail_remove(lip, SHUTDOWN_CORRUPT_INCORE);
+	xfs_trans_ail_remove(lip);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 out_unlock:
 	xfs_dqfunlock(dqp);

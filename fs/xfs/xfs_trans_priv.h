@@ -98,8 +98,7 @@ void xfs_trans_ail_delete(struct xfs_log_item *lip, int shutdown_type);
 
 static inline void
 xfs_trans_ail_remove(
-	struct xfs_log_item	*lip,
-	int			shutdown_type)
+	struct xfs_log_item	*lip)
 {
 	struct xfs_ail		*ailp = lip->li_ailp;
 	xfs_lsn_t		tail_lsn;

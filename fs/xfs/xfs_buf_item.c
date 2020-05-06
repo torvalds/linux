@@ -558,7 +558,7 @@ xfs_buf_item_put(
 	 * state.
 	 */
 	if (aborted)
-		xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
+		xfs_trans_ail_remove(lip);
 	xfs_buf_item_relse(bip->bli_buf);
 	return true;
 }

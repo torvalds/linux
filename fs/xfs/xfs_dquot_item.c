@@ -343,7 +343,7 @@ xfs_qm_qoff_logitem_relse(
 	ASSERT(test_bit(XFS_LI_IN_AIL, &lip->li_flags) ||
 	       test_bit(XFS_LI_ABORTED, &lip->li_flags) ||
 	       XFS_FORCED_SHUTDOWN(lip->li_mountp));
-	xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
+	xfs_trans_ail_remove(lip);
 	kmem_free(lip->li_lv_shadow);
 	kmem_free(qoff);
 }

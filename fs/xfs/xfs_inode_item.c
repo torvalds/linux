@@ -768,11 +768,7 @@ xfs_iflush_abort(
 	struct xfs_inode_log_item *iip = ip->i_itemp;
 
 	if (iip) {
-		if (test_bit(XFS_LI_IN_AIL, &iip->ili_item.li_flags)) {
-			xfs_trans_ail_remove(&iip->ili_item,
-					     stale ? SHUTDOWN_LOG_IO_ERROR :
-						     SHUTDOWN_CORRUPT_INCORE);
-		}
+		xfs_trans_ail_remove(&iip->ili_item);
 		iip->ili_logged = 0;
 		/*
 		 * Clear the ili_last_fields bits now that we know that the
