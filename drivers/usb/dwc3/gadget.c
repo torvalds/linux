@@ -919,7 +919,8 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 
 static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 		dma_addr_t dma, unsigned length, unsigned chain, unsigned node,
-		unsigned stream_id, unsigned short_not_ok, unsigned no_interrupt)
+		unsigned stream_id, unsigned short_not_ok,
+		unsigned no_interrupt, unsigned is_last)
 {
 	struct dwc3		*dwc = dep->dwc;
 	struct usb_gadget	*gadget = &dwc->gadget;
@@ -1012,6 +1013,8 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 
 	if (chain)
 		trb->ctrl |= DWC3_TRB_CTRL_CHN;
+	else if (dep->stream_capable && is_last)
+		trb->ctrl |= DWC3_TRB_CTRL_LST;
 
 	if (usb_endpoint_xfer_bulk(dep->endpoint.desc) && dep->stream_capable)
 		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(stream_id);
@@ -1039,6 +1042,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	unsigned		stream_id = req->request.stream_id;
 	unsigned		short_not_ok = req->request.short_not_ok;
 	unsigned		no_interrupt = req->request.no_interrupt;
+	unsigned		is_last = req->request.is_last;
 
 	if (req->request.num_sgs > 0) {
 		length = sg_dma_len(req->start_sg);
@@ -1059,7 +1063,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	req->num_trbs++;
 
 	__dwc3_prepare_one_trb(dep, trb, dma, length, chain, node,
-			stream_id, short_not_ok, no_interrupt);
+			stream_id, short_not_ok, no_interrupt, is_last);
 }
 
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
@@ -1104,7 +1108,8 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 					maxp - rem, false, 1,
 					req->request.stream_id,
 					req->request.short_not_ok,
-					req->request.no_interrupt);
+					req->request.no_interrupt,
+					req->request.is_last);
 		} else {
 			dwc3_prepare_one_trb(dep, req, chain, i);
 		}
@@ -1148,7 +1153,8 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 		__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, maxp - rem,
 				false, 1, req->request.stream_id,
 				req->request.short_not_ok,
-				req->request.no_interrupt);
+				req->request.no_interrupt,
+				req->request.is_last);
 	} else if (req->request.zero && req->request.length &&
 		   (IS_ALIGNED(req->request.length, maxp))) {
 		struct dwc3	*dwc = dep->dwc;
@@ -1165,7 +1171,8 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 		__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, 0,
 				false, 1, req->request.stream_id,
 				req->request.short_not_ok,
-				req->request.no_interrupt);
+				req->request.no_interrupt,
+				req->request.is_last);
 	} else {
 		dwc3_prepare_one_trb(dep, req, false, 0);
 	}
@@ -2718,6 +2725,19 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 	dwc3_gadget_endpoint_trbs_complete(dep, event, status);
 }
 
+static void dwc3_gadget_endpoint_transfer_complete(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event)
+{
+	int status = 0;
+
+	dep->flags &= ~DWC3_EP_TRANSFER_STARTED;
+
+	if (event->status & DEPEVT_STATUS_BUSERR)
+		status = -ECONNRESET;
+
+	dwc3_gadget_endpoint_trbs_complete(dep, event, status);
+}
+
 static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event)
 {
@@ -2781,8 +2801,10 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 			dep->flags &= ~DWC3_EP_DELAY_START;
 		}
 		break;
-	case DWC3_DEPEVT_STREAMEVT:
 	case DWC3_DEPEVT_XFERCOMPLETE:
+		dwc3_gadget_endpoint_transfer_complete(dep, event);
+		break;
+	case DWC3_DEPEVT_STREAMEVT:
 	case DWC3_DEPEVT_RXTXFIFOEVT:
 		break;
 	}
