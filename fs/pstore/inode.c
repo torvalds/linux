@@ -29,8 +29,8 @@
 
 #define	PSTORE_NAMELEN	64
 
-static DEFINE_SPINLOCK(allpstore_lock);
-static LIST_HEAD(allpstore);
+static DEFINE_SPINLOCK(records_list_lock);
+static LIST_HEAD(records_list);
 
 struct pstore_private {
 	struct list_head list;
@@ -196,9 +196,9 @@ static void pstore_evict_inode(struct inode *inode)
 
 	clear_inode(inode);
 	if (p) {
-		spin_lock_irqsave(&allpstore_lock, flags);
+		spin_lock_irqsave(&records_list_lock, flags);
 		list_del(&p->list);
-		spin_unlock_irqrestore(&allpstore_lock, flags);
+		spin_unlock_irqrestore(&records_list_lock, flags);
 		free_pstore_private(p);
 	}
 }
@@ -302,8 +302,8 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	WARN_ON(!inode_is_locked(d_inode(root)));
 
-	spin_lock_irqsave(&allpstore_lock, flags);
-	list_for_each_entry(pos, &allpstore, list) {
+	spin_lock_irqsave(&records_list_lock, flags);
+	list_for_each_entry(pos, &records_list, list) {
 		if (pos->record->type == record->type &&
 		    pos->record->id == record->id &&
 		    pos->record->psi == record->psi) {
@@ -311,7 +311,7 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&allpstore_lock, flags);
+	spin_unlock_irqrestore(&records_list_lock, flags);
 	if (rc)
 		return rc;
 
@@ -343,9 +343,9 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	d_add(dentry, inode);
 
-	spin_lock_irqsave(&allpstore_lock, flags);
-	list_add(&private->list, &allpstore);
-	spin_unlock_irqrestore(&allpstore_lock, flags);
+	spin_lock_irqsave(&records_list_lock, flags);
+	list_add(&private->list, &records_list);
+	spin_unlock_irqrestore(&records_list_lock, flags);
 
 	return 0;
 
