@@ -2,7 +2,7 @@
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
 
-#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
 
