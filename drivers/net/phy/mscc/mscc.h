@@ -353,7 +353,6 @@ struct vsc8531_private {
 	const struct vsc85xx_hw_stat *hw_stats;
 	u64 *stats;
 	int nstats;
-	bool pkg_init;
 	/* For multiple port PHYs; the MDIO address of the base PHY in the
 	 * package.
 	 */
