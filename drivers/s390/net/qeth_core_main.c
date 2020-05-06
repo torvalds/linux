@@ -4081,15 +4081,39 @@ static bool qeth_iqd_may_bulk(struct qeth_qdio_out_q *queue,
 	       qeth_l3_iqd_same_vlan(&prev_hdr->hdr.l3, &curr_hdr->hdr.l3);
 }
 
-static unsigned int __qeth_fill_buffer(struct sk_buff *skb,
-				       struct qeth_qdio_out_buffer *buf,
-				       bool is_first_elem, unsigned int offset)
+/**
+ * qeth_fill_buffer() - map skb into an output buffer
+ * @buf:	buffer to transport the skb
+ * @skb:	skb to map into the buffer
+ * @hdr:	qeth_hdr for this skb. Either at skb->data, or allocated
+ *		from qeth_core_header_cache.
+ * @offset:	when mapping the skb, start at skb->data + offset
+ * @hd_len:	if > 0, build a dedicated header element of this size
+ */
+static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
+				     struct sk_buff *skb, struct qeth_hdr *hdr,
+				     unsigned int offset, unsigned int hd_len)
 {
 	struct qdio_buffer *buffer = buf->buffer;
 	int element = buf->next_element_to_fill;
 	int length = skb_headlen(skb) - offset;
 	char *data = skb->data + offset;
 	unsigned int elem_length, cnt;
+	bool is_first_elem = true;
+
+	__skb_queue_tail(&buf->skb_list, skb);
+
+	/* build dedicated element for HW Header */
+	if (hd_len) {
+		is_first_elem = false;
+
+		buffer->element[element].addr = virt_to_phys(hdr);
+		buffer->element[element].length = hd_len;
+		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
+		/* remember to free cache-allocated HW header: */
+		buf->is_header[element] = ((void *)hdr != skb->data);
+		element++;
+	}
 
 	/* map linear part into buffer element(s) */
 	while (length > 0) {
@@ -4141,40 +4165,6 @@ static unsigned int __qeth_fill_buffer(struct sk_buff *skb,
 		buffer->element[element - 1].eflags = SBAL_EFLAGS_LAST_FRAG;
 	buf->next_element_to_fill = element;
 	return element;
-}
-
-/**
- * qeth_fill_buffer() - map skb into an output buffer
- * @buf:	buffer to transport the skb
- * @skb:	skb to map into the buffer
- * @hdr:	qeth_hdr for this skb. Either at skb->data, or allocated
- *		from qeth_core_header_cache.
- * @offset:	when mapping the skb, start at skb->data + offset
- * @hd_len:	if > 0, build a dedicated header element of this size
- */
-static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
-				     struct sk_buff *skb, struct qeth_hdr *hdr,
-				     unsigned int offset, unsigned int hd_len)
-{
-	struct qdio_buffer *buffer = buf->buffer;
-	bool is_first_elem = true;
-
-	__skb_queue_tail(&buf->skb_list, skb);
-
-	/* build dedicated header element */
-	if (hd_len) {
-		int element = buf->next_element_to_fill;
-		is_first_elem = false;
-
-		buffer->element[element].addr = virt_to_phys(hdr);
-		buffer->element[element].length = hd_len;
-		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		/* remember to free cache-allocated qeth_hdr: */
-		buf->is_header[element] = ((void *)hdr != skb->data);
-		buf->next_element_to_fill++;
-	}
-
-	return __qeth_fill_buffer(skb, buf, is_first_elem, offset);
 }
 
 static int __qeth_xmit(struct qeth_card *card, struct qeth_qdio_out_q *queue,
