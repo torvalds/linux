@@ -58,10 +58,8 @@ static void set_context_pdp_root_pointer(
 
 static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 {
-	struct drm_i915_gem_object *ctx_obj =
-		workload->req->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
-	struct page *page;
+	struct intel_context *ctx = workload->req->context;
 
 	if (WARN_ON(!workload->shadow_mm))
 		return;
@@ -69,11 +67,9 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 	if (WARN_ON(!atomic_read(&workload->shadow_mm->pincount)))
 		return;
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
-	shadow_ring_context = kmap(page);
+	shadow_ring_context = (struct execlist_ring_context *)ctx->lrc_reg_state;
 	set_context_pdp_root_pointer(shadow_ring_context,
 			(void *)workload->shadow_mm->ppgtt_mm.shadow_pdps);
-	kunmap(page);
 }
 
 /*
