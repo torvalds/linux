@@ -3559,21 +3559,18 @@ static inline int rdma_destroy_ah(struct ib_ah *ah, u32 flags)
 	return rdma_destroy_ah_user(ah, flags, NULL);
 }
 
-/**
- * ib_create_srq - Creates a SRQ associated with the specified protection
- *   domain.
- * @pd: The protection domain associated with the SRQ.
- * @srq_init_attr: A list of initial attributes required to create the
- *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
- *   the actual capabilities of the created SRQ.
- *
- * srq_attr->max_wr and srq_attr->max_sge are read the determine the
- * requested size of the SRQ, and set to the actual values allocated
- * on return.  If ib_create_srq() succeeds, then max_wr and max_sge
- * will always be at least as large as the requested values.
- */
-struct ib_srq *ib_create_srq(struct ib_pd *pd,
-			     struct ib_srq_init_attr *srq_init_attr);
+struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
+				  struct ib_srq_init_attr *srq_init_attr,
+				  struct ib_usrq_object *uobject,
+				  struct ib_udata *udata);
+static inline struct ib_srq *
+ib_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *srq_init_attr)
+{
+	if (!pd->device->ops.create_srq)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return ib_create_srq_user(pd, srq_init_attr, NULL, NULL);
+}
 
 /**
  * ib_modify_srq - Modifies the attributes for the specified SRQ.

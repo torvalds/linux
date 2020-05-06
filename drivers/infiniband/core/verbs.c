@@ -981,14 +981,28 @@ EXPORT_SYMBOL(rdma_destroy_ah_user);
 
 /* Shared receive queues */
 
-struct ib_srq *ib_create_srq(struct ib_pd *pd,
-			     struct ib_srq_init_attr *srq_init_attr)
+/**
+ * ib_create_srq_user - Creates a SRQ associated with the specified protection
+ *   domain.
+ * @pd: The protection domain associated with the SRQ.
+ * @srq_init_attr: A list of initial attributes required to create the
+ *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created SRQ.
+ * @uobject - uobject pointer if this is not a kernel SRQ
+ * @udata - udata pointer if this is not a kernel SRQ
+ *
+ * srq_attr->max_wr and srq_attr->max_sge are read the determine the
+ * requested size of the SRQ, and set to the actual values allocated
+ * on return.  If ib_create_srq() succeeds, then max_wr and max_sge
+ * will always be at least as large as the requested values.
+ */
+struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
+				  struct ib_srq_init_attr *srq_init_attr,
+				  struct ib_usrq_object *uobject,
+				  struct ib_udata *udata)
 {
 	struct ib_srq *srq;
 	int ret;
-
-	if (!pd->device->ops.create_srq)
-		return ERR_PTR(-EOPNOTSUPP);
 
 	srq = rdma_zalloc_drv_obj(pd->device, ib_srq);
 	if (!srq)
@@ -999,6 +1013,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 	srq->event_handler = srq_init_attr->event_handler;
 	srq->srq_context = srq_init_attr->srq_context;
 	srq->srq_type = srq_init_attr->srq_type;
+	srq->uobject = uobject;
 
 	if (ib_srq_has_cq(srq->srq_type)) {
 		srq->ext.cq = srq_init_attr->ext.cq;
@@ -1010,7 +1025,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 	}
 	atomic_inc(&pd->usecnt);
 
-	ret = pd->device->ops.create_srq(srq, srq_init_attr, NULL);
+	ret = pd->device->ops.create_srq(srq, srq_init_attr, udata);
 	if (ret) {
 		atomic_dec(&srq->pd->usecnt);
 		if (srq->srq_type == IB_SRQT_XRC)
@@ -1023,7 +1038,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 
 	return srq;
 }
-EXPORT_SYMBOL(ib_create_srq);
+EXPORT_SYMBOL(ib_create_srq_user);
 
 int ib_modify_srq(struct ib_srq *srq,
 		  struct ib_srq_attr *srq_attr,
