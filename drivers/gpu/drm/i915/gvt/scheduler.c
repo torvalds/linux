@@ -1014,6 +1014,9 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 	workload->complete(workload);
 
+	intel_vgpu_unpin_mm(workload->shadow_mm);
+	intel_vgpu_destroy_workload(workload);
+
 	atomic_dec(&s->running_workload_num);
 	wake_up(&scheduler->workload_complete_wq);
 
