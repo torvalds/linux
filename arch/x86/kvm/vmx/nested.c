@@ -3910,12 +3910,12 @@ static void copy_vmcs02_to_vmcs12_rare(struct kvm_vcpu *vcpu,
 
 	cpu = get_cpu();
 	vmx->loaded_vmcs = &vmx->nested.vmcs02;
-	vmx_vcpu_load(&vmx->vcpu, cpu);
+	vmx_vcpu_load_vmcs(vcpu, cpu, &vmx->vmcs01);
 
 	sync_vmcs02_to_vmcs12_rare(vcpu, vmcs12);
 
 	vmx->loaded_vmcs = &vmx->vmcs01;
-	vmx_vcpu_load(&vmx->vcpu, cpu);
+	vmx_vcpu_load_vmcs(vcpu, cpu, &vmx->nested.vmcs02);
 	put_cpu();
 }
 
