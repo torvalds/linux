@@ -964,8 +964,10 @@ static u8 cm_ack_timeout(u8 ca_ack_delay, u8 packet_life_time)
 	return min(31, ack_timeout);
 }
 
-static void cm_cleanup_timewait(struct cm_timewait_info *timewait_info)
+static void cm_remove_remote(struct cm_id_private *cm_id_priv)
 {
+	struct cm_timewait_info *timewait_info = cm_id_priv->timewait_info;
+
 	if (timewait_info->inserted_remote_id) {
 		rb_erase(&timewait_info->remote_id_node, &cm.remote_id_table);
 		timewait_info->inserted_remote_id = 0;
@@ -1004,7 +1006,7 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 		return;
 
 	spin_lock_irqsave(&cm.lock, flags);
-	cm_cleanup_timewait(cm_id_priv->timewait_info);
+	cm_remove_remote(cm_id_priv);
 	list_add_tail(&cm_id_priv->timewait_info->list, &cm.timewait_list);
 	spin_unlock_irqrestore(&cm.lock, flags);
 
@@ -1035,7 +1037,7 @@ static void cm_reset_to_idle(struct cm_id_private *cm_id_priv)
 	cm_id_priv->id.state = IB_CM_IDLE;
 	if (cm_id_priv->timewait_info) {
 		spin_lock_irqsave(&cm.lock, flags);
-		cm_cleanup_timewait(cm_id_priv->timewait_info);
+		cm_remove_remote(cm_id_priv);
 		spin_unlock_irqrestore(&cm.lock, flags);
 		kfree(cm_id_priv->timewait_info);
 		cm_id_priv->timewait_info = NULL;
@@ -1136,7 +1138,7 @@ retest:
 	spin_lock(&cm.lock);
 	/* Required for cleanup paths related cm_req_handler() */
 	if (cm_id_priv->timewait_info) {
-		cm_cleanup_timewait(cm_id_priv->timewait_info);
+		cm_remove_remote(cm_id_priv);
 		kfree(cm_id_priv->timewait_info);
 		cm_id_priv->timewait_info = NULL;
 	}
@@ -1971,7 +1973,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	/* Check for stale connections. */
 	timewait_info = cm_insert_remote_qpn(cm_id_priv->timewait_info);
 	if (timewait_info) {
-		cm_cleanup_timewait(cm_id_priv->timewait_info);
+		cm_remove_remote(cm_id_priv);
 		cur_cm_id_priv = cm_acquire_id(timewait_info->work.local_id,
 					   timewait_info->work.remote_id);
 
@@ -1992,7 +1994,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 		cm_id_priv->id.device,
 		cpu_to_be64(IBA_GET(CM_REQ_SERVICE_ID, req_msg)));
 	if (!listen_cm_id_priv) {
-		cm_cleanup_timewait(cm_id_priv->timewait_info);
+		cm_remove_remote(cm_id_priv);
 		spin_unlock_irq(&cm.lock);
 		cm_issue_rej(work->port, work->mad_recv_wc,
 			     IB_CM_REJ_INVALID_SERVICE_ID, CM_MSG_RESPONSE_REQ,
@@ -2475,9 +2477,7 @@ static int cm_rep_handler(struct cm_work *work)
 	/* Check for a stale connection. */
 	timewait_info = cm_insert_remote_qpn(cm_id_priv->timewait_info);
 	if (timewait_info) {
-		rb_erase(&cm_id_priv->timewait_info->remote_id_node,
-			 &cm.remote_id_table);
-		cm_id_priv->timewait_info->inserted_remote_id = 0;
+		cm_remove_remote(cm_id_priv);
 		cur_cm_id_priv = cm_acquire_id(timewait_info->work.local_id,
 					   timewait_info->work.remote_id);
 
