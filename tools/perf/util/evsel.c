@@ -371,7 +371,7 @@ out_err:
 	return ERR_PTR(err);
 }
 
-const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
+const char *evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -386,8 +386,8 @@ const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
 
 static const char *__evsel__hw_name(u64 config)
 {
-	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
-		return perf_evsel__hw_names[config];
+	if (config < PERF_COUNT_HW_MAX && evsel__hw_names[config])
+		return evsel__hw_names[config];
 
 	return "unknown-hardware";
 }
@@ -434,7 +434,7 @@ static int evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
-const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
+const char *evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"cpu-clock",
 	"task-clock",
 	"page-faults",
@@ -449,8 +449,8 @@ const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 
 static const char *__evsel__sw_name(u64 config)
 {
-	if (config < PERF_COUNT_SW_MAX && perf_evsel__sw_names[config])
-		return perf_evsel__sw_names[config];
+	if (config < PERF_COUNT_SW_MAX && evsel__sw_names[config])
+		return evsel__sw_names[config];
 	return "unknown-software";
 }
 
@@ -485,8 +485,7 @@ static int evsel__bp_name(struct evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
-const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
-				[PERF_EVSEL__MAX_ALIASES] = {
+const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
  { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
  { "LLC",	"L2",							},
@@ -496,15 +495,13 @@ const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
  { "node",								},
 };
 
-const char *perf_evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX]
-				   [PERF_EVSEL__MAX_ALIASES] = {
+const char *evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][EVSEL__MAX_ALIASES] = {
  { "load",	"loads",	"read",					},
  { "store",	"stores",	"write",				},
  { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
-const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
-				       [PERF_EVSEL__MAX_ALIASES] = {
+const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_ALIASES] = {
  { "refs",	"Reference",	"ops",		"access",		},
  { "misses",	"miss",							},
 };
@@ -520,7 +517,7 @@ const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
  * L1I : Read and prefetch only
  * ITLB and BPU : Read-only
  */
-static unsigned long perf_evsel__hw_cache_stat[C(MAX)] = {
+static unsigned long evsel__hw_cache_stat[C(MAX)] = {
  [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
  [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
  [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
@@ -532,7 +529,7 @@ static unsigned long perf_evsel__hw_cache_stat[C(MAX)] = {
 
 bool evsel__is_cache_op_valid(u8 type, u8 op)
 {
-	if (perf_evsel__hw_cache_stat[type] & COP(op))
+	if (evsel__hw_cache_stat[type] & COP(op))
 		return true;	/* valid */
 	else
 		return false;	/* invalid */
@@ -541,13 +538,13 @@ bool evsel__is_cache_op_valid(u8 type, u8 op)
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size)
 {
 	if (result) {
-		return scnprintf(bf, size, "%s-%s-%s", perf_evsel__hw_cache[type][0],
-				 perf_evsel__hw_cache_op[op][0],
-				 perf_evsel__hw_cache_result[result][0]);
+		return scnprintf(bf, size, "%s-%s-%s", evsel__hw_cache[type][0],
+				 evsel__hw_cache_op[op][0],
+				 evsel__hw_cache_result[result][0]);
 	}
 
-	return scnprintf(bf, size, "%s-%s", perf_evsel__hw_cache[type][0],
-			 perf_evsel__hw_cache_op[op][1]);
+	return scnprintf(bf, size, "%s-%s", evsel__hw_cache[type][0],
+			 evsel__hw_cache_op[op][1]);
 }
 
 static int __evsel__hw_cache_name(u64 config, char *bf, size_t size)

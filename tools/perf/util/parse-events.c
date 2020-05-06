@@ -399,13 +399,13 @@ static int add_event_tool(struct list_head *list, int *idx,
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
+static int parse_aliases(char *str, const char *names[][EVSEL__MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
 
 	for (i = 0; i < size; i++) {
-		for (j = 0; j < PERF_EVSEL__MAX_ALIASES && names[i][j]; j++) {
+		for (j = 0; j < EVSEL__MAX_ALIASES && names[i][j]; j++) {
 			n = strlen(names[i][j]);
 			if (n > longest && !strncasecmp(str, names[i][j], n))
 				longest = n;
@@ -444,8 +444,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	 * No fallback - if we cannot get a clear cache type
 	 * then bail out:
 	 */
-	cache_type = parse_aliases(type, perf_evsel__hw_cache,
-				   PERF_COUNT_HW_CACHE_MAX);
+	cache_type = parse_aliases(type, evsel__hw_cache, PERF_COUNT_HW_CACHE_MAX);
 	if (cache_type == -1)
 		return -EINVAL;
 
@@ -458,7 +457,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 		n += snprintf(name + n, MAX_NAME_LEN - n, "-%s", str);
 
 		if (cache_op == -1) {
-			cache_op = parse_aliases(str, perf_evsel__hw_cache_op,
+			cache_op = parse_aliases(str, evsel__hw_cache_op,
 						 PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
 				if (!evsel__is_cache_op_valid(cache_type, cache_op))
@@ -468,7 +467,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 		}
 
 		if (cache_result == -1) {
-			cache_result = parse_aliases(str, perf_evsel__hw_cache_result,
+			cache_result = parse_aliases(str, evsel__hw_cache_result,
 						     PERF_COUNT_HW_CACHE_RESULT_MAX);
 			if (cache_result >= 0)
 				continue;
