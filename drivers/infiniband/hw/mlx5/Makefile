@@ -16,7 +16,8 @@ mlx5_ib-y := ah.o \
 	     qpc.o \
 	     restrack.o \
 	     srq.o \
-	     srq_cmd.o
+	     srq_cmd.o \
+	     wr.o
 
 mlx5_ib-$(CONFIG_INFINIBAND_ON_DEMAND_PAGING) += odp.o
 mlx5_ib-$(CONFIG_MLX5_ESWITCH) += ib_rep.o

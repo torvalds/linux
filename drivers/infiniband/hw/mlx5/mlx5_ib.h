@@ -1178,10 +1178,6 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 void mlx5_ib_drain_sq(struct ib_qp *qp);
 void mlx5_ib_drain_rq(struct ib_qp *qp);
-int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
-		      const struct ib_send_wr **bad_wr);
-int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
-		      const struct ib_recv_wr **bad_wr);
 int mlx5_ib_read_wqe_sq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
 			size_t buflen, size_t *bc);
 int mlx5_ib_read_wqe_rq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,

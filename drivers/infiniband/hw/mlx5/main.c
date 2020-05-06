@@ -61,6 +61,7 @@
 #include "cmd.h"
 #include "srq.h"
 #include "qp.h"
+#include "wr.h"
 #include <linux/mlx5/fs_helpers.h>
 #include <linux/mlx5/accel.h>
 #include <rdma/uverbs_std_types.h>
@@ -6657,8 +6658,8 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.modify_qp = mlx5_ib_modify_qp,
 	.modify_srq = mlx5_ib_modify_srq,
 	.poll_cq = mlx5_ib_poll_cq,
-	.post_recv = mlx5_ib_post_recv,
-	.post_send = mlx5_ib_post_send,
+	.post_recv = mlx5_ib_post_recv_nodrain,
+	.post_send = mlx5_ib_post_send_nodrain,
 	.post_srq_recv = mlx5_ib_post_srq_recv,
 	.process_mad = mlx5_ib_process_mad,
 	.query_ah = mlx5_ib_query_ah,
