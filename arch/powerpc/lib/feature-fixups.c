@@ -44,6 +44,7 @@ static unsigned int *calc_addr(struct fixup_entry *fcur, long offset)
 static int patch_alt_instruction(unsigned int *src, unsigned int *dest,
 				 unsigned int *alt_start, unsigned int *alt_end)
 {
+	int err;
 	unsigned int instr;
 
 	instr = *src;
@@ -53,8 +54,8 @@ static int patch_alt_instruction(unsigned int *src, unsigned int *dest,
 
 		/* Branch within the section doesn't need translating */
 		if (target < alt_start || target > alt_end) {
-			instr = translate_branch(dest, src);
-			if (!instr)
+			err = translate_branch(&instr, dest, src);
+			if (err)
 				return 1;
 		}
 	}

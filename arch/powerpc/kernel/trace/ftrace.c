@@ -48,7 +48,7 @@ ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 	addr = ppc_function_entry((void *)addr);
 
 	/* if (link) set op to 'bl' else 'b' */
-	op = create_branch((unsigned int *)ip, addr, link ? 1 : 0);
+	create_branch(&op, (unsigned int *)ip, addr, link ? 1 : 0);
 
 	return op;
 }
@@ -89,10 +89,11 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
  */
 static int test_24bit_addr(unsigned long ip, unsigned long addr)
 {
+	unsigned int op;
 	addr = ppc_function_entry((void *)addr);
 
 	/* use the create_branch to verify that this offset can be branched */
-	return create_branch((unsigned int *)ip, addr, 0);
+	return create_branch(&op, (unsigned int *)ip, addr, 0) == 0;
 }
 
 static int is_bl_op(unsigned int op)
@@ -287,6 +288,7 @@ __ftrace_make_nop(struct module *mod,
 static unsigned long find_ftrace_tramp(unsigned long ip)
 {
 	int i;
+	unsigned int instr;
 
 	/*
 	 * We have the compiler generated long_branch tramps at the end
@@ -295,7 +297,8 @@ static unsigned long find_ftrace_tramp(unsigned long ip)
 	for (i = NUM_FTRACE_TRAMPS - 1; i >= 0; i--)
 		if (!ftrace_tramps[i])
 			continue;
-		else if (create_branch((void *)ip, ftrace_tramps[i], 0))
+		else if (create_branch(&instr, (void *)ip,
+				       ftrace_tramps[i], 0) == 0)
 			return ftrace_tramps[i];
 
 	return 0;
@@ -324,6 +327,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 {
 	int i, op;
 	unsigned long ptr;
+	unsigned int instr;
 	static unsigned long ftrace_plt_tramps[NUM_FTRACE_TRAMPS];
 
 	/* Is this a known long jump tramp? */
@@ -366,7 +370,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 #else
 	ptr = ppc_global_function_entry((void *)ftrace_caller);
 #endif
-	if (!create_branch((void *)tramp, ptr, 0)) {
+	if (create_branch(&instr, (void *)tramp, ptr, 0)) {
 		pr_debug("%ps is not reachable from existing mcount tramp\n",
 				(void *)ptr);
 		return -1;
@@ -511,6 +515,7 @@ static int
 __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op[2];
+	unsigned int instr;
 	void *ip = (void *)rec->ip;
 	unsigned long entry, ptr, tramp;
 	struct module *mod = rec->arch.mod;
@@ -557,7 +562,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	/* Ensure branch is within 24 bits */
-	if (!create_branch(ip, tramp, BRANCH_SET_LINK)) {
+	if (create_branch(&instr, ip, tramp, BRANCH_SET_LINK)) {
 		pr_err("Branch out of range\n");
 		return -EINVAL;
 	}
@@ -574,6 +579,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 static int
 __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
+	int err;
 	unsigned int op;
 	unsigned long ip = rec->ip;
 
@@ -594,9 +600,9 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	/* create the branch to the trampoline */
-	op = create_branch((unsigned int *)ip,
-			   rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
-	if (!op) {
+	err = create_branch(&op, (unsigned int *)ip,
+			    rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
+	if (err) {
 		pr_err("REL24 out of range!\n");
 		return -EINVAL;
 	}
@@ -776,7 +782,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	}
 
 	/* Ensure branch is within 24 bits */
-	if (!create_branch((unsigned int *)ip, tramp, BRANCH_SET_LINK)) {
+	if (create_branch(&op, (unsigned int *)ip, tramp, BRANCH_SET_LINK)) {
 		pr_err("Branch out of range\n");
 		return -EINVAL;
 	}
