@@ -105,6 +105,15 @@ static inline int __access_ok(unsigned long addr, unsigned long size,
 #define __put_user_inatomic(x, ptr) \
 	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
+#define get_user_instr(x, ptr) \
+	get_user((x).val, (u32 __user *)(ptr))
+
+#define __get_user_instr(x, ptr) \
+	__get_user_nocheck((x).val, (u32 __user *)(ptr), sizeof(u32), true)
+
+#define __get_user_instr_inatomic(x, ptr) \
+	__get_user_nosleep((x).val, (u32 __user *)(ptr), sizeof(u32))
+
 extern long __put_user_bad(void);
 
 /*
