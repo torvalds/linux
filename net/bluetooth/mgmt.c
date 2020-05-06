@@ -3715,6 +3715,14 @@ static int read_security_info(struct sock *sk, struct hci_dev *hdev,
 				 rp, sizeof(*rp) + sec_len);
 }
 
+#ifdef CONFIG_BT_FEATURE_DEBUG
+/* d4992530-b9ec-469f-ab01-6c481c47da1c */
+static const u8 debug_uuid[16] = {
+	0x1c, 0xda, 0x47, 0x1c, 0x48, 0x6c, 0x01, 0xab,
+	0x9f, 0x46, 0xec, 0xb9, 0x30, 0x25, 0x99, 0xd4,
+};
+#endif
+
 static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 				  void *data, u16 data_len)
 {
@@ -3725,6 +3733,16 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 	bt_dev_dbg(hdev, "sock %p", sk);
 
 	memset(&buf, 0, sizeof(buf));
+
+#ifdef CONFIG_BT_FEATURE_DEBUG
+	if (!hdev) {
+		u32 flags = bt_dbg_get() ? BIT(0) : 0;
+
+		memcpy(rp->features[idx].uuid, debug_uuid, 16);
+		rp->features[idx].flags = cpu_to_le32(flags);
+		idx++;
+	}
+#endif
 
 	rp->feature_count = cpu_to_le16(idx);
 
@@ -3738,6 +3756,21 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 				 0, rp, sizeof(*rp) + (20 * idx));
 }
 
+#ifdef CONFIG_BT_FEATURE_DEBUG
+static int exp_debug_feature_changed(bool enabled, struct sock *skip)
+{
+	struct mgmt_ev_exp_feature_changed ev;
+
+	memset(&ev, 0, sizeof(ev));
+	memcpy(ev.uuid, debug_uuid, 16);
+	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
+
+	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
+				  &ev, sizeof(ev),
+				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
+}
+#endif
+
 static int set_exp_feature(struct sock *sk, struct hci_dev *hdev,
 			   void *data, u16 data_len)
 {
@@ -3750,12 +3783,66 @@ static int set_exp_feature(struct sock *sk, struct hci_dev *hdev,
 		memset(rp.uuid, 0, 16);
 		rp.flags = cpu_to_le32(0);
 
+#ifdef CONFIG_BT_FEATURE_DEBUG
+		if (!hdev) {
+			bool changed = bt_dbg_get();
+
+			bt_dbg_set(false);
+
+			if (changed)
+				exp_debug_feature_changed(false, sk);
+		}
+#endif
+
 		hci_sock_set_flag(sk, HCI_MGMT_EXP_FEATURE_EVENTS);
 
 		return mgmt_cmd_complete(sk, hdev ? hdev->id : MGMT_INDEX_NONE,
 					 MGMT_OP_SET_EXP_FEATURE, 0,
 					 &rp, sizeof(rp));
 	}
+
+#ifdef CONFIG_BT_FEATURE_DEBUG
+	if (!memcmp(cp->uuid, debug_uuid, 16)) {
+		bool val, changed;
+		int err;
+
+		/* Command requires to use the non-controller index */
+		if (hdev)
+			return mgmt_cmd_status(sk, hdev->id,
+					       MGMT_OP_SET_EXP_FEATURE,
+					       MGMT_STATUS_INVALID_INDEX);
+
+		/* Parameters are limited to a single octet */
+		if (data_len != MGMT_SET_EXP_FEATURE_SIZE + 1)
+			return mgmt_cmd_status(sk, MGMT_INDEX_NONE,
+					       MGMT_OP_SET_EXP_FEATURE,
+					       MGMT_STATUS_INVALID_PARAMS);
+
+		/* Only boolean on/off is supported */
+		if (cp->param[0] != 0x00 && cp->param[0] != 0x01)
+			return mgmt_cmd_status(sk, MGMT_INDEX_NONE,
+					       MGMT_OP_SET_EXP_FEATURE,
+					       MGMT_STATUS_INVALID_PARAMS);
+
+		val = !!cp->param[0];
+		changed = val ? !bt_dbg_get() : bt_dbg_get();
+		bt_dbg_set(val);
+
+		memcpy(rp.uuid, debug_uuid, 16);
+		rp.flags = cpu_to_le32(val ? BIT(0) : 0);
+
+		hci_sock_set_flag(sk, HCI_MGMT_EXP_FEATURE_EVENTS);
+
+		err = mgmt_cmd_complete(sk, MGMT_INDEX_NONE,
+					MGMT_OP_SET_EXP_FEATURE, 0,
+					&rp, sizeof(rp));
+
+		if (changed)
+			exp_debug_feature_changed(val, sk);
+
+		return err;
+	}
+#endif
 
 	return mgmt_cmd_status(sk, hdev ? hdev->id : MGMT_INDEX_NONE,
 			       MGMT_OP_SET_EXP_FEATURE,

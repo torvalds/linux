@@ -135,4 +135,11 @@ config BT_SELFTEST_SMP
 	  Run test cases for SMP cryptographic functionality, including both
 	  legacy SMP as well as the Secure Connections features.
 
+config BT_FEATURE_DEBUG
+	bool "Enable runtime option for debugging statements"
+	depends on BT && !DYNAMIC_DEBUG
+	help
+	  This provides an option to enable/disable debugging statements
+	  at runtime via the experimental features interface.
+
 source "drivers/bluetooth/Kconfig"
