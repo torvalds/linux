@@ -18,3 +18,16 @@ int probe_user_read_inst(struct ppc_inst *inst,
 
 	return err;
 }
+
+int probe_kernel_read_inst(struct ppc_inst *inst,
+			   struct ppc_inst *src)
+{
+	unsigned int val;
+	int err;
+
+	err = probe_kernel_read(&val, src, sizeof(val));
+	if (!err)
+		*inst = ppc_inst(val);
+
+	return err;
+}
