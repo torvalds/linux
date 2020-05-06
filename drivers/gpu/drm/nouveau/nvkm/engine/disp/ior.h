@@ -87,7 +87,7 @@ struct nvkm_ior_func {
 
 	struct {
 		void (*hpd)(struct nvkm_ior *, int head, bool present);
-		void (*eld)(struct nvkm_ior *, u8 *data, u8 size);
+		void (*eld)(struct nvkm_ior *, int head, u8 *data, u8 size);
 	} hda;
 };
 
@@ -158,10 +158,10 @@ void gv100_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gm200_hdmi_scdc(struct nvkm_ior *, int, u8);
 
 void gt215_hda_hpd(struct nvkm_ior *, int, bool);
-void gt215_hda_eld(struct nvkm_ior *, u8 *, u8);
+void gt215_hda_eld(struct nvkm_ior *, int, u8 *, u8);
 
 void gf119_hda_hpd(struct nvkm_ior *, int, bool);
-void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
+void gf119_hda_eld(struct nvkm_ior *, int, u8 *, u8);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \

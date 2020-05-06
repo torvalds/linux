@@ -24,7 +24,7 @@
 #include "ior.h"
 
 void
-gf119_hda_eld(struct nvkm_ior *ior, u8 *data, u8 size)
+gf119_hda_eld(struct nvkm_ior *ior, int head, u8 *data, u8 size)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
 	const u32 soff = 0x030 * ior->id;
