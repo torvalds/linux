@@ -2641,11 +2641,12 @@ static int macsec_upd_offload(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto rollback;
 
-	rtnl_unlock();
 	/* Force features update, since they are different for SW MACSec and
 	 * HW offloading cases.
 	 */
 	netdev_update_features(dev);
+
+	rtnl_unlock();
 	return 0;
 
 rollback:
