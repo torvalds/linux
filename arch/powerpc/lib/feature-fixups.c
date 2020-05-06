@@ -689,6 +689,78 @@ static void test_lwsync_macros(void)
 	}
 }
 
+#ifdef CONFIG_PPC64
+static void __init test_prefix_patching(void)
+{
+	extern unsigned int ftr_fixup_prefix1[];
+	extern unsigned int end_ftr_fixup_prefix1[];
+	extern unsigned int ftr_fixup_prefix1_orig[];
+	extern unsigned int ftr_fixup_prefix1_expected[];
+	int size = sizeof(unsigned int) * (end_ftr_fixup_prefix1 - ftr_fixup_prefix1);
+
+	fixup.value = fixup.mask = 8;
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_prefix1 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_prefix1 + 3);
+	fixup.alt_start_off = fixup.alt_end_off = 0;
+
+	/* Sanity check */
+	check(memcmp(ftr_fixup_prefix1, ftr_fixup_prefix1_orig, size) == 0);
+
+	patch_feature_section(0, &fixup);
+	check(memcmp(ftr_fixup_prefix1, ftr_fixup_prefix1_expected, size) == 0);
+	check(memcmp(ftr_fixup_prefix1, ftr_fixup_prefix1_orig, size) != 0);
+}
+
+static void __init test_prefix_alt_patching(void)
+{
+	extern unsigned int ftr_fixup_prefix2[];
+	extern unsigned int end_ftr_fixup_prefix2[];
+	extern unsigned int ftr_fixup_prefix2_orig[];
+	extern unsigned int ftr_fixup_prefix2_expected[];
+	extern unsigned int ftr_fixup_prefix2_alt[];
+	int size = sizeof(unsigned int) * (end_ftr_fixup_prefix2 - ftr_fixup_prefix2);
+
+	fixup.value = fixup.mask = 8;
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_prefix2 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_prefix2 + 3);
+	fixup.alt_start_off = calc_offset(&fixup, ftr_fixup_prefix2_alt);
+	fixup.alt_end_off = calc_offset(&fixup, ftr_fixup_prefix2_alt + 2);
+	/* Sanity check */
+	check(memcmp(ftr_fixup_prefix2, ftr_fixup_prefix2_orig, size) == 0);
+
+	patch_feature_section(0, &fixup);
+	check(memcmp(ftr_fixup_prefix2, ftr_fixup_prefix2_expected, size) == 0);
+	check(memcmp(ftr_fixup_prefix2, ftr_fixup_prefix2_orig, size) != 0);
+}
+
+static void __init test_prefix_word_alt_patching(void)
+{
+	extern unsigned int ftr_fixup_prefix3[];
+	extern unsigned int end_ftr_fixup_prefix3[];
+	extern unsigned int ftr_fixup_prefix3_orig[];
+	extern unsigned int ftr_fixup_prefix3_expected[];
+	extern unsigned int ftr_fixup_prefix3_alt[];
+	int size = sizeof(unsigned int) * (end_ftr_fixup_prefix3 - ftr_fixup_prefix3);
+
+	fixup.value = fixup.mask = 8;
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_prefix3 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_prefix3 + 4);
+	fixup.alt_start_off = calc_offset(&fixup, ftr_fixup_prefix3_alt);
+	fixup.alt_end_off = calc_offset(&fixup, ftr_fixup_prefix3_alt + 3);
+	/* Sanity check */
+	check(memcmp(ftr_fixup_prefix3, ftr_fixup_prefix3_orig, size) == 0);
+
+	patch_feature_section(0, &fixup);
+	check(memcmp(ftr_fixup_prefix3, ftr_fixup_prefix3_expected, size) == 0);
+	patch_feature_section(0, &fixup);
+	check(memcmp(ftr_fixup_prefix3, ftr_fixup_prefix3_orig, size) != 0);
+}
+#else
+static inline void test_prefix_patching(void) {}
+static inline void test_prefix_alt_patching(void) {}
+static inline void test_prefix_word_alt_patching(void) {}
+#endif /* CONFIG_PPC64 */
+
 static int __init test_feature_fixups(void)
 {
 	printk(KERN_DEBUG "Running feature fixup self-tests ...\n");
@@ -703,6 +775,9 @@ static int __init test_feature_fixups(void)
 	test_cpu_macros();
 	test_fw_macros();
 	test_lwsync_macros();
+	test_prefix_patching();
+	test_prefix_alt_patching();
+	test_prefix_word_alt_patching();
 
 	return 0;
 }
