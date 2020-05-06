@@ -1352,12 +1352,13 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	}
 }
 
-static inline void svm_enable_vintr(struct vcpu_svm *svm)
+static void svm_set_vintr(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control;
 
 	/* The following fields are ignored when AVIC is enabled */
 	WARN_ON(kvm_vcpu_apicv_active(&svm->vcpu));
+	set_intercept(svm, INTERCEPT_VINTR);
 
 	/*
 	 * This is just a dummy VINTR to actually cause a vmexit to happen.
@@ -1369,13 +1370,6 @@ static inline void svm_enable_vintr(struct vcpu_svm *svm)
 	control->int_ctl |= V_IRQ_MASK |
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 	mark_dirty(svm->vmcb, VMCB_INTR);
-}
-
-static void svm_set_vintr(struct vcpu_svm *svm)
-{
-	set_intercept(svm, INTERCEPT_VINTR);
-	if (is_intercept(svm, INTERCEPT_VINTR))
-		svm_enable_vintr(svm);
 }
 
 static void svm_clear_vintr(struct vcpu_svm *svm)
