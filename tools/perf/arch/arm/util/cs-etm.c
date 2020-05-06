@@ -216,7 +216,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 				struct evsel *evsel)
 {
 	char msg[BUFSIZ], path[PATH_MAX], *sink;
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 	int ret = -EINVAL;
 	u32 hash;
 
@@ -224,7 +224,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 		return 0;
 
 	list_for_each_entry(term, &evsel->config_terms, list) {
-		if (term->type != PERF_EVSEL__CONFIG_TERM_DRV_CFG)
+		if (term->type != EVSEL__CONFIG_TERM_DRV_CFG)
 			continue;
 
 		sink = term->val.str;

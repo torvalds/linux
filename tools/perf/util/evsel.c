@@ -767,10 +767,10 @@ perf_evsel__reset_callgraph(struct evsel *evsel,
 	}
 }
 
-static void apply_config_terms(struct evsel *evsel,
-			       struct record_opts *opts, bool track)
+static void evsel__apply_config_terms(struct evsel *evsel,
+				      struct record_opts *opts, bool track)
 {
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 	struct list_head *config_terms = &evsel->config_terms;
 	struct perf_event_attr *attr = &evsel->core.attr;
 	/* callgraph default */
@@ -783,30 +783,30 @@ static void apply_config_terms(struct evsel *evsel,
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
-		case PERF_EVSEL__CONFIG_TERM_PERIOD:
+		case EVSEL__CONFIG_TERM_PERIOD:
 			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
 				attr->sample_period = term->val.period;
 				attr->freq = 0;
 				evsel__reset_sample_bit(evsel, PERIOD);
 			}
 			break;
-		case PERF_EVSEL__CONFIG_TERM_FREQ:
+		case EVSEL__CONFIG_TERM_FREQ:
 			if (!(term->weak && opts->user_freq != UINT_MAX)) {
 				attr->sample_freq = term->val.freq;
 				attr->freq = 1;
 				evsel__set_sample_bit(evsel, PERIOD);
 			}
 			break;
-		case PERF_EVSEL__CONFIG_TERM_TIME:
+		case EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
 				evsel__set_sample_bit(evsel, TIME);
 			else
 				evsel__reset_sample_bit(evsel, TIME);
 			break;
-		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
+		case EVSEL__CONFIG_TERM_CALLGRAPH:
 			callgraph_buf = term->val.str;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_BRANCH:
+		case EVSEL__CONFIG_TERM_BRANCH:
 			if (term->val.str && strcmp(term->val.str, "no")) {
 				evsel__set_sample_bit(evsel, BRANCH_STACK);
 				parse_branch_str(term->val.str,
@@ -814,16 +814,16 @@ static void apply_config_terms(struct evsel *evsel,
 			} else
 				evsel__reset_sample_bit(evsel, BRANCH_STACK);
 			break;
-		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
+		case EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_MAX_STACK:
+		case EVSEL__CONFIG_TERM_MAX_STACK:
 			max_stack = term->val.max_stack;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_MAX_EVENTS:
+		case EVSEL__CONFIG_TERM_MAX_EVENTS:
 			evsel->max_events = term->val.max_events;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_INHERIT:
+		case EVSEL__CONFIG_TERM_INHERIT:
 			/*
 			 * attr->inherit should has already been set by
 			 * evsel__config. If user explicitly set
@@ -832,20 +832,20 @@ static void apply_config_terms(struct evsel *evsel,
 			 */
 			attr->inherit = term->val.inherit ? 1 : 0;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_OVERWRITE:
+		case EVSEL__CONFIG_TERM_OVERWRITE:
 			attr->write_backward = term->val.overwrite ? 1 : 0;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_DRV_CFG:
+		case EVSEL__CONFIG_TERM_DRV_CFG:
 			break;
-		case PERF_EVSEL__CONFIG_TERM_PERCORE:
+		case EVSEL__CONFIG_TERM_PERCORE:
 			break;
-		case PERF_EVSEL__CONFIG_TERM_AUX_OUTPUT:
+		case EVSEL__CONFIG_TERM_AUX_OUTPUT:
 			attr->aux_output = term->val.aux_output ? 1 : 0;
 			break;
-		case PERF_EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE:
+		case EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE:
 			/* Already applied by auxtrace */
 			break;
-		case PERF_EVSEL__CONFIG_TERM_CFG_CHG:
+		case EVSEL__CONFIG_TERM_CFG_CHG:
 			break;
 		default:
 			break;
@@ -906,10 +906,9 @@ static bool is_dummy_event(struct evsel *evsel)
 	       (evsel->core.attr.config == PERF_COUNT_SW_DUMMY);
 }
 
-struct perf_evsel_config_term *__perf_evsel__get_config_term(struct evsel *evsel,
-							     enum evsel_term_type type)
+struct evsel_config_term *__evsel__get_config_term(struct evsel *evsel, enum evsel_term_type type)
 {
-	struct perf_evsel_config_term *term, *found_term = NULL;
+	struct evsel_config_term *term, *found_term = NULL;
 
 	list_for_each_entry(term, &evsel->config_terms, list) {
 		if (term->type == type)
@@ -1144,7 +1143,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.
 	 */
-	apply_config_terms(evsel, opts, track);
+	evsel__apply_config_terms(evsel, opts, track);
 
 	evsel->ignore_missing_thread = opts->ignore_missing_thread;
 
@@ -1240,9 +1239,9 @@ int evsel__disable(struct evsel *evsel)
 	return err;
 }
 
-static void perf_evsel__free_config_terms(struct evsel *evsel)
+static void evsel__free_config_terms(struct evsel *evsel)
 {
-	struct perf_evsel_config_term *term, *h;
+	struct evsel_config_term *term, *h;
 
 	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
 		list_del_init(&term->list);
@@ -1259,7 +1258,7 @@ void evsel__exit(struct evsel *evsel)
 	perf_evsel__free_counts(evsel);
 	perf_evsel__free_fd(&evsel->core);
 	perf_evsel__free_id(&evsel->core);
-	perf_evsel__free_config_terms(evsel);
+	evsel__free_config_terms(evsel);
 	cgroup__put(evsel->cgrp);
 	perf_cpu_map__put(evsel->core.cpus);
 	perf_cpu_map__put(evsel->core.own_cpus);

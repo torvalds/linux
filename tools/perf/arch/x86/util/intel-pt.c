@@ -556,10 +556,9 @@ static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 static void intel_pt_config_sample_mode(struct perf_pmu *intel_pt_pmu,
 					struct evsel *evsel)
 {
-	struct perf_evsel_config_term *term;
 	u64 user_bits = 0, bits;
+	struct evsel_config_term *term = evsel__get_config_term(evsel, CFG_CHG);
 
-	term = perf_evsel__get_config_term(evsel, CFG_CHG);
 	if (term)
 		user_bits = term->val.cfg_chg;
 

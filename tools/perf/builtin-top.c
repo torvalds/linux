@@ -949,7 +949,7 @@ static int perf_top__overwrite_check(struct perf_top *top)
 {
 	struct record_opts *opts = &top->record_opts;
 	struct evlist *evlist = top->evlist;
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 	struct list_head *config_terms;
 	struct evsel *evsel;
 	int set, overwrite = -1;
@@ -958,7 +958,7 @@ static int perf_top__overwrite_check(struct perf_top *top)
 		set = -1;
 		config_terms = &evsel->config_terms;
 		list_for_each_entry(term, config_terms, list) {
-			if (term->type == PERF_EVSEL__CONFIG_TERM_OVERWRITE)
+			if (term->type == EVSEL__CONFIG_TERM_OVERWRITE)
 				set = term->val.overwrite ? 1 : 0;
 		}
 

@@ -9,7 +9,7 @@
 #include "parse-events.h"
 #include "pmu-events/pmu-events.h"
 
-struct perf_evsel_config_term;
+struct evsel_config_term;
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,

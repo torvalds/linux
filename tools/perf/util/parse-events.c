@@ -1214,14 +1214,14 @@ static int get_config_terms(struct list_head *head_config,
 			    struct list_head *head_terms __maybe_unused)
 {
 #define ADD_CONFIG_TERM(__type, __weak)				\
-	struct perf_evsel_config_term *__t;			\
+	struct evsel_config_term *__t;			\
 								\
 	__t = zalloc(sizeof(*__t));				\
 	if (!__t)						\
 		return -ENOMEM;					\
 								\
 	INIT_LIST_HEAD(&__t->list);				\
-	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
+	__t->type       = EVSEL__CONFIG_TERM_ ## __type;	\
 	__t->weak	= __weak;				\
 	list_add_tail(&__t->list, head_terms)
 
@@ -1312,7 +1312,7 @@ do {								\
 }
 
 /*
- * Add PERF_EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
+ * Add EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
  * each bit of attr->config that the user has changed.
  */
 static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
@@ -1400,10 +1400,10 @@ int parse_events_add_tool(struct parse_events_state *parse_state,
 
 static bool config_term_percore(struct list_head *config_terms)
 {
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 
 	list_for_each_entry(term, config_terms, list) {
-		if (term->type == PERF_EVSEL__CONFIG_TERM_PERCORE)
+		if (term->type == EVSEL__CONFIG_TERM_PERCORE)
 			return term->val.percore;
 	}
 
@@ -1478,7 +1478,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -ENOMEM;
 
 	if (perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
-		struct perf_evsel_config_term *pos, *tmp;
+		struct evsel_config_term *pos, *tmp;
 
 		list_for_each_entry_safe(pos, tmp, &config_terms, list) {
 			list_del_init(&pos->list);

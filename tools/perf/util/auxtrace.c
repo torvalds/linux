@@ -729,7 +729,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 				  struct evlist *evlist,
 				  struct record_opts *opts, const char *str)
 {
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 	struct evsel *aux_evsel;
 	bool has_aux_sample_size = false;
 	bool has_aux_leader = false;
@@ -771,7 +771,7 @@ no_opt:
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel__is_aux_event(evsel))
 			aux_evsel = evsel;
-		term = perf_evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
+		term = evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
 		if (term) {
 			has_aux_sample_size = true;
 			evsel->core.attr.aux_sample_size = term->val.aux_sample_size;
