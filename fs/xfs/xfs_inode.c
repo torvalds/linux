@@ -3658,19 +3658,6 @@ xfs_iflush(
 	}
 
 	/*
-	 * This may have been unpinned because the filesystem is shutting
-	 * down forcibly. If that's the case we must not write this inode
-	 * to disk, because the log record didn't make it to disk.
-	 *
-	 * We also have to remove the log item from the AIL in this case,
-	 * as we wait for an empty AIL as part of the unmount process.
-	 */
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error = -EIO;
-		goto abort;
-	}
-
-	/*
 	 * Get the buffer containing the on-disk inode. We are doing a try-lock
 	 * operation here, so we may get an EAGAIN error. In that case, return
 	 * leaving the inode dirty.
