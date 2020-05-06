@@ -260,5 +260,6 @@ extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 				    struct spi_transfer *transfer);
 
 /* platform related setup */
-extern int dw_spi_mid_init(struct dw_spi *dws); /* Intel MID platforms */
+extern int dw_spi_mid_init_mfld(struct dw_spi *dws);
+
 #endif /* DW_SPI_HEADER_H */
