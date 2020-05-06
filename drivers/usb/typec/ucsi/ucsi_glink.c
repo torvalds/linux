@@ -355,16 +355,16 @@ static void ucsi_qti_notify_work(struct work_struct *work)
 			notify_work);
 
 	raw_notifier_call_chain(&ucsi_glink_notifier, 0, &udev->constat_info);
-	mutex_lock(&udev->notify_lock);
-	clear_bit(CONN_STAT_REQD, &udev->cmd_requested_flags);
-	mutex_unlock(&udev->notify_lock);
 }
 
 static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
-			    struct ucsi_connector_status *status)
+			    struct ucsi_connector_status *status, size_t len)
 {
 	u8 conn_partner_type, conn_partner_flag;
 	bool cmd_requested;
+
+	if (len != sizeof(*status))
+		return;
 
 	mutex_lock(&udev->notify_lock);
 	cmd_requested = test_bit(CONN_STAT_REQD, &udev->cmd_requested_flags);
@@ -402,6 +402,10 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 
 		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE)
 			udev->constat_info.partner_alternate_mode = true;
+
+		mutex_lock(&udev->notify_lock);
+		clear_bit(CONN_STAT_REQD, &udev->cmd_requested_flags);
+		mutex_unlock(&udev->notify_lock);
 
 		schedule_work(&udev->notify_work);
 	}
@@ -453,7 +457,7 @@ static int ucsi_qti_read(struct ucsi *ucsi, unsigned int offset,
 	memcpy((u8 *)val, &udev->rx_buf.buf[offset], val_len);
 	atomic_set(&udev->rx_valid, 0);
 	ucsi_log("read:", offset, (u8 *)val, val_len);
-	ucsi_qti_notify(udev, offset, val);
+	ucsi_qti_notify(udev, offset, val, val_len);
 
 out:
 	mutex_unlock(&udev->read_lock);
