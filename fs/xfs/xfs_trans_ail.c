@@ -864,13 +864,14 @@ xfs_ail_delete_one(
  */
 void
 xfs_trans_ail_delete(
-	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip,
 	int			shutdown_type)
 {
+	struct xfs_ail		*ailp = lip->li_ailp;
 	struct xfs_mount	*mp = ailp->ail_mount;
 	xfs_lsn_t		tail_lsn;
 
+	spin_lock(&ailp->ail_lock);
 	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 		spin_unlock(&ailp->ail_lock);
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
