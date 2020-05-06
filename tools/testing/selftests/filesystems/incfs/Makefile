@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 CFLAGS += -D_FILE_OFFSET_BITS=64 -Wall -I../.. -I../../../../..
 LDLIBS := -llz4 -lcrypto -lpthread
-TEST_GEN_PROGS := incfs_test incfs_stress
+TEST_GEN_PROGS := incfs_test incfs_stress incfs_perf
 
 include ../../lib.mk
 

@@ -25,6 +25,45 @@
 #define __S_IFREG S_IFREG
 #endif
 
+unsigned int rnd(unsigned int max, unsigned int *seed)
+{
+	return rand_r(seed) * ((uint64_t)max + 1) / RAND_MAX;
+}
+
+int remove_dir(const char *dir)
+{
+	int err = rmdir(dir);
+
+	if (err && errno == ENOTEMPTY) {
+		err = delete_dir_tree(dir);
+		if (err)
+			return err;
+		return 0;
+	}
+
+	if (err && errno != ENOENT)
+		return -errno;
+
+	return 0;
+}
+
+int drop_caches(void)
+{
+	int drop_caches =
+		open("/proc/sys/vm/drop_caches", O_WRONLY | O_CLOEXEC);
+	int i;
+
+	if (drop_caches == -1)
+		return -errno;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+
+	if (i != 1)
+		return -errno;
+
+	return 0;
+}
+
 int mount_fs(const char *mount_dir, const char *backing_dir,
 	     int read_timeout_ms)
 {
