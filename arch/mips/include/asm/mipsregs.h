@@ -761,6 +761,14 @@
 #define MIPS_MAAR_ADDR_SHIFT	12
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
 #define MIPS_MAAR_VL		(_ULCAST_(1) << 0)
+#ifdef CONFIG_XPA
+#define MIPS_MAAR_V		(MIPS_MAAR_VH | MIPS_MAAR_VL)
+#else
+#define MIPS_MAAR_V		MIPS_MAAR_VL
+#endif
+#define MIPS_MAARX_VH		(_ULCAST_(1) << 31)
+#define MIPS_MAARX_ADDR		0xF
+#define MIPS_MAARX_ADDR_SHIFT	32
 
 /* MAARI bit definitions */
 #define MIPS_MAARI_INDEX	(_ULCAST_(0x3f) << 0)
@@ -1723,6 +1731,8 @@ do {									\
 #define write_c0_lladdr(val)	__write_ulong_c0_register($17, 0, val)
 #define read_c0_maar()		__read_ulong_c0_register($17, 1)
 #define write_c0_maar(val)	__write_ulong_c0_register($17, 1, val)
+#define readx_c0_maar()		__readx_32bit_c0_register($17, 1)
+#define writex_c0_maar(val)	__writex_32bit_c0_register($17, 1, val)
 #define read_c0_maari()		__read_32bit_c0_register($17, 2)
 #define write_c0_maari(val)	__write_32bit_c0_register($17, 2, val)
 
