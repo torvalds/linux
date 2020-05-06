@@ -69,10 +69,10 @@ static void pstore_dowork(struct work_struct *);
 static DECLARE_WORK(pstore_work, pstore_dowork);
 
 /*
- * pstore_lock just protects "psinfo" during
+ * psinfo_lock just protects "psinfo" during
  * calls to pstore_register()
  */
-static DEFINE_SPINLOCK(pstore_lock);
+static DEFINE_SPINLOCK(psinfo_lock);
 struct pstore_info *psinfo;
 
 static char *backend;
@@ -574,11 +574,11 @@ int pstore_register(struct pstore_info *psi)
 		return -EINVAL;
 	}
 
-	spin_lock(&pstore_lock);
+	spin_lock(&psinfo_lock);
 	if (psinfo) {
 		pr_warn("backend '%s' already loaded: ignoring '%s'\n",
 			psinfo->name, psi->name);
-		spin_unlock(&pstore_lock);
+		spin_unlock(&psinfo_lock);
 		return -EBUSY;
 	}
 
@@ -587,7 +587,7 @@ int pstore_register(struct pstore_info *psi)
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
 	sema_init(&psinfo->buf_lock, 1);
-	spin_unlock(&pstore_lock);
+	spin_unlock(&psinfo_lock);
 
 
 	if (psi->flags & PSTORE_FLAGS_DMESG)
