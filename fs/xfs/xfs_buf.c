@@ -1248,6 +1248,22 @@ xfs_buf_ioerror_alert(
 			-bp->b_error);
 }
 
+/*
+ * To simulate an I/O failure, the buffer must be locked and held with at least
+ * three references. The LRU reference is dropped by the stale call. The buf
+ * item reference is dropped via ioend processing. The third reference is owned
+ * by the caller and is dropped on I/O completion if the buffer is XBF_ASYNC.
+ */
+void
+xfs_buf_ioend_fail(
+	struct xfs_buf	*bp)
+{
+	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_stale(bp);
+	xfs_buf_ioerror(bp, -EIO);
+	xfs_buf_ioend(bp);
+}
+
 int
 xfs_bwrite(
 	struct xfs_buf		*bp)
@@ -1480,10 +1496,7 @@ __xfs_buf_submit(
 
 	/* on shutdown we stale and complete the buffer immediately */
 	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		xfs_buf_ioerror(bp, -EIO);
-		bp->b_flags &= ~XBF_DONE;
-		xfs_buf_stale(bp);
-		xfs_buf_ioend(bp);
+		xfs_buf_ioend_fail(bp);
 		return -EIO;
 	}
 
