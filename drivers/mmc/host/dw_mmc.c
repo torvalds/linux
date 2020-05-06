@@ -18,6 +18,7 @@
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
@@ -35,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/soc/rockchip/rockchip_decompress.h>
 
 #include "dw_mmc.h"
 
@@ -208,6 +210,7 @@ static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
 static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
 {
 	u32 status;
+	u32 delay = 10;
 
 	/*
 	 * Databook says that before issuing a new data transfer command
@@ -217,12 +220,16 @@ static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
 	 * ...also allow sending for SDMMC_CMD_VOLT_SWITCH where busy is
 	 * expected.
 	 */
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	if (host->slot->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+		delay = 0;
+#endif
 	if ((cmd_flags & SDMMC_CMD_PRV_DAT_WAIT) &&
 	    !(cmd_flags & SDMMC_CMD_VOLT_SWITCH)) {
 		if (readl_poll_timeout_atomic(host->regs + SDMMC_STATUS,
 					      status,
 					      !(status & SDMMC_STATUS_BUSY),
-					      10, 500 * USEC_PER_MSEC))
+					      delay, 500 * USEC_PER_MSEC))
 			dev_err(host->dev, "Busy; trying anyway\n");
 	}
 }
@@ -3225,6 +3232,59 @@ int dw_mci_probe(struct dw_mci *host)
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int width, i, ret = 0;
 	u32 fifo_size;
+
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_ROCKCHIP_HW_DECOMPRESS)
+	struct resource idmac, ramdisk_src, ramdisk_dst;
+	struct device_node *dma, *rds, *rdd;
+	struct device *dev = host->dev;
+	u32 intr;
+
+	if (device_property_read_bool(host->dev, "supports-emmc")) {
+		if (readl_poll_timeout(host->regs + SDMMC_STATUS,
+				fifo_size,
+				!(fifo_size & (BIT(10) | GENMASK(7, 4))),
+				0, 500 * USEC_PER_MSEC))
+			dev_err(dev, "Controller is occupied!\n");
+
+		if (readl_poll_timeout(host->regs + SDMMC_IDSTS,
+				fifo_size, !(fifo_size & GENMASK(16, 13)),
+				0, 500 * USEC_PER_MSEC))
+			dev_err(dev, "DMA is still running!\n");
+
+		intr = mci_readl(host, RINTSTS);
+		if (intr & DW_MCI_CMD_ERROR_FLAGS || intr & DW_MCI_DATA_ERROR_FLAGS) {
+			WARN_ON(1);
+			return -EINVAL;
+		}
+
+		/* Release idmac descriptor */
+		dma = of_parse_phandle(dev->of_node, "memory-region-idamc", 0);
+		if (dma) {
+			ret = of_address_to_resource(dma, 0, &idmac);
+			if (ret >= 0)
+				free_reserved_area(phys_to_virt(idmac.start),
+					phys_to_virt(idmac.start) + resource_size(&idmac),
+					-1, NULL);
+		}
+
+		/* Parse ramdisk addr and help start decompressing */
+		rds = of_parse_phandle(dev->of_node, "memory-region-src", 0);
+		rdd = of_parse_phandle(dev->of_node, "memory-region-dst", 0);
+		if (rds && rdd) {
+			if (of_address_to_resource(rds, 0, &ramdisk_src) >= 0 &&
+				of_address_to_resource(rdd, 0, &ramdisk_dst) >= 0)
+				/*
+				 * Decompress HW driver will free reserved area of
+				 * memory-region-src.
+				 */
+				ret = rk_decom_start(GZIP_MOD, ramdisk_src.start,
+						     ramdisk_dst.start,
+						     resource_size(&ramdisk_dst));
+			if (ret < 0)
+				dev_err(dev, "fail to start decom\n");
+		}
+	}
+#endif
 
 	if (!host->pdata) {
 		host->pdata = dw_mci_parse_dt(host);

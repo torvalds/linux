@@ -2055,6 +2055,21 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
+int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
+			bool is_rel_write)
+{
+	struct mmc_command cmd = {};
+
+	cmd.opcode = MMC_SET_BLOCK_COUNT;
+	cmd.arg = blockcount & 0x0000FFFF;
+	if (is_rel_write)
+		cmd.arg |= 1 << 31;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	return mmc_wait_for_cmd(card->host, &cmd, 5);
+}
+EXPORT_SYMBOL(mmc_set_blockcount);
+
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
@@ -2063,6 +2078,7 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 		return;
 	host->ops->hw_reset(host);
 }
+#endif
 
 /**
  * mmc_hw_reset - reset the card in hardware
@@ -2135,7 +2151,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	mmc_hw_reset_for_init(host);
+#endif
 
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know

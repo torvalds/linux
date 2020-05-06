@@ -145,24 +145,26 @@ int mmc_go_idle(struct mmc_host *host)
 	 * rules that must accommodate non-MMC slaves which this layer
 	 * won't even know about.
 	 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	if (!mmc_host_is_spi(host)) {
 		mmc_set_chip_select(host, MMC_CS_HIGH);
 		mmc_delay(1);
 	}
-
+#endif
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_NONE | MMC_CMD_BC;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	mmc_delay(1);
 
 	if (!mmc_host_is_spi(host)) {
 		mmc_set_chip_select(host, MMC_CS_DONTCARE);
 		mmc_delay(1);
 	}
-
+#endif
 	host->use_spi_crc = 0;
 
 	return err;
@@ -193,8 +195,6 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 		err = -ETIMEDOUT;
 
-		mmc_delay(10);
-
 		/*
 		 * According to eMMC specification v5.1 section 6.4.3, we
 		 * should issue CMD1 repeatedly in the idle state until
@@ -204,6 +204,11 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		 */
 		if (!ocr && !mmc_host_is_spi(host))
 			cmd.arg = cmd.resp[0] | BIT(30);
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
+		mmc_delay(1);
+#else
+		udelay(1);
+#endif
 	}
 
 	if (rocr && !mmc_host_is_spi(host))

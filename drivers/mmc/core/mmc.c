@@ -9,13 +9,15 @@
 
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/mm.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
+#include <linux/resource.h>
 
 #include "core.h"
 #include "card.h"
@@ -65,6 +67,7 @@ static const unsigned int taac_mant[] = {
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
@@ -116,6 +119,7 @@ static int mmc_decode_cid(struct mmc_card *card)
 
 	return 0;
 }
+#endif
 
 static void mmc_set_erase_size(struct mmc_card *card)
 {
@@ -655,14 +659,72 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static void *mmc_tb_map_ecsd(phys_addr_t start, size_t len)
+{
+	int i;
+	void *vaddr;
+	pgprot_t pgprot = PAGE_KERNEL;
+	phys_addr_t phys;
+	int npages = PAGE_ALIGN(len) / PAGE_SIZE;
+	struct page **p = vmalloc(sizeof(struct page *) * npages);
+
+	if (!p)
+		return NULL;
+
+	phys = start;
+	for (i = 0; i < npages; i++) {
+		p[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	vaddr = vmap(p, npages, VM_MAP, pgprot);
+	vfree(p);
+
+	return vaddr;
+}
+#endif
+
 static int mmc_read_ext_csd(struct mmc_card *card)
 {
 	u8 *ext_csd;
 	int err;
-
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	void *ecsd;
+	bool valid_ecsd = false;
+	struct device_node *mem;
+	struct resource reg;
+	struct device *dev = card->host->parent;
+#endif
 	if (!mmc_can_ext_csd(card))
 		return 0;
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	mem = of_parse_phandle(dev->of_node, "memory-region-ecsd", 0);
+	if (mem) {
+		err = of_address_to_resource(mem, 0, &reg);
+		if (err < 0) {
+			dev_err(dev, "fail to get resource\n");
+			goto get_ecsd;
+		}
+
+		ecsd = mmc_tb_map_ecsd(reg.start, resource_size(&reg));
+		if (!ecsd)
+			goto get_ecsd;
+
+		if (readl(ecsd + SZ_512) == 0x55aa55aa) {
+			ext_csd = ecsd;
+			valid_ecsd = true;
+			goto decode;
+		} else {
+			dev_dbg(dev, "invalid ecsd tag!");
+		}
+	} else {
+		dev_info(dev, "not find \"memory-region\" property\n");
+	}
+
+get_ecsd:
+#endif
 	err = mmc_get_ext_csd(card, &ext_csd);
 	if (err) {
 		/* If the host or the card can't do the switch,
@@ -687,12 +749,22 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 
 		return err;
 	}
-
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+decode:
+#endif
 	err = mmc_decode_ext_csd(card, ext_csd);
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	if (!valid_ecsd)
+		kfree(ext_csd);
+	else
+		vunmap(ecsd);
+#else
 	kfree(ext_csd);
+#endif
 	return err;
 }
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 {
 	u8 *bw_ext_csd;
@@ -765,6 +837,7 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 	kfree(bw_ext_csd);
 	return err;
 }
+#endif
 
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
@@ -1034,11 +1107,12 @@ static int mmc_select_bus_width(struct mmc_card *card)
 		 * compare ext_csd previously read in 1 bit mode
 		 * against ext_csd at new bus width
 		 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
 			err = mmc_compare_ext_csds(card, bus_width);
 		else
 			err = mmc_bus_test(card, bus_width);
-
+#endif
 		if (!err) {
 			err = bus_width;
 			break;
@@ -1572,7 +1646,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * respond.
 	 * mmc_go_idle is needed for eMMC that are asleep
 	 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	mmc_go_idle(host);
+#endif
 
 	/* The extra bit indicates that we support high capacity */
 	err = mmc_send_op_cond(host, ocr | (1 << 30), &rocr);
@@ -1617,7 +1693,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		card->ocr = ocr;
 		card->type = MMC_TYPE_MMC;
 		card->rca = 1;
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
+#endif
 	}
 
 	/*
@@ -1648,9 +1726,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_decode_csd(card);
 		if (err)
 			goto free_card;
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 		err = mmc_decode_cid(card);
 		if (err)
 			goto free_card;
+#endif
 	}
 
 	/*
@@ -1793,6 +1873,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Enable HPI feature (if supported)
 	 */
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	if (card->ext_csd.hpi) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_HPI_MGMT, 1,
@@ -1808,7 +1889,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			card->ext_csd.hpi_en = 1;
 		}
 	}
-
+#endif
 	/*
 	 * If cache size is higher than 0, this indicates the existence of cache
 	 * and it can be turned on. Note that some eMMCs from Micron has been
