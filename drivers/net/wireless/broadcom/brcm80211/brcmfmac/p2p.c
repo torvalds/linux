@@ -1268,6 +1268,30 @@ bool brcmf_p2p_scan_finding_common_channel(struct brcmf_cfg80211_info *cfg,
 }
 
 /**
+ * brcmf_p2p_abort_action_frame() - abort action frame.
+ *
+ * @cfg: common configuration struct.
+ *
+ */
+static s32 brcmf_p2p_abort_action_frame(struct brcmf_cfg80211_info *cfg)
+{
+	struct brcmf_p2p_info *p2p = &cfg->p2p;
+	struct brcmf_cfg80211_vif *vif;
+	s32 err;
+	s32 int_val = 1;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
+	err = brcmf_fil_bsscfg_data_set(vif->ifp, "actframe_abort", &int_val,
+					sizeof(s32));
+	if (err)
+		brcmf_err(" aborting action frame has failed (%d)\n", err);
+
+	return err;
+}
+
+/**
  * brcmf_p2p_stop_wait_next_action_frame() - finish scan if af tx complete.
  *
  * @cfg: common configuration struct.
@@ -1278,6 +1302,7 @@ brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
 {
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
 	struct brcmf_if *ifp = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+	s32 err;
 
 	if (test_bit(BRCMF_P2P_STATUS_SENDING_ACT_FRAME, &p2p->status) &&
 	    (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status) ||
@@ -1286,8 +1311,13 @@ brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
 		/* if channel is not zero, "actfame" uses off channel scan.
 		 * So abort scan for off channel completion.
 		 */
-		if (p2p->af_sent_channel)
-			brcmf_notify_escan_complete(cfg, ifp, true, true);
+		if (p2p->af_sent_channel) {
+			/* abort actframe using actframe_abort or abort scan */
+			err = brcmf_p2p_abort_action_frame(cfg);
+			if (err)
+				brcmf_notify_escan_complete(cfg, ifp, true,
+							    true);
+		}
 	} else if (test_bit(BRCMF_P2P_STATUS_WAITING_NEXT_AF_LISTEN,
 			    &p2p->status)) {
 		brcmf_dbg(TRACE, "*** Wake UP ** abort listen for next af frame\n");
