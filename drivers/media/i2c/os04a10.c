@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 support conversion gain switch.
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -56,6 +57,7 @@
 #define OS04A10_REG_EXP_MID_H		0x3541
 #define OS04A10_REG_EXP_VS_H		0x3581
 
+#define OS04A10_REG_HCG_SWITCH		0x376C
 #define OS04A10_REG_AGAIN_LONG_H	0x3508
 #define OS04A10_REG_AGAIN_MID_H		0x3548
 #define OS04A10_REG_AGAIN_VS_H		0x3588
@@ -168,6 +170,9 @@ struct os04a10 {
 	const char		*len_name;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	bool			long_hcg;
+	bool			middle_hcg;
+	bool			short_hcg;
 };
 
 #define to_os04a10(sd) container_of(sd, struct os04a10, subdev)
@@ -1025,30 +1030,30 @@ static int os04a10_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 		if (mode->hdr_mode == NO_HDR) {
 			if (mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10) {
-				dst_link_freq = link_freq_menu_items[0];
+				dst_link_freq = 0;
 				dst_pixel_rate = PIXEL_RATE_WITH_360M;
 			} else {
-				dst_link_freq = link_freq_menu_items[1];
+				dst_link_freq = 1;
 				dst_pixel_rate = PIXEL_RATE_WITH_648M;
 			}
 		} else if (mode->hdr_mode == HDR_X2) {
 			if (mode->width == 2560 && mode->height == 1440) {
-				dst_link_freq = link_freq_menu_items[1];
+				dst_link_freq = 1;
 				dst_pixel_rate = PIXEL_RATE_WITH_648M;
 			} else {
 				if (mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10) {
-					dst_link_freq = link_freq_menu_items[0];
+					dst_link_freq = 0;
 					dst_pixel_rate = PIXEL_RATE_WITH_360M;
 				} else {
-					dst_link_freq = link_freq_menu_items[1];
+					dst_link_freq = 1;
 					dst_pixel_rate = PIXEL_RATE_WITH_648M;
 				}
 			}
 		}
-		__v4l2_ctrl_s_ctrl_int64(os04a10->pixel_rate,
-					 dst_pixel_rate);
-		__v4l2_ctrl_s_ctrl(os04a10->link_freq,
-				   dst_link_freq);
+		v4l2_ctrl_s_ctrl_int64(os04a10->pixel_rate,
+				       dst_pixel_rate);
+		v4l2_ctrl_s_ctrl(os04a10->link_freq,
+				 dst_link_freq);
 	}
 
 	mutex_unlock(&os04a10->mutex);
@@ -1187,6 +1192,11 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	u32 m_d_gain = 1024;
 	u32 s_d_gain = 1024;
 	int ret = 0;
+	u8 l_cg_mode = 0;
+	u8 m_cg_mode = 0;
+	u8 s_cg_mode = 0;
+	u32 gain_switch = 0;
+	u8 is_need_switch = 0;
 
 	if (!os04a10->has_init_exp && !os04a10->streaming) {
 		os04a10->init_hdrae_exp = *ae;
@@ -1200,6 +1210,9 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 	l_a_gain = ae->long_gain_reg;
 	m_a_gain = ae->middle_gain_reg;
 	s_a_gain = ae->short_gain_reg;
+	l_cg_mode = ae->long_cg_mode;
+	m_cg_mode = ae->middle_cg_mode;
+	s_cg_mode = ae->short_cg_mode;
 	dev_dbg(&os04a10->client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
 		l_exp_time, l_a_gain,
@@ -1210,10 +1223,32 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 		//2 stagger
 		l_a_gain = m_a_gain;
 		l_exp_time = m_exp_time;
+		l_cg_mode = m_cg_mode;
 		m_a_gain = s_a_gain;
 		m_exp_time = s_exp_time;
+		m_cg_mode = s_cg_mode;
 	}
+	ret = os04a10_read_reg(os04a10->client, OS04A10_REG_HCG_SWITCH,
+			       OS04A10_REG_VALUE_08BIT, &gain_switch);
 
+	if (os04a10->long_hcg && l_cg_mode == GAIN_MODE_LCG) {
+		gain_switch |= 0x10;
+		os04a10->long_hcg = false;
+		is_need_switch++;
+	} else if (!os04a10->long_hcg && l_cg_mode == GAIN_MODE_HCG) {
+		gain_switch &= 0xef;
+		os04a10->long_hcg = true;
+		is_need_switch++;
+	}
+	if (os04a10->middle_hcg && m_cg_mode == GAIN_MODE_LCG) {
+		gain_switch |= 0x20;
+		os04a10->middle_hcg = false;
+		is_need_switch++;
+	} else if (!os04a10->middle_hcg && m_cg_mode == GAIN_MODE_HCG) {
+		gain_switch &= 0xdf;
+		os04a10->middle_hcg = true;
+		is_need_switch++;
+	}
 	if (l_a_gain > 248) {
 		l_d_gain = l_a_gain * 1024 / 248;
 		l_a_gain = 248;
@@ -1269,12 +1304,67 @@ static int os04a10_set_hdrae(struct os04a10 *os04a10,
 			OS04A10_REG_DGAIN_VS_H,
 			OS04A10_REG_VALUE_24BIT,
 			(s_d_gain << 6) & 0xfffc0);
+		if (os04a10->short_hcg && s_cg_mode == GAIN_MODE_LCG) {
+			gain_switch |= 0x40;
+			os04a10->short_hcg = false;
+			is_need_switch++;
+		} else if (!os04a10->short_hcg && s_cg_mode == GAIN_MODE_HCG) {
+			gain_switch &= 0xbf;
+			os04a10->short_hcg = true;
+			is_need_switch++;
+		}
 	}
+	if (is_need_switch)
+		ret |= os04a10_write_reg(os04a10->client,
+			OS04A10_REG_HCG_SWITCH,
+			OS04A10_REG_VALUE_08BIT,
+			gain_switch);
 	ret |= os04a10_write_reg(os04a10->client,
 		OS04A10_GROUP_UPDATE_ADDRESS,
 		OS04A10_REG_VALUE_08BIT,
 		OS04A10_GROUP_UPDATE_END_DATA);
 	ret |= os04a10_write_reg(os04a10->client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_END_LAUNCH);
+	return ret;
+}
+
+static int os04a10_set_conversion_gain(struct os04a10 *os04a10, u32 *cg)
+{
+	int ret = 0;
+	struct i2c_client *client = os04a10->client;
+	u32 cur_cg = *cg;
+	u32 val = 0;
+	s32 is_need_change = 0;
+
+	ret = os04a10_read_reg(client,
+		OS04A10_REG_HCG_SWITCH,
+		OS04A10_REG_VALUE_08BIT,
+		&val);
+	if (os04a10->long_hcg && cur_cg == GAIN_MODE_LCG) {
+		val |= 0x10;
+		is_need_change++;
+		os04a10->long_hcg = false;
+	} else if (!os04a10->long_hcg && cur_cg == GAIN_MODE_HCG) {
+		val &= 0xef;
+		is_need_change++;
+		os04a10->long_hcg = true;
+	}
+	ret |= os04a10_write_reg(client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_START_DATA);
+	if (is_need_change)
+		ret |= os04a10_write_reg(client,
+			OS04A10_REG_HCG_SWITCH,
+			OS04A10_REG_VALUE_08BIT,
+			val);
+	ret |= os04a10_write_reg(client,
+		OS04A10_GROUP_UPDATE_ADDRESS,
+		OS04A10_REG_VALUE_08BIT,
+		OS04A10_GROUP_UPDATE_END_DATA);
+	ret |= os04a10_write_reg(client,
 		OS04A10_GROUP_UPDATE_ADDRESS,
 		OS04A10_REG_VALUE_08BIT,
 		OS04A10_GROUP_UPDATE_END_LAUNCH);
@@ -1328,6 +1418,9 @@ static long os04a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr_cfg->esp.mode = HDR_NORMAL_VC;
 		hdr_cfg->hdr_mode = os04a10->cur_mode->hdr_mode;
 		break;
+	case RKMODULE_SET_CONVERSION_GAIN:
+		ret = os04a10_set_conversion_gain(os04a10, (u32 *)arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1346,6 +1439,7 @@ static long os04a10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
+	u32 cg = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1408,6 +1502,11 @@ static long os04a10_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = os04a10_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
+	case RKMODULE_SET_CONVERSION_GAIN:
+		ret = copy_from_user(&cg, up, sizeof(cg));
+		if (!ret)
+			ret = os04a10_ioctl(sd, cmd, &cg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1416,6 +1515,27 @@ static long os04a10_compat_ioctl32(struct v4l2_subdev *sd,
 	return ret;
 }
 #endif
+
+static int os04a10_init_conversion_gain(struct os04a10 *os04a10)
+{
+	int ret = 0;
+	struct i2c_client *client = os04a10->client;
+	u32 val = 0;
+
+	ret = os04a10_read_reg(client,
+		OS04A10_REG_HCG_SWITCH,
+		OS04A10_REG_VALUE_08BIT,
+		&val);
+	val |= 0x70;
+	ret |= os04a10_write_reg(client,
+		OS04A10_REG_HCG_SWITCH,
+		OS04A10_REG_VALUE_08BIT,
+		val);
+	os04a10->long_hcg = false;
+	os04a10->middle_hcg = false;
+	os04a10->short_hcg = false;
+	return ret;
+}
 
 static int __os04a10_start_stream(struct os04a10 *os04a10)
 {
@@ -1429,6 +1549,9 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 	}
 
 	ret = os04a10_write_array(os04a10->client, os04a10->cur_mode->reg_list);
+	if (ret)
+		return ret;
+	ret = os04a10_init_conversion_gain(os04a10);
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
@@ -1801,13 +1924,13 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 
 	os04a10->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
 			V4L2_CID_LINK_FREQ,
-			0, 0, link_freq_menu_items);
+			1, 0, link_freq_menu_items);
 
 	if (os04a10->cur_mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10) {
-		dst_link_freq = link_freq_menu_items[0];
+		dst_link_freq = 0;
 		dst_pixel_rate = PIXEL_RATE_WITH_360M;
 	} else {
-		dst_link_freq = link_freq_menu_items[1];
+		dst_link_freq = 1;
 		dst_pixel_rate = PIXEL_RATE_WITH_648M;
 	}
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
@@ -1816,8 +1939,8 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 			0, PIXEL_RATE_WITH_648M,
 			1, dst_pixel_rate);
 
-	__v4l2_ctrl_s_ctrl(os04a10->link_freq,
-				dst_link_freq);
+	v4l2_ctrl_s_ctrl(os04a10->link_freq,
+			 dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	os04a10->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
@@ -1856,6 +1979,9 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 
 	os04a10->subdev.ctrl_handler = handler;
 	os04a10->has_init_exp = false;
+	os04a10->long_hcg = false;
+	os04a10->middle_hcg = false;
+	os04a10->short_hcg = false;
 
 	return 0;
 
