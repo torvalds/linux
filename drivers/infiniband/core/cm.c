@@ -81,8 +81,11 @@ const char *__attribute_const__ ibcm_reject_msg(int reason)
 EXPORT_SYMBOL(ibcm_reject_msg);
 
 struct cm_id_private;
+struct cm_work;
 static int cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
+static void cm_process_work(struct cm_id_private *cm_id_priv,
+			    struct cm_work *work);
 static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
 				   struct ib_cm_sidr_rep_param *param);
 static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
@@ -905,6 +908,35 @@ static void cm_free_work(struct cm_work *work)
 	if (work->mad_recv_wc)
 		ib_free_recv_mad(work->mad_recv_wc);
 	kfree(work);
+}
+
+static void cm_queue_work_unlock(struct cm_id_private *cm_id_priv,
+				 struct cm_work *work)
+{
+	bool immediate;
+
+	/*
+	 * To deliver the event to the user callback we have the drop the
+	 * spinlock, however, we need to ensure that the user callback is single
+	 * threaded and receives events in the temporal order. If there are
+	 * already events being processed then thread new events onto a list,
+	 * the thread currently processing will pick them up.
+	 */
+	immediate = atomic_inc_and_test(&cm_id_priv->work_count);
+	if (!immediate) {
+		list_add_tail(&work->list, &cm_id_priv->work_list);
+		/*
+		 * This routine always consumes incoming reference. Once queued
+		 * to the work_list then a reference is held by the thread
+		 * currently running cm_process_work() and this reference is not
+		 * needed.
+		 */
+		cm_deref_id(cm_id_priv);
+	}
+	spin_unlock_irq(&cm_id_priv->lock);
+
+	if (immediate)
+		cm_process_work(cm_id_priv, work);
 }
 
 static inline int cm_convert_to_ms(int iba_time)
@@ -2144,9 +2176,7 @@ static int cm_req_handler(struct cm_work *work)
 
 	/* Refcount belongs to the event, pairs with cm_process_work() */
 	refcount_inc(&cm_id_priv->refcount);
-	atomic_inc(&cm_id_priv->work_count);
-	spin_unlock_irq(&cm_id_priv->lock);
-	cm_process_work(cm_id_priv, work);
+	cm_queue_work_unlock(cm_id_priv, work);
 	/*
 	 * Since this ID was just created and was not made visible to other MAD
 	 * handlers until the cm_finalize_id() above we know that the
@@ -2492,15 +2522,7 @@ static int cm_rep_handler(struct cm_work *work)
 				       cm_id_priv->alt_av.timeout - 1);
 
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 
 error:
@@ -2511,7 +2533,6 @@ error:
 static int cm_establish_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
-	int ret;
 
 	/* See comment in cm_establish about lookup. */
 	cm_id_priv = cm_acquire_id(work->local_id, work->remote_id);
@@ -2525,15 +2546,7 @@ static int cm_establish_handler(struct cm_work *work)
 	}
 
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
@@ -2544,7 +2557,6 @@ static int cm_rtu_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_rtu_msg *rtu_msg;
-	int ret;
 
 	rtu_msg = (struct cm_rtu_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(
@@ -2567,15 +2579,7 @@ static int cm_rtu_handler(struct cm_work *work)
 	cm_id_priv->id.state = IB_CM_ESTABLISHED;
 
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
@@ -2768,7 +2772,6 @@ static int cm_dreq_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	struct cm_dreq_msg *dreq_msg;
 	struct ib_mad_send_buf *msg = NULL;
-	int ret;
 
 	dreq_msg = (struct cm_dreq_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(
@@ -2833,15 +2836,7 @@ static int cm_dreq_handler(struct cm_work *work)
 	}
 	cm_id_priv->id.state = IB_CM_DREQ_RCVD;
 	cm_id_priv->tid = dreq_msg->hdr.tid;
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 
 unlock:	spin_unlock_irq(&cm_id_priv->lock);
@@ -2853,7 +2848,6 @@ static int cm_drep_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_drep_msg *drep_msg;
-	int ret;
 
 	drep_msg = (struct cm_drep_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(
@@ -2874,15 +2868,7 @@ static int cm_drep_handler(struct cm_work *work)
 	cm_enter_timewait(cm_id_priv);
 
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
@@ -3010,7 +2996,6 @@ static int cm_rej_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_rej_msg *rej_msg;
-	int ret;
 
 	rej_msg = (struct cm_rej_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_rejected_id(rej_msg);
@@ -3059,15 +3044,7 @@ static int cm_rej_handler(struct cm_work *work)
 		goto out;
 	}
 
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
@@ -3177,7 +3154,7 @@ static int cm_mra_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_mra_msg *mra_msg;
-	int timeout, ret;
+	int timeout;
 
 	mra_msg = (struct cm_mra_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_mraed_id(mra_msg);
@@ -3237,15 +3214,7 @@ static int cm_mra_handler(struct cm_work *work)
 
 	cm_id_priv->msg->context[1] = (void *) (unsigned long)
 				      cm_id_priv->id.state;
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	spin_unlock_irq(&cm_id_priv->lock);
@@ -3380,15 +3349,7 @@ static int cm_lap_handler(struct cm_work *work)
 
 	cm_id_priv->id.lap_state = IB_CM_LAP_RCVD;
 	cm_id_priv->tid = lap_msg->hdr.tid;
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 
 unlock:	spin_unlock_irq(&cm_id_priv->lock);
@@ -3400,7 +3361,6 @@ static int cm_apr_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_apr_msg *apr_msg;
-	int ret;
 
 	/* Currently Alternate path messages are not supported for
 	 * RoCE link layer.
@@ -3435,16 +3395,7 @@ static int cm_apr_handler(struct cm_work *work)
 	cm_id_priv->id.lap_state = IB_CM_LAP_IDLE;
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	cm_id_priv->msg = NULL;
-
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
@@ -3455,7 +3406,6 @@ static int cm_timewait_handler(struct cm_work *work)
 {
 	struct cm_timewait_info *timewait_info;
 	struct cm_id_private *cm_id_priv;
-	int ret;
 
 	timewait_info = container_of(work, struct cm_timewait_info, work);
 	spin_lock_irq(&cm.lock);
@@ -3474,15 +3424,7 @@ static int cm_timewait_handler(struct cm_work *work)
 		goto out;
 	}
 	cm_id_priv->id.state = IB_CM_IDLE;
-	ret = atomic_inc_and_test(&cm_id_priv->work_count);
-	if (!ret)
-		list_add_tail(&work->list, &cm_id_priv->work_list);
-	spin_unlock_irq(&cm_id_priv->lock);
-
-	if (ret)
-		cm_process_work(cm_id_priv, work);
-	else
-		cm_deref_id(cm_id_priv);
+	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
 	cm_deref_id(cm_id_priv);
