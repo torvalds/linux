@@ -2436,15 +2436,17 @@ static int check_qp_type(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 		if (!MLX5_CAP_GEN(dev->mdev, xrc))
 			goto out;
 		fallthrough;
-	case IB_QPT_RAW_PACKET:
 	case IB_QPT_RC:
 	case IB_QPT_UC:
-	case IB_QPT_UD:
 	case IB_QPT_SMI:
 	case MLX5_IB_QPT_HW_GSI:
-	case MLX5_IB_QPT_REG_UMR:
 	case IB_QPT_DRIVER:
 	case IB_QPT_GSI:
+		if (dev->profile == &raw_eth_profile)
+			goto out;
+	case IB_QPT_RAW_PACKET:
+	case IB_QPT_UD:
+	case MLX5_IB_QPT_REG_UMR:
 		break;
 	default:
 		goto out;
@@ -2640,6 +2642,10 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int create_flags = attr->create_flags;
 	bool cond;
+
+	if (qp->type == IB_QPT_UD && dev->profile == &raw_eth_profile)
+		if (create_flags & ~MLX5_IB_QP_CREATE_WC_TEST)
+			return -EINVAL;
 
 	if (qp_type == MLX5_IB_QPT_DCT)
 		return (create_flags) ? -EINVAL : 0;
