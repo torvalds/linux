@@ -154,9 +154,9 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 			   struct perf_counts_values *count);
 
-int perf_evsel__object_config(size_t object_size,
-			      int (*init)(struct evsel *evsel),
-			      void (*fini)(struct evsel *evsel));
+int evsel__object_config(size_t object_size,
+			 int (*init)(struct evsel *evsel),
+			 void (*fini)(struct evsel *evsel));
 
 struct perf_pmu *evsel__find_pmu(struct evsel *evsel);
 bool evsel__is_aux_event(struct evsel *evsel);

@@ -56,14 +56,14 @@ struct perf_missing_features perf_missing_features;
 
 static clockid_t clockid;
 
-static int perf_evsel__no_extra_init(struct evsel *evsel __maybe_unused)
+static int evsel__no_extra_init(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
 
 void __weak test_attr__ready(void) { }
 
-static void perf_evsel__no_extra_fini(struct evsel *evsel __maybe_unused)
+static void evsel__no_extra_fini(struct evsel *evsel __maybe_unused)
 {
 }
 
@@ -73,13 +73,12 @@ static struct {
 	void	(*fini)(struct evsel *evsel);
 } perf_evsel__object = {
 	.size = sizeof(struct evsel),
-	.init = perf_evsel__no_extra_init,
-	.fini = perf_evsel__no_extra_fini,
+	.init = evsel__no_extra_init,
+	.fini = evsel__no_extra_fini,
 };
 
-int perf_evsel__object_config(size_t object_size,
-			      int (*init)(struct evsel *evsel),
-			      void (*fini)(struct evsel *evsel))
+int evsel__object_config(size_t object_size, int (*init)(struct evsel *evsel),
+			 void (*fini)(struct evsel *evsel))
 {
 
 	if (object_size == 0)
