@@ -1025,6 +1025,11 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 				   msecs_to_jiffies(wait_time));
 	spin_unlock_irqrestore(&cm.lock, flags);
 
+	/*
+	 * The timewait_info is converted into a work and gets freed during
+	 * cm_free_work() in cm_timewait_handler().
+	 */
+	BUILD_BUG_ON(offsetof(struct cm_timewait_info, work) != 0);
 	cm_id_priv->timewait_info = NULL;
 }
 
