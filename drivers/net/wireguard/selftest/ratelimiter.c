@@ -120,9 +120,9 @@ bool __init wg_ratelimiter_selftest(void)
 	enum { TRIALS_BEFORE_GIVING_UP = 5000 };
 	bool success = false;
 	int test = 0, trials;
-	struct sk_buff *skb4, *skb6;
+	struct sk_buff *skb4, *skb6 = NULL;
 	struct iphdr *hdr4;
-	struct ipv6hdr *hdr6;
+	struct ipv6hdr *hdr6 = NULL;
 
 	if (IS_ENABLED(CONFIG_KASAN) || IS_ENABLED(CONFIG_UBSAN))
 		return true;
