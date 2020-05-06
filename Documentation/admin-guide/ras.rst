@@ -156,11 +156,11 @@ the labels provided by the BIOS won't match the real ones.
 ECC memory
 ----------
 
-As mentioned on the previous section, ECC memory has extra bits to be
-used for error correction. So, on 64 bit systems, a memory module
-has 64 bits of *data width*, and 74 bits of *total width*. So, there are
-8 bits extra bits to be used for the error detection and correction
-mechanisms. Those extra bits are called *syndrome*\ [#f1]_\ [#f2]_.
+As mentioned in the previous section, ECC memory has extra bits to be
+used for error correction. In the above example, a memory module has
+64 bits of *data width*, and 72 bits of *total width*.  The extra 8
+bits which are used for the error detection and correction mechanisms
+are referred to as the *syndrome*\ [#f1]_\ [#f2]_.
 
 So, when the cpu requests the memory controller to write a word with
 *data width*, the memory controller calculates the *syndrome* in real time,
