@@ -5,7 +5,6 @@
  * Copyright (c) 2009, 2014 Intel Corporation.
  */
 
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
