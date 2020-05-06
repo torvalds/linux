@@ -3056,7 +3056,6 @@ static int cm_rej_handler(struct cm_work *work)
 			 __func__, be32_to_cpu(cm_id_priv->id.local_id),
 			 cm_id_priv->id.state);
 		spin_unlock_irq(&cm_id_priv->lock);
-		ret = -EINVAL;
 		goto out;
 	}
 
