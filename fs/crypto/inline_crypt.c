@@ -43,13 +43,20 @@ static void fscrypt_get_devices(struct super_block *sb, int num_devs,
 
 static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_info *ci)
 {
-	unsigned int dun_bytes = 8;
+	struct super_block *sb = ci->ci_inode->i_sb;
+	unsigned int flags = fscrypt_policy_flags(&ci->ci_policy);
+	int ino_bits = 64, lblk_bits = 64;
 
-	if (fscrypt_policy_flags(&ci->ci_policy) &
-	    FSCRYPT_POLICY_FLAG_DIRECT_KEY)
-		dun_bytes += FS_KEY_DERIVATION_NONCE_SIZE;
+	if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY)
+		return offsetofend(union fscrypt_iv, nonce);
 
-	return dun_bytes;
+	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64)
+		return sizeof(__le64);
+
+	/* Default case: IVs are just the file logical block number */
+	if (sb->s_cop->get_ino_and_lblk_bits)
+		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);
+	return DIV_ROUND_UP(lblk_bits, 8);
 }
 
 /* Enable inline encryption for this file if supported. */
