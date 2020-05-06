@@ -199,7 +199,7 @@ struct hif_scatter_req {
 
 	u32 scat_q_depth;
 
-	struct hif_scatter_item scat_list[0];
+	struct hif_scatter_item scat_list[];
 };
 
 struct ath6kl_irq_proc_registers {

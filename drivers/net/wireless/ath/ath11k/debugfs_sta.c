@@ -8,6 +8,8 @@
 #include "core.h"
 #include "peer.h"
 #include "debug.h"
+#include "dp_tx.h"
+#include "debug_htt_stats.h"
 
 void
 ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
@@ -435,13 +437,22 @@ ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 	return 0;
 out:
 	vfree(stats_req);
+	ar->debug.htt_stats.stats_req = NULL;
 	return ret;
 }
 
 static int
 ath11k_dbg_sta_release_htt_peer_stats(struct inode *inode, struct file *file)
 {
+	struct ieee80211_sta *sta = inode->i_private;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k *ar = arsta->arvif->ar;
+
+	mutex_lock(&ar->conf_mutex);
 	vfree(file->private_data);
+	ar->debug.htt_stats.stats_req = NULL;
+	mutex_unlock(&ar->conf_mutex);
+
 	return 0;
 }
 
@@ -749,6 +760,66 @@ static const struct file_operations fops_aggr_mode = {
 	.llseek = default_llseek,
 };
 
+static ssize_t
+ath11k_write_htt_peer_stats_reset(struct file *file,
+				  const char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k *ar = arsta->arvif->ar;
+	struct htt_ext_stats_cfg_params cfg_params = { 0 };
+	int ret;
+	u8 type;
+
+	ret = kstrtou8_from_user(user_buf, count, 0, &type);
+	if (ret)
+		return ret;
+
+	if (!type)
+		return ret;
+
+	mutex_lock(&ar->conf_mutex);
+	cfg_params.cfg0 = HTT_STAT_PEER_INFO_MAC_ADDR;
+	cfg_params.cfg0 |= FIELD_PREP(GENMASK(15, 1),
+				HTT_PEER_STATS_REQ_MODE_FLUSH_TQM);
+
+	cfg_params.cfg1 = HTT_STAT_DEFAULT_PEER_REQ_TYPE;
+
+	cfg_params.cfg2 |= FIELD_PREP(GENMASK(7, 0), sta->addr[0]);
+	cfg_params.cfg2 |= FIELD_PREP(GENMASK(15, 8), sta->addr[1]);
+	cfg_params.cfg2 |= FIELD_PREP(GENMASK(23, 16), sta->addr[2]);
+	cfg_params.cfg2 |= FIELD_PREP(GENMASK(31, 24), sta->addr[3]);
+
+	cfg_params.cfg3 |= FIELD_PREP(GENMASK(7, 0), sta->addr[4]);
+	cfg_params.cfg3 |= FIELD_PREP(GENMASK(15, 8), sta->addr[5]);
+
+	cfg_params.cfg3 |= ATH11K_HTT_PEER_STATS_RESET;
+
+	ret = ath11k_dp_tx_htt_h2t_ext_stats_req(ar,
+						 ATH11K_DBG_HTT_EXT_STATS_PEER_INFO,
+						 &cfg_params,
+						 0ULL);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to send htt peer stats request: %d\n", ret);
+		mutex_unlock(&ar->conf_mutex);
+		return ret;
+	}
+
+	mutex_unlock(&ar->conf_mutex);
+
+	ret = count;
+
+	return ret;
+}
+
+static const struct file_operations fops_htt_peer_stats_reset = {
+	.write = ath11k_write_htt_peer_stats_reset,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath11k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -771,4 +842,9 @@ void ath11k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	debugfs_create_file("addba", 0200, dir, sta, &fops_addba);
 	debugfs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
 	debugfs_create_file("delba", 0200, dir, sta, &fops_delba);
+
+	if (test_bit(WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET,
+		     ar->ab->wmi_ab.svc_map))
+		debugfs_create_file("htt_peer_stats_reset", 0600, dir, sta,
+				    &fops_htt_peer_stats_reset);
 }
