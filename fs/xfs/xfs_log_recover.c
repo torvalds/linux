@@ -2546,20 +2546,6 @@ xlog_recover_process_data(
 	return 0;
 }
 
-/* Is this log item a deferred action intent? */
-static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
-{
-	switch (lip->li_type) {
-	case XFS_LI_EFI:
-	case XFS_LI_RUI:
-	case XFS_LI_CUI:
-	case XFS_LI_BUI:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /* Take all the collected deferred ops and finish them in order. */
 static int
 xlog_finish_defer_ops(
@@ -2592,6 +2578,12 @@ xlog_finish_defer_ops(
 	xfs_defer_move(tp, parent_tp);
 
 	return xfs_trans_commit(tp);
+}
+
+/* Is this log item a deferred action intent? */
+static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
+{
+	return lip->li_ops->iop_recover != NULL;
 }
 
 /*
