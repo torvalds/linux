@@ -145,21 +145,6 @@ xfs_qm_dquot_logitem_push(
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
 
-	/*
-	 * The buffer containing this item failed to be written back
-	 * previously. Resubmit the buffer for IO
-	 */
-	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
-		if (!xfs_buf_trylock(bp))
-			return XFS_ITEM_LOCKED;
-
-		if (!xfs_buf_resubmit_failed_buffers(bp, buffer_list))
-			rval = XFS_ITEM_FLUSHING;
-
-		xfs_buf_unlock(bp);
-		return rval;
-	}
-
 	if (!xfs_dqlock_nowait(dqp))
 		return XFS_ITEM_LOCKED;
 
