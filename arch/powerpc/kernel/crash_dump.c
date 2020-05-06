@@ -35,7 +35,7 @@ void __init reserve_kdump_trampoline(void)
 
 static void __init create_trampoline(unsigned long addr)
 {
-	unsigned int *p = (unsigned int *)addr;
+	struct ppc_inst *p = (struct ppc_inst *)addr;
 
 	/* The maximum range of a single instruction branch, is the current
 	 * instruction's address + (32 MB - 4) bytes. For the trampoline we

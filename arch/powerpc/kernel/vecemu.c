@@ -261,11 +261,12 @@ static unsigned int rfin(unsigned int x)
 
 int emulate_altivec(struct pt_regs *regs)
 {
-	unsigned int instr, i, word;
+	struct ppc_inst instr;
+	unsigned int i, word;
 	unsigned int va, vb, vc, vd;
 	vector128 *vrs;
 
-	if (get_user(instr, (unsigned int __user *) regs->nip))
+	if (get_user(instr.val, (unsigned int __user *)regs->nip))
 		return -EFAULT;
 
 	word = ppc_inst_val(instr);

@@ -47,7 +47,7 @@
  * Check whether the instruction inst is a store using
  * an update addressing form which will update r1.
  */
-static bool store_updates_sp(unsigned int inst)
+static bool store_updates_sp(struct ppc_inst inst)
 {
 	/* check for 1 in the rA field */
 	if (((ppc_inst_val(inst) >> 16) & 0x1f) != 1)
@@ -305,7 +305,7 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
 
 		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
 		    access_ok(nip, sizeof(*nip))) {
-			unsigned int inst;
+			struct ppc_inst inst;
 
 			if (!probe_user_read(&inst, nip, sizeof(inst)))
 				return !store_updates_sp(inst);

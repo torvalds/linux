@@ -244,12 +244,12 @@ dar_range_overlaps(unsigned long dar, int size, struct arch_hw_breakpoint *info)
 static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 			     struct arch_hw_breakpoint *info)
 {
-	unsigned int instr = ppc_inst(0);
+	struct ppc_inst instr = ppc_inst(0);
 	int ret, type, size;
 	struct instruction_op op;
 	unsigned long addr = info->address;
 
-	if (__get_user_inatomic(instr, (unsigned int *)regs->nip))
+	if (__get_user_inatomic(instr.val, (unsigned int *)regs->nip))
 		goto fail;
 
 	ret = analyse_instr(&op, regs, instr);

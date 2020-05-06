@@ -6,26 +6,30 @@
  * Instruction data type for POWER
  */
 
-#define ppc_inst(x) (x)
+struct ppc_inst {
+	u32 val;
+} __packed;
 
-static inline u32 ppc_inst_val(u32 x)
+#define ppc_inst(x) ((struct ppc_inst){ .val = x })
+
+static inline u32 ppc_inst_val(struct ppc_inst x)
 {
-	return x;
+	return x.val;
 }
 
-static inline int ppc_inst_primary_opcode(u32 x)
+static inline int ppc_inst_primary_opcode(struct ppc_inst x)
 {
 	return ppc_inst_val(x) >> 26;
 }
 
-static inline u32 ppc_inst_swab(u32 x)
+static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
 {
 	return ppc_inst(swab32(ppc_inst_val(x)));
 }
 
-static inline bool ppc_inst_equal(u32 x, u32 y)
+static inline bool ppc_inst_equal(struct ppc_inst x, struct ppc_inst y)
 {
-	return x == y;
+	return ppc_inst_val(x) == ppc_inst_val(y);
 }
 
 #endif /* _ASM_POWERPC_INST_H */

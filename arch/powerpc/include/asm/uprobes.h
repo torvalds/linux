@@ -11,6 +11,7 @@
 
 #include <linux/notifier.h>
 #include <asm/probes.h>
+#include <asm/inst.h>
 
 typedef ppc_opcode_t uprobe_opcode_t;
 
@@ -23,8 +24,8 @@ typedef ppc_opcode_t uprobe_opcode_t;
 
 struct arch_uprobe {
 	union {
-		u32	insn;
-		u32	ixol;
+		struct ppc_inst	insn;
+		struct ppc_inst	ixol;
 	};
 };
 

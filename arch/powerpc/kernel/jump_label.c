@@ -11,7 +11,7 @@
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
-	u32 *addr = (u32 *)(unsigned long)entry->code;
+	struct ppc_inst *addr = (struct ppc_inst *)(unsigned long)entry->code;
 
 	if (type == JUMP_LABEL_JMP)
 		patch_branch(addr, entry->target, 0);
