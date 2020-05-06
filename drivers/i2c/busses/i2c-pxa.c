@@ -940,14 +940,8 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		icr &= ~ICR_ALDIE;
 		icr |= ICR_START | ICR_TB;
 	} else {
-		if (i2c->msg->len == 0) {
-			/*
-			 * Device probes have a message length of zero
-			 * and need the bus to be reset before it can
-			 * be used again.
-			 */
-			i2c_pxa_reset(i2c);
-		}
+		if (i2c->msg->len == 0)
+			icr |= ICR_MA;
 		i2c_pxa_master_complete(i2c, 0);
 	}
 
