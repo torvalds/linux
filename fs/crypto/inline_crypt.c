@@ -41,6 +41,17 @@ static void fscrypt_get_devices(struct super_block *sb, int num_devs,
 		sb->s_cop->get_devices(sb, devs);
 }
 
+static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_info *ci)
+{
+	unsigned int dun_bytes = 8;
+
+	if (fscrypt_policy_flags(&ci->ci_policy) &
+	    FSCRYPT_POLICY_FLAG_DIRECT_KEY)
+		dun_bytes += FS_KEY_DERIVATION_NONCE_SIZE;
+
+	return dun_bytes;
+}
+
 /* Enable inline encryption for this file if supported. */
 int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 				   bool is_hw_wrapped_key)
@@ -48,6 +59,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
 	enum blk_crypto_mode_num crypto_mode = ci->ci_mode->blk_crypto_mode;
+	unsigned int dun_bytes;
 	struct request_queue **devs;
 	int num_devs;
 	int i;
@@ -83,9 +95,12 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 
 	fscrypt_get_devices(sb, num_devs, devs);
 
+	dun_bytes = fscrypt_get_dun_bytes(ci);
+
 	for (i = 0; i < num_devs; i++) {
 		if (!keyslot_manager_crypto_mode_supported(devs[i]->ksm,
 							   crypto_mode,
+							   dun_bytes,
 							   sb->s_blocksize,
 							   is_hw_wrapped_key))
 			goto out_free_devs;
@@ -106,6 +121,7 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
 	enum blk_crypto_mode_num crypto_mode = ci->ci_mode->blk_crypto_mode;
+	unsigned int dun_bytes;
 	int num_devs;
 	int queue_refs = 0;
 	struct fscrypt_blk_crypto_key *blk_key;
@@ -123,11 +139,14 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	blk_key->num_devs = num_devs;
 	fscrypt_get_devices(sb, num_devs, blk_key->devs);
 
+	dun_bytes = fscrypt_get_dun_bytes(ci);
+
 	BUILD_BUG_ON(FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE >
 		     BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE);
 
 	err = blk_crypto_init_key(&blk_key->base, raw_key, raw_key_size,
-				  is_hw_wrapped, crypto_mode, sb->s_blocksize);
+				  is_hw_wrapped, crypto_mode, dun_bytes,
+				  sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
 		goto fail;
@@ -148,7 +167,8 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 		}
 		queue_refs++;
 
-		err = blk_crypto_start_using_mode(crypto_mode, sb->s_blocksize,
+		err = blk_crypto_start_using_mode(crypto_mode, dun_bytes,
+						  sb->s_blocksize,
 						  is_hw_wrapped,
 						  blk_key->devs[i]);
 		if (err) {

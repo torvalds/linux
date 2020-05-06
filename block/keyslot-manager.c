@@ -45,6 +45,7 @@ struct keyslot_manager {
 	struct keyslot_mgmt_ll_ops ksm_ll_ops;
 	unsigned int features;
 	unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX];
+	unsigned int max_dun_bytes_supported;
 	void *ll_priv_data;
 
 #ifdef CONFIG_PM
@@ -182,6 +183,7 @@ struct keyslot_manager *keyslot_manager_create(
 	ksm->features = features;
 	memcpy(ksm->crypto_mode_supported, crypto_mode_supported,
 	       sizeof(ksm->crypto_mode_supported));
+	ksm->max_dun_bytes_supported = BLK_CRYPTO_MAX_IV_SIZE;
 	ksm->ll_priv_data = ll_priv_data;
 	keyslot_manager_set_dev(ksm, dev);
 
@@ -214,11 +216,19 @@ err_free_ksm:
 }
 EXPORT_SYMBOL_GPL(keyslot_manager_create);
 
+void keyslot_manager_set_max_dun_bytes(struct keyslot_manager *ksm,
+				       unsigned int max_dun_bytes)
+{
+	ksm->max_dun_bytes_supported = max_dun_bytes;
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_set_max_dun_bytes);
+
 static inline struct hlist_head *
 hash_bucket_for_key(struct keyslot_manager *ksm,
 		    const struct blk_crypto_key *key)
 {
-	return &ksm->slot_hashtable[key->hash & (ksm->slot_hashtable_size - 1)];
+	return &ksm->slot_hashtable[blk_crypto_key_hash(key) &
+				    (ksm->slot_hashtable_size - 1)];
 }
 
 static void remove_slot_from_lru_list(struct keyslot_manager *ksm, int slot)
@@ -391,6 +401,7 @@ void keyslot_manager_put_slot(struct keyslot_manager *ksm, unsigned int slot)
  *					     combination is supported by a ksm.
  * @ksm: The keyslot manager to check
  * @crypto_mode: The crypto mode to check for.
+ * @dun_bytes: The number of bytes that will be used to specify the DUN
  * @data_unit_size: The data_unit_size for the mode.
  * @is_hw_wrapped_key: Whether a hardware-wrapped key will be used.
  *
@@ -402,6 +413,7 @@ void keyslot_manager_put_slot(struct keyslot_manager *ksm, unsigned int slot)
  */
 bool keyslot_manager_crypto_mode_supported(struct keyslot_manager *ksm,
 					   enum blk_crypto_mode_num crypto_mode,
+					   unsigned int dun_bytes,
 					   unsigned int data_unit_size,
 					   bool is_hw_wrapped_key)
 {
@@ -418,7 +430,10 @@ bool keyslot_manager_crypto_mode_supported(struct keyslot_manager *ksm,
 		if (!(ksm->features & BLK_CRYPTO_FEATURE_STANDARD_KEYS))
 			return false;
 	}
-	return ksm->crypto_mode_supported[crypto_mode] & data_unit_size;
+	if (!(ksm->crypto_mode_supported[crypto_mode] & data_unit_size))
+		return false;
+
+	return ksm->max_dun_bytes_supported >= dun_bytes;
 }
 
 /**
@@ -565,6 +580,7 @@ struct keyslot_manager *keyslot_manager_create_passthrough(
 	ksm->features = features;
 	memcpy(ksm->crypto_mode_supported, crypto_mode_supported,
 	       sizeof(ksm->crypto_mode_supported));
+	ksm->max_dun_bytes_supported = BLK_CRYPTO_MAX_IV_SIZE;
 	ksm->ll_priv_data = ll_priv_data;
 	keyslot_manager_set_dev(ksm, dev);
 
@@ -592,12 +608,16 @@ void keyslot_manager_intersect_modes(struct keyslot_manager *parent,
 		unsigned int i;
 
 		parent->features &= child->features;
+		parent->max_dun_bytes_supported =
+			min(parent->max_dun_bytes_supported,
+			    child->max_dun_bytes_supported);
 		for (i = 0; i < ARRAY_SIZE(child->crypto_mode_supported); i++) {
 			parent->crypto_mode_supported[i] &=
 				child->crypto_mode_supported[i];
 		}
 	} else {
 		parent->features = 0;
+		parent->max_dun_bytes_supported = 0;
 		memset(parent->crypto_mode_supported, 0,
 		       sizeof(parent->crypto_mode_supported));
 	}
