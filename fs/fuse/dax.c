@@ -182,8 +182,8 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 				  struct fuse_dax_mapping *dmap, bool writable,
 				  bool upgrade)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_conn_dax *fcd = fc->dax;
+	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_conn_dax *fcd = fm->fc->dax;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_setupmapping_in inarg;
 	loff_t offset = start_idx << FUSE_DAX_SHIFT;
@@ -206,7 +206,7 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
-	err = fuse_simple_request(fc, &args);
+	err = fuse_simple_request(fm, &args);
 	if (err < 0)
 		return err;
 	dmap->writable = writable;
@@ -234,7 +234,7 @@ static int fuse_send_removemapping(struct inode *inode,
 				   struct fuse_removemapping_one *remove_one)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_mount *fm = get_fuse_mount(inode);
 	FUSE_ARGS(args);
 
 	args.opcode = FUSE_REMOVEMAPPING;
@@ -244,7 +244,7 @@ static int fuse_send_removemapping(struct inode *inode,
 	args.in_args[0].value = inargp;
 	args.in_args[1].size = inargp->count * sizeof(*remove_one);
 	args.in_args[1].value = remove_one;
-	return fuse_simple_request(fc, &args);
+	return fuse_simple_request(fm, &args);
 }
 
 static int dmap_removemapping_list(struct inode *inode, unsigned int num,
