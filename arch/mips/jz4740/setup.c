@@ -5,13 +5,13 @@
  *  JZ4740 setup code
  */
 
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
