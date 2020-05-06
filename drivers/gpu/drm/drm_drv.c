@@ -1031,5 +1031,9 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+subsys_initcall(drm_core_init);
+#else
 module_init(drm_core_init);
+#endif
 module_exit(drm_core_exit);
