@@ -1800,7 +1800,11 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "Branch Target Identification",
 		.capability = ARM64_BTI,
+#ifdef CONFIG_ARM64_BTI_KERNEL
+		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
+#else
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+#endif
 		.matches = has_cpuid_feature,
 		.cpu_enable = bti_enable,
 		.sys_reg = SYS_ID_AA64PFR1_EL1,
