@@ -39,6 +39,24 @@ static struct bbuf __bounce_alloc(struct bch_fs *c, unsigned size, int rw)
 	BUG();
 }
 
+static bool bio_phys_contig(struct bio *bio, struct bvec_iter start)
+{
+	struct bio_vec bv;
+	struct bvec_iter iter;
+	void *expected_start = NULL;
+
+	__bio_for_each_bvec(bv, bio, iter, start) {
+		if (expected_start &&
+		    expected_start != page_address(bv.bv_page) + bv.bv_offset)
+			return false;
+
+		expected_start = page_address(bv.bv_page) +
+			bv.bv_offset + bv.bv_len;
+	}
+
+	return true;
+}
+
 static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 				       struct bvec_iter start, int rw)
 {
@@ -48,27 +66,28 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 	unsigned nr_pages = 0;
 	struct page *stack_pages[16];
 	struct page **pages = NULL;
-	bool first = true;
-	unsigned prev_end = PAGE_SIZE;
 	void *data;
 
 	BUG_ON(bvec_iter_sectors(start) > c->sb.encoded_extent_max);
 
-#ifndef CONFIG_HIGHMEM
-	__bio_for_each_bvec(bv, bio, iter, start) {
-		if (bv.bv_len == start.bi_size)
-			return (struct bbuf) {
-				.b = page_address(bv.bv_page) + bv.bv_offset,
-				.type = BB_NONE, .rw = rw
-			};
-	}
-#endif
+	if (!IS_ENABLED(CONFIG_HIGHMEM) &&
+	    bio_phys_contig(bio, start))
+		return (struct bbuf) {
+			.b = page_address(bio_iter_page(bio, start)) +
+				bio_iter_offset(bio, start),
+			.type = BB_NONE, .rw = rw
+		};
+
+	/* check if we can map the pages contiguously: */
 	__bio_for_each_segment(bv, bio, iter, start) {
-		if ((!first && bv.bv_offset) ||
-		    prev_end != PAGE_SIZE)
+		if (iter.bi_size != start.bi_size &&
+		    bv.bv_offset)
 			goto bounce;
 
-		prev_end = bv.bv_offset + bv.bv_len;
+		if (bv.bv_len < iter.bi_size &&
+		    bv.bv_offset + bv.bv_len < PAGE_SIZE)
+			goto bounce;
+
 		nr_pages++;
 	}
 
@@ -264,7 +283,8 @@ int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
 	if (ret)
 		goto err;
 
-	if (dst_data.type != BB_NONE)
+	if (dst_data.type != BB_NONE &&
+	    dst_data.type != BB_VMAP)
 		memcpy_to_bio(dst, dst_iter, dst_data.b + (crc.offset << 9));
 err:
 	bio_unmap_or_unbounce(c, dst_data);
@@ -407,7 +427,8 @@ static unsigned __bio_compress(struct bch_fs *c,
 	memset(dst_data.b + *dst_len, 0, pad);
 	*dst_len += pad;
 
-	if (dst_data.type != BB_NONE)
+	if (dst_data.type != BB_NONE &&
+	    dst_data.type != BB_VMAP)
 		memcpy_to_bio(dst, dst->bi_iter, dst_data.b);
 
 	BUG_ON(!*dst_len || *dst_len > dst->bi_iter.bi_size);
