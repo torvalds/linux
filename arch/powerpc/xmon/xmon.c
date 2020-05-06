@@ -857,8 +857,8 @@ static struct bpt *in_breakpoint_table(unsigned long nip, unsigned long *offp)
 	off = nip - (unsigned long)bpt_table;
 	if (off >= sizeof(bpt_table))
 		return NULL;
-	*offp = off % BPT_SIZE;
-	if (*offp != 0 && *offp != 4)
+	*offp = off & (BPT_SIZE - 1);
+	if (off & 3)
 		return NULL;
 	return bpts + (off / BPT_SIZE);
 }
