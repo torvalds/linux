@@ -708,6 +708,26 @@ static void __init test_translate_branch(void)
 	vfree(buf);
 }
 
+#ifdef CONFIG_PPC64
+static void __init test_prefixed_patching(void)
+{
+	extern unsigned int code_patching_test1[];
+	extern unsigned int code_patching_test1_expected[];
+	extern unsigned int end_code_patching_test1[];
+
+	__patch_instruction((struct ppc_inst *)code_patching_test1,
+			    ppc_inst_prefix(OP_PREFIX << 26, 0x00000000),
+			    (struct ppc_inst *)code_patching_test1);
+
+	check(!memcmp(code_patching_test1,
+		      code_patching_test1_expected,
+		      sizeof(unsigned int) *
+		      (end_code_patching_test1 - code_patching_test1)));
+}
+#else
+static inline void test_prefixed_patching(void) {}
+#endif
+
 static int __init test_code_patching(void)
 {
 	printk(KERN_DEBUG "Running code patching self-tests ...\n");
@@ -716,6 +736,7 @@ static int __init test_code_patching(void)
 	test_branch_bform();
 	test_create_function_call();
 	test_translate_branch();
+	test_prefixed_patching();
 
 	return 0;
 }
