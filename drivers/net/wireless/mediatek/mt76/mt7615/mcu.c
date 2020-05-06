@@ -2806,7 +2806,6 @@ int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	req->scan_type = sreq->n_ssids ? 1 : 0;
 	req->probe_req_num = sreq->n_ssids ? 2 : 0;
 	req->version = 1;
-	req->channel_type = 4;
 
 	for (i = 0; i < sreq->n_ssids; i++) {
 		if (!sreq->ssids[i].ssid_len)
@@ -2835,6 +2834,7 @@ int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		chan->band = scan_list[i]->band == NL80211_BAND_2GHZ ? 1 : 2;
 		chan->channel_num = scan_list[i]->hw_value;
 	}
+	req->channel_type = sreq->n_channels ? 4 : 0;
 
 	if (sreq->ie_len > 0) {
 		memcpy(req->ies, sreq->ie, sreq->ie_len);
@@ -2930,7 +2930,7 @@ int mt7615_mcu_sched_scan_req(struct mt7615_phy *phy,
 		req->match[i].ssid_len = match->ssid.ssid_len;
 	}
 
-	req->channel_type = 4;
+	req->channel_type = sreq->n_channels ? 4 : 0;
 	req->channels_num = min_t(u8, sreq->n_channels, 64);
 	for (i = 0; i < req->channels_num; i++) {
 		chan = &req->channels[i];
