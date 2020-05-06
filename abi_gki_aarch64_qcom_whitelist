@@ -1384,8 +1384,10 @@
   dma_buf_export
   dma_get_device_base
   dma_get_size
+  __ll_sc_atomic64_sub_return
   mm_event_count
   __next_zones_zonelist
+  ptr_to_hashval
   sched_setattr
   split_page
   vm_map_ram
