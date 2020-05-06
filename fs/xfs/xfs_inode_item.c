@@ -762,10 +762,9 @@ xfs_iflush_done(
  */
 void
 xfs_iflush_abort(
-	xfs_inode_t		*ip,
-	bool			stale)
+	struct xfs_inode		*ip)
 {
-	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct xfs_inode_log_item	*iip = ip->i_itemp;
 
 	if (iip) {
 		xfs_trans_ail_delete(&iip->ili_item, 0);
@@ -793,7 +792,7 @@ xfs_istale_done(
 	struct xfs_buf		*bp,
 	struct xfs_log_item	*lip)
 {
-	xfs_iflush_abort(INODE_ITEM(lip)->ili_inode, true);
+	xfs_iflush_abort(INODE_ITEM(lip)->ili_inode);
 }
 
 /*

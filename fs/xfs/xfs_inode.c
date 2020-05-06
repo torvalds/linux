@@ -3702,7 +3702,7 @@ xfs_iflush(
 	return 0;
 
 abort:
-	xfs_iflush_abort(ip, false);
+	xfs_iflush_abort(ip);
 shutdown:
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	return error;
