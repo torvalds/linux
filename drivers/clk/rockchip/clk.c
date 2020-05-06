@@ -612,6 +612,16 @@ void __init rockchip_clk_register_branches(
 				list->div_width, list->div_flags,
 				ctx->reg_base);
 			break;
+		case branch_dclk_divider:
+			clk = rockchip_clk_register_dclk_branch(list->name,
+				list->parent_names, list->num_parents,
+				ctx->reg_base, list->muxdiv_offset, list->mux_shift,
+				list->mux_width, list->mux_flags,
+				list->div_offset, list->div_shift, list->div_width,
+				list->div_flags, list->div_table,
+				list->gate_offset, list->gate_shift,
+				list->gate_flags, flags, list->max_prate, &ctx->lock);
+			break;
 		}
 
 		/* none of the cases above matched */

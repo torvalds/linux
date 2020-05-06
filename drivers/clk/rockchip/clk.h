@@ -458,6 +458,7 @@ enum rockchip_clk_branch_type {
 	branch_factor,
 	branch_ddrclk,
 	branch_half_divider,
+	branch_dclk_divider,
 };
 
 struct rockchip_clk_branch {
@@ -964,6 +965,28 @@ struct rockchip_clk_branch {
 		.gate_offset	= -1,				\
 	}
 
+#define COMPOSITE_DCLK(_id, cname, pnames, f, mo, ms, mw, mf, ds, dw,\
+		  df, go, gs, gf, prate)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_dclk_divider,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+		.max_prate	= prate,				\
+	}
+
 /* SGRF clocks are only accessible from secure mode, so not controllable */
 #define SGRF_GATE(_id, cname, pname)				\
 		FACTOR(_id, cname, pname, 0, 1, 1)
@@ -1005,6 +1028,21 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  int gate_offset, u8 gate_shift,
 					  u8 gate_flags, unsigned long flags,
 					  spinlock_t *lock);
+
+struct clk *rockchip_clk_register_dclk_branch(const char *name,
+					      const char *const *parent_names,
+					      u8 num_parents,
+					      void __iomem *base,
+					      int muxdiv_offset, u8 mux_shift,
+					      u8 mux_width, u8 mux_flags,
+					      int div_offset, u8 div_shift,
+					      u8 div_width, u8 div_flags,
+					      struct clk_div_table *div_table,
+					      int gate_offset,
+					      u8 gate_shift, u8 gate_flags,
+					      unsigned long flags,
+					      unsigned long max_prate,
+					      spinlock_t *lock);
 
 #ifdef CONFIG_RESET_CONTROLLER
 void rockchip_register_softrst(struct device_node *np,

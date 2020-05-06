@@ -388,6 +388,7 @@ struct clk_div_table {
  * @reg:	register containing the divider
  * @shift:	shift to the divider bit field
  * @width:	width of the divider bit field
+ * @max_prate:	the maximum frequency of the parent clock
  * @table:	array of value/divider pairs, last entry should have div = 0
  * @lock:	register lock
  *
@@ -424,6 +425,7 @@ struct clk_divider {
 	u8		shift;
 	u8		width;
 	u8		flags;
+	unsigned long	max_prate;
 	const struct clk_div_table	*table;
 	spinlock_t	*lock;
 };

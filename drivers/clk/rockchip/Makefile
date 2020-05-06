@@ -12,6 +12,7 @@ obj-y	+= clk-mmc-phase.o
 obj-y	+= clk-muxgrf.o
 obj-y	+= clk-ddr.o
 obj-y	+= clk-pvtm.o
+obj-y	+= clk-dclk-divider.o
 obj-$(CONFIG_RESET_CONTROLLER)	+= softrst.o
 
 obj-$(CONFIG_CPU_PX30)		+= clk-px30.o
