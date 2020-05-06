@@ -276,7 +276,8 @@ static int xrx200_tx_housekeeping(struct napi_struct *napi, int budget)
 	return pkts;
 }
 
-static int xrx200_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
+static netdev_tx_t xrx200_start_xmit(struct sk_buff *skb,
+				     struct net_device *net_dev)
 {
 	struct xrx200_priv *priv = netdev_priv(net_dev);
 	struct xrx200_chan *ch = &priv->chan_tx;
