@@ -474,24 +474,19 @@ static int cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 				       grh, &av->ah_attr);
 }
 
-static int add_cm_id_to_port_list(struct cm_id_private *cm_id_priv,
-				  struct cm_av *av,
-				  struct cm_port *port)
+static void add_cm_id_to_port_list(struct cm_id_private *cm_id_priv,
+				   struct cm_av *av, struct cm_port *port)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	spin_lock_irqsave(&cm.lock, flags);
-
 	if (&cm_id_priv->av == av)
 		list_add_tail(&cm_id_priv->prim_list, &port->cm_priv_prim_list);
 	else if (&cm_id_priv->alt_av == av)
 		list_add_tail(&cm_id_priv->altr_list, &port->cm_priv_altr_list);
 	else
-		ret = -EINVAL;
-
+		WARN_ON(true);
 	spin_unlock_irqrestore(&cm.lock, flags);
-	return ret;
 }
 
 static struct cm_port *
@@ -572,12 +567,7 @@ static int cm_init_av_by_path(struct sa_path_rec *path,
 		return ret;
 
 	av->timeout = path->packet_life_time + 1;
-
-	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
-	if (ret) {
-		rdma_destroy_ah_attr(&new_ah_attr);
-		return ret;
-	}
+	add_cm_id_to_port_list(cm_id_priv, av, port);
 	rdma_move_ah_attr(&av->ah_attr, &new_ah_attr);
 	return 0;
 }
