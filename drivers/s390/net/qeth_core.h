@@ -688,6 +688,9 @@ struct qeth_card_info {
 	u8 promisc_mode:1;
 	u8 use_v1_blkt:1;
 	u8 is_vm_nic:1;
+	/* no bitfield, we take a pointer on these two: */
+	u8 has_lp2lp_cso_v6;
+	u8 has_lp2lp_cso_v4;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
 	int broadcast_capable;
