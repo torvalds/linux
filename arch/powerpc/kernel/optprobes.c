@@ -16,6 +16,7 @@
 #include <asm/code-patching.h>
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
+#include <asm/inst.h>
 
 #define TMPL_CALL_HDLR_IDX	\
 	(optprobe_template_call_handler - optprobe_template_entry)
@@ -147,13 +148,13 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
 {
 	/* addis r4,0,(insn)@h */
-	patch_instruction(addr, PPC_INST_ADDIS | ___PPC_RT(4) |
-			  ((val >> 16) & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ADDIS | ___PPC_RT(4) |
+			  ((val >> 16) & 0xffff)));
 	addr++;
 
 	/* ori r4,r4,(insn)@l */
-	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(4) |
-			  ___PPC_RS(4) | (val & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ORI | ___PPC_RA(4) |
+			  ___PPC_RS(4) | (val & 0xffff)));
 }
 
 /*
@@ -163,28 +164,28 @@ void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
 void patch_imm64_load_insns(unsigned long val, kprobe_opcode_t *addr)
 {
 	/* lis r3,(op)@highest */
-	patch_instruction(addr, PPC_INST_ADDIS | ___PPC_RT(3) |
-			  ((val >> 48) & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ADDIS | ___PPC_RT(3) |
+			  ((val >> 48) & 0xffff)));
 	addr++;
 
 	/* ori r3,r3,(op)@higher */
-	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(3) |
-			  ___PPC_RS(3) | ((val >> 32) & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ORI | ___PPC_RA(3) |
+			  ___PPC_RS(3) | ((val >> 32) & 0xffff)));
 	addr++;
 
 	/* rldicr r3,r3,32,31 */
-	patch_instruction(addr, PPC_INST_RLDICR | ___PPC_RA(3) |
-			  ___PPC_RS(3) | __PPC_SH64(32) | __PPC_ME64(31));
+	patch_instruction(addr, ppc_inst(PPC_INST_RLDICR | ___PPC_RA(3) |
+			  ___PPC_RS(3) | __PPC_SH64(32) | __PPC_ME64(31)));
 	addr++;
 
 	/* oris r3,r3,(op)@h */
-	patch_instruction(addr, PPC_INST_ORIS | ___PPC_RA(3) |
-			  ___PPC_RS(3) | ((val >> 16) & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ORIS | ___PPC_RA(3) |
+			  ___PPC_RS(3) | ((val >> 16) & 0xffff)));
 	addr++;
 
 	/* ori r3,r3,(op)@l */
-	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(3) |
-			  ___PPC_RS(3) | (val & 0xffff));
+	patch_instruction(addr, ppc_inst(PPC_INST_ORI | ___PPC_RA(3) |
+			  ___PPC_RS(3) | (val & 0xffff)));
 }
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
@@ -230,7 +231,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	size = (TMPL_END_IDX * sizeof(kprobe_opcode_t)) / sizeof(int);
 	pr_devel("Copying template to %p, size %lu\n", buff, size);
 	for (i = 0; i < size; i++) {
-		rc = patch_instruction(buff + i, *(optprobe_template_entry + i));
+		rc = patch_instruction(buff + i,
+				       ppc_inst(*(optprobe_template_entry + i)));
 		if (rc < 0)
 			goto error;
 	}

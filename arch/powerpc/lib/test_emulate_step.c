@@ -11,6 +11,7 @@
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
 #include <asm/code-patching.h>
+#include <asm/inst.h>
 
 #define IMM_L(i)		((uintptr_t)(i) & 0xffff)
 #define IMM_DS(i)		((uintptr_t)(i) & 0xfffc)
@@ -19,40 +20,40 @@
  * Defined with TEST_ prefix so it does not conflict with other
  * definitions.
  */
-#define TEST_LD(r, base, i)	(PPC_INST_LD | ___PPC_RT(r) |		\
+#define TEST_LD(r, base, i)	ppc_inst(PPC_INST_LD | ___PPC_RT(r) |		\
 					___PPC_RA(base) | IMM_DS(i))
-#define TEST_LWZ(r, base, i)	(PPC_INST_LWZ | ___PPC_RT(r) |		\
+#define TEST_LWZ(r, base, i)	ppc_inst(PPC_INST_LWZ | ___PPC_RT(r) |		\
 					___PPC_RA(base) | IMM_L(i))
-#define TEST_LWZX(t, a, b)	(PPC_INST_LWZX | ___PPC_RT(t) |		\
+#define TEST_LWZX(t, a, b)	ppc_inst(PPC_INST_LWZX | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STD(r, base, i)	(PPC_INST_STD | ___PPC_RS(r) |		\
+#define TEST_STD(r, base, i)	ppc_inst(PPC_INST_STD | ___PPC_RS(r) |		\
 					___PPC_RA(base) | IMM_DS(i))
-#define TEST_LDARX(t, a, b, eh)	(PPC_INST_LDARX | ___PPC_RT(t) |	\
+#define TEST_LDARX(t, a, b, eh)	ppc_inst(PPC_INST_LDARX | ___PPC_RT(t) |	\
 					___PPC_RA(a) | ___PPC_RB(b) |	\
 					__PPC_EH(eh))
-#define TEST_STDCX(s, a, b)	(PPC_INST_STDCX | ___PPC_RS(s) |	\
+#define TEST_STDCX(s, a, b)	ppc_inst(PPC_INST_STDCX | ___PPC_RS(s) |	\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LFSX(t, a, b)	(PPC_INST_LFSX | ___PPC_RT(t) |		\
+#define TEST_LFSX(t, a, b)	ppc_inst(PPC_INST_LFSX | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STFSX(s, a, b)	(PPC_INST_STFSX | ___PPC_RS(s) |	\
+#define TEST_STFSX(s, a, b)	ppc_inst(PPC_INST_STFSX | ___PPC_RS(s) |	\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LFDX(t, a, b)	(PPC_INST_LFDX | ___PPC_RT(t) |		\
+#define TEST_LFDX(t, a, b)	ppc_inst(PPC_INST_LFDX | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STFDX(s, a, b)	(PPC_INST_STFDX | ___PPC_RS(s) |	\
+#define TEST_STFDX(s, a, b)	ppc_inst(PPC_INST_STFDX | ___PPC_RS(s) |	\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LVX(t, a, b)	(PPC_INST_LVX | ___PPC_RT(t) |		\
+#define TEST_LVX(t, a, b)	ppc_inst(PPC_INST_LVX | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STVX(s, a, b)	(PPC_INST_STVX | ___PPC_RS(s) |		\
+#define TEST_STVX(s, a, b)	ppc_inst(PPC_INST_STVX | ___PPC_RS(s) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LXVD2X(s, a, b)	(PPC_INST_LXVD2X | VSX_XX1((s), R##a, R##b))
-#define TEST_STXVD2X(s, a, b)	(PPC_INST_STXVD2X | VSX_XX1((s), R##a, R##b))
-#define TEST_ADD(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+#define TEST_LXVD2X(s, a, b)	ppc_inst(PPC_INST_LXVD2X | VSX_XX1((s), R##a, R##b))
+#define TEST_STXVD2X(s, a, b)	ppc_inst(PPC_INST_STXVD2X | VSX_XX1((s), R##a, R##b))
+#define TEST_ADD(t, a, b)	ppc_inst(PPC_INST_ADD | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_ADD_DOT(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+#define TEST_ADD_DOT(t, a, b)	ppc_inst(PPC_INST_ADD | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
-#define TEST_ADDC(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
+#define TEST_ADDC(t, a, b)	ppc_inst(PPC_INST_ADDC | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_ADDC_DOT(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
+#define TEST_ADDC_DOT(t, a, b)	ppc_inst(PPC_INST_ADDC | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 
 #define MAX_SUBTESTS	16
@@ -472,7 +473,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "R0 = LONG_MAX",
-				.instr = PPC_INST_NOP,
+				.instr = ppc_inst(PPC_INST_NOP),
 				.regs = {
 					.gpr[0] = LONG_MAX,
 				}

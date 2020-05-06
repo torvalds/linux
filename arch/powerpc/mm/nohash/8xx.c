@@ -11,6 +11,7 @@
 #include <linux/mmu_context.h>
 #include <asm/fixmap.h>
 #include <asm/code-patching.h>
+#include <asm/inst.h>
 
 #include <mm/mmu_decl.h>
 
@@ -101,7 +102,7 @@ static void mmu_patch_addis(s32 *site, long simm)
 
 	instr &= 0xffff0000;
 	instr |= ((unsigned long)simm) >> 16;
-	patch_instruction_site(site, instr);
+	patch_instruction_site(site, ppc_inst(instr));
 }
 
 static void mmu_mapin_ram_chunk(unsigned long offset, unsigned long top, pgprot_t prot)
@@ -125,7 +126,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		mapped = 0;
 		mmu_mapin_immr();
 		if (!IS_ENABLED(CONFIG_PIN_TLB_IMMR))
-			patch_instruction_site(&patch__dtlbmiss_immr_jmp, PPC_INST_NOP);
+			patch_instruction_site(&patch__dtlbmiss_immr_jmp, ppc_inst(PPC_INST_NOP));
 		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
 			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
 	} else {

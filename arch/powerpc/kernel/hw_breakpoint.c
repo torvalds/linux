@@ -24,6 +24,7 @@
 #include <asm/debug.h>
 #include <asm/debugfs.h>
 #include <asm/hvcall.h>
+#include <asm/inst.h>
 #include <linux/uaccess.h>
 
 /*
@@ -243,7 +244,7 @@ dar_range_overlaps(unsigned long dar, int size, struct arch_hw_breakpoint *info)
 static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 			     struct arch_hw_breakpoint *info)
 {
-	unsigned int instr = 0;
+	unsigned int instr = ppc_inst(0);
 	int ret, type, size;
 	struct instruction_op op;
 	unsigned long addr = info->address;

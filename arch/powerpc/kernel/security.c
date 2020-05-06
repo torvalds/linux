@@ -16,6 +16,7 @@
 #include <asm/debugfs.h>
 #include <asm/security_features.h>
 #include <asm/setup.h>
+#include <asm/inst.h>
 
 
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
@@ -439,9 +440,11 @@ static void toggle_count_cache_flush(bool enable)
 		enable = false;
 
 	if (!enable) {
-		patch_instruction_site(&patch__call_flush_count_cache, PPC_INST_NOP);
+		patch_instruction_site(&patch__call_flush_count_cache,
+				       ppc_inst(PPC_INST_NOP));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-		patch_instruction_site(&patch__call_kvm_flush_link_stack, PPC_INST_NOP);
+		patch_instruction_site(&patch__call_kvm_flush_link_stack,
+				       ppc_inst(PPC_INST_NOP));
 #endif
 		pr_info("link-stack-flush: software flush disabled.\n");
 		link_stack_flush_enabled = false;
@@ -464,7 +467,8 @@ static void toggle_count_cache_flush(bool enable)
 
 	// If we just need to flush the link stack, patch an early return
 	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
-		patch_instruction_site(&patch__flush_link_stack_return, PPC_INST_BLR);
+		patch_instruction_site(&patch__flush_link_stack_return,
+				       ppc_inst(PPC_INST_BLR));
 		no_count_cache_flush();
 		return;
 	}
@@ -475,7 +479,7 @@ static void toggle_count_cache_flush(bool enable)
 		return;
 	}
 
-	patch_instruction_site(&patch__flush_count_cache_return, PPC_INST_BLR);
+	patch_instruction_site(&patch__flush_count_cache_return, ppc_inst(PPC_INST_BLR));
 	count_cache_flush_type = COUNT_CACHE_FLUSH_HW;
 	pr_info("count-cache-flush: hardware assisted flush sequence enabled\n");
 }

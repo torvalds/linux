@@ -17,6 +17,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>
+#include <asm/inst.h>
 
 #include <sysdev/fsl_soc.h>
 
@@ -82,7 +83,7 @@ smp_86xx_kick_cpu(int nr)
 		mdelay(1);
 
 	/* Restore the exception vector */
-	patch_instruction(vector, save_vector);
+	patch_instruction(vector, ppc_inst(save_vector));
 
 	local_irq_restore(flags);
 

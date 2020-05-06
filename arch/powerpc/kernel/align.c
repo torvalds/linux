@@ -24,6 +24,7 @@
 #include <asm/disassemble.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/sstep.h>
+#include <asm/inst.h>
 
 struct aligninfo {
 	unsigned char len;

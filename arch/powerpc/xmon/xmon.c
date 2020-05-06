@@ -54,6 +54,7 @@
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
 #include <asm/sections.h>
+#include <asm/inst.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -946,7 +947,7 @@ static void remove_bpts(void)
 		if ((bp->enabled & (BP_TRAP|BP_CIABR)) != BP_TRAP)
 			continue;
 		if (mread(bp->address, &instr, 4) == 4
-		    && instr == bpinstr
+		    && instr == ppc_inst(bpinstr)
 		    && patch_instruction(
 			(unsigned int *)bp->address, bp->instr[0]) != 0)
 			printf("Couldn't remove breakpoint at %lx\n",
@@ -2847,7 +2848,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 {
 	int nr, dotted;
 	unsigned long first_adr;
-	unsigned int inst, last_inst = 0;
+	unsigned int inst, last_inst = ppc_inst(0);
 	unsigned char val[4];
 
 	dotted = 0;
@@ -2860,7 +2861,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 			}
 			break;
 		}
-		inst = GETWORD(val);
+		inst = ppc_inst(GETWORD(val));
 		if (adr > first_adr && inst == last_inst) {
 			if (!dotted) {
 				printf(" ...\n");

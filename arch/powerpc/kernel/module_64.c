@@ -20,6 +20,7 @@
 #include <linux/sort.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
+#include <asm/inst.h>
 
 /* FIXME: We don't do .init separately.  To do this, we'd need to have
    a separate r2 value in the init and core section, and stub between
@@ -491,7 +492,7 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 	 * "link" branches and they don't return, so they don't need the r2
 	 * restore afterwards.
 	 */
-	if (!instr_is_relative_link_branch(*prev_insn))
+	if (!instr_is_relative_link_branch(ppc_inst(*prev_insn)))
 		return 1;
 
 	if (*instruction != PPC_INST_NOP) {
