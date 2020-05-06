@@ -1,11 +1,3 @@
 . ${ROOT_DIR}/common/build.config.common
 . ${ROOT_DIR}/common/build.config.aarch64
 . ${ROOT_DIR}/common/build.config.gki_kasan
-
-ABI_DEFINITION=abi_gki_aarch64.xml
-KMI_WHITELIST=abi_gki_aarch64_whitelist
-ADDITIONAL_KMI_WHITELISTS="
-abi_gki_aarch64_cuttlefish_whitelist
-abi_gki_aarch64_qcom_whitelist
-"
-TRIM_NONLISTED_KMI=1
