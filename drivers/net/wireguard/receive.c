@@ -226,21 +226,20 @@ void wg_packet_handshake_receive_worker(struct work_struct *work)
 static void keep_key_fresh(struct wg_peer *peer)
 {
 	struct noise_keypair *keypair;
-	bool send = false;
+	bool send;
 
 	if (peer->sent_lastminute_handshake)
 		return;
 
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
-	if (likely(keypair && READ_ONCE(keypair->sending.is_valid)) &&
-	    keypair->i_am_the_initiator &&
-	    unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
-			REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT)))
-		send = true;
+	send = keypair && READ_ONCE(keypair->sending.is_valid) &&
+	       keypair->i_am_the_initiator &&
+	       wg_birthdate_has_expired(keypair->sending.birthdate,
+			REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT);
 	rcu_read_unlock_bh();
 
-	if (send) {
+	if (unlikely(send)) {
 		peer->sent_lastminute_handshake = true;
 		wg_packet_send_queued_handshake_initiation(peer, false);
 	}

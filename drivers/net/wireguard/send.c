@@ -124,20 +124,17 @@ void wg_packet_send_handshake_cookie(struct wg_device *wg,
 static void keep_key_fresh(struct wg_peer *peer)
 {
 	struct noise_keypair *keypair;
-	bool send = false;
+	bool send;
 
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
-	if (likely(keypair && READ_ONCE(keypair->sending.is_valid)) &&
-	    (unlikely(atomic64_read(&keypair->sending.counter.counter) >
-		      REKEY_AFTER_MESSAGES) ||
-	     (keypair->i_am_the_initiator &&
-	      unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
-						REKEY_AFTER_TIME)))))
-		send = true;
+	send = keypair && READ_ONCE(keypair->sending.is_valid) &&
+	       (atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES ||
+		(keypair->i_am_the_initiator &&
+		 wg_birthdate_has_expired(keypair->sending.birthdate, REKEY_AFTER_TIME)));
 	rcu_read_unlock_bh();
 
-	if (send)
+	if (unlikely(send))
 		wg_packet_send_queued_handshake_initiation(peer, false);
 }
 
