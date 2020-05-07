@@ -28,6 +28,12 @@ properties:
     maxItems: 1
     description: GPIO specifier for GPIO1 pin on bridge (active low).
 
+  no-hpd:
+    type: boolean
+    description:
+      Set if the HPD line on the bridge isn't hooked up to anything or is
+      otherwise unusable.
+
   vccio-supply:
     description: A 1.8V supply that powers the digital IOs.
 
@@ -212,6 +218,8 @@ examples:
 
         clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
         clock-names = "refclk";
+
+        no-hpd;
 
         ports {
           #address-cells = <1>;
