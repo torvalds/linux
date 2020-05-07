@@ -2918,6 +2918,14 @@ static int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 	return ret;
 }
 
+static const struct attribute *amdgpu_dev_attributes[] = {
+	&dev_attr_product_name.attr,
+	&dev_attr_product_number.attr,
+	&dev_attr_serial_number.attr,
+	&dev_attr_pcie_replay_count.attr,
+	NULL
+};
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3267,27 +3275,9 @@ fence_driver_init:
 	queue_delayed_work(system_wq, &adev->delayed_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
-	r = device_create_file(adev->dev, &dev_attr_pcie_replay_count);
+	r = sysfs_create_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (r) {
-		dev_err(adev->dev, "Could not create pcie_replay_count");
-		return r;
-	}
-
-	r = device_create_file(adev->dev, &dev_attr_product_name);
-	if (r) {
-		dev_err(adev->dev, "Could not create product_name");
-		return r;
-	}
-
-	r = device_create_file(adev->dev, &dev_attr_product_number);
-	if (r) {
-		dev_err(adev->dev, "Could not create product_number");
-		return r;
-	}
-
-	r = device_create_file(adev->dev, &dev_attr_serial_number);
-	if (r) {
-		dev_err(adev->dev, "Could not create serial_number");
+		dev_err(adev->dev, "Could not create amdgpu device attr\n");
 		return r;
 	}
 
@@ -3370,12 +3360,10 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->rmmio = NULL;
 	amdgpu_device_doorbell_fini(adev);
 
-	device_remove_file(adev->dev, &dev_attr_pcie_replay_count);
 	if (adev->ucode_sysfs_en)
 		amdgpu_ucode_sysfs_fini(adev);
-	device_remove_file(adev->dev, &dev_attr_product_name);
-	device_remove_file(adev->dev, &dev_attr_product_number);
-	device_remove_file(adev->dev, &dev_attr_serial_number);
+
+	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
 	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10)
