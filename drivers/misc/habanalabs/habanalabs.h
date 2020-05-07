@@ -843,6 +843,7 @@ struct hl_userptr {
  * @fence: pointer to the fence object of this CS.
  * @signal_fence: pointer to the fence object of the signal CS (used by wait
  *                CS only).
+ * @finish_work: workqueue object to run when CS is completed by H/W.
  * @work_tdr: delayed work node for TDR.
  * @mirror_node : node in device mirror list of command submissions.
  * @debugfs_list: node in debugfs list of command submissions.
@@ -863,6 +864,7 @@ struct hl_cs {
 	struct kref		refcount;
 	struct dma_fence	*fence;
 	struct dma_fence	*signal_fence;
+	struct work_struct	finish_work;
 	struct delayed_work	work_tdr;
 	struct list_head	mirror_node;
 	struct list_head	debugfs_list;
