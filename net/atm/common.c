@@ -177,18 +177,18 @@ static void vcc_destroy_socket(struct sock *sk)
 
 	set_bit(ATM_VF_CLOSE, &vcc->flags);
 	clear_bit(ATM_VF_READY, &vcc->flags);
-	if (vcc->dev) {
-		if (vcc->dev->ops->close)
-			vcc->dev->ops->close(vcc);
-		if (vcc->push)
-			vcc->push(vcc, NULL); /* atmarpd has no push */
-		module_put(vcc->owner);
+	if (vcc->dev && vcc->dev->ops->close)
+		vcc->dev->ops->close(vcc);
+	if (vcc->push)
+		vcc->push(vcc, NULL); /* atmarpd has no push */
+	module_put(vcc->owner);
 
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-			atm_return(vcc, skb->truesize);
-			kfree_skb(skb);
-		}
+	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		atm_return(vcc, skb->truesize);
+		kfree_skb(skb);
+	}
 
+	if (vcc->dev && vcc->dev->ops->owner) {
 		module_put(vcc->dev->ops->owner);
 		atm_dev_put(vcc->dev);
 	}
