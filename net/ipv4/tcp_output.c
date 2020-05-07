@@ -2593,8 +2593,7 @@ bool tcp_schedule_loss_probe(struct sock *sk, bool advancing_rto)
 	if (rto_delta_us > 0)
 		timeout = min_t(u32, timeout, usecs_to_jiffies(rto_delta_us));
 
-	tcp_reset_xmit_timer(sk, ICSK_TIME_LOSS_PROBE, timeout,
-			     TCP_RTO_MAX, NULL);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_LOSS_PROBE, timeout, TCP_RTO_MAX);
 	return true;
 }
 
@@ -3113,6 +3112,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sk_buff *skb, *rtx_head, *hole = NULL;
 	struct tcp_sock *tp = tcp_sk(sk);
+	bool rearm_timer = false;
 	u32 max_segs;
 	int mib_idx;
 
@@ -3135,7 +3135,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 
 		segs = tp->snd_cwnd - tcp_packets_in_flight(tp);
 		if (segs <= 0)
-			return;
+			break;
 		sacked = TCP_SKB_CB(skb)->sacked;
 		/* In case tcp_shift_skb_data() have aggregated large skbs,
 		 * we need to make sure not sending too bigs TSO packets
@@ -3160,10 +3160,10 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			continue;
 
 		if (tcp_small_queue_check(sk, skb, 1))
-			return;
+			break;
 
 		if (tcp_retransmit_skb(sk, skb, segs))
-			return;
+			break;
 
 		NET_ADD_STATS(sock_net(sk), mib_idx, tcp_skb_pcount(skb));
 
@@ -3172,11 +3172,13 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 
 		if (skb == rtx_head &&
 		    icsk->icsk_pending != ICSK_TIME_REO_TIMEOUT)
-			tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					     inet_csk(sk)->icsk_rto,
-					     TCP_RTO_MAX,
-					     skb);
+			rearm_timer = true;
+
 	}
+	if (rearm_timer)
+		tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+				     inet_csk(sk)->icsk_rto,
+				     TCP_RTO_MAX);
 }
 
 /* We allow to exceed memory limits for FIN packets to expedite
@@ -3907,7 +3909,7 @@ void tcp_send_probe0(struct sock *sk)
 		 */
 		timeout = TCP_RESOURCE_PROBE_INTERVAL;
 	}
-	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0, timeout, TCP_RTO_MAX, NULL);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0, timeout, TCP_RTO_MAX);
 }
 
 int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
