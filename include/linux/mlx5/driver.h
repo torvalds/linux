@@ -201,7 +201,7 @@ struct mlx5_rsc_debug {
 	void		       *object;
 	enum dbg_rsc_type	type;
 	struct dentry	       *root;
-	struct mlx5_field_desc	fields[0];
+	struct mlx5_field_desc	fields[];
 };
 
 enum mlx5_dev_event {
