@@ -759,14 +759,14 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 
 	ret = psp_ta_invoke(psp, ta_cmd_id, psp->ras.session_id);
 
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
 	if (ras_cmd->if_version > RAS_TA_HOST_IF_VER)
 	{
 		DRM_WARN("RAS: Unsupported Interface");
 		return -EINVAL;
 	}
-
-	if (amdgpu_ras_intr_triggered())
-		return ret;
 
 	if (!ret) {
 		if (ras_cmd->ras_out_message.flags.err_inject_switch_disable_flag) {
