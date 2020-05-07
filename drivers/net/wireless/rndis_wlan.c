@@ -201,7 +201,7 @@ struct ndis_80211_pmkid_candidate {
 struct ndis_80211_pmkid_cand_list {
 	__le32 version;
 	__le32 num_candidates;
-	struct ndis_80211_pmkid_candidate candidate_list[0];
+	struct ndis_80211_pmkid_candidate candidate_list[];
 } __packed;
 
 struct ndis_80211_status_indication {
@@ -246,12 +246,12 @@ struct ndis_80211_bssid_ex {
 	__le32 net_infra;
 	u8 rates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 ie_length;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 struct ndis_80211_bssid_list_ex {
 	__le32 num_items;
-	struct ndis_80211_bssid_ex bssid[0];
+	struct ndis_80211_bssid_ex bssid[];
 } __packed;
 
 struct ndis_80211_fixed_ies {
@@ -327,7 +327,7 @@ struct ndis_80211_bssid_info {
 struct ndis_80211_pmkid {
 	__le32 length;
 	__le32 bssid_info_count;
-	struct ndis_80211_bssid_info bssid_info[0];
+	struct ndis_80211_bssid_info bssid_info[];
 } __packed;
 
 /*
