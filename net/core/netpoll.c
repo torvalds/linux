@@ -305,7 +305,7 @@ static int netpoll_owner_active(struct net_device *dev)
 }
 
 /* call with IRQ disabled */
-static void __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
+static netdev_tx_t __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	netdev_tx_t status = NETDEV_TX_BUSY;
 	struct net_device *dev;
@@ -320,7 +320,7 @@ static void __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
 		dev_kfree_skb_irq(skb);
-		return;
+		return NET_XMIT_DROP;
 	}
 
 	/* don't get messages out of order, and no recursion */
@@ -359,15 +359,18 @@ static void __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		skb_queue_tail(&npinfo->txq, skb);
 		schedule_delayed_work(&npinfo->tx_work,0);
 	}
+	return NETDEV_TX_OK;
 }
 
-void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
+netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	unsigned long flags;
+	netdev_tx_t ret;
 
 	local_irq_save(flags);
-	__netpoll_send_skb(np, skb);
+	ret = __netpoll_send_skb(np, skb);
 	local_irq_restore(flags);
+	return ret;
 }
 EXPORT_SYMBOL(netpoll_send_skb);
 
