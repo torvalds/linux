@@ -122,7 +122,6 @@ enum cpcap_gpio_mode {
 struct cpcap_phy_ddata {
 	struct regmap *reg;
 	struct device *dev;
-	struct clk *refclk;
 	struct usb_phy phy;
 	struct delayed_work detect_work;
 	struct pinctrl *pins;
@@ -707,7 +706,6 @@ static int cpcap_usb_phy_remove(struct platform_device *pdev)
 
 	usb_remove_phy(&ddata->phy);
 	cancel_delayed_work_sync(&ddata->detect_work);
-	clk_unprepare(ddata->refclk);
 	regulator_disable(ddata->vusb);
 
 	return 0;
