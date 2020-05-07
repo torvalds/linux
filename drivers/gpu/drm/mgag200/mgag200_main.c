@@ -10,14 +10,7 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
-
 #include "mgag200_drv.h"
-
-static const struct drm_mode_config_funcs mga_mode_funcs = {
-	.fb_create = drm_gem_fb_create
-};
 
 static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 {
@@ -135,27 +128,14 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		return ret;
 
-	mdev->bpp_shifts[0] = 0;
-	mdev->bpp_shifts[1] = 1;
-	mdev->bpp_shifts[2] = 0;
-	mdev->bpp_shifts[3] = 2;
-
 	ret = mgag200_mm_init(mdev);
 	if (ret)
 		goto err_mm;
 
-	drm_mode_config_init(dev);
-	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
-		dev->mode_config.preferred_depth = 16;
-	else
-		dev->mode_config.preferred_depth = 32;
-	dev->mode_config.prefer_shadow = 1;
-
 	ret = mgag200_modeset_init(mdev);
 	if (ret) {
 		drm_err(dev, "Fatal error during modeset init: %d\n", ret);
-		goto err_modeset;
+		goto err_mgag200_mm_fini;
 	}
 
 	ret = mgag200_cursor_init(mdev);
@@ -164,9 +144,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
-err_modeset:
-	drm_mode_config_cleanup(dev);
-	mgag200_cursor_fini(mdev);
+err_mgag200_mm_fini:
 	mgag200_mm_fini(mdev);
 err_mm:
 	dev->dev_private = NULL;
@@ -179,8 +157,6 @@ void mgag200_driver_unload(struct drm_device *dev)
 
 	if (mdev == NULL)
 		return;
-	mgag200_modeset_fini(mdev);
-	drm_mode_config_cleanup(dev);
 	mgag200_cursor_fini(mdev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;

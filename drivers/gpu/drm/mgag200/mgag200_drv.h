@@ -201,7 +201,6 @@ mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
-void mgag200_modeset_fini(struct mga_device *mdev);
 
 				/* mgag200_main.c */
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
