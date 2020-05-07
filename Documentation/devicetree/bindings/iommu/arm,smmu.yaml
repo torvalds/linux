@@ -41,7 +41,9 @@ properties:
           - const: arm,mmu-500
           - const: arm,smmu-v2
       - items:
-          - const: arm,mmu-401
+          - enum:
+              - arm,mmu-400
+              - arm,mmu-401
           - const: arm,smmu-v1
       - enum:
           - arm,smmu-v1
