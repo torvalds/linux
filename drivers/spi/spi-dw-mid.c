@@ -321,8 +321,6 @@ static const struct dw_spi_dma_ops generic_dma_ops = {
 
 static void dw_spi_mid_setup_dma_generic(struct dw_spi *dws)
 {
-	dws->dma_tx = &mid_dma_tx;
-	dws->dma_rx = &mid_dma_rx;
 	dws->dma_ops = &generic_dma_ops;
 }
 #else	/* CONFIG_SPI_DW_MID_DMA */
