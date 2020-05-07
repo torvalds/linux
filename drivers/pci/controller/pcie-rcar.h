@@ -17,6 +17,7 @@
 #define PCIECDR			0x000020
 #define PCIEMSR			0x000028
 #define PCIEINTXR		0x000400
+#define  ASTINTX		BIT(16)
 #define PCIEPHYSR		0x0007f0
 #define  PHYRDY			BIT(0)
 #define PCIEMSITXR		0x000840
@@ -55,12 +56,20 @@
 
 /* Configuration */
 #define PCICONF(x)		(0x010000 + ((x) * 0x4))
+#define  INTDIS			BIT(10)
 #define PMCAP(x)		(0x010040 + ((x) * 0x4))
+#define MSICAP(x)		(0x010050 + ((x) * 0x4))
+#define  MSICAP0_MSIE		BIT(16)
+#define  MSICAP0_MMESCAP_OFFSET	17
+#define  MSICAP0_MMESE_OFFSET	20
+#define  MSICAP0_MMESE_MASK	GENMASK(22, 20)
 #define EXPCAP(x)		(0x010070 + ((x) * 0x4))
 #define VCCAP(x)		(0x010100 + ((x) * 0x4))
 
 /* link layer */
+#define IDSETR0			0x011000
 #define IDSETR1			0x011004
+#define SUBIDSETR		0x011024
 #define TLCTLR			0x011048
 #define MACSR			0x011054
 #define  SPCHGFIN		BIT(4)
