@@ -27,6 +27,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	struct nand_memory_organization *memorg;
 	struct nand_jedec_params *p;
 	struct jedec_ecc_info *ecc;
+	bool use_datain = false;
 	int jedec_version = 0;
 	char id[5];
 	int i, val, ret;
@@ -44,14 +45,20 @@ int nand_jedec_detect(struct nand_chip *chip)
 	if (!p)
 		return -ENOMEM;
 
-	ret = nand_read_param_page_op(chip, 0x40, NULL, 0);
-	if (ret) {
-		ret = 0;
-		goto free_jedec_param_page;
-	}
+	if (!nand_has_exec_op(chip) ||
+	    !nand_read_data_op(chip, p, sizeof(*p), true, true))
+		use_datain = true;
 
 	for (i = 0; i < JEDEC_PARAM_PAGES; i++) {
-		ret = nand_read_data_op(chip, p, sizeof(*p), true, false);
+		if (!i)
+			ret = nand_read_param_page_op(chip, 0x40, p,
+						      sizeof(*p));
+		else if (use_datain)
+			ret = nand_read_data_op(chip, p, sizeof(*p), true,
+						false);
+		else
+			ret = nand_change_read_column_op(chip, sizeof(*p) * i,
+							 p, sizeof(*p), true);
 		if (ret) {
 			ret = 0;
 			goto free_jedec_param_page;
