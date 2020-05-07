@@ -508,8 +508,10 @@ static int micron_nand_init(struct nand_chip *chip)
 			chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
 			chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
 		} else {
-			chip->ecc.read_page_raw = nand_read_page_raw;
-			chip->ecc.write_page_raw = nand_write_page_raw;
+			if (!chip->ecc.read_page_raw)
+				chip->ecc.read_page_raw = nand_read_page_raw;
+			if (!chip->ecc.write_page_raw)
+				chip->ecc.write_page_raw = nand_write_page_raw;
 		}
 	}
 
