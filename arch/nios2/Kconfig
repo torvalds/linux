@@ -27,6 +27,7 @@ config NIOS2
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
 	select CPU_NO_EFFICIENT_FFS
 	select MMU_GATHER_NO_RANGE if MMU
+	select HAVE_COPY_THREAD_TLS
 
 config GENERIC_CSUM
 	def_bool y
