@@ -28,7 +28,7 @@
 static void mga_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_framebuffer *fb = crtc->primary->fb;
 	u16 *r_ptr, *g_ptr, *b_ptr;
 	int i;
@@ -728,7 +728,7 @@ static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
 
 static void mga_g200wb_prepare(struct drm_crtc *crtc)
 {
-	struct mga_device *mdev = crtc->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 	u8 tmp;
 	int iter_max;
 
@@ -783,7 +783,7 @@ static void mga_g200wb_prepare(struct drm_crtc *crtc)
 static void mga_g200wb_commit(struct drm_crtc *crtc)
 {
 	u8 tmp;
-	struct mga_device *mdev = crtc->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 
 	/* 1- The first step is to ensure that the vrsten and hrsten are set */
 	WREG8(MGAREG_CRTCEXT_INDEX, 1);
@@ -833,7 +833,7 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
  */
 static void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
-	struct mga_device *mdev = crtc->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 	u32 addr;
 	int count;
 	u8 crtcext0;
@@ -902,7 +902,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 				int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	const struct drm_framebuffer *fb = crtc->primary->fb;
 	int hdisplay, hsyncstart, hsyncend, htotal;
 	int vdisplay, vsyncstart, vsyncend, vtotal;
@@ -1263,7 +1263,7 @@ static int mga_resume(struct drm_crtc *crtc)
 static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	u8 seq1 = 0, crtcext1 = 0;
 
 	switch (mode) {
@@ -1317,7 +1317,7 @@ static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 static void mga_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	u8 tmp;
 
 	/*	mga_resume(crtc);*/
@@ -1353,7 +1353,7 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 static void mga_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	u8 tmp;
 
@@ -1495,7 +1495,7 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
-	struct mga_device *mdev = (struct mga_device*)dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	int bpp = 32;
 
 	if (IS_G200_SE(mdev)) {

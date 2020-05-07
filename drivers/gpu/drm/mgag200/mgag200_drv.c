@@ -120,7 +120,7 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args)
 {
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	unsigned long pg_align;
 
 	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))

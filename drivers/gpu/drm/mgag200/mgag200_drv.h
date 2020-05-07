@@ -182,6 +182,11 @@ struct mga_device {
 	struct drm_encoder encoder;
 };
 
+static inline struct mga_device *to_mga_device(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
+
 static inline enum mga_type
 mgag200_type_from_driver_data(kernel_ulong_t driver_data)
 {
