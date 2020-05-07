@@ -475,6 +475,12 @@ static void umh_clean_and_save_pid(struct subprocess_info *info)
 {
 	struct umh_info *umh_info = info->data;
 
+	/* cleanup if umh_pipe_setup() was successful but exec failed */
+	if (info->pid && info->retval) {
+		fput(umh_info->pipe_to_umh);
+		fput(umh_info->pipe_from_umh);
+	}
+
 	argv_free(info->argv);
 	umh_info->pid = info->pid;
 }
