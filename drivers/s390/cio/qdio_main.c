@@ -143,7 +143,7 @@ again:
 		DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
 		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 		q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE, q->nr,
-			   q->first_to_kick, count, q->irq_ptr->int_parm);
+			   q->first_to_check, count, q->irq_ptr->int_parm);
 		return 0;
 	}
 }
@@ -191,7 +191,7 @@ again:
 		DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
 		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 		q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE, q->nr,
-			   q->first_to_kick, count, q->irq_ptr->int_parm);
+			   q->first_to_check, count, q->irq_ptr->int_parm);
 		return 0;
 	}
 }
@@ -622,10 +622,9 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 	return phys_aob;
 }
 
-static void qdio_kick_handler(struct qdio_q *q, unsigned int count)
+static void qdio_kick_handler(struct qdio_q *q, unsigned int start,
+			      unsigned int count)
 {
-	int start = q->first_to_kick;
-
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
 
@@ -642,7 +641,6 @@ static void qdio_kick_handler(struct qdio_q *q, unsigned int count)
 		   q->irq_ptr->int_parm);
 
 	/* for the next time */
-	q->first_to_kick = add_buf(start, count);
 	q->qdio_error = 0;
 }
 
@@ -666,9 +664,9 @@ static void __qdio_inbound_processing(struct qdio_q *q)
 	if (count == 0)
 		return;
 
+	qdio_kick_handler(q, start, count);
 	start = add_buf(start, count);
 	q->first_to_check = start;
-	qdio_kick_handler(q, count);
 
 	if (!qdio_inbound_q_done(q, start)) {
 		/* means poll time is not yet over */
@@ -824,7 +822,7 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 	count = qdio_outbound_q_moved(q, start);
 	if (count) {
 		q->first_to_check = add_buf(start, count);
-		qdio_kick_handler(q, count);
+		qdio_kick_handler(q, start, count);
 	}
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
@@ -945,7 +943,6 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct qdio_q *q;
-	int count;
 
 	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_no);
 	DBF_ERROR("intp :%lx", intparm);
@@ -960,9 +957,8 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 		goto no_handler;
 	}
 
-	count = sub_buf(q->first_to_check, q->first_to_kick);
 	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE,
-		   q->nr, q->first_to_kick, count, irq_ptr->int_parm);
+		   q->nr, q->first_to_check, 0, irq_ptr->int_parm);
 no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 	/*

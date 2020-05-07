@@ -221,9 +221,6 @@ struct qdio_q {
 	 */
 	int first_to_check;
 
-	/* beginning position for calling the program */
-	int first_to_kick;
-
 	/* number of buffers in use by the adapter */
 	atomic_t nr_buf_used;
 
