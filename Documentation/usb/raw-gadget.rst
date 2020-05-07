@@ -27,9 +27,8 @@ differences are:
 3. Raw Gadget provides a way to select a UDC device/driver to bind to,
    while GadgetFS currently binds to the first available UDC.
 
-4. Raw Gadget uses predictable endpoint names (handles) across different
-   UDCs (as long as UDCs have enough endpoints of each required transfer
-   type).
+4. Raw Gadget explicitly exposes information about endpoints addresses and
+   capabilities allowing a user to write UDC-agnostic gadgets.
 
 5. Raw Gadget has ioctl-based interface instead of a filesystem-based one.
 
