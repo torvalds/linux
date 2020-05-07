@@ -267,7 +267,7 @@ struct probe_resp {
 	struct rcu_head rcu_head;
 	int len;
 	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	u8 data[0];
+	u8 data[];
 };
 
 struct ps_data {
