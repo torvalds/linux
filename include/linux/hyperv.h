@@ -117,7 +117,7 @@ struct hv_ring_buffer {
 	 * Ring data starts here + RingDataStartOffset
 	 * !!! DO NOT place any fields below this !!!
 	 */
-	u8 buffer[0];
+	u8 buffer[];
 } __packed;
 
 struct hv_ring_buffer_info {
@@ -313,7 +313,7 @@ struct vmadd_remove_transfer_page_set {
 struct gpa_range {
 	u32 byte_count;
 	u32 byte_offset;
-	u64 pfn_array[0];
+	u64 pfn_array[];
 };
 
 /*
@@ -563,7 +563,7 @@ struct vmbus_channel_gpadl_header {
 	u32 gpadl;
 	u16 range_buflen;
 	u16 rangecount;
-	struct gpa_range range[0];
+	struct gpa_range range[];
 } __packed;
 
 /* This is the followup packet that contains more PFNs. */
@@ -571,7 +571,7 @@ struct vmbus_channel_gpadl_body {
 	struct vmbus_channel_message_header header;
 	u32 msgnumber;
 	u32 gpadl;
-	u64 pfn[0];
+	u64 pfn[];
 } __packed;
 
 struct vmbus_channel_gpadl_created {
@@ -679,7 +679,7 @@ struct vmbus_channel_msginfo {
 	 * The channel message that goes out on the "wire".
 	 * It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header
 	 */
-	unsigned char msg[0];
+	unsigned char msg[];
 };
 
 struct vmbus_close_msg {
