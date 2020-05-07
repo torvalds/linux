@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Silicon Labs Si5341/Si5340 Clock generator
+ * Driver for Silicon Labs Si5340, Si5341, Si5342, Si5344 and Si5345
  * Copyright (C) 2019 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
+ *
+ * The Si5341 has 10 outputs and 5 synthesizers.
+ * The Si5340 is a smaller version of the Si5341 with only 4 outputs.
+ * The Si5345 is similar to the Si5341, with the addition of fractional input
+ * dividers and automatic input selection.
+ * The Si5342 and Si5344 are smaller versions of the Si5345.
  */
 
 #include <linux/clk.h>
@@ -18,11 +24,17 @@
 
 #define SI5341_NUM_INPUTS 4
 
-#define SI5341_MAX_NUM_OUTPUTS 10
 #define SI5340_MAX_NUM_OUTPUTS 4
+#define SI5341_MAX_NUM_OUTPUTS 10
+#define SI5342_MAX_NUM_OUTPUTS 2
+#define SI5344_MAX_NUM_OUTPUTS 4
+#define SI5345_MAX_NUM_OUTPUTS 10
 
-#define SI5341_NUM_SYNTH 5
 #define SI5340_NUM_SYNTH 4
+#define SI5341_NUM_SYNTH 5
+#define SI5342_NUM_SYNTH 2
+#define SI5344_NUM_SYNTH 4
+#define SI5345_NUM_SYNTH 5
 
 /* Range of the synthesizer fractional divider */
 #define SI5341_SYNTH_N_MIN	10
@@ -65,6 +77,7 @@ struct clk_si5341 {
 	u64 freq_vco; /* 13500–14256 MHz */
 	u8 num_outputs;
 	u8 num_synth;
+	u16 chip_id;
 };
 #define to_clk_si5341(_hw)	container_of(_hw, struct clk_si5341, hw)
 
@@ -142,6 +155,7 @@ static const char * const si5341_input_clock_names[] = {
 };
 
 /* Output configuration registers 0..9 are not quite logically organized */
+/* Also for si5345 */
 static const u16 si5341_reg_output_offset[] = {
 	0x0108,
 	0x010D,
@@ -155,6 +169,7 @@ static const u16 si5341_reg_output_offset[] = {
 	0x013A,
 };
 
+/* for si5340, si5342 and si5344 */
 static const u16 si5340_reg_output_offset[] = {
 	0x0112,
 	0x0117,
@@ -974,11 +989,31 @@ static int si5341_probe_chip_id(struct clk_si5341 *data)
 		data->reg_output_offset = si5341_reg_output_offset;
 		data->reg_rdiv_offset = si5341_reg_rdiv_offset;
 		break;
+	case 0x5342:
+		data->num_outputs = SI5342_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5342_NUM_SYNTH;
+		data->reg_output_offset = si5340_reg_output_offset;
+		data->reg_rdiv_offset = si5340_reg_rdiv_offset;
+		break;
+	case 0x5344:
+		data->num_outputs = SI5344_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5344_NUM_SYNTH;
+		data->reg_output_offset = si5340_reg_output_offset;
+		data->reg_rdiv_offset = si5340_reg_rdiv_offset;
+		break;
+	case 0x5345:
+		data->num_outputs = SI5345_MAX_NUM_OUTPUTS;
+		data->num_synth = SI5345_NUM_SYNTH;
+		data->reg_output_offset = si5341_reg_output_offset;
+		data->reg_rdiv_offset = si5341_reg_rdiv_offset;
+		break;
 	default:
 		dev_err(&data->i2c_client->dev, "Model '%x' not supported\n",
 			model);
 		return -EINVAL;
 	}
+
+	data->chip_id = model;
 
 	return 0;
 }
@@ -1054,6 +1089,11 @@ static const struct si5341_reg_default si5341_preamble[] = {
 	{ 0x0B4E, 0x1A },
 };
 
+static const struct si5341_reg_default si5345_preamble[] = {
+	{ 0x0B25, 0x00 },
+	{ 0x0540, 0x01 },
+};
+
 static int si5341_send_preamble(struct clk_si5341 *data)
 {
 	int res;
@@ -1068,8 +1108,14 @@ static int si5341_send_preamble(struct clk_si5341 *data)
 	res = regmap_write(data->regmap, 0xB24, revision < 2 ? 0xD8 : 0xC0);
 	if (res < 0)
 		return res;
-	res = si5341_write_multiple(data,
-		si5341_preamble, ARRAY_SIZE(si5341_preamble));
+
+	/* The si5342..si5345 require a different preamble */
+	if (data->chip_id > 0x5341)
+		res = si5341_write_multiple(data,
+			si5345_preamble, ARRAY_SIZE(si5345_preamble));
+	else
+		res = si5341_write_multiple(data,
+			si5341_preamble, ARRAY_SIZE(si5341_preamble));
 	if (res < 0)
 		return res;
 
@@ -1094,6 +1140,13 @@ static int si5341_finalize_defaults(struct clk_si5341 *data)
 	res = regmap_write(data->regmap, SI5341_SOFT_RST, 0x01);
 	if (res < 0)
 		return res;
+
+	/* The si5342..si5345 have an additional post-amble */
+	if (data->chip_id > 0x5341) {
+		res = regmap_write(data->regmap, 0x540, 0x0);
+		if (res < 0)
+			return res;
+	}
 
 	/* Datasheet does not explain these nameless registers */
 	res = regmap_write(data->regmap, 0xB24, revision < 2 ? 0xDB : 0xC3);
@@ -1499,6 +1552,9 @@ static int si5341_probe(struct i2c_client *client,
 static const struct i2c_device_id si5341_id[] = {
 	{ "si5340", 0 },
 	{ "si5341", 1 },
+	{ "si5342", 2 },
+	{ "si5344", 4 },
+	{ "si5345", 5 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si5341_id);
@@ -1506,6 +1562,9 @@ MODULE_DEVICE_TABLE(i2c, si5341_id);
 static const struct of_device_id clk_si5341_of_match[] = {
 	{ .compatible = "silabs,si5340" },
 	{ .compatible = "silabs,si5341" },
+	{ .compatible = "silabs,si5342" },
+	{ .compatible = "silabs,si5344" },
+	{ .compatible = "silabs,si5345" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_si5341_of_match);
