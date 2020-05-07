@@ -2449,12 +2449,6 @@ static int atl1c_resume(struct device *dev)
 	atl1c_reset_mac(&adapter->hw);
 	atl1c_phy_init(&adapter->hw);
 
-#if 0
-	AT_READ_REG(&adapter->hw, REG_PM_CTRLSTAT, &pm_data);
-	pm_data &= ~PM_CTRLSTAT_PME_EN;
-	AT_WRITE_REG(&adapter->hw, REG_PM_CTRLSTAT, pm_data);
-#endif
-
 	netif_device_attach(netdev);
 	if (netif_running(netdev))
 		atl1c_up(adapter);
