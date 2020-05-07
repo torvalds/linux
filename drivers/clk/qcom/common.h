@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2014, 2018, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2014, 2018, 2020, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_COMMON_H__
 #define __QCOM_CLK_COMMON_H__
@@ -31,6 +31,8 @@ struct qcom_cc_desc {
 	size_t num_gdscs;
 	struct clk_hw **clk_hws;
 	size_t num_clk_hws;
+	struct clk_vdd_class **clk_regulators;
+	size_t num_clk_regulators;
 };
 
 /**

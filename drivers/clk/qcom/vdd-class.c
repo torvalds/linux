@@ -4,6 +4,7 @@
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
 #include <linux/regulator/consumer.h>
+#include <linux/device.h>
 
 #include "vdd-class.h"
 
@@ -172,3 +173,30 @@ int clk_find_vdd_level(struct clk_hw *hw,
 	return level;
 }
 EXPORT_SYMBOL(clk_find_vdd_level);
+
+int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
+{
+	struct clk_vdd_class *vdd_class;
+	struct regulator *regulator;
+	const char *name;
+	u32 i, cnt;
+
+	for (i = 0; i < desc->num_clk_regulators; i++) {
+		vdd_class = desc->clk_regulators[i];
+
+		for (cnt = 0; cnt < vdd_class->num_regulators; cnt++) {
+			name = vdd_class->regulator_names[cnt];
+			regulator = devm_regulator_get(dev, name);
+			if (IS_ERR(regulator)) {
+				if (PTR_ERR(regulator) != -EPROBE_DEFER)
+					dev_err(dev, "%s error %s regulator\n",
+						__func__, name);
+				return PTR_ERR(regulator);
+			}
+			vdd_class->regulator[cnt] = regulator;
+		}
+	}
+
+	return 0;
+}
+
