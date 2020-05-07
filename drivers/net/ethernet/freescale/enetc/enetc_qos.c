@@ -903,7 +903,7 @@ static void stream_filter_unref(struct enetc_ndev_priv *priv, u32 index)
 		enetc_streamfilter_hw_set(priv, sfi, false);
 		hlist_del(&sfi->node);
 		kfree(sfi);
-		clear_bit(sfi->index, epsfp.psfp_sfi_bitmap);
+		clear_bit(index, epsfp.psfp_sfi_bitmap);
 	}
 }
 
