@@ -93,7 +93,7 @@ struct rza1_bidir_entry {
 };
 
 /**
- * rza1_swio_pin - describe a single pin that needs bidir flag applied.
+ * rza1_swio_pin - describe a single pin that needs swio flag applied.
  */
 struct rza1_swio_pin {
 	u16 pin: 4;
