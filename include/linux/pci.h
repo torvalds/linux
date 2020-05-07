@@ -279,7 +279,7 @@ struct pci_cap_saved_data {
 	u16		cap_nr;
 	bool		cap_extended;
 	unsigned int	size;
-	u32		data[0];
+	u32		data[];
 };
 
 struct pci_cap_saved_state {
@@ -532,7 +532,7 @@ struct pci_host_bridge {
 			resource_size_t start,
 			resource_size_t size,
 			resource_size_t align);
-	unsigned long	private[0] ____cacheline_aligned;
+	unsigned long	private[] ____cacheline_aligned;
 };
 
 #define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
