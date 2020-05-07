@@ -709,9 +709,6 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
 
-	if ((clk_type == SMU_GFXCLK) || (clk_type == SMU_SCLK))
-		amdgpu_gfx_off_ctrl(adev, false);
-
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:
@@ -726,6 +723,10 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 
 		/* 10KHz -> MHz */
 		cur_value = cur_value / 100;
+
+		/* no need to disable gfxoff when retrieving the current gfxclk */
+		if ((clk_type == SMU_GFXCLK) || (clk_type == SMU_SCLK))
+			amdgpu_gfx_off_ctrl(adev, false);
 
 		ret = smu_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
