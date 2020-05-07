@@ -22,24 +22,22 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	if (sd->entity.num_pads) {
 		fh->pad = v4l2_subdev_alloc_pad_config(sd);
 		if (fh->pad == NULL)
 			return -ENOMEM;
 	}
-#endif
+
 	return 0;
 }
 
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	v4l2_subdev_free_pad_config(fh->pad);
 	fh->pad = NULL;
-#endif
 }
 
 static int subdev_open(struct file *file)
@@ -111,6 +109,17 @@ static int subdev_close(struct file *file)
 
 	return 0;
 }
+#else /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+static int subdev_open(struct file *file)
+{
+	return -ENODEV;
+}
+
+static int subdev_close(struct file *file)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 static inline int check_which(u32 which)
 {
@@ -324,15 +333,14 @@ const struct v4l2_subdev_ops v4l2_subdev_call_wrappers = {
 };
 EXPORT_SYMBOL(v4l2_subdev_call_wrappers);
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_fh *vfh = file->private_data;
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
-#endif
 	int rval;
 
 	switch (cmd) {
@@ -466,7 +474,6 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return ret;
 	}
 
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	case VIDIOC_SUBDEV_G_FMT: {
 		struct v4l2_subdev_format *format = arg;
 
@@ -646,7 +653,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_QUERYSTD:
 		return v4l2_subdev_call(sd, video, querystd, arg);
-#endif
+
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
 	}
@@ -685,6 +692,22 @@ static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
 	return v4l2_subdev_call(sd, core, compat_ioctl32, cmd, arg);
 }
 #endif
+
+#else /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+static long subdev_ioctl(struct file *file, unsigned int cmd,
+			 unsigned long arg)
+{
+	return -ENODEV;
+}
+
+#ifdef CONFIG_COMPAT
+static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	return -ENODEV;
+}
+#endif
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 static __poll_t subdev_poll(struct file *file, poll_table *wait)
 {
