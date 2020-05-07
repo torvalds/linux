@@ -88,8 +88,8 @@ static int imx_bus_init_icc(struct device *dev)
 			dev, icc_driver_name, -1, NULL, 0);
 	if (IS_ERR(priv->icc_pdev)) {
 		dev_err(dev, "failed to register icc provider %s: %ld\n",
-				icc_driver_name, PTR_ERR(priv->devfreq));
-		return PTR_ERR(priv->devfreq);
+				icc_driver_name, PTR_ERR(priv->icc_pdev));
+		return PTR_ERR(priv->icc_pdev);
 	}
 
 	return 0;
