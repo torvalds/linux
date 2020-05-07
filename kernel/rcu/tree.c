@@ -1638,7 +1638,7 @@ static void rcu_gp_slow(int delay)
 	if (delay > 0 &&
 	    !(rcu_seq_ctr(rcu_state.gp_seq) %
 	      (rcu_num_nodes * PER_RCU_NODE_PERIOD * delay)))
-		schedule_timeout_uninterruptible(delay);
+		schedule_timeout_idle(delay);
 }
 
 static unsigned long sleep_duration;
@@ -1661,7 +1661,7 @@ static void rcu_gp_torture_wait(void)
 	duration = xchg(&sleep_duration, 0UL);
 	if (duration > 0) {
 		pr_alert("%s: Waiting %lu jiffies\n", __func__, duration);
-		schedule_timeout_uninterruptible(duration);
+		schedule_timeout_idle(duration);
 		pr_alert("%s: Wait complete\n", __func__);
 	}
 }
@@ -2727,7 +2727,7 @@ static void rcu_cpu_kthread(unsigned int cpu)
 	}
 	*statusp = RCU_KTHREAD_YIELDING;
 	trace_rcu_utilization(TPS("Start CPU kthread@rcu_yield"));
-	schedule_timeout_interruptible(2);
+	schedule_timeout_idle(2);
 	trace_rcu_utilization(TPS("End CPU kthread@rcu_yield"));
 	*statusp = RCU_KTHREAD_WAITING;
 }
