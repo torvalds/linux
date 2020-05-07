@@ -2533,18 +2533,6 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	 * If the cpu isn't present, the cpu is mapped to first hctx.
 	 */
 	for_each_possible_cpu(i) {
-		hctx_idx = set->map[HCTX_TYPE_DEFAULT].mq_map[i];
-		/* unmapped hw queue can be remapped after CPU topo changed */
-		if (!set->tags[hctx_idx] &&
-		    !__blk_mq_alloc_rq_map(set, hctx_idx)) {
-			/*
-			 * If tags initialization fail for some hctx,
-			 * that hctx won't be brought online.  In this
-			 * case, remap the current ctx to hctx[0] which
-			 * is guaranteed to always have tags allocated
-			 */
-			set->map[HCTX_TYPE_DEFAULT].mq_map[i] = 0;
-		}
 
 		ctx = per_cpu_ptr(q->queue_ctx, i);
 		for (j = 0; j < set->nr_maps; j++) {
@@ -2552,6 +2540,18 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 				ctx->hctxs[j] = blk_mq_map_queue_type(q,
 						HCTX_TYPE_DEFAULT, i);
 				continue;
+			}
+			hctx_idx = set->map[j].mq_map[i];
+			/* unmapped hw queue can be remapped after CPU topo changed */
+			if (!set->tags[hctx_idx] &&
+			    !__blk_mq_alloc_rq_map(set, hctx_idx)) {
+				/*
+				 * If tags initialization fail for some hctx,
+				 * that hctx won't be brought online.  In this
+				 * case, remap the current ctx to hctx[0] which
+				 * is guaranteed to always have tags allocated
+				 */
+				set->map[j].mq_map[i] = 0;
 			}
 
 			hctx = blk_mq_map_queue_type(q, j, i);
