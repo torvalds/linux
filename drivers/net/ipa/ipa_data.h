@@ -80,18 +80,12 @@ struct gsi_channel_data {
 /**
  * struct ipa_endpoint_tx_data - configuration data for TX endpoints
  * @status_endpoint:	endpoint to which status elements are sent
- * @delay:		whether endpoint starts in delay mode
- *
- * Delay mode prevents a TX endpoint from transmitting anything, even if
- * commands have been presented to the hardware.  Once the endpoint exits
- * delay mode, queued transfer commands are sent.
  *
  * The @status_endpoint is only valid if the endpoint's @status_enable
  * flag is set.
  */
 struct ipa_endpoint_tx_data {
 	enum ipa_endpoint_name status_endpoint;
-	bool delay;
 };
 
 /**
