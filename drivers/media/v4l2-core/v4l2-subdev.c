@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/export.h>
+#include <linux/version.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -344,6 +345,16 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	int rval;
 
 	switch (cmd) {
+	case VIDIOC_SUBDEV_QUERYCAP: {
+		struct v4l2_subdev_capability *cap = arg;
+
+		memset(cap->reserved, 0, sizeof(cap->reserved));
+		cap->version = LINUX_VERSION_CODE;
+		cap->capabilities = ro_subdev ? V4L2_SUBDEV_CAP_RO_SUBDEV : 0;
+
+		return 0;
+	}
+
 	case VIDIOC_QUERYCTRL:
 		/*
 		 * TODO: this really should be folded into v4l2_queryctrl (this
