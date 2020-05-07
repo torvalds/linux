@@ -28,7 +28,7 @@ int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
 	int err;
 
 	if (br->stp_enabled != BR_NO_STP) {
-		NL_SET_ERR_MSG_MOD(extack, "MRP can't be enabled if STP is already enabled\n");
+		NL_SET_ERR_MSG_MOD(extack, "MRP can't be enabled if STP is already enabled");
 		return -EINVAL;
 	}
 

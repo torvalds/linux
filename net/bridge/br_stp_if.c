@@ -203,7 +203,7 @@ int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
 
 	if (br_mrp_enabled(br)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "STP can't be enabled if MRP is already enabled\n");
+				   "STP can't be enabled if MRP is already enabled");
 		return -EINVAL;
 	}
 
