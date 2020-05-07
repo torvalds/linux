@@ -609,7 +609,6 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&lcdc_rgb_pins>;
 	pinctrl-1 = <&lcdc_sleep_pins>;
-	rockchip,data-sync;
 	status = "okay";
 
 	ports {
