@@ -1433,6 +1433,7 @@ static const struct drm_crtc_helper_funcs mga_helper_funcs = {
 /* CRTC setup */
 static void mga_crtc_init(struct mga_device *mdev)
 {
+	struct drm_device *dev = mdev->dev;
 	struct mga_crtc *mga_crtc;
 
 	mga_crtc = kzalloc(sizeof(struct mga_crtc) +
@@ -1442,7 +1443,7 @@ static void mga_crtc_init(struct mga_device *mdev)
 	if (mga_crtc == NULL)
 		return;
 
-	drm_crtc_init(mdev->dev, &mga_crtc->base, &mga_crtc_funcs);
+	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
 	mdev->mode_info.crtc = mga_crtc;
@@ -1617,30 +1618,30 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 
 int mgag200_modeset_init(struct mga_device *mdev)
 {
+	struct drm_device *dev = mdev->dev;
 	struct drm_encoder *encoder = &mdev->encoder;
 	struct drm_connector *connector;
 	int ret;
 
 	mdev->mode_info.mode_config_initialized = true;
 
-	mdev->dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
-	mdev->dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
+	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
+	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
 
-	mdev->dev->mode_config.fb_base = mdev->mc.vram_base;
+	dev->mode_config.fb_base = mdev->mc.vram_base;
 
 	mga_crtc_init(mdev);
 
-	ret = drm_simple_encoder_init(mdev->dev, encoder,
-				      DRM_MODE_ENCODER_DAC);
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
 	if (ret) {
-		drm_err(mdev->dev,
+		drm_err(dev,
 			"drm_simple_encoder_init() failed, error %d\n",
 			ret);
 		return ret;
 	}
 	encoder->possible_crtcs = 0x1;
 
-	connector = mga_vga_init(mdev->dev);
+	connector = mga_vga_init(dev);
 	if (!connector) {
 		DRM_ERROR("mga_vga_init failed\n");
 		return -1;

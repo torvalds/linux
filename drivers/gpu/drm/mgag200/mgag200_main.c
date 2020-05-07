@@ -66,25 +66,26 @@ static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 /* Map the framebuffer from the card and configure the core */
 static int mga_vram_init(struct mga_device *mdev)
 {
+	struct drm_device *dev = mdev->dev;
 	void __iomem *mem;
 
 	/* BAR 0 is VRAM */
-	mdev->mc.vram_base = pci_resource_start(mdev->dev->pdev, 0);
-	mdev->mc.vram_window = pci_resource_len(mdev->dev->pdev, 0);
+	mdev->mc.vram_base = pci_resource_start(dev->pdev, 0);
+	mdev->mc.vram_window = pci_resource_len(dev->pdev, 0);
 
-	if (!devm_request_mem_region(mdev->dev->dev, mdev->mc.vram_base, mdev->mc.vram_window,
-				"mgadrmfb_vram")) {
+	if (!devm_request_mem_region(dev->dev, mdev->mc.vram_base,
+				     mdev->mc.vram_window, "mgadrmfb_vram")) {
 		DRM_ERROR("can't reserve VRAM\n");
 		return -ENXIO;
 	}
 
-	mem = pci_iomap(mdev->dev->pdev, 0, 0);
+	mem = pci_iomap(dev->pdev, 0, 0);
 	if (!mem)
 		return -ENOMEM;
 
 	mdev->mc.vram_size = mga_probe_vram(mdev, mem);
 
-	pci_iounmap(mdev->dev->pdev, mem);
+	pci_iounmap(dev->pdev, mem);
 
 	return 0;
 }
@@ -105,12 +106,12 @@ static int mgag200_device_init(struct drm_device *dev,
 	mdev->has_sdram = !(option & (1 << 14));
 
 	/* BAR 0 is the framebuffer, BAR 1 contains registers */
-	mdev->rmmio_base = pci_resource_start(mdev->dev->pdev, 1);
-	mdev->rmmio_size = pci_resource_len(mdev->dev->pdev, 1);
+	mdev->rmmio_base = pci_resource_start(dev->pdev, 1);
+	mdev->rmmio_size = pci_resource_len(dev->pdev, 1);
 
-	if (!devm_request_mem_region(mdev->dev->dev, mdev->rmmio_base, mdev->rmmio_size,
-				"mgadrmfb_mmio")) {
-		DRM_ERROR("can't reserve mmio registers\n");
+	if (!devm_request_mem_region(dev->dev, mdev->rmmio_base,
+				     mdev->rmmio_size, "mgadrmfb_mmio")) {
+		drm_err(dev, "can't reserve mmio registers\n");
 		return -ENOMEM;
 	}
 
