@@ -675,14 +675,11 @@ static enum led_brightness lightbar_led_get(struct led_classdev *led_cdev)
 
 static void asus_wmi_led_exit(struct asus_wmi *asus)
 {
-	if (!IS_ERR_OR_NULL(asus->kbd_led.dev))
-		led_classdev_unregister(&asus->kbd_led);
-	if (!IS_ERR_OR_NULL(asus->tpd_led.dev))
-		led_classdev_unregister(&asus->tpd_led);
-	if (!IS_ERR_OR_NULL(asus->wlan_led.dev))
-		led_classdev_unregister(&asus->wlan_led);
-	if (!IS_ERR_OR_NULL(asus->lightbar_led.dev))
-		led_classdev_unregister(&asus->lightbar_led);
+	led_classdev_unregister(&asus->kbd_led);
+	led_classdev_unregister(&asus->tpd_led);
+	led_classdev_unregister(&asus->wlan_led);
+	led_classdev_unregister(&asus->lightbar_led);
+
 	if (asus->led_workqueue)
 		destroy_workqueue(asus->led_workqueue);
 }
