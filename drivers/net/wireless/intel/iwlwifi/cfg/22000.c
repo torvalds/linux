@@ -90,7 +90,8 @@
 #define IWL_22000_SO_A_GF_A_FW_PRE      "iwlwifi-so-a0-gf-a0-"
 #define IWL_22000_TY_A_GF_A_FW_PRE      "iwlwifi-ty-a0-gf-a0-"
 #define IWL_22000_SO_A_GF4_A_FW_PRE     "iwlwifi-so-a0-gf4-a0-"
-#define IWL_22000_SOSNJ_A_GF4_A_FW_PRE  "iwlwifi-SoSnj-a0-gf4-a0-"
+#define IWL_SNJ_A_GF4_A_FW_PRE		"iwlwifi-SoSnj-a0-gf4-a0-"
+#define IWL_SNJ_A_GF_A_FW_PRE		"iwlwifi-SoSnj-a0-gf-a0-"
 
 #define IWL_22000_HR_MODULE_FIRMWARE(api) \
 	IWL_22000_HR_FW_PRE __stringify(api) ".ucode"
@@ -120,6 +121,10 @@
 	IWL_22000_SO_A_GF_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_22000_TY_A_GF_A_MODULE_FIRMWARE(api) \
 	IWL_22000_TY_A_GF_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_SNJ_A_GF4_A_MODULE_FIRMWARE(api) \
+	IWL_SNJ_A_GF4_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_SNJ_A_GF_A_MODULE_FIRMWARE(api) \
+	IWL_SNJ_A_GF_A_FW_PRE __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_22000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -229,6 +234,15 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
+const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_22000,
+	.base_params = &iwl_22000_base_params,
+};
+
 const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.mq_rx_supported = true,
 	.use_tfh = true,
@@ -238,6 +252,19 @@ const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.base_params = &iwl_22000_base_params,
 	.integrated = true,
 	.xtal_latency = 5000,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_200US,
+};
+
+const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_22000,
+	.base_params = &iwl_22000_base_params,
+	.integrated = true,
+	.xtal_latency = 1820,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_1820US,
 };
 
 const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
@@ -250,15 +277,7 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
 	.integrated = true,
 	.xtal_latency = 12000,
 	.low_latency_xtal = true,
-};
-
-const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
-	.mq_rx_supported = true,
-	.use_tfh = true,
-	.rf_id = true,
-	.gen2 = true,
-	.device_family = IWL_DEVICE_FAMILY_22000,
-	.base_params = &iwl_22000_base_params,
+	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
 /*
@@ -522,22 +541,32 @@ const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0 = {
 };
 
 const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX210 160MHz",
+	.name = "Intel(R) Wi-Fi 6 AX210 160MHz",
 	.fw_name_pre = IWL_22000_SO_A_HR_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
 const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX211 160MHz",
+	.name = "Intel(R) Wi-Fi 6 AX211 160MHz",
 	.fw_name_pre = IWL_22000_SO_A_GF_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
+const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long = {
+	.name = "Intel(R) Wi-Fi 6 AX211 160MHz",
+	.fw_name_pre = IWL_22000_SO_A_GF_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.trans.xtal_latency = 12000,
+	.trans.low_latency_xtal = true,
+};
+
 const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX210 160MHz",
+	.name = "Intel(R) Wi-Fi 6 AX210 160MHz",
 	.fw_name_pre = IWL_22000_TY_A_GF_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
@@ -545,16 +574,34 @@ const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0 = {
 };
 
 const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX411 160MHz",
+	.name = "Intel(R) Wi-Fi 6 AX411 160MHz",
 	.fw_name_pre = IWL_22000_SO_A_GF4_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
+const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long = {
+	.name = "Intel(R) Wi-Fi 6 AX411 160MHz",
+	.fw_name_pre = IWL_22000_SO_A_GF4_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.trans.xtal_latency = 12000,
+	.trans.low_latency_xtal = true,
+};
+
 const struct iwl_cfg iwlax411_2ax_cfg_sosnj_gf4_a0 = {
-	.name = "Intel(R) Wi-Fi 7 AX411 160MHz",
-	.fw_name_pre = IWL_22000_SOSNJ_A_GF4_A_FW_PRE,
+	.name = "Intel(R) Wi-Fi 6 AX411 160MHz",
+	.fw_name_pre = IWL_SNJ_A_GF4_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwlax211_cfg_snj_gf_a0 = {
+	.name = "Intel(R) Wi-Fi 6 AX211 160MHz",
+	.fw_name_pre = IWL_SNJ_A_GF_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
@@ -573,3 +620,5 @@ MODULE_FIRMWARE(IWL_22000_SO_A_JF_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_SO_A_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_SO_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_22000_TY_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SNJ_A_GF4_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SNJ_A_GF_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));

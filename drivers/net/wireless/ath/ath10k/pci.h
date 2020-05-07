@@ -183,6 +183,10 @@ struct ath10k_pci {
 	 * this struct.
 	 */
 	struct ath10k_ahb ahb[0];
+
+	struct ce_attr *attr;
+	struct ce_pipe_config *pipe_config;
+	struct ce_service_to_pipe *serv_to_pipe;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)

@@ -2356,7 +2356,7 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 	fws->drvr = drvr;
 	fws->fcmode = drvr->settings->fcmode;
 
-	if ((drvr->bus_if->always_use_fws_queue == false) &&
+	if (!drvr->bus_if->always_use_fws_queue &&
 	    (fws->fcmode == BRCMF_FWS_FCMODE_NONE)) {
 		fws->avoid_queueing = true;
 		brcmf_dbg(INFO, "FWS queueing will be avoided\n");

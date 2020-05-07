@@ -998,8 +998,9 @@ static bool rtw8822b_check_rf_path(u8 antenna)
 	}
 }
 
-static void rtw8822b_set_antenna(struct rtw_dev *rtwdev, u8 antenna_tx,
-				 u8 antenna_rx)
+static int rtw8822b_set_antenna(struct rtw_dev *rtwdev,
+				u32 antenna_tx,
+				u32 antenna_rx)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 
@@ -1007,16 +1008,21 @@ static void rtw8822b_set_antenna(struct rtw_dev *rtwdev, u8 antenna_tx,
 		antenna_tx, antenna_rx);
 
 	if (!rtw8822b_check_rf_path(antenna_tx)) {
-		rtw_info(rtwdev, "unsupport tx path, set to default path ab\n");
-		antenna_tx = BB_PATH_AB;
+		rtw_info(rtwdev, "unsupport tx path 0x%x\n", antenna_tx);
+		return -EINVAL;
 	}
+
 	if (!rtw8822b_check_rf_path(antenna_rx)) {
-		rtw_info(rtwdev, "unsupport rx path, set to default path ab\n");
-		antenna_rx = BB_PATH_AB;
+		rtw_info(rtwdev, "unsupport rx path 0x%x\n", antenna_rx);
+		return -EINVAL;
 	}
+
 	hal->antenna_tx = antenna_tx;
 	hal->antenna_rx = antenna_rx;
+
 	rtw8822b_config_trx_mode(rtwdev, antenna_tx, antenna_rx, false);
+
+	return 0;
 }
 
 static void rtw8822b_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
@@ -1024,7 +1030,7 @@ static void rtw8822b_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 	u8 ldo_pwr;
 
 	ldo_pwr = rtw_read8(rtwdev, REG_LDO_EFUSE_CTRL + 3);
-	ldo_pwr = enable ? ldo_pwr | BIT(7) : ldo_pwr & ~BIT(7);
+	ldo_pwr = enable ? ldo_pwr | BIT_LDO25_EN : ldo_pwr & ~BIT_LDO25_EN;
 	rtw_write8(rtwdev, REG_LDO_EFUSE_CTRL + 3, ldo_pwr);
 }
 
@@ -2402,6 +2408,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.ops = &rtw8822b_ops,
 	.id = RTW_CHIP_TYPE_8822B,
 	.fw_name = "rtw88/rtw8822b_fw.bin",
+	.wlan_cpu = RTW_WCPU_11AC,
 	.tx_pkt_desc_sz = 48,
 	.tx_buf_desc_sz = 16,
 	.rx_pkt_desc_sz = 24,
@@ -2428,6 +2435,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.rqpn_table = rqpn_table_8822b,
 	.intf_table = &phy_para_table_8822b,
 	.dig = rtw8822b_dig,
+	.dig_cck = NULL,
 	.rf_base_addr = {0x2800, 0x2c00},
 	.rf_sipi_addr = {0xc90, 0xe90},
 	.mac_tbl = &rtw8822b_mac_tbl,
@@ -2440,6 +2448,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
+	.rx_ldpc = true,
 
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,

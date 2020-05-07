@@ -10,7 +10,6 @@
 void rtw_bf_disassoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		     struct ieee80211_bss_conf *bss_conf)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	struct rtw_bfee *bfee = &rtwvif->bfee;
 	struct rtw_bf_info *bfinfo = &rtwdev->bf_info;
@@ -23,7 +22,7 @@ void rtw_bf_disassoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	else if (bfee->role == RTW_BFEE_SU)
 		bfinfo->bfer_su_cnt--;
 
-	chip->ops->config_bfee(rtwdev, rtwvif, bfee, false);
+	rtw_chip_config_bfee(rtwdev, rtwvif, bfee, false);
 
 	bfee->role = RTW_BFEE_NONE;
 }
@@ -71,7 +70,7 @@ void rtw_bf_assoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		bfee->aid = bss_conf->aid;
 		bfinfo->bfer_mu_cnt++;
 
-		chip->ops->config_bfee(rtwdev, rtwvif, bfee, true);
+		rtw_chip_config_bfee(rtwdev, rtwvif, bfee, true);
 	} else if ((ic_vht_cap->cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE) &&
 		   (vht_cap->cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)) {
 		if (bfinfo->bfer_su_cnt >= chip->bfer_su_max_num) {
@@ -97,7 +96,7 @@ void rtw_bf_assoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 			}
 		}
 
-		chip->ops->config_bfee(rtwdev, rtwvif, bfee, true);
+		rtw_chip_config_bfee(rtwdev, rtwvif, bfee, true);
 	}
 
 out_unlock:

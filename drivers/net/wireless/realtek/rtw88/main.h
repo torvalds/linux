@@ -41,6 +41,7 @@ extern unsigned int rtw_debug_mask;
 extern const struct ieee80211_ops rtw_ops;
 extern struct rtw_chip_info rtw8822b_hw_spec;
 extern struct rtw_chip_info rtw8822c_hw_spec;
+extern struct rtw_chip_info rtw8723d_hw_spec;
 
 #define RTW_MAX_CHANNEL_NUM_2G 14
 #define RTW_MAX_CHANNEL_NUM_5G 49
@@ -183,6 +184,7 @@ enum rtw_wireless_set {
 enum rtw_chip_type {
 	RTW_CHIP_TYPE_8822B,
 	RTW_CHIP_TYPE_8822C,
+	RTW_CHIP_TYPE_8723D,
 };
 
 enum rtw_tx_queue_type {
@@ -337,6 +339,7 @@ enum rtw_regulatory_domains {
 	RTW_REGD_CHILE		= 6,
 	RTW_REGD_UKRAINE	= 7,
 	RTW_REGD_MEXICO		= 8,
+	RTW_REGD_CN		= 9,
 	RTW_REGD_WW,
 
 	RTW_REGD_MAX
@@ -525,6 +528,13 @@ struct rtw_reg_domain {
 #define RTW_REG_DOMAIN_RF_B	4
 #define RTW_REG_DOMAIN_NL	0xFF
 	u8 domain;
+};
+
+struct rtw_rf_sipi_addr {
+	u32 hssi_1;
+	u32 hssi_2;
+	u32 lssi_read;
+	u32 lssi_read_pi;
 };
 
 struct rtw_backup_info {
@@ -798,9 +808,11 @@ struct rtw_chip_ops {
 	void (*set_tx_power_index)(struct rtw_dev *rtwdev);
 	int (*rsvd_page_dump)(struct rtw_dev *rtwdev, u8 *buf, u32 offset,
 			      u32 size);
-	void (*set_antenna)(struct rtw_dev *rtwdev, u8 antenna_tx,
-			    u8 antenna_rx);
+	int (*set_antenna)(struct rtw_dev *rtwdev,
+			   u32 antenna_tx,
+			   u32 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
+	void (*efuse_grant)(struct rtw_dev *rtwdev, bool enable);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
@@ -844,6 +856,7 @@ struct rtw_chip_ops {
 #define RTW_PWR_INTF_PCI_MSK	BIT(2)
 #define RTW_PWR_INTF_ALL_MSK	(BIT(0) | BIT(1) | BIT(2) | BIT(3))
 
+#define RTW_PWR_CUT_TEST_MSK	BIT(0)
 #define RTW_PWR_CUT_A_MSK	BIT(1)
 #define RTW_PWR_CUT_B_MSK	BIT(2)
 #define RTW_PWR_CUT_C_MSK	BIT(3)
@@ -1044,12 +1057,18 @@ struct rtw_pwr_track_tbl {
 	const u8 *pwrtrk_2g_ccka_p;
 };
 
+enum rtw_wlan_cpu {
+	RTW_WCPU_11AC,
+	RTW_WCPU_11N,
+};
+
 /* hardware configuration for each IC */
 struct rtw_chip_info {
 	struct rtw_chip_ops *ops;
 	u8 id;
 
 	const char *fw_name;
+	enum rtw_wlan_cpu wlan_cpu;
 	u8 tx_pkt_desc_sz;
 	u8 tx_buf_desc_sz;
 	u8 rx_pkt_desc_sz;
@@ -1066,6 +1085,7 @@ struct rtw_chip_info {
 	u8 dig_min;
 	u8 txgi_factor;
 	bool is_pwr_by_rate_dec;
+	bool rx_ldpc;
 	u8 max_power_index;
 
 	bool ht_supported;
@@ -1081,8 +1101,11 @@ struct rtw_chip_info {
 	const struct rtw_intf_phy_para_table *intf_table;
 
 	const struct rtw_hw_reg *dig;
+	const struct rtw_hw_reg *dig_cck;
 	u32 rf_base_addr[2];
 	u32 rf_sipi_addr[2];
+	const struct rtw_rf_sipi_addr *rf_sipi_read_addr;
+	u8 fix_rf_phy_num;
 
 	const struct rtw_table *mac_tbl;
 	const struct rtw_table *agc_tbl;
@@ -1455,6 +1478,7 @@ struct rtw_efuse {
 	u8 ant_div_cfg;
 	u8 ant_div_type;
 	u8 regd;
+	u8 afe;
 
 	u8 lna_type_2g;
 	u8 lna_type_5g;
@@ -1567,8 +1591,9 @@ struct rtw_hal {
 	u8 sec_ch_offset;
 	u8 rf_type;
 	u8 rf_path_num;
-	u8 antenna_tx;
-	u8 antenna_rx;
+	u8 rf_phy_num;
+	u32 antenna_tx;
+	u32 antenna_rx;
 	u8 bfee_sts_cap;
 
 	/* protect tx power section */
@@ -1696,6 +1721,33 @@ static inline bool rtw_ssid_equal(struct cfg80211_ssid *a,
 		return false;
 
 	return true;
+}
+
+static inline void rtw_chip_efuse_grant_on(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->efuse_grant)
+		rtwdev->chip->ops->efuse_grant(rtwdev, true);
+}
+
+static inline void rtw_chip_efuse_grant_off(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->efuse_grant)
+		rtwdev->chip->ops->efuse_grant(rtwdev, false);
+}
+
+static inline bool rtw_chip_wcpu_11n(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_11N;
+}
+
+static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_11AC;
+}
+
+static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->rx_ldpc;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

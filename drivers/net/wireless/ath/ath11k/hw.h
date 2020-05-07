@@ -111,7 +111,7 @@ struct ath11k_hw_params {
 struct ath11k_fw_ie {
 	__le32 id;
 	__le32 len;
-	u8 data[0];
+	u8 data[];
 };
 
 enum ath11k_bd_ie_board_type {

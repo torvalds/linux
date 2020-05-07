@@ -1166,8 +1166,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		ch_flags = (u16)__le32_to_cpup(channels + ch_idx);
-		band = (ch_idx < NUM_2GHZ_CHANNELS) ?
-		       NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+		band = iwl_nl80211_band_from_channel_idx(ch_idx);
 		center_freq = ieee80211_channel_to_frequency(nvm_chan[ch_idx],
 							     band);
 		new_rule = false;

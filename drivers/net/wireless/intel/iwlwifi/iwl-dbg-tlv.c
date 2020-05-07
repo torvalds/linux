@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,7 @@
  *
  * BSD LICENSE
  *
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,14 +170,24 @@ static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
 
 	if (le32_to_cpu(tlv->length) != sizeof(*alloc) ||
 	    (buf_location != IWL_FW_INI_LOCATION_SRAM_PATH &&
-	     buf_location != IWL_FW_INI_LOCATION_DRAM_PATH))
+	     buf_location != IWL_FW_INI_LOCATION_DRAM_PATH &&
+	     buf_location != IWL_FW_INI_LOCATION_NPK_PATH)) {
+		IWL_ERR(trans,
+			"WRT: Invalid allocation TLV\n");
 		return -EINVAL;
+	}
 
-	if ((buf_location == IWL_FW_INI_LOCATION_SRAM_PATH &&
-	     alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1) ||
-	    (buf_location == IWL_FW_INI_LOCATION_DRAM_PATH &&
-	     (alloc_id == IWL_FW_INI_ALLOCATION_INVALID ||
-	      alloc_id >= IWL_FW_INI_ALLOCATION_NUM))) {
+	if ((buf_location == IWL_FW_INI_LOCATION_SRAM_PATH ||
+	     buf_location == IWL_FW_INI_LOCATION_NPK_PATH) &&
+	     alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1) {
+		IWL_ERR(trans,
+			"WRT: Allocation TLV for SMEM/NPK path must have id %u (current: %u)\n",
+			IWL_FW_INI_ALLOCATION_ID_DBGC1, alloc_id);
+		return -EINVAL;
+	}
+
+	if (alloc_id == IWL_FW_INI_ALLOCATION_INVALID ||
+	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM) {
 		IWL_ERR(trans,
 			"WRT: Invalid allocation id %u for allocation TLV\n",
 			alloc_id);

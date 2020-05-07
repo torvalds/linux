@@ -940,6 +940,7 @@ struct wmi_cmd_map {
 	u32 vdev_spectral_scan_configure_cmdid;
 	u32 vdev_spectral_scan_enable_cmdid;
 	u32 request_stats_cmdid;
+	u32 request_peer_stats_info_cmdid;
 	u32 set_arp_ns_offload_cmdid;
 	u32 network_list_offload_config_cmdid;
 	u32 gtk_offload_cmdid;
@@ -2094,7 +2095,8 @@ enum wmi_channel_change_cause {
 
 /* Indicate reason for channel switch */
 #define WMI_CHANNEL_CHANGE_CAUSE_CSA (1 << 13)
-
+/* DFS required on channel for 2nd segment of VHT160 and VHT80+80*/
+#define WMI_CHAN_FLAG_DFS_CFREQ2  (1 << 15)
 #define WMI_MAX_SPATIAL_STREAM        3 /* default max ss */
 
 /* HT Capabilities*/
@@ -3797,6 +3799,7 @@ struct wmi_pdev_param_map {
 	u32 enable_btcoex;
 	u32 rfkill_config;
 	u32 rfkill_enable;
+	u32 peer_stats_info_enable;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -4576,6 +4579,13 @@ struct wmi_request_stats_cmd {
 	/* Instantaneous RSSI arguments */
 	struct wlan_inst_rssi_args inst_rssi_args;
 } __packed;
+
+enum wmi_peer_stats_info_request_type {
+	/* request stats of one specified peer */
+	WMI_REQUEST_ONE_PEER_STATS_INFO = 0x01,
+	/* request stats of all peers belong to specified VDEV */
+	WMI_REQUEST_VDEV_ALL_PEER_STATS_INFO = 0x02,
+};
 
 /* Suspend option */
 enum {
@@ -6508,7 +6518,10 @@ struct wmi_10_2_peer_assoc_complete_cmd {
 	__le32 info0; /* WMI_PEER_ASSOC_INFO0_ */
 } __packed;
 
-#define PEER_BW_RXNSS_OVERRIDE_OFFSET  31
+/* NSS Mapping to FW */
+#define WMI_PEER_NSS_MAP_ENABLE	BIT(31)
+#define WMI_PEER_NSS_160MHZ_MASK	GENMASK(2, 0)
+#define WMI_PEER_NSS_80_80MHZ_MASK	GENMASK(5, 3)
 
 struct wmi_10_4_peer_assoc_complete_cmd {
 	struct wmi_10_2_peer_assoc_complete_cmd cmd;
@@ -7348,7 +7361,7 @@ void ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
 				      const struct wmi_start_scan_arg *arg);
 void ath10k_wmi_set_wmm_param(struct wmi_wmm_params *params,
 			      const struct wmi_wmm_params_arg *arg);
-void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
+void ath10k_wmi_put_wmi_channel(struct ath10k *ar, struct wmi_channel *ch,
 				const struct wmi_channel_arg *arg);
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);
 

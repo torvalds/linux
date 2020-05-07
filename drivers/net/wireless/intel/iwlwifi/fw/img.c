@@ -5,9 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012 - 2014, 2019 - 2020 Intel Corporation
+ * Copyright(c) 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +25,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012 - 2014, 2019 - 2020 Intel Corporation
+ * Copyright(c) 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,35 +53,47 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  *****************************************************************************/
 
-#ifndef __iwl_fw_api_soc_h__
-#define __iwl_fw_api_soc_h__
+#include "img.h"
 
-#define SOC_CONFIG_CMD_FLAGS_DISCRETE		BIT(0)
-#define SOC_CONFIG_CMD_FLAGS_LOW_LATENCY	BIT(1)
+u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u8 grp, u8 cmd)
+{
+	const struct iwl_fw_cmd_version *entry;
+	unsigned int i;
 
-#define SOC_FLAGS_LTR_APPLY_DELAY_MASK		0xc
-#define SOC_FLAGS_LTR_APPLY_DELAY_NONE		0
-#define SOC_FLAGS_LTR_APPLY_DELAY_200		1
-#define SOC_FLAGS_LTR_APPLY_DELAY_2500		2
-#define SOC_FLAGS_LTR_APPLY_DELAY_1820		3
+	if (!fw->ucode_capa.cmd_versions ||
+	    !fw->ucode_capa.n_cmd_versions)
+		return IWL_FW_CMD_VER_UNKNOWN;
 
-/**
- * struct iwl_soc_configuration_cmd - Set device stabilization latency
- *
- * @flags: soc settings flags.  In VER_1, we can only set the DISCRETE
- *	flag, because the FW treats the whole value as an integer. In
- *	VER_2, we can set the bits independently.
- * @latency: time for SOC to ensure stable power & XTAL
- */
-struct iwl_soc_configuration_cmd {
-	__le32 flags;
-	__le32 latency;
-} __packed; /*
-	     * SOC_CONFIGURATION_CMD_S_VER_1 (see description above)
-	     * SOC_CONFIGURATION_CMD_S_VER_2
-	     */
+	entry = fw->ucode_capa.cmd_versions;
+	for (i = 0; i < fw->ucode_capa.n_cmd_versions; i++, entry++) {
+		if (entry->group == grp && entry->cmd == cmd)
+			return entry->cmd_ver;
+	}
 
-#endif /* __iwl_fw_api_soc_h__ */
+	return IWL_FW_CMD_VER_UNKNOWN;
+}
+EXPORT_SYMBOL_GPL(iwl_fw_lookup_cmd_ver);
+
+u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def)
+{
+	const struct iwl_fw_cmd_version *entry;
+	unsigned int i;
+
+	if (!fw->ucode_capa.cmd_versions ||
+	    !fw->ucode_capa.n_cmd_versions)
+		return def;
+
+	entry = fw->ucode_capa.cmd_versions;
+	for (i = 0; i < fw->ucode_capa.n_cmd_versions; i++, entry++) {
+		if (entry->group == grp && entry->cmd == cmd) {
+			if (entry->notif_ver == IWL_FW_CMD_VER_UNKNOWN)
+				return def;
+			return entry->notif_ver;
+		}
+	}
+
+	return def;
+}
+EXPORT_SYMBOL_GPL(iwl_fw_lookup_notif_ver);

@@ -60,9 +60,14 @@ static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
 		WME_AC_VO);
 }
 
+enum ath11k_skb_flags {
+	ATH11K_SKB_HW_80211_ENCAP = BIT(0),
+};
+
 struct ath11k_skb_cb {
 	dma_addr_t paddr;
 	u8 eid;
+	u8 flags;
 	struct ath11k *ar;
 	struct ieee80211_vif *vif;
 } __packed;
@@ -341,6 +346,11 @@ struct ath11k_sta {
 	u8 rssi_comb;
 	struct ath11k_htt_tx_stats *tx_stats;
 	struct ath11k_rx_peer_stats *rx_stats;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* protected by conf_mutex */
+	bool aggr_mode;
+#endif
 };
 
 #define ATH11K_NUM_CHANS 41
@@ -387,6 +397,7 @@ struct ath11k_debug {
 	u32 pktlog_mode;
 	u32 pktlog_peer_valid;
 	u8 pktlog_peer_addr[ETH_ALEN];
+	u32 rx_filter;
 };
 
 struct ath11k_per_peer_tx_stats {
@@ -650,6 +661,10 @@ struct ath11k_base {
 		/* protected by data_lock */
 		u32 fw_crash_counter;
 	} stats;
+	u32 pktlog_defs_checksum;
+
+	/* Round robbin based TCL ring selector */
+	atomic_t tcl_ring_selector;
 };
 
 struct ath11k_fw_stats_pdev {
