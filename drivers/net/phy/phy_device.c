@@ -1948,7 +1948,7 @@ static int genphy_setup_master_slave(struct phy_device *phydev)
 static int genphy_read_master_slave(struct phy_device *phydev)
 {
 	int cfg, state;
-	u16 val;
+	int val;
 
 	if (!phydev->is_gigabit_capable) {
 		phydev->master_slave_get = MASTER_SLAVE_CFG_UNSUPPORTED;
