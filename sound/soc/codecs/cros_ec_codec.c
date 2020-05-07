@@ -108,22 +108,23 @@ static int calculate_sha256(struct cros_ec_codec_priv *priv,
 			    uint8_t *buf, uint32_t size, uint8_t *digest)
 {
 	struct crypto_shash *tfm;
+	struct shash_desc *desc;
 
 	tfm = crypto_alloc_shash("sha256", CRYPTO_ALG_TYPE_SHASH, 0);
 	if (IS_ERR(tfm)) {
 		dev_err(priv->dev, "can't alloc shash\n");
 		return PTR_ERR(tfm);
 	}
-
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		crypto_shash_digest(desc, buf, size, digest);
-		shash_desc_zero(desc);
+	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
+	if (!desc) {
+		crypto_free_shash(tfm);
+		return -ENOMEM;
 	}
+	desc->tfm = tfm;
+	crypto_shash_digest(desc, buf, size, digest);
+	shash_desc_zero(desc);
 
+	kfree(desc);
 	crypto_free_shash(tfm);
 
 #ifdef DEBUG
