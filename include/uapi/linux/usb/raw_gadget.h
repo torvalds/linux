@@ -115,11 +115,11 @@ struct usb_raw_ep_io {
 #define USB_RAW_IOCTL_EVENT_FETCH	_IOR('U', 2, struct usb_raw_event)
 
 /*
- * Queues an IN (OUT for READ) urb as a response to the last control request
- * received on endpoint 0, provided that was an IN (OUT for READ) request and
- * waits until the urb is completed. Copies received data to user for READ.
+ * Queues an IN (OUT for READ) request as a response to the last setup request
+ * received on endpoint 0 (provided that was an IN (OUT for READ) request), and
+ * waits until the request is completed. Copies received data to user for READ.
  * Accepts a pointer to the usb_raw_ep_io struct as an argument.
- * Returns length of trasferred data on success or negative error code on
+ * Returns length of transferred data on success or negative error code on
  * failure.
  */
 #define USB_RAW_IOCTL_EP0_WRITE		_IOW('U', 3, struct usb_raw_ep_io)
@@ -133,19 +133,20 @@ struct usb_raw_ep_io {
  */
 #define USB_RAW_IOCTL_EP_ENABLE		_IOW('U', 5, struct usb_endpoint_descriptor)
 
-/* Disables specified endpoint.
+/*
+ * Disables specified endpoint.
  * Accepts endpoint handle as an argument.
  * Returns 0 on success or negative error code on failure.
  */
 #define USB_RAW_IOCTL_EP_DISABLE	_IOW('U', 6, __u32)
 
 /*
- * Queues an IN (OUT for READ) urb as a response to the last control request
- * received on endpoint usb_raw_ep_io.ep, provided that was an IN (OUT for READ)
- * request and waits until the urb is completed. Copies received data to user
- * for READ.
+ * Queues an IN (OUT for READ) request as a response to the last setup request
+ * received on endpoint usb_raw_ep_io.ep (provided that was an IN (OUT for READ)
+ * request), and waits until the request is completed. Copies received data to
+ * user for READ.
  * Accepts a pointer to the usb_raw_ep_io struct as an argument.
- * Returns length of trasferred data on success or negative error code on
+ * Returns length of transferred data on success or negative error code on
  * failure.
  */
 #define USB_RAW_IOCTL_EP_WRITE		_IOW('U', 7, struct usb_raw_ep_io)
