@@ -8060,6 +8060,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
  */
 void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
+	struct kvm_vcpu *except;
 	unsigned long old, new, expected;
 
 	if (!kvm_x86_ops.check_apicv_inhibit_reasons ||
@@ -8084,7 +8085,17 @@ void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 	trace_kvm_apicv_update_request(activate, bit);
 	if (kvm_x86_ops.pre_update_apicv_exec_ctrl)
 		kvm_x86_ops.pre_update_apicv_exec_ctrl(kvm, activate);
-	kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
+
+	/*
+	 * Sending request to update APICV for all other vcpus,
+	 * while update the calling vcpu immediately instead of
+	 * waiting for another #VMEXIT to handle the request.
+	 */
+	except = kvm_get_running_vcpu();
+	kvm_make_all_cpus_request_except(kvm, KVM_REQ_APICV_UPDATE,
+					 except);
+	if (except)
+		kvm_vcpu_update_apicv(except);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
 
