@@ -182,10 +182,12 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
 
 #ifdef __powerpc64__
 #ifdef CONFIG_PPC_BOOK3S
+#define TRAP_FLAGS_MASK		0
 #define TRAP(regs)		((regs)->trap)
 #define FULL_REGS(regs)		true
 #define SET_FULL_REGS(regs)	do { } while (0)
 #else
+#define TRAP_FLAGS_MASK		0x1
 #define TRAP(regs)		((regs)->trap & ~0x1)
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
 #define SET_FULL_REGS(regs)	((regs)->trap |= 1)
@@ -200,6 +202,7 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
  * On 4xx we use the next bit to indicate whether the exception
  * is a critical exception (1 means it is).
  */
+#define TRAP_FLAGS_MASK		0xF
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
 #define SET_FULL_REGS(regs)	((regs)->trap |= 1)
@@ -213,6 +216,11 @@ do {									      \
 		printk(KERN_CRIT "%s: partial register set\n", __func__); \
 } while (0)
 #endif /* __powerpc64__ */
+
+static inline void set_trap(struct pt_regs *regs, unsigned long val)
+{
+	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
+}
 
 #define arch_has_single_step()	(1)
 #ifndef CONFIG_BOOK3S_601

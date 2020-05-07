@@ -1178,7 +1178,7 @@ static int do_step(struct pt_regs *regs)
 				return 0;
 			}
 			if (stepped > 0) {
-				regs->trap = 0xd00 | (regs->trap & 1);
+				set_trap(regs, 0xd00);
 				printf("stepped to ");
 				xmon_print_symbol(regs->nip, " ", "\n");
 				ppc_inst_dump(regs->nip, 1, 0);
