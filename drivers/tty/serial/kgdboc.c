@@ -380,7 +380,6 @@ static struct kgdb_io kgdboc_io_ops = {
 	.post_exception		= kgdboc_post_exp_handler,
 };
 
-#ifdef CONFIG_KGDB_SERIAL_CONSOLE
 static int kgdboc_option_setup(char *opt)
 {
 	if (!opt) {
@@ -409,7 +408,6 @@ static int __init kgdboc_early_init(char *opt)
 }
 
 early_param("ekgdboc", kgdboc_early_init);
-#endif /* CONFIG_KGDB_SERIAL_CONSOLE */
 
 module_init(init_kgdboc);
 module_exit(exit_kgdboc);
