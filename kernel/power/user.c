@@ -37,8 +37,6 @@ static struct snapshot_data {
 	bool free_bitmaps;
 } snapshot_state;
 
-atomic_t snapshot_device_available = ATOMIC_INIT(1);
-
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
@@ -49,13 +47,13 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 	lock_system_sleep();
 
-	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+	if (!hibernate_acquire()) {
 		error = -EBUSY;
 		goto Unlock;
 	}
 
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR) {
-		atomic_inc(&snapshot_device_available);
+		hibernate_release();
 		error = -ENOSYS;
 		goto Unlock;
 	}
@@ -92,7 +90,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 			__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	}
 	if (error)
-		atomic_inc(&snapshot_device_available);
+		hibernate_release();
 
 	data->frozen = false;
 	data->ready = false;
@@ -122,7 +120,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	}
 	pm_notifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
-	atomic_inc(&snapshot_device_available);
+	hibernate_release();
 
 	unlock_system_sleep();
 
