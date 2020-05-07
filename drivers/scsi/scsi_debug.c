@@ -2657,13 +2657,7 @@ static inline bool sdebug_dev_is_zoned(struct sdebug_dev_info *devip)
 static struct sdeb_zone_state *zbc_zone(struct sdebug_dev_info *devip,
 					unsigned long long lba)
 {
-	unsigned int zno;
-
-	if (devip->zsize_shift)
-		zno = lba >> devip->zsize_shift;
-	else
-		zno = lba / devip->zsize;
-	return &devip->zstate[zno];
+	return &devip->zstate[lba >> devip->zsize_shift];
 }
 
 static inline bool zbc_zone_is_conv(struct sdeb_zone_state *zsp)
@@ -4306,7 +4300,7 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 		return check_condition_result;
 	}
 
-	max_zones = devip->nr_zones - zs_lba / devip->zsize;
+	max_zones = devip->nr_zones - (zs_lba >> devip->zsize_shift);
 	rep_max_zones = min((alloc_len - 64) >> ilog2(RZONES_DESC_HD),
 			    max_zones);
 
@@ -4826,6 +4820,10 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 			return -EINVAL;
 		}
 	} else {
+		if (!is_power_of_2(sdeb_zbc_zone_size_mb)) {
+			pr_err("Zone size is not a power of 2\n");
+			return -EINVAL;
+		}
 		devip->zsize = (sdeb_zbc_zone_size_mb * SZ_1M)
 			>> ilog2(sdebug_sector_size);
 		if (devip->zsize >= capacity) {
@@ -4834,8 +4832,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 		}
 	}
 
-	if (is_power_of_2(devip->zsize))
-		devip->zsize_shift = ilog2(devip->zsize);
+	devip->zsize_shift = ilog2(devip->zsize);
 	devip->nr_zones = (capacity + devip->zsize - 1) >> devip->zsize_shift;
 
 	if (sdeb_zbc_nr_conv >= devip->nr_zones) {
