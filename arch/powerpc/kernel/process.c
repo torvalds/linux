@@ -1720,7 +1720,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	 * FULL_REGS(regs) return true.  This is necessary to allow
 	 * ptrace to examine the thread immediately after exec.
 	 */
-	regs->trap &= ~1UL;
+	SET_FULL_REGS(regs);
 
 #ifdef CONFIG_PPC32
 	regs->mq = 0;
