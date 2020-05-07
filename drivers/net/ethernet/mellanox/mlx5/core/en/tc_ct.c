@@ -1803,24 +1803,14 @@ mlx5_tc_ct_init_check_support(struct mlx5_eswitch *esw,
 	return 0;
 }
 
-static void
-mlx5_tc_ct_init_err(struct mlx5e_rep_priv *rpriv, const char *msg, int err)
-{
-	if (msg)
-		netdev_warn(rpriv->netdev,
-			    "tc ct offload not supported, %s, err: %d\n",
-			    msg, err);
-	else
-		netdev_warn(rpriv->netdev,
-			    "tc ct offload not supported, err: %d\n",
-			    err);
-}
+#define INIT_ERR_PREFIX "tc ct offload init failed"
 
 int
 mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 {
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_core_dev *dev;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
 	const char *msg;
@@ -1828,19 +1818,20 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	rpriv = container_of(uplink_priv, struct mlx5e_rep_priv, uplink_priv);
 	priv = netdev_priv(rpriv->netdev);
-	esw = priv->mdev->priv.eswitch;
+	dev = priv->mdev;
+	esw = dev->priv.eswitch;
 
 	err = mlx5_tc_ct_init_check_support(esw, &msg);
 	if (err) {
-		mlx5_tc_ct_init_err(rpriv, msg, err);
+		mlx5_core_warn(dev,
+			       "tc ct offload not supported, %s\n",
+			       msg);
 		goto err_support;
 	}
 
 	ct_priv = kzalloc(sizeof(*ct_priv), GFP_KERNEL);
-	if (!ct_priv) {
-		mlx5_tc_ct_init_err(rpriv, NULL, -ENOMEM);
+	if (!ct_priv)
 		goto err_alloc;
-	}
 
 	ct_priv->zone_mapping = mapping_create(sizeof(u16), 0, true);
 	if (IS_ERR(ct_priv->zone_mapping)) {
@@ -1859,23 +1850,27 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	ct_priv->ct = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->ct)) {
 		err = PTR_ERR(ct_priv->ct);
-		mlx5_tc_ct_init_err(rpriv, "failed to create ct table", err);
+		mlx5_core_warn(dev,
+			       "%s, failed to create ct table err: %d\n",
+			       INIT_ERR_PREFIX, err);
 		goto err_ct_tbl;
 	}
 
 	ct_priv->ct_nat = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->ct_nat)) {
 		err = PTR_ERR(ct_priv->ct_nat);
-		mlx5_tc_ct_init_err(rpriv, "failed to create ct nat table",
-				    err);
+		mlx5_core_warn(dev,
+			       "%s, failed to create ct nat table err: %d\n",
+			       INIT_ERR_PREFIX, err);
 		goto err_ct_nat_tbl;
 	}
 
 	ct_priv->post_ct = mlx5_chains_create_global_table(esw_chains(esw));
 	if (IS_ERR(ct_priv->post_ct)) {
 		err = PTR_ERR(ct_priv->post_ct);
-		mlx5_tc_ct_init_err(rpriv, "failed to create post ct table",
-				    err);
+		mlx5_core_warn(dev,
+			       "%s, failed to create post ct table err: %d\n",
+			       INIT_ERR_PREFIX, err);
 		goto err_post_ct_tbl;
 	}
 
