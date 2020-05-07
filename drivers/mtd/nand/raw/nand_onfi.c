@@ -167,7 +167,8 @@ int nand_onfi_detect(struct nand_chip *chip)
 	}
 
 	for (i = 0; i < ONFI_PARAM_PAGES; i++) {
-		ret = nand_read_data_op(chip, &pbuf[i], sizeof(*pbuf), true);
+		ret = nand_read_data_op(chip, &pbuf[i], sizeof(*pbuf), true,
+					false);
 		if (ret) {
 			ret = 0;
 			goto free_onfi_param_page;

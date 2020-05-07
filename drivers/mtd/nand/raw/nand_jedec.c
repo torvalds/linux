@@ -51,7 +51,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	}
 
 	for (i = 0; i < JEDEC_PARAM_PAGES; i++) {
-		ret = nand_read_data_op(chip, p, sizeof(*p), true);
+		ret = nand_read_data_op(chip, p, sizeof(*p), true, false);
 		if (ret) {
 			ret = 0;
 			goto free_jedec_param_page;
