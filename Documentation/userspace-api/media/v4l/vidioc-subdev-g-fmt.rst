@@ -78,6 +78,11 @@ current links configuration or sub-device controls value. For instance,
 a low-pass noise filter might crop pixels at the frame boundaries,
 modifying its output frame size.
 
+If the subdev device node has been registered in read-only mode, calls to
+``VIDIOC_SUBDEV_S_FMT`` are only valid if the ``which`` field is set to
+``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the errno
+variable is set to ``-EPERM``.
+
 Drivers must not return an error solely because the requested format
 doesn't match the device capabilities. They must instead modify the
 format to match what the hardware can provide. The modified format
@@ -146,6 +151,9 @@ EINVAL
     ``pad`` references a non-existing pad, or the ``which`` field
     references a non-existing format.
 
+EPERM
+    The ``VIDIOC_SUBDEV_S_FMT`` ioctl has been called on a read-only subdevice
+    and the ``which`` field is set to ``V4L2_SUBDEV_FORMAT_ACTIVE``.
 
 ============
 

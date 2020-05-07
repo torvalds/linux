@@ -39,6 +39,11 @@ will feature a character device node on which ioctls can be called to
 Sub-device character device nodes, conventionally named
 ``/dev/v4l-subdev*``, use major number 81.
 
+Drivers may opt to limit the sub-device character devices to only expose
+operations that do not modify the device state. In such a case the sub-devices
+are referred to as ``read-only`` in the rest of this documentation, and the
+related restrictions are documented in individual ioctls.
+
 
 Controls
 ========

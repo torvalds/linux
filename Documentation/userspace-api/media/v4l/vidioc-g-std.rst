@@ -66,6 +66,9 @@ video timings (e.g. if :ref:`VIDIOC_ENUMINPUT`
 does not set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
 returned.
 
+Calling ``VIDIOC_SUBDEV_S_STD`` on a subdev device node that has been registered
+in read-only mode is not allowed. An error is returned and the errno variable is
+set to ``-EPERM``.
 
 Return Value
 ============
@@ -79,3 +82,6 @@ EINVAL
 
 ENODATA
     Standard video timings are not supported for this input or output.
+
+EPERM
+    ``VIDIOC_SUBDEV_S_STD`` has been called on a read-only subdevice.

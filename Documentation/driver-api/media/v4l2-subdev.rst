@@ -332,6 +332,50 @@ Private ioctls
 	All ioctls not in the above list are passed directly to the sub-device
 	driver through the core::ioctl operation.
 
+Read-only sub-device userspace API
+----------------------------------
+
+Bridge drivers that control their connected subdevices through direct calls to
+the kernel API realized by :c:type:`v4l2_subdev_ops` structure do not usually
+want userspace to be able to change the same parameters through the subdevice
+device node and thus do not usually register any.
+
+It is sometimes useful to report to userspace the current subdevice
+configuration through a read-only API, that does not permit applications to
+change to the device parameters but allows interfacing to the subdevice device
+node to inspect them.
+
+For instance, to implement cameras based on computational photography, userspace
+needs to know the detailed camera sensor configuration (in terms of skipping,
+binning, cropping and scaling) for each supported output resolution. To support
+such use cases, bridge drivers may expose the subdevice operations to userspace
+through a read-only API.
+
+To create a read-only device node for all the subdevices registered with the
+``V4L2_SUBDEV_FL_HAS_DEVNODE`` set, the :c:type:`v4l2_device` driver should call
+:c:func:`v4l2_device_register_ro_subdev_nodes`.
+
+Access to the following ioctls for userspace applications is restricted on
+sub-device device nodes registered with
+:c:func:`v4l2_device_register_ro_subdev_nodes`.
+
+``VIDIOC_SUBDEV_S_FMT``,
+``VIDIOC_SUBDEV_S_CROP``,
+``VIDIOC_SUBDEV_S_SELECTION``:
+
+	These ioctls are only allowed on a read-only subdevice device node
+	for the :ref:`V4L2_SUBDEV_FORMAT_TRY <v4l2-subdev-format-whence>`
+	formats and selection rectangles.
+
+``VIDIOC_SUBDEV_S_FRAME_INTERVAL``,
+``VIDIOC_SUBDEV_S_DV_TIMINGS``,
+``VIDIOC_SUBDEV_S_STD``:
+
+	These ioctls are not allowed on a read-only subdevice node.
+
+In case the ioctl is not allowed, or the format to modify is set to
+``V4L2_SUBDEV_FORMAT_ACTIVE``, the core returns a negative error code and
+the errno variable is set to ``-EPERM``.
 
 I2C sub-device drivers
 ----------------------
