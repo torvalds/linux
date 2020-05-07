@@ -171,6 +171,7 @@ struct mga_device {
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
 
+	struct mga_connector connector;
 	struct drm_encoder encoder;
 };
 

@@ -1448,6 +1448,10 @@ static void mga_crtc_init(struct mga_device *mdev)
 	drm_crtc_helper_add(&mga_crtc->base, &mga_helper_funcs);
 }
 
+/*
+ * Connector
+ */
+
 static int mga_vga_get_modes(struct drm_connector *connector)
 {
 	struct mga_connector *mga_connector = to_mga_connector(connector);
@@ -1572,7 +1576,6 @@ static void mga_connector_destroy(struct drm_connector *connector)
 	struct mga_connector *mga_connector = to_mga_connector(connector);
 	mgag200_i2c_destroy(mga_connector->i2c);
 	drm_connector_cleanup(connector);
-	kfree(connector);
 }
 
 static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
@@ -1586,30 +1589,33 @@ static const struct drm_connector_funcs mga_vga_connector_funcs = {
 	.destroy = mga_connector_destroy,
 };
 
-static struct drm_connector *mga_vga_init(struct drm_device *dev)
+static int mgag200_vga_connector_init(struct mga_device *mdev)
 {
-	struct drm_connector *connector;
-	struct mga_connector *mga_connector;
+	struct drm_device *dev = mdev->dev;
+	struct mga_connector *mconnector = &mdev->connector;
+	struct drm_connector *connector = &mconnector->base;
+	struct mga_i2c_chan *i2c;
+	int ret;
 
-	mga_connector = kzalloc(sizeof(struct mga_connector), GFP_KERNEL);
-	if (!mga_connector)
-		return NULL;
+	i2c = mgag200_i2c_create(dev);
+	if (!i2c)
+		drm_warn(dev, "failed to add DDC bus\n");
 
-	connector = &mga_connector->base;
-	mga_connector->i2c = mgag200_i2c_create(dev);
-	if (!mga_connector->i2c)
-		DRM_ERROR("failed to add ddc bus\n");
-
-	drm_connector_init_with_ddc(dev, connector,
-				    &mga_vga_connector_funcs,
-				    DRM_MODE_CONNECTOR_VGA,
-				    &mga_connector->i2c->adapter);
-
+	ret = drm_connector_init_with_ddc(dev, connector,
+					  &mga_vga_connector_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  &i2c->adapter);
+	if (ret)
+		goto err_mgag200_i2c_destroy;
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
-	drm_connector_register(connector);
+	mconnector->i2c = i2c;
 
-	return connector;
+	return 0;
+
+err_mgag200_i2c_destroy:
+	mgag200_i2c_destroy(i2c);
+	return ret;
 }
 
 static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
@@ -1628,7 +1634,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
 	struct drm_encoder *encoder = &mdev->encoder;
-	struct drm_connector *connector;
+	struct drm_connector *connector = &mdev->connector.base;
 	int ret;
 
 	mdev->bpp_shifts[0] = 0;
@@ -1664,10 +1670,12 @@ int mgag200_modeset_init(struct mga_device *mdev)
 	}
 	encoder->possible_crtcs = 0x1;
 
-	connector = mga_vga_init(dev);
-	if (!connector) {
-		DRM_ERROR("mga_vga_init failed\n");
-		return -1;
+	ret = mgag200_vga_connector_init(mdev);
+	if (ret) {
+		drm_err(dev,
+			"mgag200_vga_connector_init() failed, error %d\n",
+			ret);
+		return ret;
 	}
 
 	drm_connector_attach_encoder(connector, encoder);
