@@ -475,8 +475,7 @@ static int __init intel_iommu_setup(char *str)
 			pr_info("Intel-IOMMU: scalable mode supported\n");
 			intel_iommu_sm = 1;
 		} else if (!strncmp(str, "tboot_noforce", 13)) {
-			printk(KERN_INFO
-				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
+			pr_info("Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
 			intel_iommu_tboot_noforce = 1;
 		} else if (!strncmp(str, "nobounce", 8)) {
 			pr_info("Intel-IOMMU: No bounce buffer. This could expose security risks of DMA attacks\n");
