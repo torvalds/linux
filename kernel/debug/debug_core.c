@@ -1073,15 +1073,23 @@ EXPORT_SYMBOL_GPL(kgdb_schedule_breakpoint);
  */
 int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 {
+	struct kgdb_io *old_dbg_io_ops;
 	int err;
 
 	spin_lock(&kgdb_registration_lock);
 
-	if (dbg_io_ops) {
-		spin_unlock(&kgdb_registration_lock);
+	old_dbg_io_ops = dbg_io_ops;
+	if (old_dbg_io_ops) {
+		if (!old_dbg_io_ops->deinit) {
+			spin_unlock(&kgdb_registration_lock);
 
-		pr_err("Another I/O driver is already registered with KGDB\n");
-		return -EBUSY;
+			pr_err("KGDB I/O driver %s can't replace %s.\n",
+				new_dbg_io_ops->name, old_dbg_io_ops->name);
+			return -EBUSY;
+		}
+		pr_info("Replacing I/O driver %s with %s\n",
+			old_dbg_io_ops->name, new_dbg_io_ops->name);
+		old_dbg_io_ops->deinit();
 	}
 
 	if (new_dbg_io_ops->init) {
@@ -1095,6 +1103,9 @@ int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 	dbg_io_ops = new_dbg_io_ops;
 
 	spin_unlock(&kgdb_registration_lock);
+
+	if (old_dbg_io_ops)
+		return 0;
 
 	pr_info("Registered I/O driver %s\n", new_dbg_io_ops->name);
 
@@ -1131,6 +1142,9 @@ void kgdb_unregister_io_module(struct kgdb_io *old_dbg_io_ops)
 	dbg_io_ops = NULL;
 
 	spin_unlock(&kgdb_registration_lock);
+
+	if (old_dbg_io_ops->deinit)
+		old_dbg_io_ops->deinit();
 
 	pr_info("Unregistered I/O driver %s, debugger disabled\n",
 		old_dbg_io_ops->name);

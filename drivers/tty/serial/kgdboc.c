@@ -21,6 +21,7 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/serial_core.h>
 
 #define MAX_CONFIG_LEN		40
 
@@ -41,6 +42,10 @@ static struct tty_driver	*kgdb_tty_driver;
 static int			kgdb_tty_line;
 
 static struct platform_device *kgdboc_pdev;
+
+static struct kgdb_io		kgdboc_earlycon_io_ops;
+static struct console		*earlycon;
+static int                      (*earlycon_orig_exit)(struct console *con);
 
 #ifdef CONFIG_KDB_KEYBOARD
 static int kgdboc_reset_connect(struct input_handler *handler,
@@ -137,6 +142,9 @@ static void kgdboc_unregister_kbd(void)
 
 static void cleanup_kgdboc(void)
 {
+	if (earlycon)
+		kgdb_unregister_io_module(&kgdboc_earlycon_io_ops);
+
 	if (configured != 1)
 		return;
 
@@ -408,6 +416,134 @@ static int __init kgdboc_early_init(char *opt)
 }
 
 early_param("ekgdboc", kgdboc_early_init);
+
+static int kgdboc_earlycon_get_char(void)
+{
+	char c;
+
+	if (!earlycon->read(earlycon, &c, 1))
+		return NO_POLL_CHAR;
+
+	return c;
+}
+
+static void kgdboc_earlycon_put_char(u8 chr)
+{
+	earlycon->write(earlycon, &chr, 1);
+}
+
+static void kgdboc_earlycon_pre_exp_handler(void)
+{
+	struct console *con;
+	static bool already_warned;
+
+	if (already_warned)
+		return;
+
+	/*
+	 * When the first normal console comes up the kernel will take all
+	 * the boot consoles out of the list.  Really, we should stop using
+	 * the boot console when it does that but until a TTY is registered
+	 * we have no other choice so we keep using it.  Since not all
+	 * serial drivers might be OK with this, print a warning once per
+	 * boot if we detect this case.
+	 */
+	for_each_console(con)
+		if (con == earlycon)
+			return;
+
+	already_warned = true;
+	pr_warn("kgdboc_earlycon is still using bootconsole\n");
+}
+
+static int kgdboc_earlycon_deferred_exit(struct console *con)
+{
+	/*
+	 * If we get here it means the boot console is going away but we
+	 * don't yet have a suitable replacement.  Don't pass through to
+	 * the original exit routine.  We'll call it later in our deinit()
+	 * function.  For now, restore the original exit() function pointer
+	 * as a sentinal that we've hit this point.
+	 */
+	con->exit = earlycon_orig_exit;
+
+	return 0;
+}
+
+static void kgdboc_earlycon_deinit(void)
+{
+	if (!earlycon)
+		return;
+
+	if (earlycon->exit == kgdboc_earlycon_deferred_exit)
+		/*
+		 * kgdboc_earlycon is exiting but original boot console exit
+		 * was never called (AKA kgdboc_earlycon_deferred_exit()
+		 * didn't ever run).  Undo our trap.
+		 */
+		earlycon->exit = earlycon_orig_exit;
+	else if (earlycon->exit)
+		/*
+		 * We skipped calling the exit() routine so we could try to
+		 * keep using the boot console even after it went away.  We're
+		 * finally done so call the function now.
+		 */
+		earlycon->exit(earlycon);
+
+	earlycon = NULL;
+}
+
+static struct kgdb_io kgdboc_earlycon_io_ops = {
+	.name			= "kgdboc_earlycon",
+	.read_char		= kgdboc_earlycon_get_char,
+	.write_char		= kgdboc_earlycon_put_char,
+	.pre_exception		= kgdboc_earlycon_pre_exp_handler,
+	.deinit			= kgdboc_earlycon_deinit,
+	.is_console		= true,
+};
+
+static int __init kgdboc_earlycon_init(char *opt)
+{
+	struct console *con;
+
+	kdb_init(KDB_INIT_EARLY);
+
+	/*
+	 * Look for a matching console, or if the name was left blank just
+	 * pick the first one we find.
+	 */
+	console_lock();
+	for_each_console(con) {
+		if (con->write && con->read &&
+		    (con->flags & (CON_BOOT | CON_ENABLED)) &&
+		    (!opt || !opt[0] || strcmp(con->name, opt) == 0))
+			break;
+	}
+
+	if (!con) {
+		pr_info("Couldn't find kgdb earlycon\n");
+		goto unlock;
+	}
+
+	earlycon = con;
+	pr_info("Going to register kgdb with earlycon '%s'\n", con->name);
+	if (kgdb_register_io_module(&kgdboc_earlycon_io_ops) != 0) {
+		earlycon = NULL;
+		pr_info("Failed to register kgdb with earlycon\n");
+	} else {
+		/* Trap exit so we can keep earlycon longer if needed. */
+		earlycon_orig_exit = con->exit;
+		con->exit = kgdboc_earlycon_deferred_exit;
+	}
+
+unlock:
+	console_unlock();
+
+	/* Non-zero means malformed option so we always return zero */
+	return 0;
+}
+
+early_param("kgdboc_earlycon", kgdboc_earlycon_init);
 
 module_init(init_kgdboc);
 module_exit(exit_kgdboc);
