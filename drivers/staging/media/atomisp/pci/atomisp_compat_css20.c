@@ -875,7 +875,7 @@ int atomisp_css_init(struct atomisp_device *isp)
 		return ret;
 
 	/* Init ISP */
-	err = ia_css_init(&isp->css_env.isp_css_env, NULL,
+	err = ia_css_init(isp->dev, &isp->css_env.isp_css_env, NULL,
 			  (uint32_t)mmu_base_addr, IA_CSS_IRQ_TYPE_PULSE);
 	if (err != IA_CSS_SUCCESS) {
 		dev_err(isp->dev, "css init failed --- bad firmware?\n");
@@ -909,8 +909,7 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 
 int atomisp_css_check_firmware_version(struct atomisp_device *isp)
 {
-	if (!sh_css_check_firmware_version((void *)isp->firmware->data)) {
-		dev_err(isp->dev, "Fw version check failed.\n");
+	if (!sh_css_check_firmware_version(isp->dev, (void *)isp->firmware->data)) {
 		return -EINVAL;
 	}
 	return 0;
@@ -945,7 +944,7 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 	isp->css_env.isp_css_env.print_env.error_print = atomisp_css2_err_print;
 
 	/* load isp fw into ISP memory */
-	err = ia_css_load_firmware(&isp->css_env.isp_css_env,
+	err = ia_css_load_firmware(isp->dev, &isp->css_env.isp_css_env,
 				   &isp->css_env.isp_css_fw);
 	if (err != IA_CSS_SUCCESS) {
 		dev_err(isp->dev, "css load fw failed.\n");
@@ -992,7 +991,7 @@ int atomisp_css_resume(struct atomisp_device *isp)
 		return -EINVAL;
 	}
 
-	ret = ia_css_init(&isp->css_env.isp_css_env, NULL,
+	ret = ia_css_init(isp->dev, &isp->css_env.isp_css_env, NULL,
 			  mmu_base_addr, IA_CSS_IRQ_TYPE_PULSE);
 	if (ret) {
 		dev_err(isp->dev, "re-init css failed.\n");

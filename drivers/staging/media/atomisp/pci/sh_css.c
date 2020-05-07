@@ -1619,19 +1619,8 @@ ia_css_reset_defaults(struct sh_css *css)
 	*css = default_css;
 }
 
-bool
-ia_css_check_firmware_version(const struct ia_css_fw  *fw)
-{
-	bool retval = false;
-
-	if (fw) {
-		retval = sh_css_check_firmware_version(fw->data);
-	}
-	return retval;
-}
-
 enum ia_css_err
-ia_css_load_firmware(const struct ia_css_env *env,
+ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 		     const struct ia_css_fw  *fw) {
 	enum ia_css_err err;
 
@@ -1650,7 +1639,7 @@ ia_css_load_firmware(const struct ia_css_env *env,
 	}
 
 	ia_css_unload_firmware(); /* in case we are called twice */
-	err = sh_css_load_firmware(fw->data, fw->bytes);
+	err = sh_css_load_firmware(dev, fw->data, fw->bytes);
 	if (err == IA_CSS_SUCCESS)
 	{
 		err = ia_css_binary_init_infos();
@@ -1663,7 +1652,7 @@ ia_css_load_firmware(const struct ia_css_env *env,
 }
 
 enum ia_css_err
-ia_css_init(const struct ia_css_env *env,
+ia_css_init(struct device *dev, const struct ia_css_env *env,
 	    const struct ia_css_fw  *fw,
 	    u32                 mmu_l1_base,
 	    enum ia_css_irq_type     irq_type) {
@@ -1791,7 +1780,7 @@ ia_css_init(const struct ia_css_env *env,
 	if (fw)
 	{
 		ia_css_unload_firmware(); /* in case we already had firmware loaded */
-		err = sh_css_load_firmware(fw->data, fw->bytes);
+		err = sh_css_load_firmware(dev, fw->data, fw->bytes);
 		if (err != IA_CSS_SUCCESS) {
 			IA_CSS_LEAVE_ERR(err);
 			return err;
@@ -1857,74 +1846,6 @@ ia_css_init(const struct ia_css_env *env,
 
 	IA_CSS_LEAVE_ERR(err);
 	return err;
-}
-
-enum ia_css_err ia_css_suspend(void)
-{
-	int i;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_suspend() enter\n");
-	my_css_save.mode = sh_css_mode_suspend;
-	for (i = 0; i < MAX_ACTIVE_STREAMS; i++)
-		if (my_css_save.stream_seeds[i].stream) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "==*> unloading seed %d (%p)\n", i,
-					    my_css_save.stream_seeds[i].stream);
-			ia_css_stream_unload(my_css_save.stream_seeds[i].stream);
-		}
-	my_css_save.mode = sh_css_mode_working;
-	ia_css_stop_sp();
-	ia_css_uninit();
-	for (i = 0; i < MAX_ACTIVE_STREAMS; i++)
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "==*> after 1: seed %d (%p)\n", i,
-				    my_css_save.stream_seeds[i].stream);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_suspend() leave\n");
-	return IA_CSS_SUCCESS;
-}
-
-enum ia_css_err
-ia_css_resume(void) {
-	int i, j;
-	enum ia_css_err err;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_resume() enter: void\n");
-
-	err = ia_css_init(&my_css_save.driver_env, my_css_save.loaded_fw, my_css_save.mmu_base, my_css_save.irq_type);
-	if (err != IA_CSS_SUCCESS)
-		return err;
-	err = ia_css_start_sp();
-	if (err != IA_CSS_SUCCESS)
-		return err;
-	my_css_save.mode = sh_css_mode_resume;
-	for (i = 0; i < MAX_ACTIVE_STREAMS; i++)
-	{
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "==*> seed stream %p\n",
-				    my_css_save.stream_seeds[i].stream);
-		if (my_css_save.stream_seeds[i].stream) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "==*> loading seed %d\n", i);
-			err = ia_css_stream_load(my_css_save.stream_seeds[i].stream);
-			if (err != IA_CSS_SUCCESS) {
-				if (i)
-					for (j = 0; j < i; j++)
-						ia_css_stream_unload(my_css_save.stream_seeds[j].stream);
-				return err;
-			}
-			err = ia_css_stream_start(my_css_save.stream_seeds[i].stream);
-			if (err != IA_CSS_SUCCESS) {
-				for (j = 0; j <= i; j++) {
-					ia_css_stream_stop(my_css_save.stream_seeds[j].stream);
-					ia_css_stream_unload(my_css_save.stream_seeds[j].stream);
-				}
-				return err;
-			}
-			*my_css_save.stream_seeds[i].orig_stream = my_css_save.stream_seeds[i].stream;
-			for (j = 0; j < my_css_save.stream_seeds[i].num_pipes; j++)
-				*my_css_save.stream_seeds[i].orig_pipes[j] =
-				    my_css_save.stream_seeds[i].pipes[j];
-		}
-	}
-	my_css_save.mode = sh_css_mode_working;
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_resume() leave: return_void\n");
-	return IA_CSS_SUCCESS;
 }
 
 enum ia_css_err

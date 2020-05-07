@@ -45,11 +45,11 @@
  * contents of this firmware package are copied into local data structures, so
  * the fw pointer could be freed after this function completes.
  */
-enum ia_css_err ia_css_init(
-    const struct ia_css_env *env,
-    const struct ia_css_fw  *fw,
-    u32                 l1_base,
-    enum ia_css_irq_type     irq_type);
+enum ia_css_err ia_css_init(struct device           *dev,
+			    const struct ia_css_env *env,
+			    const struct ia_css_fw  *fw,
+			    u32                     l1_base,
+			    enum ia_css_irq_type    irq_type);
 
 /* @brief Un-initialize the CSS API.
  * @return	None
@@ -65,31 +65,6 @@ enum ia_css_err ia_css_init(
  */
 void
 ia_css_uninit(void);
-
-/* @brief Suspend CSS API for power down
- * @return	success or faulure code
- *
- * suspend shuts down the system by:
- *  unloading all the streams
- *  stopping SP
- *  performing uninit
- *
- *  Currently stream memory is deallocated because of rmmgr issues.
- *  Need to come up with a bypass that will leave the streams intact.
- */
-enum ia_css_err
-ia_css_suspend(void);
-
-/* @brief Resume CSS API from power down
- * @return	success or failure code
- *
- * After a power cycle, this function will bring the CSS API back into
- * a state where it can be started.
- * This will re-initialize the hardware and all the streams.
- * Call this function only after ia_css_suspend() has been called.
- */
-enum ia_css_err
-ia_css_resume(void);
 
 /* @brief Enable use of a separate queue for ISYS events.
  *

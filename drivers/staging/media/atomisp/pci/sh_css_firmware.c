@@ -181,7 +181,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 }
 
 bool
-sh_css_check_firmware_version(const char *fw_data)
+sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 {
 	struct sh_css_fw_bi_file_h *file_header;
 
@@ -196,6 +196,8 @@ sh_css_check_firmware_version(const char *fw_data)
 	file_header = &firmware_header->file_header;
 
 	if (strcmp(file_header->version, release_version) != 0) {
+		dev_err(dev, "Fw version check failed. Expecting '%s', firmware is '%s'.\n",
+			release_version, file_header->version);
 		return false;
 	} else {
 		/* firmware version matches */
@@ -204,7 +206,7 @@ sh_css_check_firmware_version(const char *fw_data)
 }
 
 enum ia_css_err
-sh_css_load_firmware(const char *fw_data,
+sh_css_load_firmware(struct device *dev, const char *fw_data,
 		     unsigned int fw_size) {
 	unsigned int i;
 	struct ia_css_fw_info *binaries;
@@ -221,7 +223,7 @@ sh_css_load_firmware(const char *fw_data,
 	file_header = &firmware_header->file_header;
 	binaries = &firmware_header->binary_header;
 	strncpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)) - 1);
-	valid_firmware = sh_css_check_firmware_version(fw_data);
+	valid_firmware = sh_css_check_firmware_version(dev, fw_data);
 	if (!valid_firmware) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
 			     file_header->version, release_version);

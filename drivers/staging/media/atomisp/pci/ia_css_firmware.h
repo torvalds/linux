@@ -48,7 +48,7 @@ struct ia_css_fw {
  * firmware only needs to be loaded once).
  */
 enum ia_css_err
-ia_css_load_firmware(const struct ia_css_env *env,
+ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 		     const struct ia_css_fw  *fw);
 
 /* @brief Unloads the firmware
@@ -60,15 +60,5 @@ ia_css_load_firmware(const struct ia_css_env *env,
  */
 void
 ia_css_unload_firmware(void);
-
-/* @brief Checks firmware version
- * @param[in]	fw	Firmware package containing the firmware for all
- *			predefined ISP binaries.
- * @return		Returns true when the firmware version matches with the CSS
- *			host code version and returns false otherwise.
- * This function checks if the firmware package version matches with the CSS host code version.
- */
-bool
-ia_css_check_firmware_version(const struct ia_css_fw  *fw);
 
 #endif /* __IA_CSS_FIRMWARE_H */
