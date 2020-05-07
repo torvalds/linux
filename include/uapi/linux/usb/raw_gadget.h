@@ -231,4 +231,19 @@ struct usb_raw_eps_info {
  */
 #define USB_RAW_IOCTL_EPS_INFO		_IOR('U', 11, struct usb_raw_eps_info)
 
+/*
+ * Stalls a pending control request on endpoint 0.
+ * Returns 0 on success or negative error code on failure.
+ */
+#define USB_RAW_IOCTL_EP0_STALL		_IO('U', 12)
+
+/*
+ * Sets or clears halt or wedge status of the endpoint.
+ * Accepts endpoint handle as an argument.
+ * Returns 0 on success or negative error code on failure.
+ */
+#define USB_RAW_IOCTL_EP_SET_HALT	_IOW('U', 13, __u32)
+#define USB_RAW_IOCTL_EP_CLEAR_HALT	_IOW('U', 14, __u32)
+#define USB_RAW_IOCTL_EP_SET_WEDGE	_IOW('U', 15, __u32)
+
 #endif /* _UAPI__LINUX_USB_RAW_GADGET_H */
