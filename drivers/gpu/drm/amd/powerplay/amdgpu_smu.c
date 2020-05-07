@@ -1476,7 +1476,7 @@ static int smu_disable_dpm(struct smu_context *smu)
 	bool use_baco = !smu->is_apu &&
 		((adev->in_gpu_reset &&
 		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
-		 (adev->in_runpm && amdgpu_asic_supports_baco(adev)));
+		 ((adev->in_runpm || adev->in_hibernate) && amdgpu_asic_supports_baco(adev)));
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
