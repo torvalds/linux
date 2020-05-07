@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -241,52 +241,87 @@ union hl_cb_args {
  * compatibility
  */
 struct hl_cs_chunk {
-	/*
-	 * For external queue, this represents a Handle of CB on the Host
-	 * For internal queue, this represents an SRAM or DRAM address of the
-	 * internal CB
-	 */
-	__u64 cb_handle;
+	union {
+		/* For external queue, this represents a Handle of CB on the
+		 * Host.
+		 * For internal queue in Goya, this represents an SRAM or
+		 * a DRAM address of the internal CB. In Gaudi, this might also
+		 * represent a mapped host address of the CB.
+		 *
+		 * A mapped host address is in the device address space, after
+		 * a host address was mapped by the device MMU.
+		 */
+		__u64 cb_handle;
+
+		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		 * This holds address of array of u64 values that contain
+		 * signal CS sequence numbers. The wait described by this job
+		 * will listen on all those signals (wait event per signal)
+		 */
+		__u64 signal_seq_arr;
+	};
+
 	/* Index of queue to put the CB on */
 	__u32 queue_index;
-	/*
-	 * Size of command buffer with valid packets
-	 * Can be smaller then actual CB size
-	 */
-	__u32 cb_size;
+
+	union {
+		/*
+		 * Size of command buffer with valid packets
+		 * Can be smaller then actual CB size
+		 */
+		__u32 cb_size;
+
+		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		 * Number of entries in signal_seq_arr
+		 */
+		__u32 num_signal_seq_arr;
+	};
+
 	/* HL_CS_CHUNK_FLAGS_* */
 	__u32 cs_chunk_flags;
+
 	/* Align structure to 64 bytes */
 	__u32 pad[11];
 };
 
+/* SIGNAL and WAIT flags are mutually exclusive */
 #define HL_CS_FLAGS_FORCE_RESTORE	0x1
+#define HL_CS_FLAGS_SIGNAL		0x2
+#define HL_CS_FLAGS_WAIT		0x4
 
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
 
 struct hl_cs_in {
+
 	/* this holds address of array of hl_cs_chunk for restore phase */
 	__u64 chunks_restore;
-	/* this holds address of array of hl_cs_chunk for execution phase */
+
+	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
+
 	/* this holds address of array of hl_cs_chunk for store phase -
 	 * Currently not in use
 	 */
 	__u64 chunks_store;
+
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
 	 */
 	__u32 num_chunks_restore;
+
 	/* Number of chunks in execution array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
 	 */
 	__u32 num_chunks_execute;
+
 	/* Number of chunks in restore phase array - Currently not in use */
 	__u32 num_chunks_store;
+
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 };
@@ -597,8 +632,8 @@ struct hl_debug_args {
  * For jobs on external queues, the user needs to create command buffers
  * through the CB ioctl and give the CB's handle to the CS ioctl. For jobs on
  * internal queues, the user needs to prepare a "command buffer" with packets
- * on either the SRAM or DRAM, and give the device address of that buffer to
- * the CS ioctl.
+ * on either the device SRAM/DRAM or the host, and give the device address of
+ * that buffer to the CS ioctl.
  *
  * This IOCTL is asynchronous in regard to the actual execution of the CS. This
  * means it returns immediately after ALL the JOBS were enqueued on their
@@ -610,7 +645,7 @@ struct hl_debug_args {
  * external JOBS have been completed. Note that if the CS has internal JOBS
  * which can execute AFTER the external JOBS have finished, the driver might
  * report that the CS has finished executing BEFORE the internal JOBS have
- * actually finish executing.
+ * actually finished executing.
  *
  * Even though the sequence number increments per CS, the user can NOT
  * automatically assume that if CS with sequence number N finished, then CS

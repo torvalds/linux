@@ -11,6 +11,8 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+#define HL_CS_FLAGS_SIG_WAIT	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT)
+
 static void job_wq_completion(struct work_struct *work);
 static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 		struct hl_ctx *ctx, u64 timeout_us, u64 seq);
@@ -659,7 +661,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_cs_args *args = data;
 	struct hl_ctx *ctx = hpriv->ctx;
 	void __user *chunks_execute, *chunks_restore;
-	u32 num_chunks_execute, num_chunks_restore;
+	u32 num_chunks_execute, num_chunks_restore, sig_wait_flags;
 	u64 cs_seq = ULONG_MAX;
 	int rc, do_ctx_switch;
 	bool need_soft_reset = false;
@@ -669,6 +671,15 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 			"Device is %s. Can't submit new CS\n",
 			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		rc = -EBUSY;
+		goto out;
+	}
+
+	sig_wait_flags = args->in.cs_flags & HL_CS_FLAGS_SIG_WAIT;
+
+	if (unlikely((sig_wait_flags & HL_CS_FLAGS_SIG_WAIT) &&
+			(!hdev->supports_sync_stream))) {
+		dev_err(hdev->dev, "Sync stream CS is not supported\n");
+		rc = -EINVAL;
 		goto out;
 	}
 
