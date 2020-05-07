@@ -1175,6 +1175,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKSEL_CON(61), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RV1126_CLKGATE_CON(20), 11, GFLAGS),
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT
 	/*
 	 * Clock-Architecture Diagram 13
 	 */
@@ -1214,6 +1215,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(20), 15, GFLAGS),
 	GATE(TMCLK_DDR_MON, "tmclk_ddr_mon", "xin24m", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(21), 7, GFLAGS),
+#endif
 
 	/*
 	 * Clock-Architecture Diagram 14
