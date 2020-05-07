@@ -65,7 +65,7 @@ struct rockchip_rgb {
 	struct drm_encoder encoder;
 	struct phy *phy;
 	struct regmap *grf;
-	bool data_sync;
+	bool data_sync_bypass;
 	const struct rockchip_rgb_funcs *funcs;
 };
 
@@ -341,8 +341,8 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	rgb->funcs = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, rgb);
 
-	rgb->data_sync = of_property_read_bool(dev->of_node,
-					       "rockchip,data-sync");
+	rgb->data_sync_bypass =
+	    of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
 
 	if (dev->parent && dev->parent->of_node) {
 		rgb->grf = syscon_node_to_regmap(dev->parent->of_node);
@@ -376,7 +376,7 @@ static void px30_rgb_enable(struct rockchip_rgb *rgb)
 						     &rgb->encoder);
 
 	regmap_write(rgb->grf, PX30_GRF_PD_VO_CON1, PX30_RGB_VOP_SEL(pipe) |
-		     PX30_RGB_DATA_SYNC_BYPASS(!rgb->data_sync));
+		     PX30_RGB_DATA_SYNC_BYPASS(rgb->data_sync_bypass));
 }
 
 static const struct rockchip_rgb_funcs px30_rgb_funcs = {
@@ -386,7 +386,7 @@ static const struct rockchip_rgb_funcs px30_rgb_funcs = {
 static void rk1808_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RK1808_GRF_PD_VO_CON1,
-		     RK1808_RGB_DATA_SYNC_BYPASS(!rgb->data_sync));
+		     RK1808_RGB_DATA_SYNC_BYPASS(rgb->data_sync_bypass));
 }
 
 static const struct rockchip_rgb_funcs rk1808_rgb_funcs = {

@@ -18,7 +18,7 @@ Optional properties:
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-1: the "sleep" pinctrl state
-- rockchip,data-sync: boolean to enable data sync
+- rockchip,data-sync-bypass: bypass the vop data-sync logic from io
 
 The rgb has two video ports described by:
 	Documentation/devicetree/bindings/media/video-interfaces.txt
