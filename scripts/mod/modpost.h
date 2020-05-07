@@ -111,7 +111,7 @@ buf_write(struct buffer *buf, const char *s, int len);
 
 struct namespace_list {
 	struct namespace_list *next;
-	char namespace[0];
+	char namespace[];
 };
 
 struct module {
