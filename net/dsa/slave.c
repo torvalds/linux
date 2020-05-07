@@ -445,12 +445,11 @@ static inline netdev_tx_t dsa_slave_netpoll_send_skb(struct net_device *dev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->netpoll)
-		netpoll_send_skb(p->netpoll, skb);
+	return netpoll_send_skb(p->netpoll, skb);
 #else
 	BUG();
-#endif
 	return NETDEV_TX_OK;
+#endif
 }
 
 static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,

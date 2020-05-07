@@ -507,10 +507,7 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 static inline void bond_netpoll_send_skb(const struct slave *slave,
 					 struct sk_buff *skb)
 {
-	struct netpoll *np = slave->np;
-
-	if (np)
-		netpoll_send_skb(np, skb);
+	netpoll_send_skb(slave->np, skb);
 }
 #else
 static inline void bond_netpoll_send_skb(const struct slave *slave,

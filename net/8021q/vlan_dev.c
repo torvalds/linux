@@ -88,12 +88,11 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 static inline netdev_tx_t vlan_netpoll_send_skb(struct vlan_dev_priv *vlan, struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	if (vlan->netpoll)
-		netpoll_send_skb(vlan->netpoll, skb);
+	return netpoll_send_skb(vlan->netpoll, skb);
 #else
 	BUG();
-#endif
 	return NETDEV_TX_OK;
+#endif
 }
 
 static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,

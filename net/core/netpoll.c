@@ -367,9 +367,14 @@ netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	unsigned long flags;
 	netdev_tx_t ret;
 
-	local_irq_save(flags);
-	ret = __netpoll_send_skb(np, skb);
-	local_irq_restore(flags);
+	if (unlikely(!np)) {
+		dev_kfree_skb_irq(skb);
+		ret = NET_XMIT_DROP;
+	} else {
+		local_irq_save(flags);
+		ret = __netpoll_send_skb(np, skb);
+		local_irq_restore(flags);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(netpoll_send_skb);
