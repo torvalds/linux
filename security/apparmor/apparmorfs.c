@@ -807,7 +807,7 @@ static ssize_t query_label(char *buf, size_t buf_len,
 struct multi_transaction {
 	struct kref count;
 	ssize_t size;
-	char data[0];
+	char data[];
 };
 
 #define MULTI_TRANSACTION_LIMIT (PAGE_SIZE - sizeof(struct multi_transaction))
