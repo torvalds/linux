@@ -664,11 +664,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	struct most_dev *mdev = to_mdev(iface);
 	struct device *dev = &mdev->usb_device->dev;
 
-	mdev->is_channel_healthy[channel] = true;
-	mdev->clear_work[channel].channel = channel;
-	mdev->clear_work[channel].mdev = mdev;
-	INIT_WORK(&mdev->clear_work[channel].ws, wq_clear_halt);
-
 	if (!conf) {
 		dev_err(dev, "Bad config pointer.\n");
 		return -EINVAL;
@@ -677,6 +672,12 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		dev_err(dev, "Channel ID out of range.\n");
 		return -EINVAL;
 	}
+
+	mdev->is_channel_healthy[channel] = true;
+	mdev->clear_work[channel].channel = channel;
+	mdev->clear_work[channel].mdev = mdev;
+	INIT_WORK(&mdev->clear_work[channel].ws, wq_clear_halt);
+
 	if (!conf->num_buffers || !conf->buffer_size) {
 		dev_err(dev, "Misconfig: buffer size or #buffers zero.\n");
 		return -EINVAL;
