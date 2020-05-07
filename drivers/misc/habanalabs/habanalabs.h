@@ -553,6 +553,13 @@ enum hl_pll_frequency {
  *                          contained in registers
  * @load_firmware_to_device: load the firmware to the device's memory
  * @load_boot_fit_to_device: load boot fit to device's memory
+ * @ext_queue_init: Initialize the given external queue.
+ * @ext_queue_reset: Reset the given external queue.
+ * @get_signal_cb_size: Get signal CB size.
+ * @get_wait_cb_size: Get wait CB size.
+ * @gen_signal_cb: Generate a signal CB.
+ * @gen_wait_cb: Generate a wait CB.
+ * @reset_sob: Reset a SOB.
  * @set_dma_mask_from_fw: set the DMA mask in the driver according to the
  *                        firmware configuration
  * @get_device_time: Get the device time.
@@ -648,6 +655,14 @@ struct hl_asic_funcs {
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);
+	void (*ext_queue_init)(struct hl_device *hdev, u32 hw_queue_id);
+	void (*ext_queue_reset)(struct hl_device *hdev, u32 hw_queue_id);
+	u32 (*get_signal_cb_size)(struct hl_device *hdev);
+	u32 (*get_wait_cb_size)(struct hl_device *hdev);
+	void (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id);
+	void (*gen_wait_cb)(struct hl_device *hdev, void *data, u16 sob_id,
+				u16 sob_val, u16 mon_id, u32 q_idx);
+	void (*reset_sob)(struct hl_device *hdev, void *data);
 	void (*set_dma_mask_from_fw)(struct hl_device *hdev);
 	u64 (*get_device_time)(struct hl_device *hdev);
 };
