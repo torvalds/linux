@@ -295,8 +295,8 @@ config MAX77620_THERMAL
 
 config QORIQ_THERMAL
 	tristate "QorIQ Thermal Monitoring Unit"
-	depends on THERMAL_OF
-	depends on HAS_IOMEM
+	depends on THERMAL_OF && HAS_IOMEM
+	depends on PPC_E500MC || SOC_LS1021A || ARCH_LAYERSCAPE || (ARCH_MXC && ARM64) || COMPILE_TEST
 	select REGMAP_MMIO
 	help
 	  Support for Thermal Monitoring Unit (TMU) found on QorIQ platforms.
