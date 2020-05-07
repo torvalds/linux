@@ -680,8 +680,6 @@ struct io_op_def {
 	unsigned		needs_mm : 1;
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
-	/* needs req->file assigned IFF fd is >= 0 */
-	unsigned		fd_non_neg : 1;
 	/* hash wq insertion if file is a regular file */
 	unsigned		hash_reg_file : 1;
 	/* unbound wq insertion if file is a non-regular file */
@@ -784,8 +782,6 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 	},
 	[IORING_OP_OPENAT] = {
-		.needs_file		= 1,
-		.fd_non_neg		= 1,
 		.file_table		= 1,
 		.needs_fs		= 1,
 	},
@@ -799,8 +795,6 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_STATX] = {
 		.needs_mm		= 1,
-		.needs_file		= 1,
-		.fd_non_neg		= 1,
 		.needs_fs		= 1,
 		.file_table		= 1,
 	},
@@ -837,8 +831,6 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 	},
 	[IORING_OP_OPENAT2] = {
-		.needs_file		= 1,
-		.fd_non_neg		= 1,
 		.file_table		= 1,
 		.needs_fs		= 1,
 	},
@@ -5368,15 +5360,6 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	io_steal_work(req, workptr);
 }
 
-static int io_req_needs_file(struct io_kiocb *req, int fd)
-{
-	if (!io_op_defs[req->opcode].needs_file)
-		return 0;
-	if ((fd == -1 || fd == AT_FDCWD) && io_op_defs[req->opcode].fd_non_neg)
-		return 0;
-	return 1;
-}
-
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 					      int index)
 {
@@ -5414,14 +5397,11 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 }
 
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
-			   int fd, unsigned int flags)
+			   int fd)
 {
 	bool fixed;
 
-	if (!io_req_needs_file(req, fd))
-		return 0;
-
-	fixed = (flags & IOSQE_FIXED_FILE);
+	fixed = (req->flags & REQ_F_FIXED_FILE) != 0;
 	if (unlikely(!fixed && req->needs_fixed_file))
 		return -EBADF;
 
@@ -5798,7 +5778,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       struct io_submit_state *state, bool async)
 {
 	unsigned int sqe_flags;
-	int id, fd;
+	int id;
 
 	/*
 	 * All io need record the previous position, if LINK vs DARIN,
@@ -5850,8 +5830,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 					IOSQE_ASYNC | IOSQE_FIXED_FILE |
 					IOSQE_BUFFER_SELECT | IOSQE_IO_LINK);
 
-	fd = READ_ONCE(sqe->fd);
-	return io_req_set_file(state, req, fd, sqe_flags);
+	if (!io_op_defs[req->opcode].needs_file)
+		return 0;
+
+	return io_req_set_file(state, req, READ_ONCE(sqe->fd));
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
