@@ -15236,11 +15236,6 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/rj54n1cb0c.c
 F:	include/media/i2c/rj54n1cb0c.h
 
-SH_VEU V4L2 MEM2MEM DRIVER
-L:	linux-media@vger.kernel.org
-S:	Orphan
-F:	drivers/media/platform/sh_veu.c
-
 SH_VOU V4L2 OUTPUT DRIVER
 L:	linux-media@vger.kernel.org
 S:	Orphan
