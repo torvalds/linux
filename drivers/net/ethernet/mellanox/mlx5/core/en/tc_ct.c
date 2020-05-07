@@ -12,6 +12,7 @@
 #include <net/flow_offload.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <linux/workqueue.h>
+#include <linux/xarray.h>
 
 #include "esw/chains.h"
 #include "en/tc_ct.h"
@@ -35,7 +36,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_eswitch *esw;
 	const struct net_device *netdev;
 	struct idr fte_ids;
-	struct idr tuple_ids;
+	struct xarray tuple_ids;
 	struct rhashtable zone_ht;
 	struct mlx5_flow_table *ct;
 	struct mlx5_flow_table *ct_nat;
@@ -238,7 +239,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	mlx5_eswitch_del_offloaded_rule(esw, zone_rule->rule, attr);
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
-	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
+	xa_erase(&ct_priv->tuple_ids, zone_rule->tupleid);
 }
 
 static void
@@ -483,7 +484,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_esw_flow_attr *attr = &zone_rule->attr;
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	struct mlx5_flow_spec *spec = NULL;
-	u32 tupleid = 1;
+	u32 tupleid;
 	int err;
 
 	zone_rule->nat = nat;
@@ -493,12 +494,12 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 		return -ENOMEM;
 
 	/* Get tuple unique id */
-	err = idr_alloc_u32(&ct_priv->tuple_ids, zone_rule, &tupleid,
-			    TUPLE_ID_MAX, GFP_KERNEL);
+	err = xa_alloc(&ct_priv->tuple_ids, &tupleid, zone_rule,
+		       XA_LIMIT(1, TUPLE_ID_MAX), GFP_KERNEL);
 	if (err) {
 		netdev_warn(ct_priv->netdev,
 			    "Failed to allocate tuple id, err: %d\n", err);
-		goto err_idr_alloc;
+		goto err_xa_alloc;
 	}
 	zone_rule->tupleid = tupleid;
 
@@ -539,8 +540,8 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 err_rule:
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
 err_mod_hdr:
-	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
-err_idr_alloc:
+	xa_erase(&ct_priv->tuple_ids, zone_rule->tupleid);
+err_xa_alloc:
 	kfree(spec);
 	return err;
 }
@@ -1299,7 +1300,7 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	}
 
 	idr_init(&ct_priv->fte_ids);
-	idr_init(&ct_priv->tuple_ids);
+	xa_init_flags(&ct_priv->tuple_ids, XA_FLAGS_ALLOC1);
 	mutex_init(&ct_priv->control_lock);
 	rhashtable_init(&ct_priv->zone_ht, &zone_params);
 
@@ -1334,7 +1335,7 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	rhashtable_destroy(&ct_priv->zone_ht);
 	mutex_destroy(&ct_priv->control_lock);
-	idr_destroy(&ct_priv->tuple_ids);
+	xa_destroy(&ct_priv->tuple_ids);
 	idr_destroy(&ct_priv->fte_ids);
 	kfree(ct_priv);
 
@@ -1352,7 +1353,7 @@ mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
 	if (!ct_priv || !tupleid)
 		return true;
 
-	zone_rule = idr_find(&ct_priv->tuple_ids, tupleid);
+	zone_rule = xa_load(&ct_priv->tuple_ids, tupleid);
 	if (!zone_rule)
 		return false;
 

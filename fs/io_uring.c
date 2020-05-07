@@ -4200,16 +4200,16 @@ static void io_async_task_func(struct callback_head *cb)
 
 	spin_unlock_irq(&ctx->completion_lock);
 
+	/* restore ->work in case we need to retry again */
+	memcpy(&req->work, &apoll->work, sizeof(req->work));
+
 	if (canceled) {
 		kfree(apoll);
 		io_cqring_ev_posted(ctx);
 		req_set_fail_links(req);
-		io_put_req(req);
+		io_double_put_req(req);
 		return;
 	}
-
-	/* restore ->work in case we need to retry again */
-	memcpy(&req->work, &apoll->work, sizeof(req->work));
 
 	__set_current_state(TASK_RUNNING);
 	mutex_lock(&ctx->uring_lock);
@@ -4369,7 +4369,7 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 
 	hash_del(&req->hash_node);
 
-	if (apoll) {
+	if (do_complete && apoll) {
 		/*
 		 * restore ->work because we need to call io_req_work_drop_env.
 		 */

@@ -88,18 +88,6 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
 	},
 	{
-		/*
-		 * Asus T200TA, _LID keeps reporting closed after every second
-		 * openening of the lid. Causing immediate re-suspend after
-		 * opening every other open. Using LID_INIT_OPEN fixes this.
-		 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "T200TA"),
-		},
-		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
-	},
-	{
 		/* GP-electronic T701, _LID method points to a floating GPIO */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),

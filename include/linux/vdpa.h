@@ -164,7 +164,7 @@ struct vdpa_config_ops {
 	u64 (*get_vq_state)(struct vdpa_device *vdev, u16 idx);
 
 	/* Device ops */
-	u16 (*get_vq_align)(struct vdpa_device *vdev);
+	u32 (*get_vq_align)(struct vdpa_device *vdev);
 	u64 (*get_features)(struct vdpa_device *vdev);
 	int (*set_features)(struct vdpa_device *vdev, u64 features);
 	void (*set_config_cb)(struct vdpa_device *vdev,
