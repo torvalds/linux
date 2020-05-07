@@ -2118,8 +2118,6 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 			return 0;
 	}
 
-	set_print_ip_opts(&evsel->core.attr);
-
 	if (evsel->core.attr.sample_type) {
 		err = perf_evsel__check_attr(evsel, scr->session);
 		if (err)
@@ -2132,6 +2130,13 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	 */
 	sample_type = perf_evlist__combined_sample_type(evlist);
 	callchain_param_setup(sample_type);
+
+	/* Enable fields for callchain entries, if it got enabled. */
+	if (callchain_param.record_mode != CALLCHAIN_NONE) {
+		output[output_type(evsel->core.attr.type)].fields |= PERF_OUTPUT_IP |
+								     PERF_OUTPUT_SYM;
+	}
+	set_print_ip_opts(&evsel->core.attr);
 	return 0;
 }
 
