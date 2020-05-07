@@ -305,17 +305,19 @@ static int netpoll_owner_active(struct net_device *dev)
 }
 
 /* call with IRQ disabled */
-void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
-			     struct net_device *dev)
+void __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	netdev_tx_t status = NETDEV_TX_BUSY;
+	struct net_device *dev;
 	unsigned long tries;
 	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo;
 
 	lockdep_assert_irqs_disabled();
 
-	npinfo = rcu_dereference_bh(np->dev->npinfo);
+	dev = np->dev;
+	npinfo = rcu_dereference_bh(dev->npinfo);
+
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
 		dev_kfree_skb_irq(skb);
 		return;
@@ -358,7 +360,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		schedule_delayed_work(&npinfo->tx_work,0);
 	}
 }
-EXPORT_SYMBOL(netpoll_send_skb_on_dev);
+EXPORT_SYMBOL(__netpoll_send_skb);
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {

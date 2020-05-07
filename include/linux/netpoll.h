@@ -63,13 +63,12 @@ int netpoll_setup(struct netpoll *np);
 void __netpoll_cleanup(struct netpoll *np);
 void __netpoll_free(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
-void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
-			     struct net_device *dev);
+void __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	netpoll_send_skb_on_dev(np, skb, np->dev);
+	__netpoll_send_skb(np, skb);
 	local_irq_restore(flags);
 }
 
