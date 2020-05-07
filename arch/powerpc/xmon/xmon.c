@@ -1776,7 +1776,7 @@ static void prregs(struct pt_regs *fp)
 #endif
 	printf("pc  = ");
 	xmon_print_symbol(fp->nip, " ", "\n");
-	if (TRAP(fp) != 0xc00 && cpu_has_feature(CPU_FTR_CFAR)) {
+	if (!trap_is_syscall(fp) && cpu_has_feature(CPU_FTR_CFAR)) {
 		printf("cfar= ");
 		xmon_print_symbol(fp->orig_gpr3, " ", "\n");
 	}

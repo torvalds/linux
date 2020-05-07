@@ -198,7 +198,7 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	int restart = 1;
 
 	/* syscall ? */
-	if (TRAP(regs) != 0x0C00)
+	if (!trap_is_syscall(regs))
 		return;
 
 	/* error signalled ? */
