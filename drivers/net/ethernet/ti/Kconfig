@@ -90,9 +90,8 @@ config TI_CPTS
 config TI_CPTS_MOD
 	tristate
 	depends on TI_CPTS
+	depends on PTP_1588_CLOCK
 	default y if TI_CPSW=y || TI_KEYSTONE_NETCP=y || TI_CPSW_SWITCHDEV=y
-	select NET_PTP_CLASSIFY
-	imply PTP_1588_CLOCK
 	default m
 
 config TI_K3_AM65_CPSW_NUSS

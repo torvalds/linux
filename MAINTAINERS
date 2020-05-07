@@ -570,7 +570,7 @@ F:	Documentation/devicetree/bindings/iio/accel/adi,adxl345.yaml
 F:	drivers/input/misc/adxl34x.c
 
 ADXL372 THREE-AXIS DIGITAL ACCELEROMETER DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <michael.hennerich@analog.com>
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
 F:	Documentation/devicetree/bindings/iio/accel/adi,adxl372.yaml
@@ -922,7 +922,7 @@ F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
 F:	drivers/net/ethernet/amd/xgbe/
 
 ANALOG DEVICES INC AD5686 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -930,7 +930,7 @@ F:	drivers/iio/dac/ad5686*
 F:	drivers/iio/dac/ad5696*
 
 ANALOG DEVICES INC AD5758 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -946,7 +946,7 @@ F:	Documentation/devicetree/bindings/iio/adc/adi,ad7091r5.yaml
 F:	drivers/iio/adc/ad7091r5.c
 
 ANALOG DEVICES INC AD7124 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -970,7 +970,7 @@ F:	Documentation/devicetree/bindings/iio/adc/adi,ad7292.yaml
 F:	drivers/iio/adc/ad7292.c
 
 ANALOG DEVICES INC AD7606 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 M:	Beniamin Bia <beniamin.bia@analog.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
@@ -979,7 +979,7 @@ F:	Documentation/devicetree/bindings/iio/adc/adi,ad7606.yaml
 F:	drivers/iio/adc/ad7606.c
 
 ANALOG DEVICES INC AD7768-1 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -1040,7 +1040,7 @@ F:	Documentation/devicetree/bindings/hwmon/adi,adm1177.yaml
 F:	drivers/hwmon/adm1177.c
 
 ANALOG DEVICES INC ADP5061 DRIVER
-M:	Stefan Popa <stefan.popa@analog.com>
+M:	Michael Hennerich <Michael.Hennerich@analog.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -1109,7 +1109,6 @@ F:	drivers/iio/amplifiers/hmc425a.c
 ANALOG DEVICES INC IIO DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
 M:	Michael Hennerich <Michael.Hennerich@analog.com>
-M:	Stefan Popa <stefan.popa@analog.com>
 S:	Supported
 W:	http://wiki.analog.com/
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -3658,7 +3657,7 @@ L:	linux-btrfs@vger.kernel.org
 S:	Maintained
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/linux-btrfs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kdave/linux.git
 F:	Documentation/filesystems/btrfs.rst
 F:	fs/btrfs/
 F:	include/linux/btrfs*
@@ -5936,9 +5935,9 @@ F:	lib/dynamic_debug.c
 DYNAMIC INTERRUPT MODERATION
 M:	Tal Gilboa <talgi@mellanox.com>
 S:	Maintained
+F:	Documentation/networking/net_dim.rst
 F:	include/linux/dim.h
 F:	lib/dim/
-F:	Documentation/networking/net_dim.rst
 
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>

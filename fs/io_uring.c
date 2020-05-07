@@ -524,6 +524,7 @@ enum {
 	REQ_F_OVERFLOW_BIT,
 	REQ_F_POLLED_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
+	REQ_F_NO_FILE_TABLE_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -577,6 +578,8 @@ enum {
 	REQ_F_POLLED		= BIT(REQ_F_POLLED_BIT),
 	/* buffer already selected */
 	REQ_F_BUFFER_SELECTED	= BIT(REQ_F_BUFFER_SELECTED_BIT),
+	/* doesn't need file table for this request */
+	REQ_F_NO_FILE_TABLE	= BIT(REQ_F_NO_FILE_TABLE_BIT),
 };
 
 struct async_poll {
@@ -799,6 +802,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
 		.needs_fs		= 1,
+		.file_table		= 1,
 	},
 	[IORING_OP_READ] = {
 		.needs_mm		= 1,
@@ -1291,7 +1295,7 @@ static struct io_kiocb *io_get_fallback_req(struct io_ring_ctx *ctx)
 	struct io_kiocb *req;
 
 	req = ctx->fallback_req;
-	if (!test_and_set_bit_lock(0, (unsigned long *) ctx->fallback_req))
+	if (!test_and_set_bit_lock(0, (unsigned long *) &ctx->fallback_req))
 		return req;
 
 	return NULL;
@@ -1378,7 +1382,7 @@ static void __io_free_req(struct io_kiocb *req)
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
 	else
-		clear_bit_unlock(0, (unsigned long *) req->ctx->fallback_req);
+		clear_bit_unlock(0, (unsigned long *) &req->ctx->fallback_req);
 }
 
 struct req_batch {
@@ -2034,7 +2038,7 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
  * any file. For now, just ensure that anything potentially problematic is done
  * inline.
  */
-static bool io_file_supports_async(struct file *file)
+static bool io_file_supports_async(struct file *file, int rw)
 {
 	umode_t mode = file_inode(file)->i_mode;
 
@@ -2043,7 +2047,13 @@ static bool io_file_supports_async(struct file *file)
 	if (S_ISREG(mode) && file->f_op != &io_uring_fops)
 		return true;
 
-	return false;
+	if (!(file->f_mode & FMODE_NOWAIT))
+		return false;
+
+	if (rw == READ)
+		return file->f_op->read_iter != NULL;
+
+	return file->f_op->write_iter != NULL;
 }
 
 static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
@@ -2571,7 +2581,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock)
 	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
 	 * we know to async punt it even if it was opened O_NONBLOCK
 	 */
-	if (force_nonblock && !io_file_supports_async(req->file))
+	if (force_nonblock && !io_file_supports_async(req->file, READ))
 		goto copy_iov;
 
 	iov_count = iov_iter_count(&iter);
@@ -2594,7 +2604,8 @@ copy_iov:
 			if (ret)
 				goto out_free;
 			/* any defer here is final, must blocking retry */
-			if (!(req->flags & REQ_F_NOWAIT))
+			if (!(req->flags & REQ_F_NOWAIT) &&
+			    !file_can_poll(req->file))
 				req->flags |= REQ_F_MUST_PUNT;
 			return -EAGAIN;
 		}
@@ -2662,7 +2673,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
 	 * we know to async punt it even if it was opened O_NONBLOCK
 	 */
-	if (force_nonblock && !io_file_supports_async(req->file))
+	if (force_nonblock && !io_file_supports_async(req->file, WRITE))
 		goto copy_iov;
 
 	/* file path doesn't support NOWAIT for non-direct_IO */
@@ -2716,7 +2727,8 @@ copy_iov:
 			if (ret)
 				goto out_free;
 			/* any defer here is final, must blocking retry */
-			req->flags |= REQ_F_MUST_PUNT;
+			if (!file_can_poll(req->file))
+				req->flags |= REQ_F_MUST_PUNT;
 			return -EAGAIN;
 		}
 	}
@@ -2756,15 +2768,6 @@ static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static bool io_splice_punt(struct file *file)
-{
-	if (get_pipe_info(file))
-		return false;
-	if (!io_file_supports_async(file))
-		return true;
-	return !(file->f_flags & O_NONBLOCK);
-}
-
 static int io_splice(struct io_kiocb *req, bool force_nonblock)
 {
 	struct io_splice *sp = &req->splice;
@@ -2774,11 +2777,8 @@ static int io_splice(struct io_kiocb *req, bool force_nonblock)
 	loff_t *poff_in, *poff_out;
 	long ret;
 
-	if (force_nonblock) {
-		if (io_splice_punt(in) || io_splice_punt(out))
-			return -EAGAIN;
-		flags |= SPLICE_F_NONBLOCK;
-	}
+	if (force_nonblock)
+		return -EAGAIN;
 
 	poff_in = (sp->off_in == -1) ? NULL : &sp->off_in;
 	poff_out = (sp->off_out == -1) ? NULL : &sp->off_out;
@@ -3355,8 +3355,12 @@ static int io_statx(struct io_kiocb *req, bool force_nonblock)
 	struct kstat stat;
 	int ret;
 
-	if (force_nonblock)
+	if (force_nonblock) {
+		/* only need file table for an actual valid fd */
+		if (ctx->dfd == -1 || ctx->dfd == AT_FDCWD)
+			req->flags |= REQ_F_NO_FILE_TABLE;
 		return -EAGAIN;
+	}
 
 	if (vfs_stat_set_lookup_flags(&lookup_flags, ctx->how.flags))
 		return -EINVAL;
@@ -3502,7 +3506,7 @@ static void io_sync_file_range_finish(struct io_wq_work **workptr)
 	if (io_req_cancelled(req))
 		return;
 	__io_sync_file_range(req);
-	io_put_req(req); /* put submission ref */
+	io_steal_work(req, workptr);
 }
 
 static int io_sync_file_range(struct io_kiocb *req, bool force_nonblock)
@@ -5015,7 +5019,7 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	int ret;
 
 	/* Still need defer if there is pending req in defer list. */
-	if (!req_need_defer(req) && list_empty(&ctx->defer_list))
+	if (!req_need_defer(req) && list_empty_careful(&ctx->defer_list))
 		return 0;
 
 	if (!req->io && io_alloc_async_ctx(req))
@@ -5429,7 +5433,7 @@ static int io_grab_files(struct io_kiocb *req)
 	int ret = -EBADF;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (req->work.files)
+	if (req->work.files || (req->flags & REQ_F_NO_FILE_TABLE))
 		return 0;
 	if (!ctx->ring_file)
 		return -EBADF;
@@ -7327,7 +7331,7 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	 * it could cause shutdown to hang.
 	 */
 	while (ctx->sqo_thread && !wq_has_sleeper(&ctx->sqo_wait))
-		cpu_relax();
+		cond_resched();
 
 	io_kill_timeouts(ctx);
 	io_poll_remove_all(ctx);

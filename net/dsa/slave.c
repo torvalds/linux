@@ -856,19 +856,17 @@ dsa_slave_add_cls_matchall_mirred(struct net_device *dev,
 	struct dsa_port *to_dp;
 	int err;
 
-	act = &cls->rule->action.entries[0];
-
 	if (!ds->ops->port_mirror_add)
 		return -EOPNOTSUPP;
-
-	if (!act->dev)
-		return -EINVAL;
 
 	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
 					      cls->common.extack))
 		return -EOPNOTSUPP;
 
 	act = &cls->rule->action.entries[0];
+
+	if (!act->dev)
+		return -EINVAL;
 
 	if (!dsa_slave_dev_check(act->dev))
 		return -EOPNOTSUPP;

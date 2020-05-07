@@ -115,7 +115,6 @@ static struct irq_chip zpci_irq_chip = {
 	.name = "PCI-MSI",
 	.irq_unmask = pci_msi_unmask_irq,
 	.irq_mask = pci_msi_mask_irq,
-	.irq_set_affinity = zpci_set_irq_affinity,
 };
 
 static void zpci_handle_cpu_local_irq(bool rescan)
@@ -276,7 +275,9 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		rc = -EIO;
 		if (hwirq - bit >= msi_vecs)
 			break;
-		irq = __irq_alloc_descs(-1, 0, 1, 0, THIS_MODULE, msi->affinity);
+		irq = __irq_alloc_descs(-1, 0, 1, 0, THIS_MODULE,
+				(irq_delivery == DIRECTED) ?
+				msi->affinity : NULL);
 		if (irq < 0)
 			return -ENOMEM;
 		rc = irq_set_msi_desc(irq, msi);

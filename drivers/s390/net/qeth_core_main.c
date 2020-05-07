@@ -7048,17 +7048,17 @@ int qeth_stop(struct net_device *dev)
 		unsigned int i;
 
 		/* Quiesce the NAPI instances: */
-		qeth_for_each_output_queue(card, queue, i) {
+		qeth_for_each_output_queue(card, queue, i)
 			napi_disable(&queue->napi);
-			del_timer_sync(&queue->timer);
-		}
 
 		/* Stop .ndo_start_xmit, might still access queue->napi. */
 		netif_tx_disable(dev);
 
-		/* Queues may get re-allocated, so remove the NAPIs here. */
-		qeth_for_each_output_queue(card, queue, i)
+		qeth_for_each_output_queue(card, queue, i) {
+			del_timer_sync(&queue->timer);
+			/* Queues may get re-allocated, so remove the NAPIs. */
 			netif_napi_del(&queue->napi);
+		}
 	} else {
 		netif_tx_disable(dev);
 	}
