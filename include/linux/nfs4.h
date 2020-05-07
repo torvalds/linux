@@ -38,7 +38,7 @@ struct nfs4_ace {
 
 struct nfs4_acl {
 	uint32_t	naces;
-	struct nfs4_ace	aces[0];
+	struct nfs4_ace	aces[];
 };
 
 #define NFS4_MAXLABELLEN	2048
