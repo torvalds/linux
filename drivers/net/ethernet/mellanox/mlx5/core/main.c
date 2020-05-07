@@ -672,26 +672,6 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 	return mlx5_cmd_exec_in(dev, disable_hca, in);
 }
 
-u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
-			     struct ptp_system_timestamp *sts)
-{
-	u32 timer_h, timer_h1, timer_l;
-
-	timer_h = ioread32be(&dev->iseg->internal_timer_h);
-	ptp_read_system_prets(sts);
-	timer_l = ioread32be(&dev->iseg->internal_timer_l);
-	ptp_read_system_postts(sts);
-	timer_h1 = ioread32be(&dev->iseg->internal_timer_h);
-	if (timer_h != timer_h1) {
-		/* wrap around */
-		ptp_read_system_prets(sts);
-		timer_l = ioread32be(&dev->iseg->internal_timer_l);
-		ptp_read_system_postts(sts);
-	}
-
-	return (u64)timer_l | (u64)timer_h1 << 32;
-}
-
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
 	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)] = {};
