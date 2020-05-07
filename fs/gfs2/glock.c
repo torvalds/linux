@@ -613,7 +613,7 @@ __acquires(&gl->gl_lockref.lock)
 				fs_err(sdp, "Error %d syncing glock \n", ret);
 				gfs2_dump_glock(NULL, gl, true);
 			}
-			goto out;
+			goto skip_inval;
 		}
 	}
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
@@ -633,6 +633,7 @@ __acquires(&gl->gl_lockref.lock)
 		clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
 	}
 
+skip_inval:
 	gfs2_glock_hold(gl);
 	/*
 	 * Check for an error encountered since we called go_sync and go_inval.
