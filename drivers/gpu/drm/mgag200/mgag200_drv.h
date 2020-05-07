@@ -104,11 +104,6 @@ struct mga_crtc {
 	bool enabled;
 };
 
-struct mga_mode_info {
-	bool mode_config_initialized;
-	struct mga_crtc *crtc;
-};
-
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
@@ -160,17 +155,14 @@ struct mga_device {
 	void __iomem			*rmmio;
 
 	struct mga_mc			mc;
-	struct mga_mode_info		mode_info;
 
 	struct mga_cursor cursor;
 
 	size_t vram_fb_available;
 
 	bool				suspended;
-	int				num_crtc;
 	enum mga_type			type;
 	int				has_sdram;
-	struct drm_display_mode		mode;
 
 	int bpp_shifts[4];
 

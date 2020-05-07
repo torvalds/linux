@@ -1136,9 +1136,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 	WREG8(MGA_MISC_OUT, misc);
 
-	if (adjusted_mode)
-		memcpy(&mdev->mode, mode, sizeof(struct drm_display_mode));
-
 	mga_crtc_do_set_base(crtc, old_fb, x, y, 0);
 
 	/* reset tagfifo */
@@ -1447,7 +1444,6 @@ static void mga_crtc_init(struct mga_device *mdev)
 	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
-	mdev->mode_info.crtc = mga_crtc;
 
 	drm_crtc_helper_add(&mga_crtc->base, &mga_helper_funcs);
 }
@@ -1646,8 +1642,6 @@ int mgag200_modeset_init(struct mga_device *mdev)
 			ret);
 		return ret;
 	}
-
-	mdev->mode_info.mode_config_initialized = true;
 
 	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;

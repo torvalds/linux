@@ -97,9 +97,6 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	mdev->flags = mgag200_flags_from_driver_data(flags);
 	mdev->type = mgag200_type_from_driver_data(flags);
 
-	/* Hardcode the number of CRTCs to 1 */
-	mdev->num_crtc = 1;
-
 	pci_read_config_dword(dev->pdev, PCI_MGA_OPTION, &option);
 	mdev->has_sdram = !(option & (1 << 14));
 
