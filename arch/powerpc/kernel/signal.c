@@ -201,6 +201,9 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	if (!trap_is_syscall(regs))
 		return;
 
+	if (trap_norestart(regs))
+		return;
+
 	/* error signalled ? */
 	if (!(regs->ccr & 0x10000000))
 		return;
@@ -258,7 +261,7 @@ static void do_signal(struct task_struct *tsk)
 	if (ksig.sig <= 0) {
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
-		tsk->thread.regs->trap = 0;
+		set_trap_norestart(tsk->thread.regs);
 		return;               /* no signals delivered */
 	}
 
@@ -285,7 +288,7 @@ static void do_signal(struct task_struct *tsk)
 		ret = handle_rt_signal64(&ksig, oldset, tsk);
 	}
 
-	tsk->thread.regs->trap = 0;
+	set_trap_norestart(tsk->thread.regs);
 	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
