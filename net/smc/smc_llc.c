@@ -750,7 +750,6 @@ static int smc_llc_cli_conf_link(struct smc_link *link,
 				 enum smc_lgr_type lgr_new_t)
 {
 	struct smc_link_group *lgr = link->lgr;
-	struct smc_llc_msg_del_link *del_llc;
 	struct smc_llc_qentry *qentry = NULL;
 	int rc = 0;
 
@@ -764,7 +763,6 @@ static int smc_llc_cli_conf_link(struct smc_link *link,
 	}
 	if (qentry->msg.raw.hdr.common.type != SMC_LLC_CONFIRM_LINK) {
 		/* received DELETE_LINK instead */
-		del_llc = &qentry->msg.delete_link;
 		qentry->msg.raw.hdr.flags |= SMC_LLC_FLAG_RESP;
 		smc_llc_send_message(link, &qentry->msg);
 		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
@@ -1308,16 +1306,12 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 		 * enqueued DELETE_LINK request (forward it)
 		 */
 		if (!smc_llc_send_message(lnk, &qentry->msg)) {
-			struct smc_llc_msg_del_link *del_llc_resp;
 			struct smc_llc_qentry *qentry2;
 
 			qentry2 = smc_llc_wait(lgr, lnk, SMC_LLC_WAIT_TIME,
 					       SMC_LLC_DELETE_LINK);
-			if (!qentry2) {
-			} else {
-				del_llc_resp = &qentry2->msg.delete_link;
+			if (qentry2)
 				smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
-			}
 		}
 	}
 	smcr_link_clear(lnk_del, true);
