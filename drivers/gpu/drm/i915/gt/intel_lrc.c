@@ -438,9 +438,7 @@ static int effective_prio(const struct i915_request *rq)
 	if (__i915_request_has_started(rq))
 		prio |= I915_PRIORITY_NOSEMAPHORE;
 
-	/* Restrict mere WAIT boosts from triggering preemption */
-	BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK); /* only internal */
-	return prio | __NO_PREEMPTION;
+	return prio;
 }
 
 static int queue_prio(const struct intel_engine_execlists *execlists)
