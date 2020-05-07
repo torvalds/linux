@@ -1094,7 +1094,7 @@ struct numa_group {
 	 * more by CPU use than by memory faults.
 	 */
 	unsigned long *faults_cpu;
-	unsigned long faults[0];
+	unsigned long faults[];
 };
 
 /*
