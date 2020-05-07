@@ -51,6 +51,14 @@
 /* MMU */
 #define MMU_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
+#define HL_RSVD_SOBS			4
+#define HL_RSVD_MONS			2
+
+#define HL_RSVD_SOBS_IN_USE		2
+#define HL_RSVD_MONS_IN_USE		1
+
+#define HL_MAX_SOB_VAL			(1 << 15)
+
 /**
  * struct pgt_info - MMU hop page info.
  * @node: hash linked-list node for the pgts shadow hash of pgts.
@@ -102,6 +110,26 @@ enum hl_queue_type {
 	QUEUE_TYPE_INT,
 	QUEUE_TYPE_CPU,
 	QUEUE_TYPE_HW
+};
+
+enum hl_cs_type {
+	CS_TYPE_DEFAULT,
+	CS_TYPE_SIGNAL,
+	CS_TYPE_WAIT
+};
+
+/*
+ * struct hl_hw_sob - H/W SOB info.
+ * @hdev: habanalabs device structure.
+ * @kref: refcount of this SOB. The SOB will reset once the refcount is zero.
+ * @sob_id: id of this SOB.
+ * @q_idx: the H/W queue that uses this SOB.
+ */
+struct hl_hw_sob {
+	struct hl_device	*hdev;
+	struct kref		kref;
+	u32			sob_id;
+	u32			q_idx;
 };
 
 /**
@@ -260,17 +288,23 @@ struct asic_fixed_properties {
 };
 
 /**
- * struct hl_dma_fence - wrapper for fence object used by command submissions.
+ * struct hl_cs_compl - command submission completion object.
  * @base_fence: kernel fence object.
  * @lock: spinlock to protect fence.
  * @hdev: habanalabs device structure.
+ * @hw_sob: the H/W SOB used in this signal/wait CS.
  * @cs_seq: command submission sequence number.
+ * @type: type of the CS - signal/wait.
+ * @sob_val: the SOB value that is used in this signal/wait CS.
  */
-struct hl_dma_fence {
+struct hl_cs_compl {
 	struct dma_fence	base_fence;
 	spinlock_t		lock;
 	struct hl_device	*hdev;
+	struct hl_hw_sob	*hw_sob;
 	u64			cs_seq;
+	enum hl_cs_type		type;
+	u16			sob_val;
 };
 
 /*
@@ -368,6 +402,7 @@ struct hl_cs_job;
 
 /**
  * struct hl_hw_queue - describes a H/W transport queue.
+ * @hw_sob: array of the used H/W SOBs by this H/W queue.
  * @shadow_queue: pointer to a shadow queue that holds pointers to jobs.
  * @queue_type: type of queue.
  * @kernel_address: holds the queue's kernel virtual address.
@@ -378,10 +413,16 @@ struct hl_cs_job;
  * @cq_id: the id for the corresponding CQ for this H/W queue.
  * @msi_vec: the IRQ number of the H/W queue.
  * @int_queue_len: length of internal queue (number of entries).
+ * @next_sob_val: the next value to use for the currently used SOB.
+ * @base_sob_id: the base SOB id of the SOBs used by this queue.
+ * @base_mon_id: the base MON id of the MONs used by this queue.
  * @valid: is the queue valid (we have array of 32 queues, not all of them
- *		exists).
+ *         exist).
+ * @curr_sob_offset: the id offset to the currently used SOB from the
+ *                   HL_RSVD_SOBS that are being used by this queue.
  */
 struct hl_hw_queue {
+	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
 	struct hl_cs_job	**shadow_queue;
 	enum hl_queue_type	queue_type;
 	u64			kernel_address;
@@ -392,7 +433,11 @@ struct hl_hw_queue {
 	u32			cq_id;
 	u32			msi_vec;
 	u16			int_queue_len;
+	u16			next_sob_val;
+	u16			base_sob_id;
+	u16			base_mon_id;
 	u8			valid;
+	u8			curr_sob_offset;
 };
 
 /**
@@ -796,10 +841,13 @@ struct hl_userptr {
  * @job_lock: spinlock for the CS's jobs list. Needed for free_job.
  * @refcount: reference counter for usage of the CS.
  * @fence: pointer to the fence object of this CS.
+ * @signal_fence: pointer to the fence object of the signal CS (used by wait
+ *                CS only).
  * @work_tdr: delayed work node for TDR.
  * @mirror_node : node in device mirror list of command submissions.
  * @debugfs_list: node in debugfs list of command submissions.
  * @sequence: the sequence number of this CS.
+ * @type: CS_TYPE_*.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
  * @timedout : true if CS was timedout.
@@ -814,10 +862,12 @@ struct hl_cs {
 	spinlock_t		job_lock;
 	struct kref		refcount;
 	struct dma_fence	*fence;
+	struct dma_fence	*signal_fence;
 	struct delayed_work	work_tdr;
 	struct list_head	mirror_node;
 	struct list_head	debugfs_list;
 	u64			sequence;
+	enum hl_cs_type		type;
 	u8			submitted;
 	u8			completed;
 	u8			timedout;
@@ -1620,6 +1670,7 @@ int hl_cb_pool_fini(struct hl_device *hdev);
 void hl_cs_rollback_all(struct hl_device *hdev);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
+void hl_sob_reset_error(struct kref *ref);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 

@@ -25,10 +25,10 @@ static const char *hl_fence_get_driver_name(struct dma_fence *fence)
 
 static const char *hl_fence_get_timeline_name(struct dma_fence *fence)
 {
-	struct hl_dma_fence *hl_fence =
-		container_of(fence, struct hl_dma_fence, base_fence);
+	struct hl_cs_compl *hl_cs_compl =
+		container_of(fence, struct hl_cs_compl, base_fence);
 
-	return dev_name(hl_fence->hdev->dev);
+	return dev_name(hl_cs_compl->hdev->dev);
 }
 
 static bool hl_fence_enable_signaling(struct dma_fence *fence)
@@ -38,10 +38,10 @@ static bool hl_fence_enable_signaling(struct dma_fence *fence)
 
 static void hl_fence_release(struct dma_fence *fence)
 {
-	struct hl_dma_fence *hl_fence =
-		container_of(fence, struct hl_dma_fence, base_fence);
+	struct hl_cs_compl *hl_cs_cmpl =
+		container_of(fence, struct hl_cs_compl, base_fence);
 
-	kfree_rcu(hl_fence, base_fence.rcu);
+	kfree_rcu(hl_cs_cmpl, base_fence.rcu);
 }
 
 static const struct dma_fence_ops hl_fence_ops = {
@@ -189,6 +189,17 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	kfree(job);
 }
 
+void hl_sob_reset_error(struct kref *ref)
+{
+	struct hl_hw_sob *hw_sob = container_of(ref, struct hl_hw_sob,
+							kref);
+	struct hl_device *hdev = hw_sob->hdev;
+
+	dev_crit(hdev->dev,
+			"SOB release shouldn't be called here, q_idx: %d, sob_id: %d\n",
+			hw_sob->q_idx, hw_sob->sob_id);
+}
+
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs,
@@ -317,7 +328,7 @@ static void cs_timedout(struct work_struct *work)
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 			struct hl_cs **cs_new)
 {
-	struct hl_dma_fence *fence;
+	struct hl_cs_compl *cs_cmpl;
 	struct dma_fence *other = NULL;
 	struct hl_cs *cs;
 	int rc;
@@ -334,20 +345,20 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	kref_init(&cs->refcount);
 	spin_lock_init(&cs->job_lock);
 
-	fence = kmalloc(sizeof(*fence), GFP_ATOMIC);
-	if (!fence) {
+	cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_ATOMIC);
+	if (!cs_cmpl) {
 		rc = -ENOMEM;
 		goto free_cs;
 	}
 
-	fence->hdev = hdev;
-	spin_lock_init(&fence->lock);
-	cs->fence = &fence->base_fence;
+	cs_cmpl->hdev = hdev;
+	spin_lock_init(&cs_cmpl->lock);
+	cs->fence = &cs_cmpl->base_fence;
 
 	spin_lock(&ctx->cs_lock);
 
-	fence->cs_seq = ctx->cs_sequence;
-	other = ctx->cs_pending[fence->cs_seq & (HL_MAX_PENDING_CS - 1)];
+	cs_cmpl->cs_seq = ctx->cs_sequence;
+	other = ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
 		spin_unlock(&ctx->cs_lock);
 		dev_dbg(hdev->dev,
@@ -356,16 +367,16 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto free_fence;
 	}
 
-	dma_fence_init(&fence->base_fence, &hl_fence_ops, &fence->lock,
+	dma_fence_init(&cs_cmpl->base_fence, &hl_fence_ops, &cs_cmpl->lock,
 			ctx->asid, ctx->cs_sequence);
 
-	cs->sequence = fence->cs_seq;
+	cs->sequence = cs_cmpl->cs_seq;
 
-	ctx->cs_pending[fence->cs_seq & (HL_MAX_PENDING_CS - 1)] =
-							&fence->base_fence;
+	ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)] =
+							&cs_cmpl->base_fence;
 	ctx->cs_sequence++;
 
-	dma_fence_get(&fence->base_fence);
+	dma_fence_get(&cs_cmpl->base_fence);
 
 	dma_fence_put(other);
 
@@ -376,7 +387,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	return 0;
 
 free_fence:
-	kfree(fence);
+	kfree(cs_cmpl);
 free_cs:
 	kfree(cs);
 	return rc;
