@@ -800,7 +800,7 @@ struct ieee80211_msrment_ie {
 	u8 token;
 	u8 mode;
 	u8 type;
-	u8 request[0];
+	u8 request[];
 } __packed;
 
 /**
@@ -1781,7 +1781,7 @@ struct ieee80211_he_operation {
 	__le32 he_oper_params;
 	__le16 he_mcs_nss_set;
 	/* Optional 0,1,3,4,5,7 or 8 bytes: depends on @he_oper_params */
-	u8 optional[0];
+	u8 optional[];
 } __packed;
 
 /**
@@ -1793,7 +1793,7 @@ struct ieee80211_he_operation {
 struct ieee80211_he_spr {
 	u8 he_sr_control;
 	/* Optional 0 to 19 bytes: depends on @he_sr_control */
-	u8 optional[0];
+	u8 optional[];
 } __packed;
 
 /**
