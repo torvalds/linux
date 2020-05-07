@@ -16,7 +16,6 @@
   __arch_copy_from_user
   __arch_copy_to_user
   arch_setup_dma_ops
-  arch_timer_read_ool_enabled
   arm64_const_caps_ready
   atomic_notifier_call_chain
   atomic_notifier_chain_register
