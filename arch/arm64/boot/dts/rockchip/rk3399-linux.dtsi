@@ -189,6 +189,11 @@
 	};
 };
 
+&edp {
+	/delete-property/pinctrl-names;
+	/delete-property/pinctrl-0;
+};
+
 &iep {
 	status = "okay";
 };
