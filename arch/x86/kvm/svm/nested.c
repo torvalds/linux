@@ -608,6 +608,11 @@ static int nested_svm_intercept_db(struct vcpu_svm *svm)
 {
 	unsigned long dr6;
 
+	/* Always catch it and pass it to userspace if debugging.  */
+	if (svm->vcpu.guest_debug &
+	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+		return NESTED_EXIT_HOST;
+
 	/* if we're not singlestepping, it's not ours */
 	if (!svm->nmi_singlestep)
 		return NESTED_EXIT_DONE;
@@ -682,6 +687,9 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 		if (svm->nested.intercept_exceptions & excp_bits) {
 			if (exit_code == SVM_EXIT_EXCP_BASE + DB_VECTOR)
 				vmexit = nested_svm_intercept_db(svm);
+			else if (exit_code == SVM_EXIT_EXCP_BASE + BP_VECTOR &&
+				 svm->vcpu.guest_debug & KVM_GUESTDBG_USE_SW_BP)
+				vmexit = NESTED_EXIT_HOST;
 			else
 				vmexit = NESTED_EXIT_DONE;
 		}
