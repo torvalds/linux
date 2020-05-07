@@ -62,6 +62,7 @@
 #define DMUB_CW0_BASE (0x60000000)
 #define DMUB_CW1_BASE (0x61000000)
 #define DMUB_CW3_BASE (0x63000000)
+#define DMUB_CW4_BASE (0x64000000)
 #define DMUB_CW5_BASE (0x65000000)
 #define DMUB_CW6_BASE (0x66000000)
 
@@ -403,7 +404,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw3.region.top = cw3.region.base + bios_fb->size;
 
 		cw4.offset.quad_part = mail_fb->gpu_addr;
-		cw4.region.base = cw3.region.top + 1;
+		cw4.region.base = DMUB_CW4_BASE;
 		cw4.region.top = cw4.region.base + mail_fb->size;
 
 		inbox1.base = cw4.region.base;
