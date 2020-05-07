@@ -141,7 +141,6 @@ struct dw_spi {
 	u32			current_freq;	/* frequency in hz */
 
 	/* DMA info */
-	int			dma_inited;
 	struct dma_chan		*txchan;
 	struct dma_chan		*rxchan;
 	unsigned long		dma_chan_busy;

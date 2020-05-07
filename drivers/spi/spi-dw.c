@@ -470,7 +470,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	dws->master = master;
 	dws->type = SSI_MOTO_SPI;
-	dws->dma_inited = 0;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
 	spin_lock_init(&dws->buf_lock);
 
@@ -509,7 +508,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		ret = dws->dma_ops->dma_init(dev, dws);
 		if (ret) {
 			dev_warn(dev, "DMA init failed\n");
-			dws->dma_inited = 0;
 		} else {
 			master->can_dma = dws->dma_ops->can_dma;
 		}

@@ -57,20 +57,21 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, rx);
 	if (!dws->rxchan)
 		goto err_exit;
-	dws->master->dma_rx = dws->rxchan;
 
 	/* 2. Init tx channel */
 	tx->dma_dev = &dma_dev->dev;
 	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, tx);
 	if (!dws->txchan)
 		goto free_rxchan;
+
+	dws->master->dma_rx = dws->rxchan;
 	dws->master->dma_tx = dws->txchan;
 
-	dws->dma_inited = 1;
 	return 0;
 
 free_rxchan:
 	dma_release_channel(dws->rxchan);
+	dws->rxchan = NULL;
 err_exit:
 	return -EBUSY;
 }
@@ -80,29 +81,31 @@ static int mid_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 	dws->rxchan = dma_request_slave_channel(dev, "rx");
 	if (!dws->rxchan)
 		return -ENODEV;
-	dws->master->dma_rx = dws->rxchan;
 
 	dws->txchan = dma_request_slave_channel(dev, "tx");
 	if (!dws->txchan) {
 		dma_release_channel(dws->rxchan);
+		dws->rxchan = NULL;
 		return -ENODEV;
 	}
+
+	dws->master->dma_rx = dws->rxchan;
 	dws->master->dma_tx = dws->txchan;
 
-	dws->dma_inited = 1;
 	return 0;
 }
 
 static void mid_spi_dma_exit(struct dw_spi *dws)
 {
-	if (!dws->dma_inited)
-		return;
+	if (dws->txchan) {
+		dmaengine_terminate_sync(dws->txchan);
+		dma_release_channel(dws->txchan);
+	}
 
-	dmaengine_terminate_sync(dws->txchan);
-	dma_release_channel(dws->txchan);
-
-	dmaengine_terminate_sync(dws->rxchan);
-	dma_release_channel(dws->rxchan);
+	if (dws->rxchan) {
+		dmaengine_terminate_sync(dws->rxchan);
+		dma_release_channel(dws->rxchan);
+	}
 }
 
 static irqreturn_t dma_transfer(struct dw_spi *dws)
@@ -125,9 +128,6 @@ static bool mid_spi_can_dma(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(master);
-
-	if (!dws->dma_inited)
-		return false;
 
 	return xfer->len > dws->fifo_len;
 }
