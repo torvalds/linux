@@ -56,13 +56,13 @@ are illustrated in the following diagram::
                   +- - - -+                  |  +-------------------| |
                   | Entry | - - - - - - - -+ |  | Definition Blocks | |
                   +- - - -+                | |  +-------------------+ |
-                                          | |  +- - - - - - - - - -+ |
-                                          +-|->|       SSDT        | |
+                                           | |  +- - - - - - - - - -+ |
+                                           +-|->|       SSDT        | |
                                              |  +-------------------+ |
                                              |  | Definition Blocks | |
                                              |  +- - - - - - - - - -+ |
                                              +------------------------+
-                                                         |
+                                                          |
                                              OSPM Loading |
                                                          \|/
                                                    +----------------+
@@ -261,7 +261,7 @@ Description Tables contain information used for the creation of the
 struct acpi_device objects represented by the given row (xSDT means DSDT
 or SSDT).
 
-The forth column of the above table indicates the 'bus_id' generation
+The fourth column of the above table indicates the 'bus_id' generation
 rule of the struct acpi_device object:
 
    _HID:

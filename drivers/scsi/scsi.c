@@ -94,20 +94,6 @@ EXPORT_SYMBOL(scsi_logging_level);
 ASYNC_DOMAIN_EXCLUSIVE(scsi_sd_pm_domain);
 EXPORT_SYMBOL(scsi_sd_pm_domain);
 
-/**
- * scsi_put_command - Free a scsi command block
- * @cmd: command block to free
- *
- * Returns:	Nothing.
- *
- * Notes:	The command must not belong to any lists.
- */
-void scsi_put_command(struct scsi_cmnd *cmd)
-{
-	scsi_del_cmd_from_list(cmd);
-	BUG_ON(delayed_work_pending(&cmd->abort_work));
-}
-
 #ifdef CONFIG_SCSI_LOGGING
 void scsi_log_send(struct scsi_cmnd *cmd)
 {
@@ -186,7 +172,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	struct scsi_driver *drv;
 	unsigned int good_bytes;
 
-	scsi_device_unbusy(sdev);
+	scsi_device_unbusy(sdev, cmd);
 
 	/*
 	 * Clear the flags that say that the device/target/host is no longer
@@ -434,8 +420,8 @@ static void scsi_update_vpd_page(struct scsi_device *sdev, u8 page,
 		return;
 
 	mutex_lock(&sdev->inquiry_mutex);
-	rcu_swap_protected(*sdev_vpd_buf, vpd_buf,
-			   lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_buf = rcu_replace_pointer(*sdev_vpd_buf, vpd_buf,
+				      lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_buf)
@@ -465,10 +451,14 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 		return;
 
 	for (i = 4; i < vpd_buf->len; i++) {
+		if (vpd_buf->data[i] == 0x0)
+			scsi_update_vpd_page(sdev, 0x0, &sdev->vpd_pg0);
 		if (vpd_buf->data[i] == 0x80)
 			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80);
 		if (vpd_buf->data[i] == 0x83)
 			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
+		if (vpd_buf->data[i] == 0x89)
+			scsi_update_vpd_page(sdev, 0x89, &sdev->vpd_pg89);
 	}
 	kfree(vpd_buf);
 }
@@ -759,10 +749,6 @@ MODULE_LICENSE("GPL");
 
 module_param(scsi_logging_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(scsi_logging_level, "a bit mask of logging levels");
-
-/* This should go away in the future, it doesn't do anything anymore */
-bool scsi_use_blk_mq = true;
-module_param_named(use_blk_mq, scsi_use_blk_mq, bool, S_IWUSR | S_IRUGO);
 
 static int __init init_scsi(void)
 {

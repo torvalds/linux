@@ -39,6 +39,7 @@
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/sections.h>
+#include <asm/set_memory.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "Kernel/User page tables isolation: " fmt
@@ -555,13 +556,6 @@ static inline bool pti_kernel_image_global_ok(void)
 }
 
 /*
- * This is the only user for these and it is not arch-generic
- * like the other set_memory.h functions.  Just extern them.
- */
-extern int set_memory_nonglobal(unsigned long addr, int numpages);
-extern int set_memory_global(unsigned long addr, int numpages);
-
-/*
  * For some configurations, map all of kernel text into the user page
  * tables.  This reduces TLB misses, especially on non-PCID systems.
  */
@@ -574,7 +568,7 @@ static void pti_clone_kernel_text(void)
 	 */
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long end_clone  = (unsigned long)__end_rodata_aligned;
-	unsigned long end_global = PFN_ALIGN((unsigned long)__stop___ex_table);
+	unsigned long end_global = PFN_ALIGN((unsigned long)_etext);
 
 	if (!pti_kernel_image_global_ok())
 		return;

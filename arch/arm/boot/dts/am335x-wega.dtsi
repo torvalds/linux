@@ -191,32 +191,6 @@
 	status = "okay";
 };
 
-/* USB */
-&cppi41dma {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
 &usb1 {
 	dr_mode = "host";
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
 };

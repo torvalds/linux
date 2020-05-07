@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <asm/tlb.h>
 
+#ifdef CONFIG_MMU
 #include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
 
 static inline void pmd_populate_kernel(struct mm_struct *mm,
@@ -81,5 +82,6 @@ do {                                    \
 	pgtable_pte_page_dtor(pte);     \
 	tlb_remove_page((tlb), pte);    \
 } while (0)
+#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_PGALLOC_H */

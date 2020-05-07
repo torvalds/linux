@@ -14,7 +14,6 @@
 #include <linux/cec.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <media/cec.h>
@@ -314,7 +313,8 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	return 0;
 
 out_probe_notify:
-	cec_notifier_cec_adap_unregister(cros_ec_cec->notify);
+	cec_notifier_cec_adap_unregister(cros_ec_cec->notify,
+					 cros_ec_cec->adap);
 out_probe_adapter:
 	cec_delete_adapter(cros_ec_cec->adap);
 	return ret;
@@ -335,7 +335,8 @@ static int cros_ec_cec_remove(struct platform_device *pdev)
 		return ret;
 	}
 
-	cec_notifier_cec_adap_unregister(cros_ec_cec->notify);
+	cec_notifier_cec_adap_unregister(cros_ec_cec->notify,
+					 cros_ec_cec->adap);
 	cec_unregister_adapter(cros_ec_cec->adap);
 
 	return 0;

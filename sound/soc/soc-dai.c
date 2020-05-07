@@ -354,18 +354,6 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 	return delay;
 }
 
-void snd_soc_dai_suspend(struct snd_soc_dai *dai)
-{
-	if (dai->driver->suspend)
-		dai->driver->suspend(dai);
-}
-
-void snd_soc_dai_resume(struct snd_soc_dai *dai)
-{
-	if (dai->driver->resume)
-		dai->driver->resume(dai);
-}
-
 int snd_soc_dai_probe(struct snd_soc_dai *dai)
 {
 	if (dai->driver->probe)
@@ -395,12 +383,7 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
  */
 bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 {
-	struct snd_soc_pcm_stream *stream;
-
-	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-		stream = &dai->driver->playback;
-	else
-		stream = &dai->driver->capture;
+	struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
 
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;

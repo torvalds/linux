@@ -109,10 +109,8 @@
 #define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turnover temp mask */
 
 /* user ram section */
-#define RV3029_USR1_RAM_PAGE		0x38
-#define RV3029_USR1_SECTION_LEN		0x04
-#define RV3029_USR2_RAM_PAGE		0x3C
-#define RV3029_USR2_SECTION_LEN		0x04
+#define RV3029_RAM_PAGE			0x38
+#define RV3029_RAM_SECTION_LEN		8
 
 struct rv3029_data {
 	struct device		*dev;
@@ -121,77 +119,13 @@ struct rv3029_data {
 	int irq;
 };
 
-static int rv3029_read_regs(struct device *dev, u8 reg, u8 *buf,
-			    unsigned int len)
+static int rv3029_eeprom_busywait(struct rv3029_data *rv3029)
 {
-	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
-
-	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
-		return -EINVAL;
-
-	return regmap_bulk_read(rv3029->regmap, reg, buf, len);
-}
-
-static int rv3029_write_regs(struct device *dev, u8 reg, u8 const buf[],
-			     unsigned int len)
-{
-	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
-
-	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
-		return -EINVAL;
-
-	return regmap_bulk_write(rv3029->regmap, reg, buf, len);
-}
-
-static int rv3029_update_bits(struct device *dev, u8 reg, u8 mask, u8 set)
-{
-	u8 buf;
-	int ret;
-
-	ret = rv3029_read_regs(dev, reg, &buf, 1);
-	if (ret < 0)
-		return ret;
-	buf &= ~mask;
-	buf |= set & mask;
-	ret = rv3029_write_regs(dev, reg, &buf, 1);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int rv3029_get_sr(struct device *dev, u8 *buf)
-{
-	int ret = rv3029_read_regs(dev, RV3029_STATUS, buf, 1);
-
-	if (ret < 0)
-		return -EIO;
-	dev_dbg(dev, "status = 0x%.2x (%d)\n", buf[0], buf[0]);
-	return 0;
-}
-
-static int rv3029_set_sr(struct device *dev, u8 val)
-{
-	u8 buf[1];
-	int sr;
-
-	buf[0] = val;
-	sr = rv3029_write_regs(dev, RV3029_STATUS, buf, 1);
-	dev_dbg(dev, "status = 0x%.2x (%d)\n", buf[0], buf[0]);
-	if (sr < 0)
-		return -EIO;
-	return 0;
-}
-
-static int rv3029_eeprom_busywait(struct device *dev)
-{
+	unsigned int sr;
 	int i, ret;
-	u8 sr;
 
 	for (i = 100; i > 0; i--) {
-		ret = rv3029_get_sr(dev, &sr);
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 		if (ret < 0)
 			break;
 		if (!(sr & RV3029_STATUS_EEBUSY))
@@ -199,126 +133,128 @@ static int rv3029_eeprom_busywait(struct device *dev)
 		usleep_range(1000, 10000);
 	}
 	if (i <= 0) {
-		dev_err(dev, "EEPROM busy wait timeout.\n");
+		dev_err(rv3029->dev, "EEPROM busy wait timeout.\n");
 		return -ETIMEDOUT;
 	}
 
 	return ret;
 }
 
-static int rv3029_eeprom_exit(struct device *dev)
+static int rv3029_eeprom_exit(struct rv3029_data *rv3029)
 {
 	/* Re-enable eeprom refresh */
-	return rv3029_update_bits(dev, RV3029_ONOFF_CTRL,
+	return regmap_update_bits(rv3029->regmap, RV3029_ONOFF_CTRL,
 				  RV3029_ONOFF_CTRL_EERE,
 				  RV3029_ONOFF_CTRL_EERE);
 }
 
-static int rv3029_eeprom_enter(struct device *dev)
+static int rv3029_eeprom_enter(struct rv3029_data *rv3029)
 {
+	unsigned int sr;
 	int ret;
-	u8 sr;
 
 	/* Check whether we are in the allowed voltage range. */
-	ret = rv3029_get_sr(dev, &sr);
+	ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 	if (ret < 0)
 		return ret;
-	if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
+	if (sr & RV3029_STATUS_VLOW2)
+		return -ENODEV;
+	if (sr & RV3029_STATUS_VLOW1) {
 		/* We clear the bits and retry once just in case
 		 * we had a brown out in early startup.
 		 */
-		sr &= ~RV3029_STATUS_VLOW1;
-		sr &= ~RV3029_STATUS_VLOW2;
-		ret = rv3029_set_sr(dev, sr);
+		ret = regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+					 RV3029_STATUS_VLOW1, 0);
 		if (ret < 0)
 			return ret;
 		usleep_range(1000, 10000);
-		ret = rv3029_get_sr(dev, &sr);
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 		if (ret < 0)
 			return ret;
-		if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
-			dev_err(dev,
+		if (sr & RV3029_STATUS_VLOW1) {
+			dev_err(rv3029->dev,
 				"Supply voltage is too low to safely access the EEPROM.\n");
 			return -ENODEV;
 		}
 	}
 
 	/* Disable eeprom refresh. */
-	ret = rv3029_update_bits(dev, RV3029_ONOFF_CTRL, RV3029_ONOFF_CTRL_EERE,
-				 0);
+	ret = regmap_update_bits(rv3029->regmap, RV3029_ONOFF_CTRL,
+				 RV3029_ONOFF_CTRL_EERE, 0);
 	if (ret < 0)
 		return ret;
 
 	/* Wait for any previous eeprom accesses to finish. */
-	ret = rv3029_eeprom_busywait(dev);
+	ret = rv3029_eeprom_busywait(rv3029);
 	if (ret < 0)
-		rv3029_eeprom_exit(dev);
+		rv3029_eeprom_exit(rv3029);
 
 	return ret;
 }
 
-static int rv3029_eeprom_read(struct device *dev, u8 reg,
+static int rv3029_eeprom_read(struct rv3029_data *rv3029, u8 reg,
 			      u8 buf[], size_t len)
 {
 	int ret, err;
 
-	err = rv3029_eeprom_enter(dev);
+	err = rv3029_eeprom_enter(rv3029);
 	if (err < 0)
 		return err;
 
-	ret = rv3029_read_regs(dev, reg, buf, len);
+	ret = regmap_bulk_read(rv3029->regmap, reg, buf, len);
 
-	err = rv3029_eeprom_exit(dev);
+	err = rv3029_eeprom_exit(rv3029);
 	if (err < 0)
 		return err;
 
 	return ret;
 }
 
-static int rv3029_eeprom_write(struct device *dev, u8 reg,
+static int rv3029_eeprom_write(struct rv3029_data *rv3029, u8 reg,
 			       u8 const buf[], size_t len)
 {
+	unsigned int tmp;
 	int ret, err;
 	size_t i;
-	u8 tmp;
 
-	err = rv3029_eeprom_enter(dev);
+	err = rv3029_eeprom_enter(rv3029);
 	if (err < 0)
 		return err;
 
 	for (i = 0; i < len; i++, reg++) {
-		ret = rv3029_read_regs(dev, reg, &tmp, 1);
+		ret = regmap_read(rv3029->regmap, reg, &tmp);
 		if (ret < 0)
 			break;
 		if (tmp != buf[i]) {
-			ret = rv3029_write_regs(dev, reg, &buf[i], 1);
+			tmp = buf[i];
+			ret = regmap_write(rv3029->regmap, reg, tmp);
 			if (ret < 0)
 				break;
 		}
-		ret = rv3029_eeprom_busywait(dev);
+		ret = rv3029_eeprom_busywait(rv3029);
 		if (ret < 0)
 			break;
 	}
 
-	err = rv3029_eeprom_exit(dev);
+	err = rv3029_eeprom_exit(rv3029);
 	if (err < 0)
 		return err;
 
 	return ret;
 }
 
-static int rv3029_eeprom_update_bits(struct device *dev,
+static int rv3029_eeprom_update_bits(struct rv3029_data *rv3029,
 				     u8 reg, u8 mask, u8 set)
 {
 	u8 buf;
 	int ret;
 
-	ret = rv3029_eeprom_read(dev, reg, &buf, 1);
+	ret = rv3029_eeprom_read(rv3029, reg, &buf, 1);
 	if (ret < 0)
 		return ret;
 	buf &= ~mask;
 	buf |= set & mask;
-	ret = rv3029_eeprom_write(dev, reg, &buf, 1);
+	ret = rv3029_eeprom_write(rv3029, reg, &buf, 1);
 	if (ret < 0)
 		return ret;
 
@@ -330,20 +266,20 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 	struct device *dev = dev_id;
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	struct mutex *lock = &rv3029->rtc->ops_lock;
+	unsigned int flags, controls;
 	unsigned long events = 0;
-	u8 flags, controls;
 	int ret;
 
 	mutex_lock(lock);
 
-	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+	ret = regmap_read(rv3029->regmap, RV3029_IRQ_CTRL, &controls);
 	if (ret) {
 		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
 		mutex_unlock(lock);
 		return IRQ_NONE;
 	}
 
-	ret = rv3029_read_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
+	ret = regmap_read(rv3029->regmap, RV3029_IRQ_FLAGS, &flags);
 	if (ret) {
 		dev_warn(dev, "Read IRQ Flags Register error %d\n", ret);
 		mutex_unlock(lock);
@@ -358,8 +294,8 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 
 	if (events) {
 		rtc_update_irq(rv3029->rtc, 1, events);
-		rv3029_write_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
-		rv3029_write_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+		regmap_write(rv3029->regmap, RV3029_IRQ_FLAGS, flags);
+		regmap_write(rv3029->regmap, RV3029_IRQ_CTRL, controls);
 	}
 	mutex_unlock(lock);
 
@@ -368,22 +304,22 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 
 static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 {
-	u8 buf[1];
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned int sr;
 	int ret;
 	u8 regs[RV3029_WATCH_SECTION_LEN] = { 0, };
 
-	ret = rv3029_get_sr(dev, buf);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
-
-	ret = rv3029_read_regs(dev, RV3029_W_SEC, regs,
-			       RV3029_WATCH_SECTION_LEN);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading RTC section failed\n", __func__);
+	ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
+	if (ret < 0)
 		return ret;
-	}
+
+	if (sr & (RV3029_STATUS_VLOW2 | RV3029_STATUS_PON))
+		return -EINVAL;
+
+	ret = regmap_bulk_read(rv3029->regmap, RV3029_W_SEC, regs,
+			       RV3029_WATCH_SECTION_LEN);
+	if (ret < 0)
+		return ret;
 
 	tm->tm_sec = bcd2bin(regs[RV3029_W_SEC - RV3029_W_SEC]);
 	tm->tm_min = bcd2bin(regs[RV3029_W_MINUTES - RV3029_W_SEC]);
@@ -411,34 +347,24 @@ static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 
 static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	struct rtc_time *const tm = &alarm->time;
+	unsigned int controls, flags;
 	int ret;
-	u8 regs[8], controls, flags;
+	u8 regs[8];
 
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
-
-	ret = rv3029_read_regs(dev, RV3029_A_SC, regs,
+	ret = regmap_bulk_read(rv3029->regmap, RV3029_A_SC, regs,
 			       RV3029_ALARM_SECTION_LEN);
+	if (ret < 0)
+		return ret;
 
-	if (ret < 0) {
-		dev_err(dev, "%s: reading alarm section failed\n", __func__);
+	ret = regmap_read(rv3029->regmap, RV3029_IRQ_CTRL, &controls);
+	if (ret)
 		return ret;
-	}
 
-	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
-	if (ret) {
-		dev_err(dev, "Read IRQ Control Register error %d\n", ret);
+	ret = regmap_read(rv3029->regmap, RV3029_IRQ_FLAGS, &flags);
+	if (ret < 0)
 		return ret;
-	}
-	ret = rv3029_read_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
-	if (ret < 0) {
-		dev_err(dev, "Read IRQ Flags Register error %d\n", ret);
-		return ret;
-	}
 
 	tm->tm_sec = bcd2bin(regs[RV3029_A_SC - RV3029_A_SC] & 0x7f);
 	tm->tm_min = bcd2bin(regs[RV3029_A_MN - RV3029_A_SC] & 0x7f);
@@ -456,49 +382,19 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int rv3029_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
-	int ret;
-	u8 controls;
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 
-	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
-	if (ret < 0) {
-		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
-		return ret;
-	}
-
-	/* enable/disable AIE irq */
-	if (enable)
-		controls |= RV3029_IRQ_CTRL_AIE;
-	else
-		controls &= ~RV3029_IRQ_CTRL_AIE;
-
-	ret = rv3029_write_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
-	if (ret < 0) {
-		dev_err(dev, "can't update INT reg\n");
-		return ret;
-	}
-
-	return 0;
+	return regmap_update_bits(rv3029->regmap, RV3029_IRQ_CTRL,
+				  RV3029_IRQ_CTRL_AIE,
+				  enable ? RV3029_IRQ_CTRL_AIE : 0);
 }
 
 static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	struct rtc_time *const tm = &alarm->time;
 	int ret;
 	u8 regs[8];
-
-	/*
-	 * The clock has an 8 bit wide bcd-coded register (they never learn)
-	 * for the year. tm_year is an offset from 1900 and we are interested
-	 * in the 2000-2099 range, so any value less than 100 is invalid.
-	*/
-	if (tm->tm_year < 100)
-		return -EINVAL;
-
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
 
 	/* Activate all the alarms with AE_x bit */
 	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec) | RV3029_A_AE_X;
@@ -515,38 +411,19 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		| RV3029_A_AE_X;
 
 	/* Write the alarm */
-	ret = rv3029_write_regs(dev, RV3029_A_SC, regs,
+	ret = regmap_bulk_write(rv3029->regmap, RV3029_A_SC, regs,
 				RV3029_ALARM_SECTION_LEN);
 	if (ret < 0)
 		return ret;
 
-	if (alarm->enabled) {
-		/* enable AIE irq */
-		ret = rv3029_alarm_irq_enable(dev, 1);
-		if (ret)
-			return ret;
-	} else {
-		/* disable AIE irq */
-		ret = rv3029_alarm_irq_enable(dev, 0);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return rv3029_alarm_irq_enable(dev, alarm->enabled);
 }
 
 static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	u8 regs[8];
 	int ret;
-
-	/*
-	 * The clock has an 8 bit wide bcd-coded register (they never learn)
-	 * for the year. tm_year is an offset from 1900 and we are interested
-	 * in the 2000-2099 range, so any value less than 100 is invalid.
-	*/
-	if (tm->tm_year < 100)
-		return -EINVAL;
 
 	regs[RV3029_W_SEC - RV3029_W_SEC] = bin2bcd(tm->tm_sec);
 	regs[RV3029_W_MINUTES - RV3029_W_SEC] = bin2bcd(tm->tm_min);
@@ -556,24 +433,55 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	regs[RV3029_W_DAYS - RV3029_W_SEC] = bin2bcd(tm->tm_wday + 1) & 0x7;
 	regs[RV3029_W_YEARS - RV3029_W_SEC] = bin2bcd(tm->tm_year - 100);
 
-	ret = rv3029_write_regs(dev, RV3029_W_SEC, regs,
+	ret = regmap_bulk_write(rv3029->regmap, RV3029_W_SEC, regs,
 				RV3029_WATCH_SECTION_LEN);
 	if (ret < 0)
 		return ret;
 
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return ret;
-	}
-	/* clear PON bit */
-	ret = rv3029_set_sr(dev, (regs[0] & ~RV3029_STATUS_PON));
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return ret;
-	}
+	/* clear PON and VLOW2 bits */
+	return regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+				  RV3029_STATUS_PON | RV3029_STATUS_VLOW2, 0);
+}
 
-	return 0;
+static int rv3029_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned long vl = 0;
+	int sr, ret = 0;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
+		if (ret < 0)
+			return ret;
+
+		if (sr & RV3029_STATUS_VLOW1)
+			vl = RTC_VL_ACCURACY_LOW;
+
+		if (sr & (RV3029_STATUS_VLOW2 | RV3029_STATUS_PON))
+			vl |= RTC_VL_DATA_INVALID;
+
+		return put_user(vl, (unsigned int __user *)arg);
+
+	case RTC_VL_CLR:
+		return regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+					  RV3029_STATUS_VLOW1, 0);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
+static int rv3029_nvram_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	return regmap_bulk_write(priv, RV3029_RAM_PAGE + offset, val, bytes);
+}
+
+static int rv3029_nvram_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	return regmap_bulk_read(priv, RV3029_RAM_PAGE + offset, val, bytes);
 }
 
 static const struct rv3029_trickle_tab_elem {
@@ -635,6 +543,7 @@ static const struct rv3029_trickle_tab_elem {
 
 static void rv3029_trickle_config(struct device *dev)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	struct device_node *of_node = dev->of_node;
 	const struct rv3029_trickle_tab_elem *elem;
 	int i, err;
@@ -661,7 +570,7 @@ static void rv3029_trickle_config(struct device *dev)
 			 "Trickle charger enabled at %d ohms resistance.\n",
 			 elem->r);
 	}
-	err = rv3029_eeprom_update_bits(dev, RV3029_CONTROL_E2P_EECTRL,
+	err = rv3029_eeprom_update_bits(rv3029, RV3029_CONTROL_E2P_EECTRL,
 					RV3029_TRICKLE_MASK,
 					trickle_set_bits);
 	if (err < 0)
@@ -670,12 +579,12 @@ static void rv3029_trickle_config(struct device *dev)
 
 #ifdef CONFIG_RTC_DRV_RV3029_HWMON
 
-static int rv3029_read_temp(struct device *dev, int *temp_mC)
+static int rv3029_read_temp(struct rv3029_data *rv3029, int *temp_mC)
 {
+	unsigned int temp;
 	int ret;
-	u8 temp;
 
-	ret = rv3029_read_regs(dev, RV3029_TEMP_PAGE, &temp, 1);
+	ret = regmap_read(rv3029->regmap, RV3029_TEMP_PAGE, &temp);
 	if (ret < 0)
 		return ret;
 
@@ -688,9 +597,10 @@ static ssize_t rv3029_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	int ret, temp_mC;
 
-	ret = rv3029_read_temp(dev, &temp_mC);
+	ret = rv3029_read_temp(rv3029, &temp_mC);
 	if (ret < 0)
 		return ret;
 
@@ -702,9 +612,10 @@ static ssize_t rv3029_hwmon_set_update_interval(struct device *dev,
 						const char *buf,
 						size_t count)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned int th_set_bits = 0;
 	unsigned long interval_ms;
 	int ret;
-	u8 th_set_bits = 0;
 
 	ret = kstrtoul(buf, 10, &interval_ms);
 	if (ret < 0)
@@ -715,7 +626,7 @@ static ssize_t rv3029_hwmon_set_update_interval(struct device *dev,
 		if (interval_ms >= 16000)
 			th_set_bits |= RV3029_EECTRL_THP;
 	}
-	ret = rv3029_eeprom_update_bits(dev, RV3029_CONTROL_E2P_EECTRL,
+	ret = rv3029_eeprom_update_bits(rv3029, RV3029_CONTROL_E2P_EECTRL,
 					RV3029_EECTRL_THE | RV3029_EECTRL_THP,
 					th_set_bits);
 	if (ret < 0)
@@ -728,10 +639,11 @@ static ssize_t rv3029_hwmon_show_update_interval(struct device *dev,
 						 struct device_attribute *attr,
 						 char *buf)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	int ret, interval_ms;
 	u8 eectrl;
 
-	ret = rv3029_eeprom_read(dev, RV3029_CONTROL_E2P_EECTRL,
+	ret = rv3029_eeprom_read(rv3029, RV3029_CONTROL_E2P_EECTRL,
 				 &eectrl, 1);
 	if (ret < 0)
 		return ret;
@@ -785,14 +697,23 @@ static void rv3029_hwmon_register(struct device *dev, const char *name)
 static struct rtc_class_ops rv3029_rtc_ops = {
 	.read_time	= rv3029_read_time,
 	.set_time	= rv3029_set_time,
+	.ioctl		= rv3029_ioctl,
 };
 
 static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 			const char *name)
 {
 	struct rv3029_data *rv3029;
+	struct nvmem_config nvmem_cfg = {
+		.name = "rv3029_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = RV3029_RAM_SECTION_LEN,
+		.type = NVMEM_TYPE_BATTERY_BACKED,
+		.reg_read = rv3029_nvram_read,
+		.reg_write = rv3029_nvram_write,
+	};
 	int rc = 0;
-	u8 buf[1];
 
 	rv3029 = devm_kzalloc(dev, sizeof(*rv3029), GFP_KERNEL);
 	if (!rv3029)
@@ -803,21 +724,12 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	rv3029->dev = dev;
 	dev_set_drvdata(dev, rv3029);
 
-	rc = rv3029_get_sr(dev, buf);
-	if (rc < 0) {
-		dev_err(dev, "reading status failed\n");
-		return rc;
-	}
-
 	rv3029_trickle_config(dev);
 	rv3029_hwmon_register(dev, name);
 
-	rv3029->rtc = devm_rtc_device_register(dev, name, &rv3029_rtc_ops,
-					       THIS_MODULE);
-	if (IS_ERR(rv3029->rtc)) {
-		dev_err(dev, "unable to register the class device\n");
+	rv3029->rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rv3029->rtc))
 		return PTR_ERR(rv3029->rtc);
-	}
 
 	if (rv3029->irq > 0) {
 		rc = devm_request_threaded_irq(dev, rv3029->irq,
@@ -834,8 +746,41 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 		}
 	}
 
+	rv3029->rtc->ops = &rv3029_rtc_ops;
+	rv3029->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rv3029->rtc->range_max = RTC_TIMESTAMP_END_2079;
+
+	rc = rtc_register_device(rv3029->rtc);
+	if (rc)
+		return rc;
+
+	nvmem_cfg.priv = rv3029->regmap;
+	rtc_nvmem_register(rv3029->rtc, &nvmem_cfg);
+
 	return 0;
 }
+
+static const struct regmap_range rv3029_holes_range[] = {
+	regmap_reg_range(0x05, 0x07),
+	regmap_reg_range(0x0f, 0x0f),
+	regmap_reg_range(0x17, 0x17),
+	regmap_reg_range(0x1a, 0x1f),
+	regmap_reg_range(0x21, 0x27),
+	regmap_reg_range(0x34, 0x37),
+};
+
+static const struct regmap_access_table rv3029_regs = {
+	.no_ranges =	rv3029_holes_range,
+	.n_no_ranges =	ARRAY_SIZE(rv3029_holes_range),
+};
+
+static const struct regmap_config config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.rd_table = &rv3029_regs,
+	.wr_table = &rv3029_regs,
+	.max_register = 0x3f,
+};
 
 #if IS_ENABLED(CONFIG_I2C)
 
@@ -843,11 +788,6 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
-	static const struct regmap_config config = {
-		.reg_bits = 8,
-		.val_bits = 8,
-	};
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE)) {
 		dev_err(&client->dev, "Adapter does not support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
@@ -855,11 +795,8 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 	}
 
 	regmap = devm_regmap_init_i2c(client, &config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "%s: regmap allocation failed: %ld\n",
-			__func__, PTR_ERR(regmap));
+	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-	}
 
 	return rv3029_probe(&client->dev, regmap, client->irq, client->name);
 }
@@ -873,24 +810,20 @@ MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
 static const struct of_device_id rv3029_of_match[] = {
 	{ .compatible = "microcrystal,rv3029" },
-	/* Backward compatibility only, do not use compatibles below: */
-	{ .compatible = "rv3029" },
-	{ .compatible = "rv3029c2" },
-	{ .compatible = "mc,rv3029c2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rv3029_of_match);
 
 static struct i2c_driver rv3029_driver = {
 	.driver = {
-		.name = "rtc-rv3029c2",
+		.name = "rv3029",
 		.of_match_table = of_match_ptr(rv3029_of_match),
 	},
 	.probe		= rv3029_i2c_probe,
 	.id_table	= rv3029_id,
 };
 
-static int rv3029_register_driver(void)
+static int __init rv3029_register_driver(void)
 {
 	return i2c_add_driver(&rv3029_driver);
 }
@@ -902,7 +835,7 @@ static void rv3029_unregister_driver(void)
 
 #else
 
-static int rv3029_register_driver(void)
+static int __init rv3029_register_driver(void)
 {
 	return 0;
 }
@@ -917,18 +850,11 @@ static void rv3029_unregister_driver(void)
 
 static int rv3049_probe(struct spi_device *spi)
 {
-	static const struct regmap_config config = {
-		.reg_bits = 8,
-		.val_bits = 8,
-	};
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_spi(spi, &config);
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "%s: regmap allocation failed: %ld\n",
-			__func__, PTR_ERR(regmap));
+	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-	}
 
 	return rv3029_probe(&spi->dev, regmap, spi->irq, "rv3049");
 }
@@ -940,24 +866,24 @@ static struct spi_driver rv3049_driver = {
 	.probe   = rv3049_probe,
 };
 
-static int rv3049_register_driver(void)
+static int __init rv3049_register_driver(void)
 {
 	return spi_register_driver(&rv3049_driver);
 }
 
-static void rv3049_unregister_driver(void)
+static void __exit rv3049_unregister_driver(void)
 {
 	spi_unregister_driver(&rv3049_driver);
 }
 
 #else
 
-static int rv3049_register_driver(void)
+static int __init rv3049_register_driver(void)
 {
 	return 0;
 }
 
-static void rv3049_unregister_driver(void)
+static void __exit rv3049_unregister_driver(void)
 {
 }
 
@@ -968,16 +894,12 @@ static int __init rv30x9_init(void)
 	int ret;
 
 	ret = rv3029_register_driver();
-	if (ret) {
-		pr_err("Failed to register rv3029 driver: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = rv3049_register_driver();
-	if (ret) {
-		pr_err("Failed to register rv3049 driver: %d\n", ret);
+	if (ret)
 		rv3029_unregister_driver();
-	}
 
 	return ret;
 }

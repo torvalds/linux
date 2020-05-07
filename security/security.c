@@ -33,7 +33,39 @@
 
 /* How many LSMs were built into the kernel? */
 #define LSM_COUNT (__end_lsm_info - __start_lsm_info)
-#define EARLY_LSM_COUNT (__end_early_lsm_info - __start_early_lsm_info)
+
+/*
+ * These are descriptions of the reasons that can be passed to the
+ * security_locked_down() LSM hook. Placing this array here allows
+ * all security modules to use the same descriptions for auditing
+ * purposes.
+ */
+const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX+1] = {
+	[LOCKDOWN_NONE] = "none",
+	[LOCKDOWN_MODULE_SIGNATURE] = "unsigned module loading",
+	[LOCKDOWN_DEV_MEM] = "/dev/mem,kmem,port",
+	[LOCKDOWN_EFI_TEST] = "/dev/efi_test access",
+	[LOCKDOWN_KEXEC] = "kexec of unsigned images",
+	[LOCKDOWN_HIBERNATION] = "hibernation",
+	[LOCKDOWN_PCI_ACCESS] = "direct PCI access",
+	[LOCKDOWN_IOPORT] = "raw io port access",
+	[LOCKDOWN_MSR] = "raw MSR access",
+	[LOCKDOWN_ACPI_TABLES] = "modifying ACPI tables",
+	[LOCKDOWN_PCMCIA_CIS] = "direct PCMCIA CIS storage",
+	[LOCKDOWN_TIOCSSERIAL] = "reconfiguration of serial port IO",
+	[LOCKDOWN_MODULE_PARAMETERS] = "unsafe module parameters",
+	[LOCKDOWN_MMIOTRACE] = "unsafe mmio",
+	[LOCKDOWN_DEBUGFS] = "debugfs access",
+	[LOCKDOWN_XMON_WR] = "xmon write access",
+	[LOCKDOWN_INTEGRITY_MAX] = "integrity",
+	[LOCKDOWN_KCORE] = "/proc/kcore access",
+	[LOCKDOWN_KPROBES] = "use of kprobes",
+	[LOCKDOWN_BPF_READ] = "use of bpf to read kernel RAM",
+	[LOCKDOWN_PERF] = "unsafe use of perf",
+	[LOCKDOWN_TRACEFS] = "use of tracefs",
+	[LOCKDOWN_XMON_RW] = "xmon read and write access",
+	[LOCKDOWN_CONFIDENTIALITY_MAX] = "confidentiality",
+};
 
 struct security_hook_heads security_hook_heads __lsm_ro_after_init;
 static BLOCKING_NOTIFIER_HEAD(blocking_lsm_notifier_chain);
@@ -635,6 +667,25 @@ static void __init lsm_early_task(struct task_struct *task)
 	if (rc)
 		panic("%s: Early task alloc failed.\n", __func__);
 }
+
+/*
+ * The default value of the LSM hook is defined in linux/lsm_hook_defs.h and
+ * can be accessed with:
+ *
+ *	LSM_RET_DEFAULT(<hook_name>)
+ *
+ * The macros below define static constants for the default value of each
+ * LSM hook.
+ */
+#define LSM_RET_DEFAULT(NAME) (NAME##_default)
+#define DECLARE_LSM_RET_DEFAULT_void(DEFAULT, NAME)
+#define DECLARE_LSM_RET_DEFAULT_int(DEFAULT, NAME) \
+	static const int LSM_RET_DEFAULT(NAME) = (DEFAULT);
+#define LSM_HOOK(RET, DEFAULT, NAME, ...) \
+	DECLARE_LSM_RET_DEFAULT_##RET(DEFAULT, NAME)
+
+#include <linux/lsm_hook_defs.h>
+#undef LSM_HOOK
 
 /*
  * Hook list operation macros.
@@ -1306,16 +1357,16 @@ int security_inode_getsecurity(struct inode *inode, const char *name, void **buf
 	int rc;
 
 	if (unlikely(IS_PRIVATE(inode)))
-		return -EOPNOTSUPP;
+		return LSM_RET_DEFAULT(inode_getsecurity);
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
 		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
-		if (rc != -EOPNOTSUPP)
+		if (rc != LSM_RET_DEFAULT(inode_getsecurity))
 			return rc;
 	}
-	return -EOPNOTSUPP;
+	return LSM_RET_DEFAULT(inode_getsecurity);
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
@@ -1324,17 +1375,17 @@ int security_inode_setsecurity(struct inode *inode, const char *name, const void
 	int rc;
 
 	if (unlikely(IS_PRIVATE(inode)))
-		return -EOPNOTSUPP;
+		return LSM_RET_DEFAULT(inode_setsecurity);
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
 		rc = hp->hook.inode_setsecurity(inode, name, value, size,
 								flags);
-		if (rc != -EOPNOTSUPP)
+		if (rc != LSM_RET_DEFAULT(inode_setsecurity))
 			return rc;
 	}
-	return -EOPNOTSUPP;
+	return LSM_RET_DEFAULT(inode_setsecurity);
 }
 
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
@@ -1708,12 +1759,12 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
 	int thisrc;
-	int rc = -ENOSYS;
+	int rc = LSM_RET_DEFAULT(task_prctl);
 	struct security_hook_list *hp;
 
 	hlist_for_each_entry(hp, &security_hook_heads.task_prctl, list) {
 		thisrc = hp->hook.task_prctl(option, arg2, arg3, arg4, arg5);
-		if (thisrc != -ENOSYS) {
+		if (thisrc != LSM_RET_DEFAULT(task_prctl)) {
 			rc = thisrc;
 			if (thisrc != 0)
 				break;
@@ -1885,7 +1936,7 @@ int security_getprocattr(struct task_struct *p, const char *lsm, char *name,
 			continue;
 		return hp->hook.getprocattr(p, name, value);
 	}
-	return -EINVAL;
+	return LSM_RET_DEFAULT(getprocattr);
 }
 
 int security_setprocattr(const char *lsm, const char *name, void *value,
@@ -1898,7 +1949,7 @@ int security_setprocattr(const char *lsm, const char *name, void *value,
 			continue;
 		return hp->hook.setprocattr(name, value, size);
 	}
-	return -EINVAL;
+	return LSM_RET_DEFAULT(setprocattr);
 }
 
 int security_netlink_send(struct sock *sk, struct sk_buff *skb)
@@ -2283,7 +2334,7 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				       const struct flowi *fl)
 {
 	struct security_hook_list *hp;
-	int rc = 1;
+	int rc = LSM_RET_DEFAULT(xfrm_state_pol_flow_match);
 
 	/*
 	 * Since this function is expected to return 0 or 1, the judgment
@@ -2404,3 +2455,30 @@ int security_locked_down(enum lockdown_reason what)
 	return call_int_hook(locked_down, 0, what);
 }
 EXPORT_SYMBOL(security_locked_down);
+
+#ifdef CONFIG_PERF_EVENTS
+int security_perf_event_open(struct perf_event_attr *attr, int type)
+{
+	return call_int_hook(perf_event_open, 0, attr, type);
+}
+
+int security_perf_event_alloc(struct perf_event *event)
+{
+	return call_int_hook(perf_event_alloc, 0, event);
+}
+
+void security_perf_event_free(struct perf_event *event)
+{
+	call_void_hook(perf_event_free, event);
+}
+
+int security_perf_event_read(struct perf_event *event)
+{
+	return call_int_hook(perf_event_read, 0, event);
+}
+
+int security_perf_event_write(struct perf_event *event)
+{
+	return call_int_hook(perf_event_write, 0, event);
+}
+#endif /* CONFIG_PERF_EVENTS */

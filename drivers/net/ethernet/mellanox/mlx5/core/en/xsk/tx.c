@@ -14,7 +14,7 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 	struct mlx5e_channel *c;
 	u16 ix;
 
-	if (unlikely(!mlx5e_xdp_is_open(priv)))
+	if (unlikely(!mlx5e_xdp_is_active(priv)))
 		return -ENETDOWN;
 
 	if (unlikely(!mlx5e_qid_get_ch_if_in_group(params, qid, MLX5E_RQ_GROUP_XSK, &ix)))
@@ -31,6 +31,9 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		 * activate will trigger the IRQ for us.
 		 */
 		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &c->xskicosq.state)))
+			return 0;
+
+		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->xskicosq.state))
 			return 0;
 
 		spin_lock(&c->xskicosq_lock);

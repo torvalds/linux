@@ -49,6 +49,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 1>;
+			#cooling-cells = <2>;
 		};
 
 		cpu5: cpu@101 {
@@ -58,6 +59,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 1>;
+			#cooling-cells = <2>;
 		};
 
 		cpu6: cpu@102 {
@@ -67,6 +69,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 1>;
+			#cooling-cells = <2>;
 		};
 
 		cpu7: cpu@103 {
@@ -76,6 +79,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 1>;
+			#cooling-cells = <2>;
 		};
 	};
 };
@@ -96,10 +100,10 @@
 		compatible = "amlogic,meson-gxm-mali", "arm,mali-t820";
 		reg = <0x0 0xc0000 0x0 0x40000>;
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gpu", "mmu", "job";
+			     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "job", "mmu", "gpu";
 		clocks = <&clkc CLKID_MALI>;
 		resets = <&reset RESET_MALI_CAPB3>, <&reset RESET_MALI>;
 
@@ -122,6 +126,30 @@
 
 &clkc_AO {
 	compatible = "amlogic,meson-gxm-aoclkc", "amlogic,meson-gx-aoclkc";
+};
+
+&cpu_cooling_maps {
+	map0 {
+		cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+	};
+
+	map1 {
+		cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+	};
 };
 
 &saradc {

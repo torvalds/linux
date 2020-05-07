@@ -100,12 +100,12 @@ static const struct drm_display_mode ls037v7dw01_mode = {
 	.height_mm = 75,
 };
 
-static int ls037v7dw01_get_modes(struct drm_panel *panel)
+static int ls037v7dw01_get_modes(struct drm_panel *panel,
+				 struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &ls037v7dw01_mode);
+	mode = drm_mode_duplicate(connector->dev, &ls037v7dw01_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -185,9 +185,8 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 		return PTR_ERR(lcd->ud_gpio);
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &pdev->dev;
-	lcd->panel.funcs = &ls037v7dw01_funcs;
+	drm_panel_init(&lcd->panel, &pdev->dev, &ls037v7dw01_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&lcd->panel);
 }

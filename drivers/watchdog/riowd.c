@@ -163,6 +163,7 @@ static const struct file_operations riowd_fops = {
 	.owner =		THIS_MODULE,
 	.llseek =		no_llseek,
 	.unlocked_ioctl =	riowd_ioctl,
+	.compat_ioctl	=	compat_ptr_ioctl,
 	.open =			riowd_open,
 	.write =		riowd_write,
 	.release =		riowd_release,

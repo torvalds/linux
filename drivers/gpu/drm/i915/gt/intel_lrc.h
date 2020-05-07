@@ -43,6 +43,7 @@ struct intel_engine_cs;
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define   CTX_CTRL_RS_CTX_ENABLE		(1 << 1)
 #define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	(1 << 2)
+#define	  GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE	(1 << 8)
 #define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
 #define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
 #define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
@@ -66,6 +67,12 @@ struct intel_engine_cs;
 #define GEN11_CSB_READ_PTR_MASK (GEN11_CSB_PTR_MASK << 8)
 #define GEN11_CSB_WRITE_PTR_MASK (GEN11_CSB_PTR_MASK << 0)
 
+#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+#define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
+#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
+/* in Gen12 ID 0x7FF is reserved to indicate idle */
+#define GEN12_MAX_CONTEXT_HW_ID	(GEN11_MAX_CONTEXT_HW_ID - 1)
+
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,
 	INTEL_CONTEXT_SCHEDULE_OUT,
@@ -76,33 +83,17 @@ enum {
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
 
 int intel_execlists_submission_setup(struct intel_engine_cs *engine);
-int intel_execlists_submission_init(struct intel_engine_cs *engine);
 
 /* Logical Ring Contexts */
-
-/*
- * We allocate a header at the start of the context image for our own
- * use, therefore the actual location of the logical state is offset
- * from the start of the VMA. The layout is
- *
- * | [guc]          | [hwsp] [logical state] |
- * |<- our header ->|<- context image      ->|
- *
- */
-/* The first page is used for sharing data with the GuC */
-#define LRC_GUCSHR_PN	(0)
-#define LRC_GUCSHR_SZ	(1)
 /* At the start of the context image is its per-process HWS page */
-#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + LRC_GUCSHR_SZ)
+#define LRC_PPHWSP_PN	(0)
 #define LRC_PPHWSP_SZ	(1)
-/* Finally we have the logical state for the context */
+/* After the PPHWSP we have the logical state for the context */
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
 
-/*
- * Currently we include the PPHWSP in __intel_engine_context_size() so
- * the size of the header is synonymous with the start of the PPHWSP.
- */
-#define LRC_HEADER_PAGES LRC_PPHWSP_PN
+/* Space within PPHWSP reserved to be used as scratch */
+#define LRC_PPHWSP_SCRATCH		0x34
+#define LRC_PPHWSP_SCRATCH_ADDR		(LRC_PPHWSP_SCRATCH * sizeof(u32))
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
 
@@ -119,16 +110,21 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   unsigned int max);
 
 struct intel_context *
-intel_execlists_create_virtual(struct i915_gem_context *ctx,
-			       struct intel_engine_cs **siblings,
+intel_execlists_create_virtual(struct intel_engine_cs **siblings,
 			       unsigned int count);
 
 struct intel_context *
-intel_execlists_clone_virtual(struct i915_gem_context *ctx,
-			      struct intel_engine_cs *src);
+intel_execlists_clone_virtual(struct intel_engine_cs *src);
 
 int intel_virtual_engine_attach_bond(struct intel_engine_cs *engine,
 				     const struct intel_engine_cs *master,
 				     const struct intel_engine_cs *sibling);
+
+struct intel_engine_cs *
+intel_virtual_engine_get_sibling(struct intel_engine_cs *engine,
+				 unsigned int sibling);
+
+bool
+intel_engine_in_execlists_submission_mode(const struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

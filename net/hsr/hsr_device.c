@@ -57,24 +57,19 @@ static void hsr_set_operstate(struct hsr_port *master, bool has_carrier)
 static bool hsr_check_carrier(struct hsr_port *master)
 {
 	struct hsr_port *port;
-	bool has_carrier;
 
-	has_carrier = false;
+	ASSERT_RTNL();
 
-	rcu_read_lock();
-	hsr_for_each_port(master->hsr, port)
+	hsr_for_each_port(master->hsr, port) {
 		if (port->type != HSR_PT_MASTER && is_slave_up(port->dev)) {
-			has_carrier = true;
-			break;
+			netif_carrier_on(master->dev);
+			return true;
 		}
-	rcu_read_unlock();
+	}
 
-	if (has_carrier)
-		netif_carrier_on(master->dev);
-	else
-		netif_carrier_off(master->dev);
+	netif_carrier_off(master->dev);
 
-	return has_carrier;
+	return false;
 }
 
 static void hsr_check_announce(struct net_device *hsr_dev,
@@ -118,11 +113,9 @@ int hsr_get_max_mtu(struct hsr_priv *hsr)
 	struct hsr_port *port;
 
 	mtu_max = ETH_DATA_LEN;
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port)
 		if (port->type != HSR_PT_MASTER)
 			mtu_max = min(port->dev->mtu, mtu_max);
-	rcu_read_unlock();
 
 	if (mtu_max < HSR_HLEN)
 		return 0;
@@ -157,7 +150,6 @@ static int hsr_dev_open(struct net_device *dev)
 	hsr = netdev_priv(dev);
 	designation = '\0';
 
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port) {
 		if (port->type == HSR_PT_MASTER)
 			continue;
@@ -175,7 +167,6 @@ static int hsr_dev_open(struct net_device *dev)
 			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
 				    designation, port->dev->name);
 	}
-	rcu_read_unlock();
 
 	if (designation == '\0')
 		netdev_warn(dev, "No slave devices configured\n");
@@ -227,8 +218,13 @@ static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hsr_port *master;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	skb->dev = master->dev;
-	hsr_forward_skb(skb, master);
+	if (master) {
+		skb->dev = master->dev;
+		hsr_forward_skb(skb, master);
+	} else {
+		atomic_long_inc(&dev->tx_dropped);
+		dev_kfree_skb_any(skb);
+	}
 	return NETDEV_TX_OK;
 }
 
@@ -267,6 +263,8 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
 	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 
 	if (hsr_ver > 0) {
 		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
@@ -343,27 +341,38 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
+static void hsr_del_ports(struct hsr_priv *hsr)
+{
+	struct hsr_port *port;
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (port)
+		hsr_del_port(port);
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	if (port)
+		hsr_del_port(port);
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	if (port)
+		hsr_del_port(port);
+}
+
 /* This has to be called after all the readers are gone.
  * Otherwise we would have to check the return value of
  * hsr_port_get_hsr().
  */
 static void hsr_dev_destroy(struct net_device *hsr_dev)
 {
-	struct hsr_priv *hsr;
-	struct hsr_port *port;
-	struct hsr_port *tmp;
-
-	hsr = netdev_priv(hsr_dev);
+	struct hsr_priv *hsr = netdev_priv(hsr_dev);
 
 	hsr_debugfs_term(hsr);
-
-	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
-		hsr_del_port(port);
+	hsr_del_ports(hsr);
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
 
-	hsr_del_self_node(&hsr->self_node_db);
+	hsr_del_self_node(hsr);
 	hsr_del_nodes(&hsr->node_db);
 }
 
@@ -424,22 +433,22 @@ static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
 };
 
 int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
-		     unsigned char multicast_spec, u8 protocol_version)
+		     unsigned char multicast_spec, u8 protocol_version,
+		     struct netlink_ext_ack *extack)
 {
 	struct hsr_priv *hsr;
-	struct hsr_port *port;
-	struct hsr_port *tmp;
 	int res;
 
 	hsr = netdev_priv(hsr_dev);
 	INIT_LIST_HEAD(&hsr->ports);
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
+	spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(&hsr->self_node_db, hsr_dev->dev_addr,
+	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
@@ -470,33 +479,33 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	/* Make sure the 1st call to netif_carrier_on() gets through */
 	netif_carrier_off(hsr_dev);
 
-	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
+	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER, extack);
 	if (res)
-		goto err_add_port;
+		goto err_add_master;
 
 	res = register_netdevice(hsr_dev);
 	if (res)
-		goto fail;
+		goto err_unregister;
 
-	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A);
+	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A, extack);
 	if (res)
-		goto fail;
-	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B);
-	if (res)
-		goto fail;
+		goto err_add_slaves;
 
+	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B, extack);
+	if (res)
+		goto err_add_slaves;
+
+	hsr_debugfs_init(hsr, hsr_dev);
 	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
-	res = hsr_debugfs_init(hsr, hsr_dev);
-	if (res)
-		goto fail;
 
 	return 0;
 
-fail:
-	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
-		hsr_del_port(port);
-err_add_port:
-	hsr_del_self_node(&hsr->self_node_db);
+err_add_slaves:
+	unregister_netdevice(hsr_dev);
+err_unregister:
+	hsr_del_ports(hsr);
+err_add_master:
+	hsr_del_self_node(hsr);
 
 	return res;
 }

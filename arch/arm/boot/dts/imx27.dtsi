@@ -525,7 +525,7 @@
 				reg = <0x10024600 0x200>;
 			};
 
-			sahara2: sahara@10025000 {
+			sahara2: crypto@10025000 {
 				compatible = "fsl,imx27-sahara";
 				reg = <0x10025000 0x1000>;
 				interrupts = <59>;
@@ -585,7 +585,7 @@
 			status = "disabled";
 		};
 
-		iram: iram@ffff4c00 {
+		iram: sram@ffff4c00 {
 			compatible = "mmio-sram";
 			reg = <0xffff4c00 0xb400>;
 		};

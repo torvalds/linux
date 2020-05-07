@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 
 #include "disasm.h"
 #include "json_writer.h"
@@ -174,7 +174,7 @@ static const char *print_call(void *private_data,
 	struct kernel_sym *sym;
 
 	if (insn->src_reg == BPF_PSEUDO_CALL &&
-	    (__u32) insn->imm < dd->nr_jited_ksyms)
+	    (__u32) insn->imm < dd->nr_jited_ksyms && dd->jited_ksyms)
 		address = dd->jited_ksyms[insn->imm];
 
 	sym = kernel_syms_search(dd, address);

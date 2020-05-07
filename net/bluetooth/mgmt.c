@@ -38,7 +38,7 @@
 #include "mgmt_util.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	14
+#define MGMT_REVISION	16
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
@@ -106,6 +106,8 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_START_LIMITED_DISCOVERY,
 	MGMT_OP_READ_EXT_INFO,
 	MGMT_OP_SET_APPEARANCE,
+	MGMT_OP_SET_BLOCKED_KEYS,
+	MGMT_OP_SET_WIDEBAND_SPEECH,
 };
 
 static const u16 mgmt_events[] = {
@@ -175,7 +177,7 @@ static const u16 mgmt_untrusted_events[] = {
 		 "\x00\x00\x00\x00\x00\x00\x00\x00"
 
 /* HCI to MGMT error code conversion table */
-static u8 mgmt_status_table[] = {
+static const u8 mgmt_status_table[] = {
 	MGMT_STATUS_SUCCESS,
 	MGMT_STATUS_UNKNOWN_COMMAND,	/* Unknown Command */
 	MGMT_STATUS_NOT_CONNECTED,	/* No Connection */
@@ -761,6 +763,10 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 
 		if (lmp_sc_capable(hdev))
 			settings |= MGMT_SETTING_SECURE_CONN;
+
+		if (test_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
+			     &hdev->quirks))
+			settings |= MGMT_SETTING_WIDEBAND_SPEECH;
 	}
 
 	if (lmp_le_capable(hdev)) {
@@ -844,6 +850,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 		if (bacmp(&hdev->static_addr, BDADDR_ANY))
 			settings |= MGMT_SETTING_STATIC_ADDRESS;
 	}
+
+	if (hci_dev_test_flag(hdev, HCI_WIDEBAND_SPEECH_ENABLED))
+		settings |= MGMT_SETTING_WIDEBAND_SPEECH;
 
 	return settings;
 }
@@ -1378,6 +1387,12 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!hci_dev_test_flag(hdev, HCI_CONNECTABLE)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				      MGMT_STATUS_REJECTED);
+		goto failed;
+	}
+
+	if (hdev->advertising_paused) {
+		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
+				      MGMT_STATUS_BUSY);
 		goto failed;
 	}
 
@@ -2341,6 +2356,14 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
+		if (hci_is_blocked_key(hdev,
+				       HCI_BLOCKED_KEY_TYPE_LINKKEY,
+				       key->val)) {
+			bt_dev_warn(hdev, "Skipping blocked link key for %pMR",
+				    &key->addr.bdaddr);
+			continue;
+		}
+
 		/* Always ignore debug keys and require a new pairing if
 		 * the user wants to use them.
 		 */
@@ -3282,7 +3305,7 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
 	struct mgmt_cp_set_appearance *cp = data;
-	u16 apperance;
+	u16 appearance;
 	int err;
 
 	BT_DBG("");
@@ -3291,12 +3314,12 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_APPEARANCE,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	apperance = le16_to_cpu(cp->appearance);
+	appearance = le16_to_cpu(cp->appearance);
 
 	hci_dev_lock(hdev);
 
-	if (hdev->appearance != apperance) {
-		hdev->appearance = apperance;
+	if (hdev->appearance != appearance) {
+		hdev->appearance = appearance;
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 			adv_expire(hdev, MGMT_ADV_FLAG_APPEARANCE);
@@ -3528,6 +3551,111 @@ static int set_phy_configuration(struct sock *sk, struct hci_dev *hdev,
 unlock:
 	hci_dev_unlock(hdev);
 
+	return err;
+}
+
+static int set_blocked_keys(struct sock *sk, struct hci_dev *hdev, void *data,
+			    u16 len)
+{
+	int err = MGMT_STATUS_SUCCESS;
+	struct mgmt_cp_set_blocked_keys *keys = data;
+	const u16 max_key_count = ((U16_MAX - sizeof(*keys)) /
+				   sizeof(struct mgmt_blocked_key_info));
+	u16 key_count, expected_len;
+	int i;
+
+	BT_DBG("request for %s", hdev->name);
+
+	key_count = __le16_to_cpu(keys->key_count);
+	if (key_count > max_key_count) {
+		bt_dev_err(hdev, "too big key_count value %u", key_count);
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BLOCKED_KEYS,
+				       MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	expected_len = struct_size(keys, keys, key_count);
+	if (expected_len != len) {
+		bt_dev_err(hdev, "expected %u bytes, got %u bytes",
+			   expected_len, len);
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BLOCKED_KEYS,
+				       MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	hci_dev_lock(hdev);
+
+	hci_blocked_keys_clear(hdev);
+
+	for (i = 0; i < keys->key_count; ++i) {
+		struct blocked_key *b = kzalloc(sizeof(*b), GFP_KERNEL);
+
+		if (!b) {
+			err = MGMT_STATUS_NO_RESOURCES;
+			break;
+		}
+
+		b->type = keys->keys[i].type;
+		memcpy(b->val, keys->keys[i].val, sizeof(b->val));
+		list_add_rcu(&b->list, &hdev->blocked_keys);
+	}
+	hci_dev_unlock(hdev);
+
+	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_BLOCKED_KEYS,
+				err, NULL, 0);
+}
+
+static int set_wideband_speech(struct sock *sk, struct hci_dev *hdev,
+			       void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	int err;
+	bool changed = false;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (!test_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks))
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_WIDEBAND_SPEECH,
+				       MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_WIDEBAND_SPEECH,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	if (pending_find(MGMT_OP_SET_WIDEBAND_SPEECH, hdev)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_SET_WIDEBAND_SPEECH,
+				      MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
+	if (hdev_is_powered(hdev) &&
+	    !!cp->val != hci_dev_test_flag(hdev,
+					   HCI_WIDEBAND_SPEECH_ENABLED)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_SET_WIDEBAND_SPEECH,
+				      MGMT_STATUS_REJECTED);
+		goto unlock;
+	}
+
+	if (cp->val)
+		changed = !hci_dev_test_and_set_flag(hdev,
+						   HCI_WIDEBAND_SPEECH_ENABLED);
+	else
+		changed = hci_dev_test_and_clear_flag(hdev,
+						   HCI_WIDEBAND_SPEECH_ENABLED);
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_WIDEBAND_SPEECH, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (changed)
+		err = new_settings(hdev, sk);
+
+unlock:
+	hci_dev_unlock(hdev);
 	return err;
 }
 
@@ -3807,6 +3935,13 @@ void mgmt_start_discovery_complete(struct hci_dev *hdev, u8 status)
 	}
 
 	hci_dev_unlock(hdev);
+
+	/* Handle suspend notifier */
+	if (test_and_clear_bit(SUSPEND_UNPAUSE_DISCOVERY,
+			       hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Unpaused discovery");
+		wake_up(&hdev->suspend_wait_q);
+	}
 }
 
 static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
@@ -3864,6 +3999,13 @@ static int start_discovery_internal(struct sock *sk, struct hci_dev *hdev,
 
 	if (!discovery_type_is_valid(hdev, cp->type, &status)) {
 		err = mgmt_cmd_complete(sk, hdev->id, op, status,
+					&cp->type, sizeof(cp->type));
+		goto failed;
+	}
+
+	/* Can't start discovery when it is paused */
+	if (hdev->discovery_paused) {
+		err = mgmt_cmd_complete(sk, hdev->id, op, MGMT_STATUS_BUSY,
 					&cp->type, sizeof(cp->type));
 		goto failed;
 	}
@@ -4035,6 +4177,12 @@ void mgmt_stop_discovery_complete(struct hci_dev *hdev, u8 status)
 	}
 
 	hci_dev_unlock(hdev);
+
+	/* Handle suspend notifier */
+	if (test_and_clear_bit(SUSPEND_PAUSE_DISCOVERY, hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Paused discovery");
+		wake_up(&hdev->suspend_wait_q);
+	}
 }
 
 static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -4266,6 +4414,17 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 	if (match.sk)
 		sock_put(match.sk);
 
+	/* Handle suspend notifier */
+	if (test_and_clear_bit(SUSPEND_PAUSE_ADVERTISING,
+			       hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Paused advertising");
+		wake_up(&hdev->suspend_wait_q);
+	} else if (test_and_clear_bit(SUSPEND_UNPAUSE_ADVERTISING,
+				      hdev->suspend_tasks)) {
+		bt_dev_dbg(hdev, "Unpaused advertising");
+		wake_up(&hdev->suspend_wait_q);
+	}
+
 	/* If "Set Advertising" was just disabled and instance advertising was
 	 * set up earlier, then re-enable multi-instance advertising.
 	 */
@@ -4316,6 +4475,10 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (cp->val != 0x00 && cp->val != 0x01 && cp->val != 0x02)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_ADVERTISING,
 				       MGMT_STATUS_INVALID_PARAMS);
+
+	if (hdev->advertising_paused)
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_ADVERTISING,
+				       MGMT_STATUS_BUSY);
 
 	hci_dev_lock(hdev);
 
@@ -5051,6 +5214,14 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 	for (i = 0; i < irk_count; i++) {
 		struct mgmt_irk_info *irk = &cp->irks[i];
 
+		if (hci_is_blocked_key(hdev,
+				       HCI_BLOCKED_KEY_TYPE_IRK,
+				       irk->val)) {
+			bt_dev_warn(hdev, "Skipping blocked IRK for %pMR",
+				    &irk->addr.bdaddr);
+			continue;
+		}
+
 		hci_add_irk(hdev, &irk->addr.bdaddr,
 			    le_addr_type(irk->addr.type), irk->val,
 			    BDADDR_ANY);
@@ -5133,6 +5304,14 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_ltk_info *key = &cp->keys[i];
 		u8 type, authenticated;
+
+		if (hci_is_blocked_key(hdev,
+				       HCI_BLOCKED_KEY_TYPE_LTK,
+				       key->val)) {
+			bt_dev_warn(hdev, "Skipping blocked LTK for %pMR",
+				    &key->addr.bdaddr);
+			continue;
+		}
 
 		switch (key->type) {
 		case MGMT_LTK_UNAUTHENTICATED:
@@ -6669,8 +6848,11 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	if (!err)
 		err = hci_req_run(&req, add_advertising_complete);
 
-	if (err < 0)
+	if (err < 0) {
+		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
+				      MGMT_STATUS_FAILED);
 		mgmt_pending_remove(cmd);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -6914,6 +7096,9 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ set_appearance,	   MGMT_SET_APPEARANCE_SIZE },
 	{ get_phy_configuration,   MGMT_GET_PHY_CONFIGURATION_SIZE },
 	{ set_phy_configuration,   MGMT_SET_PHY_CONFIGURATION_SIZE },
+	{ set_blocked_keys,	   MGMT_OP_SET_BLOCKED_KEYS_SIZE,
+						HCI_MGMT_VAR_LEN },
+	{ set_wideband_speech,	   MGMT_SETTING_SIZE },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)

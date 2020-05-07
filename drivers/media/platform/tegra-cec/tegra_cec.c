@@ -351,7 +351,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (cec->tegra_cec_irq <= 0)
 		return -EBUSY;
 
-	cec->cec_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	cec->cec_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
 
 	if (!cec->cec_base) {
@@ -409,7 +409,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	return 0;
 
 err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 err_adapter:
 	cec_delete_adapter(cec->adap);
 err_clk:
@@ -423,7 +423,7 @@ static int tegra_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(cec->clk);
 
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;

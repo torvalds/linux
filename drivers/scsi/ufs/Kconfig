@@ -46,7 +46,7 @@ config SCSI_UFSHCD
 	  The module will be called ufshcd.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/ufs.txt>.
+	  <file:Documentation/scsi/ufs.rst>.
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a UFS device.
 
@@ -130,6 +130,16 @@ config SCSI_UFS_HISI
 	  This selects the Hisilicon specific additions to UFSHCD platform driver.
 
 	  Select this if you have UFS controller on Hisilicon chipset.
+	  If unsure, say N.
+
+config SCSI_UFS_TI_J721E
+	tristate "TI glue layer for Cadence UFS Controller"
+	depends on OF && HAS_IOMEM && (ARCH_K3 || COMPILE_TEST)
+	help
+	  This selects driver for TI glue layer for Cadence UFS Host
+	  Controller IP.
+
+	  Selects this if you have TI platform with UFS controller.
 	  If unsure, say N.
 
 config SCSI_UFS_BSG

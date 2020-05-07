@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/st,stm32-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 Real Time Clock Bindings
+
+maintainers:
+  - Gabriel Fernandez <gabriel.fernandez@st.com>
+
+properties:
+  compatible:
+    enum:
+      - st,stm32-rtc
+      - st,stm32h7-rtc
+      - st,stm32mp1-rtc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: rtc_ck
+
+  interrupts:
+    maxItems: 1
+
+  st,syscfg:
+    allOf:
+      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
+      - items:
+          minItems: 3
+          maxItems: 3
+    description: |
+       Phandle/offset/mask triplet. The phandle to pwrcfg used to
+       access control register at offset, and change the dbp (Disable Backup
+       Protection) bit represented by the mask, mandatory to disable/enable backup
+       domain (RTC registers) write protection.
+
+  assigned-clocks:
+    description: |
+      override default rtc_ck parent clock reference to the rtc_ck clock entry
+    maxItems: 1
+
+  assigned-clock-parents:
+    description: |
+      override default rtc_ck parent clock phandle of the new parent clock of rtc_ck
+    maxItems: 1
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32-rtc
+
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+
+        clock-names: false
+
+      required:
+        - st,syscfg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32h7-rtc
+
+    then:
+       properties:
+         clocks:
+           minItems: 2
+           maxItems: 2
+
+       required:
+         - clock-names
+         - st,syscfg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp1-rtc
+
+    then:
+       properties:
+         clocks:
+           minItems: 2
+           maxItems: 2
+
+         assigned-clocks: false
+         assigned-clock-parents: false
+
+       required:
+         - clock-names
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/mfd/stm32f4-rcc.h>
+    #include <dt-bindings/clock/stm32fx-clock.h>
+    rtc@40002800 {
+      compatible = "st,stm32-rtc";
+      reg = <0x40002800 0x400>;
+      clocks = <&rcc 1 CLK_RTC>;
+      assigned-clocks = <&rcc 1 CLK_RTC>;
+      assigned-clock-parents = <&rcc 1 CLK_LSE>;
+      interrupt-parent = <&exti>;
+      interrupts = <17 1>;
+      st,syscfg = <&pwrcfg 0x00 0x100>;
+    };
+
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    rtc@5c004000 {
+      compatible = "st,stm32mp1-rtc";
+      reg = <0x5c004000 0x400>;
+      clocks = <&rcc RTCAPB>, <&rcc RTC>;
+      clock-names = "pclk", "rtc_ck";
+      interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+    };
+
+...

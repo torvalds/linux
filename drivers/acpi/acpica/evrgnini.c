@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -198,7 +198,6 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						 * root bridge. Still need to return a context object
 						 * for the new PCI_Config operation region, however.
 						 */
-						status = AE_OK;
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Could not install PciConfig handler "

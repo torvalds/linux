@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2017 - Cambridge Greys Limited
+ * Copyright (C) 2017 - 2019 Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
@@ -21,6 +21,9 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
+#include <linux/fs.h>
+#include <uapi/linux/filter.h>
 #include <init.h>
 #include <irq_kern.h>
 #include <irq_user.h>
@@ -43,7 +46,6 @@
 
 
 #define DRIVER_NAME "uml-vector"
-#define DRIVER_VERSION "01"
 struct vector_cmd_line_arg {
 	struct list_head list;
 	int unit;
@@ -128,6 +130,23 @@ static int get_mtu(struct arglist *def)
 	return ETH_MAX_PACKET;
 }
 
+static char *get_bpf_file(struct arglist *def)
+{
+	return uml_vector_fetch_arg(def, "bpffile");
+}
+
+static bool get_bpf_flash(struct arglist *def)
+{
+	char *allow = uml_vector_fetch_arg(def, "bpfflash");
+	long result;
+
+	if (allow != NULL) {
+		if (kstrtoul(allow, 10, &result) == 0)
+			return (allow > 0);
+	}
+	return false;
+}
+
 static int get_depth(struct arglist *def)
 {
 	char *mtu = uml_vector_fetch_arg(def, "depth");
@@ -176,6 +195,10 @@ static int get_transport_options(struct arglist *def)
 	int vec_rx = VECTOR_RX;
 	int vec_tx = VECTOR_TX;
 	long parsed;
+	int result = 0;
+
+	if (transport == NULL)
+		return -EINVAL;
 
 	if (vector != NULL) {
 		if (kstrtoul(vector, 10, &parsed) == 0) {
@@ -186,14 +209,16 @@ static int get_transport_options(struct arglist *def)
 		}
 	}
 
+	if (get_bpf_flash(def))
+		result = VECTOR_BPF_FLASH;
 
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
-		return 0;
+		return result;
 	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
-		return (vec_rx | VECTOR_BPF);
+		return (result | vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
-		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
-	return (vec_rx | vec_tx);
+		return (result | vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
+	return (result | vec_rx | vec_tx);
 }
 
 
@@ -1139,6 +1164,8 @@ static int vector_net_close(struct net_device *dev)
 	}
 	tasklet_kill(&vp->tx_poll);
 	if (vp->fds->rx_fd > 0) {
+		if (vp->bpf)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
 		os_close_file(vp->fds->rx_fd);
 		vp->fds->rx_fd = -1;
 	}
@@ -1146,7 +1173,10 @@ static int vector_net_close(struct net_device *dev)
 		os_close_file(vp->fds->tx_fd);
 		vp->fds->tx_fd = -1;
 	}
+	if (vp->bpf != NULL)
+		kfree(vp->bpf->filter);
 	kfree(vp->bpf);
+	vp->bpf = NULL;
 	kfree(vp->fds->remote_addr);
 	kfree(vp->transport_data);
 	kfree(vp->header_rxbuffer);
@@ -1181,6 +1211,7 @@ static void vector_reset_tx(struct work_struct *work)
 	netif_start_queue(vp->dev);
 	netif_wake_queue(vp->dev);
 }
+
 static int vector_net_open(struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
@@ -1195,6 +1226,8 @@ static int vector_net_open(struct net_device *dev)
 	}
 	vp->opened = true;
 	spin_unlock_irqrestore(&vp->lock, flags);
+
+	vp->bpf = uml_vector_user_bpf(get_bpf_file(vp->parsed));
 
 	vp->fds = uml_vector_user_open(vp->unit, vp->parsed);
 
@@ -1267,8 +1300,11 @@ static int vector_net_open(struct net_device *dev)
 		if (!uml_raw_enable_qdisc_bypass(vp->fds->rx_fd))
 			vp->options |= VECTOR_BPF;
 	}
-	if ((vp->options & VECTOR_BPF) != 0)
-		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
+	if (((vp->options & VECTOR_BPF) != 0) && (vp->bpf == NULL))
+		vp->bpf = uml_vector_default_bpf(dev->dev_addr);
+
+	if (vp->bpf != NULL)
+		uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
 
 	netif_start_queue(dev);
 
@@ -1298,7 +1334,7 @@ static void vector_net_set_multicast_list(struct net_device *dev)
 	return;
 }
 
-static void vector_net_tx_timeout(struct net_device *dev)
+static void vector_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vector_private *vp = netdev_priv(dev);
 
@@ -1344,7 +1380,65 @@ static void vector_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+}
+
+static int vector_net_load_bpf_flash(struct net_device *dev,
+				struct ethtool_flash *efl)
+{
+	struct vector_private *vp = netdev_priv(dev);
+	struct vector_device *vdevice;
+	const struct firmware *fw;
+	int result = 0;
+
+	if (!(vp->options & VECTOR_BPF_FLASH)) {
+		netdev_err(dev, "loading firmware not permitted: %s\n", efl->data);
+		return -1;
+	}
+
+	spin_lock(&vp->lock);
+
+	if (vp->bpf != NULL) {
+		if (vp->opened)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
+		kfree(vp->bpf->filter);
+		vp->bpf->filter = NULL;
+	} else {
+		vp->bpf = kmalloc(sizeof(struct sock_fprog), GFP_KERNEL);
+		if (vp->bpf == NULL) {
+			netdev_err(dev, "failed to allocate memory for firmware\n");
+			goto flash_fail;
+		}
+	}
+
+	vdevice = find_device(vp->unit);
+
+	if (request_firmware(&fw, efl->data, &vdevice->pdev.dev))
+		goto flash_fail;
+
+	vp->bpf->filter = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!vp->bpf->filter)
+		goto free_buffer;
+
+	vp->bpf->len = fw->size / sizeof(struct sock_filter);
+	release_firmware(fw);
+
+	if (vp->opened)
+		result = uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
+
+	spin_unlock(&vp->lock);
+
+	return result;
+
+free_buffer:
+	release_firmware(fw);
+
+flash_fail:
+	spin_unlock(&vp->lock);
+	if (vp->bpf != NULL)
+		kfree(vp->bpf->filter);
+	kfree(vp->bpf);
+	vp->bpf = NULL;
+	return -1;
 }
 
 static void vector_get_ringparam(struct net_device *netdev,
@@ -1415,6 +1509,7 @@ static int vector_set_coalesce(struct net_device *netdev,
 }
 
 static const struct ethtool_ops vector_net_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_TX_USECS,
 	.get_drvinfo	= vector_net_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
@@ -1424,6 +1519,7 @@ static const struct ethtool_ops vector_net_ethtool_ops = {
 	.get_ethtool_stats = vector_get_ethtool_stats,
 	.get_coalesce	= vector_get_coalesce,
 	.set_coalesce	= vector_set_coalesce,
+	.flash_device	= vector_net_load_bpf_flash,
 };
 
 
@@ -1528,8 +1624,9 @@ static void vector_eth_configure(
 		.in_write_poll		= false,
 		.coalesce		= 2,
 		.req_size		= get_req_size(def),
-		.in_error		= false
-		});
+		.in_error		= false,
+		.bpf			= NULL
+	});
 
 	dev->features = dev->hw_features = (NETIF_F_SG | NETIF_F_FRAGLIST);
 	tasklet_init(&vp->tx_poll, vector_tx_poll, (unsigned long)vp);

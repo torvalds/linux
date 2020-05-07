@@ -72,8 +72,8 @@ static int rear_amp_event(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	component = rtd->codec_dai->component;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	component = asoc_rtd_to_codec(rtd, 0)->component;
 	return rear_amp_power(component, SND_SOC_DAPM_EVENT_ON(event));
 }
 
@@ -117,7 +117,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 
 	/* Prepare GPIO8 for rear speaker amplifier */
 	snd_soc_component_update_bits(component, AC97_GPIO_CFG, 0x100, 0x100);

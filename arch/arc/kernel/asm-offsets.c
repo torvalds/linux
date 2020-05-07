@@ -12,6 +12,7 @@
 #include <asm/hardirq.h>
 #include <asm/page.h>
 
+
 int main(void)
 {
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
@@ -66,7 +67,18 @@ int main(void)
 
 	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
 	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
-	DEFINE(PT_user_r25, offsetof(struct pt_regs, user_r25));
+
+#ifdef CONFIG_ISA_ARCV2
+	OFFSET(PT_r12, pt_regs, r12);
+	OFFSET(PT_r30, pt_regs, r30);
+#endif
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	OFFSET(PT_r58, pt_regs, r58);
+	OFFSET(PT_r59, pt_regs, r59);
+#endif
+#ifdef CONFIG_ARC_DSP_SAVE_RESTORE_REGS
+	OFFSET(PT_DSP_CTRL, pt_regs, DSP_CTRL);
+#endif
 
 	return 0;
 }

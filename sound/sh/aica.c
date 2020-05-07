@@ -101,10 +101,10 @@ static void spu_memset(u32 toi, u32 what, int length)
 }
 
 /* spu_memload - write to SPU address space */
-static void spu_memload(u32 toi, void *from, int length)
+static void spu_memload(u32 toi, const void *from, int length)
 {
 	unsigned long flags;
-	u32 *froml = from;
+	const u32 *froml = from;
 	u32 __iomem *to = (u32 __iomem *) (SPU_MEMORY_BASE + toi);
 	int i;
 	u32 val;
@@ -363,23 +363,6 @@ static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 	return 0;
 }
 
-static int snd_aicapcm_pcm_hw_free(struct snd_pcm_substream
-				   *substream)
-{
-	/* Free the DMA buffer */
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int snd_aicapcm_pcm_hw_params(struct snd_pcm_substream
-				     *substream, struct snd_pcm_hw_params
-				     *hw_params)
-{
-	/* Allocate a DMA buffer using ALSA built-ins */
-	return
-	    snd_pcm_lib_malloc_pages(substream,
-				     params_buffer_bytes(hw_params));
-}
-
 static int snd_aicapcm_pcm_prepare(struct snd_pcm_substream
 				   *substream)
 {
@@ -416,9 +399,6 @@ static unsigned long snd_aicapcm_pcm_pointer(struct snd_pcm_substream
 static const struct snd_pcm_ops snd_aicapcm_playback_ops = {
 	.open = snd_aicapcm_pcm_open,
 	.close = snd_aicapcm_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aicapcm_pcm_hw_params,
-	.hw_free = snd_aicapcm_pcm_hw_free,
 	.prepare = snd_aicapcm_pcm_prepare,
 	.trigger = snd_aicapcm_pcm_trigger,
 	.pointer = snd_aicapcm_pcm_pointer,
@@ -441,11 +421,11 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_aicapcm_playback_ops);
 	/* Allocate the DMA buffers */
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      AICA_BUFFER_SIZE,
-					      AICA_BUFFER_SIZE);
+	snd_pcm_set_managed_buffer_all(pcm,
+				       SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       AICA_BUFFER_SIZE,
+				       AICA_BUFFER_SIZE);
 	return 0;
 }
 

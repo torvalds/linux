@@ -52,10 +52,6 @@
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
 
-#define DRV_VERSION "1.0.0"
-
-const char ipoib_driver_version[] = DRV_VERSION;
-
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -1182,7 +1178,7 @@ unref:
 	return NETDEV_TX_OK;
 }
 
-static void ipoib_timeout(struct net_device *dev)
+static void ipoib_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
@@ -2019,6 +2015,15 @@ static int ipoib_set_vf_guid(struct net_device *dev, int vf, u64 guid, int type)
 	return ib_set_vf_guid(priv->ca, vf, priv->port, guid, type);
 }
 
+static int ipoib_get_vf_guid(struct net_device *dev, int vf,
+			     struct ifla_vf_guid *node_guid,
+			     struct ifla_vf_guid *port_guid)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	return ib_get_vf_guid(priv->ca, vf, priv->port, node_guid, port_guid);
+}
+
 static int ipoib_get_vf_stats(struct net_device *dev, int vf,
 			      struct ifla_vf_stats *vf_stats)
 {
@@ -2045,6 +2050,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_set_vf_link_state	 = ipoib_set_vf_link_state,
 	.ndo_get_vf_config	 = ipoib_get_vf_config,
 	.ndo_get_vf_stats	 = ipoib_get_vf_stats,
+	.ndo_get_vf_guid	 = ipoib_get_vf_guid,
 	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
 	.ndo_set_mac_address	 = ipoib_set_mac,
 	.ndo_get_stats64	 = ipoib_get_stats,

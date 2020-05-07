@@ -38,13 +38,15 @@
 
 #define RTC_CALIB_DEF		0x198233
 #define RTC_CALIB_MASK		0x1FFFFF
+#define RTC_ALRM_MASK          BIT(1)
+#define RTC_MSEC               1000
 
 struct xlnx_rtc_dev {
 	struct rtc_device	*rtc;
 	void __iomem		*reg_base;
 	int			alarm_irq;
 	int			sec_irq;
-	int			calibval;
+	unsigned int		calibval;
 };
 
 static int xlnx_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -94,7 +96,7 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 * RTC has updated the CURRENT_TIME with the time written into
 		 * SET_TIME_WRITE register.
 		 */
-		rtc_time64_to_tm(readl(xrtcdev->reg_base + RTC_CUR_TM), tm);
+		read_time = readl(xrtcdev->reg_base + RTC_CUR_TM);
 	} else {
 		/*
 		 * Time written in SET_TIME_WRITE has not yet updated into
@@ -104,8 +106,8 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 * reading.
 		 */
 		read_time = readl(xrtcdev->reg_base + RTC_SET_TM_RD) - 1;
-		rtc_time64_to_tm(read_time, tm);
 	}
+	rtc_time64_to_tm(read_time, tm);
 
 	return 0;
 }
@@ -123,11 +125,28 @@ static int xlnx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int xlnx_rtc_alarm_irq_enable(struct device *dev, u32 enabled)
 {
 	struct xlnx_rtc_dev *xrtcdev = dev_get_drvdata(dev);
+	unsigned int status;
+	ulong timeout;
 
-	if (enabled)
+	timeout = jiffies + msecs_to_jiffies(RTC_MSEC);
+
+	if (enabled) {
+		while (1) {
+			status = readl(xrtcdev->reg_base + RTC_INT_STS);
+			if (!((status & RTC_ALRM_MASK) == RTC_ALRM_MASK))
+				break;
+
+			if (time_after_eq(jiffies, timeout)) {
+				dev_err(dev, "Time out occur, while clearing alarm status bit\n");
+				return -ETIMEDOUT;
+			}
+			writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_STS);
+		}
+
 		writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_EN);
-	else
+	} else {
 		writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_DIS);
+	}
 
 	return 0;
 }
@@ -183,8 +202,8 @@ static irqreturn_t xlnx_rtc_interrupt(int irq, void *id)
 	if (!(status & (RTC_INT_SEC | RTC_INT_ALRM)))
 		return IRQ_NONE;
 
-	/* Clear RTC_INT_ALRM interrupt only */
-	writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_STS);
+	/* Disable RTC_INT_ALRM interrupt only */
+	writel(RTC_INT_ALRM, xrtcdev->reg_base + RTC_INT_DIS);
 
 	if (status & RTC_INT_ALRM)
 		rtc_update_irq(xrtcdev->rtc, 1, RTC_IRQF | RTC_AF);
@@ -195,7 +214,6 @@ static irqreturn_t xlnx_rtc_interrupt(int irq, void *id)
 static int xlnx_rtc_probe(struct platform_device *pdev)
 {
 	struct xlnx_rtc_dev *xrtcdev;
-	struct resource *res;
 	int ret;
 
 	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
@@ -211,9 +229,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 	xrtcdev->rtc->ops = &xlnx_rtc_ops;
 	xrtcdev->rtc->range_max = U32_MAX;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	xrtcdev->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	xrtcdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xrtcdev->reg_base))
 		return PTR_ERR(xrtcdev->reg_base);
 

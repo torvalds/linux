@@ -86,7 +86,6 @@
 
 		target-module@22000 {			/* 0x40122000, ap 2 02.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp1";
 			reg = <0x2208c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -120,7 +119,6 @@
 
 		target-module@24000 {			/* 0x40124000, ap 4 04.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp2";
 			reg = <0x2408c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -154,7 +152,6 @@
 
 		target-module@26000 {			/* 0x40126000, ap 6 06.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp3";
 			reg = <0x2608c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -188,7 +185,6 @@
 
 		target-module@28000 {			/* 0x40128000, ap 8 08.0 */
 			compatible = "ti,sysc-mcasp", "ti,sysc";
-			ti,hwmods = "mcasp";
 			reg = <0x28000 0x4>,
 			      <0x28004 0x4>;
 			reg-names = "rev", "sysc";
@@ -223,7 +219,6 @@
 
 		target-module@2e000 {			/* 0x4012e000, ap 12 0c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "dmic";
 			reg = <0x2e000 0x4>,
 			      <0x2e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -283,7 +278,6 @@
 
 		mcpdm_module: target-module@32000 {	/* 0x40132000, ap 16 10.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcpdm";
 			reg = <0x32000 0x4>,
 			      <0x32010 0x4>;
 			reg-names = "rev", "sysc";
@@ -318,7 +312,6 @@
 
 		target-module@38000 {			/* 0x40138000, ap 18 12.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x38000 0x4>,
 			      <0x38010 0x4>;
 			reg-names = "rev", "sysc";
@@ -349,7 +342,6 @@
 
 		target-module@3a000 {			/* 0x4013a000, ap 20 14.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x3a000 0x4>,
 			      <0x3a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -380,7 +372,6 @@
 
 		target-module@3c000 {			/* 0x4013c000, ap 22 16.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x3c000 0x4>,
 			      <0x3c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -411,7 +402,6 @@
 
 		target-module@3e000 {			/* 0x4013e000, ap 24 18.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -470,7 +460,6 @@
 
 		target-module@f1000 {			/* 0x401f1000, ap 32 20.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "aess";
 			reg = <0xf1000 0x4>,
 			      <0xf1010 0x4>;
 			reg-names = "rev", "sysc";

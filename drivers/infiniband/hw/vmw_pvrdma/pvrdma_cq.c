@@ -135,8 +135,8 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			goto err_cq;
 		}
 
-		cq->umem = ib_umem_get(udata, ucmd.buf_addr, ucmd.buf_size,
-				       IB_ACCESS_LOCAL_WRITE, 1);
+		cq->umem = ib_umem_get(ibdev, ucmd.buf_addr, ucmd.buf_size,
+				       IB_ACCESS_LOCAL_WRITE);
 		if (IS_ERR(cq->umem)) {
 			ret = PTR_ERR(cq->umem);
 			goto err_cq;

@@ -11,6 +11,7 @@
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
 #include "../sof-priv.h"
+#include "../sof-audio.h"
 #include "hda.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -203,7 +204,7 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_bus *bus = hstream->bus;
 	struct hdac_ext_stream *link_dev;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hda_pipe_params p_params = {0};
 	struct hdac_ext_link *link;
@@ -216,6 +217,8 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 		link_dev = hda_link_stream_assign(bus, substream);
 		if (!link_dev)
 			return -EBUSY;
+
+		snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 	}
 
 	stream_tag = hdac_stream(link_dev)->stream_tag;
@@ -227,8 +230,6 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 				  substream->stream);
 	if (ret < 0)
 		return ret;
-
-	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
 	link = snd_hdac_ext_bus_get_link(bus, codec_dai->component->name);
 	if (!link)
@@ -261,13 +262,10 @@ static int hda_link_pcm_prepare(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
-	struct sof_intel_hda_stream *hda_stream;
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	int stream = substream->stream;
-
-	hda_stream = hstream_to_sof_hda_stream(link_dev);
 
 	if (link_dev->link_prepared)
 		return 0;
@@ -295,7 +293,7 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 	bus = hstream->bus;
 	rtd = snd_pcm_substream_chip(substream);
 
-	link = snd_hdac_ext_bus_get_link(bus, rtd->codec_dai->component->name);
+	link = snd_hdac_ext_bus_get_link(bus, asoc_rtd_to_codec(rtd, 0)->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -361,6 +359,13 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 	bus = hstream->bus;
 	rtd = snd_pcm_substream_chip(substream);
 	link_dev = snd_soc_dai_get_dma_data(dai, substream);
+
+	if (!link_dev) {
+		dev_dbg(dai->dev,
+			"%s: link_dev is not assigned\n", __func__);
+		return -EINVAL;
+	}
+
 	hda_stream = hstream_to_sof_hda_stream(link_dev);
 
 	/* free the link DMA channel in the FW */
@@ -369,7 +374,7 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	link = snd_hdac_ext_bus_get_link(bus, rtd->codec_dai->component->name);
+	link = snd_hdac_ext_bus_get_link(bus, asoc_rtd_to_codec(rtd, 0)->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -394,6 +399,19 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 	.trigger = hda_link_pcm_trigger,
 	.prepare = hda_link_pcm_prepare,
 };
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
+#include "../compress.h"
+
+static struct snd_soc_cdai_ops sof_probe_compr_ops = {
+	.startup	= sof_probe_compr_open,
+	.shutdown	= sof_probe_compr_free,
+	.set_params	= sof_probe_compr_set_params,
+	.trigger	= sof_probe_compr_trigger,
+	.pointer	= sof_probe_compr_pointer,
+};
+
+#endif
 #endif
 
 /*
@@ -404,52 +422,167 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 struct snd_soc_dai_driver skl_dai[] = {
 {
 	.name = "SSP0 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "SSP1 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "SSP2 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "SSP3 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "SSP4 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "SSP5 Pin",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "DMIC01 Pin",
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 4,
+	},
 },
 {
 	.name = "DMIC16k Pin",
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 4,
+	},
 },
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 {
 	.name = "iDisp1 Pin",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "iDisp2 Pin",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "iDisp3 Pin",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+},
+{
+	.name = "iDisp4 Pin",
+	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "Analog CPU DAI",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
 },
 {
 	.name = "Digital CPU DAI",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
 },
 {
 	.name = "Alt Analog CPU DAI",
 	.ops = &hda_link_dai_ops,
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 16,
+	},
 },
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
+{
+	.name = "Probe Extraction CPU DAI",
+	.compress_new = snd_soc_new_compress,
+	.cops = &sof_probe_compr_ops,
+	.capture = {
+		.stream_name = "Probe Extraction",
+		.channels_min = 1,
+		.channels_max = 8,
+		.rates = SNDRV_PCM_RATE_48000,
+		.rate_min = 48000,
+		.rate_max = 48000,
+	},
+},
+#endif
 #endif
 };

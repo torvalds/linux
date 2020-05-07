@@ -1,5 +1,8 @@
 #define CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE	512
-#define XKPHYS_TO_PHYS(p)			(p)
+
+#ifndef XKPHYS_TO_PHYS
+# define XKPHYS_TO_PHYS(p)			(p)
+#endif
 
 #define OCTEON_IRQ_WORKQ0 0
 #define OCTEON_IRQ_RML 0
@@ -8,7 +11,7 @@
 #define octeon_has_feature(x)	0
 #define octeon_get_clock_rate()	0
 
-#define CVMX_SYNCIOBDMA		do { } while(0)
+#define CVMX_SYNCIOBDMA		do { } while (0)
 
 #define CVMX_HELPER_INPUT_TAG_TYPE	0
 #define CVMX_HELPER_FIRST_MBUFF_SKIP	7
@@ -19,11 +22,11 @@
 #define CVMX_FPA_PACKET_POOL_SIZE	    16
 #define CVMX_FPA_WQE_POOL		    (1)
 #define CVMX_FPA_WQE_POOL_SIZE		    16
-#define CVMX_GMXX_RXX_ADR_CAM_EN(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CTL(a, b)	((a)+(b))
-#define CVMX_GMXX_PRTX_CFG(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_FRM_MAX(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_JABBER(a, b)	((a)+(b))
+#define CVMX_GMXX_RXX_ADR_CAM_EN(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CTL(a, b)	((a) + (b))
+#define CVMX_GMXX_PRTX_CFG(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_FRM_MAX(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_JABBER(a, b)	((a) + (b))
 #define CVMX_IPD_CTL_STATUS		0
 #define CVMX_PIP_FRM_LEN_CHKX(a)	(a)
 #define CVMX_PIP_NUM_INPUT_PORTS	1
@@ -38,7 +41,7 @@
 #define CVMX_NPI_RSL_INT_BLOCKS		0
 #define CVMX_POW_WQ_INT_PC		0
 
-typedef union {
+union cvmx_pip_wqe_word2 {
 	uint64_t u64;
 	struct {
 		uint64_t bufs:8;
@@ -114,13 +117,13 @@ typedef union {
 		uint64_t err_code:8;
 	} snoip;
 
-} cvmx_pip_wqe_word2;
+};
 
 union cvmx_pip_wqe_word0 {
 	struct {
 		uint64_t next_ptr:40;
 		uint8_t unused;
-		uint16_t hw_chksum;
+		__wsum hw_chksum;
 	} cn38xx;
 	struct {
 		uint64_t pknd:6;        /* 0..5 */
@@ -180,15 +183,15 @@ union cvmx_buf_ptr {
 	} s;
 };
 
-typedef struct {
+struct cvmx_wqe {
 	union cvmx_wqe_word0 word0;
 	union cvmx_wqe_word1 word1;
-	cvmx_pip_wqe_word2 word2;
+	union cvmx_pip_wqe_word2 word2;
 	union cvmx_buf_ptr packet_ptr;
 	uint8_t packet_data[96];
-} cvmx_wqe_t;
+};
 
-typedef union {
+union cvmx_helper_link_info {
 	uint64_t u64;
 	struct {
 		uint64_t reserved_20_63:44;
@@ -196,18 +199,18 @@ typedef union {
 		uint64_t full_duplex:1;	    /**< 1 if the link is full duplex */
 		uint64_t speed:18;	    /**< Speed of the link in Mbps */
 	} s;
-} cvmx_helper_link_info_t;
+};
 
-typedef enum {
+enum cvmx_fau_reg_32 {
 	CVMX_FAU_REG_32_START	= 0,
-} cvmx_fau_reg_32_t;
+};
 
-typedef enum {
+enum cvmx_fau_op_size {
 	CVMX_FAU_OP_SIZE_8 = 0,
 	CVMX_FAU_OP_SIZE_16 = 1,
 	CVMX_FAU_OP_SIZE_32 = 2,
 	CVMX_FAU_OP_SIZE_64 = 3
-} cvmx_fau_op_size_t;
+};
 
 typedef enum {
 	CVMX_SPI_MODE_UNKNOWN = 0,
@@ -379,6 +382,7 @@ union cvmx_ipd_sub_port_qos_cnt {
 		uint64_t reserved_41_63:23;
 	} s;
 };
+
 typedef struct {
 	uint32_t dropped_octets;
 	uint32_t dropped_packets;
@@ -1134,27 +1138,27 @@ union cvmx_npi_rsl_int_blocks {
 	} cn50xx;
 };
 
-typedef union {
+union cvmx_pko_command_word0 {
 	uint64_t u64;
 	struct {
-	        uint64_t total_bytes:16;
-	        uint64_t segs:6;
-	        uint64_t dontfree:1;
-	        uint64_t ignore_i:1;
-	        uint64_t ipoffp1:7;
-	        uint64_t gather:1;
-	        uint64_t rsp:1;
-	        uint64_t wqp:1;
-	        uint64_t n2:1;
-	        uint64_t le:1;
-	        uint64_t reg0:11;
-	        uint64_t subone0:1;
-	        uint64_t reg1:11;
-	        uint64_t subone1:1;
-	        uint64_t size0:2;
-	        uint64_t size1:2;
+		uint64_t total_bytes:16;
+		uint64_t segs:6;
+		uint64_t dontfree:1;
+		uint64_t ignore_i:1;
+		uint64_t ipoffp1:7;
+		uint64_t gather:1;
+		uint64_t rsp:1;
+		uint64_t wqp:1;
+		uint64_t n2:1;
+		uint64_t le:1;
+		uint64_t reg0:11;
+		uint64_t subone0:1;
+		uint64_t reg1:11;
+		uint64_t subone1:1;
+		uint64_t size0:2;
+		uint64_t size1:2;
 	} s;
-} cvmx_pko_command_word0_t;
+};
 
 union cvmx_ciu_timx {
 	uint64_t u64;
@@ -1175,16 +1179,18 @@ union cvmx_gmxx_rxx_rx_inbnd {
 	} s;
 };
 
-static inline int32_t cvmx_fau_fetch_and_add32(cvmx_fau_reg_32_t reg,
+static inline int32_t cvmx_fau_fetch_and_add32(enum cvmx_fau_reg_32 reg,
 					       int32_t value)
 {
 	return value;
 }
 
-static inline void cvmx_fau_atomic_add32(cvmx_fau_reg_32_t reg, int32_t value)
+static inline void cvmx_fau_atomic_add32(enum cvmx_fau_reg_32 reg,
+					 int32_t value)
 { }
 
-static inline void cvmx_fau_atomic_write32(cvmx_fau_reg_32_t reg, int32_t value)
+static inline void cvmx_fau_atomic_write32(enum cvmx_fau_reg_32 reg,
+					   int32_t value)
 { }
 
 static inline uint64_t cvmx_scratch_read64(uint64_t address)
@@ -1195,7 +1201,7 @@ static inline uint64_t cvmx_scratch_read64(uint64_t address)
 static inline void cvmx_scratch_write64(uint64_t address, uint64_t value)
 { }
 
-static inline int cvmx_wqe_get_grp(cvmx_wqe_t *work)
+static inline int cvmx_wqe_get_grp(struct cvmx_wqe *work)
 {
 	return 0;
 }
@@ -1264,15 +1270,15 @@ static inline cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
 	return 0;
 }
 
-static inline cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
+static inline union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t ret = { .u64 = 0 };
+	union cvmx_helper_link_info ret = { .u64 = 0 };
 
 	return ret;
 }
 
 static inline int cvmx_helper_link_set(int ipd_port,
-				cvmx_helper_link_info_t link_info)
+				       union cvmx_helper_link_info link_info)
 {
 	return 0;
 }
@@ -1339,17 +1345,17 @@ static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
 { }
 
 static inline void cvmx_pow_work_request_async(int scr_addr,
-						       cvmx_pow_wait_t wait)
+					       cvmx_pow_wait_t wait)
 { }
 
-static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
+static inline struct cvmx_wqe *cvmx_pow_work_response_async(int scr_addr)
 {
-	cvmx_wqe_t *wqe = (void *)(unsigned long)scr_addr;
+	struct cvmx_wqe *wqe = (void *)(unsigned long)scr_addr;
 
 	return wqe;
 }
 
-static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
+static inline struct cvmx_wqe *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
 {
 	return (void *)(unsigned long)wait;
 }
@@ -1361,7 +1367,7 @@ static inline int cvmx_spi_restart_interface(int interface,
 }
 
 static inline void cvmx_fau_async_fetch_and_add32(uint64_t scraddr,
-						  cvmx_fau_reg_32_t reg,
+						  enum cvmx_fau_reg_32 reg,
 						  int32_t value)
 { }
 
@@ -1370,6 +1376,7 @@ static inline union cvmx_gmxx_rxx_rx_inbnd cvmx_spi4000_check_speed(
 	int port)
 {
 	union cvmx_gmxx_rxx_rx_inbnd r;
+
 	r.u64 = 0;
 	return r;
 }
@@ -1379,45 +1386,43 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
 { }
 
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(uint64_t port,
-		uint64_t queue, cvmx_pko_command_word0_t pko_command,
+		uint64_t queue, union cvmx_pko_command_word0 pko_command,
 		union cvmx_buf_ptr packet, cvmx_pko_lock_t use_locking)
-{
-	cvmx_pko_status_t ret = 0;
-
-	return ret;
-}
-
-static inline void cvmx_wqe_set_port(cvmx_wqe_t *work, int port)
-{ }
-
-static inline void cvmx_wqe_set_qos(cvmx_wqe_t *work, int qos)
-{ }
-
-static inline int cvmx_wqe_get_qos(cvmx_wqe_t *work)
 {
 	return 0;
 }
 
-static inline void cvmx_wqe_set_grp(cvmx_wqe_t *work, int grp)
+static inline void cvmx_wqe_set_port(struct cvmx_wqe *work, int port)
 { }
 
-static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag,
+static inline void cvmx_wqe_set_qos(struct cvmx_wqe *work, int qos)
+{ }
+
+static inline int cvmx_wqe_get_qos(struct cvmx_wqe *work)
+{
+	return 0;
+}
+
+static inline void cvmx_wqe_set_grp(struct cvmx_wqe *work, int grp)
+{ }
+
+static inline void cvmx_pow_work_submit(struct cvmx_wqe *wqp, uint32_t tag,
 					enum cvmx_pow_tag_type tag_type,
 					uint64_t qos, uint64_t grp)
 { }
 
-#define CVMX_ASXX_RX_CLK_SETX(a, b)	((a)+(b))
-#define CVMX_ASXX_TX_CLK_SETX(a, b)	((a)+(b))
+#define CVMX_ASXX_RX_CLK_SETX(a, b)	((a) + (b))
+#define CVMX_ASXX_TX_CLK_SETX(a, b)	((a) + (b))
 #define CVMX_CIU_TIMX(a)		(a)
-#define CVMX_GMXX_RXX_ADR_CAM0(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM1(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM2(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM3(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM4(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM5(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_FRM_CTL(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_INT_REG(a, b)	((a)+(b))
-#define CVMX_GMXX_SMACX(a, b)		((a)+(b))
+#define CVMX_GMXX_RXX_ADR_CAM0(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM1(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM2(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM3(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM4(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM5(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_FRM_CTL(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_INT_REG(a, b)	((a) + (b))
+#define CVMX_GMXX_SMACX(a, b)		((a) + (b))
 #define CVMX_PIP_PRT_TAGX(a)		(a)
 #define CVMX_POW_PP_GRP_MSKX(a)		(a)
 #define CVMX_POW_WQ_INT_THRX(a)		(a)

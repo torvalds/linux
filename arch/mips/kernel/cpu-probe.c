@@ -102,7 +102,12 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 		if (fir & MIPS_FPIR_HAS2008) {
 			fcsr = read_32bit_cp1_register(CP1_STATUS);
 
-			fcsr0 = fcsr & ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+			/*
+			 * MAC2008 toolchain never landed in real world, so we're only
+			 * testing wether it can be disabled and don't try to enabled
+			 * it.
+			 */
+			fcsr0 = fcsr & ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008 | FPU_CSR_MAC2008);
 			write_32bit_cp1_register(CP1_STATUS, fcsr0);
 			fcsr0 = read_32bit_cp1_register(CP1_STATUS);
 
@@ -111,6 +116,15 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 			fcsr1 = read_32bit_cp1_register(CP1_STATUS);
 
 			write_32bit_cp1_register(CP1_STATUS, fcsr);
+
+			if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2)) {
+				/*
+				 * The bit for MAC2008 might be reused by R6 in future,
+				 * so we only test for R2-R5.
+				 */
+				if (fcsr0 & FPU_CSR_MAC2008)
+					c->options |= MIPS_CPU_MAC_2008_ONLY;
+			}
 
 			if (!(fcsr0 & FPU_CSR_NAN2008))
 				c->options |= MIPS_CPU_NAN_LEGACY;
@@ -499,6 +513,13 @@ static inline void set_elf_platform(int cpu, const char *plat)
 		__elf_platform = plat;
 }
 
+static inline void set_elf_base_platform(const char *plat)
+{
+	if (__elf_base_platform == NULL) {
+		__elf_base_platform = plat;
+	}
+}
+
 static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
 {
 #ifdef __NEED_VMBITS_PROBE
@@ -513,36 +534,46 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	switch (isa) {
 	case MIPS_CPU_ISA_M64R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2;
+		set_elf_base_platform("mips64r2");
 		/* fall through */
 	case MIPS_CPU_ISA_M64R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1;
+		set_elf_base_platform("mips64");
 		/* fall through */
 	case MIPS_CPU_ISA_V:
 		c->isa_level |= MIPS_CPU_ISA_V;
+		set_elf_base_platform("mips5");
 		/* fall through */
 	case MIPS_CPU_ISA_IV:
 		c->isa_level |= MIPS_CPU_ISA_IV;
+		set_elf_base_platform("mips4");
 		/* fall through */
 	case MIPS_CPU_ISA_III:
 		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
+		set_elf_base_platform("mips3");
 		break;
 
 	/* R6 incompatible with everything else */
 	case MIPS_CPU_ISA_M64R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6;
+		set_elf_base_platform("mips64r6");
 		/* fall through */
 	case MIPS_CPU_ISA_M32R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6;
+		set_elf_base_platform("mips32r6");
 		/* Break here so we don't add incompatible ISAs */
 		break;
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
+		set_elf_base_platform("mips32r2");
 		/* fall through */
 	case MIPS_CPU_ISA_M32R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1;
+		set_elf_base_platform("mips32");
 		/* fall through */
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
+		set_elf_base_platform("mips2");
 		break;
 	}
 }
@@ -1960,10 +1991,8 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 
 	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_XBURST:
-		c->cputype = CPU_XBURST;
-		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
-		__cpu_name[cpu] = "Ingenic JZRISC";
+	case PRID_IMP_XBURST_REV1:
+
 		/*
 		 * The XBurst core by default attempts to avoid branch target
 		 * buffer lookups by detecting & special casing loops. This
@@ -1971,34 +2000,43 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		 * Set cp0 config7 bit 4 to disable this feature.
 		 */
 		set_c0_config7(MIPS_CONF7_BTB_LOOP_EN);
+
+		switch (c->processor_id & PRID_COMP_MASK) {
+
+		/*
+		 * The config0 register in the XBurst CPUs with a processor ID of
+		 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
+		 * but they don't actually support this ISA.
+		 */
+		case PRID_COMP_INGENIC_D0:
+			c->isa_level &= ~MIPS_CPU_ISA_M32R2;
+			break;
+
+		/*
+		 * The config0 register in the XBurst CPUs with a processor ID of
+		 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
+		 * mode is not compatible with the MIPS standard, it will cause
+		 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
+		 * when starting the init process. After chip reset, the default
+		 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
+		 * switch back to VTLB mode to prevent getting stuck.
+		 */
+		case PRID_COMP_INGENIC_D1:
+			write_c0_page_ctrl(XBURST_PAGECTRL_HPTLB_DIS);
+			break;
+
+		default:
+			break;
+		}
+	/* fall-through */
+	case PRID_IMP_XBURST_REV2:
+		c->cputype = CPU_XBURST;
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		__cpu_name[cpu] = "Ingenic XBurst";
 		break;
+
 	default:
 		panic("Unknown Ingenic Processor ID!");
-		break;
-	}
-
-	switch (c->processor_id & PRID_COMP_MASK) {
-	/*
-	 * The config0 register in the XBurst CPUs with a processor ID of
-	 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
-	 * mode is not compatible with the MIPS standard, it will cause
-	 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
-	 * when starting the init process. After chip reset, the default
-	 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
-	 * switch back to VTLB mode to prevent getting stuck.
-	 */
-	case PRID_COMP_INGENIC_D1:
-		write_c0_page_ctrl(XBURST_PAGECTRL_HPTLB_DIS);
-		break;
-	/*
-	 * The config0 register in the XBurst CPUs with a processor ID of
-	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
-	 * but they don't actually support this ISA.
-	 */
-	case PRID_COMP_INGENIC_D0:
-		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
-		break;
-	default:
 		break;
 	}
 }
@@ -2092,6 +2130,7 @@ EXPORT_SYMBOL(__ua_limit);
 
 const char *__cpu_name[NR_CPUS];
 const char *__elf_platform;
+const char *__elf_base_platform;
 
 void cpu_probe(void)
 {

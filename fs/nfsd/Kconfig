@@ -73,7 +73,8 @@ config NFSD_V4
 	select NFSD_V3
 	select FS_POSIX_ACL
 	select SUNRPC_GSS
-	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
 	select GRACE_PERIOD
 	help
 	  This option enables support in your system's NFS server for
@@ -130,6 +131,16 @@ config NFSD_FLEXFILELAYOUT
 	  Warning, this server implements the bare minimum functionality
 	  to be a flex file server - it is for testing the client,
 	  not for use in production.
+
+	  If unsure, say N.
+
+config NFSD_V4_2_INTER_SSC
+	bool "NFSv4.2 inter server to server COPY"
+	depends on NFSD_V4 && NFS_V4_1 && NFS_V4_2 && NFS_FS=y
+	help
+	  This option enables support for NFSv4.2 inter server to
+	  server copy where the destination server calls the NFSv4.2
+	  client to read the data to copy from the source server.
 
 	  If unsure, say N.
 

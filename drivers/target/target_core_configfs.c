@@ -684,7 +684,9 @@ static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
-	if (val != 0 && val != 1 && val != 2) {
+	if (val != TARGET_UA_INTLCK_CTRL_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_NO_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_ESTABLISH_UA) {
 		pr_err("Illegal value %d\n", val);
 		return -EINVAL;
 	}

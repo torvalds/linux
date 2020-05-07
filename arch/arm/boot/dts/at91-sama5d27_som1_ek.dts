@@ -53,6 +53,7 @@
 
 		sdmmc0: sdio-host@a0000000 {
 			bus-width = <8>;
+			mmc-ddr-3_3v;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc0_default>;
 			status = "okay";
@@ -130,6 +131,9 @@
 					interrupts = <20 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <0>, <0>;
 					dma-names = "tx", "rx";
+					i2c-analog-filter;
+					i2c-digital-filter;
+					i2c-digital-filter-width-ns = <35>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
@@ -245,6 +249,9 @@
 
 			i2c1: i2c@fc028000 {
 				dmas = <0>, <0>;
+				i2c-analog-filter;
+				i2c-digital-filter;
+				i2c-digital-filter-width-ns = <35>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c1_default>;
 				status = "okay";

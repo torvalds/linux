@@ -73,6 +73,10 @@ static struct test generic_tests[] = {
 		.func = test__pmu,
 	},
 	{
+		.desc = "PMU events",
+		.func = test__pmu_events,
+	},
+	{
 		.desc = "DSO data read",
 		.func = test__dso_data,
 	},
@@ -121,7 +125,7 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Breakpoint accounting",
 		.func = test__bp_accounting,
-		.is_supported = test__bp_signal_is_supported,
+		.is_supported = test__bp_account_is_supported,
 	},
 	{
 		.desc = "Watchpoint",
@@ -166,8 +170,8 @@ static struct test generic_tests[] = {
 		.func = test__mmap_thread_lookup,
 	},
 	{
-		.desc = "Share thread mg",
-		.func = test__thread_mg_share,
+		.desc = "Share thread maps",
+		.func = test__thread_maps_share,
 	},
 	{
 		.desc = "Sort output of hist entries",
@@ -260,6 +264,11 @@ static struct test generic_tests[] = {
 		.func = test__cpu_map_print,
 	},
 	{
+		.desc = "Merge cpu map",
+		.func = test__cpu_map_merge,
+	},
+
+	{
 		.desc = "Probe SDT events",
 		.func = test__sdt_event,
 	},
@@ -297,8 +306,12 @@ static struct test generic_tests[] = {
 		.func = test__time_utils,
 	},
 	{
-		.desc = "map_groups__merge_in",
-		.func = test__map_groups__merge_in,
+		.desc = "Test jit_write_elf",
+		.func = test__jit_write_elf,
+	},
+	{
+		.desc = "maps__merge_in",
+		.func = test__maps__merge_in,
 	},
 	{
 		.func = NULL,
@@ -534,8 +547,11 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 		return -1;
 
 	dir = opendir(st.dir);
-	if (!dir)
+	if (!dir) {
+		pr_err("failed to open shell test directory: %s\n",
+			st.dir);
 		return -1;
+	}
 
 	for_each_shell_test(dir, st.dir, ent) {
 		int curr = i++;

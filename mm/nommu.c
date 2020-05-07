@@ -155,11 +155,11 @@ void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags)
 	return __vmalloc(size, flags, PAGE_KERNEL);
 }
 
-void *vmalloc_user(unsigned long size)
+static void *__vmalloc_user_flags(unsigned long size, gfp_t flags)
 {
 	void *ret;
 
-	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+	ret = __vmalloc(size, flags, PAGE_KERNEL);
 	if (ret) {
 		struct vm_area_struct *vma;
 
@@ -172,7 +172,18 @@ void *vmalloc_user(unsigned long size)
 
 	return ret;
 }
+
+void *vmalloc_user(unsigned long size)
+{
+	return __vmalloc_user_flags(size, GFP_KERNEL | __GFP_ZERO);
+}
 EXPORT_SYMBOL(vmalloc_user);
+
+void *vmalloc_user_node_flags(unsigned long size, int node, gfp_t flags)
+{
+	return __vmalloc_user_flags(size, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL(vmalloc_user_node_flags);
 
 struct page *vmalloc_to_page(const void *addr)
 {
@@ -359,10 +370,14 @@ void vm_unmap_aliases(void)
 EXPORT_SYMBOL_GPL(vm_unmap_aliases);
 
 /*
- * Implement a stub for vmalloc_sync_all() if the architecture chose not to
- * have one.
+ * Implement a stub for vmalloc_sync_[un]mapping() if the architecture
+ * chose not to have one.
  */
-void __weak vmalloc_sync_all(void)
+void __weak vmalloc_sync_mappings(void)
+{
+}
+
+void __weak vmalloc_sync_unmappings(void)
 {
 }
 
@@ -637,7 +652,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 	if (rb_prev)
 		prev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
 
-	__vma_link_list(mm, vma, prev, parent);
+	__vma_link_list(mm, vma, prev);
 }
 
 /*
@@ -673,13 +688,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 	/* remove from the MM's tree and list */
 	rb_erase(&vma->vm_rb, &mm->mm_rb);
 
-	if (vma->vm_prev)
-		vma->vm_prev->vm_next = vma->vm_next;
-	else
-		mm->mmap = vma->vm_next;
-
-	if (vma->vm_next)
-		vma->vm_next->vm_prev = vma->vm_prev;
+	__vma_unlink_list(mm, vma);
 }
 
 /*

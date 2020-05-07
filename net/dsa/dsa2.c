@@ -18,8 +18,8 @@
 
 #include "dsa_priv.h"
 
-static LIST_HEAD(dsa_tree_list);
 static DEFINE_MUTEX(dsa2_mutex);
+LIST_HEAD(dsa_tree_list);
 
 static const struct devlink_ops dsa_devlink_ops = {
 };
@@ -44,6 +44,10 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 		return NULL;
 
 	dst->index = index;
+
+	INIT_LIST_HEAD(&dst->rtable);
+
+	INIT_LIST_HEAD(&dst->ports);
 
 	INIT_LIST_HEAD(&dst->list);
 	list_add_tail(&dst->list, &dsa_tree_list);
@@ -111,24 +115,39 @@ static bool dsa_port_is_user(struct dsa_port *dp)
 static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 						   struct device_node *dn)
 {
-	struct dsa_switch *ds;
 	struct dsa_port *dp;
-	int device, port;
 
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			if (dp->dn == dn)
-				return dp;
-		}
-	}
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->dn == dn)
+			return dp;
 
 	return NULL;
+}
+
+static struct dsa_link *dsa_link_touch(struct dsa_port *dp,
+				       struct dsa_port *link_dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst;
+	struct dsa_link *dl;
+
+	dst = ds->dst;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp == dp && dl->link_dp == link_dp)
+			return dl;
+
+	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	if (!dl)
+		return NULL;
+
+	dl->dp = dp;
+	dl->link_dp = link_dp;
+
+	INIT_LIST_HEAD(&dl->list);
+	list_add_tail(&dl->list, &dst->rtable);
+
+	return dl;
 }
 
 static bool dsa_port_setup_routing_table(struct dsa_port *dp)
@@ -138,6 +157,7 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 	struct device_node *dn = dp->dn;
 	struct of_phandle_iterator it;
 	struct dsa_port *link_dp;
+	struct dsa_link *dl;
 	int err;
 
 	of_for_each_phandle(&it, err, dn, "link", NULL, 0) {
@@ -147,24 +167,22 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 			return false;
 		}
 
-		ds->rtable[link_dp->ds->index] = dp->index;
+		dl = dsa_link_touch(dp, link_dp);
+		if (!dl) {
+			of_node_put(it.node);
+			return false;
+		}
 	}
 
 	return true;
 }
 
-static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
+static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
 {
 	bool complete = true;
 	struct dsa_port *dp;
-	int i;
 
-	for (i = 0; i < DSA_MAX_SWITCHES; i++)
-		ds->rtable[i] = DSA_RTABLE_NONE;
-
-	for (i = 0; i < ds->num_ports; i++) {
-		dp = &ds->ports[i];
-
+	list_for_each_entry(dp, &dst->ports, list) {
 		if (dsa_port_is_dsa(dp)) {
 			complete = dsa_port_setup_routing_table(dp);
 			if (!complete)
@@ -175,81 +193,42 @@ static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
 	return complete;
 }
 
-static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
-{
-	struct dsa_switch *ds;
-	bool complete = true;
-	int device;
-
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		complete = dsa_switch_setup_routing_table(ds);
-		if (!complete)
-			break;
-	}
-
-	return complete;
-}
-
 static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
 	struct dsa_port *dp;
-	int device, port;
 
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			if (dsa_port_is_cpu(dp))
-				return dp;
-		}
-	}
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_cpu(dp))
+			return dp;
 
 	return NULL;
 }
 
 static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
-	struct dsa_port *dp;
-	int device, port;
+	struct dsa_port *cpu_dp, *dp;
 
-	/* DSA currently only supports a single CPU port */
-	dst->cpu_dp = dsa_tree_find_first_cpu(dst);
-	if (!dst->cpu_dp) {
-		pr_warn("Tree has no master device\n");
+	cpu_dp = dsa_tree_find_first_cpu(dst);
+	if (!cpu_dp) {
+		pr_err("DSA: tree %d has no CPU port\n", dst->index);
 		return -EINVAL;
 	}
 
 	/* Assign the default CPU port to all ports of the fabric */
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
-				dp->cpu_dp = dst->cpu_dp;
-		}
-	}
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
+			dp->cpu_dp = cpu_dp;
 
 	return 0;
 }
 
 static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
 {
-	/* DSA currently only supports a single CPU port */
-	dst->cpu_dp = NULL;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
+			dp->cpu_dp = NULL;
 }
 
 static int dsa_port_setup(struct dsa_port *dp)
@@ -264,6 +243,9 @@ static int dsa_port_setup(struct dsa_port *dp)
 	struct devlink *dl = ds->devlink;
 	bool dsa_port_enabled = false;
 	int err = 0;
+
+	if (dp->setup)
+		return 0;
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -333,13 +315,20 @@ static int dsa_port_setup(struct dsa_port *dp)
 		dsa_port_link_unregister_of(dp);
 	if (err && devlink_port_registered)
 		devlink_port_unregister(dlp);
+	if (err)
+		return err;
 
-	return err;
+	dp->setup = true;
+
+	return 0;
 }
 
 static void dsa_port_teardown(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
+
+	if (!dp->setup)
+		return;
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -363,11 +352,17 @@ static void dsa_port_teardown(struct dsa_port *dp)
 		}
 		break;
 	}
+
+	dp->setup = false;
 }
 
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
-	int err = 0;
+	struct dsa_devlink_priv *dl_priv;
+	int err;
+
+	if (ds->setup)
+		return 0;
 
 	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
 	 * driver and before ops->setup() has run, since the switch drivers and
@@ -379,9 +374,11 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	/* Add the switch to devlink before calling setup, so that setup can
 	 * add dpipe tables
 	 */
-	ds->devlink = devlink_alloc(&dsa_devlink_ops, 0);
+	ds->devlink = devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv));
 	if (!ds->devlink)
 		return -ENOMEM;
+	dl_priv = devlink_priv(ds->devlink);
+	dl_priv->ds = ds;
 
 	err = devlink_register(ds->devlink, ds->dev);
 	if (err)
@@ -394,6 +391,8 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	err = ds->ops->setup(ds);
 	if (err < 0)
 		goto unregister_notifier;
+
+	devlink_params_publish(ds->devlink);
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
@@ -408,6 +407,8 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 		if (err < 0)
 			goto unregister_notifier;
 	}
+
+	ds->setup = true;
 
 	return 0;
 
@@ -424,6 +425,9 @@ free_devlink:
 
 static void dsa_switch_teardown(struct dsa_switch *ds)
 {
+	if (!ds->setup)
+		return;
+
 	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
 
@@ -438,95 +442,72 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		ds->devlink = NULL;
 	}
 
+	ds->setup = false;
 }
 
 static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
 	struct dsa_port *dp;
-	int device, port, i;
-	int err = 0;
+	int err;
 
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		err = dsa_switch_setup(ds);
+	list_for_each_entry(dp, &dst->ports, list) {
+		err = dsa_switch_setup(dp->ds);
 		if (err)
-			goto switch_teardown;
+			goto teardown;
+	}
 
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			err = dsa_port_setup(dp);
-			if (err)
-				goto ports_teardown;
-		}
+	list_for_each_entry(dp, &dst->ports, list) {
+		err = dsa_port_setup(dp);
+		if (err)
+			continue;
 	}
 
 	return 0;
 
-ports_teardown:
-	for (i = 0; i < port; i++)
-		dsa_port_teardown(&ds->ports[i]);
+teardown:
+	list_for_each_entry(dp, &dst->ports, list)
+		dsa_port_teardown(dp);
 
-	dsa_switch_teardown(ds);
-
-switch_teardown:
-	for (i = 0; i < device; i++) {
-		ds = dst->ds[i];
-		if (!ds)
-			continue;
-
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			dsa_port_teardown(dp);
-		}
-
-		dsa_switch_teardown(ds);
-	}
+	list_for_each_entry(dp, &dst->ports, list)
+		dsa_switch_teardown(dp->ds);
 
 	return err;
 }
 
 static void dsa_tree_teardown_switches(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch *ds;
 	struct dsa_port *dp;
-	int device, port;
 
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
+	list_for_each_entry(dp, &dst->ports, list)
+		dsa_port_teardown(dp);
 
-		for (port = 0; port < ds->num_ports; port++) {
-			dp = &ds->ports[port];
-
-			dsa_port_teardown(dp);
-		}
-
-		dsa_switch_teardown(ds);
-	}
+	list_for_each_entry(dp, &dst->ports, list)
+		dsa_switch_teardown(dp->ds);
 }
 
 static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 {
-	struct dsa_port *cpu_dp = dst->cpu_dp;
-	struct net_device *master = cpu_dp->master;
+	struct dsa_port *dp;
+	int err;
 
-	/* DSA currently supports a single pair of CPU port and master device */
-	return dsa_master_setup(master, cpu_dp);
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dsa_port_is_cpu(dp)) {
+			err = dsa_master_setup(dp->master, dp);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
 }
 
 static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 {
-	struct dsa_port *cpu_dp = dst->cpu_dp;
-	struct net_device *master = cpu_dp->master;
+	struct dsa_port *dp;
 
-	return dsa_master_teardown(master);
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_is_cpu(dp))
+			dsa_master_teardown(dp->master);
 }
 
 static int dsa_tree_setup(struct dsa_switch_tree *dst)
@@ -572,6 +553,8 @@ teardown_default_cpu:
 
 static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 {
+	struct dsa_link *dl, *next;
+
 	if (!dst->setup)
 		return;
 
@@ -581,39 +564,36 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 
 	dsa_tree_teardown_default_cpu(dst);
 
+	list_for_each_entry_safe(dl, next, &dst->rtable, list) {
+		list_del(&dl->list);
+		kfree(dl);
+	}
+
 	pr_info("DSA: tree %d torn down\n", dst->index);
 
 	dst->setup = false;
 }
 
-static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
-				   unsigned int index)
+static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 {
-	dsa_tree_teardown(dst);
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
 
-	dst->ds[index] = NULL;
-	dsa_tree_put(dst);
-}
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds && dp->index == index)
+			return dp;
 
-static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
-			       struct dsa_switch *ds)
-{
-	unsigned int index = ds->index;
-	int err;
+	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	if (!dp)
+		return NULL;
 
-	if (dst->ds[index])
-		return -EBUSY;
+	dp->ds = ds;
+	dp->index = index;
 
-	dsa_tree_get(dst);
-	dst->ds[index] = ds;
+	INIT_LIST_HEAD(&dp->list);
+	list_add_tail(&dp->list, &dst->ports);
 
-	err = dsa_tree_setup(dst);
-	if (err) {
-		dst->ds[index] = NULL;
-		dsa_tree_put(dst);
-	}
-
-	return err;
+	return dp;
 }
 
 static int dsa_port_parse_user(struct dsa_port *dp, const char *name)
@@ -634,6 +614,32 @@ static int dsa_port_parse_dsa(struct dsa_port *dp)
 	return 0;
 }
 
+static enum dsa_tag_protocol dsa_get_tag_protocol(struct dsa_port *dp,
+						  struct net_device *master)
+{
+	enum dsa_tag_protocol tag_protocol = DSA_TAG_PROTO_NONE;
+	struct dsa_switch *mds, *ds = dp->ds;
+	unsigned int mdp_upstream;
+	struct dsa_port *mdp;
+
+	/* It is possible to stack DSA switches onto one another when that
+	 * happens the switch driver may want to know if its tagging protocol
+	 * is going to work in such a configuration.
+	 */
+	if (dsa_slave_dev_check(master)) {
+		mdp = dsa_slave_to_port(master);
+		mds = mdp->ds;
+		mdp_upstream = dsa_upstream_port(mds, mdp->index);
+		tag_protocol = mds->ops->get_tag_protocol(mds, mdp_upstream,
+							  DSA_TAG_PROTO_NONE);
+	}
+
+	/* If the master device is not itself a DSA slave in a disjoint DSA
+	 * tree, then return immediately.
+	 */
+	return ds->ops->get_tag_protocol(ds, dp->index, tag_protocol);
+}
+
 static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -641,20 +647,21 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 
-	tag_protocol = ds->ops->get_tag_protocol(ds, dp->index);
+	tag_protocol = dsa_get_tag_protocol(dp, master);
 	tag_ops = dsa_tag_driver_get(tag_protocol);
 	if (IS_ERR(tag_ops)) {
 		if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
 			return -EPROBE_DEFER;
 		dev_warn(ds->dev, "No tagger for this switch\n");
+		dp->master = NULL;
 		return PTR_ERR(tag_ops);
 	}
 
+	dp->master = master;
 	dp->type = DSA_PORT_TYPE_CPU;
 	dp->filter = tag_ops->filter;
 	dp->rcv = tag_ops->rcv;
 	dp->tag_ops = tag_ops;
-	dp->master = master;
 	dp->dst = dst;
 
 	return 0;
@@ -708,7 +715,7 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 			goto out_put_node;
 		}
 
-		dp = &ds->ports[reg];
+		dp = dsa_to_port(ds, reg);
 
 		err = dsa_port_parse_of(dp, port);
 		if (err)
@@ -732,12 +739,24 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 		return sz;
 
 	ds->index = m[1];
-	if (ds->index >= DSA_MAX_SWITCHES)
-		return -EINVAL;
 
 	ds->dst = dsa_tree_touch(m[0]);
 	if (!ds->dst)
 		return -ENOMEM;
+
+	return 0;
+}
+
+static int dsa_switch_touch_ports(struct dsa_switch *ds)
+{
+	struct dsa_port *dp;
+	int port;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		dp = dsa_port_touch(ds, port);
+		if (!dp)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -747,6 +766,10 @@ static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
 	int err;
 
 	err = dsa_switch_parse_member_of(ds, dn);
+	if (err)
+		return err;
+
+	err = dsa_switch_touch_ports(ds);
 	if (err)
 		return err;
 
@@ -787,7 +810,7 @@ static int dsa_switch_parse_ports(struct dsa_switch *ds,
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
 		name = cd->port_names[i];
 		dev = cd->netdev[i];
-		dp = &ds->ports[i];
+		dp = dsa_to_port(ds, i);
 
 		if (!name)
 			continue;
@@ -807,6 +830,8 @@ static int dsa_switch_parse_ports(struct dsa_switch *ds,
 
 static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 {
+	int err;
+
 	ds->cd = cd;
 
 	/* We don't support interconnected switches nor multiple trees via
@@ -817,55 +842,67 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 	if (!ds->dst)
 		return -ENOMEM;
 
+	err = dsa_switch_touch_ports(ds);
+	if (err)
+		return err;
+
 	return dsa_switch_parse_ports(ds, cd);
 }
 
-static int dsa_switch_add(struct dsa_switch *ds)
+static void dsa_switch_release_ports(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp, *next;
 
-	return dsa_tree_add_switch(dst, ds);
+	list_for_each_entry_safe(dp, next, &dst->ports, list) {
+		if (dp->ds != ds)
+			continue;
+		list_del(&dp->list);
+		kfree(dp);
+	}
 }
 
 static int dsa_switch_probe(struct dsa_switch *ds)
 {
-	struct dsa_chip_data *pdata = ds->dev->platform_data;
-	struct device_node *np = ds->dev->of_node;
+	struct dsa_switch_tree *dst;
+	struct dsa_chip_data *pdata;
+	struct device_node *np;
 	int err;
 
-	if (np)
+	if (!ds->dev)
+		return -ENODEV;
+
+	pdata = ds->dev->platform_data;
+	np = ds->dev->of_node;
+
+	if (!ds->num_ports)
+		return -EINVAL;
+
+	if (np) {
 		err = dsa_switch_parse_of(ds, np);
-	else if (pdata)
+		if (err)
+			dsa_switch_release_ports(ds);
+	} else if (pdata) {
 		err = dsa_switch_parse(ds, pdata);
-	else
+		if (err)
+			dsa_switch_release_ports(ds);
+	} else {
 		err = -ENODEV;
+	}
 
 	if (err)
 		return err;
 
-	return dsa_switch_add(ds);
-}
-
-struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
-{
-	struct dsa_switch *ds;
-	int i;
-
-	ds = devm_kzalloc(dev, struct_size(ds, ports, n), GFP_KERNEL);
-	if (!ds)
-		return NULL;
-
-	ds->dev = dev;
-	ds->num_ports = n;
-
-	for (i = 0; i < ds->num_ports; ++i) {
-		ds->ports[i].index = i;
-		ds->ports[i].ds = ds;
+	dst = ds->dst;
+	dsa_tree_get(dst);
+	err = dsa_tree_setup(dst);
+	if (err) {
+		dsa_switch_release_ports(ds);
+		dsa_tree_put(dst);
 	}
 
-	return ds;
+	return err;
 }
-EXPORT_SYMBOL_GPL(dsa_switch_alloc);
 
 int dsa_register_switch(struct dsa_switch *ds)
 {
@@ -883,9 +920,10 @@ EXPORT_SYMBOL_GPL(dsa_register_switch);
 static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
-	unsigned int index = ds->index;
 
-	dsa_tree_remove_switch(dst, index);
+	dsa_tree_teardown(dst);
+	dsa_switch_release_ports(ds);
+	dsa_tree_put(dst);
 }
 
 void dsa_unregister_switch(struct dsa_switch *ds)

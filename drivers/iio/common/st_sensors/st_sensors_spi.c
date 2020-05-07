@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <linux/iio/common/st_sensors_spi.h>
@@ -37,14 +38,15 @@ static const struct regmap_config st_sensors_spi_regmap_multiread_bit_config = {
  */
 static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
 	struct st_sensors_platform_data *pdata;
+	struct device *dev = &spi->dev;
 
-	pdata = (struct st_sensors_platform_data *)spi->dev.platform_data;
-	if ((np && of_property_read_bool(np, "spi-3wire")) ||
-	    (pdata && pdata->spi_3wire)) {
+	if (device_property_read_bool(dev, "spi-3wire"))
 		return true;
-	}
+
+	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	if (pdata && pdata->spi_3wire)
+		return true;
 
 	return false;
 }

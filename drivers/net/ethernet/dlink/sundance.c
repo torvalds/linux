@@ -23,9 +23,6 @@
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.2"
-#define DRV_RELDATE	"11-Sep-2006"
-
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
@@ -100,11 +97,6 @@ static char *media[MAX_UNITS];
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-
-/* These identify the driver base version and may not be removed. */
-static const char version[] =
-	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
-	" Written by Donald Becker\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Sundance Alta Ethernet driver");
@@ -432,7 +424,7 @@ static int  mdio_wait_link(struct net_device *dev, int wait);
 static int  netdev_open(struct net_device *dev);
 static void check_duplex(struct net_device *dev);
 static void netdev_timer(struct timer_list *t);
-static void tx_timeout(struct net_device *dev);
+static void tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static int reset_tx (struct net_device *dev);
@@ -515,13 +507,6 @@ static int sundance_probe1(struct pci_dev *pdev,
 	int bar = 1;
 #endif
 	int phy, phy_end, phy_idx = 0;
-
-/* when built into the kernel, we only print version if device is found */
-#ifndef MODULE
-	static int printed_version;
-	if (!printed_version++)
-		printk(version);
-#endif
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -969,7 +954,7 @@ static void netdev_timer(struct timer_list *t)
 	add_timer(&np->timer);
 }
 
-static void tx_timeout(struct net_device *dev)
+static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
@@ -1657,7 +1642,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
@@ -2010,10 +1994,6 @@ static struct pci_driver sundance_driver = {
 
 static int __init sundance_init(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
-#ifdef MODULE
-	printk(version);
-#endif
 	return pci_register_driver(&sundance_driver);
 }
 

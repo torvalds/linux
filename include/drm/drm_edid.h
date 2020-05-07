@@ -91,6 +91,11 @@ struct detailed_data_string {
 	u8 str[13];
 } __attribute__((packed));
 
+#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00
+#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01
+#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02
+#define DRM_EDID_CVT_SUPPORT_FLAG           0x04
+
 struct detailed_data_monitor_range {
 	u8 min_vfreq;
 	u8 max_vfreq;
@@ -368,6 +373,10 @@ drm_hdmi_avi_infoframe_colorspace(struct hdmi_avi_infoframe *frame,
 				  const struct drm_connector_state *conn_state);
 
 void
+drm_hdmi_avi_infoframe_bars(struct hdmi_avi_infoframe *frame,
+			    const struct drm_connector_state *conn_state);
+
+void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
@@ -481,7 +490,6 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
-enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
 bool drm_detect_hdmi_monitor(struct edid *edid);
 bool drm_detect_monitor_audio(struct edid *edid);
 enum hdmi_quantization_range

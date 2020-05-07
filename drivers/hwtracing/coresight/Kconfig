@@ -4,6 +4,7 @@
 #
 menuconfig CORESIGHT
 	bool "CoreSight Tracing Support"
+	depends on ARM || ARM64
 	depends on OF || ACPI
 	select ARM_AMBA
 	select PERF_EVENTS
@@ -109,4 +110,25 @@ config CORESIGHT_CPU_DEBUG
 	  properly, please refer Documentation/trace/coresight-cpu-debug.rst
 	  for detailed description and the example for usage.
 
+config CORESIGHT_CTI
+	bool "CoreSight Cross Trigger Interface (CTI) driver"
+	depends on ARM || ARM64
+	help
+	  This driver provides support for CoreSight CTI and CTM components.
+	  These provide hardware triggering events between CoreSight trace
+	  source and sink components. These can be used to halt trace or
+	  inject events into the trace stream. CTI also provides a software
+	  control to trigger the same halt events. This can provide fast trace
+	  halt compared to disabling sources and sinks normally in driver
+	  software.
+
+config CORESIGHT_CTI_INTEGRATION_REGS
+	bool "Access CTI CoreSight Integration Registers"
+	depends on CORESIGHT_CTI
+	help
+	  This option adds support for the CoreSight integration registers on
+	  this device. The integration registers allow the exploration of the
+	  CTI trigger connections between this and other devices.These
+	  registers are not used in normal operation and can leave devices in
+	  an inconsistent state.
 endif

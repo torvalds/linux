@@ -8,6 +8,7 @@
 #include <linux/pagemap.h>
 #include <linux/percpu_counter.h>
 #include <linux/xattr.h>
+#include <linux/fs_parser.h>
 
 /* inode in-kernel data */
 
@@ -49,7 +50,7 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
 /*
  * Functions in mm/shmem.c called directly from elsewhere:
  */
-extern const struct fs_parameter_description shmem_fs_parameters;
+extern const struct fs_parameter_spec shmem_fs_parameters[];
 extern int shmem_init(void);
 extern int shmem_init_fs_context(struct fs_context *fc);
 extern struct file *shmem_file_setup(const char *name,
@@ -77,6 +78,7 @@ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
 extern int shmem_unuse(unsigned int type, bool frontswap,
 		       unsigned long *fs_pages_to_unuse);
 
+extern bool shmem_huge_enabled(struct vm_area_struct *vma);
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
 extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 						pgoff_t start, pgoff_t end);
@@ -112,15 +114,6 @@ static inline bool shmem_file(struct file *file)
 
 extern bool shmem_charge(struct inode *inode, long pages);
 extern void shmem_uncharge(struct inode *inode, long pages);
-
-#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-extern bool shmem_huge_enabled(struct vm_area_struct *vma);
-#else
-static inline bool shmem_huge_enabled(struct vm_area_struct *vma)
-{
-	return false;
-}
-#endif
 
 #ifdef CONFIG_SHMEM
 extern int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,

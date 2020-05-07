@@ -24,7 +24,6 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_vblank.h>
 #include <video/mipi_display.h>
 
 #define MIPI_DBI_MAX_SPI_READ_SPEED 2000000 /* 2MHz */
@@ -238,6 +237,23 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(mipi_dbi_buf_copy);
 
+static void mipi_dbi_set_window_address(struct mipi_dbi_dev *dbidev,
+					unsigned int xs, unsigned int xe,
+					unsigned int ys, unsigned int ye)
+{
+	struct mipi_dbi *dbi = &dbidev->dbi;
+
+	xs += dbidev->left_offset;
+	xe += dbidev->left_offset;
+	ys += dbidev->top_offset;
+	ye += dbidev->top_offset;
+
+	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, (xs >> 8) & 0xff,
+			 xs & 0xff, (xe >> 8) & 0xff, xe & 0xff);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, (ys >> 8) & 0xff,
+			 ys & 0xff, (ye >> 8) & 0xff, ye & 0xff);
+}
+
 static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
@@ -271,12 +287,8 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 		tr = cma_obj->vaddr;
 	}
 
-	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS,
-			 (rect->x1 >> 8) & 0xff, rect->x1 & 0xff,
-			 ((rect->x2 - 1) >> 8) & 0xff, (rect->x2 - 1) & 0xff);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS,
-			 (rect->y1 >> 8) & 0xff, rect->y1 & 0xff,
-			 ((rect->y2 - 1) >> 8) & 0xff, (rect->y2 - 1) & 0xff);
+	mipi_dbi_set_window_address(dbidev, rect->x1, rect->x2 - 1, rect->y1,
+				    rect->y2 - 1);
 
 	ret = mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START, tr,
 				   width * height * 2);
@@ -299,18 +311,10 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		mipi_dbi_fb_dirty(state->fb, &rect);
-
-	if (crtc->state->event) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-		crtc->state->event = NULL;
-	}
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
@@ -366,10 +370,7 @@ static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
 
 	memset(dbidev->tx_buf, 0, len);
 
-	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0,
-			 (width >> 8) & 0xFF, (width - 1) & 0xFF);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0,
-			 (height >> 8) & 0xFF, (height - 1) & 0xFF);
+	mipi_dbi_set_window_address(dbidev, 0, width - 1, 0, height - 1);
 	mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START,
 			     (u8 *)dbidev->tx_buf, len);
 
@@ -783,7 +784,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 	int i, ret;
 	u8 *dst;
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_debug_enabled(DRM_UT_DRIVER))
 		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 
@@ -907,7 +908,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *dbi, int dc,
 	max_chunk = dbi->tx_buf9_len;
 	dst16 = dbi->tx_buf9;
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_debug_enabled(DRM_UT_DRIVER))
 		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 
@@ -955,7 +956,7 @@ static int mipi_dbi_typec1_command(struct mipi_dbi *dbi, u8 *cmd,
 	int ret;
 
 	if (mipi_dbi_command_is_read(dbi, *cmd))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	MIPI_DBI_DEBUG_COMMAND(*cmd, parameters, num);
 
@@ -1021,7 +1022,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *dbi, u8 *cmd,
 		unsigned int i;
 
 		for (i = 0; i < len; i++)
-			data[i] = (buf[i] << 1) | !!(buf[i + 1] & BIT(7));
+			data[i] = (buf[i] << 1) | (buf[i + 1] >> 7);
 	}
 
 	MIPI_DBI_DEBUG_COMMAND(*cmd, data, len);
@@ -1187,8 +1188,7 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 	struct mipi_dbi_dev *dbidev = m->private;
 	u8 val, cmd = 0, parameters[64];
 	char *buf, *pos, *token;
-	unsigned int i;
-	int ret, idx;
+	int i, ret, idx;
 
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return -ENODEV;

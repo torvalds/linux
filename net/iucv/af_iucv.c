@@ -50,7 +50,7 @@ static struct iucv_interface *pr_iucv;
 static const u8 iprm_shutdown[8] =
 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 
-#define TRGCLS_SIZE	FIELD_SIZEOF(struct iucv_message, class)
+#define TRGCLS_SIZE	sizeof_field(struct iucv_message, class)
 
 #define __iucv_sock_wait(sk, condition, timeo, ret)			\
 do {									\

@@ -210,8 +210,6 @@ struct ttm_mem_type_manager {
  * struct ttm_bo_driver
  *
  * @create_ttm_backend_entry: Callback to create a struct ttm_backend.
- * @invalidate_caches: Callback to invalidate read caches when a buffer object
- * has been evicted.
  * @init_mem_type: Callback to initialize a struct ttm_mem_type_manager
  * structure.
  * @evict_flags: Callback to obtain placement flags when a buffer is evicted.
@@ -256,19 +254,6 @@ struct ttm_bo_driver {
 	 */
 	void (*ttm_tt_unpopulate)(struct ttm_tt *ttm);
 
-	/**
-	 * struct ttm_bo_driver member invalidate_caches
-	 *
-	 * @bdev: the buffer object device.
-	 * @flags: new placement of the rebound buffer object.
-	 *
-	 * A previosly evicted buffer has been rebound in a
-	 * potentially new location. Tell the driver that it might
-	 * consider invalidating read (texture) caches on the next command
-	 * submission as a consequence.
-	 */
-
-	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
 	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man);
 
@@ -423,7 +408,6 @@ extern struct ttm_bo_global {
 	 */
 
 	struct kobject kobj;
-	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
 	spinlock_t lru_lock;
 
@@ -451,7 +435,7 @@ extern struct ttm_bo_global {
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
- * @vma_manager: Address space manager
+ * @vma_manager: Address space manager (pointer)
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
  * @dev_mapping: A pointer to the struct address_space representing the
@@ -467,14 +451,13 @@ struct ttm_bo_device {
 	 * Constant after bo device init / atomic.
 	 */
 	struct list_head device_list;
-	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
 
 	/*
 	 * Protected by internal locks.
 	 */
-	struct drm_vma_offset_manager vma_manager;
+	struct drm_vma_offset_manager *vma_manager;
 
 	/*
 	 * Protected by the global:lru lock.
@@ -595,6 +578,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * @glob: A pointer to an initialized struct ttm_bo_global.
  * @driver: A pointer to a struct ttm_bo_driver set up by the caller.
  * @mapping: The address space to use for this bo.
+ * @vma_manager: A pointer to a vma manager.
  * @file_page_offset: Offset into the device address space that is available
  * for buffer data. This ensures compatibility with other users of the
  * address space.
@@ -606,6 +590,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
+		       struct drm_vma_offset_manager *vma_manager,
 		       bool need_dma32);
 
 /**
@@ -628,9 +613,6 @@ int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
 void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
 int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible);
 void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
-
-void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
 /**
  * __ttm_bo_reserve:
@@ -725,15 +707,9 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
-	int ret;
-
 	WARN_ON(!kref_read(&bo->kref));
 
-	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
-	if (likely(ret == 0))
-		ttm_bo_del_sub_from_lru(bo);
-
-	return ret;
+	return __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 }
 
 /**
@@ -760,9 +736,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	else
 		dma_resv_lock_slow(bo->base.resv, ticket);
 
-	if (likely(ret == 0))
-		ttm_bo_del_sub_from_lru(bo);
-	else if (ret == -EINTR)
+	if (ret == -EINTR)
 		ret = -ERESTARTSYS;
 
 	return ret;
@@ -777,12 +751,9 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	spin_lock(&bo->bdev->glob->lru_lock);
-	if (list_empty(&bo->lru))
-		ttm_bo_add_to_lru(bo);
-	else
-		ttm_bo_move_to_lru_tail(bo, NULL);
-	spin_unlock(&bo->bdev->glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
+	ttm_bo_move_to_lru_tail(bo, NULL);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	dma_resv_unlock(bo->base.resv);
 }
 

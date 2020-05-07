@@ -26,7 +26,6 @@
 
 #define DRV_DESC "QE UCC Gigabit Ethernet Controller"
 #define DRV_NAME "ucc_geth"
-#define DRV_VERSION "1.1"
 
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8

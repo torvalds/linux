@@ -33,11 +33,11 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
-static size_t mmap__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
-{
 #include "trace/beauty/generated/mmap_flags_array.c"
        static DEFINE_STRARRAY(mmap_flags, "MAP_");
 
+static size_t mmap__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
+{
        return strarray__scnprintf_flags(&strarray__mmap_flags, bf, size, show_prefix, flags);
 }
 
@@ -69,6 +69,7 @@ static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
 
 	P_MREMAP_FLAG(MAYMOVE);
 	P_MREMAP_FLAG(FIXED);
+	P_MREMAP_FLAG(DONTUNMAP);
 #undef P_MREMAP_FLAG
 
 	if (flags)

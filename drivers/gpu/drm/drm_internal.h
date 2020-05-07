@@ -41,15 +41,38 @@ struct drm_printer;
 
 /* drm_file.c */
 extern struct mutex drm_global_mutex;
+bool drm_dev_needs_global_mutex(struct drm_device *dev);
 struct drm_file *drm_file_alloc(struct drm_minor *minor);
 void drm_file_free(struct drm_file *file);
 void drm_lastclose(struct drm_device *dev);
+
+#ifdef CONFIG_PCI
 
 /* drm_pci.c */
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 void drm_pci_agp_destroy(struct drm_device *dev);
 int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
+
+#else
+
+static inline int drm_irq_by_busid(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+
+static inline void drm_pci_agp_destroy(struct drm_device *dev)
+{
+}
+
+static inline int drm_pci_set_busid(struct drm_device *dev,
+				    struct drm_master *master)
+{
+	return -EINVAL;
+}
+
+#endif
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -213,7 +236,3 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
 int drm_framebuffer_debugfs_init(struct drm_minor *minor);
-
-/* drm_hdcp.c */
-int drm_setup_hdcp_srm(struct class *drm_class);
-void drm_teardown_hdcp_srm(struct class *drm_class);

@@ -32,6 +32,37 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 	}
 }
 
+int goya_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
+{
+	long value;
+
+	if (hl_device_disabled_or_in_reset(hdev))
+		return -ENODEV;
+
+	value = hl_get_frequency(hdev, MME_PLL, false);
+
+	if (value < 0) {
+		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n",
+			value);
+		return value;
+	}
+
+	*max_clk = (value / 1000 / 1000);
+
+	value = hl_get_frequency(hdev, MME_PLL, true);
+
+	if (value < 0) {
+		dev_err(hdev->dev,
+			"Failed to retrieve device current clock %ld\n",
+			value);
+		return value;
+	}
+
+	*cur_clk = (value / 1000 / 1000);
+
+	return 0;
+}
+
 static ssize_t mme_clk_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -267,8 +298,8 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		/* Make sure we are in LOW PLL when changing modes */
 		if (hdev->pm_mng_profile == PM_MANUAL) {
 			hdev->curr_pll_profile = PLL_HIGH;
-			hl_device_set_frequency(hdev, PLL_LOW);
 			hdev->pm_mng_profile = PM_AUTO;
+			hl_device_set_frequency(hdev, PLL_LOW);
 		}
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
 		if (hdev->pm_mng_profile == PM_AUTO) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
 __u32 _version SEC("version") = 1;
@@ -13,13 +13,12 @@ struct tcp_rtt_storage {
 	__u32 icsk_retransmits;
 };
 
-struct bpf_map_def SEC("maps") socket_storage_map = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct tcp_rtt_storage),
-	.map_flags = BPF_F_NO_PREALLOC,
-};
-BPF_ANNOTATE_KV_PAIR(socket_storage_map, int, struct tcp_rtt_storage);
+struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct tcp_rtt_storage);
+} socket_storage_map SEC(".maps");
 
 SEC("sockops")
 int _sockops(struct bpf_sock_ops *ctx)

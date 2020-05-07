@@ -136,21 +136,29 @@
 #define RAVEN2_A0 0x81
 #define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
-
-#define PICASSO_15D8_REV_E3 0xE3
-#define PICASSO_15D8_REV_E4 0xE4
-
+#define RENOIR_A0 0x91
+#ifndef ASICREV_IS_RAVEN
 #define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
+#endif
+#define PRID_DALI_DE 0xDE
+#define PRID_DALI_DF 0xDF
+#define PRID_DALI_E3 0xE3
+#define PRID_DALI_E4 0xE4
+
+#define PRID_POLLOCK_94 0x94
+#define PRID_POLLOCK_95 0x95
+#define PRID_POLLOCK_E9 0xE9
+#define PRID_POLLOCK_EA 0xEA
+#define PRID_POLLOCK_EB 0xEB
+
 #define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < PICASSO_15D8_REV_E3))
-#define ASICREV_IS_DALI(eChipRev) ((eChipRev >= PICASSO_15D8_REV_E3) && (eChipRev < RAVEN1_F0))
-
+#ifndef ASICREV_IS_RAVEN2
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < RENOIR_A0))
+#endif
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
-
 
 #define FAMILY_RV 142 /* DCN 1*/
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 #define FAMILY_NV 143 /* DCN 2*/
 
@@ -164,12 +172,7 @@ enum {
 #define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
 #define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
 #define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-#define RENOIR_A0 0x91
-#define DEVICE_ID_RENOIR_1636 0x1636   // Renoir
-#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < 0xFF))
-#endif
+#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
 
 /*
  * ASIC chip ID
@@ -178,6 +181,9 @@ enum {
 #define DEVICE_ID_KALINDI_9834 0x9834
 #define DEVICE_ID_TEMASH_9839 0x9839
 #define DEVICE_ID_TEMASH_983D 0x983D
+
+/* RENOIR */
+#define DEVICE_ID_RENOIR_1636 0x1636
 
 /* Asic Family IDs for different asic family. */
 #define FAMILY_CI 120 /* Sea Islands: Hawaii (P), Bonaire (M) */

@@ -274,6 +274,21 @@ trace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 }
 EXPORT_SYMBOL(trace_print_array_seq);
 
+const char *
+trace_print_hex_dump_seq(struct trace_seq *p, const char *prefix_str,
+			 int prefix_type, int rowsize, int groupsize,
+			 const void *buf, size_t len, bool ascii)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_putc(p, '\n');
+	trace_seq_hex_dump(p, prefix_str, prefix_type,
+			   rowsize, groupsize, buf, len, ascii);
+	trace_seq_putc(p, 0);
+	return ret;
+}
+EXPORT_SYMBOL(trace_print_hex_dump_seq);
+
 int trace_raw_output_prep(struct trace_iterator *iter,
 			  struct trace_event *trace_event)
 {
@@ -523,7 +538,7 @@ lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 	struct trace_array *tr = iter->tr;
 	unsigned long verbose = tr->trace_flags & TRACE_ITER_VERBOSE;
 	unsigned long in_ns = iter->iter_flags & TRACE_FILE_TIME_IN_NS;
-	unsigned long long abs_ts = iter->ts - iter->trace_buffer->time_start;
+	unsigned long long abs_ts = iter->ts - iter->array_buffer->time_start;
 	unsigned long long rel_ts = next_ts - iter->ts;
 	struct trace_seq *s = &iter->seq;
 
@@ -602,21 +617,18 @@ int trace_print_context(struct trace_iterator *iter)
 
 int trace_print_lat_context(struct trace_iterator *iter)
 {
+	struct trace_entry *entry, *next_entry;
 	struct trace_array *tr = iter->tr;
-	/* trace_find_next_entry will reset ent_size */
-	int ent_size = iter->ent_size;
 	struct trace_seq *s = &iter->seq;
-	u64 next_ts;
-	struct trace_entry *entry = iter->ent,
-			   *next_entry = trace_find_next_entry(iter, NULL,
-							       &next_ts);
 	unsigned long verbose = (tr->trace_flags & TRACE_ITER_VERBOSE);
+	u64 next_ts;
 
-	/* Restore the original ent_size */
-	iter->ent_size = ent_size;
-
+	next_entry = trace_find_next_entry(iter, NULL, &next_ts);
 	if (!next_entry)
 		next_ts = iter->ts;
+
+	/* trace_find_next_entry() may change iter->ent */
+	entry = iter->ent;
 
 	if (verbose) {
 		char comm[TASK_COMM_LEN];
@@ -1143,12 +1155,12 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	trace_assign_type(field, entry);
 
-	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%lld.%09ld",
+	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%lld.%09ld count:%d",
 			 field->seqnum,
 			 field->duration,
 			 field->outer_duration,
 			 (long long)field->timestamp.tv_sec,
-			 field->timestamp.tv_nsec);
+			 field->timestamp.tv_nsec, field->count);
 
 	if (field->nmi_count) {
 		/*

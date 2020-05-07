@@ -10,8 +10,6 @@
  *	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/ratelimit.h>
@@ -362,8 +360,10 @@ static int ima_calc_file_hash_tfm(struct file *file,
 			rc = rbuf_len;
 			break;
 		}
-		if (rbuf_len == 0)
+		if (rbuf_len == 0) {	/* unexpected EOF */
+			rc = -EINVAL;
 			break;
+		}
 		offset += rbuf_len;
 
 		rc = crypto_shash_update(shash, rbuf, rbuf_len);

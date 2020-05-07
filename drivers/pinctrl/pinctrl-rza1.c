@@ -617,12 +617,6 @@ static void rza1_pin_reset(struct rza1_port *port, unsigned int pin)
 	spin_unlock_irqrestore(&port->lock, irqflags);
 }
 
-static inline int rza1_pin_get_direction(struct rza1_port *port,
-					 unsigned int pin)
-{
-	return !!rza1_get_bit(port, RZA1_PM_REG, pin);
-}
-
 /**
  * rza1_pin_set_direction() - set I/O direction on a pin in port mode
  *
@@ -783,7 +777,10 @@ static int rza1_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct rza1_port *port = gpiochip_get_data(chip);
 
-	return rza1_pin_get_direction(port, gpio);
+	if (rza1_get_bit(port, RZA1_PM_REG, gpio))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int rza1_gpio_direction_input(struct gpio_chip *chip,
@@ -1235,8 +1232,8 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	pinctrl_add_gpio_range(rza1_pctl->pctl, range);
 
-	dev_info(rza1_pctl->dev, "Parsed gpiochip %s with %d pins\n",
-		 chip->label, chip->ngpio);
+	dev_dbg(rza1_pctl->dev, "Parsed gpiochip %s with %d pins\n",
+		chip->label, chip->ngpio);
 
 	return 0;
 }

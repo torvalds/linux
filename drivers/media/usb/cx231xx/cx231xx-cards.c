@@ -1479,13 +1479,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 		goto err_dev_init;
 	}
 
-	/* init video dma queues */
+	/* init video dma queue */
 	INIT_LIST_HEAD(&dev->video_mode.vidq.active);
-	INIT_LIST_HEAD(&dev->video_mode.vidq.queued);
 
-	/* init vbi dma queues */
+	/* init vbi dma queue */
 	INIT_LIST_HEAD(&dev->vbi_mode.vidq.active);
-	INIT_LIST_HEAD(&dev->vbi_mode.vidq.queued);
 
 	/* Reset other chips required if they are tied up with GPIO pins */
 	cx231xx_add_into_devlist(dev);

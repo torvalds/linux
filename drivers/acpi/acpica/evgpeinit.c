@@ -3,7 +3,7 @@
  *
  * Module Name: evgpeinit - System GPE initialization and update
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -156,8 +156,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 			 * GPE0 and GPE1 do not have to be contiguous in the GPE number
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
-			gpe_number_max = acpi_gbl_FADT.gpe1_base +
-			    ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
 		}
 	}
 
@@ -169,7 +167,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "There are no GPE blocks defined in the FADT\n"));
-		status = AE_OK;
 		goto cleanup;
 	}
 

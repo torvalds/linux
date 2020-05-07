@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Driver for the Texas Instruments DP83822 PHY
+/* Driver for the Texas Instruments DP83822, DP83825 and DP83826 PHYs.
  *
  * Copyright (C) 2017 Texas Instruments Inc.
  */
@@ -15,7 +14,12 @@
 #include <linux/netdevice.h>
 
 #define DP83822_PHY_ID	        0x2000a240
+#define DP83825S_PHY_ID		0x2000a140
 #define DP83825I_PHY_ID		0x2000a150
+#define DP83825CM_PHY_ID	0x2000a160
+#define DP83825CS_PHY_ID	0x2000a170
+#define DP83826C_PHY_ID		0x2000a130
+#define DP83826NC_PHY_ID	0x2000a110
 
 #define DP83822_DEVADDR		0x1f
 
@@ -133,19 +137,18 @@ static int dp83822_set_wol(struct phy_device *phydev,
 			value &= ~DP83822_WOL_SECURE_ON;
 		}
 
-		value |= (DP83822_WOL_EN | DP83822_WOL_INDICATION_SEL |
-			  DP83822_WOL_CLR_INDICATION);
-		phy_write_mmd(phydev, DP83822_DEVADDR, MII_DP83822_WOL_CFG,
-			      value);
-	} else {
-		value = phy_read_mmd(phydev, DP83822_DEVADDR,
-				     MII_DP83822_WOL_CFG);
-		value &= ~DP83822_WOL_EN;
-		phy_write_mmd(phydev, DP83822_DEVADDR, MII_DP83822_WOL_CFG,
-			      value);
-	}
+		/* Clear any pending WoL interrupt */
+		phy_read(phydev, MII_DP83822_MISR2);
 
-	return 0;
+		value |= DP83822_WOL_EN | DP83822_WOL_INDICATION_SEL |
+			 DP83822_WOL_CLR_INDICATION;
+
+		return phy_write_mmd(phydev, DP83822_DEVADDR,
+				     MII_DP83822_WOL_CFG, value);
+	} else {
+		return phy_clear_bits_mmd(phydev, DP83822_DEVADDR,
+					  MII_DP83822_WOL_CFG, DP83822_WOL_EN);
+	}
 }
 
 static void dp83822_get_wol(struct phy_device *phydev,
@@ -254,12 +257,11 @@ static int dp83822_config_intr(struct phy_device *phydev)
 
 static int dp83822_config_init(struct phy_device *phydev)
 {
-	int value;
+	int value = DP83822_WOL_EN | DP83822_WOL_MAGIC_EN |
+		    DP83822_WOL_SECURE_ON;
 
-	value = DP83822_WOL_MAGIC_EN | DP83822_WOL_SECURE_ON | DP83822_WOL_EN;
-
-	return phy_write_mmd(phydev, DP83822_DEVADDR, MII_DP83822_WOL_CFG,
-	      value);
+	return phy_clear_bits_mmd(phydev, DP83822_DEVADDR,
+				  MII_DP83822_WOL_CFG, value);
 }
 
 static int dp83822_phy_reset(struct phy_device *phydev)
@@ -319,12 +321,22 @@ static int dp83822_resume(struct phy_device *phydev)
 static struct phy_driver dp83822_driver[] = {
 	DP83822_PHY_DRIVER(DP83822_PHY_ID, "TI DP83822"),
 	DP83822_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
+	DP83822_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
+	DP83822_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
+	DP83822_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
+	DP83822_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
+	DP83822_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
 };
 module_phy_driver(dp83822_driver);
 
 static struct mdio_device_id __maybe_unused dp83822_tbl[] = {
 	{ DP83822_PHY_ID, 0xfffffff0 },
 	{ DP83825I_PHY_ID, 0xfffffff0 },
+	{ DP83826C_PHY_ID, 0xfffffff0 },
+	{ DP83826NC_PHY_ID, 0xfffffff0 },
+	{ DP83825S_PHY_ID, 0xfffffff0 },
+	{ DP83825CM_PHY_ID, 0xfffffff0 },
+	{ DP83825CS_PHY_ID, 0xfffffff0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(mdio, dp83822_tbl);

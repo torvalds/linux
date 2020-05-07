@@ -63,6 +63,19 @@ static bool sysrq_on(void)
 	return sysrq_enabled || sysrq_always_enabled;
 }
 
+/**
+ * sysrq_mask - Getter for sysrq_enabled mask.
+ *
+ * Return: 1 if sysrq is always enabled, enabled sysrq_key_op mask otherwise.
+ */
+int sysrq_mask(void)
+{
+	if (sysrq_always_enabled)
+		return 1;
+	return sysrq_enabled;
+}
+EXPORT_SYMBOL_GPL(sysrq_mask);
+
 /*
  * A value of 1 means 'all', other nonzero values are an op mask:
  */
@@ -967,8 +980,6 @@ static struct input_handler sysrq_handler = {
 	.id_table	= sysrq_ids,
 };
 
-static bool sysrq_handler_registered;
-
 static inline void sysrq_register_handler(void)
 {
 	int error;
@@ -978,16 +989,11 @@ static inline void sysrq_register_handler(void)
 	error = input_register_handler(&sysrq_handler);
 	if (error)
 		pr_err("Failed to register input handler, error %d", error);
-	else
-		sysrq_handler_registered = true;
 }
 
 static inline void sysrq_unregister_handler(void)
 {
-	if (sysrq_handler_registered) {
-		input_unregister_handler(&sysrq_handler);
-		sysrq_handler_registered = false;
-	}
+	input_unregister_handler(&sysrq_handler);
 }
 
 static int sysrq_reset_seq_param_set(const char *buffer,
@@ -1053,6 +1059,7 @@ int sysrq_toggle_support(int enable_mask)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sysrq_toggle_support);
 
 static int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
                                 struct sysrq_key_op *remove_op_p)
@@ -1108,15 +1115,15 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations proc_sysrq_trigger_operations = {
-	.write		= write_sysrq_trigger,
-	.llseek		= noop_llseek,
+static const struct proc_ops sysrq_trigger_proc_ops = {
+	.proc_write	= write_sysrq_trigger,
+	.proc_lseek	= noop_llseek,
 };
 
 static void sysrq_init_procfs(void)
 {
 	if (!proc_create("sysrq-trigger", S_IWUSR, NULL,
-			 &proc_sysrq_trigger_operations))
+			 &sysrq_trigger_proc_ops))
 		pr_err("Failed to register proc interface\n");
 }
 

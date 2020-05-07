@@ -71,7 +71,7 @@
  */
 static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 {
-	struct page *dummy_page = adev->mman.bdev.glob->dummy_read_page;
+	struct page *dummy_page = ttm_bo_glob.dummy_read_page;
 
 	if (adev->dummy_page_addr)
 		return 0;
@@ -302,6 +302,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * @pages: number of pages to bind
  * @pagelist: pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: page table entry flags
  *
  * Binds the requested pages to the gart page table
  * (all asics).

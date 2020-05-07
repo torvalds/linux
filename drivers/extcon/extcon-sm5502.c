@@ -65,6 +65,10 @@ struct sm5502_muic_info {
 /* Default value of SM5502 register to bring up MUIC device. */
 static struct reg_data sm5502_reg_data[] = {
 	{
+		.reg = SM5502_REG_RESET,
+		.val = SM5502_REG_RESET_MASK,
+		.invert = true,
+	}, {
 		.reg = SM5502_REG_CONTROL,
 		.val = SM5502_REG_CONTROL_MASK_INT_MASK,
 		.invert = false,
@@ -245,7 +249,7 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
 				con_sw);
 		return -EINVAL;
-	};
+	}
 
 	switch (vbus_sw) {
 	case VBUSIN_SWITCH_OPEN:
@@ -264,7 +268,7 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 	default:
 		dev_err(info->dev, "Unknown VBUS switch type (%d)\n", vbus_sw);
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -272,7 +276,7 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 /* Return cable type of attached or detached accessories */
 static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 {
-	unsigned int cable_type = -1, adc, dev_type1;
+	unsigned int cable_type, adc, dev_type1;
 	int ret;
 
 	/* Read ADC value according to external cable or button */
@@ -353,13 +357,13 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 				"cannot identify the cable type: adc(0x%x)\n",
 				adc);
 			return -EINVAL;
-		};
+		}
 		break;
 	default:
 		dev_err(info->dev,
 			"failed to identify the cable type: adc(0x%x)\n", adc);
 		return -EINVAL;
-	};
+	}
 
 	return cable_type;
 }
@@ -401,7 +405,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		dev_dbg(info->dev,
 			"cannot handle this cable_type (0x%x)\n", cable_type);
 		return 0;
-	};
+	}
 
 	/* Change internal hardware path(DM_CON/DP_CON, VBUSIN) */
 	ret = sm5502_muic_set_path(info, con_sw, vbus_sw, attached);

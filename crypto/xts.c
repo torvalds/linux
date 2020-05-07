@@ -61,8 +61,6 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	crypto_cipher_set_flags(tweak, crypto_skcipher_get_flags(parent) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_cipher_setkey(tweak, key + keylen, keylen);
-	crypto_skcipher_set_flags(parent, crypto_cipher_get_flags(tweak) &
-					  CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -71,11 +69,7 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_skcipher_setkey(child, key, keylen);
 }
 
 /*
@@ -361,20 +355,21 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	ctx = skcipher_instance_ctx(inst);
 
-	crypto_set_skcipher_spawn(&ctx->spawn, skcipher_crypto_instance(inst));
-
 	mask = crypto_requires_off(algt->type, algt->mask,
 				   CRYPTO_ALG_NEED_FALLBACK |
 				   CRYPTO_ALG_ASYNC);
 
-	err = crypto_grab_skcipher(&ctx->spawn, cipher_name, 0, mask);
+	err = crypto_grab_skcipher(&ctx->spawn, skcipher_crypto_instance(inst),
+				   cipher_name, 0, mask);
 	if (err == -ENOENT) {
 		err = -ENAMETOOLONG;
 		if (snprintf(ctx->name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
 			goto err_free_inst;
 
-		err = crypto_grab_skcipher(&ctx->spawn, ctx->name, 0, mask);
+		err = crypto_grab_skcipher(&ctx->spawn,
+					   skcipher_crypto_instance(inst),
+					   ctx->name, 0, mask);
 	}
 
 	if (err)
@@ -384,15 +379,15 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	err = -EINVAL;
 	if (alg->base.cra_blocksize != XTS_BLOCK_SIZE)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	if (crypto_skcipher_alg_ivsize(alg))
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "xts",
 				  &alg->base);
 	if (err)
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	err = -EINVAL;
 	cipher_name = alg->base.cra_name;
@@ -405,20 +400,20 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 
 		len = strlcpy(ctx->name, cipher_name + 4, sizeof(ctx->name));
 		if (len < 2 || len >= sizeof(ctx->name))
-			goto err_drop_spawn;
+			goto err_free_inst;
 
 		if (ctx->name[len - 1] != ')')
-			goto err_drop_spawn;
+			goto err_free_inst;
 
 		ctx->name[len - 1] = 0;
 
 		if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 			     "xts(%s)", ctx->name) >= CRYPTO_MAX_ALG_NAME) {
 			err = -ENAMETOOLONG;
-			goto err_drop_spawn;
+			goto err_free_inst;
 		}
 	} else
-		goto err_drop_spawn;
+		goto err_free_inst;
 
 	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
@@ -442,17 +437,11 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->free = free;
 
 	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_spawn;
-
-out:
-	return err;
-
-err_drop_spawn:
-	crypto_drop_skcipher(&ctx->spawn);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out;
+		free(inst);
+	}
+	return err;
 }
 
 static struct crypto_template crypto_tmpl = {

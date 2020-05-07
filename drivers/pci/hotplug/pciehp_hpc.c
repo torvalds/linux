@@ -14,6 +14,7 @@
 
 #define dev_fmt(fmt) "pciehp: " fmt
 
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
@@ -25,6 +26,24 @@
 
 #include "../pci.h"
 #include "pciehp.h"
+
+static const struct dmi_system_id inband_presence_disabled_dmi_table[] = {
+	/*
+	 * Match all Dell systems, as some Dell systems have inband
+	 * presence disabled on NVMe slots (but don't support the bit to
+	 * report it). Setting inband presence disabled should have no
+	 * negative effect, except on broken hotplug slots that never
+	 * assert presence detect--and those will still work, they will
+	 * just have a bit of extra delay before being probed.
+	 */
+	{
+		.ident = "Dell System",
+		.matches = {
+			DMI_MATCH(DMI_OEM_STRING, "Dell System"),
+		},
+	},
+	{}
+};
 
 static inline struct pci_dev *ctrl_dev(struct controller *ctrl)
 {
@@ -68,7 +87,7 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
 
-	while (true) {
+	do {
 		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 		if (slot_status == (u16) ~0) {
 			ctrl_info(ctrl, "%s: no response from device\n",
@@ -81,11 +100,9 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 						   PCI_EXP_SLTSTA_CC);
 			return 1;
 		}
-		if (timeout < 0)
-			break;
 		msleep(10);
 		timeout -= 10;
-	}
+	} while (timeout >= 0);
 	return 0;	/* timeout */
 }
 
@@ -201,17 +218,29 @@ static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
 	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
 
-bool pciehp_check_link_active(struct controller *ctrl)
+/**
+ * pciehp_check_link_active() - Is the link active
+ * @ctrl: PCIe hotplug controller
+ *
+ * Check whether the downstream link is currently active. Note it is
+ * possible that the card is removed immediately after this so the
+ * caller may need to take it into account.
+ *
+ * If the hotplug controller itself is not available anymore returns
+ * %-ENODEV.
+ */
+int pciehp_check_link_active(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 lnk_status;
-	bool ret;
+	int ret;
 
-	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+	ret = pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+	if (ret == PCIBIOS_DEVICE_NOT_FOUND || lnk_status == (u16)~0)
+		return -ENODEV;
+
 	ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
-
-	if (ret)
-		ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
+	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 
 	return ret;
 }
@@ -242,6 +271,22 @@ static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
 	return found;
 }
 
+static void pcie_wait_for_presence(struct pci_dev *pdev)
+{
+	int timeout = 1250;
+	u16 slot_status;
+
+	do {
+		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+		if (slot_status & PCI_EXP_SLTSTA_PDS)
+			return;
+		msleep(10);
+		timeout -= 10;
+	} while (timeout > 0);
+
+	pci_info(pdev, "Timeout waiting for Presence Detect\n");
+}
+
 int pciehp_check_link_status(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -250,6 +295,9 @@ int pciehp_check_link_status(struct controller *ctrl)
 
 	if (!pcie_wait_for_link(pdev, true))
 		return -1;
+
+	if (ctrl->inband_presence_disabled)
+		pcie_wait_for_presence(pdev);
 
 	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
 					PCI_DEVFN(0, 0));
@@ -373,13 +421,29 @@ void pciehp_get_latch_status(struct controller *ctrl, u8 *status)
 	*status = !!(slot_status & PCI_EXP_SLTSTA_MRLSS);
 }
 
-bool pciehp_card_present(struct controller *ctrl)
+/**
+ * pciehp_card_present() - Is the card present
+ * @ctrl: PCIe hotplug controller
+ *
+ * Function checks whether the card is currently present in the slot and
+ * in that case returns true. Note it is possible that the card is
+ * removed immediately after the check so the caller may need to take
+ * this into account.
+ *
+ * It the hotplug controller itself is not available anymore returns
+ * %-ENODEV.
+ */
+int pciehp_card_present(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
+	int ret;
 
-	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	return slot_status & PCI_EXP_SLTSTA_PDS;
+	ret = pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+	if (ret == PCIBIOS_DEVICE_NOT_FOUND || slot_status == (u16)~0)
+		return -ENODEV;
+
+	return !!(slot_status & PCI_EXP_SLTSTA_PDS);
 }
 
 /**
@@ -390,10 +454,19 @@ bool pciehp_card_present(struct controller *ctrl)
  * Presence Detect State bit, this helper also returns true if the Link Active
  * bit is set.  This is a concession to broken hotplug ports which hardwire
  * Presence Detect State to zero, such as Wilocity's [1ae9:0200].
+ *
+ * Returns: %1 if the slot is occupied and %0 if it is not. If the hotplug
+ *	    port is not present anymore returns %-ENODEV.
  */
-bool pciehp_card_present_or_link_active(struct controller *ctrl)
+int pciehp_card_present_or_link_active(struct controller *ctrl)
 {
-	return pciehp_card_present(ctrl) || pciehp_check_link_active(ctrl);
+	int ret;
+
+	ret = pciehp_card_present(ctrl);
+	if (ret)
+		return ret;
+
+	return pciehp_check_link_active(ctrl);
 }
 
 int pciehp_query_power_fault(struct controller *ctrl)
@@ -492,7 +565,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	struct device *parent = pdev->dev.parent;
-	u16 status, events;
+	u16 status, events = 0;
 
 	/*
 	 * Interrupts only occur in D3hot or shallower and only if enabled
@@ -517,6 +590,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		}
 	}
 
+read_status:
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
 	if (status == (u16) ~0) {
 		ctrl_info(ctrl, "%s: no response from device\n", __func__);
@@ -529,24 +603,37 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	 * Slot Status contains plain status bits as well as event
 	 * notification bits; right now we only want the event bits.
 	 */
-	events = status & (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
-			   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
-			   PCI_EXP_SLTSTA_DLLSC);
+	status &= PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
+		  PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
+		  PCI_EXP_SLTSTA_DLLSC;
 
 	/*
 	 * If we've already reported a power fault, don't report it again
 	 * until we've done something to handle it.
 	 */
 	if (ctrl->power_fault_detected)
-		events &= ~PCI_EXP_SLTSTA_PFD;
+		status &= ~PCI_EXP_SLTSTA_PFD;
 
+	events |= status;
 	if (!events) {
 		if (parent)
 			pm_runtime_put(parent);
 		return IRQ_NONE;
 	}
 
-	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, events);
+	if (status) {
+		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, events);
+
+		/*
+		 * In MSI mode, all event bits must be zero before the port
+		 * will send a new interrupt (PCIe Base Spec r5.0 sec 6.7.3.4).
+		 * So re-read the Slot Status register in case a bit was set
+		 * between read and write.
+		 */
+		if (pci_dev_msi_enabled(pdev) && !pciehp_poll_mode)
+			goto read_status;
+	}
+
 	ctrl_dbg(ctrl, "pending interrupts %#06x from Slot Status\n", events);
 	if (parent)
 		pm_runtime_put(parent);
@@ -583,23 +670,22 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	irqreturn_t ret;
 	u32 events;
 
+	ctrl->ist_running = true;
 	pci_config_pm_runtime_get(pdev);
 
 	/* rerun pciehp_isr() if the port was inaccessible on interrupt */
 	if (atomic_fetch_and(~RERUN_ISR, &ctrl->pending_events) & RERUN_ISR) {
 		ret = pciehp_isr(irq, dev_id);
 		enable_irq(irq);
-		if (ret != IRQ_WAKE_THREAD) {
-			pci_config_pm_runtime_put(pdev);
-			return ret;
-		}
+		if (ret != IRQ_WAKE_THREAD)
+			goto out;
 	}
 
 	synchronize_hardirq(irq);
 	events = atomic_xchg(&ctrl->pending_events, 0);
 	if (!events) {
-		pci_config_pm_runtime_put(pdev);
-		return IRQ_NONE;
+		ret = IRQ_NONE;
+		goto out;
 	}
 
 	/* Check Attention Button Pressed */
@@ -628,9 +714,12 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 		pciehp_handle_presence_or_link_change(ctrl, events);
 	up_read(&ctrl->reset_lock);
 
+	ret = IRQ_HANDLED;
+out:
 	pci_config_pm_runtime_put(pdev);
+	ctrl->ist_running = false;
 	wake_up(&ctrl->requester);
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int pciehp_poll(void *data)
@@ -811,7 +900,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 struct controller *pcie_init(struct pcie_device *dev)
 {
 	struct controller *ctrl;
-	u32 slot_cap, link_cap;
+	u32 slot_cap, slot_cap2, link_cap;
 	u8 poweron;
 	struct pci_dev *pdev = dev->port;
 	struct pci_bus *subordinate = pdev->subordinate;
@@ -846,6 +935,16 @@ struct controller *pcie_init(struct pcie_device *dev)
 	ctrl->state = list_empty(&subordinate->devices) ? OFF_STATE : ON_STATE;
 	up_read(&pci_bus_sem);
 
+	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP2, &slot_cap2);
+	if (slot_cap2 & PCI_EXP_SLTCAP2_IBPD) {
+		pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_IBPD_DISABLE,
+				      PCI_EXP_SLTCTL_IBPD_DISABLE);
+		ctrl->inband_presence_disabled = 1;
+	}
+
+	if (dmi_first_match(inband_presence_disabled_dmi_table))
+		ctrl->inband_presence_disabled = 1;
+
 	/* Check if Data Link Layer Link Active Reporting is implemented */
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
 
@@ -855,7 +954,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_CC |
 		PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC);
 
-	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c LLActRep%c%s\n",
+	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c IbPresDis%c LLActRep%c%s\n",
 		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,
 		FLAG(slot_cap, PCI_EXP_SLTCAP_ABP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_PCP),
@@ -866,6 +965,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		FLAG(slot_cap, PCI_EXP_SLTCAP_HPS),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_EIP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_NCCS),
+		FLAG(slot_cap2, PCI_EXP_SLTCAP2_IBPD),
 		FLAG(link_cap, PCI_EXP_LNKCAP_DLLLARC),
 		pdev->broken_cmd_compl ? " (with Cmd Compl erratum)" : "");
 

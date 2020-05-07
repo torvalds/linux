@@ -565,7 +565,6 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	skb = *out_skb = napi_alloc_skb(&ring_data->napi,
 					HNS_RX_HEAD_SIZE);
 	if (unlikely(!skb)) {
-		netdev_err(ndev, "alloc rx skb fail\n");
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
@@ -1056,7 +1055,6 @@ static int hns_nic_common_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct hns_nic_ring_data, napi);
 	struct hnae_ring *ring = ring_data->ring;
 
-try_again:
 	clean_complete += ring_data->poll_one(
 				ring_data, budget - clean_complete,
 				ring_data->ex_process);
@@ -1066,7 +1064,7 @@ try_again:
 			napi_complete(napi);
 			ring->q->handle->dev->ops->toggle_ring_irq(ring, 0);
 		} else {
-			goto try_again;
+			return budget;
 		}
 	}
 
@@ -1485,7 +1483,7 @@ static int hns_nic_net_stop(struct net_device *ndev)
 
 static void hns_tx_timeout_reset(struct hns_nic_priv *priv);
 #define HNS_TX_TIMEO_LIMIT (40 * HZ)
-static void hns_nic_net_timeout(struct net_device *ndev)
+static void hns_nic_net_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 
@@ -1497,20 +1495,6 @@ static void hns_nic_net_timeout(struct net_device *ndev)
 		ndev->watchdog_timeo = HNS_NIC_TX_TIMEOUT;
 		hns_tx_timeout_reset(priv);
 	}
-}
-
-static int hns_nic_do_ioctl(struct net_device *netdev, struct ifreq *ifr,
-			    int cmd)
-{
-	struct phy_device *phy_dev = netdev->phydev;
-
-	if (!netif_running(netdev))
-		return -EINVAL;
-
-	if (!phy_dev)
-		return -ENOTSUPP;
-
-	return phy_mii_ioctl(phy_dev, ifr, cmd);
 }
 
 static netdev_tx_t hns_nic_net_xmit(struct sk_buff *skb,
@@ -1960,7 +1944,7 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_tx_timeout = hns_nic_net_timeout,
 	.ndo_set_mac_address = hns_nic_net_set_mac_address,
 	.ndo_change_mtu = hns_nic_change_mtu,
-	.ndo_do_ioctl = hns_nic_do_ioctl,
+	.ndo_do_ioctl = phy_do_ioctl_running,
 	.ndo_set_features = hns_nic_set_features,
 	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,

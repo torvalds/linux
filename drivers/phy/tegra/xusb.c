@@ -66,6 +66,12 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 		.data = &tegra186_xusb_padctl_soc,
 	},
 #endif
+#if defined(CONFIG_ARCH_TEGRA_194_SOC)
+	{
+		.compatible = "nvidia,tegra194-xusb-padctl",
+		.data = &tegra194_xusb_padctl_soc,
+	},
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
@@ -501,6 +507,10 @@ tegra_xusb_find_usb3_port(struct tegra_xusb_padctl *padctl, unsigned int index)
 
 static void tegra_xusb_port_release(struct device *dev)
 {
+	struct tegra_xusb_port *port = to_tegra_xusb_port(dev);
+
+	if (port->ops->release)
+		port->ops->release(port);
 }
 
 static struct device_type tegra_xusb_port_type = {
@@ -541,6 +551,16 @@ unregister:
 
 static void tegra_xusb_port_unregister(struct tegra_xusb_port *port)
 {
+	if (!IS_ERR_OR_NULL(port->usb_role_sw)) {
+		of_platform_depopulate(&port->dev);
+		usb_role_switch_unregister(port->usb_role_sw);
+		cancel_work_sync(&port->usb_phy_work);
+		usb_remove_phy(&port->usb_phy);
+	}
+
+	if (port->ops->remove)
+		port->ops->remove(port);
+
 	device_unregister(&port->dev);
 }
 
@@ -551,11 +571,146 @@ static const char *const modes[] = {
 	[USB_DR_MODE_OTG] = "otg",
 };
 
+static const char * const usb_roles[] = {
+	[USB_ROLE_NONE]		= "none",
+	[USB_ROLE_HOST]		= "host",
+	[USB_ROLE_DEVICE]	= "device",
+};
+
+static enum usb_phy_events to_usb_phy_event(enum usb_role role)
+{
+	switch (role) {
+	case USB_ROLE_DEVICE:
+		return USB_EVENT_VBUS;
+
+	case USB_ROLE_HOST:
+		return USB_EVENT_ID;
+
+	default:
+		return USB_EVENT_NONE;
+	}
+}
+
+static void tegra_xusb_usb_phy_work(struct work_struct *work)
+{
+	struct tegra_xusb_port *port = container_of(work,
+						    struct tegra_xusb_port,
+						    usb_phy_work);
+	enum usb_role role = usb_role_switch_get_role(port->usb_role_sw);
+
+	usb_phy_set_event(&port->usb_phy, to_usb_phy_event(role));
+
+	dev_dbg(&port->dev, "%s(): calling notifier for role %s\n", __func__,
+		usb_roles[role]);
+
+	atomic_notifier_call_chain(&port->usb_phy.notifier, 0, &port->usb_phy);
+}
+
+static int tegra_xusb_role_sw_set(struct usb_role_switch *sw,
+				  enum usb_role role)
+{
+	struct tegra_xusb_port *port = usb_role_switch_get_drvdata(sw);
+
+	dev_dbg(&port->dev, "%s(): role %s\n", __func__, usb_roles[role]);
+
+	schedule_work(&port->usb_phy_work);
+
+	return 0;
+}
+
+static int tegra_xusb_set_peripheral(struct usb_otg *otg,
+				     struct usb_gadget *gadget)
+{
+	struct tegra_xusb_port *port = container_of(otg->usb_phy,
+						    struct tegra_xusb_port,
+						    usb_phy);
+
+	if (gadget != NULL)
+		schedule_work(&port->usb_phy_work);
+
+	return 0;
+}
+
+static int tegra_xusb_set_host(struct usb_otg *otg, struct usb_bus *host)
+{
+	struct tegra_xusb_port *port = container_of(otg->usb_phy,
+						    struct tegra_xusb_port,
+						    usb_phy);
+
+	if (host != NULL)
+		schedule_work(&port->usb_phy_work);
+
+	return 0;
+}
+
+
+static int tegra_xusb_setup_usb_role_switch(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_lane *lane;
+	struct usb_role_switch_desc role_sx_desc = {
+		.fwnode = dev_fwnode(&port->dev),
+		.set = tegra_xusb_role_sw_set,
+	};
+	int err = 0;
+
+	/*
+	 * USB role switch driver needs parent driver owner info. This is a
+	 * suboptimal solution. TODO: Need to revisit this in a follow-up patch
+	 * where an optimal solution is possible with changes to USB role
+	 * switch driver.
+	 */
+	port->dev.driver = devm_kzalloc(&port->dev,
+					sizeof(struct device_driver),
+					GFP_KERNEL);
+	port->dev.driver->owner	 = THIS_MODULE;
+
+	port->usb_role_sw = usb_role_switch_register(&port->dev,
+						     &role_sx_desc);
+	if (IS_ERR(port->usb_role_sw)) {
+		err = PTR_ERR(port->usb_role_sw);
+		dev_err(&port->dev, "failed to register USB role switch: %d",
+			err);
+		return err;
+	}
+
+	INIT_WORK(&port->usb_phy_work, tegra_xusb_usb_phy_work);
+	usb_role_switch_set_drvdata(port->usb_role_sw, port);
+
+	port->usb_phy.otg = devm_kzalloc(&port->dev, sizeof(struct usb_otg),
+					 GFP_KERNEL);
+	if (!port->usb_phy.otg)
+		return -ENOMEM;
+
+	lane = tegra_xusb_find_lane(port->padctl, "usb2", port->index);
+
+	/*
+	 * Assign phy dev to usb-phy dev. Host/device drivers can use phy
+	 * reference to retrieve usb-phy details.
+	 */
+	port->usb_phy.dev = &lane->pad->lanes[port->index]->dev;
+	port->usb_phy.dev->driver = port->padctl->dev->driver;
+	port->usb_phy.otg->usb_phy = &port->usb_phy;
+	port->usb_phy.otg->set_peripheral = tegra_xusb_set_peripheral;
+	port->usb_phy.otg->set_host = tegra_xusb_set_host;
+
+	err = usb_add_phy_dev(&port->usb_phy);
+	if (err < 0) {
+		dev_err(&port->dev, "Failed to add USB PHY: %d\n", err);
+		return err;
+	}
+
+	/* populate connector entry */
+	of_platform_populate(port->dev.of_node, NULL, NULL, &port->dev);
+
+	return err;
+}
+
 static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 {
 	struct tegra_xusb_port *port = &usb2->base;
 	struct device_node *np = port->dev.of_node;
 	const char *mode;
+	int err;
 
 	usb2->internal = of_property_read_bool(np, "nvidia,internal");
 
@@ -572,7 +727,21 @@ static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 		usb2->mode = USB_DR_MODE_HOST;
 	}
 
-	usb2->supply = devm_regulator_get(&port->dev, "vbus");
+	/* usb-role-switch property is mandatory for OTG/Peripheral modes */
+	if (usb2->mode == USB_DR_MODE_PERIPHERAL ||
+	    usb2->mode == USB_DR_MODE_OTG) {
+		if (of_property_read_bool(np, "usb-role-switch")) {
+			err = tegra_xusb_setup_usb_role_switch(port);
+			if (err < 0)
+				return err;
+		} else {
+			dev_err(&port->dev, "usb-role-switch not found for %s mode",
+				modes[usb2->mode]);
+			return -EINVAL;
+		}
+	}
+
+	usb2->supply = regulator_get(&port->dev, "vbus");
 	return PTR_ERR_OR_ZERO(usb2->supply);
 }
 
@@ -591,7 +760,7 @@ static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
 	if (!np || !of_device_is_available(np))
 		goto out;
 
-	usb2 = devm_kzalloc(padctl->dev, sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
 	if (!usb2) {
 		err = -ENOMEM;
 		goto out;
@@ -622,6 +791,20 @@ out:
 	return err;
 }
 
+void tegra_xusb_usb2_port_release(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_usb2_port *usb2 = to_usb2_port(port);
+
+	kfree(usb2);
+}
+
+void tegra_xusb_usb2_port_remove(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_usb2_port *usb2 = to_usb2_port(port);
+
+	regulator_put(usb2->supply);
+}
+
 static int tegra_xusb_ulpi_port_parse_dt(struct tegra_xusb_ulpi_port *ulpi)
 {
 	struct tegra_xusb_port *port = &ulpi->base;
@@ -643,7 +826,7 @@ static int tegra_xusb_add_ulpi_port(struct tegra_xusb_padctl *padctl,
 	if (!np || !of_device_is_available(np))
 		goto out;
 
-	ulpi = devm_kzalloc(padctl->dev, sizeof(*ulpi), GFP_KERNEL);
+	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
 	if (!ulpi) {
 		err = -ENOMEM;
 		goto out;
@@ -674,6 +857,13 @@ out:
 	return err;
 }
 
+void tegra_xusb_ulpi_port_release(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_ulpi_port *ulpi = to_ulpi_port(port);
+
+	kfree(ulpi);
+}
+
 static int tegra_xusb_hsic_port_parse_dt(struct tegra_xusb_hsic_port *hsic)
 {
 	/* XXX */
@@ -691,7 +881,7 @@ static int tegra_xusb_add_hsic_port(struct tegra_xusb_padctl *padctl,
 	if (!np || !of_device_is_available(np))
 		goto out;
 
-	hsic = devm_kzalloc(padctl->dev, sizeof(*hsic), GFP_KERNEL);
+	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
 	if (!hsic) {
 		err = -ENOMEM;
 		goto out;
@@ -722,10 +912,18 @@ out:
 	return err;
 }
 
+void tegra_xusb_hsic_port_release(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_hsic_port *hsic = to_hsic_port(port);
+
+	kfree(hsic);
+}
+
 static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 {
 	struct tegra_xusb_port *port = &usb3->base;
 	struct device_node *np = port->dev.of_node;
+	enum usb_device_speed maximum_speed;
 	u32 value;
 	int err;
 
@@ -739,7 +937,17 @@ static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 
 	usb3->internal = of_property_read_bool(np, "nvidia,internal");
 
-	usb3->supply = devm_regulator_get(&port->dev, "vbus");
+	if (device_property_present(&port->dev, "maximum-speed")) {
+		maximum_speed =  usb_get_maximum_speed(&port->dev);
+		if (maximum_speed == USB_SPEED_SUPER)
+			usb3->disable_gen2 = true;
+		else if (maximum_speed == USB_SPEED_SUPER_PLUS)
+			usb3->disable_gen2 = false;
+		else
+			return -EINVAL;
+	}
+
+	usb3->supply = regulator_get(&port->dev, "vbus");
 	return PTR_ERR_OR_ZERO(usb3->supply);
 }
 
@@ -759,7 +967,7 @@ static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,
 	if (!np || !of_device_is_available(np))
 		goto out;
 
-	usb3 = devm_kzalloc(padctl->dev, sizeof(*usb3), GFP_KERNEL);
+	usb3 = kzalloc(sizeof(*usb3), GFP_KERNEL);
 	if (!usb3) {
 		err = -ENOMEM;
 		goto out;
@@ -790,6 +998,20 @@ out:
 	return err;
 }
 
+void tegra_xusb_usb3_port_release(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_usb3_port *usb3 = to_usb3_port(port);
+
+	kfree(usb3);
+}
+
+void tegra_xusb_usb3_port_remove(struct tegra_xusb_port *port)
+{
+	struct tegra_xusb_usb3_port *usb3 = to_usb3_port(port);
+
+	regulator_put(usb3->supply);
+}
+
 static void __tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_port *port, *tmp;
@@ -800,9 +1022,62 @@ static void __tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 	}
 }
 
+static int tegra_xusb_find_unused_usb3_port(struct tegra_xusb_padctl *padctl)
+{
+	struct device_node *np;
+	unsigned int i;
+
+	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
+		np = tegra_xusb_find_port_node(padctl, "usb3", i);
+		if (!np || !of_device_is_available(np))
+			return i;
+	}
+
+	return -ENODEV;
+}
+
+static bool tegra_xusb_port_is_companion(struct tegra_xusb_usb2_port *usb2)
+{
+	unsigned int i;
+	struct tegra_xusb_usb3_port *usb3;
+	struct tegra_xusb_padctl *padctl = usb2->base.padctl;
+
+	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
+		usb3 = tegra_xusb_find_usb3_port(padctl, i);
+		if (usb3 && usb3->port == usb2->base.index)
+			return true;
+	}
+
+	return false;
+}
+
+static int tegra_xusb_update_usb3_fake_port(struct tegra_xusb_usb2_port *usb2)
+{
+	int fake;
+
+	/* Disable usb3_port_fake usage by default and assign if needed */
+	usb2->usb3_port_fake = -1;
+
+	if ((usb2->mode == USB_DR_MODE_OTG ||
+	     usb2->mode == USB_DR_MODE_PERIPHERAL) &&
+		!tegra_xusb_port_is_companion(usb2)) {
+		fake = tegra_xusb_find_unused_usb3_port(usb2->base.padctl);
+		if (fake < 0) {
+			dev_err(&usb2->base.dev, "no unused USB3 ports available\n");
+			return -ENODEV;
+		}
+
+		dev_dbg(&usb2->base.dev, "Found unused usb3 port: %d\n", fake);
+		usb2->usb3_port_fake = fake;
+	}
+
+	return 0;
+}
+
 static int tegra_xusb_setup_ports(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_port *port;
+	struct tegra_xusb_usb2_port *usb2;
 	unsigned int i;
 	int err = 0;
 
@@ -830,6 +1105,18 @@ static int tegra_xusb_setup_ports(struct tegra_xusb_padctl *padctl)
 		err = tegra_xusb_add_usb3_port(padctl, i);
 		if (err < 0)
 			goto remove_ports;
+	}
+
+	if (padctl->soc->need_fake_usb3_port) {
+		for (i = 0; i < padctl->soc->ports.usb2.count; i++) {
+			usb2 = tegra_xusb_find_usb2_port(padctl, i);
+			if (!usb2)
+				continue;
+
+			err = tegra_xusb_update_usb3_fake_port(usb2);
+			if (err < 0)
+				goto remove_ports;
+		}
 	}
 
 	list_for_each_entry(port, &padctl->ports, list) {
@@ -862,7 +1149,6 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
 	struct resource *res;
-	unsigned int i;
 	int err;
 
 	/* for backwards compatibility with old device trees */
@@ -907,8 +1193,9 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
-	for (i = 0; i < padctl->soc->num_supplies; i++)
-		padctl->supplies[i].supply = padctl->soc->supply_names[i];
+	regulator_bulk_set_supply_names(padctl->supplies,
+					padctl->soc->supply_names,
+					padctl->soc->num_supplies);
 
 	err = devm_regulator_bulk_get(&pdev->dev, padctl->soc->num_supplies,
 				      padctl->supplies);
@@ -936,7 +1223,13 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 
 	err = tegra_xusb_setup_ports(padctl);
 	if (err) {
-		dev_err(&pdev->dev, "failed to setup XUSB ports: %d\n", err);
+		const char *level = KERN_ERR;
+
+		if (err == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, &pdev->dev,
+			   dev_fmt("failed to setup XUSB ports: %d\n"), err);
 		goto remove_pads;
 	}
 
@@ -1055,6 +1348,49 @@ int tegra_xusb_padctl_usb3_set_lfps_detect(struct tegra_xusb_padctl *padctl,
 	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(tegra_xusb_padctl_usb3_set_lfps_detect);
+
+int tegra_xusb_padctl_set_vbus_override(struct tegra_xusb_padctl *padctl,
+							bool val)
+{
+	if (padctl->soc->ops->vbus_override)
+		return padctl->soc->ops->vbus_override(padctl, val);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_set_vbus_override);
+
+int tegra_phy_xusb_utmi_port_reset(struct phy *phy)
+{
+	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
+
+	if (padctl->soc->ops->utmi_port_reset)
+		return padctl->soc->ops->utmi_port_reset(phy);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(tegra_phy_xusb_utmi_port_reset);
+
+int tegra_xusb_padctl_get_usb3_companion(struct tegra_xusb_padctl *padctl,
+				    unsigned int port)
+{
+	struct tegra_xusb_usb2_port *usb2;
+	struct tegra_xusb_usb3_port *usb3;
+	int i;
+
+	usb2 = tegra_xusb_find_usb2_port(padctl, port);
+	if (!usb2)
+		return -EINVAL;
+
+	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
+		usb3 = tegra_xusb_find_usb3_port(padctl, i);
+		if (usb3 && usb3->port == usb2->base.index)
+			return usb3->base.index;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_get_usb3_companion);
 
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
 MODULE_DESCRIPTION("Tegra XUSB Pad Controller driver");

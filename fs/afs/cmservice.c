@@ -169,7 +169,7 @@ static int afs_record_cm_probe(struct afs_call *call, struct afs_server *server)
 
 	spin_lock(&server->probe_lock);
 
-	if (!test_bit(AFS_SERVER_FL_HAVE_EPOCH, &server->flags)) {
+	if (!test_and_set_bit(AFS_SERVER_FL_HAVE_EPOCH, &server->flags)) {
 		server->cm_epoch = call->epoch;
 		server->probe.cm_epoch = call->epoch;
 		goto out;
@@ -241,6 +241,17 @@ static void afs_cm_destructor(struct afs_call *call)
 {
 	kfree(call->buffer);
 	call->buffer = NULL;
+}
+
+/*
+ * Abort a service call from within an action function.
+ */
+static void afs_abort_service_call(struct afs_call *call, u32 abort_code, int error,
+				   const char *why)
+{
+	rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
+				abort_code, error, why);
+	afs_set_call_complete(call, error, 0);
 }
 
 /*
@@ -342,14 +353,14 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		if (call->count2 != call->count && call->count2 != 0)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_cb_count);
-		call->_iter = &call->iter;
-		iov_iter_discard(&call->iter, READ, call->count2 * 3 * 4);
+		call->iter = &call->def_iter;
+		iov_iter_discard(&call->def_iter, READ, call->count2 * 3 * 4);
 		call->unmarshall++;
 
 		/* Fall through */
 	case 4:
 		_debug("extract discard %zu/%u",
-		       iov_iter_count(&call->iter), call->count2 * 3 * 4);
+		       iov_iter_count(call->iter), call->count2 * 3 * 4);
 
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -510,8 +521,7 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 	if (memcmp(r, &call->net->uuid, sizeof(call->net->uuid)) == 0)
 		afs_send_empty_reply(call);
 	else
-		rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
-					1, 1, "K-1");
+		afs_abort_service_call(call, 1, 1, "K-1");
 
 	afs_put_call(call);
 	_leave("");

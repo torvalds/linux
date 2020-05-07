@@ -50,12 +50,19 @@ choice
 	  See each option's help text for additional details. If you don't know
 	  what to do, choose "486".
 
+config M486SX
+	bool "486SX"
+	depends on X86_32
+	---help---
+	  Select this for an 486-class CPU without an FPU such as
+	  AMD/Cyrix/IBM/Intel SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5S.
+
 config M486
-	bool "486"
+	bool "486DX"
 	depends on X86_32
 	---help---
 	  Select this for an 486-class CPU such as AMD/Cyrix/IBM/Intel
-	  486DX/DX2/DX4 or SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or U5S.
+	  486DX/DX2/DX4 and UMC U5D.
 
 config M586
 	bool "586/K5/5x86/6x86/6x86MX"
@@ -312,20 +319,20 @@ config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || MPSC
 	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MATOM || MVIAC7 || X86_GENERIC || GENERIC_CPU
-	default "4" if MELAN || M486 || MGEODEGX1
+	default "4" if MELAN || M486SX || M486 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
 
 config X86_F00F_BUG
 	def_bool y
-	depends on M586MMX || M586TSC || M586 || M486
+	depends on M586MMX || M586TSC || M586 || M486SX || M486
 
 config X86_INVD_BUG
 	def_bool y
-	depends on M486
+	depends on M486SX || M486
 
 config X86_ALIGNMENT_16
 	def_bool y
-	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
+	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MELAN || MK6 || M586MMX || M586TSC || M586 || M486SX || M486 || MVIAC3_2 || MGEODEGX1
 
 config X86_INTEL_USERCOPY
 	def_bool y
@@ -378,7 +385,15 @@ config X86_MINIMUM_CPU_FAMILY
 
 config X86_DEBUGCTLMSR
 	def_bool y
-	depends on !(MK6 || MWINCHIPC6 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486) && !UML
+	depends on !(MK6 || MWINCHIPC6 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486SX || M486) && !UML
+
+config IA32_FEAT_CTL
+	def_bool y
+	depends on CPU_SUP_INTEL || CPU_SUP_CENTAUR || CPU_SUP_ZHAOXIN
+
+config X86_VMX_FEATURE_NAMES
+	def_bool y
+	depends on IA32_FEAT_CTL && X86_FEATURE_NAMES
 
 menuconfig PROCESSOR_SELECT
 	bool "Supported processor vendors" if EXPERT
@@ -402,7 +417,7 @@ config CPU_SUP_INTEL
 config CPU_SUP_CYRIX_32
 	default y
 	bool "Support Cyrix processors" if PROCESSOR_SELECT
-	depends on M486 || M586 || M586TSC || M586MMX || (EXPERT && !64BIT)
+	depends on M486SX || M486 || M586 || M586TSC || M586MMX || (EXPERT && !64BIT)
 	---help---
 	  This enables detection, tunings and quirks for Cyrix processors
 
@@ -470,7 +485,7 @@ config CPU_SUP_TRANSMETA_32
 config CPU_SUP_UMC_32
 	default y
 	bool "Support UMC processors" if PROCESSOR_SELECT
-	depends on M486 || (EXPERT && !64BIT)
+	depends on M486SX || M486 || (EXPERT && !64BIT)
 	---help---
 	  This enables detection, tunings and quirks for UMC processors
 

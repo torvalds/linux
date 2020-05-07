@@ -803,7 +803,8 @@ static int bcm_qspi_bspi_exec_mem_op(struct spi_device *spi,
 			return -EIO;
 
 	from = op->addr.val;
-	bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi->cs_gpiod)
+		bcm_qspi_chip_select(qspi, spi->chip_select);
 	bcm_qspi_write(qspi, MSPI, MSPI_WRITE_LOCK, 0);
 
 	/*
@@ -882,7 +883,8 @@ static int bcm_qspi_transfer_one(struct spi_master *master,
 	int slots;
 	unsigned long timeo = msecs_to_jiffies(100);
 
-	bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi->cs_gpiod)
+		bcm_qspi_chip_select(qspi, spi->chip_select);
 	qspi->trans_pos.trans = trans;
 	qspi->trans_pos.byte = 0;
 
@@ -1234,6 +1236,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	master->cleanup = bcm_qspi_cleanup;
 	master->dev.of_node = dev->of_node;
 	master->num_chipselect = NUM_CHIPSELECT;
+	master->use_gpio_descriptors = true;
 
 	qspi->big_endian = of_device_is_big_endian(dev->of_node);
 
@@ -1290,7 +1293,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 		name = qspi_irq_tab[val].irq_name;
 		if (qspi_irq_tab[val].irq_source == SINGLE_L2) {
 			/* get the l2 interrupts */
-			irq = platform_get_irq_byname(pdev, name);
+			irq = platform_get_irq_byname_optional(pdev, name);
 		} else if (!num_ints && soc_intc) {
 			/* all mspi, bspi intrs muxed to one L1 intr */
 			irq = platform_get_irq(pdev, 0);

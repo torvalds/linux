@@ -42,16 +42,9 @@ config DRM_I915
 
 	  If "M" is selected, the module will be called i915.
 
-config DRM_I915_ALPHA_SUPPORT
-	bool "Enable alpha quality support for new Intel hardware by default"
-	depends on DRM_I915
-	help
-	  This option is deprecated. Use DRM_I915_FORCE_PROBE option instead.
-
 config DRM_I915_FORCE_PROBE
 	string "Force probe driver for selected new Intel hardware"
 	depends on DRM_I915
-	default "*" if DRM_I915_ALPHA_SUPPORT
 	help
 	  This is the default value for the i915.force_probe module
 	  parameter. Using the module parameter overrides this option.
@@ -75,9 +68,8 @@ config DRM_I915_CAPTURE_ERROR
 	help
 	  This option enables capturing the GPU state when a hang is detected.
 	  This information is vital for triaging hangs and assists in debugging.
-	  Please report any hang to
-            https://bugs.freedesktop.org/enter_bug.cgi?product=DRI
-	  for triaging.
+	  Please report any hang for triaging according to:
+	    https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
 
 	  If in doubt, say "Y".
 
@@ -105,11 +97,11 @@ config DRM_I915_USERPTR
 	  If in doubt, say "Y".
 
 config DRM_I915_GVT
-        bool "Enable Intel GVT-g graphics virtualization host support"
-        depends on DRM_I915
-        depends on 64BIT
-        default n
-        help
+	bool "Enable Intel GVT-g graphics virtualization host support"
+	depends on DRM_I915
+	depends on 64BIT
+	default n
+	help
 	  Choose this option if you want to enable Intel GVT-g graphics
 	  virtualization technology host support with integrated graphics.
 	  With GVT-g, it's possible to have one integrated graphics
@@ -147,4 +139,10 @@ menu "drm/i915 Profile Guided Optimisation"
 	visible if EXPERT
 	depends on DRM_I915
 	source "drivers/gpu/drm/i915/Kconfig.profile"
+endmenu
+
+menu "drm/i915 Unstable Evolution"
+	visible if EXPERT && STAGING && BROKEN
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.unstable"
 endmenu

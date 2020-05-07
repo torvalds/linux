@@ -32,6 +32,9 @@
 #include <linux/workqueue.h>
 
 struct drm_i915_private;
+struct timer_list;
+
+#define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -60,20 +63,20 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
-int __i915_inject_load_error(struct drm_i915_private *i915, int err,
-			     const char *func, int line);
-#define i915_inject_load_error(_i915, _err) \
-	__i915_inject_load_error((_i915), (_err), __func__, __LINE__)
+int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
+			      const char *func, int line);
+#define i915_inject_probe_error(_i915, _err) \
+	__i915_inject_probe_error((_i915), (_err), __func__, __LINE__)
 bool i915_error_injected(void);
 
 #else
 
-#define i915_inject_load_error(_i915, _err) 0
+#define i915_inject_probe_error(i915, e) ({ BUILD_BUG_ON_INVALID(i915); 0; })
 #define i915_error_injected() false
 
 #endif
 
-#define i915_inject_probe_failure(i915) i915_inject_load_error((i915), -ENODEV)
+#define i915_inject_probe_failure(i915) i915_inject_probe_error((i915), -ENODEV)
 
 #define i915_probe_error(i915, fmt, ...)				   \
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
@@ -99,11 +102,23 @@ bool i915_error_injected(void);
 	typeof(max) max__ = (max); \
 	(void)(&start__ == &size__); \
 	(void)(&start__ == &max__); \
-	start__ > max__ || size__ > max__ - start__; \
+	start__ >= max__ || size__ > max__ - start__; \
 })
 
 #define range_overflows_t(type, start, size, max) \
 	range_overflows((type)(start), (type)(size), (type)(max))
+
+#define range_overflows_end(start, size, max) ({ \
+	typeof(start) start__ = (start); \
+	typeof(size) size__ = (size); \
+	typeof(max) max__ = (max); \
+	(void)(&start__ == &size__); \
+	(void)(&start__ == &max__); \
+	start__ > max__ || size__ > max__ - start__; \
+})
+
+#define range_overflows_end_t(type, start, size, max) \
+	range_overflows_end((type)(start), (type)(size), (type)(max))
 
 /* Note we don't consider signbits :| */
 #define overflows_type(x, T) \
@@ -233,11 +248,22 @@ static inline u64 ptr_to_u64(const void *ptr)
 	__idx;								\
 })
 
+static inline bool is_power_of_2_u64(u64 n)
+{
+	return (n != 0 && ((n & (n - 1)) == 0));
+}
+
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)
 {
 	first->prev = head;
 	WRITE_ONCE(head->next, first);
+}
+
+static inline int list_is_last_rcu(const struct list_head *list,
+				   const struct list_head *head)
+{
+	return READ_ONCE(list->next) == head;
 }
 
 /*
@@ -420,5 +446,26 @@ static inline void add_taint_for_CI(unsigned int taint)
 	 */
 	add_taint(taint, LOCKDEP_STILL_OK);
 }
+
+void cancel_timer(struct timer_list *t);
+void set_timer_ms(struct timer_list *t, unsigned long timeout);
+
+static inline bool timer_expired(const struct timer_list *t)
+{
+	return READ_ONCE(t->expires) && !timer_pending(t);
+}
+
+/*
+ * This is a lookalike for IS_ENABLED() that takes a kconfig value,
+ * e.g. CONFIG_DRM_I915_SPIN_REQUEST, and evaluates whether it is non-zero
+ * i.e. whether the configuration is active. Wrapping up the config inside
+ * a boolean context prevents clang and smatch from complaining about potential
+ * issues in confusing logical-&& with bitwise-& for constants.
+ *
+ * Sadly IS_ENABLED() itself does not work with kconfig values.
+ *
+ * Returns 0 if @config is 0, 1 if set to any value.
+ */
+#define IS_ACTIVE(config) ((config) != 0)
 
 #endif /* !__I915_UTILS_H */

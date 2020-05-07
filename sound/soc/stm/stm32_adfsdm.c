@@ -153,13 +153,13 @@ static const struct snd_soc_component_driver stm32_adfsdm_dai_component = {
 	.name = "stm32_dfsdm_audio",
 };
 
-static void memcpy_32to16(void *dest, const void *src, size_t n)
+static void stm32_memcpy_32to16(void *dest, const void *src, size_t n)
 {
 	unsigned int i = 0;
 	u16 *d = (u16 *)dest, *s = (u16 *)src;
 
 	s++;
-	for (i = n; i > 0; i--) {
+	for (i = n >> 1; i > 0; i--) {
 		*d++ = *s++;
 		s++;
 	}
@@ -186,8 +186,8 @@ static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 
 	if ((priv->pos + src_size) > buff_size) {
 		if (format == SNDRV_PCM_FORMAT_S16_LE)
-			memcpy_32to16(&pcm_buff[priv->pos], src_buff,
-				      buff_size - priv->pos);
+			stm32_memcpy_32to16(&pcm_buff[priv->pos], src_buff,
+					    buff_size - priv->pos);
 		else
 			memcpy(&pcm_buff[priv->pos], src_buff,
 			       buff_size - priv->pos);
@@ -196,8 +196,8 @@ static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 	}
 
 	if (format == SNDRV_PCM_FORMAT_S16_LE)
-		memcpy_32to16(&pcm_buff[priv->pos],
-			      &src_buff[src_size - cur_size], cur_size);
+		stm32_memcpy_32to16(&pcm_buff[priv->pos],
+				    &src_buff[src_size - cur_size], cur_size);
 	else
 		memcpy(&pcm_buff[priv->pos], &src_buff[src_size - cur_size],
 		       cur_size);
@@ -210,11 +210,12 @@ static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 	return 0;
 }
 
-static int stm32_adfsdm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int stm32_adfsdm_trigger(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -230,10 +231,11 @@ static int stm32_adfsdm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return -EINVAL;
 }
 
-static int stm32_adfsdm_pcm_open(struct snd_pcm_substream *substream)
+static int stm32_adfsdm_pcm_open(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct stm32_adfsdm_priv *priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct stm32_adfsdm_priv *priv = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	int ret;
 
 	ret =  snd_soc_set_runtime_hwparams(substream, &stm32_adfsdm_pcm_hw);
@@ -243,86 +245,63 @@ static int stm32_adfsdm_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int stm32_adfsdm_pcm_close(struct snd_pcm_substream *substream)
+static int stm32_adfsdm_pcm_close(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
-	snd_pcm_lib_free_pages(substream);
 	priv->substream = NULL;
 
 	return 0;
 }
 
 static snd_pcm_uframes_t stm32_adfsdm_pcm_pointer(
+					    struct snd_soc_component *component,
 					    struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
 	return bytes_to_frames(substream->runtime, priv->pos);
 }
 
-static int stm32_adfsdm_pcm_hw_params(struct snd_pcm_substream *substream,
+static int stm32_adfsdm_pcm_hw_params(struct snd_soc_component *component,
+				      struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
-	int ret;
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 
-	ret =  snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
 	priv->pcm_buff = substream->runtime->dma_area;
 
 	return iio_channel_cb_set_buffer_watermark(priv->iio_cb,
 						   params_period_size(params));
 }
 
-static int stm32_adfsdm_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
-
-	return 0;
-}
-
-static struct snd_pcm_ops stm32_adfsdm_pcm_ops = {
-	.open		= stm32_adfsdm_pcm_open,
-	.close		= stm32_adfsdm_pcm_close,
-	.hw_params	= stm32_adfsdm_pcm_hw_params,
-	.hw_free	= stm32_adfsdm_pcm_hw_free,
-	.trigger	= stm32_adfsdm_trigger,
-	.pointer	= stm32_adfsdm_pcm_pointer,
-};
-
-static int stm32_adfsdm_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int stm32_adfsdm_pcm_new(struct snd_soc_component *component,
+				struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
 	struct stm32_adfsdm_priv *priv =
-		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	unsigned int size = DFSDM_MAX_PERIODS * DFSDM_MAX_PERIOD_SIZE;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      priv->dev, size, size);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       priv->dev, size, size);
 	return 0;
 }
 
-static void stm32_adfsdm_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-
-	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-	if (substream)
-		snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static struct snd_soc_component_driver stm32_adfsdm_soc_platform = {
-	.ops		= &stm32_adfsdm_pcm_ops,
-	.pcm_new	= stm32_adfsdm_pcm_new,
-	.pcm_free	= stm32_adfsdm_pcm_free,
+	.open		= stm32_adfsdm_pcm_open,
+	.close		= stm32_adfsdm_pcm_close,
+	.hw_params	= stm32_adfsdm_pcm_hw_params,
+	.trigger	= stm32_adfsdm_trigger,
+	.pointer	= stm32_adfsdm_pcm_pointer,
+	.pcm_construct	= stm32_adfsdm_pcm_new,
 };
 
 static const struct of_device_id stm32_adfsdm_of_match[] = {

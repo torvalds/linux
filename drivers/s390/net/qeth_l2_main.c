@@ -24,7 +24,6 @@
 #include "qeth_core.h"
 #include "qeth_l2.h"
 
-static int qeth_l2_set_offline(struct ccwgroup_device *);
 static void qeth_bridgeport_query_support(struct qeth_card *card);
 static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
@@ -53,11 +52,11 @@ static int qeth_l2_setdelmac_makerc(struct qeth_card *card, u16 retcode)
 		break;
 	case IPA_RC_L2_DUP_MAC:
 	case IPA_RC_L2_DUP_LAYER3_MAC:
-		rc = -EEXIST;
+		rc = -EADDRINUSE;
 		break;
 	case IPA_RC_L2_MAC_NOT_AUTH_BY_HYP:
 	case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
-		rc = -EPERM;
+		rc = -EADDRNOTAVAIL;
 		break;
 	case IPA_RC_L2_MAC_NOT_FOUND:
 		rc = -ENOENT;
@@ -106,11 +105,11 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 			 "MAC address %pM successfully registered\n", mac);
 	} else {
 		switch (rc) {
-		case -EEXIST:
+		case -EADDRINUSE:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM already exists\n", mac);
 			break;
-		case -EPERM:
+		case -EADDRNOTAVAIL:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM is not authorized\n", mac);
 			break;
@@ -127,7 +126,7 @@ static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 
 	QETH_CARD_TEXT(card, 2, "L2Wmac");
 	rc = qeth_l2_send_setdelmac(card, mac, cmd);
-	if (rc == -EEXIST)
+	if (rc == -EADDRINUSE)
 		QETH_DBF_MESSAGE(2, "MAC already registered on device %x\n",
 				 CARD_DEVID(card));
 	else if (rc)
@@ -284,66 +283,15 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_clear_ipacmd_list(card);
-		card->state = CARD_STATE_HARDSETUP;
-	}
-	if (card->state == CARD_STATE_HARDSETUP) {
-		qeth_qdio_clear_card(card, 0);
 		qeth_drain_output_queues(card);
-		qeth_clear_working_pool_list(card);
+		cancel_delayed_work_sync(&card->buffer_reclaim_work);
 		card->state = CARD_STATE_DOWN;
 	}
 
+	qeth_qdio_clear_card(card, 0);
+	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
-	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
-}
-
-static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
-				int budget, int *done)
-{
-	int work_done = 0;
-	struct sk_buff *skb;
-	struct qeth_hdr *hdr;
-	unsigned int len;
-
-	*done = 0;
-	WARN_ON_ONCE(!budget);
-	while (budget) {
-		skb = qeth_core_get_next_skb(card,
-			&card->qdio.in_q->bufs[card->rx.b_index],
-			&card->rx.b_element, &card->rx.e_offset, &hdr);
-		if (!skb) {
-			*done = 1;
-			break;
-		}
-		switch (hdr->hdr.l2.id) {
-		case QETH_HEADER_TYPE_LAYER2:
-			skb->protocol = eth_type_trans(skb, skb->dev);
-			qeth_rx_csum(card, skb, hdr->hdr.l2.flags[1]);
-			len = skb->len;
-			napi_gro_receive(&card->napi, skb);
-			break;
-		case QETH_HEADER_TYPE_OSN:
-			if (IS_OSN(card)) {
-				skb_push(skb, sizeof(struct qeth_hdr));
-				skb_copy_to_linear_data(skb, hdr,
-						sizeof(struct qeth_hdr));
-				len = skb->len;
-				card->osn_info.data_cb(skb);
-				break;
-			}
-			/* Else, fall through */
-		default:
-			dev_kfree_skb_any(skb);
-			QETH_CARD_TEXT(card, 3, "inbunkno");
-			QETH_DBF_HEX(CTRL, 3, hdr, sizeof(*hdr));
-			continue;
-		}
-		work_done++;
-		budget--;
-		QETH_CARD_STAT_INC(card, rx_packets);
-		QETH_CARD_STAT_ADD(card, rx_bytes, len);
-	}
-	return work_done;
+	card->info.promisc_mode = 0;
 }
 
 static int qeth_l2_request_initial_mac(struct qeth_card *card)
@@ -388,14 +336,16 @@ static void qeth_l2_register_dev_addr(struct qeth_card *card)
 		qeth_l2_request_initial_mac(card);
 
 	if (!IS_OSN(card) && !qeth_l2_send_setmac(card, card->dev->dev_addr))
-		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
+		card->info.dev_addr_is_registered = 1;
+	else
+		card->info.dev_addr_is_registered = 0;
 }
 
 static int qeth_l2_validate_addr(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
+	if (card->info.dev_addr_is_registered)
 		return eth_validate_addr(dev);
 
 	QETH_CARD_TEXT(card, 4, "nomacadr");
@@ -421,7 +371,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 
 	/* don't register the same address twice */
 	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
-	    (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
+	    card->info.dev_addr_is_registered)
 		return 0;
 
 	/* add the new address, switch over, drop the old */
@@ -431,9 +381,9 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	ether_addr_copy(old_addr, dev->dev_addr);
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
-	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
+	if (card->info.dev_addr_is_registered)
 		qeth_l2_remove_mac(card, old_addr);
-	card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
+	card->info.dev_addr_is_registered = 1;
 	return 0;
 }
 
@@ -550,6 +500,7 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 			    struct qeth_qdio_out_q *queue)
 {
+	gfp_t gfp = GFP_ATOMIC | (skb_pfmemalloc(skb) ? __GFP_MEMALLOC : 0);
 	struct qeth_hdr *hdr = (struct qeth_hdr *)skb->data;
 	addr_t end = (addr_t)(skb->data + sizeof(*hdr));
 	addr_t start = (addr_t)skb->data;
@@ -562,7 +513,7 @@ static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 
 	if (qeth_get_elements_for_range(start, end) > 1) {
 		/* Misaligned HW header, move it to its own buffer element. */
-		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+		hdr = kmem_cache_alloc(qeth_core_header_cache, gfp);
 		if (!hdr)
 			return -ENOMEM;
 		hd_len = sizeof(*hdr);
@@ -621,7 +572,9 @@ static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return qeth_iqd_select_queue(dev, skb,
 					     qeth_get_ether_cast_type(skb),
 					     sb_dev);
-	return qeth_get_priority_queue(card, skb);
+
+	return IS_VM_NIC(card) ? netdev_pick_tx(dev, skb, sb_dev) :
+				 qeth_get_priority_queue(card, skb);
 }
 
 static const struct device_type qeth_l2_devtype = {
@@ -633,6 +586,9 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc;
+
+	if (IS_OSN(card))
+		dev_notice(&gdev->dev, "OSN support will be dropped in 2021\n");
 
 	qeth_l2_vnicc_set_defaults(card);
 	mutex_init(&card->sbp_lock);
@@ -658,10 +614,10 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (cgdev->state == CCWGROUP_ONLINE)
-		qeth_l2_set_offline(cgdev);
+		qeth_set_offline(card, false);
 
 	cancel_work_sync(&card->close_dev_work);
-	if (qeth_netdev_is_registered(card->dev))
+	if (card->dev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(card->dev);
 }
 
@@ -699,7 +655,7 @@ static const struct net_device_ops qeth_osn_netdev_ops = {
 	.ndo_tx_timeout		= qeth_tx_timeout,
 };
 
-static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
+static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	int rc;
 
@@ -708,6 +664,10 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		card->dev->flags |= IFF_NOARP;
 		goto add_napi;
 	}
+
+	rc = qeth_setup_netdev(card);
+	if (rc)
+		return rc;
 
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
@@ -755,21 +715,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 
 add_napi:
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
-	rc = register_netdev(card->dev);
-	if (!rc && carrier_ok)
-		netif_carrier_on(card->dev);
-
-	if (rc)
-		card->dev->netdev_ops = NULL;
-	return rc;
-}
-
-static int qeth_l2_start_ipassists(struct qeth_card *card)
-{
-	/* configure isolation level */
-	if (qeth_set_access_ctrl_online(card, 0))
-		return -ENODEV;
-	return 0;
+	return register_netdev(card->dev);
 }
 
 static void qeth_l2_trace_features(struct qeth_card *card)
@@ -784,16 +730,30 @@ static void qeth_l2_trace_features(struct qeth_card *card)
 		      sizeof(card->options.vnicc.sup_chars));
 }
 
-static int qeth_l2_set_online(struct ccwgroup_device *gdev)
+static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 {
-	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (!card->options.sbp.reflect_promisc &&
+	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
+		/* Conditional to avoid spurious error messages */
+		qeth_bridgeport_setrole(card, card->options.sbp.role);
+		/* Let the callback function refresh the stored role value. */
+		qeth_bridgeport_query_ports(card, &card->options.sbp.role,
+					    NULL);
+	}
+	if (card->options.sbp.hostnotification) {
+		if (qeth_bridgeport_an_set(card, 1))
+			card->options.sbp.hostnotification = 0;
+	} else {
+		qeth_bridgeport_an_set(card, 0);
+	}
+}
+
+static int qeth_l2_set_online(struct qeth_card *card)
+{
+	struct ccwgroup_device *gdev = card->gdev;
 	struct net_device *dev = card->dev;
 	int rc = 0;
 	bool carrier_ok;
-
-	mutex_lock(&card->discipline_mutex);
-	mutex_lock(&card->conf_mutex);
-	QETH_CARD_TEXT(card, 2, "setonlin");
 
 	rc = qeth_core_hardsetup_card(card, &carrier_ok);
 	if (rc) {
@@ -802,18 +762,13 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 		goto out_remove;
 	}
 
-	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
-		if (card->info.hwtrap &&
-		    qeth_hw_trap(card, QETH_DIAGS_TRAP_ARM))
-			card->info.hwtrap = 0;
-	} else
-		card->info.hwtrap = 0;
-
 	mutex_lock(&card->sbp_lock);
 	qeth_bridgeport_query_support(card);
-	if (card->options.sbp.supported_funcs)
+	if (card->options.sbp.supported_funcs) {
+		qeth_l2_setup_bridgeport_attrs(card);
 		dev_info(&card->gdev->dev,
-		"The device represents a Bridge Capable Port\n");
+			 "The device represents a Bridge Capable Port\n");
+	}
 	mutex_unlock(&card->sbp_lock);
 
 	qeth_l2_register_dev_addr(card);
@@ -824,34 +779,22 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 	qeth_trace_features(card);
 	qeth_l2_trace_features(card);
 
-	qeth_l2_setup_bridgeport_attrs(card);
-
-	card->state = CARD_STATE_HARDSETUP;
 	qeth_print_status_message(card);
 
 	/* softsetup */
 	QETH_CARD_TEXT(card, 2, "softsetp");
 
-	if (IS_OSD(card) || IS_OSX(card)) {
-		rc = qeth_l2_start_ipassists(card);
-		if (rc)
-			goto out_remove;
-	}
-
-	rc = qeth_init_qdio_queues(card);
-	if (rc) {
-		QETH_CARD_TEXT_(card, 2, "6err%d", rc);
-		rc = -ENODEV;
-		goto out_remove;
-	}
 	card->state = CARD_STATE_SOFTSETUP;
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 
-	if (!qeth_netdev_is_registered(dev)) {
-		rc = qeth_l2_setup_netdev(card, carrier_ok);
+	if (dev->reg_state != NETREG_REGISTERED) {
+		rc = qeth_l2_setup_netdev(card);
 		if (rc)
 			goto out_remove;
+
+		if (carrier_ok)
+			netif_carrier_on(dev);
 	} else {
 		rtnl_lock();
 		if (carrier_ok)
@@ -870,91 +813,20 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
-	mutex_unlock(&card->conf_mutex);
-	mutex_unlock(&card->discipline_mutex);
 	return 0;
 
 out_remove:
 	qeth_l2_stop_card(card);
-	ccw_device_set_offline(CARD_DDEV(card));
-	ccw_device_set_offline(CARD_WDEV(card));
-	ccw_device_set_offline(CARD_RDEV(card));
+	qeth_stop_channel(&card->data);
+	qeth_stop_channel(&card->write);
+	qeth_stop_channel(&card->read);
 	qdio_free(CARD_DDEV(card));
-
-	mutex_unlock(&card->conf_mutex);
-	mutex_unlock(&card->discipline_mutex);
 	return rc;
 }
 
-static int __qeth_l2_set_offline(struct ccwgroup_device *cgdev,
-					int recovery_mode)
+static void qeth_l2_set_offline(struct qeth_card *card)
 {
-	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
-	int rc = 0, rc2 = 0, rc3 = 0;
-
-	mutex_lock(&card->discipline_mutex);
-	mutex_lock(&card->conf_mutex);
-	QETH_CARD_TEXT(card, 3, "setoffl");
-
-	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
-		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
-		card->info.hwtrap = 1;
-	}
-
-	rtnl_lock();
-	card->info.open_when_online = card->dev->flags & IFF_UP;
-	dev_close(card->dev);
-	netif_device_detach(card->dev);
-	netif_carrier_off(card->dev);
-	rtnl_unlock();
-
 	qeth_l2_stop_card(card);
-	rc  = ccw_device_set_offline(CARD_DDEV(card));
-	rc2 = ccw_device_set_offline(CARD_WDEV(card));
-	rc3 = ccw_device_set_offline(CARD_RDEV(card));
-	if (!rc)
-		rc = (rc2) ? rc2 : rc3;
-	if (rc)
-		QETH_CARD_TEXT_(card, 2, "1err%d", rc);
-	qdio_free(CARD_DDEV(card));
-
-	/* let user_space know that device is offline */
-	kobject_uevent(&cgdev->dev.kobj, KOBJ_CHANGE);
-	mutex_unlock(&card->conf_mutex);
-	mutex_unlock(&card->discipline_mutex);
-	return 0;
-}
-
-static int qeth_l2_set_offline(struct ccwgroup_device *cgdev)
-{
-	return __qeth_l2_set_offline(cgdev, 0);
-}
-
-static int qeth_l2_recover(void *ptr)
-{
-	struct qeth_card *card;
-	int rc = 0;
-
-	card = (struct qeth_card *) ptr;
-	QETH_CARD_TEXT(card, 2, "recover1");
-	if (!qeth_do_run_thread(card, QETH_RECOVER_THREAD))
-		return 0;
-	QETH_CARD_TEXT(card, 2, "recover2");
-	dev_warn(&card->gdev->dev,
-		"A recovery process has been started for the device\n");
-	__qeth_l2_set_offline(card->gdev, 1);
-	rc = qeth_l2_set_online(card->gdev);
-	if (!rc)
-		dev_info(&card->gdev->dev,
-			"Device successfully recovered!\n");
-	else {
-		ccwgroup_set_offline(card->gdev);
-		dev_warn(&card->gdev->dev, "The qeth device driver "
-				"failed to recover an error on the device\n");
-	}
-	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
-	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
-	return 0;
 }
 
 static int __init qeth_l2_init(void)
@@ -991,8 +863,6 @@ static int qeth_l2_control_event(struct qeth_card *card,
 
 struct qeth_discipline qeth_l2_discipline = {
 	.devtype = &qeth_l2_devtype,
-	.process_rx_buffer = qeth_l2_process_inbound_buffer,
-	.recover = qeth_l2_recover,
 	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,
@@ -1002,6 +872,7 @@ struct qeth_discipline qeth_l2_discipline = {
 };
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
+#ifdef CONFIG_QETH_OSN
 static void qeth_osn_assist_cb(struct qeth_card *card,
 			       struct qeth_cmd_buffer *iob,
 			       unsigned int data_length)
@@ -1031,7 +902,8 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!iob)
 		return -ENOMEM;
 
-	qeth_prepare_ipa_cmd(card, iob, (u16) data_len);
+	qeth_prepare_ipa_cmd(card, iob, (u16) data_len, NULL);
+
 	memcpy(__ipa_cmd(iob), data, data_len);
 	iob->callback = qeth_osn_assist_cb;
 	return qeth_send_ipa_cmd(card, iob, NULL, NULL);
@@ -1077,6 +949,7 @@ void qeth_osn_deregister(struct net_device *dev)
 	return;
 }
 EXPORT_SYMBOL(qeth_osn_deregister);
+#endif
 
 /* SETBRIDGEPORT support, async notifications */
 
@@ -1649,8 +1522,6 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 	struct ccw_device *ddev;
 	struct subchannel_id schid;
 
-	if (!card)
-		return -EINVAL;
 	if (!card->options.sbp.supported_funcs)
 		return -EOPNOTSUPP;
 	ddev = CARD_DDEV(card);
@@ -1705,23 +1576,11 @@ static int qeth_l2_vnicc_makerc(struct qeth_card *card, u16 ipa_rc)
 	return rc;
 }
 
-/* generic VNICC request call back control */
-struct _qeth_l2_vnicc_request_cbctl {
-	struct {
-		union{
-			u32 *sup_cmds;
-			u32 *timeout;
-		};
-	} result;
-};
-
 /* generic VNICC request call back */
 static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 				    struct qeth_reply *reply,
 				    unsigned long data)
 {
-	struct _qeth_l2_vnicc_request_cbctl *cbctl =
-		(struct _qeth_l2_vnicc_request_cbctl *) reply->param;
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 	struct qeth_ipacmd_vnicc *rep = &cmd->data.vnicc;
 	u32 sub_cmd = cmd->data.vnicc.hdr.sub_command;
@@ -1734,9 +1593,9 @@ static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 	card->options.vnicc.cur_chars = rep->vnicc_cmds.enabled;
 
 	if (sub_cmd == IPA_VNICC_QUERY_CMDS)
-		*cbctl->result.sup_cmds = rep->data.query_cmds.sup_cmds;
+		*(u32 *)reply->param = rep->data.query_cmds.sup_cmds;
 	else if (sub_cmd == IPA_VNICC_GET_TIMEOUT)
-		*cbctl->result.timeout = rep->data.getset_timeout.timeout;
+		*(u32 *)reply->param = rep->data.getset_timeout.timeout;
 
 	return 0;
 }
@@ -1777,7 +1636,6 @@ static int qeth_l2_vnicc_query_chars(struct qeth_card *card)
 static int qeth_l2_vnicc_query_cmds(struct qeth_card *card, u32 vnic_char,
 				    u32 *sup_cmds)
 {
-	struct _qeth_l2_vnicc_request_cbctl cbctl;
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 2, "vniccqcm");
@@ -1788,10 +1646,7 @@ static int qeth_l2_vnicc_query_cmds(struct qeth_card *card, u32 vnic_char,
 
 	__ipa_cmd(iob)->data.vnicc.data.query_cmds.vnic_char = vnic_char;
 
-	/* prepare callback control */
-	cbctl.result.sup_cmds = sup_cmds;
-
-	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, &cbctl);
+	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, sup_cmds);
 }
 
 /* VNICC enable/disable characteristic request */
@@ -1815,7 +1670,6 @@ static int qeth_l2_vnicc_getset_timeout(struct qeth_card *card, u32 vnicc,
 					u32 cmd, u32 *timeout)
 {
 	struct qeth_vnicc_getset_timeout *getset_timeout;
-	struct _qeth_l2_vnicc_request_cbctl cbctl;
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 2, "vniccgst");
@@ -1830,11 +1684,7 @@ static int qeth_l2_vnicc_getset_timeout(struct qeth_card *card, u32 vnicc,
 	if (cmd == IPA_VNICC_SET_TIMEOUT)
 		getset_timeout->timeout = *timeout;
 
-	/* prepare callback control */
-	if (cmd == IPA_VNICC_GET_TIMEOUT)
-		cbctl.result.timeout = timeout;
-
-	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, &cbctl);
+	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, timeout);
 }
 
 /* set current VNICC flag state; called from sysfs store function */
@@ -1845,14 +1695,13 @@ int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
 
 	QETH_CARD_TEXT(card, 2, "vniccsch");
 
-	/* do not change anything if BridgePort is enabled */
-	if (qeth_bridgeport_is_in_use(card))
-		return -EBUSY;
-
 	/* check if characteristic and enable/disable are supported */
 	if (!(card->options.vnicc.sup_chars & vnicc) ||
 	    !(card->options.vnicc.set_char_sup & vnicc))
 		return -EOPNOTSUPP;
+
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
 
 	/* set enable/disable command and store wanted characteristic */
 	if (state) {
@@ -1899,13 +1748,12 @@ int qeth_l2_vnicc_get_state(struct qeth_card *card, u32 vnicc, bool *state)
 
 	QETH_CARD_TEXT(card, 2, "vniccgch");
 
-	/* do not get anything if BridgePort is enabled */
-	if (qeth_bridgeport_is_in_use(card))
-		return -EBUSY;
-
 	/* check if characteristic is supported */
 	if (!(card->options.vnicc.sup_chars & vnicc))
 		return -EOPNOTSUPP;
+
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
 
 	/* if card is ready, query current VNICC state */
 	if (qeth_card_hw_is_reachable(card))
@@ -1924,14 +1772,13 @@ int qeth_l2_vnicc_set_timeout(struct qeth_card *card, u32 timeout)
 
 	QETH_CARD_TEXT(card, 2, "vniccsto");
 
-	/* do not change anything if BridgePort is enabled */
-	if (qeth_bridgeport_is_in_use(card))
-		return -EBUSY;
-
 	/* check if characteristic and set_timeout are supported */
 	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
 	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
 		return -EOPNOTSUPP;
+
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
 
 	/* do we need to do anything? */
 	if (card->options.vnicc.learning_timeout == timeout)
@@ -1961,14 +1808,14 @@ int qeth_l2_vnicc_get_timeout(struct qeth_card *card, u32 *timeout)
 
 	QETH_CARD_TEXT(card, 2, "vniccgto");
 
-	/* do not get anything if BridgePort is enabled */
-	if (qeth_bridgeport_is_in_use(card))
-		return -EBUSY;
-
 	/* check if characteristic and get_timeout are supported */
 	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
 	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
 		return -EOPNOTSUPP;
+
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
+
 	/* if card is ready, get timeout. Otherwise, just return stored value */
 	*timeout = card->options.vnicc.learning_timeout;
 	if (qeth_card_hw_is_reachable(card))
@@ -1982,8 +1829,7 @@ int qeth_l2_vnicc_get_timeout(struct qeth_card *card, u32 *timeout)
 /* check if VNICC is currently enabled */
 bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 {
-	/* if everything is turned off, VNICC is not active */
-	if (!card->options.vnicc.cur_chars)
+	if (!card->options.vnicc.sup_chars)
 		return false;
 	/* default values are only OK if rx_bcast was not enabled by user
 	 * or the card is offline.
@@ -2070,8 +1916,9 @@ static void qeth_l2_vnicc_init(struct qeth_card *card)
 	/* enforce assumed default values and recover settings, if changed  */
 	error |= qeth_l2_vnicc_recover_timeout(card, QETH_VNICC_LEARNING,
 					       timeout);
-	chars_tmp = card->options.vnicc.wanted_chars ^ QETH_VNICC_DEFAULT;
-	chars_tmp |= QETH_VNICC_BRIDGE_INVISIBLE;
+	/* Change chars, if necessary  */
+	chars_tmp = card->options.vnicc.wanted_chars ^
+		    card->options.vnicc.cur_chars;
 	chars_len = sizeof(card->options.vnicc.wanted_chars) * BITS_PER_BYTE;
 	for_each_set_bit(i, &chars_tmp, chars_len) {
 		vnicc = BIT(i);

@@ -331,7 +331,7 @@ static unsigned int npcmgpio_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static struct irq_chip npcmgpio_irqchip = {
+static const struct irq_chip npcmgpio_irqchip = {
 	.name = "NPCM7XX-GPIO-IRQ",
 	.irq_ack = npcmgpio_irq_ack,
 	.irq_unmask = npcmgpio_irq_unmask,
@@ -1954,6 +1954,22 @@ static int npcm7xx_gpio_register(struct npcm7xx_pinctrl *pctrl)
 	int ret, id;
 
 	for (id = 0 ; id < pctrl->bank_num ; id++) {
+		struct gpio_irq_chip *girq;
+
+		girq = &pctrl->gpio_bank[id].gc.irq;
+		girq->chip = &pctrl->gpio_bank[id].irq_chip;
+		girq->parent_handler = npcmgpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(pctrl->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
+			goto err_register;
+		}
+		girq->parents[0] = pctrl->gpio_bank[id].irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
 		ret = devm_gpiochip_add_data(pctrl->dev,
 					     &pctrl->gpio_bank[id].gc,
 					     &pctrl->gpio_bank[id]);
@@ -1972,22 +1988,6 @@ static int npcm7xx_gpio_register(struct npcm7xx_pinctrl *pctrl)
 			gpiochip_remove(&pctrl->gpio_bank[id].gc);
 			goto err_register;
 		}
-
-		ret = gpiochip_irqchip_add(&pctrl->gpio_bank[id].gc,
-					   &pctrl->gpio_bank[id].irq_chip,
-					   0, handle_level_irq,
-					   IRQ_TYPE_NONE);
-		if (ret < 0) {
-			dev_err(pctrl->dev,
-				"Failed to add IRQ chip %u\n", id);
-			gpiochip_remove(&pctrl->gpio_bank[id].gc);
-			goto err_register;
-		}
-
-		gpiochip_set_chained_irqchip(&pctrl->gpio_bank[id].gc,
-					     &pctrl->gpio_bank[id].irq_chip,
-					     pctrl->gpio_bank[id].irq,
-					     npcmgpio_irq_handler);
 	}
 
 	return 0;

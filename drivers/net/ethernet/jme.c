@@ -2077,12 +2077,7 @@ jme_tx_tso(struct sk_buff *skb, __le16 *mss, u8 *flags)
 								IPPROTO_TCP,
 								0);
 		} else {
-			struct ipv6hdr *ip6h = ipv6_hdr(skb);
-
-			tcp_hdr(skb)->check = ~csum_ipv6_magic(&ip6h->saddr,
-								&ip6h->daddr, 0,
-								IPPROTO_TCP,
-								0);
+			tcp_v6_gso_csum_prep(skb);
 		}
 
 		return 0;
@@ -2337,7 +2332,7 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 static void
-jme_tx_timeout(struct net_device *netdev)
+jme_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
@@ -2844,6 +2839,9 @@ jme_set_eeprom(struct net_device *netdev,
 }
 
 static const struct ethtool_ops jme_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo            = jme_get_drvinfo,
 	.get_regs_len		= jme_get_regs_len,
 	.get_regs		= jme_get_regs,

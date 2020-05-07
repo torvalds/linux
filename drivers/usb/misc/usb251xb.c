@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/nls.h>
 #include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 /* Internal Register Set Addresses & Default Values acc. to DS00001692C */
@@ -26,10 +27,6 @@
 
 #define USB251XB_ADDR_PRODUCT_ID_LSB	0x02
 #define USB251XB_ADDR_PRODUCT_ID_MSB	0x03
-#define USB251XB_DEF_PRODUCT_ID_12	0x2512 /* USB2512B/12Bi */
-#define USB251XB_DEF_PRODUCT_ID_13	0x2513 /* USB2513B/13Bi */
-#define USB251XB_DEF_PRODUCT_ID_14	0x2514 /* USB2514B/14Bi */
-#define USB251XB_DEF_PRODUCT_ID_17	0x2517 /* USB2517/17i */
 
 #define USB251XB_ADDR_DEVICE_ID_LSB	0x04
 #define USB251XB_ADDR_DEVICE_ID_MSB	0x05
@@ -74,7 +71,6 @@
 
 #define USB251XB_ADDR_PRODUCT_STRING_LEN	0x14
 #define USB251XB_ADDR_PRODUCT_STRING		0x54
-#define USB251XB_DEF_PRODUCT_STRING		"USB251xB/xBi/7i"
 
 #define USB251XB_ADDR_SERIAL_STRING_LEN		0x15
 #define USB251XB_ADDR_SERIAL_STRING		0x92
@@ -116,6 +112,7 @@
 struct usb251xb {
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct regulator *vdd;
 	u8 skip_config;
 	struct gpio_desc *gpio_reset;
 	u16 vendor_id;
@@ -157,6 +154,14 @@ struct usb251xb_data {
 	bool led_support;
 	bool bat_support;
 	char product_str[USB251XB_STRING_BUFSIZE / 2]; /* ASCII string */
+};
+
+static const struct usb251xb_data usb2422_data = {
+	.product_id = 0x2422,
+	.port_cnt = 2,
+	.led_support = false,
+	.bat_support = true,
+	.product_str = "USB2422",
 };
 
 static const struct usb251xb_data usb2512b_data = {
@@ -261,20 +266,19 @@ static int usb251x_check_gpio_chip(struct usb251xb *hub)
 }
 #endif
 
-static void usb251xb_reset(struct usb251xb *hub, int state)
+static void usb251xb_reset(struct usb251xb *hub)
 {
 	if (!hub->gpio_reset)
 		return;
 
 	i2c_lock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 
-	gpiod_set_value_cansleep(hub->gpio_reset, state);
+	gpiod_set_value_cansleep(hub->gpio_reset, 1);
+	usleep_range(1, 10);	/* >=1us RESET_N asserted */
+	gpiod_set_value_cansleep(hub->gpio_reset, 0);
 
 	/* wait for hub recovery/stabilization */
-	if (!state)
-		usleep_range(500, 750);	/* >=500us at power on */
-	else
-		usleep_range(1, 10);	/* >=1us at power down */
+	usleep_range(500, 750);	/* >=500us after RESET_N deasserted */
 
 	i2c_unlock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 }
@@ -292,7 +296,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 		i2c_wb[0] = 0x01;
 		i2c_wb[1] = USB251XB_STATUS_COMMAND_ATTACH;
 
-		usb251xb_reset(hub, 0);
+		usb251xb_reset(hub);
 
 		err = i2c_smbus_write_i2c_block_data(hub->i2c,
 				USB251XB_ADDR_STATUS_COMMAND, 2, i2c_wb);
@@ -342,7 +346,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 	i2c_wb[USB251XB_ADDR_PORT_MAP_7]        = hub->port_map7;
 	i2c_wb[USB251XB_ADDR_STATUS_COMMAND] = USB251XB_STATUS_COMMAND_ATTACH;
 
-	usb251xb_reset(hub, 0);
+	usb251xb_reset(hub);
 
 	/* write registers */
 	for (i = 0; i < (USB251XB_I2C_REG_SZ / USB251XB_I2C_WRITE_SZ); i++) {
@@ -593,6 +597,9 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 
 static const struct of_device_id usb251xb_of_match[] = {
 	{
+		.compatible = "microchip,usb2422",
+		.data = &usb2422_data,
+	}, {
 		.compatible = "microchip,usb2512b",
 		.data = &usb2512b_data,
 	}, {
@@ -628,6 +635,13 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	return 0;
 }
 #endif /* CONFIG_OF */
+
+static void usb251xb_regulator_disable_action(void *data)
+{
+	struct usb251xb *hub = data;
+
+	regulator_disable(hub->vdd);
+}
 
 static int usb251xb_probe(struct usb251xb *hub)
 {
@@ -665,6 +679,19 @@ static int usb251xb_probe(struct usb251xb *hub)
 	if (err)
 		return err;
 
+	hub->vdd = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(hub->vdd))
+		return PTR_ERR(hub->vdd);
+
+	err = regulator_enable(hub->vdd);
+	if (err)
+		return err;
+
+	err = devm_add_action_or_reset(dev,
+				       usb251xb_regulator_disable_action, hub);
+	if (err)
+		return err;
+
 	err = usb251xb_connect(hub);
 	if (err) {
 		dev_err(dev, "Failed to connect hub (%d)\n", err);
@@ -692,7 +719,31 @@ static int usb251xb_i2c_probe(struct i2c_client *i2c,
 	return usb251xb_probe(hub);
 }
 
+static int __maybe_unused usb251xb_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+
+	return regulator_disable(hub->vdd);
+}
+
+static int __maybe_unused usb251xb_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb251xb *hub = i2c_get_clientdata(client);
+	int err;
+
+	err = regulator_enable(hub->vdd);
+	if (err)
+		return err;
+
+	return usb251xb_connect(hub);
+}
+
+static SIMPLE_DEV_PM_OPS(usb251xb_pm_ops, usb251xb_suspend, usb251xb_resume);
+
 static const struct i2c_device_id usb251xb_id[] = {
+	{ "usb2422", 0 },
 	{ "usb2512b", 0 },
 	{ "usb2512bi", 0 },
 	{ "usb2513b", 0 },
@@ -709,6 +760,7 @@ static struct i2c_driver usb251xb_i2c_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(usb251xb_of_match),
+		.pm = &usb251xb_pm_ops,
 	},
 	.probe    = usb251xb_i2c_probe,
 	.id_table = usb251xb_id,

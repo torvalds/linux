@@ -604,7 +604,10 @@ static int ocelot_gpio_get_direction(struct gpio_chip *chip,
 
 	regmap_read(info->map, REG(OCELOT_GPIO_OE, info, offset), &val);
 
-	return !(val & BIT(offset % 32));
+	if (val & BIT(offset % 32))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int ocelot_gpio_direction_input(struct gpio_chip *chip,
@@ -736,6 +739,7 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 				    struct ocelot_pinctrl *info)
 {
 	struct gpio_chip *gc;
+	struct gpio_irq_chip *girq;
 	int ret, irq;
 
 	info->gpio_chip = ocelot_gpiolib_chip;
@@ -747,21 +751,25 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	gc->of_node = info->dev->of_node;
 	gc->label = "ocelot-gpio";
 
-	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
-	if (ret)
-		return ret;
-
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (irq <= 0)
 		return irq;
 
-	ret = gpiochip_irqchip_add(gc, &ocelot_irqchip, 0, handle_edge_irq,
-				   IRQ_TYPE_NONE);
+	girq = &gc->irq;
+	girq->chip = &ocelot_irqchip;
+	girq->parent_handler = ocelot_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+
+	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
 	if (ret)
 		return ret;
-
-	gpiochip_set_chained_irqchip(gc, &ocelot_irqchip, irq,
-				     ocelot_irq_handler);
 
 	return 0;
 }

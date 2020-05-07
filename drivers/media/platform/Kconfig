@@ -151,7 +151,7 @@ source "drivers/media/platform/sunxi/Kconfig"
 config VIDEO_TI_CAL
 	tristate "TI CAL (Camera Adaptation Layer) driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on SOC_DRA7XX || COMPILE_TEST
+	depends on SOC_DRA7XX || ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
 	help
@@ -200,7 +200,7 @@ config VIDEO_IMX_PXP
 
 config VIDEO_MEDIATEK_JPEG
 	tristate "Mediatek JPEG Codec driver"
-	depends on MTK_IOMMU_V1 || COMPILE_TEST
+	depends on MTK_IOMMU_V1 || MTK_IOMMU || COMPILE_TEST
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -483,6 +483,7 @@ config VIDEO_QCOM_VENUS
 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	depends on INTERCONNECT || !INTERCONNECT
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select QCOM_SCM if ARCH_QCOM
 	select VIDEOBUF2_DMA_SG
@@ -492,6 +493,31 @@ config VIDEO_QCOM_VENUS
 	  hardware. It accelerates encoding and decoding operations
 	  on various Qualcomm SoCs.
 	  To compile this driver as a module choose m here.
+
+config VIDEO_SUN8I_DEINTERLACE
+	tristate "Allwinner Deinterlace driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	depends on PM
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	   Support for the Allwinner deinterlace unit with scaling
+	   capability found on some SoCs, like H3.
+	   To compile this driver as a module choose m here.
+
+config VIDEO_SUN8I_ROTATE
+	tristate "Allwinner DE2 rotation driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	depends on PM
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	   Support for the Allwinner DE2 rotation unit.
+	   To compile this driver as a module choose m here.
 
 endif # V4L_MEM2MEM_DRIVERS
 
@@ -585,9 +611,10 @@ config VIDEO_MESON_G12A_AO_CEC
 
 config CEC_GPIO
 	tristate "Generic GPIO-based CEC driver"
-	depends on PREEMPT || COMPILE_TEST
+	depends on PREEMPTION || COMPILE_TEST
 	select CEC_CORE
 	select CEC_PIN
+	select CEC_NOTIFIER
 	select GPIOLIB
 	help
 	  This is a generic GPIO-based CEC driver.
@@ -595,49 +622,49 @@ config CEC_GPIO
 	  between compatible devices.
 
 config VIDEO_SAMSUNG_S5P_CEC
-       tristate "Samsung S5P CEC driver"
-       depends on ARCH_EXYNOS || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       help
-	 This is a driver for Samsung S5P HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
+	tristate "Samsung S5P CEC driver"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	select CEC_CORE
+	select CEC_NOTIFIER
+	help
+	  This is a driver for Samsung S5P HDMI CEC interface. It uses the
+	  generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
 
 config VIDEO_STI_HDMI_CEC
-       tristate "STMicroelectronics STiH4xx HDMI CEC driver"
-       depends on ARCH_STI || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       help
-	 This is a driver for STIH4xx HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
+	tristate "STMicroelectronics STiH4xx HDMI CEC driver"
+	depends on ARCH_STI || COMPILE_TEST
+	select CEC_CORE
+	select CEC_NOTIFIER
+	help
+	  This is a driver for STIH4xx HDMI CEC interface. It uses the
+	  generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
 
 config VIDEO_STM32_HDMI_CEC
-       tristate "STMicroelectronics STM32 HDMI CEC driver"
-       depends on ARCH_STM32 || COMPILE_TEST
-       select REGMAP
-       select REGMAP_MMIO
-       select CEC_CORE
-       help
-	 This is a driver for STM32 interface. It uses the
-	 generic CEC framework interface.
-	 CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
+	tristate "STMicroelectronics STM32 HDMI CEC driver"
+	depends on ARCH_STM32 || COMPILE_TEST
+	select REGMAP
+	select REGMAP_MMIO
+	select CEC_CORE
+	help
+	  This is a driver for STM32 interface. It uses the
+	  generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
 
 config VIDEO_TEGRA_HDMI_CEC
-       tristate "Tegra HDMI CEC driver"
-       depends on ARCH_TEGRA || COMPILE_TEST
-       select CEC_CORE
-       select CEC_NOTIFIER
-       help
-	 This is a driver for the Tegra HDMI CEC interface. It uses the
-	 generic CEC framework interface.
-	 The CEC bus is present in the HDMI connector and enables communication
-	 between compatible devices.
+	tristate "Tegra HDMI CEC driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	select CEC_CORE
+	select CEC_NOTIFIER
+	help
+	  This is a driver for the Tegra HDMI CEC interface. It uses the
+	  generic CEC framework interface.
+	  The CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
 
 config VIDEO_SECO_CEC
 	tristate "SECO Boards HDMI CEC driver"

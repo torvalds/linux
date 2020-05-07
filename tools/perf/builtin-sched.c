@@ -51,6 +51,9 @@
 #define SYM_LEN			129
 #define MAX_PID			1024000
 
+static const char *cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+
 struct sched_atom;
 
 struct task_desc {
@@ -2008,6 +2011,9 @@ static void timehist_print_sample(struct perf_sched *sched,
 	char nstr[30];
 	u64 wait_time;
 
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+		return;
+
 	timestamp__scnprintf_usec(t, tstr, sizeof(tstr));
 	printf("%15s [%04d] ", tstr, sample->cpu);
 
@@ -2172,7 +2178,7 @@ static void save_task_callchain(struct perf_sched *sched,
 		if (node == NULL)
 			break;
 
-		sym = node->sym;
+		sym = node->ms.sym;
 		if (sym) {
 			if (!strcmp(sym->name, "schedule") ||
 			    !strcmp(sym->name, "__schedule") ||
@@ -2994,6 +3000,12 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
+	if (cpu_list) {
+		err = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+		if (err < 0)
+			goto out;
+	}
+
 	evlist = session->evlist;
 
 	symbol__init(&session->header.env);
@@ -3429,6 +3441,7 @@ int cmd_sched(int argc, const char **argv)
 		   "analyze events only for given process id(s)"),
 	OPT_STRING('t', "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
 		   "analyze events only for given thread id(s)"),
+	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_PARENT(sched_options)
 	};
 

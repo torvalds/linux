@@ -25,10 +25,6 @@
 #define TLS_PAYLOAD_MAX_LEN 16384
 #define SOL_TLS 282
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
-#endif
-
 FIXTURE(tls_basic)
 {
 	int fd, cfd;
@@ -267,6 +263,38 @@ TEST_F(tls, sendmsg_single)
 	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_WAITALL), send_len);
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
+
+#define MAX_FRAGS	64
+#define SEND_LEN	13
+TEST_F(tls, sendmsg_fragmented)
+{
+	char const *test_str = "test_sendmsg";
+	char buf[SEND_LEN * MAX_FRAGS];
+	struct iovec vec[MAX_FRAGS];
+	struct msghdr msg;
+	int i, frags;
+
+	for (frags = 1; frags <= MAX_FRAGS; frags++) {
+		for (i = 0; i < frags; i++) {
+			vec[i].iov_base = (char *)test_str;
+			vec[i].iov_len = SEND_LEN;
+		}
+
+		memset(&msg, 0, sizeof(struct msghdr));
+		msg.msg_iov = vec;
+		msg.msg_iovlen = frags;
+
+		EXPECT_EQ(sendmsg(self->fd, &msg, 0), SEND_LEN * frags);
+		EXPECT_EQ(recv(self->cfd, buf, SEND_LEN * frags, MSG_WAITALL),
+			  SEND_LEN * frags);
+
+		for (i = 0; i < frags; i++)
+			EXPECT_EQ(memcmp(buf + SEND_LEN * i,
+					 test_str, SEND_LEN), 0);
+	}
+}
+#undef MAX_FRAGS
+#undef SEND_LEN
 
 TEST_F(tls, sendmsg_large)
 {
@@ -1145,11 +1173,11 @@ TEST(non_established) {
 	/* TLS ULP not supported */
 	if (errno == ENOENT)
 		return;
-	EXPECT_EQ(errno, ENOTSUPP);
+	EXPECT_EQ(errno, ENOTCONN);
 
 	ret = setsockopt(sfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, ENOTSUPP);
+	EXPECT_EQ(errno, ENOTCONN);
 
 	ret = getsockname(sfd, &addr, &len);
 	ASSERT_EQ(ret, 0);

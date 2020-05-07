@@ -24,6 +24,8 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
+#include <mm/mmu_decl.h>
+
 #include "ptdump.h"
 
 /*
@@ -173,10 +175,12 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 
 static void note_prot_wx(struct pg_state *st, unsigned long addr)
 {
+	pte_t pte = __pte(st->current_flags);
+
 	if (!IS_ENABLED(CONFIG_PPC_DEBUG_WX) || !st->check_wx)
 		return;
 
-	if (!((st->current_flags & pgprot_val(PAGE_KERNEL_X)) == pgprot_val(PAGE_KERNEL_X)))
+	if (!pte_write(pte) || !pte_exec(pte))
 		return;
 
 	WARN_ONCE(1, "powerpc/mm: Found insecure W+X mapping at address %p/%pS\n",
@@ -413,12 +417,10 @@ void ptdump_check_wx(void)
 
 static int ptdump_init(void)
 {
-	struct dentry *debugfs_file;
-
 	populate_markers();
 	build_pgtable_complete_mask();
-	debugfs_file = debugfs_create_file("kernel_page_tables", 0400, NULL,
-			NULL, &ptdump_fops);
-	return debugfs_file ? 0 : -ENOMEM;
+	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL,
+			    &ptdump_fops);
+	return 0;
 }
 device_initcall(ptdump_init);

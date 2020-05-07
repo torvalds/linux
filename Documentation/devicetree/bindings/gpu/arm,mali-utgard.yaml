@@ -97,8 +97,7 @@ properties:
 
   memory-region: true
 
-  mali-supply:
-    maxItems: 1
+  mali-supply: true
 
   power-domains:
     maxItems: 1
@@ -115,6 +114,8 @@ required:
   - interrupt-names
   - clocks
   - clock-names
+
+additionalProperties: false
 
 allOf:
   - if:

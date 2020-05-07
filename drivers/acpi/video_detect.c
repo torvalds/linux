@@ -303,6 +303,22 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-25",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "81FS"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-45",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "82BK"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
 	 .callback = video_detect_force_native,
 	 .ident = "Apple MacBook Pro 12,1",
@@ -337,11 +353,33 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 .callback = video_detect_force_native,
+	 .ident = "Acer Aspire 5738z",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5738"),
+		DMI_MATCH(DMI_BOARD_NAME, "JV50"),
+		},
+	},
+
+	/*
+	 * Desktops which falsely report a backlight and which our heuristics
+	 * for this do not catch.
+	 */
+	{
 	 .callback = video_detect_force_none,
 	 .ident = "Dell OptiPlex 9020M",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 9020M"),
+		},
+	},
+	{
+	 .callback = video_detect_force_none,
+	 .ident = "MSI MS-7721",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MS-7721"),
 		},
 	},
 	{ },

@@ -1948,10 +1948,10 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
 			ep = qhp->ep;
-			c4iw_get_ep(&ep->com);
-			disconnect = 1;
 			if (!internal) {
+				c4iw_get_ep(&ep->com);
 				terminate = 1;
+				disconnect = 1;
 			} else {
 				terminate = qhp->attr.send_term;
 				ret = rdma_fini(rhp, qhp, ep);
@@ -2127,7 +2127,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	pr_debug("ib_pd %p\n", pd);
 
 	if (attrs->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;

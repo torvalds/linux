@@ -28,6 +28,16 @@ struct __kernel_old_timeval {
 };
 #endif
 
+struct __kernel_old_timespec {
+	__kernel_old_time_t	tv_sec;		/* seconds */
+	long			tv_nsec;	/* nanoseconds */
+};
+
+struct __kernel_old_itimerval {
+	struct __kernel_old_timeval it_interval;/* timer interval */
+	struct __kernel_old_timeval it_value;	/* current value */
+};
+
 struct __kernel_sock_timeval {
 	__s64 tv_sec;
 	__s64 tv_usec;

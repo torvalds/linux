@@ -17,6 +17,7 @@
 #include <linux/clocksource.h>
 #include <linux/sched_clock.h>
 #include <linux/mm.h>
+#include <linux/cpuhotplug.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
@@ -30,6 +31,15 @@ static u64 hv_sched_clock_offset __ro_after_init;
  * mechanism is used when running on older versions of Hyper-V
  * that don't support Direct Mode. While Hyper-V provides
  * four stimer's per CPU, Linux uses only stimer0.
+ *
+ * Because Direct Mode does not require processing a VMbus
+ * message, stimer interrupts can be enabled earlier in the
+ * process of booting a CPU, and consistent with when timer
+ * interrupts are enabled for other clocksource drivers.
+ * However, for legacy versions of Hyper-V when Direct Mode
+ * is not enabled, setting up stimer interrupts must be
+ * delayed until VMbus is initialized and can process the
+ * interrupt message.
  */
 static bool direct_mode_enabled;
 
@@ -56,7 +66,7 @@ static int hv_ce_set_next_event(unsigned long delta,
 {
 	u64 current_tick;
 
-	current_tick = hyperv_cs->read(NULL);
+	current_tick = hv_read_reference_counter();
 	current_tick += delta;
 	hv_init_timer(0, current_tick);
 	return 0;
@@ -102,17 +112,12 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 /*
  * hv_stimer_init - Per-cpu initialization of the clockevent
  */
-void hv_stimer_init(unsigned int cpu)
+static int hv_stimer_init(unsigned int cpu)
 {
 	struct clock_event_device *ce;
 
-	/*
-	 * Synthetic timers are always available except on old versions of
-	 * Hyper-V on x86.  In that case, just return as Linux will use a
-	 * clocksource based on emulated PIT or LAPIC timer hardware.
-	 */
-	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
-		return;
+	if (!hv_clock_event)
+		return 0;
 
 	ce = per_cpu_ptr(hv_clock_event, cpu);
 	ce->name = "Hyper-V clockevent";
@@ -127,28 +132,55 @@ void hv_stimer_init(unsigned int cpu)
 					HV_CLOCK_HZ,
 					HV_MIN_DELTA_TICKS,
 					HV_MAX_MAX_DELTA_TICKS);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(hv_stimer_init);
 
 /*
  * hv_stimer_cleanup - Per-cpu cleanup of the clockevent
  */
-void hv_stimer_cleanup(unsigned int cpu)
+int hv_stimer_cleanup(unsigned int cpu)
 {
 	struct clock_event_device *ce;
 
-	/* Turn off clockevent device */
-	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE) {
-		ce = per_cpu_ptr(hv_clock_event, cpu);
+	if (!hv_clock_event)
+		return 0;
+
+	/*
+	 * In the legacy case where Direct Mode is not enabled
+	 * (which can only be on x86/64), stimer cleanup happens
+	 * relatively early in the CPU offlining process. We
+	 * must unbind the stimer-based clockevent device so
+	 * that the LAPIC timer can take over until clockevents
+	 * are no longer needed in the offlining process. Note
+	 * that clockevents_unbind_device() eventually calls
+	 * hv_ce_shutdown().
+	 *
+	 * The unbind should not be done when Direct Mode is
+	 * enabled because we may be on an architecture where
+	 * there are no other clockevent devices to fallback to.
+	 */
+	ce = per_cpu_ptr(hv_clock_event, cpu);
+	if (direct_mode_enabled)
 		hv_ce_shutdown(ce);
-	}
+	else
+		clockevents_unbind_device(ce, cpu);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hv_stimer_cleanup);
 
 /* hv_stimer_alloc - Global initialization of the clockevent and stimer0 */
-int hv_stimer_alloc(int sint)
+int hv_stimer_alloc(void)
 {
-	int ret;
+	int ret = 0;
+
+	/*
+	 * Synthetic timers are always available except on old versions of
+	 * Hyper-V on x86.  In that case, return as error as Linux will use a
+	 * clockevent based on emulated LAPIC timer hardware.
+	 */
+	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
+		return -EINVAL;
 
 	hv_clock_event = alloc_percpu(struct clock_event_device);
 	if (!hv_clock_event)
@@ -159,22 +191,78 @@ int hv_stimer_alloc(int sint)
 	if (direct_mode_enabled) {
 		ret = hv_setup_stimer0_irq(&stimer0_irq, &stimer0_vector,
 				hv_stimer0_isr);
-		if (ret) {
-			free_percpu(hv_clock_event);
-			hv_clock_event = NULL;
-			return ret;
-		}
-	}
+		if (ret)
+			goto free_percpu;
 
-	stimer0_message_sint = sint;
-	return 0;
+		/*
+		 * Since we are in Direct Mode, stimer initialization
+		 * can be done now with a CPUHP value in the same range
+		 * as other clockevent devices.
+		 */
+		ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
+				"clockevents/hyperv/stimer:starting",
+				hv_stimer_init, hv_stimer_cleanup);
+		if (ret < 0)
+			goto free_stimer0_irq;
+	}
+	return ret;
+
+free_stimer0_irq:
+	hv_remove_stimer0_irq(stimer0_irq);
+	stimer0_irq = 0;
+free_percpu:
+	free_percpu(hv_clock_event);
+	hv_clock_event = NULL;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hv_stimer_alloc);
+
+/*
+ * hv_stimer_legacy_init -- Called from the VMbus driver to handle
+ * the case when Direct Mode is not enabled, and the stimer
+ * must be initialized late in the CPU onlining process.
+ *
+ */
+void hv_stimer_legacy_init(unsigned int cpu, int sint)
+{
+	if (direct_mode_enabled)
+		return;
+
+	/*
+	 * This function gets called by each vCPU, so setting the
+	 * global stimer_message_sint value each time is conceptually
+	 * not ideal, but the value passed in is always the same and
+	 * it avoids introducing yet another interface into this
+	 * clocksource driver just to set the sint in the legacy case.
+	 */
+	stimer0_message_sint = sint;
+	(void)hv_stimer_init(cpu);
+}
+EXPORT_SYMBOL_GPL(hv_stimer_legacy_init);
+
+/*
+ * hv_stimer_legacy_cleanup -- Called from the VMbus driver to
+ * handle the case when Direct Mode is not enabled, and the
+ * stimer must be cleaned up early in the CPU offlining
+ * process.
+ */
+void hv_stimer_legacy_cleanup(unsigned int cpu)
+{
+	if (direct_mode_enabled)
+		return;
+	(void)hv_stimer_cleanup(cpu);
+}
+EXPORT_SYMBOL_GPL(hv_stimer_legacy_cleanup);
+
 
 /* hv_stimer_free - Free global resources allocated by hv_stimer_alloc() */
 void hv_stimer_free(void)
 {
-	if (direct_mode_enabled && (stimer0_irq != 0)) {
+	if (!hv_clock_event)
+		return;
+
+	if (direct_mode_enabled) {
+		cpuhp_remove_state(CPUHP_AP_HYPERV_TIMER_STARTING);
 		hv_remove_stimer0_irq(stimer0_irq);
 		stimer0_irq = 0;
 	}
@@ -190,14 +278,20 @@ EXPORT_SYMBOL_GPL(hv_stimer_free);
 void hv_stimer_global_cleanup(void)
 {
 	int	cpu;
-	struct clock_event_device *ce;
 
-	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE) {
-		for_each_present_cpu(cpu) {
-			ce = per_cpu_ptr(hv_clock_event, cpu);
-			clockevents_unbind_device(ce, cpu);
-		}
+	/*
+	 * hv_stime_legacy_cleanup() will stop the stimer if Direct
+	 * Mode is not enabled, and fallback to the LAPIC timer.
+	 */
+	for_each_present_cpu(cpu) {
+		hv_stimer_legacy_cleanup(cpu);
 	}
+
+	/*
+	 * If Direct Mode is enabled, the cpuhp teardown callback
+	 * (hv_stimer_cleanup) will be run on all CPUs to stop the
+	 * stimers.
+	 */
 	hv_stimer_free();
 }
 EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
@@ -208,22 +302,33 @@ EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
  * the other that uses the TSC reference page feature as defined in the
  * TLFS.  The MSR version is for compatibility with old versions of
  * Hyper-V and 32-bit x86.  The TSC reference page version is preferred.
+ *
+ * The Hyper-V clocksource ratings of 250 are chosen to be below the
+ * TSC clocksource rating of 300.  In configurations where Hyper-V offers
+ * an InvariantTSC, the TSC is not marked "unstable", so the TSC clocksource
+ * is available and preferred.  With the higher rating, it will be the
+ * default.  On older hardware and Hyper-V versions, the TSC is marked
+ * "unstable", so no TSC clocksource is created and the selected Hyper-V
+ * clocksource will be the default.
  */
 
-struct clocksource *hyperv_cs;
-EXPORT_SYMBOL_GPL(hyperv_cs);
+u64 (*hv_read_reference_counter)(void);
+EXPORT_SYMBOL_GPL(hv_read_reference_counter);
 
-static struct ms_hyperv_tsc_page tsc_pg __aligned(PAGE_SIZE);
+static union {
+	struct ms_hyperv_tsc_page page;
+	u8 reserved[PAGE_SIZE];
+} tsc_pg __aligned(PAGE_SIZE);
 
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
-	return &tsc_pg;
+	return &tsc_pg.page;
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_clock_tsc(struct clocksource *arg)
+static u64 notrace read_hv_clock_tsc(void)
 {
-	u64 current_tick = hv_read_tsc_page(&tsc_pg);
+	u64 current_tick = hv_read_tsc_page(hv_get_tsc_page());
 
 	if (current_tick == U64_MAX)
 		hv_get_time_ref_count(current_tick);
@@ -231,20 +336,58 @@ static u64 notrace read_hv_clock_tsc(struct clocksource *arg)
 	return current_tick;
 }
 
+static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
+{
+	return read_hv_clock_tsc();
+}
+
 static u64 read_hv_sched_clock_tsc(void)
 {
-	return read_hv_clock_tsc(NULL) - hv_sched_clock_offset;
+	return (read_hv_clock_tsc() - hv_sched_clock_offset) *
+		(NSEC_PER_SEC / HV_CLOCK_HZ);
+}
+
+static void suspend_hv_clock_tsc(struct clocksource *arg)
+{
+	u64 tsc_msr;
+
+	/* Disable the TSC page */
+	hv_get_reference_tsc(tsc_msr);
+	tsc_msr &= ~BIT_ULL(0);
+	hv_set_reference_tsc(tsc_msr);
+}
+
+
+static void resume_hv_clock_tsc(struct clocksource *arg)
+{
+	phys_addr_t phys_addr = virt_to_phys(&tsc_pg);
+	u64 tsc_msr;
+
+	/* Re-enable the TSC page */
+	hv_get_reference_tsc(tsc_msr);
+	tsc_msr &= GENMASK_ULL(11, 0);
+	tsc_msr |= BIT_ULL(0) | (u64)phys_addr;
+	hv_set_reference_tsc(tsc_msr);
+}
+
+static int hv_cs_enable(struct clocksource *cs)
+{
+	hv_enable_vdso_clocksource();
+	return 0;
 }
 
 static struct clocksource hyperv_cs_tsc = {
 	.name	= "hyperv_clocksource_tsc_page",
-	.rating	= 400,
-	.read	= read_hv_clock_tsc,
+	.rating	= 250,
+	.read	= read_hv_clock_tsc_cs,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.suspend= suspend_hv_clock_tsc,
+	.resume	= resume_hv_clock_tsc,
+	.enable = hv_cs_enable,
 };
 
-static u64 notrace read_hv_clock_msr(struct clocksource *arg)
+static u64 notrace read_hv_clock_msr(void)
 {
 	u64 current_tick;
 	/*
@@ -256,15 +399,21 @@ static u64 notrace read_hv_clock_msr(struct clocksource *arg)
 	return current_tick;
 }
 
+static u64 notrace read_hv_clock_msr_cs(struct clocksource *arg)
+{
+	return read_hv_clock_msr();
+}
+
 static u64 read_hv_sched_clock_msr(void)
 {
-	return read_hv_clock_msr(NULL) - hv_sched_clock_offset;
+	return (read_hv_clock_msr() - hv_sched_clock_offset) *
+		(NSEC_PER_SEC / HV_CLOCK_HZ);
 }
 
 static struct clocksource hyperv_cs_msr = {
 	.name	= "hyperv_clocksource_msr",
-	.rating	= 400,
-	.read	= read_hv_clock_msr,
+	.rating	= 250,
+	.read	= read_hv_clock_msr_cs,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -277,8 +426,8 @@ static bool __init hv_init_tsc_clocksource(void)
 	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
 		return false;
 
-	hyperv_cs = &hyperv_cs_tsc;
-	phys_addr = virt_to_phys(&tsc_pg);
+	hv_read_reference_counter = read_hv_clock_tsc;
+	phys_addr = virt_to_phys(hv_get_tsc_page());
 
 	/*
 	 * The Hyper-V TLFS specifies to preserve the value of reserved
@@ -295,7 +444,7 @@ static bool __init hv_init_tsc_clocksource(void)
 	hv_set_clocksource_vdso(hyperv_cs_tsc);
 	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
 
-	hv_sched_clock_offset = hyperv_cs->read(hyperv_cs);
+	hv_sched_clock_offset = hv_read_reference_counter();
 	hv_setup_sched_clock(read_hv_sched_clock_tsc);
 
 	return true;
@@ -317,10 +466,10 @@ void __init hv_init_clocksource(void)
 	if (!(ms_hyperv.features & HV_MSR_TIME_REF_COUNT_AVAILABLE))
 		return;
 
-	hyperv_cs = &hyperv_cs_msr;
+	hv_read_reference_counter = read_hv_clock_msr;
 	clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
 
-	hv_sched_clock_offset = hyperv_cs->read(hyperv_cs);
+	hv_sched_clock_offset = hv_read_reference_counter();
 	hv_setup_sched_clock(read_hv_sched_clock_msr);
 }
 EXPORT_SYMBOL_GPL(hv_init_clocksource);

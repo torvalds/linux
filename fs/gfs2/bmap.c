@@ -1149,7 +1149,8 @@ static inline bool gfs2_iomap_need_write_lock(unsigned flags)
 }
 
 static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
-			    unsigned flags, struct iomap *iomap)
+			    unsigned flags, struct iomap *iomap,
+			    struct iomap *srcmap)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct metapath mp = { .mp_aheight = 1, };
@@ -2182,7 +2183,7 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 
 	inode_dio_wait(inode);
 
-	ret = gfs2_rsqa_alloc(ip);
+	ret = gfs2_qa_get(ip);
 	if (ret)
 		goto out;
 
@@ -2193,7 +2194,8 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 
 	ret = do_shrink(inode, newsize);
 out:
-	gfs2_rsqa_delete(ip, NULL);
+	gfs2_rs_delete(ip, NULL);
+	gfs2_qa_put(ip);
 	return ret;
 }
 
@@ -2222,7 +2224,7 @@ void gfs2_free_journal_extents(struct gfs2_jdesc *jd)
 	struct gfs2_journal_extent *jext;
 
 	while(!list_empty(&jd->extent_list)) {
-		jext = list_entry(jd->extent_list.next, struct gfs2_journal_extent, list);
+		jext = list_first_entry(&jd->extent_list, struct gfs2_journal_extent, list);
 		list_del(&jext->list);
 		kfree(jext);
 	}
@@ -2243,7 +2245,7 @@ static int gfs2_add_jextent(struct gfs2_jdesc *jd, u64 lblock, u64 dblock, u64 b
 	struct gfs2_journal_extent *jext;
 
 	if (!list_empty(&jd->extent_list)) {
-		jext = list_entry(jd->extent_list.prev, struct gfs2_journal_extent, list);
+		jext = list_last_entry(&jd->extent_list, struct gfs2_journal_extent, list);
 		if ((jext->dblock + jext->blocks) == dblock) {
 			jext->blocks += blocks;
 			return 0;
@@ -2440,7 +2442,15 @@ int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
 	struct inode *inode = file_inode(file);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	unsigned int blocksize = i_blocksize(inode);
+	loff_t start, end;
 	int error;
+
+	start = round_down(offset, blocksize);
+	end = round_up(offset + length, blocksize) - 1;
+	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (error)
+		return error;
 
 	if (gfs2_is_jdata(ip))
 		error = gfs2_trans_begin(sdp, RES_DINODE + 2 * RES_JDATA,
@@ -2455,9 +2465,8 @@ int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
 		if (error)
 			goto out;
 	} else {
-		unsigned int start_off, end_len, blocksize;
+		unsigned int start_off, end_len;
 
-		blocksize = i_blocksize(inode);
 		start_off = offset & (blocksize - 1);
 		end_len = (offset + length) & (blocksize - 1);
 		if (start_off) {

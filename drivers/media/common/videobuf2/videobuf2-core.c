@@ -393,8 +393,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		}
 	}
 
-	dprintk(1, "allocated %d buffers, %d plane(s) each\n",
-			buffer, num_planes);
+	dprintk(3, "allocated %d buffers, %d plane(s) each\n",
+		buffer, num_planes);
 
 	return buffer;
 }

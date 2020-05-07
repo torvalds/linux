@@ -89,12 +89,17 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
+struct eotid_entry {
+	void *data;
+};
+
 /*
  * Holds the size, base address, free list start, etc of the TID, server TID,
  * and active-open TID tables.  The tables themselves are allocated dynamically.
  */
 struct tid_info {
 	void **tid_tab;
+	unsigned int tid_base;
 	unsigned int ntids;
 
 	struct serv_entry *stid_tab;
@@ -106,6 +111,11 @@ struct tid_info {
 	union aopen_entry *atid_tab;
 	unsigned int natids;
 	unsigned int atid_base;
+
+	struct filter_entry *hpftid_tab;
+	unsigned long *hpftid_bmap;
+	unsigned int nhpftids;
+	unsigned int hpftid_base;
 
 	struct filter_entry *ftid_tab;
 	unsigned long *ftid_bmap;
@@ -126,6 +136,12 @@ struct tid_info {
 	unsigned int v6_stids_in_use;
 	unsigned int sftids_in_use;
 
+	/* ETHOFLD range */
+	struct eotid_entry *eotid_tab;
+	unsigned long *eotid_bmap;
+	unsigned int eotid_base;
+	unsigned int neotids;
+
 	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
@@ -133,11 +149,19 @@ struct tid_info {
 	atomic_t conns_in_use;
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
+
+	unsigned int tc_hash_tids_max_prio;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
 {
+	tid -= t->tid_base;
 	return tid < t->ntids ? t->tid_tab[tid] : NULL;
+}
+
+static inline bool tid_out_of_range(const struct tid_info *t, unsigned int tid)
+{
+	return ((tid - t->tid_base) >= t->ntids);
 }
 
 static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
@@ -161,7 +185,7 @@ static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 				    unsigned int tid, unsigned short family)
 {
-	t->tid_tab[tid] = data;
+	t->tid_tab[tid - t->tid_base] = data;
 	if (t->hash_base && (tid >= t->hash_base)) {
 		if (family == AF_INET6)
 			atomic_add(2, &t->hash_tids_in_use);
@@ -174,6 +198,35 @@ static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 			atomic_inc(&t->tids_in_use);
 	}
 	atomic_inc(&t->conns_in_use);
+}
+
+static inline struct eotid_entry *cxgb4_lookup_eotid(struct tid_info *t,
+						     u32 eotid)
+{
+	return eotid < t->neotids ? &t->eotid_tab[eotid] : NULL;
+}
+
+static inline int cxgb4_get_free_eotid(struct tid_info *t)
+{
+	int eotid;
+
+	eotid = find_first_zero_bit(t->eotid_bmap, t->neotids);
+	if (eotid >= t->neotids)
+		eotid = -1;
+
+	return eotid;
+}
+
+static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
+{
+	set_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = data;
+}
+
+static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
+{
+	clear_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = NULL;
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -212,7 +265,8 @@ struct filter_ctx {
 
 struct ch_filter_specification;
 
-int cxgb4_get_free_ftid(struct net_device *dev, int family);
+int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
+			u32 tc_prio);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
@@ -306,6 +360,26 @@ struct chcr_stats_debug {
 	atomic_t tls_pdu_tx;
 	atomic_t tls_pdu_rx;
 	atomic_t tls_key;
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	atomic64_t ktls_tx_connection_open;
+	atomic64_t ktls_tx_connection_fail;
+	atomic64_t ktls_tx_connection_close;
+	atomic64_t ktls_tx_send_records;
+	atomic64_t ktls_tx_end_pkts;
+	atomic64_t ktls_tx_start_pkts;
+	atomic64_t ktls_tx_middle_pkts;
+	atomic64_t ktls_tx_retransmit_pkts;
+	atomic64_t ktls_tx_complete_pkts;
+	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_encrypted_packets;
+	atomic64_t ktls_tx_encrypted_bytes;
+	atomic64_t ktls_tx_ctx;
+	atomic64_t ktls_tx_ooo;
+	atomic64_t ktls_tx_skip_no_sync_data;
+	atomic64_t ktls_tx_drop_no_sync_data;
+	atomic64_t ktls_tx_drop_bypass_req;
+
+#endif
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \

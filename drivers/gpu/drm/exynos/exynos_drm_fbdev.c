@@ -60,7 +60,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	return 0;
 }
 
-static struct fb_ops exynos_drm_fb_ops = {
+static const struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_mmap        = exynos_drm_fb_mmap,
@@ -200,19 +200,11 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev->dev,
 			      "failed to initialize drm fb helper.\n");
 		goto err_init;
-	}
-
-	ret = drm_fb_helper_single_add_all_connectors(helper);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev,
-			      "failed to register drm_fb_helper_connector.\n");
-		goto err_setup;
-
 	}
 
 	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);

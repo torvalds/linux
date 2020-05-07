@@ -1954,12 +1954,14 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	/*
 	 * For a zoned target, the number of zones should be updated for the
 	 * correct value to be exposed in sysfs queue/nr_zones. For a BIO based
-	 * target, this is all that is needed. For a request based target, the
-	 * queue zone bitmaps must also be updated.
-	 * Use blk_revalidate_disk_zones() to handle this.
+	 * target, this is all that is needed.
 	 */
-	if (blk_queue_is_zoned(q))
-		blk_revalidate_disk_zones(t->md->disk);
+#ifdef CONFIG_BLK_DEV_ZONED
+	if (blk_queue_is_zoned(q)) {
+		WARN_ON_ONCE(queue_is_mq(q));
+		q->nr_zones = blkdev_nr_zones(t->md->disk);
+	}
+#endif
 
 	/* Allow reads to exceed readahead limits */
 	q->backing_dev_info->io_pages = limits->max_sectors >> (PAGE_SHIFT - 9);

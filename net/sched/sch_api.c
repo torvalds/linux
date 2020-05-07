@@ -618,21 +618,28 @@ void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
+void qdisc_watchdog_schedule_range_ns(struct qdisc_watchdog *wd, u64 expires,
+				      u64 delta_ns)
 {
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
-	if (wd->last_expires == expires)
-		return;
+	if (hrtimer_is_queued(&wd->timer)) {
+		/* If timer is already set in [expires, expires + delta_ns],
+		 * do not reprogram it.
+		 */
+		if (wd->last_expires - expires <= delta_ns)
+			return;
+	}
 
 	wd->last_expires = expires;
-	hrtimer_start(&wd->timer,
-		      ns_to_ktime(expires),
-		      HRTIMER_MODE_ABS_PINNED);
+	hrtimer_start_range_ns(&wd->timer,
+			       ns_to_ktime(expires),
+			       delta_ns,
+			       HRTIMER_MODE_ABS_PINNED);
 }
-EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
+EXPORT_SYMBOL(qdisc_watchdog_schedule_range_ns);
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
@@ -1891,8 +1898,9 @@ static int tclass_del_notify(struct net *net,
 
 struct tcf_bind_args {
 	struct tcf_walker w;
-	u32 classid;
+	unsigned long base;
 	unsigned long cl;
+	u32 classid;
 };
 
 static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
@@ -1903,28 +1911,30 @@ static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 		struct Qdisc *q = tcf_block_q(tp->chain->block);
 
 		sch_tree_lock(q);
-		tp->ops->bind_class(n, a->classid, a->cl);
+		tp->ops->bind_class(n, a->classid, a->cl, q, a->base);
 		sch_tree_unlock(q);
 	}
 	return 0;
 }
 
-static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
-			   unsigned long new_cl)
+struct tc_bind_class_args {
+	struct qdisc_walker w;
+	unsigned long new_cl;
+	u32 portid;
+	u32 clid;
+};
+
+static int tc_bind_class_walker(struct Qdisc *q, unsigned long cl,
+				struct qdisc_walker *w)
 {
+	struct tc_bind_class_args *a = (struct tc_bind_class_args *)w;
 	const struct Qdisc_class_ops *cops = q->ops->cl_ops;
 	struct tcf_block *block;
 	struct tcf_chain *chain;
-	unsigned long cl;
 
-	cl = cops->find(q, portid);
-	if (!cl)
-		return;
-	if (!cops->tcf_block)
-		return;
 	block = cops->tcf_block(q, cl, NULL);
 	if (!block)
-		return;
+		return 0;
 	for (chain = tcf_get_next_chain(block, NULL);
 	     chain;
 	     chain = tcf_get_next_chain(block, chain)) {
@@ -1935,11 +1945,29 @@ static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
 			struct tcf_bind_args arg = {};
 
 			arg.w.fn = tcf_node_bind;
-			arg.classid = clid;
-			arg.cl = new_cl;
+			arg.classid = a->clid;
+			arg.base = cl;
+			arg.cl = a->new_cl;
 			tp->ops->walk(tp, &arg.w, true);
 		}
 	}
+
+	return 0;
+}
+
+static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
+			   unsigned long new_cl)
+{
+	const struct Qdisc_class_ops *cops = q->ops->cl_ops;
+	struct tc_bind_class_args args = {};
+
+	if (!cops->tcf_block)
+		return;
+	args.portid = portid;
+	args.clid = clid;
+	args.new_cl = new_cl;
+	args.w.fn = tc_bind_class_walker;
+	q->ops->cl_ops->walk(q, &args.w);
 }
 
 #else

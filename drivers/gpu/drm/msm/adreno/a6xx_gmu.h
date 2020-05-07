@@ -12,8 +12,7 @@
 struct a6xx_gmu_bo {
 	void *virt;
 	size_t size;
-	u64 iova;
-	struct page **pages;
+	dma_addr_t iova;
 };
 
 /*
@@ -49,9 +48,6 @@ struct a6xx_gmu {
 	int hfi_irq;
 	int gmu_irq;
 
-	struct iommu_domain *domain;
-	u64 uncached_iova_base;
-
 	struct device *gxpd;
 
 	int idle_level;
@@ -62,6 +58,9 @@ struct a6xx_gmu {
 	int nr_clocks;
 	struct clk_bulk_data *clocks;
 	struct clk *core_clk;
+
+	/* current performance index set externally */
+	int current_perf_index;
 
 	int nr_gpu_freqs;
 	unsigned long gpu_freqs[16];

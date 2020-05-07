@@ -56,8 +56,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"dmfe"
-#define DRV_VERSION	"1.36.4"
-#define DRV_RELDATE	"2002-01-17"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -280,10 +278,6 @@ enum dmfe_CR6_bits {
 };
 
 /* Global variable declaration ----------------------------- */
-static int printed_version;
-static const char version[] =
-	"Davicom DM9xxx net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
-
 static int dmfe_debug;
 static unsigned char dmfe_media_mode = DMFE_AUTO;
 static u32 dmfe_cr6_user_set;
@@ -363,9 +357,6 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, err;
 
 	DMFE_DBUG(0, "dmfe_init_one()", 0);
-
-	if (!printed_version++)
-		pr_info("%s\n", version);
 
 	/*
 	 *	SPARC on-board DM910x chips should be handled by the main
@@ -1081,7 +1072,6 @@ static void dmfe_ethtool_get_drvinfo(struct net_device *dev,
 	struct dmfe_board_info *np = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 
@@ -2177,7 +2167,6 @@ static struct pci_driver dmfe_driver = {
 MODULE_AUTHOR("Sten Wang, sten_wang@davicom.com.tw");
 MODULE_DESCRIPTION("Davicom DM910X fast ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 module_param(debug, int, 0);
 module_param(mode, byte, 0);
@@ -2204,9 +2193,6 @@ static int __init dmfe_init_module(void)
 {
 	int rc;
 
-	pr_info("%s\n", version);
-	printed_version = 1;
-
 	DMFE_DBUG(0, "init_module() ", debug);
 
 	if (debug)
@@ -2214,15 +2200,16 @@ static int __init dmfe_init_module(void)
 	if (cr6set)
 		dmfe_cr6_user_set = cr6set;
 
- 	switch(mode) {
-   	case DMFE_10MHF:
+	switch (mode) {
+	case DMFE_10MHF:
 	case DMFE_100MHF:
 	case DMFE_10MFD:
 	case DMFE_100MFD:
 	case DMFE_1M_HPNA:
 		dmfe_media_mode = mode;
 		break;
-	default:dmfe_media_mode = DMFE_AUTO;
+	default:
+		dmfe_media_mode = DMFE_AUTO;
 		break;
 	}
 

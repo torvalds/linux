@@ -97,7 +97,8 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 		if (j != scan_count)
 			adis->xfer[j].cs_change = 1;
 		adis->xfer[j].len = 2;
-		adis->xfer[j].delay_usecs = adis->data->read_delay;
+		adis->xfer[j].delay.value = adis->data->read_delay;
+		adis->xfer[j].delay.unit = SPI_DELAY_UNIT_USECS;
 		if (j < scan_count)
 			adis->xfer[j].tx_buf = &tx[j];
 		if (j >= 1)
@@ -129,7 +130,7 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 		return -ENOMEM;
 
 	if (adis->data->has_paging) {
-		mutex_lock(&adis->txrx_lock);
+		mutex_lock(&adis->state_lock);
 		if (adis->current_page != 0) {
 			adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
 			adis->tx[1] = 0;
@@ -144,7 +145,7 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 
 	if (adis->data->has_paging) {
 		adis->current_page = 0;
-		mutex_unlock(&adis->txrx_lock);
+		mutex_unlock(&adis->state_lock);
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,

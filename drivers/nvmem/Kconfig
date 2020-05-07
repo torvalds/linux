@@ -50,9 +50,22 @@ config NVMEM_IMX_OCOTP
 config NVMEM_IMX_OCOTP_SCU
 	tristate "i.MX8 SCU On-Chip OTP Controller support"
 	depends on IMX_SCU
+	depends on HAVE_ARM_SMCCC
 	help
 	  This is a driver for the SCU On-Chip OTP Controller (OCOTP)
 	  available on i.MX8 SoCs.
+
+config JZ4780_EFUSE
+	tristate "JZ4780 EFUSE Memory Support"
+	depends on MACH_INGENIC || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	select REGMAP_MMIO
+	help
+	  Say Y here to include support for JZ4780 efuse memory found on
+	  all JZ4780 SoC based devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_jz4780_efuse.
 
 config NVMEM_LPC18XX_EEPROM
 	tristate "NXP LPC18XX EEPROM Memory Support"
@@ -108,6 +121,14 @@ config QCOM_QFPROM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_qfprom.
 
+config NVMEM_SPMI_SDAM
+	tristate "SPMI SDAM Support"
+	depends on SPMI
+	help
+	  This driver supports the Shared Direct Access Memory Module on
+	  Qualcomm Technologies, Inc. PMICs. It provides the clients
+	  an interface to read/write to the SDAM module's shared memory.
+
 config ROCKCHIP_EFUSE
 	tristate "Rockchip eFuse Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
@@ -118,6 +139,17 @@ config ROCKCHIP_EFUSE
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_efuse.
+
+config ROCKCHIP_OTP
+	tristate "Rockchip OTP controller support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple drive to dump specified values of Rockchip SoC
+	  from otp, such as cpu-leakage.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_rockchip_otp.
 
 config NVMEM_BCM_OCOTP
 	tristate "Broadcom On-Chip OTP Controller support"
@@ -229,5 +261,16 @@ config NVMEM_ZYNQMP
 	  interface.
 
 	  If sure, say yes. If unsure, say no.
+
+config SPRD_EFUSE
+	tristate "Spreadtrum SoC eFuse Support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple driver to dump specified values of Spreadtrum
+	  SoCs from eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-sprd-efuse.
 
 endif

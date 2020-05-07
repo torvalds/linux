@@ -108,6 +108,7 @@ struct fib_rule_notifier_info {
 	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
 	[FRA_FWMARK]	= { .type = NLA_U32 }, \
+	[FRA_TUN_ID]	= { .type = NLA_U64 }, \
 	[FRA_FWMASK]	= { .type = NLA_U32 }, \
 	[FRA_TABLE]     = { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 }, \
@@ -194,7 +195,8 @@ int fib_rules_lookup(struct fib_rules_ops *, struct flowi *, int flags,
 int fib_default_rule_add(struct fib_rules_ops *, u32 pref, u32 table,
 			 u32 flags);
 bool fib_rule_matchall(const struct fib_rule *rule);
-int fib_rules_dump(struct net *net, struct notifier_block *nb, int family);
+int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
+		   struct netlink_ext_ack *extack);
 unsigned int fib_rules_seq_read(struct net *net, int family);
 
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,

@@ -57,7 +57,7 @@ struct kgd_mem {
 	unsigned int mapped_to_gpu_memory;
 	uint64_t va;
 
-	uint32_t mapping_flags;
+	uint32_t alloc_flags;
 
 	atomic_t invalid;
 	struct amdkfd_process_info *process_info;
@@ -96,6 +96,7 @@ struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 						       struct mm_struct *mm);
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm);
 struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f);
+int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo);
 
 struct amdkfd_process_info {
 	/* List head of all VMs that belong to a KFD process */
@@ -122,8 +123,8 @@ struct amdkfd_process_info {
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 
-void amdgpu_amdkfd_suspend(struct amdgpu_device *adev);
-int amdgpu_amdkfd_resume(struct amdgpu_device *adev);
+void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool run_pm);
+int amdgpu_amdkfd_resume(struct amdgpu_device *adev, bool run_pm);
 void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 			const void *ih_ring_entry);
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
@@ -136,12 +137,8 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t *ib_cmd, uint32_t ib_len);
 void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle);
 bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd);
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void);
-struct kfd2kgd_calls *amdgpu_amdkfd_arcturus_get_functions(void);
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions(void);
+int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid);
+int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
@@ -175,14 +172,22 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 				  uint32_t *flags);
 uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd);
+uint64_t amdgpu_amdkfd_get_unique_id(struct kgd_dev *kgd);
 uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd);
 uint32_t amdgpu_amdkfd_get_num_gws(struct kgd_dev *kgd);
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *src);
 
+/* Read user wptr from a specified user address space with page fault
+ * disabled. The memory must be pinned and mapped to the hardware when
+ * this is called in hqd_load functions, so it should never fault in
+ * the first place. This resolves a circular lock dependency involving
+ * four locks, including the DQM lock and mmap_sem.
+ */
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\
 		bool valid = false;					\
 		if ((mmptr) && (wptr)) {				\
+			pagefault_disable();				\
 			if ((mmptr) == current->mm) {			\
 				valid = !get_user((dst), (wptr));	\
 			} else if (current->mm == NULL) {		\
@@ -190,6 +195,7 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 				valid = !get_user((dst), (wptr));	\
 				unuse_mm(mmptr);			\
 			}						\
+			pagefault_enable();				\
 		}							\
 		valid;							\
 	})
@@ -236,16 +242,20 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo);
 
+int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
+				struct tile_config *config);
+
 /* KGD2KFD callbacks */
 int kgd2kfd_init(void);
 void kgd2kfd_exit(void);
 struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
-			      const struct kfd2kgd_calls *f2g);
+			      unsigned int asic_type, bool vf);
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
+			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
-void kgd2kfd_suspend(struct kfd_dev *kfd);
-int kgd2kfd_resume(struct kfd_dev *kfd);
+void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm);
+int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm);
 int kgd2kfd_pre_reset(struct kfd_dev *kfd);
 int kgd2kfd_post_reset(struct kfd_dev *kfd);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);

@@ -261,6 +261,8 @@ static struct property *dup_and_fixup_symbol_prop(
 
 	of_property_set_flag(new_prop, OF_DYNAMIC);
 
+	kfree(target_path);
+
 	return new_prop;
 
 err_free_new_prop:
@@ -305,7 +307,6 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 {
 	struct property *new_prop = NULL, *prop;
 	int ret = 0;
-	bool check_for_non_overlay_node = false;
 
 	if (target->in_livetree)
 		if (!of_prop_cmp(overlay_prop->name, "name") ||
@@ -317,6 +318,25 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 		prop = of_find_property(target->np, overlay_prop->name, NULL);
 	else
 		prop = NULL;
+
+	if (prop) {
+		if (!of_prop_cmp(prop->name, "#address-cells")) {
+			if (!of_prop_val_eq(prop, overlay_prop)) {
+				pr_err("ERROR: changing value of #address-cells is not allowed in %pOF\n",
+				       target->np);
+				ret = -EINVAL;
+			}
+			return ret;
+
+		} else if (!of_prop_cmp(prop->name, "#size-cells")) {
+			if (!of_prop_val_eq(prop, overlay_prop)) {
+				pr_err("ERROR: changing value of #size-cells is not allowed in %pOF\n",
+				       target->np);
+				ret = -EINVAL;
+			}
+			return ret;
+		}
+	}
 
 	if (is_symbols_prop) {
 		if (prop)
@@ -330,33 +350,18 @@ static int add_changeset_property(struct overlay_changeset *ovcs,
 		return -ENOMEM;
 
 	if (!prop) {
-		check_for_non_overlay_node = true;
 		if (!target->in_livetree) {
 			new_prop->next = target->np->deadprops;
 			target->np->deadprops = new_prop;
 		}
 		ret = of_changeset_add_property(&ovcs->cset, target->np,
 						new_prop);
-	} else if (!of_prop_cmp(prop->name, "#address-cells")) {
-		if (!of_prop_val_eq(prop, new_prop)) {
-			pr_err("ERROR: changing value of #address-cells is not allowed in %pOF\n",
-			       target->np);
-			ret = -EINVAL;
-		}
-	} else if (!of_prop_cmp(prop->name, "#size-cells")) {
-		if (!of_prop_val_eq(prop, new_prop)) {
-			pr_err("ERROR: changing value of #size-cells is not allowed in %pOF\n",
-			       target->np);
-			ret = -EINVAL;
-		}
 	} else {
-		check_for_non_overlay_node = true;
 		ret = of_changeset_update_property(&ovcs->cset, target->np,
 						   new_prop);
 	}
 
-	if (check_for_non_overlay_node &&
-	    !of_node_check_flag(target->np, OF_OVERLAY))
+	if (!of_node_check_flag(target->np, OF_OVERLAY))
 		pr_err("WARNING: memory leak will occur if overlay removed, property: %pOF/%s\n",
 		       target->np, new_prop->name);
 
@@ -971,8 +976,6 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 		goto err_free_overlay_changeset;
 	}
 
-	of_populate_phandle_cache();
-
 	ret = __of_changeset_apply_notify(&ovcs->cset);
 	if (ret)
 		pr_err("overlay apply changeset entry notify error %d\n", ret);
@@ -1215,17 +1218,8 @@ int of_overlay_remove(int *ovcs_id)
 
 	list_del(&ovcs->ovcs_list);
 
-	/*
-	 * Disable phandle cache.  Avoids race condition that would arise
-	 * from removing cache entry when the associated node is deleted.
-	 */
-	of_free_phandle_cache();
-
 	ret_apply = 0;
 	ret = __of_changeset_revert_entries(&ovcs->cset, &ret_apply);
-
-	of_populate_phandle_cache();
-
 	if (ret) {
 		if (ret_apply)
 			devicetree_state_flags |= DTSF_REVERT_FAIL;

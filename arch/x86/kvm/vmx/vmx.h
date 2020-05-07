@@ -12,15 +12,18 @@
 #include "vmcs.h"
 
 extern const u32 vmx_msr_index[];
-extern u64 host_efer;
-
-extern u32 get_umwait_control_msr(void);
 
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
 #define MSR_TYPE_RW	3
 
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
+
+#ifdef CONFIG_X86_64
+#define NR_SHARED_MSRS	7
+#else
+#define NR_SHARED_MSRS	4
+#endif
 
 #define NR_LOADSTORE_MSRS 8
 
@@ -144,6 +147,9 @@ struct nested_vmx {
 	/* L2 must run next, and mustn't decide to exit to L1. */
 	bool nested_run_pending;
 
+	/* Pending MTF VM-exit into L1.  */
+	bool mtf_pending;
+
 	struct loaded_vmcs vmcs02;
 
 	/*
@@ -206,7 +212,7 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
-	struct shared_msr_entry *guest_msrs;
+	struct shared_msr_entry guest_msrs[NR_SHARED_MSRS];
 	int                   nmsrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_ready;
@@ -283,7 +289,7 @@ struct vcpu_vmx {
 
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in
-	 * msr_ia32_feature_control. FEATURE_CONTROL_LOCKED is always included
+	 * msr_ia32_feature_control. FEAT_CTL_LOCKED is always included
 	 * in msr_ia32_feature_control_valid_bits.
 	 */
 	u64 msr_ia32_feature_control;
@@ -326,9 +332,9 @@ u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu);
 void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
 void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
-void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
 int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx);
+void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long cr3);
 void ept_save_pdptrs(struct kvm_vcpu *vcpu);
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
@@ -443,7 +449,7 @@ static inline void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
 static inline u32 vmx_vmentry_ctrl(void)
 {
 	u32 vmentry_ctrl = vmcs_config.vmentry_ctrl;
-	if (pt_mode == PT_MODE_SYSTEM)
+	if (vmx_pt_mode_is_system())
 		vmentry_ctrl &= ~(VM_ENTRY_PT_CONCEAL_PIP |
 				  VM_ENTRY_LOAD_IA32_RTIT_CTL);
 	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
@@ -454,7 +460,7 @@ static inline u32 vmx_vmentry_ctrl(void)
 static inline u32 vmx_vmexit_ctrl(void)
 {
 	u32 vmexit_ctrl = vmcs_config.vmexit_ctrl;
-	if (pt_mode == PT_MODE_SYSTEM)
+	if (vmx_pt_mode_is_system())
 		vmexit_ctrl &= ~(VM_EXIT_PT_CONCEAL_PIP |
 				 VM_EXIT_CLEAR_IA32_RTIT_CTL);
 	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
@@ -484,7 +490,6 @@ struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags);
 void free_vmcs(struct vmcs *vmcs);
 int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs);
 void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs);
-void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs);
 void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs);
 
 static inline struct vmcs *alloc_vmcs(bool shadow)

@@ -156,12 +156,14 @@ struct adis16400_state;
 
 struct adis16400_chip_info {
 	const struct iio_chan_spec *channels;
+	const struct adis_data adis_data;
 	const int num_channels;
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
 	int temp_scale_nano;
 	int temp_offset;
+	/* set_freq() & get_freq() need to avoid using ADIS lib's state lock */
 	int (*set_freq)(struct adis16400_state *st, unsigned int freq);
 	int (*get_freq)(struct adis16400_state *st);
 };
@@ -217,16 +219,16 @@ static ssize_t adis16400_show_serial_number(struct file *file,
 	int ret;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16334_LOT_ID1, &lot1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16334_LOT_ID2, &lot2);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16334_SERIAL_NUMBER,
 			&serial_number);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	len = snprintf(buf, sizeof(buf), "%.4x-%.4x-%.4x\n", lot1, lot2,
@@ -249,7 +251,7 @@ static int adis16400_show_product_id(void *arg, u64 *val)
 	int ret;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16400_PRODUCT_ID, &prod_id);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = prod_id;
@@ -266,7 +268,7 @@ static int adis16400_show_flash_count(void *arg, u64 *val)
 	int ret;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16400_FLASH_CNT, &flash_count);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = flash_count;
@@ -326,8 +328,8 @@ static int adis16334_get_freq(struct adis16400_state *st)
 	int ret;
 	uint16_t t;
 
-	ret = adis_read_reg_16(&st->adis, ADIS16400_SMPL_PRD, &t);
-	if (ret < 0)
+	ret = __adis_read_reg_16(&st->adis, ADIS16400_SMPL_PRD, &t);
+	if (ret)
 		return ret;
 
 	t >>= ADIS16334_RATE_DIV_SHIFT;
@@ -350,7 +352,7 @@ static int adis16334_set_freq(struct adis16400_state *st, unsigned int freq)
 	t <<= ADIS16334_RATE_DIV_SHIFT;
 	t |= ADIS16334_RATE_INT_CLK;
 
-	return adis_write_reg_16(&st->adis, ADIS16400_SMPL_PRD, t);
+	return __adis_write_reg_16(&st->adis, ADIS16400_SMPL_PRD, t);
 }
 
 static int adis16400_get_freq(struct adis16400_state *st)
@@ -358,8 +360,8 @@ static int adis16400_get_freq(struct adis16400_state *st)
 	int sps, ret;
 	uint16_t t;
 
-	ret = adis_read_reg_16(&st->adis, ADIS16400_SMPL_PRD, &t);
-	if (ret < 0)
+	ret = __adis_read_reg_16(&st->adis, ADIS16400_SMPL_PRD, &t);
+	if (ret)
 		return ret;
 
 	sps = (t & ADIS16400_SMPL_PRD_TIME_BASE) ? 52851 : 1638404;
@@ -390,7 +392,7 @@ static int adis16400_set_freq(struct adis16400_state *st, unsigned int freq)
 	else
 		st->adis.spi->max_speed_hz = ADIS16400_SPI_FAST;
 
-	return adis_write_reg_8(&st->adis, ADIS16400_SMPL_PRD, val);
+	return __adis_write_reg_8(&st->adis, ADIS16400_SMPL_PRD, val);
 }
 
 static const unsigned int adis16400_3db_divisors[] = {
@@ -404,7 +406,7 @@ static const unsigned int adis16400_3db_divisors[] = {
 	[7] = 200, /* Not a valid setting */
 };
 
-static int adis16400_set_filter(struct iio_dev *indio_dev, int sps, int val)
+static int __adis16400_set_filter(struct iio_dev *indio_dev, int sps, int val)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
 	uint16_t val16;
@@ -415,11 +417,11 @@ static int adis16400_set_filter(struct iio_dev *indio_dev, int sps, int val)
 			break;
 	}
 
-	ret = adis_read_reg_16(&st->adis, ADIS16400_SENS_AVG, &val16);
-	if (ret < 0)
+	ret = __adis_read_reg_16(&st->adis, ADIS16400_SENS_AVG, &val16);
+	if (ret)
 		return ret;
 
-	ret = adis_write_reg_16(&st->adis, ADIS16400_SENS_AVG,
+	ret = __adis_write_reg_16(&st->adis, ADIS16400_SENS_AVG,
 					 (val16 & ~0x07) | i);
 	return ret;
 }
@@ -507,32 +509,31 @@ static int adis16400_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long info)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
+	struct mutex *slock = &st->adis.state_lock;
 	int ret, sps;
 
 	switch (info) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		mutex_lock(&indio_dev->mlock);
 		ret = adis_write_reg_16(&st->adis,
 				adis16400_addresses[chan->scan_index], val);
-		mutex_unlock(&indio_dev->mlock);
 		return ret;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		/*
 		 * Need to cache values so we can update if the frequency
 		 * changes.
 		 */
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(slock);
 		st->filt_int = val;
 		/* Work out update to current value */
 		sps = st->variant->get_freq(st);
 		if (sps < 0) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(slock);
 			return sps;
 		}
 
-		ret = adis16400_set_filter(indio_dev, sps,
+		ret = __adis16400_set_filter(indio_dev, sps,
 			val * 1000 + val2 / 1000);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(slock);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		sps = val * 1000 + val2 / 1000;
@@ -540,9 +541,9 @@ static int adis16400_write_raw(struct iio_dev *indio_dev,
 		if (sps <= 0)
 			return -EINVAL;
 
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(slock);
 		ret = st->variant->set_freq(st, sps);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(slock);
 		return ret;
 	default:
 		return -EINVAL;
@@ -553,6 +554,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long info)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
+	struct mutex *slock = &st->adis.state_lock;
 	int16_t val16;
 	int ret;
 
@@ -596,10 +598,8 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_CALIBBIAS:
-		mutex_lock(&indio_dev->mlock);
 		ret = adis_read_reg_16(&st->adis,
 				adis16400_addresses[chan->scan_index], &val16);
-		mutex_unlock(&indio_dev->mlock);
 		if (ret)
 			return ret;
 		val16 = sign_extend32(val16, 11);
@@ -610,28 +610,28 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		*val = st->variant->temp_offset;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(slock);
 		/* Need both the number of taps and the sampling frequency */
-		ret = adis_read_reg_16(&st->adis,
+		ret = __adis_read_reg_16(&st->adis,
 						ADIS16400_SENS_AVG,
 						&val16);
-		if (ret < 0) {
-			mutex_unlock(&indio_dev->mlock);
+		if (ret) {
+			mutex_unlock(slock);
 			return ret;
 		}
 		ret = st->variant->get_freq(st);
-		if (ret >= 0) {
-			ret /= adis16400_3db_divisors[val16 & 0x07];
-			*val = ret / 1000;
-			*val2 = (ret % 1000) * 1000;
-		}
-		mutex_unlock(&indio_dev->mlock);
-		if (ret < 0)
+		mutex_unlock(slock);
+		if (ret)
 			return ret;
+		ret /= adis16400_3db_divisors[val16 & 0x07];
+		*val = ret / 1000;
+		*val2 = (ret % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(slock);
 		ret = st->variant->get_freq(st);
-		if (ret < 0)
+		mutex_unlock(slock);
+		if (ret)
 			return ret;
 		*val = ret / 1000;
 		*val2 = (ret % 1000) * 1000;
@@ -930,136 +930,6 @@ static const struct iio_chan_spec adis16334_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(ADIS16400_SCAN_TIMESTAMP),
 };
 
-static struct adis16400_chip_info adis16400_chips[] = {
-	[ADIS16300] = {
-		.channels = adis16300_channels,
-		.num_channels = ARRAY_SIZE(adis16300_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = 5884,
-		.temp_scale_nano = 140000000, /* 0.14 C */
-		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16334] = {
-		.channels = adis16334_channels,
-		.num_channels = ARRAY_SIZE(adis16334_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_NO_BURST |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
-		.temp_scale_nano = 67850000, /* 0.06785 C */
-		.temp_offset = 25000000 / 67850, /* 25 C = 0x00 */
-		.set_freq = adis16334_set_freq,
-		.get_freq = adis16334_get_freq,
-	},
-	[ADIS16350] = {
-		.channels = adis16350_channels,
-		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(73260), /* 0.07326 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(2522), /* 0.002522 g */
-		.temp_scale_nano = 145300000, /* 0.1453 C */
-		.temp_offset = 25000000 / 145300, /* 25 C = 0x00 */
-		.flags = ADIS16400_NO_BURST | ADIS16400_HAS_SLOW_MODE,
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16360] = {
-		.channels = adis16350_channels,
-		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
-		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16362] = {
-		.channels = adis16350_channels,
-		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
-		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16364] = {
-		.channels = adis16350_channels,
-		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
-		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16367] = {
-		.channels = adis16350_channels,
-		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
-				ADIS16400_HAS_SERIAL_NUMBER,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(2000), /* 0.2 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
-		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16400] = {
-		.channels = adis16400_channels,
-		.num_channels = ARRAY_SIZE(adis16400_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 140000000, /* 0.14 C */
-		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
-		.set_freq = adis16400_set_freq,
-		.get_freq = adis16400_get_freq,
-	},
-	[ADIS16445] = {
-		.channels = adis16445_channels,
-		.num_channels = ARRAY_SIZE(adis16445_channels),
-		.flags = ADIS16400_HAS_PROD_ID |
-				ADIS16400_HAS_SERIAL_NUMBER |
-				ADIS16400_BURST_DIAG_STAT,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(10000), /* 0.01 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(250), /* 1/4000 g */
-		.temp_scale_nano = 73860000, /* 0.07386 C */
-		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
-		.set_freq = adis16334_set_freq,
-		.get_freq = adis16334_get_freq,
-	},
-	[ADIS16448] = {
-		.channels = adis16448_channels,
-		.num_channels = ARRAY_SIZE(adis16448_channels),
-		.flags = ADIS16400_HAS_PROD_ID |
-				ADIS16400_HAS_SERIAL_NUMBER |
-				ADIS16400_BURST_DIAG_STAT,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(40000), /* 0.04 deg/s */
-		.accel_scale_micro = IIO_G_TO_M_S_2(833), /* 1/1200 g */
-		.temp_scale_nano = 73860000, /* 0.07386 C */
-		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
-		.set_freq = adis16334_set_freq,
-		.get_freq = adis16334_get_freq,
-	}
-};
-
-static const struct iio_info adis16400_info = {
-	.read_raw = &adis16400_read_raw,
-	.write_raw = &adis16400_write_raw,
-	.update_scan_mode = adis_update_scan_mode,
-	.debugfs_reg_access = adis_debugfs_reg_access,
-};
-
 static const char * const adis16400_status_error_msgs[] = {
 	[ADIS16400_DIAG_STAT_ZACCL_FAIL] = "Z-axis accelerometer self-test failure",
 	[ADIS16400_DIAG_STAT_YACCL_FAIL] = "Y-axis accelerometer self-test failure",
@@ -1078,33 +948,208 @@ static const char * const adis16400_status_error_msgs[] = {
 	[ADIS16400_DIAG_STAT_POWER_LOW] = "Power supply below 4.75V",
 };
 
-static const struct adis_data adis16400_data = {
-	.msc_ctrl_reg = ADIS16400_MSC_CTRL,
-	.glob_cmd_reg = ADIS16400_GLOB_CMD,
-	.diag_stat_reg = ADIS16400_DIAG_STAT,
+#define ADIS16400_DATA(_timeouts)					\
+{									\
+	.msc_ctrl_reg = ADIS16400_MSC_CTRL,				\
+	.glob_cmd_reg = ADIS16400_GLOB_CMD,				\
+	.diag_stat_reg = ADIS16400_DIAG_STAT,				\
+	.read_delay = 50,						\
+	.write_delay = 50,						\
+	.self_test_mask = ADIS16400_MSC_CTRL_MEM_TEST,			\
+	.self_test_reg = ADIS16400_MSC_CTRL,				\
+	.status_error_msgs = adis16400_status_error_msgs,		\
+	.status_error_mask = BIT(ADIS16400_DIAG_STAT_ZACCL_FAIL) |	\
+		BIT(ADIS16400_DIAG_STAT_YACCL_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_XACCL_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_XGYRO_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_YGYRO_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_ZGYRO_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_ALARM2) |			\
+		BIT(ADIS16400_DIAG_STAT_ALARM1) |			\
+		BIT(ADIS16400_DIAG_STAT_FLASH_CHK) |			\
+		BIT(ADIS16400_DIAG_STAT_SELF_TEST) |			\
+		BIT(ADIS16400_DIAG_STAT_OVERFLOW) |			\
+		BIT(ADIS16400_DIAG_STAT_SPI_FAIL) |			\
+		BIT(ADIS16400_DIAG_STAT_FLASH_UPT) |			\
+		BIT(ADIS16400_DIAG_STAT_POWER_HIGH) |			\
+		BIT(ADIS16400_DIAG_STAT_POWER_LOW),			\
+	.timeouts = (_timeouts),					\
+}
 
-	.read_delay = 50,
-	.write_delay = 50,
+static const struct adis_timeout adis16300_timeouts = {
+	.reset_ms = ADIS16400_STARTUP_DELAY,
+	.sw_reset_ms = ADIS16400_STARTUP_DELAY,
+	.self_test_ms = ADIS16400_STARTUP_DELAY,
+};
 
-	.self_test_mask = ADIS16400_MSC_CTRL_MEM_TEST,
-	.startup_delay = ADIS16400_STARTUP_DELAY,
+static const struct adis_timeout adis16334_timeouts = {
+	.reset_ms = 60,
+	.sw_reset_ms = 60,
+	.self_test_ms = 14,
+};
 
-	.status_error_msgs = adis16400_status_error_msgs,
-	.status_error_mask = BIT(ADIS16400_DIAG_STAT_ZACCL_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_YACCL_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_XACCL_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_XGYRO_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_YGYRO_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_ZGYRO_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_ALARM2) |
-		BIT(ADIS16400_DIAG_STAT_ALARM1) |
-		BIT(ADIS16400_DIAG_STAT_FLASH_CHK) |
-		BIT(ADIS16400_DIAG_STAT_SELF_TEST) |
-		BIT(ADIS16400_DIAG_STAT_OVERFLOW) |
-		BIT(ADIS16400_DIAG_STAT_SPI_FAIL) |
-		BIT(ADIS16400_DIAG_STAT_FLASH_UPT) |
-		BIT(ADIS16400_DIAG_STAT_POWER_HIGH) |
-		BIT(ADIS16400_DIAG_STAT_POWER_LOW),
+static const struct adis_timeout adis16362_timeouts = {
+	.reset_ms = 130,
+	.sw_reset_ms = 130,
+	.self_test_ms = 12,
+};
+
+static const struct adis_timeout adis16400_timeouts = {
+	.reset_ms = 170,
+	.sw_reset_ms = 170,
+	.self_test_ms = 12,
+};
+
+static const struct adis_timeout adis16445_timeouts = {
+	.reset_ms = 55,
+	.sw_reset_ms = 55,
+	.self_test_ms = 16,
+};
+
+static const struct adis_timeout adis16448_timeouts = {
+	.reset_ms = 90,
+	.sw_reset_ms = 90,
+	.self_test_ms = 45,
+};
+
+static struct adis16400_chip_info adis16400_chips[] = {
+	[ADIS16300] = {
+		.channels = adis16300_channels,
+		.num_channels = ARRAY_SIZE(adis16300_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = 5884,
+		.temp_scale_nano = 140000000, /* 0.14 C */
+		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+	},
+	[ADIS16334] = {
+		.channels = adis16334_channels,
+		.num_channels = ARRAY_SIZE(adis16334_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_NO_BURST |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
+		.temp_scale_nano = 67850000, /* 0.06785 C */
+		.temp_offset = 25000000 / 67850, /* 25 C = 0x00 */
+		.set_freq = adis16334_set_freq,
+		.get_freq = adis16334_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16334_timeouts),
+	},
+	[ADIS16350] = {
+		.channels = adis16350_channels,
+		.num_channels = ARRAY_SIZE(adis16350_channels),
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(73260), /* 0.07326 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(2522), /* 0.002522 g */
+		.temp_scale_nano = 145300000, /* 0.1453 C */
+		.temp_offset = 25000000 / 145300, /* 25 C = 0x00 */
+		.flags = ADIS16400_NO_BURST | ADIS16400_HAS_SLOW_MODE,
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+	},
+	[ADIS16360] = {
+		.channels = adis16350_channels,
+		.num_channels = ARRAY_SIZE(adis16350_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
+		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+	},
+	[ADIS16362] = {
+		.channels = adis16350_channels,
+		.num_channels = ARRAY_SIZE(adis16350_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
+		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16362_timeouts),
+	},
+	[ADIS16364] = {
+		.channels = adis16350_channels,
+		.num_channels = ARRAY_SIZE(adis16350_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
+		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16362_timeouts),
+	},
+	[ADIS16367] = {
+		.channels = adis16350_channels,
+		.num_channels = ARRAY_SIZE(adis16350_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(2000), /* 0.2 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
+		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16300_timeouts),
+	},
+	[ADIS16400] = {
+		.channels = adis16400_channels,
+		.num_channels = ARRAY_SIZE(adis16400_channels),
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
+		.temp_scale_nano = 140000000, /* 0.14 C */
+		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
+		.set_freq = adis16400_set_freq,
+		.get_freq = adis16400_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16400_timeouts),
+	},
+	[ADIS16445] = {
+		.channels = adis16445_channels,
+		.num_channels = ARRAY_SIZE(adis16445_channels),
+		.flags = ADIS16400_HAS_PROD_ID |
+				ADIS16400_HAS_SERIAL_NUMBER |
+				ADIS16400_BURST_DIAG_STAT,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(10000), /* 0.01 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(250), /* 1/4000 g */
+		.temp_scale_nano = 73860000, /* 0.07386 C */
+		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
+		.set_freq = adis16334_set_freq,
+		.get_freq = adis16334_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16445_timeouts),
+	},
+	[ADIS16448] = {
+		.channels = adis16448_channels,
+		.num_channels = ARRAY_SIZE(adis16448_channels),
+		.flags = ADIS16400_HAS_PROD_ID |
+				ADIS16400_HAS_SERIAL_NUMBER |
+				ADIS16400_BURST_DIAG_STAT,
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(40000), /* 0.04 deg/s */
+		.accel_scale_micro = IIO_G_TO_M_S_2(833), /* 1/1200 g */
+		.temp_scale_nano = 73860000, /* 0.07386 C */
+		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
+		.set_freq = adis16334_set_freq,
+		.get_freq = adis16334_get_freq,
+		.adis_data = ADIS16400_DATA(&adis16448_timeouts),
+	}
+};
+
+static const struct iio_info adis16400_info = {
+	.read_raw = &adis16400_read_raw,
+	.write_raw = &adis16400_write_raw,
+	.update_scan_mode = adis_update_scan_mode,
+	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
 static void adis16400_setup_chan_mask(struct adis16400_state *st)
@@ -1120,12 +1165,12 @@ static void adis16400_setup_chan_mask(struct adis16400_state *st)
 			st->avail_scan_mask[0] |= BIT(ch->scan_index);
 	}
 }
-
 static int adis16400_probe(struct spi_device *spi)
 {
 	struct adis16400_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
+	const struct adis_data *adis16400_data;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -1152,7 +1197,9 @@ static int adis16400_probe(struct spi_device *spi)
 			st->adis.burst->extra_len = sizeof(u16);
 	}
 
-	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);
+	adis16400_data = &st->variant->adis_data;
+
+	ret = adis_init(&st->adis, indio_dev, spi, adis16400_data);
 	if (ret)
 		return ret;
 

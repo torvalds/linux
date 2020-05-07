@@ -611,7 +611,7 @@ static u32 ptys_get_active_port(struct mlx4_ptys_reg *ptys_reg)
 }
 
 #define MLX4_LINK_MODES_SZ \
-	(FIELD_SIZEOF(struct mlx4_ptys_reg, eth_proto_cap) * 8)
+	(sizeof_field(struct mlx4_ptys_reg, eth_proto_cap) * 8)
 
 enum ethtool_report {
 	SUPPORTED = 0,
@@ -2121,6 +2121,10 @@ static int mlx4_en_set_phys_id(struct net_device *dev,
 }
 
 const struct ethtool_ops mlx4_en_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ |
+				     ETHTOOL_COALESCE_PKT_RATE_RX_USECS,
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_link_ksettings = mlx4_en_get_link_ksettings,
 	.set_link_ksettings = mlx4_en_set_link_ksettings,

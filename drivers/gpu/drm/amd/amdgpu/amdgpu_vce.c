@@ -80,6 +80,11 @@ MODULE_FIRMWARE(FIRMWARE_VEGA12);
 MODULE_FIRMWARE(FIRMWARE_VEGA20);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
+static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				     struct amdgpu_bo *bo,
+				     struct dma_fence **fence);
+static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				      bool direct, struct dma_fence **fence);
 
 /**
  * amdgpu_vce_init - allocate memory, load vce firmware
@@ -211,6 +216,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
+	cancel_delayed_work_sync(&adev->vce.idle_work);
 	drm_sched_entity_destroy(&adev->vce.entity);
 
 	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
@@ -234,12 +240,13 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 int amdgpu_vce_entity_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
+	struct drm_gpu_scheduler *sched;
 	int r;
 
 	ring = &adev->vce.ring[0];
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&adev->vce.entity, &rq, 1, NULL);
+	sched = &ring->sched;
+	r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
 		return r;
@@ -428,9 +435,9 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
  *
  * Open up a stream for HW test
  */
-int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct amdgpu_bo *bo,
-			      struct dma_fence **fence)
+static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				     struct amdgpu_bo *bo,
+				     struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
@@ -508,8 +515,8 @@ err:
  *
  * Close up a stream for HW test or if userspace failed to do so
  */
-int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct dma_fence **fence)
+static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				      bool direct, struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
@@ -645,7 +652,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 
 	if ((addr + (uint64_t)size) >
 	    (mapping->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
-		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
+		DRM_ERROR("BO too small for addr 0x%010Lx %d %d\n",
 			  addr, lo, hi);
 		return -EINVAL;
 	}

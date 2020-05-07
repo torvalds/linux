@@ -10,8 +10,6 @@
 #ifndef _LINUX_SUNRPC_AUTH_H
 #define _LINUX_SUNRPC_AUTH_H
 
-#ifdef __KERNEL__
-
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/xdr.h>
@@ -115,7 +113,6 @@ struct rpc_authops {
 	int			(*hash_cred)(struct auth_cred *, unsigned int);
 	struct rpc_cred *	(*lookup_cred)(struct rpc_auth *, struct auth_cred *, int);
 	struct rpc_cred *	(*crcreate)(struct rpc_auth*, struct auth_cred *, int, gfp_t);
-	int			(*list_pseudoflavors)(rpc_authflavor_t *, int);
 	rpc_authflavor_t	(*info2flavor)(struct rpcsec_gss_info *);
 	int			(*flavor2info)(rpc_authflavor_t,
 						struct rpcsec_gss_info *);
@@ -160,7 +157,6 @@ rpc_authflavor_t	rpcauth_get_pseudoflavor(rpc_authflavor_t,
 				struct rpcsec_gss_info *);
 int			rpcauth_get_gssinfo(rpc_authflavor_t,
 				struct rpcsec_gss_info *);
-int			rpcauth_list_flavors(rpc_authflavor_t *, int);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int, gfp_t);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
@@ -194,5 +190,4 @@ struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 	return NULL;
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_H */

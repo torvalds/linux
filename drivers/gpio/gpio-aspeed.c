@@ -487,10 +487,10 @@ static int aspeed_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	u32 val;
 
 	if (!have_input(gpio, offset))
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	if (!have_output(gpio, offset))
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
@@ -498,8 +498,7 @@ static int aspeed_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
-	return !val;
-
+	return val ? GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
 }
 
 static inline int irqd_to_aspeed_gpio_data(struct irq_data *d,
@@ -979,7 +978,7 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 }
 
 /**
- * aspeed_gpio_copro_set_ops - Sets the callbacks used for handhsaking with
+ * aspeed_gpio_copro_set_ops - Sets the callbacks used for handshaking with
  *                             the coprocessor for shared GPIO banks
  * @ops: The callbacks
  * @data: Pointer passed back to the callbacks

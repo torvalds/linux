@@ -29,6 +29,7 @@
 #include <asm/efi.h>			/* efi_recover_from_page_fault()*/
 #include <asm/desc.h>			/* store_idt(), ...		*/
 #include <asm/cpu_entry_area.h>		/* exception stack		*/
+#include <asm/pgtable_areas.h>		/* VMALLOC_START, ...		*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -189,7 +190,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	return pmd_k;
 }
 
-void vmalloc_sync_all(void)
+static void vmalloc_sync(void)
 {
 	unsigned long address;
 
@@ -197,7 +198,7 @@ void vmalloc_sync_all(void)
 		return;
 
 	for (address = VMALLOC_START & PMD_MASK;
-	     address >= TASK_SIZE_MAX && address < FIXADDR_TOP;
+	     address >= TASK_SIZE_MAX && address < VMALLOC_END;
 	     address += PMD_SIZE) {
 		struct page *page;
 
@@ -214,6 +215,16 @@ void vmalloc_sync_all(void)
 		}
 		spin_unlock(&pgd_lock);
 	}
+}
+
+void vmalloc_sync_mappings(void)
+{
+	vmalloc_sync();
+}
+
+void vmalloc_sync_unmappings(void)
+{
+	vmalloc_sync();
 }
 
 /*
@@ -318,9 +329,21 @@ out:
 
 #else /* CONFIG_X86_64: */
 
-void vmalloc_sync_all(void)
+void vmalloc_sync_mappings(void)
 {
+	/*
+	 * 64-bit mappings might allocate new p4d/pud pages
+	 * that need to be propagated to all tasks' PGDs.
+	 */
 	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
+}
+
+void vmalloc_sync_unmappings(void)
+{
+	/*
+	 * Unmappings never allocate or free p4d/pud pages.
+	 * No work is required here.
+	 */
 }
 
 /*
@@ -1199,7 +1222,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 		return 1;
 
 	/* read, not present: */
-	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
+	if (unlikely(!vma_is_accessible(vma)))
 		return 1;
 
 	return 0;
@@ -1287,7 +1310,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	vm_fault_t fault, major = 0;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	tsk = current;
 	mm = tsk->mm;
@@ -1441,27 +1464,23 @@ good_area:
 	fault = handle_mm_fault(vma, address, flags);
 	major |= fault & VM_FAULT_MAJOR;
 
+	/* Quick path to respond to signals */
+	if (fault_signal_pending(fault, regs)) {
+		if (!user_mode(regs))
+			no_context(regs, hw_error_code, address, SIGBUS,
+				   BUS_ADRERR);
+		return;
+	}
+
 	/*
 	 * If we need to retry the mmap_sem has already been released,
 	 * and if there is a fatal signal pending there is no guarantee
 	 * that we made any progress. Handle this case first.
 	 */
-	if (unlikely(fault & VM_FAULT_RETRY)) {
-		/* Retry at most once */
-		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-			flags |= FAULT_FLAG_TRIED;
-			if (!fatal_signal_pending(tsk))
-				goto retry;
-		}
-
-		/* User mode? Just return to handle the fatal exception */
-		if (flags & FAULT_FLAG_USER)
-			return;
-
-		/* Not returning to user mode? Handle exceptions or die: */
-		no_context(regs, hw_error_code, address, SIGBUS, BUS_ADRERR);
-		return;
+	if (unlikely((fault & VM_FAULT_RETRY) &&
+		     (flags & FAULT_FLAG_ALLOW_RETRY))) {
+		flags |= FAULT_FLAG_TRIED;
+		goto retry;
 	}
 
 	up_read(&mm->mmap_sem);
@@ -1486,27 +1505,6 @@ good_area:
 }
 NOKPROBE_SYMBOL(do_user_addr_fault);
 
-/*
- * Explicitly marked noinline such that the function tracer sees this as the
- * page_fault entry point.
- */
-static noinline void
-__do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
-		unsigned long address)
-{
-	prefetchw(&current->mm->mmap_sem);
-
-	if (unlikely(kmmio_fault(regs, address)))
-		return;
-
-	/* Was the fault on kernel-controlled part of the address space? */
-	if (unlikely(fault_in_kernel_space(address)))
-		do_kern_addr_fault(regs, hw_error_code, address);
-	else
-		do_user_addr_fault(regs, hw_error_code, address);
-}
-NOKPROBE_SYMBOL(__do_page_fault);
-
 static __always_inline void
 trace_page_fault_entries(struct pt_regs *regs, unsigned long error_code,
 			 unsigned long address)
@@ -1521,13 +1519,19 @@ trace_page_fault_entries(struct pt_regs *regs, unsigned long error_code,
 }
 
 dotraplinkage void
-do_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address)
+do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
+		unsigned long address)
 {
-	enum ctx_state prev_state;
+	prefetchw(&current->mm->mmap_sem);
+	trace_page_fault_entries(regs, hw_error_code, address);
 
-	prev_state = exception_enter();
-	trace_page_fault_entries(regs, error_code, address);
-	__do_page_fault(regs, error_code, address);
-	exception_exit(prev_state);
+	if (unlikely(kmmio_fault(regs, address)))
+		return;
+
+	/* Was the fault on kernel-controlled part of the address space? */
+	if (unlikely(fault_in_kernel_space(address)))
+		do_kern_addr_fault(regs, hw_error_code, address);
+	else
+		do_user_addr_fault(regs, hw_error_code, address);
 }
 NOKPROBE_SYMBOL(do_page_fault);

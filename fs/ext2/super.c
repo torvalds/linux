@@ -702,13 +702,7 @@ static int ext2_check_descriptors(struct super_block *sb)
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		struct ext2_group_desc *gdp = ext2_get_group_desc(sb, i, NULL);
 		ext2_fsblk_t first_block = ext2_group_first_block_no(sb, i);
-		ext2_fsblk_t last_block;
-
-		if (i == sbi->s_groups_count - 1)
-			last_block = le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
-		else
-			last_block = first_block +
-				(EXT2_BLOCKS_PER_GROUP(sb) - 1);
+		ext2_fsblk_t last_block = ext2_group_last_block_no(sb, i);
 
 		if (le32_to_cpu(gdp->bg_block_bitmap) < first_block ||
 		    le32_to_cpu(gdp->bg_block_bitmap) > last_block)
@@ -806,7 +800,6 @@ static unsigned long descriptor_loc(struct super_block *sb,
 {
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	unsigned long bg, first_meta_bg;
-	int has_super = 0;
 	
 	first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
 
@@ -814,10 +807,8 @@ static unsigned long descriptor_loc(struct super_block *sb,
 	    nr < first_meta_bg)
 		return (logic_sb_block + nr + 1);
 	bg = sbi->s_desc_per_block * nr;
-	if (ext2_bg_has_super(sb, bg))
-		has_super = 1;
 
-	return ext2_group_first_block_no(sb, bg) + has_super;
+	return ext2_group_first_block_no(sb, bg) + ext2_bg_has_super(sb, bg);
 }
 
 static int ext2_fill_super(struct super_block *sb, void *data, int silent)
@@ -1082,9 +1073,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (EXT2_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext2;
- 	sbi->s_groups_count = ((le32_to_cpu(es->s_blocks_count) -
- 				le32_to_cpu(es->s_first_data_block) - 1)
- 					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
+	sbi->s_groups_count = ((le32_to_cpu(es->s_blocks_count) -
+				le32_to_cpu(es->s_first_data_block) - 1)
+					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
 	sbi->s_group_desc = kmalloc_array (db_count,
@@ -1147,6 +1138,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 				ext2_count_dirs(sb), GFP_KERNEL);
 	}
 	if (err) {
+		ret = err;
 		ext2_msg(sb, KERN_ERR, "error: insufficient memory");
 		goto failed_mount3;
 	}

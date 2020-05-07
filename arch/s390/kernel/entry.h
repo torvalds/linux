@@ -24,6 +24,8 @@ asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
+void do_secure_storage_access(struct pt_regs *regs);
+void do_non_secure_storage_access(struct pt_regs *regs);
 
 void addressing_exception(struct pt_regs *regs);
 void data_exception(struct pt_regs *regs);
@@ -45,6 +47,7 @@ void specification_exception(struct pt_regs *regs);
 void transaction_exception(struct pt_regs *regs);
 void translation_exception(struct pt_regs *regs);
 void vector_exception(struct pt_regs *regs);
+void monitor_event_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);

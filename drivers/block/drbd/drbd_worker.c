@@ -22,6 +22,7 @@
 #include <linux/random.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
+#include <linux/part_stat.h>
 
 #include "drbd_int.h"
 #include "drbd_protocol.h"
@@ -482,11 +483,11 @@ static void fifo_add_val(struct fifo_buffer *fb, int value)
 		fb->values[i] += value;
 }
 
-struct fifo_buffer *fifo_alloc(int fifo_size)
+struct fifo_buffer *fifo_alloc(unsigned int fifo_size)
 {
 	struct fifo_buffer *fb;
 
-	fb = kzalloc(sizeof(struct fifo_buffer) + sizeof(int) * fifo_size, GFP_NOIO);
+	fb = kzalloc(struct_size(fb, values, fifo_size), GFP_NOIO);
 	if (!fb)
 		return NULL;
 

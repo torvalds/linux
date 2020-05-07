@@ -260,8 +260,11 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	/* Compute requested pll out */
 	bpp = mipi_dsi_pixel_format_to_bpp(format);
 	pll_out_khz = mode->clock * bpp / lanes;
+
 	/* Add 20% to pll out to be higher than pixel bw (burst mode only) */
-	pll_out_khz = (pll_out_khz * 12) / 10;
+	if (mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
+		pll_out_khz = (pll_out_khz * 12) / 10;
+
 	if (pll_out_khz > dsi->lane_max_kbps) {
 		pll_out_khz = dsi->lane_max_kbps;
 		DRM_WARN("Warning max phy mbps is used\n");
@@ -306,11 +309,24 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	return 0;
 }
 
+static int
+dw_mipi_dsi_phy_get_timing(void *priv_data, unsigned int lane_mbps,
+			   struct dw_mipi_dsi_dphy_timing *timing)
+{
+	timing->clk_hs2lp = 0x40;
+	timing->clk_lp2hs = 0x40;
+	timing->data_hs2lp = 0x40;
+	timing->data_lp2hs = 0x40;
+
+	return 0;
+}
+
 static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
 	.init = dw_mipi_dsi_phy_init,
 	.power_on = dw_mipi_dsi_phy_power_on,
 	.power_off = dw_mipi_dsi_phy_power_off,
 	.get_lane_mbps = dw_mipi_dsi_get_lane_mbps,
+	.get_timing = dw_mipi_dsi_phy_get_timing,
 };
 
 static struct dw_mipi_dsi_plat_data dw_mipi_dsi_stm_plat_data = {
@@ -361,7 +377,9 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	dsi->pllref_clk = devm_clk_get(dev, "ref");
 	if (IS_ERR(dsi->pllref_clk)) {
 		ret = PTR_ERR(dsi->pllref_clk);
-		DRM_ERROR("Unable to get pll reference clock: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("Unable to get pll reference clock: %d\n",
+				  ret);
 		goto err_clk_get;
 	}
 

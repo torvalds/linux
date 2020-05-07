@@ -3036,6 +3036,10 @@ static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		}
 
+		/* As per draft-hilland-iwarp-verbs-v1.0, sec 6.2.3,
+		 * when entering the TERM state the RNIC MUST initiate a CLOSE.
+		 */
+		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
 		c4iw_put_ep(&ep->com);
 	} else
 		pr_warn("TERM received tid %u no ep/qp\n", tid);
@@ -3379,7 +3383,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if (raddr->sin_addr.s_addr == htonl(INADDR_ANY)) {
 			err = pick_local_ipaddrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail3;
 		}
 
 		/* find a route */
@@ -3401,7 +3405,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if (ipv6_addr_type(&raddr6->sin6_addr) == IPV6_ADDR_ANY) {
 			err = pick_local_ip6addrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail3;
 		}
 
 		/* find a route */

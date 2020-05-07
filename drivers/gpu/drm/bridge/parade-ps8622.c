@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -460,7 +461,7 @@ static int ps8622_get_modes(struct drm_connector *connector)
 
 	ps8622 = connector_to_ps8622(connector);
 
-	return drm_panel_get_modes(ps8622->panel);
+	return drm_panel_get_modes(ps8622->panel, connector);
 }
 
 static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
@@ -475,10 +476,16 @@ static const struct drm_connector_funcs ps8622_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ps8622_attach(struct drm_bridge *bridge)
+static int ps8622_attach(struct drm_bridge *bridge,
+			 enum drm_bridge_attach_flags flags)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");

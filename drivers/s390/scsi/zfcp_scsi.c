@@ -605,7 +605,7 @@ zfcp_scsi_get_fc_host_stats(struct Scsi_Host *host)
 		return NULL;
 
 	ret = zfcp_fsf_exchange_port_data_sync(adapter->qdio, data);
-	if (ret) {
+	if (ret != 0 && ret != -EAGAIN) {
 		kfree(data);
 		return NULL;
 	}
@@ -634,7 +634,7 @@ static void zfcp_scsi_reset_fc_host_stats(struct Scsi_Host *shost)
 		return;
 
 	ret = zfcp_fsf_exchange_port_data_sync(adapter->qdio, data);
-	if (ret)
+	if (ret != 0 && ret != -EAGAIN)
 		kfree(data);
 	else {
 		adapter->stats_reset = jiffies/HZ;
@@ -856,6 +856,10 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
 	.show_host_serial_number = 1,
+	.show_host_manufacturer = 1,
+	.show_host_model = 1,
+	.show_host_hardware_version = 1,
+	.show_host_firmware_version = 1,
 	.get_fc_host_stats = zfcp_scsi_get_fc_host_stats,
 	.reset_fc_host_stats = zfcp_scsi_reset_fc_host_stats,
 	.set_rport_dev_loss_tmo = zfcp_scsi_set_rport_dev_loss_tmo,
@@ -871,5 +875,6 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_symbolic_name = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
+	.show_host_fabric_name = 1,
 	.dd_bsg_size = sizeof(struct zfcp_fsf_ct_els),
 };

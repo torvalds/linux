@@ -15,7 +15,7 @@
 #include "../../../../lib/vdso/gettimeofday.c"
 
 extern int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz);
-extern time_t __vdso_time(time_t *t);
+extern __kernel_old_time_t __vdso_time(__kernel_old_time_t *t);
 
 int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 {
@@ -25,12 +25,12 @@ int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 int gettimeofday(struct __kernel_old_timeval *, struct timezone *)
 	__attribute__((weak, alias("__vdso_gettimeofday")));
 
-time_t __vdso_time(time_t *t)
+__kernel_old_time_t __vdso_time(__kernel_old_time_t *t)
 {
 	return __cvdso_time(t);
 }
 
-time_t time(time_t *t)	__attribute__((weak, alias("__vdso_time")));
+__kernel_old_time_t time(__kernel_old_time_t *t)	__attribute__((weak, alias("__vdso_time")));
 
 
 #if defined(CONFIG_X86_64) && !defined(BUILD_VDSO32_64)

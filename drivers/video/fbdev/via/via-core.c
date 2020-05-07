@@ -442,7 +442,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 	 */
 	vdev->engine_start = pci_resource_start(vdev->pdev, 1);
 	vdev->engine_len = pci_resource_len(vdev->pdev, 1);
-	vdev->engine_mmio = ioremap_nocache(vdev->engine_start,
+	vdev->engine_mmio = ioremap(vdev->engine_start,
 			vdev->engine_len);
 	if (vdev->engine_mmio == NULL)
 		dev_err(&vdev->pdev->dev,

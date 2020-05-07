@@ -32,6 +32,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_dp_mst_helper.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -120,33 +121,49 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
-void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-			  DP_TRAINING_AUX_RD_MASK;
+u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
+					 unsigned int lane)
+{
+	unsigned int offset = DP_ADJUST_REQUEST_POST_CURSOR2;
+	u8 value = dp_link_status(link_status, offset);
+
+	return (value >> (lane << 1)) & 0x3;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
+
+void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					 DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		udelay(100);
+		rd_interval = 100;
 	else
-		mdelay(rd_interval * 4);
+		rd_interval *= 4 * USEC_PER_MSEC;
+
+	usleep_range(rd_interval, rd_interval * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-			  DP_TRAINING_AUX_RD_MASK;
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					 DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0)
-		udelay(400);
+		rd_interval = 400;
 	else
-		mdelay(rd_interval * 4);
+		rd_interval *= 4 * USEC_PER_MSEC;
+
+	usleep_range(rd_interval, rd_interval * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
@@ -220,7 +237,6 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 		}
 
 		ret = aux->transfer(aux, &msg);
-
 		if (ret >= 0) {
 			native_reply = msg.reply & DP_AUX_NATIVE_REPLY_MASK;
 			if (native_reply == DP_AUX_NATIVE_REPLY_ACK) {
@@ -251,7 +267,7 @@ unlock:
 
 /**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
- * @aux: DisplayPort AUX channel
+ * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to read
  * @buffer: buffer to store the register values
  * @size: number of bytes in @buffer
@@ -280,13 +296,18 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * We just have to do it before any DPCD access and hope that the
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
-				 1);
-	if (ret != 1)
-		goto out;
+	if (!aux->is_remote) {
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV,
+					 buffer, 1);
+		if (ret != 1)
+			goto out;
+	}
 
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				 size);
+	if (aux->is_remote)
+		ret = drm_dp_mst_dpcd_read(aux, offset, buffer, size);
+	else
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset,
+					 buffer, size);
 
 out:
 	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
@@ -296,7 +317,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 
 /**
  * drm_dp_dpcd_write() - write a series of bytes to the DPCD
- * @aux: DisplayPort AUX channel
+ * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to write
  * @buffer: buffer containing the values to write
  * @size: number of bytes in @buffer
@@ -313,8 +334,12 @@ ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 {
 	int ret;
 
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				 size);
+	if (aux->is_remote)
+		ret = drm_dp_mst_dpcd_write(aux, offset, buffer, size);
+	else
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset,
+					 buffer, size);
+
 	drm_dp_dump_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer, ret);
 	return ret;
 }
@@ -337,132 +362,63 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
 
 /**
- * drm_dp_link_probe() - probe a DisplayPort link for capabilities
+ * drm_dp_send_real_edid_checksum() - send back real edid checksum value
  * @aux: DisplayPort AUX channel
- * @link: pointer to structure in which to return link capabilities
+ * @real_edid_checksum: real edid checksum for the last block
  *
- * The structure filled in by this function can usually be passed directly
- * into drm_dp_link_power_up() and drm_dp_link_configure() to power up and
- * configure the link based on the link's capabilities.
- *
- * Returns 0 on success or a negative error code on failure.
+ * Returns:
+ * True on success
  */
-int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
+bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
+				    u8 real_edid_checksum)
 {
-	u8 values[3];
-	int err;
+	u8 link_edid_read = 0, auto_test_req = 0, test_resp = 0;
 
-	memset(link, 0, sizeof(*link));
+	if (drm_dp_dpcd_read(aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
+			     &auto_test_req, 1) < 1) {
+		DRM_ERROR("DPCD failed read at register 0x%x\n",
+			  DP_DEVICE_SERVICE_IRQ_VECTOR);
+		return false;
+	}
+	auto_test_req &= DP_AUTOMATED_TEST_REQUEST;
 
-	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, values, sizeof(values));
-	if (err < 0)
-		return err;
+	if (drm_dp_dpcd_read(aux, DP_TEST_REQUEST, &link_edid_read, 1) < 1) {
+		DRM_ERROR("DPCD failed read at register 0x%x\n",
+			  DP_TEST_REQUEST);
+		return false;
+	}
+	link_edid_read &= DP_TEST_LINK_EDID_READ;
 
-	link->revision = values[0];
-	link->rate = drm_dp_bw_code_to_link_rate(values[1]);
-	link->num_lanes = values[2] & DP_MAX_LANE_COUNT_MASK;
+	if (!auto_test_req || !link_edid_read) {
+		DRM_DEBUG_KMS("Source DUT does not support TEST_EDID_READ\n");
+		return false;
+	}
 
-	if (values[2] & DP_ENHANCED_FRAME_CAP)
-		link->capabilities |= DP_LINK_CAP_ENHANCED_FRAMING;
+	if (drm_dp_dpcd_write(aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
+			      &auto_test_req, 1) < 1) {
+		DRM_ERROR("DPCD failed write at register 0x%x\n",
+			  DP_DEVICE_SERVICE_IRQ_VECTOR);
+		return false;
+	}
 
-	return 0;
+	/* send back checksum for the last edid extension block data */
+	if (drm_dp_dpcd_write(aux, DP_TEST_EDID_CHECKSUM,
+			      &real_edid_checksum, 1) < 1) {
+		DRM_ERROR("DPCD failed write at register 0x%x\n",
+			  DP_TEST_EDID_CHECKSUM);
+		return false;
+	}
+
+	test_resp |= DP_TEST_EDID_CHECKSUM_WRITE;
+	if (drm_dp_dpcd_write(aux, DP_TEST_RESPONSE, &test_resp, 1) < 1) {
+		DRM_ERROR("DPCD failed write at register 0x%x\n",
+			  DP_TEST_RESPONSE);
+		return false;
+	}
+
+	return true;
 }
-EXPORT_SYMBOL(drm_dp_link_probe);
-
-/**
- * drm_dp_link_power_up() - power up a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 value;
-	int err;
-
-	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
-	if (link->revision < 0x11)
-		return 0;
-
-	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
-	if (err < 0)
-		return err;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D0;
-
-	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (err < 0)
-		return err;
-
-	/*
-	 * According to the DP 1.1 specification, a "Sink Device must exit the
-	 * power saving state within 1 ms" (Section 2.5.3.1, Table 5-52, "Sink
-	 * Control Field" (register 0x600).
-	 */
-	usleep_range(1000, 2000);
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_power_up);
-
-/**
- * drm_dp_link_power_down() - power down a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 value;
-	int err;
-
-	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
-	if (link->revision < 0x11)
-		return 0;
-
-	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
-	if (err < 0)
-		return err;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D3;
-
-	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_power_down);
-
-/**
- * drm_dp_link_configure() - configure a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 values[2];
-	int err;
-
-	values[0] = drm_dp_link_rate_to_bw_code(link->rate);
-	values[1] = link->num_lanes;
-
-	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
-		values[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-
-	err = drm_dp_dpcd_write(aux, DP_LINK_BW_SET, values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_configure);
+EXPORT_SYMBOL(drm_dp_send_real_edid_checksum);
 
 /**
  * drm_dp_downstream_max_clock() - extract branch device max
@@ -573,8 +529,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	int len;
 	uint8_t rev[2];
 	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool branch_device = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-			     DP_DWN_STRM_PORT_PRESENT;
+	bool branch_device = drm_dp_is_branch(dpcd);
 
 	seq_printf(m, "\tDP branch device present: %s\n",
 		   branch_device ? "yes" : "no");
@@ -1082,6 +1037,19 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 }
 
 /**
+ * drm_dp_remote_aux_init() - minimally initialise a remote aux channel
+ * @aux: DisplayPort AUX channel
+ *
+ * Used for remote aux channel in general. Merely initialize the crc work
+ * struct.
+ */
+void drm_dp_remote_aux_init(struct drm_dp_aux *aux)
+{
+	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
+}
+EXPORT_SYMBOL(drm_dp_remote_aux_init);
+
+/**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
  *
@@ -1109,6 +1077,14 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * @aux: DisplayPort AUX channel
  *
  * Automatically calls drm_dp_aux_init() if this hasn't been done yet.
+ * This should only be called when the underlying &struct drm_connector is
+ * initialiazed already. Therefore the best place to call this is from
+ * &drm_connector_funcs.late_register. Not that drivers which don't follow this
+ * will Oops when CONFIG_DRM_DP_AUX_CHARDEV is enabled.
+ *
+ * Drivers which need to use the aux channel before that point (e.g. at driver
+ * load time, before drm_dev_register() has been called) need to call
+ * drm_dp_aux_init().
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -1260,6 +1236,8 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
 	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_NO_PSR) },
 	/* CH7511 seems to leave SINK_COUNT zeroed */
 	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
+	/* Synaptics DP1.4 MST hubs can support DSC without virtual DPCD */
+	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
 };
 
 #undef OUI
@@ -1301,6 +1279,85 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 
 #undef DEVICE_ID_ANY
 #undef DEVICE_ID
+
+struct edid_quirk {
+	u8 mfg_id[2];
+	u8 prod_id[2];
+	u32 quirks;
+};
+
+#define MFG(first, second) { (first), (second) }
+#define PROD_ID(first, second) { (first), (second) }
+
+/*
+ * Some devices have unreliable OUIDs where they don't set the device ID
+ * correctly, and as a result we need to use the EDID for finding additional
+ * DP quirks in such cases.
+ */
+static const struct edid_quirk edid_quirk_list[] = {
+	/* Optional 4K AMOLED panel in the ThinkPad X1 Extreme 2nd Generation
+	 * only supports DPCD backlight controls
+	 */
+	{ MFG(0x4c, 0x83), PROD_ID(0x41, 0x41), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
+	/*
+	 * Some Dell CML 2020 systems have panels support both AUX and PWM
+	 * backlight control, and some only support AUX backlight control. All
+	 * said panels start up in AUX mode by default, and we don't have any
+	 * support for disabling HDR mode on these panels which would be
+	 * required to switch to PWM backlight control mode (plus, I'm not
+	 * even sure we want PWM backlight controls over DPCD backlight
+	 * controls anyway...). Until we have a better way of detecting these,
+	 * force DPCD backlight mode on all of them.
+	 */
+	{ MFG(0x06, 0xaf), PROD_ID(0x9b, 0x32), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
+	{ MFG(0x06, 0xaf), PROD_ID(0xeb, 0x41), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
+	{ MFG(0x4d, 0x10), PROD_ID(0xc7, 0x14), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
+	{ MFG(0x4d, 0x10), PROD_ID(0xe6, 0x14), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
+};
+
+#undef MFG
+#undef PROD_ID
+
+/**
+ * drm_dp_get_edid_quirks() - Check the EDID of a DP device to find additional
+ * DP-specific quirks
+ * @edid: The EDID to check
+ *
+ * While OUIDs are meant to be used to recognize a DisplayPort device, a lot
+ * of manufacturers don't seem to like following standards and neglect to fill
+ * the dev-ID in, making it impossible to only use OUIDs for determining
+ * quirks in some cases. This function can be used to check the EDID and look
+ * up any additional DP quirks. The bits returned by this function correspond
+ * to the quirk bits in &drm_dp_quirk.
+ *
+ * Returns: a bitmask of quirks, if any. The driver can check this using
+ * drm_dp_has_quirk().
+ */
+u32 drm_dp_get_edid_quirks(const struct edid *edid)
+{
+	const struct edid_quirk *quirk;
+	u32 quirks = 0;
+	int i;
+
+	if (!edid)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(edid_quirk_list); i++) {
+		quirk = &edid_quirk_list[i];
+		if (memcmp(quirk->mfg_id, edid->mfg_id,
+			   sizeof(edid->mfg_id)) == 0 &&
+		    memcmp(quirk->prod_id, edid->prod_code,
+			   sizeof(edid->prod_code)) == 0)
+			quirks |= quirk->quirks;
+	}
+
+	DRM_DEBUG_KMS("DP sink: EDID mfg %*phD prod-ID %*phD quirks: 0x%04x\n",
+		      (int)sizeof(edid->mfg_id), edid->mfg_id,
+		      (int)sizeof(edid->prod_code), edid->prod_code, quirks);
+
+	return quirks;
+}
+EXPORT_SYMBOL(drm_dp_get_edid_quirks);
 
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD

@@ -37,6 +37,7 @@
 #define VINT_ENABLE_SET_OFFSET	0x0
 #define VINT_ENABLE_CLR_OFFSET	0x8
 #define VINT_STATUS_OFFSET	0x18
+#define VINT_STATUS_MASKED_OFFSET	0x20
 
 /**
  * struct ti_sci_inta_event_desc - Description of an event coming to
@@ -116,7 +117,7 @@ static void ti_sci_inta_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
 	val = readq_relaxed(inta->base + vint_desc->vint_id * 0x1000 +
-			    VINT_STATUS_OFFSET);
+			    VINT_STATUS_MASKED_OFFSET);
 
 	for_each_set_bit(bit, &val, MAX_EVENTS_PER_VINT) {
 		virq = irq_find_mapping(domain, vint_desc->events[bit].hwirq);
@@ -246,8 +247,8 @@ static struct ti_sci_inta_event_desc *ti_sci_inta_alloc_irq(struct irq_domain *d
 	/* No free bits available. Allocate a new vint */
 	vint_desc = ti_sci_inta_alloc_parent_irq(domain);
 	if (IS_ERR(vint_desc)) {
-		mutex_unlock(&inta->vint_mutex);
-		return ERR_PTR(PTR_ERR(vint_desc));
+		event_desc = ERR_CAST(vint_desc);
+		goto unlock;
 	}
 
 	free_bit = find_first_zero_bit(vint_desc->event_map,
@@ -259,6 +260,7 @@ alloc_event:
 	if (IS_ERR(event_desc))
 		clear_bit(free_bit, vint_desc->event_map);
 
+unlock:
 	mutex_unlock(&inta->vint_mutex);
 	return event_desc;
 }

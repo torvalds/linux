@@ -130,7 +130,7 @@ static int sja1000_isa_probe(struct platform_device *pdev)
 			err = -EBUSY;
 			goto exit;
 		}
-		base = ioremap_nocache(mem[idx], iosize);
+		base = ioremap(mem[idx], iosize);
 		if (!base) {
 			err = -ENOMEM;
 			goto exit_release;

@@ -285,7 +285,7 @@ static int fun_probe(struct platform_device *ofdev)
 		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
-	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
+	fun->io_base = devm_ioremap(&ofdev->dev, io_res.start,
 					    resource_size(&io_res));
 	if (!fun->io_base) {
 		ret = -ENOMEM;

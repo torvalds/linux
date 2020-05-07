@@ -8,7 +8,8 @@ with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
 user-space applications.
-Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390 and tile.
+Kmemleak is supported on x86, arm, arm64, powerpc, sparc, sh, microblaze, mips,
+s390, nds32, arc and xtensa.
 
 Usage
 -----
@@ -69,7 +70,7 @@ the kernel command line.
 
 Memory may be allocated or freed before kmemleak is initialised and
 these actions are stored in an early log buffer. The size of this buffer
-is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
+is configured via the CONFIG_DEBUG_KMEMLEAK_MEM_POOL_SIZE option.
 
 If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command

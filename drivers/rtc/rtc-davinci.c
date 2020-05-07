@@ -227,7 +227,7 @@ davinci_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int convertfromdays(u16 days, struct rtc_time *tm)
+static void convertfromdays(u16 days, struct rtc_time *tm)
 {
 	int tmp_days, year, mon;
 
@@ -250,24 +250,17 @@ static int convertfromdays(u16 days, struct rtc_time *tm)
 			break;
 		}
 	}
-	return 0;
 }
 
-static int convert2days(u16 *days, struct rtc_time *tm)
+static void convert2days(u16 *days, struct rtc_time *tm)
 {
 	int i;
 	*days = 0;
-
-	/* epoch == 1900 */
-	if (tm->tm_year < 100 || tm->tm_year > 199)
-		return -EINVAL;
 
 	for (i = 2000; i < 1900 + tm->tm_year; i++)
 		*days += rtc_year_days(1, 12, i);
 
 	*days += rtc_year_days(tm->tm_mday, tm->tm_mon, 1900 + tm->tm_year);
-
-	return 0;
 }
 
 static int davinci_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -300,8 +293,7 @@ static int davinci_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	days <<= 8;
 	days |= day0;
 
-	if (convertfromdays(days, tm) < 0)
-		return -EINVAL;
+	convertfromdays(days, tm);
 
 	return 0;
 }
@@ -313,8 +305,7 @@ static int davinci_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 rtc_cctrl;
 	unsigned long flags;
 
-	if (convert2days(&days, tm) < 0)
-		return -EINVAL;
+	convert2days(&days, tm);
 
 	spin_lock_irqsave(&davinci_rtc_lock, flags);
 
@@ -396,8 +387,7 @@ static int davinci_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	days <<= 8;
 	days |= day0;
 
-	if (convertfromdays(days, &alm->time) < 0)
-		return -EINVAL;
+	convertfromdays(days, &alm->time);
 
 	alm->pending = !!(rtcss_read(davinci_rtc,
 			  PRTCSS_RTC_CCTRL) &
@@ -413,29 +403,7 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	unsigned long flags;
 	u16 days;
 
-	if (alm->time.tm_mday <= 0 && alm->time.tm_mon < 0
-	    && alm->time.tm_year < 0) {
-		struct rtc_time tm;
-		unsigned long now, then;
-
-		davinci_rtc_read_time(dev, &tm);
-		rtc_tm_to_time(&tm, &now);
-
-		alm->time.tm_mday = tm.tm_mday;
-		alm->time.tm_mon = tm.tm_mon;
-		alm->time.tm_year = tm.tm_year;
-		rtc_tm_to_time(&alm->time, &then);
-
-		if (then < now) {
-			rtc_time_to_tm(now + 24 * 60 * 60, &tm);
-			alm->time.tm_mday = tm.tm_mday;
-			alm->time.tm_mon = tm.tm_mon;
-			alm->time.tm_year = tm.tm_year;
-		}
-	}
-
-	if (convert2days(&days, &alm->time) < 0)
-		return -EINVAL;
+	convert2days(&days, &alm->time);
 
 	spin_lock_irqsave(&davinci_rtc_lock, flags);
 
@@ -469,7 +437,6 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct davinci_rtc *davinci_rtc;
-	struct resource *res;
 	int ret = 0;
 
 	davinci_rtc = devm_kzalloc(&pdev->dev, sizeof(struct davinci_rtc), GFP_KERNEL);
@@ -480,20 +447,19 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	if (davinci_rtc->irq < 0)
 		return davinci_rtc->irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	davinci_rtc->base = devm_ioremap_resource(dev, res);
+	davinci_rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(davinci_rtc->base))
 		return PTR_ERR(davinci_rtc->base);
 
 	platform_set_drvdata(pdev, davinci_rtc);
 
-	davinci_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				    &davinci_rtc_ops, THIS_MODULE);
-	if (IS_ERR(davinci_rtc->rtc)) {
-		dev_err(dev, "unable to register RTC device, err %d\n",
-				ret);
+	davinci_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(davinci_rtc->rtc))
 		return PTR_ERR(davinci_rtc->rtc);
-	}
+
+	davinci_rtc->rtc->ops = &davinci_rtc_ops;
+	davinci_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	davinci_rtc->rtc->range_max = RTC_TIMESTAMP_BEGIN_2000 + (1 << 16) * 86400ULL - 1;
 
 	rtcif_write(davinci_rtc, PRTCIF_INTFLG_RTCSS, PRTCIF_INTFLG);
 	rtcif_write(davinci_rtc, 0, PRTCIF_INTEN);
@@ -518,7 +484,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 
-	return 0;
+	return rtc_register_device(davinci_rtc->rtc);
 }
 
 static int __exit davinci_rtc_remove(struct platform_device *pdev)

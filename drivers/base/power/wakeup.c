@@ -24,6 +24,9 @@ suspend_state_t pm_suspend_target_state;
 #define pm_suspend_target_state	(PM_SUSPEND_ON)
 #endif
 
+#define list_for_each_entry_rcu_locked(pos, head, member) \
+	list_for_each_entry_rcu(pos, head, member, \
+		srcu_read_lock_held(&wakeup_srcu))
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -241,11 +244,67 @@ void wakeup_source_unregister(struct wakeup_source *ws)
 {
 	if (ws) {
 		wakeup_source_remove(ws);
-		wakeup_source_sysfs_remove(ws);
+		if (ws->dev)
+			wakeup_source_sysfs_remove(ws);
+
 		wakeup_source_destroy(ws);
 	}
 }
 EXPORT_SYMBOL_GPL(wakeup_source_unregister);
+
+/**
+ * wakeup_sources_read_lock - Lock wakeup source list for read.
+ *
+ * Returns an index of srcu lock for struct wakeup_srcu.
+ * This index must be passed to the matching wakeup_sources_read_unlock().
+ */
+int wakeup_sources_read_lock(void)
+{
+	return srcu_read_lock(&wakeup_srcu);
+}
+EXPORT_SYMBOL_GPL(wakeup_sources_read_lock);
+
+/**
+ * wakeup_sources_read_unlock - Unlock wakeup source list.
+ * @idx: return value from corresponding wakeup_sources_read_lock()
+ */
+void wakeup_sources_read_unlock(int idx)
+{
+	srcu_read_unlock(&wakeup_srcu, idx);
+}
+EXPORT_SYMBOL_GPL(wakeup_sources_read_unlock);
+
+/**
+ * wakeup_sources_walk_start - Begin a walk on wakeup source list
+ *
+ * Returns first object of the list of wakeup sources.
+ *
+ * Note that to be safe, wakeup sources list needs to be locked by calling
+ * wakeup_source_read_lock() for this.
+ */
+struct wakeup_source *wakeup_sources_walk_start(void)
+{
+	struct list_head *ws_head = &wakeup_sources;
+
+	return list_entry_rcu(ws_head->next, struct wakeup_source, entry);
+}
+EXPORT_SYMBOL_GPL(wakeup_sources_walk_start);
+
+/**
+ * wakeup_sources_walk_next - Get next wakeup source from the list
+ * @ws: Previous wakeup source object
+ *
+ * Note that to be safe, wakeup sources list needs to be locked by calling
+ * wakeup_source_read_lock() for this.
+ */
+struct wakeup_source *wakeup_sources_walk_next(struct wakeup_source *ws)
+{
+	struct list_head *ws_head = &wakeup_sources;
+
+	return list_next_or_null_rcu(ws_head, &ws->entry,
+				struct wakeup_source, entry);
+}
+EXPORT_SYMBOL_GPL(wakeup_sources_walk_next);
 
 /**
  * device_wakeup_attach - Attach a wakeup source object to a device object.
@@ -351,7 +410,7 @@ void device_wakeup_arm_wake_irqs(void)
 	int srcuidx;
 
 	srcuidx = srcu_read_lock(&wakeup_srcu);
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
+	list_for_each_entry_rcu_locked(ws, &wakeup_sources, entry)
 		dev_pm_arm_wake_irq(ws->wakeirq);
 	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
@@ -367,7 +426,7 @@ void device_wakeup_disarm_wake_irqs(void)
 	int srcuidx;
 
 	srcuidx = srcu_read_lock(&wakeup_srcu);
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
+	list_for_each_entry_rcu_locked(ws, &wakeup_sources, entry)
 		dev_pm_disarm_wake_irq(ws->wakeirq);
 	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
@@ -820,7 +879,7 @@ void pm_print_active_wakeup_sources(void)
 	struct wakeup_source *last_activity_ws = NULL;
 
 	srcuidx = srcu_read_lock(&wakeup_srcu);
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+	list_for_each_entry_rcu_locked(ws, &wakeup_sources, entry) {
 		if (ws->active) {
 			pm_pr_dbg("active wakeup source: %s\n", ws->name);
 			active = 1;
@@ -971,7 +1030,7 @@ void pm_wakep_autosleep_enabled(bool set)
 	int srcuidx;
 
 	srcuidx = srcu_read_lock(&wakeup_srcu);
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+	list_for_each_entry_rcu_locked(ws, &wakeup_sources, entry) {
 		spin_lock_irq(&ws->lock);
 		if (ws->autosleep_enabled != set) {
 			ws->autosleep_enabled = set;
@@ -1050,7 +1109,7 @@ static void *wakeup_sources_stats_seq_start(struct seq_file *m,
 	}
 
 	*srcuidx = srcu_read_lock(&wakeup_srcu);
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+	list_for_each_entry_rcu_locked(ws, &wakeup_sources, entry) {
 		if (n-- <= 0)
 			return ws;
 	}
@@ -1070,6 +1129,9 @@ static void *wakeup_sources_stats_seq_next(struct seq_file *m,
 		next_ws = ws;
 		break;
 	}
+
+	if (!next_ws)
+		print_wakeup_source_stats(m, &deleted_ws);
 
 	return next_ws;
 }

@@ -120,10 +120,10 @@ config USB_FOTG210_UDC
 	   dynamically linked module called "fotg210_udc".
 
 config USB_GR_UDC
-       tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
-       depends on HAS_DMA
-       help
-          Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
+	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
+	depends on HAS_DMA
+	help
+	  Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
 	  VHDL IP core library.
 
 config USB_OMAP
@@ -440,6 +440,27 @@ config USB_GADGET_XILINX
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "udc-xilinx" and force all
 	  gadget drivers to also be dynamically linked.
+
+config USB_MAX3420_UDC
+	tristate "MAX3420 (USB-over-SPI) support"
+	depends on SPI
+	help
+	  The Maxim MAX3420 chip supports USB2.0 full-speed peripheral mode.
+	  The MAX3420 is run by SPI interface, and hence the dependency.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called max3420_udc
+
+config USB_TEGRA_XUDC
+	tristate "NVIDIA Tegra Superspeed USB 3.0 Device Controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on PHY_TEGRA_XUSB
+	help
+	 Enables NVIDIA Tegra USB 3.0 device mode controller driver.
+
+	 Say "y" to link the driver statically, or "m" to build a
+	 dynamically linked module called "tegra_xudc" and force all
+	 gadget drivers to also be dynamically linked.
 
 source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
 

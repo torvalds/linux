@@ -153,7 +153,7 @@ static const struct nla_policy ctinfo_policy[TCA_CTINFO_MAX + 1] = {
 static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
-			   struct tcf_proto *tp,
+			   struct tcf_proto *tp, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ctinfo_net_id);
@@ -210,7 +210,7 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_ctinfo_ops, bind, false);
+				     &act_ctinfo_ops, bind, false, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -257,8 +257,8 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 
 	spin_lock_bh(&ci->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, actparm->action, goto_ch);
-	rcu_swap_protected(ci->params, cp_new,
-			   lockdep_is_held(&ci->tcf_lock));
+	cp_new = rcu_replace_pointer(ci->params, cp_new,
+				     lockdep_is_held(&ci->tcf_lock));
 	spin_unlock_bh(&ci->tcf_lock);
 
 	if (goto_ch)
@@ -360,6 +360,16 @@ static int tcf_ctinfo_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static void tcf_ctinfo_cleanup(struct tc_action *a)
+{
+	struct tcf_ctinfo *ci = to_ctinfo(a);
+	struct tcf_ctinfo_params *cp;
+
+	cp = rcu_dereference_protected(ci->params, 1);
+	if (cp)
+		kfree_rcu(cp, rcu);
+}
+
 static struct tc_action_ops act_ctinfo_ops = {
 	.kind	= "ctinfo",
 	.id	= TCA_ID_CTINFO,
@@ -367,6 +377,7 @@ static struct tc_action_ops act_ctinfo_ops = {
 	.act	= tcf_ctinfo_act,
 	.dump	= tcf_ctinfo_dump,
 	.init	= tcf_ctinfo_init,
+	.cleanup= tcf_ctinfo_cleanup,
 	.walk	= tcf_ctinfo_walker,
 	.lookup	= tcf_ctinfo_search,
 	.size	= sizeof(struct tcf_ctinfo),

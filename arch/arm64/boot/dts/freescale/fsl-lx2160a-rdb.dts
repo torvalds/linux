@@ -35,6 +35,34 @@
 	status = "okay";
 };
 
+&dpmac17 {
+	phy-handle = <&rgmii_phy1>;
+	phy-connection-type = "rgmii-id";
+};
+
+&dpmac18 {
+	phy-handle = <&rgmii_phy2>;
+	phy-connection-type = "rgmii-id";
+};
+
+&emdio1 {
+	status = "okay";
+
+	rgmii_phy1: ethernet-phy@1 {
+		/* AR8035 PHY */
+		compatible = "ethernet-phy-id004d.d072";
+		reg = <0x1>;
+		eee-broken-1000t;
+	};
+
+	rgmii_phy2: ethernet-phy@2 {
+		/* AR8035 PHY */
+		compatible = "ethernet-phy-id004d.d072";
+		reg = <0x2>;
+		eee-broken-1000t;
+	};
+};
+
 &esdhc0 {
 	sd-uhs-sdr104;
 	sd-uhs-sdr50;
@@ -56,7 +84,7 @@
 	mt35xu512aba0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,m25p80";
+		compatible = "jedec,spi-nor";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <0>;
@@ -67,7 +95,7 @@
 	mt35xu512aba1: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,m25p80";
+		compatible = "jedec,spi-nor";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <1>;

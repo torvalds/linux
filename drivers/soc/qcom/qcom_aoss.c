@@ -44,7 +44,7 @@
 
 #define QMP_NUM_COOLING_RESOURCES	2
 
-static bool qmp_cdev_init_state = 1;
+static bool qmp_cdev_max_state = 1;
 
 struct qmp_cooling_device {
 	struct thermal_cooling_device *cdev;
@@ -200,7 +200,7 @@ static irqreturn_t qmp_intr(int irq, void *data)
 {
 	struct qmp *qmp = data;
 
-	wake_up_interruptible_all(&qmp->event);
+	wake_up_all(&qmp->event);
 
 	return IRQ_HANDLED;
 }
@@ -225,6 +225,7 @@ static bool qmp_message_empty(struct qmp *qmp)
 static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 {
 	long time_left;
+	size_t tlen;
 	int ret;
 
 	if (WARN_ON(len + sizeof(u32) > qmp->size))
@@ -239,6 +240,9 @@ static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 	__iowrite32_copy(qmp->msgram + qmp->offset + sizeof(u32),
 			 data, len / sizeof(u32));
 	writel(len, qmp->msgram + qmp->offset);
+
+	/* Read back len to confirm data written in message RAM */
+	tlen = readl(qmp->msgram + qmp->offset);
 	qmp_kick(qmp);
 
 	time_left = wait_event_interruptible_timeout(qmp->event,
@@ -402,7 +406,7 @@ static void qmp_pd_remove(struct qmp *qmp)
 static int qmp_cdev_get_max_state(struct thermal_cooling_device *cdev,
 				  unsigned long *state)
 {
-	*state = qmp_cdev_init_state;
+	*state = qmp_cdev_max_state;
 	return 0;
 }
 
@@ -432,7 +436,7 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 	snprintf(buf, sizeof(buf),
 		 "{class: volt_flr, event:zero_temp, res:%s, value:%s}",
 			qmp_cdev->name,
-			cdev_state ? "off" : "on");
+			cdev_state ? "on" : "off");
 
 	ret = qmp_send(qmp_cdev->qmp, buf, sizeof(buf));
 
@@ -455,7 +459,7 @@ static int qmp_cooling_device_add(struct qmp *qmp,
 	char *cdev_name = (char *)node->name;
 
 	qmp_cdev->qmp = qmp;
-	qmp_cdev->state = qmp_cdev_init_state;
+	qmp_cdev->state = !qmp_cdev_max_state;
 	qmp_cdev->name = cdev_name;
 	qmp_cdev->cdev = devm_thermal_of_cooling_device_register
 				(qmp->dev, node,

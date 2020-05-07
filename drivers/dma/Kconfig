@@ -15,19 +15,19 @@ menuconfig DMADEVICES
 	  be empty in some cases.
 
 config DMADEVICES_DEBUG
-        bool "DMA Engine debugging"
-        depends on DMADEVICES != n
-        help
-          This is an option for use by developers; most people should
-          say N here.  This enables DMA engine core and driver debugging.
+	bool "DMA Engine debugging"
+	depends on DMADEVICES != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables DMA engine core and driver debugging.
 
 config DMADEVICES_VDEBUG
-        bool "DMA Engine verbose debugging"
-        depends on DMADEVICES_DEBUG != n
-        help
-          This is an option for use by developers; most people should
-          say N here.  This enables deeper (more verbose) debugging of
-          the DMA engine core and drivers.
+	bool "DMA Engine verbose debugging"
+	depends on DMADEVICES_DEBUG != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables deeper (more verbose) debugging of
+	  the DMA engine core and drivers.
 
 
 if DMADEVICES
@@ -215,29 +215,38 @@ config FSL_EDMA
 	  This module can be found on Freescale Vybrid and LS-1 SoCs.
 
 config FSL_QDMA
-       tristate "NXP Layerscape qDMA engine support"
-       depends on ARM || ARM64
-       select DMA_ENGINE
-       select DMA_VIRTUAL_CHANNELS
-       select DMA_ENGINE_RAID
-       select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-       help
-         Support the NXP Layerscape qDMA engine with command queue and legacy mode.
-         Channel virtualization is supported through enqueuing of DMA jobs to,
-         or dequeuing DMA jobs from, different work queues.
-         This module can be found on NXP Layerscape SoCs.
+	tristate "NXP Layerscape qDMA engine support"
+	depends on ARM || ARM64
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	 Support the NXP Layerscape qDMA engine with command queue and legacy mode.
+	 Channel virtualization is supported through enqueuing of DMA jobs to,
+	 or dequeuing DMA jobs from, different work queues.
+	 This module can be found on NXP Layerscape SoCs.
 	  The qdma driver only work on  SoCs with a DPAA hardware block.
 
 config FSL_RAID
-        tristate "Freescale RAID engine Support"
-        depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
-        select DMA_ENGINE
-        select DMA_ENGINE_RAID
-        ---help---
-          Enable support for Freescale RAID Engine. RAID Engine is
-          available on some QorIQ SoCs (like P5020/P5040). It has
-          the capability to offload memcpy, xor and pq computation
+	tristate "Freescale RAID engine Support"
+	depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	---help---
+	  Enable support for Freescale RAID Engine. RAID Engine is
+	  available on some QorIQ SoCs (like P5020/P5040). It has
+	  the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
+
+config HISI_DMA
+	tristate "HiSilicon DMA Engine support"
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI_MSI
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support HiSilicon Kunpeng DMA engine.
 
 config IMG_MDC_DMA
 	tristate "IMG MDC support"
@@ -272,6 +281,19 @@ config INTEL_IDMA64
 	help
 	  Enable DMA support for Intel Low Power Subsystem such as found on
 	  Intel Skylake PCH.
+
+config INTEL_IDXD
+	tristate "Intel Data Accelerators support"
+	depends on PCI && X86_64
+	select DMA_ENGINE
+	select SBITMAP
+	help
+	  Enable support for the Intel(R) data accelerators present
+	  in Intel Xeon CPU.
+
+	  Say Y if you have such a platform.
+
+	  If unsure, say N.
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
@@ -341,6 +363,26 @@ config MCF_EDMA
 	  implementation that performs complex data transfers with
 	  minimal intervention from a host processor.
 	  This module can be found on Freescale ColdFire mcf5441x SoCs.
+
+config MILBEAUT_HDMAC
+	tristate "Milbeaut AHB DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  HDMAC device.
+
+config MILBEAUT_XDMAC
+	tristate "Milbeaut AXI DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  XDMAC device.
 
 config MMP_PDMA
 	bool "MMP PDMA support"
@@ -477,6 +519,15 @@ config PXA_DMA
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
 
+config PLX_DMA
+	tristate "PLX ExpressLane PEX Switch DMA Engine Support"
+	depends on PCI
+	select DMA_ENGINE
+	help
+	  Some PLX ExpressLane PCI Switches support additional DMA engines.
+	  These are exposed via extra functions on the switch's
+	  upstream port. Each function exposes one DMA channel.
+
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
 	depends on ARCH_SIRF
@@ -566,8 +617,8 @@ config TXX9_DMAC
 	  integrated in chips such as the Toshiba TX4927/38/39.
 
 config TEGRA20_APB_DMA
-	bool "NVIDIA Tegra20 APB DMA support"
-	depends on ARCH_TEGRA
+	tristate "NVIDIA Tegra20 APB DMA support"
+	depends on ARCH_TEGRA || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Support for the NVIDIA Tegra20 APB DMA controller driver. The
@@ -608,6 +659,17 @@ config UNIPHIER_MDMAC
 	  UniPhier platform.  This DMA controller is used as the external
 	  DMA engine of the SD/eMMC controllers of the LD4, Pro4, sLD8 SoCs.
 
+config UNIPHIER_XDMAC
+	tristate "UniPhier XDMAC support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the XDMAC (external DMA controller) on the
+	  UniPhier platform. This DMA controller can transfer data from
+	  memory to memory, memory to peripheral and peripheral to memory.
+
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
 	depends on ARCH_XGENE || COMPILE_TEST
@@ -635,6 +697,10 @@ config XILINX_DMA
 	  destination address.
 	  AXI DMA engine provides high-bandwidth one dimensional direct
 	  memory access between memory and AXI4-Stream target peripherals.
+	  AXI MCDMA engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream target peripherals. It provides
+	  the scatter gather interface with multiple channels independent
+	  configuration support.
 
 config XILINX_ZYNQMP_DMA
 	tristate "Xilinx ZynqMP DMA Engine"
@@ -665,9 +731,13 @@ source "drivers/dma/dw-edma/Kconfig"
 
 source "drivers/dma/hsu/Kconfig"
 
+source "drivers/dma/sf-pdma/Kconfig"
+
 source "drivers/dma/sh/Kconfig"
 
 source "drivers/dma/ti/Kconfig"
+
+source "drivers/dma/fsl-dpaa2-qdma/Kconfig"
 
 # clients
 comment "DMA Clients"

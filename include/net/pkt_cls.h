@@ -72,6 +72,10 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
+int tcf_classify_ingress(struct sk_buff *skb,
+			 const struct tcf_block *ingress_block,
+			 const struct tcf_proto *tp, struct tcf_result *res,
+			 bool compat_mode);
 
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
@@ -133,6 +137,15 @@ static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	return TC_ACT_UNSPEC;
 }
+
+static inline int tcf_classify_ingress(struct sk_buff *skb,
+				       const struct tcf_block *ingress_block,
+				       const struct tcf_proto *tp,
+				       struct tcf_result *res, bool compat_mode)
+{
+	return TC_ACT_UNSPEC;
+}
+
 #endif
 
 static inline unsigned long
@@ -141,31 +154,38 @@ __cls_set_class(unsigned long *clp, unsigned long cl)
 	return xchg(clp, cl);
 }
 
-static inline unsigned long
-cls_set_class(struct Qdisc *q, unsigned long *clp, unsigned long cl)
+static inline void
+__tcf_bind_filter(struct Qdisc *q, struct tcf_result *r, unsigned long base)
 {
-	unsigned long old_cl;
+	unsigned long cl;
 
-	sch_tree_lock(q);
-	old_cl = __cls_set_class(clp, cl);
-	sch_tree_unlock(q);
-	return old_cl;
+	cl = q->ops->cl_ops->bind_tcf(q, base, r->classid);
+	cl = __cls_set_class(&r->class, cl);
+	if (cl)
+		q->ops->cl_ops->unbind_tcf(q, cl);
 }
 
 static inline void
 tcf_bind_filter(struct tcf_proto *tp, struct tcf_result *r, unsigned long base)
 {
 	struct Qdisc *q = tp->chain->block->q;
-	unsigned long cl;
 
 	/* Check q as it is not set for shared blocks. In that case,
 	 * setting class is not supported.
 	 */
 	if (!q)
 		return;
-	cl = q->ops->cl_ops->bind_tcf(q, base, r->classid);
-	cl = cls_set_class(q, &r->class, cl);
-	if (cl)
+	sch_tree_lock(q);
+	__tcf_bind_filter(q, r, base);
+	sch_tree_unlock(q);
+}
+
+static inline void
+__tcf_unbind_filter(struct Qdisc *q, struct tcf_result *r)
+{
+	unsigned long cl;
+
+	if ((cl = __cls_set_class(&r->class, 0)) != 0)
 		q->ops->cl_ops->unbind_tcf(q, cl);
 }
 
@@ -173,12 +193,10 @@ static inline void
 tcf_unbind_filter(struct tcf_proto *tp, struct tcf_result *r)
 {
 	struct Qdisc *q = tp->chain->block->q;
-	unsigned long cl;
 
 	if (!q)
 		return;
-	if ((cl = __cls_set_class(&r->class, 0)) != 0)
-		q->ops->cl_ops->unbind_tcf(q, cl);
+	__tcf_unbind_filter(q, r);
 }
 
 struct tcf_exts {
@@ -244,7 +262,8 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 
 static inline void
 tcf_exts_stats_update(const struct tcf_exts *exts,
-		      u64 bytes, u64 packets, u64 lastuse)
+		      u64 bytes, u64 packets, u64 lastuse,
+		      u8 used_hw_stats, bool used_hw_stats_valid)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	int i;
@@ -255,6 +274,8 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 		struct tc_action *a = exts->actions[i];
 
 		tcf_action_stats_update(a, bytes, packets, lastuse, true);
+		a->used_hw_stats = used_hw_stats;
+		a->used_hw_stats_valid = used_hw_stats_valid;
 	}
 
 	preempt_enable();
@@ -484,12 +505,16 @@ tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
 	struct net_device *dev;
 
 	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ) {
-		NL_SET_ERR_MSG(extack, "Interface name too long");
+		NL_SET_ERR_MSG_ATTR(extack, indev_tlv,
+				    "Interface name too long");
 		return -EINVAL;
 	}
 	dev = __dev_get_by_name(net, indev);
-	if (!dev)
+	if (!dev) {
+		NL_SET_ERR_MSG_ATTR(extack, indev_tlv,
+				    "Network device not found");
 		return -ENODEV;
+	}
 	return dev->ifindex;
 }
 
@@ -504,7 +529,7 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 
 int tc_setup_flow_action(struct flow_action *flow_action,
-			 const struct tcf_exts *exts, bool rtnl_held);
+			 const struct tcf_exts *exts);
 void tc_cleanup_flow_action(struct flow_action *flow_action);
 
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
@@ -722,6 +747,7 @@ struct tc_red_qopt_offload_params {
 	u32 limit;
 	bool is_ecn;
 	bool is_harddrop;
+	bool is_nodrop;
 	struct gnet_stats_queue *qstats;
 };
 
@@ -791,9 +817,8 @@ enum tc_prio_command {
 struct tc_prio_qopt_offload_params {
 	int bands;
 	u8 priomap[TC_PRIO_MAX + 1];
-	/* In case that a prio qdisc is offloaded and now is changed to a
-	 * non-offloadedable config, it needs to update the backlog & qlen
-	 * values to negate the HW backlog & qlen values (and only them).
+	/* At the point of un-offloading the Qdisc, the reported backlog and
+	 * qlen need to be reduced by the portion that is in HW.
 	 */
 	struct gnet_stats_queue *qstats;
 };
@@ -822,6 +847,74 @@ struct tc_root_qopt_offload {
 	enum tc_root_command command;
 	u32 handle;
 	bool ingress;
+};
+
+enum tc_ets_command {
+	TC_ETS_REPLACE,
+	TC_ETS_DESTROY,
+	TC_ETS_STATS,
+	TC_ETS_GRAFT,
+};
+
+struct tc_ets_qopt_offload_replace_params {
+	unsigned int bands;
+	u8 priomap[TC_PRIO_MAX + 1];
+	unsigned int quanta[TCQ_ETS_MAX_BANDS];	/* 0 for strict bands. */
+	unsigned int weights[TCQ_ETS_MAX_BANDS];
+	struct gnet_stats_queue *qstats;
+};
+
+struct tc_ets_qopt_offload_graft_params {
+	u8 band;
+	u32 child_handle;
+};
+
+struct tc_ets_qopt_offload {
+	enum tc_ets_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_ets_qopt_offload_replace_params replace_params;
+		struct tc_qopt_offload_stats stats;
+		struct tc_ets_qopt_offload_graft_params graft_params;
+	};
+};
+
+enum tc_tbf_command {
+	TC_TBF_REPLACE,
+	TC_TBF_DESTROY,
+	TC_TBF_STATS,
+};
+
+struct tc_tbf_qopt_offload_replace_params {
+	struct psched_ratecfg rate;
+	u32 max_size;
+	struct gnet_stats_queue *qstats;
+};
+
+struct tc_tbf_qopt_offload {
+	enum tc_tbf_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_tbf_qopt_offload_replace_params replace_params;
+		struct tc_qopt_offload_stats stats;
+	};
+};
+
+enum tc_fifo_command {
+	TC_FIFO_REPLACE,
+	TC_FIFO_DESTROY,
+	TC_FIFO_STATS,
+};
+
+struct tc_fifo_qopt_offload {
+	enum tc_fifo_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_qopt_offload_stats stats;
+	};
 };
 
 #endif

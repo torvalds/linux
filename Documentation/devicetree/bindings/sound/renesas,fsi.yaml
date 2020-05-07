@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/renesas,fsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas FSI Sound Driver Device Tree Bindings
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+properties:
+  $nodename:
+    pattern: "^sound@.*"
+
+  compatible:
+    oneOf:
+      # for FSI2 SoC
+      - items:
+        - enum:
+          - renesas,fsi2-sh73a0
+          - renesas,fsi2-r8a7740
+        - enum:
+          - renesas,sh_fsi2
+      # for Generic
+      - items:
+        - enum:
+          - renesas,sh_fsi
+          - renesas,sh_fsi2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  fsia,spdif-connection:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: FSI is connected by S/PDIF
+
+  fsia,stream-mode-support:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: FSI supports 16bit stream mode
+
+  fsia,use-internal-clock:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: FSI uses internal clock when master mode
+
+  fsib,spdif-connection:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: same as fsia
+
+  fsib,stream-mode-support:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: same as fsia
+
+  fsib,use-internal-clock:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: same as fsia
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    sh_fsi2: sound@ec230000 {
+            compatible = "renesas,fsi2-r8a7740", "renesas,sh_fsi2";
+            reg = <0xec230000 0x400>;
+            interrupts = <0 146 0x4>;
+
+            fsia,spdif-connection;
+            fsia,stream-mode-support;
+            fsia,use-internal-clock;
+    };

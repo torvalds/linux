@@ -852,14 +852,9 @@
 		groups = "SD2";
 	};
 
-	pinctrl_sd3_default: sd3_default {
-		function = "SD3";
-		groups = "SD3";
-	};
-
 	pinctrl_emmc_default: emmc_default {
-		function = "SD3";
-		groups = "EMMC";
+		function = "EMMC";
+		groups = "EMMCG4";
 	};
 
 	pinctrl_sgpm1_default: sgpm1_default {
@@ -1115,6 +1110,31 @@
 	pinctrl_uart9_default: uart9_default {
 		function = "UART9";
 		groups = "UART9";
+	};
+
+	pinctrl_usb2ah_default: usb2ah_default {
+		function = "USB2AH";
+		groups = "USBA";
+	};
+
+	pinctrl_usb2ad_default: usb2ad_default {
+		function = "USB2AD";
+		groups = "USBA";
+	};
+
+	pinctrl_usb2bh_default: usb2bh_default {
+		function = "USB2BH";
+		groups = "USBB";
+	};
+
+	pinctrl_usb2bd_default: usb2bd_default {
+		function = "USB2BD";
+		groups = "USBB";
+	};
+
+	pinctrl_usb11bhid_default: usb11bhid_default {
+		function = "USB11BHID";
+		groups = "USBB";
 	};
 
 	pinctrl_vb_default: vb_default {

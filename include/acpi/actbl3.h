@@ -3,7 +3,7 @@
  *
  * Name: actbl3.h - ACPI Table Definitions
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -39,7 +39,7 @@
 #define ACPI_SIG_WDDT           "WDDT"	/* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
 #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
-#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Migrations Table */
+#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Mitigations Table */
 #define ACPI_SIG_XENV           "XENV"	/* Xen Environment table */
 #define ACPI_SIG_XXXX           "XXXX"	/* Intermediate AML header for ASL/ASL+ converter */
 
@@ -673,10 +673,10 @@ struct acpi_table_wpbt {
 
 /*******************************************************************************
  *
- * WSMT - Windows SMM Security Migrations Table
+ * WSMT - Windows SMM Security Mitigations Table
  *        Version 1
  *
- * Conforms to "Windows SMM Security Migrations Table",
+ * Conforms to "Windows SMM Security Mitigations Table",
  * Version 1.0, April 18, 2016
  *
  ******************************************************************************/

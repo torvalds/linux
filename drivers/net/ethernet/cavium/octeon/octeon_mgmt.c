@@ -28,7 +28,6 @@
 #include <asm/octeon/cvmx-agl-defs.h>
 
 #define DRV_NAME "octeon_mgmt"
-#define DRV_VERSION "2.0"
 #define DRV_DESCRIPTION \
 	"Cavium Networks Octeon MII (management) port Network Driver"
 
@@ -790,9 +789,7 @@ static int octeon_mgmt_ioctl(struct net_device *netdev,
 	case SIOCSHWTSTAMP:
 		return octeon_mgmt_ioctl_hwtstamp(netdev, rq, cmd);
 	default:
-		if (netdev->phydev)
-			return phy_mii_ioctl(netdev->phydev, rq, cmd);
-		return -EINVAL;
+		return phy_do_ioctl(netdev, rq, cmd);
 	}
 }
 
@@ -1342,9 +1339,6 @@ static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static int octeon_mgmt_nway_reset(struct net_device *dev)
@@ -1519,7 +1513,6 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	if (result)
 		goto err;
 
-	dev_info(&pdev->dev, "Version " DRV_VERSION "\n");
 	return 0;
 
 err:
@@ -1576,4 +1569,3 @@ module_exit(octeon_mgmt_mod_exit);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR("David Daney");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

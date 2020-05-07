@@ -853,7 +853,9 @@ static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
 		if (dst)
 			return dst;
 	}
-	if (ipv6_stub->ipv6_dst_lookup(geneve->net, gs6->sock->sk, &dst, fl6)) {
+	dst = ipv6_stub->ipv6_dst_lookup_flow(geneve->net, gs6->sock->sk, fl6,
+					      NULL);
+	if (IS_ERR(dst)) {
 		netdev_dbg(dev, "no route to %pI6\n", &fl6->daddr);
 		return ERR_PTR(-ENETUNREACH);
 	}
@@ -1154,7 +1156,7 @@ static void geneve_setup(struct net_device *dev)
 
 static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
 	[IFLA_GENEVE_ID]		= { .type = NLA_U32 },
-	[IFLA_GENEVE_REMOTE]		= { .len = FIELD_SIZEOF(struct iphdr, daddr) },
+	[IFLA_GENEVE_REMOTE]		= { .len = sizeof_field(struct iphdr, daddr) },
 	[IFLA_GENEVE_REMOTE6]		= { .len = sizeof(struct in6_addr) },
 	[IFLA_GENEVE_TTL]		= { .type = NLA_U8 },
 	[IFLA_GENEVE_TOS]		= { .type = NLA_U8 },
@@ -1205,7 +1207,7 @@ static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
 		enum ifla_geneve_df df = nla_get_u8(data[IFLA_GENEVE_DF]);
 
 		if (df < 0 || df > GENEVE_DF_MAX) {
-			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_GENEVE_DF],
+			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_DF],
 					    "Invalid DF attribute");
 			return -EINVAL;
 		}
@@ -1843,8 +1845,6 @@ static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 		if (!net_eq(dev_net(geneve->dev), net))
 			unregister_netdevice_queue(geneve->dev, head);
 	}
-
-	WARN_ON_ONCE(!list_empty(&gn->sock_list));
 }
 
 static void __net_exit geneve_exit_batch_net(struct list_head *net_list)
@@ -1859,6 +1859,12 @@ static void __net_exit geneve_exit_batch_net(struct list_head *net_list)
 	/* unregister the devices gathered above */
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
+
+	list_for_each_entry(net, net_list, exit_list) {
+		const struct geneve_net *gn = net_generic(net, geneve_net_id);
+
+		WARN_ON_ONCE(!list_empty(&gn->sock_list));
+	}
 }
 
 static struct pernet_operations geneve_net_ops = {

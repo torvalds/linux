@@ -46,21 +46,25 @@ u64 gfxhub_v2_0_get_mc_fb_offset(struct amdgpu_device *adev)
 	return (u64)RREG32_SOC15(GC, 0, mmGCMC_VM_FB_OFFSET) << 24;
 }
 
-static void gfxhub_v2_0_init_gart_pt_regs(struct amdgpu_device *adev)
+void gfxhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
 {
-	uint64_t value = amdgpu_gmc_pd_addr(adev->gart.bo);
+	/* two registers distance between mmGCVM_CONTEXT0_* to mmGCVM_CONTEXT1_* */
+	int offset = mmGCVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32
+			- mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
 
+	WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+				offset * vmid, lower_32_bits(page_table_base));
 
-	WREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-		     lower_32_bits(value));
-
-	WREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-		     upper_32_bits(value));
+	WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+				offset * vmid, upper_32_bits(page_table_base));
 }
 
 static void gfxhub_v2_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	gfxhub_v2_0_init_gart_pt_regs(adev);
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+
+	gfxhub_v2_0_setup_vm_pt_regs(adev, 0, pt_base);
 
 	WREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 		     (u32)(adev->gmc.gart_start >> 12));
@@ -77,24 +81,31 @@ static void gfxhub_v2_0_init_system_aperture_regs(struct amdgpu_device *adev)
 {
 	uint64_t value;
 
-	/* Disable AGP. */
-	WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_TOP, 0);
-	WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BOT, 0x00FFFFFF);
+	if (!amdgpu_sriov_vf(adev)) {
+		/*
+		 * the new L1 policy will block SRIOV guest from writing
+		 * these regs, and they will be programed at host.
+		 * so skip programing these regs.
+		 */
+		/* Disable AGP. */
+		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BASE, 0);
+		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_TOP, 0);
+		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BOT, 0x00FFFFFF);
 
-	/* Program the system aperture low logical page number. */
-	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->gmc.vram_start >> 18);
-	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->gmc.vram_end >> 18);
+		/* Program the system aperture low logical page number. */
+		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_LOW_ADDR,
+			     adev->gmc.vram_start >> 18);
+		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			     adev->gmc.vram_end >> 18);
 
-	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start
-		+ adev->vm_manager.vram_base_offset;
-	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
-		     (u32)(value >> 12));
-	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
-		     (u32)(value >> 44));
+		/* Set default page address. */
+		value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start
+			+ adev->vm_manager.vram_base_offset;
+		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
+			     (u32)(value >> 12));
+		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
+			     (u32)(value >> 44));
+	}
 
 	/* Program "protection fault". */
 	WREG32_SOC15(GC, 0, mmGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
@@ -130,6 +141,10 @@ static void gfxhub_v2_0_init_tlb_regs(struct amdgpu_device *adev)
 static void gfxhub_v2_0_init_cache_regs(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
+
+	/* These regs are not accessible for VF, PF will program these in SRIOV */
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(GC, 0, mmGCVM_L2_CNTL);
@@ -175,6 +190,8 @@ static void gfxhub_v2_0_enable_system_domain(struct amdgpu_device *adev)
 	tmp = RREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL,
+			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_CNTL, tmp);
 }
 
@@ -250,18 +267,6 @@ static void gfxhub_v2_0_program_invalidation(struct amdgpu_device *adev)
 
 int gfxhub_v2_0_gart_enable(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev)) {
-		/*
-		 * GCMC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
-		 * VF copy registers so vbios post doesn't program them, for
-		 * SRIOV driver need to program them
-		 */
-		WREG32_SOC15(GC, 0, mmGCMC_VM_FB_LOCATION_BASE,
-			     adev->gmc.vram_start >> 24);
-		WREG32_SOC15(GC, 0, mmGCMC_VM_FB_LOCATION_TOP,
-			     adev->gmc.vram_end >> 24);
-	}
-
 	/* GART Enable. */
 	gfxhub_v2_0_init_gart_aperture_regs(adev);
 	gfxhub_v2_0_init_system_aperture_regs(adev);
@@ -292,9 +297,11 @@ void gfxhub_v2_0_gart_disable(struct amdgpu_device *adev)
 			    ENABLE_ADVANCED_DRIVER_MODEL, 0);
 	WREG32_SOC15(GC, 0, mmGCMC_VM_MX_L1_TLB_CNTL, tmp);
 
-	/* Setup L2 cache */
-	WREG32_FIELD15(GC, 0, GCVM_L2_CNTL, ENABLE_L2_CACHE, 0);
-	WREG32_SOC15(GC, 0, mmGCVM_L2_CNTL3, 0);
+	if (!amdgpu_sriov_vf(adev)) {
+		/* Setup L2 cache */
+		WREG32_FIELD15(GC, 0, GCVM_L2_CNTL, ENABLE_L2_CACHE, 0);
+		WREG32_SOC15(GC, 0, mmGCVM_L2_CNTL3, 0);
+	}
 }
 
 /**
@@ -350,6 +357,8 @@ void gfxhub_v2_0_init(struct amdgpu_device *adev)
 	hub->ctx0_ptb_addr_hi32 =
 		SOC15_REG_OFFSET(GC, 0,
 				 mmGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32);
+	hub->vm_inv_eng0_sem =
+		SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_SEM);
 	hub->vm_inv_eng0_req =
 		SOC15_REG_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_REQ);
 	hub->vm_inv_eng0_ack =

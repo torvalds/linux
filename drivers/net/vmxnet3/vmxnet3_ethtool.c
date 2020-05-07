@@ -555,10 +555,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	}
 
 	if (VMXNET3_VERSION_GE_3(adapter)) {
-		if (param->rx_mini_pending < 0 ||
-		    param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE) {
+		if (param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE)
 			return -EINVAL;
-		}
 	} else if (param->rx_mini_pending != 0) {
 		return -EINVAL;
 	}
@@ -782,27 +780,6 @@ vmxnet3_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 	if (!VMXNET3_VERSION_GE_3(adapter))
 		return -EOPNOTSUPP;
 
-	if (ec->rx_coalesce_usecs_irq ||
-	    ec->rx_max_coalesced_frames_irq ||
-	    ec->tx_coalesce_usecs ||
-	    ec->tx_coalesce_usecs_irq ||
-	    ec->tx_max_coalesced_frames_irq ||
-	    ec->stats_block_coalesce_usecs ||
-	    ec->use_adaptive_tx_coalesce ||
-	    ec->pkt_rate_low ||
-	    ec->rx_coalesce_usecs_low ||
-	    ec->rx_max_coalesced_frames_low ||
-	    ec->tx_coalesce_usecs_low ||
-	    ec->tx_max_coalesced_frames_low ||
-	    ec->pkt_rate_high ||
-	    ec->rx_coalesce_usecs_high ||
-	    ec->rx_max_coalesced_frames_high ||
-	    ec->tx_coalesce_usecs_high ||
-	    ec->tx_max_coalesced_frames_high ||
-	    ec->rate_sample_interval) {
-		return -EINVAL;
-	}
-
 	if ((ec->rx_coalesce_usecs == 0) &&
 	    (ec->use_adaptive_rx_coalesce == 0) &&
 	    (ec->tx_max_coalesced_frames == 0) &&
@@ -893,6 +870,9 @@ done:
 }
 
 static const struct ethtool_ops vmxnet3_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo       = vmxnet3_get_drvinfo,
 	.get_regs_len      = vmxnet3_get_regs_len,
 	.get_regs          = vmxnet3_get_regs,

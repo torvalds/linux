@@ -12,16 +12,17 @@ extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
 			const char *filename, int linenum,
 			xfs_failaddr_t failaddr);
 extern void xfs_corruption_error(const char *tag, int level,
-			struct xfs_mount *mp, void *buf, size_t bufsize,
+			struct xfs_mount *mp, const void *buf, size_t bufsize,
 			const char *filename, int linenum,
 			xfs_failaddr_t failaddr);
+void xfs_buf_corruption_error(struct xfs_buf *bp, xfs_failaddr_t fa);
 extern void xfs_buf_verifier_error(struct xfs_buf *bp, int error,
-			const char *name, void *buf, size_t bufsz,
+			const char *name, const void *buf, size_t bufsz,
 			xfs_failaddr_t failaddr);
 extern void xfs_verifier_error(struct xfs_buf *bp, int error,
 			xfs_failaddr_t failaddr);
 extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
-			const char *name, void *buf, size_t bufsz,
+			const char *name, const void *buf, size_t bufsz,
 			xfs_failaddr_t failaddr);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
@@ -36,32 +37,6 @@ extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
 
 /* Dump 128 bytes of any corrupt buffer */
 #define XFS_CORRUPTION_DUMP_LEN		(128)
-
-/*
- * Macros to set EFSCORRUPTED & return/branch.
- */
-#define	XFS_WANT_CORRUPTED_GOTO(mp, x, l)	\
-	{ \
-		int fs_is_ok = (x); \
-		ASSERT(fs_is_ok); \
-		if (unlikely(!fs_is_ok)) { \
-			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_GOTO", \
-					 XFS_ERRLEVEL_LOW, mp); \
-			error = -EFSCORRUPTED; \
-			goto l; \
-		} \
-	}
-
-#define	XFS_WANT_CORRUPTED_RETURN(mp, x)	\
-	{ \
-		int fs_is_ok = (x); \
-		ASSERT(fs_is_ok); \
-		if (unlikely(!fs_is_ok)) { \
-			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
-					 XFS_ERRLEVEL_LOW, mp); \
-			return -EFSCORRUPTED; \
-		} \
-	}
 
 #ifdef DEBUG
 extern int xfs_errortag_init(struct xfs_mount *mp);

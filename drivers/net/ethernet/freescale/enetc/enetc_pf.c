@@ -2,18 +2,12 @@
 /* Copyright 2017-2019 NXP */
 
 #include <linux/module.h>
+#include <linux/fsl/enetc_mdio.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include "enetc_pf.h"
 
-#define ENETC_DRV_VER_MAJ 1
-#define ENETC_DRV_VER_MIN 0
-
-#define ENETC_DRV_VER_STR __stringify(ENETC_DRV_VER_MAJ) "." \
-			  __stringify(ENETC_DRV_VER_MIN)
-static const char enetc_drv_ver[] = ENETC_DRV_VER_STR;
 #define ENETC_DRV_NAME_STR "ENETC PF driver"
-static const char enetc_drv_name[] = ENETC_DRV_NAME_STR;
 
 static void enetc_pf_get_primary_mac_addr(struct enetc_hw *hw, int si, u8 *addr)
 {
@@ -742,8 +736,57 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 
+	if (si->hw_features & ENETC_SI_F_QBV)
+		priv->active_offloads |= ENETC_F_QBV;
+
 	/* pick up primary MAC address from SI */
 	enetc_get_primary_mac_addr(&si->hw, ndev->dev_addr);
+}
+
+static int enetc_mdio_probe(struct enetc_pf *pf)
+{
+	struct device *dev = &pf->si->pdev->dev;
+	struct enetc_mdio_priv *mdio_priv;
+	struct device_node *np;
+	struct mii_bus *bus;
+	int err;
+
+	bus = devm_mdiobus_alloc_size(dev, sizeof(*mdio_priv));
+	if (!bus)
+		return -ENOMEM;
+
+	bus->name = "Freescale ENETC MDIO Bus";
+	bus->read = enetc_mdio_read;
+	bus->write = enetc_mdio_write;
+	bus->parent = dev;
+	mdio_priv = bus->priv;
+	mdio_priv->hw = &pf->si->hw;
+	mdio_priv->mdio_base = ENETC_EMDIO_BASE;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
+
+	np = of_get_child_by_name(dev->of_node, "mdio");
+	if (!np) {
+		dev_err(dev, "MDIO node missing\n");
+		return -EINVAL;
+	}
+
+	err = of_mdiobus_register(bus, np);
+	if (err) {
+		of_node_put(np);
+		dev_err(dev, "cannot register MDIO bus\n");
+		return err;
+	}
+
+	of_node_put(np);
+	pf->mdio = bus;
+
+	return 0;
+}
+
+static void enetc_mdio_remove(struct enetc_pf *pf)
+{
+	if (pf->mdio)
+		mdiobus_unregister(pf->mdio);
 }
 
 static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
@@ -752,11 +795,6 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 	struct device_node *np = priv->dev->of_node;
 	struct device_node *mdio_np;
 	int err;
-
-	if (!np) {
-		dev_err(priv->dev, "missing ENETC port node\n");
-		return -ENODEV;
-	}
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (!priv->phy_node) {
@@ -784,8 +822,8 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 		}
 	}
 
-	priv->if_mode = of_get_phy_mode(np);
-	if ((int)priv->if_mode < 0) {
+	err = of_get_phy_mode(np, &priv->if_mode);
+	if (err) {
 		dev_err(priv->dev, "missing phy type\n");
 		of_node_put(priv->phy_node);
 		if (of_phy_is_fixed_link(np))
@@ -879,9 +917,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 
 	netif_carrier_off(ndev);
 
-	netif_info(priv, probe, ndev, "%s v%s\n",
-		   enetc_drv_name, enetc_drv_ver);
-
 	return 0;
 
 err_reg_netdev:
@@ -909,9 +944,6 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 		enetc_sriov_configure(pdev, 0);
 
 	priv = netdev_priv(si->ndev);
-	netif_info(priv, drv, si->ndev, "%s v%s remove\n",
-		   enetc_drv_name, enetc_drv_ver);
-
 	unregister_netdev(si->ndev);
 
 	enetc_mdio_remove(pf);
@@ -945,4 +977,3 @@ module_pci_driver(enetc_pf_driver);
 
 MODULE_DESCRIPTION(ENETC_DRV_NAME_STR);
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(ENETC_DRV_VER_STR);

@@ -190,7 +190,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unlink;
 
-	esp->regs = ioremap_nocache(res->start, 0x20);
+	esp->regs = ioremap(res->start, 0x20);
 	if (!esp->regs)
 		goto fail_unmap_regs;
 
@@ -198,7 +198,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unmap_regs;
 
-	esp->dma_regs = ioremap_nocache(res->start, 0x10);
+	esp->dma_regs = ioremap(res->start, 0x10);
 
 	esp->command_block = dma_alloc_coherent(esp->dev, 16,
 						&esp->command_block_dma,

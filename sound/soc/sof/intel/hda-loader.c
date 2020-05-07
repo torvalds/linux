@@ -126,9 +126,16 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 					    HDA_DSP_INIT_TIMEOUT_US);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: waiting for HIPCIE done\n");
+		dev_err(sdev->dev, "error: %s: timeout for HIPCIE done\n",
+			__func__);
 		goto err;
 	}
+
+	/* set DONE bit to clear the reply IPC message */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       chip->ipc_ack,
+				       chip->ipc_ack_mask,
+				       chip->ipc_ack_mask);
 
 	/* step 5: power down corex */
 	ret = hda_dsp_core_power_down(sdev,
@@ -152,6 +159,10 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	if (!ret)
 		return 0;
 
+	dev_err(sdev->dev,
+		"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+		__func__);
+
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 	hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
@@ -168,9 +179,6 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		wait_event_timeout(sdev->waitq, !sdev->code_loading,
-				   HDA_DSP_CL_TRIGGER_TIMEOUT);
-
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -253,10 +261,22 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_BASEFW_TIMEOUT_US);
 
+	/*
+	 * even in case of errors we still need to stop the DMAs,
+	 * but we return the initial error should the DMA stop also fail
+	 */
+
+	if (status < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+			__func__);
+	}
+
 	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
-		return ret;
+		if (!status)
+			status = ret;
 	}
 
 	return status;
@@ -278,7 +298,6 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	/* init for booting wait */
 	init_waitqueue_head(&sdev->boot_wait);
-	sdev->boot_complete = false;
 
 	/* prepare DMA for code loader stream */
 	tag = cl_stream_prepare(sdev, 0x40, stripped_firmware.size,
@@ -312,13 +331,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		if (!ret)
 			break;
 
-		dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
+		dev_dbg(sdev->dev, "iteration %d of Core En/ROM load failed: %d\n",
+			i, ret);
+		dev_dbg(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_ERROR),
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_STATUS));
-		dev_err(sdev->dev, "error: iteration %d of Core En/ROM load failed: %d\n",
-			i, ret);
 	}
 
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
@@ -326,6 +345,24 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			i, ret);
 		goto cleanup;
 	}
+
+	/*
+	 * When a SoundWire link is in clock stop state, a Slave
+	 * device may trigger in-band wakes for events such as jack
+	 * insertion or acoustic event detection. This event will lead
+	 * to a WAKEEN interrupt, handled by the PCI device and routed
+	 * to PME if the PCI device is in D3. The resume function in
+	 * audio PCI driver will be invoked by ACPI for PME event and
+	 * initialize the device and process WAKEEN interrupt.
+	 *
+	 * The WAKEEN interrupt should be processed ASAP to prevent an
+	 * interrupt flood, otherwise other interrupts, such IPC,
+	 * cannot work normally.  The WAKEEN is handled after the ROM
+	 * is initialized successfully, which ensures power rails are
+	 * enabled before accessing the SoundWire SHIM registers
+	 */
+	if (!sdev->first_boot)
+		hda_sdw_process_wakeen(sdev);
 
 	/*
 	 * at this point DSP ROM has been initialized and
@@ -341,13 +378,15 @@ cleanup:
 	/*
 	 * Perform codeloader stream cleanup.
 	 * This should be done even if firmware loading fails.
+	 * If the cleanup also fails, we return the initial error
 	 */
 	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 
 		/* set return value to indicate cleanup failure */
-		ret = ret1;
+		if (!ret)
+			ret = ret1;
 	}
 
 	/*
@@ -378,6 +417,19 @@ int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 /* post fw run operations */
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
+	int ret;
+
+	if (sdev->first_boot) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: could not startup SoundWire links\n");
+			return ret;
+		}
+	}
+
+	hda_sdw_int_enable(sdev, true);
+
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }

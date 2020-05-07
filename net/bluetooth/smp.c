@@ -502,14 +502,11 @@ bool smp_irk_matches(struct hci_dev *hdev, const u8 irk[16],
 		     const bdaddr_t *bdaddr)
 {
 	struct l2cap_chan *chan = hdev->smp_data;
-	struct smp_dev *smp;
 	u8 hash[3];
 	int err;
 
 	if (!chan || !chan->data)
 		return false;
-
-	smp = chan->data;
 
 	BT_DBG("RPA %pMR IRK %*phN", bdaddr, 16, irk);
 
@@ -523,13 +520,10 @@ bool smp_irk_matches(struct hci_dev *hdev, const u8 irk[16],
 int smp_generate_rpa(struct hci_dev *hdev, const u8 irk[16], bdaddr_t *rpa)
 {
 	struct l2cap_chan *chan = hdev->smp_data;
-	struct smp_dev *smp;
 	int err;
 
 	if (!chan || !chan->data)
 		return -EOPNOTSUPP;
-
-	smp = chan->data;
 
 	get_random_bytes(&rpa->b[3], 3);
 
@@ -1151,7 +1145,7 @@ static void sc_generate_link_key(struct smp_chan *smp)
 		return;
 
 	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
-		/* SALT = 0x00000000000000000000000000000000746D7031 */
+		/* SALT = 0x000000000000000000000000746D7031 */
 		const u8 salt[16] = { 0x31, 0x70, 0x6d, 0x74 };
 
 		if (smp_h7(smp->tfm_cmac, smp->tk, salt, smp->link_key)) {
@@ -1209,7 +1203,7 @@ static void sc_generate_ltk(struct smp_chan *smp)
 		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
 
 	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
-		/* SALT = 0x00000000000000000000000000000000746D7032 */
+		/* SALT = 0x000000000000000000000000746D7032 */
 		const u8 salt[16] = { 0x32, 0x70, 0x6d, 0x74 };
 
 		if (smp_h7(smp->tfm_cmac, key->val, salt, smp->tk))
@@ -2121,7 +2115,7 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
 	struct hci_conn *hcon = conn->hcon;
-	u8 *pkax, *pkbx, *na, *nb;
+	u8 *pkax, *pkbx, *na, *nb, confirm_hint;
 	u32 passkey;
 	int err;
 
@@ -2174,6 +2168,24 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(smp->prnd),
 			     smp->prnd);
 		SMP_ALLOW_CMD(smp, SMP_CMD_DHKEY_CHECK);
+
+		/* Only Just-Works pairing requires extra checks */
+		if (smp->method != JUST_WORKS)
+			goto mackey_and_ltk;
+
+		/* If there already exists long term key in local host, leave
+		 * the decision to user space since the remote device could
+		 * be legitimate or malicious.
+		 */
+		if (hci_find_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
+				 hcon->role)) {
+			/* Set passkey to 0. The value can be any number since
+			 * it'll be ignored anyway.
+			 */
+			passkey = 0;
+			confirm_hint = 1;
+			goto confirm;
+		}
 	}
 
 mackey_and_ltk:
@@ -2194,8 +2206,11 @@ mackey_and_ltk:
 	if (err)
 		return SMP_UNSPECIFIED;
 
+	confirm_hint = 0;
+
+confirm:
 	err = mgmt_user_confirm_request(hcon->hdev, &hcon->dst, hcon->type,
-					hcon->dst_type, passkey, 0);
+					hcon->dst_type, passkey, confirm_hint);
 	if (err)
 		return SMP_UNSPECIFIED;
 
@@ -2459,6 +2474,15 @@ static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*rp))
 		return SMP_INVALID_PARAMS;
 
+	/* Pairing is aborted if any blocked keys are distributed */
+	if (hci_is_blocked_key(conn->hcon->hdev, HCI_BLOCKED_KEY_TYPE_LTK,
+			       rp->ltk)) {
+		bt_dev_warn_ratelimited(conn->hcon->hdev,
+					"LTK blocked for %pMR",
+					&conn->hcon->dst);
+		return SMP_INVALID_PARAMS;
+	}
+
 	SMP_ALLOW_CMD(smp, SMP_CMD_MASTER_IDENT);
 
 	skb_pull(skb, sizeof(*rp));
@@ -2514,6 +2538,15 @@ static int smp_cmd_ident_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (skb->len < sizeof(*info))
 		return SMP_INVALID_PARAMS;
+
+	/* Pairing is aborted if any blocked keys are distributed */
+	if (hci_is_blocked_key(conn->hcon->hdev, HCI_BLOCKED_KEY_TYPE_IRK,
+			       info->irk)) {
+		bt_dev_warn_ratelimited(conn->hcon->hdev,
+					"Identity key blocked for %pMR",
+					&conn->hcon->dst);
+		return SMP_INVALID_PARAMS;
+	}
 
 	SMP_ALLOW_CMD(smp, SMP_CMD_IDENT_ADDR_INFO);
 
@@ -3361,94 +3394,6 @@ static const struct file_operations force_bredr_smp_fops = {
 	.llseek		= default_llseek,
 };
 
-static ssize_t le_min_key_size_read(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[4];
-
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_min_key_size);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
-}
-
-static ssize_t le_min_key_size_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf) - 1));
-	u8 key_size;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-
-	sscanf(buf, "%hhu", &key_size);
-
-	if (key_size > hdev->le_max_key_size ||
-	    key_size < SMP_MIN_ENC_KEY_SIZE)
-		return -EINVAL;
-
-	hdev->le_min_key_size = key_size;
-
-	return count;
-}
-
-static const struct file_operations le_min_key_size_fops = {
-	.open		= simple_open,
-	.read		= le_min_key_size_read,
-	.write		= le_min_key_size_write,
-	.llseek		= default_llseek,
-};
-
-static ssize_t le_max_key_size_read(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[4];
-
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_max_key_size);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
-}
-
-static ssize_t le_max_key_size_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf) - 1));
-	u8 key_size;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-
-	sscanf(buf, "%hhu", &key_size);
-
-	if (key_size > SMP_MAX_ENC_KEY_SIZE ||
-	    key_size < hdev->le_min_key_size)
-		return -EINVAL;
-
-	hdev->le_max_key_size = key_size;
-
-	return count;
-}
-
-static const struct file_operations le_max_key_size_fops = {
-	.open		= simple_open,
-	.read		= le_max_key_size_read,
-	.write		= le_max_key_size_write,
-	.llseek		= default_llseek,
-};
-
 int smp_register(struct hci_dev *hdev)
 {
 	struct l2cap_chan *chan;
@@ -3472,11 +3417,6 @@ int smp_register(struct hci_dev *hdev)
 		return PTR_ERR(chan);
 
 	hdev->smp_data = chan;
-
-	debugfs_create_file("le_min_key_size", 0644, hdev->debugfs, hdev,
-			    &le_min_key_size_fops);
-	debugfs_create_file("le_max_key_size", 0644, hdev->debugfs, hdev,
-			    &le_max_key_size_fops);
 
 	/* If the controller does not support BR/EDR Secure Connections
 	 * feature, then the BR/EDR SMP channel shall not be present.

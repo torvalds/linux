@@ -66,8 +66,11 @@
 #define PM8001_EH_LOGGING	0x10 /* libsas EH function logging*/
 #define PM8001_IOCTL_LOGGING	0x20 /* IOCTL message logging */
 #define PM8001_MSG_LOGGING	0x40 /* misc message logging */
-#define pm8001_printk(format, arg...)	printk(KERN_INFO "pm80xx %s %d:" \
-			format, __func__, __LINE__, ## arg)
+#define PM8001_DEV_LOGGING	0x80 /* development message logging */
+#define PM8001_DEVIO_LOGGING	0x100 /* development io message logging */
+#define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
+#define pm8001_printk(format, arg...)	pr_info("%s:: %s  %d:" \
+			format, pm8001_ha->name, __func__, __LINE__, ## arg)
 #define PM8001_CHECK_LOGGING(HBA, LEVEL, CMD)	\
 do {						\
 	if (unlikely(HBA->logging_level & LEVEL))	\
@@ -97,6 +100,14 @@ do {						\
 #define PM8001_MSG_DBG(HBA, CMD)		\
 	PM8001_CHECK_LOGGING(HBA, PM8001_MSG_LOGGING, CMD)
 
+#define PM8001_DEV_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_DEV_LOGGING, CMD)
+
+#define PM8001_DEVIO_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_DEVIO_LOGGING, CMD)
+
+#define PM8001_IOERR_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_IOERR_LOGGING, CMD)
 
 #define PM8001_USE_TASKLET
 #define PM8001_USE_MSIX
@@ -126,10 +137,11 @@ struct pm8001_ioctl_payload {
 	u32	signature;
 	u16	major_function;
 	u16	minor_function;
-	u16	length;
 	u16	status;
 	u16	offset;
 	u16	id;
+	u32	wr_length;
+	u32	rd_length;
 	u8	*func_specific;
 };
 
@@ -141,6 +153,8 @@ struct pm8001_ioctl_payload {
 #define MPI_FATAL_EDUMP_TABLE_HANDSHAKE            0x0C     /* FDDHSHK */
 #define MPI_FATAL_EDUMP_TABLE_STATUS               0x10     /* FDDTSTAT */
 #define MPI_FATAL_EDUMP_TABLE_ACCUM_LEN            0x14     /* ACCDDLEN */
+#define MPI_FATAL_EDUMP_TABLE_TOTAL_LEN		   0x18	    /* TOTALLEN */
+#define MPI_FATAL_EDUMP_TABLE_SIGNATURE		   0x1C     /* SIGNITURE */
 #define MPI_FATAL_EDUMP_HANDSHAKE_RDY              0x1
 #define MPI_FATAL_EDUMP_HANDSHAKE_BUSY             0x0
 #define MPI_FATAL_EDUMP_TABLE_STAT_RSVD                 0x0
@@ -496,6 +510,7 @@ struct pm8001_hba_info {
 	u32			forensic_last_offset;
 	u32			fatal_forensic_shift_offset;
 	u32			forensic_fatal_step;
+	u32			forensic_preserved_accumulated_transfer;
 	u32			evtlog_ib_offset;
 	u32			evtlog_ob_offset;
 	void __iomem	*msg_unit_tbl_addr;/*Message Unit Table Addr*/
@@ -530,17 +545,22 @@ struct pm8001_hba_info {
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
 	int			number_of_intr;/*will be used in remove()*/
+	char			intr_drvname[PM8001_MAX_MSIX_VEC]
+				[PM8001_NAME_LENGTH+1+3+1];
 #endif
 #ifdef PM8001_USE_TASKLET
 	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
 #endif
 	u32			logging_level;
+	u32			link_rate;
 	u32			fw_status;
 	u32			smp_exp_mode;
 	bool			controller_fatal_error;
 	const struct firmware 	*fw_image;
 	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
 	u32			reset_in_progress;
+	u32			non_fatal_count;
+	u32			non_fatal_read_length;
 };
 
 struct pm8001_work {
@@ -663,7 +683,8 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
 int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 			struct inbound_queue_table *circularQ,
-			u32 opCode, void *payload, u32 responseQueue);
+			u32 opCode, void *payload, size_t nb,
+			u32 responseQueue);
 int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
 				u16 messageSize, void **messagePtr);
 u32 pm8001_mpi_msg_free_set(struct pm8001_hba_info *pm8001_ha, void *pMsg,
@@ -722,6 +743,8 @@ void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
 		u32 phy, u32 length, u32 *buf);
 int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 ssize_t pm80xx_get_fatal_dump(struct device *cdev,
+		struct device_attribute *attr, char *buf);
+ssize_t pm80xx_get_non_fatal_dump(struct device *cdev,
 		struct device_attribute *attr, char *buf);
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 /* ctl shared API */

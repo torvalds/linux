@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -436,9 +437,6 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 	/* Commit shadow registers = update planes at next vblank */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_VBR);
 
-	/* Enable LTDC */
-	reg_set(ldev->regs, LTDC_GCR, GCR_LTDCEN);
-
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -451,9 +449,6 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_crtc_vblank_off(crtc);
-
-	/* disable LTDC */
-	reg_clear(ldev->regs, LTDC_GCR, GCR_LTDCEN);
 
 	/* disable IRQ */
 	reg_clear(ldev->regs, LTDC_IER, IER_RRIE | IER_FUIE | IER_TERRIE);
@@ -641,38 +636,13 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
-	.mode_valid = ltdc_crtc_mode_valid,
-	.mode_fixup = ltdc_crtc_mode_fixup,
-	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
-	.atomic_flush = ltdc_crtc_atomic_flush,
-	.atomic_enable = ltdc_crtc_atomic_enable,
-	.atomic_disable = ltdc_crtc_atomic_disable,
-};
-
-static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
+static bool ltdc_crtc_get_scanout_position(struct drm_crtc *crtc,
+					   bool in_vblank_irq,
+					   int *vpos, int *hpos,
+					   ktime_t *stime, ktime_t *etime,
+					   const struct drm_display_mode *mode)
 {
-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
-
-	DRM_DEBUG_DRIVER("\n");
-	reg_set(ldev->regs, LTDC_IER, IER_LIE);
-
-	return 0;
-}
-
-static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
-{
-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
-
-	DRM_DEBUG_DRIVER("\n");
-	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
-}
-
-bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
-			  bool in_vblank_irq, int *vpos, int *hpos,
-			  ktime_t *stime, ktime_t *etime,
-			  const struct drm_display_mode *mode)
-{
+	struct drm_device *ddev = crtc->dev;
 	struct ltdc_device *ldev = ddev->dev_private;
 	int line, vactive_start, vactive_end, vtotal;
 
@@ -715,6 +685,39 @@ bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
 	return true;
 }
 
+static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_valid = ltdc_crtc_mode_valid,
+	.mode_fixup = ltdc_crtc_mode_fixup,
+	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
+	.atomic_flush = ltdc_crtc_atomic_flush,
+	.atomic_enable = ltdc_crtc_atomic_enable,
+	.atomic_disable = ltdc_crtc_atomic_disable,
+	.get_scanout_position = ltdc_crtc_get_scanout_position,
+};
+
+static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_crtc_state *state = crtc->state;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	if (state->enable)
+		reg_set(ldev->regs, LTDC_IER, IER_LIE);
+	else
+		return -EPERM;
+
+	return 0;
+}
+
+static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+
+	DRM_DEBUG_DRIVER("\n");
+	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
+}
+
 static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -724,6 +727,7 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank = ltdc_crtc_enable_vblank,
 	.disable_vblank = ltdc_crtc_disable_vblank,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
@@ -1040,6 +1044,54 @@ static const struct drm_encoder_funcs ltdc_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static void ltdc_encoder_disable(struct drm_encoder *encoder)
+{
+	struct drm_device *ddev = encoder->dev;
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* Disable LTDC */
+	reg_clear(ldev->regs, LTDC_GCR, GCR_LTDCEN);
+
+	/* Set to sleep state the pinctrl whatever type of encoder */
+	pinctrl_pm_select_sleep_state(ddev->dev);
+}
+
+static void ltdc_encoder_enable(struct drm_encoder *encoder)
+{
+	struct drm_device *ddev = encoder->dev;
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* Enable LTDC */
+	reg_set(ldev->regs, LTDC_GCR, GCR_LTDCEN);
+}
+
+static void ltdc_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *ddev = encoder->dev;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/*
+	 * Set to default state the pinctrl only with DPI type.
+	 * Others types like DSI, don't need pinctrl due to
+	 * internal bridge (the signals do not come out of the chipset).
+	 */
+	if (encoder->encoder_type == DRM_MODE_ENCODER_DPI)
+		pinctrl_pm_select_default_state(ddev->dev);
+}
+
+static const struct drm_encoder_helper_funcs ltdc_encoder_helper_funcs = {
+	.disable = ltdc_encoder_disable,
+	.enable = ltdc_encoder_enable,
+	.mode_set = ltdc_encoder_mode_set,
+};
+
 static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 {
 	struct drm_encoder *encoder;
@@ -1055,7 +1107,9 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 	drm_encoder_init(ddev, encoder, &ltdc_encoder_funcs,
 			 DRM_MODE_ENCODER_DPI, NULL);
 
-	ret = drm_bridge_attach(encoder, bridge, NULL);
+	drm_encoder_helper_add(encoder, &ltdc_encoder_helper_funcs);
+
+	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret) {
 		drm_encoder_cleanup(encoder);
 		return -EINVAL;
@@ -1101,12 +1155,14 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.pad_max_freq_hz = 90000000;
 		if (ldev->caps.hw_version == HWVER_10200)
 			ldev->caps.pad_max_freq_hz = 65000000;
+		ldev->caps.nb_irq = 2;
 		break;
 	case HWVER_20101:
 		ldev->caps.reg_ofs = REG_OFS_4;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
+		ldev->caps.nb_irq = 4;
 		break;
 	default:
 		return -ENODEV;
@@ -1206,13 +1262,21 @@ int ltdc_load(struct drm_device *ddev)
 	reg_clear(ldev->regs, LTDC_IER,
 		  IER_LIE | IER_RRIE | IER_FUIE | IER_TERRIE);
 
-	for (i = 0; i < MAX_IRQ; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq == -EPROBE_DEFER)
-			goto err;
+	ret = ltdc_get_caps(ddev);
+	if (ret) {
+		DRM_ERROR("hardware identifier (0x%08x) not supported!\n",
+			  ldev->caps.hw_version);
+		goto err;
+	}
 
-		if (irq < 0)
-			continue;
+	DRM_DEBUG_DRIVER("ltdc hw version 0x%08x\n", ldev->caps.hw_version);
+
+	for (i = 0; i < ldev->caps.nb_irq; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0) {
+			ret = irq;
+			goto err;
+		}
 
 		ret = devm_request_threaded_irq(dev, irq, ltdc_irq,
 						ltdc_irq_thread, IRQF_ONESHOT,
@@ -1223,21 +1287,11 @@ int ltdc_load(struct drm_device *ddev)
 		}
 	}
 
-
-	ret = ltdc_get_caps(ddev);
-	if (ret) {
-		DRM_ERROR("hardware identifier (0x%08x) not supported!\n",
-			  ldev->caps.hw_version);
-		goto err;
-	}
-
-	DRM_DEBUG_DRIVER("ltdc hw version 0x%08x\n", ldev->caps.hw_version);
-
 	/* Add endpoints panels or bridges if any */
 	for (i = 0; i < MAX_ENDPOINTS; i++) {
 		if (panel[i]) {
-			bridge[i] = drm_panel_bridge_add(panel[i],
-							DRM_MODE_CONNECTOR_DPI);
+			bridge[i] = drm_panel_bridge_add_typed(panel[i],
+							       DRM_MODE_CONNECTOR_DPI);
 			if (IS_ERR(bridge[i])) {
 				DRM_ERROR("panel-bridge endpoint %d\n", i);
 				ret = PTR_ERR(bridge[i]);
@@ -1279,6 +1333,8 @@ int ltdc_load(struct drm_device *ddev)
 	ddev->irq_enabled = 1;
 
 	clk_disable_unprepare(ldev->pixel_clk);
+
+	pinctrl_pm_select_sleep_state(ddev->dev);
 
 	pm_runtime_enable(ddev->dev);
 

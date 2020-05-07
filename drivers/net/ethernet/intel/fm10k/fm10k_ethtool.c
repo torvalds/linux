@@ -18,7 +18,7 @@ struct fm10k_stats {
 
 #define FM10K_STAT_FIELDS(_type, _name, _stat) { \
 	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(_type, _stat), \
+	.sizeof_stat = sizeof_field(_type, _stat), \
 	.stat_offset = offsetof(_type, _stat) \
 }
 
@@ -1151,6 +1151,8 @@ static int fm10k_set_channels(struct net_device *dev,
 }
 
 static const struct ethtool_ops fm10k_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_strings		= fm10k_get_strings,
 	.get_sset_count		= fm10k_get_sset_count,
 	.get_ethtool_stats      = fm10k_get_ethtool_stats,

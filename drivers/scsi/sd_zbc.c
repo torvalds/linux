@@ -80,9 +80,11 @@ static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
 				  timeout, SD_MAX_RETRIES, NULL);
 	if (result) {
 		sd_printk(KERN_ERR, sdkp,
-			  "REPORT ZONES lba %llu failed with %d/%d\n",
-			  (unsigned long long)lba,
-			  host_byte(result), driver_byte(result));
+			  "REPORT ZONES start lba %llu failed\n", lba);
+		sd_print_result(sdkp, "REPORT ZONES", result);
+		if (driver_byte(result) == DRIVER_SENSE &&
+		    scsi_sense_valid(&sshdr))
+			sd_print_sense_hdr(sdkp, &sshdr);
 		return -EIO;
 	}
 
@@ -159,6 +161,7 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
+	sector_t capacity = logical_to_sectors(sdkp->device, sdkp->capacity);
 	unsigned int nr, i;
 	unsigned char *buf;
 	size_t offset, buflen = 0;
@@ -169,11 +172,15 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 		/* Not a zoned device */
 		return -EOPNOTSUPP;
 
+	if (!capacity)
+		/* Device gone or invalid */
+		return -ENODEV;
+
 	buf = sd_zbc_alloc_report_buffer(sdkp, nr_zones, &buflen);
 	if (!buf)
 		return -ENOMEM;
 
-	while (zone_idx < nr_zones && sector < get_capacity(disk)) {
+	while (zone_idx < nr_zones && sector < capacity) {
 		ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
 				sectors_to_logical(sdkp->device, sector), true);
 		if (ret)
@@ -323,22 +330,21 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 }
 
 /**
- * sd_zbc_check_zones - Check the device capacity and zone sizes
+ * sd_zbc_check_capacity - Check the device capacity
  * @sdkp: Target disk
+ * @buf: command buffer
+ * @zblock: zone size in number of blocks
  *
- * Check that the device capacity as reported by READ CAPACITY matches the
- * max_lba value (plus one)of the report zones command reply. Also check that
- * all zones of the device have an equal size, only allowing the last zone of
- * the disk to have a smaller size (runt zone). The zone size must also be a
- * power of two.
+ * Get the device zone size and check that the device capacity as reported
+ * by READ CAPACITY matches the max_lba value (plus one) of the report zones
+ * command reply for devices with RC_BASIS == 0.
  *
- * Returns the zone size in number of blocks upon success or an error code
- * upon failure.
+ * Returns 0 upon success or an error code upon failure.
  */
-static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
-			      u32 *zblocks)
+static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf,
+				 u32 *zblocks)
 {
-	u64 zone_blocks = 0;
+	u64 zone_blocks;
 	sector_t max_lba;
 	unsigned char *rec;
 	int ret;
@@ -361,17 +367,9 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
 		}
 	}
 
-	/* Parse REPORT ZONES header */
+	/* Get the size of the first reported zone */
 	rec = buf + 64;
 	zone_blocks = get_unaligned_be64(&rec[8]);
-	if (!zone_blocks || !is_power_of_2(zone_blocks)) {
-		if (sdkp->first_scan)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Devices with non power of 2 zone "
-				  "size are not supported\n");
-		return -ENODEV;
-	}
-
 	if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
@@ -403,17 +401,12 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	if (ret)
 		goto err;
 
-	/*
-	 * Check zone size: only devices with a constant zone size (except
-	 * an eventual last runt zone) that is a power of 2 are supported.
-	 */
-	ret = sd_zbc_check_zones(sdkp, buf, &zone_blocks);
+	/* Check the device capacity reported by report zones */
+	ret = sd_zbc_check_capacity(sdkp, buf, &zone_blocks);
 	if (ret != 0)
 		goto err;
 
 	/* The drive satisfies the kernel restrictions: set it up */
-	blk_queue_chunk_sectors(sdkp->disk->queue,
-			logical_to_sectors(sdkp->device, zone_blocks));
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, sdkp->disk->queue);
 	blk_queue_required_elevator_features(sdkp->disk->queue,
 					     ELEVATOR_F_ZBD_SEQ_WRITE);

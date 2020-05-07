@@ -693,7 +693,13 @@ int wiphy_register(struct wiphy *wiphy)
 				~(BIT(NL80211_PREAMBLE_LEGACY) |
 				  BIT(NL80211_PREAMBLE_HT) |
 				  BIT(NL80211_PREAMBLE_VHT) |
+				  BIT(NL80211_PREAMBLE_HE) |
 				  BIT(NL80211_PREAMBLE_DMG))))
+			return -EINVAL;
+		if (WARN_ON((wiphy->pmsr_capa->ftm.trigger_based ||
+			     wiphy->pmsr_capa->ftm.non_trigger_based) &&
+			    !(wiphy->pmsr_capa->ftm.preambles &
+			      BIT(NL80211_PREAMBLE_HE))))
 			return -EINVAL;
 		if (WARN_ON(wiphy->pmsr_capa->ftm.bandwidths &
 				~(BIT(NL80211_CHAN_WIDTH_20_NOHT) |
@@ -1102,6 +1108,7 @@ static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 
 #ifdef CONFIG_CFG80211_WEXT
 	kzfree(wdev->wext.keys);
+	wdev->wext.keys = NULL;
 #endif
 	/* only initialized if we have a netdev */
 	if (wdev->netdev)

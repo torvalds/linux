@@ -876,6 +876,7 @@ static int skge_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 }
 
 static const struct ethtool_ops skge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo	= skge_get_drvinfo,
 	.get_regs_len	= skge_get_regs_len,
 	.get_regs	= skge_get_regs,
@@ -2884,7 +2885,7 @@ static void skge_tx_clean(struct net_device *dev)
 	skge->tx_ring.to_clean = e;
 }
 
-static void skge_tx_timeout(struct net_device *dev)
+static void skge_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct skge_port *skge = netdev_priv(dev);
 
@@ -3932,7 +3933,7 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&hw->phy_lock);
 	tasklet_init(&hw->phy_task, skge_extirq, (unsigned long) hw);
 
-	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
+	hw->regs = ioremap(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
 		goto err_out_free_hw;

@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (c) 2019 Jernej Skrabec <jernej.skrabec@siol.net>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2019 Jernej Skrabec <jernej.skrabec@siol.net>
 
 /dts-v1/;
 
@@ -45,11 +43,19 @@
 	status = "okay";
 };
 
+&dwc3 {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
 
 &ehci3 {
+	status = "okay";
+};
+
+&gpu {
 	status = "okay";
 };
 
@@ -81,6 +87,7 @@
 };
 
 &r_ir {
+	linux,rc-map-name = "rc-tanix-tx5max";
 	status = "okay";
 };
 
@@ -96,5 +103,9 @@
 };
 
 &usb2phy {
+	status = "okay";
+};
+
+&usb3phy {
 	status = "okay";
 };

@@ -362,12 +362,12 @@ static int s6e63m0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e63m0_get_modes(struct drm_panel *panel)
+static int s6e63m0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
 		DRM_ERROR("failed to add mode %ux%ux@%u\n",
 			  default_mode.hdisplay, default_mode.vdisplay,
@@ -473,9 +473,8 @@ static int s6e63m0_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e63m0_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e63m0_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = s6e63m0_backlight_register(ctx);
 	if (ret < 0)

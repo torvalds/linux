@@ -634,6 +634,13 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 	return ret;
 }
 
+static int genpd_dev_pm_start(struct device *dev)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+
+	return genpd_start_dev(genpd, dev);
+}
+
 static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 				     unsigned long val, void *ptr)
 {
@@ -921,24 +928,6 @@ static int __init genpd_power_off_unused(void)
 	return 0;
 }
 late_initcall(genpd_power_off_unused);
-
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_GENERIC_DOMAINS_OF)
-
-static bool genpd_present(const struct generic_pm_domain *genpd)
-{
-	const struct generic_pm_domain *gpd;
-
-	if (IS_ERR_OR_NULL(genpd))
-		return false;
-
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
-		if (gpd == genpd)
-			return true;
-
-	return false;
-}
-
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -1354,8 +1343,8 @@ static void genpd_syscore_switch(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = dev_to_genpd(dev);
-	if (!genpd_present(genpd))
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
 		return;
 
 	if (suspend) {
@@ -1805,6 +1794,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.poweroff_noirq = genpd_poweroff_noirq;
 	genpd->domain.ops.restore_noirq = genpd_restore_noirq;
 	genpd->domain.ops.complete = genpd_complete;
+	genpd->domain.start = genpd_dev_pm_start;
 
 	if (genpd->flags & GENPD_FLAG_PM_CLK) {
 		genpd->dev_ops.stop = pm_clk_suspend;
@@ -2018,6 +2008,16 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	pr_debug("Added domain provider from %pOF\n", np);
 
 	return 0;
+}
+
+static bool genpd_present(const struct generic_pm_domain *genpd)
+{
+	const struct generic_pm_domain *gpd;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+		if (gpd == genpd)
+			return true;
+	return false;
 }
 
 /**
@@ -2301,6 +2301,44 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
+
+/**
+ * of_genpd_remove_subdomain - Remove a subdomain from an I/O PM domain.
+ * @parent_spec: OF phandle args to use for parent PM domain look-up
+ * @subdomain_spec: OF phandle args to use for subdomain look-up
+ *
+ * Looks-up a parent PM domain and subdomain based upon phandle args
+ * provided and removes the subdomain from the parent PM domain. Returns a
+ * negative error code on failure.
+ */
+int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+			      struct of_phandle_args *subdomain_spec)
+{
+	struct generic_pm_domain *parent, *subdomain;
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
+
+	parent = genpd_get_from_provider(parent_spec);
+	if (IS_ERR(parent)) {
+		ret = PTR_ERR(parent);
+		goto out;
+	}
+
+	subdomain = genpd_get_from_provider(subdomain_spec);
+	if (IS_ERR(subdomain)) {
+		ret = PTR_ERR(subdomain);
+		goto out;
+	}
+
+	ret = pm_genpd_remove_subdomain(parent, subdomain);
+
+out:
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_genpd_remove_subdomain);
 
 /**
  * of_genpd_remove_last - Remove the last PM domain registered for a provider
@@ -2615,7 +2653,7 @@ static int genpd_iterate_idle_states(struct device_node *dn,
 
 	ret = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
 	if (ret <= 0)
-		return ret;
+		return ret == -ENOENT ? 0 : ret;
 
 	/* Loop over the phandles until all the requested entry is found */
 	of_for_each_phandle(&it, ret, dn, "domain-idle-states", NULL, 0) {

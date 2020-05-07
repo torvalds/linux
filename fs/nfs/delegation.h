@@ -22,6 +22,7 @@ struct nfs_delegation {
 	unsigned long pagemod_limit;
 	__u64 change_attr;
 	unsigned long flags;
+	refcount_t refcount;
 	spinlock_t lock;
 	struct rcu_head rcu;
 };
@@ -42,8 +43,9 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 void nfs_inode_reclaim_delegation(struct inode *inode, const struct cred *cred,
 		fmode_t type, const nfs4_stateid *stateid, unsigned long pagemod_limit);
 int nfs4_inode_return_delegation(struct inode *inode);
+void nfs4_inode_return_delegation_on_close(struct inode *inode);
 int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
-void nfs_inode_return_delegation_noreclaim(struct inode *inode);
+void nfs_inode_evict_delegation(struct inode *inode);
 
 struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle);
 void nfs_server_return_all_delegations(struct nfs_server *);
@@ -53,6 +55,7 @@ void nfs_expire_unreferenced_delegations(struct nfs_client *clp);
 int nfs_client_return_marked_delegations(struct nfs_client *clp);
 int nfs_delegations_present(struct nfs_client *clp);
 void nfs_remove_bad_delegation(struct inode *inode, const nfs4_stateid *stateid);
+void nfs_delegation_mark_returned(struct inode *inode, const nfs4_stateid *stateid);
 
 void nfs_delegation_mark_reclaim(struct nfs_client *clp);
 void nfs_delegation_reap_unclaimed(struct nfs_client *clp);

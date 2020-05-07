@@ -268,8 +268,8 @@ defined in include/linux/pm.h:
   `unsigned int runtime_auto;`
     - if set, indicates that the user space has allowed the device driver to
       power manage the device at run time via the /sys/devices/.../power/control
-      `interface;` it may only be modified with the help of the pm_runtime_allow()
-      and pm_runtime_forbid() helper functions
+      `interface;` it may only be modified with the help of the
+      pm_runtime_allow() and pm_runtime_forbid() helper functions
 
   `unsigned int no_callbacks;`
     - indicates that the device does not use the runtime PM callbacks (see
@@ -381,6 +381,12 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       runtime PM status is RPM_ACTIVE and the runtime PM usage counter is
       nonzero, increment the counter and return 1; otherwise return 0 without
       changing the counter
+
+  `int pm_runtime_get_if_active(struct device *dev, bool ign_usage_count);`
+    - return -EINVAL if 'power.disable_depth' is nonzero; otherwise, if the
+      runtime PM status is RPM_ACTIVE, and either ign_usage_count is true
+      or the device's usage_count is non-zero, increment the counter and
+      return 1; otherwise return 0 without changing the counter
 
   `void pm_runtime_put_noidle(struct device *dev);`
     - decrement the device's usage counter

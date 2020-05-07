@@ -14,6 +14,7 @@ struct arch_hw_breakpoint {
 	unsigned long	address;
 	u16		type;
 	u16		len; /* length of the target data symbol */
+	u16		hw_len; /* length programmed in hw */
 };
 
 /* Note: Don't change the the first 6 bits below as they are in the same order
@@ -33,6 +34,15 @@ struct arch_hw_breakpoint {
 #define HW_BRK_TYPE_PRIV_ALL	(HW_BRK_TYPE_USER | HW_BRK_TYPE_KERNEL | \
 				 HW_BRK_TYPE_HYP)
 
+#ifdef CONFIG_PPC_8xx
+#define HW_BREAKPOINT_ALIGN 0x3
+#else
+#define HW_BREAKPOINT_ALIGN 0x7
+#endif
+
+#define DABR_MAX_LEN	8
+#define DAWR_MAX_LEN	512
+
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 #include <linux/kdebug.h>
 #include <asm/reg.h>
@@ -43,8 +53,6 @@ struct perf_event;
 struct pmu;
 struct perf_sample_data;
 struct task_struct;
-
-#define HW_BREAKPOINT_ALIGN 0x7
 
 extern int hw_breakpoint_slots(int type);
 extern int arch_bp_generic_fields(int type, int *gen_bp_type);
@@ -70,6 +78,7 @@ static inline void hw_breakpoint_disable(void)
 	brk.address = 0;
 	brk.type = 0;
 	brk.len = 0;
+	brk.hw_len = 0;
 	if (ppc_breakpoint_available())
 		__set_breakpoint(&brk);
 }

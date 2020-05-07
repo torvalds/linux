@@ -115,7 +115,7 @@
 	};
 
 	padctl@3520000 {
-		status = "disabled";
+		status = "okay";
 
 		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
@@ -131,7 +131,7 @@
 				status = "okay";
 
 				lanes {
-					usb2-0 {
+					micro_b: usb2-0 {
 						nvidia,function = "xusb";
 						status = "okay";
 					};
@@ -174,8 +174,20 @@
 			usb2-0 {
 				status = "okay";
 				mode = "otg";
-
 				vbus-supply = <&vdd_usb0>;
+
+				usb-role-switch;
+				connector {
+					compatible = "usb-b-connector",
+						     "gpio-usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+					vbus-gpio = <&gpio
+						     TEGRA186_MAIN_GPIO(X, 7)
+						     GPIO_ACTIVE_LOW>;
+					id-gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
+				};
+
 			};
 
 			usb2-1 {
@@ -193,12 +205,19 @@
 	};
 
 	usb@3530000 {
-		status = "disabled";
+		status = "okay";
 
 		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
 		       <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
 		phy-names = "usb2-0", "usb2-1", "usb3-0";
+	};
+
+	usb@3550000 {
+		status = "okay";
+
+		phys = <&micro_b>;
+		phy-names = "usb2-0";
 	};
 
 	i2c@c250000 {
@@ -207,6 +226,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x57>;
 
+			vcc-supply = <&vdd_1v8>;
 			address-bits = <8>;
 			page-size = <8>;
 			size = <256>;
@@ -253,10 +273,14 @@
 			status = "disabled";
 		};
 
+		/* DP on E3320 */
 		sor@15540000 {
-			status = "disabled";
+			status = "okay";
 
-			nvidia,dpaux = <&dpaux1>;
+			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8_ap>;
+
+			nvidia,dpaux = <&dpaux>;
 		};
 
 		sor@15580000 {

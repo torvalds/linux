@@ -10,8 +10,16 @@
 #define XCHAL_HAVE_EXCLUSIVE 0
 #endif
 
+#ifndef XCHAL_HAVE_EXTERN_REGS
+#define XCHAL_HAVE_EXTERN_REGS 0
+#endif
+
 #ifndef XCHAL_HAVE_MPU
 #define XCHAL_HAVE_MPU 0
+#endif
+
+#ifndef XCHAL_HAVE_VECBASE
+#define XCHAL_HAVE_VECBASE 0
 #endif
 
 #ifndef XCHAL_SPANNING_WAY

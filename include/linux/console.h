@@ -101,7 +101,6 @@ extern const struct consw *conswitchp;
 extern const struct consw dummy_con;	/* dummy console buffer */
 extern const struct consw vga_con;	/* VGA text console */
 extern const struct consw newport_con;	/* SGI Newport console  */
-extern const struct consw prom_con;	/* SPARC PROM console */
 
 int con_is_bound(const struct consw *csw);
 int do_unregister_con_driver(const struct consw *csw);
@@ -149,6 +148,7 @@ struct console {
 	struct tty_driver *(*device)(struct console *, int *);
 	void	(*unblank)(void);
 	int	(*setup)(struct console *, char *);
+	int	(*exit)(struct console *);
 	int	(*match)(struct console *, char *name, int idx, char *options);
 	short	flags;
 	short	index;
@@ -201,7 +201,6 @@ extern void suspend_console(void);
 extern void resume_console(void);
 
 int mda_console_init(void);
-void prom_con_init(void);
 
 void vcs_make_sysfs(int index);
 void vcs_remove_sysfs(int index);

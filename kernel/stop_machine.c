@@ -235,6 +235,7 @@ static int multi_cpu_stop(void *data)
 			 */
 			touch_nmi_watchdog();
 		}
+		rcu_momentary_dyntick_idle();
 	} while (curstate != MULTI_STOP_EXIT);
 
 	local_irq_restore(flags);
@@ -441,42 +442,12 @@ static int __stop_cpus(const struct cpumask *cpumask,
  * @cpumask were offline; otherwise, 0 if all executions of @fn
  * returned 0, any non zero return value if any returned non zero.
  */
-int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
+static int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
 {
 	int ret;
 
 	/* static works are used, process one request at a time */
 	mutex_lock(&stop_cpus_mutex);
-	ret = __stop_cpus(cpumask, fn, arg);
-	mutex_unlock(&stop_cpus_mutex);
-	return ret;
-}
-
-/**
- * try_stop_cpus - try to stop multiple cpus
- * @cpumask: cpus to stop
- * @fn: function to execute
- * @arg: argument to @fn
- *
- * Identical to stop_cpus() except that it fails with -EAGAIN if
- * someone else is already using the facility.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * -EAGAIN if someone else is already stopping cpus, -ENOENT if
- * @fn(@arg) was not executed at all because all cpus in @cpumask were
- * offline; otherwise, 0 if all executions of @fn returned 0, any non
- * zero return value if any returned non zero.
- */
-int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
-{
-	int ret;
-
-	/* static works are used, process one request at a time */
-	if (!mutex_trylock(&stop_cpus_mutex))
-		return -EAGAIN;
 	ret = __stop_cpus(cpumask, fn, arg);
 	mutex_unlock(&stop_cpus_mutex);
 	return ret;

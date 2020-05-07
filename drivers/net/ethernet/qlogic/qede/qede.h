@@ -163,6 +163,8 @@ struct qede_rdma_dev {
 	struct list_head entry;
 	struct list_head rdma_event_list;
 	struct workqueue_struct *rdma_wq;
+	struct kref refcnt;
+	struct completion event_comp;
 	bool exp_recovery;
 };
 
@@ -464,7 +466,7 @@ struct qede_fastpath {
 	struct qede_tx_queue	*txq;
 	struct qede_tx_queue	*xdp_tx;
 
-#define VEC_NAME_SIZE  (FIELD_SIZEOF(struct net_device, name) + 8)
+#define VEC_NAME_SIZE  (sizeof_field(struct net_device, name) + 8)
 	char	name[VEC_NAME_SIZE];
 };
 

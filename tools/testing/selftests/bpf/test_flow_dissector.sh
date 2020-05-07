@@ -18,19 +18,55 @@ fi
 # this is the case and run it with in_netns.sh if it is being run in the root
 # namespace.
 if [[ -z $(ip netns identify $$) ]]; then
-	../net/in_netns.sh "$0" "$@"
-	exit $?
-fi
+	err=0
+	if bpftool="$(which bpftool)"; then
+		echo "Testing global flow dissector..."
 
-# Determine selftest success via shell exit code
-exit_handler()
-{
-	if (( $? == 0 )); then
+		$bpftool prog loadall ./bpf_flow.o /sys/fs/bpf/flow \
+			type flow_dissector
+
+		if ! unshare --net $bpftool prog attach pinned \
+			/sys/fs/bpf/flow/flow_dissector flow_dissector; then
+			echo "Unexpected unsuccessful attach in namespace" >&2
+			err=1
+		fi
+
+		$bpftool prog attach pinned /sys/fs/bpf/flow/flow_dissector \
+			flow_dissector
+
+		if unshare --net $bpftool prog attach pinned \
+			/sys/fs/bpf/flow/flow_dissector flow_dissector; then
+			echo "Unexpected successful attach in namespace" >&2
+			err=1
+		fi
+
+		if ! $bpftool prog detach pinned \
+			/sys/fs/bpf/flow/flow_dissector flow_dissector; then
+			echo "Failed to detach flow dissector" >&2
+			err=1
+		fi
+
+		rm -rf /sys/fs/bpf/flow
+	else
+		echo "Skipping root flow dissector test, bpftool not found" >&2
+	fi
+
+	# Run the rest of the tests in a net namespace.
+	../net/in_netns.sh "$0" "$@"
+	err=$(( $err + $? ))
+
+	if (( $err == 0 )); then
 		echo "selftests: $TESTNAME [PASS]";
 	else
 		echo "selftests: $TESTNAME [FAILED]";
 	fi
 
+	exit $err
+fi
+
+# Determine selftest success via shell exit code
+exit_handler()
+{
 	set +e
 
 	# Cleanup
@@ -100,6 +136,20 @@ echo "Testing IPv4 + GRE..."
 # Send 10 IPv4/GRE/IPv4/UDP packets from port 10. Filter should not drop any.
 ./with_addr.sh ./with_tunnels.sh ./test_flow_dissector -o 4 -e gre -i 4 \
 	-D 192.168.0.1 -S 1.1.1.1 -f 10
+
+tc filter del dev lo ingress pref 1337
+
+echo "Testing port range..."
+# Drops all IP/UDP packets coming from port 8-10
+tc filter add dev lo parent ffff: protocol ip pref 1337 flower ip_proto \
+	udp src_port 8-10 action drop
+
+# Send 10 IPv4/UDP packets from port 7. Filter should not drop any.
+./test_flow_dissector -i 4 -f 7
+# Send 10 IPv4/UDP packets from port 9. Filter should drop all.
+./test_flow_dissector -i 4 -f 9 -F
+# Send 10 IPv4/UDP packets from port 11. Filter should not drop any.
+./test_flow_dissector -i 4 -f 11
 
 tc filter del dev lo ingress pref 1337
 

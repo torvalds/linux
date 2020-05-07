@@ -46,11 +46,11 @@ const struct fwnode_operations irqchip_fwnode_ops;
 EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
 
 /**
- * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
+ * __irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
  *                           identifying an irq domain
  * @type:	Type of irqchip_fwnode. See linux/irqdomain.h
- * @name:	Optional user provided domain name
  * @id:		Optional user provided id if name != NULL
+ * @name:	Optional user provided domain name
  * @pa:		Optional user-provided physical address
  *
  * Allocate a struct irqchip_fwid, and return a poiner to the embedded
@@ -987,6 +987,23 @@ const struct irq_domain_ops irq_domain_simple_ops = {
 EXPORT_SYMBOL_GPL(irq_domain_simple_ops);
 
 /**
+ * irq_domain_translate_onecell() - Generic translate for direct one cell
+ * bindings
+ */
+int irq_domain_translate_onecell(struct irq_domain *d,
+				 struct irq_fwspec *fwspec,
+				 unsigned long *out_hwirq,
+				 unsigned int *out_type)
+{
+	if (WARN_ON(fwspec->param_count < 1))
+		return -EINVAL;
+	*out_hwirq = fwspec->param[0];
+	*out_type = IRQ_TYPE_NONE;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(irq_domain_translate_onecell);
+
+/**
  * irq_domain_translate_twocell() - Generic translate for direct two cell
  * bindings
  *
@@ -1293,6 +1310,11 @@ int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
 				    unsigned int irq_base,
 				    unsigned int nr_irqs, void *arg)
 {
+	if (!domain->ops->alloc) {
+		pr_debug("domain->ops->alloc() is NULL\n");
+		return -ENOSYS;
+	}
+
 	return domain->ops->alloc(domain, irq_base, nr_irqs, arg);
 }
 
@@ -1328,11 +1350,6 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 		domain = irq_default_domain;
 		if (WARN(!domain, "domain is NULL; cannot allocate IRQ\n"))
 			return -EINVAL;
-	}
-
-	if (!domain->ops->alloc) {
-		pr_debug("domain->ops->alloc() is NULL\n");
-		return -ENOSYS;
 	}
 
 	if (realloc && irq_base >= 0) {
@@ -1459,6 +1476,7 @@ int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg)
 	if (rv) {
 		/* Restore the original irq_data. */
 		*root_irq_data = *child_irq_data;
+		kfree(child_irq_data);
 		goto error;
 	}
 

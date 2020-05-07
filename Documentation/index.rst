@@ -57,7 +57,6 @@ the kernel interface as seen by application developers.
    :maxdepth: 2
 
    userspace-api/index
-   ioctl/index
 
 
 Introduction to kernel development
@@ -100,6 +99,7 @@ needed).
    accounting/index
    block/index
    cdrom/index
+   cpu-freq/index
    ide/index
    fb/index
    fpga/index
@@ -131,9 +131,18 @@ needed).
    bpf/index
    usb/index
    PCI/index
+   scsi/index
    misc-devices/index
-   mic/index
    scheduler/index
+   mhi/index
+
+Architecture-agnostic documentation
+-----------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   asm-annotations
 
 Architecture-specific documentation
 -----------------------------------

@@ -145,6 +145,8 @@ enum {
 	MLX5_REG_MCC		 = 0x9062,
 	MLX5_REG_MCDA		 = 0x9063,
 	MLX5_REG_MCAM		 = 0x907f,
+	MLX5_REG_MIRC		 = 0x9162,
+	MLX5_REG_RESOURCE_DUMP   = 0xC000,
 };
 
 enum mlx5_qpts_trust_state {
@@ -209,23 +211,6 @@ enum mlx5_dev_event {
 enum mlx5_port_status {
 	MLX5_PORT_UP        = 1,
 	MLX5_PORT_DOWN      = 2,
-};
-
-struct mlx5_bfreg_info {
-	u32		       *sys_pages;
-	int			num_low_latency_bfregs;
-	unsigned int	       *count;
-
-	/*
-	 * protect bfreg allocation data structs
-	 */
-	struct mutex		lock;
-	u32			ver;
-	bool			lib_uar_4k;
-	u32			num_sys_pages;
-	u32			num_static_sys_pages;
-	u32			total_num_bfregs;
-	u32			num_dyn_bfregs;
 };
 
 struct mlx5_cmd_first {
@@ -461,6 +446,11 @@ struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
 	u64	node_guid;
+	/* Valid bits are used to validate administrative guid only.
+	 * Enabled after ndo_set_vf_guid
+	 */
+	u8	port_guid_valid:1;
+	u8	node_guid_valid:1;
 	enum port_state_policy	policy;
 };
 
@@ -511,9 +501,11 @@ struct mlx5_rate_limit {
 };
 
 struct mlx5_rl_entry {
-	struct mlx5_rate_limit	rl;
-	u16                     index;
-	u16                     refcount;
+	u8 rl_raw[MLX5_ST_SZ_BYTES(set_pp_rate_limit_context)];
+	u16 index;
+	u64 refcount;
+	u16 uid;
+	u8 dedicated : 1;
 };
 
 struct mlx5_rl_table {
@@ -556,8 +548,6 @@ struct mlx5_priv {
 	struct dentry	       *cmdif_debugfs;
 	/* end: qp staff */
 
-	struct xarray           mkey_table;
-
 	/* start: alloc staff */
 	/* protect buffer alocation according to numa node */
 	struct mutex            alloc_mutex;
@@ -567,10 +557,6 @@ struct mlx5_priv {
 	struct list_head        pgdir_list;
 	/* end: alloc staff */
 	struct dentry	       *dbg_root;
-
-	/* protect mkey key part */
-	spinlock_t		mkey_lock;
-	u8			mkey_key;
 
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
@@ -686,7 +672,7 @@ struct mlx5_core_dev {
 		u32 hca_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 		u32 hca_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 		u32 pcam[MLX5_ST_SZ_DW(pcam_reg)];
-		u32 mcam[MLX5_ST_SZ_DW(mcam_reg)];
+		u32 mcam[MLX5_MCAM_REGS_NUM][MLX5_ST_SZ_DW(mcam_reg)];
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 		u8  embedded_cpu;
@@ -717,6 +703,7 @@ struct mlx5_core_dev {
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
 	struct mlx5_fw_tracer   *tracer;
+	struct mlx5_rsc_dump    *rsc_dump;
 	u32                      vsc_addr;
 	struct mlx5_hv_vhca	*hv_vhca;
 };
@@ -930,8 +917,6 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_frag_buf *buf, int node);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev,
 		   int size, struct mlx5_frag_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
@@ -942,14 +927,6 @@ struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 						      gfp_t flags, int npages);
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 				 struct mlx5_cmd_mailbox *head);
-void mlx5_init_mkey_table(struct mlx5_core_dev *dev);
-void mlx5_cleanup_mkey_table(struct mlx5_core_dev *dev);
-int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
-			     struct mlx5_core_mkey *mkey,
-			     struct mlx5_async_ctx *async_ctx, u32 *in,
-			     int inlen, u32 *out, int outlen,
-			     mlx5_async_cbk_t callback,
-			     struct mlx5_async_work *context);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mkey *mkey,
 			  u32 *in, int inlen);
@@ -1006,6 +983,9 @@ int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u16 *index,
 		     struct mlx5_rate_limit *rl);
 void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl);
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
+int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
+			 bool dedicated_entry, u16 *index);
+void mlx5_rl_remove_rate_raw(struct mlx5_core_dev *dev, u16 index);
 bool mlx5_rl_are_equal(struct mlx5_rate_limit *rl_0,
 		       struct mlx5_rate_limit *rl_1);
 int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
@@ -1121,6 +1101,11 @@ static inline bool mlx5_core_is_pf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_PF;
 }
 
+static inline bool mlx5_core_is_vf(const struct mlx5_core_dev *dev)
+{
+	return dev->coredev_type == MLX5_COREDEV_VF;
+}
+
 static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
 {
 	return dev->caps.embedded_cpu;
@@ -1185,5 +1170,16 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
+
+static inline bool mlx5_is_roce_enabled(struct mlx5_core_dev *dev)
+{
+	struct devlink *devlink = priv_to_devlink(dev);
+	union devlink_param_value val;
+
+	devlink_param_driverinit_value_get(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
+					   &val);
+	return val.vbool;
+}
 
 #endif /* MLX5_DRIVER_H */

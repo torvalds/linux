@@ -7,7 +7,7 @@
 #include "r8192U_dm.h"
 #include "r819xU_firmware_img.h"
 
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #include <linux/bitops.h>
 
 static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
@@ -1531,7 +1531,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
 		rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
 		rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand,
-				 priv->nCur40MhzPrimeSC>>1);
+				 priv->nCur40MhzPrimeSC >> 1);
 		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00,
 				 priv->nCur40MhzPrimeSC);

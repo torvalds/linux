@@ -8,18 +8,48 @@
 #include "fsverity_private.h"
 
 #include <crypto/hash.h>
+#include <linux/backing-dev.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
-static int build_merkle_tree_level(struct inode *inode, unsigned int level,
+/*
+ * Read a file data page for Merkle tree construction.  Do aggressive readahead,
+ * since we're sequentially reading the entire file.
+ */
+static struct page *read_file_data_page(struct file *filp, pgoff_t index,
+					struct file_ra_state *ra,
+					unsigned long remaining_pages)
+{
+	struct page *page;
+
+	page = find_get_page_flags(filp->f_mapping, index, FGP_ACCESSED);
+	if (!page || !PageUptodate(page)) {
+		if (page)
+			put_page(page);
+		else
+			page_cache_sync_readahead(filp->f_mapping, ra, filp,
+						  index, remaining_pages);
+		page = read_mapping_page(filp->f_mapping, index, NULL);
+		if (IS_ERR(page))
+			return page;
+	}
+	if (PageReadahead(page))
+		page_cache_async_readahead(filp->f_mapping, ra, filp, page,
+					   index, remaining_pages);
+	return page;
+}
+
+static int build_merkle_tree_level(struct file *filp, unsigned int level,
 				   u64 num_blocks_to_hash,
 				   const struct merkle_tree_params *params,
 				   u8 *pending_hashes,
 				   struct ahash_request *req)
 {
+	struct inode *inode = file_inode(filp);
 	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	struct file_ra_state ra = { 0 };
 	unsigned int pending_size = 0;
 	u64 dst_block_num;
 	u64 i;
@@ -36,6 +66,8 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 		dst_block_num = 0; /* unused */
 	}
 
+	file_ra_state_init(&ra, filp->f_mapping);
+
 	for (i = 0; i < num_blocks_to_hash; i++) {
 		struct page *src_page;
 
@@ -45,7 +77,8 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 
 		if (level == 0) {
 			/* Leaf: hashing a data block */
-			src_page = read_mapping_page(inode->i_mapping, i, NULL);
+			src_page = read_file_data_page(filp, i, &ra,
+						       num_blocks_to_hash - i);
 			if (IS_ERR(src_page)) {
 				err = PTR_ERR(src_page);
 				fsverity_err(inode,
@@ -54,9 +87,14 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 				return err;
 			}
 		} else {
+			unsigned long num_ra_pages =
+				min_t(unsigned long, num_blocks_to_hash - i,
+				      inode->i_sb->s_bdi->io_pages);
+
 			/* Non-leaf: hashing hash block from level below */
 			src_page = vops->read_merkle_tree_page(inode,
-					params->level_start[level - 1] + i);
+					params->level_start[level - 1] + i,
+					num_ra_pages);
 			if (IS_ERR(src_page)) {
 				err = PTR_ERR(src_page);
 				fsverity_err(inode,
@@ -103,17 +141,18 @@ static int build_merkle_tree_level(struct inode *inode, unsigned int level,
 }
 
 /*
- * Build the Merkle tree for the given inode using the given parameters, and
+ * Build the Merkle tree for the given file using the given parameters, and
  * return the root hash in @root_hash.
  *
  * The tree is written to a filesystem-specific location as determined by the
  * ->write_merkle_tree_block() method.  However, the blocks that comprise the
  * tree are the same for all filesystems.
  */
-static int build_merkle_tree(struct inode *inode,
+static int build_merkle_tree(struct file *filp,
 			     const struct merkle_tree_params *params,
 			     u8 *root_hash)
 {
+	struct inode *inode = file_inode(filp);
 	u8 *pending_hashes;
 	struct ahash_request *req;
 	u64 blocks;
@@ -126,9 +165,11 @@ static int build_merkle_tree(struct inode *inode,
 		return 0;
 	}
 
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(params->hash_alg, GFP_KERNEL);
+
 	pending_hashes = kmalloc(params->block_size, GFP_KERNEL);
-	req = ahash_request_alloc(params->hash_alg->tfm, GFP_KERNEL);
-	if (!pending_hashes || !req)
+	if (!pending_hashes)
 		goto out;
 
 	/*
@@ -139,7 +180,7 @@ static int build_merkle_tree(struct inode *inode,
 	blocks = (inode->i_size + params->block_size - 1) >>
 		 params->log_blocksize;
 	for (level = 0; level <= params->num_levels; level++) {
-		err = build_merkle_tree_level(inode, level, blocks, params,
+		err = build_merkle_tree_level(filp, level, blocks, params,
 					      pending_hashes, req);
 		if (err)
 			goto out;
@@ -150,7 +191,7 @@ static int build_merkle_tree(struct inode *inode,
 	err = 0;
 out:
 	kfree(pending_hashes);
-	ahash_request_free(req);
+	fsverity_free_hash_request(params->hash_alg, req);
 	return err;
 }
 
@@ -175,8 +216,7 @@ static int enable_verity(struct file *filp,
 
 	/* Get the salt if the user provided one */
 	if (arg->salt_size &&
-	    copy_from_user(desc->salt,
-			   (const u8 __user *)(uintptr_t)arg->salt_ptr,
+	    copy_from_user(desc->salt, u64_to_user_ptr(arg->salt_ptr),
 			   arg->salt_size)) {
 		err = -EFAULT;
 		goto out;
@@ -185,8 +225,7 @@ static int enable_verity(struct file *filp,
 
 	/* Get the signature if the user provided one */
 	if (arg->sig_size &&
-	    copy_from_user(desc->signature,
-			   (const u8 __user *)(uintptr_t)arg->sig_ptr,
+	    copy_from_user(desc->signature, u64_to_user_ptr(arg->sig_ptr),
 			   arg->sig_size)) {
 		err = -EFAULT;
 		goto out;
@@ -227,7 +266,7 @@ static int enable_verity(struct file *filp,
 	 */
 	pr_debug("Building Merkle tree...\n");
 	BUILD_BUG_ON(sizeof(desc->root_hash) < FS_VERITY_MAX_DIGEST_SIZE);
-	err = build_merkle_tree(inode, &params, desc->root_hash);
+	err = build_merkle_tree(filp, &params, desc->root_hash);
 	if (err) {
 		fsverity_err(inode, "Error %d building Merkle tree", err);
 		goto rollback;
@@ -315,7 +354,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	if (arg.block_size != PAGE_SIZE)
 		return -EINVAL;
 
-	if (arg.salt_size > FIELD_SIZEOF(struct fsverity_descriptor, salt))
+	if (arg.salt_size > sizeof_field(struct fsverity_descriptor, salt))
 		return -EMSGSIZE;
 
 	if (arg.sig_size > FS_VERITY_MAX_SIGNATURE_SIZE)

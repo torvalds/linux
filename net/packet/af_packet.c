@@ -408,17 +408,17 @@ static int __packet_get_status(const struct packet_sock *po, void *frame)
 	}
 }
 
-static __u32 tpacket_get_timestamp(struct sk_buff *skb, struct timespec *ts,
+static __u32 tpacket_get_timestamp(struct sk_buff *skb, struct timespec64 *ts,
 				   unsigned int flags)
 {
 	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 
 	if (shhwtstamps &&
 	    (flags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
-	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, ts))
+	    ktime_to_timespec64_cond(shhwtstamps->hwtstamp, ts))
 		return TP_STATUS_TS_RAW_HARDWARE;
 
-	if (ktime_to_timespec_cond(skb->tstamp, ts))
+	if (ktime_to_timespec64_cond(skb->tstamp, ts))
 		return TP_STATUS_TS_SOFTWARE;
 
 	return 0;
@@ -428,13 +428,20 @@ static __u32 __packet_set_timestamp(struct packet_sock *po, void *frame,
 				    struct sk_buff *skb)
 {
 	union tpacket_uhdr h;
-	struct timespec ts;
+	struct timespec64 ts;
 	__u32 ts_status;
 
 	if (!(ts_status = tpacket_get_timestamp(skb, &ts, po->tp_tstamp)))
 		return 0;
 
 	h.raw = frame;
+	/*
+	 * versions 1 through 3 overflow the timestamps in y2106, since they
+	 * all store the seconds in a 32-bit unsigned integer.
+	 * If we create a version 4, that should have a 64-bit timestamp,
+	 * either 64-bit seconds + 32-bit nanoseconds, or just 64-bit
+	 * nanoseconds.
+	 */
 	switch (po->tp_version) {
 	case TPACKET_V1:
 		h.h1->tp_sec = ts.tv_sec;
@@ -520,7 +527,7 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 				int blk_size_in_bytes)
 {
 	struct net_device *dev;
-	unsigned int mbits = 0, msec = 0, div = 0, tmo = 0;
+	unsigned int mbits, div;
 	struct ethtool_link_ksettings ecmd;
 	int err;
 
@@ -532,30 +539,25 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 	}
 	err = __ethtool_get_link_ksettings(dev, &ecmd);
 	rtnl_unlock();
-	if (!err) {
-		/*
-		 * If the link speed is so slow you don't really
-		 * need to worry about perf anyways
-		 */
-		if (ecmd.base.speed < SPEED_1000 ||
-		    ecmd.base.speed == SPEED_UNKNOWN) {
-			return DEFAULT_PRB_RETIRE_TOV;
-		} else {
-			msec = 1;
-			div = ecmd.base.speed / 1000;
-		}
-	}
+	if (err)
+		return DEFAULT_PRB_RETIRE_TOV;
 
+	/* If the link speed is so slow you don't really
+	 * need to worry about perf anyways
+	 */
+	if (ecmd.base.speed < SPEED_1000 ||
+	    ecmd.base.speed == SPEED_UNKNOWN)
+		return DEFAULT_PRB_RETIRE_TOV;
+
+	div = ecmd.base.speed / 1000;
 	mbits = (blk_size_in_bytes * 8) / (1024 * 1024);
 
 	if (div)
 		mbits /= div;
 
-	tmo = mbits * msec;
-
 	if (div)
-		return tmo+1;
-	return tmo;
+		return mbits + 1;
+	return mbits;
 }
 
 static void prb_init_ft_ops(struct tpacket_kbdq_core *p1,
@@ -774,8 +776,8 @@ static void prb_close_block(struct tpacket_kbdq_core *pkc1,
 		 * It shouldn't really happen as we don't close empty
 		 * blocks. See prb_retire_rx_blk_timer_expired().
 		 */
-		struct timespec ts;
-		getnstimeofday(&ts);
+		struct timespec64 ts;
+		ktime_get_real_ts64(&ts);
 		h1->ts_last_pkt.ts_sec = ts.tv_sec;
 		h1->ts_last_pkt.ts_nsec	= ts.tv_nsec;
 	}
@@ -805,7 +807,7 @@ static void prb_thaw_queue(struct tpacket_kbdq_core *pkc)
 static void prb_open_block(struct tpacket_kbdq_core *pkc1,
 	struct tpacket_block_desc *pbd1)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	struct tpacket_hdr_v1 *h1 = &pbd1->hdr.bh1;
 
 	smp_rmb();
@@ -818,7 +820,7 @@ static void prb_open_block(struct tpacket_kbdq_core *pkc1,
 	BLOCK_NUM_PKTS(pbd1) = 0;
 	BLOCK_LEN(pbd1) = BLK_PLUS_PRIV(pkc1->blk_sizeof_priv);
 
-	getnstimeofday(&ts);
+	ktime_get_real_ts64(&ts);
 
 	h1->ts_first_pkt.ts_sec = ts.tv_sec;
 	h1->ts_first_pkt.ts_nsec = ts.tv_nsec;
@@ -1295,15 +1297,21 @@ static void packet_sock_destruct(struct sock *sk)
 
 static bool fanout_flow_is_huge(struct packet_sock *po, struct sk_buff *skb)
 {
-	u32 rxhash;
+	u32 *history = po->rollover->history;
+	u32 victim, rxhash;
 	int i, count = 0;
 
 	rxhash = skb_get_hash(skb);
 	for (i = 0; i < ROLLOVER_HLEN; i++)
-		if (po->rollover->history[i] == rxhash)
+		if (READ_ONCE(history[i]) == rxhash)
 			count++;
 
-	po->rollover->history[prandom_u32() % ROLLOVER_HLEN] = rxhash;
+	victim = prandom_u32() % ROLLOVER_HLEN;
+
+	/* Avoid dirtying the cache line if possible */
+	if (READ_ONCE(history[victim]) != rxhash)
+		WRITE_ONCE(history[victim], rxhash);
+
 	return count > (ROLLOVER_HLEN >> 1);
 }
 
@@ -2162,9 +2170,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	unsigned long status = TP_STATUS_USER;
 	unsigned short macoff, netoff, hdrlen;
 	struct sk_buff *copy_skb = NULL;
-	struct timespec ts;
+	struct timespec64 ts;
 	__u32 ts_status;
 	bool is_drop_n_account = false;
+	unsigned int slot_id = 0;
 	bool do_vnet = false;
 
 	/* struct tpacket{2,3}_hdr is aligned to a multiple of TPACKET_ALIGNMENT.
@@ -2266,6 +2275,20 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 					TP_STATUS_KERNEL, (macoff+snaplen));
 	if (!h.raw)
 		goto drop_n_account;
+
+	if (po->tp_version <= TPACKET_V2) {
+		slot_id = po->rx_ring.head;
+		if (test_bit(slot_id, po->rx_ring.rx_owner_map))
+			goto drop_n_account;
+		__set_bit(slot_id, po->rx_ring.rx_owner_map);
+	}
+
+	if (do_vnet &&
+	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
+				    sizeof(struct virtio_net_hdr),
+				    vio_le(), true, 0))
+		goto drop_n_account;
+
 	if (po->tp_version <= TPACKET_V2) {
 		packet_increment_rx_head(po, &po->rx_ring);
 	/*
@@ -2278,12 +2301,6 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 			status |= TP_STATUS_LOSING;
 	}
 
-	if (do_vnet &&
-	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
-				    sizeof(struct virtio_net_hdr),
-				    vio_le(), true, 0))
-		goto drop_n_account;
-
 	po->stats.stats1.tp_packets++;
 	if (copy_skb) {
 		status |= TP_STATUS_COPY;
@@ -2294,7 +2311,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
 	if (!(ts_status = tpacket_get_timestamp(skb, &ts, po->tp_tstamp)))
-		getnstimeofday(&ts);
+		ktime_get_real_ts64(&ts);
 
 	status |= ts_status;
 
@@ -2371,7 +2388,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 #endif
 
 	if (po->tp_version <= TPACKET_V2) {
+		spin_lock(&sk->sk_receive_queue.lock);
 		__packet_set_status(po, h.raw, status);
+		__clear_bit(slot_id, po->rx_ring.rx_owner_map);
+		spin_unlock(&sk->sk_receive_queue.lock);
 		sk->sk_data_ready(sk);
 	} else {
 		prb_clear_blk_fill_status(&po->rx_ring);
@@ -4268,6 +4288,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 {
 	struct pgv *pg_vec = NULL;
 	struct packet_sock *po = pkt_sk(sk);
+	unsigned long *rx_owner_map = NULL;
 	int was_running, order = 0;
 	struct packet_ring_buffer *rb;
 	struct sk_buff_head *rb_queue;
@@ -4353,6 +4374,12 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			}
 			break;
 		default:
+			if (!tx_ring) {
+				rx_owner_map = bitmap_alloc(req->tp_frame_nr,
+					GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+				if (!rx_owner_map)
+					goto out_free_pg_vec;
+			}
 			break;
 		}
 	}
@@ -4382,6 +4409,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		err = 0;
 		spin_lock_bh(&rb_queue->lock);
 		swap(rb->pg_vec, pg_vec);
+		if (po->tp_version <= TPACKET_V2)
+			swap(rb->rx_owner_map, rx_owner_map);
 		rb->frame_max = (req->tp_frame_nr - 1);
 		rb->head = 0;
 		rb->frame_size = req->tp_frame_size;
@@ -4413,6 +4442,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	}
 
 out_free_pg_vec:
+	bitmap_free(rx_owner_map);
 	if (pg_vec)
 		free_pg_vec(pg_vec, order, req->tp_block_nr);
 out:

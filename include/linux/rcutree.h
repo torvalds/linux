@@ -37,6 +37,8 @@ void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
 
 void rcu_barrier(void);
 bool rcu_eqs_special_set(int cpu);
+void rcu_momentary_dyntick_idle(void);
+void kfree_rcu_scheduler_running(void);
 unsigned long get_state_synchronize_rcu(void);
 void cond_synchronize_rcu(unsigned long oldstate);
 
@@ -52,6 +54,7 @@ void exit_rcu(void);
 void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
 void rcu_end_inkernel_boot(void);
+bool rcu_inkernel_boot_has_ended(void);
 bool rcu_is_watching(void);
 #ifndef CONFIG_PREEMPTION
 void rcu_all_qs(void);

@@ -397,33 +397,6 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 }
 
 /**
- * iavf_request_queues
- * @adapter: adapter structure
- * @num: number of requested queues
- *
- * We get a default number of queues from the PF.  This enables us to request a
- * different number.  Returns 0 on success, negative on failure
- **/
-int iavf_request_queues(struct iavf_adapter *adapter, int num)
-{
-	struct virtchnl_vf_res_request vfres;
-
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
-		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot request queues, command %d pending\n",
-			adapter->current_op);
-		return -EBUSY;
-	}
-
-	vfres.num_queue_pairs = min_t(int, num, num_online_cpus());
-
-	adapter->current_op = VIRTCHNL_OP_REQUEST_QUEUES;
-	adapter->flags |= IAVF_FLAG_REINIT_ITR_NEEDED;
-	return iavf_send_pf_msg(adapter, VIRTCHNL_OP_REQUEST_QUEUES,
-				(u8 *)&vfres, sizeof(vfres));
-}
-
-/**
  * iavf_add_ether_addrs
  * @adapter: adapter structure
  *
@@ -1359,6 +1332,9 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			ether_addr_copy(netdev->perm_addr,
 					adapter->hw.mac.addr);
 		}
+		spin_lock_bh(&adapter->mac_vlan_list_lock);
+		iavf_add_filter(adapter, adapter->hw.mac.addr);
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		iavf_process_config(adapter);
 		}
 		break;

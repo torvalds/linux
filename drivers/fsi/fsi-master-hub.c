@@ -13,53 +13,7 @@
 
 #include "fsi-master.h"
 
-/* Control Registers */
-#define FSI_MMODE		0x0		/* R/W: mode */
-#define FSI_MDLYR		0x4		/* R/W: delay */
-#define FSI_MCRSP		0x8		/* R/W: clock rate */
-#define FSI_MENP0		0x10		/* R/W: enable */
-#define FSI_MLEVP0		0x18		/* R: plug detect */
-#define FSI_MSENP0		0x18		/* S: Set enable */
-#define FSI_MCENP0		0x20		/* C: Clear enable */
-#define FSI_MAEB		0x70		/* R: Error address */
-#define FSI_MVER		0x74		/* R: master version/type */
-#define FSI_MRESP0		0xd0		/* W: Port reset */
-#define FSI_MESRB0		0x1d0		/* R: Master error status */
-#define FSI_MRESB0		0x1d0		/* W: Reset bridge */
-#define FSI_MECTRL		0x2e0		/* W: Error control */
-
-/* MMODE: Mode control */
-#define FSI_MMODE_EIP		0x80000000	/* Enable interrupt polling */
-#define FSI_MMODE_ECRC		0x40000000	/* Enable error recovery */
-#define FSI_MMODE_EPC		0x10000000	/* Enable parity checking */
-#define FSI_MMODE_P8_TO_LSB	0x00000010	/* Timeout value LSB */
-						/*   MSB=1, LSB=0 is 0.8 ms */
-						/*   MSB=0, LSB=1 is 0.9 ms */
-#define FSI_MMODE_CRS0SHFT	18		/* Clk rate selection 0 shift */
-#define FSI_MMODE_CRS0MASK	0x3ff		/* Clk rate selection 0 mask */
-#define FSI_MMODE_CRS1SHFT	8		/* Clk rate selection 1 shift */
-#define FSI_MMODE_CRS1MASK	0x3ff		/* Clk rate selection 1 mask */
-
-/* MRESB: Reset brindge */
-#define FSI_MRESB_RST_GEN	0x80000000	/* General reset */
-#define FSI_MRESB_RST_ERR	0x40000000	/* Error Reset */
-
-/* MRESB: Reset port */
-#define FSI_MRESP_RST_ALL_MASTER 0x20000000	/* Reset all FSI masters */
-#define FSI_MRESP_RST_ALL_LINK	0x10000000	/* Reset all FSI port contr. */
-#define FSI_MRESP_RST_MCR	0x08000000	/* Reset FSI master reg. */
-#define FSI_MRESP_RST_PYE	0x04000000	/* Reset FSI parity error */
-#define FSI_MRESP_RST_ALL	0xfc000000	/* Reset any error */
-
-/* MECTRL: Error control */
-#define FSI_MECTRL_EOAE		0x8000		/* Enable machine check when */
-						/* master 0 in error */
-#define FSI_MECTRL_P8_AUTO_TERM	0x4000		/* Auto terminate */
-
 #define FSI_ENGID_HUB_MASTER		0x1c
-#define FSI_HUB_LINK_OFFSET		0x80000
-#define FSI_HUB_LINK_SIZE		0x80000
-#define FSI_HUB_MASTER_MAX_LINKS	8
 
 #define FSI_LINK_ENABLE_SETUP_TIME	10	/* in mS */
 

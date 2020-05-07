@@ -25,8 +25,6 @@
 */
 
 #define DRV_NAME	"fealnx"
-#define DRV_VERSION	"2.52"
-#define DRV_RELDATE	"Sep-11-2006"
 
 static int debug;		/* 1-> print debug message */
 static int max_interrupt_work = 20;
@@ -90,11 +88,6 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
-
-/* These identify the driver base version and may not be removed. */
-static const char version[] =
-	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "\n";
-
 
 /* This driver was written to use PCI memory space, however some x86 systems
    work only with I/O space accesses. */
@@ -428,7 +421,7 @@ static void getlinktype(struct net_device *dev);
 static void getlinkstatus(struct net_device *dev);
 static void netdev_timer(struct timer_list *t);
 static void reset_timer(struct timer_list *t);
-static void fealnx_tx_timeout(struct net_device *dev);
+static void fealnx_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
@@ -493,13 +486,6 @@ static int fealnx_init_one(struct pci_dev *pdev,
 	int bar = 0;
 #else
 	int bar = 1;
-#endif
-
-/* when built into the kernel, we only print version if device is found */
-#ifndef MODULE
-	static int printed_version;
-	if (!printed_version++)
-		printk(version);
 #endif
 
 	card_idx++;
@@ -1191,7 +1177,7 @@ static void reset_timer(struct timer_list *t)
 }
 
 
-static void fealnx_tx_timeout(struct net_device *dev)
+static void fealnx_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->mem;
@@ -1809,7 +1795,6 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	struct netdev_private *np = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
@@ -1950,11 +1935,6 @@ static struct pci_driver fealnx_driver = {
 
 static int __init fealnx_init(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
-#ifdef MODULE
-	printk(version);
-#endif
-
 	return pci_register_driver(&fealnx_driver);
 }
 

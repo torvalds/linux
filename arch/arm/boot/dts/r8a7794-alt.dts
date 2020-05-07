@@ -60,8 +60,7 @@
 
 		gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi1: regulator-vcc-sdhi1 {
@@ -84,8 +83,7 @@
 
 		gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	lbsc {
@@ -345,6 +343,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	};
 };
 

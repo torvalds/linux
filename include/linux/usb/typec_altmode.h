@@ -55,7 +55,7 @@ static inline void *typec_altmode_get_drvdata(struct typec_altmode *altmode)
  * @activate: User callback for Enter/Exit Mode
  */
 struct typec_altmode_ops {
-	int (*enter)(struct typec_altmode *altmode);
+	int (*enter)(struct typec_altmode *altmode, u32 *vdo);
 	int (*exit)(struct typec_altmode *altmode);
 	void (*attention)(struct typec_altmode *altmode, u32 vdo);
 	int (*vdm)(struct typec_altmode *altmode, const u32 hdr,
@@ -65,7 +65,7 @@ struct typec_altmode_ops {
 	int (*activate)(struct typec_altmode *altmode, int activate);
 };
 
-int typec_altmode_enter(struct typec_altmode *altmode);
+int typec_altmode_enter(struct typec_altmode *altmode, u32 *vdo);
 int typec_altmode_exit(struct typec_altmode *altmode);
 void typec_altmode_attention(struct typec_altmode *altmode, u32 vdo);
 int typec_altmode_vdm(struct typec_altmode *altmode,
@@ -101,6 +101,22 @@ enum {
 	TYPEC_MODE_DEBUG,			/* Debug Accessory */
 };
 
+/*
+ * USB4 also requires that the pins on the connector are repurposed, just like
+ * Alternate Modes. USB4 mode is however not entered with the Enter Mode Command
+ * like the Alternate Modes are, but instead with a special Enter_USB Message.
+ * The Enter_USB Message can also be used for setting to connector to operate in
+ * USB 3.2 or in USB 2.0 mode instead of USB4.
+ *
+ * The Enter_USB specific "USB Modes" are also supplied here as special modal
+ * state values, just like the Accessory Modes.
+ */
+enum {
+	TYPEC_MODE_USB2 = TYPEC_MODE_DEBUG,	/* USB 2.0 mode */
+	TYPEC_MODE_USB3,			/* USB 3.2 mode */
+	TYPEC_MODE_USB4				/* USB4 mode */
+};
+
 #define TYPEC_MODAL_STATE(_state_)	((_state_) + TYPEC_STATE_MODAL)
 
 struct typec_altmode *typec_altmode_get_plug(struct typec_altmode *altmode,
@@ -109,13 +125,6 @@ void typec_altmode_put_plug(struct typec_altmode *plug);
 
 struct typec_altmode *typec_match_altmode(struct typec_altmode **altmodes,
 					  size_t n, u16 svid, u8 mode);
-
-struct typec_altmode *
-typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
-				struct notifier_block *nb);
-
-void typec_altmode_unregister_notifier(struct typec_altmode *adev,
-				       struct notifier_block *nb);
 
 /**
  * typec_altmode_get_orientation - Get cable plug orientation

@@ -334,13 +334,13 @@ int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
 
 struct i40e_ddp_profile_list {
 	u32 p_count;
-	struct i40e_profile_info p_info[0];
+	struct i40e_profile_info p_info[];
 };
 
 struct i40e_ddp_old_profile_list {
 	struct list_head list;
 	size_t old_ddp_size;
-	u8 old_ddp_buf[0];
+	u8 old_ddp_buf[];
 };
 
 /* macros related to FLX_PIT */
@@ -1118,6 +1118,7 @@ struct i40e_mac_filter *i40e_add_mac_filter(struct i40e_vsi *vsi,
 					    const u8 *macaddr);
 int i40e_del_mac_filter(struct i40e_vsi *vsi, const u8 *macaddr);
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
+int i40e_count_filters(struct i40e_vsi *vsi);
 struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, const u8 *macaddr);
 void i40e_vlan_stripping_enable(struct i40e_vsi *vsi);
 #ifdef CONFIG_I40E_DCB
@@ -1151,7 +1152,7 @@ void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags);
 
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
-	return !!vsi->xdp_prog;
+	return !!READ_ONCE(vsi->xdp_prog);
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);

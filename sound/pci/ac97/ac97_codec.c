@@ -1753,10 +1753,10 @@ static unsigned int snd_ac97_determine_spdif_rates(struct snd_ac97 *ac97)
 {
 	unsigned int result = 0;
 	int i;
-	static unsigned short ctl_bits[] = {
+	static const unsigned short ctl_bits[] = {
 		AC97_SC_SPSR_44K, AC97_SC_SPSR_32K, AC97_SC_SPSR_48K
 	};
-	static unsigned int rate_bits[] = {
+	static const unsigned int rate_bits[] = {
 		SNDRV_PCM_RATE_44100, SNDRV_PCM_RATE_32000, SNDRV_PCM_RATE_48000
 	};
 
@@ -1894,12 +1894,13 @@ static int ac97_reset_wait(struct snd_ac97 *ac97, int timeout, int with_modem)
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
+int snd_ac97_bus(struct snd_card *card, int num,
+		 const struct snd_ac97_bus_ops *ops,
 		 void *private_data, struct snd_ac97_bus **rbus)
 {
 	int err;
 	struct snd_ac97_bus *bus;
-	static struct snd_device_ops dev_ops = {
+	static const struct snd_device_ops dev_ops = {
 		.dev_free =	snd_ac97_bus_dev_free,
 	};
 
@@ -1999,7 +2000,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	unsigned long end_time;
 	unsigned int reg;
 	const struct ac97_codec_id *pid;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ac97_dev_free,
 		.dev_register =	snd_ac97_dev_register,
 		.dev_disconnect =	snd_ac97_dev_disconnect,
@@ -2345,7 +2346,7 @@ struct ac97_power_reg {
 
 enum { PWIDX_ADC, PWIDX_FRONT, PWIDX_CLFE, PWIDX_SURR, PWIDX_MIC, PWIDX_SIZE };
 
-static struct ac97_power_reg power_regs[PWIDX_SIZE] = {
+static const struct ac97_power_reg power_regs[PWIDX_SIZE] = {
 	[PWIDX_ADC] = { AC97_PCM_LR_ADC_RATE, AC97_POWERDOWN, AC97_PD_PR0},
 	[PWIDX_FRONT] = { AC97_PCM_FRONT_DAC_RATE, AC97_POWERDOWN, AC97_PD_PR1},
 	[PWIDX_CLFE] = { AC97_PCM_LFE_DAC_RATE, AC97_EXTENDED_STATUS,
@@ -2828,7 +2829,7 @@ struct quirk_table {
 	int (*func)(struct snd_ac97 *);
 };
 
-static struct quirk_table applicable_quirks[] = {
+static const struct quirk_table applicable_quirks[] = {
 	{ "none", NULL },
 	{ "hp_only", tune_hp_only },
 	{ "swap_hp", tune_swap_hp },
@@ -2856,7 +2857,7 @@ static int apply_quirk(struct snd_ac97 *ac97, int type)
 static int apply_quirk_str(struct snd_ac97 *ac97, const char *typestr)
 {
 	int i;
-	struct quirk_table *q;
+	const struct quirk_table *q;
 
 	for (i = 0; i < ARRAY_SIZE(applicable_quirks); i++) {
 		q = &applicable_quirks[i];

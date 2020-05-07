@@ -21,3 +21,7 @@ obj-$(CONFIG_SOUNDWIRE_INTEL) += soundwire-intel.o
 
 soundwire-intel-init-objs := intel_init.o
 obj-$(CONFIG_SOUNDWIRE_INTEL) += soundwire-intel-init.o
+
+#Qualcomm driver
+soundwire-qcom-objs :=	qcom.o
+obj-$(CONFIG_SOUNDWIRE_QCOM) += soundwire-qcom.o

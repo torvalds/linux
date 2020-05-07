@@ -1,12 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0
+include ../../../../../../scripts/Kbuild.include
+
 noarg:
 	$(MAKE) -C ../../
 
 # The EBB handler is 64-bit code and everything links against it
 CFLAGS += -m64
 
+TMPOUT = $(OUTPUT)/
 # Toolchains may build PIE by default which breaks the assembly
-LDFLAGS += -no-pie
+no-pie-option := $(call try-run, echo 'int main() { return 0; }' | \
+        $(CC) -Werror $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) -no-pie -x c - -o "$$TMP", -no-pie)
+
+LDFLAGS += $(no-pie-option)
 
 TEST_GEN_PROGS := reg_access_test event_attributes_test cycles_test	\
 	 cycles_with_freeze_test pmc56_overflow_test		\

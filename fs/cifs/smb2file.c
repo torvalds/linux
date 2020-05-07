@@ -62,12 +62,12 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
 	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL,
-		       NULL);
+		       NULL, NULL);
 	if (rc)
 		goto out;
 
 
-	 if (oparms->tcon->use_resilient) {
+	if (oparms->tcon->use_resilient) {
 		/* default timeout is 0, servers pick default (120 seconds) */
 		nr_ioctl_req.Timeout =
 			cpu_to_le32(oparms->tcon->handle_timeout);
@@ -152,7 +152,12 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		    (li->offset + li->length))
 			continue;
 		if (current->tgid != li->pid)
-			continue;
+			/*
+			 * flock and OFD lock are associated with an open
+			 * file description, not the process.
+			 */
+			if (!(flock->fl_flags & (FL_FLOCK | FL_OFDLCK)))
+				continue;
 		if (cinode->can_cache_brlcks) {
 			/*
 			 * We can cache brlock requests - simply remove a lock

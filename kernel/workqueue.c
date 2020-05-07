@@ -365,11 +365,6 @@ static void show_pwq(struct pool_workqueue *pwq);
 			 !lockdep_is_held(&wq_pool_mutex),		\
 			 "RCU or wq_pool_mutex should be held")
 
-#define assert_rcu_or_wq_mutex(wq)					\
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
-			 !lockdep_is_held(&wq->mutex),			\
-			 "RCU or wq->mutex should be held")
-
 #define assert_rcu_or_wq_mutex_or_pool_mutex(wq)			\
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
 			 !lockdep_is_held(&wq->mutex) &&		\
@@ -427,9 +422,7 @@ static void show_pwq(struct pool_workqueue *pwq);
  */
 #define for_each_pwq(pwq, wq)						\
 	list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,		\
-				lockdep_is_held(&wq->mutex))		\
-		if (({ assert_rcu_or_wq_mutex(wq); false; })) { }	\
-		else
+				 lockdep_is_held(&(wq->mutex)))
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
@@ -865,7 +858,8 @@ void wq_worker_running(struct task_struct *task)
  * @task: task going to sleep
  *
  * This function is called from schedule() when a busy worker is
- * going to sleep.
+ * going to sleep. Preemption needs to be disabled to protect ->sleeping
+ * assignment.
  */
 void wq_worker_sleeping(struct task_struct *task)
 {
@@ -882,7 +876,8 @@ void wq_worker_sleeping(struct task_struct *task)
 
 	pool = worker->pool;
 
-	if (WARN_ON_ONCE(worker->sleeping))
+	/* Return if preempted before wq_worker_running() was reached */
+	if (worker->sleeping)
 		return;
 
 	worker->sleeping = 1;
@@ -1418,14 +1413,16 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 		return;
 	rcu_read_lock();
 retry:
-	if (req_cpu == WORK_CPU_UNBOUND)
-		cpu = wq_select_unbound_cpu(raw_smp_processor_id());
-
 	/* pwq which will be used unless @work is executing elsewhere */
-	if (!(wq->flags & WQ_UNBOUND))
-		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
-	else
+	if (wq->flags & WQ_UNBOUND) {
+		if (req_cpu == WORK_CPU_UNBOUND)
+			cpu = wq_select_unbound_cpu(raw_smp_processor_id());
 		pwq = unbound_pwq_by_node(wq, cpu_to_node(cpu));
+	} else {
+		if (req_cpu == WORK_CPU_UNBOUND)
+			cpu = raw_smp_processor_id();
+		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
+	}
 
 	/*
 	 * If @work was previously on a different pool, it might still be
@@ -2273,7 +2270,7 @@ __acquires(&pool->lock)
 	 * While we must be careful to not use "work" after this, the trace
 	 * point will only record its address.
 	 */
-	trace_workqueue_execute_end(work);
+	trace_workqueue_execute_end(work, worker->current_func);
 	lock_map_release(&lockdep_map);
 	lock_map_release(&pwq->wq->lockdep_map);
 
@@ -2287,7 +2284,7 @@ __acquires(&pool->lock)
 	}
 
 	/*
-	 * The following prevents a kworker from hogging CPU on !PREEMPT
+	 * The following prevents a kworker from hogging CPU on !PREEMPTION
 	 * kernels, where a requeueing work item waiting for something to
 	 * happen could deadlock with stop_machine as such work item could
 	 * indefinitely requeue itself while all other CPUs are trapped in
@@ -2839,7 +2836,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 	 * First flushers are responsible for cascading flushes and
 	 * handling overflow.  Non-first flushers can simply return.
 	 */
-	if (wq->first_flusher != &this_flusher)
+	if (READ_ONCE(wq->first_flusher) != &this_flusher)
 		return;
 
 	mutex_lock(&wq->mutex);
@@ -2848,7 +2845,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 	if (wq->first_flusher != &this_flusher)
 		goto out_unlock;
 
-	wq->first_flusher = NULL;
+	WRITE_ONCE(wq->first_flusher, NULL);
 
 	WARN_ON_ONCE(!list_empty(&this_flusher.list));
 	WARN_ON_ONCE(wq->flush_color != this_flusher.flush_color);
@@ -4381,8 +4378,8 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	for_each_pwq(pwq, wq) {
 		spin_lock_irq(&pwq->pool->lock);
 		if (WARN_ON(pwq_busy(pwq))) {
-			pr_warning("%s: %s has the following busy pwq\n",
-				   __func__, wq->name);
+			pr_warn("%s: %s has the following busy pwq\n",
+				__func__, wq->name);
 			show_pwq(pwq);
 			spin_unlock_irq(&pwq->pool->lock);
 			mutex_unlock(&wq->mutex);
@@ -5903,7 +5900,7 @@ static void __init wq_numa_init(void)
  * items.  Actual work item execution starts only after kthreads can be
  * created and scheduled right before early initcalls.
  */
-int __init workqueue_init_early(void)
+void __init workqueue_init_early(void)
 {
 	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
 	int hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
@@ -5970,8 +5967,6 @@ int __init workqueue_init_early(void)
 	       !system_unbound_wq || !system_freezable_wq ||
 	       !system_power_efficient_wq ||
 	       !system_freezable_power_efficient_wq);
-
-	return 0;
 }
 
 /**
@@ -5983,7 +5978,7 @@ int __init workqueue_init_early(void)
  * are no kworkers executing the work items yet.  Populate the worker pools
  * with the initial workers and enable future kworker creations.
  */
-int __init workqueue_init(void)
+void __init workqueue_init(void)
 {
 	struct workqueue_struct *wq;
 	struct worker_pool *pool;
@@ -6030,6 +6025,4 @@ int __init workqueue_init(void)
 
 	wq_online = true;
 	wq_watchdog_init();
-
-	return 0;
 }

@@ -31,9 +31,7 @@
 #define MAX_MPCC 6
 #define MAX_OPP 6
 
-#if   defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define MAX_DWB		1
-#endif
 
 enum mpc_output_csc_mode {
 	MPC_OUTPUT_CSC_DISABLE = 0,
@@ -66,14 +64,12 @@ struct mpcc_blnd_cfg {
 	int global_alpha;
 	bool overlap_only;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* MPCC top/bottom gain settings */
 	int bottom_gain_mode;
 	int background_color_bpc;
 	int top_gain;
 	int bottom_inside_gain;
 	int bottom_outside_gain;
-#endif
 };
 
 struct mpcc_sm_cfg {
@@ -90,7 +86,6 @@ struct mpcc_sm_cfg {
 	int force_next_field_polarity;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct mpc_denorm_clamp {
 	int clamp_max_r_cr;
 	int clamp_min_r_cr;
@@ -99,7 +94,6 @@ struct mpc_denorm_clamp {
 	int clamp_max_b_cb;
 	int clamp_min_b_cb;
 };
-#endif
 
 /*
  * MPCC connection and blending configuration for a single MPCC instance.
@@ -126,10 +120,8 @@ struct mpc {
 	struct dc_context *ctx;
 
 	struct mpcc mpcc_array[MAX_MPCC];
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct pwl_params blender_params;
 	bool cm_bypass_mode;
-#endif
 };
 
 struct mpcc_state {
@@ -218,6 +210,22 @@ struct mpc_funcs {
 		struct mpcc_blnd_cfg *blnd_cfg,
 		int mpcc_id);
 
+	/*
+	 * Lock cursor updates for the specified OPP.
+	 * OPP defines the set of MPCC that are locked together for cursor.
+	 *
+	 * Parameters:
+	 * [in] 	mpc		- MPC context.
+	 * [in]     opp_id	- The OPP to lock cursor updates on
+	 * [in]		lock	- lock/unlock the OPP
+	 *
+	 * Return:  void
+	 */
+	void (*cursor_lock)(
+			struct mpc *mpc,
+			int opp_id,
+			bool lock);
+
 	struct mpcc* (*get_mpcc_for_dpp)(
 			struct mpc_tree *tree,
 			int dpp_id);
@@ -230,7 +238,6 @@ struct mpc_funcs {
 		struct mpc *mpc,
 		struct mpc_tree *tree);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*set_denorm)(struct mpc *mpc,
 			int opp_id,
 			enum dc_color_depth output_depth);
@@ -258,7 +265,6 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int mpcc_id,
 			bool power_on);
-#endif
 
 };
 

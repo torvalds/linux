@@ -651,8 +651,7 @@ static int bdisp_release(struct file *file)
 
 	dev_dbg(bdisp->dev, "%s\n", __func__);
 
-	if (mutex_lock_interruptible(&bdisp->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&bdisp->lock);
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
@@ -1067,7 +1066,7 @@ static int bdisp_register_device(struct bdisp_dev *bdisp)
 		return PTR_ERR(bdisp->m2m.m2m_dev);
 	}
 
-	ret = video_register_device(&bdisp->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&bdisp->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(bdisp->dev,
 			"%s(): failed to register video device\n", __func__);
@@ -1275,6 +1274,8 @@ static int bdisp_remove(struct platform_device *pdev)
 	if (!IS_ERR(bdisp->clock))
 		clk_unprepare(bdisp->clock);
 
+	destroy_workqueue(bdisp->work_queue);
+
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
 
 	return 0;
@@ -1318,20 +1319,22 @@ static int bdisp_probe(struct platform_device *pdev)
 	bdisp->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(bdisp->regs)) {
 		dev_err(dev, "failed to get regs\n");
-		return PTR_ERR(bdisp->regs);
+		ret = PTR_ERR(bdisp->regs);
+		goto err_wq;
 	}
 
 	bdisp->clock = devm_clk_get(dev, BDISP_NAME);
 	if (IS_ERR(bdisp->clock)) {
 		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(bdisp->clock);
+		ret = PTR_ERR(bdisp->clock);
+		goto err_wq;
 	}
 
 	ret = clk_prepare(bdisp->clock);
 	if (ret < 0) {
 		dev_err(dev, "clock prepare failed\n");
 		bdisp->clock = ERR_PTR(-EINVAL);
-		return ret;
+		goto err_wq;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -1403,7 +1406,8 @@ err_v4l2:
 err_clk:
 	if (!IS_ERR(bdisp->clock))
 		clk_unprepare(bdisp->clock);
-
+err_wq:
+	destroy_workqueue(bdisp->work_queue);
 	return ret;
 }
 

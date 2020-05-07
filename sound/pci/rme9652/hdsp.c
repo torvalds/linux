@@ -479,7 +479,7 @@ struct hdsp {
 	pid_t                 playback_pid;
 	int                   running;
 	int                   system_sample_rate;
-	char                 *channel_map;
+	const char           *channel_map;
 	int                   dev;
 	int                   irq;
 	unsigned long         port;
@@ -501,12 +501,12 @@ struct hdsp {
    where the data for that channel can be read/written from/to.
 */
 
-static char channel_map_df_ss[HDSP_MAX_CHANNELS] = {
+static const char channel_map_df_ss[HDSP_MAX_CHANNELS] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 	18, 19, 20, 21, 22, 23, 24, 25
 };
 
-static char channel_map_mf_ss[HDSP_MAX_CHANNELS] = { /* Multiface */
+static const char channel_map_mf_ss[HDSP_MAX_CHANNELS] = { /* Multiface */
 	/* Analog */
 	0, 1, 2, 3, 4, 5, 6, 7,
 	/* ADAT 2 */
@@ -516,7 +516,7 @@ static char channel_map_mf_ss[HDSP_MAX_CHANNELS] = { /* Multiface */
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_ds[HDSP_MAX_CHANNELS] = {
+static const char channel_map_ds[HDSP_MAX_CHANNELS] = {
 	/* ADAT channels are remapped */
 	1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23,
 	/* channels 12 and 13 are S/PDIF */
@@ -525,7 +525,7 @@ static char channel_map_ds[HDSP_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_H9632_ss[HDSP_MAX_CHANNELS] = {
+static const char channel_map_H9632_ss[HDSP_MAX_CHANNELS] = {
 	/* ADAT channels */
 	0, 1, 2, 3, 4, 5, 6, 7,
 	/* SPDIF */
@@ -539,7 +539,7 @@ static char channel_map_H9632_ss[HDSP_MAX_CHANNELS] = {
 	-1, -1
 };
 
-static char channel_map_H9632_ds[HDSP_MAX_CHANNELS] = {
+static const char channel_map_H9632_ds[HDSP_MAX_CHANNELS] = {
 	/* ADAT */
 	1, 3, 5, 7,
 	/* SPDIF */
@@ -553,7 +553,7 @@ static char channel_map_H9632_ds[HDSP_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_H9632_qs[HDSP_MAX_CHANNELS] = {
+static const char channel_map_H9632_qs[HDSP_MAX_CHANNELS] = {
 	/* ADAT is disabled in this mode */
 	/* SPDIF */
 	8, 9,
@@ -569,12 +569,7 @@ static char channel_map_H9632_qs[HDSP_MAX_CHANNELS] = {
 
 static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer *dmab, size_t size)
 {
-	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				size, dmab) < 0)
-		return -ENOMEM;
-	return 0;
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, size, dmab);
 }
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
@@ -2884,7 +2879,7 @@ static int snd_hdsp_put_dds_offset(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
-static struct snd_kcontrol_new snd_hdsp_9632_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_9632_controls[] = {
 HDSP_DA_GAIN("DA Gain", 0),
 HDSP_AD_GAIN("AD Gain", 0),
 HDSP_PHONE_GAIN("Phones Gain", 0),
@@ -2892,7 +2887,7 @@ HDSP_TOGGLE_SETTING("XLR Breakout Cable", HDSP_XLRBreakoutCable),
 HDSP_DDS_OFFSET("DDS Sample Rate Offset", 0)
 };
 
-static struct snd_kcontrol_new snd_hdsp_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -3221,7 +3216,7 @@ static int snd_hdsp_info_rpm_disconnect(struct snd_kcontrol *kcontrol, struct sn
 	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
-static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RPM Bypass",
@@ -3254,7 +3249,7 @@ static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
 	HDSP_MIXER("Mixer", 0)
 };
 
-static struct snd_kcontrol_new snd_hdsp_96xx_aeb =
+static const struct snd_kcontrol_new snd_hdsp_96xx_aeb =
 	HDSP_TOGGLE_SETTING("Analog Extension Board",
 			HDSP_AnalogExtensionBoard);
 static struct snd_kcontrol_new snd_hdsp_adat_sync_check = HDSP_ADAT_SYNC_CHECK;
@@ -3358,7 +3353,8 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 				return;
 			}
 		} else {
-			int err = -EINVAL;
+			int err;
+
 			err = hdsp_request_fw_loader(hdsp);
 			if (err < 0) {
 				snd_iprintf(buffer,
@@ -4807,7 +4803,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		break;
 	}
 	case SNDRV_HDSP_IOCTL_UPLOAD_FIRMWARE: {
-		struct hdsp_firmware __user *firmware;
+		struct hdsp_firmware firmware;
 		u32 __user *firmware_data;
 		int err;
 
@@ -4820,10 +4816,9 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 
 		dev_info(hdsp->card->dev,
 			 "initializing firmware upload\n");
-		firmware = (struct hdsp_firmware __user *)argp;
-
-		if (get_user(firmware_data, &firmware->firmware_data))
+		if (copy_from_user(&firmware, argp, sizeof(firmware)))
 			return -EFAULT;
+		firmware_data = (u32 __user *)firmware.firmware_data;
 
 		if (hdsp_check_for_iobox (hdsp))
 			return -EIO;
@@ -5225,7 +5220,7 @@ static int snd_hdsp_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "hdsp")) < 0)
 		return err;
 	hdsp->port = pci_resource_start(pci, 0);
-	if ((hdsp->iobase = ioremap_nocache(hdsp->port, HDSP_IO_EXTENT)) == NULL) {
+	if ((hdsp->iobase = ioremap(hdsp->port, HDSP_IO_EXTENT)) == NULL) {
 		dev_err(hdsp->card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			hdsp->port, hdsp->port + HDSP_IO_EXTENT - 1);
 		return -EBUSY;
@@ -5238,6 +5233,7 @@ static int snd_hdsp_create(struct snd_card *card,
 	}
 
 	hdsp->irq = pci->irq;
+	card->sync_irq = hdsp->irq;
 	hdsp->precise_ptr = 0;
 	hdsp->use_midi_tasklet = 1;
 	hdsp->dds_value = 0;

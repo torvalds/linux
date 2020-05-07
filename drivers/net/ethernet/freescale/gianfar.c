@@ -103,8 +103,6 @@
 
 #define TX_TIMEOUT      (5*HZ)
 
-const char gfar_driver_version[] = "2.0";
-
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -641,6 +639,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	const char *model;
 	const void *mac_addr;
 	int err = 0, i;
+	phy_interface_t interface;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
 	struct device_node *np = ofdev->dev.of_node;
@@ -805,9 +804,9 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	 * rgmii-id really needs to be specified. Other types can be
 	 * detected by hardware
 	 */
-	err = of_get_phy_mode(np);
-	if (err >= 0)
-		priv->interface = err;
+	err = of_get_phy_mode(np, &interface);
+	if (!err)
+		priv->interface = interface;
 	else
 		priv->interface = gfar_get_interface(dev);
 
@@ -2092,7 +2091,7 @@ static void gfar_reset_task(struct work_struct *work)
 	reset_gfar(priv->ndev);
 }
 
-static void gfar_timeout(struct net_device *dev)
+static void gfar_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
@@ -2204,13 +2203,17 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	skb_dirtytx = tx_queue->skb_dirtytx;
 
 	while ((skb = tx_queue->tx_skbuff[skb_dirtytx])) {
+		bool do_tstamp;
+
+		do_tstamp = (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+			    priv->hwts_tx_en;
 
 		frags = skb_shinfo(skb)->nr_frags;
 
 		/* When time stamping, one additional TxBD must be freed.
 		 * Also, we need to dma_unmap_single() the TxPAL.
 		 */
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
+		if (unlikely(do_tstamp))
 			nr_txbds = frags + 2;
 		else
 			nr_txbds = frags + 1;
@@ -2224,7 +2227,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		    (lstatus & BD_LENGTH_MASK))
 			break;
 
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+		if (unlikely(do_tstamp)) {
 			next = next_txbd(bdp, base, tx_ring_size);
 			buflen = be16_to_cpu(next->length) +
 				 GMAC_FCB_LEN + GMAC_TXPAL_LEN;
@@ -2234,7 +2237,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		dma_unmap_single(priv->dev, be32_to_cpu(bdp->bufPtr),
 				 buflen, DMA_TO_DEVICE);
 
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+		if (unlikely(do_tstamp)) {
 			struct skb_shared_hwtstamps shhwtstamps;
 			u64 *ns = (u64 *)(((uintptr_t)skb->data + 0x10) &
 					  ~0x7UL);

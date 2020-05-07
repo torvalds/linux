@@ -195,15 +195,21 @@ static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
 static int enetc_get_sset_count(struct net_device *ndev, int sset)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int len;
 
-	if (sset == ETH_SS_STATS)
-		return ARRAY_SIZE(enetc_si_counters) +
-			ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
-			ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings +
-			(enetc_si_is_pf(priv->si) ?
-			ARRAY_SIZE(enetc_port_counters) : 0);
+	if (sset != ETH_SS_STATS)
+		return -EOPNOTSUPP;
 
-	return -EOPNOTSUPP;
+	len = ARRAY_SIZE(enetc_si_counters) +
+	      ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
+	      ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings;
+
+	if (!enetc_si_is_pf(priv->si))
+		return len;
+
+	len += ARRAY_SIZE(enetc_port_counters);
+
+	return len;
 }
 
 static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
@@ -568,7 +574,7 @@ static int enetc_get_ts_info(struct net_device *ndev,
 		info->phc_index = -1;
 	}
 
-#ifdef CONFIG_FSL_ENETC_HW_TIMESTAMPING
+#ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -579,9 +585,35 @@ static int enetc_get_ts_info(struct net_device *ndev,
 			   (1 << HWTSTAMP_FILTER_ALL);
 #else
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
 #endif
 	return 0;
+}
+
+static void enetc_get_wol(struct net_device *dev,
+			  struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (dev->phydev)
+		phy_ethtool_get_wol(dev->phydev, wol);
+}
+
+static int enetc_set_wol(struct net_device *dev,
+			 struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
+
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, wol->wolopts);
+
+	return ret;
 }
 
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
@@ -601,6 +633,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
+	.get_wol = enetc_get_wol,
+	.set_wol = enetc_set_wol,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {

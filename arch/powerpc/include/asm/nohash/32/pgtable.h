@@ -114,7 +114,12 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 #else
 #define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
 #endif
+
+#ifdef CONFIG_KASAN_VMALLOC
+#define VMALLOC_END	_ALIGN_DOWN(ioremap_bot, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+#else
 #define VMALLOC_END	ioremap_bot
+#endif
 
 /*
  * Bits in a linux-style PTE.  These match the bits in the
@@ -367,10 +372,8 @@ static inline int pte_young(pte_t pte)
 #define pte_offset_kernel(dir, addr)	\
 	(pmd_bad(*(dir)) ? NULL : (pte_t *)pmd_page_vaddr(*(dir)) + \
 				  pte_index(addr))
-#define pte_offset_map(dir, addr)		\
-	((pte_t *)(kmap_atomic(pmd_page(*(dir))) + \
-		   (pmd_page_vaddr(*(dir)) & ~PAGE_MASK)) + pte_index(addr))
-#define pte_unmap(pte)		kunmap_atomic(pte)
+#define pte_offset_map(dir, addr)	pte_offset_kernel((dir), (addr))
+static inline void pte_unmap(pte_t *pte) { }
 
 /*
  * Encode and decode a swap entry.

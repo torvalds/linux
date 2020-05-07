@@ -28,8 +28,9 @@
 
 /* extended data types that can be appended onto end of sof_ipc_fw_ready */
 enum sof_ipc_ext_data {
-	SOF_IPC_EXT_DMA_BUFFER = 0,
-	SOF_IPC_EXT_WINDOW,
+	SOF_IPC_EXT_UNUSED		= 0,
+	SOF_IPC_EXT_WINDOW		= 1,
+	SOF_IPC_EXT_CC_INFO		= 2,
 };
 
 /* FW version - SOF_IPC_GLB_VERSION */
@@ -82,22 +83,6 @@ struct sof_ipc_ext_data_hdr {
 	uint32_t type;		/**< SOF_IPC_EXT_ */
 } __packed;
 
-struct sof_ipc_dma_buffer_elem {
-	struct sof_ipc_hdr hdr;
-	uint32_t type;		/**< SOF_IPC_REGION_ */
-	uint32_t id;		/**< platform specific - used to map to host memory */
-	struct sof_ipc_host_buffer buffer;
-} __packed;
-
-/* extended data DMA buffers for IPC, trace and debug */
-struct sof_ipc_dma_buffer_data {
-	struct sof_ipc_ext_data_hdr ext_hdr;
-	uint32_t num_buffers;
-
-	/* host files in buffer[n].buffer */
-	struct sof_ipc_dma_buffer_elem buffer[];
-}  __packed;
-
 struct sof_ipc_window_elem {
 	struct sof_ipc_hdr hdr;
 	uint32_t type;		/**< SOF_IPC_REGION_ */
@@ -114,5 +99,19 @@ struct sof_ipc_window {
 	uint32_t num_windows;
 	struct sof_ipc_window_elem window[];
 }  __packed;
+
+struct sof_ipc_cc_version {
+	struct sof_ipc_ext_data_hdr ext_hdr;
+	uint32_t major;
+	uint32_t minor;
+	uint32_t micro;
+
+	/* reserved for future use */
+	uint32_t reserved[4];
+
+	char name[16]; /* null terminated compiler name */
+	char optim[4]; /* null terminated compiler -O flag value */
+	char desc[]; /* null terminated compiler description */
+} __packed;
 
 #endif

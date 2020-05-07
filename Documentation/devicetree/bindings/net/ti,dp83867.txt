@@ -8,8 +8,6 @@ Required properties:
 	- ti,tx-internal-delay - RGMII Transmit Clock Delay - see dt-bindings/net/ti-dp83867.h
 		for applicable values. Required only if interface type is
 		PHY_INTERFACE_MODE_RGMII_ID or PHY_INTERFACE_MODE_RGMII_TXID
-	- ti,fifo-depth - Transmitt FIFO depth- see dt-bindings/net/ti-dp83867.h
-		for applicable values
 
 Note: If the interface type is PHY_INTERFACE_MODE_RGMII the TX/RX clock delays
       will be left at their default values, as set by the PHY's pin strapping.
@@ -42,6 +40,14 @@ Optional property:
 				    Some MACs work with differential SGMII clock.
 				    See data manual for details.
 
+	- ti,fifo-depth - Transmitt FIFO depth- see dt-bindings/net/ti-dp83867.h
+		for applicable values (deprecated)
+
+	-tx-fifo-depth - As defined in the ethernet-controller.yaml.  Values for
+			 the depth can be found in dt-bindings/net/ti-dp83867.h
+	-rx-fifo-depth - As defined in the ethernet-controller.yaml.  Values for
+			 the depth can be found in dt-bindings/net/ti-dp83867.h
+
 Note: ti,min-output-impedance and ti,max-output-impedance are mutually
       exclusive. When both properties are present ti,max-output-impedance
       takes precedence.
@@ -55,7 +61,7 @@ Example:
 		reg = <0>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 		ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_75_NS>;
-		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+		tx-fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 	};
 
 Datasheet can be found:

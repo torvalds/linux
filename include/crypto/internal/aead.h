@@ -81,14 +81,9 @@ static inline struct aead_request *aead_request_cast(
 	return container_of(req, struct aead_request, base);
 }
 
-static inline void crypto_set_aead_spawn(
-	struct crypto_aead_spawn *spawn, struct crypto_instance *inst)
-{
-	crypto_set_spawn(&spawn->base, inst);
-}
-
-int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
-		     u32 type, u32 mask);
+int crypto_grab_aead(struct crypto_aead_spawn *spawn,
+		     struct crypto_instance *inst,
+		     const char *name, u32 type, u32 mask);
 
 static inline void crypto_drop_aead(struct crypto_aead_spawn *spawn)
 {
@@ -111,16 +106,6 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 					   unsigned int reqsize)
 {
 	aead->reqsize = reqsize;
-}
-
-static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
-{
-	return alg->maxauthsize;
-}
-
-static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
-{
-	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
 }
 
 static inline void aead_init_queue(struct aead_queue *queue,

@@ -260,9 +260,9 @@ static int versatile_panel_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int versatile_panel_get_modes(struct drm_panel *panel)
+static int versatile_panel_get_modes(struct drm_panel *panel,
+				     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct versatile_panel *vpanel = to_versatile_panel(panel);
 	struct drm_display_mode *mode;
 
@@ -270,7 +270,7 @@ static int versatile_panel_get_modes(struct drm_panel *panel)
 	connector->display_info.height_mm = vpanel->panel_type->height_mm;
 	connector->display_info.bus_flags = vpanel->panel_type->bus_flags;
 
-	mode = drm_mode_duplicate(panel->drm, &vpanel->panel_type->mode);
+	mode = drm_mode_duplicate(connector->dev, &vpanel->panel_type->mode);
 	drm_mode_set_name(mode);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 
@@ -350,9 +350,8 @@ static int versatile_panel_probe(struct platform_device *pdev)
 			dev_info(dev, "panel mounted on IB2 daughterboard\n");
 	}
 
-	drm_panel_init(&vpanel->panel);
-	vpanel->panel.dev = dev;
-	vpanel->panel.funcs = &versatile_panel_drm_funcs;
+	drm_panel_init(&vpanel->panel, dev, &versatile_panel_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&vpanel->panel);
 }

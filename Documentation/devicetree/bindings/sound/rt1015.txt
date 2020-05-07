@@ -1,0 +1,17 @@
+RT1015 Mono Class D Audio Amplifier
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt1015".
+
+- reg : The I2C address of the device.
+
+
+Example:
+
+rt1015: codec@28 {
+	compatible = "realtek,rt1015";
+	reg = <0x28>;
+};

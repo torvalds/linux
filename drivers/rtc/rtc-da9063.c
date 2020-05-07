@@ -483,6 +483,9 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_dev->uie_unsupported = 1;
 
 	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
+	if (irq_alarm < 0)
+		return irq_alarm;
+
 	ret = devm_request_threaded_irq(&pdev->dev, irq_alarm, NULL,
 					da9063_alarm_event,
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT,

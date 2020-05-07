@@ -111,7 +111,7 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 	u8 *mac_addr;
 	u32 offset;
 
-	flash_base = ioremap_nocache(base, size);
+	flash_base = ioremap(base, size);
 	flash_limit = flash_base + size;
 
 	ath25_board.config = NULL;

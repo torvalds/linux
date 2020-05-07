@@ -582,12 +582,12 @@ static int vcpudispatch_stats_open(struct inode *inode, struct file *file)
 	return single_open(file, vcpudispatch_stats_display, NULL);
 }
 
-static const struct file_operations vcpudispatch_stats_proc_ops = {
-	.open		= vcpudispatch_stats_open,
-	.read		= seq_read,
-	.write		= vcpudispatch_stats_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops vcpudispatch_stats_proc_ops = {
+	.proc_open	= vcpudispatch_stats_open,
+	.proc_read	= seq_read,
+	.proc_write	= vcpudispatch_stats_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static ssize_t vcpudispatch_stats_freq_write(struct file *file,
@@ -626,18 +626,26 @@ static int vcpudispatch_stats_freq_open(struct inode *inode, struct file *file)
 	return single_open(file, vcpudispatch_stats_freq_display, NULL);
 }
 
-static const struct file_operations vcpudispatch_stats_freq_proc_ops = {
-	.open		= vcpudispatch_stats_freq_open,
-	.read		= seq_read,
-	.write		= vcpudispatch_stats_freq_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops vcpudispatch_stats_freq_proc_ops = {
+	.proc_open	= vcpudispatch_stats_freq_open,
+	.proc_read	= seq_read,
+	.proc_write	= vcpudispatch_stats_freq_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init vcpudispatch_stats_procfs_init(void)
 {
-	if (!lppaca_shared_proc(get_lppaca()))
+	/*
+	 * Avoid smp_processor_id while preemptible. All CPUs should have
+	 * the same value for lppaca_shared_proc.
+	 */
+	preempt_disable();
+	if (!lppaca_shared_proc(get_lppaca())) {
+		preempt_enable();
 		return 0;
+	}
+	preempt_enable();
 
 	if (!proc_create("powerpc/vcpudispatch_stats", 0600, NULL,
 					&vcpudispatch_stats_proc_ops))
@@ -774,7 +782,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 
 		/* don't remove a bolted entry */
 		lpar_rc = plpar_pte_remove(H_ANDCOND, hpte_group + slot_offset,
-					   (0x1UL << 4), &dummy1, &dummy2);
+					   HPTE_V_BOLTED, &dummy1, &dummy2);
 		if (lpar_rc == H_SUCCESS)
 			return i;
 
@@ -938,11 +946,19 @@ static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	/* Bolted entries are always in the primary group */
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
 	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
-	if (slot < 0)
-		return -1;
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
 	return hpte_group + slot;
 }
 
@@ -1992,30 +2008,17 @@ static int __init vpa_debugfs_init(void)
 {
 	char name[16];
 	long i;
-	static struct dentry *vpa_dir;
+	struct dentry *vpa_dir;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
 	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
-	if (!vpa_dir) {
-		pr_warn("%s: can't create vpa root dir\n", __func__);
-		return -ENOMEM;
-	}
 
 	/* set up the per-cpu vpa file*/
 	for_each_possible_cpu(i) {
-		struct dentry *d;
-
 		sprintf(name, "cpu-%ld", i);
-
-		d = debugfs_create_file(name, 0400, vpa_dir, (void *)i,
-					&vpa_fops);
-		if (!d) {
-			pr_warn("%s: can't create per-cpu vpa file\n",
-					__func__);
-			return -ENOMEM;
-		}
+		debugfs_create_file(name, 0400, vpa_dir, (void *)i, &vpa_fops);
 	}
 
 	return 0;

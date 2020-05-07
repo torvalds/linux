@@ -48,6 +48,7 @@
 #include "smu7_clockpowergating.h"
 #include "processpptables.h"
 #include "pp_thermal.h"
+#include "smu7_baco.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -719,7 +720,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		data->dpm_table.vddc_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
 		data->dpm_table.vddc_table.dpm_levels[i].param1 = std_voltage_table->entries[i].Leakage;
 		/* param1 is for corresponding std voltage */
-		data->dpm_table.vddc_table.dpm_levels[i].enabled = 1;
+		data->dpm_table.vddc_table.dpm_levels[i].enabled = true;
 	}
 
 	data->dpm_table.vddc_table.count = allowed_vdd_sclk_table->count;
@@ -729,7 +730,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		/* Initialize Vddci DPM table based on allow Mclk values */
 		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
 			data->dpm_table.vddci_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
-			data->dpm_table.vddci_table.dpm_levels[i].enabled = 1;
+			data->dpm_table.vddci_table.dpm_levels[i].enabled = true;
 		}
 		data->dpm_table.vddci_table.count = allowed_vdd_mclk_table->count;
 	}
@@ -743,7 +744,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		 */
 		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
 			data->dpm_table.mvdd_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
-			data->dpm_table.mvdd_table.dpm_levels[i].enabled = 1;
+			data->dpm_table.mvdd_table.dpm_levels[i].enabled = true;
 		}
 		data->dpm_table.mvdd_table.count = allowed_vdd_mclk_table->count;
 	}
@@ -1249,7 +1250,7 @@ static void smu7_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
 	switch (sources) {
 	default:
 		pr_err("Unknown throttling event sources.");
-		/* fall through */
+		fallthrough;
 	case 0:
 		protection = false;
 		/* src is unused */
@@ -1994,7 +1995,6 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table)
 {
 	uint32_t table_size, i, j;
-	struct phm_ppt_v1_voltage_lookup_record tmp_voltage_lookup_record;
 	table_size = lookup_table->count;
 
 	PP_ASSERT_WITH_CODE(0 != lookup_table->count,
@@ -2005,9 +2005,8 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		for (j = i + 1; j > 0; j--) {
 			if (lookup_table->entries[j].us_vdd <
 					lookup_table->entries[j - 1].us_vdd) {
-				tmp_voltage_lookup_record = lookup_table->entries[j - 1];
-				lookup_table->entries[j - 1] = lookup_table->entries[j];
-				lookup_table->entries[j] = tmp_voltage_lookup_record;
+				swap(lookup_table->entries[j - 1],
+				     lookup_table->entries[j]);
 			}
 		}
 	}
@@ -3699,12 +3698,12 @@ static int smu7_request_link_speed_change_before_state_change(
 			data->force_pcie_gen = PP_PCIEGen2;
 			if (current_link_speed == PP_PCIEGen2)
 				break;
-			/* fall through */
+			fallthrough;
 		case PP_PCIEGen2:
 			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN2, false))
 				break;
+			fallthrough;
 #endif
-			/* fall through */
 		default:
 			data->force_pcie_gen = smu7_get_current_pcie_speed(hwmgr);
 			break;
@@ -3805,9 +3804,12 @@ static int smu7_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 {
 	uint32_t i;
 
+	/* force the trim if mclk_switching is disabled to prevent flicker */
+	bool force_trim = (low_limit == high_limit);
 	for (i = 0; i < dpm_table->count; i++) {
 	/*skip the trim if od is enabled*/
-		if (!hwmgr->od_enabled && (dpm_table->dpm_levels[i].value < low_limit
+		if ((!hwmgr->od_enabled || force_trim)
+			&& (dpm_table->dpm_levels[i].value < low_limit
 			|| dpm_table->dpm_levels[i].value > high_limit))
 			dpm_table->dpm_levels[i].enabled = false;
 		else
@@ -3982,6 +3984,13 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to populate and upload SCLK MCLK DPM levels!",
 			result = tmp_result);
+
+	/*
+	 * If a custom pp table is loaded, set DPMTABLE_OD_UPDATE_VDDC flag.
+	 * That effectively disables AVFS feature.
+	 */
+	if (hwmgr->hardcode_pp_table != NULL)
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
 
 	tmp_result = smu7_update_avfs(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -4232,7 +4241,6 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	uint32_t vbios_version;
 	uint32_t tmp;
 
 	/* Read MC indirect register offset 0x9F bits [3:0] to see
@@ -4241,7 +4249,6 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 	 */
 
 	smu7_get_mc_microcode_version(hwmgr);
-	vbios_version = hwmgr->microcode_version_info.MC & 0xf;
 
 	data->need_long_memory_training = false;
 
@@ -4939,7 +4946,7 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 			title[0], title[1], title[2], title[3],
 			title[4], title[5], title[6], title[7]);
 
-	len = sizeof(smu7_profiling) / sizeof(struct profile_mode_setting);
+	len = ARRAY_SIZE(smu7_profiling);
 
 	for (i = 0; i < len; i++) {
 		if (i == hwmgr->power_profile_mode) {
@@ -5071,13 +5078,11 @@ static int smu7_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw
 				PHM_PerformanceLevel *level)
 {
 	const struct smu7_power_state *ps;
-	struct smu7_hwmgr *data;
 	uint32_t i;
 
 	if (level == NULL || hwmgr == NULL || state == NULL)
 		return -EINVAL;
 
-	data = hwmgr->backend;
 	ps = cast_const_phw_smu7_power_state(state);
 
 	i = index > ps->performance_level_count - 1 ?
@@ -5158,6 +5163,9 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_power_profile_mode = smu7_get_power_profile_mode,
 	.set_power_profile_mode = smu7_set_power_profile_mode,
 	.get_performance_level = smu7_get_performance_level,
+	.get_asic_baco_capability = smu7_baco_get_capability,
+	.get_asic_baco_state = smu7_baco_get_state,
+	.set_asic_baco_state = smu7_baco_set_state,
 	.power_off_asic = smu7_power_off_asic,
 };
 
@@ -5180,13 +5188,11 @@ uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
 
 int smu7_init_function_pointers(struct pp_hwmgr *hwmgr)
 {
-	int ret = 0;
-
 	hwmgr->hwmgr_func = &smu7_hwmgr_funcs;
 	if (hwmgr->pp_table_version == PP_TABLE_V0)
 		hwmgr->pptable_func = &pptable_funcs;
 	else if (hwmgr->pp_table_version == PP_TABLE_V1)
 		hwmgr->pptable_func = &pptable_v1_0_funcs;
 
-	return ret;
+	return 0;
 }

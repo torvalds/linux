@@ -36,18 +36,16 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
 	return status;
-};
+}
 
 static void hpriv_release(struct kref *ref)
 {
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
-	struct hl_ctx *ctx;
 
 	hpriv = container_of(ref, struct hl_fpriv, refcount);
 
 	hdev = hpriv->hdev;
-	ctx = hpriv->ctx;
 
 	put_pid(hpriv->taskpid);
 
@@ -600,7 +598,9 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 			goto out;
 		}
 
-		hdev->asic_funcs->halt_coresight(hdev);
+		if (!hdev->hard_reset_pending)
+			hdev->asic_funcs->halt_coresight(hdev);
+
 		hdev->in_debug = 0;
 
 		goto out;
@@ -889,12 +889,18 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
-	/* Kill processes here after CS rollback. This is because the process
-	 * can't really exit until all its CSs are done, which is what we
-	 * do in cs rollback
-	 */
-	if (from_hard_reset_thread)
+	if (hard_reset) {
+		/* Kill processes here after CS rollback. This is because the
+		 * process can't really exit until all its CSs are done, which
+		 * is what we do in cs rollback
+		 */
 		device_kill_open_processes(hdev);
+
+		/* Flush the Event queue workers to make sure no other thread is
+		 * reading or writing to registers during the reset
+		 */
+		flush_workqueue(hdev->eq_wq);
+	}
 
 	/* Release kernel context */
 	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
@@ -1185,6 +1191,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (hdev->asic_funcs->get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_info(hdev->dev,
 			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->halt_engines(hdev, true);
 		hdev->asic_funcs->hw_fini(hdev, true);
 	}
 

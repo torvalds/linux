@@ -542,7 +542,8 @@ static int vsc73xx_phy_write(struct dsa_switch *ds, int phy, int regnum,
 }
 
 static enum dsa_tag_protocol vsc73xx_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	/* The switch internally uses a 8 byte header with length,
 	 * source port, tag, LPA and priority. This is supposedly
@@ -662,16 +663,6 @@ static void vsc73xx_init_port(struct vsc73xx *vsc, int port)
 		      val |
 		      VSC73XX_MAC_CFG_TX_EN |
 		      VSC73XX_MAC_CFG_RX_EN);
-
-	/* Max length, we can do up to 9.6 KiB, so allow that.
-	 * According to application not "VSC7398 Jumbo Frames" setting
-	 * up the MTU to 9.6 KB does not affect the performance on standard
-	 * frames, so just enable it. It is clear from the application note
-	 * that "9.6 kilobytes" == 9600 bytes.
-	 */
-	vsc73xx_write(vsc, VSC73XX_BLOCK_MAC,
-		      port,
-		      VSC73XX_MAXLEN, 9600);
 
 	/* Flow control for the CPU port:
 	 * Use a zero delay pause frame when pause condition is left
@@ -1029,6 +1020,24 @@ static void vsc73xx_get_ethtool_stats(struct dsa_switch *ds, int port,
 	}
 }
 
+static int vsc73xx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct vsc73xx *vsc = ds->priv;
+
+	return vsc73xx_write(vsc, VSC73XX_BLOCK_MAC, port,
+			     VSC73XX_MAXLEN, new_mtu);
+}
+
+/* According to application not "VSC7398 Jumbo Frames" setting
+ * up the MTU to 9.6 KB does not affect the performance on standard
+ * frames. It is clear from the application note that
+ * "9.6 kilobytes" == 9600 bytes.
+ */
+static int vsc73xx_get_max_mtu(struct dsa_switch *ds, int port)
+{
+	return 9600;
+}
+
 static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.get_tag_protocol = vsc73xx_get_tag_protocol,
 	.setup = vsc73xx_setup,
@@ -1040,6 +1049,8 @@ static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.get_sset_count = vsc73xx_get_sset_count,
 	.port_enable = vsc73xx_port_enable,
 	.port_disable = vsc73xx_port_disable,
+	.port_change_mtu = vsc73xx_change_mtu,
+	.port_max_mtu = vsc73xx_get_max_mtu,
 };
 
 static int vsc73xx_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1111,7 +1122,9 @@ static int vsc73xx_gpio_probe(struct vsc73xx *vsc)
 	vsc->gc.ngpio = 4;
 	vsc->gc.owner = THIS_MODULE;
 	vsc->gc.parent = vsc->dev;
+#if IS_ENABLED(CONFIG_OF_GPIO)
 	vsc->gc.of_node = vsc->dev->of_node;
+#endif
 	vsc->gc.base = -1;
 	vsc->gc.get = vsc73xx_gpio_get;
 	vsc->gc.set = vsc73xx_gpio_set;
@@ -1178,9 +1191,12 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 	 * We allocate 8 ports and avoid access to the nonexistant
 	 * ports.
 	 */
-	vsc->ds = dsa_switch_alloc(dev, 8);
+	vsc->ds = devm_kzalloc(dev, sizeof(*vsc->ds), GFP_KERNEL);
 	if (!vsc->ds)
 		return -ENOMEM;
+
+	vsc->ds->dev = dev;
+	vsc->ds->num_ports = 8;
 	vsc->ds->priv = vsc;
 
 	vsc->ds->ops = &vsc73xx_ds_ops;

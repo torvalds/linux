@@ -328,6 +328,7 @@ struct queue_limits {
 	unsigned int		max_sectors;
 	unsigned int		max_segment_size;
 	unsigned int		physical_block_size;
+	unsigned int		logical_block_size;
 	unsigned int		alignment_offset;
 	unsigned int		io_min;
 	unsigned int		io_opt;
@@ -338,7 +339,6 @@ struct queue_limits {
 	unsigned int		discard_granularity;
 	unsigned int		discard_alignment;
 
-	unsigned short		logical_block_size;
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
@@ -357,8 +357,7 @@ typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
 #define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
-
-extern unsigned int blkdev_nr_zones(struct block_device *bdev);
+unsigned int blkdev_nr_zones(struct gendisk *disk);
 extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 			    sector_t sectors, sector_t nr_sectors,
 			    gfp_t gfp_mask);
@@ -371,12 +370,7 @@ extern int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 
 #else /* CONFIG_BLK_DEV_ZONED */
 
-static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-
-static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+static inline unsigned int blkdev_nr_zones(struct gendisk *disk)
 {
 	return 0;
 }
@@ -504,9 +498,9 @@ struct request_queue {
 	/*
 	 * Zoned block device information for request dispatch control.
 	 * nr_zones is the total number of zones of the device. This is always
-	 * 0 for regular block devices. seq_zones_bitmap is a bitmap of nr_zones
-	 * bits which indicates if a zone is conventional (bit clear) or
-	 * sequential (bit set). seq_zones_wlock is a bitmap of nr_zones
+	 * 0 for regular block devices. conv_zones_bitmap is a bitmap of nr_zones
+	 * bits which indicates if a zone is conventional (bit set) or
+	 * sequential (bit clear). seq_zones_wlock is a bitmap of nr_zones
 	 * bits which indicates if a zone is write locked, that is, if a write
 	 * request targeting the zone was dispatched. All three fields are
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
@@ -519,7 +513,7 @@ struct request_queue {
 	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
-	unsigned long		*seq_zones_bitmap;
+	unsigned long		*conv_zones_bitmap;
 	unsigned long		*seq_zones_wlock;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -530,7 +524,7 @@ struct request_queue {
 	unsigned int		sg_reserved_size;
 	int			node;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
-	struct blk_trace	*blk_trace;
+	struct blk_trace __rcu	*blk_trace;
 	struct mutex		blk_trace_mutex;
 #endif
 	/*
@@ -724,9 +718,11 @@ static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 					 sector_t sector)
 {
-	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
+	if (!blk_queue_is_zoned(q))
 		return false;
-	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+	if (!q->conv_zones_bitmap)
+		return true;
+	return !test_bit(blk_queue_zone_no(q, sector), q->conv_zones_bitmap);
 }
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
@@ -869,6 +865,8 @@ extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			  unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
+extern int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp);
+extern int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp);
 
 extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
@@ -954,6 +952,10 @@ static inline unsigned int blk_rq_stats_sectors(const struct request *rq)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+
+/* Helper to convert BLK_ZONE_ZONE_XXX to its string format XXX */
+const char *blk_zone_cond_str(enum blk_zone_cond zone_cond);
+
 static inline unsigned int blk_rq_zone_no(struct request *rq)
 {
 	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
@@ -1065,7 +1067,6 @@ extern void blk_abort_request(struct request *);
  * Access functions for manipulating queue properties
  */
 extern void blk_cleanup_queue(struct request_queue *);
-extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);
@@ -1079,7 +1080,7 @@ extern void blk_queue_max_write_same_sectors(struct request_queue *q,
 		unsigned int max_write_same_sectors);
 extern void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 		unsigned int max_write_same_sectors);
-extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
+extern void blk_queue_logical_block_size(struct request_queue *, unsigned int);
 extern void blk_queue_physical_block_size(struct request_queue *, unsigned int);
 extern void blk_queue_alignment_offset(struct request_queue *q,
 				       unsigned int alignment);
@@ -1142,8 +1143,7 @@ extern void blk_dump_rq_flags(struct request *, char *);
 extern long nr_blockdev_pages(void);
 
 bool __must_check blk_get_queue(struct request_queue *);
-struct request_queue *blk_alloc_queue(gfp_t);
-struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id);
+struct request_queue *blk_alloc_queue(make_request_fn make_request, int node_id);
 extern void blk_put_queue(struct request_queue *);
 extern void blk_set_queue_dying(struct request_queue *);
 
@@ -1293,7 +1293,7 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned short queue_logical_block_size(const struct request_queue *q)
+static inline unsigned queue_logical_block_size(const struct request_queue *q)
 {
 	int retval = 512;
 
@@ -1303,7 +1303,7 @@ static inline unsigned short queue_logical_block_size(const struct request_queue
 	return retval;
 }
 
-static inline unsigned short bdev_logical_block_size(struct block_device *bdev)
+static inline unsigned int bdev_logical_block_size(struct block_device *bdev)
 {
 	return queue_logical_block_size(bdev_get_queue(bdev));
 }
@@ -1486,17 +1486,7 @@ static inline unsigned int block_size(struct block_device *bdev)
 	return bdev->bd_block_size;
 }
 
-typedef struct {struct page *v;} Sector;
-
-unsigned char *read_dev_sector(struct block_device *, sector_t, Sector *);
-
-static inline void put_dev_sector(Sector p)
-{
-	put_page(p.v);
-}
-
 int kblockd_schedule_work(struct work_struct *work);
-int kblockd_schedule_work_on(int cpu, struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
@@ -1709,9 +1699,17 @@ struct block_device_operations {
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 	int (*report_zones)(struct gendisk *, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
+	char *(*devnode)(struct gendisk *disk, umode_t *mode);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };
+
+#ifdef CONFIG_COMPAT
+extern int blkdev_compat_ptr_ioctl(struct block_device *, fmode_t,
+				      unsigned int, unsigned long);
+#else
+#define blkdev_compat_ptr_ioctl NULL
+#endif
 
 extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
 				 unsigned long);

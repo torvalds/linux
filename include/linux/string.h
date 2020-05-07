@@ -62,6 +62,7 @@ extern char * strchr(const char *,int);
 #ifndef __HAVE_ARCH_STRCHRNUL
 extern char * strchrnul(const char *,int);
 #endif
+extern char * strnchrnul(const char *, size_t, int);
 #ifndef __HAVE_ARCH_STRNCHR
 extern char * strnchr(const char *, size_t, int);
 #endif
@@ -215,6 +216,8 @@ int bprintf(u32 *bin_buf, size_t size, const char *fmt, ...) __printf(3, 4);
 
 extern ssize_t memory_read_from_buffer(void *to, size_t count, loff_t *ppos,
 				       const void *from, size_t available);
+
+int ptr_to_hashval(const void *ptr, unsigned long *hashval_out);
 
 /**
  * strstarts - does @str start with @prefix?

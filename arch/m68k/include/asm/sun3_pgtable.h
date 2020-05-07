@@ -110,11 +110,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define pmd_set(pmdp,ptep) do {} while (0)
 
-static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
-{
-	pgd_val(*pgdp) = virt_to_phys(pmdp);
-}
-
 #define __pte_page(pte) \
 ((unsigned long) __va ((pte_val (pte) & SUN3_PAGE_PGNUM_MASK) << PAGE_SHIFT))
 #define __pmd_page(pmd) \
@@ -145,16 +140,9 @@ static inline int pmd_present2 (pmd_t *pmd) { return pmd_val (*pmd) & SUN3_PMD_V
 #define pmd_present(pmd) (!pmd_none2(&(pmd)))
 static inline void pmd_clear (pmd_t *pmdp) { pmd_val (*pmdp) = 0; }
 
-static inline int pgd_none (pgd_t pgd) { return 0; }
-static inline int pgd_bad (pgd_t pgd) { return 0; }
-static inline int pgd_present (pgd_t pgd) { return 1; }
-static inline void pgd_clear (pgd_t *pgdp) {}
-
 
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
-#define pmd_ERROR(e) \
-	pr_err("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
@@ -167,7 +155,6 @@ static inline void pgd_clear (pgd_t *pgdp) {}
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_WRITEABLE; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_ACCESSED; }
-static inline int pte_special(pte_t pte)	{ return 0; }
 
 static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_WRITEABLE; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_MODIFIED; return pte; }
@@ -180,7 +167,6 @@ static inline pte_t pte_mknocache(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_NOCACHE
 //static inline pte_t pte_mkcache(pte_t pte)	{ pte_val(pte) &= SUN3_PAGE_NOCACHE; return pte; }
 // until then, use:
 static inline pte_t pte_mkcache(pte_t pte)	{ return pte; }
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
@@ -193,12 +179,6 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
 
 /* Find an entry in a kernel pagetable directory. */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* Find an entry in the second-level pagetable. */
-static inline pmd_t *pmd_offset (pgd_t *pgd, unsigned long address)
-{
-	return (pmd_t *) pgd;
-}
 
 /* Find an entry in the third-level pagetable. */
 #define pte_index(address) ((address >> PAGE_SHIFT) & (PTRS_PER_PTE-1))

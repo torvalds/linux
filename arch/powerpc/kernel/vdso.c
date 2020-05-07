@@ -391,12 +391,7 @@ static unsigned long __init find_function64(struct lib64_elfinfo *lib,
 		       symname);
 		return 0;
 	}
-#ifdef VDS64_HAS_DESCRIPTORS
-	return *((u64 *)(vdso64_kbase + sym->st_value - VDSO64_LBASE)) -
-		VDSO64_LBASE;
-#else
 	return sym->st_value - VDSO64_LBASE;
-#endif
 }
 
 static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
@@ -656,7 +651,8 @@ static void __init vdso_setup_syscall_map(void)
 		if (sys_call_table[i] != sys_ni_syscall)
 			vdso_data->syscall_map_64[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
-		if (compat_sys_call_table[i] != sys_ni_syscall)
+		if (IS_ENABLED(CONFIG_COMPAT) &&
+		    compat_sys_call_table[i] != sys_ni_syscall)
 			vdso_data->syscall_map_32[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
 #else /* CONFIG_PPC64 */
@@ -728,11 +724,6 @@ static int __init vdso_init(void)
 	 */
 	vdso64_pages = (&vdso64_end - &vdso64_start) >> PAGE_SHIFT;
 	DBG("vdso64_kbase: %p, 0x%x pages\n", vdso64_kbase, vdso64_pages);
-#else
-	vdso_data->dcache_block_size = L1_CACHE_BYTES;
-	vdso_data->dcache_log_block_size = L1_CACHE_SHIFT;
-	vdso_data->icache_block_size = L1_CACHE_BYTES;
-	vdso_data->icache_log_block_size = L1_CACHE_SHIFT;
 #endif /* CONFIG_PPC64 */
 
 

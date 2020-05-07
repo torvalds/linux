@@ -104,7 +104,7 @@ static void dpp2_cnv_setup (
 	uint32_t pixel_format = 0;
 	uint32_t alpha_en = 1;
 	enum dc_color_space color_space = COLOR_SPACE_SRGB;
-	enum dcn10_input_csc_select select = INPUT_CSC_SELECT_BYPASS;
+	enum dcn20_input_csc_select select = DCN2_ICSC_SELECT_BYPASS;
 	bool force_disable_cursor = false;
 	struct out_csc_color_matrix tbl_entry;
 	uint32_t is_2bit = 0;
@@ -145,25 +145,25 @@ static void dpp2_cnv_setup (
 		force_disable_cursor = false;
 		pixel_format = 65;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
 		force_disable_cursor = true;
 		pixel_format = 64;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
 		force_disable_cursor = true;
 		pixel_format = 67;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
 		force_disable_cursor = true;
 		pixel_format = 66;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 		pixel_format = 22;
@@ -177,7 +177,7 @@ static void dpp2_cnv_setup (
 	case SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888:
 		pixel_format = 12;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX:
 		pixel_format = 112;
@@ -188,13 +188,13 @@ static void dpp2_cnv_setup (
 	case SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010:
 		pixel_format = 114;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		is_2bit = 1;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_CrYCbA1010102:
 		pixel_format = 115;
 		color_space = COLOR_SPACE_YCBCR709;
-		select = INPUT_CSC_SELECT_ICSC;
+		select = DCN2_ICSC_SELECT_ICSC_A;
 		is_2bit = 1;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT:
@@ -227,13 +227,13 @@ static void dpp2_cnv_setup (
 		tbl_entry.color_space = input_color_space;
 
 		if (color_space >= COLOR_SPACE_YCBCR601)
-			select = INPUT_CSC_SELECT_ICSC;
+			select = DCN2_ICSC_SELECT_ICSC_A;
 		else
-			select = INPUT_CSC_SELECT_BYPASS;
+			select = DCN2_ICSC_SELECT_BYPASS;
 
-		dpp1_program_input_csc(dpp_base, color_space, select, &tbl_entry);
+		dpp2_program_input_csc(dpp_base, color_space, select, &tbl_entry);
 	} else
-	dpp1_program_input_csc(dpp_base, color_space, select, NULL);
+	dpp2_program_input_csc(dpp_base, color_space, select, NULL);
 
 	if (force_disable_cursor) {
 		REG_UPDATE(CURSOR_CONTROL,
@@ -369,91 +369,6 @@ void dpp2_set_cursor_attributes(
 	}
 }
 
-#define IDENTITY_RATIO(ratio) (dc_fixpt_u3d19(ratio) == (1 << 19))
-
-bool dpp2_get_optimal_number_of_taps(
-		struct dpp *dpp,
-		struct scaler_data *scl_data,
-		const struct scaling_taps *in_taps)
-{
-	uint32_t pixel_width;
-
-	if (scl_data->viewport.width > scl_data->recout.width)
-		pixel_width = scl_data->recout.width;
-	else
-		pixel_width = scl_data->viewport.width;
-
-	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
-	if (scl_data->viewport.width  != scl_data->h_active &&
-		scl_data->viewport.height != scl_data->v_active &&
-		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
-		scl_data->format == PIXEL_FORMAT_FP16)
-		return false;
-
-	if (scl_data->viewport.width > scl_data->h_active &&
-		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
-		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
-		return false;
-
-	/* TODO: add lb check */
-
-	/* No support for programming ratio of 8, drop to 7.99999.. */
-	if (scl_data->ratios.horz.value == (8ll << 32))
-		scl_data->ratios.horz.value--;
-	if (scl_data->ratios.vert.value == (8ll << 32))
-		scl_data->ratios.vert.value--;
-	if (scl_data->ratios.horz_c.value == (8ll << 32))
-		scl_data->ratios.horz_c.value--;
-	if (scl_data->ratios.vert_c.value == (8ll << 32))
-		scl_data->ratios.vert_c.value--;
-
-	/* Set default taps if none are provided */
-	if (in_taps->h_taps == 0) {
-		if (dc_fixpt_ceil(scl_data->ratios.horz) > 4)
-			scl_data->taps.h_taps = 8;
-		else
-			scl_data->taps.h_taps = 4;
-	} else
-		scl_data->taps.h_taps = in_taps->h_taps;
-	if (in_taps->v_taps == 0) {
-		if (dc_fixpt_ceil(scl_data->ratios.vert) > 4)
-			scl_data->taps.v_taps = 8;
-		else
-			scl_data->taps.v_taps = 4;
-	} else
-		scl_data->taps.v_taps = in_taps->v_taps;
-	if (in_taps->v_taps_c == 0) {
-		if (dc_fixpt_ceil(scl_data->ratios.vert_c) > 4)
-			scl_data->taps.v_taps_c = 4;
-		else
-			scl_data->taps.v_taps_c = 2;
-	} else
-		scl_data->taps.v_taps_c = in_taps->v_taps_c;
-	if (in_taps->h_taps_c == 0) {
-		if (dc_fixpt_ceil(scl_data->ratios.horz_c) > 4)
-			scl_data->taps.h_taps_c = 4;
-		else
-			scl_data->taps.h_taps_c = 2;
-	} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
-		/* Only 1 and even h_taps_c are supported by hw */
-		scl_data->taps.h_taps_c = in_taps->h_taps_c - 1;
-	else
-		scl_data->taps.h_taps_c = in_taps->h_taps_c;
-
-	if (!dpp->ctx->dc->debug.always_scale) {
-		if (IDENTITY_RATIO(scl_data->ratios.horz))
-			scl_data->taps.h_taps = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.vert))
-			scl_data->taps.v_taps = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.horz_c))
-			scl_data->taps.h_taps_c = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.vert_c))
-			scl_data->taps.v_taps_c = 1;
-	}
-
-	return true;
-}
-
 void oppn20_dummy_program_regamma_pwl(
 		struct dpp *dpp,
 		const struct pwl_params *params,
@@ -464,8 +379,8 @@ static struct dpp_funcs dcn20_dpp_funcs = {
 	.dpp_read_state = dpp20_read_state,
 	.dpp_reset = dpp_reset,
 	.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
-	.dpp_get_optimal_number_of_taps = dpp2_get_optimal_number_of_taps,
-	.dpp_set_gamut_remap = dpp1_cm_set_gamut_remap,
+	.dpp_get_optimal_number_of_taps = dpp1_get_optimal_number_of_taps,
+	.dpp_set_gamut_remap = dpp2_cm_set_gamut_remap,
 	.dpp_set_csc_adjustment = NULL,
 	.dpp_set_csc_default = NULL,
 	.dpp_program_regamma_pwl = oppn20_dummy_program_regamma_pwl,

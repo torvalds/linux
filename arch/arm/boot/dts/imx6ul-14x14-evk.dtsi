@@ -30,6 +30,28 @@
 		enable-active-high;
 	};
 
+	reg_peri_3v3: regulator-peri-3v3 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_peri_3v3>;
+		regulator-name = "VPERI_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 2 GPIO_ACTIVE_LOW>;
+		/*
+		 * If you want to want to make this dynamic please
+		 * check schematics and test all affected peripherals:
+		 *
+		 * - sensors
+		 * - ethernet phy
+		 * - can
+		 * - bluetooth
+		 * - wm8960 audio codec
+		 * - ov5640 camera
+		 */
+		regulator-always-on;
+	};
+
 	reg_can_3v3: regulator-can-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "can-3v3";
@@ -130,6 +152,7 @@
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy0>;
+	phy-supply = <&reg_peri_3v3>;
 	status = "okay";
 };
 
@@ -138,6 +161,7 @@
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy1>;
+	phy-supply = <&reg_peri_3v3>;
 	status = "okay";
 
 	mdio {
@@ -180,9 +204,11 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	mag3110@e {
+	magnetometer@e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
+		vdd-supply = <&reg_peri_3v3>;
+		vddio-supply = <&reg_peri_3v3>;
 	};
 };
 
@@ -215,7 +241,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
@@ -266,6 +292,8 @@
 
 &usbotg1 {
 	dr_mode = "otg";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_otg1>;
 	status = "okay";
 };
 
@@ -299,6 +327,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	no-1-8-v;
+	broken-cd;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";
@@ -448,6 +477,12 @@
 		>;
 	};
 
+	pinctrl_peri_3v3: peri3v3grp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02	0x1b0b0
+		>;
+	};
+
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
 			MX6UL_PAD_GPIO1_IO08__PWM1_OUT   0x110b0
@@ -496,6 +531,12 @@
 			MX6UL_PAD_UART2_RX_DATA__UART2_DCE_RX	0x1b0b1
 			MX6UL_PAD_UART3_RX_DATA__UART2_DCE_RTS	0x1b0b1
 			MX6UL_PAD_UART3_TX_DATA__UART2_DCE_CTS	0x1b0b1
+		>;
+	};
+
+	pinctrl_usb_otg1: usbotg1grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO00__ANATOP_OTG1_ID	0x17059
 		>;
 	};
 

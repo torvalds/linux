@@ -27,6 +27,7 @@
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
+#include <linux/units.h>
 
 #include <net/mac80211.h>
 
@@ -2265,7 +2266,7 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	if (tid_data->tfds_in_queue == 0) {
 		D_HT("HW queue is empty\n");
 		tid_data->agg.state = IL_AGG_ON;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 	} else {
 		D_HT("HW queue is NOT empty: %d packets in HW queue\n",
 		     tid_data->tfds_in_queue);
@@ -3331,7 +3332,6 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 				 struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
-	int ret = 0;
 	__le16 key_flags = 0;
 
 	key_flags |= (STA_KEY_FLG_TKIP | STA_KEY_FLG_MAP_KEY_MSK);
@@ -3368,7 +3368,7 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 void
@@ -4344,8 +4344,9 @@ il4965_synchronize_irq(struct il_priv *il)
 }
 
 static void
-il4965_irq_tasklet(struct il_priv *il)
+il4965_irq_tasklet(unsigned long data)
 {
+	struct il_priv *il = (struct il_priv *)data;
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
@@ -6238,7 +6239,7 @@ il4965_setup_deferred_work(struct il_priv *il)
 	timer_setup(&il->watchdog, il_bg_watchdog, 0);
 
 	tasklet_init(&il->irq_tasklet,
-		     (void (*)(unsigned long))il4965_irq_tasklet,
+		     il4965_irq_tasklet,
 		     (unsigned long)il);
 }
 
@@ -6468,7 +6469,7 @@ il4965_set_hw_params(struct il_priv *il)
 	il->hw_params.valid_rx_ant = il->cfg->valid_rx_ant;
 
 	il->hw_params.ct_kill_threshold =
-	   CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY);
+	   celsius_to_kelvin(CT_KILL_THRESHOLD_LEGACY);
 
 	il->hw_params.sens = &il4965_sensitivity;
 	il->hw_params.beacon_time_tsf_bits = IL4965_EXT_BEACON_TIME_POS;

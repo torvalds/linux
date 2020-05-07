@@ -25,9 +25,7 @@
 #include <asm/reg_fsl_emb.h>
 #endif
 
-#ifdef CONFIG_PPC_8xx
 #include <asm/reg_8xx.h>
-#endif /* CONFIG_PPC_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
@@ -1382,6 +1380,14 @@ static inline void mtmsr_isync(unsigned long val)
 #define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",0" : \
 				     : : "memory")
 
+static inline void wrtee(unsigned long val)
+{
+	if (__builtin_constant_p(val))
+		asm volatile("wrteei %0" : : "i" ((val & MSR_EE) ? 1 : 0) : "memory");
+	else
+		asm volatile("wrtee %0" : : "r" (val) : "memory");
+}
+
 extern unsigned long msr_check_and_set(unsigned long bits);
 extern bool strict_msr_control;
 extern void __msr_check_and_clear(unsigned long bits);
@@ -1396,19 +1402,9 @@ static inline void msr_check_and_clear(unsigned long bits)
 #define mftb()		({unsigned long rval;				\
 			asm volatile(					\
 				"90:	mfspr %0, %2;\n"		\
-				"97:	cmpwi %0,0;\n"			\
-				"	beq- 90b;\n"			\
-				"99:\n"					\
-				".section __ftr_fixup,\"a\"\n"		\
-				".align 3\n"				\
-				"98:\n"					\
-				"	.8byte %1\n"			\
-				"	.8byte %1\n"			\
-				"	.8byte 97b-98b\n"		\
-				"	.8byte 99b-98b\n"		\
-				"	.8byte 0\n"			\
-				"	.8byte 0\n"			\
-				".previous"				\
+				ASM_FTR_IFSET(				\
+					"97:	cmpwi %0,0;\n"		\
+					"	beq- 90b;\n", "", %1)	\
 			: "=r" (rval) \
 			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \
 			rval;})
@@ -1452,7 +1448,9 @@ static inline void mtsrin(u32 val, u32 idx)
 
 #define proc_trap()	asm volatile("trap")
 
-extern unsigned long current_stack_pointer(void);
+extern unsigned long current_stack_frame(void);
+
+register unsigned long current_stack_pointer asm("r1");
 
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);

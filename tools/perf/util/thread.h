@@ -25,7 +25,7 @@ struct thread {
 		struct rb_node	 rb_node;
 		struct list_head node;
 	};
-	struct map_groups	*mg;
+	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */
 	pid_t			tid;
 	pid_t			ppid;
@@ -53,7 +53,7 @@ struct namespaces;
 struct comm;
 
 struct thread *thread__new(pid_t pid, pid_t tid);
-int thread__init_map_groups(struct thread *thread, struct machine *machine);
+int thread__init_maps(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
 
 struct thread *thread__get(struct thread *thread);

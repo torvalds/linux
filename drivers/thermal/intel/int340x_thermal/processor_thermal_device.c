@@ -42,6 +42,12 @@
 /* IceLake thermal reporting device */
 #define PCI_DEVICE_ID_PROC_ICL_THERMAL	0x8a03
 
+/* JasperLake thermal reporting device */
+#define PCI_DEVICE_ID_PROC_JSL_THERMAL	0x4503
+
+/* TigerLake thermal reporting device */
+#define PCI_DEVICE_ID_PROC_TGL_THERMAL	0x9A03
+
 #define DRV_NAME "proc_thermal"
 
 struct power_config {
@@ -723,6 +729,9 @@ static const struct pci_device_id proc_thermal_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_CFL_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_GLK_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_ICL_THERMAL),
+		.driver_data = (kernel_ulong_t)&rapl_mmio_hsw, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_JSL_THERMAL)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_TGL_THERMAL),
 		.driver_data = (kernel_ulong_t)&rapl_mmio_hsw, },
 	{ 0, },
 };

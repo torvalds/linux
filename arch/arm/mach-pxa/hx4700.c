@@ -34,7 +34,6 @@
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/platform_data/i2c-pxa.h>
 
 #include <mach/hardware.h>
@@ -557,7 +556,6 @@ static struct platform_device hx4700_lcd = {
 static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness = 200,
 	.dft_brightness = 100,
-	.enable_gpio    = -1,
 };
 
 static struct platform_device backlight = {
@@ -578,18 +576,24 @@ static struct pwm_lookup hx4700_pwm_lookup[] = {
  * USB "Transceiver"
  */
 
-static struct gpio_vbus_mach_info gpio_vbus_info = {
-	.gpio_pullup        = GPIO76_HX4700_USBC_PUEN,
-	.gpio_vbus          = GPIOD14_nUSBC_DETECT,
-	.gpio_vbus_inverted = 1,
+static struct gpiod_lookup_table gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		/* This GPIO is on ASIC3 */
+		GPIO_LOOKUP("asic3",
+			    /* Convert to a local offset on the ASIC3 */
+			    GPIOD14_nUSBC_DETECT - HX4700_ASIC3_GPIO_BASE,
+			    "vbus", GPIO_ACTIVE_LOW),
+		/* This one is on the primary SOC GPIO */
+		GPIO_LOOKUP("gpio-pxa", GPIO76_HX4700_USBC_PUEN,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device gpio_vbus = {
 	.name          = "gpio-vbus",
 	.id            = -1,
-	.dev = {
-		.platform_data = &gpio_vbus_info,
-	},
 };
 
 static struct pxa2xx_udc_mach_info hx4700_udc_info;
@@ -883,6 +887,7 @@ static void __init hx4700_init(void)
 	pxa_set_stuart_info(NULL);
 
 	gpiod_add_lookup_table(&bq24022_gpiod_table);
+	gpiod_add_lookup_table(&gpio_vbus_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pwm_add_table(hx4700_pwm_lookup, ARRAY_SIZE(hx4700_pwm_lookup));
 

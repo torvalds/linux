@@ -611,7 +611,7 @@ static const struct genl_ops smc_pnet_ops[] = {
 	{
 		.cmd = SMC_PNETID_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.flags = GENL_ADMIN_PERM,
+		/* can be retrieved by unprivileged users */
 		.doit = smc_pnet_get,
 		.dumpit = smc_pnet_dump,
 		.start = smc_pnet_dump_start
@@ -779,6 +779,7 @@ static void smc_pnet_find_rdma_dev(struct net_device *netdev,
 			dev_put(ndev);
 			if (netdev == ndev &&
 			    smc_ib_port_active(ibdev, i) &&
+			    !test_bit(i - 1, ibdev->ports_going_away) &&
 			    !smc_ib_determine_gid(ibdev, i, ini->vlan_id,
 						  ini->ib_gid, NULL)) {
 				ini->ib_dev = ibdev;
@@ -818,6 +819,7 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 				continue;
 			if (smc_pnet_match(ibdev->pnetid[i - 1], ndev_pnetid) &&
 			    smc_ib_port_active(ibdev, i) &&
+			    !test_bit(i - 1, ibdev->ports_going_away) &&
 			    !smc_ib_determine_gid(ibdev, i, ini->vlan_id,
 						  ini->ib_gid, NULL)) {
 				ini->ib_dev = ibdev;
@@ -844,7 +846,8 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 
 	spin_lock(&smcd_dev_list.lock);
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
-		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid)) {
+		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid) &&
+		    !ismdev->going_away) {
 			ini->ism_dev = ismdev;
 			break;
 		}

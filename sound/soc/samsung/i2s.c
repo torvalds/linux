@@ -932,7 +932,7 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct i2s_dai *i2s = to_info(rtd->cpu_dai);
+	struct i2s_dai *i2s = to_info(asoc_rtd_to_cpu(rtd, 0));
 	unsigned long flags;
 
 	switch (cmd) {
@@ -1024,14 +1024,14 @@ i2s_delay(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 }
 
 #ifdef CONFIG_PM
-static int i2s_suspend(struct snd_soc_dai *dai)
+static int i2s_suspend(struct snd_soc_component *component)
 {
-	return pm_runtime_force_suspend(dai->dev);
+	return pm_runtime_force_suspend(component->dev);
 }
 
-static int i2s_resume(struct snd_soc_dai *dai)
+static int i2s_resume(struct snd_soc_component *component)
 {
-	return pm_runtime_force_resume(dai->dev);
+	return pm_runtime_force_resume(component->dev);
 }
 #else
 #define i2s_suspend NULL
@@ -1140,6 +1140,9 @@ static const struct snd_soc_component_driver samsung_i2s_component = {
 
 	.dapm_routes = samsung_i2s_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(samsung_i2s_dapm_routes),
+
+	.suspend = i2s_suspend,
+	.resume = i2s_resume,
 };
 
 #define SAMSUNG_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
@@ -1171,8 +1174,6 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 
 		dai_drv->probe = samsung_i2s_dai_probe;
 		dai_drv->remove = samsung_i2s_dai_remove;
-		dai_drv->suspend = i2s_suspend;
-		dai_drv->resume = i2s_resume;
 
 		dai_drv->symmetric_rates = 1;
 		dai_drv->ops = &samsung_i2s_dai_ops;

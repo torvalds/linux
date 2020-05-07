@@ -170,7 +170,7 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 	dev = iser_task->iser_conn->ib_conn.device->ib_device;
 
 	data->dma_nents = ib_dma_map_sg(dev, data->sg, data->size, dma_dir);
-	if (data->dma_nents == 0) {
+	if (unlikely(data->dma_nents == 0)) {
 		iser_err("dma_map_sg failed!!!\n");
 		return -EINVAL;
 	}
@@ -237,7 +237,7 @@ int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 	int ret, plen;
 
 	page_vec->npages = 0;
-	page_vec->fake_mr.page_size = SIZE_4K;
+	page_vec->fake_mr.page_size = SZ_4K;
 	plen = ib_sg_to_pages(&page_vec->fake_mr, mem->sg,
 			      mem->dma_nents, NULL, iser_set_page);
 	if (unlikely(plen < mem->dma_nents)) {
@@ -292,12 +292,27 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 {
 	struct iser_device *device = iser_task->iser_conn->ib_conn.device;
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
+	struct iser_fr_desc *desc;
+	struct ib_mr_status mr_status;
 
-	if (!reg->mem_h)
+	desc = reg->mem_h;
+	if (!desc)
 		return;
 
-	device->reg_ops->reg_desc_put(&iser_task->iser_conn->ib_conn,
-				     reg->mem_h);
+	/*
+	 * The signature MR cannot be invalidated and reused without checking.
+	 * libiscsi calls the check_protection transport handler only if
+	 * SCSI-Response is received. And the signature MR is not checked if
+	 * the task is completed for some other reason like a timeout or error
+	 * handling. That's why we must check the signature MR here before
+	 * putting it to the free pool.
+	 */
+	if (unlikely(desc->sig_protected)) {
+		desc->sig_protected = false;
+		ib_check_mr_status(desc->rsc.sig_mr, IB_MR_CHECK_SIG_STATUS,
+				   &mr_status);
+	}
+	device->reg_ops->reg_desc_put(&iser_task->iser_conn->ib_conn, desc);
 	reg->mem_h = NULL;
 }
 
@@ -451,7 +466,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	n = ib_map_mr_sg(mr, mem->sg, mem->dma_nents, NULL, SIZE_4K);
+	n = ib_map_mr_sg(mr, mem->sg, mem->dma_nents, NULL, SZ_4K);
 	if (unlikely(n != mem->dma_nents)) {
 		iser_err("failed to map sg (%d/%d)\n",
 			 n, mem->dma_nents);
@@ -527,7 +542,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 		if (unlikely(err))
 			goto err_reg;
 
-		desc->sig_protected = 1;
+		desc->sig_protected = true;
 	}
 
 	return 0;

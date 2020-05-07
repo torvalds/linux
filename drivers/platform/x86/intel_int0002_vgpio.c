@@ -127,6 +127,14 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static bool int0002_check_wake(void *data)
+{
+	u32 gpe_sts_reg;
+
+	gpe_sts_reg = inl(GPE0A_STS_PORT);
+	return (gpe_sts_reg & GPE0A_PME_B0_STS_BIT);
+}
+
 static struct irq_chip int0002_byt_irqchip = {
 	.name			= DRV_NAME,
 	.irq_ack		= int0002_irq_ack,
@@ -148,8 +156,8 @@ static struct irq_chip int0002_cht_irqchip = {
 };
 
 static const struct x86_cpu_id int0002_cpu_ids[] = {
-	INTEL_CPU_FAM6(ATOM_SILVERMONT, int0002_byt_irqchip),	/* Valleyview, Bay Trail  */
-	INTEL_CPU_FAM6(ATOM_AIRMONT, int0002_cht_irqchip),	/* Braswell, Cherry Trail */
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&int0002_byt_irqchip),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&int0002_cht_irqchip),
 	{}
 };
 
@@ -164,8 +172,8 @@ static int int0002_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct x86_cpu_id *cpu_id;
-	struct irq_chip *irq_chip;
 	struct gpio_chip *chip;
+	struct gpio_irq_chip *girq;
 	int irq, ret;
 
 	/* Menlow has a different INT0002 device? <sigh> */
@@ -192,15 +200,11 @@ static int int0002_probe(struct platform_device *pdev)
 	chip->ngpio = GPE0A_PME_B0_VIRT_GPIO_PIN + 1;
 	chip->irq.init_valid_mask = int0002_init_irq_valid_mask;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, chip, NULL);
-	if (ret) {
-		dev_err(dev, "Error adding gpio chip: %d\n", ret);
-		return ret;
-	}
-
 	/*
-	 * We manually request the irq here instead of passing a flow-handler
+	 * We directly request the irq here instead of passing a flow-handler
 	 * to gpiochip_set_chained_irqchip, because the irq is shared.
+	 * FIXME: augment this if we managed to pull handling of shared
+	 * IRQs into gpiolib.
 	 */
 	ret = devm_request_irq(dev, irq, int0002_irq,
 			       IRQF_SHARED, "INT0002", chip);
@@ -209,17 +213,22 @@ static int int0002_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq_chip = (struct irq_chip *)cpu_id->driver_data;
+	girq = &chip->irq;
+	girq->chip = (struct irq_chip *)cpu_id->driver_data;
+	/* This let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
-	ret = gpiochip_irqchip_add(chip, irq_chip, 0, handle_edge_irq,
-				   IRQ_TYPE_NONE);
+	ret = devm_gpiochip_add_data(dev, chip, NULL);
 	if (ret) {
-		dev_err(dev, "Error adding irqchip: %d\n", ret);
+		dev_err(dev, "Error adding gpio chip: %d\n", ret);
 		return ret;
 	}
 
-	gpiochip_set_chained_irqchip(chip, irq_chip, irq, NULL);
-
+	acpi_register_wakeup_handler(irq, int0002_check_wake, NULL);
 	device_init_wakeup(dev, true);
 	return 0;
 }
@@ -227,6 +236,7 @@ static int int0002_probe(struct platform_device *pdev)
 static int int0002_remove(struct platform_device *pdev)
 {
 	device_init_wakeup(&pdev->dev, false);
+	acpi_unregister_wakeup_handler(int0002_check_wake, NULL);
 	return 0;
 }
 

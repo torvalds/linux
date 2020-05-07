@@ -352,7 +352,7 @@ struct atlas7_gpio_chip {
 	int nbank;
 	raw_spinlock_t lock;
 	struct gpio_chip chip;
-	struct atlas7_gpio_bank banks[0];
+	struct atlas7_gpio_bank banks[];
 };
 
 /**
@@ -5996,6 +5996,7 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *chip;
 	u32 nbank;
 	int ret, idx;
+	struct gpio_irq_chip *girq;
 
 	ret = of_property_read_u32(np, "gpio-banks", &nbank);
 	if (ret) {
@@ -6048,24 +6049,15 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	chip->of_gpio_n_cells = 2;
 	chip->parent = &pdev->dev;
 
-	/* Add gpio chip to system */
-	ret = gpiochip_add_data(chip, a7gc);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"%pOF: error in probe function with status %d\n",
-			np, ret);
-		goto failed;
-	}
-
-	/* Add gpio chip to irq subsystem */
-	ret =  gpiochip_irqchip_add(chip, &atlas7_gpio_irq_chip,
-			0, handle_level_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"could not connect irqchip to gpiochip\n");
-		goto failed;
-	}
-
+	girq = &chip->irq;
+	girq->chip = &atlas7_gpio_irq_chip;
+	girq->parent_handler = atlas7_gpio_handle_irq;
+	girq->num_parents = nbank;
+	girq->parents = devm_kcalloc(&pdev->dev, nbank,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
 	for (idx = 0; idx < nbank; idx++) {
 		struct atlas7_gpio_bank *bank;
 
@@ -6084,9 +6076,18 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 			goto failed;
 		}
 		bank->irq = ret;
+		girq->parents[idx] = ret;
+	}
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
-		gpiochip_set_chained_irqchip(chip, &atlas7_gpio_irq_chip,
-					bank->irq, atlas7_gpio_handle_irq);
+	/* Add gpio chip to system */
+	ret = gpiochip_add_data(chip, a7gc);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"%pOF: error in probe function with status %d\n",
+			np, ret);
+		goto failed;
 	}
 
 	platform_set_drvdata(pdev, a7gc);

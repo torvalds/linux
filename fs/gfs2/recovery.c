@@ -111,7 +111,7 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 	struct gfs2_revoke_replay *rr;
 
 	while (!list_empty(head)) {
-		rr = list_entry(head->next, struct gfs2_revoke_replay, rr_list);
+		rr = list_first_entry(head, struct gfs2_revoke_replay, rr_list);
 		list_del(&rr->rr_list);
 		kfree(rr);
 	}
@@ -263,11 +263,13 @@ static void clean_journal(struct gfs2_jdesc *jd,
 	u32 lblock = head->lh_blkno;
 
 	gfs2_replay_incr_blk(jd, &lblock);
-	if (jd->jd_jid == sdp->sd_lockstruct.ls_jid)
-		sdp->sd_log_flush_head = lblock;
 	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0, lblock,
 			      GFS2_LOG_HEAD_UNMOUNT | GFS2_LOG_HEAD_RECOVERY,
 			      REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC);
+	if (jd->jd_jid == sdp->sd_lockstruct.ls_jid) {
+		sdp->sd_log_flush_head = lblock;
+		gfs2_log_incr_head(sdp);
+	}
 }
 
 
@@ -303,6 +305,11 @@ void gfs2_recover_func(struct work_struct *work)
 	int error = 0;
 	int jlocked = 0;
 
+	if (gfs2_withdrawn(sdp)) {
+		fs_err(sdp, "jid=%u: Recovery not attempted due to withdraw.\n",
+		       jd->jd_jid);
+		goto fail;
+	}
 	t_start = ktime_get();
 	if (sdp->sd_args.ar_spectator)
 		goto fail;
@@ -326,7 +333,7 @@ void gfs2_recover_func(struct work_struct *work)
 
 		default:
 			goto fail;
-		};
+		}
 
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
 					   LM_FLAG_NOEXP | GL_NOCACHE, &ji_gh);
@@ -391,6 +398,10 @@ void gfs2_recover_func(struct work_struct *work)
 		fs_info(sdp, "jid=%u: Replaying journal...0x%x to 0x%x\n",
 			jd->jd_jid, head.lh_tail, head.lh_blkno);
 
+		/* We take the sd_log_flush_lock here primarily to prevent log
+		 * flushes and simultaneous journal replays from stomping on
+		 * each other wrt sd_log_bio. */
+		down_read(&sdp->sd_log_flush_lock);
 		for (pass = 0; pass < 2; pass++) {
 			lops_before_scan(jd, &head, pass);
 			error = foreach_descriptor(jd, head.lh_tail,
@@ -401,6 +412,7 @@ void gfs2_recover_func(struct work_struct *work)
 		}
 
 		clean_journal(jd, &head);
+		up_read(&sdp->sd_log_flush_lock);
 
 		gfs2_glock_dq_uninit(&thaw_gh);
 		t_rep = ktime_get();

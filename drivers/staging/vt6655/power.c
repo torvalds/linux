@@ -58,14 +58,11 @@ void PSvEnablePowerSaving(struct vnt_private *priv,
 	if (priv->op_mode != NL80211_IFTYPE_ADHOC) {
 		/* set AID */
 		VNSvOutPortW(priv->PortOffset + MAC_REG_AIDATIM, wAID);
-	} else {
-		/* set ATIM Window */
-#if 0 /* TODO atim window */
-		MACvWriteATIMW(priv->PortOffset, pMgmt->wCurrATIMWindow);
-#endif
 	}
+
 	/* Set AutoSleep */
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+
 	/* Set HWUTSF */
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_TFTCTL, TFTCTL_HWUTSF);
 
@@ -97,17 +94,17 @@ void PSvEnablePowerSaving(struct vnt_private *priv,
  *
  */
 
-void
-PSvDisablePowerSaving(
-	struct vnt_private *priv
-)
+void PSvDisablePowerSaving(struct vnt_private *priv)
 {
 	/* disable power saving hw function */
 	MACbPSWakeup(priv);
+
 	/* clear AutoSleep */
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+
 	/* clear HWUTSF */
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_TFTCTL, TFTCTL_HWUTSF);
+
 	/* set always listen beacon */
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
 
@@ -126,10 +123,7 @@ PSvDisablePowerSaving(
  *
  */
 
-bool
-PSbIsNextTBTTWakeUp(
-	struct vnt_private *priv
-)
+bool PSbIsNextTBTTWakeUp(struct vnt_private *priv)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &hw->conf;

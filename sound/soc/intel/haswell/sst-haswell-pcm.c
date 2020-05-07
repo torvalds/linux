@@ -458,12 +458,12 @@ static int create_adsp_page_table(struct snd_pcm_substream *substream,
 }
 
 /* this may get called several times by oss emulation */
-static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *params)
+static int hsw_pcm_hw_params(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
@@ -476,7 +476,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	u8 channels;
 	int ret, dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	/* check if we are being called a subsequent time */
@@ -494,7 +494,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 		pcm_data->allocated = false;
 
-		pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
+		pcm_data->stream = sst_hsw_stream_new(hsw, asoc_rtd_to_cpu(rtd, 0)->id,
 			hsw_notify_pointer, pcm_data);
 		if (pcm_data->stream == NULL) {
 			dev_err(rtd->dev, "error: failed to create stream\n");
@@ -509,7 +509,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		path_id = SST_HSW_STREAM_PATH_SSP0_IN;
 
 	/* DSP stream type depends on DAI ID */
-	switch (rtd->cpu_dai->id) {
+	switch (asoc_rtd_to_cpu(rtd, 0)->id) {
 	case 0:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
@@ -533,7 +533,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(rtd->dev, "error: invalid DAI ID %d\n",
-			rtd->cpu_dai->id);
+			asoc_rtd_to_cpu(rtd, 0)->id);
 		return -EINVAL;
 	}
 
@@ -592,17 +592,10 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not allocate %d bytes for PCM %d\n",
-			params_buffer_bytes(params), ret);
-		return ret;
-	}
-
 	dmab = snd_pcm_get_dma_buf(substream);
 
 	ret = create_adsp_page_table(substream, pdata, rtd, runtime->dma_area,
-		runtime->dma_bytes, rtd->cpu_dai->id);
+		runtime->dma_bytes, asoc_rtd_to_cpu(rtd, 0)->id);
 	if (ret < 0)
 		return ret;
 
@@ -615,7 +608,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		pages = runtime->dma_bytes / PAGE_SIZE;
 
 	ret = sst_hsw_stream_buffer(hsw, pcm_data->stream,
-		pdata->dmab[rtd->cpu_dai->id][substream->stream].addr,
+		pdata->dmab[asoc_rtd_to_cpu(rtd, 0)->id][substream->stream].addr,
 		pages, runtime->dma_bytes, 0,
 		snd_sgbuf_get_addr(dmab, 0) >> PAGE_SHIFT);
 	if (ret < 0) {
@@ -656,16 +649,10 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int hsw_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
-	return 0;
-}
-
-static int hsw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int hsw_pcm_trigger(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw_stream *sst_stream;
@@ -674,7 +661,7 @@ static int hsw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	snd_pcm_uframes_t pos;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 	sst_stream = pcm_data->stream;
 
@@ -770,11 +757,11 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	return pos;
 }
 
-static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_soc_component *component,
+					 struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
@@ -783,7 +770,7 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	u32 position;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 	position = sst_hsw_get_dsp_position(hsw, pcm_data->stream);
 
@@ -795,16 +782,16 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	return offset;
 }
 
-static int hsw_pcm_open(struct snd_pcm_substream *substream)
+static int hsw_pcm_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	int dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
@@ -814,7 +801,7 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream, &hsw_pcm_hardware);
 
-	pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
+	pcm_data->stream = sst_hsw_stream_new(hsw, asoc_rtd_to_cpu(rtd, 0)->id,
 		hsw_notify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "error: failed to create stream\n");
@@ -828,16 +815,16 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int hsw_pcm_close(struct snd_pcm_substream *substream)
+static int hsw_pcm_close(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(component);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	int ret, dai;
 
-	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	dai = mod_map[asoc_rtd_to_cpu(rtd, 0)->id].dai_id;
 	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
@@ -861,17 +848,6 @@ out:
 	mutex_unlock(&pcm_data->mutex);
 	return ret;
 }
-
-static const struct snd_pcm_ops hsw_pcm_ops = {
-	.open		= hsw_pcm_open,
-	.close		= hsw_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= hsw_pcm_hw_params,
-	.hw_free	= hsw_pcm_hw_free,
-	.trigger	= hsw_pcm_trigger,
-	.pointer	= hsw_pcm_pointer,
-	.page		= snd_pcm_sgbuf_ops_page,
-};
 
 static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 {
@@ -930,26 +906,26 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 	}
 }
 
-static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int hsw_pcm_new(struct snd_soc_component *component,
+		       struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct sst_pdata *pdata = dev_get_platdata(component->dev);
 	struct hsw_priv_data *priv_data = dev_get_drvdata(component->dev);
 	struct device *dev = pdata->dma_dev;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_DEV_SG,
 			dev,
 			hsw_pcm_hardware.buffer_bytes_max,
 			hsw_pcm_hardware.buffer_bytes_max);
 	}
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
-		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
+		priv_data->pcm[asoc_rtd_to_cpu(rtd, 0)->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream)
-		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
+		priv_data->pcm[asoc_rtd_to_cpu(rtd, 0)->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
 
 	return 0;
 }
@@ -1121,8 +1097,12 @@ static const struct snd_soc_component_driver hsw_dai_component = {
 	.name		= DRV_NAME,
 	.probe		= hsw_pcm_probe,
 	.remove		= hsw_pcm_remove,
-	.ops		= &hsw_pcm_ops,
-	.pcm_new	= hsw_pcm_new,
+	.open		= hsw_pcm_open,
+	.close		= hsw_pcm_close,
+	.hw_params	= hsw_pcm_hw_params,
+	.trigger	= hsw_pcm_trigger,
+	.pointer	= hsw_pcm_pointer,
+	.pcm_construct	= hsw_pcm_new,
 	.controls	= hsw_volume_controls,
 	.num_controls	= ARRAY_SIZE(hsw_volume_controls),
 	.dapm_widgets	= widgets,

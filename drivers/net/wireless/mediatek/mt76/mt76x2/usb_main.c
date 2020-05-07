@@ -4,19 +4,20 @@
  */
 
 #include "mt76x2u.h"
+#include "../mt76x02_usb.h"
 
 static int mt76x2u_start(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x2u_mac_start(dev);
+	ret = mt76x02u_mac_start(dev);
 	if (ret)
 		return ret;
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
 	return 0;
 }
@@ -25,7 +26,7 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	mt76u_stop_tx(&dev->mt76);
 	mt76x2u_stop_hw(dev);
 }
@@ -40,25 +41,22 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mt76x02_pre_tbtt_enable(dev, false);
 
 	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
-	mt76_set_channel(&dev->mt76);
+	mt76_set_channel(&dev->mphy);
 
 	mt76x2_mac_stop(dev, false);
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
-	/* channel cycle counters read-and-clear */
-	mt76_rr(dev, MT_CH_IDLE);
-	mt76_rr(dev, MT_CH_BUSY);
-
+	mt76x02_mac_cc_reset(dev);
 	mt76x2_mac_resume(dev);
 
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76x02_pre_tbtt_enable(dev, true);
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	return err;
 }
@@ -80,12 +78,12 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->mt76.txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = hw->conf.power_level * 2;
 
 		/* convert to per-chain power for 2x2 devices */
-		dev->mt76.txpower_conf -= 6;
+		dev->txpower_conf -= 6;
 
-		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 			mt76x2_phy_set_txpower(dev);
 	}
 
@@ -107,6 +105,7 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.add_interface = mt76x02_add_interface,
 	.remove_interface = mt76x02_remove_interface,
 	.sta_state = mt76_sta_state,
+	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
 	.set_key = mt76x02_set_key,
 	.ampdu_action = mt76x02_ampdu_action,
 	.config = mt76x2u_config,
@@ -121,4 +120,5 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
+	.get_antenna = mt76_get_antenna,
 };

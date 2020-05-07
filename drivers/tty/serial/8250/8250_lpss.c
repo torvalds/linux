@@ -156,6 +156,11 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	return 0;
 }
 
+static int ehl_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
+{
+	return 0;
+}
+
 #ifdef CONFIG_SERIAL_8250_DMA
 static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 	.nr_channels = 2,
@@ -221,17 +226,6 @@ static void qrk_serial_exit_dma(struct lpss8250 *lpss) {}
 
 static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
-	struct pci_dev *pdev = to_pci_dev(port->dev);
-	int ret;
-
-	pci_set_master(pdev);
-
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0)
-		return ret;
-
-	port->irq = pci_irq_vector(pdev, 0);
-
 	qrk_serial_setup_dma(lpss, port);
 	return 0;
 }
@@ -293,16 +287,22 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
+	pci_set_master(pdev);
+
 	lpss = devm_kzalloc(&pdev->dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
 		return -ENOMEM;
+
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
 
 	lpss->board = (struct lpss8250_board *)id->driver_data;
 
 	memset(&uart, 0, sizeof(struct uart_8250_port));
 
 	uart.port.dev = &pdev->dev;
-	uart.port.irq = pdev->irq;
+	uart.port.irq = pci_irq_vector(pdev, 0);
 	uart.port.private_data = &lpss->data;
 	uart.port.type = PORT_16550A;
 	uart.port.iotype = UPIO_MEM;
@@ -337,6 +337,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_exit:
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
+	pci_free_irq_vectors(pdev);
 	return ret;
 }
 
@@ -348,6 +349,7 @@ static void lpss8250_remove(struct pci_dev *pdev)
 
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct lpss8250_board byt_board = {
@@ -359,6 +361,7 @@ static const struct lpss8250_board byt_board = {
 static const struct lpss8250_board ehl_board = {
 	.freq = 200000000,
 	.base_baud = 12500000,
+	.setup = ehl_serial_setup,
 };
 
 static const struct lpss8250_board qrk_board = {

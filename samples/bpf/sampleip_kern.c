@@ -8,7 +8,8 @@
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/bpf_perf_event.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 #define MAX_IPS		8192
 

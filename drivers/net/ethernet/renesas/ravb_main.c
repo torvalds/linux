@@ -1425,7 +1425,7 @@ out_napi_off:
 }
 
 /* Timeout function for Ethernet AVB */
-static void ravb_tx_timeout(struct net_device *ndev)
+static void ravb_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 
@@ -2048,7 +2048,9 @@ static int ravb_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 	INIT_WORK(&priv->work, ravb_tx_timeout_work);
 
-	priv->phy_interface = of_get_phy_mode(np);
+	error = of_get_phy_mode(np, &priv->phy_interface);
+	if (error && error != -ENODEV)
+		goto out_release;
 
 	priv->no_avb_link = of_property_read_bool(np, "renesas,no-ether-link");
 	priv->avb_link_active_low =

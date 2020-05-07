@@ -188,8 +188,8 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 	fl6.flowi6_proto = iph->nexthdr;
 	fl6.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF;
 
-	dst = ip6_route_output(net, NULL, &fl6);
-	if (dst == dst_null)
+	dst = ip6_dst_lookup_flow(net, NULL, &fl6, NULL);
+	if (IS_ERR(dst) || dst == dst_null)
 		goto err;
 
 	skb_dst_drop(skb);
@@ -474,7 +474,8 @@ static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
 	if (rt6_need_strict(&ipv6_hdr(skb)->daddr))
 		return skb;
 
-	if (qdisc_tx_is_default(vrf_dev))
+	if (qdisc_tx_is_default(vrf_dev) ||
+	    IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED)
 		return vrf_ip6_out_direct(vrf_dev, sk, skb);
 
 	return vrf_ip6_out_redirect(vrf_dev, skb);
@@ -504,7 +505,7 @@ static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 
 static int vrf_rt6_create(struct net_device *dev)
 {
-	int flags = DST_HOST | DST_NOPOLICY | DST_NOXFRM;
+	int flags = DST_NOPOLICY | DST_NOXFRM;
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct net *net = dev_net(dev);
 	struct rt6_info *rt6;
@@ -686,7 +687,8 @@ static struct sk_buff *vrf_ip_out(struct net_device *vrf_dev,
 	    ipv4_is_lbcast(ip_hdr(skb)->daddr))
 		return skb;
 
-	if (qdisc_tx_is_default(vrf_dev))
+	if (qdisc_tx_is_default(vrf_dev) ||
+	    IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED)
 		return vrf_ip_out_direct(vrf_dev, sk, skb);
 
 	return vrf_ip_out_redirect(vrf_dev, skb);
@@ -739,7 +741,7 @@ static int vrf_rtable_create(struct net_device *dev)
 		return -ENOMEM;
 
 	/* create a dst for routing packets out through a VRF device */
-	rth = rt_dst_alloc(dev, 0, RTN_UNICAST, 1, 1, 0);
+	rth = rt_dst_alloc(dev, 0, RTN_UNICAST, 1, 1);
 	if (!rth)
 		return -ENOMEM;
 

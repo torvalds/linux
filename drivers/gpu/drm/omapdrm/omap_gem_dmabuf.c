@@ -67,7 +67,7 @@ static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 {
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
-	if (omap_gem_flags(obj) & OMAP_BO_TILED) {
+	if (omap_gem_flags(obj) & OMAP_BO_TILED_MASK) {
 		/* TODO we would need to pin at least part of the buffer to
 		 * get de-tiled view.  For now just reject it.
 		 */
@@ -83,25 +83,6 @@ static int omap_gem_dmabuf_end_cpu_access(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	omap_gem_put_pages(obj);
 	return 0;
-}
-
-static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
-		unsigned long page_num)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	struct page **pages;
-	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync_page(obj, page_num);
-	return kmap(pages[page_num]);
-}
-
-static void omap_gem_dmabuf_kunmap(struct dma_buf *buffer,
-		unsigned long page_num, void *addr)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	struct page **pages;
-	omap_gem_get_pages(obj, &pages, false);
-	kunmap(pages[page_num]);
 }
 
 static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
@@ -123,8 +104,6 @@ static const struct dma_buf_ops omap_dmabuf_ops = {
 	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
 	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
-	.map = omap_gem_dmabuf_kmap,
-	.unmap = omap_gem_dmabuf_kunmap,
 	.mmap = omap_gem_dmabuf_mmap,
 };
 

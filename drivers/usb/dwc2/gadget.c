@@ -1083,11 +1083,6 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	else
 		packets = 1;	/* send one packet if length is zero. */
 
-	if (hs_ep->isochronous && length > (hs_ep->mc * hs_ep->ep.maxpacket)) {
-		dev_err(hsotg->dev, "req length > maxpacket*mc\n");
-		return;
-	}
-
 	if (dir_in && index != 0)
 		if (hs_ep->isochronous)
 			epsize = DXEPTSIZ_MC(packets);
@@ -1391,6 +1386,13 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	req->actual = 0;
 	req->status = -EINPROGRESS;
 
+	/* Don't queue ISOC request if length greater than mps*mc */
+	if (hs_ep->isochronous &&
+	    req->length > (hs_ep->mc * hs_ep->ep.maxpacket)) {
+		dev_err(hs->dev, "req length > maxpacket*mc\n");
+		return -EINVAL;
+	}
+
 	/* In DDMA mode for ISOC's don't queue request if length greater
 	 * than descriptor limits.
 	 */
@@ -1632,6 +1634,7 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 	struct dwc2_hsotg_ep *ep0 = hsotg->eps_out[0];
 	struct dwc2_hsotg_ep *ep;
 	__le16 reply;
+	u16 status;
 	int ret;
 
 	dev_dbg(hsotg->dev, "%s: USB_REQ_GET_STATUS\n", __func__);
@@ -1643,11 +1646,11 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		/*
-		 * bit 0 => self powered
-		 * bit 1 => remote wakeup
-		 */
-		reply = cpu_to_le16(0);
+		status = hsotg->gadget.is_selfpowered <<
+			 USB_DEVICE_SELF_POWERED;
+		status |= hsotg->remote_wakeup_allowed <<
+			  USB_DEVICE_REMOTE_WAKEUP;
+		reply = cpu_to_le16(status);
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -1758,7 +1761,10 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 	case USB_RECIP_DEVICE:
 		switch (wValue) {
 		case USB_DEVICE_REMOTE_WAKEUP:
-			hsotg->remote_wakeup_allowed = 1;
+			if (set)
+				hsotg->remote_wakeup_allowed = 1;
+			else
+				hsotg->remote_wakeup_allowed = 0;
 			break;
 
 		case USB_DEVICE_TEST_MODE:
@@ -1768,15 +1774,16 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 				return -EINVAL;
 
 			hsotg->test_mode = wIndex >> 8;
-			ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
-			if (ret) {
-				dev_err(hsotg->dev,
-					"%s: failed to send reply\n", __func__);
-				return ret;
-			}
 			break;
 		default:
 			return -ENOENT;
+		}
+
+		ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
+		if (ret) {
+			dev_err(hsotg->dev,
+				"%s: failed to send reply\n", __func__);
+			return ret;
 		}
 		break;
 
@@ -3784,14 +3791,25 @@ irq_retry:
 		for (idx = 1; idx < hsotg->num_of_eps; idx++) {
 			hs_ep = hsotg->eps_out[idx];
 			/* Proceed only unmasked ISOC EPs */
-			if ((BIT(idx) & ~daintmsk) || !hs_ep->isochronous)
+			if (BIT(idx) & ~daintmsk)
 				continue;
 
 			epctrl = dwc2_readl(hsotg, DOEPCTL(idx));
 
-			if (epctrl & DXEPCTL_EPENA) {
+			//ISOC Ep's only
+			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous) {
 				epctrl |= DXEPCTL_SNAK;
 				epctrl |= DXEPCTL_EPDIS;
+				dwc2_writel(hsotg, epctrl, DOEPCTL(idx));
+				continue;
+			}
+
+			//Non-ISOC EP's
+			if (hs_ep->halted) {
+				if (!(epctrl & DXEPCTL_EPENA))
+					epctrl |= DXEPCTL_EPENA;
+				epctrl |= DXEPCTL_EPDIS;
+				epctrl |= DXEPCTL_STALL;
 				dwc2_writel(hsotg, epctrl, DOEPCTL(idx));
 			}
 		}
@@ -4056,11 +4074,12 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	 * a unique tx-fifo even if it is non-periodic.
 	 */
 	if (dir_in && hsotg->dedicated_fifos) {
+		unsigned fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
 		u32 fifo_index = 0;
 		u32 fifo_size = UINT_MAX;
 
 		size = hs_ep->ep.maxpacket * hs_ep->mc;
-		for (i = 1; i < hsotg->num_of_eps; ++i) {
+		for (i = 1; i <= fifo_count; ++i) {
 			if (hsotg->fifo_map & (1 << i))
 				continue;
 			val = dwc2_readl(hsotg, DPTXFSIZN(i));
@@ -4310,19 +4329,20 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		epctl = dwc2_readl(hs, epreg);
 
 		if (value) {
-			epctl |= DXEPCTL_STALL;
+			if (!(dwc2_readl(hs, GINTSTS) & GINTSTS_GOUTNAKEFF))
+				dwc2_set_bit(hs, DCTL, DCTL_SGOUTNAK);
+			// STALL bit will be set in GOUTNAKEFF interrupt handler
 		} else {
 			epctl &= ~DXEPCTL_STALL;
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
 				epctl |= DXEPCTL_SETD0PID;
+			dwc2_writel(hs, epctl, epreg);
 		}
-		dwc2_writel(hs, epctl, epreg);
 	}
 
 	hs_ep->halted = value;
-
 	return 0;
 }
 
@@ -4509,6 +4529,26 @@ static int dwc2_hsotg_gadget_getframe(struct usb_gadget *gadget)
 }
 
 /**
+ * dwc2_hsotg_set_selfpowered - set if device is self/bus powered
+ * @gadget: The usb gadget state
+ * @is_selfpowered: Whether the device is self-powered
+ *
+ * Set if the device is self or bus powered.
+ */
+static int dwc2_hsotg_set_selfpowered(struct usb_gadget *gadget,
+				      int is_selfpowered)
+{
+	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	gadget->is_selfpowered = !!is_selfpowered;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return 0;
+}
+
+/**
  * dwc2_hsotg_pullup - connect/disconnect the USB PHY
  * @gadget: The usb gadget state
  * @is_on: Current state of the USB PHY
@@ -4599,6 +4639,7 @@ static int dwc2_hsotg_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 
 static const struct usb_gadget_ops dwc2_hsotg_gadget_ops = {
 	.get_frame	= dwc2_hsotg_gadget_getframe,
+	.set_selfpowered	= dwc2_hsotg_set_selfpowered,
 	.udc_start		= dwc2_hsotg_udc_start,
 	.udc_stop		= dwc2_hsotg_udc_stop,
 	.pullup                 = dwc2_hsotg_pullup,

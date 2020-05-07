@@ -17,11 +17,11 @@
 static inline void loongson_reboot(void)
 {
 #ifndef CONFIG_CPU_JUMP_WORKAROUNDS
-	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
+	((void (*)(void))ioremap(LOONGSON_BOOT_BASE, 4)) ();
 #else
 	void (*func)(void);
 
-	func = (void *)ioremap_nocache(LOONGSON_BOOT_BASE, 4);
+	func = (void *)ioremap(LOONGSON_BOOT_BASE, 4);
 
 	__asm__ __volatile__(
 	"	.set	noat						\n"

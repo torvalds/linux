@@ -15,6 +15,8 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/qcom_scm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
@@ -31,6 +33,10 @@ struct adsp_data {
 	const char *firmware_name;
 	int pas_id;
 	bool has_aggre2_clk;
+	bool auto_boot;
+
+	char **active_pd_names;
+	char **proxy_pd_names;
 
 	const char *ssr_name;
 	const char *sysmon_name;
@@ -48,6 +54,12 @@ struct qcom_adsp {
 
 	struct regulator *cx_supply;
 	struct regulator *px_supply;
+
+	struct device *active_pds[1];
+	struct device *proxy_pds[3];
+
+	int active_pd_count;
+	int proxy_pd_count;
 
 	int pas_id;
 	int crash_reason_smem;
@@ -67,6 +79,41 @@ struct qcom_adsp {
 	struct qcom_sysmon *sysmon;
 };
 
+static int adsp_pds_enable(struct qcom_adsp *adsp, struct device **pds,
+			   size_t pd_count)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < pd_count; i++) {
+		dev_pm_genpd_set_performance_state(pds[i], INT_MAX);
+		ret = pm_runtime_get_sync(pds[i]);
+		if (ret < 0)
+			goto unroll_pd_votes;
+	}
+
+	return 0;
+
+unroll_pd_votes:
+	for (i--; i >= 0; i--) {
+		dev_pm_genpd_set_performance_state(pds[i], 0);
+		pm_runtime_put(pds[i]);
+	}
+
+	return ret;
+};
+
+static void adsp_pds_disable(struct qcom_adsp *adsp, struct device **pds,
+			     size_t pd_count)
+{
+	int i;
+
+	for (i = 0; i < pd_count; i++) {
+		dev_pm_genpd_set_performance_state(pds[i], 0);
+		pm_runtime_put(pds[i]);
+	}
+}
+
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -84,9 +131,17 @@ static int adsp_start(struct rproc *rproc)
 
 	qcom_q6v5_prepare(&adsp->q6v5);
 
+	ret = adsp_pds_enable(adsp, adsp->active_pds, adsp->active_pd_count);
+	if (ret < 0)
+		goto disable_irqs;
+
+	ret = adsp_pds_enable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+	if (ret < 0)
+		goto disable_active_pds;
+
 	ret = clk_prepare_enable(adsp->xo);
 	if (ret)
-		return ret;
+		goto disable_proxy_pds;
 
 	ret = clk_prepare_enable(adsp->aggre2_clk);
 	if (ret)
@@ -124,6 +179,12 @@ disable_aggre2_clk:
 	clk_disable_unprepare(adsp->aggre2_clk);
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
+disable_proxy_pds:
+	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+disable_active_pds:
+	adsp_pds_disable(adsp, adsp->active_pds, adsp->active_pd_count);
+disable_irqs:
+	qcom_q6v5_unprepare(&adsp->q6v5);
 
 	return ret;
 }
@@ -136,6 +197,7 @@ static void qcom_pas_handover(struct qcom_q6v5 *q6v5)
 	regulator_disable(adsp->cx_supply);
 	clk_disable_unprepare(adsp->aggre2_clk);
 	clk_disable_unprepare(adsp->xo);
+	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 }
 
 static int adsp_stop(struct rproc *rproc)
@@ -152,6 +214,7 @@ static int adsp_stop(struct rproc *rproc)
 	if (ret)
 		dev_err(adsp->dev, "failed to shutdown: %d\n", ret);
 
+	adsp_pds_disable(adsp, adsp->active_pds, adsp->active_pd_count);
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
 	if (handover)
 		qcom_pas_handover(&adsp->q6v5);
@@ -159,7 +222,7 @@ static int adsp_stop(struct rproc *rproc)
 	return ret;
 }
 
-static void *adsp_da_to_va(struct rproc *rproc, u64 da, int len)
+static void *adsp_da_to_va(struct rproc *rproc, u64 da, size_t len)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	int offset;
@@ -171,12 +234,20 @@ static void *adsp_da_to_va(struct rproc *rproc, u64 da, int len)
 	return adsp->mem_region + offset;
 }
 
+static unsigned long adsp_panic(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+
+	return qcom_q6v5_panic(&adsp->q6v5);
+}
+
 static const struct rproc_ops adsp_ops = {
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
 	.parse_fw = qcom_register_dump_segments,
 	.load = adsp_load,
+	.panic = adsp_panic,
 };
 
 static int adsp_init_clock(struct qcom_adsp *adsp)
@@ -215,6 +286,59 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 
 	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
 	return PTR_ERR_OR_ZERO(adsp->px_supply);
+}
+
+static int adsp_pds_attach(struct device *dev, struct device **devs,
+			   char **pd_names)
+{
+	size_t num_pds = 0;
+	int ret;
+	int i;
+
+	if (!pd_names)
+		return 0;
+
+	/* Handle single power domain */
+	if (dev->pm_domain) {
+		devs[0] = dev;
+		pm_runtime_enable(dev);
+		return 1;
+	}
+
+	while (pd_names[num_pds])
+		num_pds++;
+
+	for (i = 0; i < num_pds; i++) {
+		devs[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
+		if (IS_ERR_OR_NULL(devs[i])) {
+			ret = PTR_ERR(devs[i]) ? : -ENODATA;
+			goto unroll_attach;
+		}
+	}
+
+	return num_pds;
+
+unroll_attach:
+	for (i--; i >= 0; i--)
+		dev_pm_domain_detach(devs[i], false);
+
+	return ret;
+};
+
+static void adsp_pds_detach(struct qcom_adsp *adsp, struct device **pds,
+			    size_t pd_count)
+{
+	struct device *dev = adsp->dev;
+	int i;
+
+	/* Handle single power domain */
+	if (dev->pm_domain && pd_count) {
+		pm_runtime_disable(dev);
+		return;
+	}
+
+	for (i = 0; i < pd_count; i++)
+		dev_pm_domain_detach(pds[i], false);
 }
 
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
@@ -273,6 +397,8 @@ static int adsp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	rproc->auto_boot = desc->auto_boot;
+
 	adsp = (struct qcom_adsp *)rproc->priv;
 	adsp->dev = &pdev->dev;
 	adsp->rproc = rproc;
@@ -292,10 +418,22 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
+	ret = adsp_pds_attach(&pdev->dev, adsp->active_pds,
+			      desc->active_pd_names);
+	if (ret < 0)
+		goto free_rproc;
+	adsp->active_pd_count = ret;
+
+	ret = adsp_pds_attach(&pdev->dev, adsp->proxy_pds,
+			      desc->proxy_pd_names);
+	if (ret < 0)
+		goto detach_active_pds;
+	adsp->proxy_pd_count = ret;
+
 	ret = qcom_q6v5_init(&adsp->q6v5, pdev, rproc, desc->crash_reason_smem,
 			     qcom_pas_handover);
 	if (ret)
-		goto free_rproc;
+		goto detach_proxy_pds;
 
 	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
 	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
@@ -305,15 +443,19 @@ static int adsp_probe(struct platform_device *pdev)
 					      desc->ssctl_id);
 	if (IS_ERR(adsp->sysmon)) {
 		ret = PTR_ERR(adsp->sysmon);
-		goto free_rproc;
+		goto detach_proxy_pds;
 	}
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto free_rproc;
+		goto detach_proxy_pds;
 
 	return 0;
 
+detach_proxy_pds:
+	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+detach_active_pds:
+	adsp_pds_detach(adsp, adsp->active_pds, adsp->active_pd_count);
 free_rproc:
 	rproc_free(rproc);
 
@@ -340,6 +482,41 @@ static const struct adsp_data adsp_resource_init = {
 		.firmware_name = "adsp.mdt",
 		.pas_id = 1,
 		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.ssr_name = "lpass",
+		.sysmon_name = "adsp",
+		.ssctl_id = 0x14,
+};
+
+static const struct adsp_data sm8150_adsp_resource = {
+		.crash_reason_smem = 423,
+		.firmware_name = "adsp.mdt",
+		.pas_id = 1,
+		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.active_pd_names = (char*[]){
+			"load_state",
+			NULL
+		},
+		.proxy_pd_names = (char*[]){
+			"cx",
+			NULL
+		},
+		.ssr_name = "lpass",
+		.sysmon_name = "adsp",
+		.ssctl_id = 0x14,
+};
+
+static const struct adsp_data msm8998_adsp_resource = {
+		.crash_reason_smem = 423,
+		.firmware_name = "adsp.mdt",
+		.pas_id = 1,
+		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.proxy_pd_names = (char*[]){
+			"cx",
+			NULL
+		},
 		.ssr_name = "lpass",
 		.sysmon_name = "adsp",
 		.ssctl_id = 0x14,
@@ -350,9 +527,49 @@ static const struct adsp_data cdsp_resource_init = {
 	.firmware_name = "cdsp.mdt",
 	.pas_id = 18,
 	.has_aggre2_clk = false,
+	.auto_boot = true,
 	.ssr_name = "cdsp",
 	.sysmon_name = "cdsp",
 	.ssctl_id = 0x17,
+};
+
+static const struct adsp_data sm8150_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.pas_id = 18,
+	.has_aggre2_clk = false,
+	.auto_boot = true,
+	.active_pd_names = (char*[]){
+		"load_state",
+		NULL
+	},
+	.proxy_pd_names = (char*[]){
+		"cx",
+		NULL
+	},
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
+static const struct adsp_data mpss_resource_init = {
+	.crash_reason_smem = 421,
+	.firmware_name = "modem.mdt",
+	.pas_id = 4,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.active_pd_names = (char*[]){
+		"load_state",
+		NULL
+	},
+	.proxy_pd_names = (char*[]){
+		"cx",
+		"mss",
+		NULL
+	},
+	.ssr_name = "mpss",
+	.sysmon_name = "modem",
+	.ssctl_id = 0x12,
 };
 
 static const struct adsp_data slpi_resource_init = {
@@ -360,6 +577,42 @@ static const struct adsp_data slpi_resource_init = {
 		.firmware_name = "slpi.mdt",
 		.pas_id = 12,
 		.has_aggre2_clk = true,
+		.auto_boot = true,
+		.ssr_name = "dsps",
+		.sysmon_name = "slpi",
+		.ssctl_id = 0x16,
+};
+
+static const struct adsp_data sm8150_slpi_resource = {
+		.crash_reason_smem = 424,
+		.firmware_name = "slpi.mdt",
+		.pas_id = 12,
+		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.active_pd_names = (char*[]){
+			"load_state",
+			NULL
+		},
+		.proxy_pd_names = (char*[]){
+			"lcx",
+			"lmx",
+			NULL
+		},
+		.ssr_name = "dsps",
+		.sysmon_name = "slpi",
+		.ssctl_id = 0x16,
+};
+
+static const struct adsp_data msm8998_slpi_resource = {
+		.crash_reason_smem = 424,
+		.firmware_name = "slpi.mdt",
+		.pas_id = 12,
+		.has_aggre2_clk = true,
+		.auto_boot = true,
+		.proxy_pd_names = (char*[]){
+			"ssc_cx",
+			NULL
+		},
 		.ssr_name = "dsps",
 		.sysmon_name = "slpi",
 		.ssctl_id = 0x16,
@@ -369,6 +622,7 @@ static const struct adsp_data wcss_resource_init = {
 	.crash_reason_smem = 421,
 	.firmware_name = "wcnss.mdt",
 	.pas_id = 6,
+	.auto_boot = true,
 	.ssr_name = "mpss",
 	.sysmon_name = "wcnss",
 	.ssctl_id = 0x12,
@@ -378,11 +632,17 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8974-adsp-pil", .data = &adsp_resource_init},
 	{ .compatible = "qcom,msm8996-adsp-pil", .data = &adsp_resource_init},
 	{ .compatible = "qcom,msm8996-slpi-pil", .data = &slpi_resource_init},
+	{ .compatible = "qcom,msm8998-adsp-pas", .data = &msm8998_adsp_resource},
+	{ .compatible = "qcom,msm8998-slpi-pas", .data = &msm8998_slpi_resource},
 	{ .compatible = "qcom,qcs404-adsp-pas", .data = &adsp_resource_init },
 	{ .compatible = "qcom,qcs404-cdsp-pas", .data = &cdsp_resource_init },
 	{ .compatible = "qcom,qcs404-wcss-pas", .data = &wcss_resource_init },
 	{ .compatible = "qcom,sdm845-adsp-pas", .data = &adsp_resource_init},
 	{ .compatible = "qcom,sdm845-cdsp-pas", .data = &cdsp_resource_init},
+	{ .compatible = "qcom,sm8150-adsp-pas", .data = &sm8150_adsp_resource},
+	{ .compatible = "qcom,sm8150-cdsp-pas", .data = &sm8150_cdsp_resource},
+	{ .compatible = "qcom,sm8150-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sm8150-slpi-pas", .data = &sm8150_slpi_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);

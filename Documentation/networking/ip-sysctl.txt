@@ -479,6 +479,10 @@ tcp_no_metrics_save - BOOLEAN
 	degradation.  If set, TCP will not cache metrics on closing
 	connections.
 
+tcp_no_ssthresh_metrics_save - BOOLEAN
+	Controls whether TCP saves ssthresh metrics in the route cache.
+	Default is 1, which disables ssthresh metrics.
+
 tcp_orphan_retries - INTEGER
 	This value influences the timeout of a locally closed TCP connection,
 	when RTO retransmissions remain unacknowledged.
@@ -603,7 +607,7 @@ tcp_synack_retries - INTEGER
 	with the current initial RTO of 1second. With this the final timeout
 	for a passive TCP connection will happen after 63seconds.
 
-tcp_syncookies - BOOLEAN
+tcp_syncookies - INTEGER
 	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
@@ -808,7 +812,7 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 100
+	Default: 1000
 
 tcp_rx_skb_cache - BOOLEAN
 	Controls a per TCP socket cache of one skb, that might help
@@ -904,8 +908,9 @@ ip_local_port_range - 2 INTEGERS
 	Defines the local port range that is used by TCP and UDP to
 	choose the local port. The first number is the first, the
 	second the last local port number.
-	If possible, it is better these numbers have different parity.
-	(one even and one odd values)
+	If possible, it is better these numbers have different parity
+	(one even and one odd value).
+	Must be greater than or equal to ip_unprivileged_port_start.
 	The default values are 32768 and 60999 respectively.
 
 ip_local_reserved_ports - list of comma separated ranges
@@ -943,14 +948,23 @@ ip_unprivileged_port_start - INTEGER
 	This is a per-namespace sysctl.  It defines the first
 	unprivileged port in the network namespace.  Privileged ports
 	require root or CAP_NET_BIND_SERVICE in order to bind to them.
-	To disable all privileged ports, set this to 0.  It may not
-	overlap with the ip_local_reserved_ports range.
+	To disable all privileged ports, set this to 0.  They must not
+	overlap with the ip_local_port_range.
 
 	Default: 1024
 
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
 	which can be quite useful - but may break some applications.
+	Default: 0
+
+ip_autobind_reuse - BOOLEAN
+	By default, bind() does not select the ports automatically even if
+	the new socket and all sockets bound to the port have SO_REUSEADDR.
+	ip_autobind_reuse allows bind() to reuse the port and this is useful
+	when you use bind()+connect(), but may break some applications.
+	The preferred solution is to use IP_BIND_ADDRESS_NO_PORT and this
+	option should only be set by experts.
 	Default: 0
 
 ip_dynaddr - BOOLEAN
@@ -968,6 +982,13 @@ ip_early_demux - BOOLEAN
 	It may add an additional cost for pure routing workloads that
 	reduces overall throughput, in such case you should disable it.
 	Default: 1
+
+ping_group_range - 2 INTEGERS
+	Restrict ICMP_PROTO datagram sockets to users in the group range.
+	The default is "1 0", meaning, that nobody (not even root) may
+	create ping sockets.  Setting it to "100 100" would grant permissions
+	to the single group. "0 4294967295" would enable it for the world, "100
+	4294967295" would enable it for the users, but not daemons.
 
 tcp_early_demux - BOOLEAN
 	Enable early demux for established TCP sockets.
@@ -2091,6 +2112,28 @@ pf_enable - INTEGER
 
 	Default: 1
 
+pf_expose - INTEGER
+	Unset or enable/disable pf (pf is short for potentially failed) state
+	exposure.  Applications can control the exposure of the PF path state
+	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
+	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
+	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
+	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
+	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
+	SCTP_PF state and a SCTP_PF-state transport info can be got via
+	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, no
+	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
+	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
+	sockopt.
+
+	0: Unset pf state exposure, Compatible with old applications.
+
+	1: Disable pf state exposure.
+
+	2: Enable pf state exposure.
+
+	Default: 0
+
 addip_noauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
@@ -2172,6 +2215,18 @@ pf_retrans - INTEGER
 	disable pf state.
 
 	Default: 0
+
+ps_retrans - INTEGER
+	Primary.Switchover.Max.Retrans (PSMR), it's a tunable parameter coming
+	from section-5 "Primary Path Switchover" in rfc7829.  The primary path
+	will be changed to another active path when the path error counter on
+	the old primary path exceeds PSMR, so that "the SCTP sender is allowed
+	to continue data transmission on a new working path even when the old
+	primary destination address becomes active again".   Note this feature
+	is disabled by initializing 'ps_retrans' per netns as 0xffff by default,
+	and its value can't be less than 'pf_retrans' when changing by sysctl.
+
+	Default: 0xffff
 
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used

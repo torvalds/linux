@@ -297,6 +297,10 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 		unsigned int len = bvec.bv_len;
 		int err;
 
+		/* Don't support un-aligned buffer */
+		WARN_ON_ONCE((bvec.bv_offset & (SECTOR_SIZE - 1)) ||
+				(len & (SECTOR_SIZE - 1)));
+
 		err = brd_do_bvec(brd, bvec.bv_page, len, bvec.bv_offset,
 				  bio_op(bio), sector);
 		if (err)
@@ -377,12 +381,9 @@ static struct brd_device *brd_alloc(int i)
 	spin_lock_init(&brd->brd_lock);
 	INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);
 
-	brd->brd_queue = blk_alloc_queue(GFP_KERNEL);
+	brd->brd_queue = blk_alloc_queue(brd_make_request, NUMA_NO_NODE);
 	if (!brd->brd_queue)
 		goto out_free_dev;
-
-	blk_queue_make_request(brd->brd_queue, brd_make_request);
-	blk_queue_max_hw_sectors(brd->brd_queue, 1024);
 
 	/* This is so fdisk will align partitions on 4k, because of
 	 * direct_access API needing 4k alignment, returning a PFN
@@ -470,6 +471,25 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 	return kobj;
 }
 
+static inline void brd_check_and_reset_par(void)
+{
+	if (unlikely(!max_part))
+		max_part = 1;
+
+	/*
+	 * make sure 'max_part' can be divided exactly by (1U << MINORBITS),
+	 * otherwise, it is possiable to get same dev_t when adding partitions.
+	 */
+	if ((1U << MINORBITS) % max_part != 0)
+		max_part = 1UL << fls(max_part);
+
+	if (max_part > DISK_MAX_PARTS) {
+		pr_info("brd: max_part can't be larger than %d, reset max_part = %d.\n",
+			DISK_MAX_PARTS, DISK_MAX_PARTS);
+		max_part = DISK_MAX_PARTS;
+	}
+}
+
 static int __init brd_init(void)
 {
 	struct brd_device *brd, *next;
@@ -493,8 +513,7 @@ static int __init brd_init(void)
 	if (register_blkdev(RAMDISK_MAJOR, "ramdisk"))
 		return -EIO;
 
-	if (unlikely(!max_part))
-		max_part = 1;
+	brd_check_and_reset_par();
 
 	for (i = 0; i < rd_nr; i++) {
 		brd = brd_alloc(i);

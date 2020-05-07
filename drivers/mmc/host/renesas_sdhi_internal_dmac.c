@@ -82,7 +82,7 @@ static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
 	{
 		.clk_rate = 0,
 		.tap = 0x00000300,
-		.tap_hs400 = 0x00000704,
+		.tap_hs400_4tap = 0x00000100,
 	},
 };
 
@@ -298,37 +298,23 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
  * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
  * implementation as others may use a different implementation.
  */
-static const struct soc_device_attribute soc_whitelist[] = {
-	/* specific ones */
+static const struct soc_device_attribute soc_dma_quirks[] = {
 	{ .soc_id = "r7s9210",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY) },
 	{ .soc_id = "r8a7795", .revision = "ES1.*",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
 	{ .soc_id = "r8a7796", .revision = "ES1.0",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	/* generic ones */
-	{ .soc_id = "r8a774a1" },
-	{ .soc_id = "r8a774c0" },
-	{ .soc_id = "r8a77470" },
-	{ .soc_id = "r8a7795" },
-	{ .soc_id = "r8a7796" },
-	{ .soc_id = "r8a77965" },
-	{ .soc_id = "r8a77970" },
-	{ .soc_id = "r8a77980" },
-	{ .soc_id = "r8a77990" },
-	{ .soc_id = "r8a77995" },
 	{ /* sentinel */ }
 };
 
 static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 {
-	const struct soc_device_attribute *soc = soc_device_match(soc_whitelist);
+	const struct soc_device_attribute *soc = soc_device_match(soc_dma_quirks);
 	struct device *dev = &pdev->dev;
 
-	if (!soc)
-		return -ENODEV;
-
-	global_flags |= (unsigned long)soc->data;
+	if (soc)
+		global_flags |= (unsigned long)soc->data;
 
 	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms), GFP_KERNEL);
 	if (!dev->dma_parms)

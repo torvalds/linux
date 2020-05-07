@@ -72,11 +72,11 @@ config SND_PCM_OSS
 config SND_PCM_OSS_PLUGINS
 	bool "OSS PCM (digital audio) API - Include plugin system"
 	depends on SND_PCM_OSS
-        default y
+	default y
 	help
-          If you disable this option, the ALSA's OSS PCM API will not
-          support conversion of channels, formats and rates. It will
-          behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
+	  If you disable this option, the ALSA's OSS PCM API will not
+	  support conversion of channels, formats and rates. It will
+	  behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
 
 config SND_PCM_TIMER
 	bool "PCM timer interface" if EXPERT
@@ -128,13 +128,13 @@ config SND_SUPPORT_OLD_API
 	  or older).
 
 config SND_PROC_FS
-        bool "Sound Proc FS Support" if EXPERT
-        depends on PROC_FS
-        default y
-        help
-          Say 'N' to disable Sound proc FS, which may reduce code size about
-          9KB on x86_64 platform.
-          If unsure say Y.
+	bool "Sound Proc FS Support" if EXPERT
+	depends on PROC_FS
+	default y
+	help
+	  Say 'N' to disable Sound proc FS, which may reduce code size about
+	  9KB on x86_64 platform.
+	  If unsure say Y.
 
 config SND_VERBOSE_PROCFS
 	bool "Verbose procfs contents"
@@ -142,8 +142,8 @@ config SND_VERBOSE_PROCFS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
-          useful information to developers when a problem occurs).  On the
-          other side, it makes the ALSA subsystem larger.
+	  useful information to developers when a problem occurs).  On the
+	  other side, it makes the ALSA subsystem larger.
 
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
@@ -164,7 +164,7 @@ config SND_DEBUG_VERBOSE
 	depends on SND_DEBUG
 	help
 	  Say Y here to enable extra-verbose debugging messages.
-	  
+
 	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
 	  So, say Y only if you are ready to be annoyed.
 
@@ -177,6 +177,15 @@ config SND_PCM_XRUN_DEBUG
 	  It is usually not required, but if you have trouble with
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
+
+config SND_CTL_VALIDATION
+	bool "Perform sanity-checks for each control element access"
+	depends on SND_DEBUG
+	help
+	  Say Y to enable the additional validation of each control element
+	  access, including sanity-checks like whether the values returned
+	  from the driver are in the proper ranges or the check of the invalid
+	  access at out-of-array areas.
 
 config SND_VMASTER
 	bool

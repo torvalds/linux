@@ -1533,6 +1533,8 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int i;
 
+	sta->max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
+
 	/*
 	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
 	 * or 0, since there is no per-TID alg.
@@ -3663,7 +3665,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			cpu_to_le16(iwl_mvm_coex_agg_time_limit(mvm, sta));
 }
 
-static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }
@@ -3683,7 +3685,6 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 	IWL_DEBUG_RATE(mvm, "leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 
@@ -3696,7 +3697,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	    !(rate & RATE_MCS_HE_MSK)) {
 		int index = iwl_hwrate_to_plcp_idx(rate);
 
-		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps\n",
+		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
 				 rs_pretty_ant(ant),
 				 index == IWL_RATE_INVALID ? "BAD" :
 				 iwl_rate_mcs[index].mbps);
@@ -3739,14 +3740,15 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	}
 
 	return scnprintf(buf, bufsz,
-			 "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
-			 type, rs_pretty_ant(ant), bw, mcs, nss,
+			 "0x%x: %s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s",
+			 rate, type, rs_pretty_ant(ant), bw, mcs, nss,
 			 (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
 			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
 			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
 			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
 /**
  * Program the device to use fixed rate for frame transmit
  * This is for debugging/testing only
@@ -3886,6 +3888,8 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		desc += scnprintf(buff + desc, bufsz - desc,
 				  " rate[%d] 0x%X ", i, r);
 		desc += rs_pretty_print_rate(buff + desc, bufsz - desc, r);
+		if (desc < bufsz - 1)
+			buff[desc++] = '\n';
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);

@@ -16,6 +16,10 @@ Description:
 				write UDC's name found in /sys/class/udc/*
 				to bind a gadget, empty string "" to unbind.
 
+		max_speed	- maximum speed the driver supports. Valid
+				names are super-speed-plus, super-speed,
+				high-speed, full-speed, and low-speed.
+
 		bDeviceClass	- USB device class code
 		bDeviceSubClass	- USB device subclass code
 		bDeviceProtocol	- USB device protocol code

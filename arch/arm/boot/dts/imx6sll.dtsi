@@ -72,6 +72,8 @@
 				 <&clks IMX6SLL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys";
+			nvmem-cells = <&cpu_speed_grade>;
+			nvmem-cell-names = "speed_grade";
 		};
 	};
 
@@ -144,7 +146,7 @@
 			arm,data-latency = <4 2 3>;
 		};
 
-		aips1: aips-bus@2000000 {
+		aips1: bus@2000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -507,7 +509,7 @@
 			anatop: anatop@20c8000 {
 				compatible = "fsl,imx6sll-anatop",
 					     "fsl,imx6q-anatop",
-					     "syscon", "simple-bus";
+					     "syscon", "simple-mfd";
 				reg = <0x020c8000 0x4000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
@@ -632,6 +634,15 @@
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q.bin";
 			};
 
+			pxp: pxp@20f0000 {
+				compatible = "fsl,imx6sll-pxp", "fsl,imx6ull-pxp";
+				reg = <0x20f0000 0x4000>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_PXP>;
+				clock-names = "axi";
+			};
+
 			lcdif: lcd-controller@20f8000 {
 				compatible = "fsl,imx6sll-lcdif", "fsl,imx28-lcdif";
 				reg = <0x020f8000 0x4000>;
@@ -643,7 +654,7 @@
 				status = "disabled";
 			};
 
-			dcp: dcp@20fc000 {
+			dcp: crypto@20fc000 {
 				compatible = "fsl,imx28-dcp";
 				reg = <0x020fc000 0x4000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
@@ -654,7 +665,7 @@
 			};
 		};
 
-		aips2: aips-bus@2100000 {
+		aips2: bus@2100000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -781,6 +792,10 @@
 				compatible = "fsl,imx6sll-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6SLL_CLK_OCOTP>;
+
+				cpu_speed_grade: speed-grade@10 {
+					reg = <0x10 4>;
+				};
 
 				tempmon_calib: calib@38 {
 					reg = <0x38 4>;

@@ -54,14 +54,9 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 }
 
 int
-nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
+nouveau_display_vblank_enable(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc;
 	struct nouveau_crtc *nv_crtc;
-
-	crtc = drm_crtc_from_index(dev, pipe);
-	if (!crtc)
-		return -EINVAL;
 
 	nv_crtc = nouveau_crtc(crtc);
 	nvif_notify_get(&nv_crtc->vblank);
@@ -70,14 +65,9 @@ nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 }
 
 void
-nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
+nouveau_display_vblank_disable(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc;
 	struct nouveau_crtc *nv_crtc;
-
-	crtc = drm_crtc_from_index(dev, pipe);
-	if (!crtc)
-		return;
 
 	nv_crtc = nouveau_crtc(crtc);
 	nvif_notify_put(&nv_crtc->vblank);
@@ -136,21 +126,13 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 bool
-nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
+nouveau_display_scanoutpos(struct drm_crtc *crtc,
 			   bool in_vblank_irq, int *vpos, int *hpos,
 			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
-							       stime, etime);
-		}
-	}
-
-	return false;
+	return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
+					       stime, etime);
 }
 
 static void
@@ -407,6 +389,17 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	struct drm_connector_list_iter conn_iter;
 	int ret;
 
+	/*
+	 * Enable hotplug interrupts (done as early as possible, since we need
+	 * them for MST)
+	 */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nvif_notify_get(&conn->hpd);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
 	ret = disp->init(dev, resume, runtime);
 	if (ret)
 		return ret;
@@ -415,14 +408,6 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	 * support
 	 */
 	drm_kms_helper_poll_enable(dev);
-
-	/* enable hotplug interrupts */
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
-		nvif_notify_get(&conn->hpd);
-	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
 }

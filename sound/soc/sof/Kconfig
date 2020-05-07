@@ -14,8 +14,6 @@ config SND_SOC_SOF_PCI
 	depends on PCI
 	select SND_SOC_SOF
 	select SND_SOC_ACPI if ACPI
-	select SND_SOC_SOF_OPTIONS
-	select SND_SOC_SOF_INTEL_PCI if SND_SOC_SOF_INTEL_TOPLEVEL
 	help
 	  This adds support for PCI enumeration. This option is
 	  required to enable Intel Skylake+ devices
@@ -27,12 +25,10 @@ config SND_SOC_SOF_ACPI
 	depends on ACPI || COMPILE_TEST
 	select SND_SOC_SOF
 	select SND_SOC_ACPI if ACPI
-	select SND_SOC_SOF_OPTIONS
-	select SND_SOC_SOF_INTEL_ACPI if SND_SOC_SOF_INTEL_TOPLEVEL
 	select IOSF_MBI if X86 && PCI
 	help
 	  This adds support for ACPI enumeration. This option is required
-	  to enable Intel Haswell/Broadwell/Baytrail/Cherrytrail devices
+	  to enable Intel Broadwell/Baytrail/Cherrytrail devices
 	  Say Y if you need this option
 	  If unsure select "N".
 
@@ -40,19 +36,32 @@ config SND_SOC_SOF_OF
 	tristate "SOF OF enumeration support"
 	depends on OF || COMPILE_TEST
 	select SND_SOC_SOF
-	select SND_SOC_SOF_OPTIONS
 	help
 	  This adds support for Device Tree enumeration. This option is
 	  required to enable i.MX8 devices.
 	  Say Y if you need this option. If unsure select "N".
 
-config SND_SOC_SOF_OPTIONS
-	tristate
+config SND_SOC_SOF_DEBUG_PROBES
+	bool "SOF enable data probing"
+	select SND_SOC_COMPRESS
 	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level
+	  This option enables the data probing feature that can be used to
+	  gather data directly from specific points of the audio pipeline.
+	  Say Y if you want to enable probes.
+	  If unsure, select "N".
 
-if SND_SOC_SOF_OPTIONS
+config SND_SOC_SOF_DEVELOPER_SUPPORT
+	bool "SOF developer options support"
+	depends on EXPERT
+	help
+	  This option unlock SOF developer options for debug/performance/
+	  code hardening.
+	  Distributions should not select this option, only SOF development
+	  teams should select it.
+	  Say Y if you are involved in SOF development and need this option
+	  If not, select N
+
+if SND_SOC_SOF_DEVELOPER_SUPPORT
 
 config SND_SOC_SOF_NOCODEC
 	tristate
@@ -64,6 +73,11 @@ config SND_SOC_SOF_NOCODEC_SUPPORT
 	  option if no known codec is detected. This is typically only
 	  enabled for developers or devices where the sound card is
 	  controlled externally
+	  This option is mutually exclusive with the Intel HDaudio support,
+	  selecting it may have negative impacts and prevent e.g. microphone
+	  functionality from being enabled on Intel CoffeeLake and later
+	  platforms.
+	  Distributions should not select this option!
 	  Say Y if you need this nocodec fallback option
 	  If unsure select "N".
 
@@ -142,6 +156,14 @@ config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
 	  Say Y if you want to enable caching the memory windows.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE
+	bool "SOF enable firmware trace"
+	help
+	  The firmware trace can be enabled either at build-time with
+	  this option, or dynamically by setting flags in the SOF core
+	  module parameter (similar to dynamic debug)
+	  If unsure, select "N".
+
 config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	bool "SOF enable IPC flood test"
 	help
@@ -150,9 +172,17 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
+	bool "SOF retain DSP context on any FW exceptions"
+	help
+	  This option keeps the DSP in D0 state so that firmware debug
+	  information can be retained and dumped to userspace.
+	  Say Y if you want to retain DSP context for FW exceptions.
+	  If unsure, select "N".
+
 endif ## SND_SOC_SOF_DEBUG
 
-endif ## SND_SOC_SOF_OPTIONS
+endif ## SND_SOC_SOF_DEVELOPER_SUPPORT
 
 config SND_SOC_SOF
 	tristate

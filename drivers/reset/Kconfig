@@ -49,6 +49,14 @@ config RESET_BRCMSTB
 	  This enables the reset controller driver for Broadcom STB SoCs using
 	  a SUN_TOP_CTRL_SW_INIT style controller.
 
+config RESET_BRCMSTB_RESCAL
+	bool "Broadcom STB RESCAL reset controller"
+	depends on HAS_IOMEM
+	default ARCH_BRCMSTB || COMPILE_TEST
+	help
+	  This enables the RESCAL reset controller for SATA, PCIe0, or PCIe1 on
+	  BCM7216.
+
 config RESET_HSDK
 	bool "Synopsys HSDK Reset Driver"
 	depends on HAS_IOMEM
@@ -63,6 +71,15 @@ config RESET_IMX7
 	select MFD_SYSCON
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
+
+config RESET_INTEL_GW
+	bool "Intel Reset Controller Driver"
+	depends on OF && HAS_IOMEM
+	select REGMAP_MMIO
+	help
+	  This enables the reset controller driver for Intel Gateway SoCs.
+	  Say Y to control the reset signals provided by reset controller.
+	  Otherwise, say N.
 
 config RESET_LANTIQ
 	bool "Lantiq XWAY Reset Driver" if COMPILE_TEST
@@ -89,6 +106,13 @@ config RESET_MESON_AUDIO_ARB
 	  This enables the reset driver for Audio Memory Arbiter of
 	  Amlogic's A113 based SoCs
 
+config RESET_NPCM
+	bool "NPCM BMC Reset Driver" if COMPILE_TEST
+	default ARCH_NPCM
+	help
+	  This enables the reset controller driver for Nuvoton NPCM
+	  BMC SoCs.
+
 config RESET_OXNAS
 	bool
 
@@ -99,7 +123,7 @@ config RESET_PISTACHIO
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
 config RESET_QCOM_AOSS
-	bool "Qcom AOSS Reset Driver"
+	tristate "Qcom AOSS Reset Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  This enables the AOSS (always on subsystem) reset driver
@@ -129,7 +153,7 @@ config RESET_SCMI
 
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
-	default ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED || ARCH_BITMAIN || ARC
+	default ARCH_AGILEX || ARCH_ASPEED || ARCH_BITMAIN || ARCH_REALTEK || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARC
 	help
 	  This enables a simple reset controller driver for reset lines that
 	  that can be asserted and deasserted by toggling bits in a contiguous,
@@ -138,10 +162,11 @@ config RESET_SIMPLE
 	  Currently this driver supports:
 	   - Altera SoCFPGAs
 	   - ASPEED BMC SoCs
+	   - Bitmain BM1880 SoC
+	   - Realtek SoCs
 	   - RCC reset controller in STM32 MCUs
 	   - Allwinner SoCs
 	   - ZTE's zx2967 family
-	   - Bitmain BM1880 SoC
 
 config RESET_STM32MP157
 	bool "STM32MP157 Reset Driver" if COMPILE_TEST

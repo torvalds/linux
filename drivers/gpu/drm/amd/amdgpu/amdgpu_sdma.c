@@ -23,6 +23,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_sdma.h"
+#include "amdgpu_ras.h"
 
 #define AMDGPU_CSA_SDMA_SIZE 64
 /* SDMA CSA reside in the 3rd page of CSA */
@@ -69,7 +70,8 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 	uint32_t index = 0;
 	int r;
 
-	if (vmid == 0 || !amdgpu_mcbp)
+	/* don't enable OS preemption on SDMA under SRIOV */
+	if (amdgpu_sriov_vf(adev) || vmid == 0 || !amdgpu_mcbp)
 		return 0;
 
 	r = amdgpu_sdma_get_index_from_ring(ring, &index);
@@ -82,4 +84,101 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 			index * AMDGPU_CSA_SDMA_SIZE;
 
 	return csa_mc_addr;
+}
+
+int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
+			      void *ras_ih_info)
+{
+	int r, i;
+	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "sdma_err_count",
+	};
+
+	if (!ih_info)
+		return -EINVAL;
+
+	if (!adev->sdma.ras_if) {
+		adev->sdma.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->sdma.ras_if)
+			return -ENOMEM;
+		adev->sdma.ras_if->block = AMDGPU_RAS_BLOCK__SDMA;
+		adev->sdma.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->sdma.ras_if->sub_block_index = 0;
+		strcpy(adev->sdma.ras_if->name, "sdma");
+	}
+	fs_info.head = ih_info->head = *adev->sdma.ras_if;
+
+	r = amdgpu_ras_late_init(adev, adev->sdma.ras_if,
+				 &fs_info, ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->sdma.ras_if->block)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
+				AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+			if (r)
+				goto late_fini;
+		}
+	} else {
+		r = 0;
+		goto free;
+	}
+
+        return 0;
+
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, ih_info);
+free:
+	kfree(adev->sdma.ras_if);
+	adev->sdma.ras_if = NULL;
+	return r;
+}
+
+void amdgpu_sdma_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA) &&
+			adev->sdma.ras_if) {
+		struct ras_common_if *ras_if = adev->sdma.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+			/* the cb member will not be used by
+			 * amdgpu_ras_interrupt_remove_handler, init it only
+			 * to cheat the check in ras_late_fini
+			 */
+			.cb = amdgpu_sdma_process_ras_data_cb,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
+}
+
+int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry)
+{
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	amdgpu_ras_reset_gpu(adev);
+
+	return AMDGPU_RAS_SUCCESS;
+}
+
+int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->sdma.ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	return 0;
 }

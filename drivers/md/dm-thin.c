@@ -231,6 +231,7 @@ struct pool {
 	struct dm_target *ti;	/* Only set if a pool target is bound */
 
 	struct mapped_device *pool_md;
+	struct block_device *data_dev;
 	struct block_device *md_dev;
 	struct dm_pool_metadata *pmd;
 
@@ -281,6 +282,8 @@ struct pool {
 	struct dm_bio_prison_cell **cell_sort_array;
 
 	mempool_t mapping_pool;
+
+	struct bio flush_bio;
 };
 
 static void metadata_operation_failed(struct pool *pool, const char *op, int r);
@@ -2383,8 +2386,16 @@ static void process_deferred_bios(struct pool *pool)
 	while ((bio = bio_list_pop(&bio_completions)))
 		bio_endio(bio);
 
-	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
+	while ((bio = bio_list_pop(&bios))) {
+		/*
+		 * The data device was flushed as part of metadata commit,
+		 * so complete redundant flushes immediately.
+		 */
+		if (bio->bi_opf & REQ_PREFLUSH)
+			bio_endio(bio);
+		else
+			generic_make_request(bio);
+	}
 }
 
 static void do_worker(struct work_struct *ws)
@@ -2915,6 +2926,7 @@ static void __pool_destroy(struct pool *pool)
 	if (pool->next_mapping)
 		mempool_free(pool->next_mapping, &pool->mapping_pool);
 	mempool_exit(&pool->mapping_pool);
+	bio_uninit(&pool->flush_bio);
 	dm_deferred_set_destroy(pool->shared_read_ds);
 	dm_deferred_set_destroy(pool->all_io_ds);
 	kfree(pool);
@@ -2924,6 +2936,7 @@ static struct kmem_cache *_new_mapping_cache;
 
 static struct pool *pool_create(struct mapped_device *pool_md,
 				struct block_device *metadata_dev,
+				struct block_device *data_dev,
 				unsigned long block_size,
 				int read_only, char **error)
 {
@@ -2994,6 +3007,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	pool->low_water_triggered = false;
 	pool->suspended = true;
 	pool->out_of_data_space = false;
+	bio_init(&pool->flush_bio, NULL, 0);
 
 	pool->shared_read_ds = dm_deferred_set_create();
 	if (!pool->shared_read_ds) {
@@ -3031,6 +3045,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	pool->last_commit_jiffies = jiffies;
 	pool->pool_md = pool_md;
 	pool->md_dev = metadata_dev;
+	pool->data_dev = data_dev;
 	__pool_table_insert(pool);
 
 	return pool;
@@ -3072,6 +3087,7 @@ static void __pool_dec(struct pool *pool)
 
 static struct pool *__pool_find(struct mapped_device *pool_md,
 				struct block_device *metadata_dev,
+				struct block_device *data_dev,
 				unsigned long block_size, int read_only,
 				char **error, int *created)
 {
@@ -3082,19 +3098,23 @@ static struct pool *__pool_find(struct mapped_device *pool_md,
 			*error = "metadata device already in use by a pool";
 			return ERR_PTR(-EBUSY);
 		}
+		if (pool->data_dev != data_dev) {
+			*error = "data device already in use by a pool";
+			return ERR_PTR(-EBUSY);
+		}
 		__pool_inc(pool);
 
 	} else {
 		pool = __pool_table_lookup(pool_md);
 		if (pool) {
-			if (pool->md_dev != metadata_dev) {
+			if (pool->md_dev != metadata_dev || pool->data_dev != data_dev) {
 				*error = "different pool cannot replace a pool";
 				return ERR_PTR(-EINVAL);
 			}
 			__pool_inc(pool);
 
 		} else {
-			pool = pool_create(pool_md, metadata_dev, block_size, read_only, error);
+			pool = pool_create(pool_md, metadata_dev, data_dev, block_size, read_only, error);
 			*created = 1;
 		}
 	}
@@ -3178,6 +3198,29 @@ static void metadata_low_callback(void *context)
 	       dm_device_name(pool->pool_md));
 
 	dm_table_event(pool->ti->table);
+}
+
+/*
+ * We need to flush the data device **before** committing the metadata.
+ *
+ * This ensures that the data blocks of any newly inserted mappings are
+ * properly written to non-volatile storage and won't be lost in case of a
+ * crash.
+ *
+ * Failure to do so can result in data corruption in the case of internal or
+ * external snapshots and in the case of newly provisioned blocks, when block
+ * zeroing is enabled.
+ */
+static int metadata_pre_commit_callback(void *context)
+{
+	struct pool *pool = context;
+	struct bio *flush_bio = &pool->flush_bio;
+
+	bio_reset(flush_bio);
+	bio_set_dev(flush_bio, pool->data_dev);
+	flush_bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+
+	return submit_bio_wait(flush_bio);
 }
 
 static sector_t get_dev_size(struct block_device *bdev)
@@ -3323,7 +3366,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto out;
 	}
 
-	pool = __pool_find(dm_table_get_md(ti->table), metadata_dev->bdev,
+	pool = __pool_find(dm_table_get_md(ti->table), metadata_dev->bdev, data_dev->bdev,
 			   block_size, pf.mode == PM_READ_ONLY, &ti->error, &pool_created);
 	if (IS_ERR(pool)) {
 		r = PTR_ERR(pool);
@@ -3373,6 +3416,9 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 						pool);
 	if (r)
 		goto out_flags_changed;
+
+	dm_pool_register_pre_commit_callback(pool->pmd,
+					     metadata_pre_commit_callback, pool);
 
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
@@ -4061,7 +4107,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 21, 0},
+	.version = {1, 22, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4438,7 +4484,7 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 21, 0},
+	.version = {1, 22, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

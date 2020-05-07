@@ -23,7 +23,7 @@
 #include "r8192U.h"
 #include "r8192U_hw.h"
 
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #include "r8192U_wx.h"
 
 #define RATE_COUNT 12
@@ -588,7 +588,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				hwkey);                 /* KeyContent */
 
 		} else {
-			printk("wrong type in WEP, not WEP40 and WEP104\n");
+			netdev_warn(dev, "wrong type in WEP, not WEP40 and WEP104\n");
 		}
 
 	}

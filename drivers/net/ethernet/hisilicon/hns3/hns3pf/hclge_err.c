@@ -505,7 +505,7 @@ static const struct hclge_hw_error hclge_ssu_mem_ecc_err_int[] = {
 
 static const struct hclge_hw_error hclge_ssu_port_based_err_int[] = {
 	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port",
-	  .reset_level = HNAE3_GLOBAL_RESET },
+	  .reset_level = HNAE3_FUNC_RESET },
 	{ .int_msk = BIT(1), .msg = "tpu_pkt_without_key_port",
 	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(2), .msg = "igu_pkt_without_key_port",
@@ -599,7 +599,7 @@ static const struct hclge_hw_error hclge_ssu_ets_tcg_int[] = {
 
 static const struct hclge_hw_error hclge_ssu_port_based_pf_int[] = {
 	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port",
-	  .reset_level = HNAE3_GLOBAL_RESET },
+	  .reset_level = HNAE3_FUNC_RESET },
 	{ .int_msk = BIT(9), .msg = "low_water_line_err_port",
 	  .reset_level = HNAE3_NONE_RESET },
 	{ .int_msk = BIT(10), .msg = "hi_water_line_err_port",
@@ -1667,9 +1667,6 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 		hclge_handle_rocee_ras_error(ae_dev);
 	}
 
-	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
-		goto out;
-
 	if (ae_dev->hw_err_reset_req)
 		return PCI_ERS_RESULT_NEED_RESET;
 
@@ -1747,7 +1744,7 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 
 	if (vf_id) {
 		if (vf_id >= hdev->num_alloc_vport) {
-			dev_err(dev, "invalid vf id(%d)\n", vf_id);
+			dev_err(dev, "invalid vf id(%u)\n", vf_id);
 			return;
 		}
 
@@ -1898,10 +1895,8 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 
 	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!desc)
+		return -ENOMEM;
 
 	ret = hclge_handle_mpf_msix_error(hdev, desc, mpf_bd_num,
 					  reset_requests);

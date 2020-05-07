@@ -696,21 +696,24 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 /**
  * fm10k_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: the index of the Tx queue that timed out
  **/
-static void fm10k_tx_timeout(struct net_device *netdev)
+static void fm10k_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
+	struct fm10k_ring *tx_ring;
 	bool real_tx_hang = false;
-	int i;
 
-#define TX_TIMEO_LIMIT 16000
-	for (i = 0; i < interface->num_tx_queues; i++) {
-		struct fm10k_ring *tx_ring = interface->tx_ring[i];
-
-		if (check_for_tx_hang(tx_ring) && fm10k_check_tx_hang(tx_ring))
-			real_tx_hang = true;
+	if (txqueue >= interface->num_tx_queues) {
+		WARN(1, "invalid Tx queue index %d", txqueue);
+		return;
 	}
 
+	tx_ring = interface->tx_ring[txqueue];
+	if (check_for_tx_hang(tx_ring) && fm10k_check_tx_hang(tx_ring))
+		real_tx_hang = true;
+
+#define TX_TIMEO_LIMIT 16000
 	if (real_tx_hang) {
 		fm10k_tx_timeout_reset(interface);
 	} else {
@@ -1643,6 +1646,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_set_vf_vlan	= fm10k_ndo_set_vf_vlan,
 	.ndo_set_vf_rate	= fm10k_ndo_set_vf_bw,
 	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
+	.ndo_get_vf_stats	= fm10k_ndo_get_vf_stats,
 	.ndo_udp_tunnel_add	= fm10k_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= fm10k_udp_tunnel_del,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,

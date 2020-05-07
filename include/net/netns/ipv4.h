@@ -101,6 +101,7 @@ struct netns_ipv4 {
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_fwd_update_priority;
 	int sysctl_ip_nonlocal_bind;
+	int sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
@@ -154,6 +155,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_adv_win_scale;
 	int sysctl_tcp_frto;
 	int sysctl_tcp_nometrics_save;
+	int sysctl_tcp_no_ssthresh_metrics_save;
 	int sysctl_tcp_moderate_rcvbuf;
 	int sysctl_tcp_tso_win_divisor;
 	int sysctl_tcp_workaround_signed_windows;

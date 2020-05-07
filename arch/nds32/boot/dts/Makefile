@@ -5,5 +5,3 @@ else
 BUILTIN_DTB :=
 endif
 obj-$(CONFIG_OF) += $(BUILTIN_DTB)
-
-clean-files := *.dtb *.dtb.S

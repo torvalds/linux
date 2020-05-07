@@ -520,7 +520,7 @@ common_exception_return:
 	call4	schedule	# void schedule (void)
 	j	1b
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 6:
 	_bbci.l	a4, TIF_NEED_RESCHED, 4f
 
@@ -529,7 +529,7 @@ common_exception_return:
 	l32i	a4, a2, TI_PRE_COUNT
 	bnez	a4, 4f
 	call4	preempt_schedule_irq
-	j	1b
+	j	4f
 #endif
 
 #if XTENSA_FAKE_NMI
@@ -939,6 +939,9 @@ ENDPROC(unrecoverable_exception)
 
 /* -------------------------- FAST EXCEPTION HANDLERS ----------------------- */
 
+	__XTENSA_HANDLER
+	.literal_position
+
 /*
  * Fast-handler for alloca exceptions
  *
@@ -1024,7 +1027,7 @@ ENDPROC(fast_alloca)
 ENTRY(fast_illegal_instruction_user)
 
 	rsr	a0, ps
-	bbsi.l	a0, PS_WOE_BIT, user_exception
+	bbsi.l	a0, PS_WOE_BIT, 1f
 	s32i	a3, a2, PT_AREG3
 	movi	a3, PS_WOE_MASK
 	or	a0, a0, a3
@@ -1033,6 +1036,8 @@ ENTRY(fast_illegal_instruction_user)
 	l32i	a0, a2, PT_AREG0
 	rsr	a2, depc
 	rfe
+1:
+	call0	user_exception
 
 ENDPROC(fast_illegal_instruction_user)
 #endif
@@ -1071,7 +1076,7 @@ ENTRY(fast_syscall_user)
 	_beqz	a0, fast_syscall_spill_registers
 	_beqi	a0, __NR_xtensa, fast_syscall_xtensa
 
-	j	user_exception
+	call0	user_exception
 
 ENDPROC(fast_syscall_user)
 
@@ -1762,8 +1767,8 @@ ENTRY(fast_second_level_miss)
 
 	rsr	a2, ps
 	bbsi.l	a2, PS_UM_BIT, 1f
-	j	_kernel_exception
-1:	j	_user_exception
+	call0	_kernel_exception
+1:	call0	_user_exception
 
 ENDPROC(fast_second_level_miss)
 
@@ -1859,13 +1864,14 @@ ENTRY(fast_store_prohibited)
 
 	rsr	a2, ps
 	bbsi.l	a2, PS_UM_BIT, 1f
-	j	_kernel_exception
-1:	j	_user_exception
+	call0	_kernel_exception
+1:	call0	_user_exception
 
 ENDPROC(fast_store_prohibited)
 
 #endif /* CONFIG_MMU */
 
+	.text
 /*
  * System Calls.
  *
@@ -1876,8 +1882,7 @@ ENDPROC(fast_store_prohibited)
 
 ENTRY(system_call)
 
-	/* reserve 4 bytes on stack for function parameter */
-	abi_entry(4)
+	abi_entry_default
 
 	/* regs->syscall = regs->areg[2] */
 
@@ -1892,11 +1897,10 @@ ENTRY(system_call)
 
 	mov	a6, a2
 	call4	do_syscall_trace_enter
+	beqz	a6, .Lsyscall_exit
 	l32i	a7, a2, PT_SYSCALL
 
 1:
-	s32i	a7, a1, 4
-
 	/* syscall = sys_call_table[syscall_nr] */
 
 	movi	a4, sys_call_table
@@ -1906,8 +1910,6 @@ ENTRY(system_call)
 
 	addx4	a4, a7, a4
 	l32i	a4, a4, 0
-	movi	a5, sys_ni_syscall;
-	beq	a4, a5, 1f
 
 	/* Load args: arg0 - arg5 are passed via regs. */
 
@@ -1918,25 +1920,19 @@ ENTRY(system_call)
 	l32i	a10, a2, PT_AREG8
 	l32i	a11, a2, PT_AREG9
 
-	/* Pass one additional argument to the syscall: pt_regs (on stack) */
-	s32i	a2, a1, 0
-
 	callx4	a4
 
 1:	/* regs->areg[2] = return_value */
 
 	s32i	a6, a2, PT_AREG2
 	bnez	a3, 1f
-	abi_ret(4)
+.Lsyscall_exit:
+	abi_ret_default
 
 1:
-	l32i	a4, a1, 4
-	l32i	a3, a2, PT_SYSCALL
-	s32i	a4, a2, PT_SYSCALL
 	mov	a6, a2
 	call4	do_syscall_trace_leave
-	s32i	a3, a2, PT_SYSCALL
-	abi_ret(4)
+	abi_ret_default
 
 ENDPROC(system_call)
 

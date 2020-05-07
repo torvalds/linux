@@ -1920,6 +1920,7 @@ myri10ge_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 }
 
 static const struct ethtool_ops myri10ge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS,
 	.get_drvinfo = myri10ge_get_drvinfo,
 	.get_coalesce = myri10ge_get_coalesce,
 	.set_coalesce = myri10ge_set_coalesce,
@@ -2892,7 +2893,7 @@ drop:
 static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
 					 struct net_device *dev)
 {
-	struct sk_buff *segs, *curr;
+	struct sk_buff *segs, *curr, *next;
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_slice_state *ss;
 	netdev_tx_t status;
@@ -2901,10 +2902,8 @@ static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
 	if (IS_ERR(segs))
 		goto drop;
 
-	while (segs) {
-		curr = segs;
-		segs = segs->next;
-		curr->next = NULL;
+	skb_list_walk_safe(segs, curr, next) {
+		skb_mark_not_on_list(curr);
 		status = myri10ge_xmit(curr, dev);
 		if (status != 0) {
 			dev_kfree_skb_any(curr);

@@ -21,8 +21,6 @@ config SFC
 	depends on PCI
 	select MDIO
 	select CRC32
-	select I2C
-	select I2C_ALGOBIT
 	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports 10/40-gigabit Ethernet cards based on

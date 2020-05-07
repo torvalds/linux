@@ -40,7 +40,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/i915_drm.h>
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
@@ -100,7 +99,7 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 	return ret;
 }
 
-static struct fb_ops intelfb_ops = {
+static const struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_set_par = intel_fbdev_set_par,
@@ -141,10 +140,10 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	obj = NULL;
+	obj = ERR_PTR(-ENODEV);
 	if (size * 2 < dev_priv->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev_priv, size);
-	if (obj == NULL)
+	if (IS_ERR(obj))
 		obj = i915_gem_object_create_shmem(dev_priv, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
@@ -191,7 +190,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		drm_framebuffer_put(&intel_fb->base);
 		intel_fb = ifbdev->fb = NULL;
 	}
-	if (!intel_fb || WARN_ON(!intel_fb_obj(&intel_fb->base))) {
+	if (!intel_fb || drm_WARN_ON(dev, !intel_fb_obj(&intel_fb->base))) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
@@ -204,7 +203,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		sizes->fb_height = intel_fb->base.height;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
@@ -267,7 +265,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	ifbdev->vma_flags = flags;
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
 
@@ -275,7 +272,6 @@ out_unpin:
 	intel_unpin_fb_vma(vma, flags);
 out_unlock:
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -292,11 +288,8 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->vma) {
-		mutex_lock(&ifbdev->helper.dev->struct_mutex);
+	if (ifbdev->vma)
 		intel_unpin_fb_vma(ifbdev->vma, ifbdev->vma_flags);
-		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-	}
 
 	if (ifbdev->fb)
 		drm_framebuffer_remove(&ifbdev->fb->base);
@@ -416,9 +409,9 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		if (!crtc->state->active)
 			continue;
 
-		WARN(!crtc->primary->state->fb,
-		     "re-used BIOS config but lost an fb on crtc %d\n",
-		     crtc->base.id);
+		drm_WARN(dev, !crtc->primary->state->fb,
+			 "re-used BIOS config but lost an fb on crtc %d\n",
+			 crtc->base.id);
 	}
 
 
@@ -445,7 +438,8 @@ int intel_fbdev_init(struct drm_device *dev)
 	struct intel_fbdev *ifbdev;
 	int ret;
 
-	if (WARN_ON(!HAS_DISPLAY(dev_priv)))
+	if (drm_WARN_ON(dev, !HAS_DISPLAY(dev_priv) ||
+			!INTEL_DISPLAY_ENABLED(dev_priv)))
 		return -ENODEV;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
@@ -458,7 +452,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	if (!intel_fbdev_init_bios(dev, ifbdev))
 		ifbdev->preferred_bpp = 32;
 
-	ret = drm_fb_helper_init(dev, &ifbdev->helper, 4);
+	ret = drm_fb_helper_init(dev, &ifbdev->helper);
 	if (ret) {
 		kfree(ifbdev);
 		return ret;
@@ -466,8 +460,6 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	dev_priv->fbdev = ifbdev;
 	INIT_WORK(&dev_priv->fbdev_suspend_work, intel_fbdev_suspend_worker);
-
-	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 
 	return 0;
 }
@@ -575,7 +567,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 		 * to all the printk activity.  Try to keep it out of the hot
 		 * path of resume if possible.
 		 */
-		WARN_ON(state != FBINFO_STATE_RUNNING);
+		drm_WARN_ON(dev, state != FBINFO_STATE_RUNNING);
 		if (!console_trylock()) {
 			/* Don't block our own workqueue as this can
 			 * be run in parallel with other i915.ko tasks.

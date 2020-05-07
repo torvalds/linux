@@ -1022,6 +1022,95 @@ static enum i40iw_status_code i40iw_sc_commit_fpm_values(
 }
 
 /**
+ * i40iw_sc_query_rdma_features_done - poll cqp for query features done
+ * @cqp: struct for cqp hw
+ */
+static enum i40iw_status_code
+i40iw_sc_query_rdma_features_done(struct i40iw_sc_cqp *cqp)
+{
+	return i40iw_sc_poll_for_cqp_op_done(
+		cqp, I40IW_CQP_OP_QUERY_RDMA_FEATURES, NULL);
+}
+
+/**
+ * i40iw_sc_query_rdma_features - query rdma features
+ * @cqp: struct for cqp hw
+ * @feat_mem: holds PA for HW to use
+ * @scratch: u64 saved to be used during cqp completion
+ */
+static enum i40iw_status_code
+i40iw_sc_query_rdma_features(struct i40iw_sc_cqp *cqp,
+			     struct i40iw_dma_mem *feat_mem, u64 scratch)
+{
+	u64 *wqe;
+	u64 header;
+
+	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
+	if (!wqe)
+		return I40IW_ERR_RING_FULL;
+
+	set_64bit_val(wqe, 32, feat_mem->pa);
+
+	header = LS_64(I40IW_CQP_OP_QUERY_RDMA_FEATURES, I40IW_CQPSQ_OPCODE) |
+		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID) | feat_mem->size;
+
+	i40iw_insert_wqe_hdr(wqe, header);
+
+	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QUERY RDMA FEATURES WQE",
+			wqe, I40IW_CQP_WQE_SIZE * 8);
+
+	i40iw_sc_cqp_post_sq(cqp);
+
+	return 0;
+}
+
+/**
+ * i40iw_get_rdma_features - get RDMA features
+ * @dev - sc device struct
+ */
+enum i40iw_status_code i40iw_get_rdma_features(struct i40iw_sc_dev *dev)
+{
+	enum i40iw_status_code ret_code;
+	struct i40iw_dma_mem feat_buf;
+	u64 temp;
+	u16 byte_idx, feat_type, feat_cnt;
+
+	ret_code = i40iw_allocate_dma_mem(dev->hw, &feat_buf,
+					  I40IW_FEATURE_BUF_SIZE,
+					  I40IW_FEATURE_BUF_ALIGNMENT);
+
+	if (ret_code)
+		return I40IW_ERR_NO_MEMORY;
+
+	ret_code = i40iw_sc_query_rdma_features(dev->cqp, &feat_buf, 0);
+	if (!ret_code)
+		ret_code = i40iw_sc_query_rdma_features_done(dev->cqp);
+
+	if (ret_code)
+		goto exit;
+
+	get_64bit_val(feat_buf.va, 0, &temp);
+	feat_cnt = RS_64(temp, I40IW_FEATURE_CNT);
+	if (feat_cnt < I40IW_MAX_FEATURES) {
+		ret_code = I40IW_ERR_INVALID_FEAT_CNT;
+		goto exit;
+	} else if (feat_cnt > I40IW_MAX_FEATURES) {
+		i40iw_debug(dev, I40IW_DEBUG_CQP,
+			    "features buf size insufficient\n");
+	}
+
+	for (byte_idx = 0, feat_type = 0; feat_type < I40IW_MAX_FEATURES;
+	     feat_type++, byte_idx += 8) {
+		get_64bit_val((u64 *)feat_buf.va, byte_idx, &temp);
+		dev->feature_info[feat_type] = RS_64(temp, I40IW_FEATURE_INFO);
+	}
+exit:
+	i40iw_free_dma_mem(dev->hw, &feat_buf);
+
+	return ret_code;
+}
+
+/**
  * i40iw_sc_query_fpm_values_done - poll for cqp wqe completion for query fpm
  * @cqp: struct for cqp hw
  */
@@ -4264,6 +4353,13 @@ static enum i40iw_status_code i40iw_exec_cqp_cmd(struct i40iw_sc_dev *dev,
 				&values_mem,
 				true,
 				I40IW_CQP_WAIT_EVENT);
+		break;
+	case OP_QUERY_RDMA_FEATURES:
+		values_mem.pa = pcmdinfo->in.u.query_rdma_features.cap_pa;
+		values_mem.va = pcmdinfo->in.u.query_rdma_features.cap_va;
+		status = i40iw_sc_query_rdma_features(
+			pcmdinfo->in.u.query_rdma_features.cqp, &values_mem,
+			pcmdinfo->in.u.query_rdma_features.scratch);
 		break;
 	default:
 		status = I40IW_NOT_SUPPORTED;

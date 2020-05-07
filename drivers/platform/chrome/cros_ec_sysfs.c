@@ -8,7 +8,6 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kobject.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -150,14 +149,14 @@ static ssize_t version_show(struct device *dev,
 	/* Get build info. */
 	msg->command = EC_CMD_GET_BUILD_INFO + ec->cmd_offset;
 	msg->insize = EC_HOST_PARAM_SIZE;
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret == -EPROTO) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Build info:    EC error %d\n", msg->result);
-	else {
+	} else if (ret < 0) {
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "Build info:    XFER ERROR %d\n", ret);
+	} else {
 		msg->data[EC_HOST_PARAM_SIZE - 1] = '\0';
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Build info:    %s\n", msg->data);
@@ -166,14 +165,14 @@ static ssize_t version_show(struct device *dev,
 	/* Get chip info. */
 	msg->command = EC_CMD_GET_CHIP_INFO + ec->cmd_offset;
 	msg->insize = sizeof(*r_chip);
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip info:     XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret == -EPROTO) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Chip info:     EC error %d\n", msg->result);
-	else {
+	} else if (ret < 0) {
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "Chip info:     XFER ERROR %d\n", ret);
+	} else {
 		r_chip = (struct ec_response_get_chip_info *)msg->data;
 
 		r_chip->vendor[sizeof(r_chip->vendor) - 1] = '\0';
@@ -190,14 +189,14 @@ static ssize_t version_show(struct device *dev,
 	/* Get board version */
 	msg->command = EC_CMD_GET_BOARD_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*r_board);
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Board version: XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret == -EPROTO) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Board version: EC error %d\n", msg->result);
-	else {
+	} else if (ret < 0) {
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "Board version: XFER ERROR %d\n", ret);
+	} else {
 		r_board = (struct ec_response_board_version *)msg->data;
 
 		count += scnprintf(buf + count, PAGE_SIZE - count,

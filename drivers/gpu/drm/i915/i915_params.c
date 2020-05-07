@@ -35,7 +35,7 @@
 	MODULE_PARM_DESC(name, desc)
 
 struct i915_params i915_modparams __read_mostly = {
-#define MEMBER(T, member, value) .member = (value),
+#define MEMBER(T, member, value, ...) .member = (value),
 	I915_PARAMS_FOR_EACH(MEMBER)
 #undef MEMBER
 };
@@ -46,7 +46,8 @@ i915_param_named(modeset, int, 0400,
 
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
-	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");
+	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6; "
+	"3=up to DC5 with DC3CO; 4=up to DC6 with DC3CO)");
 
 i915_param_named_unsafe(enable_fbc, int, 0600,
 	"Enable frame buffer compression for power savings "
@@ -91,9 +92,6 @@ i915_param_named_unsafe(force_probe, charp, 0400,
 	"Force probe the driver for specified devices. "
 	"See CONFIG_DRM_I915_FORCE_PROBE for details.");
 
-i915_param_named_unsafe(alpha_support, bool, 0400,
-	"Deprecated. See i915.force_probe.");
-
 i915_param_named_unsafe(disable_power_well, int, 0400,
 	"Disable display power wells when possible "
 	"(-1=auto [default], 0=power wells always on, 1=power wells disabled when possible)");
@@ -104,10 +102,6 @@ i915_param_named(fastboot, int, 0600,
 	"Try to skip unnecessary mode sets at boot time "
 	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
-
-i915_param_named_unsafe(prefault_disable, bool, 0600,
-	"Disable page prefaulting for pread/pwrite/reloc (default:false). "
-	"For developers only.");
 
 i915_param_named_unsafe(load_detect_test, bool, 0600,
 	"Force-enable the VGA load detect code for testing (default:false). "
@@ -165,17 +159,22 @@ i915_param_named_unsafe(enable_dp_mst, bool, 0600,
 	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-i915_param_named_unsafe(inject_load_failure, uint, 0400,
+i915_param_named_unsafe(inject_probe_failure, uint, 0400,
 	"Force an error after a number of failure check points (0:disabled (default), N:force failure at the Nth failure check point)");
 #endif
 
 i915_param_named(enable_dpcd_backlight, int, 0600,
 	"Enable support for DPCD backlight control"
-	"(-1=use per-VBT LFP backlight type setting, 0=disabled [default], 1=enabled)");
+	"(-1=use per-VBT LFP backlight type setting [default], 0=disabled, 1=enabled)");
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT)
 i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
+#endif
+
+#if IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)
+i915_param_named_unsafe(fake_lmem_start, ulong, 0600,
+	"Fake LMEM start offset (default: 0)");
 #endif
 
 static __always_inline void _print_param(struct drm_printer *p,
@@ -189,6 +188,8 @@ static __always_inline void _print_param(struct drm_printer *p,
 		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
 	else if (!__builtin_strcmp(type, "unsigned int"))
 		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "unsigned long"))
+		drm_printf(p, "i915.%s=%lu\n", name, *(const unsigned long *)x);
 	else if (!__builtin_strcmp(type, "char *"))
 		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
 	else

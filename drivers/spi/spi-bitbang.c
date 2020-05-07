@@ -329,8 +329,20 @@ static void spi_bitbang_set_cs(struct spi_device *spi, bool enable)
 int spi_bitbang_init(struct spi_bitbang *bitbang)
 {
 	struct spi_master *master = bitbang->master;
+	bool custom_cs;
 
-	if (!master || !bitbang->chipselect)
+	if (!master)
+		return -EINVAL;
+	/*
+	 * We only need the chipselect callback if we are actually using it.
+	 * If we just use GPIO descriptors, it is surplus. If the
+	 * SPI_MASTER_GPIO_SS flag is set, we always need to call the
+	 * driver-specific chipselect routine.
+	 */
+	custom_cs = (!master->use_gpio_descriptors ||
+		     (master->flags & SPI_MASTER_GPIO_SS));
+
+	if (custom_cs && !bitbang->chipselect)
 		return -EINVAL;
 
 	mutex_init(&bitbang->lock);
@@ -344,7 +356,12 @@ int spi_bitbang_init(struct spi_bitbang *bitbang)
 	master->prepare_transfer_hardware = spi_bitbang_prepare_hardware;
 	master->unprepare_transfer_hardware = spi_bitbang_unprepare_hardware;
 	master->transfer_one = spi_bitbang_transfer_one;
-	master->set_cs = spi_bitbang_set_cs;
+	/*
+	 * When using GPIO descriptors, the ->set_cs() callback doesn't even
+	 * get called unless SPI_MASTER_GPIO_SS is set.
+	 */
+	if (custom_cs)
+		master->set_cs = spi_bitbang_set_cs;
 
 	if (!bitbang->txrx_bufs) {
 		bitbang->use_dma = 0;

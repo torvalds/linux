@@ -12,81 +12,108 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 {
 	switch (id) {
 	case INTEL_PCH_IBX_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
-		WARN_ON(!IS_GEN(dev_priv, 5));
+		drm_dbg_kms(&dev_priv->drm, "Found Ibex Peak PCH\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_GEN(dev_priv, 5));
 		return PCH_IBX;
 	case INTEL_PCH_CPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found CougarPoint PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		return PCH_CPT;
 	case INTEL_PCH_PPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found PantherPoint PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		/* PantherPoint is CPT compatible */
 		return PCH_CPT;
 	case INTEL_PCH_LPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found LynxPoint PCH\n");
-		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
-		WARN_ON(IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found LynxPoint PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
 		return PCH_LPT;
 	case INTEL_PCH_LPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
-		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
-		WARN_ON(!IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found LynxPoint LP PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
 		return PCH_LPT;
 	case INTEL_PCH_WPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found WildcatPoint PCH\n");
-		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
-		WARN_ON(IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found WildcatPoint PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
 		/* WildcatPoint is LPT compatible */
 		return PCH_LPT;
 	case INTEL_PCH_WPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found WildcatPoint LP PCH\n");
-		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
-		WARN_ON(!IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found WildcatPoint LP PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
 		/* WildcatPoint is LPT compatible */
 		return PCH_LPT;
 	case INTEL_PCH_SPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
-		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found SunrisePoint PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv));
 		return PCH_SPT;
 	case INTEL_PCH_SPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
-		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found SunrisePoint LP PCH\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv));
 		return PCH_SPT;
 	case INTEL_PCH_KBP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
-		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
-			!IS_COFFEELAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found Kaby Lake PCH (KBP)\n");
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv));
 		/* KBP is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
-		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found Cannon Lake PCH (CNP)\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_CANNONLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CNP_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
-		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm,
+			    "Found Cannon Lake LP PCH (CNP-LP)\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_CANNONLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CMP_DEVICE_ID_TYPE:
 	case INTEL_PCH_CMP2_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Comet Lake PCH (CMP)\n");
-		WARN_ON(!IS_COFFEELAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found Comet Lake PCH (CMP)\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_COFFEELAKE(dev_priv));
 		/* CometPoint is CNP Compatible */
 		return PCH_CNP;
+	case INTEL_PCH_CMP_V_DEVICE_ID_TYPE:
+		drm_dbg_kms(&dev_priv->drm, "Found Comet Lake V PCH (CMP-V)\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_COFFEELAKE(dev_priv));
+		/* Comet Lake V PCH is based on KBP, which is SPT compatible */
+		return PCH_SPT;
 	case INTEL_PCH_ICP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Ice Lake PCH\n");
-		WARN_ON(!IS_ICELAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found Ice Lake PCH\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
 		return PCH_ICP;
 	case INTEL_PCH_MCC_DEVICE_ID_TYPE:
-	case INTEL_PCH_MCC2_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Mule Creek Canyon PCH\n");
-		WARN_ON(!IS_ELKHARTLAKE(dev_priv));
+		drm_dbg_kms(&dev_priv->drm, "Found Mule Creek Canyon PCH\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_ELKHARTLAKE(dev_priv));
 		return PCH_MCC;
 	case INTEL_PCH_TGP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Tiger Lake LP PCH\n");
-		WARN_ON(!IS_TIGERLAKE(dev_priv));
+	case INTEL_PCH_TGP2_DEVICE_ID_TYPE:
+		drm_dbg_kms(&dev_priv->drm, "Found Tiger Lake LP PCH\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_TIGERLAKE(dev_priv));
 		return PCH_TGP;
+	case INTEL_PCH_JSP_DEVICE_ID_TYPE:
+	case INTEL_PCH_JSP2_DEVICE_ID_TYPE:
+		drm_dbg_kms(&dev_priv->drm, "Found Jasper Lake PCH\n");
+		drm_WARN_ON(&dev_priv->drm, !IS_ELKHARTLAKE(dev_priv));
+		return PCH_JSP;
 	default:
 		return PCH_NONE;
 	}
@@ -134,9 +161,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
 
 	if (id)
-		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
+		drm_dbg_kms(&dev_priv->drm, "Assuming PCH ID %04x\n", id);
 	else
-		DRM_DEBUG_KMS("Assuming no PCH\n");
+		drm_dbg_kms(&dev_priv->drm, "Assuming no PCH\n");
 
 	return id;
 }
@@ -176,7 +203,8 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 			pch_type = intel_pch_type(dev_priv, id);
 
 			/* Sanity check virtual PCH id */
-			if (WARN_ON(id && pch_type == PCH_NONE))
+			if (drm_WARN_ON(&dev_priv->drm,
+					id && pch_type == PCH_NONE))
 				id = 0;
 
 			dev_priv->pch_type = pch_type;
@@ -190,13 +218,14 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * display.
 	 */
 	if (pch && !HAS_DISPLAY(dev_priv)) {
-		DRM_DEBUG_KMS("Display disabled, reverting to NOP PCH\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
 		dev_priv->pch_id = 0;
 	}
 
 	if (!pch)
-		DRM_DEBUG_KMS("No PCH found.\n");
+		drm_dbg_kms(&dev_priv->drm, "No PCH found.\n");
 
 	pci_dev_put(pch);
 }

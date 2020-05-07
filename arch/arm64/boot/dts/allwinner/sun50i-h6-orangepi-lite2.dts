@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2018 Jagan Teki <jagan@openedev.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2018 Jagan Teki <jagan@openedev.com>
 
 #include "sun50i-h6-orangepi.dtsi"
 

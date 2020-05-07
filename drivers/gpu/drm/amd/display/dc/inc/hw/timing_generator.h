@@ -195,10 +195,8 @@ struct timing_generator_funcs {
 	void (*lock)(struct timing_generator *tg);
 	void (*lock_doublebuffer_disable)(struct timing_generator *tg);
 	void (*lock_doublebuffer_enable)(struct timing_generator *tg);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void(*triplebuffer_unlock)(struct timing_generator *tg);
 	void(*triplebuffer_lock)(struct timing_generator *tg);
-#endif
 	void (*enable_reset_trigger)(struct timing_generator *tg,
 				     int source_tg_inst);
 	void (*enable_crtc_reset)(struct timing_generator *tg,
@@ -210,7 +208,8 @@ struct timing_generator_funcs {
 					bool enable, const struct dc_crtc_timing *timing);
 	void (*set_drr)(struct timing_generator *tg, const struct drr_params *params);
 	void (*set_static_screen_control)(struct timing_generator *tg,
-							uint32_t value);
+						uint32_t event_triggers,
+						uint32_t num_frames);
 	void (*set_test_pattern)(
 		struct timing_generator *tg,
 		enum controller_dp_test_pattern test_pattern,
@@ -235,7 +234,6 @@ struct timing_generator_funcs {
 	bool (*is_optc_underflow_occurred)(struct timing_generator *tg);
 	void (*clear_optc_underflow)(struct timing_generator *tg);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*set_dwb_source)(struct timing_generator *optc,
 		uint32_t dwb_pipe_inst);
 
@@ -243,7 +241,6 @@ struct timing_generator_funcs {
 			uint32_t *num_of_input_segments,
 			uint32_t *seg0_src_sel,
 			uint32_t *seg1_src_sel);
-#endif
 
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
@@ -261,17 +258,16 @@ struct timing_generator_funcs {
 
 	void (*program_manual_trigger)(struct timing_generator *optc);
 	void (*setup_manual_trigger)(struct timing_generator *optc);
+	bool (*get_hw_timing)(struct timing_generator *optc,
+			struct dc_crtc_timing *hw_crtc_timing);
 
 	void (*set_vtg_params)(struct timing_generator *optc,
 			const struct dc_crtc_timing *dc_crtc_timing);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	void (*set_dsc_config)(struct timing_generator *optc,
 			       enum optc_dsc_mode dsc_mode,
 			       uint32_t dsc_bytes_per_pixel,
 			       uint32_t dsc_slice_width);
-#endif
 	void (*set_odm_bypass)(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing);
 	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
 			struct dc_crtc_timing *timing);
@@ -279,7 +275,6 @@ struct timing_generator_funcs {
 	void (*set_gsl_source_select)(struct timing_generator *optc,
 			int group_idx,
 			uint32_t gsl_ready_signal);
-#endif
 };
 
 #endif

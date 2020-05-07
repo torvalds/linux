@@ -117,7 +117,6 @@ struct sdhci_s3c {
 	struct s3c_sdhci_platdata *pdata;
 	int			cur_clk;
 	int			ext_cd_irq;
-	int			ext_cd_gpio;
 
 	struct clk		*clk_io;
 	struct clk		*clk_bus[MAX_BUS_CLK];
@@ -481,7 +480,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sdhci_host *host;
 	struct sdhci_s3c *sc;
-	struct resource *res;
 	int ret, irq, ptr, clks;
 
 	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
@@ -512,7 +510,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 			goto err_pdata_io_clk;
 	} else {
 		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
-		sc->ext_cd_gpio = -1; /* invalid gpio number */
 	}
 
 	drv_data = sdhci_s3c_get_driver_data(pdev);
@@ -555,8 +552,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		goto err_no_busclks;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->ioaddr)) {
 		ret = PTR_ERR(host->ioaddr);
 		goto err_req_regs;

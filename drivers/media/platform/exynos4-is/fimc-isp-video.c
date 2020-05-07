@@ -313,7 +313,7 @@ static int isp_video_release(struct file *file)
 		ivc->streaming = 0;
 	}
 
-	vb2_fop_release(file);
+	_vb2_fop_release(file, NULL);
 
 	if (v4l2_fh_is_singular_file(file)) {
 		fimc_pipeline_call(&ivc->ve, close);
@@ -619,7 +619,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 
 	video_set_drvdata(vdev, isp);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		media_entity_cleanup(&vdev->entity);
 		return ret;

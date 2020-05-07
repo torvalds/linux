@@ -521,12 +521,12 @@ static const struct drm_display_mode acx565akm_mode = {
 	.height_mm = 46,
 };
 
-static int acx565akm_get_modes(struct drm_panel *panel)
+static int acx565akm_get_modes(struct drm_panel *panel,
+			       struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &acx565akm_mode);
+	mode = drm_mode_duplicate(connector->dev, &acx565akm_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -648,9 +648,8 @@ static int acx565akm_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &lcd->spi->dev;
-	lcd->panel.funcs = &acx565akm_funcs;
+	drm_panel_init(&lcd->panel, &lcd->spi->dev, &acx565akm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = drm_panel_add(&lcd->panel);
 	if (ret < 0) {

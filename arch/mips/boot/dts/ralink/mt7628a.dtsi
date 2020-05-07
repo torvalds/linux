@@ -285,4 +285,14 @@
 		interrupt-parent = <&intc>;
 		interrupts = <18>;
 	};
+
+	wmac: wmac@10300000 {
+		compatible = "mediatek,mt7628-wmac";
+		reg = <0x10300000 0x100000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		status = "disabled";
+	};
 };

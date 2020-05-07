@@ -2381,7 +2381,7 @@ struct opa_port_status_rsp {
 		__be64 port_vl_rcv_bubble;
 		__be64 port_vl_mark_fecn;
 		__be64 port_vl_xmit_discards;
-	} vls[0]; /* real array size defined by # bits set in vl_select_mask */
+	} vls[]; /* real array size defined by # bits set in vl_select_mask */
 };
 
 enum counter_selects {
@@ -2423,7 +2423,7 @@ struct opa_aggregate {
 	__be16 attr_id;
 	__be16 err_reqlength;	/* 1 bit, 8 res, 7 bit */
 	__be32 attr_mod;
-	u8 data[0];
+	u8 data[];
 };
 
 #define MSK_LLI 0x000000f0
@@ -4915,16 +4915,11 @@ static int hfi1_process_ib_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  */
 int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 		     const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		     const struct ib_mad_hdr *in_mad, size_t in_mad_size,
-		     struct ib_mad_hdr *out_mad, size_t *out_mad_size,
-		     u16 *out_mad_pkey_index)
+		     const struct ib_mad *in_mad, struct ib_mad *out_mad,
+		     size_t *out_mad_size, u16 *out_mad_pkey_index)
 {
-	switch (in_mad->base_version) {
+	switch (in_mad->mad_hdr.base_version) {
 	case OPA_MGMT_BASE_VERSION:
-		if (unlikely(in_mad_size != sizeof(struct opa_mad))) {
-			dev_err(ibdev->dev.parent, "invalid in_mad_size\n");
-			return IB_MAD_RESULT_FAILURE;
-		}
 		return hfi1_process_opa_mad(ibdev, mad_flags, port,
 					    in_wc, in_grh,
 					    (struct opa_mad *)in_mad,
@@ -4932,10 +4927,8 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 					    out_mad_size,
 					    out_mad_pkey_index);
 	case IB_MGMT_BASE_VERSION:
-		return hfi1_process_ib_mad(ibdev, mad_flags, port,
-					  in_wc, in_grh,
-					  (const struct ib_mad *)in_mad,
-					  (struct ib_mad *)out_mad);
+		return hfi1_process_ib_mad(ibdev, mad_flags, port, in_wc,
+					   in_grh, in_mad, out_mad);
 	default:
 		break;
 	}

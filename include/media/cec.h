@@ -18,9 +18,6 @@
 #include <linux/cec-funcs.h>
 #include <media/rc-core.h>
 
-/* CEC_ADAP_G_CONNECTOR_INFO is available */
-#define CEC_CAP_CONNECTOR_INFO	(1 << 8)
-
 #define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
 			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
@@ -146,34 +143,6 @@ struct cec_adap_ops {
  * reasonable.
  */
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
-
-/**
- * struct cec_drm_connector_info - tells which drm connector is
- * associated with the CEC adapter.
- * @card_no: drm card number
- * @connector_id: drm connector ID
- */
-struct cec_drm_connector_info {
-	__u32 card_no;
-	__u32 connector_id;
-};
-
-#define CEC_CONNECTOR_TYPE_NO_CONNECTOR	0
-#define CEC_CONNECTOR_TYPE_DRM		1
-
-/**
- * struct cec_connector_info - tells if and which connector is
- * associated with the CEC adapter.
- * @type: connector type (if any)
- * @drm: drm connector info
- */
-struct cec_connector_info {
-	__u32 type;
-	union {
-		struct cec_drm_connector_info drm;
-		__u32 raw[16];
-	};
-};
 
 struct cec_adapter {
 	struct module *owner;
@@ -413,52 +382,6 @@ cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
 			    const struct drm_connector *connector)
 {
 	memset(conn_info, 0, sizeof(*conn_info));
-}
-
-#endif
-
-#if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
-
-/**
- * cec_notifier_register - register a callback with the notifier
- * @n: the CEC notifier
- * @adap: the CEC adapter, passed as argument to the callback function
- * @callback: the callback function
- */
-void cec_notifier_register(struct cec_notifier *n,
-			   struct cec_adapter *adap,
-			   void (*callback)(struct cec_adapter *adap, u16 pa));
-
-/**
- * cec_notifier_unregister - unregister the callback from the notifier.
- * @n: the CEC notifier
- */
-void cec_notifier_unregister(struct cec_notifier *n);
-
-/**
- * cec_register_cec_notifier - register the notifier with the cec adapter.
- * @adap: the CEC adapter
- * @notifier: the CEC notifier
- */
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier);
-
-#else
-
-static inline void
-cec_notifier_register(struct cec_notifier *n,
-		      struct cec_adapter *adap,
-		      void (*callback)(struct cec_adapter *adap, u16 pa))
-{
-}
-
-static inline void cec_notifier_unregister(struct cec_notifier *n)
-{
-}
-
-static inline void cec_register_cec_notifier(struct cec_adapter *adap,
-					     struct cec_notifier *notifier)
-{
 }
 
 #endif

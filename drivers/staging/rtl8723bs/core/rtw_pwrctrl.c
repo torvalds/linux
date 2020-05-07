@@ -190,7 +190,6 @@ void rtw_ps_processor(struct adapter *padapter)
 	}
 exit:
 	pwrpriv->ps_processing = false;
-	return;
 }
 
 static void pwr_state_check_handler(struct timer_list *t)
@@ -1194,7 +1193,7 @@ inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)
 /*
 * rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
 * @adapter: pointer to struct adapter structure
-* @ips_deffer_ms: the ms wiil prevent from falling into IPS after wakeup
+* @ips_deffer_ms: the ms will prevent from falling into IPS after wakeup
 * Return _SUCCESS or _FAIL
 */
 
@@ -1391,10 +1390,5 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum PS_DENY_REASON reason)
  */
 u32 rtw_ps_deny_get(struct adapter *padapter)
 {
-	u32 deny;
-
-
-	deny = adapter_to_pwrctl(padapter)->ps_deny;
-
-	return deny;
+	return adapter_to_pwrctl(padapter)->ps_deny;
 }

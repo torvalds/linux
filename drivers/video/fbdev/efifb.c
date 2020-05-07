@@ -255,7 +255,7 @@ static void efifb_destroy(struct fb_info *info)
 	fb_dealloc_cmap(&info->cmap);
 }
 
-static struct fb_ops efifb_ops = {
+static const struct fb_ops efifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= efifb_destroy,
 	.fb_setcolreg	= efifb_setcolreg,
@@ -653,7 +653,7 @@ static void efifb_fixup_resources(struct pci_dev *dev)
 	if (!base)
 		return;
 
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *res = &dev->resource[i];
 
 		if (!(res->flags & IORESOURCE_MEM))

@@ -22,7 +22,8 @@ static struct tcp_ulp_ops *tcp_ulp_find(const char *name)
 {
 	struct tcp_ulp_ops *e;
 
-	list_for_each_entry_rcu(e, &tcp_ulp_list, list) {
+	list_for_each_entry_rcu(e, &tcp_ulp_list, list,
+				lockdep_is_held(&tcp_ulp_list_lock)) {
 		if (strcmp(e->name, name) == 0)
 			return e;
 	}
@@ -92,21 +93,20 @@ void tcp_get_available_ulp(char *buf, size_t maxlen)
 		offs += snprintf(buf + offs, maxlen - offs,
 				 "%s%s",
 				 offs == 0 ? "" : " ", ulp_ops->name);
+
+		if (WARN_ON_ONCE(offs >= maxlen))
+			break;
 	}
 	rcu_read_unlock();
 }
 
-void tcp_update_ulp(struct sock *sk, struct proto *proto)
+void tcp_update_ulp(struct sock *sk, struct proto *proto,
+		    void (*write_space)(struct sock *sk))
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (!icsk->icsk_ulp_ops) {
-		sk->sk_prot = proto;
-		return;
-	}
-
 	if (icsk->icsk_ulp_ops->update)
-		icsk->icsk_ulp_ops->update(sk, proto);
+		icsk->icsk_ulp_ops->update(sk, proto, write_space);
 }
 
 void tcp_cleanup_ulp(struct sock *sk)

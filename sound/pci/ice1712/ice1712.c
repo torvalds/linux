@@ -480,21 +480,6 @@ static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id)
 
 
 /*
- *  PCM part - misc
- */
-
-static int snd_ice1712_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_ice1712_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-/*
  *  PCM part - consumer I/O
  */
 
@@ -836,9 +821,6 @@ static int snd_ice1712_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ice1712_playback_ops = {
 	.open =		snd_ice1712_playback_open,
 	.close =	snd_ice1712_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ice1712_hw_params,
-	.hw_free =	snd_ice1712_hw_free,
 	.prepare =	snd_ice1712_playback_prepare,
 	.trigger =	snd_ice1712_playback_trigger,
 	.pointer =	snd_ice1712_playback_pointer,
@@ -847,9 +829,6 @@ static const struct snd_pcm_ops snd_ice1712_playback_ops = {
 static const struct snd_pcm_ops snd_ice1712_playback_ds_ops = {
 	.open =		snd_ice1712_playback_ds_open,
 	.close =	snd_ice1712_playback_ds_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ice1712_hw_params,
-	.hw_free =	snd_ice1712_hw_free,
 	.prepare =	snd_ice1712_playback_ds_prepare,
 	.trigger =	snd_ice1712_playback_ds_trigger,
 	.pointer =	snd_ice1712_playback_ds_pointer,
@@ -858,9 +837,6 @@ static const struct snd_pcm_ops snd_ice1712_playback_ds_ops = {
 static const struct snd_pcm_ops snd_ice1712_capture_ops = {
 	.open =		snd_ice1712_capture_open,
 	.close =	snd_ice1712_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ice1712_hw_params,
-	.hw_free =	snd_ice1712_hw_free,
 	.prepare =	snd_ice1712_capture_prepare,
 	.trigger =	snd_ice1712_capture_trigger,
 	.pointer =	snd_ice1712_capture_pointer,
@@ -883,8 +859,8 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, "ICE1712 consumer");
 	ice->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &ice->pci->dev, 64*1024, 64*1024);
 
 	dev_warn(ice->card->dev,
 		 "Consumer PCM code does not work well at the moment --jk\n");
@@ -908,8 +884,8 @@ static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, "ICE1712 consumer (DS)");
 	ice->pcm_ds = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &ice->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1061,7 +1037,7 @@ static int snd_ice1712_playback_pro_hw_params(struct snd_pcm_substream *substrea
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 
 	snd_ice1712_set_pro_rate(ice, params_rate(hw_params), 0);
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	return 0;
 }
 
 static int snd_ice1712_capture_pro_prepare(struct snd_pcm_substream *substream)
@@ -1083,7 +1059,7 @@ static int snd_ice1712_capture_pro_hw_params(struct snd_pcm_substream *substream
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 
 	snd_ice1712_set_pro_rate(ice, params_rate(hw_params), 0);
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	return 0;
 }
 
 static snd_pcm_uframes_t snd_ice1712_playback_pro_pointer(struct snd_pcm_substream *substream)
@@ -1217,9 +1193,7 @@ static int snd_ice1712_capture_pro_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ice1712_playback_pro_ops = {
 	.open =		snd_ice1712_playback_pro_open,
 	.close =	snd_ice1712_playback_pro_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_ice1712_playback_pro_hw_params,
-	.hw_free =	snd_ice1712_hw_free,
 	.prepare =	snd_ice1712_playback_pro_prepare,
 	.trigger =	snd_ice1712_pro_trigger,
 	.pointer =	snd_ice1712_playback_pro_pointer,
@@ -1228,9 +1202,7 @@ static const struct snd_pcm_ops snd_ice1712_playback_pro_ops = {
 static const struct snd_pcm_ops snd_ice1712_capture_pro_ops = {
 	.open =		snd_ice1712_capture_pro_open,
 	.close =	snd_ice1712_capture_pro_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_ice1712_capture_pro_hw_params,
-	.hw_free =	snd_ice1712_hw_free,
 	.prepare =	snd_ice1712_capture_pro_prepare,
 	.trigger =	snd_ice1712_pro_trigger,
 	.pointer =	snd_ice1712_capture_pro_pointer,
@@ -1252,8 +1224,8 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ICE1712 multi");
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 256*1024, 256*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &ice->pci->dev, 256*1024, 256*1024);
 
 	ice->pcm_pro = pcm;
 
@@ -1363,7 +1335,7 @@ static int snd_ice1712_pro_mixer_volume_put(struct snd_kcontrol *kcontrol, struc
 
 static const DECLARE_TLV_DB_SCALE(db_scale_playback, -14400, 150, 0);
 
-static struct snd_kcontrol_new snd_ice1712_multi_playback_ctrls[] = {
+static const struct snd_kcontrol_new snd_ice1712_multi_playback_ctrls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Multi Playback Switch",
@@ -1492,11 +1464,11 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 	int err, bus_num = 0;
 	struct snd_ac97_template ac97;
 	struct snd_ac97_bus *pbus;
-	static struct snd_ac97_bus_ops con_ops = {
+	static const struct snd_ac97_bus_ops con_ops = {
 		.write = snd_ice1712_ac97_write,
 		.read = snd_ice1712_ac97_read,
 	};
-	static struct snd_ac97_bus_ops pro_ops = {
+	static const struct snd_ac97_bus_ops pro_ops = {
 		.write = snd_ice1712_pro_ac97_write,
 		.read = snd_ice1712_pro_ac97_read,
 	};
@@ -2246,7 +2218,7 @@ static const struct snd_kcontrol_new snd_ice1712_mixer_pro_peak = {
 /*
  * list of available boards
  */
-static struct snd_ice1712_card_info *card_tables[] = {
+static const struct snd_ice1712_card_info *card_tables[] = {
 	snd_ice1712_hoontech_cards,
 	snd_ice1712_delta_cards,
 	snd_ice1712_ews_cards,
@@ -2270,7 +2242,7 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 {
 	int dev = ICE_I2C_EEPROM_ADDR;	/* I2C EEPROM device address */
 	unsigned int i, size;
-	struct snd_ice1712_card_info * const *tbl, *c;
+	const struct snd_ice1712_card_info * const *tbl, *c;
 
 	if (!modelname || !*modelname) {
 		ice->eeprom.subvendor = 0;
@@ -2502,7 +2474,7 @@ static int snd_ice1712_create(struct snd_card *card,
 {
 	struct snd_ice1712 *ice;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ice1712_dev_free,
 	};
 
@@ -2556,7 +2528,6 @@ static int snd_ice1712_create(struct snd_card *card,
 	pci_write_config_word(ice->pci, 0x40, 0x807f);
 	pci_write_config_word(ice->pci, 0x42, 0x0006);
 	snd_ice1712_proc_init(ice);
-	synchronize_irq(pci->irq);
 
 	card->private_data = ice;
 
@@ -2579,6 +2550,7 @@ static int snd_ice1712_create(struct snd_card *card,
 	}
 
 	ice->irq = pci->irq;
+	card->sync_irq = ice->irq;
 
 	if (snd_ice1712_read_eeprom(ice, modelname) < 0) {
 		snd_ice1712_free(ice);
@@ -2615,7 +2587,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct snd_ice1712 *ice;
 	int pcm_dev = 0, err;
-	struct snd_ice1712_card_info * const *tbl, *c;
+	const struct snd_ice1712_card_info * const *tbl, *c;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;

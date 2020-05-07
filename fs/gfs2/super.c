@@ -61,11 +61,13 @@ void gfs2_jindex_free(struct gfs2_sbd *sdp)
 	sdp->sd_journals = 0;
 	spin_unlock(&sdp->sd_jindex_spin);
 
+	sdp->sd_jdesc = NULL;
 	while (!list_empty(&list)) {
-		jd = list_entry(list.next, struct gfs2_jdesc, jd_list);
+		jd = list_first_entry(&list, struct gfs2_jdesc, jd_list);
 		gfs2_free_journal_extents(jd);
 		list_del(&jd->jd_list);
 		iput(jd->jd_inode);
+		jd->jd_inode = NULL;
 		kfree(jd);
 	}
 }
@@ -171,9 +173,13 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 		goto fail_threads;
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
+	if (gfs2_withdrawn(sdp)) {
+		error = -EIO;
+		goto fail;
+	}
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
-	if (error)
+	if (error || gfs2_withdrawn(sdp))
 		goto fail;
 
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
@@ -187,7 +193,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	gfs2_log_pointers_init(sdp, head.lh_blkno);
 
 	error = gfs2_quota_init(sdp);
-	if (error)
+	if (error || gfs2_withdrawn(sdp))
 		goto fail;
 
 	set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
@@ -399,8 +405,7 @@ struct lfcc {
  * Returns: errno
  */
 
-static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
-				    struct gfs2_holder *freeze_gh)
+static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip;
 	struct gfs2_jdesc *jd;
@@ -425,7 +430,9 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   GL_NOCACHE, freeze_gh);
+				   GL_NOCACHE, &sdp->sd_freeze_gh);
+	if (error)
+		goto out;
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		error = gfs2_jdesc_check(jd);
@@ -441,11 +448,11 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	if (error)
-		gfs2_glock_dq_uninit(freeze_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 
 out:
 	while (!list_empty(&list)) {
-		lfcc = list_entry(list.next, struct lfcc, list);
+		lfcc = list_first_entry(&list, struct lfcc, list);
 		list_del(&lfcc->list);
 		gfs2_glock_dq_uninit(&lfcc->gh);
 		kfree(lfcc);
@@ -553,7 +560,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	if (!(flags & I_DIRTY_INODE))
 		return;
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
@@ -598,33 +605,62 @@ out:
 int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	struct gfs2_holder freeze_gh;
-	int error;
+	int error = 0;
+	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, GL_NOCACHE,
-				   &freeze_gh);
-	if (error && !test_bit(SDF_WITHDRAWN, &sdp->sd_flags))
-		return error;
+	gfs2_holder_mark_uninitialized(&freeze_gh);
+	if (sdp->sd_freeze_gl &&
+	    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
+		if (!log_write_allowed) {
+			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
+						   LM_ST_SHARED, GL_NOCACHE |
+						   LM_FLAG_TRY, &freeze_gh);
+			if (error == GLR_TRYFAILED)
+				error = 0;
+		} else {
+			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
+						   LM_ST_SHARED, GL_NOCACHE,
+						   &freeze_gh);
+			if (error && !gfs2_withdrawn(sdp))
+				return error;
+		}
+	}
 
 	flush_workqueue(gfs2_delete_workqueue);
-	if (sdp->sd_quotad_process)
+	if (!log_write_allowed && current == sdp->sd_quotad_process)
+		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
+	else if (sdp->sd_quotad_process)
 		kthread_stop(sdp->sd_quotad_process);
 	sdp->sd_quotad_process = NULL;
-	if (sdp->sd_logd_process)
+
+	if (!log_write_allowed && current == sdp->sd_logd_process)
+		fs_warn(sdp, "The logd daemon is withdrawing.\n");
+	else if (sdp->sd_logd_process)
 		kthread_stop(sdp->sd_logd_process);
 	sdp->sd_logd_process = NULL;
 
-	gfs2_quota_sync(sdp->sd_vfs, 0);
-	gfs2_statfs_sync(sdp->sd_vfs, 0);
+	if (log_write_allowed) {
+		gfs2_quota_sync(sdp->sd_vfs, 0);
+		gfs2_statfs_sync(sdp->sd_vfs, 0);
 
-	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
-		       GFS2_LFC_MAKE_FS_RO);
-	wait_event(sdp->sd_reserving_log_wait, atomic_read(&sdp->sd_reserving_log) == 0);
-	gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks);
-
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
+			       GFS2_LFC_MAKE_FS_RO);
+		wait_event(sdp->sd_reserving_log_wait,
+			   atomic_read(&sdp->sd_reserving_log) == 0);
+		gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) ==
+				 sdp->sd_jdesc->jd_blocks);
+	} else {
+		wait_event_timeout(sdp->sd_reserving_log_wait,
+				   atomic_read(&sdp->sd_reserving_log) == 0,
+				   HZ * 5);
+	}
 	if (gfs2_holder_initialized(&freeze_gh))
 		gfs2_glock_dq_uninit(&freeze_gh);
 
 	gfs2_quota_cleanup(sdp);
+
+	if (!log_write_allowed)
+		sdp->sd_vfs->s_flags |= SB_RDONLY;
 
 	return error;
 }
@@ -676,8 +712,10 @@ restart:
 	gfs2_glock_put(sdp->sd_freeze_gl);
 
 	if (!sdp->sd_args.ar_spectator) {
-		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
+		if (gfs2_holder_initialized(&sdp->sd_journal_gh))
+			gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
+		if (gfs2_holder_initialized(&sdp->sd_jinode_gh))
+			gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
 		iput(sdp->sd_sc_inode);
@@ -761,21 +799,25 @@ static int gfs2_freeze(struct super_block *sb)
 	if (atomic_read(&sdp->sd_freeze_state) != SFS_UNFROZEN)
 		goto out;
 
-	if (test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
-		error = -EINVAL;
-		goto out;
-	}
-
 	for (;;) {
-		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
+		if (gfs2_withdrawn(sdp)) {
+			error = -EINVAL;
+			goto out;
+		}
+
+		error = gfs2_lock_fs_check_clean(sdp);
 		if (!error)
 			break;
 
 		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");
-		else
+		else if (error == -EIO) {
+			fs_err(sdp, "Fatal IO error: cannot freeze gfs2 due "
+			       "to recovery error.\n");
+			goto out;
+		} else {
 			fs_err(sdp, "error freezing FS: %d\n", error);
-
+		}
 		fs_err(sdp, "retrying...\n");
 		msleep(1000);
 	}
@@ -1351,14 +1393,6 @@ out_unlock:
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
-	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
-		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
-		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-			gfs2_glock_dq(&ip->i_iopen_gh);
-		}
-		gfs2_holder_uninit(&ip->i_iopen_gh);
-	}
 	if (gfs2_holder_initialized(&gh)) {
 		glock_clear_object(ip->i_gl, ip);
 		gfs2_glock_dq_uninit(&gh);
@@ -1367,22 +1401,30 @@ out_unlock:
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
 	truncate_inode_pages_final(&inode->i_data);
-	gfs2_rsqa_delete(ip, NULL);
+	if (ip->i_qadata)
+		gfs2_assert_warn(sdp, ip->i_qadata->qa_ref == 0);
+	gfs2_rs_delete(ip, NULL);
+	gfs2_qa_put(ip);
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
-	glock_clear_object(ip->i_gl, ip);
-	wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
-	gfs2_glock_add_to_lru(ip->i_gl);
-	gfs2_glock_put_eventually(ip->i_gl);
-	ip->i_gl = NULL;
+	if (ip->i_gl) {
+		glock_clear_object(ip->i_gl, ip);
+		wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
+		gfs2_glock_add_to_lru(ip->i_gl);
+		gfs2_glock_put_eventually(ip->i_gl);
+		ip->i_gl = NULL;
+	}
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		glock_clear_object(gl, ip);
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
+			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+			gfs2_glock_dq(&ip->i_iopen_gh);
+		}
 		gfs2_glock_hold(gl);
-		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+		gfs2_holder_uninit(&ip->i_iopen_gh);
 		gfs2_glock_put_eventually(gl);
 	}
 }
@@ -1396,6 +1438,7 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 		return NULL;
 	ip->i_flags = 0;
 	ip->i_gl = NULL;
+	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
 	RB_CLEAR_NODE(&ip->i_res.rs_node);
 	ip->i_rahead = 0;

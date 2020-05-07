@@ -128,16 +128,20 @@ static int dr_table_init_nic(struct mlx5dr_domain *dmn,
 						  DR_CHUNK_SIZE_1,
 						  MLX5DR_STE_LU_TYPE_DONT_CARE,
 						  0);
-	if (!nic_tbl->s_anchor)
+	if (!nic_tbl->s_anchor) {
+		mlx5dr_err(dmn, "Failed allocating htbl\n");
 		return -ENOMEM;
+	}
 
 	info.type = CONNECT_MISS;
 	info.miss_icm_addr = nic_dmn->default_icm_addr;
 	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn,
 						nic_tbl->s_anchor,
 						&info, true);
-	if (ret)
+	if (ret) {
+		mlx5dr_err(dmn, "Failed int and send htbl\n");
 		goto free_s_anchor;
+	}
 
 	mlx5dr_htbl_get(nic_tbl->s_anchor);
 
@@ -211,6 +215,9 @@ static int dr_table_destroy_sw_owned_tbl(struct mlx5dr_table *tbl)
 
 static int dr_table_create_sw_owned_tbl(struct mlx5dr_table *tbl)
 {
+	bool en_encap = !!(tbl->flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
+	bool en_decap = !!(tbl->flags & MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
+	struct mlx5dr_cmd_create_flow_table_attr ft_attr = {};
 	u64 icm_addr_rx = 0;
 	u64 icm_addr_tx = 0;
 	int ret;
@@ -221,18 +228,21 @@ static int dr_table_create_sw_owned_tbl(struct mlx5dr_table *tbl)
 	if (tbl->tx.s_anchor)
 		icm_addr_tx = tbl->tx.s_anchor->chunk->icm_addr;
 
-	ret = mlx5dr_cmd_create_flow_table(tbl->dmn->mdev,
-					   tbl->table_type,
-					   icm_addr_rx,
-					   icm_addr_tx,
-					   tbl->dmn->info.caps.max_ft_level - 1,
-					   true, false, NULL,
-					   &tbl->table_id);
+	ft_attr.table_type = tbl->table_type;
+	ft_attr.icm_addr_rx = icm_addr_rx;
+	ft_attr.icm_addr_tx = icm_addr_tx;
+	ft_attr.level = tbl->dmn->info.caps.max_ft_level - 1;
+	ft_attr.sw_owner = true;
+	ft_attr.decap_en = en_decap;
+	ft_attr.reformat_en = en_encap;
+
+	ret = mlx5dr_cmd_create_flow_table(tbl->dmn->mdev, &ft_attr,
+					   NULL, &tbl->table_id);
 
 	return ret;
 }
 
-struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level)
+struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level, u32 flags)
 {
 	struct mlx5dr_table *tbl;
 	int ret;
@@ -245,6 +255,7 @@ struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level)
 
 	tbl->dmn = dmn;
 	tbl->level = level;
+	tbl->flags = flags;
 	refcount_set(&tbl->refcount, 1);
 
 	ret = dr_table_init(tbl);

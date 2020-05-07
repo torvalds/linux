@@ -23,6 +23,7 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
+#include <linux/sfp.h>
 #include <linux/workqueue.h>
 #include <linux/mdio.h>
 #include <linux/io.h>
@@ -95,9 +96,10 @@ void phy_print_status(struct phy_device *phydev)
 {
 	if (phydev->link) {
 		netdev_info(phydev->attached_dev,
-			"Link is Up - %s/%s - flow control %s\n",
+			"Link is Up - %s/%s %s- flow control %s\n",
 			phy_speed_to_str(phydev->speed),
 			phy_duplex_to_str(phydev->duplex),
+			phydev->downshifted_rate ? "(downshifted) " : "",
 			phy_pause_str(phydev));
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");
@@ -251,66 +253,6 @@ static void phy_sanitize_settings(struct phy_device *phydev)
 		phydev->duplex = DUPLEX_UNKNOWN;
 	}
 }
-
-/**
- * phy_ethtool_sset - generic ethtool sset function, handles all the details
- * @phydev: target phy_device struct
- * @cmd: ethtool_cmd
- *
- * A few notes about parameter checking:
- *
- * - We don't set port or transceiver, so we don't care what they
- *   were set to.
- * - phy_start_aneg() will make sure forced settings are sane, and
- *   choose the next best ones from the ones selected, so we don't
- *   care if ethtool tries to give us bad values.
- */
-int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
-	u32 speed = ethtool_cmd_speed(cmd);
-
-	if (cmd->phy_address != phydev->mdio.addr)
-		return -EINVAL;
-
-	/* We make sure that we don't pass unsupported values in to the PHY */
-	ethtool_convert_legacy_u32_to_link_mode(advertising, cmd->advertising);
-	linkmode_and(advertising, advertising, phydev->supported);
-
-	/* Verify the settings we care about. */
-	if (cmd->autoneg != AUTONEG_ENABLE && cmd->autoneg != AUTONEG_DISABLE)
-		return -EINVAL;
-
-	if (cmd->autoneg == AUTONEG_ENABLE && cmd->advertising == 0)
-		return -EINVAL;
-
-	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((speed != SPEED_1000 &&
-	      speed != SPEED_100 &&
-	      speed != SPEED_10) ||
-	     (cmd->duplex != DUPLEX_HALF &&
-	      cmd->duplex != DUPLEX_FULL)))
-		return -EINVAL;
-
-	phydev->autoneg = cmd->autoneg;
-
-	phydev->speed = speed;
-
-	linkmode_copy(phydev->advertising, advertising);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-			 phydev->advertising, AUTONEG_ENABLE == cmd->autoneg);
-
-	phydev->duplex = cmd->duplex;
-
-	phydev->mdix_ctrl = cmd->eth_tp_mdix_ctrl;
-
-	/* Restart the PHY */
-	phy_start_aneg(phydev);
-
-	return 0;
-}
-EXPORT_SYMBOL(phy_ethtool_sset);
 
 int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			      const struct ethtool_link_ksettings *cmd)
@@ -481,8 +423,8 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case SIOCSHWTSTAMP:
-		if (phydev->drv && phydev->drv->hwtstamp)
-			return phydev->drv->hwtstamp(phydev, ifr);
+		if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
+			return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
 		/* fall through */
 
 	default:
@@ -490,6 +432,31 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	}
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
+
+/**
+ * phy_do_ioctl - generic ndo_do_ioctl implementation
+ * @dev: the net_device struct
+ * @ifr: &struct ifreq for socket ioctl's
+ * @cmd: ioctl cmd to execute
+ */
+int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	if (!dev->phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+EXPORT_SYMBOL(phy_do_ioctl);
+
+/* same as phy_do_ioctl, but ensures that net_device is running */
+int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	if (!netif_running(dev))
+		return -ENODEV;
+
+	return phy_do_ioctl(dev, ifr, cmd);
+}
+EXPORT_SYMBOL(phy_do_ioctl_running);
 
 void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 {
@@ -541,6 +508,7 @@ static int phy_check_link_status(struct phy_device *phydev)
 		return err;
 
 	if (phydev->link && phydev->state != PHY_RUNNING) {
+		phy_check_downshift(phydev);
 		phydev->state = PHY_RUNNING;
 		phy_link_up(phydev);
 	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
@@ -749,25 +717,24 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
+	struct phy_driver *drv = phydev->drv;
 
-	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
+	if (drv->handle_interrupt)
+		return drv->handle_interrupt(phydev);
+
+	if (drv->did_interrupt && !drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
-	if (phydev->drv->handle_interrupt) {
-		if (phydev->drv->handle_interrupt(phydev))
-			goto phy_err;
-	} else {
-		/* reschedule state queue work to run as soon as possible */
-		phy_trigger_machine(phydev);
+	/* reschedule state queue work to run as soon as possible */
+	phy_trigger_machine(phydev);
+
+	/* did_interrupt() may have cleared the interrupt already */
+	if (!drv->did_interrupt && phy_clear_interrupt(phydev)) {
+		phy_error(phydev);
+		return IRQ_NONE;
 	}
 
-	if (phy_clear_interrupt(phydev))
-		goto phy_err;
 	return IRQ_HANDLED;
-
-phy_err:
-	phy_error(phydev);
-	return IRQ_NONE;
 }
 
 /**
@@ -841,6 +808,9 @@ void phy_stop(struct phy_device *phydev)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->sfp_bus)
+		sfp_upstream_stop(phydev->sfp_bus);
+
 	phydev->state = PHY_HALTED;
 
 	mutex_unlock(&phydev->lock);
@@ -874,6 +844,9 @@ void phy_start(struct phy_device *phydev)
 		     phy_state_to_str(phydev->state));
 		goto out;
 	}
+
+	if (phydev->sfp_bus)
+		sfp_upstream_start(phydev->sfp_bus);
 
 	/* if phy was suspended, bring the physical link up again */
 	__phy_resume(phydev);

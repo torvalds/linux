@@ -210,12 +210,12 @@ static int imgu_hw_wait(void __iomem *base, int reg, u32 mask, u32 cmp)
 
 /* Initialize the IPU3 CSS hardware and associated h/w blocks */
 
-int imgu_css_set_powerup(struct device *dev, void __iomem *base)
+int imgu_css_set_powerup(struct device *dev, void __iomem *base,
+			 unsigned int freq)
 {
-	static const unsigned int freq = 450;
 	u32 pm_ctrl, state, val;
 
-	dev_dbg(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s with freq %u\n", __func__, freq);
 	/* Clear the CSS busy signal */
 	readl(base + IMGU_REG_GP_BUSY);
 	writel(0, base + IMGU_REG_GP_BUSY);
@@ -1450,7 +1450,7 @@ bool imgu_css_pipe_queue_empty(struct imgu_css *css, unsigned int pipe)
 bool imgu_css_queue_empty(struct imgu_css *css)
 {
 	unsigned int pipe;
-	bool ret = 0;
+	bool ret = false;
 
 	for (pipe = 0; pipe < IMGU_MAX_PIPE_NUM; pipe++)
 		ret &= imgu_css_pipe_queue_empty(css, pipe);

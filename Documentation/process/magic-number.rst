@@ -81,7 +81,6 @@ FF_MAGIC              0x4646           fc_info                  ``drivers/net/ip
 ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
-SERIAL_MAGIC          0x5301           async_struct             ``include/linux/serial.h``
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
 SLIP_MAGIC            0x5302           slip                     ``drivers/net/slip.h``
 STRIP_MAGIC           0x5303           strip                    ``drivers/net/strip.c``

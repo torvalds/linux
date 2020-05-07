@@ -147,7 +147,7 @@ config UML_NET
 	  make use of UML networking.
 
 config UML_NET_ETHERTAP
-	bool "Ethertap transport"
+	bool "Ethertap transport (obsolete)"
 	depends on UML_NET
 	help
 	  The Ethertap User-Mode Linux network transport allows a single
@@ -167,14 +167,13 @@ config UML_NET_ETHERTAP
 	  has examples of the UML command line to use to enable Ethertap
 	  networking.
 
-	  If you'd like to set up an IP network with the host and/or the
-	  outside world, say Y to this, the Daemon Transport and/or the
-	  Slip Transport.  You'll need at least one of them, but may choose
-	  more than one without conflict.  If you don't need UML networking,
-	  say N.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
 
 config UML_NET_TUNTAP
-	bool "TUN/TAP transport"
+	bool "TUN/TAP transport (obsolete)"
 	depends on UML_NET
 	help
 	  The UML TUN/TAP network transport allows a UML instance to exchange
@@ -185,8 +184,13 @@ config UML_NET_TUNTAP
 	  To use this transport, your host kernel must have support for TUN/TAP
 	  devices, either built-in or as a module.
 
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
+
 config UML_NET_SLIP
-	bool "SLIP transport"
+	bool "SLIP transport (obsolete)"
 	depends on UML_NET
 	help
 	  The slip User-Mode Linux network transport allows a running UML to
@@ -201,16 +205,13 @@ config UML_NET_SLIP
 	  has examples of the UML command line to use to enable slip
 	  networking, and details of a few quirks with it.
 
-	  The Ethertap Transport is preferred over slip because of its
-	  limitations.  If you prefer slip, however, say Y here.  Otherwise
-	  choose the Multicast transport (to network multiple UMLs on
-	  multiple hosts), Ethertap (to network with the host and the
-	  outside world), and/or the Daemon transport (to network multiple
-	  UMLs on a single host).  You may choose more than one without
-	  conflict.  If you don't need UML networking, say N.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
 
 config UML_NET_DAEMON
-	bool "Daemon transport"
+	bool "Daemon transport (obsolete)"
 	depends on UML_NET
 	help
 	  This User-Mode Linux network transport allows one or more running
@@ -225,17 +226,15 @@ config UML_NET_DAEMON
 	  has examples of the UML command line to use to enable Daemon
 	  networking.
 
-	  If you'd like to set up a network with other UMLs on a single host,
-	  say Y.  If you need a network between UMLs on multiple physical
-	  hosts, choose the Multicast Transport.  To set up a network with
-	  the host and/or other IP machines, say Y to the Ethertap or Slip
-	  transports.  You'll need at least one of them, but may choose
-	  more than one without conflict.  If you don't need UML networking,
-	  say N.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
 
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	depends on UML_NET
+	select FORBID_STATIC_LINK
 	help
 	This User-Mode Linux network driver uses multi-message send
 	and receive functions. The host running the UML guest must have
@@ -245,8 +244,9 @@ config UML_NET_VECTOR
 	drivers.
 
 config UML_NET_VDE
-	bool "VDE transport"
+	bool "VDE transport (obsolete)"
 	depends on UML_NET
+	select FORBID_STATIC_LINK
 	help
 	This User-Mode Linux network transport allows one or more running
 	UMLs on a single host to communicate with each other and also
@@ -263,11 +263,13 @@ config UML_NET_VDE
 	That site has a good overview of what VDE is and also examples
 	of the UML command line to use to enable VDE networking.
 
-	If you need UML networking with VDE,
-	say Y.
+	NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	migrate to UML_NET_VECTOR.
+
+	If unsure, say N.
 
 config UML_NET_MCAST
-	bool "Multicast transport"
+	bool "Multicast transport (obsolete)"
 	depends on UML_NET
 	help
 	  This Multicast User-Mode Linux network transport allows multiple
@@ -284,16 +286,15 @@ config UML_NET_MCAST
 	  has examples of the UML command line to use to enable Multicast
 	  networking, and notes about the security of this approach.
 
-	  If you need UMLs on multiple physical hosts to communicate as if
-	  they shared an Ethernet network, say Y.  If you need to communicate
-	  with other IP machines, make sure you select one of the other
-	  transports (possibly in addition to Multicast; they're not
-	  exclusive).  If you don't need to network UMLs say N to each of
-	  the transports.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
 
 config UML_NET_PCAP
-	bool "pcap transport"
+	bool "pcap transport (obsolete)"
 	depends on UML_NET
+	select FORBID_STATIC_LINK
 	help
 	The pcap transport makes a pcap packet stream on the host look
 	like an ethernet device inside UML.  This is useful for making
@@ -304,11 +305,13 @@ config UML_NET_PCAP
 	  <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
 	  has examples of the UML command line to use to enable this option.
 
-	If you intend to use UML as a network monitor for the host, say
-	Y here.  Otherwise, say N.
+	NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	migrate to UML_NET_VECTOR.
+
+	If unsure, say N.
 
 config UML_NET_SLIRP
-	bool "SLiRP transport"
+	bool "SLiRP transport (obsolete)"
 	depends on UML_NET
 	help
 	  The SLiRP User-Mode Linux network transport allows a running UML
@@ -328,16 +331,17 @@ config UML_NET_SLIRP
 	  that of a host behind a firewall that masquerades all network
 	  connections passing through it (but is less secure).
 
-	  To use this you should first have slirp compiled somewhere
-	  accessible on the host, and have read its documentation.  If you
-	  don't need UML networking, say N.
+	  NOTE: THIS TRANSPORT IS DEPRECATED AND WILL BE REMOVED SOON!!! Please
+	  migrate to UML_NET_VECTOR.
+
+	  If unsure, say N.
 
 	  Startup example: "eth0=slirp,FE:FD:01:02:03:04,/usr/local/bin/slirp"
 
 endmenu
 
 config VIRTIO_UML
-	tristate "UML driver for virtio devices"
+	bool "UML driver for virtio devices"
 	select VIRTIO
 	help
 	  This driver provides support for virtio based paravirtual device

@@ -333,7 +333,7 @@ AVXcode: 1
 06: CLTS
 07: SYSRET (o64)
 08: INVD
-09: WBINVD
+09: WBINVD | WBNOINVD (F3)
 0a:
 0b: UD2 (1B)
 0c:
@@ -364,9 +364,9 @@ AVXcode: 1
 # a ModR/M byte.
 1a: BNDCL Gv,Ev (F3) | BNDCU Gv,Ev (F2) | BNDMOV Gv,Ev (66) | BNDLDX Gv,Ev
 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
-1c:
+1c: Grp20 (1A),(1C)
 1d:
-1e:
+1e: Grp21 (1A)
 1f: NOP Ev
 # 0x0f 0x20-0x2f
 20: MOV Rd,Cd
@@ -695,16 +695,28 @@ AVXcode: 2
 4d: vrcp14ss/d Vsd,Hpd,Wsd (66),(ev)
 4e: vrsqrt14ps/d Vpd,Wpd (66),(ev)
 4f: vrsqrt14ss/d Vsd,Hsd,Wsd (66),(ev)
-# Skip 0x50-0x57
+50: vpdpbusd Vx,Hx,Wx (66),(ev)
+51: vpdpbusds Vx,Hx,Wx (66),(ev)
+52: vdpbf16ps Vx,Hx,Wx (F3),(ev) | vpdpwssd Vx,Hx,Wx (66),(ev) | vp4dpwssd Vdqq,Hdqq,Wdq (F2),(ev)
+53: vpdpwssds Vx,Hx,Wx (66),(ev) | vp4dpwssds Vdqq,Hdqq,Wdq (F2),(ev)
+54: vpopcntb/w Vx,Wx (66),(ev)
+55: vpopcntd/q Vx,Wx (66),(ev)
 58: vpbroadcastd Vx,Wx (66),(v)
 59: vpbroadcastq Vx,Wx (66),(v) | vbroadcasti32x2 Vx,Wx (66),(evo)
 5a: vbroadcasti128 Vqq,Mdq (66),(v) | vbroadcasti32x4/64x2 Vx,Wx (66),(evo)
 5b: vbroadcasti32x8/64x4 Vqq,Mdq (66),(ev)
-# Skip 0x5c-0x63
+# Skip 0x5c-0x61
+62: vpexpandb/w Vx,Wx (66),(ev)
+63: vpcompressb/w Wx,Vx (66),(ev)
 64: vpblendmd/q Vx,Hx,Wx (66),(ev)
 65: vblendmps/d Vx,Hx,Wx (66),(ev)
 66: vpblendmb/w Vx,Hx,Wx (66),(ev)
-# Skip 0x67-0x74
+68: vp2intersectd/q Kx,Hx,Wx (F2),(ev)
+# Skip 0x69-0x6f
+70: vpshldvw Vx,Hx,Wx (66),(ev)
+71: vpshldvd/q Vx,Hx,Wx (66),(ev)
+72: vcvtne2ps2bf16 Vx,Hx,Wx (F2),(ev) | vcvtneps2bf16 Vx,Wx (F3),(ev) | vpshrdvw Vx,Hx,Wx (66),(ev)
+73: vpshrdvd/q Vx,Hx,Wx (66),(ev)
 75: vpermi2b/w Vx,Hx,Wx (66),(ev)
 76: vpermi2d/q Vx,Hx,Wx (66),(ev)
 77: vpermi2ps/d Vx,Hx,Wx (66),(ev)
@@ -727,6 +739,7 @@ AVXcode: 2
 8c: vpmaskmovd/q Vx,Hx,Mx (66),(v)
 8d: vpermb/w Vx,Hx,Wx (66),(ev)
 8e: vpmaskmovd/q Mx,Vx,Hx (66),(v)
+8f: vpshufbitqmb Kx,Hx,Wx (66),(ev)
 # 0x0f 0x38 0x90-0xbf (FMA)
 90: vgatherdd/q Vx,Hx,Wx (66),(v) | vpgatherdd/q Vx,Wx (66),(evo)
 91: vgatherqd/q Vx,Hx,Wx (66),(v) | vpgatherqd/q Vx,Wx (66),(evo)
@@ -738,8 +751,8 @@ AVXcode: 2
 97: vfmsubadd132ps/d Vx,Hx,Wx (66),(v)
 98: vfmadd132ps/d Vx,Hx,Wx (66),(v)
 99: vfmadd132ss/d Vx,Hx,Wx (66),(v),(v1)
-9a: vfmsub132ps/d Vx,Hx,Wx (66),(v)
-9b: vfmsub132ss/d Vx,Hx,Wx (66),(v),(v1)
+9a: vfmsub132ps/d Vx,Hx,Wx (66),(v) | v4fmaddps Vdqq,Hdqq,Wdq (F2),(ev)
+9b: vfmsub132ss/d Vx,Hx,Wx (66),(v),(v1) | v4fmaddss Vdq,Hdq,Wdq (F2),(ev)
 9c: vfnmadd132ps/d Vx,Hx,Wx (66),(v)
 9d: vfnmadd132ss/d Vx,Hx,Wx (66),(v),(v1)
 9e: vfnmsub132ps/d Vx,Hx,Wx (66),(v)
@@ -752,8 +765,8 @@ a6: vfmaddsub213ps/d Vx,Hx,Wx (66),(v)
 a7: vfmsubadd213ps/d Vx,Hx,Wx (66),(v)
 a8: vfmadd213ps/d Vx,Hx,Wx (66),(v)
 a9: vfmadd213ss/d Vx,Hx,Wx (66),(v),(v1)
-aa: vfmsub213ps/d Vx,Hx,Wx (66),(v)
-ab: vfmsub213ss/d Vx,Hx,Wx (66),(v),(v1)
+aa: vfmsub213ps/d Vx,Hx,Wx (66),(v) | v4fnmaddps Vdqq,Hdqq,Wdq (F2),(ev)
+ab: vfmsub213ss/d Vx,Hx,Wx (66),(v),(v1) | v4fnmaddss Vdq,Hdq,Wdq (F2),(ev)
 ac: vfnmadd213ps/d Vx,Hx,Wx (66),(v)
 ad: vfnmadd213ss/d Vx,Hx,Wx (66),(v),(v1)
 ae: vfnmsub213ps/d Vx,Hx,Wx (66),(v)
@@ -780,18 +793,21 @@ ca: sha1msg2 Vdq,Wdq | vrcp28ps/d Vx,Wx (66),(ev)
 cb: sha256rnds2 Vdq,Wdq | vrcp28ss/d Vx,Hx,Wx (66),(ev)
 cc: sha256msg1 Vdq,Wdq | vrsqrt28ps/d Vx,Wx (66),(ev)
 cd: sha256msg2 Vdq,Wdq | vrsqrt28ss/d Vx,Hx,Wx (66),(ev)
+cf: vgf2p8mulb Vx,Wx (66)
 db: VAESIMC Vdq,Wdq (66),(v1)
-dc: VAESENC Vdq,Hdq,Wdq (66),(v1)
-dd: VAESENCLAST Vdq,Hdq,Wdq (66),(v1)
-de: VAESDEC Vdq,Hdq,Wdq (66),(v1)
-df: VAESDECLAST Vdq,Hdq,Wdq (66),(v1)
+dc: vaesenc Vx,Hx,Wx (66)
+dd: vaesenclast Vx,Hx,Wx (66)
+de: vaesdec Vx,Hx,Wx (66)
+df: vaesdeclast Vx,Hx,Wx (66)
 f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
 f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
 f2: ANDN Gy,By,Ey (v)
 f3: Grp17 (1A)
-f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
-f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
+f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSSD/Q My,Gy (66)
+f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSSD/Q My,Gy
 f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+f8: MOVDIR64B Gv,Mdqq (66) | ENQCMD Gv,Mdqq (F2) | ENQCMDS Gv,Mdqq (F3)
+f9: MOVDIRI My,Gy
 EndTable
 
 Table: 3-byte opcode 2 (0x0f 0x3a)
@@ -846,7 +862,7 @@ AVXcode: 3
 41: vdppd Vdq,Hdq,Wdq,Ib (66),(v1)
 42: vmpsadbw Vx,Hx,Wx,Ib (66),(v1) | vdbpsadbw Vx,Hx,Wx,Ib (66),(evo)
 43: vshufi32x4/64x2 Vx,Hx,Wx,Ib (66),(ev)
-44: vpclmulqdq Vdq,Hdq,Wdq,Ib (66),(v1)
+44: vpclmulqdq Vx,Hx,Wx,Ib (66)
 46: vperm2i128 Vqq,Hqq,Wqq,Ib (66),(v)
 4a: vblendvps Vx,Hx,Wx,Lx (66),(v)
 4b: vblendvpd Vx,Hx,Wx,Lx (66),(v)
@@ -863,7 +879,13 @@ AVXcode: 3
 63: vpcmpistri Vdq,Wdq,Ib (66),(v1)
 66: vfpclassps/d Vk,Wx,Ib (66),(ev)
 67: vfpclassss/d Vk,Wx,Ib (66),(ev)
+70: vpshldw Vx,Hx,Wx,Ib (66),(ev)
+71: vpshldd/q Vx,Hx,Wx,Ib (66),(ev)
+72: vpshrdw Vx,Hx,Wx,Ib (66),(ev)
+73: vpshrdd/q Vx,Hx,Wx,Ib (66),(ev)
 cc: sha1rnds4 Vdq,Wdq,Ib
+ce: vgf2p8affineqb Vx,Wx,Ib (66)
+cf: vgf2p8affineinvqb Vx,Wx,Ib (66)
 df: VAESKEYGEN Vdq,Wdq,Ib (66),(v1)
 f0: RORX Gy,Ey,Ib (F2),(v)
 EndTable
@@ -907,7 +929,7 @@ EndTable
 
 GrpTable: Grp3_2
 0: TEST Ev,Iz
-1:
+1: TEST Ev,Iz
 2: NOT Ev
 3: NEG Ev
 4: MUL rAX,Ev
@@ -943,12 +965,12 @@ GrpTable: Grp6
 EndTable
 
 GrpTable: Grp7
-0: SGDT Ms | VMCALL (001),(11B) | VMLAUNCH (010),(11B) | VMRESUME (011),(11B) | VMXOFF (100),(11B)
-1: SIDT Ms | MONITOR (000),(11B) | MWAIT (001),(11B) | CLAC (010),(11B) | STAC (011),(11B)
-2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
+0: SGDT Ms | VMCALL (001),(11B) | VMLAUNCH (010),(11B) | VMRESUME (011),(11B) | VMXOFF (100),(11B) | PCONFIG (101),(11B) | ENCLV (000),(11B)
+1: SIDT Ms | MONITOR (000),(11B) | MWAIT (001),(11B) | CLAC (010),(11B) | STAC (011),(11B) | ENCLS (111),(11B)
+2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B) | ENCLU (111),(11B)
 3: LIDT Ms
 4: SMSW Mw/Rv
-5: rdpkru (110),(11B) | wrpkru (111),(11B)
+5: rdpkru (110),(11B) | wrpkru (111),(11B) | SAVEPREVSSP (F3),(010),(11B) | RSTORSSP Mq (F3) | SETSSBSY (F3),(000),(11B)
 6: LMSW Ew
 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
 EndTable
@@ -1019,8 +1041,8 @@ GrpTable: Grp15
 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
 4: XSAVE | ptwrite Ey (F3),(11B)
-5: XRSTOR | lfence (11B)
-6: XSAVEOPT | clwb (66) | mfence (11B)
+5: XRSTOR | lfence (11B) | INCSSPD/Q Ry (F3),(11B)
+6: XSAVEOPT | clwb (66) | mfence (11B) | TPAUSE Rd (66),(11B) | UMONITOR Rv (F3),(11B) | UMWAIT Rd (F2),(11B) | CLRSSBSY Mq (F3)
 7: clflush | clflushopt (66) | sfence (11B)
 EndTable
 
@@ -1049,6 +1071,15 @@ GrpTable: Grp19
 2: vgatherpf1qps/d Wx (66),(ev)
 5: vscatterpf0qps/d Wx (66),(ev)
 6: vscatterpf1qps/d Wx (66),(ev)
+EndTable
+
+GrpTable: Grp20
+0: cldemote Mb
+EndTable
+
+GrpTable: Grp21
+1: RDSSPD/Q Ry (F3),(11B)
+7: ENDBR64 (F3),(010),(11B) | ENDBR32 (F3),(011),(11B)
 EndTable
 
 # AMD's Prefetch Group

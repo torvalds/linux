@@ -27,6 +27,7 @@
 
 #define HCI_MAX_ACL_SIZE	1024
 #define HCI_MAX_SCO_SIZE	255
+#define HCI_MAX_ISO_SIZE	251
 #define HCI_MAX_EVENT_SIZE	260
 #define HCI_MAX_FRAME_SIZE	(HCI_MAX_ACL_SIZE + 4)
 
@@ -114,7 +115,7 @@ enum {
 	 * wrongly configured local features that will require forcing
 	 * them to enable this mode. Getting RSSI information with the
 	 * inquiry responses is preferred since it allows for a better
-	 * user expierence.
+	 * user experience.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
@@ -141,7 +142,7 @@ enum {
 
 	/* When this quirk is set, an external configuration step
 	 * is required and will be indicated with the controller
-	 * configuation.
+	 * configuration.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
 	 * during the hdev->setup vendor callback.
@@ -204,6 +205,15 @@ enum {
 	 *
 	 */
 	HCI_QUIRK_NON_PERSISTENT_SETUP,
+
+	/* When this quirk is set, wide band speech is supported by
+	 * the driver since no reliable mechanism exist to report
+	 * this from the hardware, a driver flag is use to convey
+	 * this support
+	 *
+	 * This quirk must be set before hci_register_dev is called.
+	 */
+	HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
 };
 
 /* HCI device flags */
@@ -276,6 +286,7 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_LE_SCAN_INTERRUPTED,
+	HCI_WIDEBAND_SPEECH_ENABLED,
 
 	HCI_DUT_MODE,
 	HCI_VENDOR_DIAG,
@@ -303,6 +314,7 @@ enum {
 #define HCI_ACLDATA_PKT		0x02
 #define HCI_SCODATA_PKT		0x03
 #define HCI_EVENT_PKT		0x04
+#define HCI_ISODATA_PKT		0x05
 #define HCI_DIAG_PKT		0xf0
 #define HCI_VENDOR_PKT		0xff
 
@@ -352,6 +364,15 @@ enum {
 #define ACL_ACTIVE_BCAST	0x04
 #define ACL_PICO_BCAST		0x08
 
+/* ISO PB flags */
+#define ISO_START		0x00
+#define ISO_CONT		0x01
+#define ISO_SINGLE		0x02
+#define ISO_END			0x03
+
+/* ISO TS flags */
+#define ISO_TS			0x01
+
 /* Baseband links */
 #define SCO_LINK	0x00
 #define ACL_LINK	0x01
@@ -359,6 +380,7 @@ enum {
 /* Low Energy links do not have defined link type. Use invented one */
 #define LE_LINK		0x80
 #define AMP_LINK	0x81
+#define ISO_LINK	0x82
 #define INVALID_LINK	0xff
 
 /* LMP features */
@@ -440,6 +462,8 @@ enum {
 #define HCI_LE_PHY_2M			0x01
 #define HCI_LE_PHY_CODED		0x08
 #define HCI_LE_CHAN_SEL_ALG2		0x40
+#define HCI_LE_CIS_MASTER		0x10
+#define HCI_LE_CIS_SLAVE		0x20
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -918,10 +942,14 @@ struct hci_cp_sniff_subrate {
 #define HCI_OP_RESET			0x0c03
 
 #define HCI_OP_SET_EVENT_FLT		0x0c05
-struct hci_cp_set_event_flt {
-	__u8     flt_type;
-	__u8     cond_type;
-	__u8     condition[0];
+#define HCI_SET_EVENT_FLT_SIZE		9
+struct hci_cp_set_event_filter {
+	__u8		flt_type;
+	__u8		cond_type;
+	struct {
+		bdaddr_t bdaddr;
+		__u8 auto_accept;
+	} __packed	addr_conn_flt;
 } __packed;
 
 /* Filter types */
@@ -935,8 +963,9 @@ struct hci_cp_set_event_flt {
 #define HCI_CONN_SETUP_ALLOW_BDADDR	0x02
 
 /* CONN_SETUP Conditions */
-#define HCI_CONN_SETUP_AUTO_OFF	0x01
-#define HCI_CONN_SETUP_AUTO_ON	0x02
+#define HCI_CONN_SETUP_AUTO_OFF		0x01
+#define HCI_CONN_SETUP_AUTO_ON		0x02
+#define HCI_CONN_SETUP_AUTO_ON_WITH_RS	0x03
 
 #define HCI_OP_READ_STORED_LINK_KEY	0x0c0d
 struct hci_cp_read_stored_link_key {
@@ -1070,6 +1099,19 @@ struct hci_rp_read_local_oob_data {
 struct hci_rp_read_inq_rsp_tx_power {
 	__u8     status;
 	__s8     tx_power;
+} __packed;
+
+#define HCI_OP_READ_DEF_ERR_DATA_REPORTING	0x0c5a
+	#define ERR_DATA_REPORTING_DISABLED	0x00
+	#define ERR_DATA_REPORTING_ENABLED	0x01
+struct hci_rp_read_def_err_data_reporting {
+	__u8     status;
+	__u8     err_data_reporting;
+} __packed;
+
+#define HCI_OP_WRITE_DEF_ERR_DATA_REPORTING	0x0c5b
+struct hci_cp_write_def_err_data_reporting {
+	__u8     err_data_reporting;
 } __packed;
 
 #define HCI_OP_SET_EVENT_MASK_PAGE_2	0x0c63
@@ -1321,7 +1363,7 @@ struct hci_rp_read_local_amp_assoc {
 	__u8     status;
 	__u8     phy_handle;
 	__le16   rem_len;
-	__u8     frag[0];
+	__u8     frag[];
 } __packed;
 
 #define HCI_OP_WRITE_REMOTE_AMP_ASSOC	0x140b
@@ -1329,7 +1371,7 @@ struct hci_cp_write_remote_amp_assoc {
 	__u8     phy_handle;
 	__le16   len_so_far;
 	__le16   rem_len;
-	__u8     frag[0];
+	__u8     frag[];
 } __packed;
 struct hci_rp_write_remote_amp_assoc {
 	__u8     status;
@@ -1599,7 +1641,7 @@ struct hci_cp_le_set_ext_scan_params {
 	__u8    own_addr_type;
 	__u8    filter_policy;
 	__u8    scanning_phys;
-	__u8    data[0];
+	__u8    data[];
 } __packed;
 
 #define LE_SCAN_PHY_1M		0x01
@@ -1627,7 +1669,7 @@ struct hci_cp_le_ext_create_conn {
 	__u8      peer_addr_type;
 	bdaddr_t  peer_addr;
 	__u8      phys;
-	__u8      data[0];
+	__u8      data[];
 } __packed;
 
 struct hci_cp_le_ext_conn_param {
@@ -1679,7 +1721,7 @@ struct hci_rp_le_set_ext_adv_params {
 struct hci_cp_le_set_ext_adv_enable {
 	__u8  enable;
 	__u8  num_of_sets;
-	__u8  data[0];
+	__u8  data[];
 } __packed;
 
 struct hci_cp_ext_adv_set {
@@ -1710,12 +1752,94 @@ struct hci_cp_le_set_ext_scan_rsp_data {
 
 #define LE_SET_ADV_DATA_NO_FRAG		0x01
 
+#define HCI_OP_LE_REMOVE_ADV_SET	0x203c
+
 #define HCI_OP_LE_CLEAR_ADV_SETS	0x203d
 
 #define HCI_OP_LE_SET_ADV_SET_RAND_ADDR	0x2035
 struct hci_cp_le_set_adv_set_rand_addr {
 	__u8  handle;
 	bdaddr_t  bdaddr;
+} __packed;
+
+#define HCI_OP_LE_READ_BUFFER_SIZE_V2	0x2060
+struct hci_rp_le_read_buffer_size_v2 {
+	__u8    status;
+	__le16  acl_mtu;
+	__u8    acl_max_pkt;
+	__le16  iso_mtu;
+	__u8    iso_max_pkt;
+} __packed;
+
+#define HCI_OP_LE_READ_ISO_TX_SYNC		0x2061
+struct hci_cp_le_read_iso_tx_sync {
+	__le16  handle;
+} __packed;
+
+struct hci_rp_le_read_iso_tx_sync {
+	__u8    status;
+	__le16  handle;
+	__le16  seq;
+	__le32  imestamp;
+	__u8    offset[3];
+} __packed;
+
+#define HCI_OP_LE_SET_CIG_PARAMS		0x2062
+struct hci_cis_params {
+	__u8    cis_id;
+	__le16  m_sdu;
+	__le16  s_sdu;
+	__u8    m_phy;
+	__u8    s_phy;
+	__u8    m_rtn;
+	__u8    s_rtn;
+} __packed;
+
+struct hci_cp_le_set_cig_params {
+	__u8    cig_id;
+	__u8    m_interval[3];
+	__u8    s_interval[3];
+	__u8    sca;
+	__u8    packing;
+	__u8    framing;
+	__le16  m_latency;
+	__le16  s_latency;
+	__u8    num_cis;
+	struct hci_cis_params cis[];
+} __packed;
+
+struct hci_rp_le_set_cig_params {
+	__u8    status;
+	__u8    cig_id;
+	__u8    num_handles;
+	__le16  handle[];
+} __packed;
+
+#define HCI_OP_LE_CREATE_CIS			0x2064
+struct hci_cis {
+	__le16  cis_handle;
+	__le16  acl_handle;
+} __packed;
+
+struct hci_cp_le_create_cis {
+	__u8    num_cis;
+	struct hci_cis cis[];
+} __packed;
+
+#define HCI_OP_LE_REMOVE_CIG			0x2065
+struct hci_cp_le_remove_cig {
+	__u8    cig_id;
+} __packed;
+
+#define HCI_OP_LE_ACCEPT_CIS			0x2066
+struct hci_cp_le_accept_cis {
+	__le16  handle;
+} __packed;
+
+#define HCI_OP_LE_REJECT_CIS			0x2067
+struct hci_cp_le_reject_cis {
+	__le16  handle;
+	__u8    reason;
 } __packed;
 
 /* ---- HCI Events ---- */
@@ -1843,7 +1967,7 @@ struct hci_comp_pkts_info {
 
 struct hci_ev_num_comp_pkts {
 	__u8     num_hndl;
-	struct hci_comp_pkts_info handles[0];
+	struct hci_comp_pkts_info handles[];
 } __packed;
 
 #define HCI_EV_MODE_CHANGE		0x14
@@ -2076,7 +2200,7 @@ struct hci_comp_blocks_info {
 struct hci_ev_num_comp_blocks {
 	__le16   num_blocks;
 	__u8     num_hndl;
-	struct hci_comp_blocks_info handles[0];
+	struct hci_comp_blocks_info handles[];
 } __packed;
 
 #define HCI_EV_SYNC_TRAIN_COMPLETE	0x4F
@@ -2132,7 +2256,7 @@ struct hci_ev_le_advertising_info {
 	__u8	 bdaddr_type;
 	bdaddr_t bdaddr;
 	__u8	 length;
-	__u8	 data[0];
+	__u8	 data[];
 } __packed;
 
 #define HCI_EV_LE_CONN_UPDATE_COMPLETE	0x03
@@ -2186,6 +2310,14 @@ struct hci_ev_le_direct_adv_info {
 	__s8	 rssi;
 } __packed;
 
+#define HCI_EV_LE_PHY_UPDATE_COMPLETE	0x0c
+struct hci_ev_le_phy_update_complete {
+	__u8  status;
+	__le16 handle;
+	__u8  tx_phy;
+	__u8  rx_phy;
+} __packed;
+
 #define HCI_EV_LE_EXT_ADV_REPORT    0x0d
 struct hci_ev_le_ext_adv_report {
 	__le16 	 evt_type;
@@ -2200,7 +2332,7 @@ struct hci_ev_le_ext_adv_report {
 	__u8  	 direct_addr_type;
 	bdaddr_t direct_addr;
 	__u8  	 length;
-	__u8	 data[0];
+	__u8	 data[];
 } __packed;
 
 #define HCI_EV_LE_ENHANCED_CONN_COMPLETE    0x0a
@@ -2226,13 +2358,41 @@ struct hci_evt_le_ext_adv_set_term {
 	__u8	num_evts;
 } __packed;
 
+#define HCI_EVT_LE_CIS_ESTABLISHED	0x19
+struct hci_evt_le_cis_established {
+	__u8  status;
+	__le16 handle;
+	__u8  cig_sync_delay[3];
+	__u8  cis_sync_delay[3];
+	__u8  m_latency[3];
+	__u8  s_latency[3];
+	__u8  m_phy;
+	__u8  s_phy;
+	__u8  nse;
+	__u8  m_bn;
+	__u8  s_bn;
+	__u8  m_ft;
+	__u8  s_ft;
+	__le16 m_mtu;
+	__le16 s_mtu;
+	__le16 interval;
+} __packed;
+
+#define HCI_EVT_LE_CIS_REQ		0x1a
+struct hci_evt_le_cis_req {
+	__le16 acl_handle;
+	__le16 cis_handle;
+	__u8  cig_id;
+	__u8  cis_id;
+} __packed;
+
 #define HCI_EV_VENDOR			0xff
 
 /* Internal events generated by Bluetooth stack */
 #define HCI_EV_STACK_INTERNAL	0xfd
 struct hci_ev_stack_internal {
 	__u16    type;
-	__u8     data[0];
+	__u8     data[];
 } __packed;
 
 #define HCI_EV_SI_DEVICE	0x01
@@ -2254,6 +2414,7 @@ struct hci_ev_si_security {
 #define HCI_EVENT_HDR_SIZE   2
 #define HCI_ACL_HDR_SIZE     4
 #define HCI_SCO_HDR_SIZE     3
+#define HCI_ISO_HDR_SIZE     4
 
 struct hci_command_hdr {
 	__le16	opcode;		/* OCF & OGF */
@@ -2274,6 +2435,30 @@ struct hci_sco_hdr {
 	__le16	handle;
 	__u8	dlen;
 } __packed;
+
+struct hci_iso_hdr {
+	__le16	handle;
+	__le16	dlen;
+	__u8	data[];
+} __packed;
+
+/* ISO data packet status flags */
+#define HCI_ISO_STATUS_VALID	0x00
+#define HCI_ISO_STATUS_INVALID	0x01
+#define HCI_ISO_STATUS_NOP	0x02
+
+#define HCI_ISO_DATA_HDR_SIZE	4
+struct hci_iso_data_hdr {
+	__le16	sn;
+	__le16	slen;
+};
+
+#define HCI_ISO_TS_DATA_HDR_SIZE 8
+struct hci_iso_ts_data_hdr {
+	__le32	ts;
+	__le16	sn;
+	__le16	slen;
+};
 
 static inline struct hci_event_hdr *hci_event_hdr(const struct sk_buff *skb)
 {
@@ -2299,5 +2484,15 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 #define hci_handle_pack(h, f)	((__u16) ((h & 0x0fff)|(f << 12)))
 #define hci_handle(h)		(h & 0x0fff)
 #define hci_flags(h)		(h >> 12)
+
+/* ISO handle and flags pack/unpack */
+#define hci_iso_flags_pb(f)		(f & 0x0003)
+#define hci_iso_flags_ts(f)		((f >> 2) & 0x0001)
+#define hci_iso_flags_pack(pb, ts)	((pb & 0x03) | ((ts & 0x01) << 2))
+
+/* ISO data length and flags pack/unpack */
+#define hci_iso_data_len_pack(h, f)	((__u16) ((h) | ((f) << 14)))
+#define hci_iso_data_len(h)		((h) & 0x3fff)
+#define hci_iso_data_flags(h)		((h) >> 14)
 
 #endif /* __HCI_H */

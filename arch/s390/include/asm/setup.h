@@ -8,6 +8,7 @@
 
 #include <linux/bits.h>
 #include <uapi/asm/setup.h>
+#include <linux/build_bug.h>
 
 #define EP_OFFSET		0x10008
 #define EP_STRING		"S390EP"
@@ -27,7 +28,6 @@
 #define MACHINE_FLAG_DIAG9C	BIT(3)
 #define MACHINE_FLAG_ESOP	BIT(4)
 #define MACHINE_FLAG_IDTE	BIT(5)
-#define MACHINE_FLAG_DIAG44	BIT(6)
 #define MACHINE_FLAG_EDAT1	BIT(7)
 #define MACHINE_FLAG_EDAT2	BIT(8)
 #define MACHINE_FLAG_TOPOLOGY	BIT(10)
@@ -80,6 +80,13 @@ struct parmarea {
 	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
 };
 
+extern unsigned int zlib_dfltcc_support;
+#define ZLIB_DFLTCC_DISABLED		0
+#define ZLIB_DFLTCC_FULL		1
+#define ZLIB_DFLTCC_DEFLATE_ONLY	2
+#define ZLIB_DFLTCC_INFLATE_ONLY	3
+#define ZLIB_DFLTCC_FULL_DEBUG		4
+
 extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
@@ -94,7 +101,6 @@ extern unsigned long __swsusp_reset_dma;
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
 #define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
 #define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
-#define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_EDAT1	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT1)
 #define MACHINE_HAS_EDAT2	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT2)
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
@@ -155,6 +161,12 @@ extern unsigned long __kaslr_offset;
 static inline unsigned long kaslr_offset(void)
 {
 	return __kaslr_offset;
+}
+
+static inline u32 gen_lpswe(unsigned long addr)
+{
+	BUILD_BUG_ON(addr > 0xfff);
+	return 0xb2b20000 | addr;
 }
 
 #else /* __ASSEMBLY__ */

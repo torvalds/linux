@@ -198,6 +198,8 @@ static const struct soc_id soc_id[] = {
 	{ 310, "MSM8996AU" },
 	{ 311, "APQ8096AU" },
 	{ 312, "APQ8096SG" },
+	{ 321, "SDM845" },
+	{ 341, "SDA845" },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)
@@ -275,7 +277,7 @@ static int show_image_##type(struct seq_file *seq, void *p)		  \
 {								  \
 	struct smem_image_version *image_version = seq->private;  \
 	seq_puts(seq, image_version->type);			  \
-	seq_puts(seq, "\n");					  \
+	seq_putc(seq, '\n');					  \
 	return 0;						  \
 }								  \
 static int open_image_##type(struct inode *inode, struct file *file)	  \

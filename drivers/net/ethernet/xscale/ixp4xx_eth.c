@@ -29,13 +29,15 @@
 #include <linux/net_tstamp.h>
 #include <linux/of.h>
 #include <linux/phy.h>
+#include <linux/platform_data/eth_ixp4xx.h>
 #include <linux/platform_device.h>
 #include <linux/ptp_classify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <mach/ixp46x_ts.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+
+#include "ixp46x_ts.h"
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
@@ -517,25 +519,14 @@ static int ixp4xx_mdio_write(struct mii_bus *bus, int phy_id, int location,
 	return ret;
 }
 
-static int ixp4xx_mdio_register(void)
+static int ixp4xx_mdio_register(struct eth_regs __iomem *regs)
 {
 	int err;
 
 	if (!(mdio_bus = mdiobus_alloc()))
 		return -ENOMEM;
 
-	if (cpu_is_ixp43x()) {
-		/* IXP43x lacks NPE-B and uses NPE-C for MII PHY access */
-		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEC_ETH))
-			return -ENODEV;
-		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
-	} else {
-		/* All MII PHY accesses use NPE-B Ethernet registers */
-		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
-			return -ENODEV;
-		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
-	}
-
+	mdio_regs = regs;
 	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
 	spin_lock_init(&mdio_lock);
 	mdio_bus->name = "IXP4xx MII Bus";
@@ -581,8 +572,8 @@ static void ixp4xx_adjust_link(struct net_device *dev)
 		__raw_writel(DEFAULT_TX_CNTRL0 | TX_CNTRL0_HALFDUPLEX,
 			     &port->regs->tx_control[0]);
 
-	printk(KERN_INFO "%s: link up, speed %u Mb/s, %s duplex\n",
-	       dev->name, port->speed, port->duplex ? "full" : "half");
+	netdev_info(dev, "%s: link up, speed %u Mb/s, %s duplex\n",
+		    dev->name, port->speed, port->duplex ? "full" : "half");
 }
 
 
@@ -592,7 +583,7 @@ static inline void debug_pkt(struct net_device *dev, const char *func,
 #if DEBUG_PKT_BYTES
 	int i;
 
-	printk(KERN_DEBUG "%s: %s(%i) ", dev->name, func, len);
+	netdev_debug(dev, "%s(%i) ", func, len);
 	for (i = 0; i < len; i++) {
 		if (i >= DEBUG_PKT_BYTES)
 			break;
@@ -683,7 +674,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 	int received = 0;
 
 #if DEBUG_RX
-	printk(KERN_DEBUG "%s: eth_poll\n", dev->name);
+	netdev_debug(dev, "eth_poll\n");
 #endif
 
 	while (received < budget) {
@@ -697,23 +688,20 @@ static int eth_poll(struct napi_struct *napi, int budget)
 
 		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
 #if DEBUG_RX
-			printk(KERN_DEBUG "%s: eth_poll napi_complete\n",
-			       dev->name);
+			netdev_debug(dev, "eth_poll napi_complete\n");
 #endif
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_below_low_watermark(rxq) &&
 			    napi_reschedule(napi)) { /* not empty again */
 #if DEBUG_RX
-				printk(KERN_DEBUG "%s: eth_poll napi_reschedule succeeded\n",
-				       dev->name);
+				netdev_debug(dev, "eth_poll napi_reschedule succeeded\n");
 #endif
 				qmgr_disable_irq(rxq);
 				continue;
 			}
 #if DEBUG_RX
-			printk(KERN_DEBUG "%s: eth_poll all done\n",
-			       dev->name);
+			netdev_debug(dev, "eth_poll all done\n");
 #endif
 			return received; /* all work done */
 		}
@@ -778,7 +766,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 	}
 
 #if DEBUG_RX
-	printk(KERN_DEBUG "eth_poll(): end, not all work done\n");
+	netdev_debug(dev, "eth_poll(): end, not all work done\n");
 #endif
 	return received;		/* not all work done */
 }
@@ -842,7 +830,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct desc *desc;
 
 #if DEBUG_TX
-	printk(KERN_DEBUG "%s: eth_xmit\n", dev->name);
+	netdev_debug(dev, "eth_xmit\n");
 #endif
 
 	if (unlikely(skb->len > MAX_MRU)) {
@@ -897,22 +885,21 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
-		printk(KERN_DEBUG "%s: eth_xmit queue full\n", dev->name);
+		netdev_debug(dev, "eth_xmit queue full\n");
 #endif
 		netif_stop_queue(dev);
 		/* we could miss TX ready interrupt */
 		/* really empty in fact */
 		if (!qmgr_stat_below_low_watermark(txreadyq)) {
 #if DEBUG_TX
-			printk(KERN_DEBUG "%s: eth_xmit ready again\n",
-			       dev->name);
+			netdev_debug(dev, "eth_xmit ready again\n");
 #endif
 			netif_wake_queue(dev);
 		}
 	}
 
 #if DEBUG_TX
-	printk(KERN_DEBUG "%s: eth_xmit end\n", dev->name);
+	netdev_debug(dev, "eth_xmit end\n");
 #endif
 
 	ixp_tx_timestamp(port, skb);
@@ -1099,7 +1086,7 @@ static int init_queues(struct port *port)
 	int i;
 
 	if (!ports_open) {
-		dma_pool = dma_pool_create(DRV_NAME, &port->netdev->dev,
+		dma_pool = dma_pool_create(DRV_NAME, port->netdev->dev.parent,
 					   POOL_ALLOC_SIZE, 32, 0);
 		if (!dma_pool)
 			return -ENOMEM;
@@ -1186,8 +1173,7 @@ static int eth_open(struct net_device *dev)
 			return err;
 
 		if (npe_recv_message(npe, &msg, "ETH_GET_STATUS")) {
-			printk(KERN_ERR "%s: %s not responding\n", dev->name,
-			       npe_name(npe));
+			netdev_err(dev, "%s not responding\n", npe_name(npe));
 			return -EIO;
 		}
 		port->firmware[0] = msg.byte4;
@@ -1299,7 +1285,7 @@ static int eth_close(struct net_device *dev)
 	msg.eth_id = port->id;
 	msg.byte3 = 1;
 	if (npe_send_recv_message(port->npe, &msg, "ETH_ENABLE_LOOPBACK"))
-		printk(KERN_CRIT "%s: unable to enable loopback\n", dev->name);
+		netdev_crit(dev, "unable to enable loopback\n");
 
 	i = 0;
 	do {			/* drain RX buffers */
@@ -1323,11 +1309,11 @@ static int eth_close(struct net_device *dev)
 	} while (++i < MAX_CLOSE_WAIT);
 
 	if (buffs)
-		printk(KERN_CRIT "%s: unable to drain RX queue, %i buffer(s)"
-		       " left in NPE\n", dev->name, buffs);
+		netdev_crit(dev, "unable to drain RX queue, %i buffer(s)"
+			    " left in NPE\n", buffs);
 #if DEBUG_CLOSE
 	if (!buffs)
-		printk(KERN_DEBUG "Draining RX queue took %i cycles\n", i);
+		netdev_debug(dev, "draining RX queue took %i cycles\n", i);
 #endif
 
 	buffs = TX_DESCS;
@@ -1343,17 +1329,16 @@ static int eth_close(struct net_device *dev)
 	} while (++i < MAX_CLOSE_WAIT);
 
 	if (buffs)
-		printk(KERN_CRIT "%s: unable to drain TX queue, %i buffer(s) "
-		       "left in NPE\n", dev->name, buffs);
+		netdev_crit(dev, "unable to drain TX queue, %i buffer(s) "
+			    "left in NPE\n", buffs);
 #if DEBUG_CLOSE
 	if (!buffs)
-		printk(KERN_DEBUG "Draining TX queues took %i cycles\n", i);
+		netdev_debug(dev, "draining TX queues took %i cycles\n", i);
 #endif
 
 	msg.byte3 = 0;
 	if (npe_send_recv_message(port->npe, &msg, "ETH_DISABLE_LOOPBACK"))
-		printk(KERN_CRIT "%s: unable to disable loopback\n",
-		       dev->name);
+		netdev_crit(dev, "unable to disable loopback\n");
 
 	phy_stop(dev->phydev);
 
@@ -1374,54 +1359,90 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 };
 
-static int eth_init_one(struct platform_device *pdev)
+static int ixp4xx_eth_probe(struct platform_device *pdev)
 {
-	struct port *port;
-	struct net_device *dev;
-	struct eth_plat_info *plat = dev_get_platdata(&pdev->dev);
-	struct phy_device *phydev = NULL;
-	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
+	struct phy_device *phydev = NULL;
+	struct device *dev = &pdev->dev;
+	struct eth_plat_info *plat;
+	resource_size_t regs_phys;
+	struct net_device *ndev;
+	struct resource *res;
+	struct port *port;
 	int err;
 
-	if (!(dev = alloc_etherdev(sizeof(struct port))))
+	plat = dev_get_platdata(dev);
+
+	if (!(ndev = devm_alloc_etherdev(dev, sizeof(struct port))))
 		return -ENOMEM;
 
-	SET_NETDEV_DEV(dev, &pdev->dev);
-	port = netdev_priv(dev);
-	port->netdev = dev;
+	SET_NETDEV_DEV(ndev, dev);
+	port = netdev_priv(ndev);
+	port->netdev = ndev;
 	port->id = pdev->id;
+
+	/* Get the port resource and remap */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+	regs_phys = res->start;
+	port->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(port->regs))
+		return PTR_ERR(port->regs);
 
 	switch (port->id) {
 	case IXP4XX_ETH_NPEA:
-		port->regs = (struct eth_regs __iomem *)IXP4XX_EthA_BASE_VIRT;
-		regs_phys  = IXP4XX_EthA_BASE_PHYS;
+		/* If the MDIO bus is not up yet, defer probe */
+		if (!mdio_bus)
+			return -EPROBE_DEFER;
 		break;
 	case IXP4XX_ETH_NPEB:
-		port->regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
-		regs_phys  = IXP4XX_EthB_BASE_PHYS;
+		/*
+		 * On all except IXP43x, NPE-B is used for the MDIO bus.
+		 * If there is no NPE-B in the feature set, bail out, else
+		 * register the MDIO bus.
+		 */
+		if (!cpu_is_ixp43x()) {
+			if (!(ixp4xx_read_feature_bits() &
+			      IXP4XX_FEATURE_NPEB_ETH0))
+				return -ENODEV;
+			/* Else register the MDIO bus on NPE-B */
+			if ((err = ixp4xx_mdio_register(port->regs)))
+				return err;
+		}
+		if (!mdio_bus)
+			return -EPROBE_DEFER;
 		break;
 	case IXP4XX_ETH_NPEC:
-		port->regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
-		regs_phys  = IXP4XX_EthC_BASE_PHYS;
+		/*
+		 * IXP43x lacks NPE-B and uses NPE-C for the MDIO bus access,
+		 * of there is no NPE-C, no bus, nothing works, so bail out.
+		 */
+		if (cpu_is_ixp43x()) {
+			if (!(ixp4xx_read_feature_bits() &
+			      IXP4XX_FEATURE_NPEC_ETH))
+				return -ENODEV;
+			/* Else register the MDIO bus on NPE-C */
+			if ((err = ixp4xx_mdio_register(port->regs)))
+				return err;
+		}
+		if (!mdio_bus)
+			return -EPROBE_DEFER;
 		break;
 	default:
-		err = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 
-	dev->netdev_ops = &ixp4xx_netdev_ops;
-	dev->ethtool_ops = &ixp4xx_ethtool_ops;
-	dev->tx_queue_len = 100;
+	ndev->netdev_ops = &ixp4xx_netdev_ops;
+	ndev->ethtool_ops = &ixp4xx_ethtool_ops;
+	ndev->tx_queue_len = 100;
 
-	netif_napi_add(dev, &port->napi, eth_poll, NAPI_WEIGHT);
+	netif_napi_add(ndev, &port->napi, eth_poll, NAPI_WEIGHT);
 
-	if (!(port->npe = npe_request(NPE_ID(port->id)))) {
-		err = -EIO;
-		goto err_free;
-	}
+	if (!(port->npe = npe_request(NPE_ID(port->id))))
+		return -EIO;
 
-	port->mem_res = request_mem_region(regs_phys, REGS_SIZE, dev->name);
+	port->mem_res = request_mem_region(regs_phys, REGS_SIZE, ndev->name);
 	if (!port->mem_res) {
 		err = -EBUSY;
 		goto err_npe_rel;
@@ -1429,9 +1450,9 @@ static int eth_init_one(struct platform_device *pdev)
 
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	memcpy(dev->dev_addr, plat->hwaddr, ETH_ALEN);
+	memcpy(ndev->dev_addr, plat->hwaddr, ETH_ALEN);
 
-	platform_set_drvdata(pdev, dev);
+	platform_set_drvdata(pdev, ndev);
 
 	__raw_writel(DEFAULT_CORE_CNTRL | CORE_RESET,
 		     &port->regs->core_control);
@@ -1441,7 +1462,7 @@ static int eth_init_one(struct platform_device *pdev)
 
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
 		mdio_bus->id, plat->phy);
-	phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link,
+	phydev = phy_connect(ndev, phy_id, &ixp4xx_adjust_link,
 			     PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phydev)) {
 		err = PTR_ERR(phydev);
@@ -1450,11 +1471,11 @@ static int eth_init_one(struct platform_device *pdev)
 
 	phydev->irq = PHY_POLL;
 
-	if ((err = register_netdev(dev)))
+	if ((err = register_netdev(ndev)))
 		goto err_phy_dis;
 
-	printk(KERN_INFO "%s: MII PHY %i on %s\n", dev->name, plat->phy,
-	       npe_name(port->npe));
+	netdev_info(ndev, "%s: MII PHY %i on %s\n", ndev->name, plat->phy,
+		    npe_name(port->npe));
 
 	return 0;
 
@@ -1465,58 +1486,32 @@ err_free_mem:
 	release_resource(port->mem_res);
 err_npe_rel:
 	npe_release(port->npe);
-err_free:
-	free_netdev(dev);
 	return err;
 }
 
-static int eth_remove_one(struct platform_device *pdev)
+static int ixp4xx_eth_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct phy_device *phydev = dev->phydev;
-	struct port *port = netdev_priv(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct phy_device *phydev = ndev->phydev;
+	struct port *port = netdev_priv(ndev);
 
-	unregister_netdev(dev);
+	unregister_netdev(ndev);
 	phy_disconnect(phydev);
+	ixp4xx_mdio_remove();
 	npe_port_tab[NPE_ID(port->id)] = NULL;
 	npe_release(port->npe);
 	release_resource(port->mem_res);
-	free_netdev(dev);
 	return 0;
 }
 
 static struct platform_driver ixp4xx_eth_driver = {
 	.driver.name	= DRV_NAME,
-	.probe		= eth_init_one,
-	.remove		= eth_remove_one,
+	.probe		= ixp4xx_eth_probe,
+	.remove		= ixp4xx_eth_remove,
 };
-
-static int __init eth_init_module(void)
-{
-	int err;
-
-	/*
-	 * FIXME: we bail out on device tree boot but this really needs
-	 * to be fixed in a nicer way: this registers the MDIO bus before
-	 * even matching the driver infrastructure, we should only probe
-	 * detected hardware.
-	 */
-	if (of_have_populated_dt())
-		return -ENODEV;
-	if ((err = ixp4xx_mdio_register()))
-		return err;
-	return platform_driver_register(&ixp4xx_eth_driver);
-}
-
-static void __exit eth_cleanup_module(void)
-{
-	platform_driver_unregister(&ixp4xx_eth_driver);
-	ixp4xx_mdio_remove();
-}
+module_platform_driver(ixp4xx_eth_driver);
 
 MODULE_AUTHOR("Krzysztof Halasa");
 MODULE_DESCRIPTION("Intel IXP4xx Ethernet driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:ixp4xx_eth");
-module_init(eth_init_module);
-module_exit(eth_cleanup_module);

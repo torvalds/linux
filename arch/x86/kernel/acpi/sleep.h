@@ -3,7 +3,7 @@
  *	Variables and functions used by the code in sleep.c
  */
 
-#include <asm/realmode.h>
+#include <linux/linkage.h>
 
 extern unsigned long saved_video_mode;
 extern long saved_magic;
@@ -19,4 +19,4 @@ extern void do_suspend_lowlevel(void);
 
 extern int x86_acpi_suspend_lowlevel(void);
 
-acpi_status asmlinkage x86_acpi_enter_sleep_state(u8 state);
+asmlinkage acpi_status x86_acpi_enter_sleep_state(u8 state);

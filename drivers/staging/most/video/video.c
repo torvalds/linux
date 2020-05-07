@@ -20,12 +20,11 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
-
-#include "most/core.h"
+#include <linux/most.h>
 
 #define V4L2_CMP_MAX_INPUT  1
 
-static struct core_component comp;
+static struct most_component comp;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -74,7 +73,7 @@ static int comp_vdev_open(struct file *filp)
 	struct comp_fh *fh;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		break;
 	default:
 		return -EINVAL;
@@ -424,7 +423,7 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 
 	/* Register the v4l2 device */
 	video_set_drvdata(mdev->vdev, mdev);
-	ret = video_register_device(mdev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(mdev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&mdev->v4l2_dev, "video_register_device failed (%d)\n",
 			 ret);
@@ -527,7 +526,8 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
-static struct core_component comp = {
+static struct most_component comp = {
+	.mod = THIS_MODULE,
 	.name = "video",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/moduleparam.h>
@@ -773,7 +762,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	 */
 	wil->rx_buff_id_count = WIL_RX_BUFF_ARR_SIZE_DEFAULT;
 
-	wil->amsdu_en = 1;
+	wil->amsdu_en = true;
 
 	return 0;
 
@@ -1665,6 +1654,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	/* Disable device led before reset*/
 	wmi_led_cfg(wil, false);
 
+	down_write(&wil->mem_lock);
+
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
 	if (test_bit(wil_status_suspending, wil->status))
@@ -1713,6 +1704,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		if  (wil->secured_boot) {
 			wil_err(wil, "secured boot is not supported\n");
+			up_write(&wil->mem_lock);
 			return -ENOTSUPP;
 		}
 
@@ -1747,6 +1739,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	reinit_completion(&wil->halp.comp);
 
 	clear_bit(wil_status_resetting, wil->status);
+
+	up_write(&wil->mem_lock);
 
 	if (load_fw) {
 		wil_unmask_irq(wil);
@@ -1797,6 +1791,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	return rc;
 
 out:
+	up_write(&wil->mem_lock);
 	clear_bit(wil_status_resetting, wil->status);
 	return rc;
 }
@@ -1822,9 +1817,7 @@ int __wil_up(struct wil6210_priv *wil)
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
-	down_write(&wil->mem_lock);
 	rc = wil_reset(wil, true);
-	up_write(&wil->mem_lock);
 	if (rc)
 		return rc;
 
@@ -1916,9 +1909,7 @@ int __wil_down(struct wil6210_priv *wil)
 	wil_abort_scan_all_vifs(wil, false);
 	mutex_unlock(&wil->vif_mutex);
 
-	down_write(&wil->mem_lock);
 	rc = wil_reset(wil, false);
-	up_write(&wil->mem_lock);
 
 	return rc;
 }

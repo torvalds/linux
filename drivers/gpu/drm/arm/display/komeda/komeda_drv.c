@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
@@ -32,6 +33,12 @@ static void komeda_unbind(struct device *dev)
 		return;
 
 	komeda_kms_detach(mdrv->kms);
+
+	if (pm_runtime_enabled(dev))
+		pm_runtime_disable(dev);
+	else
+		komeda_dev_suspend(mdrv->mdev);
+
 	komeda_dev_destroy(mdrv->mdev);
 
 	dev_set_drvdata(dev, NULL);
@@ -53,6 +60,10 @@ static int komeda_bind(struct device *dev)
 		goto free_mdrv;
 	}
 
+	pm_runtime_enable(dev);
+	if (!pm_runtime_enabled(dev))
+		komeda_dev_resume(mdrv->mdev);
+
 	mdrv->kms = komeda_kms_attach(mdrv->mdev);
 	if (IS_ERR(mdrv->kms)) {
 		err = PTR_ERR(mdrv->kms);
@@ -64,6 +75,11 @@ static int komeda_bind(struct device *dev)
 	return 0;
 
 destroy_mdev:
+	if (pm_runtime_enabled(dev))
+		pm_runtime_disable(dev);
+	else
+		komeda_dev_suspend(mdrv->mdev);
+
 	komeda_dev_destroy(mdrv->mdev);
 
 free_mdrv:
@@ -122,19 +138,55 @@ static int komeda_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct komeda_product_data komeda_products[] = {
-	[MALI_D71] = {
-		.product_id = MALIDP_D71_PRODUCT_ID,
-		.identify = d71_identify,
-	},
-};
-
 static const struct of_device_id komeda_of_match[] = {
-	{ .compatible = "arm,mali-d71", .data = &komeda_products[MALI_D71], },
+	{ .compatible = "arm,mali-d71", .data = d71_identify, },
+	{ .compatible = "arm,mali-d32", .data = d71_identify, },
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, komeda_of_match);
+
+static int __maybe_unused komeda_rt_pm_suspend(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	return komeda_dev_suspend(mdrv->mdev);
+}
+
+static int __maybe_unused komeda_rt_pm_resume(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	return komeda_dev_resume(mdrv->mdev);
+}
+
+static int __maybe_unused komeda_pm_suspend(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+	int res;
+
+	res = drm_mode_config_helper_suspend(&mdrv->kms->base);
+
+	if (!pm_runtime_status_suspended(dev))
+		komeda_dev_suspend(mdrv->mdev);
+
+	return res;
+}
+
+static int __maybe_unused komeda_pm_resume(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	if (!pm_runtime_status_suspended(dev))
+		komeda_dev_resume(mdrv->mdev);
+
+	return drm_mode_config_helper_resume(&mdrv->kms->base);
+}
+
+static const struct dev_pm_ops komeda_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(komeda_pm_suspend, komeda_pm_resume)
+	SET_RUNTIME_PM_OPS(komeda_rt_pm_suspend, komeda_rt_pm_resume, NULL)
+};
 
 static struct platform_driver komeda_platform_driver = {
 	.probe	= komeda_platform_probe,
@@ -142,7 +194,7 @@ static struct platform_driver komeda_platform_driver = {
 	.driver	= {
 		.name = "komeda",
 		.of_match_table	= komeda_of_match,
-		.pm = NULL,
+		.pm = &komeda_pm_ops,
 	},
 };
 

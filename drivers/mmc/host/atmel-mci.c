@@ -583,11 +583,11 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 
 	debugfs_create_file("regs", S_IRUSR, root, host, &atmci_regs_fops);
 	debugfs_create_file("req", S_IRUSR, root, slot, &atmci_req_fops);
-	debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
-	debugfs_create_x32("pending_events", S_IRUSR, root,
-			   (u32 *)&host->pending_events);
-	debugfs_create_x32("completed_events", S_IRUSR, root,
-			   (u32 *)&host->completed_events);
+	debugfs_create_u32("state", S_IRUSR, root, &host->state);
+	debugfs_create_xul("pending_events", S_IRUSR, root,
+			   &host->pending_events);
+	debugfs_create_xul("completed_events", S_IRUSR, root,
+			   &host->completed_events);
 }
 
 #if defined(CONFIG_OF)
@@ -2347,8 +2347,7 @@ static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 
 static int atmci_configure_dma(struct atmel_mci *host)
 {
-	host->dma.chan = dma_request_slave_channel_reason(&host->pdev->dev,
-							"rxtx");
+	host->dma.chan = dma_request_chan(&host->pdev->dev, "rxtx");
 
 	if (PTR_ERR(host->dma.chan) == -ENODEV) {
 		struct mci_platform_data *pdata = host->pdev->dev.platform_data;
@@ -2646,7 +2645,7 @@ static int atmci_runtime_resume(struct device *dev)
 {
 	struct atmel_mci *host = dev_get_drvdata(dev);
 
-	pinctrl_pm_select_default_state(dev);
+	pinctrl_select_default_state(dev);
 
 	return clk_prepare_enable(host->mck);
 }

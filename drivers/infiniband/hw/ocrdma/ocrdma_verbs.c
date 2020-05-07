@@ -190,12 +190,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-int ocrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
-		       struct ib_port_modify *props)
-{
-	return 0;
-}
-
 static int ocrdma_add_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 			   unsigned long len)
 {
@@ -875,7 +869,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(status);
-	mr->umem = ib_umem_get(udata, start, len, acc, 0);
+	mr->umem = ib_umem_get(ibpd->device, start, len, acc);
 	if (IS_ERR(mr->umem)) {
 		status = -EFAULT;
 		goto umem_err;
@@ -1117,7 +1111,7 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 	    (attrs->qp_type != IB_QPT_UD)) {
 		pr_err("%s(%d) unsupported qp type=0x%x requested\n",
 		       __func__, dev->id, attrs->qp_type);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 	/* Skip the check for QP1 to support CM size of 128 */
 	if ((attrs->qp_type != IB_QPT_GSI) &&

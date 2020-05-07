@@ -84,6 +84,8 @@
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
+#define MTK_GDMA_TO_PDMA	0x0
+#define MTK_GDMA_DROP_ALL       0x7777
 
 /* Unicast Filter MAC Address Register - Low */
 #define MTK_GDMA_MAC_ADRL(x)	(0x508 + (x * 0x1000))
@@ -350,9 +352,12 @@
 #define DQSI0(x)		((x << 0) & GENMASK(6, 0))
 #define DQSI1(x)		((x << 8) & GENMASK(14, 8))
 #define RXCTL_DMWTLAT(x)	((x << 16) & GENMASK(18, 16))
+#define RXC_RST			BIT(31)
 #define RXC_DQSISEL		BIT(30)
 #define RCK_CTRL_RGMII_1000	(RXC_DQSISEL | RXCTL_DMWTLAT(2) | DQSI1(16))
 #define RCK_CTRL_RGMII_10_100	RXCTL_DMWTLAT(2)
+
+#define NUM_TRGMII_CTRL		5
 
 /* TRGMII RXC control register */
 #define TRGMII_TCK_CTRL		0x10340
@@ -360,6 +365,11 @@
 #define TXC_INV			BIT(30)
 #define TCK_CTRL_RGMII_1000	TXCTL_DMWTLAT(2)
 #define TCK_CTRL_RGMII_10_100	(TXC_INV | TXCTL_DMWTLAT(2))
+
+/* TRGMII TX Drive Strength */
+#define TRGMII_TD_ODT(i)	(0x10354 + 8 * (i))
+#define  TD_DM_DRVP(x)		((x) & 0xf)
+#define  TD_DM_DRVN(x)		(((x) & 0xf) << 4)
 
 /* TRGMII Interface mode register */
 #define INTF_MODE		0x10390

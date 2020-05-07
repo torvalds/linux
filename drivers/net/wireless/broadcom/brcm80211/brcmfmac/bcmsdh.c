@@ -43,6 +43,7 @@
 
 #define SDIO_FUNC1_BLOCKSIZE		64
 #define SDIO_FUNC2_BLOCKSIZE		512
+#define SDIO_4359_FUNC2_BLOCKSIZE	256
 /* Maximum milliseconds to wait for F2 to come up */
 #define SDIO_WAIT_F2RDY	3000
 
@@ -119,7 +120,7 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 			brcmf_err("enable_irq_wake failed %d\n", ret);
 			return ret;
 		}
-		sdiodev->irq_wake = true;
+		disable_irq_wake(pdata->oob_irq_nr);
 
 		sdio_claim_host(sdiodev->func1);
 
@@ -178,10 +179,6 @@ void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 		sdio_release_host(sdiodev->func1);
 
 		sdiodev->oob_irq_requested = false;
-		if (sdiodev->irq_wake) {
-			disable_irq_wake(pdata->oob_irq_nr);
-			sdiodev->irq_wake = false;
-		}
 		free_irq(pdata->oob_irq_nr, &sdiodev->func1->dev);
 		sdiodev->irq_en = false;
 		sdiodev->oob_irq_requested = false;
@@ -903,6 +900,7 @@ static void brcmf_sdiod_host_fixup(struct mmc_host *host)
 static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret = 0;
+	unsigned int f2_blksz = SDIO_FUNC2_BLOCKSIZE;
 
 	sdio_claim_host(sdiodev->func1);
 
@@ -912,7 +910,9 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 		sdio_release_host(sdiodev->func1);
 		goto out;
 	}
-	ret = sdio_set_block_size(sdiodev->func2, SDIO_FUNC2_BLOCKSIZE);
+	if (sdiodev->func2->device == SDIO_DEVICE_ID_BROADCOM_4359)
+		f2_blksz = SDIO_4359_FUNC2_BLOCKSIZE;
+	ret = sdio_set_block_size(sdiodev->func2, f2_blksz);
 	if (ret) {
 		brcmf_err("Failed to set F2 blocksize\n");
 		sdio_release_host(sdiodev->func1);
@@ -969,8 +969,10 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43455),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4354),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4356),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4359),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_CYPRESS_4373),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_CYPRESS_43012),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_CYPRESS_89359),
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
@@ -1108,7 +1110,8 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	struct sdio_func *func;
 	struct brcmf_bus *bus_if;
 	struct brcmf_sdio_dev *sdiodev;
-	mmc_pm_flag_t sdio_flags;
+	mmc_pm_flag_t pm_caps, sdio_flags;
+	int ret = 0;
 
 	func = container_of(dev, struct sdio_func, dev);
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
@@ -1119,19 +1122,33 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	bus_if = dev_get_drvdata(dev);
 	sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_sdiod_freezer_on(sdiodev);
-	brcmf_sdio_wd_timer(sdiodev->bus, 0);
+	pm_caps = sdio_get_host_pm_caps(func);
 
-	sdio_flags = MMC_PM_KEEP_POWER;
-	if (sdiodev->wowl_enabled) {
-		if (sdiodev->settings->bus.sdio.oob_irq_supported)
-			enable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
-		else
-			sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
+	if (pm_caps & MMC_PM_KEEP_POWER) {
+		/* preserve card power during suspend */
+		brcmf_sdiod_freezer_on(sdiodev);
+		brcmf_sdio_wd_timer(sdiodev->bus, 0);
+
+		sdio_flags = MMC_PM_KEEP_POWER;
+		if (sdiodev->wowl_enabled) {
+			if (sdiodev->settings->bus.sdio.oob_irq_supported)
+				enable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
+			else
+				sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
+		}
+
+		if (sdio_set_host_pm_flags(sdiodev->func1, sdio_flags))
+			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
+
+	} else {
+		/* power will be cut so remove device, probe again in resume */
+		brcmf_sdiod_intr_unregister(sdiodev);
+		ret = brcmf_sdiod_remove(sdiodev);
+		if (ret)
+			brcmf_err("Failed to remove device on suspend\n");
 	}
-	if (sdio_set_host_pm_flags(sdiodev->func1, sdio_flags))
-		brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
-	return 0;
+
+	return ret;
 }
 
 static int brcmf_ops_sdio_resume(struct device *dev)
@@ -1139,13 +1156,27 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct sdio_func *func = container_of(dev, struct sdio_func, dev);
+	mmc_pm_flag_t pm_caps = sdio_get_host_pm_caps(func);
+	int ret = 0;
 
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
 	if (func->num != 2)
 		return 0;
 
-	brcmf_sdiod_freezer_off(sdiodev);
-	return 0;
+	if (!(pm_caps & MMC_PM_KEEP_POWER)) {
+		/* bus was powered off and device removed, probe again */
+		ret = brcmf_sdiod_probe(sdiodev);
+		if (ret)
+			brcmf_err("Failed to probe device on resume\n");
+	} else {
+		if (sdiodev->wowl_enabled &&
+		    sdiodev->settings->bus.sdio.oob_irq_supported)
+			disable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
+
+		brcmf_sdiod_freezer_off(sdiodev);
+	}
+
+	return ret;
 }
 
 static const struct dev_pm_ops brcmf_sdio_pm_ops = {

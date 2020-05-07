@@ -294,17 +294,17 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			goto exit;
 		}
 
-		if (node->sym) {
+		if (node->ms.sym) {
 			HV *sym = newHV();
 			if (!sym) {
 				hv_undef(elem);
 				goto exit;
 			}
-			if (!hv_stores(sym, "start",   newSVuv(node->sym->start)) ||
-			    !hv_stores(sym, "end",     newSVuv(node->sym->end)) ||
-			    !hv_stores(sym, "binding", newSVuv(node->sym->binding)) ||
-			    !hv_stores(sym, "name",    newSVpvn(node->sym->name,
-								node->sym->namelen)) ||
+			if (!hv_stores(sym, "start",   newSVuv(node->ms.sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(node->ms.sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(node->ms.sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(node->ms.sym->name,
+								node->ms.sym->namelen)) ||
 			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
 				hv_undef(sym);
 				hv_undef(elem);
@@ -312,8 +312,8 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			}
 		}
 
-		if (node->map) {
-			struct map *map = node->map;
+		if (node->ms.map) {
+			struct map *map = node->ms.map;
 			const char *dsoname = "[unknown]";
 			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)

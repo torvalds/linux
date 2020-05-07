@@ -40,17 +40,18 @@
  * Model specific counters:
  *	MSR_CORE_C1_RES: CORE C1 Residency Counter
  *			 perf code: 0x00
- *			 Available model: SLM,AMT,GLM,CNL
+ *			 Available model: SLM,AMT,GLM,CNL,TNT
  *			 Scope: Core (each processor core has a MSR)
  *	MSR_CORE_C3_RESIDENCY: CORE C3 Residency Counter
  *			       perf code: 0x01
  *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,GLM,
- *						CNL,KBL,CML
+ *						CNL,KBL,CML,TNT
  *			       Scope: Core
  *	MSR_CORE_C6_RESIDENCY: CORE C6 Residency Counter
  *			       perf code: 0x02
  *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
- *						SKL,KNL,GLM,CNL,KBL,CML,ICL,TGL
+ *						SKL,KNL,GLM,CNL,KBL,CML,ICL,TGL,
+ *						TNT
  *			       Scope: Core
  *	MSR_CORE_C7_RESIDENCY: CORE C7 Residency Counter
  *			       perf code: 0x03
@@ -60,17 +61,18 @@
  *	MSR_PKG_C2_RESIDENCY:  Package C2 Residency Counter.
  *			       perf code: 0x00
  *			       Available model: SNB,IVB,HSW,BDW,SKL,KNL,GLM,CNL,
- *						KBL,CML,ICL,TGL
+ *						KBL,CML,ICL,TGL,TNT
  *			       Scope: Package (physical package)
  *	MSR_PKG_C3_RESIDENCY:  Package C3 Residency Counter.
  *			       perf code: 0x01
  *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,KNL,
- *						GLM,CNL,KBL,CML,ICL,TGL
+ *						GLM,CNL,KBL,CML,ICL,TGL,TNT
  *			       Scope: Package (physical package)
  *	MSR_PKG_C6_RESIDENCY:  Package C6 Residency Counter.
  *			       perf code: 0x02
- *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW
- *						SKL,KNL,GLM,CNL,KBL,CML,ICL,TGL
+ *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
+ *						SKL,KNL,GLM,CNL,KBL,CML,ICL,TGL,
+ *						TNT
  *			       Scope: Package (physical package)
  *	MSR_PKG_C7_RESIDENCY:  Package C7 Residency Counter.
  *			       perf code: 0x03
@@ -87,7 +89,8 @@
  *			       Scope: Package (physical package)
  *	MSR_PKG_C10_RESIDENCY: Package C10 Residency Counter.
  *			       perf code: 0x06
- *			       Available model: HSW ULT,KBL,GLM,CNL,CML,ICL,TGL
+ *			       Available model: HSW ULT,KBL,GLM,CNL,CML,ICL,TGL,
+ *						TNT
  *			       Scope: Package (physical package)
  *
  */
@@ -591,62 +594,61 @@ static const struct cstate_model glm_cstates __initconst = {
 };
 
 
-#define X86_CSTATES_MODEL(model, states)				\
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long) &(states) }
-
 static const struct x86_cpu_id intel_cstates_match[] __initconst = {
-	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM,    nhm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EP, nhm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EX, nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM,		&nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EP,		&nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EX,		&nhm_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE,    nhm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EP, nhm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EX, nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE,		&nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EP,		&nhm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EX,		&nhm_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE,   snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE_X, snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X,	&snb_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE,   snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE_X, snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE_X,		&snb_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL,   snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_X, snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_G, snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_G,		&snb_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_L, hswult_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_L,		&hswult_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT,   slm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT_D, slm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_AIRMONT,      slm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&slm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_D,	&slm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&slm_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL,   snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_D, snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_G, snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_X, snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_G,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,		&snb_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_L, snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE,   snb_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_X, snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		&snb_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&snb_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_KABYLAKE_L, hswult_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_KABYLAKE,   hswult_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_COMETLAKE_L, hswult_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_COMETLAKE, hswult_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&hswult_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&hswult_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&hswult_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&hswult_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_CANNONLAKE_L, cnl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	&cnl_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_XEON_PHI_KNL, knl_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_XEON_PHI_KNM, knl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&knl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&knl_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_GOLDMONT,   glm_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_GOLDMONT_D, glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	&glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	&glm_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&glm_cstates),
 
-	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_GOLDMONT_PLUS, glm_cstates),
-
-	X86_CSTATES_MODEL(INTEL_FAM6_ICELAKE_L, icl_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_ICELAKE,   icl_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_TIGERLAKE_L, icl_cstates),
-	X86_CSTATES_MODEL(INTEL_FAM6_TIGERLAKE, icl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		&icl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE,		&icl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L,		&icl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE,		&icl_cstates),
 	{ },
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_cstates_match);

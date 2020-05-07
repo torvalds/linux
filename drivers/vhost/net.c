@@ -424,7 +424,7 @@ static void vhost_net_disable_vq(struct vhost_net *n,
 	struct vhost_net_virtqueue *nvq =
 		container_of(vq, struct vhost_net_virtqueue, vq);
 	struct vhost_poll *poll = n->poll + (nvq - n->vqs);
-	if (!vq->private_data)
+	if (!vhost_vq_get_backend(vq))
 		return;
 	vhost_poll_stop(poll);
 }
@@ -437,7 +437,7 @@ static int vhost_net_enable_vq(struct vhost_net *n,
 	struct vhost_poll *poll = n->poll + (nvq - n->vqs);
 	struct socket *sock;
 
-	sock = vq->private_data;
+	sock = vhost_vq_get_backend(vq);
 	if (!sock)
 		return 0;
 
@@ -524,7 +524,7 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 		return;
 
 	vhost_disable_notify(&net->dev, vq);
-	sock = rvq->private_data;
+	sock = vhost_vq_get_backend(rvq);
 
 	busyloop_timeout = poll_rx ? rvq->busyloop_timeout:
 				     tvq->busyloop_timeout;
@@ -570,8 +570,10 @@ static int vhost_net_tx_get_vq_desc(struct vhost_net *net,
 
 	if (r == tvq->num && tvq->busyloop_timeout) {
 		/* Flush batched packets first */
-		if (!vhost_sock_zcopy(tvq->private_data))
-			vhost_tx_batch(net, tnvq, tvq->private_data, msghdr);
+		if (!vhost_sock_zcopy(vhost_vq_get_backend(tvq)))
+			vhost_tx_batch(net, tnvq,
+				       vhost_vq_get_backend(tvq),
+				       msghdr);
 
 		vhost_net_busy_poll(net, rvq, tvq, busyloop_intr, false);
 
@@ -685,7 +687,7 @@ static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 	struct vhost_virtqueue *vq = &nvq->vq;
 	struct vhost_net *net = container_of(vq->dev, struct vhost_net,
 					     dev);
-	struct socket *sock = vq->private_data;
+	struct socket *sock = vhost_vq_get_backend(vq);
 	struct page_frag *alloc_frag = &net->page_frag;
 	struct virtio_net_hdr *gso;
 	struct xdp_buff *xdp = &nvq->xdp[nvq->batched_xdp];
@@ -952,7 +954,7 @@ static void handle_tx(struct vhost_net *net)
 	struct socket *sock;
 
 	mutex_lock_nested(&vq->mutex, VHOST_NET_VQ_TX);
-	sock = vq->private_data;
+	sock = vhost_vq_get_backend(vq);
 	if (!sock)
 		goto out;
 
@@ -1121,7 +1123,7 @@ static void handle_rx(struct vhost_net *net)
 	int recv_pkts = 0;
 
 	mutex_lock_nested(&vq->mutex, VHOST_NET_VQ_RX);
-	sock = vq->private_data;
+	sock = vhost_vq_get_backend(vq);
 	if (!sock)
 		goto out;
 
@@ -1324,7 +1326,8 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	}
 	vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX,
 		       UIO_MAXIOV + VHOST_NET_BATCH,
-		       VHOST_NET_PKT_WEIGHT, VHOST_NET_WEIGHT);
+		       VHOST_NET_PKT_WEIGHT, VHOST_NET_WEIGHT,
+		       NULL);
 
 	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, EPOLLOUT, dev);
 	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, EPOLLIN, dev);
@@ -1344,9 +1347,9 @@ static struct socket *vhost_net_stop_vq(struct vhost_net *n,
 		container_of(vq, struct vhost_net_virtqueue, vq);
 
 	mutex_lock(&vq->mutex);
-	sock = vq->private_data;
+	sock = vhost_vq_get_backend(vq);
 	vhost_net_disable_vq(n, vq);
-	vq->private_data = NULL;
+	vhost_vq_set_backend(vq, NULL);
 	vhost_net_buf_unproduce(nvq);
 	nvq->rx_ring = NULL;
 	mutex_unlock(&vq->mutex);
@@ -1414,10 +1417,6 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 
 static struct socket *get_raw_socket(int fd)
 {
-	struct {
-		struct sockaddr_ll sa;
-		char  buf[MAX_ADDR_LEN];
-	} uaddr;
 	int r;
 	struct socket *sock = sockfd_lookup(fd, &r);
 
@@ -1430,11 +1429,7 @@ static struct socket *get_raw_socket(int fd)
 		goto err;
 	}
 
-	r = sock->ops->getname(sock, (struct sockaddr *)&uaddr.sa, 0);
-	if (r < 0)
-		goto err;
-
-	if (uaddr.sa.sll_family != AF_PACKET) {
+	if (sock->sk->sk_family != AF_PACKET) {
 		r = -EPFNOSUPPORT;
 		goto err;
 	}
@@ -1528,7 +1523,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	}
 
 	/* start polling new socket */
-	oldsock = vq->private_data;
+	oldsock = vhost_vq_get_backend(vq);
 	if (sock != oldsock) {
 		ubufs = vhost_net_ubuf_alloc(vq,
 					     sock && vhost_sock_zcopy(sock));
@@ -1538,7 +1533,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		}
 
 		vhost_net_disable_vq(n, vq);
-		vq->private_data = sock;
+		vhost_vq_set_backend(vq, sock);
 		vhost_net_buf_unproduce(nvq);
 		r = vhost_vq_init_access(vq);
 		if (r)
@@ -1575,7 +1570,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	return 0;
 
 err_used:
-	vq->private_data = oldsock;
+	vhost_vq_set_backend(vq, oldsock);
 	vhost_net_enable_vq(n, vq);
 	if (ubufs)
 		vhost_net_ubuf_put_wait_and_free(ubufs);
@@ -1594,7 +1589,7 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 	struct socket *tx_sock = NULL;
 	struct socket *rx_sock = NULL;
 	long err;
-	struct vhost_umem *umem;
+	struct vhost_iotlb *umem;
 
 	mutex_lock(&n->dev.mutex);
 	err = vhost_dev_check_owner(&n->dev);
@@ -1751,14 +1746,6 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-static long vhost_net_compat_ioctl(struct file *f, unsigned int ioctl,
-				   unsigned long arg)
-{
-	return vhost_net_ioctl(f, ioctl, (unsigned long)compat_ptr(arg));
-}
-#endif
-
 static ssize_t vhost_net_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
@@ -1794,9 +1781,7 @@ static const struct file_operations vhost_net_fops = {
 	.write_iter     = vhost_net_chr_write_iter,
 	.poll           = vhost_net_chr_poll,
 	.unlocked_ioctl = vhost_net_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl   = vhost_net_compat_ioctl,
-#endif
+	.compat_ioctl   = compat_ptr_ioctl,
 	.open           = vhost_net_open,
 	.llseek		= noop_llseek,
 };

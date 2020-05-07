@@ -805,8 +805,10 @@ static int omap_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank = gpiochip_get_data(chip);
 
-	return !!(readl_relaxed(bank->base + bank->regs->direction) &
-		  BIT(offset));
+	if (readl_relaxed(bank->base + bank->regs->direction) & BIT(offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
@@ -1100,22 +1102,12 @@ static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
 {
 	struct device *dev = bank->chip.parent;
 	void __iomem *base = bank->base;
-	u32 mask, nowake;
+	u32 nowake;
 
 	bank->saved_datain = readl_relaxed(base + bank->regs->datain);
 
 	if (!bank->enabled_non_wakeup_gpios)
 		goto update_gpio_context_count;
-
-	/* Check for pending EDGE_FALLING, ignore EDGE_BOTH */
-	mask = bank->enabled_non_wakeup_gpios & bank->context.fallingdetect;
-	mask &= ~bank->context.risingdetect;
-	bank->saved_datain |= mask;
-
-	/* Check for pending EDGE_RISING, ignore EDGE_BOTH */
-	mask = bank->enabled_non_wakeup_gpios & bank->context.risingdetect;
-	mask &= ~bank->context.fallingdetect;
-	bank->saved_datain &= ~mask;
 
 	if (!may_lose_context)
 		goto update_gpio_context_count;
@@ -1235,26 +1227,35 @@ static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 {
 	struct gpio_bank *bank;
 	unsigned long flags;
+	int ret = NOTIFY_OK;
+	u32 isr, mask;
 
 	bank = container_of(nb, struct gpio_bank, nb);
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
+	if (bank->is_suspended)
+		goto out_unlock;
+
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
-		if (bank->is_suspended)
+		mask = omap_get_gpio_irqbank_mask(bank);
+		isr = readl_relaxed(bank->base + bank->regs->irqstatus) & mask;
+		if (isr) {
+			ret = NOTIFY_BAD;
 			break;
+		}
 		omap_gpio_idle(bank, true);
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
-		if (bank->is_suspended)
-			break;
 		omap_gpio_unidle(bank);
 		break;
 	}
+
+out_unlock:
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 
-	return NOTIFY_OK;
+	return ret;
 }
 
 static const struct omap_gpio_reg_offs omap2_gpio_regs = {

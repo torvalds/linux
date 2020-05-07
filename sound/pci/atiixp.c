@@ -282,7 +282,7 @@ static const struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
-static struct snd_pci_quirk atiixp_quirks[] = {
+static const struct snd_pci_quirk atiixp_quirks[] = {
 	SND_PCI_QUIRK(0x105b, 0x0c81, "Foxconn RC4107MA-RS2", 0),
 	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
 	{ } /* terminator */
@@ -353,7 +353,7 @@ static int atiixp_build_dma_packets(struct atiixp *chip, struct atiixp_dma *dma,
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(chip->pci),
+					&chip->pci->dev,
 					ATI_DESC_LIST_SIZE,
 					&dma->desc_buf) < 0)
 			return -ENOMEM;
@@ -952,9 +952,6 @@ static int snd_atiixp_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct atiixp_dma *dma = substream->runtime->private_data;
 	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	dma->buf_addr = substream->runtime->dma_addr;
 	dma->buf_bytes = params_buffer_bytes(hw_params);
 
@@ -994,7 +991,6 @@ static int snd_atiixp_pcm_hw_free(struct snd_pcm_substream *substream)
 		dma->pcm_open_flag = 0;
 	}
 	atiixp_clear_dma_packets(chip, dma, substream);
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -1144,7 +1140,6 @@ static int snd_atiixp_spdif_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_atiixp_playback_ops = {
 	.open =		snd_atiixp_playback_open,
 	.close =	snd_atiixp_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_playback_prepare,
@@ -1156,7 +1151,6 @@ static const struct snd_pcm_ops snd_atiixp_playback_ops = {
 static const struct snd_pcm_ops snd_atiixp_capture_ops = {
 	.open =		snd_atiixp_capture_open,
 	.close =	snd_atiixp_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_capture_prepare,
@@ -1168,7 +1162,6 @@ static const struct snd_pcm_ops snd_atiixp_capture_ops = {
 static const struct snd_pcm_ops snd_atiixp_spdif_ops = {
 	.open =		snd_atiixp_spdif_open,
 	.close =	snd_atiixp_spdif_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_spdif_prepare,
@@ -1283,9 +1276,8 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	strcpy(pcm->name, "ATI IXP AC97");
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 128*1024);
 
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps, chip->max_channels, 0,
@@ -1316,9 +1308,8 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 		strcpy(pcm->name, "ATI IXP IEC958 (Direct)");
 	chip->pcmdevs[ATI_PCMDEV_DIGITAL] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 128*1024);
 
 	/* pre-select AC97 SPDIF slots 10/11 */
 	for (i = 0; i < NUM_ATI_CODECS; i++) {
@@ -1412,11 +1403,11 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 	struct snd_ac97_template ac97;
 	int i, err;
 	int codec_count;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_atiixp_ac97_write,
 		.read = snd_atiixp_ac97_read,
 	};
-	static unsigned int codec_skip[NUM_ATI_CODECS] = {
+	static const unsigned int codec_skip[NUM_ATI_CODECS] = {
 		ATI_REG_ISR_CODEC0_NOT_READY,
 		ATI_REG_ISR_CODEC1_NOT_READY,
 		ATI_REG_ISR_CODEC2_NOT_READY,
@@ -1566,7 +1557,7 @@ static int snd_atiixp_create(struct snd_card *card,
 			     struct pci_dev *pci,
 			     struct atiixp **r_chip)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_atiixp_dev_free,
 	};
 	struct atiixp *chip;
@@ -1606,8 +1597,8 @@ static int snd_atiixp_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_atiixp_free(chip);

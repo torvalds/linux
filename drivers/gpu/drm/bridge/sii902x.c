@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
@@ -398,11 +399,17 @@ out:
 	mutex_unlock(&sii902x->mutex);
 }
 
-static int sii902x_bridge_attach(struct drm_bridge *bridge)
+static int sii902x_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 	struct drm_device *drm = bridge->dev;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	drm_connector_helper_add(&sii902x->connector,
 				 &sii902x_connector_helper_funcs);

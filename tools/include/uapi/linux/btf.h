@@ -22,9 +22,9 @@ struct btf_header {
 };
 
 /* Max # of type identifier */
-#define BTF_MAX_TYPE	0x0000ffff
+#define BTF_MAX_TYPE	0x000fffff
 /* Max offset into the string section */
-#define BTF_MAX_NAME_OFFSET	0x0000ffff
+#define BTF_MAX_NAME_OFFSET	0x00ffffff
 /* Max # of struct/union/enum members or func args */
 #define BTF_MAX_VLEN	0xffff
 
@@ -142,7 +142,14 @@ struct btf_param {
 
 enum {
 	BTF_VAR_STATIC = 0,
-	BTF_VAR_GLOBAL_ALLOCATED,
+	BTF_VAR_GLOBAL_ALLOCATED = 1,
+	BTF_VAR_GLOBAL_EXTERN = 2,
+};
+
+enum btf_func_linkage {
+	BTF_FUNC_STATIC = 0,
+	BTF_FUNC_GLOBAL = 1,
+	BTF_FUNC_EXTERN = 2,
 };
 
 /* BTF_KIND_VAR is followed by a single "struct btf_var" to describe

@@ -731,7 +731,7 @@ static void kmemcg_rcufn(struct rcu_head *head)
 	/*
 	 * We need to grab blocking locks.  Bounce to ->work.  The
 	 * work item shares the space with the RCU head and can't be
-	 * initialized eariler.
+	 * initialized earlier.
 	 */
 	INIT_WORK(&s->memcg_params.work, kmemcg_workfn);
 	queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
@@ -903,7 +903,20 @@ static void flush_memcg_workqueue(struct kmem_cache *s)
 	 * deactivates the memcg kmem_caches through workqueue. Make sure all
 	 * previous workitems on workqueue are processed.
 	 */
-	flush_workqueue(memcg_kmem_cache_wq);
+	if (likely(memcg_kmem_cache_wq))
+		flush_workqueue(memcg_kmem_cache_wq);
+
+	/*
+	 * If we're racing with children kmem_cache deactivation, it might
+	 * take another rcu grace period to complete their destruction.
+	 * At this moment the corresponding percpu_ref_kill() call should be
+	 * done, but it might take another rcu grace period to complete
+	 * switching to the atomic mode.
+	 * Please, note that we check without grabbing the slab_mutex. It's safe
+	 * because at this moment the children list can't grow.
+	 */
+	if (!list_empty(&s->memcg_params.children))
+		rcu_barrier();
 }
 #else
 static inline int shutdown_memcg_caches(struct kmem_cache *s)
@@ -1139,26 +1152,56 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 	return kmalloc_caches[kmalloc_type(flags)][index];
 }
 
+#ifdef CONFIG_ZONE_DMA
+#define INIT_KMALLOC_INFO(__size, __short_size)			\
+{								\
+	.name[KMALLOC_NORMAL]  = "kmalloc-" #__short_size,	\
+	.name[KMALLOC_RECLAIM] = "kmalloc-rcl-" #__short_size,	\
+	.name[KMALLOC_DMA]     = "dma-kmalloc-" #__short_size,	\
+	.size = __size,						\
+}
+#else
+#define INIT_KMALLOC_INFO(__size, __short_size)			\
+{								\
+	.name[KMALLOC_NORMAL]  = "kmalloc-" #__short_size,	\
+	.name[KMALLOC_RECLAIM] = "kmalloc-rcl-" #__short_size,	\
+	.size = __size,						\
+}
+#endif
+
 /*
  * kmalloc_info[] is to make slub_debug=,kmalloc-xx option work at boot time.
  * kmalloc_index() supports up to 2^26=64MB, so the final entry of the table is
  * kmalloc-67108864.
  */
 const struct kmalloc_info_struct kmalloc_info[] __initconst = {
-	{NULL,                      0},		{"kmalloc-96",             96},
-	{"kmalloc-192",           192},		{"kmalloc-8",               8},
-	{"kmalloc-16",             16},		{"kmalloc-32",             32},
-	{"kmalloc-64",             64},		{"kmalloc-128",           128},
-	{"kmalloc-256",           256},		{"kmalloc-512",           512},
-	{"kmalloc-1k",           1024},		{"kmalloc-2k",           2048},
-	{"kmalloc-4k",           4096},		{"kmalloc-8k",           8192},
-	{"kmalloc-16k",         16384},		{"kmalloc-32k",         32768},
-	{"kmalloc-64k",         65536},		{"kmalloc-128k",       131072},
-	{"kmalloc-256k",       262144},		{"kmalloc-512k",       524288},
-	{"kmalloc-1M",        1048576},		{"kmalloc-2M",        2097152},
-	{"kmalloc-4M",        4194304},		{"kmalloc-8M",        8388608},
-	{"kmalloc-16M",      16777216},		{"kmalloc-32M",      33554432},
-	{"kmalloc-64M",      67108864}
+	INIT_KMALLOC_INFO(0, 0),
+	INIT_KMALLOC_INFO(96, 96),
+	INIT_KMALLOC_INFO(192, 192),
+	INIT_KMALLOC_INFO(8, 8),
+	INIT_KMALLOC_INFO(16, 16),
+	INIT_KMALLOC_INFO(32, 32),
+	INIT_KMALLOC_INFO(64, 64),
+	INIT_KMALLOC_INFO(128, 128),
+	INIT_KMALLOC_INFO(256, 256),
+	INIT_KMALLOC_INFO(512, 512),
+	INIT_KMALLOC_INFO(1024, 1k),
+	INIT_KMALLOC_INFO(2048, 2k),
+	INIT_KMALLOC_INFO(4096, 4k),
+	INIT_KMALLOC_INFO(8192, 8k),
+	INIT_KMALLOC_INFO(16384, 16k),
+	INIT_KMALLOC_INFO(32768, 32k),
+	INIT_KMALLOC_INFO(65536, 64k),
+	INIT_KMALLOC_INFO(131072, 128k),
+	INIT_KMALLOC_INFO(262144, 256k),
+	INIT_KMALLOC_INFO(524288, 512k),
+	INIT_KMALLOC_INFO(1048576, 1M),
+	INIT_KMALLOC_INFO(2097152, 2M),
+	INIT_KMALLOC_INFO(4194304, 4M),
+	INIT_KMALLOC_INFO(8388608, 8M),
+	INIT_KMALLOC_INFO(16777216, 16M),
+	INIT_KMALLOC_INFO(33554432, 32M),
+	INIT_KMALLOC_INFO(67108864, 64M)
 };
 
 /*
@@ -1208,36 +1251,14 @@ void __init setup_kmalloc_cache_index_table(void)
 	}
 }
 
-static const char *
-kmalloc_cache_name(const char *prefix, unsigned int size)
-{
-
-	static const char units[3] = "\0kM";
-	int idx = 0;
-
-	while (size >= 1024 && (size % 1024 == 0)) {
-		size /= 1024;
-		idx++;
-	}
-
-	return kasprintf(GFP_NOWAIT, "%s-%u%c", prefix, size, units[idx]);
-}
-
 static void __init
-new_kmalloc_cache(int idx, int type, slab_flags_t flags)
+new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
 {
-	const char *name;
-
-	if (type == KMALLOC_RECLAIM) {
+	if (type == KMALLOC_RECLAIM)
 		flags |= SLAB_RECLAIM_ACCOUNT;
-		name = kmalloc_cache_name("kmalloc-rcl",
-						kmalloc_info[idx].size);
-		BUG_ON(!name);
-	} else {
-		name = kmalloc_info[idx].name;
-	}
 
-	kmalloc_caches[type][idx] = create_kmalloc_cache(name,
+	kmalloc_caches[type][idx] = create_kmalloc_cache(
+					kmalloc_info[idx].name[type],
 					kmalloc_info[idx].size, flags, 0,
 					kmalloc_info[idx].size);
 }
@@ -1249,7 +1270,8 @@ new_kmalloc_cache(int idx, int type, slab_flags_t flags)
  */
 void __init create_kmalloc_caches(slab_flags_t flags)
 {
-	int i, type;
+	int i;
+	enum kmalloc_cache_type type;
 
 	for (type = KMALLOC_NORMAL; type <= KMALLOC_RECLAIM; type++) {
 		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
@@ -1278,12 +1300,10 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 		struct kmem_cache *s = kmalloc_caches[KMALLOC_NORMAL][i];
 
 		if (s) {
-			unsigned int size = kmalloc_size(i);
-			const char *n = kmalloc_cache_name("dma-kmalloc", size);
-
-			BUG_ON(!n);
 			kmalloc_caches[KMALLOC_DMA][i] = create_kmalloc_cache(
-				n, size, SLAB_CACHE_DMA | flags, 0, 0);
+				kmalloc_info[i].name[KMALLOC_DMA],
+				kmalloc_info[i].size,
+				SLAB_CACHE_DMA | flags, 0, 0);
 		}
 	}
 #endif
@@ -1501,7 +1521,7 @@ void dump_unreclaimable_slab(void)
 	mutex_unlock(&slab_mutex);
 }
 
-#if defined(CONFIG_MEMCG)
+#if defined(CONFIG_MEMCG_KMEM)
 void *memcg_slab_start(struct seq_file *m, loff_t *pos)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
@@ -1560,18 +1580,18 @@ static int slabinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &slabinfo_op);
 }
 
-static const struct file_operations proc_slabinfo_operations = {
-	.open		= slabinfo_open,
-	.read		= seq_read,
-	.write          = slabinfo_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops slabinfo_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
+	.proc_open	= slabinfo_open,
+	.proc_read	= seq_read,
+	.proc_write	= slabinfo_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo", SLABINFO_RIGHTS, NULL,
-						&proc_slabinfo_operations);
+	proc_create("slabinfo", SLABINFO_RIGHTS, NULL, &slabinfo_proc_ops);
 	return 0;
 }
 module_init(slab_proc_init);
@@ -1655,28 +1675,6 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 
 	return ret;
 }
-
-/**
- * __krealloc - like krealloc() but don't free @p.
- * @p: object to reallocate memory for.
- * @new_size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * This function is like krealloc() except it never frees the originally
- * allocated buffer. Use this if you don't want to free the buffer immediately
- * like, for example, with RCU.
- *
- * Return: pointer to the allocated memory or %NULL in case of error
- */
-void *__krealloc(const void *p, size_t new_size, gfp_t flags)
-{
-	if (unlikely(!new_size))
-		return ZERO_SIZE_PTR;
-
-	return __do_krealloc(p, new_size, flags);
-
-}
-EXPORT_SYMBOL(__krealloc);
 
 /**
  * krealloc - reallocate memory. The contents will remain unchanged.

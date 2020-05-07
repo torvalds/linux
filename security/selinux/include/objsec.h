@@ -35,7 +35,7 @@ struct task_security_struct {
 	u32 create_sid;		/* fscreate SID */
 	u32 keycreate_sid;	/* keycreate SID */
 	u32 sockcreate_sid;	/* fscreate SID */
-};
+} __randomize_layout;
 
 enum label_initialized {
 	LABEL_INVALID,		/* invalid or not initialized */
@@ -141,7 +141,11 @@ struct pkey_security_struct {
 };
 
 struct bpf_security_struct {
-	u32 sid;  /*SID of bpf obj creater*/
+	u32 sid;  /* SID of bpf obj creator */
+};
+
+struct perf_event_security_struct {
+	u32 sid;  /* SID of perf_event obj creator */
 };
 
 extern struct lsm_blob_sizes selinux_blob_sizes;

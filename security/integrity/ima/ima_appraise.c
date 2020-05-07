@@ -12,6 +12,7 @@
 #include <linux/magic.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
+#include <keys/system_keyring.h>
 
 #include "ima.h"
 
@@ -54,7 +55,7 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 
 	security_task_getsecid(current, &secid);
 	return ima_match_policy(inode, current_cred(), secid, func, mask,
-				IMA_APPRAISE | IMA_HASH, NULL, NULL);
+				IMA_APPRAISE | IMA_HASH, NULL, NULL, NULL);
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
@@ -298,6 +299,38 @@ static int modsig_verify(enum ima_hooks func, const struct modsig *modsig,
 		*status = INTEGRITY_FAIL;
 	} else {
 		*status = INTEGRITY_PASS;
+	}
+
+	return rc;
+}
+
+/*
+ * ima_check_blacklist - determine if the binary is blacklisted.
+ *
+ * Add the hash of the blacklisted binary to the measurement list, based
+ * on policy.
+ *
+ * Returns -EPERM if the hash is blacklisted.
+ */
+int ima_check_blacklist(struct integrity_iint_cache *iint,
+			const struct modsig *modsig, int pcr)
+{
+	enum hash_algo hash_algo;
+	const u8 *digest = NULL;
+	u32 digestsize = 0;
+	int rc = 0;
+
+	if (!(iint->flags & IMA_CHECK_BLACKLIST))
+		return 0;
+
+	if (iint->flags & IMA_MODSIG_ALLOWED && modsig) {
+		ima_get_modsig_digest(modsig, &hash_algo, &digest, &digestsize);
+
+		rc = is_binary_blacklisted(digest, digestsize);
+		if ((rc == -EPERM) && (iint->flags & IMA_MEASURE))
+			process_buffer_measurement(digest, digestsize,
+						   "blacklisted-hash", NONE,
+						   pcr, NULL);
 	}
 
 	return rc;

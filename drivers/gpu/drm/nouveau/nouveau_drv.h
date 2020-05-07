@@ -58,6 +58,8 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
+#include <drm/drm_audio_component.h>
+
 #include "uapi/drm/nouveau_drm.h"
 
 struct nouveau_channel;
@@ -138,6 +140,8 @@ struct nouveau_drm {
 
 	struct list_head clients;
 
+	u8 old_pm_cap;
+
 	struct {
 		struct agp_bridge_data *bridge;
 		u32 base;
@@ -211,6 +215,11 @@ struct nouveau_drm {
 	struct nouveau_svm *svm;
 
 	struct nouveau_dmem *dmem;
+
+	struct {
+		struct drm_audio_component *component;
+		bool component_registered;
+	} audio;
 };
 
 static inline struct nouveau_drm *
@@ -248,11 +257,11 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 #define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
 
 #define NV_DEBUG(drm,f,a...) do {                                              \
-	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
+	if (drm_debug_enabled(DRM_UT_DRIVER))                                  \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
 #define NV_ATOMIC(drm,f,a...) do {                                             \
-	if (unlikely(drm_debug & DRM_UT_ATOMIC))                               \
+	if (drm_debug_enabled(DRM_UT_ATOMIC))                                  \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
 

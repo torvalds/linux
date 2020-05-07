@@ -135,7 +135,7 @@ static void reset_gmbus_controller(struct intel_vgpu *vgpu)
 static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 			unsigned int offset, void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	int port, pin_select;
 
 	memcpy(&vgpu_vreg(vgpu, offset), p_data, bytes);
@@ -147,13 +147,13 @@ static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 	if (pin_select == 0)
 		return 0;
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_BROXTON(i915))
 		port = bxt_get_port_from_gmbus0(pin_select);
-	else if (IS_COFFEELAKE(dev_priv))
+	else if (IS_COFFEELAKE(i915))
 		port = cnp_get_port_from_gmbus0(pin_select);
 	else
 		port = get_port_from_gmbus0(pin_select);
-	if (WARN_ON(port < 0))
+	if (drm_WARN_ON(&i915->drm, port < 0))
 		return 0;
 
 	vgpu->display.i2c_edid.state = I2C_GMBUS;
@@ -276,7 +276,9 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gmbus3_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	WARN_ON(1);
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
+
+	drm_WARN_ON(&i915->drm, 1);
 	return 0;
 }
 
@@ -371,7 +373,9 @@ static int gmbus2_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_gvt_i2c_handle_gmbus_read(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
-	if (WARN_ON(bytes > 8 && (offset & (bytes - 1))))
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
+
+	if (drm_WARN_ON(&i915->drm, bytes > 8 && (offset & (bytes - 1))))
 		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(PCH_GMBUS2))
@@ -399,7 +403,9 @@ int intel_gvt_i2c_handle_gmbus_read(struct intel_vgpu *vgpu,
 int intel_gvt_i2c_handle_gmbus_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	if (WARN_ON(bytes > 8 && (offset & (bytes - 1))))
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
+
+	if (drm_WARN_ON(&i915->drm, bytes > 8 && (offset & (bytes - 1))))
 		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(PCH_GMBUS0))
@@ -473,6 +479,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 				unsigned int offset,
 				void *p_data)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	struct intel_vgpu_i2c_edid *i2c_edid = &vgpu->display.i2c_edid;
 	int msg_length, ret_msg_size;
 	int msg, addr, ctrl, op;
@@ -532,9 +539,9 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 		 * support the gfx driver to do EDID access.
 		 */
 	} else {
-		if (WARN_ON((op & 0x1) != GVT_AUX_I2C_READ))
+		if (drm_WARN_ON(&i915->drm, (op & 0x1) != GVT_AUX_I2C_READ))
 			return;
-		if (WARN_ON(msg_length != 4))
+		if (drm_WARN_ON(&i915->drm, msg_length != 4))
 			return;
 		if (i2c_edid->edid_available && i2c_edid->slave_selected) {
 			unsigned char val = edid_get_byte(vgpu);

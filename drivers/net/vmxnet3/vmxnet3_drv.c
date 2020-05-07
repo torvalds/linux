@@ -942,10 +942,7 @@ vmxnet3_prepare_tso(struct sk_buff *skb,
 		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, 0,
 						 IPPROTO_TCP, 0);
 	} else if (ctx->ipv6) {
-		struct ipv6hdr *iph = ipv6_hdr(skb);
-
-		tcph->check = ~csum_ipv6_magic(&iph->saddr, &iph->daddr, 0,
-					       IPPROTO_TCP, 0);
+		tcp_v6_gso_csum_prep(skb);
 	}
 }
 
@@ -3198,7 +3195,7 @@ vmxnet3_free_intr_resources(struct vmxnet3_adapter *adapter)
 
 
 static void
-vmxnet3_tx_timeout(struct net_device *netdev)
+vmxnet3_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	adapter->tx_timeout_count++;

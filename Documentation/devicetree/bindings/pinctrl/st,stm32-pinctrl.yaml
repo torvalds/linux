@@ -40,10 +40,9 @@ properties:
     allOf:
       - $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: Should be phandle/offset/mask
-    items:
-      - description: Phandle to the syscon node which includes IRQ mux selection.
-      - description: The offset of the IRQ mux selection register.
-      - description: The field mask of IRQ mux, needed if different of 0xf.
+      - Phandle to the syscon node which includes IRQ mux selection.
+      - The offset of the IRQ mux selection register.
+      - The field mask of IRQ mux, needed if different of 0xf.
 
   st,package:
     allOf:
@@ -195,6 +194,8 @@ required:
   - ranges
   - pins-are-numbered
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/pinctrl/stm32-pinfunc.h>
@@ -249,7 +250,7 @@ examples:
       };
 
     //Example 3 pin groups
-      pinctrl@60020000 {
+      pinctrl {
         usart1_pins_a: usart1-0 {
                 pins1 {
                         pinmux = <STM32_PINMUX('A', 9, AF7)>;

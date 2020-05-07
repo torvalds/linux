@@ -2182,7 +2182,7 @@ int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
 				     u32 *data, u32 flags)
 {
 	u8 buf[sizeof(*data)] = { 0 };
-	int rc = -EIO;
+	int rc;
 	u32 word = 0;
 
 	if (!data)
@@ -4201,7 +4201,7 @@ int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
 					 u16 *data, u32 flags)
 {
 	u8 buf[2] = { 0 };
-	int rc = -EIO;
+	int rc;
 	u16 word = 0;
 
 	if (!data)
@@ -4229,7 +4229,7 @@ int drxj_dap_scu_atomic_write_reg16(struct i2c_device_addr *dev_addr,
 					  u16 data, u32 flags)
 {
 	u8 buf[2];
-	int rc = -EIO;
+	int rc;
 
 	buf[0] = (u8) (data & 0xff);
 	buf[1] = (u8) ((data >> 8) & 0xff);

@@ -1230,7 +1230,7 @@ qede_configure_mcast_filtering(struct net_device *ndev,
 	netif_addr_lock_bh(ndev);
 
 	mc_count = netdev_mc_count(ndev);
-	if (mc_count < 64) {
+	if (mc_count <= 64) {
 		netdev_for_each_mc_addr(ha, ndev) {
 			ether_addr_copy(temp, ha->addr);
 			temp += ETH_ALEN;
@@ -1298,7 +1298,7 @@ void qede_config_rx_mode(struct net_device *ndev)
 	rx_mode.type = QED_FILTER_TYPE_RX_MODE;
 
 	/* Remove all previous unicast secondary macs and multicast macs
-	 * (configrue / leave the primary mac)
+	 * (configure / leave the primary mac)
 	 */
 	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_REPLACE,
 				   edev->ndev->dev_addr);
@@ -1746,7 +1746,8 @@ unlock:
 }
 
 static int qede_parse_actions(struct qede_dev *edev,
-			      struct flow_action *flow_action)
+			      struct flow_action *flow_action,
+			      struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
 	int i;
@@ -1755,6 +1756,9 @@ static int qede_parse_actions(struct qede_dev *edev,
 		DP_NOTICE(edev, "No actions received\n");
 		return -EINVAL;
 	}
+
+	if (!flow_action_basic_hw_stats_check(flow_action, extack))
+		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -1970,7 +1974,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	}
 
 	/* parse tc actions and get the vf_id */
-	if (qede_parse_actions(edev, &f->rule->action))
+	if (qede_parse_actions(edev, &f->rule->action, f->common.extack))
 		goto unlock;
 
 	if (qede_flow_find_fltr(edev, &t)) {
@@ -2038,7 +2042,7 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
-	if (qede_parse_actions(edev, flow_action))
+	if (qede_parse_actions(edev, flow_action, NULL))
 		return -EINVAL;
 
 	return 0;

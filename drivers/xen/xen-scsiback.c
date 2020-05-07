@@ -854,7 +854,8 @@ unmap_page:
 static int scsiback_map(struct vscsibk_info *info)
 {
 	struct xenbus_device *dev = info->dev;
-	unsigned int ring_ref, evtchn;
+	unsigned int ring_ref;
+	evtchn_port_t evtchn;
 	int err;
 
 	err = xenbus_gather(XBT_NIL, dev->otherend,

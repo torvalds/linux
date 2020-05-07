@@ -66,7 +66,6 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 		if (ih->ring == NULL)
 			return -ENOMEM;
 
-		memset((void *)ih->ring, 0, ih->ring_size + 8);
 		ih->gpu_addr = dma_addr;
 		ih->wptr_addr = dma_addr + ih->ring_size;
 		ih->wptr_cpu = &ih->ring[ih->ring_size / 4];

@@ -333,7 +333,6 @@ EXPORT_SYMBOL(__sk_backlog_rcv);
 static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 {
 	struct __kernel_sock_timeval tv;
-	int size;
 
 	if (timeo == MAX_SCHEDULE_TIMEOUT) {
 		tv.tv_sec = 0;
@@ -354,13 +353,11 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 		old_tv.tv_sec = tv.tv_sec;
 		old_tv.tv_usec = tv.tv_usec;
 		*(struct __kernel_old_timeval *)optval = old_tv;
-		size = sizeof(old_tv);
-	} else {
-		*(struct __kernel_sock_timeval *)optval = tv;
-		size = sizeof(tv);
+		return sizeof(old_tv);
 	}
 
-	return size;
+	*(struct __kernel_sock_timeval *)optval = tv;
+	return sizeof(tv);
 }
 
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool old_timeval)
@@ -521,7 +518,7 @@ int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 
 		rc = sk_backlog_rcv(sk, skb);
 
-		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
 	} else if (sk_add_backlog(sk, skb, READ_ONCE(sk->sk_rcvbuf))) {
 		bh_unlock_sock(sk);
 		atomic_inc(&sk->sk_drops);
@@ -577,7 +574,7 @@ static int sock_setbindtodevice_locked(struct sock *sk, int ifindex)
 
 	/* Sorry... */
 	ret = -EPERM;
-	if (!ns_capable(net->user_ns, CAP_NET_RAW))
+	if (sk->sk_bound_dev_if && !ns_capable(net->user_ns, CAP_NET_RAW))
 		goto out;
 
 	ret = -EINVAL;
@@ -687,7 +684,8 @@ out:
 	return ret;
 }
 
-static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
+static inline void sock_valbool_flag(struct sock *sk, enum sock_flags bit,
+				     int valbool)
 {
 	if (valbool)
 		sock_set_flag(sk, bit);
@@ -1574,13 +1572,14 @@ static inline void sock_lock_init(struct sock *sk)
  */
 static void sock_copy(struct sock *nsk, const struct sock *osk)
 {
+	const struct proto *prot = READ_ONCE(osk->sk_prot);
 #ifdef CONFIG_SECURITY_NETWORK
 	void *sptr = nsk->sk_security;
 #endif
 	memcpy(nsk, osk, offsetof(struct sock, sk_dontcopy_begin));
 
 	memcpy(&nsk->sk_dontcopy_end, &osk->sk_dontcopy_end,
-	       osk->sk_prot->obj_size - offsetof(struct sock, sk_dontcopy_end));
+	       prot->obj_size - offsetof(struct sock, sk_dontcopy_end));
 
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
@@ -1794,16 +1793,17 @@ static void sk_init_common(struct sock *sk)
  */
 struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 {
+	struct proto *prot = READ_ONCE(sk->sk_prot);
 	struct sock *newsk;
 	bool is_charged = true;
 
-	newsk = sk_prot_alloc(sk->sk_prot, priority, sk->sk_family);
+	newsk = sk_prot_alloc(prot, priority, sk->sk_family);
 	if (newsk != NULL) {
 		struct sk_filter *filter;
 
 		sock_copy(newsk, sk);
 
-		newsk->sk_prot_creator = sk->sk_prot;
+		newsk->sk_prot_creator = prot;
 
 		/* SANITY */
 		if (likely(newsk->sk_net_refcnt))
@@ -1832,7 +1832,10 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		atomic_set(&newsk->sk_zckey, 0);
 
 		sock_reset_flag(newsk, SOCK_DONE);
-		mem_cgroup_sk_alloc(newsk);
+
+		/* sk->sk_memcg will be populated at accept() time */
+		newsk->sk_memcg = NULL;
+
 		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
 		rcu_read_lock();
@@ -1864,6 +1867,12 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 			newsk = NULL;
 			goto out;
 		}
+
+		/* Clear sk_user_data if parent had the pointer tagged
+		 * as not suitable for copying when cloning.
+		 */
+		if (sk_user_data_is_nocopy(newsk))
+			newsk->sk_user_data = NULL;
 
 		newsk->sk_err	   = 0;
 		newsk->sk_err_soft = 0;
@@ -2061,6 +2070,18 @@ void sock_efree(struct sk_buff *skb)
 	sock_put(skb->sk);
 }
 EXPORT_SYMBOL(sock_efree);
+
+/* Buffer destructor for prefetch/receive path where reference count may
+ * not be held, e.g. for listen sockets.
+ */
+#ifdef CONFIG_INET
+void sock_pfree(struct sk_buff *skb)
+{
+	if (sk_is_refcounted(skb->sk))
+		sock_gen_put(skb->sk);
+}
+EXPORT_SYMBOL(sock_pfree);
+#endif /* CONFIG_INET */
 
 kuid_t sock_i_uid(struct sock *sk)
 {
@@ -2343,7 +2364,6 @@ static void sk_leave_memory_pressure(struct sock *sk)
 	}
 }
 
-/* On 32bit arches, an skb frag is limited to 2^15 */
 #define SKB_FRAG_PAGE_ORDER	get_order(32768)
 DEFINE_STATIC_KEY_FALSE(net_high_order_alloc_disable_key);
 
@@ -2788,7 +2808,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static void sock_def_readable(struct sock *sk)
+void sock_def_readable(struct sock *sk)
 {
 	struct socket_wq *wq;
 
@@ -2918,7 +2938,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_max_pacing_rate = ~0UL;
 	sk->sk_pacing_rate = ~0UL;
-	sk->sk_pacing_shift = 10;
+	WRITE_ONCE(sk->sk_pacing_shift, 10);
 	sk->sk_incoming_cpu = -1;
 
 	sk_rx_queue_clear(sk);
@@ -3015,7 +3035,7 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 		return -ENOENT;
 	if (ts.tv_sec == 0) {
 		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);;
+		sock_write_timestamp(sk, kt);
 		ts = ktime_to_timespec64(kt);
 	}
 
@@ -3042,7 +3062,7 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 }
 EXPORT_SYMBOL(sock_gettstamp);
 
-void sock_enable_timestamp(struct sock *sk, int flag)
+void sock_enable_timestamp(struct sock *sk, enum sock_flags flag)
 {
 	if (!sock_flag(sk, flag)) {
 		unsigned long previous_flags = sk->sk_flags;

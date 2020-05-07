@@ -285,14 +285,19 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&ccu RST_AHB1_LCD0>;
-			reset-names = "lcd";
+			dmas = <&dma 11>;
+			resets = <&ccu RST_AHB1_LCD0>,
+				 <&ccu RST_AHB1_LVDS>;
+			reset-names = "lcd",
+				      "lvds";
 			clocks = <&ccu CLK_AHB1_LCD0>,
 				 <&ccu CLK_LCD0_CH0>,
-				 <&ccu CLK_LCD0_CH1>;
+				 <&ccu CLK_LCD0_CH1>,
+				 <&ccu 15>;
 			clock-names = "ahb",
 				      "tcon-ch0",
-				      "tcon-ch1";
+				      "tcon-ch1",
+				      "lvds-alt";
 			clock-output-names = "tcon0-pixel-clock";
 			#clock-cells = <0>;
 
@@ -334,14 +339,18 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0d000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&ccu RST_AHB1_LCD1>;
-			reset-names = "lcd";
+			dmas = <&dma 12>;
+			resets = <&ccu RST_AHB1_LCD1>,
+				 <&ccu RST_AHB1_LVDS>;
+			reset-names = "lcd", "lvds";
 			clocks = <&ccu CLK_AHB1_LCD1>,
 				 <&ccu CLK_LCD1_CH0>,
-				 <&ccu CLK_LCD1_CH1>;
+				 <&ccu CLK_LCD1_CH1>,
+				 <&ccu 15>;
 			clock-names = "ahb",
 				      "tcon-ch0",
-				      "tcon-ch1";
+				      "tcon-ch1",
+				      "lvds-alt";
 			clock-output-names = "tcon1-pixel-clock";
 			#clock-cells = <0>;
 
@@ -469,7 +478,6 @@
 				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "ddc", "pll-0", "pll-1";
 			resets = <&ccu RST_AHB1_HDMI>;
-			reset-names = "ahb";
 			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
 			dmas = <&dma 13>, <&dma 13>, <&dma 14>;
 			status = "disabled";
@@ -1131,9 +1139,6 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_BE1>;
 
-			assigned-clocks = <&ccu CLK_BE1>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1176,9 +1181,6 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_AHB1_DRC1>;
-
-			assigned-clocks = <&ccu CLK_IEP_DRC1>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;
@@ -1223,9 +1225,6 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_BE0>;
 
-			assigned-clocks = <&ccu CLK_BE0>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1265,9 +1264,6 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_AHB1_DRC0>;
-
-			assigned-clocks = <&ccu CLK_IEP_DRC0>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;

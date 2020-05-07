@@ -8,7 +8,7 @@ title: Allwinner A10 Security System Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -23,6 +23,8 @@ properties:
       - items:
         - const: allwinner,sun7i-a20-crypto
         - const: allwinner,sun4i-a10-crypto
+      - items:
+        - const: allwinner,sun8i-a33-crypto
 
   reg:
     maxItems: 1

@@ -41,7 +41,7 @@ struct fm10k_l2_accel {
 	u16 count;
 	u16 dglort;
 	struct rcu_head rcu;
-	struct net_device *macvlan[0];
+	struct net_device *macvlan[];
 };
 
 enum fm10k_ring_state_t {
@@ -198,7 +198,7 @@ struct fm10k_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct fm10k_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct fm10k_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 enum fm10k_ring_f_enum {
@@ -218,7 +218,7 @@ struct fm10k_iov_data {
 	unsigned int		num_vfs;
 	unsigned int		next_vf_mbx;
 	struct rcu_head		rcu;
-	struct fm10k_vf_info	vf_info[0];
+	struct fm10k_vf_info	vf_info[];
 };
 
 struct fm10k_udp_port {
@@ -534,6 +534,7 @@ void fm10k_iov_suspend(struct pci_dev *pdev);
 int fm10k_iov_resume(struct pci_dev *pdev);
 void fm10k_iov_disable(struct pci_dev *pdev);
 int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs);
+void fm10k_iov_update_stats(struct fm10k_intfc *interface);
 s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid);
 int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac);
 int fm10k_ndo_set_vf_vlan(struct net_device *netdev,
@@ -542,6 +543,8 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
 			int __always_unused min_rate, int max_rate);
 int fm10k_ndo_get_vf_config(struct net_device *netdev,
 			    int vf_idx, struct ifla_vf_info *ivi);
+int fm10k_ndo_get_vf_stats(struct net_device *netdev,
+			   int vf_idx, struct ifla_vf_stats *stats);
 
 /* DebugFS */
 #ifdef CONFIG_DEBUG_FS

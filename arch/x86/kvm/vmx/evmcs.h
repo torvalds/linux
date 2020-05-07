@@ -10,6 +10,7 @@
 
 #include "capabilities.h"
 #include "vmcs.h"
+#include "vmcs12.h"
 
 struct vmcs_config;
 
@@ -197,9 +198,18 @@ static inline void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf) {}
 static inline void evmcs_touch_msr_bitmap(void) {}
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
+enum nested_evmptrld_status {
+	EVMPTRLD_DISABLED,
+	EVMPTRLD_SUCCEEDED,
+	EVMPTRLD_VMFAIL,
+	EVMPTRLD_ERROR,
+};
+
 bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa);
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu);
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 			uint16_t *vmcs_version);
+void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata);
+int nested_evmcs_check_controls(struct vmcs12 *vmcs12);
 
 #endif /* __KVM_X86_VMX_EVMCS_H */

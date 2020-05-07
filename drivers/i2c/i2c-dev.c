@@ -15,6 +15,7 @@
 /* The I2C_RDWR ioctl code is written by Kolja Waschk <waschk@telos.de> */
 
 #include <linux/cdev.h>
+#include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/i2c-dev.h>
@@ -27,7 +28,6 @@
 #include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/compat.h>
 
 /*
  * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, not a
@@ -40,7 +40,7 @@
 struct i2c_dev {
 	struct list_head list;
 	struct i2c_adapter *adap;
-	struct device *dev;
+	struct device dev;
 	struct cdev cdev;
 };
 
@@ -84,12 +84,14 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 	return i2c_dev;
 }
 
-static void put_i2c_dev(struct i2c_dev *i2c_dev)
+static void put_i2c_dev(struct i2c_dev *i2c_dev, bool del_cdev)
 {
 	spin_lock(&i2c_dev_list_lock);
 	list_del(&i2c_dev->list);
 	spin_unlock(&i2c_dev_list_lock);
-	kfree(i2c_dev);
+	if (del_cdev)
+		cdev_device_del(&i2c_dev->cdev, &i2c_dev->dev);
+	put_device(&i2c_dev->dev);
 }
 
 static ssize_t name_show(struct device *dev,
@@ -628,6 +630,14 @@ static const struct file_operations i2cdev_fops = {
 
 static struct class *i2c_dev_class;
 
+static void i2cdev_dev_release(struct device *dev)
+{
+	struct i2c_dev *i2c_dev;
+
+	i2c_dev = container_of(dev, struct i2c_dev, dev);
+	kfree(i2c_dev);
+}
+
 static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 {
 	struct i2c_adapter *adap;
@@ -644,27 +654,23 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 
 	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
 	i2c_dev->cdev.owner = THIS_MODULE;
-	res = cdev_add(&i2c_dev->cdev, MKDEV(I2C_MAJOR, adap->nr), 1);
-	if (res)
-		goto error_cdev;
 
-	/* register this i2c device with the driver core */
-	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
-				     MKDEV(I2C_MAJOR, adap->nr), NULL,
-				     "i2c-%d", adap->nr);
-	if (IS_ERR(i2c_dev->dev)) {
-		res = PTR_ERR(i2c_dev->dev);
-		goto error;
+	device_initialize(&i2c_dev->dev);
+	i2c_dev->dev.devt = MKDEV(I2C_MAJOR, adap->nr);
+	i2c_dev->dev.class = i2c_dev_class;
+	i2c_dev->dev.parent = &adap->dev;
+	i2c_dev->dev.release = i2cdev_dev_release;
+	dev_set_name(&i2c_dev->dev, "i2c-%d", adap->nr);
+
+	res = cdev_device_add(&i2c_dev->cdev, &i2c_dev->dev);
+	if (res) {
+		put_i2c_dev(i2c_dev, false);
+		return res;
 	}
 
 	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
 		 adap->name, adap->nr);
 	return 0;
-error:
-	cdev_del(&i2c_dev->cdev);
-error_cdev:
-	put_i2c_dev(i2c_dev);
-	return res;
 }
 
 static int i2cdev_detach_adapter(struct device *dev, void *dummy)
@@ -680,9 +686,7 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	cdev_del(&i2c_dev->cdev);
-	put_i2c_dev(i2c_dev);
-	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
+	put_i2c_dev(i2c_dev, true);
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
 	return 0;

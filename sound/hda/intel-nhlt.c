@@ -7,7 +7,7 @@
 #define NHLT_ACPI_HEADER_SIG	"NHLT"
 
 /* Unique identification for getting NHLT blobs */
-static guid_t osc_guid =
+static const guid_t osc_guid =
 	GUID_INIT(0xA69F886E, 0x6CEB, 0x4594,
 		  0xA4, 0x1F, 0x7B, 0x5D, 0xCE, 0x24, 0xC5, 0x53);
 
@@ -102,6 +102,3 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 	return dmic_geo;
 }
 EXPORT_SYMBOL_GPL(intel_nhlt_get_dmic_geo);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel NHLT driver");

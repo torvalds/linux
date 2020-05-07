@@ -95,12 +95,11 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		goto finished;
 	}
 
+	memset(&oparms, 0, sizeof(struct cifs_open_parms));
 	oparms.tcon = tcon;
 	oparms.desired_access = desired_access;
 	oparms.disposition = create_disposition;
-	oparms.create_options = create_options;
-	if (backup_cred(cifs_sb))
-		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 	oparms.mode = mode;
@@ -313,7 +312,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst[num_rqst].rq_iov = close_iov;
 	rqst[num_rqst].rq_nvec = 1;
 	rc = SMB2_close_init(tcon, &rqst[num_rqst], COMPOUND_FID,
-			     COMPOUND_FID);
+			     COMPOUND_FID, false);
 	smb2_set_related(&rqst[num_rqst]);
 	if (rc)
 		goto finished;
@@ -456,7 +455,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	/* If it is a root and its handle is cached then use it */
 	if (!strlen(full_path) && !no_cached_open) {
-		rc = open_shroot(xid, tcon, &fid);
+		rc = open_shroot(xid, tcon, cifs_sb, &fid);
 		if (rc)
 			goto out;
 
@@ -472,9 +471,6 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		close_shroot(&tcon->crfid);
 		goto out;
 	}
-
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
 	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
@@ -525,7 +521,7 @@ smb2_mkdir_setinfo(struct inode *inode, const char *name,
 	cifs_i = CIFS_I(inode);
 	dosattrs = cifs_i->cifsAttrs | ATTR_READONLY;
 	data.Attributes = cpu_to_le32(dosattrs);
-	cifs_get_writable_path(tcon, name, &cfile);
+	cifs_get_writable_path(tcon, name, FIND_WR_ANY, &cfile);
 	tmprc = smb2_compound_op(xid, tcon, cifs_sb, name,
 				 FILE_WRITE_ATTRIBUTES, FILE_CREATE,
 				 CREATE_NOT_FILE, ACL_NO_MODE,
@@ -581,7 +577,7 @@ smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	struct cifsFileInfo *cfile;
 
-	cifs_get_writable_path(tcon, from_name, &cfile);
+	cifs_get_writable_path(tcon, from_name, FIND_WR_WITH_DELETE, &cfile);
 
 	return smb2_set_path_attr(xid, tcon, from_name, to_name,
 				  cifs_sb, DELETE, SMB2_OP_RENAME, cfile);

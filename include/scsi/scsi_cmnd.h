@@ -63,6 +63,7 @@ struct scsi_pointer {
 
 /* for scmd->state */
 #define SCMD_STATE_COMPLETE	0
+#define SCMD_STATE_INFLIGHT	1
 
 struct scsi_cmnd {
 	struct scsi_request req;
@@ -158,7 +159,6 @@ static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
 }
 
-extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 
 extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
@@ -190,12 +190,12 @@ static inline unsigned scsi_bufflen(struct scsi_cmnd *cmd)
 	return cmd->sdb.length;
 }
 
-static inline void scsi_set_resid(struct scsi_cmnd *cmd, int resid)
+static inline void scsi_set_resid(struct scsi_cmnd *cmd, unsigned int resid)
 {
 	cmd->req.resid_len = resid;
 }
 
-static inline int scsi_get_resid(struct scsi_cmnd *cmd)
+static inline unsigned int scsi_get_resid(struct scsi_cmnd *cmd)
 {
 	return cmd->req.resid_len;
 }

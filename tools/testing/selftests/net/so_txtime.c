@@ -12,7 +12,11 @@
 #include <arpa/inet.h>
 #include <error.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <linux/net_tstamp.h>
+#include <linux/errqueue.h>
+#include <linux/ipv6.h>
+#include <linux/tcp.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,7 +32,7 @@ static int	cfg_clockid	= CLOCK_TAI;
 static bool	cfg_do_ipv4;
 static bool	cfg_do_ipv6;
 static uint16_t	cfg_port	= 8000;
-static int	cfg_variance_us	= 2000;
+static int	cfg_variance_us	= 4000;
 
 static uint64_t glob_tstart;
 
@@ -42,6 +46,9 @@ struct timed_send {
 static struct timed_send cfg_in[MAX_NUM_PKT];
 static struct timed_send cfg_out[MAX_NUM_PKT];
 static int cfg_num_pkt;
+
+static int cfg_errq_level;
+static int cfg_errq_type;
 
 static uint64_t gettime_ns(void)
 {
@@ -90,13 +97,15 @@ static void do_send_one(int fdt, struct timed_send *ts)
 
 }
 
-static void do_recv_one(int fdr, struct timed_send *ts)
+static bool do_recv_one(int fdr, struct timed_send *ts)
 {
 	int64_t tstop, texpect;
 	char rbuf[2];
 	int ret;
 
 	ret = recv(fdr, rbuf, sizeof(rbuf), 0);
+	if (ret == -1 && errno == EAGAIN)
+		return true;
 	if (ret == -1)
 		error(1, errno, "read");
 	if (ret != 1)
@@ -113,6 +122,8 @@ static void do_recv_one(int fdr, struct timed_send *ts)
 
 	if (labs(tstop - texpect) > cfg_variance_us)
 		error(1, 0, "exceeds variance (%d us)", cfg_variance_us);
+
+	return false;
 }
 
 static void do_recv_verify_empty(int fdr)
@@ -125,11 +136,69 @@ static void do_recv_verify_empty(int fdr)
 		error(1, 0, "recv: not empty as expected (%d, %d)", ret, errno);
 }
 
+static void do_recv_errqueue_timeout(int fdt)
+{
+	char control[CMSG_SPACE(sizeof(struct sock_extended_err)) +
+		     CMSG_SPACE(sizeof(struct sockaddr_in6))] = {0};
+	char data[sizeof(struct ipv6hdr) +
+		  sizeof(struct tcphdr) + 1];
+	struct sock_extended_err *err;
+	struct msghdr msg = {0};
+	struct iovec iov = {0};
+	struct cmsghdr *cm;
+	int64_t tstamp = 0;
+	int ret;
+
+	iov.iov_base = data;
+	iov.iov_len = sizeof(data);
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	msg.msg_control = control;
+	msg.msg_controllen = sizeof(control);
+
+	while (1) {
+		ret = recvmsg(fdt, &msg, MSG_ERRQUEUE);
+		if (ret == -1 && errno == EAGAIN)
+			break;
+		if (ret == -1)
+			error(1, errno, "errqueue");
+		if (msg.msg_flags != MSG_ERRQUEUE)
+			error(1, 0, "errqueue: flags 0x%x\n", msg.msg_flags);
+
+		cm = CMSG_FIRSTHDR(&msg);
+		if (cm->cmsg_level != cfg_errq_level ||
+		    cm->cmsg_type != cfg_errq_type)
+			error(1, 0, "errqueue: type 0x%x.0x%x\n",
+				    cm->cmsg_level, cm->cmsg_type);
+
+		err = (struct sock_extended_err *)CMSG_DATA(cm);
+		if (err->ee_origin != SO_EE_ORIGIN_TXTIME)
+			error(1, 0, "errqueue: origin 0x%x\n", err->ee_origin);
+		if (err->ee_code != ECANCELED)
+			error(1, 0, "errqueue: code 0x%x\n", err->ee_code);
+
+		tstamp = ((int64_t) err->ee_data) << 32 | err->ee_info;
+		tstamp -= (int64_t) glob_tstart;
+		tstamp /= 1000 * 1000;
+		fprintf(stderr, "send: pkt %c at %" PRId64 "ms dropped\n",
+				data[ret - 1], tstamp);
+
+		msg.msg_flags = 0;
+		msg.msg_controllen = sizeof(control);
+	}
+
+	error(1, 0, "recv: timeout");
+}
+
 static void setsockopt_txtime(int fd)
 {
 	struct sock_txtime so_txtime_val = { .clockid = cfg_clockid };
 	struct sock_txtime so_txtime_val_read = { 0 };
 	socklen_t vallen = sizeof(so_txtime_val);
+
+	so_txtime_val.flags = SOF_TXTIME_REPORT_ERRORS;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
 		       &so_txtime_val, sizeof(so_txtime_val)))
@@ -194,7 +263,8 @@ static void do_test(struct sockaddr *addr, socklen_t alen)
 	for (i = 0; i < cfg_num_pkt; i++)
 		do_send_one(fdt, &cfg_in[i]);
 	for (i = 0; i < cfg_num_pkt; i++)
-		do_recv_one(fdr, &cfg_out[i]);
+		if (do_recv_one(fdr, &cfg_out[i]))
+			do_recv_errqueue_timeout(fdt);
 
 	do_recv_verify_empty(fdr);
 
@@ -280,6 +350,10 @@ int main(int argc, char **argv)
 		addr6.sin6_family = AF_INET6;
 		addr6.sin6_port = htons(cfg_port);
 		addr6.sin6_addr = in6addr_loopback;
+
+		cfg_errq_level = SOL_IPV6;
+		cfg_errq_type = IPV6_RECVERR;
+
 		do_test((void *)&addr6, sizeof(addr6));
 	}
 
@@ -289,6 +363,10 @@ int main(int argc, char **argv)
 		addr4.sin_family = AF_INET;
 		addr4.sin_port = htons(cfg_port);
 		addr4.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+		cfg_errq_level = SOL_IP;
+		cfg_errq_type = IP_RECVERR;
+
 		do_test((void *)&addr4, sizeof(addr4));
 	}
 

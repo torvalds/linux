@@ -437,7 +437,7 @@ static const struct ethtool_ops ace_ethtool_ops = {
 	.set_link_ksettings = ace_set_link_ksettings,
 };
 
-static void ace_watchdog(struct net_device *dev);
+static void ace_watchdog(struct net_device *dev, unsigned int txqueue);
 
 static const struct net_device_ops ace_netdev_ops = {
 	.ndo_open		= ace_open,
@@ -1542,7 +1542,7 @@ static void ace_set_rxtx_parms(struct net_device *dev, int jumbo)
 }
 
 
-static void ace_watchdog(struct net_device *data)
+static void ace_watchdog(struct net_device *data, unsigned int txqueue)
 {
 	struct net_device *dev = data;
 	struct ace_private *ap = netdev_priv(dev);
@@ -2699,9 +2699,8 @@ static void ace_get_drvinfo(struct net_device *dev,
 	struct ace_private *ap = netdev_priv(dev);
 
 	strlcpy(info->driver, "acenic", sizeof(info->driver));
-	snprintf(info->version, sizeof(info->version), "%i.%i.%i",
-		 ap->firmware_major, ap->firmware_minor,
-		 ap->firmware_fix);
+	snprintf(info->fw_version, sizeof(info->version), "%i.%i.%i",
+		 ap->firmware_major, ap->firmware_minor, ap->firmware_fix);
 
 	if (ap->pdev)
 		strlcpy(info->bus_info, pci_name(ap->pdev),

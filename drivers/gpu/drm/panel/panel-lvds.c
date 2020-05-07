@@ -8,7 +8,6 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -34,7 +33,6 @@ struct panel_lvds {
 	unsigned int bus_format;
 	bool data_mirror;
 
-	struct backlight_device *backlight;
 	struct regulator *supply;
 
 	struct gpio_desc *enable_gpio;
@@ -44,19 +42,6 @@ struct panel_lvds {
 static inline struct panel_lvds *to_panel_lvds(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_lvds, panel);
-}
-
-static int panel_lvds_disable(struct drm_panel *panel)
-{
-	struct panel_lvds *lvds = to_panel_lvds(panel);
-
-	if (lvds->backlight) {
-		lvds->backlight->props.power = FB_BLANK_POWERDOWN;
-		lvds->backlight->props.state |= BL_CORE_FBBLANK;
-		backlight_update_status(lvds->backlight);
-	}
-
-	return 0;
 }
 
 static int panel_lvds_unprepare(struct drm_panel *panel)
@@ -93,26 +78,13 @@ static int panel_lvds_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int panel_lvds_enable(struct drm_panel *panel)
+static int panel_lvds_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
 	struct panel_lvds *lvds = to_panel_lvds(panel);
-
-	if (lvds->backlight) {
-		lvds->backlight->props.state &= ~BL_CORE_FBBLANK;
-		lvds->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(lvds->backlight);
-	}
-
-	return 0;
-}
-
-static int panel_lvds_get_modes(struct drm_panel *panel)
-{
-	struct panel_lvds *lvds = to_panel_lvds(panel);
-	struct drm_connector *connector = lvds->panel.connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_create(lvds->panel.drm);
+	mode = drm_mode_create(connector->dev);
 	if (!mode)
 		return 0;
 
@@ -132,10 +104,8 @@ static int panel_lvds_get_modes(struct drm_panel *panel)
 }
 
 static const struct drm_panel_funcs panel_lvds_funcs = {
-	.disable = panel_lvds_disable,
 	.unprepare = panel_lvds_unprepare,
 	.prepare = panel_lvds_prepare,
-	.enable = panel_lvds_enable,
 	.get_modes = panel_lvds_get_modes,
 };
 
@@ -197,7 +167,6 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 static int panel_lvds_probe(struct platform_device *pdev)
 {
 	struct panel_lvds *lvds;
-	struct device_node *np;
 	int ret;
 
 	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
@@ -243,15 +212,6 @@ static int panel_lvds_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	np = of_parse_phandle(lvds->dev->of_node, "backlight", 0);
-	if (np) {
-		lvds->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
-
-		if (!lvds->backlight)
-			return -EPROBE_DEFER;
-	}
-
 	/*
 	 * TODO: Handle all power supplies specified in the DT node in a generic
 	 * way for panels that don't care about power supply ordering. LVDS
@@ -260,20 +220,19 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	 */
 
 	/* Register the panel. */
-	drm_panel_init(&lvds->panel);
-	lvds->panel.dev = lvds->dev;
-	lvds->panel.funcs = &panel_lvds_funcs;
+	drm_panel_init(&lvds->panel, lvds->dev, &panel_lvds_funcs,
+		       DRM_MODE_CONNECTOR_LVDS);
+
+	ret = drm_panel_of_backlight(&lvds->panel);
+	if (ret)
+		return ret;
 
 	ret = drm_panel_add(&lvds->panel);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	dev_set_drvdata(lvds->dev, lvds);
 	return 0;
-
-error:
-	put_device(&lvds->backlight->dev);
-	return ret;
 }
 
 static int panel_lvds_remove(struct platform_device *pdev)
@@ -282,10 +241,7 @@ static int panel_lvds_remove(struct platform_device *pdev)
 
 	drm_panel_remove(&lvds->panel);
 
-	panel_lvds_disable(&lvds->panel);
-
-	if (lvds->backlight)
-		put_device(&lvds->backlight->dev);
+	drm_panel_disable(&lvds->panel);
 
 	return 0;
 }

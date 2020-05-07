@@ -290,34 +290,29 @@ See also the examples in :ref:`control`.
 .. flat-table:: struct v4l2_querymenu
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
-      -
       - ``id``
       - Identifies the control, set by the application from the respective
 	struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``id``.
     * - __u32
-      -
       - ``index``
       - Index of the menu item, starting at zero, set by the application.
-    * - union
-      -
-      -
-      -
-    * -
-      - __u8
+    * - union {
+      - (anonymous)
+    * - __u8
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
 	information is intended for the user. This field is valid for
 	``V4L2_CTRL_TYPE_MENU`` type controls.
-    * -
-      - __s64
+    * - __s64
       - ``value``
       - Value of the integer menu item. This field is valid for
 	``V4L2_CTRL_TYPE_INTEGER_MENU`` type controls.
-    * - __u32
+    * - }
       -
+    * - __u32
       - ``reserved``
       - Reserved for future extensions. Drivers must set the array to
 	zero.
@@ -378,7 +373,7 @@ See also the examples in :ref:`control`.
       - 0
       - 0
       - A control which performs an action when set. Drivers must ignore
-	the value passed with ``VIDIOC_S_CTRL`` and return an ``EINVAL`` error
+	the value passed with ``VIDIOC_S_CTRL`` and return an ``EACCES`` error
 	code on a ``VIDIOC_G_CTRL`` attempt.
     * - ``V4L2_CTRL_TYPE_INTEGER64``
       - any
@@ -443,6 +438,12 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_mpeg2_quantization`, containing MPEG-2
 	quantization matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_AREA``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_area`, containing the width and the height
+        of a rectangular area. Units depend on the use case.
     * - ``V4L2_CTRL_TYPE_H264_SPS``
       - n/a
       - n/a
@@ -473,6 +474,24 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_h264_decode_params`, containing H264
 	decode parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_HEVC_SPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_hevc_sps`, containing HEVC Sequence
+	Parameter Set for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_HEVC_PPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_hevc_pps`, containing HEVC Picture
+	Parameter Set for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_hevc_slice_params`, containing HEVC
+	slice parameters for stateless video decoders.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

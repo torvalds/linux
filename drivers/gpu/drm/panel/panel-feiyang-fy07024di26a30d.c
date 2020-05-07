@@ -9,7 +9,6 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 
-#include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -22,7 +21,6 @@ struct feiyang {
 	struct drm_panel	panel;
 	struct mipi_dsi_device	*dsi;
 
-	struct backlight_device	*backlight;
 	struct regulator	*dvdd;
 	struct regulator	*avdd;
 	struct gpio_desc	*reset;
@@ -102,7 +100,6 @@ static int feiyang_enable(struct drm_panel *panel)
 	msleep(200);
 
 	mipi_dsi_dcs_set_display_on(ctx->dsi);
-	backlight_enable(ctx->backlight);
 
 	return 0;
 }
@@ -111,7 +108,6 @@ static int feiyang_disable(struct drm_panel *panel)
 {
 	struct feiyang *ctx = panel_to_feiyang(panel);
 
-	backlight_disable(ctx->backlight);
 	return mipi_dsi_dcs_set_display_off(ctx->dsi);
 }
 
@@ -162,13 +158,13 @@ static const struct drm_display_mode feiyang_default_mode = {
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
 
-static int feiyang_get_modes(struct drm_panel *panel)
+static int feiyang_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct feiyang *ctx = panel_to_feiyang(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &feiyang_default_mode);
+	mode = drm_mode_duplicate(connector->dev, &feiyang_default_mode);
 	if (!mode) {
 		DRM_DEV_ERROR(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			      feiyang_default_mode.hdisplay,
@@ -204,9 +200,8 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &dsi->dev;
-	ctx->panel.funcs = &feiyang_funcs;
+	drm_panel_init(&ctx->panel, &dsi->dev, &feiyang_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->dvdd = devm_regulator_get(&dsi->dev, "dvdd");
 	if (IS_ERR(ctx->dvdd)) {
@@ -226,9 +221,9 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(ctx->reset);
 	}
 
-	ctx->backlight = devm_of_find_backlight(&dsi->dev);
-	if (IS_ERR(ctx->backlight))
-		return PTR_ERR(ctx->backlight);
+	ret = drm_panel_of_backlight(&ctx->panel);
+	if (ret)
+		return ret;
 
 	ret = drm_panel_add(&ctx->panel);
 	if (ret < 0)

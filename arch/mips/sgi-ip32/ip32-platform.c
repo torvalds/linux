@@ -115,7 +115,7 @@ ip32_rtc_platform_data[] = {
 		.bcd_mode = true,
 		.no_irq = false,
 		.uie_unsupported = false,
-		.alloc_io_resources = true,
+		.access_type = ds1685_reg_direct,
 		.plat_prepare_poweroff = ip32_prepare_poweroff,
 	},
 };

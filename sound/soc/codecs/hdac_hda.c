@@ -14,13 +14,11 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_i915.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_register.h>
-#include "hdac_hda.h"
 
-#define HDAC_ANALOG_DAI_ID		0
-#define HDAC_DIGITAL_DAI_ID		1
-#define HDAC_ALT_ANALOG_DAI_ID		2
+#include "hdac_hda.h"
 
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
 			SNDRV_PCM_FMTBIT_U8 | \
@@ -31,6 +29,11 @@
 			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
+
+#define STUB_HDMI_RATES	(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
+				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |\
+				 SNDRV_PCM_RATE_192000)
 
 static int hdac_hda_dai_open(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai);
@@ -121,7 +124,59 @@ static struct snd_soc_dai_driver hdac_hda_dais[] = {
 		.formats = STUB_FORMATS,
 		.sig_bits = 24,
 	},
-}
+},
+{
+	.id = HDAC_HDMI_0_DAI_ID,
+	.name = "intel-hdmi-hifi1",
+	.ops = &hdac_hda_dai_ops,
+	.playback = {
+		.stream_name    = "hifi1",
+		.channels_min   = 1,
+		.channels_max   = 32,
+		.rates          = STUB_HDMI_RATES,
+		.formats        = STUB_FORMATS,
+		.sig_bits = 24,
+	},
+},
+{
+	.id = HDAC_HDMI_1_DAI_ID,
+	.name = "intel-hdmi-hifi2",
+	.ops = &hdac_hda_dai_ops,
+	.playback = {
+		.stream_name    = "hifi2",
+		.channels_min   = 1,
+		.channels_max   = 32,
+		.rates          = STUB_HDMI_RATES,
+		.formats        = STUB_FORMATS,
+		.sig_bits = 24,
+	},
+},
+{
+	.id = HDAC_HDMI_2_DAI_ID,
+	.name = "intel-hdmi-hifi3",
+	.ops = &hdac_hda_dai_ops,
+	.playback = {
+		.stream_name    = "hifi3",
+		.channels_min   = 1,
+		.channels_max   = 32,
+		.rates          = STUB_HDMI_RATES,
+		.formats        = STUB_FORMATS,
+		.sig_bits = 24,
+	},
+},
+{
+	.id = HDAC_HDMI_3_DAI_ID,
+	.name = "intel-hdmi-hifi4",
+	.ops = &hdac_hda_dai_ops,
+	.playback = {
+		.stream_name    = "hifi4",
+		.channels_min   = 1,
+		.channels_max   = 32,
+		.rates          = STUB_HDMI_RATES,
+		.formats        = STUB_FORMATS,
+		.sig_bits = 24,
+	},
+},
 
 };
 
@@ -135,10 +190,11 @@ static int hdac_hda_dai_set_tdm_slot(struct snd_soc_dai *dai,
 
 	hda_pvt = snd_soc_component_get_drvdata(component);
 	pcm = &hda_pvt->pcm[dai->id];
+
 	if (tx_mask)
-		pcm[dai->id].stream_tag[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
+		pcm->stream_tag[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
 	else
-		pcm[dai->id].stream_tag[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
+		pcm->stream_tag[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
 
 	return 0;
 }
@@ -278,6 +334,12 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 	struct hda_pcm *cpcm;
 	const char *pcm_name;
 
+	/*
+	 * map DAI ID to the closest matching PCM name, using the naming
+	 * scheme used by hda-codec snd_hda_gen_build_pcms() and for
+	 * HDMI in hda_codec patch_hdmi.c)
+	 */
+
 	switch (dai->id) {
 	case HDAC_ANALOG_DAI_ID:
 		pcm_name = "Analog";
@@ -288,18 +350,42 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 	case HDAC_ALT_ANALOG_DAI_ID:
 		pcm_name = "Alt Analog";
 		break;
+	case HDAC_HDMI_0_DAI_ID:
+		pcm_name = "HDMI 0";
+		break;
+	case HDAC_HDMI_1_DAI_ID:
+		pcm_name = "HDMI 1";
+		break;
+	case HDAC_HDMI_2_DAI_ID:
+		pcm_name = "HDMI 2";
+		break;
+	case HDAC_HDMI_3_DAI_ID:
+		pcm_name = "HDMI 3";
+		break;
 	default:
 		dev_err(&hcodec->core.dev, "invalid dai id %d\n", dai->id);
 		return NULL;
 	}
 
 	list_for_each_entry(cpcm, &hcodec->pcm_list_head, list) {
-		if (strpbrk(cpcm->name, pcm_name))
+		if (strstr(cpcm->name, pcm_name))
 			return cpcm;
 	}
 
 	dev_err(&hcodec->core.dev, "didn't find PCM for DAI %s\n", dai->name);
 	return NULL;
+}
+
+static bool is_hdmi_codec(struct hda_codec *hcodec)
+{
+	struct hda_pcm *cpcm;
+
+	list_for_each_entry(cpcm, &hcodec->pcm_list_head, list) {
+		if (cpcm->pcm_type == HDA_PCM_TYPE_HDMI)
+			return true;
+	}
+
+	return false;
 }
 
 static int hdac_hda_codec_probe(struct snd_soc_component *component)
@@ -321,6 +407,15 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	}
 
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);
+
+	/*
+	 * Ensure any HDA display is powered at codec probe.
+	 * After snd_hda_codec_device_new(), display power is
+	 * managed by runtime PM.
+	 */
+	if (hda_pvt->need_display_power)
+		snd_hdac_display_power(hdev->bus,
+				       HDA_CODEC_IDX_CONTROLLER, true);
 
 	ret = snd_hda_codec_device_new(hcodec->bus, component->card->snd_card,
 				       hdev->addr, hcodec);
@@ -366,19 +461,30 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		dev_dbg(&hdev->dev, "no patch file found\n");
 	}
 
+	/* configure codec for 1:1 PCM:DAI mapping */
+	hcodec->mst_no_extra_pcms = 1;
+
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);
 		goto error;
 	}
 
-	ret = snd_hda_codec_build_controls(hcodec);
-	if (ret < 0) {
-		dev_err(&hdev->dev, "unable to create controls %d\n", ret);
-		goto error;
+	/* HDMI controls need to be created in machine drivers */
+	if (!is_hdmi_codec(hcodec)) {
+		ret = snd_hda_codec_build_controls(hcodec);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "unable to create controls %d\n",
+				ret);
+			goto error;
+		}
 	}
 
 	hcodec->core.lazy_cache = true;
+
+	if (hda_pvt->need_display_power)
+		snd_hdac_display_power(hdev->bus,
+				       HDA_CODEC_IDX_CONTROLLER, false);
 
 	/*
 	 * hdac_device core already sets the state to active and calls
@@ -498,7 +604,9 @@ static int hdac_hda_dev_remove(struct hdac_device *hdev)
 	struct hdac_hda_priv *hda_pvt;
 
 	hda_pvt = dev_get_drvdata(&hdev->dev);
-	cancel_delayed_work_sync(&hda_pvt->codec.jackpoll_work);
+	if (hda_pvt && hda_pvt->codec.registered)
+		cancel_delayed_work_sync(&hda_pvt->codec.jackpoll_work);
+
 	return 0;
 }
 

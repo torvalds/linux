@@ -28,11 +28,12 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	int err = -EFAULT;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	*code_out = SEGV_MAPERR;
 
@@ -96,7 +97,6 @@ good_area:
 			else
 				current->min_flt++;
 			if (fault & VM_FAULT_RETRY) {
-				flags &= ~FAULT_FLAG_ALLOW_RETRY;
 				flags |= FAULT_FLAG_TRIED;
 
 				goto retry;
@@ -104,7 +104,8 @@ good_area:
 		}
 
 		pgd = pgd_offset(mm, address);
-		pud = pud_offset(pgd, address);
+		p4d = p4d_offset(pgd, address);
+		pud = pud_offset(p4d, address);
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
 	} while (!pte_present(*pte));

@@ -11,7 +11,6 @@
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -549,7 +548,7 @@ lqasc_request_port(struct uart_port *port)
 	}
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(&pdev->dev,
+		port->membase = devm_ioremap(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
 			return -ENOMEM;

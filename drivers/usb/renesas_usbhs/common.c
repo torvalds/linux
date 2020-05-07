@@ -8,11 +8,10 @@
  */
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -590,9 +589,10 @@ static int usbhs_probe(struct platform_device *pdev)
 {
 	const struct renesas_usbhs_platform_info *info;
 	struct usbhs_priv *priv;
-	struct resource *res, *irq_res;
+	struct resource *irq_res;
 	struct device *dev = &pdev->dev;
-	int ret, gpio;
+	struct gpio_desc *gpiod;
+	int ret;
 	u32 tmp;
 
 	/* check device node */
@@ -619,8 +619,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -658,10 +657,9 @@ static int usbhs_probe(struct platform_device *pdev)
 		priv->dparam.pio_dma_border = 64; /* 64byte */
 	if (!of_property_read_u32(dev_of_node(dev), "renesas,buswait", &tmp))
 		priv->dparam.buswait_bwait = tmp;
-	gpio = of_get_named_gpio_flags(dev_of_node(dev), "renesas,enable-gpio",
-				       0, NULL);
-	if (gpio > 0)
-		priv->dparam.enable_gpio = gpio;
+	gpiod = devm_gpiod_get_optional(dev, "renesas,enable", GPIOD_IN);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
 
 	/* FIXME */
 	/* runtime power control ? */
@@ -709,13 +707,10 @@ static int usbhs_probe(struct platform_device *pdev)
 	usbhs_sys_clock_ctrl(priv, 0);
 
 	/* check GPIO determining if USB function should be enabled */
-	if (priv->dparam.enable_gpio) {
-		gpio_request_one(priv->dparam.enable_gpio, GPIOF_IN, NULL);
-		ret = !gpio_get_value(priv->dparam.enable_gpio);
-		gpio_free(priv->dparam.enable_gpio);
+	if (gpiod) {
+		ret = !gpiod_get_value(gpiod);
 		if (ret) {
-			dev_warn(dev, "USB function not selected (GPIO %d)\n",
-				 priv->dparam.enable_gpio);
+			dev_warn(dev, "USB function not selected (GPIO)\n");
 			ret = -ENOTSUPP;
 			goto probe_end_mod_exit;
 		}

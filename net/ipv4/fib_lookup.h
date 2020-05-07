@@ -16,6 +16,9 @@ struct fib_alias {
 	u8			fa_slen;
 	u32			tb_id;
 	s16			fa_default;
+	u8			offload:1,
+				trap:1,
+				unused:6;
 	struct rcu_head		rcu;
 };
 
@@ -32,12 +35,11 @@ static inline void fib_alias_accessed(struct fib_alias *fa)
 void fib_release_info(struct fib_info *);
 struct fib_info *fib_create_info(struct fib_config *cfg,
 				 struct netlink_ext_ack *extack);
-int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
+int fib_nh_match(struct net *net, struct fib_config *cfg, struct fib_info *fi,
 		 struct netlink_ext_ack *extack);
 bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi);
-int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event, u32 tb_id,
-		  u8 type, __be32 dst, int dst_len, u8 tos, struct fib_info *fi,
-		  unsigned int);
+int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+		  struct fib_rt_info *fri, unsigned int flags);
 void rtmsg_fib(int event, __be32 key, struct fib_alias *fa, int dst_len,
 	       u32 tb_id, const struct nl_info *info, unsigned int nlm_flags);
 

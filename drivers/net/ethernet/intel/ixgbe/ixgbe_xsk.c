@@ -277,7 +277,7 @@ static bool ixgbe_alloc_buffer_zc(struct ixgbe_ring *rx_ring,
 
 	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
 
-	xsk_umem_discard_addr(umem);
+	xsk_umem_release_addr(umem);
 	return true;
 }
 
@@ -304,7 +304,7 @@ static bool ixgbe_alloc_buffer_slow_zc(struct ixgbe_ring *rx_ring,
 
 	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
 
-	xsk_umem_discard_addr_rq(umem);
+	xsk_umem_release_addr_rq(umem);
 	return true;
 }
 
@@ -709,10 +709,14 @@ int ixgbe_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 	if (qid >= adapter->num_xdp_queues)
 		return -ENXIO;
 
-	if (!adapter->xdp_ring[qid]->xsk_umem)
+	ring = adapter->xdp_ring[qid];
+
+	if (test_bit(__IXGBE_TX_DISABLED, &ring->state))
+		return -ENETDOWN;
+
+	if (!ring->xsk_umem)
 		return -ENXIO;
 
-	ring = adapter->xdp_ring[qid];
 	if (!napi_if_scheduled_mark_missed(&ring->q_vector->napi)) {
 		u64 eics = BIT_ULL(ring->q_vector->v_idx);
 

@@ -918,34 +918,15 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MM_UL6", NULL, "MultiMedia6 Mixer"},
 	{"MM_UL7", NULL, "MultiMedia7 Mixer"},
 	{"MM_UL8", NULL, "MultiMedia8 Mixer"},
-
-	{"MM_DL1",  NULL, "MultiMedia1 Playback" },
-	{"MM_DL2",  NULL, "MultiMedia2 Playback" },
-	{"MM_DL3",  NULL, "MultiMedia3 Playback" },
-	{"MM_DL4",  NULL, "MultiMedia4 Playback" },
-	{"MM_DL5",  NULL, "MultiMedia5 Playback" },
-	{"MM_DL6",  NULL, "MultiMedia6 Playback" },
-	{"MM_DL7",  NULL, "MultiMedia7 Playback" },
-	{"MM_DL8",  NULL, "MultiMedia8 Playback" },
-
-	{"MultiMedia1 Capture", NULL, "MM_UL1"},
-	{"MultiMedia2 Capture", NULL, "MM_UL2"},
-	{"MultiMedia3 Capture", NULL, "MM_UL3"},
-	{"MultiMedia4 Capture", NULL, "MM_UL4"},
-	{"MultiMedia5 Capture", NULL, "MM_UL5"},
-	{"MultiMedia6 Capture", NULL, "MM_UL6"},
-	{"MultiMedia7 Capture", NULL, "MM_UL7"},
-	{"MultiMedia8 Capture", NULL, "MM_UL8"},
-
 };
 
-static int routing_hw_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params)
+static int routing_hw_params(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct msm_routing_data *data = dev_get_drvdata(c->dev);
-	unsigned int be_id = rtd->cpu_dai->id;
+	struct msm_routing_data *data = dev_get_drvdata(component->dev);
+	unsigned int be_id = asoc_rtd_to_cpu(rtd, 0)->id;
 	struct session_data *session;
 	int path_type;
 
@@ -980,10 +961,6 @@ static int routing_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops q6pcm_routing_ops = {
-	.hw_params = routing_hw_params,
-};
-
 static int msm_routing_probe(struct snd_soc_component *c)
 {
 	int i;
@@ -997,9 +974,9 @@ static int msm_routing_probe(struct snd_soc_component *c)
 }
 
 static const struct snd_soc_component_driver msm_soc_routing_component = {
-	.ops = &q6pcm_routing_ops,
 	.probe = msm_routing_probe,
 	.name = DRV_NAME,
+	.hw_params = routing_hw_params,
 	.dapm_widgets = msm_qdsp6_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(msm_qdsp6_widgets),
 	.dapm_routes = intercon,

@@ -26,6 +26,8 @@
  */
 #define FSL_MC_DEFAULT_DMA_MASK	(~0ULL)
 
+static struct fsl_mc_version mc_version;
+
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
  * @root_mc_bus_dev: fsl-mc device representing the root DPRC
@@ -52,20 +54,6 @@ struct fsl_mc_addr_translation_range {
 	u64 start_mc_offset;
 	u64 end_mc_offset;
 	phys_addr_t start_phys_addr;
-};
-
-/**
- * struct mc_version
- * @major: Major version number: incremented on API compatibility changes
- * @minor: Minor version number: incremented on API additions (that are
- *		backward compatible); reset when major version is incremented
- * @revision: Internal revision number: incremented on implementation changes
- *		and/or bug fixes that have no impact on API
- */
-struct mc_version {
-	u32 major;
-	u32 minor;
-	u32 revision;
 };
 
 /**
@@ -166,42 +154,52 @@ EXPORT_SYMBOL_GPL(fsl_mc_bus_type);
 struct device_type fsl_mc_bus_dprc_type = {
 	.name = "fsl_mc_bus_dprc"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dprc_type);
 
 struct device_type fsl_mc_bus_dpni_type = {
 	.name = "fsl_mc_bus_dpni"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpni_type);
 
 struct device_type fsl_mc_bus_dpio_type = {
 	.name = "fsl_mc_bus_dpio"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpio_type);
 
 struct device_type fsl_mc_bus_dpsw_type = {
 	.name = "fsl_mc_bus_dpsw"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpsw_type);
 
 struct device_type fsl_mc_bus_dpbp_type = {
 	.name = "fsl_mc_bus_dpbp"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpbp_type);
 
 struct device_type fsl_mc_bus_dpcon_type = {
 	.name = "fsl_mc_bus_dpcon"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpcon_type);
 
 struct device_type fsl_mc_bus_dpmcp_type = {
 	.name = "fsl_mc_bus_dpmcp"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpmcp_type);
 
 struct device_type fsl_mc_bus_dpmac_type = {
 	.name = "fsl_mc_bus_dpmac"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpmac_type);
 
 struct device_type fsl_mc_bus_dprtc_type = {
 	.name = "fsl_mc_bus_dprtc"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dprtc_type);
 
 struct device_type fsl_mc_bus_dpseci_type = {
 	.name = "fsl_mc_bus_dpseci"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpseci_type);
 
 static struct device_type *fsl_mc_get_device_type(const char *type)
 {
@@ -328,7 +326,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
  */
 static int mc_get_version(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
-			  struct mc_version *mc_ver_info)
+			  struct fsl_mc_version *mc_ver_info)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpmng_rsp_get_version *rsp_params;
@@ -352,6 +350,20 @@ static int mc_get_version(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
+
+/**
+ * fsl_mc_get_version - function to retrieve the MC f/w version information
+ *
+ * Return:	mc version when called after fsl-mc-bus probe; NULL otherwise.
+ */
+struct fsl_mc_version *fsl_mc_get_version(void)
+{
+	if (mc_version.major)
+		return &mc_version;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_get_version);
 
 /**
  * fsl_mc_get_root_dprc - function to traverse to the root dprc
@@ -702,6 +714,39 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_remove);
 
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev)
+{
+	struct fsl_mc_device *mc_bus_dev, *endpoint;
+	struct fsl_mc_obj_desc endpoint_desc = {{ 0 }};
+	struct dprc_endpoint endpoint1 = {{ 0 }};
+	struct dprc_endpoint endpoint2 = {{ 0 }};
+	int state, err;
+
+	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
+	strcpy(endpoint1.type, mc_dev->obj_desc.type);
+	endpoint1.id = mc_dev->obj_desc.id;
+
+	err = dprc_get_connection(mc_bus_dev->mc_io, 0,
+				  mc_bus_dev->mc_handle,
+				  &endpoint1, &endpoint2,
+				  &state);
+
+	if (err == -ENOTCONN || state == -1)
+		return ERR_PTR(-ENOTCONN);
+
+	if (err < 0) {
+		dev_err(&mc_bus_dev->dev, "dprc_get_connection() = %d\n", err);
+		return ERR_PTR(err);
+	}
+
+	strcpy(endpoint_desc.type, endpoint2.type);
+	endpoint_desc.id = endpoint2.id;
+	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
+
+	return endpoint;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_get_endpoint);
+
 static int parse_mc_ranges(struct device *dev,
 			   int *paddr_cells,
 			   int *mc_addr_cells,
@@ -819,7 +864,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	int container_id;
 	phys_addr_t mc_portal_phys_addr;
 	u32 mc_portal_size;
-	struct mc_version mc_version;
 	struct resource res;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);

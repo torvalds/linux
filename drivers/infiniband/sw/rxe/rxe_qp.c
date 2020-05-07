@@ -237,19 +237,17 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	 */
 	qp->src_port = RXE_ROCE_V2_SPORT +
 		(hash_32_generic(qp_num(qp), 14) & 0x3fff);
-
 	qp->sq.max_wr		= init->cap.max_send_wr;
-	qp->sq.max_sge		= init->cap.max_send_sge;
-	qp->sq.max_inline	= init->cap.max_inline_data;
 
-	wqe_size = max_t(int, sizeof(struct rxe_send_wqe) +
-			 qp->sq.max_sge * sizeof(struct ib_sge),
-			 sizeof(struct rxe_send_wqe) +
-			 qp->sq.max_inline);
+	/* These caps are limited by rxe_qp_chk_cap() done by the caller */
+	wqe_size = max_t(int, init->cap.max_send_sge * sizeof(struct ib_sge),
+			 init->cap.max_inline_data);
+	qp->sq.max_sge = init->cap.max_send_sge =
+		wqe_size / sizeof(struct ib_sge);
+	qp->sq.max_inline = init->cap.max_inline_data = wqe_size;
+	wqe_size += sizeof(struct rxe_send_wqe);
 
-	qp->sq.queue = rxe_queue_init(rxe,
-				      &qp->sq.max_wr,
-				      wqe_size);
+	qp->sq.queue = rxe_queue_init(rxe, &qp->sq.max_wr, wqe_size);
 	if (!qp->sq.queue)
 		return -ENOMEM;
 
@@ -592,15 +590,16 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	int err;
 
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
-		int max_rd_atomic = __roundup_pow_of_two(attr->max_rd_atomic);
+		int max_rd_atomic = attr->max_rd_atomic ?
+			roundup_pow_of_two(attr->max_rd_atomic) : 0;
 
 		qp->attr.max_rd_atomic = max_rd_atomic;
 		atomic_set(&qp->req.rd_atomic, max_rd_atomic);
 	}
 
 	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		int max_dest_rd_atomic =
-			__roundup_pow_of_two(attr->max_dest_rd_atomic);
+		int max_dest_rd_atomic = attr->max_dest_rd_atomic ?
+			roundup_pow_of_two(attr->max_dest_rd_atomic) : 0;
 
 		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
 

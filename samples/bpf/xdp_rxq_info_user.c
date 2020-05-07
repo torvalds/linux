@@ -22,8 +22,8 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
-#include "bpf.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "bpf_util.h"
 
 static int ifindex = -1;
@@ -51,8 +51,8 @@ static const struct option long_options[] = {
 	{"sec",		required_argument,	NULL, 's' },
 	{"no-separators", no_argument,		NULL, 'z' },
 	{"action",	required_argument,	NULL, 'a' },
-	{"readmem", 	no_argument,		NULL, 'r' },
-	{"swapmac", 	no_argument,		NULL, 'm' },
+	{"readmem",	no_argument,		NULL, 'r' },
+	{"swapmac",	no_argument,		NULL, 'm' },
 	{"force",	no_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
@@ -489,9 +489,9 @@ int main(int argc, char **argv)
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
 		return EXIT_FAIL;
 
-	map = bpf_map__next(NULL, obj);
-	stats_global_map = bpf_map__next(map, obj);
-	rx_queue_index_map = bpf_map__next(stats_global_map, obj);
+	map =  bpf_object__find_map_by_name(obj, "config_map");
+	stats_global_map = bpf_object__find_map_by_name(obj, "stats_global_map");
+	rx_queue_index_map = bpf_object__find_map_by_name(obj, "rx_queue_index_map");
 	if (!map || !stats_global_map || !rx_queue_index_map) {
 		printf("finding a map in obj file failed\n");
 		return EXIT_FAIL;
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
 	map_fd = bpf_map__fd(map);
 
 	if (!prog_fd) {
-		fprintf(stderr, "ERR: load_bpf_file: %s\n", strerror(errno));
+		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n", strerror(errno));
 		return EXIT_FAIL;
 	}
 
@@ -551,6 +551,10 @@ int main(int argc, char **argv)
 			return EXIT_FAIL_OPTION;
 		}
 	}
+
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
+
 	/* Required option */
 	if (ifindex == -1) {
 		fprintf(stderr, "ERR: required option --dev missing\n");

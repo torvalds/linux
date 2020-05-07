@@ -435,7 +435,7 @@ enum {
 #define LOOP_WRITE(rec, offset, _buf, count, mode)		\
 	do {							\
 		struct snd_emu8000 *emu = (rec)->emu;		\
-		unsigned short *buf = (unsigned short *)(_buf); \
+		unsigned short *buf = (__force unsigned short *)(_buf); \
 		snd_emu8000_write_wait(emu, 1);			\
 		EMU8000_SMALW_WRITE(emu, offset);		\
 		while (count > 0) {				\
@@ -492,7 +492,7 @@ static int emu8k_pcm_silence(struct snd_pcm_substream *subs,
 #define LOOP_WRITE(rec, pos, _buf, count, mode)				\
 	do {								\
 		struct snd_emu8000 *emu = rec->emu;			\
-		unsigned short *buf = (unsigned short *)(_buf);		\
+		unsigned short *buf = (__force unsigned short *)(_buf);	\
 		snd_emu8000_write_wait(emu, 1);				\
 		EMU8000_SMALW_WRITE(emu, pos + rec->loop_start[0]);	\
 		if (rec->voices > 1)					\
@@ -660,7 +660,6 @@ static snd_pcm_uframes_t emu8k_pcm_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops emu8k_pcm_ops = {
 	.open =		emu8k_pcm_open,
 	.close =	emu8k_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	emu8k_pcm_hw_params,
 	.hw_free =	emu8k_pcm_hw_free,
 	.prepare =	emu8k_pcm_prepare,

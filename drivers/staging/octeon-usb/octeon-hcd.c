@@ -406,7 +406,7 @@ struct octeon_hcd {
  */
 struct octeon_temp_buffer {
 	void *orig_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
@@ -1836,8 +1836,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
  *
  * Returns: Pipe or NULL if none are ready
  */
-static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
-		struct octeon_hcd *usb,
+static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(struct octeon_hcd *usb,
 		enum cvmx_usb_transfer xfer_type)
 {
 	struct list_head *list = usb->active_pipes + xfer_type;

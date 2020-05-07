@@ -284,8 +284,8 @@ rdData[0]);
 		wrData[0] = 0x0;
 		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,1);
 		break;
-
-	}; LOCK_GIVE(hdw->ctl_lock);
+	}
+	LOCK_GIVE(hdw->ctl_lock);
 
 	return ret;
 }

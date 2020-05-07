@@ -1,6 +1,6 @@
 * Implementing 64bit stat counter in software
 * All memory allocation should be changed to DMA allocations
-* Changing comments in to linux standred format
+* Changing comments into linux standard format
 
 Please send patches
 To:

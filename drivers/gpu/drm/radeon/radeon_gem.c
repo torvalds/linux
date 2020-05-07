@@ -26,10 +26,11 @@
  *          Jerome Glisse
  */
 
+#include <linux/pci.h>
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
@@ -566,7 +567,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 	if (!vm_bos)
 		return;
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL, true);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r)
 		goto error_free;
 

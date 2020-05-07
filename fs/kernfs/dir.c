@@ -438,7 +438,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 		return;
 
 	if (kernfs_lockdep(kn))
-		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+		rwsem_release(&kn->dep_map, _RET_IP_);
 	v = atomic_dec_return(&kn->active);
 	if (likely(v != KN_DEACTIVATED_BIAS))
 		return;
@@ -476,7 +476,7 @@ static void kernfs_drain(struct kernfs_node *kn)
 
 	if (kernfs_lockdep(kn)) {
 		lock_acquired(&kn->dep_map, _RET_IP_);
-		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+		rwsem_release(&kn->dep_map, _RET_IP_);
 	}
 
 	kernfs_drain_open_files(kn);
@@ -1266,7 +1266,7 @@ void kernfs_activate(struct kernfs_node *kn)
 
 	pos = NULL;
 	while ((pos = kernfs_next_descendant_post(pos, kn))) {
-		if (!pos || (pos->flags & KERNFS_ACTIVATED))
+		if (pos->flags & KERNFS_ACTIVATED)
 			continue;
 
 		WARN_ON_ONCE(pos->parent && RB_EMPTY_NODE(&pos->rb));

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_ring.h: Declaration of functions for Rx/Tx rings. */
@@ -65,19 +65,21 @@ struct __packed aq_ring_buff_s {
 	};
 	union {
 		struct {
-			u16 len;
+			u32 len:16;
 			u32 is_ip_cso:1;
 			u32 is_udp_cso:1;
 			u32 is_tcp_cso:1;
 			u32 is_cso_err:1;
 			u32 is_sop:1;
 			u32 is_eop:1;
-			u32 is_gso:1;
+			u32 is_gso_tcp:1;
+			u32 is_gso_udp:1;
 			u32 is_mapped:1;
 			u32 is_cleaned:1;
 			u32 is_error:1;
 			u32 is_vlan:1;
-			u32 rsvd3:5;
+			u32 is_lro:1;
+			u32 rsvd3:3;
 			u16 eop_index;
 			u16 rsvd4;
 		};
@@ -173,5 +175,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		     int *work_done,
 		     int budget);
 int aq_ring_rx_fill(struct aq_ring_s *self);
+
+struct aq_ring_s *aq_ring_hwts_rx_alloc(struct aq_ring_s *self,
+		struct aq_nic_s *aq_nic, unsigned int idx,
+		unsigned int size, unsigned int dx_size);
+void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic);
 
 #endif /* AQ_RING_H */

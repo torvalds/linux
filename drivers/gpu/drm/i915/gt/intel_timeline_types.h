@@ -10,14 +10,15 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/rcupdate.h>
 #include <linux/types.h>
 
 #include "i915_active_types.h"
 
-struct drm_i915_private;
 struct i915_vma;
-struct intel_timeline_cacheline;
 struct i915_syncmap;
+struct intel_gt;
+struct intel_timeline_hwsp;
 
 struct intel_timeline {
 	u64 fence_context;
@@ -42,7 +43,7 @@ struct intel_timeline {
 	 * from the intel_context caller plus internal atomicity.
 	 */
 	atomic_t pin_count;
-	unsigned int active_count;
+	atomic_t active_count;
 
 	const u32 *hwsp_seqno;
 	struct i915_vma *hwsp_ggtt;
@@ -58,12 +59,16 @@ struct intel_timeline {
 	 */
 	struct list_head requests;
 
-	/* Contains an RCU guarded pointer to the last request. No reference is
+	/*
+	 * Contains an RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_active_request_get_request_rcu(), or hold the
-	 * struct_mutex.
+	 * the request using i915_active_fence_get(), or manage the RCU
+	 * protection themselves (cf the i915_active_fence API).
 	 */
-	struct i915_active_request last_request;
+	struct i915_active_fence last_request;
+
+	/** A chain of completed timelines ready for early retirement. */
+	struct intel_timeline *retire;
 
 	/**
 	 * We track the most recent seqno that we wait on in every context so
@@ -80,6 +85,16 @@ struct intel_timeline {
 	struct intel_gt *gt;
 
 	struct kref kref;
+	struct rcu_head rcu;
+};
+
+struct intel_timeline_cacheline {
+	struct i915_active active;
+
+	struct intel_timeline_hwsp *hwsp;
+	void *vaddr;
+
+	struct rcu_head rcu;
 };
 
 #endif /* __I915_TIMELINE_TYPES_H__ */

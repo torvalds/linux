@@ -26,7 +26,7 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 
-#include <drm/drm_pci.h>
+#include <linux/pci.h>
 
 #include "mgag200_drv.h"
 
@@ -37,8 +37,7 @@ int mgag200_mm_init(struct mga_device *mdev)
 	struct drm_device *dev = mdev->dev;
 
 	vmm = drm_vram_helper_alloc_mm(dev, pci_resource_start(dev->pdev, 0),
-				       mdev->mc.vram_size,
-				       &drm_gem_vram_mm_funcs);
+				       mdev->mc.vram_size);
 	if (IS_ERR(vmm)) {
 		ret = PTR_ERR(vmm);
 		DRM_ERROR("Error initializing VRAM MM; %d\n", ret);
@@ -51,12 +50,16 @@ int mgag200_mm_init(struct mga_device *mdev)
 	mdev->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					 pci_resource_len(dev->pdev, 0));
 
+	mdev->vram_fb_available = mdev->mc.vram_size;
+
 	return 0;
 }
 
 void mgag200_mm_fini(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
+
+	mdev->vram_fb_available = 0;
 
 	drm_vram_helper_release_mm(dev);
 

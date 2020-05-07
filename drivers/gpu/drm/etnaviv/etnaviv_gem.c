@@ -373,7 +373,7 @@ static inline enum dma_data_direction etnaviv_op_to_dma_dir(u32 op)
 }
 
 int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
-		struct timespec *timeout)
+		struct drm_etnaviv_timespec *timeout)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct drm_device *dev = obj->dev;
@@ -431,7 +431,7 @@ int etnaviv_gem_cpu_fini(struct drm_gem_object *obj)
 }
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
-	struct timespec *timeout)
+	struct drm_etnaviv_timespec *timeout)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
@@ -602,6 +602,7 @@ static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
 int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	u32 size, u32 flags, u32 *handle)
 {
+	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_gem_object *obj = NULL;
 	int ret;
 
@@ -624,8 +625,7 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	 * above new_inode() why this is required _and_ expected if you're
 	 * going to pin these pages.
 	 */
-	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
-			     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	mapping_set_gfp_mask(obj->filp->f_mapping, priv->shm_gfp_mask);
 
 	etnaviv_gem_obj_add(dev, obj);
 

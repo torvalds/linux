@@ -195,6 +195,7 @@ struct thread_struct {
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
 	do { \
+		unsigned long syscall = (regs)->syscall; \
 		memset((regs), 0, sizeof(*(regs))); \
 		(regs)->pc = (new_pc); \
 		(regs)->ps = USER_PS_VALUE; \
@@ -204,7 +205,7 @@ struct thread_struct {
 		(regs)->depc = 0; \
 		(regs)->windowbase = 0; \
 		(regs)->windowstart = 1; \
-		(regs)->syscall = NO_SYSCALL; \
+		(regs)->syscall = syscall; \
 	} while (0)
 
 /* Forward declaration */
@@ -235,10 +236,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 	 __asm__ __volatile__ ("rsr %0, "__stringify(sr) : "=a"(v)); \
 	 v; \
 	 })
-
-#ifndef XCHAL_HAVE_EXTERN_REGS
-#define XCHAL_HAVE_EXTERN_REGS 0
-#endif
 
 #if XCHAL_HAVE_EXTERN_REGS
 

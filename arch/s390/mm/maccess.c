@@ -55,19 +55,22 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  */
 static DEFINE_SPINLOCK(s390_kernel_write_lock);
 
-void notrace s390_kernel_write(void *dst, const void *src, size_t size)
+notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 {
+	void *tmp = dst;
 	unsigned long flags;
 	long copied;
 
 	spin_lock_irqsave(&s390_kernel_write_lock, flags);
 	while (size) {
-		copied = s390_kernel_write_odd(dst, src, size);
-		dst += copied;
+		copied = s390_kernel_write_odd(tmp, src, size);
+		tmp += copied;
 		src += copied;
 		size -= copied;
 	}
 	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
+
+	return dst;
 }
 
 static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
@@ -119,9 +122,15 @@ static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
  */
 int memcpy_real(void *dest, void *src, size_t count)
 {
-	if (S390_lowcore.nodat_stack != 0)
-		return CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack,
-				     3, dest, src, count);
+	int rc;
+
+	if (S390_lowcore.nodat_stack != 0) {
+		preempt_disable();
+		rc = CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack, 3,
+				   dest, src, count);
+		preempt_enable();
+		return rc;
+	}
 	/*
 	 * This is a really early memcpy_real call, the stacks are
 	 * not set up yet. Just call _memcpy_real on the early boot

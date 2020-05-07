@@ -1111,9 +1111,16 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	 * Delete all the keys ... pairwise keys can't really
 	 * exist any more anyway, but default keys might.
 	 */
-	if (rdev->ops->del_key)
-		for (i = 0; i < 6; i++)
+	if (rdev->ops->del_key) {
+		int max_key_idx = 5;
+
+		if (wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+			max_key_idx = 7;
+		for (i = 0; i <= max_key_idx; i++)
 			rdev_del_key(rdev, dev, i, false, NULL);
+	}
 
 	rdev_set_qos_map(rdev, dev, NULL);
 
@@ -1307,14 +1314,14 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 	if (wdev->conn_owner_nlportid) {
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
-			cfg80211_leave_ibss(rdev, wdev->netdev, false);
+			__cfg80211_leave_ibss(rdev, wdev->netdev, false);
 			break;
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
-			cfg80211_stop_ap(rdev, wdev->netdev, false);
+			__cfg80211_stop_ap(rdev, wdev->netdev, false);
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
-			cfg80211_leave_mesh(rdev, wdev->netdev);
+			__cfg80211_leave_mesh(rdev, wdev->netdev);
 			break;
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_P2P_CLIENT:

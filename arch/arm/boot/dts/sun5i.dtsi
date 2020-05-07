@@ -185,7 +185,9 @@
 		mbus: dram-controller@1c01000 {
 			compatible = "allwinner,sun5i-a13-mbus";
 			reg = <0x01c01000 0x1000>;
-			clocks = <&ccu 99>;
+			clocks = <&ccu CLK_MBUS>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			dma-ranges = <0x00000000 0x40000000 0x20000000>;
 			#interconnect-cells = <1>;
 		};
@@ -275,6 +277,7 @@
 			compatible = "allwinner,sun5i-a13-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <44>;
+			dmas = <&dma SUN4I_DMA_DEDICATED 14>;
 			resets = <&ccu RST_LCD>;
 			reset-names = "lcd";
 			clocks = <&ccu CLK_AHB_LCD>,
@@ -769,9 +772,6 @@
 			interconnects = <&mbus 18>;
 			interconnect-names = "dma-mem";
 			status = "disabled";
-
-			assigned-clocks = <&ccu CLK_DE_BE>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;

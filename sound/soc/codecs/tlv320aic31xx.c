@@ -171,6 +171,7 @@ struct aic31xx_priv {
 	int rate_div_line;
 	bool master_dapm_route_applied;
 	int irq;
+	u8 ocmv; /* output common-mode voltage */
 };
 
 struct aic31xx_rate_divs {
@@ -261,6 +262,25 @@ static SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2,
 static SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4,
 	mic_select_text);
 
+static const char * const hp_poweron_time_text[] = {
+	"0us", "15.3us", "153us", "1.53ms", "15.3ms", "76.2ms",
+	"153ms", "304ms", "610ms", "1.22s", "3.04s", "6.1s" };
+
+static SOC_ENUM_SINGLE_DECL(hp_poweron_time_enum, AIC31XX_HPPOP, 3,
+	hp_poweron_time_text);
+
+static const char * const hp_rampup_step_text[] = {
+	"0ms", "0.98ms", "1.95ms", "3.9ms" };
+
+static SOC_ENUM_SINGLE_DECL(hp_rampup_step_enum, AIC31XX_HPPOP, 1,
+	hp_rampup_step_text);
+
+static const char * const vol_soft_step_mode_text[] = {
+	"fast", "slow", "disabled" };
+
+static SOC_ENUM_SINGLE_DECL(vol_soft_step_mode_enum, AIC31XX_DACSETUP, 0,
+	vol_soft_step_mode_text);
+
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6350, 50, 0);
 static const DECLARE_TLV_DB_SCALE(adc_fgain_tlv, 0, 10, 0);
 static const DECLARE_TLV_DB_SCALE(adc_cgain_tlv, -2000, 50, 0);
@@ -284,6 +304,16 @@ static const struct snd_kcontrol_new common31xx_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("HP Analog Playback Volume", AIC31XX_LANALOGHPL,
 			 AIC31XX_RANALOGHPR, 0, 0x7F, 1, hp_vol_tlv),
+
+	/* HP de-pop control: apply power not immediately but via ramp
+	 * function with these psarameters. Note that power up sequence
+	 * has to wait for this to complete; this is implemented by
+	 * polling HP driver status in aic31xx_dapm_power_event()
+	 */
+	SOC_ENUM("HP Output Driver Power-On time", hp_poweron_time_enum),
+	SOC_ENUM("HP Output Driver Ramp-up step", hp_rampup_step_enum),
+
+	SOC_ENUM("Volume Soft Stepping", vol_soft_step_mode_enum),
 };
 
 static const struct snd_kcontrol_new aic31xx_snd_controls[] = {
@@ -356,6 +386,7 @@ static int aic31xx_dapm_power_event(struct snd_soc_dapm_widget *w,
 	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
 	unsigned int reg = AIC31XX_DACFLAG1;
 	unsigned int mask;
+	unsigned int timeout = 500 * USEC_PER_MSEC;
 
 	switch (WIDGET_BIT(w->reg, w->shift)) {
 	case WIDGET_BIT(AIC31XX_DACSETUP, 7):
@@ -366,9 +397,13 @@ static int aic31xx_dapm_power_event(struct snd_soc_dapm_widget *w,
 		break;
 	case WIDGET_BIT(AIC31XX_HPDRIVER, 7):
 		mask = AIC31XX_HPLDRVPWRSTATUS_MASK;
+		if (event == SND_SOC_DAPM_POST_PMU)
+			timeout = 7 * USEC_PER_SEC;
 		break;
 	case WIDGET_BIT(AIC31XX_HPDRIVER, 6):
 		mask = AIC31XX_HPRDRVPWRSTATUS_MASK;
+		if (event == SND_SOC_DAPM_POST_PMU)
+			timeout = 7 * USEC_PER_SEC;
 		break;
 	case WIDGET_BIT(AIC31XX_SPKAMP, 7):
 		mask = AIC31XX_SPLDRVPWRSTATUS_MASK;
@@ -388,9 +423,11 @@ static int aic31xx_dapm_power_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		return aic31xx_wait_bits(aic31xx, reg, mask, mask, 5000, 100);
+		return aic31xx_wait_bits(aic31xx, reg, mask, mask,
+				5000, timeout / 5000);
 	case SND_SOC_DAPM_POST_PMD:
-		return aic31xx_wait_bits(aic31xx, reg, mask, 0, 5000, 100);
+		return aic31xx_wait_bits(aic31xx, reg, mask, 0,
+				5000, timeout / 5000);
 	default:
 		dev_dbg(component->dev,
 			"Unhandled dapm widget event %d from %s\n",
@@ -1312,6 +1349,11 @@ static int aic31xx_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
+	/* set output common-mode voltage */
+	snd_soc_component_update_bits(component, AIC31XX_HPDRIVER,
+				      AIC31XX_HPD_OCMV_MASK,
+				      aic31xx->ocmv << AIC31XX_HPD_OCMV_SHIFT);
+
 	return 0;
 }
 
@@ -1501,6 +1543,43 @@ exit:
 		return IRQ_NONE;
 }
 
+static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
+{
+	struct device *dev = priv->dev;
+	int dvdd, avdd;
+	u32 value;
+
+	if (dev->fwnode &&
+	    fwnode_property_read_u32(dev->fwnode, "ai31xx-ocmv", &value)) {
+		/* OCMV setting is forced by DT */
+		if (value <= 3) {
+			priv->ocmv = value;
+			return;
+		}
+	}
+
+	avdd = regulator_get_voltage(priv->supplies[3].consumer);
+	dvdd = regulator_get_voltage(priv->supplies[5].consumer);
+
+	if (avdd > 3600000 || dvdd > 1950000) {
+		dev_warn(dev,
+			 "Too high supply voltage(s) AVDD: %d, DVDD: %d\n",
+			 avdd, dvdd);
+	} else if (avdd == 3600000 && dvdd == 1950000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_8V;
+	} else if (avdd >= 3300000 && dvdd >= 1800000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_65V;
+	} else if (avdd >= 3000000 && dvdd >= 1650000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_5V;
+	} else if (avdd >= 2700000 && dvdd >= 1525000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_35V;
+	} else {
+		dev_warn(dev,
+			 "Invalid supply voltage(s) AVDD: %d, DVDD: %d\n",
+			 avdd, dvdd);
+	}
+}
+
 static int aic31xx_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
@@ -1569,6 +1648,8 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 				"Failed to request supplies: %d\n", ret);
 		return ret;
 	}
+
+	aic31xx_configure_ocmv(aic31xx);
 
 	if (aic31xx->irq > 0) {
 		regmap_update_bits(aic31xx->regmap, AIC31XX_GPIO1,

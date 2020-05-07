@@ -83,7 +83,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 					  struct net_device *dev);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static void axnet_tx_timeout(struct net_device *dev);
+static void axnet_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(struct timer_list *t);
 static void axnet_reset_8390(struct net_device *dev);
@@ -903,7 +903,7 @@ static int ax_close(struct net_device *dev)
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
-static void axnet_tx_timeout(struct net_device *dev)
+static void axnet_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = netdev_priv(dev);

@@ -20,6 +20,7 @@
 #include <sound/hda_register.h>
 #include <sound/sof.h>
 #include "../ops.h"
+#include "../sof-audio.h"
 #include "hda.h"
 
 /*
@@ -275,8 +276,12 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret)
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
+				__func__, cmd);
 			return ret;
+		}
 
 		hstream->running = true;
 		break;
@@ -294,8 +299,12 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 						HDA_DSP_REG_POLL_INTERVAL_US,
 						HDA_DSP_STREAM_RUN_TIMEOUT);
 
-		if (ret)
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: %s: cmd %d: timeout on STREAM_SD_OFFSET read\n",
+				__func__, cmd);
 			return ret;
+		}
 
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset +
 				  SOF_HDA_ADSP_REG_CL_SD_STS,
@@ -356,8 +365,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
-	if (ret)
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout on STREAM_SD_OFFSET read1\n",
+			__func__);
 		return ret;
+	}
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
@@ -418,8 +431,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 					    HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_STREAM_RUN_TIMEOUT);
 
-	if (ret)
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout on STREAM_SD_OFFSET read2\n",
+			__func__);
 		return ret;
+	}
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
@@ -530,27 +547,46 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 					SOF_HDA_REG_PP_PPCTL, mask, 0);
 	spin_unlock_irq(&bus->reg_lock);
 
+	stream->substream = NULL;
+
 	return 0;
 }
 
-irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
+bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 {
-	struct hdac_bus *bus = context;
-	int ret = IRQ_WAKE_THREAD;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	bool ret = false;
 	u32 status;
 
-	spin_lock(&bus->reg_lock);
+	/* The function can be called at irq thread, so use spin_lock_irq */
+	spin_lock_irq(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
 	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
 
-	/* Register inaccessible, ignore it.*/
-	if (status == 0xffffffff)
-		ret = IRQ_NONE;
+	/* if Register inaccessible, ignore it.*/
+	if (status != 0xffffffff)
+		ret = true;
 
-	spin_unlock(&bus->reg_lock);
+	spin_unlock_irq(&bus->reg_lock);
 
 	return ret;
+}
+
+static void
+hda_dsp_set_bytes_transferred(struct hdac_stream *hstream, u64 buffer_size)
+{
+	u64 prev_pos, pos, num_bytes;
+
+	div64_u64_rem(hstream->curr_pos, buffer_size, &prev_pos);
+	pos = snd_hdac_stream_get_pos_posbuf(hstream);
+
+	if (pos < prev_pos)
+		num_bytes = (buffer_size - prev_pos) +  pos;
+	else
+		num_bytes = pos - prev_pos;
+
+	hstream->curr_pos += num_bytes;
 }
 
 static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
@@ -570,14 +606,19 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			snd_hdac_stream_writeb(s, SD_STS, sd_status);
 
 			active = true;
-			if (!s->substream ||
+			if ((!s->substream && !s->cstream) ||
 			    !s->running ||
 			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
 				continue;
 
 			/* Inform ALSA only in case not do that with IPC */
-			if (sof_hda->no_ipc_position)
+			if (s->substream && sof_hda->no_ipc_position) {
 				snd_sof_pcm_period_elapsed(s->substream);
+			} else if (s->cstream) {
+				hda_dsp_set_bytes_transferred(s,
+					s->cstream->runtime->buffer_size);
+				snd_compr_fragment_elapsed(s->cstream);
+			}
 		}
 	}
 
@@ -586,7 +627,8 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 {
-	struct hdac_bus *bus = context;
+	struct snd_sof_dev *sdev = context;
+	struct hdac_bus *bus = sof_to_bus(sdev);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	u32 rirb_status;
 #endif

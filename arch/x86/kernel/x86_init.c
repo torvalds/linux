@@ -20,7 +20,7 @@
 #include <asm/irq.h>
 #include <asm/io_apic.h>
 #include <asm/hpet.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/tsc.h>
 #include <asm/iommu.h>
 #include <asm/mach_traps.h>
@@ -31,6 +31,28 @@ static int __init iommu_init_noop(void) { return 0; }
 static void iommu_shutdown_noop(void) { }
 bool __init bool_x86_init_noop(void) { return false; }
 void x86_op_int_noop(int cpu) { }
+static __init int set_rtc_noop(const struct timespec64 *now) { return -EINVAL; }
+static __init void get_rtc_noop(struct timespec64 *now) { }
+
+static __initconst const struct of_device_id of_cmos_match[] = {
+	{ .compatible = "motorola,mc146818" },
+	{}
+};
+
+/*
+ * Allow devicetree configured systems to disable the RTC by setting the
+ * corresponding DT node's status property to disabled. Code is optimized
+ * out for CONFIG_OF=n builds.
+ */
+static __init void x86_wallclock_init(void)
+{
+	struct device_node *node = of_find_matching_node(NULL, of_cmos_match);
+
+	if (node && !of_device_is_available(node)) {
+		x86_platform.get_wallclock = get_rtc_noop;
+		x86_platform.set_wallclock = set_rtc_noop;
+	}
+}
 
 /*
  * The platform setup functions are preset with the default functions
@@ -58,6 +80,7 @@ struct x86_init_ops x86_init __initdata = {
 		.pre_vector_init	= init_ISA_irqs,
 		.intr_init		= native_init_IRQ,
 		.trap_init		= x86_init_noop,
+		.intr_mode_select	= apic_intr_mode_select,
 		.intr_mode_init		= apic_intr_mode_init
 	},
 
@@ -73,7 +96,7 @@ struct x86_init_ops x86_init __initdata = {
 	.timers = {
 		.setup_percpu_clockev	= setup_boot_APIC_clock,
 		.timer_init		= hpet_time_init,
-		.wallclock_init		= x86_init_noop,
+		.wallclock_init		= x86_wallclock_init,
 	},
 
 	.iommu = {

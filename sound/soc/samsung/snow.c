@@ -106,13 +106,13 @@ static int snow_late_probe(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai *codec_dai;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 
 	/* In the multi-codec case codec_dais 0 is MAX98095 and 1 is HDMI. */
 	if (rtd->num_codecs > 1)
-		codec_dai = rtd->codec_dais[0];
+		codec_dai = asoc_rtd_to_codec(rtd, 0);
 	else
-		codec_dai = rtd->codec_dai;
+		codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	/* Set the MCLK rate for the codec */
 	return snd_soc_dai_set_sysclk(codec_dai, 0,
@@ -216,7 +216,9 @@ static int snow_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"snd_soc_register_card failed (%d)\n", ret);
 		return ret;
 	}
 

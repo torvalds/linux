@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: major functions
+ * NXP Wireless LAN device driver: major functions
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -631,6 +631,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
 	mwifiex_dbg(adapter, MSG, "driver_version = %s\n", fmt);
+	adapter->is_up = true;
 	goto done;
 
 err_add_intf:
@@ -1019,7 +1020,7 @@ static void mwifiex_set_multicast_list(struct net_device *dev)
  * CFG802.11 network device handler for transmission timeout.
  */
 static void
-mwifiex_tx_timeout(struct net_device *dev)
+mwifiex_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
@@ -1469,6 +1470,7 @@ int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 	mwifiex_deauthenticate(priv, NULL);
 
 	mwifiex_uninit_sw(adapter);
+	adapter->is_up = false;
 
 	if (adapter->if_ops.down_dev)
 		adapter->if_ops.down_dev(adapter);
@@ -1730,7 +1732,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 	if (!adapter)
 		return 0;
 
-	mwifiex_uninit_sw(adapter);
+	if (adapter->is_up)
+		mwifiex_uninit_sw(adapter);
 
 	if (adapter->irq_wakeup >= 0)
 		device_init_wakeup(adapter->dev, false);

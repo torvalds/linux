@@ -920,9 +920,9 @@ static int s6e8aa0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e8aa0_get_modes(struct drm_panel *panel)
+static int s6e8aa0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 	struct drm_display_mode *mode;
 
@@ -1017,9 +1017,8 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx->brightness = GAMMA_LEVEL_NUM - 1;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e8aa0_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e8aa0_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_add(&ctx->panel);
 	if (ret < 0)

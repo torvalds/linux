@@ -108,6 +108,7 @@ head827d = {
 	.view = head507d_view,
 	.mode = head507d_mode,
 	.olut = head507d_olut,
+	.olut_size = 256,
 	.olut_set = head827d_olut_set,
 	.olut_clr = head827d_olut_clr,
 	.core_calc = head507d_core_calc,

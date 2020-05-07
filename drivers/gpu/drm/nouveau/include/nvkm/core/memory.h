@@ -84,6 +84,22 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 	nvkm_wo32((o), __a + 4, upper_32_bits(__d));                           \
 } while(0)
 
+#define nvkm_robj(o,a,p,s) do {                                                \
+	u32 _addr = (a), _size = (s) >> 2, *_data = (void *)(p);               \
+	while (_size--) {                                                      \
+		*(_data++) = nvkm_ro32((o), _addr);                            \
+		_addr += 4;                                                    \
+	}                                                                      \
+} while(0)
+
+#define nvkm_wobj(o,a,p,s) do {                                                \
+	u32 _addr = (a), _size = (s) >> 2, *_data = (void *)(p);               \
+	while (_size--) {                                                      \
+		nvkm_wo32((o), _addr, *(_data++));                             \
+		_addr += 4;                                                    \
+	}                                                                      \
+} while(0)
+
 #define nvkm_fill(t,s,o,a,d,c) do {                                            \
 	u64 _a = (a), _c = (c), _d = (d), _o = _a >> s, _s = _c << s;          \
 	u##t __iomem *_m = nvkm_kmap(o);                                       \

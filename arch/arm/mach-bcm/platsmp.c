@@ -22,6 +22,8 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
+#include "platsmp.h"
+
 /* Size of mapped Cortex A9 SCU address space */
 #define CORTEX_A9_SCU_SIZE	0x58
 
@@ -103,7 +105,7 @@ static int nsp_write_lut(unsigned int cpu)
 	if (!secondary_boot_addr)
 		return -EINVAL;
 
-	sku_rom_lut = ioremap_nocache((phys_addr_t)secondary_boot_addr,
+	sku_rom_lut = ioremap((phys_addr_t)secondary_boot_addr,
 				      sizeof(phys_addr_t));
 	if (!sku_rom_lut) {
 		pr_warn("unable to ioremap SKU-ROM LUT register for cpu %u\n", cpu);
@@ -172,7 +174,7 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (!secondary_boot_addr)
 		return -EINVAL;
 
-	boot_reg = ioremap_nocache((phys_addr_t)secondary_boot_addr,
+	boot_reg = ioremap((phys_addr_t)secondary_boot_addr,
 				   sizeof(phys_addr_t));
 	if (!boot_reg) {
 		pr_err("unable to map boot register for cpu %u\n", cpu_id);

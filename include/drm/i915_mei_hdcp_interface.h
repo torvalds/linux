@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+) */
 /*
- * Copyright © 2017-2018 Intel Corporation
+ * Copyright © 2017-2019 Intel Corporation
  *
  * Authors:
  * Ramalingam C <ramalingam.c@intel.com>
@@ -12,7 +12,6 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <drm/drm_hdcp.h>
-#include <drm/i915_drm.h>
 
 /**
  * enum hdcp_port_type - HDCP port implementation type defined by ME FW
@@ -42,9 +41,44 @@ enum hdcp_wired_protocol {
 	HDCP_PROTOCOL_DP
 };
 
+enum mei_fw_ddi {
+	MEI_DDI_INVALID_PORT = 0x0,
+
+	MEI_DDI_B = 1,
+	MEI_DDI_C,
+	MEI_DDI_D,
+	MEI_DDI_E,
+	MEI_DDI_F,
+	MEI_DDI_A = 7,
+	MEI_DDI_RANGE_END = MEI_DDI_A,
+};
+
+/**
+ * enum mei_fw_tc - ME Firmware defined index for transcoders
+ * @MEI_INVALID_TRANSCODER: Index for Invalid transcoder
+ * @MEI_TRANSCODER_EDP: Index for EDP Transcoder
+ * @MEI_TRANSCODER_DSI0: Index for DSI0 Transcoder
+ * @MEI_TRANSCODER_DSI1: Index for DSI1 Transcoder
+ * @MEI_TRANSCODER_A: Index for Transcoder A
+ * @MEI_TRANSCODER_B: Index for Transcoder B
+ * @MEI_TRANSCODER_C: Index for Transcoder C
+ * @MEI_TRANSCODER_D: Index for Transcoder D
+ */
+enum mei_fw_tc {
+	MEI_INVALID_TRANSCODER = 0x00,
+	MEI_TRANSCODER_EDP,
+	MEI_TRANSCODER_DSI0,
+	MEI_TRANSCODER_DSI1,
+	MEI_TRANSCODER_A = 0x10,
+	MEI_TRANSCODER_B,
+	MEI_TRANSCODER_C,
+	MEI_TRANSCODER_D
+};
+
 /**
  * struct hdcp_port_data - intel specific HDCP port data
- * @port: port index as per I915
+ * @fw_ddi: ddi index as per ME FW
+ * @fw_tc: transcoder index as per ME FW
  * @port_type: HDCP port type as per ME FW classification
  * @protocol: HDCP adaptation as per ME FW
  * @k: No of streams transmitted on a port. Only on DP MST this is != 1
@@ -56,7 +90,8 @@ enum hdcp_wired_protocol {
  *	     streams
  */
 struct hdcp_port_data {
-	enum port port;
+	enum mei_fw_ddi fw_ddi;
+	enum mei_fw_tc fw_tc;
 	u8 port_type;
 	u8 protocol;
 	u16 k;

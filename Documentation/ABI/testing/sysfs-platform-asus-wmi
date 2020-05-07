@@ -46,3 +46,13 @@ Description:
 			* 0 - normal,
 			* 1 - overboost,
 			* 2 - silent
+
+What:		/sys/devices/platform/<platform>/throttle_thermal_policy
+Date:		Dec 2019
+KernelVersion:	5.6
+Contact:	"Leonid Maksymchuk" <leonmaxx@gmail.com>
+Description:
+		Throttle thermal policy mode:
+			* 0 - default,
+			* 1 - overboost,
+			* 2 - silent

@@ -161,14 +161,16 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      const struct nlattr *attr, int len);
 
 static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
-		     const struct ovs_action_push_mpls *mpls)
+		     __be32 mpls_lse, __be16 mpls_ethertype, __u16 mac_len)
 {
 	int err;
 
-	err = skb_mpls_push(skb, mpls->mpls_lse, mpls->mpls_ethertype,
-			    skb->mac_len);
+	err = skb_mpls_push(skb, mpls_lse, mpls_ethertype, mac_len, !!mac_len);
 	if (err)
 		return err;
+
+	if (!mac_len)
+		key->mac_proto = MAC_PROTO_NONE;
 
 	invalidate_flow_key(key);
 	return 0;
@@ -179,9 +181,13 @@ static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 {
 	int err;
 
-	err = skb_mpls_pop(skb, ethertype, skb->mac_len);
+	err = skb_mpls_pop(skb, ethertype, skb->mac_len,
+			   ovs_key_mac_proto(key) == MAC_PROTO_ETHERNET);
 	if (err)
 		return err;
+
+	if (ethertype == htons(ETH_P_TEB))
+		key->mac_proto = MAC_PROTO_ETHERNET;
 
 	invalidate_flow_key(key);
 	return 0;
@@ -200,7 +206,7 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	if (err)
 		return err;
 
-	flow_key->mpls.top_lse = lse;
+	flow_key->mpls.lse[0] = lse;
 	return 0;
 }
 
@@ -958,6 +964,25 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	return ovs_dp_upcall(dp, skb, key, &upcall, cutlen);
 }
 
+static int dec_ttl_exception_handler(struct datapath *dp, struct sk_buff *skb,
+				     struct sw_flow_key *key,
+				     const struct nlattr *attr, bool last)
+{
+	/* The first action is always 'OVS_DEC_TTL_ATTR_ARG'. */
+	struct nlattr *dec_ttl_arg = nla_data(attr);
+	int rem = nla_len(attr);
+
+	if (nla_len(dec_ttl_arg)) {
+		struct nlattr *actions = nla_next(dec_ttl_arg, &rem);
+
+		if (actions)
+			return clone_execute(dp, skb, key, 0, actions, rem,
+					     last, false);
+	}
+	consume_skb(skb);
+	return 0;
+}
+
 /* When 'last' is true, sample() should always consume the 'skb'.
  * Otherwise, sample() should keep 'skb' intact regardless what
  * actions are executed within sample().
@@ -1174,6 +1199,45 @@ static int execute_check_pkt_len(struct datapath *dp, struct sk_buff *skb,
 			     nla_len(actions), last, clone_flow_key);
 }
 
+static int execute_dec_ttl(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	int err;
+
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		struct ipv6hdr *nh;
+
+		err = skb_ensure_writable(skb, skb_network_offset(skb) +
+					  sizeof(*nh));
+		if (unlikely(err))
+			return err;
+
+		nh = ipv6_hdr(skb);
+
+		if (nh->hop_limit <= 1)
+			return -EHOSTUNREACH;
+
+		key->ip.ttl = --nh->hop_limit;
+	} else {
+		struct iphdr *nh;
+		u8 old_ttl;
+
+		err = skb_ensure_writable(skb, skb_network_offset(skb) +
+					  sizeof(*nh));
+		if (unlikely(err))
+			return err;
+
+		nh = ip_hdr(skb);
+		if (nh->ttl <= 1)
+			return -EHOSTUNREACH;
+
+		old_ttl = nh->ttl--;
+		csum_replace2(&nh->check, htons(old_ttl << 8),
+			      htons(nh->ttl << 8));
+		key->ip.ttl = nh->ttl;
+	}
+	return 0;
+}
+
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -1227,10 +1291,24 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			execute_hash(skb, key, a);
 			break;
 
-		case OVS_ACTION_ATTR_PUSH_MPLS:
-			err = push_mpls(skb, key, nla_data(a));
-			break;
+		case OVS_ACTION_ATTR_PUSH_MPLS: {
+			struct ovs_action_push_mpls *mpls = nla_data(a);
 
+			err = push_mpls(skb, key, mpls->mpls_lse,
+					mpls->mpls_ethertype, skb->mac_len);
+			break;
+		}
+		case OVS_ACTION_ATTR_ADD_MPLS: {
+			struct ovs_action_add_mpls *mpls = nla_data(a);
+			__u16 mac_len = 0;
+
+			if (mpls->tun_flags & OVS_MPLS_L3_TUNNEL_FLAG_MASK)
+				mac_len = skb->mac_len;
+
+			err = push_mpls(skb, key, mpls->mpls_lse,
+					mpls->mpls_ethertype, mac_len);
+			break;
+		}
 		case OVS_ACTION_ATTR_POP_MPLS:
 			err = pop_mpls(skb, key, nla_get_be16(a));
 			break;
@@ -1345,6 +1423,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 			break;
 		}
+
+		case OVS_ACTION_ATTR_DEC_TTL:
+			err = execute_dec_ttl(skb, key);
+			if (err == -EHOSTUNREACH) {
+				err = dec_ttl_exception_handler(dp, skb, key,
+								a, true);
+				return err;
+			}
+			break;
 		}
 
 		if (unlikely(err)) {

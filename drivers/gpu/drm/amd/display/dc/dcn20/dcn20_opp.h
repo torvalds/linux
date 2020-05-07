@@ -36,6 +36,7 @@
 #define OPP_DPG_REG_LIST(id) \
 	SRI(DPG_CONTROL, DPG, id), \
 	SRI(DPG_DIMENSIONS, DPG, id), \
+	SRI(DPG_OFFSET_SEGMENT, DPG, id), \
 	SRI(DPG_COLOUR_B_CB, DPG, id), \
 	SRI(DPG_COLOUR_G_Y, DPG, id), \
 	SRI(DPG_COLOUR_R_CR, DPG, id), \
@@ -53,6 +54,7 @@
 	uint32_t FMT_422_CONTROL; \
 	uint32_t DPG_CONTROL; \
 	uint32_t DPG_DIMENSIONS; \
+	uint32_t DPG_OFFSET_SEGMENT; \
 	uint32_t DPG_COLOUR_B_CB; \
 	uint32_t DPG_COLOUR_G_Y; \
 	uint32_t DPG_COLOUR_R_CR; \
@@ -68,6 +70,8 @@
 	OPP_SF(DPG0_DPG_CONTROL, DPG_HRES, mask_sh), \
 	OPP_SF(DPG0_DPG_DIMENSIONS, DPG_ACTIVE_WIDTH, mask_sh), \
 	OPP_SF(DPG0_DPG_DIMENSIONS, DPG_ACTIVE_HEIGHT, mask_sh), \
+	OPP_SF(DPG0_DPG_OFFSET_SEGMENT, DPG_X_OFFSET, mask_sh), \
+	OPP_SF(DPG0_DPG_OFFSET_SEGMENT, DPG_SEGMENT_WIDTH, mask_sh), \
 	OPP_SF(DPG0_DPG_COLOUR_R_CR, DPG_COLOUR0_R_CR, mask_sh), \
 	OPP_SF(DPG0_DPG_COLOUR_R_CR, DPG_COLOUR1_R_CR, mask_sh), \
 	OPP_SF(DPG0_DPG_COLOUR_B_CB, DPG_COLOUR0_B_CB, mask_sh), \
@@ -97,6 +101,8 @@
 	type DPG_HRES; \
 	type DPG_ACTIVE_WIDTH; \
 	type DPG_ACTIVE_HEIGHT; \
+	type DPG_X_OFFSET; \
+	type DPG_SEGMENT_WIDTH; \
 	type DPG_COLOUR0_R_CR; \
 	type DPG_COLOUR1_R_CR; \
 	type DPG_COLOUR0_B_CB; \
@@ -140,10 +146,12 @@ void dcn20_opp_construct(struct dcn20_opp *oppn20,
 void opp2_set_disp_pattern_generator(
 	struct output_pixel_processor *opp,
 	enum controller_dp_test_pattern test_pattern,
+	enum controller_dp_color_space color_space,
 	enum dc_color_depth color_depth,
 	const struct tg_color *solid_color,
 	int width,
-	int height);
+	int height,
+	int offset);
 
 bool opp2_dpg_is_blanked(struct output_pixel_processor *opp);
 

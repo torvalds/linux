@@ -77,6 +77,10 @@ struct fsverity_operations {
 	 *
 	 * @inode: the inode
 	 * @index: 0-based index of the page within the Merkle tree
+	 * @num_ra_pages: The number of Merkle tree pages that should be
+	 *		  prefetched starting at @index if the page at @index
+	 *		  isn't already cached.  Implementations may ignore this
+	 *		  argument; it's only a performance optimization.
 	 *
 	 * This can be called at any time on an open verity file, as well as
 	 * between ->begin_enable_verity() and ->end_enable_verity().  It may be
@@ -87,7 +91,8 @@ struct fsverity_operations {
 	 * Return: the page on success, ERR_PTR() on failure
 	 */
 	struct page *(*read_merkle_tree_page)(struct inode *inode,
-					      pgoff_t index);
+					      pgoff_t index,
+					      unsigned long num_ra_pages);
 
 	/**
 	 * Write a Merkle tree block to the given inode.

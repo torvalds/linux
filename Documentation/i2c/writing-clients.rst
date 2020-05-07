@@ -1,6 +1,6 @@
-===================
-Writing I2C Clients
-===================
+===============================
+Implementing I2C device drivers
+===============================
 
 This is a small guide for those who want to write kernel drivers for I2C
 or SMBus devices, using Linux as the protocol host/master (not slave).
@@ -95,7 +95,7 @@ to gather information from the client, or write new information to the
 client.
 
 I have found it useful to define foo_read and foo_write functions for this.
-For some cases, it will be easier to call the i2c functions directly,
+For some cases, it will be easier to call the I2C functions directly,
 but many chips have some kind of register-value idea that can easily
 be encapsulated.
 
@@ -175,8 +175,8 @@ Device Creation
 If you know for a fact that an I2C device is connected to a given I2C bus,
 you can instantiate that device by simply filling an i2c_board_info
 structure with the device address and driver name, and calling
-i2c_new_device().  This will create the device, then the driver core will
-take care of finding the right driver and will call its probe() method.
+i2c_new_client_device().  This will create the device, then the driver core
+will take care of finding the right driver and will call its probe() method.
 If a driver supports different device types, you can specify the type you
 want using the type field.  You can also specify an IRQ and platform data
 if needed.
@@ -185,15 +185,15 @@ Sometimes you know that a device is connected to a given I2C bus, but you
 don't know the exact address it uses.  This happens on TV adapters for
 example, where the same driver supports dozens of slightly different
 models, and I2C device addresses change from one model to the next.  In
-that case, you can use the i2c_new_probed_device() variant, which is
-similar to i2c_new_device(), except that it takes an additional list of
-possible I2C addresses to probe.  A device is created for the first
+that case, you can use the i2c_new_scanned_device() variant, which is
+similar to i2c_new_client_device(), except that it takes an additional list
+of possible I2C addresses to probe.  A device is created for the first
 responsive address in the list.  If you expect more than one device to be
-present in the address range, simply call i2c_new_probed_device() that
+present in the address range, simply call i2c_new_scanned_device() that
 many times.
 
-The call to i2c_new_device() or i2c_new_probed_device() typically happens
-in the I2C bus driver. You may want to save the returned i2c_client
+The call to i2c_new_client_device() or i2c_new_scanned_device() typically
+happens in the I2C bus driver. You may want to save the returned i2c_client
 reference for later use.
 
 
@@ -236,11 +236,11 @@ possible.
 Device Deletion
 ---------------
 
-Each I2C device which has been created using i2c_new_device() or
-i2c_new_probed_device() can be unregistered by calling
+Each I2C device which has been created using i2c_new_client_device()
+or i2c_new_scanned_device() can be unregistered by calling
 i2c_unregister_device().  If you don't call it explicitly, it will be
-called automatically before the underlying I2C bus itself is removed, as a
-device can't survive its parent in the device driver model.
+called automatically before the underlying I2C bus itself is removed,
+as a device can't survive its parent in the device driver model.
 
 
 Initializing the driver
@@ -344,7 +344,7 @@ Plain I2C communication
 	int i2c_master_recv(struct i2c_client *client, char *buf, int count);
 
 These routines read and write some bytes from/to a client. The client
-contains the i2c address, so you do not have to include it. The second
+contains the I2C address, so you do not have to include it. The second
 parameter contains the bytes to read/write, the third the number of bytes
 to read/write (must be less than the length of the buffer, also should be
 less than 64k since msg.len is u16.) Returned is the actual number of bytes
@@ -357,9 +357,9 @@ read/written.
 
 This sends a series of messages. Each message can be a read or write,
 and they can be mixed in any way. The transactions are combined: no
-stop bit is sent between transaction. The i2c_msg structure contains
-for each message the client address, the number of bytes of the message
-and the message data itself.
+stop condition is issued between transaction. The i2c_msg structure
+contains for each message the client address, the number of bytes of the
+message and the message data itself.
 
 You can read the file ``i2c-protocol`` for more information about the
 actual I2C protocol.

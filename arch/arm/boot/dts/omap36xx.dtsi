@@ -19,16 +19,65 @@
 	};
 
 	cpus {
-		/* OMAP3630/OMAP37xx 'standard device' variants OPP50 to OPP130 */
+		/* OMAP3630/OMAP37xx variants OPP50 to OPP130 and OPP1G */
 		cpu: cpu@0 {
-			operating-points = <
-				/* kHz    uV */
-				300000  1012500
-				600000  1200000
-				800000  1325000
-			>;
-			clock-latency = <300000>; /* From legacy driver */
+			operating-points-v2 = <&cpu0_opp_table>;
+
+			vbb-supply = <&abb_mpu_iva>;
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
+	};
+
+	/* see Documentation/devicetree/bindings/opp/opp.txt */
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_conf>;
+
+		opp50-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			/*
+			 * we currently only select the max voltage from table
+			 * Table 4-19 of the DM3730 Data sheet (SPRS685B)
+			 * Format is:	cpu0-supply:	<target min max>
+			 *		vbb-supply:	<target min max>
+			 */
+			opp-microvolt = <1012500 1012500 1012500>,
+					 <1012500 1012500 1012500>;
+			/*
+			 * first value is silicon revision bit mask
+			 * second one is "speed binned" bit mask
+			 */
+			opp-supported-hw = <0xffffffff 3>;
+			opp-suspend;
+		};
+
+		opp100-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1200000 1200000 1200000>,
+					 <1200000 1200000 1200000>;
+			opp-supported-hw = <0xffffffff 3>;
+		};
+
+		opp130-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1325000 1325000 1325000>,
+					 <1325000 1325000 1325000>;
+			opp-supported-hw = <0xffffffff 3>;
+		};
+
+		opp1g-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1375000 1375000 1375000>,
+					 <1375000 1375000 1375000>;
+			/* only on am/dm37x with speed-binned bit set */
+			opp-supported-hw = <0xffffffff 2>;
+			turbo-mode;
+		};
+	};
+
+	opp_supply_mpu_iva: opp_supply {
+		compatible = "ti,omap-opp-supply";
+		ti,absolute-max-voltage-uv = <1375000>;
 	};
 
 	ocp@68000000 {
@@ -172,6 +221,10 @@
 	thermal_zones: thermal-zones {
 		#include "omap3-cpu-thermal.dtsi"
 	};
+};
+
+&sdma {
+	compatible = "ti,omap3630-sdma", "ti,omap-sdma";
 };
 
 /* OMAP3630 needs dss_96m_fck for VENC */

@@ -1945,6 +1945,14 @@ static __initconst const u64 knl_hw_cache_extra_regs
  * intel_bts events don't coexist with intel PMU's BTS events because of
  * x86_add_exclusive(x86_lbr_exclusive_lbr); there's no need to keep them
  * disabled around intel PMU's event batching etc, only inside the PMI handler.
+ *
+ * Avoid PEBS_ENABLE MSR access in PMIs.
+ * The GLOBAL_CTRL has been disabled. All the counters do not count anymore.
+ * It doesn't matter if the PEBS is enabled or not.
+ * Usually, the PEBS status are not changed in PMIs. It's unnecessary to
+ * access PEBS_ENABLE MSR in disable_all()/enable_all().
+ * However, there are some cases which may change PEBS status, e.g. PMI
+ * throttle. The PEBS_ENABLE should be updated where the status changes.
  */
 static void __intel_pmu_disable_all(void)
 {
@@ -1954,13 +1962,12 @@ static void __intel_pmu_disable_all(void)
 
 	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
-
-	intel_pmu_pebs_disable_all();
 }
 
 static void intel_pmu_disable_all(void)
 {
 	__intel_pmu_disable_all();
+	intel_pmu_pebs_disable_all();
 	intel_pmu_lbr_disable_all();
 }
 
@@ -1968,7 +1975,6 @@ static void __intel_pmu_enable_all(int added, bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	intel_pmu_pebs_enable_all();
 	intel_pmu_lbr_enable_all(pmi);
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL,
 			x86_pmu.intel_ctrl & ~cpuc->intel_ctrl_guest_mask);
@@ -1986,6 +1992,7 @@ static void __intel_pmu_enable_all(int added, bool pmi)
 
 static void intel_pmu_enable_all(int added)
 {
+	intel_pmu_pebs_enable_all();
 	__intel_pmu_enable_all(added, false);
 }
 
@@ -2374,9 +2381,21 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 * PEBS overflow sets bit 62 in the global status register
 	 */
 	if (__test_and_clear_bit(62, (unsigned long *)&status)) {
+		u64 pebs_enabled = cpuc->pebs_enabled;
+
 		handled++;
 		x86_pmu.drain_pebs(regs);
 		status &= x86_pmu.intel_ctrl | GLOBAL_STATUS_TRACE_TOPAPMI;
+
+		/*
+		 * PMI throttle may be triggered, which stops the PEBS event.
+		 * Although cpuc->pebs_enabled is updated accordingly, the
+		 * MSR_IA32_PEBS_ENABLE is not updated. Because the
+		 * cpuc->enabled has been forced to 0 in PMI.
+		 * Update the MSR if pebs_enabled is changed.
+		 */
+		if (pebs_enabled != cpuc->pebs_enabled)
+			wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
 	}
 
 	/*
@@ -3315,8 +3334,9 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	if (x86_pmu.version < 3)
 		return -EINVAL;
 
-	if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
-		return -EACCES;
+	ret = perf_allow_cpu(&event->attr);
+	if (ret)
+		return ret;
 
 	event->hw.config |= ARCH_PERFMON_EVENTSEL_ANY;
 
@@ -3830,6 +3850,12 @@ static void intel_pmu_sched_task(struct perf_event_context *ctx,
 	intel_pmu_lbr_sched_task(ctx, sched_in);
 }
 
+static void intel_pmu_swap_task_ctx(struct perf_event_context *prev,
+				    struct perf_event_context *next)
+{
+	intel_pmu_lbr_swap_task_ctx(prev, next);
+}
+
 static int intel_pmu_check_period(struct perf_event *event, u64 value)
 {
 	return intel_pmu_has_bts_period(event, value) ? -EINVAL : 0;
@@ -3965,6 +3991,7 @@ static __initconst const struct x86_pmu intel_pmu = {
 
 	.guest_get_msrs		= intel_guest_get_msrs,
 	.sched_task		= intel_pmu_sched_task,
+	.swap_task_ctx		= intel_pmu_swap_task_ctx,
 
 	.check_period		= intel_pmu_check_period,
 
@@ -4757,6 +4784,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case INTEL_FAM6_ATOM_TREMONT_D:
+	case INTEL_FAM6_ATOM_TREMONT:
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));

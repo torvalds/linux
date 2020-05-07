@@ -142,7 +142,29 @@
 	memory-controller@2c00000 {
 		compatible = "nvidia,tegra186-mc";
 		reg = <0x0 0x02c00000 0x0 0xb0000>;
+		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges = <0x0 0x02c00000 0x0 0x02c00000 0x0 0xb0000>;
+
+		/*
+		 * Memory clients have access to all 40 bits that the memory
+		 * controller can address.
+		 */
+		dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+
+		emc: external-memory-controller@2c60000 {
+			compatible = "nvidia,tegra186-emc";
+			reg = <0x0 0x02c60000 0x0 0x50000>;
+			interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_EMC>;
+			clock-names = "emc";
+
+			nvidia,bpmp = <&bpmp>;
+		};
 	};
 
 	uarta: serial@3100000 {
@@ -524,11 +546,9 @@
 		reg = <0x0 0x03530000 0x0 0x8000>,
 		      <0x0 0x03538000 0x0 0x1000>;
 		reg-names = "hcd", "fpci";
-
 		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
-
 		clocks = <&bpmp TEGRA186_CLK_XUSB_HOST>,
 			 <&bpmp TEGRA186_CLK_XUSB_FALCON>,
 			 <&bpmp TEGRA186_CLK_XUSB_SS>,
@@ -541,16 +561,34 @@
 		clock-names = "xusb_host", "xusb_falcon_src", "xusb_ss",
 			      "xusb_ss_src", "xusb_hs_src", "xusb_fs_src",
 			      "pll_u_480m", "clk_m", "pll_e";
-
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBC>,
 				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
 		power-domain-names = "xusb_host", "xusb_ss";
-		nvidia,xusb-padctl = <&padctl>;
-
-		status = "disabled";
-
+		iommus = <&smmu TEGRA186_SID_XUSB_HOST>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
+
+		nvidia,xusb-padctl = <&padctl>;
+	};
+
+	usb@3550000 {
+		compatible = "nvidia,tegra186-xudc";
+		reg = <0x0 0x03550000 0x0 0x8000>,
+		      <0x0 0x03558000 0x0 0x1000>;
+		reg-names = "base", "fpci";
+		interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_XUSB_CORE_DEV>,
+			 <&bpmp TEGRA186_CLK_XUSB_SS>,
+			 <&bpmp TEGRA186_CLK_XUSB_CORE_SS>,
+			 <&bpmp TEGRA186_CLK_XUSB_FS>;
+		clock-names = "dev", "ss", "ss_src", "fs_src";
+		iommus = <&smmu TEGRA186_SID_XUSB_DEV>;
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBB>,
+				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
+		power-domain-names = "dev", "ss";
+		nvidia,xusb-padctl = <&padctl>;
+		status = "disabled";
 	};
 
 	fuse@3820000 {
@@ -1018,6 +1056,7 @@
 			reset-names = "vic";
 
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
+			iommus = <&smmu TEGRA186_SID_VIC>;
 		};
 
 		dsib: dsi@15400000 {
@@ -1060,7 +1099,7 @@
 		};
 
 		sor1: sor@15580000 {
-			compatible = "nvidia,tegra186-sor1";
+			compatible = "nvidia,tegra186-sor";
 			reg = <0x15580000 0x10000>;
 			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA186_CLK_SOR1>,

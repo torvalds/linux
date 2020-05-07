@@ -80,7 +80,7 @@ enum mstat_f {
 #define mstat_tf_idx(flags) ((flags)&0xff)
 #define mstat_ff_idx(flags) (((flags)&0xff00) >> 8)
 
-typedef enum mstat_status{
+typedef enum mstat_status {
 	MSTAT_ALLOC_SUCCESS = 0,
 	MSTAT_ALLOC_FAIL,
 	MSTAT_FREE
@@ -117,7 +117,7 @@ static inline void thread_enter(char *name)
 
 static inline void flush_signals_thread(void)
 {
-	if (signal_pending (current))
+	if (signal_pending(current))
 	{
 		flush_signals(current);
 	}
@@ -134,14 +134,14 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 }
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
+#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
 
 static inline u32 _RND4(u32 sz)
 {
 
 	u32 val;
 
-	val = ((sz >> 2) + ((sz & 3) ? 1: 0)) << 2;
+	val = ((sz >> 2) + ((sz & 3) ? 1 : 0)) << 2;
 
 	return val;
 
@@ -152,7 +152,7 @@ static inline u32 _RND8(u32 sz)
 
 	u32 val;
 
-	val = ((sz >> 3) + ((sz & 7) ? 1: 0)) << 3;
+	val = ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
 
 	return val;
 
@@ -170,10 +170,6 @@ static inline u32 _RND8(u32 sz)
 extern void rtw_softap_lock_suspend(void);
 extern void rtw_softap_unlock_suspend(void);
 #endif
-
-/* File operation APIs, just for linux now */
-extern int rtw_is_file_readable(char *path);
-extern int rtw_retrive_from_file(char *path, u8 *buf, u32 sz);
 
 extern void rtw_free_netdev(struct net_device * netdev);
 

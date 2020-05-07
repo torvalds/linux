@@ -79,7 +79,7 @@ xfs_rmap_update(
 	union xfs_btree_rec	rec;
 	int			error;
 
-	trace_xfs_rmap_update(cur->bc_mp, cur->bc_private.a.agno,
+	trace_xfs_rmap_update(cur->bc_mp, cur->bc_ag.agno,
 			irec->rm_startblock, irec->rm_blockcount,
 			irec->rm_owner, irec->rm_offset, irec->rm_flags);
 
@@ -91,7 +91,7 @@ xfs_rmap_update(
 	error = xfs_btree_update(cur, &rec);
 	if (error)
 		trace_xfs_rmap_update_error(cur->bc_mp,
-				cur->bc_private.a.agno, error, _RET_IP_);
+				cur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -107,13 +107,16 @@ xfs_rmap_insert(
 	int			i;
 	int			error;
 
-	trace_xfs_rmap_insert(rcur->bc_mp, rcur->bc_private.a.agno, agbno,
+	trace_xfs_rmap_insert(rcur->bc_mp, rcur->bc_ag.agno, agbno,
 			len, owner, offset, flags);
 
 	error = xfs_rmap_lookup_eq(rcur, agbno, len, owner, offset, flags, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 0, done);
+	if (XFS_IS_CORRUPT(rcur->bc_mp, i != 0)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 
 	rcur->bc_rec.r.rm_startblock = agbno;
 	rcur->bc_rec.r.rm_blockcount = len;
@@ -123,11 +126,14 @@ xfs_rmap_insert(
 	error = xfs_btree_insert(rcur, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 1, done);
+	if (XFS_IS_CORRUPT(rcur->bc_mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 done:
 	if (error)
 		trace_xfs_rmap_insert_error(rcur->bc_mp,
-				rcur->bc_private.a.agno, error, _RET_IP_);
+				rcur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -143,22 +149,28 @@ xfs_rmap_delete(
 	int			i;
 	int			error;
 
-	trace_xfs_rmap_delete(rcur->bc_mp, rcur->bc_private.a.agno, agbno,
+	trace_xfs_rmap_delete(rcur->bc_mp, rcur->bc_ag.agno, agbno,
 			len, owner, offset, flags);
 
 	error = xfs_rmap_lookup_eq(rcur, agbno, len, owner, offset, flags, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 1, done);
+	if (XFS_IS_CORRUPT(rcur->bc_mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 
 	error = xfs_btree_delete(rcur, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 1, done);
+	if (XFS_IS_CORRUPT(rcur->bc_mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 done:
 	if (error)
 		trace_xfs_rmap_delete_error(rcur->bc_mp,
-				rcur->bc_private.a.agno, error, _RET_IP_);
+				rcur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -185,7 +197,7 @@ xfs_rmap_get_rec(
 	int			*stat)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
-	xfs_agnumber_t		agno = cur->bc_private.a.agno;
+	xfs_agnumber_t		agno = cur->bc_ag.agno;
 	union xfs_btree_rec	*rec;
 	int			error;
 
@@ -248,7 +260,7 @@ xfs_rmap_find_left_neighbor_helper(
 	struct xfs_find_left_neighbor_info	*info = priv;
 
 	trace_xfs_rmap_find_left_neighbor_candidate(cur->bc_mp,
-			cur->bc_private.a.agno, rec->rm_startblock,
+			cur->bc_ag.agno, rec->rm_startblock,
 			rec->rm_blockcount, rec->rm_owner, rec->rm_offset,
 			rec->rm_flags);
 
@@ -300,7 +312,7 @@ xfs_rmap_find_left_neighbor(
 	info.stat = stat;
 
 	trace_xfs_rmap_find_left_neighbor_query(cur->bc_mp,
-			cur->bc_private.a.agno, bno, 0, owner, offset, flags);
+			cur->bc_ag.agno, bno, 0, owner, offset, flags);
 
 	error = xfs_rmap_query_range(cur, &info.high, &info.high,
 			xfs_rmap_find_left_neighbor_helper, &info);
@@ -308,7 +320,7 @@ xfs_rmap_find_left_neighbor(
 		error = 0;
 	if (*stat)
 		trace_xfs_rmap_find_left_neighbor_result(cur->bc_mp,
-				cur->bc_private.a.agno, irec->rm_startblock,
+				cur->bc_ag.agno, irec->rm_startblock,
 				irec->rm_blockcount, irec->rm_owner,
 				irec->rm_offset, irec->rm_flags);
 	return error;
@@ -324,7 +336,7 @@ xfs_rmap_lookup_le_range_helper(
 	struct xfs_find_left_neighbor_info	*info = priv;
 
 	trace_xfs_rmap_lookup_le_range_candidate(cur->bc_mp,
-			cur->bc_private.a.agno, rec->rm_startblock,
+			cur->bc_ag.agno, rec->rm_startblock,
 			rec->rm_blockcount, rec->rm_owner, rec->rm_offset,
 			rec->rm_flags);
 
@@ -373,14 +385,14 @@ xfs_rmap_lookup_le_range(
 	info.stat = stat;
 
 	trace_xfs_rmap_lookup_le_range(cur->bc_mp,
-			cur->bc_private.a.agno, bno, 0, owner, offset, flags);
+			cur->bc_ag.agno, bno, 0, owner, offset, flags);
 	error = xfs_rmap_query_range(cur, &info.high, &info.high,
 			xfs_rmap_lookup_le_range_helper, &info);
 	if (error == -ECANCELED)
 		error = 0;
 	if (*stat)
 		trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-				cur->bc_private.a.agno, irec->rm_startblock,
+				cur->bc_ag.agno, irec->rm_startblock,
 				irec->rm_blockcount, irec->rm_owner,
 				irec->rm_offset, irec->rm_flags);
 	return error;
@@ -406,24 +418,39 @@ xfs_rmap_free_check_owner(
 		return 0;
 
 	/* Make sure the unwritten flag matches. */
-	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
-			(rec->rm_flags & XFS_RMAP_UNWRITTEN), out);
+	if (XFS_IS_CORRUPT(mp,
+			   (flags & XFS_RMAP_UNWRITTEN) !=
+			   (rec->rm_flags & XFS_RMAP_UNWRITTEN))) {
+		error = -EFSCORRUPTED;
+		goto out;
+	}
 
 	/* Make sure the owner matches what we expect to find in the tree. */
-	XFS_WANT_CORRUPTED_GOTO(mp, owner == rec->rm_owner, out);
+	if (XFS_IS_CORRUPT(mp, owner != rec->rm_owner)) {
+		error = -EFSCORRUPTED;
+		goto out;
+	}
 
 	/* Check the offset, if necessary. */
 	if (XFS_RMAP_NON_INODE_OWNER(owner))
 		goto out;
 
 	if (flags & XFS_RMAP_BMBT_BLOCK) {
-		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_flags & XFS_RMAP_BMBT_BLOCK,
-				out);
+		if (XFS_IS_CORRUPT(mp,
+				   !(rec->rm_flags & XFS_RMAP_BMBT_BLOCK))) {
+			error = -EFSCORRUPTED;
+			goto out;
+		}
 	} else {
-		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_offset <= offset, out);
-		XFS_WANT_CORRUPTED_GOTO(mp,
-				ltoff + rec->rm_blockcount >= offset + len,
-				out);
+		if (XFS_IS_CORRUPT(mp, rec->rm_offset > offset)) {
+			error = -EFSCORRUPTED;
+			goto out;
+		}
+		if (XFS_IS_CORRUPT(mp,
+				   offset + len > ltoff + rec->rm_blockcount)) {
+			error = -EFSCORRUPTED;
+			goto out;
+		}
 	}
 
 out:
@@ -471,7 +498,7 @@ xfs_rmap_unmap(
 			(flags & XFS_RMAP_BMBT_BLOCK);
 	if (unwritten)
 		flags |= XFS_RMAP_UNWRITTEN;
-	trace_xfs_rmap_unmap(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_unmap(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 
 	/*
@@ -482,14 +509,20 @@ xfs_rmap_unmap(
 	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, flags, &i);
 	if (error)
 		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	error = xfs_rmap_get_rec(cur, &ltrec, &i);
 	if (error)
 		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-			cur->bc_private.a.agno, ltrec.rm_startblock,
+			cur->bc_ag.agno, ltrec.rm_startblock,
 			ltrec.rm_blockcount, ltrec.rm_owner,
 			ltrec.rm_offset, ltrec.rm_flags);
 	ltoff = ltrec.rm_offset;
@@ -502,8 +535,12 @@ xfs_rmap_unmap(
 	 * be the case that the "left" extent goes all the way to EOFS.
 	 */
 	if (owner == XFS_RMAP_OWN_NULL) {
-		XFS_WANT_CORRUPTED_GOTO(mp, bno >= ltrec.rm_startblock +
-						ltrec.rm_blockcount, out_error);
+		if (XFS_IS_CORRUPT(mp,
+				   bno <
+				   ltrec.rm_startblock + ltrec.rm_blockcount)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		goto out_done;
 	}
 
@@ -526,15 +563,22 @@ xfs_rmap_unmap(
 		error = xfs_rmap_get_rec(cur, &rtrec, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		if (rtrec.rm_startblock >= bno + len)
 			goto out_done;
 	}
 
 	/* Make sure the extent we found covers the entire freeing range. */
-	XFS_WANT_CORRUPTED_GOTO(mp, ltrec.rm_startblock <= bno &&
-			ltrec.rm_startblock + ltrec.rm_blockcount >=
-			bno + len, out_error);
+	if (XFS_IS_CORRUPT(mp,
+			   ltrec.rm_startblock > bno ||
+			   ltrec.rm_startblock + ltrec.rm_blockcount <
+			   bno + len)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	/* Check owner information. */
 	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, len, owner,
@@ -544,14 +588,17 @@ xfs_rmap_unmap(
 
 	if (ltrec.rm_startblock == bno && ltrec.rm_blockcount == len) {
 		/* exact match, simply remove the record from rmap tree */
-		trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 				ltrec.rm_startblock, ltrec.rm_blockcount,
 				ltrec.rm_owner, ltrec.rm_offset,
 				ltrec.rm_flags);
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 	} else if (ltrec.rm_startblock == bno) {
 		/*
 		 * overlap left hand side of extent: move the start, trim the
@@ -619,7 +666,7 @@ xfs_rmap_unmap(
 		else
 			cur->bc_rec.r.rm_offset = offset + len;
 		cur->bc_rec.r.rm_flags = flags;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno,
 				cur->bc_rec.r.rm_startblock,
 				cur->bc_rec.r.rm_blockcount,
 				cur->bc_rec.r.rm_owner,
@@ -631,11 +678,11 @@ xfs_rmap_unmap(
 	}
 
 out_done:
-	trace_xfs_rmap_unmap_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_unmap_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 out_error:
 	if (error)
-		trace_xfs_rmap_unmap_error(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_unmap_error(mp, cur->bc_ag.agno,
 				error, _RET_IP_);
 	return error;
 }
@@ -726,7 +773,7 @@ xfs_rmap_map(
 			(flags & XFS_RMAP_BMBT_BLOCK);
 	if (unwritten)
 		flags |= XFS_RMAP_UNWRITTEN;
-	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_map(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 	ASSERT(!xfs_rmap_should_skip_owner_update(oinfo));
 
@@ -743,9 +790,12 @@ xfs_rmap_map(
 		error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, have_lt != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-				cur->bc_private.a.agno, ltrec.rm_startblock,
+				cur->bc_ag.agno, ltrec.rm_startblock,
 				ltrec.rm_blockcount, ltrec.rm_owner,
 				ltrec.rm_offset, ltrec.rm_flags);
 
@@ -753,9 +803,12 @@ xfs_rmap_map(
 			have_lt = 0;
 	}
 
-	XFS_WANT_CORRUPTED_GOTO(mp,
-		have_lt == 0 ||
-		ltrec.rm_startblock + ltrec.rm_blockcount <= bno, out_error);
+	if (XFS_IS_CORRUPT(mp,
+			   have_lt != 0 &&
+			   ltrec.rm_startblock + ltrec.rm_blockcount > bno)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	/*
 	 * Increment the cursor to see if we have a right-adjacent record to our
@@ -769,11 +822,16 @@ xfs_rmap_map(
 		error = xfs_rmap_get_rec(cur, &gtrec, &have_gt);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, have_gt == 1, out_error);
-		XFS_WANT_CORRUPTED_GOTO(mp, bno + len <= gtrec.rm_startblock,
-					out_error);
+		if (XFS_IS_CORRUPT(mp, have_gt != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
+		if (XFS_IS_CORRUPT(mp, bno + len > gtrec.rm_startblock)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		trace_xfs_rmap_find_right_neighbor_result(cur->bc_mp,
-			cur->bc_private.a.agno, gtrec.rm_startblock,
+			cur->bc_ag.agno, gtrec.rm_startblock,
 			gtrec.rm_blockcount, gtrec.rm_owner,
 			gtrec.rm_offset, gtrec.rm_flags);
 		if (!xfs_rmap_is_mergeable(&gtrec, owner, flags))
@@ -812,7 +870,7 @@ xfs_rmap_map(
 			 * result: |rrrrrrrrrrrrrrrrrrrrrrrrrrrrr|
 			 */
 			ltrec.rm_blockcount += gtrec.rm_blockcount;
-			trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+			trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 					gtrec.rm_startblock,
 					gtrec.rm_blockcount,
 					gtrec.rm_owner,
@@ -821,7 +879,10 @@ xfs_rmap_map(
 			error = xfs_btree_delete(cur, &i);
 			if (error)
 				goto out_error;
-			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+			if (XFS_IS_CORRUPT(mp, i != 1)) {
+				error = -EFSCORRUPTED;
+				goto out_error;
+			}
 		}
 
 		/* point the cursor back to the left record and update */
@@ -860,19 +921,22 @@ xfs_rmap_map(
 		cur->bc_rec.r.rm_owner = owner;
 		cur->bc_rec.r.rm_offset = offset;
 		cur->bc_rec.r.rm_flags = flags;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno, bno, len,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno, bno, len,
 			owner, offset, flags);
 		error = xfs_btree_insert(cur, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 	}
 
-	trace_xfs_rmap_map_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_map_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 out_error:
 	if (error)
-		trace_xfs_rmap_map_error(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_map_error(mp, cur->bc_ag.agno,
 				error, _RET_IP_);
 	return error;
 }
@@ -946,7 +1010,7 @@ xfs_rmap_convert(
 			(flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK))));
 	oldext = unwritten ? XFS_RMAP_UNWRITTEN : 0;
 	new_endoff = offset + len;
-	trace_xfs_rmap_convert(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_convert(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 
 	/*
@@ -957,14 +1021,20 @@ xfs_rmap_convert(
 	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, oldext, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 
 	error = xfs_rmap_get_rec(cur, &PREV, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-			cur->bc_private.a.agno, PREV.rm_startblock,
+			cur->bc_ag.agno, PREV.rm_startblock,
 			PREV.rm_blockcount, PREV.rm_owner,
 			PREV.rm_offset, PREV.rm_flags);
 
@@ -995,12 +1065,18 @@ xfs_rmap_convert(
 		error = xfs_rmap_get_rec(cur, &LEFT, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		XFS_WANT_CORRUPTED_GOTO(mp,
-				LEFT.rm_startblock + LEFT.rm_blockcount <= bno,
-				done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		if (XFS_IS_CORRUPT(mp,
+				   LEFT.rm_startblock + LEFT.rm_blockcount >
+				   bno)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		trace_xfs_rmap_find_left_neighbor_result(cur->bc_mp,
-				cur->bc_private.a.agno, LEFT.rm_startblock,
+				cur->bc_ag.agno, LEFT.rm_startblock,
 				LEFT.rm_blockcount, LEFT.rm_owner,
 				LEFT.rm_offset, LEFT.rm_flags);
 		if (LEFT.rm_startblock + LEFT.rm_blockcount == bno &&
@@ -1017,7 +1093,10 @@ xfs_rmap_convert(
 	error = xfs_btree_increment(cur, 0, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 	error = xfs_btree_increment(cur, 0, &i);
 	if (error)
 		goto done;
@@ -1026,11 +1105,16 @@ xfs_rmap_convert(
 		error = xfs_rmap_get_rec(cur, &RIGHT, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		XFS_WANT_CORRUPTED_GOTO(mp, bno + len <= RIGHT.rm_startblock,
-					done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		if (XFS_IS_CORRUPT(mp, bno + len > RIGHT.rm_startblock)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		trace_xfs_rmap_find_right_neighbor_result(cur->bc_mp,
-				cur->bc_private.a.agno, RIGHT.rm_startblock,
+				cur->bc_ag.agno, RIGHT.rm_startblock,
 				RIGHT.rm_blockcount, RIGHT.rm_owner,
 				RIGHT.rm_offset, RIGHT.rm_flags);
 		if (bno + len == RIGHT.rm_startblock &&
@@ -1048,14 +1132,17 @@ xfs_rmap_convert(
 	     RIGHT.rm_blockcount > XFS_RMAP_LEN_MAX)
 		state &= ~RMAP_RIGHT_CONTIG;
 
-	trace_xfs_rmap_convert_state(mp, cur->bc_private.a.agno, state,
+	trace_xfs_rmap_convert_state(mp, cur->bc_ag.agno, state,
 			_RET_IP_);
 
 	/* reset the cursor back to PREV */
 	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, oldext, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 
 	/*
 	 * Switch out based on the FILLING and CONTIG state bits.
@@ -1071,31 +1158,46 @@ xfs_rmap_convert(
 		error = xfs_btree_increment(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 				RIGHT.rm_startblock, RIGHT.rm_blockcount,
 				RIGHT.rm_owner, RIGHT.rm_offset,
 				RIGHT.rm_flags);
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 				PREV.rm_startblock, PREV.rm_blockcount,
 				PREV.rm_owner, PREV.rm_offset,
 				PREV.rm_flags);
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW = LEFT;
 		NEW.rm_blockcount += PREV.rm_blockcount + RIGHT.rm_blockcount;
 		error = xfs_rmap_update(cur, &NEW);
@@ -1108,18 +1210,24 @@ xfs_rmap_convert(
 		 * Setting all of a previous oldext extent to newext.
 		 * The left neighbor is contiguous, the right is not.
 		 */
-		trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 				PREV.rm_startblock, PREV.rm_blockcount,
 				PREV.rm_owner, PREV.rm_offset,
 				PREV.rm_flags);
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW = LEFT;
 		NEW.rm_blockcount += PREV.rm_blockcount;
 		error = xfs_rmap_update(cur, &NEW);
@@ -1135,19 +1243,28 @@ xfs_rmap_convert(
 		error = xfs_btree_increment(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		trace_xfs_rmap_delete(mp, cur->bc_ag.agno,
 				RIGHT.rm_startblock, RIGHT.rm_blockcount,
 				RIGHT.rm_owner, RIGHT.rm_offset,
 				RIGHT.rm_flags);
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW = PREV;
 		NEW.rm_blockcount = len + RIGHT.rm_blockcount;
 		NEW.rm_flags = newext;
@@ -1209,12 +1326,15 @@ xfs_rmap_convert(
 		NEW.rm_blockcount = len;
 		NEW.rm_flags = newext;
 		cur->bc_rec.r = NEW;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno, bno,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno, bno,
 				len, owner, offset, newext);
 		error = xfs_btree_insert(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		break;
 
 	case RMAP_RIGHT_FILLING | RMAP_RIGHT_CONTIG:
@@ -1253,19 +1373,25 @@ xfs_rmap_convert(
 				oldext, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 0, done);
+		if (XFS_IS_CORRUPT(mp, i != 0)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_startblock = bno;
 		NEW.rm_owner = owner;
 		NEW.rm_offset = offset;
 		NEW.rm_blockcount = len;
 		NEW.rm_flags = newext;
 		cur->bc_rec.r = NEW;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno, bno,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno, bno,
 				len, owner, offset, newext);
 		error = xfs_btree_insert(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		break;
 
 	case 0:
@@ -1288,14 +1414,17 @@ xfs_rmap_convert(
 		NEW = PREV;
 		NEW.rm_blockcount = offset - PREV.rm_offset;
 		cur->bc_rec.r = NEW;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno,
 				NEW.rm_startblock, NEW.rm_blockcount,
 				NEW.rm_owner, NEW.rm_offset,
 				NEW.rm_flags);
 		error = xfs_btree_insert(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		/*
 		 * Reset the cursor to the position of the new extent
 		 * we are about to insert as we can't trust it after
@@ -1305,16 +1434,22 @@ xfs_rmap_convert(
 				oldext, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 0, done);
+		if (XFS_IS_CORRUPT(mp, i != 0)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		/* new middle extent - newext */
 		cur->bc_rec.r.rm_flags &= ~XFS_RMAP_UNWRITTEN;
 		cur->bc_rec.r.rm_flags |= newext;
-		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno, bno, len,
+		trace_xfs_rmap_insert(mp, cur->bc_ag.agno, bno, len,
 				owner, offset, newext);
 		error = xfs_btree_insert(cur, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		break;
 
 	case RMAP_LEFT_FILLING | RMAP_LEFT_CONTIG | RMAP_RIGHT_CONTIG:
@@ -1330,12 +1465,12 @@ xfs_rmap_convert(
 		ASSERT(0);
 	}
 
-	trace_xfs_rmap_convert_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_convert_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 done:
 	if (error)
 		trace_xfs_rmap_convert_error(cur->bc_mp,
-				cur->bc_private.a.agno, error, _RET_IP_);
+				cur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -1371,7 +1506,7 @@ xfs_rmap_convert_shared(
 			(flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK))));
 	oldext = unwritten ? XFS_RMAP_UNWRITTEN : 0;
 	new_endoff = offset + len;
-	trace_xfs_rmap_convert(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_convert(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 
 	/*
@@ -1383,7 +1518,10 @@ xfs_rmap_convert_shared(
 			&PREV, &i);
 	if (error)
 		goto done;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto done;
+	}
 
 	ASSERT(PREV.rm_offset <= offset);
 	ASSERT(PREV.rm_offset + PREV.rm_blockcount >= new_endoff);
@@ -1406,9 +1544,12 @@ xfs_rmap_convert_shared(
 		goto done;
 	if (i) {
 		state |= RMAP_LEFT_VALID;
-		XFS_WANT_CORRUPTED_GOTO(mp,
-				LEFT.rm_startblock + LEFT.rm_blockcount <= bno,
-				done);
+		if (XFS_IS_CORRUPT(mp,
+				   LEFT.rm_startblock + LEFT.rm_blockcount >
+				   bno)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		if (xfs_rmap_is_mergeable(&LEFT, owner, newext))
 			state |= RMAP_LEFT_CONTIG;
 	}
@@ -1423,11 +1564,16 @@ xfs_rmap_convert_shared(
 		error = xfs_rmap_get_rec(cur, &RIGHT, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-		XFS_WANT_CORRUPTED_GOTO(mp, bno + len <= RIGHT.rm_startblock,
-				done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
+		if (XFS_IS_CORRUPT(mp, bno + len > RIGHT.rm_startblock)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		trace_xfs_rmap_find_right_neighbor_result(cur->bc_mp,
-				cur->bc_private.a.agno, RIGHT.rm_startblock,
+				cur->bc_ag.agno, RIGHT.rm_startblock,
 				RIGHT.rm_blockcount, RIGHT.rm_owner,
 				RIGHT.rm_offset, RIGHT.rm_flags);
 		if (xfs_rmap_is_mergeable(&RIGHT, owner, newext))
@@ -1443,7 +1589,7 @@ xfs_rmap_convert_shared(
 	     RIGHT.rm_blockcount > XFS_RMAP_LEN_MAX)
 		state &= ~RMAP_RIGHT_CONTIG;
 
-	trace_xfs_rmap_convert_state(mp, cur->bc_private.a.agno, state,
+	trace_xfs_rmap_convert_state(mp, cur->bc_ag.agno, state,
 			_RET_IP_);
 	/*
 	 * Switch out based on the FILLING and CONTIG state bits.
@@ -1472,7 +1618,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount += PREV.rm_blockcount + RIGHT.rm_blockcount;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1495,7 +1644,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount += PREV.rm_blockcount;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1518,7 +1670,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount += RIGHT.rm_blockcount;
 		NEW.rm_flags = RIGHT.rm_flags;
 		error = xfs_rmap_update(cur, &NEW);
@@ -1538,7 +1693,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_flags = newext;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1570,7 +1728,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount += len;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1612,7 +1773,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount = offset - NEW.rm_offset;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1644,7 +1808,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount -= len;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1679,7 +1846,10 @@ xfs_rmap_convert_shared(
 				NEW.rm_offset, NEW.rm_flags, &i);
 		if (error)
 			goto done;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto done;
+		}
 		NEW.rm_blockcount = offset - NEW.rm_offset;
 		error = xfs_rmap_update(cur, &NEW);
 		if (error)
@@ -1710,12 +1880,12 @@ xfs_rmap_convert_shared(
 		ASSERT(0);
 	}
 
-	trace_xfs_rmap_convert_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_convert_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 done:
 	if (error)
 		trace_xfs_rmap_convert_error(cur->bc_mp,
-				cur->bc_private.a.agno, error, _RET_IP_);
+				cur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -1753,7 +1923,7 @@ xfs_rmap_unmap_shared(
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	if (unwritten)
 		flags |= XFS_RMAP_UNWRITTEN;
-	trace_xfs_rmap_unmap(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_unmap(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 
 	/*
@@ -1765,25 +1935,44 @@ xfs_rmap_unmap_shared(
 			&ltrec, &i);
 	if (error)
 		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 	ltoff = ltrec.rm_offset;
 
 	/* Make sure the extent we found covers the entire freeing range. */
-	XFS_WANT_CORRUPTED_GOTO(mp, ltrec.rm_startblock <= bno &&
-		ltrec.rm_startblock + ltrec.rm_blockcount >=
-		bno + len, out_error);
+	if (XFS_IS_CORRUPT(mp,
+			   ltrec.rm_startblock > bno ||
+			   ltrec.rm_startblock + ltrec.rm_blockcount <
+			   bno + len)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	/* Make sure the owner matches what we expect to find in the tree. */
-	XFS_WANT_CORRUPTED_GOTO(mp, owner == ltrec.rm_owner, out_error);
+	if (XFS_IS_CORRUPT(mp, owner != ltrec.rm_owner)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	/* Make sure the unwritten flag matches. */
-	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
-			(ltrec.rm_flags & XFS_RMAP_UNWRITTEN), out_error);
+	if (XFS_IS_CORRUPT(mp,
+			   (flags & XFS_RMAP_UNWRITTEN) !=
+			   (ltrec.rm_flags & XFS_RMAP_UNWRITTEN))) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	/* Check the offset. */
-	XFS_WANT_CORRUPTED_GOTO(mp, ltrec.rm_offset <= offset, out_error);
-	XFS_WANT_CORRUPTED_GOTO(mp, offset <= ltoff + ltrec.rm_blockcount,
-			out_error);
+	if (XFS_IS_CORRUPT(mp, ltrec.rm_offset > offset)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
+	if (XFS_IS_CORRUPT(mp, offset > ltoff + ltrec.rm_blockcount)) {
+		error = -EFSCORRUPTED;
+		goto out_error;
+	}
 
 	if (ltrec.rm_startblock == bno && ltrec.rm_blockcount == len) {
 		/* Exact match, simply remove the record from rmap tree. */
@@ -1836,7 +2025,10 @@ xfs_rmap_unmap_shared(
 				ltrec.rm_offset, ltrec.rm_flags, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		ltrec.rm_blockcount -= len;
 		error = xfs_rmap_update(cur, &ltrec);
 		if (error)
@@ -1862,7 +2054,10 @@ xfs_rmap_unmap_shared(
 				ltrec.rm_offset, ltrec.rm_flags, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		ltrec.rm_blockcount = bno - ltrec.rm_startblock;
 		error = xfs_rmap_update(cur, &ltrec);
 		if (error)
@@ -1877,12 +2072,12 @@ xfs_rmap_unmap_shared(
 			goto out_error;
 	}
 
-	trace_xfs_rmap_unmap_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_unmap_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 out_error:
 	if (error)
 		trace_xfs_rmap_unmap_error(cur->bc_mp,
-				cur->bc_private.a.agno, error, _RET_IP_);
+				cur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -1917,7 +2112,7 @@ xfs_rmap_map_shared(
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	if (unwritten)
 		flags |= XFS_RMAP_UNWRITTEN;
-	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_map(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 
 	/* Is there a left record that abuts our range? */
@@ -1938,9 +2133,12 @@ xfs_rmap_map_shared(
 		error = xfs_rmap_get_rec(cur, &gtrec, &have_gt);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, have_gt == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, have_gt != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 		trace_xfs_rmap_find_right_neighbor_result(cur->bc_mp,
-			cur->bc_private.a.agno, gtrec.rm_startblock,
+			cur->bc_ag.agno, gtrec.rm_startblock,
 			gtrec.rm_blockcount, gtrec.rm_owner,
 			gtrec.rm_offset, gtrec.rm_flags);
 
@@ -1987,7 +2185,10 @@ xfs_rmap_map_shared(
 				ltrec.rm_offset, ltrec.rm_flags, &i);
 		if (error)
 			goto out_error;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 
 		error = xfs_rmap_update(cur, &ltrec);
 		if (error)
@@ -2030,12 +2231,12 @@ xfs_rmap_map_shared(
 			goto out_error;
 	}
 
-	trace_xfs_rmap_map_done(mp, cur->bc_private.a.agno, bno, len,
+	trace_xfs_rmap_map_done(mp, cur->bc_ag.agno, bno, len,
 			unwritten, oinfo);
 out_error:
 	if (error)
 		trace_xfs_rmap_map_error(cur->bc_mp,
-				cur->bc_private.a.agno, error, _RET_IP_);
+				cur->bc_ag.agno, error, _RET_IP_);
 	return error;
 }
 
@@ -2135,7 +2336,7 @@ xfs_rmap_finish_one_cleanup(
 
 	if (rcur == NULL)
 		return;
-	agbp = rcur->bc_private.a.agbp;
+	agbp = rcur->bc_ag.agbp;
 	xfs_btree_del_cursor(rcur, error);
 	if (error)
 		xfs_trans_brelse(tp, agbp);
@@ -2185,7 +2386,7 @@ xfs_rmap_finish_one(
 	 * the startblock, get one now.
 	 */
 	rcur = *pcur;
-	if (rcur != NULL && rcur->bc_private.a.agno != agno) {
+	if (rcur != NULL && rcur->bc_ag.agno != agno) {
 		xfs_rmap_finish_one_cleanup(tp, rcur, 0);
 		rcur = NULL;
 		*pcur = NULL;
@@ -2199,7 +2400,7 @@ xfs_rmap_finish_one(
 		error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
 		if (error)
 			return error;
-		if (!agbp)
+		if (XFS_IS_CORRUPT(tp->t_mountp, !agbp))
 			return -EFSCORRUPTED;
 
 		rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
@@ -2493,7 +2694,6 @@ struct xfs_rmap_key_state {
 	uint64_t			owner;
 	uint64_t			offset;
 	unsigned int			flags;
-	bool				has_rmap;
 };
 
 /* For each rmap given, figure out if it doesn't match the key we want. */
@@ -2508,7 +2708,6 @@ xfs_rmap_has_other_keys_helper(
 	if (rks->owner == rec->rm_owner && rks->offset == rec->rm_offset &&
 	    ((rks->flags & rec->rm_flags) & XFS_RMAP_KEY_FLAGS) == rks->flags)
 		return 0;
-	rks->has_rmap = true;
 	return -ECANCELED;
 }
 
@@ -2530,7 +2729,7 @@ xfs_rmap_has_other_keys(
 	int				error;
 
 	xfs_owner_info_unpack(oinfo, &rks.owner, &rks.offset, &rks.flags);
-	rks.has_rmap = false;
+	*has_rmap = false;
 
 	low.rm_startblock = bno;
 	memset(&high, 0xFF, sizeof(high));
@@ -2538,11 +2737,12 @@ xfs_rmap_has_other_keys(
 
 	error = xfs_rmap_query_range(cur, &low, &high,
 			xfs_rmap_has_other_keys_helper, &rks);
-	if (error < 0)
-		return error;
+	if (error == -ECANCELED) {
+		*has_rmap = true;
+		return 0;
+	}
 
-	*has_rmap = rks.has_rmap;
-	return 0;
+	return error;
 }
 
 const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE = {

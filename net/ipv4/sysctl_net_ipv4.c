@@ -340,6 +340,10 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 				user_key[i * 4 + 1],
 				user_key[i * 4 + 2],
 				user_key[i * 4 + 3]);
+
+		if (WARN_ON_ONCE(off >= tbl.maxlen - 1))
+			break;
+
 		if (i + 1 < n_keys)
 			off += snprintf(tbl.data + off, tbl.maxlen - off, ",");
 	}
@@ -551,18 +555,6 @@ static struct ctl_table ipv4_table[] = {
 	},
 #endif /* CONFIG_NETLABEL */
 	{
-		.procname	= "tcp_available_congestion_control",
-		.maxlen		= TCP_CA_BUF_MAX,
-		.mode		= 0444,
-		.proc_handler   = proc_tcp_available_congestion_control,
-	},
-	{
-		.procname	= "tcp_allowed_congestion_control",
-		.maxlen		= TCP_CA_BUF_MAX,
-		.mode		= 0644,
-		.proc_handler   = proc_allowed_congestion_control,
-	},
-	{
 		.procname	= "tcp_available_ulp",
 		.maxlen		= TCP_ULP_BUF_MAX,
 		.mode		= 0444,
@@ -772,6 +764,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
+		.procname	= "ip_autobind_reuse",
+		.data		= &init_net.ipv4.sysctl_ip_autobind_reuse,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1         = SYSCTL_ZERO,
+		.extra2         = SYSCTL_ONE,
+	},
+	{
 		.procname	= "fwmark_reflect",
 		.data		= &init_net.ipv4.sysctl_fwmark_reflect,
 		.maxlen		= sizeof(int),
@@ -880,6 +881,18 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.maxlen		= TCP_CA_NAME_MAX,
 		.proc_handler	= proc_tcp_congestion_control,
+	},
+	{
+		.procname	= "tcp_available_congestion_control",
+		.maxlen		= TCP_CA_BUF_MAX,
+		.mode		= 0444,
+		.proc_handler   = proc_tcp_available_congestion_control,
+	},
+	{
+		.procname	= "tcp_allowed_congestion_control",
+		.maxlen		= TCP_CA_BUF_MAX,
+		.mode		= 0644,
+		.proc_handler   = proc_allowed_congestion_control,
 	},
 	{
 		.procname	= "tcp_keepalive_time",
@@ -1187,6 +1200,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "tcp_no_ssthresh_metrics_save",
+		.data		= &init_net.ipv4.sysctl_tcp_no_ssthresh_metrics_save,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "tcp_moderate_rcvbuf",

@@ -17,6 +17,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
@@ -50,6 +51,7 @@
 #define SN_ENH_FRAME_REG			0x5A
 #define  VSTREAM_ENABLE				BIT(3)
 #define SN_DATA_FORMAT_REG			0x5B
+#define  BPP_18_RGB				BIT(0)
 #define SN_HPD_DISABLE_REG			0x5C
 #define  HPD_DISABLE				BIT(0)
 #define SN_AUX_WDATA_REG(x)			(0x64 + (x))
@@ -99,6 +101,7 @@ struct ti_sn_bridge {
 	struct drm_panel		*panel;
 	struct gpio_desc		*enable_gpio;
 	struct regulator_bulk_data	supplies[SN_REGULATOR_SUPPLY_NUM];
+	int				dp_lanes;
 };
 
 static const struct regmap_range ti_sn_bridge_volatile_ranges[] = {
@@ -205,7 +208,7 @@ static int ti_sn_bridge_connector_get_modes(struct drm_connector *connector)
 {
 	struct ti_sn_bridge *pdata = connector_to_ti_sn_bridge(connector);
 
-	return drm_panel_get_modes(pdata->panel);
+	return drm_panel_get_modes(pdata->panel, connector);
 }
 
 static enum drm_mode_status
@@ -263,7 +266,8 @@ static int ti_sn_bridge_parse_regulators(struct ti_sn_bridge *pdata)
 				       pdata->supplies);
 }
 
-static int ti_sn_bridge_attach(struct drm_bridge *bridge)
+static int ti_sn_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
 {
 	int ret, val;
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
@@ -273,6 +277,11 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 						   .channel = 0,
 						   .node = NULL,
 						 };
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	ret = drm_connector_init(bridge->dev, &pdata->connector,
 				 &ti_sn_bridge_connector_funcs,
@@ -311,7 +320,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 		goto err_dsi_host;
 	}
 
-	/* TODO: setting to 4 lanes always for now */
+	/* TODO: setting to 4 MIPI lanes always for now */
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
@@ -416,19 +425,10 @@ static void ti_sn_bridge_set_refclk_freq(struct ti_sn_bridge *pdata)
 			   REFCLK_FREQ(i));
 }
 
-/**
- * LUT index corresponds to register value and
- * LUT values corresponds to dp data rate supported
- * by the bridge in Mbps unit.
- */
-static const unsigned int ti_sn_bridge_dp_rate_lut[] = {
-	0, 1620, 2160, 2430, 2700, 3240, 4320, 5400
-};
-
-static void ti_sn_bridge_set_dsi_dp_rate(struct ti_sn_bridge *pdata)
+static void ti_sn_bridge_set_dsi_rate(struct ti_sn_bridge *pdata)
 {
-	unsigned int bit_rate_mhz, clk_freq_mhz, dp_rate_mhz;
-	unsigned int val, i;
+	unsigned int bit_rate_mhz, clk_freq_mhz;
+	unsigned int val;
 	struct drm_display_mode *mode =
 		&pdata->bridge.encoder->crtc->state->adjusted_mode;
 
@@ -441,16 +441,125 @@ static void ti_sn_bridge_set_dsi_dp_rate(struct ti_sn_bridge *pdata)
 	val = (MIN_DSI_CLK_FREQ_MHZ / 5) +
 		(((clk_freq_mhz - MIN_DSI_CLK_FREQ_MHZ) / 5) & 0xFF);
 	regmap_write(pdata->regmap, SN_DSIA_CLK_FREQ_REG, val);
+}
 
-	/* set DP data rate */
-	dp_rate_mhz = ((bit_rate_mhz / pdata->dsi->lanes) * DP_CLK_FUDGE_NUM) /
-							DP_CLK_FUDGE_DEN;
-	for (i = 0; i < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut) - 1; i++)
+static unsigned int ti_sn_bridge_get_bpp(struct ti_sn_bridge *pdata)
+{
+	if (pdata->connector.display_info.bpc <= 6)
+		return 18;
+	else
+		return 24;
+}
+
+/**
+ * LUT index corresponds to register value and
+ * LUT values corresponds to dp data rate supported
+ * by the bridge in Mbps unit.
+ */
+static const unsigned int ti_sn_bridge_dp_rate_lut[] = {
+	0, 1620, 2160, 2430, 2700, 3240, 4320, 5400
+};
+
+static int ti_sn_bridge_calc_min_dp_rate_idx(struct ti_sn_bridge *pdata)
+{
+	unsigned int bit_rate_khz, dp_rate_mhz;
+	unsigned int i;
+	struct drm_display_mode *mode =
+		&pdata->bridge.encoder->crtc->state->adjusted_mode;
+
+	/* Calculate minimum bit rate based on our pixel clock. */
+	bit_rate_khz = mode->clock * ti_sn_bridge_get_bpp(pdata);
+
+	/* Calculate minimum DP data rate, taking 80% as per DP spec */
+	dp_rate_mhz = DIV_ROUND_UP(bit_rate_khz * DP_CLK_FUDGE_NUM,
+				   1000 * pdata->dp_lanes * DP_CLK_FUDGE_DEN);
+
+	for (i = 1; i < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut) - 1; i++)
 		if (ti_sn_bridge_dp_rate_lut[i] > dp_rate_mhz)
 			break;
 
-	regmap_update_bits(pdata->regmap, SN_DATARATE_CONFIG_REG,
-			   DP_DATARATE_MASK, DP_DATARATE(i));
+	return i;
+}
+
+static void ti_sn_bridge_read_valid_rates(struct ti_sn_bridge *pdata,
+					  bool rate_valid[])
+{
+	unsigned int rate_per_200khz;
+	unsigned int rate_mhz;
+	u8 dpcd_val;
+	int ret;
+	int i, j;
+
+	ret = drm_dp_dpcd_readb(&pdata->aux, DP_EDP_DPCD_REV, &dpcd_val);
+	if (ret != 1) {
+		DRM_DEV_ERROR(pdata->dev,
+			      "Can't read eDP rev (%d), assuming 1.1\n", ret);
+		dpcd_val = DP_EDP_11;
+	}
+
+	if (dpcd_val >= DP_EDP_14) {
+		/* eDP 1.4 devices must provide a custom table */
+		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
+
+		ret = drm_dp_dpcd_read(&pdata->aux, DP_SUPPORTED_LINK_RATES,
+				       sink_rates, sizeof(sink_rates));
+
+		if (ret != sizeof(sink_rates)) {
+			DRM_DEV_ERROR(pdata->dev,
+				"Can't read supported rate table (%d)\n", ret);
+
+			/* By zeroing we'll fall back to DP_MAX_LINK_RATE. */
+			memset(sink_rates, 0, sizeof(sink_rates));
+		}
+
+		for (i = 0; i < ARRAY_SIZE(sink_rates); i++) {
+			rate_per_200khz = le16_to_cpu(sink_rates[i]);
+
+			if (!rate_per_200khz)
+				break;
+
+			rate_mhz = rate_per_200khz * 200 / 1000;
+			for (j = 0;
+			     j < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
+			     j++) {
+				if (ti_sn_bridge_dp_rate_lut[j] == rate_mhz)
+					rate_valid[j] = true;
+			}
+		}
+
+		for (i = 0; i < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut); i++) {
+			if (rate_valid[i])
+				return;
+		}
+		DRM_DEV_ERROR(pdata->dev,
+			      "No matching eDP rates in table; falling back\n");
+	}
+
+	/* On older versions best we can do is use DP_MAX_LINK_RATE */
+	ret = drm_dp_dpcd_readb(&pdata->aux, DP_MAX_LINK_RATE, &dpcd_val);
+	if (ret != 1) {
+		DRM_DEV_ERROR(pdata->dev,
+			      "Can't read max rate (%d); assuming 5.4 GHz\n",
+			      ret);
+		dpcd_val = DP_LINK_BW_5_4;
+	}
+
+	switch (dpcd_val) {
+	default:
+		DRM_DEV_ERROR(pdata->dev,
+			      "Unexpected max rate (%#x); assuming 5.4 GHz\n",
+			      (int)dpcd_val);
+		/* fall through */
+	case DP_LINK_BW_5_4:
+		rate_valid[7] = 1;
+		/* fall through */
+	case DP_LINK_BW_2_7:
+		rate_valid[4] = 1;
+		/* fall through */
+	case DP_LINK_BW_1_62:
+		rate_valid[1] = 1;
+		break;
+	}
 }
 
 static void ti_sn_bridge_set_video_timings(struct ti_sn_bridge *pdata)
@@ -492,24 +601,30 @@ static void ti_sn_bridge_set_video_timings(struct ti_sn_bridge *pdata)
 	usleep_range(10000, 10500); /* 10ms delay recommended by spec */
 }
 
-static void ti_sn_bridge_enable(struct drm_bridge *bridge)
+static unsigned int ti_sn_get_max_lanes(struct ti_sn_bridge *pdata)
 {
-	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
+	u8 data;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(&pdata->aux, DP_MAX_LANE_COUNT, &data);
+	if (ret != 1) {
+		DRM_DEV_ERROR(pdata->dev,
+			      "Can't read lane count (%d); assuming 4\n", ret);
+		return 4;
+	}
+
+	return data & DP_LANE_COUNT_MASK;
+}
+
+static int ti_sn_link_training(struct ti_sn_bridge *pdata, int dp_rate_idx,
+			       const char **last_err_str)
+{
 	unsigned int val;
 	int ret;
 
-	/* DSI_A lane config */
-	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
-	regmap_update_bits(pdata->regmap, SN_DSI_LANES_REG,
-			   CHA_DSI_LANES_MASK, val);
-
-	/* DP lane config */
-	val = DP_NUM_LANES(pdata->dsi->lanes - 1);
-	regmap_update_bits(pdata->regmap, SN_SSC_CONFIG_REG, DP_NUM_LANES_MASK,
-			   val);
-
-	/* set dsi/dp clk frequency value */
-	ti_sn_bridge_set_dsi_dp_rate(pdata);
+	/* set dp clk frequency value */
+	regmap_update_bits(pdata->regmap, SN_DATARATE_CONFIG_REG,
+			   DP_DATARATE_MASK, DP_DATARATE(dp_rate_idx));
 
 	/* enable DP PLL */
 	regmap_write(pdata->regmap, SN_PLL_ENABLE_REG, 1);
@@ -518,9 +633,61 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 				       val & DPPLL_SRC_DP_PLL_LOCK, 1000,
 				       50 * 1000);
 	if (ret) {
-		DRM_ERROR("DP_PLL_LOCK polling failed (%d)\n", ret);
-		return;
+		*last_err_str = "DP_PLL_LOCK polling failed";
+		goto exit;
 	}
+
+	/* Semi auto link training mode */
+	regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
+	ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
+				       val == ML_TX_MAIN_LINK_OFF ||
+				       val == ML_TX_NORMAL_MODE, 1000,
+				       500 * 1000);
+	if (ret) {
+		*last_err_str = "Training complete polling failed";
+	} else if (val == ML_TX_MAIN_LINK_OFF) {
+		*last_err_str = "Link training failed, link is off";
+		ret = -EIO;
+	}
+
+exit:
+	/* Disable the PLL if we failed */
+	if (ret)
+		regmap_write(pdata->regmap, SN_PLL_ENABLE_REG, 0);
+
+	return ret;
+}
+
+static void ti_sn_bridge_enable(struct drm_bridge *bridge)
+{
+	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
+	bool rate_valid[ARRAY_SIZE(ti_sn_bridge_dp_rate_lut)] = { };
+	const char *last_err_str = "No supported DP rate";
+	int dp_rate_idx;
+	unsigned int val;
+	int ret = -EINVAL;
+
+	/*
+	 * Run with the maximum number of lanes that the DP sink supports.
+	 *
+	 * Depending use cases, we might want to revisit this later because:
+	 * - It's plausible that someone may have run fewer lines to the
+	 *   sink than the sink actually supports, assuming that the lines
+	 *   will just be driven at a higher rate.
+	 * - The DP spec seems to indicate that it's more important to minimize
+	 *   the number of lanes than the link rate.
+	 *
+	 * If we do revisit, it would be important to measure the power impact.
+	 */
+	pdata->dp_lanes = ti_sn_get_max_lanes(pdata);
+
+	/* DSI_A lane config */
+	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
+	regmap_update_bits(pdata->regmap, SN_DSI_LANES_REG,
+			   CHA_DSI_LANES_MASK, val);
+
+	/* set dsi clk frequency value */
+	ti_sn_bridge_set_dsi_rate(pdata);
 
 	/**
 	 * The SN65DSI86 only supports ASSR Display Authentication method and
@@ -531,17 +698,30 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	drm_dp_dpcd_writeb(&pdata->aux, DP_EDP_CONFIGURATION_SET,
 			   DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
 
-	/* Semi auto link training mode */
-	regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
-	ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
-				       val == ML_TX_MAIN_LINK_OFF ||
-				       val == ML_TX_NORMAL_MODE, 1000,
-				       500 * 1000);
+	/* Set the DP output format (18 bpp or 24 bpp) */
+	val = (ti_sn_bridge_get_bpp(pdata) == 18) ? BPP_18_RGB : 0;
+	regmap_update_bits(pdata->regmap, SN_DATA_FORMAT_REG, BPP_18_RGB, val);
+
+	/* DP lane config */
+	val = DP_NUM_LANES(min(pdata->dp_lanes, 3));
+	regmap_update_bits(pdata->regmap, SN_SSC_CONFIG_REG, DP_NUM_LANES_MASK,
+			   val);
+
+	ti_sn_bridge_read_valid_rates(pdata, rate_valid);
+
+	/* Train until we run out of rates */
+	for (dp_rate_idx = ti_sn_bridge_calc_min_dp_rate_idx(pdata);
+	     dp_rate_idx < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
+	     dp_rate_idx++) {
+		if (!rate_valid[dp_rate_idx])
+			continue;
+
+		ret = ti_sn_link_training(pdata, dp_rate_idx, &last_err_str);
+		if (!ret)
+			break;
+	}
 	if (ret) {
-		DRM_ERROR("Training complete polling failed (%d)\n", ret);
-		return;
-	} else if (val == ML_TX_MAIN_LINK_OFF) {
-		DRM_ERROR("Link training failed, link is off\n");
+		DRM_DEV_ERROR(pdata->dev, "%s (%d)\n", last_err_str, ret);
 		return;
 	}
 

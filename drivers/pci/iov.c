@@ -9,7 +9,6 @@
 
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/mutex.h>
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -187,10 +186,10 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 	sprintf(buf, "virtfn%u", id);
 	rc = sysfs_create_link(&dev->dev.kobj, &virtfn->dev.kobj, buf);
 	if (rc)
-		goto failed2;
+		goto failed1;
 	rc = sysfs_create_link(&virtfn->dev.kobj, &dev->dev.kobj, "physfn");
 	if (rc)
-		goto failed3;
+		goto failed2;
 
 	kobject_uevent(&virtfn->dev.kobj, KOBJ_CHANGE);
 
@@ -198,11 +197,10 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 
 	return 0;
 
-failed3:
-	sysfs_remove_link(&dev->dev.kobj, buf);
 failed2:
-	pci_stop_and_remove_bus_device(virtfn);
+	sysfs_remove_link(&dev->dev.kobj, buf);
 failed1:
+	pci_stop_and_remove_bus_device(virtfn);
 	pci_dev_put(dev);
 failed0:
 	virtfn_remove_bus(dev->bus, bus);
@@ -254,8 +252,14 @@ static ssize_t sriov_numvfs_show(struct device *dev,
 				 char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	u16 num_vfs;
 
-	return sprintf(buf, "%u\n", pdev->sriov->num_VFs);
+	/* Serialize vs sriov_numvfs_store() so readers see valid num_VFs */
+	device_lock(&pdev->dev);
+	num_vfs = pdev->sriov->num_VFs;
+	device_unlock(&pdev->dev);
+
+	return sprintf(buf, "%u\n", num_vfs);
 }
 
 /*

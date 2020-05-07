@@ -403,8 +403,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	hws = clk_hw_data->hws;
 
 	hws[IMX7D_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
-	hws[IMX7D_OSC_24M_CLK] = __clk_get_hw(of_clk_get_by_name(ccm_node, "osc"));
-	hws[IMX7D_CKIL] = __clk_get_hw(of_clk_get_by_name(ccm_node, "ckil"));
+	hws[IMX7D_OSC_24M_CLK] = imx_obtain_fixed_clk_hw(ccm_node, "osc");
+	hws[IMX7D_CKIL] = imx_obtain_fixed_clk_hw(ccm_node, "ckil");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-anatop");
 	base = of_iomap(np, 0);
@@ -802,6 +802,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	hws[IMX7D_PCIE_PHY_ROOT_CLK] = imx_clk_hw_gate4("pcie_phy_root_clk", "pcie_phy_post_div", base + 0x4600, 0);
 	hws[IMX7D_EPDC_PIXEL_ROOT_CLK] = imx_clk_hw_gate4("epdc_pixel_root_clk", "epdc_pixel_post_div", base + 0x44a0, 0);
 	hws[IMX7D_LCDIF_PIXEL_ROOT_CLK] = imx_clk_hw_gate4("lcdif_pixel_root_clk", "lcdif_pixel_post_div", base + 0x44b0, 0);
+	hws[IMX7D_PXP_CLK] = imx_clk_hw_gate4("pxp_clk", "main_axi_root_clk", base + 0x44c0, 0);
 	hws[IMX7D_MIPI_DSI_ROOT_CLK] = imx_clk_hw_gate4("mipi_dsi_root_clk", "mipi_dsi_post_div", base + 0x4650, 0);
 	hws[IMX7D_MIPI_CSI_ROOT_CLK] = imx_clk_hw_gate4("mipi_csi_root_clk", "mipi_csi_post_div", base + 0x4640, 0);
 	hws[IMX7D_MIPI_DPHY_ROOT_CLK] = imx_clk_hw_gate4("mipi_dphy_root_clk", "mipi_dphy_post_div", base + 0x4660, 0);

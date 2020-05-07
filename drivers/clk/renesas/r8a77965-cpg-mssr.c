@@ -43,6 +43,7 @@ enum clk_ids {
 	CLK_S3,
 	CLK_SDSRC,
 	CLK_SSPSRC,
+	CLK_RPCSRC,
 	CLK_RINT,
 
 	/* Module Clocks */
@@ -68,6 +69,12 @@ static const struct cpg_core_clk r8a77965_core_clks[] __initconst = {
 	DEF_FIXED(".s2",	CLK_S2,			CLK_PLL1_DIV2,	4, 1),
 	DEF_FIXED(".s3",	CLK_S3,			CLK_PLL1_DIV2,	6, 1),
 	DEF_FIXED(".sdsrc",	CLK_SDSRC,		CLK_PLL1_DIV2,	2, 1),
+	DEF_BASE(".rpcsrc",	CLK_RPCSRC, CLK_TYPE_GEN3_RPCSRC, CLK_PLL1),
+
+	DEF_BASE("rpc",		R8A77965_CLK_RPC, CLK_TYPE_GEN3_RPC,
+		 CLK_RPCSRC),
+	DEF_BASE("rpcd2",	R8A77965_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2,
+		 R8A77965_CLK_RPC),
 
 	DEF_GEN3_OSC(".r",	CLK_RINT,		CLK_EXTAL,	32),
 
@@ -99,7 +106,8 @@ static const struct cpg_core_clk r8a77965_core_clks[] __initconst = {
 	DEF_GEN3_SD("sd2",	R8A77965_CLK_SD2,	CLK_SDSRC,	0x268),
 	DEF_GEN3_SD("sd3",	R8A77965_CLK_SD3,	CLK_SDSRC,	0x26c),
 
-	DEF_FIXED("cl",		R8A77965_CLK_CL,	CLK_PLL1_DIV2,	48, 1),
+	DEF_FIXED("cl",		R8A77965_CLK_CL,	CLK_PLL1_DIV2, 48, 1),
+	DEF_FIXED("cr",         R8A77965_CLK_CR,	CLK_PLL1_DIV4,  2, 1),
 	DEF_FIXED("cp",		R8A77965_CLK_CP,	CLK_EXTAL,	2, 1),
 	DEF_FIXED("cpex",	R8A77965_CLK_CPEX,	CLK_EXTAL,	2, 1),
 
@@ -127,6 +135,7 @@ static const struct mssr_mod_clk r8a77965_mod_clks[] __initconst = {
 	DEF_MOD("sys-dmac2",		217,	R8A77965_CLK_S3D1),
 	DEF_MOD("sys-dmac1",		218,	R8A77965_CLK_S3D1),
 	DEF_MOD("sys-dmac0",		219,	R8A77965_CLK_S0D3),
+	DEF_MOD("sceg-pub",		229,	R8A77965_CLK_CR),
 
 	DEF_MOD("cmt3",			300,	R8A77965_CLK_R),
 	DEF_MOD("cmt2",			301,	R8A77965_CLK_R),
@@ -215,6 +224,7 @@ static const struct mssr_mod_clk r8a77965_mod_clks[] __initconst = {
 	DEF_MOD("can-fd",		914,	R8A77965_CLK_S3D2),
 	DEF_MOD("can-if1",		915,	R8A77965_CLK_S3D4),
 	DEF_MOD("can-if0",		916,	R8A77965_CLK_S3D4),
+	DEF_MOD("rpc-if",		917,	R8A77965_CLK_RPCD2),
 	DEF_MOD("i2c6",			918,	R8A77965_CLK_S0D6),
 	DEF_MOD("i2c5",			919,	R8A77965_CLK_S0D6),
 	DEF_MOD("i2c-dvfs",		926,	R8A77965_CLK_CP),
@@ -323,7 +333,7 @@ static int __init r8a77965_cpg_mssr_init(struct device *dev)
 	}
 
 	return rcar_gen3_cpg_init(cpg_pll_config, CLK_EXTALR, cpg_mode);
-};
+}
 
 const struct cpg_mssr_info r8a77965_cpg_mssr_info __initconst = {
 	/* Core Clocks */

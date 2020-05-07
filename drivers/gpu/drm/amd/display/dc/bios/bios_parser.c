@@ -111,7 +111,7 @@ struct dc_bios *bios_parser_create(
 	return NULL;
 }
 
-static void destruct(struct bios_parser *bp)
+static void bios_parser_destruct(struct bios_parser *bp)
 {
 	kfree(bp->base.bios_local_image);
 	kfree(bp->base.integrated_info);
@@ -126,7 +126,7 @@ static void bios_parser_destroy(struct dc_bios **dcb)
 		return;
 	}
 
-	destruct(bp);
+	bios_parser_destruct(bp);
 
 	kfree(bp);
 	*dcb = NULL;
@@ -2189,7 +2189,7 @@ static uint32_t get_support_mask_for_device_id(struct device_id device_id)
 		break;
 	default:
 		break;
-	};
+	}
 
 	/* Unidentified device ID, return empty support mask. */
 	return 0;
@@ -2543,7 +2543,6 @@ static enum bp_result construct_integrated_info(
 
 	/* Sort voltage table from low to high*/
 	if (result == BP_RESULT_OK) {
-		struct clock_voltage_caps temp = {0, 0};
 		uint32_t i;
 		uint32_t j;
 
@@ -2553,10 +2552,8 @@ static enum bp_result construct_integrated_info(
 						info->disp_clk_voltage[j].max_supported_clk <
 						info->disp_clk_voltage[j-1].max_supported_clk) {
 					/* swap j and j - 1*/
-					temp = info->disp_clk_voltage[j-1];
-					info->disp_clk_voltage[j-1] =
-							info->disp_clk_voltage[j];
-					info->disp_clk_voltage[j] = temp;
+					swap(info->disp_clk_voltage[j - 1],
+					     info->disp_clk_voltage[j]);
 				}
 			}
 		}
@@ -2742,7 +2739,6 @@ static enum bp_result bios_get_board_layout_info(
 	struct board_layout_info *board_layout_info)
 {
 	unsigned int i;
-	struct bios_parser *bp;
 	enum bp_result record_result;
 
 	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
@@ -2751,7 +2747,6 @@ static enum bp_result bios_get_board_layout_info(
 		0, 0
 	};
 
-	bp = BP_FROM_DCB(dcb);
 	if (board_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid board_layout_info\n");
 		return BP_RESULT_BADINPUT;

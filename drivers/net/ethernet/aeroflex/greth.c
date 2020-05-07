@@ -1114,9 +1114,7 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 
 	strlcpy(info->driver, dev_driver_string(greth->dev),
 		sizeof(info->driver));
-	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
 	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)

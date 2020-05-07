@@ -54,6 +54,7 @@ static const char driver_name[] = "pegasus";
 #undef	PEGASUS_WRITE_EEPROM
 #define	BMSR_MEDIA	(BMSR_10HALF | BMSR_10FULL | BMSR_100HALF | \
 			BMSR_100FULL | BMSR_ANEGCAPABLE)
+#define CARRIER_CHECK_DELAY (2 * HZ)
 
 static bool loopback;
 static bool mii_mode;
@@ -693,7 +694,7 @@ static void intr_callback(struct urb *urb)
 			  "can't resubmit interrupt urb, %d\n", res);
 }
 
-static void pegasus_tx_timeout(struct net_device *net)
+static void pegasus_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	pegasus_t *pegasus = netdev_priv(net);
 	netif_warn(pegasus, timer, net, "tx timeout\n");
@@ -1089,17 +1090,12 @@ static inline void setup_pegasus_II(pegasus_t *pegasus)
 		set_register(pegasus, Reg81, 2);
 }
 
-
-static int pegasus_count;
-static struct workqueue_struct *pegasus_workqueue;
-#define CARRIER_CHECK_DELAY (2 * HZ)
-
 static void check_carrier(struct work_struct *work)
 {
 	pegasus_t *pegasus = container_of(work, pegasus_t, carrier_check.work);
 	set_carrier(pegasus->net);
 	if (!(pegasus->flags & PEGASUS_UNPLUG)) {
-		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
+		queue_delayed_work(system_long_wq, &pegasus->carrier_check,
 			CARRIER_CHECK_DELAY);
 	}
 }
@@ -1120,18 +1116,6 @@ static int pegasus_blacklisted(struct usb_device *udev)
 	return 0;
 }
 
-/* we rely on probe() and remove() being serialized so we
- * don't need extra locking on pegasus_count.
- */
-static void pegasus_dec_workqueue(void)
-{
-	pegasus_count--;
-	if (pegasus_count == 0) {
-		destroy_workqueue(pegasus_workqueue);
-		pegasus_workqueue = NULL;
-	}
-}
-
 static int pegasus_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1143,14 +1127,6 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	if (pegasus_blacklisted(dev))
 		return -ENODEV;
-
-	if (pegasus_count == 0) {
-		pegasus_workqueue = alloc_workqueue("pegasus", WQ_MEM_RECLAIM,
-						    0);
-		if (!pegasus_workqueue)
-			return -ENOMEM;
-	}
-	pegasus_count++;
 
 	net = alloc_etherdev(sizeof(struct pegasus));
 	if (!net)
@@ -1209,7 +1185,7 @@ static int pegasus_probe(struct usb_interface *intf,
 	res = register_netdev(net);
 	if (res)
 		goto out3;
-	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
+	queue_delayed_work(system_long_wq, &pegasus->carrier_check,
 			   CARRIER_CHECK_DELAY);
 	dev_info(&intf->dev, "%s, %s, %pM\n", net->name,
 		 usb_dev_id[dev_index].name, net->dev_addr);
@@ -1222,7 +1198,6 @@ out2:
 out1:
 	free_netdev(net);
 out:
-	pegasus_dec_workqueue();
 	return res;
 }
 
@@ -1237,7 +1212,7 @@ static void pegasus_disconnect(struct usb_interface *intf)
 	}
 
 	pegasus->flags |= PEGASUS_UNPLUG;
-	cancel_delayed_work(&pegasus->carrier_check);
+	cancel_delayed_work_sync(&pegasus->carrier_check);
 	unregister_netdev(pegasus->net);
 	unlink_all_urbs(pegasus);
 	free_all_urbs(pegasus);
@@ -1246,7 +1221,6 @@ static void pegasus_disconnect(struct usb_interface *intf)
 		pegasus->rx_skb = NULL;
 	}
 	free_netdev(pegasus->net);
-	pegasus_dec_workqueue();
 }
 
 static int pegasus_suspend(struct usb_interface *intf, pm_message_t message)
@@ -1254,7 +1228,7 @@ static int pegasus_suspend(struct usb_interface *intf, pm_message_t message)
 	struct pegasus *pegasus = usb_get_intfdata(intf);
 
 	netif_device_detach(pegasus->net);
-	cancel_delayed_work(&pegasus->carrier_check);
+	cancel_delayed_work_sync(&pegasus->carrier_check);
 	if (netif_running(pegasus->net)) {
 		usb_kill_urb(pegasus->rx_urb);
 		usb_kill_urb(pegasus->intr_urb);
@@ -1276,7 +1250,7 @@ static int pegasus_resume(struct usb_interface *intf)
 		pegasus->intr_urb->actual_length = 0;
 		intr_callback(pegasus->intr_urb);
 	}
-	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
+	queue_delayed_work(system_long_wq, &pegasus->carrier_check,
 				CARRIER_CHECK_DELAY);
 	return 0;
 }

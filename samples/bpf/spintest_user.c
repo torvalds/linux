@@ -5,7 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/resource.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include "bpf_load.h"
 #include "trace_helpers.h"
 

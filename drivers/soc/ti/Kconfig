@@ -80,6 +80,17 @@ config TI_SCI_PM_DOMAINS
 	  called ti_sci_pm_domains. Note this is needed early in boot before
 	  rootfs may be available.
 
+config TI_K3_RINGACC
+	bool "K3 Ring accelerator Sub System"
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_SCI_INTA_IRQCHIP
+	help
+	  Say y here to support the K3 Ring accelerator module.
+	  The Ring Accelerator (RINGACC or RA)  provides hardware acceleration
+	  to enable straightforward passing of work between a producer
+	  and a consumer. There is one RINGACC module per NAVSS on TI AM65x SoCs
+	  If unsure, say N.
+
 endif # SOC_TI
 
 config TI_SCI_INTA_MSI_DOMAIN

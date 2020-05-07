@@ -72,11 +72,13 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
-	over-current-active-low;
+	disable-over-current;
 	status = "okay";
 };
 
 &usdhc0 {
+	assigned-clocks = <&pcc2 IMX7ULP_CLK_USDHC0>;
+	assigned-clock-parents = <&scg1 IMX7ULP_CLK_APLL_PFD1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc0>;
 	cd-gpios = <&gpio_ptc 10 GPIO_ACTIVE_LOW>;
@@ -108,7 +110,6 @@
 	pinctrl_usbotg1_id: otg1idgrp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC13__USB0_ID	0x10003
-			IMX7ULP_PAD_PTC16__USB1_OC2	0x10003
 		>;
 	};
 

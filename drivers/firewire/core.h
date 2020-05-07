@@ -158,8 +158,6 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count);
 int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 			  enum dma_data_direction direction);
-int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
-			  struct vm_area_struct *vma);
 
 
 /* -topology */

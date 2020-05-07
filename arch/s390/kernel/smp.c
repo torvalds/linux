@@ -212,6 +212,8 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
+	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
+	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	if (nmi_alloc_per_cpu(lc))
 		goto out_async;
 	if (vdso_alloc_per_cpu(lc))
@@ -262,10 +264,13 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
+	lc->user_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	__ctl_store(lc->cregs_save_area, 0, 15);
+	lc->cregs_save_area[1] = lc->kernel_asce;
+	lc->cregs_save_area[7] = lc->vdso_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       sizeof(lc->stfle_fac_list));
@@ -398,7 +403,7 @@ int smp_find_processor_id(u16 address)
 	return -1;
 }
 
-bool arch_vcpu_is_preempted(int cpu)
+bool notrace arch_vcpu_is_preempted(int cpu)
 {
 	if (test_cpu_flag_of(CIF_ENABLED_WAIT, cpu))
 		return false;
@@ -408,16 +413,13 @@ bool arch_vcpu_is_preempted(int cpu)
 }
 EXPORT_SYMBOL(arch_vcpu_is_preempted);
 
-void smp_yield_cpu(int cpu)
+void notrace smp_yield_cpu(int cpu)
 {
-	if (MACHINE_HAS_DIAG9C) {
-		diag_stat_inc_norecursion(DIAG_STAT_X09C);
-		asm volatile("diag %0,0,0x9c"
-			     : : "d" (pcpu_devices[cpu].address));
-	} else if (MACHINE_HAS_DIAG44 && !smp_cpu_mtid) {
-		diag_stat_inc_norecursion(DIAG_STAT_X044);
-		asm volatile("diag 0,0,0x44");
-	}
+	if (!MACHINE_HAS_DIAG9C)
+		return;
+	diag_stat_inc_norecursion(DIAG_STAT_X09C);
+	asm volatile("diag %0,0,0x9c"
+		     : : "d" (pcpu_devices[cpu].address));
 }
 
 /*
@@ -701,6 +703,11 @@ int smp_cpu_get_polarization(int cpu)
 	return pcpu_devices[cpu].polarization;
 }
 
+int smp_cpu_get_cpu_address(int cpu)
+{
+	return pcpu_devices[cpu].address;
+}
+
 static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 {
 	static int use_sigp_detection;
@@ -844,17 +851,20 @@ static void smp_init_secondary(void)
 
 	S390_lowcore.last_update_clock = get_tod_clock();
 	restore_access_regs(S390_lowcore.access_regs_save_area);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
+	set_cpu_flag(CIF_ASCE_SECONDARY);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
 	vtime_init();
 	pfault_init();
-	notify_cpu_starting(smp_processor_id());
+	notify_cpu_starting(cpu);
 	if (topology_cpu_dedicated(cpu))
 		set_cpu_flag(CIF_DEDICATED_CPU);
 	else
 		clear_cpu_flag(CIF_DEDICATED_CPU);
-	set_cpu_online(smp_processor_id(), true);
+	set_cpu_online(cpu, true);
+	update_cpu_masks();
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
@@ -871,7 +881,7 @@ static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
-	CALL_ON_STACK(smp_init_secondary, S390_lowcore.kernel_stack, 0);
+	CALL_ON_STACK_NORETURN(smp_init_secondary, S390_lowcore.kernel_stack);
 }
 
 /* Upping and downing of CPUs */
@@ -926,6 +936,7 @@ int __cpu_disable(void)
 	/* Handle possible pending IPIs */
 	smp_handle_ext_call();
 	set_cpu_online(smp_processor_id(), false);
+	update_cpu_masks();
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
 	/* Disable interrupt sources via control register. */

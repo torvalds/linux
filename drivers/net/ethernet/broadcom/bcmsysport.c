@@ -287,7 +287,6 @@ static void bcm_sysport_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, "0.1", sizeof(info->version));
 	strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
 }
 
@@ -624,8 +623,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 		return -EINVAL;
 
 	if ((ec->tx_coalesce_usecs == 0 && ec->tx_max_coalesced_frames == 0) ||
-	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0) ||
-	    ec->use_adaptive_tx_coalesce)
+	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0))
 		return -EINVAL;
 
 	for (i = 0; i < dev->num_tx_queues; i++)
@@ -666,7 +664,8 @@ static struct sk_buff *bcm_sysport_rx_refill(struct bcm_sysport_priv *priv,
 	dma_addr_t mapping;
 
 	/* Allocate a new SKB for a new packet */
-	skb = netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH);
+	skb = __netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH,
+				 GFP_ATOMIC | __GFP_NOWARN);
 	if (!skb) {
 		priv->mib.alloc_rx_buff_failed++;
 		netif_err(priv, rx_err, ndev, "SKB alloc failed\n");
@@ -1354,7 +1353,7 @@ out:
 	return ret;
 }
 
-static void bcm_sysport_tx_timeout(struct net_device *dev)
+static void bcm_sysport_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netdev_warn(dev, "transmit timeout!\n");
 
@@ -2135,7 +2134,7 @@ static int bcm_sysport_rule_set(struct bcm_sysport_priv *priv,
 		return -ENOSPC;
 
 	index = find_first_zero_bit(priv->filters, RXCHK_BRCM_TAG_MAX);
-	if (index > RXCHK_BRCM_TAG_MAX)
+	if (index >= RXCHK_BRCM_TAG_MAX)
 		return -ENOSPC;
 
 	/* Location is the classification ID, and index is the position
@@ -2210,6 +2209,9 @@ static int bcm_sysport_set_rxnfc(struct net_device *dev,
 }
 
 static const struct ethtool_ops bcm_sysport_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
 	.set_msglevel		= bcm_sysport_set_msglvl,
@@ -2323,7 +2325,7 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 		ring->switch_queue = qp;
 		ring->switch_port = port;
 		ring->inspect = true;
-		priv->ring_map[q + port * num_tx_queues] = ring;
+		priv->ring_map[qp + port * num_tx_queues] = ring;
 		qp++;
 	}
 
@@ -2338,7 +2340,7 @@ static int bcm_sysport_unmap_queues(struct notifier_block *nb,
 	struct net_device *slave_dev;
 	unsigned int num_tx_queues;
 	struct net_device *dev;
-	unsigned int q, port;
+	unsigned int q, qp, port;
 
 	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
 	if (priv->netdev != info->master)
@@ -2364,7 +2366,8 @@ static int bcm_sysport_unmap_queues(struct notifier_block *nb,
 			continue;
 
 		ring->inspect = false;
-		priv->ring_map[q + port * num_tx_queues] = NULL;
+		qp = ring->switch_queue;
+		priv->ring_map[qp + port * num_tx_queues] = NULL;
 	}
 
 	return 0;
@@ -2427,6 +2430,14 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
+	if (ret)
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "unable to set DMA mask: %d\n", ret);
+		return ret;
+	}
+
 	/* Fairly quickly we need to know the type of adapter we have */
 	params = of_id->data;
 
@@ -2465,7 +2476,6 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		priv->wol_irq = platform_get_irq(pdev, 1);
 	}
 	if (priv->irq0 <= 0 || (priv->irq1 <= 0 && !priv->is_lite)) {
-		dev_err(&pdev->dev, "invalid interrupts\n");
 		ret = -EINVAL;
 		goto err_free_netdev;
 	}
@@ -2479,9 +2489,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv->netdev = dev;
 	priv->pdev = pdev;
 
-	priv->phy_interface = of_get_phy_mode(dn);
+	ret = of_get_phy_mode(dn, &priv->phy_interface);
 	/* Default to GMII interface mode */
-	if ((int)priv->phy_interface < 0)
+	if (ret)
 		priv->phy_interface = PHY_INTERFACE_MODE_GMII;
 
 	/* In the case of a fixed PHY, the DT node associated
@@ -2726,6 +2736,9 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 		return 0;
 
 	umac_reset(priv);
+
+	/* Disable the UniMAC RX/TX */
+	umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, 0);
 
 	/* We may have been suspended and never received a WOL event that
 	 * would turn off MPD detection, take care of that now

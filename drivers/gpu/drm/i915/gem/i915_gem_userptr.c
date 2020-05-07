@@ -10,8 +10,6 @@
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
@@ -92,7 +90,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	struct i915_mmu_notifier *mn =
 		container_of(_mn, struct i915_mmu_notifier, mn);
 	struct interval_tree_node *it;
-	struct mutex *unlock = NULL;
 	unsigned long end;
 	int ret = 0;
 
@@ -129,33 +126,14 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		}
 		spin_unlock(&mn->lock);
 
-		if (!unlock) {
-			unlock = &mn->mm->i915->drm.struct_mutex;
-
-			switch (mutex_trylock_recursive(unlock)) {
-			default:
-			case MUTEX_TRYLOCK_FAILED:
-				if (mutex_lock_killable_nested(unlock, I915_MM_SHRINKER)) {
-					i915_gem_object_put(obj);
-					return -EINTR;
-				}
-				/* fall through */
-			case MUTEX_TRYLOCK_SUCCESS:
-				break;
-
-			case MUTEX_TRYLOCK_RECURSIVE:
-				unlock = ERR_PTR(-EEXIST);
-				break;
-			}
-		}
-
 		ret = i915_gem_object_unbind(obj,
-					     I915_GEM_OBJECT_UNBIND_ACTIVE);
+					     I915_GEM_OBJECT_UNBIND_ACTIVE |
+					     I915_GEM_OBJECT_UNBIND_BARRIER);
 		if (ret == 0)
-			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
+			ret = __i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 		if (ret)
-			goto unlock;
+			return ret;
 
 		spin_lock(&mn->lock);
 
@@ -167,10 +145,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		it = interval_tree_iter_first(&mn->objects, range->start, end);
 	}
 	spin_unlock(&mn->lock);
-
-unlock:
-	if (!IS_ERR_OR_NULL(unlock))
-		mutex_unlock(unlock);
 
 	return ret;
 
@@ -427,7 +401,7 @@ struct get_pages_work {
 
 static struct sg_table *
 __i915_gem_userptr_alloc_pages(struct drm_i915_gem_object *obj,
-			       struct page **pvec, int num_pages)
+			       struct page **pvec, unsigned long num_pages)
 {
 	unsigned int max_segment = i915_sg_segment_size();
 	struct sg_table *st;
@@ -473,9 +447,10 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
 	struct get_pages_work *work = container_of(_work, typeof(*work), work);
 	struct drm_i915_gem_object *obj = work->obj;
-	const int npages = obj->base.size >> PAGE_SHIFT;
+	const unsigned long npages = obj->base.size >> PAGE_SHIFT;
+	unsigned long pinned;
 	struct page **pvec;
-	int pinned, ret;
+	int ret;
 
 	ret = -ENOMEM;
 	pinned = 0;
@@ -484,31 +459,36 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
+		int locked = 0;
 
 		if (!i915_gem_object_is_readonly(obj))
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
 		if (mmget_not_zero(mm)) {
-			down_read(&mm->mmap_sem);
 			while (pinned < npages) {
+				if (!locked) {
+					down_read(&mm->mmap_sem);
+					locked = 1;
+				}
 				ret = get_user_pages_remote
 					(work->task, mm,
 					 obj->userptr.ptr + pinned * PAGE_SIZE,
 					 npages - pinned,
 					 flags,
-					 pvec + pinned, NULL, NULL);
+					 pvec + pinned, NULL, &locked);
 				if (ret < 0)
 					break;
 
 				pinned += ret;
 			}
-			up_read(&mm->mmap_sem);
+			if (locked)
+				up_read(&mm->mmap_sem);
 			mmput(mm);
 		}
 	}
 
-	mutex_lock(&obj->mm.lock);
+	mutex_lock_nested(&obj->mm.lock, I915_MM_GET_PAGES);
 	if (obj->userptr.work == &work->work) {
 		struct sg_table *pages = ERR_PTR(ret);
 
@@ -578,7 +558,7 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 
 static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
-	const int num_pages = obj->base.size >> PAGE_SHIFT;
+	const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
 	struct mm_struct *mm = obj->userptr.mm->mm;
 	struct page **pvec;
 	struct sg_table *pages;
@@ -722,7 +702,7 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE |
-		 I915_GEM_OBJECT_NO_GGTT |
+		 I915_GEM_OBJECT_NO_MMAP |
 		 I915_GEM_OBJECT_ASYNC_CANCEL,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
@@ -770,6 +750,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		       void *data,
 		       struct drm_file *file)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_userptr *args = data;
 	struct drm_i915_gem_object *obj;
@@ -787,6 +768,23 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			    I915_USERPTR_UNSYNCHRONIZED))
 		return -EINVAL;
 
+	/*
+	 * XXX: There is a prevalence of the assumption that we fit the
+	 * object's page count inside a 32bit _signed_ variable. Let's document
+	 * this and catch if we ever need to fix it. In the meantime, if you do
+	 * spot such a local variable, please consider fixing!
+	 *
+	 * Aside from our own locals (for which we have no excuse!):
+	 * - sg_table embeds unsigned int for num_pages
+	 * - get_user_pages*() mixed ints with longs
+	 */
+
+	if (args->user_size >> PAGE_SHIFT > INT_MAX)
+		return -E2BIG;
+
+	if (overflows_type(args->user_size, obj->base.size))
+		return -E2BIG;
+
 	if (!args->user_size)
 		return -EINVAL;
 
@@ -797,14 +795,11 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {
-		struct i915_address_space *vm;
-
 		/*
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		vm = dev_priv->kernel_context->vm;
-		if (!vm || !vm->has_read_only)
+		if (!dev_priv->gt.vm->has_read_only)
 			return -ENODEV;
 	}
 
@@ -813,7 +808,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -ENOMEM;
 
 	drm_gem_private_object_init(dev, &obj->base, args->user_size);
-	i915_gem_object_init(obj, &i915_gem_userptr_ops);
+	i915_gem_object_init(obj, &i915_gem_userptr_ops, &lock_class);
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);

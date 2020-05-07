@@ -80,7 +80,7 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 	struct net_device *netdev = to_net_dev(dev);
 	struct net *net = dev_net(netdev);
 	unsigned long new;
-	int ret = -EINVAL;
+	int ret;
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
@@ -919,13 +919,16 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 	struct kobject *kobj = &queue->kobj;
 	int error = 0;
 
+	/* Kobject_put later will trigger rx_queue_release call which
+	 * decreases dev refcount: Take that reference here
+	 */
+	dev_hold(queue->dev);
+
 	kobj->kset = dev->queues_kset;
 	error = kobject_init_and_add(kobj, &rx_queue_ktype, NULL,
 				     "rx-%u", index);
 	if (error)
 		goto err;
-
-	dev_hold(queue->dev);
 
 	if (dev->sysfs_rx_queue_group) {
 		error = sysfs_create_group(kobj, dev->sysfs_rx_queue_group);
@@ -939,6 +942,24 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 
 err:
 	kobject_put(kobj);
+	return error;
+}
+
+static int rx_queue_change_owner(struct net_device *dev, int index, kuid_t kuid,
+				 kgid_t kgid)
+{
+	struct netdev_rx_queue *queue = dev->_rx + index;
+	struct kobject *kobj = &queue->kobj;
+	int error;
+
+	error = sysfs_change_owner(kobj, kuid, kgid);
+	if (error)
+		return error;
+
+	if (dev->sysfs_rx_queue_group)
+		error = sysfs_group_change_owner(
+			kobj, dev->sysfs_rx_queue_group, kuid, kgid);
+
 	return error;
 }
 #endif /* CONFIG_SYSFS */
@@ -970,6 +991,29 @@ net_rx_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 		if (dev->sysfs_rx_queue_group)
 			sysfs_remove_group(kobj, dev->sysfs_rx_queue_group);
 		kobject_put(kobj);
+	}
+
+	return error;
+#else
+	return 0;
+#endif
+}
+
+static int net_rx_queue_change_owner(struct net_device *dev, int num,
+				     kuid_t kuid, kgid_t kgid)
+{
+#ifdef CONFIG_SYSFS
+	int error = 0;
+	int i;
+
+#ifndef CONFIG_RPS
+	if (!dev->sysfs_rx_queue_group)
+		return 0;
+#endif
+	for (i = 0; i < num; i++) {
+		error = rx_queue_change_owner(dev, i, kuid, kgid);
+		if (error)
+			break;
 	}
 
 	return error;
@@ -1459,13 +1503,16 @@ static int netdev_queue_add_kobject(struct net_device *dev, int index)
 	struct kobject *kobj = &queue->kobj;
 	int error = 0;
 
+	/* Kobject_put later will trigger netdev_queue_release call
+	 * which decreases dev refcount: Take that reference here
+	 */
+	dev_hold(queue->dev);
+
 	kobj->kset = dev->queues_kset;
 	error = kobject_init_and_add(kobj, &netdev_queue_ktype, NULL,
 				     "tx-%u", index);
 	if (error)
 		goto err;
-
-	dev_hold(queue->dev);
 
 #ifdef CONFIG_BQL
 	error = sysfs_create_group(kobj, &dql_group);
@@ -1478,6 +1525,23 @@ static int netdev_queue_add_kobject(struct net_device *dev, int index)
 
 err:
 	kobject_put(kobj);
+	return error;
+}
+
+static int tx_queue_change_owner(struct net_device *ndev, int index,
+				 kuid_t kuid, kgid_t kgid)
+{
+	struct netdev_queue *queue = ndev->_tx + index;
+	struct kobject *kobj = &queue->kobj;
+	int error;
+
+	error = sysfs_change_owner(kobj, kuid, kgid);
+	if (error)
+		return error;
+
+#ifdef CONFIG_BQL
+	error = sysfs_group_change_owner(kobj, &dql_group, kuid, kgid);
+#endif
 	return error;
 }
 #endif /* CONFIG_SYSFS */
@@ -1506,6 +1570,25 @@ netdev_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 		sysfs_remove_group(&queue->kobj, &dql_group);
 #endif
 		kobject_put(&queue->kobj);
+	}
+
+	return error;
+#else
+	return 0;
+#endif /* CONFIG_SYSFS */
+}
+
+static int net_tx_queue_change_owner(struct net_device *dev, int num,
+				     kuid_t kuid, kgid_t kgid)
+{
+#ifdef CONFIG_SYSFS
+	int error = 0;
+	int i;
+
+	for (i = 0; i < num; i++) {
+		error = tx_queue_change_owner(dev, i, kuid, kgid);
+		if (error)
+			break;
 	}
 
 	return error;
@@ -1546,6 +1629,31 @@ error:
 	kset_unregister(dev->queues_kset);
 #endif
 	return error;
+}
+
+static int queue_change_owner(struct net_device *ndev, kuid_t kuid, kgid_t kgid)
+{
+	int error = 0, real_rx = 0, real_tx = 0;
+
+#ifdef CONFIG_SYSFS
+	if (ndev->queues_kset) {
+		error = sysfs_change_owner(&ndev->queues_kset->kobj, kuid, kgid);
+		if (error)
+			return error;
+	}
+	real_rx = ndev->real_num_rx_queues;
+#endif
+	real_tx = ndev->real_num_tx_queues;
+
+	error = net_rx_queue_change_owner(ndev, real_rx, kuid, kgid);
+	if (error)
+		return error;
+
+	error = net_tx_queue_change_owner(ndev, real_tx, kuid, kgid);
+	if (error)
+		return error;
+
+	return 0;
 }
 
 static void remove_queue_kobjects(struct net_device *dev)
@@ -1759,6 +1867,37 @@ int netdev_register_kobject(struct net_device *ndev)
 	pm_runtime_set_memalloc_noio(dev, true);
 
 	return error;
+}
+
+/* Change owner for sysfs entries when moving network devices across network
+ * namespaces owned by different user namespaces.
+ */
+int netdev_change_owner(struct net_device *ndev, const struct net *net_old,
+			const struct net *net_new)
+{
+	struct device *dev = &ndev->dev;
+	kuid_t old_uid, new_uid;
+	kgid_t old_gid, new_gid;
+	int error;
+
+	net_ns_get_ownership(net_old, &old_uid, &old_gid);
+	net_ns_get_ownership(net_new, &new_uid, &new_gid);
+
+	/* The network namespace was changed but the owning user namespace is
+	 * identical so there's no need to change the owner of sysfs entries.
+	 */
+	if (uid_eq(old_uid, new_uid) && gid_eq(old_gid, new_gid))
+		return 0;
+
+	error = device_change_owner(dev, new_uid, new_gid);
+	if (error)
+		return error;
+
+	error = queue_change_owner(ndev, new_uid, new_gid);
+	if (error)
+		return error;
+
+	return 0;
 }
 
 int netdev_class_create_file_ns(const struct class_attribute *class_attr,

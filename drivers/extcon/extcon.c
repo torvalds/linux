@@ -1406,6 +1406,7 @@ const char *extcon_get_edev_name(struct extcon_dev *edev)
 {
 	return !edev ? NULL : edev->name;
 }
+EXPORT_SYMBOL_GPL(extcon_get_edev_name);
 
 static int __init extcon_class_init(void)
 {

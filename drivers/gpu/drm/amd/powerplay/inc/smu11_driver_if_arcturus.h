@@ -137,29 +137,29 @@
 #define FEATURE_DS_SOCCLK_MASK            (1 << FEATURE_DS_SOCCLK_BIT            )
 #define FEATURE_DS_LCLK_MASK              (1 << FEATURE_DS_LCLK_BIT              )
 #define FEATURE_DS_FCLK_MASK              (1 << FEATURE_DS_FCLK_BIT              )
-#define FEATURE_DS_LCLK_MASK              (1 << FEATURE_DS_LCLK_BIT              )
+#define FEATURE_DS_UCLK_MASK              (1 << FEATURE_DS_UCLK_BIT              )
 #define FEATURE_GFX_ULV_MASK              (1 << FEATURE_GFX_ULV_BIT              )
-#define FEATURE_VCN_PG_MASK               (1 << FEATURE_VCN_PG_BIT               )
+#define FEATURE_DPM_VCN_MASK              (1 << FEATURE_DPM_VCN_BIT              )
 #define FEATURE_RSMU_SMN_CG_MASK          (1 << FEATURE_RSMU_SMN_CG_BIT          )
 #define FEATURE_WAFL_CG_MASK              (1 << FEATURE_WAFL_CG_BIT              )
 
 #define FEATURE_PPT_MASK                  (1 << FEATURE_PPT_BIT                  )
 #define FEATURE_TDC_MASK                  (1 << FEATURE_TDC_BIT                  )
-#define FEATURE_APCC_MASK                 (1 << FEATURE_APCC_BIT                 )
+#define FEATURE_APCC_PLUS_MASK            (1 << FEATURE_APCC_PLUS_BIT            )
 #define FEATURE_VR0HOT_MASK               (1 << FEATURE_VR0HOT_BIT               )
 #define FEATURE_VR1HOT_MASK               (1 << FEATURE_VR1HOT_BIT               )
 #define FEATURE_FW_CTF_MASK               (1 << FEATURE_FW_CTF_BIT               )
 #define FEATURE_FAN_CONTROL_MASK          (1 << FEATURE_FAN_CONTROL_BIT          )
 #define FEATURE_THERMAL_MASK              (1 << FEATURE_THERMAL_BIT              )
 
-#define FEATURE_OUT_OF_BAND_MONITOR_MASK  (1 << EATURE_OUT_OF_BAND_MONITOR_BIT   )
-#define FEATURE_TEMP_DEPENDENT_VMIN_MASK  (1 << FEATURE_TEMP_DEPENDENT_VMIN_MASK )
+#define FEATURE_OUT_OF_BAND_MONITOR_MASK  (1 << FEATURE_OUT_OF_BAND_MONITOR_BIT   )
+#define FEATURE_TEMP_DEPENDENT_VMIN_MASK  (1 << FEATURE_TEMP_DEPENDENT_VMIN_BIT )
 
 
 //FIXME need updating
 // Debug Overrides Bitmask
 #define DPM_OVERRIDE_DISABLE_UCLK_PID               0x00000001
-#define DPM_OVERRIDE_ENABLE_VOLT_LINK_VCN_FCLK      0x00000002
+#define DPM_OVERRIDE_DISABLE_VOLT_LINK_VCN_FCLK     0x00000002
 
 // I2C Config Bit Defines
 #define I2C_CONTROLLER_ENABLED           1
@@ -423,18 +423,30 @@ typedef enum {
 } PwrConfig_e;
 
 typedef enum {
-  XGMI_LINK_RATE_12 = 0,  // 12Gbps
-  XGMI_LINK_RATE_16,      // 16Gbps
-  XGMI_LINK_RATE_22,      // 22Gbps
-  XGMI_LINK_RATE_25,      // 25Gbps
+  XGMI_LINK_RATE_2 = 2,    // 2Gbps
+  XGMI_LINK_RATE_4 = 4,    // 4Gbps
+  XGMI_LINK_RATE_8 = 8,    // 8Gbps
+  XGMI_LINK_RATE_12 = 12,  // 12Gbps
+  XGMI_LINK_RATE_16 = 16,  // 16Gbps
+  XGMI_LINK_RATE_17 = 17,  // 17Gbps
+  XGMI_LINK_RATE_18 = 18,  // 18Gbps
+  XGMI_LINK_RATE_19 = 19,  // 19Gbps
+  XGMI_LINK_RATE_20 = 20,  // 20Gbps
+  XGMI_LINK_RATE_21 = 21,  // 21Gbps
+  XGMI_LINK_RATE_22 = 22,  // 22Gbps
+  XGMI_LINK_RATE_23 = 23,  // 23Gbps
+  XGMI_LINK_RATE_24 = 24,  // 24Gbps
+  XGMI_LINK_RATE_25 = 25,  // 25Gbps
   XGMI_LINK_RATE_COUNT
 } XGMI_LINK_RATE_e;
 
 typedef enum {
-  XGMI_LINK_WIDTH_2 = 0, // x2
-  XGMI_LINK_WIDTH_4,     // x4
-  XGMI_LINK_WIDTH_8,     // x8
-  XGMI_LINK_WIDTH_16,    // x16
+  XGMI_LINK_WIDTH_1 = 1,   // x1
+  XGMI_LINK_WIDTH_2 = 2,   // x2
+  XGMI_LINK_WIDTH_4 = 4,   // x4
+  XGMI_LINK_WIDTH_8 = 8,   // x8
+  XGMI_LINK_WIDTH_9 = 9,   // x9
+  XGMI_LINK_WIDTH_16 = 16, // x16
   XGMI_LINK_WIDTH_COUNT
 } XGMI_LINK_WIDTH_e;
 
@@ -610,8 +622,14 @@ typedef struct {
   uint16_t     PccThresholdHigh;
   uint32_t     PaddingAPCC[6];  //FIXME pending SPEC
 
+  // OOB Settings
+  uint16_t BasePerformanceCardPower;
+  uint16_t MaxPerformanceCardPower;
+  uint16_t BasePerformanceFrequencyCap;   //In Mhz
+  uint16_t MaxPerformanceFrequencyCap;    //In Mhz
+
   // SECTION: Reserved
-  uint32_t     Reserved[11];
+  uint32_t     Reserved[9];
 
   // SECTION: BOARD PARAMETERS
 
@@ -696,7 +714,11 @@ typedef struct {
   uint8_t      GpioI2cSda;          // Serial Data
   uint16_t     GpioPadding;
 
-  uint32_t     BoardReserved[9];
+  // Platform input telemetry voltage coefficient
+  uint32_t     BoardVoltageCoeffA;    // decode by /1000
+  uint32_t     BoardVoltageCoeffB;    // decode by /1000
+
+  uint32_t     BoardReserved[7];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -802,12 +824,11 @@ typedef struct {
 
   uint32_t P2VCharzFreq[AVFS_VOLTAGE_COUNT]; // in 10KHz units
 
-  uint32_t EnabledAvfsModules[2];
+  uint32_t EnabledAvfsModules[3];
 
   uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsFuseOverride_t;
 
-/* NOT CURRENTLY USED
 typedef struct {
   uint8_t   Gfx_ActiveHystLimit;
   uint8_t   Gfx_IdleHystLimit;
@@ -850,7 +871,6 @@ typedef struct {
 
   uint32_t  MmHubPadding[8]; // SMU internal use
 } DpmActivityMonitorCoeffInt_t;
-*/
 
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu
@@ -862,10 +882,11 @@ typedef struct {
 #define TABLE_PMSTATUSLOG             4
 #define TABLE_SMU_METRICS             5
 #define TABLE_DRIVER_SMU_CONFIG       6
-//#define TABLE_ACTIVITY_MONITOR_COEFF  7
 #define TABLE_OVERDRIVE               7
 #define TABLE_WAFL_XGMI_TOPOLOGY      8
-#define TABLE_COUNT                   9
+#define TABLE_I2C_COMMANDS            9
+#define TABLE_ACTIVITY_MONITOR_COEFF  10
+#define TABLE_COUNT                   11
 
 // These defines are used with the SMC_MSG_SetUclkFastSwitch message.
 typedef enum {

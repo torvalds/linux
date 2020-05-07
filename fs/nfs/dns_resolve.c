@@ -93,7 +93,7 @@ static void nfs_dns_ent_init(struct cache_head *cnew,
 	key = container_of(ckey, struct nfs_dns_ent, h);
 
 	kfree(new->hostname);
-	new->hostname = kstrndup(key->hostname, key->namelen, GFP_KERNEL);
+	new->hostname = kmemdup_nul(key->hostname, key->namelen, GFP_KERNEL);
 	if (new->hostname) {
 		new->namelen = key->namelen;
 		nfs_dns_ent_update(cnew, ckey);
@@ -152,12 +152,13 @@ static int nfs_dns_upcall(struct cache_detail *cd,
 		struct cache_head *ch)
 {
 	struct nfs_dns_ent *key = container_of(ch, struct nfs_dns_ent, h);
-	int ret;
 
-	ret = nfs_cache_upcall(cd, key->hostname);
-	if (ret)
-		ret = sunrpc_cache_pipe_upcall(cd, ch);
-	return ret;
+	if (test_and_set_bit(CACHE_PENDING, &ch->flags))
+		return 0;
+	if (!nfs_cache_upcall(cd, key->hostname))
+		return 0;
+	clear_bit(CACHE_PENDING, &ch->flags);
+	return sunrpc_cache_pipe_upcall_timeout(cd, ch);
 }
 
 static int nfs_dns_match(struct cache_head *ca,

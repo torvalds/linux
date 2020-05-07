@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 
-#define PGS_IN_2MB_PAGE	(PAGE_SIZE_2MB >> PAGE_SHIFT)
 #define HL_MMU_DEBUG	0
 
 /*
@@ -159,20 +158,19 @@ pages_pack_err:
 }
 
 /*
- * get_userptr_from_host_va - initialize userptr structure from given host
- *                            virtual address
- *
- * @hdev                : habanalabs device structure
- * @args                : parameters containing the virtual address and size
- * @p_userptr           : pointer to result userptr structure
+ * dma_map_host_va - DMA mapping of the given host virtual address.
+ * @hdev: habanalabs device structure
+ * @addr: the host virtual address of the memory area
+ * @size: the size of the memory area
+ * @p_userptr: pointer to result userptr structure
  *
  * This function does the following:
  * - Allocate userptr structure
  * - Pin the given host memory using the userptr structure
  * - Perform DMA mapping to have the DMA addresses of the pages
  */
-static int get_userptr_from_host_va(struct hl_device *hdev,
-		struct hl_mem_in *args, struct hl_userptr **p_userptr)
+static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
+				struct hl_userptr **p_userptr)
 {
 	struct hl_userptr *userptr;
 	int rc;
@@ -183,8 +181,7 @@ static int get_userptr_from_host_va(struct hl_device *hdev,
 		goto userptr_err;
 	}
 
-	rc = hl_pin_host_memory(hdev, args->map_host.host_virt_addr,
-			args->map_host.mem_size, userptr);
+	rc = hl_pin_host_memory(hdev, addr, size, userptr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to pin host memory\n");
 		goto pin_err;
@@ -215,16 +212,16 @@ userptr_err:
 }
 
 /*
- * free_userptr - free userptr structure
- *
- * @hdev                : habanalabs device structure
- * @userptr             : userptr to free
+ * dma_unmap_host_va - DMA unmapping of the given host virtual address.
+ * @hdev: habanalabs device structure
+ * @userptr: userptr to free
  *
  * This function does the following:
  * - Unpins the physical pages
  * - Frees the userptr structure
  */
-static void free_userptr(struct hl_device *hdev, struct hl_userptr *userptr)
+static void dma_unmap_host_va(struct hl_device *hdev,
+				struct hl_userptr *userptr)
 {
 	hl_unpin_host_memory(hdev, userptr);
 	kfree(userptr);
@@ -253,10 +250,9 @@ static void dram_pg_pool_do_release(struct kref *ref)
 }
 
 /*
- * free_phys_pg_pack   - free physical page pack
- *
- * @hdev               : habanalabs device structure
- * @phys_pg_pack       : physical page pack to free
+ * free_phys_pg_pack - free physical page pack
+ * @hdev: habanalabs device structure
+ * @phys_pg_pack: physical page pack to free
  *
  * This function does the following:
  * - For DRAM memory only, iterate over the pack and free each physical block
@@ -264,7 +260,7 @@ static void dram_pg_pool_do_release(struct kref *ref)
  * - Free the hl_vm_phys_pg_pack structure
  */
 static void free_phys_pg_pack(struct hl_device *hdev,
-		struct hl_vm_phys_pg_pack *phys_pg_pack)
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
 	u64 i;
@@ -519,8 +515,8 @@ static inline int add_va_block(struct hl_device *hdev,
  * - Return the start address of the virtual block
  */
 static u64 get_va_block(struct hl_device *hdev,
-		struct hl_va_range *va_range, u64 size, u64 hint_addr,
-		bool is_userptr)
+			struct hl_va_range *va_range, u64 size, u64 hint_addr,
+			bool is_userptr)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
 	u64 valid_start, valid_size, prev_start, prev_end, page_mask,
@@ -528,18 +524,17 @@ static u64 get_va_block(struct hl_device *hdev,
 	u32 page_size;
 	bool add_prev = false;
 
-	if (is_userptr) {
+	if (is_userptr)
 		/*
 		 * We cannot know if the user allocated memory with huge pages
 		 * or not, hence we continue with the biggest possible
 		 * granularity.
 		 */
-		page_size = PAGE_SIZE_2MB;
-		page_mask = PAGE_MASK_2MB;
-	} else {
-		page_size = hdev->asic_prop.dram_page_size;
-		page_mask = ~((u64)page_size - 1);
-	}
+		page_size = hdev->asic_prop.pmmu_huge.page_size;
+	else
+		page_size = hdev->asic_prop.dmmu.page_size;
+
+	page_mask = ~((u64)page_size - 1);
 
 	mutex_lock(&va_range->lock);
 
@@ -548,7 +543,6 @@ static u64 get_va_block(struct hl_device *hdev,
 	list_for_each_entry(va_block, &va_range->list, node) {
 		/* calc the first possible aligned addr */
 		valid_start = va_block->start;
-
 
 		if (valid_start & (page_size - 1)) {
 			valid_start &= page_mask;
@@ -561,7 +555,6 @@ static u64 get_va_block(struct hl_device *hdev,
 
 		if (valid_size >= size &&
 			(!new_va_block || valid_size < res_valid_size)) {
-
 			new_va_block = va_block;
 			res_valid_start = valid_start;
 			res_valid_size = valid_size;
@@ -631,11 +624,10 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
 
 /*
  * init_phys_pg_pack_from_userptr - initialize physical page pack from host
- *                                   memory
- *
- * @ctx                : current context
- * @userptr            : userptr to initialize from
- * @pphys_pg_pack      : res pointer
+ *                                  memory
+ * @ctx: current context
+ * @userptr: userptr to initialize from
+ * @pphys_pg_pack: result pointer
  *
  * This function does the following:
  * - Pin the physical pages related to the given virtual block
@@ -643,16 +635,18 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
  *   virtual block
  */
 static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
-		struct hl_userptr *userptr,
-		struct hl_vm_phys_pg_pack **pphys_pg_pack)
+				struct hl_userptr *userptr,
+				struct hl_vm_phys_pg_pack **pphys_pg_pack)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct scatterlist *sg;
 	dma_addr_t dma_addr;
 	u64 page_mask, total_npages;
-	u32 npages, page_size = PAGE_SIZE;
+	u32 npages, page_size = PAGE_SIZE,
+		huge_page_size = ctx->hdev->asic_prop.pmmu_huge.page_size;
 	bool first = true, is_huge_page_opt = true;
 	int rc, i, j;
+	u32 pgs_in_huge_page = huge_page_size >> __ffs(page_size);
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
 	if (!phys_pg_pack)
@@ -675,14 +669,14 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 		total_npages += npages;
 
-		if ((npages % PGS_IN_2MB_PAGE) ||
-					(dma_addr & (PAGE_SIZE_2MB - 1)))
+		if ((npages % pgs_in_huge_page) ||
+					(dma_addr & (huge_page_size - 1)))
 			is_huge_page_opt = false;
 	}
 
 	if (is_huge_page_opt) {
-		page_size = PAGE_SIZE_2MB;
-		total_npages /= PGS_IN_2MB_PAGE;
+		page_size = huge_page_size;
+		do_div(total_npages, pgs_in_huge_page);
 	}
 
 	page_mask = ~(((u64) page_size) - 1);
@@ -714,7 +708,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 			dma_addr += page_size;
 
 			if (is_huge_page_opt)
-				npages -= PGS_IN_2MB_PAGE;
+				npages -= pgs_in_huge_page;
 			else
 				npages--;
 		}
@@ -731,19 +725,18 @@ page_pack_arr_mem_err:
 }
 
 /*
- * map_phys_page_pack - maps the physical page pack
- *
- * @ctx                : current context
- * @vaddr              : start address of the virtual area to map from
- * @phys_pg_pack       : the pack of physical pages to map to
+ * map_phys_pg_pack - maps the physical page pack.
+ * @ctx: current context
+ * @vaddr: start address of the virtual area to map from
+ * @phys_pg_pack: the pack of physical pages to map to
  *
  * This function does the following:
  * - Maps each chunk of virtual memory to matching physical chunk
  * - Stores number of successful mappings in the given argument
- * - Returns 0 on success, error code otherwise.
+ * - Returns 0 on success, error code otherwise
  */
-static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
-		struct hl_vm_phys_pg_pack *phys_pg_pack)
+static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_device *hdev = ctx->hdev;
 	u64 next_vaddr = vaddr, paddr, mapped_pg_cnt = 0, i;
@@ -753,7 +746,8 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
 
-		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size);
+		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size,
+				(i + 1) == phys_pg_pack->npages);
 		if (rc) {
 			dev_err(hdev->dev,
 				"map failed for handle %u, npages: %llu, mapped: %llu",
@@ -771,7 +765,8 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 err:
 	next_vaddr = vaddr;
 	for (i = 0 ; i < mapped_pg_cnt ; i++) {
-		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
+		if (hl_mmu_unmap(ctx, next_vaddr, page_size,
+					(i + 1) == mapped_pg_cnt))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap handle %u, va: 0x%llx, pa: 0x%llx, page size: %u\n",
 					phys_pg_pack->handle, next_vaddr,
@@ -781,6 +776,37 @@ err:
 	}
 
 	return rc;
+}
+
+/*
+ * unmap_phys_pg_pack - unmaps the physical page pack
+ * @ctx: current context
+ * @vaddr: start address of the virtual area to unmap
+ * @phys_pg_pack: the pack of physical pages to unmap
+ */
+static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
+{
+	struct hl_device *hdev = ctx->hdev;
+	u64 next_vaddr, i;
+	u32 page_size;
+
+	page_size = phys_pg_pack->page_size;
+	next_vaddr = vaddr;
+
+	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
+		if (hl_mmu_unmap(ctx, next_vaddr, page_size,
+				       (i + 1) == phys_pg_pack->npages))
+			dev_warn_ratelimited(hdev->dev,
+			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+
+		/*
+		 * unmapping on Palladium can be really long, so avoid a CPU
+		 * soft lockup bug by sleeping a little between unmapping pages
+		 */
+		if (hdev->pldm)
+			usleep_range(500, 1000);
+	}
 }
 
 static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
@@ -829,6 +855,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_userptr *userptr = NULL;
 	struct hl_vm_hash_node *hnode;
+	struct hl_va_range *va_range;
 	enum vm_type_t *vm_type;
 	u64 ret_vaddr, hint_addr;
 	u32 handle = 0;
@@ -839,7 +866,10 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	*device_addr = 0;
 
 	if (is_userptr) {
-		rc = get_userptr_from_host_va(hdev, args, &userptr);
+		u64 addr = args->map_host.host_virt_addr,
+			size = args->map_host.mem_size;
+
+		rc = dma_map_host_va(hdev, addr, size, &userptr);
 		if (rc) {
 			dev_err(hdev->dev, "failed to get userptr from va\n");
 			return rc;
@@ -850,7 +880,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
-				args->map_host.host_virt_addr);
+				addr);
 			goto init_page_pack_err;
 		}
 
@@ -897,9 +927,16 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto hnode_err;
 	}
 
-	ret_vaddr = get_va_block(hdev,
-			is_userptr ? &ctx->host_va_range : &ctx->dram_va_range,
-			phys_pg_pack->total_size, hint_addr, is_userptr);
+	if (is_userptr)
+		if (phys_pg_pack->page_size == hdev->asic_prop.pmmu.page_size)
+			va_range = ctx->host_va_range;
+		else
+			va_range = ctx->host_huge_va_range;
+	else
+		va_range = ctx->dram_va_range;
+
+	ret_vaddr = get_va_block(hdev, va_range, phys_pg_pack->total_size,
+					hint_addr, is_userptr);
 	if (!ret_vaddr) {
 		dev_err(hdev->dev, "no available va block for handle %u\n",
 				handle);
@@ -909,7 +946,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	mutex_lock(&ctx->mmu_lock);
 
-	rc = map_phys_page_pack(ctx, ret_vaddr, phys_pg_pack);
+	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
 		mutex_unlock(&ctx->mmu_lock);
 		dev_err(hdev->dev, "mapping page pack failed for handle %u\n",
@@ -917,7 +954,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, *vm_type);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -938,10 +975,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	return 0;
 
 map_err:
-	if (add_va_block(hdev,
-			is_userptr ? &ctx->host_va_range : &ctx->dram_va_range,
-			ret_vaddr,
-			ret_vaddr + phys_pg_pack->total_size - 1))
+	if (add_va_block(hdev, va_range, ret_vaddr,
+				ret_vaddr + phys_pg_pack->total_size - 1))
 		dev_warn(hdev->dev,
 			"release va block failed for handle 0x%x, vaddr: 0x%llx\n",
 				handle, ret_vaddr);
@@ -955,7 +990,7 @@ shared_err:
 		free_phys_pg_pack(hdev, phys_pg_pack);
 init_page_pack_err:
 	if (is_userptr)
-		free_userptr(hdev, userptr);
+		dma_unmap_host_va(hdev, userptr);
 
 	return rc;
 }
@@ -965,20 +1000,20 @@ init_page_pack_err:
  *
  * @ctx                 : current context
  * @vaddr               : device virtual address to unmap
+ * @ctx_free            : true if in context free flow, false otherwise.
  *
  * This function does the following:
  * - Unmap the physical pages related to the given virtual address
  * - return the device virtual block to the virtual block list
  */
-static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
+static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	struct hl_vm_hash_node *hnode = NULL;
 	struct hl_userptr *userptr = NULL;
+	struct hl_va_range *va_range;
 	enum vm_type_t *vm_type;
-	u64 next_vaddr, i;
-	u32 page_size;
 	bool is_userptr;
 	int rc;
 
@@ -1005,15 +1040,22 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 		is_userptr = true;
 		userptr = hnode->ptr;
 		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
-				&phys_pg_pack);
+							&phys_pg_pack);
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
 				vaddr);
 			goto vm_type_err;
 		}
+
+		if (phys_pg_pack->page_size ==
+					hdev->asic_prop.pmmu.page_size)
+			va_range = ctx->host_va_range;
+		else
+			va_range = ctx->host_huge_va_range;
 	} else if (*vm_type == VM_TYPE_PHYS_PACK) {
 		is_userptr = false;
+		va_range = ctx->dram_va_range;
 		phys_pg_pack = hnode->ptr;
 	} else {
 		dev_warn(hdev->dev,
@@ -1029,42 +1071,41 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 		goto mapping_cnt_err;
 	}
 
-	page_size = phys_pg_pack->page_size;
-	vaddr &= ~(((u64) page_size) - 1);
-
-	next_vaddr = vaddr;
+	vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
 
 	mutex_lock(&ctx->mmu_lock);
 
-	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
-		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
-			dev_warn_ratelimited(hdev->dev,
-			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+	unmap_phys_pg_pack(ctx, vaddr, phys_pg_pack);
 
-		/* unmapping on Palladium can be really long, so avoid a CPU
-		 * soft lockup bug by sleeping a little between unmapping pages
-		 */
-		if (hdev->pldm)
-			usleep_range(500, 1000);
-	}
-
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
+	/*
+	 * During context free this function is called in a loop to clean all
+	 * the context mappings. Hence the cache invalidation can be called once
+	 * at the loop end rather than for each iteration
+	 */
+	if (!ctx_free)
+		hdev->asic_funcs->mmu_invalidate_cache(hdev, true, *vm_type);
 
 	mutex_unlock(&ctx->mmu_lock);
 
-	if (add_va_block(hdev,
-			is_userptr ? &ctx->host_va_range : &ctx->dram_va_range,
-			vaddr,
-			vaddr + phys_pg_pack->total_size - 1))
-		dev_warn(hdev->dev, "add va block failed for vaddr: 0x%llx\n",
-				vaddr);
+	/*
+	 * No point in maintaining the free VA block list if the context is
+	 * closing as the list will be freed anyway
+	 */
+	if (!ctx_free) {
+		rc = add_va_block(hdev, va_range, vaddr,
+					vaddr + phys_pg_pack->total_size - 1);
+		if (rc)
+			dev_warn(hdev->dev,
+					"add va block failed for vaddr: 0x%llx\n",
+					vaddr);
+	}
 
 	atomic_dec(&phys_pg_pack->mapping_cnt);
 	kfree(hnode);
 
 	if (is_userptr) {
 		free_phys_pg_pack(hdev, phys_pg_pack);
-		free_userptr(hdev, userptr);
+		dma_unmap_host_va(hdev, userptr);
 	}
 
 	return 0;
@@ -1189,8 +1230,8 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	case HL_MEM_OP_UNMAP:
-		rc = unmap_device_va(ctx,
-				args->in.unmap.device_virt_addr);
+		rc = unmap_device_va(ctx, args->in.unmap.device_virt_addr,
+					false);
 		break;
 
 	default:
@@ -1203,56 +1244,16 @@ out:
 	return rc;
 }
 
-/*
- * hl_pin_host_memory - pins a chunk of host memory
- *
- * @hdev                : pointer to the habanalabs device structure
- * @addr                : the user-space virtual address of the memory area
- * @size                : the size of the memory area
- * @userptr	        : pointer to hl_userptr structure
- *
- * This function does the following:
- * - Pins the physical pages
- * - Create a SG list from those pages
- */
-int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
-			struct hl_userptr *userptr)
+static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
+				u32 npages, u64 start, u32 offset,
+				struct hl_userptr *userptr)
 {
-	u64 start, end;
-	u32 npages, offset;
 	int rc;
-
-	if (!size) {
-		dev_err(hdev->dev, "size to pin is invalid - %llu\n", size);
-		return -EINVAL;
-	}
 
 	if (!access_ok((void __user *) (uintptr_t) addr, size)) {
 		dev_err(hdev->dev, "user pointer is invalid - 0x%llx\n", addr);
 		return -EFAULT;
 	}
-
-	/*
-	 * If the combination of the address and size requested for this memory
-	 * region causes an integer overflow, return error.
-	 */
-	if (((addr + size) < addr) ||
-			PAGE_ALIGN(addr + size) < (addr + size)) {
-		dev_err(hdev->dev,
-			"user pointer 0x%llx + %llu causes integer overflow\n",
-			addr, size);
-		return -EINVAL;
-	}
-
-	start = addr & PAGE_MASK;
-	offset = addr & ~PAGE_MASK;
-	end = PAGE_ALIGN(addr + size);
-	npages = (end - start) >> PAGE_SHIFT;
-
-	userptr->size = size;
-	userptr->addr = addr;
-	userptr->dma_mapped = false;
-	INIT_LIST_HEAD(&userptr->job_node);
 
 	userptr->vec = frame_vector_create(npages);
 	if (!userptr->vec) {
@@ -1279,17 +1280,82 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		goto put_framevec;
 	}
 
-	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
-	if (!userptr->sgt) {
-		rc = -ENOMEM;
-		goto put_framevec;
-	}
-
 	rc = sg_alloc_table_from_pages(userptr->sgt,
 					frame_vector_pages(userptr->vec),
 					npages, offset, size, GFP_ATOMIC);
 	if (rc < 0) {
 		dev_err(hdev->dev, "failed to create SG table from pages\n");
+		goto put_framevec;
+	}
+
+	return 0;
+
+put_framevec:
+	put_vaddr_frames(userptr->vec);
+destroy_framevec:
+	frame_vector_destroy(userptr->vec);
+	return rc;
+}
+
+/*
+ * hl_pin_host_memory - pins a chunk of host memory.
+ * @hdev: pointer to the habanalabs device structure
+ * @addr: the host virtual address of the memory area
+ * @size: the size of the memory area
+ * @userptr: pointer to hl_userptr structure
+ *
+ * This function does the following:
+ * - Pins the physical pages
+ * - Create an SG list from those pages
+ */
+int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
+					struct hl_userptr *userptr)
+{
+	u64 start, end;
+	u32 npages, offset;
+	int rc;
+
+	if (!size) {
+		dev_err(hdev->dev, "size to pin is invalid - %llu\n", size);
+		return -EINVAL;
+	}
+
+	/*
+	 * If the combination of the address and size requested for this memory
+	 * region causes an integer overflow, return error.
+	 */
+	if (((addr + size) < addr) ||
+			PAGE_ALIGN(addr + size) < (addr + size)) {
+		dev_err(hdev->dev,
+			"user pointer 0x%llx + %llu causes integer overflow\n",
+			addr, size);
+		return -EINVAL;
+	}
+
+	/*
+	 * This function can be called also from data path, hence use atomic
+	 * always as it is not a big allocation.
+	 */
+	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
+	if (!userptr->sgt)
+		return -ENOMEM;
+
+	start = addr & PAGE_MASK;
+	offset = addr & ~PAGE_MASK;
+	end = PAGE_ALIGN(addr + size);
+	npages = (end - start) >> PAGE_SHIFT;
+
+	userptr->size = size;
+	userptr->addr = addr;
+	userptr->dma_mapped = false;
+	INIT_LIST_HEAD(&userptr->job_node);
+
+	rc = get_user_memory(hdev, addr, size, npages, start, offset,
+				userptr);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to get user memory for address 0x%llx\n",
+			addr);
 		goto free_sgt;
 	}
 
@@ -1299,34 +1365,28 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 free_sgt:
 	kfree(userptr->sgt);
-put_framevec:
-	put_vaddr_frames(userptr->vec);
-destroy_framevec:
-	frame_vector_destroy(userptr->vec);
 	return rc;
 }
 
 /*
- * hl_unpin_host_memory - unpins a chunk of host memory
- *
- * @hdev                : pointer to the habanalabs device structure
- * @userptr             : pointer to hl_userptr structure
+ * hl_unpin_host_memory - unpins a chunk of host memory.
+ * @hdev: pointer to the habanalabs device structure
+ * @userptr: pointer to hl_userptr structure
  *
  * This function does the following:
  * - Unpins the physical pages related to the host memory
  * - Free the SG list
  */
-int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
+void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 {
 	struct page **pages;
 
 	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
-		hdev->asic_funcs->hl_dma_unmap_sg(hdev,
-				userptr->sgt->sgl,
-				userptr->sgt->nents,
-				userptr->dir);
+		hdev->asic_funcs->hl_dma_unmap_sg(hdev, userptr->sgt->sgl,
+							userptr->sgt->nents,
+							userptr->dir);
 
 	pages = frame_vector_pages(userptr->vec);
 	if (!IS_ERR(pages)) {
@@ -1342,8 +1402,6 @@ int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 
 	sg_free_table(userptr->sgt);
 	kfree(userptr->sgt);
-
-	return 0;
 }
 
 /*
@@ -1393,19 +1451,18 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 }
 
 /*
- * hl_va_range_init - initialize virtual addresses range
- *
- * @hdev                : pointer to the habanalabs device structure
- * @va_range            : pointer to the range to initialize
- * @start               : range start address
- * @end                 : range end address
+ * va_range_init - initialize virtual addresses range
+ * @hdev: pointer to the habanalabs device structure
+ * @va_range: pointer to the range to initialize
+ * @start: range start address
+ * @end: range end address
  *
  * This function does the following:
  * - Initializes the virtual addresses list of the given range with the given
  *   addresses.
  */
-static int hl_va_range_init(struct hl_device *hdev,
-		struct hl_va_range *va_range, u64 start, u64 end)
+static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
+				u64 start, u64 end)
 {
 	int rc;
 
@@ -1440,47 +1497,105 @@ static int hl_va_range_init(struct hl_device *hdev,
 }
 
 /*
- * hl_vm_ctx_init_with_ranges - initialize virtual memory for context
+ * va_range_fini() - clear a virtual addresses range
+ * @hdev: pointer to the habanalabs structure
+ * va_range: pointer to virtual addresses range
  *
- * @ctx                 : pointer to the habanalabs context structure
- * @host_range_start    : host virtual addresses range start
- * @host_range_end      : host virtual addresses range end
- * @dram_range_start    : dram virtual addresses range start
- * @dram_range_end      : dram virtual addresses range end
+ * This function does the following:
+ * - Frees the virtual addresses block list and its lock
+ */
+static void va_range_fini(struct hl_device *hdev,
+		struct hl_va_range *va_range)
+{
+	mutex_lock(&va_range->lock);
+	clear_va_list_locked(hdev, &va_range->list);
+	mutex_unlock(&va_range->lock);
+
+	mutex_destroy(&va_range->lock);
+	kfree(va_range);
+}
+
+/*
+ * vm_ctx_init_with_ranges() - initialize virtual memory for context
+ * @ctx: pointer to the habanalabs context structure
+ * @host_range_start: host virtual addresses range start.
+ * @host_range_end: host virtual addresses range end.
+ * @host_huge_range_start: host virtual addresses range start for memory
+ *                          allocated with huge pages.
+ * @host_huge_range_end: host virtual addresses range end for memory allocated
+ *                        with huge pages.
+ * @dram_range_start: dram virtual addresses range start.
+ * @dram_range_end: dram virtual addresses range end.
  *
  * This function initializes the following:
  * - MMU for context
  * - Virtual address to area descriptor hashtable
  * - Virtual block list of available virtual memory
  */
-static int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
-				u64 host_range_end, u64 dram_range_start,
-				u64 dram_range_end)
+static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
+					u64 host_range_start,
+					u64 host_range_end,
+					u64 host_huge_range_start,
+					u64 host_huge_range_end,
+					u64 dram_range_start,
+					u64 dram_range_end)
 {
 	struct hl_device *hdev = ctx->hdev;
 	int rc;
 
+	ctx->host_va_range = kzalloc(sizeof(*ctx->host_va_range), GFP_KERNEL);
+	if (!ctx->host_va_range)
+		return -ENOMEM;
+
+	ctx->host_huge_va_range = kzalloc(sizeof(*ctx->host_huge_va_range),
+						GFP_KERNEL);
+	if (!ctx->host_huge_va_range) {
+		rc =  -ENOMEM;
+		goto host_huge_va_range_err;
+	}
+
+	ctx->dram_va_range = kzalloc(sizeof(*ctx->dram_va_range), GFP_KERNEL);
+	if (!ctx->dram_va_range) {
+		rc = -ENOMEM;
+		goto dram_va_range_err;
+	}
+
 	rc = hl_mmu_ctx_init(ctx);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init context %d\n", ctx->asid);
-		return rc;
+		goto mmu_ctx_err;
 	}
 
 	mutex_init(&ctx->mem_hash_lock);
 	hash_init(ctx->mem_hash);
 
-	mutex_init(&ctx->host_va_range.lock);
+	mutex_init(&ctx->host_va_range->lock);
 
-	rc = hl_va_range_init(hdev, &ctx->host_va_range, host_range_start,
-			host_range_end);
+	rc = va_range_init(hdev, ctx->host_va_range, host_range_start,
+				host_range_end);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init host vm range\n");
-		goto host_vm_err;
+		goto host_page_range_err;
 	}
 
-	mutex_init(&ctx->dram_va_range.lock);
+	if (hdev->pmmu_huge_range) {
+		mutex_init(&ctx->host_huge_va_range->lock);
 
-	rc = hl_va_range_init(hdev, &ctx->dram_va_range, dram_range_start,
+		rc = va_range_init(hdev, ctx->host_huge_va_range,
+					host_huge_range_start,
+					host_huge_range_end);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed to init host huge vm range\n");
+			goto host_hpage_range_err;
+		}
+	} else {
+		ctx->host_huge_va_range = ctx->host_va_range;
+	}
+
+	mutex_init(&ctx->dram_va_range->lock);
+
+	rc = va_range_init(hdev, ctx->dram_va_range, dram_range_start,
 			dram_range_end);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init dram vm range\n");
@@ -1492,15 +1607,29 @@ static int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
 	return 0;
 
 dram_vm_err:
-	mutex_destroy(&ctx->dram_va_range.lock);
+	mutex_destroy(&ctx->dram_va_range->lock);
 
-	mutex_lock(&ctx->host_va_range.lock);
-	clear_va_list_locked(hdev, &ctx->host_va_range.list);
-	mutex_unlock(&ctx->host_va_range.lock);
-host_vm_err:
-	mutex_destroy(&ctx->host_va_range.lock);
+	if (hdev->pmmu_huge_range) {
+		mutex_lock(&ctx->host_huge_va_range->lock);
+		clear_va_list_locked(hdev, &ctx->host_huge_va_range->list);
+		mutex_unlock(&ctx->host_huge_va_range->lock);
+	}
+host_hpage_range_err:
+	if (hdev->pmmu_huge_range)
+		mutex_destroy(&ctx->host_huge_va_range->lock);
+	mutex_lock(&ctx->host_va_range->lock);
+	clear_va_list_locked(hdev, &ctx->host_va_range->list);
+	mutex_unlock(&ctx->host_va_range->lock);
+host_page_range_err:
+	mutex_destroy(&ctx->host_va_range->lock);
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);
+mmu_ctx_err:
+	kfree(ctx->dram_va_range);
+dram_va_range_err:
+	kfree(ctx->host_huge_va_range);
+host_huge_va_range_err:
+	kfree(ctx->host_va_range);
 
 	return rc;
 }
@@ -1508,8 +1637,8 @@ host_vm_err:
 int hl_vm_ctx_init(struct hl_ctx *ctx)
 {
 	struct asic_fixed_properties *prop = &ctx->hdev->asic_prop;
-	u64 host_range_start, host_range_end, dram_range_start,
-		dram_range_end;
+	u64 host_range_start, host_range_end, host_huge_range_start,
+		host_huge_range_end, dram_range_start, dram_range_end;
 
 	atomic64_set(&ctx->dram_phys_mem, 0);
 
@@ -1521,65 +1650,26 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 	 *   address of the memory related to the given handle.
 	 */
 	if (ctx->hdev->mmu_enable) {
-		dram_range_start = prop->va_space_dram_start_address;
-		dram_range_end = prop->va_space_dram_end_address;
-		host_range_start = prop->va_space_host_start_address;
-		host_range_end = prop->va_space_host_end_address;
+		dram_range_start = prop->dmmu.start_addr;
+		dram_range_end = prop->dmmu.end_addr;
+		host_range_start = prop->pmmu.start_addr;
+		host_range_end = prop->pmmu.end_addr;
+		host_huge_range_start = prop->pmmu_huge.start_addr;
+		host_huge_range_end = prop->pmmu_huge.end_addr;
 	} else {
 		dram_range_start = prop->dram_user_base_address;
 		dram_range_end = prop->dram_end_address;
 		host_range_start = prop->dram_user_base_address;
 		host_range_end = prop->dram_end_address;
+		host_huge_range_start = prop->dram_user_base_address;
+		host_huge_range_end = prop->dram_end_address;
 	}
 
-	return hl_vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,
-			dram_range_start, dram_range_end);
-}
-
-/*
- * hl_va_range_fini     - clear a virtual addresses range
- *
- * @hdev                : pointer to the habanalabs structure
- * va_range             : pointer to virtual addresses range
- *
- * This function initializes the following:
- * - Checks that the given range contains the whole initial range
- * - Frees the virtual addresses block list and its lock
- */
-static void hl_va_range_fini(struct hl_device *hdev,
-		struct hl_va_range *va_range)
-{
-	struct hl_vm_va_block *va_block;
-
-	if (list_empty(&va_range->list)) {
-		dev_warn(hdev->dev,
-				"va list should not be empty on cleanup!\n");
-		goto out;
-	}
-
-	if (!list_is_singular(&va_range->list)) {
-		dev_warn(hdev->dev,
-			"va list should not contain multiple blocks on cleanup!\n");
-		goto free_va_list;
-	}
-
-	va_block = list_first_entry(&va_range->list, typeof(*va_block), node);
-
-	if (va_block->start != va_range->start_addr ||
-		va_block->end != va_range->end_addr) {
-		dev_warn(hdev->dev,
-			"wrong va block on cleanup, from 0x%llx to 0x%llx\n",
-				va_block->start, va_block->end);
-		goto free_va_list;
-	}
-
-free_va_list:
-	mutex_lock(&va_range->lock);
-	clear_va_list_locked(hdev, &va_range->list);
-	mutex_unlock(&va_range->lock);
-
-out:
-	mutex_destroy(&va_range->lock);
+	return vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,
+					host_huge_range_start,
+					host_huge_range_end,
+					dram_range_start,
+					dram_range_end);
 }
 
 /*
@@ -1613,21 +1703,31 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
-	if (!hash_empty(ctx->mem_hash))
-		dev_notice(hdev->dev, "ctx is freed while it has va in use\n");
+	/*
+	 * Clearly something went wrong on hard reset so no point in printing
+	 * another side effect error
+	 */
+	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
+		dev_notice(hdev->dev,
+				"ctx %d is freed while it has va in use\n",
+				ctx->asid);
 
 	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {
 		dev_dbg(hdev->dev,
 			"hl_mem_hash_node of vaddr 0x%llx of asid %d is still alive\n",
 			hnode->vaddr, ctx->asid);
-		unmap_device_va(ctx, hnode->vaddr);
+		unmap_device_va(ctx, hnode->vaddr, true);
 	}
+
+	/* invalidate the cache once after the unmapping loop */
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_PHYS_PACK);
 
 	spin_lock(&vm->idr_lock);
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)
 		if (phys_pg_list->asid == ctx->asid) {
 			dev_dbg(hdev->dev,
-				"page list 0x%p of asid %d is still alive\n",
+				"page list 0x%px of asid %d is still alive\n",
 				phys_pg_list, ctx->asid);
 			atomic64_sub(phys_pg_list->total_size,
 					&hdev->dram_used_mem);
@@ -1636,8 +1736,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		}
 	spin_unlock(&vm->idr_lock);
 
-	hl_va_range_fini(hdev, &ctx->dram_va_range);
-	hl_va_range_fini(hdev, &ctx->host_va_range);
+	va_range_fini(hdev, ctx->dram_va_range);
+	if (hdev->pmmu_huge_range)
+		va_range_fini(hdev, ctx->host_huge_va_range);
+	va_range_fini(hdev, ctx->host_va_range);
 
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);

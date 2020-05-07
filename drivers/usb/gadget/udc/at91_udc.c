@@ -1808,7 +1808,6 @@ static int at91udc_probe(struct platform_device *pdev)
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
 	int		retval;
-	struct resource	*res;
 	struct at91_ep	*ep;
 	int		i;
 
@@ -1839,8 +1838,7 @@ static int at91udc_probe(struct platform_device *pdev)
 			ep->is_pingpong = 1;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->udp_baseaddr = devm_ioremap_resource(dev, res);
+	udc->udp_baseaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->udp_baseaddr))
 		return PTR_ERR(udc->udp_baseaddr);
 
@@ -2023,7 +2021,7 @@ static struct platform_driver at91_udc_driver = {
 	.suspend	= at91udc_suspend,
 	.resume		= at91udc_resume,
 	.driver		= {
-		.name	= (char *) driver_name,
+		.name	= driver_name,
 		.of_match_table	= at91_udc_dt_ids,
 	},
 };

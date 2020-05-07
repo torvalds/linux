@@ -59,6 +59,7 @@
 #endif
 #include <net/calipso.h>
 #include <net/seg6.h>
+#include <net/rpl.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -292,7 +293,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		return -EINVAL;
 
 	snum = ntohs(addr->sin6_port);
-	if (snum && snum < inet_prot_sock(net) &&
+	if (snum && inet_port_requires_bind_service(net, snum) &&
 	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
@@ -765,7 +766,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 					 &final);
 		rcu_read_unlock();
 
-		dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
+		dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
 		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
 			sk->sk_err_soft = -PTR_ERR(dst);
@@ -946,7 +947,7 @@ static int ipv6_route_input(struct sk_buff *skb)
 static const struct ipv6_stub ipv6_stub_impl = {
 	.ipv6_sock_mc_join = ipv6_sock_mc_join,
 	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
-	.ipv6_dst_lookup   = ip6_dst_lookup,
+	.ipv6_dst_lookup_flow = ip6_dst_lookup_flow,
 	.ipv6_route_input  = ipv6_route_input,
 	.fib6_get_table	   = fib6_get_table,
 	.fib6_table_lookup = fib6_table_lookup,
@@ -1114,6 +1115,10 @@ static int __init inet6_init(void)
 	if (err)
 		goto seg6_fail;
 
+	err = rpl_init();
+	if (err)
+		goto rpl_fail;
+
 	err = igmp6_late_init();
 	if (err)
 		goto igmp6_late_err;
@@ -1136,6 +1141,8 @@ sysctl_fail:
 	igmp6_late_cleanup();
 #endif
 igmp6_late_err:
+	rpl_exit();
+rpl_fail:
 	seg6_exit();
 seg6_fail:
 	calipso_exit();

@@ -456,12 +456,18 @@ extern u64 hrtimer_next_event_without(const struct hrtimer *exclude);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 
-/*
- * Helper function to check, whether the timer is on one of the queues
+/**
+ * hrtimer_is_queued = check, whether the timer is on one of the queues
+ * @timer:	Timer to check
+ *
+ * Returns: True if the timer is queued, false otherwise
+ *
+ * The function can be used lockless, but it gives only a current snapshot.
  */
-static inline int hrtimer_is_queued(struct hrtimer *timer)
+static inline bool hrtimer_is_queued(struct hrtimer *timer)
 {
-	return timer->state & HRTIMER_STATE_ENQUEUED;
+	/* The READ_ONCE pairs with the update functions of timer->state */
+	return !!(READ_ONCE(timer->state) & HRTIMER_STATE_ENQUEUED);
 }
 
 /*
@@ -502,8 +508,7 @@ static inline u64 hrtimer_forward_now(struct hrtimer *timer,
 /* Precise sleep: */
 
 extern int nanosleep_copyout(struct restart_block *, struct timespec64 *);
-extern long hrtimer_nanosleep(const struct timespec64 *rqtp,
-			      const enum hrtimer_mode mode,
+extern long hrtimer_nanosleep(ktime_t rqtp, const enum hrtimer_mode mode,
 			      const clockid_t clockid);
 
 extern int schedule_hrtimeout_range(ktime_t *expires, u64 delta,

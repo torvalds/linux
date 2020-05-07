@@ -851,7 +851,7 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		 * Is there a need to switch between
 		 * full concurrency and 3-wire?
 		 */
-		if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
+		if (priv->bt_ci_compliance)
 			full_concurrent = true;
 		else
 			full_concurrent = false;
@@ -3019,7 +3019,7 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 			cpu_to_le16(priv->lib->bt_params->agg_time_limit);
 }
 
-static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }

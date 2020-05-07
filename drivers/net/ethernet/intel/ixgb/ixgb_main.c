@@ -70,7 +70,7 @@ static int ixgb_clean(struct napi_struct *, int);
 static bool ixgb_clean_rx_irq(struct ixgb_adapter *, int *, int);
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *, int);
 
-static void ixgb_tx_timeout(struct net_device *dev);
+static void ixgb_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 
 static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
@@ -412,7 +412,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 	}
 
-	for (i = BAR_1; i <= BAR_5; i++) {
+	for (i = BAR_1; i < PCI_STD_NUM_BARS; i++) {
 		if (pci_resource_len(pdev, i) == 0)
 			continue;
 		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
@@ -1538,7 +1538,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
  **/
 
 static void
-ixgb_tx_timeout(struct net_device *netdev)
+ixgb_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 

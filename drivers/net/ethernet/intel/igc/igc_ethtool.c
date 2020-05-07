@@ -16,7 +16,7 @@ struct igc_stats {
 
 #define IGC_STAT(_name, _stat) { \
 	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(struct igc_adapter, _stat), \
+	.sizeof_stat = sizeof_field(struct igc_adapter, _stat), \
 	.stat_offset = offsetof(struct igc_adapter, _stat) \
 }
 
@@ -67,7 +67,7 @@ static const struct igc_stats igc_gstrings_stats[] = {
 
 #define IGC_NETDEV_STAT(_net_stat) { \
 	.stat_string = __stringify(_net_stat), \
-	.sizeof_stat = FIELD_SIZEOF(struct rtnl_link_stats64, _net_stat), \
+	.sizeof_stat = sizeof_field(struct rtnl_link_stats64, _net_stat), \
 	.stat_offset = offsetof(struct rtnl_link_stats64, _net_stat) \
 }
 
@@ -306,6 +306,65 @@ static void igc_get_regs(struct net_device *netdev,
 		regs_buff[164 + i] = rd32(IGC_TDT(i));
 	for (i = 0; i < 4; i++)
 		regs_buff[168 + i] = rd32(IGC_TXDCTL(i));
+}
+
+static void igc_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	wol->wolopts = 0;
+
+	if (!(adapter->flags & IGC_FLAG_WOL_SUPPORTED))
+		return;
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
+
+	/* apply any specific unsupported masks here */
+	switch (adapter->hw.device_id) {
+	default:
+		break;
+	}
+
+	if (adapter->wol & IGC_WUFC_EX)
+		wol->wolopts |= WAKE_UCAST;
+	if (adapter->wol & IGC_WUFC_MC)
+		wol->wolopts |= WAKE_MCAST;
+	if (adapter->wol & IGC_WUFC_BC)
+		wol->wolopts |= WAKE_BCAST;
+	if (adapter->wol & IGC_WUFC_MAG)
+		wol->wolopts |= WAKE_MAGIC;
+	if (adapter->wol & IGC_WUFC_LNKC)
+		wol->wolopts |= WAKE_PHY;
+}
+
+static int igc_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_FILTER))
+		return -EOPNOTSUPP;
+
+	if (!(adapter->flags & IGC_FLAG_WOL_SUPPORTED))
+		return wol->wolopts ? -EOPNOTSUPP : 0;
+
+	/* these settings will always override what we currently have */
+	adapter->wol = 0;
+
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wol |= IGC_WUFC_EX;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wol |= IGC_WUFC_MC;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wol |= IGC_WUFC_BC;
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol |= IGC_WUFC_MAG;
+	if (wol->wolopts & WAKE_PHY)
+		adapter->wol |= IGC_WUFC_LNKC;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	return 0;
 }
 
 static u32 igc_get_msglevel(struct net_device *netdev)
@@ -801,27 +860,6 @@ static int igc_set_coalesce(struct net_device *netdev,
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	int i;
-
-	if (ec->rx_max_coalesced_frames ||
-	    ec->rx_coalesce_usecs_irq ||
-	    ec->rx_max_coalesced_frames_irq ||
-	    ec->tx_max_coalesced_frames ||
-	    ec->tx_coalesce_usecs_irq ||
-	    ec->stats_block_coalesce_usecs ||
-	    ec->use_adaptive_rx_coalesce ||
-	    ec->use_adaptive_tx_coalesce ||
-	    ec->pkt_rate_low ||
-	    ec->rx_coalesce_usecs_low ||
-	    ec->rx_max_coalesced_frames_low ||
-	    ec->tx_coalesce_usecs_low ||
-	    ec->tx_max_coalesced_frames_low ||
-	    ec->pkt_rate_high ||
-	    ec->rx_coalesce_usecs_high ||
-	    ec->rx_max_coalesced_frames_high ||
-	    ec->tx_coalesce_usecs_high ||
-	    ec->tx_max_coalesced_frames_high ||
-	    ec->rate_sample_interval)
-		return -ENOTSUPP;
 
 	if (ec->rx_coalesce_usecs > IGC_MAX_ITR_USECS ||
 	    (ec->rx_coalesce_usecs > 3 &&
@@ -1600,6 +1638,39 @@ static int igc_set_channels(struct net_device *netdev,
 	return 0;
 }
 
+static int igc_get_ts_info(struct net_device *dev,
+			   struct ethtool_ts_info *info)
+{
+	struct igc_adapter *adapter = netdev_priv(dev);
+
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		info->phc_index = -1;
+
+	switch (adapter->hw.mac.type) {
+	case igc_i225:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE |
+			SOF_TIMESTAMPING_TX_HARDWARE |
+			SOF_TIMESTAMPING_RX_HARDWARE |
+			SOF_TIMESTAMPING_RAW_HARDWARE;
+
+		info->tx_types =
+			BIT(HWTSTAMP_TX_OFF) |
+			BIT(HWTSTAMP_TX_ON);
+
+		info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
+
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static u32 igc_get_priv_flags(struct net_device *netdev)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
@@ -1823,9 +1894,12 @@ static int igc_set_link_ksettings(struct net_device *netdev,
 }
 
 static const struct ethtool_ops igc_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo		= igc_get_drvinfo,
 	.get_regs_len		= igc_get_regs_len,
 	.get_regs		= igc_get_regs,
+	.get_wol		= igc_get_wol,
+	.set_wol		= igc_set_wol,
 	.get_msglevel		= igc_get_msglevel,
 	.set_msglevel		= igc_set_msglevel,
 	.nway_reset		= igc_nway_reset,
@@ -1847,6 +1921,7 @@ static const struct ethtool_ops igc_ethtool_ops = {
 	.get_rxfh_indir_size	= igc_get_rxfh_indir_size,
 	.get_rxfh		= igc_get_rxfh,
 	.set_rxfh		= igc_set_rxfh,
+	.get_ts_info		= igc_get_ts_info,
 	.get_channels		= igc_get_channels,
 	.set_channels		= igc_set_channels,
 	.get_priv_flags		= igc_get_priv_flags,

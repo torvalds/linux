@@ -301,8 +301,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ltc3676_regulator_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int ltc3676_regulator_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator_init_data *init_data = dev_get_platdata(dev);
@@ -380,7 +379,7 @@ static struct i2c_driver ltc3676_driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
-	.probe = ltc3676_regulator_probe,
+	.probe_new = ltc3676_regulator_probe,
 	.id_table = ltc3676_i2c_id,
 };
 module_i2c_driver(ltc3676_driver);

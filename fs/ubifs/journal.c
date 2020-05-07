@@ -503,7 +503,7 @@ static void mark_inode_clean(struct ubifs_info *c, struct ubifs_inode *ui)
 static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
 {
 	if (c->double_hash)
-		dent->cookie = prandom_u32();
+		dent->cookie = (__force __le32) prandom_u32();
 	else
 		dent->cookie = 0;
 }
@@ -588,7 +588,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	if (!xent) {
 		dent->ch.node_type = UBIFS_DENT_NODE;
-		if (nm->hash)
+		if (fname_name(nm) == NULL)
 			dent_key_init_hash(c, &dent_key, dir->i_ino, nm->hash);
 		else
 			dent_key_init(c, &dent_key, dir->i_ino, nm);
@@ -646,7 +646,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	ubifs_add_auth_dirt(c, lnum);
 
 	if (deletion) {
-		if (nm->hash)
+		if (fname_name(nm) == NULL)
 			err = ubifs_tnc_remove_dh(c, &dent_key, nm->minor_hash);
 		else
 			err = ubifs_tnc_remove_nm(c, &dent_key, nm);
@@ -727,7 +727,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	int write_len;
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	bool encrypted = ubifs_crypt_is_encrypted(inode);
+	bool encrypted = IS_ENCRYPTED(inode);
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
@@ -899,12 +899,13 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 			fname_name(&nm) = xent->name;
 			fname_len(&nm) = le16_to_cpu(xent->nlen);
 
-			xino = ubifs_iget(c->vfs_sb, xent->inum);
+			xino = ubifs_iget(c->vfs_sb, le64_to_cpu(xent->inum));
 			if (IS_ERR(xino)) {
 				err = PTR_ERR(xino);
 				ubifs_err(c, "dead directory entry '%s', error %d",
 					  xent->name, err);
 				ubifs_ro_mode(c, err);
+				kfree(xent);
 				goto out_release;
 			}
 			ubifs_assert(c, ubifs_inode(xino)->xattr);
@@ -1449,7 +1450,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 	dlen = old_dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
 	compr_type = le16_to_cpu(dn->compr_type);
 
-	if (ubifs_crypt_is_encrypted(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = ubifs_decrypt(inode, dn, &dlen, block);
 		if (err)
 			goto out;
@@ -1465,7 +1466,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 		ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
 	}
 
-	if (ubifs_crypt_is_encrypted(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = ubifs_encrypt(inode, dn, out_len, &old_dlen, block);
 		if (err)
 			goto out;

@@ -100,7 +100,7 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 	}
 }
 
-static unsigned int spi_dac_init[] = {
+static const unsigned int spi_dac_init[] = {
 		0x00ff,
 		0x02ff,
 		0x0400,
@@ -124,7 +124,7 @@ static unsigned int spi_dac_init[] = {
 		0x1400,
 };
 
-static unsigned int i2c_adc_init[][2] = {
+static const unsigned int i2c_adc_init[][2] = {
 	{ 0x17, 0x00 }, /* Reset */
 	{ 0x07, 0x00 }, /* Timeout */
 	{ 0x0b, 0x22 },  /* Interface control */
@@ -1283,7 +1283,7 @@ static int snd_emu10k1_dev_free(struct snd_device *device)
 	return snd_emu10k1_free(emu);
 }
 
-static struct snd_emu_chip_details emu_chip_details[] = {
+static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 5/Rx SB1550 */
 	/* Tested by michael@gernoth.net 28 Mar 2015 */
 	/* DSP: CA10300-IAT LF
@@ -1789,9 +1789,10 @@ int snd_emu10k1_create(struct snd_card *card,
 	int idx, err;
 	int is_audigy;
 	size_t page_table_size;
+	__le32 *pgtbl;
 	unsigned int silent_page;
 	const struct snd_emu_chip_details *c;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_emu10k1_dev_free,
 	};
 
@@ -1984,6 +1985,7 @@ int snd_emu10k1_create(struct snd_card *card,
 		goto error;
 	}
 	emu->irq = pci->irq;
+	card->sync_irq = emu->irq;
 
 	/*
 	 *  Init to 0x02109204 :
@@ -2008,8 +2010,9 @@ int snd_emu10k1_create(struct snd_card *card,
 	/* Clear silent pages and set up pointers */
 	memset(emu->silent_page.area, 0, emu->silent_page.bytes);
 	silent_page = emu->silent_page.addr << emu->address_mode;
+	pgtbl = (__le32 *)emu->ptb_pages.area;
 	for (idx = 0; idx < (emu->address_mode ? MAXPAGES1 : MAXPAGES0); idx++)
-		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
+		pgtbl[idx] = cpu_to_le32(silent_page | idx);
 
 	/* set up voice indices */
 	for (idx = 0; idx < NUM_G; idx++) {
@@ -2049,7 +2052,7 @@ int snd_emu10k1_create(struct snd_card *card,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static unsigned char saved_regs[] = {
+static const unsigned char saved_regs[] = {
 	CPF, PTRX, CVCF, VTFT, Z1, Z2, PSST, DSL, CCCA, CCR, CLP,
 	FXRT, MAPA, MAPB, ENVVOL, ATKHLDV, DCYSUSV, LFOVAL1, ENVVAL,
 	ATKHLDM, DCYSUSM, LFOVAL2, IP, IFATN, PEFE, FMMOD, TREMFRQ, FM2FRQ2,
@@ -2058,7 +2061,7 @@ static unsigned char saved_regs[] = {
 	SPBYPASS, AC97SLOT, CDSRCS, GPSRCS, ZVSRCS, MICIDX, ADCIDX, FXIDX,
 	0xff /* end */
 };
-static unsigned char saved_regs_audigy[] = {
+static const unsigned char saved_regs_audigy[] = {
 	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_SAMPLE_RATE,
 	A_FXRT2, A_SENDAMOUNTS, A_FXRT1,
 	0xff /* end */
@@ -2093,7 +2096,7 @@ static void free_pm_buffer(struct snd_emu10k1 *emu)
 void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu)
 {
 	int i;
-	unsigned char *reg;
+	const unsigned char *reg;
 	unsigned int *val;
 
 	val = emu->saved_ptr;
@@ -2126,7 +2129,7 @@ void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
 void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
 {
 	int i;
-	unsigned char *reg;
+	const unsigned char *reg;
 	unsigned int *val;
 
 	snd_emu10k1_audio_enable(emu);

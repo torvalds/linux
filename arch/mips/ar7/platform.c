@@ -702,7 +702,7 @@ static int __init ar7_register_devices(void)
 		pr_warn("unable to register usb slave: %d\n", res);
 
 	/* Register watchdog only if enabled in hardware */
-	bootcr = ioremap_nocache(AR7_REGS_DCL, 4);
+	bootcr = ioremap(AR7_REGS_DCL, 4);
 	val = readl(bootcr);
 	iounmap(bootcr);
 	if (val & AR7_WDT_HW_ENA) {

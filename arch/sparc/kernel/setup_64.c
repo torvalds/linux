@@ -653,10 +653,6 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("ARCH: SUN4U\n");
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	idprom_init();
 
 	if (!root_flags)

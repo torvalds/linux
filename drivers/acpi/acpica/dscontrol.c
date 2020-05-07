@@ -4,7 +4,7 @@
  * Module Name: dscontrol - Support for execution control opcodes -
  *                          if/else/while/return
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -85,7 +85,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 		    walk_state->parser_state.pkg_end;
 		control_state->control.opcode = op->common.aml_opcode;
 		control_state->control.loop_timeout = acpi_os_get_timer() +
-		    (u64)(acpi_gbl_max_loop_iterations * ACPI_100NSEC_PER_SEC);
+		    ((u64)acpi_gbl_max_loop_iterations * ACPI_100NSEC_PER_SEC);
 
 		/* Push the control state on this walk's control stack */
 

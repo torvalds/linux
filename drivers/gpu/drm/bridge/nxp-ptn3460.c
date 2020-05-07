@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
@@ -235,10 +236,16 @@ static const struct drm_connector_funcs ptn3460_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ptn3460_bridge_attach(struct drm_bridge *bridge)
+static int ptn3460_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");

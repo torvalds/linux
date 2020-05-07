@@ -9,7 +9,7 @@ This is the authoritative documentation on the design, interface and
 conventions of cgroup v2.  It describes all userland-visible aspects
 of cgroup including core and specific controller behaviors.  All
 future changes must be reflected in this document.  Documentation for
-v1 is available under Documentation/admin-guide/cgroup-v1/.
+v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgroup-v1>`.
 
 .. CONTENTS
 
@@ -61,6 +61,8 @@ v1 is available under Documentation/admin-guide/cgroup-v1/.
      5-6. Device
      5-7. RDMA
        5-7-1. RDMA Interface Files
+     5-8. HugeTLB
+       5.8-1. HugeTLB Interface Files
      5-8. Misc
        5-8-1. perf_event
      5-N. Non-normative information
@@ -185,6 +187,17 @@ cgroup v2 currently supports the following mount options.
         This option is system wide and can only be set on mount or
         modified through remount from the init namespace. The mount
         option is ignored on non-init namespace mounts.
+
+  memory_recursiveprot
+
+        Recursively apply memory.min and memory.low protection to
+        entire subtrees, without requiring explicit downward
+        propagation into leaf cgroups.  This allows protecting entire
+        subtrees from one another, while retaining free competition
+        within those subtrees.  This should have been the default
+        behavior but is a mount-option to avoid regressing setups
+        relying on the original semantics (e.g. specifying bogusly
+        high 'bypass' protection values at higher tree levels).
 
 
 Organizing Processes and Threads
@@ -1021,7 +1034,7 @@ All time durations are in microseconds.
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for CPU. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
   cpu.uclamp.min
         A read-write single value file which exists on non-root cgroups.
@@ -1101,7 +1114,7 @@ PAGE_SIZE multiple when read back.
 	proportionally to the overage, reducing reclaim pressure for
 	smaller overages.
 
-       Effective min boundary is limited by memory.min values of
+	Effective min boundary is limited by memory.min values of
 	all ancestor cgroups. If there is memory.min overcommitment
 	(child cgroup or cgroups are requiring more protected memory
 	than parent will allow), then each child cgroup will get
@@ -1120,8 +1133,9 @@ PAGE_SIZE multiple when read back.
 
 	Best-effort memory protection.  If the memory usage of a
 	cgroup is within its effective low boundary, the cgroup's
-	memory won't be reclaimed unless memory can be reclaimed
-	from unprotected cgroups.  Above the effective low boundary (or
+	memory won't be reclaimed unless there is no reclaimable
+	memory available in unprotected cgroups.
+	Above the effective low	boundary (or 
 	effective min boundary if it is higher), pages are reclaimed
 	proportionally to the overage, reducing reclaim pressure for
 	smaller overages.
@@ -1288,7 +1302,12 @@ PAGE_SIZE multiple when read back.
 	  inactive_anon, active_anon, inactive_file, active_file, unevictable
 		Amount of memory, swap-backed and filesystem-backed,
 		on the internal memory management lists used by the
-		page reclaim algorithm
+		page reclaim algorithm.
+
+		As these represent internal list state (eg. shmem pages are on anon
+		memory management lists), inactive_foo + active_foo may not be equal to
+		the value for the foo counter, since the foo counter is type-based, not
+		list-based.
 
 	  slab_reclaimable
 		Part of "slab" that might be reclaimed, such as
@@ -1305,53 +1324,41 @@ PAGE_SIZE multiple when read back.
 		Number of major page faults incurred
 
 	  workingset_refault
-
 		Number of refaults of previously evicted pages
 
 	  workingset_activate
-
 		Number of refaulted pages that were immediately activated
 
 	  workingset_nodereclaim
-
 		Number of times a shadow node has been reclaimed
 
 	  pgrefill
-
 		Amount of scanned pages (in an active LRU list)
 
 	  pgscan
-
 		Amount of scanned pages (in an inactive LRU list)
 
 	  pgsteal
-
 		Amount of reclaimed pages
 
 	  pgactivate
-
 		Amount of pages moved to the active LRU list
 
 	  pgdeactivate
-
 		Amount of pages moved to the inactive LRU list
 
 	  pglazyfree
-
 		Amount of pages postponed to be freed under memory pressure
 
 	  pglazyfreed
-
 		Amount of reclaimed lazyfree pages
 
 	  thp_fault_alloc
-
 		Number of transparent hugepages which were allocated to satisfy
 		a page fault, including COW faults. This counter is not present
 		when CONFIG_TRANSPARENT_HUGEPAGE is not set.
 
 	  thp_collapse_alloc
-
 		Number of transparent hugepages which were allocated to allow
 		collapsing an existing range of pages. This counter is not
 		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
@@ -1395,7 +1402,7 @@ PAGE_SIZE multiple when read back.
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for memory. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
 
 Usage Guidelines
@@ -1470,7 +1477,7 @@ IO Interface Files
 	  dios		Number of discard IOs
 	  ======	=====================
 
-	An example read output follows:
+	An example read output follows::
 
 	  8:16 rbytes=1459200 wbytes=314773504 rios=192 wios=353 dbytes=0 dios=0
 	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252 dbytes=50331648 dios=3021
@@ -1635,7 +1642,7 @@ IO Interface Files
 	A read-only nested-key file which exists on non-root cgroups.
 
 	Shows pressure stall information for IO. See
-	Documentation/accounting/psi.rst for details.
+	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
 
 Writeback
@@ -1845,7 +1852,7 @@ Cpuset Interface Files
 	from the requested CPUs.
 
 	The CPU numbers are comma-separated numbers or ranges.
-	For example:
+	For example::
 
 	  # cat cpuset.cpus
 	  0-4,6,8-10
@@ -1884,7 +1891,7 @@ Cpuset Interface Files
 	from the requested memory nodes.
 
 	The memory node numbers are comma-separated numbers or ranges.
-	For example:
+	For example::
 
 	  # cat cpuset.mems
 	  0-1,3
@@ -1920,7 +1927,7 @@ Cpuset Interface Files
 
         It accepts only the following input values when written to.
 
-        "root"   - a paritition root
+        "root"   - a partition root
         "member" - a non-root member of a partition
 
 	When set to be a partition root, the current cgroup is the
@@ -2050,6 +2057,33 @@ RDMA Interface Files
 	  mlx4_0 hca_handle=1 hca_object=20
 	  ocrdma1 hca_handle=1 hca_object=23
 
+HugeTLB
+-------
+
+The HugeTLB controller allows to limit the HugeTLB usage per control group and
+enforces the controller limit during page fault.
+
+HugeTLB Interface Files
+~~~~~~~~~~~~~~~~~~~~~~~
+
+  hugetlb.<hugepagesize>.current
+	Show current usage for "hugepagesize" hugetlb.  It exists for all
+	the cgroup except root.
+
+  hugetlb.<hugepagesize>.max
+	Set/show the hard limit of "hugepagesize" hugetlb usage.
+	The default value is "max".  It exists for all the cgroup except root.
+
+  hugetlb.<hugepagesize>.events
+	A read-only flat-keyed file which exists on non-root cgroups.
+
+	  max
+		The number of allocation failure due to HugeTLB limit
+
+  hugetlb.<hugepagesize>.events.local
+	Similar to hugetlb.<hugepagesize>.events but the fields in the file
+	are local to the cgroup i.e. not hierarchical. The file modified event
+	generated on this file reflects only the local events.
 
 Misc
 ----

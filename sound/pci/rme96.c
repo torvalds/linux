@@ -1508,7 +1508,6 @@ snd_rme96_capture_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_rme96_playback_spdif_ops = {
 	.open =		snd_rme96_playback_spdif_open,
 	.close =	snd_rme96_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_playback_hw_params,
 	.prepare =	snd_rme96_playback_prepare,
 	.trigger =	snd_rme96_playback_trigger,
@@ -1522,7 +1521,6 @@ static const struct snd_pcm_ops snd_rme96_playback_spdif_ops = {
 static const struct snd_pcm_ops snd_rme96_capture_spdif_ops = {
 	.open =		snd_rme96_capture_spdif_open,
 	.close =	snd_rme96_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_capture_hw_params,
 	.prepare =	snd_rme96_capture_prepare,
 	.trigger =	snd_rme96_capture_trigger,
@@ -1535,7 +1533,6 @@ static const struct snd_pcm_ops snd_rme96_capture_spdif_ops = {
 static const struct snd_pcm_ops snd_rme96_playback_adat_ops = {
 	.open =		snd_rme96_playback_adat_open,
 	.close =	snd_rme96_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_playback_hw_params,
 	.prepare =	snd_rme96_playback_prepare,
 	.trigger =	snd_rme96_playback_trigger,
@@ -1549,7 +1546,6 @@ static const struct snd_pcm_ops snd_rme96_playback_adat_ops = {
 static const struct snd_pcm_ops snd_rme96_capture_adat_ops = {
 	.open =		snd_rme96_capture_adat_open,
 	.close =	snd_rme96_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_rme96_capture_hw_params,
 	.prepare =	snd_rme96_capture_prepare,
 	.trigger =	snd_rme96_capture_trigger,
@@ -1619,7 +1615,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
-	rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE);
+	rme96->iobase = ioremap(rme96->port, RME96_IO_SIZE);
 	if (!rme96->iobase) {
 		dev_err(rme96->card->dev,
 			"unable to remap memory region 0x%lx-0x%lx\n",
@@ -1633,6 +1629,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return -EBUSY;
 	}
 	rme96->irq = pci->irq;
+	rme96->card->sync_irq = rme96->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme96->rev);	
@@ -2256,7 +2253,7 @@ snd_rme96_dac_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
         return change;
 }
 
-static struct snd_kcontrol_new snd_rme96_controls[] = {
+static const struct snd_kcontrol_new snd_rme96_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),

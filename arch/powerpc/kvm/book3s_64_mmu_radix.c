@@ -19,6 +19,8 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/pte-walk.h>
+#include <asm/ultravisor.h>
+#include <asm/kvm_book3s_uvmem.h>
 
 /*
  * Supported radix tree geometry.
@@ -61,12 +63,10 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	}
 	isync();
 
-	pagefault_disable();
 	if (is_load)
-		ret = raw_copy_from_user(to, from, n);
+		ret = probe_user_read(to, (const void __user *)from, n);
 	else
-		ret = raw_copy_to_user(to, from, n);
-	pagefault_enable();
+		ret = probe_user_write((void __user *)to, from, n);
 
 	/* switch the pid first to avoid running host with unallocated pid */
 	if (quadrant == 1 && pid != old_pid)
@@ -425,7 +425,7 @@ static void kvmppc_unmap_free_pte(struct kvm *kvm, pte_t *pte, bool full,
 				  unsigned int lpid)
 {
 	if (full) {
-		memset(pte, 0, sizeof(long) << PTE_INDEX_SIZE);
+		memset(pte, 0, sizeof(long) << RADIX_PTE_INDEX_SIZE);
 	} else {
 		pte_t *p = pte;
 		unsigned long it;
@@ -815,18 +815,19 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	 */
 	local_irq_disable();
 	ptep = __find_linux_pte(vcpu->arch.pgdir, hva, NULL, &shift);
+	pte = __pte(0);
+	if (ptep)
+		pte = *ptep;
+	local_irq_enable();
 	/*
 	 * If the PTE disappeared temporarily due to a THP
 	 * collapse, just return and let the guest try again.
 	 */
-	if (!ptep) {
-		local_irq_enable();
+	if (!pte_present(pte)) {
 		if (page)
 			put_page(page);
 		return RESUME_GUEST;
 	}
-	pte = *ptep;
-	local_irq_enable();
 
 	/* If we're logging dirty pages, always map single pages */
 	large_enable = !(memslot->flags & KVM_MEM_LOG_DIRTY_PAGES);
@@ -915,6 +916,9 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (!(dsisr & DSISR_PRTABLE_FAULT))
 		gpa |= ea & 0xfff;
 
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return kvmppc_send_page_to_uv(kvm, gfn);
+
 	/* Get the corresponding memslot */
 	memslot = gfn_to_memslot(kvm, gfn);
 
@@ -972,6 +976,11 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
 
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE) {
+		uv_page_inval(kvm->arch.lpid, gpa, PAGE_SHIFT);
+		return 0;
+	}
+
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep))
 		kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
@@ -988,6 +997,9 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 	unsigned long old, *rmapp;
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return ref;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
@@ -1013,6 +1025,9 @@ int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return ref;
+
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep))
 		ref = 1;
@@ -1029,6 +1044,9 @@ static int kvm_radix_test_clear_dirty(struct kvm *kvm,
 	unsigned int shift;
 	int ret = 0;
 	unsigned long old, *rmapp;
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return ret;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
@@ -1081,6 +1099,12 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 	pte_t *ptep;
 	unsigned long gpa;
 	unsigned int shift;
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)
+		kvmppc_uvmem_drop_pages(memslot, kvm, true);
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return;
 
 	gpa = memslot->base_gfn << PAGE_SHIFT;
 	spin_lock(&kvm->mmu_lock);
@@ -1353,9 +1377,8 @@ static const struct file_operations debugfs_radix_fops = {
 
 void kvmhv_radix_debugfs_init(struct kvm *kvm)
 {
-	kvm->arch.radix_dentry = debugfs_create_file("radix", 0400,
-						     kvm->arch.debugfs_dir, kvm,
-						     &debugfs_radix_fops);
+	debugfs_create_file("radix", 0400, kvm->arch.debugfs_dir, kvm,
+			    &debugfs_radix_fops);
 }
 
 int kvmppc_radix_init(void)

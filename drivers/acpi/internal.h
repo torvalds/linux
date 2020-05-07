@@ -165,7 +165,8 @@ static inline void acpi_early_processor_osc(void) {}
    -------------------------------------------------------------------------- */
 struct acpi_ec {
 	acpi_handle handle;
-	u32 gpe;
+	int gpe;
+	int irq;
 	unsigned long command_addr;
 	unsigned long data_addr;
 	bool global_lock;
@@ -189,7 +190,7 @@ extern struct acpi_ec *first_ec;
 /* External interfaces use first EC only, so remember */
 typedef int (*acpi_ec_query_func) (void *data);
 
-int acpi_ec_init(void);
+void acpi_ec_init(void);
 void acpi_ec_ecdt_probe(void);
 void acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
@@ -201,6 +202,7 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
 #ifdef CONFIG_PM_SLEEP
 void acpi_ec_flush_work(void);
+bool acpi_ec_other_gpes_active(void);
 bool acpi_ec_dispatch_gpe(void);
 #endif
 

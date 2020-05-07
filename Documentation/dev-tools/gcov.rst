@@ -203,7 +203,7 @@ Cause
     may not correctly copy files from sysfs.
 
 Solution
-    Use ``cat``' to read ``.gcda`` files and ``cp -d`` to copy links.
+    Use ``cat`` to read ``.gcda`` files and ``cp -d`` to copy links.
     Alternatively use the mechanism shown in Appendix B.
 
 

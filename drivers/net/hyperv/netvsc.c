@@ -99,7 +99,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
-	net_device->tx_disable = false;
+	net_device->tx_disable = true;
 
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
@@ -122,8 +122,10 @@ static void free_netvsc_device(struct rcu_head *head)
 	vfree(nvdev->send_buf);
 	kfree(nvdev->send_section_map);
 
-	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
+	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
+		xdp_rxq_info_unreg(&nvdev->chan_table[i].xdp_rxq);
 		vfree(nvdev->chan_table[i].mrc.slots);
+	}
 
 	kfree(nvdev);
 }
@@ -386,10 +388,11 @@ static int netvsc_init_buf(struct hv_device *device,
 	net_device->recv_section_size = resp->sections[0].sub_alloc_size;
 	net_device->recv_section_cnt = resp->sections[0].num_sub_allocs;
 
-	/* Setup receive completion ring */
-	net_device->recv_completion_cnt
-		= round_up(net_device->recv_section_cnt + 1,
-			   PAGE_SIZE / sizeof(u64));
+	/* Setup receive completion ring.
+	 * Add 1 to the recv_section_cnt because at least one entry in a
+	 * ring buffer has to be empty.
+	 */
+	net_device->recv_completion_cnt = net_device->recv_section_cnt + 1;
 	ret = netvsc_alloc_recv_comp_ring(net_device, 0);
 	if (ret)
 		goto cleanup;
@@ -900,7 +903,8 @@ int netvsc_send(struct net_device *ndev,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *pb,
-		struct sk_buff *skb)
+		struct sk_buff *skb,
+		bool xdp_tx)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct netvsc_device *net_device
@@ -923,10 +927,11 @@ int netvsc_send(struct net_device *ndev,
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
 
-	/* Send control message directly without accessing msd (Multi-Send
-	 * Data) field which may be changed during data packet processing.
+	/* Send a control message or XDP packet directly without accessing
+	 * msd (Multi-Send Data) field which may be changed during data packet
+	 * processing.
 	 */
-	if (!skb)
+	if (!skb || xdp_tx)
 		return netvsc_send_pkt(device, packet, net_device, pb, skb);
 
 	/* batch packets in send buffer if possible */
@@ -1392,6 +1397,21 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		nvchan->net_device = net_device;
 		u64_stats_init(&nvchan->tx_stats.syncp);
 		u64_stats_init(&nvchan->rx_stats.syncp);
+
+		ret = xdp_rxq_info_reg(&nvchan->xdp_rxq, ndev, i);
+
+		if (ret) {
+			netdev_err(ndev, "xdp_rxq_info_reg fail: %d\n", ret);
+			goto cleanup2;
+		}
+
+		ret = xdp_rxq_info_reg_mem_model(&nvchan->xdp_rxq,
+						 MEM_TYPE_PAGE_SHARED, NULL);
+
+		if (ret) {
+			netdev_err(ndev, "xdp reg_mem_model fail: %d\n", ret);
+			goto cleanup2;
+		}
 	}
 
 	/* Enable NAPI handler before init callbacks */
@@ -1437,6 +1457,8 @@ close:
 
 cleanup:
 	netif_napi_del(&net_device->chan_table[0].napi);
+
+cleanup2:
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);

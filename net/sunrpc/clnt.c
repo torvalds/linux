@@ -591,6 +591,9 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	xprt->resvport = 1;
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
+	xprt->reuseport = 0;
+	if (args->flags & RPC_CLNT_CREATE_REUSEPORT)
+		xprt->reuseport = 1;
 
 	clnt = rpc_create_xprt(args, xprt);
 	if (IS_ERR(clnt) || args->nconnect <= 1)
@@ -877,6 +880,20 @@ EXPORT_SYMBOL_GPL(rpc_shutdown_client);
 /*
  * Free an RPC client
  */
+static void rpc_free_client_work(struct work_struct *work)
+{
+	struct rpc_clnt *clnt = container_of(work, struct rpc_clnt, cl_work);
+
+	/* These might block on processes that might allocate memory,
+	 * so they cannot be called in rpciod, so they are handled separately
+	 * here.
+	 */
+	rpc_clnt_debugfs_unregister(clnt);
+	rpc_clnt_remove_pipedir(clnt);
+
+	kfree(clnt);
+	rpciod_down();
+}
 static struct rpc_clnt *
 rpc_free_client(struct rpc_clnt *clnt)
 {
@@ -887,17 +904,16 @@ rpc_free_client(struct rpc_clnt *clnt)
 			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		parent = clnt->cl_parent;
-	rpc_clnt_debugfs_unregister(clnt);
-	rpc_clnt_remove_pipedir(clnt);
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	xprt_iter_destroy(&clnt->cl_xpi);
-	rpciod_down();
 	put_cred(clnt->cl_cred);
 	rpc_free_clid(clnt);
-	kfree(clnt);
+
+	INIT_WORK(&clnt->cl_work, rpc_free_client_work);
+	schedule_work(&clnt->cl_work);
 	return parent;
 }
 
@@ -1096,8 +1112,9 @@ rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 		task->tk_msg.rpc_proc = msg->rpc_proc;
 		task->tk_msg.rpc_argp = msg->rpc_argp;
 		task->tk_msg.rpc_resp = msg->rpc_resp;
-		if (msg->rpc_cred != NULL)
-			task->tk_msg.rpc_cred = get_cred(msg->rpc_cred);
+		task->tk_msg.rpc_cred = msg->rpc_cred;
+		if (!(task->tk_flags & RPC_TASK_CRED_NOREF))
+			get_cred(task->tk_msg.rpc_cred);
 	}
 }
 
@@ -1122,6 +1139,9 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 	struct rpc_task *task;
 
 	task = rpc_new_task(task_setup_data);
+
+	if (!RPC_IS_ASYNC(task))
+		task->tk_flags |= RPC_TASK_CRED_NOREF;
 
 	rpc_task_set_client(task, task_setup_data->rpc_client);
 	rpc_task_set_rpc_message(task, task_setup_data->rpc_message);
@@ -1676,8 +1696,6 @@ call_reserveresult(struct rpc_task *task)
 			return;
 		}
 
-		printk(KERN_ERR "%s: status=%d, but no request slot, exiting\n",
-				__func__, status);
 		rpc_call_rpcerror(task, -EIO);
 		return;
 	}
@@ -1686,11 +1704,8 @@ call_reserveresult(struct rpc_task *task)
 	 * Even though there was an error, we may have acquired
 	 * a request slot somehow.  Make sure not to leak it.
 	 */
-	if (task->tk_rqstp) {
-		printk(KERN_ERR "%s: status=%d, request allocated anyway\n",
-				__func__, status);
+	if (task->tk_rqstp)
 		xprt_release(task);
-	}
 
 	switch (status) {
 	case -ENOMEM:
@@ -1699,14 +1714,9 @@ call_reserveresult(struct rpc_task *task)
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_retry_reserve;
 		return;
-	case -EIO:	/* probably a shutdown */
-		break;
 	default:
-		printk(KERN_ERR "%s: unrecognized error %d, exiting\n",
-				__func__, status);
-		break;
+		rpc_call_rpcerror(task, status);
 	}
-	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -2137,6 +2147,7 @@ call_connect_status(struct rpc_task *task)
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -EPIPE:
+	case -EPROTO:
 		xprt_conditional_disconnect(task->tk_rqstp->rq_xprt,
 					    task->tk_rqstp->rq_connect_cookie);
 		if (RPC_IS_SOFTCONN(task))
@@ -2515,6 +2526,7 @@ call_decode(struct rpc_task *task)
 		goto out;
 
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
+	trace_xprt_recvfrom(&req->rq_rcv_buf);
 
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
@@ -2809,8 +2821,7 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 	task = rpc_call_null_helper(clnt, xprt, NULL,
 			RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC|RPC_TASK_NULLCREDS,
 			&rpc_cb_add_xprt_call_ops, data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
+
 	rpc_put_task(task);
 success:
 	return 1;
@@ -2906,7 +2917,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 	struct rpc_xprt *xprt;
 	unsigned long connect_timeout;
 	unsigned long reconnect_timeout;
-	unsigned char resvport;
+	unsigned char resvport, reuseport;
 	int ret = 0;
 
 	rcu_read_lock();
@@ -2918,6 +2929,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;
+	reuseport = xprt->reuseport;
 	connect_timeout = xprt->connect_timeout;
 	reconnect_timeout = xprt->max_reconnect_timeout;
 	rcu_read_unlock();
@@ -2928,6 +2940,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		goto out_put_switch;
 	}
 	xprt->resvport = resvport;
+	xprt->reuseport = reuseport;
 	if (xprt->ops->set_connect_timeout != NULL)
 		xprt->ops->set_connect_timeout(xprt,
 				connect_timeout,

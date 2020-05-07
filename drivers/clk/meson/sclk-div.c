@@ -216,7 +216,7 @@ static int sclk_div_is_enabled(struct clk_hw *hw)
 	return 0;
 }
 
-static void sclk_div_init(struct clk_hw *hw)
+static int sclk_div_init(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_sclk_div_data *sclk = meson_sclk_div_data(clk);
@@ -231,6 +231,8 @@ static void sclk_div_init(struct clk_hw *hw)
 		sclk->cached_div = val + 1;
 
 	sclk_div_get_duty_cycle(hw, &sclk->cached_duty);
+
+	return 0;
 }
 
 const struct clk_ops meson_sclk_div_ops = {

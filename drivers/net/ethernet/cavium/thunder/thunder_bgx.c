@@ -410,10 +410,19 @@ void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 	lmac = &bgx->lmac[lmacid];
 
 	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
-	if (enable)
+	if (enable) {
 		cfg |= CMR_PKT_RX_EN | CMR_PKT_TX_EN;
-	else
+
+		/* enable TX FIFO Underflow interrupt */
+		bgx_reg_modify(bgx, lmacid, BGX_GMP_GMI_TXX_INT_ENA_W1S,
+			       GMI_TXX_INT_UNDFLW);
+	} else {
 		cfg &= ~(CMR_PKT_RX_EN | CMR_PKT_TX_EN);
+
+		/* Disable TX FIFO Underflow interrupt */
+		bgx_reg_modify(bgx, lmacid, BGX_GMP_GMI_TXX_INT_ENA_W1C,
+			       GMI_TXX_INT_UNDFLW);
+	}
 	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cfg);
 
 	if (bgx->is_rgx)
@@ -1007,14 +1016,14 @@ static void bgx_poll_for_link(struct work_struct *work)
 
 	if ((spu_link & SPU_STATUS1_RCV_LNK) &&
 	    !(smu_link & SMU_RX_CTL_STATUS)) {
-		lmac->link_up = 1;
+		lmac->link_up = true;
 		if (lmac->lmac_type == BGX_MODE_XLAUI)
 			lmac->last_speed = SPEED_40000;
 		else
 			lmac->last_speed = SPEED_10000;
 		lmac->last_duplex = DUPLEX_FULL;
 	} else {
-		lmac->link_up = 0;
+		lmac->link_up = false;
 		lmac->last_speed = SPEED_UNKNOWN;
 		lmac->last_duplex = DUPLEX_UNKNOWN;
 	}
@@ -1023,7 +1032,7 @@ static void bgx_poll_for_link(struct work_struct *work)
 		if (lmac->link_up) {
 			if (bgx_xaui_check_link(lmac)) {
 				/* Errors, clear link_up state */
-				lmac->link_up = 0;
+				lmac->link_up = false;
 				lmac->last_speed = SPEED_UNKNOWN;
 				lmac->last_duplex = DUPLEX_UNKNOWN;
 			}
@@ -1039,7 +1048,7 @@ static int phy_interface_mode(u8 lmac_type)
 	if (lmac_type == BGX_MODE_QSGMII)
 		return PHY_INTERFACE_MODE_QSGMII;
 	if (lmac_type == BGX_MODE_RGMII)
-		return PHY_INTERFACE_MODE_RGMII;
+		return PHY_INTERFACE_MODE_RGMII_RXID;
 
 	return PHY_INTERFACE_MODE_SGMII;
 }
@@ -1055,11 +1064,11 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	if ((lmac->lmac_type == BGX_MODE_SGMII) ||
 	    (lmac->lmac_type == BGX_MODE_QSGMII) ||
 	    (lmac->lmac_type == BGX_MODE_RGMII)) {
-		lmac->is_sgmii = 1;
+		lmac->is_sgmii = true;
 		if (bgx_lmac_sgmii_init(bgx, lmac))
 			return -1;
 	} else {
-		lmac->is_sgmii = 0;
+		lmac->is_sgmii = false;
 		if (bgx_lmac_xaui_init(bgx, lmac))
 			return -1;
 	}
@@ -1115,7 +1124,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 				       phy_interface_mode(lmac->lmac_type)))
 			return -ENODEV;
 
-		phy_start_aneg(lmac->phydev);
+		phy_start(lmac->phydev);
 		return 0;
 	}
 
@@ -1304,7 +1313,7 @@ static void lmac_set_training(struct bgx *bgx, struct lmac *lmac, int lmacid)
 {
 	if ((lmac->lmac_type != BGX_MODE_10G_KR) &&
 	    (lmac->lmac_type != BGX_MODE_40G_KR)) {
-		lmac->use_training = 0;
+		lmac->use_training = false;
 		return;
 	}
 
@@ -1535,6 +1544,48 @@ static int bgx_init_phy(struct bgx *bgx)
 	return bgx_init_of_phy(bgx);
 }
 
+static irqreturn_t bgx_intr_handler(int irq, void *data)
+{
+	struct bgx *bgx = (struct bgx *)data;
+	u64 status, val;
+	int lmac;
+
+	for (lmac = 0; lmac < bgx->lmac_count; lmac++) {
+		status = bgx_reg_read(bgx, lmac, BGX_GMP_GMI_TXX_INT);
+		if (status & GMI_TXX_INT_UNDFLW) {
+			pci_err(bgx->pdev, "BGX%d lmac%d UNDFLW\n",
+				bgx->bgx_id, lmac);
+			val = bgx_reg_read(bgx, lmac, BGX_CMRX_CFG);
+			val &= ~CMR_EN;
+			bgx_reg_write(bgx, lmac, BGX_CMRX_CFG, val);
+			val |= CMR_EN;
+			bgx_reg_write(bgx, lmac, BGX_CMRX_CFG, val);
+		}
+		/* clear interrupts */
+		bgx_reg_write(bgx, lmac, BGX_GMP_GMI_TXX_INT, status);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static void bgx_register_intr(struct pci_dev *pdev)
+{
+	struct bgx *bgx = pci_get_drvdata(pdev);
+	int ret;
+
+	ret = pci_alloc_irq_vectors(pdev, BGX_LMAC_VEC_OFFSET,
+				    BGX_LMAC_VEC_OFFSET, PCI_IRQ_ALL_TYPES);
+	if (ret < 0) {
+		pci_err(pdev, "Req for #%d msix vectors failed\n",
+			BGX_LMAC_VEC_OFFSET);
+		return;
+	}
+	ret = pci_request_irq(pdev, GMPX_GMI_TX_INT, bgx_intr_handler, NULL,
+			      bgx, "BGX%d", bgx->bgx_id);
+	if (ret)
+		pci_free_irq(pdev, GMPX_GMI_TX_INT, bgx);
+}
+
 static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err;
@@ -1550,7 +1601,7 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, bgx);
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err) {
 		dev_err(dev, "Failed to enable PCI device\n");
 		pci_set_drvdata(pdev, NULL);
@@ -1604,6 +1655,8 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bgx_init_hw(bgx);
 
+	bgx_register_intr(pdev);
+
 	/* Enable all LMACs */
 	for (lmac = 0; lmac < bgx->lmac_count; lmac++) {
 		err = bgx_lmac_enable(bgx, lmac);
@@ -1620,6 +1673,7 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_enable:
 	bgx_vnic[bgx->bgx_id] = NULL;
+	pci_free_irq(pdev, GMPX_GMI_TX_INT, bgx);
 err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:
@@ -1636,6 +1690,8 @@ static void bgx_remove(struct pci_dev *pdev)
 	/* Disable all LMACs */
 	for (lmac = 0; lmac < bgx->lmac_count; lmac++)
 		bgx_lmac_disable(bgx, lmac);
+
+	pci_free_irq(pdev, GMPX_GMI_TX_INT, bgx);
 
 	bgx_vnic[bgx->bgx_id] = NULL;
 	pci_release_regions(pdev);

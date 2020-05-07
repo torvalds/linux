@@ -75,14 +75,23 @@
 #define MEI_DEV_ID_KBP_2      0xA2BB  /* Kaby Point 2 */
 
 #define MEI_DEV_ID_CNP_LP     0x9DE0  /* Cannon Point LP */
-#define MEI_DEV_ID_CNP_LP_4   0x9DE4  /* Cannon Point LP 4 (iTouch) */
+#define MEI_DEV_ID_CNP_LP_3   0x9DE4  /* Cannon Point LP 3 (iTouch) */
 #define MEI_DEV_ID_CNP_H      0xA360  /* Cannon Point H */
-#define MEI_DEV_ID_CNP_H_4    0xA364  /* Cannon Point H 4 (iTouch) */
+#define MEI_DEV_ID_CNP_H_3    0xA364  /* Cannon Point H 3 (iTouch) */
 
 #define MEI_DEV_ID_CMP_LP     0x02e0  /* Comet Point LP */
 #define MEI_DEV_ID_CMP_LP_3   0x02e4  /* Comet Point LP 3 (iTouch) */
 
+#define MEI_DEV_ID_CMP_V      0xA3BA  /* Comet Point Lake V */
+
+#define MEI_DEV_ID_CMP_H      0x06e0  /* Comet Lake H */
+#define MEI_DEV_ID_CMP_H_3    0x06e4  /* Comet Lake H 3 (iTouch) */
+
+#define MEI_DEV_ID_CDF        0x18D3  /* Cedar Fork */
+
 #define MEI_DEV_ID_ICP_LP     0x34E0  /* Ice Lake Point LP */
+
+#define MEI_DEV_ID_JSP_N      0x4DE0  /* Jasper Lake Point N */
 
 #define MEI_DEV_ID_TGP_LP     0xA0E0  /* Tiger Lake Point LP */
 
@@ -162,7 +171,8 @@ access to ME_CBD */
 #define ME_IS_HRA         0x00000002
 /* ME Interrupt Enable HRA - host read only access to ME_IE */
 #define ME_IE_HRA         0x00000001
-
+/* TRC control shadow register */
+#define ME_TRC            0x00000030
 
 /* H_HPG_CSR register bits */
 #define H_HPG_CSR_PGIHEXR 0x00000001

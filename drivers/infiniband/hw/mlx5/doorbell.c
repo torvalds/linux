@@ -64,7 +64,8 @@ int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context,
 
 	page->user_virt = (virt & PAGE_MASK);
 	page->refcnt    = 0;
-	page->umem = ib_umem_get(udata, virt & PAGE_MASK, PAGE_SIZE, 0, 0);
+	page->umem = ib_umem_get(context->ibucontext.device, virt & PAGE_MASK,
+				 PAGE_SIZE, 0);
 	if (IS_ERR(page->umem)) {
 		err = PTR_ERR(page->umem);
 		kfree(page);

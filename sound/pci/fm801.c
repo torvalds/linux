@@ -435,17 +435,6 @@ static int snd_fm801_capture_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int snd_fm801_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_fm801_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_fm801_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct fm801 *chip = snd_pcm_substream_chip(substream);
@@ -684,9 +673,6 @@ static int snd_fm801_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_fm801_playback_ops = {
 	.open =		snd_fm801_playback_open,
 	.close =	snd_fm801_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_fm801_hw_params,
-	.hw_free =	snd_fm801_hw_free,
 	.prepare =	snd_fm801_playback_prepare,
 	.trigger =	snd_fm801_playback_trigger,
 	.pointer =	snd_fm801_playback_pointer,
@@ -695,9 +681,6 @@ static const struct snd_pcm_ops snd_fm801_playback_ops = {
 static const struct snd_pcm_ops snd_fm801_capture_ops = {
 	.open =		snd_fm801_capture_open,
 	.close =	snd_fm801_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_fm801_hw_params,
-	.hw_free =	snd_fm801_hw_free,
 	.prepare =	snd_fm801_capture_prepare,
 	.trigger =	snd_fm801_capture_trigger,
 	.pointer =	snd_fm801_capture_pointer,
@@ -720,9 +703,8 @@ static int snd_fm801_pcm(struct fm801 *chip, int device)
 	strcpy(pcm->name, "FM801");
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(pdev),
-					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &pdev->dev,
+				       chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps,
@@ -742,7 +724,7 @@ struct snd_fm801_tea575x_gpio {
 	char *name;
 };
 
-static struct snd_fm801_tea575x_gpio snd_fm801_tea575x_gpios[] = {
+static const struct snd_fm801_tea575x_gpio snd_fm801_tea575x_gpios[] = {
 	{ .data = 1, .clk = 3, .wren = 2, .most = 0, .name = "SF256-PCS" },
 	{ .data = 1, .clk = 0, .wren = 2, .most = 3, .name = "SF256-PCP" },
 	{ .data = 2, .clk = 0, .wren = 1, .most = 3, .name = "SF64-PCR" },
@@ -987,7 +969,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -3450, 150, 0);
 
 #define FM801_CONTROLS ARRAY_SIZE(snd_fm801_controls)
 
-static struct snd_kcontrol_new snd_fm801_controls[] = {
+static const struct snd_kcontrol_new snd_fm801_controls[] = {
 FM801_DOUBLE_TLV("Wave Playback Volume", FM801_PCM_VOL, 0, 8, 31, 1,
 		 db_scale_dsp),
 FM801_SINGLE("Wave Playback Switch", FM801_PCM_VOL, 15, 1, 1),
@@ -1008,7 +990,7 @@ FM801_SINGLE("FM Playback Switch", FM801_FM_VOL, 15, 1, 1),
 
 #define FM801_CONTROLS_MULTI ARRAY_SIZE(snd_fm801_controls_multi)
 
-static struct snd_kcontrol_new snd_fm801_controls_multi[] = {
+static const struct snd_kcontrol_new snd_fm801_controls_multi[] = {
 FM801_SINGLE("AC97 2ch->4ch Copy Switch", FM801_CODEC_CTRL, 7, 1, 0),
 FM801_SINGLE("AC97 18-bit Switch", FM801_CODEC_CTRL, 10, 1, 0),
 FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), FM801_I2S_MODE, 8, 1, 0),
@@ -1038,7 +1020,7 @@ static int snd_fm801_mixer(struct fm801 *chip)
 	struct snd_ac97_template ac97;
 	unsigned int i;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_fm801_codec_write,
 		.read = snd_fm801_codec_read,
 	};
@@ -1201,7 +1183,7 @@ static int snd_fm801_create(struct snd_card *card,
 {
 	struct fm801 *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_fm801_dev_free,
 	};
 
@@ -1241,6 +1223,7 @@ static int snd_fm801_create(struct snd_card *card,
 			return -EBUSY;
 		}
 		chip->irq = pci->irq;
+		card->sync_irq = chip->irq;
 		pci_set_master(pci);
 	}
 
@@ -1377,7 +1360,7 @@ static void snd_card_fm801_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static unsigned char saved_regs[] = {
+static const unsigned char saved_regs[] = {
 	FM801_PCM_VOL, FM801_I2S_VOL, FM801_FM_VOL, FM801_REC_SRC,
 	FM801_PLY_CTRL, FM801_PLY_COUNT, FM801_PLY_BUF1, FM801_PLY_BUF2,
 	FM801_CAP_CTRL, FM801_CAP_COUNT, FM801_CAP_BUF1, FM801_CAP_BUF2,

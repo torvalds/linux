@@ -108,7 +108,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
 /* Resending of interrupts :*/
-void check_irq_resend(struct irq_desc *desc);
+int check_irq_resend(struct irq_desc *desc, bool inject);
 bool irq_wait_for_poll(struct irq_desc *desc);
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
 
@@ -127,8 +127,6 @@ static inline void unregister_handler_proc(unsigned int irq,
 #endif
 
 extern bool irq_can_set_affinity_usr(unsigned int irq);
-
-extern int irq_select_affinity_usr(unsigned int irq);
 
 extern void irq_set_thread_affinity(struct irq_desc *desc);
 
@@ -427,6 +425,10 @@ static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 {
 	return desc->pending_mask;
 }
+static inline bool handle_enforce_irqctx(struct irq_data *data)
+{
+	return irqd_is_handle_enforce_irqctx(data);
+}
 bool irq_fixup_move_pending(struct irq_desc *desc, bool force_clear);
 #else /* CONFIG_GENERIC_PENDING_IRQ */
 static inline bool irq_can_move_pcntxt(struct irq_data *data)
@@ -450,6 +452,10 @@ static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 	return NULL;
 }
 static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
+{
+	return false;
+}
+static inline bool handle_enforce_irqctx(struct irq_data *data)
 {
 	return false;
 }

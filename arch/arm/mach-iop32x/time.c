@@ -137,13 +137,6 @@ iop_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction iop_timer_irq = {
-	.name		= "IOP Timer Tick",
-	.handler	= iop_timer_interrupt,
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.dev_id		= &iop_clockevent,
-};
-
 static unsigned long iop_tick_rate;
 unsigned long get_iop_tick_rate(void)
 {
@@ -154,6 +147,7 @@ EXPORT_SYMBOL(get_iop_tick_rate);
 void __init iop_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
+	int irq = IRQ_IOP32X_TIMER0;
 
 	sched_clock_register(iop_read_sched_clock, 32, tick_rate);
 
@@ -168,7 +162,9 @@ void __init iop_init_time(unsigned long tick_rate)
 	 */
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
 	write_tisr(1);
-	setup_irq(IRQ_IOP32X_TIMER0, &iop_timer_irq);
+	if (request_irq(irq, iop_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
+			"IOP Timer Tick", &iop_clockevent))
+		pr_err("Failed to request irq() %d (IOP Timer Tick)\n", irq);
 	iop_clockevent.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&iop_clockevent, tick_rate,
 					0xf, 0xfffffffe);

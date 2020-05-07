@@ -850,8 +850,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 				     "START: tid %d is not agg\'able\n", tid);
 			return -EINVAL;
 		}
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
+		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
 
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:

@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/jump_label.h>
 #include <linux/pci.h>
+#include <linux/printk.h>
 
 #include <asm/isc.h>
 #include <asm/airq.h>
@@ -39,11 +40,12 @@
 static LIST_HEAD(zpci_list);
 static DEFINE_SPINLOCK(zpci_list_lock);
 
-static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);
+static DECLARE_BITMAP(zpci_domain, ZPCI_DOMAIN_BITMAP_SIZE);
 static DEFINE_SPINLOCK(zpci_domain_lock);
+static unsigned int zpci_num_domains_allocated;
 
 #define ZPCI_IOMAP_ENTRIES						\
-	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
+	min(((unsigned long) ZPCI_NR_DEVICES * PCI_STD_NUM_BARS / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
 static DEFINE_SPINLOCK(zpci_iomap_lock);
@@ -294,7 +296,7 @@ static void __iomem *pci_iomap_range_mio(struct pci_dev *pdev, int bar,
 void __iomem *pci_iomap_range(struct pci_dev *pdev, int bar,
 			      unsigned long offset, unsigned long max)
 {
-	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
+	if (bar >= PCI_STD_NUM_BARS || !pci_resource_len(pdev, bar))
 		return NULL;
 
 	if (static_branch_likely(&have_mio))
@@ -324,7 +326,7 @@ static void __iomem *pci_iomap_wc_range_mio(struct pci_dev *pdev, int bar,
 void __iomem *pci_iomap_wc_range(struct pci_dev *pdev, int bar,
 				 unsigned long offset, unsigned long max)
 {
-	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
+	if (bar >= PCI_STD_NUM_BARS || !pci_resource_len(pdev, bar))
 		return NULL;
 
 	if (static_branch_likely(&have_mio))
@@ -416,14 +418,14 @@ static void zpci_map_resources(struct pci_dev *pdev)
 	resource_size_t len;
 	int i;
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
 
 		if (zpci_use_mio(zdev))
 			pdev->resource[i].start =
-				(resource_size_t __force) zdev->bars[i].mio_wb;
+				(resource_size_t __force) zdev->bars[i].mio_wt;
 		else
 			pdev->resource[i].start = (resource_size_t __force)
 				pci_iomap_range_fh(pdev, i, 0, 0);
@@ -451,7 +453,7 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 	if (zpci_use_mio(zdev))
 		return;
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
@@ -514,7 +516,7 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 	snprintf(zdev->res_name, sizeof(zdev->res_name),
 		 "PCI Bus %04x:%02x", zdev->domain, ZPCI_BUS_NR);
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		if (!zdev->bars[i].size)
 			continue;
 		entry = zpci_alloc_iomap(zdev);
@@ -530,7 +532,7 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 			flags |= IORESOURCE_MEM_64;
 
 		if (zpci_use_mio(zdev))
-			addr = (unsigned long) zdev->bars[i].mio_wb;
+			addr = (unsigned long) zdev->bars[i].mio_wt;
 		else
 			addr = ZPCI_ADDR(entry);
 		size = 1UL << zdev->bars[i].size;
@@ -551,7 +553,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 {
 	int i;
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		if (!zdev->bars[i].size || !zdev->bars[i].res)
 			continue;
 
@@ -573,7 +575,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		res = &pdev->resource[i];
 		if (res->parent || !res->flags)
 			continue;
@@ -606,84 +608,54 @@ void pcibios_disable_device(struct pci_dev *pdev)
 	zpci_debug_exit_device(zdev);
 }
 
-#ifdef CONFIG_HIBERNATE_CALLBACKS
-static int zpci_restore(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = to_zpci(pdev);
-	int ret = 0;
-
-	if (zdev->state != ZPCI_FN_STATE_ONLINE)
-		goto out;
-
-	ret = clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES);
-	if (ret)
-		goto out;
-
-	zpci_map_resources(pdev);
-	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-			   (u64) zdev->dma_table);
-
-out:
-	return ret;
-}
-
-static int zpci_freeze(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = to_zpci(pdev);
-
-	if (zdev->state != ZPCI_FN_STATE_ONLINE)
-		return 0;
-
-	zpci_unregister_ioat(zdev, 0);
-	zpci_unmap_resources(pdev);
-	return clp_disable_fh(zdev);
-}
-
-struct dev_pm_ops pcibios_pm_ops = {
-	.thaw_noirq = zpci_restore,
-	.freeze_noirq = zpci_freeze,
-	.restore_noirq = zpci_restore,
-	.poweroff_noirq = zpci_freeze,
-};
-#endif /* CONFIG_HIBERNATE_CALLBACKS */
-
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	spin_lock(&zpci_domain_lock);
+	if (zpci_num_domains_allocated > (ZPCI_NR_DEVICES - 1)) {
+		spin_unlock(&zpci_domain_lock);
+		pr_err("Adding PCI function %08x failed because the configured limit of %d is reached\n",
+			zdev->fid, ZPCI_NR_DEVICES);
+		return -ENOSPC;
+	}
+
 	if (zpci_unique_uid) {
 		zdev->domain = (u16) zdev->uid;
-		if (zdev->domain >= ZPCI_NR_DEVICES)
-			return 0;
+		if (zdev->domain == 0) {
+			pr_warn("UID checking is active but no UID is set for PCI function %08x, so automatic domain allocation is used instead\n",
+				zdev->fid);
+			update_uid_checking(false);
+			goto auto_allocate;
+		}
 
-		spin_lock(&zpci_domain_lock);
 		if (test_bit(zdev->domain, zpci_domain)) {
 			spin_unlock(&zpci_domain_lock);
+			pr_err("Adding PCI function %08x failed because domain %04x is already assigned\n",
+				zdev->fid, zdev->domain);
 			return -EEXIST;
 		}
 		set_bit(zdev->domain, zpci_domain);
+		zpci_num_domains_allocated++;
 		spin_unlock(&zpci_domain_lock);
 		return 0;
 	}
-
-	spin_lock(&zpci_domain_lock);
+auto_allocate:
+	/*
+	 * We can always auto allocate domains below ZPCI_NR_DEVICES.
+	 * There is either a free domain or we have reached the maximum in
+	 * which case we would have bailed earlier.
+	 */
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
-	if (zdev->domain == ZPCI_NR_DEVICES) {
-		spin_unlock(&zpci_domain_lock);
-		return -ENOSPC;
-	}
 	set_bit(zdev->domain, zpci_domain);
+	zpci_num_domains_allocated++;
 	spin_unlock(&zpci_domain_lock);
 	return 0;
 }
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
-	if (zdev->domain >= ZPCI_NR_DEVICES)
-		return;
-
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
+	zpci_num_domains_allocated--;
 	spin_unlock(&zpci_domain_lock);
 }
 
@@ -934,5 +906,5 @@ subsys_initcall_sync(pci_base_init);
 void zpci_rescan(void)
 {
 	if (zpci_is_enabled())
-		clp_rescan_pci_devices_simple();
+		clp_rescan_pci_devices_simple(NULL);
 }

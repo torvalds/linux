@@ -36,6 +36,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 #include "cxgb4.h"
+#include "cxgb4_filter.h"
 #include "cxgb4_tc_u32_parse.h"
 #include "cxgb4_tc_u32.h"
 
@@ -148,14 +149,16 @@ static int fill_action_fields(struct adapter *adap,
 int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	const struct cxgb4_match_field *start, *link_start = NULL;
+	struct netlink_ext_ack *extack = cls->common.extack;
 	struct adapter *adapter = netdev2adap(dev);
 	__be16 protocol = cls->common.protocol;
 	struct ch_filter_specification fs;
 	struct cxgb4_tc_u32_table *t;
 	struct cxgb4_link *link;
-	unsigned int filter_id;
 	u32 uhtid, link_uhtid;
 	bool is_ipv6 = false;
+	u8 inet_family;
+	int filter_id;
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
@@ -164,14 +167,18 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	if (protocol != htons(ETH_P_IP) && protocol != htons(ETH_P_IPV6))
 		return -EOPNOTSUPP;
 
-	/* Fetch the location to insert the filter. */
-	filter_id = cls->knode.handle & 0xFFFFF;
+	inet_family = (protocol == htons(ETH_P_IPV6)) ? PF_INET6 : PF_INET;
 
-	if (filter_id > adapter->tids.nftids) {
-		dev_err(adapter->pdev_dev,
-			"Location %d out of range for insertion. Max: %d\n",
-			filter_id, adapter->tids.nftids);
-		return -ERANGE;
+	/* Get a free filter entry TID, where we can insert this new
+	 * rule. Only insert rule if its prio doesn't conflict with
+	 * existing rules.
+	 */
+	filter_id = cxgb4_get_free_ftid(dev, inet_family, false,
+					TC_U32_NODE(cls->knode.handle));
+	if (filter_id < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "No free LETCAM index available");
+		return -ENOMEM;
 	}
 
 	t = adapter->tc_u32;
@@ -189,6 +196,11 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		return -EINVAL;
 
 	memset(&fs, 0, sizeof(fs));
+
+	if (filter_id < adapter->tids.nhpftids)
+		fs.prio = 1;
+	fs.tc_prio = cls->common.prio;
+	fs.tc_cookie = cls->knode.handle;
 
 	if (protocol == htons(ETH_P_IPV6)) {
 		start = cxgb4_ipv6_fields;
@@ -343,21 +355,67 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	unsigned int filter_id, max_tids, i, j;
 	struct cxgb4_link *link = NULL;
 	struct cxgb4_tc_u32_table *t;
+	struct filter_entry *f;
+	bool found = false;
 	u32 handle, uhtid;
+	u8 nslots;
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
 		return -EOPNOTSUPP;
 
 	/* Fetch the location to delete the filter. */
-	filter_id = cls->knode.handle & 0xFFFFF;
+	max_tids = adapter->tids.nhpftids + adapter->tids.nftids;
 
-	if (filter_id > adapter->tids.nftids) {
-		dev_err(adapter->pdev_dev,
-			"Location %d out of range for deletion. Max: %d\n",
-			filter_id, adapter->tids.nftids);
-		return -ERANGE;
+	spin_lock_bh(&adapter->tids.ftid_lock);
+	filter_id = 0;
+	while (filter_id < max_tids) {
+		if (filter_id < adapter->tids.nhpftids) {
+			i = filter_id;
+			f = &adapter->tids.hpftid_tab[i];
+			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+				found = true;
+				break;
+			}
+
+			i = find_next_bit(adapter->tids.hpftid_bmap,
+					  adapter->tids.nhpftids, i + 1);
+			if (i >= adapter->tids.nhpftids) {
+				filter_id = adapter->tids.nhpftids;
+				continue;
+			}
+
+			filter_id = i;
+		} else {
+			i = filter_id - adapter->tids.nhpftids;
+			f = &adapter->tids.ftid_tab[i];
+			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+				found = true;
+				break;
+			}
+
+			i = find_next_bit(adapter->tids.ftid_bmap,
+					  adapter->tids.nftids, i + 1);
+			if (i >= adapter->tids.nftids)
+				break;
+
+			filter_id = i + adapter->tids.nhpftids;
+		}
+
+		nslots = 0;
+		if (f->fs.type) {
+			nslots++;
+			if (CHELSIO_CHIP_VERSION(adapter->params.chip) <
+			    CHELSIO_T6)
+				nslots += 2;
+		}
+
+		filter_id += nslots;
 	}
+	spin_unlock_bh(&adapter->tids.ftid_lock);
+
+	if (!found)
+		return -ERANGE;
 
 	t = adapter->tc_u32;
 	handle = cls->knode.handle;
@@ -389,7 +447,6 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	/* If a link is being deleted, then delete all filters
 	 * associated with the link.
 	 */
-	max_tids = adapter->tids.nftids;
 	for (i = 0; i < t->size; i++) {
 		link = &t->table[i];
 
@@ -437,7 +494,7 @@ void cxgb4_cleanup_tc_u32(struct adapter *adap)
 
 struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 {
-	unsigned int max_tids = adap->tids.nftids;
+	unsigned int max_tids = adap->tids.nftids + adap->tids.nhpftids;
 	struct cxgb4_tc_u32_table *t;
 	unsigned int i;
 

@@ -284,6 +284,8 @@ void of_genpd_del_provider(struct device_node *np);
 int of_genpd_add_device(struct of_phandle_args *args, struct device *dev);
 int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 			   struct of_phandle_args *subdomain_spec);
+int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+			      struct of_phandle_args *subdomain_spec);
 struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
@@ -318,6 +320,12 @@ static inline int of_genpd_add_device(struct of_phandle_args *args,
 
 static inline int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 					 struct of_phandle_args *subdomain_spec)
+{
+	return -ENODEV;
+}
+
+static inline int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+					struct of_phandle_args *subdomain_spec)
 {
 	return -ENODEV;
 }
@@ -366,6 +374,7 @@ struct device *dev_pm_domain_attach_by_id(struct device *dev,
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
 					    const char *name);
 void dev_pm_domain_detach(struct device *dev, bool power_off);
+int dev_pm_domain_start(struct device *dev);
 void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
 #else
 static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
@@ -383,6 +392,10 @@ static inline struct device *dev_pm_domain_attach_by_name(struct device *dev,
 	return NULL;
 }
 static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
+static inline int dev_pm_domain_start(struct device *dev)
+{
+	return 0;
+}
 static inline void dev_pm_domain_set(struct device *dev,
 				     struct dev_pm_domain *pd) {}
 #endif

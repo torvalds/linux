@@ -3,7 +3,7 @@
  *
  * Module Name: tbxfload - Table load/unload external interfaces
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -268,6 +268,8 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
  *
  * PARAMETERS:  table               - Pointer to a buffer containing the ACPI
  *                                    table to be loaded.
+ *              table_idx           - Pointer to a u32 for storing the table
+ *                                    index, might be NULL
  *
  * RETURN:      Status
  *
@@ -278,7 +280,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/
-acpi_status acpi_load_table(struct acpi_table_header *table)
+acpi_status acpi_load_table(struct acpi_table_header *table, u32 *table_idx)
 {
 	acpi_status status;
 	u32 table_index;
@@ -297,6 +299,10 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
 						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
 						FALSE, &table_index);
+	if (table_idx) {
+		*table_idx = table_index;
+	}
+
 	if (ACPI_SUCCESS(status)) {
 
 		/* Complete the initialization/resolution of new objects */
@@ -390,3 +396,35 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_unload_parent_table)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_unload_table
+ *
+ * PARAMETERS:  table_index         - Index as returned by acpi_load_table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Via the table_index representing an SSDT or OEMx table, unloads
+ *              the table and deletes all namespace objects associated with
+ *              that table. Unloading of the DSDT is not allowed.
+ *              Note: Mainly intended to support hotplug removal of SSDTs.
+ *
+ ******************************************************************************/
+acpi_status acpi_unload_table(u32 table_index)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_unload_table);
+
+	if (table_index == 1) {
+
+		/* table_index==1 means DSDT is the owner. DSDT cannot be unloaded */
+
+		return_ACPI_STATUS(AE_TYPE);
+	}
+
+	status = acpi_tb_unload_table(table_index);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_unload_table)

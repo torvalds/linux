@@ -505,10 +505,15 @@ struct vb2_buf_ops {
  * @buf_ops:	callbacks to deliver buffer information.
  *		between user-space and kernel-space.
  * @drv_priv:	driver private data.
+ * @subsystem_flags: Flags specific to the subsystem (V4L2/DVB/etc.). Not used
+ *		by the vb2 core.
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
- *		structure type. for example, ``sizeof(struct vb2_v4l2_buffer)``
- *		will be used for v4l2.
+ *		structure type. In that case a subsystem-specific struct
+ *		will be used (in the case of V4L2 that is
+ *		``sizeof(struct vb2_v4l2_buffer)``). The first field of the
+ *		driver-specific buffer structure must be the subsystem-specific
+ *		struct (vb2_v4l2_buffer in the case of V4L2).
  * @timestamp_flags: Timestamp flags; ``V4L2_BUF_FLAG_TIMESTAMP_*`` and
  *		``V4L2_BUF_FLAG_TSTAMP_SRC_*``
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
@@ -571,6 +576,7 @@ struct vb2_queue {
 	const struct vb2_buf_ops	*buf_ops;
 
 	void				*drv_priv;
+	u32				subsystem_flags;
 	unsigned int			buf_struct_size;
 	u32				timestamp_flags;
 	gfp_t				gfp_flags;

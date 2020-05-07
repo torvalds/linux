@@ -3,7 +3,6 @@
  * Copyright (C) 2017-2018, Bootlin
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -25,7 +24,6 @@ struct ili9881c {
 	struct drm_panel	panel;
 	struct mipi_dsi_device	*dsi;
 
-	struct backlight_device *backlight;
 	struct regulator	*power;
 	struct gpio_desc	*reset;
 };
@@ -348,7 +346,6 @@ static int ili9881c_enable(struct drm_panel *panel)
 	msleep(120);
 
 	mipi_dsi_dcs_set_display_on(ctx->dsi);
-	backlight_enable(ctx->backlight);
 
 	return 0;
 }
@@ -357,7 +354,6 @@ static int ili9881c_disable(struct drm_panel *panel)
 {
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
 
-	backlight_disable(ctx->backlight);
 	return mipi_dsi_dcs_set_display_off(ctx->dsi);
 }
 
@@ -387,13 +383,13 @@ static const struct drm_display_mode bananapi_default_mode = {
 	.vtotal		= 1280 + 10 + 10 + 20,
 };
 
-static int ili9881c_get_modes(struct drm_panel *panel)
+static int ili9881c_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &bananapi_default_mode);
+	mode = drm_mode_duplicate(connector->dev, &bananapi_default_mode);
 	if (!mode) {
 		dev_err(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			bananapi_default_mode.hdisplay,
@@ -407,8 +403,8 @@ static int ili9881c_get_modes(struct drm_panel *panel)
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 62;
-	panel->connector->display_info.height_mm = 110;
+	connector->display_info.width_mm = 62;
+	connector->display_info.height_mm = 110;
 
 	return 1;
 }
@@ -423,7 +419,6 @@ static const struct drm_panel_funcs ili9881c_funcs = {
 
 static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 {
-	struct device_node *np;
 	struct ili9881c *ctx;
 	int ret;
 
@@ -433,9 +428,8 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &dsi->dev;
-	ctx->panel.funcs = &ili9881c_funcs;
+	drm_panel_init(&ctx->panel, &dsi->dev, &ili9881c_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->power = devm_regulator_get(&dsi->dev, "power");
 	if (IS_ERR(ctx->power)) {
@@ -449,14 +443,9 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(ctx->reset);
 	}
 
-	np = of_parse_phandle(dsi->dev.of_node, "backlight", 0);
-	if (np) {
-		ctx->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
-
-		if (!ctx->backlight)
-			return -EPROBE_DEFER;
-	}
+	ret = drm_panel_of_backlight(&ctx->panel);
+	if (ret)
+		return ret;
 
 	ret = drm_panel_add(&ctx->panel);
 	if (ret < 0)
@@ -475,9 +464,6 @@ static int ili9881c_dsi_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	if (ctx->backlight)
-		put_device(&ctx->backlight->dev);
 
 	return 0;
 }

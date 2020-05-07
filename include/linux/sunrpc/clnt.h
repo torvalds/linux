@@ -71,7 +71,13 @@ struct rpc_clnt {
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
-	struct rpc_xprt_iter	cl_xpi;
+	/* cl_work is only needed after cl_xpi is no longer used,
+	 * and that are of similar size
+	 */
+	union {
+		struct rpc_xprt_iter	cl_xpi;
+		struct work_struct	cl_work;
+	};
 	const struct cred	*cl_cred;
 };
 
@@ -108,8 +114,6 @@ struct rpc_procinfo {
 	u32			p_statidx;	/* Which procedure to account */
 	const char *		p_name;		/* name of procedure */
 };
-
-#ifdef __KERNEL__
 
 struct rpc_create_args {
 	struct net		*net;
@@ -149,6 +153,7 @@ struct rpc_add_xprt_test {
 #define RPC_CLNT_CREATE_NO_IDLE_TIMEOUT	(1UL << 8)
 #define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 #define RPC_CLNT_CREATE_SOFTERR		(1UL << 10)
+#define RPC_CLNT_CREATE_REUSEPORT	(1UL << 11)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
@@ -237,5 +242,9 @@ static inline int rpc_reply_expected(struct rpc_task *task)
 		(task->tk_msg.rpc_proc->p_decode != NULL);
 }
 
-#endif /* __KERNEL__ */
+static inline void rpc_task_close_connection(struct rpc_task *task)
+{
+	if (task->tk_xprt)
+		xprt_force_disconnect(task->tk_xprt);
+}
 #endif /* _LINUX_SUNRPC_CLNT_H */

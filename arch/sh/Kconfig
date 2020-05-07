@@ -87,11 +87,6 @@ config SUPERH64
 	select HAVE_EXIT_THREAD
 	select KALLSYMS
 
-config ARCH_DEFCONFIG
-	string
-	default "arch/sh/configs/shx3_defconfig" if SUPERH32
-	default "arch/sh/configs/cayman_defconfig" if SUPERH64
-
 config GENERIC_BUG
 	def_bool y
 	depends on BUG && SUPERH32
@@ -108,7 +103,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_LOCKBREAK
 	def_bool y
-	depends on SMP && PREEMPT
+	depends on SMP && PREEMPTION
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool n

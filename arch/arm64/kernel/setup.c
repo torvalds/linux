@@ -285,6 +285,13 @@ void __init setup_arch(char **cmdline_p)
 
 	*cmdline_p = boot_command_line;
 
+	/*
+	 * If know now we are going to need KPTI then use non-global
+	 * mappings from the start, avoiding the cost of rewriting
+	 * everything later.
+	 */
+	arm64_use_ng_mappings = kaslr_requires_kpti();
+
 	early_fixmap_init();
 	early_ioremap_init();
 
@@ -337,7 +344,7 @@ void __init setup_arch(char **cmdline_p)
 	else
 		psci_acpi_init();
 
-	cpu_read_bootcpu_ops();
+	init_bootcpu_ops();
 	smp_init_cpus();
 	smp_build_mpidr_hash();
 
@@ -353,9 +360,6 @@ void __init setup_arch(char **cmdline_p)
 	init_task.thread_info.ttbr0 = __pa_symbol(empty_zero_page);
 #endif
 
-#ifdef CONFIG_VT
-	conswitchp = &dummy_con;
-#endif
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {
 		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
 			"\tx1: %016llx\n\tx2: %016llx\n\tx3: %016llx\n"
@@ -367,8 +371,10 @@ void __init setup_arch(char **cmdline_p)
 static inline bool cpu_can_disable(unsigned int cpu)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_can_disable)
-		return cpu_ops[cpu]->cpu_can_disable(cpu);
+	const struct cpu_operations *ops = get_cpu_ops(cpu);
+
+	if (ops && ops->cpu_can_disable)
+		return ops->cpu_can_disable(cpu);
 #endif
 	return false;
 }

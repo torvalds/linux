@@ -31,6 +31,8 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	pr_alert("[%08lx] *pgd=%08lx", addr, pgd_val(*pgd));
 
 	do {
+		p4d_t *p4d;
+		pud_t *pud;
 		pmd_t *pmd;
 
 		if (pgd_none(*pgd))
@@ -41,7 +43,9 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 			break;
 		}
 
-		pmd = pmd_offset(pgd, addr);
+		p4d = p4d_offset(pgd, addr);
+		pud = pud_offset(p4d, addr);
+		pmd = pmd_offset(pud, addr);
 #if PTRS_PER_PMD != 1
 		pr_alert(", *pmd=%08lx", pmd_val(*pmd));
 #endif
@@ -75,8 +79,8 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	struct vm_area_struct *vma;
 	int si_code;
 	vm_fault_t fault;
-	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int mask = VM_ACCESS_FLAGS;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	error_code = error_code & (ITYPE_mskINST | ITYPE_mskETYPE);
 	tsk = current;
@@ -210,7 +214,7 @@ good_area:
 	 * signal first. We do not need to release the mmap_sem because it
 	 * would already be released in __lock_page_or_retry in mm/filemap.c.
 	 */
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
 			goto no_context;
 		return;
@@ -242,7 +246,6 @@ good_area:
 				      1, regs, addr);
 		}
 		if (fault & VM_FAULT_RETRY) {
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
 
 			/* No need to up_read(&mm->mmap_sem) as we would
@@ -359,6 +362,7 @@ vmalloc_fault:
 
 		unsigned int index = pgd_index(addr);
 		pgd_t *pgd, *pgd_k;
+		p4d_t *p4d, *p4d_k;
 		pud_t *pud, *pud_k;
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
@@ -369,8 +373,13 @@ vmalloc_fault:
 		if (!pgd_present(*pgd_k))
 			goto no_context;
 
-		pud = pud_offset(pgd, addr);
-		pud_k = pud_offset(pgd_k, addr);
+		p4d = p4d_offset(pgd, addr);
+		p4d_k = p4d_offset(pgd_k, addr);
+		if (!p4d_present(*p4d_k))
+			goto no_context;
+
+		pud = pud_offset(p4d, addr);
+		pud_k = pud_offset(p4d_k, addr);
 		if (!pud_present(*pud_k))
 			goto no_context;
 

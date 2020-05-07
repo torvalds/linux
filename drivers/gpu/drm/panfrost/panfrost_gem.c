@@ -19,6 +19,22 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
+	/*
+	 * Make sure the BO is no longer inserted in the shrinker list before
+	 * taking care of the destruction itself. If we don't do that we have a
+	 * race condition between this function and what's done in
+	 * panfrost_gem_shrinker_scan().
+	 */
+	mutex_lock(&pfdev->shrinker_lock);
+	list_del_init(&bo->base.madv_list);
+	mutex_unlock(&pfdev->shrinker_lock);
+
+	/*
+	 * If we still have mappings attached to the BO, there's a problem in
+	 * our refcounting.
+	 */
+	WARN_ON_ONCE(!list_empty(&bo->mappings.list));
+
 	if (bo->sgts) {
 		int i;
 		int n_sgt = bo->base.base.size / SZ_2M;
@@ -33,15 +49,73 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 		kfree(bo->sgts);
 	}
 
-	mutex_lock(&pfdev->shrinker_lock);
-	if (!list_empty(&bo->base.madv_list))
-		list_del(&bo->base.madv_list);
-	mutex_unlock(&pfdev->shrinker_lock);
-
 	drm_gem_shmem_free_object(obj);
 }
 
-static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+struct panfrost_gem_mapping *
+panfrost_gem_mapping_get(struct panfrost_gem_object *bo,
+			 struct panfrost_file_priv *priv)
+{
+	struct panfrost_gem_mapping *iter, *mapping = NULL;
+
+	mutex_lock(&bo->mappings.lock);
+	list_for_each_entry(iter, &bo->mappings.list, node) {
+		if (iter->mmu == &priv->mmu) {
+			kref_get(&iter->refcount);
+			mapping = iter;
+			break;
+		}
+	}
+	mutex_unlock(&bo->mappings.lock);
+
+	return mapping;
+}
+
+static void
+panfrost_gem_teardown_mapping(struct panfrost_gem_mapping *mapping)
+{
+	struct panfrost_file_priv *priv;
+
+	if (mapping->active)
+		panfrost_mmu_unmap(mapping);
+
+	priv = container_of(mapping->mmu, struct panfrost_file_priv, mmu);
+	spin_lock(&priv->mm_lock);
+	if (drm_mm_node_allocated(&mapping->mmnode))
+		drm_mm_remove_node(&mapping->mmnode);
+	spin_unlock(&priv->mm_lock);
+}
+
+static void panfrost_gem_mapping_release(struct kref *kref)
+{
+	struct panfrost_gem_mapping *mapping;
+
+	mapping = container_of(kref, struct panfrost_gem_mapping, refcount);
+
+	panfrost_gem_teardown_mapping(mapping);
+	drm_gem_object_put_unlocked(&mapping->obj->base.base);
+	kfree(mapping);
+}
+
+void panfrost_gem_mapping_put(struct panfrost_gem_mapping *mapping)
+{
+	if (!mapping)
+		return;
+
+	kref_put(&mapping->refcount, panfrost_gem_mapping_release);
+}
+
+void panfrost_gem_teardown_mappings(struct panfrost_gem_object *bo)
+{
+	struct panfrost_gem_mapping *mapping;
+
+	mutex_lock(&bo->mappings.lock);
+	list_for_each_entry(mapping, &bo->mappings.list, node)
+		panfrost_gem_teardown_mapping(mapping);
+	mutex_unlock(&bo->mappings.lock);
+}
+
+int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	int ret;
 	size_t size = obj->size;
@@ -49,6 +123,16 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
+	struct panfrost_gem_mapping *mapping;
+
+	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	if (!mapping)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&mapping->node);
+	kref_init(&mapping->refcount);
+	drm_gem_object_get(obj);
+	mapping->obj = bo;
 
 	/*
 	 * Executable buffers cannot cross a 16MB boundary as the program
@@ -61,37 +145,48 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
-	bo->mmu = &priv->mmu;
+	mapping->mmu = &priv->mmu;
 	spin_lock(&priv->mm_lock);
-	ret = drm_mm_insert_node_generic(&priv->mm, &bo->node,
+	ret = drm_mm_insert_node_generic(&priv->mm, &mapping->mmnode,
 					 size >> PAGE_SHIFT, align, color, 0);
 	spin_unlock(&priv->mm_lock);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (!bo->is_heap) {
-		ret = panfrost_mmu_map(bo);
-		if (ret) {
-			spin_lock(&priv->mm_lock);
-			drm_mm_remove_node(&bo->node);
-			spin_unlock(&priv->mm_lock);
-		}
+		ret = panfrost_mmu_map(mapping);
+		if (ret)
+			goto err;
 	}
+
+	mutex_lock(&bo->mappings.lock);
+	WARN_ON(bo->base.madv != PANFROST_MADV_WILLNEED);
+	list_add_tail(&mapping->node, &bo->mappings.list);
+	mutex_unlock(&bo->mappings.lock);
+
+err:
+	if (ret)
+		panfrost_gem_mapping_put(mapping);
 	return ret;
 }
 
-static void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
+void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
-	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	struct panfrost_gem_mapping *mapping = NULL, *iter;
 
-	if (bo->is_mapped)
-		panfrost_mmu_unmap(bo);
+	mutex_lock(&bo->mappings.lock);
+	list_for_each_entry(iter, &bo->mappings.list, node) {
+		if (iter->mmu == &priv->mmu) {
+			mapping = iter;
+			list_del(&iter->node);
+			break;
+		}
+	}
+	mutex_unlock(&bo->mappings.lock);
 
-	spin_lock(&priv->mm_lock);
-	if (drm_mm_node_allocated(&bo->node))
-		drm_mm_remove_node(&bo->node);
-	spin_unlock(&priv->mm_lock);
+	panfrost_gem_mapping_put(mapping);
 }
 
 static int panfrost_gem_pin(struct drm_gem_object *obj)
@@ -112,7 +207,7 @@ static const struct drm_gem_object_funcs panfrost_gem_funcs = {
 	.get_sg_table = drm_gem_shmem_get_sg_table,
 	.vmap = drm_gem_shmem_vmap,
 	.vunmap = drm_gem_shmem_vunmap,
-	.vm_ops = &drm_gem_shmem_vm_ops,
+	.mmap = drm_gem_shmem_mmap,
 };
 
 /**
@@ -131,6 +226,8 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	if (!obj)
 		return NULL;
 
+	INIT_LIST_HEAD(&obj->mappings.list);
+	mutex_init(&obj->mappings.lock);
 	obj->base.base.funcs = &panfrost_gem_funcs;
 
 	return &obj->base.base;

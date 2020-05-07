@@ -8,7 +8,6 @@
 #include "lima_device.h"
 #include "lima_mmu.h"
 #include "lima_vm.h"
-#include "lima_object.h"
 #include "lima_regs.h"
 
 #define mmu_write(reg, data) writel(data, ip->iomem + reg)
@@ -98,6 +97,11 @@ int lima_mmu_init(struct lima_ip *ip)
 void lima_mmu_fini(struct lima_ip *ip)
 {
 
+}
+
+void lima_mmu_flush_tlb(struct lima_ip *ip)
+{
+	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_ZAP_CACHE);
 }
 
 void lima_mmu_switch_vm(struct lima_ip *ip, struct lima_vm *vm)

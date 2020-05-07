@@ -14,6 +14,7 @@
 #include <sound/hdmi-codec.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
@@ -805,8 +806,8 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 				tda998x_edid_delay_start(priv);
 			} else {
 				schedule_work(&priv->detect_work);
-				cec_notifier_set_phys_addr(priv->cec_notify,
-						   CEC_PHYS_ADDR_INVALID);
+				cec_notifier_phys_addr_invalidate(
+						priv->cec_notify);
 			}
 
 			handled = true;
@@ -1355,9 +1356,15 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 
 /* DRM bridge functions */
 
-static int tda998x_bridge_attach(struct drm_bridge *bridge)
+static int tda998x_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	return tda998x_connector_init(priv, bridge->dev);
 }
@@ -1790,8 +1797,7 @@ static void tda998x_destroy(struct device *dev)
 
 	i2c_unregister_device(priv->cec);
 
-	if (priv->cec_notify)
-		cec_notifier_put(priv->cec_notify);
+	cec_notifier_conn_unregister(priv->cec_notify);
 }
 
 static int tda998x_create(struct device *dev)
@@ -1916,7 +1922,7 @@ static int tda998x_create(struct device *dev)
 		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
 	}
 
-	priv->cec_notify = cec_notifier_get(dev);
+	priv->cec_notify = cec_notifier_conn_register(dev, NULL, NULL);
 	if (!priv->cec_notify) {
 		ret = -ENOMEM;
 		goto fail;
@@ -2022,7 +2028,7 @@ static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 	if (ret)
 		goto err_encoder;
 
-	ret = drm_bridge_attach(&priv->encoder, &priv->bridge, NULL);
+	ret = drm_bridge_attach(&priv->encoder, &priv->bridge, NULL, 0);
 	if (ret)
 		goto err_bridge;
 

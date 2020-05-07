@@ -159,11 +159,11 @@ applicable everywhere (see syntax).
   Given the following example::
 
     config FOO
-	tristate
+	tristate "foo"
 	imply BAZ
 
     config BAZ
-	tristate
+	tristate "baz"
 	depends on BAR
 
   The following values are possible:
@@ -173,13 +173,34 @@ applicable everywhere (see syntax).
 	===		===		=============	==============
 	n		y		n		N/m/y
 	m		y		m		M/y/n
-	y		y		y		Y/n
+	y		y		y		Y/m/n
+	n		m		n		N/m
+	m		m		m		M/n
+	y		m		n		M/n
 	y		n		*		N
 	===		===		=============	==============
 
   This is useful e.g. with multiple drivers that want to indicate their
   ability to hook into a secondary subsystem while allowing the user to
   configure that subsystem out without also having to unset these drivers.
+
+  Note: If the combination of FOO=y and BAR=m causes a link error,
+  you can guard the function call with IS_REACHABLE()::
+
+	foo_init()
+	{
+		if (IS_REACHABLE(CONFIG_BAZ))
+			baz_register(&foo);
+		...
+	}
+
+  Note: If the feature provided by BAZ is highly desirable for FOO,
+  FOO should imply not only BAZ, but also its dependency BAR::
+
+    config FOO
+	tristate "foo"
+	imply BAR
+	imply BAZ
 
 - limiting menu display: "visible if" <expr>
 
@@ -196,14 +217,11 @@ applicable everywhere (see syntax).
   or equal to the first symbol and smaller than or equal to the second
   symbol.
 
-- help text: "help" or "---help---"
+- help text: "help"
 
   This defines a help text. The end of the help text is determined by
   the indentation level, this means it ends at the first line which has
   a smaller indentation than the first line of the help text.
-  "---help---" and "help" do not differ in behaviour, "---help---" is
-  used to help visually separate configuration logic from help within
-  the file as an aid to developers.
 
 - misc options: "option" <symbol>[=<value>]
 
@@ -594,7 +612,8 @@ The two different resolutions for b) can be tested in the sample Kconfig file
 Documentation/kbuild/Kconfig.recursion-issue-02.
 
 Below is a list of examples of prior fixes for these types of recursive issues;
-all errors appear to involve one or more select's and one or more "depends on".
+all errors appear to involve one or more "select" statements and one or more
+"depends on".
 
 ============    ===================================
 commit          fix
@@ -656,7 +675,7 @@ the use of the xconfig configurator [1]_. Work should be done to confirm if
 the deduced semantics matches our intended Kconfig design goals.
 
 Having well defined semantics can be useful for tools for practical
-evaluation of depenencies, for instance one such use known case was work to
+evaluation of dependencies, for instance one such case was work to
 express in boolean abstraction of the inferred semantics of Kconfig to
 translate Kconfig logic into boolean formulas and run a SAT solver on this to
 find dead code / features (always inactive), 114 dead features were found in
@@ -683,7 +702,7 @@ abstraction the inferred semantics of Kconfig to translate Kconfig logic into
 boolean formulas and run a SAT solver on it [5]_. Another known related project
 is CADOS [6]_ (former VAMOS [7]_) and the tools, mainly undertaker [8]_, which
 has been introduced first with [9]_.  The basic concept of undertaker is to
-exract variability models from Kconfig, and put them together with a
+extract variability models from Kconfig and put them together with a
 propositional formula extracted from CPP #ifdefs and build-rules into a SAT
 solver in order to find dead code, dead files, and dead symbols. If using a SAT
 solver is desirable on Kconfig one approach would be to evaluate repurposing

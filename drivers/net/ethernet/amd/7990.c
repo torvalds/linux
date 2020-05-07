@@ -527,7 +527,7 @@ int lance_close(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(lance_close);
 
-void lance_tx_timeout(struct net_device *dev)
+void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	printk("lance_tx_timeout\n");
 	lance_reset(dev);

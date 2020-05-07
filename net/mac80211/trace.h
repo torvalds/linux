@@ -408,20 +408,20 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u32, basic_rates)
 		__array(int, mcast_rate, NUM_NL80211_BANDS)
 		__field(u16, ht_operation_mode)
-		__field(s32, cqm_rssi_thold);
-		__field(s32, cqm_rssi_hyst);
-		__field(u32, channel_width);
-		__field(u32, channel_cfreq1);
+		__field(s32, cqm_rssi_thold)
+		__field(s32, cqm_rssi_hyst)
+		__field(u32, channel_width)
+		__field(u32, channel_cfreq1)
 		__dynamic_array(u32, arp_addr_list,
 				info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
 					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					info->arp_addr_cnt);
-		__field(int, arp_addr_cnt);
-		__field(bool, qos);
-		__field(bool, idle);
-		__field(bool, ps);
-		__dynamic_array(u8, ssid, info->ssid_len);
-		__field(bool, hidden_ssid);
+					info->arp_addr_cnt)
+		__field(int, arp_addr_cnt)
+		__field(bool, qos)
+		__field(bool, idle)
+		__field(bool, ps)
+		__dynamic_array(u8, ssid, info->ssid_len)
+		__field(bool, hidden_ssid)
 		__field(int, txpower)
 		__field(u8, p2p_oppps_ctwindow)
 	),
@@ -1672,8 +1672,8 @@ TRACE_EVENT(drv_start_ap,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len);
-		__field(bool, hidden_ssid);
+		__dynamic_array(u8, ssid, info->ssid_len)
+		__field(bool, hidden_ssid)
 	),
 
 	TP_fast_assign(
@@ -1739,7 +1739,7 @@ TRACE_EVENT(drv_join_ibss,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len);
+		__dynamic_array(u8, ssid, info->ssid_len)
 	),
 
 	TP_fast_assign(

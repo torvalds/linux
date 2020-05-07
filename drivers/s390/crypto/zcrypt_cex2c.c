@@ -220,6 +220,7 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	zq->queue = aq;
 	zq->online = 1;
 	atomic_set(&zq->load, 0);
+	ap_rapq(aq->qid);
 	rc = zcrypt_cex2c_rng_supported(aq);
 	if (rc < 0) {
 		zcrypt_queue_free(zq);
@@ -231,6 +232,7 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	else
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_NORNG);
+	ap_queue_init_state(aq);
 	ap_queue_init_reply(aq, &zq->reply);
 	aq->request_timeout = CEX2C_CLEANUP_TIME;
 	aq->private = zq;
@@ -258,8 +260,6 @@ static void zcrypt_cex2c_queue_remove(struct ap_device *ap_dev)
 static struct ap_driver zcrypt_cex2c_queue_driver = {
 	.probe = zcrypt_cex2c_queue_probe,
 	.remove = zcrypt_cex2c_queue_remove,
-	.suspend = ap_queue_suspend,
-	.resume = ap_queue_resume,
 	.ids = zcrypt_cex2c_queue_ids,
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };

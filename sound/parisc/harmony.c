@@ -567,28 +567,18 @@ static int
 snd_harmony_hw_params(struct snd_pcm_substream *ss,
 		      struct snd_pcm_hw_params *hw)
 {
-	int err;
 	struct snd_harmony *h = snd_pcm_substream_chip(ss);
 	
-	err = snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw));
-	if (err > 0 && h->dma.type == SNDRV_DMA_TYPE_CONTINUOUS)
+	if (h->dma.type == SNDRV_DMA_TYPE_CONTINUOUS)
 		ss->runtime->dma_addr = __pa(ss->runtime->dma_area);
-	
-	return err;
-}
 
-static int 
-snd_harmony_hw_free(struct snd_pcm_substream *ss) 
-{
-	return snd_pcm_lib_free_pages(ss);
+	return 0;
 }
 
 static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.open =	snd_harmony_playback_open,
 	.close = snd_harmony_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_harmony_hw_params,
-	.hw_free = snd_harmony_hw_free,
 	.prepare = snd_harmony_playback_prepare,
 	.trigger = snd_harmony_playback_trigger,
  	.pointer = snd_harmony_playback_pointer,
@@ -597,9 +587,7 @@ static const struct snd_pcm_ops snd_harmony_playback_ops = {
 static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .open = snd_harmony_capture_open,
         .close = snd_harmony_capture_close,
-        .ioctl = snd_pcm_lib_ioctl,
         .hw_params = snd_harmony_hw_params,
-        .hw_free = snd_harmony_hw_free,
         .prepare = snd_harmony_capture_prepare,
         .trigger = snd_harmony_capture_trigger,
         .pointer = snd_harmony_capture_pointer,
@@ -656,8 +644,8 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 	}
 
 	/* pre-allocate space for DMA */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type, h->dma.dev,
-					      MAX_BUF_SIZE, MAX_BUF_SIZE);
+	snd_pcm_set_managed_buffer_all(pcm, h->dma.type, h->dma.dev,
+				       MAX_BUF_SIZE, MAX_BUF_SIZE);
 
 	h->st.format = snd_harmony_set_data_format(h,
 		SNDRV_PCM_FORMAT_S16_BE, 1);
@@ -809,7 +797,7 @@ snd_harmony_captureroute_put(struct snd_kcontrol *kc,
   .private_value = ((left_shift) | ((right_shift) << 8) |            \
                    ((mask) << 16) | ((invert) << 24)) }
 
-static struct snd_kcontrol_new snd_harmony_controls[] = {
+static const struct snd_kcontrol_new snd_harmony_controls[] = {
 	HARMONY_VOLUME("Master Playback Volume", HARMONY_GAIN_LO_SHIFT, 
 		       HARMONY_GAIN_RO_SHIFT, HARMONY_GAIN_OUT, 1),
 	HARMONY_VOLUME("Capture Volume", HARMONY_GAIN_LI_SHIFT,
@@ -893,7 +881,7 @@ snd_harmony_create(struct snd_card *card,
 {
 	int err;
 	struct snd_harmony *h;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_harmony_dev_free,
 	};
 
@@ -907,7 +895,7 @@ snd_harmony_create(struct snd_card *card,
 	h->card = card;
 	h->dev = padev;
 	h->irq = -1;
-	h->iobase = ioremap_nocache(padev->hpa.start, HARMONY_SIZE);
+	h->iobase = ioremap(padev->hpa.start, HARMONY_SIZE);
 	if (h->iobase == NULL) {
 		printk(KERN_ERR PFX "unable to remap hpa 0x%lx\n",
 		       (unsigned long)padev->hpa.start);

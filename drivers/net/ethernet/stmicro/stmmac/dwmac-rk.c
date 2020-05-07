@@ -37,7 +37,7 @@ struct rk_gmac_ops {
 
 struct rk_priv_data {
 	struct platform_device *pdev;
-	int phy_iface;
+	phy_interface_t phy_iface;
 	struct regulator *regulator;
 	bool suspended;
 	const struct rk_gmac_ops *ops;
@@ -1224,7 +1224,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (!bsp_priv)
 		return ERR_PTR(-ENOMEM);
 
-	bsp_priv->phy_iface = of_get_phy_mode(dev->of_node);
+	of_get_phy_mode(dev->of_node, &bsp_priv->phy_iface);
 	bsp_priv->ops = ops;
 
 	bsp_priv->regulator = devm_regulator_get_optional(dev, "phy");
@@ -1411,7 +1411,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 
 	ret = rk_gmac_clk_init(plat_dat);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
 	ret = rk_gmac_powerup(plat_dat->bsp_priv);
 	if (ret)

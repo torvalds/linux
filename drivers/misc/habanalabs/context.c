@@ -176,7 +176,7 @@ struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 	spin_lock(&ctx->cs_lock);
 
 	if (seq >= ctx->cs_sequence) {
-		dev_notice(hdev->dev,
+		dev_notice_ratelimited(hdev->dev,
 			"Can't wait on seq %llu because current CS is at seq %llu\n",
 			seq, ctx->cs_sequence);
 		spin_unlock(&ctx->cs_lock);

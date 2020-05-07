@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/nmi.h>
+#include <linux/msi.h>
 #include <asm/io.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
@@ -34,6 +35,8 @@ typedef int (*hyperv_fill_flush_list_func)(
 	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
 #define hv_set_synint_state(int_num, val) \
 	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
+#define hv_recommend_using_aeoi() \
+	(!(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED))
 
 #define hv_get_crash_ctl(val) \
 	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
@@ -46,7 +49,9 @@ typedef int (*hyperv_fill_flush_list_func)(
 #define hv_set_reference_tsc(val) \
 	wrmsrl(HV_X64_MSR_REFERENCE_TSC, val)
 #define hv_set_clocksource_vdso(val) \
-	((val).archdata.vclock_mode = VCLOCK_HVCLOCK)
+	((val).vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK)
+#define hv_enable_vdso_clocksource() \
+	vclocks_set_used(VDSO_CLOCKMODE_HVCLOCK);
 #define hv_get_raw_timer() rdtsc_ordered()
 
 void hyperv_callback_vector(void);
@@ -219,6 +224,7 @@ static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
 void __init hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
 void *hv_alloc_hyperv_page(void);
+void *hv_alloc_hyperv_zeroed_page(void);
 void hv_free_hyperv_page(unsigned long addr);
 void hyperv_reenlightenment_intr(struct pt_regs *regs);
 void set_hv_tscchange_cb(void (*cb)(void));
@@ -238,6 +244,13 @@ bool hv_vcpu_is_preempted(int vcpu);
 #else
 static inline void hv_apic_init(void) {}
 #endif
+
+static inline void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
+					      struct msi_desc *msi_desc)
+{
+	msi_entry->address = msi_desc->msg.address_lo;
+	msi_entry->data = msi_desc->msg.data;
+}
 
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}

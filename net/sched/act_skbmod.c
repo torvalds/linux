@@ -79,7 +79,7 @@ static const struct nla_policy skbmod_policy[TCA_SKBMOD_MAX + 1] = {
 static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
-			   struct tcf_proto *tp,
+			   struct tcf_proto *tp, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
@@ -143,7 +143,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_skbmod_ops, bind, true);
+				     &act_skbmod_ops, bind, true, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

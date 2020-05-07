@@ -63,6 +63,16 @@ Supported chips:
 
 	http://www.ti.com/lit/gpn/tps544c25
 
+  * Maxim MAX20796
+
+    Prefix: 'max20796'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	Not published
+
   * Generic PMBus devices
 
     Prefix: 'pmbus'
@@ -217,7 +227,9 @@ currX_lcrit_alarm	Output current critical low alarm.
 			From IOUT_UC_FAULT status.
 currX_crit_alarm	Current critical high alarm.
 			From IIN_OC_FAULT or IOUT_OC_FAULT status.
-currX_label		"iin" or "ioutY"
+currX_label		"iin", "iinY", "iinY.Z", "ioutY", or "ioutY.Z",
+			where Y reflects the page number and Z reflects the
+			phase.
 
 powerX_input		Measured power. From READ_PIN or READ_POUT register.
 powerX_cap		Output power cap. From POUT_MAX register.
@@ -229,7 +241,9 @@ powerX_alarm		Power high alarm.
 			From PIN_OP_WARNING or POUT_OP_WARNING status.
 powerX_crit_alarm	Output power critical high alarm.
 			From POUT_OP_FAULT status.
-powerX_label		"pin" or "poutY"
+powerX_label		"pin", "pinY", "pinY.Z", "poutY", or "poutY.Z",
+			where Y reflects the page number and Z reflects the
+			phase.
 
 tempX_input		Measured temperature.
 			From READ_TEMPERATURE_X register.

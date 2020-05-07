@@ -144,7 +144,7 @@ journal_crypt:algorithm(:key)	(the key is optional)
 	Encrypt the journal using given algorithm to make sure that the
 	attacker can't read the journal. You can use a block cipher here
 	(such as "cbc(aes)") or a stream cipher (for example "chacha20",
-	"salsa20", "ctr(aes)" or "ecb(arc4)").
+	"salsa20" or "ctr(aes)").
 
 	The journal contains history of last writes to the block device,
 	an attacker reading the journal could see the last sector nubmers
@@ -182,12 +182,15 @@ fix_padding
 	space-efficient. If this option is not present, large padding is
 	used - that is for compatibility with older kernels.
 
+allow_discards
+	Allow block discard requests (a.k.a. TRIM) for the integrity device.
+	Discards are only allowed to devices using internal hash.
 
-The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
-be changed when reloading the target (load an inactive table and swap the
-tables with suspend and resume). The other arguments should not be changed
-when reloading the target because the layout of disk data depend on them
-and the reloaded target would be non-functional.
+The journal mode (D/J), buffer_sectors, journal_watermark, commit_time and
+allow_discards can be changed when reloading the target (load an inactive
+table and swap the tables with suspend and resume). The other arguments
+should not be changed when reloading the target because the layout of disk
+data depend on them and the reloaded target would be non-functional.
 
 
 The layout of the formatted block device:

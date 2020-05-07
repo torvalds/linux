@@ -1647,7 +1647,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	vdev->queue = &q->vbq;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING;
 	video_set_drvdata(vdev, cio2);
-	r = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	r = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (r) {
 		dev_err(&cio2->pci_dev->dev,
 			"failed to register video device (%d)\n", r);

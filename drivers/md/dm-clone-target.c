@@ -86,6 +86,12 @@ struct clone {
 
 	struct dm_clone_metadata *cmd;
 
+	/*
+	 * bio used to flush the destination device, before committing the
+	 * metadata.
+	 */
+	struct bio flush_bio;
+
 	/* Region hydration hash table */
 	struct hash_table_bucket *ht;
 
@@ -276,7 +282,7 @@ static bool bio_triggers_commit(struct clone *clone, struct bio *bio)
 /* Get the address of the region in sectors */
 static inline sector_t region_to_sector(struct clone *clone, unsigned long region_nr)
 {
-	return (region_nr << clone->region_shift);
+	return ((sector_t)region_nr << clone->region_shift);
 }
 
 /* Get the region number of the bio */
@@ -287,10 +293,17 @@ static inline unsigned long bio_to_region(struct clone *clone, struct bio *bio)
 
 /* Get the region range covered by the bio */
 static void bio_region_range(struct clone *clone, struct bio *bio,
-			     unsigned long *rs, unsigned long *re)
+			     unsigned long *rs, unsigned long *nr_regions)
 {
+	unsigned long end;
+
 	*rs = dm_sector_div_up(bio->bi_iter.bi_sector, clone->region_size);
-	*re = bio_end_sector(bio) >> clone->region_shift;
+	end = bio_end_sector(bio) >> clone->region_shift;
+
+	if (*rs >= end)
+		*nr_regions = 0;
+	else
+		*nr_regions = end - *rs;
 }
 
 /* Check whether a bio overwrites a region */
@@ -448,7 +461,7 @@ static void trim_bio(struct bio *bio, sector_t sector, unsigned int len)
 
 static void complete_discard_bio(struct clone *clone, struct bio *bio, bool success)
 {
-	unsigned long rs, re;
+	unsigned long rs, nr_regions;
 
 	/*
 	 * If the destination device supports discards, remap and trim the
@@ -457,9 +470,9 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 	 */
 	if (test_bit(DM_CLONE_DISCARD_PASSDOWN, &clone->flags) && success) {
 		remap_to_dest(clone, bio);
-		bio_region_range(clone, bio, &rs, &re);
-		trim_bio(bio, rs << clone->region_shift,
-			 (re - rs) << clone->region_shift);
+		bio_region_range(clone, bio, &rs, &nr_regions);
+		trim_bio(bio, region_to_sector(clone, rs),
+			 nr_regions << clone->region_shift);
 		generic_make_request(bio);
 	} else
 		bio_endio(bio);
@@ -467,12 +480,21 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 
 static void process_discard_bio(struct clone *clone, struct bio *bio)
 {
-	unsigned long rs, re;
+	unsigned long rs, nr_regions;
 
-	bio_region_range(clone, bio, &rs, &re);
-	BUG_ON(re > clone->nr_regions);
+	bio_region_range(clone, bio, &rs, &nr_regions);
+	if (!nr_regions) {
+		bio_endio(bio);
+		return;
+	}
 
-	if (unlikely(rs == re)) {
+	if (WARN_ON(rs >= clone->nr_regions || (rs + nr_regions) < rs ||
+		    (rs + nr_regions) > clone->nr_regions)) {
+		DMERR("%s: Invalid range (%lu + %lu, total regions %lu) for discard (%llu + %u)",
+		      clone_device_name(clone), rs, nr_regions,
+		      clone->nr_regions,
+		      (unsigned long long)bio->bi_iter.bi_sector,
+		      bio_sectors(bio));
 		bio_endio(bio);
 		return;
 	}
@@ -481,7 +503,7 @@ static void process_discard_bio(struct clone *clone, struct bio *bio)
 	 * The covered regions are already hydrated so we just need to pass
 	 * down the discard.
 	 */
-	if (dm_clone_is_range_hydrated(clone->cmd, rs, re - rs)) {
+	if (dm_clone_is_range_hydrated(clone->cmd, rs, nr_regions)) {
 		complete_discard_bio(clone, bio, true);
 		return;
 	}
@@ -782,11 +804,14 @@ static void hydration_copy(struct dm_clone_region_hydration *hd, unsigned int nr
 	struct dm_io_region from, to;
 	struct clone *clone = hd->clone;
 
+	if (WARN_ON(!nr_regions))
+		return;
+
 	region_size = clone->region_size;
 	region_start = hd->region_nr;
 	region_end = region_start + nr_regions - 1;
 
-	total_size = (nr_regions - 1) << clone->region_shift;
+	total_size = region_to_sector(clone, nr_regions - 1);
 
 	if (region_end == clone->nr_regions - 1) {
 		/*
@@ -1108,9 +1133,12 @@ static bool need_commit_due_to_time(struct clone *clone)
 /*
  * A non-zero return indicates read-only or fail mode.
  */
-static int commit_metadata(struct clone *clone)
+static int commit_metadata(struct clone *clone, bool *dest_dev_flushed)
 {
 	int r = 0;
+
+	if (dest_dev_flushed)
+		*dest_dev_flushed = false;
 
 	mutex_lock(&clone->commit_lock);
 
@@ -1122,8 +1150,26 @@ static int commit_metadata(struct clone *clone)
 		goto out;
 	}
 
-	r = dm_clone_metadata_commit(clone->cmd);
+	r = dm_clone_metadata_pre_commit(clone->cmd);
+	if (unlikely(r)) {
+		__metadata_operation_failed(clone, "dm_clone_metadata_pre_commit", r);
+		goto out;
+	}
 
+	bio_reset(&clone->flush_bio);
+	bio_set_dev(&clone->flush_bio, clone->dest_dev->bdev);
+	clone->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+
+	r = submit_bio_wait(&clone->flush_bio);
+	if (unlikely(r)) {
+		__metadata_operation_failed(clone, "flush destination device", r);
+		goto out;
+	}
+
+	if (dest_dev_flushed)
+		*dest_dev_flushed = true;
+
+	r = dm_clone_metadata_commit(clone->cmd);
 	if (unlikely(r)) {
 		__metadata_operation_failed(clone, "dm_clone_metadata_commit", r);
 		goto out;
@@ -1142,7 +1188,7 @@ static void process_deferred_discards(struct clone *clone)
 	int r = -EPERM;
 	struct bio *bio;
 	struct blk_plug plug;
-	unsigned long rs, re;
+	unsigned long rs, nr_regions;
 	struct bio_list discards = BIO_EMPTY_LIST;
 
 	spin_lock_irq(&clone->lock);
@@ -1158,14 +1204,13 @@ static void process_deferred_discards(struct clone *clone)
 
 	/* Update the metadata */
 	bio_list_for_each(bio, &discards) {
-		bio_region_range(clone, bio, &rs, &re);
+		bio_region_range(clone, bio, &rs, &nr_regions);
 		/*
 		 * A discard request might cover regions that have been already
 		 * hydrated. There is no need to update the metadata for these
 		 * regions.
 		 */
-		r = dm_clone_cond_set_range(clone->cmd, rs, re - rs);
-
+		r = dm_clone_cond_set_range(clone->cmd, rs, nr_regions);
 		if (unlikely(r))
 			break;
 	}
@@ -1194,6 +1239,7 @@ static void process_deferred_bios(struct clone *clone)
 static void process_deferred_flush_bios(struct clone *clone)
 {
 	struct bio *bio;
+	bool dest_dev_flushed;
 	struct bio_list bios = BIO_EMPTY_LIST;
 	struct bio_list bio_completions = BIO_EMPTY_LIST;
 
@@ -1213,7 +1259,7 @@ static void process_deferred_flush_bios(struct clone *clone)
 	    !(dm_clone_changed_this_transaction(clone->cmd) && need_commit_due_to_time(clone)))
 		return;
 
-	if (commit_metadata(clone)) {
+	if (commit_metadata(clone, &dest_dev_flushed)) {
 		bio_list_merge(&bios, &bio_completions);
 
 		while ((bio = bio_list_pop(&bios)))
@@ -1227,8 +1273,17 @@ static void process_deferred_flush_bios(struct clone *clone)
 	while ((bio = bio_list_pop(&bio_completions)))
 		bio_endio(bio);
 
-	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
+	while ((bio = bio_list_pop(&bios))) {
+		if ((bio->bi_opf & REQ_PREFLUSH) && dest_dev_flushed) {
+			/* We just flushed the destination device as part of
+			 * the metadata commit, so there is no reason to send
+			 * another flush.
+			 */
+			bio_endio(bio);
+		} else {
+			generic_make_request(bio);
+		}
+	}
 }
 
 static void do_worker(struct work_struct *work)
@@ -1400,7 +1455,7 @@ static void clone_status(struct dm_target *ti, status_type_t type,
 
 		/* Commit to ensure statistics aren't out-of-date */
 		if (!(status_flags & DM_STATUS_NOFLUSH_FLAG) && !dm_suspended(ti))
-			(void) commit_metadata(clone);
+			(void) commit_metadata(clone, NULL);
 
 		r = dm_clone_get_free_metadata_block_count(clone->cmd, &nr_free_metadata_blocks);
 
@@ -1418,7 +1473,7 @@ static void clone_status(struct dm_target *ti, status_type_t type,
 			goto error;
 		}
 
-		DMEMIT("%u %llu/%llu %llu %lu/%lu %u ",
+		DMEMIT("%u %llu/%llu %llu %u/%lu %u ",
 		       DM_CLONE_METADATA_BLOCK_SIZE,
 		       (unsigned long long)(nr_metadata_blocks - nr_free_metadata_blocks),
 		       (unsigned long long)nr_metadata_blocks,
@@ -1738,6 +1793,7 @@ error:
 static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	int r;
+	sector_t nr_regions;
 	struct clone *clone;
 	struct dm_arg_set as;
 
@@ -1779,7 +1835,16 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto out_with_source_dev;
 
 	clone->region_shift = __ffs(clone->region_size);
-	clone->nr_regions = dm_sector_div_up(ti->len, clone->region_size);
+	nr_regions = dm_sector_div_up(ti->len, clone->region_size);
+
+	/* Check for overflow */
+	if (nr_regions != (unsigned long)nr_regions) {
+		ti->error = "Too many regions. Consider increasing the region size";
+		r = -EOVERFLOW;
+		goto out_with_source_dev;
+	}
+
+	clone->nr_regions = nr_regions;
 
 	r = validate_nr_regions(clone->nr_regions, &ti->error);
 	if (r)
@@ -1834,6 +1899,7 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bio_list_init(&clone->deferred_flush_completions);
 	clone->hydration_offset = 0;
 	atomic_set(&clone->hydrations_in_flight, 0);
+	bio_init(&clone->flush_bio, NULL, 0);
 
 	clone->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
 	if (!clone->wq) {
@@ -1907,6 +1973,7 @@ static void clone_dtr(struct dm_target *ti)
 	struct clone *clone = ti->private;
 
 	mutex_destroy(&clone->commit_lock);
+	bio_uninit(&clone->flush_bio);
 
 	for (i = 0; i < clone->nr_ctr_args; i++)
 		kfree(clone->ctr_args[i]);
@@ -1961,7 +2028,7 @@ static void clone_postsuspend(struct dm_target *ti)
 	wait_event(clone->hydration_stopped, !atomic_read(&clone->hydrations_in_flight));
 	flush_workqueue(clone->wq);
 
-	(void) commit_metadata(clone);
+	(void) commit_metadata(clone, NULL);
 }
 
 static void clone_resume(struct dm_target *ti)

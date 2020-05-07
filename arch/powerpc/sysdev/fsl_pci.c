@@ -115,8 +115,8 @@ static void pci_dma_dev_setup_swiotlb(struct pci_dev *pdev)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 
-	pdev->dev.bus_dma_mask =
-		hose->dma_window_base_cur + hose->dma_window_size;
+	pdev->dev.bus_dma_limit =
+		hose->dma_window_base_cur + hose->dma_window_size - 1;
 }
 
 static void setup_swiotlb_ops(struct pci_controller *hose)
@@ -135,7 +135,7 @@ static void fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 	 * mapping that allows addressing any RAM address from across PCI.
 	 */
 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
-		dev->bus_dma_mask = 0;
+		dev->bus_dma_limit = 0;
 		dev->archdata.dma_offset = pci64_dma_offset;
 	}
 }
@@ -1065,13 +1065,11 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 	addr += mfspr(SPRN_MCAR);
 
 	if (is_in_pci_mem_space(addr)) {
-		if (user_mode(regs)) {
-			pagefault_disable();
-			ret = get_user(inst, (__u32 __user *)regs->nip);
-			pagefault_enable();
-		} else {
+		if (user_mode(regs))
+			ret = probe_user_read(&inst, (void __user *)regs->nip,
+					      sizeof(inst));
+		else
 			ret = probe_kernel_address((void *)regs->nip, inst);
-		}
 
 		if (!ret && mcheck_handle_load(regs, inst)) {
 			regs->nip += 4;

@@ -588,7 +588,7 @@ TRACE_EVENT(hfi1_sdma_user_reqinfo,
 	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u8 subctxt, u16 *i),
 	    TP_ARGS(dd, ctxt, subctxt, i),
 	    TP_STRUCT__entry(
-		    DD_DEV_ENTRY(dd);
+		    DD_DEV_ENTRY(dd)
 		    __field(u16, ctxt)
 		    __field(u8, subctxt)
 		    __field(u8, ver_opcode)

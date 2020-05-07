@@ -282,7 +282,7 @@ static enum sctp_xmit sctp_packet_bundle_sack(struct sctp_packet *pkt,
 					sctp_chunk_free(sack);
 					goto out;
 				}
-				SCTP_INC_STATS(sock_net(asoc->base.sk),
+				SCTP_INC_STATS(asoc->base.net,
 					       SCTP_MIB_OUTCTRLCHUNKS);
 				asoc->stats.octrlchunks++;
 				asoc->peer.sack_needed = 0;

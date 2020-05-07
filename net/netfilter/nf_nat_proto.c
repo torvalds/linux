@@ -68,15 +68,13 @@ static bool udp_manip_pkt(struct sk_buff *skb,
 			  enum nf_nat_manip_type maniptype)
 {
 	struct udphdr *hdr;
-	bool do_csum;
 
 	if (skb_ensure_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct udphdr *)(skb->data + hdroff);
-	do_csum = hdr->check || skb->ip_summed == CHECKSUM_PARTIAL;
+	__udp_manip_pkt(skb, iphdroff, hdr, tuple, maniptype, !!hdr->check);
 
-	__udp_manip_pkt(skb, iphdroff, hdr, tuple, maniptype, do_csum);
 	return true;
 }
 
@@ -233,6 +231,19 @@ icmp_manip_pkt(struct sk_buff *skb,
 		return false;
 
 	hdr = (struct icmphdr *)(skb->data + hdroff);
+	switch (hdr->type) {
+	case ICMP_ECHO:
+	case ICMP_ECHOREPLY:
+	case ICMP_TIMESTAMP:
+	case ICMP_TIMESTAMPREPLY:
+	case ICMP_INFO_REQUEST:
+	case ICMP_INFO_REPLY:
+	case ICMP_ADDRESS:
+	case ICMP_ADDRESSREPLY:
+		break;
+	default:
+		return true;
+	}
 	inet_proto_csum_replace2(&hdr->checksum, skb,
 				 hdr->un.echo.id, tuple->src.u.icmp.id, false);
 	hdr->un.echo.id = tuple->src.u.icmp.id;
@@ -1022,8 +1033,8 @@ int nf_nat_inet_register_fn(struct net *net, const struct nf_hook_ops *ops)
 	ret = nf_nat_register_fn(net, NFPROTO_IPV4, ops, nf_nat_ipv4_ops,
 				 ARRAY_SIZE(nf_nat_ipv4_ops));
 	if (ret)
-		nf_nat_ipv6_unregister_fn(net, ops);
-
+		nf_nat_unregister_fn(net, NFPROTO_IPV6, ops,
+					ARRAY_SIZE(nf_nat_ipv6_ops));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_inet_register_fn);

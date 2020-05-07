@@ -30,6 +30,7 @@
 
 /dts-v1/;
 #include "r8a7745-iwg22m.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "iWave Systems RainboW-G22D-SODIMM board based on RZ/G1E";
@@ -76,8 +77,50 @@
 
 		gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
+	};
+
+	vccq_panel: regulator-vccq-panel {
+		compatible = "regulator-fixed";
+		regulator-name = "Panel VccQ";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 13 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+
+	backlight_lcd: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&tpu 3 5000000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+	};
+
+	lcd_panel: lcd {
+		compatible = "edt,etm043080dh6gp";
+		power-supply = <&vccq_panel>;
+		backlight = <&backlight_lcd>;
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&du_out_rgb0>;
+			};
+		};
+	};
+};
+
+&du {
+	pinctrl-0 = <&du0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&lcd_in>;
+			};
+		};
 	};
 };
 
@@ -128,6 +171,39 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	stmpe811@44 {
+		compatible = "st,stmpe811";
+		reg = <0x44>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+
+		/* 3.25 MHz ADC clock speed */
+		st,adc-freq = <1>;
+		/* ADC converstion time: 80 clocks */
+		st,sample-time = <4>;
+		/* 12-bit ADC */
+		st,mod-12b = <1>;
+		/* internal ADC reference */
+		st,ref-sel = <0>;
+
+		stmpe_touchscreen {
+			compatible = "st,stmpe-ts";
+			/* 8 sample average control */
+			st,ave-ctrl = <3>;
+			/* 7 length fractional part in z */
+			st,fraction-z = <7>;
+			/*
+			 * 50 mA typical 80 mA max touchscreen drivers
+			 * current limit value
+			 */
+			st,i-drive = <1>;
+			/* 1 ms panel driver settling time */
+			st,settling = <3>;
+			/* 5 ms touch detect interrupt delay */
+			st,touch-det-delay = <5>;
+		};
+	};
+
 	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		#sound-dai-cells = <0>;
@@ -150,9 +226,19 @@
 		function = "avb";
 	};
 
+	backlight_pins: backlight {
+		groups = "tpu_to3_c";
+		function = "tpu";
+	};
+
 	can0_pins: can0 {
 		groups = "can0_data";
 		function = "can0";
+	};
+
+	du0_pins: du0 {
+		groups = "du0_rgb666", "du0_sync", "du0_disp", "du0_clk0_out";
+		function = "du0";
 	};
 
 	hscif1_pins: hscif1 {
@@ -228,6 +314,12 @@
 
 &ssi4 {
 	shared-pin;
+};
+
+&tpu {
+	pinctrl-0 = <&backlight_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &usbphy {

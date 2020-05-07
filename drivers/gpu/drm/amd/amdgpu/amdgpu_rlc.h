@@ -126,6 +126,9 @@ struct amdgpu_rlc_funcs {
 	void (*stop)(struct amdgpu_device *adev);
 	void (*reset)(struct amdgpu_device *adev);
 	void (*start)(struct amdgpu_device *adev);
+	void (*update_spm_vmid)(struct amdgpu_device *adev, unsigned vmid);
+	void (*rlcg_wreg)(struct amdgpu_device *adev, u32 offset, u32 v);
+	bool (*is_rlcg_access_range)(struct amdgpu_device *adev, uint32_t reg);
 };
 
 struct amdgpu_rlc {

@@ -223,6 +223,9 @@ static int tcp_write_timeout(struct sock *sk)
 			dst_negative_advice(sk);
 		} else {
 			sk_rethink_txhash(sk);
+			tp->timeout_rehash++;
+			__NET_INC_STATS(sock_net(sk),
+					LINUX_MIB_TCPTIMEOUTREHASH);
 		}
 		retry_until = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		expired = icsk->icsk_retransmits >= retry_until;
@@ -234,6 +237,9 @@ static int tcp_write_timeout(struct sock *sk)
 			dst_negative_advice(sk);
 		} else {
 			sk_rethink_txhash(sk);
+			tp->timeout_rehash++;
+			__NET_INC_STATS(sock_net(sk),
+					LINUX_MIB_TCPTIMEOUTREHASH);
 		}
 
 		retry_until = net->ipv4.sysctl_tcp_retries2;
@@ -434,6 +440,7 @@ void tcp_retransmit_timer(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock *req;
+	struct sk_buff *skb;
 
 	req = rcu_dereference_protected(tp->fastopen_rsk,
 					lockdep_sock_is_held(sk));
@@ -446,7 +453,12 @@ void tcp_retransmit_timer(struct sock *sk)
 		 */
 		return;
 	}
-	if (!tp->packets_out || WARN_ON_ONCE(tcp_rtx_queue_empty(sk)))
+
+	if (!tp->packets_out)
+		return;
+
+	skb = tcp_rtx_queue_head(sk);
+	if (WARN_ON_ONCE(!skb))
 		return;
 
 	tp->tlp_high_seq = 0;
@@ -480,7 +492,7 @@ void tcp_retransmit_timer(struct sock *sk)
 			goto out;
 		}
 		tcp_enter_loss(sk);
-		tcp_retransmit_skb(sk, tcp_rtx_queue_head(sk), 1);
+		tcp_retransmit_skb(sk, skb, 1);
 		__sk_dst_reset(sk);
 		goto out_reset_timer;
 	}

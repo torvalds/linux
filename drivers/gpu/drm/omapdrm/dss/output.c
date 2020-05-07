@@ -4,7 +4,6 @@
  * Author: Archit Taneja <archit@ti.com>
  */
 
-#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -12,17 +11,20 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
 
 #include "dss.h"
 #include "omapdss.h"
 
-int omapdss_device_init_output(struct omap_dss_device *out)
+int omapdss_device_init_output(struct omap_dss_device *out,
+			       struct drm_bridge *local_bridge)
 {
 	struct device_node *remote_node;
+	int ret;
 
 	remote_node = of_graph_get_remote_node(out->dev->of_node,
-					       ffs(out->of_ports) - 1, 0);
+					       out->of_port, 0);
 	if (!remote_node) {
 		dev_dbg(out->dev, "failed to find video sink\n");
 		return 0;
@@ -38,17 +40,55 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 
 	if (out->next && out->type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
-		omapdss_device_put(out->next);
-		out->next = NULL;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
-	return out->next || out->bridge || out->panel ? 0 : -EPROBE_DEFER;
+	if (out->panel) {
+		struct drm_bridge *bridge;
+
+		bridge = drm_panel_bridge_add(out->panel);
+		if (IS_ERR(bridge)) {
+			dev_err(out->dev,
+				"unable to create panel bridge (%ld)\n",
+				PTR_ERR(bridge));
+			ret = PTR_ERR(bridge);
+			goto error;
+		}
+
+		out->bridge = bridge;
+	}
+
+	if (local_bridge) {
+		if (!out->bridge) {
+			ret = -EPROBE_DEFER;
+			goto error;
+		}
+
+		out->next_bridge = out->bridge;
+		out->bridge = local_bridge;
+	}
+
+	if (!out->next && !out->bridge) {
+		ret = -EPROBE_DEFER;
+		goto error;
+	}
+
+	return 0;
+
+error:
+	omapdss_device_cleanup_output(out);
+	out->next = NULL;
+	return ret;
 }
 EXPORT_SYMBOL(omapdss_device_init_output);
 
 void omapdss_device_cleanup_output(struct omap_dss_device *out)
 {
+	if (out->bridge && out->panel)
+		drm_panel_bridge_remove(out->next_bridge ?
+					out->next_bridge : out->bridge);
+
 	if (out->next)
 		omapdss_device_put(out->next);
 }

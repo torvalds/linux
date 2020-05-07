@@ -117,6 +117,25 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 		pci_clear_mwi(dev);
 	}
 
+	if (dev_data && dev_data->allow_interrupt_control) {
+		if ((cmd->val ^ value) & PCI_COMMAND_INTX_DISABLE) {
+			if (value & PCI_COMMAND_INTX_DISABLE) {
+				pci_intx(dev, 0);
+			} else {
+				/* Do not allow enabling INTx together with MSI or MSI-X. */
+				switch (xen_pcibk_get_interrupt_type(dev)) {
+				case INTERRUPT_TYPE_NONE:
+					pci_intx(dev, 1);
+					break;
+				case INTERRUPT_TYPE_INTX:
+					break;
+				default:
+					return PCIBIOS_SET_FAILED;
+				}
+			}
+		}
+	}
+
 	cmd->val = value;
 
 	if (!xen_pcibk_permissive && (!dev_data || !dev_data->permissive))

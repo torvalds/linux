@@ -533,8 +533,9 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 
 	/* Get the BIO chunk work. If one is not active yet, create one */
 	cw = radix_tree_lookup(&dmz->chunk_rxtree, chunk);
-	if (!cw) {
-
+	if (cw) {
+		dmz_get_chunk_work(cw);
+	} else {
 		/* Create a new chunk work */
 		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
 		if (unlikely(!cw)) {
@@ -543,7 +544,7 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 		}
 
 		INIT_WORK(&cw->work, dmz_chunk_work);
-		refcount_set(&cw->refcount, 0);
+		refcount_set(&cw->refcount, 1);
 		cw->target = dmz;
 		cw->chunk = chunk;
 		bio_list_init(&cw->bio_list);
@@ -556,7 +557,6 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 	}
 
 	bio_list_add(&cw->bio_list, bio);
-	dmz_get_chunk_work(cw);
 
 	dmz_reclaim_bio_acc(dmz->reclaim);
 	if (queue_work(dmz->chunk_wq, &cw->work))
@@ -727,7 +727,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path)
 	dev->zone_nr_blocks = dmz_sect2blk(dev->zone_nr_sectors);
 	dev->zone_nr_blocks_shift = ilog2(dev->zone_nr_blocks);
 
-	dev->nr_zones = blkdev_nr_zones(dev->bdev);
+	dev->nr_zones = blkdev_nr_zones(dev->bdev->bd_disk);
 
 	dmz->dev = dev;
 
@@ -967,7 +967,7 @@ static int dmz_iterate_devices(struct dm_target *ti,
 
 static struct target_type dmz_type = {
 	.name		 = "zoned",
-	.version	 = {1, 0, 0},
+	.version	 = {1, 1, 0},
 	.features	 = DM_TARGET_SINGLETON | DM_TARGET_ZONED_HM,
 	.module		 = THIS_MODULE,
 	.ctr		 = dmz_ctr,

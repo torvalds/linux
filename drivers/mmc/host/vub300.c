@@ -95,7 +95,7 @@ struct sd_response_header {
 	u8 port_number;
 	u8 command_type;
 	u8 command_index;
-	u8 command_response[0];
+	u8 command_response[];
 } __packed;
 
 struct sd_status_header {
@@ -1363,7 +1363,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 	int retval;
 	for (n = 0; n < sdio_funcs; n++) {
 		struct sdio_func *sf = card->sdio_func[n];
-		l += snprintf(vub300->vub_name + l,
+		l += scnprintf(vub300->vub_name + l,
 			      sizeof(vub300->vub_name) - l, "_%04X%04X",
 			      sf->vendor, sf->device);
 	}
@@ -2070,18 +2070,11 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	kref_put(&vub300->kref, vub300_delete);
 }
 
-static void vub300_init_card(struct mmc_host *mmc, struct mmc_card *card)
-{				/* NOT irq */
-	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
-	dev_info(&vub300->udev->dev, "NO host QUIRKS for this card\n");
-}
-
 static const struct mmc_host_ops vub300_mmc_ops = {
 	.request = vub300_mmc_request,
 	.set_ios = vub300_mmc_set_ios,
 	.get_ro = vub300_mmc_get_ro,
 	.enable_sdio_irq = vub300_enable_sdio_irq,
-	.init_card = vub300_init_card,
 };
 
 static int vub300_probe(struct usb_interface *interface,

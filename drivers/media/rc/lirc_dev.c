@@ -269,12 +269,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 			goto out_unlock;
 		}
 
-		/*
-		 * The scancode field in lirc_scancode is 64-bit simply
-		 * to future-proof it, since there are IR protocols encode
-		 * use more than 32 bits. For now only 32-bit protocols
-		 * are supported.
-		 */
+		/* We only have encoders for 32-bit protocols. */
 		if (scan.scancode > U32_MAX ||
 		    !rc_validate_scancode(scan.rc_proto, scan.scancode)) {
 			ret = -EINVAL;
@@ -720,9 +715,7 @@ static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
 	.unlocked_ioctl	= ir_lirc_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ir_lirc_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 	.read		= ir_lirc_read,
 	.poll		= ir_lirc_poll,
 	.open		= ir_lirc_open,

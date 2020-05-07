@@ -16,7 +16,6 @@
 #include "emac.h"
 
 #define DRV_NAME        "rockchip_emac"
-#define DRV_VERSION     "1.1"
 
 struct emac_rockchip_soc_data {
 	unsigned int grf_offset;
@@ -97,8 +96,9 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct rockchip_priv_data *priv;
 	const struct of_device_id *match;
+	phy_interface_t interface;
 	u32 data;
-	int err, interface;
+	int err;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
@@ -111,10 +111,11 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 	priv->emac.drv_name = DRV_NAME;
-	priv->emac.drv_version = DRV_VERSION;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
-	interface = of_get_phy_mode(dev->of_node);
+	err = of_get_phy_mode(dev->of_node, &interface);
+	if (err)
+		goto out_netdev;
 
 	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {

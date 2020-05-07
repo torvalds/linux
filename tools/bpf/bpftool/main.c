@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <bpf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #include "main.h"
 
@@ -27,7 +27,7 @@ bool json_output;
 bool show_pinned;
 bool block_mount;
 bool verifier_logs;
-int bpf_flags;
+bool relaxed_maps;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
@@ -58,7 +58,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup | perf | net | feature | btf }\n"
+		"       OBJECT := { prog | map | cgroup | perf | net | feature | btf | gen | struct_ops }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -77,13 +77,6 @@ static int do_version(int argc, char **argv)
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
 	}
 	return 0;
-}
-
-static int __printf(2, 0)
-print_all_levels(__maybe_unused enum libbpf_print_level level,
-		 const char *format, va_list args)
-{
-	return vfprintf(stderr, format, args);
 }
 
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
@@ -227,6 +220,8 @@ static const struct cmd cmds[] = {
 	{ "net",	do_net },
 	{ "feature",	do_feature },
 	{ "btf",	do_btf },
+	{ "gen",	do_gen },
+	{ "struct_ops",	do_struct_ops },
 	{ "version",	do_version },
 	{ 0 }
 };
@@ -396,7 +391,7 @@ int main(int argc, char **argv)
 			show_pinned = true;
 			break;
 		case 'm':
-			bpf_flags = MAPS_RELAX_COMPAT;
+			relaxed_maps = true;
 			break;
 		case 'n':
 			block_mount = true;

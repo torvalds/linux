@@ -186,7 +186,7 @@ static int daca_put_amp(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new daca_mixers[] = {
+static const struct snd_kcontrol_new daca_mixers[] = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "Deemphasis Switch",
 	  .info = daca_info_deemphasis,

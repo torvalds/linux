@@ -1661,8 +1661,9 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	unsigned int offset, offset2, ihl, verdict;
-	bool ipip, new_cp = false;
+	bool tunnel, new_cp = false;
 	union nf_inet_addr *raddr;
+	char *outer_proto = "IPIP";
 
 	*related = 1;
 
@@ -1703,8 +1704,8 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 	raddr = (union nf_inet_addr *)&cih->daddr;
 
-	/* Special case for errors for IPIP packets */
-	ipip = false;
+	/* Special case for errors for IPIP/UDP/GRE tunnel packets */
+	tunnel = false;
 	if (cih->protocol == IPPROTO_IPIP) {
 		struct ip_vs_dest *dest;
 
@@ -1721,7 +1722,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
 		if (cih == NULL)
 			return NF_ACCEPT; /* The packet looks wrong, ignore */
-		ipip = true;
+		tunnel = true;
 	} else if ((cih->protocol == IPPROTO_UDP ||	/* Can be UDP encap */
 		    cih->protocol == IPPROTO_GRE) &&	/* Can be GRE encap */
 		   /* Error for our tunnel must arrive at LOCAL_IN */
@@ -1729,16 +1730,19 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		__u8 iproto;
 		int ulen;
 
-		/* Non-first fragment has no UDP header */
+		/* Non-first fragment has no UDP/GRE header */
 		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
 			return NF_ACCEPT;
 		offset2 = offset + cih->ihl * 4;
-		if (cih->protocol == IPPROTO_UDP)
+		if (cih->protocol == IPPROTO_UDP) {
 			ulen = ipvs_udp_decap(ipvs, skb, offset2, AF_INET,
 					      raddr, &iproto);
-		else
+			outer_proto = "UDP";
+		} else {
 			ulen = ipvs_gre_decap(ipvs, skb, offset2, AF_INET,
 					      raddr, &iproto);
+			outer_proto = "GRE";
+		}
 		if (ulen > 0) {
 			/* Skip IP and UDP/GRE tunnel headers */
 			offset = offset2 + ulen;
@@ -1747,7 +1751,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 						 &_ciph);
 			if (cih && cih->version == 4 && cih->ihl >= 5 &&
 			    iproto == IPPROTO_IPIP)
-				ipip = true;
+				tunnel = true;
 			else
 				return NF_ACCEPT;
 		}
@@ -1767,11 +1771,11 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		      "Checking incoming ICMP for");
 
 	offset2 = offset;
-	ip_vs_fill_iph_skb_icmp(AF_INET, skb, offset, !ipip, &ciph);
+	ip_vs_fill_iph_skb_icmp(AF_INET, skb, offset, !tunnel, &ciph);
 	offset = ciph.len;
 
 	/* The embedded headers contain source and dest in reverse order.
-	 * For IPIP this is error for request, not for reply.
+	 * For IPIP/UDP/GRE tunnel this is error for request, not for reply.
 	 */
 	cp = INDIRECT_CALL_1(pp->conn_in_get, ip_vs_conn_in_get_proto,
 			     ipvs, AF_INET, skb, &ciph);
@@ -1779,7 +1783,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	if (!cp) {
 		int v;
 
-		if (ipip || !sysctl_schedule_icmp(ipvs))
+		if (tunnel || !sysctl_schedule_icmp(ipvs))
 			return NF_ACCEPT;
 
 		if (!ip_vs_try_to_schedule(ipvs, AF_INET, skb, pd, &v, &cp, &ciph))
@@ -1797,7 +1801,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		goto out;
 	}
 
-	if (ipip) {
+	if (tunnel) {
 		__be32 info = ic->un.gateway;
 		__u8 type = ic->type;
 		__u8 code = ic->code;
@@ -1809,17 +1813,18 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 			u32 mtu = ntohs(ic->un.frag.mtu);
 			__be16 frag_off = cih->frag_off;
 
-			/* Strip outer IP and ICMP, go to IPIP header */
+			/* Strip outer IP and ICMP, go to IPIP/UDP/GRE header */
 			if (pskb_pull(skb, ihl + sizeof(_icmph)) == NULL)
-				goto ignore_ipip;
+				goto ignore_tunnel;
 			offset2 -= ihl + sizeof(_icmph);
 			skb_reset_network_header(skb);
-			IP_VS_DBG(12, "ICMP for IPIP %pI4->%pI4: mtu=%u\n",
-				&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr, mtu);
+			IP_VS_DBG(12, "ICMP for %s %pI4->%pI4: mtu=%u\n",
+				  outer_proto, &ip_hdr(skb)->saddr,
+				  &ip_hdr(skb)->daddr, mtu);
 			ipv4_update_pmtu(skb, ipvs->net, mtu, 0, 0);
 			/* Client uses PMTUD? */
 			if (!(frag_off & htons(IP_DF)))
-				goto ignore_ipip;
+				goto ignore_tunnel;
 			/* Prefer the resulting PMTU */
 			if (dest) {
 				struct ip_vs_dest_dst *dest_dst;
@@ -1832,11 +1837,11 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 				mtu -= sizeof(struct iphdr);
 			info = htonl(mtu);
 		}
-		/* Strip outer IP, ICMP and IPIP, go to IP header of
+		/* Strip outer IP, ICMP and IPIP/UDP/GRE, go to IP header of
 		 * original request.
 		 */
 		if (pskb_pull(skb, offset2) == NULL)
-			goto ignore_ipip;
+			goto ignore_tunnel;
 		skb_reset_network_header(skb);
 		IP_VS_DBG(12, "Sending ICMP for %pI4->%pI4: t=%u, c=%u, i=%u\n",
 			&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
@@ -1845,7 +1850,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		/* ICMP can be shorter but anyways, account it */
 		ip_vs_out_stats(cp, skb);
 
-ignore_ipip:
+ignore_tunnel:
 		consume_skb(skb);
 		verdict = NF_STOLEN;
 		goto out;
@@ -2402,18 +2407,22 @@ estimator_fail:
 	return -ENOMEM;
 }
 
-static void __net_exit __ip_vs_cleanup(struct net *net)
+static void __net_exit __ip_vs_cleanup_batch(struct list_head *net_list)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct netns_ipvs *ipvs;
+	struct net *net;
 
-	ip_vs_service_net_cleanup(ipvs);	/* ip_vs_flush() with locks */
-	ip_vs_conn_net_cleanup(ipvs);
-	ip_vs_app_net_cleanup(ipvs);
-	ip_vs_protocol_net_cleanup(ipvs);
-	ip_vs_control_net_cleanup(ipvs);
-	ip_vs_estimator_net_cleanup(ipvs);
-	IP_VS_DBG(2, "ipvs netns %d released\n", ipvs->gen);
-	net->ipvs = NULL;
+	ip_vs_service_nets_cleanup(net_list);	/* ip_vs_flush() with locks */
+	list_for_each_entry(net, net_list, exit_list) {
+		ipvs = net_ipvs(net);
+		ip_vs_conn_net_cleanup(ipvs);
+		ip_vs_app_net_cleanup(ipvs);
+		ip_vs_protocol_net_cleanup(ipvs);
+		ip_vs_control_net_cleanup(ipvs);
+		ip_vs_estimator_net_cleanup(ipvs);
+		IP_VS_DBG(2, "ipvs netns %d released\n", ipvs->gen);
+		net->ipvs = NULL;
+	}
 }
 
 static int __net_init __ip_vs_dev_init(struct net *net)
@@ -2429,27 +2438,32 @@ hook_fail:
 	return ret;
 }
 
-static void __net_exit __ip_vs_dev_cleanup(struct net *net)
+static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct netns_ipvs *ipvs;
+	struct net *net;
+
 	EnterFunction(2);
-	nf_unregister_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
-	ipvs->enable = 0;	/* Disable packet reception */
-	smp_wmb();
-	ip_vs_sync_net_cleanup(ipvs);
+	list_for_each_entry(net, net_list, exit_list) {
+		ipvs = net_ipvs(net);
+		nf_unregister_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+		ipvs->enable = 0;	/* Disable packet reception */
+		smp_wmb();
+		ip_vs_sync_net_cleanup(ipvs);
+	}
 	LeaveFunction(2);
 }
 
 static struct pernet_operations ipvs_core_ops = {
 	.init = __ip_vs_init,
-	.exit = __ip_vs_cleanup,
+	.exit_batch = __ip_vs_cleanup_batch,
 	.id   = &ip_vs_net_id,
 	.size = sizeof(struct netns_ipvs),
 };
 
 static struct pernet_operations ipvs_core_dev_ops = {
 	.init = __ip_vs_dev_init,
-	.exit = __ip_vs_dev_cleanup,
+	.exit_batch = __ip_vs_dev_cleanup_batch,
 };
 
 /*

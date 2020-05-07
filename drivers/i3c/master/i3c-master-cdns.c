@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/of_device.h>
 
 #define DEV_ID				0x0
 #define DEV_ID_I3C_MASTER		0x5034
@@ -60,6 +61,7 @@
 #define CTRL_HALT_EN			BIT(30)
 #define CTRL_MCS			BIT(29)
 #define CTRL_MCS_EN			BIT(28)
+#define CTRL_THD_DELAY(x)		(((x) << 24) & GENMASK(25, 24))
 #define CTRL_HJ_DISEC			BIT(8)
 #define CTRL_MST_ACK			BIT(7)
 #define CTRL_HJ_ACK			BIT(6)
@@ -70,6 +72,7 @@
 #define CTRL_MIXED_FAST_BUS_MODE	2
 #define CTRL_MIXED_SLOW_BUS_MODE	3
 #define CTRL_BUS_MODE_MASK		GENMASK(1, 0)
+#define THD_DELAY_MAX			3
 
 #define PRESCL_CTRL0			0x14
 #define PRESCL_CTRL0_I2C(x)		((x) << 16)
@@ -385,7 +388,11 @@ struct cdns_i3c_xfer {
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
-	struct cdns_i3c_cmd cmds[0];
+	struct cdns_i3c_cmd cmds[];
+};
+
+struct cdns_i3c_data {
+	u8 thd_delay_ns;
 };
 
 struct cdns_i3c_master {
@@ -408,6 +415,7 @@ struct cdns_i3c_master {
 	struct clk *pclk;
 	struct cdns_i3c_master_caps caps;
 	unsigned long i3c_scl_lim;
+	const struct cdns_i3c_data *devdata;
 };
 
 static inline struct cdns_i3c_master *
@@ -1181,6 +1189,20 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 	return 0;
 }
 
+static u8 cdns_i3c_master_calculate_thd_delay(struct cdns_i3c_master *master)
+{
+	unsigned long sysclk_rate = clk_get_rate(master->sysclk);
+	u8 thd_delay = DIV_ROUND_UP(master->devdata->thd_delay_ns,
+				    (NSEC_PER_SEC / sysclk_rate));
+
+	/* Every value greater than 3 is not valid. */
+	if (thd_delay > THD_DELAY_MAX)
+		thd_delay = THD_DELAY_MAX;
+
+	/* CTLR_THD_DEL value is encoded. */
+	return (THD_DELAY_MAX - thd_delay);
+}
+
 static int cdns_i3c_master_bus_init(struct i3c_master_controller *m)
 {
 	struct cdns_i3c_master *master = to_cdns_i3c_master(m);
@@ -1264,6 +1286,15 @@ static int cdns_i3c_master_bus_init(struct i3c_master_controller *m)
 	 * We will issue ENTDAA afterwards from the threaded IRQ handler.
 	 */
 	ctrl |= CTRL_HJ_ACK | CTRL_HJ_DISEC | CTRL_HALT_EN | CTRL_MCS_EN;
+
+	/*
+	 * Configure data hold delay based on device-specific data.
+	 *
+	 * MIPI I3C Specification 1.0 defines non-zero minimal tHD_PP timing on
+	 * master output. This setting allows to meet this timing on master's
+	 * SoC outputs, regardless of PCB balancing.
+	 */
+	ctrl |= CTRL_THD_DELAY(cdns_i3c_master_calculate_thd_delay(master));
 	writel(ctrl, master->regs + CTRL);
 
 	cdns_i3c_master_enable(master);
@@ -1521,10 +1552,18 @@ static void cdns_i3c_master_hj(struct work_struct *work)
 	i3c_master_do_daa(&master->base);
 }
 
+static struct cdns_i3c_data cdns_i3c_devdata = {
+	.thd_delay_ns = 10,
+};
+
+static const struct of_device_id cdns_i3c_master_of_ids[] = {
+	{ .compatible = "cdns,i3c-master", .data = &cdns_i3c_devdata },
+	{ /* sentinel */ },
+};
+
 static int cdns_i3c_master_probe(struct platform_device *pdev)
 {
 	struct cdns_i3c_master *master;
-	struct resource *res;
 	int ret, irq;
 	u32 val;
 
@@ -1532,8 +1571,11 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	master->regs = devm_ioremap_resource(&pdev->dev, res);
+	master->devdata = of_device_get_match_data(&pdev->dev);
+	if (!master->devdata)
+		return -EINVAL;
+
+	master->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(master->regs))
 		return PTR_ERR(master->regs);
 
@@ -1630,11 +1672,6 @@ static int cdns_i3c_master_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id cdns_i3c_master_of_ids[] = {
-	{ .compatible = "cdns,i3c-master" },
-	{ /* sentinel */ },
-};
 
 static struct platform_driver cdns_i3c_master = {
 	.probe = cdns_i3c_master_probe,

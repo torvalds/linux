@@ -16,13 +16,9 @@
 #include "cc_cipher.h"
 #include "cc_request_mgr.h"
 
-#define MAX_ABLKCIPHER_SEQ_LEN 6
+#define MAX_SKCIPHER_SEQ_LEN 6
 
 #define template_skcipher	template_u.skcipher
-
-struct cc_cipher_handle {
-	struct list_head alg_list;
-};
 
 struct cc_user_key_info {
 	u8 *key;
@@ -184,7 +180,7 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 		ctx_p->user.key);
 
 	/* Map key buffer */
-	ctx_p->user.key_dma_addr = dma_map_single(dev, (void *)ctx_p->user.key,
+	ctx_p->user.key_dma_addr = dma_map_single(dev, ctx_p->user.key,
 						  max_key_buf_size,
 						  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx_p->user.key_dma_addr)) {
@@ -284,14 +280,13 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	dev_dbg(dev, "Setting HW key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
-	dump_byte_array("key", (u8 *)key, keylen);
+	dump_byte_array("key", key, keylen);
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	/* This check the size of the protected key token */
 	if (keylen != sizeof(hki)) {
 		dev_err(dev, "Unsupported protected key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -303,8 +298,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 	keylen = hki.keylen;
 
 	if (validate_keys_sizes(ctx_p, keylen)) {
-		dev_err(dev, "Unsupported key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		dev_dbg(dev, "Unsupported key size %d.\n", keylen);
 		return -EINVAL;
 	}
 
@@ -389,13 +383,12 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	dev_dbg(dev, "Setting key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
-	dump_byte_array("key", (u8 *)key, keylen);
+	dump_byte_array("key", key, keylen);
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	if (validate_keys_sizes(ctx_p, keylen)) {
-		dev_err(dev, "Unsupported key size %d.\n", keylen);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		dev_dbg(dev, "Unsupported key size %d.\n", keylen);
 		return -EINVAL;
 	}
 
@@ -523,7 +516,53 @@ static void cc_setup_readiv_desc(struct crypto_tfm *tfm,
 	}
 }
 
+
 static void cc_setup_state_desc(struct crypto_tfm *tfm,
+				 struct cipher_req_ctx *req_ctx,
+				 unsigned int ivsize, unsigned int nbytes,
+				 struct cc_hw_desc desc[],
+				 unsigned int *seq_size)
+{
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
+	int cipher_mode = ctx_p->cipher_mode;
+	int flow_mode = ctx_p->flow_mode;
+	int direction = req_ctx->gen_ctx.op_type;
+	dma_addr_t iv_dma_addr = req_ctx->gen_ctx.iv_dma_addr;
+
+	switch (cipher_mode) {
+	case DRV_CIPHER_ECB:
+		break;
+	case DRV_CIPHER_CBC:
+	case DRV_CIPHER_CBC_CTS:
+	case DRV_CIPHER_CTR:
+	case DRV_CIPHER_OFB:
+		/* Load IV */
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr, ivsize,
+			     NS_BIT);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		if (cipher_mode == DRV_CIPHER_CTR ||
+		    cipher_mode == DRV_CIPHER_OFB) {
+			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
+		} else {
+			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
+		}
+		(*seq_size)++;
+		break;
+	case DRV_CIPHER_XTS:
+	case DRV_CIPHER_ESSIV:
+	case DRV_CIPHER_BITLOCKER:
+		break;
+	default:
+		dev_err(dev, "Unsupported cipher mode (%d)\n", cipher_mode);
+	}
+}
+
+
+static void cc_setup_xex_state_desc(struct crypto_tfm *tfm,
 				 struct cipher_req_ctx *req_ctx,
 				 unsigned int ivsize, unsigned int nbytes,
 				 struct cc_hw_desc desc[],
@@ -553,20 +592,6 @@ static void cc_setup_state_desc(struct crypto_tfm *tfm,
 	case DRV_CIPHER_CBC_CTS:
 	case DRV_CIPHER_CTR:
 	case DRV_CIPHER_OFB:
-		/* Load IV */
-		hw_desc_init(&desc[*seq_size]);
-		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr, ivsize,
-			     NS_BIT);
-		set_cipher_config0(&desc[*seq_size], direction);
-		set_flow_mode(&desc[*seq_size], flow_mode);
-		set_cipher_mode(&desc[*seq_size], cipher_mode);
-		if (cipher_mode == DRV_CIPHER_CTR ||
-		    cipher_mode == DRV_CIPHER_OFB) {
-			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
-		} else {
-			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
-		}
-		(*seq_size)++;
 		break;
 	case DRV_CIPHER_XTS:
 	case DRV_CIPHER_ESSIV:
@@ -716,7 +741,7 @@ static void cc_setup_mlli_desc(struct crypto_tfm *tfm,
 		dev_dbg(dev, " bypass params addr %pad length 0x%X addr 0x%08X\n",
 			&req_ctx->mlli_params.mlli_dma_addr,
 			req_ctx->mlli_params.mlli_len,
-			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
+			ctx_p->drvdata->mlli_sram_addr);
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_DLLI,
 			     req_ctx->mlli_params.mlli_dma_addr,
@@ -764,16 +789,16 @@ static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 			     req_ctx->in_mlli_nents, NS_BIT);
 		if (req_ctx->out_nents == 0) {
 			dev_dbg(dev, " din/dout params addr 0x%08X addr 0x%08X\n",
-				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
-				(unsigned int)ctx_p->drvdata->mlli_sram_addr);
+				ctx_p->drvdata->mlli_sram_addr,
+				ctx_p->drvdata->mlli_sram_addr);
 			set_dout_mlli(&desc[*seq_size],
 				      ctx_p->drvdata->mlli_sram_addr,
 				      req_ctx->in_mlli_nents, NS_BIT,
 				      (!last_desc ? 0 : 1));
 		} else {
 			dev_dbg(dev, " din/dout params addr 0x%08X addr 0x%08X\n",
-				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
-				(unsigned int)ctx_p->drvdata->mlli_sram_addr +
+				ctx_p->drvdata->mlli_sram_addr,
+				ctx_p->drvdata->mlli_sram_addr +
 				(u32)LLI_ENTRY_BYTE_SIZE * req_ctx->in_nents);
 			set_dout_mlli(&desc[*seq_size],
 				      (ctx_p->drvdata->mlli_sram_addr +
@@ -822,7 +847,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 	void *iv = req->iv;
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
-	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
+	struct cc_hw_desc desc[MAX_SKCIPHER_SEQ_LEN];
 	struct cc_crypto_req cc_req = {};
 	int rc;
 	unsigned int seq_len = 0;
@@ -834,10 +859,8 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
-	/* TODO: check data length according to mode */
 	if (validate_data_size(ctx_p, nbytes)) {
-		dev_err(dev, "Unsupported data size %d.\n", nbytes);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_BLOCK_LEN);
+		dev_dbg(dev, "Unsupported data size %d.\n", nbytes);
 		rc = -EINVAL;
 		goto exit_process;
 	}
@@ -857,8 +880,8 @@ static int cc_cipher_process(struct skcipher_request *req,
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_cipher_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_cipher_complete;
+	cc_req.user_arg = req;
 
 	/* Setup CPP operation details */
 	if (ctx_p->key_type == CC_POLICY_PROTECTED_KEY) {
@@ -881,12 +904,14 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 	/* STAT_PHASE_2: Create sequence */
 
-	/* Setup IV and XEX key used */
+	/* Setup state (IV)  */
 	cc_setup_state_desc(tfm, req_ctx, ivsize, nbytes, desc, &seq_len);
 	/* Setup MLLI line, if needed */
 	cc_setup_mlli_desc(tfm, req_ctx, dst, src, nbytes, req, desc, &seq_len);
 	/* Setup key */
 	cc_setup_key_desc(tfm, req_ctx, nbytes, desc, &seq_len);
+	/* Setup state (IV and XEX key)  */
+	cc_setup_xex_state_desc(tfm, req_ctx, ivsize, nbytes, desc, &seq_len);
 	/* Data processing */
 	cc_setup_flow_desc(tfm, req_ctx, dst, src, nbytes, desc, &seq_len);
 	/* Read next IV */
@@ -1190,6 +1215,10 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.sec_func = true,
 	},
 	{
+		/* See https://www.mail-archive.com/linux-crypto@vger.kernel.org/msg40576.html
+		 * for the reason why this differs from the generic
+		 * implementation.
+		 */
 		.name = "xts(aes)",
 		.driver_name = "xts-aes-ccree",
 		.blocksize = 1,
@@ -1385,7 +1414,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "ofb(aes)",
 		.driver_name = "ofb-aes-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_setkey,
 			.encrypt = cc_cipher_encrypt,
@@ -1538,7 +1567,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "ctr(sm4)",
 		.driver_name = "ctr-sm4-ccree",
-		.blocksize = SM4_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_setkey,
 			.encrypt = cc_cipher_encrypt,
@@ -1596,7 +1625,7 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 	struct cc_crypto_alg *t_alg;
 	struct skcipher_alg *alg;
 
-	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
+	t_alg = devm_kzalloc(dev, sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1627,36 +1656,23 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 int cc_cipher_free(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg, *n;
-	struct cc_cipher_handle *cipher_handle = drvdata->cipher_handle;
 
-	if (cipher_handle) {
-		/* Remove registered algs */
-		list_for_each_entry_safe(t_alg, n, &cipher_handle->alg_list,
-					 entry) {
-			crypto_unregister_skcipher(&t_alg->skcipher_alg);
-			list_del(&t_alg->entry);
-			kfree(t_alg);
-		}
-		kfree(cipher_handle);
-		drvdata->cipher_handle = NULL;
+	/* Remove registered algs */
+	list_for_each_entry_safe(t_alg, n, &drvdata->alg_list, entry) {
+		crypto_unregister_skcipher(&t_alg->skcipher_alg);
+		list_del(&t_alg->entry);
 	}
 	return 0;
 }
 
 int cc_cipher_alloc(struct cc_drvdata *drvdata)
 {
-	struct cc_cipher_handle *cipher_handle;
 	struct cc_crypto_alg *t_alg;
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = -ENOMEM;
 	int alg;
 
-	cipher_handle = kmalloc(sizeof(*cipher_handle), GFP_KERNEL);
-	if (!cipher_handle)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&cipher_handle->alg_list);
-	drvdata->cipher_handle = cipher_handle;
+	INIT_LIST_HEAD(&drvdata->alg_list);
 
 	/* Linux crypto */
 	dev_dbg(dev, "Number of algorithms = %zu\n",
@@ -1685,14 +1701,12 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 		if (rc) {
 			dev_err(dev, "%s alg registration failed\n",
 				t_alg->skcipher_alg.base.cra_driver_name);
-			kfree(t_alg);
 			goto fail0;
-		} else {
-			list_add_tail(&t_alg->entry,
-				      &cipher_handle->alg_list);
-			dev_dbg(dev, "Registered %s\n",
-				t_alg->skcipher_alg.base.cra_driver_name);
 		}
+
+		list_add_tail(&t_alg->entry, &drvdata->alg_list);
+		dev_dbg(dev, "Registered %s\n",
+			t_alg->skcipher_alg.base.cra_driver_name);
 	}
 	return 0;
 

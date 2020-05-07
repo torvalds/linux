@@ -46,9 +46,6 @@
  * If needed, tools/cgroup/iocost_coef_gen.py can be used to generate
  * device-specific coefficients.
  *
- * If needed, tools/cgroup/iocost_coef_gen.py can be used to generate
- * device-specific coefficients.
- *
  * 2. Control Strategy
  *
  * The device virtual time (vtime) is used as the primary control metric.
@@ -1212,7 +1209,7 @@ static enum hrtimer_restart iocg_waitq_timer_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
+static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
@@ -1229,11 +1226,11 @@ static void iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 	/* clear or maintain depending on the overage */
 	if (time_before_eq64(vtime, now->vnow)) {
 		blkcg_clear_delay(blkg);
-		return;
+		return false;
 	}
 	if (!atomic_read(&blkg->use_delay) &&
 	    time_before_eq64(vtime, now->vnow + vmargin))
-		return;
+		return false;
 
 	/* use delay */
 	if (cost) {
@@ -1250,10 +1247,11 @@ static void iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
 	if (hrtimer_is_queued(&iocg->delay_timer) &&
 	    abs(oexpires - expires) <= margin_ns / 4)
-		return;
+		return true;
 
 	hrtimer_start_range_ns(&iocg->delay_timer, ns_to_ktime(expires),
 			       margin_ns / 4, HRTIMER_MODE_ABS);
+	return true;
 }
 
 static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
@@ -1317,7 +1315,7 @@ static bool iocg_is_idle(struct ioc_gq *iocg)
 		return false;
 
 	/* is something in flight? */
-	if (atomic64_read(&iocg->done_vtime) < atomic64_read(&iocg->vtime))
+	if (atomic64_read(&iocg->done_vtime) != atomic64_read(&iocg->vtime))
 		return false;
 
 	return true;
@@ -1593,7 +1591,7 @@ skip_surplus_transfers:
 				      vrate_min, vrate_max);
 		}
 
-		trace_iocost_ioc_vrate_adj(ioc, vrate, &missed_ppm, rq_wait_pct,
+		trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
 					   nr_lagging, nr_shortages,
 					   nr_surpluses);
 
@@ -1602,7 +1600,7 @@ skip_surplus_transfers:
 			ioc->period_us * vrate * INUSE_MARGIN_PCT, 100);
 	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
 		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
-					   &missed_ppm, rq_wait_pct, nr_lagging,
+					   missed_ppm, rq_wait_pct, nr_lagging,
 					   nr_shortages, nr_surpluses);
 	}
 
@@ -1739,7 +1737,9 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 */
 	if (bio_issue_as_root_blkg(bio) || fatal_signal_pending(current)) {
 		atomic64_add(abs_cost, &iocg->abs_vdebt);
-		iocg_kick_delay(iocg, &now, cost);
+		if (iocg_kick_delay(iocg, &now, cost))
+			blkcg_schedule_throttle(rqos->q,
+					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 		return;
 	}
 

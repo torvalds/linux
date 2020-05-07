@@ -2375,7 +2375,7 @@ static netdev_tx_t igbvf_xmit_frame(struct sk_buff *skb,
  * igbvf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
-static void igbvf_tx_timeout(struct net_device *netdev)
+static void igbvf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
@@ -2437,8 +2437,8 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN +
 					 ETH_FCS_LEN;
 
-	dev_info(&adapter->pdev->dev, "changing MTU from %d to %d\n",
-		 netdev->mtu, new_mtu);
+	netdev_dbg(netdev, "changing MTU from %d to %d\n",
+		   netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
 
 	if (netif_running(netdev))

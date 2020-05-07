@@ -107,8 +107,6 @@
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
-#define IGMP_V2_UNSOLICITED_REPORT_INTERVAL	(10*HZ)
-#define IGMP_V3_UNSOLICITED_REPORT_INTERVAL	(1*HZ)
 #define IGMP_QUERY_INTERVAL			(125*HZ)
 #define IGMP_QUERY_RESPONSE_INTERVAL		(10*HZ)
 
@@ -1563,7 +1561,7 @@ static int ip_mc_check_igmp_msg(struct sk_buff *skb)
 	}
 }
 
-static inline __sum16 ip_mc_validate_checksum(struct sk_buff *skb)
+static __sum16 ip_mc_validate_checksum(struct sk_buff *skb)
 {
 	return skb_checksum_simple_validate(skb);
 }

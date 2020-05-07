@@ -64,8 +64,7 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	for (p = data; p->name; p++)
 		clk_num = max(clk_num, p->idx + 1);
 
-	hw_data = devm_kzalloc(dev,
-			sizeof(*hw_data) + clk_num * sizeof(struct clk_hw *),
+	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, clk_num),
 			GFP_KERNEL);
 	if (!hw_data)
 		return -ENOMEM;

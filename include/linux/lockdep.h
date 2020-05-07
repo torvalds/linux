@@ -21,6 +21,22 @@ extern int lock_stat;
 
 #include <linux/types.h>
 
+enum lockdep_wait_type {
+	LD_WAIT_INV = 0,	/* not checked, catch all */
+
+	LD_WAIT_FREE,		/* wait free, rcu etc.. */
+	LD_WAIT_SPIN,		/* spin loops, raw_spinlock_t etc.. */
+
+#ifdef CONFIG_PROVE_RAW_LOCK_NESTING
+	LD_WAIT_CONFIG,		/* CONFIG_PREEMPT_LOCK, spinlock_t etc.. */
+#else
+	LD_WAIT_CONFIG = LD_WAIT_SPIN,
+#endif
+	LD_WAIT_SLEEP,		/* sleeping locks, mutex_t etc.. */
+
+	LD_WAIT_MAX,		/* must be last */
+};
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -111,6 +127,9 @@ struct lock_class {
 	int				name_version;
 	const char			*name;
 
+	short				wait_type_inner;
+	short				wait_type_outer;
+
 #ifdef CONFIG_LOCK_STAT
 	unsigned long			contention_point[LOCKSTAT_POINTS];
 	unsigned long			contending_point[LOCKSTAT_POINTS];
@@ -158,6 +177,8 @@ struct lockdep_map {
 	struct lock_class_key		*key;
 	struct lock_class		*class_cache[NR_LOCKDEP_CACHING_CLASSES];
 	const char			*name;
+	short				wait_type_outer; /* can be taken in this context */
+	short				wait_type_inner; /* presents this context */
 #ifdef CONFIG_LOCK_STAT
 	int				cpu;
 	unsigned long			ip;
@@ -299,8 +320,21 @@ extern void lockdep_unregister_key(struct lock_class_key *key);
  * to lockdep:
  */
 
-extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
-			     struct lock_class_key *key, int subclass);
+extern void lockdep_init_map_waits(struct lockdep_map *lock, const char *name,
+	struct lock_class_key *key, int subclass, short inner, short outer);
+
+static inline void
+lockdep_init_map_wait(struct lockdep_map *lock, const char *name,
+		      struct lock_class_key *key, int subclass, short inner)
+{
+	lockdep_init_map_waits(lock, name, key, subclass, inner, LD_WAIT_INV);
+}
+
+static inline void lockdep_init_map(struct lockdep_map *lock, const char *name,
+			     struct lock_class_key *key, int subclass)
+{
+	lockdep_init_map_wait(lock, name, key, subclass, LD_WAIT_INV);
+}
 
 /*
  * Reinitialize a lock key - for cases where there is special locking or
@@ -308,18 +342,29 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
  * of dependencies wrong: they are either too broad (they need a class-split)
  * or they are too narrow (they suffer from a false class-split):
  */
-#define lockdep_set_class(lock, key) \
-		lockdep_init_map(&(lock)->dep_map, #key, key, 0)
-#define lockdep_set_class_and_name(lock, key, name) \
-		lockdep_init_map(&(lock)->dep_map, name, key, 0)
-#define lockdep_set_class_and_subclass(lock, key, sub) \
-		lockdep_init_map(&(lock)->dep_map, #key, key, sub)
-#define lockdep_set_subclass(lock, sub)	\
-		lockdep_init_map(&(lock)->dep_map, #lock, \
-				 (lock)->dep_map.key, sub)
+#define lockdep_set_class(lock, key)				\
+	lockdep_init_map_waits(&(lock)->dep_map, #key, key, 0,	\
+			       (lock)->dep_map.wait_type_inner,	\
+			       (lock)->dep_map.wait_type_outer)
+
+#define lockdep_set_class_and_name(lock, key, name)		\
+	lockdep_init_map_waits(&(lock)->dep_map, name, key, 0,	\
+			       (lock)->dep_map.wait_type_inner,	\
+			       (lock)->dep_map.wait_type_outer)
+
+#define lockdep_set_class_and_subclass(lock, key, sub)		\
+	lockdep_init_map_waits(&(lock)->dep_map, #key, key, sub,\
+			       (lock)->dep_map.wait_type_inner,	\
+			       (lock)->dep_map.wait_type_outer)
+
+#define lockdep_set_subclass(lock, sub)					\
+	lockdep_init_map_waits(&(lock)->dep_map, #lock, (lock)->dep_map.key, sub,\
+			       (lock)->dep_map.wait_type_inner,		\
+			       (lock)->dep_map.wait_type_outer)
 
 #define lockdep_set_novalidate_class(lock) \
 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
+
 /*
  * Compare locking classes
  */
@@ -349,8 +394,7 @@ extern void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			 int trylock, int read, int check,
 			 struct lockdep_map *nest_lock, unsigned long ip);
 
-extern void lock_release(struct lockdep_map *lock, int nested,
-			 unsigned long ip);
+extern void lock_release(struct lockdep_map *lock, unsigned long ip);
 
 /*
  * Same "read" as for lock_acquire(), except -1 means any.
@@ -428,11 +472,15 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 }
 
 # define lock_acquire(l, s, t, r, c, n, i)	do { } while (0)
-# define lock_release(l, n, i)			do { } while (0)
+# define lock_release(l, i)			do { } while (0)
 # define lock_downgrade(l, i)			do { } while (0)
 # define lock_set_class(l, n, k, s, i)		do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
 # define lockdep_init()				do { } while (0)
+# define lockdep_init_map_waits(lock, name, key, sub, inner, outer) \
+		do { (void)(name); (void)(key); } while (0)
+# define lockdep_init_map_wait(lock, name, key, sub, inner) \
+		do { (void)(name); (void)(key); } while (0)
 # define lockdep_init_map(lock, name, key, sub) \
 		do { (void)(name); (void)(key); } while (0)
 # define lockdep_set_class(lock, key)		do { (void)(key); } while (0)
@@ -591,42 +639,49 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 
 #define spin_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
 #define spin_acquire_nest(l, s, t, n, i)	lock_acquire_exclusive(l, s, t, n, i)
-#define spin_release(l, n, i)			lock_release(l, n, i)
+#define spin_release(l, i)			lock_release(l, i)
 
 #define rwlock_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
 #define rwlock_acquire_read(l, s, t, i)		lock_acquire_shared_recursive(l, s, t, NULL, i)
-#define rwlock_release(l, n, i)			lock_release(l, n, i)
+#define rwlock_release(l, i)			lock_release(l, i)
 
 #define seqcount_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
 #define seqcount_acquire_read(l, s, t, i)	lock_acquire_shared_recursive(l, s, t, NULL, i)
-#define seqcount_release(l, n, i)		lock_release(l, n, i)
+#define seqcount_release(l, i)			lock_release(l, i)
 
 #define mutex_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
 #define mutex_acquire_nest(l, s, t, n, i)	lock_acquire_exclusive(l, s, t, n, i)
-#define mutex_release(l, n, i)			lock_release(l, n, i)
+#define mutex_release(l, i)			lock_release(l, i)
 
 #define rwsem_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
 #define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire_exclusive(l, s, t, n, i)
 #define rwsem_acquire_read(l, s, t, i)		lock_acquire_shared(l, s, t, NULL, i)
-#define rwsem_release(l, n, i)			lock_release(l, n, i)
+#define rwsem_release(l, i)			lock_release(l, i)
 
 #define lock_map_acquire(l)			lock_acquire_exclusive(l, 0, 0, NULL, _THIS_IP_)
 #define lock_map_acquire_read(l)		lock_acquire_shared_recursive(l, 0, 0, NULL, _THIS_IP_)
 #define lock_map_acquire_tryread(l)		lock_acquire_shared_recursive(l, 0, 1, NULL, _THIS_IP_)
-#define lock_map_release(l)			lock_release(l, 1, _THIS_IP_)
+#define lock_map_release(l)			lock_release(l, _THIS_IP_)
 
 #ifdef CONFIG_PROVE_LOCKING
 # define might_lock(lock) 						\
 do {									\
 	typecheck(struct lockdep_map *, &(lock)->dep_map);		\
 	lock_acquire(&(lock)->dep_map, 0, 0, 0, 1, NULL, _THIS_IP_);	\
-	lock_release(&(lock)->dep_map, 0, _THIS_IP_);			\
+	lock_release(&(lock)->dep_map, _THIS_IP_);			\
 } while (0)
 # define might_lock_read(lock) 						\
 do {									\
 	typecheck(struct lockdep_map *, &(lock)->dep_map);		\
 	lock_acquire(&(lock)->dep_map, 0, 0, 1, 1, NULL, _THIS_IP_);	\
-	lock_release(&(lock)->dep_map, 0, _THIS_IP_);			\
+	lock_release(&(lock)->dep_map, _THIS_IP_);			\
+} while (0)
+# define might_lock_nested(lock, subclass) 				\
+do {									\
+	typecheck(struct lockdep_map *, &(lock)->dep_map);		\
+	lock_acquire(&(lock)->dep_map, subclass, 0, 1, 1, NULL,		\
+		     _THIS_IP_);					\
+	lock_release(&(lock)->dep_map, _THIS_IP_);			\
 } while (0)
 
 #define lockdep_assert_irqs_enabled()	do {				\
@@ -650,9 +705,25 @@ do {									\
 #else
 # define might_lock(lock) do { } while (0)
 # define might_lock_read(lock) do { } while (0)
+# define might_lock_nested(lock, subclass) do { } while (0)
 # define lockdep_assert_irqs_enabled() do { } while (0)
 # define lockdep_assert_irqs_disabled() do { } while (0)
 # define lockdep_assert_in_irq() do { } while (0)
+#endif
+
+#ifdef CONFIG_PROVE_RAW_LOCK_NESTING
+
+# define lockdep_assert_RT_in_threaded_ctx() do {			\
+		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
+			  current->hardirq_context &&			\
+			  !(current->hardirq_threaded || current->irq_config),	\
+			  "Not in threaded context on PREEMPT_RT as expected\n");	\
+} while (0)
+
+#else
+
+# define lockdep_assert_RT_in_threaded_ctx() do { } while (0)
+
 #endif
 
 #ifdef CONFIG_LOCKDEP

@@ -41,7 +41,7 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************
 ** For history of changes, see Documentation/scsi/ChangeLog.arcmsr
-**     Firmware Specification, see Documentation/scsi/arcmsr_spec.txt
+**     Firmware Specification, see Documentation/scsi/arcmsr_spec.rst
 *******************************************************************************
 */
 #include <linux/module.h>
@@ -270,7 +270,7 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		break;
 	}
 	case ACB_ADAPTER_TYPE_C:{
-		acb->pmuC = ioremap_nocache(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
+		acb->pmuC = ioremap(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
 		if (!acb->pmuC) {
 			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
 			return false;
@@ -353,16 +353,11 @@ static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id)
 static int arcmsr_bios_param(struct scsi_device *sdev,
 		struct block_device *bdev, sector_t capacity, int *geom)
 {
-	int ret, heads, sectors, cylinders, total_capacity;
-	unsigned char *buffer;/* return copy of block device's partition table */
+	int heads, sectors, cylinders, total_capacity;
 
-	buffer = scsi_bios_ptable(bdev);
-	if (buffer) {
-		ret = scsi_partsize(buffer, capacity, &geom[2], &geom[0], &geom[1]);
-		kfree(buffer);
-		if (ret != -1)
-			return ret;
-	}
+	if (scsi_partsize(bdev, capacity, geom))
+		return 0;
+
 	total_capacity = capacity;
 	heads = 64;
 	sectors = 32;
@@ -1400,7 +1395,7 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, struct Comma
 				, pCCB->acb
 				, pCCB->startdone
 				, atomic_read(&acb->ccboutstandingcount));
-		  return;
+		return;
 	}
 	arcmsr_report_ccb_state(acb, pCCB, error);
 }
@@ -3476,8 +3471,8 @@ polling_hbc_ccb_retry:
 					, pCCB->pcmd->device->id
 					, (u32)pCCB->pcmd->device->lun
 					, pCCB);
-					pCCB->pcmd->result = DID_ABORT << 16;
-					arcmsr_ccb_complete(pCCB);
+				pCCB->pcmd->result = DID_ABORT << 16;
+				arcmsr_ccb_complete(pCCB);
 				continue;
 			}
 			printk(KERN_NOTICE "arcmsr%d: polling get an illegal ccb"

@@ -192,7 +192,7 @@ static int tegra_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return __tegra_gem_mmap(&bo->gem, vma);
 }
 
-static struct fb_ops tegra_fb_ops = {
+static const struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
@@ -269,10 +269,10 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		}
 	}
 
-	drm->mode_config.fb_base = (resource_size_t)bo->paddr;
+	drm->mode_config.fb_base = (resource_size_t)bo->iova;
 	info->screen_base = (void __iomem *)bo->vaddr + offset;
 	info->screen_size = size;
-	info->fix.smem_start = (unsigned long)(bo->paddr + offset);
+	info->fix.smem_start = (unsigned long)(bo->iova + offset);
 	info->fix.smem_len = size;
 
 	return 0;
@@ -314,17 +314,11 @@ static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 	struct drm_device *drm = fbdev->base.dev;
 	int err;
 
-	err = drm_fb_helper_init(drm, &fbdev->base, max_connectors);
+	err = drm_fb_helper_init(drm, &fbdev->base);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper: %d\n",
 			err);
 		return err;
-	}
-
-	err = drm_fb_helper_single_add_all_connectors(&fbdev->base);
-	if (err < 0) {
-		dev_err(drm->dev, "failed to add connectors: %d\n", err);
-		goto fini;
 	}
 
 	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);

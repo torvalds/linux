@@ -133,10 +133,13 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 {
 	struct rb_node *node;
 	struct ext4_system_zone *entry;
+	struct ext4_system_blocks *system_blks;
 	int first = 1;
 
 	printk(KERN_INFO "System zones: ");
-	node = rb_first(&sbi->system_blks->root);
+	rcu_read_lock();
+	system_blks = rcu_dereference(sbi->system_blks);
+	node = rb_first(&system_blks->root);
 	while (node) {
 		entry = rb_entry(node, struct ext4_system_zone, node);
 		printk(KERN_CONT "%s%llu-%llu", first ? "" : ", ",
@@ -144,6 +147,7 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 		first = 0;
 		node = rb_next(node);
 	}
+	rcu_read_unlock();
 	printk(KERN_CONT "\n");
 }
 
@@ -162,10 +166,8 @@ static int ext4_data_block_valid_rcu(struct ext4_sb_info *sbi,
 
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
 	    (start_blk + count < start_blk) ||
-	    (start_blk + count > ext4_blocks_count(sbi->s_es))) {
-		sbi->s_es->s_last_error_block = cpu_to_le64(start_blk);
+	    (start_blk + count > ext4_blocks_count(sbi->s_es)))
 		return 0;
-	}
 
 	if (system_blks == NULL)
 		return 1;
@@ -177,10 +179,8 @@ static int ext4_data_block_valid_rcu(struct ext4_sb_info *sbi,
 			n = n->rb_left;
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = n->rb_right;
-		else {
-			sbi->s_es->s_last_error_block = cpu_to_le64(start_blk);
+		else
 			return 0;
-		}
 	}
 	return 1;
 }
@@ -203,6 +203,7 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 		return PTR_ERR(inode);
 	num = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 	while (i < num) {
+		cond_resched();
 		map.m_lblk = i;
 		map.m_len = num - i;
 		n = ext4_map_blocks(NULL, inode, &map, 0);
@@ -215,10 +216,12 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 		} else {
 			if (!ext4_data_block_valid_rcu(sbi, system_blks,
 						map.m_pblk, n)) {
-				ext4_error(sb, "blocks %llu-%llu from inode %u "
-					   "overlap system zone", map.m_pblk,
-					   map.m_pblk + map.m_len - 1, ino);
 				err = -EFSCORRUPTED;
+				__ext4_error(sb, __func__, __LINE__, -err,
+					     map.m_pblk, "blocks %llu-%llu "
+					     "from inode %u overlap system zone",
+					     map.m_pblk,
+					     map.m_pblk + map.m_len - 1, ino);
 				break;
 			}
 			err = add_system_zone(system_blks, map.m_pblk, n);
@@ -360,7 +363,6 @@ int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 int ext4_check_blockref(const char *function, unsigned int line,
 			struct inode *inode, __le32 *p, unsigned int max)
 {
-	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
 	__le32 *bref = p;
 	unsigned int blk;
 
@@ -374,7 +376,6 @@ int ext4_check_blockref(const char *function, unsigned int line,
 		if (blk &&
 		    unlikely(!ext4_data_block_valid(EXT4_SB(inode->i_sb),
 						    blk, 1))) {
-			es->s_last_error_block = cpu_to_le64(blk);
 			ext4_error_inode(inode, function, line, blk,
 					 "invalid block");
 			return -EFSCORRUPTED;

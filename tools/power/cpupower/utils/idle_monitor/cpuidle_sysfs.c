@@ -19,7 +19,7 @@ struct cpuidle_monitor cpuidle_sysfs_monitor;
 
 static unsigned long long **previous_count;
 static unsigned long long **current_count;
-struct timespec start_time;
+static struct timespec start_time;
 static unsigned long long timediff;
 
 static int cpuidle_get_count_percent(unsigned int id, double *percent,
@@ -207,6 +207,6 @@ struct cpuidle_monitor cpuidle_sysfs_monitor = {
 	.stop			= cpuidle_stop,
 	.do_register		= cpuidle_register,
 	.unregister		= cpuidle_unregister,
-	.needs_root		= 0,
+	.flags.needs_root	= 0,
 	.overflow_s		= UINT_MAX,
 };

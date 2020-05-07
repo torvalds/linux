@@ -253,6 +253,7 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 {
 	u32 seq_send;
 	int tmp;
+	u32 time32;
 
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
 	if (IS_ERR(p))
@@ -290,9 +291,11 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 		p = ERR_PTR(-ENOSYS);
 		goto out_err;
 	}
-	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
+	p = simple_get_bytes(p, end, &time32, sizeof(time32));
 	if (IS_ERR(p))
 		goto out_err;
+	/* unsigned 32-bit time overflows in year 2106 */
+	ctx->endtime = (time64_t)time32;
 	p = simple_get_bytes(p, end, &seq_send, sizeof(seq_send));
 	if (IS_ERR(p))
 		goto out_err;
@@ -587,15 +590,18 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 {
 	u64 seq_send64;
 	int keylen;
+	u32 time32;
 
 	p = simple_get_bytes(p, end, &ctx->flags, sizeof(ctx->flags));
 	if (IS_ERR(p))
 		goto out_err;
 	ctx->initiate = ctx->flags & KRB5_CTX_FLAG_INITIATOR;
 
-	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
+	p = simple_get_bytes(p, end, &time32, sizeof(time32));
 	if (IS_ERR(p))
 		goto out_err;
+	/* unsigned 32-bit time overflows in year 2106 */
+	ctx->endtime = (time64_t)time32;
 	p = simple_get_bytes(p, end, &seq_send64, sizeof(seq_send64));
 	if (IS_ERR(p))
 		goto out_err;
@@ -659,7 +665,7 @@ out_err:
 static int
 gss_import_sec_context_kerberos(const void *p, size_t len,
 				struct gss_ctx *ctx_id,
-				time_t *endtime,
+				time64_t *endtime,
 				gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);

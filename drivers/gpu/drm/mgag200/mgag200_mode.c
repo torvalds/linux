@@ -9,12 +9,13 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pci.h>
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "mgag200_drv.h"
 
@@ -1413,8 +1414,8 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 
 /* These provide the minimum set of functions required to handle a CRTC */
 static const struct drm_crtc_funcs mga_crtc_funcs = {
-	.cursor_set = mga_crtc_cursor_set,
-	.cursor_move = mga_crtc_cursor_move,
+	.cursor_set = mgag200_crtc_cursor_set,
+	.cursor_move = mgag200_crtc_cursor_move,
 	.gamma_set = mga_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = mga_crtc_destroy,
@@ -1448,76 +1449,6 @@ static void mga_crtc_init(struct mga_device *mdev)
 
 	drm_crtc_helper_add(&mga_crtc->base, &mga_helper_funcs);
 }
-
-/*
- * The encoder comes after the CRTC in the output pipeline, but before
- * the connector. It's responsible for ensuring that the digital
- * stream is appropriately converted into the output format. Setup is
- * very simple in this case - all we have to do is inform qemu of the
- * colour depth in order to ensure that it displays appropriately
- */
-
-/*
- * These functions are analagous to those in the CRTC code, but are intended
- * to handle any encoder-specific limitations
- */
-static void mga_encoder_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
-{
-
-}
-
-static void mga_encoder_dpms(struct drm_encoder *encoder, int state)
-{
-	return;
-}
-
-static void mga_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void mga_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static void mga_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct mga_encoder *mga_encoder = to_mga_encoder(encoder);
-	drm_encoder_cleanup(encoder);
-	kfree(mga_encoder);
-}
-
-static const struct drm_encoder_helper_funcs mga_encoder_helper_funcs = {
-	.dpms = mga_encoder_dpms,
-	.mode_set = mga_encoder_mode_set,
-	.prepare = mga_encoder_prepare,
-	.commit = mga_encoder_commit,
-};
-
-static const struct drm_encoder_funcs mga_encoder_encoder_funcs = {
-	.destroy = mga_encoder_destroy,
-};
-
-static struct drm_encoder *mga_encoder_init(struct drm_device *dev)
-{
-	struct drm_encoder *encoder;
-	struct mga_encoder *mga_encoder;
-
-	mga_encoder = kzalloc(sizeof(struct mga_encoder), GFP_KERNEL);
-	if (!mga_encoder)
-		return NULL;
-
-	encoder = &mga_encoder->base;
-	encoder->possible_crtcs = 0x1;
-
-	drm_encoder_init(dev, encoder, &mga_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC, NULL);
-	drm_encoder_helper_add(encoder, &mga_encoder_helper_funcs);
-
-	return encoder;
-}
-
 
 static int mga_vga_get_modes(struct drm_connector *connector)
 {
@@ -1629,23 +1560,13 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 			bpp = connector->cmdline_mode.bpp;
 	}
 
-	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->mc.vram_size) {
+	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->vram_fb_available) {
 		if (connector->cmdline_mode.specified)
 			connector->cmdline_mode.specified = false;
 		return MODE_BAD;
 	}
 
 	return MODE_OK;
-}
-
-static struct drm_encoder *mga_connector_best_encoder(struct drm_connector
-						  *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-	/* pick the encoder ids */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
-	return NULL;
 }
 
 static void mga_connector_destroy(struct drm_connector *connector)
@@ -1659,7 +1580,6 @@ static void mga_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
 	.get_modes = mga_vga_get_modes,
 	.mode_valid = mga_vga_mode_valid,
-	.best_encoder = mga_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs mga_vga_connector_funcs = {
@@ -1697,8 +1617,9 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 
 int mgag200_modeset_init(struct mga_device *mdev)
 {
-	struct drm_encoder *encoder;
+	struct drm_encoder *encoder = &mdev->encoder;
 	struct drm_connector *connector;
+	int ret;
 
 	mdev->mode_info.mode_config_initialized = true;
 
@@ -1709,11 +1630,15 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	mga_crtc_init(mdev);
 
-	encoder = mga_encoder_init(mdev->dev);
-	if (!encoder) {
-		DRM_ERROR("mga_encoder_init failed\n");
-		return -1;
+	ret = drm_simple_encoder_init(mdev->dev, encoder,
+				      DRM_MODE_ENCODER_DAC);
+	if (ret) {
+		drm_err(mdev->dev,
+			"drm_simple_encoder_init() failed, error %d\n",
+			ret);
+		return ret;
 	}
+	encoder->possible_crtcs = 0x1;
 
 	connector = mga_vga_init(mdev->dev);
 	if (!connector) {

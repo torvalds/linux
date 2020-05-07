@@ -294,10 +294,13 @@ static inline void write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
 {
 	PVOP_VCALL3(cpu.write_idt_entry, dt, entry, g);
 }
-static inline void set_iopl_mask(unsigned mask)
+
+#ifdef CONFIG_X86_IOPL_IOPERM
+static inline void tss_update_io_bitmap(void)
 {
-	PVOP_VCALL1(cpu.set_iopl_mask, mask);
+	PVOP_VCALL0(cpu.update_io_bitmap);
 }
+#endif
 
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)

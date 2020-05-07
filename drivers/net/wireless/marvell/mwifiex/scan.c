@@ -1,10 +1,10 @@
 /*
- * Marvell Wireless LAN device driver: scan ioctl and command handling
+ * NXP Wireless LAN device driver: scan ioctl and command handling
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
+ * Copyright 2011-2020 NXP
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
+ * This software file (the "File") is distributed by NXP
+ * under the terms of the GNU General Public License Version 2, June 1991
  * (the "License").  You may use, redistribute and/or modify this File in
  * accordance with the terms and conditions of the License, a copy of which
  * is available by writing to the Free Software Foundation, Inc.,
@@ -1270,7 +1270,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			break;
 
 		case WLAN_EID_FH_PARAMS:
-			if (element_len + 2 < sizeof(*fh_param_set))
+			if (total_ie_len < sizeof(*fh_param_set))
 				return -EINVAL;
 			fh_param_set =
 				(struct ieee_types_fh_param_set *) current_ptr;
@@ -1280,7 +1280,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			break;
 
 		case WLAN_EID_DS_PARAMS:
-			if (element_len + 2 < sizeof(*ds_param_set))
+			if (total_ie_len < sizeof(*ds_param_set))
 				return -EINVAL;
 			ds_param_set =
 				(struct ieee_types_ds_param_set *) current_ptr;
@@ -1293,7 +1293,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			break;
 
 		case WLAN_EID_CF_PARAMS:
-			if (element_len + 2 < sizeof(*cf_param_set))
+			if (total_ie_len < sizeof(*cf_param_set))
 				return -EINVAL;
 			cf_param_set =
 				(struct ieee_types_cf_param_set *) current_ptr;
@@ -1303,7 +1303,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			break;
 
 		case WLAN_EID_IBSS_PARAMS:
-			if (element_len + 2 < sizeof(*ibss_param_set))
+			if (total_ie_len < sizeof(*ibss_param_set))
 				return -EINVAL;
 			ibss_param_set =
 				(struct ieee_types_ibss_param_set *)
@@ -1460,10 +1460,8 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			break;
 		}
 
-		current_ptr += element_len + 2;
-
-		/* Need to account for IE ID and IE Len */
-		bytes_left -= (element_len + 2);
+		current_ptr += total_ie_len;
+		bytes_left -= total_ie_len;
 
 	}	/* while (bytes_left > 2) */
 	return ret;
@@ -2886,6 +2884,13 @@ mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv,
 			vs_param_set->header.len =
 				cpu_to_le16((((u16) priv->vs_ie[id].ie[1])
 				& 0x00FF) + 2);
+			if (le16_to_cpu(vs_param_set->header.len) >
+				MWIFIEX_MAX_VSIE_LEN) {
+				mwifiex_dbg(priv->adapter, ERROR,
+					    "Invalid param length!\n");
+				break;
+			}
+
 			memcpy(vs_param_set->ie, priv->vs_ie[id].ie,
 			       le16_to_cpu(vs_param_set->header.len));
 			*buffer += le16_to_cpu(vs_param_set->header.len) +

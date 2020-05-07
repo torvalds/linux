@@ -85,13 +85,13 @@ static int imx_audmix_fe_hw_params(struct snd_pcm_substream *substream,
 	dir  = tx ? SND_SOC_CLOCK_OUT : SND_SOC_CLOCK_IN;
 
 	/* set DAI configuration */
-	ret = snd_soc_dai_set_fmt(rtd->cpu_dai, fmt);
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0), fmt);
 	if (ret) {
 		dev_err(dev, "failed to set cpu dai fmt: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, FSL_SAI_CLK_MAST1, 0, dir);
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0), FSL_SAI_CLK_MAST1, 0, dir);
 	if (ret) {
 		dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
 		return ret;
@@ -101,7 +101,7 @@ static int imx_audmix_fe_hw_params(struct snd_pcm_substream *substream,
 	 * Per datasheet, AUDMIX expects 8 slots and 32 bits
 	 * for every slot in TDM mode.
 	 */
-	ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, BIT(channels) - 1,
+	ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0), BIT(channels) - 1,
 				       BIT(channels) - 1, 8, 32);
 	if (ret)
 		dev_err(dev, "failed to set cpu dai tdm slot: %d\n", ret);
@@ -125,7 +125,7 @@ static int imx_audmix_be_hw_params(struct snd_pcm_substream *substream,
 	fmt |= SND_SOC_DAIFMT_CBM_CFM;
 
 	/* set AUDMIX DAI configuration */
-	ret = snd_soc_dai_set_fmt(rtd->cpu_dai, fmt);
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0), fmt);
 	if (ret)
 		dev_err(dev, "failed to set AUDMIX DAI fmt: %d\n", ret);
 
@@ -289,7 +289,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[num_dai + i].ignore_pmdown_time = 1;
 		priv->dai[num_dai + i].ops = &imx_audmix_be_ops;
 
-		priv->dai_conf[i].of_node = args.np;
+		priv->dai_conf[i].dlc.of_node = args.np;
 		priv->dai_conf[i].name_prefix = dai_name;
 
 		priv->dapm_routes[i].source =

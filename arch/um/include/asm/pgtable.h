@@ -106,6 +106,9 @@ extern unsigned long end_iomem;
 #define pud_newpage(x)  (pud_val(x) & _PAGE_NEWPAGE)
 #define pud_mkuptodate(x) (pud_val(x) &= ~_PAGE_NEWPAGE)
 
+#define p4d_newpage(x)  (p4d_val(x) & _PAGE_NEWPAGE)
+#define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEWPAGE)
+
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
 #define pte_page(x) pfn_to_page(pte_pfn(x))
@@ -162,11 +165,6 @@ static inline int pte_newpage(pte_t pte)
 static inline int pte_newprot(pte_t pte)
 { 
 	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
-}
-
-static inline int pte_special(pte_t pte)
-{
-	return 0;
 }
 
 /*
@@ -241,11 +239,6 @@ static inline pte_t pte_mkuptodate(pte_t pte)
 static inline pte_t pte_mknewpage(pte_t pte)
 {
 	pte_set_bits(pte, _PAGE_NEWPAGE);
-	return(pte);
-}
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
 	return(pte);
 }
 

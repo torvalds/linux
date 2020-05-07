@@ -29,7 +29,7 @@
 
 struct seg6_lwt {
 	struct dst_cache cache;
-	struct seg6_iptunnel_encap tuninfo[0];
+	struct seg6_iptunnel_encap tuninfo[];
 };
 
 static inline struct seg6_lwt *seg6_lwt_lwtunnel(struct lwtunnel_state *lwt)
@@ -268,7 +268,7 @@ static int seg6_do_srh(struct sk_buff *skb)
 		skb_mac_header_rebuild(skb);
 		skb_push(skb, skb->mac_len);
 
-		err = seg6_do_srh_encap(skb, tinfo->srh, NEXTHDR_NONE);
+		err = seg6_do_srh_encap(skb, tinfo->srh, IPPROTO_ETHERNET);
 		if (err)
 			return err;
 
@@ -376,7 +376,7 @@ drop:
 	return err;
 }
 
-static int seg6_build_state(struct nlattr *nla,
+static int seg6_build_state(struct net *net, struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts,
 			    struct netlink_ext_ack *extack)

@@ -140,6 +140,19 @@ request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		     irq_handler_t thread_fn,
 		     unsigned long flags, const char *name, void *dev);
 
+/**
+ * request_irq - Add a handler for an interrupt line
+ * @irq:	The interrupt line to allocate
+ * @handler:	Function to be called when the IRQ occurs.
+ *		Primary handler for threaded interrupts
+ *		If NULL, the default primary handler is installed
+ * @flags:	Handling flags
+ * @name:	Name of the device generating this interrupt
+ * @dev:	A cookie passed to the handler function
+ *
+ * This call allocates an interrupt and establishes a handler; see
+ * the documentation for request_threaded_irq() for details.
+ */
 static inline int __must_check
 request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	    const char *name, void *dev)
@@ -234,6 +247,8 @@ extern void enable_nmi(unsigned int irq);
 extern void enable_percpu_nmi(unsigned int irq, unsigned int type);
 extern int prepare_percpu_nmi(unsigned int irq);
 extern void teardown_percpu_nmi(unsigned int irq);
+
+extern int irq_inject_interrupt(unsigned int irq);
 
 /* The following three functions are for the core kernel use only. */
 extern void suspend_device_irqs(void);
@@ -520,8 +535,7 @@ enum
 	IRQ_POLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
-			    numbering. Sigh! */
+	HRTIMER_SOFTIRQ,
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS

@@ -79,7 +79,7 @@ static int chipsfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info);
 static int chipsfb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops chipsfb_ops = {
+static const struct fb_ops chipsfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= chipsfb_check_var,
 	.fb_set_par	= chipsfb_set_par,

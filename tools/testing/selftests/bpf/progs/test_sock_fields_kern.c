@@ -5,8 +5,8 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 enum bpf_addr_array_idx {
 	ADDR_SRV_IDX,

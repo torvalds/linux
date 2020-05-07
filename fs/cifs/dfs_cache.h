@@ -24,7 +24,7 @@ struct dfs_cache_tgt_iterator {
 
 extern int dfs_cache_init(void);
 extern void dfs_cache_destroy(void);
-extern const struct file_operations dfscache_proc_fops;
+extern const struct proc_ops dfscache_proc_ops;
 
 extern int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 			  const struct nls_table *nls_codepage, int remap,
@@ -48,6 +48,10 @@ extern int dfs_cache_add_vol(char *mntdata, struct smb_vol *vol,
 extern int dfs_cache_update_vol(const char *fullpath,
 				struct TCP_Server_Info *server);
 extern void dfs_cache_del_vol(const char *fullpath);
+
+extern int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
+				   const char **share, size_t *share_len,
+				   const char **prefix, size_t *prefix_len);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,

@@ -276,7 +276,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
 			    void *arg)
 {
 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-		int file = page_is_file_cache(page);
+		int file = page_is_file_lru(page);
 		int lru = page_lru_base_type(page);
 
 		del_page_from_lru_list(page, lruvec, lru);
@@ -373,9 +373,16 @@ static void __lru_cache_activate_page(struct page *page)
 void mark_page_accessed(struct page *page)
 {
 	page = compound_head(page);
-	if (!PageActive(page) && !PageUnevictable(page) &&
-			PageReferenced(page)) {
 
+	if (!PageReferenced(page)) {
+		SetPageReferenced(page);
+	} else if (PageUnevictable(page)) {
+		/*
+		 * Unevictable pages are on the "LRU_UNEVICTABLE" list. But,
+		 * this list is never rotated or maintained, so marking an
+		 * evictable page accessed has no effect.
+		 */
+	} else if (!PageActive(page)) {
 		/*
 		 * If the page is on the LRU, queue it for activation via
 		 * activate_page_pvecs. Otherwise, assume the page is on a
@@ -387,10 +394,8 @@ void mark_page_accessed(struct page *page)
 		else
 			__lru_cache_activate_page(page);
 		ClearPageReferenced(page);
-		if (page_is_file_cache(page))
+		if (page_is_file_lru(page))
 			workingset_activation(page);
-	} else if (!PageReferenced(page)) {
-		SetPageReferenced(page);
 	}
 	if (page_is_idle(page))
 		clear_page_idle(page);
@@ -510,7 +515,7 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
 		return;
 
 	active = PageActive(page);
-	file = page_is_file_cache(page);
+	file = page_is_file_lru(page);
 	lru = page_lru_base_type(page);
 
 	del_page_from_lru_list(page, lruvec, lru + active);
@@ -543,7 +548,7 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
 			    void *arg)
 {
 	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-		int file = page_is_file_cache(page);
+		int file = page_is_file_lru(page);
 		int lru = page_lru_base_type(page);
 
 		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
@@ -568,9 +573,9 @@ static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec,
 		ClearPageActive(page);
 		ClearPageReferenced(page);
 		/*
-		 * lazyfree pages are clean anonymous pages. They have
-		 * SwapBacked flag cleared to distinguish normal anonymous
-		 * pages
+		 * Lazyfree pages are clean anonymous pages.  They have
+		 * PG_swapbacked flag cleared, to distinguish them from normal
+		 * anonymous pages
 		 */
 		ClearPageSwapBacked(page);
 		add_page_to_lru_list(page, lruvec, LRU_INACTIVE_FILE);
@@ -708,9 +713,10 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
  */
 void lru_add_drain_all(void)
 {
+	static seqcount_t seqcount = SEQCNT_ZERO(seqcount);
 	static DEFINE_MUTEX(lock);
 	static struct cpumask has_work;
-	int cpu;
+	int cpu, seq;
 
 	/*
 	 * Make sure nobody triggers this path before mm_percpu_wq is fully
@@ -719,7 +725,19 @@ void lru_add_drain_all(void)
 	if (WARN_ON(!mm_percpu_wq))
 		return;
 
+	seq = raw_read_seqcount_latch(&seqcount);
+
 	mutex_lock(&lock);
+
+	/*
+	 * Piggyback on drain started and finished while we waited for lock:
+	 * all pages pended at the time of our enter were drained from vectors.
+	 */
+	if (__read_seqcount_retry(&seqcount, seq))
+		goto done;
+
+	raw_write_seqcount_latch(&seqcount);
+
 	cpumask_clear(&has_work);
 
 	for_each_online_cpu(cpu) {
@@ -740,6 +758,7 @@ void lru_add_drain_all(void)
 	for_each_cpu(cpu, &has_work)
 		flush_work(&per_cpu(lru_add_drain_work, cpu));
 
+done:
 	mutex_unlock(&lock);
 }
 #else
@@ -794,8 +813,10 @@ void release_pages(struct page **pages, int nr)
 			 * processing, and instead, expect a call to
 			 * put_page_testzero().
 			 */
-			if (put_devmap_managed_page(page))
+			if (page_is_devmap_managed(page)) {
+				put_devmap_managed_page(page);
 				continue;
+			}
 		}
 
 		page = compound_head(page);
@@ -910,7 +931,6 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
-	SetPageLRU(page);
 	/*
 	 * Page becomes evictable in two ways:
 	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
@@ -937,11 +957,12 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	 * looking at the same page) and the evictable page will be stranded
 	 * in an unevictable LRU.
 	 */
-	smp_mb();
+	SetPageLRU(page);
+	smp_mb__after_atomic();
 
 	if (page_evictable(page)) {
 		lru = page_lru(page);
-		update_page_reclaim_stat(lruvec, page_is_file_cache(page),
+		update_page_reclaim_stat(lruvec, page_is_file_lru(page),
 					 PageActive(page));
 		if (was_unevictable)
 			count_vm_event(UNEVICTABLE_PGRESCUED);
@@ -965,7 +986,6 @@ void __pagevec_lru_add(struct pagevec *pvec)
 {
 	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
 }
-EXPORT_SYMBOL(__pagevec_lru_add);
 
 /**
  * pagevec_lookup_entries - gang pagecache lookup
@@ -983,6 +1003,10 @@ EXPORT_SYMBOL(__pagevec_lru_add);
  * The search returns a group of mapping-contiguous entries with
  * ascending indexes.  There may be holes in the indices due to
  * not-present entries.
+ *
+ * Only one subpage of a Transparent Huge Page is returned in one call:
+ * allowing truncate_inode_pages_range() to evict the whole THP without
+ * cycling through a pagevec of extra references.
  *
  * pagevec_lookup_entries() returns the number of entries which were
  * found.
@@ -1083,3 +1107,26 @@ void __init swap_setup(void)
 	 * _really_ don't want to cluster much more
 	 */
 }
+
+#ifdef CONFIG_DEV_PAGEMAP_OPS
+void put_devmap_managed_page(struct page *page)
+{
+	int count;
+
+	if (WARN_ON_ONCE(!page_is_devmap_managed(page)))
+		return;
+
+	count = page_ref_dec_return(page);
+
+	/*
+	 * devmap page refcounts are 1-based, rather than 0-based: if
+	 * refcount is 1, then the page is free and the refcount is
+	 * stable because nobody holds a reference on the page.
+	 */
+	if (count == 1)
+		free_devmap_managed_page(page);
+	else if (!count)
+		__put_page(page);
+}
+EXPORT_SYMBOL(put_devmap_managed_page);
+#endif

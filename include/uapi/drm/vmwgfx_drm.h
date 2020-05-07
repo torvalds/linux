@@ -71,6 +71,7 @@ extern "C" {
 #define DRM_VMW_CREATE_EXTENDED_CONTEXT 26
 #define DRM_VMW_GB_SURFACE_CREATE_EXT   27
 #define DRM_VMW_GB_SURFACE_REF_EXT      28
+#define DRM_VMW_MSG                     29
 
 /*************************************************************************/
 /**
@@ -85,6 +86,9 @@ extern "C" {
  *
  * DRM_VMW_PARAM_SM4_1
  * SM4_1 support is enabled.
+ *
+ * DRM_VMW_PARAM_SM5
+ * SM5 support is enabled.
  */
 
 #define DRM_VMW_PARAM_NUM_STREAMS      0
@@ -102,6 +106,7 @@ extern "C" {
 #define DRM_VMW_PARAM_DX               12
 #define DRM_VMW_PARAM_HW_CAPS2         13
 #define DRM_VMW_PARAM_SM4_1            14
+#define DRM_VMW_PARAM_SM5              15
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls
@@ -891,11 +896,13 @@ struct drm_vmw_shader_arg {
  *                                      surface.
  * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is
  *                                      given.
+ * @drm_vmw_surface_flag_coherent:      Back surface with coherent memory.
  */
 enum drm_vmw_surface_flags {
 	drm_vmw_surface_flag_shareable = (1 << 0),
 	drm_vmw_surface_flag_scanout = (1 << 1),
-	drm_vmw_surface_flag_create_buffer = (1 << 2)
+	drm_vmw_surface_flag_create_buffer = (1 << 2),
+	drm_vmw_surface_flag_coherent = (1 << 3),
 };
 
 /**
@@ -1130,7 +1137,7 @@ struct drm_vmw_handle_close_arg {
  * svga3d surface flags split into 2, upper half and lower half.
  */
 enum drm_vmw_surface_version {
-	drm_vmw_gb_surface_v1
+	drm_vmw_gb_surface_v1,
 };
 
 /**
@@ -1141,6 +1148,7 @@ enum drm_vmw_surface_version {
  * @svga3d_flags_upper_32_bits: Upper 32 bits of svga3d flags.
  * @multisample_pattern: Multisampling pattern when msaa is supported.
  * @quality_level: Precision settings for each sample.
+ * @buffer_byte_stride: Buffer byte stride.
  * @must_be_zero: Reserved for future usage.
  *
  * Input argument to the  DRM_VMW_GB_SURFACE_CREATE_EXT Ioctl.
@@ -1149,10 +1157,11 @@ enum drm_vmw_surface_version {
 struct drm_vmw_gb_surface_create_ext_req {
 	struct drm_vmw_gb_surface_create_req base;
 	enum drm_vmw_surface_version version;
-	uint32_t svga3d_flags_upper_32_bits;
-	SVGA3dMSPattern multisample_pattern;
-	SVGA3dMSQualityLevel quality_level;
-	uint64_t must_be_zero;
+	__u32 svga3d_flags_upper_32_bits;
+	__u32 multisample_pattern;
+	__u32 quality_level;
+	__u32 buffer_byte_stride;
+	__u32 must_be_zero;
 };
 
 /**
@@ -1209,6 +1218,22 @@ struct drm_vmw_gb_surface_ref_ext_rep {
 union drm_vmw_gb_surface_reference_ext_arg {
 	struct drm_vmw_gb_surface_ref_ext_rep rep;
 	struct drm_vmw_surface_arg req;
+};
+
+/**
+ * struct drm_vmw_msg_arg
+ *
+ * @send: Pointer to user-space msg string (null terminated).
+ * @receive: Pointer to user-space receive buffer.
+ * @send_only: Boolean whether this is only sending or receiving too.
+ *
+ * Argument to the DRM_VMW_MSG ioctl.
+ */
+struct drm_vmw_msg_arg {
+	__u64 send;
+	__u64 receive;
+	__s32 send_only;
+	__u32 receive_len;
 };
 
 #if defined(__cplusplus)

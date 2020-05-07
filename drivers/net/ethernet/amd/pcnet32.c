@@ -24,12 +24,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.35"
 #define DRV_RELDATE	"21.Apr.2008"
 #define PFX		DRV_NAME ": "
-
-static const char *const version =
-    DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " tsbogend@alpha.franken.de\n";
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -314,7 +310,7 @@ static int pcnet32_open(struct net_device *);
 static int pcnet32_init_ring(struct net_device *);
 static netdev_tx_t pcnet32_start_xmit(struct sk_buff *,
 				      struct net_device *);
-static void pcnet32_tx_timeout(struct net_device *dev);
+static void pcnet32_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static irqreturn_t pcnet32_interrupt(int, void *);
 static int pcnet32_close(struct net_device *);
 static struct net_device_stats *pcnet32_get_stats(struct net_device *);
@@ -809,7 +805,6 @@ static void pcnet32_get_drvinfo(struct net_device *dev,
 	struct pcnet32_private *lp = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	if (lp->pci_dev)
 		strlcpy(info->bus_info, pci_name(lp->pci_dev),
 			sizeof(info->bus_info));
@@ -2455,7 +2450,7 @@ static void pcnet32_restart(struct net_device *dev, unsigned int csr0_bits)
 	lp->a->write_csr(ioaddr, CSR0, csr0_bits);
 }
 
-static void pcnet32_tx_timeout(struct net_device *dev)
+static void pcnet32_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long ioaddr = dev->base_addr, flags;
@@ -3006,8 +3001,6 @@ MODULE_LICENSE("GPL");
 
 static int __init pcnet32_init_module(void)
 {
-	pr_info("%s", version);
-
 	pcnet32_debug = netif_msg_init(debug, PCNET32_MSG_DEFAULT);
 
 	if ((tx_start_pt >= 0) && (tx_start_pt <= 3))

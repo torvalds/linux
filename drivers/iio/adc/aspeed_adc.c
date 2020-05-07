@@ -173,7 +173,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct aspeed_adc_data *data;
 	const struct aspeed_adc_model_data *model_data;
-	struct resource *res;
 	const char *clk_parent_name;
 	int ret;
 	u32 adc_engine_control_reg_val;
@@ -185,8 +184,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	data = iio_priv(indio_dev);
 	data->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 

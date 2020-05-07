@@ -485,7 +485,7 @@ static int mt8173_memif_fs(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
-	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
+	struct mtk_base_afe_memif *memif = &afe->memif[asoc_rtd_to_cpu(rtd, 0)->id];
 	int fs;
 
 	if (memif->data->id == MT8173_AFE_MEMIF_DAI ||
@@ -533,8 +533,6 @@ static struct snd_soc_dai_driver mt8173_afe_pcm_dais[] = {
 	{
 		.name = "DL1", /* downlink 1 */
 		.id = MT8173_AFE_MEMIF_DL1,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.playback = {
 			.stream_name = "DL1",
 			.channels_min = 1,
@@ -546,8 +544,6 @@ static struct snd_soc_dai_driver mt8173_afe_pcm_dais[] = {
 	}, {
 		.name = "VUL", /* voice uplink */
 		.id = MT8173_AFE_MEMIF_VUL,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.capture = {
 			.stream_name = "VUL",
 			.channels_min = 1,
@@ -584,8 +580,6 @@ static struct snd_soc_dai_driver mt8173_afe_hdmi_dais[] = {
 	{
 		.name = "HDMI",
 		.id = MT8173_AFE_MEMIF_HDMI,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.playback = {
 			.stream_name = "HDMI",
 			.channels_min = 2,
@@ -681,12 +675,16 @@ static const struct snd_soc_component_driver mt8173_afe_pcm_dai_component = {
 	.num_dapm_widgets = ARRAY_SIZE(mt8173_afe_pcm_widgets),
 	.dapm_routes = mt8173_afe_pcm_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt8173_afe_pcm_routes),
+	.suspend = mtk_afe_suspend,
+	.resume = mtk_afe_resume,
 };
 
 static const struct snd_soc_component_driver mt8173_afe_hdmi_dai_component = {
 	.name = "mt8173-afe-hdmi-dai",
 	.dapm_routes = mt8173_afe_hdmi_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt8173_afe_hdmi_routes),
+	.suspend = mtk_afe_suspend,
+	.resume = mtk_afe_resume,
 };
 
 static const char *aud_clks[MT8173_CLK_NUM] = {

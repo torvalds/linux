@@ -2,7 +2,7 @@
 # Copyright 2019 Analog Devices Inc.
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/iio/adc/adi,ad7124.yaml#
+$id: http://devicetree.org/schemas/iio/adc/adi,ad7124.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices AD7124 ADC device driver
@@ -45,15 +45,12 @@ properties:
 
   refin1-supply:
     description: refin1 supply can be used as reference for conversion.
-    maxItems: 1
 
   refin2-supply:
     description: refin2 supply can be used as reference for conversion.
-    maxItems: 1
 
   avdd-supply:
     description: avdd supply can be used as reference for conversion.
-    maxItems: 1
 
 required:
   - compatible

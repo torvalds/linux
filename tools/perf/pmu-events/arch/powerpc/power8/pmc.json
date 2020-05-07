@@ -1,140 +1,140 @@
 [
-  {,
+  {
     "EventCode": "0x20010",
     "EventName": "PM_PMC1_OVERFLOW",
     "BriefDescription": "Overflow from counter 1",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x30010",
     "EventName": "PM_PMC2_OVERFLOW",
     "BriefDescription": "Overflow from counter 2",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x30020",
     "EventName": "PM_PMC2_REWIND",
     "BriefDescription": "PMC2 Rewind Event (did not match condition)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10022",
     "EventName": "PM_PMC2_SAVED",
     "BriefDescription": "PMC2 Rewind Value saved",
     "PublicDescription": "PMC2 Rewind Value saved (matched condition)"
   },
-  {,
+  {
     "EventCode": "0x40010",
     "EventName": "PM_PMC3_OVERFLOW",
     "BriefDescription": "Overflow from counter 3",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10010",
     "EventName": "PM_PMC4_OVERFLOW",
     "BriefDescription": "Overflow from counter 4",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10020",
     "EventName": "PM_PMC4_REWIND",
     "BriefDescription": "PMC4 Rewind Event",
     "PublicDescription": "PMC4 Rewind Event (did not match condition)"
   },
-  {,
+  {
     "EventCode": "0x30022",
     "EventName": "PM_PMC4_SAVED",
     "BriefDescription": "PMC4 Rewind Value saved (matched condition)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10024",
     "EventName": "PM_PMC5_OVERFLOW",
     "BriefDescription": "Overflow from counter 5",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x30024",
     "EventName": "PM_PMC6_OVERFLOW",
     "BriefDescription": "Overflow from counter 6",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x400f4",
     "EventName": "PM_RUN_PURR",
     "BriefDescription": "Run_PURR",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x10008",
     "EventName": "PM_RUN_SPURR",
     "BriefDescription": "Run SPURR",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x0",
     "EventName": "PM_SUSPENDED",
     "BriefDescription": "Counter OFF",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x301ea",
     "EventName": "PM_THRESH_EXC_1024",
     "BriefDescription": "Threshold counter exceeded a value of 1024",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x401ea",
     "EventName": "PM_THRESH_EXC_128",
     "BriefDescription": "Threshold counter exceeded a value of 128",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x401ec",
     "EventName": "PM_THRESH_EXC_2048",
     "BriefDescription": "Threshold counter exceeded a value of 2048",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x101e8",
     "EventName": "PM_THRESH_EXC_256",
     "BriefDescription": "Threshold counter exceed a count of 256",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x201e6",
     "EventName": "PM_THRESH_EXC_32",
     "BriefDescription": "Threshold counter exceeded a value of 32",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x101e6",
     "EventName": "PM_THRESH_EXC_4096",
     "BriefDescription": "Threshold counter exceed a count of 4096",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x201e8",
     "EventName": "PM_THRESH_EXC_512",
     "BriefDescription": "Threshold counter exceeded a value of 512",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x301e8",
     "EventName": "PM_THRESH_EXC_64",
     "BriefDescription": "IFU non-branch finished",
     "PublicDescription": "Threshold counter exceeded a value of 64"
   },
-  {,
+  {
     "EventCode": "0x101ec",
     "EventName": "PM_THRESH_MET",
     "BriefDescription": "threshold exceeded",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4016e",
     "EventName": "PM_THRESH_NOT_MET",
     "BriefDescription": "Threshold counter did not meet threshold",
     "PublicDescription": ""
-  },
+  }
 ]

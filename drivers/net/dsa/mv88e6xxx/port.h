@@ -298,15 +298,20 @@ int mv88e6390_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 
 int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link);
 
-int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup);
-
-int mv88e6065_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6185_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6250_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6341_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6352_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
-int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+int mv88e6065_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6341_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6390_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				    int speed, int duplex);
+int mv88e6390x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
+				     int speed, int duplex);
 
 phy_interface_t mv88e6341_port_max_speed_mode(int port);
 phy_interface_t mv88e6390_port_max_speed_mode(int port);
@@ -359,15 +364,12 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
 int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
-int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
-			      struct phylink_link_state *state);
-int mv88e6250_port_link_state(struct mv88e6xxx_chip *chip, int port,
-			      struct phylink_link_state *state);
-int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
-			      struct phylink_link_state *state);
 int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 				     int upstream_port);
+int mv88e6xxx_port_set_mirror(struct mv88e6xxx_chip *chip, int port,
+			      enum mv88e6xxx_egress_direction direction,
+			      bool mirror);
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port);
 int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port);

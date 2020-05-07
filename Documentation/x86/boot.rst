@@ -68,7 +68,25 @@ Protocol 2.12	(Kernel 3.8) Added the xloadflags field and extension fields
 Protocol 2.13	(Kernel 3.14) Support 32- and 64-bit flags being set in
 		xloadflags to support booting a 64-bit kernel from 32-bit
 		EFI
+
+Protocol 2.14	BURNT BY INCORRECT COMMIT
+                ae7e1238e68f2a472a125673ab506d49158c1889
+		(x86/boot: Add ACPI RSDP address to setup_header)
+		DO NOT USE!!! ASSUME SAME AS 2.13.
+
+Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
+
+.. note::
+     The protocol version number should be changed only if the setup header
+     is changed. There is no need to update the version number if boot_params
+     or kernel_info are changed. Additionally, it is recommended to use
+     xloadflags (in this case the protocol version number should not be
+     updated either) or kernel_info to communicate supported Linux kernel
+     features to the boot loader. Due to very limited space available in
+     the original setup header every update to it should be considered
+     with great care. Starting from the protocol 2.15 the primary way to
+     communicate things to the boot loader is the kernel_info.
 
 
 Memory Layout
@@ -207,6 +225,7 @@ Offset/Size	Proto		Name			Meaning
 0258/8		2.10+		pref_address		Preferred loading address
 0260/4		2.10+		init_size		Linear memory required during initialization
 0264/4		2.11+		handover_offset		Offset of handover entry point
+0268/4		2.15+		kernel_info_offset	Offset of the kernel_info
 ===========	========	=====================	============================================
 
 .. note::
@@ -233,7 +252,7 @@ setting fields in the header, you must make sure only to set fields
 supported by the protocol version in use.
 
 
-Details of Harder Fileds
+Details of Header Fields
 ========================
 
 For each field, some are information from the kernel to the bootloader
@@ -471,15 +490,11 @@ Protocol:	2.00+
 		kernel) to not write early messages that require
 		accessing the display hardware directly.
 
-  Bit 6 (write): KEEP_SEGMENTS
+  Bit 6 (obsolete): KEEP_SEGMENTS
 
 	Protocol: 2.07+
 
-	- If 0, reload the segment registers in the 32bit entry point.
-	- If 1, do not reload the segment registers in the 32bit entry point.
-
-		Assume that %cs %ds %ss %es are all set to flat segments with
-		a base of 0 (or the equivalent for their environment).
+        - This flag is obsolete.
 
   Bit 7 (write): CAN_USE_HEAP
 
@@ -809,6 +824,47 @@ Protocol:	2.09+
   sure to consider the case where the linked list already contains
   entries.
 
+  The setup_data is a bit awkward to use for extremely large data objects,
+  both because the setup_data header has to be adjacent to the data object
+  and because it has a 32-bit length field. However, it is important that
+  intermediate stages of the boot process have a way to identify which
+  chunks of memory are occupied by kernel data.
+
+  Thus setup_indirect struct and SETUP_INDIRECT type were introduced in
+  protocol 2.15::
+
+    struct setup_indirect {
+      __u32 type;
+      __u32 reserved;  /* Reserved, must be set to zero. */
+      __u64 len;
+      __u64 addr;
+    };
+
+  The type member is a SETUP_INDIRECT | SETUP_* type. However, it cannot be
+  SETUP_INDIRECT itself since making the setup_indirect a tree structure
+  could require a lot of stack space in something that needs to parse it
+  and stack space can be limited in boot contexts.
+
+  Let's give an example how to point to SETUP_E820_EXT data using setup_indirect.
+  In this case setup_data and setup_indirect will look like this::
+
+    struct setup_data {
+      __u64 next = 0 or <addr_of_next_setup_data_struct>;
+      __u32 type = SETUP_INDIRECT;
+      __u32 len = sizeof(setup_data);
+      __u8 data[sizeof(setup_indirect)] = struct setup_indirect {
+        __u32 type = SETUP_INDIRECT | SETUP_E820_EXT;
+        __u32 reserved = 0;
+        __u64 len = <len_of_SETUP_E820_EXT_data>;
+        __u64 addr = <addr_of_SETUP_E820_EXT_data>;
+      }
+    }
+
+.. note::
+     SETUP_INDIRECT | SETUP_NONE objects cannot be properly distinguished
+     from SETUP_INDIRECT itself. So, this kind of objects cannot be provided
+     by the bootloaders.
+
 ============	============
 Field name:	pref_address
 Type:		read (reloc)
@@ -854,6 +910,121 @@ Offset/size:	0x264/4
   handover protocol to boot the kernel should jump to this offset.
 
   See EFI HANDOVER PROTOCOL below for more details.
+
+============	==================
+Field name:	kernel_info_offset
+Type:		read
+Offset/size:	0x268/4
+Protocol:	2.15+
+============	==================
+
+  This field is the offset from the beginning of the kernel image to the
+  kernel_info. The kernel_info structure is embedded in the Linux image
+  in the uncompressed protected mode region.
+
+
+The kernel_info
+===============
+
+The relationships between the headers are analogous to the various data
+sections:
+
+  setup_header = .data
+  boot_params/setup_data = .bss
+
+What is missing from the above list? That's right:
+
+  kernel_info = .rodata
+
+We have been (ab)using .data for things that could go into .rodata or .bss for
+a long time, for lack of alternatives and -- especially early on -- inertia.
+Also, the BIOS stub is responsible for creating boot_params, so it isn't
+available to a BIOS-based loader (setup_data is, though).
+
+setup_header is permanently limited to 144 bytes due to the reach of the
+2-byte jump field, which doubles as a length field for the structure, combined
+with the size of the "hole" in struct boot_params that a protected-mode loader
+or the BIOS stub has to copy it into. It is currently 119 bytes long, which
+leaves us with 25 very precious bytes. This isn't something that can be fixed
+without revising the boot protocol entirely, breaking backwards compatibility.
+
+boot_params proper is limited to 4096 bytes, but can be arbitrarily extended
+by adding setup_data entries. It cannot be used to communicate properties of
+the kernel image, because it is .bss and has no image-provided content.
+
+kernel_info solves this by providing an extensible place for information about
+the kernel image. It is readonly, because the kernel cannot rely on a
+bootloader copying its contents anywhere, but that is OK; if it becomes
+necessary it can still contain data items that an enabled bootloader would be
+expected to copy into a setup_data chunk.
+
+All kernel_info data should be part of this structure. Fixed size data have to
+be put before kernel_info_var_len_data label. Variable size data have to be put
+after kernel_info_var_len_data label. Each chunk of variable size data has to
+be prefixed with header/magic and its size, e.g.::
+
+  kernel_info:
+          .ascii  "LToP"          /* Header, Linux top (structure). */
+          .long   kernel_info_var_len_data - kernel_info
+          .long   kernel_info_end - kernel_info
+          .long   0x01234567      /* Some fixed size data for the bootloaders. */
+  kernel_info_var_len_data:
+  example_struct:                 /* Some variable size data for the bootloaders. */
+          .ascii  "0123"          /* Header/Magic. */
+          .long   example_struct_end - example_struct
+          .ascii  "Struct"
+          .long   0x89012345
+  example_struct_end:
+  example_strings:                /* Some variable size data for the bootloaders. */
+          .ascii  "ABCD"          /* Header/Magic. */
+          .long   example_strings_end - example_strings
+          .asciz  "String_0"
+          .asciz  "String_1"
+  example_strings_end:
+  kernel_info_end:
+
+This way the kernel_info is self-contained blob.
+
+.. note::
+     Each variable size data header/magic can be any 4-character string,
+     without \0 at the end of the string, which does not collide with
+     existing variable length data headers/magics.
+
+
+Details of the kernel_info Fields
+=================================
+
+============	========
+Field name:	header
+Offset/size:	0x0000/4
+============	========
+
+  Contains the magic number "LToP" (0x506f544c).
+
+============	========
+Field name:	size
+Offset/size:	0x0004/4
+============	========
+
+  This field contains the size of the kernel_info including kernel_info.header.
+  It does not count kernel_info.kernel_info_var_len_data size. This field should be
+  used by the bootloaders to detect supported fixed size fields in the kernel_info
+  and beginning of kernel_info.kernel_info_var_len_data.
+
+============	========
+Field name:	size_total
+Offset/size:	0x0008/4
+============	========
+
+  This field contains the size of the kernel_info including kernel_info.header
+  and kernel_info.kernel_info_var_len_data.
+
+============	==============
+Field name:	setup_type_max
+Offset/size:	0x000c/4
+============	==============
+
+  This field contains maximal allowed type for setup_data and setup_indirect structs.
 
 
 The Image Checksum
@@ -1228,14 +1399,20 @@ must have read/write permission; CS must be __BOOT_CS and DS, ES, SS
 must be __BOOT_DS; interrupt must be disabled; %rsi must hold the base
 address of the struct boot_params.
 
-EFI Handover Protocol
-=====================
+EFI Handover Protocol (deprecated)
+==================================
 
 This protocol allows boot loaders to defer initialisation to the EFI
 boot stub. The boot loader is required to load the kernel/initrd(s)
 from the boot media and jump to the EFI handover protocol entry point
 which is hdr->handover_offset bytes from the beginning of
 startup_{32,64}.
+
+The boot loader MUST respect the kernel's PE/COFF metadata when it comes
+to section alignment, the memory footprint of the executable image beyond
+the size of the file itself, and any other aspect of the PE/COFF header
+that may affect correct operation of the image as a PE/COFF binary in the
+execution context provided by the EFI firmware.
 
 The function prototype for the handover entry point looks like this::
 
@@ -1248,9 +1425,18 @@ UEFI specification. 'bp' is the boot loader-allocated boot params.
 
 The boot loader *must* fill out the following fields in bp::
 
-  - hdr.code32_start
   - hdr.cmd_line_ptr
   - hdr.ramdisk_image (if applicable)
   - hdr.ramdisk_size  (if applicable)
 
 All other fields should be zero.
+
+NOTE: The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
+      entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
+      loading protocol (refer to [0] for an example of the bootloader side of
+      this), which removes the need for any knowledge on the part of the EFI
+      bootloader regarding the internal representation of boot_params or any
+      requirements/limitations regarding the placement of the command line
+      and ramdisk in memory, or the placement of the kernel image itself.
+
+[0] https://github.com/u-boot/u-boot/commit/ec80b4735a593961fe701cc3a5d717d4739b0fd0

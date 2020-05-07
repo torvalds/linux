@@ -438,15 +438,23 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 
 /* Map inode number to lower fs unique range */
 static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
-			       const char *name, int namelen)
+			       const char *name, int namelen, bool warn)
 {
-	if (ino >> (64 - xinobits)) {
-		pr_warn_ratelimited("overlayfs: d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
-				    namelen, name, ino, xinobits);
+	unsigned int xinoshift = 64 - xinobits;
+
+	if (unlikely(ino >> xinoshift)) {
+		if (warn) {
+			pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
+					    namelen, name, ino, xinobits);
+		}
 		return ino;
 	}
 
-	return ino | ((u64)fsid) << (64 - xinobits);
+	/*
+	 * The lowest xinobit is reserved for mapping the non-peresistent inode
+	 * numbers range, but this range is only exposed via st_ino, not here.
+	 */
+	return ino | ((u64)fsid) << (xinoshift + 1);
 }
 
 /*
@@ -469,7 +477,7 @@ static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
 	int xinobits = ovl_xino_bits(dir->d_sb);
 	int err = 0;
 
-	if (!ovl_same_sb(dir->d_sb) && !xinobits)
+	if (!ovl_same_dev(dir->d_sb))
 		goto out;
 
 	if (p->name[0] == '.') {
@@ -504,12 +512,19 @@ get:
 		if (err)
 			goto fail;
 
-		WARN_ON_ONCE(dir->d_sb->s_dev != stat.dev);
+		/*
+		 * Directory inode is always on overlay st_dev.
+		 * Non-dir with ovl_same_dev() could be on pseudo st_dev in case
+		 * of xino bits overflow.
+		 */
+		WARN_ON_ONCE(S_ISDIR(stat.mode) &&
+			     dir->d_sb->s_dev != stat.dev);
 		ino = stat.ino;
 	} else if (xinobits && !OVL_TYPE_UPPER(type)) {
 		ino = ovl_remap_lower_ino(ino, xinobits,
 					  ovl_layer_lower(this)->fsid,
-					  p->name, p->len);
+					  p->name, p->len,
+					  ovl_xino_warn(dir->d_sb));
 	}
 
 out:
@@ -518,7 +533,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to look up (%s) for ino (%i)\n",
+	pr_warn_ratelimited("failed to look up (%s) for ino (%i)\n",
 			    p->name, err);
 	goto out;
 }
@@ -639,6 +654,7 @@ struct ovl_readdir_translate {
 	u64 parent_ino;
 	int fsid;
 	int xinobits;
+	bool xinowarn;
 };
 
 static int ovl_fill_real(struct dir_context *ctx, const char *name,
@@ -659,7 +675,7 @@ static int ovl_fill_real(struct dir_context *ctx, const char *name,
 			ino = p->ino;
 	} else if (rdt->xinobits) {
 		ino = ovl_remap_lower_ino(ino, rdt->xinobits, rdt->fsid,
-					  name, namelen);
+					  name, namelen, rdt->xinowarn);
 	}
 
 	return orig_ctx->actor(orig_ctx, name, namelen, offset, ino, d_type);
@@ -685,11 +701,12 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 	int err;
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dir = file->f_path.dentry;
-	struct ovl_layer *lower_layer = ovl_layer_lower(dir);
+	const struct ovl_layer *lower_layer = ovl_layer_lower(dir);
 	struct ovl_readdir_translate rdt = {
 		.ctx.actor = ovl_fill_real,
 		.orig_ctx = ctx,
 		.xinobits = ovl_xino_bits(dir->d_sb),
+		.xinowarn = ovl_xino_warn(dir->d_sb),
 	};
 
 	if (rdt.xinobits && lower_layer)
@@ -738,7 +755,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		 * entries.
 		 */
 		if (ovl_xino_bits(dentry->d_sb) ||
-		    (ovl_same_sb(dentry->d_sb) &&
+		    (ovl_same_fs(dentry->d_sb) &&
 		     (ovl_is_impure_dir(file) ||
 		      OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent))))) {
 			return ovl_iterate_real(file, ctx);
@@ -965,7 +982,7 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 
 		dentry = lookup_one_len(p->name, upper, p->len);
 		if (IS_ERR(dentry)) {
-			pr_err("overlayfs: lookup '%s/%.*s' failed (%i)\n",
+			pr_err("lookup '%s/%.*s' failed (%i)\n",
 			       upper->d_name.name, p->len, p->name,
 			       (int) PTR_ERR(dentry));
 			continue;
@@ -1147,6 +1164,6 @@ next:
 out:
 	ovl_cache_free(&list);
 	if (err)
-		pr_err("overlayfs: failed index dir cleanup (%i)\n", err);
+		pr_err("failed index dir cleanup (%i)\n", err);
 	return err;
 }

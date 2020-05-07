@@ -122,7 +122,7 @@ static int ssb_extpci_read_config(struct ssb_pcicore *pc,
 	if (unlikely(!addr))
 		goto out;
 	err = -ENOMEM;
-	mmio = ioremap_nocache(addr, len);
+	mmio = ioremap(addr, len);
 	if (!mmio)
 		goto out;
 
@@ -168,7 +168,7 @@ static int ssb_extpci_write_config(struct ssb_pcicore *pc,
 	if (unlikely(!addr))
 		goto out;
 	err = -ENOMEM;
-	mmio = ioremap_nocache(addr, len);
+	mmio = ioremap(addr, len);
 	if (!mmio)
 		goto out;
 
@@ -382,7 +382,7 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
 	 * to non-MIPS platform. */
-	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000);
+	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap(SSB_PCI_MEM, 0x04000000);
 	set_io_port_base(ssb_pcicore_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
 	 * values. Not waiting at this point causes crashes of the machine. */

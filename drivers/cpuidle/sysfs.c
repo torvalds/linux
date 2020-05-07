@@ -142,6 +142,7 @@ static struct attribute_group cpuidle_attr_group = {
 
 /**
  * cpuidle_add_interface - add CPU global sysfs attributes
+ * @dev: the target device
  */
 int cpuidle_add_interface(struct device *dev)
 {
@@ -153,6 +154,7 @@ int cpuidle_add_interface(struct device *dev)
 
 /**
  * cpuidle_remove_interface - remove CPU global sysfs attributes
+ * @dev: the target device
  */
 void cpuidle_remove_interface(struct device *dev)
 {
@@ -255,25 +257,6 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, \
 	return sprintf(buf, "%u\n", state->_name);\
 }
 
-#define define_store_state_ull_function(_name) \
-static ssize_t store_state_##_name(struct cpuidle_state *state, \
-				   struct cpuidle_state_usage *state_usage, \
-				   const char *buf, size_t size)	\
-{ \
-	unsigned long long value; \
-	int err; \
-	if (!capable(CAP_SYS_ADMIN)) \
-		return -EPERM; \
-	err = kstrtoull(buf, 0, &value); \
-	if (err) \
-		return err; \
-	if (value) \
-		state_usage->_name = 1; \
-	else \
-		state_usage->_name = 0; \
-	return size; \
-}
-
 #define define_show_state_ull_function(_name) \
 static ssize_t show_state_##_name(struct cpuidle_state *state, \
 				  struct cpuidle_state_usage *state_usage, \
@@ -292,17 +275,67 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, \
 	return sprintf(buf, "%s\n", state->_name);\
 }
 
-define_show_state_function(exit_latency)
-define_show_state_function(target_residency)
+#define define_show_state_time_function(_name) \
+static ssize_t show_state_##_name(struct cpuidle_state *state, \
+				  struct cpuidle_state_usage *state_usage, \
+				  char *buf) \
+{ \
+	return sprintf(buf, "%llu\n", ktime_to_us(state->_name##_ns)); \
+}
+
+define_show_state_time_function(exit_latency)
+define_show_state_time_function(target_residency)
 define_show_state_function(power_usage)
 define_show_state_ull_function(usage)
-define_show_state_ull_function(time)
 define_show_state_str_function(name)
 define_show_state_str_function(desc)
-define_show_state_ull_function(disable)
-define_store_state_ull_function(disable)
 define_show_state_ull_function(above)
 define_show_state_ull_function(below)
+
+static ssize_t show_state_time(struct cpuidle_state *state,
+			       struct cpuidle_state_usage *state_usage,
+			       char *buf)
+{
+	return sprintf(buf, "%llu\n", ktime_to_us(state_usage->time_ns));
+}
+
+static ssize_t show_state_disable(struct cpuidle_state *state,
+				  struct cpuidle_state_usage *state_usage,
+				  char *buf)
+{
+	return sprintf(buf, "%llu\n",
+		       state_usage->disable & CPUIDLE_STATE_DISABLED_BY_USER);
+}
+
+static ssize_t store_state_disable(struct cpuidle_state *state,
+				   struct cpuidle_state_usage *state_usage,
+				   const char *buf, size_t size)
+{
+	unsigned int value;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	err = kstrtouint(buf, 0, &value);
+	if (err)
+		return err;
+
+	if (value)
+		state_usage->disable |= CPUIDLE_STATE_DISABLED_BY_USER;
+	else
+		state_usage->disable &= ~CPUIDLE_STATE_DISABLED_BY_USER;
+
+	return size;
+}
+
+static ssize_t show_state_default_status(struct cpuidle_state *state,
+					  struct cpuidle_state_usage *state_usage,
+					  char *buf)
+{
+	return sprintf(buf, "%s\n",
+		       state->flags & CPUIDLE_FLAG_OFF ? "disabled" : "enabled");
+}
 
 define_one_state_ro(name, show_state_name);
 define_one_state_ro(desc, show_state_desc);
@@ -314,6 +347,7 @@ define_one_state_ro(time, show_state_time);
 define_one_state_rw(disable, show_state_disable, store_state_disable);
 define_one_state_ro(above, show_state_above);
 define_one_state_ro(below, show_state_below);
+define_one_state_ro(default_status, show_state_default_status);
 
 static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_name.attr,
@@ -326,6 +360,7 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_disable.attr,
 	&attr_above.attr,
 	&attr_below.attr,
+	&attr_default_status.attr,
 	NULL
 };
 
@@ -592,7 +627,7 @@ static struct kobj_type ktype_driver_cpuidle = {
 
 /**
  * cpuidle_add_driver_sysfs - adds the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 {
@@ -623,7 +658,7 @@ static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 
 /**
  * cpuidle_remove_driver_sysfs - removes the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static void cpuidle_remove_driver_sysfs(struct cpuidle_device *dev)
 {

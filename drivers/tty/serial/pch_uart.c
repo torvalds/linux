@@ -2,9 +2,6 @@
 /*
  *Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  */
-#if defined(CONFIG_SERIAL_PCH_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
@@ -233,6 +230,7 @@ struct eg20t_port {
 	struct dma_chan			*chan_rx;
 	struct scatterlist		*sg_tx_p;
 	int				nent;
+	int				orig_nent;
 	struct scatterlist		sg_rx;
 	int				tx_dma_use;
 	void				*rx_buf_virt;
@@ -312,32 +310,32 @@ static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 	if (!buf)
 		return 0;
 
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"PCH EG20T port[%d] regs:\n", priv->port.line);
 
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"=================================\n");
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"IER: \t0x%02x\n", ioread8(priv->membase + UART_IER));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"IIR: \t0x%02x\n", ioread8(priv->membase + UART_IIR));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"LCR: \t0x%02x\n", ioread8(priv->membase + UART_LCR));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"MCR: \t0x%02x\n", ioread8(priv->membase + UART_MCR));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"LSR: \t0x%02x\n", ioread8(priv->membase + UART_LSR));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"MSR: \t0x%02x\n", ioread8(priv->membase + UART_MSR));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"BRCSR: \t0x%02x\n",
 			ioread8(priv->membase + PCH_UART_BRCSR));
 
 	lcr = ioread8(priv->membase + UART_LCR);
 	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"DLL: \t0x%02x\n", ioread8(priv->membase + UART_DLL));
-	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, PCH_REGS_BUFSIZE - len,
 			"DLM: \t0x%02x\n", ioread8(priv->membase + UART_DLM));
 	iowrite8(lcr, priv->membase + UART_LCR);
 
@@ -586,12 +584,8 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 			if (uart_handle_break(port))
 				continue;
 		}
-#ifdef SUPPORT_SYSRQ
-		if (port->sysrq) {
-			if (uart_handle_sysrq_char(port, rbr))
-				continue;
-		}
-#endif
+		if (uart_handle_sysrq_char(port, rbr))
+			continue;
 
 		buf[i++] = rbr;
 	}
@@ -787,9 +781,10 @@ static void pch_dma_tx_complete(void *arg)
 	}
 	xmit->tail &= UART_XMIT_SIZE - 1;
 	async_tx_ack(priv->desc_tx);
-	dma_unmap_sg(port->dev, sg, priv->nent, DMA_TO_DEVICE);
+	dma_unmap_sg(port->dev, sg, priv->orig_nent, DMA_TO_DEVICE);
 	priv->tx_dma_use = 0;
 	priv->nent = 0;
+	priv->orig_nent = 0;
 	kfree(priv->sg_tx_p);
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
 }
@@ -1010,6 +1005,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 		dev_err(priv->port.dev, "%s:dma_map_sg Failed\n", __func__);
 		return 0;
 	}
+	priv->orig_nent = num;
 	priv->nent = nent;
 
 	for (i = 0; i < nent; i++, sg++) {
@@ -1793,6 +1789,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.flags = UPF_BOOT_AUTOCONF;
 	priv->port.fifosize = fifosize;
 	priv->port.line = board->line_no;
+	priv->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_PCH_UART_CONSOLE);
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
 
 	snprintf(priv->irq_name, IRQ_NAME_SIZE,

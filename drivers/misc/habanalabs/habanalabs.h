@@ -40,8 +40,6 @@
 
 #define HL_MAX_QUEUES			128
 
-#define HL_MAX_JOBS_PER_CS		64
-
 /* MUST BE POWER OF 2 and larger than 1 */
 #define HL_MAX_PENDING_CS		64
 
@@ -85,12 +83,15 @@ struct hl_fpriv;
  * @QUEUE_TYPE_INT: internal queue that performs DMA inside the device's
  *			memories and/or operates the compute engines.
  * @QUEUE_TYPE_CPU: S/W queue for communication with the device's CPU.
+ * @QUEUE_TYPE_HW: queue of DMA and compute engines jobs, for which completion
+ *                 notifications are sent by H/W.
  */
 enum hl_queue_type {
 	QUEUE_TYPE_NA,
 	QUEUE_TYPE_EXT,
 	QUEUE_TYPE_INT,
-	QUEUE_TYPE_CPU
+	QUEUE_TYPE_CPU,
+	QUEUE_TYPE_HW
 };
 
 /**
@@ -98,10 +99,13 @@ enum hl_queue_type {
  * @type: queue type.
  * @driver_only: true if only the driver is allowed to send a job to this queue,
  *               false otherwise.
+ * @requires_kernel_cb: true if a CB handle must be provided for jobs on this
+ *                      queue, false otherwise (a CB address must be provided).
  */
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	u8			driver_only;
+	u8			requires_kernel_cb;
 };
 
 /**
@@ -110,8 +114,8 @@ struct hw_queue_properties {
  * @VM_TYPE_PHYS_PACK: mapping of DRAM memory to device virtual address.
  */
 enum vm_type_t {
-	VM_TYPE_USERPTR,
-	VM_TYPE_PHYS_PACK
+	VM_TYPE_USERPTR = 0x1,
+	VM_TYPE_PHYS_PACK = 0x2
 };
 
 /**
@@ -127,12 +131,48 @@ enum hl_device_hw_state {
 };
 
 /**
+ * struct hl_mmu_properties - ASIC specific MMU address translation properties.
+ * @start_addr: virtual start address of the memory region.
+ * @end_addr: virtual end address of the memory region.
+ * @hop0_shift: shift of hop 0 mask.
+ * @hop1_shift: shift of hop 1 mask.
+ * @hop2_shift: shift of hop 2 mask.
+ * @hop3_shift: shift of hop 3 mask.
+ * @hop4_shift: shift of hop 4 mask.
+ * @hop0_mask: mask to get the PTE address in hop 0.
+ * @hop1_mask: mask to get the PTE address in hop 1.
+ * @hop2_mask: mask to get the PTE address in hop 2.
+ * @hop3_mask: mask to get the PTE address in hop 3.
+ * @hop4_mask: mask to get the PTE address in hop 4.
+ * @page_size: default page size used to allocate memory.
+ */
+struct hl_mmu_properties {
+	u64	start_addr;
+	u64	end_addr;
+	u64	hop0_shift;
+	u64	hop1_shift;
+	u64	hop2_shift;
+	u64	hop3_shift;
+	u64	hop4_shift;
+	u64	hop0_mask;
+	u64	hop1_mask;
+	u64	hop2_mask;
+	u64	hop3_mask;
+	u64	hop4_mask;
+	u32	page_size;
+};
+
+/**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
  * @armcp_info: received various information from ArmCP regarding the H/W, e.g.
  *		available sensors.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
+ * @dmmu: DRAM MMU address translation properties.
+ * @pmmu: PCI (host) MMU address translation properties.
+ * @pmmu_huge: PCI (host) MMU address translation properties for memory
+ *              allocated with huge pages.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -142,14 +182,6 @@ enum hl_device_hw_state {
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
  * @max_power_default: max power of the device after reset
- * @va_space_host_start_address: base address of virtual memory range for
- *                               mapping host memory.
- * @va_space_host_end_address: end address of virtual memory range for
- *                             mapping host memory.
- * @va_space_dram_start_address: base address of virtual memory range for
- *                               mapping DRAM memory.
- * @va_space_dram_end_address: end address of virtual memory range for
- *                             mapping DRAM memory.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
  * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
@@ -169,53 +201,52 @@ enum hl_device_hw_state {
  * @psoc_pci_pll_nf: PCI PLL NF value.
  * @psoc_pci_pll_od: PCI PLL OD value.
  * @psoc_pci_pll_div_factor: PCI PLL DIV FACTOR 1 value.
- * @completion_queues_count: number of completion queues.
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @tpc_enabled_mask: which TPCs are enabled.
+ * @completion_queues_count: number of completion queues.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	hw_queues_props[HL_MAX_QUEUES];
-	struct armcp_info	armcp_info;
-	char			uboot_ver[VERSION_MAX_LEN];
-	char			preboot_ver[VERSION_MAX_LEN];
-	u64			sram_base_address;
-	u64			sram_end_address;
-	u64			sram_user_base_address;
-	u64			dram_base_address;
-	u64			dram_end_address;
-	u64			dram_user_base_address;
-	u64			dram_size;
-	u64			dram_pci_bar_size;
-	u64			max_power_default;
-	u64			va_space_host_start_address;
-	u64			va_space_host_end_address;
-	u64			va_space_dram_start_address;
-	u64			va_space_dram_end_address;
-	u64			dram_size_for_default_page_mapping;
-	u64			pcie_dbi_base_address;
-	u64			pcie_aux_dbi_reg_addr;
-	u64			mmu_pgt_addr;
-	u64			mmu_dram_default_page_addr;
-	u32			mmu_pgt_size;
-	u32			mmu_pte_size;
-	u32			mmu_hop_table_size;
-	u32			mmu_hop0_tables_total_size;
-	u32			dram_page_size;
-	u32			cfg_size;
-	u32			sram_size;
-	u32			max_asid;
-	u32			num_of_events;
-	u32			psoc_pci_pll_nr;
-	u32			psoc_pci_pll_nf;
-	u32			psoc_pci_pll_od;
-	u32			psoc_pci_pll_div_factor;
-	u32			high_pll;
-	u32			cb_pool_cb_cnt;
-	u32			cb_pool_cb_size;
-	u8			completion_queues_count;
-	u8			tpc_enabled_mask;
+	struct armcp_info		armcp_info;
+	char				uboot_ver[VERSION_MAX_LEN];
+	char				preboot_ver[VERSION_MAX_LEN];
+	struct hl_mmu_properties	dmmu;
+	struct hl_mmu_properties	pmmu;
+	struct hl_mmu_properties	pmmu_huge;
+	u64				sram_base_address;
+	u64				sram_end_address;
+	u64				sram_user_base_address;
+	u64				dram_base_address;
+	u64				dram_end_address;
+	u64				dram_user_base_address;
+	u64				dram_size;
+	u64				dram_pci_bar_size;
+	u64				max_power_default;
+	u64				dram_size_for_default_page_mapping;
+	u64				pcie_dbi_base_address;
+	u64				pcie_aux_dbi_reg_addr;
+	u64				mmu_pgt_addr;
+	u64				mmu_dram_default_page_addr;
+	u32				mmu_pgt_size;
+	u32				mmu_pte_size;
+	u32				mmu_hop_table_size;
+	u32				mmu_hop0_tables_total_size;
+	u32				dram_page_size;
+	u32				cfg_size;
+	u32				sram_size;
+	u32				max_asid;
+	u32				num_of_events;
+	u32				psoc_pci_pll_nr;
+	u32				psoc_pci_pll_nf;
+	u32				psoc_pci_pll_od;
+	u32				psoc_pci_pll_div_factor;
+	u32				high_pll;
+	u32				cb_pool_cb_cnt;
+	u32				cb_pool_cb_size;
+	u8				tpc_enabled_mask;
+	u8				completion_queues_count;
 };
 
 /**
@@ -235,8 +266,6 @@ struct hl_dma_fence {
 /*
  * Command Buffers
  */
-
-#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
 
 /**
  * struct hl_cb_mgr - describes a Command Buffer Manager.
@@ -395,10 +424,12 @@ struct hl_eq {
  * enum hl_asic_type - supported ASIC types.
  * @ASIC_INVALID: Invalid ASIC type.
  * @ASIC_GOYA: Goya device.
+ * @ASIC_GAUDI: Gaudi device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
-	ASIC_GOYA
+	ASIC_GOYA,
+	ASIC_GAUDI
 };
 
 struct hl_cs_parser;
@@ -481,8 +512,8 @@ enum hl_pll_frequency {
  * @get_events_stat: retrieve event queue entries histogram.
  * @read_pte: read MMU page table entry from DRAM.
  * @write_pte: write MMU page table entry to DRAM.
- * @mmu_invalidate_cache: flush MMU STLB cache, either with soft (L1 only) or
- *                        hard (L0 & L1) flush.
+ * @mmu_invalidate_cache: flush MMU STLB host/DRAM cache, either with soft
+ *                        (L1 only) or hard (L0 & L1) flush.
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
@@ -502,6 +533,7 @@ enum hl_pll_frequency {
  * @rreg: Read a register. Needed for simulator support.
  * @wreg: Write a register. Needed for simulator support.
  * @halt_coresight: stop the ETF and ETR traces.
+ * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -552,6 +584,8 @@ struct hl_asic_funcs {
 	void (*restore_phase_topology)(struct hl_device *hdev);
 	int (*debugfs_read32)(struct hl_device *hdev, u64 addr, u32 *val);
 	int (*debugfs_write32)(struct hl_device *hdev, u64 addr, u32 val);
+	int (*debugfs_read64)(struct hl_device *hdev, u64 addr, u64 *val);
+	int (*debugfs_write64)(struct hl_device *hdev, u64 addr, u64 val);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
@@ -562,7 +596,8 @@ struct hl_asic_funcs {
 				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
 	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
-	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard);
+	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
+					u32 flags);
 	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
@@ -584,6 +619,7 @@ struct hl_asic_funcs {
 	u32 (*rreg)(struct hl_device *hdev, u32 reg);
 	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
 	void (*halt_coresight)(struct hl_device *hdev);
+	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 };
 
 
@@ -619,6 +655,8 @@ struct hl_va_range {
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of DMA fence objects representing pending CS.
  * @host_va_range: holds available virtual addresses for host mappings.
+ * @host_huge_va_range: holds available virtual addresses for host mappings
+ *                      with huge pages.
  * @dram_va_range: holds available virtual addresses for DRAM mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
@@ -649,8 +687,9 @@ struct hl_ctx {
 	struct hl_device	*hdev;
 	struct kref		refcount;
 	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
-	struct hl_va_range	host_va_range;
-	struct hl_va_range	dram_va_range;
+	struct hl_va_range	*host_va_range;
+	struct hl_va_range	*host_huge_va_range;
+	struct hl_va_range	*dram_va_range;
 	struct mutex		mem_hash_lock;
 	struct mutex		mmu_lock;
 	struct list_head	debugfs_list;
@@ -688,7 +727,7 @@ struct hl_ctx_mgr {
  * @sgt: pointer to the scatter-gather table that holds the pages.
  * @dir: for DMA unmapping, the direction must be supplied, so save it.
  * @debugfs_list: node in debugfs list of command submissions.
- * @addr: user-space virtual pointer to the start of the memory area.
+ * @addr: user-space virtual address of the start of the memory area.
  * @size: size of the memory area to pin & map.
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
  */
@@ -724,7 +763,7 @@ struct hl_userptr {
  * @aborted: true if CS was aborted due to some device error.
  */
 struct hl_cs {
-	u8			jobs_in_queue_cnt[HL_MAX_QUEUES];
+	u16			jobs_in_queue_cnt[HL_MAX_QUEUES];
 	struct hl_ctx		*ctx;
 	struct list_head	job_list;
 	spinlock_t		job_lock;
@@ -752,11 +791,14 @@ struct hl_cs {
  * @userptr_list: linked-list of userptr mappings that belong to this job and
  *			wait for completion.
  * @debugfs_list: node in debugfs list of command submission jobs.
+ * @queue_type: the type of the H/W queue this job is submitted to.
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
  * @job_cb_size: the actual size of the CB that we put on the queue.
- * @ext_queue: whether the job is for external queue or internal queue.
+ * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
+ *                          handle to a kernel-allocated CB object, false
+ *                          otherwise (SRAM/DRAM/host address).
  */
 struct hl_cs_job {
 	struct list_head	cs_node;
@@ -766,39 +808,44 @@ struct hl_cs_job {
 	struct work_struct	finish_work;
 	struct list_head	userptr_list;
 	struct list_head	debugfs_list;
+	enum hl_queue_type	queue_type;
 	u32			id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
 	u32			job_cb_size;
-	u8			ext_queue;
+	u8			is_kernel_allocated_cb;
 };
 
 /**
- * struct hl_cs_parser - command submission paerser properties.
+ * struct hl_cs_parser - command submission parser properties.
  * @user_cb: the CB we got from the user.
  * @patched_cb: in case of patching, this is internal CB which is submitted on
  *		the queue instead of the CB we got from the IOCTL.
  * @job_userptr_list: linked-list of userptr mappings that belong to the related
  *			job and wait for completion.
  * @cs_sequence: the sequence number of the related CS.
+ * @queue_type: the type of the H/W queue this job is submitted to.
  * @ctx_id: the ID of the context the related CS belongs to.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
  * @patched_cb_size: the size of the CB after parsing.
- * @ext_queue: whether the job is for external queue or internal queue.
  * @job_id: the id of the related job inside the related CS.
+ * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
+ *                          handle to a kernel-allocated CB object, false
+ *                          otherwise (SRAM/DRAM/host address).
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
 	struct hl_cb		*patched_cb;
 	struct list_head	*job_userptr_list;
 	u64			cs_sequence;
+	enum hl_queue_type	queue_type;
 	u32			ctx_id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
 	u32			patched_cb_size;
-	u8			ext_queue;
 	u8			job_id;
+	u8			is_kernel_allocated_cb;
 };
 
 
@@ -1048,9 +1095,10 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
 #define REG_FIELD_SHIFT(reg, field) reg##_##field##_SHIFT
 #define REG_FIELD_MASK(reg, field) reg##_##field##_MASK
-#define WREG32_FIELD(reg, field, val)	\
-	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
-			(val) << REG_FIELD_SHIFT(reg, field))
+#define WREG32_FIELD(reg, offset, field, val)	\
+	WREG32(mm##reg + offset, (RREG32(mm##reg + offset) & \
+				~REG_FIELD_MASK(reg, field)) | \
+				(val) << REG_FIELD_SHIFT(reg, field))
 
 /* Timeout should be longer when working with simulator but cap the
  * increased timeout to some maximum
@@ -1243,6 +1291,8 @@ struct hl_device_idle_busy_ts {
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
+ * @pmmu_huge_range: is a different virtual addresses range used for PMMU with
+ *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
@@ -1324,6 +1374,7 @@ struct hl_device {
 	u8				reset_on_lockup;
 	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
+	u8				pmmu_huge_range;
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
@@ -1501,7 +1552,8 @@ int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
 
 void hl_cs_rollback_all(struct hl_device *hdev);
-struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue);
+struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
+		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 
@@ -1513,7 +1565,7 @@ void hl_vm_fini(struct hl_device *hdev);
 
 int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 			struct hl_userptr *userptr);
-int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);
+void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);
 void hl_userptr_delete_list(struct hl_device *hdev,
 				struct list_head *userptr_list);
 bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr, u32 size,
@@ -1524,8 +1576,10 @@ int hl_mmu_init(struct hl_device *hdev);
 void hl_mmu_fini(struct hl_device *hdev);
 int hl_mmu_ctx_init(struct hl_ctx *ctx);
 void hl_mmu_ctx_fini(struct hl_ctx *ctx);
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
+int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+		u32 page_size, bool flush_pte);
+int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+		bool flush_pte);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 
@@ -1557,11 +1611,18 @@ int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
-long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
-long hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
+int hl_get_temperature(struct hl_device *hdev,
+		       int sensor_index, u32 attr, long *value);
+int hl_set_temperature(struct hl_device *hdev,
+		       int sensor_index, u32 attr, long value);
+int hl_get_voltage(struct hl_device *hdev,
+		   int sensor_index, u32 attr, long *value);
+int hl_get_current(struct hl_device *hdev,
+		   int sensor_index, u32 attr, long *value);
+int hl_get_fan_speed(struct hl_device *hdev,
+		     int sensor_index, u32 attr, long *value);
+int hl_get_pwm_info(struct hl_device *hdev,
+		    int sensor_index, u32 attr, long *value);
 void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
 u64 hl_get_max_power(struct hl_device *hdev);

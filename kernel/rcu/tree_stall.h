@@ -102,7 +102,7 @@ static void record_gp_stall_check_time(void)
 	unsigned long j = jiffies;
 	unsigned long j1;
 
-	rcu_state.gp_start = j;
+	WRITE_ONCE(rcu_state.gp_start, j);
 	j1 = rcu_jiffies_till_stall_check();
 	/* Record ->gp_start before ->jiffies_stall. */
 	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
@@ -163,7 +163,7 @@ static void rcu_iw_handler(struct irq_work *iwp)
 //
 // Printing RCU CPU stall warnings
 
-#ifdef CONFIG_PREEMPTION
+#ifdef CONFIG_PREEMPT_RCU
 
 /*
  * Dump detailed information for all tasks blocking the current RCU
@@ -215,7 +215,7 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 	return ndetected;
 }
 
-#else /* #ifdef CONFIG_PREEMPTION */
+#else /* #ifdef CONFIG_PREEMPT_RCU */
 
 /*
  * Because preemptible RCU does not exist, we never have to check for
@@ -233,7 +233,7 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 {
 	return 0;
 }
-#endif /* #else #ifdef CONFIG_PREEMPTION */
+#endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
 /*
  * Dump stacks of all tasks running on stalled CPUs.  First try using
@@ -263,11 +263,9 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
 
-	sprintf(cp, "last_accelerate: %04lx/%04lx, Nonlazy posted: %c%c%c",
+	sprintf(cp, "last_accelerate: %04lx/%04lx dyntick_enabled: %d",
 		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
-		".l"[rdp->all_lazy],
-		".L"[!rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)],
-		".D"[!!rdp->tick_nohz_enabled_snap]);
+		!!rdp->tick_nohz_enabled_snap);
 }
 
 #else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
@@ -278,6 +276,28 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 }
 
 #endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+static const char * const gp_state_names[] = {
+	[RCU_GP_IDLE] = "RCU_GP_IDLE",
+	[RCU_GP_WAIT_GPS] = "RCU_GP_WAIT_GPS",
+	[RCU_GP_DONE_GPS] = "RCU_GP_DONE_GPS",
+	[RCU_GP_ONOFF] = "RCU_GP_ONOFF",
+	[RCU_GP_INIT] = "RCU_GP_INIT",
+	[RCU_GP_WAIT_FQS] = "RCU_GP_WAIT_FQS",
+	[RCU_GP_DOING_FQS] = "RCU_GP_DOING_FQS",
+	[RCU_GP_CLEANUP] = "RCU_GP_CLEANUP",
+	[RCU_GP_CLEANED] = "RCU_GP_CLEANED",
+};
+
+/*
+ * Convert a ->gp_state value to a character string.
+ */
+static const char *gp_state_getname(short gs)
+{
+	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
+		return "???";
+	return gp_state_names[gs];
+}
 
 /*
  * Print out diagnostic information for the specified stalled CPU.
@@ -363,7 +383,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	/* Kick and suppress, if so configured. */
 	rcu_stall_kick_kthreads();
-	if (rcu_cpu_stall_suppress)
+	if (rcu_stall_is_suppressed())
 		return;
 
 	/*
@@ -432,7 +452,7 @@ static void print_cpu_stall(void)
 
 	/* Kick and suppress, if so configured. */
 	rcu_stall_kick_kthreads();
-	if (rcu_cpu_stall_suppress)
+	if (rcu_stall_is_suppressed())
 		return;
 
 	/*
@@ -484,7 +504,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	unsigned long js;
 	struct rcu_node *rnp;
 
-	if ((rcu_cpu_stall_suppress && !rcu_kick_kthreads) ||
+	if ((rcu_stall_is_suppressed() && !rcu_kick_kthreads) ||
 	    !rcu_gp_in_progress())
 		return;
 	rcu_stall_kick_kthreads();
@@ -558,6 +578,7 @@ void show_rcu_gp_kthreads(void)
 	unsigned long jw;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
+	struct task_struct *t = READ_ONCE(rcu_state.gp_kthread);
 
 	j = jiffies;
 	ja = j - READ_ONCE(rcu_state.gp_activity);
@@ -565,28 +586,28 @@ void show_rcu_gp_kthreads(void)
 	jw = j - READ_ONCE(rcu_state.gp_wake_time);
 	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_flags %#x\n",
 		rcu_state.name, gp_state_getname(rcu_state.gp_state),
-		rcu_state.gp_state,
-		rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL,
+		rcu_state.gp_state, t ? t->state : 0x1ffffL,
 		ja, jr, jw, (long)READ_ONCE(rcu_state.gp_wake_seq),
 		(long)READ_ONCE(rcu_state.gp_seq),
 		(long)READ_ONCE(rcu_get_root()->gp_seq_needed),
 		READ_ONCE(rcu_state.gp_flags));
 	rcu_for_each_node_breadth_first(rnp) {
-		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
+		if (ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq),
+				 READ_ONCE(rnp->gp_seq_needed)))
 			continue;
 		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld\n",
-			rnp->grplo, rnp->grphi, (long)rnp->gp_seq,
-			(long)rnp->gp_seq_needed);
+			rnp->grplo, rnp->grphi, (long)READ_ONCE(rnp->gp_seq),
+			(long)READ_ONCE(rnp->gp_seq_needed));
 		if (!rcu_is_leaf_node(rnp))
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			rdp = per_cpu_ptr(&rcu_data, cpu);
-			if (rdp->gpwrap ||
-			    ULONG_CMP_GE(rcu_state.gp_seq,
-					 rdp->gp_seq_needed))
+			if (READ_ONCE(rdp->gpwrap) ||
+			    ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq),
+					 READ_ONCE(rdp->gp_seq_needed)))
 				continue;
 			pr_info("\tcpu %d ->gp_seq_needed %ld\n",
-				cpu, (long)rdp->gp_seq_needed);
+				cpu, (long)READ_ONCE(rdp->gp_seq_needed));
 		}
 	}
 	for_each_possible_cpu(cpu) {
@@ -611,7 +632,9 @@ static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 	static atomic_t warned = ATOMIC_INIT(0);
 
 	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
-	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed))
+	    ULONG_CMP_GE(READ_ONCE(rnp_root->gp_seq),
+			 READ_ONCE(rnp_root->gp_seq_needed)) ||
+	    !smp_load_acquire(&rcu_state.gp_kthread)) // Get stable kthread.
 		return;
 	j = jiffies; /* Expensive access, and in common case don't get here. */
 	if (time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
@@ -622,7 +645,8 @@ static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	j = jiffies;
 	if (rcu_gp_in_progress() ||
-	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
+	    ULONG_CMP_GE(READ_ONCE(rnp_root->gp_seq),
+			 READ_ONCE(rnp_root->gp_seq_needed)) ||
 	    time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
 	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
 	    atomic_read(&warned)) {
@@ -635,9 +659,10 @@ static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 		raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
 	j = jiffies;
 	if (rcu_gp_in_progress() ||
-	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
-	    time_before(j, rcu_state.gp_req_activity + gpssdelay) ||
-	    time_before(j, rcu_state.gp_activity + gpssdelay) ||
+	    ULONG_CMP_GE(READ_ONCE(rnp_root->gp_seq),
+			 READ_ONCE(rnp_root->gp_seq_needed)) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
 	    atomic_xchg(&warned, 1)) {
 		if (rnp_root != rnp)
 			/* irqs remain disabled. */

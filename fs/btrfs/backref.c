@@ -347,33 +347,10 @@ static int add_prelim_ref(const struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 
 	ref->root_id = root_id;
-	if (key) {
+	if (key)
 		ref->key_for_search = *key;
-		/*
-		 * We can often find data backrefs with an offset that is too
-		 * large (>= LLONG_MAX, maximum allowed file offset) due to
-		 * underflows when subtracting a file's offset with the data
-		 * offset of its corresponding extent data item. This can
-		 * happen for example in the clone ioctl.
-		 * So if we detect such case we set the search key's offset to
-		 * zero to make sure we will find the matching file extent item
-		 * at add_all_parents(), otherwise we will miss it because the
-		 * offset taken form the backref is much larger then the offset
-		 * of the file extent item. This can make us scan a very large
-		 * number of file extent items, but at least it will not make
-		 * us miss any.
-		 * This is an ugly workaround for a behaviour that should have
-		 * never existed, but it does and a fix for the clone ioctl
-		 * would touch a lot of places, cause backwards incompatibility
-		 * and would not fix the problem for extents cloned with older
-		 * kernels.
-		 */
-		if (ref->key_for_search.type == BTRFS_EXTENT_DATA_KEY &&
-		    ref->key_for_search.offset >= LLONG_MAX)
-			ref->key_for_search.offset = 0;
-	} else {
+	else
 		memset(&ref->key_for_search, 0, sizeof(ref->key_for_search));
-	}
 
 	ref->inode_list = NULL;
 	ref->level = level;
@@ -409,10 +386,36 @@ static int add_indirect_ref(const struct btrfs_fs_info *fs_info,
 			      wanted_disk_byte, count, sc, gfp_mask);
 }
 
+static int is_shared_data_backref(struct preftrees *preftrees, u64 bytenr)
+{
+	struct rb_node **p = &preftrees->direct.root.rb_root.rb_node;
+	struct rb_node *parent = NULL;
+	struct prelim_ref *ref = NULL;
+	struct prelim_ref target = {};
+	int result;
+
+	target.parent = bytenr;
+
+	while (*p) {
+		parent = *p;
+		ref = rb_entry(parent, struct prelim_ref, rbnode);
+		result = prelim_ref_compare(ref, &target);
+
+		if (result < 0)
+			p = &(*p)->rb_left;
+		else if (result > 0)
+			p = &(*p)->rb_right;
+		else
+			return 1;
+	}
+	return 0;
+}
+
 static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
-			   struct ulist *parents, struct prelim_ref *ref,
+			   struct ulist *parents,
+			   struct preftrees *preftrees, struct prelim_ref *ref,
 			   int level, u64 time_seq, const u64 *extent_item_pos,
-			   u64 total_refs, bool ignore_offset)
+			   bool ignore_offset)
 {
 	int ret = 0;
 	int slot;
@@ -424,6 +427,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	u64 disk_byte;
 	u64 wanted_disk_byte = ref->wanted_disk_byte;
 	u64 count = 0;
+	u64 data_offset;
 
 	if (level != 0) {
 		eb = path->nodes[level];
@@ -434,18 +438,26 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	}
 
 	/*
-	 * We normally enter this function with the path already pointing to
-	 * the first item to check. But sometimes, we may enter it with
-	 * slot==nritems. In that case, go to the next leaf before we continue.
+	 * 1. We normally enter this function with the path already pointing to
+	 *    the first item to check. But sometimes, we may enter it with
+	 *    slot == nritems.
+	 * 2. We are searching for normal backref but bytenr of this leaf
+	 *    matches shared data backref
+	 * 3. The leaf owner is not equal to the root we are searching
+	 *
+	 * For these cases, go to the next leaf before we continue.
 	 */
-	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+	eb = path->nodes[0];
+	if (path->slots[0] >= btrfs_header_nritems(eb) ||
+	    is_shared_data_backref(preftrees, eb->start) ||
+	    ref->root_id != btrfs_header_owner(eb)) {
 		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_leaf(root, path);
 		else
 			ret = btrfs_next_old_leaf(root, path, time_seq);
 	}
 
-	while (!ret && count < total_refs) {
+	while (!ret && count < ref->count) {
 		eb = path->nodes[0];
 		slot = path->slots[0];
 
@@ -455,13 +467,31 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 		    key.type != BTRFS_EXTENT_DATA_KEY)
 			break;
 
+		/*
+		 * We are searching for normal backref but bytenr of this leaf
+		 * matches shared data backref, OR
+		 * the leaf owner is not equal to the root we are searching for
+		 */
+		if (slot == 0 &&
+		    (is_shared_data_backref(preftrees, eb->start) ||
+		     ref->root_id != btrfs_header_owner(eb))) {
+			if (time_seq == SEQ_LAST)
+				ret = btrfs_next_leaf(root, path);
+			else
+				ret = btrfs_next_old_leaf(root, path, time_seq);
+			continue;
+		}
 		fi = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 		disk_byte = btrfs_file_extent_disk_bytenr(eb, fi);
+		data_offset = btrfs_file_extent_offset(eb, fi);
 
 		if (disk_byte == wanted_disk_byte) {
 			eie = NULL;
 			old = NULL;
-			count++;
+			if (ref->key_for_search.offset == key.offset - data_offset)
+				count++;
+			else
+				goto next;
 			if (extent_item_pos) {
 				ret = check_extent_in_eb(&key, eb, fi,
 						*extent_item_pos,
@@ -502,9 +532,9 @@ next:
  */
 static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, u64 time_seq,
+				struct preftrees *preftrees,
 				struct prelim_ref *ref, struct ulist *parents,
-				const u64 *extent_item_pos, u64 total_refs,
-				bool ignore_offset)
+				const u64 *extent_item_pos, bool ignore_offset)
 {
 	struct btrfs_root *root;
 	struct btrfs_key root_key;
@@ -512,23 +542,25 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	int root_level;
 	int level = ref->level;
-	int index;
+	struct btrfs_key search_key = ref->key_for_search;
 
 	root_key.objectid = ref->root_id;
 	root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root_key.offset = (u64)-1;
 
-	index = srcu_read_lock(&fs_info->subvol_srcu);
-
 	root = btrfs_get_fs_root(fs_info, &root_key, false);
 	if (IS_ERR(root)) {
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = PTR_ERR(root);
+		goto out_free;
+	}
+
+	if (!path->search_commit_root &&
+	    test_bit(BTRFS_ROOT_DELETING, &root->state)) {
+		ret = -ENOENT;
 		goto out;
 	}
 
 	if (btrfs_is_testing(fs_info)) {
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = -ENOENT;
 		goto out;
 	}
@@ -540,21 +572,36 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	else
 		root_level = btrfs_old_root_level(root, time_seq);
 
-	if (root_level + 1 == level) {
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
+	if (root_level + 1 == level)
 		goto out;
-	}
 
+	/*
+	 * We can often find data backrefs with an offset that is too large
+	 * (>= LLONG_MAX, maximum allowed file offset) due to underflows when
+	 * subtracting a file's offset with the data offset of its
+	 * corresponding extent data item. This can happen for example in the
+	 * clone ioctl.
+	 *
+	 * So if we detect such case we set the search key's offset to zero to
+	 * make sure we will find the matching file extent item at
+	 * add_all_parents(), otherwise we will miss it because the offset
+	 * taken form the backref is much larger then the offset of the file
+	 * extent item. This can make us scan a very large number of file
+	 * extent items, but at least it will not make us miss any.
+	 *
+	 * This is an ugly workaround for a behaviour that should have never
+	 * existed, but it does and a fix for the clone ioctl would touch a lot
+	 * of places, cause backwards incompatibility and would not fix the
+	 * problem for extents cloned with older kernels.
+	 */
+	if (search_key.type == BTRFS_EXTENT_DATA_KEY &&
+	    search_key.offset >= LLONG_MAX)
+		search_key.offset = 0;
 	path->lowest_level = level;
 	if (time_seq == SEQ_LAST)
-		ret = btrfs_search_slot(NULL, root, &ref->key_for_search, path,
-					0, 0);
+		ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	else
-		ret = btrfs_search_old_slot(root, &ref->key_for_search, path,
-					    time_seq);
-
-	/* root node has been locked, we can release @subvol_srcu safely here */
-	srcu_read_unlock(&fs_info->subvol_srcu, index);
+		ret = btrfs_search_old_slot(root, &search_key, path, time_seq);
 
 	btrfs_debug(fs_info,
 		"search slot in root %llu (level %d, ref count %d) returned %d for key (%llu %u %llu)",
@@ -574,9 +621,11 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		eb = path->nodes[level];
 	}
 
-	ret = add_all_parents(root, path, parents, ref, level, time_seq,
-			      extent_item_pos, total_refs, ignore_offset);
+	ret = add_all_parents(root, path, parents, preftrees, ref, level,
+			      time_seq, extent_item_pos, ignore_offset);
 out:
+	btrfs_put_root(root);
+out_free:
 	path->lowest_level = 0;
 	btrfs_release_path(path);
 	return ret;
@@ -609,7 +658,7 @@ unode_aux_to_inode_list(struct ulist_node *node)
 static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 				 struct btrfs_path *path, u64 time_seq,
 				 struct preftrees *preftrees,
-				 const u64 *extent_item_pos, u64 total_refs,
+				 const u64 *extent_item_pos,
 				 struct share_check *sc, bool ignore_offset)
 {
 	int err;
@@ -653,9 +702,9 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			ret = BACKREF_FOUND_SHARED;
 			goto out;
 		}
-		err = resolve_indirect_ref(fs_info, path, time_seq, ref,
-					   parents, extent_item_pos,
-					   total_refs, ignore_offset);
+		err = resolve_indirect_ref(fs_info, path, time_seq, preftrees,
+					   ref, parents, extent_item_pos,
+					   ignore_offset);
 		/*
 		 * we can only tolerate ENOENT,otherwise,we should catch error
 		 * and return directly.
@@ -758,8 +807,7 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
  */
 static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_head *head, u64 seq,
-			    struct preftrees *preftrees, u64 *total_refs,
-			    struct share_check *sc)
+			    struct preftrees *preftrees, struct share_check *sc)
 {
 	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
@@ -793,7 +841,6 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 		default:
 			BUG();
 		}
-		*total_refs += count;
 		switch (node->type) {
 		case BTRFS_TREE_BLOCK_REF_KEY: {
 			/* NORMAL INDIRECT METADATA backref */
@@ -876,7 +923,7 @@ out:
 static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 			   struct btrfs_path *path, u64 bytenr,
 			   int *info_level, struct preftrees *preftrees,
-			   u64 *total_refs, struct share_check *sc)
+			   struct share_check *sc)
 {
 	int ret = 0;
 	int slot;
@@ -900,7 +947,6 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 
 	ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
 	flags = btrfs_extent_flags(leaf, ei);
-	*total_refs += btrfs_extent_refs(leaf, ei);
 	btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
 	ptr = (unsigned long)(ei + 1);
@@ -1125,8 +1171,6 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	struct prelim_ref *ref;
 	struct rb_node *node;
 	struct extent_inode_elem *eie = NULL;
-	/* total of both direct AND indirect refs! */
-	u64 total_refs = 0;
 	struct preftrees preftrees = {
 		.direct = PREFTREE_INIT,
 		.indirect = PREFTREE_INIT,
@@ -1195,7 +1239,7 @@ again:
 			}
 			spin_unlock(&delayed_refs->lock);
 			ret = add_delayed_refs(fs_info, head, time_seq,
-					       &preftrees, &total_refs, sc);
+					       &preftrees, sc);
 			mutex_unlock(&head->mutex);
 			if (ret)
 				goto out;
@@ -1216,8 +1260,7 @@ again:
 		    (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
 			ret = add_inline_refs(fs_info, path, bytenr,
-					      &info_level, &preftrees,
-					      &total_refs, sc);
+					      &info_level, &preftrees, sc);
 			if (ret)
 				goto out;
 			ret = add_keyed_refs(fs_info, path, bytenr, info_level,
@@ -1236,7 +1279,7 @@ again:
 	WARN_ON(!RB_EMPTY_ROOT(&preftrees.indirect_missing_keys.root.rb_root));
 
 	ret = resolve_indirect_refs(fs_info, path, time_seq, &preftrees,
-				    extent_item_pos, total_refs, sc, ignore_offset);
+				    extent_item_pos, sc, ignore_offset);
 	if (ret)
 		goto out;
 
@@ -1362,10 +1405,10 @@ static void free_leaf_list(struct ulist *blocks)
  *
  * returns 0 on success, <0 on error
  */
-static int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info, u64 bytenr,
-				u64 time_seq, struct ulist **leafs,
-				const u64 *extent_item_pos, bool ignore_offset)
+int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
+			 struct btrfs_fs_info *fs_info, u64 bytenr,
+			 u64 time_seq, struct ulist **leafs,
+			 const u64 *extent_item_pos, bool ignore_offset)
 {
 	int ret;
 

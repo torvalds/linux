@@ -278,6 +278,15 @@ struct intel_shared_dpll_funcs {
 	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
+
+	/**
+	 * @get_freq:
+	 *
+	 * Hook for calculating the pll's output frequency based on its
+	 * current state.
+	 */
+	int (*get_freq)(struct drm_i915_private *i915,
+			const struct intel_shared_dpll *pll);
 };
 
 /**
@@ -337,6 +346,11 @@ struct intel_shared_dpll {
 	 * @info: platform specific info
 	 */
 	const struct dpll_info *info;
+
+	/**
+	 * @wakeref: In some platforms a device-level runtime pm reference may
+	 * need to be grabbed to disable DC states while this DPLL is enabled
+	 */
 	intel_wakeref_t wakeref;
 };
 
@@ -367,15 +381,18 @@ void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
 void intel_update_active_dpll(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc,
 			      struct intel_encoder *encoder);
+int intel_dpll_get_freq(struct drm_i915_private *i915,
+			const struct intel_shared_dpll *pll);
 void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
+void intel_dpll_readout_hw_state(struct drm_i915_private *dev_priv);
+void intel_dpll_sanitize_state(struct drm_i915_private *dev_priv);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      const struct intel_dpll_hw_state *hw_state);
-int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 

@@ -43,8 +43,9 @@ void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id)
 	return ctrl ? ctrl->p_cur.p : NULL;
 }
 
-dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts)
+dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 {
+	struct vb2_queue *q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
 	struct vb2_buffer *buf;
 	int index;
 
@@ -52,7 +53,7 @@ dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts)
 	if (index < 0)
 		return 0;
 	buf = vb2_get_buffer(q, index);
-	return vb2_dma_contig_plane_dma_addr(buf, 0);
+	return hantro_get_dec_buf_addr(ctx, buf);
 }
 
 static int
@@ -151,16 +152,21 @@ void hantro_watchdog(struct work_struct *work)
 	}
 }
 
-void hantro_prepare_run(struct hantro_ctx *ctx)
+void hantro_start_prepare_run(struct hantro_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf;
 
 	src_buf = hantro_get_src_buf(ctx);
 	v4l2_ctrl_request_setup(src_buf->vb2_buf.req_obj.req,
 				&ctx->ctrl_handler);
+
+	if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
+		hantro_postproc_enable(ctx);
+	else
+		hantro_postproc_disable(ctx);
 }
 
-void hantro_finish_run(struct hantro_ctx *ctx)
+void hantro_end_prepare_run(struct hantro_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf;
 
@@ -356,6 +362,16 @@ static const struct hantro_ctrl controls[] = {
 			.max = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
 		},
 	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+			.min = V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE,
+			.max = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
+			.menu_skip_mask =
+			BIT(V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED),
+			.def = V4L2_MPEG_VIDEO_H264_PROFILE_MAIN,
+		}
+	}, {
 	},
 };
 
@@ -413,20 +429,18 @@ static int hantro_open(struct file *filp)
 	if (func->id == MEDIA_ENT_F_PROC_VIDEO_ENCODER) {
 		allowed_codecs = vpu->variant->codec & HANTRO_ENCODERS;
 		ctx->buf_finish = hantro_enc_buf_finish;
-		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(vpu->m2m_dev, ctx,
-						    queue_init);
 	} else if (func->id == MEDIA_ENT_F_PROC_VIDEO_DECODER) {
 		allowed_codecs = vpu->variant->codec & HANTRO_DECODERS;
 		ctx->buf_finish = hantro_dec_buf_finish;
-		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(vpu->m2m_dev, ctx,
-						    queue_init);
 	} else {
-		ctx->fh.m2m_ctx = ERR_PTR(-ENODEV);
+		ret = -ENODEV;
+		goto err_ctx_free;
 	}
+
+	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(vpu->m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->fh.m2m_ctx)) {
 		ret = PTR_ERR(ctx->fh.m2m_ctx);
-		kfree(ctx);
-		return ret;
+		goto err_ctx_free;
 	}
 
 	v4l2_fh_init(&ctx->fh, vdev);
@@ -447,6 +461,7 @@ static int hantro_open(struct file *filp)
 err_fh_free:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
+err_ctx_free:
 	kfree(ctx);
 	return ret;
 }
@@ -483,6 +498,9 @@ static const struct of_device_id of_hantro_match[] = {
 	{ .compatible = "rockchip,rk3399-vpu", .data = &rk3399_vpu_variant, },
 	{ .compatible = "rockchip,rk3328-vpu", .data = &rk3328_vpu_variant, },
 	{ .compatible = "rockchip,rk3288-vpu", .data = &rk3288_vpu_variant, },
+#endif
+#ifdef CONFIG_VIDEO_HANTRO_IMX8M
+	{ .compatible = "nxp,imx8mq-vpu", .data = &imx8mq_vpu_variant, },
 #endif
 	{ /* sentinel */ }
 };
@@ -553,13 +571,13 @@ static int hantro_attach_func(struct hantro_dev *vpu,
 		goto err_rel_entity1;
 
 	/* Connect the three entities */
-	ret = media_create_pad_link(&func->vdev.entity, 0, &func->proc, 1,
+	ret = media_create_pad_link(&func->vdev.entity, 0, &func->proc, 0,
 				    MEDIA_LNK_FL_IMMUTABLE |
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		goto err_rel_entity2;
 
-	ret = media_create_pad_link(&func->proc, 0, &func->sink, 0,
+	ret = media_create_pad_link(&func->proc, 1, &func->sink, 0,
 				    MEDIA_LNK_FL_IMMUTABLE |
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
@@ -659,7 +677,7 @@ static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 
 	video_set_drvdata(vfd, vpu);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to register video device\n");
 		return ret;

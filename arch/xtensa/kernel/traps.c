@@ -491,32 +491,27 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 
 	pr_info("Call Trace:\n");
 	walk_stackframe(sp, show_trace_cb, NULL);
-#ifndef CONFIG_KALLSYMS
-	pr_cont("\n");
-#endif
 }
 
-static int kstack_depth_to_print = 24;
+#define STACK_DUMP_ENTRY_SIZE 4
+#define STACK_DUMP_LINE_SIZE 32
+static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	int i = 0;
-	unsigned long *stack;
+	size_t len;
 
 	if (!sp)
 		sp = stack_pointer(task);
-	stack = sp;
+
+	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
+		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
 
 	pr_info("Stack:\n");
-
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(sp))
-			break;
-		pr_cont(" %08lx", *sp++);
-		if (i % 8 == 7)
-			pr_cont("\n");
-	}
-	show_trace(task, stack);
+	print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+		       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+		       sp, len, false);
+	show_trace(task, sp);
 }
 
 DEFINE_SPINLOCK(die_lock);
@@ -524,12 +519,15 @@ DEFINE_SPINLOCK(die_lock);
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
+	const char *pr = "";
+
+	if (IS_ENABLED(CONFIG_PREEMPTION))
+		pr = IS_ENABLED(CONFIG_PREEMPT_RT) ? " PREEMPT_RT" : " PREEMPT";
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 
-	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter,
-		IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "");
+	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter, pr);
 	show_regs(regs);
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);

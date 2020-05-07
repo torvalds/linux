@@ -460,8 +460,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 			goto err0;
 		}
 
-		i->iomem = devm_ioremap_nocache(dev, io[k]->start,
-						resource_size(io[k]));
+		i->iomem = devm_ioremap(dev, io[k]->start,
+					resource_size(io[k]));
 		if (!i->iomem) {
 			dev_err(dev, "failed to remap IOMEM\n");
 			ret = -ENXIO;

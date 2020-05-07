@@ -184,7 +184,8 @@ struct sctp_sock {
 	__u32 flowlabel;
 	__u8  dscp;
 
-	int pf_retrans;
+	__u16 pf_retrans;
+	__u16 ps_retrans;
 
 	/* The initial Path MTU to use for new associations. */
 	__u32 pathmtu;
@@ -215,6 +216,7 @@ struct sctp_sock {
 	__u32 adaptation_ind;
 	__u32 pd_point;
 	__u16	nodelay:1,
+		pf_expose:2,
 		reuse:1,
 		disable_fragments:1,
 		v4mapped:1,
@@ -324,7 +326,7 @@ struct sctp_cookie {
 	 * the association TCB is re-constructed from the cookie.
 	 */
 	__u32 raw_addr_list_len;
-	struct sctp_init_chunk peer_init[0];
+	struct sctp_init_chunk peer_init[];
 };
 
 
@@ -896,7 +898,9 @@ struct sctp_transport {
 	 * and will be initialized from the assocs value.  This can be changed
 	 * using the SCTP_PEER_ADDR_THLDS socket option
 	 */
-	int pf_retrans;
+	__u16 pf_retrans;
+	/* Used for primary path switchover. */
+	__u16 ps_retrans;
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
@@ -1238,6 +1242,9 @@ struct sctp_ep_common {
 
 	/* What socket does this endpoint belong to?  */
 	struct sock *sk;
+
+	/* Cache netns and it won't change once set */
+	struct net *net;
 
 	/* This is where we receive inbound chunks.  */
 	struct sctp_inq	  inqueue;
@@ -1772,7 +1779,9 @@ struct sctp_association {
 	 * and will be initialized from the assocs value.  This can be
 	 * changed using the SCTP_PEER_ADDR_THLDS socket option
 	 */
-	int pf_retrans;
+	__u16 pf_retrans;
+	/* Used for primary path switchover. */
+	__u16 ps_retrans;
 
 	/* Maximum number of times the endpoint will retransmit INIT  */
 	__u16 max_init_attempts;
@@ -2053,6 +2062,7 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
+	     pf_expose:2,       /* Expose pf state? */
 	     force_delay:1;
 
 	__u8 strreset_enable;

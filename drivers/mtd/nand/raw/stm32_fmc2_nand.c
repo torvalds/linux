@@ -37,6 +37,7 @@
 /* Max ECC buffer length */
 #define FMC2_MAX_ECC_BUF_LEN		(FMC2_BCHDSRS_LEN * FMC2_MAX_SG)
 
+#define FMC2_TIMEOUT_US			1000
 #define FMC2_TIMEOUT_MS			1000
 
 /* Timings */
@@ -53,6 +54,8 @@
 #define FMC2_PMEM			0x88
 #define FMC2_PATT			0x8c
 #define FMC2_HECCR			0x94
+#define FMC2_ISR			0x184
+#define FMC2_ICR			0x188
 #define FMC2_CSQCR			0x200
 #define FMC2_CSQCFGR1			0x204
 #define FMC2_CSQCFGR2			0x208
@@ -117,6 +120,12 @@
 #define FMC2_PATT_ATTHOLD(x)		(((x) & 0xff) << 16)
 #define FMC2_PATT_ATTHIZ(x)		(((x) & 0xff) << 24)
 #define FMC2_PATT_DEFAULT		0x0a0a0a0a
+
+/* Register: FMC2_ISR */
+#define FMC2_ISR_IHLF			BIT(1)
+
+/* Register: FMC2_ICR */
+#define FMC2_ICR_CIHLF			BIT(1)
 
 /* Register: FMC2_CSQCR */
 #define FMC2_CSQCR_CSQSTART		BIT(0)
@@ -1322,6 +1331,31 @@ static void stm32_fmc2_write_data(struct nand_chip *chip, const void *buf,
 		stm32_fmc2_set_buswidth_16(fmc2, true);
 }
 
+static int stm32_fmc2_waitrdy(struct nand_chip *chip, unsigned long timeout_ms)
+{
+	struct stm32_fmc2_nfc *fmc2 = to_stm32_nfc(chip->controller);
+	const struct nand_sdr_timings *timings;
+	u32 isr, sr;
+
+	/* Check if there is no pending requests to the NAND flash */
+	if (readl_relaxed_poll_timeout_atomic(fmc2->io_base + FMC2_SR, sr,
+					      sr & FMC2_SR_NWRF, 1,
+					      FMC2_TIMEOUT_US))
+		dev_warn(fmc2->dev, "Waitrdy timeout\n");
+
+	/* Wait tWB before R/B# signal is low */
+	timings = nand_get_sdr_timings(&chip->data_interface);
+	ndelay(PSEC_TO_NSEC(timings->tWB_max));
+
+	/* R/B# signal is low, clear high level flag */
+	writel_relaxed(FMC2_ICR_CIHLF, fmc2->io_base + FMC2_ICR);
+
+	/* Wait R/B# signal is high */
+	return readl_relaxed_poll_timeout_atomic(fmc2->io_base + FMC2_ISR,
+						 isr, isr & FMC2_ISR_IHLF,
+						 5, 1000 * timeout_ms);
+}
+
 static int stm32_fmc2_exec_op(struct nand_chip *chip,
 			      const struct nand_operation *op,
 			      bool check_only)
@@ -1366,8 +1400,8 @@ static int stm32_fmc2_exec_op(struct nand_chip *chip,
 			break;
 
 		case NAND_OP_WAITRDY_INSTR:
-			ret = nand_soft_waitrdy(chip,
-						instr->ctx.waitrdy.timeout_ms);
+			ret = stm32_fmc2_waitrdy(chip,
+						 instr->ctx.waitrdy.timeout_ms);
 			break;
 		}
 	}
@@ -1572,15 +1606,36 @@ static int stm32_fmc2_setup_interface(struct nand_chip *chip, int chipnr,
 /* DMA configuration */
 static int stm32_fmc2_dma_setup(struct stm32_fmc2_nfc *fmc2)
 {
-	int ret;
+	int ret = 0;
 
-	fmc2->dma_tx_ch = dma_request_slave_channel(fmc2->dev, "tx");
-	fmc2->dma_rx_ch = dma_request_slave_channel(fmc2->dev, "rx");
-	fmc2->dma_ecc_ch = dma_request_slave_channel(fmc2->dev, "ecc");
+	fmc2->dma_tx_ch = dma_request_chan(fmc2->dev, "tx");
+	if (IS_ERR(fmc2->dma_tx_ch)) {
+		ret = PTR_ERR(fmc2->dma_tx_ch);
+		if (ret != -ENODEV)
+			dev_err(fmc2->dev,
+				"failed to request tx DMA channel: %d\n", ret);
+		fmc2->dma_tx_ch = NULL;
+		goto err_dma;
+	}
 
-	if (!fmc2->dma_tx_ch || !fmc2->dma_rx_ch || !fmc2->dma_ecc_ch) {
-		dev_warn(fmc2->dev, "DMAs not defined in the device tree, polling mode is used\n");
-		return 0;
+	fmc2->dma_rx_ch = dma_request_chan(fmc2->dev, "rx");
+	if (IS_ERR(fmc2->dma_rx_ch)) {
+		ret = PTR_ERR(fmc2->dma_rx_ch);
+		if (ret != -ENODEV)
+			dev_err(fmc2->dev,
+				"failed to request rx DMA channel: %d\n", ret);
+		fmc2->dma_rx_ch = NULL;
+		goto err_dma;
+	}
+
+	fmc2->dma_ecc_ch = dma_request_chan(fmc2->dev, "ecc");
+	if (IS_ERR(fmc2->dma_ecc_ch)) {
+		ret = PTR_ERR(fmc2->dma_ecc_ch);
+		if (ret != -ENODEV)
+			dev_err(fmc2->dev,
+				"failed to request ecc DMA channel: %d\n", ret);
+		fmc2->dma_ecc_ch = NULL;
+		goto err_dma;
 	}
 
 	ret = sg_alloc_table(&fmc2->dma_ecc_sg, FMC2_MAX_SG, GFP_KERNEL);
@@ -1601,6 +1656,15 @@ static int stm32_fmc2_dma_setup(struct stm32_fmc2_nfc *fmc2)
 	init_completion(&fmc2->dma_ecc_complete);
 
 	return 0;
+
+err_dma:
+	if (ret == -ENODEV) {
+		dev_warn(fmc2->dev,
+			 "DMAs not defined in the DT, polling mode is used\n");
+		ret = 0;
+	}
+
+	return ret;
 }
 
 /* NAND callbacks setup */

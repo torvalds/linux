@@ -355,14 +355,19 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pp_struct *pp = file->private_data;
 	struct parport *port;
 	void __user *argp = (void __user *)arg;
+	struct ieee1284_info *info;
+	unsigned char reg;
+	unsigned char mask;
+	int mode;
+	s32 time32[2];
+	s64 time64[2];
+	struct timespec64 ts;
+	int ret;
 
 	/* First handle the cases that don't take arguments. */
 	switch (cmd) {
 	case PPCLAIM:
 	    {
-		struct ieee1284_info *info;
-		int ret;
-
 		if (pp->flags & PP_CLAIMED) {
 			dev_dbg(&pp->pdev->dev, "you've already got it!\n");
 			return -EINVAL;
@@ -513,15 +518,6 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	port = pp->pdev->port;
 	switch (cmd) {
-		struct ieee1284_info *info;
-		unsigned char reg;
-		unsigned char mask;
-		int mode;
-		s32 time32[2];
-		s64 time64[2];
-		struct timespec64 ts;
-		int ret;
-
 	case PPRSTATUS:
 		reg = parport_read_status(port);
 		if (copy_to_user(argp, &reg, sizeof(reg)))
@@ -619,11 +615,20 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(time32, argp, sizeof(time32)))
 			return -EFAULT;
 
+		if ((time32[0] < 0) || (time32[1] < 0))
+			return -EINVAL;
+
 		return pp_set_timeout(pp->pdev, time32[0], time32[1]);
 
 	case PPSETTIME64:
 		if (copy_from_user(time64, argp, sizeof(time64)))
 			return -EFAULT;
+
+		if ((time64[0] < 0) || (time64[1] < 0))
+			return -EINVAL;
+
+		if (IS_ENABLED(CONFIG_SPARC64) && !in_compat_syscall())
+			time64[1] >>= 32;
 
 		return pp_set_timeout(pp->pdev, time64[0], time64[1]);
 
@@ -631,8 +636,6 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		jiffies_to_timespec64(pp->pdev->timeout, &ts);
 		time32[0] = ts.tv_sec;
 		time32[1] = ts.tv_nsec / NSEC_PER_USEC;
-		if ((time32[0] < 0) || (time32[1] < 0))
-			return -EINVAL;
 
 		if (copy_to_user(argp, time32, sizeof(time32)))
 			return -EFAULT;
@@ -643,8 +646,9 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		jiffies_to_timespec64(pp->pdev->timeout, &ts);
 		time64[0] = ts.tv_sec;
 		time64[1] = ts.tv_nsec / NSEC_PER_USEC;
-		if ((time64[0] < 0) || (time64[1] < 0))
-			return -EINVAL;
+
+		if (IS_ENABLED(CONFIG_SPARC64) && !in_compat_syscall())
+			time64[1] <<= 32;
 
 		if (copy_to_user(argp, time64, sizeof(time64)))
 			return -EFAULT;
@@ -669,14 +673,6 @@ static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_unlock(&pp_do_mutex);
 	return ret;
 }
-
-#ifdef CONFIG_COMPAT
-static long pp_compat_ioctl(struct file *file, unsigned int cmd,
-			    unsigned long arg)
-{
-	return pp_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
-}
-#endif
 
 static int pp_open(struct inode *inode, struct file *file)
 {
@@ -786,9 +782,7 @@ static const struct file_operations pp_fops = {
 	.write		= pp_write,
 	.poll		= pp_poll,
 	.unlocked_ioctl	= pp_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl   = pp_compat_ioctl,
-#endif
+	.compat_ioctl   = compat_ptr_ioctl,
 	.open		= pp_open,
 	.release	= pp_release,
 };

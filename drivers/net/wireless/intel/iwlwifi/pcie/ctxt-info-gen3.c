@@ -55,6 +55,66 @@
 #include "internal.h"
 #include "iwl-prph.h"
 
+static void
+iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
+			      struct iwl_prph_scratch_hwm_cfg *dbg_cfg,
+			      u32 *control_flags)
+{
+	enum iwl_fw_ini_allocation_id alloc_id = IWL_FW_INI_ALLOCATION_ID_DBGC1;
+	struct iwl_fw_ini_allocation_tlv *fw_mon_cfg;
+	u32 dbg_flags = 0;
+
+	if (!iwl_trans_dbg_ini_valid(trans)) {
+		struct iwl_dram_data *fw_mon = &trans->dbg.fw_mon;
+
+		iwl_pcie_alloc_fw_monitor(trans, 0);
+
+		if (fw_mon->size) {
+			dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
+
+			IWL_DEBUG_FW(trans,
+				     "WRT: Applying DRAM buffer destination\n");
+
+			dbg_cfg->hwm_base_addr = cpu_to_le64(fw_mon->physical);
+			dbg_cfg->hwm_size = cpu_to_le32(fw_mon->size);
+		}
+
+		goto out;
+	}
+
+	fw_mon_cfg = &trans->dbg.fw_mon_cfg[alloc_id];
+
+	if (le32_to_cpu(fw_mon_cfg->buf_location) ==
+	    IWL_FW_INI_LOCATION_SRAM_PATH) {
+		dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL;
+
+		IWL_DEBUG_FW(trans,
+			     "WRT: Applying SMEM buffer destination\n");
+
+		goto out;
+	}
+
+	if (le32_to_cpu(fw_mon_cfg->buf_location) ==
+	    IWL_FW_INI_LOCATION_DRAM_PATH &&
+	    trans->dbg.fw_mon_ini[alloc_id].num_frags) {
+		struct iwl_dram_data *frag =
+			&trans->dbg.fw_mon_ini[alloc_id].frags[0];
+
+		dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
+
+		IWL_DEBUG_FW(trans,
+			     "WRT: Applying DRAM destination (alloc_id=%u)\n",
+			     alloc_id);
+
+		dbg_cfg->hwm_base_addr = cpu_to_le64(frag->physical);
+		dbg_cfg->hwm_size = cpu_to_le32(frag->size);
+	}
+
+out:
+	if (dbg_flags)
+		*control_flags |= IWL_PRPH_SCRATCH_EARLY_DEBUG_EN | dbg_flags;
+}
+
 int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				 const struct fw_img *fw)
 {
@@ -68,6 +128,18 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	int ret;
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			      trans->cfg->min_txq_size);
+
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_DEF:
+		return -EINVAL;
+	case IWL_AMSDU_2K:
+		break;
+	case IWL_AMSDU_4K:
+	case IWL_AMSDU_8K:
+	case IWL_AMSDU_12K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		break;
+	}
 
 	/* Allocate prph scratch */
 	prph_scratch = dma_alloc_coherent(trans->dev, sizeof(*prph_scratch),
@@ -83,27 +155,16 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le16((u16)iwl_read32(trans, CSR_HW_REV));
 	prph_sc_ctrl->version.size = cpu_to_le16(sizeof(*prph_scratch) / 4);
 
-	control_flags = IWL_PRPH_SCRATCH_RB_SIZE_4K |
-			IWL_PRPH_SCRATCH_MTR_MODE |
-			(IWL_PRPH_MTR_FORMAT_256B &
-			 IWL_PRPH_SCRATCH_MTR_FORMAT) |
-			IWL_PRPH_SCRATCH_EARLY_DEBUG_EN |
-			IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
-	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
+	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;
+	control_flags |= IWL_PRPH_MTR_FORMAT_256B & IWL_PRPH_SCRATCH_MTR_FORMAT;
 
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
 
-	/* Configure debug, for integration */
-	if (!iwl_trans_dbg_ini_valid(trans))
-		iwl_pcie_alloc_fw_monitor(trans, 0);
-	if (trans->dbg.num_blocks) {
-		prph_sc_ctrl->hwm_cfg.hwm_base_addr =
-			cpu_to_le64(trans->dbg.fw_mon[0].physical);
-		prph_sc_ctrl->hwm_cfg.hwm_size =
-			cpu_to_le32(trans->dbg.fw_mon[0].size);
-	}
+	iwl_pcie_ctxt_info_dbg_enable(trans, &prph_sc_ctrl->hwm_cfg,
+				      &control_flags);
+	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram);
@@ -155,7 +216,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->mtr_size =
 		cpu_to_le16(TFD_QUEUE_CB_SIZE(cmdq_size));
 	ctxt_info_gen3->mcr_size =
-		cpu_to_le16(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE));
+		cpu_to_le16(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds));
 
 	trans_pcie->ctxt_info_gen3 = ctxt_info_gen3;
 	trans_pcie->prph_info = prph_info;

@@ -24,7 +24,6 @@
 #include <linux/power_supply.h>
 #include <linux/wm97xx.h>
 #include <linux/mtd/physmap.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/reboot.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/max1586.h>
@@ -177,7 +176,6 @@ static struct pwm_lookup mioa701_pwm_lookup[] = {
 static struct platform_pwm_backlight_data mioa701_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 50,
-	.enable_gpio	= -1,
 };
 
 /*
@@ -368,10 +366,13 @@ static struct pxa2xx_udc_mach_info mioa701_udc_info = {
 	.gpio_pullup	  = GPIO22_USB_ENABLE,
 };
 
-struct gpio_vbus_mach_info gpio_vbus_data = {
-	.gpio_vbus = GPIO13_nUSB_DETECT,
-	.gpio_vbus_inverted = 1,
-	.gpio_pullup = -1,
+static struct gpiod_lookup_table gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO13_nUSB_DETECT,
+			    "vbus", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /*
@@ -677,7 +678,7 @@ MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
-MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
+MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      NULL);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
@@ -750,6 +751,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
 	pwm_add_table(mioa701_pwm_lookup, ARRAY_SIZE(mioa701_pwm_lookup));
+	gpiod_add_lookup_table(&gpio_vbus_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 

@@ -4,6 +4,27 @@
 #
 menu "Temperature sensors"
 
+config IQS620AT_TEMP
+	tristate "Azoteq IQS620AT temperature sensor"
+	depends on MFD_IQS62X || COMPILE_TEST
+	help
+	  Say Y here if you want to build support for the Azoteq IQS620AT
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called iqs620at-temp.
+
+config LTC2983
+	tristate "Analog Devices Multi-Sensor Digital Temperature Measurement System"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the LTC2983 Multi-Sensor
+	  high accuracy digital temperature measurement system.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ltc2983.
+
 config MAXIM_THERMOCOUPLE
 	tristate "Maxim thermocouple sensors"
 	depends on SPI

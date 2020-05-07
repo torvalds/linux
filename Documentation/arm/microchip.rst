@@ -92,6 +92,12 @@ the Microchip website: http://www.microchip.com.
 
           http://ww1.microchip.com/downloads/en/DeviceDoc/DS60001517A.pdf
 
+      - sam9x60
+
+          * Datasheet
+
+          http://ww1.microchip.com/downloads/en/DeviceDoc/SAM9X60-Data-Sheet-DS60001579A.pdf
+
     * ARM Cortex-A5 based SoCs
       - sama5d3 family
 
@@ -103,7 +109,7 @@ the Microchip website: http://www.microchip.com.
 
           * Datasheet
 
-          http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-11121-32-bit-Cortex-A5-Microcontroller-SAMA5D3_Datasheet.pdf
+          http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-11121-32-bit-Cortex-A5-Microcontroller-SAMA5D3_Datasheet_B.pdf
 
     * ARM Cortex-A5 + NEON based SoCs
       - sama5d4 family
@@ -167,7 +173,7 @@ the Microchip website: http://www.microchip.com.
 
           * Datasheet
 
-          http://ww1.microchip.com/downloads/en/DeviceDoc/60001527A.pdf
+          http://ww1.microchip.com/downloads/en/DeviceDoc/SAM-E70-S70-V70-V71-Family-Data-Sheet-DS60001527D.pdf
 
 
 Linux kernel information

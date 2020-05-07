@@ -308,11 +308,10 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 };
 
 static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
-	INTEL_CPU_FAM6(ATOM_GOLDMONT, telem_apl_debugfs_conf),
-	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS, telem_apl_debugfs_conf),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&telem_apl_debugfs_conf),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&telem_apl_debugfs_conf),
 	{}
 };
-
 MODULE_DEVICE_TABLE(x86cpu, telemetry_debugfs_cpu_ids);
 
 static int telemetry_debugfs_check_evts(void)
@@ -686,13 +685,14 @@ static ssize_t telem_pss_trc_verb_write(struct file *file,
 	u32 verbosity;
 	int err;
 
-	if (kstrtou32_from_user(userbuf, count, 0, &verbosity))
-		return -EFAULT;
+	err = kstrtou32_from_user(userbuf, count, 0, &verbosity);
+	if (err)
+		return err;
 
 	err = telemetry_set_trace_verbosity(TELEM_PSS, verbosity);
 	if (err) {
 		pr_err("Changing PSS Trace Verbosity Failed. Error %d\n", err);
-		count = err;
+		return err;
 	}
 
 	return count;
@@ -733,13 +733,14 @@ static ssize_t telem_ioss_trc_verb_write(struct file *file,
 	u32 verbosity;
 	int err;
 
-	if (kstrtou32_from_user(userbuf, count, 0, &verbosity))
-		return -EFAULT;
+	err = kstrtou32_from_user(userbuf, count, 0, &verbosity);
+	if (err)
+		return err;
 
 	err = telemetry_set_trace_verbosity(TELEM_IOSS, verbosity);
 	if (err) {
 		pr_err("Changing IOSS Trace Verbosity Failed. Error %d\n", err);
-		count = err;
+		return err;
 	}
 
 	return count;

@@ -32,8 +32,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_bridge_mdb_entry *mdst;
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
+	u8 state = BR_STATE_FORWARDING;
 	const unsigned char *dest;
-	struct ethhdr *eth;
 	u16 vid = 0;
 
 	rcu_read_lock();
@@ -53,15 +53,14 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	BR_INPUT_SKB_CB(skb)->frag_max_size = 0;
 
 	skb_reset_mac_header(skb);
-	eth = eth_hdr(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
+	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid, &state))
 		goto out;
 
 	if (IS_ENABLED(CONFIG_INET) &&
-	    (eth->h_proto == htons(ETH_P_ARP) ||
-	     eth->h_proto == htons(ETH_P_RARP)) &&
+	    (eth_hdr(skb)->h_proto == htons(ETH_P_ARP) ||
+	     eth_hdr(skb)->h_proto == htons(ETH_P_RARP)) &&
 	    br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED)) {
 		br_do_proxy_suppress_arp(skb, br, vid, NULL);
 	} else if (IS_ENABLED(CONFIG_IPV6) &&
@@ -245,6 +244,12 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	/* dev_set_mac_addr() can be called by a master device on bridge's
+	 * NETDEV_UNREGISTER, but since it's being destroyed do nothing
+	 */
+	if (dev->reg_state != NETREG_REGISTERED)
+		return -EBUSY;
+
 	spin_lock_bh(&br->lock);
 	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
 		/* Mac address will be changed in br_stp_change_bridge_id(). */
@@ -261,6 +266,37 @@ static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, BR_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
+}
+
+static int br_get_link_ksettings(struct net_device *dev,
+				 struct ethtool_link_ksettings *cmd)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *p;
+
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.port = PORT_OTHER;
+	cmd->base.speed = SPEED_UNKNOWN;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		struct ethtool_link_ksettings ecmd;
+		struct net_device *pdev = p->dev;
+
+		if (!netif_running(pdev) || !netif_oper_up(pdev))
+			continue;
+
+		if (__ethtool_get_link_ksettings(pdev, &ecmd))
+			continue;
+
+		if (ecmd.base.speed == (__u32)SPEED_UNKNOWN)
+			continue;
+
+		if (cmd->base.speed == (__u32)SPEED_UNKNOWN ||
+		    cmd->base.speed < ecmd.base.speed)
+			cmd->base.speed = ecmd.base.speed;
+	}
+
+	return 0;
 }
 
 static netdev_features_t br_fix_features(struct net_device *dev,
@@ -365,8 +401,9 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
 }
 
 static const struct ethtool_ops br_ethtool_ops = {
-	.get_drvinfo    = br_getinfo,
-	.get_link	= ethtool_op_get_link,
+	.get_drvinfo		 = br_getinfo,
+	.get_link		 = ethtool_op_get_link,
+	.get_link_ksettings	 = br_get_link_ksettings,
 };
 
 static const struct net_device_ops br_netdev_ops = {

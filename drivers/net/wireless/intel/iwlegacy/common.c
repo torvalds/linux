@@ -699,7 +699,7 @@ il_eeprom_init(struct il_priv *il)
 	u32 gp = _il_rd(il, CSR_EEPROM_GP);
 	int sz;
 	int ret;
-	u16 addr;
+	int addr;
 
 	/* allocate eeprom */
 	sz = il->cfg->eeprom_size;
@@ -1072,7 +1072,7 @@ EXPORT_SYMBOL(il_get_channel_info);
 static void
 il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 {
-	const __le32 interval[3][IL_POWER_VEC_SIZE] = {
+	static const __le32 interval[3][IL_POWER_VEC_SIZE] = {
 		SLP_VEC(2, 2, 4, 6, 0xFF),
 		SLP_VEC(2, 4, 7, 10, 10),
 		SLP_VEC(4, 7, 10, 10, 0xFF)
@@ -5182,8 +5182,7 @@ il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	memset(&il->current_ht_config, 0, sizeof(struct il_ht_config));
 
 	/* new association get rid of ibss beacon skb */
-	if (il->beacon_skb)
-		dev_kfree_skb(il->beacon_skb);
+	dev_kfree_skb(il->beacon_skb);
 	il->beacon_skb = NULL;
 	il->timestamp = 0;
 
@@ -5302,10 +5301,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	spin_lock_irqsave(&il->lock, flags);
-
-	if (il->beacon_skb)
-		dev_kfree_skb(il->beacon_skb);
-
+	dev_kfree_skb(il->beacon_skb);
 	il->beacon_skb = skb;
 
 	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;

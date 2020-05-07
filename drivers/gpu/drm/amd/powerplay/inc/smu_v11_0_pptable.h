@@ -39,21 +39,39 @@
 #define SMU_11_0_PP_OVERDRIVE_VERSION                   0x0800
 #define SMU_11_0_PP_POWERSAVINGCLOCK_VERSION            0x0100
 
+enum SMU_11_0_ODFEATURE_CAP {
+    SMU_11_0_ODCAP_GFXCLK_LIMITS = 0,
+    SMU_11_0_ODCAP_GFXCLK_CURVE,
+    SMU_11_0_ODCAP_UCLK_MAX,
+    SMU_11_0_ODCAP_POWER_LIMIT,
+    SMU_11_0_ODCAP_FAN_ACOUSTIC_LIMIT,
+    SMU_11_0_ODCAP_FAN_SPEED_MIN,
+    SMU_11_0_ODCAP_TEMPERATURE_FAN,
+    SMU_11_0_ODCAP_TEMPERATURE_SYSTEM,
+    SMU_11_0_ODCAP_MEMORY_TIMING_TUNE,
+    SMU_11_0_ODCAP_FAN_ZERO_RPM_CONTROL,
+    SMU_11_0_ODCAP_AUTO_UV_ENGINE,
+    SMU_11_0_ODCAP_AUTO_OC_ENGINE,
+    SMU_11_0_ODCAP_AUTO_OC_MEMORY,
+    SMU_11_0_ODCAP_FAN_CURVE,
+    SMU_11_0_ODCAP_COUNT,
+};
+
 enum SMU_11_0_ODFEATURE_ID {
-    SMU_11_0_ODFEATURE_GFXCLK_LIMITS        = 1 << 0,         //GFXCLK Limit feature
-    SMU_11_0_ODFEATURE_GFXCLK_CURVE         = 1 << 1,         //GFXCLK Curve feature
-    SMU_11_0_ODFEATURE_UCLK_MAX             = 1 << 2,         //UCLK Limit feature
-    SMU_11_0_ODFEATURE_POWER_LIMIT          = 1 << 3,         //Power Limit feature
-    SMU_11_0_ODFEATURE_FAN_ACOUSTIC_LIMIT   = 1 << 4,         //Fan Acoustic RPM feature
-    SMU_11_0_ODFEATURE_FAN_SPEED_MIN        = 1 << 5,         //Minimum Fan Speed feature
-    SMU_11_0_ODFEATURE_TEMPERATURE_FAN      = 1 << 6,         //Fan Target Temperature Limit feature
-    SMU_11_0_ODFEATURE_TEMPERATURE_SYSTEM   = 1 << 7,         //Operating Temperature Limit feature
-    SMU_11_0_ODFEATURE_MEMORY_TIMING_TUNE   = 1 << 8,         //AC Timing Tuning feature
-    SMU_11_0_ODFEATURE_FAN_ZERO_RPM_CONTROL = 1 << 9,         //Zero RPM feature
-    SMU_11_0_ODFEATURE_AUTO_UV_ENGINE       = 1 << 10,        //Auto Under Volt GFXCLK feature
-    SMU_11_0_ODFEATURE_AUTO_OC_ENGINE       = 1 << 11,        //Auto Over Clock GFXCLK feature
-    SMU_11_0_ODFEATURE_AUTO_OC_MEMORY       = 1 << 12,        //Auto Over Clock MCLK feature
-    SMU_11_0_ODFEATURE_FAN_CURVE            = 1 << 13,        //VICTOR TODO
+    SMU_11_0_ODFEATURE_GFXCLK_LIMITS        = 1 << SMU_11_0_ODCAP_GFXCLK_LIMITS,            //GFXCLK Limit feature
+    SMU_11_0_ODFEATURE_GFXCLK_CURVE         = 1 << SMU_11_0_ODCAP_GFXCLK_CURVE,             //GFXCLK Curve feature
+    SMU_11_0_ODFEATURE_UCLK_MAX             = 1 << SMU_11_0_ODCAP_UCLK_MAX,                 //UCLK Limit feature
+    SMU_11_0_ODFEATURE_POWER_LIMIT          = 1 << SMU_11_0_ODCAP_POWER_LIMIT,              //Power Limit feature
+    SMU_11_0_ODFEATURE_FAN_ACOUSTIC_LIMIT   = 1 << SMU_11_0_ODCAP_FAN_ACOUSTIC_LIMIT,       //Fan Acoustic RPM feature
+    SMU_11_0_ODFEATURE_FAN_SPEED_MIN        = 1 << SMU_11_0_ODCAP_FAN_SPEED_MIN,            //Minimum Fan Speed feature
+    SMU_11_0_ODFEATURE_TEMPERATURE_FAN      = 1 << SMU_11_0_ODCAP_TEMPERATURE_FAN,          //Fan Target Temperature Limit feature
+    SMU_11_0_ODFEATURE_TEMPERATURE_SYSTEM   = 1 << SMU_11_0_ODCAP_TEMPERATURE_SYSTEM,       //Operating Temperature Limit feature
+    SMU_11_0_ODFEATURE_MEMORY_TIMING_TUNE   = 1 << SMU_11_0_ODCAP_MEMORY_TIMING_TUNE,       //AC Timing Tuning feature
+    SMU_11_0_ODFEATURE_FAN_ZERO_RPM_CONTROL = 1 << SMU_11_0_ODCAP_FAN_ZERO_RPM_CONTROL,     //Zero RPM feature
+    SMU_11_0_ODFEATURE_AUTO_UV_ENGINE       = 1 << SMU_11_0_ODCAP_AUTO_UV_ENGINE,           //Auto Under Volt GFXCLK feature
+    SMU_11_0_ODFEATURE_AUTO_OC_ENGINE       = 1 << SMU_11_0_ODCAP_AUTO_OC_ENGINE,           //Auto Over Clock GFXCLK feature
+    SMU_11_0_ODFEATURE_AUTO_OC_MEMORY       = 1 << SMU_11_0_ODCAP_AUTO_OC_MEMORY,           //Auto Over Clock MCLK feature
+    SMU_11_0_ODFEATURE_FAN_CURVE            = 1 << SMU_11_0_ODCAP_FAN_CURVE,                //Fan Curve feature
     SMU_11_0_ODFEATURE_COUNT                = 14,
 };
 #define SMU_11_0_MAX_ODFEATURE    32          //Maximum Number of OD Features
@@ -141,7 +159,9 @@ struct smu_11_0_powerplay_table
       struct smu_11_0_power_saving_clock_table      power_saving_clock;
       struct smu_11_0_overdrive_table               overdrive_table;
 
+#ifndef SMU_11_0_PARTIAL_PPTABLE
       PPTable_t smc_pptable;                        //PPTable_t in smu11_driver_if.h
+#endif
 } __attribute__((packed));
 
 #endif

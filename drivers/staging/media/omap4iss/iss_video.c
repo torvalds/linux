@@ -671,7 +671,7 @@ iss_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 		return -EINVAL;
 	}
 	subdev = iss_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EINVAL;
 
 	/*
@@ -726,7 +726,7 @@ iss_video_set_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 		return -EINVAL;
 	}
 	subdev = iss_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EINVAL;
 
 	sdsel.pad = pad;
@@ -1111,7 +1111,7 @@ static int iss_video_open(struct file *file)
 		goto done;
 	}
 
-	ret = v4l2_pipeline_pm_use(&video->video.entity, 1);
+	ret = v4l2_pipeline_pm_get(&video->video.entity);
 	if (ret < 0) {
 		omap4iss_put(video->iss);
 		goto done;
@@ -1160,7 +1160,7 @@ static int iss_video_release(struct file *file)
 	/* Disable streaming and free the buffers queue resources. */
 	iss_video_streamoff(file, vfh, video->type);
 
-	v4l2_pipeline_pm_use(&video->video.entity, 0);
+	v4l2_pipeline_pm_put(&video->video.entity);
 
 	/* Release the videobuf2 queue */
 	vb2_queue_release(&handle->queue);
@@ -1242,7 +1242,7 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 	video->video.fops = &iss_video_fops;
 	snprintf(video->video.name, sizeof(video->video.name),
 		 "OMAP4 ISS %s %s", name, direction);
-	video->video.vfl_type = VFL_TYPE_GRABBER;
+	video->video.vfl_type = VFL_TYPE_VIDEO;
 	video->video.release = video_device_release_empty;
 	video->video.ioctl_ops = &iss_video_ioctl_ops;
 	video->pipe.stream_state = ISS_PIPELINE_STREAM_STOPPED;
@@ -1270,7 +1270,7 @@ int omap4iss_video_register(struct iss_video *video, struct v4l2_device *vdev)
 		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT;
 	video->video.device_caps |= V4L2_CAP_STREAMING;
 
-	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&video->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		dev_err(video->iss->dev,
 			"could not register video device (%d)\n", ret);

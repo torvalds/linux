@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-menuconfig MOST
-        tristate "MOST support"
-	depends on HAS_DMA && CONFIGFS_FS
-        default n
-        help
+menuconfig MOST_COMPONENTS
+	tristate "MOST support"
+	depends on HAS_DMA && CONFIGFS_FS && MOST
+	default n
+	help
 	  Say Y here if you want to enable MOST support.
 	  This driver needs at least one additional component to enable the
 	  desired access from userspace (e.g. character devices) and one that
@@ -12,11 +12,11 @@ menuconfig MOST
 	  To compile this driver as a module, choose M here: the
 	  module will be called most_core.
 
-          If in doubt, say N here.
+	  If in doubt, say N here.
 
 
 
-if MOST
+if MOST_COMPONENTS
 
 source "drivers/staging/most/cdev/Kconfig"
 

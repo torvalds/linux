@@ -35,7 +35,7 @@ int mlx5e_xsk_page_alloc_umem(struct mlx5e_rq *rq,
 	 */
 	dma_info->addr = xdp_umem_get_dma(umem, handle);
 
-	xsk_umem_discard_addr_rq(umem);
+	xsk_umem_release_addr_rq(umem);
 
 	dma_sync_single_for_device(rq->pdev, dma_info->addr, PAGE_SIZE,
 				   DMA_BIDIRECTIONAL);

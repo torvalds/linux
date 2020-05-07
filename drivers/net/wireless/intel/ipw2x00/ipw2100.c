@@ -629,30 +629,30 @@ static char *snprint_line(char *buf, size_t count,
 	int out, i, j, l;
 	char c;
 
-	out = snprintf(buf, count, "%08X", ofs);
+	out = scnprintf(buf, count, "%08X", ofs);
 
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++)
-			out += snprintf(buf + out, count - out, "%02X ",
+			out += scnprintf(buf + out, count - out, "%02X ",
 					data[(i * 8 + j)]);
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, "   ");
+			out += scnprintf(buf + out, count - out, "   ");
 	}
 
-	out += snprintf(buf + out, count - out, " ");
+	out += scnprintf(buf + out, count - out, " ");
 	for (l = 0, i = 0; i < 2; i++) {
-		out += snprintf(buf + out, count - out, " ");
+		out += scnprintf(buf + out, count - out, " ");
 		for (j = 0; j < 8 && l < len; j++, l++) {
 			c = data[(i * 8 + j)];
 			if (!isascii(c) || !isprint(c))
 				c = '.';
 
-			out += snprintf(buf + out, count - out, "%c", c);
+			out += scnprintf(buf + out, count - out, "%c", c);
 		}
 
 		for (; j < 8; j++)
-			out += snprintf(buf + out, count - out, " ");
+			out += scnprintf(buf + out, count - out, " ");
 	}
 
 	return buf;
@@ -1730,7 +1730,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	/* the ipw2100 hardware really doesn't want power management delays
 	 * longer than 175usec
 	 */
-	pm_qos_update_request(&ipw2100_pm_qos_req, 175);
+	cpu_latency_qos_update_request(&ipw2100_pm_qos_req, 175);
 
 	/* If the interrupt is enabled, turn it off... */
 	spin_lock_irqsave(&priv->low_lock, flags);
@@ -1875,7 +1875,8 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	ipw2100_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
-	pm_qos_update_request(&ipw2100_pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&ipw2100_pm_qos_req,
+				       PM_QOS_DEFAULT_VALUE);
 
 	/* We have to signal any supplicant if we are disassociating */
 	if (associated)
@@ -3206,8 +3207,9 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 	}
 }
 
-static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
+static void ipw2100_irq_tasklet(unsigned long data)
 {
+	struct ipw2100_priv *priv = (struct ipw2100_priv *)data;
 	struct net_device *dev = priv->net_dev;
 	unsigned long flags;
 	u32 inta, tmp;
@@ -5565,7 +5567,7 @@ static void shim__set_security(struct net_device *dev,
 			       struct libipw_security *sec)
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
-	int i, force_update = 0;
+	int i;
 
 	mutex_lock(&priv->action_mutex);
 	if (!(priv->status & STATUS_INITIALIZED))
@@ -5605,7 +5607,6 @@ static void shim__set_security(struct net_device *dev,
 		priv->ieee->sec.flags |= SEC_ENABLED;
 		priv->ieee->sec.enabled = sec->enabled;
 		priv->status |= STATUS_SECURITY_UPDATED;
-		force_update = 1;
 	}
 
 	if (sec->flags & SEC_ENCRYPT)
@@ -5834,7 +5835,7 @@ static int ipw2100_close(struct net_device *dev)
 /*
  * TODO:  Fix this function... its just wrong
  */
-static void ipw2100_tx_timeout(struct net_device *dev)
+static void ipw2100_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
 
@@ -6007,7 +6008,7 @@ static void ipw2100_rf_kill(struct work_struct *work)
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 }
 
-static void ipw2100_irq_tasklet(struct ipw2100_priv *priv);
+static void ipw2100_irq_tasklet(unsigned long data);
 
 static const struct net_device_ops ipw2100_netdev_ops = {
 	.ndo_open		= ipw2100_open,
@@ -6137,7 +6138,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	INIT_DELAYED_WORK(&priv->rf_kill, ipw2100_rf_kill);
 	INIT_DELAYED_WORK(&priv->scan_event, ipw2100_scan_event);
 
-	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
+	tasklet_init(&priv->irq_tasklet,
 		     ipw2100_irq_tasklet, (unsigned long)priv);
 
 	/* NOTE:  We do not start the deferred work for status checks yet */
@@ -6168,7 +6169,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	ioaddr = pci_iomap(pci_dev, 0, 0);
 	if (!ioaddr) {
 		printk(KERN_WARNING DRV_NAME
-		       "Error calling ioremap_nocache.\n");
+		       "Error calling ioremap.\n");
 		err = -EIO;
 		goto fail;
 	}
@@ -6566,8 +6567,7 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
-	pm_qos_add_request(&ipw2100_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&ipw2100_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	ret = pci_register_driver(&ipw2100_pci_driver);
 	if (ret)
@@ -6594,7 +6594,7 @@ static void __exit ipw2100_exit(void)
 			   &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&ipw2100_pci_driver);
-	pm_qos_remove_request(&ipw2100_pm_qos_req);
+	cpu_latency_qos_remove_request(&ipw2100_pm_qos_req);
 }
 
 module_init(ipw2100_init);

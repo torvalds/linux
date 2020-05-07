@@ -3545,7 +3545,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
  * ucc_geth_timeout gets called when a packet has not been
  * transmitted after a set amount of time.
  */
-static void ucc_geth_timeout(struct net_device *dev)
+static void ucc_geth_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
 
@@ -3990,5 +3990,4 @@ module_exit(ucc_geth_exit);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION(DRV_DESC);
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");

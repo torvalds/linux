@@ -98,7 +98,7 @@ struct ip_set_counter {
 
 struct ip_set_comment_rcu {
 	struct rcu_head rcu;
-	char str[0];
+	char str[];
 };
 
 struct ip_set_comment {
@@ -121,6 +121,7 @@ struct ip_set_ext {
 	u32 timeout;
 	u8 packets_op;
 	u8 bytes_op;
+	bool target;
 };
 
 struct ip_set;
@@ -187,6 +188,14 @@ struct ip_set_type_variant {
 	/* Return true if "b" set is the same as "a"
 	 * according to the create set parameters */
 	bool (*same_set)(const struct ip_set *a, const struct ip_set *b);
+	/* Region-locking is used */
+	bool region_lock;
+};
+
+struct ip_set_region {
+	spinlock_t lock;	/* Region lock */
+	size_t ext_size;	/* Size of the dynamic extensions */
+	u32 elements;		/* Number of elements vs timeout */
 };
 
 /* The core set type structure */
@@ -269,33 +278,14 @@ ip_set_ext_destroy(struct ip_set *set, void *data)
 	/* Check that the extension is enabled for the set and
 	 * call it's destroy function for its extension part in data.
 	 */
-	if (SET_WITH_COMMENT(set))
-		ip_set_extensions[IPSET_EXT_ID_COMMENT].destroy(
-			set, ext_comment(data, set));
+	if (SET_WITH_COMMENT(set)) {
+		struct ip_set_comment *c = ext_comment(data, set);
+
+		ip_set_extensions[IPSET_EXT_ID_COMMENT].destroy(set, c);
+	}
 }
 
-static inline int
-ip_set_put_flags(struct sk_buff *skb, struct ip_set *set)
-{
-	u32 cadt_flags = 0;
-
-	if (SET_WITH_TIMEOUT(set))
-		if (unlikely(nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
-					   htonl(set->timeout))))
-			return -EMSGSIZE;
-	if (SET_WITH_COUNTER(set))
-		cadt_flags |= IPSET_FLAG_WITH_COUNTERS;
-	if (SET_WITH_COMMENT(set))
-		cadt_flags |= IPSET_FLAG_WITH_COMMENT;
-	if (SET_WITH_SKBINFO(set))
-		cadt_flags |= IPSET_FLAG_WITH_SKBINFO;
-	if (SET_WITH_FORCEADD(set))
-		cadt_flags |= IPSET_FLAG_WITH_FORCEADD;
-
-	if (!cadt_flags)
-		return 0;
-	return nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS, htonl(cadt_flags));
-}
+int ip_set_put_flags(struct sk_buff *skb, struct ip_set *set);
 
 /* Netlink CB args */
 enum {
@@ -445,13 +435,6 @@ ip6addrptr(const struct sk_buff *skb, bool src, struct in6_addr *addr)
 	       sizeof(*addr));
 }
 
-/* Calculate the bytes required to store the inclusive range of a-b */
-static inline int
-bitmap_bytes(u32 a, u32 b)
-{
-	return 4 * ((((b - a + 8) / 8) + 3) / 4);
-}
-
 /* How often should the gc be run by default */
 #define IPSET_GC_TIME			(3 * 60)
 
@@ -506,144 +489,8 @@ ip_set_timeout_set(unsigned long *timeout, u32 value)
 	*timeout = t;
 }
 
-static inline u32
-ip_set_timeout_get(const unsigned long *timeout)
-{
-	u32 t;
-
-	if (*timeout == IPSET_ELEM_PERMANENT)
-		return 0;
-
-	t = jiffies_to_msecs(*timeout - jiffies)/MSEC_PER_SEC;
-	/* Zero value in userspace means no timeout */
-	return t == 0 ? 1 : t;
-}
-
-static inline char*
-ip_set_comment_uget(struct nlattr *tb)
-{
-	return nla_data(tb);
-}
-
-/* Called from uadd only, protected by the set spinlock.
- * The kadt functions don't use the comment extensions in any way.
- */
-static inline void
-ip_set_init_comment(struct ip_set *set, struct ip_set_comment *comment,
-		    const struct ip_set_ext *ext)
-{
-	struct ip_set_comment_rcu *c = rcu_dereference_protected(comment->c, 1);
-	size_t len = ext->comment ? strlen(ext->comment) : 0;
-
-	if (unlikely(c)) {
-		set->ext_size -= sizeof(*c) + strlen(c->str) + 1;
-		kfree_rcu(c, rcu);
-		rcu_assign_pointer(comment->c, NULL);
-	}
-	if (!len)
-		return;
-	if (unlikely(len > IPSET_MAX_COMMENT_SIZE))
-		len = IPSET_MAX_COMMENT_SIZE;
-	c = kmalloc(sizeof(*c) + len + 1, GFP_ATOMIC);
-	if (unlikely(!c))
-		return;
-	strlcpy(c->str, ext->comment, len + 1);
-	set->ext_size += sizeof(*c) + strlen(c->str) + 1;
-	rcu_assign_pointer(comment->c, c);
-}
-
-/* Used only when dumping a set, protected by rcu_read_lock() */
-static inline int
-ip_set_put_comment(struct sk_buff *skb, const struct ip_set_comment *comment)
-{
-	struct ip_set_comment_rcu *c = rcu_dereference(comment->c);
-
-	if (!c)
-		return 0;
-	return nla_put_string(skb, IPSET_ATTR_COMMENT, c->str);
-}
-
-/* Called from uadd/udel, flush or the garbage collectors protected
- * by the set spinlock.
- * Called when the set is destroyed and when there can't be any user
- * of the set data anymore.
- */
-static inline void
-ip_set_comment_free(struct ip_set *set, struct ip_set_comment *comment)
-{
-	struct ip_set_comment_rcu *c;
-
-	c = rcu_dereference_protected(comment->c, 1);
-	if (unlikely(!c))
-		return;
-	set->ext_size -= sizeof(*c) + strlen(c->str) + 1;
-	kfree_rcu(c, rcu);
-	rcu_assign_pointer(comment->c, NULL);
-}
-
-static inline void
-ip_set_add_bytes(u64 bytes, struct ip_set_counter *counter)
-{
-	atomic64_add((long long)bytes, &(counter)->bytes);
-}
-
-static inline void
-ip_set_add_packets(u64 packets, struct ip_set_counter *counter)
-{
-	atomic64_add((long long)packets, &(counter)->packets);
-}
-
-static inline u64
-ip_set_get_bytes(const struct ip_set_counter *counter)
-{
-	return (u64)atomic64_read(&(counter)->bytes);
-}
-
-static inline u64
-ip_set_get_packets(const struct ip_set_counter *counter)
-{
-	return (u64)atomic64_read(&(counter)->packets);
-}
-
-static inline bool
-ip_set_match_counter(u64 counter, u64 match, u8 op)
-{
-	switch (op) {
-	case IPSET_COUNTER_NONE:
-		return true;
-	case IPSET_COUNTER_EQ:
-		return counter == match;
-	case IPSET_COUNTER_NE:
-		return counter != match;
-	case IPSET_COUNTER_LT:
-		return counter < match;
-	case IPSET_COUNTER_GT:
-		return counter > match;
-	}
-	return false;
-}
-
-static inline void
-ip_set_update_counter(struct ip_set_counter *counter,
-		      const struct ip_set_ext *ext, u32 flags)
-{
-	if (ext->packets != ULLONG_MAX &&
-	    !(flags & IPSET_FLAG_SKIP_COUNTER_UPDATE)) {
-		ip_set_add_bytes(ext->bytes, counter);
-		ip_set_add_packets(ext->packets, counter);
-	}
-}
-
-static inline bool
-ip_set_put_counter(struct sk_buff *skb, const struct ip_set_counter *counter)
-{
-	return nla_put_net64(skb, IPSET_ATTR_BYTES,
-			     cpu_to_be64(ip_set_get_bytes(counter)),
-			     IPSET_ATTR_PAD) ||
-	       nla_put_net64(skb, IPSET_ATTR_PACKETS,
-			     cpu_to_be64(ip_set_get_packets(counter)),
-			     IPSET_ATTR_PAD);
-}
+void ip_set_init_comment(struct ip_set *set, struct ip_set_comment *comment,
+			 const struct ip_set_ext *ext);
 
 static inline void
 ip_set_init_counter(struct ip_set_counter *counter,
@@ -656,31 +503,6 @@ ip_set_init_counter(struct ip_set_counter *counter,
 }
 
 static inline void
-ip_set_get_skbinfo(struct ip_set_skbinfo *skbinfo,
-		   const struct ip_set_ext *ext,
-		   struct ip_set_ext *mext, u32 flags)
-{
-	mext->skbinfo = *skbinfo;
-}
-
-static inline bool
-ip_set_put_skbinfo(struct sk_buff *skb, const struct ip_set_skbinfo *skbinfo)
-{
-	/* Send nonzero parameters only */
-	return ((skbinfo->skbmark || skbinfo->skbmarkmask) &&
-		nla_put_net64(skb, IPSET_ATTR_SKBMARK,
-			      cpu_to_be64((u64)skbinfo->skbmark << 32 |
-					  skbinfo->skbmarkmask),
-			      IPSET_ATTR_PAD)) ||
-	       (skbinfo->skbprio &&
-		nla_put_net32(skb, IPSET_ATTR_SKBPRIO,
-			      cpu_to_be32(skbinfo->skbprio))) ||
-	       (skbinfo->skbqueue &&
-		nla_put_net16(skb, IPSET_ATTR_SKBQUEUE,
-			      cpu_to_be16(skbinfo->skbqueue)));
-}
-
-static inline void
 ip_set_init_skbinfo(struct ip_set_skbinfo *skbinfo,
 		    const struct ip_set_ext *ext)
 {
@@ -688,7 +510,7 @@ ip_set_init_skbinfo(struct ip_set_skbinfo *skbinfo,
 }
 
 #define IP_SET_INIT_KEXT(skb, opt, set)			\
-	{ .bytes = (skb)->len, .packets = 1,		\
+	{ .bytes = (skb)->len, .packets = 1, .target = true,\
 	  .timeout = ip_set_adt_opt_timeout(opt, set) }
 
 #define IP_SET_INIT_UEXT(set)				\

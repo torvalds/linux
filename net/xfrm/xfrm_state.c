@@ -612,7 +612,7 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 {
 	struct xfrm_state *x;
 
-	x = kmem_cache_alloc(xfrm_state_cache, GFP_ATOMIC | __GFP_ZERO);
+	x = kmem_cache_zalloc(xfrm_state_cache, GFP_ATOMIC);
 
 	if (x) {
 		write_pnet(&x->xs_net, net);
@@ -669,6 +669,9 @@ int __xfrm_state_delete(struct xfrm_state *x)
 			hlist_del_rcu(&x->byspi);
 		net->xfrm.state_num--;
 		spin_unlock(&net->xfrm.xfrm_state_lock);
+
+		if (x->encap_sk)
+			sock_put(rcu_dereference_raw(x->encap_sk));
 
 		xfrm_dev_state_delete(x);
 

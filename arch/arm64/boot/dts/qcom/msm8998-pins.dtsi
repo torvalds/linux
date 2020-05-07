@@ -75,4 +75,34 @@
 			drive-strength = <2>;   /* 2 mA */
 		};
 	};
+
+	blsp1_uart3_on: blsp1_uart3_on {
+		tx {
+			pins = "gpio45";
+			function = "blsp_uart3_a";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		rx {
+			pins = "gpio46";
+			function = "blsp_uart3_a";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		cts {
+			pins = "gpio47";
+			function = "blsp_uart3_a";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		rfr {
+			pins = "gpio48";
+			function = "blsp_uart3_a";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
 };

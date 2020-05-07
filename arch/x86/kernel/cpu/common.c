@@ -14,6 +14,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/task.h>
+#include <linux/sched/smt.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
 #include <linux/kgdb.h>
@@ -24,6 +25,7 @@
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
 #include <asm/mmu_context.h>
+#include <asm/doublefault.h>
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -48,15 +50,12 @@
 #include <asm/cpu.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/microcode.h>
 #include <asm/microcode_intel.h>
 #include <asm/intel-family.h>
 #include <asm/cpu_device_id.h>
-
-#ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
-#endif
 
 #include "cpu.h"
 
@@ -164,22 +163,6 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #endif
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
-
-static int __init x86_mpx_setup(char *s)
-{
-	/* require an exact match without trailing characters */
-	if (strlen(s))
-		return 0;
-
-	/* do not emit a message if the feature is not present */
-	if (!boot_cpu_has(X86_FEATURE_MPX))
-		return 1;
-
-	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	pr_info("nompx: Intel Memory Protection Extensions (MPX) disabled\n");
-	return 1;
-}
-__setup("nompx", x86_mpx_setup);
 
 #ifdef CONFIG_X86_64
 static int __init x86_nopcid_setup(char *s)
@@ -307,8 +290,6 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 static __init int setup_disable_smep(char *arg)
 {
 	setup_clear_cpu_cap(X86_FEATURE_SMEP);
-	/* Check for things that depend on SMEP being enabled: */
-	check_mpx_erratum(&boot_cpu_data);
 	return 1;
 }
 __setup("nosmep", setup_disable_smep);
@@ -464,7 +445,7 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 	 * cpuid bit to be set.  We need to ensure that we
 	 * update that bit in this CPU's "cpu_info".
 	 */
-	get_cpu_cap(c);
+	set_cpu_cap(c, X86_FEATURE_OSPKE);
 }
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
@@ -565,8 +546,9 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 	return NULL;		/* Not found */
 }
 
-__u32 cpu_caps_cleared[NCAPINTS + NBUGINTS];
-__u32 cpu_caps_set[NCAPINTS + NBUGINTS];
+/* Aligned to unsigned long to avoid split lock in atomic bitmap ops */
+__u32 cpu_caps_cleared[NCAPINTS + NBUGINTS] __aligned(sizeof(unsigned long));
+__u32 cpu_caps_set[NCAPINTS + NBUGINTS] __aligned(sizeof(unsigned long));
 
 void load_percpu_segment(int cpu)
 {
@@ -1024,9 +1006,10 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 #define MSBDS_ONLY		BIT(5)
 #define NO_SWAPGS		BIT(6)
 #define NO_ITLB_MULTIHIT	BIT(7)
+#define NO_SPECTRE_V2		BIT(8)
 
-#define VULNWL(_vendor, _family, _model, _whitelist)	\
-	{ X86_VENDOR_##_vendor, _family, _model, X86_FEATURE_ANY, _whitelist }
+#define VULNWL(vendor, family, model, whitelist)	\
+	X86_MATCH_VENDOR_FAM_MODEL(vendor, family, model, whitelist)
 
 #define VULNWL_INTEL(model, whitelist)		\
 	VULNWL(INTEL, 6, INTEL_FAM6_##model, whitelist)
@@ -1085,6 +1068,10 @@ static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
 	/* FAMILY_ANY must be last, otherwise 0x0f - 0x12 matches won't work */
 	VULNWL_AMD(X86_FAMILY_ANY,	NO_MELTDOWN | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT),
 	VULNWL_HYGON(X86_FAMILY_ANY,	NO_MELTDOWN | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT),
+
+	/* Zhaoxin Family 7 */
+	VULNWL(CENTAUR,	7, X86_MODEL_ANY,	NO_SPECTRE_V2 | NO_SWAPGS),
+	VULNWL(ZHAOXIN,	7, X86_MODEL_ANY,	NO_SPECTRE_V2 | NO_SWAPGS),
 	{}
 };
 
@@ -1117,7 +1104,9 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 		return;
 
 	setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
-	setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
+
+	if (!cpu_matches(NO_SPECTRE_V2))
+		setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
 
 	if (!cpu_matches(NO_SSB) && !(ia32_cap & ARCH_CAP_SSB_NO) &&
 	   !cpu_has(c, X86_FEATURE_AMD_SSB_NO))
@@ -1234,6 +1223,8 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 
 	cpu_set_bug_bits(c);
+
+	cpu_set_core_cap_bits(c);
 
 	fpu__init_system(c);
 
@@ -1450,6 +1441,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #endif
 	c->x86_cache_alignment = c->x86_clflush_size;
 	memset(&c->x86_capability, 0, sizeof(c->x86_capability));
+#ifdef CONFIG_X86_VMX_FEATURE_NAMES
+	memset(&c->vmx_capability, 0, sizeof(c->vmx_capability));
+#endif
 
 	generic_identify(c);
 
@@ -1780,7 +1774,7 @@ static void wait_for_master_cpu(int cpu)
 }
 
 #ifdef CONFIG_X86_64
-static void setup_getcpu(int cpu)
+static inline void setup_getcpu(int cpu)
 {
 	unsigned long cpudata = vdso_encode_cpunode(cpu, early_cpu_to_node(cpu));
 	struct desc_struct d = { };
@@ -1800,7 +1794,50 @@ static void setup_getcpu(int cpu)
 
 	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_CPUNODE, &d, DESCTYPE_S);
 }
+
+static inline void ucode_cpu_init(int cpu)
+{
+	if (cpu)
+		load_ucode_ap();
+}
+
+static inline void tss_setup_ist(struct tss_struct *tss)
+{
+	/* Set up the per-CPU TSS IST stacks */
+	tss->x86_tss.ist[IST_INDEX_DF] = __this_cpu_ist_top_va(DF);
+	tss->x86_tss.ist[IST_INDEX_NMI] = __this_cpu_ist_top_va(NMI);
+	tss->x86_tss.ist[IST_INDEX_DB] = __this_cpu_ist_top_va(DB);
+	tss->x86_tss.ist[IST_INDEX_MCE] = __this_cpu_ist_top_va(MCE);
+}
+
+#else /* CONFIG_X86_64 */
+
+static inline void setup_getcpu(int cpu) { }
+
+static inline void ucode_cpu_init(int cpu)
+{
+	show_ucode_info_early();
+}
+
+static inline void tss_setup_ist(struct tss_struct *tss) { }
+
+#endif /* !CONFIG_X86_64 */
+
+static inline void tss_setup_io_bitmap(struct tss_struct *tss)
+{
+	tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_INVALID;
+
+#ifdef CONFIG_X86_IOPL_IOPERM
+	tss->io_bitmap.prev_max = 0;
+	tss->io_bitmap.prev_sequence = 0;
+	memset(tss->io_bitmap.bitmap, 0xff, sizeof(tss->io_bitmap.bitmap));
+	/*
+	 * Invalidate the extra array entry past the end of the all
+	 * permission bitmap as required by the hardware.
+	 */
+	tss->io_bitmap.mapall[IO_BITMAP_LONGS] = ~0UL;
 #endif
+}
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
@@ -1808,21 +1845,15 @@ static void setup_getcpu(int cpu)
  * and IDT. We reload them nevertheless, this function acts as a
  * 'CPU state barrier', nothing should get across.
  */
-#ifdef CONFIG_X86_64
-
 void cpu_init(void)
 {
+	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
+	struct task_struct *cur = current;
 	int cpu = raw_smp_processor_id();
-	struct task_struct *me;
-	struct tss_struct *t;
-	int i;
 
 	wait_for_master_cpu(cpu);
 
-	if (cpu)
-		load_ucode_ap();
-
-	t = &per_cpu(cpu_tss_rw, cpu);
+	ucode_cpu_init(cpu);
 
 #ifdef CONFIG_NUMA
 	if (this_cpu_read(numa_node) == 0 &&
@@ -1831,69 +1862,55 @@ void cpu_init(void)
 #endif
 	setup_getcpu(cpu);
 
-	me = current;
-
 	pr_debug("Initializing CPU#%d\n", cpu);
 
-	cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
+	if (IS_ENABLED(CONFIG_X86_64) || cpu_feature_enabled(X86_FEATURE_VME) ||
+	    boot_cpu_has(X86_FEATURE_TSC) || boot_cpu_has(X86_FEATURE_DE))
+		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	/*
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-
 	switch_to_new_gdt(cpu);
-	loadsegment(fs, 0);
-
 	load_current_idt();
 
-	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
-	syscall_init();
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		loadsegment(fs, 0);
+		memset(cur->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
+		syscall_init();
 
-	wrmsrl(MSR_FS_BASE, 0);
-	wrmsrl(MSR_KERNEL_GS_BASE, 0);
-	barrier();
+		wrmsrl(MSR_FS_BASE, 0);
+		wrmsrl(MSR_KERNEL_GS_BASE, 0);
+		barrier();
 
-	x86_configure_nx();
-	x2apic_setup();
-
-	/*
-	 * set up and load the per-CPU TSS
-	 */
-	if (!t->x86_tss.ist[0]) {
-		t->x86_tss.ist[IST_INDEX_DF] = __this_cpu_ist_top_va(DF);
-		t->x86_tss.ist[IST_INDEX_NMI] = __this_cpu_ist_top_va(NMI);
-		t->x86_tss.ist[IST_INDEX_DB] = __this_cpu_ist_top_va(DB);
-		t->x86_tss.ist[IST_INDEX_MCE] = __this_cpu_ist_top_va(MCE);
+		x2apic_setup();
 	}
 
-	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-
-	/*
-	 * <= is required because the CPU will access up to
-	 * 8 bits beyond the end of the IO permission bitmap.
-	 */
-	for (i = 0; i <= IO_BITMAP_LONGS; i++)
-		t->io_bitmap[i] = ~0UL;
-
 	mmgrab(&init_mm);
-	me->active_mm = &init_mm;
-	BUG_ON(me->mm);
+	cur->active_mm = &init_mm;
+	BUG_ON(cur->mm);
 	initialize_tlbstate_and_flush();
-	enter_lazy_tlb(&init_mm, me);
+	enter_lazy_tlb(&init_mm, cur);
 
-	/*
-	 * Initialize the TSS.  sp0 points to the entry trampoline stack
-	 * regardless of what task is running.
-	 */
+	/* Initialize the TSS. */
+	tss_setup_ist(tss);
+	tss_setup_io_bitmap(tss);
 	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
+
 	load_TR_desc();
+	/*
+	 * sp0 points to the entry trampoline stack regardless of what task
+	 * is running.
+	 */
 	load_sp0((unsigned long)(cpu_entry_stack(cpu) + 1));
 
 	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
+
+	doublefault_init_cpu_tss();
 
 	fpu__init_cpu();
 
@@ -1902,63 +1919,6 @@ void cpu_init(void)
 
 	load_fixmap_gdt(cpu);
 }
-
-#else
-
-void cpu_init(void)
-{
-	int cpu = smp_processor_id();
-	struct task_struct *curr = current;
-	struct tss_struct *t = &per_cpu(cpu_tss_rw, cpu);
-
-	wait_for_master_cpu(cpu);
-
-	show_ucode_info_early();
-
-	pr_info("Initializing CPU#%d\n", cpu);
-
-	if (cpu_feature_enabled(X86_FEATURE_VME) ||
-	    boot_cpu_has(X86_FEATURE_TSC) ||
-	    boot_cpu_has(X86_FEATURE_DE))
-		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
-
-	load_current_idt();
-	switch_to_new_gdt(cpu);
-
-	/*
-	 * Set up and load the per-CPU TSS and LDT
-	 */
-	mmgrab(&init_mm);
-	curr->active_mm = &init_mm;
-	BUG_ON(curr->mm);
-	initialize_tlbstate_and_flush();
-	enter_lazy_tlb(&init_mm, curr);
-
-	/*
-	 * Initialize the TSS.  sp0 points to the entry trampoline stack
-	 * regardless of what task is running.
-	 */
-	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
-	load_TR_desc();
-	load_sp0((unsigned long)(cpu_entry_stack(cpu) + 1));
-
-	load_mm_ldt(&init_mm);
-
-	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-
-#ifdef CONFIG_DOUBLEFAULT
-	/* Set up doublefault TSS pointer in the GDT */
-	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
-#endif
-
-	clear_all_debug_regs();
-	dbg_restore_debug_regs();
-
-	fpu__init_cpu();
-
-	load_fixmap_gdt(cpu);
-}
-#endif
 
 /*
  * The microcode loader calls this upon late microcode load to recheck features,

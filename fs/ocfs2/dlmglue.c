@@ -570,7 +570,7 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			mlog_bug_on_msg(1, "type: %d\n", type);
 			ops = NULL; /* thanks, gcc */
 			break;
-	};
+	}
 
 	ocfs2_build_lock_name(type, OCFS2_I(inode)->ip_blkno,
 			      generation, res->l_name);
@@ -1687,7 +1687,7 @@ static void __ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (lockres->l_lockdep_map.key != NULL)
-		rwsem_release(&lockres->l_lockdep_map, 1, caller_ip);
+		rwsem_release(&lockres->l_lockdep_map, caller_ip);
 #endif
 }
 
@@ -2133,7 +2133,7 @@ static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 }
 
 #define OCFS2_SEC_BITS   34
-#define OCFS2_SEC_SHIFT  (64 - 34)
+#define OCFS2_SEC_SHIFT  (64 - OCFS2_SEC_BITS)
 #define OCFS2_NSEC_MASK  ((1ULL << OCFS2_SEC_SHIFT) - 1)
 
 /* LVB only has room for 64 bits of time here so we pack it for
@@ -3282,6 +3282,7 @@ static void ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 
 	debugfs_create_u32("locking_filter", 0600, osb->osb_debug_root,
 			   &dlm_debug->d_filter_secs);
+	ocfs2_get_dlm_debug(dlm_debug);
 }
 
 static void ocfs2_dlm_shutdown_debug(struct ocfs2_super *osb)

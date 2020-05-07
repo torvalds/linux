@@ -205,14 +205,11 @@ static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
 
 		for (k = 0; gpios[k] >= 0; k++) {
 			if (gpios[k] == offset)
-				goto found;
+				return pfc->irqs[i];
 		}
 	}
 
 	return 0;
-
-found:
-	return pfc->irqs[i];
 }
 
 static int gpio_pin_setup(struct sh_pfc_chip *chip)
@@ -386,12 +383,11 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	}
 
 	/* Register the function GPIOs chip. */
-	if (pfc->info->nr_func_gpios == 0)
-		return 0;
-
-	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
+	if (pfc->info->nr_func_gpios) {
+		chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
+		if (IS_ERR(chip))
+			return PTR_ERR(chip);
+	}
 #endif /* CONFIG_PINCTRL_SH_FUNC_GPIO */
 
 	return 0;

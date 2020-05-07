@@ -43,7 +43,7 @@ void do_page_fault(struct pt_regs *regs)
 
 	int is_write, is_exec;
 	vm_fault_t fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	code = SEGV_MAPERR;
 
@@ -110,7 +110,7 @@ good_area:
 	 */
 	fault = handle_mm_fault(vma, address, flags);
 
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+	if (fault_signal_pending(fault, regs))
 		return;
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
@@ -128,7 +128,6 @@ good_area:
 		else
 			current->min_flt++;
 		if (fault & VM_FAULT_RETRY) {
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
 
 			 /* No need to up_read(&mm->mmap_sem) as we would
@@ -197,6 +196,8 @@ vmalloc_fault:
 		struct mm_struct *act_mm = current->active_mm;
 		int index = pgd_index(address);
 		pgd_t *pgd, *pgd_k;
+		p4d_t *p4d, *p4d_k;
+		pud_t *pud, *pud_k;
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
@@ -211,8 +212,18 @@ vmalloc_fault:
 
 		pgd_val(*pgd) = pgd_val(*pgd_k);
 
-		pmd = pmd_offset(pgd, address);
-		pmd_k = pmd_offset(pgd_k, address);
+		p4d = p4d_offset(pgd, address);
+		p4d_k = p4d_offset(pgd_k, address);
+		if (!p4d_present(*p4d) || !p4d_present(*p4d_k))
+			goto bad_page_fault;
+
+		pud = pud_offset(p4d, address);
+		pud_k = pud_offset(p4d_k, address);
+		if (!pud_present(*pud) || !pud_present(*pud_k))
+			goto bad_page_fault;
+
+		pmd = pmd_offset(pud, address);
+		pmd_k = pmd_offset(pud_k, address);
 		if (!pmd_present(*pmd) || !pmd_present(*pmd_k))
 			goto bad_page_fault;
 

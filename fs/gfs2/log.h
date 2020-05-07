@@ -60,9 +60,9 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 		spin_unlock(&sdp->sd_ordered_lock);
 	}
 }
+
 extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
-extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
-			    unsigned int ssize);
+extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
 
 extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
@@ -73,10 +73,11 @@ extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 			   u32 type);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);
+extern void log_flush_wait(struct gfs2_sbd *sdp);
 
-extern void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 extern int gfs2_logd(void *data);
 extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
+extern void gfs2_glock_remove_revoke(struct gfs2_glock *gl);
 extern void gfs2_write_revokes(struct gfs2_sbd *sdp);
 
 #endif /* __LOG_DOT_H__ */

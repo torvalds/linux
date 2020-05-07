@@ -563,7 +563,7 @@ static int matroxfb_dh_blank(int blank, struct fb_info* info) {
 #undef m2info
 }
 
-static struct fb_ops matroxfb_dh_ops = {
+static const struct fb_ops matroxfb_dh_ops = {
 	.owner =	THIS_MODULE,
 	.fb_open =	matroxfb_dh_open,
 	.fb_release =	matroxfb_dh_release,

@@ -240,8 +240,8 @@ static void i2c_powermac_create_one(struct i2c_adapter *adap,
 
 	strncpy(info.type, type, sizeof(info.type));
 	info.addr = addr;
-	newdev = i2c_new_device(adap, &info);
-	if (!newdev)
+	newdev = i2c_new_client_device(adap, &info);
+	if (IS_ERR(newdev))
 		dev_err(&adap->dev,
 			"i2c-powermac: Failure to register missing %s\n",
 			type);
@@ -279,14 +279,13 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 {
 	char tmp[16];
 
-	/* Note: we to _NOT_ want the standard
-	 * i2c drivers to match with any of our powermac stuff
-	 * unless they have been specifically modified to handle
-	 * it on a case by case basis. For example, for thermal
-	 * control, things like lm75 etc... shall match with their
-	 * corresponding windfarm drivers, _NOT_ the generic ones,
-	 * so we force a prefix of AAPL, onto the modalias to
-	 * make that happen
+	/*
+	 * Note: we do _NOT_ want the standard i2c drivers to match with any of
+	 * our powermac stuff unless they have been specifically modified to
+	 * handle it on a case by case basis. For example, for thermal control,
+	 * things like lm75 etc... shall match with their corresponding
+	 * windfarm drivers, _NOT_ the generic ones, so we force a prefix of
+	 * 'MAC', onto the modalias to make that happen
 	 */
 
 	/* First try proper modalias */
@@ -359,8 +358,8 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 		info.irq = irq_of_parse_and_map(node, 0);
 		info.of_node = of_node_get(node);
 
-		newdev = i2c_new_device(adap, &info);
-		if (!newdev) {
+		newdev = i2c_new_client_device(adap, &info);
+		if (IS_ERR(newdev)) {
 			dev_err(&adap->dev, "i2c-powermac: Failure to register"
 				" %pOF\n", node);
 			of_node_put(node);

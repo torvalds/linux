@@ -118,6 +118,7 @@
 #define VNDMR_ABIT		(1 << 2)
 #define VNDMR_DTMD_YCSEP	(1 << 1)
 #define VNDMR_DTMD_ARGB		(1 << 0)
+#define VNDMR_DTMD_YCSEP_420	(3 << 0)
 
 /* Video n Data Mode Register 2 bits */
 #define VNDMR2_VPS		(1 << 30)
@@ -529,12 +530,17 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 
 static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 {
+	unsigned int crop_height;
 	u32 xs, ys;
 
 	/* Set scaling coefficient */
+	crop_height = vin->crop.height;
+	if (V4L2_FIELD_HAS_BOTH(vin->format.field))
+		crop_height *= 2;
+
 	ys = 0;
-	if (vin->crop.height != vin->compose.height)
-		ys = (4096 * vin->crop.height) / vin->compose.height;
+	if (crop_height != vin->compose.height)
+		ys = (4096 * crop_height) / vin->compose.height;
 	rvin_write(vin, ys, VNYS_REG);
 
 	xs = 0;
@@ -557,16 +563,11 @@ static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 	rvin_write(vin, 0, VNSPPOC_REG);
 	rvin_write(vin, 0, VNSLPOC_REG);
 	rvin_write(vin, vin->format.width - 1, VNEPPOC_REG);
-	switch (vin->format.field) {
-	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
+
+	if (V4L2_FIELD_HAS_BOTH(vin->format.field))
 		rvin_write(vin, vin->format.height / 2 - 1, VNELPOC_REG);
-		break;
-	default:
+	else
 		rvin_write(vin, vin->format.height - 1, VNELPOC_REG);
-		break;
-	}
 
 	vin_dbg(vin,
 		"Pre-Clip: %ux%u@%u:%u YS: %d XS: %d Post-Clip: %ux%u@%u:%u\n",
@@ -583,21 +584,9 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	/* Set Start/End Pixel/Line Pre-Clip */
 	rvin_write(vin, vin->crop.left, VNSPPRC_REG);
 	rvin_write(vin, vin->crop.left + vin->crop.width - 1, VNEPPRC_REG);
+	rvin_write(vin, vin->crop.top, VNSLPRC_REG);
+	rvin_write(vin, vin->crop.top + vin->crop.height - 1, VNELPRC_REG);
 
-	switch (vin->format.field) {
-	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
-		rvin_write(vin, vin->crop.top / 2, VNSLPRC_REG);
-		rvin_write(vin, (vin->crop.top + vin->crop.height) / 2 - 1,
-			   VNELPRC_REG);
-		break;
-	default:
-		rvin_write(vin, vin->crop.top, VNSLPRC_REG);
-		rvin_write(vin, vin->crop.top + vin->crop.height - 1,
-			   VNELPRC_REG);
-		break;
-	}
 
 	/* TODO: Add support for the UDS scaler. */
 	if (vin->info->model != RCAR_GEN3)
@@ -637,9 +626,14 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED_BT:
 		vnmc = VNMC_IM_FULL | VNMC_FOC;
 		break;
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
 	case V4L2_FIELD_NONE:
 		vnmc = VNMC_IM_ODD_EVEN;
 		progressive = true;
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		vnmc = VNMC_IM_ODD_EVEN;
 		break;
 	default:
 		vnmc = VNMC_IM_ODD;
@@ -710,11 +704,13 @@ static int rvin_setup(struct rvin_dev *vin)
 	 * Output format
 	 */
 	switch (vin->format.pixelformat) {
+	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 		rvin_write(vin,
-			   ALIGN(vin->format.width * vin->format.height, 0x80),
-			   VNUVAOF_REG);
-		dmr = VNDMR_DTMD_YCSEP;
+			   ALIGN(vin->format.bytesperline * vin->format.height,
+				 0x80), VNUVAOF_REG);
+		dmr = vin->format.pixelformat == V4L2_PIX_FMT_NV12 ?
+			VNDMR_DTMD_YCSEP_420 : VNDMR_DTMD_YCSEP;
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_YUYV:
@@ -799,6 +795,18 @@ static bool rvin_capture_active(struct rvin_dev *vin)
 	return rvin_read(vin, VNMS_REG) & VNMS_CA;
 }
 
+static enum v4l2_field rvin_get_active_field(struct rvin_dev *vin, u32 vnms)
+{
+	if (vin->format.field == V4L2_FIELD_ALTERNATE) {
+		/* If FS is set it is an Even field. */
+		if (vnms & VNMS_FS)
+			return V4L2_FIELD_BOTTOM;
+		return V4L2_FIELD_TOP;
+	}
+
+	return vin->format.field;
+}
+
 static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 {
 	const struct rvin_video_format *fmt;
@@ -836,33 +844,63 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 	struct rvin_buffer *buf;
 	struct vb2_v4l2_buffer *vbuf;
 	dma_addr_t phys_addr;
+	int prev;
 
 	/* A already populated slot shall never be overwritten. */
-	if (WARN_ON(vin->queue_buf[slot] != NULL))
+	if (WARN_ON(vin->buf_hw[slot].buffer))
 		return;
 
-	vin_dbg(vin, "Filling HW slot: %d\n", slot);
+	prev = (slot == 0 ? HW_BUFFER_NUM : slot) - 1;
 
-	if (list_empty(&vin->buf_list)) {
-		vin->queue_buf[slot] = NULL;
+	if (vin->buf_hw[prev].type == HALF_TOP) {
+		vbuf = vin->buf_hw[prev].buffer;
+		vin->buf_hw[slot].buffer = vbuf;
+		vin->buf_hw[slot].type = HALF_BOTTOM;
+		switch (vin->format.pixelformat) {
+		case V4L2_PIX_FMT_NV12:
+		case V4L2_PIX_FMT_NV16:
+			phys_addr = vin->buf_hw[prev].phys +
+				vin->format.sizeimage / 4;
+			break;
+		default:
+			phys_addr = vin->buf_hw[prev].phys +
+				vin->format.sizeimage / 2;
+			break;
+		}
+	} else if (list_empty(&vin->buf_list)) {
+		vin->buf_hw[slot].buffer = NULL;
+		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
 	} else {
 		/* Keep track of buffer we give to HW */
 		buf = list_entry(vin->buf_list.next, struct rvin_buffer, list);
 		vbuf = &buf->vb;
 		list_del_init(to_buf_list(vbuf));
-		vin->queue_buf[slot] = vbuf;
+		vin->buf_hw[slot].buffer = vbuf;
+
+		vin->buf_hw[slot].type =
+			V4L2_FIELD_IS_SEQUENTIAL(vin->format.field) ?
+			HALF_TOP : FULL;
 
 		/* Setup DMA */
 		phys_addr = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 	}
 
+	vin_dbg(vin, "Filling HW slot: %d type: %d buffer: %p\n",
+		slot, vin->buf_hw[slot].type, vin->buf_hw[slot].buffer);
+
+	vin->buf_hw[slot].phys = phys_addr;
 	rvin_set_slot_addr(vin, slot, phys_addr);
 }
 
 static int rvin_capture_start(struct rvin_dev *vin)
 {
 	int slot, ret;
+
+	for (slot = 0; slot < HW_BUFFER_NUM; slot++) {
+		vin->buf_hw[slot].buffer = NULL;
+		vin->buf_hw[slot].type = FULL;
+	}
 
 	for (slot = 0; slot < HW_BUFFER_NUM; slot++)
 		rvin_fill_hw_slot(vin, slot);
@@ -947,13 +985,24 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	}
 
 	/* Capture frame */
-	if (vin->queue_buf[slot]) {
-		vin->queue_buf[slot]->field = vin->format.field;
-		vin->queue_buf[slot]->sequence = vin->sequence;
-		vin->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
-		vb2_buffer_done(&vin->queue_buf[slot]->vb2_buf,
+	if (vin->buf_hw[slot].buffer) {
+		/*
+		 * Nothing to do but refill the hardware slot if
+		 * capture only filled first half of vb2 buffer.
+		 */
+		if (vin->buf_hw[slot].type == HALF_TOP) {
+			vin->buf_hw[slot].buffer = NULL;
+			rvin_fill_hw_slot(vin, slot);
+			goto done;
+		}
+
+		vin->buf_hw[slot].buffer->field =
+			rvin_get_active_field(vin, vnms);
+		vin->buf_hw[slot].buffer->sequence = vin->sequence;
+		vin->buf_hw[slot].buffer->vb2_buf.timestamp = ktime_get_ns();
+		vb2_buffer_done(&vin->buf_hw[slot].buffer->vb2_buf,
 				VB2_BUF_STATE_DONE);
-		vin->queue_buf[slot] = NULL;
+		vin->buf_hw[slot].buffer = NULL;
 	} else {
 		/* Scratch buffer was used, dropping frame. */
 		vin_dbg(vin, "Dropping frame %u\n", vin->sequence);
@@ -974,14 +1023,22 @@ static void return_all_buffers(struct rvin_dev *vin,
 			       enum vb2_buffer_state state)
 {
 	struct rvin_buffer *buf, *node;
-	int i;
+	struct vb2_v4l2_buffer *freed[HW_BUFFER_NUM];
+	unsigned int i, n;
 
 	for (i = 0; i < HW_BUFFER_NUM; i++) {
-		if (vin->queue_buf[i]) {
-			vb2_buffer_done(&vin->queue_buf[i]->vb2_buf,
-					state);
-			vin->queue_buf[i] = NULL;
+		freed[i] = vin->buf_hw[i].buffer;
+		vin->buf_hw[i].buffer = NULL;
+
+		for (n = 0; n < i; n++) {
+			if (freed[i] == freed[n]) {
+				freed[i] = NULL;
+				break;
+			}
 		}
+
+		if (freed[i])
+			vb2_buffer_done(&freed[i]->vb2_buf, state);
 	}
 
 	list_for_each_entry_safe(buf, node, &vin->buf_list, list) {
@@ -1075,6 +1132,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		case V4L2_FIELD_TOP:
 		case V4L2_FIELD_BOTTOM:
 		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_ALTERNATE:
 			break;
 		case V4L2_FIELD_INTERLACED_TB:
 		case V4L2_FIELD_INTERLACED_BT:
@@ -1284,7 +1342,7 @@ int rvin_dma_register(struct rvin_dev *vin, int irq)
 	vin->state = STOPPED;
 
 	for (i = 0; i < HW_BUFFER_NUM; i++)
-		vin->queue_buf[i] = NULL;
+		vin->buf_hw[i].buffer = NULL;
 
 	/* buffer queue */
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

@@ -13,6 +13,7 @@ config CRYPTO_DEV_FSL_CAAM
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
 	select SOC_BUS
 	select CRYPTO_DEV_FSL_CAAM_COMMON
+	imply FSL_MC_BUS
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
@@ -33,6 +34,7 @@ config CRYPTO_DEV_FSL_CAAM_DEBUG
 
 menuconfig CRYPTO_DEV_FSL_CAAM_JR
 	tristate "Freescale CAAM Job Ring driver backend"
+	select CRYPTO_ENGINE
 	default y
 	help
 	  Enables the driver module for Job Rings which are part of
@@ -97,7 +99,7 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	select CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
 	help
 	  Selecting this will offload crypto for users of the
@@ -110,7 +112,7 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI
 	default y
 	select CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
 	select CRYPTO_AUTHENC
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_DES
 	help
 	  Selecting this will use CAAM Queue Interface (QI) for sending
@@ -130,13 +132,13 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	  scatterlist crypto API to the SEC4 via job ring.
 
 config CRYPTO_DEV_FSL_CAAM_PKC_API
-        bool "Register public key cryptography implementations with Crypto API"
-        default y
-        select CRYPTO_RSA
-        help
-          Selecting this will allow SEC Public key support for RSA.
-          Supported cryptographic primitives: encryption, decryption,
-          signature and verification.
+	bool "Register public key cryptography implementations with Crypto API"
+	default y
+	select CRYPTO_RSA
+	help
+	  Selecting this will allow SEC Public key support for RSA.
+	  Supported cryptographic primitives: encryption, decryption,
+	  signature and verification.
 
 config CRYPTO_DEV_FSL_CAAM_RNG_API
 	bool "Register caam device for hwrng API"
@@ -158,7 +160,7 @@ config CRYPTO_DEV_FSL_DPAA2_CAAM
 	select CRYPTO_DEV_FSL_CAAM_COMMON
 	select CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
 	select CRYPTO_DEV_FSL_CAAM_AHASH_API_DESC
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_AUTHENC
 	select CRYPTO_AEAD
 	select CRYPTO_HASH

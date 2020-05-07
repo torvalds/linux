@@ -2095,10 +2095,13 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 
 	if (tx_info->control.vif) {
 		struct ieee80211_vif *vif = tx_info->control.vif;
-
+		if (vif->bss_conf.txpower == INT_MIN)
+			goto nonvifpower;
 		txpower = 2 * vif->bss_conf.txpower;
 	} else {
-		struct ath_softc *sc = hw->priv;
+		struct ath_softc *sc;
+	nonvifpower:
+		sc = hw->priv;
 
 		txpower = sc->cur_chan->cur_txpower;
 	}

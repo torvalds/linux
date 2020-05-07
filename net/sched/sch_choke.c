@@ -323,7 +323,8 @@ static void choke_reset(struct Qdisc *sch)
 
 	sch->q.qlen = 0;
 	sch->qstats.backlog = 0;
-	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
+	if (q->tab)
+		memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
 	q->head = q->tail = 0;
 	red_restart(&q->vars);
 }
@@ -377,7 +378,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	if (mask != q->tab_mask) {
 		struct sk_buff **ntab;
 
-		ntab = kvmalloc_array((mask + 1), sizeof(struct sk_buff *), GFP_KERNEL | __GFP_ZERO);
+		ntab = kvcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
 		if (!ntab)
 			return -ENOMEM;
 

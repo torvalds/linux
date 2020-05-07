@@ -6,7 +6,7 @@
  * Written by Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
- * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2013 Pali Rohár <pali@kernel.org>
  */
 
 #include <linux/linkage.h>
@@ -18,18 +18,18 @@
  * the monitor API number. It uses few CPU registers
  * internally and hence they need be backed up including
  * link register "lr".
- * Function signature : void omap_smc1(u32 fn, u32 arg)
+ * Function signature : void _omap_smc1(u32 fn, u32 arg)
  */
 	.arch armv7-a
 	.arch_extension sec
-ENTRY(omap_smc1)
+ENTRY(_omap_smc1)
 	stmfd   sp!, {r2-r12, lr}
 	mov	r12, r0
 	mov 	r0, r1
 	dsb
 	smc	#0
 	ldmfd   sp!, {r2-r12, pc}
-ENDPROC(omap_smc1)
+ENDPROC(_omap_smc1)
 
 /**
  * u32 omap_smc2(u32 id, u32 falg, u32 pargs)

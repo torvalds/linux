@@ -29,7 +29,7 @@
 #include "ccdc_hw_device.h"
 
 /* Defaults for module configuration parameters */
-static struct isif_config_params_raw isif_config_defaults = {
+static const struct isif_config_params_raw isif_config_defaults = {
 	.linearize = {
 		.en = 0,
 		.corr_shft = ISIF_NO_SHIFT,
@@ -1045,7 +1045,7 @@ static int isif_probe(struct platform_device *pdev)
 			status = -EBUSY;
 			goto fail_nobase_res;
 		}
-		addr = ioremap_nocache(res->start, resource_size(res));
+		addr = ioremap(res->start, resource_size(res));
 		if (!addr) {
 			status = -ENOMEM;
 			goto fail_base_iomap;

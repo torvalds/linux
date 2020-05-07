@@ -44,7 +44,6 @@ static struct tee_context *teedev_open(struct tee_device *teedev)
 
 	kref_init(&ctx->refcount);
 	ctx->teedev = teedev;
-	INIT_LIST_HEAD(&ctx->list_shm);
 	rc = teedev->desc->ops->open(ctx);
 	if (rc)
 		goto err;
@@ -675,7 +674,7 @@ static const struct file_operations tee_fops = {
 	.open = tee_open,
 	.release = tee_release,
 	.unlocked_ioctl = tee_ioctl,
-	.compat_ioctl = tee_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static void tee_release_device(struct device *dev)

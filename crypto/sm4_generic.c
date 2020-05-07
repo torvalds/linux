@@ -143,29 +143,23 @@ int crypto_sm4_expand_key(struct crypto_sm4_ctx *ctx, const u8 *in_key,
 EXPORT_SYMBOL_GPL(crypto_sm4_expand_key);
 
 /**
- * crypto_sm4_set_key - Set the AES key.
+ * crypto_sm4_set_key - Set the SM4 key.
  * @tfm:	The %crypto_tfm that is used in the context.
  * @in_key:	The input key.
  * @key_len:	The size of the key.
  *
- * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. The function uses crypto_sm4_expand_key() to expand the key.
+ * This function uses crypto_sm4_expand_key() to expand the key.
  * &crypto_sm4_ctx _must_ be the private data embedded in @tfm which is
  * retrieved with crypto_tfm_ctx().
+ *
+ * Return: 0 on success; -EINVAL on failure (only happens for bad key lengths)
  */
 int crypto_sm4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
 	struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int ret;
 
-	ret = crypto_sm4_expand_key(ctx, in_key, key_len);
-	if (!ret)
-		return 0;
-
-	*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-	return -EINVAL;
+	return crypto_sm4_expand_key(ctx, in_key, key_len);
 }
 EXPORT_SYMBOL_GPL(crypto_sm4_set_key);
 

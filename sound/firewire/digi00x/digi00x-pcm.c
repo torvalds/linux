@@ -100,14 +100,14 @@ static int pcm_init_hw_params(struct snd_dg00x *dg00x,
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_dg00x *dg00x = substream->private_data;
+	struct amdtp_domain *d = &dg00x->domain;
 	enum snd_dg00x_clock clock;
 	bool detect;
-	unsigned int rate;
 	int err;
 
 	err = snd_dg00x_stream_lock_try(dg00x);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = pcm_init_hw_params(dg00x, substream);
 	if (err < 0)
@@ -127,19 +127,49 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
+	mutex_lock(&dg00x->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if ((clock != SND_DG00X_CLOCK_INTERNAL) ||
-	    amdtp_stream_pcm_running(&dg00x->rx_stream) ||
-	    amdtp_stream_pcm_running(&dg00x->tx_stream)) {
+	    (dg00x->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
+		unsigned int rate;
+
 		err = snd_dg00x_stream_get_external_rate(dg00x, &rate);
-		if (err < 0)
+		if (err < 0) {
+			mutex_unlock(&dg00x->mutex);
 			goto err_locked;
+		}
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&dg00x->mutex);
+				goto err_locked;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0) {
+				mutex_unlock(&dg00x->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&dg00x->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_dg00x_stream_lock_release(dg00x);
 	return err;
@@ -158,18 +188,16 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dg00x *dg00x = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
+	int err = 0;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&dg00x->mutex);
-		err = snd_dg00x_stream_reserve_duplex(dg00x, rate);
+		err = snd_dg00x_stream_reserve_duplex(dg00x, rate,
+					frames_per_period, frames_per_buffer);
 		if (err >= 0)
 			++dg00x->substreams_counter;
 		mutex_unlock(&dg00x->mutex);
@@ -191,7 +219,7 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 
 	mutex_unlock(&dg00x->mutex);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return 0;
 }
 
 static int pcm_capture_prepare(struct snd_pcm_substream *substream)
@@ -268,28 +296,28 @@ static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_dg00x *dg00x = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&dg00x->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&dg00x->domain, &dg00x->tx_stream);
 }
 
 static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_dg00x *dg00x = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&dg00x->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&dg00x->domain, &dg00x->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_dg00x *dg00x = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&dg00x->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&dg00x->domain, &dg00x->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_dg00x *dg00x = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&dg00x->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&dg00x->domain, &dg00x->rx_stream);
 }
 
 int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
@@ -297,26 +325,22 @@ int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 	static const struct snd_pcm_ops capture_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
 		.hw_params	= pcm_hw_params,
 		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_capture_prepare,
 		.trigger	= pcm_capture_trigger,
 		.pointer	= pcm_capture_pointer,
 		.ack		= pcm_capture_ack,
-		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
 		.hw_params	= pcm_hw_params,
 		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_playback_prepare,
 		.trigger	= pcm_playback_trigger,
 		.pointer	= pcm_playback_pointer,
 		.ack		= pcm_playback_ack,
-		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	struct snd_pcm *pcm;
 	int err;
@@ -330,6 +354,7 @@ int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 		 "%s PCM", dg00x->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
 	return 0;
 }

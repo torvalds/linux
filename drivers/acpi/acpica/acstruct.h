@@ -3,7 +3,7 @@
  *
  * Name: acstruct.h - Internal structs
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -190,6 +190,16 @@ struct acpi_device_walk_info {
 	u32 device_count;
 	u32 num_STA;
 	u32 num_INI;
+};
+
+/* Info used by Acpi  acpi_db_display_fields */
+
+struct acpi_region_walk_info {
+	u32 debug_level;
+	u32 count;
+	acpi_owner_id owner_id;
+	u8 display_type;
+	u32 address_space_id;
 };
 
 /* TBD: [Restructure] Merge with struct above */

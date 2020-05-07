@@ -75,7 +75,7 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 {
 	struct hdlc_header *data;
 #ifdef DEBUG_HARD_HEADER
-	printk(KERN_DEBUG "%s: cisco_hard_header called\n", dev->name);
+	netdev_dbg(dev, "%s called\n", __func__);
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
@@ -101,7 +101,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cisco_packet));
 	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on cisco_keepalive_send()\n");
+		netdev_warn(dev, "Memory squeeze on %s()\n", __func__);
 		return;
 	}
 	skb_reserve(skb, 4);

@@ -8,6 +8,7 @@
 	compatible = "nvidia,p3310", "nvidia,tegra186";
 
 	aliases {
+		ethernet0 = "/ethernet@2490000";
 		sdhci0 = "/sdhci@3460000";
 		sdhci1 = "/sdhci@3400000";
 		serial0 = &uarta;
@@ -170,6 +171,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x50>;
 
+			vcc-supply = <&vdd_1v8>;
 			address-bits = <8>;
 			page-size = <8>;
 			size = <256>;

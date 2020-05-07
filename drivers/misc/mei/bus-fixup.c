@@ -46,8 +46,6 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
 }
@@ -59,8 +57,6 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 0;
 }
 
@@ -71,8 +67,6 @@ static void blacklist(struct mei_cl_device *cldev)
  */
 static void whitelist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 1;
 }
 
@@ -97,7 +91,7 @@ struct mkhi_rule_id {
 struct mkhi_fwcaps {
 	struct mkhi_rule_id id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct mkhi_fw_ver_block {
@@ -125,7 +119,7 @@ struct mkhi_msg_hdr {
 
 struct mkhi_msg {
 	struct mkhi_msg_hdr hdr;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define MKHI_OSVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
@@ -256,7 +250,6 @@ static void mei_wd(struct mei_cl_device *cldev)
 {
 	struct pci_dev *pdev = to_pci_dev(cldev->dev.parent);
 
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 	if (pdev->device == MEI_DEV_ID_WPT_LP ||
 	    pdev->device == MEI_DEV_ID_SPT ||
 	    pdev->device == MEI_DEV_ID_SPT_H)
@@ -409,8 +402,6 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	int ret;
 
 	bus = cldev->bus;
-
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */

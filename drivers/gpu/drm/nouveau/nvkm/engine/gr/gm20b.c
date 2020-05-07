@@ -22,9 +22,60 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <core/firmware.h>
+#include <subdev/acr.h>
 #include <subdev/timer.h>
 
+#include <nvfw/flcn.h>
+
 #include <nvif/class.h>
+
+void
+gm20b_gr_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct flcn_bl_dmem_desc hdr;
+	u64 addr;
+
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	addr = ((u64)hdr.code_dma_base1 << 40 | hdr.code_dma_base << 8);
+	hdr.code_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.code_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	addr = ((u64)hdr.data_dma_base1 << 40 | hdr.data_dma_base << 8);
+	hdr.data_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.data_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+
+	flcn_bl_dmem_desc_dump(&acr->subdev, &hdr);
+}
+
+void
+gm20b_gr_acr_bld_write(struct nvkm_acr *acr, u32 bld,
+		       struct nvkm_acr_lsfw *lsfw)
+{
+	const u64 base = lsfw->offset.img + lsfw->app_start_offset;
+	const u64 code = (base + lsfw->app_resident_code_offset) >> 8;
+	const u64 data = (base + lsfw->app_resident_data_offset) >> 8;
+	const struct flcn_bl_dmem_desc hdr = {
+		.ctx_dma = FALCON_DMAIDX_UCODE,
+		.code_dma_base = lower_32_bits(code),
+		.non_sec_code_off = lsfw->app_resident_code_offset,
+		.non_sec_code_size = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = lower_32_bits(data),
+		.data_size = lsfw->app_resident_data_size,
+		.code_dma_base1 = upper_32_bits(code),
+		.data_dma_base1 = upper_32_bits(data),
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
+
+const struct nvkm_acr_lsf_func
+gm20b_gr_fecs_acr = {
+	.bld_size = sizeof(struct flcn_bl_dmem_desc),
+	.bld_write = gm20b_gr_acr_bld_write,
+	.bld_patch = gm20b_gr_acr_bld_patch,
+};
 
 static void
 gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
@@ -33,7 +84,7 @@ gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
 	u32 val;
 
 	/* Bypass MMU check for non-secure boot */
-	if (!device->secboot) {
+	if (!device->acr) {
 		nvkm_wr32(device, 0x100ce4, 0xffffffff);
 
 		if (nvkm_rd32(device, 0x100ce4) != 0xffffffff)
@@ -85,8 +136,51 @@ gm20b_gr = {
 	}
 };
 
+static int
+gm20b_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	int ret;
+
+	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(subdev, &gr->fecs.falcon,
+						  NVKM_ACR_LSF_FECS,
+						  "gr/fecs_", ver, fwif->fecs);
+	if (ret)
+		return ret;
+
+
+	if (nvkm_firmware_load_blob(subdev, "gr/", "gpccs_inst", ver,
+				    &gr->gpccs.inst) ||
+	    nvkm_firmware_load_blob(subdev, "gr/", "gpccs_data", ver,
+				    &gr->gpccs.data))
+		return -ENOENT;
+
+	gr->firmware = true;
+
+	return gk20a_gr_load_sw(gr, "gr/", ver);
+}
+
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
+#endif
+
+static const struct gf100_gr_fwif
+gm20b_gr_fwif[] = {
+	{ 0, gm20b_gr_load, &gm20b_gr, &gm20b_gr_fecs_acr },
+	{}
+};
+
 int
 gm20b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gm20b_gr, device, index, pgr);
+	return gf100_gr_new_(gm20b_gr_fwif, device, index, pgr);
 }

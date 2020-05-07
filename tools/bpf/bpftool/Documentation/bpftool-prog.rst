@@ -30,10 +30,11 @@ PROG COMMANDS
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
 |	**bpftool** **prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
+|	**bpftool** **prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 |	*TYPE* := {
 |		**socket** | **kprobe** | **kretprobe** | **classifier** | **action** |
 |		**tracepoint** | **raw_tracepoint** | **xdp** | **perf_event** | **cgroup/skb** |
@@ -42,10 +43,14 @@ PROG COMMANDS
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
 |		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl** |
-|		**cgroup/getsockopt** | **cgroup/setsockopt**
+|		**cgroup/getsockopt** | **cgroup/setsockopt** |
+|		**struct_ops** | **fentry** | **fexit** | **freplace**
 |	}
 |       *ATTACH_TYPE* := {
 |		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
+|	}
+|	*METRIC* := {
+|		**cycles** | **instructions** | **l1d_loads** | **llc_misses**
 |	}
 
 
@@ -53,8 +58,10 @@ DESCRIPTION
 ===========
 	**bpftool prog { show | list }** [*PROG*]
 		  Show information about loaded programs.  If *PROG* is
-		  specified show information only about given program, otherwise
-		  list all programs currently loaded on the system.
+		  specified show information only about given programs,
+		  otherwise list all programs currently loaded on the system.
+		  In case of **tag** or **name**, *PROG* may match several
+		  programs which will all be shown.
 
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
@@ -68,10 +75,14 @@ DESCRIPTION
 		  performed via the **kernel.bpf_stats_enabled** sysctl knob.
 
 	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
-		  Dump eBPF instructions of the program from the kernel. By
+		  Dump eBPF instructions of the programs from the kernel. By
 		  default, eBPF will be disassembled and printed to standard
 		  output in human-readable format. In this case, **opcodes**
 		  controls if raw opcodes should be printed as well.
+
+		  In case of **tag** or **name**, *PROG* may match several
+		  programs which will all be dumped.  However, if **file** or
+		  **visual** is specified, *PROG* must match a single program.
 
 		  If **file** is specified, the binary image will instead be
 		  written to *FILE*.
@@ -80,15 +91,17 @@ DESCRIPTION
 		  built instead, and eBPF instructions will be presented with
 		  CFG in DOT format, on standard output.
 
-		  If the prog has line_info available, the source line will
+		  If the programs have line_info available, the source line will
 		  be displayed by default.  If **linum** is specified,
 		  the filename, line number and line column will also be
 		  displayed on top of the source line.
 
 	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
 		  Dump jited image (host machine code) of the program.
+
 		  If *FILE* is specified image will be written to a file,
 		  otherwise it will be disassembled and printed to stdout.
+		  *PROG* must match a single program when **file** is specified.
 
 		  **opcodes** controls if raw opcodes will be printed.
 
@@ -179,6 +192,12 @@ DESCRIPTION
 		  Not all program types support test run. Among those which do,
 		  not all of them can take the **ctx_in**/**ctx_out**
 		  arguments. bpftool does not perform checks on program types.
+
+	**bpftool prog profile** *PROG* [**duration** *DURATION*] *METRICs*
+		  Profile *METRICs* for bpf program *PROG* for *DURATION*
+		  seconds or until user hits Ctrl-C. *DURATION* is optional.
+		  If *DURATION* is not specified, the profiling will run up to
+		  UINT_MAX seconds.
 
 	**bpftool prog help**
 		  Print short help message.
@@ -301,6 +320,15 @@ EXAMPLES
             xlated 488B  jited 336B  memlock 4096B  map_ids 7
 
 **# rm /sys/fs/bpf/xdp1**
+
+|
+| **# bpftool prog profile id 337 duration 10 cycles instructions llc_misses**
+
+::
+         51397 run_cnt
+      40176203 cycles                                                 (83.05%)
+      42518139 instructions    #   1.06 insns per cycle               (83.39%)
+           123 llc_misses      #   2.89 LLC misses per million insns  (83.15%)
 
 SEE ALSO
 ========

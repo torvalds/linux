@@ -1151,6 +1151,31 @@ static const struct dss_features dra7xx_dss_feats = {
 	.has_lcd_clk_src	=	true,
 };
 
+static void __dss_uninit_ports(struct dss_device *dss, unsigned int num_ports)
+{
+	struct platform_device *pdev = dss->pdev;
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+	unsigned int i;
+
+	for (i = 0; i < num_ports; i++) {
+		port = of_graph_get_port_by_id(parent, i);
+		if (!port)
+			continue;
+
+		switch (dss->feat->ports[i]) {
+		case OMAP_DISPLAY_TYPE_DPI:
+			dpi_uninit_port(port);
+			break;
+		case OMAP_DISPLAY_TYPE_SDI:
+			sdi_uninit_port(port);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int dss_init_ports(struct dss_device *dss)
 {
 	struct platform_device *pdev = dss->pdev;
@@ -1168,13 +1193,13 @@ static int dss_init_ports(struct dss_device *dss)
 		case OMAP_DISPLAY_TYPE_DPI:
 			r = dpi_init_port(dss, pdev, port, dss->feat->model);
 			if (r)
-				return r;
+				goto error;
 			break;
 
 		case OMAP_DISPLAY_TYPE_SDI:
 			r = sdi_init_port(dss, pdev, port);
 			if (r)
-				return r;
+				goto error;
 			break;
 
 		default:
@@ -1183,31 +1208,15 @@ static int dss_init_ports(struct dss_device *dss)
 	}
 
 	return 0;
+
+error:
+	__dss_uninit_ports(dss, i);
+	return r;
 }
 
 static void dss_uninit_ports(struct dss_device *dss)
 {
-	struct platform_device *pdev = dss->pdev;
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
-	int i;
-
-	for (i = 0; i < dss->feat->num_ports; i++) {
-		port = of_graph_get_port_by_id(parent, i);
-		if (!port)
-			continue;
-
-		switch (dss->feat->ports[i]) {
-		case OMAP_DISPLAY_TYPE_DPI:
-			dpi_uninit_port(port);
-			break;
-		case OMAP_DISPLAY_TYPE_SDI:
-			sdi_uninit_port(port);
-			break;
-		default:
-			break;
-		}
-	}
+	__dss_uninit_ports(dss, dss->feat->num_ports);
 }
 
 static int dss_video_pll_probe(struct dss_device *dss)
@@ -1339,9 +1348,15 @@ static int dss_component_compare(struct device *dev, void *data)
 	return dev == child;
 }
 
+struct dss_component_match_data {
+	struct device *dev;
+	struct component_match **match;
+};
+
 static int dss_add_child_component(struct device *dev, void *data)
 {
-	struct component_match **match = data;
+	struct dss_component_match_data *cmatch = data;
+	struct component_match **match = cmatch->match;
 
 	/*
 	 * HACK
@@ -1352,7 +1367,17 @@ static int dss_add_child_component(struct device *dev, void *data)
 	if (strstr(dev_name(dev), "rfbi"))
 		return 0;
 
-	component_match_add(dev->parent, match, dss_component_compare, dev);
+	/*
+	 * Handle possible interconnect target modules defined within the DSS.
+	 * The DSS components can be children of an interconnect target module
+	 * after the device tree has been updated for the module data.
+	 * See also omapdss_boot_init() for compatible fixup.
+	 */
+	if (strstr(dev_name(dev), "target-module"))
+		return device_for_each_child(dev, cmatch,
+					     dss_add_child_component);
+
+	component_match_add(cmatch->dev, match, dss_component_compare, dev);
 
 	return 0;
 }
@@ -1395,6 +1420,7 @@ static int dss_probe_hardware(struct dss_device *dss)
 static int dss_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *soc;
+	struct dss_component_match_data cmatch;
 	struct component_match *match = NULL;
 	struct resource *dss_mem;
 	struct dss_device *dss;
@@ -1472,7 +1498,9 @@ static int dss_probe(struct platform_device *pdev)
 
 	omapdss_gather_components(&pdev->dev);
 
-	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
+	cmatch.dev = &pdev->dev;
+	cmatch.match = &match;
+	device_for_each_child(&pdev->dev, &cmatch, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
 	if (r)
@@ -1543,7 +1571,8 @@ static void dss_shutdown(struct platform_device *pdev)
 	DSSDBG("shutdown\n");
 
 	for_each_dss_output(dssdev) {
-		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE &&
+		    dssdev->ops && dssdev->ops->disable)
 			dssdev->ops->disable(dssdev);
 	}
 }
@@ -1598,3 +1627,40 @@ struct platform_driver omap_dsshw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
+
+/* INIT */
+static struct platform_driver * const omap_dss_drivers[] = {
+	&omap_dsshw_driver,
+	&omap_dispchw_driver,
+#ifdef CONFIG_OMAP2_DSS_DSI
+	&omap_dsihw_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+	&omap_venchw_driver,
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	&omapdss_hdmi4hw_driver,
+#endif
+#ifdef CONFIG_OMAP5_DSS_HDMI
+	&omapdss_hdmi5hw_driver,
+#endif
+};
+
+static int __init omap_dss_init(void)
+{
+	return platform_register_drivers(omap_dss_drivers,
+					 ARRAY_SIZE(omap_dss_drivers));
+}
+
+static void __exit omap_dss_exit(void)
+{
+	platform_unregister_drivers(omap_dss_drivers,
+				    ARRAY_SIZE(omap_dss_drivers));
+}
+
+module_init(omap_dss_init);
+module_exit(omap_dss_exit);
+
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
+MODULE_DESCRIPTION("OMAP2/3/4/5 Display Subsystem");
+MODULE_LICENSE("GPL v2");

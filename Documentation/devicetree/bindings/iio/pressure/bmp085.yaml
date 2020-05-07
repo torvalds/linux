@@ -25,15 +25,16 @@ properties:
       - bosch,bmp280
       - bosch,bme280
 
+  reg:
+    maxItems: 1
+
   vddd-supply:
     description:
       digital voltage regulator (see regulator/regulator.txt)
-    maxItems: 1
 
   vdda-supply:
     description:
       analog voltage regulator (see regulator/regulator.txt)
-    maxItems: 1
 
   reset-gpios:
     description:
@@ -50,6 +51,8 @@ required:
   - compatible
   - vddd-supply
   - vdda-supply
+
+additionalProperties: false
 
 examples:
   - |

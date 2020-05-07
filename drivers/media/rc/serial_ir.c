@@ -353,7 +353,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
-				dev_err(&serial_ir.pdev->dev,
+				dev_dbg(&serial_ir.pdev->dev,
 					"ignoring spike: %d %d %lldns %lldns\n",
 					dcd, sense, ktime_to_ns(kt),
 					ktime_to_ns(serial_ir.lastkt));

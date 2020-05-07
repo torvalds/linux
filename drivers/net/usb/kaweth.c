@@ -894,7 +894,7 @@ static void kaweth_async_set_rx_mode(struct kaweth_device *kaweth)
 /****************************************************************
  *     kaweth_tx_timeout
  ****************************************************************/
-static void kaweth_tx_timeout(struct net_device *net)
+static void kaweth_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	struct kaweth_device *kaweth = netdev_priv(net);
 

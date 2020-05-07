@@ -69,7 +69,7 @@ extern "C" {
 #define fourcc_code(a, b, c, d) ((__u32)(a) | ((__u32)(b) << 8) | \
 				 ((__u32)(c) << 16) | ((__u32)(d) << 24))
 
-#define DRM_FORMAT_BIG_ENDIAN (1<<31) /* format is big endian instead of little endian */
+#define DRM_FORMAT_BIG_ENDIAN (1U<<31) /* format is big endian instead of little endian */
 
 /* Reserve 0 for the invalid format specifier */
 #define DRM_FORMAT_INVALID	0
@@ -411,6 +411,30 @@ extern "C" {
 #define I915_FORMAT_MOD_Yf_TILED_CCS	fourcc_mod_code(INTEL, 5)
 
 /*
+ * Intel color control surfaces (CCS) for Gen-12 render compression.
+ *
+ * The main surface is Y-tiled and at plane index 0, the CCS is linear and
+ * at index 1. A 64B CCS cache line corresponds to an area of 4x1 tiles in
+ * main surface. In other words, 4 bits in CCS map to a main surface cache
+ * line pair. The main surface pitch is required to be a multiple of four
+ * Y-tile widths.
+ */
+#define I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS fourcc_mod_code(INTEL, 6)
+
+/*
+ * Intel color control surfaces (CCS) for Gen-12 media compression
+ *
+ * The main surface is Y-tiled and at plane index 0, the CCS is linear and
+ * at index 1. A 64B CCS cache line corresponds to an area of 4x1 tiles in
+ * main surface. In other words, 4 bits in CCS map to a main surface cache
+ * line pair. The main surface pitch is required to be a multiple of four
+ * Y-tile widths. For semi-planar formats like NV12, CCS planes follow the
+ * Y and UV planes i.e., planes 0 and 1 are used for Y and UV surfaces,
+ * planes 2 and 3 for the respective CCS.
+ */
+#define I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS fourcc_mod_code(INTEL, 7)
+
+/*
  * Tiled, NV12MT, grouped in 64 (pixels) x 32 (lines) -sized macroblocks
  *
  * Macroblocks are laid in a Z-shape, and each pixel data is following the
@@ -648,7 +672,21 @@ extern "C" {
  * Further information on the use of AFBC modifiers can be found in
  * Documentation/gpu/afbc.rst
  */
-#define DRM_FORMAT_MOD_ARM_AFBC(__afbc_mode)	fourcc_mod_code(ARM, __afbc_mode)
+
+/*
+ * The top 4 bits (out of the 56 bits alloted for specifying vendor specific
+ * modifiers) denote the category for modifiers. Currently we have only two
+ * categories of modifiers ie AFBC and MISC. We can have a maximum of sixteen
+ * different categories.
+ */
+#define DRM_FORMAT_MOD_ARM_CODE(__type, __val) \
+	fourcc_mod_code(ARM, ((__u64)(__type) << 52) | ((__val) & 0x000fffffffffffffULL))
+
+#define DRM_FORMAT_MOD_ARM_TYPE_AFBC 0x00
+#define DRM_FORMAT_MOD_ARM_TYPE_MISC 0x01
+
+#define DRM_FORMAT_MOD_ARM_AFBC(__afbc_mode) \
+	DRM_FORMAT_MOD_ARM_CODE(DRM_FORMAT_MOD_ARM_TYPE_AFBC, __afbc_mode)
 
 /*
  * AFBC superblock size
@@ -741,6 +779,16 @@ extern "C" {
  * Indicates that the buffer includes per-superblock content hints.
  */
 #define AFBC_FORMAT_MOD_BCH     (1ULL << 11)
+
+/*
+ * Arm 16x16 Block U-Interleaved modifier
+ *
+ * This is used by Arm Mali Utgard and Midgard GPUs. It divides the image
+ * into 16x16 pixel blocks. Blocks are stored linearly in order, but pixels
+ * in the block are reordered.
+ */
+#define DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED \
+	DRM_FORMAT_MOD_ARM_CODE(DRM_FORMAT_MOD_ARM_TYPE_MISC, 1ULL)
 
 /*
  * Allwinner tiled modifier

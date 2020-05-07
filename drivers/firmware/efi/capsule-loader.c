@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/highmem.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/efi.h>
@@ -167,7 +168,7 @@ static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
 static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 				 size_t count, loff_t *offp)
 {
-	int ret = 0;
+	int ret;
 	struct capsule_info *cap_info = file->private_data;
 	struct page *page;
 	void *kbuff = NULL;

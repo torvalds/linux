@@ -925,7 +925,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto out;
@@ -1076,7 +1076,7 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return ipv6_setsockopt(sk, level, optname, optval, optlen);
 	}
@@ -1099,7 +1099,7 @@ static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return compat_ipv6_setsockopt(sk, level, optname,
 					      optval, optlen);
@@ -1161,7 +1161,7 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return ipv6_getsockopt(sk, level, optname, optval, optlen);
 	}
@@ -1184,7 +1184,7 @@ static int compat_rawv6_getsockopt(struct sock *sk, int level, int optname,
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return compat_ipv6_getsockopt(sk, level, optname,
 					      optval, optlen);

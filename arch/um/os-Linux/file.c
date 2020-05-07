@@ -5,9 +5,11 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <linux/falloc.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
@@ -16,6 +18,7 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/eventfd.h>
+#include <poll.h>
 #include <os.h>
 
 static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
@@ -341,7 +344,7 @@ int os_file_size(const char *file, unsigned long long *size_out)
 	return 0;
 }
 
-int os_file_modtime(const char *file, unsigned long *modtime)
+int os_file_modtime(const char *file, long long *modtime)
 {
 	struct uml_stat buf;
 	int err;
@@ -663,4 +666,32 @@ int os_sendmsg_fds(int fd, const void *buf, unsigned int len, const int *fds,
 	if (err < 0)
 		return -errno;
 	return err;
+}
+
+int os_poll(unsigned int n, const int *fds)
+{
+	/* currently need 2 FDs at most so avoid dynamic allocation */
+	struct pollfd pollfds[2] = {};
+	unsigned int i;
+	int ret;
+
+	if (n > ARRAY_SIZE(pollfds))
+		return -EINVAL;
+
+	for (i = 0; i < n; i++) {
+		pollfds[i].fd = fds[i];
+		pollfds[i].events = POLLIN;
+	}
+
+	ret = poll(pollfds, n, -1);
+	if (ret < 0)
+		return -errno;
+
+	/* Return the index of the available FD */
+	for (i = 0; i < n; i++) {
+		if (pollfds[i].revents)
+			return i;
+	}
+
+	return -EIO;
 }

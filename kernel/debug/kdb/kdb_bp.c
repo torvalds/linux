@@ -412,7 +412,6 @@ static int kdb_bc(int argc, const char **argv)
 		 * assume that the breakpoint number is desired.
 		 */
 		if (addr < KDB_MAXBPT) {
-			bp = &kdb_breakpoints[addr];
 			lowbp = highbp = addr;
 			highbp++;
 		} else {

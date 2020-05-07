@@ -50,7 +50,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/irq_work.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/suspend.h>
 #include <linux/sched/cputime.h>
 #include <linux/processor.h>
@@ -232,7 +232,7 @@ static u64 scan_dispatch_log(u64 stop_tb)
  * Accumulate stolen time by scanning the dispatch trace log.
  * Called on entry from user mode.
  */
-void accumulate_stolen_time(void)
+void notrace accumulate_stolen_time(void)
 {
 	u64 sst, ust;
 	unsigned long save_irq_soft_mask = irq_soft_mask_return();
@@ -338,7 +338,7 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 	return stime;
 }
 
-void vtime_account_system(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
 	unsigned long stime, stime_scaled, steal_time;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
@@ -366,7 +366,7 @@ void vtime_account_system(struct task_struct *tsk)
 #endif
 	}
 }
-EXPORT_SYMBOL_GPL(vtime_account_system);
+EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
@@ -395,7 +395,7 @@ static void vtime_flush_scaled(struct task_struct *tsk,
 /*
  * Account the whole cputime accumulated in the paca
  * Must be called with interrupts disabled.
- * Assumes that vtime_account_system/idle() has been called
+ * Assumes that vtime_account_kernel/idle() has been called
  * recently (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
@@ -522,35 +522,6 @@ static inline void clear_irq_work_pending(void)
 		"i" (offsetof(struct paca_struct, irq_work_pending)));
 }
 
-void arch_irq_work_raise(void)
-{
-	preempt_disable();
-	set_irq_work_pending_flag();
-	/*
-	 * Non-nmi code running with interrupts disabled will replay
-	 * irq_happened before it re-enables interrupts, so setthe
-	 * decrementer there instead of causing a hardware exception
-	 * which would immediately hit the masked interrupt handler
-	 * and have the net effect of setting the decrementer in
-	 * irq_happened.
-	 *
-	 * NMI interrupts can not check this when they return, so the
-	 * decrementer hardware exception is raised, which will fire
-	 * when interrupts are next enabled.
-	 *
-	 * BookE does not support this yet, it must audit all NMI
-	 * interrupt handlers to ensure they call nmi_enter() so this
-	 * check would be correct.
-	 */
-	if (IS_ENABLED(CONFIG_BOOKE) || !irqs_disabled() || in_nmi()) {
-		set_dec(1);
-	} else {
-		hard_irq_disable();
-		local_paca->irq_happened |= PACA_IRQ_DEC;
-	}
-	preempt_enable();
-}
-
 #else /* 32-bit */
 
 DEFINE_PER_CPU(u8, irq_work_pending);
@@ -559,15 +530,26 @@ DEFINE_PER_CPU(u8, irq_work_pending);
 #define test_irq_work_pending()		__this_cpu_read(irq_work_pending)
 #define clear_irq_work_pending()	__this_cpu_write(irq_work_pending, 0)
 
+#endif /* 32 vs 64 bit */
+
 void arch_irq_work_raise(void)
 {
+	/*
+	 * 64-bit code that uses irq soft-mask can just cause an immediate
+	 * interrupt here that gets soft masked, if this is called under
+	 * local_irq_disable(). It might be possible to prevent that happening
+	 * by noticing interrupts are disabled and setting decrementer pending
+	 * to be replayed when irqs are enabled. The problem there is that
+	 * tracing can call irq_work_raise, including in code that does low
+	 * level manipulations of irq soft-mask state (e.g., trace_hardirqs_on)
+	 * which could get tangled up if we're messing with the same state
+	 * here.
+	 */
 	preempt_disable();
 	set_irq_work_pending_flag();
 	set_dec(1);
 	preempt_enable();
 }
-
-#endif /* 32 vs 64 bit */
 
 #else  /* CONFIG_IRQ_WORK */
 
@@ -662,15 +644,6 @@ void timer_broadcast_interrupt(void)
 	__this_cpu_inc(irq_stat.broadcast_irqs_event);
 }
 #endif
-
-/*
- * Hypervisor decrementer interrupts shouldn't occur but are sometimes
- * left pending on exit from a KVM guest.  We don't need to do anything
- * to clear them, as they are edge-triggered.
- */
-void hdec_interrupt(struct pt_regs *regs)
-{
-}
 
 #ifdef CONFIG_SUSPEND
 static void generic_suspend_disable_irqs(void)
@@ -885,7 +858,7 @@ static notrace u64 timebase_read(struct clocksource *cs)
 
 void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec xt;
+	struct timespec64 xt;
 	struct clocksource *clock = tk->tkr_mono.clock;
 	u32 mult = tk->tkr_mono.mult;
 	u32 shift = tk->tkr_mono.shift;
@@ -957,8 +930,10 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->tb_to_xs = new_tb_to_xs;
 	vdso_data->wtom_clock_sec = tk->wall_to_monotonic.tv_sec;
 	vdso_data->wtom_clock_nsec = tk->wall_to_monotonic.tv_nsec;
-	vdso_data->stamp_xtime = xt;
+	vdso_data->stamp_xtime_sec = xt.tv_sec;
+	vdso_data->stamp_xtime_nsec = xt.tv_nsec;
 	vdso_data->stamp_sec_fraction = frac_sec;
+	vdso_data->hrtimer_res = hrtimer_resolution;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }
@@ -1156,9 +1131,7 @@ void __init time_init(void)
 	init_decrementer_clockevent();
 	tick_setup_hrtimer_broadcast();
 
-#ifdef CONFIG_COMMON_CLK
 	of_clk_init(NULL);
-#endif
 }
 
 /*

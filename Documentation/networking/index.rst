@@ -8,20 +8,21 @@ Contents:
 
    netdev-FAQ
    af_xdp
+   bareudp
    batman-adv
    can
    can_ucan_protocol
    device_drivers/index
    dsa/index
-   devlink-info-versions
-   devlink-trap
-   devlink-trap-netdevsim
+   devlink/index
+   ethtool-netlink
    ieee802154
    j1939
    kapi
    z8530book
    msg_zerocopy
    failover
+   net_dim
    net_failover
    phy
    sfp-phylink
@@ -33,6 +34,8 @@ Contents:
    scaling
    tls
    tls-offload
+   nfc
+   6lowpan
 
 .. only::  subproject and html
 

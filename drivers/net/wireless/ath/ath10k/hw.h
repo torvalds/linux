@@ -379,6 +379,9 @@ struct ath10k_hw_values {
 	u8 num_target_ce_config_wlan;
 	u16 ce_desc_meta_data_mask;
 	u8 ce_desc_meta_data_lsb;
+	u32 rfkill_pin;
+	u32 rfkill_cfg;
+	bool rfkill_on_level;
 };
 
 extern const struct ath10k_hw_values qca988x_values;
@@ -610,6 +613,9 @@ struct ath10k_hw_params {
 	/* target supporting fw download via diag ce */
 	bool fw_diag_ce_download;
 
+	/* target supporting fw download via large size BMI */
+	bool bmi_large_size_download;
+
 	/* need to set uart pin if disable uart print, workaround for a
 	 * firmware bug
 	 */
@@ -768,6 +774,9 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_HL_TLV_AST_SKID_LIMIT		16
 #define TARGET_HL_TLV_NUM_WDS_ENTRIES		2
 
+/* Target specific defines for QCA9377 high latency firmware */
+#define TARGET_QCA9377_HL_NUM_PEERS		15
+
 /* Diagnostic Window */
 #define CE_DIAG_PIPE	7
 
@@ -810,7 +819,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 
 #define TARGET_10_4_TX_DBG_LOG_SIZE		1024
 #define TARGET_10_4_NUM_WDS_ENTRIES		32
-#define TARGET_10_4_DMA_BURST_SIZE		0
+#define TARGET_10_4_DMA_BURST_SIZE		1
 #define TARGET_10_4_MAC_AGGR_DELIM		0
 #define TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
 #define TARGET_10_4_VOW_CONFIG			0

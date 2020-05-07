@@ -146,7 +146,7 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pktlen = sizeof (struct ieee80211_hdr_3addr);
+	pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	/* timestamp will be inserted by hardware */
 	pframe += 8;
@@ -823,8 +823,11 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 }
 #endif /*  CONFIG_AP_WOWLAN */
 
-/*  To check if reserved page content is destroyed by beacon beacuse beacon is too large. */
-/*  2010.06.23. Added by tynli. */
+/*
+ * To check if reserved page content is destroyed by beacon because beacon
+ * is too large.
+ */
+/* 2010.06.23. Added by tynli. */
 void CheckFwRsvdPageContent(struct adapter *Adapter)
 {
 }
@@ -1409,16 +1412,20 @@ void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
 }
 #endif /* CONFIG_AP_WOWLAN */
 
-/*  */
-/*  Description: Fill the reserved packets that FW will use to RSVD page. */
-/* 			Now we just send 4 types packet to rsvd page. */
-/* 			(1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp. */
-/* 	Input: */
-/* 	    bDLFinished - false: At the first time we will send all the packets as a large packet to Hw, */
-/* 						so we need to set the packet length to total lengh. */
-/* 			      true: At the second time, we should send the first packet (default:beacon) */
-/* 						to Hw again and set the lengh in descriptor to the real beacon lengh. */
-/*  2009.10.15 by tynli. */
+/*
+ * Description: Fill the reserved packets that FW will use to RSVD page.
+ * Now we just send 4 types packet to rsvd page.
+ * (1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp.
+ *
+ * Input:
+ *
+ * bDLFinished - false: At the first time we will send all the packets as
+ * a large packet to Hw, so we need to set the packet length to total length.
+ *
+ * true: At the second time, we should send the first packet (default:beacon)
+ * to Hw again and set the length in descriptor to the real beacon length.
+ */
+/* 2009.10.15 by tynli. */
 static void rtl8723b_set_FwRsvdPagePkt(
 	struct adapter *padapter, bool bDLFinished
 )
@@ -1599,7 +1606,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 #ifdef CONFIG_GTK_OL
 	BufIndex += (CurtPktPageNum*PageSize);
 
-	/* if the ap staion info. exists, get the kek, kck from staion info. */
+	/* if the ap station info. exists, get the kek, kck from station info. */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
 	if (!psta) {
 		memset(kek, 0, RTW_KEK_LEN);
@@ -1652,7 +1659,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 
 	TotalPacketLen = BufIndex-TxDescLen + 256; /* extension memory for FW */
 #else
-	TotalPacketLen = BufIndex-TxDescLen + sizeof (union pn48); /* IV len */
+	TotalPacketLen = BufIndex - TxDescLen + sizeof(union pn48); /* IV len */
 #endif /* CONFIG_GTK_OL */
 	} else
 #endif /* CONFIG_WOWLAN */
@@ -1791,18 +1798,19 @@ error:
 }
 
 #ifdef CONFIG_AP_WOWLAN
-/*  */
-/* Description: Fill the reserved packets that FW will use to RSVD page. */
-/* Now we just send 2 types packet to rsvd page. (1)Beacon, (2)ProbeRsp. */
-/*  */
-/* Input: bDLFinished */
-/*  */
-/* false: At the first time we will send all the packets as a large packet to Hw, */
-/* 	 so we need to set the packet length to total lengh. */
-/*  */
-/* true: At the second time, we should send the first packet (default:beacon) */
-/* 	to Hw again and set the lengh in descriptor to the real beacon lengh. */
-/*  2009.10.15 by tynli. */
+/*
+ * Description: Fill the reserved packets that FW will use to RSVD page.
+ * Now we just send 2 types packet to rsvd page. (1)Beacon, (2)ProbeRsp.
+ *
+ * Input: bDLFinished
+ *
+ * false: At the first time we will send all the packets as a large packet to
+ * Hw, so we need to set the packet length to total length.
+ *
+ * true: At the second time, we should send the first packet (default:beacon)
+ * to Hw again and set the length in descriptor to the real beacon length.
+ */
+/* 2009.10.15 by tynli. */
 static void rtl8723b_set_AP_FwRsvdPagePkt(
 	struct adapter *padapter, bool bDLFinished
 )
@@ -2071,8 +2079,6 @@ static void ConstructBtNullFunctionData(
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
 	u32 pktlen;
-	struct mlme_ext_priv *pmlmeext;
-	struct mlme_ext_info *pmlmeinfo;
 	u8 bssid[ETH_ALEN];
 
 
@@ -2080,8 +2086,6 @@ static void ConstructBtNullFunctionData(
 		FUNC_ADPT_ARG(padapter), bQoS, bEosp, bForcePowerSave);
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
-	pmlmeext = &padapter->mlmeextpriv;
-	pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (!StaAddr) {
 		memcpy(bssid, myid(&padapter->eeprompriv), ETH_ALEN);
@@ -2122,12 +2126,9 @@ static void ConstructBtNullFunctionData(
 
 static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 {
-	struct hal_com_data *pHalData;
 	struct xmit_frame *pcmdframe;
 	struct pkt_attrib *pattrib;
 	struct xmit_priv *pxmitpriv;
-	struct mlme_ext_priv *pmlmeext;
-	struct mlme_ext_info *pmlmeinfo;
 	u32 BeaconLength = 0;
 	u32 BTQosNullLength = 0;
 	u8 *ReservedPagePacket;
@@ -2140,10 +2141,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 
 /* 	DBG_8192C("+" FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(padapter)); */
 
-	pHalData = GET_HAL_DATA(padapter);
 	pxmitpriv = &padapter->xmitpriv;
-	pmlmeext = &padapter->mlmeextpriv;
-	pmlmeinfo = &pmlmeext->mlmext_info;
 	TxDescLen = TXDESC_SIZE;
 	TxDescOffset = TXDESC_OFFSET;
 	PageSize = PAGE_SIZE_TX_8723B;

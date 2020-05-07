@@ -263,7 +263,7 @@ bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 
 		pf->af->from_sk(&addr, sk);
 		pf->to_sk_daddr(&t->ipaddr, sk);
-		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
+		dst->ops->update_pmtu(dst, sk, NULL, pmtu, true);
 		pf->to_sk_daddr(&addr, sk);
 
 		dst = sctp_transport_dst_check(t);
@@ -334,7 +334,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		pr_debug("%s: rto_pending not set on transport %p!\n", __func__, tp);
 
 	if (tp->rttvar || tp->srtt) {
-		struct net *net = sock_net(tp->asoc->base.sk);
+		struct net *net = tp->asoc->base.net;
 		/* 6.3.1 C3) When a new RTT measurement R' is made, set
 		 * RTTVAR <- (1 - RTO.Beta) * RTTVAR + RTO.Beta * |SRTT - R'|
 		 * SRTT <- (1 - RTO.Alpha) * SRTT + RTO.Alpha * R'

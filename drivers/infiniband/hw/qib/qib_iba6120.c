@@ -1417,7 +1417,6 @@ static void qib_6120_quiet_serdes(struct qib_pportdata *ppd)
  *
  * The exact combo of LEDs if on is true is determined by looking
  * at the ibcstatus.
-
  * These LEDs indicate the physical and logical state of IB link.
  * For this chip (at least with recommended board pinouts), LED1
  * is Yellow (logical state) and LED2 is Green (physical state),

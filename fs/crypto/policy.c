@@ -29,6 +29,43 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
+{
+	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
+	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
+		return true;
+
+	if (contents_mode == FSCRYPT_MODE_AES_128_CBC &&
+	    filenames_mode == FSCRYPT_MODE_AES_128_CTS)
+		return true;
+
+	if (contents_mode == FSCRYPT_MODE_ADIANTUM &&
+	    filenames_mode == FSCRYPT_MODE_ADIANTUM)
+		return true;
+
+	return false;
+}
+
+static bool supported_direct_key_modes(const struct inode *inode,
+				       u32 contents_mode, u32 filenames_mode)
+{
+	const struct fscrypt_mode *mode;
+
+	if (contents_mode != filenames_mode) {
+		fscrypt_warn(inode,
+			     "Direct key flag not allowed with different contents and filenames modes");
+		return false;
+	}
+	mode = &fscrypt_modes[contents_mode];
+
+	if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
+		fscrypt_warn(inode, "Direct key flag not allowed with %s",
+			     mode->friendly_name);
+		return false;
+	}
+	return true;
+}
+
 static bool supported_iv_ino_lblk_64_policy(
 					const struct fscrypt_policy_v2 *policy,
 					const struct inode *inode)
@@ -63,13 +100,82 @@ static bool supported_iv_ino_lblk_64_policy(
 	return true;
 }
 
+static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
+					const struct inode *inode)
+{
+	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+				     policy->filenames_encryption_mode)) {
+		fscrypt_warn(inode,
+			     "Unsupported encryption modes (contents %d, filenames %d)",
+			     policy->contents_encryption_mode,
+			     policy->filenames_encryption_mode);
+		return false;
+	}
+
+	if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
+			      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
+		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+			     policy->flags);
+		return false;
+	}
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
+
+	if (IS_CASEFOLDED(inode)) {
+		/* With v1, there's no way to derive dirhash keys. */
+		fscrypt_warn(inode,
+			     "v1 policies can't be used on casefolded directories");
+		return false;
+	}
+
+	return true;
+}
+
+static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
+					const struct inode *inode)
+{
+	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+				     policy->filenames_encryption_mode)) {
+		fscrypt_warn(inode,
+			     "Unsupported encryption modes (contents %d, filenames %d)",
+			     policy->contents_encryption_mode,
+			     policy->filenames_encryption_mode);
+		return false;
+	}
+
+	if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
+		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+			     policy->flags);
+		return false;
+	}
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
+	    !supported_iv_ino_lblk_64_policy(policy, inode))
+		return false;
+
+	if (memchr_inv(policy->__reserved, 0, sizeof(policy->__reserved))) {
+		fscrypt_warn(inode, "Reserved bits set in encryption policy");
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * fscrypt_supported_policy - check whether an encryption policy is supported
  *
  * Given an encryption policy, check whether all its encryption modes and other
- * settings are supported by this kernel.  (But we don't currently don't check
- * for crypto API support here, so attempting to use an algorithm not configured
- * into the crypto API will still fail later.)
+ * settings are supported by this kernel on the given inode.  (But we don't
+ * currently don't check for crypto API support here, so attempting to use an
+ * algorithm not configured into the crypto API will still fail later.)
  *
  * Return: %true if supported, else %false
  */
@@ -77,60 +183,10 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 			      const struct inode *inode)
 {
 	switch (policy_u->version) {
-	case FSCRYPT_POLICY_V1: {
-		const struct fscrypt_policy_v1 *policy = &policy_u->v1;
-
-		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
-					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption modes (contents %d, filenames %d)",
-				     policy->contents_encryption_mode,
-				     policy->filenames_encryption_mode);
-			return false;
-		}
-
-		if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
-				      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption flags (0x%02x)",
-				     policy->flags);
-			return false;
-		}
-
-		return true;
-	}
-	case FSCRYPT_POLICY_V2: {
-		const struct fscrypt_policy_v2 *policy = &policy_u->v2;
-
-		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
-					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption modes (contents %d, filenames %d)",
-				     policy->contents_encryption_mode,
-				     policy->filenames_encryption_mode);
-			return false;
-		}
-
-		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption flags (0x%02x)",
-				     policy->flags);
-			return false;
-		}
-
-		if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
-		    !supported_iv_ino_lblk_64_policy(policy, inode))
-			return false;
-
-		if (memchr_inv(policy->__reserved, 0,
-			       sizeof(policy->__reserved))) {
-			fscrypt_warn(inode,
-				     "Reserved bits set in encryption policy");
-			return false;
-		}
-
-		return true;
-	}
+	case FSCRYPT_POLICY_V1:
+		return fscrypt_supported_v1_policy(&policy_u->v1, inode);
+	case FSCRYPT_POLICY_V2:
+		return fscrypt_supported_v2_policy(&policy_u->v2, inode);
 	}
 	return false;
 }
@@ -202,7 +258,7 @@ int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 {
 	memset(policy_u, 0, sizeof(*policy_u));
 
-	if (ctx_size <= 0 || ctx_size != fscrypt_context_size(ctx_u))
+	if (!fscrypt_context_is_valid(ctx_u, ctx_size))
 		return -EINVAL;
 
 	switch (ctx_u->version) {
@@ -424,6 +480,25 @@ int fscrypt_ioctl_get_policy_ex(struct file *filp, void __user *uarg)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_policy_ex);
+
+/* FS_IOC_GET_ENCRYPTION_NONCE: retrieve file's encryption nonce for testing */
+int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
+{
+	struct inode *inode = file_inode(filp);
+	union fscrypt_context ctx;
+	int ret;
+
+	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	if (ret < 0)
+		return ret;
+	if (!fscrypt_context_is_valid(&ctx, ret))
+		return -EINVAL;
+	if (copy_to_user(arg, fscrypt_context_nonce(&ctx),
+			 FS_KEY_DERIVATION_NONCE_SIZE))
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_nonce);
 
 /**
  * fscrypt_has_permitted_context() - is a file's encryption policy permitted

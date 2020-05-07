@@ -4,6 +4,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 
 / {
@@ -308,7 +309,7 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	status = "disabled";
+	status = "okay";
 
 	oled: oled@3d {
 		compatible = "solomon,ssd1305fb-i2c";
@@ -328,6 +329,18 @@
 		#gpio-cells = <2>;
 		reg = <0x41>;
 		vcc-supply = <&sw2_reg>;
+		status = "disabled";
+	};
+
+	touchkeys: keys@5a {
+		compatible = "fsl,mpr121-touchkey";
+		reg = <0x5a>;
+		vdd-supply = <&sw2_reg>;
+		autorepeat;
+		linux,keycodes = <KEY_1>, <KEY_2>, <KEY_3>, <KEY_4>, <KEY_5>,
+				<KEY_6>, <KEY_7>, <KEY_8>, <KEY_9>,
+				<KEY_BACKSPACE>, <KEY_0>, <KEY_ENTER>;
+		poll-interval = <50>;
 		status = "disabled";
 	};
 };
@@ -447,6 +460,13 @@
 		>;
 	};
 
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_7__UART2_TX_DATA	0x1b098
+			MX6QDL_PAD_GPIO_8__UART2_RX_DATA	0x1b098
+		>;
+	};
+
 	pinctrl_usbh1: usbh1grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D30__USB_H1_OC	0x1b098
@@ -532,10 +552,17 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
 &usbh1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
 	vbus-supply = <&reg_usb_h1_vbus>;
+	over-current-active-low;
 	status = "disabled";
 };
 
@@ -543,6 +570,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	vbus-supply = <&reg_usb_otg_vbus>;
+	over-current-active-low;
 	srp-disable;
 	hnp-disable;
 	adp-disable;

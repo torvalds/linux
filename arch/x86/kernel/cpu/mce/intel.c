@@ -115,15 +115,16 @@ static bool lmce_supported(void)
 
 	/*
 	 * BIOS should indicate support for LMCE by setting bit 20 in
-	 * IA32_FEATURE_CONTROL without which touching MCG_EXT_CTL will
-	 * generate a #GP fault.
+	 * IA32_FEAT_CTL without which touching MCG_EXT_CTL will generate a #GP
+	 * fault.  The MSR must also be locked for LMCE_ENABLED to take effect.
+	 * WARN if the MSR isn't locked as init_ia32_feat_ctl() unconditionally
+	 * locks the MSR in the event that it wasn't already locked by BIOS.
 	 */
-	rdmsrl(MSR_IA32_FEATURE_CONTROL, tmp);
-	if ((tmp & (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE)) ==
-		   (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE))
-		return true;
+	rdmsrl(MSR_IA32_FEAT_CTL, tmp);
+	if (WARN_ON_ONCE(!(tmp & FEAT_CTL_LOCKED)))
+		return false;
 
-	return false;
+	return tmp & FEAT_CTL_LMCE_ENABLED;
 }
 
 bool mce_intel_cmci_poll(void)
@@ -492,17 +493,18 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 			return;
 
 		if ((val & 3UL) == 1UL) {
-			/* PPIN available but disabled: */
+			/* PPIN locked in disabled mode */
 			return;
 		}
 
-		/* If PPIN is disabled, but not locked, try to enable: */
-		if (!(val & 3UL)) {
+		/* If PPIN is disabled, try to enable */
+		if (!(val & 2UL)) {
 			wrmsrl_safe(MSR_PPIN_CTL,  val | 2UL);
 			rdmsrl_safe(MSR_PPIN_CTL, &val);
 		}
 
-		if ((val & 3UL) == 2UL)
+		/* Is the enable bit set? */
+		if (val & 2UL)
 			set_cpu_cap(c, X86_FEATURE_INTEL_PPIN);
 	}
 }
@@ -518,4 +520,21 @@ void mce_intel_feature_init(struct cpuinfo_x86 *c)
 void mce_intel_feature_clear(struct cpuinfo_x86 *c)
 {
 	intel_clear_lmce();
+}
+
+bool intel_filter_mce(struct mce *m)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	/* MCE errata HSD131, HSM142, HSW131, BDM48, and HSM142 */
+	if ((c->x86 == 6) &&
+	    ((c->x86_model == INTEL_FAM6_HASWELL) ||
+	     (c->x86_model == INTEL_FAM6_HASWELL_L) ||
+	     (c->x86_model == INTEL_FAM6_BROADWELL) ||
+	     (c->x86_model == INTEL_FAM6_HASWELL_G)) &&
+	    (m->bank == 0) &&
+	    ((m->status & 0xa0000000ffffffff) == 0x80000000000f0005))
+		return true;
+
+	return false;
 }

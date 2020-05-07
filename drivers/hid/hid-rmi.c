@@ -217,7 +217,6 @@ static int rmi_hid_read_block(struct rmi_transport_dev *xport, u16 addr,
 		ret = rmi_write_report(hdev, data->writeReport,
 						data->output_report_size);
 		if (ret != data->output_report_size) {
-			clear_bit(RMI_READ_REQUEST_PENDING, &data->flags);
 			dev_err(&hdev->dev,
 				"failed to write request output report (%d)\n",
 				ret);
@@ -744,7 +743,8 @@ static void rmi_remove(struct hid_device *hdev)
 {
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
-	if (hdata->device_flags & RMI_DEVICE) {
+	if ((hdata->device_flags & RMI_DEVICE)
+	    && test_bit(RMI_STARTED, &hdata->flags)) {
 		clear_bit(RMI_STARTED, &hdata->flags);
 		cancel_work_sync(&hdata->reset_work);
 		rmi_unregister_transport_device(&hdata->xport);

@@ -12,13 +12,16 @@
 
 #include "lima_drv.h"
 #include "lima_gem.h"
-#include "lima_gem_prime.h"
 #include "lima_vm.h"
 
 int lima_sched_timeout_ms;
+uint lima_heap_init_nr_pages = 8;
 
 MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms");
 module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
+
+MODULE_PARM_DESC(heap_init_nr_pages, "heap buffer init number of pages");
+module_param_named(heap_init_nr_pages, lima_heap_init_nr_pages, uint, 0444);
 
 static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_file *file)
 {
@@ -69,7 +72,7 @@ static int lima_ioctl_gem_create(struct drm_device *dev, void *data, struct drm_
 	if (args->pad)
 		return -EINVAL;
 
-	if (args->flags)
+	if (args->flags & ~(LIMA_BO_FLAG_HEAP))
 		return -EINVAL;
 
 	if (args->size == 0)
@@ -240,16 +243,13 @@ static const struct drm_ioctl_desc lima_drm_driver_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(LIMA_CTX_FREE, lima_ioctl_ctx_free, DRM_RENDER_ALLOW),
 };
 
-static const struct file_operations lima_drm_driver_fops = {
-	.owner              = THIS_MODULE,
-	.open               = drm_open,
-	.release            = drm_release,
-	.unlocked_ioctl     = drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl       = drm_compat_ioctl,
-#endif
-	.mmap               = lima_gem_mmap,
-};
+DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
+
+/**
+ * Changelog:
+ *
+ * - 1.1.0 - add heap buffer support
+ */
 
 static struct drm_driver lima_drm_driver = {
 	.driver_features    = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
@@ -258,22 +258,18 @@ static struct drm_driver lima_drm_driver = {
 	.ioctls             = lima_drm_driver_ioctls,
 	.num_ioctls         = ARRAY_SIZE(lima_drm_driver_ioctls),
 	.fops               = &lima_drm_driver_fops,
-	.gem_free_object_unlocked = lima_gem_free_object,
-	.gem_open_object    = lima_gem_object_open,
-	.gem_close_object   = lima_gem_object_close,
-	.gem_vm_ops         = &lima_gem_vm_ops,
 	.name               = "lima",
 	.desc               = "lima DRM",
-	.date               = "20190217",
+	.date               = "20191231",
 	.major              = 1,
-	.minor              = 0,
+	.minor              = 1,
 	.patchlevel         = 0,
 
+	.gem_create_object  = lima_gem_create_object,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import_sg_table = lima_gem_prime_import_sg_table,
+	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.gem_prime_get_sg_table = lima_gem_prime_get_sg_table,
-	.gem_prime_mmap = lima_gem_prime_mmap,
+	.gem_prime_mmap = drm_gem_prime_mmap,
 };
 
 static int lima_pdev_probe(struct platform_device *pdev)

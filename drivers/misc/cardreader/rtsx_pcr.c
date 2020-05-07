@@ -22,6 +22,7 @@
 #include <asm/unaligned.h>
 
 #include "rtsx_pcr.h"
+#include "rts5261.h"
 
 static bool msi_en = true;
 module_param(msi_en, bool, S_IRUGO | S_IWUSR);
@@ -33,9 +34,6 @@ static DEFINE_SPINLOCK(rtsx_pci_lock);
 static struct mfd_cell rtsx_pcr_cells[] = {
 	[RTSX_SD_CARD] = {
 		.name = DRV_NAME_RTSX_PCI_SDMMC,
-	},
-	[RTSX_MS_CARD] = {
-		.name = DRV_NAME_RTSX_PCI_MS,
 	},
 };
 
@@ -51,6 +49,7 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 	{ PCI_DEVICE(0x10EC, 0x524A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x525A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5260), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5261), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ 0, }
 };
 
@@ -438,8 +437,16 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 
 	if (end)
 		option |= RTSX_SG_END;
-	val = ((u64)addr << 32) | ((u64)len << 12) | option;
 
+	if (PCI_PID(pcr) == PID_5261) {
+		if (len > 0xFFFF)
+			val = ((u64)addr << 32) | (((u64)len & 0xFFFF) << 16)
+				| (((u64)len >> 16) << 6) | option;
+		else
+			val = ((u64)addr << 32) | ((u64)len << 16) | option;
+	} else {
+		val = ((u64)addr << 32) | ((u64)len << 12) | option;
+	}
 	put_unaligned_le64(val, ptr);
 	pcr->sgi++;
 }
@@ -684,7 +691,6 @@ int rtsx_pci_card_pull_ctl_disable(struct rtsx_pcr *pcr, int card)
 	else
 		return -EINVAL;
 
-
 	return rtsx_pci_set_pull_ctl(pcr, tbl);
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_card_pull_ctl_disable);
@@ -734,6 +740,10 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		[RTSX_SSC_DEPTH_500K] = SSC_DEPTH_500K,
 		[RTSX_SSC_DEPTH_250K] = SSC_DEPTH_250K,
 	};
+
+	if (PCI_PID(pcr) == PID_5261)
+		return rts5261_pci_switch_clock(pcr, card_clock,
+				ssc_depth, initial_mode, double_clk, vpclk);
 
 	if (initial_mode) {
 		/* We use 250k(around) here, in initial stage */
@@ -1253,7 +1263,15 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	rtsx_pci_enable_bus_int(pcr);
 
 	/* Power on SSC */
-	err = rtsx_pci_write_register(pcr, FPDCTL, SSC_POWER_DOWN, 0);
+	if (PCI_PID(pcr) == PID_5261) {
+		/* Gating real mcu clock */
+		err = rtsx_pci_write_register(pcr, RTS5261_FW_CFG1,
+			RTS5261_MCU_CLOCK_GATING, 0);
+		err = rtsx_pci_write_register(pcr, RTS5261_REG_FPDCTL,
+			SSC_POWER_DOWN, 0);
+	} else {
+		err = rtsx_pci_write_register(pcr, FPDCTL, SSC_POWER_DOWN, 0);
+	}
 	if (err < 0)
 		return err;
 
@@ -1283,7 +1301,12 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	/* Enable SSC Clock */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1,
 			0xFF, SSC_8X_EN | SSC_SEL_4M);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF, 0x12);
+	if (PCI_PID(pcr) == PID_5261)
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,
+			RTS5261_SSC_DEPTH_2M);
+	else
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF, 0x12);
+
 	/* Disable cd_pwr_save */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CHANGE_LINK_STATE, 0x16, 0x10);
 	/* Clear Link Ready Interrupt */
@@ -1314,6 +1337,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	case PID_524A:
 	case PID_525A:
 	case PID_5260:
+	case PID_5261:
 		rtsx_pci_write_register(pcr, PM_CLK_FORCE_CTL, 1, 1);
 		break;
 	default:
@@ -1393,8 +1417,13 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	case 0x5286:
 		rtl8402_init_params(pcr);
 		break;
+
 	case 0x5260:
 		rts5260_init_params(pcr);
+		break;
+
+	case 0x5261:
+		rts5261_init_params(pcr);
 		break;
 	}
 
@@ -1483,7 +1512,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		bar = 1;
 	len = pci_resource_len(pcidev, bar);
 	base = pci_resource_start(pcidev, bar);
-	pcr->remap_addr = ioremap_nocache(base, len);
+	pcr->remap_addr = ioremap(base, len);
 	if (!pcr->remap_addr) {
 		ret = -ENOMEM;
 		goto free_handle;

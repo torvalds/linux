@@ -119,7 +119,7 @@ static int mcs_statistics_show(struct seq_file *s, void *p)
 		"cch_interrupt_sync", "cch_deallocate", "tfh_write_only",
 		"tfh_write_restart", "tgh_invalidate"};
 
-	seq_printf(s, "%-20s%12s%12s%12s\n", "#id", "count", "aver-clks", "max-clks");
+	seq_puts(s, "#id                        count   aver-clks    max-clks\n");
 	for (op = 0; op < mcsop_last; op++) {
 		count = atomic_long_read(&mcs_op_statistics[op].count);
 		total = atomic_long_read(&mcs_op_statistics[op].total);
@@ -165,8 +165,7 @@ static int cch_seq_show(struct seq_file *file, void *data)
 	const char *mode[] = { "??", "UPM", "INTR", "OS_POLL" };
 
 	if (gid == 0)
-		seq_printf(file, "#%5s%5s%6s%7s%9s%6s%8s%8s\n", "gid", "bid",
-			   "ctx#", "asid", "pid", "cbrs", "dsbytes", "mode");
+		seq_puts(file, "#  gid  bid  ctx#   asid      pid  cbrs dsbytes    mode\n");
 	if (gru)
 		for (i = 0; i < GRU_NUM_CCH; i++) {
 			ts = gru->gs_gts[i];
@@ -191,10 +190,8 @@ static int gru_seq_show(struct seq_file *file, void *data)
 	struct gru_state *gru = GID_TO_GRU(gid);
 
 	if (gid == 0) {
-		seq_printf(file, "#%5s%5s%7s%6s%6s%8s%6s%6s\n", "gid", "nid",
-			   "ctx", "cbr", "dsr", "ctx", "cbr", "dsr");
-		seq_printf(file, "#%5s%5s%7s%6s%6s%8s%6s%6s\n", "", "", "busy",
-			   "busy", "busy", "free", "free", "free");
+		seq_puts(file, "#  gid  nid    ctx   cbr   dsr     ctx   cbr   dsr\n");
+		seq_puts(file, "#             busy  busy  busy    free  free  free\n");
 	}
 	if (gru) {
 		ctxfree = GRU_NUM_CCH - gru->gs_active_contexts;
@@ -258,28 +255,28 @@ static int options_open(struct inode *inode, struct file *file)
 }
 
 /* *INDENT-OFF* */
-static const struct file_operations statistics_fops = {
-	.open 		= statistics_open,
-	.read 		= seq_read,
-	.write 		= statistics_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops statistics_proc_ops = {
+	.proc_open	= statistics_open,
+	.proc_read	= seq_read,
+	.proc_write	= statistics_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
-static const struct file_operations mcs_statistics_fops = {
-	.open 		= mcs_statistics_open,
-	.read 		= seq_read,
-	.write 		= mcs_statistics_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops mcs_statistics_proc_ops = {
+	.proc_open	= mcs_statistics_open,
+	.proc_read	= seq_read,
+	.proc_write	= mcs_statistics_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
-static const struct file_operations options_fops = {
-	.open 		= options_open,
-	.read 		= seq_read,
-	.write 		= options_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops options_proc_ops = {
+	.proc_open	= options_open,
+	.proc_read	= seq_read,
+	.proc_write	= options_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static struct proc_dir_entry *proc_gru __read_mostly;
@@ -289,11 +286,11 @@ int gru_proc_init(void)
 	proc_gru = proc_mkdir("sgi_uv/gru", NULL);
 	if (!proc_gru)
 		return -1;
-	if (!proc_create("statistics", 0644, proc_gru, &statistics_fops))
+	if (!proc_create("statistics", 0644, proc_gru, &statistics_proc_ops))
 		goto err;
-	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_fops))
+	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_proc_ops))
 		goto err;
-	if (!proc_create("debug_options", 0644, proc_gru, &options_fops))
+	if (!proc_create("debug_options", 0644, proc_gru, &options_proc_ops))
 		goto err;
 	if (!proc_create_seq("cch_status", 0444, proc_gru, &cch_seq_ops))
 		goto err;

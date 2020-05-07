@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -26,9 +26,8 @@ struct kpc_dma_device *kpc_dma_lookup_device(int minor)
 
 	mutex_lock(&kpc_dma_mtx);
 	list_for_each_entry(c, &kpc_dma_list, list) {
-		if (c->pldev->id == minor) {
+		if (c->pldev->id == minor)
 			goto out;
-		}
 	}
 	c = NULL; // not-found case
 out:
@@ -98,7 +97,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 	int rv = 0;
 	dev_t dev;
 
-	struct kpc_dma_device *ldev = kzalloc(sizeof(struct kpc_dma_device), GFP_KERNEL);
+	struct kpc_dma_device *ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 
 	if (!ldev) {
 		dev_err(&pldev->dev, "%s: unable to kzalloc space for kpc_dma_device\n", __func__);
@@ -122,7 +121,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		rv = -ENXIO;
 		goto err_kfree;
 	}
-	ldev->eng_regs = ioremap_nocache(r->start, resource_size(r));
+	ldev->eng_regs = ioremap(r->start, resource_size(r));
 	if (!ldev->eng_regs) {
 		dev_err(&ldev->pldev->dev, "%s: failed to ioremap engine regs!\n", __func__);
 		rv = -ENXIO;

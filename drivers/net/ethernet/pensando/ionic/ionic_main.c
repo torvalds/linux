@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/utsname.h>
+#include <linux/vermagic.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -15,7 +16,6 @@
 MODULE_DESCRIPTION(IONIC_DRV_DESCRIPTION);
 MODULE_AUTHOR("Pensando Systems, Inc");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(IONIC_DRV_VERSION);
 
 static const char *ionic_error_to_str(enum ionic_status_code code)
 {
@@ -58,6 +58,8 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 		return "IONIC_RC_BAD_ADDR";
 	case IONIC_RC_DEV_CMD:
 		return "IONIC_RC_DEV_CMD";
+	case IONIC_RC_ENOSUPP:
+		return "IONIC_RC_ENOSUPP";
 	case IONIC_RC_ERROR:
 		return "IONIC_RC_ERROR";
 	case IONIC_RC_ERDMA:
@@ -76,6 +78,7 @@ static int ionic_error_to_errno(enum ionic_status_code code)
 	case IONIC_RC_EQTYPE:
 	case IONIC_RC_EQID:
 	case IONIC_RC_EINVAL:
+	case IONIC_RC_ENOSUPP:
 		return -EINVAL;
 	case IONIC_RC_EPERM:
 		return -EPERM;
@@ -165,6 +168,10 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_FW_DOWNLOAD";
 	case IONIC_CMD_FW_CONTROL:
 		return "IONIC_CMD_FW_CONTROL";
+	case IONIC_CMD_VF_GETATTR:
+		return "IONIC_CMD_VF_GETATTR";
+	case IONIC_CMD_VF_SETATTR:
+		return "IONIC_CMD_VF_SETATTR";
 	default:
 		return "DEVCMD_UNKNOWN";
 	}
@@ -236,16 +243,25 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 
 static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
-	struct ionic_queue *adminq = &lif->adminqcq->q;
+	struct ionic_queue *adminq;
 	int err = 0;
 
 	WARN_ON(in_interrupt());
+
+	if (!lif->adminqcq)
+		return -EIO;
+
+	adminq = &lif->adminqcq->q;
 
 	spin_lock(&lif->adminq_lock);
 	if (!ionic_q_has_space(adminq, 1)) {
 		err = -ENOSPC;
 		goto err_out;
 	}
+
+	err = ionic_heartbeat_check(lif->ionic);
+	if (err)
+		goto err_out;
 
 	memcpy(adminq->head->desc, &ctx->cmd, sizeof(ctx->cmd));
 
@@ -270,9 +286,11 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 
 	err = ionic_adminq_post(lif, ctx);
 	if (err) {
-		name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
-		netdev_err(netdev, "Posting of %s (%d) failed: %d\n",
-			   name, ctx->cmd.cmd.opcode, err);
+		if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+			name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
+			netdev_err(netdev, "Posting of %s (%d) failed: %d\n",
+				   name, ctx->cmd.cmd.opcode, err);
+		}
 		return err;
 	}
 
@@ -307,6 +325,14 @@ int ionic_napi(struct napi_struct *napi, int budget, ionic_cq_cb cb,
 	return work_done;
 }
 
+static void ionic_dev_cmd_clean(struct ionic *ionic)
+{
+	union ionic_dev_cmd_regs *regs = ionic->idev.dev_cmd_regs;
+
+	iowrite32(0, &regs->doorbell);
+	memset_io(&regs->cmd, 0, sizeof(regs->cmd));
+}
+
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -314,6 +340,7 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 	unsigned long max_wait;
 	unsigned long duration;
 	int opcode;
+	int hb = 0;
 	int done;
 	int err;
 
@@ -330,7 +357,8 @@ try_again:
 		if (done)
 			break;
 		msleep(20);
-	} while (!done && time_before(jiffies, max_wait));
+		hb = ionic_heartbeat_check(ionic);
+	} while (!done && !hb && time_before(jiffies, max_wait));
 	duration = jiffies - start_time;
 
 	opcode = idev->dev_cmd_regs->cmd.cmd.opcode;
@@ -338,7 +366,18 @@ try_again:
 		ionic_opcode_to_str(opcode), opcode,
 		done, duration / HZ, duration);
 
+	if (!done && hb) {
+		/* It is possible (but unlikely) that FW was busy and missed a
+		 * heartbeat check but is still alive and will process this
+		 * request, so don't clean the dev_cmd in this case.
+		 */
+		dev_warn(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
+			 ionic_opcode_to_str(opcode), opcode);
+		return -ENXIO;
+	}
+
 	if (!done && !time_before(jiffies, max_wait)) {
+		ionic_dev_cmd_clean(ionic);
 		dev_warn(ionic->dev, "DEVCMD %s (%d) timeout after %ld secs\n",
 			 ionic_opcode_to_str(opcode), opcode, max_seconds);
 		return -ETIMEDOUT;
@@ -388,7 +427,7 @@ int ionic_identify(struct ionic *ionic)
 	memset(ident, 0, sizeof(*ident));
 
 	ident->drv.os_type = cpu_to_le32(IONIC_OS_TYPE_LINUX);
-	strncpy(ident->drv.driver_ver_str, IONIC_DRV_VERSION,
+	strncpy(ident->drv.driver_ver_str, UTS_RELEASE,
 		sizeof(ident->drv.driver_ver_str) - 1);
 
 	mutex_lock(&ionic->dev_cmd_lock);
@@ -532,8 +571,6 @@ int ionic_port_reset(struct ionic *ionic)
 
 static int __init ionic_init_module(void)
 {
-	pr_info("%s %s, ver %s\n",
-		IONIC_DRV_NAME, IONIC_DRV_DESCRIPTION, IONIC_DRV_VERSION);
 	ionic_debugfs_create();
 	return ionic_bus_register_driver();
 }

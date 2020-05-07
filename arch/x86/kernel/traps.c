@@ -37,11 +37,6 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-
-#if defined(CONFIG_EDAC)
-#include <linux/edac.h>
-#endif
-
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
 #include <asm/debugreg.h>
@@ -51,16 +46,17 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/fpu/internal.h>
+#include <asm/cpu.h>
 #include <asm/cpu_entry_area.h>
 #include <asm/mce.h>
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
 #include <asm/alternative.h>
 #include <asm/fpu/xstate.h>
-#include <asm/trace/mpx.h>
-#include <asm/mpx.h>
 #include <asm/vm86.h>
 #include <asm/umip.h>
+#include <asm/insn.h>
+#include <asm/insn-eval.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
@@ -247,7 +243,6 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 {
 	struct task_struct *tsk = current;
 
-
 	if (!do_trap_no_signal(tsk, trapnr, str, regs, error_code))
 		return;
 
@@ -293,8 +288,28 @@ DO_ERROR(X86_TRAP_OLD_MF, SIGFPE,           0, NULL, "coprocessor segment overru
 DO_ERROR(X86_TRAP_TS,     SIGSEGV,          0, NULL, "invalid TSS",         invalid_TSS)
 DO_ERROR(X86_TRAP_NP,     SIGBUS,           0, NULL, "segment not present", segment_not_present)
 DO_ERROR(X86_TRAP_SS,     SIGBUS,           0, NULL, "stack segment",       stack_segment)
-DO_ERROR(X86_TRAP_AC,     SIGBUS,  BUS_ADRALN, NULL, "alignment check",     alignment_check)
 #undef IP
+
+dotraplinkage void do_alignment_check(struct pt_regs *regs, long error_code)
+{
+	char *str = "alignment check";
+
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+
+	if (notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_AC, SIGBUS) == NOTIFY_STOP)
+		return;
+
+	if (!user_mode(regs))
+		die("Split lock detected\n", regs, error_code);
+
+	local_irq_enable();
+
+	if (handle_user_split_lock(regs, error_code))
+		return;
+
+	do_trap(X86_TRAP_AC, SIGBUS, "alignment check", regs,
+		error_code, BUS_ADRALN, NULL);
+}
 
 #ifdef CONFIG_VMAP_STACK
 __visible void __noreturn handle_stack_overflow(const char *message,
@@ -311,8 +326,23 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 }
 #endif
 
-#ifdef CONFIG_X86_64
-/* Runs on IST stack */
+#if defined(CONFIG_X86_64) || defined(CONFIG_DOUBLEFAULT)
+/*
+ * Runs on an IST stack for x86_64 and on a special task stack for x86_32.
+ *
+ * On x86_64, this is more or less a normal kernel entry.  Notwithstanding the
+ * SDM's warnings about double faults being unrecoverable, returning works as
+ * expected.  Presumably what the SDM actually means is that the CPU may get
+ * the register state wrong on entry, so returning could be a bad idea.
+ *
+ * Various CPU engineers have promised that double faults due to an IRET fault
+ * while the stack is read-only are, in fact, recoverable.
+ *
+ * On x86_32, this is entered through a task gate, and regs are synthesized
+ * from the TSS.  Returning is, in principle, okay, but changes to regs will
+ * be lost.  If, for some reason, we need to return to a context with modified
+ * regs, the shim code could be adjusted to synchronize the registers.
+ */
 dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsigned long cr2)
 {
 	static const char str[] = "double fault";
@@ -416,22 +446,14 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 		handle_stack_overflow("kernel stack overflow (double-fault)", regs, cr2);
 #endif
 
-#ifdef CONFIG_DOUBLEFAULT
-	df_debug(regs, error_code);
-#endif
-	/*
-	 * This is always a kernel trap and never fixable (and thus must
-	 * never return).
-	 */
-	for (;;)
-		die(str, regs, error_code);
+	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
+	die("double fault", regs, error_code);
+	panic("Machine halted.");
 }
 #endif
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
-	const struct mpx_bndcsr *bndcsr;
-
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
@@ -441,84 +463,60 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	if (!user_mode(regs))
 		die("bounds", regs, error_code);
 
-	if (!cpu_feature_enabled(X86_FEATURE_MPX)) {
-		/* The exception is not from Intel MPX */
-		goto exit_trap;
-	}
-
-	/*
-	 * We need to look at BNDSTATUS to resolve this exception.
-	 * A NULL here might mean that it is in its 'init state',
-	 * which is all zeros which indicates MPX was not
-	 * responsible for the exception.
-	 */
-	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
-	if (!bndcsr)
-		goto exit_trap;
-
-	trace_bounds_exception_mpx(bndcsr);
-	/*
-	 * The error code field of the BNDSTATUS register communicates status
-	 * information of a bound range exception #BR or operation involving
-	 * bound directory.
-	 */
-	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
-	case 2:	/* Bound directory has invalid entry. */
-		if (mpx_handle_bd_fault())
-			goto exit_trap;
-		break; /* Success, it was handled */
-	case 1: /* Bound violation. */
-	{
-		struct task_struct *tsk = current;
-		struct mpx_fault_info mpx;
-
-		if (mpx_fault_info(&mpx, regs)) {
-			/*
-			 * We failed to decode the MPX instruction.  Act as if
-			 * the exception was not caused by MPX.
-			 */
-			goto exit_trap;
-		}
-		/*
-		 * Success, we decoded the instruction and retrieved
-		 * an 'mpx' containing the address being accessed
-		 * which caused the exception.  This information
-		 * allows and application to possibly handle the
-		 * #BR exception itself.
-		 */
-		if (!do_trap_no_signal(tsk, X86_TRAP_BR, "bounds", regs,
-				       error_code))
-			break;
-
-		show_signal(tsk, SIGSEGV, "trap ", "bounds", regs, error_code);
-
-		force_sig_bnderr(mpx.addr, mpx.lower, mpx.upper);
-		break;
-	}
-	case 0: /* No exception caused by Intel MPX operations. */
-		goto exit_trap;
-	default:
-		die("bounds", regs, error_code);
-	}
-
-	return;
-
-exit_trap:
-	/*
-	 * This path out is for all the cases where we could not
-	 * handle the exception in some way (like allocating a
-	 * table or telling userspace about it.  We will also end
-	 * up here if the kernel has MPX turned off at compile
-	 * time..
-	 */
 	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, 0, NULL);
 }
 
-dotraplinkage void
-do_general_protection(struct pt_regs *regs, long error_code)
+enum kernel_gp_hint {
+	GP_NO_HINT,
+	GP_NON_CANONICAL,
+	GP_CANONICAL
+};
+
+/*
+ * When an uncaught #GP occurs, try to determine the memory address accessed by
+ * the instruction and return that address to the caller. Also, try to figure
+ * out whether any part of the access to that address was non-canonical.
+ */
+static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
+						 unsigned long *addr)
 {
-	const char *desc = "general protection fault";
+	u8 insn_buf[MAX_INSN_SIZE];
+	struct insn insn;
+
+	if (probe_kernel_read(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+		return GP_NO_HINT;
+
+	kernel_insn_init(&insn, insn_buf, MAX_INSN_SIZE);
+	insn_get_modrm(&insn);
+	insn_get_sib(&insn);
+
+	*addr = (unsigned long)insn_get_addr_ref(&insn, regs);
+	if (*addr == -1UL)
+		return GP_NO_HINT;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Check that:
+	 *  - the operand is not in the kernel half
+	 *  - the last byte of the operand is not in the user canonical half
+	 */
+	if (*addr < ~__VIRTUAL_MASK &&
+	    *addr + insn.opnd_bytes - 1 > __VIRTUAL_MASK)
+		return GP_NON_CANONICAL;
+#endif
+
+	return GP_CANONICAL;
+}
+
+#define GPFSTR "general protection fault"
+
+dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
+{
+	char desc[sizeof(GPFSTR) + 50 + 2*sizeof(unsigned long) + 1] = GPFSTR;
+	enum kernel_gp_hint hint = GP_NO_HINT;
 	struct task_struct *tsk;
+	unsigned long gp_addr;
+	int ret;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	cond_local_irq_enable(regs);
@@ -535,60 +533,79 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	}
 
 	tsk = current;
-	if (!user_mode(regs)) {
-		if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
-			return;
 
+	if (user_mode(regs)) {
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_nr = X86_TRAP_GP;
 
-		/*
-		 * To be potentially processing a kprobe fault and to
-		 * trust the result from kprobe_running(), we have to
-		 * be non-preemptible.
-		 */
-		if (!preemptible() && kprobe_running() &&
-		    kprobe_fault_handler(regs, X86_TRAP_GP))
-			return;
+		show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
+		force_sig(SIGSEGV);
 
-		if (notify_die(DIE_GPF, desc, regs, error_code,
-			       X86_TRAP_GP, SIGSEGV) != NOTIFY_STOP)
-			die(desc, regs, error_code);
 		return;
 	}
+
+	if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
+		return;
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_GP;
 
-	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
+	/*
+	 * To be potentially processing a kprobe fault and to trust the result
+	 * from kprobe_running(), we have to be non-preemptible.
+	 */
+	if (!preemptible() &&
+	    kprobe_running() &&
+	    kprobe_fault_handler(regs, X86_TRAP_GP))
+		return;
 
-	force_sig(SIGSEGV);
+	ret = notify_die(DIE_GPF, desc, regs, error_code, X86_TRAP_GP, SIGSEGV);
+	if (ret == NOTIFY_STOP)
+		return;
+
+	if (error_code)
+		snprintf(desc, sizeof(desc), "segment-related " GPFSTR);
+	else
+		hint = get_kernel_gp_address(regs, &gp_addr);
+
+	if (hint != GP_NO_HINT)
+		snprintf(desc, sizeof(desc), GPFSTR ", %s 0x%lx",
+			 (hint == GP_NON_CANONICAL) ? "probably for non-canonical address"
+						    : "maybe for address",
+			 gp_addr);
+
+	/*
+	 * KASAN is interested only in the non-canonical case, clear it
+	 * otherwise.
+	 */
+	if (hint != GP_NON_CANONICAL)
+		gp_addr = 0;
+
+	die_addr(desc, regs, error_code, gp_addr);
+
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
 dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 {
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/*
-	 * ftrace must be first, everything else may cause a recursive crash.
-	 * See note by declaration of modifying_ftrace_code in ftrace.c
-	 */
-	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
-	    ftrace_int3_handler(regs))
-		return;
-#endif
 	if (poke_int3_handler(regs))
 		return;
 
 	/*
-	 * Use ist_enter despite the fact that we don't use an IST stack.
-	 * We can be called from a kprobe in non-CONTEXT_KERNEL kernel
-	 * mode or even during context tracking state changes.
+	 * Unlike any other non-IST entry, we can be called from a kprobe in
+	 * non-CONTEXT_KERNEL kernel mode or even during context tracking
+	 * state changes.  Make sure that we wake up RCU even if we're coming
+	 * from kernel code.
 	 *
-	 * This means that we can't schedule.  That's okay.
+	 * This means that we can't schedule even if we came from a
+	 * preemptible kernel context.  That's okay.
 	 */
-	ist_enter(regs);
+	if (!user_mode(regs)) {
+		rcu_nmi_enter();
+		preempt_disable();
+	}
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -609,7 +626,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	cond_local_irq_disable(regs);
 
 exit:
-	ist_exit(regs);
+	if (!user_mode(regs)) {
+		preempt_enable_no_resched();
+		rcu_nmi_exit();
+	}
 }
 NOKPROBE_SYMBOL(do_int3);
 
@@ -871,7 +891,25 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
-	cond_local_irq_enable(regs);
+	/*
+	 * This addresses a Pentium Pro Erratum:
+	 *
+	 * PROBLEM: If the APIC subsystem is configured in mixed mode with
+	 * Virtual Wire mode implemented through the local APIC, an
+	 * interrupt vector of 0Fh (Intel reserved encoding) may be
+	 * generated by the local APIC (Int 15).  This vector may be
+	 * generated upon receipt of a spurious interrupt (an interrupt
+	 * which is removed before the system receives the INTA sequence)
+	 * instead of the programmed 8259 spurious interrupt vector.
+	 *
+	 * IMPLICATION: The spurious interrupt vector programmed in the
+	 * 8259 is normally handled by an operating system's spurious
+	 * interrupt handler. However, a vector of 0Fh is unknown to some
+	 * operating systems, which would crash if this erratum occurred.
+	 *
+	 * In theory this could be limited to 32bit, but the handler is not
+	 * hurting and who knows which other CPUs suffer from this.
+	 */
 }
 
 dotraplinkage void

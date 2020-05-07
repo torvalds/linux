@@ -49,23 +49,14 @@
 /* Helper for accessing data. */
 #define RVi(table, src, dest)	((table)[(dest) * NI_NUM_NAMES + (src)])
 
-static const size_t route_table_size = NI_NUM_NAMES * NI_NUM_NAMES;
-
 /*
- * Find the proper route_values and ni_device_routes tables for this particular
- * device.
- *
- * Return: -ENODATA if either was not found; 0 if both were found.
+ * Find the route values for a device family.
  */
-static int ni_find_device_routes(const char *device_family,
-				 const char *board_name,
-				 struct ni_route_tables *tables)
+static const u8 *ni_find_route_values(const char *device_family)
 {
-	const struct ni_device_routes *dr = NULL;
 	const u8 *rv = NULL;
 	int i;
 
-	/* First, find the register_values table for this device family */
 	for (i = 0; ni_all_route_values[i]; ++i) {
 		if (memcmp(ni_all_route_values[i]->family, device_family,
 			   strnlen(device_family, 30)) == 0) {
@@ -73,11 +64,18 @@ static int ni_find_device_routes(const char *device_family,
 			break;
 		}
 	}
+	return rv;
+}
 
-	if (!rv)
-		return -ENODATA;
+/*
+ * Find the valid routes for a board.
+ */
+static const struct ni_device_routes *
+ni_find_valid_routes(const char *board_name)
+{
+	const struct ni_device_routes *dr = NULL;
+	int i;
 
-	/* Second, find the set of routes valid for this device. */
 	for (i = 0; ni_device_routes_list[i]; ++i) {
 		if (memcmp(ni_device_routes_list[i]->device, board_name,
 			   strnlen(board_name, 30)) == 0) {
@@ -85,12 +83,37 @@ static int ni_find_device_routes(const char *device_family,
 			break;
 		}
 	}
+	return dr;
+}
 
-	if (!dr)
-		return -ENODATA;
+/*
+ * Find the proper route_values and ni_device_routes tables for this particular
+ * device.  Possibly try an alternate board name if device routes not found
+ * for the actual board name.
+ *
+ * Return: -ENODATA if either was not found; 0 if both were found.
+ */
+static int ni_find_device_routes(const char *device_family,
+				 const char *board_name,
+				 const char *alt_board_name,
+				 struct ni_route_tables *tables)
+{
+	const struct ni_device_routes *dr;
+	const u8 *rv;
+
+	/* First, find the register_values table for this device family */
+	rv = ni_find_route_values(device_family);
+
+	/* Second, find the set of routes valid for this device. */
+	dr = ni_find_valid_routes(board_name);
+	if (!dr && alt_board_name)
+		dr = ni_find_valid_routes(alt_board_name);
 
 	tables->route_values = rv;
 	tables->valid_routes = dr;
+
+	if (!rv || !dr)
+		return -ENODATA;
 
 	return 0;
 }
@@ -98,15 +121,28 @@ static int ni_find_device_routes(const char *device_family,
 /**
  * ni_assign_device_routes() - Assign the proper lookup table for NI signal
  *			       routing to the specified NI device.
+ * @device_family: Device family name (determines route values).
+ * @board_name: Board name (determines set of routes).
+ * @alt_board_name: Optional alternate board name to try on failure.
+ * @tables: Pointer to assigned routing information.
+ *
+ * Finds the route values for the device family and the set of valid routes
+ * for the board.  If valid routes could not be found for the actual board
+ * name and an alternate board name has been specified, try that one.
+ *
+ * On failure, the assigned routing information may be partially filled
+ * (for example, with the route values but not the set of valid routes).
  *
  * Return: -ENODATA if assignment was not successful; 0 if successful.
  */
 int ni_assign_device_routes(const char *device_family,
 			    const char *board_name,
+			    const char *alt_board_name,
 			    struct ni_route_tables *tables)
 {
 	memset(tables, 0, sizeof(struct ni_route_tables));
-	return ni_find_device_routes(device_family, board_name, tables);
+	return ni_find_device_routes(device_family, board_name, alt_board_name,
+				     tables);
 }
 EXPORT_SYMBOL_GPL(ni_assign_device_routes);
 
@@ -488,6 +524,9 @@ int ni_find_route_source(const u8 src_sel_reg_value, int dest,
 			 const struct ni_route_tables *tables)
 {
 	int src;
+
+	if (!tables->route_values)
+		return -EINVAL;
 
 	dest = B(dest); /* subtract NI names offset */
 	/* ensure we are not going to under/over run the route value table */

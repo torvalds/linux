@@ -11,6 +11,7 @@
  */
 
 #include <asm/ppc_asm.h>
+#include <asm/code-patching-asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
 #include <asm/mmu.h>
@@ -1116,7 +1117,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	ld	r7, VCPU_GPR(R7)(r4)
 	bne	ret_to_ultra
 
-	lwz	r0, VCPU_CR(r4)
+	ld	r0, VCPU_CR(r4)
 	mtcr	r0
 
 	ld	r0, VCPU_GPR(R0)(r4)
@@ -1136,7 +1137,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
  *   R3 = UV_RETURN
  */
 ret_to_ultra:
-	lwz	r0, VCPU_CR(r4)
+	ld	r0, VCPU_CR(r4)
 	mtcr	r0
 
 	ld	r0, VCPU_GPR(R3)(r4)
@@ -1265,7 +1266,6 @@ kvmppc_interrupt_hv:
 	 * R12		= (guest CR << 32) | interrupt vector
 	 * R13		= PACA
 	 * guest R12 saved in shadow VCPU SCRATCH0
-	 * guest CTR saved in shadow VCPU SCRATCH1 if RELOCATABLE
 	 * guest R13 saved in SPRN_SCRATCH0
 	 */
 	std	r9, HSTATE_SCRATCH2(r13)
@@ -1366,12 +1366,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 11:	stw	r3,VCPU_HEIR(r9)
 
 	/* these are volatile across C function calls */
-#ifdef CONFIG_RELOCATABLE
-	ld	r3, HSTATE_SCRATCH1(r13)
-	mtctr	r3
-#else
 	mfctr	r3
-#endif
 	mfxer	r4
 	std	r3, VCPU_CTR(r9)
 	std	r4, VCPU_XER(r9)
@@ -1486,6 +1481,13 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
+
+	/*
+	 * Possibly flush the link stack here, before we do a blr in
+	 * guest_exit_short_path.
+	 */
+1:	nop
+	patch_site 1b patch__call_kvm_flush_link_stack
 
 	/* If we came in through the P9 short path, go back out to C now */
 	lwz	r0, STACK_SLOT_SHORT_PATH(r1)
@@ -1793,6 +1795,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	tlbsync
 	ptesync
 
+BEGIN_FTR_SECTION
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
 	lwz	r3, VCPU_GUEST_PID(r9)
@@ -1822,6 +1825,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	addi	r7,r7,0x1000
 	bdnz	1b
 	ptesync
+END_FTR_SECTION_IFSET(CPU_FTR_P9_RADIX_PREFETCH_BUG)
 
 2:
 #endif /* CONFIG_PPC_RADIX_MMU */
@@ -1960,6 +1964,28 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lwz	r12, STACK_SLOT_TRAP(r1)	/* return trap # in r12 */
 	ld	r0, SFS+PPC_LR_STKOFF(r1)
 	addi	r1, r1, SFS
+	mtlr	r0
+	blr
+
+.balign 32
+.global kvm_flush_link_stack
+kvm_flush_link_stack:
+	/* Save LR into r0 */
+	mflr	r0
+
+	/* Flush the link stack. On Power8 it's up to 32 entries in size. */
+	.rept 32
+	bl	.+4
+	.endr
+
+	/* And on Power9 it's up to 64. */
+BEGIN_FTR_SECTION
+	.rept 32
+	bl	.+4
+	.endr
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
+	/* Restore LR */
 	mtlr	r0
 	blr
 
@@ -3226,7 +3252,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
  * r12 is (CR << 32) | vector
  * r13 points to our PACA
  * r12 is saved in HSTATE_SCRATCH0(r13)
- * ctr is saved in HSTATE_SCRATCH1(r13) if RELOCATABLE
  * r9 is saved in HSTATE_SCRATCH2(r13)
  * r13 is saved in HSPRG1
  * cfar is saved in HSTATE_CFAR(r13)
@@ -3275,11 +3300,7 @@ kvmppc_bad_host_intr:
 	ld	r5, HSTATE_CFAR(r13)
 	std	r5, ORIG_GPR3(r1)
 	mflr	r3
-#ifdef CONFIG_RELOCATABLE
-	ld	r4, HSTATE_SCRATCH1(r13)
-#else
 	mfctr	r4
-#endif
 	mfxer	r5
 	lbz	r6, PACAIRQSOFTMASK(r13)
 	std	r3, _LINK(r1)

@@ -17,6 +17,33 @@
 
 #include "ext4_jbd2.h"
 
+struct ext4_rcu_ptr {
+	struct rcu_head rcu;
+	void *ptr;
+};
+
+static void ext4_rcu_ptr_callback(struct rcu_head *head)
+{
+	struct ext4_rcu_ptr *ptr;
+
+	ptr = container_of(head, struct ext4_rcu_ptr, rcu);
+	kvfree(ptr->ptr);
+	kfree(ptr);
+}
+
+void ext4_kvfree_array_rcu(void *to_free)
+{
+	struct ext4_rcu_ptr *ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+
+	if (ptr) {
+		ptr->ptr = to_free;
+		call_rcu(&ptr->rcu, ext4_rcu_ptr_callback);
+		return;
+	}
+	synchronize_rcu();
+	kvfree(to_free);
+}
+
 int ext4_resize_begin(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -388,28 +415,10 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	return bh;
 }
 
-/*
- * If we have fewer than thresh credits, extend by EXT4_MAX_TRANS_DATA.
- * If that fails, restart the transaction & regain write access for the
- * buffer head which is used for block_bitmap modifications.
- */
-static int extend_or_restart_transaction(handle_t *handle, int thresh)
+static int ext4_resize_ensure_credits_batch(handle_t *handle, int credits)
 {
-	int err;
-
-	if (ext4_handle_has_enough_credits(handle, thresh))
-		return 0;
-
-	err = ext4_journal_extend(handle, EXT4_MAX_TRANS_DATA);
-	if (err < 0)
-		return err;
-	if (err) {
-		err = ext4_journal_restart(handle, EXT4_MAX_TRANS_DATA);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ext4_journal_ensure_credits_fn(handle, credits,
+		EXT4_MAX_TRANS_DATA, 0, 0);
 }
 
 /*
@@ -451,8 +460,8 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 			continue;
 		}
 
-		err = extend_or_restart_transaction(handle, 1);
-		if (err)
+		err = ext4_resize_ensure_credits_batch(handle, 1);
+		if (err < 0)
 			return err;
 
 		bh = sb_getblk(sb, flex_gd->groups[group].block_bitmap);
@@ -544,8 +553,8 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 			struct buffer_head *gdb;
 
 			ext4_debug("update backup group %#04llx\n", block);
-			err = extend_or_restart_transaction(handle, 1);
-			if (err)
+			err = ext4_resize_ensure_credits_batch(handle, 1);
+			if (err < 0)
 				goto out;
 
 			gdb = sb_getblk(sb, block);
@@ -560,8 +569,8 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 				brelse(gdb);
 				goto out;
 			}
-			memcpy(gdb->b_data, sbi->s_group_desc[j]->b_data,
-			       gdb->b_size);
+			memcpy(gdb->b_data, sbi_array_rcu_deref(sbi,
+				s_group_desc, j)->b_data, gdb->b_size);
 			set_buffer_uptodate(gdb);
 
 			err = ext4_handle_dirty_metadata(handle, NULL, gdb);
@@ -602,8 +611,8 @@ handle_bb:
 
 		/* Initialize block bitmap of the @group */
 		block = group_data[i].block_bitmap;
-		err = extend_or_restart_transaction(handle, 1);
-		if (err)
+		err = ext4_resize_ensure_credits_batch(handle, 1);
+		if (err < 0)
 			goto out;
 
 		bh = bclean(handle, sb, block);
@@ -631,8 +640,8 @@ handle_ib:
 
 		/* Initialize inode bitmap of the @group */
 		block = group_data[i].inode_bitmap;
-		err = extend_or_restart_transaction(handle, 1);
-		if (err)
+		err = ext4_resize_ensure_credits_batch(handle, 1);
+		if (err < 0)
 			goto out;
 		/* Mark unused entries in inode bitmap used */
 		bh = bclean(handle, sb, block);
@@ -842,9 +851,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	if (unlikely(err))
 		goto errout;
 
-	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
-				     sizeof(struct buffer_head *),
-				     GFP_NOFS);
+	n_group_desc = kvmalloc((gdb_num + 1) * sizeof(struct buffer_head *),
+				GFP_KERNEL);
 	if (!n_group_desc) {
 		err = -ENOMEM;
 		ext4_warning(sb, "not enough memory for %lu groups",
@@ -879,13 +887,15 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	}
 	brelse(dind);
 
-	o_group_desc = EXT4_SB(sb)->s_group_desc;
+	rcu_read_lock();
+	o_group_desc = rcu_dereference(EXT4_SB(sb)->s_group_desc);
 	memcpy(n_group_desc, o_group_desc,
 	       EXT4_SB(sb)->s_gdb_count * sizeof(struct buffer_head *));
+	rcu_read_unlock();
 	n_group_desc[gdb_num] = gdb_bh;
-	EXT4_SB(sb)->s_group_desc = n_group_desc;
+	rcu_assign_pointer(EXT4_SB(sb)->s_group_desc, n_group_desc);
 	EXT4_SB(sb)->s_gdb_count++;
-	kvfree(o_group_desc);
+	ext4_kvfree_array_rcu(o_group_desc);
 
 	le16_add_cpu(&es->s_reserved_gdt_blocks, -1);
 	err = ext4_handle_dirty_super(handle, sb);
@@ -918,9 +928,8 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 	gdb_bh = ext4_sb_bread(sb, gdblock, 0);
 	if (IS_ERR(gdb_bh))
 		return PTR_ERR(gdb_bh);
-	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
-				     sizeof(struct buffer_head *),
-				     GFP_NOFS);
+	n_group_desc = kvmalloc((gdb_num + 1) * sizeof(struct buffer_head *),
+				GFP_KERNEL);
 	if (!n_group_desc) {
 		brelse(gdb_bh);
 		err = -ENOMEM;
@@ -929,9 +938,11 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 		return err;
 	}
 
-	o_group_desc = EXT4_SB(sb)->s_group_desc;
+	rcu_read_lock();
+	o_group_desc = rcu_dereference(EXT4_SB(sb)->s_group_desc);
 	memcpy(n_group_desc, o_group_desc,
 	       EXT4_SB(sb)->s_gdb_count * sizeof(struct buffer_head *));
+	rcu_read_unlock();
 	n_group_desc[gdb_num] = gdb_bh;
 
 	BUFFER_TRACE(gdb_bh, "get_write_access");
@@ -942,9 +953,9 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
 		return err;
 	}
 
-	EXT4_SB(sb)->s_group_desc = n_group_desc;
+	rcu_assign_pointer(EXT4_SB(sb)->s_group_desc, n_group_desc);
 	EXT4_SB(sb)->s_gdb_count++;
-	kvfree(o_group_desc);
+	ext4_kvfree_array_rcu(o_group_desc);
 	return err;
 }
 
@@ -1109,10 +1120,8 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 		ext4_fsblk_t backup_block;
 
 		/* Out of journal space, and can't get more - abort - so sad */
-		if (ext4_handle_valid(handle) &&
-		    handle->h_buffer_credits == 0 &&
-		    ext4_journal_extend(handle, EXT4_MAX_TRANS_DATA) &&
-		    (err = ext4_journal_restart(handle, EXT4_MAX_TRANS_DATA)))
+		err = ext4_resize_ensure_credits_batch(handle, 1);
+		if (err < 0)
 			break;
 
 		if (meta_bg == 0)
@@ -1210,7 +1219,8 @@ static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
 		 * use non-sparse filesystems anymore.  This is already checked above.
 		 */
 		if (gdb_off) {
-			gdb_bh = sbi->s_group_desc[gdb_num];
+			gdb_bh = sbi_array_rcu_deref(sbi, s_group_desc,
+						     gdb_num);
 			BUFFER_TRACE(gdb_bh, "get_write_access");
 			err = ext4_journal_get_write_access(handle, gdb_bh);
 
@@ -1292,7 +1302,7 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 		/*
 		 * get_write_access() has been called on gdb_bh by ext4_add_new_desc().
 		 */
-		gdb_bh = sbi->s_group_desc[gdb_num];
+		gdb_bh = sbi_array_rcu_deref(sbi, s_group_desc, gdb_num);
 		/* Update group descriptor block for new group */
 		gdp = (struct ext4_group_desc *)(gdb_bh->b_data +
 						 gdb_off * EXT4_DESC_SIZE(sb));
@@ -1420,11 +1430,14 @@ static void ext4_update_super(struct super_block *sb,
 		   percpu_counter_read(&sbi->s_freeclusters_counter));
 	if (ext4_has_feature_flex_bg(sb) && sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group;
+		struct flex_groups *fg;
+
 		flex_group = ext4_flex_group(sbi, group_data[0].group);
+		fg = sbi_array_rcu_deref(sbi, s_flex_groups, flex_group);
 		atomic64_add(EXT4_NUM_B2C(sbi, free_blocks),
-			     &sbi->s_flex_groups[flex_group].free_clusters);
+			     &fg->free_clusters);
 		atomic_add(EXT4_INODES_PER_GROUP(sb) * flex_gd->count,
-			   &sbi->s_flex_groups[flex_group].free_inodes);
+			   &fg->free_inodes);
 	}
 
 	/*
@@ -1519,7 +1532,8 @@ exit_journal:
 		for (; gdb_num <= gdb_num_end; gdb_num++) {
 			struct buffer_head *gdb_bh;
 
-			gdb_bh = sbi->s_group_desc[gdb_num];
+			gdb_bh = sbi_array_rcu_deref(sbi, s_group_desc,
+						     gdb_num);
 			if (old_gdb == gdb_bh->b_blocknr)
 				continue;
 			update_backups(sb, gdb_bh->b_blocknr, gdb_bh->b_data,

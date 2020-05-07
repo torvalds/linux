@@ -283,20 +283,8 @@ static inline void __iomem *ioremap(unsigned long port, unsigned long size)
 	return IO_CONCAT(__IO_PREFIX,ioremap) (port, size);
 }
 
-static inline void __iomem *__ioremap(unsigned long port, unsigned long size,
-				      unsigned long flags)
-{
-	return ioremap(port, size);
-}
-
-static inline void __iomem * ioremap_nocache(unsigned long offset,
-					     unsigned long size)
-{
-	return ioremap(offset, size);
-}
-
-#define ioremap_wc ioremap_nocache
-#define ioremap_uc ioremap_nocache
+#define ioremap_wc ioremap
+#define ioremap_uc ioremap
 
 static inline void iounmap(volatile void __iomem *addr)
 {

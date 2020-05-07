@@ -1062,6 +1062,48 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
+/* Test member unexceeds the size of struct
+ *
+ * enum E {
+ *     E0,
+ *     E1,
+ * };
+ *
+ * struct A {
+ *     char m;
+ *     enum E __attribute__((packed)) n;
+ * };
+ */
+{
+	.descr = "size check test #5",
+	.raw_types = {
+		/* int */			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, sizeof(int)),
+		/* char */			/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),
+		/* enum E { */			/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 2), 1),
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_ENUM_ENC(NAME_TBD, 1),
+		/* } */
+		/* struct A { */		/* [4] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 2),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* char m; */
+		BTF_MEMBER_ENC(NAME_TBD, 3, 8),/* enum E __attribute__((packed)) n; */
+		/* } */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0E\0E0\0E1\0A\0m\0n",
+	.str_sec_size = sizeof("\0E\0E0\0E1\0A\0m\0n"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "size_check5_map",
+	.key_size = sizeof(int),
+	.value_size = 2,
+	.key_type_id = 1,
+	.value_type_id = 4,
+	.max_entries = 4,
+},
+
 /* typedef const void * const_void_ptr;
  * struct A {
  *	const_void_ptr m;
@@ -2812,7 +2854,7 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.err_str = "vlen != 0",
+	.err_str = "Invalid func linkage",
 },
 
 {
@@ -4147,10 +4189,6 @@ static int do_test_file(unsigned int test_num)
 	obj = bpf_object__open(test->file);
 	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))
 		return PTR_ERR(obj);
-
-	err = bpf_object__btf_fd(obj);
-	if (CHECK(err == -1, "bpf_object__btf_fd: -1"))
-		goto done;
 
 	prog = bpf_program__next(NULL, obj);
 	if (CHECK(!prog, "Cannot find bpf_prog")) {

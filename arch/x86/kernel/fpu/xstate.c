@@ -60,7 +60,7 @@ u64 xfeatures_mask __read_mostly;
 
 static unsigned int xstate_offsets[XFEATURE_MAX] = { [ 0 ... XFEATURE_MAX - 1] = -1};
 static unsigned int xstate_sizes[XFEATURE_MAX]   = { [ 0 ... XFEATURE_MAX - 1] = -1};
-static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
+static unsigned int xstate_comp_offsets[XFEATURE_MAX] = { [ 0 ... XFEATURE_MAX - 1] = -1};
 
 /*
  * The XSAVE area of kernel can be in standard or compacted format;
@@ -107,25 +107,17 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 }
 EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 
-static int xfeature_is_supervisor(int xfeature_nr)
+static bool xfeature_is_supervisor(int xfeature_nr)
 {
 	/*
-	 * We currently do not support supervisor states, but if
-	 * we did, we could find out like this.
-	 *
-	 * SDM says: If state component 'i' is a user state component,
-	 * ECX[0] return 0; if state component i is a supervisor
-	 * state component, ECX[0] returns 1.
+	 * Extended State Enumeration Sub-leaves (EAX = 0DH, ECX = n, n > 1)
+	 * returns ECX[0] set to (1) for a supervisor state, and cleared (0)
+	 * for a user state.
 	 */
 	u32 eax, ebx, ecx, edx;
 
 	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
-	return !!(ecx & 1);
-}
-
-static int xfeature_is_user(int xfeature_nr)
-{
-	return !xfeature_is_supervisor(xfeature_nr);
+	return ecx & 1;
 }
 
 /*
@@ -254,10 +246,13 @@ static void __init setup_xstate_features(void)
 	 * in the fixed offsets in the xsave area in either compacted form
 	 * or standard form.
 	 */
-	xstate_offsets[0] = 0;
-	xstate_sizes[0] = offsetof(struct fxregs_state, xmm_space);
-	xstate_offsets[1] = xstate_sizes[0];
-	xstate_sizes[1] = FIELD_SIZEOF(struct fxregs_state, xmm_space);
+	xstate_offsets[XFEATURE_FP]	= 0;
+	xstate_sizes[XFEATURE_FP]	= offsetof(struct fxregs_state,
+						   xmm_space);
+
+	xstate_offsets[XFEATURE_SSE]	= xstate_sizes[XFEATURE_FP];
+	xstate_sizes[XFEATURE_SSE]	= sizeof_field(struct fxregs_state,
+						       xmm_space);
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
 		if (!xfeature_enabled(i))
@@ -265,21 +260,25 @@ static void __init setup_xstate_features(void)
 
 		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 
-		/*
-		 * If an xfeature is supervisor state, the offset
-		 * in EBX is invalid. We leave it to -1.
-		 */
-		if (xfeature_is_user(i))
-			xstate_offsets[i] = ebx;
-
 		xstate_sizes[i] = eax;
+
 		/*
-		 * In our xstate size checks, we assume that the
-		 * highest-numbered xstate feature has the
-		 * highest offset in the buffer.  Ensure it does.
+		 * If an xfeature is supervisor state, the offset in EBX is
+		 * invalid, leave it to -1.
+		 */
+		if (xfeature_is_supervisor(i))
+			continue;
+
+		xstate_offsets[i] = ebx;
+
+		/*
+		 * In our xstate size checks, we assume that the highest-numbered
+		 * xstate feature has the highest offset in the buffer.  Ensure
+		 * it does.
 		 */
 		WARN_ONCE(last_good_offset > xstate_offsets[i],
-			"x86/fpu: misordered xstate at %d\n", last_good_offset);
+			  "x86/fpu: misordered xstate at %d\n", last_good_offset);
+
 		last_good_offset = xstate_offsets[i];
 	}
 }
@@ -326,6 +325,13 @@ static int xfeature_is_aligned(int xfeature_nr)
 	u32 eax, ebx, ecx, edx;
 
 	CHECK_XFEATURE(xfeature_nr);
+
+	if (!xfeature_enabled(xfeature_nr)) {
+		WARN_ONCE(1, "Checking alignment of disabled xfeature %d\n",
+			  xfeature_nr);
+		return 0;
+	}
+
 	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
 	/*
 	 * The value returned by ECX[1] indicates the alignment
@@ -338,11 +344,11 @@ static int xfeature_is_aligned(int xfeature_nr)
 /*
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
- * of the xsave aread.
+ * of the xsave area.
  */
-static void __init setup_xstate_comp(void)
+static void __init setup_xstate_comp_offsets(void)
 {
-	unsigned int xstate_comp_sizes[sizeof(xfeatures_mask)*8];
+	unsigned int next_offset;
 	int i;
 
 	/*
@@ -350,36 +356,29 @@ static void __init setup_xstate_comp(void)
 	 * in the fixed offsets in the xsave area in either compacted form
 	 * or standard form.
 	 */
-	xstate_comp_offsets[0] = 0;
-	xstate_comp_offsets[1] = offsetof(struct fxregs_state, xmm_space);
+	xstate_comp_offsets[XFEATURE_FP] = 0;
+	xstate_comp_offsets[XFEATURE_SSE] = offsetof(struct fxregs_state,
+						     xmm_space);
 
 	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
 		for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-			if (xfeature_enabled(i)) {
+			if (xfeature_enabled(i))
 				xstate_comp_offsets[i] = xstate_offsets[i];
-				xstate_comp_sizes[i] = xstate_sizes[i];
-			}
 		}
 		return;
 	}
 
-	xstate_comp_offsets[FIRST_EXTENDED_XFEATURE] =
-		FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	next_offset = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
-		if (xfeature_enabled(i))
-			xstate_comp_sizes[i] = xstate_sizes[i];
-		else
-			xstate_comp_sizes[i] = 0;
+		if (!xfeature_enabled(i))
+			continue;
 
-		if (i > FIRST_EXTENDED_XFEATURE) {
-			xstate_comp_offsets[i] = xstate_comp_offsets[i-1]
-					+ xstate_comp_sizes[i-1];
+		if (xfeature_is_aligned(i))
+			next_offset = ALIGN(next_offset, 64);
 
-			if (xfeature_is_aligned(i))
-				xstate_comp_offsets[i] =
-					ALIGN(xstate_comp_offsets[i], 64);
-		}
+		xstate_comp_offsets[i] = next_offset;
+		next_offset += xstate_sizes[i];
 	}
 }
 
@@ -415,7 +414,8 @@ static void __init setup_init_fpu_buf(void)
 	print_xstate_features();
 
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		init_fpstate.xsave.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
+		init_fpstate.xsave.header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT |
+						     xfeatures_mask;
 
 	/*
 	 * Init all the features state with header.xfeatures being 0x0
@@ -772,7 +772,7 @@ void __init fpu__init_system_xstate(void)
 
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
-	setup_xstate_comp();
+	setup_xstate_comp_offsets();
 	print_xstate_offset_size();
 
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
@@ -840,7 +840,7 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 
 	/*
 	 * We should not ever be requesting features that we
-	 * have not enabled.  Remember that pcntxt_mask is
+	 * have not enabled.  Remember that xfeatures_mask is
 	 * what we write to the XCR0 register.
 	 */
 	WARN_ONCE(!(xfeatures_mask & BIT_ULL(xfeature_nr)),
@@ -895,8 +895,6 @@ const void *get_xsave_field_ptr(int xfeature_nr)
 
 #ifdef CONFIG_ARCH_HAS_PKEYS
 
-#define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
-#define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
 /*
  * This will go out and modify PKRU register to set the access
  * rights for @pkey to @init_val.
@@ -914,6 +912,13 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	 */
 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
 		return -EINVAL;
+
+	/*
+	 * This code should only be called with valid 'pkey'
+	 * values originating from in-kernel users.  Complain
+	 * if a bad value is observed.
+	 */
+	WARN_ON_ONCE(pkey >= arch_max_pkey());
 
 	/* Set the bits we need in PKRU:  */
 	if (init_val & PKEY_DISABLE_ACCESS)

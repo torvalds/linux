@@ -497,26 +497,13 @@ out:
 	return ret;
 }
 
-/*
- * retrieve our pads parsed from the OF graph by the media device
- */
 static int csi2_registered(struct v4l2_subdev *sd)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
-	int i, ret;
-
-	for (i = 0; i < CSI2_NUM_PADS; i++) {
-		csi2->pad[i].flags = (i == CSI2_SINK_PAD) ?
-		MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
-	}
 
 	/* set a default mbus format  */
-	ret = imx_media_init_mbus_fmt(&csi2->format_mbus,
+	return imx_media_init_mbus_fmt(&csi2->format_mbus,
 				      640, 480, 0, V4L2_FIELD_NONE, NULL);
-	if (ret)
-		return ret;
-
-	return media_entity_pads_init(&sd->entity, CSI2_NUM_PADS, csi2->pad);
 }
 
 static const struct media_entity_operations csi2_entity_ops = {
@@ -573,7 +560,7 @@ static int csi2_probe(struct platform_device *pdev)
 	unsigned int sink_port = 0;
 	struct csi2_dev *csi2;
 	struct resource *res;
-	int ret;
+	int i, ret;
 
 	csi2 = devm_kzalloc(&pdev->dev, sizeof(*csi2), GFP_KERNEL);
 	if (!csi2)
@@ -592,25 +579,32 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2->sd.grp_id = IMX_MEDIA_GRP_ID_CSI2;
 
+	for (i = 0; i < CSI2_NUM_PADS; i++) {
+		csi2->pad[i].flags = (i == CSI2_SINK_PAD) ?
+		MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
+	}
+
+	ret = media_entity_pads_init(&csi2->sd.entity, CSI2_NUM_PADS,
+				     csi2->pad);
+	if (ret)
+		return ret;
+
 	csi2->pllref_clk = devm_clk_get(&pdev->dev, "ref");
 	if (IS_ERR(csi2->pllref_clk)) {
 		v4l2_err(&csi2->sd, "failed to get pll reference clock\n");
-		ret = PTR_ERR(csi2->pllref_clk);
-		return ret;
+		return PTR_ERR(csi2->pllref_clk);
 	}
 
 	csi2->dphy_clk = devm_clk_get(&pdev->dev, "dphy");
 	if (IS_ERR(csi2->dphy_clk)) {
 		v4l2_err(&csi2->sd, "failed to get dphy clock\n");
-		ret = PTR_ERR(csi2->dphy_clk);
-		return ret;
+		return PTR_ERR(csi2->dphy_clk);
 	}
 
 	csi2->pix_clk = devm_clk_get(&pdev->dev, "pix");
 	if (IS_ERR(csi2->pix_clk)) {
 		v4l2_err(&csi2->sd, "failed to get pixel clock\n");
-		ret = PTR_ERR(csi2->pix_clk);
-		return ret;
+		return PTR_ERR(csi2->pix_clk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

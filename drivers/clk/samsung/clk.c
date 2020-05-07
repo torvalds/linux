@@ -60,8 +60,7 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 	struct samsung_clk_provider *ctx;
 	int i;
 
-	ctx = kzalloc(sizeof(struct samsung_clk_provider) +
-		      sizeof(*ctx->clk_data.hws) * nr_clks, GFP_KERNEL);
+	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
 	if (!ctx)
 		panic("could not allocate clock provider context.\n");
 
@@ -357,10 +356,6 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 	}
 
 	ctx = samsung_clk_init(np, reg_base, cmu->nr_clk_ids);
-	if (!ctx) {
-		panic("%s: unable to allocate ctx\n", __func__);
-		return ctx;
-	}
 
 	if (cmu->pll_clks)
 		samsung_clk_register_pll(ctx, cmu->pll_clks, cmu->nr_pll_clks,

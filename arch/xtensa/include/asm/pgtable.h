@@ -8,7 +8,6 @@
 #ifndef _XTENSA_PGTABLE_H
 #define _XTENSA_PGTABLE_H
 
-#define __ARCH_USE_5LEVEL_HACK
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
 #include <asm-generic/pgtable-nopmd.h>
@@ -267,7 +266,6 @@ static inline void paging_init(void) { }
 static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_WRITABLE; }
 static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_special(pte_t pte) { return 0; }
 
 static inline pte_t pte_wrprotect(pte_t pte)	
 	{ pte_val(pte) &= ~(_PAGE_WRITABLE | _PAGE_HW_WRITE); return pte; }
@@ -281,8 +279,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)
 	{ pte_val(pte) |= _PAGE_WRITABLE; return pte; }
-static inline pte_t pte_mkspecial(pte_t pte)
-	{ return pte; }
 
 #define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) & ~_PAGE_CA_MASK))
 
@@ -370,9 +366,6 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 #define pgd_offset(mm,address)	((mm)->pgd + pgd_index(address))
 
 #define pgd_index(address)	((address) >> PGDIR_SHIFT)
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir,address) ((pmd_t*)(dir))
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))

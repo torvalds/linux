@@ -41,6 +41,25 @@ struct mm_struct;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC32
+static inline pmd_t *pmd_ptr(struct mm_struct *mm, unsigned long va)
+{
+	return pmd_offset(pud_offset(pgd_offset(mm, va), va), va);
+}
+
+static inline pmd_t *pmd_ptr_k(unsigned long va)
+{
+	return pmd_offset(pud_offset(pgd_offset_k(va), va), va);
+}
+
+static inline pte_t *virt_to_kpte(unsigned long vaddr)
+{
+	pmd_t *pmd = pmd_ptr_k(vaddr);
+
+	return pmd_none(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
+}
+#endif
+
 #include <asm/tlbflush.h>
 
 /* Keep these as a macros to avoid include dependency mess */
@@ -92,12 +111,6 @@ void pgtable_cache_add(unsigned int shift);
 void mark_initmem_nx(void);
 #else
 static inline void mark_initmem_nx(void) { }
-#endif
-
-#ifdef CONFIG_PPC_DEBUG_WX
-void ptdump_check_wx(void);
-#else
-static inline void ptdump_check_wx(void) { }
 #endif
 
 /*
@@ -157,13 +170,9 @@ static inline bool pgd_is_leaf(pgd_t pgd)
 #define is_ioremap_addr is_ioremap_addr
 static inline bool is_ioremap_addr(const void *x)
 {
-#ifdef CONFIG_MMU
 	unsigned long addr = (unsigned long)x;
 
 	return addr >= IOREMAP_BASE && addr < IOREMAP_END;
-#else
-	return false;
-#endif
 }
 #endif /* CONFIG_PPC64 */
 

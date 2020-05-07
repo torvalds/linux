@@ -69,6 +69,13 @@ ENTRY(__sys_vfork)
 	lea     %sp@(24),%sp
 	rts
 
+ENTRY(__sys_clone3)
+	SAVE_SWITCH_STACK
+	pea	%sp@(SWITCH_STACK_SIZE)
+	jbsr	m68k_clone3
+	lea	%sp@(28),%sp
+	rts
+
 ENTRY(sys_sigreturn)
 	SAVE_SWITCH_STACK
 	movel	%sp,%sp@-		  | switch_stack pointer

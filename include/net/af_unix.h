@@ -27,7 +27,7 @@ struct unix_address {
 	refcount_t	refcnt;
 	int		len;
 	unsigned int	hash;
-	struct sockaddr_un name[0];
+	struct sockaddr_un name[];
 };
 
 struct unix_skb_parms {
@@ -40,6 +40,10 @@ struct unix_skb_parms {
 #endif
 	u32			consumed;
 } __randomize_layout;
+
+struct scm_stat {
+	atomic_t nr_fds;
+};
 
 #define UNIXCB(skb)	(*(struct unix_skb_parms *)&((skb)->cb))
 
@@ -65,6 +69,7 @@ struct unix_sock {
 #define UNIX_GC_MAYBE_CYCLE	1
 	struct socket_wq	peer_wq;
 	wait_queue_entry_t	peer_wake;
+	struct scm_stat		scm_stat;
 };
 
 static inline struct unix_sock *unix_sk(const struct sock *sk)

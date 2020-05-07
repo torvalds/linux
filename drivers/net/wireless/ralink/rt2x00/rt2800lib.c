@@ -1652,20 +1652,17 @@ static void rt2800_config_wcid_attr_cipher(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_write(rt2x00dev, offset, reg);
 	}
 
+	if (test_bit(DEVICE_STATE_RESET, &rt2x00dev->flags))
+		return;
+
 	offset = MAC_IVEIV_ENTRY(key->hw_key_idx);
 
-	if (crypto->cmd == SET_KEY) {
-		rt2800_register_multiread(rt2x00dev, offset,
-					  &iveiv_entry, sizeof(iveiv_entry));
-		if ((crypto->cipher == CIPHER_TKIP) ||
-		    (crypto->cipher == CIPHER_TKIP_NO_MIC) ||
-		    (crypto->cipher == CIPHER_AES))
-			iveiv_entry.iv[3] |= 0x20;
-		iveiv_entry.iv[3] |= key->keyidx << 6;
-	} else {
-		memset(&iveiv_entry, 0, sizeof(iveiv_entry));
-	}
-
+	memset(&iveiv_entry, 0, sizeof(iveiv_entry));
+	if ((crypto->cipher == CIPHER_TKIP) ||
+	    (crypto->cipher == CIPHER_TKIP_NO_MIC) ||
+	    (crypto->cipher == CIPHER_AES))
+		iveiv_entry.iv[3] |= 0x20;
+	iveiv_entry.iv[3] |= key->keyidx << 6;
 	rt2800_register_multiwrite(rt2x00dev, offset,
 				   &iveiv_entry, sizeof(iveiv_entry));
 }
@@ -5839,8 +5836,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, TX_TXBF_CFG_0, 0x8000fc21);
 		rt2800_register_write(rt2x00dev, TX_TXBF_CFG_3, 0x00009c40);
 	} else if (rt2x00_rt(rt2x00dev, RT5390) ||
-		   rt2x00_rt(rt2x00dev, RT5392) ||
-		   rt2x00_rt(rt2x00dev, RT6352)) {
+		   rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000404);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -5854,8 +5850,6 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000401);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x000C0000);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
-		rt2800_register_write(rt2x00dev, MIMO_PS_CFG, 0x00000002);
-		rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0x00150F0F);
 		rt2800_register_write(rt2x00dev, TX_ALC_VGA3, 0x00000000);
 		rt2800_register_write(rt2x00dev, TX0_BB_GAIN_ATTEN, 0x0);
 		rt2800_register_write(rt2x00dev, TX1_BB_GAIN_ATTEN, 0x0);
@@ -10476,7 +10470,7 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 * when the hw reorders frames due to aggregation.
 	 */
 	if (sta_priv->wcid > WCID_END)
-		return 1;
+		return -ENOSPC;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -10489,7 +10483,7 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 */
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:

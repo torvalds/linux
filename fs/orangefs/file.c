@@ -46,8 +46,9 @@ static int flush_racache(struct inode *inode)
  * Post and wait for the I/O upcall to finish
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
-    loff_t *offset, struct iov_iter *iter, size_t total_size,
-    loff_t readahead_size, struct orangefs_write_range *wr, int *index_return)
+	loff_t *offset, struct iov_iter *iter, size_t total_size,
+	loff_t readahead_size, struct orangefs_write_range *wr,
+	int *index_return, struct file *file)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
@@ -55,6 +56,8 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
+	int open_for_read;
+	int open_for_write;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -90,6 +93,38 @@ populate_shared_memory:
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
+	/*
+	 * Orangefs has no open, and orangefs checks file permissions
+	 * on each file access. Posix requires that file permissions
+	 * be checked on open and nowhere else. Orangefs-through-the-kernel
+	 * needs to seem posix compliant.
+	 *
+	 * The VFS opens files, even if the filesystem provides no
+	 * method. We can see if a file was successfully opened for
+	 * read and or for write by looking at file->f_mode.
+	 *
+	 * When writes are flowing from the page cache, file is no
+	 * longer available. We can trust the VFS to have checked
+	 * file->f_mode before writing to the page cache.
+	 *
+	 * The mode of a file might change between when it is opened
+	 * and IO commences, or it might be created with an arbitrary mode.
+	 *
+	 * We'll make sure we don't hit EACCES during the IO stage by
+	 * using UID 0. Some of the time we have access without changing
+	 * to UID 0 - how to check?
+	 */
+	if (file) {
+		open_for_write = file->f_mode & FMODE_WRITE;
+		open_for_read = file->f_mode & FMODE_READ;
+	} else {
+		open_for_write = 1;
+		open_for_read = 0; /* not relevant? */
+	}
+	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
+		new_op->upcall.uid = 0;
+	if ((type == ORANGEFS_IO_READ) && open_for_read)
+		new_op->upcall.uid = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
@@ -311,22 +346,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
 	int ret;
-	struct orangefs_read_options *ro;
-
 	orangefs_stats.reads++;
-
-	/*
-	 * Remember how they set "count" in read(2) or pread(2) or whatever -
-	 * users can use count as a knob to control orangefs io size and later
-	 * we can try to help them fill as many pages as possible in readpage.
-	 */
-	if (!iocb->ki_filp->private_data) {
-		iocb->ki_filp->private_data = kmalloc(sizeof *ro, GFP_KERNEL);
-		if (!iocb->ki_filp->private_data)
-			return(ENOMEM);
-		ro = iocb->ki_filp->private_data;
-		ro->blksiz = iter->count;
-	}
 
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
 	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
@@ -615,12 +635,6 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
-static int orangefs_file_open(struct inode * inode, struct file *file)
-{
-	file->private_data = NULL;
-	return generic_file_open(inode, file);
-}
-
 static int orangefs_flush(struct file *file, fl_owner_t id)
 {
 	/*
@@ -631,18 +645,7 @@ static int orangefs_flush(struct file *file, fl_owner_t id)
 	 * on an explicit fsync call.  This duplicates historical OrangeFS
 	 * behavior.
 	 */
-	struct inode *inode = file->f_mapping->host;
 	int r;
-
-	kfree(file->private_data);
-	file->private_data = NULL;
-
-	if (inode->i_state & I_DIRTY_TIME) {
-		spin_lock(&inode->i_lock);
-		inode->i_state &= ~I_DIRTY_TIME;
-		spin_unlock(&inode->i_lock);
-		mark_inode_dirty_sync(inode);
-	}
 
 	r = filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);
 	if (r > 0)
@@ -659,7 +662,7 @@ const struct file_operations orangefs_file_operations = {
 	.lock		= orangefs_lock,
 	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
-	.open		= orangefs_file_open,
+	.open		= generic_file_open,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,

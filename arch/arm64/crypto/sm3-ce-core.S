@@ -73,7 +73,7 @@
 	 *                       int blocks)
 	 */
 	.text
-ENTRY(sm3_ce_transform)
+SYM_FUNC_START(sm3_ce_transform)
 	/* load state */
 	ld1		{v8.4s-v9.4s}, [x0]
 	rev64		v8.4s, v8.4s
@@ -131,7 +131,7 @@ CPU_LE(	rev32		v3.16b, v3.16b		)
 	ext		v9.16b, v9.16b, v9.16b, #8
 	st1		{v8.4s-v9.4s}, [x0]
 	ret
-ENDPROC(sm3_ce_transform)
+SYM_FUNC_END(sm3_ce_transform)
 
 	.section	".rodata", "a"
 	.align		3

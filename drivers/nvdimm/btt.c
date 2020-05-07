@@ -1261,11 +1261,11 @@ static int btt_read_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 		ret = btt_data_read(arena, page, off, postmap, cur_len);
 		if (ret) {
-			int rc;
-
 			/* Media error - set the e_flag */
-			rc = btt_map_write(arena, premap, postmap, 0, 1,
-				NVDIMM_IO_ATOMIC);
+			if (btt_map_write(arena, premap, postmap, 0, 1, NVDIMM_IO_ATOMIC))
+				dev_warn_ratelimited(to_dev(arena),
+					"Error persistently tracking bad blocks at %#x\n",
+					premap);
 			goto out_rtt;
 		}
 
@@ -1521,7 +1521,7 @@ static int btt_blk_init(struct btt *btt)
 	struct nd_namespace_common *ndns = nd_btt->ndns;
 
 	/* create a new disk and request queue for btt */
-	btt->btt_queue = blk_alloc_queue(GFP_KERNEL);
+	btt->btt_queue = blk_alloc_queue(btt_make_request, NUMA_NO_NODE);
 	if (!btt->btt_queue)
 		return -ENOMEM;
 
@@ -1540,7 +1540,6 @@ static int btt_blk_init(struct btt *btt)
 	btt->btt_disk->queue->backing_dev_info->capabilities |=
 			BDI_CAP_SYNCHRONOUS_IO;
 
-	blk_queue_make_request(btt->btt_queue, btt_make_request);
 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
 	blk_queue_max_hw_sectors(btt->btt_queue, UINT_MAX);
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_queue);
@@ -1674,7 +1673,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	struct nd_region *nd_region;
 	struct btt_sb *btt_sb;
 	struct btt *btt;
-	size_t rawsize;
+	size_t size, rawsize;
+	int rc;
 
 	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize) {
 		dev_dbg(&nd_btt->dev, "incomplete btt configuration\n");
@@ -1685,6 +1685,11 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	if (!btt_sb)
 		return -ENOMEM;
 
+	size = nvdimm_namespace_capacity(ndns);
+	rc = devm_namespace_enable(&nd_btt->dev, ndns, size);
+	if (rc)
+		return rc;
+
 	/*
 	 * If this returns < 0, that is ok as it just means there wasn't
 	 * an existing BTT, and we're creating a new one. We still need to
@@ -1693,7 +1698,7 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	 */
 	nd_btt_version(nd_btt, ndns, btt_sb);
 
-	rawsize = nvdimm_namespace_capacity(ndns) - nd_btt->initial_offset;
+	rawsize = size - nd_btt->initial_offset;
 	if (rawsize < ARENA_MIN_SIZE) {
 		dev_dbg(&nd_btt->dev, "%s must be at least %ld bytes\n",
 				dev_name(&ndns->dev),

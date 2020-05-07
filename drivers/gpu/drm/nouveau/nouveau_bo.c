@@ -647,13 +647,6 @@ nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
 }
 
 static int
-nouveau_bo_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
-{
-	/* We'll do this from user space. */
-	return 0;
-}
-
-static int
 nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			 struct ttm_mem_type_manager *man)
 {
@@ -1162,7 +1155,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 void
 nouveau_bo_move_init(struct nouveau_drm *drm)
 {
-	static const struct {
+	static const struct _method_table {
 		const char *name;
 		int engine;
 		s32 oclass;
@@ -1192,7 +1185,8 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		{  "M2MF", 0, 0x0039, nv04_bo_move_m2mf, nv04_bo_move_init },
 		{},
 		{ "CRYPT", 0, 0x88b4, nv98_bo_move_exec, nv50_bo_move_init },
-	}, *mthd = _methods;
+	};
+	const struct _method_table *mthd = _methods;
 	const char *name = "CPU";
 	int ret;
 
@@ -1500,8 +1494,13 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			ret = nvif_object_map_handle(&mem->mem.object,
 						     &args, argc,
 						     &handle, &length);
-			if (ret != 1)
-				return ret ? ret : -EINVAL;
+			if (ret != 1) {
+				if (WARN_ON(ret == 0))
+					return -EINVAL;
+				if (ret == -ENOSPC)
+					return -EAGAIN;
+				return ret;
+			}
 
 			reg->bus.base = 0;
 			reg->bus.offset = handle;
@@ -1696,7 +1695,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
-	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,

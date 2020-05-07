@@ -45,6 +45,9 @@ properties:
           bits of a vendor specific ID.
       - items:
           - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
+          - const: ethernet-phy-ieee802.3-c22
+      - items:
+          - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
           - const: ethernet-phy-ieee802.3-c45
 
   reg:
@@ -152,6 +155,11 @@ properties:
     description:
       Delay after the reset was deasserted in microseconds. If
       this property is missing the delay will be skipped.
+
+  sfp:
+    $ref: /schemas/types.yaml#definitions/phandle
+    description:
+      Specifies a reference to a node representing a SFP cage.
 
 required:
   - reg

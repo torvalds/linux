@@ -14,7 +14,11 @@
 	soc {
 		firmware: firmware {
 			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
 			mboxes = <&mailbox>;
+			dma-ranges;
 		};
 
 		power: power {
@@ -57,10 +61,6 @@
 	pinctrl-0 = <&i2c1_gpio2>;
 	status = "okay";
 	clock-frequency = <100000>;
-};
-
-&i2c2 {
-	status = "okay";
 };
 
 &usb {

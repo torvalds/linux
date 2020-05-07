@@ -114,6 +114,7 @@
        __SMU_DUMMY_MAP(PowerDownJpeg),                \
        __SMU_DUMMY_MAP(BacoAudioD3PME),               \
        __SMU_DUMMY_MAP(ArmD3),                        \
+       __SMU_DUMMY_MAP(RunDcBtc),                     \
        __SMU_DUMMY_MAP(RunGfxDcBtc),                  \
        __SMU_DUMMY_MAP(RunSocDcBtc),                  \
        __SMU_DUMMY_MAP(SetMemoryChannelEnable),       \
@@ -168,6 +169,9 @@
 	__SMU_DUMMY_MAP(PowerGateAtHub),              \
 	__SMU_DUMMY_MAP(SetSoftMinJpeg),              \
 	__SMU_DUMMY_MAP(SetHardMinFclkByFreq),        \
+	__SMU_DUMMY_MAP(DFCstateControl), \
+	__SMU_DUMMY_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE), \
+	__SMU_DUMMY_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE), \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -251,6 +255,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(TEMP_DEPENDENT_VMIN),           	\
        __SMU_DUMMY_MAP(MMHUB_PG),                      	\
        __SMU_DUMMY_MAP(ATHUB_PG),                      	\
+       __SMU_DUMMY_MAP(APCC_DFLL),                     	\
        __SMU_DUMMY_MAP(WAFL_CG),
 
 #undef __SMU_DUMMY_MAP

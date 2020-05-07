@@ -41,7 +41,6 @@ DEFINE_PER_CPU(unsigned int, ENTRY_SP);	/* Saved SP on kernel entry */
 DEFINE_PER_CPU(unsigned int, R11_SAVE);	/* Temp variable for entry */
 DEFINE_PER_CPU(unsigned int, CURRENT_SAVE);	/* Saved current pointer */
 
-unsigned int boot_cpuid;
 /*
  * Placed cmd_line to .data section because can be initialized from
  * ASM code. Default position is BSS section which is cleared
@@ -54,7 +53,6 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = boot_command_line;
 
 	setup_memory();
-	parse_early_param();
 
 	console_verbose();
 
@@ -65,10 +63,6 @@ void __init setup_arch(char **cmdline_p)
 	microblaze_cache_init();
 
 	xilinx_pci_init();
-
-#if defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
 }
 
 #ifdef CONFIG_MTD_UCLINUX

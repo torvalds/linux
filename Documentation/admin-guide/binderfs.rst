@@ -33,6 +33,12 @@ max
   a per-instance limit. If ``max=<count>`` is set then only ``<count>`` number
   of binder devices can be allocated in this binderfs instance.
 
+stats
+  Using ``stats=global`` enables global binder statistics.
+  ``stats=global`` is only available for a binderfs instance mounted in the
+  initial user namespace. An attempt to use the option to mount a binderfs
+  instance in another user namespace will return a permission error.
+
 Allocating binder Devices
 -------------------------
 

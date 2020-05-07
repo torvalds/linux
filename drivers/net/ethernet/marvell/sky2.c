@@ -2358,7 +2358,7 @@ static void sky2_qlink_intr(struct sky2_hw *hw)
 /* Transmit timeout is only called if we are running, carrier is up
  * and tx queue is full (stopped).
  */
-static void sky2_tx_timeout(struct net_device *dev)
+static void sky2_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -4400,6 +4400,10 @@ static int sky2_set_features(struct net_device *dev, netdev_features_t features)
 }
 
 static const struct ethtool_ops sky2_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_RX_USECS_IRQ |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ,
 	.get_drvinfo	= sky2_get_drvinfo,
 	.get_wol	= sky2_get_wol,
 	.set_wol	= sky2_set_wol,
@@ -5022,7 +5026,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->pdev = pdev;
 	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
-	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
+	hw->regs = ioremap(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
 		goto err_out_free_hw;

@@ -69,7 +69,7 @@ amdgpufb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops amdgpufb_ops = {
+static const struct fb_ops amdgpufb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = amdgpufb_open,
@@ -336,14 +336,11 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	drm_fb_helper_prepare(adev->ddev, &rfbdev->helper,
 			&amdgpu_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper,
-				 AMDGPUFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper);
 	if (ret) {
 		kfree(rfbdev);
 		return ret;
 	}
-
-	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	if (!amdgpu_device_has_dc_support(adev))

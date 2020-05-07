@@ -94,10 +94,8 @@ static int crc32_pclmul_setkey(struct crypto_shash *hash, const u8 *key,
 {
 	u32 *mctx = crypto_shash_ctx(hash);
 
-	if (keylen != sizeof(u32)) {
-		crypto_shash_set_flags(hash, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != sizeof(u32))
 		return -EINVAL;
-	}
 	*mctx = le32_to_cpup((__le32 *)key);
 	return 0;
 }
@@ -172,7 +170,7 @@ static struct shash_alg alg = {
 };
 
 static const struct x86_cpu_id crc32pclmul_cpu_id[] = {
-	X86_FEATURE_MATCH(X86_FEATURE_PCLMULQDQ),
+	X86_MATCH_FEATURE(X86_FEATURE_PCLMULQDQ, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, crc32pclmul_cpu_id);

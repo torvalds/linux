@@ -8,7 +8,7 @@
 #include "imx8mq-zii-ultra.dtsi"
 
 / {
-	model = "ZII i.MX8MQ Ultra RMB3 Board";
+	model = "ZII Ultra RMB3 Board";
 	compatible = "zii,imx8mq-ultra-rmb3", "zii,imx8mq-ultra", "fsl,imx8mq";
 };
 

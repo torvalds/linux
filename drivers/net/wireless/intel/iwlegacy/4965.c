@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/units.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
@@ -415,7 +416,6 @@ il4965_set_ucode_ptrs(struct il_priv *il)
 {
 	dma_addr_t pinst;
 	dma_addr_t pdata;
-	int ret = 0;
 
 	/* bits 35:4 for 4965 */
 	pinst = il->ucode_code.p_addr >> 4;
@@ -432,7 +432,7 @@ il4965_set_ucode_ptrs(struct il_priv *il)
 		   il->ucode_code.len | BSM_DRAM_INST_LOAD);
 	D_INFO("Runtime uCode pointers are set.\n");
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -1104,7 +1104,7 @@ il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel, u8 is_ht40,
 	/* get current temperature (Celsius) */
 	current_temp = max(il->temperature, IL_TX_POWER_TEMPERATURE_MIN);
 	current_temp = min(il->temperature, IL_TX_POWER_TEMPERATURE_MAX);
-	current_temp = KELVIN_TO_CELSIUS(current_temp);
+	current_temp = kelvin_to_celsius(current_temp);
 
 	/* select thermal txpower adjustment params, based on channel group
 	 *   (same frequency group used for mimo txatten adjustment) */
@@ -1610,8 +1610,8 @@ il4965_hw_get_temperature(struct il_priv *il)
 	temperature =
 	    (temperature * 97) / 100 + TEMPERATURE_CALIB_KELVIN_OFFSET;
 
-	D_TEMP("Calibrated temperature: %dK, %dC\n", temperature,
-	       KELVIN_TO_CELSIUS(temperature));
+	D_TEMP("Calibrated temperature: %dK, %ldC\n", temperature,
+	       kelvin_to_celsius(temperature));
 
 	return temperature;
 }
@@ -1670,12 +1670,12 @@ il4965_temperature_calib(struct il_priv *il)
 
 	if (il->temperature != temp) {
 		if (il->temperature)
-			D_TEMP("Temperature changed " "from %dC to %dC\n",
-			       KELVIN_TO_CELSIUS(il->temperature),
-			       KELVIN_TO_CELSIUS(temp));
+			D_TEMP("Temperature changed " "from %ldC to %ldC\n",
+			       kelvin_to_celsius(il->temperature),
+			       kelvin_to_celsius(temp));
 		else
-			D_TEMP("Temperature " "initialized to %dC\n",
-			       KELVIN_TO_CELSIUS(temp));
+			D_TEMP("Temperature " "initialized to %ldC\n",
+			       kelvin_to_celsius(temp));
 	}
 
 	il->temperature = temp;

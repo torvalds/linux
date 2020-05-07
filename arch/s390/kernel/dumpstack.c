@@ -38,6 +38,7 @@ const char *stack_type_name(enum stack_type type)
 		return "unknown";
 	}
 }
+EXPORT_SYMBOL_GPL(stack_type_name);
 
 static inline bool in_stack(unsigned long sp, struct stack_info *info,
 			    enum stack_type type, unsigned long low,
@@ -93,7 +94,9 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 	if (!sp)
 		goto unknown;
 
-	task = task ? : current;
+	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
+	if (sp & 0x7)
+		goto unknown;
 
 	/* Check per-task stack */
 	if (in_task_stack(sp, task, info))
@@ -128,8 +131,6 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	struct unwind_state state;
 
 	printk("Call Trace:\n");
-	if (!task)
-		task = current;
 	unwind_for_each_frame(&state, task, NULL, (unsigned long) stack)
 		printk(state.reliable ? " [<%016lx>] %pSR \n" :
 					"([<%016lx>] %pSR)\n",
@@ -194,6 +195,8 @@ void die(struct pt_regs *regs, const char *str)
 	       regs->int_code >> 17, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	pr_cont("PREEMPT ");
+#elif defined(CONFIG_PREEMPT_RT)
+	pr_cont("PREEMPT_RT ");
 #endif
 	pr_cont("SMP ");
 	if (debug_pagealloc_enabled())

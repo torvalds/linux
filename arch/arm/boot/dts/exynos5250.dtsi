@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG EXYNOS5250 SoC device tree source
+ * Samsung Exynos5250 SoC device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * SAMSUNG EXYNOS5250 SoC device nodes are listed in this file.
- * EXYNOS5250 based board files can include this file and provide
+ * Samsung Exynos5250 SoC device nodes are listed in this file.
+ * Exynos5250 based board files can include this file and provide
  * values for board specfic bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
- * EXYNOS5250 SoC. As device tree coverage for EXYNOS5250 increases,
+ * Exynos5250 SoC. As device tree coverage for Exynos5250 increases,
  * additional nodes can be added to this file.
  */
 
@@ -164,19 +164,19 @@
 	};
 
 	soc: soc {
-		sysram@2020000 {
+		sram@2020000 {
 			compatible = "mmio-sram";
 			reg = <0x02020000 0x30000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x02020000 0x30000>;
 
-			smp-sysram@0 {
+			smp-sram@0 {
 				compatible = "samsung,exynos4210-sysram";
 				reg = <0x0 0x1000>;
 			};
 
-			smp-sysram@2f000 {
+			smp-sram@2f000 {
 				compatible = "samsung,exynos4210-sysram-ns";
 				reg = <0x2f000 0x1000>;
 			};
@@ -233,28 +233,17 @@
 			power-domains = <&pd_mau>;
 		};
 
-		mct@101c0000 {
+		timer@101c0000 {
 			compatible = "samsung,exynos4210-mct";
 			reg = <0x101C0000 0x800>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			interrupt-parent = <&mct_map>;
-			interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
-				     <4 0>, <5 0>;
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 			clock-names = "fin_pll", "mct";
-
-			mct_map: mct-map {
-				#interrupt-cells = <2>;
-				#address-cells = <0>;
-				#size-cells = <0>;
-				interrupt-map = <0x0 0 &combiner 23 3>,
-						<0x1 0 &combiner 23 4>,
-						<0x2 0 &combiner 25 2>,
-						<0x3 0 &combiner 25 3>,
-						<0x4 0 &gic 0 120 IRQ_TYPE_LEVEL_HIGH>,
-						<0x5 0 &gic 0 121 IRQ_TYPE_LEVEL_HIGH>;
-			};
+			interrupts-extended = <&combiner 23 3>,
+					      <&combiner 23 4>,
+					      <&combiner 25 2>,
+					      <&combiner 25 3>,
+					      <&gic GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_0: pinctrl@11400000 {
@@ -586,9 +575,9 @@
 			compatible = "samsung,s5pv210-i2s";
 			status = "disabled";
 			reg = <0x03830000 0x100>;
-			dmas = <&pdma0 10
-				&pdma0 9
-				&pdma0 8>;
+			dmas = <&pdma0 10>,
+				<&pdma0 9>,
+				<&pdma0 8>;
 			dma-names = "tx", "rx", "tx-sec";
 			clocks = <&clock_audss EXYNOS_I2S_BUS>,
 				<&clock_audss EXYNOS_I2S_BUS>,
@@ -606,8 +595,8 @@
 			compatible = "samsung,s3c6410-i2s";
 			status = "disabled";
 			reg = <0x12D60000 0x100>;
-			dmas = <&pdma1 12
-				&pdma1 11>;
+			dmas = <&pdma1 12>,
+				<&pdma1 11>;
 			dma-names = "tx", "rx";
 			clocks = <&clock CLK_I2S1>, <&clock CLK_DIV_I2S1>;
 			clock-names = "iis", "i2s_opclk0";
@@ -621,8 +610,8 @@
 			compatible = "samsung,s3c6410-i2s";
 			status = "disabled";
 			reg = <0x12D70000 0x100>;
-			dmas = <&pdma0 12
-				&pdma0 11>;
+			dmas = <&pdma0 12>,
+				<&pdma0 11>;
 			dma-names = "tx", "rx";
 			clocks = <&clock CLK_I2S2>, <&clock CLK_DIV_I2S2>;
 			clock-names = "iis", "i2s_opclk0";

@@ -4,6 +4,7 @@
  */
 
 #include <linux/sort.h>
+#include <linux/string.h>
 
 #include "t4_regs.h"
 #include "cxgb4.h"
@@ -776,24 +777,18 @@ static int cudbg_get_mem_region(struct adapter *padap,
 				struct cudbg_mem_desc *mem_desc)
 {
 	u8 mc, found = 0;
-	u32 i, idx = 0;
-	int rc;
+	u32 idx = 0;
+	int rc, i;
 
 	rc = cudbg_meminfo_get_mem_index(padap, meminfo, mem_type, &mc);
 	if (rc)
 		return rc;
 
-	for (i = 0; i < ARRAY_SIZE(cudbg_region); i++) {
-		if (!strcmp(cudbg_region[i], region_name)) {
-			found = 1;
-			idx = i;
-			break;
-		}
-	}
-	if (!found)
+	i = match_string(cudbg_region, ARRAY_SIZE(cudbg_region), region_name);
+	if (i < 0)
 		return -EINVAL;
 
-	found = 0;
+	idx = i;
 	for (i = 0; i < meminfo->mem_c; i++) {
 		if (meminfo->mem[i].idx >= ARRAY_SIZE(cudbg_region))
 			continue; /* Skip holes */
@@ -1054,9 +1049,9 @@ static void cudbg_t4_fwcache(struct cudbg_init *pdbg_init,
 	}
 }
 
-static unsigned long cudbg_mem_region_size(struct cudbg_init *pdbg_init,
-					   struct cudbg_error *cudbg_err,
-					   u8 mem_type)
+static int cudbg_mem_region_size(struct cudbg_init *pdbg_init,
+				 struct cudbg_error *cudbg_err,
+				 u8 mem_type, unsigned long *region_size)
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_meminfo mem_info;
@@ -1065,15 +1060,23 @@ static unsigned long cudbg_mem_region_size(struct cudbg_init *pdbg_init,
 
 	memset(&mem_info, 0, sizeof(struct cudbg_meminfo));
 	rc = cudbg_fill_meminfo(padap, &mem_info);
-	if (rc)
+	if (rc) {
+		cudbg_err->sys_err = rc;
 		return rc;
+	}
 
 	cudbg_t4_fwcache(pdbg_init, cudbg_err);
 	rc = cudbg_meminfo_get_mem_index(padap, &mem_info, mem_type, &mc_idx);
-	if (rc)
+	if (rc) {
+		cudbg_err->sys_err = rc;
 		return rc;
+	}
 
-	return mem_info.avail[mc_idx].limit - mem_info.avail[mc_idx].base;
+	if (region_size)
+		*region_size = mem_info.avail[mc_idx].limit -
+			       mem_info.avail[mc_idx].base;
+
+	return 0;
 }
 
 static int cudbg_collect_mem_region(struct cudbg_init *pdbg_init,
@@ -1081,7 +1084,12 @@ static int cudbg_collect_mem_region(struct cudbg_init *pdbg_init,
 				    struct cudbg_error *cudbg_err,
 				    u8 mem_type)
 {
-	unsigned long size = cudbg_mem_region_size(pdbg_init, cudbg_err, mem_type);
+	unsigned long size = 0;
+	int rc;
+
+	rc = cudbg_mem_region_size(pdbg_init, cudbg_err, mem_type, &size);
+	if (rc)
+		return rc;
 
 	return cudbg_read_fw_mem(pdbg_init, dbg_buff, mem_type, size,
 				 cudbg_err);
@@ -2930,6 +2938,10 @@ void cudbg_fill_qdesc_num_and_size(const struct adapter *padap,
 	tot_size += CXGB4_ULD_MAX * MAX_ULD_QSETS * SGE_MAX_IQ_SIZE *
 		    MAX_RXQ_DESC_SIZE;
 
+	/* ETHOFLD TXQ, RXQ, and FLQ */
+	tot_entries += MAX_OFLD_QSETS * 3;
+	tot_size += MAX_OFLD_QSETS * MAX_TXQ_ENTRIES * MAX_TXQ_DESC_SIZE;
+
 	tot_size += sizeof(struct cudbg_ver_hdr) +
 		    sizeof(struct cudbg_qdesc_info) +
 		    sizeof(struct cudbg_qdesc_entry) * tot_entries;
@@ -3085,6 +3097,23 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 					      cudbg_uld_ciq_to_qtype(j),
 					      out_unlock);
 		}
+	}
+
+	/* ETHOFLD TXQ */
+	if (s->eohw_txq)
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_TXQ(&s->eohw_txq[i].q,
+				      CUDBG_QTYPE_ETHOFLD_TXQ, out);
+
+	/* ETHOFLD RXQ and FLQ */
+	if (s->eohw_rxq) {
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_RXQ(&s->eohw_rxq[i].rspq,
+				      CUDBG_QTYPE_ETHOFLD_RXQ, out);
+
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_FLQ(&s->eohw_rxq[i].fl,
+				      CUDBG_QTYPE_ETHOFLD_FLQ, out);
 	}
 
 out_unlock:

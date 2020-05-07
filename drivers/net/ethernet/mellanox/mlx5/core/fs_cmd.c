@@ -432,6 +432,9 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(set_fte_in, in, table_type, ft->type);
 	MLX5_SET(set_fte_in, in, table_id,   ft->id);
 	MLX5_SET(set_fte_in, in, flow_index, fte->index);
+	MLX5_SET(set_fte_in, in, ignore_flow_level,
+		 !!(fte->action.flags & FLOW_ACT_IGNORE_FLOW_LEVEL));
+
 	if (ft->vport) {
 		MLX5_SET(set_fte_in, in, vport_number, ft->vport);
 		MLX5_SET(set_fte_in, in, other_vport, 1);
@@ -901,6 +904,7 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type typ
 	case FS_FT_SNIFFER_TX:
 	case FS_FT_NIC_TX:
 	case FS_FT_RDMA_RX:
+	case FS_FT_RDMA_TX:
 		return mlx5_fs_cmd_get_fw_cmds();
 	default:
 		return mlx5_fs_cmd_get_stub_cmds();

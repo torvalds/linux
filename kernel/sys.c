@@ -47,6 +47,7 @@
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
 #include <linux/user_namespace.h>
+#include <linux/time_namespace.h>
 #include <linux/binfmts.h>
 
 #include <linux/sched.h>
@@ -1279,10 +1280,12 @@ SYSCALL_DEFINE1(uname, struct old_utsname __user *, name)
 
 SYSCALL_DEFINE1(olduname, struct oldold_utsname __user *, name)
 {
-	struct oldold_utsname tmp = {};
+	struct oldold_utsname tmp;
 
 	if (!name)
 		return -EFAULT;
+
+	memset(&tmp, 0, sizeof(tmp));
 
 	down_read(&uts_sem);
 	memcpy(&tmp.sysname, &utsname()->sysname, __OLD_UTS_LEN);
@@ -1763,8 +1766,8 @@ void getrusage(struct task_struct *p, int who, struct rusage *r)
 	unlock_task_sighand(p, &flags);
 
 out:
-	r->ru_utime = ns_to_timeval(utime);
-	r->ru_stime = ns_to_timeval(stime);
+	r->ru_utime = ns_to_kernel_old_timeval(utime);
+	r->ru_stime = ns_to_kernel_old_timeval(stime);
 
 	if (who != RUSAGE_CHILDREN) {
 		struct mm_struct *mm = get_task_mm(p);
@@ -2259,6 +2262,8 @@ int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
 	return -EINVAL;
 }
 
+#define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LESS_THROTTLE)
+
 SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
 {
@@ -2486,6 +2491,29 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		error = GET_TAGGED_ADDR_CTRL();
 		break;
+	case PR_SET_IO_FLUSHER:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+
+		if (arg2 == 1)
+			current->flags |= PR_IO_FLUSHER;
+		else if (!arg2)
+			current->flags &= ~PR_IO_FLUSHER;
+		else
+			return -EINVAL;
+		break;
+	case PR_GET_IO_FLUSHER:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
+		if (arg2 || arg3 || arg4 || arg5)
+			return -EINVAL;
+
+		error = (current->flags & PR_IO_FLUSHER) == PR_IO_FLUSHER;
+		break;
 	default:
 		error = -EINVAL;
 		break;
@@ -2519,6 +2547,7 @@ static int do_sysinfo(struct sysinfo *info)
 	memset(info, 0, sizeof(struct sysinfo));
 
 	ktime_get_boottime_ts64(&tp);
+	timens_add_boottime(&tp);
 	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
 
 	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);

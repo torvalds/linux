@@ -167,7 +167,7 @@ static int omap2_iommu_enable(struct omap_iommu *obj)
 {
 	u32 l, pa;
 
-	if (!obj->iopgd || !IS_ALIGNED((u32)obj->iopgd,  SZ_16K))
+	if (!obj->iopgd || !IS_ALIGNED((unsigned long)obj->iopgd,  SZ_16K))
 		return -EINVAL;
 
 	pa = virt_to_phys(obj->iopgd);
@@ -434,7 +434,7 @@ static void flush_iotlb_page(struct omap_iommu *obj, u32 da)
 		bytes = iopgsz_to_bytes(cr.cam & 3);
 
 		if ((start <= da) && (da < start + bytes)) {
-			dev_dbg(obj->dev, "%s: %08x<=%08x(%x)\n",
+			dev_dbg(obj->dev, "%s: %08x<=%08x(%zx)\n",
 				__func__, start, da, bytes);
 			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
@@ -1339,7 +1339,7 @@ static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa, int pgsz)
 }
 
 static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
-			  phys_addr_t pa, size_t bytes, int prot)
+			  phys_addr_t pa, size_t bytes, int prot, gfp_t gfp)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct device *dev = omap_domain->dev;
@@ -1352,11 +1352,11 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 
 	omap_pgsz = bytes_to_iopgsz(bytes);
 	if (omap_pgsz < 0) {
-		dev_err(dev, "invalid size to map: %d\n", bytes);
+		dev_err(dev, "invalid size to map: %zu\n", bytes);
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "mapping da 0x%lx to pa %pa size 0x%x\n", da, &pa, bytes);
+	dev_dbg(dev, "mapping da 0x%lx to pa %pa size 0x%zx\n", da, &pa, bytes);
 
 	iotlb_init_entry(&e, da, pa, omap_pgsz);
 
@@ -1393,7 +1393,7 @@ static size_t omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
 	size_t bytes = 0;
 	int i;
 
-	dev_dbg(dev, "unmapping da 0x%lx size %u\n", da, size);
+	dev_dbg(dev, "unmapping da 0x%lx size %zu\n", da, size);
 
 	iommu = omap_domain->iommus;
 	for (i = 0; i < omap_domain->num_iommus; i++, iommu++) {

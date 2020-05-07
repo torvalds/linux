@@ -19,6 +19,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
+#include <linux/of.h>
 #include <linux/util_macros.h>
 
 /* Indexes for the sysfs hooks */
@@ -193,6 +194,7 @@ struct adt7475_data {
 	unsigned long measure_updated;
 	bool valid;
 
+	u8 config2;
 	u8 config4;
 	u8 config5;
 	u8 has_voltage;
@@ -294,9 +296,10 @@ static inline u16 volt2reg(int channel, long volt, u8 bypass_attn)
 	long reg;
 
 	if (bypass_attn & (1 << channel))
-		reg = (volt * 1024) / 2250;
+		reg = DIV_ROUND_CLOSEST(volt * 1024, 2250);
 	else
-		reg = (volt * r[1] * 1024) / ((r[0] + r[1]) * 2250);
+		reg = DIV_ROUND_CLOSEST(volt * r[1] * 1024,
+					(r[0] + r[1]) * 2250);
 	return clamp_val(reg, 0, 1023) & (0xff << 2);
 }
 
@@ -1457,6 +1460,85 @@ static int adt7475_update_limits(struct i2c_client *client)
 	return 0;
 }
 
+static int set_property_bit(const struct i2c_client *client, char *property,
+			    u8 *config, u8 bit_index)
+{
+	u32 prop_value = 0;
+	int ret = of_property_read_u32(client->dev.of_node, property,
+					&prop_value);
+
+	if (!ret) {
+		if (prop_value)
+			*config |= (1 << bit_index);
+		else
+			*config &= ~(1 << bit_index);
+	}
+
+	return ret;
+}
+
+static int load_attenuators(const struct i2c_client *client, int chip,
+			    struct adt7475_data *data)
+{
+	int ret;
+
+	if (chip == adt7476 || chip == adt7490) {
+		set_property_bit(client, "adi,bypass-attenuator-in0",
+				 &data->config4, 4);
+		set_property_bit(client, "adi,bypass-attenuator-in1",
+				 &data->config4, 5);
+		set_property_bit(client, "adi,bypass-attenuator-in3",
+				 &data->config4, 6);
+		set_property_bit(client, "adi,bypass-attenuator-in4",
+				 &data->config4, 7);
+
+		ret = i2c_smbus_write_byte_data(client, REG_CONFIG4,
+						data->config4);
+		if (ret < 0)
+			return ret;
+	} else if (chip == adt7473 || chip == adt7475) {
+		set_property_bit(client, "adi,bypass-attenuator-in1",
+				 &data->config2, 5);
+
+		ret = i2c_smbus_write_byte_data(client, REG_CONFIG2,
+						data->config2);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int adt7475_set_pwm_polarity(struct i2c_client *client)
+{
+	u32 states[ADT7475_PWM_COUNT];
+	int ret, i;
+	u8 val;
+
+	ret = of_property_read_u32_array(client->dev.of_node,
+					 "adi,pwm-active-state", states,
+					 ARRAY_SIZE(states));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ADT7475_PWM_COUNT; i++) {
+		ret = adt7475_read(PWM_CONFIG_REG(i));
+		if (ret < 0)
+			return ret;
+		val = ret;
+		if (states[i])
+			val &= ~BIT(4);
+		else
+			val |= BIT(4);
+
+		ret = i2c_smbus_write_byte_data(client, PWM_CONFIG_REG(i), val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1471,7 +1553,7 @@ static int adt7475_probe(struct i2c_client *client,
 	struct adt7475_data *data;
 	struct device *hwmon_dev;
 	int i, ret = 0, revision, group_num = 0;
-	u8 config2, config3;
+	u8 config3;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
@@ -1545,8 +1627,12 @@ static int adt7475_probe(struct i2c_client *client,
 	}
 
 	/* Voltage attenuators can be bypassed, globally or individually */
-	config2 = adt7475_read(REG_CONFIG2);
-	if (config2 & CONFIG2_ATTN) {
+	data->config2 = adt7475_read(REG_CONFIG2);
+	ret = load_attenuators(client, chip, data);
+	if (ret)
+		dev_warn(&client->dev, "Error configuring attenuator bypass\n");
+
+	if (data->config2 & CONFIG2_ATTN) {
 		data->bypass_attn = (0x3 << 3) | 0x3;
 	} else {
 		data->bypass_attn = ((data->config4 & CONFIG4_ATTN_IN10) >> 4) |
@@ -1560,6 +1646,10 @@ static int adt7475_probe(struct i2c_client *client,
 	 */
 	for (i = 0; i < ADT7475_PWM_COUNT; i++)
 		adt7475_read_pwm(client, i);
+
+	ret = adt7475_set_pwm_polarity(client);
+	if (ret && ret != -EINVAL)
+		dev_warn(&client->dev, "Error configuring pwm polarity\n");
 
 	/* Start monitoring */
 	switch (chip) {

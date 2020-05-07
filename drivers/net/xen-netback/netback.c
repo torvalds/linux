@@ -1453,7 +1453,7 @@ int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
 	void *addr;
 	struct xen_netif_tx_sring *txs;
 	struct xen_netif_rx_sring *rxs;
-
+	RING_IDX rsp_prod, req_prod;
 	int err = -ENOMEM;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
@@ -1462,7 +1462,14 @@ int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
 		goto err;
 
 	txs = (struct xen_netif_tx_sring *)addr;
-	BACK_RING_INIT(&queue->tx, txs, XEN_PAGE_SIZE);
+	rsp_prod = READ_ONCE(txs->rsp_prod);
+	req_prod = READ_ONCE(txs->req_prod);
+
+	BACK_RING_ATTACH(&queue->tx, txs, rsp_prod, XEN_PAGE_SIZE);
+
+	err = -EIO;
+	if (req_prod - rsp_prod > RING_SIZE(&queue->tx))
+		goto err;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
 				     &rx_ring_ref, 1, &addr);
@@ -1470,7 +1477,14 @@ int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
 		goto err;
 
 	rxs = (struct xen_netif_rx_sring *)addr;
-	BACK_RING_INIT(&queue->rx, rxs, XEN_PAGE_SIZE);
+	rsp_prod = READ_ONCE(rxs->rsp_prod);
+	req_prod = READ_ONCE(rxs->req_prod);
+
+	BACK_RING_ATTACH(&queue->rx, rxs, rsp_prod, XEN_PAGE_SIZE);
+
+	err = -EIO;
+	if (req_prod - rsp_prod > RING_SIZE(&queue->rx))
+		goto err;
 
 	return 0;
 

@@ -16,10 +16,14 @@ extern struct cache_info L1_cache_info[2];
 
 int va_kernel_present(unsigned long addr)
 {
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
-	pmd = pmd_offset(pgd_offset_k(addr), addr);
+	p4d = p4d_offset(pgd_offset_k(addr), addr);
+	pud = pud_offset(p4d, addr);
+	pmd = pmd_offset(pud, addr);
 	if (!pmd_none(*pmd)) {
 		ptep = pte_offset_map(pmd, addr);
 		pte = *ptep;
@@ -32,20 +36,24 @@ int va_kernel_present(unsigned long addr)
 pte_t va_present(struct mm_struct * mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
 	pgd = pgd_offset(mm, addr);
 	if (!pgd_none(*pgd)) {
-		pud = pud_offset(pgd, addr);
-		if (!pud_none(*pud)) {
-			pmd = pmd_offset(pud, addr);
-			if (!pmd_none(*pmd)) {
-				ptep = pte_offset_map(pmd, addr);
-				pte = *ptep;
-				if (pte_present(pte))
-					return pte;
+		p4d = p4d_offset(pgd, addr);
+		if (!p4d_none(*p4d)) {
+			pud = pud_offset(p4d, addr);
+			if (!pud_none(*pud)) {
+				pmd = pmd_offset(pud, addr);
+				if (!pmd_none(*pmd)) {
+					ptep = pte_offset_map(pmd, addr);
+					pte = *ptep;
+					if (pte_present(pte))
+						return pte;
+				}
 			}
 		}
 	}

@@ -7,12 +7,16 @@
 
 /* ops for PCI, USB and SDIO */
 struct rtw_hci_ops {
-	int (*tx)(struct rtw_dev *rtwdev,
-		  struct rtw_tx_pkt_info *pkt_info,
-		  struct sk_buff *skb);
+	int (*tx_write)(struct rtw_dev *rtwdev,
+			struct rtw_tx_pkt_info *pkt_info,
+			struct sk_buff *skb);
+	void (*tx_kick_off)(struct rtw_dev *rtwdev);
 	int (*setup)(struct rtw_dev *rtwdev);
 	int (*start)(struct rtw_dev *rtwdev);
 	void (*stop)(struct rtw_dev *rtwdev);
+	void (*deep_ps)(struct rtw_dev *rtwdev, bool enter);
+	void (*link_ps)(struct rtw_dev *rtwdev, bool enter);
+	void (*interface_cfg)(struct rtw_dev *rtwdev);
 
 	int (*write_data_rsvd_page)(struct rtw_dev *rtwdev, u8 *buf, u32 size);
 	int (*write_data_h2c)(struct rtw_dev *rtwdev, u8 *buf, u32 size);
@@ -25,11 +29,16 @@ struct rtw_hci_ops {
 	void (*write32)(struct rtw_dev *rtwdev, u32 addr, u32 val);
 };
 
-static inline int rtw_hci_tx(struct rtw_dev *rtwdev,
-			     struct rtw_tx_pkt_info *pkt_info,
-			     struct sk_buff *skb)
+static inline int rtw_hci_tx_write(struct rtw_dev *rtwdev,
+				   struct rtw_tx_pkt_info *pkt_info,
+				   struct sk_buff *skb)
 {
-	return rtwdev->hci.ops->tx(rtwdev, pkt_info, skb);
+	return rtwdev->hci.ops->tx_write(rtwdev, pkt_info, skb);
+}
+
+static inline void rtw_hci_tx_kick_off(struct rtw_dev *rtwdev)
+{
+	return rtwdev->hci.ops->tx_kick_off(rtwdev);
 }
 
 static inline int rtw_hci_setup(struct rtw_dev *rtwdev)
@@ -45,6 +54,21 @@ static inline int rtw_hci_start(struct rtw_dev *rtwdev)
 static inline void rtw_hci_stop(struct rtw_dev *rtwdev)
 {
 	rtwdev->hci.ops->stop(rtwdev);
+}
+
+static inline void rtw_hci_deep_ps(struct rtw_dev *rtwdev, bool enter)
+{
+	rtwdev->hci.ops->deep_ps(rtwdev, enter);
+}
+
+static inline void rtw_hci_link_ps(struct rtw_dev *rtwdev, bool enter)
+{
+	rtwdev->hci.ops->link_ps(rtwdev, enter);
+}
+
+static inline void rtw_hci_interface_cfg(struct rtw_dev *rtwdev)
+{
+	rtwdev->hci.ops->interface_cfg(rtwdev);
 }
 
 static inline int
@@ -170,6 +194,32 @@ rtw_read32_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
 	u32 ret;
 
 	orig = rtw_read32(rtwdev, addr);
+	ret = (orig & mask) >> shift;
+
+	return ret;
+}
+
+static inline u16
+rtw_read16_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
+{
+	u32 shift = __ffs(mask);
+	u32 orig;
+	u32 ret;
+
+	orig = rtw_read16(rtwdev, addr);
+	ret = (orig & mask) >> shift;
+
+	return ret;
+}
+
+static inline u8
+rtw_read8_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
+{
+	u32 shift = __ffs(mask);
+	u32 orig;
+	u32 ret;
+
+	orig = rtw_read8(rtwdev, addr);
 	ret = (orig & mask) >> shift;
 
 	return ret;

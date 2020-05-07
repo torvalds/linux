@@ -27,7 +27,6 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/platform_data/i2c-pxa.h>
 
 #include <mach/hardware.h>
@@ -402,7 +401,6 @@ static void magician_backlight_exit(struct device *dev)
 static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness	= 272,
 	.dft_brightness	= 100,
-	.enable_gpio	= -1,
 	.init		= magician_backlight_init,
 	.notify		= magician_backlight_notify,
 	.exit		= magician_backlight_exit,
@@ -506,9 +504,20 @@ static struct resource gpio_vbus_resource = {
 	.end	= IRQ_MAGICIAN_VBUS,
 };
 
-static struct gpio_vbus_mach_info gpio_vbus_info = {
-	.gpio_pullup	= GPIO27_MAGICIAN_USBC_PUEN,
-	.gpio_vbus	= EGPIO_MAGICIAN_CABLE_VBUS,
+static struct gpiod_lookup_table gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		/*
+		 * EGPIO on register 4 index 1, the second EGPIO chip
+		 * starts at register 4 so this will be at index 1 on that
+		 * chip.
+		 */
+		GPIO_LOOKUP("htc-egpio-1", 1,
+			    "vbus", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO27_MAGICIAN_USBC_PUEN,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device gpio_vbus = {
@@ -516,9 +525,6 @@ static struct platform_device gpio_vbus = {
 	.id		= -1,
 	.num_resources	= 1,
 	.resource	= &gpio_vbus_resource,
-	.dev = {
-		.platform_data = &gpio_vbus_info,
-	},
 };
 
 /*
@@ -1008,7 +1014,7 @@ static void __init magician_init(void)
 	pxa_set_udc_info(&magician_udc_info);
 
 	/* Check LCD type we have */
-	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
+	cpld = ioremap(PXA_CS3_PHYS, 0x1000);
 	if (cpld) {
 		u8 board_id = __raw_readb(cpld + 0x14);
 
@@ -1032,6 +1038,7 @@ static void __init magician_init(void)
 		ARRAY_SIZE(pwm_backlight_supply), 5000000);
 
 	gpiod_add_lookup_table(&bq24022_gpiod_table);
+	gpiod_add_lookup_table(&gpio_vbus_gpiod_table);
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 }
 

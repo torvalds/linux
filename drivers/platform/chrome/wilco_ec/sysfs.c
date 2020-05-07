@@ -8,8 +8,12 @@
  * See Documentation/ABI/testing/sysfs-platform-wilco-ec for more information.
  */
 
+#include <linux/device.h>
+#include <linux/kernel.h>
 #include <linux/platform_data/wilco-ec.h>
+#include <linux/string.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 
 #define CMD_KB_CMOS			0x7C
 #define SUB_CMD_KB_CMOS_AUTO_ON		0x03
@@ -21,6 +25,26 @@ struct boot_on_ac_request {
 	u8 reserved3to5[3];
 	u8 val;			/* Either 0 or 1 */
 	u8 reserved7;
+} __packed;
+
+#define CMD_USB_CHARGE 0x39
+
+enum usb_charge_op {
+	USB_CHARGE_GET = 0,
+	USB_CHARGE_SET = 1,
+};
+
+struct usb_charge_request {
+	u8 cmd;		/* Always CMD_USB_CHARGE */
+	u8 reserved;
+	u8 op;		/* One of enum usb_charge_op */
+	u8 val;		/* When setting, either 0 or 1 */
+} __packed;
+
+struct usb_charge_response {
+	u8 reserved;
+	u8 status;	/* Set by EC to 0 on success, other value on failure */
+	u8 val;		/* When getting, set by EC to either 0 or 1 */
 } __packed;
 
 #define CMD_EC_INFO			0x38
@@ -131,12 +155,83 @@ static ssize_t model_number_show(struct device *dev,
 
 static DEVICE_ATTR_RO(model_number);
 
+static int send_usb_charge(struct wilco_ec_device *ec,
+				struct usb_charge_request *rq,
+				struct usb_charge_response *rs)
+{
+	struct wilco_ec_message msg;
+	int ret;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.type = WILCO_EC_MSG_LEGACY;
+	msg.request_data = rq;
+	msg.request_size = sizeof(*rq);
+	msg.response_data = rs;
+	msg.response_size = sizeof(*rs);
+	ret = wilco_ec_mailbox(ec, &msg);
+	if (ret < 0)
+		return ret;
+	if (rs->status)
+		return -EIO;
+
+	return 0;
+}
+
+static ssize_t usb_charge_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct wilco_ec_device *ec = dev_get_drvdata(dev);
+	struct usb_charge_request rq;
+	struct usb_charge_response rs;
+	int ret;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.cmd = CMD_USB_CHARGE;
+	rq.op = USB_CHARGE_GET;
+
+	ret = send_usb_charge(ec, &rq, &rs);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", rs.val);
+}
+
+static ssize_t usb_charge_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct wilco_ec_device *ec = dev_get_drvdata(dev);
+	struct usb_charge_request rq;
+	struct usb_charge_response rs;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+	if (val > 1)
+		return -EINVAL;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.cmd = CMD_USB_CHARGE;
+	rq.op = USB_CHARGE_SET;
+	rq.val = val;
+
+	ret = send_usb_charge(ec, &rq, &rs);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(usb_charge);
 
 static struct attribute *wilco_dev_attrs[] = {
 	&dev_attr_boot_on_ac.attr,
 	&dev_attr_build_date.attr,
 	&dev_attr_build_revision.attr,
 	&dev_attr_model_number.attr,
+	&dev_attr_usb_charge.attr,
 	&dev_attr_version.attr,
 	NULL,
 };

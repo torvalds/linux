@@ -58,7 +58,7 @@ static struct au1xpsc_audio_data *au1xpsc_ac97_workdata;
 static inline struct au1xpsc_audio_data *ac97_to_pscdata(struct snd_ac97 *x)
 {
 	struct snd_soc_card *c = x->bus->card->private_data;
-	return snd_soc_dai_get_drvdata(c->rtd->cpu_dai);
+	return snd_soc_dai_get_drvdata(c->asoc_rtd_to_cpu(rtd, 0));
 }
 
 #else
@@ -339,7 +339,6 @@ static const struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
 };
 
 static const struct snd_soc_dai_driver au1xpsc_ac97_dai_template = {
-	.bus_control		= true,
 	.probe			= au1xpsc_ac97_probe,
 	.playback = {
 		.rates		= AC97_RATES,
