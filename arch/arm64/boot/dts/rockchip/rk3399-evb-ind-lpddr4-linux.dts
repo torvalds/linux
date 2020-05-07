@@ -175,14 +175,6 @@
 	status = "okay";
 };
 
-&iep {
-	status = "okay";
-};
-
-&iep_mmu {
-	status = "okay";
-};
-
 &mipi_dphy_rx0 {
 	status = "okay";
 
