@@ -1392,7 +1392,6 @@ static int mlx4_en_ethtool_add_mac_rule(struct ethtool_rxnfc *cmd,
 					struct mlx4_spec_list *spec_l2,
 					unsigned char *mac)
 {
-	int err = 0;
 	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	spec_l2->id = MLX4_NET_TRANS_RULE_ID_ETH;
@@ -1407,7 +1406,7 @@ static int mlx4_en_ethtool_add_mac_rule(struct ethtool_rxnfc *cmd,
 
 	list_add_tail(&spec_l2->list, rule_list_h);
 
-	return err;
+	return 0;
 }
 
 static int mlx4_en_ethtool_add_mac_rule_by_ipv4(struct mlx4_en_priv *priv,
