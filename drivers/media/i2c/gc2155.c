@@ -7,25 +7,37 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
+ * V0.0X01.0X04 add exposure control and fix v4l2_ctrl init issues.
  */
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
-#include <linux/slab.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/version.h>
-#include <linux/rk-camera-module.h>
-#include <media/media-entity.h>
 #include <media/v4l2-async.h>
+#include <media/media-entity.h>
+#include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-image-sizes.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
+#include <linux/rk-camera-module.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define GC2155_PIXEL_RATE		(120 * 1000 * 1000)
+#define GC2155_EXPOSURE_CONTROL
 
 #define REG_CHIP_ID_H			0xf0
 #define REG_CHIP_ID_L			0xf1
@@ -54,28 +66,36 @@ struct regval {
 struct gc2155_mode {
 	u32 width;
 	u32 height;
+	unsigned int fps;
 	struct v4l2_fract max_fps;
 	const struct regval *reg_list;
 };
 
 struct gc2155 {
-	struct i2c_client	*client;
-	struct clk		*xvclk;
-	struct gpio_desc	*reset_gpio;
-	struct gpio_desc	*pwdn_gpio;
+	struct i2c_client *client;
+	struct clk *xvclk;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *pwdn_gpio;
+	struct gpio_desc *power_gpio;
 	struct regulator_bulk_data supplies[GC2155_NUM_SUPPLIES];
 
-	bool			streaming;
-	bool			power_on;
-	struct mutex		mutex; /* lock to serialize v4l2 callback */
-	struct v4l2_subdev	subdev;
-	struct media_pad	pad;
+	bool streaming;
+	bool power_on;
+	struct mutex mutex; /* lock to serialize v4l2 callback */
+	struct v4l2_subdev subdev;
+	struct media_pad pad;
+	struct v4l2_mbus_framefmt format;
+	unsigned int fps;
+	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl *pixel_rate;
 
 	const struct gc2155_mode *cur_mode;
-	u32			module_index;
-	const char		*module_facing;
-	const char		*module_name;
-	const char		*len_name;
+	const struct gc2155_mode *framesize_cfg;
+	unsigned int cfg_num;
+	u32 module_index;
+	const char *module_facing;
+	const char *module_name;
+	const char *len_name;
 };
 
 #define to_gc2155(sd) container_of(sd, struct gc2155, subdev)
@@ -652,44 +672,24 @@ static struct regval gc2155_global_regs[] = {
 	{0x9f, 0x42},
 	{0xfe, 0x00},
 	/* frame rate 50Hz */
-#if 1
 	{0xfe, 0x00},
-	{0x05, 0x01},
-	{0x06, 0x56},
+	{0x05, 0x02},
+	{0x06, 0x20},
 	{0x07, 0x00},
-	{0x08, 0x32},
+	{0x08, 0x50},
 	{0xfe, 0x01},
 	{0x25, 0x00},
 	{0x26, 0xfa},
+
 	{0x27, 0x04},
-	{0x28, 0xe2}, //20fps
-	{0x29, 0x06},
-	{0x2a, 0xd6}, //16fps
-	{0x2b, 0x07},
-	{0x2c, 0xd0}, //12fps
-	{0x2d, 0x0b},
-	{0x2e, 0xb8}, //8fps
-	{0xfe, 0x00},
-#else
-	/* frame rate 50Hz */
-	{0xfe, 0x00},
-	{0x05, 0x02},
-	{0x06, 0x2d},
-	{0x07, 0x00},
-	{0x08, 0xa0},
-	{0xfe, 0x01},
-	{0x25, 0x00},
-	{0x26, 0xd4},
-	{0x27, 0x04},
-	{0x28, 0xf8},
-	{0x29, 0x08},
-	{0x2a, 0x48},
-	{0x2b, 0x0a},
-	{0x2c, 0xc4},
-	{0x2d, 0x0f},
-	{0x2e, 0xbc},
-	{0xfe, 0x00},
-#endif
+	{0x28, 0xe2},
+	{0x29, 0x04},
+	{0x2a, 0xe2},
+	{0x2b, 0x04},
+	{0x2c, 0xe2},
+	{0x2d, 0x04},
+	{0x2e, 0xe2},
+
 	/*   SVGA  */
 	{0xfe, 0x00},
 	{0xfa, 0x00},
@@ -741,20 +741,13 @@ static struct regval gc2155_global_regs[] = {
 };
 
 static struct regval gc2155_800x600_15fps[] = {
+	//SENSORDB("GC2155_Sensor_SVGA"},
 	{0xfe, 0x00},
 	{0xb6, 0x01},
-	{0xfa, 0x00},
 	{0xfd, 0x01},
-	/* window setting */
-	{0x09, 0x00},
-	{0x0a, 0x00},
-	{0x0b, 0x00},
-	{0x0c, 0x00},
-	{0x0d, 0x04},
-	{0x0e, 0xc0},
-	{0x0f, 0x06},
-	{0x10, 0x50},
-	/* crop window */
+	{0xfa, 0x00},
+
+	/*crop window*/
 	{0xfe, 0x00},
 	{0x90, 0x01},
 	{0x91, 0x00},
@@ -767,15 +760,7 @@ static struct regval gc2155_800x600_15fps[] = {
 	{0x98, 0x20},
 	{0x99, 0x11},
 	{0x9a, 0x06},
-	{0x9b, 0x00},
-	{0x9c, 0x00},
-	{0x9d, 0x00},
-	{0x9e, 0x00},
-	{0x9f, 0x00},
-	{0xa0, 0x00},
-	{0xa1, 0x00},
-	{0xa2, 0x00},
-	/*   AWB   */
+	/*AWB*/
 	{0xfe, 0x00},
 	{0xec, 0x01},
 	{0xed, 0x02},
@@ -803,49 +788,11 @@ static struct regval gc2155_800x600_15fps[] = {
 	{0xc5, 0x30},
 	{0xfe, 0x00},
 
-	/* frame rate 50Hz */
-#if 1
-	{0xfe, 0x00},
-	{0x05, 0x01},
-	{0x06, 0x56},
-	{0x07, 0x00},
-	{0x08, 0x32},
-	{0xfe, 0x01},
-	{0x25, 0x00},
-	{0x26, 0xfa},
-	{0x27, 0x04},
-	{0x28, 0xe2}, //20fps
-	{0x29, 0x06},
-	{0x2a, 0xd6}, //16fps
-	{0x2b, 0x07},
-	{0x2c, 0xd0}, //12fps
-	{0x2d, 0x0b},
-	{0x2e, 0xb8}, //8fps
-	{0xfe, 0x00},
-#else
-	/* frame rate 50Hz */
-	{0xfe, 0x00},
-	{0x05, 0x02},
-	{0x06, 0x2d},
-	{0x07, 0x00},
-	{0x08, 0xa0},
-	{0xfe, 0x01},
-	{0x25, 0x00},
-	{0x26, 0xd4},
-	{0x27, 0x04},
-	{0x28, 0xf8},
-	{0x29, 0x08},
-	{0x2a, 0x48},
-	{0x2b, 0x0a},
-	{0x2c, 0xc4},
-	{0x2d, 0x0f},
-	{0x2e, 0xbc},
-	{0xfe, 0x00},
-#endif
 	{REG_NULL, 0x0},
 };
 
 static struct regval gc2155_1600x1200_7fps[] = {
+	//SENSORDB("GC2155_Sensor_2M"},
 	{0xfe, 0x00},
 	{0xb6, 0x00},
 	{0xfa, 0x11},
@@ -863,16 +810,7 @@ static struct regval gc2155_1600x1200_7fps[] = {
 	{0x98, 0x40},
 	{0x99, 0x11},
 	{0x9a, 0x06},
-
-	{0x9b, 0x00},
-	{0x9c, 0x00},
-	{0x9d, 0x00},
-	{0x9e, 0x00},
-	{0x9f, 0x00},
-	{0xa0, 0x00},
-	{0xa1, 0x00},
-	{0xa2, 0x00},
-	/*   AWB   */
+	/*AWB*/
 	{0xfe, 0x00},
 	{0xec, 0x02},
 	{0xed, 0x04},
@@ -899,27 +837,30 @@ static struct regval gc2155_1600x1200_7fps[] = {
 	{0xc4, 0x90},
 	{0xc5, 0x98},
 	{0xfe, 0x00},
+
 	{REG_NULL, 0x0},
 };
 
 static const struct gc2155_mode supported_modes[] = {
 	{
-		.width = 800,
-		.height = 600,
+		.width		= 800,
+		.height		= 600,
+		.fps		= 15,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 150000,
 		},
-		.reg_list = gc2155_800x600_15fps,
+		.reg_list	= gc2155_800x600_15fps,
 	},
 	{
-		.width = 1600,
-		.height = 1200,
+		.width		= 1600,
+		.height		= 1200,
+		.fps		= 7,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 70000,
 		},
-		.reg_list = gc2155_1600x1200_7fps,
+		.reg_list	= gc2155_1600x1200_7fps,
 	},
 };
 
@@ -928,7 +869,6 @@ static int gc2155_write_reg(struct i2c_client *client, u8 reg, u8 val)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client, reg, val);
-
 	if (ret < 0)
 		dev_err(&client->dev, "write reg error: %d\n", ret);
 
@@ -978,6 +918,73 @@ gc2155_find_best_fit(struct v4l2_subdev_format *fmt)
 	return &supported_modes[cur_best_fit];
 }
 
+#ifdef GC2155_EXPOSURE_CONTROL
+/*
+ * the function is called before sensor register setting in VIDIOC_S_FMT
+ */
+/* Row times = Hb + Sh_delay + win_width + 4*/
+
+static int gc2155_aec_ctrl(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *mf)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+	u8 value;
+	static unsigned int capture_fps = 75, capture_lines = 1266;
+	static unsigned int preview_fps = 150, preview_lines = 1266;
+	static unsigned int lines_10ms = 1;
+	static unsigned int shutter_h = 0x04, shutter_l = 0xe2;
+	static unsigned int cap = 0, shutter = 0x04e2;
+
+	dev_info(&client->dev, "%s enter\n", __func__);
+	if ((mf->width == 800 && mf->height == 600) && cap == 1) {
+		cap = 0;
+		ret = gc2155_write_reg(client, 0xfe, 0x00);
+		ret |= gc2155_write_reg(client, 0xb6, 0x00);
+		ret |= gc2155_write_reg(client, 0x03, shutter_h);
+		ret |= gc2155_write_reg(client, 0x04, shutter_l);
+		ret |= gc2155_write_reg(client, 0x82, 0xfa);
+		ret |= gc2155_write_reg(client, 0xb6, 0x01);
+		if (ret)
+			dev_err(&client->dev, "gc2155 reconfig failed!\n");
+	}
+	if (mf->width == 1600 && mf->height == 1200) {
+		cap = 1;
+		ret = gc2155_write_reg(client, 0xfe, 0x00);
+		ret |= gc2155_write_reg(client, 0xb6, 0x00);
+		ret |= gc2155_write_reg(client, 0x82, 0xf8);
+
+		/*shutter calculate*/
+		value = gc2155_read_reg(client, 0x03);
+		shutter_h = value;
+		shutter = (value << 8);
+		value = gc2155_read_reg(client, 0x04);
+		shutter_l = value;
+		shutter |= (value & 0xff);
+		dev_info(&client->dev, "%s(%d) 800x600 shutter read(0x%04x)!\n",
+					__func__, __LINE__, shutter);
+		shutter = shutter * capture_lines / preview_lines;
+		shutter = shutter * capture_fps / preview_fps;
+		lines_10ms = capture_fps * capture_lines / 100 / 10;
+		if (shutter > lines_10ms) {
+			shutter = shutter + lines_10ms / 2;
+			shutter /= lines_10ms;
+			shutter *= lines_10ms;
+		}
+		if (shutter < 1)
+			shutter = 0x276;
+		dev_info(&client->dev, "%s(%d)lines_10ms(%d),cal(0x%08x)!\n",
+			  __func__, __LINE__, lines_10ms, shutter);
+
+		ret |= gc2155_write_reg(client, 0x03, ((shutter >> 8) & 0x1f));
+		ret |= gc2155_write_reg(client, 0x04, (shutter & 0xff));
+		if (ret)
+			dev_err(&client->dev, "full exp reconfig failed!\n");
+	}
+	return ret;
+}
+#endif
+
 static int gc2155_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
@@ -992,7 +999,7 @@ static int gc2155_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
-	fmt->format.colorspace = V4L2_COLORSPACE_JPEG;
+	fmt->format.colorspace = V4L2_COLORSPACE_SRGB;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
@@ -1002,8 +1009,13 @@ static int gc2155_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		gc2155->cur_mode = mode;
+		gc2155->format = fmt->format;
 	}
 
+#ifdef GC2155_EXPOSURE_CONTROL
+		if (gc2155->power_on)
+			gc2155_aec_ctrl(sd, &fmt->format);
+#endif
 	mutex_unlock(&gc2155->mutex);
 
 	return 0;
@@ -1029,11 +1041,21 @@ static int gc2155_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		fmt->format.field = V4L2_FIELD_NONE;
-		fmt->format.colorspace = V4L2_COLORSPACE_JPEG;
+		fmt->format.colorspace = V4L2_COLORSPACE_SRGB;
 	}
 	mutex_unlock(&gc2155->mutex);
 
 	return 0;
+}
+
+static void gc2155_get_default_format(struct gc2155 *gc2155,
+				      struct v4l2_mbus_framefmt *format)
+{
+	format->width = gc2155->cur_mode->width;
+	format->height = gc2155->cur_mode->height;
+	format->colorspace = V4L2_COLORSPACE_SRGB;
+	format->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	format->field = V4L2_FIELD_NONE;
 }
 
 static int gc2155_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1072,9 +1094,16 @@ static int __gc2155_power_on(struct gc2155 *gc2155)
 	int ret;
 	struct device *dev = &gc2155->client->dev;
 
-	if (!IS_ERR(gc2155->reset_gpio))
-		gpiod_set_value_cansleep(gc2155->reset_gpio, 0);
+	dev_info(dev, "%s(%d)\n", __func__, __LINE__);
+	if (!IS_ERR(gc2155->power_gpio)) {
+		gpiod_set_value_cansleep(gc2155->power_gpio, 1);
+		usleep_range(2000, 5000);
+	}
 
+	if (!IS_ERR(gc2155->reset_gpio)) {
+		gpiod_set_value_cansleep(gc2155->reset_gpio, 0);
+		usleep_range(2000, 5000);
+	}
 	ret = regulator_bulk_enable(GC2155_NUM_SUPPLIES, gc2155->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
@@ -1092,12 +1121,15 @@ static int __gc2155_power_on(struct gc2155 *gc2155)
 		return ret;
 	}
 
-	if (!IS_ERR(gc2155->pwdn_gpio))
+	if (!IS_ERR(gc2155->pwdn_gpio)) {
 		gpiod_set_value_cansleep(gc2155->pwdn_gpio, 0);
+		usleep_range(2000, 5000);
+	}
 
 	if (!IS_ERR(gc2155->reset_gpio))
 		gpiod_set_value_cansleep(gc2155->reset_gpio, 1);
-
+	usleep_range(7000, 10000);
+	gc2155->power_on = true;
 	return 0;
 }
 
@@ -1110,8 +1142,10 @@ static void __gc2155_power_off(struct gc2155 *gc2155)
 
 	if (!IS_ERR(gc2155->xvclk))
 		clk_disable_unprepare(gc2155->xvclk);
-
+	if (!IS_ERR(gc2155->power_gpio))
+		gpiod_set_value_cansleep(gc2155->power_gpio, 0);
 	regulator_bulk_disable(GC2155_NUM_SUPPLIES, gc2155->supplies);
+	gc2155->power_on = false;
 }
 
 static void gc2155_get_module_inf(struct gc2155 *gc2155,
@@ -1189,6 +1223,17 @@ static int gc2155_s_stream(struct v4l2_subdev *sd, int on)
 	struct gc2155 *gc2155 = to_gc2155(sd);
 	struct i2c_client *client = gc2155->client;
 	int ret = 0;
+	u8 val;
+	unsigned int fps;
+	int delay_us;
+
+	fps = DIV_ROUND_CLOSEST(gc2145->frame_size->max_fps.denominator,
+			  gc2145->frame_size->max_fps.numerator);
+
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				gc2155->cur_mode->width,
+				gc2155->cur_mode->height,
+				fps);
 
 	mutex_lock(&gc2155->mutex);
 
@@ -1213,8 +1258,17 @@ static int gc2155_s_stream(struct v4l2_subdev *sd, int on)
 	} else {
 		pm_runtime_put(&client->dev);
 	}
-
+	val = on ? 0x0f : 0;
+	ret = gc2155_write_reg(client, 0xf2, val);
 	gc2155->streaming = on;
+
+	/* delay to enable oneframe complete */
+	if (!on) {
+		delay_us = 1000 * 1000 / fps;
+		usleep_range(delay_us, delay_us + 10);
+		dev_info(&client->dev, "%s: on: %d, sleep(%dus)\n",
+				__func__, on, delay_us);
+	}
 
 unlock_and_return:
 	mutex_unlock(&gc2155->mutex);
@@ -1260,6 +1314,33 @@ unlock_and_return:
 	return ret;
 }
 
+static int gc2155_set_test_pattern(struct gc2155 *gc2155, int value)
+{
+	return 0;
+}
+
+static int gc2155_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gc2155 *gc2155 =
+			container_of(ctrl->handler, struct gc2155, ctrls);
+
+	switch (ctrl->id) {
+	case V4L2_CID_TEST_PATTERN:
+		return gc2155_set_test_pattern(gc2155, ctrl->val);
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops gc2155_ctrl_ops = {
+	.s_ctrl = gc2155_s_ctrl,
+};
+
+static const char * const gc2155_test_pattern_menu[] = {
+	"Disabled",
+	"Vertical Color Bars",
+};
+
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int gc2155_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
@@ -1274,7 +1355,7 @@ static int gc2155_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->height = def_mode->height;
 	try_fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	try_fmt->field = V4L2_FIELD_NONE;
-	try_fmt->colorspace = V4L2_COLORSPACE_JPEG;
+	try_fmt->colorspace = V4L2_COLORSPACE_SRGB;
 
 	mutex_unlock(&gc2155->mutex);
 
@@ -1302,6 +1383,103 @@ static int gc2155_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+static int gc2155_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	config->type = V4L2_MBUS_PARALLEL;
+	config->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+			V4L2_MBUS_VSYNC_ACTIVE_LOW |
+			V4L2_MBUS_PCLK_SAMPLE_RISING;
+
+	return 0;
+}
+
+static int gc2155_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc2155 *gc2155 = to_gc2155(sd);
+
+	mutex_lock(&gc2155->mutex);
+	fi->interval = gc2155->cur_mode->max_fps;
+	mutex_unlock(&gc2155->mutex);
+
+	return 0;
+}
+
+static void __gc2155_try_frame_size_fps(struct gc2155 *gc2155,
+					struct v4l2_mbus_framefmt *mf,
+					const struct gc2155_mode **size,
+					unsigned int fps)
+{
+	const struct gc2155_mode *fsize = &gc2155->framesize_cfg[0];
+	const struct gc2155_mode *match = NULL;
+	unsigned int i = gc2155->cfg_num;
+	unsigned int min_err = UINT_MAX;
+
+	while (i--) {
+		unsigned int err = abs(fsize->width - mf->width)
+				+ abs(fsize->height - mf->height);
+		if (err < min_err && fsize->reg_list[0].addr) {
+			min_err = err;
+			match = fsize;
+		}
+		fsize++;
+	}
+
+	if (!match) {
+		match = &gc2155->framesize_cfg[0];
+	} else {
+		fsize = &gc2155->framesize_cfg[0];
+		for (i = 0; i < gc2155->cfg_num; i++) {
+			if (fsize->width == match->width &&
+			    fsize->height == match->height &&
+			    fps >= fsize->fps)
+				match = fsize;
+
+			fsize++;
+		}
+	}
+
+	mf->width  = match->width;
+	mf->height = match->height;
+
+	if (size)
+		*size = match;
+}
+
+static int gc2155_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct gc2155 *gc2155 = to_gc2155(sd);
+	const struct gc2155_mode *mode = NULL;
+	struct v4l2_mbus_framefmt mf;
+	unsigned int fps;
+	int ret = 0;
+
+	dev_dbg(&client->dev, "Setting %d/%d frame interval\n",
+		 fi->interval.numerator, fi->interval.denominator);
+
+	mutex_lock(&gc2155->mutex);
+	if (gc2155->cur_mode->width == 1600)
+		goto unlock;
+	fps = DIV_ROUND_CLOSEST(fi->interval.denominator,
+				fi->interval.numerator);
+	mf = gc2155->format;
+	__gc2155_try_frame_size_fps(gc2155, &mf, &mode, fps);
+	if (gc2155->cur_mode != mode) {
+		ret = gc2155_write_array(client, mode->reg_list);
+		if (ret)
+			goto unlock;
+		gc2155->cur_mode = mode;
+		gc2155->fps = fps;
+	}
+unlock:
+	mutex_unlock(&gc2155->mutex);
+
+	return ret;
+}
+
 static int gc2155_enum_frame_interval(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_pad_config *cfg,
 				       struct v4l2_subdev_frame_interval_enum *fie)
@@ -1324,15 +1502,21 @@ static const struct dev_pm_ops gc2155_pm_ops = {
 };
 
 static const struct v4l2_subdev_core_ops gc2155_core_ops = {
-	.s_power = gc2155_s_power,
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.ioctl = gc2155_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = gc2155_compat_ioctl32,
 #endif
+	.s_power = gc2155_s_power,
 };
 
 static const struct v4l2_subdev_video_ops gc2155_video_ops = {
 	.s_stream = gc2155_s_stream,
+	.g_mbus_config = gc2155_g_mbus_config,
+	.g_frame_interval = gc2155_g_frame_interval,
+	.s_frame_interval = gc2155_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2155_pad_ops = {
@@ -1421,12 +1605,22 @@ static int gc2155_probe(struct i2c_client *client,
 
 	gc2155->client = client;
 	gc2155->cur_mode = &supported_modes[0];
+	gc2155_get_default_format(gc2155, &gc2155->format);
+	gc2155->format.width = gc2155->cur_mode->width;
+	gc2155->format.height = gc2155->cur_mode->height;
+	gc2155->fps =  DIV_ROUND_CLOSEST(gc2155->cur_mode->max_fps.denominator,
+			gc2155->cur_mode->max_fps.numerator);
+	gc2155->framesize_cfg = supported_modes;
+	gc2155->cfg_num = ARRAY_SIZE(supported_modes);
 
 	gc2155->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(gc2155->xvclk)) {
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
+	gc2155->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(gc2155->power_gpio))
+		dev_info(dev, "Failed to get power-gpios, maybe no use\n");
 
 	gc2155->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gc2155->reset_gpio))
@@ -1440,6 +1634,24 @@ static int gc2155_probe(struct i2c_client *client,
 	if (ret) {
 		dev_warn(dev, "Failed to get power regulators\n");
 		return ret;
+	}
+	v4l2_ctrl_handler_init(&gc2155->ctrls, 2);
+	gc2155->pixel_rate =
+			v4l2_ctrl_new_std(&gc2155->ctrls, &gc2155_ctrl_ops,
+					  V4L2_CID_PIXEL_RATE, 0,
+					  GC2155_PIXEL_RATE, 1,
+					  GC2155_PIXEL_RATE);
+
+	v4l2_ctrl_new_std_menu_items(&gc2155->ctrls, &gc2155_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(gc2155_test_pattern_menu) - 1,
+				     0, 0, gc2155_test_pattern_menu);
+	gc2155->subdev.ctrl_handler = &gc2155->ctrls;
+
+	if (gc2155->ctrls.error) {
+		dev_err(&client->dev, "%s: control initialization error %d\n",
+			__func__, gc2155->ctrls.error);
+		return  gc2155->ctrls.error;
 	}
 
 	mutex_init(&gc2155->mutex);
@@ -1495,7 +1707,7 @@ err_power_off:
 	__gc2155_power_off(gc2155);
 err_destroy_mutex:
 	mutex_destroy(&gc2155->mutex);
-
+	v4l2_ctrl_handler_free(&gc2155->ctrls);
 	return ret;
 }
 
@@ -1520,7 +1732,7 @@ static int gc2155_remove(struct i2c_client *client)
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id gc2155_of_match[] = {
-	{ .compatible = "gc,gc2155" },
+	{ .compatible = "galaxycore,gc2155" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, gc2155_of_match);
