@@ -260,7 +260,7 @@ struct hcmd_write_data {
 	__be32 cmd_id;
 	__be32 flags;
 	__be16 length;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
