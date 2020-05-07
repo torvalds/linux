@@ -576,21 +576,6 @@ void __init omap3_gptimer_timer_init(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) ||		\
-	defined(CONFIG_SOC_DRA7XX)
-static void __init omap4_sync32k_timer_init(void)
-{
-	__omap_sync32k_timer_init(1, "timer_32k_ck", "ti,timer-alwon",
-				  0, NULL, NULL, false);
-}
-
-void __init omap4_local_timer_init(void)
-{
-	omap4_sync32k_timer_init();
-	timer_probe();
-}
-#endif
-
 #if defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX)
 
 /*
@@ -708,7 +693,7 @@ sysclk1_based:
 
 void __init omap5_realtime_timer_init(void)
 {
-	omap4_sync32k_timer_init();
+	omap_clk_init();
 	realtime_counter_init();
 
 	timer_probe();
