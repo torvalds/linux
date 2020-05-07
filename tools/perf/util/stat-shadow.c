@@ -797,7 +797,7 @@ static void generic_metric(struct perf_stat_config *config,
 				print_metric(config, ctxp, NULL, "%8.1f",
 					     metric_bf, ratio);
 			} else {
-				print_metric(config, ctxp, NULL, "%8.1f",
+				print_metric(config, ctxp, NULL, "%8.2f",
 					metric_name ?
 					metric_name :
 					out->force_header ?  name : "",
