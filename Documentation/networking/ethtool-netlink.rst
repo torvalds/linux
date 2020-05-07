@@ -392,14 +392,16 @@ Request contents:
 
 Kernel response contents:
 
-  ====================================  ======  ==========================
-  ``ETHTOOL_A_LINKMODES_HEADER``        nested  reply header
-  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
-  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
-  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
-  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
-  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
-  ====================================  ======  ==========================
+  ==========================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``              nested  reply header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``             u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``                bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``                bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``               u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``              u8      duplex mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG``    u8      Master/slave port mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE``  u8      Master/slave port state
+  ==========================================  ======  ==========================
 
 For ``ETHTOOL_A_LINKMODES_OURS``, value represents advertised modes and mask
 represents supported modes. ``ETHTOOL_A_LINKMODES_PEER`` in the reply is a bit
@@ -414,14 +416,15 @@ LINKMODES_SET
 
 Request contents:
 
-  ====================================  ======  ==========================
-  ``ETHTOOL_A_LINKMODES_HEADER``        nested  request header
-  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
-  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
-  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
-  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
-  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
-  ====================================  ======  ==========================
+  ==========================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``              nested  request header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``             u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``                bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``                bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``               u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``              u8      duplex mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG``    u8      Master/slave port mode
+  ==========================================  ======  ==========================
 
 ``ETHTOOL_A_LINKMODES_OURS`` bit set allows setting advertised link modes. If
 autonegotiation is on (either set now or kept from before), advertised modes
