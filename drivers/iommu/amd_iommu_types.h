@@ -395,10 +395,10 @@
 #define PD_IOMMUV2_MASK		(1UL << 3) /* domain has gcr3 table */
 
 extern bool amd_iommu_dump;
-#define DUMP_printk(format, arg...)					\
-	do {								\
-		if (amd_iommu_dump)						\
-			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
+#define DUMP_printk(format, arg...)				\
+	do {							\
+		if (amd_iommu_dump)				\
+			pr_info("AMD-Vi: " format, ## arg);	\
 	} while(0);
 
 /* global flag if IOMMUs cache non-present entries */
