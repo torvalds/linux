@@ -222,7 +222,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
 	binaries = &firmware_header->binary_header;
-	strncpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)) - 1);
+	strscpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)));
 	valid_firmware = sh_css_check_firmware_version(dev, fw_data);
 	if (!valid_firmware) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
