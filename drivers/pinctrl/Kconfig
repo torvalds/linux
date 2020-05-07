@@ -95,6 +95,7 @@ config PINCTRL_AT91PIO4
 config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
 	depends on HAS_IOMEM
+	depends on ACPI || COMPILE_TEST
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINMUX
