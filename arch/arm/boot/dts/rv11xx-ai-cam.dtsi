@@ -333,6 +333,7 @@
 
 &usbdrd_dwc3 {
 	status = "okay";
+	snps,tx-fifo-resize;
 	extcon = <&u2phy0>;
 };
 
