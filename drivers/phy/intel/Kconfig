@@ -4,6 +4,7 @@
 #
 config PHY_INTEL_EMMC
 	tristate "Intel EMMC PHY driver"
+	depends on X86 || COMPILE_TEST
 	select GENERIC_PHY
 	help
 	  Enable this to support the Intel EMMC PHY
