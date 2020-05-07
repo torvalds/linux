@@ -561,8 +561,9 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *old_state)
+static void
+ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
 {
 	struct ast_private *ast = plane->dev->dev_private;
 	struct drm_plane_state *state = plane->state;
