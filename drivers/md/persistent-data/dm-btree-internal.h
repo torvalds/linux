@@ -38,7 +38,7 @@ struct node_header {
 
 struct btree_node {
 	struct node_header header;
-	__le64 keys[0];
+	__le64 keys[];
 } __packed;
 
 
