@@ -35,12 +35,17 @@ use strict;
 # $1 (first bracket) matches the dynamic amount of the stack growth
 #
 # use anything else and feel the pain ;)
-my (@stack, $re, $dre, $x, $xs, $funcre);
+my (@stack, $re, $dre, $x, $xs, $funcre, $min_stack);
 {
 	my $arch = shift;
 	if ($arch eq "") {
 		$arch = `uname -m`;
 		chomp($arch);
+	}
+
+	$min_stack = shift;
+	if ($min_stack eq "" || $min_stack !~ /^\d+$/) {
+		$min_stack = 100;
 	}
 
 	$x	= "[0-9a-f]";	# hex character
@@ -117,7 +122,7 @@ while (my $line = <STDIN>) {
 	if ($line =~ m/$funcre/) {
 		$func = $1;
 		next if $line !~ m/^($xs*)/;
-		if ($total_size > 100) {
+		if ($total_size > $min_stack) {
 			push @stack, "$intro$total_size\n";
 		}
 
@@ -162,7 +167,7 @@ while (my $line = <STDIN>) {
 		$total_size += $size;
 	}
 }
-if ($total_size > 100) {
+if ($total_size > $min_stack) {
 	push @stack, "$intro$total_size\n";
 }
 
