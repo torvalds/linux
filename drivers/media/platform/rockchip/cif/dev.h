@@ -15,6 +15,8 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
+#include "regs.h"
+#include "version.h"
 
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
@@ -41,7 +43,7 @@
 
 #define RKCIF_MAX_BUS_CLK	8
 #define RKCIF_MAX_SENSOR	2
-#define RKCIF_MAX_RESET		5
+#define RKCIF_MAX_RESET		15
 #define RKCIF_MAX_CSI_CHANNEL	4
 #define RKCIF_MAX_PIPELINE	4
 
@@ -306,8 +308,13 @@ struct rkcif_device {
 	atomic_t			fh_cnt;
 	struct mutex                    stream_lock; /* lock between streams */
 	enum rkcif_workmode		workmode;
+	const struct cif_reg *cif_regs;
 };
 
+void rkcif_write_register(struct rkcif_device *dev,
+			  enum cif_reg_index index, u32 val);
+unsigned int rkcif_read_register(struct rkcif_device *dev,
+				 enum cif_reg_index index);
 void rkcif_unregister_stream_vdevs(struct rkcif_device *dev,
 				   int stream_num);
 int rkcif_register_stream_vdevs(struct rkcif_device *dev,

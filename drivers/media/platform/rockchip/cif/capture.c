@@ -17,7 +17,6 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "dev.h"
-#include "regs.h"
 
 #define CIF_REQ_BUFS_MIN	1
 #define CIF_MIN_WIDTH		64
@@ -511,7 +510,6 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_buffer *buffer = NULL;
-	void __iomem *base = dev->base_addr;
 	u32 frm_addr_y, frm_addr_uv;
 
 	spin_lock(&stream->vbq_lock);
@@ -526,15 +524,15 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 		}
 
 		if (stream->curr_buf) {
-			write_cif_reg(base, CIF_FRM0_ADDR_Y,
-				      stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, CIF_FRM0_ADDR_UV,
-				      stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_Y,
+					     stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_UV,
+					     stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, CIF_FRM0_ADDR_Y,
-				      dummy_buf->dma_addr);
-			write_cif_reg(base, CIF_FRM0_ADDR_UV,
-				      dummy_buf->dma_addr);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_Y,
+					     dummy_buf->dma_addr);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM0_ADDR_UV,
+					     dummy_buf->dma_addr);
 		}
 
 		if (!stream->next_buf) {
@@ -546,13 +544,15 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 		}
 
 		if (stream->next_buf) {
-			write_cif_reg(base, CIF_FRM1_ADDR_Y,
-				      stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, CIF_FRM1_ADDR_UV,
-				      stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_Y,
+					     stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_UV,
+					     stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, CIF_FRM1_ADDR_Y, dummy_buf->dma_addr);
-			write_cif_reg(base, CIF_FRM1_ADDR_UV, dummy_buf->dma_addr);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_Y,
+					     dummy_buf->dma_addr);
+			rkcif_write_register(dev, CIF_REG_DVP_FRM1_ADDR_UV,
+					     dummy_buf->dma_addr);
 		}
 	} else if (stat == RKCIF_YUV_ADDR_STATE_UPDATE) {
 		if (!list_empty(&stream->buf_head)) {
@@ -578,23 +578,25 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 		}
 
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
-			frm_addr_y = CIF_FRM0_ADDR_Y;
-			frm_addr_uv = CIF_FRM0_ADDR_UV;
+			frm_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
+			frm_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
 		}
 
 		if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
-			frm_addr_y = CIF_FRM1_ADDR_Y;
-			frm_addr_uv = CIF_FRM1_ADDR_UV;
+			frm_addr_y = CIF_REG_DVP_FRM1_ADDR_Y;
+			frm_addr_uv = CIF_REG_DVP_FRM1_ADDR_UV;
 		}
 
 		if (buffer) {
-			write_cif_reg(base, frm_addr_y,
-				      buffer->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, frm_addr_uv,
-				      buffer->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, frm_addr_y,
+					     buffer->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, frm_addr_uv,
+					     buffer->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, frm_addr_y, dummy_buf->dma_addr);
-			write_cif_reg(base, frm_addr_uv, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm_addr_y,
+					     dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm_addr_uv,
+					     dummy_buf->dma_addr);
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "frame Drop to dummy buf\n");
 		}
@@ -608,7 +610,6 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_buffer *buffer = NULL;
-	void __iomem *base = dev->base_addr;
 	u32 frm_addr_y, frm_addr_uv;
 
 	if (init) {
@@ -621,10 +622,10 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 			frm1_addr_y = CIF_CSI_FRM1_ADDR_Y_ID0 + 0x20 * csi_ch;
 			frm1_addr_uv = CIF_CSI_FRM1_ADDR_UV_ID0 + 0x20 * csi_ch;
 		} else {
-			frm0_addr_y = CIF_FRM0_ADDR_Y;
-			frm0_addr_uv = CIF_FRM0_ADDR_UV;
-			frm1_addr_y = CIF_FRM1_ADDR_Y;
-			frm1_addr_uv = CIF_FRM1_ADDR_UV;
+			frm0_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
+			frm0_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
+			frm1_addr_y = CIF_REG_DVP_FRM1_ADDR_Y;
+			frm1_addr_uv = CIF_REG_DVP_FRM1_ADDR_UV;
 		}
 
 		spin_lock(&stream->vbq_lock);
@@ -638,13 +639,13 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		}
 
 		if (stream->curr_buf) {
-			write_cif_reg(base, frm0_addr_y,
-				      stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, frm0_addr_uv,
-				      stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, frm0_addr_y,
+					     stream->curr_buf->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, frm0_addr_uv,
+					     stream->curr_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, frm0_addr_y, dummy_buf->dma_addr);
-			write_cif_reg(base, frm0_addr_uv, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm0_addr_y, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm0_addr_uv, dummy_buf->dma_addr);
 		}
 
 		if (!stream->next_buf) {
@@ -656,13 +657,13 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		}
 
 		if (stream->next_buf) {
-			write_cif_reg(base, frm1_addr_y,
-				      stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, frm1_addr_uv,
-				      stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, frm1_addr_y,
+					     stream->next_buf->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, frm1_addr_uv,
+					     stream->next_buf->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, frm1_addr_y, dummy_buf->dma_addr);
-			write_cif_reg(base, frm1_addr_uv, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm1_addr_y, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm1_addr_uv, dummy_buf->dma_addr);
 		}
 		spin_unlock(&stream->vbq_lock);
 	} else {
@@ -705,13 +706,13 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		spin_unlock(&stream->vbq_lock);
 
 		if (buffer) {
-			write_cif_reg(base, frm_addr_y,
-				      buffer->buff_addr[RKCIF_PLANE_Y]);
-			write_cif_reg(base, frm_addr_uv,
-				      buffer->buff_addr[RKCIF_PLANE_CBCR]);
+			rkcif_write_register(dev, frm_addr_y,
+					     buffer->buff_addr[RKCIF_PLANE_Y]);
+			rkcif_write_register(dev, frm_addr_uv,
+					     buffer->buff_addr[RKCIF_PLANE_CBCR]);
 		} else {
-			write_cif_reg(base, frm_addr_y, dummy_buf->dma_addr);
-			write_cif_reg(base, frm_addr_uv, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm_addr_y, dummy_buf->dma_addr);
+			rkcif_write_register(dev, frm_addr_uv, dummy_buf->dma_addr);
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "frame Drop to dummy buf\n");
 		}
@@ -913,11 +914,12 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 		write_cif_reg_and(base, CIF_CSI_INTEN,
 				  ~CSI_ALL_ERROR_INTEN);
 	} else {
-		val = read_cif_reg(base, CIF_CTRL);
-		write_cif_reg(base, CIF_CTRL, val & (~ENABLE_CAPTURE));
-		write_cif_reg(base, CIF_INTEN, 0x0);
-		write_cif_reg(base, CIF_INTSTAT, 0x3ff);
-		write_cif_reg(base, CIF_FRAME_STATUS, 0x0);
+		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
+				     val & (~ENABLE_CAPTURE));
+		rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, 0x0);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, 0x3ff);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS, 0x0);
 	}
 
 	stream->state = RKCIF_STATE_READY;
@@ -935,7 +937,6 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 	const struct cif_output_fmt *cif_fmt;
 	u32 i;
 
-
 	pixm = &stream->pixm;
 	cif_fmt = stream->cif_fmt_out;
 
@@ -947,7 +948,6 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 
 		plane_fmt = &pixm->plane_fmt[i];
 		sizes[i] = plane_fmt->sizeimage / pixm->height * h;
-
 	}
 
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -1238,16 +1238,15 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info;
 	const struct cif_output_fmt *fmt;
-	void __iomem *base = dev->base_addr;
 
 	sensor_info = dev->active_sensor;
 	stream->frame_idx = 0;
 
 	mbus_flags = sensor_info->mbus.flags;
 	href_pol = (mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) ?
-			HSY_HIGH_ACTIVE : HSY_LOW_ACTIVE;
+		    HSY_HIGH_ACTIVE : HSY_LOW_ACTIVE;
 	vsync_pol = (mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH) ?
-			VSY_HIGH_ACTIVE : VSY_LOW_ACTIVE;
+		     VSY_HIGH_ACTIVE : VSY_LOW_ACTIVE;
 
 	if (rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
@@ -1282,24 +1281,24 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	      | stream->cif_fmt_out->fmt_val
 	      | stream->cif_fmt_in->dvp_fmt_val
 	      | xfer_mode | yc_swap;
-	write_cif_reg(base, CIF_FOR, val);
+	rkcif_write_register(dev, CIF_REG_DVP_FOR, val);
 
 	val = stream->pixm.width;
 	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
 		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
 		val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(fmt);
 	}
-	write_cif_reg(base, CIF_VIR_LINE_WIDTH, val);
-	write_cif_reg(base, CIF_SET_SIZE,
-		      stream->pixm.width | (stream->pixm.height << 16));
+	rkcif_write_register(dev, CIF_REG_DVP_VIR_LINE_WIDTH, val);
+	rkcif_write_register(dev, CIF_REG_DVP_SET_SIZE,
+			     stream->pixm.width | (stream->pixm.height << 16));
 
 	v4l2_subdev_call(sensor_info->sd, sensor, g_skip_top_lines, &skip_top);
 
 	/* TODO: set crop properly */
-	write_cif_reg(base, CIF_CROP, skip_top << CIF_CROP_Y_SHIFT);
-	write_cif_reg(base, CIF_FRAME_STATUS, FRAME_STAT_CLS);
-	write_cif_reg(base, CIF_INTSTAT, INTSTAT_CLS);
-	write_cif_reg(base, CIF_SCL_CTRL, rkcif_scl_ctl(stream));
+	rkcif_write_register(dev, CIF_REG_DVP_CROP, skip_top << CIF_CROP_Y_SHIFT);
+	rkcif_write_register(dev, CIF_REG_DVP_FRAME_STATUS, FRAME_STAT_CLS);
+	rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, INTSTAT_CLS);
+	rkcif_write_register(dev, CIF_REG_DVP_SCL_CTRL, rkcif_scl_ctl(stream));
 
 	if (dev->chip_id == CHIP_RK1808_CIF &&
 	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120)
@@ -1309,7 +1308,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 		rkcif_assign_new_buffer_oneframe(stream,
 						 RKCIF_YUV_ADDR_STATE_INIT);
 
-	write_cif_reg(base, CIF_INTEN, FRAME_END_EN | PST_INF_FRAME_END);
+	rkcif_write_register(dev, CIF_REG_DVP_INTEN,
+			     FRAME_END_EN | PST_INF_FRAME_END);
 
 	if (dev->workmode == RKCIF_WORKMODE_ONEFRAME)
 		workmode = MODE_ONEFRAME;
@@ -1321,11 +1321,11 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	if (dev->chip_id == CHIP_RK1808_CIF &&
 	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120) {
 		dev->workmode = RKCIF_WORKMODE_PINGPONG;
-		write_cif_reg(base, CIF_CTRL,
-			      AXI_BURST_16 | MODE_PINGPONG | ENABLE_CAPTURE);
+		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
+				     AXI_BURST_16 | MODE_PINGPONG | ENABLE_CAPTURE);
 	} else {
-		write_cif_reg(base, CIF_CTRL,
-			      AXI_BURST_16 | workmode | ENABLE_CAPTURE);
+		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
+				     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
 	}
 
 	stream->state = RKCIF_STATE_STREAMING;
@@ -1547,9 +1547,9 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	 * the size should not be larger than input
 	 */
 	pixm->width = clamp_t(u32, pixm->width,
-				CIF_MIN_WIDTH, input_rect.width);
+			      CIF_MIN_WIDTH, input_rect.width);
 	pixm->height = clamp_t(u32, pixm->height,
-				CIF_MIN_HEIGHT, input_rect.height);
+			       CIF_MIN_HEIGHT, input_rect.height);
 	pixm->num_planes = fmt->mplanes;
 	pixm->field = V4L2_FIELD_NONE;
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1656,8 +1656,6 @@ static int rkcif_fh_open(struct file *filp)
 	 */
 	if (cifdev->chip_id == CHIP_RK1808_CIF) {
 		mutex_lock(&cifdev->stream_lock);
-		v4l2_info(&cifdev->v4l2_dev, "fh_cnt: %d\n",
-					atomic_read(&cifdev->fh_cnt));
 		if (!atomic_read(&cifdev->fh_cnt))
 			rkcif_soft_reset(cifdev, true);
 		atomic_inc(&cifdev->fh_cnt);
@@ -2043,13 +2041,12 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
 	u32 lastline, lastpix, ctl, cif_frmst, intstat, frmid;
-	void __iomem *base = cif_dev->base_addr;
 
-	intstat = read_cif_reg(base, CIF_INTSTAT);
-	cif_frmst = read_cif_reg(base, CIF_FRAME_STATUS);
-	lastline = read_cif_reg(base, CIF_LAST_LINE);
-	lastpix = read_cif_reg(base, CIF_LAST_PIX);
-	ctl = read_cif_reg(base, CIF_CTRL);
+	intstat = rkcif_read_register(cif_dev, CIF_REG_DVP_INTSTAT);
+	cif_frmst = rkcif_read_register(cif_dev, CIF_REG_DVP_FRAME_STATUS);
+	lastline = rkcif_read_register(cif_dev, CIF_REG_DVP_LAST_LINE);
+	lastpix = rkcif_read_register(cif_dev, CIF_REG_DVP_LAST_PIX);
+	ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 	frmid = CIF_GET_FRAME_ID(cif_frmst);
 
 	/* There are two irqs enabled:
@@ -2062,17 +2059,21 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
 
 	if ((intstat & PST_INF_FRAME_END)) {
-		write_cif_reg(base, CIF_INTSTAT, PST_INF_FRAME_END_CLR);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
+				     PST_INF_FRAME_END_CLR);
 
 		if (stream->stopping)
 			/* To stop CIF ASAP, before FRAME_END irq */
-			write_cif_reg(base, CIF_CTRL, ctl & (~ENABLE_CAPTURE));
+			rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
+					     ctl & (~ENABLE_CAPTURE));
 	}
 
 	if ((intstat & FRAME_END)) {
 		struct vb2_v4l2_buffer *vb_done = NULL;
 
-		write_cif_reg(base, CIF_INTSTAT, FRAME_END_CLR);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
+				     FRAME_END_CLR);
+
 		if (stream->stopping) {
 			rkcif_stream_stop(stream);
 			stream->stopping = false;
@@ -2089,7 +2090,8 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 			 * At the same time, don't clear the frame id
 			 * for switching address.
 			 */
-			write_cif_reg(base, CIF_FRAME_STATUS, FRM0_STAT_CLS);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS,
+					     FRM0_STAT_CLS);
 			v4l2_err(&cif_dev->v4l2_dev,
 				 "Bad frame, irq:0x%x frmst:0x%x size:%dx%d\n",
 				 intstat, cif_frmst, lastline, lastpix);
@@ -2115,7 +2117,8 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 		 * the next frame end irq;
 		 * 2,do not clear the frame id for switching address.
 		 */
-		write_cif_reg(base, CIF_FRAME_STATUS, cif_frmst & FRM0_STAT_CLS);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS,
+				     cif_frmst & FRM0_STAT_CLS);
 
 		if (vb_done)
 			rkcif_vb_done_oneframe(stream, vb_done);
@@ -2255,14 +2258,15 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		}
 	} else {
 		u32 lastline, lastpix, ctl, cif_frmst;
-		void __iomem *base = cif_dev->base_addr;
 		struct rkcif_stream *stream;
 
-		intstat = read_cif_reg(base, CIF_INTSTAT);
-		cif_frmst = read_cif_reg(base, CIF_FRAME_STATUS);
-		lastline = CIF_FETCH_Y_LAST_LINE(read_cif_reg(base, CIF_LAST_LINE));
-		lastpix =  CIF_FETCH_Y_LAST_LINE(read_cif_reg(base, CIF_LAST_PIX));
-		ctl = read_cif_reg(base, CIF_CTRL);
+		intstat = rkcif_read_register(cif_dev, CIF_REG_DVP_INTSTAT);
+		cif_frmst = rkcif_read_register(cif_dev, CIF_REG_DVP_FRAME_STATUS);
+		lastline = rkcif_read_register(cif_dev, CIF_REG_DVP_LAST_LINE);
+		lastline = CIF_FETCH_Y_LAST_LINE(lastline);
+		lastpix = rkcif_read_register(cif_dev, CIF_REG_DVP_LAST_PIX);
+		lastpix =  CIF_FETCH_Y_LAST_LINE(lastpix);
+		ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 
 		if (cif_dev->chip_id == CHIP_RK1808_CIF)
 			stream = &cif_dev->stream[RKCIF_STREAM_DVP];
@@ -2277,18 +2281,20 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		 */
 
 		if ((intstat & PST_INF_FRAME_END)) {
-			write_cif_reg(base, CIF_INTSTAT, PST_INF_FRAME_END_CLR);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
+					     PST_INF_FRAME_END_CLR);
 
 			if (stream->stopping)
 				/* To stop CIF ASAP, before FRAME_END irq */
-				write_cif_reg(base, CIF_CTRL,
-					      ctl & (~ENABLE_CAPTURE));
+				rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
+						     ctl & (~ENABLE_CAPTURE));
 		}
 
 		if ((intstat & FRAME_END)) {
 			struct vb2_v4l2_buffer *vb_done = NULL;
 
-			write_cif_reg(base, CIF_INTSTAT, FRAME_END_CLR);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
+					     FRAME_END_CLR);
 
 			if (stream->stopping) {
 				rkcif_stream_stop(stream);
@@ -2302,7 +2308,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			     !(cif_frmst & CIF_F1_READY))) {
 				v4l2_err(&cif_dev->v4l2_dev,
 					 "Bad frame, pp irq:0x%x frmst:0x%x size:%dx%d\n",
-					 intstat, cif_frmst, lastline, lastpix);
+					 intstat, cif_frmst, lastpix, lastline);
 				return;
 			}
 

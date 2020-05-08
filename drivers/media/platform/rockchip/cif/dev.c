@@ -4,12 +4,12 @@
  *
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
-
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
@@ -22,10 +22,9 @@
 #include <linux/iommu.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
-
+#include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include "dev.h"
-#include "regs.h"
-#include "version.h"
 
 #define RKCIF_VERNO_LEN		10
 
@@ -35,6 +34,7 @@ struct cif_match_data {
 	const char * const *rsts;
 	int clks_num;
 	int rsts_num;
+	const struct cif_reg *cif_regs;
 };
 
 int rkcif_debug;
@@ -47,6 +47,43 @@ MODULE_PARM_DESC(version, "version number");
 
 static DEFINE_MUTEX(rkcif_dev_mutex);
 static LIST_HEAD(rkcif_device_list);
+
+void rkcif_write_register(struct rkcif_device *dev,
+			  enum cif_reg_index index, u32 val)
+{
+	void __iomem *base = dev->base_addr;
+	const struct cif_reg *reg = &dev->cif_regs[index];
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index == CIF_REG_DVP_CTRL ||
+		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
+			write_cif_reg(base, reg->offset, val);
+		else
+			dev_warn(dev->dev, "write reg[%d] failed, maybe useless!!!\n", index);
+	}
+
+	if (index == CIF_REG_DVP_VIR_LINE_WIDTH)
+		dev_warn(dev->dev, "reg[%d] offset:0x%x, val:0x%x\n",
+			 index, reg->offset, val);
+}
+
+unsigned int rkcif_read_register(struct rkcif_device *dev,
+				 enum cif_reg_index index)
+{
+	unsigned int val = 0x0;
+	void __iomem *base = dev->base_addr;
+	const struct cif_reg *reg = &dev->cif_regs[index];
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index == CIF_REG_DVP_CTRL ||
+		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
+			val = read_cif_reg(base, reg->offset);
+		else
+			dev_warn(dev->dev, "read reg[%d] failed, maybe useless!!!\n", index);
+	}
+
+	return val;
+}
 
 /**************************** pipeline operations *****************************/
 
@@ -192,10 +229,10 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					sink_entity = &dev->stream[RKCIF_STREAM_DVP].vnode.vdev.entity;
 
 					ret = media_create_pad_link(source_entity,
-								       pad,
-								       sink_entity,
-								       0,
-								       MEDIA_LNK_FL_ENABLED);
+								    pad,
+								    sink_entity,
+								    0,
+								    MEDIA_LNK_FL_ENABLED);
 					if (ret)
 						dev_err(dev->dev, "failed to create link for %s\n",
 							sensor->sd->name);
@@ -210,10 +247,10 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					(flags = MEDIA_LNK_FL_ENABLED) : (flags = 0);
 
 					ret = media_create_pad_link(source_entity,
-								       pad,
-								       sink_entity,
-								       0,
-								       flags);
+								    pad,
+								    sink_entity,
+								    0,
+								    flags);
 					if (ret) {
 						dev_err(dev->dev,
 							"failed to create link for %s\n",
@@ -373,6 +410,36 @@ err_unreg_stream_vdev:
 	return ret;
 }
 
+static const struct cif_reg px30_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_LINE_NUM_ADDR] = CIF_REG(CIF_LINE_NUM_ADDR),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_SCM_ADDR_Y] = CIF_REG(CIF_SCM_ADDR_Y),
+	[CIF_REG_DVP_SCM_ADDR_U] = CIF_REG(CIF_SCM_ADDR_U),
+	[CIF_REG_DVP_SCM_ADDR_V] = CIF_REG(CIF_SCM_ADDR_V),
+	[CIF_REG_DVP_WB_UP_FILTER] = CIF_REG(CIF_WB_UP_FILTER),
+	[CIF_REG_DVP_WB_LOW_FILTER] = CIF_REG(CIF_WB_LOW_FILTER),
+	[CIF_REG_DVP_WBC_CNT] = CIF_REG(CIF_WBC_CNT),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_SCL_CTRL] = CIF_REG(CIF_SCL_CTRL),
+	[CIF_REG_DVP_SCL_DST] = CIF_REG(CIF_SCL_DST),
+	[CIF_REG_DVP_SCL_FCT] = CIF_REG(CIF_SCL_FCT),
+	[CIF_REG_DVP_SCL_VALID_NUM] = CIF_REG(CIF_SCL_VALID_NUM),
+	[CIF_REG_DVP_LINE_LOOP_CTRL] = CIF_REG(CIF_LINE_LOOP_CTR),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
+};
+
 static const char * const px30_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
@@ -384,6 +451,29 @@ static const char * const px30_cif_rsts[] = {
 	"rst_cif_a",
 	"rst_cif_h",
 	"rst_cif_pclkin",
+};
+
+/* TODO: define registers related to mipi */
+static const struct cif_reg rk1808_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_DMA_IDLE_REQ] = CIF_REG(CIF_DMA_IDLE_REQ),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_LINE_INT_NUM] = CIF_REG(CIF_LINE_INT_NUM),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_PATH_SEL] = CIF_REG(CIF_PATH_SEL),
+	[CIF_REG_DVP_FIFO_ENTRY] = CIF_REG(CIF_FIFO_ENTRY),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
 };
 
 static const char * const rk1808_cif_clks[] = {
@@ -402,6 +492,26 @@ static const char * const rk1808_cif_rsts[] = {
 	"rst_cif_pclkin",
 };
 
+static const struct cif_reg rk3128_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_SCL_CTRL] = CIF_REG(CIF_SCL_CTRL),
+	[CIF_REG_DVP_FIFO_ENTRY] = CIF_REG(CIF_FIFO_ENTRY),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
+};
+
 static const char * const rk3128_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
@@ -412,6 +522,26 @@ static const char * const rk3128_cif_rsts[] = {
 	"rst_cif",
 };
 
+static const struct cif_reg rk3288_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_SCL_CTRL] = CIF_REG(CIF_SCL_CTRL),
+	[CIF_REG_DVP_FIFO_ENTRY] = CIF_REG(CIF_FIFO_ENTRY),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
+};
+
 static const char * const rk3288_cif_clks[] = {
 	"aclk_cif0",
 	"hclk_cif0",
@@ -420,6 +550,26 @@ static const char * const rk3288_cif_clks[] = {
 
 static const char * const rk3288_cif_rsts[] = {
 	"rst_cif",
+};
+
+static const struct cif_reg rk3328_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_SCL_CTRL] = CIF_REG(CIF_SCL_CTRL),
+	[CIF_REG_DVP_FIFO_ENTRY] = CIF_REG(CIF_FIFO_ENTRY),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
 };
 
 static const char * const rk3328_cif_clks[] = {
@@ -439,6 +589,7 @@ static const struct cif_match_data px30_cif_match_data = {
 	.clks_num = ARRAY_SIZE(px30_cif_clks),
 	.rsts = px30_cif_rsts,
 	.rsts_num = ARRAY_SIZE(px30_cif_rsts),
+	.cif_regs = px30_cif_regs,
 };
 
 static const struct cif_match_data rk1808_cif_match_data = {
@@ -447,6 +598,7 @@ static const struct cif_match_data rk1808_cif_match_data = {
 	.clks_num = ARRAY_SIZE(rk1808_cif_clks),
 	.rsts = rk1808_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk1808_cif_rsts),
+	.cif_regs = rk1808_cif_regs,
 };
 
 static const struct cif_match_data rk3128_cif_match_data = {
@@ -455,6 +607,7 @@ static const struct cif_match_data rk3128_cif_match_data = {
 	.clks_num = ARRAY_SIZE(rk3128_cif_clks),
 	.rsts = rk3128_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3128_cif_rsts),
+	.cif_regs = rk3128_cif_regs,
 };
 
 static const struct cif_match_data rk3288_cif_match_data = {
@@ -463,6 +616,7 @@ static const struct cif_match_data rk3288_cif_match_data = {
 	.clks_num = ARRAY_SIZE(rk3288_cif_clks),
 	.rsts = rk3288_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3288_cif_rsts),
+	.cif_regs = rk3288_cif_regs,
 };
 
 static const struct cif_match_data rk3328_cif_match_data = {
@@ -471,6 +625,7 @@ static const struct cif_match_data rk3328_cif_match_data = {
 	.clks_num = ARRAY_SIZE(rk3328_cif_clks),
 	.rsts = rk3328_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3328_cif_rsts),
+	.cif_regs = rk3328_cif_regs,
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
@@ -586,7 +741,6 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev, bool is_rst_iommu)
 	for (i = 0; i < ARRAY_SIZE(cif_dev->cif_rst); i++)
 		if (cif_dev->cif_rst[i])
 			reset_control_deassert(cif_dev->cif_rst[i]);
-
 }
 
 static int rkcif_plat_probe(struct platform_device *pdev)
@@ -637,8 +791,16 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 						   IORESOURCE_MEM,
 						   "cif_regs");
 		cif_dev->base_addr = devm_ioremap_resource(dev, res);
-		if (IS_ERR(cif_dev->base_addr))
-			return PTR_ERR(cif_dev->base_addr);
+		if (PTR_ERR(cif_dev->base_addr) == -EBUSY) {
+			resource_size_t offset = res->start;
+			resource_size_t size = resource_size(res);
+
+			cif_dev->base_addr = devm_ioremap(dev, offset, size);
+			if (IS_ERR(cif_dev->base_addr)) {
+				dev_err(dev, "ioremap failed\n");
+				return PTR_ERR(cif_dev->base_addr);
+			}
+		}
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		cif_dev->base_addr = devm_ioremap_resource(dev, res);
@@ -653,6 +815,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 			data->rsts_num, RKCIF_MAX_RESET);
 		return -EINVAL;
 	}
+
 	for (i = 0; i < data->clks_num; i++) {
 		struct clk *clk = devm_clk_get(dev, data->clks[i]);
 
@@ -665,14 +828,18 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	cif_dev->clk_size = data->clks_num;
 
 	for (i = 0; i < data->rsts_num; i++) {
-		struct reset_control *rst =
-			devm_reset_control_get(dev, data->rsts[i]);
+		struct reset_control *rst = NULL;
+
+		if (data->rsts[i])
+			rst = devm_reset_control_get(dev, data->rsts[i]);
 		if (IS_ERR(rst)) {
 			dev_err(dev, "failed to get %s\n", data->rsts[i]);
 			return PTR_ERR(rst);
 		}
 		cif_dev->cif_rst[i] = rst;
 	}
+
+	cif_dev->cif_regs = data->cif_regs;
 
 	mutex_init(&cif_dev->stream_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
