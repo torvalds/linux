@@ -423,7 +423,8 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	 * currently restrict NVM upgrade for Intel hardware. We may
 	 * relax this in the future when we learn other NVM formats.
 	 */
-	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL) {
+	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL &&
+	    sw->config.vendor_id != 0x8087) {
 		dev_info(&sw->dev,
 			 "NVM format of vendor %#x is not known, disabling NVM upgrade\n",
 			 sw->config.vendor_id);
