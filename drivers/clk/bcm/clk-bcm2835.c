@@ -396,8 +396,8 @@ out:
 }
 
 static void bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
-				  struct debugfs_reg32 *regs, size_t nregs,
-				  struct dentry *dentry)
+				   const struct debugfs_reg32 *regs,
+				   size_t nregs, struct dentry *dentry)
 {
 	struct debugfs_regset32 *regset;
 
@@ -1240,7 +1240,7 @@ static u8 bcm2835_clock_get_parent(struct clk_hw *hw)
 	return (src & CM_SRC_MASK) >> CM_SRC_SHIFT;
 }
 
-static struct debugfs_reg32 bcm2835_debugfs_clock_reg32[] = {
+static const struct debugfs_reg32 bcm2835_debugfs_clock_reg32[] = {
 	{
 		.name = "ctl",
 		.offset = 0,
