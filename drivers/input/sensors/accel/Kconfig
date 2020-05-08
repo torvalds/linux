@@ -71,6 +71,12 @@ config GS_MC3230
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config GS_SC7A30
+	bool "gsensor sc7a30"
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 config GS_MXC6225
 	bool "gsensor mxc6225"
 	help

@@ -2016,6 +2016,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_mxc6655xa", ACCEL_ID_MXC6655XA},
 	{"gs_dmard10", ACCEL_ID_DMARD10},
 	{"gs_lsm303d", ACCEL_ID_LSM303D},
+	{"gs_sc7a30",ACCEL_ID_SC7A30},
 	{"gs_mc3230", ACCEL_ID_MC3230},
 	{"mpu6880_acc", ACCEL_ID_MPU6880},
 	{"mpu6500_acc", ACCEL_ID_MPU6500},
@@ -2074,10 +2075,12 @@ static struct of_device_id sensor_dt_ids[] = {
 	{ .compatible = "gs_mma7660" },
 	{ .compatible = "gs_mxc6225" },
 	{ .compatible = "gs_mc3230" },
+	{ .compatible = "gs_sc7a30" },
 	{ .compatible = "lsm330_acc" },
 	{ .compatible = "bma2xx_acc" },
 	{ .compatible = "gs_stk8baxx" },
 	{ .compatible = "gs_mxc6655xa"},
+
 	/*compass*/
 	{ .compatible = "ak8975" },
 	{ .compatible = "ak8963" },
