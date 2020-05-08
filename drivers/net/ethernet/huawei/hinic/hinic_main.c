@@ -427,10 +427,6 @@ static int hinic_open(struct net_device *netdev)
 		goto err_func_port_state;
 	}
 
-	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
-		/* Wait up to 3 sec between port enable to link state */
-		msleep(3000);
-
 	down(&nic_dev->mgmt_lock);
 
 	err = hinic_port_link_state(nic_dev, &link_state);
@@ -766,10 +762,12 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 		  HINIC_RX_MODE_MC |
 		  HINIC_RX_MODE_BC;
 
-	if (netdev->flags & IFF_PROMISC)
-		rx_mode |= HINIC_RX_MODE_PROMISC;
-	else if (netdev->flags & IFF_ALLMULTI)
+	if (netdev->flags & IFF_PROMISC) {
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+			rx_mode |= HINIC_RX_MODE_PROMISC;
+	} else if (netdev->flags & IFF_ALLMULTI) {
 		rx_mode |= HINIC_RX_MODE_MC_ALL;
+	}
 
 	rx_mode_work->rx_mode = rx_mode;
 
@@ -868,6 +866,9 @@ static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_set_vf_vlan = hinic_ndo_set_vf_vlan,
 	.ndo_get_vf_config = hinic_ndo_get_vf_config,
 	.ndo_set_vf_trust = hinic_ndo_set_vf_trust,
+	.ndo_set_vf_rate = hinic_ndo_set_vf_bw,
+	.ndo_set_vf_spoofchk = hinic_ndo_set_vf_spoofchk,
+	.ndo_set_vf_link_state = hinic_ndo_set_vf_link_state,
 };
 
 static const struct net_device_ops hinicvf_netdev_ops = {
@@ -1231,6 +1232,8 @@ static void hinic_remove(struct pci_dev *pdev)
 	}
 
 	unregister_netdev(netdev);
+
+	hinic_port_del_mac(nic_dev, netdev->dev_addr, 0);
 
 	hinic_hwdev_cb_unregister(nic_dev->hwdev,
 				  HINIC_MGMT_MSG_CMD_LINK_STATUS);

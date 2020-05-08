@@ -25,12 +25,18 @@
 
 #define HINIC_PF_SET_VF_ALREADY				0x4
 #define HINIC_MGMT_STATUS_EXIST				0x6
+#define HINIC_MGMT_CMD_UNSUPPORTED			0xFF
 
 struct hinic_cap {
 	u16     max_qps;
 	u16     num_qps;
 	u8		max_vf;
 	u16     max_vf_qps;
+};
+
+enum hw_ioctxt_set_cmdq_depth {
+	HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT,
+	HW_IOCTXT_SET_CMDQ_DEPTH_ENABLE,
 };
 
 enum hinic_port_cmd {
@@ -86,11 +92,15 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
 
+	HINIC_PORT_CMD_ENABLE_SPOOFCHK = 78,
+
 	HINIC_PORT_CMD_GET_MGMT_VERSION = 88,
 
 	HINIC_PORT_CMD_SET_FUNC_STATE   = 93,
 
 	HINIC_PORT_CMD_GET_GLOBAL_QPN   = 102,
+
+	HINIC_PORT_CMD_SET_VF_RATE = 105,
 
 	HINIC_PORT_CMD_SET_VF_VLAN	= 106,
 
@@ -107,6 +117,8 @@ enum hinic_port_cmd {
 	HINIC_PORT_CMD_GET_CAP          = 170,
 
 	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
+
+	HINIC_PORT_CMD_SET_VF_MAX_MIN_RATE = 249,
 };
 
 enum hinic_ucode_cmd {
@@ -245,6 +257,15 @@ struct hinic_cmd_hw_ci {
 	u32     sq_id;
 	u32     rsvd1;
 	u64     ci_addr;
+};
+
+struct hinic_cmd_l2nic_reset {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	reset_flag;
 };
 
 struct hinic_hwdev {

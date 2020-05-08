@@ -66,15 +66,15 @@ static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		return -EFAULT;
 	}
 
-	if (cmd == HINIC_PORT_CMD_SET_MAC && port_mac_cmd.status ==
-	    HINIC_PF_SET_VF_ALREADY) {
-		dev_warn(&pdev->dev, "PF has already set VF mac, Ignore set operation\n");
+	if (port_mac_cmd.status == HINIC_PF_SET_VF_ALREADY) {
+		dev_warn(&pdev->dev, "PF has already set VF mac, ignore %s operation\n",
+			 (op == MAC_SET) ? "set" : "del");
 		return HINIC_PF_SET_VF_ALREADY;
 	}
 
 	if (cmd == HINIC_PORT_CMD_SET_MAC && port_mac_cmd.status ==
 	    HINIC_MGMT_STATUS_EXIST)
-		dev_warn(&pdev->dev, "MAC is repeated. Ignore set operation\n");
+		dev_warn(&pdev->dev, "MAC is repeated, ignore set operation\n");
 
 	return 0;
 }

@@ -506,6 +506,49 @@ struct hinic_cmd_vport_stats {
 	struct hinic_vport_stats stats;
 };
 
+struct hinic_tx_rate_cfg_max_min {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u32	min_rate;
+	u32	max_rate;
+	u8	rsvd2[8];
+};
+
+struct hinic_tx_rate_cfg {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u32	tx_rate;
+};
+
+enum nic_speed_level {
+	LINK_SPEED_10MB = 0,
+	LINK_SPEED_100MB,
+	LINK_SPEED_1GB,
+	LINK_SPEED_10GB,
+	LINK_SPEED_25GB,
+	LINK_SPEED_40GB,
+	LINK_SPEED_100GB,
+	LINK_SPEED_LEVELS,
+};
+
+struct hinic_spoofchk_set {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u8	state;
+	u8	rsvd1;
+	u16	func_id;
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 

@@ -44,10 +44,6 @@ enum io_status {
 	IO_RUNNING = 1,
 };
 
-enum hw_ioctxt_set_cmdq_depth {
-	HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT,
-};
-
 /**
  * get_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
@@ -667,6 +663,32 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }
 
+static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cmd_l2nic_reset l2nic_reset = {0};
+	u16 out_size = sizeof(l2nic_reset);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	l2nic_reset.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	/* 0 represents standard l2nic reset flow */
+	l2nic_reset.reset_flag = 0;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_L2NIC_RESET, &l2nic_reset,
+				sizeof(l2nic_reset), &l2nic_reset,
+				&out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || l2nic_reset.status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to reset L2NIC resources, err: %d, status: 0x%x, out_size: 0x%x\n",
+			err, l2nic_reset.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * hinic_init_hwdev - Initialize the NIC HW
  * @pdev: the NIC pci device
@@ -729,6 +751,10 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 		goto err_init_pfhwdev;
 	}
 
+	err = hinic_l2nic_reset(hwdev);
+	if (err)
+		goto err_l2nic_reset;
+
 	err = get_dev_cap(hwdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get device capabilities\n");
@@ -759,6 +785,7 @@ err_resources_state:
 err_init_fw_ctxt:
 	hinic_vf_func_free(hwdev);
 err_vf_func_init:
+err_l2nic_reset:
 err_dev_cap:
 	free_pfhwdev(pfhwdev);
 

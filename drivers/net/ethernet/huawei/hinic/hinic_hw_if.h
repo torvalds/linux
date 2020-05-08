@@ -55,13 +55,15 @@
 #define HINIC_FA1_IRQS_PER_FUNC_SHIFT                           20
 #define HINIC_FA1_DMA_ATTR_PER_FUNC_SHIFT                       24
 /* reserved members - off 27 */
-#define HINIC_FA1_INIT_STATUS_SHIFT                             30
+#define HINIC_FA1_MGMT_INIT_STATUS_SHIFT			30
+#define HINIC_FA1_PF_INIT_STATUS_SHIFT				31
 
 #define HINIC_FA1_AEQS_PER_FUNC_MASK                            0x3
 #define HINIC_FA1_CEQS_PER_FUNC_MASK                            0x7
 #define HINIC_FA1_IRQS_PER_FUNC_MASK                            0xF
 #define HINIC_FA1_DMA_ATTR_PER_FUNC_MASK                        0x7
-#define HINIC_FA1_INIT_STATUS_MASK                              0x1
+#define HINIC_FA1_MGMT_INIT_STATUS_MASK                         0x1
+#define HINIC_FA1_PF_INIT_STATUS_MASK				0x1
 
 #define HINIC_FA1_GET(val, member)                              \
 	(((val) >> HINIC_FA1_##member##_SHIFT) & HINIC_FA1_##member##_MASK)

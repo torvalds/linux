@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include "hinic_hw_csr.h"
 #include "hinic_hw_if.h"
@@ -17,6 +18,8 @@
 #define PCIE_ATTR_ENTRY         0
 
 #define VALID_MSIX_IDX(attr, msix_index) ((msix_index) < (attr)->num_irqs)
+
+#define WAIT_HWIF_READY_TIMEOUT	10000
 
 /**
  * hinic_msix_attr_set - set message attribute for msix entry
@@ -187,18 +190,37 @@ void hinic_set_msix_state(struct hinic_hwif *hwif, u16 msix_idx,
  **/
 static int hwif_ready(struct hinic_hwif *hwif)
 {
-	struct pci_dev *pdev = hwif->pdev;
 	u32 addr, attr1;
 
 	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
 	attr1  = hinic_hwif_read_reg(hwif, addr);
 
-	if (!HINIC_FA1_GET(attr1, INIT_STATUS)) {
-		dev_err(&pdev->dev, "hwif status is not ready\n");
-		return -EFAULT;
+	if (!HINIC_FA1_GET(attr1, MGMT_INIT_STATUS))
+		return -EBUSY;
+
+	if (HINIC_IS_VF(hwif)) {
+		if (!HINIC_FA1_GET(attr1, PF_INIT_STATUS))
+			return -EBUSY;
 	}
 
 	return 0;
+}
+
+static int wait_hwif_ready(struct hinic_hwif *hwif)
+{
+	unsigned long timeout = 0;
+
+	do {
+		if (!hwif_ready(hwif))
+			return 0;
+
+		usleep_range(999, 1000);
+		timeout++;
+	} while (timeout <= WAIT_HWIF_READY_TIMEOUT);
+
+	dev_err(&hwif->pdev->dev, "Wait for hwif timeout\n");
+
+	return -EBUSY;
 }
 
 /**
@@ -373,7 +395,7 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 		goto err_map_intr_bar;
 	}
 
-	err = hwif_ready(hwif);
+	err = wait_hwif_ready(hwif);
 	if (err) {
 		dev_err(&pdev->dev, "HW interface is not ready\n");
 		goto err_hwif_ready;

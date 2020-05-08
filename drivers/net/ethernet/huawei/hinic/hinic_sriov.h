@@ -86,6 +86,13 @@ int hinic_ndo_get_vf_config(struct net_device *netdev,
 
 int hinic_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting);
 
+int hinic_ndo_set_vf_bw(struct net_device *netdev,
+			int vf, int min_tx_rate, int max_tx_rate);
+
+int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting);
+
+int hinic_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link);
+
 void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 				       u8 link_status);
 

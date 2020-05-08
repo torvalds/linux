@@ -627,7 +627,7 @@ wait_for_mbox_seg_completion(struct hinic_mbox_func_to_func *func_to_func,
 	struct hinic_hwdev *hwdev = func_to_func->hwdev;
 	struct completion *done = &send_mbox->send_done;
 	u32 cnt = 0;
-	ulong jif;
+	unsigned long jif;
 
 	if (poll) {
 		while (cnt < MBOX_MSG_POLLING_TIMEOUT) {
@@ -869,7 +869,7 @@ int hinic_mbox_to_func(struct hinic_mbox_func_to_func *func_to_func,
 {
 	struct hinic_recv_mbox *mbox_for_resp;
 	struct mbox_msg_info msg_info = {0};
-	ulong timeo;
+	unsigned long timeo;
 	int err;
 
 	mbox_for_resp = &func_to_func->mbox_resp[dst_func];

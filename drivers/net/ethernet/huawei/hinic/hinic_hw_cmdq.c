@@ -849,6 +849,25 @@ err_init_cmdq:
 	return err;
 }
 
+static int hinic_set_cmdq_depth(struct hinic_hwdev *hwdev, u16 cmdq_depth)
+{
+	struct hinic_cmd_hw_ioctxt hw_ioctxt = { 0 };
+	struct hinic_pfhwdev *pfhwdev;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	hw_ioctxt.func_idx = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	hw_ioctxt.ppf_idx = HINIC_HWIF_PPF_IDX(hwdev->hwif);
+
+	hw_ioctxt.set_cmdq_depth = HW_IOCTXT_SET_CMDQ_DEPTH_ENABLE;
+	hw_ioctxt.cmdq_depth = (u8)ilog2(cmdq_depth);
+
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				 HINIC_COMM_CMD_HWCTXT_SET,
+				 &hw_ioctxt, sizeof(hw_ioctxt), NULL,
+				 NULL, HINIC_MGMT_MSG_SYNC);
+}
+
 /**
  * hinic_init_cmdqs - init all cmdqs
  * @cmdqs: cmdqs to init
@@ -899,7 +918,17 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 
 	hinic_ceq_register_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ, cmdqs,
 			      cmdq_ceq_handler);
+
+	err = hinic_set_cmdq_depth(hwdev, CMDQ_DEPTH);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to set cmdq depth\n");
+		goto err_set_cmdq_depth;
+	}
+
 	return 0;
+
+err_set_cmdq_depth:
+	hinic_ceq_unregister_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ);
 
 err_cmdq_ctxt:
 	hinic_wqs_cmdq_free(&cmdqs->cmdq_pages, cmdqs->saved_wqs,
