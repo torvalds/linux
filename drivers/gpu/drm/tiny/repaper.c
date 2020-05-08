@@ -1002,18 +1002,12 @@ static int repaper_probe(struct spi_device *spi)
 		}
 	}
 
-	epd = kzalloc(sizeof(*epd), GFP_KERNEL);
-	if (!epd)
-		return -ENOMEM;
+	epd = devm_drm_dev_alloc(dev, &repaper_driver,
+				 struct repaper_epd, drm);
+	if (IS_ERR(epd))
+		return PTR_ERR(epd);
 
 	drm = &epd->drm;
-
-	ret = devm_drm_dev_init(dev, drm, &repaper_driver);
-	if (ret) {
-		kfree(epd);
-		return ret;
-	}
-	drmm_add_final_kfree(drm, epd);
 
 	ret = drmm_mode_config_init(drm);
 	if (ret)

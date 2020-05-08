@@ -57,27 +57,19 @@ static struct udl_device *udl_driver_create(struct usb_interface *interface)
 	struct udl_device *udl;
 	int r;
 
-	udl = kzalloc(sizeof(*udl), GFP_KERNEL);
-	if (!udl)
-		return ERR_PTR(-ENOMEM);
-
-	r = drm_dev_init(&udl->drm, &driver, &interface->dev);
-	if (r) {
-		kfree(udl);
-		return ERR_PTR(r);
-	}
+	udl = devm_drm_dev_alloc(&interface->dev, &driver,
+				 struct udl_device, drm);
+	if (IS_ERR(udl))
+		return udl;
 
 	udl->udev = udev;
-	udl->drm.dev_private = udl;
-	drmm_add_final_kfree(&udl->drm, udl);
 
 	r = udl_init(udl);
-	if (r) {
-		drm_dev_put(&udl->drm);
+	if (r)
 		return ERR_PTR(r);
-	}
 
 	usb_set_intfdata(interface, udl);
+
 	return udl;
 }
 
@@ -93,17 +85,13 @@ static int udl_usb_probe(struct usb_interface *interface,
 
 	r = drm_dev_register(&udl->drm, 0);
 	if (r)
-		goto err_free;
+		return r;
 
 	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
 	drm_fbdev_generic_setup(&udl->drm, 0);
 
 	return 0;
-
-err_free:
-	drm_dev_put(&udl->drm);
-	return r;
 }
 
 static void udl_usb_disconnect(struct usb_interface *interface)
@@ -113,7 +101,6 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_kms_helper_poll_fini(dev);
 	udl_drop_usb(dev);
 	drm_dev_unplug(dev);
-	drm_dev_put(dev);
 }
 
 /*

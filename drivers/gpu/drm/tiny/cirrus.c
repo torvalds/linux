@@ -59,6 +59,8 @@ struct cirrus_device {
 	void __iomem		       *mmio;
 };
 
+#define to_cirrus(_dev) container_of(_dev, struct cirrus_device, dev)
+
 /* ------------------------------------------------------------------ */
 /*
  * The meat of this driver. The core passes us a mode and we have to program
@@ -311,7 +313,7 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 			       struct drm_rect *rect)
 {
-	struct cirrus_device *cirrus = fb->dev->dev_private;
+	struct cirrus_device *cirrus = to_cirrus(fb->dev);
 	void *vmap;
 	int idx, ret;
 
@@ -436,7 +438,7 @@ static void cirrus_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_plane_state *plane_state)
 {
-	struct cirrus_device *cirrus = pipe->crtc.dev->dev_private;
+	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
 
 	cirrus_mode_set(cirrus, &crtc_state->mode, plane_state->fb);
 	cirrus_fb_blit_fullscreen(plane_state->fb);
@@ -445,7 +447,7 @@ static void cirrus_pipe_enable(struct drm_simple_display_pipe *pipe,
 static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *old_state)
 {
-	struct cirrus_device *cirrus = pipe->crtc.dev->dev_private;
+	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
@@ -567,18 +569,12 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 		return ret;
 
 	ret = -ENOMEM;
-	cirrus = kzalloc(sizeof(*cirrus), GFP_KERNEL);
-	if (cirrus == NULL)
-		return ret;
+	cirrus = devm_drm_dev_alloc(&pdev->dev, &cirrus_driver,
+				    struct cirrus_device, dev);
+	if (IS_ERR(cirrus))
+		return PTR_ERR(cirrus);
 
 	dev = &cirrus->dev;
-	ret = devm_drm_dev_init(&pdev->dev, dev, &cirrus_driver);
-	if (ret) {
-		kfree(cirrus);
-		return ret;
-	}
-	dev->dev_private = cirrus;
-	drmm_add_final_kfree(dev, cirrus);
 
 	cirrus->vram = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0),
 				    pci_resource_len(pdev, 0));

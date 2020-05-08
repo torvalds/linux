@@ -2380,6 +2380,14 @@ bad_std_timing(u8 a, u8 b)
 	       (a == 0x20 && b == 0x20);
 }
 
+static int drm_mode_hsync(const struct drm_display_mode *mode)
+{
+	if (mode->htotal <= 0)
+		return 0;
+
+	return DIV_ROUND_CLOSEST(mode->clock, mode->htotal);
+}
+
 /**
  * drm_mode_std - convert standard mode info (width, height, refresh) into mode
  * @connector: connector of for the EDID block

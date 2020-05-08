@@ -42,6 +42,8 @@ properties:
         # One Stop Displays OSD101T2587-53TS 10.1" 1920x1200 panel
       - osddisplays,osd101t2587-53ts
         # Panasonic 10" WUXGA TFT LCD panel
+      - panasonic,vvx10f004b00
+        # Panasonic 10" WUXGA TFT LCD panel
       - panasonic,vvx10f034n00
 
   reg:

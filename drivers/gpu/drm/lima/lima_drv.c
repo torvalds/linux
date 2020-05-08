@@ -5,6 +5,7 @@
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -380,7 +381,6 @@ static int lima_pdev_probe(struct platform_device *pdev)
 		goto err_out0;
 	}
 
-	ldev->pdev = pdev;
 	ldev->dev = &pdev->dev;
 	ldev->id = (enum lima_gpu_id)of_device_get_match_data(&pdev->dev);
 
@@ -404,6 +404,12 @@ static int lima_pdev_probe(struct platform_device *pdev)
 		goto err_out2;
 	}
 
+	pm_runtime_set_active(ldev->dev);
+	pm_runtime_mark_last_busy(ldev->dev);
+	pm_runtime_set_autosuspend_delay(ldev->dev, 200);
+	pm_runtime_use_autosuspend(ldev->dev);
+	pm_runtime_enable(ldev->dev);
+
 	/*
 	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
@@ -412,17 +418,16 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_out3;
 
-	platform_set_drvdata(pdev, ldev);
-
 	if (sysfs_create_bin_file(&ldev->dev->kobj, &lima_error_state_attr))
 		dev_warn(ldev->dev, "fail to create error state sysfs\n");
 
 	return 0;
 
 err_out3:
-	lima_device_fini(ldev);
-err_out2:
+	pm_runtime_disable(ldev->dev);
 	lima_devfreq_fini(ldev);
+err_out2:
+	lima_device_fini(ldev);
 err_out1:
 	drm_dev_put(ddev);
 err_out0:
@@ -436,10 +441,16 @@ static int lima_pdev_remove(struct platform_device *pdev)
 	struct drm_device *ddev = ldev->ddev;
 
 	sysfs_remove_bin_file(&ldev->dev->kobj, &lima_error_state_attr);
-	platform_set_drvdata(pdev, NULL);
+
 	drm_dev_unregister(ddev);
+
+	/* stop autosuspend to make sure device is in active state */
+	pm_runtime_set_autosuspend_delay(ldev->dev, -1);
+	pm_runtime_disable(ldev->dev);
+
 	lima_devfreq_fini(ldev);
 	lima_device_fini(ldev);
+
 	drm_dev_put(ddev);
 	lima_sched_slab_fini();
 	return 0;
@@ -452,26 +463,22 @@ static const struct of_device_id dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dt_match);
 
+static const struct dev_pm_ops lima_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(lima_device_suspend, lima_device_resume, NULL)
+};
+
 static struct platform_driver lima_platform_driver = {
 	.probe      = lima_pdev_probe,
 	.remove     = lima_pdev_remove,
 	.driver     = {
 		.name   = "lima",
+		.pm	= &lima_pm_ops,
 		.of_match_table = dt_match,
 	},
 };
 
-static int __init lima_init(void)
-{
-	return platform_driver_register(&lima_platform_driver);
-}
-module_init(lima_init);
-
-static void __exit lima_exit(void)
-{
-	platform_driver_unregister(&lima_platform_driver);
-}
-module_exit(lima_exit);
+module_platform_driver(lima_platform_driver);
 
 MODULE_AUTHOR("Lima Project Developers");
 MODULE_DESCRIPTION("Lima DRM Driver");

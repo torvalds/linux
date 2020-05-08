@@ -98,6 +98,8 @@ struct gm12u320_device {
 	} fb_update;
 };
 
+#define to_gm12u320(__dev) container_of(__dev, struct gm12u320_device, dev)
+
 static const char cmd_data[CMD_SIZE] = {
 	0x55, 0x53, 0x42, 0x43, 0x00, 0x00, 0x00, 0x00,
 	0x68, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x10, 0xff,
@@ -408,7 +410,7 @@ err:
 static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
 				   struct drm_rect *dirty)
 {
-	struct gm12u320_device *gm12u320 = fb->dev->dev_private;
+	struct gm12u320_device *gm12u320 = to_gm12u320(fb->dev);
 	struct drm_framebuffer *old_fb = NULL;
 	bool wakeup = false;
 
@@ -558,7 +560,7 @@ static void gm12u320_pipe_enable(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *plane_state)
 {
 	struct drm_rect rect = { 0, 0, GM12U320_USER_WIDTH, GM12U320_HEIGHT };
-	struct gm12u320_device *gm12u320 = pipe->crtc.dev->dev_private;
+	struct gm12u320_device *gm12u320 = to_gm12u320(pipe->crtc.dev);
 
 	gm12u320->fb_update.draw_status_timeout = FIRST_FRAME_TIMEOUT;
 	gm12u320_fb_mark_dirty(plane_state->fb, &rect);
@@ -566,7 +568,7 @@ static void gm12u320_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 static void gm12u320_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct gm12u320_device *gm12u320 = pipe->crtc.dev->dev_private;
+	struct gm12u320_device *gm12u320 = to_gm12u320(pipe->crtc.dev);
 
 	gm12u320_stop_fb_update(gm12u320);
 }
@@ -631,22 +633,16 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	if (interface->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	gm12u320 = kzalloc(sizeof(*gm12u320), GFP_KERNEL);
-	if (gm12u320 == NULL)
-		return -ENOMEM;
+	gm12u320 = devm_drm_dev_alloc(&interface->dev, &gm12u320_drm_driver,
+				      struct gm12u320_device, dev);
+	if (IS_ERR(gm12u320))
+		return PTR_ERR(gm12u320);
 
 	gm12u320->udev = interface_to_usbdev(interface);
 	INIT_DELAYED_WORK(&gm12u320->fb_update.work, gm12u320_fb_update_work);
 	mutex_init(&gm12u320->fb_update.lock);
 
 	dev = &gm12u320->dev;
-	ret = devm_drm_dev_init(&interface->dev, dev, &gm12u320_drm_driver);
-	if (ret) {
-		kfree(gm12u320);
-		return ret;
-	}
-	dev->dev_private = gm12u320;
-	drmm_add_final_kfree(dev, gm12u320);
 
 	ret = drmm_mode_config_init(dev);
 	if (ret)
@@ -711,7 +707,7 @@ static __maybe_unused int gm12u320_suspend(struct usb_interface *interface,
 static __maybe_unused int gm12u320_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
-	struct gm12u320_device *gm12u320 = dev->dev_private;
+	struct gm12u320_device *gm12u320 = to_gm12u320(dev);
 
 	gm12u320_set_ecomode(gm12u320);
 

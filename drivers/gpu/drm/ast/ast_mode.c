@@ -931,7 +931,6 @@ static void ast_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.reset = ast_crtc_reset,
-	.set_config = drm_crtc_helper_set_config,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.destroy = ast_crtc_destroy,
 	.set_config = drm_atomic_helper_set_config,
@@ -1080,7 +1079,6 @@ static void ast_connector_destroy(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
 	ast_i2c_destroy(ast_connector->i2c);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1122,8 +1120,6 @@ static int ast_connector_init(struct drm_device *dev)
 
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
-
-	drm_connector_register(connector);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 

@@ -739,6 +739,29 @@ int devm_drm_dev_init(struct device *parent,
 }
 EXPORT_SYMBOL(devm_drm_dev_init);
 
+void *__devm_drm_dev_alloc(struct device *parent, struct drm_driver *driver,
+			   size_t size, size_t offset)
+{
+	void *container;
+	struct drm_device *drm;
+	int ret;
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	drm = container + offset;
+	ret = devm_drm_dev_init(parent, drm, driver);
+	if (ret) {
+		kfree(container);
+		return ERR_PTR(ret);
+	}
+	drmm_add_final_kfree(drm, container);
+
+	return container;
+}
+EXPORT_SYMBOL(__devm_drm_dev_alloc);
+
 /**
  * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for

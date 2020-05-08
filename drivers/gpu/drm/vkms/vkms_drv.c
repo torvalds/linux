@@ -35,7 +35,7 @@
 
 static struct vkms_device *vkms_device;
 
-bool enable_cursor;
+bool enable_cursor = true;
 module_param_named(enable_cursor, enable_cursor, bool, 0444);
 MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 

@@ -135,26 +135,17 @@ static int tidss_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	/* Can't use devm_* since drm_device's lifetime may exceed dev's */
-	tidss = kzalloc(sizeof(*tidss), GFP_KERNEL);
-	if (!tidss)
-		return -ENOMEM;
+	tidss = devm_drm_dev_alloc(&pdev->dev, &tidss_driver,
+				   struct tidss_device, ddev);
+	if (IS_ERR(tidss))
+		return PTR_ERR(tidss);
 
 	ddev = &tidss->ddev;
-
-	ret = devm_drm_dev_init(&pdev->dev, ddev, &tidss_driver);
-	if (ret) {
-		kfree(ddev);
-		return ret;
-	}
-	drmm_add_final_kfree(ddev, tidss);
 
 	tidss->dev = dev;
 	tidss->feat = of_device_get_match_data(dev);
 
 	platform_set_drvdata(pdev, tidss);
-
-	ddev->dev_private = tidss;
 
 	ret = dispc_init(tidss);
 	if (ret) {

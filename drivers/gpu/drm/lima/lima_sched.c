@@ -4,6 +4,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/pm_runtime.h>
 
 #include "lima_devfreq.h"
 #include "lima_drv.h"
@@ -194,14 +195,36 @@ static struct dma_fence *lima_sched_dependency(struct drm_sched_job *job,
 	return NULL;
 }
 
+static int lima_pm_busy(struct lima_device *ldev)
+{
+	int ret;
+
+	/* resume GPU if it has been suspended by runtime PM */
+	ret = pm_runtime_get_sync(ldev->dev);
+	if (ret < 0)
+		return ret;
+
+	lima_devfreq_record_busy(&ldev->devfreq);
+	return 0;
+}
+
+static void lima_pm_idle(struct lima_device *ldev)
+{
+	lima_devfreq_record_idle(&ldev->devfreq);
+
+	/* GPU can do auto runtime suspend */
+	pm_runtime_mark_last_busy(ldev->dev);
+	pm_runtime_put_autosuspend(ldev->dev);
+}
+
 static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 {
 	struct lima_sched_task *task = to_lima_task(job);
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
+	struct lima_device *ldev = pipe->ldev;
 	struct lima_fence *fence;
 	struct dma_fence *ret;
-	struct lima_vm *vm = NULL, *last_vm = NULL;
-	int i;
+	int i, err;
 
 	/* after GPU reset */
 	if (job->s_fence->finished.error < 0)
@@ -210,14 +233,19 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	fence = lima_fence_create(pipe);
 	if (!fence)
 		return NULL;
+
+	err = lima_pm_busy(ldev);
+	if (err < 0) {
+		dma_fence_put(&fence->base);
+		return NULL;
+	}
+
 	task->fence = &fence->base;
 
 	/* for caller usage of the fence, otherwise irq handler
 	 * may consume the fence before caller use it
 	 */
 	ret = dma_fence_get(task->fence);
-
-	lima_devfreq_record_busy(&pipe->ldev->devfreq);
 
 	pipe->current_task = task;
 
@@ -239,21 +267,15 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	for (i = 0; i < pipe->num_l2_cache; i++)
 		lima_l2_cache_flush(pipe->l2_cache[i]);
 
-	if (task->vm != pipe->current_vm) {
-		vm = lima_vm_get(task->vm);
-		last_vm = pipe->current_vm;
-		pipe->current_vm = task->vm;
-	}
+	lima_vm_put(pipe->current_vm);
+	pipe->current_vm = lima_vm_get(task->vm);
 
 	if (pipe->bcast_mmu)
-		lima_mmu_switch_vm(pipe->bcast_mmu, vm);
+		lima_mmu_switch_vm(pipe->bcast_mmu, pipe->current_vm);
 	else {
 		for (i = 0; i < pipe->num_mmu; i++)
-			lima_mmu_switch_vm(pipe->mmu[i], vm);
+			lima_mmu_switch_vm(pipe->mmu[i], pipe->current_vm);
 	}
-
-	if (last_vm)
-		lima_vm_put(last_vm);
 
 	trace_lima_task_run(task);
 
@@ -285,7 +307,8 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 	mutex_lock(&dev->error_task_list_lock);
 
 	if (dev->dump.num_tasks >= lima_max_error_tasks) {
-		dev_info(dev->dev, "fail to save task state: error task list is full\n");
+		dev_info(dev->dev, "fail to save task state from %s pid %d: "
+			 "error task list is full\n", ctx->pname, ctx->pid);
 		goto out;
 	}
 
@@ -394,6 +417,7 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 {
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_sched_task *task = to_lima_task(job);
+	struct lima_device *ldev = pipe->ldev;
 
 	if (!pipe->error)
 		DRM_ERROR("lima job timeout\n");
@@ -415,13 +439,11 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 			lima_mmu_page_fault_resume(pipe->mmu[i]);
 	}
 
-	if (pipe->current_vm)
-		lima_vm_put(pipe->current_vm);
-
+	lima_vm_put(pipe->current_vm);
 	pipe->current_vm = NULL;
 	pipe->current_task = NULL;
 
-	lima_devfreq_record_idle(&pipe->ldev->devfreq);
+	lima_pm_idle(ldev);
 
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
@@ -493,6 +515,7 @@ void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)
 void lima_sched_pipe_task_done(struct lima_sched_pipe *pipe)
 {
 	struct lima_sched_task *task = pipe->current_task;
+	struct lima_device *ldev = pipe->ldev;
 
 	if (pipe->error) {
 		if (task && task->recoverable)
@@ -503,6 +526,6 @@ void lima_sched_pipe_task_done(struct lima_sched_pipe *pipe)
 		pipe->task_fini(pipe);
 		dma_fence_signal(task->fence);
 
-		lima_devfreq_record_idle(&pipe->ldev->devfreq);
+		lima_pm_idle(ldev);
 	}
 }

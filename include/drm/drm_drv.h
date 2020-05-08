@@ -623,6 +623,39 @@ int devm_drm_dev_init(struct device *parent,
 		      struct drm_device *dev,
 		      struct drm_driver *driver);
 
+void *__devm_drm_dev_alloc(struct device *parent, struct drm_driver *driver,
+			   size_t size, size_t offset);
+
+/**
+ * devm_drm_dev_alloc - Resource managed allocation of a &drm_device instance
+ * @parent: Parent device object
+ * @driver: DRM driver
+ * @type: the type of the struct which contains struct &drm_device
+ * @member: the name of the &drm_device within @type.
+ *
+ * This allocates and initialize a new DRM device. No device registration is done.
+ * Call drm_dev_register() to advertice the device to user space and register it
+ * with other core subsystems. This should be done last in the device
+ * initialization sequence to make sure userspace can't access an inconsistent
+ * state.
+ *
+ * The initial ref-count of the object is 1. Use drm_dev_get() and
+ * drm_dev_put() to take and drop further ref-counts.
+ *
+ * It is recommended that drivers embed &struct drm_device into their own device
+ * structure.
+ *
+ * Note that this manages the lifetime of the resulting &drm_device
+ * automatically using devres. The DRM device initialized with this function is
+ * automatically put on driver detach using drm_dev_put().
+ *
+ * RETURNS:
+ * Pointer to new DRM device, or ERR_PTR on failure.
+ */
+#define devm_drm_dev_alloc(parent, driver, type, member) \
+	((type *) __devm_drm_dev_alloc(parent, driver, sizeof(type), \
+				       offsetof(type, member)))
+
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);

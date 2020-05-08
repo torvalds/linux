@@ -101,13 +101,12 @@ void lima_devfreq_fini(struct lima_device *ldev)
 	}
 
 	if (devfreq->devfreq) {
-		devm_devfreq_remove_device(&ldev->pdev->dev,
-					   devfreq->devfreq);
+		devm_devfreq_remove_device(ldev->dev, devfreq->devfreq);
 		devfreq->devfreq = NULL;
 	}
 
 	if (devfreq->opp_of_table_added) {
-		dev_pm_opp_of_remove_table(&ldev->pdev->dev);
+		dev_pm_opp_of_remove_table(ldev->dev);
 		devfreq->opp_of_table_added = false;
 	}
 
@@ -125,7 +124,7 @@ void lima_devfreq_fini(struct lima_device *ldev)
 int lima_devfreq_init(struct lima_device *ldev)
 {
 	struct thermal_cooling_device *cooling;
-	struct device *dev = &ldev->pdev->dev;
+	struct device *dev = ldev->dev;
 	struct opp_table *opp_table;
 	struct devfreq *devfreq;
 	struct lima_devfreq *ldevfreq = &ldev->devfreq;
@@ -231,4 +230,28 @@ void lima_devfreq_record_idle(struct lima_devfreq *devfreq)
 	WARN_ON(--devfreq->busy_count < 0);
 
 	spin_unlock_irqrestore(&devfreq->lock, irqflags);
+}
+
+int lima_devfreq_resume(struct lima_devfreq *devfreq)
+{
+	unsigned long irqflags;
+
+	if (!devfreq->devfreq)
+		return 0;
+
+	spin_lock_irqsave(&devfreq->lock, irqflags);
+
+	lima_devfreq_reset(devfreq);
+
+	spin_unlock_irqrestore(&devfreq->lock, irqflags);
+
+	return devfreq_resume_device(devfreq->devfreq);
+}
+
+int lima_devfreq_suspend(struct lima_devfreq *devfreq)
+{
+	if (!devfreq->devfreq)
+		return 0;
+
+	return devfreq_suspend_device(devfreq->devfreq);
 }

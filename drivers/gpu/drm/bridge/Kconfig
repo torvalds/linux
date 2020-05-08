@@ -27,6 +27,16 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
+config DRM_CHRONTEL_CH7033
+	tristate "Chrontel CH7033 Video Encoder"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Enable support for the Chrontel CH7033 VGA/DVI/HDMI Encoder, as
+	  found in the Dell Wyse 3020 thin client.
+
+	  If in doubt, say "N".
+
 config DRM_DISPLAY_CONNECTOR
 	tristate "Display connector support"
 	depends on OF
