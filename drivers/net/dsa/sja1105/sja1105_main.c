@@ -445,7 +445,7 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		 */
 		.casc_port = SJA1105_NUM_PORTS,
 		/* No TTEthernet */
-		.vllupformat = 0,
+		.vllupformat = SJA1105_VL_FORMAT_PSFP,
 		.vlmarker = 0,
 		.vlmask = 0,
 		/* Only update correctionField for 1-step PTP (L2 transport) */
@@ -1589,6 +1589,7 @@ static const char * const sja1105_reset_reasons[] = {
 	[SJA1105_AGEING_TIME] = "Ageing time",
 	[SJA1105_SCHEDULING] = "Time-aware scheduling",
 	[SJA1105_BEST_EFFORT_POLICING] = "Best-effort policing",
+	[SJA1105_VIRTUAL_LINKS] = "Virtual links",
 };
 
 /* For situations where we need to change a setting at runtime that is only
@@ -1831,8 +1832,17 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	struct sja1105_general_params_entry *general_params;
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_table *table;
+	struct sja1105_rule *rule;
 	u16 tpid, tpid2;
 	int rc;
+
+	list_for_each_entry(rule, &priv->flow_block.rules, list) {
+		if (rule->type == SJA1105_RULE_VL) {
+			dev_err(ds->dev,
+				"Cannot change VLAN filtering state while VL rules are active\n");
+			return -EBUSY;
+		}
+	}
 
 	if (enabled) {
 		/* Enable VLAN filtering. */
@@ -2359,6 +2369,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_policer_del	= sja1105_port_policer_del,
 	.cls_flower_add		= sja1105_cls_flower_add,
 	.cls_flower_del		= sja1105_cls_flower_del,
+	.cls_flower_stats	= sja1105_cls_flower_stats,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)

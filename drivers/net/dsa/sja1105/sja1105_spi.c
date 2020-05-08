@@ -439,6 +439,7 @@ static struct sja1105_regs sja1105et_regs = {
 	.prod_id = 0x100BC3,
 	.status = 0x1,
 	.port_control = 0x11,
+	.vl_status = 0x10000,
 	.config = 0x020000,
 	.rgu = 0x100440,
 	/* UM10944.pdf, Table 86, ACU Register overview */
@@ -472,6 +473,7 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.prod_id = 0x100BC3,
 	.status = 0x1,
 	.port_control = 0x12,
+	.vl_status = 0x10000,
 	.config = 0x020000,
 	.rgu = 0x100440,
 	/* UM10944.pdf, Table 86, ACU Register overview */

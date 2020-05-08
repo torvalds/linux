@@ -36,6 +36,7 @@ struct sja1105_regs {
 	u64 status;
 	u64 port_control;
 	u64 rgu;
+	u64 vl_status;
 	u64 config;
 	u64 sgmii;
 	u64 rmii_pll1;
@@ -97,17 +98,52 @@ struct sja1105_info {
 	const char *name;
 };
 
+enum sja1105_key_type {
+	SJA1105_KEY_BCAST,
+	SJA1105_KEY_TC,
+	SJA1105_KEY_VLAN_UNAWARE_VL,
+	SJA1105_KEY_VLAN_AWARE_VL,
+};
+
+struct sja1105_key {
+	enum sja1105_key_type type;
+
+	union {
+		/* SJA1105_KEY_TC */
+		struct {
+			int pcp;
+		} tc;
+
+		/* SJA1105_KEY_VLAN_UNAWARE_VL */
+		/* SJA1105_KEY_VLAN_AWARE_VL */
+		struct {
+			u64 dmac;
+			u16 vid;
+			u16 pcp;
+		} vl;
+	};
+};
+
 enum sja1105_rule_type {
 	SJA1105_RULE_BCAST_POLICER,
 	SJA1105_RULE_TC_POLICER,
+	SJA1105_RULE_VL,
+};
+
+enum sja1105_vl_type {
+	SJA1105_VL_NONCRITICAL,
+	SJA1105_VL_RATE_CONSTRAINED,
+	SJA1105_VL_TIME_TRIGGERED,
 };
 
 struct sja1105_rule {
 	struct list_head list;
 	unsigned long cookie;
 	unsigned long port_mask;
+	struct sja1105_key key;
 	enum sja1105_rule_type type;
 
+	/* Action */
 	union {
 		/* SJA1105_RULE_BCAST_POLICER */
 		struct {
@@ -117,14 +153,28 @@ struct sja1105_rule {
 		/* SJA1105_RULE_TC_POLICER */
 		struct {
 			int sharindx;
-			int tc;
 		} tc_pol;
+
+		/* SJA1105_RULE_VL */
+		struct {
+			enum sja1105_vl_type type;
+			unsigned long destports;
+			int sharindx;
+			int maxlen;
+			int ipv;
+			u64 base_time;
+			u64 cycle_time;
+			int num_entries;
+			struct action_gate_entry *entries;
+			struct flow_stats stats;
+		} vl;
 	};
 };
 
 struct sja1105_flow_block {
 	struct list_head rules;
 	bool l2_policer_used[SJA1105_NUM_L2_POLICERS];
+	int num_virtual_links;
 };
 
 struct sja1105_private {
@@ -161,6 +211,7 @@ enum sja1105_reset_reason {
 	SJA1105_AGEING_TIME,
 	SJA1105_SCHEDULING,
 	SJA1105_BEST_EFFORT_POLICING,
+	SJA1105_VIRTUAL_LINKS,
 };
 
 int sja1105_static_config_reload(struct sja1105_private *priv,
@@ -254,13 +305,19 @@ size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
 size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
+size_t sja1105_vl_lookup_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
 
 /* From sja1105_flower.c */
 int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress);
 int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress);
+int sja1105_cls_flower_stats(struct dsa_switch *ds, int port,
+			     struct flow_cls_offload *cls, bool ingress);
 void sja1105_flower_setup(struct dsa_switch *ds);
 void sja1105_flower_teardown(struct dsa_switch *ds);
+struct sja1105_rule *sja1105_rule_find(struct sja1105_private *priv,
+				       unsigned long cookie);
 
 #endif

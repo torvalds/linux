@@ -412,6 +412,15 @@ void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_unregister);
 
+struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
+{
+	if (!netdev || !dsa_slave_dev_check(netdev))
+		return ERR_PTR(-ENODEV);
+
+	return dsa_slave_to_port(netdev);
+}
+EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
+
 static int __init dsa_init_module(void)
 {
 	int rc;
