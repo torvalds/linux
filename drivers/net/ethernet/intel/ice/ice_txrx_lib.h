@@ -49,7 +49,7 @@ static inline void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
 void ice_finalize_xdp_rx(struct ice_ring *rx_ring, unsigned int xdp_res);
 int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring);
 int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring);
-void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val);
+void ice_release_rx_desc(struct ice_ring *rx_ring, u16 val);
 void
 ice_process_skb_fields(struct ice_ring *rx_ring,
 		       union ice_32b_rx_flex_desc *rx_desc,

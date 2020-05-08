@@ -2609,7 +2609,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	int i, timeout = 50, err = 0;
-	u32 new_rx_cnt, new_tx_cnt;
+	u16 new_rx_cnt, new_tx_cnt;
 
 	if (ring->tx_pending > ICE_MAX_NUM_DESC ||
 	    ring->tx_pending < ICE_MIN_NUM_DESC ||
@@ -2661,8 +2661,8 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		if (ice_is_xdp_ena_vsi(vsi))
 			for (i = 0; i < vsi->num_xdp_txq; i++)
 				vsi->xdp_rings[i]->count = new_tx_cnt;
-		vsi->num_tx_desc = new_tx_cnt;
-		vsi->num_rx_desc = new_rx_cnt;
+		vsi->num_tx_desc = (u16)new_tx_cnt;
+		vsi->num_rx_desc = (u16)new_rx_cnt;
 		netdev_dbg(netdev, "Link is down, descriptor count change happens when link is brought up\n");
 		goto done;
 	}

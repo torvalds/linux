@@ -8,7 +8,7 @@
  * @rx_ring: ring to bump
  * @val: new head index
  */
-void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
+void ice_release_rx_desc(struct ice_ring *rx_ring, u16 val)
 {
 	u16 prev_ntu = rx_ring->next_to_use & ~0x7;
 

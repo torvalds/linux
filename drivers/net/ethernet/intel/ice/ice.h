@@ -248,8 +248,8 @@ struct ice_vsi {
 	u32 tx_busy;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
-	int num_q_vectors;
-	int base_vector;		/* IRQ base for OS reserved vectors */
+	u16 num_q_vectors;
+	u16 base_vector;		/* IRQ base for OS reserved vectors */
 	enum ice_vsi_type type;
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
@@ -390,11 +390,11 @@ struct ice_pf {
 	struct mutex tc_mutex;		/* lock to protect TC changes */
 	u32 msg_enable;
 	u32 hw_csum_rx_error;
-	u32 oicr_idx;		/* Other interrupt cause MSIX vector index */
-	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
+	u16 oicr_idx;		/* Other interrupt cause MSIX vector index */
+	u16 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
 	u16 max_pf_txqs;	/* Total Tx queues PF wide */
 	u16 max_pf_rxqs;	/* Total Rx queues PF wide */
-	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
+	u16 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u16 num_lan_tx;		/* num LAN Tx queues setup */
 	u16 num_lan_rx;		/* num LAN Rx queues setup */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */

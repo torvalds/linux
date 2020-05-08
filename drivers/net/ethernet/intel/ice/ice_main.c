@@ -2245,7 +2245,7 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 		return oicr_idx;
 
 	pf->num_avail_sw_msix -= 1;
-	pf->oicr_idx = oicr_idx;
+	pf->oicr_idx = (u16)oicr_idx;
 
 	err = devm_request_irq(dev, pf->msix_entries[pf->oicr_idx].vector,
 			       ice_misc_intr, 0, pf->int_name, pf);
@@ -2642,7 +2642,8 @@ unroll_vsi_setup:
 static u16
 ice_get_avail_q_count(unsigned long *pf_qmap, struct mutex *lock, u16 size)
 {
-	u16 count = 0, bit;
+	unsigned long bit;
+	u16 count = 0;
 
 	mutex_lock(lock);
 	for_each_clear_bit(bit, pf_qmap, size)
@@ -2881,8 +2882,8 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 	}
 
 	/* populate SW interrupts pool with number of OS granted IRQs. */
-	pf->num_avail_sw_msix = vectors;
-	pf->irq_tracker->num_entries = vectors;
+	pf->num_avail_sw_msix = (u16)vectors;
+	pf->irq_tracker->num_entries = (u16)vectors;
 	pf->irq_tracker->end = pf->irq_tracker->num_entries;
 
 	return 0;
@@ -2914,9 +2915,9 @@ int ice_vsi_recfg_qs(struct ice_vsi *vsi, int new_rx, int new_tx)
 	}
 
 	if (new_tx)
-		vsi->req_txq = new_tx;
+		vsi->req_txq = (u16)new_tx;
 	if (new_rx)
-		vsi->req_rxq = new_rx;
+		vsi->req_rxq = (u16)new_rx;
 
 	/* set for the next time the netdev is started */
 	if (!netif_running(vsi->netdev)) {

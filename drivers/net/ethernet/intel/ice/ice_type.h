@@ -501,8 +501,8 @@ struct ice_hw {
 	u16 max_burst_size;	/* driver sets this value */
 
 	/* Tx Scheduler values */
-	u16 num_tx_sched_layers;
-	u16 num_tx_sched_phys_layers;
+	u8 num_tx_sched_layers;
+	u8 num_tx_sched_phys_layers;
 	u8 flattened_layers;
 	u8 max_cgds;
 	u8 sw_entry_point_layer;

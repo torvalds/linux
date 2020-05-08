@@ -1694,7 +1694,7 @@ ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port)
 	 */
 	ice_set_key((u8 *)&sect_rx->tcam[0].key, sizeof(sect_rx->tcam[0].key),
 		    (u8 *)&port, NULL, NULL, NULL,
-		    offsetof(struct ice_boost_key_value, hv_dst_port_key),
+		    (u16)offsetof(struct ice_boost_key_value, hv_dst_port_key),
 		    sizeof(sect_rx->tcam[0].key.key.hv_dst_port_key));
 
 	/* exact copy of entry to Tx section entry */
@@ -2329,9 +2329,10 @@ ice_find_prof_id(struct ice_hw *hw, enum ice_block blk,
 		 struct ice_fv_word *fv, u8 *prof_id)
 {
 	struct ice_es *es = &hw->blk[blk].es;
-	u16 off, i;
+	u16 off;
+	u8 i;
 
-	for (i = 0; i < es->count; i++) {
+	for (i = 0; i < (u8)es->count; i++) {
 		off = i * es->fvw;
 
 		if (memcmp(&es->t[off], fv, es->fvw * sizeof(*fv)))
@@ -3461,7 +3462,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	DECLARE_BITMAP(ptgs_used, ICE_XLT1_CNT);
 	struct ice_prof_map *prof;
 	enum ice_status status;
-	u32 byte = 0;
+	u8 byte = 0;
 	u8 prof_id;
 
 	bitmap_zero(ptgs_used, ICE_XLT1_CNT);
@@ -3496,7 +3497,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 
 	/* build list of ptgs */
 	while (bytes && prof->ptg_cnt < ICE_MAX_PTG_PER_PROFILE) {
-		u32 bit;
+		u8 bit;
 
 		if (!ptypes[byte]) {
 			bytes--;
@@ -3530,7 +3531,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 				break;
 
 			/* nothing left in byte, then exit */
-			m = ~((1 << (bit + 1)) - 1);
+			m = ~(u8)((1 << (bit + 1)) - 1);
 			if (!(ptypes[byte] & m))
 				break;
 		}

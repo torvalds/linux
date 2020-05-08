@@ -37,7 +37,8 @@ const char *ice_vsi_type_str(enum ice_vsi_type vsi_type)
  */
 static int ice_vsi_ctrl_all_rx_rings(struct ice_vsi *vsi, bool ena)
 {
-	int i, ret = 0;
+	int ret = 0;
+	u16 i;
 
 	for (i = 0; i < vsi->num_rxq; i++)
 		ice_vsi_ctrl_one_rx_ring(vsi, ena, i, false);
@@ -565,8 +566,8 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		/* PF VSI will inherit RSS instance of PF */
-		vsi->rss_table_size = cap->rss_table_size;
-		vsi->rss_size = min_t(int, num_online_cpus(),
+		vsi->rss_table_size = (u16)cap->rss_table_size;
+		vsi->rss_size = min_t(u16, num_online_cpus(),
 				      BIT(cap->rss_table_entry_width));
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF;
 		break;
@@ -684,15 +685,15 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 				max_rss = ICE_MAX_LG_RSS_QS;
 			else
 				max_rss = ICE_MAX_RSS_QS_PER_VF;
-			qcount_rx = min_t(int, rx_numq_tc, max_rss);
+			qcount_rx = min_t(u16, rx_numq_tc, max_rss);
 			if (!vsi->req_rxq)
-				qcount_rx = min_t(int, qcount_rx,
+				qcount_rx = min_t(u16, qcount_rx,
 						  vsi->rss_size);
 		}
 	}
 
 	/* find the (rounded up) power-of-2 of qcount */
-	pow = order_base_2(qcount_rx);
+	pow = (u16)order_base_2(qcount_rx);
 
 	ice_for_each_traffic_class(i) {
 		if (!(vsi->tc_cfg.ena_tc & BIT(i))) {
@@ -941,7 +942,7 @@ int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id)
  */
 static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
 {
-	int start = 0, end = 0;
+	u16 start = 0, end = 0;
 
 	if (needed > res->end)
 		return -ENOMEM;
@@ -1024,6 +1025,7 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	u16 num_q_vectors;
+	int base;
 
 	dev = ice_pf_to_dev(pf);
 	/* SRIOV doesn't grab irq_tracker entries for each VSI */
@@ -1038,14 +1040,15 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 
 	num_q_vectors = vsi->num_q_vectors;
 	/* reserve slots from OS requested IRQs */
-	vsi->base_vector = ice_get_res(pf, pf->irq_tracker, num_q_vectors,
-				       vsi->idx);
-	if (vsi->base_vector < 0) {
+	base = ice_get_res(pf, pf->irq_tracker, num_q_vectors, vsi->idx);
+
+	if (base < 0) {
 		dev_err(dev, "%d MSI-X interrupts available. %s %d failed to get %d MSI-X vectors\n",
 			ice_get_free_res_count(pf->irq_tracker),
 			ice_vsi_type_str(vsi->type), vsi->idx, num_q_vectors);
 		return -ENOENT;
 	}
+	vsi->base_vector = (u16)base;
 	pf->num_avail_sw_msix -= num_q_vectors;
 
 	return 0;
@@ -1085,7 +1088,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
-	int i;
+	u16 i;
 
 	dev = ice_pf_to_dev(pf);
 	/* Allocate Tx rings */
@@ -1178,7 +1181,7 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 	u8 *lut;
 
 	dev = ice_pf_to_dev(pf);
-	vsi->rss_size = min_t(int, vsi->rss_size, vsi->num_rxq);
+	vsi->rss_size = min_t(u16, vsi->rss_size, vsi->num_rxq);
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
@@ -1673,7 +1676,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	u32 txq = 0, rxq = 0;
+	u16 txq = 0, rxq = 0;
 	int i, q;
 
 	for (i = 0; i < vsi->num_q_vectors; i++) {

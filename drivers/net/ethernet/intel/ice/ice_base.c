@@ -24,7 +24,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 
 	bitmap_set(qs_cfg->pf_map, offset, qs_cfg->q_count);
 	for (i = 0; i < qs_cfg->q_count; i++)
-		qs_cfg->vsi_map[i + qs_cfg->vsi_map_offset] = i + offset;
+		qs_cfg->vsi_map[i + qs_cfg->vsi_map_offset] = (u16)(i + offset);
 	mutex_unlock(qs_cfg->qs_mutex);
 
 	return 0;
@@ -47,7 +47,7 @@ static int __ice_vsi_get_qs_sc(struct ice_qs_cfg *qs_cfg)
 		if (index >= qs_cfg->pf_map_size)
 			goto err_scatter;
 		set_bit(index, qs_cfg->pf_map);
-		qs_cfg->vsi_map[i + qs_cfg->vsi_map_offset] = index;
+		qs_cfg->vsi_map[i + qs_cfg->vsi_map_offset] = (u16)index;
 	}
 	mutex_unlock(qs_cfg->qs_mutex);
 
@@ -96,7 +96,7 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
  * We allocate one q_vector and set default value for ITR setting associated
  * with this q_vector. If allocation fails we return -ENOMEM.
  */
-static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
+static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_q_vector *q_vector;
@@ -376,7 +376,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* Max packet size for this queue - must not be set to a larger value
 	 * than 5 x DBUF
 	 */
-	rlan_ctx.rxmax = min_t(u16, vsi->max_frame,
+	rlan_ctx.rxmax = min_t(u32, vsi->max_frame,
 			       chain_len * ring->rx_buf_len);
 
 	/* Rx queue threshold in units of 64 */
@@ -453,7 +453,7 @@ int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 	if (ret) {
 		/* contig failed, so try with scatter approach */
 		qs_cfg->mapping_mode = ICE_VSI_MAP_SCATTER;
-		qs_cfg->q_count = min_t(u16, qs_cfg->q_count,
+		qs_cfg->q_count = min_t(unsigned int, qs_cfg->q_count,
 					qs_cfg->scatter_count);
 		ret = __ice_vsi_get_qs_sc(qs_cfg);
 	}
@@ -526,7 +526,8 @@ int ice_vsi_wait_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
 int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
-	int v_idx, err;
+	u16 v_idx;
+	int err;
 
 	if (vsi->q_vectors[0]) {
 		dev_dbg(dev, "VSI %d has existing q_vectors\n", vsi->vsi_num);
@@ -562,7 +563,7 @@ err_out:
 void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 {
 	int q_vectors = vsi->num_q_vectors;
-	int tx_rings_rem, rx_rings_rem;
+	u16 tx_rings_rem, rx_rings_rem;
 	int v_id;
 
 	/* initially assigning remaining rings count to VSIs num queue value */
@@ -571,10 +572,12 @@ void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 
 	for (v_id = 0; v_id < q_vectors; v_id++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[v_id];
-		int tx_rings_per_v, rx_rings_per_v, q_id, q_base;
+		u8 tx_rings_per_v, rx_rings_per_v;
+		u16 q_id, q_base;
 
 		/* Tx rings mapping to vector */
-		tx_rings_per_v = DIV_ROUND_UP(tx_rings_rem, q_vectors - v_id);
+		tx_rings_per_v = (u8)DIV_ROUND_UP(tx_rings_rem,
+						  q_vectors - v_id);
 		q_vector->num_ring_tx = tx_rings_per_v;
 		q_vector->tx.ring = NULL;
 		q_vector->tx.itr_idx = ICE_TX_ITR;
@@ -590,7 +593,8 @@ void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 		tx_rings_rem -= tx_rings_per_v;
 
 		/* Rx rings mapping to vector */
-		rx_rings_per_v = DIV_ROUND_UP(rx_rings_rem, q_vectors - v_id);
+		rx_rings_per_v = (u8)DIV_ROUND_UP(rx_rings_rem,
+						  q_vectors - v_id);
 		q_vector->num_ring_rx = rx_rings_per_v;
 		q_vector->rx.ring = NULL;
 		q_vector->rx.itr_idx = ICE_RX_ITR;
