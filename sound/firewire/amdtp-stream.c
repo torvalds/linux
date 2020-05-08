@@ -383,14 +383,14 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 	return data_blocks;
 }
 
-static unsigned int calculate_syt_offset(struct amdtp_stream *s)
+static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
+			unsigned int *syt_offset_state, enum cip_sfc sfc)
 {
-	unsigned int syt_offset, phase, index;
+	unsigned int syt_offset;
 
-	if (s->ctx_data.rx.last_syt_offset < TICKS_PER_CYCLE) {
-		if (!cip_sfc_is_base_44100(s->sfc))
-			syt_offset = s->ctx_data.rx.last_syt_offset +
-				     s->ctx_data.rx.syt_offset_state;
+	if (*last_syt_offset < TICKS_PER_CYCLE) {
+		if (!cip_sfc_is_base_44100(sfc))
+			syt_offset = *last_syt_offset + *syt_offset_state;
 		else {
 		/*
 		 * The time, in ticks, of the n'th SYT_INTERVAL sample is:
@@ -402,18 +402,19 @@ static unsigned int calculate_syt_offset(struct amdtp_stream *s)
 		 *   1386 1386 1387 1386 1386 1386 1387 1386 1386 1386 1387 ...
 		 * This code generates _exactly_ the same sequence.
 		 */
-			phase = s->ctx_data.rx.syt_offset_state;
-			index = phase % 13;
-			syt_offset = s->ctx_data.rx.last_syt_offset;
+			unsigned int phase = *syt_offset_state;
+			unsigned int index = phase % 13;
+
+			syt_offset = *last_syt_offset;
 			syt_offset += 1386 + ((index && !(index & 3)) ||
 					      phase == 146);
 			if (++phase >= 147)
 				phase = 0;
-			s->ctx_data.rx.syt_offset_state = phase;
+			*syt_offset_state = phase;
 		}
 	} else
-		syt_offset = s->ctx_data.rx.last_syt_offset - TICKS_PER_CYCLE;
-	s->ctx_data.rx.last_syt_offset = syt_offset;
+		syt_offset = *last_syt_offset - TICKS_PER_CYCLE;
+	*last_syt_offset = syt_offset;
 
 	if (syt_offset >= TICKS_PER_CYCLE)
 		syt_offset = CIP_SYT_NO_INFO;
@@ -759,7 +760,9 @@ static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 		unsigned int syt_offset;
 
 		desc->cycle = compute_it_cycle(*ctx_header, s->queue_size);
-		syt_offset = calculate_syt_offset(s);
+		syt_offset = calculate_syt_offset(
+				&s->ctx_data.rx.last_syt_offset,
+				&s->ctx_data.rx.syt_offset_state, s->sfc);
 		if (syt_offset != CIP_SYT_NO_INFO) {
 			desc->syt = compute_syt(syt_offset, desc->cycle,
 						s->ctx_data.rx.transfer_delay);
