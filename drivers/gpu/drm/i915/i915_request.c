@@ -1003,6 +1003,15 @@ emit_semaphore_wait(struct i915_request *to,
 	if (!rcu_access_pointer(from->hwsp_cacheline))
 		goto await_fence;
 
+	/*
+	 * If this or its dependents are waiting on an external fence
+	 * that may fail catastrophically, then we want to avoid using
+	 * sempahores as they bypass the fence signaling metadata, and we
+	 * lose the fence->error propagation.
+	 */
+	if (from->sched.flags & I915_SCHED_HAS_EXTERNAL_CHAIN)
+		goto await_fence;
+
 	/* Just emit the first semaphore we see as request space is limited. */
 	if (already_busywaiting(to) & mask)
 		goto await_fence;
@@ -1065,12 +1074,29 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 			return ret;
 	}
 
+	if (from->sched.flags & I915_SCHED_HAS_EXTERNAL_CHAIN)
+		to->sched.flags |= I915_SCHED_HAS_EXTERNAL_CHAIN;
+
 	return 0;
+}
+
+static void mark_external(struct i915_request *rq)
+{
+	/*
+	 * The downside of using semaphores is that we lose metadata passing
+	 * along the signaling chain. This is particularly nasty when we
+	 * need to pass along a fatal error such as EFAULT or EDEADLK. For
+	 * fatal errors we want to scrub the request before it is executed,
+	 * which means that we cannot preload the request onto HW and have
+	 * it wait upon a semaphore.
+	 */
+	rq->sched.flags |= I915_SCHED_HAS_EXTERNAL_CHAIN;
 }
 
 static int
 __i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
 {
+	mark_external(rq);
 	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
 					     fence->context ? I915_FENCE_TIMEOUT : 0,
 					     I915_FENCE_GFP);
