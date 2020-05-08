@@ -957,13 +957,16 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
  * @speed: firewire speed code
  * @start_cycle: the isochronous cycle to start the context. Start immediately
  *		 if negative value is given.
+ * @queue_size: The number of packets in the queue.
+ * @idle_irq_interval: the interval to queue packet during initial state.
  *
  * The stream cannot be started until it has been configured with
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
 static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
-			      int start_cycle)
+			      int start_cycle, unsigned int queue_size,
+			      unsigned int idle_irq_interval)
 {
 	static const struct {
 		unsigned int data_block;
@@ -978,9 +981,6 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		[CIP_SFC_176400] = {  0,   67 },
 	};
 	bool is_irq_target = (s == s->domain->irq_target);
-	unsigned int events_per_buffer;
-	unsigned int events_per_period;
-	unsigned int idle_irq_interval;
 	unsigned int ctx_header_size;
 	unsigned int max_ctx_payload_size;
 	enum dma_data_direction dir;
@@ -1032,30 +1032,11 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			max_ctx_payload_size -= IT_PKT_HEADER_SIZE_CIP;
 	}
 
-	// This is a case that AMDTP streams in domain run just for MIDI
-	// substream. Use the number of events equivalent to 10 msec as
-	// interval of hardware IRQ.
-	events_per_buffer = s->domain->events_per_buffer;
-	events_per_period = s->domain->events_per_period;
-	if (events_per_period == 0)
-		events_per_period = amdtp_rate_table[s->sfc] / 100;
-	if (events_per_buffer == 0)
-		events_per_buffer = events_per_period * 3;
-
-	idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
-					 amdtp_rate_table[s->sfc]);
-	s->queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
-				     amdtp_rate_table[s->sfc]);
-
-	err = iso_packets_buffer_init(&s->buffer, s->unit, s->queue_size,
+	err = iso_packets_buffer_init(&s->buffer, s->unit, queue_size,
 				      max_ctx_payload_size, dir);
 	if (err < 0)
 		goto err_unlock;
-
-	if (is_irq_target) {
-		s->ctx_data.rx.events_per_period = events_per_period;
-		s->ctx_data.rx.event_count = 0;
-	}
+	s->queue_size = queue_size;
 
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
 					  type, channel, speed, ctx_header_size,
@@ -1341,6 +1322,10 @@ static int get_current_cycle_time(struct fw_card *fw_card, int *cur_cycle)
  */
 int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 {
+	unsigned int events_per_buffer = d->events_per_buffer;
+	unsigned int events_per_period = d->events_per_period;
+	unsigned int idle_irq_interval;
+	unsigned int queue_size;
 	struct amdtp_stream *s;
 	int cycle;
 	int err;
@@ -1353,6 +1338,17 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	if (!s)
 		return -ENXIO;
 	d->irq_target = s;
+
+	// This is a case that AMDTP streams in domain run just for MIDI
+	// substream. Use the number of events equivalent to 10 msec as
+	// interval of hardware IRQ.
+	if (events_per_period == 0)
+		events_per_period = amdtp_rate_table[d->irq_target->sfc] / 100;
+	if (events_per_buffer == 0)
+		events_per_buffer = events_per_period * 3;
+
+	queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
+				  amdtp_rate_table[d->irq_target->sfc]);
 
 	if (ir_delay_cycle > 0) {
 		struct fw_card *fw_card = fw_parent_device(s->unit)->card;
@@ -1394,14 +1390,20 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 
 		if (s != d->irq_target) {
 			err = amdtp_stream_start(s, s->channel, s->speed,
-						 cycle_match);
+						 cycle_match, queue_size, 0);
 			if (err < 0)
 				goto error;
 		}
 	}
 
 	s = d->irq_target;
-	err = amdtp_stream_start(s, s->channel, s->speed, -1);
+	s->ctx_data.rx.events_per_period = events_per_period;
+	s->ctx_data.rx.event_count = 0;
+
+	idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
+					 amdtp_rate_table[d->irq_target->sfc]);
+	err = amdtp_stream_start(s, s->channel, s->speed, -1, queue_size,
+				 idle_irq_interval);
 	if (err < 0)
 		goto error;
 
