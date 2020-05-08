@@ -110,7 +110,7 @@ static const char * const sec_dbg_file_name[] = {
 	[SEC_CLEAR_ENABLE] = "clear_enable",
 };
 
-static struct debugfs_reg32 sec_dfx_regs[] = {
+static const struct debugfs_reg32 sec_dfx_regs[] = {
 	{"SEC_PF_ABNORMAL_INT_SOURCE    ",  0x301010},
 	{"SEC_SAA_EN                    ",  0x301270},
 	{"SEC_BD_LATENCY_MIN            ",  0x301600},
