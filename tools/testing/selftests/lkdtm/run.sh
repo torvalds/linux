@@ -59,15 +59,16 @@ if [ -z "$expect" ]; then
 	expect="call trace:"
 fi
 
-# Clear out dmesg for output reporting
-dmesg -c >/dev/null
-
 # Prepare log for report checking
-LOG=$(mktemp --tmpdir -t lkdtm-XXXXXX)
+LOG=$(mktemp --tmpdir -t lkdtm-log-XXXXXX)
+DMESG=$(mktemp --tmpdir -t lkdtm-dmesg-XXXXXX)
 cleanup() {
-	rm -f "$LOG"
+	rm -f "$LOG" "$DMESG"
 }
 trap cleanup EXIT
+
+# Save existing dmesg so we can detect new content below
+dmesg > "$DMESG"
 
 # Most shells yell about signals and we're expecting the "cat" process
 # to usually be killed by the kernel. So we have to run it in a sub-shell
@@ -75,7 +76,8 @@ trap cleanup EXIT
 ($SHELL -c 'cat <(echo '"$test"') >'"$TRIGGER" 2>/dev/null) || true
 
 # Record and dump the results
-dmesg -c >"$LOG"
+dmesg | diff --changed-group-format='%>' --unchanged-group-format='' "$DMESG" - > "$LOG" || true
+
 cat "$LOG"
 # Check for expected output
 if egrep -qi "$expect" "$LOG" ; then
