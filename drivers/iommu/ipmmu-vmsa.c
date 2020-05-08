@@ -903,11 +903,8 @@ static const struct iommu_ops ipmmu_ops = {
 	.probe_device = ipmmu_probe_device,
 	.release_device = ipmmu_release_device,
 	.probe_finalize = ipmmu_probe_finalize,
-#if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
-	.device_group = generic_device_group,
-#else
-	.device_group = ipmmu_find_group,
-#endif
+	.device_group = IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_IOMMU_DMA)
+			? generic_device_group : ipmmu_find_group,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
 	.of_xlate = ipmmu_of_xlate,
 };
