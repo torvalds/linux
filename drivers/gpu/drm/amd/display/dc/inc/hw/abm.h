@@ -45,8 +45,8 @@ struct abm {
 struct abm_funcs {
 	void (*abm_init)(struct abm *abm);
 	bool (*set_abm_level)(struct abm *abm, unsigned int abm_level);
-	bool (*set_abm_immediate_disable)(struct abm *abm);
-	bool (*set_pipe)(struct abm *abm, unsigned int controller_id);
+	bool (*set_abm_immediate_disable)(struct abm *abm, unsigned int panel_inst);
+	bool (*set_pipe)(struct abm *abm, unsigned int controller_id, unsigned int panel_inst);
 	bool (*init_backlight)(struct abm *abm);
 
 	/* backlight_pwm_u16_16 is unsigned 32 bit,
@@ -56,6 +56,7 @@ struct abm_funcs {
 			unsigned int backlight_pwm_u16_16,
 			unsigned int frame_ramp,
 			unsigned int controller_id,
+			unsigned int panel_inst,
 			bool fw_set_brightness);
 
 	unsigned int (*get_current_backlight)(struct abm *abm);

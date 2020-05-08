@@ -58,7 +58,7 @@ void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv)
 }
 
 void dc_dmub_srv_cmd_queue(struct dc_dmub_srv *dc_dmub_srv,
-			   struct dmub_cmd_header *cmd)
+			   union dmub_rb_cmd *cmd)
 {
 	struct dmub_srv *dmub = dc_dmub_srv->dmub;
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;

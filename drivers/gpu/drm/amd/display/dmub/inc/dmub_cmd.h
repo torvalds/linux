@@ -215,11 +215,6 @@ struct dmub_rb_cmd_dpphy_init {
 	uint8_t reserved[60];
 };
 
-struct dmub_psr_debug_flags {
-	uint8_t visual_confirm : 1;
-	uint8_t reserved : 7;
-};
-
 struct dmub_cmd_psr_copy_settings_data {
 	uint16_t psr_level;
 	uint8_t dpp_inst;
@@ -266,6 +261,7 @@ struct dmub_rb_cmd_psr_set_version {
 struct dmub_cmd_abm_set_pipe_data {
 	uint32_t ramping_boundary;
 	uint32_t otg_inst;
+	uint32_t panel_inst;
 };
 
 struct dmub_rb_cmd_abm_set_pipe {

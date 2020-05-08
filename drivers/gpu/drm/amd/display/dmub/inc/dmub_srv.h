@@ -75,7 +75,6 @@ extern "C" {
 
 /* Forward declarations */
 struct dmub_srv;
-struct dmub_cmd_header;
 struct dmub_srv_common_regs;
 
 /* enum dmub_status - return code for dmcub functions */
@@ -458,7 +457,7 @@ enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub);
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
-				    const struct dmub_cmd_header *cmd);
+				    const union dmub_rb_cmd *cmd);
 
 /**
  * dmub_srv_cmd_execute() - Executes a queued sequence to the dmub

@@ -280,6 +280,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	ip_params_st *ip = &mode_lib->vba.ip;
 
 	// IP Parameters
+	mode_lib->vba.UseMinimumRequiredDCFCLK = ip->use_min_dcfclk;
 	mode_lib->vba.MaxNumDPP = ip->max_num_dpp;
 	mode_lib->vba.MaxNumOTG = ip->max_num_otg;
 	mode_lib->vba.MaxNumHDMIFRLOutputs = ip->max_num_hdmi_frl_outputs;

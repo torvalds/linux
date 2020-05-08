@@ -121,6 +121,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 };
 
 struct _vcs_dpi_ip_params_st {
+	bool use_min_dcfclk;
 	bool gpuvm_enable;
 	bool hostvm_enable;
 	unsigned int gpuvm_max_page_table_levels;

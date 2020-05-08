@@ -898,6 +898,7 @@ struct vba_vars_st {
 	bool dummystring[DC__NUM_DPP__MAX];
 	double BPP;
 	enum odm_combine_policy ODMCombinePolicy;
+	bool UseMinimumRequiredDCFCLK;
 };
 
 bool CalculateMinAndMaxPrefetchMode(

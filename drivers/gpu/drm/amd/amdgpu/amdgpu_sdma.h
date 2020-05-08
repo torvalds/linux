@@ -89,7 +89,8 @@ struct amdgpu_buffer_funcs {
 				 /* dst addr in bytes */
 				 uint64_t dst_offset,
 				 /* number of byte to transfer */
-				 uint32_t byte_count);
+				 uint32_t byte_count,
+				 bool tmz);
 
 	/* maximum bytes in a single operation */
 	uint32_t	fill_max_bytes;
@@ -107,7 +108,7 @@ struct amdgpu_buffer_funcs {
 				 uint32_t byte_count);
 };
 
-#define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
+#define amdgpu_emit_copy_buffer(adev, ib, s, d, b, t) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b), (t))
 #define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
 
 struct amdgpu_sdma_instance *

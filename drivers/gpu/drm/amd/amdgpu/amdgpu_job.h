@@ -62,7 +62,6 @@ struct amdgpu_job {
 	/* user fence handling */
 	uint64_t		uf_addr;
 	uint64_t		uf_sequence;
-
 };
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
