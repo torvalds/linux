@@ -2070,7 +2070,6 @@ static bool
 megasas_is_prp_possible(struct megasas_instance *instance,
 			struct scsi_cmnd *scmd, int sge_count)
 {
-	int i;
 	u32 data_length = 0;
 	struct scatterlist *sg_scmd;
 	bool build_prp = false;
@@ -2097,63 +2096,6 @@ megasas_is_prp_possible(struct megasas_instance *instance,
 		/* check if 1st SG entry size is < residual beyond 4 pages */
 		if (sg_dma_len(sg_scmd) < (data_length - (mr_nvme_pg_size * 4)))
 			build_prp = true;
-	}
-
-/*
- * Below code detects gaps/holes in IO data buffers.
- * What does holes/gaps mean?
- * Any SGE except first one in a SGL starts at non NVME page size
- * aligned address OR Any SGE except last one in a SGL ends at
- * non NVME page size boundary.
- *
- * Driver has already informed block layer by setting boundary rules for
- * bio merging done at NVME page size boundary calling kernel API
- * blk_queue_virt_boundary inside slave_config.
- * Still there is possibility of IO coming with holes to driver because of
- * IO merging done by IO scheduler.
- *
- * With SCSI BLK MQ enabled, there will be no IO with holes as there is no
- * IO scheduling so no IO merging.
- *
- * With SCSI BLK MQ disabled, IO scheduler may attempt to merge IOs and
- * then sending IOs with holes.
- *
- * Though driver can request block layer to disable IO merging by calling-
- * blk_queue_flag_set(QUEUE_FLAG_NOMERGES, sdev->request_queue) but
- * user may tune sysfs parameter- nomerges again to 0 or 1.
- *
- * If in future IO scheduling is enabled with SCSI BLK MQ,
- * this algorithm to detect holes will be required in driver
- * for SCSI BLK MQ enabled case as well.
- *
- *
- */
-	scsi_for_each_sg(scmd, sg_scmd, sge_count, i) {
-		if ((i != 0) && (i != (sge_count - 1))) {
-			if (mega_mod64(sg_dma_len(sg_scmd), mr_nvme_pg_size) ||
-			    mega_mod64(sg_dma_address(sg_scmd),
-				       mr_nvme_pg_size)) {
-				build_prp = false;
-				break;
-			}
-		}
-
-		if ((sge_count > 1) && (i == 0)) {
-			if ((mega_mod64((sg_dma_address(sg_scmd) +
-					sg_dma_len(sg_scmd)),
-					mr_nvme_pg_size))) {
-				build_prp = false;
-				break;
-			}
-		}
-
-		if ((sge_count > 1) && (i == (sge_count - 1))) {
-			if (mega_mod64(sg_dma_address(sg_scmd),
-				       mr_nvme_pg_size)) {
-				build_prp = false;
-				break;
-			}
-		}
 	}
 
 	return build_prp;
