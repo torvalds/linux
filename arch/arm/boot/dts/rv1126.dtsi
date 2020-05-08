@@ -1453,6 +1453,19 @@
 		status = "disabled";
 	};
 
+	mipi_csi2: mipi-csi2@ffb10000 {
+		compatible = "rockchip,rv1126-mipi-csi2";
+		reg = <0xffb10000 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSIHOST>, <&cru SRST_CSIHOST_P>;
+		clock-names = "pclk_csi2host", "srst_csihost_p";
+		power-domains = <&power RV1126_PD_VI>;
+		status = "disabled";
+	};
+
 	dsi: dsi@ffb30000 {
 		compatible = "rockchip,rv1126-mipi-dsi";
 		reg = <0xffb30000 0x500>;
