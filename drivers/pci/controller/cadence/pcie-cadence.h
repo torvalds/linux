@@ -262,8 +262,8 @@ struct cdns_pcie_rc {
 	struct resource		*bus_range;
 	void __iomem		*cfg_base;
 	u32			no_bar_nbits;
-	u16			vendor_id;
-	u16			device_id;
+	u32			vendor_id;
+	u32			device_id;
 };
 
 /**
