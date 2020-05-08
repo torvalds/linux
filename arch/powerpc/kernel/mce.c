@@ -574,6 +574,9 @@ EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
+	bool nested = in_nmi();
+	if (!nested)
+		nmi_enter();
 
 	hv_nmi_check_nonrecoverable(regs);
 
@@ -582,6 +585,10 @@ long machine_check_early(struct pt_regs *regs)
 	 */
 	if (ppc_md.machine_check_early)
 		handled = ppc_md.machine_check_early(regs);
+
+	if (!nested)
+		nmi_exit();
+
 	return handled;
 }
 
