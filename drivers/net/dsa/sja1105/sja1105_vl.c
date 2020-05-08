@@ -465,7 +465,6 @@ sja1105_gating_cfg_time_to_interval(struct sja1105_gating_config *gating_cfg,
 	struct sja1105_gate_entry *last_e;
 	struct sja1105_gate_entry *e;
 	struct list_head *prev;
-	u32 prev_time = 0;
 
 	list_for_each_entry(e, &gating_cfg->entries, list) {
 		struct sja1105_gate_entry *p;
@@ -476,7 +475,6 @@ sja1105_gating_cfg_time_to_interval(struct sja1105_gating_config *gating_cfg,
 			continue;
 
 		p = list_entry(prev, struct sja1105_gate_entry, list);
-		prev_time = e->interval;
 		p->interval = e->interval - p->interval;
 	}
 	last_e = list_last_entry(&gating_cfg->entries,
