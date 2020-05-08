@@ -383,10 +383,9 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 	return data_blocks;
 }
 
-static unsigned int calculate_syt(struct amdtp_stream *s,
-				  unsigned int cycle)
+static unsigned int calculate_syt_offset(struct amdtp_stream *s)
 {
-	unsigned int syt_offset, phase, index, syt;
+	unsigned int syt_offset, phase, index;
 
 	if (s->ctx_data.rx.last_syt_offset < TICKS_PER_CYCLE) {
 		if (!cip_sfc_is_base_44100(s->sfc))
@@ -416,15 +415,10 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 		syt_offset = s->ctx_data.rx.last_syt_offset - TICKS_PER_CYCLE;
 	s->ctx_data.rx.last_syt_offset = syt_offset;
 
-	if (syt_offset < TICKS_PER_CYCLE) {
-		syt_offset += s->ctx_data.rx.transfer_delay;
-		syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
-		syt += syt_offset % TICKS_PER_CYCLE;
+	if (syt_offset >= TICKS_PER_CYCLE)
+		syt_offset = CIP_SYT_NO_INFO;
 
-		return syt & CIP_SYT_MASK;
-	} else {
-		return CIP_SYT_NO_INFO;
-	}
+	return syt_offset;
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
@@ -740,6 +734,17 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 	return 0;
 }
 
+static unsigned int compute_syt(unsigned int syt_offset, unsigned int cycle,
+				unsigned int transfer_delay)
+{
+	unsigned int syt;
+
+	syt_offset += transfer_delay;
+	syt = ((cycle + syt_offset / TICKS_PER_CYCLE) << 12) |
+	      (syt_offset % TICKS_PER_CYCLE);
+	return syt & CIP_SYT_MASK;
+}
+
 static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 				     struct pkt_desc *descs,
 				     const __be32 *ctx_header,
@@ -751,9 +756,16 @@ static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % s->queue_size;
+		unsigned int syt_offset;
 
 		desc->cycle = compute_it_cycle(*ctx_header, s->queue_size);
-		desc->syt = calculate_syt(s, desc->cycle);
+		syt_offset = calculate_syt_offset(s);
+		if (syt_offset != CIP_SYT_NO_INFO) {
+			desc->syt = compute_syt(syt_offset, desc->cycle,
+						s->ctx_data.rx.transfer_delay);
+		} else {
+			desc->syt = syt_offset;
+		}
 		desc->data_blocks = calculate_data_blocks(s, desc->syt);
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
