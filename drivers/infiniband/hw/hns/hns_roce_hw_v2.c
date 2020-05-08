@@ -5044,8 +5044,8 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 				  SRQC_BYTE_8_SRQ_LIMIT_WL_S);
 
 	attr->srq_limit = limit_wl;
-	attr->max_wr    = srq->wqe_cnt;
-	attr->max_sge   = srq->max_gs;
+	attr->max_wr = srq->wqe_cnt - 1;
+	attr->max_sge = srq->max_gs;
 
 	memcpy(srq_context, mailbox->buf, sizeof(*srq_context));
 
