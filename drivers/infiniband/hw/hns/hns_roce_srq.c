@@ -187,7 +187,7 @@ static int alloc_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 						      HNS_ROCE_SGE_SIZE *
 						      srq->max_gs)));
 
-	buf_attr.page_shift = hr_dev->caps.srqwqe_buf_pg_sz + PAGE_ADDR_SHIFT;
+	buf_attr.page_shift = hr_dev->caps.srqwqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
 	buf_attr.region[0].size = to_hr_hem_entries_size(srq->wqe_cnt,
 							 srq->wqe_shift);
 	buf_attr.region[0].hopnum = hr_dev->caps.srqwqe_hop_num;
@@ -196,7 +196,7 @@ static int alloc_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 
 	err = hns_roce_mtr_create(hr_dev, &srq->buf_mtr, &buf_attr,
 				  hr_dev->caps.srqwqe_ba_pg_sz +
-				  PAGE_ADDR_SHIFT, udata, addr);
+				  HNS_HW_PAGE_SHIFT, udata, addr);
 	if (err)
 		ibdev_err(ibdev, "Failed to alloc SRQ buf mtr, err %d\n", err);
 
@@ -218,7 +218,7 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 
 	srq->idx_que.entry_shift = ilog2(HNS_ROCE_IDX_QUE_ENTRY_SZ);
 
-	buf_attr.page_shift = hr_dev->caps.idx_buf_pg_sz + PAGE_ADDR_SHIFT;
+	buf_attr.page_shift = hr_dev->caps.idx_buf_pg_sz + HNS_HW_PAGE_SHIFT;
 	buf_attr.region[0].size = to_hr_hem_entries_size(srq->wqe_cnt,
 					srq->idx_que.entry_shift);
 	buf_attr.region[0].hopnum = hr_dev->caps.idx_hop_num;
@@ -226,7 +226,7 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 	buf_attr.fixed_page = true;
 
 	err = hns_roce_mtr_create(hr_dev, &idx_que->mtr, &buf_attr,
-				  hr_dev->caps.idx_ba_pg_sz + PAGE_ADDR_SHIFT,
+				  hr_dev->caps.idx_ba_pg_sz + HNS_HW_PAGE_SHIFT,
 				  udata, addr);
 	if (err) {
 		ibdev_err(ibdev, "Failed to alloc SRQ idx mtr, err %d\n", err);

@@ -120,7 +120,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 
 	mr->pbl_hop_num = is_fast ? 1 : hr_dev->caps.pbl_hop_num;
 	buf_attr.page_shift = is_fast ? PAGE_SHIFT :
-			      hr_dev->caps.pbl_buf_pg_sz + PAGE_ADDR_SHIFT;
+			      hr_dev->caps.pbl_buf_pg_sz + HNS_HW_PAGE_SHIFT;
 	buf_attr.region[0].size = length;
 	buf_attr.region[0].hopnum = mr->pbl_hop_num;
 	buf_attr.region_count = 1;
@@ -130,7 +130,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 	buf_attr.mtt_only = is_fast;
 
 	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
-				  hr_dev->caps.pbl_ba_pg_sz + PAGE_ADDR_SHIFT,
+				  hr_dev->caps.pbl_ba_pg_sz + HNS_HW_PAGE_SHIFT,
 				  udata, start);
 	if (err)
 		ibdev_err(ibdev, "failed to alloc pbl mtr, ret = %d.\n", err);
@@ -819,7 +819,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	}
 
 	/* must bigger than minimum hardware page shift */
-	if (best_pg_shift < PAGE_ADDR_SHIFT || all_pg_count < 1) {
+	if (best_pg_shift < HNS_HW_PAGE_SHIFT || all_pg_count < 1) {
 		ret = -EINVAL;
 		ibdev_err(ibdev, "Failed to check mtr page shift %d count %d\n",
 			  best_pg_shift, all_pg_count);

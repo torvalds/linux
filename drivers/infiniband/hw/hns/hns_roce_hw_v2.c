@@ -5606,7 +5606,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 	else
 		eq->hop_num = hr_dev->caps.eqe_hop_num;
 
-	buf_attr.page_shift = hr_dev->caps.eqe_buf_pg_sz + PAGE_ADDR_SHIFT;
+	buf_attr.page_shift = hr_dev->caps.eqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
 	buf_attr.region[0].size = eq->entries * eq->eqe_size;
 	buf_attr.region[0].hopnum = eq->hop_num;
 	buf_attr.region_count = 1;
@@ -5614,7 +5614,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 
 	err = hns_roce_mtr_create(hr_dev, &eq->mtr, &buf_attr,
 				  hr_dev->caps.eqe_ba_pg_sz +
-				  PAGE_ADDR_SHIFT, NULL, 0);
+				  HNS_HW_PAGE_SHIFT, NULL, 0);
 	if (err)
 		dev_err(hr_dev->dev, "Failed to alloc EQE mtr, err %d\n", err);
 

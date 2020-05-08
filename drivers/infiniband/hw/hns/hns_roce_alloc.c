@@ -189,8 +189,8 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 	u32 page_size;
 	int i;
 
-	/* The minimum shift of the page accessed by hw is PAGE_ADDR_SHIFT */
-	buf->page_shift = max_t(int, PAGE_ADDR_SHIFT, page_shift);
+	/* The minimum shift of the page accessed by hw is HNS_HW_PAGE_SHIFT */
+	buf->page_shift = max_t(int, HNS_HW_PAGE_SHIFT, page_shift);
 
 	page_size = 1 << buf->page_shift;
 	buf->npages = DIV_ROUND_UP(size, page_size);
@@ -261,7 +261,7 @@ int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 	int idx = 0;
 	u64 addr;
 
-	if (page_shift < PAGE_ADDR_SHIFT) {
+	if (page_shift < HNS_HW_PAGE_SHIFT) {
 		dev_err(hr_dev->dev, "Failed to check umem page shift %d!\n",
 			page_shift);
 		return -EINVAL;

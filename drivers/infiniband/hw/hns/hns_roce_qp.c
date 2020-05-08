@@ -546,7 +546,7 @@ static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
 	if (hr_qp->buff_size < 1)
 		return -EINVAL;
 
-	buf_attr->page_shift = PAGE_ADDR_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
+	buf_attr->page_shift = HNS_HW_PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 	buf_attr->fixed_page = true;
 	buf_attr->region_count = idx;
 
@@ -681,7 +681,7 @@ static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		goto err_inline;
 	}
 	ret = hns_roce_mtr_create(hr_dev, &hr_qp->mtr, &buf_attr,
-				  PAGE_ADDR_SHIFT + hr_dev->caps.mtt_ba_pg_sz,
+				  HNS_HW_PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz,
 				  udata, addr);
 	if (ret) {
 		ibdev_err(ibdev, "failed to create WQE mtr, ret = %d.\n", ret);

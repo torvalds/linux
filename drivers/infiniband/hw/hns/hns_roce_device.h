@@ -262,7 +262,9 @@ enum {
 #define HNS_ROCE_PORT_DOWN			0
 #define HNS_ROCE_PORT_UP			1
 
-#define PAGE_ADDR_SHIFT				12
+/* The minimum page size is 4K for hardware */
+#define HNS_HW_PAGE_SHIFT			12
+#define HNS_HW_PAGE_SIZE			(1 << HNS_HW_PAGE_SHIFT)
 
 /* The minimum page count for hardware access page directly. */
 #define HNS_HW_DIRECT_PAGE_COUNT 2
@@ -1080,16 +1082,16 @@ static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, int idx)
 		return buf->page_list[idx].map;
 }
 
-#define hr_hw_page_align(x)		ALIGN(x, 1 << PAGE_ADDR_SHIFT)
+#define hr_hw_page_align(x)		ALIGN(x, 1 << HNS_HW_PAGE_SHIFT)
 
 static inline u64 to_hr_hw_page_addr(u64 addr)
 {
-	return addr >> PAGE_ADDR_SHIFT;
+	return addr >> HNS_HW_PAGE_SHIFT;
 }
 
 static inline u32 to_hr_hw_page_shift(u32 page_shift)
 {
-	return page_shift - PAGE_ADDR_SHIFT;
+	return page_shift - HNS_HW_PAGE_SHIFT;
 }
 
 static inline u32 to_hr_hem_hopnum(u32 hopnum, u32 count)
