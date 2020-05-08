@@ -584,16 +584,21 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
  */
 static bool ice_dcb_tc_contig(u8 *prio_table)
 {
-	u8 max_tc = 0;
+	bool found_empty = false;
+	u8 used_tc = 0;
 	int i;
 
-	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++) {
-		u8 cur_tc = prio_table[i];
+	/* Create a bitmap of used TCs */
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++)
+		used_tc |= BIT(prio_table[i]);
 
-		if (cur_tc > max_tc)
-			return false;
-		else if (cur_tc == max_tc)
-			max_tc++;
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++) {
+		if (used_tc & BIT(i)) {
+			if (found_empty)
+				return false;
+		} else {
+			found_empty = true;
+		}
 	}
 
 	return true;
