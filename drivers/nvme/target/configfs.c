@@ -324,7 +324,7 @@ static ssize_t nvmet_ns_device_path_store(struct config_item *item,
 
 	kfree(ns->device_path);
 	ret = -ENOMEM;
-	ns->device_path = kstrndup(page, len, GFP_KERNEL);
+	ns->device_path = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!ns->device_path)
 		goto out_unlock;
 
@@ -960,7 +960,7 @@ static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
 			return -EINVAL;
 	}
 
-	new_model_number = kstrndup(page, len, GFP_KERNEL);
+	new_model_number = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!new_model_number)
 		return -ENOMEM;
 
