@@ -149,7 +149,7 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 	/* We aren't useful with no MAC filters, so unregister if we
 	 * had an error
 	 */
-	if (status && vsi->netdev->reg_state == NETREG_REGISTERED) {
+	if (vsi->netdev->reg_state == NETREG_REGISTERED) {
 		dev_err(ice_pf_to_dev(pf), "Could not add MAC filters error %s. Unregistering device\n",
 			ice_stat_str(status));
 		unregister_netdev(vsi->netdev);
