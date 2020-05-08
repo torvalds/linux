@@ -607,7 +607,9 @@ struct ath11k_base {
 	void __iomem *mem;
 	unsigned long mem_len;
 
-	const struct ath11k_hif_ops *hif_ops;
+	struct {
+		const struct ath11k_hif_ops *ops;
+	} hif;
 
 	struct ath11k_ce ce;
 	struct timer_list rx_replenish_retry;
