@@ -4,7 +4,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -768,10 +768,14 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_XCONFIG_OK))
 		return ZFCP_ERP_FAILED;
 
+	return ZFCP_ERP_SUCCEEDED;
+}
+
+static void
+zfcp_erp_adapter_strategy_open_ptp_port(struct zfcp_adapter *const adapter)
+{
 	if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 		zfcp_erp_enqueue_ptp_port(adapter);
-
-	return ZFCP_ERP_SUCCEEDED;
 }
 
 static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf_xport(
@@ -808,6 +812,8 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf(
 
 	if (zfcp_erp_adapter_strategy_open_fsf_xport(act) == ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
+
+	zfcp_erp_adapter_strategy_open_ptp_port(act->adapter);
 
 	if (mempool_resize(act->adapter->pool.sr_data,
 			   act->adapter->stat_read_buf_num))
