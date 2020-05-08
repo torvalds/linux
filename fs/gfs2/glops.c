@@ -268,7 +268,7 @@ static int inode_go_sync(struct gfs2_glock *gl)
 	struct gfs2_inode *ip = gfs2_glock2inode(gl);
 	int isreg = ip && S_ISREG(ip->i_inode.i_mode);
 	struct address_space *metamapping = gfs2_glock2aspace(gl);
-	int error = 0;
+	int error = 0, ret;
 
 	if (isreg) {
 		if (test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
@@ -289,8 +289,10 @@ static int inode_go_sync(struct gfs2_glock *gl)
 		error = filemap_fdatawait(mapping);
 		mapping_set_error(mapping, error);
 	}
-	error = filemap_fdatawait(metamapping);
-	mapping_set_error(metamapping, error);
+	ret = filemap_fdatawait(metamapping);
+	mapping_set_error(metamapping, ret);
+	if (!error)
+		error = ret;
 	gfs2_ail_empty_gl(gl);
 	/*
 	 * Writeback of the data mapping may cause the dirty flag to be set
