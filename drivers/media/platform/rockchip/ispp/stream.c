@@ -925,19 +925,22 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 	return !(val & en);
 }
 
-static int limit_check_mb(struct rkispp_stream *stream)
+static int limit_check_mb(struct rkispp_stream *stream,
+			  struct v4l2_pix_format_mplane *try_fmt)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_subdev *sdev = &dev->ispp_sdev;
+	u32 *w = try_fmt ? &try_fmt->width : &stream->out_fmt.width;
+	u32 *h = try_fmt ? &try_fmt->height : &stream->out_fmt.height;
 
-	if (stream->out_fmt.width != sdev->out_fmt.width ||
-	    stream->out_fmt.height != sdev->out_fmt.height) {
+	if (*w != sdev->out_fmt.width || *h != sdev->out_fmt.height) {
 		v4l2_err(&dev->v4l2_dev,
-			 "output %dx%d should euqal to input %dx%d\n",
-			 stream->out_fmt.width, stream->out_fmt.height,
-			 sdev->out_fmt.width, sdev->out_fmt.height);
-		stream->out_fmt.width = 0;
-		stream->out_fmt.height = 0;
+			 "output:%dx%d should euqal to input:%dx%d\n",
+			 *w, *h, sdev->out_fmt.width, sdev->out_fmt.height);
+		if (!try_fmt) {
+			*w = 0;
+			*h = 0;
+		}
 		return -EINVAL;
 	}
 
@@ -996,31 +999,41 @@ static int is_stopped_scl(struct rkispp_stream *stream)
 	return !(readl(base + stream->config->reg.ctrl) & SW_SCL_ENABLE_SHD);
 }
 
-static int limit_check_scl(struct rkispp_stream *stream)
+static int limit_check_scl(struct rkispp_stream *stream,
+			   struct v4l2_pix_format_mplane *try_fmt)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_subdev *sdev = &dev->ispp_sdev;
 	u32 max_width = 1280, max_ratio = 8, min_ratio = 2;
+	u32 *w = try_fmt ? &try_fmt->width : &stream->out_fmt.width;
+	u32 *h = try_fmt ? &try_fmt->height : &stream->out_fmt.height;
 	int ret = 0;
+
+	/* bypass scale */
+	if (*w == sdev->out_fmt.width && *h == sdev->out_fmt.height)
+		return ret;
 
 	if (stream->id == STREAM_S0) {
 		max_width = 3264;
 		min_ratio = 1;
 	}
 
-	if (stream->out_fmt.width > max_width ||
-	    stream->out_fmt.width * max_ratio < sdev->out_fmt.width ||
-	    stream->out_fmt.height * max_ratio < sdev->out_fmt.height ||
-	    stream->out_fmt.width * min_ratio > sdev->out_fmt.width ||
-	    stream->out_fmt.height * min_ratio > sdev->out_fmt.height) {
+	if (*w > max_width ||
+	    *w * max_ratio < sdev->out_fmt.width ||
+	    *h * max_ratio < sdev->out_fmt.height ||
+	    *w * min_ratio > sdev->out_fmt.width ||
+	    *h * min_ratio > sdev->out_fmt.height) {
 		ret = -EINVAL;
 		v4l2_err(&dev->v4l2_dev,
-			 "scale%d:%dx%d out of range [width max:%d ratio max:%d min:%d]\n",
-			 stream->id - STREAM_S0,
-			 stream->out_fmt.width, stream->out_fmt.height,
+			 "scale%d:%dx%d out of range:\n"
+			 "\t[width max:%d ratio max:%d min:%d]\n",
+			 stream->id - STREAM_S0, *w, *h,
 			 max_width, max_ratio, min_ratio);
-		stream->out_fmt.width = 0;
-		stream->out_fmt.height = 0;
+		if (!try_fmt) {
+			*w = 0;
+			*h = 0;
+		}
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -1449,26 +1462,26 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 			sdev->out_fmt.height = pixm->height;
 		}
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-			 "%s: stream: %d req(%d, %d) out(%d, %d)\n", __func__,
-			 stream->id, pixm->width, pixm->height,
+			 "%s: stream: %d req(%d, %d) out(%d, %d)\n",
+			 __func__, stream->id, pixm->width, pixm->height,
 			 stream->out_fmt.width, stream->out_fmt.height);
-	}
 
-	if (sdev->out_fmt.width > RKISPP_MAX_WIDTH ||
-	    sdev->out_fmt.height > RKISPP_MAX_HEIGHT ||
-	    sdev->out_fmt.width < RKISPP_MIN_WIDTH ||
-	    sdev->out_fmt.height < RKISPP_MIN_HEIGHT) {
-		v4l2_err(&dev->v4l2_dev,
-			 "ispp input max:%dx%d min:%dx%d\n",
-			 RKISPP_MIN_WIDTH, RKISPP_MIN_HEIGHT,
-			 RKISPP_MAX_WIDTH, RKISPP_MAX_HEIGHT);
-		stream->out_fmt.width = 0;
-		stream->out_fmt.height = 0;
-		return -EINVAL;
+		if (sdev->out_fmt.width > RKISPP_MAX_WIDTH ||
+		    sdev->out_fmt.height > RKISPP_MAX_HEIGHT ||
+		    sdev->out_fmt.width < RKISPP_MIN_WIDTH ||
+		    sdev->out_fmt.height < RKISPP_MIN_HEIGHT) {
+			v4l2_err(&dev->v4l2_dev,
+				 "ispp input max:%dx%d min:%dx%d\n",
+				 RKISPP_MIN_WIDTH, RKISPP_MIN_HEIGHT,
+				 RKISPP_MAX_WIDTH, RKISPP_MAX_HEIGHT);
+			stream->out_fmt.width = 0;
+			stream->out_fmt.height = 0;
+			return -EINVAL;
+		}
 	}
 
 	if (stream->ops->limit_check)
-		return stream->ops->limit_check(stream);
+		return stream->ops->limit_check(stream, try ? pixm : NULL);
 
 	return 0;
 }
