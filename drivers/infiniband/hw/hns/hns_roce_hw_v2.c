@@ -5615,7 +5615,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 	buf_attr.fixed_page = true;
 
 	err = hns_roce_mtr_create(hr_dev, &eq->mtr, &buf_attr,
-				  hr_dev->caps.srqwqe_ba_pg_sz +
+				  hr_dev->caps.eqe_ba_pg_sz +
 				  PAGE_ADDR_SHIFT, NULL, 0);
 	if (err)
 		dev_err(hr_dev->dev, "Failed to alloc EQE mtr, err %d\n", err);
