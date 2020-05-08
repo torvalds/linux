@@ -23,6 +23,7 @@
  */
 
 #include <linux/dma-fence-array.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/irq_work.h>
 #include <linux/prefetch.h>
 #include <linux/sched.h>
@@ -1068,11 +1069,37 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 }
 
 static int
-i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
+__i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
 {
 	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
 					     fence->context ? I915_FENCE_TIMEOUT : 0,
 					     I915_FENCE_GFP);
+}
+
+static int
+i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
+{
+	struct dma_fence *iter;
+	int err = 0;
+
+	if (!to_dma_fence_chain(fence))
+		return __i915_request_await_external(rq, fence);
+
+	dma_fence_chain_for_each(iter, fence) {
+		struct dma_fence_chain *chain = to_dma_fence_chain(iter);
+
+		if (!dma_fence_is_i915(chain->fence)) {
+			err = __i915_request_await_external(rq, iter);
+			break;
+		}
+
+		err = i915_request_await_dma_fence(rq, chain->fence);
+		if (err < 0)
+			break;
+	}
+
+	dma_fence_put(iter);
+	return err;
 }
 
 int
