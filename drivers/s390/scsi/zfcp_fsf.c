@@ -124,17 +124,21 @@ static void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost = adapter->scsi_host;
 
+	adapter->hydra_version = 0;
+	adapter->peer_wwpn = 0;
+	adapter->peer_wwnn = 0;
+	adapter->peer_d_id = 0;
+
+	/* if there is no shost yet, we have nothing to zero-out */
+	if (shost == NULL)
+		return;
+
 	fc_host_port_id(shost) = 0;
 	fc_host_fabric_name(shost) = 0;
 	fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 	fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
-	adapter->hydra_version = 0;
 	snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x", 0);
 	memset(fc_host_active_fc4s(shost), 0, FC_FC4_LIST_SIZE);
-
-	adapter->peer_wwpn = 0;
-	adapter->peer_wwnn = 0;
-	adapter->peer_d_id = 0;
 }
 
 static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
