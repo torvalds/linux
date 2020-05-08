@@ -66,13 +66,20 @@ static int match_context(const void *v, struct file *file, unsigned fd)
  */
 static struct spu_context *coredump_next_context(int *fd)
 {
+	struct spu_context *ctx;
 	struct file *file;
 	int n = iterate_fd(current->files, *fd, match_context, NULL);
 	if (!n)
 		return NULL;
 	*fd = n - 1;
+
+	rcu_read_lock();
 	file = fcheck(*fd);
-	return SPUFS_I(file_inode(file))->i_ctx;
+	ctx = SPUFS_I(file_inode(file))->i_ctx;
+	get_spu_context(ctx);
+	rcu_read_unlock();
+
+	return ctx;
 }
 
 int spufs_coredump_extra_notes_size(void)
@@ -83,17 +90,23 @@ int spufs_coredump_extra_notes_size(void)
 	fd = 0;
 	while ((ctx = coredump_next_context(&fd)) != NULL) {
 		rc = spu_acquire_saved(ctx);
-		if (rc)
+		if (rc) {
+			put_spu_context(ctx);
 			break;
+		}
+
 		rc = spufs_ctx_note_size(ctx, fd);
 		spu_release_saved(ctx);
-		if (rc < 0)
+		if (rc < 0) {
+			put_spu_context(ctx);
 			break;
+		}
 
 		size += rc;
 
 		/* start searching the next fd next time */
 		fd++;
+		put_spu_context(ctx);
 	}
 
 	return size;
