@@ -713,6 +713,15 @@ config CHARGER_BD70528
 	 information and altering charger configurations from charger
 	 block of the ROHM BD70528 Power Management IC.
 
+config CHARGER_BD99954
+	tristate "ROHM bd99954 charger driver"
+	depends on I2C
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable support for getting battery and charger
+	  information and altering charger configurations from the ROHM
+	  BD99954 charger IC.
+
 config CHARGER_WILCO
 	tristate "Wilco EC based charger for ChromeOS"
 	depends on WILCO_EC
