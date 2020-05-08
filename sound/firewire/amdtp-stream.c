@@ -339,25 +339,26 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
 
-static unsigned int calculate_data_blocks(struct amdtp_stream *s,
-					  unsigned int syt)
+static unsigned int calculate_data_blocks(unsigned int *data_block_state,
+				bool is_blocking, bool is_no_info,
+				unsigned int syt_interval, enum cip_sfc sfc)
 {
-	unsigned int phase, data_blocks;
+	unsigned int data_blocks;
 
 	/* Blocking mode. */
-	if (s->flags & CIP_BLOCKING) {
+	if (is_blocking) {
 		/* This module generate empty packet for 'no data'. */
-		if (syt == CIP_SYT_NO_INFO)
+		if (is_no_info)
 			data_blocks = 0;
 		else
-			data_blocks = s->syt_interval;
+			data_blocks = syt_interval;
 	/* Non-blocking mode. */
 	} else {
-		if (!cip_sfc_is_base_44100(s->sfc)) {
+		if (!cip_sfc_is_base_44100(sfc)) {
 			// Sample_rate / 8000 is an integer, and precomputed.
-			data_blocks = s->ctx_data.rx.data_block_state;
+			data_blocks = *data_block_state;
 		} else {
-			phase = s->ctx_data.rx.data_block_state;
+			unsigned int phase = *data_block_state;
 
 		/*
 		 * This calculates the number of data blocks per packet so that
@@ -367,16 +368,16 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 		 *    as possible in the sequence (to prevent underruns of the
 		 *    device's buffer).
 		 */
-			if (s->sfc == CIP_SFC_44100)
+			if (sfc == CIP_SFC_44100)
 				/* 6 6 5 6 5 6 5 ... */
 				data_blocks = 5 + ((phase & 1) ^
 						   (phase == 0 || phase >= 40));
 			else
 				/* 12 11 11 11 11 ... or 23 22 22 22 22 ... */
-				data_blocks = 11 * (s->sfc >> 1) + (phase == 0);
-			if (++phase >= (80 >> (s->sfc >> 1)))
+				data_blocks = 11 * (sfc >> 1) + (phase == 0);
+			if (++phase >= (80 >> (sfc >> 1)))
 				phase = 0;
-			s->ctx_data.rx.data_block_state = phase;
+			*data_block_state = phase;
 		}
 	}
 
@@ -769,7 +770,11 @@ static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 		} else {
 			desc->syt = syt_offset;
 		}
-		desc->data_blocks = calculate_data_blocks(s, desc->syt);
+		desc->data_blocks =
+			calculate_data_blocks(&s->ctx_data.rx.data_block_state,
+					      !!(s->flags & CIP_BLOCKING),
+					      desc->syt == CIP_SYT_NO_INFO,
+					      s->syt_interval, s->sfc);
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
 			dbc = (dbc + desc->data_blocks) & 0xff;
