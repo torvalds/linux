@@ -2031,10 +2031,21 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	/* We do not want to force this, as in some cases may not have child */
-	if (ret)
-		dev_warn(dev, "populating child nodes err:%d\n", ret);
+	node = of_get_child_by_name(dev->of_node, "mdio");
+	if (!node) {
+		dev_warn(dev, "MDIO node not found\n");
+	} else if (of_device_is_available(node)) {
+		struct platform_device *mdio_pdev;
+
+		mdio_pdev = of_platform_device_create(node, NULL, dev);
+		if (!mdio_pdev) {
+			ret = -ENODEV;
+			goto err_pm_clear;
+		}
+
+		common->mdio_dev =  &mdio_pdev->dev;
+	}
+	of_node_put(node);
 
 	am65_cpsw_nuss_get_ver(common);
 
@@ -2090,7 +2101,8 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	return 0;
 
 err_of_clear:
-	of_platform_depopulate(dev);
+	of_platform_device_destroy(common->mdio_dev, NULL);
+err_pm_clear:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	return ret;
@@ -2115,7 +2127,7 @@ static int am65_cpsw_nuss_remove(struct platform_device *pdev)
 	 */
 	am65_cpsw_nuss_cleanup_ndev(common);
 
-	of_platform_depopulate(dev);
+	of_platform_device_destroy(common->mdio_dev, NULL);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

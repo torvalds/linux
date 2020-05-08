@@ -42,7 +42,7 @@ description: |+
 
 properties:
   $nodename:
-    pattern: "^cpts(@.*|-[0-9a-f])*$"
+    pattern: "^cpts@[0-9a-f]+$"
 
   compatible:
     oneOf:
@@ -52,7 +52,7 @@ properties:
   reg:
     maxItems: 1
     description:
-       The physical base address and size of CPTS IO range
+      The physical base address and size of CPTS IO range
 
   reg-names:
     items:
@@ -65,27 +65,27 @@ properties:
     items:
       - const: cpts
 
-  interrupts-extended:
+  interrupts:
     items:
       - description: CPTS events interrupt
 
   interrupt-names:
     items:
-      - const: "cpts"
+      - const: cpts
 
   ti,cpts-ext-ts-inputs:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
-        Number of hardware timestamp push inputs (HWx_TS_PUSH)
+      Number of hardware timestamp push inputs (HWx_TS_PUSH)
 
   ti,cpts-periodic-outputs:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
-         Number of timestamp Generator function outputs (TS_GENFx)
+      Number of timestamp Generator function outputs (TS_GENFx)
 
   refclk-mux:
     type: object
@@ -107,9 +107,11 @@ properties:
       - clocks
 
 required:
+  - compatible
+  - reg
   - clocks
   - clock-names
-  - interrupts-extended
+  - interrupts
   - interrupt-names
 
 additionalProperties: false
@@ -140,13 +142,4 @@ examples:
                assigned-clock-parents = <&k3_clks 118 11>;
          };
     };
-  - |
 
-    cpts {
-             clocks = <&k3_clks 18 2>;
-             clock-names = "cpts";
-             interrupts-extended = <&gic500 GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
-             interrupt-names = "cpts";
-             ti,cpts-ext-ts-inputs = <4>;
-             ti,cpts-periodic-outputs = <2>;
-    };

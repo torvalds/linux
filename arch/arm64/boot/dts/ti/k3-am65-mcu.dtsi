@@ -248,7 +248,9 @@
 			bus_freq = <1000000>;
 		};
 
-		cpts {
+		cpts@3d000 {
+			compatible = "ti,am65-cpts";
+			reg = <0x0 0x3d000 0x0 0x400>;
 			clocks = <&mcu_cpsw_cpts_mux>;
 			clock-names = "cpts";
 			interrupts-extended = <&gic500 GIC_SPI 570 IRQ_TYPE_LEVEL_HIGH>;
