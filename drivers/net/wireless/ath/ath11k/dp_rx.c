@@ -2728,7 +2728,7 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 				ath11k_warn(ab, "rx monitor status with invalid buf_id %d\n",
 					    buf_id);
 				spin_unlock_bh(&rx_ring->idr_lock);
-				continue;
+				goto move_next;
 			}
 
 			idr_remove(&rx_ring->bufs_idr, buf_id);
@@ -2747,13 +2747,16 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
 					HAL_RX_STATUS_BUFFER_DONE) {
-				ath11k_hal_srng_src_get_next_entry(ab, srng);
-				continue;
+				ath11k_warn(ab, "mon status DONE not set %lx\n",
+					    FIELD_GET(HAL_TLV_HDR_TAG,
+						      tlv->tl));
+				dev_kfree_skb_any(skb);
+				goto move_next;
 			}
 
 			__skb_queue_tail(skb_list, skb);
 		}
-
+move_next:
 		skb = ath11k_dp_rx_alloc_mon_status_buf(ab, rx_ring,
 							&buf_id, GFP_ATOMIC);
 
