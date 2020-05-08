@@ -68,7 +68,9 @@ struct hd_struct {
 	 * can be non-atomic on 32bit machines with 64bit sector_t.
 	 */
 	sector_t nr_sects;
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	seqcount_t nr_sects_seq;
+#endif
 	sector_t alignment_offset;
 	unsigned int discard_alignment;
 	struct device __dev;
@@ -272,6 +274,13 @@ static inline void disk_put_part(struct hd_struct *part)
 {
 	if (likely(part))
 		put_device(part_to_dev(part));
+}
+
+static inline void hd_sects_seq_init(struct hd_struct *p)
+{
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	seqcount_init(&p->nr_sects_seq);
+#endif
 }
 
 /*
