@@ -344,6 +344,12 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 	if (transitory)
 		lflags |= GPIO_TRANSITORY;
 
+	if (flags & OF_GPIO_PULL_UP)
+		lflags |= GPIO_PULL_UP;
+
+	if (flags & OF_GPIO_PULL_DOWN)
+		lflags |= GPIO_PULL_DOWN;
+
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
 		gpiod_put(desc);
@@ -585,6 +591,10 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		*lflags |= GPIO_ACTIVE_LOW;
 	if (xlate_flags & OF_GPIO_TRANSITORY)
 		*lflags |= GPIO_TRANSITORY;
+	if (xlate_flags & OF_GPIO_PULL_UP)
+		*lflags |= GPIO_PULL_UP;
+	if (xlate_flags & OF_GPIO_PULL_DOWN)
+		*lflags |= GPIO_PULL_DOWN;
 
 	if (of_property_read_bool(np, "input"))
 		*dflags |= GPIOD_IN;
