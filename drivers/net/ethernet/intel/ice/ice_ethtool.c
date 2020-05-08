@@ -157,6 +157,8 @@ struct ice_priv_flag {
 static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
 	ICE_PRIV_FLAG("link-down-on-close", ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA),
 	ICE_PRIV_FLAG("fw-lldp-agent", ICE_FLAG_FW_LLDP_AGENT),
+	ICE_PRIV_FLAG("vf-true-promisc-support",
+		      ICE_FLAG_VF_TRUE_PROMISC_ENA),
 	ICE_PRIV_FLAG("mdd-auto-reset-vf", ICE_FLAG_MDD_AUTO_RESET_VF),
 	ICE_PRIV_FLAG("legacy-rx", ICE_FLAG_LEGACY_RX),
 };
@@ -1307,6 +1309,16 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 		/* down and up VSI so that changes of Rx cfg are reflected. */
 		ice_down(vsi);
 		ice_up(vsi);
+	}
+	/* don't allow modification of this flag when a single VF is in
+	 * promiscuous mode because it's not supported
+	 */
+	if (test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, change_flags) &&
+	    ice_is_any_vf_in_promisc(pf)) {
+		dev_err(dev, "Changing vf-true-promisc-support flag while VF(s) are in promiscuous mode not supported\n");
+		/* toggle bit back to previous state */
+		change_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags);
+		ret = -EAGAIN;
 	}
 	clear_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
 	return ret;

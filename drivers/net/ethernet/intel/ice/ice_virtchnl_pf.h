@@ -128,6 +128,7 @@ void ice_set_vf_state_qs_dis(struct ice_vf *vf);
 int
 ice_get_vf_stats(struct net_device *netdev, int vf_id,
 		 struct ifla_vf_stats *vf_stats);
+bool ice_is_any_vf_in_promisc(struct ice_pf *pf);
 void
 ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_print_vfs_mdd_events(struct ice_pf *pf);
@@ -218,6 +219,11 @@ ice_get_vf_stats(struct net_device __always_unused *netdev,
 		 struct ifla_vf_stats __always_unused *vf_stats)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool ice_is_any_vf_in_promisc(struct ice_pf __always_unused *pf)
+{
+	return false;
 }
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */

@@ -35,6 +35,37 @@ static int ice_check_vf_init(struct ice_pf *pf, struct ice_vf *vf)
 }
 
 /**
+ * ice_err_to_virt_err - translate errors for VF return code
+ * @ice_err: error return code
+ */
+static enum virtchnl_status_code ice_err_to_virt_err(enum ice_status ice_err)
+{
+	switch (ice_err) {
+	case ICE_SUCCESS:
+		return VIRTCHNL_STATUS_SUCCESS;
+	case ICE_ERR_BAD_PTR:
+	case ICE_ERR_INVAL_SIZE:
+	case ICE_ERR_DEVICE_NOT_SUPPORTED:
+	case ICE_ERR_PARAM:
+	case ICE_ERR_CFG:
+		return VIRTCHNL_STATUS_ERR_PARAM;
+	case ICE_ERR_NO_MEMORY:
+		return VIRTCHNL_STATUS_ERR_NO_MEMORY;
+	case ICE_ERR_NOT_READY:
+	case ICE_ERR_RESET_FAILED:
+	case ICE_ERR_FW_API_VER:
+	case ICE_ERR_AQ_ERROR:
+	case ICE_ERR_AQ_TIMEOUT:
+	case ICE_ERR_AQ_FULL:
+	case ICE_ERR_AQ_NO_WORK:
+	case ICE_ERR_AQ_EMPTY:
+		return VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
+	default:
+		return VIRTCHNL_STATUS_ERR_NOT_SUPPORTED;
+	}
+}
+
+/**
  * ice_vc_vf_broadcast - Broadcast a message to all VFs on PF
  * @pf: pointer to the PF structure
  * @v_opcode: operation code
@@ -2060,6 +2091,173 @@ out:
 }
 
 /**
+ * ice_is_any_vf_in_promisc - check if any VF(s) are in promiscuous mode
+ * @pf: PF structure for accessing VF(s)
+ *
+ * Return false if no VF(s) are in unicast and/or multicast promiscuous mode,
+ * else return true
+ */
+bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
+{
+	int vf_idx;
+
+	ice_for_each_vf(pf, vf_idx) {
+		struct ice_vf *vf = &pf->vf[vf_idx];
+
+		/* found a VF that has promiscuous mode configured */
+		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
+		    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_vc_cfg_promiscuous_mode_msg
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ *
+ * called from the VF to configure VF VSIs promiscuous mode
+ */
+static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
+{
+	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
+	struct virtchnl_promisc_info *info =
+	    (struct virtchnl_promisc_info *)msg;
+	struct ice_pf *pf = vf->pf;
+	struct ice_vsi *vsi;
+	struct device *dev;
+	bool rm_promisc;
+	int ret = 0;
+
+	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
+	}
+
+	if (!ice_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
+	}
+
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!vsi) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
+	}
+
+	dev = ice_pf_to_dev(pf);
+	if (!test_bit(ICE_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		dev_err(dev, "Unprivileged VF %d is attempting to configure promiscuous mode\n",
+			vf->vf_id);
+		/* Leave v_ret alone, lie to the VF on purpose. */
+		goto error_param;
+	}
+
+	rm_promisc = !(info->flags & FLAG_VF_UNICAST_PROMISC) &&
+		!(info->flags & FLAG_VF_MULTICAST_PROMISC);
+
+	if (vsi->num_vlan || vf->port_vlan_info) {
+		struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+		struct net_device *pf_netdev;
+
+		if (!pf_vsi) {
+			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+			goto error_param;
+		}
+
+		pf_netdev = pf_vsi->netdev;
+
+		ret = ice_set_vf_spoofchk(pf_netdev, vf->vf_id, rm_promisc);
+		if (ret) {
+			dev_err(dev, "Failed to update spoofchk to %s for VF %d VSI %d when setting promiscuous mode\n",
+				rm_promisc ? "ON" : "OFF", vf->vf_id,
+				vsi->vsi_num);
+			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		}
+
+		ret = ice_cfg_vlan_pruning(vsi, true, !rm_promisc);
+		if (ret) {
+			dev_err(dev, "Failed to configure VLAN pruning in promiscuous mode\n");
+			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+			goto error_param;
+		}
+	}
+
+	if (!test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags)) {
+		bool set_dflt_vsi = !!(info->flags & FLAG_VF_UNICAST_PROMISC);
+
+		if (set_dflt_vsi && !ice_is_dflt_vsi_in_use(pf->first_sw))
+			/* only attempt to set the default forwarding VSI if
+			 * it's not currently set
+			 */
+			ret = ice_set_dflt_vsi(pf->first_sw, vsi);
+		else if (!set_dflt_vsi &&
+			 ice_is_vsi_dflt_vsi(pf->first_sw, vsi))
+			/* only attempt to free the default forwarding VSI if we
+			 * are the owner
+			 */
+			ret = ice_clear_dflt_vsi(pf->first_sw);
+
+		if (ret) {
+			dev_err(dev, "%sable VF %d as the default VSI failed, error %d\n",
+				set_dflt_vsi ? "en" : "dis", vf->vf_id, ret);
+			v_ret = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
+			goto error_param;
+		}
+	} else {
+		enum ice_status status;
+		u8 promisc_m;
+
+		if (info->flags & FLAG_VF_UNICAST_PROMISC) {
+			if (vf->port_vlan_info || vsi->num_vlan)
+				promisc_m = ICE_UCAST_VLAN_PROMISC_BITS;
+			else
+				promisc_m = ICE_UCAST_PROMISC_BITS;
+		} else if (info->flags & FLAG_VF_MULTICAST_PROMISC) {
+			if (vf->port_vlan_info || vsi->num_vlan)
+				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
+			else
+				promisc_m = ICE_MCAST_PROMISC_BITS;
+		} else {
+			if (vf->port_vlan_info || vsi->num_vlan)
+				promisc_m = ICE_UCAST_VLAN_PROMISC_BITS;
+			else
+				promisc_m = ICE_UCAST_PROMISC_BITS;
+		}
+
+		/* Configure multicast/unicast with or without VLAN promiscuous
+		 * mode
+		 */
+		status = ice_vf_set_vsi_promisc(vf, vsi, promisc_m, rm_promisc);
+		if (status) {
+			dev_err(dev, "%sable Tx/Rx filter promiscuous mode on VF-%d failed, error: %d\n",
+				rm_promisc ? "dis" : "en", vf->vf_id, status);
+			v_ret = ice_err_to_virt_err(status);
+			goto error_param;
+		} else {
+			dev_dbg(dev, "%sable Tx/Rx filter promiscuous mode on VF-%d succeeded\n",
+				rm_promisc ? "dis" : "en", vf->vf_id);
+		}
+	}
+
+	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
+		set_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states);
+	else
+		clear_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states);
+
+	if (info->flags & FLAG_VF_UNICAST_PROMISC)
+		set_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
+	else
+		clear_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
+
+error_param:
+	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
+				     v_ret, NULL, 0);
+}
+
+/**
  * ice_vc_get_stats_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -2992,8 +3190,9 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 		goto error_param;
 	}
 
-	if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
-	    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
+	if ((test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
+	     test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) &&
+	    test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags))
 		vlan_promisc = true;
 
 	if (add_v) {
@@ -3316,6 +3515,9 @@ error_handler:
 		break;
 	case VIRTCHNL_OP_GET_STATS:
 		err = ice_vc_get_stats_msg(vf, msg);
+		break;
+	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
+		err = ice_vc_cfg_promiscuous_mode_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
 		err = ice_vc_add_vlan_msg(vf, msg);
