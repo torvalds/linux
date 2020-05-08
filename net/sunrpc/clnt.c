@@ -890,6 +890,7 @@ static void rpc_free_client_work(struct work_struct *work)
 	 */
 	rpc_clnt_debugfs_unregister(clnt);
 	rpc_clnt_remove_pipedir(clnt);
+	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 
 	kfree(clnt);
 	rpciod_down();
@@ -907,7 +908,6 @@ rpc_free_client(struct rpc_clnt *clnt)
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
-	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	xprt_iter_destroy(&clnt->cl_xpi);
 	put_cred(clnt->cl_cred);
 	rpc_free_clid(clnt);
