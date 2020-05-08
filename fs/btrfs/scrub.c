@@ -3583,7 +3583,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			btrfs_put_block_group(cache);
 			goto skip;
 		}
-		btrfs_get_block_group_trimming(cache);
+		btrfs_freeze_block_group(cache);
 		spin_unlock(&cache->lock);
 
 		/*
@@ -3641,7 +3641,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		} else {
 			btrfs_warn(fs_info,
 				   "failed setting block group ro: %d", ret);
-			btrfs_put_block_group_trimming(cache);
+			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 			scrub_pause_off(fs_info);
 			break;
@@ -3728,7 +3728,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			spin_unlock(&cache->lock);
 		}
 
-		btrfs_put_block_group_trimming(cache);
+		btrfs_unfreeze_block_group(cache);
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;

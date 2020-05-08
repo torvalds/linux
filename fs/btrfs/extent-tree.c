@@ -2916,7 +2916,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 						   &trimmed);
 
 		list_del_init(&block_group->bg_list);
-		btrfs_put_block_group_trimming(block_group);
+		btrfs_unfreeze_block_group(block_group);
 		btrfs_put_block_group(block_group);
 
 		if (ret) {

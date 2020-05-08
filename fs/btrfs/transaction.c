@@ -142,7 +142,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 						 struct btrfs_block_group,
 						 bg_list);
 			list_del_init(&cache->bg_list);
-			btrfs_put_block_group_trimming(cache);
+			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 		}
 		WARN_ON(!list_empty(&transaction->dev_update_list));

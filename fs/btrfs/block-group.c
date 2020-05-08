@@ -1073,18 +1073,21 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_lock(&block_group->lock);
 	block_group->removed = 1;
 	/*
-	 * At this point trimming can't start on this block group, because we
-	 * removed the block group from the tree fs_info->block_group_cache_tree
-	 * so no one can't find it anymore and even if someone already got this
-	 * block group before we removed it from the rbtree, they have already
-	 * incremented block_group->trimming - if they didn't, they won't find
-	 * any free space entries because we already removed them all when we
-	 * called btrfs_remove_free_space_cache().
+	 * At this point trimming or scrub can't start on this block group,
+	 * because we removed the block group from the rbtree
+	 * fs_info->block_group_cache_tree so no one can't find it anymore and
+	 * even if someone already got this block group before we removed it
+	 * from the rbtree, they have already incremented block_group->frozen -
+	 * if they didn't, for the trimming case they won't find any free space
+	 * entries because we already removed them all when we called
+	 * btrfs_remove_free_space_cache().
 	 *
 	 * And we must not remove the extent map from the fs_info->mapping_tree
 	 * to prevent the same logical address range and physical device space
-	 * ranges from being reused for a new block group. This is because our
-	 * fs trim operation (btrfs_trim_fs() / btrfs_ioctl_fitrim()) is
+	 * ranges from being reused for a new block group. This is needed to
+	 * avoid races with trimming and scrub.
+	 *
+	 * An fs trim operation (btrfs_trim_fs() / btrfs_ioctl_fitrim()) is
 	 * completely transactionless, so while it is trimming a range the
 	 * currently running transaction might finish and a new one start,
 	 * allowing for new block groups to be created that can reuse the same
@@ -1095,7 +1098,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * in place until the extents have been discarded completely when
 	 * the transaction commit has completed.
 	 */
-	remove_em = (atomic_read(&block_group->trimming) == 0);
+	remove_em = (atomic_read(&block_group->frozen) == 0);
 	spin_unlock(&block_group->lock);
 
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -1444,7 +1447,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		/* Implicit trim during transaction commit. */
 		if (trimming)
-			btrfs_get_block_group_trimming(block_group);
+			btrfs_freeze_block_group(block_group);
 
 		/*
 		 * Btrfs_remove_chunk will abort the transaction if things go
@@ -1454,7 +1457,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		if (ret) {
 			if (trimming)
-				btrfs_put_block_group_trimming(block_group);
+				btrfs_unfreeze_block_group(block_group);
 			goto end_trans;
 		}
 
@@ -1803,7 +1806,7 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 	INIT_LIST_HEAD(&cache->dirty_list);
 	INIT_LIST_HEAD(&cache->io_list);
 	btrfs_init_free_space_ctl(cache);
-	atomic_set(&cache->trimming, 0);
+	atomic_set(&cache->frozen, 0);
 	mutex_init(&cache->free_space_lock);
 	btrfs_init_full_stripe_locks_tree(&cache->full_stripe_locks_root);
 

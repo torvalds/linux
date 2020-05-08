@@ -129,8 +129,17 @@ struct btrfs_block_group {
 	/* For read-only block groups */
 	struct list_head ro_list;
 
+	/*
+	 * When non-zero it means the block group's logical address and its
+	 * device extents can not be reused for future block group allocations
+	 * until the counter goes down to 0. This is to prevent them from being
+	 * reused while some task is still using the block group after it was
+	 * deleted - we want to make sure they can only be reused for new block
+	 * groups after that task is done with the deleted block group.
+	 */
+	atomic_t frozen;
+
 	/* For discard operations */
-	atomic_t trimming;
 	struct list_head discard_list;
 	int discard_index;
 	u64 discard_eligible_time;
