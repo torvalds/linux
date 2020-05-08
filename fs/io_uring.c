@@ -5629,7 +5629,7 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 }
 
 static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			  struct io_submit_state *state, struct io_kiocb **link)
+			 struct io_kiocb **link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -5893,7 +5893,7 @@ fail_req:
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 						true, async);
-		err = io_submit_sqe(req, sqe, statep, &link);
+		err = io_submit_sqe(req, sqe, &link);
 		if (err)
 			goto fail_req;
 	}
