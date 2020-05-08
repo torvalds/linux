@@ -531,8 +531,19 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 	unsigned long timeout;
 	int ret;
 
-	if (mask != IIO_CHAN_INFO_RAW)
+	if (mask == IIO_CHAN_INFO_SCALE) {
+		ret = regulator_get_voltage(info->vdd);
+		if (ret < 0)
+			return ret;
+
+		/* Regulator voltage is in uV, but need mV */
+		*val = ret / 1000;
+		*val2 = info->data->mask;
+
+		return IIO_VAL_FRACTIONAL;
+	} else if (mask != IIO_CHAN_INFO_RAW) {
 		return -EINVAL;
+	}
 
 	mutex_lock(&indio_dev->mlock);
 	reinit_completion(&info->completion);
@@ -683,6 +694,7 @@ static const struct iio_info exynos_adc_iio_info = {
 	.channel = _index,				\
 	.address = _index,				\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SCALE),	\
 	.datasheet_name = _id,				\
 }
 
