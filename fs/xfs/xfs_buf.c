@@ -1289,11 +1289,10 @@ xfs_buf_bio_end_io(
 	struct bio		*bio)
 {
 	struct xfs_buf		*bp = (struct xfs_buf *)bio->bi_private;
-	struct xfs_mount	*mp = bp->b_mount;
 
 	if (!bio->bi_status &&
 	    (bp->b_flags & XBF_WRITE) && (bp->b_flags & XBF_ASYNC) &&
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BUF_IOERROR))
+	    XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
 		bio->bi_status = BLK_STS_IOERR;
 
 	/*
