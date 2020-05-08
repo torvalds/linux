@@ -751,14 +751,6 @@
 	gpio1830-supply = <&vcc_3v0>;
 };
 
-&isp0 {
-	status = "okay";
-};
-
-&isp1 {
-	status = "okay";
-};
-
 &isp0_mmu {
 	status = "okay";
 };
