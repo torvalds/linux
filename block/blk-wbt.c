@@ -418,14 +418,6 @@ static void __wbt_update_limits(struct rq_wb *rwb)
 	rwb_wake_all(rwb);
 }
 
-void wbt_update_limits(struct request_queue *q)
-{
-	struct rq_qos *rqos = wbt_rq_qos(q);
-	if (!rqos)
-		return;
-	__wbt_update_limits(RQWB(rqos));
-}
-
 u64 wbt_get_min_lat(struct request_queue *q)
 {
 	struct rq_qos *rqos = wbt_rq_qos(q);
