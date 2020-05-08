@@ -292,6 +292,9 @@ static inline int btrfs_block_group_done(struct btrfs_block_group *cache)
 		cache->cached == BTRFS_CACHE_ERROR;
 }
 
+void btrfs_freeze_block_group(struct btrfs_block_group *cache);
+void btrfs_unfreeze_block_group(struct btrfs_block_group *cache);
+
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);

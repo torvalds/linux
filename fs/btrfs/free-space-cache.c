@@ -3762,47 +3762,6 @@ out:
 	return ret;
 }
 
-void btrfs_freeze_block_group(struct btrfs_block_group *cache)
-{
-	atomic_inc(&cache->frozen);
-}
-
-void btrfs_unfreeze_block_group(struct btrfs_block_group *block_group)
-{
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	struct extent_map_tree *em_tree;
-	struct extent_map *em;
-	bool cleanup;
-
-	spin_lock(&block_group->lock);
-	cleanup = (atomic_dec_and_test(&block_group->frozen) &&
-		   block_group->removed);
-	spin_unlock(&block_group->lock);
-
-	if (cleanup) {
-		mutex_lock(&fs_info->chunk_mutex);
-		em_tree = &fs_info->mapping_tree;
-		write_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, block_group->start,
-					   1);
-		BUG_ON(!em); /* logic error, can't happen */
-		remove_extent_mapping(em_tree, em);
-		write_unlock(&em_tree->lock);
-		mutex_unlock(&fs_info->chunk_mutex);
-
-		/* once for us and once for the tree */
-		free_extent_map(em);
-		free_extent_map(em);
-
-		/*
-		 * We may have left one free space entry and other possible
-		 * tasks trimming this block group have left 1 entry each one.
-		 * Free them if any.
-		 */
-		__btrfs_remove_free_space_cache(block_group->free_space_ctl);
-	}
-}
-
 int btrfs_trim_block_group(struct btrfs_block_group *block_group,
 			   u64 *trimmed, u64 start, u64 end, u64 minlen)
 {
