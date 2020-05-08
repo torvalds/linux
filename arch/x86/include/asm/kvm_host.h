@@ -1247,6 +1247,8 @@ struct kvm_x86_ops {
 
 	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
 	int (*enable_direct_tlbflush)(struct kvm_vcpu *vcpu);
+
+	void (*migrate_timers)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_x86_nested_ops {
