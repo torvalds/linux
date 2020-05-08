@@ -491,8 +491,9 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %d\n",
-			 status, hw->adminq.sq_last_status);
+		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %s aq_err %s\n",
+			 ice_stat_str(status),
+			 ice_aq_str(hw->adminq.sq_last_status));
 		ret = -EIO;
 		goto out;
 	}
@@ -1659,8 +1660,9 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 	aq_ret = ice_aq_send_msg_to_vf(&pf->hw, vf->vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
 	if (aq_ret && pf->hw.mailboxq.sq_last_status != ICE_AQ_RC_ENOSYS) {
-		dev_info(dev, "Unable to send the message to VF %d ret %d aq_err %d\n",
-			 vf->vf_id, aq_ret, pf->hw.mailboxq.sq_last_status);
+		dev_info(dev, "Unable to send the message to VF %d ret %s aq_err %s\n",
+			 vf->vf_id, ice_stat_str(aq_ret),
+			 ice_aq_str(pf->hw.mailboxq.sq_last_status));
 		return -EIO;
 	}
 
@@ -2075,8 +2077,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 
 	status = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
 	if (status) {
-		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d\n",
-			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num, status);
+		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %s\n",
+			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num,
+			ice_stat_str(status));
 		ret = -EIO;
 		goto out;
 	}
@@ -2232,8 +2235,9 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 		 */
 		status = ice_vf_set_vsi_promisc(vf, vsi, promisc_m, rm_promisc);
 		if (status) {
-			dev_err(dev, "%sable Tx/Rx filter promiscuous mode on VF-%d failed, error: %d\n",
-				rm_promisc ? "dis" : "en", vf->vf_id, status);
+			dev_err(dev, "%sable Tx/Rx filter promiscuous mode on VF-%d failed, error: %s\n",
+				rm_promisc ? "dis" : "en", vf->vf_id,
+				ice_stat_str(status));
 			v_ret = ice_err_to_virt_err(status);
 			goto error_param;
 		} else {
@@ -2808,8 +2812,8 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr)
 			vf->vf_id);
 		return -EEXIST;
 	} else if (status) {
-		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %d\n",
-			mac_addr, vf->vf_id, status);
+		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %s\n",
+			mac_addr, vf->vf_id, ice_stat_str(status));
 		return -EIO;
 	}
 
@@ -2845,8 +2849,8 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr)
 			vf->vf_id);
 		return -ENOENT;
 	} else if (status) {
-		dev_err(dev, "Failed to delete MAC %pM for VF %d, error %d\n",
-			mac_addr, vf->vf_id, status);
+		dev_err(dev, "Failed to delete MAC %pM for VF %d, error %s\n",
+			mac_addr, vf->vf_id, ice_stat_str(status));
 		return -EIO;
 	}
 

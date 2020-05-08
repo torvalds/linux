@@ -528,6 +528,8 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
+const char *ice_stat_str(enum ice_status stat_err);
+const char *ice_aq_str(enum ice_aq_err aq_err);
 int ice_open(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
 
