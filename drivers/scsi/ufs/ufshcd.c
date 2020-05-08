@@ -6838,12 +6838,15 @@ wb_disabled:
 	hba->caps &= ~UFSHCD_CAP_WB_EN;
 }
 
-static void ufshcd_fixup_dev_quirks(struct ufs_hba *hba)
+void ufshcd_fixup_dev_quirks(struct ufs_hba *hba, struct ufs_dev_fix *fixups)
 {
 	struct ufs_dev_fix *f;
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 
-	for (f = ufs_fixups; f->quirk; f++) {
+	if (!fixups)
+		return;
+
+	for (f = fixups; f->quirk; f++) {
 		if ((f->wmanufacturerid == dev_info->wmanufacturerid ||
 		     f->wmanufacturerid == UFS_ANY_VENDOR) &&
 		     ((dev_info->model &&
@@ -6852,11 +6855,12 @@ static void ufshcd_fixup_dev_quirks(struct ufs_hba *hba)
 			hba->dev_quirks |= f->quirk;
 	}
 }
+EXPORT_SYMBOL_GPL(ufshcd_fixup_dev_quirks);
 
 static void ufs_fixup_device_setup(struct ufs_hba *hba)
 {
 	/* fix by general quirk table */
-	ufshcd_fixup_dev_quirks(hba);
+	ufshcd_fixup_dev_quirks(hba, ufs_fixups);
 
 	/* allow vendors to fix quirks */
 	ufshcd_vops_fixup_dev_quirks(hba);
