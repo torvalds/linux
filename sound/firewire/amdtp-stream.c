@@ -793,14 +793,6 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 		update_pcm_pointers(s, pcm, pcm_frames);
 }
 
-static void amdtp_stream_master_callback(struct fw_iso_context *context,
-					 u32 tstamp, size_t header_length,
-					 void *header, void *private_data);
-
-static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
-					u32 tstamp, size_t header_length,
-					void *header, void *private_data);
-
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
@@ -810,7 +802,6 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	unsigned int events_per_period = s->ctx_data.rx.events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int packets;
-	bool is_irq_target;
 	int i;
 
 	if (s->packet_index < 0)
@@ -822,10 +813,6 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	generate_ideal_pkt_descs(s, s->pkt_descs, ctx_header, packets);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
-
-	is_irq_target =
-		!!(context->callback.sc == amdtp_stream_master_callback ||
-		   context->callback.sc == amdtp_stream_master_first_callback);
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
@@ -845,7 +832,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				    desc->data_blocks, desc->data_block_counter,
 				    syt, i);
 
-		if (is_irq_target) {
+		if (s == s->domain->irq_target) {
 			event_count += desc->data_blocks;
 			if (event_count >= events_per_period) {
 				event_count -= events_per_period;
@@ -898,12 +885,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 }
 
-static void amdtp_stream_master_callback(struct fw_iso_context *context,
-					 u32 tstamp, size_t header_length,
-					 void *header, void *private_data)
+static void irq_target_callback(struct fw_iso_context *context, u32 tstamp,
+				size_t header_length, void *header,
+				void *private_data)
 {
-	struct amdtp_domain *d = private_data;
-	struct amdtp_stream *irq_target = d->irq_target;
+	struct amdtp_stream *irq_target = private_data;
+	struct amdtp_domain *d = irq_target->domain;
 	struct amdtp_stream *s;
 
 	out_stream_callback(context, tstamp, header_length, header, irq_target);
@@ -952,7 +939,10 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	} else {
 		cycle = compute_it_cycle(*ctx_header, s->queue_size);
 
-		context->callback.sc = out_stream_callback;
+		if (s == s->domain->irq_target)
+			context->callback.sc = irq_target_callback;
+		else
+			context->callback.sc = out_stream_callback;
 	}
 
 	s->start_cycle = cycle;
@@ -960,32 +950,11 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	context->callback.sc(context, tstamp, header_length, header, s);
 }
 
-static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
-					       u32 tstamp, size_t header_length,
-					       void *header, void *private_data)
-{
-	struct amdtp_domain *d = private_data;
-	struct amdtp_stream *s = d->irq_target;
-	const __be32 *ctx_header = header;
-
-	s->callbacked = true;
-	wake_up(&s->callback_wait);
-
-	s->start_cycle = compute_it_cycle(*ctx_header, s->queue_size);
-
-	context->callback.sc = amdtp_stream_master_callback;
-
-	context->callback.sc(context, tstamp, header_length, header, d);
-}
-
 /**
  * amdtp_stream_start - start transferring packets
  * @s: the AMDTP stream to start
  * @channel: the isochronous channel on the bus
  * @speed: firewire speed code
- * @d: the AMDTP domain to which the AMDTP stream belongs
- * @is_irq_target: whether isoc context for the AMDTP stream is used to generate
- *		   hardware IRQ.
  * @start_cycle: the isochronous cycle to start the context. Start immediately
  *		 if negative value is given.
  *
@@ -994,7 +963,6 @@ static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
  * device can be started.
  */
 static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
-			      struct amdtp_domain *d, bool is_irq_target,
 			      int start_cycle)
 {
 	static const struct {
@@ -1009,15 +977,14 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		[CIP_SFC_88200]  = {  0,   67 },
 		[CIP_SFC_176400] = {  0,   67 },
 	};
-	unsigned int events_per_buffer = d->events_per_buffer;
-	unsigned int events_per_period = d->events_per_period;
+	bool is_irq_target = (s == s->domain->irq_target);
+	unsigned int events_per_buffer;
+	unsigned int events_per_period;
 	unsigned int idle_irq_interval;
 	unsigned int ctx_header_size;
 	unsigned int max_ctx_payload_size;
 	enum dma_data_direction dir;
 	int type, tag, err;
-	fw_iso_callback_t ctx_cb;
-	void *ctx_data;
 
 	mutex_lock(&s->mutex);
 
@@ -1068,6 +1035,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	// This is a case that AMDTP streams in domain run just for MIDI
 	// substream. Use the number of events equivalent to 10 msec as
 	// interval of hardware IRQ.
+	events_per_buffer = s->domain->events_per_buffer;
+	events_per_period = s->domain->events_per_period;
 	if (events_per_period == 0)
 		events_per_period = amdtp_rate_table[s->sfc] / 100;
 	if (events_per_buffer == 0)
@@ -1086,16 +1055,11 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (is_irq_target) {
 		s->ctx_data.rx.events_per_period = events_per_period;
 		s->ctx_data.rx.event_count = 0;
-		ctx_cb = amdtp_stream_master_first_callback;
-		ctx_data = d;
-	} else {
-		ctx_cb = amdtp_stream_first_callback;
-		ctx_data = s;
 	}
 
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
 					  type, channel, speed, ctx_header_size,
-					  ctx_cb, ctx_data);
+					  amdtp_stream_first_callback, s);
 	if (IS_ERR(s->context)) {
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
@@ -1340,6 +1304,7 @@ int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 
 	s->channel = channel;
 	s->speed = speed;
+	s->domain = d;
 
 	return 0;
 }
@@ -1428,15 +1393,15 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 		}
 
 		if (s != d->irq_target) {
-			err = amdtp_stream_start(s, s->channel, s->speed, d,
-						 false, cycle_match);
+			err = amdtp_stream_start(s, s->channel, s->speed,
+						 cycle_match);
 			if (err < 0)
 				goto error;
 		}
 	}
 
 	s = d->irq_target;
-	err = amdtp_stream_start(s, s->channel, s->speed, d, true, -1);
+	err = amdtp_stream_start(s, s->channel, s->speed, -1);
 	if (err < 0)
 		goto error;
 
