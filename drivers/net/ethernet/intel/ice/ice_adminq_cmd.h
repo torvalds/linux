@@ -541,7 +541,7 @@ struct ice_sw_rule_lkup_rx_tx {
 #define ICE_SINGLE_ACT_OTHER_ACTS		0x3
 #define ICE_SINGLE_OTHER_ACT_IDENTIFIER_S	17
 #define ICE_SINGLE_OTHER_ACT_IDENTIFIER_M	\
-				(0x3 << \ ICE_SINGLE_OTHER_ACT_IDENTIFIER_S)
+				(0x3 << ICE_SINGLE_OTHER_ACT_IDENTIFIER_S)
 
 	/* Bit 17:18 - Defines other actions */
 	/* Other action = 0 - Mirror VSI */
