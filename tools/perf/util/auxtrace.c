@@ -33,6 +33,7 @@
 #include "evsel.h"
 #include "evsel_config.h"
 #include "symbol.h"
+#include "util/perf_api_probe.h"
 #include "util/synthetic-events.h"
 #include "thread_map.h"
 #include "asm/bug.h"
@@ -69,7 +70,7 @@ static int perf_evlist__regroup(struct evlist *evlist,
 	struct evsel *evsel;
 	bool grp;
 
-	if (!perf_evsel__is_group_leader(leader))
+	if (!evsel__is_group_leader(leader))
 		return -EINVAL;
 
 	grp = false;
@@ -684,8 +685,8 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, evsel) {
 		sz = evsel->core.attr.aux_sample_size;
-		if (perf_evsel__is_group_leader(evsel)) {
-			has_aux_leader = perf_evsel__is_aux_event(evsel);
+		if (evsel__is_group_leader(evsel)) {
+			has_aux_leader = evsel__is_aux_event(evsel);
 			if (sz) {
 				if (has_aux_leader)
 					pr_err("Cannot add AUX area sampling to an AUX area event\n");
@@ -704,10 +705,10 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
 				return -EINVAL;
 			}
-			perf_evsel__set_sample_bit(evsel, AUX);
+			evsel__set_sample_bit(evsel, AUX);
 			opts->auxtrace_sample_mode = true;
 		} else {
-			perf_evsel__reset_sample_bit(evsel, AUX);
+			evsel__reset_sample_bit(evsel, AUX);
 		}
 	}
 
@@ -758,8 +759,8 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 
 	/* Set aux_sample_size based on --aux-sample option */
 	evlist__for_each_entry(evlist, evsel) {
-		if (perf_evsel__is_group_leader(evsel)) {
-			has_aux_leader = perf_evsel__is_aux_event(evsel);
+		if (evsel__is_group_leader(evsel)) {
+			has_aux_leader = evsel__is_aux_event(evsel);
 		} else if (has_aux_leader) {
 			evsel->core.attr.aux_sample_size = sz;
 		}
@@ -768,7 +769,7 @@ no_opt:
 	aux_evsel = NULL;
 	/* Override with aux_sample_size from config term */
 	evlist__for_each_entry(evlist, evsel) {
-		if (perf_evsel__is_aux_event(evsel))
+		if (evsel__is_aux_event(evsel))
 			aux_evsel = evsel;
 		term = perf_evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
 		if (term) {
@@ -1246,7 +1247,7 @@ static void unleader_auxtrace(struct perf_session *session)
 
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (auxtrace__evsel_is_auxtrace(session, evsel) &&
-		    perf_evsel__is_group_leader(evsel)) {
+		    evsel__is_group_leader(evsel)) {
 			unleader_evsel(session->evlist, evsel);
 		}
 	}
@@ -1463,8 +1464,12 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				synth_opts->callchain_sz = val;
 			}
 			break;
+		case 'L':
 		case 'l':
-			synth_opts->last_branch = true;
+			if (p[-1] == 'L')
+				synth_opts->add_last_branch = true;
+			else
+				synth_opts->last_branch = true;
 			synth_opts->last_branch_sz =
 					PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
 			while (*p == ' ' || *p == ',')
@@ -2517,7 +2522,7 @@ static int parse_addr_filter(struct evsel *evsel, const char *filter,
 			goto out_exit;
 		}
 
-		if (perf_evsel__append_addr_filter(evsel, new_filter)) {
+		if (evsel__append_addr_filter(evsel, new_filter)) {
 			err = -ENOMEM;
 			goto out_exit;
 		}
@@ -2535,9 +2540,9 @@ out_exit:
 	return err;
 }
 
-static int perf_evsel__nr_addr_filter(struct evsel *evsel)
+static int evsel__nr_addr_filter(struct evsel *evsel)
 {
-	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 	int nr_addr_filters = 0;
 
 	if (!pmu)
@@ -2556,7 +2561,7 @@ int auxtrace_parse_filters(struct evlist *evlist)
 
 	evlist__for_each_entry(evlist, evsel) {
 		filter = evsel->filter;
-		max_nr = perf_evsel__nr_addr_filter(evsel);
+		max_nr = evsel__nr_addr_filter(evsel);
 		if (!filter || !max_nr)
 			continue;
 		evsel->filter = NULL;

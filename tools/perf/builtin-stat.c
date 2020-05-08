@@ -238,9 +238,8 @@ static int write_stat_round_event(u64 tm, u64 type)
 
 #define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
-static int
-perf_evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
-			     struct perf_counts_values *count)
+static int evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
+				   struct perf_counts_values *count)
 {
 	struct perf_sample_id *sid = SID(counter, cpu, thread);
 
@@ -259,7 +258,7 @@ static int read_single_counter(struct evsel *counter, int cpu,
 		count->val = val;
 		return 0;
 	}
-	return perf_evsel__read_counter(counter, cpu, thread);
+	return evsel__read_counter(counter, cpu, thread);
 }
 
 /*
@@ -284,7 +283,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 
 		/*
 		 * The leader's group read loads data into its group members
-		 * (via perf_evsel__read_counter()) and sets their count->loaded.
+		 * (via evsel__read_counter()) and sets their count->loaded.
 		 */
 		if (!perf_counts__is_loaded(counter->counts, cpu, thread) &&
 		    read_single_counter(counter, cpu, thread, rs)) {
@@ -297,7 +296,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 		perf_counts__set_loaded(counter->counts, cpu, thread, false);
 
 		if (STAT_RECORD) {
-			if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
+			if (evsel__write_stat_event(counter, cpu, thread, count)) {
 				pr_err("failed to write stat event\n");
 				return -1;
 			}
@@ -306,7 +305,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 		if (verbose > 1) {
 			fprintf(stat_config.output,
 				"%s: %d: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-					perf_evsel__name(counter),
+					evsel__name(counter),
 					cpu,
 					count->val, count->ena, count->run);
 		}
@@ -359,6 +358,7 @@ static void process_interval(void)
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
 
+	perf_stat__reset_shadow_per_stat(&rt_stat);
 	read_counters(&rs);
 
 	if (STAT_RECORD) {
@@ -409,7 +409,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static bool perf_evsel__should_store_id(struct evsel *counter)
+static bool evsel__should_store_id(struct evsel *counter)
 {
 	return STAT_RECORD || counter->core.attr.read_format & PERF_FORMAT_ID;
 }
@@ -454,7 +454,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	    errno == ENXIO) {
 		if (verbose > 0)
 			ui__warning("%s event is not supported by the kernel.\n",
-				    perf_evsel__name(counter));
+				    evsel__name(counter));
 		counter->supported = false;
 		/*
 		 * errored is a sticky flag that means one of the counter's
@@ -465,7 +465,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		if ((counter->leader != counter) ||
 		    !(counter->leader->core.nr_members > 1))
 			return COUNTER_SKIP;
-	} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
+	} else if (evsel__fallback(counter, errno, msg, sizeof(msg))) {
 		if (verbose > 0)
 			ui__warning("%s\n", msg);
 		return COUNTER_RETRY;
@@ -483,8 +483,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		}
 	}
 
-	perf_evsel__open_strerror(counter, &target,
-				  errno, msg, sizeof(msg));
+	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)
@@ -604,7 +603,7 @@ try_again:
 				if (!counter->reset_group)
 					continue;
 try_again_reset:
-				pr_debug2("reopening weak %s\n", perf_evsel__name(counter));
+				pr_debug2("reopening weak %s\n", evsel__name(counter));
 				if (create_perf_stat_counter(counter, &stat_config, &target,
 							     counter->cpu_iter - 1) < 0) {
 
@@ -635,14 +634,14 @@ try_again_reset:
 		if (l > stat_config.unit_width)
 			stat_config.unit_width = l;
 
-		if (perf_evsel__should_store_id(counter) &&
-		    perf_evsel__store_ids(counter, evsel_list))
+		if (evsel__should_store_id(counter) &&
+		    evsel__store_ids(counter, evsel_list))
 			return -1;
 	}
 
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			counter->filter, perf_evsel__name(counter), errno,
+			counter->filter, evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		return -1;
 	}

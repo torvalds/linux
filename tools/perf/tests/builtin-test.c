@@ -310,6 +310,10 @@ static struct test generic_tests[] = {
 		.func = test__jit_write_elf,
 	},
 	{
+		.desc = "Test api io",
+		.func = test__api_io,
+	},
+	{
 		.desc = "maps__merge_in",
 		.func = test__maps__merge_in,
 	},

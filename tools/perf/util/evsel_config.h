@@ -7,7 +7,7 @@
 
 /*
  * The 'struct perf_evsel_config_term' is used to pass event
- * specific configuration data to perf_evsel__config routine.
+ * specific configuration data to evsel__config routine.
  * It is allocated within event parsing and attached to
  * perf_evsel::config_terms list head.
 */
