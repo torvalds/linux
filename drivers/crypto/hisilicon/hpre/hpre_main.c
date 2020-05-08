@@ -134,7 +134,7 @@ static const u64 hpre_cluster_offsets[] = {
 		HPRE_CLSTR_BASE + HPRE_CLUSTER3 * HPRE_CLSTR_ADDR_INTRVL,
 };
 
-static struct debugfs_reg32 hpre_cluster_dfx_regs[] = {
+static const struct debugfs_reg32 hpre_cluster_dfx_regs[] = {
 	{"CORES_EN_STATUS          ",  HPRE_CORE_EN_OFFSET},
 	{"CORES_INI_CFG              ",  HPRE_CORE_INI_CFG_OFFSET},
 	{"CORES_INI_STATUS         ",  HPRE_CORE_INI_STATUS_OFFSET},
@@ -142,7 +142,7 @@ static struct debugfs_reg32 hpre_cluster_dfx_regs[] = {
 	{"CORES_IS_SCHD               ",  HPRE_CORE_IS_SCHD_OFFSET},
 };
 
-static struct debugfs_reg32 hpre_com_dfx_regs[] = {
+static const struct debugfs_reg32 hpre_com_dfx_regs[] = {
 	{"READ_CLR_EN          ",  HPRE_CTRL_CNT_CLR_CE},
 	{"AXQOS                   ",  HPRE_VFG_AXQOS},
 	{"AWUSR_CFG              ",  HPRE_AWUSR_FP_CFG},
