@@ -129,7 +129,6 @@ enum mhi_pm_state {
 #define CMD_EL_PER_RING					128
 #define PRIMARY_CMD_RING				0
 #define MHI_DEV_WAKE_DB					127
-#define MHI_MAX_MTU					0xffff
 #define MHI_RANDOM_U32_NONZERO(bmsk)			(prandom_u32_max(bmsk) + 1)
 
 enum mhi_er_type {
