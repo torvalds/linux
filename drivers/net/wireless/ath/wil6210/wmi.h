@@ -474,7 +474,7 @@ struct wmi_start_scan_cmd {
 	struct {
 		u8 channel;
 		u8 reserved;
-	} channel_list[0];
+	} channel_list[];
 } __packed;
 
 #define WMI_MAX_PNO_SSID_NUM	(16)
