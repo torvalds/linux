@@ -2861,6 +2861,23 @@ TRACE_EVENT(cfg80211_mgmt_tx_status,
 		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
 );
 
+TRACE_EVENT(cfg80211_control_port_tx_status,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie, bool ack),
+	TP_ARGS(wdev, cookie, ack),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		__field(bool, ack)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		__entry->ack = ack;
+	),
+	TP_printk(WDEV_PR_FMT", cookie: %llu, ack: %s",
+		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
+);
+
 TRACE_EVENT(cfg80211_rx_control_port,
 	TP_PROTO(struct net_device *netdev, struct sk_buff *skb,
 		 bool unencrypted),

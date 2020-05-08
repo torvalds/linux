@@ -4069,7 +4069,8 @@ struct cfg80211_ops {
 				   struct net_device *dev,
 				   const u8 *buf, size_t len,
 				   const u8 *dest, const __be16 proto,
-				   const bool noencrypt);
+				   const bool noencrypt,
+				   u64 *cookie);
 
 	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
 				struct net_device *dev,
@@ -7049,6 +7050,23 @@ static inline bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq,
 void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
+/**
+ * cfg80211_control_port_tx_status - notification of TX status for control
+ *                                   port frames
+ * @wdev: wireless device receiving the frame
+ * @cookie: Cookie returned by cfg80211_ops::tx_control_port()
+ * @buf: Data frame (header + body)
+ * @len: length of the frame data
+ * @ack: Whether frame was acknowledged
+ * @gfp: context flags
+ *
+ * This function is called whenever a control port frame was requested to be
+ * transmitted with cfg80211_ops::tx_control_port() to report the TX status of
+ * the transmission attempt.
+ */
+void cfg80211_control_port_tx_status(struct wireless_dev *wdev, u64 cookie,
+				     const u8 *buf, size_t len, bool ack,
+				     gfp_t gfp);
 
 /**
  * cfg80211_rx_control_port - notification about a received control port frame

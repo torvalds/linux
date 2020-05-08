@@ -1164,6 +1164,12 @@
  *	dropped because it did not include a valid MME MIC while beacon
  *	protection was enabled (BIGTK configured in station mode).
  *
+ * @NL80211_CMD_CONTROL_PORT_FRAME_TX_STATUS: Report TX status of a control
+ *	port frame transmitted with %NL80211_CMD_CONTROL_PORT_FRAME.
+ *	%NL80211_ATTR_COOKIE identifies the TX command and %NL80211_ATTR_FRAME
+ *	includes the contents of the frame. %NL80211_ATTR_ACK flag is included
+ *	if the recipient acknowledged the frame.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1391,6 +1397,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_TID_CONFIG,
 
 	NL80211_CMD_UNPROT_BEACON,
+
+	NL80211_CMD_CONTROL_PORT_FRAME_TX_STATUS,
 
 	/* add new commands above here */
 
@@ -5729,6 +5737,9 @@ enum nl80211_feature_flags {
  *	report %NL80211_ATTR_SCAN_FREQ_KHZ, %NL80211_SCAN_FLAG_FREQ_KHZ must be
  *	included in the scan request.
  *
+ * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS: The driver
+ *	can report tx status for control port over nl80211 tx operations.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5783,6 +5794,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS,
 	NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT,
 	NL80211_EXT_FEATURE_SCAN_FREQ_KHZ,
+	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
