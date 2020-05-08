@@ -1112,6 +1112,9 @@ static inline u32 to_hr_hem_entries_count(u32 count, u32 buf_shift)
 
 static inline u32 to_hr_hem_entries_shift(u32 count, u32 buf_shift)
 {
+	if (!count)
+		return 0;
+
 	return ilog2(to_hr_hem_entries_count(count, buf_shift));
 }
 
