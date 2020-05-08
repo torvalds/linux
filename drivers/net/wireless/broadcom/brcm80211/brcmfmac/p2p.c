@@ -2233,7 +2233,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-int brcmf_p2p_get_conn_idx(struct brcmf_cfg80211_info *cfg)
+static int brcmf_p2p_get_conn_idx(struct brcmf_cfg80211_info *cfg)
 {
 	int i;
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
