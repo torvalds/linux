@@ -285,6 +285,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err_alloc_pbl;
 
 	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
+	mr->ibmr.length = length;
 
 	return &mr->ibmr;
 
@@ -451,6 +452,7 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 		goto err_pbl;
 
 	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
+	mr->ibmr.length = length;
 
 	return &mr->ibmr;
 
