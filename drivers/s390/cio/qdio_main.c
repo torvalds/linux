@@ -254,10 +254,17 @@ static inline int set_buf_states(struct qdio_q *q, int bufnr,
 	if (is_qebsm(q))
 		return qdio_do_sqbs(q, state, bufnr, count);
 
+	/* Ensure that all preceding changes to the SBALs are visible: */
+	mb();
+
 	for (i = 0; i < count; i++) {
-		xchg(&q->slsb.val[bufnr], state);
+		WRITE_ONCE(q->slsb.val[bufnr], state);
 		bufnr = next_buf(bufnr);
 	}
+
+	/* Make our SLSB changes visible: */
+	mb();
+
 	return count;
 }
 
