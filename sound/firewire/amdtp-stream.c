@@ -905,13 +905,62 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 }
 
+static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
+{
+	struct amdtp_stream *irq_target = d->irq_target;
+	unsigned int seq_tail = d->seq_tail;
+	unsigned int seq_size = d->seq_size;
+	unsigned int min_avail;
+	struct amdtp_stream *s;
+
+	min_avail = d->seq_size;
+	list_for_each_entry(s, &d->streams, list) {
+		unsigned int seq_index;
+		unsigned int avail;
+
+		if (s->direction == AMDTP_IN_STREAM)
+			continue;
+
+		seq_index = s->ctx_data.rx.seq_index;
+		avail = d->seq_tail;
+		if (seq_index > avail)
+			avail += d->seq_size;
+		avail -= seq_index;
+
+		if (avail < min_avail)
+			min_avail = avail;
+	}
+
+	while (min_avail < packets) {
+		struct seq_desc *desc = d->seq_descs + seq_tail;
+
+		desc->syt_offset = calculate_syt_offset(&d->last_syt_offset,
+					&d->syt_offset_state, irq_target->sfc);
+		desc->data_blocks = calculate_data_blocks(&d->data_block_state,
+				!!(irq_target->flags & CIP_BLOCKING),
+				desc->syt_offset == CIP_SYT_NO_INFO,
+				irq_target->syt_interval, irq_target->sfc);
+
+		++seq_tail;
+		seq_tail %= seq_size;
+
+		++min_avail;
+	}
+
+	d->seq_tail = seq_tail;
+}
+
 static void irq_target_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
 {
 	struct amdtp_stream *irq_target = private_data;
 	struct amdtp_domain *d = irq_target->domain;
+	unsigned int packets = header_length / sizeof(__be32);
 	struct amdtp_stream *s;
+
+	// Record enough entries with extra 3 cycles at least.
+	pool_ideal_seq_descs(d, packets + 3);
 
 	out_stream_callback(context, tstamp, header_length, header, irq_target);
 	if (amdtp_streaming_error(irq_target))
@@ -1344,6 +1393,18 @@ static int get_current_cycle_time(struct fw_card *fw_card, int *cur_cycle)
  */
 int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 {
+	static const struct {
+		unsigned int data_block;
+		unsigned int syt_offset;
+	} *entry, initial_state[] = {
+		[CIP_SFC_32000]  = {  4, 3072 },
+		[CIP_SFC_48000]  = {  6, 1024 },
+		[CIP_SFC_96000]  = { 12, 1024 },
+		[CIP_SFC_192000] = { 24, 1024 },
+		[CIP_SFC_44100]  = {  0,   67 },
+		[CIP_SFC_88200]  = {  0,   67 },
+		[CIP_SFC_176400] = {  0,   67 },
+	};
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
 	unsigned int idle_irq_interval;
@@ -1377,6 +1438,11 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 		return -ENOMEM;
 	d->seq_size = queue_size;
 	d->seq_tail = 0;
+
+	entry = &initial_state[s->sfc];
+	d->data_block_state = entry->data_block;
+	d->syt_offset_state = entry->syt_offset;
+	d->last_syt_offset = TICKS_PER_CYCLE;
 
 	if (ir_delay_cycle > 0) {
 		struct fw_card *fw_card = fw_parent_device(s->unit)->card;
@@ -1414,6 +1480,7 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 		} else {
 			// IT context starts immediately.
 			cycle_match = -1;
+			s->ctx_data.rx.seq_index = 0;
 		}
 
 		if (s != d->irq_target) {
@@ -1427,6 +1494,7 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	s = d->irq_target;
 	s->ctx_data.rx.events_per_period = events_per_period;
 	s->ctx_data.rx.event_count = 0;
+	s->ctx_data.rx.seq_index = 0;
 
 	idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
 					 amdtp_rate_table[d->irq_target->sfc]);

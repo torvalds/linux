@@ -138,6 +138,8 @@ struct amdtp_stream {
 		struct {
 			// To calculate CIP data blocks and tstamp.
 			unsigned int transfer_delay;
+			unsigned int seq_index;
+
 			unsigned int data_block_state;
 			unsigned int last_syt_offset;
 			unsigned int syt_offset_state;
@@ -292,6 +294,10 @@ struct amdtp_domain {
 	struct seq_desc *seq_descs;
 	unsigned int seq_size;
 	unsigned int seq_tail;
+
+	unsigned int data_block_state;
+	unsigned int syt_offset_state;
+	unsigned int last_syt_offset;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
