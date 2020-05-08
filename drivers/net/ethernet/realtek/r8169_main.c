@@ -2494,10 +2494,31 @@ DECLARE_RTL_COND(rtl_txcfg_empty_cond)
 	return RTL_R32(tp, TxConfig) & TXCFG_EMPTY;
 }
 
+DECLARE_RTL_COND(rtl_rxtx_empty_cond)
+{
+	return (RTL_R8(tp, MCU) & RXTX_EMPTY) == RXTX_EMPTY;
+}
+
+static void rtl_wait_txrx_fifo_empty(struct rtl8169_private *tp)
+{
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_52:
+		rtl_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 42);
+		rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42);
+		break;
+	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_61:
+		rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42);
+		break;
+	default:
+		break;
+	}
+}
+
 static void rtl_enable_rxdvgate(struct rtl8169_private *tp)
 {
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | RXDV_GATED_EN);
 	fsleep(2000);
+	rtl_wait_txrx_fifo_empty(tp);
 }
 
 static void rtl8169_hw_reset(struct rtl8169_private *tp)
@@ -5066,11 +5087,6 @@ static void r8168g_wait_ll_share_fifo_ready(struct rtl8169_private *tp)
 	rtl_loop_wait_high(tp, &rtl_link_list_ready_cond, 100, 42);
 }
 
-DECLARE_RTL_COND(rtl_rxtx_empty_cond)
-{
-	return (RTL_R8(tp, MCU) & RXTX_EMPTY) == RXTX_EMPTY;
-}
-
 static int r8169_mdio_read_reg(struct mii_bus *mii_bus, int phyaddr, int phyreg)
 {
 	struct rtl8169_private *tp = mii_bus->priv;
@@ -5139,12 +5155,6 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 {
 	rtl_enable_rxdvgate(tp);
 
-	if (!rtl_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 42))
-		return;
-
-	if (!rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42))
-		return;
-
 	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
 	msleep(1);
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
@@ -5159,9 +5169,6 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 static void rtl_hw_init_8125(struct rtl8169_private *tp)
 {
 	rtl_enable_rxdvgate(tp);
-
-	if (!rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42))
-		return;
 
 	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
 	msleep(1);
