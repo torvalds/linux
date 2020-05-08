@@ -1994,10 +1994,11 @@ union bpf_attr {
  *
  * 		This helper works for IPv4 and IPv6, TCP and UDP sockets. The
  * 		domain (*addr*\ **->sa_family**) must be **AF_INET** (or
- * 		**AF_INET6**). Looking for a free port to bind to can be
- * 		expensive, therefore binding to port is not permitted by the
- * 		helper: *addr*\ **->sin_port** (or **sin6_port**, respectively)
- * 		must be set to zero.
+ * 		**AF_INET6**). It's advised to pass zero port (**sin_port**
+ * 		or **sin6_port**) which triggers IP_BIND_ADDRESS_NO_PORT-like
+ * 		behavior and lets the kernel efficiently pick up an unused
+ * 		port as long as 4-tuple is unique. Passing non-zero port might
+ * 		lead to degraded performance.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
