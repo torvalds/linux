@@ -3,7 +3,6 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 
-#include "ahb.h"
 #include "debug.h"
 #include "hal.h"
 #include "hal_tx.h"

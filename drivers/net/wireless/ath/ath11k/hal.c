@@ -3,7 +3,6 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 #include <linux/dma-mapping.h>
-#include "ahb.h"
 #include "hal_tx.h"
 #include "debug.h"
 #include "hal_desc.h"
