@@ -8,12 +8,6 @@
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
-int
-ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
-		    const u8 *macaddr);
-
-void ice_free_fltr_list(struct device *dev, struct list_head *h);
-
 void ice_update_eth_stats(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);
@@ -22,7 +16,8 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
-int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid);
+int
+ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action);
 
 int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid);
 
