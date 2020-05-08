@@ -3010,7 +3010,7 @@ ath10k_wmi_tlv_op_gen_request_peer_stats_info(struct ath10k *ar,
 	if (type == WMI_REQUEST_ONE_PEER_STATS_INFO)
 		ether_addr_copy(cmd->peer_macaddr.addr, addr);
 
-	cmd->reset_after_request = reset;
+	cmd->reset_after_request = __cpu_to_le32(reset);
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv request peer stats info\n");
 	return skb;
 }
