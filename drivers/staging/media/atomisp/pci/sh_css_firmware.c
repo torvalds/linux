@@ -196,13 +196,13 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	file_header = &firmware_header->file_header;
 
 	if (strcmp(file_header->version, release_version) != 0) {
-		dev_err(dev, "Fw version check failed. Expecting '%s', firmware is '%s'.\n",
+		dev_err(dev, "Firmware version may not be compatible with this driver\n");
+		dev_err(dev, "Expecting version '%s', but firmware is '%s'.\n",
 			release_version, file_header->version);
-		return false;
-	} else {
-		/* firmware version matches */
-		return true;
 	}
+
+	/* For now, let's just accept a wrong version, even if wrong */
+	return true;
 }
 
 enum ia_css_err
