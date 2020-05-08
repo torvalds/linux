@@ -378,19 +378,18 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 int disk_expand_part_tbl(struct gendisk *disk, int target);
 int hd_ref_init(struct hd_struct *part);
 
-static inline void hd_struct_get(struct hd_struct *part)
-{
-	percpu_ref_get(&part->ref);
-}
-
+/* no need to get/put refcount of part0 */
 static inline int hd_struct_try_get(struct hd_struct *part)
 {
-	return percpu_ref_tryget_live(&part->ref);
+	if (part->partno)
+		return percpu_ref_tryget_live(&part->ref);
+	return 1;
 }
 
 static inline void hd_struct_put(struct hd_struct *part)
 {
-	percpu_ref_put(&part->ref);
+	if (part->partno)
+		percpu_ref_put(&part->ref);
 }
 
 static inline void hd_free_part(struct hd_struct *part)

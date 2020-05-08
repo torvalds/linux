@@ -345,7 +345,8 @@ static inline int sector_in_part(struct hd_struct *part, sector_t sector)
  *
  * CONTEXT:
  * RCU read locked.  The returned partition pointer is always valid
- * because its refcount is grabbed.
+ * because its refcount is grabbed except for part0, which lifetime
+ * is same with the disk.
  *
  * RETURNS:
  * Found partition on success, part0 is returned if no partition matches
@@ -378,7 +379,6 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 			return part;
 		}
 	}
-	hd_struct_get(&disk->part0);
 	return &disk->part0;
 }
 
