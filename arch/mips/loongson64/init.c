@@ -13,6 +13,11 @@
 #include <asm/fw/fw.h>
 
 #include <loongson.h>
+#include <boot_param.h>
+
+#define NODE_ID_OFFSET_ADDR	((void __iomem *)TO_UNCAC(0x1001041c))
+
+u32 node_id_offset;
 
 static void __init mips_nmi_setup(void)
 {
@@ -24,6 +29,16 @@ static void __init mips_nmi_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
+void ls7a_early_config(void)
+{
+	node_id_offset = ((readl(NODE_ID_OFFSET_ADDR) >> 8) & 0x1f) + 36;
+}
+
+void rs780e_early_config(void)
+{
+	node_id_offset = 37;
+}
+
 void __init prom_init(void)
 {
 	fw_init_cmdline();
@@ -32,6 +47,8 @@ void __init prom_init(void)
 	/* init base address of io space */
 	set_io_port_base((unsigned long)
 		ioremap(LOONGSON_PCIIO_BASE, LOONGSON_PCIIO_SIZE));
+
+	loongson_sysconf.early_config();
 
 	prom_init_numa_memory();
 

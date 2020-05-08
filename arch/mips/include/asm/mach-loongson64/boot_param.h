@@ -221,9 +221,14 @@ struct loongson_system_configuration {
 	u32 nr_sensors;
 	struct sensor_device sensors[MAX_SENSORS];
 	u64 workarounds;
+	void (*early_config)(void);
 };
 
 extern struct efi_memory_map_loongson *loongson_memmap;
 extern struct loongson_system_configuration loongson_sysconf;
+
+extern u32 node_id_offset;
+extern void ls7a_early_config(void);
+extern void rs780e_early_config(void);
 
 #endif
