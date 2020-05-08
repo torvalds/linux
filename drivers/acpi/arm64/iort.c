@@ -332,6 +332,8 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 		       map, rid_in);
 		if (rid_in != map->input_base)
 			return -ENXIO;
+
+		pr_err(FW_BUG "applying workaround.\n");
 	}
 
 	*rid_out = map->output_base + (rid_in - map->input_base);
