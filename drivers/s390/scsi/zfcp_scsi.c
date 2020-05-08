@@ -451,26 +451,39 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 };
 
 /**
- * zfcp_scsi_adapter_register - Register SCSI and FC host with SCSI midlayer
+ * zfcp_scsi_adapter_register() - Allocate and register SCSI and FC host with
+ *				  SCSI midlayer
  * @adapter: The zfcp adapter to register with the SCSI midlayer
+ *
+ * Allocates the SCSI host object for the given adapter, sets basic properties
+ * (such as the transport template, QDIO limits, ...), and registers it with
+ * the midlayer.
+ *
+ * During registration with the midlayer the corresponding FC host object for
+ * the referenced transport class is also implicitely allocated.
+ *
+ * Upon success adapter->scsi_host is set, and upon failure it remains NULL. If
+ * adapter->scsi_host is already set, nothing is done.
+ *
+ * Return:
+ * * 0	     - Allocation and registration was successful
+ * * -EEXIST - SCSI and FC host did already exist, nothing was done, nothing
+ *	       was changed
+ * * -EIO    - Allocation or registration failed
  */
 int zfcp_scsi_adapter_register(struct zfcp_adapter *adapter)
 {
 	struct ccw_dev_id dev_id;
 
 	if (adapter->scsi_host)
-		return 0;
+		return -EEXIST;
 
 	ccw_device_get_id(adapter->ccw_device, &dev_id);
 	/* register adapter as SCSI host with mid layer of SCSI stack */
 	adapter->scsi_host = scsi_host_alloc(&zfcp_scsi_host_template,
 					     sizeof (struct zfcp_adapter *));
-	if (!adapter->scsi_host) {
-		dev_err(&adapter->ccw_device->dev,
-			"Registering the FCP device with the "
-			"SCSI stack failed\n");
-		return -EIO;
-	}
+	if (!adapter->scsi_host)
+		goto err_out;
 
 	/* tell the SCSI stack some characteristics of this adapter */
 	adapter->scsi_host->max_id = 511;
@@ -480,14 +493,23 @@ int zfcp_scsi_adapter_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->max_cmd_len = 16; /* in struct fcp_cmnd */
 	adapter->scsi_host->transportt = zfcp_scsi_transport_template;
 
+	/* make all basic properties known at registration time */
+	zfcp_qdio_shost_update(adapter, adapter->qdio);
+	zfcp_scsi_set_prot(adapter);
+
 	adapter->scsi_host->hostdata[0] = (unsigned long) adapter;
 
 	if (scsi_add_host(adapter->scsi_host, &adapter->ccw_device->dev)) {
 		scsi_host_put(adapter->scsi_host);
-		return -EIO;
+		goto err_out;
 	}
 
 	return 0;
+err_out:
+	adapter->scsi_host = NULL;
+	dev_err(&adapter->ccw_device->dev,
+		"Registering the FCP device with the SCSI stack failed\n");
+	return -EIO;
 }
 
 /**

@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 #include "zfcp_ext.h"
 #include "zfcp_reqlist.h"
+#include "zfcp_diag.h"
 
 #define ZFCP_MAX_ERPS                   3
 
@@ -804,6 +805,59 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf_xport(
 	return ZFCP_ERP_SUCCEEDED;
 }
 
+static enum zfcp_erp_act_result
+zfcp_erp_adapter_strategy_alloc_shost(struct zfcp_adapter *const adapter)
+{
+	struct zfcp_diag_adapter_config_data *const config_data =
+		&adapter->diagnostics->config_data;
+	struct zfcp_diag_adapter_port_data *const port_data =
+		&adapter->diagnostics->port_data;
+	unsigned long flags;
+	int rc;
+
+	rc = zfcp_scsi_adapter_register(adapter);
+	if (rc == -EEXIST)
+		return ZFCP_ERP_SUCCEEDED;
+	else if (rc)
+		return ZFCP_ERP_FAILED;
+
+	/*
+	 * We allocated the shost for the first time. Before it was NULL,
+	 * and so we deferred all updates in the xconf- and xport-data
+	 * handlers. We need to make up for that now, and make all the updates
+	 * that would have been done before.
+	 *
+	 * We can be sure that xconf- and xport-data succeeded, because
+	 * otherwise this function is not called. But they might have been
+	 * incomplete.
+	 */
+
+	spin_lock_irqsave(&config_data->header.access_lock, flags);
+	zfcp_scsi_shost_update_config_data(adapter, &config_data->data,
+					   !!config_data->header.incomplete);
+	spin_unlock_irqrestore(&config_data->header.access_lock, flags);
+
+	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
+		spin_lock_irqsave(&port_data->header.access_lock, flags);
+		zfcp_scsi_shost_update_port_data(adapter, &port_data->data);
+		spin_unlock_irqrestore(&port_data->header.access_lock, flags);
+	}
+
+	/*
+	 * There is a remote possibility that the 'Exchange Port Data' request
+	 * reports a different connectivity status than 'Exchange Config Data'.
+	 * But any change to the connectivity status of the local optic that
+	 * happens after the initial xconf request is expected to be reported
+	 * to us, as soon as we post Status Read Buffers to the FCP channel
+	 * firmware after this function. So any resulting inconsistency will
+	 * only be momentary.
+	 */
+	if (config_data->header.incomplete)
+		zfcp_fsf_fc_host_link_down(adapter);
+
+	return ZFCP_ERP_SUCCEEDED;
+}
+
 static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf(
 	struct zfcp_erp_action *act)
 {
@@ -811,6 +865,10 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf(
 		return ZFCP_ERP_FAILED;
 
 	if (zfcp_erp_adapter_strategy_open_fsf_xport(act) == ZFCP_ERP_FAILED)
+		return ZFCP_ERP_FAILED;
+
+	if (zfcp_erp_adapter_strategy_alloc_shost(act->adapter) ==
+	    ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
 
 	zfcp_erp_adapter_strategy_open_ptp_port(act->adapter);

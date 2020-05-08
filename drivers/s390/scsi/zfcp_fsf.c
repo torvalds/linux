@@ -120,7 +120,7 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
-static void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
+void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost = adapter->scsi_host;
 
