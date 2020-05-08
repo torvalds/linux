@@ -14,6 +14,23 @@
 #define log_err(MSG, ...) fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
 	__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 
+struct ipv4_packet pkt_v4 = {
+	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+	.iph.ihl = 5,
+	.iph.protocol = IPPROTO_TCP,
+	.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+	.tcp.urg_ptr = 123,
+	.tcp.doff = 5,
+};
+
+struct ipv6_packet pkt_v6 = {
+	.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
+	.iph.nexthdr = IPPROTO_TCP,
+	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
+	.tcp.urg_ptr = 123,
+	.tcp.doff = 5,
+};
+
 int start_server(int family, int type)
 {
 	struct sockaddr_storage addr = {};
