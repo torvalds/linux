@@ -471,7 +471,6 @@ struct dc_debug_options {
 	bool cm_in_bypass;
 	int force_clock_mode;/*every mode change.*/
 
-	bool nv12_iflip_vm_wa;
 	bool disable_dram_clock_change_vactive_support;
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;

@@ -1435,9 +1435,6 @@ static void dcn20_update_dchubp_dpp(
 		hubp->power_gated = false;
 	}
 
-	if (hubp->funcs->apply_PLAT_54186_wa && viewport_changed)
-		hubp->funcs->apply_PLAT_54186_wa(hubp, &plane_state->address);
-
 	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
 

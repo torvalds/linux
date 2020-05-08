@@ -47,9 +47,6 @@ int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_c
 		 */
 		memcpy(&dc->vm_pa_config, pa_config, sizeof(struct dc_phy_addr_space_config));
 		dc->vm_pa_config.valid = true;
-
-		if (pa_config->is_hvm_enabled == 0)
-			dc->debug.nv12_iflip_vm_wa = false;
 	}
 
 	return num_vmids;
