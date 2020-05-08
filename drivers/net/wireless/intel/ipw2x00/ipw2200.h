@@ -1329,7 +1329,7 @@ struct ipw_priv {
 
 	s8 tx_power;
 
-	/* Track time in suspend using CLOCK_BOOTIME */
+	/* Track time in suspend using CLOCK_BOOTTIME */
 	time64_t suspend_at;
 	time64_t suspend_time;
 
