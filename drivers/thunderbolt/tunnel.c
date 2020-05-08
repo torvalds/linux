@@ -124,8 +124,9 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
-	path->hops[1].initial_credits =
-		tb_initial_credits(path->hops[1].in_port->sw);
+	if (path->path_length > 1)
+		path->hops[1].initial_credits =
+			tb_initial_credits(path->hops[1].in_port->sw);
 }
 
 /**
@@ -879,8 +880,9 @@ static void tb_usb3_init_path(struct tb_path *path)
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
-	path->hops[1].initial_credits =
-		tb_initial_credits(path->hops[1].in_port->sw);
+	if (path->path_length > 1)
+		path->hops[1].initial_credits =
+			tb_initial_credits(path->hops[1].in_port->sw);
 }
 
 /**
