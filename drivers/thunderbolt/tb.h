@@ -286,7 +286,11 @@ struct tb_path {
 
 /* HopIDs 0-7 are reserved by the Thunderbolt protocol */
 #define TB_PATH_MIN_HOPID	8
-#define TB_PATH_MAX_HOPS	7
+/*
+ * Support paths from the farthest (depth 6) router to the host and back
+ * to the same level (not necessarily to the same router).
+ */
+#define TB_PATH_MAX_HOPS	(7 * 2)
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
