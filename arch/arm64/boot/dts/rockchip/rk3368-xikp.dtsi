@@ -397,6 +397,7 @@
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
 		wakeup-source;
+		extcon = <&u2phy>;
 		#clock-cells = <1>;
 
 		vcc1-supply = <&vcc_sys>;
