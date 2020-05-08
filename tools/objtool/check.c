@@ -2060,16 +2060,17 @@ static int handle_insn_ops(struct instruction *insn, struct insn_state *state)
 	struct stack_op *op;
 
 	list_for_each_entry(op, &insn->stack_ops, list) {
+		struct cfi_state old_cfi = state->cfi;
 		int res;
-
-		if (insn->alt_group) {
-			WARN_FUNC("alternative modifies stack", insn->sec, insn->offset);
-			return -1;
-		}
 
 		res = update_cfi_state(insn, &state->cfi, op);
 		if (res)
 			return res;
+
+		if (insn->alt_group && memcmp(&state->cfi, &old_cfi, sizeof(struct cfi_state))) {
+			WARN_FUNC("alternative modifies stack", insn->sec, insn->offset);
+			return -1;
+		}
 
 		if (op->dest.type == OP_DEST_PUSHF) {
 			if (!state->uaccess_stack) {
