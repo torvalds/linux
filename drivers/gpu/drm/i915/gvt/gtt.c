@@ -1900,6 +1900,7 @@ struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	INIT_LIST_HEAD(&mm->ppgtt_mm.list);
 	INIT_LIST_HEAD(&mm->ppgtt_mm.lru_list);
+	INIT_LIST_HEAD(&mm->ppgtt_mm.link);
 
 	if (root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY)
 		mm->ppgtt_mm.guest_pdps[0] = pdps[0];
