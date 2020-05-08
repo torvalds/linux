@@ -375,6 +375,8 @@ struct kvm_vcpu_stat {
 	u64 halt_poll_invalid;
 	u64 halt_no_poll_steal;
 	u64 halt_wakeup;
+	u64 halt_poll_success_ns;
+	u64 halt_poll_fail_ns;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
 	u64 instruction_stctl;
