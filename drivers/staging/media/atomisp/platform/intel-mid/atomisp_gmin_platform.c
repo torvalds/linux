@@ -17,7 +17,15 @@
 
 #define MAX_SUBDEVS 8
 
-#define VLV2_CLK_PLL_19P2MHZ 1 /* XTAL on CHT */
+
+enum clock_rate {
+	VLV2_CLK_XTAL_25_0MHz = 0,
+	VLV2_CLK_PLL_19P2MHZ = 1
+};
+
+#define CLK_RATE_19_2MHZ	19200000
+#define CLK_RATE_25_0MHZ	25000000
+
 #define ELDO1_SEL_REG	0x19
 #define ELDO1_1P8V	0x16
 #define ELDO1_CTRL_SHIFT 0x00
@@ -28,7 +36,7 @@
 struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
-	int clock_src;
+	enum clock_rate clock_src;
 	bool clock_on;
 	struct clk *pmc_clk;
 	struct gpio_desc *gpio0;
@@ -570,7 +578,7 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 		return 0;
 
 	if (on) {
-		ret = clk_set_rate(gs->pmc_clk, gs->clock_src);
+		ret = clk_set_rate(gs->pmc_clk, gs->clock_src ? CLK_RATE_19_2MHZ : CLK_RATE_25_0MHZ);
 
 		if (ret)
 			dev_err(&client->dev, "unable to set PMC rate %d\n",
