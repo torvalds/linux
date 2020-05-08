@@ -1462,20 +1462,64 @@ atomisp_load_firmware(struct atomisp_device *isp)
 static bool is_valid_device(struct pci_dev *dev,
 			    const struct pci_device_id *id)
 {
-	unsigned int a0_max_id;
+	unsigned int a0_max_id = 0;
+	const char *name;
 
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
 		a0_max_id = ATOMISP_PCI_REV_MRFLD_A0_MAX;
+		atomisp_hw_is_isp2401 = false;
+		name = "Merrifield";
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_BYT:
 		a0_max_id = ATOMISP_PCI_REV_BYT_A0_MAX;
+		atomisp_hw_is_isp2401 = false;
+		name = "Baytrail";
+		break;
+	case ATOMISP_PCI_DEVICE_SOC_ANN:
+		name = "Anniedale";
+		atomisp_hw_is_isp2401 = true;
+		break;
+	case ATOMISP_PCI_DEVICE_SOC_CHT:
+		name = "Cherrytrail";
+		atomisp_hw_is_isp2401 = true;
 		break;
 	default:
-		return true;
+		dev_err(&dev->dev, "Unknown device ID %x04:%x04\n",
+			id->vendor, id->device);
+		return false;
 	}
 
-	return dev->revision > a0_max_id;
+	if (dev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
+		dev_err(&dev->dev, "%s revision %d is not unsupported\n",
+			name, dev->revision);
+		return false;
+	}
+
+	/*
+	 * FIXME:
+	 * remove the if once the driver become generic
+	 */
+
+#if defined(ISP2400)
+	if (atomisp_hw_is_isp2401) {
+		dev_err(&dev->dev, "Support for %s (ISP2401) was disabled at compile time\n",
+			name);
+		return false;
+	}
+#else
+	if (!atomisp_hw_is_isp2401) {
+		dev_err(&dev->dev, "Support for %s (ISP2400) was disabled at compile time\n",
+			name);
+		return false;
+	}
+#endif
+
+	dev_info(&dev->dev, "Detected %s version %d (ISP240%c)\n",
+		name, dev->revision,
+		atomisp_hw_is_isp2401 ? '1' : '0');
+
+	return true;
 }
 
 static int init_atomisp_wdts(struct atomisp_device *isp)
@@ -1522,20 +1566,11 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	int err, val;
 	u32 irq;
 
-	if (!dev) {
-		dev_err(&dev->dev, "atomisp: error device ptr\n");
-		return -EINVAL;
-	}
-
 	if (!is_valid_device(dev, id))
 		return -ENODEV;
+
 	/* Pointer to struct device. */
 	atomisp_dev = &dev->dev;
-
-	if (id->driver_data == HW_IS_ISP2401)
-		atomisp_hw_is_isp2401 = true;
-	else
-		atomisp_hw_is_isp2401 = false;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata)
@@ -1892,23 +1927,16 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
-/*
- * FIXME:
- * remove the ifs once we get rid of the ifs on other parts of the driver
- */
-#if defined(ISP2400)
 	/* Merrifield */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1178), .driver_data = HW_IS_ISP2400},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1179), .driver_data = HW_IS_ISP2400},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x117a), .driver_data = HW_IS_ISP2400},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_MRFLD)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_MRFLD_1179)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_MRFLD_117A)},
 	/* Baytrail */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0f38), .driver_data = HW_IS_ISP2400},
-#elif defined(ISP2401)
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_BYT)},
 	/* Anniedale (Merrifield+ / Moorefield) */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x1478), .driver_data = HW_IS_ISP2401},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_ANN)},
 	/* Cherrytrail */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x22b8), .driver_data = HW_IS_ISP2401},
-#endif
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_CHT)},
 	{0,}
 };
 
