@@ -69,7 +69,6 @@
  * @fifo_size: size of the FIFO passed in.
  * @isr_mask: cached copy of local ISR enables.
  * @isr_status: cached copy of local ISR status.
- * @lock: spinlock for IRQ synchronization.
  * @isr_mutex: mutex for IRQ thread.
  */
 struct altr_i2c_dev {
@@ -86,17 +85,13 @@ struct altr_i2c_dev {
 	u32 fifo_size;
 	u32 isr_mask;
 	u32 isr_status;
-	spinlock_t lock;	/* IRQ synchronization */
 	struct mutex isr_mutex;
 };
 
 static void
 altr_i2c_int_enable(struct altr_i2c_dev *idev, u32 mask, bool enable)
 {
-	unsigned long flags;
 	u32 int_en;
-
-	spin_lock_irqsave(&idev->lock, flags);
 
 	int_en = readl(idev->base + ALTR_I2C_ISER);
 	if (enable)
@@ -105,8 +100,6 @@ altr_i2c_int_enable(struct altr_i2c_dev *idev, u32 mask, bool enable)
 		idev->isr_mask = int_en & ~mask;
 
 	writel(idev->isr_mask, idev->base + ALTR_I2C_ISER);
-
-	spin_unlock_irqrestore(&idev->lock, flags);
 }
 
 static void altr_i2c_int_clear(struct altr_i2c_dev *idev, u32 mask)
@@ -346,6 +339,7 @@ static int altr_i2c_xfer_msg(struct altr_i2c_dev *idev, struct i2c_msg *msg)
 
 	time_left = wait_for_completion_timeout(&idev->msg_complete,
 						ALTR_I2C_XFER_TIMEOUT);
+	mutex_lock(&idev->isr_mutex);
 	altr_i2c_int_enable(idev, imask, false);
 
 	value = readl(idev->base + ALTR_I2C_STATUS) & ALTR_I2C_STAT_CORE;
@@ -358,6 +352,7 @@ static int altr_i2c_xfer_msg(struct altr_i2c_dev *idev, struct i2c_msg *msg)
 	}
 
 	altr_i2c_core_disable(idev);
+	mutex_unlock(&idev->isr_mutex);
 
 	return idev->msg_err;
 }
@@ -411,7 +406,6 @@ static int altr_i2c_probe(struct platform_device *pdev)
 
 	idev->dev = &pdev->dev;
 	init_completion(&idev->msg_complete);
-	spin_lock_init(&idev->lock);
 	mutex_init(&idev->isr_mutex);
 
 	ret = device_property_read_u32(idev->dev, "fifo-size",
@@ -449,7 +443,9 @@ static int altr_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	mutex_lock(&idev->isr_mutex);
 	altr_i2c_init(idev);
+	mutex_unlock(&idev->isr_mutex);
 
 	i2c_set_adapdata(&idev->adapter, idev);
 	strlcpy(idev->adapter.name, pdev->name, sizeof(idev->adapter.name));
