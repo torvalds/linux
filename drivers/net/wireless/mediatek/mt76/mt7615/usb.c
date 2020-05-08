@@ -66,6 +66,7 @@ mt7663u_mac_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 		       struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_key_conf *key = info->control.hw_key;
 	__le32 *txwi;
 	int pid;
 
@@ -76,8 +77,7 @@ mt7663u_mac_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 
 	txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 	memset(txwi, 0, MT_USB_TXD_SIZE);
-	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta,
-			      pid, info->control.hw_key, false);
+	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, false);
 	skb_push(skb, MT_USB_TXD_SIZE);
 }
 
