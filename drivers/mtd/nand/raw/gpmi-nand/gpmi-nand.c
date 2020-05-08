@@ -836,158 +836,6 @@ map_fail:
 	return false;
 }
 
-/**
- * gpmi_copy_bits - copy bits from one memory region to another
- * @dst: destination buffer
- * @dst_bit_off: bit offset we're starting to write at
- * @src: source buffer
- * @src_bit_off: bit offset we're starting to read from
- * @nbits: number of bits to copy
- *
- * This functions copies bits from one memory region to another, and is used by
- * the GPMI driver to copy ECC sections which are not guaranteed to be byte
- * aligned.
- *
- * src and dst should not overlap.
- *
- */
-static void gpmi_copy_bits(u8 *dst, size_t dst_bit_off, const u8 *src,
-			   size_t src_bit_off, size_t nbits)
-{
-	size_t i;
-	size_t nbytes;
-	u32 src_buffer = 0;
-	size_t bits_in_src_buffer = 0;
-
-	if (!nbits)
-		return;
-
-	/*
-	 * Move src and dst pointers to the closest byte pointer and store bit
-	 * offsets within a byte.
-	 */
-	src += src_bit_off / 8;
-	src_bit_off %= 8;
-
-	dst += dst_bit_off / 8;
-	dst_bit_off %= 8;
-
-	/*
-	 * Initialize the src_buffer value with bits available in the first
-	 * byte of data so that we end up with a byte aligned src pointer.
-	 */
-	if (src_bit_off) {
-		src_buffer = src[0] >> src_bit_off;
-		if (nbits >= (8 - src_bit_off)) {
-			bits_in_src_buffer += 8 - src_bit_off;
-		} else {
-			src_buffer &= GENMASK(nbits - 1, 0);
-			bits_in_src_buffer += nbits;
-		}
-		nbits -= bits_in_src_buffer;
-		src++;
-	}
-
-	/* Calculate the number of bytes that can be copied from src to dst. */
-	nbytes = nbits / 8;
-
-	/* Try to align dst to a byte boundary. */
-	if (dst_bit_off) {
-		if (bits_in_src_buffer < (8 - dst_bit_off) && nbytes) {
-			src_buffer |= src[0] << bits_in_src_buffer;
-			bits_in_src_buffer += 8;
-			src++;
-			nbytes--;
-		}
-
-		if (bits_in_src_buffer >= (8 - dst_bit_off)) {
-			dst[0] &= GENMASK(dst_bit_off - 1, 0);
-			dst[0] |= src_buffer << dst_bit_off;
-			src_buffer >>= (8 - dst_bit_off);
-			bits_in_src_buffer -= (8 - dst_bit_off);
-			dst_bit_off = 0;
-			dst++;
-			if (bits_in_src_buffer > 7) {
-				bits_in_src_buffer -= 8;
-				dst[0] = src_buffer;
-				dst++;
-				src_buffer >>= 8;
-			}
-		}
-	}
-
-	if (!bits_in_src_buffer && !dst_bit_off) {
-		/*
-		 * Both src and dst pointers are byte aligned, thus we can
-		 * just use the optimized memcpy function.
-		 */
-		if (nbytes)
-			memcpy(dst, src, nbytes);
-	} else {
-		/*
-		 * src buffer is not byte aligned, hence we have to copy each
-		 * src byte to the src_buffer variable before extracting a byte
-		 * to store in dst.
-		 */
-		for (i = 0; i < nbytes; i++) {
-			src_buffer |= src[i] << bits_in_src_buffer;
-			dst[i] = src_buffer;
-			src_buffer >>= 8;
-		}
-	}
-	/* Update dst and src pointers */
-	dst += nbytes;
-	src += nbytes;
-
-	/*
-	 * nbits is the number of remaining bits. It should not exceed 8 as
-	 * we've already copied as much bytes as possible.
-	 */
-	nbits %= 8;
-
-	/*
-	 * If there's no more bits to copy to the destination and src buffer
-	 * was already byte aligned, then we're done.
-	 */
-	if (!nbits && !bits_in_src_buffer)
-		return;
-
-	/* Copy the remaining bits to src_buffer */
-	if (nbits)
-		src_buffer |= (*src & GENMASK(nbits - 1, 0)) <<
-			      bits_in_src_buffer;
-	bits_in_src_buffer += nbits;
-
-	/*
-	 * In case there were not enough bits to get a byte aligned dst buffer
-	 * prepare the src_buffer variable to match the dst organization (shift
-	 * src_buffer by dst_bit_off and retrieve the least significant bits
-	 * from dst).
-	 */
-	if (dst_bit_off)
-		src_buffer = (src_buffer << dst_bit_off) |
-			     (*dst & GENMASK(dst_bit_off - 1, 0));
-	bits_in_src_buffer += dst_bit_off;
-
-	/*
-	 * Keep most significant bits from dst if we end up with an unaligned
-	 * number of bits.
-	 */
-	nbytes = bits_in_src_buffer / 8;
-	if (bits_in_src_buffer % 8) {
-		src_buffer |= (dst[nbytes] &
-			       GENMASK(7, bits_in_src_buffer % 8)) <<
-			      (nbytes * 8);
-		nbytes++;
-	}
-
-	/* Copy the remaining bytes to dst */
-	for (i = 0; i < nbytes; i++) {
-		dst[i] = src_buffer;
-		src_buffer >>= 8;
-	}
-}
-
 /* add our owner bbt descriptor */
 static uint8_t scan_ff_pattern[] = { 0xff };
 static struct nand_bbt_descr gpmi_bbt_descr = {
@@ -1715,7 +1563,7 @@ static int gpmi_ecc_write_oob(struct nand_chip *chip, int page)
  * inline (interleaved with payload DATA), and do not align data chunk on
  * byte boundaries.
  * We thus need to take care moving the payload data and ECC bits stored in the
- * page into the provided buffers, which is why we're using gpmi_copy_bits.
+ * page into the provided buffers, which is why we're using nand_extract_bits().
  *
  * See set_geometry_by_ecc_info inline comments to have a full description
  * of the layout used by the GPMI controller.
@@ -1764,9 +1612,8 @@ static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
 	/* Extract interleaved payload data and ECC bits */
 	for (step = 0; step < nfc_geo->ecc_chunk_count; step++) {
 		if (buf)
-			gpmi_copy_bits(buf, step * eccsize * 8,
-				       tmp_buf, src_bit_off,
-				       eccsize * 8);
+			nand_extract_bits(buf, step * eccsize, tmp_buf,
+					  src_bit_off, eccsize * 8);
 		src_bit_off += eccsize * 8;
 
 		/* Align last ECC block to align a byte boundary */
@@ -1775,9 +1622,8 @@ static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
 			eccbits += 8 - ((oob_bit_off + eccbits) % 8);
 
 		if (oob_required)
-			gpmi_copy_bits(oob, oob_bit_off,
-				       tmp_buf, src_bit_off,
-				       eccbits);
+			nand_extract_bits(oob, oob_bit_off, tmp_buf,
+					  src_bit_off, eccbits);
 
 		src_bit_off += eccbits;
 		oob_bit_off += eccbits;
@@ -1802,7 +1648,7 @@ static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
  * inline (interleaved with payload DATA), and do not align data chunk on
  * byte boundaries.
  * We thus need to take care moving the OOB area at the right place in the
- * final page, which is why we're using gpmi_copy_bits.
+ * final page, which is why we're using nand_extract_bits().
  *
  * See set_geometry_by_ecc_info inline comments to have a full description
  * of the layout used by the GPMI controller.
@@ -1841,8 +1687,8 @@ static int gpmi_ecc_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 	/* Interleave payload data and ECC bits */
 	for (step = 0; step < nfc_geo->ecc_chunk_count; step++) {
 		if (buf)
-			gpmi_copy_bits(tmp_buf, dst_bit_off,
-				       buf, step * eccsize * 8, eccsize * 8);
+			nand_extract_bits(tmp_buf, dst_bit_off, buf,
+					  step * eccsize * 8, eccsize * 8);
 		dst_bit_off += eccsize * 8;
 
 		/* Align last ECC block to align a byte boundary */
@@ -1851,8 +1697,8 @@ static int gpmi_ecc_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 			eccbits += 8 - ((oob_bit_off + eccbits) % 8);
 
 		if (oob_required)
-			gpmi_copy_bits(tmp_buf, dst_bit_off,
-				       oob, oob_bit_off, eccbits);
+			nand_extract_bits(tmp_buf, dst_bit_off, oob,
+					  oob_bit_off, eccbits);
 
 		dst_bit_off += eccbits;
 		oob_bit_off += eccbits;
