@@ -756,11 +756,12 @@ void ath11k_core_free(struct ath11k_base *ab)
 	kfree(ab);
 }
 
-struct ath11k_base *ath11k_core_alloc(struct device *dev)
+struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
+				      enum ath11k_bus bus)
 {
 	struct ath11k_base *ab;
 
-	ab = kzalloc(sizeof(*ab), GFP_KERNEL);
+	ab = kzalloc(sizeof(*ab) + priv_size, GFP_KERNEL);
 	if (!ab)
 		return NULL;
 
