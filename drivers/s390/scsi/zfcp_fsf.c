@@ -725,19 +725,10 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct fsf_qtcb_bottom_port *bottom = &req->qtcb->bottom.port;
-	struct Scsi_Host *shost = adapter->scsi_host;
 
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	fc_host_permanent_port_name(shost) = bottom->wwpn;
-	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
-	fc_host_supported_speeds(shost) =
-		zfcp_fsf_convert_portspeed(bottom->supported_speed);
-	memcpy(fc_host_supported_fc4s(shost), bottom->supported_fc4_types,
-	       FC_FC4_LIST_SIZE);
-	memcpy(fc_host_active_fc4s(shost), bottom->active_fc4_types,
-	       FC_FC4_LIST_SIZE);
 	if (adapter->adapter_features & FSF_FEATURE_FC_SECURITY)
 		adapter->fc_security_algorithms =
 			bottom->fc_security_algorithms;
@@ -764,6 +755,7 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 		 */
 		zfcp_diag_update_xdata(diag_hdr, bottom, false);
 
+		zfcp_scsi_shost_update_port_data(req->adapter, bottom);
 		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
@@ -772,6 +764,8 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 
 		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
+
+		zfcp_scsi_shost_update_port_data(req->adapter, bottom);
 		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	}
