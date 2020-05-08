@@ -324,10 +324,6 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 	if (user_addr + length < user_addr)
 		return -EINVAL;
 
-	if (!access_ok((void __user *)(unsigned long)user_addr,
-		       length))
-		return -EINVAL;
-
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;
