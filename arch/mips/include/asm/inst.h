@@ -11,8 +11,14 @@
 #ifndef _ASM_INST_H
 #define _ASM_INST_H
 
-#include <asm/asm.h>
 #include <uapi/asm/inst.h>
+
+#if (_MIPS_SZPTR == 32)
+#define PTR_STR		".word"
+#endif
+#if (_MIPS_SZPTR == 64)
+#define PTR_STR		".dword"
+#endif
 
 /* HACHACHAHCAHC ...  */
 
@@ -102,8 +108,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -123,8 +129,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -156,10 +162,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -184,8 +190,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -207,8 +213,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -227,8 +233,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -260,10 +266,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -305,14 +311,14 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
-		STR(PTR)"\t5b, 11b\n\t"		    \
-		STR(PTR)"\t6b, 11b\n\t"		    \
-		STR(PTR)"\t7b, 11b\n\t"		    \
-		STR(PTR)"\t8b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
+		PTR_STR"\t5b, 11b\n\t"		    \
+		PTR_STR"\t6b, 11b\n\t"		    \
+		PTR_STR"\t7b, 11b\n\t"		    \
+		PTR_STR"\t8b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -337,8 +343,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"              \
+		PTR_STR"\t2b, 4b\n\t"              \
 		".previous"                         \
 		: "=r" (res)                        \
 		: "r" (value), "r" (addr), "i" (-EFAULT));\
@@ -358,8 +364,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
@@ -378,8 +384,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
@@ -407,10 +413,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (res)				    \
 		: "r" (value), "r" (addr), "i" (-EFAULT)    \
@@ -447,14 +453,14 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
-		STR(PTR)"\t5b, 11b\n\t"		    \
-		STR(PTR)"\t6b, 11b\n\t"		    \
-		STR(PTR)"\t7b, 11b\n\t"		    \
-		STR(PTR)"\t8b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
+		PTR_STR"\t5b, 11b\n\t"		    \
+		PTR_STR"\t6b, 11b\n\t"		    \
+		PTR_STR"\t7b, 11b\n\t"		    \
+		PTR_STR"\t8b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (res)				    \
 		: "r" (value), "r" (addr), "i" (-EFAULT)    \
@@ -480,8 +486,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -501,8 +507,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -534,10 +540,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -563,8 +569,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -586,8 +592,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -606,8 +612,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=&r" (value), "=r" (res)         \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -639,10 +645,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -684,14 +690,14 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
-		STR(PTR)"\t5b, 11b\n\t"		    \
-		STR(PTR)"\t6b, 11b\n\t"		    \
-		STR(PTR)"\t7b, 11b\n\t"		    \
-		STR(PTR)"\t8b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
+		PTR_STR"\t5b, 11b\n\t"		    \
+		PTR_STR"\t6b, 11b\n\t"		    \
+		PTR_STR"\t7b, 11b\n\t"		    \
+		PTR_STR"\t8b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (value), "=r" (res)	    \
 		: "r" (addr), "i" (-EFAULT));       \
@@ -714,8 +720,8 @@ do {                                                 \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=r" (res)                        \
 		: "r" (value), "r" (addr), "i" (-EFAULT));\
@@ -735,8 +741,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
@@ -755,8 +761,8 @@ do {                                                \
 		"j\t3b\n\t"                         \
 		".previous\n\t"                     \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 4b\n\t"              \
-		STR(PTR)"\t2b, 4b\n\t"              \
+		PTR_STR"\t1b, 4b\n\t"               \
+		PTR_STR"\t2b, 4b\n\t"               \
 		".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));  \
@@ -785,10 +791,10 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (res)				    \
 		: "r" (value), "r" (addr), "i" (-EFAULT)    \
@@ -825,14 +831,14 @@ do {                                                \
 		"j\t10b\n\t"			    \
 		".previous\n\t"			    \
 		".section\t__ex_table,\"a\"\n\t"    \
-		STR(PTR)"\t1b, 11b\n\t"		    \
-		STR(PTR)"\t2b, 11b\n\t"		    \
-		STR(PTR)"\t3b, 11b\n\t"		    \
-		STR(PTR)"\t4b, 11b\n\t"		    \
-		STR(PTR)"\t5b, 11b\n\t"		    \
-		STR(PTR)"\t6b, 11b\n\t"		    \
-		STR(PTR)"\t7b, 11b\n\t"		    \
-		STR(PTR)"\t8b, 11b\n\t"		    \
+		PTR_STR"\t1b, 11b\n\t"		    \
+		PTR_STR"\t2b, 11b\n\t"		    \
+		PTR_STR"\t3b, 11b\n\t"		    \
+		PTR_STR"\t4b, 11b\n\t"		    \
+		PTR_STR"\t5b, 11b\n\t"		    \
+		PTR_STR"\t6b, 11b\n\t"		    \
+		PTR_STR"\t7b, 11b\n\t"		    \
+		PTR_STR"\t8b, 11b\n\t"		    \
 		".previous"			    \
 		: "=&r" (res)				    \
 		: "r" (value), "r" (addr), "i" (-EFAULT)    \
