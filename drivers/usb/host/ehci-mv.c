@@ -108,7 +108,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	struct ehci_hcd *ehci;
 	struct ehci_hcd_mv *ehci_mv;
 	struct resource *r;
-	int retval = -ENODEV;
+	int retval;
 	u32 offset;
 	u32 status;
 
@@ -142,8 +142,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		retval = PTR_ERR(ehci_mv->clk);
 		goto err_put_hcd;
 	}
-
-
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ehci_mv->base = devm_ioremap_resource(&pdev->dev, r);
