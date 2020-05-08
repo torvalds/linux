@@ -12,6 +12,10 @@
 
 /* The number of adjacent watchpoints to check. */
 #define KCSAN_CHECK_ADJACENT 1
+#define NUM_SLOTS (1 + 2*KCSAN_CHECK_ADJACENT)
+
+extern unsigned int kcsan_udelay_task;
+extern unsigned int kcsan_udelay_interrupt;
 
 /*
  * Globally enable and disable KCSAN.
@@ -132,7 +136,7 @@ enum kcsan_report_type {
  * Print a race report from thread that encountered the race.
  */
 extern void kcsan_report(const volatile void *ptr, size_t size, int access_type,
-			 enum kcsan_value_change value_change, int cpu_id,
-			 enum kcsan_report_type type);
+			 enum kcsan_value_change value_change,
+			 enum kcsan_report_type type, int watchpoint_idx);
 
 #endif /* _KERNEL_KCSAN_KCSAN_H */
