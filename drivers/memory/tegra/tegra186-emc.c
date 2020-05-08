@@ -243,11 +243,6 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 	}
 
 	emc->debugfs.root = debugfs_create_dir("emc", NULL);
-	if (!emc->debugfs.root) {
-		dev_err(&pdev->dev, "failed to create debugfs directory\n");
-		return 0;
-	}
-
 	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root,
 			    emc, &tegra186_emc_debug_available_rates_fops);
 	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
