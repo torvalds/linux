@@ -1642,6 +1642,13 @@ void zfcp_erp_set_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 		atomic_or(common_mask, &port->status);
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 
+	/*
+	 * if `scsi_host` is missing, xconfig/xport data has never completed
+	 * yet, so we can't access it, but there are also no SDEVs yet
+	 */
+	if (adapter->scsi_host == NULL)
+		return;
+
 	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host)
 		atomic_or(common_mask, &sdev_to_zfcp(sdev)->status);
@@ -1678,6 +1685,13 @@ void zfcp_erp_clear_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 			atomic_set(&port->erp_counter, 0);
 	}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
+
+	/*
+	 * if `scsi_host` is missing, xconfig/xport data has never completed
+	 * yet, so we can't access it, but there are also no SDEVs yet
+	 */
+	if (adapter->scsi_host == NULL)
+		return;
 
 	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host) {
