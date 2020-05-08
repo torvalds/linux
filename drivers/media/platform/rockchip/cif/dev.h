@@ -314,6 +314,10 @@ struct rkcif_device {
 
 void rkcif_write_register(struct rkcif_device *dev,
 			  enum cif_reg_index index, u32 val);
+void rkcif_write_register_or(struct rkcif_device *dev,
+			     enum cif_reg_index index, u32 val);
+void rkcif_write_register_and(struct rkcif_device *dev,
+			      enum cif_reg_index index, u32 val);
 unsigned int rkcif_read_register(struct rkcif_device *dev,
 				 enum cif_reg_index index);
 void rkcif_unregister_stream_vdevs(struct rkcif_device *dev,

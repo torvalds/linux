@@ -59,12 +59,52 @@ void rkcif_write_register(struct rkcif_device *dev,
 		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
 			write_cif_reg(base, reg->offset, val);
 		else
-			dev_warn(dev->dev, "write reg[%d] failed, maybe useless!!!\n", index);
+			dev_warn(dev->dev,
+				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
+				 index, val);
 	}
+}
 
-	if (index == CIF_REG_DVP_VIR_LINE_WIDTH)
-		dev_warn(dev->dev, "reg[%d] offset:0x%x, val:0x%x\n",
-			 index, reg->offset, val);
+void rkcif_write_register_or(struct rkcif_device *dev,
+			     enum cif_reg_index index, u32 val)
+{
+	unsigned int reg_val = 0x0;
+	void __iomem *base = dev->base_addr;
+	const struct cif_reg *reg = &dev->cif_regs[index];
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index == CIF_REG_DVP_CTRL ||
+		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0)) {
+			reg_val = read_cif_reg(base, reg->offset);
+			reg_val |= val;
+			write_cif_reg(base, reg->offset, reg_val);
+		} else {
+			dev_warn(dev->dev,
+				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",
+				 index, val);
+		}
+	}
+}
+
+void rkcif_write_register_and(struct rkcif_device *dev,
+			      enum cif_reg_index index, u32 val)
+{
+	unsigned int reg_val = 0x0;
+	void __iomem *base = dev->base_addr;
+	const struct cif_reg *reg = &dev->cif_regs[index];
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index == CIF_REG_DVP_CTRL ||
+		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0)) {
+			reg_val = read_cif_reg(base, reg->offset);
+			reg_val &= val;
+			write_cif_reg(base, reg->offset, reg_val);
+		} else {
+			dev_warn(dev->dev,
+				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",
+				 index, val);
+		}
+	}
 }
 
 unsigned int rkcif_read_register(struct rkcif_device *dev,
@@ -79,7 +119,9 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
 			val = read_cif_reg(base, reg->offset);
 		else
-			dev_warn(dev->dev, "read reg[%d] failed, maybe useless!!!\n", index);
+			dev_warn(dev->dev,
+				 "read reg[%d] failed, maybe useless!!!\n",
+				 index);
 	}
 
 	return val;
@@ -176,7 +218,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 		rockchip_set_system_status(SYS_STATUS_CIF0);
 
 	/* phy -> sensor */
-	for (i = p->num_subdevs - 1; i > -1; --i) {
+	for (i = 0; i < p->num_subdevs; i++) {
 		ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 			goto err_stream_off;
@@ -591,6 +633,8 @@ static const char * const rv1126_cif_clks[] = {
 	"hclk_cif",
 	"aclk_cif_lite",
 	"hclk_cif_lite",
+	"dclk_cif",
+	"dclk_cif_lite",
 };
 
 static const char * const rv1126_cif_rsts[] = {
@@ -625,6 +669,53 @@ static const struct cif_reg rv1126_cif_regs[] = {
 	[CIF_REG_DVP_CUR_DST] = CIF_REG(RV1126_CIF_CUR_DST),
 	[CIF_REG_DVP_LAST_LINE] = CIF_REG(RV1126_CIF_LAST_LINE),
 	[CIF_REG_DVP_LAST_PIX] = CIF_REG(RV1126_CIF_LAST_PIX),
+	[CIF_REG_MIPI_LVDS_ID0_CTRL0] = CIF_REG(CIF_CSI_ID0_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID0_CTRL1] = CIF_REG(CIF_CSI_ID0_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL0] = CIF_REG(CIF_CSI_ID1_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL1] = CIF_REG(CIF_CSI_ID1_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL0] = CIF_REG(CIF_CSI_ID2_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL1] = CIF_REG(CIF_CSI_ID2_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL0] = CIF_REG(CIF_CSI_ID3_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL1] = CIF_REG(CIF_CSI_ID3_CTRL1),
+	[CIF_REG_MIPI_LVDS_CTRL] = CIF_REG(CIF_CSI_MIPI_LVDS_CTRL),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0] = CIF_REG(CIF_CSI_FRM0_ADDR_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0] = CIF_REG(CIF_CSI_FRM1_ADDR_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0] = CIF_REG(CIF_CSI_FRM0_ADDR_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0] = CIF_REG(CIF_CSI_FRM1_ADDR_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0] = CIF_REG(CIF_CSI_FRM0_VLW_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID0] = CIF_REG(CIF_CSI_FRM1_VLW_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID0] = CIF_REG(CIF_CSI_FRM0_VLW_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID0] = CIF_REG(CIF_CSI_FRM1_VLW_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1] = CIF_REG(CIF_CSI_FRM0_ADDR_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1] = CIF_REG(CIF_CSI_FRM1_ADDR_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1] = CIF_REG(CIF_CSI_FRM0_ADDR_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1] = CIF_REG(CIF_CSI_FRM1_ADDR_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1] = CIF_REG(CIF_CSI_FRM0_VLW_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID1] = CIF_REG(CIF_CSI_FRM1_VLW_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID1] = CIF_REG(CIF_CSI_FRM0_VLW_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID1] = CIF_REG(CIF_CSI_FRM1_VLW_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2] = CIF_REG(CIF_CSI_FRM0_ADDR_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2] = CIF_REG(CIF_CSI_FRM1_ADDR_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2] = CIF_REG(CIF_CSI_FRM0_ADDR_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2] = CIF_REG(CIF_CSI_FRM1_ADDR_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2] = CIF_REG(CIF_CSI_FRM0_VLW_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID2] = CIF_REG(CIF_CSI_FRM1_VLW_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID2] = CIF_REG(CIF_CSI_FRM0_VLW_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID2] = CIF_REG(CIF_CSI_FRM1_VLW_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3] = CIF_REG(CIF_CSI_FRM0_ADDR_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3] = CIF_REG(CIF_CSI_FRM1_ADDR_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3] = CIF_REG(CIF_CSI_FRM0_ADDR_UV_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3] = CIF_REG(CIF_CSI_FRM1_ADDR_UV_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3] = CIF_REG(CIF_CSI_FRM0_VLW_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID3] = CIF_REG(CIF_CSI_FRM1_VLW_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID3] = CIF_REG(CIF_CSI_FRM0_VLW_UV_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID3] = CIF_REG(CIF_CSI_FRM1_VLW_UV_ID3),
+	[CIF_REG_MIPI_LVDS_INTEN] = CIF_REG(CIF_CSI_INTEN),
+	[CIF_REG_MIPI_LVDS_INTSTAT] = CIF_REG(CIF_CSI_INTSTAT),
+	[CIF_REG_MIPI_LVDS_ID0_CROP_START] = CIF_REG(CIF_CSI_ID0_CROP_START),
+	[CIF_REG_MIPI_LVDS_ID1_CROP_START] = CIF_REG(CIF_CSI_ID1_CROP_START),
+	[CIF_REG_MIPI_LVDS_ID2_CROP_START] = CIF_REG(CIF_CSI_ID2_CROP_START),
+	[CIF_REG_MIPI_LVDS_ID3_CROP_START] = CIF_REG(CIF_CSI_ID3_CROP_START),
 };
 
 static const struct cif_match_data px30_cif_match_data = {

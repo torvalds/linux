@@ -42,7 +42,8 @@ enum rkcsi2_chip_id {
 	CHIP_PX30_CSI2,
 	CHIP_RK1808_CSI2,
 	CHIP_RK3128_CSI2,
-	CHIP_RK3288_CSI2
+	CHIP_RK3288_CSI2,
+	CHIP_RV1126_CSI2
 };
 
 enum csi2_pads {
@@ -74,6 +75,7 @@ struct csi2_dev {
 	struct v4l2_subdev      sd;
 	struct media_pad       pad[CSI2_NUM_PADS];
 	struct clk             *pix_clk; /* what is this? */
+	struct clk             *srst_clk;
 	void __iomem           *base;
 	struct v4l2_async_notifier	notifier;
 	struct v4l2_fwnode_bus_mipi_csi2 bus;
@@ -153,8 +155,6 @@ static void csi2_disable(struct csi2_dev *csi2)
 	write_csihost_reg(base, CSIHOST_RESETN, 0);
 	write_csihost_reg(base, CSIHOST_MSK1, 0xffffffff);
 	write_csihost_reg(base, CSIHOST_MSK2, 0xffffffff);
-
-	v4l2_info(&csi2->sd, "mipi csi host disable\n");
 }
 
 static void csi2_enable(struct csi2_dev *csi2,
@@ -181,8 +181,6 @@ static void csi2_enable(struct csi2_dev *csi2,
 	}
 
 	write_csihost_reg(base, CSIHOST_RESETN, 1);
-
-	v4l2_info(&csi2->sd, "mipi csi host enable\n");
 }
 
 static int csi2_start(struct csi2_dev *csi2)
@@ -194,6 +192,14 @@ static int csi2_start(struct csi2_dev *csi2)
 	if (ret)
 		return ret;
 
+	if (!IS_ERR(csi2->srst_clk)) {
+		ret = clk_prepare_enable(csi2->srst_clk);
+		if (ret) {
+			clk_disable_unprepare(csi2->pix_clk);
+			return ret;
+		}
+	}
+
 	if (csi2->format_mbus.code == MEDIA_BUS_FMT_RGB888_1X24)
 		host_type = RK_DSI_RXHOST;
 	else
@@ -202,14 +208,28 @@ static int csi2_start(struct csi2_dev *csi2)
 	csi2_enable(csi2, host_type);
 
 	pr_debug("stream sd: %s\n", csi2->src_sd->name);
+	ret = v4l2_subdev_call(csi2->src_sd, video, s_stream, 1);
+	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	if (ret)
+		goto err_assert_reset;
 
 	return 0;
+
+err_assert_reset:
+	csi2_disable(csi2);
+	clk_disable_unprepare(csi2->pix_clk);
+	clk_disable_unprepare(csi2->srst_clk);
+	return ret;
 }
 
 static void csi2_stop(struct csi2_dev *csi2)
 {
+	/* stop upstream */
+	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
+
 	csi2_disable(csi2);
 	clk_disable_unprepare(csi2->pix_clk);
+	clk_disable_unprepare(csi2->srst_clk);
 }
 
 /*
@@ -223,9 +243,9 @@ static int csi2_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&csi2->lock);
 
-	dev_err(csi2->dev, "stream %s, src_sd: %p\n",
-		enable ? "ON" : "OFF",
-		csi2->src_sd);
+	dev_err(csi2->dev, "stream %s, src_sd: %p, sd_name:%s\n",
+		enable ? "on" : "off",
+		csi2->src_sd, csi2->src_sd->name);
 
 	/*
 	 * enable/disable streaming only if stream_count is
@@ -418,8 +438,8 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	ret = media_create_pad_link(&sensor->sd->entity, pad,
-				       &csi2->sd.entity, RK_CSI2_PAD_SINK,
-				       0/* csi2->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED */);
+				    &csi2->sd.entity, RK_CSI2_PAD_SINK,
+				    0/* csi2->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED */);
 	if (ret) {
 		dev_err(csi2->dev,
 			"failed to create link for %s\n",
@@ -505,10 +525,10 @@ static int csi2_notifier(struct csi2_dev *csi2)
 	struct v4l2_async_notifier *ntf = &csi2->notifier;
 	int ret;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		csi2->dev, &csi2->notifier,
-		sizeof(struct v4l2_async_subdev), 0,
-		csi2_parse_endpoint);
+	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(csi2->dev,
+								 &csi2->notifier,
+								 sizeof(struct v4l2_async_subdev), 0,
+								 csi2_parse_endpoint);
 	if (ret < 0)
 		return ret;
 
@@ -538,6 +558,11 @@ static const struct csi2_match_data rk3288_csi2_match_data = {
 	.num_pads = CSI2_NUM_PADS_SINGLE_LINK
 };
 
+static const struct csi2_match_data rv1126_csi2_match_data = {
+	.chip_id = CHIP_RV1126_CSI2,
+	.num_pads = CSI2_NUM_PADS
+};
+
 static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2",
@@ -547,6 +572,11 @@ static const struct of_device_id csi2_dt_ids[] = {
 		.compatible = "rockchip,rk3288-mipi-csi2",
 		.data = &rk3288_csi2_match_data,
 	},
+	{
+		.compatible = "rockchip,rv1126-mipi-csi2",
+		.data = &rv1126_csi2_match_data,
+	},
+
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, csi2_dt_ids);
@@ -588,6 +618,11 @@ static int csi2_probe(struct platform_device *pdev)
 		v4l2_err(&csi2->sd, "failed to get pixel clock\n");
 		ret = PTR_ERR(csi2->pix_clk);
 		return ret;
+	}
+
+	csi2->srst_clk = devm_clk_get(&pdev->dev, "srst_csihost_p");
+	if (IS_ERR(csi2->srst_clk)) {
+		v4l2_warn(&csi2->sd, "failed to get rst clock, maybe useless\n");
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

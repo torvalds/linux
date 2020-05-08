@@ -503,6 +503,281 @@ cif_output_fmt *find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt)
 	return NULL;
 }
 
+static enum cif_reg_index get_reg_index_of_id_ctrl0(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_ID0_CTRL0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_ID1_CTRL0;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_ID2_CTRL0;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_ID3_CTRL0;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_ID0_CTRL0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_id_ctrl1(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_ID0_CTRL1;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_ID1_CTRL1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_ID2_CTRL1;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_ID3_CTRL1;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_ID0_CTRL1;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm0_y_addr(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm1_y_addr(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm0_uv_addr(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm1_uv_addr(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm0_y_vlw(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm1_y_vlw(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_Y_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm0_uv_vlw(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME0_VLW_UV_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_frm1_uv_vlw(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID3;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_id_crop_start(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_LVDS_ID0_CROP_START;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_LVDS_ID1_CROP_START;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_LVDS_ID2_CROP_START;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_LVDS_ID3_CROP_START;
+		break;
+	default:
+		index = CIF_REG_MIPI_LVDS_ID0_CROP_START;
+		break;
+	}
+
+	return index;
+}
+
 /***************************** stream operations ******************************/
 static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 					     enum rkcif_yuvaddr_state stat)
@@ -617,10 +892,10 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		u32 frm1_addr_y, frm1_addr_uv;
 
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-			frm0_addr_y = CIF_CSI_FRM0_ADDR_Y_ID0 + 0x20 * csi_ch;
-			frm0_addr_uv = CIF_CSI_FRM0_ADDR_UV_ID0 + 0x20 * csi_ch;
-			frm1_addr_y = CIF_CSI_FRM1_ADDR_Y_ID0 + 0x20 * csi_ch;
-			frm1_addr_uv = CIF_CSI_FRM1_ADDR_UV_ID0 + 0x20 * csi_ch;
+			frm0_addr_y = get_reg_index_of_frm0_y_addr(csi_ch);
+			frm0_addr_uv = get_reg_index_of_frm0_uv_addr(csi_ch);
+			frm1_addr_y = get_reg_index_of_frm1_y_addr(csi_ch);
+			frm1_addr_uv = get_reg_index_of_frm1_uv_addr(csi_ch);
 		} else {
 			frm0_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
 			frm0_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
@@ -669,11 +944,11 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 	} else {
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
 			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				     (CIF_CSI_FRM1_ADDR_Y_ID0 + 0x20 * csi_ch) :
-				     (CIF_CSI_FRM0_ADDR_Y_ID0 + 0x20 * csi_ch);
+				     get_reg_index_of_frm1_y_addr(csi_ch) :
+				     get_reg_index_of_frm0_y_addr(csi_ch);
 			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				      (CIF_CSI_FRM1_ADDR_UV_ID0 + 0x20 * csi_ch) :
-				      (CIF_CSI_FRM0_ADDR_UV_ID0 + 0x20 * csi_ch);
+				      get_reg_index_of_frm1_uv_addr(csi_ch) :
+				      get_reg_index_of_frm0_uv_addr(csi_ch);
 		} else {
 			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
 				     CIF_FRM1_ADDR_Y : CIF_FRM0_ADDR_Y;
@@ -821,51 +1096,56 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 				 struct csi_channel_info *channel)
 {
-	struct rkcif_device *dev = stream->cifdev;
-	void __iomem *base = dev->base_addr;
 	unsigned int val;
+	struct rkcif_device *dev = stream->cifdev;
 
 	if (channel->id >= 4)
 		return -EINVAL;
 
 	if (!channel->enable) {
-		write_cif_reg(base, CIF_CSI_ID0_CTRL0 + 0x8 * channel->id,
-			      CSI_DISABLE_CAPTURE);
+		rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id),
+				     CSI_DISABLE_CAPTURE);
 		return 0;
 	}
 
-	write_cif_reg_and(base, CIF_CSI_INTSTAT,
-			  ~(CSI_START_INTSTAT(channel->id) |
-			  CSI_DMA_END_INTSTAT(channel->id) |
-			  CSI_LINE_INTSTAT(channel->id)));
-	write_cif_reg_or(base, CIF_CSI_INTEN,
-			 CSI_DMA_END_INTEN(channel->id));
+	rkcif_write_register_and(dev, CIF_REG_MIPI_LVDS_INTSTAT,
+				 ~(CSI_START_INTSTAT(channel->id) |
+				 CSI_DMA_END_INTSTAT(channel->id) |
+				 CSI_LINE_INTSTAT(channel->id)));
 
-	write_cif_reg(base, CIF_CSI_WATER_LINE, 0x70012);
-	write_cif_reg_or(base, CIF_CSI_INTEN, CSI_ALL_ERROR_INTEN);
+	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
+				CSI_DMA_END_INTEN(channel->id));
 
-	write_cif_reg(base, CIF_CSI_ID0_CTRL1 + 0x8 * channel->id,
-		      channel->width | (channel->height << 16));
-	write_cif_reg(base, CIF_CSI_FRM0_VLW_Y_ID0 + 0x20 * channel->id,
-		      channel->virtual_width);
-	write_cif_reg(base, CIF_CSI_FRM1_VLW_Y_ID0 + 0x20 * channel->id,
-		      channel->virtual_width);
-	write_cif_reg(base, CIF_CSI_FRM0_VLW_UV_ID0 + 0x20 * channel->id,
-		      channel->virtual_width);
-	write_cif_reg(base, CIF_CSI_FRM1_VLW_UV_ID0 + 0x20 * channel->id,
-		      channel->virtual_width);
+	rkcif_write_register(dev, CIF_REG_MIPI_WATER_LINE, 0x70012);
+
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, 0x7075);
+
+	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
+				CSI_ALL_ERROR_INTEN);
+
+	rkcif_write_register(dev, get_reg_index_of_id_ctrl1(channel->id),
+			     channel->width | (channel->height << 16));
+
+	rkcif_write_register(dev, get_reg_index_of_frm0_y_vlw(channel->id),
+			     channel->virtual_width);
+	rkcif_write_register(dev, get_reg_index_of_frm1_y_vlw(channel->id),
+			     channel->virtual_width);
+	rkcif_write_register(dev, get_reg_index_of_frm0_uv_vlw(channel->id),
+			     channel->virtual_width);
+	rkcif_write_register(dev, get_reg_index_of_frm1_uv_vlw(channel->id),
+			     channel->virtual_width);
 
 	if (channel->crop_en)
-		write_cif_reg(base, CIF_CSI_ID0_CROP_START + 0x4 * channel->id,
-			      channel->crop_st_y << 16 | channel->crop_st_x);
+		rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
+				     channel->crop_st_y << 16 | channel->crop_st_x);
 
 	/* Set up an buffer for the next frame */
 	rkcif_assign_new_buffer_pingpong(stream, 1, channel->id);
 
 	val = CSI_ENABLE_CAPTURE | channel->fmt_val |
-		channel->cmd_mode_en << 4 | channel->crop_en << 5 |
-		channel->id << 8 | channel->data_type << 10;
-	write_cif_reg(base, CIF_CSI_ID0_CTRL0 + 0x8 * channel->id, val);
+	      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
+	      channel->id << 8 | channel->data_type << 10 ;
+	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
 
 	return 0;
 }
