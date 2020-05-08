@@ -244,6 +244,35 @@ static void xdp_release_buf(struct dpaa2_eth_priv *priv,
 	ch->xdp.drop_cnt = 0;
 }
 
+static int dpaa2_eth_xdp_flush(struct dpaa2_eth_priv *priv,
+			       struct dpaa2_eth_fq *fq,
+			       struct dpaa2_eth_xdp_fds *xdp_fds)
+{
+	int total_enqueued = 0, retries = 0, enqueued;
+	struct dpaa2_eth_drv_stats *percpu_extras;
+	int num_fds, err, max_retries;
+	struct dpaa2_fd *fds;
+
+	percpu_extras = this_cpu_ptr(priv->percpu_extras);
+
+	/* try to enqueue all the FDs until the max number of retries is hit */
+	fds = xdp_fds->fds;
+	num_fds = xdp_fds->num;
+	max_retries = num_fds * DPAA2_ETH_ENQUEUE_RETRIES;
+	while (total_enqueued < num_fds && retries < max_retries) {
+		err = priv->enqueue(priv, fq, &fds[total_enqueued],
+				    0, num_fds - total_enqueued, &enqueued);
+		if (err == -EBUSY) {
+			percpu_extras->tx_portal_busy += ++retries;
+			continue;
+		}
+		total_enqueued += enqueued;
+	}
+	xdp_fds->num = 0;
+
+	return total_enqueued;
+}
+
 static int xdp_enqueue(struct dpaa2_eth_priv *priv, struct dpaa2_fd *fd,
 		       void *buf_start, u16 queue_id)
 {
@@ -1934,12 +1963,11 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 			      struct xdp_frame **frames, u32 flags)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int total_enqueued = 0, retries = 0, enqueued;
-	struct dpaa2_eth_drv_stats *percpu_extras;
+	struct dpaa2_eth_xdp_fds *xdp_redirect_fds;
 	struct rtnl_link_stats64 *percpu_stats;
-	int num_fds, i, err, max_retries;
 	struct dpaa2_eth_fq *fq;
 	struct dpaa2_fd *fds;
+	int enqueued, i, err;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
@@ -1948,10 +1976,10 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 		return -ENETDOWN;
 
 	fq = &priv->fq[smp_processor_id()];
-	fds = fq->xdp_fds;
+	xdp_redirect_fds = &fq->xdp_redirect_fds;
+	fds = xdp_redirect_fds->fds;
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
-	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
 	/* create a FD for each xdp_frame in the list received */
 	for (i = 0; i < n; i++) {
@@ -1959,28 +1987,19 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 		if (err)
 			break;
 	}
-	num_fds = i;
+	xdp_redirect_fds->num = i;
 
-	/* try to enqueue all the FDs until the max number of retries is hit */
-	max_retries = num_fds * DPAA2_ETH_ENQUEUE_RETRIES;
-	while (total_enqueued < num_fds && retries < max_retries) {
-		err = priv->enqueue(priv, fq, &fds[total_enqueued],
-				    0, num_fds - total_enqueued, &enqueued);
-		if (err == -EBUSY) {
-			percpu_extras->tx_portal_busy += ++retries;
-			continue;
-		}
-		total_enqueued += enqueued;
-	}
+	/* enqueue all the frame descriptors */
+	enqueued = dpaa2_eth_xdp_flush(priv, fq, xdp_redirect_fds);
 
 	/* update statistics */
-	percpu_stats->tx_packets += total_enqueued;
-	for (i = 0; i < total_enqueued; i++)
+	percpu_stats->tx_packets += enqueued;
+	for (i = 0; i < enqueued; i++)
 		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fds[i]);
-	for (i = total_enqueued; i < n; i++)
+	for (i = enqueued; i < n; i++)
 		xdp_return_frame_rx_napi(frames[i]);
 
-	return total_enqueued;
+	return enqueued;
 }
 
 static int update_xps(struct dpaa2_eth_priv *priv)
