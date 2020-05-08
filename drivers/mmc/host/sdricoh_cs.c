@@ -59,7 +59,7 @@ static unsigned int switchlocked;
 #define STATUS_BUSY              0x40000000
 
 /* timeouts */
-#define CMD_TIMEOUT       100000
+#define SDRICOH_CMD_TIMEOUT_US	1000000
 #define SDRICOH_DATA_TIMEOUT_US	1000000
 
 /* list of supported pcmcia devices */
@@ -158,8 +158,7 @@ static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
 static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 {
 	unsigned int status;
-	int result = 0;
-	unsigned int loop = 0;
+	int ret;
 	unsigned char opcode = cmd->opcode;
 
 	/* reset status reg? */
@@ -175,24 +174,24 @@ static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 	/* fill parameters */
 	sdricoh_writel(host, R204_CMD_ARG, cmd->arg);
 	sdricoh_writel(host, R200_CMD, (0x10000 << 8) | opcode);
+
 	/* wait for command completion */
-	if (opcode) {
-		for (loop = 0; loop < CMD_TIMEOUT; loop++) {
-			status = sdricoh_readl(host, R21C_STATUS);
-			sdricoh_writel(host, R2E4_STATUS_RESP, status);
-			if (status  & STATUS_CMD_FINISHED)
-				break;
-		}
-		/* don't check for timeout in the loop it is not always
-		   reset correctly
-		*/
-		if (loop == CMD_TIMEOUT || status & STATUS_CMD_TIMEOUT)
-			result = -ETIMEDOUT;
+	if (!opcode)
+		return 0;
 
-	}
+	ret = read_poll_timeout(sdricoh_readl, status,
+			sdricoh_status_ok(host, status, STATUS_CMD_FINISHED),
+			32, SDRICOH_CMD_TIMEOUT_US, false,
+			host, R21C_STATUS);
 
-	return result;
+	/*
+	 * Don't check for timeout status in the loop, as it's not always reset
+	 * correctly.
+	 */
+	if (ret || status & STATUS_CMD_TIMEOUT)
+		return -ETIMEDOUT;
 
+	return 0;
 }
 
 static int sdricoh_reset(struct sdricoh_host *host)
