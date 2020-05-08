@@ -759,6 +759,8 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 	for ((p) = tb_next_port_on_path((src), (dst), NULL); (p);	\
 	     (p) = tb_next_port_on_path((src), (dst), (p)))
 
+int tb_port_get_link_speed(struct tb_port *port);
+
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);

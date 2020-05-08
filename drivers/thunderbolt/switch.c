@@ -911,7 +911,13 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 	return next != prev ? next : NULL;
 }
 
-static int tb_port_get_link_speed(struct tb_port *port)
+/**
+ * tb_port_get_link_speed() - Get current link speed
+ * @port: Port to check (USB4 or CIO)
+ *
+ * Returns link speed in Gb/s or negative errno in case of failure.
+ */
+int tb_port_get_link_speed(struct tb_port *port)
 {
 	u32 val, speed;
 	int ret;
