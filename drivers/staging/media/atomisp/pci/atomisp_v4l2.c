@@ -1576,7 +1576,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	if (!pdata)
 		dev_warn(&dev->dev, "no platform data available\n");
 
-	err = pcim_enable_device(dev);
+	err = pci_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable CI ISP device (%d)\n",
 			err);
@@ -1590,7 +1590,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	if (err) {
 		dev_err(&dev->dev, "Failed to I/O memory remapping (%d)\n",
 			err);
-		return err;
+		goto ioremap_fail;
 	}
 
 	base = pcim_iomap_table(dev)[ATOM_ISP_PCI_BAR];
@@ -1602,8 +1602,8 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 
 	isp = devm_kzalloc(&dev->dev, sizeof(struct atomisp_device), GFP_KERNEL);
 	if (!isp) {
-		dev_err(&dev->dev, "Failed to alloc CI ISP structure\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto atomisp_dev_alloc_fail;
 	}
 	isp->pdev = dev;
 	isp->dev = &dev->dev;
@@ -1722,7 +1722,8 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		break;
 	default:
 		dev_err(&dev->dev, "un-supported IUNIT device\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto atomisp_dev_alloc_fail;
 	}
 
 	dev_info(&dev->dev, "ISP HPLL frequency base = %d MHz\n",
@@ -1735,6 +1736,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		isp->firmware = atomisp_load_firmware(isp);
 		if (!isp->firmware) {
 			err = -ENOENT;
+			dev_dbg(&dev->dev, "Firmware load failed\n");
 			goto load_fw_fail;
 		}
 
@@ -1743,6 +1745,8 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 			dev_dbg(&dev->dev, "Firmware version check failed\n");
 			goto fw_validation_fail;
 		}
+	} else {
+		dev_info(&dev->dev, "Firmware load will be deferred\n");
 	}
 
 	pci_set_master(dev);
@@ -1870,7 +1874,9 @@ register_entities_fail:
 initialize_modules_fail:
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp, dev);
+	pci_disable_msi(dev);
 enable_msi_fail:
+	pci_disable_device(dev);
 fw_validation_fail:
 	release_firmware(isp->firmware);
 load_fw_fail:
@@ -1896,6 +1902,11 @@ load_fw_fail:
 	/* Address later when we worry about the ...field chips */
 	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
 		dev_err(&dev->dev, "Failed to switch off ISP\n");
+
+atomisp_dev_alloc_fail:
+	pcim_iounmap_regions(dev, 1 << ATOM_ISP_PCI_BAR);
+
+ioremap_fail:
 	return err;
 }
 
@@ -1903,6 +1914,8 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     pci_get_drvdata(dev);
+
+	dev_info(&dev->dev, "Removing atomisp driver\n");
 
 	atomisp_drvfs_exit();
 
@@ -1924,6 +1937,8 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 	release_firmware(isp->firmware);
 
 	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
+
+	pci_disable_device(dev);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
