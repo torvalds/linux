@@ -3707,18 +3707,23 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EBUSY;
 	}
 
-	/* Clean up old MAC filter before changing the MAC address */
+	/* Clean up old MAC filter. Not an error if old filter doesn't exist */
 	status = ice_fltr_remove_mac(vsi, netdev->dev_addr, ICE_FWD_TO_VSI);
-	if (status) {
+	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
 		err = -EADDRNOTAVAIL;
 		goto err_update_filters;
 	}
 
+	/* Add filter for new MAC. If filter exists, just return success */
 	status = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
-	if (status) {
-		err = -EADDRNOTAVAIL;
-		goto err_update_filters;
+	if (status == ICE_ERR_ALREADY_EXISTS) {
+		netdev_dbg(netdev, "filter for MAC %pM already exists\n", mac);
+		return 0;
 	}
+
+	/* error if the new filter addition failed */
+	if (status)
+		err = -EADDRNOTAVAIL;
 
 err_update_filters:
 	if (err) {
