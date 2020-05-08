@@ -157,7 +157,7 @@ static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
 
 static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 {
-	unsigned int status;
+	unsigned int status, timeout_us;
 	int ret;
 	unsigned char opcode = cmd->opcode;
 
@@ -179,9 +179,12 @@ static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 	if (!opcode)
 		return 0;
 
+	timeout_us = cmd->busy_timeout ? cmd->busy_timeout * 1000 :
+		SDRICOH_CMD_TIMEOUT_US;
+
 	ret = read_poll_timeout(sdricoh_readl, status,
 			sdricoh_status_ok(host, status, STATUS_CMD_FINISHED),
-			32, SDRICOH_CMD_TIMEOUT_US, false,
+			32, timeout_us, false,
 			host, R21C_STATUS);
 
 	/*
