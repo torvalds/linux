@@ -25,13 +25,13 @@ fi
 # Figure out which test to run from our script name.
 test=$(basename $0 .sh)
 # Look up details about the test from master list of LKDTM tests.
-line=$(egrep '^#?'"$test"'\b' tests.txt)
+line=$(grep -E '^#?'"$test"'\b' tests.txt)
 if [ -z "$line" ]; then
 	echo "Skipped: missing test '$test' in tests.txt"
 	exit $KSELFTEST_SKIP_TEST
 fi
 # Check that the test is known to LKDTM.
-if ! egrep -q '^'"$test"'$' "$TRIGGER" ; then
+if ! grep -E -q '^'"$test"'$' "$TRIGGER" ; then
 	echo "Skipped: test '$test' missing in $TRIGGER!"
 	exit $KSELFTEST_SKIP_TEST
 fi
@@ -80,11 +80,11 @@ dmesg | diff --changed-group-format='%>' --unchanged-group-format='' "$DMESG" - 
 
 cat "$LOG"
 # Check for expected output
-if egrep -qi "$expect" "$LOG" ; then
+if grep -E -qi "$expect" "$LOG" ; then
 	echo "$test: saw '$expect': ok"
 	exit 0
 else
-	if egrep -qi XFAIL: "$LOG" ; then
+	if grep -E -qi XFAIL: "$LOG" ; then
 		echo "$test: saw 'XFAIL': [SKIP]"
 		exit $KSELFTEST_SKIP_TEST
 	else
