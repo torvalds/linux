@@ -165,7 +165,7 @@ static const u64 core_offsets[] = {
 	[HZIP_DECOMP_CORE5] = 0x309000,
 };
 
-static struct debugfs_reg32 hzip_dfx_regs[] = {
+static const struct debugfs_reg32 hzip_dfx_regs[] = {
 	{"HZIP_GET_BD_NUM                ",  0x00ull},
 	{"HZIP_GET_RIGHT_BD              ",  0x04ull},
 	{"HZIP_GET_ERROR_BD              ",  0x08ull},
