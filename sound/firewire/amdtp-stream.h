@@ -276,6 +276,11 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 				  msecs_to_jiffies(timeout)) > 0;
 }
 
+struct seq_desc {
+	unsigned int syt_offset;
+	unsigned int data_blocks;
+};
+
 struct amdtp_domain {
 	struct list_head streams;
 
@@ -283,6 +288,10 @@ struct amdtp_domain {
 	unsigned int events_per_buffer;
 
 	struct amdtp_stream *irq_target;
+
+	struct seq_desc *seq_descs;
+	unsigned int seq_size;
+	unsigned int seq_tail;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
