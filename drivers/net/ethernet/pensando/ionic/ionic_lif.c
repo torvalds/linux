@@ -2127,6 +2127,8 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	if (lif->registered)
 		ionic_lif_set_netdev_info(lif);
 
+	ionic_rx_filter_replay(lif);
+
 	if (netif_running(lif->netdev)) {
 		err = ionic_txrx_alloc(lif);
 		if (err)
@@ -2206,9 +2208,9 @@ static void ionic_lif_deinit(struct ionic_lif *lif)
 	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
 		cancel_work_sync(&lif->deferred.work);
 		cancel_work_sync(&lif->tx_timeout_work);
+		ionic_rx_filters_deinit(lif);
 	}
 
-	ionic_rx_filters_deinit(lif);
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_deinit(lif);
 
@@ -2339,24 +2341,30 @@ static int ionic_station_set(struct ionic_lif *lif)
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
 		return err;
-
+	netdev_dbg(lif->netdev, "found initial MAC addr %pM\n",
+		   ctx.comp.lif_getattr.mac);
 	if (is_zero_ether_addr(ctx.comp.lif_getattr.mac))
 		return 0;
 
-	memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
-	addr.sa_family = AF_INET;
-	err = eth_prepare_mac_addr_change(netdev, &addr);
-	if (err) {
-		netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM - err %d\n",
-			    addr.sa_data, err);
-		return 0;
+	if (!ether_addr_equal(ctx.comp.lif_getattr.mac, netdev->dev_addr)) {
+		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
+		addr.sa_family = AF_INET;
+		err = eth_prepare_mac_addr_change(netdev, &addr);
+		if (err) {
+			netdev_warn(lif->netdev, "ignoring bad MAC addr from NIC %pM - err %d\n",
+				    addr.sa_data, err);
+			return 0;
+		}
+
+		if (!is_zero_ether_addr(netdev->dev_addr)) {
+			netdev_dbg(lif->netdev, "deleting station MAC addr %pM\n",
+				   netdev->dev_addr);
+			ionic_lif_addr(lif, netdev->dev_addr, false);
+		}
+
+		eth_commit_mac_addr_change(netdev, &addr);
 	}
 
-	netdev_dbg(lif->netdev, "deleting station MAC addr %pM\n",
-		   netdev->dev_addr);
-	ionic_lif_addr(lif, netdev->dev_addr, false);
-
-	eth_commit_mac_addr_change(netdev, &addr);
 	netdev_dbg(lif->netdev, "adding station MAC addr %pM\n",
 		   netdev->dev_addr);
 	ionic_lif_addr(lif, netdev->dev_addr, true);
@@ -2421,9 +2429,11 @@ static int ionic_lif_init(struct ionic_lif *lif)
 	if (err)
 		goto err_out_notifyq_deinit;
 
-	err = ionic_rx_filters_init(lif);
-	if (err)
-		goto err_out_notifyq_deinit;
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		err = ionic_rx_filters_init(lif);
+		if (err)
+			goto err_out_notifyq_deinit;
+	}
 
 	err = ionic_station_set(lif);
 	if (err)

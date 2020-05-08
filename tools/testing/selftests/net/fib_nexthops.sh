@@ -749,6 +749,29 @@ ipv4_fcnal_runtime()
 	run_cmd "ip netns exec me ping -c1 -w1 172.16.101.1"
 	log_test $? 0 "Ping - multipath"
 
+	run_cmd "$IP ro delete 172.16.101.1/32 nhid 122"
+
+	#
+	# multiple default routes
+	# - tests fib_select_default
+	run_cmd "$IP nexthop add id 501 via 172.16.1.2 dev veth1"
+	run_cmd "$IP ro add default nhid 501"
+	run_cmd "$IP ro add default via 172.16.1.3 dev veth1 metric 20"
+	run_cmd "ip netns exec me ping -c1 -w1 172.16.101.1"
+	log_test $? 0 "Ping - multiple default routes, nh first"
+
+	# flip the order
+	run_cmd "$IP ro del default nhid 501"
+	run_cmd "$IP ro del default via 172.16.1.3 dev veth1 metric 20"
+	run_cmd "$IP ro add default via 172.16.1.2 dev veth1 metric 20"
+	run_cmd "$IP nexthop replace id 501 via 172.16.1.3 dev veth1"
+	run_cmd "$IP ro add default nhid 501 metric 20"
+	run_cmd "ip netns exec me ping -c1 -w1 172.16.101.1"
+	log_test $? 0 "Ping - multiple default routes, nh second"
+
+	run_cmd "$IP nexthop delete nhid 501"
+	run_cmd "$IP ro del default"
+
 	#
 	# IPv4 with blackhole nexthops
 	#

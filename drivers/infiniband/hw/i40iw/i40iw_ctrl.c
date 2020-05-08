@@ -1046,7 +1046,7 @@ i40iw_sc_query_rdma_features(struct i40iw_sc_cqp *cqp,
 	u64 header;
 
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
-	if (wqe)
+	if (!wqe)
 		return I40IW_ERR_RING_FULL;
 
 	set_64bit_val(wqe, 32, feat_mem->pa);
