@@ -6838,7 +6838,7 @@ wb_disabled:
 	hba->caps &= ~UFSHCD_CAP_WB_EN;
 }
 
-static void ufs_fixup_device_setup(struct ufs_hba *hba)
+static void ufshcd_fixup_dev_quirks(struct ufs_hba *hba)
 {
 	struct ufs_dev_fix *f;
 	struct ufs_dev_info *dev_info = &hba->dev_info;
@@ -6851,6 +6851,15 @@ static void ufs_fixup_device_setup(struct ufs_hba *hba)
 		      !strcmp(f->model, UFS_ANY_MODEL)))
 			hba->dev_quirks |= f->quirk;
 	}
+}
+
+static void ufs_fixup_device_setup(struct ufs_hba *hba)
+{
+	/* fix by general quirk table */
+	ufshcd_fixup_dev_quirks(hba);
+
+	/* allow vendors to fix quirks */
+	ufshcd_vops_fixup_dev_quirks(hba);
 }
 
 static int ufs_get_device_desc(struct ufs_hba *hba)
