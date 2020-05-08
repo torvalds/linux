@@ -102,10 +102,7 @@ static inline bool team_port_dev_txable(const struct net_device *port_dev)
 static inline void team_netpoll_send_skb(struct team_port *port,
 					 struct sk_buff *skb)
 {
-	struct netpoll *np = port->np;
-
-	if (np)
-		netpoll_send_skb(np, skb);
+	netpoll_send_skb(port->np, skb);
 }
 #else
 static inline void team_netpoll_send_skb(struct team_port *port,
