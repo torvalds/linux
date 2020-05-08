@@ -747,34 +747,30 @@ static unsigned int compute_syt(unsigned int syt_offset, unsigned int cycle,
 	return syt & CIP_SYT_MASK;
 }
 
-static void generate_ideal_pkt_descs(struct amdtp_stream *s,
-				     struct pkt_desc *descs,
-				     const __be32 *ctx_header,
-				     unsigned int packets)
+static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
+			       const __be32 *ctx_header, unsigned int packets,
+			       const struct seq_desc *seq_descs,
+			       unsigned int seq_size)
 {
 	unsigned int dbc = s->data_block_counter;
+	unsigned int seq_index = s->ctx_data.rx.seq_index;
 	int i;
 
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % s->queue_size;
-		unsigned int syt_offset;
+		const struct seq_desc *seq = seq_descs + seq_index;
+		unsigned int syt;
 
 		desc->cycle = compute_it_cycle(*ctx_header, s->queue_size);
-		syt_offset = calculate_syt_offset(
-				&s->ctx_data.rx.last_syt_offset,
-				&s->ctx_data.rx.syt_offset_state, s->sfc);
-		if (syt_offset != CIP_SYT_NO_INFO) {
-			desc->syt = compute_syt(syt_offset, desc->cycle,
-						s->ctx_data.rx.transfer_delay);
-		} else {
-			desc->syt = syt_offset;
+
+		syt = seq->syt_offset;
+		if (syt != CIP_SYT_NO_INFO) {
+			syt = compute_syt(syt, desc->cycle,
+					  s->ctx_data.rx.transfer_delay);
 		}
-		desc->data_blocks =
-			calculate_data_blocks(&s->ctx_data.rx.data_block_state,
-					      !!(s->flags & CIP_BLOCKING),
-					      desc->syt == CIP_SYT_NO_INFO,
-					      s->syt_interval, s->sfc);
+		desc->syt = syt;
+		desc->data_blocks = seq->data_blocks;
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
 			dbc = (dbc + desc->data_blocks) & 0xff;
@@ -786,10 +782,13 @@ static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 
 		desc->ctx_payload = s->buffer.packets[index].buffer;
 
+		seq_index = (seq_index + 1) % seq_size;
+
 		++ctx_header;
 	}
 
 	s->data_block_counter = dbc;
+	s->ctx_data.rx.seq_index = seq_index;
 }
 
 static inline void cancel_stream(struct amdtp_stream *s)
@@ -818,6 +817,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
+	const struct amdtp_domain *d = s->domain;
 	const __be32 *ctx_header = header;
 	unsigned int events_per_period = s->ctx_data.rx.events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
@@ -830,7 +830,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	generate_ideal_pkt_descs(s, s->pkt_descs, ctx_header, packets);
+	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq_descs,
+			   d->seq_size);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
 
@@ -1037,18 +1038,6 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			      int start_cycle, unsigned int queue_size,
 			      unsigned int idle_irq_interval)
 {
-	static const struct {
-		unsigned int data_block;
-		unsigned int syt_offset;
-	} *entry, initial_state[] = {
-		[CIP_SFC_32000]  = {  4, 3072 },
-		[CIP_SFC_48000]  = {  6, 1024 },
-		[CIP_SFC_96000]  = { 12, 1024 },
-		[CIP_SFC_192000] = { 24, 1024 },
-		[CIP_SFC_44100]  = {  0,   67 },
-		[CIP_SFC_88200]  = {  0,   67 },
-		[CIP_SFC_176400] = {  0,   67 },
-	};
 	bool is_irq_target = (s == s->domain->irq_target);
 	unsigned int ctx_header_size;
 	unsigned int max_ctx_payload_size;
@@ -1072,12 +1061,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 
 		s->data_block_counter = UINT_MAX;
 	} else {
-		entry = &initial_state[s->sfc];
-
 		s->data_block_counter = 0;
-		s->ctx_data.rx.data_block_state = entry->data_block;
-		s->ctx_data.rx.syt_offset_state = entry->syt_offset;
-		s->ctx_data.rx.last_syt_offset = TICKS_PER_CYCLE;
 	}
 
 	/* initialize packet buffer */

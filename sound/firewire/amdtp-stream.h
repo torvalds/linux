@@ -140,10 +140,6 @@ struct amdtp_stream {
 			unsigned int transfer_delay;
 			unsigned int seq_index;
 
-			unsigned int data_block_state;
-			unsigned int last_syt_offset;
-			unsigned int syt_offset_state;
-
 			// To generate CIP header.
 			unsigned int fdf;
 			int syt_override;
