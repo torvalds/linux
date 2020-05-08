@@ -607,6 +607,8 @@ struct ice_eth_stats {
 	u64 tx_errors;			/* tepc */
 };
 
+#define ICE_MAX_UP	8
+
 /* Statistics collected by the MAC */
 struct ice_hw_port_stats {
 	/* eth stats collected by the port */
