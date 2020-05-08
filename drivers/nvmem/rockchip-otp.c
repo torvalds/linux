@@ -69,6 +69,7 @@ static const char * const rockchip_otp_clocks[] = {
 
 struct rockchip_data {
 	int size;
+	int (*init)(struct rockchip_otp *otp);
 };
 
 static int rockchip_otp_reset(struct rockchip_otp *otp)
@@ -246,6 +247,12 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	otp->rst = devm_reset_control_array_get_optional_exclusive(dev);
 	if (IS_ERR(otp->rst))
 		return PTR_ERR(otp->rst);
+
+	if (data->init) {
+		ret = data->init(otp);
+		if (ret)
+			return ret;
+	}
 
 	otp_config.size = data->size;
 	otp_config.priv = otp;
