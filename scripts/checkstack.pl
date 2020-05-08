@@ -34,8 +34,10 @@ use strict;
 # $& (whole re) matches the complete objdump line with the stack growth
 # $1 (first bracket) matches the dynamic amount of the stack growth
 #
+# $sub: subroutine for special handling to check stack usage.
+#
 # use anything else and feel the pain ;)
-my (@stack, $re, $dre, $x, $xs, $funcre, $min_stack);
+my (@stack, $re, $dre, $sub, $x, $xs, $funcre, $min_stack);
 {
 	my $arch = shift;
 	if ($arch eq "") {
@@ -59,6 +61,7 @@ my (@stack, $re, $dre, $x, $xs, $funcre, $min_stack);
 	} elsif ($arch eq 'arm') {
 		#c0008ffc:	e24dd064	sub	sp, sp, #100	; 0x64
 		$re = qr/.*sub.*sp, sp, #(([0-9]{2}|[3-9])[0-9]{2})/o;
+		$sub = \&arm_push_handling;
 	} elsif ($arch =~ /^x86(_64)?$/ || $arch =~ /^i[3456]86$/) {
 		#c0105234:       81 ec ac 05 00 00       sub    $0x5ac,%esp
 		# or
@@ -109,6 +112,24 @@ my (@stack, $re, $dre, $x, $xs, $funcre, $min_stack);
 		print("wrong or unknown architecture \"$arch\"\n");
 		exit
 	}
+}
+
+#
+# To count stack usage of push {*, fp, ip, lr, pc} instruction in ARM,
+# if FRAME POINTER is enabled.
+# e.g. c01f0d48: e92ddff0 push {r4, r5, r6, r7, r8, r9, sl, fp, ip, lr, pc}
+#
+sub arm_push_handling {
+	my $regex = qr/.*push.*fp, ip, lr, pc}/o;
+	my $size = 0;
+	my $line_arg = shift;
+
+	if ($line_arg =~ m/$regex/) {
+		$size = $line_arg =~ tr/,//;
+		$size = ($size + 1) * 4;
+	}
+
+	return $size;
 }
 
 #
@@ -164,6 +185,11 @@ while (my $line = <STDIN>) {
 		my $size = $1;
 
 		$size = hex($size) if ($size =~ /^0x/);
+		$total_size += $size;
+	}
+	elsif (defined $sub) {
+		my $size = &$sub($line);
+
 		$total_size += $size;
 	}
 }
