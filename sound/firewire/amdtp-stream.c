@@ -20,6 +20,8 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
+#define OHCI_MAX_SECOND		8
+
 /* Always support Linux tracing subsystem. */
 #define CREATE_TRACE_POINTS
 #include "amdtp-stream-trace.h"
@@ -680,8 +682,8 @@ static inline u32 compute_cycle_count(__be32 ctx_header_tstamp)
 static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 {
 	cycle += addend;
-	if (cycle >= 8 * CYCLES_PER_SECOND)
-		cycle -= 8 * CYCLES_PER_SECOND;
+	if (cycle >= OHCI_MAX_SECOND * CYCLES_PER_SECOND)
+		cycle -= OHCI_MAX_SECOND * CYCLES_PER_SECOND;
 	return cycle;
 }
 
