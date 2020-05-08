@@ -109,11 +109,30 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 #
 # main()
 #
-my ($func, $file, $lastslash);
+my ($func, $file, $lastslash, $total_size, $addr, $intro);
+
+$total_size = 0;
 
 while (my $line = <STDIN>) {
 	if ($line =~ m/$funcre/) {
 		$func = $1;
+		next if $line !~ m/^($xs*)/;
+		if ($total_size > 100) {
+			push @stack, "$intro$total_size\n";
+		}
+
+		$addr = $1;
+		$addr =~ s/ /0/g;
+		$addr = "0x$addr";
+
+		$intro = "$addr $func [$file]:";
+		my $padlen = 56 - length($intro);
+		while ($padlen > 0) {
+			$intro .= '	';
+			$padlen -= 8;
+		}
+
+		$total_size = 0;
 	}
 	elsif ($line =~ m/(.*):\s*file format/) {
 		$file = $1;
@@ -134,36 +153,17 @@ while (my $line = <STDIN>) {
 		}
 		next if ($size > 0x10000000);
 
-		next if $line !~ m/^($xs*)/;
-		my $addr = $1;
-		$addr =~ s/ /0/g;
-		$addr = "0x$addr";
-
-		my $intro = "$addr $func [$file]:";
-		my $padlen = 56 - length($intro);
-		while ($padlen > 0) {
-			$intro .= '	';
-			$padlen -= 8;
-		}
-		next if ($size < 100);
-		push @stack, "$intro$size\n";
+		$total_size += $size;
 	}
 	elsif (defined $dre && $line =~ m/$dre/) {
-		my $size = "Dynamic ($1)";
+		my $size = $1;
 
-		next if $line !~ m/^($xs*)/;
-		my $addr = $1;
-		$addr =~ s/ /0/g;
-		$addr = "0x$addr";
-
-		my $intro = "$addr $func [$file]:";
-		my $padlen = 56 - length($intro);
-		while ($padlen > 0) {
-			$intro .= '	';
-			$padlen -= 8;
-		}
-		push @stack, "$intro$size\n";
+		$size = hex($size) if ($size =~ /^0x/);
+		$total_size += $size;
 	}
+}
+if ($total_size > 100) {
+	push @stack, "$intro$total_size\n";
 }
 
 # Sort output by size (last field)
