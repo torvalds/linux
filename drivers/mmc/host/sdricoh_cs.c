@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <linux/iopoll.h>
 #include <linux/scatterlist.h>
 
 #include <pcmcia/cistpl.h>
@@ -59,7 +60,7 @@ static unsigned int switchlocked;
 
 /* timeouts */
 #define CMD_TIMEOUT       100000
-#define TRANSFER_TIMEOUT  100000
+#define SDRICOH_DATA_TIMEOUT_US	1000000
 
 /* list of supported pcmcia devices */
 static const struct pcmcia_device_id pcmcia_ids[] = {
@@ -123,21 +124,24 @@ static inline unsigned int sdricoh_readb(struct sdricoh_host *host,
 	return value;
 }
 
+static bool sdricoh_status_ok(struct sdricoh_host *host, unsigned int status,
+			      unsigned int wanted)
+{
+	sdricoh_writel(host, R2E4_STATUS_RESP, status);
+	return status & wanted;
+}
+
 static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
 {
-	unsigned int loop;
+	int ret;
 	unsigned int status = 0;
-	unsigned int timeout = TRANSFER_TIMEOUT;
 	struct device *dev = host->dev;
 
-	for (loop = 0; loop < timeout; loop++) {
-		status = sdricoh_readl(host, R21C_STATUS);
-		sdricoh_writel(host, R2E4_STATUS_RESP, status);
-		if (status & wanted)
-			break;
-	}
-
-	if (loop == timeout) {
+	ret = read_poll_timeout(sdricoh_readl, status,
+				sdricoh_status_ok(host, status, wanted),
+				32, SDRICOH_DATA_TIMEOUT_US, false,
+				host, R21C_STATUS);
+	if (ret) {
 		dev_err(dev, "query_status: timeout waiting for %x\n", wanted);
 		return -ETIMEDOUT;
 	}
