@@ -1866,7 +1866,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 		dwell_overflow = brcmf_p2p_check_dwell_overflow(requested_dwell,
 								dwell_jiffies);
 	}
-	if (ack == false) {
+	if (!ack) {
 		bphy_err(drvr, "Failed to send Action Frame(retry %d)\n",
 			 tx_retry);
 		clear_bit(BRCMF_P2P_STATUS_GO_NEG_PHASE, &p2p->status);
