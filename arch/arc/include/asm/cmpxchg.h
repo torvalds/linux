@@ -38,7 +38,7 @@
 	_prev;								\
 })
 
-#define arch_cmpxchg(ptr, old, new)				        \
+#define arch_cmpxchg_relaxed(ptr, old, new)				\
 ({									\
 	__typeof__(ptr) _p_ = (ptr);					\
 	__typeof__(*(ptr)) _o_ = (old);					\
@@ -47,12 +47,7 @@
 									\
 	switch(sizeof((_p_))) {						\
 	case 4:								\
-	        /*							\
-		 * Explicit full memory barrier needed before/after	\
-	         */							\
-		smp_mb();						\
 		_prev_ = __cmpxchg(_p_, _o_, _n_);			\
-		smp_mb();						\
 		break;							\
 	default:							\
 		BUILD_BUG();						\
@@ -108,16 +103,14 @@
 	_val_;		/* get old value */				\
 })
 
-#define arch_xchg(ptr, val)						\
+#define arch_xchg_relaxed(ptr, val)					\
 ({									\
 	__typeof__(ptr) _p_ = (ptr);					\
 	__typeof__(*(ptr)) _val_ = (val);				\
 									\
 	switch(sizeof(*(_p_))) {					\
 	case 4:								\
-		smp_mb();						\
 		_val_ = __xchg(_p_, _val_);				\
-	        smp_mb();						\
 		break;							\
 	default:							\
 		BUILD_BUG();						\
