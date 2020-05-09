@@ -45,11 +45,13 @@
  * @magic_value: magic value identifying DMUB firmware meta info
  * @fw_region_size: size of the firmware state region
  * @trace_buffer_size: size of the tracebuffer region
+ * @fw_version: the firmware version information
  */
 struct dmub_fw_meta_info {
 	uint32_t magic_value;
 	uint32_t fw_region_size;
 	uint32_t trace_buffer_size;
+	uint32_t fw_version;
 };
 
 /* Ensure that the structure remains 64 bytes. */

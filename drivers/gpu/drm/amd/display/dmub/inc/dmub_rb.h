@@ -37,6 +37,8 @@ struct dmub_rb_init_params {
 	void *ctx;
 	void *base_address;
 	uint32_t capacity;
+	uint32_t read_ptr;
+	uint32_t write_ptr;
 };
 
 struct dmub_rb {
@@ -141,8 +143,8 @@ static inline void dmub_rb_init(struct dmub_rb *rb,
 {
 	rb->base_address = init_params->base_address;
 	rb->capacity = init_params->capacity;
-	rb->rptr = 0;
-	rb->wrpt = 0;
+	rb->rptr = init_params->read_ptr;
+	rb->wrpt = init_params->write_ptr;
 }
 
 #if defined(__cplusplus)
