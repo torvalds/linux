@@ -527,6 +527,29 @@ static const struct attribute_group edt_ft5x06_attr_group = {
 	.attrs = edt_ft5x06_attrs,
 };
 
+static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
+{
+	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
+
+	edt_ft5x06_register_write(tsdata, reg_addr->reg_threshold,
+				  tsdata->threshold);
+	edt_ft5x06_register_write(tsdata, reg_addr->reg_gain,
+				  tsdata->gain);
+	if (reg_addr->reg_offset != NO_REGISTER)
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset,
+					  tsdata->offset);
+	if (reg_addr->reg_offset_x != NO_REGISTER)
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset_x,
+					  tsdata->offset_x);
+	if (reg_addr->reg_offset_y != NO_REGISTER)
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset_y,
+					  tsdata->offset_y);
+	if (reg_addr->reg_report_rate != NO_REGISTER)
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
+				  tsdata->report_rate);
+
+}
+
 #ifdef CONFIG_DEBUG_FS
 static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 {
@@ -592,7 +615,6 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct i2c_client *client = tsdata->client;
 	int retries = EDT_SWITCH_MODE_RETRIES;
-	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 	int ret;
 	int error;
 
@@ -624,24 +646,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 	kfree(tsdata->raw_buffer);
 	tsdata->raw_buffer = NULL;
 
-	/* restore parameters */
-	edt_ft5x06_register_write(tsdata, reg_addr->reg_threshold,
-				  tsdata->threshold);
-	edt_ft5x06_register_write(tsdata, reg_addr->reg_gain,
-				  tsdata->gain);
-	if (reg_addr->reg_offset != NO_REGISTER)
-		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset,
-					  tsdata->offset);
-	if (reg_addr->reg_offset_x != NO_REGISTER)
-		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset_x,
-					  tsdata->offset_x);
-	if (reg_addr->reg_offset_y != NO_REGISTER)
-		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset_y,
-					  tsdata->offset_y);
-	if (reg_addr->reg_report_rate != NO_REGISTER)
-		edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
-				  tsdata->report_rate);
-
+	edt_ft5x06_restore_reg_parameters(tsdata);
 	enable_irq(client->irq);
 
 	return 0;
