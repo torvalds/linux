@@ -2934,6 +2934,25 @@ static int bpf_obj_get_next_id(const union bpf_attr *attr,
 	return err;
 }
 
+struct bpf_map *bpf_map_get_curr_or_next(u32 *id)
+{
+	struct bpf_map *map;
+
+	spin_lock_bh(&map_idr_lock);
+again:
+	map = idr_get_next(&map_idr, id);
+	if (map) {
+		map = __bpf_map_inc_not_zero(map, false);
+		if (IS_ERR(map)) {
+			(*id)++;
+			goto again;
+		}
+	}
+	spin_unlock_bh(&map_idr_lock);
+
+	return map;
+}
+
 #define BPF_PROG_GET_FD_BY_ID_LAST_FIELD prog_id
 
 struct bpf_prog *bpf_prog_by_id(u32 id)
