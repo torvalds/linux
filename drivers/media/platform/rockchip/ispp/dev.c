@@ -149,6 +149,7 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		return ret;
 
 	/* output stream links */
+	flags = 0;
 	stream = &stream_vdev->stream[STREAM_MB];
 	stream->linked = flags;
 	source = &ispp_dev->ispp_sdev.sd.entity;
@@ -158,7 +159,6 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	flags = 0;
 	stream = &stream_vdev->stream[STREAM_S0];
 	stream->linked = flags;
 	sink = &stream->vnode.vdev.entity;
