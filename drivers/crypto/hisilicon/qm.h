@@ -230,7 +230,6 @@ struct hisi_qm {
 	struct work_struct work;
 
 	const char *algs;
-	bool use_dma_api;
 	bool use_sva;
 	resource_size_t phys_base;
 	resource_size_t phys_size;

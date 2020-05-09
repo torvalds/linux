@@ -1267,19 +1267,17 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 	qm->qp_in_used++;
 	qp->qm = qm;
 
-	if (qm->use_dma_api) {
-		qp->qdma.size = qm->sqe_size * QM_Q_DEPTH +
-				sizeof(struct qm_cqe) * QM_Q_DEPTH;
-		qp->qdma.va = dma_alloc_coherent(dev, qp->qdma.size,
-						 &qp->qdma.dma, GFP_KERNEL);
-		if (!qp->qdma.va) {
-			ret = -ENOMEM;
-			goto err_clear_bit;
-		}
-
-		dev_dbg(dev, "allocate qp dma buf(va=%pK, dma=%pad, size=%zx)\n",
-			qp->qdma.va, &qp->qdma.dma, qp->qdma.size);
+	qp->qdma.size = qm->sqe_size * QM_Q_DEPTH +
+			sizeof(struct qm_cqe) * QM_Q_DEPTH;
+	qp->qdma.va = dma_alloc_coherent(dev, qp->qdma.size,
+					 &qp->qdma.dma, GFP_KERNEL);
+	if (!qp->qdma.va) {
+		ret = -ENOMEM;
+		goto err_clear_bit;
 	}
+
+	dev_dbg(dev, "allocate qp dma buf(va=%pK, dma=%pad, size=%zx)\n",
+		qp->qdma.va, &qp->qdma.dma, qp->qdma.size);
 
 	qp->qp_id = qp_id;
 	qp->alg_type = alg_type;
@@ -1334,7 +1332,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 		return;
 	}
 
-	if (qm->use_dma_api && qdma->va)
+	if (qdma->va)
 		dma_free_coherent(dev, qdma->size, qdma->va, qdma->dma);
 
 	qm->qp_array[qp->qp_id] = NULL;
@@ -1992,8 +1990,6 @@ int hisi_qm_init(struct hisi_qm *qm)
 	INIT_WORK(&qm->work, qm_work_process);
 
 	atomic_set(&qm->status.flags, QM_INIT);
-	dev_dbg(dev, "init qm %s with %s\n", pdev->is_physfn ? "pf" : "vf",
-		qm->use_dma_api ? "dma api" : "iommu api");
 
 	return 0;
 
@@ -2034,7 +2030,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	uacce_remove(qm->uacce);
 	qm->uacce = NULL;
 
-	if (qm->use_dma_api && qm->qdma.va) {
+	if (qm->qdma.va) {
 		hisi_qm_cache_wb(qm);
 		dma_free_coherent(dev, qm->qdma.size,
 				  qm->qdma.va, qm->qdma.dma);
@@ -2259,11 +2255,7 @@ int hisi_qm_start(struct hisi_qm *qm)
 		}
 	}
 
-	if (!qm->use_dma_api) {
-		dev_dbg(&qm->pdev->dev, "qm delay start\n");
-		up_write(&qm->qps_lock);
-		return 0;
-	} else if (!qm->qdma.va) {
+	if (!qm->qdma.va) {
 		qm->qdma.size = QMC_ALIGN(sizeof(struct qm_eqe) * QM_Q_DEPTH) +
 				QMC_ALIGN(sizeof(struct qm_aeqe) * QM_Q_DEPTH) +
 				QMC_ALIGN(sizeof(struct qm_sqc) * qm->qp_num) +

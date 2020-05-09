@@ -692,7 +692,6 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	if (rev_id == QM_HW_UNKNOWN)
 		return -EINVAL;
 
-	qm->use_dma_api = true;
 	qm->pdev = pdev;
 	qm->ver = rev_id;
 

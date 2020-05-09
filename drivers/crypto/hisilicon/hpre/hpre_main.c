@@ -679,7 +679,6 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_base = HPRE_PF_DEF_Q_BASE;
 		qm->qp_num = pf_q_num;
 	}
-	qm->use_dma_api = true;
 
 	return hisi_qm_init(qm);
 }

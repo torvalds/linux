@@ -749,7 +749,6 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_base = SEC_PF_DEF_Q_NUM;
 		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
 	}
-	qm->use_dma_api = true;
 
 	return hisi_qm_init(qm);
 }
