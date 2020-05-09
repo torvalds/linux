@@ -773,8 +773,13 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
 
 	/* Only support ksettings_set for netdev with phy attached for now */
-	if (netdev->phydev)
+	if (netdev->phydev) {
+		if (cmd->base.speed == SPEED_1000 &&
+		    cmd->base.autoneg == AUTONEG_DISABLE)
+			return -EINVAL;
+
 		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
+	}
 
 	if (handle->pdev->revision == 0x20)
 		return -EOPNOTSUPP;
