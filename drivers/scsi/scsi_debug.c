@@ -6460,7 +6460,7 @@ static int sdeb_zbc_model_str(const char *cp)
 		res = sysfs_match_string(zbc_model_strs_b, cp);
 		if (res < 0) {
 			res = sysfs_match_string(zbc_model_strs_c, cp);
-			if (sdeb_zbc_model < 0)
+			if (res < 0)
 				return -EINVAL;
 		}
 	}
