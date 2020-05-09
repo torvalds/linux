@@ -1398,6 +1398,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 		.name = "edt_ft5x06",
 		.of_match_table = edt_ft5x06_of_match,
 		.pm = &edt_ft5x06_ts_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,
