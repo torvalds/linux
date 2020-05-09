@@ -38,6 +38,9 @@
 #define WORK_REGISTER_NUM_X		0x33
 #define WORK_REGISTER_NUM_Y		0x34
 
+#define PMOD_REGISTER_ACTIVE		0x00
+#define PMOD_REGISTER_HIBERNATE		0x03
+
 #define M09_REGISTER_THRESHOLD		0x80
 #define M09_REGISTER_GAIN		0x92
 #define M09_REGISTER_OFFSET		0x93
@@ -53,6 +56,7 @@
 
 #define WORK_REGISTER_OPMODE		0x3c
 #define FACTORY_REGISTER_OPMODE		0x01
+#define PMOD_REGISTER_OPMODE		0xa5
 
 #define TOUCH_EVENT_DOWN		0x00
 #define TOUCH_EVENT_UP			0x01
@@ -64,6 +68,12 @@
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
+
+enum edt_pmode {
+	EDT_PMODE_NOT_SUPPORTED,
+	EDT_PMODE_HIBERNATE,
+	EDT_PMODE_POWEROFF,
+};
 
 enum edt_ver {
 	EDT_M06,
@@ -103,6 +113,7 @@ struct edt_ft5x06_ts_data {
 
 	struct mutex mutex;
 	bool factory_mode;
+	enum edt_pmode suspend_mode;
 	int threshold;
 	int gain;
 	int offset;
@@ -767,9 +778,8 @@ static const struct file_operations debugfs_raw_data_fops = {
 	.read = edt_ft5x06_debugfs_raw_data_read,
 };
 
-static void
-edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
-			      const char *debugfs_name)
+static void edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
+					  const char *debugfs_name)
 {
 	tsdata->debug_dir = debugfs_create_dir(debugfs_name, NULL);
 
@@ -782,8 +792,7 @@ edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 			    tsdata->debug_dir, tsdata, &debugfs_raw_data_fops);
 }
 
-static void
-edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 	debugfs_remove_recursive(tsdata->debug_dir);
 	kfree(tsdata->raw_buffer);
@@ -791,14 +800,17 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 #else
 
-static inline void
-edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
-			      const char *debugfs_name)
+static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
+{
+	return -ENOSYS;
+}
+
+static void edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
+					  const char *debugfs_name)
 {
 }
 
-static inline void
-edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 }
 
@@ -1125,6 +1137,19 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
+	/*
+	 * Check which sleep modes we can support. Power-off requieres the
+	 * reset-pin to ensure correct power-down/power-up behaviour. Start with
+	 * the EDT_PMODE_POWEROFF test since this is the deepest possible sleep
+	 * mode.
+	 */
+	if (tsdata->reset_gpio)
+		tsdata->suspend_mode = EDT_PMODE_POWEROFF;
+	else if (tsdata->wake_gpio)
+		tsdata->suspend_mode = EDT_PMODE_HIBERNATE;
+	else
+		tsdata->suspend_mode = EDT_PMODE_NOT_SUPPORTED;
+
 	if (tsdata->wake_gpio) {
 		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(tsdata->wake_gpio, 1);
@@ -1238,6 +1263,102 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
+	struct gpio_desc *reset_gpio = tsdata->reset_gpio;
+	int ret;
+
+	if (device_may_wakeup(dev))
+		return 0;
+
+	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
+		return 0;
+
+	/* Enter hibernate mode. */
+	ret = edt_ft5x06_register_write(tsdata, PMOD_REGISTER_OPMODE,
+					PMOD_REGISTER_HIBERNATE);
+	if (ret)
+		dev_warn(dev, "Failed to set hibernate mode\n");
+
+	if (tsdata->suspend_mode == EDT_PMODE_HIBERNATE)
+		return 0;
+
+	/*
+	 * Power-off according the datasheet. Cut the power may leaf the irq
+	 * line in an undefined state depending on the host pull resistor
+	 * settings. Disable the irq to avoid adjusting each host till the
+	 * device is back in a full functional state.
+	 */
+	disable_irq(tsdata->client->irq);
+
+	gpiod_set_value_cansleep(reset_gpio, 1);
+	usleep_range(1000, 2000);
+
+	ret = regulator_disable(tsdata->vcc);
+	if (ret)
+		dev_warn(dev, "Failed to disable vcc\n");
+
+	return 0;
+}
+
+static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
+	int ret = 0;
+
+	if (device_may_wakeup(dev))
+		return 0;
+
+	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
+		return 0;
+
+	if (tsdata->suspend_mode == EDT_PMODE_POWEROFF) {
+		struct gpio_desc *reset_gpio = tsdata->reset_gpio;
+
+		/*
+		 * We can't check if the regulator is a dummy or a real
+		 * regulator. So we need to specify the 5ms reset time (T_rst)
+		 * here instead of the 100us T_rtp time. We also need to wait
+		 * 300ms in case it was a real supply and the power was cutted
+		 * of. Toggle the reset pin is also a way to exit the hibernate
+		 * mode.
+		 */
+		gpiod_set_value_cansleep(reset_gpio, 1);
+		usleep_range(5000, 6000);
+
+		ret = regulator_enable(tsdata->vcc);
+		if (ret) {
+			dev_err(dev, "Failed to enable vcc\n");
+			return ret;
+		}
+
+		usleep_range(1000, 2000);
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		msleep(300);
+
+		edt_ft5x06_restore_reg_parameters(tsdata);
+		enable_irq(tsdata->client->irq);
+
+		if (tsdata->factory_mode)
+			ret = edt_ft5x06_factory_mode(tsdata);
+	} else {
+		struct gpio_desc *wake_gpio = tsdata->wake_gpio;
+
+		gpiod_set_value_cansleep(wake_gpio, 0);
+		usleep_range(5000, 6000);
+		gpiod_set_value_cansleep(wake_gpio, 1);
+	}
+
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
+			 edt_ft5x06_ts_suspend, edt_ft5x06_ts_resume);
+
 static const struct edt_i2c_chip_data edt_ft5x06_data = {
 	.max_support_points = 5,
 };
@@ -1276,6 +1397,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
 		.name = "edt_ft5x06",
 		.of_match_table = edt_ft5x06_of_match,
+		.pm = &edt_ft5x06_ts_pm_ops,
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,
