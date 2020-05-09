@@ -214,8 +214,8 @@ struct hisi_qm {
 	unsigned long reset_flag;
 
 	struct rw_semaphore qps_lock;
-	unsigned long *qp_bitmap;
-	struct hisi_qp **qp_array;
+	struct idr qp_idr;
+	struct hisi_qp *qp_array;
 
 	struct mutex mailbox_lock;
 
