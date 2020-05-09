@@ -7101,6 +7101,10 @@ static int check_return_code(struct bpf_verifier_env *env)
 			return 0;
 		range = tnum_const(0);
 		break;
+	case BPF_PROG_TYPE_TRACING:
+		if (env->prog->expected_attach_type != BPF_TRACE_ITER)
+			return 0;
+		break;
 	default:
 		return 0;
 	}
@@ -10481,6 +10485,7 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
 	u32 btf_id = prog->aux->attach_btf_id;
 	const char prefix[] = "btf_trace_";
+	struct btf_func_model fmodel;
 	int ret = 0, subprog = -1, i;
 	struct bpf_trampoline *tr;
 	const struct btf_type *t;
@@ -10622,6 +10627,22 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		prog->aux->attach_func_proto = t;
 		prog->aux->attach_btf_trace = true;
 		return 0;
+	case BPF_TRACE_ITER:
+		if (!btf_type_is_func(t)) {
+			verbose(env, "attach_btf_id %u is not a function\n",
+				btf_id);
+			return -EINVAL;
+		}
+		t = btf_type_by_id(btf, t->type);
+		if (!btf_type_is_func_proto(t))
+			return -EINVAL;
+		prog->aux->attach_func_name = tname;
+		prog->aux->attach_func_proto = t;
+		if (!bpf_iter_prog_supported(prog))
+			return -EINVAL;
+		ret = btf_distill_func_proto(&env->log, btf, t,
+					     tname, &fmodel);
+		return ret;
 	default:
 		if (!prog_extension)
 			return -EINVAL;

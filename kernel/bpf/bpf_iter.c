@@ -12,6 +12,7 @@ struct bpf_iter_target_info {
 	bpf_iter_init_seq_priv_t init_seq_private;
 	bpf_iter_fini_seq_priv_t fini_seq_private;
 	u32 seq_priv_size;
+	u32 btf_id;	/* cached value */
 };
 
 static struct list_head targets = LIST_HEAD_INIT(targets);
@@ -56,4 +57,39 @@ void bpf_iter_unreg_target(const char *target)
 	mutex_unlock(&targets_mutex);
 
 	WARN_ON(found == false);
+}
+
+static void cache_btf_id(struct bpf_iter_target_info *tinfo,
+			 struct bpf_prog *prog)
+{
+	tinfo->btf_id = prog->aux->attach_btf_id;
+}
+
+bool bpf_iter_prog_supported(struct bpf_prog *prog)
+{
+	const char *attach_fname = prog->aux->attach_func_name;
+	u32 prog_btf_id = prog->aux->attach_btf_id;
+	const char *prefix = BPF_ITER_FUNC_PREFIX;
+	struct bpf_iter_target_info *tinfo;
+	int prefix_len = strlen(prefix);
+	bool supported = false;
+
+	if (strncmp(attach_fname, prefix, prefix_len))
+		return false;
+
+	mutex_lock(&targets_mutex);
+	list_for_each_entry(tinfo, &targets, list) {
+		if (tinfo->btf_id && tinfo->btf_id == prog_btf_id) {
+			supported = true;
+			break;
+		}
+		if (!strcmp(attach_fname + prefix_len, tinfo->target)) {
+			cache_btf_id(tinfo, prog);
+			supported = true;
+			break;
+		}
+	}
+	mutex_unlock(&targets_mutex);
+
+	return supported;
 }
