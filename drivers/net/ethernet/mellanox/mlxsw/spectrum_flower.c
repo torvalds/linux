@@ -505,6 +505,34 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 					     f->common.extack);
 }
 
+static int mlxsw_sp_flower_mall_prio_check(struct mlxsw_sp_flow_block *block,
+					   struct flow_cls_offload *f)
+{
+	bool ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
+	unsigned int mall_min_prio;
+	unsigned int mall_max_prio;
+	int err;
+
+	err = mlxsw_sp_mall_prio_get(block, f->common.chain_index,
+				     &mall_min_prio, &mall_max_prio);
+	if (err) {
+		if (err == -ENOENT)
+			/* No matchall filters installed on this chain. */
+			return 0;
+		NL_SET_ERR_MSG(f->common.extack, "Failed to get matchall priorities");
+		return err;
+	}
+	if (ingress && f->common.prio <= mall_min_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing matchall rules");
+		return -EOPNOTSUPP;
+	}
+	if (!ingress && f->common.prio >= mall_max_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind of existing matchall rules");
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_flow_block *block,
 			    struct flow_cls_offload *f)
@@ -513,6 +541,10 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule *rule;
 	int err;
+
+	err = mlxsw_sp_flower_mall_prio_check(block, f);
+	if (err)
+		return err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
