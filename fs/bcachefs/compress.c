@@ -191,20 +191,21 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 	}
 	case BCH_COMPRESSION_TYPE_zstd: {
 		ZSTD_DCtx *ctx;
-		size_t len;
+		size_t real_src_len = le32_to_cpup(src_data.b);
+
+		if (real_src_len > src_len - 4)
+			goto err;
 
 		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOIO);
 		ctx = zstd_init_dctx(workspace, zstd_dctx_workspace_bound());
 
-		src_len = le32_to_cpup(src_data.b);
-
-		len = zstd_decompress_dctx(ctx,
+		ret = zstd_decompress_dctx(ctx,
 				dst_data,	dst_len,
-				src_data.b + 4, src_len);
+				src_data.b + 4, real_src_len);
 
 		mempool_free(workspace, &c->decompress_workspace);
 
-		if (len != dst_len)
+		if (ret != dst_len)
 			goto err;
 		break;
 	}
@@ -533,7 +534,6 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
 	size_t max_extent = c->sb.encoded_extent_max << 9;
-	size_t order = get_order(max_extent);
 	size_t decompress_workspace_size = 0;
 	bool decompress_workspace_needed;
 	ZSTD_parameters params = zstd_get_params(0, max_extent);
@@ -568,14 +568,14 @@ have_compressed:
 
 	if (!mempool_initialized(&c->compression_bounce[READ])) {
 		ret = mempool_init_kvpmalloc_pool(&c->compression_bounce[READ],
-						  1, order);
+						  1, max_extent);
 		if (ret)
 			goto out;
 	}
 
 	if (!mempool_initialized(&c->compression_bounce[WRITE])) {
 		ret = mempool_init_kvpmalloc_pool(&c->compression_bounce[WRITE],
-						  1, order);
+						  1, max_extent);
 		if (ret)
 			goto out;
 	}
