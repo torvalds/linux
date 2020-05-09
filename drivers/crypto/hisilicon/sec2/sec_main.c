@@ -722,6 +722,7 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
 	enum qm_hw_ver rev_id;
+	int ret;
 
 	rev_id = hisi_qm_get_hw_version(pdev);
 	if (rev_id == QM_HW_UNKNOWN)
@@ -729,9 +730,9 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->pdev = pdev;
 	qm->ver = rev_id;
-
 	qm->sqe_size = SEC_SQE_SIZE;
 	qm->dev_name = sec_name;
+
 	qm->fun_type = (pdev->device == SEC_PF_PCI_DEVICE_ID) ?
 			QM_HW_PF : QM_HW_VF;
 	if (qm->fun_type == QM_HW_PF) {
@@ -750,7 +751,25 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
 	}
 
-	return hisi_qm_init(qm);
+	/*
+	 * WQ_HIGHPRI: SEC request must be low delayed,
+	 * so need a high priority workqueue.
+	 * WQ_UNBOUND: SEC task is likely with long
+	 * running CPU intensive workloads.
+	 */
+	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				 WQ_UNBOUND, num_online_cpus(),
+				 pci_name(qm->pdev));
+	if (!qm->wq) {
+		pci_err(qm->pdev, "fail to alloc workqueue\n");
+		return -ENOMEM;
+	}
+
+	ret = hisi_qm_init(qm);
+	if (ret)
+		destroy_workqueue(qm->wq);
+
+	return ret;
 }
 
 static void sec_qm_uninit(struct hisi_qm *qm)
@@ -763,29 +782,10 @@ static int sec_probe_init(struct sec_dev *sec)
 	struct hisi_qm *qm = &sec->qm;
 	int ret;
 
-	/*
-	 * WQ_HIGHPRI: SEC request must be low delayed,
-	 * so need a high priority workqueue.
-	 * WQ_UNBOUND: SEC task is likely with long
-	 * running CPU intensive workloads.
-	 */
-	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI |
-		WQ_MEM_RECLAIM | WQ_UNBOUND, num_online_cpus(),
-		pci_name(qm->pdev));
-	if (!qm->wq) {
-		pci_err(qm->pdev, "fail to alloc workqueue\n");
-		return -ENOMEM;
-	}
-
-	if (qm->fun_type == QM_HW_PF)
+	if (qm->fun_type == QM_HW_PF) {
 		ret = sec_pf_probe_init(sec);
-	else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2)
-		/* v2 starts to support get vft by mailbox */
-		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-
-	if (ret) {
-		destroy_workqueue(qm->wq);
-		return ret;
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -824,8 +824,6 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sec = devm_kzalloc(&pdev->dev, sizeof(*sec), GFP_KERNEL);
 	if (!sec)
 		return -ENOMEM;
-
-	pci_set_drvdata(pdev, sec);
 
 	qm = &sec->qm;
 	ret = sec_qm_init(qm, pdev);

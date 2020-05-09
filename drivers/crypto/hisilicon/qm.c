@@ -1916,6 +1916,27 @@ int hisi_qm_get_free_qp_num(struct hisi_qm *qm)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_get_free_qp_num);
 
+static void hisi_qm_pre_init(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+
+	switch (qm->ver) {
+	case QM_HW_V1:
+		qm->ops = &qm_hw_ops_v1;
+		break;
+	case QM_HW_V2:
+		qm->ops = &qm_hw_ops_v2;
+		break;
+	default:
+		return;
+	}
+
+	pci_set_drvdata(pdev, qm);
+	mutex_init(&qm->mailbox_lock);
+	init_rwsem(&qm->qps_lock);
+	qm->qp_in_used = 0;
+}
+
 /**
  * hisi_qm_init() - Initialize configures about qm.
  * @qm: The qm needing init.
@@ -1929,16 +1950,7 @@ int hisi_qm_init(struct hisi_qm *qm)
 	unsigned int num_vec;
 	int ret;
 
-	switch (qm->ver) {
-	case QM_HW_V1:
-		qm->ops = &qm_hw_ops_v1;
-		break;
-	case QM_HW_V2:
-		qm->ops = &qm_hw_ops_v2;
-		break;
-	default:
-		return -EINVAL;
-	}
+	hisi_qm_pre_init(qm);
 
 	ret = qm_alloc_uacce(qm);
 	if (ret < 0)
@@ -1984,15 +1996,21 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		goto err_free_irq_vectors;
 
-	qm->qp_in_used = 0;
-	mutex_init(&qm->mailbox_lock);
-	init_rwsem(&qm->qps_lock);
+	if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2) {
+		/* v2 starts to support get vft by mailbox */
+		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+		if (ret)
+			goto err_irq_unregister;
+	}
+
 	INIT_WORK(&qm->work, qm_work_process);
 
 	atomic_set(&qm->status.flags, QM_INIT);
 
 	return 0;
 
+err_irq_unregister:
+	qm_irq_unregister(qm);
 err_free_irq_vectors:
 	pci_free_irq_vectors(pdev);
 err_iounmap:
