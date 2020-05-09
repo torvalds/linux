@@ -84,8 +84,24 @@
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
 
+enum qm_stop_reason {
+	QM_NORMAL,
+	QM_SOFT_RESET,
+	QM_FLR,
+};
+
+enum qm_state {
+	QM_INIT = 0,
+	QM_START,
+	QM_CLOSE,
+	QM_STOP,
+};
+
 enum qp_state {
+	QP_INIT = 1,
+	QP_START,
 	QP_STOP,
+	QP_CLOSE,
 };
 
 enum qm_hw_ver {
@@ -129,7 +145,8 @@ struct hisi_qm_status {
 	bool eqc_phase;
 	u32 aeq_head;
 	bool aeqc_phase;
-	unsigned long flags;
+	atomic_t flags;
+	int stop_reason;
 };
 
 struct hisi_qm;
@@ -196,7 +213,7 @@ struct hisi_qm {
 	struct hisi_qm_err_status err_status;
 	unsigned long reset_flag;
 
-	rwlock_t qps_lock;
+	struct rw_semaphore qps_lock;
 	unsigned long *qp_bitmap;
 	struct hisi_qp **qp_array;
 
@@ -225,7 +242,7 @@ struct hisi_qp_status {
 	u16 sq_tail;
 	u16 cq_head;
 	bool cqc_phase;
-	unsigned long flags;
+	atomic_t flags;
 };
 
 struct hisi_qp_ops {
@@ -250,6 +267,7 @@ struct hisi_qp {
 	void (*event_cb)(struct hisi_qp *qp);
 
 	struct hisi_qm *qm;
+	bool is_resetting;
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 };
