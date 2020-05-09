@@ -192,38 +192,7 @@ static const struct debugfs_reg32 hzip_dfx_regs[] = {
 
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
-	struct pci_dev *pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI,
-					      PCI_DEVICE_ID_ZIP_PF, NULL);
-	u32 n, q_num;
-	u8 rev_id;
-	int ret;
-
-	if (!val)
-		return -EINVAL;
-
-	if (!pdev) {
-		q_num = min_t(u32, HZIP_QUEUE_NUM_V1, HZIP_QUEUE_NUM_V2);
-		pr_info("No device found currently, suppose queue number is %d\n",
-			q_num);
-	} else {
-		rev_id = pdev->revision;
-		switch (rev_id) {
-		case QM_HW_V1:
-			q_num = HZIP_QUEUE_NUM_V1;
-			break;
-		case QM_HW_V2:
-			q_num = HZIP_QUEUE_NUM_V2;
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret != 0 || n > q_num || n == 0)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
+	return q_num_set(val, kp, PCI_DEVICE_ID_ZIP_PF);
 }
 
 static const struct kernel_param_ops pf_q_num_ops = {

@@ -136,45 +136,14 @@ static const struct debugfs_reg32 sec_dfx_regs[] = {
 
 static int sec_pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
-	struct pci_dev *pdev;
-	u32 n, q_num;
-	u8 rev_id;
-	int ret;
-
-	if (!val)
-		return -EINVAL;
-
-	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI,
-			      SEC_PF_PCI_DEVICE_ID, NULL);
-	if (!pdev) {
-		q_num = min_t(u32, SEC_QUEUE_NUM_V1, SEC_QUEUE_NUM_V2);
-		pr_info("No device, suppose queue number is %d!\n", q_num);
-	} else {
-		rev_id = pdev->revision;
-
-		switch (rev_id) {
-		case QM_HW_V1:
-			q_num = SEC_QUEUE_NUM_V1;
-			break;
-		case QM_HW_V2:
-			q_num = SEC_QUEUE_NUM_V2;
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret || !n || n > q_num)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
+	return q_num_set(val, kp, SEC_PF_PCI_DEVICE_ID);
 }
 
 static const struct kernel_param_ops sec_pf_q_num_ops = {
 	.set = sec_pf_q_num_set,
 	.get = param_get_int,
 };
+
 static u32 pf_q_num = SEC_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &sec_pf_q_num_ops, &pf_q_num, 0444);
 MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 0-4096, v2 0-1024)");

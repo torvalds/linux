@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#define QM_QNUM_V1			4096
+#define QM_QNUM_V2			1024
 #define QM_MAX_VFS_NUM_V2		63
 
 /* qm user domain */
@@ -251,6 +253,43 @@ struct hisi_qp {
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 };
+
+static inline int q_num_set(const char *val, const struct kernel_param *kp,
+			    unsigned int device)
+{
+	struct pci_dev *pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI,
+					      device, NULL);
+	u32 n, q_num;
+	u8 rev_id;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	if (!pdev) {
+		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
+		pr_info("No device found currently, suppose queue number is %d\n",
+			q_num);
+	} else {
+		rev_id = pdev->revision;
+		switch (rev_id) {
+		case QM_HW_V1:
+			q_num = QM_QNUM_V1;
+			break;
+		case QM_HW_V2:
+			q_num = QM_QNUM_V2;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret || !n || n > q_num)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
 
 static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
 {

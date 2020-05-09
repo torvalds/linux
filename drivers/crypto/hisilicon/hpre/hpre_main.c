@@ -159,44 +159,19 @@ static const struct debugfs_reg32 hpre_com_dfx_regs[] = {
 	{"INT_STATUS               ",  HPRE_INT_STATUS},
 };
 
-static int hpre_pf_q_num_set(const char *val, const struct kernel_param *kp)
+static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
-	struct pci_dev *pdev;
-	u32 n, q_num;
-	u8 rev_id;
-	int ret;
-
-	if (!val)
-		return -EINVAL;
-
-	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI, HPRE_PCI_DEVICE_ID, NULL);
-	if (!pdev) {
-		q_num = HPRE_QUEUE_NUM_V2;
-		pr_info("No device found currently, suppose queue number is %d\n",
-			q_num);
-	} else {
-		rev_id = pdev->revision;
-		if (rev_id != QM_HW_V2)
-			return -EINVAL;
-
-		q_num = HPRE_QUEUE_NUM_V2;
-	}
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret != 0 || n == 0 || n > q_num)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
+	return q_num_set(val, kp, HPRE_PCI_DEVICE_ID);
 }
 
 static const struct kernel_param_ops hpre_pf_q_num_ops = {
-	.set = hpre_pf_q_num_set,
+	.set = pf_q_num_set,
 	.get = param_get_int,
 };
 
-static u32 hpre_pf_q_num = HPRE_PF_DEF_Q_NUM;
-module_param_cb(hpre_pf_q_num, &hpre_pf_q_num_ops, &hpre_pf_q_num, 0444);
-MODULE_PARM_DESC(hpre_pf_q_num, "Number of queues in PF of CS(1-1024)");
+static u32 pf_q_num = HPRE_PF_DEF_Q_NUM;
+module_param_cb(pf_q_num, &hpre_pf_q_num_ops, &pf_q_num, 0444);
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF of CS(1-1024)");
 
 static const struct kernel_param_ops vfs_num_ops = {
 	.set = vfs_num_set,
@@ -688,7 +663,7 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	if (pdev->is_physfn) {
 		qm->qp_base = HPRE_PF_DEF_Q_BASE;
-		qm->qp_num = hpre_pf_q_num;
+		qm->qp_num = pf_q_num;
 	}
 	qm->use_dma_api = true;
 
