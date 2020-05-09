@@ -765,6 +765,21 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	qm->dev_name = sec_name;
 	qm->fun_type = (pdev->device == SEC_PF_PCI_DEVICE_ID) ?
 			QM_HW_PF : QM_HW_VF;
+	if (qm->fun_type == QM_HW_PF) {
+		qm->qp_base = SEC_PF_DEF_Q_BASE;
+		qm->qp_num = pf_q_num;
+		qm->debug.curr_qm_qp_num = pf_q_num;
+		qm->qm_list = &sec_devices;
+	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V1) {
+		/*
+		 * have no way to get qm configure in VM in v1 hardware,
+		 * so currently force PF to uses SEC_PF_DEF_Q_NUM, and force
+		 * to trigger only one VF in v1 hardware.
+		 * v2 hardware has no such problem.
+		 */
+		qm->qp_base = SEC_PF_DEF_Q_NUM;
+		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
+	}
 	qm->use_dma_api = true;
 
 	return hisi_qm_init(qm);
@@ -775,8 +790,9 @@ static void sec_qm_uninit(struct hisi_qm *qm)
 	hisi_qm_uninit(qm);
 }
 
-static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
+static int sec_probe_init(struct sec_dev *sec)
 {
+	struct hisi_qm *qm = &sec->qm;
 	int ret;
 
 	/*
@@ -793,40 +809,18 @@ static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
 		return -ENOMEM;
 	}
 
-	if (qm->fun_type == QM_HW_PF) {
-		qm->qp_base = SEC_PF_DEF_Q_BASE;
-		qm->qp_num = pf_q_num;
-		qm->debug.curr_qm_qp_num = pf_q_num;
-		qm->qm_list = &sec_devices;
-
+	if (qm->fun_type == QM_HW_PF)
 		ret = sec_pf_probe_init(sec);
-		if (ret)
-			goto err_probe_uninit;
-	} else if (qm->fun_type == QM_HW_VF) {
-		/*
-		 * have no way to get qm configure in VM in v1 hardware,
-		 * so currently force PF to uses SEC_PF_DEF_Q_NUM, and force
-		 * to trigger only one VF in v1 hardware.
-		 * v2 hardware has no such problem.
-		 */
-		if (qm->ver == QM_HW_V1) {
-			qm->qp_base = SEC_PF_DEF_Q_NUM;
-			qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
-		} else if (qm->ver == QM_HW_V2) {
-			/* v2 starts to support get vft by mailbox */
-			ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-			if (ret)
-				goto err_probe_uninit;
-		}
-	} else {
-		ret = -ENODEV;
-		goto err_probe_uninit;
+	else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2)
+		/* v2 starts to support get vft by mailbox */
+		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+
+	if (ret) {
+		destroy_workqueue(qm->wq);
+		return ret;
 	}
 
 	return 0;
-err_probe_uninit:
-	destroy_workqueue(qm->wq);
-	return ret;
 }
 
 static void sec_probe_uninit(struct hisi_qm *qm)
@@ -865,18 +859,17 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, sec);
 
-	sec->ctx_q_num = ctx_q_num;
-	sec_iommu_used_check(sec);
-
 	qm = &sec->qm;
-
 	ret = sec_qm_init(qm, pdev);
 	if (ret) {
-		pci_err(pdev, "Failed to pre init qm!\n");
+		pci_err(pdev, "Failed to init SEC QM (%d)!\n", ret);
 		return ret;
 	}
 
-	ret = sec_probe_init(qm, sec);
+	sec->ctx_q_num = ctx_q_num;
+	sec_iommu_used_check(sec);
+
+	ret = sec_probe_init(sec);
 	if (ret) {
 		pci_err(pdev, "Failed to probe!\n");
 		goto err_qm_uninit;
