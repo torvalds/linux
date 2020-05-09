@@ -39,6 +39,8 @@ static DEFINE_MUTEX(link_mutex);
 /* incremented on every opened seq_file */
 static atomic64_t session_id;
 
+static int prepare_seq_file(struct file *file, struct bpf_iter_link *link);
+
 /* bpf_seq_read, a customized and simpler version for bpf iterator.
  * no_llseek is assumed for this file.
  * The following are differences from seq_read():
@@ -162,6 +164,13 @@ done:
 	return copied;
 }
 
+static int iter_open(struct inode *inode, struct file *file)
+{
+	struct bpf_iter_link *link = inode->i_private;
+
+	return prepare_seq_file(file, link);
+}
+
 static int iter_release(struct inode *inode, struct file *file)
 {
 	struct bpf_iter_priv_data *iter_priv;
@@ -183,7 +192,8 @@ static int iter_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static const struct file_operations bpf_iter_fops = {
+const struct file_operations bpf_iter_fops = {
+	.open		= iter_open,
 	.llseek		= no_llseek,
 	.read		= bpf_seq_read,
 	.release	= iter_release,
@@ -309,6 +319,11 @@ static const struct bpf_link_ops bpf_iter_link_lops = {
 	.dealloc = bpf_iter_link_dealloc,
 	.update_prog = bpf_iter_link_replace,
 };
+
+bool bpf_link_is_iter(struct bpf_link *link)
+{
+	return link->ops == &bpf_iter_link_lops;
+}
 
 int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
