@@ -109,6 +109,36 @@ struct v4l2_fwnode_endpoint {
 };
 
 /**
+ * V4L2_FWNODE_PROPERTY_UNSET - identify a non initialized property
+ *
+ * All properties in &struct v4l2_fwnode_device_properties are initialized
+ * to this value.
+ */
+#define V4L2_FWNODE_PROPERTY_UNSET   (-1U)
+
+/**
+ * enum v4l2_fwnode_orientation - possible device orientation
+ * @V4L2_FWNODE_ORIENTATION_FRONT: device installed on the front side
+ * @V4L2_FWNODE_ORIENTATION_BACK: device installed on the back side
+ * @V4L2_FWNODE_ORIENTATION_EXTERNAL: device externally located
+ */
+enum v4l2_fwnode_orientation {
+	V4L2_FWNODE_ORIENTATION_FRONT,
+	V4L2_FWNODE_ORIENTATION_BACK,
+	V4L2_FWNODE_ORIENTATION_EXTERNAL
+};
+
+/**
+ * struct v4l2_fwnode_device_properties - fwnode device properties
+ * @orientation: device orientation. See &enum v4l2_fwnode_orientation
+ * @rotation: device rotation
+ */
+struct v4l2_fwnode_device_properties {
+	enum v4l2_fwnode_orientation orientation;
+	unsigned int rotation;
+};
+
+/**
  * struct v4l2_fwnode_link - a link between two endpoints
  * @local_node: pointer to device_node of this endpoint
  * @local_port: identifier of the port this endpoint belongs to
@@ -352,6 +382,23 @@ int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
  */
 int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
 				   struct v4l2_fwnode_connector *connector);
+
+/**
+ * v4l2_fwnode_device_parse() - parse fwnode device properties
+ * @dev: pointer to &struct device
+ * @props: pointer to &struct v4l2_fwnode_device_properties where to store the
+ *	   parsed properties values
+ *
+ * This function parses and validates the V4L2 fwnode device properties from the
+ * firmware interface, and fills the @struct v4l2_fwnode_device_properties
+ * provided by the caller.
+ *
+ * Return:
+ *	% 0 on success
+ *	%-EINVAL if a parsed property value is not valid
+ */
+int v4l2_fwnode_device_parse(struct device *dev,
+			     struct v4l2_fwnode_device_properties *props);
 
 /**
  * typedef parse_endpoint_func - Driver's callback function to be called on

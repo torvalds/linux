@@ -756,6 +756,48 @@ err:
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_add_link);
 
+int v4l2_fwnode_device_parse(struct device *dev,
+			     struct v4l2_fwnode_device_properties *props)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	u32 val;
+	int ret;
+
+	memset(props, 0, sizeof(*props));
+
+	props->orientation = V4L2_FWNODE_PROPERTY_UNSET;
+	ret = fwnode_property_read_u32(fwnode, "orientation", &val);
+	if (!ret) {
+		switch (val) {
+		case V4L2_FWNODE_ORIENTATION_FRONT:
+		case V4L2_FWNODE_ORIENTATION_BACK:
+		case V4L2_FWNODE_ORIENTATION_EXTERNAL:
+			break;
+		default:
+			dev_warn(dev, "Unsupported device orientation: %u\n", val);
+			return -EINVAL;
+		}
+
+		props->orientation = val;
+		dev_dbg(dev, "device orientation: %u\n", val);
+	}
+
+	props->rotation = V4L2_FWNODE_PROPERTY_UNSET;
+	ret = fwnode_property_read_u32(fwnode, "rotation", &val);
+	if (!ret) {
+		if (val >= 360) {
+			dev_warn(dev, "Unsupported device rotation: %u\n", val);
+			return -EINVAL;
+		}
+
+		props->rotation = val;
+		dev_dbg(dev, "device rotation: %u\n", val);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_fwnode_device_parse);
+
 static int
 v4l2_async_notifier_fwnode_parse_endpoint(struct device *dev,
 					  struct v4l2_async_notifier *notifier,
