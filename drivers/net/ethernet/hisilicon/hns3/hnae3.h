@@ -552,6 +552,7 @@ struct hnae3_ae_ops {
 	int (*set_vf_mac)(struct hnae3_handle *handle, int vf, u8 *p);
 	int (*get_module_eeprom)(struct hnae3_handle *handle, u32 offset,
 				 u32 len, u8 *data);
+	bool (*get_cmdq_stat)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {
