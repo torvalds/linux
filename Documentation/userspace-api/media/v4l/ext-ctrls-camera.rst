@@ -510,6 +510,36 @@ enum v4l2_scene_mode -
     value down. A value of zero stops the motion if one is in progress
     and has no effect otherwise.
 
+``V4L2_CID_CAMERA_ORIENTATION (menu)``
+    This read-only control describes the camera orientation by reporting its
+    mounting position on the device where the camera is installed. The control
+    value is constant and not modifiable by software. This control is
+    particularly meaningful for devices which have a well defined orientation,
+    such as phones, laptops and portable devices since the control is expressed
+    as a position relative to the device's intended usage orientation. For
+    example, a camera installed on the user-facing side of a phone, a tablet or
+    a laptop device is said to be have ``V4L2_CAMERA_ORIENTATION_FRONT``
+    orientation, while a camera installed on the opposite side of the front one
+    is said to be have ``V4L2_CAMERA_ORIENTATION_BACK`` orientation. Camera
+    sensors not directly attached to the device, or attached in a way that
+    allows them to move freely, such as webcams and digital cameras, are said to
+    have the ``V4L2_CAMERA_ORIENTATION_EXTERNAL`` orientation.
+
+
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_CAMERA_ORIENTATION_FRONT``
+      - The camera is oriented towards the user facing side of the device.
+    * - ``V4L2_CAMERA_ORIENTATION_BACK``
+      - The camera is oriented towards the back facing side of the device.
+    * - ``V4L2_CAMERA_ORIENTATION_EXTERNAL``
+      - The camera is not directly attached to the device and is freely movable.
+
+
+
 .. [#f1]
    This control may be changed to a menu control in the future, if more
    options are required.
