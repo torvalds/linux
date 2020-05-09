@@ -1326,11 +1326,12 @@ void hl_device_fini(struct hl_device *hdev)
 	 * This function is competing with the reset function, so try to
 	 * take the reset atomic and if we are already in middle of reset,
 	 * wait until reset function is finished. Reset function is designed
-	 * to always finish (could take up to a few seconds in worst case).
+	 * to always finish. However, in Gaudi, because of all the network
+	 * ports, the hard reset could take between 10-30 seconds
 	 */
 
 	timeout = ktime_add_us(ktime_get(),
-				HL_PENDING_RESET_PER_SEC * 1000 * 1000 * 4);
+				HL_HARD_RESET_MAX_TIMEOUT * 1000 * 1000);
 	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 	while (rc) {
 		usleep_range(50, 200);
