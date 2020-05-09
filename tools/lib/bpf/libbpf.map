@@ -258,6 +258,8 @@ LIBBPF_0.0.8 {
 LIBBPF_0.0.9 {
 	global:
 		bpf_enable_stats;
+		bpf_iter_create;
 		bpf_link_get_fd_by_id;
 		bpf_link_get_next_id;
+		bpf_program__attach_iter;
 } LIBBPF_0.0.8;
