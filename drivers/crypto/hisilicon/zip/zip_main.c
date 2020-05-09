@@ -701,23 +701,14 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	return 0;
 }
 
-static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	struct hisi_zip *hisi_zip;
 	enum qm_hw_ver rev_id;
-	struct hisi_qm *qm;
-	int ret;
 
 	rev_id = hisi_qm_get_hw_version(pdev);
 	if (rev_id == QM_HW_UNKNOWN)
 		return -EINVAL;
 
-	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
-	if (!hisi_zip)
-		return -ENOMEM;
-	pci_set_drvdata(pdev, hisi_zip);
-
-	qm = &hisi_zip->qm;
 	qm->use_dma_api = true;
 	qm->pdev = pdev;
 	qm->ver = rev_id;
@@ -725,13 +716,16 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	qm->algs = "zlib\ngzip";
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;
-	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
-								QM_HW_VF;
-	ret = hisi_qm_init(qm);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to init qm!\n");
-		return ret;
-	}
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ?
+			QM_HW_PF : QM_HW_VF;
+
+	return hisi_qm_init(qm);
+}
+
+static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
+{
+	struct hisi_qm *qm = &hisi_zip->qm;
+	int ret;
 
 	if (qm->fun_type == QM_HW_PF) {
 		ret = hisi_zip_pf_probe_init(hisi_zip);
@@ -754,7 +748,36 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
 		} else if (qm->ver == QM_HW_V2)
 			/* v2 starts to support get vft by mailbox */
-			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+			return hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+	}
+
+	return 0;
+}
+
+static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct hisi_zip *hisi_zip;
+	struct hisi_qm *qm;
+	int ret;
+
+	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
+	if (!hisi_zip)
+		return -ENOMEM;
+
+	pci_set_drvdata(pdev, hisi_zip);
+
+	qm = &hisi_zip->qm;
+
+	ret = hisi_zip_qm_init(qm, pdev);
+	if (ret) {
+		pci_err(pdev, "Failed to init ZIP QM (%d)!\n", ret);
+		return ret;
+	}
+
+	ret = hisi_zip_probe_init(hisi_zip);
+	if (ret) {
+		pci_err(pdev, "Failed to probe (%d)!\n", ret);
+		goto err_qm_uninit;
 	}
 
 	ret = hisi_qm_start(qm);
@@ -787,6 +810,7 @@ err_remove_from_list:
 	hisi_qm_stop(qm);
 err_qm_uninit:
 	hisi_qm_uninit(qm);
+
 	return ret;
 }
 
