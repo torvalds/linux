@@ -370,6 +370,7 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 	if (dev->capture.vc_start_timestamp != -1 && pts) {
 		ktime_t timestamp;
 		s64 runtime_us = pts - dev->capture.vc_start_timestamp;
+
 		timestamp = ktime_add_us(dev->capture.kernel_start_ts,
 					 runtime_us);
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
