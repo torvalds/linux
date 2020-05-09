@@ -212,6 +212,11 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 		mall_entry->mirror.to_dev = act->dev;
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
+		if (!mall_entry->ingress) {
+			NL_SET_ERR_MSG(f->common.extack, "Sample is not supported on egress");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
 			NL_SET_ERR_MSG(f->common.extack, "Sample rate not supported");
 			err = -EOPNOTSUPP;
