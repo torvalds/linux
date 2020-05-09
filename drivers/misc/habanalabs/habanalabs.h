@@ -578,6 +578,8 @@ enum hl_pll_frequency {
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
+ * @enable_clock_gating: enable clock gating for reducing power consumption.
+ * @disable_clock_gating: disable clock for accessing registers on HBW.
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
  * @soft_reset_late_init: perform certain actions needed after soft reset.
@@ -678,6 +680,8 @@ struct hl_asic_funcs {
 	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
+	void (*enable_clock_gating)(struct hl_device *hdev);
+	void (*disable_clock_gating)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u32 *mask,
 				struct seq_file *s);
@@ -1408,6 +1412,7 @@ struct hl_device_idle_busy_ts {
  *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
+ * @clock_gating: is clock gating enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
@@ -1494,6 +1499,7 @@ struct hl_device {
 	u8				dram_default_page_mapping;
 	u8				pmmu_huge_range;
 	u8				init_done;
+	u8				clock_gating;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
 	u8				in_debug;
