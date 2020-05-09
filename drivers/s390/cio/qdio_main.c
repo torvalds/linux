@@ -1566,7 +1566,7 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 EXPORT_SYMBOL_GPL(do_QDIO);
 
 /**
- * qdio_start_irq - process input buffers
+ * qdio_start_irq - enable interrupt processing for the device
  * @cdev: associated ccw_device for the qdio subchannel
  *
  * Return codes
