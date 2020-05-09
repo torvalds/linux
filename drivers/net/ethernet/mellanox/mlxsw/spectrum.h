@@ -638,6 +638,8 @@ struct mlxsw_sp_flow_block {
 	struct list_head binding_list;
 	struct {
 		struct list_head list;
+		unsigned int min_prio;
+		unsigned int max_prio;
 	} mall;
 	struct mlxsw_sp_acl_ruleset *ruleset_zero;
 	struct mlxsw_sp *mlxsw_sp;
@@ -900,6 +902,8 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 			    struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 			       struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio);
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,

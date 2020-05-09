@@ -23,6 +23,7 @@ struct mlxsw_sp_mall_mirror_entry {
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
+	unsigned int priority;
 	enum mlxsw_sp_mall_action_type type;
 	bool ingress;
 	union {
@@ -175,6 +176,22 @@ mlxsw_sp_mall_port_rule_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+static void mlxsw_sp_mall_prio_update(struct mlxsw_sp_flow_block *block)
+{
+	struct mlxsw_sp_mall_entry *mall_entry;
+
+	if (list_empty(&block->mall.list))
+		return;
+	block->mall.min_prio = UINT_MAX;
+	block->mall.max_prio = 0;
+	list_for_each_entry(mall_entry, &block->mall.list, list) {
+		if (mall_entry->priority < block->mall.min_prio)
+			block->mall.min_prio = mall_entry->priority;
+		if (mall_entry->priority > block->mall.max_prio)
+			block->mall.max_prio = mall_entry->priority;
+	}
+}
+
 int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 			  struct tc_cls_matchall_offload *f)
 {
@@ -203,6 +220,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;
+	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
 	act = &f->rule->action.entries[0];
@@ -245,6 +263,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 	else
 		block->ingress_blocker_rule_count++;
 	list_add_tail(&mall_entry->list, &block->mall.list);
+	mlxsw_sp_mall_prio_update(block);
 	return 0;
 
 rollback:
@@ -277,6 +296,7 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 	list_for_each_entry(binding, &block->binding_list, list)
 		mlxsw_sp_mall_port_rule_del(binding->mlxsw_sp_port, mall_entry);
 	kfree_rcu(mall_entry, rcu); /* sample RX packets may be in-flight */
+	mlxsw_sp_mall_prio_update(block);
 }
 
 int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
@@ -306,4 +326,18 @@ void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 
 	list_for_each_entry(mall_entry, &block->mall.list, list)
 		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
+}
+
+int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio)
+{
+	if (chain_index || list_empty(&block->mall.list))
+		/* In case there are no matchall rules, the caller
+		 * receives -ENOENT to indicate there is no need
+		 * to check the priorities.
+		 */
+		return -ENOENT;
+	*p_min_prio = block->mall.min_prio;
+	*p_max_prio = block->mall.max_prio;
+	return 0;
 }
