@@ -6,6 +6,7 @@
 #include <linux/iopoll.h>
 
 #include "aq_hw.h"
+#include "aq_hw_utils.h"
 #include "hw_atl/hw_atl_llh.h"
 #include "hw_atl2_utils.h"
 #include "hw_atl2_llh.h"
@@ -129,7 +130,7 @@ static void a2_link_speed_mask2fw(u32 speed,
 	link_options->rate_10G = !!(speed & AQ_NIC_RATE_10G);
 	link_options->rate_5G = !!(speed & AQ_NIC_RATE_5G);
 	link_options->rate_N5G = !!(speed & AQ_NIC_RATE_5GSR);
-	link_options->rate_2P5G = !!(speed & AQ_NIC_RATE_2GS);
+	link_options->rate_2P5G = !!(speed & AQ_NIC_RATE_2G5);
 	link_options->rate_N2P5G = link_options->rate_2P5G;
 	link_options->rate_1G = !!(speed & AQ_NIC_RATE_1G);
 	link_options->rate_100M = !!(speed & AQ_NIC_RATE_100M);
@@ -211,28 +212,6 @@ static int aq_a2_fw_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 
 	hw_atl2_shared_buffer_get(self, mac_address, mac_address);
 	ether_addr_copy(mac, (u8 *)mac_address.aligned.mac_address);
-
-	if ((mac[0] & 0x01U) || ((mac[0] | mac[1] | mac[2]) == 0x00U)) {
-		unsigned int rnd = 0;
-		u32 h;
-		u32 l;
-
-		get_random_bytes(&rnd, sizeof(unsigned int));
-
-		l = 0xE3000000U | (0xFFFFU & rnd) | (0x00 << 16);
-		h = 0x8001300EU;
-
-		mac[5] = (u8)(0xFFU & l);
-		l >>= 8;
-		mac[4] = (u8)(0xFFU & l);
-		l >>= 8;
-		mac[3] = (u8)(0xFFU & l);
-		l >>= 8;
-		mac[2] = (u8)(0xFFU & l);
-		mac[1] = (u8)(0xFFU & h);
-		h >>= 8;
-		mac[0] = (u8)(0xFFU & h);
-	}
 
 	return 0;
 }

@@ -60,7 +60,7 @@ const struct aq_hw_caps_s hw_atl2_caps_aqc113 = {
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
 	.link_speed_msk = AQ_NIC_RATE_10G |
 			  AQ_NIC_RATE_5G  |
-			  AQ_NIC_RATE_2GS |
+			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G  |
 			  AQ_NIC_RATE_100M      |
 			  AQ_NIC_RATE_10M,
@@ -172,7 +172,7 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 	for (i = HW_ATL2_RSS_REDIRECTION_MAX; i--;)
 		hw_atl2_new_rpf_rss_redir_set(self, 0, i, indirection_table[i]);
 
-	return hw_atl_b0_hw_rss_set(self, rss_params);
+	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)

@@ -75,14 +75,6 @@ int hw_atl2_utils_soft_reset(struct aq_hw_s *self)
 	u32 rbl_request;
 	int err;
 
-	err = readx_poll_timeout_atomic(hw_atl2_mif_mcp_boot_reg_get, self,
-				rbl_status,
-				((rbl_status & AQ_A2_BOOT_STARTED) &&
-				 (rbl_status != 0xFFFFFFFFu)),
-				10, 500000);
-	if (err)
-		aq_pr_trace("Boot code probably hanged, reboot anyway");
-
 	hw_atl2_mif_host_req_int_clr(self, 0x01);
 	rbl_request = AQ_A2_FW_BOOT_REQ_REBOOT;
 #ifdef AQ_CFG_FAST_START

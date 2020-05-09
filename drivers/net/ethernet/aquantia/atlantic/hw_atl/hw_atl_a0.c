@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_a0.c: Definition of Atlantic hardware specific functions. */
@@ -47,7 +48,7 @@ const struct aq_hw_caps_s hw_atl_a0_caps_aqc100 = {
 	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_FIBRE,
 	.link_speed_msk = AQ_NIC_RATE_5G |
-			  AQ_NIC_RATE_2GS |
+			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G |
 			  AQ_NIC_RATE_100M,
 };
@@ -57,7 +58,7 @@ const struct aq_hw_caps_s hw_atl_a0_caps_aqc107 = {
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
 	.link_speed_msk = AQ_NIC_RATE_10G |
 			  AQ_NIC_RATE_5G |
-			  AQ_NIC_RATE_2GS |
+			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G |
 			  AQ_NIC_RATE_100M,
 };
@@ -66,7 +67,7 @@ const struct aq_hw_caps_s hw_atl_a0_caps_aqc108 = {
 	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
 	.link_speed_msk = AQ_NIC_RATE_5G |
-			  AQ_NIC_RATE_2GS |
+			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G |
 			  AQ_NIC_RATE_100M,
 };
@@ -74,7 +75,7 @@ const struct aq_hw_caps_s hw_atl_a0_caps_aqc108 = {
 const struct aq_hw_caps_s hw_atl_a0_caps_aqc109 = {
 	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
-	.link_speed_msk = AQ_NIC_RATE_2GS |
+	.link_speed_msk = AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G |
 			  AQ_NIC_RATE_100M,
 };
@@ -267,8 +268,7 @@ static int hw_atl_a0_hw_init_tx_path(struct aq_hw_s *self)
 	hw_atl_tdm_tx_desc_wr_wb_irq_en_set(self, 1U);
 
 	/* misc */
-	aq_hw_write_reg(self, 0x00007040U, ATL_HW_IS_CHIP_FEATURE(self, TPO2) ?
-			0x00010000U : 0x00000000U);
+	aq_hw_write_reg(self, 0x00007040U, 0x00000000U);
 	hw_atl_tdm_tx_dca_en_set(self, 0U);
 	hw_atl_tdm_tx_dca_mode_set(self, 0U);
 

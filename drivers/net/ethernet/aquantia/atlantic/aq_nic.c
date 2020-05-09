@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_nic.c: Definition of common code for NIC. */
@@ -271,6 +272,14 @@ exit:
 	return err;
 }
 
+static bool aq_nic_is_valid_ether_addr(const u8 *addr)
+{
+	/* Some engineering samples of Aquantia NICs are provisioned with a
+	 * partially populated MAC, which is still invalid.
+	 */
+	return !(addr[0] == 0 && addr[1] == 0 && addr[2] == 0);
+}
+
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -294,6 +303,12 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 	mutex_unlock(&self->fwreq_mutex);
 	if (err)
 		goto err_exit;
+
+	if (!is_valid_ether_addr(self->ndev->dev_addr) ||
+	    !aq_nic_is_valid_ether_addr(self->ndev->dev_addr)) {
+		netdev_warn(self->ndev, "MAC is invalid, will use random.");
+		eth_hw_addr_random(self->ndev);
+	}
 
 #if defined(AQ_CFG_MAC_ADDR_PERMANENT)
 	{
@@ -894,7 +909,7 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     5000baseT_Full);
 
-	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_2GS)
+	if (self->aq_nic_cfg.aq_hw_caps->link_speed_msk & AQ_NIC_RATE_2G5)
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     2500baseT_Full);
 
@@ -937,7 +952,7 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     5000baseT_Full);
 
-	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_2GS)
+	if (self->aq_nic_cfg.link_speed_msk  & AQ_NIC_RATE_2G5)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     2500baseT_Full);
 
@@ -996,7 +1011,7 @@ int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 			break;
 
 		case SPEED_2500:
-			rate = AQ_NIC_RATE_2GS;
+			rate = AQ_NIC_RATE_2G5;
 			break;
 
 		case SPEED_5000:

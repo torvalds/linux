@@ -103,7 +103,7 @@ struct sleep_proxy_s {
 		u32 crc32;
 	} wake_up_pattern[8];
 
-	struct __attribute__ ((__packed__)) {
+	struct __packed {
 		u8 arp_responder:1;
 		u8 echo_responder:1;
 		u8 igmp_client:1;
@@ -119,7 +119,7 @@ struct sleep_proxy_s {
 	u32 ipv4_offload_addr[8];
 	u32 reserved[8];
 
-	struct __attribute__ ((__packed__)) {
+	struct __packed {
 		u8 ns_responder:1;
 		u8 echo_responder:1;
 		u8 mld_client:1;
