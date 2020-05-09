@@ -16,6 +16,7 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_RAW_TRACEPOINT]		= "raw_tracepoint",
 	[BPF_LINK_TYPE_TRACING]			= "tracing",
 	[BPF_LINK_TYPE_CGROUP]			= "cgroup",
+	[BPF_LINK_TYPE_ITER]			= "iter",
 };
 
 static int link_parse_fd(int *argc, char ***argv)
