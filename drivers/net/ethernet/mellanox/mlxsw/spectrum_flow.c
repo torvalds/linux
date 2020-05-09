@@ -18,7 +18,7 @@ mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp, struct net *net)
 	if (!block)
 		return NULL;
 	INIT_LIST_HEAD(&block->binding_list);
-	INIT_LIST_HEAD(&block->mall_list);
+	INIT_LIST_HEAD(&block->mall.list);
 	block->mlxsw_sp = mlxsw_sp;
 	block->net = net;
 	return block;

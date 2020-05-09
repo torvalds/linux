@@ -37,7 +37,7 @@ mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list)
+	list_for_each_entry(mall_entry, &block->mall.list, list)
 		if (mall_entry->cookie == cookie)
 			return mall_entry;
 
@@ -244,7 +244,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 		block->egress_blocker_rule_count++;
 	else
 		block->ingress_blocker_rule_count++;
-	list_add_tail(&mall_entry->list, &block->mall_list);
+	list_add_tail(&mall_entry->list, &block->mall.list);
 	return 0;
 
 rollback:
@@ -285,7 +285,7 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 	struct mlxsw_sp_mall_entry *mall_entry;
 	int err;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list) {
+	list_for_each_entry(mall_entry, &block->mall.list, list) {
 		err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
 		if (err)
 			goto rollback;
@@ -293,7 +293,7 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 	return 0;
 
 rollback:
-	list_for_each_entry_continue_reverse(mall_entry, &block->mall_list,
+	list_for_each_entry_continue_reverse(mall_entry, &block->mall.list,
 					     list)
 		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
 	return err;
@@ -304,6 +304,6 @@ void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list)
+	list_for_each_entry(mall_entry, &block->mall.list, list)
 		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
 }

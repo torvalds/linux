@@ -636,7 +636,9 @@ struct mlxsw_sp_acl_rule_info {
 /* spectrum_flow.c */
 struct mlxsw_sp_flow_block {
 	struct list_head binding_list;
-	struct list_head mall_list;
+	struct {
+		struct list_head list;
+	} mall;
 	struct mlxsw_sp_acl_ruleset *ruleset_zero;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned int rule_count;
