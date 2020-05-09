@@ -772,15 +772,6 @@ void acpi_configure_pmsi_domain(struct device *dev)
 		dev_set_msi_domain(dev, msi_domain);
 }
 
-static int __maybe_unused __get_pci_rid(struct pci_dev *pdev, u16 alias,
-					void *data)
-{
-	u32 *rid = data;
-
-	*rid = alias;
-	return 0;
-}
-
 #ifdef CONFIG_IOMMU_API
 static struct acpi_iort_node *iort_get_msi_resv_iommu(struct device *dev)
 {
