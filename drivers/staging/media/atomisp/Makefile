@@ -5,6 +5,9 @@ obj-$(CONFIG_INTEL_ATOMISP) += i2c/
 obj-$(CONFIG_INTEL_ATOMISP) += platform/
 obj-$(CONFIG_VIDEO_ATOMISP) += atomisp.o
 
+# While on staging, keep debug enabled
+DEFINES += -DDEBUG
+
 atomisp = $(srctree)/drivers/staging/media/atomisp/
 
 # SPDX-License-Identifier: GPL-2.0
