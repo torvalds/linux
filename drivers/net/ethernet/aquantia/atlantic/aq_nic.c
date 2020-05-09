@@ -272,6 +272,14 @@ exit:
 	return err;
 }
 
+static bool aq_nic_is_valid_ether_addr(const u8 *addr)
+{
+	/* Some engineering samples of Aquantia NICs are provisioned with a
+	 * partially populated MAC, which is still invalid.
+	 */
+	return !(addr[0] == 0 && addr[1] == 0 && addr[2] == 0);
+}
+
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -295,6 +303,12 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 	mutex_unlock(&self->fwreq_mutex);
 	if (err)
 		goto err_exit;
+
+	if (!is_valid_ether_addr(self->ndev->dev_addr) ||
+	    !aq_nic_is_valid_ether_addr(self->ndev->dev_addr)) {
+		netdev_warn(self->ndev, "MAC is invalid, will use random.");
+		eth_hw_addr_random(self->ndev);
+	}
 
 #if defined(AQ_CFG_MAC_ADDR_PERMANENT)
 	{
