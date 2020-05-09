@@ -636,7 +636,11 @@ struct mlxsw_sp_acl_rule_info {
 /* spectrum_flow.c */
 struct mlxsw_sp_flow_block {
 	struct list_head binding_list;
-	struct list_head mall_list;
+	struct {
+		struct list_head list;
+		unsigned int min_prio;
+		unsigned int max_prio;
+	} mall;
 	struct mlxsw_sp_acl_ruleset *ruleset_zero;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned int rule_count;
@@ -739,6 +743,9 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset);
 u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset);
+void mlxsw_sp_acl_ruleset_prio_get(struct mlxsw_sp_acl_ruleset *ruleset,
+				   unsigned int *p_min_prio,
+				   unsigned int *p_max_prio);
 
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
@@ -887,7 +894,8 @@ extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_matchall.c */
-int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
+int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_flow_block *block,
 			  struct tc_cls_matchall_offload *f);
 void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 			   struct tc_cls_matchall_offload *f);
@@ -895,6 +903,8 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 			    struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 			       struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio);
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -912,6 +922,10 @@ int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_flow_block *block,
 				   struct flow_cls_offload *f);
+int mlxsw_sp_flower_prio_get(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_flow_block *block,
+			     u32 chain_index, unsigned int *p_min_prio,
+			     unsigned int *p_max_prio);
 
 /* spectrum_qdisc.c */
 int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port);

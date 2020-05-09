@@ -23,6 +23,7 @@ struct mlxsw_sp_mall_mirror_entry {
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
+	unsigned int priority;
 	enum mlxsw_sp_mall_action_type type;
 	bool ingress;
 	union {
@@ -37,7 +38,7 @@ mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list)
+	list_for_each_entry(mall_entry, &block->mall.list, list)
 		if (mall_entry->cookie == cookie)
 			return mall_entry;
 
@@ -175,13 +176,33 @@ mlxsw_sp_mall_port_rule_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
-int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
+static void mlxsw_sp_mall_prio_update(struct mlxsw_sp_flow_block *block)
+{
+	struct mlxsw_sp_mall_entry *mall_entry;
+
+	if (list_empty(&block->mall.list))
+		return;
+	block->mall.min_prio = UINT_MAX;
+	block->mall.max_prio = 0;
+	list_for_each_entry(mall_entry, &block->mall.list, list) {
+		if (mall_entry->priority < block->mall.min_prio)
+			block->mall.min_prio = mall_entry->priority;
+		if (mall_entry->priority > block->mall.max_prio)
+			block->mall.max_prio = mall_entry->priority;
+	}
+}
+
+int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_flow_block *block,
 			  struct tc_cls_matchall_offload *f)
 {
 	struct mlxsw_sp_flow_block_binding *binding;
 	struct mlxsw_sp_mall_entry *mall_entry;
 	__be16 protocol = f->common.protocol;
 	struct flow_action_entry *act;
+	unsigned int flower_min_prio;
+	unsigned int flower_max_prio;
+	bool flower_prio_valid;
 	int err;
 
 	if (!flow_offload_has_one_action(&f->rule->action)) {
@@ -199,19 +220,56 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 		return -EOPNOTSUPP;
 	}
 
+	err = mlxsw_sp_flower_prio_get(mlxsw_sp, block, f->common.chain_index,
+				       &flower_min_prio, &flower_max_prio);
+	if (err) {
+		if (err != -ENOENT) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to get flower priorities");
+			return err;
+		}
+		flower_prio_valid = false;
+		/* No flower filters are installed in specified chain. */
+	} else {
+		flower_prio_valid = true;
+	}
+
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;
+	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
 	act = &f->rule->action.entries[0];
 
 	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
+		if (flower_prio_valid && mall_entry->ingress &&
+		    mall_entry->priority >= flower_min_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+		if (flower_prio_valid && !mall_entry->ingress &&
+		    mall_entry->priority <= flower_max_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
+		if (!mall_entry->ingress) {
+			NL_SET_ERR_MSG(f->common.extack, "Sample is not supported on egress");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+		if (flower_prio_valid &&
+		    mall_entry->priority >= flower_min_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
 			NL_SET_ERR_MSG(f->common.extack, "Sample rate not supported");
 			err = -EOPNOTSUPP;
@@ -239,7 +297,8 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 		block->egress_blocker_rule_count++;
 	else
 		block->ingress_blocker_rule_count++;
-	list_add_tail(&mall_entry->list, &block->mall_list);
+	list_add_tail(&mall_entry->list, &block->mall.list);
+	mlxsw_sp_mall_prio_update(block);
 	return 0;
 
 rollback:
@@ -272,6 +331,7 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 	list_for_each_entry(binding, &block->binding_list, list)
 		mlxsw_sp_mall_port_rule_del(binding->mlxsw_sp_port, mall_entry);
 	kfree_rcu(mall_entry, rcu); /* sample RX packets may be in-flight */
+	mlxsw_sp_mall_prio_update(block);
 }
 
 int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
@@ -280,7 +340,7 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 	struct mlxsw_sp_mall_entry *mall_entry;
 	int err;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list) {
+	list_for_each_entry(mall_entry, &block->mall.list, list) {
 		err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
 		if (err)
 			goto rollback;
@@ -288,7 +348,7 @@ int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
 	return 0;
 
 rollback:
-	list_for_each_entry_continue_reverse(mall_entry, &block->mall_list,
+	list_for_each_entry_continue_reverse(mall_entry, &block->mall.list,
 					     list)
 		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
 	return err;
@@ -299,6 +359,20 @@ void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 
-	list_for_each_entry(mall_entry, &block->mall_list, list)
+	list_for_each_entry(mall_entry, &block->mall.list, list)
 		mlxsw_sp_mall_port_rule_del(mlxsw_sp_port, mall_entry);
+}
+
+int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio)
+{
+	if (chain_index || list_empty(&block->mall.list))
+		/* In case there are no matchall rules, the caller
+		 * receives -ENOENT to indicate there is no need
+		 * to check the priorities.
+		 */
+		return -ENOENT;
+	*p_min_prio = block->mall.min_prio;
+	*p_max_prio = block->mall.max_prio;
+	return 0;
 }

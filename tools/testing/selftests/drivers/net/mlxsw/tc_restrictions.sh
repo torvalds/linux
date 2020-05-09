@@ -7,6 +7,10 @@ ALL_TESTS="
 	shared_block_drop_test
 	egress_redirect_test
 	multi_mirror_test
+	matchall_sample_egress_test
+	matchall_mirror_behind_flower_ingress_test
+	matchall_sample_behind_flower_ingress_test
+	matchall_mirror_behind_flower_egress_test
 "
 NUM_NETIFS=2
 
@@ -153,6 +157,134 @@ multi_mirror_test()
 	tc qdisc del dev $swp1 clsact
 
 	log_test "multi mirror"
+}
+
+matchall_sample_egress_test()
+{
+	RET=0
+
+	# It is forbidden in mlxsw driver to have matchall with sample action
+	# bound on egress
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress protocol all pref 1 handle 101 \
+		matchall skip_sw action sample rate 100 group 1
+	check_err $? "Failed to add rule with sample action on ingress"
+
+	tc filter del dev $swp1 ingress protocol all pref 1 handle 101 matchall
+
+	tc filter add dev $swp1 egress protocol all pref 1 handle 101 \
+		matchall skip_sw action sample rate 100 group 1
+	check_fail $? "Incorrect success to add rule with sample action on egress"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall sample egress"
+}
+
+matchall_behind_flower_ingress_test()
+{
+	local action=$1
+	local action_args=$2
+
+	RET=0
+
+	# On ingress, all matchall-mirror and matchall-sample
+	# rules have to be in front of the flower rules
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress protocol ip pref 10 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+
+	tc filter add dev $swp1 ingress protocol all pref 9 handle 102 \
+		matchall skip_sw action $action_args
+	check_err $? "Failed to add matchall rule in front of a flower rule"
+
+	tc filter del dev $swp1 ingress protocol all pref 9 handle 102 matchall
+
+	tc filter add dev $swp1 ingress protocol all pref 11 handle 102 \
+		matchall skip_sw action $action_args
+	check_fail $? "Incorrect success to add matchall rule behind a flower rule"
+
+	tc filter del dev $swp1 ingress protocol ip pref 10 handle 101 flower
+
+	tc filter add dev $swp1 ingress protocol all pref 9 handle 102 \
+		matchall skip_sw action $action_args
+
+	tc filter add dev $swp1 ingress protocol ip pref 10 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+	check_err $? "Failed to add flower rule behind a matchall rule"
+
+	tc filter del dev $swp1 ingress protocol ip pref 10 handle 101 flower
+
+	tc filter add dev $swp1 ingress protocol ip pref 8 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+	check_fail $? "Incorrect success to add flower rule in front of a matchall rule"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall $action flower ingress"
+}
+
+matchall_mirror_behind_flower_ingress_test()
+{
+	matchall_behind_flower_ingress_test "mirror" "mirred egress mirror dev $swp2"
+}
+
+matchall_sample_behind_flower_ingress_test()
+{
+	matchall_behind_flower_ingress_test "sample" "sample rate 100 group 1"
+}
+
+matchall_behind_flower_egress_test()
+{
+	local action=$1
+	local action_args=$2
+
+	RET=0
+
+	# On egress, all matchall-mirror rules have to be behind the flower rules
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 egress protocol ip pref 10 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+
+	tc filter add dev $swp1 egress protocol all pref 11 handle 102 \
+		matchall skip_sw action $action_args
+	check_err $? "Failed to add matchall rule in front of a flower rule"
+
+	tc filter del dev $swp1 egress protocol all pref 11 handle 102 matchall
+
+	tc filter add dev $swp1 egress protocol all pref 9 handle 102 \
+		matchall skip_sw action $action_args
+	check_fail $? "Incorrect success to add matchall rule behind a flower rule"
+
+	tc filter del dev $swp1 egress protocol ip pref 10 handle 101 flower
+
+	tc filter add dev $swp1 egress protocol all pref 11 handle 102 \
+		matchall skip_sw action $action_args
+
+	tc filter add dev $swp1 egress protocol ip pref 10 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+	check_err $? "Failed to add flower rule behind a matchall rule"
+
+	tc filter del dev $swp1 egress protocol ip pref 10 handle 101 flower
+
+	tc filter add dev $swp1 egress protocol ip pref 12 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 action drop
+	check_fail $? "Incorrect success to add flower rule in front of a matchall rule"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall $action flower egress"
+}
+
+matchall_mirror_behind_flower_egress_test()
+{
+	matchall_behind_flower_egress_test "mirror" "mirred egress mirror dev $swp2"
 }
 
 setup_prepare()
