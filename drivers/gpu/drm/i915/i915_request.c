@@ -1098,7 +1098,8 @@ __i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
 {
 	mark_external(rq);
 	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
-					     fence->context ? I915_FENCE_TIMEOUT : 0,
+					     i915_fence_context_timeout(rq->i915,
+									fence->context),
 					     I915_FENCE_GFP);
 }
 

@@ -35,6 +35,7 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 
 # core driver code
 i915-y += i915_drv.o \
+	  i915_config.o \
 	  i915_irq.o \
 	  i915_getparam.o \
 	  i915_params.o \
