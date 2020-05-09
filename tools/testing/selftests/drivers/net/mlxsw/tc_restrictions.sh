@@ -7,6 +7,7 @@ ALL_TESTS="
 	shared_block_drop_test
 	egress_redirect_test
 	multi_mirror_test
+	matchall_sample_egress_test
 "
 NUM_NETIFS=2
 
@@ -153,6 +154,30 @@ multi_mirror_test()
 	tc qdisc del dev $swp1 clsact
 
 	log_test "multi mirror"
+}
+
+matchall_sample_egress_test()
+{
+	RET=0
+
+	# It is forbidden in mlxsw driver to have matchall with sample action
+	# bound on egress
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress protocol all pref 1 handle 101 \
+		matchall skip_sw action sample rate 100 group 1
+	check_err $? "Failed to add rule with sample action on ingress"
+
+	tc filter del dev $swp1 ingress protocol all pref 1 handle 101 matchall
+
+	tc filter add dev $swp1 egress protocol all pref 1 handle 101 \
+		matchall skip_sw action sample rate 100 group 1
+	check_fail $? "Incorrect success to add rule with sample action on egress"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall sample egress"
 }
 
 setup_prepare()
