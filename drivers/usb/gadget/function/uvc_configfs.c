@@ -2128,12 +2128,13 @@ static struct config_group *uvcg_framebased_make(struct config_group *group,
 	f->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
 	f->desc.bDescriptorSubType	= UVC_VS_FORMAT_FRAME_BASED;
 	memcpy(f->desc.guidFormat, guid, sizeof(guid));
-	f->desc.bBitsPerPixel		= 0;
+	f->desc.bBitsPerPixel		= 16;
 	f->desc.bDefaultFrameIndex	= 1;
 	f->desc.bAspectRatioX		= 0;
 	f->desc.bAspectRatioY		= 0;
 	f->desc.bmInterfaceFlags	= 0;
 	f->desc.bCopyProtect		= 0;
+	f->desc.bVariableSize		= 1;
 
 	f->fmt.type = UVCG_FRAMEBASED;
 	config_group_init_type_name(&f->fmt.group, name,
