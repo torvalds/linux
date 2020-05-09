@@ -612,11 +612,17 @@ int phm_irq_process(struct amdgpu_device *adev,
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
 					PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19)
+		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19) {
 			pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
 					PCI_FUNC(adev->pdev->devfn));
+			/*
+			 * HW CTF just occurred. Shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "System is going to shutdown due to HW CTF!\n");
+			orderly_poweroff(true);
+		}
 	} else if (client_id == SOC15_IH_CLIENTID_THM) {
 		if (src_id == 0) {
 			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
@@ -634,11 +640,17 @@ int phm_irq_process(struct amdgpu_device *adev,
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
 					PCI_FUNC(adev->pdev->devfn));
-	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO)
+	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO) {
 		pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
 				PCI_BUS_NUM(adev->pdev->devfn),
 				PCI_SLOT(adev->pdev->devfn),
 				PCI_FUNC(adev->pdev->devfn));
+		/*
+		 * HW CTF just occurred. Shutdown to prevent further damage.
+		 */
+		dev_emerg(adev->dev, "System is going to shutdown due to HW CTF!\n");
+		orderly_poweroff(true);
+	}
 
 	return 0;
 }
