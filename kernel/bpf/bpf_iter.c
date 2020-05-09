@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 
 #include <linux/fs.h>
+#include <linux/anon_inodes.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 
@@ -20,11 +21,23 @@ struct bpf_iter_link {
 	struct bpf_iter_target_info *tinfo;
 };
 
+struct bpf_iter_priv_data {
+	struct bpf_iter_target_info *tinfo;
+	struct bpf_prog *prog;
+	u64 session_id;
+	u64 seq_num;
+	bool done_stop;
+	u8 target_private[] __aligned(8);
+};
+
 static struct list_head targets = LIST_HEAD_INIT(targets);
 static DEFINE_MUTEX(targets_mutex);
 
 /* protect bpf_iter_link changes */
 static DEFINE_MUTEX(link_mutex);
+
+/* incremented on every opened seq_file */
+static atomic64_t session_id;
 
 /* bpf_seq_read, a customized and simpler version for bpf iterator.
  * no_llseek is assumed for this file.
@@ -148,6 +161,33 @@ done:
 	mutex_unlock(&seq->lock);
 	return copied;
 }
+
+static int iter_release(struct inode *inode, struct file *file)
+{
+	struct bpf_iter_priv_data *iter_priv;
+	struct seq_file *seq;
+
+	seq = file->private_data;
+	if (!seq)
+		return 0;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+
+	if (iter_priv->tinfo->fini_seq_private)
+		iter_priv->tinfo->fini_seq_private(seq->private);
+
+	bpf_prog_put(iter_priv->prog);
+	seq->private = iter_priv;
+
+	return seq_release_private(inode, file);
+}
+
+static const struct file_operations bpf_iter_fops = {
+	.llseek		= no_llseek,
+	.read		= bpf_seq_read,
+	.release	= iter_release,
+};
 
 int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
 {
@@ -308,4 +348,93 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	}
 
 	return bpf_link_settle(&link_primer);
+}
+
+static void init_seq_meta(struct bpf_iter_priv_data *priv_data,
+			  struct bpf_iter_target_info *tinfo,
+			  struct bpf_prog *prog)
+{
+	priv_data->tinfo = tinfo;
+	priv_data->prog = prog;
+	priv_data->session_id = atomic64_inc_return(&session_id);
+	priv_data->seq_num = 0;
+	priv_data->done_stop = false;
+}
+
+static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
+{
+	struct bpf_iter_priv_data *priv_data;
+	struct bpf_iter_target_info *tinfo;
+	struct bpf_prog *prog;
+	u32 total_priv_dsize;
+	struct seq_file *seq;
+	int err = 0;
+
+	mutex_lock(&link_mutex);
+	prog = link->link.prog;
+	bpf_prog_inc(prog);
+	mutex_unlock(&link_mutex);
+
+	tinfo = link->tinfo;
+	total_priv_dsize = offsetof(struct bpf_iter_priv_data, target_private) +
+			   tinfo->seq_priv_size;
+	priv_data = __seq_open_private(file, tinfo->seq_ops, total_priv_dsize);
+	if (!priv_data) {
+		err = -ENOMEM;
+		goto release_prog;
+	}
+
+	if (tinfo->init_seq_private) {
+		err = tinfo->init_seq_private(priv_data->target_private);
+		if (err)
+			goto release_seq_file;
+	}
+
+	init_seq_meta(priv_data, tinfo, prog);
+	seq = file->private_data;
+	seq->private = priv_data->target_private;
+
+	return 0;
+
+release_seq_file:
+	seq_release_private(file->f_inode, file);
+	file->private_data = NULL;
+release_prog:
+	bpf_prog_put(prog);
+	return err;
+}
+
+int bpf_iter_new_fd(struct bpf_link *link)
+{
+	struct file *file;
+	unsigned int flags;
+	int err, fd;
+
+	if (link->ops != &bpf_iter_link_lops)
+		return -EINVAL;
+
+	flags = O_RDONLY | O_CLOEXEC;
+	fd = get_unused_fd_flags(flags);
+	if (fd < 0)
+		return fd;
+
+	file = anon_inode_getfile("bpf_iter", &bpf_iter_fops, NULL, flags);
+	if (IS_ERR(file)) {
+		err = PTR_ERR(file);
+		goto free_fd;
+	}
+
+	err = prepare_seq_file(file,
+			       container_of(link, struct bpf_iter_link, link));
+	if (err)
+		goto free_file;
+
+	fd_install(fd, file);
+	return fd;
+
+free_file:
+	fput(file);
+free_fd:
+	put_unused_fd(fd);
+	return err;
 }
