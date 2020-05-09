@@ -340,6 +340,7 @@ int iommu_dma_reserve_iova(struct device *dev, dma_addr_t base,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(iommu_dma_reserve_iova);
 
 /*
  * Should be called prior to using dma-apis.
@@ -357,6 +358,7 @@ int iommu_dma_enable_best_fit_algo(struct device *dev)
 	iovad->best_fit = true;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(iommu_dma_enable_best_fit_algo);
 
 /**
  * dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
