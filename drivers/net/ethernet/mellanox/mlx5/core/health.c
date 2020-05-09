@@ -243,7 +243,7 @@ recover_from_sw_reset:
 		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
 			break;
 
-		cond_resched();
+		msleep(20);
 	} while (!time_after(jiffies, end));
 
 	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {

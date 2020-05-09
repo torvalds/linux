@@ -22,6 +22,7 @@ Contents:
    z8530book
    msg_zerocopy
    failover
+   net_dim
    net_failover
    phy
    sfp-phylink

@@ -152,7 +152,7 @@ static const struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
  * BD71847 BUCK1/2
  * 0.70 to 1.30V (10mV step)
  */
-static const struct regulator_linear_range bd718xx_dvs_buck_volts[] = {
+static const struct linear_range bd718xx_dvs_buck_volts[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x00, 0x3C, 10000),
 	REGULATOR_LINEAR_RANGE(1300000, 0x3D, 0x3F, 0),
 };
@@ -163,7 +163,7 @@ static const struct regulator_linear_range bd718xx_dvs_buck_volts[] = {
  * and
  * 0.675 to 1.325 (range 1)
  */
-static const struct regulator_linear_range bd71837_buck5_volts[] = {
+static const struct linear_range bd71837_buck5_volts[] = {
 	/* Ranges when VOLT_SEL bit is 0 */
 	REGULATOR_LINEAR_RANGE(700000, 0x00, 0x03, 100000),
 	REGULATOR_LINEAR_RANGE(1050000, 0x04, 0x05, 50000),
@@ -185,7 +185,7 @@ static const unsigned int bd71837_buck5_volt_range_sel[] = {
 /*
  * BD71847 BUCK3
  */
-static const struct regulator_linear_range bd71847_buck3_volts[] = {
+static const struct linear_range bd71847_buck3_volts[] = {
 	/* Ranges when VOLT_SEL bits are 00 */
 	REGULATOR_LINEAR_RANGE(700000, 0x00, 0x03, 100000),
 	REGULATOR_LINEAR_RANGE(1050000, 0x04, 0x05, 50000),
@@ -202,7 +202,7 @@ static const unsigned int bd71847_buck3_volt_range_sel[] = {
 	0x0, 0x0, 0x0, 0x40, 0x80, 0x80, 0x80
 };
 
-static const struct regulator_linear_range bd71847_buck4_volts[] = {
+static const struct linear_range bd71847_buck4_volts[] = {
 	REGULATOR_LINEAR_RANGE(3000000, 0x00, 0x03, 100000),
 	REGULATOR_LINEAR_RANGE(2600000, 0x00, 0x03, 100000),
 };
@@ -213,7 +213,7 @@ static const unsigned int bd71847_buck4_volt_range_sel[] = { 0x0, 0x40 };
  * BUCK6
  * 3.0V to 3.3V (step 100mV)
  */
-static const struct regulator_linear_range bd71837_buck6_volts[] = {
+static const struct linear_range bd71837_buck6_volts[] = {
 	REGULATOR_LINEAR_RANGE(3000000, 0x00, 0x03, 100000),
 };
 
@@ -237,7 +237,7 @@ static const unsigned int bd718xx_3rd_nodvs_buck_volts[] = {
  * BUCK8
  * 0.8V to 1.40V (step 10mV)
  */
-static const struct regulator_linear_range bd718xx_4th_nodvs_buck_volts[] = {
+static const struct linear_range bd718xx_4th_nodvs_buck_volts[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0x3C, 10000),
 };
 
@@ -245,7 +245,7 @@ static const struct regulator_linear_range bd718xx_4th_nodvs_buck_volts[] = {
  * LDO1
  * 3.0 to 3.3V (100mV step)
  */
-static const struct regulator_linear_range bd718xx_ldo1_volts[] = {
+static const struct linear_range bd718xx_ldo1_volts[] = {
 	REGULATOR_LINEAR_RANGE(3000000, 0x00, 0x03, 100000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x00, 0x03, 100000),
 };
@@ -264,7 +264,7 @@ static const unsigned int ldo_2_volts[] = {
  * LDO3
  * 1.8 to 3.3V (100mV step)
  */
-static const struct regulator_linear_range bd718xx_ldo3_volts[] = {
+static const struct linear_range bd718xx_ldo3_volts[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x00, 0x0F, 100000),
 };
 
@@ -272,7 +272,7 @@ static const struct regulator_linear_range bd718xx_ldo3_volts[] = {
  * LDO4
  * 0.9 to 1.8V (100mV step)
  */
-static const struct regulator_linear_range bd718xx_ldo4_volts[] = {
+static const struct linear_range bd718xx_ldo4_volts[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0x00, 0x09, 100000),
 };
 
@@ -280,7 +280,7 @@ static const struct regulator_linear_range bd718xx_ldo4_volts[] = {
  * LDO5 for BD71837
  * 1.8 to 3.3V (100mV step)
  */
-static const struct regulator_linear_range bd71837_ldo5_volts[] = {
+static const struct linear_range bd71837_ldo5_volts[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x00, 0x0F, 100000),
 };
 
@@ -288,7 +288,7 @@ static const struct regulator_linear_range bd71837_ldo5_volts[] = {
  * LDO5 for BD71837
  * 1.8 to 3.3V (100mV step)
  */
-static const struct regulator_linear_range bd71847_ldo5_volts[] = {
+static const struct linear_range bd71847_ldo5_volts[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x00, 0x0F, 100000),
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0x0F, 100000),
 };
@@ -299,7 +299,7 @@ static const unsigned int bd71847_ldo5_volt_range_sel[] = { 0x0, 0x20 };
  * LDO6
  * 0.9 to 1.8V (100mV step)
  */
-static const struct regulator_linear_range bd718xx_ldo6_volts[] = {
+static const struct linear_range bd718xx_ldo6_volts[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0x00, 0x09, 100000),
 };
 
@@ -307,7 +307,7 @@ static const struct regulator_linear_range bd718xx_ldo6_volts[] = {
  * LDO7
  * 1.8 to 3.3V (100mV step)
  */
-static const struct regulator_linear_range bd71837_ldo7_volts[] = {
+static const struct linear_range bd71837_ldo7_volts[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x00, 0x0F, 100000),
 };
 

@@ -391,7 +391,7 @@ static int is_shared_data_backref(struct preftrees *preftrees, u64 bytenr)
 	struct rb_node **p = &preftrees->direct.root.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct prelim_ref *ref = NULL;
-	struct prelim_ref target = {0};
+	struct prelim_ref target = {};
 	int result;
 
 	target.parent = bytenr;

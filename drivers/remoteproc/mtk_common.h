@@ -68,7 +68,7 @@ struct mtk_scp {
 	wait_queue_head_t ack_wq;
 
 	void __iomem *cpu_addr;
-	phys_addr_t phys_addr;
+	dma_addr_t dma_addr;
 	size_t dram_size;
 
 	struct rproc_subdev *rpmsg_subdev;
