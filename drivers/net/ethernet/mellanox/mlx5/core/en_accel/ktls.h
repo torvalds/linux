@@ -9,6 +9,7 @@
 #ifdef CONFIG_MLX5_EN_TLS
 #include <net/tls.h>
 #include "accel/tls.h"
+#include "en_accel/tls_rxtx.h"
 
 #define MLX5E_KTLS_STATIC_UMR_WQE_SZ \
 	(offsetof(struct mlx5e_umr_wqe, tls_static_params_ctx) + \
@@ -95,10 +96,9 @@ mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv);
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx);
 
-struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
-					 struct mlx5e_txqsq *sq,
-					 struct sk_buff *skb,
-					 struct mlx5e_tx_wqe **wqe, u16 *pi);
+bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
+			      struct sk_buff *skb, int datalen,
+			      struct mlx5e_accel_tx_tls_state *state);
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
 					   u32 *dma_fifo_cc);

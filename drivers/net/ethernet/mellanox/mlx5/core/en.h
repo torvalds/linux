@@ -339,16 +339,6 @@ struct mlx5e_cq_decomp {
 	u16                        wqe_counter;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_tx_wqe_info {
-	struct sk_buff *skb;
-	u32 num_bytes;
-	u8  num_wqebbs;
-	u8  num_dma;
-#ifdef CONFIG_MLX5_EN_TLS
-	struct page *resync_dump_frag_page;
-#endif
-};
-
 enum mlx5e_dma_map_type {
 	MLX5E_DMA_MAP_SINGLE,
 	MLX5E_DMA_MAP_PAGE
@@ -368,18 +358,6 @@ enum {
 	MLX5E_SQ_STATE_TLS,
 	MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
-};
-
-struct mlx5e_icosq_wqe_info {
-	u8  opcode;
-	u8 num_wqebbs;
-
-	/* Auxiliary data for different opcodes. */
-	union {
-		struct {
-			struct mlx5e_rq *rq;
-		} umr;
-	};
 };
 
 struct mlx5e_txqsq {
@@ -482,11 +460,6 @@ struct mlx5e_xdp_info_fifo {
 	u32 *cc;
 	u32 *pc;
 	u32 mask;
-};
-
-struct mlx5e_xdp_wqe_info {
-	u8 num_wqebbs;
-	u8 num_pkts;
 };
 
 struct mlx5e_xdp_mpwqe {
@@ -919,8 +892,8 @@ void mlx5e_build_ptys2ethtool_map(void);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
-netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
+void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
 
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe);

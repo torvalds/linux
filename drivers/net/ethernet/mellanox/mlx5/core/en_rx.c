@@ -505,9 +505,12 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 			    MLX5_OPCODE_UMR);
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(xlt_offset);
 
-	sq->db.wqe_info[pi].opcode = MLX5_OPCODE_UMR;
-	sq->db.wqe_info[pi].num_wqebbs = MLX5E_UMR_WQEBBS;
-	sq->db.wqe_info[pi].umr.rq = rq;
+	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
+		.wqe_type   = MLX5E_ICOSQ_WQE_UMR_RX,
+		.num_wqebbs = MLX5E_UMR_WQEBBS,
+		.umr.rq     = rq,
+	};
+
 	sq->pc += MLX5E_UMR_WQEBBS;
 
 	sq->doorbell_cseg = &umr_wqe->ctrl;
@@ -616,15 +619,18 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 				break;
 			}
 
-			if (likely(wi->opcode == MLX5_OPCODE_UMR))
+			switch (wi->wqe_type) {
+			case MLX5E_ICOSQ_WQE_UMR_RX:
 				wi->umr.rq->mpwqe.umr_completed++;
-			else if (unlikely(wi->opcode != MLX5_OPCODE_NOP))
+				break;
+			case MLX5E_ICOSQ_WQE_NOP:
+				break;
+			default:
 				netdev_WARN_ONCE(cq->channel->netdev,
-						 "Bad OPCODE in ICOSQ WQE info: 0x%x\n",
-						 wi->opcode);
-
+						 "Bad WQE type in ICOSQ WQE info: 0x%x\n",
+						 wi->wqe_type);
+			}
 		} while (!last_wqe);
-
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 	sq->cc = sqcc;

@@ -265,8 +265,8 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
 
-netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more)
+void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5_wqe_ctrl_seg *cseg;
@@ -373,32 +373,38 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
 			     num_dma, wi, cseg, xmit_more);
 
-	return NETDEV_TX_OK;
+	return;
 
 err_drop:
 	stats->dropped++;
 	dev_kfree_skb_any(skb);
-
-	return NETDEV_TX_OK;
 }
 
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_accel_tx_state accel = {};
 	struct mlx5e_tx_wqe *wqe;
 	struct mlx5e_txqsq *sq;
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
+
+	/* May send SKBs and WQEs. */
+	if (unlikely(!mlx5e_accel_tx_begin(dev, sq, skb, &accel)))
+		goto out;
+
 	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
-	/* might send skbs and update wqe and pi */
-	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
-	if (unlikely(!skb))
-		return NETDEV_TX_OK;
+	/* May update the WQE, but may not post other WQEs. */
+	if (unlikely(!mlx5e_accel_tx_finish(priv, sq, skb, wqe, &accel)))
+		goto out;
 
-	return mlx5e_sq_xmit(sq, skb, wqe, pi, netdev_xmit_more());
+	mlx5e_sq_xmit(sq, skb, wqe, pi, netdev_xmit_more());
+
+out:
+	return NETDEV_TX_OK;
 }
 
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
@@ -568,9 +574,8 @@ mlx5i_txwqe_build_datagram(struct mlx5_av *av, u32 dqpn, u32 dqkey,
 	dseg->av.key.qkey.qkey = cpu_to_be32(dqkey);
 }
 
-netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5_av *av, u32 dqpn, u32 dqkey,
-			  bool xmit_more)
+void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5_av *av, u32 dqpn, u32 dqkey, bool xmit_more)
 {
 	struct mlx5i_tx_wqe *wqe;
 
@@ -648,12 +653,10 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
 			     num_dma, wi, cseg, xmit_more);
 
-	return NETDEV_TX_OK;
+	return;
 
 err_drop:
 	stats->dropped++;
 	dev_kfree_skb_any(skb);
-
-	return NETDEV_TX_OK;
 }
 #endif
