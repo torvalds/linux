@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/reboot.h>
 
 #define SMU_11_0_PARTIAL_PPTABLE
 
@@ -1561,6 +1562,12 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				PCI_BUS_NUM(adev->pdev->devfn),
 				PCI_SLOT(adev->pdev->devfn),
 				PCI_FUNC(adev->pdev->devfn));
+			/*
+			 * SW CTF just occurred.
+			 * Try to do a graceful shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "System is going to shutdown due to SW CTF!\n");
+			orderly_poweroff(true);
 		break;
 		case THM_11_0__SRCID__THM_DIG_THERM_H2L:
 			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
