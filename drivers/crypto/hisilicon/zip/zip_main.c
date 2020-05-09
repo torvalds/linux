@@ -643,7 +643,6 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 		.nfe			= QM_BASE_NFE |
 					  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe			= 0,
-		.msi			= QM_DB_RANDOM_INVALID,
 		.ecc_2bits_mask		= HZIP_CORE_INT_STATUS_M_ECC,
 		.msi_wr_port		= HZIP_WR_PORT,
 		.acpi_rst		= "ZRST",

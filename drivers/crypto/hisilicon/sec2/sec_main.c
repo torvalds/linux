@@ -682,7 +682,6 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
 					  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe			= 0,
-		.msi			= QM_DB_RANDOM_INVALID,
 		.ecc_2bits_mask		= SEC_CORE_INT_STATUS_M_ECC,
 		.msi_wr_port		= BIT(0),
 		.acpi_rst		= "SRST",

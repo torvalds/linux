@@ -730,7 +730,6 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 		.ce			= QM_BASE_CE,
 		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT,
 		.fe			= 0,
-		.msi			= QM_DB_RANDOM_INVALID,
 		.ecc_2bits_mask		= HPRE_CORE_ECC_2BIT_ERR |
 					  HPRE_OOO_ECC_2BIT_ERR,
 		.msi_wr_port		= HPRE_WR_MSI_PORT,

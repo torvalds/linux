@@ -74,7 +74,7 @@
 
 #define QM_BASE_NFE	(QM_AXI_RRESP | QM_AXI_BRESP | QM_ECC_MBIT | \
 			 QM_ACC_GET_TASK_TIMEOUT | QM_DB_TIMEOUT | \
-			 QM_OF_FIFO_OF)
+			 QM_OF_FIFO_OF | QM_DB_RANDOM_INVALID)
 #define QM_BASE_CE			QM_ECC_1BIT
 
 #define QM_Q_DEPTH			1024
@@ -158,7 +158,6 @@ struct hisi_qm_err_info {
 	u32 ce;
 	u32 nfe;
 	u32 fe;
-	u32 msi;
 };
 
 struct hisi_qm_err_status {
@@ -224,7 +223,6 @@ struct hisi_qm {
 	struct qm_debug debug;
 
 	u32 error_mask;
-	u32 msi_mask;
 
 	struct workqueue_struct *wq;
 	struct work_struct work;

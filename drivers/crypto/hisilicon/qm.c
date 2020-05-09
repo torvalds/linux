@@ -313,8 +313,7 @@ struct hisi_qm_hw_ops {
 		      u8 cmd, u16 index, u8 priority);
 	u32 (*get_irq_num)(struct hisi_qm *qm);
 	int (*debug_init)(struct hisi_qm *qm);
-	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
-			      u32 msi);
+	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe);
 	void (*hw_error_uninit)(struct hisi_qm *qm);
 	pci_ers_result_t (*hw_error_handle)(struct hisi_qm *qm);
 };
@@ -707,26 +706,6 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 
 static irqreturn_t qm_abnormal_irq(int irq, void *data)
 {
-	const struct hisi_qm_hw_error *err = qm_hw_error;
-	struct hisi_qm *qm = data;
-	struct device *dev = &qm->pdev->dev;
-	u32 error_status, tmp;
-
-	/* read err sts */
-	tmp = readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
-	error_status = qm->msi_mask & tmp;
-
-	while (err->msg) {
-		if (err->int_msk & error_status)
-			dev_err(dev, "%s [error status=0x%x] found\n",
-				err->msg, err->int_msk);
-
-		err++;
-	}
-
-	/* clear err sts */
-	writel(error_status, qm->io_base + QM_ABNORMAL_INT_SOURCE);
-
 	return IRQ_HANDLED;
 }
 
@@ -1116,37 +1095,27 @@ static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
 	return 0;
 }
 
-static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
-				u32 msi)
+static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
 {
 	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
-static void qm_hw_error_init_v2(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
-				u32 msi)
+static void qm_hw_error_init_v2(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
 {
-	u32 irq_enable = ce | nfe | fe | msi;
+	u32 irq_enable = ce | nfe | fe;
 	u32 irq_unmask = ~irq_enable;
-	u32 error_status;
 
 	qm->error_mask = ce | nfe | fe;
-	qm->msi_mask = msi;
 
 	/* clear QM hw residual error source */
-	error_status = readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
-	if (error_status) {
-		error_status &= qm->error_mask;
-		writel(error_status, qm->io_base + QM_ABNORMAL_INT_SOURCE);
-	}
+	writel(QM_ABNORMAL_INT_SOURCE_CLR,
+	       qm->io_base + QM_ABNORMAL_INT_SOURCE);
 
 	/* configure error type */
 	writel(ce, qm->io_base + QM_RAS_CE_ENABLE);
 	writel(QM_RAS_CE_TIMES_PER_IRQ, qm->io_base + QM_RAS_CE_THRESHOLD);
 	writel(nfe, qm->io_base + QM_RAS_NFE_ENABLE);
 	writel(fe, qm->io_base + QM_RAS_FE_ENABLE);
-
-	/* use RAS irq default, so only set QM_RAS_MSI_INT_SEL for MSI */
-	writel(msi, qm->io_base + QM_RAS_MSI_INT_SEL);
 
 	irq_unmask &= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
@@ -1207,9 +1176,11 @@ static pci_ers_result_t qm_hw_error_handle_v2(struct hisi_qm *qm)
 			qm->err_status.is_qm_ecc_mbit = true;
 
 		qm_log_hw_error(qm, error_status);
-
-		/* clear err sts */
-		writel(error_status, qm->io_base + QM_ABNORMAL_INT_SOURCE);
+		if (error_status == QM_DB_RANDOM_INVALID) {
+			writel(error_status, qm->io_base +
+			       QM_ABNORMAL_INT_SOURCE);
+			return PCI_ERS_RESULT_RECOVERED;
+		}
 
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
@@ -2476,8 +2447,7 @@ static void qm_hw_error_init(struct hisi_qm *qm)
 		return;
 	}
 
-	qm->ops->hw_error_init(qm, err_info->ce, err_info->nfe,
-			       err_info->fe, err_info->msi);
+	qm->ops->hw_error_init(qm, err_info->ce, err_info->nfe, err_info->fe);
 }
 
 static void qm_hw_error_uninit(struct hisi_qm *qm)
