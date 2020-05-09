@@ -216,8 +216,8 @@ err_exit:
 	return err;
 }
 
-int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
-			 struct aq_rss_parameters *rss_params)
+static int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
+				struct aq_rss_parameters *rss_params)
 {
 	u32 num_rss_queues = max(1U, self->aq_nic_cfg->num_rss_queues);
 	u8 *indirection_table =	rss_params->indirection_table;

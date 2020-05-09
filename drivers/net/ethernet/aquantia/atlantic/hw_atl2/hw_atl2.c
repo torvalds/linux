@@ -172,7 +172,7 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 	for (i = HW_ATL2_RSS_REDIRECTION_MAX; i--;)
 		hw_atl2_new_rpf_rss_redir_set(self, 0, i, indirection_table[i]);
 
-	return hw_atl_b0_hw_rss_set(self, rss_params);
+	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
