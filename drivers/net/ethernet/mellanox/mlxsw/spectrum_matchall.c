@@ -192,13 +192,17 @@ static void mlxsw_sp_mall_prio_update(struct mlxsw_sp_flow_block *block)
 	}
 }
 
-int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
+int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_flow_block *block,
 			  struct tc_cls_matchall_offload *f)
 {
 	struct mlxsw_sp_flow_block_binding *binding;
 	struct mlxsw_sp_mall_entry *mall_entry;
 	__be16 protocol = f->common.protocol;
 	struct flow_action_entry *act;
+	unsigned int flower_min_prio;
+	unsigned int flower_max_prio;
+	bool flower_prio_valid;
 	int err;
 
 	if (!flow_offload_has_one_action(&f->rule->action)) {
@@ -216,6 +220,19 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 		return -EOPNOTSUPP;
 	}
 
+	err = mlxsw_sp_flower_prio_get(mlxsw_sp, block, f->common.chain_index,
+				       &flower_min_prio, &flower_max_prio);
+	if (err) {
+		if (err != -ENOENT) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to get flower priorities");
+			return err;
+		}
+		flower_prio_valid = false;
+		/* No flower filters are installed in specified chain. */
+	} else {
+		flower_prio_valid = true;
+	}
+
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
 		return -ENOMEM;
@@ -226,12 +243,30 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp_flow_block *block,
 	act = &f->rule->action.entries[0];
 
 	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
+		if (flower_prio_valid && mall_entry->ingress &&
+		    mall_entry->priority >= flower_min_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+		if (flower_prio_valid && !mall_entry->ingress &&
+		    mall_entry->priority <= flower_max_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
 		if (!mall_entry->ingress) {
 			NL_SET_ERR_MSG(f->common.extack, "Sample is not supported on egress");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+		if (flower_prio_valid &&
+		    mall_entry->priority >= flower_min_prio) {
+			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
 			err = -EOPNOTSUPP;
 			goto errout;
 		}

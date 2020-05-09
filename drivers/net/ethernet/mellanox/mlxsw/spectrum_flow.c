@@ -135,9 +135,11 @@ static int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_flow_block_mall_cb(struct mlxsw_sp_flow_block *flow_block,
 				       struct tc_cls_matchall_offload *f)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_flow_block_mlxsw_sp(flow_block);
+
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
-		return mlxsw_sp_mall_replace(flow_block, f);
+		return mlxsw_sp_mall_replace(mlxsw_sp, flow_block, f);
 	case TC_CLSMATCHALL_DESTROY:
 		mlxsw_sp_mall_destroy(flow_block, f);
 		return 0;
