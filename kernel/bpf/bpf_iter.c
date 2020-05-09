@@ -23,6 +23,9 @@ struct bpf_iter_link {
 static struct list_head targets = LIST_HEAD_INIT(targets);
 static DEFINE_MUTEX(targets_mutex);
 
+/* protect bpf_iter_link changes */
+static DEFINE_MUTEX(link_mutex);
+
 int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
@@ -111,9 +114,37 @@ static void bpf_iter_link_dealloc(struct bpf_link *link)
 	kfree(iter_link);
 }
 
+static int bpf_iter_link_replace(struct bpf_link *link,
+				 struct bpf_prog *new_prog,
+				 struct bpf_prog *old_prog)
+{
+	int ret = 0;
+
+	mutex_lock(&link_mutex);
+	if (old_prog && link->prog != old_prog) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+
+	if (link->prog->type != new_prog->type ||
+	    link->prog->expected_attach_type != new_prog->expected_attach_type ||
+	    link->prog->aux->attach_btf_id != new_prog->aux->attach_btf_id) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	old_prog = xchg(&link->prog, new_prog);
+	bpf_prog_put(old_prog);
+
+out_unlock:
+	mutex_unlock(&link_mutex);
+	return ret;
+}
+
 static const struct bpf_link_ops bpf_iter_link_lops = {
 	.release = bpf_iter_link_release,
 	.dealloc = bpf_iter_link_dealloc,
+	.update_prog = bpf_iter_link_replace,
 };
 
 int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
