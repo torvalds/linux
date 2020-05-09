@@ -51,6 +51,8 @@ struct mlxsw_sp_acl_ruleset {
 	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
 	unsigned int ref_count;
+	unsigned int min_prio;
+	unsigned int max_prio;
 	unsigned long priv[];
 	/* priv has to be always the last item */
 };
@@ -178,7 +180,8 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_rhashtable_init;
 
 	err = ops->ruleset_add(mlxsw_sp, &acl->tcam, ruleset->priv,
-			       tmplt_elusage);
+			       tmplt_elusage, &ruleset->min_prio,
+			       &ruleset->max_prio);
 	if (err)
 		goto err_ops_ruleset_add;
 
@@ -291,6 +294,14 @@ u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset)
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
 	return ops->ruleset_group_id(ruleset->priv);
+}
+
+void mlxsw_sp_acl_ruleset_prio_get(struct mlxsw_sp_acl_ruleset *ruleset,
+				   unsigned int *p_min_prio,
+				   unsigned int *p_max_prio)
+{
+	*p_min_prio = ruleset->min_prio;
+	*p_max_prio = ruleset->max_prio;
 }
 
 struct mlxsw_sp_acl_rule_info *

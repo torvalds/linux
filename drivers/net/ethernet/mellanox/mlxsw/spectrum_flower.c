@@ -647,3 +647,23 @@ void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 }
+
+int mlxsw_sp_flower_prio_get(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_flow_block *block,
+			     u32 chain_index, unsigned int *p_min_prio,
+			     unsigned int *p_max_prio)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+
+	ruleset = mlxsw_sp_acl_ruleset_lookup(mlxsw_sp, block,
+					      chain_index,
+					      MLXSW_SP_ACL_PROFILE_FLOWER);
+	if (IS_ERR(ruleset))
+		/* In case there are no flower rules, the caller
+		 * receives -ENOENT to indicate there is no need
+		 * to check the priorities.
+		 */
+		return PTR_ERR(ruleset);
+	mlxsw_sp_acl_ruleset_prio_get(ruleset, p_min_prio, p_max_prio);
+	return 0;
+}
