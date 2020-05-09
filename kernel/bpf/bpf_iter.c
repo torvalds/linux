@@ -41,6 +41,33 @@ static atomic64_t session_id;
 
 static int prepare_seq_file(struct file *file, struct bpf_iter_link *link);
 
+static void bpf_iter_inc_seq_num(struct seq_file *seq)
+{
+	struct bpf_iter_priv_data *iter_priv;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+	iter_priv->seq_num++;
+}
+
+static void bpf_iter_dec_seq_num(struct seq_file *seq)
+{
+	struct bpf_iter_priv_data *iter_priv;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+	iter_priv->seq_num--;
+}
+
+static void bpf_iter_done_stop(struct seq_file *seq)
+{
+	struct bpf_iter_priv_data *iter_priv;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+	iter_priv->done_stop = true;
+}
+
 /* bpf_seq_read, a customized and simpler version for bpf iterator.
  * no_llseek is assumed for this file.
  * The following are differences from seq_read():
@@ -93,6 +120,10 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 
 	err = seq->op->show(seq, p);
 	if (err > 0) {
+		/* object is skipped, decrease seq_num, so next
+		 * valid object can reuse the same seq_num.
+		 */
+		bpf_iter_dec_seq_num(seq);
 		seq->count = 0;
 	} else if (err < 0 || seq_has_overflowed(seq)) {
 		if (!err)
@@ -117,11 +148,15 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 		if (IS_ERR_OR_NULL(p))
 			break;
 
+		/* got a valid next object, increase seq_num */
+		bpf_iter_inc_seq_num(seq);
+
 		if (seq->count >= size)
 			break;
 
 		err = seq->op->show(seq, p);
 		if (err > 0) {
+			bpf_iter_dec_seq_num(seq);
 			seq->count = offs;
 		} else if (err < 0 || seq_has_overflowed(seq)) {
 			seq->count = offs;
@@ -138,11 +173,15 @@ stop:
 	offs = seq->count;
 	/* bpf program called if !p */
 	seq->op->stop(seq, p);
-	if (!p && seq_has_overflowed(seq)) {
-		seq->count = offs;
-		if (offs == 0) {
-			err = -E2BIG;
-			goto done;
+	if (!p) {
+		if (!seq_has_overflowed(seq)) {
+			bpf_iter_done_stop(seq);
+		} else {
+			seq->count = offs;
+			if (offs == 0) {
+				err = -E2BIG;
+				goto done;
+			}
 		}
 	}
 
@@ -452,4 +491,40 @@ free_file:
 free_fd:
 	put_unused_fd(fd);
 	return err;
+}
+
+struct bpf_prog *bpf_iter_get_info(struct bpf_iter_meta *meta, bool in_stop)
+{
+	struct bpf_iter_priv_data *iter_priv;
+	struct seq_file *seq;
+	void *seq_priv;
+
+	seq = meta->seq;
+	if (seq->file->f_op != &bpf_iter_fops)
+		return NULL;
+
+	seq_priv = seq->private;
+	iter_priv = container_of(seq_priv, struct bpf_iter_priv_data,
+				 target_private);
+
+	if (in_stop && iter_priv->done_stop)
+		return NULL;
+
+	meta->session_id = iter_priv->session_id;
+	meta->seq_num = iter_priv->seq_num;
+
+	return iter_priv->prog;
+}
+
+int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
+{
+	int ret;
+
+	rcu_read_lock();
+	migrate_disable();
+	ret = BPF_PROG_RUN(prog, ctx);
+	migrate_enable();
+	rcu_read_unlock();
+
+	return ret == 0 ? 0 : -EAGAIN;
 }
