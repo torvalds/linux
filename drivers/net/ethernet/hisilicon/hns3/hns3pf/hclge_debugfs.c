@@ -1258,6 +1258,7 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 {
 #define HCLGE_MAX_NCL_CONFIG_OFFSET	4096
 #define HCLGE_NCL_CONFIG_LENGTH_IN_EACH_CMD	(20 + 24 * 4)
+#define HCLGE_NCL_CONFIG_PARAM_NUM	2
 
 	struct hclge_desc desc[HCLGE_CMD_NCL_CONFIG_BD_NUM];
 	int bd_num = HCLGE_CMD_NCL_CONFIG_BD_NUM;
@@ -1267,13 +1268,17 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 	int ret;
 
 	ret = sscanf(cmd_buf, "%x %x", &offset, &length);
-	if (ret != 2 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
-	    length > HCLGE_MAX_NCL_CONFIG_OFFSET - offset) {
-		dev_err(&hdev->pdev->dev, "Invalid offset or length.\n");
+	if (ret != HCLGE_NCL_CONFIG_PARAM_NUM) {
+		dev_err(&hdev->pdev->dev,
+			"Too few parameters, num = %d.\n", ret);
 		return;
 	}
-	if (offset < 0 || length <= 0) {
-		dev_err(&hdev->pdev->dev, "Non-positive offset or length.\n");
+
+	if (offset < 0 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
+	    length <= 0 || length > HCLGE_MAX_NCL_CONFIG_OFFSET - offset) {
+		dev_err(&hdev->pdev->dev,
+			"Invalid input, offset = %d, length = %d.\n",
+			offset, length);
 		return;
 	}
 
