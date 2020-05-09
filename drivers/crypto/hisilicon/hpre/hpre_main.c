@@ -666,7 +666,7 @@ static void hpre_debugfs_exit(struct hpre *hpre)
 	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
-static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
+static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
 	enum qm_hw_ver rev_id;
 
@@ -685,13 +685,14 @@ static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	qm->dev_name = hpre_name;
 	qm->fun_type = (pdev->device == HPRE_PCI_DEVICE_ID) ?
 		       QM_HW_PF : QM_HW_VF;
+
 	if (pdev->is_physfn) {
 		qm->qp_base = HPRE_PF_DEF_Q_BASE;
 		qm->qp_num = hpre_pf_q_num;
 	}
 	qm->use_dma_api = true;
 
-	return 0;
+	return hisi_qm_init(qm);
 }
 
 static void hpre_log_hw_error(struct hisi_qm *qm, u32 err_sts)
@@ -766,6 +767,20 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 	return 0;
 }
 
+static int hpre_probe_init(struct hpre *hpre)
+{
+	struct hisi_qm *qm = &hpre->qm;
+	int ret = -ENODEV;
+
+	if (qm->fun_type == QM_HW_PF)
+		ret = hpre_pf_probe_init(hpre);
+	else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2)
+		/* v2 starts to support get vft by mailbox */
+		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+
+	return ret;
+}
+
 static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hisi_qm *qm;
@@ -779,23 +794,16 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, hpre);
 
 	qm = &hpre->qm;
-	ret = hpre_qm_pre_init(qm, pdev);
-	if (ret)
+	ret = hpre_qm_init(qm, pdev);
+	if (ret) {
+		pci_err(pdev, "Failed to init HPRE QM (%d)!\n", ret);
 		return ret;
+	}
 
-	ret = hisi_qm_init(qm);
-	if (ret)
-		return ret;
-
-	if (pdev->is_physfn) {
-		ret = hpre_pf_probe_init(hpre);
-		if (ret)
-			goto err_with_qm_init;
-	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V2) {
-		/* v2 starts to support get vft by mailbox */
-		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-		if (ret)
-			goto err_with_qm_init;
+	ret = hpre_probe_init(hpre);
+	if (ret) {
+		pci_err(pdev, "Failed to probe (%d)!\n", ret);
+		goto err_with_qm_init;
 	}
 
 	ret = hisi_qm_start(qm);
