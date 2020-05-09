@@ -26,6 +26,129 @@ static DEFINE_MUTEX(targets_mutex);
 /* protect bpf_iter_link changes */
 static DEFINE_MUTEX(link_mutex);
 
+/* bpf_seq_read, a customized and simpler version for bpf iterator.
+ * no_llseek is assumed for this file.
+ * The following are differences from seq_read():
+ *  . fixed buffer size (PAGE_SIZE)
+ *  . assuming no_llseek
+ *  . stop() may call bpf program, handling potential overflow there
+ */
+static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
+			    loff_t *ppos)
+{
+	struct seq_file *seq = file->private_data;
+	size_t n, offs, copied = 0;
+	int err = 0;
+	void *p;
+
+	mutex_lock(&seq->lock);
+
+	if (!seq->buf) {
+		seq->size = PAGE_SIZE;
+		seq->buf = kmalloc(seq->size, GFP_KERNEL);
+		if (!seq->buf) {
+			err = -ENOMEM;
+			goto done;
+		}
+	}
+
+	if (seq->count) {
+		n = min(seq->count, size);
+		err = copy_to_user(buf, seq->buf + seq->from, n);
+		if (err) {
+			err = -EFAULT;
+			goto done;
+		}
+		seq->count -= n;
+		seq->from += n;
+		copied = n;
+		goto done;
+	}
+
+	seq->from = 0;
+	p = seq->op->start(seq, &seq->index);
+	if (!p)
+		goto stop;
+	if (IS_ERR(p)) {
+		err = PTR_ERR(p);
+		seq->op->stop(seq, p);
+		seq->count = 0;
+		goto done;
+	}
+
+	err = seq->op->show(seq, p);
+	if (err > 0) {
+		seq->count = 0;
+	} else if (err < 0 || seq_has_overflowed(seq)) {
+		if (!err)
+			err = -E2BIG;
+		seq->op->stop(seq, p);
+		seq->count = 0;
+		goto done;
+	}
+
+	while (1) {
+		loff_t pos = seq->index;
+
+		offs = seq->count;
+		p = seq->op->next(seq, p, &seq->index);
+		if (pos == seq->index) {
+			pr_info_ratelimited("buggy seq_file .next function %ps "
+				"did not updated position index\n",
+				seq->op->next);
+			seq->index++;
+		}
+
+		if (IS_ERR_OR_NULL(p))
+			break;
+
+		if (seq->count >= size)
+			break;
+
+		err = seq->op->show(seq, p);
+		if (err > 0) {
+			seq->count = offs;
+		} else if (err < 0 || seq_has_overflowed(seq)) {
+			seq->count = offs;
+			if (offs == 0) {
+				if (!err)
+					err = -E2BIG;
+				seq->op->stop(seq, p);
+				goto done;
+			}
+			break;
+		}
+	}
+stop:
+	offs = seq->count;
+	/* bpf program called if !p */
+	seq->op->stop(seq, p);
+	if (!p && seq_has_overflowed(seq)) {
+		seq->count = offs;
+		if (offs == 0) {
+			err = -E2BIG;
+			goto done;
+		}
+	}
+
+	n = min(seq->count, size);
+	err = copy_to_user(buf, seq->buf, n);
+	if (err) {
+		err = -EFAULT;
+		goto done;
+	}
+	copied = n;
+	seq->count -= n;
+	seq->from = n;
+done:
+	if (!copied)
+		copied = err;
+	else
+		*ppos += copied;
+	mutex_unlock(&seq->lock);
+	return copied;
+}
+
 int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
