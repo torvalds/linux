@@ -3790,7 +3790,10 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		return true;
 
 	/* this is a pointer to another type */
-	info->reg_type = PTR_TO_BTF_ID;
+	if (off != 0 && prog->aux->btf_id_or_null_non0_off)
+		info->reg_type = PTR_TO_BTF_ID_OR_NULL;
+	else
+		info->reg_type = PTR_TO_BTF_ID;
 
 	if (tgt_prog) {
 		ret = btf_translate_to_vmlinux(log, btf, t, tgt_prog->type, arg);
