@@ -80,11 +80,3 @@
 &hdmi_sound {
 	status = "okay";
 };
-
-&isp0 {
-	status = "okay";
-};
-
-&isp1 {
-	status = "okay";
-};
