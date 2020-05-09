@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_common.h: Basic includes for all files in project. */
@@ -53,14 +54,14 @@
 #define AQ_NIC_RATE_10G		BIT(0)
 #define AQ_NIC_RATE_5G		BIT(1)
 #define AQ_NIC_RATE_5GSR	BIT(2)
-#define AQ_NIC_RATE_2GS		BIT(3)
+#define AQ_NIC_RATE_2G5		BIT(3)
 #define AQ_NIC_RATE_1G		BIT(4)
 #define AQ_NIC_RATE_100M	BIT(5)
 #define AQ_NIC_RATE_10M		BIT(6)
 
 #define AQ_NIC_RATE_EEE_10G	BIT(7)
 #define AQ_NIC_RATE_EEE_5G	BIT(8)
-#define AQ_NIC_RATE_EEE_2GS	BIT(9)
+#define AQ_NIC_RATE_EEE_2G5	BIT(9)
 #define AQ_NIC_RATE_EEE_1G	BIT(10)
 #define AQ_NIC_RATE_EEE_100M	BIT(11)
 

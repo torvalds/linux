@@ -129,7 +129,7 @@ static void a2_link_speed_mask2fw(u32 speed,
 	link_options->rate_10G = !!(speed & AQ_NIC_RATE_10G);
 	link_options->rate_5G = !!(speed & AQ_NIC_RATE_5G);
 	link_options->rate_N5G = !!(speed & AQ_NIC_RATE_5GSR);
-	link_options->rate_2P5G = !!(speed & AQ_NIC_RATE_2GS);
+	link_options->rate_2P5G = !!(speed & AQ_NIC_RATE_2G5);
 	link_options->rate_N2P5G = link_options->rate_2P5G;
 	link_options->rate_1G = !!(speed & AQ_NIC_RATE_1G);
 	link_options->rate_100M = !!(speed & AQ_NIC_RATE_100M);

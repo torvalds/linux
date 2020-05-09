@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_utils.h: Declaration of common functions for Atlantic hardware
@@ -418,7 +419,7 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_10G        BIT(0)
 #define HAL_ATLANTIC_RATE_5G         BIT(1)
 #define HAL_ATLANTIC_RATE_5GSR       BIT(2)
-#define HAL_ATLANTIC_RATE_2GS        BIT(3)
+#define HAL_ATLANTIC_RATE_2G5        BIT(3)
 #define HAL_ATLANTIC_RATE_1G         BIT(4)
 #define HAL_ATLANTIC_RATE_100M       BIT(5)
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_utils_fw2x.c: Definition of firmware 2.x functions for
@@ -134,7 +135,7 @@ static enum hw_atl_fw2x_rate link_speed_mask_2fw2x_ratemask(u32 speed)
 	if (speed & AQ_NIC_RATE_5GSR)
 		rate |= FW2X_RATE_5G;
 
-	if (speed & AQ_NIC_RATE_2GS)
+	if (speed & AQ_NIC_RATE_2G5)
 		rate |= FW2X_RATE_2G5;
 
 	if (speed & AQ_NIC_RATE_1G)
@@ -155,7 +156,7 @@ static u32 fw2x_to_eee_mask(u32 speed)
 	if (speed & HW_ATL_FW2X_CAP_EEE_5G_MASK)
 		rate |= AQ_NIC_RATE_EEE_5G;
 	if (speed & HW_ATL_FW2X_CAP_EEE_2G5_MASK)
-		rate |= AQ_NIC_RATE_EEE_2GS;
+		rate |= AQ_NIC_RATE_EEE_2G5;
 	if (speed & HW_ATL_FW2X_CAP_EEE_1G_MASK)
 		rate |= AQ_NIC_RATE_EEE_1G;
 
@@ -170,7 +171,7 @@ static u32 eee_mask_to_fw2x(u32 speed)
 		rate |= HW_ATL_FW2X_CAP_EEE_10G_MASK;
 	if (speed & AQ_NIC_RATE_EEE_5G)
 		rate |= HW_ATL_FW2X_CAP_EEE_5G_MASK;
-	if (speed & AQ_NIC_RATE_EEE_2GS)
+	if (speed & AQ_NIC_RATE_EEE_2G5)
 		rate |= HW_ATL_FW2X_CAP_EEE_2G5_MASK;
 	if (speed & AQ_NIC_RATE_EEE_1G)
 		rate |= HW_ATL_FW2X_CAP_EEE_1G_MASK;

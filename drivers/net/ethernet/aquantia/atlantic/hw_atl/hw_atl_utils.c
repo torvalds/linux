@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_utils.c: Definition of common functions for Atlantic hardware
@@ -687,7 +688,7 @@ int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 			link_status->mbps = 5000U;
 			break;
 
-		case HAL_ATLANTIC_RATE_2GS:
+		case HAL_ATLANTIC_RATE_2G5:
 			link_status->mbps = 2500U;
 			break;
 
