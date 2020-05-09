@@ -104,8 +104,8 @@
 struct rockchip_efuse_chip {
 	struct device *dev;
 	void __iomem *base;
-	struct clk *clk;
-	struct clk *sclk;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	phys_addr_t phys;
 };
 
@@ -156,16 +156,9 @@ static int rockchip_rk1808_efuse_read(void *context, unsigned int offset,
 	u8 *buf;
 	int ret, i = 0;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
-		dev_err(efuse->dev, "failed to prepare/enable efuse pclk\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(efuse->sclk);
-	if (ret < 0) {
-		clk_disable_unprepare(efuse->clk);
-		dev_err(efuse->dev, "failed to prepare/enable efuse sclk\n");
+		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
 	}
 
@@ -204,8 +197,7 @@ err:
 	kfree(buf);
 nomem:
 	rk1808_efuse_timing_deinit(efuse->base);
-	clk_disable_unprepare(efuse->clk);
-	clk_disable_unprepare(efuse->sclk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return ret;
 }
@@ -217,7 +209,7 @@ static int rockchip_rk3128_efuse_read(void *context, unsigned int offset,
 	u8 *buf = val;
 	int ret;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -245,7 +237,7 @@ static int rockchip_rk3128_efuse_read(void *context, unsigned int offset,
 	/* Switch to standby mode */
 	writel(RK3288_PGENB | RK3288_CSB, efuse->base + REG_EFUSE_CTRL);
 
-	clk_disable_unprepare(efuse->clk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return 0;
 }
@@ -257,7 +249,7 @@ static int rockchip_rk3288_efuse_read(void *context, unsigned int offset,
 	u8 *buf = val;
 	int ret;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -285,7 +277,7 @@ static int rockchip_rk3288_efuse_read(void *context, unsigned int offset,
 	/* Switch to standby mode */
 	writel(RK3288_PGENB | RK3288_CSB, efuse->base + REG_EFUSE_CTRL);
 
-	clk_disable_unprepare(efuse->clk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return 0;
 }
@@ -299,7 +291,7 @@ static int rockchip_rk3288_efuse_secure_read(void *context,
 	u32 wr_val;
 	int ret;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -331,7 +323,7 @@ static int rockchip_rk3288_efuse_secure_read(void *context,
 	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
 				 RK3288_PGENB | RK3288_CSB);
 
-	clk_disable_unprepare(efuse->clk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return 0;
 }
@@ -345,7 +337,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 	u8 *buf;
 	int ret, i = 0;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -386,7 +378,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 err:
 	kfree(buf);
 nomem:
-	clk_disable_unprepare(efuse->clk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return ret;
 }
@@ -399,7 +391,7 @@ static int rockchip_rk3368_efuse_read(void *context, unsigned int offset,
 	u32 wr_val;
 	int ret;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -431,7 +423,7 @@ static int rockchip_rk3368_efuse_read(void *context, unsigned int offset,
 	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
 				 RK3288_PGENB | RK3288_CSB);
 
-	clk_disable_unprepare(efuse->clk);
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
 	return 0;
 }
@@ -445,7 +437,7 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 	u8 *buf;
 	int ret, i = 0;
 
-	ret = clk_prepare_enable(efuse->clk);
+	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
@@ -459,8 +451,8 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
 		      GFP_KERNEL);
 	if (!buf) {
-		clk_disable_unprepare(efuse->clk);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto disable_clks;
 	}
 
 	writel(RK3399_LOAD | RK3399_PGENB | RK3399_STROBSFTSEL | RK3399_RSB,
@@ -487,9 +479,10 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 
 	kfree(buf);
 
-	clk_disable_unprepare(efuse->clk);
+disable_clks:
+	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
 
-	return 0;
+	return ret;
 }
 
 static struct nvmem_config econfig = {
@@ -556,7 +549,6 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	struct rockchip_efuse_chip *efuse;
 	const void *data;
 	struct device *dev = &pdev->dev;
-	int count;
 
 	data = of_device_get_match_data(dev);
 	if (!data) {
@@ -575,17 +567,9 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	if (IS_ERR(efuse->base))
 		return PTR_ERR(efuse->base);
 
-	efuse->clk = devm_clk_get(dev, "pclk_efuse");
-	if (IS_ERR(efuse->clk))
-		return PTR_ERR(efuse->clk);
-
-	count = of_clk_get_parent_count(pdev->dev.of_node);
-	if (count == 2)
-		efuse->sclk = devm_clk_get(&pdev->dev, "sclk_efuse");
-	else
-		efuse->sclk = efuse->clk;
-	if (IS_ERR(efuse->sclk))
-		return PTR_ERR(efuse->sclk);
+	efuse->num_clks = devm_clk_bulk_get_all(dev, &efuse->clks);
+	if (efuse->num_clks < 1)
+		return -ENODEV;
 
 	efuse->dev = dev;
 	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
