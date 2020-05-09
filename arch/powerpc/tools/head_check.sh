@@ -31,8 +31,10 @@
 # level entry code (boot, interrupt vectors, etc) until r2 is set up. This
 # could cause the kernel to die in early boot.
 
-# Turn this on if you want more debug output:
-# set -x
+# Allow for verbose output
+if [ "$V" = "1" ]; then
+	set -x
+fi
 
 if [ $# -lt 2 ]; then
 	echo "$0 [path to nm] [path to vmlinux]" 1>&2
