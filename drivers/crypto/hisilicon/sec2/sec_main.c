@@ -914,6 +914,8 @@ static void sec_remove(struct pci_dev *pdev)
 static const struct pci_error_handlers sec_err_handler = {
 	.error_detected = hisi_qm_dev_err_detected,
 	.slot_reset =  hisi_qm_dev_slot_reset,
+	.reset_prepare		= hisi_qm_reset_prepare,
+	.reset_done		= hisi_qm_reset_done,
 };
 
 static struct pci_driver sec_pci_driver = {

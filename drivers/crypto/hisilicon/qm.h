@@ -371,6 +371,8 @@ void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);
 pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev);
+void hisi_qm_reset_prepare(struct pci_dev *pdev);
+void hisi_qm_reset_done(struct pci_dev *pdev);
 
 struct hisi_acc_sgl_pool;
 struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,

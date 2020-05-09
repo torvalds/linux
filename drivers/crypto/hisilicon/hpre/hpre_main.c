@@ -310,12 +310,21 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 
 static void hpre_hw_error_disable(struct hisi_qm *qm)
 {
+	u32 val;
+
 	/* disable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_INT_MASK);
+
+	/* disable HPRE block master OOO when m-bit error occur */
+	val = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+	val &= ~HPRE_AM_OOO_SHUTDOWN_ENABLE;
+	writel(val, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
 }
 
 static void hpre_hw_error_enable(struct hisi_qm *qm)
 {
+	u32 val;
+
 	/* clear HPRE hw error source if having */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_HAC_SOURCE_INT);
 
@@ -324,6 +333,11 @@ static void hpre_hw_error_enable(struct hisi_qm *qm)
 	writel(HPRE_HAC_RAS_CE_ENABLE, qm->io_base + HPRE_RAS_CE_ENB);
 	writel(HPRE_HAC_RAS_NFE_ENABLE, qm->io_base + HPRE_RAS_NFE_ENB);
 	writel(HPRE_HAC_RAS_FE_ENABLE, qm->io_base + HPRE_RAS_FE_ENB);
+
+	/* enable HPRE block master OOO when m-bit error occur */
+	val = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+	val |= HPRE_AM_OOO_SHUTDOWN_ENABLE;
+	writel(val, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
 }
 
 static inline struct hisi_qm *hpre_file_to_qm(struct hpre_debugfs_file *file)
@@ -851,6 +865,8 @@ static void hpre_remove(struct pci_dev *pdev)
 static const struct pci_error_handlers hpre_err_handler = {
 	.error_detected		= hisi_qm_dev_err_detected,
 	.slot_reset		= hisi_qm_dev_slot_reset,
+	.reset_prepare		= hisi_qm_reset_prepare,
+	.reset_done		= hisi_qm_reset_done,
 };
 
 static struct pci_driver hpre_pci_driver = {

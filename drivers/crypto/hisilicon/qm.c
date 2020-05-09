@@ -175,6 +175,7 @@
 #define QMC_ALIGN(sz)			ALIGN(sz, 32)
 
 #define QM_DBG_TMP_BUF_LEN		22
+#define QM_PCI_COMMAND_INVALID		~0
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
 	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
@@ -2874,6 +2875,11 @@ pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_err_detected);
 
+static int qm_get_hw_error_status(struct hisi_qm *qm)
+{
+	return readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
+}
+
 static int qm_check_req_recv(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -3166,9 +3172,7 @@ restart_fail:
 
 static int qm_get_dev_err_status(struct hisi_qm *qm)
 {
-
-	return(qm->err_ini->get_dev_hw_err_status(qm) &
-	       qm->err_ini->err_info.ecc_2bits_mask);
+	return qm->err_ini->get_dev_hw_err_status(qm);
 }
 
 static int qm_dev_hw_init(struct hisi_qm *qm)
@@ -3190,7 +3194,8 @@ static void qm_restart_prepare(struct hisi_qm *qm)
 	       qm->io_base + ACC_AM_CFG_PORT_WR_EN);
 
 	/* clear dev ecc 2bit error source if having */
-	value = qm_get_dev_err_status(qm);
+	value = qm_get_dev_err_status(qm) &
+		qm->err_ini->err_info.ecc_2bits_mask;
 	if (value && qm->err_ini->clear_dev_hw_err_status)
 		qm->err_ini->clear_dev_hw_err_status(qm, value);
 
@@ -3335,6 +3340,126 @@ pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_slot_reset);
+
+/* check the interrupt is ecc-mbit error or not */
+static int qm_check_dev_error(struct hisi_qm *qm)
+{
+	int ret;
+
+	if (qm->fun_type == QM_HW_VF)
+		return 0;
+
+	ret = qm_get_hw_error_status(qm) & QM_ECC_MBIT;
+	if (ret)
+		return ret;
+
+	return (qm_get_dev_err_status(qm) &
+		qm->err_ini->err_info.ecc_2bits_mask);
+}
+
+void hisi_qm_reset_prepare(struct pci_dev *pdev)
+{
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
+	u32 delay = 0;
+	int ret;
+
+	hisi_qm_dev_err_uninit(pf_qm);
+
+	/*
+	 * Check whether there is an ECC mbit error, If it occurs, need to
+	 * wait for soft reset to fix it.
+	 */
+	while (qm_check_dev_error(pf_qm)) {
+		msleep(++delay);
+		if (delay > QM_RESET_WAIT_TIMEOUT)
+			return;
+	}
+
+	ret = qm_reset_prepare_ready(qm);
+	if (ret) {
+		pci_err(pdev, "FLR not ready!\n");
+		return;
+	}
+
+	if (qm->vfs_num) {
+		ret = qm_vf_reset_prepare(qm);
+		if (ret) {
+			pci_err(pdev, "Failed to prepare reset, ret = %d.\n",
+				ret);
+			return;
+		}
+	}
+
+	ret = hisi_qm_stop(qm);
+	if (ret) {
+		pci_err(pdev, "Failed to stop QM, ret = %d.\n", ret);
+		return;
+	}
+
+	pci_info(pdev, "FLR resetting...\n");
+}
+EXPORT_SYMBOL_GPL(hisi_qm_reset_prepare);
+
+static bool qm_flr_reset_complete(struct pci_dev *pdev)
+{
+	struct pci_dev *pf_pdev = pci_physfn(pdev);
+	struct hisi_qm *qm = pci_get_drvdata(pf_pdev);
+	u32 id;
+
+	pci_read_config_dword(qm->pdev, PCI_COMMAND, &id);
+	if (id == QM_PCI_COMMAND_INVALID) {
+		pci_err(pdev, "Device can not be used!\n");
+		return false;
+	}
+
+	clear_bit(QM_DEV_RESET_FLAG, &qm->reset_flag);
+
+	return true;
+}
+
+void hisi_qm_reset_done(struct pci_dev *pdev)
+{
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
+	int ret;
+
+	hisi_qm_dev_err_init(pf_qm);
+
+	ret = qm_restart(qm);
+	if (ret) {
+		pci_err(pdev, "Failed to start QM, ret = %d.\n", ret);
+		goto flr_done;
+	}
+
+	if (qm->fun_type == QM_HW_PF) {
+		ret = qm_dev_hw_init(qm);
+		if (ret) {
+			pci_err(pdev, "Failed to init PF, ret = %d.\n", ret);
+			goto flr_done;
+		}
+
+		if (!qm->vfs_num)
+			goto flr_done;
+
+		ret = qm_vf_q_assign(qm, qm->vfs_num);
+		if (ret) {
+			pci_err(pdev, "Failed to assign VFs, ret = %d.\n", ret);
+			goto flr_done;
+		}
+
+		ret = qm_vf_reset_done(qm);
+		if (ret) {
+			pci_err(pdev, "Failed to start VFs, ret = %d.\n", ret);
+			goto flr_done;
+		}
+	}
+
+flr_done:
+	if (qm_flr_reset_complete(pdev))
+		pci_info(pdev, "FLR reset complete\n");
+}
+EXPORT_SYMBOL_GPL(hisi_qm_reset_done);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");

@@ -278,6 +278,8 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
+	u32 val;
+
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
 		       qm->io_base + HZIP_CORE_INT_MASK_REG);
@@ -296,12 +298,24 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	/* enable ZIP block master OOO when m-bit error occur */
+	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	val = val | HZIP_AXI_SHUTDOWN_ENABLE;
+	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
 }
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 {
+	u32 val;
+
 	/* disable ZIP hw error interrupts */
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	/* disable ZIP block master OOO when m-bit error occur */
+	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	val = val & ~HZIP_AXI_SHUTDOWN_ENABLE;
+	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
 }
 
 static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
@@ -802,6 +816,8 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 static const struct pci_error_handlers hisi_zip_err_handler = {
 	.error_detected	= hisi_qm_dev_err_detected,
 	.slot_reset	= hisi_qm_dev_slot_reset,
+	.reset_prepare	= hisi_qm_reset_prepare,
+	.reset_done	= hisi_qm_reset_done,
 };
 
 static struct pci_driver hisi_zip_pci_driver = {
