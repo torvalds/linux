@@ -2729,6 +2729,8 @@ attach_type_to_prog_type(enum bpf_attach_type attach_type)
 	case BPF_CGROUP_GETSOCKOPT:
 	case BPF_CGROUP_SETSOCKOPT:
 		return BPF_PROG_TYPE_CGROUP_SOCKOPT;
+	case BPF_TRACE_ITER:
+		return BPF_PROG_TYPE_TRACING;
 	default:
 		return BPF_PROG_TYPE_UNSPEC;
 	}
@@ -3729,6 +3731,15 @@ err_put:
 	return err;
 }
 
+static int tracing_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
+{
+	if (attr->link_create.attach_type == BPF_TRACE_ITER &&
+	    prog->expected_attach_type == BPF_TRACE_ITER)
+		return bpf_iter_link_attach(attr, prog);
+
+	return -EINVAL;
+}
+
 #define BPF_LINK_CREATE_LAST_FIELD link_create.flags
 static int link_create(union bpf_attr *attr)
 {
@@ -3764,6 +3775,9 @@ static int link_create(union bpf_attr *attr)
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 		ret = cgroup_bpf_link_attach(attr, prog);
+		break;
+	case BPF_PROG_TYPE_TRACING:
+		ret = tracing_bpf_link_attach(attr, prog);
 		break;
 	default:
 		ret = -EINVAL;
