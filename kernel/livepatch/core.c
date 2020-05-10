@@ -745,7 +745,8 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 			   func->old_sympos ? func->old_sympos : 1);
 }
 
-int klp_apply_object_relocs(struct klp_patch *patch, struct klp_object *obj)
+static int klp_apply_object_relocs(struct klp_patch *patch,
+				   struct klp_object *obj)
 {
 	int i, ret;
 	struct klp_modinfo *info = patch->mod->klp_info;
