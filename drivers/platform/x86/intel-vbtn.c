@@ -111,6 +111,9 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	priv->input_dev->name = "Intel Virtual Button driver";
 	priv->input_dev->id.bustype = BUS_HOST;
 
+	if (priv->has_switches)
+		detect_tablet_mode(device);
+
 	return input_register_device(priv->input_dev);
 }
 
@@ -216,9 +219,6 @@ static int intel_vbtn_probe(struct platform_device *device)
 		pr_err("Failed to setup Intel Virtual Button\n");
 		return err;
 	}
-
-	if (priv->has_switches)
-		detect_tablet_mode(device);
 
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
