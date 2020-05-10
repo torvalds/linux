@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/phy.h>
+#include <linux/ethtool_netlink.h>
 #include "netlink.h"
 #include "common.h"
 
@@ -52,3 +53,57 @@ out_dev_put:
 	dev_put(dev);
 	return ret;
 }
+
+int ethnl_cable_test_alloc(struct phy_device *phydev)
+{
+	int err = -ENOMEM;
+
+	phydev->skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!phydev->skb)
+		goto out;
+
+	phydev->ehdr = ethnl_bcastmsg_put(phydev->skb,
+					  ETHTOOL_MSG_CABLE_TEST_NTF);
+	if (!phydev->ehdr) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	err = ethnl_fill_reply_header(phydev->skb, phydev->attached_dev,
+				      ETHTOOL_A_CABLE_TEST_NTF_HEADER);
+	if (err)
+		goto out;
+
+	err = nla_put_u8(phydev->skb, ETHTOOL_A_CABLE_TEST_NTF_STATUS,
+			 ETHTOOL_A_CABLE_TEST_NTF_STATUS_COMPLETED);
+	if (err)
+		goto out;
+
+	phydev->nest = nla_nest_start(phydev->skb,
+				      ETHTOOL_A_CABLE_TEST_NTF_NEST);
+	if (!phydev->nest)
+		goto out;
+
+	return 0;
+
+out:
+	nlmsg_free(phydev->skb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_alloc);
+
+void ethnl_cable_test_free(struct phy_device *phydev)
+{
+	nlmsg_free(phydev->skb);
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_free);
+
+void ethnl_cable_test_finished(struct phy_device *phydev)
+{
+	nla_nest_end(phydev->skb, phydev->nest);
+
+	genlmsg_end(phydev->skb, phydev->ehdr);
+
+	ethnl_multicast(phydev->skb, phydev->attached_dev);
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_finished);

@@ -14,4 +14,24 @@ enum ethtool_multicast_groups {
 	ETHNL_MCGRP_MONITOR,
 };
 
+struct phy_device;
+
+#if IS_ENABLED(CONFIG_ETHTOOL_NETLINK)
+int ethnl_cable_test_alloc(struct phy_device *phydev);
+void ethnl_cable_test_free(struct phy_device *phydev);
+void ethnl_cable_test_finished(struct phy_device *phydev);
+#else
+static inline int ethnl_cable_test_alloc(struct phy_device *phydev)
+{
+	return -ENOTSUPP;
+}
+
+static inline void ethnl_cable_test_free(struct phy_device *phydev)
+{
+}
+
+static inline void ethnl_cable_test_finished(struct phy_device *phydev)
+{
+}
+#endif /* IS_ENABLED(ETHTOOL_NETLINK) */
 #endif /* _LINUX_ETHTOOL_NETLINK_H_ */

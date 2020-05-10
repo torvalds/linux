@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
 #include <linux/sfp.h>
@@ -30,6 +31,9 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
+#include <net/netlink.h>
+#include <net/genetlink.h>
+#include <net/sock.h>
 
 #define PHY_STATE_TIME	HZ
 
@@ -478,6 +482,8 @@ static void phy_abort_cable_test(struct phy_device *phydev)
 {
 	int err;
 
+	ethnl_cable_test_finished(phydev);
+
 	err = phy_init_hw(phydev);
 	if (err)
 		phydev_err(phydev, "Error while aborting cable test");
@@ -486,7 +492,7 @@ static void phy_abort_cable_test(struct phy_device *phydev)
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)
 {
-	int err;
+	int err = -ENOMEM;
 
 	if (!(phydev->drv &&
 	      phydev->drv->cable_test_start &&
@@ -512,19 +518,30 @@ int phy_start_cable_test(struct phy_device *phydev,
 		goto out;
 	}
 
+	err = ethnl_cable_test_alloc(phydev);
+	if (err)
+		goto out;
+
 	/* Mark the carrier down until the test is complete */
 	phy_link_down(phydev, true);
 
 	err = phydev->drv->cable_test_start(phydev);
 	if (err) {
 		phy_link_up(phydev);
-		goto out;
+		goto out_free;
 	}
 
 	phydev->state = PHY_CABLETEST;
 
 	if (phy_polling_mode(phydev))
 		phy_trigger_machine(phydev);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+
+out_free:
+	ethnl_cable_test_free(phydev);
 out:
 	mutex_unlock(&phydev->lock);
 
@@ -964,6 +981,7 @@ void phy_state_machine(struct work_struct *work)
 		}
 
 		if (finished) {
+			ethnl_cable_test_finished(phydev);
 			needs_aneg = true;
 			phydev->state = PHY_UP;
 		}

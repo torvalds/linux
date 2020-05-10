@@ -523,6 +523,11 @@ struct phy_device {
 	/* For use by PHYs inside the same package that need a shared state. */
 	struct phy_package_shared *shared;
 
+	/* Reporting cable test results */
+	struct sk_buff *skb;
+	void *ehdr;
+	struct nlattr *nest;
+
 	/* Interrupt and Polling infrastructure */
 	struct delayed_work state_queue;
 
