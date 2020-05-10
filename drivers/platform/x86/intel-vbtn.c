@@ -60,6 +60,24 @@ struct intel_vbtn_priv {
 	bool wakeup_mode;
 };
 
+static void detect_tablet_mode(struct platform_device *device)
+{
+	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long vgbs;
+	acpi_status status;
+	int m;
+
+	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
+	if (ACPI_FAILURE(status))
+		return;
+
+	m = !(vgbs & TABLET_MODE_FLAG);
+	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+	m = (vgbs & DOCK_MODE_FLAG) ? 1 : 0;
+	input_report_switch(priv->input_dev, SW_DOCK, m);
+}
+
 static int intel_vbtn_input_setup(struct platform_device *device)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
@@ -136,24 +154,6 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 out_unknown:
 	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
-}
-
-static void detect_tablet_mode(struct platform_device *device)
-{
-	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
-	acpi_handle handle = ACPI_HANDLE(&device->dev);
-	unsigned long long vgbs;
-	acpi_status status;
-	int m;
-
-	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
-	if (ACPI_FAILURE(status))
-		return;
-
-	m = !(vgbs & TABLET_MODE_FLAG);
-	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
-	m = (vgbs & DOCK_MODE_FLAG) ? 1 : 0;
-	input_report_switch(priv->input_dev, SW_DOCK, m);
 }
 
 static bool intel_vbtn_has_buttons(acpi_handle handle)
