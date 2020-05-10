@@ -3432,7 +3432,7 @@ ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
 /*
  * search goal blocks in preallocated space
  */
-static noinline_for_stack int
+static noinline_for_stack bool
 ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
@@ -3444,7 +3444,7 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 
 	/* only data can be preallocated */
 	if (!(ac->ac_flags & EXT4_MB_HINT_DATA))
-		return 0;
+		return false;
 
 	/* first, try per-file preallocation */
 	rcu_read_lock();
@@ -3471,7 +3471,7 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 			spin_unlock(&pa->pa_lock);
 			ac->ac_criteria = 10;
 			rcu_read_unlock();
-			return 1;
+			return true;
 		}
 		spin_unlock(&pa->pa_lock);
 	}
@@ -3479,12 +3479,12 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 
 	/* can we use group allocation? */
 	if (!(ac->ac_flags & EXT4_MB_HINT_GROUP_ALLOC))
-		return 0;
+		return false;
 
 	/* inode may have no locality group for some reason */
 	lg = ac->ac_lg;
 	if (lg == NULL)
-		return 0;
+		return false;
 	order  = fls(ac->ac_o_ex.fe_len) - 1;
 	if (order > PREALLOC_TB_SIZE - 1)
 		/* The max size of hash table is PREALLOC_TB_SIZE */
@@ -3513,9 +3513,9 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 	if (cpa) {
 		ext4_mb_use_group_pa(ac, cpa);
 		ac->ac_criteria = 20;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /*
