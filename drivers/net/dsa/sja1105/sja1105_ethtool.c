@@ -478,7 +478,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 
 	if (priv->info->device_id == SJA1105E_DEVICE_ID ||
 	    priv->info->device_id == SJA1105T_DEVICE_ID)
-		goto out;;
+		goto out;
 
 	memset(data + k, 0, ARRAY_SIZE(sja1105pqrs_extra_port_stats) *
 			sizeof(u64));
