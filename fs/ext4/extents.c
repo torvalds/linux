@@ -4045,7 +4045,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent newex, *ex, *ex2;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	ext4_fsblk_t newblock = 0;
+	ext4_fsblk_t newblock = 0, pblk;
 	int err = 0, depth, ret;
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
@@ -4060,7 +4060,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	if (IS_ERR(path)) {
 		err = PTR_ERR(path);
 		path = NULL;
-		goto out2;
+		goto out;
 	}
 
 	depth = ext_depth(inode);
@@ -4076,7 +4076,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 				 (unsigned long) map->m_lblk, depth,
 				 path[depth].p_block);
 		err = -EFSCORRUPTED;
-		goto out2;
+		goto out;
 	}
 
 	ex = path[depth].p_ext;
@@ -4110,8 +4110,14 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			    (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN)) {
 				err = convert_initialized_extent(handle,
 					inode, map, &path, &allocated);
-				goto out2;
+				goto out;
 			} else if (!ext4_ext_is_unwritten(ex)) {
+				map->m_flags |= EXT4_MAP_MAPPED;
+				map->m_pblk = newblock;
+				if (allocated > map->m_len)
+					allocated = map->m_len;
+				map->m_len = allocated;
+				ext4_ext_show_leaf(inode, path);
 				goto out;
 			}
 
@@ -4122,7 +4128,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 				err = ret;
 			else
 				allocated = ret;
-			goto out2;
+			goto out;
 		}
 	}
 
@@ -4147,7 +4153,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		map->m_pblk = 0;
 		map->m_len = min_t(unsigned int, map->m_len, hole_len);
 
-		goto out2;
+		goto out;
 	}
 
 	/*
@@ -4171,12 +4177,12 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	ar.lleft = map->m_lblk;
 	err = ext4_ext_search_left(inode, path, &ar.lleft, &ar.pleft);
 	if (err)
-		goto out2;
+		goto out;
 	ar.lright = map->m_lblk;
 	ex2 = NULL;
 	err = ext4_ext_search_right(inode, path, &ar.lright, &ar.pright, &ex2);
 	if (err)
-		goto out2;
+		goto out;
 
 	/* Check if the extent after searching to the right implies a
 	 * cluster we can use. */
@@ -4237,7 +4243,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		ar.flags |= EXT4_MB_USE_RESERVED;
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
-		goto out2;
+		goto out;
 	allocated_clusters = ar.len;
 	ar.len = EXT4_C2B(sbi, ar.len) - offset;
 	ext_debug(inode, "allocate new block: goal %llu, found %llu/%u, requested %u\n",
@@ -4247,7 +4253,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 
 got_allocated_blocks:
 	/* try to insert new extent into found leaf and return */
-	ext4_ext_store_pblock(&newex, newblock + offset);
+	pblk = newblock + offset;
+	ext4_ext_store_pblock(&newex, pblk);
 	newex.ee_len = cpu_to_le16(ar.len);
 	/* Mark unwritten */
 	if (flags & EXT4_GET_BLOCKS_UNWRIT_EXT) {
@@ -4272,15 +4279,8 @@ got_allocated_blocks:
 					 EXT4_C2B(sbi, allocated_clusters),
 					 fb_flags);
 		}
-		goto out2;
+		goto out;
 	}
-
-	/* previous routine could use block we allocated */
-	newblock = ext4_ext_pblock(&newex);
-	allocated = ext4_ext_get_actual_len(&newex);
-	if (allocated > map->m_len)
-		allocated = map->m_len;
-	map->m_flags |= EXT4_MAP_NEW;
 
 	/*
 	 * Reduce the reserved cluster count to reflect successful deferred
@@ -4327,14 +4327,14 @@ got_allocated_blocks:
 		ext4_update_inode_fsync_trans(handle, inode, 1);
 	else
 		ext4_update_inode_fsync_trans(handle, inode, 0);
-out:
-	if (allocated > map->m_len)
-		allocated = map->m_len;
+
+	map->m_flags |= (EXT4_MAP_NEW | EXT4_MAP_MAPPED);
+	map->m_pblk = pblk;
+	map->m_len = ar.len;
+	allocated = map->m_len;
 	ext4_ext_show_leaf(inode, path);
-	map->m_flags |= EXT4_MAP_MAPPED;
-	map->m_pblk = newblock;
-	map->m_len = allocated;
-out2:
+
+out:
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
