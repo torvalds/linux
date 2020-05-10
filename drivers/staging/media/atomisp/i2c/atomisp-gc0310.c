@@ -1309,8 +1309,18 @@ static int gc0310_probe(struct i2c_client *client)
 	int ret;
 	void *pdata;
 	unsigned int i;
+	acpi_handle handle;
+	struct acpi_device *adev;
 
-	pr_info("%s S\n", __func__);
+	handle = ACPI_HANDLE(&client->dev);
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
+		dev_err(&client->dev, "Error could not get ACPI device\n");
+		return -ENODEV;
+	}
+
+	pr_info("%s: ACPI detected it on bus ID=%s, HID=%s\n",
+		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;

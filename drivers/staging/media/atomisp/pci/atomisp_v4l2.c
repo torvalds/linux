@@ -22,6 +22,7 @@
 #include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/interrupt.h>
 
 #include <asm/iosf_mbi.h>
@@ -1460,6 +1461,9 @@ static bool is_valid_device(struct pci_dev *dev,
 {
 	unsigned int a0_max_id = 0;
 	const char *name;
+	const char *product;
+
+	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
@@ -1481,8 +1485,8 @@ static bool is_valid_device(struct pci_dev *dev,
 		atomisp_hw_is_isp2401 = true;
 		break;
 	default:
-		dev_err(&dev->dev, "Unknown device ID %x04:%x04\n",
-			id->vendor, id->device);
+		dev_err(&dev->dev, "%s: unknown device ID %x04:%x04\n",
+			product, id->vendor, id->device);
 		return false;
 	}
 
@@ -1511,9 +1515,10 @@ static bool is_valid_device(struct pci_dev *dev,
 	}
 #endif
 
-	dev_info(&dev->dev, "Detected %s version %d (ISP240%c)\n",
+	dev_info(&dev->dev, "Detected %s version %d (ISP240%c) on %s\n",
 		name, dev->revision,
-		atomisp_hw_is_isp2401 ? '1' : '0');
+		atomisp_hw_is_isp2401 ? '1' : '0',
+		product);
 
 	return true;
 }
