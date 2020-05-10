@@ -16,12 +16,20 @@ MODULE_LICENSE("GPL v2");
 static void name_card(struct snd_ff *ff)
 {
 	struct fw_device *fw_dev = fw_parent_device(ff->unit);
+	const char *const names[] = {
+		[SND_FF_UNIT_VERSION_FF800]	= "Fireface800",
+		[SND_FF_UNIT_VERSION_FF400]	= "Fireface400",
+		[SND_FF_UNIT_VERSION_UCX]	= "FirefaceUCX",
+	};
+	const char *name;
+
+	name = names[ff->unit_version];
 
 	strcpy(ff->card->driver, "Fireface");
-	strcpy(ff->card->shortname, ff->spec->name);
-	strcpy(ff->card->mixername, ff->spec->name);
+	strcpy(ff->card->shortname, name);
+	strcpy(ff->card->mixername, name);
 	snprintf(ff->card->longname, sizeof(ff->card->longname),
-		 "RME %s, GUID %08x%08x at %s, S%d", ff->spec->name,
+		 "RME %s, GUID %08x%08x at %s, S%d", name,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&ff->unit->device), 100 << fw_dev->max_speed);
 }
@@ -101,6 +109,7 @@ static int snd_ff_probe(struct fw_unit *unit,
 	spin_lock_init(&ff->lock);
 	init_waitqueue_head(&ff->hwdep_wait);
 
+	ff->unit_version = entry->version;
 	ff->spec = (const struct snd_ff_spec *)entry->driver_data;
 
 	/* Register this sound card later. */
@@ -145,7 +154,6 @@ static void snd_ff_remove(struct fw_unit *unit)
 }
 
 static const struct snd_ff_spec spec_ff800 = {
-	.name = "Fireface800",
 	.pcm_capture_channels = {28, 20, 12},
 	.pcm_playback_channels = {28, 20, 12},
 	.midi_in_ports = 1,
@@ -157,7 +165,6 @@ static const struct snd_ff_spec spec_ff800 = {
 };
 
 static const struct snd_ff_spec spec_ff400 = {
-	.name = "Fireface400",
 	.pcm_capture_channels = {18, 14, 10},
 	.pcm_playback_channels = {18, 14, 10},
 	.midi_in_ports = 2,
@@ -169,7 +176,6 @@ static const struct snd_ff_spec spec_ff400 = {
 };
 
 static const struct snd_ff_spec spec_ucx = {
-	.name = "FirefaceUCX",
 	.pcm_capture_channels = {18, 14, 12},
 	.pcm_playback_channels = {18, 14, 12},
 	.midi_in_ports = 2,
