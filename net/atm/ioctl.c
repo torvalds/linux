@@ -286,30 +286,13 @@ static int do_atm_iobuf(struct socket *sock, unsigned int cmd,
 static int do_atmif_sioc(struct socket *sock, unsigned int cmd,
 			 unsigned long arg)
 {
-	struct atmif_sioc __user *sioc;
-	struct compat_atmif_sioc __user *sioc32;
+	struct compat_atmif_sioc __user *sioc32 = compat_ptr(arg);
+	int number;
 	u32 data;
-	void __user *datap;
-	int err;
 
-	sioc = compat_alloc_user_space(sizeof(*sioc));
-	sioc32 = compat_ptr(arg);
-
-	if (copy_in_user(&sioc->number, &sioc32->number, 2 * sizeof(int)) ||
-	    get_user(data, &sioc32->arg))
+	if (get_user(data, &sioc32->arg) || get_user(number, &sioc32->number))
 		return -EFAULT;
-	datap = compat_ptr(data);
-	if (put_user(datap, &sioc->arg))
-		return -EFAULT;
-
-	err = do_vcc_ioctl(sock, cmd, (unsigned long) sioc, 0);
-
-	if (!err) {
-		if (copy_in_user(&sioc32->length, &sioc->length,
-				 sizeof(int)))
-			err = -EFAULT;
-	}
-	return err;
+	return atm_dev_ioctl(cmd, compat_ptr(data), &sioc32->length, number, 0);
 }
 
 static int do_atm_ioctl(struct socket *sock, unsigned int cmd32,
