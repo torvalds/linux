@@ -162,7 +162,11 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 	if (error != -ENOIOCTLCMD)
 		goto done;
 
-	error = atm_dev_ioctl(cmd, argp, compat);
+	if (cmd == ATM_GETNAMES) {
+		error = atm_getnames(argp, compat);
+	} else {
+		error = atm_dev_ioctl(cmd, argp, compat);
+	}
 
 done:
 	return error;
