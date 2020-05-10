@@ -366,12 +366,12 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		 pmic_id);
 
 	gmin_subdevs[i].subdev = subdev;
-	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, "CamClk", 0);
+	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
 	/*WA:CHT requires XTAL clock as PLL is not stable.*/
-	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, "ClkSrc",
+	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, false, "ClkSrc",
 				    VLV2_CLK_PLL_19P2MHZ);
-	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, "CsiPort", 0);
-	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, "CsiLanes", 1);
+	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
+	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
 
 	/* get PMC clock with clock framework */
 	snprintf(gmin_pmc_clk_name,
@@ -500,9 +500,14 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
+	struct device *dev;
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+
+	dev = &client->dev;
 
 	if (v1p8_gpio == V1P8_GPIO_UNSET) {
-		v1p8_gpio = gmin_get_var_int(NULL, "V1P8GPIO", V1P8_GPIO_NONE);
+		v1p8_gpio = gmin_get_var_int(dev, true,
+					     "V1P8GPIO", V1P8_GPIO_NONE);
 		if (v1p8_gpio != V1P8_GPIO_NONE) {
 			pr_info("atomisp_gmin_platform: 1.8v power on GPIO %d\n",
 				v1p8_gpio);
@@ -536,9 +541,14 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
+	struct device *dev;
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+
+	dev = &client->dev;
 
 	if (v2p8_gpio == V2P8_GPIO_UNSET) {
-		v2p8_gpio = gmin_get_var_int(NULL, "V2P8GPIO", V2P8_GPIO_NONE);
+		v2p8_gpio = gmin_get_var_int(dev, true,
+					     "V2P8GPIO", V2P8_GPIO_NONE);
 		if (v2p8_gpio != V2P8_GPIO_NONE) {
 			pr_info("atomisp_gmin_platform: 2.8v power on GPIO %d\n",
 				v2p8_gpio);
@@ -697,7 +707,9 @@ static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
  * argument should be a device with an ACPI companion, as all
  * configuration is based on firmware ID.
  */
-static int gmin_get_config_var(struct device *dev, const char *var,
+static int gmin_get_config_var(struct device *maindev,
+			       bool is_gmin,
+			       const char *var,
 			       char *out, size_t *out_len)
 {
 	char var8[CFG_VAR_NAME_MAX];
@@ -705,11 +717,12 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	struct efivar_entry *ev;
 	const struct dmi_system_id *id;
 	int i, ret;
+	struct device *dev = maindev;
 
-	if (dev && ACPI_COMPANION(dev))
+	if (!is_gmin && ACPI_COMPANION(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
 
-	if (dev)
+	if (!is_gmin)
 		ret = snprintf(var8, sizeof(var8), "%s_%s", dev_name(dev), var);
 	else
 		ret = snprintf(var8, sizeof(var8), "gmin_%s", var);
@@ -722,8 +735,10 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	 * runtime.
 	 */
 	id = dmi_first_match(gmin_vars);
-	if (id)
+	if (id) {
+		dev_info(maindev, "Found DMI entry for '%s'\n", var8);
 		return gmin_get_hardcoded_var(id->driver_data, var8, out, out_len);
+	}
 
 	/* Our variable names are ASCII by construction, but EFI names
 	 * are wide chars.  Convert and zero-pad.
@@ -750,8 +765,11 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	if (ret == 0) {
 		memcpy(out, ev->var.Data, ev->var.DataSize);
 		*out_len = ev->var.DataSize;
-	} else if (dev) {
-		dev_warn(dev, "Failed to find gmin variable %s\n", var8);
+		dev_info(maindev, "found EFI entry for '%s'\n", var8);
+	} else if (is_gmin) {
+		dev_warn(maindev, "Failed to find gmin variable %s\n", var8);
+	} else {
+		dev_warn(maindev, "Failed to find variable %s\n", var8);
 	}
 
 	kfree(ev);
@@ -759,14 +777,14 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	return ret;
 }
 
-int gmin_get_var_int(struct device *dev, const char *var, int def)
+int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 {
 	char val[CFG_VAR_NAME_MAX];
 	size_t len = sizeof(val);
 	long result;
 	int ret;
 
-	ret = gmin_get_config_var(dev, var, val, &len);
+	ret = gmin_get_config_var(dev, is_gmin, var, val, &len);
 	if (!ret) {
 		val[len] = 0;
 		ret = kstrtol(val, 0, &result);

@@ -1658,7 +1658,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		/* HPLL frequency is known to be device-specific, but we don't
 		 * have specs yet for exactly how it varies.  Default to
 		 * BYT-CR but let provisioning set it via EFI variable */
-		isp->hpll_freq = gmin_get_var_int(&dev->dev, "HpllFreq",
+		isp->hpll_freq = gmin_get_var_int(&dev->dev, false, "HpllFreq",
 						  HPLL_FREQ_2000MHZ);
 
 		/*
