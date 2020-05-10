@@ -28,15 +28,9 @@
 #include "usbpipe.h"
 
 #define CB_AL2230_INIT_SEQ    15
-
 #define CB_AL7230_INIT_SEQ    16
-#define AL7230_PWR_IDX_LEN    64
-
 #define CB_VT3226_INIT_SEQ    11
-#define VT3226_PWR_IDX_LEN    64
-
 #define CB_VT3342_INIT_SEQ    13
-#define VT3342_PWR_IDX_LEN    64
 
 static u8 al2230_init_table[CB_AL2230_INIT_SEQ][3] = {
 	{0x03, 0xf7, 0x90},
@@ -658,9 +652,6 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		if (ret)
 			return ret;
 
-		if (power >= AL7230_PWR_IDX_LEN)
-			return -EINVAL;
-
 		/*
 		 * 0x080F1B00 for 3 wire control TxGain(D10)
 		 * and 0x31 as TX Gain value
@@ -671,16 +662,11 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		break;
 
 	case RF_VT3226:
-		if (power >= VT3226_PWR_IDX_LEN)
-			return -EINVAL;
 		power_setting = ((0x3f - power) << 20) | (0x17 << 8);
 
 		ret = vnt_rf_write_embedded(priv, power_setting);
 		break;
 	case RF_VT3226D0:
-		if (power >= VT3226_PWR_IDX_LEN)
-			return -EINVAL;
-
 		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
 			u16 hw_value = ch->hw_value;
 
@@ -731,9 +717,6 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		break;
 
 	case RF_VT3342A0:
-		if (power >= VT3342_PWR_IDX_LEN)
-			return -EINVAL;
-
 		power_setting =  ((0x3f - power) << 20) | (0x27 << 8);
 
 		ret = vnt_rf_write_embedded(priv, power_setting);
