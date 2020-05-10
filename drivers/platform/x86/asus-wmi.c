@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_BRNDOWN_MIN		0x20
 #define NOTIFY_BRNDOWN_MAX		0x2e
 #define NOTIFY_FNLOCK_TOGGLE		0x4e
+#define NOTIFY_KBD_DOCK_CHANGE		0x75
 #define NOTIFY_KBD_BRTUP		0xc4
 #define NOTIFY_KBD_BRTDWN		0xc5
 #define NOTIFY_KBD_BRTTOGGLE		0xc7
@@ -346,7 +347,7 @@ static bool asus_wmi_dev_is_present(struct asus_wmi *asus, u32 dev_id)
 
 static int asus_wmi_input_init(struct asus_wmi *asus)
 {
-	int err;
+	int err, result;
 
 	asus->inputdev = input_allocate_device();
 	if (!asus->inputdev)
@@ -361,6 +362,14 @@ static int asus_wmi_input_init(struct asus_wmi *asus)
 	err = sparse_keymap_setup(asus->inputdev, asus->driver->keymap, NULL);
 	if (err)
 		goto err_free_dev;
+
+	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_KBD_DOCK);
+	if (result >= 0) {
+		input_set_capability(asus->inputdev, EV_SW, SW_TABLET_MODE);
+		input_report_switch(asus->inputdev, SW_TABLET_MODE, !result);
+	} else if (result != -ENODEV) {
+		pr_err("Error checking for keyboard-dock: %d\n", result);
+	}
 
 	err = input_register_device(asus->inputdev);
 	if (err)
@@ -2055,9 +2064,9 @@ static int asus_wmi_get_event_code(u32 value)
 
 static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 {
-	int orig_code;
 	unsigned int key_value = 1;
 	bool autorelease = 1;
+	int result, orig_code;
 
 	orig_code = code;
 
@@ -2099,6 +2108,17 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 	if (code == NOTIFY_FNLOCK_TOGGLE) {
 		asus->fnlock_locked = !asus->fnlock_locked;
 		asus_wmi_fnlock_update(asus);
+		return;
+	}
+
+	if (code == NOTIFY_KBD_DOCK_CHANGE) {
+		result = asus_wmi_get_devstate_simple(asus,
+						      ASUS_WMI_DEVID_KBD_DOCK);
+		if (result >= 0) {
+			input_report_switch(asus->inputdev, SW_TABLET_MODE,
+					    !result);
+			input_sync(asus->inputdev);
+		}
 		return;
 	}
 
