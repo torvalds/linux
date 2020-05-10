@@ -119,6 +119,7 @@ struct mlx5e_sw_stats {
 	u64 tx_nop;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
+	u64 rx_mcast_packets;
 	u64 rx_ecn_mark;
 	u64 rx_removed_vlan_packets;
 	u64 rx_csum_unnecessary;
@@ -298,6 +299,7 @@ struct mlx5e_rq_stats {
 	u64 csum_none;
 	u64 lro_packets;
 	u64 lro_bytes;
+	u64 mcast_packets;
 	u64 ecn_mark;
 	u64 removed_vlan_packets;
 	u64 xdp_drop;
