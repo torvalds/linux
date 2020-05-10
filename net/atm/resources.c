@@ -227,39 +227,14 @@ int atm_getnames(void __user *buf, int __user *iobuf_len)
 	return error;
 }
 
-int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
+int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
+		  int number, int compat)
 {
-	void __user *buf;
-	int error, len, number, size = 0;
+	int error, len, size = 0;
 	struct atm_dev *dev;
-	int __user *sioc_len;
 
-	if (IS_ENABLED(CONFIG_COMPAT) && compat) {
-#ifdef CONFIG_COMPAT
-		struct compat_atmif_sioc __user *csioc = arg;
-		compat_uptr_t carg;
-
-		sioc_len = &csioc->length;
-		if (get_user(carg, &csioc->arg))
-			return -EFAULT;
-		buf = compat_ptr(carg);
-
-		if (get_user(len, &csioc->length))
-			return -EFAULT;
-		if (get_user(number, &csioc->number))
-			return -EFAULT;
-#endif
-	} else {
-		struct atmif_sioc __user *sioc = arg;
-
-		sioc_len = &sioc->length;
-		if (get_user(buf, &sioc->arg))
-			return -EFAULT;
-		if (get_user(len, &sioc->length))
-			return -EFAULT;
-		if (get_user(number, &sioc->number))
-			return -EFAULT;
-	}
+	if (get_user(len, sioc_len))
+		return -EFAULT;
 
 	dev = try_then_request_module(atm_dev_lookup(number), "atm-device-%d",
 				      number);
