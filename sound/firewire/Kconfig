@@ -165,5 +165,6 @@ config SND_FIREFACE
 	  * Fireface 400
 	  * Fireface 800
 	  * Fireface UCX
+	  * Fireface 802
 
 endif # SND_FIREWIRE

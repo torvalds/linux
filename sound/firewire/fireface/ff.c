@@ -20,6 +20,7 @@ static void name_card(struct snd_ff *ff)
 		[SND_FF_UNIT_VERSION_FF800]	= "Fireface800",
 		[SND_FF_UNIT_VERSION_FF400]	= "Fireface400",
 		[SND_FF_UNIT_VERSION_UCX]	= "FirefaceUCX",
+		[SND_FF_UNIT_VERSION_802]	= "Fireface802",
 	};
 	const char *name;
 
@@ -186,6 +187,17 @@ static const struct snd_ff_spec spec_ucx = {
 	.midi_rx_addrs = {0xffff00000030ull, 0xffff00000030ull},
 };
 
+static const struct snd_ff_spec spec_802 = {
+	.pcm_capture_channels = {30, 22, 14},
+	.pcm_playback_channels = {30, 22, 14},
+	.midi_in_ports = 1,
+	.midi_out_ports = 1,
+	.protocol = &snd_ff_protocol_latter,
+	.midi_high_addr = 0xffff00000034ull,
+	.midi_addr_range = 0x80,
+	.midi_rx_addrs = {0xffff00000030ull, 0xffff00000030ull},
+};
+
 static const struct ieee1394_device_id snd_ff_id_table[] = {
 	/* Fireface 800 */
 	{
@@ -222,6 +234,18 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.version	= SND_FF_UNIT_VERSION_UCX,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ucx,
+	},
+	// Fireface 802.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= SND_FF_UNIT_VERSION_802,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_802,
 	},
 	{}
 };

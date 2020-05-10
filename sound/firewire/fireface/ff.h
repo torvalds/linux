@@ -38,6 +38,7 @@ enum snd_ff_unit_version {
 	SND_FF_UNIT_VERSION_FF800	= 0x000001,
 	SND_FF_UNIT_VERSION_FF400	= 0x000002,
 	SND_FF_UNIT_VERSION_UCX		= 0x000004,
+	SND_FF_UNIT_VERSION_802		= 0x000005,
 };
 
 enum snd_ff_stream_mode {
