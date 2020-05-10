@@ -4170,8 +4170,6 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 		}
 		ext4_unlock_group(sb, i);
 
-		if (grp->bb_free == 0)
-			continue;
 		printk(KERN_ERR "%u: %d/%d \n",
 		       i, grp->bb_free, grp->bb_fragments);
 	}
