@@ -34,6 +34,12 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
+enum snd_ff_unit_version {
+	SND_FF_UNIT_VERSION_FF800	= 0x000001,
+	SND_FF_UNIT_VERSION_FF400	= 0x000002,
+	SND_FF_UNIT_VERSION_UCX		= 0x000004,
+};
+
 enum snd_ff_stream_mode {
 	SND_FF_STREAM_MODE_LOW = 0,
 	SND_FF_STREAM_MODE_MID,
