@@ -493,6 +493,8 @@ static void mb_mark_used_double(struct ext4_buddy *e4b, int first, int count)
 
 static void mb_cmp_bitmaps(struct ext4_buddy *e4b, void *bitmap)
 {
+	if (unlikely(e4b->bd_info->bb_bitmap == NULL))
+		return;
 	if (memcmp(e4b->bd_info->bb_bitmap, bitmap, e4b->bd_sb->s_blocksize)) {
 		unsigned char *b1, *b2;
 		int i;
@@ -517,10 +519,15 @@ static void mb_group_bb_bitmap_alloc(struct super_block *sb,
 	struct buffer_head *bh;
 
 	grp->bb_bitmap = kmalloc(sb->s_blocksize, GFP_NOFS);
-	BUG_ON(grp->bb_bitmap == NULL);
+	if (!grp->bb_bitmap)
+		return;
 
 	bh = ext4_read_block_bitmap(sb, group);
-	BUG_ON(IS_ERR_OR_NULL(bh));
+	if (IS_ERR_OR_NULL(bh)) {
+		kfree(grp->bb_bitmap);
+		grp->bb_bitmap = NULL;
+		return;
+	}
 
 	memcpy(grp->bb_bitmap, bh->b_data, sb->s_blocksize);
 	put_bh(bh);
