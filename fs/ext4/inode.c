@@ -501,9 +501,8 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 #endif
 
 	map->m_flags = 0;
-	ext_debug("ext4_map_blocks(): inode %lu, flag %d, max_blocks %u,"
-		  "logical block %lu\n", inode->i_ino, flags, map->m_len,
-		  (unsigned long) map->m_lblk);
+	ext_debug(inode, "flag 0x%x, max_blocks %u, logical block %lu\n",
+		  flags, map->m_len, (unsigned long) map->m_lblk);
 
 	/*
 	 * ext4_map_blocks returns an int, and m_len is an unsigned int
@@ -734,8 +733,7 @@ out_sem:
 	}
 
 	if (retval < 0)
-		ext_debug("failed for inode %lu with err %d\n",
-			  inode->i_ino, retval);
+		ext_debug(inode, "failed with err %d\n", retval);
 	return retval;
 }
 
@@ -1691,8 +1689,7 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		invalid_block = ~0;
 
 	map->m_flags = 0;
-	ext_debug("ext4_da_map_blocks(): inode %lu, max_blocks %u,"
-		  "logical block %lu\n", inode->i_ino, map->m_len,
+	ext_debug(inode, "max_blocks %u, logical block %lu\n", map->m_len,
 		  (unsigned long) map->m_lblk);
 
 	/* Lookup extent status tree firstly */
