@@ -45,6 +45,7 @@ struct filter_entry {
 	char			name[];
 };
 
+static volatile int workload_exec_errno;
 static bool done;
 
 static void sig_handler(int sig __maybe_unused)
@@ -63,7 +64,7 @@ static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
 						siginfo_t *info __maybe_unused,
 						void *ucontext __maybe_unused)
 {
-	/* workload_exec_errno = info->si_value.sival_int; */
+	workload_exec_errno = info->si_value.sival_int;
 	done = true;
 }
 
@@ -383,6 +384,14 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 
 	write_tracing_file("tracing_on", "0");
 
+	if (workload_exec_errno) {
+		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
+		/* flush stdout first so below error msg appears at the end. */
+		fflush(stdout);
+		pr_err("workload failed: %s\n", emsg);
+		goto out_close_fd;
+	}
+
 	/* read remaining buffer contents */
 	while (true) {
 		int n = read(trace_fd, buf, sizeof(buf));
@@ -397,7 +406,7 @@ out_close_fd:
 out_reset:
 	reset_tracing_files(ftrace);
 out:
-	return done ? 0 : -1;
+	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
 static int perf_ftrace_config(const char *var, const char *value, void *cb)
