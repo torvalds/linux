@@ -2084,7 +2084,7 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 	return err;
 }
 
-#define BH_FLAGS ((1 << BH_Unwritten) | (1 << BH_Delay))
+#define BH_FLAGS (BIT(BH_Unwritten) | BIT(BH_Delay))
 
 /*
  * mballoc gives us at most this number of blocks...
@@ -2364,7 +2364,7 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	dioread_nolock = ext4_should_dioread_nolock(inode);
 	if (dioread_nolock)
 		get_blocks_flags |= EXT4_GET_BLOCKS_IO_CREATE_EXT;
-	if (map->m_flags & (1 << BH_Delay))
+	if (map->m_flags & BIT(BH_Delay))
 		get_blocks_flags |= EXT4_GET_BLOCKS_DELALLOC_RESERVE;
 
 	err = ext4_map_blocks(handle, inode, map, get_blocks_flags);
