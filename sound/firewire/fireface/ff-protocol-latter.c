@@ -199,7 +199,7 @@ static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
 		else
 			return -EINVAL;
 	} else {
-		// For Fireface 802. Due to bandwidth limitation on
+		// For Fireface UFX and 802. Due to bandwidth limitation on
 		// IEEE 1394a (400 Mbps), Analog 1-12 and AES are available
 		// without any ADAT at quadruple speed.
 		if (rate >= 32000 && rate <= 48000)
