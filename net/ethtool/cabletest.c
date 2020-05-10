@@ -13,6 +13,43 @@ cable_test_act_policy[ETHTOOL_A_CABLE_TEST_MAX + 1] = {
 	[ETHTOOL_A_CABLE_TEST_HEADER]		= { .type = NLA_NESTED },
 };
 
+static int ethnl_cable_test_started(struct phy_device *phydev)
+{
+	struct sk_buff *skb;
+	int err = -ENOMEM;
+	void *ehdr;
+
+	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		goto out;
+
+	ehdr = ethnl_bcastmsg_put(skb, ETHTOOL_MSG_CABLE_TEST_NTF);
+	if (!ehdr) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	err = ethnl_fill_reply_header(skb, phydev->attached_dev,
+				      ETHTOOL_A_CABLE_TEST_NTF_HEADER);
+	if (err)
+		goto out;
+
+	err = nla_put_u8(skb, ETHTOOL_A_CABLE_TEST_NTF_STATUS,
+			 ETHTOOL_A_CABLE_TEST_NTF_STATUS_STARTED);
+	if (err)
+		goto out;
+
+	genlmsg_end(skb, ehdr);
+
+	return ethnl_multicast(skb, phydev->attached_dev);
+
+out:
+	nlmsg_free(skb);
+	phydev_err(phydev, "%s: Error %pe\n", __func__, ERR_PTR(err));
+
+	return err;
+}
+
 int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_MAX + 1];
@@ -47,6 +84,10 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 	ret = phy_start_cable_test(dev->phydev, info->extack);
 
 	ethnl_ops_complete(dev);
+
+	if (!ret)
+		ethnl_cable_test_started(dev->phydev);
+
 out_rtnl:
 	rtnl_unlock();
 out_dev_put:
