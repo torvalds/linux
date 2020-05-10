@@ -11,6 +11,7 @@
 #include <linux/firmware.h>
 #include <linux/genalloc.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/slab.h>
 
 /**
  * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
@@ -126,6 +127,68 @@ out:
 	mutex_unlock(&hdev->send_cpu_message_lock);
 
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, len, pkt);
+
+	return rc;
+}
+
+int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type)
+{
+	struct armcp_packet pkt;
+	long result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ <<
+				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(event_type);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_DEVICE_TIMEOUT_USEC, &result);
+
+	if (rc)
+		dev_err(hdev->dev, "failed to unmask RAZWI IRQ %d", event_type);
+
+	return rc;
+}
+
+int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
+		size_t irq_arr_size)
+{
+	struct armcp_unmask_irq_arr_packet *pkt;
+	size_t total_pkt_size;
+	long result;
+	int rc;
+
+	total_pkt_size = sizeof(struct armcp_unmask_irq_arr_packet) +
+			irq_arr_size;
+
+	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
+	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
+
+	/* total_pkt_size is casted to u16 later on */
+	if (total_pkt_size > USHRT_MAX) {
+		dev_err(hdev->dev, "too many elements in IRQ array\n");
+		return -EINVAL;
+	}
+
+	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	pkt->length = cpu_to_le32(irq_arr_size / sizeof(irq_arr[0]));
+	memcpy(&pkt->irqs, irq_arr, irq_arr_size);
+
+	pkt->armcp_pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
+						ARMCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) pkt,
+			total_pkt_size, HL_DEVICE_TIMEOUT_USEC, &result);
+
+	if (rc)
+		dev_err(hdev->dev, "failed to unmask IRQ array\n");
+
+	kfree(pkt);
 
 	return rc;
 }

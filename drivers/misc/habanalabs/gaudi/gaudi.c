@@ -11,7 +11,7 @@
 #include "include/gaudi/gaudi_masks.h"
 #include "include/gaudi/gaudi_fw_if.h"
 #include "include/gaudi/gaudi_reg_map.h"
-#include "include/gaudi/gaudi_async_ids_map.h"
+#include "include/gaudi/gaudi_async_ids_map_extended.h"
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -146,278 +146,6 @@ static const u16 gaudi_packet_sizes[MAX_PACKET_ID] = {
 	[PACKET_ARB_POINT]	= sizeof(struct packet_arb_point),
 	[PACKET_WAIT]		= sizeof(struct packet_wait),
 	[PACKET_LOAD_AND_EXE]	= sizeof(struct packet_load_and_exe)
-};
-
-static const u32 gaudi_all_events[] = {
-	GAUDI_EVENT_PCIE_CORE_SERR,
-	GAUDI_EVENT_PCIE_CORE_DERR,
-	GAUDI_EVENT_PCIE_IF_SERR,
-	GAUDI_EVENT_PCIE_IF_DERR,
-	GAUDI_EVENT_PCIE_PHY_SERR,
-	GAUDI_EVENT_PCIE_PHY_DERR,
-	GAUDI_EVENT_TPC0_SERR,
-	GAUDI_EVENT_TPC1_SERR,
-	GAUDI_EVENT_TPC2_SERR,
-	GAUDI_EVENT_TPC3_SERR,
-	GAUDI_EVENT_TPC4_SERR,
-	GAUDI_EVENT_TPC5_SERR,
-	GAUDI_EVENT_TPC6_SERR,
-	GAUDI_EVENT_TPC7_SERR,
-	GAUDI_EVENT_TPC0_DERR,
-	GAUDI_EVENT_TPC1_DERR,
-	GAUDI_EVENT_TPC2_DERR,
-	GAUDI_EVENT_TPC3_DERR,
-	GAUDI_EVENT_TPC4_DERR,
-	GAUDI_EVENT_TPC5_DERR,
-	GAUDI_EVENT_TPC6_DERR,
-	GAUDI_EVENT_TPC7_DERR,
-	GAUDI_EVENT_MME0_ACC_SERR,
-	GAUDI_EVENT_MME0_ACC_DERR,
-	GAUDI_EVENT_MME0_SBAB_SERR,
-	GAUDI_EVENT_MME0_SBAB_DERR,
-	GAUDI_EVENT_MME1_ACC_SERR,
-	GAUDI_EVENT_MME1_ACC_DERR,
-	GAUDI_EVENT_MME1_SBAB_SERR,
-	GAUDI_EVENT_MME1_SBAB_DERR,
-	GAUDI_EVENT_MME2_ACC_SERR,
-	GAUDI_EVENT_MME2_ACC_DERR,
-	GAUDI_EVENT_MME2_SBAB_SERR,
-	GAUDI_EVENT_MME2_SBAB_DERR,
-	GAUDI_EVENT_MME3_ACC_SERR,
-	GAUDI_EVENT_MME3_ACC_DERR,
-	GAUDI_EVENT_MME3_SBAB_SERR,
-	GAUDI_EVENT_MME3_SBAB_DERR,
-	GAUDI_EVENT_DMA0_SERR_ECC,
-	GAUDI_EVENT_DMA1_SERR_ECC,
-	GAUDI_EVENT_DMA2_SERR_ECC,
-	GAUDI_EVENT_DMA3_SERR_ECC,
-	GAUDI_EVENT_DMA4_SERR_ECC,
-	GAUDI_EVENT_DMA5_SERR_ECC,
-	GAUDI_EVENT_DMA6_SERR_ECC,
-	GAUDI_EVENT_DMA7_SERR_ECC,
-	GAUDI_EVENT_DMA0_DERR_ECC,
-	GAUDI_EVENT_DMA1_DERR_ECC,
-	GAUDI_EVENT_DMA2_DERR_ECC,
-	GAUDI_EVENT_DMA3_DERR_ECC,
-	GAUDI_EVENT_DMA4_DERR_ECC,
-	GAUDI_EVENT_DMA5_DERR_ECC,
-	GAUDI_EVENT_DMA6_DERR_ECC,
-	GAUDI_EVENT_DMA7_DERR_ECC,
-	GAUDI_EVENT_CPU_IF_ECC_SERR,
-	GAUDI_EVENT_CPU_IF_ECC_DERR,
-	GAUDI_EVENT_PSOC_MEM_SERR,
-	GAUDI_EVENT_PSOC_CORESIGHT_SERR,
-	GAUDI_EVENT_PSOC_MEM_DERR,
-	GAUDI_EVENT_PSOC_CORESIGHT_DERR,
-	GAUDI_EVENT_SRAM0_SERR,
-	GAUDI_EVENT_SRAM1_SERR,
-	GAUDI_EVENT_SRAM2_SERR,
-	GAUDI_EVENT_SRAM3_SERR,
-	GAUDI_EVENT_SRAM7_SERR,
-	GAUDI_EVENT_SRAM6_SERR,
-	GAUDI_EVENT_SRAM5_SERR,
-	GAUDI_EVENT_SRAM4_SERR,
-	GAUDI_EVENT_SRAM8_SERR,
-	GAUDI_EVENT_SRAM9_SERR,
-	GAUDI_EVENT_SRAM10_SERR,
-	GAUDI_EVENT_SRAM11_SERR,
-	GAUDI_EVENT_SRAM15_SERR,
-	GAUDI_EVENT_SRAM14_SERR,
-	GAUDI_EVENT_SRAM13_SERR,
-	GAUDI_EVENT_SRAM12_SERR,
-	GAUDI_EVENT_SRAM16_SERR,
-	GAUDI_EVENT_SRAM17_SERR,
-	GAUDI_EVENT_SRAM18_SERR,
-	GAUDI_EVENT_SRAM19_SERR,
-	GAUDI_EVENT_SRAM23_SERR,
-	GAUDI_EVENT_SRAM22_SERR,
-	GAUDI_EVENT_SRAM21_SERR,
-	GAUDI_EVENT_SRAM20_SERR,
-	GAUDI_EVENT_SRAM24_SERR,
-	GAUDI_EVENT_SRAM25_SERR,
-	GAUDI_EVENT_SRAM26_SERR,
-	GAUDI_EVENT_SRAM27_SERR,
-	GAUDI_EVENT_SRAM31_SERR,
-	GAUDI_EVENT_SRAM30_SERR,
-	GAUDI_EVENT_SRAM29_SERR,
-	GAUDI_EVENT_SRAM28_SERR,
-	GAUDI_EVENT_SRAM0_DERR,
-	GAUDI_EVENT_SRAM1_DERR,
-	GAUDI_EVENT_SRAM2_DERR,
-	GAUDI_EVENT_SRAM3_DERR,
-	GAUDI_EVENT_SRAM7_DERR,
-	GAUDI_EVENT_SRAM6_DERR,
-	GAUDI_EVENT_SRAM5_DERR,
-	GAUDI_EVENT_SRAM4_DERR,
-	GAUDI_EVENT_SRAM8_DERR,
-	GAUDI_EVENT_SRAM9_DERR,
-	GAUDI_EVENT_SRAM10_DERR,
-	GAUDI_EVENT_SRAM11_DERR,
-	GAUDI_EVENT_SRAM15_DERR,
-	GAUDI_EVENT_SRAM14_DERR,
-	GAUDI_EVENT_SRAM13_DERR,
-	GAUDI_EVENT_SRAM12_DERR,
-	GAUDI_EVENT_SRAM16_DERR,
-	GAUDI_EVENT_SRAM17_DERR,
-	GAUDI_EVENT_SRAM18_DERR,
-	GAUDI_EVENT_SRAM19_DERR,
-	GAUDI_EVENT_SRAM23_DERR,
-	GAUDI_EVENT_SRAM22_DERR,
-	GAUDI_EVENT_SRAM21_DERR,
-	GAUDI_EVENT_SRAM20_DERR,
-	GAUDI_EVENT_SRAM24_DERR,
-	GAUDI_EVENT_SRAM25_DERR,
-	GAUDI_EVENT_SRAM26_DERR,
-	GAUDI_EVENT_SRAM27_DERR,
-	GAUDI_EVENT_SRAM31_DERR,
-	GAUDI_EVENT_SRAM30_DERR,
-	GAUDI_EVENT_SRAM29_DERR,
-	GAUDI_EVENT_SRAM28_DERR,
-	GAUDI_EVENT_NIC0_SERR,
-	GAUDI_EVENT_NIC1_SERR,
-	GAUDI_EVENT_NIC2_SERR,
-	GAUDI_EVENT_NIC3_SERR,
-	GAUDI_EVENT_NIC4_SERR,
-	GAUDI_EVENT_NIC0_DERR,
-	GAUDI_EVENT_NIC1_DERR,
-	GAUDI_EVENT_NIC2_DERR,
-	GAUDI_EVENT_NIC3_DERR,
-	GAUDI_EVENT_NIC4_DERR,
-	GAUDI_EVENT_DMA_IF0_SERR,
-	GAUDI_EVENT_DMA_IF1_SERR,
-	GAUDI_EVENT_DMA_IF2_SERR,
-	GAUDI_EVENT_DMA_IF3_SERR,
-	GAUDI_EVENT_DMA_IF0_DERR,
-	GAUDI_EVENT_DMA_IF1_DERR,
-	GAUDI_EVENT_DMA_IF2_DERR,
-	GAUDI_EVENT_DMA_IF3_DERR,
-	GAUDI_EVENT_GIC500,
-	GAUDI_EVENT_HBM_0_SERR,
-	GAUDI_EVENT_HBM_1_SERR,
-	GAUDI_EVENT_HBM_2_SERR,
-	GAUDI_EVENT_HBM_3_SERR,
-	GAUDI_EVENT_HBM_0_DERR,
-	GAUDI_EVENT_HBM_1_DERR,
-	GAUDI_EVENT_HBM_2_DERR,
-	GAUDI_EVENT_HBM_3_DERR,
-	GAUDI_EVENT_MMU_SERR,
-	GAUDI_EVENT_MMU_DERR,
-	GAUDI_EVENT_PCIE_DEC,
-	GAUDI_EVENT_TPC0_DEC,
-	GAUDI_EVENT_TPC1_DEC,
-	GAUDI_EVENT_TPC2_DEC,
-	GAUDI_EVENT_TPC3_DEC,
-	GAUDI_EVENT_TPC4_DEC,
-	GAUDI_EVENT_TPC5_DEC,
-	GAUDI_EVENT_TPC6_DEC,
-	GAUDI_EVENT_TPC7_DEC,
-	GAUDI_EVENT_AXI_ECC,
-	GAUDI_EVENT_L2_RAM_ECC,
-	GAUDI_EVENT_MME0_WBC_RSP,
-	GAUDI_EVENT_MME0_SBAB0_RSP,
-	GAUDI_EVENT_MME1_WBC_RSP,
-	GAUDI_EVENT_MME1_SBAB0_RSP,
-	GAUDI_EVENT_MME2_WBC_RSP,
-	GAUDI_EVENT_MME2_SBAB0_RSP,
-	GAUDI_EVENT_MME3_WBC_RSP,
-	GAUDI_EVENT_MME3_SBAB0_RSP,
-	GAUDI_EVENT_PLL0,
-	GAUDI_EVENT_PLL1,
-	GAUDI_EVENT_PLL2,
-	GAUDI_EVENT_PLL3,
-	GAUDI_EVENT_PLL4,
-	GAUDI_EVENT_PLL5,
-	GAUDI_EVENT_PLL6,
-	GAUDI_EVENT_PLL7,
-	GAUDI_EVENT_PLL8,
-	GAUDI_EVENT_PLL9,
-	GAUDI_EVENT_PLL10,
-	GAUDI_EVENT_PLL11,
-	GAUDI_EVENT_PLL12,
-	GAUDI_EVENT_PLL13,
-	GAUDI_EVENT_PLL14,
-	GAUDI_EVENT_PLL15,
-	GAUDI_EVENT_PLL16,
-	GAUDI_EVENT_PLL17,
-	GAUDI_EVENT_CPU_AXI_SPLITTER,
-	GAUDI_EVENT_PSOC_AXI_DEC,
-	GAUDI_EVENT_PSOC_PRSTN_FALL,
-	GAUDI_EVENT_TPC0_BMON_SPMU,
-	GAUDI_EVENT_TPC0_KRN_ERR,
-	GAUDI_EVENT_TPC1_BMON_SPMU,
-	GAUDI_EVENT_TPC1_KRN_ERR,
-	GAUDI_EVENT_TPC2_BMON_SPMU,
-	GAUDI_EVENT_TPC2_KRN_ERR,
-	GAUDI_EVENT_TPC3_BMON_SPMU,
-	GAUDI_EVENT_TPC3_KRN_ERR,
-	GAUDI_EVENT_TPC4_BMON_SPMU,
-	GAUDI_EVENT_TPC4_KRN_ERR,
-	GAUDI_EVENT_TPC5_BMON_SPMU,
-	GAUDI_EVENT_TPC5_KRN_ERR,
-	GAUDI_EVENT_TPC6_BMON_SPMU,
-	GAUDI_EVENT_TPC6_KRN_ERR,
-	GAUDI_EVENT_TPC7_BMON_SPMU,
-	GAUDI_EVENT_TPC7_KRN_ERR,
-	GAUDI_EVENT_MMU_PAGE_FAULT,
-	GAUDI_EVENT_MMU_WR_PERM,
-	GAUDI_EVENT_DMA_BM_CH0,
-	GAUDI_EVENT_DMA_BM_CH1,
-	GAUDI_EVENT_DMA_BM_CH2,
-	GAUDI_EVENT_DMA_BM_CH3,
-	GAUDI_EVENT_DMA_BM_CH4,
-	GAUDI_EVENT_DMA_BM_CH5,
-	GAUDI_EVENT_DMA_BM_CH6,
-	GAUDI_EVENT_DMA_BM_CH7,
-	GAUDI_EVENT_HBM0_SPI_0,
-	GAUDI_EVENT_HBM0_SPI_1,
-	GAUDI_EVENT_HBM1_SPI_0,
-	GAUDI_EVENT_HBM1_SPI_1,
-	GAUDI_EVENT_HBM2_SPI_0,
-	GAUDI_EVENT_HBM2_SPI_1,
-	GAUDI_EVENT_HBM3_SPI_0,
-	GAUDI_EVENT_HBM3_SPI_1,
-	GAUDI_EVENT_RAZWI_OR_ADC,
-	GAUDI_EVENT_TPC0_QM,
-	GAUDI_EVENT_TPC1_QM,
-	GAUDI_EVENT_TPC2_QM,
-	GAUDI_EVENT_TPC3_QM,
-	GAUDI_EVENT_TPC4_QM,
-	GAUDI_EVENT_TPC5_QM,
-	GAUDI_EVENT_TPC6_QM,
-	GAUDI_EVENT_TPC7_QM,
-	GAUDI_EVENT_MME0_QM,
-	GAUDI_EVENT_MME2_QM,
-	GAUDI_EVENT_DMA0_QM,
-	GAUDI_EVENT_DMA1_QM,
-	GAUDI_EVENT_DMA2_QM,
-	GAUDI_EVENT_DMA3_QM,
-	GAUDI_EVENT_DMA4_QM,
-	GAUDI_EVENT_DMA5_QM,
-	GAUDI_EVENT_DMA6_QM,
-	GAUDI_EVENT_DMA7_QM,
-	GAUDI_EVENT_NIC0_QM0,
-	GAUDI_EVENT_NIC0_QM1,
-	GAUDI_EVENT_NIC1_QM0,
-	GAUDI_EVENT_NIC1_QM1,
-	GAUDI_EVENT_NIC2_QM0,
-	GAUDI_EVENT_NIC2_QM1,
-	GAUDI_EVENT_NIC3_QM0,
-	GAUDI_EVENT_NIC3_QM1,
-	GAUDI_EVENT_NIC4_QM0,
-	GAUDI_EVENT_NIC4_QM1,
-	GAUDI_EVENT_DMA0_CORE,
-	GAUDI_EVENT_DMA1_CORE,
-	GAUDI_EVENT_DMA2_CORE,
-	GAUDI_EVENT_DMA3_CORE,
-	GAUDI_EVENT_DMA4_CORE,
-	GAUDI_EVENT_DMA5_CORE,
-	GAUDI_EVENT_DMA6_CORE,
-	GAUDI_EVENT_DMA7_CORE,
-	GAUDI_EVENT_FIX_POWER_ENV_S,
-	GAUDI_EVENT_FIX_POWER_ENV_E,
-	GAUDI_EVENT_FIX_THERMAL_ENV_S,
-	GAUDI_EVENT_FIX_THERMAL_ENV_E,
-	GAUDI_EVENT_RAZWI_OR_ADC_SW
 };
 
 static const char * const
@@ -1133,12 +861,28 @@ free_internal_qmans_pq_mem:
 static int gaudi_sw_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi;
+	u32 i, event_id = 0;
 	int rc;
 
 	/* Allocate device structure */
 	gaudi = kzalloc(sizeof(*gaudi), GFP_KERNEL);
 	if (!gaudi)
 		return -ENOMEM;
+
+	for (i = 0 ; i < ARRAY_SIZE(gaudi_irq_map_table) ; i++) {
+		if (gaudi_irq_map_table[i].valid) {
+			if (event_id == GAUDI_EVENT_SIZE) {
+				dev_err(hdev->dev,
+					"Event array exceeds the limit of %u events\n",
+					GAUDI_EVENT_SIZE);
+				rc = -EINVAL;
+				goto free_gaudi_device;
+			}
+
+			gaudi->events[event_id++] =
+					gaudi_irq_map_table[i].fc_id;
+		}
+	}
 
 	gaudi->armcp_info_get = gaudi_armcp_info_get;
 
@@ -2908,7 +2652,7 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 		 */
 		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-			GAUDI_EVENT_HALT_MACHINE);
+				GAUDI_EVENT_HALT_MACHINE);
 		msleep(cpu_timeout_ms);
 	}
 
@@ -5183,339 +4927,20 @@ free_fence_ptr:
 	return rc;
 }
 
-static const char *_gaudi_get_event_desc(u16 event_type)
-{
-	switch (event_type) {
-	case GAUDI_EVENT_PCIE_CORE_SERR:
-		return "PCIe_core_serr";
-	case GAUDI_EVENT_PCIE_CORE_DERR:
-		return "PCIe_core_derr";
-	case GAUDI_EVENT_PCIE_IF_SERR:
-		return "PCIe_if_serr";
-	case GAUDI_EVENT_PCIE_IF_DERR:
-		return "PCIe_if_derr";
-	case GAUDI_EVENT_PCIE_PHY_SERR:
-		return "PCIe_phy_serr";
-	case GAUDI_EVENT_PCIE_PHY_DERR:
-		return "PCIe_phy_derr";
-	case GAUDI_EVENT_TPC0_SERR ... GAUDI_EVENT_TPC7_SERR:
-		return "TPC%d_Serr";
-	case GAUDI_EVENT_TPC0_DERR ... GAUDI_EVENT_TPC7_DERR:
-		return "TPC%d_Derr";
-	case GAUDI_EVENT_MME0_ACC_SERR:
-	case GAUDI_EVENT_MME1_ACC_SERR:
-	case GAUDI_EVENT_MME2_ACC_SERR:
-	case GAUDI_EVENT_MME3_ACC_SERR:
-		return "MME%d_acc_serr";
-	case GAUDI_EVENT_MME0_ACC_DERR:
-	case GAUDI_EVENT_MME1_ACC_DERR:
-	case GAUDI_EVENT_MME2_ACC_DERR:
-	case GAUDI_EVENT_MME3_ACC_DERR:
-		return "MME%d_acc_derr";
-	case GAUDI_EVENT_MME0_SBAB_SERR:
-	case GAUDI_EVENT_MME1_SBAB_SERR:
-	case GAUDI_EVENT_MME2_SBAB_SERR:
-	case GAUDI_EVENT_MME3_SBAB_SERR:
-		return "MME%d_sbab_serr";
-	case GAUDI_EVENT_MME0_SBAB_DERR:
-	case GAUDI_EVENT_MME1_SBAB_DERR:
-	case GAUDI_EVENT_MME2_SBAB_DERR:
-	case GAUDI_EVENT_MME3_SBAB_DERR:
-		return "MME%d_sbab_derr";
-	case GAUDI_EVENT_DMA0_SERR_ECC ... GAUDI_EVENT_DMA7_SERR_ECC:
-		return "DMA%d_serr_ecc";
-	case GAUDI_EVENT_DMA0_DERR_ECC ... GAUDI_EVENT_DMA7_DERR_ECC:
-		return "DMA%d_derr_ecc";
-	case GAUDI_EVENT_CPU_IF_ECC_SERR:
-		return "CPU_if_ecc_serr";
-	case GAUDI_EVENT_CPU_IF_ECC_DERR:
-		return "CPU_if_ecc_derr";
-	case GAUDI_EVENT_PSOC_MEM_SERR:
-		return "PSOC_mem_serr";
-	case GAUDI_EVENT_PSOC_MEM_DERR:
-		return "PSOC_mem_derr";
-	case GAUDI_EVENT_PSOC_CORESIGHT_SERR:
-		return "PSOC_coresight_serr";
-	case GAUDI_EVENT_PSOC_CORESIGHT_DERR:
-		return "PSOC_coresight_derr";
-	case GAUDI_EVENT_SRAM0_SERR ... GAUDI_EVENT_SRAM28_SERR:
-		return "SRAM%d_serr";
-	case GAUDI_EVENT_SRAM0_DERR ... GAUDI_EVENT_SRAM28_DERR:
-		return "SRAM%d_derr";
-	case GAUDI_EVENT_DMA_IF0_SERR ... GAUDI_EVENT_DMA_IF3_SERR:
-		return "DMA%d_if_serr";
-	case GAUDI_EVENT_DMA_IF0_DERR ... GAUDI_EVENT_DMA_IF3_DERR:
-		return "DMA%d_if_derr";
-	case GAUDI_EVENT_GIC500:
-		return "GIC500";
-	case GAUDI_EVENT_HBM_0_SERR ... GAUDI_EVENT_HBM_3_SERR:
-		return "HBM%d_serr";
-	case GAUDI_EVENT_HBM_0_DERR ... GAUDI_EVENT_HBM_3_DERR:
-		return "HBM%d_derr";
-	case GAUDI_EVENT_MMU_SERR:
-		return "MMU_serr";
-	case GAUDI_EVENT_MMU_DERR:
-		return "MMU_derr";
-	case GAUDI_EVENT_PCIE_DEC:
-		return "PCIe_dec";
-	case GAUDI_EVENT_TPC0_DEC:
-	case GAUDI_EVENT_TPC1_DEC:
-	case GAUDI_EVENT_TPC2_DEC:
-	case GAUDI_EVENT_TPC3_DEC:
-	case GAUDI_EVENT_TPC4_DEC:
-	case GAUDI_EVENT_TPC5_DEC:
-	case GAUDI_EVENT_TPC6_DEC:
-	case GAUDI_EVENT_TPC7_DEC:
-		return "TPC%d_dec";
-	case GAUDI_EVENT_AXI_ECC:
-		return "AXI_ecc";
-	case GAUDI_EVENT_L2_RAM_ECC:
-		return "L2_ram_ecc";
-	case GAUDI_EVENT_MME0_WBC_RSP:
-	case GAUDI_EVENT_MME1_WBC_RSP:
-	case GAUDI_EVENT_MME2_WBC_RSP:
-	case GAUDI_EVENT_MME3_WBC_RSP:
-		return "MME%d_wbc_rsp";
-	case GAUDI_EVENT_MME0_SBAB0_RSP:
-	case GAUDI_EVENT_MME1_SBAB0_RSP:
-	case GAUDI_EVENT_MME2_SBAB0_RSP:
-	case GAUDI_EVENT_MME3_SBAB0_RSP:
-		return "MME%d_sbab0_rsp";
-	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
-		return "PLL%d";
-	case GAUDI_EVENT_CPU_AXI_SPLITTER:
-		return "CPU_axi_splitter";
-	case GAUDI_EVENT_PSOC_AXI_DEC:
-		return "CPU_axi_dec";
-	case GAUDI_EVENT_PSOC_PRSTN_FALL:
-		return "PSOC_prstn_fall";
-	case GAUDI_EVENT_TPC0_BMON_SPMU:
-	case GAUDI_EVENT_TPC1_BMON_SPMU:
-	case GAUDI_EVENT_TPC2_BMON_SPMU:
-	case GAUDI_EVENT_TPC3_BMON_SPMU:
-	case GAUDI_EVENT_TPC4_BMON_SPMU:
-	case GAUDI_EVENT_TPC5_BMON_SPMU:
-	case GAUDI_EVENT_TPC6_BMON_SPMU:
-	case GAUDI_EVENT_TPC7_BMON_SPMU:
-		return "TPC%d_bmon_spmu";
-	case GAUDI_EVENT_TPC0_KRN_ERR:
-	case GAUDI_EVENT_TPC1_KRN_ERR:
-	case GAUDI_EVENT_TPC2_KRN_ERR:
-	case GAUDI_EVENT_TPC3_KRN_ERR:
-	case GAUDI_EVENT_TPC4_KRN_ERR:
-	case GAUDI_EVENT_TPC5_KRN_ERR:
-	case GAUDI_EVENT_TPC6_KRN_ERR:
-	case GAUDI_EVENT_TPC7_KRN_ERR:
-		return "TPC%d_krn_err";
-	case GAUDI_EVENT_MMU_PAGE_FAULT:
-		return "MMU_page_fault";
-	case GAUDI_EVENT_MMU_WR_PERM:
-		return "MMU_write_permission";
-	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
-		return "DMA_bm_ch%d";
-	case GAUDI_EVENT_HBM0_SPI_0:
-	case GAUDI_EVENT_HBM1_SPI_0:
-	case GAUDI_EVENT_HBM2_SPI_0:
-	case GAUDI_EVENT_HBM3_SPI_0:
-		return "HBM%d_spi_0";
-	case GAUDI_EVENT_HBM0_SPI_1:
-	case GAUDI_EVENT_HBM1_SPI_1:
-	case GAUDI_EVENT_HBM2_SPI_1:
-	case GAUDI_EVENT_HBM3_SPI_1:
-		return "HBM%d_spi_1";
-	case GAUDI_EVENT_FIX_POWER_ENV_S:
-		return "POWER_ENV_S";
-	case GAUDI_EVENT_FIX_POWER_ENV_E:
-		return "POWER_ENV_E";
-	case GAUDI_EVENT_FIX_THERMAL_ENV_S:
-		return "THERMAL_ENV_S";
-	case GAUDI_EVENT_FIX_THERMAL_ENV_E:
-		return "THERMAL_ENV_E";
-	case GAUDI_EVENT_RAZWI_OR_ADC:
-		return "PSOC_razwi_or_adc";
-	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
-		return "TPC%d_qm";
-	case GAUDI_EVENT_MME0_QM ... GAUDI_EVENT_MME2_QM:
-		return "MME%d_qm";
-	case GAUDI_EVENT_DMA0_QM ... GAUDI_EVENT_DMA7_QM:
-		return "DMA%d_qm";
-	case GAUDI_EVENT_DMA0_CORE ... GAUDI_EVENT_DMA7_CORE:
-		return "DMA%d_core";
-	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
-		return "PSOC_razwi_or_adc_sw";
-	default:
-		return "N/A";
-	}
-}
-
 static void gaudi_get_event_desc(u16 event_type, char *desc, size_t size)
 {
-	u8 index;
+	if (event_type >= GAUDI_EVENT_SIZE)
+		goto event_not_supported;
 
-	switch (event_type) {
-	case GAUDI_EVENT_TPC0_SERR ... GAUDI_EVENT_TPC7_SERR:
-		index = event_type - GAUDI_EVENT_TPC0_SERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_TPC0_DERR ... GAUDI_EVENT_TPC7_DERR:
-		index = event_type - GAUDI_EVENT_TPC0_DERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_ACC_SERR:
-	case GAUDI_EVENT_MME1_ACC_SERR:
-	case GAUDI_EVENT_MME2_ACC_SERR:
-	case GAUDI_EVENT_MME3_ACC_SERR:
-		index = (event_type - GAUDI_EVENT_MME0_ACC_SERR) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_ACC_DERR:
-	case GAUDI_EVENT_MME1_ACC_DERR:
-	case GAUDI_EVENT_MME2_ACC_DERR:
-	case GAUDI_EVENT_MME3_ACC_DERR:
-		index = (event_type - GAUDI_EVENT_MME0_ACC_DERR) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_SBAB_SERR:
-	case GAUDI_EVENT_MME1_SBAB_SERR:
-	case GAUDI_EVENT_MME2_SBAB_SERR:
-	case GAUDI_EVENT_MME3_SBAB_SERR:
-		index = (event_type - GAUDI_EVENT_MME0_SBAB_SERR) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_SBAB_DERR:
-	case GAUDI_EVENT_MME1_SBAB_DERR:
-	case GAUDI_EVENT_MME2_SBAB_DERR:
-	case GAUDI_EVENT_MME3_SBAB_DERR:
-		index = (event_type - GAUDI_EVENT_MME0_SBAB_DERR) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA0_SERR_ECC ... GAUDI_EVENT_DMA7_SERR_ECC:
-		index = event_type - GAUDI_EVENT_DMA0_SERR_ECC;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA0_DERR_ECC ... GAUDI_EVENT_DMA7_DERR_ECC:
-		index = event_type - GAUDI_EVENT_DMA0_DERR_ECC;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_SRAM0_SERR ... GAUDI_EVENT_SRAM28_SERR:
-		index = event_type - GAUDI_EVENT_SRAM0_SERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_SRAM0_DERR ... GAUDI_EVENT_SRAM28_DERR:
-		index = event_type - GAUDI_EVENT_SRAM0_DERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA_IF0_SERR ... GAUDI_EVENT_DMA_IF3_SERR:
-		index = event_type - GAUDI_EVENT_DMA_IF0_SERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA_IF0_DERR ... GAUDI_EVENT_DMA_IF3_DERR:
-		index = event_type - GAUDI_EVENT_DMA_IF0_DERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_HBM_0_SERR ... GAUDI_EVENT_HBM_3_SERR:
-		index = event_type - GAUDI_EVENT_HBM_0_SERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_HBM_0_DERR ... GAUDI_EVENT_HBM_3_DERR:
-		index = event_type - GAUDI_EVENT_HBM_0_DERR;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_TPC0_DEC:
-	case GAUDI_EVENT_TPC1_DEC:
-	case GAUDI_EVENT_TPC2_DEC:
-	case GAUDI_EVENT_TPC3_DEC:
-	case GAUDI_EVENT_TPC4_DEC:
-	case GAUDI_EVENT_TPC5_DEC:
-	case GAUDI_EVENT_TPC6_DEC:
-	case GAUDI_EVENT_TPC7_DEC:
-		index = (event_type - GAUDI_EVENT_TPC0_DEC) / 2;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_WBC_RSP:
-	case GAUDI_EVENT_MME1_WBC_RSP:
-	case GAUDI_EVENT_MME2_WBC_RSP:
-	case GAUDI_EVENT_MME3_WBC_RSP:
-		index = (event_type - GAUDI_EVENT_MME0_WBC_RSP) / 5;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_SBAB0_RSP:
-	case GAUDI_EVENT_MME1_SBAB0_RSP:
-	case GAUDI_EVENT_MME2_SBAB0_RSP:
-	case GAUDI_EVENT_MME3_SBAB0_RSP:
-		index = (event_type - GAUDI_EVENT_MME0_SBAB0_RSP) / 5;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
-		index = event_type - GAUDI_EVENT_PLL0;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_TPC0_BMON_SPMU:
-	case GAUDI_EVENT_TPC1_BMON_SPMU:
-	case GAUDI_EVENT_TPC2_BMON_SPMU:
-	case GAUDI_EVENT_TPC3_BMON_SPMU:
-	case GAUDI_EVENT_TPC4_BMON_SPMU:
-	case GAUDI_EVENT_TPC5_BMON_SPMU:
-	case GAUDI_EVENT_TPC6_BMON_SPMU:
-	case GAUDI_EVENT_TPC7_BMON_SPMU:
-		index = (event_type - GAUDI_EVENT_TPC0_BMON_SPMU) / 6;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_TPC0_KRN_ERR:
-	case GAUDI_EVENT_TPC1_KRN_ERR:
-	case GAUDI_EVENT_TPC2_KRN_ERR:
-	case GAUDI_EVENT_TPC3_KRN_ERR:
-	case GAUDI_EVENT_TPC4_KRN_ERR:
-	case GAUDI_EVENT_TPC5_KRN_ERR:
-	case GAUDI_EVENT_TPC6_KRN_ERR:
-	case GAUDI_EVENT_TPC7_KRN_ERR:
-		index = (event_type - GAUDI_EVENT_TPC0_KRN_ERR) / 6;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MMU_PAGE_FAULT:
-		snprintf(desc, size, _gaudi_get_event_desc(event_type));
-		break;
-	case GAUDI_EVENT_MMU_WR_PERM:
-		snprintf(desc, size, _gaudi_get_event_desc(event_type));
-		break;
-	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
-		index = event_type - GAUDI_EVENT_DMA_BM_CH0;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_HBM0_SPI_0:
-	case GAUDI_EVENT_HBM1_SPI_0:
-	case GAUDI_EVENT_HBM2_SPI_0:
-	case GAUDI_EVENT_HBM3_SPI_0:
-		index = (event_type - GAUDI_EVENT_HBM0_SPI_0) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_HBM0_SPI_1:
-	case GAUDI_EVENT_HBM1_SPI_1:
-	case GAUDI_EVENT_HBM2_SPI_1:
-	case GAUDI_EVENT_HBM3_SPI_1:
-		index = (event_type - GAUDI_EVENT_HBM0_SPI_1) / 4;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
-		index = event_type - GAUDI_EVENT_TPC0_QM;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_MME0_QM ... GAUDI_EVENT_MME2_QM:
-		index = event_type - GAUDI_EVENT_MME0_QM;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA0_QM ... GAUDI_EVENT_DMA7_QM:
-		index = event_type - GAUDI_EVENT_DMA0_QM;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	case GAUDI_EVENT_DMA0_CORE ... GAUDI_EVENT_DMA7_CORE:
-		index = event_type - GAUDI_EVENT_DMA0_CORE;
-		snprintf(desc, size, _gaudi_get_event_desc(event_type), index);
-		break;
-	default:
-		snprintf(desc, size, _gaudi_get_event_desc(event_type));
-		break;
-	}
+	if (!gaudi_irq_map_table[event_type].valid)
+		goto event_not_supported;
+
+	snprintf(desc, size, gaudi_irq_map_table[event_type].name);
+
+	return;
+
+event_not_supported:
+	snprintf(desc, size, "N/A");
 }
 
 static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev,
@@ -6137,7 +5562,7 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 					bool razwi)
 {
-	char desc[20] = "";
+	char desc[64] = "";
 
 	gaudi_get_event_desc(event_type, desc, sizeof(desc));
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
@@ -6151,75 +5576,14 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	}
 }
 
-static int gaudi_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
-		size_t irq_arr_size)
-{
-	struct armcp_unmask_irq_arr_packet *pkt;
-	size_t total_pkt_size;
-	long result;
-	int rc;
-
-	total_pkt_size = sizeof(struct armcp_unmask_irq_arr_packet) +
-			irq_arr_size;
-
-	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
-	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
-
-	/* total_pkt_size is casted to u16 later on */
-	if (total_pkt_size > USHRT_MAX) {
-		dev_err(hdev->dev, "too many elements in IRQ array\n");
-		return -EINVAL;
-	}
-
-	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
-	if (!pkt)
-		return -ENOMEM;
-
-	pkt->length = cpu_to_le32(irq_arr_size / sizeof(irq_arr[0]));
-	memcpy(&pkt->irqs, irq_arr, irq_arr_size);
-
-	pkt->armcp_pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
-						ARMCP_PKT_CTL_OPCODE_SHIFT);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) pkt,
-			total_pkt_size, HL_DEVICE_TIMEOUT_USEC, &result);
-
-	if (rc)
-		dev_err(hdev->dev, "failed to unmask IRQ array\n");
-
-	kfree(pkt);
-
-	return rc;
-}
-
 static int gaudi_soft_reset_late_init(struct hl_device *hdev)
 {
+	struct gaudi_device *gaudi = hdev->asic_specific;
+
 	/* Unmask all IRQs since some could have been received
 	 * during the soft reset
 	 */
-	return gaudi_unmask_irq_arr(hdev, gaudi_all_events,
-					sizeof(gaudi_all_events));
-}
-
-static int gaudi_unmask_irq(struct hl_device *hdev, u16 event_type)
-{
-	struct armcp_packet pkt;
-	long result;
-	int rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = cpu_to_le64(event_type);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-			HL_DEVICE_TIMEOUT_USEC, &result);
-
-	if (rc)
-		dev_err(hdev->dev, "failed to unmask RAZWI IRQ %d", event_type);
-
-	return rc;
+	return hl_fw_unmask_irq_arr(hdev, gaudi->events, sizeof(gaudi->events));
 }
 
 static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device)
@@ -6481,7 +5845,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 					"AXI_SLV_DEC_Error");
 		if (soft_reset_required)
 			hl_device_reset(hdev, false, false);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_TPC0_KRN_ERR:
@@ -6498,7 +5862,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 					"KRN_ERR");
 		if (soft_reset_required)
 			hl_device_reset(hdev, false, false);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_PCIE_CORE_SERR:
@@ -6544,13 +5908,13 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_DMA0_CORE ... GAUDI_EVENT_DMA7_CORE:
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_qman_err(hdev, event_type);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
 		gaudi_print_irq_info(hdev, event_type, true);
 		hl_device_reset(hdev, false, false);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_TPC0_BMON_SPMU:
@@ -6563,12 +5927,12 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_TPC7_BMON_SPMU:
 	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
 		gaudi_print_irq_info(hdev, event_type, false);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_FIX_POWER_ENV_S ... GAUDI_EVENT_FIX_THERMAL_ENV_E:
 		gaudi_print_clk_change_info(hdev, event_type);
-		gaudi_unmask_irq(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	case GAUDI_EVENT_PSOC_GPIO_U16_0:

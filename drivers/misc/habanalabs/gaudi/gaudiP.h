@@ -218,6 +218,7 @@ struct gaudi_internal_qman_info {
  *                  consecutive order.
  * @hbm_bar_cur_addr: current address of HBM PCI bar.
  * @max_freq_value: current max clk frequency.
+ * @events: array that holds all event id's
  * @events_stat: array that holds histogram of all received events.
  * @events_stat_aggregate: same as events_stat but doesn't get cleared on reset
  * @hw_cap_initialized: This field contains a bit per H/W engine. When that
@@ -241,6 +242,7 @@ struct gaudi_device {
 	u64				hbm_bar_cur_addr;
 	u64				max_freq_value;
 
+	u32				events[GAUDI_EVENT_SIZE];
 	u32				events_stat[GAUDI_EVENT_SIZE];
 	u32				events_stat_aggregate[GAUDI_EVENT_SIZE];
 	u32				hw_cap_initialized;

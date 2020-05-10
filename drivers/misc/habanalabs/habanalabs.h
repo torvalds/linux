@@ -1739,6 +1739,9 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 				u16 len, u32 timeout, long *result);
+int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type);
+int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
+		size_t irq_arr_size);
 int hl_fw_test_cpu_queue(struct hl_device *hdev);
 void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 						dma_addr_t *dma_handle);
