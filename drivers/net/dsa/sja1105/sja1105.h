@@ -8,6 +8,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 #include <linux/dsa/sja1105.h>
+#include <linux/dsa/8021q.h>
 #include <net/dsa.h>
 #include <linux/mutex.h>
 #include "sja1105_static_config.h"
@@ -185,6 +186,7 @@ struct sja1105_private {
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
+	struct list_head crosschip_links;
 	struct sja1105_flow_block flow_block;
 	struct sja1105_port ports[SJA1105_NUM_PORTS];
 	/* Serializes transmission of management frames so that
