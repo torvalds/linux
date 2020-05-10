@@ -251,32 +251,13 @@ static struct {
 static int do_atm_iobuf(struct socket *sock, unsigned int cmd,
 			unsigned long arg)
 {
-	struct atm_iobuf __user *iobuf;
-	struct compat_atm_iobuf __user *iobuf32;
+	struct compat_atm_iobuf __user *iobuf32 = compat_ptr(arg);
 	u32 data;
-	void __user *datap;
-	int len, err;
 
-	iobuf = compat_alloc_user_space(sizeof(*iobuf));
-	iobuf32 = compat_ptr(arg);
-
-	if (get_user(len, &iobuf32->length) ||
-	    get_user(data, &iobuf32->buffer))
-		return -EFAULT;
-	datap = compat_ptr(data);
-	if (put_user(len, &iobuf->length) ||
-	    put_user(datap, &iobuf->buffer))
+	if (get_user(data, &iobuf32->buffer))
 		return -EFAULT;
 
-	err = do_vcc_ioctl(sock, cmd, (unsigned long) iobuf, 0);
-
-	if (!err) {
-		if (copy_in_user(&iobuf32->length, &iobuf->length,
-				 sizeof(int)))
-			err = -EFAULT;
-	}
-
-	return err;
+	return atm_getnames(&iobuf32->length, compat_ptr(data));
 }
 
 static int do_atmif_sioc(struct socket *sock, unsigned int cmd,
