@@ -3280,8 +3280,8 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 		ac->ac_flags |= EXT4_MB_HINT_TRY_GOAL;
 	}
 
-	mb_debug(1, "goal: %u(was %u) blocks at %u\n", (unsigned) size,
-		(unsigned) orig_size, (unsigned) start);
+	mb_debug(1, "goal: %lld(was %lld) blocks at %u\n", size, orig_size,
+		 start);
 }
 
 static void ext4_mb_collect_stats(struct ext4_allocation_context *ac)
@@ -3370,7 +3370,7 @@ static void ext4_mb_use_inode_pa(struct ext4_allocation_context *ac,
 	BUG_ON(pa->pa_free < len);
 	pa->pa_free -= len;
 
-	mb_debug(1, "use %llu/%u from inode pa %p\n", start, len, pa);
+	mb_debug(1, "use %llu/%d from inode pa %p\n", start, len, pa);
 }
 
 /*
@@ -3577,7 +3577,7 @@ void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 		ext4_set_bits(bitmap, start, len);
 		preallocated += len;
 	}
-	mb_debug(1, "preallocated %u for group %u\n", preallocated, group);
+	mb_debug(1, "preallocated %d for group %u\n", preallocated, group);
 }
 
 static void ext4_mb_pa_callback(struct rcu_head *head)
@@ -4173,7 +4173,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 
 	ext4_msg(sb, KERN_ERR, "Can't allocate:"
 			" Allocation context details:");
-	ext4_msg(sb, KERN_ERR, "status %d flags %d",
+	ext4_msg(sb, KERN_ERR, "status %u flags 0x%x",
 			ac->ac_status, ac->ac_flags);
 	ext4_msg(sb, KERN_ERR, "orig %lu/%lu/%lu@%lu, "
 			"goal %lu/%lu/%lu@%lu, "
@@ -4191,7 +4191,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 			(unsigned long)ac->ac_b_ex.fe_len,
 			(unsigned long)ac->ac_b_ex.fe_logical,
 			(int)ac->ac_criteria);
-	ext4_msg(sb, KERN_ERR, "%d found", ac->ac_found);
+	ext4_msg(sb, KERN_ERR, "%u found", ac->ac_found);
 	ext4_mb_show_pa(sb);
 }
 #else
