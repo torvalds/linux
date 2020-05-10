@@ -204,6 +204,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_EEE_GET``               get EEE settings
   ``ETHTOOL_MSG_EEE_SET``               set EEE settings
   ``ETHTOOL_MSG_TSINFO_GET``		get timestamping info
+  ``ETHTOOL_MSG_CABLE_TEST_ACT``        action start cable test
   ===================================== ================================
 
 Kernel to userspace:
@@ -958,13 +959,25 @@ Kernel response contents:
 is no special value for this case). The bitset attributes are omitted if they
 would be empty (no bit set).
 
+CABLE_TEST
+==========
+
+Start a cable test.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_CABLE_TEST_HEADER``       nested  request header
+  ====================================  ======  ==========================
+
 
 Request translation
 ===================
 
 The following table maps ioctl commands to netlink commands providing their
 functionality. Entries with "n/a" in right column are commands which do not
-have their netlink replacement yet.
+have their netlink replacement yet. Entries which "n/a" in the left column
+are netlink only.
 
   =================================== =====================================
   ioctl command                       netlink command
@@ -1053,4 +1066,5 @@ have their netlink replacement yet.
   ``ETHTOOL_PHY_STUNABLE``            n/a
   ``ETHTOOL_GFECPARAM``               n/a
   ``ETHTOOL_SFECPARAM``               n/a
+  n/a                                 ''ETHTOOL_MSG_CABLE_TEST_ACT''
   =================================== =====================================
