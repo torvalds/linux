@@ -1062,7 +1062,7 @@ static struct flow_indr_block_entry block_ing_entry = {
 int nf_flow_table_offload_init(void)
 {
 	nf_flow_offload_wq  = alloc_workqueue("nf_flow_table_offload",
-					      WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+					      WQ_UNBOUND, 0);
 	if (!nf_flow_offload_wq)
 		return -ENOMEM;
 
