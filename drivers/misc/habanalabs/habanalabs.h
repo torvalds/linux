@@ -1415,6 +1415,7 @@ struct hl_device_idle_busy_ts {
  * @cdev_sysfs_created: were char devices and sysfs nodes created.
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
+ * @supports_coresight: is CoreSight supported.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1498,6 +1499,7 @@ struct hl_device {
 	u8				cdev_sysfs_created;
 	u8				stop_on_err;
 	u8				supports_sync_stream;
+	u8				supports_coresight;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;

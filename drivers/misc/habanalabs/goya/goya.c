@@ -751,6 +751,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	}
 
 	spin_lock_init(&goya->hw_queues_lock);
+	hdev->supports_coresight = true;
 
 	return 0;
 
