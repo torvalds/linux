@@ -30,6 +30,8 @@ struct icc_path *icc_get(struct device *dev, const int src_id,
 struct icc_path *of_icc_get(struct device *dev, const char *name);
 struct icc_path *devm_of_icc_get(struct device *dev, const char *name);
 void icc_put(struct icc_path *path);
+int icc_enable(struct icc_path *path);
+int icc_disable(struct icc_path *path);
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw);
 void icc_set_tag(struct icc_path *path, u32 tag);
 
@@ -55,6 +57,16 @@ static inline struct icc_path *devm_of_icc_get(struct device *dev,
 
 static inline void icc_put(struct icc_path *path)
 {
+}
+
+static inline int icc_enable(struct icc_path *path)
+{
+	return 0;
+}
+
+static inline int icc_disable(struct icc_path *path)
+{
+	return 0;
 }
 
 static inline int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
