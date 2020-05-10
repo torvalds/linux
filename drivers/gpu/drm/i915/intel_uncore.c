@@ -899,11 +899,6 @@ find_fw_domain(struct intel_uncore *uncore, u32 offset)
 #define GEN_FW_RANGE(s, e, d) \
 	{ .start = (s), .end = (e), .domains = (d) }
 
-#define HAS_FWTABLE(dev_priv) \
-	(INTEL_GEN(dev_priv) >= 9 || \
-	 IS_CHERRYVIEW(dev_priv) || \
-	 IS_VALLEYVIEW(dev_priv))
-
 /* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
