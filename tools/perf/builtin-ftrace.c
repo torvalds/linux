@@ -494,7 +494,7 @@ int cmd_ftrace(int argc, const char **argv)
 	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target__none(&ftrace.target))
-		usage_with_options(ftrace_usage, ftrace_options);
+		ftrace.target.system_wide = true;
 
 	ret = target__validate(&ftrace.target);
 	if (ret) {
