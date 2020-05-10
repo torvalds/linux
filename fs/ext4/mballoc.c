@@ -511,6 +511,26 @@ static void mb_cmp_bitmaps(struct ext4_buddy *e4b, void *bitmap)
 	}
 }
 
+static void mb_group_bb_bitmap_alloc(struct super_block *sb,
+			struct ext4_group_info *grp, ext4_group_t group)
+{
+	struct buffer_head *bh;
+
+	grp->bb_bitmap = kmalloc(sb->s_blocksize, GFP_NOFS);
+	BUG_ON(grp->bb_bitmap == NULL);
+
+	bh = ext4_read_block_bitmap(sb, group);
+	BUG_ON(IS_ERR_OR_NULL(bh));
+
+	memcpy(grp->bb_bitmap, bh->b_data, sb->s_blocksize);
+	put_bh(bh);
+}
+
+static void mb_group_bb_bitmap_free(struct ext4_group_info *grp)
+{
+	kfree(grp->bb_bitmap);
+}
+
 #else
 static inline void mb_free_blocks_double(struct inode *inode,
 				struct ext4_buddy *e4b, int first, int count)
@@ -523,6 +543,17 @@ static inline void mb_mark_used_double(struct ext4_buddy *e4b,
 	return;
 }
 static inline void mb_cmp_bitmaps(struct ext4_buddy *e4b, void *bitmap)
+{
+	return;
+}
+
+static inline void mb_group_bb_bitmap_alloc(struct super_block *sb,
+			struct ext4_group_info *grp, ext4_group_t group)
+{
+	return;
+}
+
+static inline void mb_group_bb_bitmap_free(struct ext4_group_info *grp)
 {
 	return;
 }
@@ -2456,20 +2487,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 	meta_group_info[i]->bb_free_root = RB_ROOT;
 	meta_group_info[i]->bb_largest_free_order = -1;  /* uninit */
 
-#ifdef DOUBLE_CHECK
-	{
-		struct buffer_head *bh;
-		meta_group_info[i]->bb_bitmap =
-			kmalloc(sb->s_blocksize, GFP_NOFS);
-		BUG_ON(meta_group_info[i]->bb_bitmap == NULL);
-		bh = ext4_read_block_bitmap(sb, group);
-		BUG_ON(IS_ERR_OR_NULL(bh));
-		memcpy(meta_group_info[i]->bb_bitmap, bh->b_data,
-			sb->s_blocksize);
-		put_bh(bh);
-	}
-#endif
-
+	mb_group_bb_bitmap_alloc(sb, meta_group_info[i], group);
 	return 0;
 
 exit_group_info:
@@ -2736,9 +2754,7 @@ int ext4_mb_release(struct super_block *sb)
 		for (i = 0; i < ngroups; i++) {
 			cond_resched();
 			grinfo = ext4_get_group_info(sb, i);
-#ifdef DOUBLE_CHECK
-			kfree(grinfo->bb_bitmap);
-#endif
+			mb_group_bb_bitmap_free(grinfo);
 			ext4_lock_group(sb, i);
 			ext4_mb_cleanup_pa(grinfo);
 			ext4_unlock_group(sb, i);
