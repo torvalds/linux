@@ -90,10 +90,10 @@ static int imx_icc_node_init_qos(struct icc_provider *provider,
 			node->name, node->id);
 	} else {
 		dn = of_parse_phandle(dev->of_node, adj->phandle_name, 0);
-		if (IS_ERR(dn)) {
-			dev_warn(dev, "Failed to parse %s: %ld\n",
-				 adj->phandle_name, PTR_ERR(dn));
-			return PTR_ERR(dn);
+		if (!dn) {
+			dev_warn(dev, "Failed to parse %s\n",
+				 adj->phandle_name);
+			return -ENODEV;
 		}
 		/* Allow scaling to be disabled on a per-node basis */
 		if (!dn || !of_device_is_available(dn)) {
