@@ -14,7 +14,7 @@
 extern struct list_head atm_devs;
 extern struct mutex atm_dev_mutex;
 
-int atm_getnames(void __user *arg, int compat);
+int atm_getnames(void __user *buf, int __user *iobuf_len);
 int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat);
 
 

@@ -193,30 +193,13 @@ static int fetch_stats(struct atm_dev *dev, struct atm_dev_stats __user *arg,
 	return error ? -EFAULT : 0;
 }
 
-int atm_getnames(void __user *arg, int compat)
+int atm_getnames(void __user *buf, int __user *iobuf_len)
 {
-	void __user *buf;
 	int error, len, size = 0;
 	struct atm_dev *dev;
 	struct list_head *p;
 	int *tmp_buf, *tmp_p;
-	int __user *iobuf_len;
 
-	if (IS_ENABLED(CONFIG_COMPAT) && compat) {
-#ifdef CONFIG_COMPAT
-		struct compat_atm_iobuf __user *ciobuf = arg;
-		compat_uptr_t cbuf;
-		iobuf_len = &ciobuf->length;
-		if (get_user(cbuf, &ciobuf->buffer))
-			return -EFAULT;
-		buf = compat_ptr(cbuf);
-#endif
-	} else {
-		struct atm_iobuf __user *iobuf = arg;
-		iobuf_len = &iobuf->length;
-		if (get_user(buf, &iobuf->buffer))
-			return -EFAULT;
-	}
 	if (get_user(len, iobuf_len))
 		return -EFAULT;
 	mutex_lock(&atm_dev_mutex);
