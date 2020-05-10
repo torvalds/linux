@@ -619,6 +619,16 @@ int bpf_link_update(int link_fd, int new_prog_fd,
 	return sys_bpf(BPF_LINK_UPDATE, &attr, sizeof(attr));
 }
 
+int bpf_iter_create(int link_fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.iter_create.link_fd = link_fd;
+
+	return sys_bpf(BPF_ITER_CREATE, &attr, sizeof(attr));
+}
+
 int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
 		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt)
 {
