@@ -2913,23 +2913,26 @@ int __init ext4_init_mballoc(void)
 	ext4_pspace_cachep = KMEM_CACHE(ext4_prealloc_space,
 					SLAB_RECLAIM_ACCOUNT);
 	if (ext4_pspace_cachep == NULL)
-		return -ENOMEM;
+		goto out;
 
 	ext4_ac_cachep = KMEM_CACHE(ext4_allocation_context,
 				    SLAB_RECLAIM_ACCOUNT);
-	if (ext4_ac_cachep == NULL) {
-		kmem_cache_destroy(ext4_pspace_cachep);
-		return -ENOMEM;
-	}
+	if (ext4_ac_cachep == NULL)
+		goto out_pa_free;
 
 	ext4_free_data_cachep = KMEM_CACHE(ext4_free_data,
 					   SLAB_RECLAIM_ACCOUNT);
-	if (ext4_free_data_cachep == NULL) {
-		kmem_cache_destroy(ext4_pspace_cachep);
-		kmem_cache_destroy(ext4_ac_cachep);
-		return -ENOMEM;
-	}
+	if (ext4_free_data_cachep == NULL)
+		goto out_ac_free;
+
 	return 0;
+
+out_ac_free:
+	kmem_cache_destroy(ext4_ac_cachep);
+out_pa_free:
+	kmem_cache_destroy(ext4_pspace_cachep);
+out:
+	return -ENOMEM;
 }
 
 void ext4_exit_mballoc(void)
