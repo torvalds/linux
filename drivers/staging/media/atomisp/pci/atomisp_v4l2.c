@@ -1117,6 +1117,11 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		 * (via ACPI) and registered, do not create new
 		 * ones */
 		subdev = atomisp_gmin_find_subdev(adapter, board_info);
+		if (!subdev) {
+			dev_warn(isp->dev, "Subdev %s not found\n",
+				 board_info->type);
+			continue;
+		}
 		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdev);
 		if (ret) {
 			dev_warn(isp->dev, "Subdev %s detection fail\n",
@@ -1137,6 +1142,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		case RAW_CAMERA:
 			raw_index = isp->input_cnt;
 			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
+			/* pass-though */
 		case SOC_CAMERA:
 			dev_dbg(isp->dev, "SOC_INDEX: %d\n", isp->input_cnt);
 			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
@@ -1173,10 +1179,22 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			}
 			break;
 		case CAMERA_MOTOR:
+			if (isp->motor) {
+				dev_warn(isp->dev,
+					 "too many atomisp motors, ignored %s\n",
+					 board_info->type);
+				continue;
+			}
 			isp->motor = subdev;
 			break;
 		case LED_FLASH:
 		case XENON_FLASH:
+			if (isp->flash) {
+				dev_warn(isp->dev,
+					 "too many atomisp flash devices, ignored %s\n",
+					 board_info->type);
+				continue;
+			}
 			isp->flash = subdev;
 			break;
 		default:
