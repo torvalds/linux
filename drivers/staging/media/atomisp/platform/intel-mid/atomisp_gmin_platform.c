@@ -57,9 +57,22 @@ struct gmin_subdev {
 
 static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
 
-static enum { PMIC_UNSET = 0, PMIC_REGULATOR, PMIC_AXP, PMIC_TI,
-	      PMIC_CRYSTALCOVE
-	    } pmic_id;
+static enum {
+	PMIC_UNSET = 0,
+	PMIC_REGULATOR,
+	PMIC_AXP,
+	PMIC_TI,
+	PMIC_CRYSTALCOVE
+} pmic_id;
+
+static const char *pmic_name[] = {
+	[PMIC_UNSET]		= "unset",
+	[PMIC_REGULATOR]	= "regulator",
+	[PMIC_AXP]		= "AXP",
+	[PMIC_TI]		= "TI",
+	[PMIC_CRYSTALCOVE]	= "Crystal Cove",
+};
+
 
 /* The atomisp uses type==0 for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
@@ -362,8 +375,8 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		return NULL;
 
 	dev_info(dev,
-		 "gmin: initializing atomisp module subdev data.PMIC ID %d\n",
-		 pmic_id);
+		 "gmin: initializing atomisp module subdev data using PMIC %s\n",
+		 pmic_name[pmic_id]);
 
 	gmin_subdevs[i].subdev = subdev;
 	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
