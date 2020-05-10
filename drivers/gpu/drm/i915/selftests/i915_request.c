@@ -865,19 +865,19 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
-					    0);
-		GEM_BUG_ON(err);
-		request[idx]->batch = batch;
-
 		i915_vma_lock(batch);
 		err = i915_request_await_object(request[idx], batch->obj, 0);
 		if (err == 0)
 			err = i915_vma_move_to_active(batch, request[idx], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
+
+		err = engine->emit_bb_start(request[idx],
+					    batch->node.start,
+					    batch->node.size,
+					    0);
+		GEM_BUG_ON(err);
+		request[idx]->batch = batch;
 
 		i915_request_get(request[idx]);
 		i915_request_add(request[idx]);
@@ -993,13 +993,6 @@ static int live_sequential_engines(void *arg)
 			}
 		}
 
-		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
-					    0);
-		GEM_BUG_ON(err);
-		request[idx]->batch = batch;
-
 		i915_vma_lock(batch);
 		err = i915_request_await_object(request[idx],
 						batch->obj, false);
@@ -1007,6 +1000,13 @@ static int live_sequential_engines(void *arg)
 			err = i915_vma_move_to_active(batch, request[idx], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
+
+		err = engine->emit_bb_start(request[idx],
+					    batch->node.start,
+					    batch->node.size,
+					    0);
+		GEM_BUG_ON(err);
+		request[idx]->batch = batch;
 
 		i915_request_get(request[idx]);
 		i915_request_add(request[idx]);
