@@ -17,7 +17,6 @@
 
 #define MAX_SUBDEVS 8
 
-
 enum clock_rate {
 	VLV2_CLK_XTAL_25_0MHz = 0,
 	VLV2_CLK_PLL_19P2MHZ = 1
@@ -57,6 +56,11 @@ struct gmin_subdev {
 
 static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
 
+/* ACPI HIDs for the PMICs that could be used by this driver */
+#define PMIC_ACPI_AXP		"INT33F4:00"	/* XPower AXP288 PMIC */
+#define PMIC_ACPI_TI		"INT33F5:00"	/* Dollar Cove TI PMIC */
+#define PMIC_ACPI_CRYSTALCOVE	"INT33FD:00"	/* Crystal Cove PMIC */
+
 static enum {
 	PMIC_UNSET = 0,
 	PMIC_REGULATOR,
@@ -67,12 +71,11 @@ static enum {
 
 static const char *pmic_name[] = {
 	[PMIC_UNSET]		= "unset",
-	[PMIC_REGULATOR]	= "regulator",
-	[PMIC_AXP]		= "AXP",
-	[PMIC_TI]		= "TI",
-	[PMIC_CRYSTALCOVE]	= "Crystal Cove",
+	[PMIC_REGULATOR]	= "regulator driver",
+	[PMIC_AXP]		= "XPower AXP288 PMIC",
+	[PMIC_TI]		= "Dollar Cove TI PMIC",
+	[PMIC_CRYSTALCOVE]	= "Crystal Cove PMIC",
 };
-
 
 /* The atomisp uses type==0 for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
@@ -355,19 +358,70 @@ static const struct dmi_system_id gmin_vars[] = {
 #define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
 static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
+struct gmin_match_name {
+	const char *name;
+	struct device *dev;
+};
+
+static int gmin_match_one(struct device *dev, void *data)
+{
+	struct gmin_match_name *match = data;
+	const char *name = match->name;
+	struct i2c_client *client;
+
+	if (dev->type != &i2c_client_type)
+		return 0;
+
+	client = to_i2c_client(dev);
+
+	dev_info(match->dev, "found '%s' at address 0x%02x, adapter %d\n",
+		 client->name, client->addr, client->adapter->nr);
+
+	return (!strcmp(name, client->name));
+}
+
+static bool gmin_i2c_dev_exists(struct device *dev, char *name)
+{
+	struct gmin_match_name match;
+	bool found;
+	int ret = 0;
+
+	match.dev = dev;
+	match.name = name;
+
+	ret = i2c_for_each_dev(&match, gmin_match_one);
+
+	found = !!ret;
+
+	if (found)
+		dev_info(dev, "%s found on I2C\n", name);
+	else
+		dev_info(dev, "%s not found on I2C\n", name);
+
+	return found;
+}
+
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	int i, ret;
 	struct device *dev;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 
-	if (!pmic_id)
-		pmic_id = PMIC_REGULATOR;
-
 	if (!client)
 		return NULL;
 
 	dev = &client->dev;
+
+	if (!pmic_id) {
+		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI))
+			pmic_id = PMIC_TI;
+		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP))
+			pmic_id = PMIC_AXP;
+		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE))
+			pmic_id = PMIC_CRYSTALCOVE;
+		else
+			pmic_id = PMIC_REGULATOR;
+	}
 
 	for (i = 0; i < MAX_SUBDEVS && gmin_subdevs[i].subdev; i++)
 		;
@@ -375,7 +429,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		return NULL;
 
 	dev_info(dev,
-		 "gmin: initializing atomisp module subdev data using PMIC %s\n",
+		 "gmin: power management provided via %s\n",
 		 pmic_name[pmic_id]);
 
 	gmin_subdevs[i].subdev = subdev;
