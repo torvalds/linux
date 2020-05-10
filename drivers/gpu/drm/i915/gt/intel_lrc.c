@@ -3522,6 +3522,54 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	return 0;
 }
 
+static int emit_pdps(struct i915_request *rq)
+{
+	const struct intel_engine_cs * const engine = rq->engine;
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(rq->context->vm);
+	int err, i;
+	u32 *cs;
+
+	GEM_BUG_ON(intel_vgpu_active(rq->i915));
+
+	/*
+	 * Beware ye of the dragons, this sequence is magic!
+	 *
+	 * Small changes to this sequence can cause anything from
+	 * GPU hangs to forcewake errors and machine lockups!
+	 */
+
+	/* Flush any residual operations from the context load */
+	err = engine->emit_flush(rq, EMIT_FLUSH);
+	if (err)
+		return err;
+
+	/* Magic required to prevent forcewake errors! */
+	err = engine->emit_flush(rq, EMIT_INVALIDATE);
+	if (err)
+		return err;
+
+	cs = intel_ring_begin(rq, 4 * GEN8_3LVL_PDPES + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	/* Ensure the LRI have landed before we invalidate & continue */
+	*cs++ = MI_LOAD_REGISTER_IMM(2 * GEN8_3LVL_PDPES) | MI_LRI_FORCE_POSTED;
+	for (i = GEN8_3LVL_PDPES; i--; ) {
+		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
+		u32 base = engine->mmio_base;
+
+		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, i));
+		*cs++ = upper_32_bits(pd_daddr);
+		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, i));
+		*cs++ = lower_32_bits(pd_daddr);
+	}
+	*cs++ = MI_NOOP;
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
 static int execlists_request_alloc(struct i915_request *request)
 {
 	int ret;
@@ -3542,6 +3590,12 @@ static int execlists_request_alloc(struct i915_request *request)
 	 * golden renderstate above. Think twice before you try
 	 * to cancel/unwind this request now.
 	 */
+
+	if (!i915_vm_is_4lvl(request->context->vm)) {
+		ret = emit_pdps(request);
+		if (ret)
+			return ret;
+	}
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
 	ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
