@@ -404,6 +404,8 @@ add_sync_ep:
 	if (!subs->sync_endpoint)
 		return -EINVAL;
 
+	subs->sync_endpoint->is_implicit_feedback = 1;
+
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
 	return 1;
@@ -502,11 +504,14 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 						   implicit_fb ?
 							SND_USB_ENDPOINT_TYPE_DATA :
 							SND_USB_ENDPOINT_TYPE_SYNC);
+
 	if (!subs->sync_endpoint) {
 		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
 			return 0;
 		return -EINVAL;
 	}
+
+	subs->sync_endpoint->is_implicit_feedback = implicit_fb;
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
