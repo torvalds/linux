@@ -10,25 +10,15 @@
 /*
  * SSPA Registers
  */
-#define SSPA_RXD		(0x00)
-#define SSPA_RXID		(0x04)
-#define SSPA_RXCTL		(0x08)
-#define SSPA_RXSP		(0x0c)
-#define SSPA_RXFIFO_UL		(0x10)
-#define SSPA_RXINT_MASK		(0x14)
-#define SSPA_RXC		(0x18)
-#define SSPA_RXFIFO_NOFS	(0x1c)
-#define SSPA_RXFIFO_SIZE	(0x20)
-
-#define SSPA_TXD		(0x80)
-#define SSPA_TXID		(0x84)
-#define SSPA_TXCTL		(0x88)
-#define SSPA_TXSP		(0x8c)
-#define SSPA_TXFIFO_LL		(0x90)
-#define SSPA_TXINT_MASK		(0x94)
-#define SSPA_TXC		(0x98)
-#define SSPA_TXFIFO_NOFS	(0x9c)
-#define SSPA_TXFIFO_SIZE	(0xa0)
+#define SSPA_D			(0x00)
+#define SSPA_ID			(0x04)
+#define SSPA_CTL		(0x08)
+#define SSPA_SP			(0x0c)
+#define SSPA_FIFO_UL		(0x10)
+#define SSPA_INT_MASK		(0x14)
+#define SSPA_C			(0x18)
+#define SSPA_FIFO_NOFS		(0x1c)
+#define SSPA_FIFO_SIZE		(0x20)
 
 /* SSPA Control Register */
 #define	SSPA_CTL_XPH		(1 << 31)	/* Read Phase */

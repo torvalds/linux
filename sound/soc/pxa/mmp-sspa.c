@@ -28,26 +28,19 @@
  * SSPA audio private data
  */
 struct sspa_priv {
-	void __iomem *mmio_base;
+	void __iomem *tx_base;
+	void __iomem *rx_base;
+
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct clk *clk;
 	struct clk *audio_clk;
 	struct clk *sysclk;
+
 	int running_cnt;
 	u32 sp;
 	u32 ctrl;
 };
-
-static void mmp_sspa_write_reg(struct sspa_priv *sspa, u32 reg, u32 val)
-{
-	__raw_writel(val, sspa->mmio_base + reg);
-}
-
-static u32 mmp_sspa_read_reg(struct sspa_priv *sspa, u32 reg)
-{
-	return __raw_readl(sspa->mmio_base + reg);
-}
 
 static void mmp_sspa_tx_enable(struct sspa_priv *sspa)
 {
@@ -56,7 +49,7 @@ static void mmp_sspa_tx_enable(struct sspa_priv *sspa)
 	sspa_sp &= ~SSPA_SP_MSL;
 	sspa_sp |= SSPA_SP_S_EN;
 	sspa_sp |= SSPA_SP_WEN;
-	mmp_sspa_write_reg(sspa, SSPA_TXSP, sspa_sp);
+	__raw_writel(sspa_sp, sspa->tx_base + SSPA_SP);
 }
 
 static void mmp_sspa_tx_disable(struct sspa_priv *sspa)
@@ -66,7 +59,7 @@ static void mmp_sspa_tx_disable(struct sspa_priv *sspa)
 	sspa_sp &= ~SSPA_SP_MSL;
 	sspa_sp &= ~SSPA_SP_S_EN;
 	sspa_sp |= SSPA_SP_WEN;
-	mmp_sspa_write_reg(sspa, SSPA_TXSP, sspa_sp);
+	__raw_writel(sspa_sp, sspa->tx_base + SSPA_SP);
 }
 
 static void mmp_sspa_rx_enable(struct sspa_priv *sspa)
@@ -75,7 +68,7 @@ static void mmp_sspa_rx_enable(struct sspa_priv *sspa)
 
 	sspa_sp |= SSPA_SP_S_EN;
 	sspa_sp |= SSPA_SP_WEN;
-	mmp_sspa_write_reg(sspa, SSPA_RXSP, sspa_sp);
+	__raw_writel(sspa_sp, sspa->rx_base + SSPA_SP);
 }
 
 static void mmp_sspa_rx_disable(struct sspa_priv *sspa)
@@ -84,7 +77,7 @@ static void mmp_sspa_rx_disable(struct sspa_priv *sspa)
 
 	sspa_sp &= ~SSPA_SP_S_EN;
 	sspa_sp |= SSPA_SP_WEN;
-	mmp_sspa_write_reg(sspa, SSPA_RXSP, sspa_sp);
+	__raw_writel(sspa_sp, sspa->rx_base + SSPA_SP);
 }
 
 static int mmp_sspa_startup(struct snd_pcm_substream *substream,
@@ -105,7 +98,6 @@ static void mmp_sspa_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable_unprepare(sspa->clk);
 	clk_disable_unprepare(sspa->sysclk);
-
 }
 
 /*
@@ -115,7 +107,11 @@ static int mmp_sspa_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 				    int clk_id, unsigned int freq, int dir)
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(cpu_dai);
+	struct device *dev = cpu_dai->component->dev;
 	int ret = 0;
+
+	if (dev->of_node)
+		return -ENOTSUPP;
 
 	switch (clk_id) {
 	case MMP_SSPA_CLK_AUDIO:
@@ -139,7 +135,11 @@ static int mmp_sspa_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
 				 unsigned int freq_out)
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(cpu_dai);
+	struct device *dev = cpu_dai->component->dev;
 	int ret = 0;
+
+	if (dev->of_node)
+		return -ENOTSUPP;
 
 	switch (pll_id) {
 	case MMP_SYSCLK:
@@ -213,6 +213,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(dai);
+	struct device *dev = dai->component->dev;
 	u32 sspa_ctrl = sspa->ctrl;
 	int bits;
 	int bitval;
@@ -238,7 +239,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (params_channels(params) == 2)
+	if (dev->of_node || params_channels(params) == 2)
 		sspa_ctrl |= SSPA_CTL_XPH;
 
 	sspa_ctrl &= ~SSPA_CTL_XWDLEN1_MASK;
@@ -256,12 +257,17 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	sspa->sp &= ~SSPA_TXSP_FPER_MASK;
 	sspa->sp |= SSPA_TXSP_FPER(bits * 2 - 1);
 
+	if (dev->of_node) {
+		clk_set_rate(sspa->clk, params_rate(params) *
+					params_channels(params) * bits);
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		mmp_sspa_write_reg(sspa, SSPA_TXCTL, sspa_ctrl);
-		mmp_sspa_write_reg(sspa, SSPA_TXFIFO_LL, 0x1);
+		__raw_writel(sspa_ctrl, sspa->tx_base + SSPA_CTL);
+		__raw_writel(0x1, sspa->tx_base + SSPA_FIFO_UL);
 	} else {
-		mmp_sspa_write_reg(sspa, SSPA_RXCTL, sspa_ctrl);
-		mmp_sspa_write_reg(sspa, SSPA_RXFIFO_UL, 0x0);
+		__raw_writel(sspa_ctrl, sspa->rx_base + SSPA_CTL);
+		__raw_writel(0x0, sspa->rx_base + SSPA_FIFO_UL);
 	}
 
 	return 0;
@@ -410,19 +416,19 @@ static int mmp_sspa_open(struct snd_soc_component *component,
 	pm_runtime_get_sync(component->dev);
 
 	/* we can only change the settings if the port is not in use */
-	if ((mmp_sspa_read_reg(sspa, SSPA_TXSP) & SSPA_SP_S_EN) ||
-	    (mmp_sspa_read_reg(sspa, SSPA_RXSP) & SSPA_SP_S_EN)) {
+	if ((__raw_readl(sspa->tx_base + SSPA_SP) & SSPA_SP_S_EN) ||
+	    (__raw_readl(sspa->rx_base + SSPA_SP) & SSPA_SP_S_EN)) {
 		dev_err(component->dev,
 			"can't change hardware dai format: stream is in use\n");
 		return -EBUSY;
 	}
 
-	mmp_sspa_write_reg(sspa, SSPA_TXSP, sspa->sp);
-	mmp_sspa_write_reg(sspa, SSPA_RXSP, sspa->sp);
+	__raw_writel(sspa->sp, sspa->tx_base + SSPA_SP);
+	__raw_writel(sspa->sp, sspa->rx_base + SSPA_SP);
 
 	sspa->sp &= ~(SSPA_SP_S_RST | SSPA_SP_FFLUSH);
-	mmp_sspa_write_reg(sspa, SSPA_TXSP, sspa->sp);
-	mmp_sspa_write_reg(sspa, SSPA_RXSP, sspa->sp);
+	__raw_writel(sspa->sp, sspa->tx_base + SSPA_SP);
+	__raw_writel(sspa->sp, sspa->rx_base + SSPA_SP);
 
 	/*
 	 * FIXME: hw issue, for the tx serial port,
@@ -431,10 +437,10 @@ static int mmp_sspa_open(struct snd_soc_component *component,
 	 * The master/slave mode has been set in the
 	 * rx port.
 	 */
-	mmp_sspa_write_reg(sspa, SSPA_TXSP, sspa->sp & ~SSPA_SP_MSL);
+	__raw_writel(sspa->sp & ~SSPA_SP_MSL, sspa->tx_base + SSPA_SP);
 
-	mmp_sspa_write_reg(sspa, SSPA_TXCTL, sspa->ctrl);
-	mmp_sspa_write_reg(sspa, SSPA_RXCTL, sspa->ctrl);
+	__raw_writel(sspa->ctrl, sspa->tx_base + SSPA_CTL);
+	__raw_writel(sspa->ctrl, sspa->rx_base + SSPA_CTL);
 
 	return 0;
 }
@@ -462,22 +468,51 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (!sspa)
 		return -ENOMEM;
 
-	sspa->mmio_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(sspa->mmio_base))
-		return PTR_ERR(sspa->mmio_base);
+	if (pdev->dev.of_node) {
+		sspa->rx_base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(sspa->rx_base))
+			return PTR_ERR(sspa->rx_base);
 
-	sspa->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sspa->clk))
-		return PTR_ERR(sspa->clk);
+		sspa->tx_base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(sspa->tx_base))
+			return PTR_ERR(sspa->tx_base);
 
-	sspa->audio_clk = clk_get(NULL, "mmp-audio");
-	if (IS_ERR(sspa->audio_clk))
-		return PTR_ERR(sspa->audio_clk);
+		sspa->clk = devm_clk_get(&pdev->dev, "bitclk");
+		if (IS_ERR(sspa->clk))
+			return PTR_ERR(sspa->clk);
 
-	sspa->sysclk = clk_get(NULL, "mmp-sysclk");
-	if (IS_ERR(sspa->sysclk)) {
-		clk_put(sspa->audio_clk);
-		return PTR_ERR(sspa->sysclk);
+		sspa->audio_clk = devm_clk_get(&pdev->dev, "audio");
+		if (IS_ERR(sspa->audio_clk))
+			return PTR_ERR(sspa->audio_clk);
+	} else {
+		struct resource *res;
+
+		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+		if (res == NULL)
+			return -ENODEV;
+
+		sspa->rx_base = devm_ioremap(&pdev->dev, res->start, 0x30);
+		if (IS_ERR(sspa->rx_base))
+			return PTR_ERR(sspa->rx_base);
+
+		sspa->tx_base = devm_ioremap(&pdev->dev,
+					     res->start + 0x80, 0x30);
+		if (IS_ERR(sspa->tx_base))
+			return PTR_ERR(sspa->tx_base);
+
+		sspa->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(sspa->clk))
+			return PTR_ERR(sspa->clk);
+
+		sspa->audio_clk = clk_get(NULL, "mmp-audio");
+		if (IS_ERR(sspa->audio_clk))
+			return PTR_ERR(sspa->audio_clk);
+
+		sspa->sysclk = clk_get(NULL, "mmp-sysclk");
+		if (IS_ERR(sspa->sysclk)) {
+			clk_put(sspa->audio_clk);
+			return PTR_ERR(sspa->sysclk);
+		}
 	}
 	pm_runtime_enable(&pdev->dev);
 	clk_prepare_enable(sspa->audio_clk);
@@ -486,8 +521,8 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	sspa->playback_dma_data.maxburst = 4;
 	sspa->capture_dma_data.maxburst = 4;
 	/* You know, these addresses are actually ignored. */
-	sspa->playback_dma_data.addr = SSPA_TXD;
-	sspa->capture_dma_data.addr = SSPA_RXD;
+	sspa->capture_dma_data.addr = SSPA_D;
+	sspa->playback_dma_data.addr = 0x80 + SSPA_D;
 
 	if (pdev->dev.of_node) {
 		int ret;
@@ -508,14 +543,28 @@ static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(sspa->audio_clk);
 	pm_runtime_disable(&pdev->dev);
+
+	if (pdev->dev.of_node)
+		return 0;
+
 	clk_put(sspa->audio_clk);
 	clk_put(sspa->sysclk);
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mmp_sspa_of_match[] = {
+	{ .compatible = "marvell,mmp-sspa" },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, mmp_sspa_of_match);
+#endif
+
 static struct platform_driver asoc_mmp_sspa_driver = {
 	.driver = {
 		.name = "mmp-sspa-dai",
+		.of_match_table = of_match_ptr(mmp_sspa_of_match),
 	},
 	.probe = asoc_mmp_sspa_probe,
 	.remove = asoc_mmp_sspa_remove,
