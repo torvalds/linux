@@ -1,7 +1,7 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
- * Copyright(c) 2015-2018 Intel Corporation.
+ * Copyright(c) 2015-2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -2250,7 +2250,6 @@ extern int num_user_contexts;
 extern unsigned long n_krcvqs;
 extern uint krcvqs[];
 extern int krcvqsset;
-extern uint kdeth_qp;
 extern uint loopback;
 extern uint quick_linkup;
 extern uint rcv_intr_timeout;

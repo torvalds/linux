@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -66,10 +66,6 @@
 #include "affinity.h"
 #include "debugfs.h"
 #include "fault.h"
-
-uint kdeth_qp;
-module_param_named(kdeth_qp, kdeth_qp, uint, S_IRUGO);
-MODULE_PARM_DESC(kdeth_qp, "Set the KDETH queue pair prefix");
 
 uint num_vls = HFI1_MAX_VLS_SUPPORTED;
 module_param(num_vls, uint, S_IRUGO);
@@ -14119,21 +14115,12 @@ static void init_early_variables(struct hfi1_devdata *dd)
 
 static void init_kdeth_qp(struct hfi1_devdata *dd)
 {
-	/* user changed the KDETH_QP */
-	if (kdeth_qp != 0 && kdeth_qp >= 0xff) {
-		/* out of range or illegal value */
-		dd_dev_err(dd, "Invalid KDETH queue pair prefix, ignoring");
-		kdeth_qp = 0;
-	}
-	if (kdeth_qp == 0)	/* not set, or failed range check */
-		kdeth_qp = DEFAULT_KDETH_QP;
-
 	write_csr(dd, SEND_BTH_QP,
-		  (kdeth_qp & SEND_BTH_QP_KDETH_QP_MASK) <<
+		  (RVT_KDETH_QP_PREFIX & SEND_BTH_QP_KDETH_QP_MASK) <<
 		  SEND_BTH_QP_KDETH_QP_SHIFT);
 
 	write_csr(dd, RCV_BTH_QP,
-		  (kdeth_qp & RCV_BTH_QP_KDETH_QP_MASK) <<
+		  (RVT_KDETH_QP_PREFIX & RCV_BTH_QP_KDETH_QP_MASK) <<
 		  RCV_BTH_QP_KDETH_QP_SHIFT);
 }
 

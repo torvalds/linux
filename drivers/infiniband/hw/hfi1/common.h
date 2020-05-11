@@ -72,13 +72,6 @@
  * compilation unit
  */
 
-/*
- * If a packet's QP[23:16] bits match this value, then it is
- * a PSM packet and the hardware will expect a KDETH header
- * following the BTH.
- */
-#define DEFAULT_KDETH_QP 0x80
-
 /* driver/hw feature set bitmask */
 #define HFI1_CAP_USER_SHIFT      24
 #define HFI1_CAP_MASK            ((1UL << HFI1_CAP_USER_SHIFT) - 1)
