@@ -224,6 +224,9 @@ static ssize_t device_type_show(struct device *dev,
 	case ASIC_GOYA:
 		str = "GOYA";
 		break;
+	case ASIC_GAUDI:
+		str = "GAUDI";
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 				hdev->asic_type);

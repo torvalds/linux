@@ -276,11 +276,6 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 			dev_err(&pdev->dev, "Unsupported ASIC\n");
 			rc = -ENODEV;
 			goto free_hdev;
-		} else if (hdev->asic_type == ASIC_GAUDI) {
-			dev_err(&pdev->dev,
-				"GAUDI is not supported by the current kernel\n");
-			rc = -ENODEV;
-			goto free_hdev;
 		}
 	} else {
 		hdev->asic_type = asic_type;
