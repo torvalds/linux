@@ -134,6 +134,18 @@ static u8 mt7915_mcu_chan_bw(struct cfg80211_chan_def *chandef)
 	return width_to_bw[chandef->width];
 }
 
+static const struct ieee80211_sta_he_cap *
+mt7915_get_he_phy_cap(struct mt7915_phy *phy, struct ieee80211_vif *vif)
+{
+	struct ieee80211_supported_band *sband;
+	enum nl80211_band band;
+
+	band = phy->mt76->chandef.chan->band;
+	sband = phy->mt76->hw->wiphy->bands[band];
+
+	return ieee80211_get_he_iftype_cap(sband, vif->type);
+}
+
 static u8
 mt7915_get_phy_mode(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		    enum nl80211_band band, struct ieee80211_sta *sta)
@@ -149,11 +161,12 @@ mt7915_get_phy_mode(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		he_cap = &sta->he_cap;
 	} else {
 		struct ieee80211_supported_band *sband;
+		struct mt7915_phy *phy;
+		struct mt7915_vif *mvif;
 
-		if (band == NL80211_BAND_2GHZ)
-			sband = &dev->mphy.sband_2g.sband;
-		else
-			sband = &dev->mphy.sband_5g.sband;
+		mvif = (struct mt7915_vif *)vif->drv_priv;
+		phy = mvif->band_idx ? mt7915_ext_phy(dev) : &dev->phy;
+		sband = phy->mt76->hw->wiphy->bands[band];
 
 		ht_cap = &sband->ht_cap;
 		vht_cap = &sband->vht_cap;
@@ -884,19 +897,11 @@ mt7915_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 {
 #define DEFAULT_HE_PE_DURATION		4
 #define DEFAULT_HE_DURATION_RTS_THRES	1023
-	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
-	enum nl80211_band band = chandef->chan->band;
-	struct ieee80211_supported_band *sband;
 	const struct ieee80211_sta_he_cap *cap;
 	struct bss_info_he *he;
 	struct tlv *tlv;
 
-	if (band == NL80211_BAND_2GHZ)
-		sband = &phy->mt76->sband_2g.sband;
-	else
-		sband = &phy->mt76->sband_5g.sband;
-
-	cap = ieee80211_get_he_iftype_cap(sband, vif->type);
+	cap = mt7915_get_he_phy_cap(phy, vif);
 
 	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_HE_BASIC, sizeof(*he));
 
