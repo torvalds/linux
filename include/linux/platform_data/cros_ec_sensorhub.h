@@ -185,6 +185,7 @@ int cros_ec_sensorhub_register_push_data(struct cros_ec_sensorhub *sensorhub,
 void cros_ec_sensorhub_unregister_push_data(struct cros_ec_sensorhub *sensorhub,
 					    u8 sensor_num);
 
+int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub);
 int cros_ec_sensorhub_ring_add(struct cros_ec_sensorhub *sensorhub);
 void cros_ec_sensorhub_ring_remove(void *arg);
 int cros_ec_sensorhub_ring_fifo_enable(struct cros_ec_sensorhub *sensorhub,

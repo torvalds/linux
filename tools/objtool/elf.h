@@ -87,9 +87,10 @@ struct elf {
 #define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
 #define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
 
-#define for_offset_range(_offset, _start, _end)		\
-	for (_offset = ((_start) & OFFSET_STRIDE_MASK);	\
-	     _offset <= ((_end) & OFFSET_STRIDE_MASK);	\
+#define for_offset_range(_offset, _start, _end)			\
+	for (_offset = ((_start) & OFFSET_STRIDE_MASK);		\
+	     _offset >= ((_start) & OFFSET_STRIDE_MASK) &&	\
+	     _offset <= ((_end) & OFFSET_STRIDE_MASK);		\
 	     _offset += OFFSET_STRIDE)
 
 static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
