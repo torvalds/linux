@@ -586,7 +586,7 @@ enum tegra210_image_format {
 }
 
 /* Tegra210 supported video formats */
-const struct tegra_video_format tegra210_video_formats[] = {
+static const struct tegra_video_format tegra210_video_formats[] = {
 	/* RAW 8 */
 	TEGRA210_VIDEO_FMT(RAW8, 8, SRGGB8_1X8, 1, T_L8, SRGGB8),
 	TEGRA210_VIDEO_FMT(RAW8, 8, SGRBG8_1X8, 1, T_L8, SGRBG8),
