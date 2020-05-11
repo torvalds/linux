@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/hwmon.h>
+#include <linux/string.h>
 
 #include <linux/w1.h>
 
@@ -89,6 +90,24 @@ struct therm_info {
 	u8 crc;
 	u8 verdict;
 };
+
+/* Hardware Functions declaration */
+
+/**
+ * reset_select_slave() - reset and select a slave
+ * @sl: the slave to select
+ *
+ * Resets the bus and select the slave by sending a ROM MATCH cmd
+ * w1_reset_select_slave() from w1_io.c could not be used here because
+ * it sent a SKIP ROM command if only one device is on the line.
+ * At the beginning of the such process, sl->master->slave_count is 1 even if
+ * more devices are on the line, causing collision on the line.
+ *
+ * Context: The w1 master lock must be held.
+ *
+ * Return: 0 if success, negative kernel error code otherwise.
+ */
+static int reset_select_slave(struct w1_slave *sl);
 
 /* Sysfs interface declaration */
 
@@ -301,7 +320,7 @@ static inline int w1_DS18B20_precision(struct device *device, int val)
 	while (max_trying--) {
 		crc = 0;
 
-		if (!w1_reset_select_slave(sl)) {
+		if (!reset_select_slave(sl)) {
 			int count = 0;
 
 			/* read values to only alter precision bits */
@@ -314,7 +333,7 @@ static inline int w1_DS18B20_precision(struct device *device, int val)
 			if (rom[8] == crc) {
 				rom[4] = (rom[4] & ~mask) | (precision_bits & mask);
 
-				if (!w1_reset_select_slave(sl)) {
+				if (!reset_select_slave(sl)) {
 					w1_write_8(dev, W1_WRITE_SCRATCHPAD);
 					w1_write_8(dev, rom[2]);
 					w1_write_8(dev, rom[3]);
@@ -460,6 +479,21 @@ static void w1_therm_remove_slave(struct w1_slave *sl)
 
 /* Hardware Functions */
 
+/* Safe version of reset_select_slave - avoid using the one in w_io.c */
+static int reset_select_slave(struct w1_slave *sl)
+{
+	u8 match[9] = { W1_MATCH_ROM, };
+	u64 rn = le64_to_cpu(*((u64 *)&sl->reg_num));
+
+	if (w1_reset_bus(sl->master))
+		return -ENODEV;
+
+	memcpy(&match[1], &rn, 8);
+	w1_write_block(sl->master, match, 9);
+
+	return 0;
+}
+
 static ssize_t read_therm(struct device *device,
 			  struct w1_slave *sl, struct therm_info *info)
 {
@@ -487,7 +521,7 @@ static ssize_t read_therm(struct device *device,
 		info->verdict = 0;
 		info->crc = 0;
 
-		if (!w1_reset_select_slave(sl)) {
+		if (!reset_select_slave(sl)) {
 			int count = 0;
 			unsigned int tm = 750;
 			unsigned long sleep_rem;
@@ -495,7 +529,7 @@ static ssize_t read_therm(struct device *device,
 			w1_write_8(dev, W1_READ_PSUPPLY);
 			external_power = w1_read_8(dev);
 
-			if (w1_reset_select_slave(sl))
+			if (reset_select_slave(sl))
 				continue;
 
 			/* 750ms strong pullup (or delay) after the convert */
@@ -525,7 +559,7 @@ static ssize_t read_therm(struct device *device,
 				}
 			}
 
-			if (!w1_reset_select_slave(sl)) {
+			if (!reset_select_slave(sl)) {
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
 				count = w1_read_block(dev, info->rom, 9);
@@ -577,7 +611,7 @@ static inline int w1_therm_eeprom(struct device *device)
 	memset(rom, 0, sizeof(rom));
 
 	while (max_trying--) {
-		if (!w1_reset_select_slave(sl)) {
+		if (!reset_select_slave(sl)) {
 			unsigned int tm = 10;
 			unsigned long sleep_rem;
 
@@ -585,7 +619,7 @@ static inline int w1_therm_eeprom(struct device *device)
 			w1_write_8(dev, W1_READ_PSUPPLY);
 			external_power = w1_read_8(dev);
 
-			if (w1_reset_select_slave(sl))
+			if (reset_select_slave(sl))
 				continue;
 
 			/* 10ms strong pullup/delay after the copy command */
