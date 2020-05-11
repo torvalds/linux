@@ -25,12 +25,38 @@ enum clock_rate {
 #define CLK_RATE_19_2MHZ	19200000
 #define CLK_RATE_25_0MHZ	25000000
 
+/* X-Powers AXP288 register set */
+#define ALDO1_SEL_REG	0x28
+#define ALDO1_CTRL3_REG	0x13
+#define ALDO1_2P8V	0x16
+#define ALDO1_CTRL3_SHIFT 0x05
+
+#define ELDO_CTRL_REG   0x12
+
 #define ELDO1_SEL_REG	0x19
 #define ELDO1_1P8V	0x16
 #define ELDO1_CTRL_SHIFT 0x00
+
 #define ELDO2_SEL_REG	0x1a
 #define ELDO2_1P8V	0x16
 #define ELDO2_CTRL_SHIFT 0x01
+
+/* TI SND9039 PMIC register set */
+#define LDO9_REG	0x49
+#define LDO10_REG	0x4a
+#define LDO11_REG	0x4b
+
+#define LDO_2P8V_ON	0x2f /* 0x2e selects 2.85V ...      */
+#define LDO_2P8V_OFF	0x2e /* ... bottom bit is "enabled" */
+
+#define LDO_1P8V_ON	0x59 /* 0x58 selects 1.80V ...      */
+#define LDO_1P8V_OFF	0x58 /* ... bottom bit is "enabled" */
+
+/* CRYSTAL COVE PMIC register set */
+#define CRYSTAL_1P8V_REG	0x57
+#define CRYSTAL_2P8V_REG	0x5d
+#define CRYSTAL_ON		0x63
+#define CRYSTAL_OFF		0x62
 
 struct gmin_subdev {
 	struct v4l2_subdev *subdev;
@@ -52,6 +78,12 @@ struct gmin_subdev {
 	bool v2p8_on;
 	bool v1p2_on;
 	bool v2p8_vcm_on;
+
+	u8 pwm_i2c_addr;
+
+	/* For PMIC AXP */
+	int eldo1_sel_reg, eldo1_1p8v, eldo1_ctrl_shift;
+	int eldo2_sel_reg, eldo2_1p8v, eldo2_ctrl_shift;
 };
 
 static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
@@ -60,6 +92,8 @@ static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
 #define PMIC_ACPI_AXP		"INT33F4:00"	/* XPower AXP288 PMIC */
 #define PMIC_ACPI_TI		"INT33F5:00"	/* Dollar Cove TI PMIC */
 #define PMIC_ACPI_CRYSTALCOVE	"INT33FD:00"	/* Crystal Cove PMIC */
+
+#define PMIC_PLATFORM_TI	"intel_soc_pmic_chtdc_ti"
 
 static enum {
 	PMIC_UNSET = 0,
@@ -358,15 +392,9 @@ static const struct dmi_system_id gmin_vars[] = {
 #define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
 static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
-struct gmin_match_name {
-	const char *name;
-	struct device *dev;
-};
-
-static int gmin_match_one(struct device *dev, void *data)
+static int gmin_i2c_match_one(struct device *dev, const void *data)
 {
-	struct gmin_match_name *match = data;
-	const char *name = match->name;
+	const char *name = data;
 	struct i2c_client *client;
 
 	if (dev->type != &i2c_client_type)
@@ -374,38 +402,61 @@ static int gmin_match_one(struct device *dev, void *data)
 
 	client = to_i2c_client(dev);
 
-	dev_info(match->dev, "found '%s' at address 0x%02x, adapter %d\n",
-		 client->name, client->addr, client->adapter->nr);
-
 	return (!strcmp(name, client->name));
 }
 
-static bool gmin_i2c_dev_exists(struct device *dev, char *name)
+static struct i2c_client *gmin_i2c_dev_exists(struct device *dev, char *name,
+					      struct i2c_client **client)
 {
-	struct gmin_match_name match;
-	bool found;
-	int ret = 0;
+	struct device *d;
 
-	match.dev = dev;
-	match.name = name;
+	while ((d = bus_find_device(&i2c_bus_type, NULL, name,
+				    gmin_i2c_match_one))) {
+		*client = to_i2c_client(d);
+		dev_dbg(dev, "found '%s' at address 0x%02x, adapter %d\n",
+			(*client)->name, (*client)->addr,
+			(*client)->adapter->nr);
+		return *client;
+	}
 
-	ret = i2c_for_each_dev(&match, gmin_match_one);
+	return NULL;
+}
 
-	found = !!ret;
+static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
+			  u32 value, u32 mask)
+{
+	int ret;
 
-	if (found)
-		dev_info(dev, "%s found on I2C\n", name);
-	else
-		dev_info(dev, "%s not found on I2C\n", name);
+	/*
+	 * FIXME: Right now, the intel_pmic driver just write values
+	 * directly at the regmap, instead of properly implementing
+	 * i2c_transfer() mechanism. Let's use the same interface here,
+	 * as otherwise we may face issues.
+	 */
 
-	return found;
+	dev_dbg(dev,
+		"I2C write, addr: 0x%02x, reg: 0x%02x, value: 0x%02x, mask: 0x%02x\n",
+		i2c_addr, reg, value, mask);
+
+	ret = intel_soc_pmic_exec_mipi_pmic_seq_element(i2c_addr, reg,
+							value, mask);
+
+	if (ret == -EOPNOTSUPP) {
+		dev_err(dev,
+			"ACPI didn't mapped the OpRegion needed to access I2C address 0x%02x.\n"
+			"Need to compile the Kernel using CONFIG_*_PMIC_OPREGION settings\n",
+			i2c_addr);
+		return ret;
+	}
+
+	return ret;
 }
 
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	int i, ret;
 	struct device *dev;
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct i2c_client *power = NULL, *client = v4l2_get_subdevdata(subdev);
 
 	if (!client)
 		return NULL;
@@ -413,11 +464,11 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	dev = &client->dev;
 
 	if (!pmic_id) {
-		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI))
+		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
 			pmic_id = PMIC_TI;
-		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP))
+		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power))
 			pmic_id = PMIC_AXP;
-		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE))
+		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power))
 			pmic_id = PMIC_CRYSTALCOVE;
 		else
 			pmic_id = PMIC_REGULATOR;
@@ -428,9 +479,16 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	if (i >= MAX_SUBDEVS)
 		return NULL;
 
-	dev_info(dev,
-		 "gmin: power management provided via %s\n",
-		 pmic_name[pmic_id]);
+
+	if (power) {
+		gmin_subdevs[i].pwm_i2c_addr = power->addr;
+		dev_info(dev,
+			 "gmin: power management provided via %s (i2c addr 0x%02x)\n",
+			 pmic_name[pmic_id], power->addr);
+	} else {
+		dev_info(dev, "gmin: power management provided via %s\n",
+			 pmic_name[pmic_id]);
+	}
 
 	gmin_subdevs[i].subdev = subdev;
 	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
@@ -479,25 +537,13 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	if (IS_ERR(gmin_subdevs[i].gpio1))
 		gmin_subdevs[i].gpio1 = NULL;
 
-	if (pmic_id == PMIC_REGULATOR) {
-		/* Those regulators may have different names depending on the BIOS */
-		gmin_subdevs[i].v1p8_reg = regulator_get_optional(dev, "V1P8SX");
-		gmin_subdevs[i].v2p8_reg = regulator_get_optional(dev, "V2P8SX");
-
+	switch (pmic_id) {
+	case PMIC_REGULATOR:
+		gmin_subdevs[i].v1p8_reg = regulator_get(dev, "V1P8SX");
+		gmin_subdevs[i].v2p8_reg = regulator_get(dev, "V2P8SX");
 
 		gmin_subdevs[i].v1p2_reg = regulator_get(dev, "V1P2A");
 		gmin_subdevs[i].v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
-
-		/*
-		 * Based on DTST dumps on newer Atom E3800 devices, it seems that
-		 * the regulators data now have new names.
-		 */
-		if (IS_ERR(gmin_subdevs[i].v1p8_reg))
-			gmin_subdevs[i].v1p8_reg = regulator_get(dev, "Regulator1p8v");
-
-		if (IS_ERR(gmin_subdevs[i].v2p8_reg))
-			gmin_subdevs[i].v2p8_reg = regulator_get(dev, "Regulator2p8v");
-
 
 		/* Note: ideally we would initialize v[12]p8_on to the
 		 * output of regulator_is_enabled(), but sadly that
@@ -506,6 +552,32 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		 * "unbalanced disable" WARNing if we try to disable
 		 * it.
 		 */
+		break;
+
+	case PMIC_AXP:
+		gmin_subdevs[i].eldo1_1p8v = gmin_get_var_int(dev, false,
+							      "eldo1_1p8v",
+							      ELDO1_1P8V);
+		gmin_subdevs[i].eldo1_sel_reg = gmin_get_var_int(dev, false,
+								 "eldo1_sel_reg",
+								 ELDO1_SEL_REG);
+		gmin_subdevs[i].eldo1_ctrl_shift = gmin_get_var_int(dev, false,
+								    "eldo1_ctrl_shift",
+								    ELDO1_CTRL_SHIFT);
+		gmin_subdevs[i].eldo2_1p8v = gmin_get_var_int(dev, false,
+							      "eldo2_1p8v",
+							      ELDO2_1P8V);
+		gmin_subdevs[i].eldo2_sel_reg = gmin_get_var_int(dev, false,
+								 "eldo2_sel_reg",
+								 ELDO2_SEL_REG);
+		gmin_subdevs[i].eldo2_ctrl_shift = gmin_get_var_int(dev, false,
+								    "eldo2_ctrl_shift",
+								    ELDO2_CTRL_SHIFT);
+		gmin_subdevs[i].pwm_i2c_addr = power->addr;
+		break;
+
+	default:
+		break;
 	}
 
 	return &gmin_subdevs[i];
@@ -520,6 +592,64 @@ static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev)
 			return &gmin_subdevs[i];
 	return gmin_subdev_add(subdev);
 }
+
+static int axp_regulator_set(struct device *dev, struct gmin_subdev *gs,
+			     int sel_reg, u8 setting,
+			     int ctrl_reg, int shift, bool on)
+{
+	int ret;
+	int val;
+
+	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, sel_reg, setting, 0xff);
+	if (ret)
+		return ret;
+
+	val = on ? 1 << shift : 0;
+
+	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, sel_reg, val, 1 << shift);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
+{
+	int ret;
+	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
+				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, true);
+	if (ret)
+		return ret;
+
+	/*
+	 * This sleep comes out of the gc2235 driver, which is the
+	 * only one I currently see that wants to set both 1.8v rails.
+	 */
+	usleep_range(110, 150);
+
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
+		ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
+	if (ret)
+		return ret;
+
+	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
+				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
+	return ret;
+}
+
+static int axp_v1p8_off(struct device *dev, struct gmin_subdev *gs)
+{
+	int ret;
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
+				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, false);
+	if (ret)
+		return ret;
+
+	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
+				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
+	return ret;
+}
+
 
 static int gmin_gpio0_ctrl(struct v4l2_subdev *subdev, int on)
 {
@@ -551,6 +681,7 @@ static int gmin_v1p2_ctrl(struct v4l2_subdev *subdev, int on)
 		return 0;
 	gs->v1p2_on = on;
 
+	/* use regulator for PMIC */
 	if (gs->v1p2_reg) {
 		if (on)
 			return regulator_enable(gs->v1p2_reg);
@@ -558,7 +689,7 @@ static int gmin_v1p2_ctrl(struct v4l2_subdev *subdev, int on)
 			return regulator_disable(gs->v1p2_reg);
 	}
 
-	/*TODO:v1p2 needs to extend to other PMICs*/
+	/* TODO:v1p2 may need to extend to other PMICs */
 
 	return -EINVAL;
 }
@@ -569,6 +700,7 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 	int ret;
 	struct device *dev;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	int value;
 
 	dev = &client->dev;
 
@@ -601,6 +733,27 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 			return regulator_disable(gs->v1p8_reg);
 	}
 
+	switch (pmic_id) {
+	case PMIC_AXP:
+		if (on)
+			return axp_v1p8_on(subdev->dev, gs);
+		else
+			return axp_v1p8_off(subdev->dev, gs);
+	case PMIC_TI:
+		value = on ? LDO_1P8V_ON : LDO_1P8V_OFF;
+
+		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				      LDO10_REG, value, 0xff);
+	case PMIC_CRYSTALCOVE:
+		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
+
+		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				      CRYSTAL_1P8V_REG, value, 0xff);
+	default:
+		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+	}
+
+
 	return -EINVAL;
 }
 
@@ -610,6 +763,7 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 	int ret;
 	struct device *dev;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	int value;
 
 	dev = &client->dev;
 
@@ -642,6 +796,25 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 			return regulator_disable(gs->v2p8_reg);
 	}
 
+	switch (pmic_id) {
+	case PMIC_AXP:
+		return axp_regulator_set(subdev->dev, gs, ALDO1_SEL_REG,
+					 ALDO1_2P8V, ALDO1_CTRL3_REG,
+					 ALDO1_CTRL3_SHIFT, on);
+	case PMIC_TI:
+		value = on ? LDO_2P8V_ON : LDO_2P8V_OFF;
+
+		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				      LDO9_REG, value, 0xff);
+	case PMIC_CRYSTALCOVE:
+		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
+
+		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				      CRYSTAL_2P8V_REG, value, 0xff);
+	default:
+		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+	}
+
 	return -EINVAL;
 }
 
@@ -655,7 +828,8 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 		return 0;
 
 	if (on) {
-		ret = clk_set_rate(gs->pmc_clk, gs->clock_src ? CLK_RATE_19_2MHZ : CLK_RATE_25_0MHZ);
+		ret = clk_set_rate(gs->pmc_clk,
+				   gs->clock_src ? CLK_RATE_19_2MHZ : CLK_RATE_25_0MHZ);
 
 		if (ret)
 			dev_err(&client->dev, "unable to set PMC rate %d\n",
@@ -804,7 +978,8 @@ static int gmin_get_config_var(struct device *maindev,
 	id = dmi_first_match(gmin_vars);
 	if (id) {
 		dev_info(maindev, "Found DMI entry for '%s'\n", var8);
-		return gmin_get_hardcoded_var(id->driver_data, var8, out, out_len);
+		return gmin_get_hardcoded_var(id->driver_data, var8, out,
+					      out_len);
 	}
 
 	/* Our variable names are ASCII by construction, but EFI names
