@@ -211,9 +211,9 @@ static void cacheline_free(struct intel_timeline_cacheline *cl)
 	i915_active_release(&cl->active);
 }
 
-int intel_timeline_init(struct intel_timeline *timeline,
-			struct intel_gt *gt,
-			struct i915_vma *hwsp)
+static int intel_timeline_init(struct intel_timeline *timeline,
+			       struct intel_gt *gt,
+			       struct i915_vma *hwsp)
 {
 	void *vaddr;
 
@@ -280,7 +280,7 @@ void intel_gt_init_timelines(struct intel_gt *gt)
 	INIT_LIST_HEAD(&timelines->hwsp_free_list);
 }
 
-void intel_timeline_fini(struct intel_timeline *timeline)
+static void intel_timeline_fini(struct intel_timeline *timeline)
 {
 	GEM_BUG_ON(atomic_read(&timeline->pin_count));
 	GEM_BUG_ON(!list_empty(&timeline->requests));

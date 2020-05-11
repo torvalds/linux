@@ -31,11 +31,6 @@
 #include "i915_syncmap.h"
 #include "gt/intel_timeline_types.h"
 
-int intel_timeline_init(struct intel_timeline *tl,
-			struct intel_gt *gt,
-			struct i915_vma *hwsp);
-void intel_timeline_fini(struct intel_timeline *tl);
-
 struct intel_timeline *
 intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp);
 
