@@ -346,14 +346,10 @@ static void tree_put_node(struct fs_node *node, bool locked)
 		if (parent_node) {
 			down_write_ref_node(parent_node, locked);
 			list_del_init(&node->list);
-			if (node->del_sw_func)
-				node->del_sw_func(node);
-			up_write_ref_node(parent_node, locked);
-		} else if (node->del_sw_func) {
-			node->del_sw_func(node);
-		} else {
-			kfree(node);
 		}
+		node->del_sw_func(node);
+		if (parent_node)
+			up_write_ref_node(parent_node, locked);
 		node = NULL;
 	}
 	if (!node && parent_node)
@@ -2352,6 +2348,11 @@ static int init_root_tree(struct mlx5_flow_steering *steering,
 	return 0;
 }
 
+static void del_sw_root_ns(struct fs_node *node)
+{
+	kfree(node);
+}
+
 static struct mlx5_flow_root_namespace
 *create_root_ns(struct mlx5_flow_steering *steering,
 		enum fs_flow_table_type table_type)
@@ -2378,7 +2379,7 @@ static struct mlx5_flow_root_namespace
 	ns = &root_ns->ns;
 	fs_init_namespace(ns);
 	mutex_init(&root_ns->chain_lock);
-	tree_init_node(&ns->node, NULL, NULL);
+	tree_init_node(&ns->node, NULL, del_sw_root_ns);
 	tree_add_node(&ns->node, NULL);
 
 	return root_ns;
