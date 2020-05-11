@@ -66,6 +66,7 @@
 #include "vnic.h"
 #include "fault.h"
 #include "affinity.h"
+#include "ipoib.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -1795,6 +1796,7 @@ static const struct ib_device_ops hfi1_dev_ops = {
 	.modify_device = modify_device,
 	/* keep process mad in the driver */
 	.process_mad = hfi1_process_mad,
+	.rdma_netdev_get_params = hfi1_ipoib_rn_get_params,
 };
 
 /**

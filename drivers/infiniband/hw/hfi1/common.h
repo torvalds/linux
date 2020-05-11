@@ -160,6 +160,7 @@
 				 HFI1_CAP_PKEY_CHECK |			\
 				 HFI1_CAP_MULTI_PKT_EGR |		\
 				 HFI1_CAP_EXTENDED_PSN |		\
+				 HFI1_CAP_AIP |				\
 				 ((HFI1_CAP_HDRSUPP |			\
 				   HFI1_CAP_MULTI_PKT_EGR |		\
 				   HFI1_CAP_STATIC_RATE_CTRL |		\
