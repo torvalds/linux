@@ -16,9 +16,9 @@
 
 static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+#ifdef CONFIG_NETFILTER
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
 
-#ifdef CONFIG_NETFILTER
 	if (!x) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
 		return dst_output(net, sk, skb);
