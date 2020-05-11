@@ -56,10 +56,11 @@ struct fscrypt_name {
 struct fscrypt_operations {
 	unsigned int flags;
 	const char *key_prefix;
-	int (*get_context)(struct inode *, void *, size_t);
-	int (*set_context)(struct inode *, const void *, size_t, void *);
-	bool (*dummy_context)(struct inode *);
-	bool (*empty_dir)(struct inode *);
+	int (*get_context)(struct inode *inode, void *ctx, size_t len);
+	int (*set_context)(struct inode *inode, const void *ctx, size_t len,
+			   void *fs_data);
+	bool (*dummy_context)(struct inode *inode);
+	bool (*empty_dir)(struct inode *inode);
 	unsigned int max_namelen;
 	bool (*has_stable_inodes)(struct super_block *sb);
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
@@ -137,13 +138,15 @@ static inline struct page *fscrypt_pagecache_page(struct page *bounce_page)
 extern void fscrypt_free_bounce_page(struct page *bounce_page);
 
 /* policy.c */
-extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
-extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
-extern int fscrypt_ioctl_get_policy_ex(struct file *, void __user *);
+extern int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg);
+extern int fscrypt_ioctl_get_policy(struct file *filp, void __user *arg);
+extern int fscrypt_ioctl_get_policy_ex(struct file *filp, void __user *arg);
 extern int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg);
-extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
-extern int fscrypt_inherit_context(struct inode *, struct inode *,
-					void *, bool);
+extern int fscrypt_has_permitted_context(struct inode *parent,
+					 struct inode *child);
+extern int fscrypt_inherit_context(struct inode *parent, struct inode *child,
+				   void *fs_data, bool preload);
+
 /* keyring.c */
 extern void fscrypt_sb_free(struct super_block *sb);
 extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
@@ -153,23 +156,24 @@ extern int fscrypt_ioctl_remove_key_all_users(struct file *filp,
 extern int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
 
 /* keysetup.c */
-extern int fscrypt_get_encryption_info(struct inode *);
-extern void fscrypt_put_encryption_info(struct inode *);
-extern void fscrypt_free_inode(struct inode *);
+extern int fscrypt_get_encryption_info(struct inode *inode);
+extern void fscrypt_put_encryption_info(struct inode *inode);
+extern void fscrypt_free_inode(struct inode *inode);
 extern int fscrypt_drop_inode(struct inode *inode);
 
 /* fname.c */
-extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
-				int lookup, struct fscrypt_name *);
+extern int fscrypt_setup_filename(struct inode *inode, const struct qstr *iname,
+				  int lookup, struct fscrypt_name *fname);
 
 static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 {
 	kfree(fname->crypto_buf.name);
 }
 
-extern int fscrypt_fname_alloc_buffer(const struct inode *, u32,
-				struct fscrypt_str *);
-extern void fscrypt_fname_free_buffer(struct fscrypt_str *);
+extern int fscrypt_fname_alloc_buffer(const struct inode *inode,
+				      u32 max_encrypted_len,
+				      struct fscrypt_str *crypto_str);
+extern void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str);
 extern int fscrypt_fname_disk_to_usr(const struct inode *inode,
 				     u32 hash, u32 minor_hash,
 				     const struct fscrypt_str *iname,
@@ -180,9 +184,9 @@ extern u64 fscrypt_fname_siphash(const struct inode *dir,
 				 const struct qstr *name);
 
 /* bio.c */
-extern void fscrypt_decrypt_bio(struct bio *);
-extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
-				 unsigned int);
+extern void fscrypt_decrypt_bio(struct bio *bio);
+extern int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
+				 sector_t pblk, unsigned int len);
 
 /* hooks.c */
 extern int fscrypt_file_open(struct inode *inode, struct file *filp);
