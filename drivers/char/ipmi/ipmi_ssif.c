@@ -1472,6 +1472,7 @@ static bool check_acpi(struct ssif_info *ssif_info, struct device *dev)
 	if (acpi_handle) {
 		ssif_info->addr_source = SI_ACPI;
 		ssif_info->addr_info.acpi_info.acpi_handle = acpi_handle;
+		request_module("acpi_ipmi");
 		return true;
 	}
 #endif
