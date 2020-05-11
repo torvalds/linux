@@ -178,11 +178,12 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		return 0;
 	}
 
-	dmz_dev_debug(dmz->dev, "READ chunk %llu -> %s zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(zmd, bio),
-		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
-		      zone->id,
-		      (unsigned long long)chunk_block, nr_blocks);
+	DMDEBUG("(%s): READ chunk %llu -> %s zone %u, block %llu, %u blocks",
+		dmz_metadata_label(zmd),
+		(unsigned long long)dmz_bio_chunk(zmd, bio),
+		(dmz_is_rnd(zone) ? "RND" : "SEQ"),
+		zone->id,
+		(unsigned long long)chunk_block, nr_blocks);
 
 	/* Check block validity to determine the read location */
 	bzone = zone->bzone;
@@ -316,11 +317,12 @@ static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 	if (!zone)
 		return -ENOSPC;
 
-	dmz_dev_debug(dmz->dev, "WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(zmd, bio),
-		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
-		      zone->id,
-		      (unsigned long long)chunk_block, nr_blocks);
+	DMDEBUG("(%s): WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
+		dmz_metadata_label(zmd),
+		(unsigned long long)dmz_bio_chunk(zmd, bio),
+		(dmz_is_rnd(zone) ? "RND" : "SEQ"),
+		zone->id,
+		(unsigned long long)chunk_block, nr_blocks);
 
 	if (dmz_is_rnd(zone) || chunk_block == zone->wp_block) {
 		/*
@@ -357,10 +359,11 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	if (dmz_is_readonly(zone))
 		return -EROFS;
 
-	dmz_dev_debug(dmz->dev, "DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(zmd, bio),
-		      zone->id,
-		      (unsigned long long)chunk_block, nr_blocks);
+	DMDEBUG("(%s): DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
+		dmz_metadata_label(dmz->metadata),
+		(unsigned long long)dmz_bio_chunk(zmd, bio),
+		zone->id,
+		(unsigned long long)chunk_block, nr_blocks);
 
 	/*
 	 * Invalidate blocks in the data zone and its
@@ -429,8 +432,8 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 		ret = dmz_handle_discard(dmz, zone, bio);
 		break;
 	default:
-		dmz_dev_err(dmz->dev, "Unsupported BIO operation 0x%x",
-			    bio_op(bio));
+		DMERR("(%s): Unsupported BIO operation 0x%x",
+		      dmz_metadata_label(dmz->metadata), bio_op(bio));
 		ret = -EIO;
 	}
 
@@ -504,7 +507,8 @@ static void dmz_flush_work(struct work_struct *work)
 	/* Flush dirty metadata blocks */
 	ret = dmz_flush_metadata(dmz->metadata);
 	if (ret)
-		dmz_dev_debug(dmz->dev, "Metadata flush failed, rc=%d\n", ret);
+		DMDEBUG("(%s): Metadata flush failed, rc=%d\n",
+			dmz_metadata_label(dmz->metadata), ret);
 
 	/* Process queued flush requests */
 	while (1) {
@@ -631,11 +635,12 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	if (dmz_bdev_is_dying(dmz->dev))
 		return DM_MAPIO_KILL;
 
-	dmz_dev_debug(dev, "BIO op %d sector %llu + %u => chunk %llu, block %llu, %u blocks",
-		      bio_op(bio), (unsigned long long)sector, nr_sectors,
-		      (unsigned long long)dmz_bio_chunk(zmd, bio),
-		      (unsigned long long)dmz_chunk_block(zmd, dmz_bio_block(bio)),
-		      (unsigned int)dmz_bio_blocks(bio));
+	DMDEBUG("(%s): BIO op %d sector %llu + %u => chunk %llu, block %llu, %u blocks",
+		dmz_metadata_label(zmd),
+		bio_op(bio), (unsigned long long)sector, nr_sectors,
+		(unsigned long long)dmz_bio_chunk(zmd, bio),
+		(unsigned long long)dmz_chunk_block(zmd, dmz_bio_block(bio)),
+		(unsigned int)dmz_bio_blocks(bio));
 
 	bio_set_dev(bio, dev->bdev);
 
@@ -669,10 +674,10 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	/* Now ready to handle this BIO */
 	ret = dmz_queue_chunk_work(dmz, bio);
 	if (ret) {
-		dmz_dev_debug(dmz->dev,
-			      "BIO op %d, can't process chunk %llu, err %i\n",
-			      bio_op(bio), (u64)dmz_bio_chunk(zmd, bio),
-			      ret);
+		DMDEBUG("(%s): BIO op %d, can't process chunk %llu, err %i\n",
+			dmz_metadata_label(zmd),
+			bio_op(bio), (u64)dmz_bio_chunk(zmd, bio),
+			ret);
 		return DM_MAPIO_REQUEUE;
 	}
 
@@ -782,7 +787,8 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Initialize metadata */
 	dev = dmz->dev;
-	ret = dmz_ctr_metadata(dev, &dmz->metadata);
+	ret = dmz_ctr_metadata(dev, &dmz->metadata,
+			       dm_table_device_name(ti->table));
 	if (ret) {
 		ti->error = "Metadata initialization failed";
 		goto err_dev;
@@ -811,8 +817,9 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/* Chunk BIO work */
 	mutex_init(&dmz->chunk_lock);
 	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_NOIO);
-	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s", WQ_MEM_RECLAIM | WQ_UNBOUND,
-					0, dev->name);
+	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s",
+					WQ_MEM_RECLAIM | WQ_UNBOUND, 0,
+					dmz_metadata_label(dmz->metadata));
 	if (!dmz->chunk_wq) {
 		ti->error = "Create chunk workqueue failed";
 		ret = -ENOMEM;
@@ -824,7 +831,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bio_list_init(&dmz->flush_list);
 	INIT_DELAYED_WORK(&dmz->flush_work, dmz_flush_work);
 	dmz->flush_wq = alloc_ordered_workqueue("dmz_fwq_%s", WQ_MEM_RECLAIM,
-						dev->name);
+						dmz_metadata_label(dmz->metadata));
 	if (!dmz->flush_wq) {
 		ti->error = "Create flush workqueue failed";
 		ret = -ENOMEM;
@@ -839,9 +846,10 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_fwq;
 	}
 
-	dmz_dev_info(dev, "Target device: %llu 512-byte logical sectors (%llu blocks)",
-		     (unsigned long long)ti->len,
-		     (unsigned long long)dmz_sect2blk(ti->len));
+	DMINFO("(%s): Target device: %llu 512-byte logical sectors (%llu blocks)",
+	       dmz_metadata_label(dmz->metadata),
+	       (unsigned long long)ti->len,
+	       (unsigned long long)dmz_sect2blk(ti->len));
 
 	return 0;
 err_fwq:

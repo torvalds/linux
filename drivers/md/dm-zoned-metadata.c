@@ -134,6 +134,8 @@ struct dmz_sb {
 struct dmz_metadata {
 	struct dmz_dev		*dev;
 
+	char			devname[BDEVNAME_SIZE];
+
 	sector_t		zone_bitmap_size;
 	unsigned int		zone_nr_bitmap_blocks;
 	unsigned int		zone_bits_per_mblk;
@@ -258,6 +260,11 @@ unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd)
 unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd)
 {
 	return atomic_read(&zmd->unmap_nr_seq);
+}
+
+const char *dmz_metadata_label(struct dmz_metadata *zmd)
+{
+	return (const char *)zmd->devname;
 }
 
 /*
@@ -2439,7 +2446,8 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 /*
  * Initialize the zoned metadata.
  */
-int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
+int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata,
+		     const char *devname)
 {
 	struct dmz_metadata *zmd;
 	unsigned int i;
@@ -2450,6 +2458,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
 	if (!zmd)
 		return -ENOMEM;
 
+	strcpy(zmd->devname, devname);
 	zmd->dev = dev;
 	zmd->mblk_rbtree = RB_ROOT;
 	init_rwsem(&zmd->mblk_sem);

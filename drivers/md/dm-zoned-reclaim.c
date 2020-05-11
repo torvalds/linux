@@ -480,15 +480,16 @@ static void dmz_reclaim_work(struct work_struct *work)
 		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap_rnd / 2);
 	}
 
-	dmz_dev_debug(zrc->dev,
-		      "Reclaim (%u): %s, %u%% free rnd zones (%u/%u)",
-		      zrc->kc_throttle.throttle,
-		      (dmz_target_idle(zrc) ? "Idle" : "Busy"),
-		      p_unmap_rnd, nr_unmap_rnd, nr_rnd);
+	DMDEBUG("(%s): Reclaim (%u): %s, %u%% free rnd zones (%u/%u)",
+		dmz_metadata_label(zmd),
+		zrc->kc_throttle.throttle,
+		(dmz_target_idle(zrc) ? "Idle" : "Busy"),
+		p_unmap_rnd, nr_unmap_rnd, nr_rnd);
 
 	ret = dmz_do_reclaim(zrc);
 	if (ret) {
-		dmz_dev_debug(zrc->dev, "Reclaim error %d\n", ret);
+		DMDEBUG("(%s): Reclaim error %d\n",
+			dmz_metadata_label(zmd), ret);
 		if (!dmz_check_bdev(zrc->dev))
 			return;
 	}
@@ -524,7 +525,7 @@ int dmz_ctr_reclaim(struct dmz_dev *dev, struct dmz_metadata *zmd,
 	/* Reclaim work */
 	INIT_DELAYED_WORK(&zrc->work, dmz_reclaim_work);
 	zrc->wq = alloc_ordered_workqueue("dmz_rwq_%s", WQ_MEM_RECLAIM,
-					  dev->name);
+					  dmz_metadata_label(zmd));
 	if (!zrc->wq) {
 		ret = -ENOMEM;
 		goto err;
