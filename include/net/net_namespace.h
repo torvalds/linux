@@ -437,6 +437,13 @@ static inline int rt_genid_ipv4(const struct net *net)
 	return atomic_read(&net->ipv4.rt_genid);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int rt_genid_ipv6(const struct net *net)
+{
+	return atomic_read(&net->ipv6.fib6_sernum);
+}
+#endif
+
 static inline void rt_genid_bump_ipv4(struct net *net)
 {
 	atomic_inc(&net->ipv4.rt_genid);

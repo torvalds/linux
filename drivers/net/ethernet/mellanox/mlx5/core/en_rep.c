@@ -1773,19 +1773,14 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 
 static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
 {
-	int err = mlx5e_init_rep_rx(priv);
-
-	if (err)
-		return err;
-
 	mlx5e_create_q_counters(priv);
-	return 0;
+	return mlx5e_init_rep_rx(priv);
 }
 
 static void mlx5e_cleanup_ul_rep_rx(struct mlx5e_priv *priv)
 {
-	mlx5e_destroy_q_counters(priv);
 	mlx5e_cleanup_rep_rx(priv);
+	mlx5e_destroy_q_counters(priv);
 }
 
 static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)

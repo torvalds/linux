@@ -3657,7 +3657,7 @@ L:	linux-btrfs@vger.kernel.org
 S:	Maintained
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/linux-btrfs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kdave/linux.git
 F:	Documentation/filesystems/btrfs.rst
 F:	fs/btrfs/
 F:	include/linux/btrfs*
@@ -3936,11 +3936,9 @@ F:	arch/powerpc/platforms/cell/
 CEPH COMMON CODE (LIBCEPH)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Jeff Layton <jlayton@kernel.org>
-M:	Sage Weil <sage@redhat.com>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 T:	git git://github.com/ceph/ceph-client.git
 F:	include/linux/ceph/
 F:	include/linux/crush/
@@ -3948,12 +3946,10 @@ F:	net/ceph/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT (CEPH)
 M:	Jeff Layton <jlayton@kernel.org>
-M:	Sage Weil <sage@redhat.com>
 M:	Ilya Dryomov <idryomov@gmail.com>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 T:	git git://github.com/ceph/ceph-client.git
 F:	Documentation/filesystems/ceph.rst
 F:	fs/ceph/
@@ -5935,9 +5931,9 @@ F:	lib/dynamic_debug.c
 DYNAMIC INTERRUPT MODERATION
 M:	Tal Gilboa <talgi@mellanox.com>
 S:	Maintained
+F:	Documentation/networking/net_dim.rst
 F:	include/linux/dim.h
 F:	lib/dim/
-F:	Documentation/networking/net_dim.rst
 
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
@@ -7119,9 +7115,10 @@ F:	include/uapi/asm-generic/
 
 GENERIC PHY FRAMEWORK
 M:	Kishon Vijay Abraham I <kishon@ti.com>
+M:	Vinod Koul <vkoul@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kishon/linux-phy.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/phy/linux-phy.git
 F:	Documentation/devicetree/bindings/phy/
 F:	drivers/phy/
 F:	include/linux/phy/
@@ -7745,11 +7742,6 @@ HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
 F:	drivers/platform/x86/tc1100-wmi.c
-
-HP100:	Driver for HP 10/100 Mbit/s Voice Grade Network Adapter Series
-M:	Jaroslav Kysela <perex@perex.cz>
-S:	Obsolete
-F:	drivers/staging/hp/hp100.*
 
 HPET:	High Precision Event Timers driver
 M:	Clemens Ladisch <clemens@ladisch.de>
@@ -14102,12 +14094,10 @@ F:	drivers/media/radio/radio-tea5777.c
 
 RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
-M:	Sage Weil <sage@redhat.com>
 R:	Dongsheng Yang <dongsheng.yang@easystack.cn>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 T:	git git://github.com/ceph/ceph-client.git
 F:	Documentation/ABI/testing/sysfs-bus-rbd
 F:	drivers/block/rbd.c

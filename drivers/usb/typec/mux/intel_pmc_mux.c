@@ -157,6 +157,10 @@ pmc_usb_mux_dp(struct pmc_usb_port *port, struct typec_mux_state *state)
 	req.mode_data |= (state->mode - TYPEC_STATE_MODAL) <<
 			 PMC_USB_ALTMODE_DP_MODE_SHIFT;
 
+	if (data->status & DP_STATUS_HPD_STATE)
+		req.mode_data |= PMC_USB_DP_HPD_LVL <<
+				 PMC_USB_ALTMODE_DP_MODE_SHIFT;
+
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
 
@@ -298,11 +302,11 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 	struct typec_mux_desc mux_desc = { };
 	int ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb2-port", &port->usb2_port);
+	ret = fwnode_property_read_u8(fwnode, "usb2-port-number", &port->usb2_port);
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb3-port", &port->usb3_port);
+	ret = fwnode_property_read_u8(fwnode, "usb3-port-number", &port->usb3_port);
 	if (ret)
 		return ret;
 
