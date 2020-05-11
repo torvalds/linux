@@ -31,6 +31,6 @@ config VIDEO_ATOMISP_ISP2401
 	  Disabling it enables support for Atom ISP2400-based boards
 	  (Merrifield and Baytrail SoCs).
 
-if INTEL_ATOMISP
+if VIDEO_ATOMISP
 source "drivers/staging/media/atomisp/i2c/Kconfig"
 endif

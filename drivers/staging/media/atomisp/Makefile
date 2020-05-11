@@ -2,7 +2,6 @@
 # Makefile for camera drivers.
 #
 obj-$(CONFIG_INTEL_ATOMISP) += i2c/
-obj-$(CONFIG_INTEL_ATOMISP) += platform/
 obj-$(CONFIG_VIDEO_ATOMISP) += atomisp.o
 
 # While on staging, keep debug enabled
@@ -24,6 +23,7 @@ atomisp-objs += \
 	pci/atomisp_subdev.o \
 	pci/atomisp_tpg.o \
 	pci/atomisp_v4l2.o \
+	pci/atomisp_gmin_platform.o \
 	pci/sh_css_firmware.o \
 	pci/sh_css_host_data.o \
 	pci/sh_css_hrt.o \
