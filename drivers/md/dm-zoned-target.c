@@ -180,7 +180,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 	dmz_dev_debug(dmz->dev, "READ chunk %llu -> %s zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
-		      dmz_id(dmz->metadata, zone),
+		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
 
 	/* Check block validity to determine the read location */
@@ -317,7 +317,7 @@ static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 	dmz_dev_debug(dmz->dev, "WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
-		      dmz_id(dmz->metadata, zone),
+		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
 
 	if (dmz_is_rnd(zone) || chunk_block == zone->wp_block) {
@@ -357,7 +357,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 
 	dmz_dev_debug(dmz->dev, "DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
-		      dmz_id(zmd, zone),
+		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
 
 	/*

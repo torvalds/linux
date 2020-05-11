@@ -80,7 +80,7 @@ static int dmz_reclaim_align_wp(struct dmz_reclaim *zrc, struct dm_zone *zone,
 	if (ret) {
 		dmz_dev_err(zrc->dev,
 			    "Align zone %u wp %llu to %llu (wp+%u) blocks failed %d",
-			    dmz_id(zmd, zone), (unsigned long long)wp_block,
+			    zone->id, (unsigned long long)wp_block,
 			    (unsigned long long)block, nr_blocks, ret);
 		dmz_check_bdev(zrc->dev);
 		return ret;
@@ -196,8 +196,8 @@ static int dmz_reclaim_buf(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_dev_debug(zrc->dev,
 		      "Chunk %u, move buf zone %u (weight %u) to data zone %u (weight %u)",
-		      dzone->chunk, dmz_id(zmd, bzone), dmz_weight(bzone),
-		      dmz_id(zmd, dzone), dmz_weight(dzone));
+		      dzone->chunk, bzone->id, dmz_weight(bzone),
+		      dzone->id, dmz_weight(dzone));
 
 	/* Flush data zone into the buffer zone */
 	ret = dmz_reclaim_copy(zrc, bzone, dzone);
@@ -235,8 +235,8 @@ static int dmz_reclaim_seq_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_dev_debug(zrc->dev,
 		      "Chunk %u, move data zone %u (weight %u) to buf zone %u (weight %u)",
-		      chunk, dmz_id(zmd, dzone), dmz_weight(dzone),
-		      dmz_id(zmd, bzone), dmz_weight(bzone));
+		      chunk, dzone->id, dmz_weight(dzone),
+		      bzone->id, dmz_weight(bzone));
 
 	/* Flush data zone into the buffer zone */
 	ret = dmz_reclaim_copy(zrc, dzone, bzone);
@@ -287,8 +287,7 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_dev_debug(zrc->dev,
 		      "Chunk %u, move rnd zone %u (weight %u) to seq zone %u",
-		      chunk, dmz_id(zmd, dzone), dmz_weight(dzone),
-		      dmz_id(zmd, szone));
+		      chunk, dzone->id, dmz_weight(dzone), szone->id);
 
 	/* Flush the random data zone into the sequential zone */
 	ret = dmz_reclaim_copy(zrc, dzone, szone);
@@ -403,12 +402,12 @@ out:
 	if (ret) {
 		dmz_dev_debug(zrc->dev,
 			      "Metadata flush for zone %u failed, err %d\n",
-			      dmz_id(zmd, rzone), ret);
+			      rzone->id, ret);
 		return ret;
 	}
 
 	dmz_dev_debug(zrc->dev, "Reclaimed zone %u in %u ms",
-		      dmz_id(zmd, rzone), jiffies_to_msecs(jiffies - start));
+		      rzone->id, jiffies_to_msecs(jiffies - start));
 	return 0;
 }
 

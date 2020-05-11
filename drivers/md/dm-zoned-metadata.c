@@ -187,19 +187,14 @@ struct dmz_metadata {
 /*
  * Various accessors
  */
-unsigned int dmz_id(struct dmz_metadata *zmd, struct dm_zone *zone)
-{
-	return ((unsigned int)(zone - zmd->zones));
-}
-
 sector_t dmz_start_sect(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	return (sector_t)dmz_id(zmd, zone) << zmd->dev->zone_nr_sectors_shift;
+	return (sector_t)zone->id << zmd->dev->zone_nr_sectors_shift;
 }
 
 sector_t dmz_start_block(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	return (sector_t)dmz_id(zmd, zone) << zmd->dev->zone_nr_blocks_shift;
+	return (sector_t)zone->id << zmd->dev->zone_nr_blocks_shift;
 }
 
 unsigned int dmz_nr_zones(struct dmz_metadata *zmd)
@@ -1119,6 +1114,7 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int idx, void *data)
 
 	INIT_LIST_HEAD(&zone->link);
 	atomic_set(&zone->refcount, 0);
+	zone->id = idx;
 	zone->chunk = DMZ_MAP_UNMAPPED;
 
 	switch (blkz->type) {
@@ -1246,7 +1242,7 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 		ret = -EIO;
 	if (ret < 0) {
 		dmz_dev_err(zmd->dev, "Get zone %u report failed",
-			    dmz_id(zmd, zone));
+			    zone->id);
 		dmz_check_bdev(zmd->dev);
 		return ret;
 	}
@@ -1270,7 +1266,7 @@ static int dmz_handle_seq_write_err(struct dmz_metadata *zmd,
 		return ret;
 
 	dmz_dev_warn(zmd->dev, "Processing zone %u write error (zone wp %u/%u)",
-		     dmz_id(zmd, zone), zone->wp_block, wp);
+		     zone->id, zone->wp_block, wp);
 
 	if (zone->wp_block < wp) {
 		dmz_invalidate_blocks(zmd, zone, zone->wp_block,
@@ -1309,7 +1305,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 				       dev->zone_nr_sectors, GFP_NOIO);
 		if (ret) {
 			dmz_dev_err(dev, "Reset zone %u failed %d",
-				    dmz_id(zmd, zone), ret);
+				    zone->id, ret);
 			return ret;
 		}
 	}
@@ -1757,8 +1753,7 @@ again:
 	}
 
 	/* Update the chunk mapping */
-	dmz_set_chunk_mapping(zmd, dzone->chunk, dmz_id(zmd, dzone),
-			      dmz_id(zmd, bzone));
+	dmz_set_chunk_mapping(zmd, dzone->chunk, dzone->id, bzone->id);
 
 	set_bit(DMZ_BUF, &bzone->flags);
 	bzone->chunk = dzone->chunk;
@@ -1810,7 +1805,7 @@ again:
 		atomic_dec(&zmd->unmap_nr_seq);
 
 	if (dmz_is_offline(zone)) {
-		dmz_dev_warn(zmd->dev, "Zone %u is offline", dmz_id(zmd, zone));
+		dmz_dev_warn(zmd->dev, "Zone %u is offline", zone->id);
 		zone = NULL;
 		goto again;
 	}
@@ -1852,7 +1847,7 @@ void dmz_map_zone(struct dmz_metadata *zmd, struct dm_zone *dzone,
 		  unsigned int chunk)
 {
 	/* Set the chunk mapping */
-	dmz_set_chunk_mapping(zmd, chunk, dmz_id(zmd, dzone),
+	dmz_set_chunk_mapping(zmd, chunk, dzone->id,
 			      DMZ_MAP_UNMAPPED);
 	dzone->chunk = chunk;
 	if (dmz_is_rnd(dzone))
@@ -1880,7 +1875,7 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 		 * Unmapping the chunk buffer zone: clear only
 		 * the chunk buffer mapping
 		 */
-		dzone_id = dmz_id(zmd, zone->bzone);
+		dzone_id = zone->bzone->id;
 		zone->bzone->bzone = NULL;
 		zone->bzone = NULL;
 
@@ -1942,7 +1937,7 @@ static struct dmz_mblock *dmz_get_bitmap(struct dmz_metadata *zmd,
 					 sector_t chunk_block)
 {
 	sector_t bitmap_block = 1 + zmd->nr_map_blocks +
-		(sector_t)(dmz_id(zmd, zone) * zmd->zone_nr_bitmap_blocks) +
+		(sector_t)(zone->id * zmd->zone_nr_bitmap_blocks) +
 		(chunk_block >> DMZ_BLOCK_SHIFT_BITS);
 
 	return dmz_get_mblock(zmd, bitmap_block);
@@ -2022,7 +2017,7 @@ int dmz_validate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 	unsigned int n = 0;
 
 	dmz_dev_debug(zmd->dev, "=> VALIDATE zone %u, block %llu, %u blocks",
-		      dmz_id(zmd, zone), (unsigned long long)chunk_block,
+		      zone->id, (unsigned long long)chunk_block,
 		      nr_blocks);
 
 	WARN_ON(chunk_block + nr_blocks > zone_nr_blocks);
@@ -2052,7 +2047,7 @@ int dmz_validate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 		zone->weight += n;
 	else {
 		dmz_dev_warn(zmd->dev, "Zone %u: weight %u should be <= %u",
-			     dmz_id(zmd, zone), zone->weight,
+			     zone->id, zone->weight,
 			     zone_nr_blocks - n);
 		zone->weight = zone_nr_blocks;
 	}
@@ -2102,7 +2097,7 @@ int dmz_invalidate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 	unsigned int n = 0;
 
 	dmz_dev_debug(zmd->dev, "=> INVALIDATE zone %u, block %llu, %u blocks",
-		      dmz_id(zmd, zone), (u64)chunk_block, nr_blocks);
+		      zone->id, (u64)chunk_block, nr_blocks);
 
 	WARN_ON(chunk_block + nr_blocks > zmd->dev->zone_nr_blocks);
 
@@ -2132,7 +2127,7 @@ int dmz_invalidate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 		zone->weight -= n;
 	else {
 		dmz_dev_warn(zmd->dev, "Zone %u: weight %u should be >= %u",
-			     dmz_id(zmd, zone), zone->weight, n);
+			     zone->id, zone->weight, n);
 		zone->weight = 0;
 	}
 
@@ -2378,7 +2373,7 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
 {
 	struct dmz_metadata *zmd;
-	unsigned int i, zid;
+	unsigned int i;
 	struct dm_zone *zone;
 	int ret;
 
@@ -2419,9 +2414,8 @@ int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
 		goto err;
 
 	/* Set metadata zones starting from sb_zone */
-	zid = dmz_id(zmd, zmd->sb_zone);
 	for (i = 0; i < zmd->nr_meta_zones << 1; i++) {
-		zone = dmz_get(zmd, zid + i);
+		zone = dmz_get(zmd, zmd->sb_zone->id + i);
 		if (!dmz_is_rnd(zone))
 			goto err;
 		set_bit(DMZ_META, &zone->flags);
