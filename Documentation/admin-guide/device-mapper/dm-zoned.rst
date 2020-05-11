@@ -37,9 +37,13 @@ Algorithm
 dm-zoned implements an on-disk buffering scheme to handle non-sequential
 write accesses to the sequential zones of a zoned block device.
 Conventional zones are used for caching as well as for storing internal
-metadata.
+metadata. It can also use a regular block device together with the zoned
+block device; in that case the regular block device will be split logically
+in zones with the same size as the zoned block device. These zones will be
+placed in front of the zones from the zoned block device and will be handled
+just like conventional zones.
 
-The zones of the device are separated into 2 types:
+The zones of the device(s) are separated into 2 types:
 
 1) Metadata zones: these are conventional zones used to store metadata.
 Metadata zones are not reported as useable capacity to the user.
@@ -127,6 +131,13 @@ resumed. Flushing metadata thus only temporarily delays write and
 discard requests. Read requests can be processed concurrently while
 metadata flush is being executed.
 
+If a regular device is used in conjunction with the zoned block device,
+a third set of metadata (without the zone bitmaps) is written to the
+start of the zoned block device. This metadata has a generation counter of
+'0' and will never be updated during normal operation; it just serves for
+identification purposes. The first and second copy of the metadata
+are located at the start of the regular block device.
+
 Usage
 =====
 
@@ -138,12 +149,21 @@ Ex::
 
 	dmzadm --format /dev/sdxx
 
-For a formatted device, the target can be created normally with the
-dmsetup utility. The only parameter that dm-zoned requires is the
-underlying zoned block device name. Ex::
 
-	echo "0 `blockdev --getsize ${dev}` zoned ${dev}" | \
-	dmsetup create dmz-`basename ${dev}`
+If two drives are to be used, both devices must be specified, with the
+regular block device as the first device.
+
+Ex::
+
+	dmzadm --format /dev/sdxx /dev/sdyy
+
+
+Fomatted device(s) can be started with the dmzadm utility, too.:
+
+Ex::
+
+	dmzadm --start /dev/sdxx /dev/sdyy
+
 
 Information about the internal layout and current usage of the zones can
 be obtained with the 'status' callback from dmsetup:

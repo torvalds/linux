@@ -13,6 +13,8 @@
 
 #define DMZ_MIN_BIOS		8192
 
+#define DMZ_MAX_DEVS		2
+
 /*
  * Zone BIO context.
  */
@@ -38,7 +40,7 @@ struct dm_chunk_work {
  * Target descriptor.
  */
 struct dmz_target {
-	struct dm_dev		*ddev;
+	struct dm_dev		*ddev[DMZ_MAX_DEVS];
 
 	unsigned long		flags;
 
@@ -81,7 +83,7 @@ static inline void dmz_bio_endio(struct bio *bio, blk_status_t status)
 
 	if (status != BLK_STS_OK && bio->bi_status == BLK_STS_OK)
 		bio->bi_status = status;
-	if (bio->bi_status != BLK_STS_OK)
+	if (bioctx->dev && bio->bi_status != BLK_STS_OK)
 		bioctx->dev->flags |= DMZ_CHECK_BDEV;
 
 	if (refcount_dec_and_test(&bioctx->ref)) {
@@ -690,60 +692,64 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 /*
  * Get zoned device information.
  */
-static int dmz_get_zoned_device(struct dm_target *ti, char *path)
+static int dmz_get_zoned_device(struct dm_target *ti, char *path,
+				int idx, int nr_devs)
 {
 	struct dmz_target *dmz = ti->private;
-	struct request_queue *q;
+	struct dm_dev *ddev;
 	struct dmz_dev *dev;
-	sector_t aligned_capacity;
 	int ret;
+	struct block_device *bdev;
 
 	/* Get the target device */
-	ret = dm_get_device(ti, path, dm_table_get_mode(ti->table), &dmz->ddev);
+	ret = dm_get_device(ti, path, dm_table_get_mode(ti->table), &ddev);
 	if (ret) {
 		ti->error = "Get target device failed";
-		dmz->ddev = NULL;
 		return ret;
 	}
 
-	dev = kzalloc(sizeof(struct dmz_dev), GFP_KERNEL);
-	if (!dev) {
-		ret = -ENOMEM;
-		goto err;
+	bdev = ddev->bdev;
+	if (bdev_zoned_model(bdev) == BLK_ZONED_NONE) {
+		if (nr_devs == 1) {
+			ti->error = "Invalid regular device";
+			goto err;
+		}
+		if (idx != 0) {
+			ti->error = "First device must be a regular device";
+			goto err;
+		}
+		if (dmz->ddev[0]) {
+			ti->error = "Too many regular devices";
+			goto err;
+		}
+		dev = &dmz->dev[idx];
+		dev->flags = DMZ_BDEV_REGULAR;
+	} else {
+		if (dmz->ddev[idx]) {
+			ti->error = "Too many zoned devices";
+			goto err;
+		}
+		if (nr_devs > 1 && idx == 0) {
+			ti->error = "First device must be a regular device";
+			goto err;
+		}
+		dev = &dmz->dev[idx];
 	}
-
-	dev->bdev = dmz->ddev->bdev;
+	dev->bdev = bdev;
 	(void)bdevname(dev->bdev, dev->name);
 
-	if (bdev_zoned_model(dev->bdev) == BLK_ZONED_NONE) {
-		ti->error = "Not a zoned block device";
-		ret = -EINVAL;
+	dev->capacity = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	if (ti->begin) {
+		ti->error = "Partial mapping is not supported";
 		goto err;
 	}
 
-	q = bdev_get_queue(dev->bdev);
-	dev->capacity = i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
-	aligned_capacity = dev->capacity &
-				~((sector_t)blk_queue_zone_sectors(q) - 1);
-	if (ti->begin ||
-	    ((ti->len != dev->capacity) && (ti->len != aligned_capacity))) {
-		ti->error = "Partial mapping not supported";
-		ret = -EINVAL;
-		goto err;
-	}
-
-	dev->zone_nr_sectors = blk_queue_zone_sectors(q);
-
-	dev->nr_zones = blkdev_nr_zones(dev->bdev->bd_disk);
-
-	dmz->dev = dev;
+	dmz->ddev[idx] = ddev;
 
 	return 0;
 err:
-	dm_put_device(ti, dmz->ddev);
-	kfree(dev);
-
-	return ret;
+	dm_put_device(ti, ddev);
+	return -EINVAL;
 }
 
 /*
@@ -752,10 +758,56 @@ err:
 static void dmz_put_zoned_device(struct dm_target *ti)
 {
 	struct dmz_target *dmz = ti->private;
+	int i;
 
-	dm_put_device(ti, dmz->ddev);
-	kfree(dmz->dev);
-	dmz->dev = NULL;
+	for (i = 0; i < DMZ_MAX_DEVS; i++) {
+		if (dmz->ddev[i]) {
+			dm_put_device(ti, dmz->ddev[i]);
+			dmz->ddev[i] = NULL;
+		}
+	}
+}
+
+static int dmz_fixup_devices(struct dm_target *ti)
+{
+	struct dmz_target *dmz = ti->private;
+	struct dmz_dev *reg_dev, *zoned_dev;
+	struct request_queue *q;
+
+	/*
+	 * When we have two devices, the first one must be a regular block
+	 * device and the second a zoned block device.
+	 */
+	if (dmz->ddev[0] && dmz->ddev[1]) {
+		reg_dev = &dmz->dev[0];
+		if (!(reg_dev->flags & DMZ_BDEV_REGULAR)) {
+			ti->error = "Primary disk is not a regular device";
+			return -EINVAL;
+		}
+		zoned_dev = &dmz->dev[1];
+		if (zoned_dev->flags & DMZ_BDEV_REGULAR) {
+			ti->error = "Secondary disk is not a zoned device";
+			return -EINVAL;
+		}
+	} else {
+		reg_dev = NULL;
+		zoned_dev = &dmz->dev[0];
+		if (zoned_dev->flags & DMZ_BDEV_REGULAR) {
+			ti->error = "Disk is not a zoned device";
+			return -EINVAL;
+		}
+	}
+	q = bdev_get_queue(zoned_dev->bdev);
+	zoned_dev->zone_nr_sectors = blk_queue_zone_sectors(q);
+	zoned_dev->nr_zones = blkdev_nr_zones(zoned_dev->bdev->bd_disk);
+
+	if (reg_dev) {
+		reg_dev->zone_nr_sectors = zoned_dev->zone_nr_sectors;
+		reg_dev->nr_zones = DIV_ROUND_UP(reg_dev->capacity,
+						 reg_dev->zone_nr_sectors);
+		zoned_dev->zone_offset = reg_dev->nr_zones;
+	}
+	return 0;
 }
 
 /*
@@ -764,11 +816,10 @@ static void dmz_put_zoned_device(struct dm_target *ti)
 static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dmz_target *dmz;
-	struct dmz_dev *dev;
 	int ret;
 
 	/* Check arguments */
-	if (argc != 1) {
+	if (argc < 1 || argc > 2) {
 		ti->error = "Invalid argument count";
 		return -EINVAL;
 	}
@@ -779,18 +830,34 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Unable to allocate the zoned target descriptor";
 		return -ENOMEM;
 	}
+	dmz->dev = kcalloc(2, sizeof(struct dmz_dev), GFP_KERNEL);
+	if (!dmz->dev) {
+		ti->error = "Unable to allocate the zoned device descriptors";
+		kfree(dmz);
+		return -ENOMEM;
+	}
 	ti->private = dmz;
 
 	/* Get the target zoned block device */
-	ret = dmz_get_zoned_device(ti, argv[0]);
+	ret = dmz_get_zoned_device(ti, argv[0], 0, argc);
+	if (ret)
+		goto err;
+
+	if (argc == 2) {
+		ret = dmz_get_zoned_device(ti, argv[1], 1, argc);
+		if (ret) {
+			dmz_put_zoned_device(ti);
+			goto err;
+		}
+	}
+	ret = dmz_fixup_devices(ti);
 	if (ret) {
-		dmz->ddev = NULL;
+		dmz_put_zoned_device(ti);
 		goto err;
 	}
 
 	/* Initialize metadata */
-	dev = dmz->dev;
-	ret = dmz_ctr_metadata(dev, &dmz->metadata,
+	ret = dmz_ctr_metadata(dmz->dev, argc, &dmz->metadata,
 			       dm_table_device_name(ti->table));
 	if (ret) {
 		ti->error = "Metadata initialization failed";
@@ -867,6 +934,7 @@ err_meta:
 err_dev:
 	dmz_put_zoned_device(ti);
 err:
+	kfree(dmz->dev);
 	kfree(dmz);
 
 	return ret;
@@ -897,6 +965,7 @@ static void dmz_dtr(struct dm_target *ti)
 
 	mutex_destroy(&dmz->chunk_lock);
 
+	kfree(dmz->dev);
 	kfree(dmz);
 }
 
@@ -971,10 +1040,17 @@ static int dmz_iterate_devices(struct dm_target *ti,
 			       iterate_devices_callout_fn fn, void *data)
 {
 	struct dmz_target *dmz = ti->private;
-	struct dmz_dev *dev = dmz->dev;
-	sector_t capacity = dev->capacity & ~(dmz_zone_nr_sectors(dmz->metadata) - 1);
+	unsigned int zone_nr_sectors = dmz_zone_nr_sectors(dmz->metadata);
+	sector_t capacity;
+	int r;
 
-	return fn(ti, dmz->ddev, 0, capacity, data);
+	capacity = dmz->dev[0].capacity & ~(zone_nr_sectors - 1);
+	r = fn(ti, dmz->ddev[0], 0, capacity, data);
+	if (!r && dmz->ddev[1]) {
+		capacity = dmz->dev[1].capacity & ~(zone_nr_sectors - 1);
+		r = fn(ti, dmz->ddev[1], 0, capacity, data);
+	}
+	return r;
 }
 
 static void dmz_status(struct dm_target *ti, status_type_t type,
@@ -984,6 +1060,7 @@ static void dmz_status(struct dm_target *ti, status_type_t type,
 	struct dmz_target *dmz = ti->private;
 	ssize_t sz = 0;
 	char buf[BDEVNAME_SIZE];
+	struct dmz_dev *dev;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -995,8 +1072,14 @@ static void dmz_status(struct dm_target *ti, status_type_t type,
 		       dmz_nr_seq_zones(dmz->metadata));
 		break;
 	case STATUSTYPE_TABLE:
-		format_dev_t(buf, dmz->dev->bdev->bd_dev);
+		dev = &dmz->dev[0];
+		format_dev_t(buf, dev->bdev->bd_dev);
 		DMEMIT("%s", buf);
+		if (dmz->dev[1].bdev) {
+			dev = &dmz->dev[1];
+			format_dev_t(buf, dev->bdev->bd_dev);
+			DMEMIT(" %s", buf);
+		}
 		break;
 	}
 	return;
@@ -1018,7 +1101,7 @@ static int dmz_message(struct dm_target *ti, unsigned int argc, char **argv,
 
 static struct target_type dmz_type = {
 	.name		 = "zoned",
-	.version	 = {1, 1, 0},
+	.version	 = {2, 0, 0},
 	.features	 = DM_TARGET_SINGLETON | DM_TARGET_ZONED_HM,
 	.module		 = THIS_MODULE,
 	.ctr		 = dmz_ctr,
