@@ -3978,6 +3978,19 @@ out_unlock:
 	return rc;
 }
 
+/* EF10 may have multiple datapath firmware variants within a
+ * single version.  Report which variants are running.
+ */
+static size_t efx_ef10_print_additional_fwver(struct efx_nic *efx, char *buf,
+					      size_t len)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	return scnprintf(buf, len, " rx%x tx%x",
+			 nic_data->rx_dpcpu_fw_id,
+			 nic_data->tx_dpcpu_fw_id);
+}
+
 static unsigned int ef10_check_caps(const struct efx_nic *efx,
 				    u8 flag,
 				    u32 offset)
@@ -4107,6 +4120,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 			    1 << HWTSTAMP_FILTER_ALL,
 	.rx_hash_key_size = 40,
 	.check_caps = ef10_check_caps,
+	.print_additional_fwver = efx_ef10_print_additional_fwver,
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
@@ -4243,4 +4257,5 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 			    1 << HWTSTAMP_FILTER_ALL,
 	.rx_hash_key_size = 40,
 	.check_caps = ef10_check_caps,
+	.print_additional_fwver = efx_ef10_print_additional_fwver,
 };
