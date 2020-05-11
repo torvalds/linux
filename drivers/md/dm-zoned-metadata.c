@@ -1279,8 +1279,8 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 	if (!zmd->zones)
 		return -ENOMEM;
 
-	DMINFO("(%s): Using %zu B for zone information",
-	       zmd->devname, sizeof(struct dm_zone) * zmd->nr_zones);
+	DMDEBUG("(%s): Using %zu B for zone information",
+		zmd->devname, sizeof(struct dm_zone) * zmd->nr_zones);
 
 	/*
 	 * Get zone information and initialize zone descriptors.  At the same
@@ -2563,16 +2563,16 @@ int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata,
 
 	dmz_zmd_info(zmd, "  %u zones of %llu 512-byte logical sectors",
 		     zmd->nr_zones, (u64)zmd->zone_nr_sectors);
-	dmz_zmd_info(zmd, "  %u metadata zones",
-		     zmd->nr_meta_zones * 2);
-	dmz_zmd_info(zmd, "  %u data zones for %u chunks",
-		     zmd->nr_data_zones, zmd->nr_chunks);
-	dmz_zmd_info(zmd, "    %u random zones (%u unmapped)",
-		     zmd->nr_rnd, atomic_read(&zmd->unmap_nr_rnd));
-	dmz_zmd_info(zmd, "    %u sequential zones (%u unmapped)",
-		     zmd->nr_seq, atomic_read(&zmd->unmap_nr_seq));
-	dmz_zmd_info(zmd, "  %u reserved sequential data zones",
-		     zmd->nr_reserved_seq);
+	dmz_zmd_debug(zmd, "  %u metadata zones",
+		      zmd->nr_meta_zones * 2);
+	dmz_zmd_debug(zmd, "  %u data zones for %u chunks",
+		      zmd->nr_data_zones, zmd->nr_chunks);
+	dmz_zmd_debug(zmd, "    %u random zones (%u unmapped)",
+		      zmd->nr_rnd, atomic_read(&zmd->unmap_nr_rnd));
+	dmz_zmd_debug(zmd, "    %u sequential zones (%u unmapped)",
+		      zmd->nr_seq, atomic_read(&zmd->unmap_nr_seq));
+	dmz_zmd_debug(zmd, "  %u reserved sequential data zones",
+		      zmd->nr_reserved_seq);
 	dmz_zmd_debug(zmd, "Format:");
 	dmz_zmd_debug(zmd, "%u metadata blocks per set (%u max cache)",
 		      zmd->nr_meta_blocks, zmd->max_nr_mblks);
