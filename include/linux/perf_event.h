@@ -61,7 +61,7 @@ struct perf_guest_info_callbacks {
 
 struct perf_callchain_entry {
 	__u64				nr;
-	__u64				ip[0]; /* /proc/sys/kernel/perf_event_max_stack */
+	__u64				ip[]; /* /proc/sys/kernel/perf_event_max_stack */
 };
 
 struct perf_callchain_entry_ctx {
@@ -113,7 +113,7 @@ struct perf_raw_record {
 struct perf_branch_stack {
 	__u64				nr;
 	__u64				hw_idx;
-	struct perf_branch_entry	entries[0];
+	struct perf_branch_entry	entries[];
 };
 
 struct task_struct;
