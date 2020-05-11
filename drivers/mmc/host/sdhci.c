@@ -4486,35 +4486,32 @@ int sdhci_setup_host(struct sdhci_host *host)
 
 			curr = min_t(u32, curr, SDHCI_MAX_CURRENT_LIMIT);
 			max_current_caps =
-				(curr << SDHCI_MAX_CURRENT_330_SHIFT) |
-				(curr << SDHCI_MAX_CURRENT_300_SHIFT) |
-				(curr << SDHCI_MAX_CURRENT_180_SHIFT);
+				FIELD_PREP(SDHCI_MAX_CURRENT_330_MASK, curr) |
+				FIELD_PREP(SDHCI_MAX_CURRENT_300_MASK, curr) |
+				FIELD_PREP(SDHCI_MAX_CURRENT_180_MASK, curr);
 		}
 	}
 
 	if (host->caps & SDHCI_CAN_VDD_330) {
 		ocr_avail |= MMC_VDD_32_33 | MMC_VDD_33_34;
 
-		mmc->max_current_330 = ((max_current_caps &
-				   SDHCI_MAX_CURRENT_330_MASK) >>
-				   SDHCI_MAX_CURRENT_330_SHIFT) *
-				   SDHCI_MAX_CURRENT_MULTIPLIER;
+		mmc->max_current_330 = FIELD_GET(SDHCI_MAX_CURRENT_330_MASK,
+						 max_current_caps) *
+						SDHCI_MAX_CURRENT_MULTIPLIER;
 	}
 	if (host->caps & SDHCI_CAN_VDD_300) {
 		ocr_avail |= MMC_VDD_29_30 | MMC_VDD_30_31;
 
-		mmc->max_current_300 = ((max_current_caps &
-				   SDHCI_MAX_CURRENT_300_MASK) >>
-				   SDHCI_MAX_CURRENT_300_SHIFT) *
-				   SDHCI_MAX_CURRENT_MULTIPLIER;
+		mmc->max_current_300 = FIELD_GET(SDHCI_MAX_CURRENT_300_MASK,
+						 max_current_caps) *
+						SDHCI_MAX_CURRENT_MULTIPLIER;
 	}
 	if (host->caps & SDHCI_CAN_VDD_180) {
 		ocr_avail |= MMC_VDD_165_195;
 
-		mmc->max_current_180 = ((max_current_caps &
-				   SDHCI_MAX_CURRENT_180_MASK) >>
-				   SDHCI_MAX_CURRENT_180_SHIFT) *
-				   SDHCI_MAX_CURRENT_MULTIPLIER;
+		mmc->max_current_180 = FIELD_GET(SDHCI_MAX_CURRENT_180_MASK,
+						 max_current_caps) *
+						SDHCI_MAX_CURRENT_MULTIPLIER;
 	}
 
 	/* If OCR set by host, use it instead. */

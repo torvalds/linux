@@ -419,9 +419,9 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 
 	if (unlikely(reg == SDHCI_MAX_CURRENT) && esdhc_is_usdhc(imx_data)) {
 		val = 0;
-		val |= 0xFF << SDHCI_MAX_CURRENT_330_SHIFT;
-		val |= 0xFF << SDHCI_MAX_CURRENT_300_SHIFT;
-		val |= 0xFF << SDHCI_MAX_CURRENT_180_SHIFT;
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_330_MASK, 0xFF);
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_300_MASK, 0xFF);
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_180_MASK, 0xFF);
 	}
 
 	if (unlikely(reg == SDHCI_INT_STATUS)) {
