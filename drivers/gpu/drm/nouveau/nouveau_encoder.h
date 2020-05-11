@@ -66,6 +66,10 @@ struct nouveau_encoder {
 		} dp;
 	};
 
+	struct {
+		bool dp_interlace : 1;
+	} caps;
+
 	void (*enc_save)(struct drm_encoder *encoder);
 	void (*enc_restore)(struct drm_encoder *encoder);
 	void (*update)(struct nouveau_encoder *, u8 head,

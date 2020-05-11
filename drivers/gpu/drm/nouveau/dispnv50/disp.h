@@ -9,6 +9,7 @@ struct nv50_msto;
 struct nv50_disp {
 	struct nvif_disp *disp;
 	struct nv50_core *core;
+	struct nvif_object caps;
 
 #define NV50_DISP_SYNC(c, o)                                ((c) * 0x040 + (o))
 #define NV50_DISP_CORE_NTFY                       NV50_DISP_SYNC(0      , 0x00)

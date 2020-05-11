@@ -509,7 +509,11 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	nv_connector->detected_encoder = nv_encoder;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		connector->interlace_allowed = true;
+		if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
+			connector->interlace_allowed =
+				nv_encoder->caps.dp_interlace;
+		else
+			connector->interlace_allowed = true;
 		connector->doublescan_allowed = true;
 	} else
 	if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS ||
@@ -1060,6 +1064,10 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case DCB_OUTPUT_TV:
 		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case DCB_OUTPUT_DP:
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE &&
+		    !nv_encoder->caps.dp_interlace)
+			return MODE_NO_INTERLACE;
+
 		max_clock  = nv_encoder->dp.link_nr;
 		max_clock *= nv_encoder->dp.link_bw;
 		clock = clock * (connector->display_info.bpc * 3) / 10;

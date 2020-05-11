@@ -1663,6 +1663,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
+	struct nv50_disp *disp = nv50_disp(connector->dev);
 	int type, ret;
 
 	switch (dcbe->type) {
@@ -1689,10 +1690,12 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 
 	drm_connector_attach_encoder(connector, encoder);
 
+	disp->core->func->sor->get_caps(disp, nv_encoder, ffs(dcbe->or) - 1);
+
 	if (dcbe->type == DCB_OUTPUT_DP) {
-		struct nv50_disp *disp = nv50_disp(encoder->dev);
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
+
 		if (aux) {
 			if (disp->disp->object.oclass < GF110_DISP) {
 				/* HW has no support for address-only
@@ -1805,7 +1808,9 @@ nv50_pior_func = {
 static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct drm_device *dev = connector->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nv50_disp *disp = nv50_disp(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = NULL;
 	struct nvkm_i2c_aux *aux = NULL;
@@ -1844,6 +1849,9 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_encoder_helper_add(encoder, &nv50_pior_help);
 
 	drm_connector_attach_encoder(connector, encoder);
+
+	disp->core->func->pior->get_caps(disp, nv_encoder, ffs(dcbe->or) - 1);
+
 	return 0;
 }
 
@@ -2401,6 +2409,8 @@ nv50_display_destroy(struct drm_device *dev)
 
 	nv50_audio_component_fini(nouveau_drm(dev));
 
+	nvif_object_unmap(&disp->caps);
+	nvif_object_fini(&disp->caps);
 	nv50_core_del(&disp->core);
 
 	nouveau_bo_unmap(disp->sync);
@@ -2462,6 +2472,11 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	disp->core->func->init(disp->core);
+	if (disp->core->func->caps_init) {
+		ret = disp->core->func->caps_init(drm, disp);
+		if (ret)
+			goto out;
+	}
 
 	/* Assign the correct format modifiers */
 	if (disp->disp->object.oclass >= TU102_DISP)
