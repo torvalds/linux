@@ -133,6 +133,8 @@ patternProperties:
     description: Shanghai AVIC Optoelectronics Co., Ltd.
   "^avnet,.*":
     description: Avnet, Inc.
+  "^awinic,.*":
+    description: Shanghai Awinic Technology Co., Ltd.
   "^axentia,.*":
     description: Axentia Technologies AB
   "^axis,.*":
