@@ -1,3 +1,19 @@
+What:		/sys/bus/w1/devices/.../alarms
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) read or write TH and TL (Temperature High an Low) alarms.
+		Values shall be space separated and in the device range
+		(typical -55 degC to 125 degC), if not values will be trimmed
+		to device min/max capabilities. Values are integer as they are
+		stored in a 8bit register in the device. Lowest value is
+		automatically put to TL. Once set, alarms could be search at
+		master level, refer to Documentation/w1/w1_generic.rst for
+		detailed information
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
 What:		/sys/bus/w1/devices/.../eeprom
 Date:		May 2020
 Contact:	Akira Shimahara <akira215corp@gmail.com>

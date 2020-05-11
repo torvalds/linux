@@ -58,6 +58,9 @@ module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 #define EEPROM_CMD_WRITE    "save"	/* cmd for write eeprom sysfs */
 #define EEPROM_CMD_READ     "restore"	/* cmd for read eeprom sysfs */
 
+#define MIN_TEMP	-55	/* min temperature that can be mesured */
+#define MAX_TEMP	125	/* max temperature that can be mesured */
+
 /* Helpers Macros */
 
 /*
@@ -96,6 +99,7 @@ module_param_named(strong_pullup, w1_strong_pullup, int, 0);
  * @get_conversion_time: pointer to the device conversion time function
  * @set_resolution: pointer to the device set_resolution function
  * @get_resolution: pointer to the device get_resolution function
+ * @write_data: pointer to the device writing function (2 or 3 bytes)
  */
 struct w1_therm_family_converter {
 	u8		broken;
@@ -105,6 +109,7 @@ struct w1_therm_family_converter {
 	int		(*get_conversion_time)(struct w1_slave *sl);
 	int		(*set_resolution)(struct w1_slave *sl, int val);
 	int		(*get_resolution)(struct w1_slave *sl);
+	int		(*write_data)(struct w1_slave *sl, const u8 *data);
 };
 
 /**
@@ -239,6 +244,12 @@ static ssize_t resolution_store(struct device *device,
 static ssize_t eeprom_store(struct device *device,
 	struct device_attribute *attr, const char *buf, size_t size);
 
+static ssize_t alarms_store(struct device *device,
+	struct device_attribute *attr, const char *buf, size_t size);
+
+static ssize_t alarms_show(struct device *device,
+	struct device_attribute *attr, char *buf);
+
 /* Attributes declarations */
 
 static DEVICE_ATTR_RW(w1_slave);
@@ -247,6 +258,7 @@ static DEVICE_ATTR_RO(temperature);
 static DEVICE_ATTR_RO(ext_power);
 static DEVICE_ATTR_RW(resolution);
 static DEVICE_ATTR_WO(eeprom);
+static DEVICE_ATTR_RW(alarms);
 
 /* Interface Functions declaration */
 
@@ -278,6 +290,7 @@ static struct attribute *w1_therm_attrs[] = {
 	&dev_attr_ext_power.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_eeprom.attr,
+	&dev_attr_alarms.attr,
 	NULL,
 };
 
@@ -286,6 +299,7 @@ static struct attribute *w1_ds18s20_attrs[] = {
 	&dev_attr_temperature.attr,
 	&dev_attr_ext_power.attr,
 	&dev_attr_eeprom.attr,
+	&dev_attr_alarms.attr,
 	NULL,
 };
 
@@ -296,6 +310,7 @@ static struct attribute *w1_ds28ea00_attrs[] = {
 	&dev_attr_ext_power.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_eeprom.attr,
+	&dev_attr_alarms.attr,
 	NULL,
 };
 
@@ -556,6 +571,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.get_conversion_time	= w1_DS18S20_convert_time,
 		.set_resolution		= NULL,	/* no config register */
 		.get_resolution		= NULL,	/* no config register */
+		.write_data			= w1_DS18S20_write_data,
 	},
 	{
 		.f				= &w1_therm_family_DS1822,
@@ -563,6 +579,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.get_conversion_time	= w1_DS18B20_convert_time,
 		.set_resolution		= w1_DS18B20_set_resolution,
 		.get_resolution		= w1_DS18B20_get_resolution,
+		.write_data			= w1_DS18B20_write_data,
 	},
 	{
 		.f				= &w1_therm_family_DS18B20,
@@ -570,6 +587,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.get_conversion_time	= w1_DS18B20_convert_time,
 		.set_resolution		= w1_DS18B20_set_resolution,
 		.get_resolution		= w1_DS18B20_get_resolution,
+		.write_data			= w1_DS18B20_write_data,
 	},
 	{
 		.f				= &w1_therm_family_DS28EA00,
@@ -577,6 +595,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.get_conversion_time	= w1_DS18B20_convert_time,
 		.set_resolution		= w1_DS18B20_set_resolution,
 		.get_resolution		= w1_DS18B20_get_resolution,
+		.write_data			= w1_DS18B20_write_data,
 	},
 	{
 		.f				= &w1_therm_family_DS1825,
@@ -584,6 +603,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.get_conversion_time	= w1_DS18B20_convert_time,
 		.set_resolution		= w1_DS18B20_set_resolution,
 		.get_resolution		= w1_DS18B20_get_resolution,
+		.write_data			= w1_DS18B20_write_data,
 	}
 };
 
@@ -676,6 +696,26 @@ static inline int temperature_from_RAM(struct w1_slave *sl, u8 rom[9])
 		"%s: Device not supported by the driver\n", __func__);
 
 	return 0;  /* No device family */
+}
+
+/**
+ * int_to_short() - Safe casting of int to short
+ *
+ * @i: integer to be converted to short
+ *
+ * Device register use 1 byte to store signed integer.
+ * This helper function convert the int in a signed short,
+ * using the min/max values that device can measure as limits.
+ * min/max values are defined by macro.
+ *
+ * Return: a short in the range of min/max value
+ */
+static inline s8 int_to_short(int i)
+{
+	/* Prepare to cast to short by eliminating out of range values */
+	i = i > MAX_TEMP ? MAX_TEMP : i;
+	i = i < MIN_TEMP ? MIN_TEMP : i;
+	return (s8) i;
 }
 
 /* Interface Functions */
@@ -1247,6 +1287,127 @@ static ssize_t eeprom_store(struct device *device,
 
 	if (ret)
 		dev_info(device, "%s: error in process %d\n", __func__, ret);
+
+	return size;
+}
+
+static ssize_t alarms_show(struct device *device,
+	struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	int ret = -ENODEV;
+	s8 th = 0, tl = 0;
+	struct therm_info scratchpad;
+
+	ret = read_scratchpad(sl, &scratchpad);
+
+	if (!ret)	{
+		th = scratchpad.rom[2]; /* TH is byte 2 */
+		tl = scratchpad.rom[3]; /* TL is byte 3 */
+	} else {
+		dev_info(device,
+			"%s: error reading alarms register %d\n",
+			__func__, ret);
+	}
+
+	return sprintf(buf, "%hd %hd\n", tl, th);
+}
+
+static ssize_t alarms_store(struct device *device,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	struct therm_info info;
+	u8 new_config_register[3];	/* array of data to be written */
+	int temp, ret = -EINVAL;
+	char *token = NULL;
+	s8 tl, th, tt;	/* 1 byte per value + temp ring order */
+	char *p_args = kmalloc(size, GFP_KERNEL);
+
+	/* Safe string copys as buf is const */
+	if (!p_args) {
+		dev_warn(device,
+			"%s: error unable to allocate memory %d\n",
+			__func__, -ENOMEM);
+		return size;
+	}
+	strcpy(p_args, buf);
+
+	/* Split string using space char */
+	token = strsep(&p_args, " ");
+
+	if (!token)	{
+		dev_info(device,
+			"%s: error parsing args %d\n", __func__, -EINVAL);
+		goto free_m;
+	}
+
+	/* Convert 1st entry to int */
+	ret = kstrtoint (token, 10, &temp);
+	if (ret) {
+		dev_info(device,
+			"%s: error parsing args %d\n", __func__, ret);
+		goto free_m;
+	}
+
+	tl = int_to_short(temp);
+
+	/* Split string using space char */
+	token = strsep(&p_args, " ");
+	if (!token)	{
+		dev_info(device,
+			"%s: error parsing args %d\n", __func__, -EINVAL);
+		goto free_m;
+	}
+	/* Convert 2nd entry to int */
+	ret = kstrtoint (token, 10, &temp);
+	if (ret) {
+		dev_info(device,
+			"%s: error parsing args %d\n", __func__, ret);
+		goto free_m;
+	}
+
+	/* Prepare to cast to short by eliminating out of range values */
+	th = int_to_short(temp);
+
+	/* Reorder if required th and tl */
+	if (tl > th) {
+		tt = tl; tl = th; th = tt;
+	}
+
+	/*
+	 * Read the scratchpad to change only the required bits
+	 * (th : byte 2 - tl: byte 3)
+	 */
+	ret = read_scratchpad(sl, &info);
+	if (!ret) {
+		new_config_register[0] = th;	/* Byte 2 */
+		new_config_register[1] = tl;	/* Byte 3 */
+		new_config_register[2] = info.rom[4];/* Byte 4 */
+	} else {
+		dev_info(device,
+			"%s: error reading from the slave device %d\n",
+			__func__, ret);
+		goto free_m;
+	}
+
+	/* Write data in the device RAM */
+	if (!SLAVE_SPECIFIC_FUNC(sl)) {
+		dev_info(device,
+			"%s: Device not supported by the driver %d\n",
+			__func__, -ENODEV);
+		goto free_m;
+	}
+
+	ret = SLAVE_SPECIFIC_FUNC(sl)->write_data(sl, new_config_register);
+	if (ret)
+		dev_info(device,
+			"%s: error writing to the slave device %d\n",
+			__func__, ret);
+
+free_m:
+	/* free allocated memory */
+	kfree(p_args);
 
 	return size;
 }
