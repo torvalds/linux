@@ -526,6 +526,7 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 			   "will cause multicast packet drops\n");
 		netdev_update_features(dev);
 		dev_set_mtu(dev, ipoib_cm_max_mtu(dev));
+		netif_set_real_num_tx_queues(dev, 1);
 		rtnl_unlock();
 		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
@@ -537,6 +538,7 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 		clear_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		netdev_update_features(dev);
 		dev_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
+		netif_set_real_num_tx_queues(dev, dev->num_tx_queues);
 		rtnl_unlock();
 		ipoib_flush_paths(dev);
 		return (!rtnl_trylock()) ? -EBUSY : 0;
@@ -2071,9 +2073,17 @@ static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_do_ioctl		 = ipoib_ioctl,
 };
 
+static const struct net_device_ops ipoib_netdev_default_pf = {
+	.ndo_init		 = ipoib_dev_init_default,
+	.ndo_uninit		 = ipoib_dev_uninit_default,
+	.ndo_open		 = ipoib_ib_dev_open_default,
+	.ndo_stop		 = ipoib_ib_dev_stop_default,
+};
+
 void ipoib_setup_common(struct net_device *dev)
 {
 	dev->header_ops		 = &ipoib_header_ops;
+	dev->netdev_ops          = &ipoib_netdev_default_pf;
 
 	ipoib_set_ethtool_ops(dev);
 
@@ -2123,13 +2133,6 @@ static void ipoib_build_priv(struct net_device *dev)
 	INIT_DELAYED_WORK(&priv->neigh_reap_task, ipoib_reap_neigh);
 }
 
-static const struct net_device_ops ipoib_netdev_default_pf = {
-	.ndo_init		 = ipoib_dev_init_default,
-	.ndo_uninit		 = ipoib_dev_uninit_default,
-	.ndo_open		 = ipoib_ib_dev_open_default,
-	.ndo_stop		 = ipoib_ib_dev_stop_default,
-};
-
 static struct net_device *ipoib_alloc_netdev(struct ib_device *hca, u8 port,
 					     const char *name)
 {
@@ -2167,7 +2170,6 @@ int ipoib_intf_init(struct ib_device *hca, u8 port, const char *name,
 		if (rc != -EOPNOTSUPP)
 			goto out;
 
-		dev->netdev_ops = &ipoib_netdev_default_pf;
 		rn->send = ipoib_send;
 		rn->attach_mcast = ipoib_mcast_attach;
 		rn->detach_mcast = ipoib_mcast_detach;
