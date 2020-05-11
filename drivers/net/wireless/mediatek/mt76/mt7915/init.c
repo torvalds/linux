@@ -259,6 +259,94 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_tx_fragments = 4;
 }
 
+void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
+{
+	int nss = hweight8(phy->chainmask);
+	u32 *cap = &phy->mt76->sband_5g.sband.vht_cap.cap;
+
+	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+		IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
+		(3 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
+
+	*cap &= ~(IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK |
+		  IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+		  IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
+
+	if (nss < 2)
+		return;
+
+	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+		IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE |
+		FIELD_PREP(IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK,
+			   nss - 1);
+}
+
+static void
+mt7915_set_stream_he_txbf_caps(struct ieee80211_sta_he_cap *he_cap,
+			       int vif, int nss)
+{
+	struct ieee80211_he_cap_elem *elem = &he_cap->he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp *mcs = &he_cap->he_mcs_nss_supp;
+	u8 c;
+
+#ifdef CONFIG_MAC80211_MESH
+	if (vif == NL80211_IFTYPE_MESH_POINT)
+		return;
+#endif
+
+	elem->phy_cap_info[3] &= ~IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER;
+	elem->phy_cap_info[4] &= ~IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER;
+
+	c = IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK |
+	    IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK;
+	elem->phy_cap_info[5] &= ~c;
+
+	c = IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB |
+	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB;
+	elem->phy_cap_info[6] &= ~c;
+
+	elem->phy_cap_info[7] &= ~IEEE80211_HE_PHY_CAP7_MAX_NC_MASK;
+
+	c = IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
+	    IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
+	    IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
+	elem->phy_cap_info[2] |= c;
+
+	c = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |
+	    IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_4 |
+	    IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4;
+	elem->phy_cap_info[4] |= c;
+
+	/* do not support NG16 due to spec D4.0 changes subcarrier idx */
+	c = IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_42_SU |
+	    IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU;
+
+	if (vif == NL80211_IFTYPE_STATION)
+		c |= IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO;
+
+	elem->phy_cap_info[6] |= c;
+
+	if (nss < 2)
+		return;
+
+	if (vif != NL80211_IFTYPE_AP)
+		return;
+
+	elem->phy_cap_info[3] |= IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER;
+	elem->phy_cap_info[4] |= IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER;
+
+	/* num_snd_dim */
+	c = (nss - 1) | (max_t(int, mcs->tx_mcs_160, 1) << 3);
+	elem->phy_cap_info[5] |= c;
+
+	c = IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB |
+	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB;
+	elem->phy_cap_info[6] |= c;
+
+	/* the maximum cap is 4 x 3, (Nr, Nc) = (3, 2) */
+	elem->phy_cap_info[7] |= min_t(int, nss - 1, 2) << 3;
+}
+
 static void
 mt7915_gen_ppe_thresh(u8 *he_ppet)
 {
@@ -352,11 +440,10 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		he_cap_elem->phy_cap_info[1] =
 			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD;
 		he_cap_elem->phy_cap_info[2] =
-			IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
 			IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
 			IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
 
-		/* TODO: TxBF & MU & MESH */
+		/* TODO: OFDMA */
 
 		switch (i) {
 		case NL80211_IFTYPE_AP:
@@ -406,6 +493,8 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		he_mcs->tx_mcs_160 = cpu_to_le16(mcs_map);
 		he_mcs->rx_mcs_80p80 = cpu_to_le16(mcs_map);
 		he_mcs->tx_mcs_80p80 = cpu_to_le16(mcs_map);
+
+		mt7915_set_stream_he_txbf_caps(he_cap, i, nss);
 
 		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
 		if (he_cap_elem->phy_cap_info[6] &
@@ -464,6 +553,7 @@ mt7915_cap_dbdc_enable(struct mt7915_dev *dev)
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
 
 	mt76_set_stream_caps(&dev->mphy, true);
+	mt7915_set_stream_vht_txbf_caps(&dev->phy);
 	mt7915_set_stream_he_caps(&dev->phy);
 }
 
@@ -480,6 +570,7 @@ mt7915_cap_dbdc_disable(struct mt7915_dev *dev)
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->chainmask;
 
 	mt76_set_stream_caps(&dev->mphy, true);
+	mt7915_set_stream_vht_txbf_caps(&dev->phy);
 	mt7915_set_stream_he_caps(&dev->phy);
 }
 
