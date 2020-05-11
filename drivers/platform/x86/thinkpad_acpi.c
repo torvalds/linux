@@ -5446,23 +5446,18 @@ static int kbdlight_read(struct seq_file *m)
 static int kbdlight_write(char *buf)
 {
 	char *cmd;
-	int level = -1;
+	int res, level = -EINVAL;
 
 	if (!tp_features.kbdlight)
 		return -ENODEV;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "0") == 0)
-			level = 0;
-		else if (strlencmp(cmd, "1") == 0)
-			level = 1;
-		else if (strlencmp(cmd, "2") == 0)
-			level = 2;
-		else
-			return -EINVAL;
+		res = kstrtoint(cmd, 10, &level);
+		if (res < 0)
+			return res;
 	}
 
-	if (level == -1)
+	if (level >= 3 || level < 0)
 		return -EINVAL;
 
 	return kbdlight_set_level_and_update(level);
@@ -9776,19 +9771,18 @@ static int lcdshadow_read(struct seq_file *m)
 static int lcdshadow_write(char *buf)
 {
 	char *cmd;
-	int state = -1;
+	int res, state = -EINVAL;
 
 	if (lcdshadow_state < 0)
 		return -ENODEV;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (strlencmp(cmd, "0") == 0)
-			state = 0;
-		else if (strlencmp(cmd, "1") == 0)
-			state = 1;
+		res = kstrtoint(cmd, 10, &state);
+		if (res < 0)
+			return res;
 	}
 
-	if (state == -1)
+	if (state >= 2 || state < 0)
 		return -EINVAL;
 
 	return lcdshadow_set(state);
