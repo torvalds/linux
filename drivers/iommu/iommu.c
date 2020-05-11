@@ -195,6 +195,9 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 	struct iommu_group *group;
 	int ret;
 
+	if (!ops)
+		return -ENODEV;
+
 	if (!dev_iommu_get(dev))
 		return -ENOMEM;
 
