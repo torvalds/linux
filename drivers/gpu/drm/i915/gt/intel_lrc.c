@@ -1367,7 +1367,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		ce->lrc.ccid = ce->tag;
 	} else {
 		/* We don't need a strict matching tag, just different values */
-		unsigned int tag = ffs(engine->context_tag);
+		unsigned int tag = ffs(READ_ONCE(engine->context_tag));
 
 		GEM_BUG_ON(tag == 0 || tag >= BITS_PER_LONG);
 		clear_bit(tag - 1, &engine->context_tag);
