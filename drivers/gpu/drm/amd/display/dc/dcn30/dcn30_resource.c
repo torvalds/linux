@@ -1899,6 +1899,41 @@ static bool dcn30_split_stream_for_mpc_or_odm(
 	return true;
 }
 
+static struct pipe_ctx *dcn30_find_split_pipe(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	struct pipe_ctx *pipe = NULL;
+	int i;
+
+	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].top_pipe == NULL
+				&& dc->current_state->res_ctx.pipe_ctx[i].prev_odm_pipe == NULL) {
+			if (context->res_ctx.pipe_ctx[i].stream == NULL) {
+				pipe = &context->res_ctx.pipe_ctx[i];
+				pipe->pipe_idx = i;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * May need to fix pipes getting tossed from 1 opp to another on flip
+	 * Add for debugging transient underflow during topology updates:
+	 * ASSERT(pipe);
+	 */
+	if (!pipe)
+		for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+			if (context->res_ctx.pipe_ctx[i].stream == NULL) {
+				pipe = &context->res_ctx.pipe_ctx[i];
+				pipe->pipe_idx = i;
+				break;
+			}
+		}
+
+	return pipe;
+}
+
 static bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
@@ -2024,6 +2059,7 @@ static bool dcn30_internal_validate_bw(
 				dcn20_release_dsc(&context->res_ctx, dc->res_pool, &pipe->stream_res.dsc);
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
+			repopulate_pipes = true;
 		} else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
 			struct pipe_ctx *top_pipe = pipe->top_pipe;
 			struct pipe_ctx *bottom_pipe = pipe->bottom_pipe;
@@ -2038,6 +2074,7 @@ static bool dcn30_internal_validate_bw(
 			pipe->stream = NULL;
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
+			repopulate_pipes = true;
 		} else
 			ASSERT(0); /* Should never try to merge master pipe */
 
@@ -2058,7 +2095,7 @@ static bool dcn30_internal_validate_bw(
 			continue;
 
 		if (split[i]) {
-			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			hsplit_pipe = dcn30_find_split_pipe(dc, context);
 			ASSERT(hsplit_pipe);
 			if (!hsplit_pipe)
 				goto validate_fail;
@@ -2072,7 +2109,7 @@ static bool dcn30_internal_validate_bw(
 			repopulate_pipes = true;
 		}
 		if (split[i] == 4) {
-			struct pipe_ctx *pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			struct pipe_ctx *pipe_4to1 = dcn30_find_split_pipe(dc, context);
 
 			ASSERT(pipe_4to1);
 			if (!pipe_4to1)
@@ -2083,7 +2120,7 @@ static bool dcn30_internal_validate_bw(
 				goto validate_fail;
 			newly_split[pipe_4to1->pipe_idx] = true;
 
-			pipe_4to1 = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			pipe_4to1 = dcn30_find_split_pipe(dc, context);
 			ASSERT(pipe_4to1);
 			if (!pipe_4to1)
 				goto validate_fail;
