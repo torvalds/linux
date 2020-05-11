@@ -1354,6 +1354,9 @@ struct efx_nic_type {
 	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
 	int (*set_wol)(struct efx_nic *efx, u32 type);
 	void (*resume_wol)(struct efx_nic *efx);
+	unsigned int (*check_caps)(const struct efx_nic *efx,
+				   u8 flag,
+				   u32 offset);
 	int (*test_chip)(struct efx_nic *efx, struct efx_self_tests *tests);
 	int (*test_nvram)(struct efx_nic *efx);
 	void (*mcdi_request)(struct efx_nic *efx,

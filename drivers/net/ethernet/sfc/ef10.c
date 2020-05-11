@@ -3961,6 +3961,22 @@ out_unlock:
 	return rc;
 }
 
+static unsigned int ef10_check_caps(const struct efx_nic *efx,
+				    u8 flag,
+				    u32 offset)
+{
+	const struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	switch (offset) {
+	case(MC_CMD_GET_CAPABILITIES_V4_OUT_FLAGS1_OFST):
+		return nic_data->datapath_caps & BIT_ULL(flag);
+	case(MC_CMD_GET_CAPABILITIES_V4_OUT_FLAGS2_OFST):
+		return nic_data->datapath_caps2 & BIT_ULL(flag);
+	default:
+		return 0;
+	}
+}
+
 #define EF10_OFFLOAD_FEATURES		\
 	(NETIF_F_IP_CSUM |		\
 	 NETIF_F_HW_VLAN_CTAG_FILTER |	\
@@ -4073,6 +4089,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
 			    1 << HWTSTAMP_FILTER_ALL,
 	.rx_hash_key_size = 40,
+	.check_caps = ef10_check_caps,
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
@@ -4208,4 +4225,5 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
 			    1 << HWTSTAMP_FILTER_ALL,
 	.rx_hash_key_size = 40,
+	.check_caps = ef10_check_caps,
 };
