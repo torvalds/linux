@@ -9810,7 +9810,7 @@ module_exit(md_exit)
 
 static int get_ro(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%d", start_readonly);
+	return sprintf(buffer, "%d\n", start_readonly);
 }
 static int set_ro(const char *val, const struct kernel_param *kp)
 {
