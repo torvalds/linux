@@ -9,7 +9,7 @@ thermal_sys-y			+= thermal_core.o thermal_sysfs.o \
 
 # interface to/from other layers providing sensors
 thermal_sys-$(CONFIG_THERMAL_HWMON)		+= thermal_hwmon.o
-thermal_sys-$(CONFIG_THERMAL_OF)		+= of-thermal.o
+thermal_sys-$(CONFIG_THERMAL_OF)		+= thermal_of.o
 
 # governors
 thermal_sys-$(CONFIG_THERMAL_GOV_FAIR_SHARE)	+= gov_fair_share.o
