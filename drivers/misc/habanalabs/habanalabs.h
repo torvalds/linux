@@ -1210,6 +1210,16 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_AND(reg, and) WREG32_P(reg, 0, and)
 #define WREG32_OR(reg, or) WREG32_P(reg, or, ~(or))
 
+#define RMWREG32(reg, val, mask)				\
+	do {							\
+		u32 tmp_ = RREG32(reg);				\
+		tmp_ &= ~(mask);				\
+		tmp_ |= ((val) << __ffs(mask));			\
+		WREG32(reg, tmp_);				\
+	} while (0)
+
+#define RREG32_MASK(reg, mask) ((RREG32(reg) & mask) >> __ffs(mask))
+
 #define REG_FIELD_SHIFT(reg, field) reg##_##field##_SHIFT
 #define REG_FIELD_MASK(reg, field) reg##_##field##_MASK
 #define WREG32_FIELD(reg, offset, field, val)	\
@@ -1399,6 +1409,8 @@ struct hl_device_idle_busy_ts {
  * @idle_busy_ts_idx: index of current entry in idle_busy_ts_arr
  * @id: device minor.
  * @id_control: minor of the control device
+ * @cpu_pci_msb_addr: 50-bit extension bits for the device CPU's 40-bit
+ *                    addresses.
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
@@ -1412,6 +1424,7 @@ struct hl_device_idle_busy_ts {
  *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
+ * @mmu_huge_page_opt: is MMU huge pages optimization enabled.
  * @clock_gating: is clock gating enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
@@ -1489,6 +1502,7 @@ struct hl_device {
 	u32				idle_busy_ts_idx;
 	u16				id;
 	u16				id_control;
+	u16				cpu_pci_msb_addr;
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;
@@ -1503,7 +1517,7 @@ struct hl_device {
 	u8				device_cpu_disabled;
 	u8				dma_mask;
 	u8				in_debug;
-	u8                              power9_64bit_dma_enable;
+	u8				power9_64bit_dma_enable;
 	u8				cdev_sysfs_created;
 	u8				stop_on_err;
 	u8				supports_sync_stream;
@@ -1511,11 +1525,18 @@ struct hl_device {
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
+	u8				mmu_huge_page_opt;
 	u8				cpu_enable;
 	u8				reset_pcilink;
 	u8				cpu_queues_enable;
 	u8				fw_loading;
 	u8				pldm;
+	u8				axi_drain;
+	u8				sram_scrambler_enable;
+	u8				dram_scrambler_enable;
+	u8				hard_reset_on_fw_events;
+	u8				bmc_enable;
+	u8				rl_enable;
 };
 
 
@@ -1685,6 +1706,7 @@ struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 void hl_sob_reset_error(struct kref *ref);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
+void gaudi_set_asic_funcs(struct hl_device *hdev);
 
 int hl_vm_ctx_init(struct hl_ctx *ctx);
 void hl_vm_ctx_fini(struct hl_ctx *ctx);
