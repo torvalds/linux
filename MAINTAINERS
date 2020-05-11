@@ -12423,6 +12423,15 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/ov2685.c
 
+OMNIVISION OV2740 SENSOR DRIVER
+M:	Tianshu Qiu <tian.shu.qiua@intel.com>
+R:	Shawn Tu <shawnx.tu@intel.com>
+R:	Bingbu Cao <bingbu.cao@intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/i2c/ov2740.c
+
 OMNIVISION OV5640 SENSOR DRIVER
 M:	Steve Longerbeam <slongerbeam@gmail.com>
 L:	linux-media@vger.kernel.org
