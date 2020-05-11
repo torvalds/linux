@@ -1541,6 +1541,18 @@ config GPIO_VIPERBOARD
 
 endmenu
 
+config GPIO_AGGREGATOR
+	tristate "GPIO Aggregator"
+	help
+	  Say yes here to enable the GPIO Aggregator, which provides a way to
+	  aggregate existing GPIO lines into a new virtual GPIO chip.
+	  This can serve the following purposes:
+	    - Assign permissions for a collection of GPIO lines to a user,
+	    - Export a collection of GPIO lines to a virtual machine,
+	    - Provide a generic driver for a GPIO-operated device in an
+	      industrial control context, to be operated from userspace using
+	      the GPIO chardev interface.
+
 config GPIO_MOCKUP
 	tristate "GPIO Testing Driver"
 	select IRQ_SIM
