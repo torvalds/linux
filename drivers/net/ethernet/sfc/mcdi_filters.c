@@ -186,7 +186,6 @@ static void efx_mcdi_filter_push_prep(struct efx_nic *efx,
 				      struct efx_rss_context *ctx,
 				      bool replacing)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u32 flags = spec->flags;
 
 	memset(inbuf, 0, MC_CMD_FILTER_OP_EXT_IN_LEN);
@@ -211,7 +210,7 @@ static void efx_mcdi_filter_push_prep(struct efx_nic *efx,
 		efx_mcdi_filter_push_prep_set_match_fields(efx, spec, inbuf);
 	}
 
-	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, efx->vport_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_DEST,
 		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
 		       MC_CMD_FILTER_OP_IN_RX_DEST_DROP :
@@ -1944,7 +1943,7 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 		return -EOPNOTSUPP;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
-		       nic_data->vport_id);
+		       efx->vport_id);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE, alloc_type);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, rss_spread);
 
