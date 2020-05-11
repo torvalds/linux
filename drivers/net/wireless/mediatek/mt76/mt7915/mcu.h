@@ -951,12 +951,20 @@ enum {
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct tlv) +		\
 					 sizeof(struct sta_rec_muru) +	\
-					 sizeof(struct sta_rec_sec) +	\
-					 sizeof(struct sta_rec_ra) +	\
 					 MT7915_WTBL_UPDATE_MAX_SIZE)
 
 #define MT7915_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
 					 sizeof(struct wtbl_ba))
+
+#define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
+					 sizeof(struct bss_info_omac) +	\
+					 sizeof(struct bss_info_basic) +\
+					 sizeof(struct bss_info_rf_ch) +\
+					 sizeof(struct bss_info_ra) +	\
+					 sizeof(struct bss_info_he) +	\
+					 sizeof(struct bss_info_bmc_rate) +\
+					 sizeof(struct bss_info_ext_bss) +\
+					 sizeof(struct bss_info_sync_mode))
 
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_bcn_csa) + \
