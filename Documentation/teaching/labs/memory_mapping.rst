@@ -353,8 +353,13 @@ Implement the :c:func:`mmap` driver function.
 	  To convert a physical address to its PFN, shift the address
 	  with PAGE_SHIFT bits to the right.
 
-For testing, use :file:`test/mmap-test`. If everything goes well, the test
-will show "matched" messages.
+For testing, load the kernel module and run:
+
+.. code-block:: shell
+
+  root@qemux86:~# skels/memory_mapping/test/mmap-test 1
+
+If everything goes well, the test will show "matched" messages.
 
 2. Mapping non-contiguous physical memory to userspace
 ------------------------------------------------------
@@ -364,7 +369,7 @@ Implement a device driver that maps non-contiguous physical memory
 
 Review the `Device driver memory mapping`_ section, generate the
 skeleton for the task named **vmmap** and fill in the areas marked
-with **TODO 2**.
+with **TODO 1**.
 
 Allocate a memory area of NPAGES with :c:func:`vmalloc`.
 
@@ -398,8 +403,13 @@ Implement the mmap driver function.
                Make sure the that you determine the physical address
                each time and that you use a range of one page for mapping.
 
-For testing, use *test/mmap-test*. If everything goes well the test
-will show "matched" messages.
+For testing, load the kernel module and run:
+
+.. code-block:: shell
+
+  root@qemux86:~# skels/memory_mapping/test/mmap-test 1
+
+If everything goes well, the test will show "matched" messages.
 
 3. Read / write operations in mapped memory
 -------------------------------------------
@@ -409,17 +419,17 @@ your device. This is a didactic exercise to see that the same space
 can also be used with the :c:func:`mmap` call and with :c:func:`read`
 and :c:func:`write` calls.
 
-Fill in areas marked with **TODO 3**.
+Fill in areas marked with **TODO 2**.
 
 .. note:: The offset parameter sent to the read / write operation can
           be ignored as all reads / writes from the test program will
           be done with 0 offsets.
 
-For testing run :file:`test/mmap-test` with 3 as parameter:
+For testing, load the kernel module and run:
 
 .. code-block:: shell
 
-   root@qemux86:~# skels/memory_mapping/test/mmap-test 3
+  root@qemux86:~# skels/memory_mapping/test/mmap-test 2
 
 
 4. Display memory mapped in procfs
@@ -428,7 +438,7 @@ For testing run :file:`test/mmap-test` with 3 as parameter:
 Using one of the previous modules, create a procfs file in which you
 display the total memory mapped by the calling process.
 
-Fill in the areas marked with **TODO 4**.
+Fill in the areas marked with **TODO 3**.
 
 Create a new entry in procfs (:c:macro:`PROC_ENTRY_NAME`, defined in
 :file:`mmap-test.h`) that will show the total memory mapped by the process
@@ -481,11 +491,11 @@ In :c:func:`my_seq_open` register the display function
 
 .. note:: :c:func:`single_open` can use :c:macro:`NULL` as its third argument.
 
-For testing run :file:`kmmap/mmap-test` with 4 as parameter:
+For testing, load the kernel module and run:
 
 .. code-block:: shell
 
-   root@qemux86:~# skels/memory_mapping/kmmap/mmap-test 4
+  root@qemux86:~# skels/memory_mapping/test/mmap-test 3
 
 .. note:: The test waits for a while (it has an internal sleep
           instruction). As long as the test waits, use the
