@@ -66,6 +66,9 @@
 
 #include <mm/mmu_decl.h>
 
+#include "internal.h"
+
+
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -869,6 +872,9 @@ static void __init htab_initialize(void)
 		mmu_highuser_ssize = MMU_SEGSIZE_1T;
 		printk(KERN_INFO "Using 1TB segments\n");
 	}
+
+	if (stress_slb_enabled)
+		static_branch_enable(&stress_slb_key);
 
 	/*
 	 * Calculate the required size of the htab.  We want the number of
