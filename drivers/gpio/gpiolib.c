@@ -296,6 +296,9 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
 
 /*
  * Convert a GPIO name to its descriptor
+ * Note that there is no guarantee that GPIO names are globally unique!
+ * Hence this function will return, if it exists, a reference to the first GPIO
+ * line found that matches the given name.
  */
 static struct gpio_desc *gpio_name_to_desc(const char * const name)
 {
@@ -329,10 +332,12 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 }
 
 /*
- * Takes the names from gc->names and checks if they are all unique. If they
- * are, they are assigned to their gpio descriptors.
+ * Take the names from gc->names and assign them to their GPIO descriptors.
+ * Warn if a name is already used for a GPIO line on a different GPIO chip.
  *
- * Warning if one of the names is already used for a different GPIO.
+ * Note that:
+ *   1. Non-unique names are still accepted,
+ *   2. Name collisions within the same GPIO chip are not reported.
  */
 static int gpiochip_set_desc_names(struct gpio_chip *gc)
 {
