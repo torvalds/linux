@@ -546,13 +546,11 @@ int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	cb->fence = fence;
 	i915_sw_fence_await(fence);
 
-	ret = dma_fence_add_callback(dma, &cb->base, __dma_i915_sw_fence_wake);
-	if (ret == 0) {
-		ret = 1;
-	} else {
+	ret = 1;
+	if (dma_fence_add_callback(dma, &cb->base, __dma_i915_sw_fence_wake)) {
+		/* fence already signaled */
 		__dma_i915_sw_fence_wake(dma, &cb->base);
-		if (ret == -ENOENT) /* fence already signaled */
-			ret = 0;
+		ret = 0;
 	}
 
 	return ret;
