@@ -22,6 +22,7 @@ hfi1-y := \
 	init.o \
 	intr.o \
 	iowait.o \
+	ipoib_tx.o \
 	mad.o \
 	mmu_rb.o \
 	msix.o \
