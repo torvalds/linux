@@ -521,6 +521,8 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 	rcu_read_lock();
 	cl = rcu_dereference(from->hwsp_cacheline);
+	if (i915_request_completed(from)) /* confirm cacheline is valid */
+		goto unlock;
 	if (unlikely(!i915_active_acquire_if_busy(&cl->active)))
 		goto unlock; /* seqno wrapped and completed! */
 	if (unlikely(i915_request_completed(from)))

@@ -39,6 +39,9 @@ int virtio_gpu_gem_create(struct drm_file *file,
 	int ret;
 	u32 handle;
 
+	if (vgdev->has_virgl_3d)
+		virtio_gpu_create_context(dev, file);
+
 	ret = virtio_gpu_object_create(vgdev, params, &obj, NULL);
 	if (ret < 0)
 		return ret;

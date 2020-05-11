@@ -1220,6 +1220,7 @@ struct felix_info felix_info_vsc9959 = {
 	.vcap_is2_actions	= vsc9959_vcap_is2_actions,
 	.vcap			= vsc9959_vcap_props,
 	.shared_queue_sz	= 128 * 1024,
+	.num_mact_rows		= 2048,
 	.num_ports		= 6,
 	.switch_pci_bar		= 4,
 	.imdio_pci_bar		= 0,
