@@ -57,6 +57,25 @@ static void mt7915_mac_init(struct mt7915_dev *dev)
 	mt7915_mcu_set_rts_thresh(&dev->phy, 0x92b);
 }
 
+static int mt7915_txbf_init(struct mt7915_dev *dev)
+{
+	int ret;
+
+	/*
+	 * TODO: DBDC & check whether iBF phase calibration data has
+	 * been stored in eeprom offset 0x651~0x7b8, then write down
+	 * 0x1111 into 0x651 and 0x651 to trigger iBF.
+	 */
+
+	/* trigger sounding packets */
+	ret = mt7915_mcu_set_txbf_sounding(dev);
+	if (ret)
+		return ret;
+
+	/* enable iBF & eBF */
+	return mt7915_mcu_set_txbf_type(dev);
+}
+
 static void
 mt7915_init_txpower_band(struct mt7915_dev *dev,
 			 struct ieee80211_supported_band *sband)
@@ -97,6 +116,7 @@ static void mt7915_init_work(struct work_struct *work)
 	mt7915_mcu_set_eeprom(dev);
 	mt7915_mac_init(dev);
 	mt7915_init_txpower(dev);
+	mt7915_txbf_init(dev);
 }
 
 static int mt7915_init_hardware(struct mt7915_dev *dev)

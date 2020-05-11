@@ -194,6 +194,7 @@ enum {
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
+	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
@@ -571,29 +572,10 @@ struct wtbl_ba {
 	u8 rsv1[4];
 } __packed;
 
-struct wtbl_bf {
-	__le16 tag;
-	__le16 len;
-	u8 ibf;
-	u8 ebf;
-	u8 ibf_vht;
-	u8 ebf_vht;
-	u8 gid;
-	u8 pfmu_idx;
-	u8 rsv[2];
-} __packed;
-
 struct wtbl_smps {
 	__le16 tag;
 	__le16 len;
 	u8 smps;
-	u8 rsv[3];
-} __packed;
-
-struct wtbl_spe {
-	__le16 tag;
-	__le16 len;
-	u8 spe_idx;
 	u8 rsv[3];
 } __packed;
 
@@ -834,6 +816,55 @@ struct sta_rec_ra_fixed {
 #define RATE_CFG_LDPC			GENMASK(23, 20)
 #define RATE_CFG_PHY_TYPE		GENMASK(27, 24)
 
+struct sta_rec_bf {
+	__le16 tag;
+	__le16 len;
+
+	__le16 pfmu;		/* 0xffff: no access right for PFMU */
+	bool su_mu;		/* 0: SU, 1: MU */
+	u8 bf_cap;		/* 0: iBF, 1: eBF */
+	u8 sounding_phy;	/* 0: legacy, 1: OFDM, 2: HT, 4: VHT */
+	u8 ndpa_rate;
+	u8 ndp_rate;
+	u8 rept_poll_rate;
+	u8 tx_mode;		/* 0: legacy, 1: OFDM, 2: HT, 4: VHT ... */
+	u8 nc;
+	u8 nr;
+	u8 bw;			/* 0: 20M, 1: 40M, 2: 80M, 3: 160M */
+
+	u8 mem_total;
+	u8 mem_20m;
+	struct {
+		u8 row;
+		u8 col: 6, row_msb: 2;
+	} mem[4];
+
+	__le16 smart_ant;
+	u8 se_idx;
+	u8 auto_sounding;	/* b7: low traffic indicator
+				 * b6: Stop sounding for this entry
+				 * b5 ~ b0: postpone sounding
+				 */
+	u8 ibf_timeout;
+	u8 ibf_dbw;
+	u8 ibf_ncol;
+	u8 ibf_nrow;
+	u8 nr_bw160;
+	u8 nc_bw160;
+	u8 ru_start_idx;
+	u8 ru_end_idx;
+
+	bool trigger_su;
+	bool trigger_mu;
+	bool ng16_su;
+	bool ng16_mu;
+	bool codebook42_su;
+	bool codebook75_mu;
+
+	u8 he_ltf;
+	u8 rsv[2];
+} __packed;
+
 enum {
 	STA_REC_BASIC,
 	STA_REC_RA,
@@ -890,15 +921,18 @@ enum {
 	THERMAL_SENSOR_TASK_CTRL,
 };
 
+enum {
+	MT_EBF = BIT(0),	/* explicit beamforming */
+	MT_IBF = BIT(1)		/* implicit beamforming */
+};
+
 #define MT7915_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
 					 sizeof(struct wtbl_generic) +	\
 					 sizeof(struct wtbl_rx) +	\
 					 sizeof(struct wtbl_ht) +	\
 					 sizeof(struct wtbl_vht) +	\
 					 sizeof(struct wtbl_ba) +	\
-					 sizeof(struct wtbl_bf) +	\
-					 sizeof(struct wtbl_smps) +	\
-					 sizeof(struct wtbl_spe))
+					 sizeof(struct wtbl_smps))
 
 #define MT7915_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct sta_rec_basic) +	\
