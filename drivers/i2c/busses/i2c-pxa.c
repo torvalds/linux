@@ -1102,18 +1102,20 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	return ret;
 }
 
-static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
+static int i2c_pxa_internal_xfer(struct pxa_i2c *i2c,
+				 struct i2c_msg *msgs, int num,
+				 int (*xfer)(struct pxa_i2c *,
+					     struct i2c_msg *, int num))
 {
-	struct pxa_i2c *i2c = adap->algo_data;
 	int ret, i;
 
-	for (i = adap->retries; i >= 0; i--) {
-		ret = i2c_pxa_do_xfer(i2c, msgs, num);
+	for (i = i2c->adap.retries; i >= 0; i--) {
+		ret = xfer(i2c, msgs, num);
 		if (ret != I2C_RETRY)
 			goto out;
 
 		if (i2c_debug)
-			dev_dbg(&adap->dev, "Retrying transmission\n");
+			dev_dbg(&i2c->adap.dev, "Retrying transmission\n");
 		udelay(100);
 	}
 	i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
@@ -1121,6 +1123,14 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
  out:
 	i2c_pxa_set_slave(i2c, ret);
 	return ret;
+}
+
+static int i2c_pxa_xfer(struct i2c_adapter *adap,
+			struct i2c_msg msgs[], int num)
+{
+	struct pxa_i2c *i2c = adap->algo_data;
+
+	return i2c_pxa_internal_xfer(i2c, msgs, num, i2c_pxa_do_xfer);
 }
 
 static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
@@ -1210,7 +1220,6 @@ static int i2c_pxa_pio_xfer(struct i2c_adapter *adap,
 			    struct i2c_msg msgs[], int num)
 {
 	struct pxa_i2c *i2c = adap->algo_data;
-	int ret, i;
 
 	/* If the I2C controller is disabled we need to reset it
 	  (probably due to a suspend/resume destroying state). We do
@@ -1219,20 +1228,7 @@ static int i2c_pxa_pio_xfer(struct i2c_adapter *adap,
 	if (!(readl(_ICR(i2c)) & ICR_IUE))
 		i2c_pxa_reset(i2c);
 
-	for (i = adap->retries; i >= 0; i--) {
-		ret = i2c_pxa_do_pio_xfer(i2c, msgs, num);
-		if (ret != I2C_RETRY)
-			goto out;
-
-		if (i2c_debug)
-			dev_dbg(&adap->dev, "Retrying transmission\n");
-		udelay(100);
-	}
-	i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
-	ret = -EREMOTEIO;
- out:
-	i2c_pxa_set_slave(i2c, ret);
-	return ret;
+	return i2c_pxa_internal_xfer(i2c, msgs, num, i2c_pxa_do_pio_xfer);
 }
 
 static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
