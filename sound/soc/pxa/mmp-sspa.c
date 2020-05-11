@@ -92,8 +92,8 @@ static int mmp_sspa_startup(struct snd_pcm_substream *substream,
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(dai);
 
-	clk_enable(sspa->sysclk);
-	clk_enable(sspa->clk);
+	clk_prepare_enable(sspa->sysclk);
+	clk_prepare_enable(sspa->clk);
 
 	return 0;
 }
@@ -103,8 +103,8 @@ static void mmp_sspa_shutdown(struct snd_pcm_substream *substream,
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(dai);
 
-	clk_disable(sspa->clk);
-	clk_disable(sspa->sysclk);
+	clk_disable_unprepare(sspa->clk);
+	clk_disable_unprepare(sspa->sysclk);
 
 }
 
@@ -458,7 +458,7 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 		clk_put(sspa->audio_clk);
 		return PTR_ERR(sspa->sysclk);
 	}
-	clk_enable(sspa->audio_clk);
+	clk_prepare_enable(sspa->audio_clk);
 	sspa->dai_fmt = (unsigned int) -1;
 	platform_set_drvdata(pdev, sspa);
 
@@ -485,7 +485,7 @@ static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 {
 	struct sspa_priv *sspa = platform_get_drvdata(pdev);
 
-	clk_disable(sspa->audio_clk);
+	clk_disable_unprepare(sspa->audio_clk);
 	clk_put(sspa->audio_clk);
 	clk_put(sspa->sysclk);
 	return 0;
