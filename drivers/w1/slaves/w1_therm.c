@@ -43,7 +43,20 @@
 static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 
+/* Nb of try for an operation */
+#define W1_THERM_MAX_TRY		5
+
+/* ms delay to retry bus mutex */
+#define W1_THERM_RETRY_DELAY		20
+
 /* Helpers Macros */
+
+/*
+ * return the power mode of the sl slave : 1-ext, 0-parasite, <0 unknown
+ * always test family data existence before using this macro
+ */
+#define SLAVE_POWERMODE(sl) \
+	(((struct w1_therm_family_data *)(sl->family_data))->external_powered)
 
 /* return the address of the refcnt in the family data */
 #define THERM_REFCNT(family_data) \
@@ -73,10 +86,14 @@ struct w1_therm_family_converter {
  * struct w1_therm_family_data - device data
  * @rom: ROM device id (64bit Lasered ROM code + 1 CRC byte)
  * @refcnt: ref count
+ * @external_powered:	1 device powered externally,
+ *				0 device parasite powered,
+ *				-x error or undefined
  */
 struct w1_therm_family_data {
 	uint8_t rom[9];
 	atomic_t refcnt;
+	int external_powered;
 };
 
 /**
@@ -109,6 +126,20 @@ struct therm_info {
  */
 static int reset_select_slave(struct w1_slave *sl);
 
+/**
+ * read_powermode() - Query the power mode of the slave
+ * @sl: slave to retrieve the power mode
+ *
+ * Ask the device to get its power mode (external or parasite)
+ * and store the power status in the &struct w1_therm_family_data.
+ *
+ * Return:
+ * * 0 parasite powered device
+ * * 1 externally powered device
+ * * <0 kernel error code
+ */
+static int read_powermode(struct w1_slave *sl);
+
 /* Sysfs interface declaration */
 
 static ssize_t w1_slave_show(struct device *device,
@@ -120,10 +151,14 @@ static ssize_t w1_slave_store(struct device *device,
 static ssize_t w1_seq_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
+static ssize_t ext_power_show(struct device *device,
+	struct device_attribute *attr, char *buf);
+
 /* Attributes declarations */
 
 static DEVICE_ATTR_RW(w1_slave);
 static DEVICE_ATTR_RO(w1_seq);
+static DEVICE_ATTR_RO(ext_power);
 
 /* Interface Functions declaration */
 
@@ -151,12 +186,14 @@ static void w1_therm_remove_slave(struct w1_slave *sl);
 
 static struct attribute *w1_therm_attrs[] = {
 	&dev_attr_w1_slave.attr,
+	&dev_attr_ext_power.attr,
 	NULL,
 };
 
 static struct attribute *w1_ds28ea00_attrs[] = {
 	&dev_attr_w1_slave.attr,
 	&dev_attr_w1_seq.attr,
+	&dev_attr_ext_power.attr,
 	NULL,
 };
 
@@ -433,6 +470,34 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 /* Helpers Functions */
 
 /**
+ * bus_mutex_lock() - Acquire the mutex
+ * @lock: w1 bus mutex to acquire
+ *
+ * It try to acquire the mutex W1_THERM_MAX_TRY times and wait
+ * W1_THERM_RETRY_DELAY between 2 attempts.
+ *
+ * Return: true is mutex is acquired and lock, false otherwise
+ */
+static inline bool bus_mutex_lock(struct mutex *lock)
+{
+	int max_trying = W1_THERM_MAX_TRY;
+
+	/* try to acquire the mutex, if not, sleep retry_delay before retry) */
+	while (mutex_lock_interruptible(lock) != 0 && max_trying > 0) {
+		unsigned long sleep_rem;
+
+		sleep_rem = msleep_interruptible(W1_THERM_RETRY_DELAY);
+		if (!sleep_rem)
+			max_trying--;
+	}
+
+	if (!max_trying)
+		return false;	/* Didn't acquire the bus mutex */
+
+	return true;
+}
+
+/**
  * w1_convert_temp() - temperature conversion binding function
  * @rom: data read from device RAM (8 data bytes + 1 CRC byte)
  * @fid: device family id
@@ -461,7 +526,19 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 		GFP_KERNEL);
 	if (!sl->family_data)
 		return -ENOMEM;
+
 	atomic_set(THERM_REFCNT(sl->family_data), 1);
+
+	/* Getting the power mode of the device {external, parasite} */
+	SLAVE_POWERMODE(sl) = read_powermode(sl);
+
+	if (SLAVE_POWERMODE(sl) < 0) {
+		/* no error returned as device has been added */
+		dev_warn(&sl->dev,
+			"%s: Device has been added, but power_mode may be corrupted. err=%d\n",
+			 __func__, SLAVE_POWERMODE(sl));
+	}
+
 	return 0;
 }
 
@@ -661,6 +738,44 @@ error:
 	return ret;
 }
 
+static int read_powermode(struct w1_slave *sl)
+{
+	struct w1_master *dev_master = sl->master;
+	int max_trying = W1_THERM_MAX_TRY;
+	int  ret = -ENODEV;
+
+	if (!sl->family_data)
+		goto error;
+
+	/* prevent the slave from going away in sleep */
+	atomic_inc(THERM_REFCNT(sl->family_data));
+
+	if (!bus_mutex_lock(&dev_master->bus_mutex)) {
+		ret = -EAGAIN;	/* Didn't acquire the mutex */
+		goto dec_refcnt;
+	}
+
+	while ((max_trying--) && (ret < 0)) {
+		/* safe version to select slave */
+		if (!reset_select_slave(sl)) {
+			w1_write_8(dev_master, W1_READ_PSUPPLY);
+			/*
+			 * Emit a read time slot and read only one bit,
+			 * 1 is externally powered,
+			 * 0 is parasite powered
+			 */
+			ret = w1_touch_bit(dev_master, 1);
+			/* ret should be either 1 either 0 */
+		}
+	}
+	mutex_unlock(&dev_master->bus_mutex);
+
+dec_refcnt:
+	atomic_dec(THERM_REFCNT(sl->family_data));
+error:
+	return ret;
+}
+
 /* Sysfs Interface definition */
 
 static ssize_t w1_slave_show(struct device *device,
@@ -720,6 +835,28 @@ static ssize_t w1_slave_store(struct device *device,
 		}
 	}
 	return ret ? : size;
+}
+
+static ssize_t ext_power_show(struct device *device,
+	struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+
+	if (!sl->family_data) {
+		dev_info(device,
+			"%s: Device not supported by the driver\n", __func__);
+		return 0;  /* No device family */
+	}
+
+	/* Getting the power mode of the device {external, parasite} */
+	SLAVE_POWERMODE(sl) = read_powermode(sl);
+
+	if (SLAVE_POWERMODE(sl) < 0) {
+		dev_dbg(device,
+			"%s: Power_mode may be corrupted. err=%d\n",
+			__func__, SLAVE_POWERMODE(sl));
+	}
+	return sprintf(buf, "%d\n", SLAVE_POWERMODE(sl));
 }
 
 #if IS_REACHABLE(CONFIG_HWMON)
