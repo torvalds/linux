@@ -536,6 +536,7 @@
   no_llseek
   nr_cpu_ids
   ns_capable
+  ns_to_timespec64
   ns_to_timespec
   nvmem_cell_get
   nvmem_cell_put
@@ -1133,9 +1134,6 @@
 # required by cam_flash.ko
   thermal_zone_get_cdev_by_name
 
-# required by cam_ife_csid.ko
-  ns_to_timespec64
-
 # required by cam_ife_hw_mgr.ko
   __ll_sc_atomic_fetch_add
 
@@ -1151,6 +1149,10 @@
   led_trigger_event
   led_trigger_register_simple
   led_trigger_unregister_simple
+
+# required by cam_smmu_api.ko
+  iommu_dma_enable_best_fit_algo
+  iommu_dma_reserve_iova
 
 # required by cam_utils.ko
   gpio_free_array
