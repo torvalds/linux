@@ -170,6 +170,8 @@ int drm_gem_shmem_get_pages(struct drm_gem_shmem_object *shmem)
 {
 	int ret;
 
+	WARN_ON(shmem->base.import_attach);
+
 	ret = mutex_lock_interruptible(&shmem->pages_lock);
 	if (ret)
 		return ret;
@@ -225,6 +227,8 @@ int drm_gem_shmem_pin(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
+	WARN_ON(shmem->base.import_attach);
+
 	return drm_gem_shmem_get_pages(shmem);
 }
 EXPORT_SYMBOL(drm_gem_shmem_pin);
@@ -239,6 +243,8 @@ EXPORT_SYMBOL(drm_gem_shmem_pin);
 void drm_gem_shmem_unpin(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	WARN_ON(shmem->base.import_attach);
 
 	drm_gem_shmem_put_pages(shmem);
 }
@@ -510,6 +516,8 @@ static void drm_gem_shmem_vm_open(struct vm_area_struct *vma)
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 	int ret;
 
+	WARN_ON(shmem->base.import_attach);
+
 	ret = drm_gem_shmem_get_pages(shmem);
 	WARN_ON_ONCE(ret != 0);
 
@@ -610,6 +618,8 @@ EXPORT_SYMBOL(drm_gem_shmem_print_info);
 struct sg_table *drm_gem_shmem_get_sg_table(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	WARN_ON(shmem->base.import_attach);
 
 	return drm_prime_pages_to_sg(shmem->pages, obj->size >> PAGE_SHIFT);
 }
