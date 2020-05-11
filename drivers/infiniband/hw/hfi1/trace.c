@@ -520,6 +520,38 @@ u16 hfi1_trace_get_tid_idx(u32 ent)
 	return EXP_TID_GET(ent, IDX);
 }
 
+struct hfi1_ctxt_hist {
+	atomic_t count;
+	atomic_t data[255];
+};
+
+struct hfi1_ctxt_hist hist = {
+	.count = ATOMIC_INIT(0)
+};
+
+const char *hfi1_trace_print_rsm_hist(struct trace_seq *p, unsigned int ctxt)
+{
+	int i, len = ARRAY_SIZE(hist.data);
+	const char *ret = trace_seq_buffer_ptr(p);
+	unsigned long packet_count = atomic_fetch_inc(&hist.count);
+
+	trace_seq_printf(p, "packet[%lu]", packet_count);
+	for (i = 0; i < len; ++i) {
+		unsigned long val;
+		atomic_t *count = &hist.data[i];
+
+		if (ctxt == i)
+			val = atomic_fetch_inc(count);
+		else
+			val = atomic_read(count);
+
+		if (val)
+			trace_seq_printf(p, "(%d:%lu)", i, val);
+	}
+	trace_seq_putc(p, 0);
+	return ret;
+}
+
 __hfi1_trace_fn(AFFINITY);
 __hfi1_trace_fn(PKT);
 __hfi1_trace_fn(PROC);

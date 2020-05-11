@@ -1706,6 +1706,7 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 		goto drop_no_nd;
 
 	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
+	trace_ctxt_rsm_hist(rcd->ctxt);
 
 	/* handle congestion notifications */
 	do_work = hfi1_may_ecn(packet);
