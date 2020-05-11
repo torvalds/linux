@@ -142,4 +142,9 @@ void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv);
 void hfi1_ipoib_napi_tx_enable(struct net_device *dev);
 void hfi1_ipoib_napi_tx_disable(struct net_device *dev);
 
+int hfi1_ipoib_rn_get_params(struct ib_device *device,
+			     u8 port_num,
+			     enum rdma_netdev_t type,
+			     struct rdma_netdev_alloc_params *params);
+
 #endif /* _IPOIB_H */
