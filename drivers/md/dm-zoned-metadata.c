@@ -267,6 +267,16 @@ const char *dmz_metadata_label(struct dmz_metadata *zmd)
 	return (const char *)zmd->devname;
 }
 
+bool dmz_check_dev(struct dmz_metadata *zmd)
+{
+	return dmz_check_bdev(&zmd->dev[0]);
+}
+
+bool dmz_dev_is_dying(struct dmz_metadata *zmd)
+{
+	return dmz_bdev_is_dying(&zmd->dev[0]);
+}
+
 /*
  * Lock/unlock mapping table.
  * The map lock also protects all the zone lists.
@@ -1719,7 +1729,7 @@ again:
 		/* Allocate a random zone */
 		dzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 		if (!dzone) {
-			if (dmz_bdev_is_dying(zmd->dev)) {
+			if (dmz_dev_is_dying(zmd)) {
 				dzone = ERR_PTR(-EIO);
 				goto out;
 			}
@@ -1820,7 +1830,7 @@ again:
 	/* Allocate a random zone */
 	bzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 	if (!bzone) {
-		if (dmz_bdev_is_dying(zmd->dev)) {
+		if (dmz_dev_is_dying(zmd)) {
 			bzone = ERR_PTR(-EIO);
 			goto out;
 		}
