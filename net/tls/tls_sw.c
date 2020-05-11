@@ -800,6 +800,8 @@ static int bpf_exec_tx_verdict(struct sk_msg *msg, struct sock *sk,
 			*copied -= sk_msg_free(sk, msg);
 			tls_free_open_rec(sk);
 		}
+		if (psock)
+			sk_psock_put(sk, psock);
 		return err;
 	}
 more_data:
@@ -2081,8 +2083,9 @@ static void tls_data_ready(struct sock *sk)
 	strp_data_ready(&ctx->strp);
 
 	psock = sk_psock_get(sk);
-	if (psock && !list_empty(&psock->ingress_msg)) {
-		ctx->saved_data_ready(sk);
+	if (psock) {
+		if (!list_empty(&psock->ingress_msg))
+			ctx->saved_data_ready(sk);
 		sk_psock_put(sk, psock);
 	}
 }

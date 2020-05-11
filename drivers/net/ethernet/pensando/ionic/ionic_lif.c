@@ -2101,6 +2101,7 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 		ionic_txrx_free(lif);
 	}
 	ionic_lifs_deinit(ionic);
+	ionic_reset(ionic);
 	ionic_qcqs_free(lif);
 
 	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
@@ -2116,6 +2117,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 
 	dev_info(ionic->dev, "FW Up: restarting LIFs\n");
 
+	ionic_init_devinfo(ionic);
 	err = ionic_qcqs_alloc(lif);
 	if (err)
 		goto err_out;
@@ -2549,8 +2551,6 @@ int ionic_lifs_register(struct ionic *ionic)
 		dev_err(ionic->dev, "Cannot register net device, aborting\n");
 		return err;
 	}
-
-	ionic_link_status_check_request(ionic->master_lif);
 	ionic->master_lif->registered = true;
 
 	return 0;

@@ -973,9 +973,13 @@ static inline void nvme_handle_cqe(struct nvme_queue *nvmeq, u16 idx)
 
 static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 {
-	if (++nvmeq->cq_head == nvmeq->q_depth) {
+	u16 tmp = nvmeq->cq_head + 1;
+
+	if (tmp == nvmeq->q_depth) {
 		nvmeq->cq_head = 0;
 		nvmeq->cq_phase ^= 1;
+	} else {
+		nvmeq->cq_head = tmp;
 	}
 }
 
