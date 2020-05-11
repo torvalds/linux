@@ -221,6 +221,14 @@ enum nand_ecc_algo {
 #define NAND_BBM_SECONDPAGE	BIT(25)
 #define NAND_BBM_LASTPAGE	BIT(26)
 
+/*
+ * Some controllers with pipelined ECC engines override the BBM marker with
+ * data or ECC bytes, thus making bad block detection through bad block marker
+ * impossible. Let's flag those chips so the core knows it shouldn't check the
+ * BBM and consider all blocks good.
+ */
+#define NAND_NO_BBM_QUIRK	BIT(27)
+
 /* Cell info constants */
 #define NAND_CI_CHIPNR_MSK	0x03
 #define NAND_CI_CELLTYPE_MSK	0x0C
