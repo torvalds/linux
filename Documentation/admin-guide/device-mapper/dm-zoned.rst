@@ -160,3 +160,15 @@ where <nr_zones> is the total number of zones, <nr_unmap_rnd> is the number
 of unmapped (ie free) random zones, <nr_rnd> the total number of zones,
 <nr_unmap_seq> the number of unmapped sequential zones, and <nr_seq> the
 total number of sequential zones.
+
+Normally the reclaim process will be started once there are less than 50
+percent free random zones. In order to start the reclaim process manually
+even before reaching this threshold the 'dmsetup message' function can be
+used:
+
+Ex::
+
+	dmsetup message /dev/dm-X 0 reclaim
+
+will start the reclaim process and random zones will be moved to sequential
+zones.
