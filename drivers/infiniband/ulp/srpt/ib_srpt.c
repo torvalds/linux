@@ -81,7 +81,7 @@ MODULE_PARM_DESC(srpt_srq_size,
 
 static int srpt_get_u64_x(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "0x%016llx", *(u64 *)kp->arg);
+	return sprintf(buffer, "0x%016llx\n", *(u64 *)kp->arg);
 }
 module_param_call(srpt_service_guid, NULL, srpt_get_u64_x, &srpt_service_guid,
 		  0444);
