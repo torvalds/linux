@@ -15,10 +15,13 @@
  * Defines that are asic-specific but constitutes as ABI between kernel driver
  * and userspace
  */
-#define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START	0x8000	/* 32KB */
+#define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START		0x8000	/* 32KB */
+#define GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START	0x80	/* 128 bytes */
 
+#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		48
+#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		24
 /*
- * Queue Numbering
+ * Goya queue Numbering
  *
  * The external queues (PCI DMA channels) MUST be before the internal queues
  * and each group (PCI DMA channels and internal) must be contiguous inside
@@ -46,6 +49,129 @@ enum goya_queue_id {
 };
 
 /*
+ * Gaudi queue Numbering
+ * External queues (PCI DMA channels) are DMA_0_*, DMA_1_* and DMA_5_*.
+ * Except one CPU queue, all the rest are internal queues.
+ */
+
+enum gaudi_queue_id {
+	GAUDI_QUEUE_ID_DMA_0_0 = 0,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_1 = 1,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_2 = 2,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_3 = 3,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_0 = 4,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_1 = 5,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_2 = 6,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_3 = 7,	/* external */
+	GAUDI_QUEUE_ID_CPU_PQ = 8,	/* CPU */
+	GAUDI_QUEUE_ID_DMA_2_0 = 9,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_1 = 10,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_2 = 11,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_3 = 12,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_0 = 13,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_1 = 14,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_2 = 15,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_3 = 16,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_0 = 17,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_1 = 18,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_2 = 19,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_3 = 20,	/* internal */
+	GAUDI_QUEUE_ID_DMA_5_0 = 21,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_1 = 22,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_2 = 23,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_3 = 24,	/* external */
+	GAUDI_QUEUE_ID_DMA_6_0 = 25,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_1 = 26,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_2 = 27,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_3 = 28,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_0 = 29,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_1 = 30,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_2 = 31,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_3 = 32,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_0 = 33,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_1 = 34,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_2 = 35,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_3 = 36,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_0 = 37,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_1 = 38,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_2 = 39,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_3 = 40,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_0 = 41,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_1 = 42,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_2 = 43,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_3 = 44,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_0 = 45,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_1 = 46,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_2 = 47,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_3 = 48,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_0 = 49,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_1 = 50,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_2 = 51,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_3 = 52,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_0 = 53,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_1 = 54,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_2 = 55,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_3 = 56,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_0 = 57,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_1 = 58,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_2 = 59,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_3 = 60,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_0 = 61,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_1 = 62,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_2 = 63,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_3 = 64,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_0 = 65,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_1 = 66,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_2 = 67,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_3 = 68,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_0 = 69,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_1 = 70,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_2 = 71,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_3 = 72,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_0 = 73,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_1 = 74,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_2 = 75,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_3 = 76,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_0 = 77,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_1 = 78,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_2 = 79,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_3 = 80,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_0 = 81,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_1 = 82,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_2 = 83,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_3 = 84,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_0 = 85,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_1 = 86,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_2 = 87,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_3 = 88,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_0 = 89,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_1 = 90,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_2 = 91,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_3 = 92,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_0 = 93,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_1 = 94,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_2 = 95,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_3 = 96,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_0 = 97,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_1 = 98,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_2 = 99,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_3 = 100,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_0 = 101,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_1 = 102,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_2 = 103,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_3 = 104,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_0 = 105,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_1 = 106,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_2 = 107,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_3 = 108,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_0 = 109,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_1 = 110,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_2 = 111,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_3 = 112,	/* internal */
+	GAUDI_QUEUE_ID_SIZE
+};
+
+/*
  * Engine Numbering
  *
  * Used in the "busy_engines_mask" field in `struct hl_info_hw_idle'
@@ -67,6 +193,40 @@ enum goya_engine_id {
 	GOYA_ENGINE_ID_TPC_6,
 	GOYA_ENGINE_ID_TPC_7,
 	GOYA_ENGINE_ID_SIZE
+};
+
+enum gaudi_engine_id {
+	GAUDI_ENGINE_ID_DMA_0 = 0,
+	GAUDI_ENGINE_ID_DMA_1,
+	GAUDI_ENGINE_ID_DMA_2,
+	GAUDI_ENGINE_ID_DMA_3,
+	GAUDI_ENGINE_ID_DMA_4,
+	GAUDI_ENGINE_ID_DMA_5,
+	GAUDI_ENGINE_ID_DMA_6,
+	GAUDI_ENGINE_ID_DMA_7,
+	GAUDI_ENGINE_ID_MME_0,
+	GAUDI_ENGINE_ID_MME_1,
+	GAUDI_ENGINE_ID_MME_2,
+	GAUDI_ENGINE_ID_MME_3,
+	GAUDI_ENGINE_ID_TPC_0,
+	GAUDI_ENGINE_ID_TPC_1,
+	GAUDI_ENGINE_ID_TPC_2,
+	GAUDI_ENGINE_ID_TPC_3,
+	GAUDI_ENGINE_ID_TPC_4,
+	GAUDI_ENGINE_ID_TPC_5,
+	GAUDI_ENGINE_ID_TPC_6,
+	GAUDI_ENGINE_ID_TPC_7,
+	GAUDI_ENGINE_ID_NIC_0,
+	GAUDI_ENGINE_ID_NIC_1,
+	GAUDI_ENGINE_ID_NIC_2,
+	GAUDI_ENGINE_ID_NIC_3,
+	GAUDI_ENGINE_ID_NIC_4,
+	GAUDI_ENGINE_ID_NIC_5,
+	GAUDI_ENGINE_ID_NIC_6,
+	GAUDI_ENGINE_ID_NIC_7,
+	GAUDI_ENGINE_ID_NIC_8,
+	GAUDI_ENGINE_ID_NIC_9,
+	GAUDI_ENGINE_ID_SIZE
 };
 
 enum hl_device_status {
