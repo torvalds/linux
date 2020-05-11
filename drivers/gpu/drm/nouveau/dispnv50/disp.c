@@ -2373,7 +2373,8 @@ nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 	struct drm_encoder *encoder;
 	struct drm_plane *plane;
 
-	core->func->init(core);
+	if (resume || runtime)
+		core->func->init(core);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
@@ -2459,6 +2460,8 @@ nv50_display_create(struct drm_device *dev)
 	ret = nv50_core_new(drm, &disp->core);
 	if (ret)
 		goto out;
+
+	disp->core->func->init(disp->core);
 
 	/* Assign the correct format modifiers */
 	if (disp->disp->object.oclass >= TU102_DISP)
