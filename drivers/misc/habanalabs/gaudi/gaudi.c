@@ -3245,6 +3245,8 @@ static int gaudi_hw_init(struct hl_device *hdev)
 	if (rc)
 		return rc;
 
+	gaudi_init_security(hdev);
+
 	gaudi_init_mme_qmans(hdev);
 
 	gaudi_init_tpc_qmans(hdev);
