@@ -332,9 +332,9 @@ static inline void *offset_to_ptr(const int *off)
 
 /*
  * Yes, this permits 64-bit accesses on 32-bit architectures. These will
- * actually be atomic in many cases (namely x86), but for others we rely on
- * the access being split into 2x32-bit accesses for a 32-bit quantity (e.g.
- * a virtual address) and a strong prevailing wind.
+ * actually be atomic in some cases (namely Armv7 + LPAE), but for others we
+ * rely on the access being split into 2x32-bit accesses for a 32-bit quantity
+ * (e.g. a virtual address) and a strong prevailing wind.
  */
 #define compiletime_assert_rwonce_type(t)					\
 	compiletime_assert(__native_word(t) || sizeof(t) == sizeof(long long),	\
