@@ -248,4 +248,9 @@ struct gaudi_device {
 	u8				ext_queue_idx;
 };
 
+void gaudi_add_device_attr(struct hl_device *hdev,
+			struct attribute_group *dev_attr_grp);
+void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
+
 #endif /* GAUDIP_H_ */
