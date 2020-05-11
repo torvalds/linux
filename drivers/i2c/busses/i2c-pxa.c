@@ -1161,10 +1161,8 @@ static int i2c_pxa_pio_set_master(struct pxa_i2c *i2c)
 	/*
 	 * Wait for the bus to become free.
 	 */
-	while (timeout-- && readl(_ISR(i2c)) & (ISR_IBB | ISR_UB)) {
+	while (timeout-- && readl(_ISR(i2c)) & (ISR_IBB | ISR_UB))
 		udelay(1000);
-		show_state(i2c);
-	}
 
 	if (timeout < 0) {
 		show_state(i2c);
