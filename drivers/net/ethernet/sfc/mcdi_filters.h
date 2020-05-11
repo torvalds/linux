@@ -79,11 +79,18 @@ struct efx_mcdi_filter_table {
 	bool must_restore_rss_contexts;
 	/* filters have yet to be restored after MC reboot */
 	bool must_restore_filters;
+	/* Multicast filter chaining allows less-specific filters to receive
+	 * multicast packets that matched more-specific filters.  Early EF10
+	 * firmware didn't support this (SF bug 26807); if mc_chaining == false
+	 * then we still subscribe the dev_mc_list even when mc_promisc to
+	 * prevent another VI stealing the traffic.
+	 */
+	bool mc_chaining;
 	bool vlan_filter;
 	struct list_head vlan_list;
 };
 
-int efx_mcdi_filter_table_probe(struct efx_nic *efx);
+int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining);
 void efx_mcdi_filter_table_remove(struct efx_nic *efx);
 void efx_mcdi_filter_table_restore(struct efx_nic *efx);
 

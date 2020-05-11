@@ -2388,6 +2388,76 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	}
 }
 
+static int efx_ef10_probe_multicast_chaining(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int enabled, implemented;
+	bool want_workaround_26807;
+	int rc;
+
+	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
+	if (rc == -ENOSYS) {
+		/* GET_WORKAROUNDS was implemented before this workaround,
+		 * thus it must be unavailable in this firmware.
+		 */
+		nic_data->workaround_26807 = false;
+		return 0;
+	}
+	if (rc)
+		return rc;
+	want_workaround_26807 =
+		implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807;
+	nic_data->workaround_26807 =
+		!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
+
+	if (want_workaround_26807 && !nic_data->workaround_26807) {
+		unsigned int flags;
+
+		rc = efx_mcdi_set_workaround(efx,
+					     MC_CMD_WORKAROUND_BUG26807,
+					     true, &flags);
+		if (!rc) {
+			if (flags &
+			    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
+				netif_info(efx, drv, efx->net_dev,
+					   "other functions on NIC have been reset\n");
+
+				/* With MCFW v4.6.x and earlier, the
+				 * boot count will have incremented,
+				 * so re-read the warm_boot_count
+				 * value now to ensure this function
+				 * doesn't think it has changed next
+				 * time it checks.
+				 */
+				rc = efx_ef10_get_warm_boot_count(efx);
+				if (rc >= 0) {
+					nic_data->warm_boot_count = rc;
+					rc = 0;
+				}
+			}
+			nic_data->workaround_26807 = true;
+		} else if (rc == -EPERM) {
+			rc = 0;
+		}
+	}
+	return rc;
+}
+
+static int efx_ef10_filter_table_probe(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc = efx_ef10_probe_multicast_chaining(efx);
+
+	if (rc)
+		return rc;
+	rc = efx_mcdi_filter_table_probe(efx, nic_data->workaround_26807);
+
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 /* This creates an entry in the RX descriptor queue */
 static inline void
 efx_ef10_build_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
@@ -2463,75 +2533,14 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_ef10_nic_data *nic_data;
-	unsigned int enabled, implemented;
 	bool use_v2, cut_thru;
-	int rc;
 
 	nic_data = efx->nic_data;
 	use_v2 = nic_data->datapath_caps2 &
 			    1 << MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_LBN;
 	cut_thru = !(nic_data->datapath_caps &
 			      1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN);
-	rc = efx_mcdi_ev_init(channel, cut_thru, use_v2);
-
-	/* IRQ return is ignored */
-	if (channel->channel || rc)
-		return rc;
-
-	/* Successfully created event queue on channel 0 */
-	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
-	if (rc == -ENOSYS) {
-		/* GET_WORKAROUNDS was implemented before this workaround,
-		 * thus it must be unavailable in this firmware.
-		 */
-		nic_data->workaround_26807 = false;
-		rc = 0;
-	} else if (rc) {
-		goto fail;
-	} else {
-		nic_data->workaround_26807 =
-			!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
-
-		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
-		    !nic_data->workaround_26807) {
-			unsigned int flags;
-
-			rc = efx_mcdi_set_workaround(efx,
-						     MC_CMD_WORKAROUND_BUG26807,
-						     true, &flags);
-
-			if (!rc) {
-				if (flags &
-				    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
-					netif_info(efx, drv, efx->net_dev,
-						   "other functions on NIC have been reset\n");
-
-					/* With MCFW v4.6.x and earlier, the
-					 * boot count will have incremented,
-					 * so re-read the warm_boot_count
-					 * value now to ensure this function
-					 * doesn't think it has changed next
-					 * time it checks.
-					 */
-					rc = efx_ef10_get_warm_boot_count(efx);
-					if (rc >= 0) {
-						nic_data->warm_boot_count = rc;
-						rc = 0;
-					}
-				}
-				nic_data->workaround_26807 = true;
-			} else if (rc == -EPERM) {
-				rc = 0;
-			}
-		}
-	}
-
-	if (!rc)
-		return 0;
-
-fail:
-	efx_mcdi_ev_fini(channel);
-	return rc;
+	return efx_mcdi_ev_init(channel, cut_thru, use_v2);
 }
 
 static void efx_ef10_handle_rx_wrong_queue(struct efx_rx_queue *rx_queue,
@@ -3185,7 +3194,7 @@ restore_vadaptor:
 		goto reset_nic;
 restore_filters:
 	down_write(&efx->filter_sem);
-	rc2 = efx_mcdi_filter_table_probe(efx);
+	rc2 = efx_ef10_filter_table_probe(efx);
 	up_write(&efx->filter_sem);
 	if (rc2)
 		goto reset_nic;
@@ -3227,7 +3236,7 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
 				sizeof(inbuf), NULL, 0, NULL);
 
-	efx_mcdi_filter_table_probe(efx);
+	efx_ef10_filter_table_probe(efx);
 	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 
@@ -4041,7 +4050,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.ev_process = efx_ef10_ev_process,
 	.ev_read_ack = efx_ef10_ev_read_ack,
 	.ev_test_generate = efx_ef10_ev_test_generate,
-	.filter_table_probe = efx_mcdi_filter_table_probe,
+	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
 	.filter_table_remove = efx_mcdi_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,
@@ -4154,7 +4163,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ev_process = efx_ef10_ev_process,
 	.ev_read_ack = efx_ef10_ev_read_ack,
 	.ev_test_generate = efx_ef10_ev_test_generate,
-	.filter_table_probe = efx_mcdi_filter_table_probe,
+	.filter_table_probe = efx_ef10_filter_table_probe,
 	.filter_table_restore = efx_mcdi_filter_table_restore,
 	.filter_table_remove = efx_mcdi_filter_table_remove,
 	.filter_update_rx_scatter = efx_mcdi_update_rx_scatter,

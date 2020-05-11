@@ -811,7 +811,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 				      enum efx_encap_type encap_type,
 				      bool multicast, bool rollback)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
@@ -896,7 +896,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 
 		EFX_WARN_ON_PARANOID(*id != EFX_EF10_FILTER_ID_INVALID);
 		*id = efx_mcdi_filter_get_unsafe_id(rc);
-		if (!nic_data->workaround_26807 && !encap_type) {
+		if (!table->mc_chaining && !encap_type) {
 			/* Also need an Ethernet broadcast filter */
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 					   filter_flags, 0);
@@ -962,7 +962,6 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 					      struct efx_mcdi_filter_vlan *vlan)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 	/*
 	 * Do not install unspecified VID if VLAN filtering is enabled.
@@ -1009,11 +1008,10 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 	 * If changing promiscuous state with cascaded multicast filters, remove
 	 * old filters first, so that packets are dropped rather than duplicated
 	 */
-	if (nic_data->workaround_26807 &&
-	    table->mc_promisc_last != table->mc_promisc)
+	if (table->mc_chaining && table->mc_promisc_last != table->mc_promisc)
 		efx_mcdi_filter_remove_old(efx);
 	if (table->mc_promisc) {
-		if (nic_data->workaround_26807) {
+		if (table->mc_chaining) {
 			/*
 			 * If we failed to insert promiscuous filters, rollback
 			 * and fall back to individual multicast filters
@@ -1048,7 +1046,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 		 */
 		if (efx_mcdi_filter_insert_addr_list(efx, vlan, true, true)) {
 			/* Changing promisc state, so remove old filters */
-			if (nic_data->workaround_26807)
+			if (table->mc_chaining)
 				efx_mcdi_filter_remove_old(efx);
 			if (efx_mcdi_filter_insert_def(efx, vlan,
 						       EFX_ENCAP_TYPE_NONE,
@@ -1285,7 +1283,7 @@ efx_mcdi_filter_table_probe_matches(struct efx_nic *efx,
 	return 0;
 }
 
-int efx_mcdi_filter_table_probe(struct efx_nic *efx)
+int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
@@ -1303,6 +1301,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx)
 	if (!table)
 		return -ENOMEM;
 
+	table->mc_chaining = multicast_chaining;
 	table->rx_match_count = 0;
 	rc = efx_mcdi_filter_table_probe_matches(efx, table, false);
 	if (rc)
