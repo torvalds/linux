@@ -413,6 +413,10 @@ enum cif_reg_index {
 #define CSI_CONFIG_FIFO_OVERFLOW	(0x1 << 18)
 #define CSI_BANDWIDTH_LACK		(0x1 << 19)
 #define CSI_RX_FIFO_OVERFLOW		(0x1 << 20)
+#define CSI_LINE_ID0_INTST		(0x1 << 21)
+#define CSI_LINE_ID1_INTST		(0x1 << 22)
+#define CSI_LINE_ID2_INTST		(0x1 << 23)
+#define CSI_LINE_ID3_INTST		(0x1 << 24)
 
 #define CSI_FRAME_END_ID0	(CSI_FRAME0_END_ID0 |\
 				 CSI_FRAME1_END_ID0)
@@ -426,6 +430,10 @@ enum cif_reg_index {
 				 CSI_DMA_UV_FIFO_OVERFLOW |	\
 				 CSI_CONFIG_FIFO_OVERFLOW |	\
 				 CSI_RX_FIFO_OVERFLOW)
+/* CIF_MIPI_LVDS_CTRL */
+#define CIF_MIPI_LVDS_SW_DMA_IDLE		(0x1 << 16)
+#define CIF_MIPI_LVDS_SW_PRESS_VALUE(val)	(((val) & 0x3) << 13)
+#define CIF_MIPI_LVDS_SW_SEL_LVDS		(0x1 << 8)
 
 /* CSI Host Registers Define */
 #define CSIHOST_N_LANES		0x04

@@ -748,6 +748,10 @@ static const struct cif_reg rv1126_cif_regs[] = {
 	[CIF_REG_MIPI_LVDS_FRAME1_VLW_UV_ID3] = CIF_REG(CIF_CSI_FRM1_VLW_UV_ID3),
 	[CIF_REG_MIPI_LVDS_INTEN] = CIF_REG(CIF_CSI_INTEN),
 	[CIF_REG_MIPI_LVDS_INTSTAT] = CIF_REG(CIF_CSI_INTSTAT),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1] = CIF_REG(CIF_CSI_LINE_INT_NUM_ID0_1),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3] = CIF_REG(CIF_CSI_LINE_INT_NUM_ID2_3),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1] = CIF_REG(CIF_CSI_LINE_CNT_ID0_1),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID2_3] = CIF_REG(CIF_CSI_LINE_CNT_ID2_3),
 	[CIF_REG_MIPI_LVDS_ID0_CROP_START] = CIF_REG(CIF_CSI_ID0_CROP_START),
 	[CIF_REG_MIPI_LVDS_ID1_CROP_START] = CIF_REG(CIF_CSI_ID1_CROP_START),
 	[CIF_REG_MIPI_LVDS_ID2_CROP_START] = CIF_REG(CIF_CSI_ID2_CROP_START),
@@ -1038,6 +1042,8 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	cif_dev->cif_regs = data->cif_regs;
+	cif_dev->has_get_hdr = false;
+	cif_dev->hdr.mode = NO_HDR;
 
 	mutex_init(&cif_dev->stream_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);

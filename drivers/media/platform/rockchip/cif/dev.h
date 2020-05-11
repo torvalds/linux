@@ -15,6 +15,7 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
+#include <linux/rk-camera-module.h>
 #include "regs.h"
 #include "version.h"
 
@@ -49,6 +50,15 @@
 
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
+
+/*
+ * for HDR mode sync buf
+ */
+#define RDBK_MAX		3
+#define RDBK_L			0
+#define RDBK_M			1
+#define RDBK_S			2
+
 
 #define write_cif_reg(base, addr, val) writel(val, (addr) + (base))
 #define read_cif_reg(base, addr) readl((addr) + (base))
@@ -144,6 +154,7 @@ struct rkcif_sensor_info {
  * @cplanes: number of colour planes
  * @fmt_val: the fmt val corresponding to CIF_FOR register
  * @bpp: bits per pixel for each cplanes
+ * @raw_bpp: bits per pixel for raw format
  */
 struct cif_output_fmt {
 	u32 fourcc;
@@ -151,6 +162,7 @@ struct cif_output_fmt {
 	u8 mplanes;
 	u32 fmt_val;
 	u8 bpp[VIDEO_MAX_PLANES];
+	u8 raw_bpp;
 };
 
 enum cif_fmt_type {
@@ -204,6 +216,13 @@ struct rkcif_vdev_node {
 enum cif_frame_ready {
 	CIF_CSI_FRAME0_READY = 0x1,
 	CIF_CSI_FRAME1_READY
+};
+
+/* struct rkcif_hdr - hdr configured
+ * @op_mode: hdr optional mode
+ */
+struct rkcif_hdr {
+	u8 mode;
 };
 
 /*
@@ -299,6 +318,7 @@ struct rkcif_device {
 	struct rkcif_sensor_info	sensors[RKCIF_MAX_SENSOR];
 	u32				num_sensors;
 	struct rkcif_sensor_info	*active_sensor;
+	struct v4l2_subdev		*mipi_sensor;
 
 	struct rkcif_stream		stream[RKCIF_MULTI_STREAMS_NUM];
 	struct rkcif_pipeline		pipe;
@@ -308,9 +328,13 @@ struct rkcif_device {
 	int				chip_id;
 	atomic_t			stream_cnt;
 	atomic_t			fh_cnt;
-	struct mutex                    stream_lock; /* lock between streams */
+	struct mutex			stream_lock; /* lock between streams */
 	enum rkcif_workmode		workmode;
-	const struct cif_reg *cif_regs;
+	const struct cif_reg		*cif_regs;
+	bool				has_get_hdr;
+	bool				can_be_reset;
+	struct rkcif_hdr		hdr;
+	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
 };
 
 void rkcif_write_register(struct rkcif_device *dev,

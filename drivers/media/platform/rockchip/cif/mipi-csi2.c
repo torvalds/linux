@@ -17,7 +17,9 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-event.h>
 
+#include "mipi-csi2.h"
 /*
  * there must be 5 pads: 1 input pad from sensor, and
  * the 4 virtual channel output pads
@@ -91,6 +93,7 @@ struct csi2_dev {
 	struct csi2_sensor	sensors[MAX_CSI2_SENSORS];
 	const struct csi2_match_data	*match_data;
 	int num_sensors;
+	atomic_t frm_sync_seq;
 };
 
 #define DEVICE_NAME "rockchip-mipi-csi2"
@@ -114,6 +117,8 @@ struct csi2_dev {
 
 #define write_csihost_reg(base, addr, val)  writel(val, (addr) + (base))
 #define read_csihost_reg(base, addr) readl((addr) + (base))
+
+static struct csi2_dev *g_csi2_dev;
 
 static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
 {
@@ -213,6 +218,7 @@ static int csi2_start(struct csi2_dev *csi2)
 	if (ret)
 		goto err_assert_reset;
 
+	atomic_set(&csi2->frm_sync_seq, 0);
 	return 0;
 
 err_assert_reset:
@@ -371,6 +377,32 @@ static const struct media_entity_operations csi2_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+void rkcif_csi2_event_inc_sof(void)
+{
+	if (g_csi2_dev) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence =
+				atomic_inc_return(&g_csi2_dev->frm_sync_seq) - 1,
+		};
+		v4l2_event_queue(g_csi2_dev->sd.devnode, &event);
+	}
+}
+
+static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+					     struct v4l2_event_subscription *sub)
+{
+	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+		return -EINVAL;
+
+	return v4l2_event_subscribe(fh, sub, 0, NULL);
+}
+
+static const struct v4l2_subdev_core_ops csi2_core_ops = {
+	.subscribe_event = rkcif_csi2_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops csi2_video_ops = {
 	.g_mbus_config = csi2_g_mbus_config,
 	.s_stream = csi2_s_stream,
@@ -382,6 +414,7 @@ static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops csi2_subdev_ops = {
+	.core = &csi2_core_ops,
 	.video = &csi2_video_ops,
 	.pad = &csi2_pad_ops,
 };
@@ -607,7 +640,7 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->sd.entity.ops = &csi2_entity_ops;
 	csi2->sd.dev = &pdev->dev;
 	csi2->sd.owner = THIS_MODULE;
-	csi2->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	ret = strscpy(csi2->sd.name, DEVICE_NAME, sizeof(csi2->sd.name));
 	platform_set_drvdata(pdev, &csi2->sd);
 	/* csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE; */
@@ -675,7 +708,8 @@ static int csi2_probe(struct platform_device *pdev)
 	ret = csi2_notifier(csi2);
 	if (ret)
 		goto rmmutex;
-	v4l2_info(&csi2->sd, "probe success!\n");
+	v4l2_info(&csi2->sd, "probe success, v4l2_dev:%s!\n", csi2->sd.v4l2_dev->name);
+	g_csi2_dev = csi2;
 
 	return 0;
 

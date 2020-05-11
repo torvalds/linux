@@ -17,6 +17,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "dev.h"
+#include "mipi-csi2.h"
 
 #define CIF_REQ_BUFS_MIN	1
 #define CIF_MIN_WIDTH		64
@@ -132,66 +133,79 @@ static const struct cif_output_fmt out_fmts[] = {
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
+		.raw_bpp = 8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
+		.raw_bpp = 8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
+		.raw_bpp = 8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
+		.raw_bpp = 8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR16,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 16,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y16,
 		.cplanes = 1,
@@ -365,6 +379,37 @@ static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream)
 	return media_entity_to_v4l2_subdev(sensor_me);
 }
 
+static void get_remote_mipi_sensor(struct rkcif_stream *stream,
+				   struct v4l2_subdev **sensor_sd)
+{
+	struct media_graph graph;
+	struct media_entity *entity = &stream->vnode.vdev.entity;
+	struct media_device *mdev = entity->graph_obj.mdev;
+	int ret;
+
+	/* Walk the graph to locate sensor nodes. */
+	mutex_lock(&mdev->graph_mutex);
+	ret = media_graph_walk_init(&graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		*sensor_sd = NULL;
+		return;
+	}
+
+	media_graph_walk_start(&graph, entity);
+	while ((entity = media_graph_walk_next(&graph))) {
+		if (entity->function == MEDIA_ENT_F_CAM_SENSOR)
+			break;
+	}
+	mutex_unlock(&mdev->graph_mutex);
+	media_graph_walk_cleanup(&graph);
+
+	if (entity)
+		*sensor_sd = media_entity_to_v4l2_subdev(entity);
+	else
+		*sensor_sd = NULL;
+}
+
 static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 					      struct v4l2_subdev *sd)
 {
@@ -394,6 +439,8 @@ static int rkcif_update_sensor_info(struct rkcif_stream *stream)
 		return ret;
 	stream->cifdev->active_sensor = sensor;
 
+	get_remote_mipi_sensor(stream, &stream->cifdev->mipi_sensor);
+
 	return ret;
 }
 
@@ -412,6 +459,12 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 	case MEDIA_BUS_FMT_SGRBG10_1X10:
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
 		return 0x2b;
+	/* csi raw12 */
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
+		return 0x2c;
 	/* csi uyvy 422 */
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 	case MEDIA_BUS_FMT_VYUY8_2X8:
@@ -1060,7 +1113,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	} else {
 		channel->width = stream->pixm.width;
 		channel->height = stream->pixm.height;
-		channel->crop_en = 1;
+		channel->crop_en = 0;
 	}
 
 	fmt = find_output_fmt(stream, stream->pixm.pixelformat);
@@ -1070,7 +1123,16 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		return -EINVAL;
 	}
 
-	channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
+	if (dev->hdr.mode == NO_HDR) {
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
+		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
+			channel->virtual_width = ALIGN(channel->width * 2, 8);
+		else
+			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
+	} else {
+		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
+	}
+
 	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
 		channel->width = channel->width * fmt->bpp[0] / 8;
 	/*
@@ -1113,6 +1175,17 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 				 CSI_DMA_END_INTSTAT(channel->id) |
 				 CSI_LINE_INTSTAT(channel->id)));
 
+	/* enable mipi id0 frame start int for sof(long frame) */
+	if (dev->hdr.mode != NO_HDR &&
+	    channel->id == RKCIF_STREAM_MIPI_ID0)
+		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
+					CSI_START_INTEN(channel->id));
+
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1,
+			     0x3fff << 16 | 0x3fff);
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3,
+			     0x3fff << 16 | 0x3fff);
+
 	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 				CSI_DMA_END_INTEN(channel->id));
 
@@ -1145,6 +1218,9 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 	val = CSI_ENABLE_CAPTURE | channel->fmt_val |
 	      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
 	      channel->id << 8 | channel->data_type << 10 ;
+
+	if (dev->hdr.mode != NO_HDR)
+		val |= CSI_ENABLE_MIPI_COMPACT;
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
 
 	return 0;
@@ -1157,6 +1233,7 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream)
 	struct csi_channel_info *channel;
 
 	stream->frame_idx = 0;
+
 	rkcif_csi_get_vc_num(dev, flags);
 
 	channel = &dev->channels[stream->id];
@@ -1173,26 +1250,29 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream)
 
 static void rkcif_stream_stop(struct rkcif_stream *stream)
 {
-	struct rkcif_device *cif_dev = stream->cifdev;
-	void __iomem *base = cif_dev->base_addr;
 	u32 val;
 	int id;
+	struct rkcif_device *cif_dev = stream->cifdev;
 
 	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
 		id = stream->id;
-		val = read_cif_reg(base, CIF_CSI_ID0_CTRL0 + 0x8 * id);
-		write_cif_reg(base, CIF_CSI_ID0_CTRL0 + 0x8 * id,
-			      (val & (~CSI_ENABLE_CAPTURE)));
-		write_cif_reg_or(base, CIF_CSI_INTSTAT,
-				 CSI_START_INTSTAT(id) |
-				 CSI_DMA_END_INTSTAT(id) |
-				 CSI_LINE_INTSTAT(id));
-		write_cif_reg_and(base, CIF_CSI_INTEN,
-				  ~(CSI_START_INTEN(id) |
-				  CSI_DMA_END_INTEN(id) |
-				  CSI_LINE_INTEN(id)));
-		write_cif_reg_and(base, CIF_CSI_INTEN,
-				  ~CSI_ALL_ERROR_INTEN);
+		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(id));
+		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(id),
+				     val & (~CSI_ENABLE_CAPTURE));
+
+		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT,
+					CSI_START_INTSTAT(id) |
+					CSI_DMA_END_INTSTAT(id) |
+					CSI_LINE_INTSTAT(id));
+
+		rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
+					 ~(CSI_START_INTEN(id) |
+					   CSI_DMA_END_INTEN(id) |
+					   CSI_LINE_INTEN(id)));
+
+		rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
+					~CSI_ALL_ERROR_INTEN);
+
 	} else {
 		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
@@ -1332,6 +1412,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_buffer *buf = NULL;
+	unsigned int val;
 	int ret;
 
 	mutex_lock(&dev->stream_lock);
@@ -1360,6 +1441,29 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	    stream->next_buf != stream->curr_buf)
 		list_add_tail(&stream->next_buf->queue, &stream->buf_head);
 
+	if (dev->hdr.mode != NO_HDR) {
+		unsigned int index;
+		struct rkcif_buffer *tmp_buf;
+		bool has_added = false;
+		for (index = 0; index < RDBK_MAX; index++) {
+			if (dev->rdbk_buf[index]) {
+				if (dev->rdbk_buf[index] != stream->curr_buf &&
+				    dev->rdbk_buf[index] != stream->next_buf) {
+					list_for_each_entry(tmp_buf, &stream->buf_head, queue) {
+						if (tmp_buf == dev->rdbk_buf[index]) {
+							has_added = true;
+							break;
+						}
+					}
+					if (!has_added)
+						list_add_tail(&dev->rdbk_buf[index]->queue,
+							      &stream->buf_head);
+				}
+				dev->rdbk_buf[index] = NULL;
+			}
+		}
+	}
+
 	stream->curr_buf = NULL;
 	stream->next_buf = NULL;
 
@@ -1374,9 +1478,35 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 
 	ret = dev->pipe.close(&dev->pipe);
 	if (ret < 0)
-		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n",
-			 ret);
-	rkcif_soft_reset(dev, false);
+		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
+
+	if (dev->hdr.mode == HDR_X2) {
+		if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
+			dev->can_be_reset = true;
+		}
+	} else if (dev->hdr.mode == HDR_X3) {
+		if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID2].state == RKCIF_STATE_READY) {
+			dev->can_be_reset = true;
+		}
+	} else {
+		dev->can_be_reset = true;
+	}
+
+	if (dev->can_be_reset) {
+		if (dev->hdr.mode != NO_HDR) {
+			val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
+			val |= CIF_MIPI_LVDS_SW_DMA_IDLE;
+			rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
+			usleep_range(5, 10);
+			rkcif_soft_reset(dev, false);
+		} else {
+			rkcif_soft_reset(dev, false);
+		}
+		dev->can_be_reset = false;
+	}
 	pm_runtime_put(dev->dev);
 
 	mutex_unlock(&dev->stream_lock);
@@ -1663,6 +1793,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
+	struct rkmodule_hdr_cfg hdr_cfg;
 	/* struct v4l2_subdev *sd; */
 	int ret;
 
@@ -1681,6 +1812,19 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 				 "update sensor info failed %d\n",
 				 ret);
 			goto out;
+		}
+	}
+
+	if (dev->mipi_sensor) {
+		if (!dev->has_get_hdr) {
+			ret = v4l2_subdev_call(dev->mipi_sensor,
+					       core, ioctl,
+					       RKMODULE_GET_HDR_CFG,
+					       &hdr_cfg);
+			if (!ret) {
+				dev->hdr.mode = hdr_cfg.hdr_mode;
+				dev->has_get_hdr = true;
+			}
 		}
 	}
 
@@ -1814,6 +1958,8 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	struct v4l2_rect input_rect;
 	unsigned int imagesize = 0, planes;
 	u32 xsubs = 1, ysubs = 1, i;
+	struct rkmodule_hdr_cfg hdr_cfg;
+	int ret;
 
 	fmt = find_output_fmt(stream, pixm->pixelformat);
 	if (!fmt)
@@ -1825,6 +1971,19 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	if (dev->active_sensor && dev->active_sensor->sd)
 		get_input_fmt(dev->active_sensor->sd,
 			      &input_rect, stream->id + 1);
+
+	if (dev->mipi_sensor) {
+		if (!dev->has_get_hdr) {
+			ret = v4l2_subdev_call(dev->mipi_sensor,
+					       core, ioctl,
+					       RKMODULE_GET_HDR_CFG,
+					       &hdr_cfg);
+			if (!ret) {
+				dev->hdr.mode = hdr_cfg.hdr_mode;
+				dev->has_get_hdr = true;
+			}
+		}
+	}
 
 	/* CIF has not scale function,
 	 * the size should not be larger than input
@@ -1854,8 +2013,13 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		bpp = rkcif_align_bits_per_pixel(fmt, i);
-		bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
+		if (dev->hdr.mode == NO_HDR) {
+			bpp = rkcif_align_bits_per_pixel(fmt, i);
+			bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
+		} else {
+			/* compact mode need bytesperline 4byte align */
+			bpl = ALIGN(width * fmt->raw_bpp / 8, 4);
+		}
 		size = bpl * height;
 		imagesize += size;
 
@@ -1980,7 +2144,6 @@ static int rkcif_fh_release(struct file *filp)
 	else if (atomic_read(&cifdev->fh_cnt) < 0)
 		atomic_set(&cifdev->fh_cnt, 0);
 	mutex_unlock(&cifdev->stream_lock);
-	stream->cifdev->active_sensor = NULL;
 
 	return ret;
 }
@@ -2405,10 +2568,11 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 		rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS,
 				     cif_frmst & FRM0_STAT_CLS);
 
-		if (vb_done)
-			rkcif_vb_done_oneframe(stream, vb_done);
-
 		stream->frame_idx++;
+		if (vb_done) {
+			vb_done->sequence = stream->frame_idx;
+			rkcif_vb_done_oneframe(stream, vb_done);
+		}
 	}
 }
 
@@ -2446,10 +2610,72 @@ static int rkcif_csi_g_mipi_id(struct v4l2_device *v4l2_dev,
 	return -EINVAL;
 }
 
+static void rdbk_frame_end(struct rkcif_stream *stream)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	u64 l_ts, s_ts;
+
+	if (stream->id != RKCIF_STREAM_MIPI_ID1)
+		return;
+
+	if (dev->hdr.mode == HDR_X3) {
+		/* TODO: HDR_X3 */
+	} else if (dev->hdr.mode == HDR_X2) {
+		if (dev->rdbk_buf[RDBK_L] && dev->rdbk_buf[RDBK_S]) {
+			l_ts = dev->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
+			s_ts = dev->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
+
+			if ((s_ts - l_ts) > 30000000LL || s_ts < l_ts) {
+				v4l2_err(&dev->v4l2_dev,
+					 "HDR_X2:timestamp is not match (%lld, %lld)\n",
+					 l_ts, s_ts);
+				goto RDBK_FRM_UNMATCH;
+			}
+
+			dev->rdbk_buf[RDBK_S]->vb.sequence =
+				dev->rdbk_buf[RDBK_L]->vb.sequence;
+			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_L]->vb);
+			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_S]->vb);
+		} else {
+			if (!dev->rdbk_buf[RDBK_L])
+				v4l2_err(&dev->v4l2_dev, "lost long frames\n");
+			if (!dev->rdbk_buf[RDBK_S])
+				v4l2_err(&dev->v4l2_dev, "lost short frames\n");
+			goto RDBK_FRM_UNMATCH;
+		}
+	} else {
+		rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_S]->vb);
+	}
+
+	dev->rdbk_buf[RDBK_L] = NULL;
+	dev->rdbk_buf[RDBK_M] = NULL;
+	dev->rdbk_buf[RDBK_S] = NULL;
+	return;
+
+RDBK_FRM_UNMATCH:
+	if (dev->rdbk_buf[RDBK_L]) {
+		dev->rdbk_buf[RDBK_L]->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+		rkcif_buf_queue(&dev->rdbk_buf[RDBK_L]->vb.vb2_buf);
+	}
+	if (dev->rdbk_buf[RDBK_M]) {
+		dev->rdbk_buf[RDBK_M]->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+		rkcif_buf_queue(&dev->rdbk_buf[RDBK_M]->vb.vb2_buf);
+	}
+	if (dev->rdbk_buf[RDBK_S]) {
+		dev->rdbk_buf[RDBK_S]->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+		rkcif_buf_queue(&dev->rdbk_buf[RDBK_S]->vb.vb2_buf);
+	}
+
+	dev->rdbk_buf[RDBK_L] = NULL;
+	dev->rdbk_buf[RDBK_M] = NULL;
+	dev->rdbk_buf[RDBK_S] = NULL;
+}
+
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 {
 	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
+	struct rkcif_buffer *active_buf = NULL;
 	void __iomem *base = cif_dev->base_addr;
 	unsigned int intstat, i = 0xff;
 
@@ -2462,6 +2688,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 		intstat = read_cif_reg(base, CIF_CSI_INTSTAT);
 		lastline = read_cif_reg(base, CIF_CSI_LINE_CNT_ID0_1);
+
 		/* clear all interrupts that has been triggered */
 		write_cif_reg(base, CIF_CSI_INTSTAT, intstat);
 
@@ -2474,17 +2701,27 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 		if (intstat & CSI_BANDWIDTH_LACK) {
 			v4l2_err(&cif_dev->v4l2_dev,
-				 "ERROR: csi bandwidth lack!!\n");
+				 "ERROR: csi bandwidth lack, intstat:0x%x!!\n",
+				 intstat);
 			return;
 		}
 
-		mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev, intstat);
-		if (mipi_id < 0) {
+		if (intstat & CSI_ALL_ERROR_INTEN) {
 			v4l2_err(&cif_dev->v4l2_dev,
-				 "ERROR: irq[%d] is invalid: 0x%x, lastline: %d, return!!!\n",
-				 i, intstat, lastline & 0x3fff);
+				 "ERROR: CSI_ALL_ERROR_INTEN:0x%x!!\n", intstat);
 			return;
 		}
+
+		if (intstat & CSI_FRAME0_START_ID0)
+			rkcif_csi2_event_inc_sof();
+
+		if (intstat & CSI_FRAME1_START_ID0)
+			rkcif_csi2_event_inc_sof();
+
+		/* if do not reach frame dma end, return irq */
+		mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev, intstat);
+		if (mipi_id < 0)
+			return;
 
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev,
@@ -2506,41 +2743,70 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			switch (mipi_id) {
 			case RKCIF_STREAM_MIPI_ID0:
-				stream->frame_phase =
-							SW_FRM_END_ID0(intstat);
+				stream->frame_phase = SW_FRM_END_ID0(intstat);
 				intstat &= ~CSI_FRAME_END_ID0;
 				break;
 			case RKCIF_STREAM_MIPI_ID1:
-				stream->frame_phase =
-							SW_FRM_END_ID1(intstat);
+				stream->frame_phase = SW_FRM_END_ID1(intstat);
 				intstat &= ~CSI_FRAME_END_ID1;
 				break;
 			case RKCIF_STREAM_MIPI_ID2:
-				stream->frame_phase =
-							SW_FRM_END_ID2(intstat);
+				stream->frame_phase = SW_FRM_END_ID2(intstat);
 				intstat &= ~CSI_FRAME_END_ID2;
 				break;
 			case RKCIF_STREAM_MIPI_ID3:
-				stream->frame_phase =
-							SW_FRM_END_ID3(intstat);
+				stream->frame_phase = SW_FRM_END_ID3(intstat);
 				intstat &= ~CSI_FRAME_END_ID3;
 				break;
 			}
 
+			stream->frame_idx++;
+
+			active_buf = NULL;
 			if (stream->frame_phase & CIF_CSI_FRAME1_READY) {
 				if (stream->next_buf)
-					vb_done = &stream->next_buf->vb;
+					active_buf = stream->next_buf;
 			} else if (stream->frame_phase & CIF_CSI_FRAME0_READY) {
 				if (stream->curr_buf)
-					vb_done = &stream->curr_buf->vb;
+					active_buf = stream->curr_buf;
 			}
 
 			rkcif_assign_new_buffer_pingpong(stream, 0, mipi_id);
 
-			if (vb_done)
-				rkcif_vb_done_oneframe(stream, vb_done);
+			if (active_buf) {
+				vb_done = &active_buf->vb;
+				vb_done->vb2_buf.timestamp = ktime_get_ns();
+				vb_done->sequence = stream->frame_idx;
+			}
 
-			stream->frame_idx++;
+			if (cif_dev->hdr.mode == NO_HDR) {
+				if (active_buf)
+					rkcif_vb_done_oneframe(stream, vb_done);
+			} else if (cif_dev->hdr.mode == HDR_X2) {
+				if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
+					if (cif_dev->rdbk_buf[RDBK_L]) {
+						v4l2_err(&cif_dev->v4l2_dev,
+							 "multiple long data in hdr frame,frm_idx:%d,state:0x%x\n",
+							 stream->frame_idx,
+							 cif_dev->rdbk_buf[RDBK_L]->vb.vb2_buf.state);
+						cif_dev->rdbk_buf[RDBK_L]->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+						rkcif_buf_queue(&cif_dev->rdbk_buf[RDBK_L]->vb.vb2_buf);
+					}
+					cif_dev->rdbk_buf[RDBK_L] = active_buf;
+				} else if (mipi_id == RKCIF_STREAM_MIPI_ID1) {
+					if (cif_dev->rdbk_buf[RDBK_S]) {
+						v4l2_err(&cif_dev->v4l2_dev,
+							 "multiple short data in hdr frame, state:0x%x\n",
+							 cif_dev->rdbk_buf[RDBK_S]->vb.vb2_buf.state);
+						cif_dev->rdbk_buf[RDBK_S]->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+						rkcif_buf_queue(&cif_dev->rdbk_buf[RDBK_S]->vb.vb2_buf);
+					}
+					cif_dev->rdbk_buf[RDBK_S] = active_buf;
+					rdbk_frame_end(stream);
+				}
+			} else if (cif_dev->hdr.mode == HDR_X3) {
+				/*TODO: HDR_X3*/
+			}
 		}
 	} else {
 		u32 lastline, lastpix, ctl, cif_frmst, frmid;
@@ -2620,10 +2886,11 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			rkcif_assign_new_buffer_oneframe(stream,
 							 RKCIF_YUV_ADDR_STATE_UPDATE);
 
-			if (vb_done)
-				rkcif_vb_done_oneframe(stream, vb_done);
-
 			stream->frame_idx++;
+			if (vb_done) {
+				vb_done->sequence = stream->frame_idx;
+				rkcif_vb_done_oneframe(stream, vb_done);
+			}
 		}
 	}
 }
