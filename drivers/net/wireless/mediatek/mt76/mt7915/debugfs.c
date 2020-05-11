@@ -143,6 +143,48 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);
 }
 
+static void
+mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
+{
+	struct mt7915_dev *dev = s->private;
+	bool ext_phy = phy != &dev->phy;
+	int cnt;
+
+	if (!phy)
+		return;
+
+	/* Tx Beamformer monitor */
+	seq_puts(s, "\nTx Beamformer applied PPDU counts: ");
+
+	cnt = mt76_rr(dev, MT_ETBF_TX_APP_CNT(ext_phy));
+	seq_printf(s, "iBF: %ld, eBF: %ld\n",
+		   FIELD_GET(MT_ETBF_TX_IBF_CNT, cnt),
+		   FIELD_GET(MT_ETBF_TX_EBF_CNT, cnt));
+
+	/* Tx Beamformer Rx feedback monitor */
+	seq_puts(s, "Tx Beamformer Rx feedback statistics: ");
+
+	cnt = mt76_rr(dev, MT_ETBF_RX_FB_CNT(ext_phy));
+	seq_printf(s, "All: %ld, HE: %ld, VHT: %ld, HT: %ld\n",
+		   FIELD_GET(MT_ETBF_RX_FB_ALL, cnt),
+		   FIELD_GET(MT_ETBF_RX_FB_HE, cnt),
+		   FIELD_GET(MT_ETBF_RX_FB_VHT, cnt),
+		   FIELD_GET(MT_ETBF_RX_FB_HT, cnt));
+
+	/* Tx Beamformee Rx NDPA & Tx feedback report */
+	cnt = mt76_rr(dev, MT_ETBF_TX_NDP_BFRP(ext_phy));
+	seq_printf(s, "Tx Beamformee sucessful feedback frames: %ld\n",
+		   FIELD_GET(MT_ETBF_TX_FB_CPL, cnt));
+	seq_printf(s, "Tx Beamformee feedback triggerd counts: %ld\n",
+		   FIELD_GET(MT_ETBF_TX_FB_TRI, cnt));
+
+	/* Tx SU counters */
+	cnt = mt76_rr(dev, MT_MIB_DR11(ext_phy));
+	seq_printf(s, "Tx single-user sucessful MPDU counts: %d\n", cnt);
+
+	seq_puts(s, "\n");
+}
+
 static int
 mt7915_tx_stats_read(struct seq_file *file, void *data)
 {
@@ -150,7 +192,10 @@ mt7915_tx_stats_read(struct seq_file *file, void *data)
 	int stat[8], i, n;
 
 	mt7915_ampdu_stat_read_phy(&dev->phy, file);
+	mt7915_txbf_stat_read_phy(&dev->phy, file);
+
 	mt7915_ampdu_stat_read_phy(mt7915_ext_phy(dev), file);
+	mt7915_txbf_stat_read_phy(mt7915_ext_phy(dev), file);
 
 	/* Tx amsdu info */
 	seq_puts(file, "Tx MSDU stat:\n");
