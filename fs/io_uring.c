@@ -5364,7 +5364,7 @@ static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 	struct fixed_file_table *table;
 
 	table = &ctx->file_data->table[index >> IORING_FILE_TABLE_SHIFT];
-	return table->files[index & IORING_FILE_TABLE_MASK];;
+	return table->files[index & IORING_FILE_TABLE_MASK];
 }
 
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
