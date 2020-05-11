@@ -82,6 +82,12 @@ struct hfi1_ctxtdata *hfi1_netdev_get_ctxt(struct hfi1_devdata *dd, int ctxt)
 	return priv->rxq[ctxt].rcd;
 }
 
+void hfi1_netdev_enable_queues(struct hfi1_devdata *dd);
+void hfi1_netdev_disable_queues(struct hfi1_devdata *dd);
+int hfi1_netdev_rx_init(struct hfi1_devdata *dd);
+int hfi1_netdev_rx_destroy(struct hfi1_devdata *dd);
+int hfi1_netdev_alloc(struct hfi1_devdata *dd);
+void hfi1_netdev_free(struct hfi1_devdata *dd);
 int hfi1_netdev_add_data(struct hfi1_devdata *dd, int id, void *data);
 void *hfi1_netdev_remove_data(struct hfi1_devdata *dd, int id);
 void *hfi1_netdev_get_data(struct hfi1_devdata *dd, int id);

@@ -19,15 +19,30 @@ static u32 qpn_from_mac(u8 *mac_arr)
 static int hfi1_ipoib_dev_init(struct net_device *dev)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
+	int ret;
 
 	priv->netstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 
-	return priv->netdev_ops->ndo_init(dev);
+	ret = priv->netdev_ops->ndo_init(dev);
+	if (ret)
+		return ret;
+
+	ret = hfi1_netdev_add_data(priv->dd,
+				   qpn_from_mac(priv->netdev->dev_addr),
+				   dev);
+	if (ret < 0) {
+		priv->netdev_ops->ndo_uninit(dev);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void hfi1_ipoib_dev_uninit(struct net_device *dev)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
+
+	hfi1_netdev_remove_data(priv->dd, qpn_from_mac(priv->netdev->dev_addr));
 
 	priv->netdev_ops->ndo_uninit(dev);
 }
@@ -55,6 +70,7 @@ static int hfi1_ipoib_dev_open(struct net_device *dev)
 		priv->qp = qp;
 		rcu_read_unlock();
 
+		hfi1_netdev_enable_queues(priv->dd);
 		hfi1_ipoib_napi_tx_enable(dev);
 	}
 
@@ -69,6 +85,7 @@ static int hfi1_ipoib_dev_stop(struct net_device *dev)
 		return 0;
 
 	hfi1_ipoib_napi_tx_disable(dev);
+	hfi1_netdev_disable_queues(priv->dd);
 
 	rvt_put_qp(priv->qp);
 	priv->qp = NULL;
@@ -195,6 +212,7 @@ static void hfi1_ipoib_netdev_dtor(struct net_device *dev)
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 
 	hfi1_ipoib_txreq_deinit(priv);
+	hfi1_ipoib_rxq_deinit(priv->netdev);
 
 	free_percpu(priv->netstats);
 }
@@ -252,6 +270,13 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 		return rc;
 	}
 
+	rc = hfi1_ipoib_rxq_init(netdev);
+	if (rc) {
+		dd_dev_err(dd, "IPoIB netdev RX init - failed(%d)\n", rc);
+		hfi1_ipoib_free_rdma_netdev(netdev);
+		return rc;
+	}
+
 	netdev->priv_destructor = hfi1_ipoib_netdev_dtor;
 	netdev->needs_free_netdev = true;
 
@@ -268,7 +293,7 @@ int hfi1_ipoib_rn_get_params(struct ib_device *device,
 	if (type != RDMA_NETDEV_IPOIB)
 		return -EOPNOTSUPP;
 
-	if (!HFI1_CAP_IS_KSET(AIP))
+	if (!HFI1_CAP_IS_KSET(AIP) || !dd->num_netdev_contexts)
 		return -EOPNOTSUPP;
 
 	if (!port_num || port_num > dd->num_pports)
@@ -276,6 +301,7 @@ int hfi1_ipoib_rn_get_params(struct ib_device *device,
 
 	params->sizeof_priv = sizeof(struct hfi1_ipoib_rdma_netdev);
 	params->txqs = dd->num_sdma;
+	params->rxqs = dd->num_netdev_contexts;
 	params->param = NULL;
 	params->initialize_rdma_netdev = hfi1_ipoib_setup_rn;
 
