@@ -601,7 +601,7 @@ static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_module		= THIS_MODULE,
 };
 
-bool i_am_nfsd()
+bool i_am_nfsd(void)
 {
 	return kthread_func(current) == nfsd;
 }
