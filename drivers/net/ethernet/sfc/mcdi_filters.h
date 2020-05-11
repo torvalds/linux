@@ -55,6 +55,8 @@ struct efx_mcdi_filter_table {
 	u32 rx_match_mcdi_flags[
 		MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_MAXNUM * 2];
 	unsigned int rx_match_count;
+	/* Our RSS context is exclusive (as opposed to shared) */
+	bool rx_rss_context_exclusive;
 
 	struct rw_semaphore lock; /* Protects entries */
 	struct {
