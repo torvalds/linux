@@ -134,7 +134,7 @@ void __init fsverity_check_hash_algs(void);
 
 /* init.c */
 
-extern void __printf(3, 4) __cold
+void __printf(3, 4) __cold
 fsverity_msg(const struct inode *inode, const char *level,
 	     const char *fmt, ...);
 
