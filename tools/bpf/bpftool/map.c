@@ -1589,7 +1589,8 @@ static int do_help(int argc, char **argv)
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
 		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
-		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage }\n"
+		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage |\n"
+		"                 queue | stack | sk_storage | struct_ops }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
