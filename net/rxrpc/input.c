@@ -91,11 +91,11 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		/* We analyse the number of packets that get ACK'd per RTT
 		 * period and increase the window if we managed to fill it.
 		 */
-		if (call->peer->rtt_usage == 0)
+		if (call->peer->rtt_count == 0)
 			goto out;
 		if (ktime_before(skb->tstamp,
-				 ktime_add_ns(call->cong_tstamp,
-					      call->peer->rtt)))
+				 ktime_add_us(call->cong_tstamp,
+					      call->peer->srtt_us >> 3)))
 			goto out_no_clear_ca;
 		change = rxrpc_cong_rtt_window_end;
 		call->cong_tstamp = skb->tstamp;

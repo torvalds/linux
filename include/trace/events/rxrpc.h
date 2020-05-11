@@ -1112,18 +1112,17 @@ TRACE_EVENT(rxrpc_rtt_tx,
 TRACE_EVENT(rxrpc_rtt_rx,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		     rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
-		     s64 rtt, u8 nr, s64 avg),
+		     u32 rtt, u32 rto),
 
-	    TP_ARGS(call, why, send_serial, resp_serial, rtt, nr, avg),
+	    TP_ARGS(call, why, send_serial, resp_serial, rtt, rto),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(enum rxrpc_rtt_rx_trace,	why		)
-		    __field(u8,				nr		)
 		    __field(rxrpc_serial_t,		send_serial	)
 		    __field(rxrpc_serial_t,		resp_serial	)
-		    __field(s64,			rtt		)
-		    __field(u64,			avg		)
+		    __field(u32,			rtt		)
+		    __field(u32,			rto		)
 			     ),
 
 	    TP_fast_assign(
@@ -1132,18 +1131,16 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		    __entry->send_serial = send_serial;
 		    __entry->resp_serial = resp_serial;
 		    __entry->rtt = rtt;
-		    __entry->nr = nr;
-		    __entry->avg = avg;
+		    __entry->rto = rto;
 			   ),
 
-	    TP_printk("c=%08x %s sr=%08x rr=%08x rtt=%lld nr=%u avg=%lld",
+	    TP_printk("c=%08x %s sr=%08x rr=%08x rtt=%u rto=%u",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_rtt_rx_traces),
 		      __entry->send_serial,
 		      __entry->resp_serial,
 		      __entry->rtt,
-		      __entry->nr,
-		      __entry->avg)
+		      __entry->rto)
 	    );
 
 TRACE_EVENT(rxrpc_timer,
