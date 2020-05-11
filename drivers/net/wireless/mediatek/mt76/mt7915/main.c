@@ -47,14 +47,12 @@ static int mt7915_start(struct ieee80211_hw *hw)
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	if (running)
-		goto out;
-
-	mt7915_mac_reset_counters(phy);
-
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(hw, &phy->mac_work,
 				     MT7915_WATCHDOG_TIME);
-out:
+
+	if (!running)
+		mt7915_mac_reset_counters(phy);
+
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
@@ -64,6 +62,8 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 {
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+
+	cancel_delayed_work_sync(&phy->mac_work);
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -75,8 +75,6 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 	}
 
 	if (!mt7915_dev_running(dev)) {
-		cancel_delayed_work_sync(&dev->mt76.mac_work);
-
 		mt7915_mcu_set_pm(dev, 0, 1);
 		mt7915_mcu_set_mac(dev, 0, false, false);
 	}
@@ -230,7 +228,7 @@ static int mt7915_set_channel(struct mt7915_phy *phy)
 	struct mt7915_dev *dev = phy->dev;
 	int ret;
 
-	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	cancel_delayed_work_sync(&phy->mac_work);
 
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &phy->mt76->state);
@@ -254,7 +252,7 @@ out:
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_txq_schedule_all(phy->mt76);
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
 				     MT7915_WATCHDOG_TIME);
 
 	return ret;

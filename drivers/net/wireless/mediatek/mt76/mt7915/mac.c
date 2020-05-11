@@ -1156,26 +1156,32 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 /* system error recovery */
 void mt7915_mac_reset_work(struct work_struct *work)
 {
+	struct mt7915_phy *phy2;
+	struct mt76_phy *ext_phy;
 	struct mt7915_dev *dev;
 
 	dev = container_of(work, struct mt7915_dev, reset_work);
+	ext_phy = dev->mt76.phy2;
+	phy2 = ext_phy ? ext_phy->priv : NULL;
 
 	if (!(READ_ONCE(dev->reset_state) & MT_MCU_CMD_STOP_DMA))
 		return;
 
 	ieee80211_stop_queues(mt76_hw(dev));
-	if (dev->mt76.phy2)
-		ieee80211_stop_queues(dev->mt76.phy2->hw);
+	if (ext_phy)
+		ieee80211_stop_queues(ext_phy->hw);
 
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
-	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	cancel_delayed_work_sync(&dev->phy.mac_work);
+	if (phy2)
+		cancel_delayed_work_sync(&phy2->mac_work);
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
-	if (dev->mt76.phy2)
-		mt76_txq_schedule_all(dev->mt76.phy2);
+	if (ext_phy)
+		mt76_txq_schedule_all(ext_phy);
 
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	napi_disable(&dev->mt76.napi[0]);
@@ -1211,8 +1217,8 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	napi_schedule(&dev->mt76.napi[2]);
 
 	ieee80211_wake_queues(mt76_hw(dev));
-	if (dev->mt76.phy2)
-		ieee80211_wake_queues(dev->mt76.phy2->hw);
+	if (ext_phy)
+		ieee80211_wake_queues(ext_phy->hw);
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
 	mt7915_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
@@ -1221,8 +1227,11 @@ void mt7915_mac_reset_work(struct work_struct *work)
 
 	mt7915_update_beacons(dev);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->phy.mac_work,
 				     MT7915_WATCHDOG_TIME);
+	if (phy2)
+		ieee80211_queue_delayed_work(ext_phy->hw, &phy2->mac_work,
+					     MT7915_WATCHDOG_TIME);
 }
 
 static void
@@ -1307,25 +1316,25 @@ void mt7915_mac_sta_stats_work(struct work_struct *work)
 
 void mt7915_mac_work(struct work_struct *work)
 {
-	struct mt7915_dev *dev;
+	struct mt7915_phy *phy;
+	struct mt76_dev *mdev;
 
-	dev = (struct mt7915_dev *)container_of(work, struct mt76_dev,
+	phy = (struct mt7915_phy *)container_of(work, struct mt7915_phy,
 						mac_work.work);
+	mdev = &phy->dev->mt76;
 
-	mutex_lock(&dev->mt76.mutex);
-	mt76_update_survey(&dev->mt76);
-	if (++dev->mac_work_count == 5) {
-		struct mt7915_phy *ext_phy = mt7915_ext_phy(dev);
+	mutex_lock(&mdev->mutex);
 
-		mt7915_mac_update_mib_stats(&dev->phy);
-		if (ext_phy)
-			mt7915_mac_update_mib_stats(ext_phy);
+	mt76_update_survey(mdev);
+	if (++phy->mac_work_count == 5) {
+		phy->mac_work_count = 0;
 
-		dev->mac_work_count = 0;
+		mt7915_mac_update_mib_stats(phy);
 	}
-	mutex_unlock(&dev->mt76.mutex);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	mutex_unlock(&mdev->mutex);
+
+	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
 				     MT7915_WATCHDOG_TIME);
 }
 

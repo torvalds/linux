@@ -141,6 +141,9 @@ struct mt7915_phy {
 	u32 ampdu_ref;
 
 	struct mib_stats mib;
+
+	struct delayed_work mac_work;
+	u8 mac_work_count;
 };
 
 struct mt7915_dev {
@@ -168,7 +171,6 @@ struct mt7915_dev {
 
 	s8 **rate_power; /* TODO: use mt76_rate_power */
 
-	u8 mac_work_count;
 	bool fw_debug;
 };
 
