@@ -243,7 +243,7 @@ int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 	/* Allocate MTT entry */
 	ret = hns_roce_alloc_mtt_range(hr_dev, mtt->order, &mtt->first_seg,
 				       mtt->mtt_type);
-	if (ret == -1)
+	if (ret)
 		return -ENOMEM;
 
 	return 0;

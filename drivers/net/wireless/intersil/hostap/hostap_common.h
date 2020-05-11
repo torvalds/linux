@@ -322,7 +322,7 @@ struct prism2_download_param {
 		u32 addr; /* wlan card address */
 		u32 len;
 		void __user *ptr; /* pointer to data in user space */
-	} data[0];
+	} data[];
 };
 
 #define PRISM2_MAX_DOWNLOAD_AREA_LEN 131072

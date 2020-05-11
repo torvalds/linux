@@ -1,7 +1,0 @@
-GiantPlus GPG48273QS5 4.3" (480x272) WQVGA TFT LCD panel
-
-Required properties:
-- compatible: should be "giantplus,gpg48273qs5"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

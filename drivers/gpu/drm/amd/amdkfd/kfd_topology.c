@@ -490,6 +490,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.num_sdma_queues_per_engine);
 	sysfs_show_32bit_prop(buffer, "num_cp_queues",
 			dev->node_props.num_cp_queues);
+	sysfs_show_64bit_prop(buffer, "unique_id",
+			dev->node_props.unique_id);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1318,7 +1320,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_gws = (hws_gws_support &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
-	dev->node_props.num_cp_queues = get_queues_num(dev->gpu->dqm);
+	dev->node_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);
+	dev->node_props.unique_id = gpu->unique_id;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);

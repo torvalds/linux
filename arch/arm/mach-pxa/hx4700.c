@@ -556,7 +556,6 @@ static struct platform_device hx4700_lcd = {
 static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness = 200,
 	.dft_brightness = 100,
-	.enable_gpio    = -1,
 };
 
 static struct platform_device backlight = {

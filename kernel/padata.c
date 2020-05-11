@@ -512,7 +512,7 @@ static int padata_replace_one(struct padata_shell *ps)
 static int padata_replace(struct padata_instance *pinst)
 {
 	struct padata_shell *ps;
-	int err;
+	int err = 0;
 
 	pinst->flags |= PADATA_RESET;
 
@@ -1038,12 +1038,13 @@ EXPORT_SYMBOL(padata_alloc_shell);
  */
 void padata_free_shell(struct padata_shell *ps)
 {
-	struct padata_instance *pinst = ps->pinst;
+	if (!ps)
+		return;
 
-	mutex_lock(&pinst->lock);
+	mutex_lock(&ps->pinst->lock);
 	list_del(&ps->list);
 	padata_free_pd(rcu_dereference_protected(ps->pd, 1));
-	mutex_unlock(&pinst->lock);
+	mutex_unlock(&ps->pinst->lock);
 
 	kfree(ps);
 }

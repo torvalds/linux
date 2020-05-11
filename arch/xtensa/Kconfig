@@ -6,7 +6,7 @@ config XTENSA
 	select ARCH_HAS_DMA_PREP_COHERENT if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if MMU
-	select ARCH_HAS_UNCACHED_SEGMENT if MMU
+	select ARCH_HAS_DMA_SET_UNCACHED if MMU
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
@@ -122,7 +122,7 @@ config XTENSA_VARIANT_CUSTOM_NAME
 	help
 	  Provide the name of a custom Xtensa processor variant.
 	  This CORENAME selects arch/xtensa/variant/CORENAME.
-	  Dont forget you have to select MMU if you have one.
+	  Don't forget you have to select MMU if you have one.
 
 config XTENSA_VARIANT_NAME
 	string

@@ -10,6 +10,8 @@
 #include <gelf.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
+#include <linux/rbtree.h>
+#include <linux/jhash.h>
 
 #ifdef LIBELF_USE_DEPRECATED
 # define elf_getshdrnum    elf_getshnum
@@ -25,11 +27,12 @@
 
 struct section {
 	struct list_head list;
+	struct hlist_node hash;
+	struct hlist_node name_hash;
 	GElf_Shdr sh;
+	struct rb_root symbol_tree;
 	struct list_head symbol_list;
-	DECLARE_HASHTABLE(symbol_hash, 8);
 	struct list_head rela_list;
-	DECLARE_HASHTABLE(rela_hash, 16);
 	struct section *base, *rela;
 	struct symbol *sym;
 	Elf_Data *data;
@@ -41,7 +44,9 @@ struct section {
 
 struct symbol {
 	struct list_head list;
+	struct rb_node node;
 	struct hlist_node hash;
+	struct hlist_node name_hash;
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
@@ -71,19 +76,51 @@ struct elf {
 	int fd;
 	char *name;
 	struct list_head sections;
-	DECLARE_HASHTABLE(rela_hash, 16);
+	DECLARE_HASHTABLE(symbol_hash, 20);
+	DECLARE_HASHTABLE(symbol_name_hash, 20);
+	DECLARE_HASHTABLE(section_hash, 16);
+	DECLARE_HASHTABLE(section_name_hash, 16);
+	DECLARE_HASHTABLE(rela_hash, 20);
 };
 
+#define OFFSET_STRIDE_BITS	4
+#define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
+#define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
+
+#define for_offset_range(_offset, _start, _end)		\
+	for (_offset = ((_start) & OFFSET_STRIDE_MASK);	\
+	     _offset <= ((_end) & OFFSET_STRIDE_MASK);	\
+	     _offset += OFFSET_STRIDE)
+
+static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
+{
+	u32 ol, oh, idx = sec->idx;
+
+	offset &= OFFSET_STRIDE_MASK;
+
+	ol = offset;
+	oh = offset >> 32;
+
+	__jhash_mix(ol, oh, idx);
+
+	return ol;
+}
+
+static inline u32 rela_hash(struct rela *rela)
+{
+	return sec_offset_hash(rela->sec, rela->offset);
+}
 
 struct elf *elf_read(const char *name, int flags);
 struct section *find_section_by_name(struct elf *elf, const char *name);
+struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest(struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
-				     unsigned int len);
-struct symbol *find_containing_func(struct section *sec, unsigned long offset);
+struct rela *find_rela_by_dest(struct elf *elf, struct section *sec, unsigned long offset);
+struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
+				     unsigned long offset, unsigned int len);
+struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 struct section *elf_create_section(struct elf *elf, const char *name, size_t
 				   entsize, int nr);
 struct section *elf_create_rela_section(struct elf *elf, struct section *base);

@@ -280,6 +280,15 @@ config SENSORS_ASC7621
 	  This driver can also be built as a module. If so, the module
 	  will be called asc7621.
 
+config SENSORS_AXI_FAN_CONTROL
+	tristate "Analog Devices FAN Control HDL Core driver"
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AXI HDL FAN monitoring core.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called axi-fan-control
+
 config SENSORS_K8TEMP
 	tristate "AMD Athlon64/FX or Opteron temperature sensor"
 	depends on X86 && PCI
@@ -403,7 +412,7 @@ config SENSORS_DRIVETEMP
 	  hard disk drives.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called satatemp.
+	  will be called drivetemp.
 
 config SENSORS_DS620
 	tristate "Dallas Semiconductor DS620"

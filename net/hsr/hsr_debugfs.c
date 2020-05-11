@@ -113,7 +113,6 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 		priv->node_tbl_root = NULL;
 		return;
 	}
-	priv->node_tbl_file = de;
 }
 
 /* hsr_debugfs_term - Tear down debugfs intrastructure
@@ -125,9 +124,7 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 void
 hsr_debugfs_term(struct hsr_priv *priv)
 {
-	debugfs_remove(priv->node_tbl_file);
-	priv->node_tbl_file = NULL;
-	debugfs_remove(priv->node_tbl_root);
+	debugfs_remove_recursive(priv->node_tbl_root);
 	priv->node_tbl_root = NULL;
 }
 

@@ -28,7 +28,7 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		wcid = &mvif->group_wcid;
 	}
 
-	mt76_tx(&dev->mt76, control->sta, wcid, skb);
+	mt76_tx(&dev->mphy, control->sta, wcid, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx);
 
@@ -39,7 +39,6 @@ void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	void *rxwi = skb->data;
 
 	if (q == MT_RXQ_MCU) {
-		/* this is used just by mmio code */
 		mt76_mcu_rx_event(&dev->mt76, skb);
 		return;
 	}
@@ -74,7 +73,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
 		max_txpwr = dev->mt76.rate_power.ht[rate->idx & 0xf];
 	} else {
-		enum nl80211_band band = dev->mt76.chandef.chan->band;
+		enum nl80211_band band = dev->mphy.chandef.chan->band;
 
 		if (band == NL80211_BAND_2GHZ) {
 			const struct ieee80211_rate *r;
@@ -96,7 +95,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr, s8 max_txpwr_adj)
 {
-	txpwr = min_t(s8, txpwr, dev->mt76.txpower_conf);
+	txpwr = min_t(s8, txpwr, dev->txpower_conf);
 	txpwr -= (dev->target_power + dev->target_power_delta[0]);
 	txpwr = min_t(s8, txpwr, max_txpwr_adj);
 

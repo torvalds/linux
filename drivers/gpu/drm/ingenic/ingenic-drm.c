@@ -737,7 +737,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = drm_bridge_attach(&priv->encoder, bridge, NULL);
+	ret = drm_bridge_attach(&priv->encoder, bridge, NULL, 0);
 	if (ret) {
 		dev_err(dev, "Unable to attach bridge");
 		return ret;

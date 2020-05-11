@@ -308,6 +308,65 @@ static void igc_get_regs(struct net_device *netdev,
 		regs_buff[168 + i] = rd32(IGC_TXDCTL(i));
 }
 
+static void igc_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	wol->wolopts = 0;
+
+	if (!(adapter->flags & IGC_FLAG_WOL_SUPPORTED))
+		return;
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
+
+	/* apply any specific unsupported masks here */
+	switch (adapter->hw.device_id) {
+	default:
+		break;
+	}
+
+	if (adapter->wol & IGC_WUFC_EX)
+		wol->wolopts |= WAKE_UCAST;
+	if (adapter->wol & IGC_WUFC_MC)
+		wol->wolopts |= WAKE_MCAST;
+	if (adapter->wol & IGC_WUFC_BC)
+		wol->wolopts |= WAKE_BCAST;
+	if (adapter->wol & IGC_WUFC_MAG)
+		wol->wolopts |= WAKE_MAGIC;
+	if (adapter->wol & IGC_WUFC_LNKC)
+		wol->wolopts |= WAKE_PHY;
+}
+
+static int igc_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_FILTER))
+		return -EOPNOTSUPP;
+
+	if (!(adapter->flags & IGC_FLAG_WOL_SUPPORTED))
+		return wol->wolopts ? -EOPNOTSUPP : 0;
+
+	/* these settings will always override what we currently have */
+	adapter->wol = 0;
+
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wol |= IGC_WUFC_EX;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wol |= IGC_WUFC_MC;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wol |= IGC_WUFC_BC;
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol |= IGC_WUFC_MAG;
+	if (wol->wolopts & WAKE_PHY)
+		adapter->wol |= IGC_WUFC_LNKC;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	return 0;
+}
+
 static u32 igc_get_msglevel(struct net_device *netdev)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
@@ -801,27 +860,6 @@ static int igc_set_coalesce(struct net_device *netdev,
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	int i;
-
-	if (ec->rx_max_coalesced_frames ||
-	    ec->rx_coalesce_usecs_irq ||
-	    ec->rx_max_coalesced_frames_irq ||
-	    ec->tx_max_coalesced_frames ||
-	    ec->tx_coalesce_usecs_irq ||
-	    ec->stats_block_coalesce_usecs ||
-	    ec->use_adaptive_rx_coalesce ||
-	    ec->use_adaptive_tx_coalesce ||
-	    ec->pkt_rate_low ||
-	    ec->rx_coalesce_usecs_low ||
-	    ec->rx_max_coalesced_frames_low ||
-	    ec->tx_coalesce_usecs_low ||
-	    ec->tx_max_coalesced_frames_low ||
-	    ec->pkt_rate_high ||
-	    ec->rx_coalesce_usecs_high ||
-	    ec->rx_max_coalesced_frames_high ||
-	    ec->tx_coalesce_usecs_high ||
-	    ec->tx_max_coalesced_frames_high ||
-	    ec->rate_sample_interval)
-		return -ENOTSUPP;
 
 	if (ec->rx_coalesce_usecs > IGC_MAX_ITR_USECS ||
 	    (ec->rx_coalesce_usecs > 3 &&
@@ -1856,9 +1894,12 @@ static int igc_set_link_ksettings(struct net_device *netdev,
 }
 
 static const struct ethtool_ops igc_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo		= igc_get_drvinfo,
 	.get_regs_len		= igc_get_regs_len,
 	.get_regs		= igc_get_regs,
+	.get_wol		= igc_get_wol,
+	.set_wol		= igc_set_wol,
 	.get_msglevel		= igc_get_msglevel,
 	.set_msglevel		= igc_set_msglevel,
 	.nway_reset		= igc_nway_reset,

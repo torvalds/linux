@@ -36,9 +36,8 @@ void gen5_gt_enable_irq(struct intel_gt *gt, u32 mask);
 
 void gen6_gt_irq_handler(struct intel_gt *gt, u32 gt_iir);
 
-void gen8_gt_irq_ack(struct intel_gt *gt, u32 master_ctl, u32 gt_iir[4]);
+void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl);
 void gen8_gt_irq_reset(struct intel_gt *gt);
-void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl, u32 gt_iir[4]);
 void gen8_gt_irq_postinstall(struct intel_gt *gt);
 
 #endif /* INTEL_GT_IRQ_H */

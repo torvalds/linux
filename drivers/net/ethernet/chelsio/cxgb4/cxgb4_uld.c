@@ -662,6 +662,25 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
 	return 0;
 }
 
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+/* cxgb4_set_ktls_feature: request FW to enable/disable ktls settings.
+ * @adap: adapter info
+ * @enable: 1 to enable / 0 to disable ktls settings.
+ */
+static void cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
+{
+	u32 params = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		      FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_KTLS_TX_HW) |
+		      FW_PARAMS_PARAM_Y_V(enable));
+	int ret = 0;
+
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &params, &params);
+	/* if fw returns failure, clear the ktls flag */
+	if (ret)
+		adap->params.crypto &= ~ULP_CRYPTO_KTLS_INLINE;
+}
+#endif
+
 /* cxgb4_register_uld - register an upper-layer driver
  * @type: the ULD type
  * @p: the ULD methods
@@ -698,6 +717,12 @@ void cxgb4_register_uld(enum cxgb4_uld type,
 		}
 		if (adap->flags & CXGB4_FULL_INIT_DONE)
 			enable_rx_uld(adap, type);
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		/* send mbox to enable ktls related settings. */
+		if (type == CXGB4_ULD_CRYPTO &&
+		    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
+			cxgb4_set_ktls_feature(adap, 1);
+#endif
 		if (adap->uld[type].add)
 			goto free_irq;
 		ret = setup_sge_txq_uld(adap, type, p);
@@ -750,6 +775,13 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 			continue;
 
 		cxgb4_shutdown_uld_adapter(adap, type);
+
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		/* send mbox to disable ktls related settings. */
+		if (type == CXGB4_ULD_CRYPTO &&
+		    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
+			cxgb4_set_ktls_feature(adap, 0);
+#endif
 	}
 	mutex_unlock(&uld_mutex);
 

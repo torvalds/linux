@@ -92,7 +92,7 @@ xchk_superblock(
 	if (!xchk_process_error(sc, agno, XFS_SB_BLOCK(mp), &error))
 		return error;
 
-	sb = XFS_BUF_TO_SBP(bp);
+	sb = bp->b_addr;
 
 	/*
 	 * Verify the geometries match.  Fields that are permanently
@@ -358,7 +358,7 @@ static inline void
 xchk_agf_xref_freeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_extlen_t		blocks = 0;
 	int			error;
 
@@ -378,7 +378,7 @@ static inline void
 xchk_agf_xref_cntbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_agblock_t		agbno;
 	xfs_extlen_t		blocks;
 	int			have;
@@ -410,7 +410,7 @@ STATIC void
 xchk_agf_xref_btreeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		blocks;
 	xfs_agblock_t		btreeblks;
@@ -456,7 +456,7 @@ static inline void
 xchk_agf_xref_refcblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_agblock_t		blocks;
 	int			error;
 
@@ -525,7 +525,7 @@ xchk_agf(
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agf_bp);
 
-	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	agf = sc->sa.agf_bp->b_addr;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agf->agf_length);
@@ -711,7 +711,7 @@ xchk_agfl(
 		goto out;
 
 	/* Allocate buffer to ensure uniqueness of AGFL entries. */
-	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	agf = sc->sa.agf_bp->b_addr;
 	agflcount = be32_to_cpu(agf->agf_flcount);
 	if (agflcount > xfs_agfl_size(sc->mp)) {
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
@@ -728,7 +728,7 @@ xchk_agfl(
 	}
 
 	/* Check the blocks in the AGFL. */
-	error = xfs_agfl_walk(sc->mp, XFS_BUF_TO_AGF(sc->sa.agf_bp),
+	error = xfs_agfl_walk(sc->mp, sc->sa.agf_bp->b_addr,
 			sc->sa.agfl_bp, xchk_agfl_block, &sai);
 	if (error == -ECANCELED) {
 		error = 0;
@@ -765,7 +765,7 @@ static inline void
 xchk_agi_xref_icounts(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	struct xfs_agi		*agi = sc->sa.agi_bp->b_addr;
 	xfs_agino_t		icount;
 	xfs_agino_t		freecount;
 	int			error;
@@ -834,7 +834,7 @@ xchk_agi(
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);
 
-	agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	agi = sc->sa.agi_bp->b_addr;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);

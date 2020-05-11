@@ -217,7 +217,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	    init_attr->qp_type != IB_QPT_GSI) {
 		dev_warn(&dev->pdev->dev, "queuepair type %d not supported\n",
 			 init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (is_srq && !dev->dsr->caps.max_srq) {

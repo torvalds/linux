@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
+#include <linux/efi_embedded_fw.h>
 
 #define TEST_FIRMWARE_NAME	"test-firmware.bin"
 #define TEST_FIRMWARE_NUM_REQS	4
@@ -507,6 +508,57 @@ out:
 }
 static DEVICE_ATTR_WO(trigger_request);
 
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+static ssize_t trigger_request_platform_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	static const u8 test_data[] = {
+		0x55, 0xaa, 0x55, 0xaa, 0x01, 0x02, 0x03, 0x04,
+		0x55, 0xaa, 0x55, 0xaa, 0x05, 0x06, 0x07, 0x08,
+		0x55, 0xaa, 0x55, 0xaa, 0x10, 0x20, 0x30, 0x40,
+		0x55, 0xaa, 0x55, 0xaa, 0x50, 0x60, 0x70, 0x80
+	};
+	struct efi_embedded_fw efi_embedded_fw;
+	const struct firmware *firmware = NULL;
+	char *name;
+	int rc;
+
+	name = kstrndup(buf, count, GFP_KERNEL);
+	if (!name)
+		return -ENOSPC;
+
+	pr_info("inserting test platform fw '%s'\n", name);
+	efi_embedded_fw.name = name;
+	efi_embedded_fw.data = (void *)test_data;
+	efi_embedded_fw.length = sizeof(test_data);
+	list_add(&efi_embedded_fw.list, &efi_embedded_fw_list);
+
+	pr_info("loading '%s'\n", name);
+	rc = firmware_request_platform(&firmware, name, dev);
+	if (rc) {
+		pr_info("load of '%s' failed: %d\n", name, rc);
+		goto out;
+	}
+	if (firmware->size != sizeof(test_data) ||
+	    memcmp(firmware->data, test_data, sizeof(test_data)) != 0) {
+		pr_info("firmware contents mismatch for '%s'\n", name);
+		rc = -EINVAL;
+		goto out;
+	}
+	pr_info("loaded: %zu\n", firmware->size);
+	rc = count;
+
+out:
+	release_firmware(firmware);
+	list_del(&efi_embedded_fw.list);
+	kfree(name);
+
+	return rc;
+}
+static DEVICE_ATTR_WO(trigger_request_platform);
+#endif
+
 static DECLARE_COMPLETION(async_fw_done);
 
 static void trigger_async_request_cb(const struct firmware *fw, void *context)
@@ -903,6 +955,9 @@ static struct attribute *test_dev_attrs[] = {
 	TEST_FW_DEV_ATTR(trigger_request),
 	TEST_FW_DEV_ATTR(trigger_async_request),
 	TEST_FW_DEV_ATTR(trigger_custom_fallback),
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+	TEST_FW_DEV_ATTR(trigger_request_platform),
+#endif
 
 	/* These use the config and can use the test_result */
 	TEST_FW_DEV_ATTR(trigger_batched_requests),

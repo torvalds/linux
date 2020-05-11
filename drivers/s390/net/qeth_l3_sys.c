@@ -133,40 +133,6 @@ static ssize_t qeth_l3_dev_route6_store(struct device *dev,
 static DEVICE_ATTR(route6, 0644, qeth_l3_dev_route6_show,
 			qeth_l3_dev_route6_store);
 
-static ssize_t qeth_l3_dev_fake_broadcast_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%i\n", card->options.fake_broadcast? 1:0);
-}
-
-static ssize_t qeth_l3_dev_fake_broadcast_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
-
-	mutex_lock(&card->conf_mutex);
-	if (card->state != CARD_STATE_DOWN) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1))
-		card->options.fake_broadcast = i;
-	else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(fake_broadcast, 0644, qeth_l3_dev_fake_broadcast_show,
-		   qeth_l3_dev_fake_broadcast_store);
-
 static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -305,7 +271,6 @@ static DEVICE_ATTR(hsuid, 0644, qeth_l3_dev_hsuid_show,
 static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_route4.attr,
 	&dev_attr_route6.attr,
-	&dev_attr_fake_broadcast.attr,
 	&dev_attr_sniffer.attr,
 	&dev_attr_hsuid.attr,
 	NULL,

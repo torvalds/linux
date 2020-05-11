@@ -6,16 +6,22 @@ Required properties:
 
 Optional properties:
 - label: a symbolic name for the connector
+- sdtv-standards: limit the supported TV standards on a connector to the given
+                  ones. If not specified all TV standards are allowed.
+                  Possible TV standards are defined in
+                  include/dt-bindings/display/sdtv-standards.h.
 
 Required nodes:
 - Video port for TV input
 
 Example
 -------
+#include <dt-bindings/display/sdtv-standards.h>
 
 tv: connector {
 	compatible = "composite-video-connector";
 	label = "tv";
+	sdtv-standards = <(SDTV_STD_PAL | SDTV_STD_NTSC)>;
 
 	port {
 		tv_connector_in: endpoint {

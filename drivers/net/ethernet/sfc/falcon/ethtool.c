@@ -603,9 +603,6 @@ static int ef4_ethtool_set_coalesce(struct net_device *net_dev,
 	bool adaptive, rx_may_override_tx;
 	int rc;
 
-	if (coalesce->use_adaptive_tx_coalesce)
-		return -EINVAL;
-
 	ef4_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
 
 	if (coalesce->rx_coalesce_usecs != rx_usecs)
@@ -1311,6 +1308,9 @@ static int ef4_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops ef4_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USECS_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= ef4_ethtool_get_drvinfo,
 	.get_regs_len		= ef4_ethtool_get_regs_len,
 	.get_regs		= ef4_ethtool_get_regs,

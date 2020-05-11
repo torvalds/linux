@@ -130,15 +130,22 @@ struct dsa_switch_tree {
 	struct list_head rtable;
 };
 
-/* TC matchall action types, only mirroring for now */
+/* TC matchall action types */
 enum dsa_port_mall_action_type {
 	DSA_PORT_MALL_MIRROR,
+	DSA_PORT_MALL_POLICER,
 };
 
 /* TC mirroring entry */
 struct dsa_mall_mirror_tc_entry {
 	u8 to_local_port;
 	bool ingress;
+};
+
+/* TC port policer entry */
+struct dsa_mall_policer_tc_entry {
+	s64 burst;
+	u64 rate_bytes_per_sec;
 };
 
 /* TC matchall entry */
@@ -148,6 +155,7 @@ struct dsa_mall_tc_entry {
 	enum dsa_port_mall_action_type type;
 	union {
 		struct dsa_mall_mirror_tc_entry mirror;
+		struct dsa_mall_policer_tc_entry policer;
 	};
 };
 
@@ -283,6 +291,12 @@ struct dsa_switch {
 	 * polling. Flag passed on to PHYLINK.
 	 */
 	bool			pcs_poll;
+
+	/* For switches that only have the MRU configurable. To ensure the
+	 * configured MTU is not exceeded, normalization of MRU on all bridged
+	 * interfaces is needed.
+	 */
+	bool			mtu_enforcement_ingress;
 
 	size_t num_ports;
 };
@@ -420,7 +434,9 @@ struct dsa_switch_ops {
 	void	(*phylink_mac_link_up)(struct dsa_switch *ds, int port,
 				       unsigned int mode,
 				       phy_interface_t interface,
-				       struct phy_device *phydev);
+				       struct phy_device *phydev,
+				       int speed, int duplex,
+				       bool tx_pause, bool rx_pause);
 	void	(*phylink_fixed_state)(struct dsa_switch *ds, int port,
 				       struct phylink_link_state *state);
 	/*
@@ -538,11 +554,20 @@ struct dsa_switch_ops {
 	/*
 	 * TC integration
 	 */
+	int	(*cls_flower_add)(struct dsa_switch *ds, int port,
+				  struct flow_cls_offload *cls, bool ingress);
+	int	(*cls_flower_del)(struct dsa_switch *ds, int port,
+				  struct flow_cls_offload *cls, bool ingress);
+	int	(*cls_flower_stats)(struct dsa_switch *ds, int port,
+				    struct flow_cls_offload *cls, bool ingress);
 	int	(*port_mirror_add)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror,
 				   bool ingress);
 	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror);
+	int	(*port_policer_add)(struct dsa_switch *ds, int port,
+				    struct dsa_mall_policer_tc_entry *policer);
+	void	(*port_policer_del)(struct dsa_switch *ds, int port);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
 
@@ -571,6 +596,16 @@ struct dsa_switch_ops {
 				     struct devlink_param_gset_ctx *ctx);
 	int	(*devlink_param_set)(struct dsa_switch *ds, u32 id,
 				     struct devlink_param_gset_ctx *ctx);
+
+	/*
+	 * MTU change functionality. Switches can also adjust their MRU through
+	 * this method. By MTU, one understands the SDU (L2 payload) length.
+	 * If the switch needs to account for the DSA tag on the CPU port, this
+	 * method needs to to do so privately.
+	 */
+	int	(*port_change_mtu)(struct dsa_switch *ds, int port,
+				   int new_mtu);
+	int	(*port_max_mtu)(struct dsa_switch *ds, int port);
 };
 
 #define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\

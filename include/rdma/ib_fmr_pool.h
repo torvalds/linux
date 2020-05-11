@@ -73,7 +73,7 @@ struct ib_pool_fmr {
 	int                 remap_count;
 	u64                 io_virtual_address;
 	int                 page_list_len;
-	u64                 page_list[0];
+	u64                 page_list[];
 };
 
 struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,

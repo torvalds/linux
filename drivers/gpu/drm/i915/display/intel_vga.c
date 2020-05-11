@@ -9,6 +9,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "intel_de.h"
 #include "intel_vga.h"
 
 static i915_reg_t intel_vga_cntrl_reg(struct drm_i915_private *i915)
@@ -36,16 +37,17 @@ void intel_vga_disable(struct drm_i915_private *dev_priv)
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
-	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
-	POSTING_READ(vga_reg);
+	intel_de_write(dev_priv, vga_reg, VGA_DISP_DISABLE);
+	intel_de_posting_read(dev_priv, vga_reg);
 }
 
 void intel_vga_redisable_power_on(struct drm_i915_private *dev_priv)
 {
 	i915_reg_t vga_reg = intel_vga_cntrl_reg(dev_priv);
 
-	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
-		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
+	if (!(intel_de_read(dev_priv, vga_reg) & VGA_DISP_DISABLE)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Something enabled VGA plane, disabling it\n");
 		intel_vga_disable(dev_priv);
 	}
 }
@@ -98,7 +100,7 @@ intel_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 	u16 gmch_ctrl;
 
 	if (pci_read_config_word(i915->bridge_dev, reg, &gmch_ctrl)) {
-		DRM_ERROR("failed to read control word\n");
+		drm_err(&i915->drm, "failed to read control word\n");
 		return -EIO;
 	}
 
@@ -111,7 +113,7 @@ intel_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
 
 	if (pci_write_config_word(i915->bridge_dev, reg, gmch_ctrl)) {
-		DRM_ERROR("failed to write control word\n");
+		drm_err(&i915->drm, "failed to write control word\n");
 		return -EIO;
 	}
 

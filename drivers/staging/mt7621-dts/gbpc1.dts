@@ -114,6 +114,10 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_pins>;
+
+	reset-gpios = <&gpio 19 GPIO_ACTIVE_LOW>,
+			<&gpio 8 GPIO_ACTIVE_LOW>,
+			<&gpio 7 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

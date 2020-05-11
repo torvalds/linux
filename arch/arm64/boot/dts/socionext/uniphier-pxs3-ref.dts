@@ -27,6 +27,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c6 = &i2c6;
+		spi0 = &spi0;
+		spi1 = &spi1;
 	};
 
 	memory@80000000 {
@@ -37,6 +39,14 @@
 
 &ethsc {
 	interrupts = <4 8>;
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
 };
 
 &serial0 {

@@ -372,28 +372,33 @@ static void deallocate_buffers(struct cpu_hw_sf *cpuhw)
 
 static int allocate_buffers(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 {
-	unsigned long n_sdb, freq, factor;
+	unsigned long n_sdb, freq;
 	size_t sample_size;
 
 	/* Calculate sampling buffers using 4K pages
 	 *
-	 *    1. Determine the sample data size which depends on the used
-	 *	 sampling functions, for example, basic-sampling or
-	 *	 basic-sampling with diagnostic-sampling.
+	 *    1. The sampling size is 32 bytes for basic sampling. This size
+	 *	 is the same for all machine types. Diagnostic
+	 *	 sampling uses auxlilary data buffer setup which provides the
+	 *	 memory for SDBs using linux common code auxiliary trace
+	 *	 setup.
 	 *
-	 *    2. Use the sampling frequency as input.  The sampling buffer is
-	 *	 designed for almost one second.  This can be adjusted through
-	 *	 the "factor" variable.
-	 *	 In any case, alloc_sampling_buffer() sets the Alert Request
+	 *    2. Function alloc_sampling_buffer() sets the Alert Request
 	 *	 Control indicator to trigger a measurement-alert to harvest
-	 *	 sample-data-blocks (sdb).
+	 *	 sample-data-blocks (SDB). This is done per SDB. This
+	 *	 measurement alert interrupt fires quick enough to handle
+	 *	 one SDB, on very high frequency and work loads there might
+	 *	 be 2 to 3 SBDs available for sample processing.
+	 *	 Currently there is no need for setup alert request on every
+	 *	 n-th page. This is counterproductive as one IRQ triggers
+	 *	 a very high number of samples to be processed at one IRQ.
 	 *
-	 *    3. Compute the number of sample-data-blocks and ensure a minimum
-	 *	 of CPUM_SF_MIN_SDB.  Also ensure the upper limit does not
-	 *	 exceed a "calculated" maximum.  The symbolic maximum is
-	 *	 designed for basic-sampling only and needs to be increased if
-	 *	 diagnostic-sampling is active.
-	 *	 See also the remarks for these symbolic constants.
+	 *    3. Use the sampling frequency as input.
+	 *	 Compute the number of SDBs and ensure a minimum
+	 *	 of CPUM_SF_MIN_SDB.  Depending on frequency add some more
+	 *	 SDBs to handle a higher sampling rate.
+	 *	 Use a minimum of CPUM_SF_MIN_SDB and allow for 100 samples
+	 *	 (one SDB) for every 10000 HZ frequency increment.
 	 *
 	 *    4. Compute the number of sample-data-block-tables (SDBT) and
 	 *	 ensure a minimum of CPUM_SF_MIN_SDBT (one table can manage up
@@ -401,10 +406,7 @@ static int allocate_buffers(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 	 */
 	sample_size = sizeof(struct hws_basic_entry);
 	freq = sample_rate_to_freq(&cpuhw->qsi, SAMPL_RATE(hwc));
-	factor = 1;
-	n_sdb = DIV_ROUND_UP(freq, factor * ((PAGE_SIZE-64) / sample_size));
-	if (n_sdb < CPUM_SF_MIN_SDB)
-		n_sdb = CPUM_SF_MIN_SDB;
+	n_sdb = CPUM_SF_MIN_SDB + DIV_ROUND_UP(freq, 10000);
 
 	/* If there is already a sampling buffer allocated, it is very likely
 	 * that the sampling facility is enabled too.  If the event to be
@@ -1576,6 +1578,7 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 	unsigned long range = 0, size;
 	unsigned long long overflow = 0;
 	struct perf_output_handle *handle = &cpuhw->handle;
+	unsigned long num_sdb;
 
 	aux = perf_get_aux(handle);
 	if (WARN_ON_ONCE(!aux))
@@ -1587,13 +1590,14 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 			    size >> PAGE_SHIFT);
 	perf_aux_output_end(handle, size);
 
+	num_sdb = aux->sfb.num_sdb;
 	while (!done) {
 		/* Get an output handle */
 		aux = perf_aux_output_begin(handle, cpuhw->event);
 		if (handle->size == 0) {
 			pr_err("The AUX buffer with %lu pages for the "
 			       "diagnostic-sampling mode is full\n",
-				aux->sfb.num_sdb);
+				num_sdb);
 			debug_sprintf_event(sfdbg, 1,
 					    "%s: AUX buffer used up\n",
 					    __func__);

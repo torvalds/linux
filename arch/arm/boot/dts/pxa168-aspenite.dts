@@ -18,18 +18,16 @@
 	memory {
 		reg = <0x00000000 0x04000000>;
 	};
+};
 
-	soc {
-		apb@d4000000 {
-			uart1: uart@d4017000 {
-				status = "okay";
-			};
-			twsi1: i2c@d4011000 {
-				status = "okay";
-			};
-			rtc: rtc@d4010000 {
-				status = "okay";
-			};
-		};
-	};
+&uart1 {
+	status = "okay";
+};
+
+&twsi1 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
 };

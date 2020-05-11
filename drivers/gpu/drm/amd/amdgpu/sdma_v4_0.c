@@ -677,7 +677,7 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
- * sdma_v4_0_ring_set_wptr - commit the write pointer
+ * sdma_v4_0_page_ring_set_wptr - commit the write pointer
  *
  * @ring: amdgpu ring pointer
  *
@@ -977,7 +977,7 @@ static void sdma_v4_0_page_stop(struct amdgpu_device *adev)
 }
 
 /**
- * sdma_v_0_ctx_switch_enable - stop the async dma engines context switch
+ * sdma_v4_0_ctx_switch_enable - stop the async dma engines context switch
  *
  * @adev: amdgpu_device pointer
  * @enable: enable/disable the DMA MEs context switch.
@@ -1801,13 +1801,9 @@ static int sdma_v4_0_late_init(void *handle)
 	struct ras_ih_if ih_info = {
 		.cb = sdma_v4_0_process_ras_data_cb,
 	};
-	int i;
 
-	/* read back edc counter registers to clear the counters */
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
-		for (i = 0; i < adev->sdma.num_instances; i++)
-			RREG32_SDMA(i, mmSDMA0_EDC_COUNTER);
-	}
+	if (adev->sdma.funcs && adev->sdma.funcs->reset_ras_error_count)
+		adev->sdma.funcs->reset_ras_error_count(adev);
 
 	if (adev->sdma.funcs && adev->sdma.funcs->ras_late_init)
 		return adev->sdma.funcs->ras_late_init(adev, &ih_info);
@@ -2572,10 +2568,22 @@ static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 };
 
+static void sdma_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	int i;
+
+	/* read back edc counter registers to clear the counters */
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for (i = 0; i < adev->sdma.num_instances; i++)
+			RREG32_SDMA(i, mmSDMA0_EDC_COUNTER);
+	}
+}
+
 static const struct amdgpu_sdma_ras_funcs sdma_v4_0_ras_funcs = {
 	.ras_late_init = amdgpu_sdma_ras_late_init,
 	.ras_fini = amdgpu_sdma_ras_fini,
 	.query_ras_error_count = sdma_v4_0_query_ras_error_count,
+	.reset_ras_error_count = sdma_v4_0_reset_ras_error_count,
 };
 
 static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)

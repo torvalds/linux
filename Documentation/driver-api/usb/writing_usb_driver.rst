@@ -314,11 +314,8 @@ http://www.linux-usb.org/
 Linux Hotplug Project:
 http://linux-hotplug.sourceforge.net/
 
-Linux USB Working Devices List:
-http://www.qbik.ch/usb/devices/
-
-linux-usb-devel Mailing List Archives:
-http://marc.theaimsgroup.com/?l=linux-usb-devel
+linux-usb Mailing List Archives:
+https://lore.kernel.org/linux-usb/
 
 Programming Guide for Linux USB Device Drivers:
 http://lmu.web.psi.ch/docu/manuals/software_manuals/linux_sl/usb_linux_programming_guide.pdf

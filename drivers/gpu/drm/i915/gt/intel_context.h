@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 #include "i915_active.h"
+#include "i915_drv.h"
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
 #include "intel_ring_types.h"
@@ -34,6 +35,9 @@ intel_context_create(struct intel_engine_cs *engine);
 int intel_context_alloc_state(struct intel_context *ce);
 
 void intel_context_free(struct intel_context *ce);
+
+int intel_context_reconfigure_sseu(struct intel_context *ce,
+				   const struct intel_sseu sseu);
 
 /**
  * intel_context_lock_pinned - Stablises the 'pinned' status of the HW context
@@ -169,6 +173,11 @@ static inline bool intel_context_is_barrier(const struct intel_context *ce)
 	return test_bit(CONTEXT_BARRIER_BIT, &ce->flags);
 }
 
+static inline bool intel_context_is_closed(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_CLOSED_BIT, &ce->flags);
+}
+
 static inline bool intel_context_use_semaphores(const struct intel_context *ce)
 {
 	return test_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
@@ -222,6 +231,22 @@ static inline void
 intel_context_clear_nopreempt(struct intel_context *ce)
 {
 	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
+}
+
+static inline u64 intel_context_get_total_runtime_ns(struct intel_context *ce)
+{
+	const u32 period =
+		RUNTIME_INFO(ce->engine->i915)->cs_timestamp_period_ns;
+
+	return READ_ONCE(ce->runtime.total) * period;
+}
+
+static inline u64 intel_context_get_avg_runtime_ns(struct intel_context *ce)
+{
+	const u32 period =
+		RUNTIME_INFO(ce->engine->i915)->cs_timestamp_period_ns;
+
+	return mul_u32_u32(ewma_runtime_read(&ce->runtime.avg), period);
 }
 
 #endif /* __INTEL_CONTEXT_H__ */

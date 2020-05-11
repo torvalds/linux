@@ -803,6 +803,15 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 			kfree(ref);
 			kfree(ra);
 			goto out_unlock;
+		} else if (be->num_refs == 0) {
+			btrfs_err(fs_info,
+		"trying to do action %d for a bytenr that has 0 total references",
+				action);
+			dump_block_entry(fs_info, be);
+			dump_ref_action(fs_info, ra);
+			kfree(ref);
+			kfree(ra);
+			goto out_unlock;
 		}
 
 		if (!parent) {

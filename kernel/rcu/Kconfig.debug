@@ -29,6 +29,8 @@ config RCU_PERF_TEST
 	select TORTURE_TEST
 	select SRCU
 	select TASKS_RCU
+	select TASKS_RUDE_RCU
+	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs performance
@@ -46,6 +48,8 @@ config RCU_TORTURE_TEST
 	select TORTURE_TEST
 	select SRCU
 	select TASKS_RCU
+	select TASKS_RUDE_RCU
+	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests

@@ -22,12 +22,8 @@
 
 */
 
+#include <linux/vermagic.h>
 #define DRV_NAME		"3c515"
-#define DRV_VERSION		"0.99t-ac"
-#define DRV_RELDATE		"28-Oct-2002"
-
-static char *version =
-DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " becker@scyld.com and others\n";
 
 #define CORKSCREW 1
 
@@ -84,7 +80,6 @@ static int max_interrupt_work = 20;
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c515 Corkscrew driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 /* "Knobs" for adjusting internal parameters. */
 /* Put out somewhat more debugging messages. (0 - no msg, 1 minimal msgs). */
@@ -418,8 +413,6 @@ int init_module(void)
 	int found = 0;
 	if (debug >= 0)
 		corkscrew_debug = debug;
-	if (corkscrew_debug)
-		pr_debug("%s", version);
 	while (corkscrew_scan(-1))
 		found++;
 	return found ? 0 : -ENODEV;
@@ -429,15 +422,9 @@ int init_module(void)
 struct net_device *tc515_probe(int unit)
 {
 	struct net_device *dev = corkscrew_scan(unit);
-	static int printed;
 
 	if (!dev)
 		return ERR_PTR(-ENODEV);
-
-	if (corkscrew_debug > 0 && !printed) {
-		printed = 1;
-		pr_debug("%s", version);
-	}
 
 	return dev;
 }
@@ -1540,7 +1527,6 @@ static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "ISA 0x%lx",
 		 dev->base_addr);
 }

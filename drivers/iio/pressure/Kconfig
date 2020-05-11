@@ -101,6 +101,17 @@ config HP03
 	  To compile this driver as a module, choose M here: the module
 	  will be called hp03.
 
+config ICP10100
+	tristate "InvenSense ICP-101xx pressure and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say yes here to build support for InvenSense ICP-101xx barometric
+	  pressure and temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called icp10100.
+
 config MPL115
 	tristate
 

@@ -260,7 +260,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 		goto no_kmmio;
 	}
 
-	ctx = &get_cpu_var(kmmio_ctx);
+	ctx = this_cpu_ptr(&kmmio_ctx);
 	if (ctx->active) {
 		if (page_base == ctx->addr) {
 			/*
@@ -285,7 +285,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 			pr_emerg("previous hit was at 0x%08lx.\n", ctx->addr);
 			disarm_kmmio_fault_page(faultpage);
 		}
-		goto no_kmmio_ctx;
+		goto no_kmmio;
 	}
 	ctx->active++;
 
@@ -314,11 +314,8 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * the user should drop to single cpu before tracing.
 	 */
 
-	put_cpu_var(kmmio_ctx);
 	return 1; /* fault handled */
 
-no_kmmio_ctx:
-	put_cpu_var(kmmio_ctx);
 no_kmmio:
 	rcu_read_unlock();
 	preempt_enable_no_resched();
@@ -333,7 +330,7 @@ no_kmmio:
 static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 {
 	int ret = 0;
-	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
+	struct kmmio_context *ctx = this_cpu_ptr(&kmmio_ctx);
 
 	if (!ctx->active) {
 		/*
@@ -371,7 +368,6 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	if (!(regs->flags & X86_EFLAGS_TF))
 		ret = 1;
 out:
-	put_cpu_var(kmmio_ctx);
 	return ret;
 }
 

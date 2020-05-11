@@ -461,6 +461,8 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 
 	desc += rs_pretty_print_rate(buff + desc, bufsz - desc,
 				     lq_sta->last_rate_n_flags);
+	if (desc < bufsz - 1)
+		buff[desc++] = '\n';
 	mutex_unlock(&mvm->mutex);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
@@ -1013,6 +1015,8 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
 		pos += rs_pretty_print_rate(pos, endpos - pos,
 					    stats->last_rates[idx]);
+		if (pos < endpos - 1)
+			*pos++ = '\n';
 	}
 	spin_unlock_bh(&mvm->drv_stats_lock);
 

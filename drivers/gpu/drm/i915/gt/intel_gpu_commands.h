@@ -292,10 +292,21 @@
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
 #define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
 
-#define PIPELINE_SELECT                ((0x3<<29)|(0x1<<27)|(0x1<<24)|(0x4<<16))
-#define GFX_OP_3DSTATE_VF_STATISTICS   ((0x3<<29)|(0x1<<27)|(0x0<<24)|(0xB<<16))
-#define MEDIA_VFE_STATE                ((0x3<<29)|(0x2<<27)|(0x0<<24)|(0x0<<16))
+#define STATE_BASE_ADDRESS \
+	((0x3 << 29) | (0x0 << 27) | (0x1 << 24) | (0x1 << 16))
+#define BASE_ADDRESS_MODIFY		REG_BIT(0)
+#define PIPELINE_SELECT \
+	((0x3 << 29) | (0x1 << 27) | (0x1 << 24) | (0x4 << 16))
+#define PIPELINE_SELECT_MEDIA	       REG_BIT(0)
+#define GFX_OP_3DSTATE_VF_STATISTICS \
+	((0x3 << 29) | (0x1 << 27) | (0x0 << 24) | (0xB << 16))
+#define MEDIA_VFE_STATE \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x0 << 16))
 #define  MEDIA_VFE_STATE_MMIO_ACCESS_MASK (0x18)
+#define MEDIA_INTERFACE_DESCRIPTOR_LOAD \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x2 << 16))
+#define MEDIA_OBJECT \
+	((0x3 << 29) | (0x2 << 27) | (0x1 << 24) | (0x0 << 16))
 #define GPGPU_OBJECT                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x4<<16))
 #define GPGPU_WALKER                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x5<<16))
 #define GFX_OP_3DSTATE_DX9_CONSTANTF_VS \

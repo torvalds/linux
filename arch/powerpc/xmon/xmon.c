@@ -81,8 +81,9 @@ static bool xmon_is_ro = IS_ENABLED(CONFIG_XMON_DEFAULT_RO_MODE);
 
 static unsigned long adrs;
 static int size = 1;
-#define MAX_DUMP (128 * 1024)
+#define MAX_DUMP (64 * 1024)
 static unsigned long ndump = 64;
+#define MAX_IDUMP (MAX_DUMP >> 2)
 static unsigned long nidump = 16;
 static unsigned long ncsum = 4096;
 static int termch;
@@ -2712,7 +2713,12 @@ static void dump_by_size(unsigned long addr, long count, int size)
 
 			printf("%0*llx", size * 2, val);
 		}
-		printf("\n");
+		printf("  |");
+		for (j = 0; j < 16; ++j) {
+			val = temp[j];
+			putchar(' ' <= val && val <= '~' ? val : '.');
+		}
+		printf("|\n");
 	}
 }
 
@@ -2756,8 +2762,8 @@ dump(void)
 		scanhex(&nidump);
 		if (nidump == 0)
 			nidump = 16;
-		else if (nidump > MAX_DUMP)
-			nidump = MAX_DUMP;
+		else if (nidump > MAX_IDUMP)
+			nidump = MAX_IDUMP;
 		adrs += ppc_inst_dump(adrs, nidump, 1);
 		last_cmd = "di\n";
 	} else if (c == 'l') {

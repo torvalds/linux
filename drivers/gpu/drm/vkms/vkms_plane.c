@@ -117,7 +117,7 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	bool can_position = false;
 	int ret;
 
-	if (!state->fb | !state->crtc)
+	if (!state->fb || WARN_ON(!state->crtc))
 		return 0;
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);

@@ -55,7 +55,6 @@ static struct pwm_lookup ezx_pwm_lookup[] __maybe_unused = {
 static struct platform_pwm_backlight_data ezx_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
-	.enable_gpio	= -1,
 };
 
 static struct platform_device ezx_backlight_device = {

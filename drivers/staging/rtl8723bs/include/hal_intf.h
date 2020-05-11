@@ -296,7 +296,7 @@ enum wowlan_subcode {
 	WOWLAN_AP_DISABLE		= 13
 };
 
-struct wowlan_ioctl_param{
+struct wowlan_ioctl_param {
 	unsigned int subcode;
 	unsigned int subcode_value;
 	unsigned int wakeup_reason;

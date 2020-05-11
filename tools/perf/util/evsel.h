@@ -119,6 +119,8 @@ struct perf_missing_features {
 	bool ksymbol;
 	bool bpf;
 	bool aux_output;
+	bool branch_hw_idx;
+	bool cgroup;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -387,6 +389,11 @@ for ((_evsel) = _leader; 							\
 static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
 {
 	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
+}
+
+static inline bool perf_evsel__has_branch_hw_idx(const struct evsel *evsel)
+{
+	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX;
 }
 
 static inline bool evsel__has_callchain(const struct evsel *evsel)

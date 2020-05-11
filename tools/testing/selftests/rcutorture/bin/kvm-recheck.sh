@@ -70,6 +70,15 @@ do
 			fi
 		fi
 	done
+	if test -f "$rd/kcsan.sum"
+	then
+		if test -s "$rd/kcsan.sum"
+		then
+			echo KCSAN summary in $rd/kcsan.sum
+		else
+			echo Clean KCSAN run in $rd
+		fi
+	fi
 done
 EDITOR=echo kvm-find-errors.sh "${@: -1}" > $T 2>&1
 ret=$?

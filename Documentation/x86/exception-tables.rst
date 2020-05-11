@@ -257,6 +257,9 @@ the fault, in our case the actual value is c0199ff5:
 the original assembly code: > 3:      movl $-14,%eax
 and linked in vmlinux     : > c0199ff5 <.fixup+10b5> movl   $0xfffffff2,%eax
 
+If the fixup was able to handle the exception, control flow may be returned
+to the instruction after the one that triggered the fault, ie. local label 2b.
+
 The assembly code::
 
  > .section __ex_table,"a"
@@ -337,10 +340,15 @@ pointer which points to one of:
      entry->insn. It is used to distinguish page faults from machine
      check.
 
-3) ``int ex_handler_ext(const struct exception_table_entry *fixup)``
-     This case is used for uaccess_err ... we need to set a flag
-     in the task structure. Before the handler functions existed this
-     case was handled by adding a large offset to the fixup to tag
-     it as special.
-
 More functions can easily be added.
+
+CONFIG_BUILDTIME_TABLE_SORT allows the __ex_table section to be sorted post
+link of the kernel image, via a host utility scripts/sorttable. It will set the
+symbol main_extable_sort_needed to 0, avoiding sorting the __ex_table section
+at boot time. With the exception table sorted, at runtime when an exception
+occurs we can quickly lookup the __ex_table entry via binary search.
+
+This is not just a boot time optimization, some architectures require this
+table to be sorted in order to handle exceptions relatively early in the boot
+process. For example, i386 makes use of this form of exception handling before
+paging support is even enabled!

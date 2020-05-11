@@ -33,10 +33,14 @@ enum vchi_crc_control {
 enum vchi_callback_reason {
 	VCHI_CALLBACK_REASON_MIN,
 
-	//This indicates that there is data available
-	//handle is the msg id that was transmitted with the data
-	//    When a message is received and there was no FULL message available previously, send callback
-	//    Tasks get kicked by the callback, reset their event and try and read from the fifo until it fails
+	/*
+	 * This indicates that there is data available handle is the msg id that
+	 * was transmitted with the data
+	 * When a message is received and there was no FULL message available
+	 * previously, send callback
+	 * Tasks get kicked by the callback, reset their event and try and read
+	 * from the fifo until it fails
+	 */
 	VCHI_CALLBACK_MSG_AVAILABLE,
 	VCHI_CALLBACK_MSG_SENT,
 	VCHI_CALLBACK_MSG_SPACE_AVAILABLE, // XXX not yet implemented
@@ -51,9 +55,11 @@ enum vchi_callback_reason {
 
 	VCHI_CALLBACK_SERVICE_CLOSED,
 
-	// this side has sent XOFF to peer due to lack of data consumption by service
-	// (suggests the service may need to take some recovery action if it has
-	// been deliberately holding off consuming data)
+	/*
+	 * this side has sent XOFF to peer due to lack of data consumption by
+	 * service (suggests the service may need to take some recovery action
+	 * if it has been deliberately holding off consuming data)
+	 */
 	VCHI_CALLBACK_SENT_XOFF,
 	VCHI_CALLBACK_SENT_XON,
 
@@ -112,12 +118,16 @@ struct vchi_msg_vector {
 	int32_t vec_len;
 };
 
-// Iterator structure for reading ahead through received message queue. Allocated by client,
-// initialised by vchi_msg_look_ahead. Fields are for internal VCHI use only.
-// Iterates over messages in queue at the instant of the call to vchi_msg_lookahead -
-// will not proceed to messages received since. Behaviour is undefined if an iterator
-// is used again after messages for that service are removed/dequeued by any
-// means other than vchi_msg_iter_... calls on the iterator itself.
+/*
+ * Iterator structure for reading ahead through received message queue.
+ * Allocated by client, initialised by vchi_msg_look_ahead. Fields are for
+ * internal VCHI use only.
+ * Iterates over messages in queue at the instant of the call to
+ * vchi_msg_lookahead - will not proceed to messages received since.
+ * Behaviour is undefined if an iterator is used again after messages for that
+ * service are removed/dequeued by any means other than vchi_msg_iter_...
+ * calls on the iterator itself.
+ */
 struct vchi_msg_iter {
 	struct opaque_vchi_service_t *service;
 	void *last;

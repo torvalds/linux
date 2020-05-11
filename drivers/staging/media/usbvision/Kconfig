@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_USBVISION
+	tristate "USB video devices based on Nogatech NT1003/1004/1005 (Deprecated)"
+	depends on MEDIA_USB_SUPPORT && I2C && VIDEO_V4L2
+	select VIDEO_TUNER
+	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  There are more than 50 different USB video devices based on
+	  NT1003/1004/1005 USB Bridges. This driver enables using those
+	  devices.
+
+	  This driver is deprecated and scheduled for removal by the
+	  end of 2020. See the TODO file in drivers/staging/media/usbvision
+	  for a list of actions that have to be done in order to prevent
+	  removal of this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbvision.

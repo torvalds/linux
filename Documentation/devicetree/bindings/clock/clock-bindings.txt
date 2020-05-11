@@ -94,7 +94,7 @@ clock is connected to output 0 of the &ref.
     /* external oscillator */
     osc: oscillator {
         compatible = "fixed-clock";
-        #clock-cells = <1>;
+        #clock-cells = <0>;
         clock-frequency  = <32678>;
         clock-output-names = "osc";
     };

@@ -34,6 +34,7 @@ void xarray_tests(void);
 void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(unsigned order, unsigned duration);
+void iteration_test2(unsigned duration);
 void benchmark(void);
 void idr_checks(void);
 void ida_tests(void);

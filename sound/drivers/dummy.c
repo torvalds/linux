@@ -901,10 +901,10 @@ static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 static void print_formats(struct snd_dummy *dummy,
 			  struct snd_info_buffer *buffer)
 {
-	int i;
+	snd_pcm_format_t i;
 
-	for (i = 0; i <= SNDRV_PCM_FORMAT_LAST; i++) {
-		if (dummy->pcm_hw.formats & (1ULL << i))
+	pcm_for_each_format(i) {
+		if (dummy->pcm_hw.formats & pcm_format_to_bits(i))
 			snd_iprintf(buffer, " %s", snd_pcm_format_name(i));
 	}
 }

@@ -327,13 +327,13 @@ struct mhl_burst_bits_per_pixel_fmt {
 	struct {
 		u8 stream_id;
 		u8 pixel_format;
-	} __packed desc[0];
+	} __packed desc[];
 } __packed;
 
 struct mhl_burst_emsc_support {
 	struct mhl3_burst_header hdr;
 	u8 num_entries;
-	__be16 burst_id[0];
+	__be16 burst_id[];
 } __packed;
 
 struct mhl_burst_audio_descr {
