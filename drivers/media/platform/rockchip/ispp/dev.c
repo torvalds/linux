@@ -62,16 +62,6 @@ static inline bool is_iommu_enable(struct device *dev)
 	return true;
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_ISP)
-extern void
-rkisp_get_mpfbc_sd(struct platform_device *dev, struct v4l2_subdev **sd);
-#else
-static void
-rkisp_get_mpfbc_sd(struct platform_device *dev, struct v4l2_subdev **sd)
-{
-	*sd = NULL;
-}
-#endif
 static void get_remote_node_dev(struct rkispp_device *ispp_dev)
 {
 	struct device *dev = ispp_dev->dev;
@@ -472,7 +462,14 @@ static struct platform_driver rkispp_plat_drv = {
 	.remove = rkispp_plat_remove,
 };
 
+#if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
+int __init rkispp_plat_drv_init(void)
+{
+	return platform_driver_register(&rkispp_plat_drv);
+}
+#else
 module_platform_driver(rkispp_plat_drv);
+#endif
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip ISPP platform driver");
 MODULE_LICENSE("GPL v2");

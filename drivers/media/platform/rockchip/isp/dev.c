@@ -46,9 +46,10 @@
 #include <linux/regmap.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
+#include "common.h"
+#include "isp_ispp.h"
 #include "regs.h"
 #include "rkisp.h"
-#include "common.h"
 #include "version.h"
 
 #define RKISP_VERNO_LEN		10
@@ -1177,7 +1178,21 @@ static struct platform_driver rkisp_plat_drv = {
 	.remove = rkisp_plat_remove,
 };
 
+#if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
+static int __init rkisp_plat_drv_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&rkisp_plat_drv);
+	if (ret)
+		return ret;
+	return rkispp_plat_drv_init();
+}
+
+module_init(rkisp_plat_drv_init);
+#else
 module_platform_driver(rkisp_plat_drv);
+#endif
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip ISP platform driver");
 MODULE_LICENSE("Dual BSD/GPL");

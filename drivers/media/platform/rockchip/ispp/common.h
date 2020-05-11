@@ -11,6 +11,8 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "../isp/isp_ispp.h"
+
 #define RKISPP_PLANE_Y		0
 #define RKISPP_PLANE_UV		1
 
