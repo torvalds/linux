@@ -230,7 +230,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	err = blk_crypto_init_key(&dkc->key, raw_key, cipher->key_size,
+	err = blk_crypto_init_key(&dkc->key, raw_key, raw_key_size,
 				  dkc->is_hw_wrapped, cipher->mode_num,
 				  dkc->sector_size);
 	if (err) {
