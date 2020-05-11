@@ -75,6 +75,7 @@ static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 /**
  * fscrypt_needs_contents_encryption() - check whether an inode needs
  *					 contents encryption
+ * @inode: the inode to check
  *
  * Return: %true iff the inode is an encrypted regular file and the kernel was
  * built with fscrypt support.
@@ -504,7 +505,7 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 #endif	/* !CONFIG_FS_ENCRYPTION */
 
 /**
- * fscrypt_require_key - require an inode's encryption key
+ * fscrypt_require_key() - require an inode's encryption key
  * @inode: the inode we need the key for
  *
  * If the inode is encrypted, set up its encryption key if not already done.
@@ -530,7 +531,8 @@ static inline int fscrypt_require_key(struct inode *inode)
 }
 
 /**
- * fscrypt_prepare_link - prepare to link an inode into a possibly-encrypted directory
+ * fscrypt_prepare_link() - prepare to link an inode into a possibly-encrypted
+ *			    directory
  * @old_dentry: an existing dentry for the inode being linked
  * @dir: the target directory
  * @dentry: negative dentry for the target filename
@@ -557,7 +559,8 @@ static inline int fscrypt_prepare_link(struct dentry *old_dentry,
 }
 
 /**
- * fscrypt_prepare_rename - prepare for a rename between possibly-encrypted directories
+ * fscrypt_prepare_rename() - prepare for a rename between possibly-encrypted
+ *			      directories
  * @old_dir: source directory
  * @old_dentry: dentry for source file
  * @new_dir: target directory
@@ -590,7 +593,8 @@ static inline int fscrypt_prepare_rename(struct inode *old_dir,
 }
 
 /**
- * fscrypt_prepare_lookup - prepare to lookup a name in a possibly-encrypted directory
+ * fscrypt_prepare_lookup() - prepare to lookup a name in a possibly-encrypted
+ *			      directory
  * @dir: directory being searched
  * @dentry: filename being looked up
  * @fname: (output) the name to use to search the on-disk directory
@@ -623,7 +627,8 @@ static inline int fscrypt_prepare_lookup(struct inode *dir,
 }
 
 /**
- * fscrypt_prepare_setattr - prepare to change a possibly-encrypted inode's attributes
+ * fscrypt_prepare_setattr() - prepare to change a possibly-encrypted inode's
+ *			       attributes
  * @dentry: dentry through which the inode is being changed
  * @attr: attributes to change
  *
@@ -648,7 +653,7 @@ static inline int fscrypt_prepare_setattr(struct dentry *dentry,
 }
 
 /**
- * fscrypt_prepare_symlink - prepare to create a possibly-encrypted symlink
+ * fscrypt_prepare_symlink() - prepare to create a possibly-encrypted symlink
  * @dir: directory in which the symlink is being created
  * @target: plaintext symlink target
  * @len: length of @target excluding null terminator
@@ -687,7 +692,7 @@ static inline int fscrypt_prepare_symlink(struct inode *dir,
 }
 
 /**
- * fscrypt_encrypt_symlink - encrypt the symlink target if needed
+ * fscrypt_encrypt_symlink() - encrypt the symlink target if needed
  * @inode: symlink inode
  * @target: plaintext symlink target
  * @len: length of @target excluding null terminator
