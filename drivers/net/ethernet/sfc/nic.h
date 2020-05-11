@@ -360,10 +360,6 @@ enum {
  * @warm_boot_count: Last seen MC warm boot count
  * @vi_base: Absolute index of first VI in this function
  * @n_allocated_vis: Number of VIs allocated to this function
- * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
- * @must_restore_rss_contexts: Flag: RSS contexts have yet to be restored after
- *	MC reboot
- * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
  * @n_piobufs: Number of PIO buffers allocated to this function
  * @wc_membase: Base address of write-combining mapping of the memory BAR
  * @pio_write_base: Base address for writing PIO buffers
@@ -403,9 +399,6 @@ struct efx_ef10_nic_data {
 	u16 warm_boot_count;
 	unsigned int vi_base;
 	unsigned int n_allocated_vis;
-	bool must_realloc_vis;
-	bool must_restore_rss_contexts;
-	bool must_restore_filters;
 	unsigned int n_piobufs;
 	void __iomem *wc_membase, *pio_write_base;
 	unsigned int pio_write_vi_base;

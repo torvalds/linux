@@ -1281,13 +1281,13 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 		nic_data->must_check_datapath_caps = false;
 	}
 
-	if (nic_data->must_realloc_vis) {
+	if (efx->must_realloc_vis) {
 		/* We cannot let the number of VIs change now */
 		rc = efx_ef10_alloc_vis(efx, nic_data->n_allocated_vis,
 					nic_data->n_allocated_vis);
 		if (rc)
 			return rc;
-		nic_data->must_realloc_vis = false;
+		efx->must_realloc_vis = false;
 	}
 
 	if (nic_data->must_restore_piobufs && nic_data->n_piobufs) {
@@ -1326,9 +1326,8 @@ static void efx_ef10_table_reset_mc_allocations(struct efx_nic *efx)
 #endif
 
 	/* All our allocations have been reset */
-	nic_data->must_realloc_vis = true;
-	nic_data->must_restore_rss_contexts = true;
-	nic_data->must_restore_filters = true;
+	efx->must_realloc_vis = true;
+	efx_mcdi_filter_table_reset_mc_allocations(efx);
 	nic_data->must_restore_piobufs = true;
 	efx_ef10_forget_old_piobufs(efx);
 	efx->rss_context.context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
@@ -3100,16 +3099,15 @@ void efx_ef10_handle_drain_event(struct efx_nic *efx)
 
 static int efx_ef10_fini_dmaq(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
 	int pending;
 
 	/* If the MC has just rebooted, the TX/RX queues will have already been
 	 * torn down, but efx->active_queues needs to be set to zero.
 	 */
-	if (nic_data->must_realloc_vis) {
+	if (efx->must_realloc_vis) {
 		atomic_set(&efx->active_queues, 0);
 		return 0;
 	}

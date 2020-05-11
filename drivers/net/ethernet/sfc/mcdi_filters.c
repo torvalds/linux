@@ -331,7 +331,6 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 					 bool replace_equal)
 {
 	DECLARE_BITMAP(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_mcdi_filter_table *table;
 	struct efx_filter_spec *saved_spec;
 	struct efx_rss_context *ctx = NULL;
@@ -460,7 +459,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 	rc = efx_mcdi_filter_push(efx, spec, &table->entry[ins_index].handle,
 				  ctx, replacing);
 
-	if (rc == -EINVAL && nic_data->must_realloc_vis)
+	if (rc == -EINVAL && efx->must_realloc_vis)
 		/* The MC rebooted under us, causing it to reject our filter
 		 * insertion as pointing to an invalid VI (spec->dmaq_id).
 		 */
@@ -1355,6 +1354,16 @@ fail:
 	return rc;
 }
 
+void efx_mcdi_filter_table_reset_mc_allocations(struct efx_nic *efx)
+{
+	struct efx_mcdi_filter_table *table = efx->filter_state;
+
+	if (table) {
+		table->must_restore_filters = true;
+		table->must_restore_rss_contexts = true;
+	}
+}
+
 /*
  * Caller must hold efx->filter_sem for read if race against
  * efx_mcdi_filter_table_remove() is possible
@@ -1362,7 +1371,6 @@ fail:
 void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int invalid_filters = 0, failed = 0;
 	struct efx_mcdi_filter_vlan *vlan;
 	struct efx_filter_spec *spec;
@@ -1374,7 +1382,7 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 
 	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
 
-	if (!nic_data->must_restore_filters)
+	if (!table->must_restore_filters)
 		return;
 
 	if (!table)
@@ -1453,7 +1461,7 @@ not_restored:
 		netif_err(efx, hw, efx->net_dev,
 			  "unable to restore %u filters\n", failed);
 	else
-		nic_data->must_restore_filters = false;
+		table->must_restore_filters = false;
 }
 
 void efx_mcdi_filter_table_remove(struct efx_nic *efx)
@@ -2176,13 +2184,13 @@ int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
 
 void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_rss_context *ctx;
 	int rc;
 
 	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
-	if (!nic_data->must_restore_rss_contexts)
+	if (!table->must_restore_rss_contexts)
 		return;
 
 	list_for_each_entry(ctx, &efx->rss_context.list, list) {
@@ -2198,7 +2206,7 @@ void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 				   "; RSS filters may fail to be applied\n",
 				   ctx->user_id, rc);
 	}
-	nic_data->must_restore_rss_contexts = false;
+	table->must_restore_rss_contexts = false;
 }
 
 int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,

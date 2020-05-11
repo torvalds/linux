@@ -890,6 +890,7 @@ struct efx_async_filter_insertion {
  * @vport_id: The function's vport ID, only relevant for PFs
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
+ * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
  *	acknowledge but do nothing else.
  * @irq_status: Interrupt status buffer
@@ -1050,6 +1051,7 @@ struct efx_nic {
 	unsigned int_error_count;
 	unsigned long int_error_expire;
 
+	bool must_realloc_vis;
 	bool irq_soft_enabled;
 	struct efx_buffer irq_status;
 	unsigned irq_zero_count;
