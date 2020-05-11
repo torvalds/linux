@@ -170,6 +170,9 @@ void dealloc_mod_hdr_actions(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 struct mlx5e_tc_flow;
 u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 
+void mlx5e_tc_set_ethertype(void *headers_c, void *headers_v,
+			    struct flow_match_basic *match);
+
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 
 int mlx5e_tc_nic_init(struct mlx5e_priv *priv);

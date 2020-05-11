@@ -2020,6 +2020,15 @@ u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow)
 	return flow->tunnel_id;
 }
 
+void mlx5e_tc_set_ethertype(void *headers_c, void *headers_v,
+			    struct flow_match_basic *match)
+{
+	MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
+		 ntohs(match->mask->n_proto));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+		 ntohs(match->key->n_proto));
+}
+
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     struct mlx5e_tc_flow *flow,
 			     struct mlx5_flow_spec *spec,
@@ -2241,10 +2250,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		struct flow_match_basic match;
 
 		flow_rule_match_basic(rule, &match);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
-			 ntohs(match.mask->n_proto));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-			 ntohs(match.key->n_proto));
+		mlx5e_tc_set_ethertype(headers_c, headers_v, &match);
 
 		if (match.mask->n_proto)
 			*match_level = MLX5_MATCH_L2;
