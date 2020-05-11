@@ -188,18 +188,27 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 				unsigned int cmd, unsigned long arg)
 {
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
-	int touser;
+	int val, touser = 0;
 	int ret;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL3, &touser);
+		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL3, &val);
 		if (ret)
 			return ret;
 
-		touser = touser & PCF2127_BIT_CTRL3_BLF ? RTC_VL_BACKUP_LOW : 0;
+		if (val & PCF2127_BIT_CTRL3_BLF)
+			touser |= RTC_VL_BACKUP_LOW;
+
+		if (val & PCF2127_BIT_CTRL3_BF)
+			touser |= RTC_VL_BACKUP_SWITCH;
 
 		return put_user(touser, (unsigned int __user *)arg);
+
+	case RTC_VL_CLR:
+		return regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL3,
+					  PCF2127_BIT_CTRL3_BF, 0);
+
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -493,7 +502,6 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	 */
 	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL3,
 				 PCF2127_BIT_CTRL3_BTSE |
-				 PCF2127_BIT_CTRL3_BF |
 				 PCF2127_BIT_CTRL3_BIE |
 				 PCF2127_BIT_CTRL3_BLIE, 0);
 	if (ret) {
