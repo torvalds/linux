@@ -9,6 +9,7 @@ Required properties:
 - "rockchip,pm-rk3328" - for RK3328 SOCs.
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
+- "rockchip,pm-rv1126" - for RV1126 SoCs.
 
 - rockchip,sleep-mode-config : the sleep mode config,
   ARMOFF, OSC disabled ...
@@ -159,6 +160,25 @@ Example:
 		rockchip,pwm-regulator-config = <
 			(0 |
 			PWM2_REGULATOR_EN
+			)
+		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rv1126";
+		status = "disabled";
+		rockchip,sleep-debug-en = <0>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_ARMOFF
+			| RKPM_SLP_PMU_PMUALIVE_32K
+			| RKPM_SLP_PMU_DIS_OSC
+			| RKPM_SLP_PMIC_LP
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO_WKUP_EN
 			)
 		>;
 	};
