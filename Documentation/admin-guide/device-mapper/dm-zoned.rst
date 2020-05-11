@@ -144,3 +144,19 @@ underlying zoned block device name. Ex::
 
 	echo "0 `blockdev --getsize ${dev}` zoned ${dev}" | \
 	dmsetup create dmz-`basename ${dev}`
+
+Information about the internal layout and current usage of the zones can
+be obtained with the 'status' callback from dmsetup:
+
+Ex::
+
+	dmsetup status /dev/dm-X
+
+will return a line
+
+	0 <size> zoned <nr_zones> zones <nr_unmap_rnd>/<nr_rnd> random <nr_unmap_seq>/<nr_seq> sequential
+
+where <nr_zones> is the total number of zones, <nr_unmap_rnd> is the number
+of unmapped (ie free) random zones, <nr_rnd> the total number of zones,
+<nr_unmap_seq> the number of unmapped sequential zones, and <nr_seq> the
+total number of sequential zones.
