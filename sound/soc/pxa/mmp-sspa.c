@@ -29,7 +29,8 @@
  */
 struct sspa_priv {
 	struct ssp_device *sspa;
-	struct snd_dmaengine_dai_dma_data *dma_params;
+	struct snd_dmaengine_dai_dma_data playback_dma_data;
+	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct clk *audio_clk;
 	struct clk *sysclk;
 	int dai_fmt;
@@ -250,11 +251,8 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct sspa_priv *sspa_priv = snd_soc_dai_get_drvdata(dai);
 	struct ssp_device *sspa = sspa_priv->sspa;
-	struct snd_dmaengine_dai_dma_data *dma_params;
 	u32 sspa_ctrl;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -293,11 +291,6 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 		mmp_sspa_write_reg(sspa, SSPA_RXFIFO_UL, 0x0);
 	}
 
-	dma_params = &sspa_priv->dma_params[substream->stream];
-	dma_params->addr = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-				(sspa->phys_base + SSPA_TXD) :
-				(sspa->phys_base + SSPA_RXD);
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_params);
 	return 0;
 }
 
@@ -350,6 +343,10 @@ static int mmp_sspa_trigger(struct snd_pcm_substream *substream, int cmd,
 static int mmp_sspa_probe(struct snd_soc_dai *dai)
 {
 	struct sspa_priv *priv = dev_get_drvdata(dai->dev);
+
+	snd_soc_dai_init_dma_data(dai,
+				&priv->playback_dma_data,
+				&priv->capture_dma_data);
 
 	snd_soc_dai_set_drvdata(dai, priv);
 	return 0;
@@ -407,12 +404,6 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (priv->sspa == NULL)
 		return -ENOMEM;
 
-	priv->dma_params = devm_kcalloc(&pdev->dev,
-			2, sizeof(struct snd_dmaengine_dai_dma_data),
-			GFP_KERNEL);
-	if (priv->dma_params == NULL)
-		return -ENOMEM;
-
 	priv->sspa->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->sspa->mmio_base))
 		return PTR_ERR(priv->sspa->mmio_base);
@@ -433,6 +424,10 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	clk_enable(priv->audio_clk);
 	priv->dai_fmt = (unsigned int) -1;
 	platform_set_drvdata(pdev, priv);
+
+	/* You know, these addresses are actually ignored. */
+	priv->playback_dma_data.addr = SSPA_TXD;
+	priv->capture_dma_data.addr = SSPA_RXD;
 
 	return devm_snd_soc_register_component(&pdev->dev, &mmp_sspa_component,
 					       &mmp_sspa_dai, 1);
