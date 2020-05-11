@@ -236,7 +236,7 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 	err = -EFAULT;
 	if (copy_to_user(cm, &cmhdr, sizeof cmhdr))
 		goto out;
-	if (copy_to_user(CMSG_DATA(cm), data, cmlen - sizeof(struct cmsghdr)))
+	if (copy_to_user(CMSG_USER_DATA(cm), data, cmlen - sizeof(*cm)))
 		goto out;
 	cmlen = CMSG_SPACE(len);
 	if (msg->msg_controllen < cmlen)
@@ -300,7 +300,7 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 	if (fdnum < fdmax)
 		fdmax = fdnum;
 
-	for (i=0, cmfptr=(__force int __user *)CMSG_DATA(cm); i<fdmax;
+	for (i=0, cmfptr =(int __user *)CMSG_USER_DATA(cm); i<fdmax;
 	     i++, cmfptr++)
 	{
 		struct socket *sock;
