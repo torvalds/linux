@@ -196,7 +196,6 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 		if (*(buf - 1) == IMX_OCOTP_READ_LOCKED_VAL)
 			imx_ocotp_clr_err_if_set(priv);
 	}
-	ret = 0;
 
 read_end:
 	clk_disable_unprepare(priv->clk);
@@ -435,17 +434,13 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	       priv->base + IMX_OCOTP_ADDR_CTRL_SET);
 	ret = imx_ocotp_wait_for_busy(priv,
 				      priv->params->ctrl.bm_rel_shadows);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(priv->dev, "timeout during shadow register reload\n");
-		goto write_end;
-	}
 
 write_end:
 	clk_disable_unprepare(priv->clk);
 	mutex_unlock(&ocotp_mutex);
-	if (ret < 0)
-		return ret;
-	return bytes;
+	return ret < 0 ? ret : bytes;
 }
 
 static struct nvmem_config imx_ocotp_nvmem_config = {
