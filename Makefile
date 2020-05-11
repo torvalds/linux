@@ -1335,9 +1335,12 @@ all: modules
 # using awk while concatenating to the final file.
 
 PHONY += modules
-modules: $(if $(KBUILD_BUILTIN),vmlinux) modules.order
+modules: $(if $(KBUILD_BUILTIN),vmlinux) modules_check
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh
+
+PHONY += modules_check
+modules_check: modules.order
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh $<
 
 modules.order: descend
 	$(Q)$(AWK) '!x[$$0]++' $(addsuffix /$@, $(build-dirs)) > $@
