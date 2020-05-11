@@ -46,29 +46,31 @@ static void *udl_gem_object_vmap(struct drm_gem_object *obj)
 	if (shmem->vmap_use_count++ > 0)
 		goto out;
 
-	ret = drm_gem_shmem_get_pages(shmem);
-	if (ret)
-		goto err_zero_use;
-
-	if (obj->import_attach)
+	if (obj->import_attach) {
 		shmem->vaddr = dma_buf_vmap(obj->import_attach->dmabuf);
-	else
+	} else {
+		ret = drm_gem_shmem_get_pages(shmem);
+		if (ret)
+			goto err;
+
 		shmem->vaddr = vmap(shmem->pages, obj->size >> PAGE_SHIFT,
 				    VM_MAP, PAGE_KERNEL);
+
+		if (!shmem->vaddr)
+			drm_gem_shmem_put_pages(shmem);
+	}
 
 	if (!shmem->vaddr) {
 		DRM_DEBUG_KMS("Failed to vmap pages\n");
 		ret = -ENOMEM;
-		goto err_put_pages;
+		goto err;
 	}
 
 out:
 	mutex_unlock(&shmem->vmap_lock);
 	return shmem->vaddr;
 
-err_put_pages:
-	drm_gem_shmem_put_pages(shmem);
-err_zero_use:
+err:
 	shmem->vmap_use_count = 0;
 	mutex_unlock(&shmem->vmap_lock);
 	return ERR_PTR(ret);
