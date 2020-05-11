@@ -234,7 +234,7 @@ static const struct pci_bridge_reg_behavior pcie_cap_regs_behavior[] = {
 		 * Root control has bits [4:0] RW, the rest is
 		 * reserved.
 		 *
-		 * Root status has bit 0 RO, the rest is reserved.
+		 * Root capabilities has bit 0 RO, the rest is reserved.
 		 */
 		.rw = (PCI_EXP_RTCTL_SECEE | PCI_EXP_RTCTL_SENFEE |
 		       PCI_EXP_RTCTL_SEFEE | PCI_EXP_RTCTL_PMEIE |
@@ -244,6 +244,10 @@ static const struct pci_bridge_reg_behavior pcie_cap_regs_behavior[] = {
 	},
 
 	[PCI_EXP_RTSTA / 4] = {
+		/*
+		 * Root status has bits 17 and [15:0] RO, bit 16 W1C, the rest
+		 * is reserved.
+		 */
 		.ro = GENMASK(15, 0) | PCI_EXP_RTSTA_PENDING,
 		.w1c = PCI_EXP_RTSTA_PME,
 		.rsvd = GENMASK(31, 18),
