@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2018 Intel Corporation.
+ * Copyright(c) 2015-2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/prefetch.h>
 #include <rdma/ib_verbs.h>
+#include <linux/etherdevice.h>
 
 #include "hfi.h"
 #include "trace.h"
@@ -62,6 +63,9 @@
 #include "debugfs.h"
 #include "vnic.h"
 #include "fault.h"
+
+#include "ipoib.h"
+#include "netdev.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -1550,6 +1554,81 @@ void handle_eflags(struct hfi1_packet *packet)
 		show_eflags_errs(packet);
 }
 
+static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ibport *ibp;
+	struct net_device *netdev;
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct napi_struct *napi = rcd->napi;
+	struct sk_buff *skb;
+	struct hfi1_netdev_rxq *rxq = container_of(napi,
+			struct hfi1_netdev_rxq, napi);
+	u32 extra_bytes;
+	u32 tlen, qpnum;
+	bool do_work, do_cnp;
+	struct hfi1_ipoib_dev_priv *priv;
+
+	trace_hfi1_rcvhdr(packet);
+
+	hfi1_setup_ib_header(packet);
+
+	packet->ohdr = &((struct ib_header *)packet->hdr)->u.oth;
+	packet->grh = NULL;
+
+	if (unlikely(rhf_err_flags(packet->rhf))) {
+		handle_eflags(packet);
+		return;
+	}
+
+	qpnum = ib_bth_get_qpn(packet->ohdr);
+	netdev = hfi1_netdev_get_data(rcd->dd, qpnum);
+	if (!netdev)
+		goto drop_no_nd;
+
+	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
+
+	/* handle congestion notifications */
+	do_work = hfi1_may_ecn(packet);
+	if (unlikely(do_work)) {
+		do_cnp = (packet->opcode != IB_OPCODE_CNP);
+		(void)hfi1_process_ecn_slowpath(hfi1_ipoib_priv(netdev)->qp,
+						 packet, do_cnp);
+	}
+
+	/*
+	 * We have split point after last byte of DETH
+	 * lets strip padding and CRC and ICRC.
+	 * tlen is whole packet len so we need to
+	 * subtract header size as well.
+	 */
+	tlen = packet->tlen;
+	extra_bytes = ib_bth_get_pad(packet->ohdr) + (SIZE_OF_CRC << 2) +
+			packet->hlen;
+	if (unlikely(tlen < extra_bytes))
+		goto drop;
+
+	tlen -= extra_bytes;
+
+	skb = hfi1_ipoib_prepare_skb(rxq, tlen, packet->ebuf);
+	if (unlikely(!skb))
+		goto drop;
+
+	priv = hfi1_ipoib_priv(netdev);
+	hfi1_ipoib_update_rx_netstats(priv, 1, skb->len);
+
+	skb->dev = netdev;
+	skb->pkt_type = PACKET_HOST;
+	netif_receive_skb(skb);
+
+	return;
+
+drop:
+	++netdev->stats.rx_dropped;
+drop_no_nd:
+	ibp = rcd_to_iport(packet->rcd);
+	++ibp->rvp.n_pkt_drops;
+}
+
 /*
  * The following functions are called by the interrupt handler. They are type
  * specific handlers for each packet type.
@@ -1753,6 +1832,17 @@ const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
 	[RHF_RCV_TYPE_IB] = process_receive_ib,
 	[RHF_RCV_TYPE_ERROR] = process_receive_error,
 	[RHF_RCV_TYPE_BYPASS] = process_receive_bypass,
+	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,
+};
+
+const rhf_rcv_function_ptr netdev_rhf_rcv_functions[] = {
+	[RHF_RCV_TYPE_EXPECTED] = process_receive_invalid,
+	[RHF_RCV_TYPE_EAGER] = process_receive_invalid,
+	[RHF_RCV_TYPE_IB] = hfi1_ipoib_ib_rcv,
+	[RHF_RCV_TYPE_ERROR] = process_receive_error,
+	[RHF_RCV_TYPE_BYPASS] = hfi1_vnic_bypass_rcv,
 	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,

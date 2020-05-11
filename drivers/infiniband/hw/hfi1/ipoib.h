@@ -22,6 +22,7 @@
 
 #include "hfi.h"
 #include "iowait.h"
+#include "netdev.h"
 
 #include <rdma/ib_verbs.h>
 
@@ -29,6 +30,7 @@
 
 #define HFI1_IPOIB_TXREQ_NAME_LEN   32
 
+#define HFI1_IPOIB_PSEUDO_LEN 20
 #define HFI1_IPOIB_ENCAP_LEN 4
 
 struct hfi1_ipoib_dev_priv;
@@ -119,6 +121,19 @@ hfi1_ipoib_priv(const struct net_device *dev)
 }
 
 static inline void
+hfi1_ipoib_update_rx_netstats(struct hfi1_ipoib_dev_priv *priv,
+			      u64 packets,
+			      u64 bytes)
+{
+	struct pcpu_sw_netstats *netstats = this_cpu_ptr(priv->netstats);
+
+	u64_stats_update_begin(&netstats->syncp);
+	netstats->rx_packets += packets;
+	netstats->rx_bytes += bytes;
+	u64_stats_update_end(&netstats->syncp);
+}
+
+static inline void
 hfi1_ipoib_update_tx_netstats(struct hfi1_ipoib_dev_priv *priv,
 			      u64 packets,
 			      u64 bytes)
@@ -141,6 +156,9 @@ void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv);
 
 void hfi1_ipoib_napi_tx_enable(struct net_device *dev);
 void hfi1_ipoib_napi_tx_disable(struct net_device *dev);
+
+struct sk_buff *hfi1_ipoib_prepare_skb(struct hfi1_netdev_rxq *rxq,
+				       int size, void *data);
 
 int hfi1_ipoib_rn_get_params(struct ib_device *device,
 			     u8 port_num,

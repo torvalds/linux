@@ -23,10 +23,12 @@ hfi1-y := \
 	intr.o \
 	iowait.o \
 	ipoib_main.o \
+	ipoib_rx.o \
 	ipoib_tx.o \
 	mad.o \
 	mmu_rb.o \
 	msix.o \
+	netdev_rx.o \
 	opfn.o \
 	pcie.o \
 	pio.o \
