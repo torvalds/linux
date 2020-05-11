@@ -566,9 +566,15 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	 * Capture:  It might not receave data. Do nothing
 	 */
 	if (rsnd_io_is_play(io)) {
-		rsnd_mod_write(mod, SSICR, cr | EN);
+		rsnd_mod_write(mod, SSICR, cr | ssi->cr_en);
 		rsnd_ssi_status_check(mod, DIRQ);
 	}
+
+	/* In multi-SSI mode, stop is performed by setting ssi0129 in
+	 * SSI_CONTROL to 0 (in rsnd_ssio_stop_gen2). Do nothing here.
+	 */
+	if (rsnd_ssi_multi_slaves_runtime(io))
+		return 0;
 
 	/*
 	 * disable SSI,
@@ -672,6 +678,9 @@ static void rsnd_ssi_parent_attach(struct rsnd_mod *mod,
 		return;
 
 	if (!rsnd_rdai_is_clk_master(rdai))
+		return;
+
+	if (rsnd_ssi_is_multi_slave(mod, io))
 		return;
 
 	switch (rsnd_mod_id(mod)) {
