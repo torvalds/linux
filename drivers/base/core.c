@@ -2370,6 +2370,11 @@ u32 fw_devlink_get_flags(void)
 	return fw_devlink_flags;
 }
 
+static bool fw_devlink_is_permissive(void)
+{
+	return fw_devlink_flags == DL_FLAG_SYNC_STATE_ONLY;
+}
+
 /**
  * device_add - add device to device hierarchy.
  * @dev: device.
@@ -2524,7 +2529,7 @@ int device_add(struct device *dev)
 	if (fw_devlink_flags && is_fwnode_dev &&
 	    fwnode_has_op(dev->fwnode, add_links)) {
 		fw_ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
-		if (fw_ret == -ENODEV)
+		if (fw_ret == -ENODEV && !fw_devlink_is_permissive())
 			device_link_wait_for_mandatory_supplier(dev);
 		else if (fw_ret)
 			device_link_wait_for_optional_supplier(dev);

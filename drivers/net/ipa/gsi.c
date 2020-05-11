@@ -1041,6 +1041,7 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 
 	complete(&gsi->completion);
 }
+
 /* Inter-EE interrupt handler */
 static void gsi_isr_glob_ee(struct gsi *gsi)
 {
@@ -1493,6 +1494,12 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	struct completion *completion = &gsi->completion;
 	u32 val;
 
+	/* First zero the result code field */
+	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
+	val &= ~GENERIC_EE_RESULT_FMASK;
+	iowrite32(val, gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
+
+	/* Now issue the command */
 	val = u32_encode_bits(opcode, GENERIC_OPCODE_FMASK);
 	val |= u32_encode_bits(channel_id, GENERIC_CHID_FMASK);
 	val |= u32_encode_bits(GSI_EE_MODEM, GENERIC_EE_FMASK);
@@ -1798,9 +1805,9 @@ static int gsi_channel_init_one(struct gsi *gsi,
 
 	/* Worst case we need an event for every outstanding TRE */
 	if (data->channel.tre_count > data->channel.event_count) {
-		dev_warn(gsi->dev, "channel %u limited to %u TREs\n",
-			data->channel_id, data->channel.tre_count);
 		tre_count = data->channel.event_count;
+		dev_warn(gsi->dev, "channel %u limited to %u TREs\n",
+			 data->channel_id, tre_count);
 	} else {
 		tre_count = data->channel.tre_count;
 	}
