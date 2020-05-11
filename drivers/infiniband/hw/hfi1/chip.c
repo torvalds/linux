@@ -66,6 +66,7 @@
 #include "affinity.h"
 #include "debugfs.h"
 #include "fault.h"
+#include "netdev.h"
 
 uint num_vls = HFI1_MAX_VLS_SUPPORTED;
 module_param(num_vls, uint, S_IRUGO);
@@ -8478,6 +8479,49 @@ static void hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
 	local_irq_save(flags);
 	__hfi1_rcd_eoi_intr(rcd);
 	local_irq_restore(flags);
+}
+
+/**
+ * hfi1_netdev_rx_napi - napi poll function to move eoi inline
+ * @napi - pointer to napi object
+ * @budget - netdev budget
+ */
+int hfi1_netdev_rx_napi(struct napi_struct *napi, int budget)
+{
+	struct hfi1_netdev_rxq *rxq = container_of(napi,
+			struct hfi1_netdev_rxq, napi);
+	struct hfi1_ctxtdata *rcd = rxq->rcd;
+	int work_done = 0;
+
+	work_done = rcd->do_interrupt(rcd, budget);
+
+	if (work_done < budget) {
+		napi_complete_done(napi, work_done);
+		hfi1_rcd_eoi_intr(rcd);
+	}
+
+	return work_done;
+}
+
+/* Receive packet napi handler for netdevs VNIC and AIP  */
+irqreturn_t receive_context_interrupt_napi(int irq, void *data)
+{
+	struct hfi1_ctxtdata *rcd = data;
+
+	receive_interrupt_common(rcd);
+
+	if (likely(rcd->napi)) {
+		if (likely(napi_schedule_prep(rcd->napi)))
+			__napi_schedule_irqoff(rcd->napi);
+		else
+			__hfi1_rcd_eoi_intr(rcd);
+	} else {
+		WARN_ONCE(1, "Napi IRQ handler without napi set up ctxt=%d\n",
+			  rcd->ctxt);
+		__hfi1_rcd_eoi_intr(rcd);
+	}
+
+	return IRQ_HANDLED;
 }
 
 /*

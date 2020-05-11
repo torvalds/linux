@@ -49,6 +49,7 @@
 #include "hfi.h"
 #include "affinity.h"
 #include "sdma.h"
+#include "netdev.h"
 
 /**
  * msix_initialize() - Calculate, request and configure MSIx IRQs
@@ -140,7 +141,7 @@ static int msix_request_irq(struct hfi1_devdata *dd, void *arg,
 	ret = pci_request_irq(dd->pcidev, nr, handler, thread, arg, name);
 	if (ret) {
 		dd_dev_err(dd,
-			   "%s: request for IRQ %d failed, MSIx %lu, err %d\n",
+			   "%s: request for IRQ %d failed, MSIx %lx, err %d\n",
 			   name, irq, nr, ret);
 		spin_lock(&dd->msix_info.msix_lock);
 		__clear_bit(nr, dd->msix_info.in_use_msix);
@@ -160,7 +161,7 @@ static int msix_request_irq(struct hfi1_devdata *dd, void *arg,
 	/* This is a request, so a failure is not fatal */
 	ret = hfi1_get_irq_affinity(dd, me);
 	if (ret)
-		dd_dev_err(dd, "unable to pin IRQ %d\n", ret);
+		dd_dev_err(dd, "%s: unable to pin IRQ %d\n", name, ret);
 
 	return nr;
 }
@@ -201,6 +202,21 @@ int msix_request_rcd_irq(struct hfi1_ctxtdata *rcd)
 
 	return msix_request_rcd_irq_common(rcd, receive_context_interrupt,
 					   receive_context_thread, name);
+}
+
+/**
+ * msix_request_rcd_irq() - Helper function for RCVAVAIL IRQs
+ * for netdev context
+ * @rcd: valid netdev contexti
+ */
+int msix_netdev_request_rcd_irq(struct hfi1_ctxtdata *rcd)
+{
+	char name[MAX_NAME_SIZE];
+
+	snprintf(name, sizeof(name), DRIVER_NAME "_%d nd kctxt%d",
+		 rcd->dd->unit, rcd->ctxt);
+	return msix_request_rcd_irq_common(rcd, receive_context_interrupt_napi,
+					   NULL, name);
 }
 
 /**

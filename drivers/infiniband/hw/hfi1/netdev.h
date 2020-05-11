@@ -87,4 +87,7 @@ void *hfi1_netdev_remove_data(struct hfi1_devdata *dd, int id);
 void *hfi1_netdev_get_data(struct hfi1_devdata *dd, int id);
 void *hfi1_netdev_get_first_data(struct hfi1_devdata *dd, int *start_id);
 
+/* chip.c  */
+int hfi1_netdev_rx_napi(struct napi_struct *napi, int budget);
+
 #endif /* HFI1_NETDEV_H */

@@ -1447,6 +1447,7 @@ irqreturn_t general_interrupt(int irq, void *data);
 irqreturn_t sdma_interrupt(int irq, void *data);
 irqreturn_t receive_context_interrupt(int irq, void *data);
 irqreturn_t receive_context_thread(int irq, void *data);
+irqreturn_t receive_context_interrupt_napi(int irq, void *data);
 
 int set_intr_bits(struct hfi1_devdata *dd, u16 first, u16 last, bool set);
 void init_qsfp_int(struct hfi1_devdata *dd);
