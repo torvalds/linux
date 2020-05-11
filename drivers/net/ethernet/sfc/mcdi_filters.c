@@ -1285,10 +1285,8 @@ efx_mcdi_filter_table_probe_matches(struct efx_nic *efx,
 
 int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
 	struct efx_mcdi_filter_table *table;
-	struct efx_mcdi_filter_vlan *vlan;
 	int rc;
 
 	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
@@ -1337,17 +1335,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 
 	efx->filter_state = table;
 
-	list_for_each_entry(vlan, &nic_data->vlan_list, list) {
-		rc = efx_mcdi_filter_add_vlan(efx, vlan->vid);
-		if (rc)
-			goto fail_add_vlan;
-	}
-
 	return 0;
-
-fail_add_vlan:
-	efx_mcdi_filter_cleanup_vlans(efx);
-	efx->filter_state = NULL;
 fail:
 	kfree(table);
 	return rc;

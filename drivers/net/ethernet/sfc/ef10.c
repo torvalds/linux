@@ -2447,6 +2447,7 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc = efx_ef10_probe_multicast_chaining(efx);
+	struct efx_mcdi_filter_vlan *vlan;
 
 	if (rc)
 		return rc;
@@ -2455,7 +2456,16 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
+	list_for_each_entry(vlan, &nic_data->vlan_list, list) {
+		rc = efx_mcdi_filter_add_vlan(efx, vlan->vid);
+		if (rc)
+			goto fail_add_vlan;
+	}
 	return 0;
+
+fail_add_vlan:
+	efx_mcdi_filter_table_remove(efx);
+	return rc;
 }
 
 /* This creates an entry in the RX descriptor queue */
