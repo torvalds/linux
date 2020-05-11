@@ -192,7 +192,7 @@ enum hinic_mod_type {
 	HINIC_MOD_COMM  = 0,    /* HW communication module */
 	HINIC_MOD_L2NIC = 1,    /* L2NIC module */
 	HINIC_MOD_CFGM  = 7,    /* Configuration module */
-
+	HINIC_MOD_HILINK = 14,  /* Hilink module */
 	HINIC_MOD_MAX   = 15
 };
 

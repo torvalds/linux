@@ -54,6 +54,9 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_RX_MODE      = 12,
 
+	HINIC_PORT_CMD_GET_PAUSE_INFO	= 20,
+	HINIC_PORT_CMD_SET_PAUSE_INFO	= 21,
+
 	HINIC_PORT_CMD_GET_LINK_STATE   = 24,
 
 	HINIC_PORT_CMD_SET_LRO		= 25,
@@ -116,9 +119,21 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_CAP          = 170,
 
+	HINIC_PORT_CMD_GET_LINK_MODE	= 217,
+
+	HINIC_PORT_CMD_SET_SPEED	= 218,
+
+	HINIC_PORT_CMD_SET_AUTONEG	= 219,
+
 	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
 
 	HINIC_PORT_CMD_SET_VF_MAX_MIN_RATE = 249,
+};
+
+/* cmd of mgmt CPU message for HILINK module */
+enum hinic_hilink_cmd {
+	HINIC_HILINK_CMD_GET_LINK_INFO		= 0x3,
+	HINIC_HILINK_CMD_SET_LINK_SETTINGS	= 0x8,
 };
 
 enum hinic_ucode_cmd {
@@ -327,6 +342,10 @@ void hinic_hwdev_cb_unregister(struct hinic_hwdev *hwdev,
 int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 		       void *buf_in, u16 in_size, void *buf_out,
 		       u16 *out_size);
+
+int hinic_hilink_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_hilink_cmd cmd,
+			 void *buf_in, u16 in_size, void *buf_out,
+			 u16 *out_size);
 
 int hinic_hwdev_ifup(struct hinic_hwdev *hwdev);
 

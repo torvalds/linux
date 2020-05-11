@@ -219,6 +219,19 @@ int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 				 HINIC_MGMT_MSG_SYNC);
 }
 
+int hinic_hilink_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_hilink_cmd cmd,
+			 void *buf_in, u16 in_size, void *buf_out,
+			 u16 *out_size)
+{
+	struct hinic_pfhwdev *pfhwdev;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_HILINK, cmd,
+				 buf_in, in_size, buf_out, out_size,
+				 HINIC_MGMT_MSG_SYNC);
+}
+
 /**
  * init_fw_ctxt- Init Firmware tables before network mgmt and io operations
  * @hwdev: the NIC HW device
