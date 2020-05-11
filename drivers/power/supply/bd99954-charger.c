@@ -1025,7 +1025,7 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 	return 0;
 }
 
-void bd9995x_chip_reset(void *bd)
+static void bd9995x_chip_reset(void *bd)
 {
 	__bd9995x_chip_reset(bd);
 }
