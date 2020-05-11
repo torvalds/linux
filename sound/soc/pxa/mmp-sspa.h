@@ -38,7 +38,7 @@
 #define	SSPA_CTL_XFRLEN2(x)	((x) << 24)	/* Transmit Frame Length in Phase 2 */
 #define	SSPA_CTL_XWDLEN2_MASK	(7 << 21)
 #define	SSPA_CTL_XWDLEN2(x)	((x) << 21)	/* Transmit Word Length in Phase 2 */
-#define	SSPA_CTL_XDATDLY(x)	((x) << 19)	/* Tansmit Data Delay */
+#define	SSPA_CTL_XDATDLY(x)	((x) << 19)	/* Transmit Data Delay */
 #define	SSPA_CTL_XSSZ2_MASK	(7 << 16)
 #define	SSPA_CTL_XSSZ2(x)	((x) << 16)	/* Transmit Sample Audio Size */
 #define	SSPA_CTL_XFRLEN1_MASK	(7 << 8)
