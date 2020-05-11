@@ -185,7 +185,7 @@ static int __nfs_list_for_each_server(struct list_head *head,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, head, client_link) {
-		if (!nfs_sb_active(server->super))
+		if (!(server->super && nfs_sb_active(server->super)))
 			continue;
 		rcu_read_unlock();
 		if (last)
