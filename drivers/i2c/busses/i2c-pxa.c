@@ -90,6 +90,7 @@
  */
 #define DEF_TIMEOUT             32
 
+#define NO_SLAVE		(-ENXIO)
 #define BUS_ERROR               (-EREMOTEIO)
 #define XFER_NAKED              (-ECONNREFUSED)
 #define I2C_RETRY               (-2000) /* an error has occurred retry transmit */
@@ -881,7 +882,7 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		 */
 		if (isr & ISR_ACKNAK) {
 			if (i2c->msg_ptr == 0 && i2c->msg_idx == 0)
-				ret = I2C_RETRY;
+				ret = NO_SLAVE;
 			else
 				ret = XFER_NAKED;
 		}
@@ -1109,16 +1110,19 @@ static int i2c_pxa_internal_xfer(struct pxa_i2c *i2c,
 {
 	int ret, i;
 
-	for (i = i2c->adap.retries; i >= 0; i--) {
+	for (i = 0; ; ) {
 		ret = xfer(i2c, msgs, num);
-		if (ret != I2C_RETRY)
+		if (ret != I2C_RETRY && ret != NO_SLAVE)
 			goto out;
+		if (++i >= i2c->adap.retries)
+			break;
 
 		if (i2c_debug)
 			dev_dbg(&i2c->adap.dev, "Retrying transmission\n");
 		udelay(100);
 	}
-	i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
+	if (ret != NO_SLAVE)
+		i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
 	ret = -EREMOTEIO;
  out:
 	i2c_pxa_set_slave(i2c, ret);
