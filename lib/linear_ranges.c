@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/linear_range.h>
+#include <linux/module.h>
 
 /**
  * linear_range_values_in_range - return the amount of values in a range
@@ -239,3 +240,6 @@ int linear_range_get_selector_high(const struct linear_range *r,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(linear_range_get_selector_high);
+
+MODULE_DESCRIPTION("linear-ranges helper");
+MODULE_LICENSE("GPL");
