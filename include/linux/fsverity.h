@@ -200,6 +200,7 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
 
 /**
  * fsverity_active() - do reads from the inode need to go through fs-verity?
+ * @inode: inode to check
  *
  * This checks whether ->i_verity_info has been set.
  *
@@ -207,6 +208,8 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
  * be verified or not.  Don't use IS_VERITY() for this purpose; it's subject to
  * a race condition where the file is being read concurrently with
  * FS_IOC_ENABLE_VERITY completing.  (S_VERITY is set before ->i_verity_info.)
+ *
+ * Return: true if reads need to go through fs-verity, otherwise false
  */
 static inline bool fsverity_active(const struct inode *inode)
 {
