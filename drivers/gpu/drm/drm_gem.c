@@ -548,6 +548,10 @@ static void drm_gem_check_release_pagevec(struct pagevec *pvec)
  * set during initialization. If you have special zone constraints, set them
  * after drm_gem_object_init() via mapping_set_gfp_mask(). shmem-core takes care
  * to keep pages in the required zone during swap-in.
+ *
+ * This function is only valid on objects initialized with
+ * drm_gem_object_init(), but not for those initialized with
+ * drm_gem_private_object_init() only.
  */
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
@@ -555,6 +559,10 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	struct page *p, **pages;
 	struct pagevec pvec;
 	int i, npages;
+
+
+	if (WARN_ON(!obj->filp))
+		return ERR_PTR(-EINVAL);
 
 	/* This is the shared memory object that backs the GEM resource */
 	mapping = obj->filp->f_mapping;
