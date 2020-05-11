@@ -275,9 +275,6 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_16_BITS);
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_20_BITS);
-		break;
 	case SNDRV_PCM_FORMAT_S24_3LE:
 		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_24_BITS);
 		break;
