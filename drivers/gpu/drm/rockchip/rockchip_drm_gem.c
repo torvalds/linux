@@ -431,6 +431,17 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 		ret = rockchip_gem_get_pages(rk_obj);
 		if (ret < 0)
 			return ret;
+
+		if (alloc_kmap) {
+			rk_obj->kvaddr = vmap(rk_obj->pages, rk_obj->num_pages,
+					      VM_MAP,
+					      pgprot_writecombine(PAGE_KERNEL));
+			if (!rk_obj->kvaddr) {
+				DRM_ERROR("failed to vmap() buffer\n");
+				ret = -ENOMEM;
+				goto err_iommu_free;
+			}
+		}
 	}
 
 	if (private->domain) {
@@ -440,16 +451,6 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 	} else {
 		WARN_ON(!rk_obj->dma_handle);
 		rk_obj->dma_addr = rk_obj->dma_handle;
-	}
-
-	if (alloc_kmap) {
-		rk_obj->kvaddr = vmap(rk_obj->pages, rk_obj->num_pages, VM_MAP,
-				      pgprot_writecombine(PAGE_KERNEL));
-		if (!rk_obj->kvaddr) {
-			DRM_ERROR("failed to vmap() buffer\n");
-			ret = -ENOMEM;
-			goto err_iommu_free;
-		}
 	}
 
 	return 0;
@@ -484,16 +485,17 @@ static void rockchip_gem_free_buf(struct rockchip_gem_object *rk_obj)
 	struct drm_device *drm = rk_obj->base.dev;
 	struct rockchip_drm_private *private = drm->dev_private;
 
-	vunmap(rk_obj->kvaddr);
 	if (private->domain)
 		rockchip_gem_iommu_unmap(rk_obj);
 
-	if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SHMEM)
+	if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SHMEM) {
+		vunmap(rk_obj->kvaddr);
 		rockchip_gem_put_pages(rk_obj);
-	else if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SECURE)
+	} else if (rk_obj->buf_type == ROCKCHIP_GEM_BUF_TYPE_SECURE) {
 		rockchip_gem_free_secure(rk_obj);
-	else
+	} else {
 		rockchip_gem_free_dma(rk_obj);
+	}
 }
 
 /*
