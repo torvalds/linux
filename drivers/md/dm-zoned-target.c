@@ -165,7 +165,8 @@ static void dmz_handle_read_zero(struct dmz_target *dmz, struct bio *bio,
 static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 			   struct bio *bio)
 {
-	sector_t chunk_block = dmz_chunk_block(dmz->dev, dmz_bio_block(bio));
+	struct dmz_metadata *zmd = dmz->metadata;
+	sector_t chunk_block = dmz_chunk_block(zmd, dmz_bio_block(bio));
 	unsigned int nr_blocks = dmz_bio_blocks(bio);
 	sector_t end_block = chunk_block + nr_blocks;
 	struct dm_zone *rzone, *bzone;
@@ -178,7 +179,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 	}
 
 	dmz_dev_debug(dmz->dev, "READ chunk %llu -> %s zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
+		      (unsigned long long)dmz_bio_chunk(zmd, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
 		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
@@ -189,7 +190,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		nr_blocks = 0;
 		if (dmz_is_rnd(zone) || chunk_block < zone->wp_block) {
 			/* Test block validity in the data zone */
-			ret = dmz_block_valid(dmz->metadata, zone, chunk_block);
+			ret = dmz_block_valid(zmd, zone, chunk_block);
 			if (ret < 0)
 				return ret;
 			if (ret > 0) {
@@ -204,7 +205,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		 * Check the buffer zone, if there is one.
 		 */
 		if (!nr_blocks && bzone) {
-			ret = dmz_block_valid(dmz->metadata, bzone, chunk_block);
+			ret = dmz_block_valid(zmd, bzone, chunk_block);
 			if (ret < 0)
 				return ret;
 			if (ret > 0) {
@@ -308,14 +309,15 @@ static int dmz_handle_buffered_write(struct dmz_target *dmz,
 static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 			    struct bio *bio)
 {
-	sector_t chunk_block = dmz_chunk_block(dmz->dev, dmz_bio_block(bio));
+	struct dmz_metadata *zmd = dmz->metadata;
+	sector_t chunk_block = dmz_chunk_block(zmd, dmz_bio_block(bio));
 	unsigned int nr_blocks = dmz_bio_blocks(bio);
 
 	if (!zone)
 		return -ENOSPC;
 
 	dmz_dev_debug(dmz->dev, "WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
+		      (unsigned long long)dmz_bio_chunk(zmd, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
 		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
@@ -345,7 +347,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	struct dmz_metadata *zmd = dmz->metadata;
 	sector_t block = dmz_bio_block(bio);
 	unsigned int nr_blocks = dmz_bio_blocks(bio);
-	sector_t chunk_block = dmz_chunk_block(dmz->dev, block);
+	sector_t chunk_block = dmz_chunk_block(zmd, block);
 	int ret = 0;
 
 	/* For unmapped chunks, there is nothing to do */
@@ -356,7 +358,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 		return -EROFS;
 
 	dmz_dev_debug(dmz->dev, "DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
-		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
+		      (unsigned long long)dmz_bio_chunk(zmd, bio),
 		      zone->id,
 		      (unsigned long long)chunk_block, nr_blocks);
 
@@ -402,7 +404,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	 * mapping for read and discard. If a mapping is obtained,
 	 + the zone returned will be set to active state.
 	 */
-	zone = dmz_get_chunk_mapping(zmd, dmz_bio_chunk(dmz->dev, bio),
+	zone = dmz_get_chunk_mapping(zmd, dmz_bio_chunk(zmd, bio),
 				     bio_op(bio));
 	if (IS_ERR(zone)) {
 		ret = PTR_ERR(zone);
@@ -525,7 +527,7 @@ static void dmz_flush_work(struct work_struct *work)
  */
 static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 {
-	unsigned int chunk = dmz_bio_chunk(dmz->dev, bio);
+	unsigned int chunk = dmz_bio_chunk(dmz->metadata, bio);
 	struct dm_chunk_work *cw;
 	int ret = 0;
 
@@ -618,6 +620,7 @@ bool dmz_check_bdev(struct dmz_dev *dmz_dev)
 static int dmz_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dmz_target *dmz = ti->private;
+	struct dmz_metadata *zmd = dmz->metadata;
 	struct dmz_dev *dev = dmz->dev;
 	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 	sector_t sector = bio->bi_iter.bi_sector;
@@ -630,8 +633,8 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 
 	dmz_dev_debug(dev, "BIO op %d sector %llu + %u => chunk %llu, block %llu, %u blocks",
 		      bio_op(bio), (unsigned long long)sector, nr_sectors,
-		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
-		      (unsigned long long)dmz_chunk_block(dmz->dev, dmz_bio_block(bio)),
+		      (unsigned long long)dmz_bio_chunk(zmd, bio),
+		      (unsigned long long)dmz_chunk_block(zmd, dmz_bio_block(bio)),
 		      (unsigned int)dmz_bio_blocks(bio));
 
 	bio_set_dev(bio, dev->bdev);
@@ -659,16 +662,16 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	}
 
 	/* Split zone BIOs to fit entirely into a zone */
-	chunk_sector = sector & (dev->zone_nr_sectors - 1);
-	if (chunk_sector + nr_sectors > dev->zone_nr_sectors)
-		dm_accept_partial_bio(bio, dev->zone_nr_sectors - chunk_sector);
+	chunk_sector = sector & (dmz_zone_nr_sectors(zmd) - 1);
+	if (chunk_sector + nr_sectors > dmz_zone_nr_sectors(zmd))
+		dm_accept_partial_bio(bio, dmz_zone_nr_sectors(zmd) - chunk_sector);
 
 	/* Now ready to handle this BIO */
 	ret = dmz_queue_chunk_work(dmz, bio);
 	if (ret) {
 		dmz_dev_debug(dmz->dev,
 			      "BIO op %d, can't process chunk %llu, err %i\n",
-			      bio_op(bio), (u64)dmz_bio_chunk(dmz->dev, bio),
+			      bio_op(bio), (u64)dmz_bio_chunk(zmd, bio),
 			      ret);
 		return DM_MAPIO_REQUEUE;
 	}
@@ -722,10 +725,6 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path)
 	}
 
 	dev->zone_nr_sectors = blk_queue_zone_sectors(q);
-	dev->zone_nr_sectors_shift = ilog2(dev->zone_nr_sectors);
-
-	dev->zone_nr_blocks = dmz_sect2blk(dev->zone_nr_sectors);
-	dev->zone_nr_blocks_shift = ilog2(dev->zone_nr_blocks);
 
 	dev->nr_zones = blkdev_nr_zones(dev->bdev->bd_disk);
 
@@ -790,7 +789,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	/* Set target (no write same support) */
-	ti->max_io_len = dev->zone_nr_sectors << 9;
+	ti->max_io_len = dmz_zone_nr_sectors(dmz->metadata) << 9;
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_write_zeroes_bios = 1;
@@ -799,7 +798,8 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->discards_supported = true;
 
 	/* The exposed capacity is the number of chunks that can be mapped */
-	ti->len = (sector_t)dmz_nr_chunks(dmz->metadata) << dev->zone_nr_sectors_shift;
+	ti->len = (sector_t)dmz_nr_chunks(dmz->metadata) <<
+		dmz_zone_nr_sectors_shift(dmz->metadata);
 
 	/* Zone BIO */
 	ret = bioset_init(&dmz->bio_set, DMZ_MIN_BIOS, 0, 0);
@@ -895,7 +895,7 @@ static void dmz_dtr(struct dm_target *ti)
 static void dmz_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct dmz_target *dmz = ti->private;
-	unsigned int chunk_sectors = dmz->dev->zone_nr_sectors;
+	unsigned int chunk_sectors = dmz_zone_nr_sectors(dmz->metadata);
 
 	limits->logical_block_size = DMZ_BLOCK_SIZE;
 	limits->physical_block_size = DMZ_BLOCK_SIZE;
@@ -960,7 +960,7 @@ static int dmz_iterate_devices(struct dm_target *ti,
 {
 	struct dmz_target *dmz = ti->private;
 	struct dmz_dev *dev = dmz->dev;
-	sector_t capacity = dev->capacity & ~(dev->zone_nr_sectors - 1);
+	sector_t capacity = dev->capacity & ~(dmz_zone_nr_sectors(dmz->metadata) - 1);
 
 	return fn(ti, dmz->ddev, 0, capacity, data);
 }

@@ -128,7 +128,7 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 	if (dmz_is_seq(src_zone))
 		end_block = src_zone->wp_block;
 	else
-		end_block = dev->zone_nr_blocks;
+		end_block = dmz_zone_nr_blocks(zmd);
 	src_zone_block = dmz_start_block(zmd, src_zone);
 	dst_zone_block = dmz_start_block(zmd, dst_zone);
 
@@ -210,7 +210,7 @@ static int dmz_reclaim_buf(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	ret = dmz_merge_valid_blocks(zmd, bzone, dzone, chunk_block);
 	if (ret == 0) {
 		/* Free the buffer zone */
-		dmz_invalidate_blocks(zmd, bzone, 0, zrc->dev->zone_nr_blocks);
+		dmz_invalidate_blocks(zmd, bzone, 0, dmz_zone_nr_blocks(zmd));
 		dmz_lock_map(zmd);
 		dmz_unmap_zone(zmd, bzone);
 		dmz_unlock_zone_reclaim(dzone);
@@ -252,7 +252,7 @@ static int dmz_reclaim_seq_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 		 * Free the data zone and remap the chunk to
 		 * the buffer zone.
 		 */
-		dmz_invalidate_blocks(zmd, dzone, 0, zrc->dev->zone_nr_blocks);
+		dmz_invalidate_blocks(zmd, dzone, 0, dmz_zone_nr_blocks(zmd));
 		dmz_lock_map(zmd);
 		dmz_unmap_zone(zmd, bzone);
 		dmz_unmap_zone(zmd, dzone);
@@ -305,7 +305,7 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 		dmz_unlock_map(zmd);
 	} else {
 		/* Free the data zone and remap the chunk */
-		dmz_invalidate_blocks(zmd, dzone, 0, zrc->dev->zone_nr_blocks);
+		dmz_invalidate_blocks(zmd, dzone, 0, dmz_zone_nr_blocks(zmd));
 		dmz_lock_map(zmd);
 		dmz_unmap_zone(zmd, dzone);
 		dmz_unlock_zone_reclaim(dzone);

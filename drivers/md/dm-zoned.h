@@ -60,15 +60,11 @@ struct dmz_dev {
 	unsigned int		flags;
 
 	sector_t		zone_nr_sectors;
-	unsigned int		zone_nr_sectors_shift;
-
-	sector_t		zone_nr_blocks;
-	sector_t		zone_nr_blocks_shift;
 };
 
-#define dmz_bio_chunk(dev, bio)	((bio)->bi_iter.bi_sector >> \
-				 (dev)->zone_nr_sectors_shift)
-#define dmz_chunk_block(dev, b)	((b) & ((dev)->zone_nr_blocks - 1))
+#define dmz_bio_chunk(zmd, bio)	((bio)->bi_iter.bi_sector >> \
+				 dmz_zone_nr_sectors_shift(zmd))
+#define dmz_chunk_block(zmd, b)	((b) & (dmz_zone_nr_blocks(zmd) - 1))
 
 /* Device flags. */
 #define DMZ_BDEV_DYING		(1 << 0)
@@ -197,6 +193,10 @@ unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd);
+unsigned int dmz_zone_nr_blocks(struct dmz_metadata *zmd);
+unsigned int dmz_zone_nr_blocks_shift(struct dmz_metadata *zmd);
+unsigned int dmz_zone_nr_sectors(struct dmz_metadata *zmd);
+unsigned int dmz_zone_nr_sectors_shift(struct dmz_metadata *zmd);
 
 /*
  * Activate a zone (increment its reference count).
