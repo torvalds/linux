@@ -13347,12 +13347,12 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
  *                             in array of contexts
  *	freectxts  - number of free user contexts
  *	num_send_contexts - number of PIO send contexts being used
- *	num_vnic_contexts - number of contexts reserved for VNIC
+ *	num_netdev_contexts - number of contexts reserved for netdev
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	unsigned long num_kernel_contexts;
-	u16 num_vnic_contexts = HFI1_NUM_VNIC_CTXT;
+	u16 num_netdev_contexts = HFI1_NUM_VNIC_CTXT;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -13391,11 +13391,11 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	}
 
 	/* Accommodate VNIC contexts if possible */
-	if ((num_kernel_contexts + num_vnic_contexts) > rcv_contexts) {
+	if ((num_kernel_contexts + num_netdev_contexts) > rcv_contexts) {
 		dd_dev_err(dd, "No receive contexts available for VNIC\n");
-		num_vnic_contexts = 0;
+		num_netdev_contexts = 0;
 	}
-	total_contexts = num_kernel_contexts + num_vnic_contexts;
+	total_contexts = num_kernel_contexts + num_netdev_contexts;
 
 	/*
 	 * User contexts:
@@ -13422,15 +13422,15 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 * The RMT entries are currently allocated as shown below:
 	 * 1. QOS (0 to 128 entries);
 	 * 2. FECN (num_kernel_context - 1 + num_user_contexts +
-	 *    num_vnic_contexts);
-	 * 3. VNIC (num_vnic_contexts).
-	 * It should be noted that FECN oversubscribe num_vnic_contexts
-	 * entries of RMT because both VNIC and PSM could allocate any receive
+	 *    num_netdev_contexts);
+	 * 3. netdev (num_netdev_contexts).
+	 * It should be noted that FECN oversubscribe num_netdev_contexts
+	 * entries of RMT because both netdev and PSM could allocate any receive
 	 * context between dd->first_dyn_alloc_text and dd->num_rcv_contexts,
 	 * and PSM FECN must reserve an RMT entry for each possible PSM receive
 	 * context.
 	 */
-	rmt_count = qos_rmt_entries(dd, NULL, NULL) + (num_vnic_contexts * 2);
+	rmt_count = qos_rmt_entries(dd, NULL, NULL) + (num_netdev_contexts * 2);
 	if (HFI1_CAP_IS_KSET(TID_RDMA))
 		rmt_count += num_kernel_contexts - 1;
 	if (rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
@@ -13449,7 +13449,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
-	dd->num_vnic_contexts = num_vnic_contexts;
+	dd->num_netdev_contexts = num_netdev_contexts;
 	dd->num_user_contexts = n_usr_ctxts;
 	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
@@ -13457,7 +13457,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		    rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
-		    dd->num_vnic_contexts,
+		    dd->num_netdev_contexts,
 		    dd->num_user_contexts);
 
 	/*
