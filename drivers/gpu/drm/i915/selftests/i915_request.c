@@ -816,9 +816,11 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 		return PTR_ERR(cmd);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(batch->vm->gt);
 
+	__i915_gem_object_flush_map(batch->obj, 0, sizeof(*cmd));
 	i915_gem_object_unpin_map(batch->obj);
+
+	intel_gt_chipset_flush(batch->vm->gt);
 
 	return 0;
 }
@@ -1060,9 +1062,12 @@ out_request:
 					      I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
-			intel_gt_chipset_flush(engine->gt);
 
+			__i915_gem_object_flush_map(request[idx]->batch->obj,
+						    0, sizeof(*cmd));
 			i915_gem_object_unpin_map(request[idx]->batch->obj);
+
+			intel_gt_chipset_flush(engine->gt);
 		}
 
 		i915_vma_put(request[idx]->batch);

@@ -78,9 +78,11 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -289,9 +291,11 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {

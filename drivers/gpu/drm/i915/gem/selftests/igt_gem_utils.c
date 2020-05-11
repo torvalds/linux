@@ -84,6 +84,7 @@ igt_emit_store_dw(struct i915_vma *vma,
 	}
 	*cmd = MI_BATCH_BUFFER_END;
 
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	intel_gt_chipset_flush(vma->vm->gt);

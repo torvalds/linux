@@ -727,6 +727,7 @@ int live_rps_frequency_cs(void *arg)
 
 err_vma:
 		*cancel = MI_BATCH_BUFFER_END;
+		i915_gem_object_flush_map(vma->obj);
 		i915_gem_object_unpin_map(vma->obj);
 		i915_vma_unpin(vma);
 		i915_vma_put(vma);
@@ -868,6 +869,7 @@ int live_rps_frequency_srm(void *arg)
 
 err_vma:
 		*cancel = MI_BATCH_BUFFER_END;
+		i915_gem_object_flush_map(vma->obj);
 		i915_gem_object_unpin_map(vma->obj);
 		i915_vma_unpin(vma);
 		i915_vma_put(vma);
