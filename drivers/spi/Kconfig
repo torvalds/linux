@@ -844,6 +844,7 @@ config SPI_TXX9
 config SPI_UNIPHIER
 	tristate "Socionext UniPhier SPI Controller"
 	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	depends on HAS_IOMEM
 	help
 	  This enables a driver for the Socionext UniPhier SoC SCSSI SPI controller.
 
