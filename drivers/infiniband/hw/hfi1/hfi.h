@@ -1047,23 +1047,10 @@ struct hfi1_asic_data {
 #define NUM_MAP_ENTRIES	 256
 #define NUM_MAP_REGS      32
 
-/*
- * Number of VNIC contexts used. Ensure it is less than or equal to
- * max queues supported by VNIC (HFI1_VNIC_MAX_QUEUE).
- */
-#define HFI1_NUM_VNIC_CTXT   8
-
-/* Number of VNIC RSM entries */
-#define NUM_VNIC_MAP_ENTRIES 8
-
 /* Virtual NIC information */
 struct hfi1_vnic_data {
-	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
-	struct xarray vesws;
 	u8 num_vports;
-	u8 rmt_start;
-	u8 num_ctxt;
 };
 
 struct hfi1_vnic_vport_info;
@@ -1419,6 +1406,7 @@ struct hfi1_devdata {
 	struct hfi1_vnic_data vnic;
 	/* Lock to protect IRQ SRC register access */
 	spinlock_t irq_src_lock;
+	int vnic_num_vports;
 	struct net_device *dummy_netdev;
 
 	/* Keeps track of IPoIB RSM rule users */

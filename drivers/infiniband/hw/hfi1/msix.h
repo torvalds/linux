@@ -60,7 +60,7 @@ int msix_request_sdma_irq(struct sdma_engine *sde);
 void msix_free_irq(struct hfi1_devdata *dd, u8 msix_intr);
 
 /* Netdev interface */
-void msix_vnic_synchronize_irq(struct hfi1_devdata *dd);
+void msix_netdev_synchronize_irq(struct hfi1_devdata *dd);
 int msix_netdev_request_rcd_irq(struct hfi1_ctxtdata *rcd);
 
 #endif

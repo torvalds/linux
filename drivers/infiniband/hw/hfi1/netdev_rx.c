@@ -140,6 +140,50 @@ static int hfi1_netdev_allot_ctxt(struct hfi1_netdev_priv *priv,
 	return rc;
 }
 
+/**
+ * hfi1_num_netdev_contexts - Count of netdev recv contexts to use.
+ * @dd: device on which to allocate netdev contexts
+ * @available_contexts: count of available receive contexts
+ * @cpu_mask: mask of possible cpus to include for contexts
+ *
+ * Return: count of physical cores on a node or the remaining available recv
+ * contexts for netdev recv context usage up to the maximum of
+ * HFI1_MAX_NETDEV_CTXTS.
+ * A value of 0 can be returned when acceleration is explicitly turned off,
+ * a memory allocation error occurs or when there are no available contexts.
+ *
+ */
+u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
+			     struct cpumask *cpu_mask)
+{
+	cpumask_var_t node_cpu_mask;
+	unsigned int available_cpus;
+
+	if (!HFI1_CAP_IS_KSET(AIP))
+		return 0;
+
+	/* Always give user contexts priority over netdev contexts */
+	if (available_contexts == 0) {
+		dd_dev_info(dd, "No receive contexts available for netdevs.\n");
+		return 0;
+	}
+
+	if (!zalloc_cpumask_var(&node_cpu_mask, GFP_KERNEL)) {
+		dd_dev_err(dd, "Unable to allocate cpu_mask for netdevs.\n");
+		return 0;
+	}
+
+	cpumask_and(node_cpu_mask, cpu_mask,
+		    cpumask_of_node(pcibus_to_node(dd->pcidev->bus)));
+
+	available_cpus = cpumask_weight(node_cpu_mask);
+
+	free_cpumask_var(node_cpu_mask);
+
+	return min3(available_cpus, available_contexts,
+		    (u32)HFI1_MAX_NETDEV_CTXTS);
+}
+
 static int hfi1_netdev_rxq_init(struct net_device *dev)
 {
 	int i;
@@ -238,7 +282,7 @@ static void disable_queues(struct hfi1_netdev_priv *priv)
 {
 	int i;
 
-	msix_vnic_synchronize_irq(priv->dd);
+	msix_netdev_synchronize_irq(priv->dd);
 
 	for (i = 0; i < priv->num_rx_q; i++) {
 		struct hfi1_netdev_rxq *rxq = &priv->rxq[i];

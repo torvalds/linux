@@ -74,8 +74,15 @@ int hfi1_ipoib_rxq_init(struct net_device *netdev)
 {
 	struct hfi1_ipoib_dev_priv *ipoib_priv = hfi1_ipoib_priv(netdev);
 	struct hfi1_devdata *dd = ipoib_priv->dd;
+	int ret;
 
-	return hfi1_netdev_rx_init(dd);
+	ret = hfi1_netdev_rx_init(dd);
+	if (ret)
+		return ret;
+
+	hfi1_init_aip_rsm(dd);
+
+	return ret;
 }
 
 void hfi1_ipoib_rxq_deinit(struct net_device *netdev)
@@ -83,5 +90,6 @@ void hfi1_ipoib_rxq_deinit(struct net_device *netdev)
 	struct hfi1_ipoib_dev_priv *ipoib_priv = hfi1_ipoib_priv(netdev);
 	struct hfi1_devdata *dd = ipoib_priv->dd;
 
+	hfi1_deinit_aip_rsm(dd);
 	hfi1_netdev_rx_destroy(dd);
 }

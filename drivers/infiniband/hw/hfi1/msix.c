@@ -172,7 +172,8 @@ static int msix_request_rcd_irq_common(struct hfi1_ctxtdata *rcd,
 				       const char *name)
 {
 	int nr = msix_request_irq(rcd->dd, rcd, handler, thread,
-				  IRQ_RCVCTXT, name);
+				  rcd->is_vnic ? IRQ_NETDEVCTXT : IRQ_RCVCTXT,
+				  name);
 	if (nr < 0)
 		return nr;
 
@@ -371,15 +372,16 @@ void msix_clean_up_interrupts(struct hfi1_devdata *dd)
 }
 
 /**
- * msix_vnic_syncrhonize_irq() - Vnic IRQ synchronize
+ * msix_netdev_syncrhonize_irq() - netdev IRQ synchronize
  * @dd: valid devdata
  */
-void msix_vnic_synchronize_irq(struct hfi1_devdata *dd)
+void msix_netdev_synchronize_irq(struct hfi1_devdata *dd)
 {
 	int i;
+	int ctxt_count = hfi1_netdev_ctxt_count(dd);
 
-	for (i = 0; i < dd->vnic.num_ctxt; i++) {
-		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
+	for (i = 0; i < ctxt_count; i++) {
+		struct hfi1_ctxtdata *rcd = hfi1_netdev_get_ctxt(dd, i);
 		struct hfi1_msix_entry *me;
 
 		me = &dd->msix_info.msix_entries[rcd->msix_intr];

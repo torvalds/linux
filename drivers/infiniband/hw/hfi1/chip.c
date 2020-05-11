@@ -13396,8 +13396,7 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	unsigned long num_kernel_contexts;
-	u16 num_netdev_contexts = HFI1_NUM_VNIC_CTXT;
-	int total_contexts;
+	u16 num_netdev_contexts;
 	int ret;
 	unsigned ngroups;
 	int rmt_count;
@@ -13434,13 +13433,6 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		num_kernel_contexts = send_contexts - num_vls - 1;
 	}
 
-	/* Accommodate VNIC contexts if possible */
-	if ((num_kernel_contexts + num_netdev_contexts) > rcv_contexts) {
-		dd_dev_err(dd, "No receive contexts available for VNIC\n");
-		num_netdev_contexts = 0;
-	}
-	total_contexts = num_kernel_contexts + num_netdev_contexts;
-
 	/*
 	 * User contexts:
 	 *	- default to 1 user context per real (non-HT) CPU core if
@@ -13453,15 +13445,19 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts + n_usr_ctxts > rcv_contexts) {
+	if (num_kernel_contexts + n_usr_ctxts > rcv_contexts) {
 		dd_dev_err(dd,
-			   "Reducing # user receive contexts to: %d, from %u\n",
-			   rcv_contexts - total_contexts,
+			   "Reducing # user receive contexts to: %u, from %u\n",
+			   (u32)(rcv_contexts - num_kernel_contexts),
 			   n_usr_ctxts);
 		/* recalculate */
-		n_usr_ctxts = rcv_contexts - total_contexts;
+		n_usr_ctxts = rcv_contexts - num_kernel_contexts;
 	}
 
+	num_netdev_contexts =
+		hfi1_num_netdev_contexts(dd, rcv_contexts -
+					 (num_kernel_contexts + n_usr_ctxts),
+					 &node_affinity.real_cpu_mask);
 	/*
 	 * The RMT entries are currently allocated as shown below:
 	 * 1. QOS (0 to 128 entries);
@@ -13487,17 +13483,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		n_usr_ctxts = user_rmt_reduced;
 	}
 
-	total_contexts += n_usr_ctxts;
-
-	/* the first N are kernel contexts, the rest are user/vnic contexts */
-	dd->num_rcv_contexts = total_contexts;
+	/* the first N are kernel contexts, the rest are user/netdev contexts */
+	dd->num_rcv_contexts =
+		num_kernel_contexts + n_usr_ctxts + num_netdev_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
 	dd->num_netdev_contexts = num_netdev_contexts;
 	dd->num_user_contexts = n_usr_ctxts;
 	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
-		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
+		    "rcv contexts: chip %d, used %d (kernel %d, netdev %u, user %u)\n",
 		    rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
@@ -14554,7 +14549,8 @@ static bool hfi1_netdev_update_rmt(struct hfi1_devdata *dd)
 	u8 ctx_id = 0;
 	u64 reg;
 	u32 regoff;
-	int rmt_start = dd->vnic.rmt_start;
+	int rmt_start = hfi1_netdev_get_free_rmt_idx(dd);
+	int ctxt_count = hfi1_netdev_ctxt_count(dd);
 
 	/* We already have contexts mapped in RMT */
 	if (has_rsm_rule(dd, RSM_INS_VNIC) || has_rsm_rule(dd, RSM_INS_AIP)) {
@@ -14562,7 +14558,7 @@ static bool hfi1_netdev_update_rmt(struct hfi1_devdata *dd)
 		return true;
 	}
 
-	if (hfi1_is_rmt_full(rmt_start, NUM_VNIC_MAP_ENTRIES)) {
+	if (hfi1_is_rmt_full(rmt_start, NUM_NETDEV_MAP_ENTRIES)) {
 		dd_dev_err(dd, "Not enought RMT entries used = %d\n",
 			   rmt_start);
 		return false;
@@ -14570,27 +14566,27 @@ static bool hfi1_netdev_update_rmt(struct hfi1_devdata *dd)
 
 	dev_dbg(&(dd)->pcidev->dev, "RMT start = %d, end %d\n",
 		rmt_start,
-		rmt_start + NUM_VNIC_MAP_ENTRIES);
+		rmt_start + NUM_NETDEV_MAP_ENTRIES);
 
 	/* Update RSM mapping table, 32 regs, 256 entries - 1 ctx per byte */
 	regoff = RCV_RSM_MAP_TABLE + (rmt_start / 8) * 8;
 	reg = read_csr(dd, regoff);
-	for (i = 0; i < NUM_VNIC_MAP_ENTRIES; i++) {
+	for (i = 0; i < NUM_NETDEV_MAP_ENTRIES; i++) {
 		/* Update map register with netdev context */
 		j = (rmt_start + i) % 8;
 		reg &= ~(0xffllu << (j * 8));
-		reg |= (u64)dd->vnic.ctxt[ctx_id++]->ctxt << (j * 8);
+		reg |= (u64)hfi1_netdev_get_ctxt(dd, ctx_id++)->ctxt << (j * 8);
 		/* Wrap up netdev ctx index */
-		ctx_id %= dd->vnic.num_ctxt;
+		ctx_id %= ctxt_count;
 		/* Write back map register */
-		if (j == 7 || ((i + 1) == NUM_VNIC_MAP_ENTRIES)) {
+		if (j == 7 || ((i + 1) == NUM_NETDEV_MAP_ENTRIES)) {
 			dev_dbg(&(dd)->pcidev->dev,
 				"RMT[%d] =0x%llx\n",
 				regoff - RCV_RSM_MAP_TABLE, reg);
 
 			write_csr(dd, regoff, reg);
 			regoff += 8;
-			if (i < (NUM_VNIC_MAP_ENTRIES - 1))
+			if (i < (NUM_NETDEV_MAP_ENTRIES - 1))
 				reg = read_csr(dd, regoff);
 		}
 	}
@@ -14617,8 +14613,9 @@ void hfi1_init_aip_rsm(struct hfi1_devdata *dd)
 	 * exist yet
 	 */
 	if (atomic_fetch_inc(&dd->ipoib_rsm_usr_num) == 0) {
+		int rmt_start = hfi1_netdev_get_free_rmt_idx(dd);
 		struct rsm_rule_data rrd = {
-			.offset = dd->vnic.rmt_start,
+			.offset = rmt_start,
 			.pkt_type = IB_PACKET_TYPE,
 			.field1_off = LRH_BTH_MATCH_OFFSET,
 			.mask1 = LRH_BTH_MASK,
@@ -14627,10 +14624,10 @@ void hfi1_init_aip_rsm(struct hfi1_devdata *dd)
 			.mask2 = BTH_DESTQP_MASK,
 			.value2 = BTH_DESTQP_VALUE,
 			.index1_off = DETH_AIP_SQPN_SELECT_OFFSET +
-					ilog2(NUM_VNIC_MAP_ENTRIES),
-			.index1_width = ilog2(NUM_VNIC_MAP_ENTRIES),
+					ilog2(NUM_NETDEV_MAP_ENTRIES),
+			.index1_width = ilog2(NUM_NETDEV_MAP_ENTRIES),
 			.index2_off = DETH_AIP_SQPN_SELECT_OFFSET,
-			.index2_width = ilog2(NUM_VNIC_MAP_ENTRIES)
+			.index2_width = ilog2(NUM_NETDEV_MAP_ENTRIES)
 		};
 
 		hfi1_enable_rsm_rule(dd, RSM_INS_AIP, &rrd);
@@ -14640,9 +14637,10 @@ void hfi1_init_aip_rsm(struct hfi1_devdata *dd)
 /* Initialize RSM for VNIC */
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd)
 {
+	int rmt_start = hfi1_netdev_get_free_rmt_idx(dd);
 	struct rsm_rule_data rrd = {
 		/* Add rule for vnic */
-		.offset = dd->vnic.rmt_start,
+		.offset = rmt_start,
 		.pkt_type = 4,
 		/* Match 16B packets */
 		.field1_off = L2_TYPE_MATCH_OFFSET,
@@ -14654,9 +14652,9 @@ void hfi1_init_vnic_rsm(struct hfi1_devdata *dd)
 		.value2 = L4_16B_ETH_VALUE,
 		/* Calc context from veswid and entropy */
 		.index1_off = L4_16B_HDR_VESWID_OFFSET,
-		.index1_width = ilog2(NUM_VNIC_MAP_ENTRIES),
+		.index1_width = ilog2(NUM_NETDEV_MAP_ENTRIES),
 		.index2_off = L2_16B_ENTROPY_OFFSET,
-		.index2_width = ilog2(NUM_VNIC_MAP_ENTRIES)
+		.index2_width = ilog2(NUM_NETDEV_MAP_ENTRIES)
 	};
 
 	hfi1_enable_rsm_rule(dd, RSM_INS_VNIC, &rrd);
@@ -14690,8 +14688,8 @@ static int init_rxe(struct hfi1_devdata *dd)
 	init_qos(dd, rmt);
 	init_fecn_handling(dd, rmt);
 	complete_rsm_map_table(dd, rmt);
-	/* record number of used rsm map entries for vnic */
-	dd->vnic.rmt_start = rmt->used;
+	/* record number of used rsm map entries for netdev */
+	hfi1_netdev_set_free_rmt_idx(dd, rmt->used);
 	kfree(rmt);
 
 	/*
@@ -15245,6 +15243,10 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
 		    & CCE_REVISION_SW_MASK);
 
+	/* alloc netdev data */
+	if (hfi1_netdev_alloc(dd))
+		goto bail_cleanup;
+
 	ret = set_up_context_variables(dd);
 	if (ret)
 		goto bail_cleanup;
@@ -15345,6 +15347,7 @@ bail_clear_intr:
 	hfi1_comp_vectors_clean_up(dd);
 	msix_clean_up_interrupts(dd);
 bail_cleanup:
+	hfi1_netdev_free(dd);
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
 	hfi1_free_devdata(dd);

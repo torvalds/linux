@@ -1771,27 +1771,9 @@ static void process_receive_ib(struct hfi1_packet *packet)
 	hfi1_ib_rcv(packet);
 }
 
-static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
-{
-	/* Packet received in VNIC context via RSM */
-	if (packet->rcd->is_vnic)
-		return true;
-
-	if ((hfi1_16B_get_l2(packet->ebuf) == OPA_16B_L2_TYPE) &&
-	    (hfi1_16B_get_l4(packet->ebuf) == OPA_16B_L4_ETHR))
-		return true;
-
-	return false;
-}
-
 static void process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
-
-	if (hfi1_is_vnic_packet(packet)) {
-		hfi1_vnic_bypass_rcv(packet);
-		return;
-	}
 
 	if (hfi1_setup_bypass_packet(packet))
 		return;

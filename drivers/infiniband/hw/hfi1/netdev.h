@@ -82,6 +82,25 @@ struct hfi1_ctxtdata *hfi1_netdev_get_ctxt(struct hfi1_devdata *dd, int ctxt)
 	return priv->rxq[ctxt].rcd;
 }
 
+static inline
+int hfi1_netdev_get_free_rmt_idx(struct hfi1_devdata *dd)
+{
+	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+
+	return priv->rmt_start;
+}
+
+static inline
+void hfi1_netdev_set_free_rmt_idx(struct hfi1_devdata *dd, int rmt_idx)
+{
+	struct hfi1_netdev_priv *priv = hfi1_netdev_priv(dd->dummy_netdev);
+
+	priv->rmt_start = rmt_idx;
+}
+
+u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
+			     struct cpumask *cpu_mask);
+
 void hfi1_netdev_enable_queues(struct hfi1_devdata *dd);
 void hfi1_netdev_disable_queues(struct hfi1_devdata *dd);
 int hfi1_netdev_rx_init(struct hfi1_devdata *dd);
