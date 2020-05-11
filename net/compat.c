@@ -56,7 +56,8 @@ int __get_compat_msghdr(struct msghdr *kmsg,
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 
-	kmsg->msg_control = compat_ptr(msg.msg_control);
+	kmsg->msg_control_is_user = true;
+	kmsg->msg_control_user = compat_ptr(msg.msg_control);
 	kmsg->msg_controllen = msg.msg_controllen;
 
 	if (save_addr)
@@ -121,7 +122,7 @@ int get_compat_msghdr(struct msghdr *kmsg,
 	((ucmlen) >= sizeof(struct compat_cmsghdr) && \
 	 (ucmlen) <= (unsigned long) \
 	 ((mhdr)->msg_controllen - \
-	  ((char *)(ucmsg) - (char *)(mhdr)->msg_control)))
+	  ((char __user *)(ucmsg) - (char __user *)(mhdr)->msg_control_user)))
 
 static inline struct compat_cmsghdr __user *cmsg_compat_nxthdr(struct msghdr *msg,
 		struct compat_cmsghdr __user *cmsg, int cmsg_len)

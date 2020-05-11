@@ -212,16 +212,12 @@ EXPORT_SYMBOL(__scm_send);
 
 int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 {
-	struct cmsghdr __user *cm
-		= (__force struct cmsghdr __user *)msg->msg_control;
-	struct cmsghdr cmhdr;
 	int cmlen = CMSG_LEN(len);
-	int err;
 
-	if (MSG_CMSG_COMPAT & msg->msg_flags)
+	if (msg->msg_flags & MSG_CMSG_COMPAT)
 		return put_cmsg_compat(msg, level, type, len, data);
 
-	if (cm==NULL || msg->msg_controllen < sizeof(*cm)) {
+	if (!msg->msg_control || msg->msg_controllen < sizeof(struct cmsghdr)) {
 		msg->msg_flags |= MSG_CTRUNC;
 		return 0; /* XXX: return error? check spec. */
 	}
@@ -229,23 +225,30 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 		msg->msg_flags |= MSG_CTRUNC;
 		cmlen = msg->msg_controllen;
 	}
-	cmhdr.cmsg_level = level;
-	cmhdr.cmsg_type = type;
-	cmhdr.cmsg_len = cmlen;
 
-	err = -EFAULT;
-	if (copy_to_user(cm, &cmhdr, sizeof cmhdr))
-		goto out;
-	if (copy_to_user(CMSG_USER_DATA(cm), data, cmlen - sizeof(*cm)))
-		goto out;
-	cmlen = CMSG_SPACE(len);
-	if (msg->msg_controllen < cmlen)
-		cmlen = msg->msg_controllen;
+	if (msg->msg_control_is_user) {
+		struct cmsghdr __user *cm = msg->msg_control_user;
+		struct cmsghdr cmhdr;
+
+		cmhdr.cmsg_level = level;
+		cmhdr.cmsg_type = type;
+		cmhdr.cmsg_len = cmlen;
+		if (copy_to_user(cm, &cmhdr, sizeof cmhdr) ||
+		    copy_to_user(CMSG_USER_DATA(cm), data, cmlen - sizeof(*cm)))
+			return -EFAULT;
+	} else {
+		struct cmsghdr *cm = msg->msg_control;
+
+		cm->cmsg_level = level;
+		cm->cmsg_type = type;
+		cm->cmsg_len = cmlen;
+		memcpy(CMSG_DATA(cm), data, cmlen - sizeof(*cm));
+	}
+
+	cmlen = min(CMSG_SPACE(len), msg->msg_controllen);
 	msg->msg_control += cmlen;
 	msg->msg_controllen -= cmlen;
-	err = 0;
-out:
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(put_cmsg);
 
@@ -327,6 +330,10 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 		scm_detach_fds_compat(msg, scm);
 		return;
 	}
+
+	/* no use for FD passing from kernel space callers */
+	if (WARN_ON_ONCE(!msg->msg_control_is_user))
+		return;
 
 	for (i = 0; i < fdmax; i++) {
 		err = __scm_install_fd(scm->fp->fp[i], cmsg_data + i, o_flags);
