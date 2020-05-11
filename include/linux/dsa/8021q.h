@@ -12,10 +12,32 @@ struct sk_buff;
 struct net_device;
 struct packet_type;
 
+struct dsa_8021q_crosschip_link {
+	struct list_head list;
+	int port;
+	struct dsa_switch *other_ds;
+	int other_port;
+	refcount_t refcount;
+};
+
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_8021Q)
 
 int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
 				 bool enabled);
+
+int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
+				   struct dsa_switch *other_ds,
+				   int other_port, bool enabled);
+
+int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
+				    struct dsa_switch *other_ds,
+				    int other_port, struct net_device *br,
+				    struct list_head *crosschip_links);
+
+int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
+				     struct dsa_switch *other_ds,
+				     int other_port, struct net_device *br,
+				     struct list_head *crosschip_links);
 
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci);
@@ -32,6 +54,29 @@ int dsa_8021q_rx_source_port(u16 vid);
 
 int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
 				 bool enabled)
+{
+	return 0;
+}
+
+int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
+				   struct dsa_switch *other_ds,
+				   int other_port, bool enabled)
+{
+	return 0;
+}
+
+int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
+				    struct dsa_switch *other_ds,
+				    int other_port, struct net_device *br,
+				    struct list_head *crosschip_links)
+{
+	return 0;
+}
+
+int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
+				     struct dsa_switch *other_ds,
+				     int other_port, struct net_device *br,
+				     struct list_head *crosschip_links)
 {
 	return 0;
 }

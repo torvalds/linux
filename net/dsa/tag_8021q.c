@@ -8,6 +8,7 @@
  */
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
+#include <linux/dsa/8021q.h>
 
 #include "dsa_priv.h"
 
@@ -287,6 +288,156 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 	return err;
 }
 EXPORT_SYMBOL_GPL(dsa_port_setup_8021q_tagging);
+
+int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
+				   struct dsa_switch *other_ds,
+				   int other_port, bool enabled)
+{
+	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+
+	/* @rx_vid of local @ds port @port goes to @other_port of
+	 * @other_ds
+	 */
+	return dsa_8021q_vid_apply(other_ds, other_port, rx_vid,
+				   BRIDGE_VLAN_INFO_UNTAGGED, enabled);
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_link_apply);
+
+static int dsa_8021q_crosschip_link_add(struct dsa_switch *ds, int port,
+					struct dsa_switch *other_ds,
+					int other_port,
+					struct list_head *crosschip_links)
+{
+	struct dsa_8021q_crosschip_link *c;
+
+	list_for_each_entry(c, crosschip_links, list) {
+		if (c->port == port && c->other_ds == other_ds &&
+		    c->other_port == other_port) {
+			refcount_inc(&c->refcount);
+			return 0;
+		}
+	}
+
+	dev_dbg(ds->dev, "adding crosschip link from port %d to %s port %d\n",
+		port, dev_name(other_ds->dev), other_port);
+
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return -ENOMEM;
+
+	c->port = port;
+	c->other_ds = other_ds;
+	c->other_port = other_port;
+	refcount_set(&c->refcount, 1);
+
+	list_add(&c->list, crosschip_links);
+
+	return 0;
+}
+
+static void dsa_8021q_crosschip_link_del(struct dsa_switch *ds,
+					 struct dsa_8021q_crosschip_link *c,
+					 struct list_head *crosschip_links,
+					 bool *keep)
+{
+	*keep = !refcount_dec_and_test(&c->refcount);
+
+	if (*keep)
+		return;
+
+	dev_dbg(ds->dev,
+		"deleting crosschip link from port %d to %s port %d\n",
+		c->port, dev_name(c->other_ds->dev), c->other_port);
+
+	list_del(&c->list);
+	kfree(c);
+}
+
+/* Make traffic from local port @port be received by remote port @other_port.
+ * This means that our @rx_vid needs to be installed on @other_ds's upstream
+ * and user ports. The user ports should be egress-untagged so that they can
+ * pop the dsa_8021q VLAN. But the @other_upstream can be either egress-tagged
+ * or untagged: it doesn't matter, since it should never egress a frame having
+ * our @rx_vid.
+ */
+int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
+				    struct dsa_switch *other_ds,
+				    int other_port, struct net_device *br,
+				    struct list_head *crosschip_links)
+{
+	/* @other_upstream is how @other_ds reaches us. If we are part
+	 * of disjoint trees, then we are probably connected through
+	 * our CPU ports. If we're part of the same tree though, we should
+	 * probably use dsa_towards_port.
+	 */
+	int other_upstream = dsa_upstream_port(other_ds, other_port);
+	int rc;
+
+	rc = dsa_8021q_crosschip_link_add(ds, port, other_ds,
+					  other_port, crosschip_links);
+	if (rc)
+		return rc;
+
+	if (!br_vlan_enabled(br)) {
+		rc = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
+						    other_port, true);
+		if (rc)
+			return rc;
+	}
+
+	rc = dsa_8021q_crosschip_link_add(ds, port, other_ds,
+					  other_upstream,
+					  crosschip_links);
+	if (rc)
+		return rc;
+
+	if (!br_vlan_enabled(br)) {
+		rc = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
+						    other_upstream, true);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_join);
+
+int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
+				     struct dsa_switch *other_ds,
+				     int other_port, struct net_device *br,
+				     struct list_head *crosschip_links)
+{
+	int other_upstream = dsa_upstream_port(other_ds, other_port);
+	struct dsa_8021q_crosschip_link *c, *n;
+
+	list_for_each_entry_safe(c, n, crosschip_links, list) {
+		if (c->port == port && c->other_ds == other_ds &&
+		    (c->other_port == other_port ||
+		     c->other_port == other_upstream)) {
+			struct dsa_switch *other_ds = c->other_ds;
+			int other_port = c->other_port;
+			bool keep;
+			int rc;
+
+			dsa_8021q_crosschip_link_del(ds, c, crosschip_links,
+						     &keep);
+			if (keep)
+				continue;
+
+			if (!br_vlan_enabled(br)) {
+				rc = dsa_8021q_crosschip_link_apply(ds, port,
+								    other_ds,
+								    other_port,
+								    false);
+				if (rc)
+					return rc;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_leave);
 
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci)
