@@ -16,7 +16,9 @@
 #include "fscrypt_private.h"
 
 /**
- * fscrypt_policies_equal - check whether two encryption policies are the same
+ * fscrypt_policies_equal() - check whether two encryption policies are the same
+ * @policy1: the first policy
+ * @policy2: the second policy
  *
  * Return: %true if equal, else %false
  */
@@ -170,7 +172,9 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 }
 
 /**
- * fscrypt_supported_policy - check whether an encryption policy is supported
+ * fscrypt_supported_policy() - check whether an encryption policy is supported
+ * @policy_u: the encryption policy
+ * @inode: the inode on which the policy will be used
  *
  * Given an encryption policy, check whether all its encryption modes and other
  * settings are supported by this kernel on the given inode.  (But we don't
@@ -192,7 +196,10 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 }
 
 /**
- * fscrypt_new_context_from_policy - create a new fscrypt_context from a policy
+ * fscrypt_new_context_from_policy() - create a new fscrypt_context from
+ *				       an fscrypt_policy
+ * @ctx_u: output context
+ * @policy_u: input policy
  *
  * Create an fscrypt_context for an inode that is being assigned the given
  * encryption policy.  A new nonce is randomly generated.
@@ -242,7 +249,11 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 }
 
 /**
- * fscrypt_policy_from_context - convert an fscrypt_context to an fscrypt_policy
+ * fscrypt_policy_from_context() - convert an fscrypt_context to
+ *				   an fscrypt_policy
+ * @policy_u: output policy
+ * @ctx_u: input context
+ * @ctx_size: size of input context in bytes
  *
  * Given an fscrypt_context, build the corresponding fscrypt_policy.
  *
