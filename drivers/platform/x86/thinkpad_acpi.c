@@ -885,10 +885,10 @@ static ssize_t dispatch_proc_write(struct file *file,
 
 	if (!ibm || !ibm->write)
 		return -EINVAL;
-	if (count > PAGE_SIZE - 2)
+	if (count > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	kernbuf = kmalloc(count + 2, GFP_KERNEL);
+	kernbuf = kmalloc(count + 1, GFP_KERNEL);
 	if (!kernbuf)
 		return -ENOMEM;
 
@@ -898,7 +898,6 @@ static ssize_t dispatch_proc_write(struct file *file,
 	}
 
 	kernbuf[count] = 0;
-	strcat(kernbuf, ",");
 	ret = ibm->write(kernbuf);
 	if (ret == 0)
 		ret = count;
@@ -915,23 +914,6 @@ static const struct proc_ops dispatch_proc_ops = {
 	.proc_release	= single_release,
 	.proc_write	= dispatch_proc_write,
 };
-
-static char *next_cmd(char **cmds)
-{
-	char *start = *cmds;
-	char *end;
-
-	while ((end = strchr(start, ',')) && end == start)
-		start = end + 1;
-
-	if (!end)
-		return NULL;
-
-	*end = 0;
-	*cmds = end + 1;
-	return start;
-}
-
 
 /****************************************************************************
  ****************************************************************************
@@ -1423,7 +1405,7 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 	if (id >= TPACPI_RFK_SW_MAX)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "enable") == 0)
 			status = TPACPI_RFK_RADIO_ON;
 		else if (strlencmp(cmd, "disable") == 0)
@@ -4306,7 +4288,7 @@ static int hotkey_write(char *buf)
 	mask = hotkey_user_mask;
 
 	res = 0;
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "enable") == 0) {
 			hotkey_enabledisable_warn(1);
 		} else if (strlencmp(cmd, "disable") == 0) {
@@ -5233,7 +5215,7 @@ static int video_write(char *buf)
 	enable = 0;
 	disable = 0;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "lcd_enable") == 0) {
 			enable |= TP_ACPI_VIDEO_S_LCD;
 		} else if (strlencmp(cmd, "lcd_disable") == 0) {
@@ -5477,7 +5459,7 @@ static int kbdlight_write(char *buf)
 	if (!tp_features.kbdlight)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "0") == 0)
 			level = 0;
 		else if (strlencmp(cmd, "1") == 0)
@@ -5657,7 +5639,7 @@ static int light_write(char *buf)
 	if (!tp_features.light)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "on") == 0) {
 			newstatus = 1;
 		} else if (strlencmp(cmd, "off") == 0) {
@@ -5742,7 +5724,7 @@ static int cmos_write(char *buf)
 	char *cmd;
 	int cmos_cmd, res;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%u", &cmos_cmd) == 1 &&
 		    cmos_cmd >= 0 && cmos_cmd <= 21) {
 			/* cmos_cmd set */
@@ -6131,7 +6113,7 @@ static int led_write(char *buf)
 	if (!led_supported)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%d", &led) != 1)
 			return -EINVAL;
 
@@ -6218,7 +6200,7 @@ static int beep_write(char *buf)
 	if (!beep_handle)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%u", &beep_cmd) == 1 &&
 		    beep_cmd >= 0 && beep_cmd <= 17) {
 			/* beep_cmd set */
@@ -7106,7 +7088,7 @@ static int brightness_write(char *buf)
 	if (level < 0)
 		return level;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "up") == 0) {
 			if (level < bright_maxlvl)
 				level++;
@@ -7858,7 +7840,7 @@ static int volume_write(char *buf)
 	new_level = s & TP_EC_AUDIO_LVL_MSK;
 	new_mute  = s & TP_EC_AUDIO_MUTESW_MSK;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (!tp_features.mixer_no_level_control) {
 			if (strlencmp(cmd, "up") == 0) {
 				if (new_mute)
@@ -9168,7 +9150,7 @@ static int fan_write(char *buf)
 	char *cmd;
 	int rc = 0;
 
-	while (!rc && (cmd = next_cmd(&buf))) {
+	while (!rc && (cmd = strsep(&buf, ","))) {
 		if (!((fan_control_commands & TPACPI_FAN_CMD_LEVEL) &&
 		      fan_write_cmd_level(cmd, &rc)) &&
 		    !((fan_control_commands & TPACPI_FAN_CMD_ENABLE) &&
@@ -9807,7 +9789,7 @@ static int lcdshadow_write(char *buf)
 	if (lcdshadow_state < 0)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "0") == 0)
 			state = 0;
 		else if (strlencmp(cmd, "1") == 0)
@@ -10330,10 +10312,9 @@ static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 			continue;
 
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
-			if (strlen(val) > sizeof(ibms_init[i].param) - 2)
+			if (strlen(val) > sizeof(ibms_init[i].param) - 1)
 				return -ENOSPC;
 			strcpy(ibms_init[i].param, val);
-			strcat(ibms_init[i].param, ",");
 			return 0;
 		}
 	}
