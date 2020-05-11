@@ -865,6 +865,14 @@ struct sta_rec_bf {
 	u8 rsv[2];
 } __packed;
 
+struct sta_rec_bfee {
+	__le16 tag;
+	__le16 len;
+	bool fb_identity_matrix;	/* 1: feedback identity matrix */
+	bool ignore_feedback;		/* 1: ignore */
+	u8 rsv[2];
+} __packed;
+
 enum {
 	STA_REC_BASIC,
 	STA_REC_RA,
@@ -886,6 +894,7 @@ enum {
 	STA_REC_KEY_V2,
 	STA_REC_MURU,
 	STA_REC_MUEDCA,
+	STA_REC_BFEE,
 	STA_REC_MAX_NUM
 };
 

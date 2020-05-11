@@ -67,6 +67,7 @@ struct mt7915_fw_region {
 #define MCU_PATCH_ADDRESS		0x200000
 
 #define MT_STA_BFER			BIT(0)
+#define MT_STA_BFEE			BIT(1)
 
 #define FW_FEATURE_SET_ENCRYPT		BIT(0)
 #define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
@@ -1768,6 +1769,35 @@ mt7915_mcu_sta_bfer_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 	}
 }
 
+static void
+mt7915_mcu_sta_bfee_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
+			struct mt7915_phy *phy)
+{
+	struct sta_rec_bfee *bfee;
+	struct tlv *tlv;
+	int tx_ant = hweight8(phy->chainmask) - 1;
+	u8 nr = 0;
+
+	tlv = mt7915_mcu_add_tlv(skb, STA_REC_BFEE, sizeof(*bfee));
+	bfee = (struct sta_rec_bfee *)tlv;
+
+	if (sta->he_cap.has_he) {
+		struct ieee80211_he_cap_elem *pe = &sta->he_cap.he_cap_elem;
+
+		nr = HE_PHY(CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK,
+			    pe->phy_cap_info[5]);
+	} else if (sta->vht_cap.vht_supported) {
+		struct ieee80211_sta_vht_cap *pc = &sta->vht_cap;
+
+		nr = FIELD_GET(IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK,
+			       pc->cap);
+	}
+
+	/* reply with identity matrix to avoid 2x2 BF negative gain */
+	if (nr == 1 && tx_ant == 2)
+		bfee->fb_identity_matrix = true;
+}
+
 static u8
 mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
@@ -1790,6 +1820,11 @@ mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		vc = mt7915_get_he_phy_cap(phy, vif);
 		ve = &vc->he_cap_elem;
 
+		if ((HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]) ||
+		     HE_PHY(CAP4_MU_BEAMFORMER, pe->phy_cap_info[4])) &&
+		    HE_PHY(CAP4_SU_BEAMFORMEE, ve->phy_cap_info[4]))
+			type |= MT_STA_BFEE;
+
 		if ((HE_PHY(CAP3_SU_BEAMFORMER, ve->phy_cap_info[3]) ||
 		     HE_PHY(CAP4_MU_BEAMFORMER, ve->phy_cap_info[4])) &&
 		    HE_PHY(CAP4_SU_BEAMFORMEE, pe->phy_cap_info[4]))
@@ -1805,6 +1840,9 @@ mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		     IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE;
 		ce = IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
 		     IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+
+		if ((pc->cap & cr) && (vc->cap & ce))
+			type |= MT_STA_BFEE;
 
 		if ((vc->cap & cr) && (pc->cap & ce))
 			type |= MT_STA_BFER;
@@ -1841,6 +1879,22 @@ mt7915_mcu_add_txbf(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			return PTR_ERR(skb);
 
 		mt7915_mcu_sta_bfer_tlv(skb, sta, vif, phy, enable);
+
+		r = __mt76_mcu_skb_send_msg(&dev->mt76, skb,
+					    MCU_EXT_CMD_STA_REC_UPDATE, true);
+		if (r)
+			return r;
+	}
+
+	/* starec bfee */
+	if (type & MT_STA_BFEE) {
+		len = sizeof(struct sta_req_hdr) + sizeof(struct sta_rec_bfee);
+
+		skb = mt7915_mcu_alloc_sta_req(dev, mvif, msta, len);
+		if (IS_ERR(skb))
+			return PTR_ERR(skb);
+
+		mt7915_mcu_sta_bfee_tlv(skb, sta, phy);
 
 		r = __mt76_mcu_skb_send_msg(&dev->mt76, skb,
 					    MCU_EXT_CMD_STA_REC_UPDATE, true);
