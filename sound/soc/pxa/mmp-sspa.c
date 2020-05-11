@@ -191,8 +191,6 @@ static int mmp_sspa_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		sspa->sp |= SSPA_TXSP_FPER(63);
-		sspa->sp |= SSPA_SP_FWID(31);
 		sspa->ctrl |= SSPA_CTL_XDATDLY(1);
 		break;
 	default:
@@ -216,29 +214,47 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 {
 	struct sspa_priv *sspa = snd_soc_dai_get_drvdata(dai);
 	u32 sspa_ctrl = sspa->ctrl;
-
-	sspa_ctrl &= ~SSPA_CTL_XFRLEN1_MASK;
-	sspa_ctrl |= SSPA_CTL_XFRLEN1(params_channels(params) - 1);
-	sspa_ctrl &= ~SSPA_CTL_XWDLEN1_MASK;
-	sspa_ctrl |= SSPA_CTL_XWDLEN1(SSPA_CTL_32_BITS);
-	sspa_ctrl &= ~SSPA_CTL_XSSZ1_MASK;
+	int bits;
+	int bitval;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_8_BITS);
+		bits = 8;
+		bitval = SSPA_CTL_8_BITS;
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_16_BITS);
+		bits = 16;
+		bitval = SSPA_CTL_16_BITS;
 		break;
 	case SNDRV_PCM_FORMAT_S24_3LE:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_24_BITS);
+		bits = 24;
+		bitval = SSPA_CTL_24_BITS;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_32_BITS);
+		bits = 32;
+		bitval = SSPA_CTL_32_BITS;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (params_channels(params) == 2)
+		sspa_ctrl |= SSPA_CTL_XPH;
+
+	sspa_ctrl &= ~SSPA_CTL_XWDLEN1_MASK;
+	sspa_ctrl |= SSPA_CTL_XWDLEN1(bitval);
+
+	sspa_ctrl &= ~SSPA_CTL_XSSZ1_MASK;
+	sspa_ctrl |= SSPA_CTL_XSSZ1(bitval);
+
+	sspa_ctrl &= ~SSPA_CTL_XSSZ2_MASK;
+	sspa_ctrl |= SSPA_CTL_XSSZ2(bitval);
+
+	sspa->sp &= ~SSPA_SP_FWID_MASK;
+	sspa->sp |= SSPA_SP_FWID(bits - 1);
+
+	sspa->sp &= ~SSPA_TXSP_FPER_MASK;
+	sspa->sp |= SSPA_TXSP_FPER(bits * 2 - 1);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mmp_sspa_write_reg(sspa, SSPA_TXCTL, sspa_ctrl);

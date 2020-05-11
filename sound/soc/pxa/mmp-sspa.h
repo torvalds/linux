@@ -63,7 +63,9 @@
 #define	SSPA_SP_FFLUSH		(1 << 2)	/* FIFO Flush */
 #define	SSPA_SP_S_RST		(1 << 1)	/* Active High Reset Signal */
 #define	SSPA_SP_S_EN		(1 << 0)	/* Serial Clock Domain Enable */
+#define	SSPA_SP_FWID_MASK	(0x3f << 20)
 #define	SSPA_SP_FWID(x)		((x) << 20)	/* Frame-Sync Width */
+#define	SSPA_TXSP_FPER_MASK	(0x3f << 4)
 #define	SSPA_TXSP_FPER(x)	((x) << 4)	/* Frame-Sync Active */
 
 /* sspa clock sources */
