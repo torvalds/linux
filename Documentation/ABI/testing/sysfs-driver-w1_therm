@@ -62,9 +62,16 @@ Date:		May 2020
 Contact:	Akira Shimahara <akira215corp@gmail.com>
 Description:
 		(RO) return the temperature in 1/1000 degC.
-		Note that the conversion duration depend on the resolution (if
-		device support this feature). It takes 94ms in 9bits
-		resolution, 750ms for 12bits.
+			* If a bulk read has been triggered, it will directly
+			return the temperature computed when the bulk read
+			occurred, if available. If not yet available, nothing
+			is returned (a debug kernel message is sent), you
+			should retry later on.
+			* If no bulk read has been triggered, it will trigger
+			a conversion and send the result. Note that the
+			conversion duration depend on the resolution (if
+			device support this feature). It takes 94ms in 9bits
+			resolution, 750ms for 12bits.
 Users:		any user space application which wants to communicate with
 		w1_term device
 
@@ -84,5 +91,26 @@ Description:
 			* Anything else: do nothing
 		refer to Documentation/w1/slaves/w1_therm.rst for detailed
 		information.
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/w1_bus_masterXX/therm_bulk_read
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) trigger a bulk read conversion. read the status
+		*read*:
+			* '-1': conversion in progress on at least 1 sensor
+			* '1' :	conversion complete but at least one sensor
+				value has not been read yet
+			* '0' :	no bulk operation. Reading temperature will
+				trigger a conversion on each device
+		*write*: 'trigger': trigger a bulk read on all supporting
+			devices on the bus
+		Note that if a bulk read is sent but one sensor is not read
+		immediately, the next access to temperature on this device
+		will return the temperature measured at the time of issue
+		of the bulk read command (not the current temperature).
 Users:		any user space application which wants to communicate with
 		w1_term device
