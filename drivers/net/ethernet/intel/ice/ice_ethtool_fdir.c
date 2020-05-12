@@ -566,6 +566,12 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 			return -EINVAL;
 		}
 
+		if (ice_is_arfs_using_perfect_flow(hw, flow)) {
+			dev_err(dev, "aRFS using perfect flow type %d, cannot change input set\n",
+				flow);
+			return -EINVAL;
+		}
+
 		/* remove HW filter definition */
 		ice_fdir_rem_flow(hw, ICE_BLK_FD, flow);
 	}
@@ -1176,7 +1182,7 @@ err_exit:
  *
  * returns 0 on success and negative value on error
  */
-static int
+int
 ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 		    bool is_tun)
 {

@@ -2175,6 +2175,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 				ice_vsi_cfg_rss_lut_key(vsi);
 				ice_vsi_set_rss_flow_fld(vsi);
 			}
+		ice_init_arfs(vsi);
 		break;
 	case ICE_VSI_VF:
 		/* VF driver will take care of creating netdev for this type and

@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
+#include <linux/cpu_rmap.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
@@ -52,6 +53,7 @@
 #include "ice_sriov.h"
 #include "ice_fdir.h"
 #include "ice_xsk.h"
+#include "ice_arfs.h"
 
 extern const char ice_drv_ver[];
 #define ICE_BAR0		0
@@ -270,6 +272,14 @@ struct ice_vsi {
 	u8 *rss_hkey_user;	/* User configured hash keys */
 	u8 *rss_lut_user;	/* User configured lookup table entries */
 	u8 rss_lut_type;	/* used to configure Get/Set RSS LUT AQ call */
+
+	/* aRFS members only allocated for the PF VSI */
+#define ICE_MAX_ARFS_LIST	1024
+#define ICE_ARFS_LST_MASK	(ICE_MAX_ARFS_LIST - 1)
+	struct hlist_head *arfs_fltr_list;
+	struct ice_arfs_active_fltr_cntrs *arfs_fltr_cntrs;
+	spinlock_t arfs_lock;	/* protects aRFS hash table and filter state */
+	atomic_t *arfs_last_fltr_id;
 
 	u16 max_frame;
 	u16 rx_buf_len;
@@ -558,6 +568,9 @@ int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 const char *ice_stat_str(enum ice_status stat_err);
 const char *ice_aq_str(enum ice_aq_err aq_err);
+int
+ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
+		    bool is_tun);
 void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena);
 int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd);
 int ice_del_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd);
@@ -571,5 +584,6 @@ void ice_fdir_replay_fltrs(struct ice_pf *pf);
 int ice_fdir_create_dflt_rules(struct ice_pf *pf);
 int ice_open(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
+void ice_service_task_schedule(struct ice_pf *pf);
 
 #endif /* _ICE_H_ */
