@@ -581,9 +581,9 @@ TRACE_EVENT(rpc_reply_pages,
 #define RPC_SHOW_SOCKET				\
 	EM( SS_FREE, "FREE" )			\
 	EM( SS_UNCONNECTED, "UNCONNECTED" )	\
-	EM( SS_CONNECTING, "CONNECTING," )	\
-	EM( SS_CONNECTED, "CONNECTED," )	\
-	EMe(SS_DISCONNECTING, "DISCONNECTING" )
+	EM( SS_CONNECTING, "CONNECTING" )	\
+	EM( SS_CONNECTED, "CONNECTED" )		\
+	EMe( SS_DISCONNECTING, "DISCONNECTING" )
 
 #define rpc_show_socket_state(state) \
 	__print_symbolic(state, RPC_SHOW_SOCKET)
