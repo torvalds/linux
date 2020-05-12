@@ -78,6 +78,7 @@ struct rtw8723d_efuse {
 #define RFCFGCH_BW_20M		(BIT(11) | BIT(10))
 #define RFCFGCH_BW_40M		BIT(10)
 #define BIT_MASK_RFMOD		BIT(0)
+#define BIT_LCK			BIT(15)
 
 #define REG_PSDFN		0x0808
 #define REG_ANALOG_P4		0x088c
@@ -115,6 +116,8 @@ struct rtw8723d_efuse {
 #define REG_OFDM_FA_RSTD_11N	0x0d00
 #define BIT_MASK_OFDM_FA_RST1	BIT(27)
 #define BIT_MASK_OFDM_FA_KEEP1	BIT(31)
+#define REG_CTX			0x0d03
+#define BIT_MASK_CTX_TYPE	GENMASK(6, 4)
 #define REG_OFDM1_CFOTRK	0x0d2c
 #define BIT_EN_CFOTRK		BIT(28)
 #define REG_OFDM1_CSI1		0x0d40
