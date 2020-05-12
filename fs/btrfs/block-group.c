@@ -7,7 +7,6 @@
 #include "disk-io.h"
 #include "free-space-cache.h"
 #include "free-space-tree.h"
-#include "disk-io.h"
 #include "volumes.h"
 #include "transaction.h"
 #include "ref-verify.h"
