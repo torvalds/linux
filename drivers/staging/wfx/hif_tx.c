@@ -189,17 +189,17 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 	wfx_fill_header(hif, vif_id, HIF_REQ_ID_READ_MIB, sizeof(*body));
 	ret = wfx_cmd_send(wdev, hif, reply, buf_len, false);
 
-	if (!ret && mib_id != reply->mib_id) {
+	if (!ret && mib_id != le16_to_cpu(reply->mib_id)) {
 		dev_warn(wdev->dev,
 			 "%s: confirmation mismatch request\n", __func__);
 		ret = -EIO;
 	}
 	if (ret == -ENOMEM)
-		dev_err(wdev->dev,
-			"buffer is too small to receive %s (%zu < %d)\n",
-			get_mib_name(mib_id), val_len, reply->length);
+		dev_err(wdev->dev, "buffer is too small to receive %s (%zu < %d)\n",
+			get_mib_name(mib_id), val_len,
+			le16_to_cpu(reply->length));
 	if (!ret)
-		memcpy(val, &reply->mib_data, reply->length);
+		memcpy(val, &reply->mib_data, le16_to_cpu(reply->length));
 	else
 		memset(val, 0xFF, val_len);
 	kfree(hif);
