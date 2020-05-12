@@ -2773,7 +2773,7 @@ int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy)
 				       MCU_CMD_SET_CHAN_DOMAIN, false);
 }
 
-#define MT7615_SCAN_CHANNEL_TIME	120
+#define MT7615_SCAN_CHANNEL_TIME	60
 int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_scan_request *scan_req)
 {
@@ -2819,6 +2819,9 @@ int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	req->ssid_type = n_ssids ? BIT(2) : BIT(0);
 	req->ssids_num = n_ssids;
 
+	/* increase channel time for passive scan */
+	if (!sreq->n_ssids)
+		duration *= 2;
 	req->timeout_value = cpu_to_le16(sreq->n_channels * duration);
 	req->channel_min_dwell_time = cpu_to_le16(duration);
 	req->channel_dwell_time = cpu_to_le16(duration);
