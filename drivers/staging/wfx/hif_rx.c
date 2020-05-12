@@ -158,6 +158,7 @@ static int hif_event_indication(struct wfx_dev *wdev,
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	const struct hif_ind_event *body = buf;
+	int cause;
 
 	if (!wvif) {
 		dev_warn(wdev->dev, "received event for non-existent vif\n");
@@ -176,10 +177,10 @@ static int hif_event_indication(struct wfx_dev *wdev,
 		dev_dbg(wdev->dev, "ignore BSSREGAINED indication\n");
 		break;
 	case HIF_EVENT_IND_PS_MODE_ERROR:
+		cause = le32_to_cpu(body->event_data.ps_mode_error);
 		dev_warn(wdev->dev, "error while processing power save request: %d\n",
-			 body->event_data.ps_mode_error);
-		if (body->event_data.ps_mode_error ==
-		    HIF_PS_ERROR_AP_NOT_RESP_TO_POLL) {
+			 cause);
+		if (cause == HIF_PS_ERROR_AP_NOT_RESP_TO_POLL) {
 			wvif->bss_not_support_ps_poll = true;
 			schedule_work(&wvif->update_pm_work);
 		}
