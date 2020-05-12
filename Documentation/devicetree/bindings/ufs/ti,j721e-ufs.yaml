@@ -25,6 +25,12 @@ properties:
   power-domains:
     maxItems: 1
 
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-parents:
+    maxItems: 1
+
   "#address-cells":
     const: 2
 
@@ -46,6 +52,8 @@ patternProperties:
       Cadence UFS controller node must be the child node. Refer
       Documentation/devicetree/bindings/ufs/cdns,ufshc.txt for binding
       documentation of child node
+
+additionalProperties: false
 
 examples:
   - |
