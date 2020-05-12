@@ -254,7 +254,9 @@ struct hif_ht_tx_parameters {
 } __packed;
 
 struct hif_req_tx {
-	__le32 packet_id;
+	// packet_id is not interpreted by the device, so it is not necessary to
+	// declare it little endian
+	u32    packet_id;
 	u8     max_tx_rate;
 	struct hif_queue queue_id;
 	struct hif_data_flags data_flags;
@@ -283,7 +285,9 @@ struct hif_tx_result_flags {
 
 struct hif_cnf_tx {
 	__le32 status;
-	__le32 packet_id;
+	// packet_id is copied from struct hif_req_tx without been interpreted
+	// by the device, so it is not necessary to declare it little endian
+	u32    packet_id;
 	u8     txed_rate;
 	u8     ack_failures;
 	struct hif_tx_result_flags tx_result_flags;
