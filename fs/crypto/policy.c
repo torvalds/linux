@@ -643,7 +643,7 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb,
 				      const substring_t *arg,
 				      struct fscrypt_dummy_context *dummy_ctx)
 {
-	const char *argstr = "v1";
+	const char *argstr = "v2";
 	const char *argstr_to_free = NULL;
 	struct fscrypt_key_specifier key_spec = { 0 };
 	int version;
