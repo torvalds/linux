@@ -16,6 +16,7 @@ properties:
           - enum:
               - amlogic,meson8-usb2-phy
               - amlogic,meson8b-usb2-phy
+              - amlogic,meson8m2-usb2-phy
           - const: amlogic,meson-mx-usb2-phy
       - const: amlogic,meson-gxbb-usb2-phy
 
