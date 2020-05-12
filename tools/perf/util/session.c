@@ -490,6 +490,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->ksymbol = perf_event__process_ksymbol;
 	if (tool->bpf == NULL)
 		tool->bpf = perf_event__process_bpf;
+	if (tool->text_poke == NULL)
+		tool->text_poke = perf_event__process_text_poke;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -657,6 +659,24 @@ static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->context_switch + 1);
+}
+
+static void perf_event__text_poke_swap(union perf_event *event, bool sample_id_all)
+{
+	event->text_poke.addr    = bswap_64(event->text_poke.addr);
+	event->text_poke.old_len = bswap_16(event->text_poke.old_len);
+	event->text_poke.new_len = bswap_16(event->text_poke.new_len);
+
+	if (sample_id_all) {
+		size_t len = sizeof(event->text_poke.old_len) +
+			     sizeof(event->text_poke.new_len) +
+			     event->text_poke.old_len +
+			     event->text_poke.new_len;
+		void *data = &event->text_poke.old_len;
+
+		data += PERF_ALIGN(len, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
 }
 
 static void perf_event__throttle_swap(union perf_event *event,
@@ -932,6 +952,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
 	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
+	[PERF_RECORD_TEXT_POKE]		  = perf_event__text_poke_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1474,6 +1495,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->ksymbol(tool, event, sample, machine);
 	case PERF_RECORD_BPF_EVENT:
 		return tool->bpf(tool, event, sample, machine);
+	case PERF_RECORD_TEXT_POKE:
+		return tool->text_poke(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;

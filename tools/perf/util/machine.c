@@ -808,6 +808,47 @@ int machine__process_ksymbol(struct machine *machine __maybe_unused,
 	return machine__process_ksymbol_register(machine, event, sample);
 }
 
+int machine__process_text_poke(struct machine *machine, union perf_event *event,
+			       struct perf_sample *sample __maybe_unused)
+{
+	struct map *map = maps__find(&machine->kmaps, event->text_poke.addr);
+	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	if (dump_trace)
+		perf_event__fprintf_text_poke(event, stdout);
+
+	if (!event->text_poke.new_len)
+		return 0;
+
+	if (cpumode != PERF_RECORD_MISC_KERNEL) {
+		pr_debug("%s: unsupported cpumode - ignoring\n", __func__);
+		return 0;
+	}
+
+	if (map && map->dso) {
+		u8 *new_bytes = event->text_poke.bytes + event->text_poke.old_len;
+		int ret;
+
+		/*
+		 * Kernel maps might be changed when loading symbols so loading
+		 * must be done prior to using kernel maps.
+		 */
+		map__load(map);
+		ret = dso__data_write_cache_addr(map->dso, map, machine,
+						 event->text_poke.addr,
+						 new_bytes,
+						 event->text_poke.new_len);
+		if (ret != event->text_poke.new_len)
+			pr_debug("Failed to write kernel text poke at %#" PRI_lx64 "\n",
+				 event->text_poke.addr);
+	} else {
+		pr_debug("Failed to find kernel text poke address map for %#" PRI_lx64 "\n",
+			 event->text_poke.addr);
+	}
+
+	return 0;
+}
+
 static struct map *machine__addnew_module_map(struct machine *machine, u64 start,
 					      const char *filename)
 {
@@ -1930,6 +1971,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_ksymbol(machine, event, sample); break;
 	case PERF_RECORD_BPF_EVENT:
 		ret = machine__process_bpf(machine, event, sample); break;
+	case PERF_RECORD_TEXT_POKE:
+		ret = machine__process_text_poke(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;

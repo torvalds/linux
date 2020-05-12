@@ -48,6 +48,7 @@ struct record_opts {
 	bool	      sample_id;
 	bool	      no_bpf_event;
 	bool	      kcore;
+	bool	      text_poke;
 	unsigned int  freq;
 	unsigned int  mmap_pages;
 	unsigned int  auxtrace_mmap_pages;

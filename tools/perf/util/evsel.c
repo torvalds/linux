@@ -1064,7 +1064,12 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	attr->mmap  = track;
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
-	attr->ksymbol = track && !perf_missing_features.ksymbol;
+	/*
+	 * ksymbol is tracked separately with text poke because it needs to be
+	 * system wide and enabled immediately.
+	 */
+	if (!opts->text_poke)
+		attr->ksymbol = track && !perf_missing_features.ksymbol;
 	attr->bpf_event = track && !opts->no_bpf_event && !perf_missing_features.bpf;
 
 	if (opts->record_namespaces)
