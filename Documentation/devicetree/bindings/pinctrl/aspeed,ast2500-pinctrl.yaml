@@ -121,7 +121,7 @@ examples:
 
             lhc: lhc@20 {
                    compatible = "aspeed,ast2500-lhc";
-                   reg = <0x20 0x24 0x48 0x8>;
+                   reg = <0x20 0x24>, <0x48 0x8>;
             };
         };
     };

@@ -295,7 +295,7 @@ examples:
   - |
     cti@20110000 {
       compatible = "arm,coresight-cti", "arm,primecell";
-      reg = <0 0x20110000 0 0x1000>;
+      reg = <0x20110000 0x1000>;
 
       clocks = <&soc_smc50mhz>;
       clock-names = "apb_pclk";

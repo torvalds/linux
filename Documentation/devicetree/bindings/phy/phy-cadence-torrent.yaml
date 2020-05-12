@@ -117,24 +117,30 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/phy/phy.h>
-    torrent_phy: torrent-phy@f0fb500000 {
-          compatible = "cdns,torrent-phy";
-          reg = <0xf0 0xfb500000 0x0 0x00100000>,
-                <0xf0 0xfb030a00 0x0 0x00000040>;
-          reg-names = "torrent_phy", "dptx_phy";
-          resets = <&phyrst 0>;
-          clocks = <&ref_clk>;
-          clock-names = "refclk";
-          #address-cells = <1>;
-          #size-cells = <0>;
-          torrent_phy_dp: phy@0 {
-                    reg = <0>;
-                    resets = <&phyrst 1>, <&phyrst 2>,
-                             <&phyrst 3>, <&phyrst 4>;
-                    #phy-cells = <0>;
-                    cdns,phy-type = <PHY_TYPE_DP>;
-                    cdns,num-lanes = <4>;
-                    cdns,max-bit-rate = <8100>;
-          };
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        torrent-phy@f0fb500000 {
+            compatible = "cdns,torrent-phy";
+            reg = <0xf0 0xfb500000 0x0 0x00100000>,
+                  <0xf0 0xfb030a00 0x0 0x00000040>;
+            reg-names = "torrent_phy", "dptx_phy";
+            resets = <&phyrst 0>;
+            clocks = <&ref_clk>;
+            clock-names = "refclk";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            phy@0 {
+                      reg = <0>;
+                      resets = <&phyrst 1>, <&phyrst 2>,
+                               <&phyrst 3>, <&phyrst 4>;
+                      #phy-cells = <0>;
+                      cdns,phy-type = <PHY_TYPE_DP>;
+                      cdns,num-lanes = <4>;
+                      cdns,max-bit-rate = <8100>;
+            };
+        };
     };
 ...

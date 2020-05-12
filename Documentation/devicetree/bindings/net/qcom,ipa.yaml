@@ -162,9 +162,9 @@ examples:
                 modem-init;
                 modem-remoteproc = <&mss_pil>;
 
-                reg = <0 0x1e40000 0 0x7000>,
-                        <0 0x1e47000 0 0x2000>,
-                        <0 0x1e04000 0 0x2c000>;
+                reg = <0x1e40000 0x7000>,
+                        <0x1e47000 0x2000>,
+                        <0x1e04000 0x2c000>;
                 reg-names = "ipa-reg",
                             "ipa-shared",
                             "gsi";

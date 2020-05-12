@@ -101,7 +101,7 @@ examples:
         compatible = "ibm,usb-ehci-440epx", "generic-ehci";
         interrupt-parent = <&UIC0>;
         interrupts = <0x1a 4>;
-        reg = <0 0xe0000300 90 0 0xe0000390 70>;
+        reg = <0xe0000300 90>, <0xe0000390 70>;
         big-endian;
     };
 

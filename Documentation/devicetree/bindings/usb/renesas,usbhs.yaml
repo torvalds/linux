@@ -120,7 +120,7 @@ examples:
 
     usbhs: usb@e6590000 {
         compatible = "renesas,usbhs-r8a7790", "renesas,rcar-gen2-usbhs";
-        reg = <0 0xe6590000 0 0x100>;
+        reg = <0xe6590000 0x100>;
         interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&cpg CPG_MOD 704>;
     };

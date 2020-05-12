@@ -337,7 +337,7 @@ examples:
 
     mc: memory-controller@70019000 {
         compatible = "nvidia,tegra124-mc";
-        reg = <0x0 0x70019000 0x0 0x1000>;
+        reg = <0x70019000 0x1000>;
         clocks = <&tegra_car TEGRA124_CLK_MC>;
         clock-names = "mc";
 
@@ -349,7 +349,7 @@ examples:
 
     external-memory-controller@7001b000 {
         compatible = "nvidia,tegra124-emc";
-        reg = <0x0 0x7001b000 0x0 0x1000>;
+        reg = <0x7001b000 0x1000>;
         clocks = <&car TEGRA124_CLK_EMC>;
         clock-names = "emc";
 

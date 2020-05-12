@@ -50,7 +50,7 @@ examples:
   - |
     dpclk: clock-display@f1f0000 {
         compatible = "fsl,ls1028a-plldig";
-        reg = <0x0 0xf1f0000 0x0 0xffff>;
+        reg = <0xf1f0000 0xffff>;
         #clock-cells = <0>;
         clocks = <&osc_27m>;
     };

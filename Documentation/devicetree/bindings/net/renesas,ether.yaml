@@ -92,7 +92,7 @@ examples:
 
     ethernet@ee700000 {
         compatible = "renesas,ether-r8a7790", "renesas,rcar-gen2-ether";
-        reg = <0 0xee700000 0 0x400>;
+        reg = <0xee700000 0x400>;
         interrupt-parent = <&gic>;
         interrupts = <0 162 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&mstp8_clks R8A7790_CLK_ETHER>;
