@@ -205,7 +205,7 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg,
 		return -ENOMEM;
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = indirect_read(wdev, reg, addr, tmp, sizeof(u32));
-	*val = cpu_to_le32(*tmp);
+	*val = le32_to_cpu(*tmp);
 	_trace_io_ind_read32(reg, addr, *val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	kfree(tmp);
