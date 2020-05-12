@@ -124,7 +124,7 @@ properties:
       may result in data loss! If not specified, a safety value of
       '1' is used which will be very slow.
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [1, 8, 16, 32, 64, 128, 258]
+    enum: [1, 8, 16, 32, 64, 128, 256]
     default: 1
 
   read-only:
