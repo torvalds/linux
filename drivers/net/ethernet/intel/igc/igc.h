@@ -457,7 +457,10 @@ struct igc_nfc_rule {
 	u16 action;
 };
 
-#define IGC_MAX_RXNFC_RULES		16
+/* IGC supports a total of 32 NFC rules: 16 MAC address based,, 8 VLAN priority
+ * based, and 8 ethertype based.
+ */
+#define IGC_MAX_RXNFC_RULES		32
 
 /* igc_desc_unused - calculate if we have unused descriptors */
 static inline u16 igc_desc_unused(const struct igc_ring *ring)
