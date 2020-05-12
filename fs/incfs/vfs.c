@@ -206,6 +206,8 @@ struct inode_search {
 	unsigned long ino;
 
 	struct dentry *backing_dentry;
+
+	size_t size;
 };
 
 enum parse_parameter {
@@ -364,7 +366,7 @@ static int inode_set(struct inode *inode, void *opaque)
 
 		fsstack_copy_attr_all(inode, backing_inode);
 		if (S_ISREG(inode->i_mode)) {
-			u64 size = read_size_attr(backing_dentry);
+			u64 size = search->size;
 
 			inode->i_size = size;
 			inode->i_blocks = get_blocks_count_for_size(size);
@@ -440,7 +442,8 @@ static struct inode *fetch_regular_inode(struct super_block *sb,
 	struct inode *backing_inode = d_inode(backing_dentry);
 	struct inode_search search = {
 		.ino = backing_inode->i_ino,
-		.backing_dentry = backing_dentry
+		.backing_dentry = backing_dentry,
+		.size = read_size_attr(backing_dentry),
 	};
 	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
 				inode_set, &search);
