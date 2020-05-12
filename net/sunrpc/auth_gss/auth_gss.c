@@ -254,7 +254,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	if (IS_ERR(p))
 		goto err;
 done:
-	trace_rpcgss_context(ctx->gc_expiry, now, timeout,
+	trace_rpcgss_context(window_size, ctx->gc_expiry, now, timeout,
 			     ctx->gc_acceptor.len, ctx->gc_acceptor.data);
 err:
 	return p;
@@ -697,10 +697,12 @@ retry:
 		}
 		schedule();
 	}
-	if (gss_msg->ctx)
+	if (gss_msg->ctx) {
+		trace_rpcgss_ctx_init(gss_cred);
 		gss_cred_set_ctx(cred, gss_msg->ctx);
-	else
+	} else {
 		err = gss_msg->msg.errno;
+	}
 	spin_unlock(&pipe->lock);
 out_intr:
 	finish_wait(&gss_msg->waitqueue, &wait);
@@ -1284,6 +1286,7 @@ gss_send_destroy_context(struct rpc_cred *cred)
 	if (new) {
 		ctx->gc_proc = RPC_GSS_PROC_DESTROY;
 
+		trace_rpcgss_ctx_destroy(gss_cred);
 		task = rpc_call_null(gss_auth->client, &new->gc_base,
 				RPC_TASK_ASYNC|RPC_TASK_SOFT);
 		if (!IS_ERR(task))
@@ -1349,7 +1352,6 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 static void
 gss_destroy_cred(struct rpc_cred *cred)
 {
-
 	if (test_and_clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0)
 		gss_send_destroy_context(cred);
 	gss_destroy_nullcred(cred);
