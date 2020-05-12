@@ -2816,7 +2816,7 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 	}
 
 	task = rpc_call_null_helper(clnt, xprt, NULL,
-			RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC|RPC_TASK_NULLCREDS,
+			RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC,
 			&rpc_cb_add_xprt_call_ops, data);
 
 	rpc_put_task(task);
@@ -2860,7 +2860,7 @@ int rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *clnt,
 
 	/* Test the connection */
 	task = rpc_call_null_helper(clnt, xprt, NULL,
-				    RPC_TASK_SOFT | RPC_TASK_SOFTCONN | RPC_TASK_NULLCREDS,
+				    RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 				    NULL, NULL);
 	if (IS_ERR(task)) {
 		status = PTR_ERR(task);
