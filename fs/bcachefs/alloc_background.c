@@ -315,7 +315,9 @@ retry:
 	bch2_trans_update(trans, iter, &a->k_i,
 			  BTREE_TRIGGER_NORUN);
 	ret = bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|flags);
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_USE_RESERVE|
+				flags);
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -1033,7 +1035,16 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, size_t 
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		spin_lock(&c->freelist_lock);
-		for (i = 0; i < RESERVE_NR; i++)
+		for (i = 0; i < RESERVE_NR; i++) {
+
+			/*
+			 * Don't strand buckets on the copygc freelist until
+			 * after recovery is finished:
+			 */
+			if (!test_bit(BCH_FS_STARTED, &c->flags) &&
+			    i == RESERVE_MOVINGGC)
+				continue;
+
 			if (fifo_push(&ca->free[i], bucket)) {
 				fifo_pop(&ca->free_inc, bucket);
 
@@ -1043,6 +1054,7 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, size_t 
 				spin_unlock(&c->freelist_lock);
 				goto out;
 			}
+		}
 
 		if (ca->allocator_state != ALLOCATOR_BLOCKED_FULL) {
 			ca->allocator_state = ALLOCATOR_BLOCKED_FULL;

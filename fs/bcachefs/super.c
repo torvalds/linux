@@ -860,6 +860,8 @@ int bch2_fs_start(struct bch_fs *c)
 	if (bch2_fs_init_fault("fs_start"))
 		goto err;
 
+	set_bit(BCH_FS_STARTED, &c->flags);
+
 	if (c->opts.read_only || c->opts.nochanges) {
 		bch2_fs_read_only(c);
 	} else {
@@ -871,7 +873,6 @@ int bch2_fs_start(struct bch_fs *c)
 			goto err;
 	}
 
-	set_bit(BCH_FS_STARTED, &c->flags);
 	print_mount_opts(c);
 	ret = 0;
 out:
