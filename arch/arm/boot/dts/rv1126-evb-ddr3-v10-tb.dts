@@ -10,7 +10,7 @@
 	compatible = "rockchip,rv1126-evb-ddr3-v10-tb", "rockchip,rv1126";
 
 	chosen {
-		bootargs = "loglevel=0 initcall_nr_threads=0 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7";
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7";
 	};
 
 	memory {
