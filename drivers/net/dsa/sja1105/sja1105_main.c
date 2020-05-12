@@ -1811,15 +1811,19 @@ static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 		if (dsa_to_port(ds, port)->bridge_dev != br)
 			continue;
 
+		other_priv->expect_dsa_8021q = true;
 		rc = dsa_8021q_crosschip_bridge_join(ds, port, other_ds,
 						     other_port, br,
 						     &priv->crosschip_links);
+		other_priv->expect_dsa_8021q = false;
 		if (rc)
 			return rc;
 
+		priv->expect_dsa_8021q = true;
 		rc = dsa_8021q_crosschip_bridge_join(other_ds, other_port, ds,
 						     port, br,
 						     &other_priv->crosschip_links);
+		priv->expect_dsa_8021q = false;
 		if (rc)
 			return rc;
 	}
@@ -1846,12 +1850,16 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 		if (dsa_to_port(ds, port)->bridge_dev != br)
 			continue;
 
+		other_priv->expect_dsa_8021q = true;
 		dsa_8021q_crosschip_bridge_leave(ds, port, other_ds, other_port,
 						 br, &priv->crosschip_links);
+		other_priv->expect_dsa_8021q = false;
 
+		priv->expect_dsa_8021q = true;
 		dsa_8021q_crosschip_bridge_leave(other_ds, other_port, ds,
 						 port, br,
 						 &other_priv->crosschip_links);
+		priv->expect_dsa_8021q = false;
 	}
 }
 
@@ -1862,8 +1870,10 @@ static int sja1105_replay_crosschip_vlans(struct dsa_switch *ds, bool enabled)
 	int rc;
 
 	list_for_each_entry(c, &priv->crosschip_links, list) {
+		priv->expect_dsa_8021q = true;
 		rc = dsa_8021q_crosschip_link_apply(ds, c->port, c->other_ds,
 						    c->other_port, enabled);
+		priv->expect_dsa_8021q = false;
 		if (rc)
 			break;
 	}
@@ -1873,10 +1883,13 @@ static int sja1105_replay_crosschip_vlans(struct dsa_switch *ds, bool enabled)
 
 static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 {
+	struct sja1105_private *priv = ds->priv;
 	int rc, i;
 
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		priv->expect_dsa_8021q = true;
 		rc = dsa_port_setup_8021q_tagging(ds, i, enabled);
+		priv->expect_dsa_8021q = false;
 		if (rc < 0) {
 			dev_err(ds->dev, "Failed to setup VLAN tagging for port %d: %d\n",
 				i, rc);
@@ -1901,10 +1914,26 @@ sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 	return DSA_TAG_PROTO_SJA1105;
 }
 
-/* This callback needs to be present */
 static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan)
 {
+	struct sja1105_private *priv = ds->priv;
+	u16 vid;
+
+	if (priv->vlan_state == SJA1105_VLAN_FILTERING_FULL)
+		return 0;
+
+	/* If the user wants best-effort VLAN filtering (aka vlan_filtering
+	 * bridge plus tagging), be sure to at least deny alterations to the
+	 * configuration done by dsa_8021q.
+	 */
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		if (!priv->expect_dsa_8021q && vid_is_dsa_8021q(vid)) {
+			dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
+			return -EBUSY;
+		}
+	}
+
 	return 0;
 }
 
