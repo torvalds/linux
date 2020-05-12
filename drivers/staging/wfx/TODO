@@ -3,31 +3,12 @@ staging directory.
 
   - The HIF API is not yet clean enough.
 
-  - Fix support for big endian architectures. See:
-       https://lore.kernel.org/lkml/20191111202852.GX26530@ZenIV.linux.org.uk
-
-  - The pointers returned by allocation functions are always checked.
-
   - The code that check the corectness of received message (in rx_helper()) can
     be improved. See:
        https://lore.kernel.org/driverdev-devel/2302785.6C7ODC2LYm@pc-42/
 
-  - Support for SDIO with external IRQ is broken.
-
   - As suggested by Felix, rate control could be improved following this idea:
         https://lore.kernel.org/lkml/3099559.gv3Q75KnN1@pc-42/
-
-  - When driver is about to loose BSS, it forge its own Null Func request (see
-    wfx_cqm_bssloss_sm()). It should use mechanism provided by mac80211.
-
-  - Monitoring mode is not implemented despite being mandatory by mac80211.
-
-  - The "state" field from wfx_vif should be replaced by "vif->type".
-
-  - It seems that wfx_upload_keys() is useless.
-
-  - "event_queue" from wfx_vif seems overkill. These event are rare and they
-     probably could be handled in a simpler fashion.
 
   - Feature called "secure link" should be either developed (using kernel
     crypto API) or dropped.
