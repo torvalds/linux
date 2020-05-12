@@ -1043,11 +1043,11 @@ idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
  */
 SYM_FUNC_START(asm_load_gs_index)
 	FRAME_BEGIN
-	SWAPGS
+	swapgs
 .Lgs_change:
 	movl	%edi, %gs
 2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
-	SWAPGS
+	swapgs
 	FRAME_END
 	ret
 SYM_FUNC_END(asm_load_gs_index)
@@ -1057,7 +1057,7 @@ EXPORT_SYMBOL(asm_load_gs_index)
 	.section .fixup, "ax"
 	/* running with kernelgs */
 SYM_CODE_START_LOCAL_NOALIGN(.Lbad_gs)
-	SWAPGS					/* switch back to user gs */
+	swapgs					/* switch back to user gs */
 .macro ZAP_GS
 	/* This can't be a string because the preprocessor needs to see it. */
 	movl $__USER_DS, %eax
