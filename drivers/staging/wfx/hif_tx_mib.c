@@ -32,7 +32,7 @@ int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 	struct hif_mib_beacon_wake_up_period val = {
 		.wakeup_period_min = dtim_interval,
 		.receive_dtim = 0,
-		.wakeup_period_max = cpu_to_le16(listen_interval),
+		.wakeup_period_max = listen_interval,
 	};
 
 	if (dtim_interval > 0xFF || listen_interval > 0xFFFF)
