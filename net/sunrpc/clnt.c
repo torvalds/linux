@@ -1270,7 +1270,7 @@ void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
 	hdrsize += RPC_REPHDRSIZE + req->rq_cred->cr_auth->au_ralign - 1;
 
 	xdr_inline_pages(&req->rq_rcv_buf, hdrsize << 2, pages, base, len);
-	trace_rpc_reply_pages(req);
+	trace_rpc_xdr_reply_pages(req->rq_task, &req->rq_rcv_buf);
 }
 EXPORT_SYMBOL_GPL(rpc_prepare_reply_pages);
 
@@ -2532,7 +2532,7 @@ call_decode(struct rpc_task *task)
 		goto out;
 
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
-	trace_xprt_recvfrom(&req->rq_rcv_buf);
+	trace_rpc_xdr_recvfrom(task, &req->rq_rcv_buf);
 
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
