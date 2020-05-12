@@ -1294,7 +1294,7 @@ mt7615_mcu_uni_add_dev(struct mt7615_dev *dev,
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct {
-		struct req_hdr {
+		struct {
 			u8 omac_idx;
 			u8 band_idx;
 			__le16 pad;
@@ -1306,7 +1306,7 @@ mt7615_mcu_uni_add_dev(struct mt7615_dev *dev,
 			u8 pad;
 			u8 omac_addr[ETH_ALEN];
 		} __packed tlv;
-	} data = {
+	} dev_req = {
 		.hdr = {
 			.omac_idx = mvif->omac_idx,
 			.band_idx = mvif->band_idx,
@@ -1317,11 +1317,65 @@ mt7615_mcu_uni_add_dev(struct mt7615_dev *dev,
 			.active = enable,
 		},
 	};
+	struct {
+		struct {
+			u8 bss_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct mt7615_bss_basic_tlv basic;
+	} basic_req = {
+		.hdr = {
+			.bss_idx = mvif->idx,
+		},
+		.basic = {
+			.tag = cpu_to_le16(UNI_BSS_INFO_BASIC),
+			.len = cpu_to_le16(sizeof(struct mt7615_bss_basic_tlv)),
+			.omac_idx = mvif->omac_idx,
+			.band_idx = mvif->band_idx,
+			.wmm_idx = mvif->wmm_idx,
+			.active = enable,
+			.bmc_tx_wlan_idx = cpu_to_le16(mvif->sta.wcid.idx),
+			.sta_idx = cpu_to_le16(mvif->sta.wcid.idx),
+			.conn_state = 1,
+		},
+	};
+	int err, idx, cmd, len;
+	void *data;
 
-	memcpy(data.tlv.omac_addr, vif->addr, ETH_ALEN);
+	switch (vif->type) {
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_AP:
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
+		break;
+	case NL80211_IFTYPE_STATION:
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_STA);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		basic_req.basic.conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
 
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_DEV_INFO_UPDATE,
-				   &data, sizeof(data), true);
+	idx = mvif->omac_idx > EXT_BSSID_START ? HW_BSSID_0 : mvif->omac_idx;
+	basic_req.basic.hw_bss_idx = idx;
+
+	memcpy(dev_req.tlv.omac_addr, vif->addr, ETH_ALEN);
+
+	cmd = enable ? MCU_UNI_CMD_DEV_INFO_UPDATE : MCU_UNI_CMD_BSS_INFO_UPDATE;
+	data = enable ? (void *)&dev_req : (void *)&basic_req;
+	len = enable ? sizeof(dev_req) : sizeof(basic_req);
+
+	err = __mt76_mcu_send_msg(&dev->mt76, cmd, data, len, true);
+	if (err < 0)
+		return err;
+
+	cmd = enable ? MCU_UNI_CMD_BSS_INFO_UPDATE : MCU_UNI_CMD_DEV_INFO_UPDATE;
+	data = enable ? (void *)&basic_req : (void *)&dev_req;
+	len = enable ? sizeof(basic_req) : sizeof(dev_req);
+
+	return __mt76_mcu_send_msg(&dev->mt76, cmd, data, len, true);
 }
 
 static int
@@ -1343,44 +1397,20 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			u8 bss_idx;
 			u8 pad[3];
 		} __packed hdr;
-		struct basic_tlv {
-			__le16 tag;
-			__le16 len;
-			u8 active;
-			u8 omac_idx;
-			u8 hw_bss_idx;
-			u8 band_idx;
-			__le32 conn_type;
-			u8 conn_state;
-			u8 wmm_idx;
-			u8 bssid[ETH_ALEN];
-			__le16 bmc_tx_wlan_idx;
-			__le16 bcn_interval;
-			u8 dtim_period;
-			u8 phymode; /* bit(0): A
-				     * bit(1): B
-				     * bit(2): G
-				     * bit(3): GN
-				     * bit(4): AN
-				     * bit(5): AC
-				     */
-			__le16 sta_idx;
-			u8 nonht_basic_phy;
-			u8 pad[3];
-		} __packed basic;
+		struct mt7615_bss_basic_tlv basic;
 	} basic_req = {
 		.hdr = {
 			.bss_idx = mvif->idx,
 		},
 		.basic = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_BASIC),
-			.len = cpu_to_le16(sizeof(struct basic_tlv)),
+			.len = cpu_to_le16(sizeof(struct mt7615_bss_basic_tlv)),
 			.bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int),
 			.dtim_period = vif->bss_conf.dtim_period,
 			.omac_idx = mvif->omac_idx,
 			.band_idx = mvif->band_idx,
 			.wmm_idx = mvif->wmm_idx,
-			.active = enable,
+			.active = true, /* keep bss deactivated */
 			.phymode = 0x38,
 		},
 	};
@@ -1457,9 +1487,6 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 				  &basic_req, sizeof(basic_req), true);
 	if (err < 0)
 		return err;
-
-	if (!mt7615_firmware_offload(dev))
-		return 0;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_40:
