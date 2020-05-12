@@ -81,7 +81,6 @@
 		enable-active-high;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
 	};
 };
 
@@ -251,7 +250,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&reg_wl>;
 	non-removable;
 	bus-width = <4>;
 	status = "okay";
