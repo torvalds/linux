@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(hif_data,
 		if (!is_recv &&
 		    (__entry->msg_id == HIF_REQ_ID_READ_MIB ||
 		     __entry->msg_id == HIF_REQ_ID_WRITE_MIB)) {
-			__entry->mib = le16_to_cpup((u16 *) hif->body);
+			__entry->mib = le16_to_cpup((__le16 *)hif->body);
 			header_len = 4;
 		} else {
 			__entry->mib = -1;

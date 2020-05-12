@@ -70,7 +70,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (wfx_data_read(wdev, skb->data, alloc_len))
 		goto err;
 
-	piggyback = le16_to_cpup((u16 *)(skb->data + alloc_len - 2));
+	piggyback = le16_to_cpup((__le16 *)(skb->data + alloc_len - 2));
 	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *)skb->data;
