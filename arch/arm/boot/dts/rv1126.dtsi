@@ -139,6 +139,83 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	bus_soc: bus-soc {
+		compatible = "rockchip,rv1126-bus";
+		rockchip,busfreq-policy = "smc";
+		soc-bus0 {
+			bus-id = <0>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x7144>;
+			status = "okay";
+		};
+		soc-bus1 {
+			bus-id = <1>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x70ff>;
+			status = "disabled";
+		};
+		soc-bus2 {
+			bus-id = <2>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x70ff>;
+			status = "disabled";
+		};
+		soc-bus3 {
+			bus-id = <3>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x70ff>;
+			status = "disabled";
+		};
+		soc-bus4 {
+			bus-id = <4>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x7011>;
+			status = "disabled";
+		};
+		soc-bus5 {
+			bus-id = <5>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x7011>;
+			status = "disabled";
+		};
+		soc-bus6 {
+			bus-id = <6>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x7011>;
+			status = "disabled";
+		};
+		soc-bus7 {
+			bus-id = <7>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x0>;
+			status = "disabled";
+		};
+		soc-bus8 {
+			bus-id = <8>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x0>;
+			status = "disabled";
+		};
+		soc-bus9 {
+			bus-id = <9>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x0>;
+			status = "disabled";
+		};
+		soc-bus10 {
+			bus-id = <10>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x0>;
+			status = "disabled";
+		};
+		soc-bus11 {
+			bus-id = <11>;
+			cfg-val = <0x00300020>;
+			enable-msk = <0x7000>;
+			status = "okey";
+		};
+	};
+
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
