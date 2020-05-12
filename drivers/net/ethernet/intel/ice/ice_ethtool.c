@@ -2537,6 +2537,10 @@ static int ice_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	struct ice_vsi *vsi = np->vsi;
 
 	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		return ice_add_fdir_ethtool(vsi, cmd);
+	case ETHTOOL_SRXCLSRLDEL:
+		return ice_del_fdir_ethtool(vsi, cmd);
 	case ETHTOOL_SRXFH:
 		return ice_set_rss_hash_opt(vsi, cmd);
 	default:

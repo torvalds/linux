@@ -290,6 +290,9 @@
 #define GL_PWR_MODE_CTL				0x000B820C
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_S		30
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_M		ICE_M(0x3, 30)
+#define GLQF_FD_CNT				0x00460018
+#define GLQF_FD_CNT_FD_BCNT_S			16
+#define GLQF_FD_CNT_FD_BCNT_M			ICE_M(0x7FFF, 16)
 #define GLQF_FD_SIZE				0x00460010
 #define GLQF_FD_SIZE_FD_GSIZE_S			0
 #define GLQF_FD_SIZE_FD_GSIZE_M			ICE_M(0x7FFF, 0)
@@ -355,6 +358,9 @@
 #define GLV_TEPC(_VSI)				(0x00312000 + ((_VSI) * 4))
 #define GLV_UPRCL(_i)				(0x003B2000 + ((_i) * 8))
 #define GLV_UPTCL(_i)				(0x0030A000 + ((_i) * 8))
+#define VSIQF_FD_CNT(_VSI)			(0x00464000 + ((_VSI) * 4))
+#define VSIQF_FD_CNT_FD_GCNT_S			0
+#define VSIQF_FD_CNT_FD_GCNT_M			ICE_M(0x3FFF, 0)
 #define VSIQF_HKEY_MAX_INDEX			12
 #define VSIQF_HLUT_MAX_INDEX			15
 #define VFINT_DYN_CTLN(_i)			(0x00003800 + ((_i) * 4))

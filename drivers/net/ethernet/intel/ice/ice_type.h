@@ -628,6 +628,12 @@ struct ice_hw {
 	struct mutex fdir_fltr_lock;	/* protect Flow Director */
 	struct list_head fdir_list_head;
 
+	/* Book-keeping of side-band filter count per flow-type.
+	 * This is used to detect and handle input set changes for
+	 * respective flow-type.
+	 */
+	u16 fdir_fltr_cnt[ICE_FLTR_PTYPE_MAX];
+
 	struct ice_fd_hw_prof **fdir_prof;
 	DECLARE_BITMAP(fdir_perfect_fltr, ICE_FLTR_PTYPE_MAX);
 	struct mutex rss_locks;	/* protect RSS configuration */

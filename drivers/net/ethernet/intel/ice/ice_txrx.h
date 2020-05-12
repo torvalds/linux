@@ -380,6 +380,9 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring);
 void ice_free_tx_ring(struct ice_ring *tx_ring);
 void ice_free_rx_ring(struct ice_ring *rx_ring);
 int ice_napi_poll(struct napi_struct *napi, int budget);
+int
+ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
+		   u8 *raw_packet);
 int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget);
 void ice_clean_ctrl_tx_irq(struct ice_ring *tx_ring);
 #endif /* _ICE_TXRX_H_ */
