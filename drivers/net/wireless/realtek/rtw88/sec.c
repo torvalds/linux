@@ -44,7 +44,7 @@ void rtw_sec_write_cam(struct rtw_dev *rtwdev,
 
 	write_cmd = RTW_SEC_CMD_WRITE_ENABLE | RTW_SEC_CMD_POLLING;
 	addr = hw_key_idx << RTW_SEC_CAM_ENTRY_SHIFT;
-	for (i = 5; i >= 0; i--) {
+	for (i = 7; i >= 0; i--) {
 		switch (i) {
 		case 0:
 			content = ((key->keyidx & 0x3))		|
@@ -59,6 +59,10 @@ void rtw_sec_write_cam(struct rtw_dev *rtwdev,
 				  (cam->addr[3]		<< 8)	|
 				  (cam->addr[4]		<< 16)	|
 				  (cam->addr[5]		<< 24);
+			break;
+		case 6:
+		case 7:
+			content = 0;
 			break;
 		default:
 			j = (i - 2) << 2;
