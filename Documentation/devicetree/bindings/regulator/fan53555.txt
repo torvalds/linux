@@ -2,7 +2,7 @@ Binding for Fairchild FAN53555 regulators
 
 Required properties:
   - compatible: one of "fcs,fan53555", "fcs,fan53526", "silergy,syr827" or
-		"silergy,syr828"
+		"silergy,syr828", "rockchip,rk8603", "rockchip,rk8604"
   - reg: I2C address
 
 Optional properties:
