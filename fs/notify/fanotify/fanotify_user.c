@@ -328,7 +328,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	ret = -EFAULT;
 	/*
 	 * Sanity check copy size in case get_one_event() and
-	 * fill_event_metadata() event_len sizes ever get out of sync.
+	 * event_len sizes ever get out of sync.
 	 */
 	if (WARN_ON_ONCE(metadata.event_len > count))
 		goto out_close_fd;
