@@ -549,6 +549,11 @@ static int rtw8723d_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static void rtw8723d_shutdown(struct rtw_dev *rtwdev)
+{
+	rtw_write16_set(rtwdev, REG_HCI_OPT_CTRL, BIT_USB_SUS_DIS);
+}
+
 static void rtw8723d_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 ldo_pwr;
@@ -1790,6 +1795,7 @@ static struct rtw_chip_ops rtw8723d_ops = {
 	.query_rx_desc		= rtw8723d_query_rx_desc,
 	.set_channel		= rtw8723d_set_channel,
 	.mac_init		= rtw8723d_mac_init,
+	.shutdown		= rtw8723d_shutdown,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_tx_power_index	= rtw8723d_set_tx_power_index,
