@@ -371,7 +371,9 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	ispp_dev->ispp_ver = match_data->ispp_ver;
 
 	mutex_init(&ispp_dev->apilock);
+	mutex_init(&ispp_dev->iqlock);
 	spin_lock_init(&ispp_dev->irq_lock);
+	init_waitqueue_head(&ispp_dev->sync_onoff);
 
 	strlcpy(ispp_dev->media_dev.model, "rkispp",
 		sizeof(ispp_dev->media_dev.model));

@@ -308,7 +308,7 @@ static int rkispp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &stats_vdev->dev->apilock;
+	q->lock = &stats_vdev->dev->iqlock;
 	q->dev = stats_vdev->dev->dev;
 
 	return vb2_queue_init(q);
@@ -351,7 +351,7 @@ int rkispp_register_stats_vdev(struct rkispp_device *dev)
 	vdev->ioctl_ops = &rkispp_stats_ioctl;
 	vdev->fops = &rkispp_stats_fops;
 	vdev->release = video_device_release_empty;
-	vdev->lock = &dev->apilock;
+	vdev->lock = &dev->iqlock;
 	vdev->v4l2_dev = &dev->v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_META_CAPTURE | V4L2_CAP_STREAMING;

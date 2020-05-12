@@ -743,7 +743,7 @@ static void rkisp_start_3a_run(struct rkisp_device *dev)
 	};
 	int ret;
 
-	if (!rkisp_is_need_3a(dev))
+	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20)
 		return;
 
 	v4l2_event_queue(vdev, &ev);
@@ -770,7 +770,7 @@ static void rkisp_stop_3a_run(struct rkisp_device *dev)
 	};
 	int ret;
 
-	if (!rkisp_is_need_3a(dev))
+	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20)
 		return;
 
 	v4l2_event_queue(vdev, &ev);

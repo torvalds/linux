@@ -9,6 +9,8 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
+#include <linux/rkisp1-config.h>
+
 #include "dev.h"
 #include "regs.h"
 
@@ -866,9 +868,52 @@ err:
 	return ret;
 }
 
+static void rkispp_start_3a_run(struct rkispp_device *dev)
+{
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
+	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct v4l2_event ev = {
+		.type = CIFISP_V4L2_EVENT_STREAM_START,
+	};
+	int ret;
+
+	v4l2_event_queue(vdev, &ev);
+	ret = wait_event_timeout(dev->sync_onoff,
+			params_vdev->streamon && !params_vdev->first_params,
+			msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&dev->v4l2_dev,
+			  "waiting on params stream on event timeout\n");
+	else
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "Waiting for 3A on use %d ms\n", 1000 - ret);
+}
+
+static void rkispp_stop_3a_run(struct rkispp_device *dev)
+{
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
+	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct v4l2_event ev = {
+		.type = CIFISP_V4L2_EVENT_STREAM_STOP,
+	};
+	int ret;
+
+	v4l2_event_queue(vdev, &ev);
+	ret = wait_event_timeout(dev->sync_onoff, !params_vdev->streamon,
+				 msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&dev->v4l2_dev,
+			  "waiting on params stream off event timeout\n");
+	else
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "Waiting for 3A off use %d ms\n", 1000 - ret);
+}
+
 static int config_modules(struct rkispp_device *dev)
 {
 	int ret;
+
+	rkispp_start_3a_run(dev);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "stream module ens:0x%x\n", dev->stream_vdev.module_ens);
@@ -1289,6 +1334,7 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 	stream->stopping = true;
 	if (dev->inp == INP_ISP &&
 	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
+		rkispp_stop_3a_run(dev);
 		v4l2_subdev_call(&dev->ispp_sdev.sd,
 				 video, s_stream, false);
 		if (!(dev->isp_mode & ISP_ISPP_QUICK))

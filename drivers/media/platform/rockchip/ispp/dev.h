@@ -49,9 +49,12 @@ struct rkispp_device {
 	enum rkispp_ver	ispp_ver;
 	/* mutex to serialize the calls from user */
 	struct mutex apilock;
+	/* mutex to serialize the calls of iq */
+	struct mutex iqlock;
 	/* lock for fec and ispp irq */
 	spinlock_t irq_lock;
 	enum rkispp_input inp;
 	u32 isp_mode;
+	wait_queue_head_t sync_onoff;
 };
 #endif

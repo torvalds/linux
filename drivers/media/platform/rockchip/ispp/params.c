@@ -5,7 +5,9 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-mc.h>
+#include <linux/rkisp1-config.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -590,6 +592,21 @@ static int rkispp_params_querycap(struct file *file,
 	return 0;
 }
 
+static int rkispp_params_subs_evt(struct v4l2_fh *fh,
+				 const struct v4l2_event_subscription *sub)
+{
+	if (sub->id != 0)
+		return -EINVAL;
+
+	switch (sub->type) {
+	case CIFISP_V4L2_EVENT_STREAM_START:
+	case CIFISP_V4L2_EVENT_STREAM_STOP:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct v4l2_ioctl_ops rkispp_params_ioctl = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
@@ -604,7 +621,9 @@ static const struct v4l2_ioctl_ops rkispp_params_ioctl = {
 	.vidioc_g_fmt_meta_out = rkispp_params_g_fmt_meta_out,
 	.vidioc_s_fmt_meta_out = rkispp_params_g_fmt_meta_out,
 	.vidioc_try_fmt_meta_out = rkispp_params_g_fmt_meta_out,
-	.vidioc_querycap = rkispp_params_querycap
+	.vidioc_querycap = rkispp_params_querycap,
+	.vidioc_subscribe_event = rkispp_params_subs_evt,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe
 };
 
 static int rkispp_params_vb2_queue_setup(struct vb2_queue *vq,
@@ -646,6 +665,7 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		if (new_params->module_init_ens)
 			stream_vdev->module_ens = new_params->module_init_ens;
 		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+		wake_up(&params_vdev->dev->sync_onoff);
 		return;
 	}
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
@@ -667,6 +687,7 @@ static void rkispp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	/* stop params input firstly */
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = false;
+	wake_up(&params_vdev->dev->sync_onoff);
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	for (i = 0; i < RKISP1_ISP_PARAMS_REQ_BUFS_MAX; i++) {
@@ -777,7 +798,7 @@ rkispp_params_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &params_vdev->dev->apilock;
+	q->lock = &params_vdev->dev->iqlock;
 	q->dev = params_vdev->dev->dev;
 
 	return vb2_queue_init(q);
@@ -958,7 +979,7 @@ int rkispp_register_params_vdev(struct rkispp_device *dev)
 	 * Provide a mutex to v4l2 core. It will be used
 	 * to protect all fops and v4l2 ioctls.
 	 */
-	vdev->lock = &dev->apilock;
+	vdev->lock = &dev->iqlock;
 	vdev->v4l2_dev = &dev->v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
