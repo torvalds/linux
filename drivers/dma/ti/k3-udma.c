@@ -1850,6 +1850,7 @@ static int udma_alloc_chan_resources(struct dma_chan *chan)
 		udma_stop(uc);
 		if (udma_is_chan_running(uc)) {
 			dev_err(ud->dev, "chan%d: won't stop!\n", uc->id);
+			ret = -EBUSY;
 			goto err_res_free;
 		}
 	}
