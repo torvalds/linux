@@ -3071,6 +3071,7 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
+	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,

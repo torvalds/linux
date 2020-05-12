@@ -1757,6 +1757,7 @@ static struct device_attribute *host_attrs_v1_hw[] = {
 
 static struct scsi_host_template sht_v1_hw = {
 	.name			= DRV_NAME,
+	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
