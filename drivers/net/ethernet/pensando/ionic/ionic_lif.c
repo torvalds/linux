@@ -792,8 +792,8 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	return max(n_work, a_work);
 }
 
-static void ionic_get_stats64(struct net_device *netdev,
-			      struct rtnl_link_stats64 *ns)
+void ionic_get_stats64(struct net_device *netdev,
+		       struct rtnl_link_stats64 *ns)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_lif_stats *ls;
