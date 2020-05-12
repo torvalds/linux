@@ -303,7 +303,8 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		.tag_port = 0,
 		.vlanid = 1,
 	};
-	int i;
+	struct dsa_switch *ds = priv->ds;
+	int port;
 
 	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
 
@@ -324,12 +325,31 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 	table->entry_count = 1;
 
 	/* VLAN 1: all DT-defined ports are members; no restrictions on
-	 * forwarding; always transmit priority-tagged frames as untagged.
+	 * forwarding; always transmit as untagged.
 	 */
-	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		pvid.vmemb_port |= BIT(i);
-		pvid.vlan_bc |= BIT(i);
-		pvid.tag_port &= ~BIT(i);
+	for (port = 0; port < ds->num_ports; port++) {
+		struct sja1105_bridge_vlan *v;
+
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		pvid.vmemb_port |= BIT(port);
+		pvid.vlan_bc |= BIT(port);
+		pvid.tag_port &= ~BIT(port);
+
+		/* Let traffic that don't need dsa_8021q (e.g. STP, PTP) be
+		 * transmitted as untagged.
+		 */
+		v = kzalloc(sizeof(*v), GFP_KERNEL);
+		if (!v)
+			return -ENOMEM;
+
+		v->port = port;
+		v->vid = 1;
+		v->untagged = true;
+		if (dsa_is_cpu_port(ds, port))
+			v->pvid = true;
+		list_add(&v->list, &priv->dsa_8021q_vlans);
 	}
 
 	((struct sja1105_vlan_lookup_entry *)table->entries)[0] = pvid;
@@ -1717,82 +1737,6 @@ static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
 					   &mac[port], true);
 }
 
-static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
-{
-	struct sja1105_vlan_lookup_entry *vlan;
-	int count, i;
-
-	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
-	count = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entry_count;
-
-	for (i = 0; i < count; i++)
-		if (vlan[i].vlanid == vid)
-			return i;
-
-	/* Return an invalid entry index if not found */
-	return -1;
-}
-
-static int sja1105_vlan_apply(struct sja1105_private *priv, int port, u16 vid,
-			      bool enabled, bool untagged)
-{
-	struct sja1105_vlan_lookup_entry *vlan;
-	struct sja1105_table *table;
-	bool keep = true;
-	int match, rc;
-
-	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
-
-	match = sja1105_is_vlan_configured(priv, vid);
-	if (match < 0) {
-		/* Can't delete a missing entry. */
-		if (!enabled)
-			return 0;
-		rc = sja1105_table_resize(table, table->entry_count + 1);
-		if (rc)
-			return rc;
-		match = table->entry_count - 1;
-	}
-	/* Assign pointer after the resize (it's new memory) */
-	vlan = table->entries;
-	vlan[match].vlanid = vid;
-	if (enabled) {
-		vlan[match].vlan_bc |= BIT(port);
-		vlan[match].vmemb_port |= BIT(port);
-	} else {
-		vlan[match].vlan_bc &= ~BIT(port);
-		vlan[match].vmemb_port &= ~BIT(port);
-	}
-	/* Also unset tag_port if removing this VLAN was requested,
-	 * just so we don't have a confusing bitmap (no practical purpose).
-	 */
-	if (untagged || !enabled)
-		vlan[match].tag_port &= ~BIT(port);
-	else
-		vlan[match].tag_port |= BIT(port);
-	/* If there's no port left as member of this VLAN,
-	 * it's time for it to go.
-	 */
-	if (!vlan[match].vmemb_port)
-		keep = false;
-
-	dev_dbg(priv->ds->dev,
-		"%s: port %d, vid %llu, broadcast domain 0x%llx, "
-		"port members 0x%llx, tagged ports 0x%llx, keep %d\n",
-		__func__, port, vlan[match].vlanid, vlan[match].vlan_bc,
-		vlan[match].vmemb_port, vlan[match].tag_port, keep);
-
-	rc = sja1105_dynamic_config_write(priv, BLK_IDX_VLAN_LOOKUP, vid,
-					  &vlan[match], keep);
-	if (rc < 0)
-		return rc;
-
-	if (!keep)
-		return sja1105_table_delete_entry(table, match);
-
-	return 0;
-}
-
 static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 					 int tree_index, int sw_index,
 					 int other_port, struct net_device *br)
@@ -1813,7 +1757,7 @@ static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 
 		other_priv->expect_dsa_8021q = true;
 		rc = dsa_8021q_crosschip_bridge_join(ds, port, other_ds,
-						     other_port, br,
+						     other_port,
 						     &priv->crosschip_links);
 		other_priv->expect_dsa_8021q = false;
 		if (rc)
@@ -1821,7 +1765,7 @@ static int sja1105_crosschip_bridge_join(struct dsa_switch *ds,
 
 		priv->expect_dsa_8021q = true;
 		rc = dsa_8021q_crosschip_bridge_join(other_ds, other_port, ds,
-						     port, br,
+						     port,
 						     &other_priv->crosschip_links);
 		priv->expect_dsa_8021q = false;
 		if (rc)
@@ -1852,33 +1796,14 @@ static void sja1105_crosschip_bridge_leave(struct dsa_switch *ds,
 
 		other_priv->expect_dsa_8021q = true;
 		dsa_8021q_crosschip_bridge_leave(ds, port, other_ds, other_port,
-						 br, &priv->crosschip_links);
+						 &priv->crosschip_links);
 		other_priv->expect_dsa_8021q = false;
 
 		priv->expect_dsa_8021q = true;
-		dsa_8021q_crosschip_bridge_leave(other_ds, other_port, ds,
-						 port, br,
+		dsa_8021q_crosschip_bridge_leave(other_ds, other_port, ds, port,
 						 &other_priv->crosschip_links);
 		priv->expect_dsa_8021q = false;
 	}
-}
-
-static int sja1105_replay_crosschip_vlans(struct dsa_switch *ds, bool enabled)
-{
-	struct sja1105_private *priv = ds->priv;
-	struct dsa_8021q_crosschip_link *c;
-	int rc;
-
-	list_for_each_entry(c, &priv->crosschip_links, list) {
-		priv->expect_dsa_8021q = true;
-		rc = dsa_8021q_crosschip_link_apply(ds, c->port, c->other_ds,
-						    c->other_port, enabled);
-		priv->expect_dsa_8021q = false;
-		if (rc)
-			break;
-	}
-
-	return rc;
 }
 
 static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
@@ -1896,11 +1821,6 @@ static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 			return rc;
 		}
 	}
-	rc = sja1105_replay_crosschip_vlans(ds, enabled);
-	if (rc) {
-		dev_err(ds->dev, "Failed to replay crosschip VLANs: %d\n", rc);
-		return rc;
-	}
 
 	dev_info(ds->dev, "%s switch tagging\n",
 		 enabled ? "Enabled" : "Disabled");
@@ -1912,6 +1832,269 @@ sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 			 enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_SJA1105;
+}
+
+static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
+{
+	struct sja1105_vlan_lookup_entry *vlan;
+	int count, i;
+
+	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
+	count = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entry_count;
+
+	for (i = 0; i < count; i++)
+		if (vlan[i].vlanid == vid)
+			return i;
+
+	/* Return an invalid entry index if not found */
+	return -1;
+}
+
+static int sja1105_commit_vlans(struct sja1105_private *priv,
+				struct sja1105_vlan_lookup_entry *new_vlan)
+{
+	struct sja1105_vlan_lookup_entry *vlan;
+	struct sja1105_table *table;
+	int num_vlans = 0;
+	int rc, i, k = 0;
+
+	/* VLAN table */
+	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
+	vlan = table->entries;
+
+	for (i = 0; i < VLAN_N_VID; i++) {
+		int match = sja1105_is_vlan_configured(priv, i);
+
+		if (new_vlan[i].vlanid != VLAN_N_VID)
+			num_vlans++;
+
+		if (new_vlan[i].vlanid == VLAN_N_VID && match >= 0) {
+			/* Was there before, no longer is. Delete */
+			dev_dbg(priv->ds->dev, "Deleting VLAN %d\n", i);
+			rc = sja1105_dynamic_config_write(priv,
+							  BLK_IDX_VLAN_LOOKUP,
+							  i, &vlan[match], false);
+			if (rc < 0)
+				return rc;
+		} else if (new_vlan[i].vlanid != VLAN_N_VID) {
+			/* Nothing changed, don't do anything */
+			if (match >= 0 &&
+			    vlan[match].vlanid == new_vlan[i].vlanid &&
+			    vlan[match].tag_port == new_vlan[i].tag_port &&
+			    vlan[match].vlan_bc == new_vlan[i].vlan_bc &&
+			    vlan[match].vmemb_port == new_vlan[i].vmemb_port)
+				continue;
+			/* Update entry */
+			dev_dbg(priv->ds->dev, "Updating VLAN %d\n", i);
+			rc = sja1105_dynamic_config_write(priv,
+							  BLK_IDX_VLAN_LOOKUP,
+							  i, &new_vlan[i],
+							  true);
+			if (rc < 0)
+				return rc;
+		}
+	}
+
+	if (table->entry_count)
+		kfree(table->entries);
+
+	table->entries = kcalloc(num_vlans, table->ops->unpacked_entry_size,
+				 GFP_KERNEL);
+	if (!table->entries)
+		return -ENOMEM;
+
+	table->entry_count = num_vlans;
+	vlan = table->entries;
+
+	for (i = 0; i < VLAN_N_VID; i++) {
+		if (new_vlan[i].vlanid == VLAN_N_VID)
+			continue;
+		vlan[k++] = new_vlan[i];
+	}
+
+	return 0;
+}
+
+struct sja1105_crosschip_switch {
+	struct list_head list;
+	struct dsa_switch *other_ds;
+};
+
+static int sja1105_commit_pvid(struct sja1105_private *priv)
+{
+	struct sja1105_bridge_vlan *v;
+	struct list_head *vlan_list;
+	int rc = 0;
+
+	if (priv->vlan_state == SJA1105_VLAN_FILTERING_FULL)
+		vlan_list = &priv->bridge_vlans;
+	else
+		vlan_list = &priv->dsa_8021q_vlans;
+
+	list_for_each_entry(v, vlan_list, list) {
+		if (v->pvid) {
+			rc = sja1105_pvid_apply(priv, v->port, v->vid);
+			if (rc)
+				break;
+		}
+	}
+
+	return rc;
+}
+
+static int
+sja1105_build_bridge_vlans(struct sja1105_private *priv,
+			   struct sja1105_vlan_lookup_entry *new_vlan)
+{
+	struct sja1105_bridge_vlan *v;
+
+	if (priv->vlan_state == SJA1105_VLAN_UNAWARE)
+		return 0;
+
+	list_for_each_entry(v, &priv->bridge_vlans, list) {
+		int match = v->vid;
+
+		new_vlan[match].vlanid = v->vid;
+		new_vlan[match].vmemb_port |= BIT(v->port);
+		new_vlan[match].vlan_bc |= BIT(v->port);
+		if (!v->untagged)
+			new_vlan[match].tag_port |= BIT(v->port);
+	}
+
+	return 0;
+}
+
+static int
+sja1105_build_dsa_8021q_vlans(struct sja1105_private *priv,
+			      struct sja1105_vlan_lookup_entry *new_vlan)
+{
+	struct sja1105_bridge_vlan *v;
+
+	if (priv->vlan_state == SJA1105_VLAN_FILTERING_FULL)
+		return 0;
+
+	list_for_each_entry(v, &priv->dsa_8021q_vlans, list) {
+		int match = v->vid;
+
+		new_vlan[match].vlanid = v->vid;
+		new_vlan[match].vmemb_port |= BIT(v->port);
+		new_vlan[match].vlan_bc |= BIT(v->port);
+		if (!v->untagged)
+			new_vlan[match].tag_port |= BIT(v->port);
+	}
+
+	return 0;
+}
+
+static int sja1105_build_vlan_table(struct sja1105_private *priv, bool notify);
+
+static int sja1105_notify_crosschip_switches(struct sja1105_private *priv)
+{
+	struct sja1105_crosschip_switch *s, *pos;
+	struct list_head crosschip_switches;
+	struct dsa_8021q_crosschip_link *c;
+	int rc = 0;
+
+	INIT_LIST_HEAD(&crosschip_switches);
+
+	list_for_each_entry(c, &priv->crosschip_links, list) {
+		bool already_added = false;
+
+		list_for_each_entry(s, &crosschip_switches, list) {
+			if (s->other_ds == c->other_ds) {
+				already_added = true;
+				break;
+			}
+		}
+
+		if (already_added)
+			continue;
+
+		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		if (!s) {
+			dev_err(priv->ds->dev, "Failed to allocate memory\n");
+			rc = -ENOMEM;
+			goto out;
+		}
+		s->other_ds = c->other_ds;
+		list_add(&s->list, &crosschip_switches);
+	}
+
+	list_for_each_entry(s, &crosschip_switches, list) {
+		struct sja1105_private *other_priv = s->other_ds->priv;
+
+		rc = sja1105_build_vlan_table(other_priv, false);
+		if (rc)
+			goto out;
+	}
+
+out:
+	list_for_each_entry_safe(s, pos, &crosschip_switches, list) {
+		list_del(&s->list);
+		kfree(s);
+	}
+
+	return rc;
+}
+
+static int sja1105_build_vlan_table(struct sja1105_private *priv, bool notify)
+{
+	struct sja1105_vlan_lookup_entry *new_vlan;
+	struct sja1105_table *table;
+	int rc;
+	int i;
+
+	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
+	new_vlan = kcalloc(VLAN_N_VID,
+			   table->ops->unpacked_entry_size, GFP_KERNEL);
+	if (!new_vlan)
+		return -ENOMEM;
+
+	for (i = 0; i < VLAN_N_VID; i++)
+		new_vlan[i].vlanid = VLAN_N_VID;
+
+	/* Bridge VLANs */
+	rc = sja1105_build_bridge_vlans(priv, new_vlan);
+	if (rc)
+		goto out;
+
+	/* VLANs necessary for dsa_8021q operation, given to us by tag_8021q.c:
+	 * - RX VLANs
+	 * - TX VLANs
+	 * - Crosschip links
+	 */
+	rc = sja1105_build_dsa_8021q_vlans(priv, new_vlan);
+	if (rc)
+		goto out;
+
+	rc = sja1105_commit_vlans(priv, new_vlan);
+	if (rc)
+		goto out;
+
+	rc = sja1105_commit_pvid(priv);
+	if (rc)
+		goto out;
+
+	if (notify) {
+		rc = sja1105_notify_crosschip_switches(priv);
+		if (rc)
+			goto out;
+	}
+
+out:
+	kfree(new_vlan);
+
+	return rc;
+}
+
+/* Select the list to which we should add this VLAN. */
+static struct list_head *sja1105_classify_vlan(struct sja1105_private *priv,
+					       u16 vid)
+{
+	if (priv->expect_dsa_8021q)
+		return &priv->dsa_8021q_vlans;
+
+	return &priv->bridge_vlans;
 }
 
 static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
@@ -2026,45 +2209,80 @@ static void sja1105_vlan_add(struct dsa_switch *ds, int port,
 			     const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
+	bool vlan_table_changed = false;
 	u16 vid;
 	int rc;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		rc = sja1105_vlan_apply(priv, port, vid, true, vlan->flags &
-					BRIDGE_VLAN_INFO_UNTAGGED);
-		if (rc < 0) {
-			dev_err(ds->dev, "Failed to add VLAN %d to port %d: %d\n",
-				vid, port, rc);
-			return;
-		}
-		if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
-			rc = sja1105_pvid_apply(ds->priv, port, vid);
-			if (rc < 0) {
-				dev_err(ds->dev, "Failed to set pvid %d on port %d: %d\n",
-					vid, port, rc);
-				return;
+		bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+		bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+		struct sja1105_bridge_vlan *v;
+		struct list_head *vlan_list;
+		bool already_added = false;
+
+		vlan_list = sja1105_classify_vlan(priv, vid);
+
+		list_for_each_entry(v, vlan_list, list) {
+			if (v->port == port && v->vid == vid &&
+			    v->untagged == untagged && v->pvid == pvid) {
+				already_added = true;
+				break;
 			}
 		}
+
+		if (already_added)
+			continue;
+
+		v = kzalloc(sizeof(*v), GFP_KERNEL);
+		if (!v) {
+			dev_err(ds->dev, "Out of memory while storing VLAN\n");
+			return;
+		}
+
+		v->port = port;
+		v->vid = vid;
+		v->untagged = untagged;
+		v->pvid = pvid;
+		list_add(&v->list, vlan_list);
+
+		vlan_table_changed = true;
 	}
+
+	if (!vlan_table_changed)
+		return;
+
+	rc = sja1105_build_vlan_table(priv, true);
+	if (rc)
+		dev_err(ds->dev, "Failed to build VLAN table: %d\n", rc);
 }
 
 static int sja1105_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
+	bool vlan_table_changed = false;
 	u16 vid;
-	int rc;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		rc = sja1105_vlan_apply(priv, port, vid, false, vlan->flags &
-					BRIDGE_VLAN_INFO_UNTAGGED);
-		if (rc < 0) {
-			dev_err(ds->dev, "Failed to remove VLAN %d from port %d: %d\n",
-				vid, port, rc);
-			return rc;
+		struct sja1105_bridge_vlan *v, *n;
+		struct list_head *vlan_list;
+
+		vlan_list = sja1105_classify_vlan(priv, vid);
+
+		list_for_each_entry_safe(v, n, vlan_list, list) {
+			if (v->port == port && v->vid == vid) {
+				list_del(&v->list);
+				kfree(v);
+				vlan_table_changed = true;
+				break;
+			}
 		}
 	}
-	return 0;
+
+	if (!vlan_table_changed)
+		return 0;
+
+	return sja1105_build_vlan_table(priv, true);
 }
 
 /* The programming model for the SJA1105 switch is "all-at-once" via static
@@ -2142,6 +2360,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 static void sja1105_teardown(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
+	struct sja1105_bridge_vlan *v, *n;
 	int port;
 
 	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
@@ -2158,6 +2377,16 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_static_config_free(&priv->static_config);
+
+	list_for_each_entry_safe(v, n, &priv->dsa_8021q_vlans, list) {
+		list_del(&v->list);
+		kfree(v);
+	}
+
+	list_for_each_entry_safe(v, n, &priv->bridge_vlans, list) {
+		list_del(&v->list);
+		kfree(v);
+	}
 }
 
 static int sja1105_port_enable(struct dsa_switch *ds, int port,
@@ -2598,6 +2827,8 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->mgmt_lock);
 
 	INIT_LIST_HEAD(&priv->crosschip_links);
+	INIT_LIST_HEAD(&priv->bridge_vlans);
+	INIT_LIST_HEAD(&priv->dsa_8021q_vlans);
 
 	sja1105_tas_setup(ds);
 	sja1105_flower_setup(ds);

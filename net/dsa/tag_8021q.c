@@ -296,9 +296,9 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 }
 EXPORT_SYMBOL_GPL(dsa_port_setup_8021q_tagging);
 
-int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
-				   struct dsa_switch *other_ds,
-				   int other_port, bool enabled)
+static int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
+					  struct dsa_switch *other_ds,
+					  int other_port, bool enabled)
 {
 	u16 rx_vid = dsa_8021q_rx_vid(ds, port);
 
@@ -308,7 +308,6 @@ int dsa_8021q_crosschip_link_apply(struct dsa_switch *ds, int port,
 	return dsa_8021q_vid_apply(other_ds, other_port, rx_vid,
 				   BRIDGE_VLAN_INFO_UNTAGGED, enabled);
 }
-EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_link_apply);
 
 static int dsa_8021q_crosschip_link_add(struct dsa_switch *ds, int port,
 					struct dsa_switch *other_ds,
@@ -369,7 +368,7 @@ static void dsa_8021q_crosschip_link_del(struct dsa_switch *ds,
  */
 int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
 				    struct dsa_switch *other_ds,
-				    int other_port, struct net_device *br,
+				    int other_port,
 				    struct list_head *crosschip_links)
 {
 	/* @other_upstream is how @other_ds reaches us. If we are part
@@ -385,12 +384,10 @@ int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
-	if (!br_vlan_enabled(br)) {
-		rc = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
-						    other_port, true);
-		if (rc)
-			return rc;
-	}
+	rc = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
+					    other_port, true);
+	if (rc)
+		return rc;
 
 	rc = dsa_8021q_crosschip_link_add(ds, port, other_ds,
 					  other_upstream,
@@ -398,20 +395,14 @@ int dsa_8021q_crosschip_bridge_join(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
-	if (!br_vlan_enabled(br)) {
-		rc = dsa_8021q_crosschip_link_apply(ds, port, other_ds,
-						    other_upstream, true);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
+	return dsa_8021q_crosschip_link_apply(ds, port, other_ds,
+					      other_upstream, true);
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_crosschip_bridge_join);
 
 int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
 				     struct dsa_switch *other_ds,
-				     int other_port, struct net_device *br,
+				     int other_port,
 				     struct list_head *crosschip_links)
 {
 	int other_upstream = dsa_upstream_port(other_ds, other_port);
@@ -431,14 +422,12 @@ int dsa_8021q_crosschip_bridge_leave(struct dsa_switch *ds, int port,
 			if (keep)
 				continue;
 
-			if (!br_vlan_enabled(br)) {
-				rc = dsa_8021q_crosschip_link_apply(ds, port,
-								    other_ds,
-								    other_port,
-								    false);
-				if (rc)
-					return rc;
-			}
+			rc = dsa_8021q_crosschip_link_apply(ds, port,
+							    other_ds,
+							    other_port,
+							    false);
+			if (rc)
+				return rc;
 		}
 	}
 
