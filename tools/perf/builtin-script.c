@@ -1678,6 +1678,7 @@ struct perf_script {
 	bool			show_round_events;
 	bool			show_bpf_events;
 	bool			show_cgroup_events;
+	bool			show_text_poke_events;
 	bool			allocated;
 	bool			per_event_dump;
 	bool			stitch_lbr;
@@ -2329,6 +2330,18 @@ process_bpf_events(struct perf_tool *tool __maybe_unused,
 			   sample->tid);
 }
 
+static int process_text_poke_events(struct perf_tool *tool,
+				    union perf_event *event,
+				    struct perf_sample *sample,
+				    struct machine *machine)
+{
+	if (perf_event__process_text_poke(tool, event, sample, machine) < 0)
+		return -1;
+
+	return print_event(tool, event, sample, machine, sample->pid,
+			   sample->tid);
+}
+
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
@@ -2436,6 +2449,10 @@ static int __cmd_script(struct perf_script *script)
 	if (script->show_bpf_events) {
 		script->tool.ksymbol = process_bpf_events;
 		script->tool.bpf     = process_bpf_events;
+	}
+	if (script->show_text_poke_events) {
+		script->tool.ksymbol   = process_bpf_events;
+		script->tool.text_poke = process_text_poke_events;
 	}
 
 	if (perf_script__setup_per_event_dump(script)) {
@@ -3473,6 +3490,8 @@ int cmd_script(int argc, const char **argv)
 		    "Show round events (if recorded)"),
 	OPT_BOOLEAN('\0', "show-bpf-events", &script.show_bpf_events,
 		    "Show bpf related events (if recorded)"),
+	OPT_BOOLEAN('\0', "show-text-poke-events", &script.show_text_poke_events,
+		    "Show text poke related events (if recorded)"),
 	OPT_BOOLEAN('\0', "per-event-dump", &script.per_event_dump,
 		    "Dump trace output to files named by the monitored events"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
