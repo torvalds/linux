@@ -297,10 +297,24 @@ const struct bench *bench = NULL;
 
 extern const struct bench bench_count_global;
 extern const struct bench bench_count_local;
+extern const struct bench bench_rename_base;
+extern const struct bench bench_rename_kprobe;
+extern const struct bench bench_rename_kretprobe;
+extern const struct bench bench_rename_rawtp;
+extern const struct bench bench_rename_fentry;
+extern const struct bench bench_rename_fexit;
+extern const struct bench bench_rename_fmodret;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
 	&bench_count_local,
+	&bench_rename_base,
+	&bench_rename_kprobe,
+	&bench_rename_kretprobe,
+	&bench_rename_rawtp,
+	&bench_rename_fentry,
+	&bench_rename_fexit,
+	&bench_rename_fmodret,
 };
 
 static void setup_benchmark()
