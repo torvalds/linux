@@ -67,6 +67,19 @@ allOf:
             PHY and MAC are adding a delay).
             Any configuration is ignored when the phy-mode is set to "rmii".
 
+        amlogic,rx-delay-ns:
+          enum:
+            - 0
+            - 2
+          default: 0
+          description:
+            The internal RGMII RX clock delay (provided by this IP block) in
+            nanoseconds. When phy-mode is set to "rgmii" then the RX delay
+            should be explicitly configured. When the phy-mode is set to
+            either "rgmii-id" or "rgmii-rxid" the RX clock delay is already
+            provided by the PHY. Any configuration is ignored when the
+            phy-mode is set to "rmii".
+
 properties:
   compatible:
     additionalItems: true
