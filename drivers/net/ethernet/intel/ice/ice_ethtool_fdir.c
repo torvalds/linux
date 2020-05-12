@@ -7,6 +7,24 @@
 #include "ice_lib.h"
 #include "ice_flow.h"
 
+static struct in6_addr full_ipv6_addr_mask = {
+	.in6_u = {
+		.u6_addr8 = {
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		}
+	}
+};
+
+static struct in6_addr zero_ipv6_addr_mask = {
+	.in6_u = {
+		.u6_addr8 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		}
+	}
+};
+
 /* calls to ice_flow_add_prof require the number of segments in the array
  * for segs_cnt. In this code that is one more than the index.
  */
@@ -30,6 +48,14 @@ static int ice_fltr_to_ethtool_flow(enum ice_fltr_ptype flow)
 		return SCTP_V4_FLOW;
 	case ICE_FLTR_PTYPE_NONF_IPV4_OTHER:
 		return IPV4_USER_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
+		return TCP_V6_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
+		return UDP_V6_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV6_SCTP:
+		return SCTP_V6_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV6_OTHER:
+		return IPV6_USER_FLOW;
 	default:
 		/* 0 is undefined ethtool flow */
 		return 0;
@@ -53,6 +79,14 @@ static enum ice_fltr_ptype ice_ethtool_flow_to_fltr(int eth)
 		return ICE_FLTR_PTYPE_NONF_IPV4_SCTP;
 	case IPV4_USER_FLOW:
 		return ICE_FLTR_PTYPE_NONF_IPV4_OTHER;
+	case TCP_V6_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV6_TCP;
+	case UDP_V6_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV6_UDP;
+	case SCTP_V6_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV6_SCTP;
+	case IPV6_USER_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV6_OTHER;
 	default:
 		return ICE_FLTR_PTYPE_NONF_NONE;
 	}
@@ -92,28 +126,64 @@ int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd)
 	case IPV4_USER_FLOW:
 		fsp->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
 		fsp->h_u.usr_ip4_spec.proto = 0;
-		fsp->h_u.usr_ip4_spec.l4_4_bytes = rule->ip.l4_header;
-		fsp->h_u.usr_ip4_spec.tos = rule->ip.tos;
-		fsp->h_u.usr_ip4_spec.ip4src = rule->ip.src_ip;
-		fsp->h_u.usr_ip4_spec.ip4dst = rule->ip.dst_ip;
-		fsp->m_u.usr_ip4_spec.ip4src = rule->mask.src_ip;
-		fsp->m_u.usr_ip4_spec.ip4dst = rule->mask.dst_ip;
+		fsp->h_u.usr_ip4_spec.l4_4_bytes = rule->ip.v4.l4_header;
+		fsp->h_u.usr_ip4_spec.tos = rule->ip.v4.tos;
+		fsp->h_u.usr_ip4_spec.ip4src = rule->ip.v4.src_ip;
+		fsp->h_u.usr_ip4_spec.ip4dst = rule->ip.v4.dst_ip;
+		fsp->m_u.usr_ip4_spec.ip4src = rule->mask.v4.src_ip;
+		fsp->m_u.usr_ip4_spec.ip4dst = rule->mask.v4.dst_ip;
 		fsp->m_u.usr_ip4_spec.ip_ver = 0xFF;
 		fsp->m_u.usr_ip4_spec.proto = 0;
-		fsp->m_u.usr_ip4_spec.l4_4_bytes = rule->mask.l4_header;
-		fsp->m_u.usr_ip4_spec.tos = rule->mask.tos;
+		fsp->m_u.usr_ip4_spec.l4_4_bytes = rule->mask.v4.l4_header;
+		fsp->m_u.usr_ip4_spec.tos = rule->mask.v4.tos;
 		break;
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
-		fsp->h_u.tcp_ip4_spec.psrc = rule->ip.src_port;
-		fsp->h_u.tcp_ip4_spec.pdst = rule->ip.dst_port;
-		fsp->h_u.tcp_ip4_spec.ip4src = rule->ip.src_ip;
-		fsp->h_u.tcp_ip4_spec.ip4dst = rule->ip.dst_ip;
-		fsp->m_u.tcp_ip4_spec.psrc = rule->mask.src_port;
-		fsp->m_u.tcp_ip4_spec.pdst = rule->mask.dst_port;
-		fsp->m_u.tcp_ip4_spec.ip4src = rule->mask.src_ip;
-		fsp->m_u.tcp_ip4_spec.ip4dst = rule->mask.dst_ip;
+		fsp->h_u.tcp_ip4_spec.psrc = rule->ip.v4.src_port;
+		fsp->h_u.tcp_ip4_spec.pdst = rule->ip.v4.dst_port;
+		fsp->h_u.tcp_ip4_spec.ip4src = rule->ip.v4.src_ip;
+		fsp->h_u.tcp_ip4_spec.ip4dst = rule->ip.v4.dst_ip;
+		fsp->m_u.tcp_ip4_spec.psrc = rule->mask.v4.src_port;
+		fsp->m_u.tcp_ip4_spec.pdst = rule->mask.v4.dst_port;
+		fsp->m_u.tcp_ip4_spec.ip4src = rule->mask.v4.src_ip;
+		fsp->m_u.tcp_ip4_spec.ip4dst = rule->mask.v4.dst_ip;
+		break;
+	case IPV6_USER_FLOW:
+		fsp->h_u.usr_ip6_spec.l4_4_bytes = rule->ip.v6.l4_header;
+		fsp->h_u.usr_ip6_spec.tclass = rule->ip.v6.tc;
+		fsp->h_u.usr_ip6_spec.l4_proto = rule->ip.v6.proto;
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6src, rule->ip.v6.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6dst, rule->ip.v6.dst_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.tcp_ip6_spec.ip6src, rule->mask.v6.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.tcp_ip6_spec.ip6dst, rule->mask.v6.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.usr_ip6_spec.l4_4_bytes = rule->mask.v6.l4_header;
+		fsp->m_u.usr_ip6_spec.tclass = rule->mask.v6.tc;
+		fsp->m_u.usr_ip6_spec.l4_proto = rule->mask.v6.proto;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6src, rule->ip.v6.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6dst, rule->ip.v6.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.tcp_ip6_spec.psrc = rule->ip.v6.src_port;
+		fsp->h_u.tcp_ip6_spec.pdst = rule->ip.v6.dst_port;
+		memcpy(fsp->m_u.tcp_ip6_spec.ip6src,
+		       rule->mask.v6.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.tcp_ip6_spec.ip6dst,
+		       rule->mask.v6.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.tcp_ip6_spec.psrc = rule->mask.v6.src_port;
+		fsp->m_u.tcp_ip6_spec.pdst = rule->mask.v6.dst_port;
+		fsp->h_u.tcp_ip6_spec.tclass = rule->ip.v6.tc;
+		fsp->m_u.tcp_ip6_spec.tclass = rule->mask.v6.tc;
 		break;
 	default:
 		break;
@@ -441,6 +511,7 @@ err_prof:
 /**
  * ice_set_init_fdir_seg
  * @seg: flow segment for programming
+ * @l3_proto: ICE_FLOW_SEG_HDR_IPV4 or ICE_FLOW_SEG_HDR_IPV6
  * @l4_proto: ICE_FLOW_SEG_HDR_TCP or ICE_FLOW_SEG_HDR_UDP
  *
  * Set the configuration for perfect filters to the provided flow segment for
@@ -449,12 +520,23 @@ err_prof:
  */
 static int
 ice_set_init_fdir_seg(struct ice_flow_seg_info *seg,
+		      enum ice_flow_seg_hdr l3_proto,
 		      enum ice_flow_seg_hdr l4_proto)
 {
-	enum ice_flow_field src_port, dst_port;
+	enum ice_flow_field src_addr, dst_addr, src_port, dst_port;
 
 	if (!seg)
 		return -EINVAL;
+
+	if (l3_proto == ICE_FLOW_SEG_HDR_IPV4) {
+		src_addr = ICE_FLOW_FIELD_IDX_IPV4_SA;
+		dst_addr = ICE_FLOW_FIELD_IDX_IPV4_DA;
+	} else if (l3_proto == ICE_FLOW_SEG_HDR_IPV6) {
+		src_addr = ICE_FLOW_FIELD_IDX_IPV6_SA;
+		dst_addr = ICE_FLOW_FIELD_IDX_IPV6_DA;
+	} else {
+		return -EINVAL;
+	}
 
 	if (l4_proto == ICE_FLOW_SEG_HDR_TCP) {
 		src_port = ICE_FLOW_FIELD_IDX_TCP_SRC_PORT;
@@ -466,17 +548,15 @@ ice_set_init_fdir_seg(struct ice_flow_seg_info *seg,
 		return -EINVAL;
 	}
 
-	ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_IPV4 | l4_proto);
+	ICE_FLOW_SET_HDRS(seg, l3_proto | l4_proto);
 
 	/* IP source address */
-	ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV4_SA,
-			 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
-			 ICE_FLOW_FLD_OFF_INVAL, false);
+	ice_flow_set_fld(seg, src_addr, ICE_FLOW_FLD_OFF_INVAL,
+			 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL, false);
 
 	/* IP destination address */
-	ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV4_DA,
-			 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
-			 ICE_FLOW_FLD_OFF_INVAL, false);
+	ice_flow_set_fld(seg, dst_addr, ICE_FLOW_FLD_OFF_INVAL,
+			 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL, false);
 
 	/* Layer 4 source port */
 	ice_flow_set_fld(seg, src_port, ICE_FLOW_FLD_OFF_INVAL,
@@ -521,9 +601,17 @@ ice_create_init_fdir_rule(struct ice_pf *pf, enum ice_fltr_ptype flow)
 	}
 
 	if (flow == ICE_FLTR_PTYPE_NONF_IPV4_TCP)
-		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_TCP);
+		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_IPV4,
+					    ICE_FLOW_SEG_HDR_TCP);
 	else if (flow == ICE_FLTR_PTYPE_NONF_IPV4_UDP)
-		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_UDP);
+		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_IPV4,
+					    ICE_FLOW_SEG_HDR_UDP);
+	else if (flow == ICE_FLTR_PTYPE_NONF_IPV6_TCP)
+		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_IPV6,
+					    ICE_FLOW_SEG_HDR_TCP);
+	else if (flow == ICE_FLTR_PTYPE_NONF_IPV6_UDP)
+		ret = ice_set_init_fdir_seg(seg, ICE_FLOW_SEG_HDR_IPV6,
+					    ICE_FLOW_SEG_HDR_UDP);
 	else
 		ret = -EINVAL;
 	if (ret)
@@ -695,6 +783,156 @@ ice_set_fdir_ip4_usr_seg(struct ice_flow_seg_info *seg,
 }
 
 /**
+ * ice_set_fdir_ip6_seg
+ * @seg: flow segment for programming
+ * @tcp_ip6_spec: mask data from ethtool
+ * @l4_proto: Layer 4 protocol to program
+ * @perfect_fltr: only valid on success; returns true if perfect filter,
+ *		  false if not
+ *
+ * Set the mask data into the flow segment to be used to program HW
+ * table based on provided L4 protocol for IPv6
+ */
+static int
+ice_set_fdir_ip6_seg(struct ice_flow_seg_info *seg,
+		     struct ethtool_tcpip6_spec *tcp_ip6_spec,
+		     enum ice_flow_seg_hdr l4_proto, bool *perfect_fltr)
+{
+	enum ice_flow_field src_port, dst_port;
+
+	/* make sure we don't have any empty rule */
+	if (!memcmp(tcp_ip6_spec->ip6src, &zero_ipv6_addr_mask,
+		    sizeof(struct in6_addr)) &&
+	    !memcmp(tcp_ip6_spec->ip6dst, &zero_ipv6_addr_mask,
+		    sizeof(struct in6_addr)) &&
+	    !tcp_ip6_spec->psrc && !tcp_ip6_spec->pdst)
+		return -EINVAL;
+
+	/* filtering on TC not supported */
+	if (tcp_ip6_spec->tclass)
+		return -EOPNOTSUPP;
+
+	if (l4_proto == ICE_FLOW_SEG_HDR_TCP) {
+		src_port = ICE_FLOW_FIELD_IDX_TCP_SRC_PORT;
+		dst_port = ICE_FLOW_FIELD_IDX_TCP_DST_PORT;
+	} else if (l4_proto == ICE_FLOW_SEG_HDR_UDP) {
+		src_port = ICE_FLOW_FIELD_IDX_UDP_SRC_PORT;
+		dst_port = ICE_FLOW_FIELD_IDX_UDP_DST_PORT;
+	} else if (l4_proto == ICE_FLOW_SEG_HDR_SCTP) {
+		src_port = ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT;
+		dst_port = ICE_FLOW_FIELD_IDX_SCTP_DST_PORT;
+	} else {
+		return -EINVAL;
+	}
+
+	*perfect_fltr = true;
+	ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_IPV6 | l4_proto);
+
+	if (!memcmp(tcp_ip6_spec->ip6src, &full_ipv6_addr_mask,
+		    sizeof(struct in6_addr)))
+		ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV6_SA,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, false);
+	else if (!memcmp(tcp_ip6_spec->ip6src, &zero_ipv6_addr_mask,
+			 sizeof(struct in6_addr)))
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	if (!memcmp(tcp_ip6_spec->ip6dst, &full_ipv6_addr_mask,
+		    sizeof(struct in6_addr)))
+		ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV6_DA,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, false);
+	else if (!memcmp(tcp_ip6_spec->ip6dst, &zero_ipv6_addr_mask,
+			 sizeof(struct in6_addr)))
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	/* Layer 4 source port */
+	if (tcp_ip6_spec->psrc == htons(0xFFFF))
+		ice_flow_set_fld(seg, src_port, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 false);
+	else if (!tcp_ip6_spec->psrc)
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	/* Layer 4 destination port */
+	if (tcp_ip6_spec->pdst == htons(0xFFFF))
+		ice_flow_set_fld(seg, dst_port, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 false);
+	else if (!tcp_ip6_spec->pdst)
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+/**
+ * ice_set_fdir_ip6_usr_seg
+ * @seg: flow segment for programming
+ * @usr_ip6_spec: ethtool userdef packet offset
+ * @perfect_fltr: only valid on success; returns true if perfect filter,
+ *		  false if not
+ *
+ * Set the offset data into the flow segment to be used to program HW
+ * table for IPv6
+ */
+static int
+ice_set_fdir_ip6_usr_seg(struct ice_flow_seg_info *seg,
+			 struct ethtool_usrip6_spec *usr_ip6_spec,
+			 bool *perfect_fltr)
+{
+	/* filtering on Layer 4 bytes not supported */
+	if (usr_ip6_spec->l4_4_bytes)
+		return -EOPNOTSUPP;
+	/* filtering on TC not supported */
+	if (usr_ip6_spec->tclass)
+		return -EOPNOTSUPP;
+	/* filtering on Layer 4 protocol not supported */
+	if (usr_ip6_spec->l4_proto)
+		return -EOPNOTSUPP;
+	/* empty rules are not valid */
+	if (!memcmp(usr_ip6_spec->ip6src, &zero_ipv6_addr_mask,
+		    sizeof(struct in6_addr)) &&
+	    !memcmp(usr_ip6_spec->ip6dst, &zero_ipv6_addr_mask,
+		    sizeof(struct in6_addr)))
+		return -EINVAL;
+
+	*perfect_fltr = true;
+	ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_IPV6);
+
+	if (!memcmp(usr_ip6_spec->ip6src, &full_ipv6_addr_mask,
+		    sizeof(struct in6_addr)))
+		ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV6_SA,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, false);
+	else if (!memcmp(usr_ip6_spec->ip6src, &zero_ipv6_addr_mask,
+			 sizeof(struct in6_addr)))
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	if (!memcmp(usr_ip6_spec->ip6dst, &full_ipv6_addr_mask,
+		    sizeof(struct in6_addr)))
+		ice_flow_set_fld(seg, ICE_FLOW_FIELD_IDX_IPV6_DA,
+				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, false);
+	else if (!memcmp(usr_ip6_spec->ip6dst, &zero_ipv6_addr_mask,
+			 sizeof(struct in6_addr)))
+		*perfect_fltr = false;
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+/**
  * ice_cfg_fdir_xtrct_seq - Configure extraction sequence for the given filter
  * @pf: PF structure
  * @fsp: pointer to ethtool Rx flow specification
@@ -740,6 +978,25 @@ ice_cfg_fdir_xtrct_seq(struct ice_pf *pf, struct ethtool_rx_flow_spec *fsp)
 		break;
 	case IPV4_USER_FLOW:
 		ret = ice_set_fdir_ip4_usr_seg(seg, &fsp->m_u.usr_ip4_spec,
+					       &perfect_filter);
+		break;
+	case TCP_V6_FLOW:
+		ret = ice_set_fdir_ip6_seg(seg, &fsp->m_u.tcp_ip6_spec,
+					   ICE_FLOW_SEG_HDR_TCP,
+					   &perfect_filter);
+		break;
+	case UDP_V6_FLOW:
+		ret = ice_set_fdir_ip6_seg(seg, &fsp->m_u.tcp_ip6_spec,
+					   ICE_FLOW_SEG_HDR_UDP,
+					   &perfect_filter);
+		break;
+	case SCTP_V6_FLOW:
+		ret = ice_set_fdir_ip6_seg(seg, &fsp->m_u.tcp_ip6_spec,
+					   ICE_FLOW_SEG_HDR_SCTP,
+					   &perfect_filter);
+		break;
+	case IPV6_USER_FLOW:
+		ret = ice_set_fdir_ip6_usr_seg(seg, &fsp->m_u.usr_ip6_spec,
 					       &perfect_filter);
 		break;
 	default:
@@ -910,6 +1167,14 @@ int ice_fdir_create_dflt_rules(struct ice_pf *pf)
 		return err;
 
 	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV4_UDP);
+	if (err)
+		return err;
+
+	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV6_TCP);
+	if (err)
+		return err;
+
+	err = ice_create_init_fdir_rule(pf, ICE_FLTR_PTYPE_NONF_IPV6_UDP);
 
 	return err;
 }
@@ -1094,28 +1359,62 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
-		input->ip.dst_port = fsp->h_u.tcp_ip4_spec.pdst;
-		input->ip.src_port = fsp->h_u.tcp_ip4_spec.psrc;
-		input->ip.dst_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
-		input->ip.src_ip = fsp->h_u.tcp_ip4_spec.ip4src;
-		input->mask.dst_port = fsp->m_u.tcp_ip4_spec.pdst;
-		input->mask.src_port = fsp->m_u.tcp_ip4_spec.psrc;
-		input->mask.dst_ip = fsp->m_u.tcp_ip4_spec.ip4dst;
-		input->mask.src_ip = fsp->m_u.tcp_ip4_spec.ip4src;
+		input->ip.v4.dst_port = fsp->h_u.tcp_ip4_spec.pdst;
+		input->ip.v4.src_port = fsp->h_u.tcp_ip4_spec.psrc;
+		input->ip.v4.dst_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
+		input->ip.v4.src_ip = fsp->h_u.tcp_ip4_spec.ip4src;
+		input->mask.v4.dst_port = fsp->m_u.tcp_ip4_spec.pdst;
+		input->mask.v4.src_port = fsp->m_u.tcp_ip4_spec.psrc;
+		input->mask.v4.dst_ip = fsp->m_u.tcp_ip4_spec.ip4dst;
+		input->mask.v4.src_ip = fsp->m_u.tcp_ip4_spec.ip4src;
 		break;
 	case IPV4_USER_FLOW:
-		input->ip.dst_ip = fsp->h_u.usr_ip4_spec.ip4dst;
-		input->ip.src_ip = fsp->h_u.usr_ip4_spec.ip4src;
-		input->ip.l4_header = fsp->h_u.usr_ip4_spec.l4_4_bytes;
-		input->ip.proto = fsp->h_u.usr_ip4_spec.proto;
-		input->ip.ip_ver = fsp->h_u.usr_ip4_spec.ip_ver;
-		input->ip.tos = fsp->h_u.usr_ip4_spec.tos;
-		input->mask.dst_ip = fsp->m_u.usr_ip4_spec.ip4dst;
-		input->mask.src_ip = fsp->m_u.usr_ip4_spec.ip4src;
-		input->mask.l4_header = fsp->m_u.usr_ip4_spec.l4_4_bytes;
-		input->mask.proto = fsp->m_u.usr_ip4_spec.proto;
-		input->mask.ip_ver = fsp->m_u.usr_ip4_spec.ip_ver;
-		input->mask.tos = fsp->m_u.usr_ip4_spec.tos;
+		input->ip.v4.dst_ip = fsp->h_u.usr_ip4_spec.ip4dst;
+		input->ip.v4.src_ip = fsp->h_u.usr_ip4_spec.ip4src;
+		input->ip.v4.l4_header = fsp->h_u.usr_ip4_spec.l4_4_bytes;
+		input->ip.v4.proto = fsp->h_u.usr_ip4_spec.proto;
+		input->ip.v4.ip_ver = fsp->h_u.usr_ip4_spec.ip_ver;
+		input->ip.v4.tos = fsp->h_u.usr_ip4_spec.tos;
+		input->mask.v4.dst_ip = fsp->m_u.usr_ip4_spec.ip4dst;
+		input->mask.v4.src_ip = fsp->m_u.usr_ip4_spec.ip4src;
+		input->mask.v4.l4_header = fsp->m_u.usr_ip4_spec.l4_4_bytes;
+		input->mask.v4.proto = fsp->m_u.usr_ip4_spec.proto;
+		input->mask.v4.ip_ver = fsp->m_u.usr_ip4_spec.ip_ver;
+		input->mask.v4.tos = fsp->m_u.usr_ip4_spec.tos;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(input->ip.v6.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		memcpy(input->ip.v6.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		input->ip.v6.dst_port = fsp->h_u.tcp_ip6_spec.pdst;
+		input->ip.v6.src_port = fsp->h_u.tcp_ip6_spec.psrc;
+		input->ip.v6.tc = fsp->h_u.tcp_ip6_spec.tclass;
+		memcpy(input->mask.v6.dst_ip, fsp->m_u.tcp_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		memcpy(input->mask.v6.src_ip, fsp->m_u.tcp_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		input->mask.v6.dst_port = fsp->m_u.tcp_ip6_spec.pdst;
+		input->mask.v6.src_port = fsp->m_u.tcp_ip6_spec.psrc;
+		input->mask.v6.tc = fsp->m_u.tcp_ip6_spec.tclass;
+		break;
+	case IPV6_USER_FLOW:
+		memcpy(input->ip.v6.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		memcpy(input->ip.v6.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		input->ip.v6.l4_header = fsp->h_u.usr_ip6_spec.l4_4_bytes;
+		input->ip.v6.tc = fsp->h_u.usr_ip6_spec.tclass;
+		input->ip.v6.proto = fsp->h_u.usr_ip6_spec.l4_proto;
+		memcpy(input->mask.v6.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		memcpy(input->mask.v6.src_ip, fsp->m_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		input->mask.v6.l4_header = fsp->m_u.usr_ip6_spec.l4_4_bytes;
+		input->mask.v6.tc = fsp->m_u.usr_ip6_spec.tclass;
+		input->mask.v6.proto = fsp->m_u.usr_ip6_spec.l4_proto;
 		break;
 	default:
 		/* not doing un-parsed flow types */

@@ -3518,6 +3518,12 @@ static const struct ice_fd_src_dst_pair ice_fd_pairs[] = {
 	{ ICE_PROT_IPV4_IL, 2, 12 },
 	{ ICE_PROT_IPV4_IL, 2, 16 },
 
+	{ ICE_PROT_IPV6_OF_OR_S, 8, 8 },
+	{ ICE_PROT_IPV6_OF_OR_S, 8, 24 },
+
+	{ ICE_PROT_IPV6_IL, 8, 8 },
+	{ ICE_PROT_IPV6_IL, 8, 24 },
+
 	{ ICE_PROT_TCP_IL, 1, 0 },
 	{ ICE_PROT_TCP_IL, 1, 2 },
 

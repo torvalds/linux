@@ -80,6 +80,19 @@ struct ice_fdir_v4 {
 	u8 proto;
 };
 
+#define ICE_IPV6_ADDR_LEN_AS_U32		4
+
+struct ice_fdir_v6 {
+	__be32 dst_ip[ICE_IPV6_ADDR_LEN_AS_U32];
+	__be32 src_ip[ICE_IPV6_ADDR_LEN_AS_U32];
+	__be16 dst_port;
+	__be16 src_port;
+	__be32 l4_header; /* next header */
+	__be32 sec_parm_idx; /* security parameter index */
+	u8 tc;
+	u8 proto;
+};
+
 struct ice_fdir_extra {
 	u8 dst_mac[ETH_ALEN];	/* dest MAC address */
 	u32 usr_def[2];		/* user data */
@@ -91,8 +104,10 @@ struct ice_fdir_fltr {
 	struct list_head fltr_node;
 	enum ice_fltr_ptype flow_type;
 
-	struct ice_fdir_v4 ip;
-	struct ice_fdir_v4 mask;
+	union {
+		struct ice_fdir_v4 v4;
+		struct ice_fdir_v6 v6;
+	} ip, mask;
 
 	struct ice_fdir_extra ext_data;
 	struct ice_fdir_extra ext_mask;
