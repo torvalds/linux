@@ -1896,7 +1896,7 @@ iqk:
 		rtw8723d_phy_calibration(rtwdev);
 }
 
-void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
+static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
