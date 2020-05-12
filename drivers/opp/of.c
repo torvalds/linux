@@ -577,8 +577,8 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
-static int _read_bw(struct dev_pm_opp *new_opp, struct device_node *np,
-		    bool peak)
+static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
+		    struct device_node *np, bool peak)
 {
 	const char *name = peak ? "opp-peak-kBps" : "opp-avg-kBps";
 	struct property *prop;
@@ -590,6 +590,12 @@ static int _read_bw(struct dev_pm_opp *new_opp, struct device_node *np,
 		return -ENODEV;
 
 	count = prop->length / sizeof(u32);
+	if (table->path_count != count) {
+		pr_err("%s: Mismatch between %s and paths (%d %d)\n",
+				__func__, name, count, table->path_count);
+		return -EINVAL;
+	}
+
 	bw = kmalloc_array(count, sizeof(*bw), GFP_KERNEL);
 	if (!bw)
 		return -ENOMEM;
@@ -612,8 +618,8 @@ out:
 	return ret;
 }
 
-static int _read_opp_key(struct dev_pm_opp *new_opp, struct device_node *np,
-			 bool *rate_not_available)
+static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
+			 struct device_node *np, bool *rate_not_available)
 {
 	bool found = false;
 	u64 rate;
@@ -636,10 +642,10 @@ static int _read_opp_key(struct dev_pm_opp *new_opp, struct device_node *np,
 	 * opp-peak-kBps = <path1_value path2_value>;
 	 * opp-avg-kBps = <path1_value path2_value>;
 	 */
-	ret = _read_bw(new_opp, np, true);
+	ret = _read_bw(new_opp, table, np, true);
 	if (!ret) {
 		found = true;
-		ret = _read_bw(new_opp, np, false);
+		ret = _read_bw(new_opp, table, np, false);
 	}
 
 	/* The properties were found but we failed to parse them */
@@ -692,7 +698,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (!new_opp)
 		return ERR_PTR(-ENOMEM);
 
-	ret = _read_opp_key(new_opp, np, &rate_not_available);
+	ret = _read_opp_key(new_opp, opp_table, np, &rate_not_available);
 	if (ret < 0 && !opp_table->is_genpd) {
 		dev_err(dev, "%s: opp key field not found\n", __func__);
 		goto free_opp;
