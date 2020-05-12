@@ -65,6 +65,117 @@ DEFINE_RPCXDRBUF_EVENT(recvfrom);
 DEFINE_RPCXDRBUF_EVENT(reply_pages);
 
 
+DECLARE_EVENT_CLASS(rpc_clnt_class,
+	TP_PROTO(
+		const struct rpc_clnt *clnt
+	),
+
+	TP_ARGS(clnt),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+	),
+
+	TP_printk("clid=%u", __entry->client_id)
+);
+
+#define DEFINE_RPC_CLNT_EVENT(name)					\
+		DEFINE_EVENT(rpc_clnt_class,				\
+				rpc_clnt_##name,			\
+				TP_PROTO(				\
+					const struct rpc_clnt *clnt	\
+				),					\
+				TP_ARGS(clnt))
+
+DEFINE_RPC_CLNT_EVENT(free);
+DEFINE_RPC_CLNT_EVENT(killall);
+DEFINE_RPC_CLNT_EVENT(shutdown);
+DEFINE_RPC_CLNT_EVENT(release);
+DEFINE_RPC_CLNT_EVENT(replace_xprt);
+DEFINE_RPC_CLNT_EVENT(replace_xprt_err);
+
+TRACE_EVENT(rpc_clnt_new,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		const struct rpc_xprt *xprt,
+		const char *program,
+		const char *server
+	),
+
+	TP_ARGS(clnt, xprt, program, server),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+		__string(program, program)
+		__string(server, server)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+		__assign_str(program, program)
+		__assign_str(server, server)
+	),
+
+	TP_printk("client=%u peer=[%s]:%s program=%s server=%s",
+		__entry->client_id, __get_str(addr), __get_str(port),
+		__get_str(program), __get_str(server))
+);
+
+TRACE_EVENT(rpc_clnt_new_err,
+	TP_PROTO(
+		const char *program,
+		const char *server,
+		int error
+	),
+
+	TP_ARGS(program, server, error),
+
+	TP_STRUCT__entry(
+		__field(int, error)
+		__string(program, program)
+		__string(server, server)
+	),
+
+	TP_fast_assign(
+		__entry->error = error;
+		__assign_str(program, program)
+		__assign_str(server, server)
+	),
+
+	TP_printk("program=%s server=%s error=%d",
+		__get_str(program), __get_str(server), __entry->error)
+);
+
+TRACE_EVENT(rpc_clnt_clone_err,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		int error
+	),
+
+	TP_ARGS(clnt, error),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+		__entry->error = error;
+	),
+
+	TP_printk("client=%u error=%d", __entry->client_id, __entry->error)
+);
+
+
 TRACE_DEFINE_ENUM(RPC_AUTH_OK);
 TRACE_DEFINE_ENUM(RPC_AUTH_BADCRED);
 TRACE_DEFINE_ENUM(RPC_AUTH_REJECTEDCRED);
