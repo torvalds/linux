@@ -3463,6 +3463,9 @@ static int udma_setup_rx_flush(struct udma_dev *ud)
 	tr_req->icnt0 = rx_flush->buffer_size;
 	tr_req->icnt1 = 1;
 
+	dma_sync_single_for_device(dev, hwdesc->cppi5_desc_paddr,
+				   hwdesc->cppi5_desc_size, DMA_TO_DEVICE);
+
 	/* Set up descriptor to be used for packet mode */
 	hwdesc = &rx_flush->hwdescs[1];
 	hwdesc->cppi5_desc_size = ALIGN(sizeof(struct cppi5_host_desc_t) +
