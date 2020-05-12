@@ -102,7 +102,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = le32_to_cpu(((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs);
+			release_count = ((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");

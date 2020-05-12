@@ -280,7 +280,8 @@ struct hif_cnf_tx {
 } __packed;
 
 struct hif_cnf_multi_transmit {
-	__le32 num_tx_confs;
+	u8     num_tx_confs;
+	u8     reserved[3];
 	struct hif_cnf_tx   tx_conf_payload[];
 } __packed;
 
