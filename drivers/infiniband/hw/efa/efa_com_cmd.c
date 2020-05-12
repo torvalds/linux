@@ -351,7 +351,7 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 	return 0;
 }
 
-static bool
+bool
 efa_com_check_supported_feature_id(struct efa_com_dev *edev,
 				   enum efa_admin_aq_feature_id feature_id)
 {
@@ -517,12 +517,12 @@ int efa_com_get_hw_hints(struct efa_com_dev *edev,
 	return 0;
 }
 
-static int efa_com_set_feature_ex(struct efa_com_dev *edev,
-				  struct efa_admin_set_feature_resp *set_resp,
-				  struct efa_admin_set_feature_cmd *set_cmd,
-				  enum efa_admin_aq_feature_id feature_id,
-				  dma_addr_t control_buf_dma_addr,
-				  u32 control_buff_size)
+int efa_com_set_feature_ex(struct efa_com_dev *edev,
+			   struct efa_admin_set_feature_resp *set_resp,
+			   struct efa_admin_set_feature_cmd *set_cmd,
+			   enum efa_admin_aq_feature_id feature_id,
+			   dma_addr_t control_buf_dma_addr,
+			   u32 control_buff_size)
 {
 	struct efa_com_admin_queue *aq;
 	int err;
