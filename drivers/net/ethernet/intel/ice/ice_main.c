@@ -4895,6 +4895,21 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto err_sched_init_port;
 	}
 
+	if (test_bit(ICE_FLAG_FD_ENA, pf->flags)) {
+		wr32(hw, PFQF_FD_ENA, PFQF_FD_ENA_FD_ENA_M);
+		if (!rd32(hw, PFQF_FD_SIZE)) {
+			u16 unused, guar, b_effort;
+
+			guar = hw->func_caps.fd_fltr_guar;
+			b_effort = hw->func_caps.fd_fltr_best_effort;
+
+			/* force guaranteed filter pool for PF */
+			ice_alloc_fd_guar_item(hw, &unused, guar);
+			/* force shared filter pool for PF */
+			ice_alloc_fd_shrd_item(hw, &unused, b_effort);
+		}
+	}
+
 	if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		ice_dcb_rebuild(pf);
 
@@ -4911,6 +4926,22 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 			dev_err(dev, "VF VSI rebuild failed: %d\n", err);
 			goto err_vsi_rebuild;
 		}
+	}
+
+	/* If Flow Director is active */
+	if (test_bit(ICE_FLAG_FD_ENA, pf->flags)) {
+		err = ice_vsi_rebuild_by_type(pf, ICE_VSI_CTRL);
+		if (err) {
+			dev_err(dev, "control VSI rebuild failed: %d\n", err);
+			goto err_vsi_rebuild;
+		}
+
+		/* replay HW Flow Director recipes */
+		if (hw->fdir_prof)
+			ice_fdir_replay_flows(hw);
+
+		/* replay Flow Director filters */
+		ice_fdir_replay_fltrs(pf);
 	}
 
 	ice_update_pf_netdev_link(pf);

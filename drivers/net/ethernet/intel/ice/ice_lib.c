@@ -2748,6 +2748,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 		goto err_vsi;
 
 	ice_vsi_get_qs(vsi);
+
+	ice_alloc_fd_res(vsi);
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */
@@ -2756,6 +2758,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 		goto err_vsi;
 
 	switch (vsi->type) {
+	case ICE_VSI_CTRL:
 	case ICE_VSI_PF:
 		ret = ice_vsi_alloc_q_vectors(vsi);
 		if (ret)
@@ -2780,12 +2783,14 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 			if (ret)
 				goto err_vectors;
 		}
-		/* Do not exit if configuring RSS had an issue, at least
-		 * receive traffic on first queue. Hence no need to capture
-		 * return value
-		 */
-		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
-			ice_vsi_cfg_rss_lut_key(vsi);
+		/* ICE_VSI_CTRL does not need RSS so skip RSS processing */
+		if (vsi->type != ICE_VSI_CTRL)
+			/* Do not exit if configuring RSS had an issue, at
+			 * least receive traffic on first queue. Hence no
+			 * need to capture return value
+			 */
+			if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
+				ice_vsi_cfg_rss_lut_key(vsi);
 		break;
 	case ICE_VSI_VF:
 		ret = ice_vsi_alloc_q_vectors(vsi);

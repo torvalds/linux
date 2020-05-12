@@ -349,6 +349,53 @@ void ice_fdir_release_flows(struct ice_hw *hw)
 }
 
 /**
+ * ice_fdir_replay_flows - replay HW Flow Director filter info
+ * @hw: pointer to HW instance
+ */
+void ice_fdir_replay_flows(struct ice_hw *hw)
+{
+	int flow;
+
+	for (flow = 0; flow < ICE_FLTR_PTYPE_MAX; flow++) {
+		int tun;
+
+		if (!hw->fdir_prof[flow] || !hw->fdir_prof[flow]->cnt)
+			continue;
+		for (tun = 0; tun < ICE_FD_HW_SEG_MAX; tun++) {
+			struct ice_flow_prof *hw_prof;
+			struct ice_fd_hw_prof *prof;
+			u64 prof_id;
+			int j;
+
+			prof = hw->fdir_prof[flow];
+			prof_id = flow + tun * ICE_FLTR_PTYPE_MAX;
+			ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id,
+					  prof->fdir_seg[tun], TNL_SEG_CNT(tun),
+					  &hw_prof);
+			for (j = 0; j < prof->cnt; j++) {
+				enum ice_flow_priority prio;
+				u64 entry_h = 0;
+				int err;
+
+				prio = ICE_FLOW_PRIO_NORMAL;
+				err = ice_flow_add_entry(hw, ICE_BLK_FD,
+							 prof_id,
+							 prof->vsi_h[0],
+							 prof->vsi_h[j],
+							 prio, prof->fdir_seg,
+							 &entry_h);
+				if (err) {
+					dev_err(ice_hw_to_dev(hw), "Could not replay Flow Director, flow type %d\n",
+						flow);
+					continue;
+				}
+				prof->entry_h[j][tun] = entry_h;
+			}
+		}
+	}
+}
+
+/**
  * ice_parse_rx_flow_user_data - deconstruct user-defined data
  * @fsp: pointer to ethtool Rx flow specification
  * @data: pointer to userdef data structure for storage
@@ -1223,6 +1270,24 @@ ice_fdir_write_all_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input,
 			return err;
 	}
 	return 0;
+}
+
+/**
+ * ice_fdir_replay_fltrs - replay filters from the HW filter list
+ * @pf: board private structure
+ */
+void ice_fdir_replay_fltrs(struct ice_pf *pf)
+{
+	struct ice_fdir_fltr *f_rule;
+	struct ice_hw *hw = &pf->hw;
+
+	list_for_each_entry(f_rule, &hw->fdir_list_head, fltr_node) {
+		int err = ice_fdir_write_all_fltr(pf, f_rule, true);
+
+		if (err)
+			dev_dbg(ice_pf_to_dev(pf), "Flow Director error %d, could not reprogram filter %d\n",
+				err, f_rule->fltr_id);
+	}
 }
 
 /**
