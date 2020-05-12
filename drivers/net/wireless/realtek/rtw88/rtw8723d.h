@@ -112,6 +112,13 @@ static inline s32 iqk_mult(s32 x, s32 y, s32 *ext)
 	return (t >> 8);	/* Q.16 --> Q.8 */
 }
 
+#define OFDM_SWING_A(swing)		FIELD_GET(GENMASK(9, 0), swing)
+#define OFDM_SWING_B(swing)		FIELD_GET(GENMASK(15, 10), swing)
+#define OFDM_SWING_C(swing)		FIELD_GET(GENMASK(21, 16), swing)
+#define OFDM_SWING_D(swing)		FIELD_GET(GENMASK(31, 22), swing)
+#define RTW_DEF_OFDM_SWING_INDEX	28
+#define RTW_DEF_CCK_SWING_INDEX		28
+
 #define MAX_TOLERANCE	5
 #define IQK_TX_X_ERR	0x142
 #define IQK_TX_Y_ERR	0x42
