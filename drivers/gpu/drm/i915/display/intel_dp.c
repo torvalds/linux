@@ -4001,7 +4001,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	if (HAS_DDI(dev_priv))
 		return intel_ddi_dp_voltage_max(encoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
-		 (HAS_PCH_CPT(dev_priv) && port != PORT_A))
+		 (HAS_PCH_SPLIT(dev_priv) && port != PORT_A))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -4019,7 +4019,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing)
 	if (HAS_DDI(dev_priv)) {
 		return intel_ddi_dp_pre_emphasis_max(encoder, voltage_swing);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
-		   (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
+		   (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			return DP_TRAIN_PRE_EMPH_LEVEL_3;
