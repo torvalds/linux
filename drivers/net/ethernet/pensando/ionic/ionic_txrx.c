@@ -10,8 +10,10 @@
 #include "ionic_lif.h"
 #include "ionic_txrx.h"
 
-static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info, void *cb_arg);
+static void ionic_rx_clean(struct ionic_queue *q,
+			   struct ionic_desc_info *desc_info,
+			   struct ionic_cq_info *cq_info,
+			   void *cb_arg);
 
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
 				  ionic_desc_cb cb_func, void *cb_arg)
@@ -140,8 +142,10 @@ static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
 	return skb;
 }
 
-static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info, void *cb_arg)
+static void ionic_rx_clean(struct ionic_queue *q,
+			   struct ionic_desc_info *desc_info,
+			   struct ionic_cq_info *cq_info,
+			   void *cb_arg)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
 	struct ionic_qcq *qcq = q_to_qcq(q);
@@ -475,7 +479,8 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static dma_addr_t ionic_tx_map_single(struct ionic_queue *q, void *data, size_t len)
+static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
+				      void *data, size_t len)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct device *dev = q->lif->ionic->dev;
@@ -491,7 +496,8 @@ static dma_addr_t ionic_tx_map_single(struct ionic_queue *q, void *data, size_t 
 	return dma_addr;
 }
 
-static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q, const skb_frag_t *frag,
+static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
+				    const skb_frag_t *frag,
 				    size_t offset, size_t len)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
@@ -507,8 +513,10 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q, const skb_frag_t *fra
 	return dma_addr;
 }
 
-static void ionic_tx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info, void *cb_arg)
+static void ionic_tx_clean(struct ionic_queue *q,
+			   struct ionic_desc_info *desc_info,
+			   struct ionic_cq_info *cq_info,
+			   void *cb_arg)
 {
 	struct ionic_txq_sg_desc *sg_desc = desc_info->sg_desc;
 	struct ionic_txq_sg_elem *elem = sg_desc->elems;
@@ -989,6 +997,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 
 static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 {
+	int sg_elems = q->lif->qtype_info[IONIC_QTYPE_TXQ].max_sg_elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	int err;
 
@@ -997,7 +1006,7 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 		return (skb->len / skb_shinfo(skb)->gso_size) + 1;
 
 	/* If non-TSO, just need 1 desc and nr_frags sg elems */
-	if (skb_shinfo(skb)->nr_frags <= IONIC_TX_MAX_SG_ELEMS)
+	if (skb_shinfo(skb)->nr_frags <= sg_elems)
 		return 1;
 
 	/* Too many frags, so linearize */

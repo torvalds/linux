@@ -152,6 +152,8 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_RX_FILTER_ADD";
 	case IONIC_CMD_RX_FILTER_DEL:
 		return "IONIC_CMD_RX_FILTER_DEL";
+	case IONIC_CMD_Q_IDENTIFY:
+		return "IONIC_CMD_Q_IDENTIFY";
 	case IONIC_CMD_Q_INIT:
 		return "IONIC_CMD_Q_INIT";
 	case IONIC_CMD_Q_CONTROL:

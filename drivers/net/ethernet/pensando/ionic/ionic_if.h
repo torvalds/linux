@@ -40,6 +40,7 @@ enum ionic_cmd_opcode {
 	IONIC_CMD_RX_FILTER_DEL			= 32,
 
 	/* Queue commands */
+	IONIC_CMD_Q_IDENTIFY			= 39,
 	IONIC_CMD_Q_INIT			= 40,
 	IONIC_CMD_Q_CONTROL			= 41,
 
@@ -469,6 +470,66 @@ struct ionic_lif_init_comp {
 	u8 rsvd2[12];
 };
 
+ /**
+  * struct ionic_q_identify_cmd - queue identify command
+  * @opcode:     opcode
+  * @lif_type:   LIF type (enum ionic_lif_type)
+  * @type:       Logical queue type (enum ionic_logical_qtype)
+  * @ver:        Highest queue type version that the driver supports
+  */
+struct ionic_q_identify_cmd {
+	u8     opcode;
+	u8     rsvd;
+	__le16 lif_type;
+	u8     type;
+	u8     ver;
+	u8     rsvd2[58];
+};
+
+/**
+ * struct ionic_q_identify_comp - queue identify command completion
+ * @status:     Status of the command (enum ionic_status_code)
+ * @comp_index: Index in the descriptor ring for which this is the completion
+ * @ver:        Queue type version that can be used with FW
+ */
+struct ionic_q_identify_comp {
+	u8     status;
+	u8     rsvd;
+	__le16 comp_index;
+	u8     ver;
+	u8     rsvd2[11];
+};
+
+/**
+ * union ionic_q_identity - queue identity information
+ *     @version:        Queue type version that can be used with FW
+ *     @supported:      Bitfield of queue versions, first bit = ver 0
+ *     @features:       Queue features
+ *     @desc_sz:        Descriptor size
+ *     @comp_sz:        Completion descriptor size
+ *     @sg_desc_sz:     Scatter/Gather descriptor size
+ *     @max_sg_elems:   Maximum number of Scatter/Gather elements
+ *     @sg_desc_stride: Number of Scatter/Gather elements per descriptor
+ */
+union ionic_q_identity {
+	struct {
+		u8      version;
+		u8      supported;
+		u8      rsvd[6];
+#define IONIC_QIDENT_F_CQ	0x01	/* queue has completion ring */
+#define IONIC_QIDENT_F_SG	0x02	/* queue has scatter/gather ring */
+#define IONIC_QIDENT_F_EQ	0x04	/* queue can use event queue */
+#define IONIC_QIDENT_F_CMB	0x08	/* queue is in cmb bar */
+		__le64  features;
+		__le16  desc_sz;
+		__le16  comp_sz;
+		__le16  sg_desc_sz;
+		__le16  max_sg_elems;
+		__le16  sg_desc_stride;
+	};
+	__le32 words[478];
+};
+
 /**
  * struct ionic_q_init_cmd - Queue init command
  * @opcode:       opcode
@@ -733,20 +794,31 @@ static inline void decode_txq_desc_cmd(u64 cmd, u8 *opcode, u8 *flags,
 	*addr = (cmd >> IONIC_TXQ_DESC_ADDR_SHIFT) & IONIC_TXQ_DESC_ADDR_MASK;
 };
 
-#define IONIC_TX_MAX_SG_ELEMS	8
-#define IONIC_RX_MAX_SG_ELEMS	8
-
 /**
- * struct ionic_txq_sg_desc - Transmit scatter-gather (SG) list
+ * struct ionic_txq_sg_elem - Transmit scatter-gather (SG) descriptor element
  * @addr:      DMA address of SG element data buffer
  * @len:       Length of SG element data buffer, in bytes
  */
+struct ionic_txq_sg_elem {
+	__le64 addr;
+	__le16 len;
+	__le16 rsvd[3];
+};
+
+/**
+ * struct ionic_txq_sg_desc - Transmit scatter-gather (SG) list
+ * @elems:     Scatter-gather elements
+ */
 struct ionic_txq_sg_desc {
-	struct ionic_txq_sg_elem {
-		__le64 addr;
-		__le16 len;
-		__le16 rsvd[3];
-	} elems[IONIC_TX_MAX_SG_ELEMS];
+#define IONIC_TX_MAX_SG_ELEMS		8
+#define IONIC_TX_SG_DESC_STRIDE		8
+	struct ionic_txq_sg_elem elems[IONIC_TX_MAX_SG_ELEMS];
+};
+
+struct ionic_txq_sg_desc_v1 {
+#define IONIC_TX_MAX_SG_ELEMS_V1		15
+#define IONIC_TX_SG_DESC_STRIDE_V1		16
+	struct ionic_txq_sg_elem elems[IONIC_TX_SG_DESC_STRIDE_V1];
 };
 
 /**
@@ -791,16 +863,24 @@ struct ionic_rxq_desc {
 };
 
 /**
- * struct ionic_rxq_sg_desc - Receive scatter-gather (SG) list
+ * struct ionic_rxq_sg_desc - Receive scatter-gather (SG) descriptor element
  * @addr:      DMA address of SG element data buffer
  * @len:       Length of SG element data buffer, in bytes
  */
+struct ionic_rxq_sg_elem {
+	__le64 addr;
+	__le16 len;
+	__le16 rsvd[3];
+};
+
+/**
+ * struct ionic_rxq_sg_desc - Receive scatter-gather (SG) list
+ * @elems:     Scatter-gather elements
+ */
 struct ionic_rxq_sg_desc {
-	struct ionic_rxq_sg_elem {
-		__le64 addr;
-		__le16 len;
-		__le16 rsvd[3];
-	} elems[IONIC_RX_MAX_SG_ELEMS];
+#define IONIC_RX_MAX_SG_ELEMS		8
+#define IONIC_RX_SG_DESC_STRIDE		8
+	struct ionic_rxq_sg_elem elems[IONIC_RX_SG_DESC_STRIDE];
 };
 
 /**
@@ -2389,6 +2469,7 @@ union ionic_dev_cmd {
 	struct ionic_qos_init_cmd qos_init;
 	struct ionic_qos_reset_cmd qos_reset;
 
+	struct ionic_q_identify_cmd q_identify;
 	struct ionic_q_init_cmd q_init;
 };
 
@@ -2421,6 +2502,7 @@ union ionic_dev_cmd_comp {
 	ionic_qos_init_comp qos_init;
 	ionic_qos_reset_comp qos_reset;
 
+	struct ionic_q_identify_comp q_identify;
 	struct ionic_q_init_comp q_init;
 };
 

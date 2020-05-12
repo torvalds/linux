@@ -458,9 +458,9 @@ static void ionic_get_ringparam(struct net_device *netdev,
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
-	ring->tx_max_pending = IONIC_MAX_TXRX_DESC;
+	ring->tx_max_pending = IONIC_MAX_TX_DESC;
 	ring->tx_pending = lif->ntxq_descs;
-	ring->rx_max_pending = IONIC_MAX_TXRX_DESC;
+	ring->rx_max_pending = IONIC_MAX_RX_DESC;
 	ring->rx_pending = lif->nrxq_descs;
 }
 
