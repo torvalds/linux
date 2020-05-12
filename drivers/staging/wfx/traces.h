@@ -387,8 +387,8 @@ TRACE_EVENT(tx_stats,
 		int i;
 
 		__entry->pkt_id = tx_cnf->packet_id;
-		__entry->delay_media = tx_cnf->media_delay;
-		__entry->delay_queue = tx_cnf->tx_queue_delay;
+		__entry->delay_media = le32_to_cpu(tx_cnf->media_delay);
+		__entry->delay_queue = le32_to_cpu(tx_cnf->tx_queue_delay);
 		__entry->delay_fw = delay;
 		__entry->ack_failures = tx_cnf->ack_failures;
 		if (!tx_cnf->status || __entry->ack_failures)

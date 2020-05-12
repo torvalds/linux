@@ -562,7 +562,8 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 
 	if (!arg->status) {
 		tx_info->status.tx_time =
-		arg->media_delay - arg->tx_queue_delay;
+			le32_to_cpu(arg->media_delay) -
+			le32_to_cpu(arg->tx_queue_delay);
 		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		else
