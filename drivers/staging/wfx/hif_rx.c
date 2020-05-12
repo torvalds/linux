@@ -22,7 +22,7 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 			       const struct hif_msg *hif, const void *buf)
 {
 	// All confirm messages start with status
-	int status = le32_to_cpu(*((__le32 *) buf));
+	int status = le32_to_cpup((__le32 *)buf);
 	int cmd = hif->id;
 	int len = hif->len - 4; // drop header
 
