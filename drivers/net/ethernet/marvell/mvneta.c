@@ -3561,12 +3561,19 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 		    MVNETA_CAUSE_LINK_CHANGE);
 
 	phylink_start(pp->phylink);
+
+	/* We may have called phy_speed_down before */
+	phy_speed_up(pp->dev->phydev);
+
 	netif_tx_start_all_queues(pp->dev);
 }
 
 static void mvneta_stop_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
+
+	if (device_may_wakeup(&pp->dev->dev))
+		phy_speed_down(pp->dev->phydev, false);
 
 	phylink_stop(pp->phylink);
 
@@ -4039,6 +4046,10 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 
 	phylink_ethtool_get_wol(pp->phylink, &wol);
 	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
+
+	/* PHY WoL may be enabled but device wakeup disabled */
+	if (wol.supported)
+		device_set_wakeup_enable(&pp->dev->dev, !!wol.wolopts);
 
 	return err;
 }
