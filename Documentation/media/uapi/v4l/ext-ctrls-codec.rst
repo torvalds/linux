@@ -756,6 +756,14 @@ enum v4l2_mpeg_video_h264_level -
       - Level 5.0
     * - ``V4L2_MPEG_VIDEO_H264_LEVEL_5_1``
       - Level 5.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_5_2``
+      - Level 5.2
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_6_0``
+      - Level 6.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_6_1``
+      - Level 6.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_6_2``
+      - Level 6.2
 
 
 
@@ -868,6 +876,8 @@ enum v4l2_mpeg_video_h264_profile -
       - Stereo High profile
     * - ``V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH``
       - Multiview High profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH``
+      - Constrained High profile
 
 
 
