@@ -282,6 +282,13 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering_is_global;
 
+	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
+	 * that have vlan_filtering=0. All drivers should ideally set this (and
+	 * then the option would get removed), but it is unknown whether this
+	 * would break things or not.
+	 */
+	bool			configure_vlan_while_not_filtering;
+
 	/* In case vlan_filtering_is_global is set, the VLAN awareness state
 	 * should be retrieved from here and not from the per-port settings.
 	 */

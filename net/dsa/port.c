@@ -257,6 +257,20 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	return 0;
 }
 
+/* This enforces legacy behavior for switch drivers which assume they can't
+ * receive VLAN configuration when enslaved to a bridge with vlan_filtering=0
+ */
+bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!dp->bridge_dev)
+		return false;
+
+	return (!ds->configure_vlan_while_not_filtering &&
+		!br_vlan_enabled(dp->bridge_dev));
+}
+
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans)
 {
