@@ -761,91 +761,76 @@ static void punit_ddr_dvfs_enable(bool enable)
 		pr_info("DDR DVFS, door bell is not cleared within 3ms\n");
 }
 
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_down(struct atomisp_device *isp)
+static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 {
 	unsigned long timeout;
-	u32 reg_value;
+	u32 val = enable ? MRFLD_ISPSSPM0_IUNIT_POWER_ON :
+			   MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
 
-	/* writing 0x3 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
-	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
-	reg_value |= MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
-	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
+	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
 	/*WA:Enable DVFS*/
-	if (IS_CHT)
+	if (IS_CHT && enable)
 		punit_ddr_dvfs_enable(true);
-
-	/*
-	 * There should be no iunit access while power-down is
-	 * in progress HW sighting: 4567865
-	 * FIXME: msecs_to_jiffies(50)- experienced value
-	 */
-	timeout = jiffies + msecs_to_jiffies(50);
-	while (1) {
-		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
-		dev_dbg(isp->dev, "power-off in progress, ISPSSPM0: 0x%x\n",
-			reg_value);
-		/* wait until ISPSSPM0 bit[25:24] shows 0x3 */
-		if ((reg_value >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) ==
-		    MRFLD_ISPSSPM0_IUNIT_POWER_OFF) {
-			trace_ipu_cstate(0);
-			return 0;
-		}
-
-		if (time_after(jiffies, timeout)) {
-			dev_err(isp->dev, "power-off iunit timeout.\n");
-			return -EBUSY;
-		}
-		/* FIXME: experienced value for delay */
-		usleep_range(100, 150);
-	}
-}
-
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_up(struct atomisp_device *isp)
-{
-	unsigned long timeout;
-	u32 reg_value;
-
-	/*WA for PUNIT, if DVFS enabled, ISP timeout observed*/
-	if (IS_CHT)
-		punit_ddr_dvfs_enable(false);
 
 	/*
 	 * FIXME:WA for ECS28A, with this sleep, CTS
 	 * android.hardware.camera2.cts.CameraDeviceTest#testCameraDeviceAbort
 	 * PASS, no impact on other platforms
 	*/
-	if (IS_BYT)
+	if (IS_BYT && enable)
 		msleep(10);
 
-	/* writing 0x0 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
-	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
-	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
+	/* Write to ISPSSPM0 bit[1:0] to power on/off the IUNIT */
+	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0,
+			val, MRFLD_ISPSSPM0_ISPSSC_MASK);
 
-	/* FIXME: experienced value for delay */
+	/*WA:Enable DVFS*/
+	if (IS_CHT && !enable)
+		punit_ddr_dvfs_enable(true);
+
+	/*
+	 * There should be no IUNIT access while power-down is
+	 * in progress. HW sighting: 4567865.
+	 * Wait up to 50 ms for the IUNIT to shut down.
+	 * And we do the same for power on.
+	 */
 	timeout = jiffies + msecs_to_jiffies(50);
-	while (1) {
-		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
-		dev_dbg(isp->dev, "power-on in progress, ISPSSPM0: 0x%x\n",
-			reg_value);
-		/* wait until ISPSSPM0 bit[25:24] shows 0x0 */
-		if ((reg_value >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) ==
-		    MRFLD_ISPSSPM0_IUNIT_POWER_ON) {
-			trace_ipu_cstate(1);
+	do {
+		u32 tmp;
+
+		/* Wait until ISPSSPM0 bit[25:24] shows the right value */
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &tmp);
+		tmp = (tmp & MRFLD_ISPSSPM0_ISPSSC_MASK) >> MRFLD_ISPSSPM0_ISPSSS_OFFSET;
+		if (tmp == val) {
+			trace_ipu_cstate(enable);
 			return 0;
 		}
 
-		if (time_after(jiffies, timeout)) {
-			dev_err(isp->dev, "power-on iunit timeout.\n");
-			return -EBUSY;
-		}
+		if (time_after(jiffies, timeout))
+			break;
+
 		/* FIXME: experienced value for delay */
 		usleep_range(100, 150);
-	}
+	} while (1);
+
+	if (enable)
+		msleep(10);
+
+	dev_err(isp->dev, "IUNIT power-%s timeout.\n", enable ? "on" : "off");
+	return -EBUSY;
+}
+
+/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
+int atomisp_mrfld_power_down(struct atomisp_device *isp)
+{
+	return atomisp_mrfld_power(isp, false);
+}
+
+/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
+int atomisp_mrfld_power_up(struct atomisp_device *isp)
+{
+	return atomisp_mrfld_power(isp, true);
 }
 
 int atomisp_runtime_suspend(struct device *dev)
