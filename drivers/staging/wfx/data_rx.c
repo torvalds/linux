@@ -49,7 +49,7 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 	}
 
 	/* Firmware strips ICV in case of MIC failure. */
-	if (arg->status == HIF_STATUS_MICFAILURE)
+	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		icv_len = 0;
 
 	if (skb->len < hdrlen + iv_len + icv_len) {
@@ -79,7 +79,7 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	     ieee80211_is_beacon(frame->frame_control)))
 		goto drop;
 
-	if (arg->status == HIF_STATUS_MICFAILURE)
+	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		hdr->flag |= RX_FLAG_MMIC_ERROR;
 	else if (arg->status)
 		goto drop;

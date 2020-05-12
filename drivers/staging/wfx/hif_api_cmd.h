@@ -66,22 +66,6 @@ union hif_commands_ids {
 	enum hif_indications_ids indication;
 };
 
-enum hif_status {
-	HIF_STATUS_SUCCESS              = 0x0,
-	HIF_STATUS_FAILURE              = 0x1,
-	HIF_INVALID_PARAMETER           = 0x2,
-	HIF_STATUS_WARNING              = 0x3,
-	HIF_ERROR_UNSUPPORTED_MSG_ID    = 0x4,
-	HIF_STATUS_DECRYPTFAILURE       = 0x10,
-	HIF_STATUS_MICFAILURE           = 0x11,
-	HIF_STATUS_NO_KEY_FOUND         = 0x12,
-	HIF_STATUS_RETRY_EXCEEDED       = 0x13,
-	HIF_STATUS_TX_LIFETIME_EXCEEDED = 0x14,
-	HIF_REQUEUE                     = 0x15,
-	HIF_STATUS_REFUSED              = 0x16,
-	HIF_STATUS_BUSY                 = 0x17
-};
-
 struct hif_reset_flags {
 	u8     reset_stat:1;
 	u8     reset_all_int:1;

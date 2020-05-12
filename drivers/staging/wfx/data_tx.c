@@ -528,7 +528,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		if (rate->idx < 0)
 			break;
 		if (tx_count < rate->count &&
-		    arg->status == HIF_STATUS_RETRY_EXCEEDED &&
+		    arg->status == HIF_STATUS_TX_FAIL_RETRIES &&
 		    arg->ack_failures)
 			dev_dbg(wvif->wdev->dev,
 				"all retries were not consumed: %d != %d\n",
@@ -568,7 +568,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		else
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
-	} else if (arg->status == HIF_REQUEUE) {
+	} else if (arg->status == HIF_STATUS_TX_FAIL_REQUEUE) {
 		WARN(!arg->tx_result_flags.requeue,
 		     "incoherent status and result_flags");
 		if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {

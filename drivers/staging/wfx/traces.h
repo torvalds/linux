@@ -414,7 +414,7 @@ TRACE_EVENT(tx_stats,
 			__entry->flags |= 0x10;
 		if (tx_cnf->status)
 			__entry->flags |= 0x20;
-		if (tx_cnf->status == HIF_REQUEUE)
+		if (tx_cnf->status == HIF_STATUS_TX_FAIL_REQUEUE)
 			__entry->flags |= 0x40;
 	),
 	TP_printk("packet ID: %08x, rate policy: %s %d|%d %d|%d %d|%d %d|%d -> %d attempt, Delays media/queue/total: %4dus/%4dus/%4dus",

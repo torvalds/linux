@@ -511,7 +511,7 @@ int hif_sl_send_pub_keys(struct wfx_dev *wdev,
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
 	kfree(hif);
 	// Compatibility with legacy secure link
-	if (ret == SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS)
+	if (ret == le32_to_cpu(HIF_STATUS_SLK_NEGO_SUCCESS))
 		ret = 0;
 	return ret;
 }
@@ -542,7 +542,7 @@ int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key, int destination)
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
 	kfree(hif);
 	// Compatibility with legacy secure link
-	if (ret == SL_MAC_KEY_STATUS_SUCCESS)
+	if (ret == le32_to_cpu(HIF_STATUS_SLK_SET_KEY_SUCCESS))
 		ret = 0;
 	return ret;
 }

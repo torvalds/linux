@@ -67,21 +67,27 @@ enum hif_general_indications_ids {
 	HIF_IND_ID_SL_EXCHANGE_PUB_KEYS = 0xe5
 };
 
-enum hif_hi_status {
-	HI_STATUS_SUCCESS                             = 0x0000,
-	HI_STATUS_FAILURE                             = 0x0001,
-	HI_INVALID_PARAMETER                          = 0x0002,
-	HI_STATUS_GPIO_WARNING                        = 0x0003,
-	HI_ERROR_UNSUPPORTED_MSG_ID                   = 0x0004,
-	SL_MAC_KEY_STATUS_SUCCESS                     = 0x005A,
-	SL_MAC_KEY_STATUS_FAILED_KEY_ALREADY_BURNED   = 0x006B,
-	SL_MAC_KEY_STATUS_FAILED_RAM_MODE_NOT_ALLOWED = 0x007C,
-	SL_MAC_KEY_STATUS_FAILED_UNKNOWN_MODE         = 0x008D,
-	SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS            = 0x009E,
-	SL_PUB_KEY_EXCHANGE_STATUS_FAILED             = 0x00AF,
-	PREVENT_ROLLBACK_CNF_SUCCESS                  = 0x1234,
-	PREVENT_ROLLBACK_CNF_WRONG_MAGIC_WORD         = 0x1256
-};
+#define HIF_STATUS_SUCCESS                         (cpu_to_le32(0x0000))
+#define HIF_STATUS_FAIL                            (cpu_to_le32(0x0001))
+#define HIF_STATUS_INVALID_PARAMETER               (cpu_to_le32(0x0002))
+#define HIF_STATUS_WARNING                         (cpu_to_le32(0x0003))
+#define HIF_STATUS_UNKNOWN_REQUEST                 (cpu_to_le32(0x0004))
+#define HIF_STATUS_RX_FAIL_DECRYPT                 (cpu_to_le32(0x0010))
+#define HIF_STATUS_RX_FAIL_MIC                     (cpu_to_le32(0x0011))
+#define HIF_STATUS_RX_FAIL_NO_KEY                  (cpu_to_le32(0x0012))
+#define HIF_STATUS_TX_FAIL_RETRIES                 (cpu_to_le32(0x0013))
+#define HIF_STATUS_TX_FAIL_TIMEOUT                 (cpu_to_le32(0x0014))
+#define HIF_STATUS_TX_FAIL_REQUEUE                 (cpu_to_le32(0x0015))
+#define HIF_STATUS_REFUSED                         (cpu_to_le32(0x0016))
+#define HIF_STATUS_BUSY                            (cpu_to_le32(0x0017))
+#define HIF_STATUS_SLK_SET_KEY_SUCCESS             (cpu_to_le32(0x005A))
+#define HIF_STATUS_SLK_SET_KEY_ALREADY_BURNED      (cpu_to_le32(0x006B))
+#define HIF_STATUS_SLK_SET_KEY_DISALLOWED_MODE     (cpu_to_le32(0x007C))
+#define HIF_STATUS_SLK_SET_KEY_UNKNOWN_MODE        (cpu_to_le32(0x008D))
+#define HIF_STATUS_SLK_NEGO_SUCCESS                (cpu_to_le32(0x009E))
+#define HIF_STATUS_SLK_NEGO_FAILED                 (cpu_to_le32(0x00AF))
+#define HIF_STATUS_ROLLBACK_SUCCESS                (cpu_to_le32(0x1234))
+#define HIF_STATUS_ROLLBACK_FAIL                   (cpu_to_le32(0x1256))
 
 enum hif_api_rate_index {
 	API_RATE_INDEX_B_1MBPS     = 0,

@@ -127,7 +127,7 @@ static int hif_keys_indication(struct wfx_dev *wdev,
 	u8 pubkey[API_NCP_PUB_KEY_SIZE];
 
 	// SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS is used by legacy secure link
-	if (body->status && body->status != SL_PUB_KEY_EXCHANGE_STATUS_SUCCESS)
+	if (body->status && body->status != HIF_STATUS_SLK_NEGO_SUCCESS)
 		dev_warn(wdev->dev, "secure link negociation error\n");
 	memcpy(pubkey, body->ncp_pub_key, sizeof(pubkey));
 	memreverse(pubkey, sizeof(pubkey));
