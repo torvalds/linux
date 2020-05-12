@@ -3990,58 +3990,24 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, u8 link_status[DP_LINK_STATU
 				DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
-/* These are source-specific values. */
-u8
-intel_dp_voltage_max(struct intel_dp *intel_dp)
+static u8 intel_dp_voltage_max_2(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	enum port port = encoder->port;
-
-	if (HAS_DDI(dev_priv))
-		return intel_ddi_dp_voltage_max(encoder);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
-		 (HAS_PCH_SPLIT(dev_priv) && port != PORT_A))
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 }
 
-u8
-intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing)
+static u8 intel_dp_voltage_max_3(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	enum port port = encoder->port;
+	return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+}
 
-	if (HAS_DDI(dev_priv)) {
-		return intel_ddi_dp_pre_emphasis_max(encoder, voltage_swing);
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
-		   (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
-		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-			return DP_TRAIN_PRE_EMPH_LEVEL_3;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-			return DP_TRAIN_PRE_EMPH_LEVEL_1;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-		default:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		}
-	} else {
-		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-			return DP_TRAIN_PRE_EMPH_LEVEL_1;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-		default:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		}
-	}
+static u8 intel_dp_pre_empemph_max_2(struct intel_dp *intel_dp)
+{
+	return DP_TRAIN_PRE_EMPH_LEVEL_2;
+}
+
+static u8 intel_dp_pre_empemph_max_3(struct intel_dp *intel_dp)
+{
+	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
 static void vlv_set_signal_levels(struct intel_dp *intel_dp)
@@ -8354,6 +8320,15 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_dig_port->dp.set_signal_levels = snb_cpu_edp_set_signal_levels;
 	else
 		intel_dig_port->dp.set_signal_levels = g4x_set_signal_levels;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
+	    (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
+		intel_dig_port->dp.preemph_max = intel_dp_pre_empemph_max_3;
+		intel_dig_port->dp.voltage_max = intel_dp_voltage_max_3;
+	} else {
+		intel_dig_port->dp.preemph_max = intel_dp_pre_empemph_max_2;
+		intel_dig_port->dp.voltage_max = intel_dp_voltage_max_2;
+	}
 
 	intel_dig_port->dp.output_reg = output_reg;
 	intel_dig_port->max_lanes = 4;

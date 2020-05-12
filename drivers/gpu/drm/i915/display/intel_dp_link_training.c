@@ -34,6 +34,21 @@ intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 		      link_status[3], link_status[4], link_status[5]);
 }
 
+static u8 dp_pre_emphasis_max(u8 voltage_swing)
+{
+	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+		return DP_TRAIN_PRE_EMPH_LEVEL_3;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+		return DP_TRAIN_PRE_EMPH_LEVEL_2;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+		return DP_TRAIN_PRE_EMPH_LEVEL_1;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
+	default:
+		return DP_TRAIN_PRE_EMPH_LEVEL_0;
+	}
+}
+
 void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const u8 link_status[DP_LINK_STATUS_SIZE])
 {
@@ -53,11 +68,12 @@ void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			p = this_p;
 	}
 
-	voltage_max = intel_dp_voltage_max(intel_dp);
+	voltage_max = intel_dp->voltage_max(intel_dp);
 	if (v >= voltage_max)
 		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
 
-	preemph_max = intel_dp_pre_emphasis_max(intel_dp, v);
+	preemph_max = min(intel_dp->preemph_max(intel_dp),
+			  dp_pre_emphasis_max(v));
 	if (p >= preemph_max)
 		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 

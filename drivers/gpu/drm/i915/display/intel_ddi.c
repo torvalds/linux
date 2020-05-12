@@ -2109,10 +2109,10 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 				     ddi_translations[level].deemphasis);
 }
 
-u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
+static u8 intel_ddi_dp_voltage_max(struct intel_dp *intel_dp)
 {
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 	int n_entries;
@@ -2165,19 +2165,9 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
  * used on all DDI platforms. Should that change we need to
  * rethink this code.
  */
-u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder, u8 voltage_swing)
+static u8 intel_ddi_dp_preemph_max(struct intel_dp *intel_dp)
 {
-	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-		return DP_TRAIN_PRE_EMPH_LEVEL_3;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-		return DP_TRAIN_PRE_EMPH_LEVEL_2;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-		return DP_TRAIN_PRE_EMPH_LEVEL_1;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-	default:
-		return DP_TRAIN_PRE_EMPH_LEVEL_0;
-	}
+	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
 static void cnl_ddi_vswing_program(struct intel_encoder *encoder,
@@ -4534,6 +4524,9 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 		intel_dig_port->dp.set_signal_levels = bxt_set_signal_levels;
 	else
 		intel_dig_port->dp.set_signal_levels = hsw_set_signal_levels;
+
+	intel_dig_port->dp.voltage_max = intel_ddi_dp_voltage_max;
+	intel_dig_port->dp.preemph_max = intel_ddi_dp_preemph_max;
 
 	if (INTEL_GEN(dev_priv) < 12) {
 		intel_dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);

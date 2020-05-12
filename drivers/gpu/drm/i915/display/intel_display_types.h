@@ -1367,6 +1367,9 @@ struct intel_dp {
 	void (*set_idle_link_train)(struct intel_dp *intel_dp);
 	void (*set_signal_levels)(struct intel_dp *intel_dp);
 
+	u8 (*preemph_max)(struct intel_dp *intel_dp);
+	u8 (*voltage_max)(struct intel_dp *intel_dp);
+
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;
 
