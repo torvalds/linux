@@ -178,6 +178,11 @@ struct sja1105_flow_block {
 	int num_virtual_links;
 };
 
+enum sja1105_vlan_state {
+	SJA1105_VLAN_UNAWARE,
+	SJA1105_VLAN_FILTERING_FULL,
+};
+
 struct sja1105_private {
 	struct sja1105_static_config static_config;
 	bool rgmii_rx_delay[SJA1105_NUM_PORTS];
@@ -193,6 +198,7 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	enum sja1105_vlan_state vlan_state;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
 	struct sja1105_tas_data tas_data;
