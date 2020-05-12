@@ -41,6 +41,7 @@
 #define FANCTL_MAX		4	/* Counted from 1 */
 #define TCPU_MAX		8	/* Counted from 1 */
 #define TEMP_MAX		4	/* Counted from 1 */
+#define SMI_STS_MAX		10	/* Counted from 1 */
 
 #define VT_ADC_CTRL0_REG	0x20	/* Bank 0 */
 #define VT_ADC_CTRL1_REG	0x21	/* Bank 0 */
@@ -1007,6 +1008,13 @@ static int nct7904_probe(struct i2c_client *client,
 		if (ret < 0)
 			return ret;
 		data->fan_mode[i] = ret;
+	}
+
+	/* Read all of SMI status register to clear alarms */
+	for (i = 0; i < SMI_STS_MAX; i++) {
+		ret = nct7904_read_reg(data, BANK_0, SMI_STS1_REG + i);
+		if (ret < 0)
+			return ret;
 	}
 
 	hwmon_dev =
