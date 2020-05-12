@@ -1369,10 +1369,7 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 
 	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
 
-	if (!table->must_restore_filters)
-		return;
-
-	if (!table)
+	if (!table || !table->must_restore_filters)
 		return;
 
 	down_write(&table->lock);
