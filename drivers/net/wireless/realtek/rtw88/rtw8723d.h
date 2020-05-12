@@ -145,6 +145,9 @@ static inline s32 iqk_mult(s32 x, s32 y, s32 *ext)
 
 #define REG_BTG_SEL		0x0067
 #define REG_LTECOEX_PATH_CONTROL	0x0070
+#define REG_LTECOEX_CTRL	0x07c0
+#define REG_LTECOEX_WRITE_DATA	0x07c4
+#define REG_LTECOEX_READ_DATA	0x07c8
 #define REG_PSDFN		0x0808
 #define REG_BB_PWR_SAV1_11N	0x0874
 #define REG_ANALOG_P4		0x088c

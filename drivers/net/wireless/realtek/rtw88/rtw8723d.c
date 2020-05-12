@@ -2289,6 +2289,12 @@ static const struct rtw_rf_sipi_addr rtw8723d_rf_sipi_addr[] = {
 			.hssi_2 = 0x82c, .lssi_read_pi = 0x8bc},
 };
 
+static const struct rtw_ltecoex_addr rtw8723d_ltecoex_addr = {
+	.ctrl = REG_LTECOEX_CTRL,
+	.wdata = REG_LTECOEX_WRITE_DATA,
+	.rdata = REG_LTECOEX_READ_DATA,
+};
+
 static const struct rtw_rfe_def rtw8723d_rfe_defs[] = {
 	[0] = { .phy_pg_tbl	= &rtw8723d_bb_pg_tbl,
 		.txpwr_lmt_tbl	= &rtw8723d_txpwr_lmt_tbl,},
@@ -2393,6 +2399,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.rf_sipi_addr = {0x840, 0x844},
 	.rf_sipi_read_addr = rtw8723d_rf_sipi_addr,
 	.fix_rf_phy_num = 2,
+	.ltecoex_addr = &rtw8723d_ltecoex_addr,
 	.mac_tbl = &rtw8723d_mac_tbl,
 	.agc_tbl = &rtw8723d_agc_tbl,
 	.bb_tbl = &rtw8723d_bb_tbl,
