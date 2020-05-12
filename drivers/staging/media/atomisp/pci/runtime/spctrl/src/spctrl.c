@@ -123,8 +123,10 @@ enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	/*  freeup the resource */
-	if (spctrl_cofig_info[sp_id].code_addr)
+	if (spctrl_cofig_info[sp_id].code_addr) {
 		hmm_free(spctrl_cofig_info[sp_id].code_addr);
+		spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
+	}
 	spctrl_loaded[sp_id] = false;
 	return IA_CSS_SUCCESS;
 }
