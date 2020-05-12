@@ -4053,8 +4053,12 @@ static bool dcn20_resource_construct(
 	// to be consumed. We could have created dcn20_init_hw to get
 	// the same effect by checking ASIC rev, but there was a
 	// request at some point to not check ASIC rev on hw sequencer.
-	if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev))
+	if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
 		dc->hwseq->funcs.enable_power_gating_plane = NULL;
+		dc->debug.disable_dpp_power_gate = true;
+		dc->debug.disable_hubp_power_gate = true;
+	}
+
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 
