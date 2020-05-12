@@ -415,6 +415,7 @@ int ionic_setup(struct ionic *ionic)
 	err = ionic_dev_setup(ionic);
 	if (err)
 		return err;
+	ionic_reset(ionic);
 
 	return 0;
 }
