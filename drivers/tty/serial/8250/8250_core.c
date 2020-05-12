@@ -1026,7 +1026,9 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 		if (up->port.dev) {
 			uart->port.dev = up->port.dev;
-			uart_get_rs485_mode(uart->port.dev, &uart->port.rs485);
+			ret = uart_get_rs485_mode(&uart->port);
+			if (ret)
+				goto err;
 		}
 
 		if (up->port.flags & UPF_FIXED_TYPE)

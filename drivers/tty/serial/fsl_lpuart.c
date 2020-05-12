@@ -2619,7 +2619,9 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_attach_port;
 
-	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
+	ret = uart_get_rs485_mode(&sport->port);
+	if (ret)
+		goto failed_get_rs485;
 
 	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX)
 		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");
@@ -2632,6 +2634,7 @@ static int lpuart_probe(struct platform_device *pdev)
 
 	return 0;
 
+failed_get_rs485:
 failed_attach_port:
 failed_irq_request:
 	lpuart_disable_clks(sport);

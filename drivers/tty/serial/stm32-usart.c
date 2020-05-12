@@ -159,9 +159,7 @@ static int stm32_init_rs485(struct uart_port *port,
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	uart_get_rs485_mode(&pdev->dev, rs485conf);
-
-	return 0;
+	return uart_get_rs485_mode(port);
 }
 
 static int stm32_pending_rx(struct uart_port *port, u32 *sr, int *last_res,
@@ -959,7 +957,9 @@ static int stm32_init_port(struct stm32_port *stm32port,
 
 	port->rs485_config = stm32_config_rs485;
 
-	stm32_init_rs485(port, pdev);
+	ret = stm32_init_rs485(port, pdev);
+	if (ret)
+		return ret;
 
 	if (stm32port->info->cfg.has_wakeup) {
 		stm32port->wakeirq = platform_get_irq(pdev, 1);
