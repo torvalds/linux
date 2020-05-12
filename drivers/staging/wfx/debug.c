@@ -250,7 +250,7 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	request = memdup_user(user_buf, count);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
-	if (request->len != count) {
+	if (le16_to_cpu(request->len) != count) {
 		kfree(request);
 		return -EINVAL;
 	}

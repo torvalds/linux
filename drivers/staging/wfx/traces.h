@@ -174,7 +174,7 @@ DECLARE_EVENT_CLASS(hif_data,
 		int header_len;
 
 		__entry->tx_fill_level = tx_fill_level;
-		__entry->msg_len = hif->len;
+		__entry->msg_len = le16_to_cpu(hif->len);
 		__entry->msg_id = hif->id;
 		__entry->if_id = hif->interface;
 		if (is_recv)

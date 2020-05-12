@@ -24,7 +24,7 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	// All confirm messages start with status
 	int status = le32_to_cpup((__le32 *)buf);
 	int cmd = hif->id;
-	int len = hif->len - 4; // drop header
+	int len = le16_to_cpu(hif->len) - 4; // drop header
 
 	WARN(!mutex_is_locked(&wdev->hif_cmd.lock), "data locking error");
 
@@ -348,7 +348,7 @@ static int hif_error_indication(struct wfx_dev *wdev,
 	else
 		dev_err(wdev->dev, "asynchronous error: unknown: %08x\n", type);
 	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
-		       16, 1, hif, hif->len, false);
+		       16, 1, hif, le16_to_cpu(hif->len), false);
 	wdev->chip_frozen = true;
 
 	return 0;
@@ -366,7 +366,7 @@ static int hif_exception_indication(struct wfx_dev *wdev,
 	else
 		dev_err(wdev->dev, "firmware exception\n");
 	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
-		       16, 1, hif, hif->len, false);
+		       16, 1, hif, le16_to_cpu(hif->len), false);
 	wdev->chip_frozen = true;
 
 	return -1;

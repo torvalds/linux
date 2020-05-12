@@ -84,13 +84,12 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 			// piggyback is probably correct.
 			return piggyback;
 		}
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len - sizeof(hif->len), 16)
-			       + sizeof(struct hif_sl_msg)
-			       + sizeof(struct hif_sl_tag);
+		computed_len =
+			round_up(le16_to_cpu(hif->len) - sizeof(hif->len), 16) +
+			sizeof(struct hif_sl_msg) +
+			sizeof(struct hif_sl_tag);
 	} else {
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len, 2);
+		computed_len = round_up(le16_to_cpu(hif->len), 2);
 	}
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
@@ -118,7 +117,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		wdev->hif.rx_seqnum = (hif->seqnum + 1) % (HIF_COUNTER_MAX + 1);
 	}
 
-	skb_put(skb, hif->len);
+	skb_put(skb, le16_to_cpu(hif->len));
 	// wfx_handle_rx takes care on SKB livetime
 	wfx_handle_rx(wdev, skb);
 	if (!wdev->hif.tx_buffers_used)
