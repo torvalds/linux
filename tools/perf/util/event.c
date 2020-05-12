@@ -440,14 +440,25 @@ static int text_poke_printer(enum binary_printer_ops op, unsigned int val,
 	}
 }
 
-size_t perf_event__fprintf_text_poke(union perf_event *event, FILE *fp)
+size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *machine, FILE *fp)
 {
 	struct perf_record_text_poke_event *tp = &event->text_poke;
 	size_t ret;
 	bool old;
 
-	ret = fprintf(fp, " %" PRI_lx64 " old len %u new len %u\n",
-		      tp->addr, tp->old_len, tp->new_len);
+	ret = fprintf(fp, " %" PRI_lx64 " ", tp->addr);
+	if (machine) {
+		struct addr_location al;
+
+		al.map = maps__find(&machine->kmaps, tp->addr);
+		if (al.map && map__load(al.map) >= 0) {
+			al.addr = al.map->map_ip(al.map, tp->addr);
+			al.sym = map__find_symbol(al.map, al.addr);
+			if (al.sym)
+				ret += symbol__fprintf_symname_offs(al.sym, &al, fp);
+		}
+	}
+	ret += fprintf(fp, " old len %u new len %u\n", tp->old_len, tp->new_len);
 	old = true;
 	ret += binary__fprintf(tp->bytes, tp->old_len, 16, text_poke_printer,
 			       &old, fp);
@@ -457,7 +468,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, FILE *fp)
 	return ret;
 }
 
-size_t perf_event__fprintf(union perf_event *event, FILE *fp)
+size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
 			     perf_event__name(event->header.type));
@@ -502,7 +513,7 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		ret += perf_event__fprintf_bpf(event, fp);
 		break;
 	case PERF_RECORD_TEXT_POKE:
-		ret += perf_event__fprintf_text_poke(event, fp);
+		ret += perf_event__fprintf_text_poke(event, machine, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");

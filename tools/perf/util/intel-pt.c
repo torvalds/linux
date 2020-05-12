@@ -236,7 +236,7 @@ static void intel_pt_log_event(union perf_event *event)
 	if (!intel_pt_enable_logging || !f)
 		return;
 
-	perf_event__fprintf(event, f);
+	perf_event__fprintf(event, NULL, f);
 }
 
 static void intel_pt_dump_sample(struct perf_session *session,

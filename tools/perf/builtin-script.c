@@ -2178,7 +2178,7 @@ static int print_event_with_time(struct perf_tool *tool,
 					   event->header.type, stdout);
 	}
 
-	perf_event__fprintf(event, stdout);
+	perf_event__fprintf(event, machine, stdout);
 
 	thread__put(thread);
 
@@ -2313,7 +2313,7 @@ process_finished_round_event(struct perf_tool *tool __maybe_unused,
 			     struct ordered_events *oe __maybe_unused)
 
 {
-	perf_event__fprintf(event, stdout);
+	perf_event__fprintf(event, NULL, stdout);
 	return 0;
 }
 
