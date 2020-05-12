@@ -4003,8 +4003,6 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
 		 (HAS_PCH_SPLIT(dev_priv) && port != PORT_A))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 	else
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 }
@@ -4028,16 +4026,6 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing)
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			return DP_TRAIN_PRE_EMPH_LEVEL_1;
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-		default:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		}
-	} else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
-		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-			return DP_TRAIN_PRE_EMPH_LEVEL_1;
 		default:
 			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
@@ -4336,6 +4324,7 @@ static u32 ivb_cpu_edp_signal_levels(u8 train_set)
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return EDP_LINK_TRAIN_400MV_3_5DB_IVB;
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2:
 		return EDP_LINK_TRAIN_400MV_6DB_IVB;
 
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
