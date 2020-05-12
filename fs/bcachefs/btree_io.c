@@ -736,6 +736,17 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 		struct btree_node *bn =
 			container_of(i, struct btree_node, keys);
 		/* These indicate that we read the wrong btree node: */
+
+		if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
+			struct bch_btree_ptr_v2 *bp =
+				&bkey_i_to_btree_ptr_v2(&b->key)->v;
+
+			/* XXX endianness */
+			btree_err_on(bp->seq != bn->keys.seq,
+				     BTREE_ERR_MUST_RETRY, c, b, NULL,
+				     "incorrect sequence number (wrong btree node)");
+		}
+
 		btree_err_on(BTREE_NODE_ID(bn) != b->c.btree_id,
 			     BTREE_ERR_MUST_RETRY, c, b, i,
 			     "incorrect btree id");
