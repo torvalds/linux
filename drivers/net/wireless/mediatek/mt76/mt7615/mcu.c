@@ -2861,9 +2861,6 @@ int mt7615_mcu_cancel_hw_scan(struct mt7615_phy *phy,
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = phy->dev;
-	struct cfg80211_scan_info info = {
-		.aborted = true,
-	};
 	struct {
 		u8 seq_num;
 		u8 is_ext_channel;
@@ -2872,8 +2869,13 @@ int mt7615_mcu_cancel_hw_scan(struct mt7615_phy *phy,
 		.seq_num = mvif->scan_seq_num,
 	};
 
-	ieee80211_scan_completed(phy->mt76->hw, &info);
-	clear_bit(MT76_HW_SCANNING, &phy->mt76->state);
+	if (test_and_clear_bit(MT76_HW_SCANNING, &phy->mt76->state)) {
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		ieee80211_scan_completed(phy->mt76->hw, &info);
+	}
 
 	return __mt76_mcu_send_msg(&dev->mt76,  MCU_CMD_CANCEL_HW_SCAN, &req,
 				   sizeof(req), false);
