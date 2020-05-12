@@ -290,6 +290,17 @@
 #define GL_PWR_MODE_CTL				0x000B820C
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_S		30
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_M		ICE_M(0x3, 30)
+#define GLQF_FD_SIZE				0x00460010
+#define GLQF_FD_SIZE_FD_GSIZE_S			0
+#define GLQF_FD_SIZE_FD_GSIZE_M			ICE_M(0x7FFF, 0)
+#define GLQF_FD_SIZE_FD_BSIZE_S			16
+#define GLQF_FD_SIZE_FD_BSIZE_M			ICE_M(0x7FFF, 16)
+#define GLQF_FDINSET(_i, _j)			(0x00412000 + ((_i) * 4 + (_j) * 512))
+#define GLQF_FDMASK_SEL(_i)			(0x00410400 + ((_i) * 4))
+#define GLQF_FDSWAP(_i, _j)			(0x00413000 + ((_i) * 4 + (_j) * 512))
+#define PFQF_FD_ENA				0x0043A000
+#define PFQF_FD_ENA_FD_ENA_M			BIT(0)
+#define PFQF_FD_SIZE				0x00460100
 #define GLDCB_RTCTQ_RXQNUM_S			0
 #define GLDCB_RTCTQ_RXQNUM_M			ICE_M(0x7FF, 0)
 #define GLPRT_BPRCL(_i)				(0x00381380 + ((_i) * 8))

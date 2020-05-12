@@ -107,6 +107,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_RXQS				0x0041
 #define ICE_AQC_CAPS_TXQS				0x0042
 #define ICE_AQC_CAPS_MSIX				0x0043
+#define ICE_AQC_CAPS_FD					0x0045
 #define ICE_AQC_CAPS_MAX_MTU				0x0047
 
 	u8 major_ver;
@@ -232,6 +233,11 @@ struct ice_aqc_get_sw_cfg_resp {
  */
 #define ICE_AQC_RES_TYPE_VSI_LIST_REP			0x03
 #define ICE_AQC_RES_TYPE_VSI_LIST_PRUNE			0x04
+#define ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK		0x21
+#define ICE_AQC_RES_TYPE_FDIR_GUARANTEED_ENTRIES	0x22
+#define ICE_AQC_RES_TYPE_FDIR_SHARED_ENTRIES		0x23
+#define ICE_AQC_RES_TYPE_FD_PROF_BLDR_PROFID		0x58
+#define ICE_AQC_RES_TYPE_FD_PROF_BLDR_TCAM		0x59
 #define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_PROFID		0x60
 #define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_TCAM		0x61
 
@@ -239,6 +245,9 @@ struct ice_aqc_get_sw_cfg_resp {
 #define ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX		BIT(13)
 
 #define ICE_AQC_RES_TYPE_FLAG_DEDICATED			0x00
+
+#define ICE_AQC_RES_TYPE_S	0
+#define ICE_AQC_RES_TYPE_M	(0x07F << ICE_AQC_RES_TYPE_S)
 
 /* Allocate Resources command (indirect 0x0208)
  * Free Resources command (indirect 0x0209)

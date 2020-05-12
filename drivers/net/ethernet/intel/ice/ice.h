@@ -50,6 +50,7 @@
 #include "ice_sched.h"
 #include "ice_virtchnl_pf.h"
 #include "ice_sriov.h"
+#include "ice_fdir.h"
 #include "ice_xsk.h"
 
 extern const char ice_drv_ver[];
@@ -66,6 +67,7 @@ extern const char ice_drv_ver[];
 #define ICE_AQ_LEN		64
 #define ICE_MBXSQ_LEN		64
 #define ICE_MIN_MSIX		2
+#define ICE_FDIR_MSIX		1
 #define ICE_NO_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
@@ -257,6 +259,8 @@ struct ice_vsi {
 	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
 	u16 ethtype;			/* Ethernet protocol for pause frame */
+	u16 num_gfltr;
+	u16 num_bfltr;
 
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
@@ -339,6 +343,7 @@ enum ice_pf_flags {
 	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_FLAG_DCB_CAPABLE,
 	ICE_FLAG_DCB_ENA,
+	ICE_FLAG_FD_ENA,
 	ICE_FLAG_ADV_FEATURES,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_NO_MEDIA,
@@ -366,6 +371,8 @@ struct ice_pf {
 	 * MSIX vectors allowed on this PF.
 	 */
 	u16 sriov_base_vector;
+
+	u16 ctrl_vsi_idx;		/* control VSI index in pf->vsi array */
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
@@ -505,8 +512,22 @@ static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 	return NULL;
 }
 
+/**
+ * ice_get_ctrl_vsi - Get the control VSI
+ * @pf: PF instance
+ */
+static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
+{
+	/* if pf->ctrl_vsi_idx is ICE_NO_VSI, control VSI was not set up */
+	if (!pf->vsi || pf->ctrl_vsi_idx == ICE_NO_VSI)
+		return NULL;
+
+	return pf->vsi[pf->ctrl_vsi_idx];
+}
+
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
+int ice_vsi_open_ctrl(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
 void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
@@ -530,6 +551,9 @@ int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 const char *ice_stat_str(enum ice_status stat_err);
 const char *ice_aq_str(enum ice_aq_err aq_err);
+void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena);
+void ice_fdir_release_flows(struct ice_hw *hw);
+int ice_fdir_create_dflt_rules(struct ice_pf *pf);
 int ice_open(struct net_device *netdev);
 int ice_stop(struct net_device *netdev);
 

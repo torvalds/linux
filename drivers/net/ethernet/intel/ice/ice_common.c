@@ -653,6 +653,10 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_cqinit;
 
+	/* Set bit to enable Flow Director filters */
+	wr32(hw, PFQF_FD_ENA, PFQF_FD_ENA_FD_ENA_M);
+	INIT_LIST_HEAD(&hw->fdir_list_head);
+
 	ice_clear_pxe_mode(hw);
 
 	status = ice_init_nvm(hw);
@@ -743,6 +747,10 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
+	/* Obtain counter base index which would be used by flow director */
+	status = ice_alloc_fd_res_cntr(hw, &hw->fd_ctr_base);
+	if (status)
+		goto err_unroll_fltr_mgmt_struct;
 	status = ice_init_hw_tbls(hw);
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
@@ -770,6 +778,7 @@ err_unroll_cqinit:
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
+	ice_free_fd_res_cntr(hw, hw->fd_ctr_base);
 	ice_cleanup_fltr_mgmt_struct(hw);
 
 	ice_sched_cleanup_all(hw);
@@ -1679,6 +1688,33 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 			ice_debug(hw, ICE_DBG_INIT,
 				  "%s: msix_vector_first_id = %d\n", prefix,
 				  caps->msix_vector_first_id);
+			break;
+		case ICE_AQC_CAPS_FD:
+			if (dev_p) {
+				dev_p->num_flow_director_fltr = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: num_flow_director_fltr = %d\n",
+					  prefix,
+					  dev_p->num_flow_director_fltr);
+			}
+			if (func_p) {
+				u32 reg_val, val;
+
+				reg_val = rd32(hw, GLQF_FD_SIZE);
+				val = (reg_val & GLQF_FD_SIZE_FD_GSIZE_M) >>
+				      GLQF_FD_SIZE_FD_GSIZE_S;
+				func_p->fd_fltr_guar =
+				      ice_get_num_per_func(hw, val);
+				val = (reg_val & GLQF_FD_SIZE_FD_BSIZE_M) >>
+				      GLQF_FD_SIZE_FD_BSIZE_S;
+				func_p->fd_fltr_best_effort = val;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: fd_fltr_guar = %d\n",
+					  prefix, func_p->fd_fltr_guar);
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: fd_fltr_best_effort = %d\n",
+					  prefix, func_p->fd_fltr_best_effort);
+			}
 			break;
 		case ICE_AQC_CAPS_MAX_MTU:
 			caps->max_mtu = number;

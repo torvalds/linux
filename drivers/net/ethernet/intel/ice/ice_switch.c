@@ -2678,6 +2678,81 @@ void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle)
 }
 
 /**
+ * ice_alloc_res_cntr - allocating resource counter
+ * @hw: pointer to the hardware structure
+ * @type: type of resource
+ * @alloc_shared: if set it is shared else dedicated
+ * @num_items: number of entries requested for FD resource type
+ * @counter_id: counter index returned by AQ call
+ */
+enum ice_status
+ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		   u16 *counter_id)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	/* Allocate resource */
+	buf_len = sizeof(*buf);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	buf->num_elems = cpu_to_le16(num_items);
+	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
+				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_alloc_res, NULL);
+	if (status)
+		goto exit;
+
+	*counter_id = le16_to_cpu(buf->elem[0].e.sw_resp);
+
+exit:
+	kfree(buf);
+	return status;
+}
+
+/**
+ * ice_free_res_cntr - free resource counter
+ * @hw: pointer to the hardware structure
+ * @type: type of resource
+ * @alloc_shared: if set it is shared else dedicated
+ * @num_items: number of entries to be freed for FD resource type
+ * @counter_id: counter ID resource which needs to be freed
+ */
+enum ice_status
+ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		  u16 counter_id)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	/* Free resource */
+	buf_len = sizeof(*buf);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	buf->num_elems = cpu_to_le16(num_items);
+	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
+				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+	buf->elem[0].e.sw_resp = cpu_to_le16(counter_id);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_free_res, NULL);
+	if (status)
+		ice_debug(hw, ICE_DBG_SW,
+			  "counter resource could not be freed\n");
+
+	kfree(buf);
+	return status;
+}
+
+/**
  * ice_replay_vsi_fltr - Replay filters for requested VSI
  * @hw: pointer to the hardware structure
  * @vsi_handle: driver VSI handle

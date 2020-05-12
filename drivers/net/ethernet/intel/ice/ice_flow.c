@@ -397,10 +397,8 @@ ice_flow_proc_segs(struct ice_hw *hw, struct ice_flow_prof_params *params)
 		return status;
 
 	switch (params->blk) {
+	case ICE_BLK_FD:
 	case ICE_BLK_RSS:
-		/* Only header information is provided for RSS configuration.
-		 * No further processing is needed.
-		 */
 		status = 0;
 		break;
 	default:
@@ -479,6 +477,43 @@ ice_flow_find_prof_id(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 			return p;
 
 	return NULL;
+}
+
+/**
+ * ice_dealloc_flow_entry - Deallocate flow entry memory
+ * @hw: pointer to the HW struct
+ * @entry: flow entry to be removed
+ */
+static void
+ice_dealloc_flow_entry(struct ice_hw *hw, struct ice_flow_entry *entry)
+{
+	if (!entry)
+		return;
+
+	if (entry->entry)
+		devm_kfree(ice_hw_to_dev(hw), entry->entry);
+
+	devm_kfree(ice_hw_to_dev(hw), entry);
+}
+
+/**
+ * ice_flow_rem_entry_sync - Remove a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @entry: flow entry to be removed
+ */
+static enum ice_status
+ice_flow_rem_entry_sync(struct ice_hw *hw, enum ice_block __always_unused blk,
+			struct ice_flow_entry *entry)
+{
+	if (!entry)
+		return ICE_ERR_BAD_PTR;
+
+	list_del(&entry->l_entry);
+
+	ice_dealloc_flow_entry(hw, entry);
+
+	return 0;
 }
 
 /**
@@ -568,6 +603,21 @@ ice_flow_rem_prof_sync(struct ice_hw *hw, enum ice_block blk,
 {
 	enum ice_status status;
 
+	/* Remove all remaining flow entries before removing the flow profile */
+	if (!list_empty(&prof->entries)) {
+		struct ice_flow_entry *e, *t;
+
+		mutex_lock(&prof->entries_lock);
+
+		list_for_each_entry_safe(e, t, &prof->entries, l_entry) {
+			status = ice_flow_rem_entry_sync(hw, blk, e);
+			if (status)
+				break;
+		}
+
+		mutex_unlock(&prof->entries_lock);
+	}
+
 	/* Remove all hardware profiles associated with this flow profile */
 	status = ice_rem_prof(hw, blk, prof->id);
 	if (!status) {
@@ -653,7 +703,7 @@ ice_flow_disassoc_prof(struct ice_hw *hw, enum ice_block blk,
  * @segs_cnt: number of packet segments provided
  * @prof: stores the returned flow profile added
  */
-static enum ice_status
+enum ice_status
 ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt,
 		  struct ice_flow_prof **prof)
@@ -691,7 +741,7 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
  * @blk: the block for which the flow profile is to be removed
  * @prof_id: unique ID of the flow profile to be removed
  */
-static enum ice_status
+enum ice_status
 ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 {
 	struct ice_flow_prof *prof;
@@ -710,6 +760,113 @@ ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 
 out:
 	mutex_unlock(&hw->fl_profs_locks[blk]);
+
+	return status;
+}
+
+/**
+ * ice_flow_add_entry - Add a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @prof_id: ID of the profile to add a new flow entry to
+ * @entry_id: unique ID to identify this flow entry
+ * @vsi_handle: software VSI handle for the flow entry
+ * @prio: priority of the flow entry
+ * @data: pointer to a data buffer containing flow entry's match values/masks
+ * @entry_h: pointer to buffer that receives the new flow entry's handle
+ */
+enum ice_status
+ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
+		   u64 entry_id, u16 vsi_handle, enum ice_flow_priority prio,
+		   void *data, u64 *entry_h)
+{
+	struct ice_flow_entry *e = NULL;
+	struct ice_flow_prof *prof;
+	enum ice_status status;
+
+	/* No flow entry data is expected for RSS */
+	if (!entry_h || (!data && blk != ICE_BLK_RSS))
+		return ICE_ERR_BAD_PTR;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	mutex_lock(&hw->fl_profs_locks[blk]);
+
+	prof = ice_flow_find_prof_id(hw, blk, prof_id);
+	if (!prof) {
+		status = ICE_ERR_DOES_NOT_EXIST;
+	} else {
+		/* Allocate memory for the entry being added and associate
+		 * the VSI to the found flow profile
+		 */
+		e = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*e), GFP_KERNEL);
+		if (!e)
+			status = ICE_ERR_NO_MEMORY;
+		else
+			status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
+	}
+
+	mutex_unlock(&hw->fl_profs_locks[blk]);
+	if (status)
+		goto out;
+
+	e->id = entry_id;
+	e->vsi_handle = vsi_handle;
+	e->prof = prof;
+	e->priority = prio;
+
+	switch (blk) {
+	case ICE_BLK_FD:
+	case ICE_BLK_RSS:
+		break;
+	default:
+		status = ICE_ERR_NOT_IMPL;
+		goto out;
+	}
+
+	mutex_lock(&prof->entries_lock);
+	list_add(&e->l_entry, &prof->entries);
+	mutex_unlock(&prof->entries_lock);
+
+	*entry_h = ICE_FLOW_ENTRY_HNDL(e);
+
+out:
+	if (status && e) {
+		if (e->entry)
+			devm_kfree(ice_hw_to_dev(hw), e->entry);
+		devm_kfree(ice_hw_to_dev(hw), e);
+	}
+
+	return status;
+}
+
+/**
+ * ice_flow_rem_entry - Remove a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @entry_h: handle to the flow entry to be removed
+ */
+enum ice_status ice_flow_rem_entry(struct ice_hw *hw, enum ice_block blk,
+				   u64 entry_h)
+{
+	struct ice_flow_entry *entry;
+	struct ice_flow_prof *prof;
+	enum ice_status status = 0;
+
+	if (entry_h == ICE_FLOW_ENTRY_HANDLE_INVAL)
+		return ICE_ERR_PARAM;
+
+	entry = ICE_FLOW_ENTRY_PTR(entry_h);
+
+	/* Retain the pointer to the flow profile as the entry will be freed */
+	prof = entry->prof;
+
+	if (prof) {
+		mutex_lock(&prof->entries_lock);
+		status = ice_flow_rem_entry_sync(hw, blk, entry);
+		mutex_unlock(&prof->entries_lock);
+	}
 
 	return status;
 }
@@ -776,7 +933,7 @@ ice_flow_set_fld_ext(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
  * create the content of a match entry. This function should only be used for
  * fixed-size data structures.
  */
-static void
+void
 ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		 u16 val_loc, u16 mask_loc, u16 last_loc, bool range)
 {
