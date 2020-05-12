@@ -525,6 +525,11 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 	return pf->vsi[pf->ctrl_vsi_idx];
 }
 
+#define ICE_FD_STAT_CTR_BLOCK_COUNT	256
+#define ICE_FD_STAT_PF_IDX(base_idx) \
+			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
+#define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
+
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
@@ -552,6 +557,10 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 const char *ice_stat_str(enum ice_status stat_err);
 const char *ice_aq_str(enum ice_aq_err aq_err);
 void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena);
+int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd);
+int
+ice_get_fdir_fltr_ids(struct ice_hw *hw, struct ethtool_rxnfc *cmd,
+		      u32 *rule_locs);
 void ice_fdir_release_flows(struct ice_hw *hw);
 int ice_fdir_create_dflt_rules(struct ice_pf *pf);
 int ice_open(struct net_device *netdev);

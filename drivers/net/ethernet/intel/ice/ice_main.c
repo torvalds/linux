@@ -4281,6 +4281,7 @@ void ice_update_pf_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
+	u16 fd_ctr_base;
 	u8 port;
 
 	port = hw->port_info->lport;
@@ -4369,6 +4370,12 @@ void ice_update_pf_stats(struct ice_pf *pf)
 	ice_stat_update40(hw, GLPRT_PTC9522L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_big, &cur_ps->tx_size_big);
 
+	fd_ctr_base = hw->fd_ctr_base;
+
+	ice_stat_update40(hw,
+			  GLSTAT_FD_CNT0L(ICE_FD_SB_STAT_IDX(fd_ctr_base)),
+			  pf->stat_prev_loaded, &prev_ps->fd_sb_match,
+			  &cur_ps->fd_sb_match);
 	ice_stat_update32(hw, GLPRT_LXONRXC(port), pf->stat_prev_loaded,
 			  &prev_ps->link_xon_rx, &cur_ps->link_xon_rx);
 
@@ -4411,6 +4418,8 @@ void ice_update_pf_stats(struct ice_pf *pf)
 
 	ice_stat_update32(hw, GLPRT_RJC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_jabber, &cur_ps->rx_jabber);
+
+	cur_ps->fd_sb_status = test_bit(ICE_FLAG_FD_ENA, pf->flags) ? 1 : 0;
 
 	pf->stat_prev_loaded = true;
 }

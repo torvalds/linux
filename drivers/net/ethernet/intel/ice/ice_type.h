@@ -691,6 +691,9 @@ struct ice_hw_port_stats {
 	u64 tx_size_1023;		/* ptc1023 */
 	u64 tx_size_1522;		/* ptc1522 */
 	u64 tx_size_big;		/* ptc9522 */
+	/* flow director stats */
+	u32 fd_sb_status;
+	u64 fd_sb_match;
 };
 
 /* Checksum and Shadow RAM pointers */

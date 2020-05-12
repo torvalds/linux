@@ -130,6 +130,8 @@ static const struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("illegal_bytes.nic", stats.illegal_bytes),
 	ICE_PF_STAT("mac_local_faults.nic", stats.mac_local_faults),
 	ICE_PF_STAT("mac_remote_faults.nic", stats.mac_remote_faults),
+	ICE_PF_STAT("fdir_sb_match.nic", stats.fd_sb_match),
+	ICE_PF_STAT("fdir_sb_status.nic", stats.fd_sb_status),
 };
 
 static const u32 ice_regs_dump_list[] = {
@@ -2558,11 +2560,26 @@ ice_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	int ret = -EOPNOTSUPP;
+	struct ice_hw *hw;
+
+	hw = &vsi->back->hw;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
 		cmd->data = vsi->rss_size;
 		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = hw->fdir_active_fltr;
+		/* report total rule count */
+		cmd->data = ice_get_fdir_cnt_all(hw);
+		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = ice_get_ethtool_fdir_entry(hw, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		ret = ice_get_fdir_fltr_ids(hw, cmd, (u32 *)rule_locs);
 		break;
 	case ETHTOOL_GRXFH:
 		ice_get_rss_hash_opt(vsi, cmd);

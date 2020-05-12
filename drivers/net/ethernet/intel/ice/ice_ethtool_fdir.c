@@ -13,6 +13,167 @@
 #define TNL_SEG_CNT(_TNL_) ((_TNL_) + 1)
 
 /**
+ * ice_fltr_to_ethtool_flow - convert filter type values to ethtool
+ * flow type values
+ * @flow: filter type to be converted
+ *
+ * Returns the corresponding ethtool flow type.
+ */
+static int ice_fltr_to_ethtool_flow(enum ice_fltr_ptype flow)
+{
+	switch (flow) {
+	case ICE_FLTR_PTYPE_NONF_IPV4_TCP:
+		return TCP_V4_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
+		return UDP_V4_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV4_SCTP:
+		return SCTP_V4_FLOW;
+	case ICE_FLTR_PTYPE_NONF_IPV4_OTHER:
+		return IPV4_USER_FLOW;
+	default:
+		/* 0 is undefined ethtool flow */
+		return 0;
+	}
+}
+
+/**
+ * ice_ethtool_flow_to_fltr - convert ethtool flow type to filter enum
+ * @eth: Ethtool flow type to be converted
+ *
+ * Returns flow enum
+ */
+static enum ice_fltr_ptype ice_ethtool_flow_to_fltr(int eth)
+{
+	switch (eth) {
+	case TCP_V4_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV4_TCP;
+	case UDP_V4_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV4_UDP;
+	case SCTP_V4_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV4_SCTP;
+	case IPV4_USER_FLOW:
+		return ICE_FLTR_PTYPE_NONF_IPV4_OTHER;
+	default:
+		return ICE_FLTR_PTYPE_NONF_NONE;
+	}
+}
+
+/**
+ * ice_get_ethtool_fdir_entry - fill ethtool structure with fdir filter data
+ * @hw: hardware structure that contains filter list
+ * @cmd: ethtool command data structure to receive the filter data
+ *
+ * Returns 0 on success and -EINVAL on failure
+ */
+int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp;
+	struct ice_fdir_fltr *rule;
+	int ret = 0;
+	u16 idx;
+
+	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+
+	mutex_lock(&hw->fdir_fltr_lock);
+
+	rule = ice_fdir_find_fltr_by_idx(hw, fsp->location);
+
+	if (!rule || fsp->location != rule->fltr_id) {
+		ret = -EINVAL;
+		goto release_lock;
+	}
+
+	fsp->flow_type = ice_fltr_to_ethtool_flow(rule->flow_type);
+
+	memset(&fsp->m_u, 0, sizeof(fsp->m_u));
+	memset(&fsp->m_ext, 0, sizeof(fsp->m_ext));
+
+	switch (fsp->flow_type) {
+	case IPV4_USER_FLOW:
+		fsp->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+		fsp->h_u.usr_ip4_spec.proto = 0;
+		fsp->h_u.usr_ip4_spec.l4_4_bytes = rule->ip.l4_header;
+		fsp->h_u.usr_ip4_spec.tos = rule->ip.tos;
+		fsp->h_u.usr_ip4_spec.ip4src = rule->ip.src_ip;
+		fsp->h_u.usr_ip4_spec.ip4dst = rule->ip.dst_ip;
+		fsp->m_u.usr_ip4_spec.ip4src = rule->mask.src_ip;
+		fsp->m_u.usr_ip4_spec.ip4dst = rule->mask.dst_ip;
+		fsp->m_u.usr_ip4_spec.ip_ver = 0xFF;
+		fsp->m_u.usr_ip4_spec.proto = 0;
+		fsp->m_u.usr_ip4_spec.l4_4_bytes = rule->mask.l4_header;
+		fsp->m_u.usr_ip4_spec.tos = rule->mask.tos;
+		break;
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		fsp->h_u.tcp_ip4_spec.psrc = rule->ip.src_port;
+		fsp->h_u.tcp_ip4_spec.pdst = rule->ip.dst_port;
+		fsp->h_u.tcp_ip4_spec.ip4src = rule->ip.src_ip;
+		fsp->h_u.tcp_ip4_spec.ip4dst = rule->ip.dst_ip;
+		fsp->m_u.tcp_ip4_spec.psrc = rule->mask.src_port;
+		fsp->m_u.tcp_ip4_spec.pdst = rule->mask.dst_port;
+		fsp->m_u.tcp_ip4_spec.ip4src = rule->mask.src_ip;
+		fsp->m_u.tcp_ip4_spec.ip4dst = rule->mask.dst_ip;
+		break;
+	default:
+		break;
+	}
+
+	if (rule->dest_ctl == ICE_FLTR_PRGM_DESC_DEST_DROP_PKT)
+		fsp->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fsp->ring_cookie = rule->q_index;
+
+	idx = ice_ethtool_flow_to_fltr(fsp->flow_type);
+	if (idx == ICE_FLTR_PTYPE_NONF_NONE) {
+		dev_err(ice_hw_to_dev(hw), "Missing input index for flow_type %d\n",
+			rule->flow_type);
+		ret = -EINVAL;
+	}
+
+release_lock:
+	mutex_unlock(&hw->fdir_fltr_lock);
+	return ret;
+}
+
+/**
+ * ice_get_fdir_fltr_ids - fill buffer with filter IDs of active filters
+ * @hw: hardware structure containing the filter list
+ * @cmd: ethtool command data structure
+ * @rule_locs: ethtool array passed in from OS to receive filter IDs
+ *
+ * Returns 0 as expected for success by ethtool
+ */
+int
+ice_get_fdir_fltr_ids(struct ice_hw *hw, struct ethtool_rxnfc *cmd,
+		      u32 *rule_locs)
+{
+	struct ice_fdir_fltr *f_rule;
+	unsigned int cnt = 0;
+	int val = 0;
+
+	/* report total rule count */
+	cmd->data = ice_get_fdir_cnt_all(hw);
+
+	mutex_lock(&hw->fdir_fltr_lock);
+
+	list_for_each_entry(f_rule, &hw->fdir_list_head, fltr_node) {
+		if (cnt == cmd->rule_cnt) {
+			val = -EMSGSIZE;
+			goto release_lock;
+		}
+		rule_locs[cnt] = f_rule->fltr_id;
+		cnt++;
+	}
+
+release_lock:
+	mutex_unlock(&hw->fdir_fltr_lock);
+	if (!val)
+		cmd->rule_cnt = cnt;
+	return val;
+}
+
+/**
  * ice_fdir_get_hw_prof - return the ice_fd_hw_proc associated with a flow
  * @hw: hardware structure containing the filter list
  * @blk: hardware block
