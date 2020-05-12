@@ -136,12 +136,15 @@ struct hif_otp_phy_info {
 } __packed;
 
 struct hif_ind_startup {
+	// As the others, this struct is interpreted as little endian by the
+	// device. However, this struct is also used by the driver. We prefer to
+	// declare it in native order and doing byte swap on reception.
 	__le32 status;
-	__le16 hardware_id;
+	u16    hardware_id;
 	u8     opn[14];
 	u8     uid[8];
-	__le16 num_inp_ch_bufs;
-	__le16 size_inp_ch_buf;
+	u16    num_inp_ch_bufs;
+	u16    size_inp_ch_buf;
 	u8     num_links_ap;
 	u8     num_interfaces;
 	u8     mac_addr[2][ETH_ALEN];
@@ -155,7 +158,7 @@ struct hif_ind_startup {
 	u8     disabled_channel_list[2];
 	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
 	struct hif_otp_phy_info otp_phy_info;
-	__le32 supported_rate_mask;
+	u32    supported_rate_mask;
 	u8     firmware_label[128];
 } __packed;
 

@@ -100,10 +100,10 @@ static int hif_startup_indication(struct wfx_dev *wdev,
 		return -EINVAL;
 	}
 	memcpy(&wdev->hw_caps, body, sizeof(struct hif_ind_startup));
-	le32_to_cpus(&wdev->hw_caps.status);
-	le16_to_cpus(&wdev->hw_caps.hardware_id);
-	le16_to_cpus(&wdev->hw_caps.num_inp_ch_bufs);
-	le16_to_cpus(&wdev->hw_caps.size_inp_ch_buf);
+	le16_to_cpus((__le16 *)&wdev->hw_caps.hardware_id);
+	le16_to_cpus((__le16 *)&wdev->hw_caps.num_inp_ch_bufs);
+	le16_to_cpus((__le16 *)&wdev->hw_caps.size_inp_ch_buf);
+	le32_to_cpus((__le32 *)&wdev->hw_caps.supported_rate_mask);
 
 	complete(&wdev->firmware_ready);
 	return 0;
