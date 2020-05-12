@@ -1514,6 +1514,11 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ICL_REVID(p, since, until) \
 	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
+#define EHL_REVID_A0            0x0
+
+#define IS_EHL_REVID(p, since, until) \
+	(IS_ELKHARTLAKE(p) && IS_REVID(p, since, until))
+
 #define TGL_REVID_A0		0x0
 #define TGL_REVID_B0		0x1
 #define TGL_REVID_C0		0x2
