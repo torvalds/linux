@@ -380,12 +380,8 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
-DEFINE_CONN_EVENT(flush_dct);
 
-DEFINE_RXPRT_EVENT(xprtrdma_create);
-DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
-DEFINE_RXPRT_EVENT(xprtrdma_op_close);
 DEFINE_RXPRT_EVENT(xprtrdma_op_setport);
 
 TRACE_EVENT(xprtrdma_op_connect,
