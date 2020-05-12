@@ -38,3 +38,4 @@ test_cpp
 /bpf_gcc
 /tools
 /runqslower
+/bench
