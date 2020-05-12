@@ -304,6 +304,12 @@ extern const struct bench bench_rename_rawtp;
 extern const struct bench bench_rename_fentry;
 extern const struct bench bench_rename_fexit;
 extern const struct bench bench_rename_fmodret;
+extern const struct bench bench_trig_base;
+extern const struct bench bench_trig_tp;
+extern const struct bench bench_trig_rawtp;
+extern const struct bench bench_trig_kprobe;
+extern const struct bench bench_trig_fentry;
+extern const struct bench bench_trig_fmodret;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -315,6 +321,12 @@ static const struct bench *benchs[] = {
 	&bench_rename_fentry,
 	&bench_rename_fexit,
 	&bench_rename_fmodret,
+	&bench_trig_base,
+	&bench_trig_tp,
+	&bench_trig_rawtp,
+	&bench_trig_kprobe,
+	&bench_trig_fentry,
+	&bench_trig_fmodret,
 };
 
 static void setup_benchmark()
