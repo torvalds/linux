@@ -47,7 +47,7 @@ struct key_type key_type_big_key = {
 	.destroy		= big_key_destroy,
 	.describe		= big_key_describe,
 	.read			= big_key_read,
-	/* no ->update(); don't add it without changing chacha20poly1305's nonce */
+	.update			= big_key_update,
 };
 
 /*
@@ -189,6 +189,23 @@ void big_key_destroy(struct key *key)
 	}
 	kzfree(key->payload.data[big_key_data]);
 	key->payload.data[big_key_data] = NULL;
+}
+
+/*
+ * Update a big key
+ */
+int big_key_update(struct key *key, struct key_preparsed_payload *prep)
+{
+	int ret;
+
+	ret = key_payload_reserve(key, prep->datalen);
+	if (ret < 0)
+		return ret;
+
+	if (key_is_positive(key))
+		big_key_destroy(key);
+
+	return generic_key_instantiate(key, prep);
 }
 
 /*
