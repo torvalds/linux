@@ -199,7 +199,7 @@ static int ionic_intr_alloc(struct ionic_lif *lif, struct ionic_intr_info *intr)
 
 static void ionic_intr_free(struct ionic *ionic, int index)
 {
-	if (index != INTR_INDEX_NOT_ASSIGNED && index < ionic->nintrs)
+	if (index != IONIC_INTR_INDEX_NOT_ASSIGNED && index < ionic->nintrs)
 		clear_bit(index, ionic->intrs);
 }
 
@@ -455,7 +455,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			cpumask_set_cpu(new->intr.cpu,
 					&new->intr.affinity_mask);
 	} else {
-		new->intr.index = INTR_INDEX_NOT_ASSIGNED;
+		new->intr.index = IONIC_INTR_INDEX_NOT_ASSIGNED;
 	}
 
 	new->cq.info = devm_kzalloc(dev, sizeof(*new->cq.info) * num_descs,

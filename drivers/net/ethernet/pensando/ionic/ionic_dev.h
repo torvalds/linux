@@ -182,7 +182,7 @@ struct ionic_desc_info {
 	void *cb_arg;
 };
 
-#define QUEUE_NAME_MAX_SZ		32
+#define IONIC_QUEUE_NAME_MAX_SZ		32
 
 struct ionic_queue {
 	u64 dbell_count;
@@ -207,14 +207,14 @@ struct ionic_queue {
 	unsigned int desc_size;
 	unsigned int sg_desc_size;
 	unsigned int pid;
-	char name[QUEUE_NAME_MAX_SZ];
+	char name[IONIC_QUEUE_NAME_MAX_SZ];
 };
 
-#define INTR_INDEX_NOT_ASSIGNED		-1
-#define INTR_NAME_MAX_SZ		32
+#define IONIC_INTR_INDEX_NOT_ASSIGNED	-1
+#define IONIC_INTR_NAME_MAX_SZ		32
 
 struct ionic_intr_info {
-	char name[INTR_NAME_MAX_SZ];
+	char name[IONIC_INTR_NAME_MAX_SZ];
 	unsigned int index;
 	unsigned int vector;
 	u64 rearm_count;
