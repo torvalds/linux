@@ -231,7 +231,6 @@ struct udma_chan {
 	struct udma_tx_drain tx_drain;
 
 	u32 bcnt; /* number of bytes completed since the start of the channel */
-	u32 in_ring_cnt; /* number of descriptors in flight */
 
 	/* Channel configuration parameters */
 	struct udma_chan_config config;
@@ -574,7 +573,6 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 	struct udma_desc *d = uc->desc;
 	struct k3_ring *ring = NULL;
 	dma_addr_t paddr;
-	int ret;
 
 	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
@@ -598,11 +596,7 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 		udma_sync_for_device(uc, idx);
 	}
 
-	ret = k3_ringacc_ring_push(ring, &paddr);
-	if (!ret)
-		uc->in_ring_cnt++;
-
-	return ret;
+	return k3_ringacc_ring_push(ring, &paddr);
 }
 
 static bool udma_desc_is_rx_flush(struct udma_chan *uc, dma_addr_t addr)
@@ -655,9 +649,6 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 						d->hwdesc[0].cppi5_desc_size,
 						DMA_FROM_DEVICE);
 		rmb(); /* Ensure that reads are not moved before this point */
-
-		if (!ret)
-			uc->in_ring_cnt--;
 	}
 
 	return ret;
@@ -697,8 +688,6 @@ static void udma_reset_rings(struct udma_chan *uc)
 		udma_desc_free(&uc->terminated_desc->vd);
 		uc->terminated_desc = NULL;
 	}
-
-	uc->in_ring_cnt = 0;
 }
 
 static void udma_reset_counters(struct udma_chan *uc)
@@ -1073,9 +1062,6 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 
 	/* Teardown completion message */
 	if (cppi5_desc_is_tdcm(paddr)) {
-		/* Compensate our internal pop/push counter */
-		uc->in_ring_cnt++;
-
 		complete_all(&uc->teardown_completed);
 
 		if (uc->terminated_desc) {
