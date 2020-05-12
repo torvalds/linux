@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TEGRA
 	tristate "NVIDIA Tegra VI driver"
-	depends on TEGRA_HOST1X || COMPILE_TEST
+	depends on TEGRA_HOST1X
 	select VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
