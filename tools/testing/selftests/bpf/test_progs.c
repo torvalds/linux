@@ -438,67 +438,6 @@ err:
 	return -ENOMEM;
 }
 
-int parse_num_list(const char *s, struct test_selector *sel)
-{
-	int i, set_len = 0, new_len, num, start = 0, end = -1;
-	bool *set = NULL, *tmp, parsing_end = false;
-	char *next;
-
-	while (s[0]) {
-		errno = 0;
-		num = strtol(s, &next, 10);
-		if (errno)
-			return -errno;
-
-		if (parsing_end)
-			end = num;
-		else
-			start = num;
-
-		if (!parsing_end && *next == '-') {
-			s = next + 1;
-			parsing_end = true;
-			continue;
-		} else if (*next == ',') {
-			parsing_end = false;
-			s = next + 1;
-			end = num;
-		} else if (*next == '\0') {
-			parsing_end = false;
-			s = next;
-			end = num;
-		} else {
-			return -EINVAL;
-		}
-
-		if (start > end)
-			return -EINVAL;
-
-		if (end + 1 > set_len) {
-			new_len = end + 1;
-			tmp = realloc(set, new_len);
-			if (!tmp) {
-				free(set);
-				return -ENOMEM;
-			}
-			for (i = set_len; i < start; i++)
-				tmp[i] = false;
-			set = tmp;
-			set_len = new_len;
-		}
-		for (i = start; i <= end; i++)
-			set[i] = true;
-	}
-
-	if (!set)
-		return -EINVAL;
-
-	sel->num_set = set;
-	sel->num_set_len = set_len;
-
-	return 0;
-}
-
 extern int extra_prog_load_log_flags;
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
@@ -512,13 +451,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (subtest_str) {
 			*subtest_str = '\0';
 			if (parse_num_list(subtest_str + 1,
-					   &env->subtest_selector)) {
+					   &env->subtest_selector.num_set,
+					   &env->subtest_selector.num_set_len)) {
 				fprintf(stderr,
 					"Failed to parse subtest numbers.\n");
 				return -EINVAL;
 			}
 		}
-		if (parse_num_list(arg, &env->test_selector)) {
+		if (parse_num_list(arg, &env->test_selector.num_set,
+				   &env->test_selector.num_set_len)) {
 			fprintf(stderr, "Failed to parse test numbers.\n");
 			return -EINVAL;
 		}
