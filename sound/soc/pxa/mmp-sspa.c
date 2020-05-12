@@ -275,9 +275,6 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_16_BITS);
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_20_BITS);
-		break;
 	case SNDRV_PCM_FORMAT_S24_3LE:
 		sspa_ctrl |= SSPA_CTL_XSSZ1(SSPA_CTL_24_BITS);
 		break;
@@ -362,7 +359,7 @@ static int mmp_sspa_probe(struct snd_soc_dai *dai)
 #define MMP_SSPA_RATES SNDRV_PCM_RATE_8000_192000
 #define MMP_SSPA_FORMATS (SNDRV_PCM_FMTBIT_S8 | \
 		SNDRV_PCM_FMTBIT_S16_LE | \
-		SNDRV_PCM_FMTBIT_S24_LE | \
+		SNDRV_PCM_FMTBIT_S24_3LE | \
 		SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops mmp_sspa_dai_ops = {
