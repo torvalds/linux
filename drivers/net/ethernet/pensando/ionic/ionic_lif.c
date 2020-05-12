@@ -1707,7 +1707,7 @@ int ionic_stop(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
-	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+	if (!netif_device_present(netdev))
 		return 0;
 
 	ionic_stop_queues(lif);
@@ -1723,6 +1723,9 @@ static int ionic_get_vf_config(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
 	int ret = 0;
+
+	if (!netif_device_present(netdev))
+		return -EBUSY;
 
 	down_read(&ionic->vf_op_lock);
 
@@ -1750,6 +1753,9 @@ static int ionic_get_vf_stats(struct net_device *netdev, int vf,
 	struct ionic *ionic = lif->ionic;
 	struct ionic_lif_stats *vs;
 	int ret = 0;
+
+	if (!netif_device_present(netdev))
+		return -EBUSY;
 
 	down_read(&ionic->vf_op_lock);
 
@@ -1786,6 +1792,9 @@ static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!(is_zero_ether_addr(mac) || is_valid_ether_addr(mac)))
 		return -EINVAL;
 
+	if (!netif_device_present(netdev))
+		return -EBUSY;
+
 	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
@@ -1817,6 +1826,9 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
+	if (!netif_device_present(netdev))
+		return -EBUSY;
+
 	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
@@ -1843,6 +1855,9 @@ static int ionic_set_vf_rate(struct net_device *netdev, int vf,
 	if (tx_min)
 		return -EINVAL;
 
+	if (!netif_device_present(netdev))
+		return -EBUSY;
+
 	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
@@ -1865,6 +1880,9 @@ static int ionic_set_vf_spoofchk(struct net_device *netdev, int vf, bool set)
 	u8 data = set;  /* convert to u8 for config */
 	int ret;
 
+	if (!netif_device_present(netdev))
+		return -EBUSY;
+
 	down_write(&ionic->vf_op_lock);
 
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
@@ -1886,6 +1904,9 @@ static int ionic_set_vf_trust(struct net_device *netdev, int vf, bool set)
 	struct ionic *ionic = lif->ionic;
 	u8 data = set;  /* convert to u8 for config */
 	int ret;
+
+	if (!netif_device_present(netdev))
+		return -EBUSY;
 
 	down_write(&ionic->vf_op_lock);
 
@@ -1922,6 +1943,9 @@ static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 	default:
 		return -EINVAL;
 	}
+
+	if (!netif_device_present(netdev))
+		return -EBUSY;
 
 	down_write(&ionic->vf_op_lock);
 
