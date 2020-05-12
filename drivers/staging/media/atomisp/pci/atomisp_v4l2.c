@@ -1616,7 +1616,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	if (!pdata)
 		dev_warn(&dev->dev, "no platform data available\n");
 
-	err = pci_enable_device(dev);
+	err = pcim_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable CI ISP device (%d)\n",
 			err);
@@ -1907,7 +1907,6 @@ initialize_modules_fail:
 	atomisp_msi_irq_uninit(isp, dev);
 	pci_disable_msi(dev);
 enable_msi_fail:
-	pci_disable_device(dev);
 fw_validation_fail:
 	release_firmware(isp->firmware);
 load_fw_fail:
@@ -1968,8 +1967,6 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 	release_firmware(isp->firmware);
 
 	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
-
-	pci_disable_device(dev);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
