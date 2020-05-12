@@ -236,29 +236,6 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
-	bus_soc: bus-soc {
-		compatible = "rockchip,px30-bus";
-		rockchip,busfreq-policy = "autocs";
-		soc-bus0 {
-			bus-id = <0>;
-			timer-us = <20>;
-			enable-msk = <0x40f7>;
-			status = "disabled";
-		};
-		soc-bus1 {
-			bus-id = <1>;
-			timer-us = <200>;
-			enable-msk = <0x40bf>;
-			status = "disabled";
-		};
-		soc-bus2 {
-			bus-id = <2>;
-			timer-us = <200>;
-			enable-msk = <0x4007>;
-			status = "disabled";
-		};
-	};
-
 	bus_apll: bus-apll {
 		compatible = "rockchip,px30-bus";
 		rockchip,busfreq-policy = "clkfreq";

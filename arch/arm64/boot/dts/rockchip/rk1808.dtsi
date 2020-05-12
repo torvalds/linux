@@ -207,34 +207,34 @@
 
 	bus_soc: bus-soc {
 		compatible = "rockchip,rk1808-bus";
-		rockchip,busfreq-policy = "autocs";
+		rockchip,busfreq-policy = "smc";
 		soc-bus0 {
 			bus-id = <0>;
-			timer-us = <20>;
+			cfg-val = <0x1e0>;
 			enable-msk = <0x407f>;
 			status = "okay";
 		};
 		soc-bus1 {
 			bus-id = <1>;
-			timer-us = <200>;
+			cfg-val = <0x12c0>;
 			enable-msk = <0x41ff>;
 			status = "okay";
 		};
 		soc-bus2 {
 			bus-id = <2>;
-			timer-us = <200>;
+			cfg-val = <0x12c0>;
 			enable-msk = <0x4005>;
 			status = "okay";
 		};
 		soc-bus3 {
 			bus-id = <3>;
-			timer-us = <200>;
+			cfg-val = <0x12c0>;
 			enable-msk = <0x4001>;
 			status = "okay";
 		};
 		soc-bus4 {
 			bus-id = <4>;
-			timer-us = <200>;
+			cfg-val = <0x12c0>;
 			enable-msk = <0x4001>;
 			status = "disabled";
 		};

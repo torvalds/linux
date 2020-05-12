@@ -57,21 +57,22 @@ struct rockchip_bus {
 	unsigned int cpu_freq[MAX_CLUSTERS];
 };
 
-static int rockchip_sip_soc_bus_div(u32 bus_id, u32 timer, u32 enable_msk)
+static int rockchip_sip_bus_smc_config(u32 bus_id, u32 cfg, u32 enable_msk)
 {
 	struct arm_smccc_res res;
 
-	res = sip_smc_soc_bus_div(bus_id, timer, enable_msk);
+	res = sip_smc_bus_config(bus_id, cfg, enable_msk);
 
 	return res.a0;
 }
 
-static int rockchip_bus_autocs(struct rockchip_bus *bus)
+static int rockchip_bus_smc_config(struct rockchip_bus *bus)
 {
 	struct device *dev = bus->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child;
-	int ret, enable_msk, bus_id, sip_timer;
+	unsigned int enable_msk, bus_id, cfg;
+	int ret;
 
 	for_each_available_child_of_node(np, child) {
 		ret = of_property_read_u32_index(child, "bus-id", 0,
@@ -79,15 +80,15 @@ static int rockchip_bus_autocs(struct rockchip_bus *bus)
 		if (ret)
 			continue;
 
-		ret = of_property_read_u32_index(child, "timer-us", 0,
-						 &sip_timer);
+		ret = of_property_read_u32_index(child, "cfg-val", 0,
+						 &cfg);
 		if (ret) {
-			dev_info(dev, "get timer_us error\n");
+			dev_info(dev, "get cfg-val error\n");
 			continue;
 		}
 
-		if (!sip_timer) {
-			dev_info(dev, "timer_us invalid\n");
+		if (!cfg) {
+			dev_info(dev, "cfg-val invalid\n");
 			continue;
 		}
 
@@ -98,10 +99,10 @@ static int rockchip_bus_autocs(struct rockchip_bus *bus)
 			continue;
 		}
 
-		ret = rockchip_sip_soc_bus_div(bus_id, sip_timer,
-					       enable_msk);
-		if (ret == -2) {
-			dev_info(dev, "smc sip not support! %x\n", ret);
+		ret = rockchip_sip_bus_smc_config(bus_id, cfg,
+						  enable_msk);
+		if (ret) {
+			dev_info(dev, "bus smc config error: %x!\n", ret);
 			break;
 		}
 	}
@@ -471,8 +472,8 @@ static int rockchip_busfreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (!strcmp(policy_name, "autocs"))
-		ret = rockchip_bus_autocs(bus);
+	if (!strcmp(policy_name, "smc"))
+		ret = rockchip_bus_smc_config(bus);
 	else if (!strcmp(policy_name, "clkfreq"))
 		ret = rockchip_bus_clkfreq(bus);
 	else if (!strcmp(policy_name, "cpufreq"))
