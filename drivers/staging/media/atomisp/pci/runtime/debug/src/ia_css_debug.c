@@ -3538,7 +3538,3 @@ void ia_css_debug_pc_dump(sp_ID_t id, unsigned int num_of_dumps)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "SP%-1d PC: 0x%X\n", id, pc);
 	}
 }
-
-#if defined(HRT_SCHED) || defined(SH_CSS_DEBUG_SPMEM_DUMP_SUPPORT)
-#include "spmem_dump.c"
-#endif

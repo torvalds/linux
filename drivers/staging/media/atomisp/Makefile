@@ -165,15 +165,12 @@ obj-byt = \
 	pci/css_2400_system/hive/ia_css_isp_configs.o \
 	pci/css_2400_system/hive/ia_css_isp_params.o \
 	pci/css_2400_system/hive/ia_css_isp_states.o \
-	pci/css_2400_system/spmem_dump.o \
 
 # These will be needed when clean merge CHT support nicely into the driver
 # Keep them here handy for when we get to that point
 #
 
 obj-cht = \
-	pci/css_2401_system/spmem_dump.o \
-	pci/css_2401_system/spmem_dump.o \
 	pci/css_2401_system/hive/ia_css_isp_configs.o \
 	pci/css_2401_system/hive/ia_css_isp_params.o \
 	pci/css_2401_system/hive/ia_css_isp_states.o \
