@@ -121,6 +121,10 @@ static int resources_available(void)
 
 	clk_put(cpu_clk);
 
+	ret = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
+	if (ret)
+		return ret;
+
 	name = find_supply_name(cpu_dev);
 	/* Platform doesn't require regulator */
 	if (!name)
