@@ -1400,6 +1400,16 @@ struct rtw_pkt_count {
 DECLARE_EWMA(evm, 10, 4);
 DECLARE_EWMA(snr, 10, 4);
 
+struct rtw_iqk_info {
+	bool done;
+	struct {
+		u32 s1_x;
+		u32 s1_y;
+		u32 s0_x;
+		u32 s0_y;
+	} result;
+};
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -1459,6 +1469,8 @@ struct rtw_dm_info {
 	struct rtw_pkt_count last_pkt_count;
 	struct ewma_evm ewma_evm[RTW_EVM_NUM];
 	struct ewma_snr ewma_snr[RTW_SNR_NUM];
+
+	struct rtw_iqk_info iqk;
 };
 
 struct rtw_efuse {

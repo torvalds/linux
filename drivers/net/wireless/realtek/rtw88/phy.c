@@ -134,6 +134,8 @@ void rtw_phy_init(struct rtw_dev *rtwdev)
 	mask = chip->dig[0].mask;
 	dm_info->igi_history[0] = rtw_read32_mask(rtwdev, addr, mask);
 	rtw_phy_cck_pd_init(rtwdev);
+
+	dm_info->iqk.done = false;
 }
 
 void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi)
