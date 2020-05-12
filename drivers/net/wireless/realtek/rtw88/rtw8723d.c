@@ -2237,6 +2237,22 @@ static const struct rtw_rqpn rqpn_table_8723d[] = {
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
 
+static const struct rtw_prioq_addrs prioq_addrs_8723d = {
+	.prio[RTW_DMA_MAPPING_EXTRA] = {
+		.rsvd = REG_RQPN_NPQ + 2, .avail = REG_RQPN_NPQ + 3,
+	},
+	.prio[RTW_DMA_MAPPING_LOW] = {
+		.rsvd = REG_RQPN + 1, .avail = REG_FIFOPAGE_CTRL_2 + 1,
+	},
+	.prio[RTW_DMA_MAPPING_NORMAL] = {
+		.rsvd = REG_RQPN_NPQ, .avail = REG_RQPN_NPQ + 1,
+	},
+	.prio[RTW_DMA_MAPPING_HIGH] = {
+		.rsvd = REG_RQPN, .avail = REG_FIFOPAGE_CTRL_2,
+	},
+	.wsize = false,
+};
+
 static const struct rtw_intf_phy_para pcie_gen1_param_8723d[] = {
 	{0x0008, 0x4a22,
 	 RTW_IP_SEL_PHY,
@@ -2370,6 +2386,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.pwr_off_seq = card_disable_flow_8723d,
 	.page_table = page_table_8723d,
 	.rqpn_table = rqpn_table_8723d,
+	.prioq_addrs = &prioq_addrs_8723d,
 	.intf_table = &phy_para_table_8723d,
 	.dig = rtw8723d_dig,
 	.dig_cck = rtw8723d_dig_cck,

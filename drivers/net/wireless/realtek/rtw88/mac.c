@@ -919,31 +919,24 @@ static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
 static void __rtw_mac_flush_prio_queue(struct rtw_dev *rtwdev,
 				       u32 prio_queue, bool drop)
 {
-	u32 addr;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_prioq_addr *addr;
+	bool wsize;
 	u16 avail_page, rsvd_page;
 	int i;
 
-	switch (prio_queue) {
-	case RTW_DMA_MAPPING_EXTRA:
-		addr = REG_FIFOPAGE_INFO_4;
-		break;
-	case RTW_DMA_MAPPING_LOW:
-		addr = REG_FIFOPAGE_INFO_2;
-		break;
-	case RTW_DMA_MAPPING_NORMAL:
-		addr = REG_FIFOPAGE_INFO_3;
-		break;
-	case RTW_DMA_MAPPING_HIGH:
-		addr = REG_FIFOPAGE_INFO_1;
-		break;
-	default:
+	if (prio_queue >= RTW_DMA_MAPPING_MAX)
 		return;
-	}
+
+	addr = &chip->prioq_addrs->prio[prio_queue];
+	wsize = chip->prioq_addrs->wsize;
 
 	/* check if all of the reserved pages are available for 100 msecs */
 	for (i = 0; i < 5; i++) {
-		rsvd_page = rtw_read16(rtwdev, addr);
-		avail_page = rtw_read16(rtwdev, addr + 2);
+		rsvd_page = wsize ? rtw_read16(rtwdev, addr->rsvd) :
+				     rtw_read8(rtwdev, addr->rsvd);
+		avail_page = wsize ? rtw_read16(rtwdev, addr->avail) :
+				      rtw_read8(rtwdev, addr->avail);
 		if (rsvd_page == avail_page)
 			return;
 

@@ -945,6 +945,16 @@ struct rtw_rqpn {
 	enum rtw_dma_mapping dma_map_hi;
 };
 
+struct rtw_prioq_addr {
+	u32 rsvd;
+	u32 avail;
+};
+
+struct rtw_prioq_addrs {
+	struct rtw_prioq_addr prio[RTW_DMA_MAPPING_MAX];
+	bool wsize;
+};
+
 struct rtw_page_table {
 	u16 hq_num;
 	u16 nq_num;
@@ -1101,6 +1111,7 @@ struct rtw_chip_info {
 	const struct rtw_pwr_seq_cmd **pwr_on_seq;
 	const struct rtw_pwr_seq_cmd **pwr_off_seq;
 	const struct rtw_rqpn *rqpn_table;
+	const struct rtw_prioq_addrs *prioq_addrs;
 	const struct rtw_page_table *page_table;
 	const struct rtw_intf_phy_para_table *intf_table;
 
