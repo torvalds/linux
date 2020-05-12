@@ -59,13 +59,8 @@ void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 	u8 preemph_max;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
-		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
-
-		if (this_v > v)
-			v = this_v;
-		if (this_p > p)
-			p = this_p;
+		v = max(v, drm_dp_get_adjust_request_voltage(link_status, lane));
+		p = max(p, drm_dp_get_adjust_request_pre_emphasis(link_status, lane));
 	}
 
 	preemph_max = intel_dp->preemph_max(intel_dp);
