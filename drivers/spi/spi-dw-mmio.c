@@ -197,10 +197,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	/* Get basic io resource and map it */
 	dws->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(dws->regs)) {
-		dev_err(&pdev->dev, "SPI region map failed\n");
+	if (IS_ERR(dws->regs))
 		return PTR_ERR(dws->regs);
-	}
 
 	dws->irq = platform_get_irq(pdev, 0);
 	if (dws->irq < 0)
