@@ -32,11 +32,10 @@ properties:
       https://github.com/sifive/sifive-blocks/tree/master/src/main/scala/devices/spi
 
   reg:
-    maxItems: 1
-
-    description:
-      Physical base address and size of SPI registers map
-      A second (optional) range can indicate memory mapped flash
+    minItems: 1
+    items:
+      - description: SPI registers region
+      - description: Memory mapped flash region
 
   interrupts:
     maxItems: 1
