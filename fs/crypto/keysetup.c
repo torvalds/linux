@@ -395,21 +395,18 @@ int fscrypt_get_encryption_info(struct inode *inode)
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
-		if (!fscrypt_dummy_context_enabled(inode) ||
-		    IS_ENCRYPTED(inode)) {
+		const union fscrypt_context *dummy_ctx =
+			fscrypt_get_dummy_context(inode->i_sb);
+
+		if (IS_ENCRYPTED(inode) || !dummy_ctx) {
 			fscrypt_warn(inode,
 				     "Error %d getting encryption context",
 				     res);
 			return res;
 		}
 		/* Fake up a context for an unencrypted directory */
-		memset(&ctx, 0, sizeof(ctx));
-		ctx.version = FSCRYPT_CONTEXT_V1;
-		ctx.v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
-		ctx.v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memset(ctx.v1.master_key_descriptor, 0x42,
-		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-		res = sizeof(ctx.v1);
+		res = fscrypt_context_size(dummy_ctx);
+		memcpy(&ctx, dummy_ctx, res);
 	}
 
 	crypt_info = kmem_cache_zalloc(fscrypt_info_cachep, GFP_NOFS);
