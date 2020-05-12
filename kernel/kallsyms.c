@@ -482,6 +482,11 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 	return 1;
 }
 
+/*
+ * ftrace_mod_get_kallsym() may also get symbols for pages allocated for ftrace
+ * purposes. In that case "__builtin__ftrace" is used as a module name, even
+ * though "__builtin__ftrace" is not a module.
+ */
 static int get_ksymbol_ftrace_mod(struct kallsym_iter *iter)
 {
 	int ret = ftrace_mod_get_kallsym(iter->pos - iter->pos_mod_end,
