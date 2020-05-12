@@ -1288,7 +1288,7 @@ gss_send_destroy_context(struct rpc_cred *cred)
 
 		trace_rpcgss_ctx_destroy(gss_cred);
 		task = rpc_call_null(gss_auth->client, &new->gc_base,
-				RPC_TASK_ASYNC|RPC_TASK_SOFT);
+				     RPC_TASK_ASYNC);
 		if (!IS_ERR(task))
 			rpc_put_task(task);
 
