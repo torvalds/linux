@@ -1251,9 +1251,9 @@ static int ov2680_probe(struct i2c_client *client)
 		dev_err(&client->dev, "Error could not get ACPI device\n");
 		return -ENODEV;
 	}
-
 	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
 		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
+	// FIXME: may need to release resources allocated by acpi_bus_get_device()
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
