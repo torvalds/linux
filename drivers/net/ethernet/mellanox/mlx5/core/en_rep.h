@@ -203,15 +203,18 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
 				   struct mlx5_cqe64 *cqe);
 
-int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
-				 struct mlx5e_encap_entry *e);
-void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
-				  struct mlx5e_encap_entry *e);
-
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 
 bool mlx5e_eswitch_rep(struct net_device *netdev);
 bool mlx5e_eswitch_uplink_rep(struct net_device *netdev);
+
+struct mlx5e_neigh_hash_entry *
+mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
+			     struct mlx5e_neigh *m_neigh);
+int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
+				 struct mlx5e_encap_entry *e,
+				 struct mlx5e_neigh_hash_entry **nhe);
+void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe);
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv) { return false; }

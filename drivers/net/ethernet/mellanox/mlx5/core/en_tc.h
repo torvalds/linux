@@ -34,10 +34,40 @@
 #define __MLX5_EN_TC_H__
 
 #include <net/pkt_cls.h>
+#include "en.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
 
 #ifdef CONFIG_MLX5_ESWITCH
+
+struct tunnel_match_key {
+	struct flow_dissector_key_control enc_control;
+	struct flow_dissector_key_keyid enc_key_id;
+	struct flow_dissector_key_ports enc_tp;
+	struct flow_dissector_key_ip enc_ip;
+	union {
+		struct flow_dissector_key_ipv4_addrs enc_ipv4;
+		struct flow_dissector_key_ipv6_addrs enc_ipv6;
+	};
+
+	int filter_ifindex;
+};
+
+struct tunnel_match_enc_opts {
+	struct flow_dissector_key_enc_opts key;
+	struct flow_dissector_key_enc_opts mask;
+};
+
+/* Tunnel_id mapping is TUNNEL_INFO_BITS + ENC_OPTS_BITS.
+ * Upper TUNNEL_INFO_BITS for general tunnel info.
+ * Lower ENC_OPTS_BITS bits for enc_opts.
+ */
+#define TUNNEL_INFO_BITS 6
+#define TUNNEL_INFO_BITS_MASK GENMASK(TUNNEL_INFO_BITS - 1, 0)
+#define ENC_OPTS_BITS 2
+#define ENC_OPTS_BITS_MASK GENMASK(ENC_OPTS_BITS - 1, 0)
+#define TUNNEL_ID_BITS (TUNNEL_INFO_BITS + ENC_OPTS_BITS)
+#define TUNNEL_ID_MASK GENMASK(TUNNEL_ID_BITS - 1, 0)
 
 enum {
 	MLX5E_TC_FLAG_INGRESS_BIT,
@@ -118,11 +148,6 @@ bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 struct mlx5e_tc_update_priv {
 	struct net_device *tun_dev;
 };
-
-bool mlx5e_tc_rep_update_skb(struct mlx5_cqe64 *cqe, struct sk_buff *skb,
-			     struct mlx5e_tc_update_priv *tc_priv);
-
-void mlx5_tc_rep_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv);
 
 struct mlx5e_tc_mod_hdr_acts {
 	int num_actions;
