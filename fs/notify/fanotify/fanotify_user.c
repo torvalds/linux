@@ -487,8 +487,10 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 
 	group = file->private_data;
 
-	if (count > sizeof(response))
-		count = sizeof(response);
+	if (count < sizeof(response))
+		return -EINVAL;
+
+	count = sizeof(response);
 
 	pr_debug("%s: group=%p count=%zu\n", __func__, group, count);
 
