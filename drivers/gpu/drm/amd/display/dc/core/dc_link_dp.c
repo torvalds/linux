@@ -2849,7 +2849,6 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	enum dc_status result;
 	bool status = false;
 	struct pipe_ctx *pipe_ctx;
-	struct dc_link_settings previous_link_settings;
 	int i;
 
 	if (out_link_loss)
@@ -2928,32 +2927,25 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link)
-				link->dc->hwss.blank_stream(pipe_ctx);
-		}
-
-		for (i = 0; i < MAX_PIPES; i++) {
-			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link)
 				break;
 		}
 
 		if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
 			return false;
 
-		previous_link_settings = link->cur_link_settings;
-
-		perform_link_training_with_retries(&previous_link_settings,
-			true, LINK_TRAINING_ATTEMPTS,
-			pipe_ctx,
-			pipe_ctx->stream->signal);
-
-		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			dc_link_reallocate_mst_payload(link);
 
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link)
-				link->dc->hwss.unblank_stream(pipe_ctx, &previous_link_settings);
+			if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
+					pipe_ctx->stream->link == link)
+				core_link_disable_stream(pipe_ctx);
+		}
+
+		for (i = 0; i < MAX_PIPES; i++) {
+			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
+					pipe_ctx->stream->link == link)
+				core_link_enable_stream(link->dc->current_state, pipe_ctx);
 		}
 
 		status = false;
