@@ -168,15 +168,13 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gchip->base))
 		return PTR_ERR(gchip->base);
 
-	if (!has_acpi_companion(&pdev->dev)) {
-		gchip->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(gchip->clk))
-			return PTR_ERR(gchip->clk);
+	gchip->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(gchip->clk))
+		return PTR_ERR(gchip->clk);
 
-		ret = clk_prepare_enable(gchip->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(gchip->clk);
+	if (ret)
+		return ret;
 
 	spin_lock_init(&gchip->lock);
 
