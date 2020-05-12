@@ -158,6 +158,7 @@ static int hif_event_indication(struct wfx_dev *wdev,
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	const struct hif_ind_event *body = buf;
+	int type = le32_to_cpu(body->event_id);
 	int cause;
 
 	if (!wvif) {
@@ -165,7 +166,7 @@ static int hif_event_indication(struct wfx_dev *wdev,
 		return 0;
 	}
 
-	switch (body->event_id) {
+	switch (type) {
 	case HIF_EVENT_IND_RCPI_RSSI:
 		wfx_event_report_rssi(wvif, body->event_data.rcpi_rssi);
 		break;
@@ -187,7 +188,7 @@ static int hif_event_indication(struct wfx_dev *wdev,
 		break;
 	default:
 		dev_warn(wdev->dev, "unhandled event indication: %.2x\n",
-			 body->event_id);
+			 type);
 		break;
 	}
 	return 0;
