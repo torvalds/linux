@@ -354,10 +354,10 @@ static int __init eisa_probe(struct parisc_device *dev)
 			eisa_dev.eeprom_addr = MIRAGE_EEPROM_BASE_ADDR;
 		}
 	}
-	eisa_eeprom_addr = ioremap_nocache(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
+	eisa_eeprom_addr = ioremap(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
 	if (!eisa_eeprom_addr) {
 		result = -ENOMEM;
-		printk(KERN_ERR "EISA: ioremap_nocache failed!\n");
+		printk(KERN_ERR "EISA: ioremap failed!\n");
 		goto error_free_irq;
 	}
 	result = eisa_enumerator(eisa_dev.eeprom_addr, &eisa_dev.hba.io_space,

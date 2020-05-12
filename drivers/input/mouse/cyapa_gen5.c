@@ -250,7 +250,7 @@ struct cyapa_tsg_bin_image_data_record {
 
 struct cyapa_tsg_bin_image {
 	struct cyapa_tsg_bin_image_head image_head;
-	struct cyapa_tsg_bin_image_data_record records[0];
+	struct cyapa_tsg_bin_image_data_record records[];
 } __packed;
 
 struct pip_bl_packet_start {
@@ -271,7 +271,7 @@ struct pip_bl_cmd_head {
 	u8 report_id;  /* Bootloader output report id, must be 40h */
 	u8 rsvd;  /* Reserved, must be 0 */
 	struct pip_bl_packet_start packet_start;
-	u8 data[0];  /* Command data variable based on commands */
+	u8 data[];  /* Command data variable based on commands */
 } __packed;
 
 /* Initiate bootload command data structure. */
@@ -300,7 +300,7 @@ struct tsg_bl_metadata_row_params {
 struct tsg_bl_flash_row_head {
 	u8 flash_array_id;
 	__le16 flash_row_id;
-	u8 flash_data[0];
+	u8 flash_data[];
 } __packed;
 
 struct pip_app_cmd_head {
@@ -314,7 +314,7 @@ struct pip_app_cmd_head {
 	 * Bit 6-0: command code.
 	 */
 	u8 cmd_code;
-	u8 parameter_data[0];  /* Parameter data variable based on cmd_code */
+	u8 parameter_data[];  /* Parameter data variable based on cmd_code */
 } __packed;
 
 /* Application get/set parameter command data structure */

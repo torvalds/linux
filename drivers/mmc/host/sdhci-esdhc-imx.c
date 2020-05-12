@@ -224,7 +224,6 @@ static struct esdhc_soc_data usdhc_imx8qxp_data = {
 struct pltfm_imx_data {
 	u32 scratchpad;
 	struct pinctrl *pinctrl;
-	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_100mhz;
 	struct pinctrl_state *pins_200mhz;
 	const struct esdhc_soc_data *socdata;
@@ -951,7 +950,6 @@ static int esdhc_change_pinstate(struct sdhci_host *host,
 	dev_dbg(mmc_dev(host->mmc), "change pinctrl state for uhs %d\n", uhs);
 
 	if (IS_ERR(imx_data->pinctrl) ||
-		IS_ERR(imx_data->pins_default) ||
 		IS_ERR(imx_data->pins_100mhz) ||
 		IS_ERR(imx_data->pins_200mhz))
 		return -EINVAL;
@@ -968,7 +966,7 @@ static int esdhc_change_pinstate(struct sdhci_host *host,
 		break;
 	default:
 		/* back to default state for other legacy timing */
-		pinctrl = imx_data->pins_default;
+		return pinctrl_select_default_state(mmc_dev(host->mmc));
 	}
 
 	return pinctrl_select_state(imx_data->pinctrl, pinctrl);
@@ -1338,7 +1336,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
-	if (esdhc_is_usdhc(imx_data) && !IS_ERR(imx_data->pins_default)) {
+	if (esdhc_is_usdhc(imx_data)) {
 		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
 						ESDHC_PINCTRL_STATE_100MHZ);
 		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
@@ -1381,19 +1379,20 @@ static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
 				host->mmc->parent->platform_data);
 	/* write_protect */
 	if (boarddata->wp_type == ESDHC_WP_GPIO) {
-		err = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0, NULL);
+		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+		err = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0);
 		if (err) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to request write-protect gpio!\n");
 			return err;
 		}
-		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 	}
 
 	/* card_detect */
 	switch (boarddata->cd_type) {
 	case ESDHC_CD_GPIO:
-		err = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0, NULL);
+		err = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
 		if (err) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to request card-detect gpio!\n");
@@ -1491,11 +1490,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		err = PTR_ERR(imx_data->pinctrl);
 		goto disable_ahb_clk;
 	}
-
-	imx_data->pins_default = pinctrl_lookup_state(imx_data->pinctrl,
-						PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(imx_data->pins_default))
-		dev_warn(mmc_dev(host->mmc), "could not get default state\n");
 
 	if (esdhc_is_usdhc(imx_data)) {
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;

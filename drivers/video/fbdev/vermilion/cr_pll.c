@@ -159,7 +159,7 @@ static int __init cr_pll_init(void)
 	pci_read_config_dword(mch_dev, CRVML_REG_MCHBAR,
 			      &mch_bar);
 	mch_regs_base =
-	    ioremap_nocache(mch_bar, CRVML_MCHMAP_SIZE);
+	    ioremap(mch_bar, CRVML_MCHMAP_SIZE);
 	if (!mch_regs_base) {
 		printk(KERN_ERR
 		       "Carillo Ranch MCH device was not enabled.\n");

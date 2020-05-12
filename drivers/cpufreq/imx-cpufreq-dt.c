@@ -35,7 +35,8 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_machine_is_compatible("fsl,imx8mn"))
+	if (of_machine_is_compatible("fsl,imx8mn") ||
+	    of_machine_is_compatible("fsl,imx8mp"))
 		speed_grade = (cell_value & IMX8MN_OCOTP_CFG3_SPEED_GRADE_MASK)
 			      >> OCOTP_CFG3_SPEED_GRADE_SHIFT;
 	else
@@ -54,7 +55,8 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 		if (of_machine_is_compatible("fsl,imx8mm") ||
 		    of_machine_is_compatible("fsl,imx8mq"))
 			speed_grade = 1;
-		if (of_machine_is_compatible("fsl,imx8mn"))
+		if (of_machine_is_compatible("fsl,imx8mn") ||
+		    of_machine_is_compatible("fsl,imx8mp"))
 			speed_grade = 0xb;
 	}
 

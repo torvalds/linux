@@ -241,6 +241,7 @@ config ACPI_CPU_FREQ_PSS
 
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
+	depends on ACPI_PROCESSOR
 	depends on IA64 || X86
 
 config ACPI_PROCESSOR_IDLE

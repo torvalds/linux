@@ -161,7 +161,7 @@ static int vic_boot(struct vic *vic)
 static int vic_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
@@ -190,9 +190,9 @@ static int vic_init(struct host1x_client *client)
 
 	/*
 	 * Inherit the DMA parameters (such as maximum segment size) from the
-	 * parent device.
+	 * parent host1x device.
 	 */
-	client->dev->dma_parms = client->parent->dma_parms;
+	client->dev->dma_parms = client->host->dma_parms;
 
 	return 0;
 
@@ -209,7 +209,7 @@ detach:
 static int vic_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;

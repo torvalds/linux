@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/hwmon/adi,ltc2947.yaml#
+$id: http://devicetree.org/schemas/hwmon/adi,ltc2947.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices LTC2947 high precision power and energy monitor

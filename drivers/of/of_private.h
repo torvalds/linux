@@ -84,15 +84,11 @@ static inline void __of_detach_node_sysfs(struct device_node *np) {}
 int of_resolve_phandles(struct device_node *tree);
 #endif
 
-#if defined(CONFIG_OF_DYNAMIC)
-void __of_free_phandle_cache_entry(phandle handle);
-#endif
+void __of_phandle_cache_inv_entry(phandle handle);
 
 #if defined(CONFIG_OF_OVERLAY)
 void of_overlay_mutex_lock(void);
 void of_overlay_mutex_unlock(void);
-int of_free_phandle_cache(void);
-void of_populate_phandle_cache(void);
 #else
 static inline void of_overlay_mutex_lock(void) {};
 static inline void of_overlay_mutex_unlock(void) {};

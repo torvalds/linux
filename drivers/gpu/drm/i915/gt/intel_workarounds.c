@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
@@ -146,18 +147,24 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	}
 }
 
-static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val)
+static void wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val, u32 read_mask)
 {
 	struct i915_wa wa = {
 		.reg  = reg,
 		.mask = mask,
 		.val  = val,
-		.read = mask,
+		.read = read_mask,
 	};
 
 	_wa_add(wal, &wa);
+}
+
+static void
+wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val)
+{
+	wa_add(wal, reg, mask, val, mask);
 }
 
 static void
@@ -247,7 +254,7 @@ static void bdw_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* WaDisableDopClockGating:bdw
 	 *
-	 * Also see the related UCGTCL1 write in broadwell_init_clock_gating()
+	 * Also see the related UCGTCL1 write in bdw_init_clock_gating()
 	 * to disable EUTC clock gating.
 	 */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
@@ -571,6 +578,16 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_1409142259:tgl */
 	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
+
+	/*
+	 * Wa_1604555607:gen12 and Wa_1608008084:gen12
+	 * FF_MODE2 register will return the wrong value when read. The default
+	 * value for this register is zero for all fields and there are no bit
+	 * masks. So instead of doing a RMW we should just write the TDS timer
+	 * value for Wa_1604555607.
+	 */
+	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_TDS_TIMER_128, 0);
 }
 
 static void
@@ -1315,6 +1332,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
+
+		/*
+		 * Wa_1606679103:tgl
+		 * (see also Wa_1606682166:icl)
+		 */
+		wa_write_or(wal,
+			    GEN7_SARCHKMD,
+			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
 	if (IS_GEN(i915, 11)) {
@@ -1504,15 +1529,34 @@ err_obj:
 	return ERR_PTR(err);
 }
 
+static const struct {
+	u32 start;
+	u32 end;
+} mcr_ranges_gen8[] = {
+	{ .start = 0x5500, .end = 0x55ff },
+	{ .start = 0x7000, .end = 0x7fff },
+	{ .start = 0x9400, .end = 0x97ff },
+	{ .start = 0xb000, .end = 0xb3ff },
+	{ .start = 0xe000, .end = 0xe7ff },
+	{},
+};
+
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
+	int i;
+
+	if (INTEL_GEN(i915) < 8)
+		return false;
+
 	/*
-	 * Registers in this range are affected by the MCR selector
+	 * Registers in these ranges are affected by the MCR selector
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb000 && offset <= 0xb4ff))
-		return true;
+	for (i = 0; mcr_ranges_gen8[i].start; i++)
+		if (offset >= mcr_ranges_gen8[i].start &&
+		    offset <= mcr_ranges_gen8[i].end)
+			return true;
 
 	return false;
 }
@@ -1574,7 +1618,9 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	intel_engine_pm_get(ce->engine);
 	rq = intel_context_create_request(ce);
+	intel_engine_pm_put(ce->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma;
@@ -1584,16 +1630,17 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (err)
 		goto err_vma;
 
+	i915_request_get(rq);
 	i915_request_add(rq);
 	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 		err = -ETIME;
-		goto err_vma;
+		goto err_rq;
 	}
 
 	results = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(results)) {
 		err = PTR_ERR(results);
-		goto err_vma;
+		goto err_rq;
 	}
 
 	err = 0;
@@ -1607,6 +1654,8 @@ static int engine_wa_list_verify(struct intel_context *ce,
 
 	i915_gem_object_unpin_map(vma->obj);
 
+err_rq:
+	i915_request_put(rq);
 err_vma:
 	i915_vma_unpin(vma);
 	i915_vma_put(vma);

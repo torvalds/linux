@@ -17,6 +17,7 @@
 #define PCI_ID_ALCOR_MICRO			0x1AEA
 #define PCI_ID_AU6601				0x6601
 #define PCI_ID_AU6621				0x6621
+#define PCI_ID_AU6625				0x6625
 
 #define MHZ_TO_HZ(freq)				((freq) * 1000 * 1000)
 

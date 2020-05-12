@@ -24,6 +24,10 @@
 	};
 
 	ahb {
+		sdmmc0: sdio-host@a0000000 {
+			microchip,sdcal-inverted;
+		};
+
 		apb {
 			qspi1: spi@f0024000 {
 				pinctrl-names = "default";

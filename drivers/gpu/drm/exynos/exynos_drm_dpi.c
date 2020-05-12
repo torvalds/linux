@@ -43,7 +43,7 @@ exynos_dpi_detect(struct drm_connector *connector, bool force)
 {
 	struct exynos_dpi *ctx = connector_to_dpi(connector);
 
-	if (ctx->panel && !ctx->panel->connector)
+	if (ctx->panel)
 		drm_panel_attach(ctx->panel, &ctx->connector);
 
 	return connector_status_connected;
@@ -85,7 +85,7 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	}
 
 	if (ctx->panel)
-		return ctx->panel->funcs->get_modes(ctx->panel);
+		return drm_panel_get_modes(ctx->panel, connector);
 
 	return 0;
 }

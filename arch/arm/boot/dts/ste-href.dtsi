@@ -4,7 +4,6 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "ste-dbx5x0.dtsi"
 #include "ste-href-family-pinctrl.dtsi"
 
 / {
@@ -16,41 +15,44 @@
 	soc {
 		uart@80120000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart0_default_mode>;
-			pinctrl-1 = <&uart0_sleep_mode>;
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
 			status = "okay";
 		};
 
 		/* This UART is unused and thus left disabled */
 		uart@80121000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart1_default_mode>;
-			pinctrl-1 = <&uart1_sleep_mode>;
+			pinctrl-0 = <&u1rxtx_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep>;
 		};
 
 		uart@80007000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart2_default_mode>;
-			pinctrl-1 = <&uart2_sleep_mode>;
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
 			status = "okay";
 		};
 
 		i2c@80004000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c0_default_mode>;
-			pinctrl-1 = <&i2c0_sleep_mode>;
+			pinctrl-0 = <&i2c0_a_1_default>;
+			pinctrl-1 = <&i2c0_a_1_sleep>;
+			status = "okay";
 		};
 
 		i2c@80122000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c1_default_mode>;
-			pinctrl-1 = <&i2c1_sleep_mode>;
+			pinctrl-0 = <&i2c1_b_2_default>;
+			pinctrl-1 = <&i2c1_b_2_sleep>;
+			status = "okay";
 		};
 
 		i2c@80128000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c2_default_mode>;
-			pinctrl-1 = <&i2c2_sleep_mode>;
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+			status = "okay";
 			lp5521@33 {
 				compatible = "national,lp5521";
 				reg = <0x33>;
@@ -96,8 +98,9 @@
 
 		i2c@80110000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c3_default_mode>;
-			pinctrl-1 = <&i2c3_sleep_mode>;
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+			status = "okay";
 		};
 
 		/* ST6G3244ME level translator for 1.8/2.9 V */
@@ -132,8 +135,8 @@
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi0_default_mode>;
-			pinctrl-1 = <&sdi0_sleep_mode>;
+			pinctrl-0 = <&mc0_a_1_default &sdi0_default_mode>;
+			pinctrl-1 = <&mc0_a_1_sleep>;
 
 			status = "okay";
 		};
@@ -145,8 +148,8 @@
 			bus-width = <4>;
 			non-removable;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi1_default_mode>;
-			pinctrl-1 = <&sdi1_sleep_mode>;
+			pinctrl-0 = <&mc1_a_1_default>;
+			pinctrl-1 = <&mc1_a_1_sleep>;
 
 			status = "okay";
 		};
@@ -160,8 +163,8 @@
 			non-removable;
 			vmmc-supply = <&db8500_vsmps2_reg>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi2_default_mode>;
-			pinctrl-1 = <&sdi2_sleep_mode>;
+			pinctrl-0 = <&mc2_a_1_default>;
+			pinctrl-1 = <&mc2_a_1_sleep>;
 
 			status = "okay";
 		};
@@ -175,27 +178,27 @@
 			non-removable;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi4_default_mode>;
-			pinctrl-1 = <&sdi4_sleep_mode>;
+			pinctrl-0 = <&mc4_a_1_default>;
+			pinctrl-1 = <&mc4_a_1_sleep>;
 
 			status = "okay";
 		};
 
 		msp0: msp@80123000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp0_default_mode>;
+			pinctrl-0 = <&msp0txrxtfstck_a_1_default>;
 			status = "okay";
 		};
 
 		msp1: msp@80124000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp1_default_mode>;
+			pinctrl-0 = <&msp1txrx_a_1_default>;
 			status = "okay";
 		};
 
 		msp2: msp@80117000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp2_default_mode>;
+			pinctrl-0 = <&msp2_a_1_default>;
 		};
 
 		msp3: msp@80125000 {
@@ -209,8 +212,8 @@
 
 				ab8500_usb {
 					pinctrl-names = "default", "sleep";
-					pinctrl-0 = <&musb_default_mode>;
-					pinctrl-1 = <&musb_sleep_mode>;
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
 				ab8500-regulators {
@@ -253,6 +256,14 @@
 					ab8500_ldo_ana_reg: ab8500_ldo_ana {
 						regulator-name = "V-CSI/DSI";
 					};
+				};
+			};
+		};
+
+		pinctrl {
+			sdi0 {
+				sdi0_default_mode: sdi0_default {
+					/* Some boards set additional settings here */
 				};
 			};
 		};

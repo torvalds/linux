@@ -2,8 +2,8 @@
 // Copyright (c) 2019 Facebook
 #include <linux/bpf.h>
 #include <stdbool.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 #include "bpf_trace_helpers.h"
 
 char _license[] SEC("license") = "GPL";
@@ -57,8 +57,8 @@ struct meta {
 /* TRACE_EVENT(kfree_skb,
  *         TP_PROTO(struct sk_buff *skb, void *location),
  */
-BPF_TRACE_2("tp_btf/kfree_skb", trace_kfree_skb,
-	    struct sk_buff *, skb, void *, location)
+SEC("tp_btf/kfree_skb")
+int BPF_PROG(trace_kfree_skb, struct sk_buff *skb, void *location)
 {
 	struct net_device *dev;
 	struct callback_head *ptr;
@@ -114,9 +114,9 @@ static volatile struct {
 	bool fexit_test_ok;
 } result;
 
-BPF_TRACE_3("fentry/eth_type_trans", fentry_eth_type_trans,
-	    struct sk_buff *, skb, struct net_device *, dev,
-	    unsigned short, protocol)
+SEC("fentry/eth_type_trans")
+int BPF_PROG(fentry_eth_type_trans, struct sk_buff *skb, struct net_device *dev,
+	     unsigned short protocol)
 {
 	int len, ifindex;
 
@@ -132,9 +132,9 @@ BPF_TRACE_3("fentry/eth_type_trans", fentry_eth_type_trans,
 	return 0;
 }
 
-BPF_TRACE_3("fexit/eth_type_trans", fexit_eth_type_trans,
-	    struct sk_buff *, skb, struct net_device *, dev,
-	    unsigned short, protocol)
+SEC("fexit/eth_type_trans")
+int BPF_PROG(fexit_eth_type_trans, struct sk_buff *skb, struct net_device *dev,
+	     unsigned short protocol)
 {
 	int len, ifindex;
 

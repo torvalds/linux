@@ -1870,7 +1870,7 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 		return false;
 
 	return (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
-		IS_KABYLAKE(dev_priv));
+		IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv));
 }
 
 void intel_hdcp_component_init(struct drm_i915_private *dev_priv)

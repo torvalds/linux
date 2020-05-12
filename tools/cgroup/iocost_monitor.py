@@ -72,7 +72,7 @@ class BlkgIterator:
         name = BlkgIterator.blkcg_name(blkcg)
         path = parent_path + '/' + name if parent_path else name
         blkg = drgn.Object(prog, 'struct blkcg_gq',
-                           address=radix_tree_lookup(blkcg.blkg_tree, q_id))
+                           address=radix_tree_lookup(blkcg.blkg_tree.address_of_(), q_id))
         if not blkg.address_:
             return
 
@@ -228,7 +228,7 @@ q_id = None
 root_iocg = None
 ioc = None
 
-for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree):
+for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     blkg = drgn.Object(prog, 'struct blkcg_gq', address=ptr)
     try:
         if devname == blkg.q.kobj.parent.name.string_().decode('utf-8'):

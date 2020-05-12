@@ -479,19 +479,6 @@ static void hclge_cmd_uninit_regs(struct hclge_hw *hw)
 	hclge_write_dev(hw, HCLGE_NIC_CRQ_TAIL_REG, 0);
 }
 
-static void hclge_destroy_queue(struct hclge_cmq_ring *ring)
-{
-	spin_lock(&ring->lock);
-	hclge_free_cmd_desc(ring);
-	spin_unlock(&ring->lock);
-}
-
-static void hclge_destroy_cmd_queue(struct hclge_hw *hw)
-{
-	hclge_destroy_queue(&hw->cmq.csq);
-	hclge_destroy_queue(&hw->cmq.crq);
-}
-
 void hclge_cmd_uninit(struct hclge_dev *hdev)
 {
 	spin_lock_bh(&hdev->hw.cmq.csq.lock);
@@ -501,5 +488,6 @@ void hclge_cmd_uninit(struct hclge_dev *hdev)
 	spin_unlock(&hdev->hw.cmq.crq.lock);
 	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
 
-	hclge_destroy_cmd_queue(&hdev->hw);
+	hclge_free_cmd_desc(&hdev->hw.cmq.csq);
+	hclge_free_cmd_desc(&hdev->hw.cmq.crq);
 }

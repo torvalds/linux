@@ -244,7 +244,6 @@ static struct platform_driver sama5d2_piobu_driver = {
 
 module_platform_driver(sama5d2_piobu_driver);
 
-MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SAMA5D2 PIOBU controller driver");
 MODULE_AUTHOR("Andrei Stefanescu <andrei.stefanescu@microchip.com>");

@@ -338,7 +338,6 @@ static void snd_imx_pcm_free(struct snd_soc_component *component,
 static const struct snd_soc_component_driver imx_soc_component_fiq = {
 	.open		= snd_imx_open,
 	.close		= snd_imx_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= snd_imx_pcm_hw_params,
 	.prepare	= snd_imx_pcm_prepare,
 	.trigger	= snd_imx_pcm_trigger,

@@ -139,6 +139,20 @@ echo "Testing IPv4 + GRE..."
 
 tc filter del dev lo ingress pref 1337
 
+echo "Testing port range..."
+# Drops all IP/UDP packets coming from port 8-10
+tc filter add dev lo parent ffff: protocol ip pref 1337 flower ip_proto \
+	udp src_port 8-10 action drop
+
+# Send 10 IPv4/UDP packets from port 7. Filter should not drop any.
+./test_flow_dissector -i 4 -f 7
+# Send 10 IPv4/UDP packets from port 9. Filter should drop all.
+./test_flow_dissector -i 4 -f 9 -F
+# Send 10 IPv4/UDP packets from port 11. Filter should not drop any.
+./test_flow_dissector -i 4 -f 11
+
+tc filter del dev lo ingress pref 1337
+
 echo "Testing IPv6..."
 # Drops all IPv6/UDP packets coming from port 9
 tc filter add dev lo parent ffff: protocol ipv6 pref 1337 flower ip_proto \

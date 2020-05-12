@@ -33,7 +33,7 @@ MODULE_DEVICE_TABLE(i2c, tca6416_id);
 
 struct tca6416_drv_data {
 	struct input_dev *input;
-	struct tca6416_button data[0];
+	struct tca6416_button data[];
 };
 
 struct tca6416_keypad_chip {
@@ -48,7 +48,7 @@ struct tca6416_keypad_chip {
 	int irqnum;
 	u16 pinmask;
 	bool use_polling;
-	struct tca6416_button buttons[0];
+	struct tca6416_button buttons[];
 };
 
 static int tca6416_write_reg(struct tca6416_keypad_chip *chip, int reg, u16 val)

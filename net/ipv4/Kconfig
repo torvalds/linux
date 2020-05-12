@@ -303,6 +303,7 @@ config SYN_COOKIES
 
 config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
+	depends on IPV6 || IPV6=n
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM
@@ -375,6 +376,17 @@ config INET_ESP_OFFLOAD
 	  only if this system really does IPsec and want to do it
 	  with high throughput. A typical desktop system does not
 	  need it, even if it does IPsec.
+
+	  If unsure, say N.
+
+config INET_ESPINTCP
+	bool "IP: ESP in TCP encapsulation (RFC 8229)"
+	depends on XFRM && INET_ESP
+	select STREAM_PARSER
+	select NET_SOCK_MSG
+	help
+	  Support for RFC 8229 encapsulation of ESP and IKE over
+	  TCP/IPv4 sockets.
 
 	  If unsure, say N.
 

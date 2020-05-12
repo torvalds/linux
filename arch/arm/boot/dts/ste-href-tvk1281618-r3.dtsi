@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device Tree for the TVK1281618 R2 UIB
+ */
+
+#include "ste-href-tvk1281618.dtsi"
+
+/ {
+	soc {
+		i2c@80128000 {
+			/* Marked:
+			 * 129
+			 * M35
+			 * L3GD20
+			 */
+			l3gd20@6a {
+				/* Gyroscope */
+				compatible = "st,l3gd20";
+				status = "disabled";
+				st,drdy-int-pin = <1>;
+				drive-open-drain;
+				reg = <0x6a>; // 0x6a or 0x6b
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+			/*
+			 * Marked:
+			 * 2122
+			 * C3H
+			 * DQEEE
+			 * LIS3DH?
+			 */
+			lis3dh@18 {
+				/* Accelerometer */
+				compatible = "st,lis3dh-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x18>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+			};
+		};
+
+		mcde@a0350000 {
+			status = "okay";
+
+			dsi@a0351000 {
+				panel {
+					compatible = "sony,acx424akp";
+					reg = <0>;
+					vddi-supply = <&ab8500_ldo_aux1_reg>;
+					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
+	};
+};

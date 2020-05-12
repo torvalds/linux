@@ -83,12 +83,24 @@ static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
 	return false;
 }
 
+/* Calls sja1105_port_deferred_xmit in sja1105_main.c */
+static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
+					  struct sk_buff *skb)
+{
+	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	 * won't really free the packet.
+	 */
+	skb_queue_tail(&sp->xmit_queue, skb_get(skb));
+	kthread_queue_work(sp->xmit_worker, &sp->xmit_work);
+
+	return NULL;
+}
+
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct dsa_switch *ds = dp->ds;
-	u16 tx_vid = dsa_8021q_tx_vid(ds, dp->index);
+	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 
@@ -97,7 +109,7 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	 * is the .port_deferred_xmit driver callback.
 	 */
 	if (unlikely(sja1105_is_link_local(skb)))
-		return dsa_defer_xmit(skb, netdev);
+		return sja1105_defer_xmit(dp->priv, skb);
 
 	/* If we are under a vlan_filtering bridge, IP termination on
 	 * switch ports based on 802.1Q tags is simply too brittle to
@@ -238,14 +250,14 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 {
 	struct sja1105_meta meta = {0};
 	int source_port, switch_id;
-	struct vlan_ethhdr *hdr;
+	struct ethhdr *hdr;
 	u16 tpid, vid, tci;
 	bool is_link_local;
 	bool is_tagged;
 	bool is_meta;
 
-	hdr = vlan_eth_hdr(skb);
-	tpid = ntohs(hdr->h_vlan_proto);
+	hdr = eth_hdr(skb);
+	tpid = ntohs(hdr->h_proto);
 	is_tagged = (tpid == ETH_P_SJA1105);
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
@@ -254,7 +266,12 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	if (is_tagged) {
 		/* Normal traffic path. */
-		tci = ntohs(hdr->h_vlan_TCI);
+		skb_push_rcsum(skb, ETH_HLEN);
+		__skb_vlan_pop(skb, &tci);
+		skb_pull_rcsum(skb, ETH_HLEN);
+		skb_reset_network_header(skb);
+		skb_reset_transport_header(skb);
+
 		vid = tci & VLAN_VID_MASK;
 		source_port = dsa_8021q_rx_source_port(vid);
 		switch_id = dsa_8021q_rx_switch_id(vid);
@@ -282,12 +299,6 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
 	}
-
-	/* Delete/overwrite fake VLAN header, DSA expects to not find
-	 * it there, see dsa_switch_rcv: skb_push(skb, ETH_HLEN).
-	 */
-	if (is_tagged)
-		skb = dsa_8021q_remove_header(skb);
 
 	return sja1105_rcv_meta_state_machine(skb, &meta, is_link_local,
 					      is_meta);

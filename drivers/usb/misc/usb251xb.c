@@ -424,10 +424,6 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		return err;
 	}
 
-	hub->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(hub->vdd))
-		return PTR_ERR(hub->vdd);
-
 	if (of_property_read_u16_array(np, "vendor-id", &hub->vendor_id, 1))
 		hub->vendor_id = USB251XB_DEF_VENDOR_ID;
 
@@ -640,6 +636,13 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 }
 #endif /* CONFIG_OF */
 
+static void usb251xb_regulator_disable_action(void *data)
+{
+	struct usb251xb *hub = data;
+
+	regulator_disable(hub->vdd);
+}
+
 static int usb251xb_probe(struct usb251xb *hub)
 {
 	struct device *dev = hub->dev;
@@ -676,7 +679,16 @@ static int usb251xb_probe(struct usb251xb *hub)
 	if (err)
 		return err;
 
+	hub->vdd = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(hub->vdd))
+		return PTR_ERR(hub->vdd);
+
 	err = regulator_enable(hub->vdd);
+	if (err)
+		return err;
+
+	err = devm_add_action_or_reset(dev,
+				       usb251xb_regulator_disable_action, hub);
 	if (err)
 		return err;
 

@@ -48,6 +48,7 @@ struct reset_dom_info {
 };
 
 struct scmi_reset_info {
+	u32 version;
 	int num_domains;
 	struct reset_dom_info *dom_info;
 };
@@ -217,6 +218,7 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 		scmi_reset_domain_attributes_get(handle, domain, dom);
 	}
 
+	pinfo->version = version;
 	handle->reset_ops = &reset_ops;
 	handle->reset_priv = pinfo;
 

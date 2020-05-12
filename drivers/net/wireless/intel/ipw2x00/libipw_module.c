@@ -240,13 +240,12 @@ static ssize_t debug_level_proc_write(struct file *file,
 	return strnlen(buf, len);
 }
 
-static const struct file_operations debug_level_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= debug_level_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= debug_level_proc_write,
+static const struct proc_ops debug_level_proc_ops = {
+	.proc_open	= debug_level_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= debug_level_proc_write,
 };
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
@@ -263,7 +262,7 @@ static int __init libipw_init(void)
 		return -EIO;
 	}
 	e = proc_create("debug_level", 0644, libipw_proc,
-			&debug_level_proc_fops);
+			&debug_level_proc_ops);
 	if (!e) {
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);
 		libipw_proc = NULL;

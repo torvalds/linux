@@ -1553,7 +1553,7 @@ static netdev_tx_t alx_start_xmit(struct sk_buff *skb,
 	return alx_start_xmit_ring(skb, alx_tx_queue_mapping(alx, skb));
 }
 
-static void alx_tx_timeout(struct net_device *dev)
+static void alx_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct alx_priv *alx = netdev_priv(dev);
 

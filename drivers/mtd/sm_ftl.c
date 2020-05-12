@@ -247,7 +247,8 @@ static int sm_read_sector(struct sm_ftl *ftl,
 
 	/* FTL can contain -1 entries that are by default filled with bits */
 	if (block == -1) {
-		memset(buffer, 0xFF, SM_SECTOR_SIZE);
+		if (buffer)
+			memset(buffer, 0xFF, SM_SECTOR_SIZE);
 		return 0;
 	}
 

@@ -240,7 +240,7 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 			IWL_DEBUG_INFO(trans, "Rx queue requesting wakeup, GP1 = 0x%x\n",
 				       reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
-				    BIT(trans->trans_cfg->csr->flag_mac_access_req));
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			rxq->need_update = true;
 			return;
 		}
@@ -298,6 +298,7 @@ static void iwl_pcie_restock_bd(struct iwl_trans *trans,
 static void iwl_pcie_rxmq_restock(struct iwl_trans *trans,
 				  struct iwl_rxq *rxq)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_mem_buffer *rxb;
 
 	/*
@@ -318,8 +319,8 @@ static void iwl_pcie_rxmq_restock(struct iwl_trans *trans,
 				       list);
 		list_del(&rxb->list);
 		rxb->invalid = false;
-		/* 12 first bits are expected to be empty */
-		WARN_ON(rxb->page_dma & DMA_BIT_MASK(12));
+		/* some low bits are expected to be unset (depending on hw) */
+		WARN_ON(rxb->page_dma & trans_pcie->supported_dma_mask);
 		/* Point to Rx buffer via next RBD in circular buffer */
 		iwl_pcie_restock_bd(trans, rxq, rxb);
 		rxq->write = (rxq->write + 1) & (rxq->queue_size - 1);
@@ -412,14 +413,33 @@ void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
  *
  */
 static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
-					   gfp_t priority)
+					   u32 *offset, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned int rbsize = iwl_trans_get_rb_size(trans_pcie->rx_buf_size);
+	unsigned int allocsize = PAGE_SIZE << trans_pcie->rx_page_order;
 	struct page *page;
 	gfp_t gfp_mask = priority;
 
 	if (trans_pcie->rx_page_order > 0)
 		gfp_mask |= __GFP_COMP;
+
+	if (trans_pcie->alloc_page) {
+		spin_lock_bh(&trans_pcie->alloc_page_lock);
+		/* recheck */
+		if (trans_pcie->alloc_page) {
+			*offset = trans_pcie->alloc_page_used;
+			page = trans_pcie->alloc_page;
+			trans_pcie->alloc_page_used += rbsize;
+			if (trans_pcie->alloc_page_used >= allocsize)
+				trans_pcie->alloc_page = NULL;
+			else
+				get_page(page);
+			spin_unlock_bh(&trans_pcie->alloc_page_lock);
+			return page;
+		}
+		spin_unlock_bh(&trans_pcie->alloc_page_lock);
+	}
 
 	/* Alloc a new receive buffer */
 	page = alloc_pages(gfp_mask, trans_pcie->rx_page_order);
@@ -436,6 +456,18 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 				 "Failed to alloc_pages\n");
 		return NULL;
 	}
+
+	if (2 * rbsize <= allocsize) {
+		spin_lock_bh(&trans_pcie->alloc_page_lock);
+		if (!trans_pcie->alloc_page) {
+			get_page(page);
+			trans_pcie->alloc_page = page;
+			trans_pcie->alloc_page_used = rbsize;
+		}
+		spin_unlock_bh(&trans_pcie->alloc_page_lock);
+	}
+
+	*offset = 0;
 	return page;
 }
 
@@ -456,6 +488,8 @@ void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 	struct page *page;
 
 	while (1) {
+		unsigned int offset;
+
 		spin_lock(&rxq->lock);
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock(&rxq->lock);
@@ -463,8 +497,7 @@ void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 		}
 		spin_unlock(&rxq->lock);
 
-		/* Alloc a new receive buffer */
-		page = iwl_pcie_rx_alloc_page(trans, priority);
+		page = iwl_pcie_rx_alloc_page(trans, &offset, priority);
 		if (!page)
 			return;
 
@@ -482,10 +515,11 @@ void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 
 		BUG_ON(rxb->page);
 		rxb->page = page;
+		rxb->offset = offset;
 		/* Get physical address of the RB */
 		rxb->page_dma =
-			dma_map_page(trans->dev, page, 0,
-				     PAGE_SIZE << trans_pcie->rx_page_order,
+			dma_map_page(trans->dev, page, rxb->offset,
+				     trans_pcie->rx_buf_bytes,
 				     DMA_FROM_DEVICE);
 		if (dma_mapping_error(trans->dev, rxb->page_dma)) {
 			rxb->page = NULL;
@@ -510,12 +544,11 @@ void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < RX_POOL_SIZE; i++) {
+	for (i = 0; i < RX_POOL_SIZE(trans_pcie->num_rx_bufs); i++) {
 		if (!trans_pcie->rx_pool[i].page)
 			continue;
 		dma_unmap_page(trans->dev, trans_pcie->rx_pool[i].page_dma,
-			       PAGE_SIZE << trans_pcie->rx_page_order,
-			       DMA_FROM_DEVICE);
+			       trans_pcie->rx_buf_bytes, DMA_FROM_DEVICE);
 		__free_pages(trans_pcie->rx_pool[i].page,
 			     trans_pcie->rx_page_order);
 		trans_pcie->rx_pool[i].page = NULL;
@@ -568,15 +601,17 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 			BUG_ON(rxb->page);
 
 			/* Alloc a new receive buffer */
-			page = iwl_pcie_rx_alloc_page(trans, gfp_mask);
+			page = iwl_pcie_rx_alloc_page(trans, &rxb->offset,
+						      gfp_mask);
 			if (!page)
 				continue;
 			rxb->page = page;
 
 			/* Get physical address of the RB */
-			rxb->page_dma = dma_map_page(trans->dev, page, 0,
-					PAGE_SIZE << trans_pcie->rx_page_order,
-					DMA_FROM_DEVICE);
+			rxb->page_dma = dma_map_page(trans->dev, page,
+						     rxb->offset,
+						     trans_pcie->rx_buf_bytes,
+						     DMA_FROM_DEVICE);
 			if (dma_mapping_error(trans->dev, rxb->page_dma)) {
 				rxb->page = NULL;
 				__free_pages(page, trans_pcie->rx_page_order);
@@ -738,7 +773,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 
 	spin_lock_init(&rxq->lock);
 	if (trans->trans_cfg->mq_rx_supported)
-		rxq->queue_size = MQ_RX_TABLE_SIZE;
+		rxq->queue_size = trans->cfg->num_rbds;
 	else
 		rxq->queue_size = RX_QUEUE_SIZE;
 
@@ -807,8 +842,18 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 
 	trans_pcie->rxq = kcalloc(trans->num_rx_queues, sizeof(struct iwl_rxq),
 				  GFP_KERNEL);
-	if (!trans_pcie->rxq)
-		return -ENOMEM;
+	trans_pcie->rx_pool = kcalloc(RX_POOL_SIZE(trans_pcie->num_rx_bufs),
+				      sizeof(trans_pcie->rx_pool[0]),
+				      GFP_KERNEL);
+	trans_pcie->global_table =
+		kcalloc(RX_POOL_SIZE(trans_pcie->num_rx_bufs),
+			sizeof(trans_pcie->global_table[0]),
+			GFP_KERNEL);
+	if (!trans_pcie->rxq || !trans_pcie->rx_pool ||
+	    !trans_pcie->global_table) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	spin_lock_init(&rba->lock);
 
@@ -845,6 +890,8 @@ err:
 		trans_pcie->base_rb_stts = NULL;
 		trans_pcie->base_rb_stts_dma = 0;
 	}
+	kfree(trans_pcie->rx_pool);
+	kfree(trans_pcie->global_table);
 	kfree(trans_pcie->rxq);
 
 	return ret;
@@ -1081,12 +1128,11 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	/* move the pool to the default queue and allocator ownerships */
 	queue_size = trans->trans_cfg->mq_rx_supported ?
-		     MQ_RX_NUM_RBDS : RX_QUEUE_SIZE;
+			trans_pcie->num_rx_bufs - 1 : RX_QUEUE_SIZE;
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
-	BUILD_BUG_ON(ARRAY_SIZE(trans_pcie->global_table) !=
-		     ARRAY_SIZE(trans_pcie->rx_pool));
+
 	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
 
@@ -1177,7 +1223,12 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 		if (rxq->napi.poll)
 			netif_napi_del(&rxq->napi);
 	}
+	kfree(trans_pcie->rx_pool);
+	kfree(trans_pcie->global_table);
 	kfree(trans_pcie->rxq);
+
+	if (trans_pcie->alloc_page)
+		__free_pages(trans_pcie->alloc_page, trans_pcie->rx_page_order);
 }
 
 static void iwl_pcie_rx_move_to_allocator(struct iwl_rxq *rxq,
@@ -1235,7 +1286,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 	bool page_stolen = false;
-	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
+	int max_len = trans_pcie->rx_buf_bytes;
 	u32 offset = 0;
 
 	if (WARN_ON(!rxb))
@@ -1249,7 +1300,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		bool reclaim;
 		int index, cmd_index, len;
 		struct iwl_rx_cmd_buffer rxcb = {
-			._offset = offset,
+			._offset = rxb->offset + offset,
 			._rx_page_order = trans_pcie->rx_page_order,
 			._page = rxb->page,
 			._page_stolen = false,
@@ -1355,8 +1406,8 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 	 * rx_free list for reuse later. */
 	if (rxb->page != NULL) {
 		rxb->page_dma =
-			dma_map_page(trans->dev, rxb->page, 0,
-				     PAGE_SIZE << trans_pcie->rx_page_order,
+			dma_map_page(trans->dev, rxb->page, rxb->offset,
+				     trans_pcie->rx_buf_bytes,
 				     DMA_FROM_DEVICE);
 		if (dma_mapping_error(trans->dev, rxb->page_dma)) {
 			/*
@@ -1390,13 +1441,12 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 		return rxb;
 	}
 
-	/* used_bd is a 32/16 bit but only 12 are used to retrieve the vid */
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		vid = le16_to_cpu(rxq->cd[i].rbid) & 0x0FFF;
+		vid = le16_to_cpu(rxq->cd[i].rbid);
 	else
-		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF;
+		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF; /* 12-bit VID */
 
-	if (!vid || vid > ARRAY_SIZE(trans_pcie->global_table))
+	if (!vid || vid > RX_POOL_SIZE(trans_pcie->num_rx_bufs))
 		goto out_err;
 
 	rxb = trans_pcie->global_table[vid - 1];
@@ -1529,13 +1579,13 @@ out:
 
 	napi = &rxq->napi;
 	if (napi->poll) {
+		napi_gro_flush(napi, false);
+
 		if (napi->rx_count) {
 			netif_receive_skb_list(&napi->rx_list);
 			INIT_LIST_HEAD(&napi->rx_list);
 			napi->rx_count = 0;
 		}
-
-		napi_gro_flush(napi, false);
 	}
 
 	iwl_pcie_rxq_restock(trans, rxq);

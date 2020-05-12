@@ -3,6 +3,7 @@ obj-$(CONFIG_VIDEO_HANTRO) += hantro-vpu.o
 hantro-vpu-y += \
 		hantro_drv.o \
 		hantro_v4l2.o \
+		hantro_postproc.o \
 		hantro_h1_jpeg_enc.o \
 		hantro_g1_h264_dec.o \
 		hantro_g1_mpeg2_dec.o \

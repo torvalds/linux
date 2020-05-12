@@ -75,7 +75,7 @@ static int __init compute_node_distance(int row, int col)
 				loongson_sysconf.cores_per_package;
 
 	if (col == row)
-		return 0;
+		return LOCAL_DISTANCE;
 	else if (package_row == package_col)
 		return 40;
 	else

@@ -127,7 +127,7 @@ struct drm_i915_mocs_table {
 		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
 		   L3_3_WB)
 
-static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
+static const struct drm_i915_mocs_entry skl_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
 	MOCS_ENTRY(I915_MOCS_CACHED,
 		   LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
@@ -233,7 +233,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		   L3_1_UC)
 
-static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
+static const struct drm_i915_mocs_entry tgl_mocs_table[] = {
 	/* Base - Error (Reserved for Non-Use) */
 	MOCS_ENTRY(0, 0x0, 0x0),
 	/* Base - Reserved */
@@ -267,7 +267,7 @@ static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
 		   L3_3_WB),
 };
 
-static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 	/* Base - Uncached (Deprecated) */
 	MOCS_ENTRY(I915_MOCS_UNCACHED,
 		   LE_1_UC | LE_TC_1_LLC,
@@ -283,65 +283,42 @@ static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
 static bool get_mocs_settings(const struct drm_i915_private *i915,
 			      struct drm_i915_mocs_table *table)
 {
-	bool result = false;
-
 	if (INTEL_GEN(i915) >= 12) {
-		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
-		table->table = tigerlake_mocs_table;
+		table->size  = ARRAY_SIZE(tgl_mocs_table);
+		table->table = tgl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
-		result = true;
 	} else if (IS_GEN(i915, 11)) {
-		table->size  = ARRAY_SIZE(icelake_mocs_table);
-		table->table = icelake_mocs_table;
+		table->size  = ARRAY_SIZE(icl_mocs_table);
+		table->table = icl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
-		result = true;
 	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
-		table->size  = ARRAY_SIZE(skylake_mocs_table);
+		table->size  = ARRAY_SIZE(skl_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		table->table = skylake_mocs_table;
-		result = true;
+		table->table = skl_mocs_table;
 	} else if (IS_GEN9_LP(i915)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = broxton_mocs_table;
-		result = true;
 	} else {
 		WARN_ONCE(INTEL_GEN(i915) >= 9,
 			  "Platform that should have a MOCS table does not.\n");
+		return false;
 	}
+
+	if (GEM_DEBUG_WARN_ON(table->size > table->n_entries))
+		return false;
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
 	if (IS_GEN(i915, 9)) {
 		int i;
 
 		for (i = 0; i < table->size; i++)
-			if (WARN_ON(table->table[i].l3cc_value &
-				    (L3_ESC(1) | L3_SCC(0x7))))
+			if (GEM_DEBUG_WARN_ON(table->table[i].l3cc_value &
+					      (L3_ESC(1) | L3_SCC(0x7))))
 				return false;
 	}
 
-	return result;
-}
-
-static i915_reg_t mocs_register(const struct intel_engine_cs *engine, int index)
-{
-	switch (engine->id) {
-	case RCS0:
-		return GEN9_GFX_MOCS(index);
-	case VCS0:
-		return GEN9_MFX0_MOCS(index);
-	case BCS0:
-		return GEN9_BLT_MOCS(index);
-	case VECS0:
-		return GEN9_VEBOX_MOCS(index);
-	case VCS1:
-		return GEN9_MFX1_MOCS(index);
-	case VCS2:
-		return GEN11_MFX2_MOCS(index);
-	default:
-		MISSING_CASE(engine->id);
-		return INVALID_MMIO_REG;
-	}
+	return true;
 }
 
 /*
@@ -351,29 +328,47 @@ static i915_reg_t mocs_register(const struct intel_engine_cs *engine, int index)
 static u32 get_entry_control(const struct drm_i915_mocs_table *table,
 			     unsigned int index)
 {
-	if (table->table[index].used)
+	if (index < table->size && table->table[index].used)
 		return table->table[index].control_value;
 
 	return table->table[I915_MOCS_PTE].control_value;
 }
 
+#define for_each_mocs(mocs, t, i) \
+	for (i = 0; \
+	     i < (t)->n_entries ? (mocs = get_entry_control((t), i)), 1 : 0;\
+	     i++)
+
+static void __init_mocs_table(struct intel_uncore *uncore,
+			      const struct drm_i915_mocs_table *table,
+			      u32 addr)
+{
+	unsigned int i;
+	u32 mocs;
+
+	for_each_mocs(mocs, table, i)
+		intel_uncore_write_fw(uncore, _MMIO(addr + i * 4), mocs);
+}
+
+static u32 mocs_offset(const struct intel_engine_cs *engine)
+{
+	static const u32 offset[] = {
+		[RCS0]  =  __GEN9_RCS0_MOCS0,
+		[VCS0]  =  __GEN9_VCS0_MOCS0,
+		[VCS1]  =  __GEN9_VCS1_MOCS0,
+		[VECS0] =  __GEN9_VECS0_MOCS0,
+		[BCS0]  =  __GEN9_BCS0_MOCS0,
+		[VCS2]  = __GEN11_VCS2_MOCS0,
+	};
+
+	GEM_BUG_ON(engine->id >= ARRAY_SIZE(offset));
+	return offset[engine->id];
+}
+
 static void init_mocs_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table)
 {
-	struct intel_uncore *uncore = engine->uncore;
-	u32 unused_value = table->table[I915_MOCS_PTE].control_value;
-	unsigned int i;
-
-	for (i = 0; i < table->size; i++)
-		intel_uncore_write_fw(uncore,
-				      mocs_register(engine, i),
-				      get_entry_control(table, i));
-
-	/* All remaining entries are unused */
-	for (; i < table->n_entries; i++)
-		intel_uncore_write_fw(uncore,
-				      mocs_register(engine, i),
-				      unused_value);
+	__init_mocs_table(engine->uncore, table, mocs_offset(engine));
 }
 
 /*
@@ -383,51 +378,34 @@ static void init_mocs_table(struct intel_engine_cs *engine,
 static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
 			  unsigned int index)
 {
-	if (table->table[index].used)
+	if (index < table->size && table->table[index].used)
 		return table->table[index].l3cc_value;
 
 	return table->table[I915_MOCS_PTE].l3cc_value;
 }
 
-static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
-			       u16 low,
-			       u16 high)
+static inline u32 l3cc_combine(u16 low, u16 high)
 {
 	return low | (u32)high << 16;
 }
+
+#define for_each_l3cc(l3cc, t, i) \
+	for (i = 0; \
+	     i < ((t)->n_entries + 1) / 2 ? \
+	     (l3cc = l3cc_combine(get_entry_l3cc((t), 2 * i), \
+				  get_entry_l3cc((t), 2 * i + 1))), 1 : \
+	     0; \
+	     i++)
 
 static void init_l3cc_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table)
 {
 	struct intel_uncore *uncore = engine->uncore;
-	u16 unused_value = table->table[I915_MOCS_PTE].l3cc_value;
 	unsigned int i;
+	u32 l3cc;
 
-	for (i = 0; i < table->size / 2; i++) {
-		u16 low = get_entry_l3cc(table, 2 * i);
-		u16 high = get_entry_l3cc(table, 2 * i + 1);
-
-		intel_uncore_write(uncore,
-				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, low, high));
-	}
-
-	/* Odd table size - 1 left over */
-	if (table->size & 1) {
-		u16 low = get_entry_l3cc(table, 2 * i);
-
-		intel_uncore_write(uncore,
-				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, low, unused_value));
-		i++;
-	}
-
-	/* All remaining entries are also unused */
-	for (; i < table->n_entries / 2; i++)
-		intel_uncore_write(uncore,
-				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, unused_value,
-						unused_value));
+	for_each_l3cc(l3cc, table, i)
+		intel_uncore_write_fw(uncore, GEN9_LNCFCMOCS(i), l3cc);
 }
 
 void intel_mocs_init_engine(struct intel_engine_cs *engine)
@@ -448,11 +426,14 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 		init_l3cc_table(engine, &table);
 }
 
-static void intel_mocs_init_global(struct intel_gt *gt)
+static u32 global_mocs_offset(void)
 {
-	struct intel_uncore *uncore = gt->uncore;
+	return i915_mmio_reg_offset(GEN12_GLOBAL_MOCS(0));
+}
+
+static void init_global_mocs(struct intel_gt *gt)
+{
 	struct drm_i915_mocs_table table;
-	unsigned int index;
 
 	/*
 	 * LLC and eDRAM control values are not applicable to dgfx
@@ -460,32 +441,18 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	if (IS_DGFX(gt->i915))
 		return;
 
-	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
-
 	if (!get_mocs_settings(gt->i915, &table))
 		return;
 
-	if (GEM_DEBUG_WARN_ON(table.size > table.n_entries))
-		return;
-
-	for (index = 0; index < table.size; index++)
-		intel_uncore_write(uncore,
-				   GEN12_GLOBAL_MOCS(index),
-				   table.table[index].control_value);
-
-	/*
-	 * Ok, now set the unused entries to the invalid entry (index 0). These
-	 * entries are officially undefined and no contract for the contents and
-	 * settings is given for these entries.
-	 */
-	for (; index < table.n_entries; index++)
-		intel_uncore_write(uncore,
-				   GEN12_GLOBAL_MOCS(index),
-				   table.table[0].control_value);
+	__init_mocs_table(gt->uncore, &table, global_mocs_offset());
 }
 
 void intel_mocs_init(struct intel_gt *gt)
 {
 	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
-		intel_mocs_init_global(gt);
+		init_global_mocs(gt);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_mocs.c"
+#endif

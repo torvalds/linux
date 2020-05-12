@@ -91,6 +91,12 @@ struct samsung_spdif_info {
 static struct snd_dmaengine_dai_dma_data spdif_stereo_out;
 static struct samsung_spdif_info spdif_info;
 
+static inline struct samsung_spdif_info
+*component_to_info(struct snd_soc_component *component)
+{
+	return snd_soc_component_get_drvdata(component);
+}
+
 static inline struct samsung_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
 {
 	return snd_soc_dai_get_drvdata(cpu_dai);
@@ -290,9 +296,9 @@ static void spdif_shutdown(struct snd_pcm_substream *substream,
 }
 
 #ifdef CONFIG_PM
-static int spdif_suspend(struct snd_soc_dai *cpu_dai)
+static int spdif_suspend(struct snd_soc_component *component)
 {
-	struct samsung_spdif_info *spdif = to_info(cpu_dai);
+	struct samsung_spdif_info *spdif = component_to_info(component);
 	u32 con = spdif->saved_con;
 
 	dev_dbg(spdif->dev, "Entered %s\n", __func__);
@@ -307,9 +313,9 @@ static int spdif_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int spdif_resume(struct snd_soc_dai *cpu_dai)
+static int spdif_resume(struct snd_soc_component *component)
 {
-	struct samsung_spdif_info *spdif = to_info(cpu_dai);
+	struct samsung_spdif_info *spdif = component_to_info(component);
 
 	dev_dbg(spdif->dev, "Entered %s\n", __func__);
 
@@ -343,12 +349,12 @@ static struct snd_soc_dai_driver samsung_spdif_dai = {
 				SNDRV_PCM_RATE_96000),
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.ops = &spdif_dai_ops,
-	.suspend = spdif_suspend,
-	.resume = spdif_resume,
 };
 
 static const struct snd_soc_component_driver samsung_spdif_component = {
 	.name		= "samsung-spdif",
+	.suspend	= spdif_suspend,
+	.resume		= spdif_resume,
 };
 
 static int spdif_probe(struct platform_device *pdev)

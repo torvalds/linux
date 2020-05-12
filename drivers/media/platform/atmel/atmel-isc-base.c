@@ -73,6 +73,9 @@ const struct isc_format controller_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_GREY,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_Y10,
+	},
 };
 
 /* This is a list of formats that the ISC can receive as *input* */
@@ -164,6 +167,12 @@ struct isc_format formats_list[] = {
 		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_Y10,
+		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
+	},
+
 };
 
 /* Gamma table with gamma 1/2.2 */
@@ -210,6 +219,10 @@ const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
 
 #define ISC_IS_FORMAT_RAW(mbus_code) \
 	(((mbus_code) & 0xf000) == 0x3000)
+
+#define ISC_IS_FORMAT_GREY(mbus_code) \
+	(((mbus_code) == MEDIA_BUS_FMT_Y10_1X10) | \
+	(((mbus_code) == MEDIA_BUS_FMT_Y8_1X8)))
 
 static inline void isc_update_awb_ctrls(struct isc_device *isc)
 {
@@ -1003,6 +1016,7 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		rgb = true;
 		break;
 	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
 		ret = 0;
 		grey = true;
 		break;
@@ -1010,15 +1024,18 @@ static int isc_try_validate_formats(struct isc_device *isc)
 	/* any other different formats are not supported */
 		ret = -EINVAL;
 	}
-
-	/* we cannot output RAW/Grey if we do not receive RAW */
-	if ((bayer || grey) &&
-	    !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
-		return -EINVAL;
-
 	v4l2_dbg(1, debug, &isc->v4l2_dev,
 		 "Format validation, requested rgb=%u, yuv=%u, grey=%u, bayer=%u\n",
 		 rgb, yuv, grey, bayer);
+
+	/* we cannot output RAW if we do not receive RAW */
+	if ((bayer) && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
+		return -EINVAL;
+
+	/* we cannot output GREY if we do not receive RAW/GREY */
+	if (grey && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code) &&
+	    !ISC_IS_FORMAT_GREY(isc->try_config.sd_format->mbus_code))
+		return -EINVAL;
 
 	return ret;
 }
@@ -1026,18 +1043,10 @@ static int isc_try_validate_formats(struct isc_device *isc)
 /*
  * Configures the RLP and DMA modules, depending on the output format
  * configured for the ISC.
- * If direct_dump == true, just dump raw data 8 bits.
+ * If direct_dump == true, just dump raw data 8/16 bits depending on format.
  */
 static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 {
-	if (direct_dump) {
-		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DAT8;
-		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
-		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
-		isc->try_config.bpp = 16;
-		return 0;
-	}
-
 	switch (isc->try_config.fourcc) {
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGBRG8:
@@ -1115,9 +1124,23 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 8;
 		break;
+	case V4L2_PIX_FMT_Y10:
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY10;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		isc->try_config.bpp = 16;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (direct_dump) {
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DAT8;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		return 0;
+	}
+
 	return 0;
 }
 
@@ -1187,13 +1210,44 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 	return 0;
 }
 
+static void isc_try_fse(struct isc_device *isc,
+			struct v4l2_subdev_pad_config *pad_cfg)
+{
+	int ret;
+	struct v4l2_subdev_frame_size_enum fse = {};
+
+	/*
+	 * If we do not know yet which format the subdev is using, we cannot
+	 * do anything.
+	 */
+	if (!isc->try_config.sd_format)
+		return;
+
+	fse.code = isc->try_config.sd_format->mbus_code;
+	fse.which = V4L2_SUBDEV_FORMAT_TRY;
+
+	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
+			       pad_cfg, &fse);
+	/*
+	 * Attempt to obtain format size from subdev. If not available,
+	 * just use the maximum ISC can receive.
+	 */
+	if (ret) {
+		pad_cfg->try_crop.width = ISC_MAX_SUPPORT_WIDTH;
+		pad_cfg->try_crop.height = ISC_MAX_SUPPORT_HEIGHT;
+	} else {
+		pad_cfg->try_crop.width = fse.max_width;
+		pad_cfg->try_crop.height = fse.max_height;
+	}
+}
+
 static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 			u32 *code)
 {
 	int i;
 	struct isc_format *sd_fmt = NULL, *direct_fmt = NULL;
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
-	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_pad_config pad_cfg = {};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1289,6 +1343,9 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	ret = isc_try_configure_pipeline(isc);
 	if (ret)
 		goto isc_try_fmt_err;
+
+	/* Obtain frame sizes if possible to have crop requirements ready */
+	isc_try_fse(isc, &pad_cfg);
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, mbus_code);
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, set_fmt,
@@ -1414,6 +1471,7 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 {
 	struct isc_device *isc = video_drvdata(file);
 	struct v4l2_subdev_frame_size_enum fse = {
+		.code = isc->config.sd_format->mbus_code,
 		.index = fsize->index,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
@@ -1436,8 +1494,6 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	fse.code = isc->config.sd_format->mbus_code;
-
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fsize->discrete.width = fse.max_width;
 	fsize->discrete.height = fse.max_height;
@@ -1450,6 +1506,7 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 {
 	struct isc_device *isc = video_drvdata(file);
 	struct v4l2_subdev_frame_interval_enum fie = {
+		.code = isc->config.sd_format->mbus_code,
 		.index = fival->index,
 		.width = fival->width,
 		.height = fival->height,
@@ -1474,7 +1531,6 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	fie.code = isc->config.sd_format->mbus_code;
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fival->discrete = fie.interval;
 

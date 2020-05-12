@@ -18,7 +18,7 @@
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
- * |                              |                    | 0x212a-0x2130  |
+ * |                              |                    | 0x212a-0x2134  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
@@ -2518,12 +2518,6 @@ qla83xx_fw_dump_failed:
 /****************************************************************************/
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
-
-static inline int
-ql_mask_match(uint level)
-{
-	return (level & ql2xextended_error_logging) == level;
-}
 
 /*
  * This function is for formatting and logging debug information.

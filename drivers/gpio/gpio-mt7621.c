@@ -253,8 +253,7 @@ mediatek_gpio_bank_probe(struct device *dev,
 
 		/*
 		 * Directly request the irq here instead of passing
-		 * a flow-handler to gpiochip_set_chained_irqchip,
-		 * because the irq is shared.
+		 * a flow-handler because the irq is shared.
 		 */
 		ret = devm_request_irq(dev, mtk->gpio_irq,
 				       mediatek_gpio_irq_handler, IRQF_SHARED,

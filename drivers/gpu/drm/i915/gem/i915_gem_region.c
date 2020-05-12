@@ -85,7 +85,7 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 		}
 
 		prev_end = offset + block_size;
-	};
+	}
 
 	sg_page_sizes |= sg->length;
 	sg_mark_end(sg);
@@ -107,7 +107,10 @@ void i915_gem_object_init_memory_region(struct drm_i915_gem_object *obj,
 {
 	INIT_LIST_HEAD(&obj->mm.blocks);
 	obj->mm.region = intel_memory_region_get(mem);
+
 	obj->flags |= flags;
+	if (obj->base.size <= mem->min_page_size)
+		obj->flags |= I915_BO_ALLOC_CONTIGUOUS;
 
 	mutex_lock(&mem->objects.lock);
 

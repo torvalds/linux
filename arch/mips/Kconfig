@@ -5,9 +5,11 @@ config MIPS
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
 	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_HAS_FORTIFY_SOURCE
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -15,7 +17,7 @@ config MIPS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select BUILDTIME_EXTABLE_SORT
+	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
@@ -47,7 +49,7 @@ config MIPS
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_EBPF_JIT if 64BIT && !CPU_MICROMIPS && TARGET_ISA_REV >= 2
+	select HAVE_CBPF_JIT if !64BIT && !CPU_MICROMIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
@@ -55,11 +57,14 @@ config MIPS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_EBPF_JIT if 64BIT && !CPU_MICROMIPS && TARGET_ISA_REV >= 2
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
+	select HAVE_GCC_PLUGINS
+	select HAVE_GENERIC_VDSO
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
@@ -78,18 +83,14 @@ config MIPS
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
-	select HAVE_GENERIC_VDSO
 	select IRQ_FORCED_THREADING
 	select ISA if EISA
-	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select MODULES_USE_ELF_REL if MODULES
+	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
-	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
-	select ARCH_HAS_KCOV
-	select HAVE_GCC_PLUGINS
 
 menu "Machine selection"
 
@@ -104,20 +105,18 @@ config MIPS_GENERIC
 	select CEVT_R4K
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
-	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
+	select CPU_MIPSR2_IRQ_VI
 	select CSRC_R4K
 	select DMA_PERDEV_COHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NO_EXCEPT_FILL
 	select PCI_DRIVERS_GENERIC
-	select PINCTRL
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
@@ -132,11 +131,12 @@ config MIPS_GENERIC
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
-	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_SMARTMIPS
+	select UHI_BOOT
 	select USB_EHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
@@ -144,7 +144,6 @@ config MIPS_GENERIC
 	select USB_UHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
-	select UHI_BOOT
 	help
 	  Select this to build a kernel which aims to support multiple boards,
 	  generally using a flattened device tree passed from the bootloader
@@ -403,7 +402,6 @@ config MACH_INGENIC
 	select GENERIC_IRQ_CHIP
 	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
 	select USE_OF
-	select LIBFDT
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -510,7 +508,6 @@ config MACH_PISTACHIO
 	select DMA_NONCOHERENT
 	select GPIOLIB
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MFD_SYSCON
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -548,7 +545,6 @@ config MIPS_MALTA
 	select I8253
 	select I8259
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -980,7 +976,6 @@ config CAVIUM_OCTEON_SOC
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
 	select GPIOLIB
-	select LIBFDT
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_SMP
@@ -1223,8 +1218,7 @@ config NO_IOPORT_MAP
 	def_bool n
 
 config GENERIC_CSUM
-	bool
-	default y if !CPU_HAS_LOAD_STORE_LR
+	def_bool CPU_NO_LOAD_STORE_LR
 
 config GENERIC_ISA_DMA
 	bool
@@ -1442,11 +1436,14 @@ config CPU_LOONGSON64
 	bool "Loongson 64-bit CPU"
 	depends on SYS_HAS_CPU_LOONGSON64
 	select ARCH_HAS_PHYS_TO_DMA
+	select CPU_MIPSR2
+	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
-	select CPU_HAS_LOAD_STORE_LR
+	select CPU_DIEI_BROKEN if !LOONGSON3_ENHANCEMENT
+	select CPU_MIPSR2_IRQ_VI
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select MIPS_ASID_BITS_VARIABLE
@@ -1464,8 +1461,6 @@ config CPU_LOONGSON64
 config LOONGSON3_ENHANCEMENT
 	bool "New Loongson-3 CPU Enhancements"
 	default n
-	select CPU_MIPSR2
-	select CPU_HAS_PREFETCH
 	depends on CPU_LOONGSON64
 	help
 	  New Loongson-3 cores (since Loongson-3A R2, as opposed to Loongson-3A
@@ -1542,7 +1537,6 @@ config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1560,7 +1554,6 @@ config CPU_MIPS32_R2
 	bool "MIPS32 Release 2"
 	depends on SYS_HAS_CPU_MIPS32_R2
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
@@ -1576,6 +1569,7 @@ config CPU_MIPS32_R6
 	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
 	select CPU_HAS_PREFETCH
+	select CPU_NO_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
@@ -1591,7 +1585,6 @@ config CPU_MIPS64_R1
 	bool "MIPS64 Release 1"
 	depends on SYS_HAS_CPU_MIPS64_R1
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1611,7 +1604,6 @@ config CPU_MIPS64_R2
 	bool "MIPS64 Release 2"
 	depends on SYS_HAS_CPU_MIPS64_R2
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1629,6 +1621,7 @@ config CPU_MIPS64_R6
 	bool "MIPS64 Release 6"
 	depends on SYS_HAS_CPU_MIPS64_R6
 	select CPU_HAS_PREFETCH
+	select CPU_NO_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1646,7 +1639,6 @@ config CPU_R3000
 	bool "R3000"
 	depends on SYS_HAS_CPU_R3000
 	select CPU_HAS_WB
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_R3K_TLB
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1662,7 +1654,6 @@ config CPU_TX39XX
 	bool "R39XX"
 	depends on SYS_HAS_CPU_TX39XX
 	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_R3K_TLB
 
 config CPU_VR41XX
@@ -1670,7 +1661,6 @@ config CPU_VR41XX
 	depends on SYS_HAS_CPU_VR41XX
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  The options selects support for the NEC VR4100 series of processors.
 	  Only choose this option if you have one of these processors as a
@@ -1683,7 +1673,6 @@ config CPU_R4X00
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R4000-series processors other than 4300, including
 	  the R4000, R4400, R4600, and 4700.
@@ -1692,7 +1681,6 @@ config CPU_TX49XX
 	bool "R49XX"
 	depends on SYS_HAS_CPU_TX49XX
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
@@ -1703,7 +1691,6 @@ config CPU_R5000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
@@ -1713,7 +1700,6 @@ config CPU_R5500
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
 	  instruction set.
@@ -1724,7 +1710,6 @@ config CPU_NEVADA
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
 
@@ -1732,7 +1717,6 @@ config CPU_R10000
 	bool "R10000"
 	depends on SYS_HAS_CPU_R10000
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1744,7 +1728,6 @@ config CPU_RM7000
 	bool "RM7000"
 	depends on SYS_HAS_CPU_RM7000
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1753,7 +1736,6 @@ config CPU_RM7000
 config CPU_SB1
 	bool "SB1"
 	depends on SYS_HAS_CPU_SB1
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1764,7 +1746,6 @@ config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
@@ -1794,7 +1775,6 @@ config CPU_BMIPS
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_CPUFREQ
 	select MIPS_EXTERNAL_TIMER
 	help
@@ -1803,7 +1783,6 @@ config CPU_BMIPS
 config CPU_XLR
 	bool "Netlogic XLR SoC"
 	depends on SYS_HAS_CPU_XLR
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1822,7 +1801,6 @@ config CPU_XLP
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_MIPSR2
 	select CPU_SUPPORTS_HUGEPAGES
 	select MIPS_ASID_BITS_VARIABLE
@@ -1928,14 +1906,12 @@ config CPU_LOONGSON2EF
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select ARCH_HAS_PHYS_TO_DMA
-	select CPU_HAS_LOAD_STORE_LR
 
 config CPU_LOONGSON32
 	bool
 	select CPU_MIPS32
 	select CPU_MIPSR2
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_CPUFREQ
@@ -2110,12 +2086,14 @@ config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
 	select CPU_HAS_RIXI
+	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
 	select MIPS_SPRAM
 
 config CPU_MIPSR6
 	bool
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
 	select CPU_HAS_RIXI
+	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
 	select HAVE_ARCH_BITREVERSE
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_CRC_SUPPORT
@@ -2575,15 +2553,23 @@ config CPU_HAS_WB
 config XKS01
 	bool
 
+config CPU_HAS_DIEI
+	depends on !CPU_DIEI_BROKEN
+	bool
+
+config CPU_DIEI_BROKEN
+	bool
+
 config CPU_HAS_RIXI
 	bool
 
-config CPU_HAS_LOAD_STORE_LR
+config CPU_NO_LOAD_STORE_LR
 	bool
 	help
-	  CPU has support for unaligned load and store instructions:
+	  CPU lacks support for unaligned load and store instructions:
 	  LWL, LWR, SWL, SWR (Load/store word left/right).
-	  LDL, LDR, SDL, SDR (Load/store doubleword left/right, for 64bit systems).
+	  LDL, LDR, SDL, SDR (Load/store doubleword left/right, for 64bit
+	  systems).
 
 #
 # Vectored interrupt mode is an R2 feature
@@ -2695,6 +2681,14 @@ config NUMA
 
 config SYS_SUPPORTS_NUMA
 	bool
+
+config HAVE_SETUP_PER_CPU_AREA
+	def_bool y
+	depends on NUMA
+
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool y
+	depends on NUMA
 
 config RELOCATABLE
 	bool "Relocatable kernel"

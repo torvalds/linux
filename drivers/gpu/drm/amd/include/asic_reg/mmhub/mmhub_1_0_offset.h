@@ -1964,4 +1964,20 @@
 #define mmATC_L2_PERFCOUNTER_RSLT_CNTL                                                                 0x084a
 #define mmATC_L2_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                        0
 
+/* MMEA */
+#define mmMMEA0_EDC_CNT_VG20                                                                           0x0206
+#define mmMMEA0_EDC_CNT_VG20_BASE_IDX                                                                  0
+#define mmMMEA0_EDC_CNT2_VG20                                                                          0x0207
+#define mmMMEA0_EDC_CNT2_VG20_BASE_IDX                                                                 0
+#define mmMMEA1_EDC_CNT_VG20                                                                           0x0346
+#define mmMMEA1_EDC_CNT_VG20_BASE_IDX                                                                  0
+#define mmMMEA1_EDC_CNT2_VG20                                                                          0x0347
+#define mmMMEA1_EDC_CNT2_VG20_BASE_IDX                                                                 0
+
+// addressBlock: mmhub_utcl2_vmsharedpfdec
+// base address: 0x6a040
+#define mmMC_VM_XGMI_LFB_CNTL                                                                          0x0823
+#define mmMC_VM_XGMI_LFB_CNTL_BASE_IDX                                                                 0
+#define mmMC_VM_XGMI_LFB_SIZE                                                                          0x0824
+#define mmMC_VM_XGMI_LFB_SIZE_BASE_IDX                                                                 0
 #endif

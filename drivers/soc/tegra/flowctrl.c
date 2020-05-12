@@ -219,7 +219,7 @@ static int __init tegra_flowctrl_init(void)
 		return 0;
 	}
 
-	tegra_flowctrl_base = ioremap_nocache(res.start, resource_size(&res));
+	tegra_flowctrl_base = ioremap(res.start, resource_size(&res));
 	if (!tegra_flowctrl_base)
 		return -ENXIO;
 

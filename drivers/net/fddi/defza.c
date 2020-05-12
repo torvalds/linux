@@ -1318,7 +1318,7 @@ static int fza_probe(struct device *bdev)
 	}
 
 	/* MMIO mapping setup. */
-	mmio = ioremap_nocache(start, len);
+	mmio = ioremap(start, len);
 	if (!mmio) {
 		pr_err("%s: cannot map MMIO\n", fp->name);
 		ret = -ENOMEM;

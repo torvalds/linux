@@ -743,4 +743,6 @@ static struct kunit_suite list_test_module = {
 	.test_cases = list_test_cases,
 };
 
-kunit_test_suite(list_test_module);
+kunit_test_suites(&list_test_module);
+
+MODULE_LICENSE("GPL v2");

@@ -30,6 +30,7 @@ static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
 
 const char *
 nvkm_subdev_name[NVKM_SUBDEV_NR] = {
+	[NVKM_SUBDEV_ACR     ] = "acr",
 	[NVKM_SUBDEV_BAR     ] = "bar",
 	[NVKM_SUBDEV_VBIOS   ] = "bios",
 	[NVKM_SUBDEV_BUS     ] = "bus",
@@ -50,7 +51,6 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_MXM     ] = "mxm",
 	[NVKM_SUBDEV_PCI     ] = "pci",
 	[NVKM_SUBDEV_PMU     ] = "pmu",
-	[NVKM_SUBDEV_SECBOOT ] = "secboot",
 	[NVKM_SUBDEV_THERM   ] = "therm",
 	[NVKM_SUBDEV_TIMER   ] = "tmr",
 	[NVKM_SUBDEV_TOP     ] = "top",

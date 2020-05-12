@@ -23,7 +23,7 @@ $(objtree)/$(obj)/randomize_layout_seed.h: FORCE
 targets = randomize_layout_seed.h randomize_layout_hash.h
 
 $(HOSTLIBS)-y := $(foreach p,$(GCC_PLUGIN),$(if $(findstring /,$(p)),,$(p)))
-always := $($(HOSTLIBS)-y)
+always-y := $($(HOSTLIBS)-y)
 
 $(foreach p,$($(HOSTLIBS)-y:%.so=%),$(eval $(p)-objs := $(p).o))
 

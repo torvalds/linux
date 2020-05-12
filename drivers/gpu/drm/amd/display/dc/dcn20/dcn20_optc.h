@@ -86,12 +86,10 @@ void optc2_set_gsl_source_select(struct timing_generator *optc,
 		int group_idx,
 		uint32_t gsl_ready_signal);
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 void optc2_set_dsc_config(struct timing_generator *optc,
 					enum optc_dsc_mode dsc_mode,
 					uint32_t dsc_bytes_per_pixel,
 					uint32_t dsc_slice_width);
-#endif
 
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
@@ -108,6 +106,7 @@ void optc2_triplebuffer_lock(struct timing_generator *optc);
 void optc2_triplebuffer_unlock(struct timing_generator *optc);
 void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
+void optc2_setup_manual_trigger(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);
-
+bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 #endif /* __DC_OPTC_DCN20_H__ */

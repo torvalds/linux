@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/pata-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common Properties for Parallel AT attachment (PATA) controllers
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  This document defines device tree properties common to most Parallel
+  ATA (PATA, also known as IDE) AT attachment storage devices.
+  It doesn't constitue a device tree binding specification by itself but is
+  meant to be referenced by device tree bindings.
+
+  The PATA (IDE) controller-specific device tree bindings are responsible for
+  defining whether each property is required or optional.
+
+properties:
+  $nodename:
+    pattern: "^ide(@.*)?$"
+    description:
+      Specifies the host controller node. PATA host controller nodes are named
+      "ide".
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^ide-port@[0-1]$":
+    description: |
+      DT nodes for ports connected on the PATA host. The master drive will have
+      ID number 0 and the slave drive will have ID number 1. The PATA port
+      nodes will be named "ide-port".
+    type: object
+
+    properties:
+      reg:
+        minimum: 0
+        maximum: 1
+        description:
+          The ID number of the drive port, 0 for the master port and 1 for the
+          slave port.
+
+...

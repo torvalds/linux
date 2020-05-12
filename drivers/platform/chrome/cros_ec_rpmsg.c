@@ -13,6 +13,8 @@
 #include <linux/rpmsg.h>
 #include <linux/slab.h>
 
+#include "cros_ec.h"
+
 #define EC_MSG_TIMEOUT_MS	200
 #define HOST_COMMAND_MARK	1
 #define HOST_EVENT_MARK		2

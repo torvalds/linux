@@ -12,7 +12,7 @@
 #define __SOF_INTEL_SHIM_H
 
 /*
- * SHIM registers for BYT, BSW, CHT, HSW, BDW
+ * SHIM registers for BYT, BSW, CHT, BDW
  */
 
 #define SHIM_CSR		(SHIM_OFFSET + 0x00)
@@ -38,7 +38,7 @@
 #define SHIM_PWMCTRL		0x1000
 
 /*
- * SST SHIM register bits for BYT, BSW, CHT HSW, BDW
+ * SST SHIM register bits for BYT, BSW, CHT, BDW
  * Register bit naming and functionaility can differ between devices.
  */
 
@@ -169,13 +169,11 @@ struct sof_intel_dsp_desc {
 extern const struct snd_sof_dsp_ops sof_tng_ops;
 extern const struct snd_sof_dsp_ops sof_byt_ops;
 extern const struct snd_sof_dsp_ops sof_cht_ops;
-extern const struct snd_sof_dsp_ops sof_hsw_ops;
 extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
 extern const struct sof_intel_dsp_desc byt_chip_info;
 extern const struct sof_intel_dsp_desc cht_chip_info;
 extern const struct sof_intel_dsp_desc bdw_chip_info;
-extern const struct sof_intel_dsp_desc hsw_chip_info;
 extern const struct sof_intel_dsp_desc tng_chip_info;
 
 struct sof_intel_stream {

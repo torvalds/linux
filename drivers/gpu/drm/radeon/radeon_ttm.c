@@ -32,6 +32,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -41,7 +42,6 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_prime.h>
 #include <drm/radeon_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
@@ -443,7 +443,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 					   mem->bus.size);
 		else
 			mem->bus.addr =
-				ioremap_nocache(mem->bus.base + mem->bus.offset,
+				ioremap(mem->bus.base + mem->bus.offset,
 						mem->bus.size);
 		if (!mem->bus.addr)
 			return -ENOMEM;
@@ -528,7 +528,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 
 	r = -ENOMEM;
 	nents = dma_map_sg(rdev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
-	if (nents != ttm->sg->nents)
+	if (nents == 0)
 		goto release_sg;
 
 	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
@@ -881,9 +881,6 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 	man->size = size >> PAGE_SHIFT;
 }
 
-static struct vm_operations_struct radeon_ttm_vm_ops;
-static const struct vm_operations_struct *ttm_vm_ops = NULL;
-
 static vm_fault_t radeon_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
@@ -891,15 +888,22 @@ static vm_fault_t radeon_ttm_fault(struct vm_fault *vmf)
 	vm_fault_t ret;
 
 	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
-	if (bo == NULL) {
+	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
-	}
+
 	rdev = radeon_get_rdev(bo->bdev);
 	down_read(&rdev->pm.mclk_lock);
-	ret = ttm_vm_ops->fault(vmf);
+	ret = ttm_bo_vm_fault(vmf);
 	up_read(&rdev->pm.mclk_lock);
 	return ret;
 }
+
+static struct vm_operations_struct radeon_ttm_vm_ops = {
+	.fault = radeon_ttm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+	.access = ttm_bo_vm_access
+};
 
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -907,18 +911,13 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *file_priv = filp->private_data;
 	struct radeon_device *rdev = file_priv->minor->dev->dev_private;
 
-	if (rdev == NULL) {
+	if (rdev == NULL)
 		return -EINVAL;
-	}
+
 	r = ttm_bo_mmap(filp, vma, &rdev->mman.bdev);
-	if (unlikely(r != 0)) {
+	if (unlikely(r != 0))
 		return r;
-	}
-	if (unlikely(ttm_vm_ops == NULL)) {
-		ttm_vm_ops = vma->vm_ops;
-		radeon_ttm_vm_ops = *ttm_vm_ops;
-		radeon_ttm_vm_ops.fault = &radeon_ttm_fault;
-	}
+
 	vma->vm_ops = &radeon_ttm_vm_ops;
 	return 0;
 }

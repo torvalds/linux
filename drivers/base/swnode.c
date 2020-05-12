@@ -108,10 +108,7 @@ static const void *property_get_pointer(const struct property_entry *prop)
 	if (!prop->length)
 		return NULL;
 
-	if (prop->is_array)
-		return prop->pointer;
-
-	return &prop->value;
+	return prop->is_inline ? &prop->value : prop->pointer;
 }
 
 static const void *property_entry_find(const struct property_entry *props,
@@ -201,92 +198,91 @@ static int property_entry_read_string_array(const struct property_entry *props,
 
 static void property_entry_free_data(const struct property_entry *p)
 {
-	const void *pointer = property_get_pointer(p);
 	const char * const *src_str;
 	size_t i, nval;
 
-	if (p->is_array) {
-		if (p->type == DEV_PROP_STRING && p->pointer) {
-			src_str = p->pointer;
-			nval = p->length / sizeof(const char *);
-			for (i = 0; i < nval; i++)
-				kfree(src_str[i]);
-		}
-		kfree(pointer);
-	} else if (p->type == DEV_PROP_STRING) {
-		kfree(p->value.str);
+	if (p->type == DEV_PROP_STRING) {
+		src_str = property_get_pointer(p);
+		nval = p->length / sizeof(*src_str);
+		for (i = 0; i < nval; i++)
+			kfree(src_str[i]);
 	}
+
+	if (!p->is_inline)
+		kfree(p->pointer);
+
 	kfree(p->name);
 }
 
-static const char * const *
-property_copy_string_array(const struct property_entry *src)
+static bool property_copy_string_array(const char **dst_ptr,
+				       const char * const *src_ptr,
+				       size_t nval)
 {
-	const char **d;
-	const char * const *src_str = src->pointer;
-	size_t nval = src->length / sizeof(*d);
 	int i;
 
-	d = kcalloc(nval, sizeof(*d), GFP_KERNEL);
-	if (!d)
-		return NULL;
-
 	for (i = 0; i < nval; i++) {
-		d[i] = kstrdup(src_str[i], GFP_KERNEL);
-		if (!d[i] && src_str[i]) {
+		dst_ptr[i] = kstrdup(src_ptr[i], GFP_KERNEL);
+		if (!dst_ptr[i] && src_ptr[i]) {
 			while (--i >= 0)
-				kfree(d[i]);
-			kfree(d);
-			return NULL;
+				kfree(dst_ptr[i]);
+			return false;
 		}
 	}
 
-	return d;
+	return true;
 }
 
 static int property_entry_copy_data(struct property_entry *dst,
 				    const struct property_entry *src)
 {
 	const void *pointer = property_get_pointer(src);
-	const void *new;
+	void *dst_ptr;
+	size_t nval;
 
-	if (src->is_array) {
-		if (!src->length)
-			return -ENODATA;
+	/*
+	 * Properties with no data should not be marked as stored
+	 * out of line.
+	 */
+	if (!src->is_inline && !src->length)
+		return -ENODATA;
 
-		if (src->type == DEV_PROP_STRING) {
-			new = property_copy_string_array(src);
-			if (!new)
-				return -ENOMEM;
-		} else {
-			new = kmemdup(pointer, src->length, GFP_KERNEL);
-			if (!new)
-				return -ENOMEM;
-		}
+	/*
+	 * Reference properties are never stored inline as
+	 * they are too big.
+	 */
+	if (src->type == DEV_PROP_REF && src->is_inline)
+		return -EINVAL;
 
-		dst->is_array = true;
-		dst->pointer = new;
-	} else if (src->type == DEV_PROP_STRING) {
-		new = kstrdup(src->value.str, GFP_KERNEL);
-		if (!new && src->value.str)
-			return -ENOMEM;
-
-		dst->value.str = new;
+	if (src->length <= sizeof(dst->value)) {
+		dst_ptr = &dst->value;
+		dst->is_inline = true;
 	} else {
-		dst->value = src->value;
+		dst_ptr = kmalloc(src->length, GFP_KERNEL);
+		if (!dst_ptr)
+			return -ENOMEM;
+		dst->pointer = dst_ptr;
+	}
+
+	if (src->type == DEV_PROP_STRING) {
+		nval = src->length / sizeof(const char *);
+		if (!property_copy_string_array(dst_ptr, pointer, nval)) {
+			if (!dst->is_inline)
+				kfree(dst->pointer);
+			return -ENOMEM;
+		}
+	} else {
+		memcpy(dst_ptr, pointer, src->length);
 	}
 
 	dst->length = src->length;
 	dst->type = src->type;
 	dst->name = kstrdup(src->name, GFP_KERNEL);
-	if (!dst->name)
-		goto out_free_data;
+	if (!dst->name) {
+		property_entry_free_data(dst);
+		return -ENOMEM;
+	}
 
 	return 0;
-
-out_free_data:
-	property_entry_free_data(dst);
-	return -ENOMEM;
 }
 
 /**
@@ -483,31 +479,49 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 				 struct fwnode_reference_args *args)
 {
 	struct swnode *swnode = to_swnode(fwnode);
-	const struct software_node_reference *ref;
+	const struct software_node_ref_args *ref_array;
+	const struct software_node_ref_args *ref;
 	const struct property_entry *prop;
 	struct fwnode_handle *refnode;
+	u32 nargs_prop_val;
+	int error;
 	int i;
 
-	if (!swnode || !swnode->node->references)
+	if (!swnode)
 		return -ENOENT;
 
-	for (ref = swnode->node->references; ref->name; ref++)
-		if (!strcmp(ref->name, propname))
-			break;
-
-	if (!ref->name || index > (ref->nrefs - 1))
+	prop = property_entry_get(swnode->node->properties, propname);
+	if (!prop)
 		return -ENOENT;
 
-	refnode = software_node_fwnode(ref->refs[index].node);
+	if (prop->type != DEV_PROP_REF)
+		return -EINVAL;
+
+	/*
+	 * We expect that references are never stored inline, even
+	 * single ones, as they are too big.
+	 */
+	if (prop->is_inline)
+		return -EINVAL;
+
+	if (index * sizeof(*ref) >= prop->length)
+		return -ENOENT;
+
+	ref_array = prop->pointer;
+	ref = &ref_array[index];
+
+	refnode = software_node_fwnode(ref->node);
 	if (!refnode)
 		return -ENOENT;
 
 	if (nargs_prop) {
-		prop = property_entry_get(swnode->node->properties, nargs_prop);
-		if (!prop)
-			return -EINVAL;
+		error = property_entry_read_int_array(swnode->node->properties,
+						      nargs_prop, sizeof(u32),
+						      &nargs_prop_val, 1);
+		if (error)
+			return error;
 
-		nargs = prop->value.u32_data;
+		nargs = nargs_prop_val;
 	}
 
 	if (nargs > NR_FWNODE_REFERENCE_ARGS)
@@ -517,7 +531,7 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	args->nargs = nargs;
 
 	for (i = 0; i < nargs; i++)
-		args->args[i] = ref->refs[index].args[i];
+		args->args[i] = ref->args[i];
 
 	return 0;
 }
@@ -593,6 +607,13 @@ software_node_register_properties(struct software_node *node,
 static void software_node_release(struct kobject *kobj)
 {
 	struct swnode *swnode = kobj_to_swnode(kobj);
+
+	if (swnode->parent) {
+		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
+		list_del(&swnode->entry);
+	} else {
+		ida_simple_remove(&swnode_root_ids, swnode->id);
+	}
 
 	if (swnode->allocated) {
 		property_entries_free(swnode->node->properties);
@@ -758,13 +779,6 @@ void fwnode_remove_software_node(struct fwnode_handle *fwnode)
 
 	if (!swnode)
 		return;
-
-	if (swnode->parent) {
-		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
-		list_del(&swnode->entry);
-	} else {
-		ida_simple_remove(&swnode_root_ids, swnode->id);
-	}
 
 	kobject_put(&swnode->kobj);
 }

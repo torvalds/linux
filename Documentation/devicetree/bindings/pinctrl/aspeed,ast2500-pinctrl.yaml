@@ -18,11 +18,14 @@ description: |+
   			"aspeed,g5-scu", "syscon", "simple-mfd"
 
   Refer to the the bindings described in
-  Documentation/devicetree/bindings/mfd/syscon.txt
+  Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
   compatible:
     const: aspeed,ast2500-pinctrl
+  reg:
+    description: |
+      A hint for the memory regions associated with the pin-controller
   aspeed,external-nodes:
     minItems: 2
     maxItems: 2

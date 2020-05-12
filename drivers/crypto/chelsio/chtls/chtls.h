@@ -179,7 +179,10 @@ struct chtls_hws {
 	u32 copied_seq;
 	u64 tx_seq_no;
 	struct tls_scmd scmd;
-	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	union {
+		struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+		struct tls12_crypto_info_aes_gcm_256 aes_gcm_256;
+	} crypto_info;
 };
 
 struct chtls_sock {
@@ -482,7 +485,7 @@ int send_tx_flowc_wr(struct sock *sk, int compl,
 void chtls_tcp_push(struct sock *sk, int flags);
 int chtls_push_frames(struct chtls_sock *csk, int comp);
 int chtls_set_tcb_tflag(struct sock *sk, unsigned int bit_pos, int val);
-int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 mode);
+int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 mode, int cipher_type);
 void skb_entail(struct sock *sk, struct sk_buff *skb, int flags);
 unsigned int keyid_to_addr(int start_addr, int keyid);
 void free_tls_keyid(struct sock *sk);

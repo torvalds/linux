@@ -360,17 +360,17 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 	else
 		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
 
-	if (attr->ia_valid & ATTR_ATIME_SET) {
+	if (attr->ia_valid & ATTR_ATIME_SET)
 		p = xdr_encode_time(p, &attr->ia_atime);
-	} else if (attr->ia_valid & ATTR_ATIME) {
+	else if (attr->ia_valid & ATTR_ATIME)
 		p = xdr_encode_current_server_time(p, &attr->ia_atime);
-	} else
+	else
 		p = xdr_time_not_set(p);
-	if (attr->ia_valid & ATTR_MTIME_SET) {
+	if (attr->ia_valid & ATTR_MTIME_SET)
 		xdr_encode_time(p, &attr->ia_mtime);
-	} else if (attr->ia_valid & ATTR_MTIME) {
+	else if (attr->ia_valid & ATTR_MTIME)
 		xdr_encode_current_server_time(p, &attr->ia_mtime);
-	} else
+	else
 		xdr_time_not_set(p);
 }
 

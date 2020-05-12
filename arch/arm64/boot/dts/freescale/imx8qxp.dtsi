@@ -250,7 +250,6 @@
 			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
 			reg = <0x5a060000 0x1000>;
 			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART0_IPG_CLK>,
 				 <&adma_lpcg IMX_ADMA_LPCG_UART0_BAUD_CLK>;
 			clock-names = "ipg", "baud";
@@ -262,7 +261,6 @@
 			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
 			reg = <0x5a070000 0x1000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART1_IPG_CLK>,
 				 <&adma_lpcg IMX_ADMA_LPCG_UART1_BAUD_CLK>;
 			clock-names = "ipg", "baud";
@@ -274,7 +272,6 @@
 			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
 			reg = <0x5a080000 0x1000>;
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART2_IPG_CLK>,
 				 <&adma_lpcg IMX_ADMA_LPCG_UART2_BAUD_CLK>;
 			clock-names = "ipg", "baud";
@@ -286,7 +283,6 @@
 			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
 			reg = <0x5a090000 0x1000>;
 			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART3_IPG_CLK>,
 				 <&adma_lpcg IMX_ADMA_LPCG_UART3_BAUD_CLK>;
 			clock-names = "ipg", "baud";
@@ -298,7 +294,6 @@
 			compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
 			reg = <0x5a800000 0x4000>;
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_I2C0_CLK>;
 			clock-names = "per";
 			assigned-clocks = <&clk IMX_ADMA_I2C0_CLK>;
@@ -311,7 +306,6 @@
 			compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
 			reg = <0x5a810000 0x4000>;
 			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_I2C1_CLK>;
 			clock-names = "per";
 			assigned-clocks = <&clk IMX_ADMA_I2C1_CLK>;
@@ -324,7 +318,6 @@
 			compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
 			reg = <0x5a820000 0x4000>;
 			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_I2C2_CLK>;
 			clock-names = "per";
 			assigned-clocks = <&clk IMX_ADMA_I2C2_CLK>;
@@ -337,7 +330,6 @@
 			compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
 			reg = <0x5a830000 0x4000>;
 			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-parent = <&gic>;
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_I2C3_CLK>;
 			clock-names = "per";
 			assigned-clocks = <&clk IMX_ADMA_I2C3_CLK>;
@@ -361,7 +353,6 @@
 
 		usdhc1: mmc@5b010000 {
 			compatible = "fsl,imx8qxp-usdhc", "fsl,imx7d-usdhc";
-			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b010000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC0_IPG_CLK>,
@@ -374,7 +365,6 @@
 
 		usdhc2: mmc@5b020000 {
 			compatible = "fsl,imx8qxp-usdhc", "fsl,imx7d-usdhc";
-			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b020000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC1_IPG_CLK>,
@@ -389,7 +379,6 @@
 
 		usdhc3: mmc@5b030000 {
 			compatible = "fsl,imx8qxp-usdhc", "fsl,imx7d-usdhc";
-			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b030000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC2_IPG_CLK>,
@@ -446,7 +435,6 @@
 		ddr-pmu@5c020000 {
 			compatible = "fsl,imx8-ddr-pmu";
 			reg = <0x5c020000 0x10000>;
-			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};

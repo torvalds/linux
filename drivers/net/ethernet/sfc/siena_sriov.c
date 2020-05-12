@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "efx_channels.h"
 #include "nic.h"
 #include "io.h"
 #include "mcdi.h"

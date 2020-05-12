@@ -62,10 +62,10 @@ config XEN_512GB
 	  boot parameter "xen_512gb_limit".
 
 config XEN_SAVE_RESTORE
-       bool
-       depends on XEN
-       select HIBERNATE_CALLBACKS
-       default y
+	bool
+	depends on XEN
+	select HIBERNATE_CALLBACKS
+	default y
 
 config XEN_DEBUG_FS
 	bool "Enable Xen debug and tuning parameters in debugfs"

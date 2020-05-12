@@ -13,6 +13,7 @@ It has subsequently been updated to reflect changes in the kernel
 including:
 
 - per-directory parallel name lookup.
+- ``openat2()`` resolution restriction flags.
 
 Introduction to pathname lookup
 ===============================
@@ -235,6 +236,13 @@ renamed.  If ``d_lookup`` finds that a rename happened while it
 unsuccessfully scanned a chain in the hash table, it simply tries
 again.
 
+``rename_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``rename_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
+
 inode->i_rwsem
 ~~~~~~~~~~~~~~
 
@@ -348,6 +356,13 @@ any changes to any mount points while stepping up.  This locking is
 needed to stabilize the link to the mounted-on dentry, which the
 refcount on the mount itself doesn't ensure.
 
+``mount_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``mount_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
+
 RCU
 ~~~
 
@@ -404,6 +419,10 @@ only assigned the first time it is used, or when a non-standard root
 is requested.  Keeping a reference in the ``nameidata`` ensures that
 only one root is in effect for the entire path walk, even if it races
 with a ``chroot()`` system call.
+
+It should be noted that in the case of ``LOOKUP_IN_ROOT`` or
+``LOOKUP_BENEATH``, the effective root becomes the directory file descriptor
+passed to ``openat2()`` (which exposes these ``LOOKUP_`` flags).
 
 The root is needed when either of two conditions holds: (1) either the
 pathname or a symbolic link starts with a "'/'", or (2) a "``..``"
@@ -1149,7 +1168,7 @@ so ``NULL`` is returned to indicate that the symlink can be released and
 the stack frame discarded.
 
 The other case involves things in ``/proc`` that look like symlinks but
-aren't really::
+aren't really (and are therefore commonly referred to as "magic-links")::
 
      $ ls -l /proc/self/fd/1
      lrwx------ 1 neilb neilb 64 Jun 13 10:19 /proc/self/fd/1 -> /dev/pts/4
@@ -1286,7 +1305,9 @@ A few flags
 A suitable way to wrap up this tour of pathname walking is to list
 the various flags that can be stored in the ``nameidata`` to guide the
 lookup process.  Many of these are only meaningful on the final
-component, others reflect the current state of the pathname lookup.
+component, others reflect the current state of the pathname lookup, and some
+apply restrictions to all path components encountered in the path lookup.
+
 And then there is ``LOOKUP_EMPTY``, which doesn't fit conceptually with
 the others.  If this is not set, an empty pathname causes an error
 very early on.  If it is set, empty pathnames are not considered to be
@@ -1310,12 +1331,47 @@ longer needed.
 ``LOOKUP_JUMPED`` means that the current dentry was chosen not because
 it had the right name but for some other reason.  This happens when
 following "``..``", following a symlink to ``/``, crossing a mount point
-or accessing a "``/proc/$PID/fd/$FD``" symlink.  In this case the
-filesystem has not been asked to revalidate the name (with
-``d_revalidate()``).  In such cases the inode may still need to be
-revalidated, so ``d_op->d_weak_revalidate()`` is called if
+or accessing a "``/proc/$PID/fd/$FD``" symlink (also known as a "magic
+link"). In this case the filesystem has not been asked to revalidate the
+name (with ``d_revalidate()``).  In such cases the inode may still need
+to be revalidated, so ``d_op->d_weak_revalidate()`` is called if
 ``LOOKUP_JUMPED`` is set when the look completes - which may be at the
 final component or, when creating, unlinking, or renaming, at the penultimate component.
+
+Resolution-restriction flags
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to allow userspace to protect itself against certain race conditions
+and attack scenarios involving changing path components, a series of flags are
+available which apply restrictions to all path components encountered during
+path lookup. These flags are exposed through ``openat2()``'s ``resolve`` field.
+
+``LOOKUP_NO_SYMLINKS`` blocks all symlink traversals (including magic-links).
+This is distinctly different from ``LOOKUP_FOLLOW``, because the latter only
+relates to restricting the following of trailing symlinks.
+
+``LOOKUP_NO_MAGICLINKS`` blocks all magic-link traversals. Filesystems must
+ensure that they return errors from ``nd_jump_link()``, because that is how
+``LOOKUP_NO_MAGICLINKS`` and other magic-link restrictions are implemented.
+
+``LOOKUP_NO_XDEV`` blocks all ``vfsmount`` traversals (this includes both
+bind-mounts and ordinary mounts). Note that the ``vfsmount`` which contains the
+lookup is determined by the first mountpoint the path lookup reaches --
+absolute paths start with the ``vfsmount`` of ``/``, and relative paths start
+with the ``dfd``'s ``vfsmount``. Magic-links are only permitted if the
+``vfsmount`` of the path is unchanged.
+
+``LOOKUP_BENEATH`` blocks any path components which resolve outside the
+starting point of the resolution. This is done by blocking ``nd_jump_root()``
+as well as blocking ".." if it would jump outside the starting point.
+``rename_lock`` and ``mount_lock`` are used to detect attacks against the
+resolution of "..". Magic-links are also blocked.
+
+``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
+were the filesystem root. ``nd_jump_root()`` brings the resolution back to to
+the starting point, and ".." at the starting point will act as a no-op. As with
+``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
+attacks against ".." resolution. Magic-links are also blocked.
 
 Final-component flags
 ~~~~~~~~~~~~~~~~~~~~~

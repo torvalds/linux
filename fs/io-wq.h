@@ -7,11 +7,10 @@ enum {
 	IO_WQ_WORK_CANCEL	= 1,
 	IO_WQ_WORK_HAS_MM	= 2,
 	IO_WQ_WORK_HASHED	= 4,
-	IO_WQ_WORK_NEEDS_USER	= 8,
-	IO_WQ_WORK_NEEDS_FILES	= 16,
 	IO_WQ_WORK_UNBOUND	= 32,
-	IO_WQ_WORK_INTERNAL	= 64,
 	IO_WQ_WORK_CB		= 128,
+	IO_WQ_WORK_NO_CANCEL	= 256,
+	IO_WQ_WORK_CONCURRENT	= 512,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -72,38 +71,38 @@ struct io_wq_work {
 	};
 	void (*func)(struct io_wq_work **);
 	struct files_struct *files;
+	struct mm_struct *mm;
+	const struct cred *creds;
+	struct fs_struct *fs;
 	unsigned flags;
+	pid_t task_pid;
 };
 
-#define INIT_IO_WORK(work, _func)			\
-	do {						\
-		(work)->list.next = NULL;		\
-		(work)->func = _func;			\
-		(work)->flags = 0;			\
-		(work)->files = NULL;			\
-	} while (0)					\
+#define INIT_IO_WORK(work, _func)				\
+	do {							\
+		*(work) = (struct io_wq_work){ .func = _func };	\
+	} while (0)						\
 
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
 
 struct io_wq_data {
-	struct mm_struct *mm;
 	struct user_struct *user;
-	const struct cred *creds;
 
 	get_work_fn *get_work;
 	put_work_fn *put_work;
 };
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
+bool io_wq_get(struct io_wq *wq, struct io_wq_data *data);
 void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_enqueue_hashed(struct io_wq *wq, struct io_wq_work *work, void *val);
-void io_wq_flush(struct io_wq *wq);
 
 void io_wq_cancel_all(struct io_wq *wq);
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
+enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 

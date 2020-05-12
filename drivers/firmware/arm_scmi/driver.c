@@ -29,6 +29,9 @@
 
 #include "common.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/scmi.h>
+
 #define MSG_ID_MASK		GENMASK(7, 0)
 #define MSG_XTRACT_ID(hdr)	FIELD_GET(MSG_ID_MASK, (hdr))
 #define MSG_TYPE_MASK		GENMASK(9, 8)
@@ -61,6 +64,8 @@ enum scmi_error_codes {
 static LIST_HEAD(scmi_list);
 /* Protection for the entire list */
 static DEFINE_MUTEX(scmi_list_mutex);
+/* Track the unique id for the transfers for debug & profiling purpose */
+static atomic_t transfer_last_id;
 
 /**
  * struct scmi_xfers_info - Structure to manage transfer information
@@ -304,6 +309,7 @@ static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle,
 	xfer = &minfo->xfer_block[xfer_id];
 	xfer->hdr.seq = xfer_id;
 	reinit_completion(&xfer->done);
+	xfer->transfer_id = atomic_inc_return(&transfer_last_id);
 
 	return xfer;
 }
@@ -374,6 +380,10 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
 
 	scmi_fetch_response(xfer, mem);
 
+	trace_scmi_rx_done(xfer->transfer_id, xfer->hdr.id,
+			   xfer->hdr.protocol_id, xfer->hdr.seq,
+			   msg_type);
+
 	if (msg_type == MSG_TYPE_DELAYED_RESP)
 		complete(xfer->async_done);
 	else
@@ -439,6 +449,10 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	if (unlikely(!cinfo))
 		return -EINVAL;
 
+	trace_scmi_xfer_begin(xfer->transfer_id, xfer->hdr.id,
+			      xfer->hdr.protocol_id, xfer->hdr.seq,
+			      xfer->hdr.poll_completion);
+
 	ret = mbox_send_message(cinfo->chan, xfer);
 	if (ret < 0) {
 		dev_dbg(dev, "mbox send fail %d\n", ret);
@@ -477,6 +491,10 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	 * received our message.
 	 */
 	mbox_client_txdone(cinfo->chan, ret);
+
+	trace_scmi_xfer_end(xfer->transfer_id, xfer->hdr.id,
+			    xfer->hdr.protocol_id, xfer->hdr.seq,
+			    xfer->hdr.status);
 
 	return ret;
 }
@@ -735,6 +753,11 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 	idx = tx ? 0 : 1;
 	idr = tx ? &info->tx_idr : &info->rx_idr;
 
+	/* check if already allocated, used for multiple device per protocol */
+	cinfo = idr_find(idr, prot_id);
+	if (cinfo)
+		return 0;
+
 	if (scmi_mailbox_check(np, idx)) {
 		cinfo = idr_find(idr, SCMI_PROTOCOL_BASE);
 		if (unlikely(!cinfo)) /* Possible only if platform has no Rx */
@@ -803,11 +826,11 @@ scmi_mbox_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
 
 static inline void
 scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
-			    int prot_id)
+			    int prot_id, const char *name)
 {
 	struct scmi_device *sdev;
 
-	sdev = scmi_device_create(np, info->dev, prot_id);
+	sdev = scmi_device_create(np, info->dev, prot_id, name);
 	if (!sdev) {
 		dev_err(info->dev, "failed to create %d protocol device\n",
 			prot_id);
@@ -822,6 +845,40 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 
 	/* setup handle now as the transport is ready */
 	scmi_set_handle(sdev);
+}
+
+#define MAX_SCMI_DEV_PER_PROTOCOL	2
+struct scmi_prot_devnames {
+	int protocol_id;
+	char *names[MAX_SCMI_DEV_PER_PROTOCOL];
+};
+
+static struct scmi_prot_devnames devnames[] = {
+	{ SCMI_PROTOCOL_POWER,  { "genpd" },},
+	{ SCMI_PROTOCOL_PERF,   { "cpufreq" },},
+	{ SCMI_PROTOCOL_CLOCK,  { "clocks" },},
+	{ SCMI_PROTOCOL_SENSOR, { "hwmon" },},
+	{ SCMI_PROTOCOL_RESET,  { "reset" },},
+};
+
+static inline void
+scmi_create_protocol_devices(struct device_node *np, struct scmi_info *info,
+			     int prot_id)
+{
+	int loop, cnt;
+
+	for (loop = 0; loop < ARRAY_SIZE(devnames); loop++) {
+		if (devnames[loop].protocol_id != prot_id)
+			continue;
+
+		for (cnt = 0; cnt < ARRAY_SIZE(devnames[loop].names); cnt++) {
+			const char *name = devnames[loop].names[cnt];
+
+			if (name)
+				scmi_create_protocol_device(np, info, prot_id,
+							    name);
+		}
+	}
 }
 
 static int scmi_probe(struct platform_device *pdev)
@@ -892,7 +949,7 @@ static int scmi_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		scmi_create_protocol_device(child, info, prot_id);
+		scmi_create_protocol_devices(child, info, prot_id);
 	}
 
 	return 0;
@@ -940,6 +997,52 @@ static int scmi_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static ssize_t protocol_version_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u.%u\n", info->version.major_ver,
+		       info->version.minor_ver);
+}
+static DEVICE_ATTR_RO(protocol_version);
+
+static ssize_t firmware_version_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%x\n", info->version.impl_ver);
+}
+static DEVICE_ATTR_RO(firmware_version);
+
+static ssize_t vendor_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", info->version.vendor_id);
+}
+static DEVICE_ATTR_RO(vendor_id);
+
+static ssize_t sub_vendor_id_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", info->version.sub_vendor_id);
+}
+static DEVICE_ATTR_RO(sub_vendor_id);
+
+static struct attribute *versions_attrs[] = {
+	&dev_attr_firmware_version.attr,
+	&dev_attr_protocol_version.attr,
+	&dev_attr_vendor_id.attr,
+	&dev_attr_sub_vendor_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(versions);
+
 static const struct scmi_desc scmi_generic_desc = {
 	.max_rx_timeout_ms = 30,	/* We may increase this if required */
 	.max_msg = 20,		/* Limited by MBOX_TX_QUEUE_LEN */
@@ -958,6 +1061,7 @@ static struct platform_driver scmi_driver = {
 	.driver = {
 		   .name = "arm-scmi",
 		   .of_match_table = scmi_of_match,
+		   .dev_groups = versions_groups,
 		   },
 	.probe = scmi_probe,
 	.remove = scmi_remove,

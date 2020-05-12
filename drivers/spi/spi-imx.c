@@ -1230,9 +1230,9 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	}
 
 	if (spi_imx_can_dma(spi_imx->bitbang.master, spi, t))
-		spi_imx->usedma = 1;
+		spi_imx->usedma = true;
 	else
-		spi_imx->usedma = 0;
+		spi_imx->usedma = false;
 
 	if (is_imx53_ecspi(spi_imx) && spi_imx->slave_mode) {
 		spi_imx->rx = mx53_ecspi_rx_slave;

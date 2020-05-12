@@ -94,13 +94,6 @@ static int ppc_aes_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct ppc_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (key_len != AES_KEYSIZE_128 &&
-	    key_len != AES_KEYSIZE_192 &&
-	    key_len != AES_KEYSIZE_256) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
-
 	switch (key_len) {
 	case AES_KEYSIZE_128:
 		ctx->rounds = 4;
@@ -114,6 +107,8 @@ static int ppc_aes_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 		ctx->rounds = 6;
 		ppc_expand_key_256(ctx->key_enc, in_key);
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ppc_generate_decrypt_key(ctx->key_dec, ctx->key_enc, key_len);
@@ -139,13 +134,6 @@ static int ppc_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 	key_len >>= 1;
 
-	if (key_len != AES_KEYSIZE_128 &&
-	    key_len != AES_KEYSIZE_192 &&
-	    key_len != AES_KEYSIZE_256) {
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
 	switch (key_len) {
 	case AES_KEYSIZE_128:
 		ctx->rounds = 4;
@@ -162,6 +150,8 @@ static int ppc_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 		ppc_expand_key_256(ctx->key_enc, in_key);
 		ppc_expand_key_256(ctx->key_twk, in_key + AES_KEYSIZE_256);
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ppc_generate_decrypt_key(ctx->key_dec, ctx->key_enc, key_len);

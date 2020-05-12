@@ -1111,7 +1111,7 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	int ret, num_modes = 0;
 
 	if (dp->plat_data->panel) {
-		num_modes += drm_panel_get_modes(dp->plat_data->panel);
+		num_modes += drm_panel_get_modes(dp->plat_data->panel, connector);
 	} else {
 		ret = analogix_dp_prepare_panel(dp, true, false);
 		if (ret) {

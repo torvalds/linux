@@ -7,6 +7,7 @@
 #include <linux/t10-pi.h>
 #include <linux/blkdev.h>
 #include <linux/crc-t10dif.h>
+#include <linux/module.h>
 #include <net/checksum.h>
 
 typedef __be16 (csum_fn) (void *, unsigned int);
@@ -280,3 +281,5 @@ const struct blk_integrity_profile t10_pi_type3_ip = {
 	.complete_fn		= t10_pi_type3_complete,
 };
 EXPORT_SYMBOL(t10_pi_type3_ip);
+
+MODULE_LICENSE("GPL");

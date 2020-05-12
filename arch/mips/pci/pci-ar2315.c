@@ -441,7 +441,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 	apc->mem_res.flags = IORESOURCE_MEM;
 
 	/* Remap PCI config space */
-	apc->cfg_mem = devm_ioremap_nocache(dev, res->start,
+	apc->cfg_mem = devm_ioremap(dev, res->start,
 					    AR2315_PCI_CFG_SIZE);
 	if (!apc->cfg_mem) {
 		dev_err(dev, "failed to remap PCI config space\n");

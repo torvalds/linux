@@ -267,6 +267,24 @@ Some of the interface modes are described below:
     duplex, pause or other settings.  This is dependent on the MAC and/or
     PHY behaviour.
 
+``PHY_INTERFACE_MODE_10GBASER``
+    This is the IEEE 802.3 Clause 49 defined 10GBASE-R protocol used with
+    various different mediums. Please refer to the IEEE standard for a
+    definition of this.
+
+    Note: 10GBASE-R is just one protocol that can be used with XFI and SFI.
+    XFI and SFI permit multiple protocols over a single SERDES lane, and
+    also defines the electrical characteristics of the signals with a host
+    compliance board plugged into the host XFP/SFP connector. Therefore,
+    XFI and SFI are not PHY interface types in their own right.
+
+``PHY_INTERFACE_MODE_10GKR``
+    This is the IEEE 802.3 Clause 49 defined 10GBASE-R with Clause 73
+    autonegotiation. Please refer to the IEEE standard for further
+    information.
+
+    Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
+    use of this definition.
 
 Pause frames / flow control
 ===========================
@@ -469,8 +487,9 @@ phy_register_fixup_for_id()::
 The stubs set one of the two matching criteria, and set the other one to
 match anything.
 
-When phy_register_fixup() or \*_for_uid()/\*_for_id() is called at module,
-unregister fixup and free allocate memory are required.
+When phy_register_fixup() or \*_for_uid()/\*_for_id() is called at module load
+time, the module needs to unregister the fixup and free allocated memory when
+it's unloaded.
 
 Call one of following function before unloading module::
 

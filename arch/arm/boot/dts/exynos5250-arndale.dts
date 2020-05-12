@@ -15,7 +15,7 @@
 #include "exynos5250.dtsi"
 
 / {
-	model = "Insignal Arndale evaluation board based on EXYNOS5250";
+	model = "Insignal Arndale evaluation board based on Exynos5250";
 	compatible = "insignal,arndale", "samsung,exynos5250", "samsung,exynos5";
 
 	memory@40000000 {
@@ -154,7 +154,7 @@
 		compatible = "smsc,usb3503a";
 
 		reset-gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
-		connect-gpios = <&gpd1 7 GPIO_ACTIVE_LOW>;
+		connect-gpios = <&gpd1 7 GPIO_ACTIVE_HIGH>;
 	};
 };
 

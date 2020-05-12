@@ -11,6 +11,7 @@
 #define _GMA_DISPLAY_H_
 
 #include <linux/pm_runtime.h>
+#include <drm/drm_vblank.h>
 
 struct drm_encoder;
 struct drm_mode_set;
@@ -71,6 +72,11 @@ extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);
 extern void gma_crtc_disable(struct drm_crtc *crtc);
 extern void gma_crtc_destroy(struct drm_crtc *crtc);
+extern int gma_crtc_page_flip(struct drm_crtc *crtc,
+			      struct drm_framebuffer *fb,
+			      struct drm_pending_vblank_event *event,
+			      uint32_t page_flip_flags,
+			      struct drm_modeset_acquire_ctx *ctx);
 extern int gma_crtc_set_config(struct drm_mode_set *set,
 			       struct drm_modeset_acquire_ctx *ctx);
 

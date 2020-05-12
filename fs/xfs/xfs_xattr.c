@@ -24,6 +24,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 	int xflags = handler->flags;
 	struct xfs_inode *ip = XFS_I(inode);
 	int error, asize = size;
+	size_t namelen = strlen(name);
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (!size) {
@@ -31,7 +32,8 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 		value = NULL;
 	}
 
-	error = xfs_attr_get(ip, name, (unsigned char **)&value, &asize, xflags);
+	error = xfs_attr_get(ip, name, namelen, (unsigned char **)&value,
+			     &asize, xflags);
 	if (error)
 		return error;
 	return asize;
@@ -67,6 +69,7 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
 	int			xflags = handler->flags;
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
+	size_t			namelen = strlen(name);
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (flags & XATTR_CREATE)
@@ -74,10 +77,11 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
 	if (flags & XATTR_REPLACE)
 		xflags |= ATTR_REPLACE;
 
-	if (!value)
-		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	error = xfs_attr_set(ip, (unsigned char *)name,
-				(void *)value, size, xflags);
+	if (value)
+		error = xfs_attr_set(ip, name, namelen, (void *)value, size,
+				xflags);
+	else
+		error = xfs_attr_remove(ip, name, namelen, xflags);
 	if (!error)
 		xfs_forget_acl(inode, name, xflags);
 

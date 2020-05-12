@@ -1146,6 +1146,7 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 	u32 value;
+	int err;
 
 	/*
 	 * The following accesses registers of the display controller, so make
@@ -1171,7 +1172,9 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_ENABLE);
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_MASK);
 
-	pm_runtime_put(hdmi->dev);
+	err = host1x_client_suspend(&hdmi->client);
+	if (err < 0)
+		dev_err(hdmi->dev, "failed to suspend: %d\n", err);
 }
 
 static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
@@ -1186,7 +1189,11 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
-	pm_runtime_get_sync(hdmi->dev);
+	err = host1x_client_resume(&hdmi->client);
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to resume: %d\n", err);
+		return;
+	}
 
 	/*
 	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
@@ -1424,15 +1431,16 @@ static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 
 static int tegra_hdmi_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	int err;
 
 	hdmi->output.dev = client->dev;
 
-	drm_connector_init(drm, &hdmi->output.connector,
-			   &tegra_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm, &hdmi->output.connector,
+				    &tegra_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->output.ddc);
 	drm_connector_helper_add(&hdmi->output.connector,
 				 &tegra_hdmi_connector_helper_funcs);
 	hdmi->output.connector.dpms = DRM_MODE_DPMS_OFF;
@@ -1489,9 +1497,66 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 	return 0;
 }
 
+static int tegra_hdmi_runtime_suspend(struct host1x_client *client)
+{
+	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
+	struct device *dev = client->dev;
+	int err;
+
+	err = reset_control_assert(hdmi->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
+	clk_disable_unprepare(hdmi->clk);
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
+static int tegra_hdmi_runtime_resume(struct host1x_client *client)
+{
+	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
+	struct device *dev = client->dev;
+	int err;
+
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "failed to get runtime PM: %d\n", err);
+		return err;
+	}
+
+	err = clk_prepare_enable(hdmi->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		goto put_rpm;
+	}
+
+	usleep_range(1000, 2000);
+
+	err = reset_control_deassert(hdmi->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to deassert reset: %d\n", err);
+		goto disable_clk;
+	}
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(hdmi->clk);
+put_rpm:
+	pm_runtime_put_sync(dev);
+	return err;
+}
+
 static const struct host1x_client_ops hdmi_client_ops = {
 	.init = tegra_hdmi_init,
 	.exit = tegra_hdmi_exit,
+	.suspend = tegra_hdmi_runtime_suspend,
+	.resume = tegra_hdmi_runtime_resume,
 };
 
 static const struct tegra_hdmi_config tegra20_hdmi_config = {
@@ -1699,58 +1764,10 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tegra_hdmi_suspend(struct device *dev)
-{
-	struct tegra_hdmi *hdmi = dev_get_drvdata(dev);
-	int err;
-
-	err = reset_control_assert(hdmi->rst);
-	if (err < 0) {
-		dev_err(dev, "failed to assert reset: %d\n", err);
-		return err;
-	}
-
-	usleep_range(1000, 2000);
-
-	clk_disable_unprepare(hdmi->clk);
-
-	return 0;
-}
-
-static int tegra_hdmi_resume(struct device *dev)
-{
-	struct tegra_hdmi *hdmi = dev_get_drvdata(dev);
-	int err;
-
-	err = clk_prepare_enable(hdmi->clk);
-	if (err < 0) {
-		dev_err(dev, "failed to enable clock: %d\n", err);
-		return err;
-	}
-
-	usleep_range(1000, 2000);
-
-	err = reset_control_deassert(hdmi->rst);
-	if (err < 0) {
-		dev_err(dev, "failed to deassert reset: %d\n", err);
-		clk_disable_unprepare(hdmi->clk);
-		return err;
-	}
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops tegra_hdmi_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_hdmi_suspend, tegra_hdmi_resume, NULL)
-};
-
 struct platform_driver tegra_hdmi_driver = {
 	.driver = {
 		.name = "tegra-hdmi",
 		.of_match_table = tegra_hdmi_of_match,
-		.pm = &tegra_hdmi_pm_ops,
 	},
 	.probe = tegra_hdmi_probe,
 	.remove = tegra_hdmi_remove,

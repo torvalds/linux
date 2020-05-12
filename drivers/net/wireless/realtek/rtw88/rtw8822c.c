@@ -3487,12 +3487,12 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(7), 0},
-	{0x0005,
+	 RTW_PWR_CMD_WRITE, (BIT(4) | BIT(3)), 0},
+	{0x1018,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, (BIT(4) | BIT(3)), 0},
+	 RTW_PWR_CMD_WRITE, BIT(2), BIT(2)},
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -4060,6 +4060,18 @@ static const struct rtw_pwr_track_tbl rtw8822c_rtw_pwr_track_tbl = {
 	.pwrtrk_2g_ccka_p = rtw8822c_pwrtrk_2g_cck_a_p,
 };
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support rtw_wowlan_stub_8822c = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_GTK_REKEY_FAILURE |
+		 WIPHY_WOWLAN_DISCONNECT | WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+		 WIPHY_WOWLAN_NET_DETECT,
+	.n_patterns = RTW_MAX_PATTERN_NUM,
+	.pattern_max_len = RTW_MAX_PATTERN_SIZE,
+	.pattern_min_len = 1,
+	.max_nd_match_sets = 4,
+};
+#endif
+
 struct rtw_chip_info rtw8822c_hw_spec = {
 	.ops = &rtw8822c_ops,
 	.id = RTW_CHIP_TYPE_8822C,
@@ -4106,6 +4118,11 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
 
+#ifdef CONFIG_PM
+	.wow_fw_name = "rtw88/rtw8822c_wow_fw.bin",
+	.wowlan_stub = &rtw_wowlan_stub_8822c,
+	.max_sched_scan_ssids = 4,
+#endif
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,
 	.scbd_support = true,
@@ -4135,3 +4152,4 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 
 MODULE_FIRMWARE("rtw88/rtw8822c_fw.bin");
+MODULE_FIRMWARE("rtw88/rtw8822c_wow_fw.bin");

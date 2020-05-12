@@ -1499,8 +1499,7 @@ static void spi_pump_messages(struct kthread_work *work)
  *			    advances its @tx buffer pointer monotonically.
  * @ctlr: Pointer to the spi_controller structure of the driver
  * @xfer: Pointer to the transfer being timestamped
- * @tx: Pointer to the current word within the xfer->tx_buf that the driver is
- *	preparing to transmit right now.
+ * @progress: How many words (not bytes) have been transferred so far
  * @irqs_off: If true, will disable IRQs and preemption for the duration of the
  *	      transfer, for less jitter in time measurement. Only compatible
  *	      with PIO drivers. If true, must follow up with
@@ -1510,21 +1509,19 @@ static void spi_pump_messages(struct kthread_work *work)
  */
 void spi_take_timestamp_pre(struct spi_controller *ctlr,
 			    struct spi_transfer *xfer,
-			    const void *tx, bool irqs_off)
+			    size_t progress, bool irqs_off)
 {
-	u8 bytes_per_word = DIV_ROUND_UP(xfer->bits_per_word, 8);
-
 	if (!xfer->ptp_sts)
 		return;
 
 	if (xfer->timestamped_pre)
 		return;
 
-	if (tx < (xfer->tx_buf + xfer->ptp_sts_word_pre * bytes_per_word))
+	if (progress < xfer->ptp_sts_word_pre)
 		return;
 
 	/* Capture the resolution of the timestamp */
-	xfer->ptp_sts_word_pre = (tx - xfer->tx_buf) / bytes_per_word;
+	xfer->ptp_sts_word_pre = progress;
 
 	xfer->timestamped_pre = true;
 
@@ -1546,23 +1543,20 @@ EXPORT_SYMBOL_GPL(spi_take_timestamp_pre);
  *			     timestamped.
  * @ctlr: Pointer to the spi_controller structure of the driver
  * @xfer: Pointer to the transfer being timestamped
- * @tx: Pointer to the current word within the xfer->tx_buf that the driver has
- *	just transmitted.
+ * @progress: How many words (not bytes) have been transferred so far
  * @irqs_off: If true, will re-enable IRQs and preemption for the local CPU.
  */
 void spi_take_timestamp_post(struct spi_controller *ctlr,
 			     struct spi_transfer *xfer,
-			     const void *tx, bool irqs_off)
+			     size_t progress, bool irqs_off)
 {
-	u8 bytes_per_word = DIV_ROUND_UP(xfer->bits_per_word, 8);
-
 	if (!xfer->ptp_sts)
 		return;
 
 	if (xfer->timestamped_post)
 		return;
 
-	if (tx < (xfer->tx_buf + xfer->ptp_sts_word_post * bytes_per_word))
+	if (progress < xfer->ptp_sts_word_post)
 		return;
 
 	ptp_read_system_postts(xfer->ptp_sts);
@@ -1573,7 +1567,7 @@ void spi_take_timestamp_post(struct spi_controller *ctlr,
 	}
 
 	/* Capture the resolution of the timestamp */
-	xfer->ptp_sts_word_post = (tx - xfer->tx_buf) / bytes_per_word;
+	xfer->ptp_sts_word_post = progress;
 
 	xfer->timestamped_post = true;
 }
@@ -1677,6 +1671,13 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 		list_for_each_entry(xfer, &mesg->transfers, transfer_list) {
 			ptp_read_system_postts(xfer->ptp_sts);
 			xfer->ptp_sts_word_post = xfer->len;
+		}
+	}
+
+	if (unlikely(ctlr->ptp_sts_supported)) {
+		list_for_each_entry(xfer, &mesg->transfers, transfer_list) {
+			WARN_ON_ONCE(xfer->ptp_sts && !xfer->timestamped_pre);
+			WARN_ON_ONCE(xfer->ptp_sts && !xfer->timestamped_post);
 		}
 	}
 
@@ -2457,6 +2458,8 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 	int nb, i;
 	struct gpio_desc **cs;
 	struct device *dev = &ctlr->dev;
+	unsigned long native_cs_mask = 0;
+	unsigned int num_cs_gpios = 0;
 
 	nb = gpiod_count(dev, "cs");
 	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
@@ -2498,7 +2501,22 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 			if (!gpioname)
 				return -ENOMEM;
 			gpiod_set_consumer_name(cs[i], gpioname);
+			num_cs_gpios++;
+			continue;
 		}
+
+		if (ctlr->max_native_cs && i >= ctlr->max_native_cs) {
+			dev_err(dev, "Invalid native chip select %d\n", i);
+			return -EINVAL;
+		}
+		native_cs_mask |= BIT(i);
+	}
+
+	ctlr->unused_native_cs = ffz(native_cs_mask);
+	if (num_cs_gpios && ctlr->max_native_cs &&
+	    ctlr->unused_native_cs >= ctlr->max_native_cs) {
+		dev_err(dev, "No unused native chip select available\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2621,7 +2639,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		if (ctlr->use_gpio_descriptors) {
 			status = spi_get_gpio_descs(ctlr);
 			if (status)
-				return status;
+				goto free_bus_id;
 			/*
 			 * A controller using GPIO descriptors always
 			 * supports SPI_CS_HIGH if need be.
@@ -2631,7 +2649,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 			/* Legacy code path for GPIOs from DT */
 			status = of_spi_get_gpio_numbers(ctlr);
 			if (status)
-				return status;
+				goto free_bus_id;
 		}
 	}
 
@@ -2639,17 +2657,14 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 * Even if it's just one always-selected device, there must
 	 * be at least one chipselect.
 	 */
-	if (!ctlr->num_chipselect)
-		return -EINVAL;
+	if (!ctlr->num_chipselect) {
+		status = -EINVAL;
+		goto free_bus_id;
+	}
 
 	status = device_add(&ctlr->dev);
-	if (status < 0) {
-		/* free bus id */
-		mutex_lock(&board_lock);
-		idr_remove(&spi_master_idr, ctlr->bus_num);
-		mutex_unlock(&board_lock);
-		goto done;
-	}
+	if (status < 0)
+		goto free_bus_id;
 	dev_dbg(dev, "registered %s %s\n",
 			spi_controller_is_slave(ctlr) ? "slave" : "master",
 			dev_name(&ctlr->dev));
@@ -2665,11 +2680,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		status = spi_controller_initialize_queue(ctlr);
 		if (status) {
 			device_del(&ctlr->dev);
-			/* free bus id */
-			mutex_lock(&board_lock);
-			idr_remove(&spi_master_idr, ctlr->bus_num);
-			mutex_unlock(&board_lock);
-			goto done;
+			goto free_bus_id;
 		}
 	}
 	/* add statistics */
@@ -2684,7 +2695,12 @@ int spi_register_controller(struct spi_controller *ctlr)
 	/* Register devices from the device tree and ACPI */
 	of_register_spi_devices(ctlr);
 	acpi_register_spi_devices(ctlr);
-done:
+	return status;
+
+free_bus_id:
+	mutex_lock(&board_lock);
+	idr_remove(&spi_master_idr, ctlr->bus_num);
+	mutex_unlock(&board_lock);
 	return status;
 }
 EXPORT_SYMBOL_GPL(spi_register_controller);

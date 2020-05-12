@@ -180,6 +180,12 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	case MPI2_FUNCTION_SMP_PASSTHROUGH:
 		desc = "smp_passthrough";
 		break;
+	case MPI2_FUNCTION_TOOLBOX:
+		desc = "toolbox";
+		break;
+	case MPI2_FUNCTION_NVME_ENCAPSULATED:
+		desc = "nvme_encapsulated";
+		break;
 	}
 
 	if (!desc)
@@ -478,14 +484,15 @@ void mpt3sas_ctl_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_ctl_reset_handler - reset callback handler (for ctl)
+ * mpt3sas_ctl_reset_handler - clears outstanding ioctl cmd.
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
  */
-void mpt3sas_ctl_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+void mpt3sas_ctl_clear_outstanding_ioctls(struct MPT3SAS_ADAPTER *ioc)
 {
-	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_AFTER_RESET\n", __func__));
+	dtmprintk(ioc,
+	    ioc_info(ioc, "%s: clear outstanding ioctl cmd\n", __func__));
 	if (ioc->ctl_cmds.status & MPT3_CMD_PENDING) {
 		ioc->ctl_cmds.status |= MPT3_CMD_RESET;
 		mpt3sas_base_free_smid(ioc, ioc->ctl_cmds.smid);
@@ -1021,10 +1028,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		ioc->ignore_loginfos = 0;
 	}
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->ctl_cmds.status, mpi_request,
-				karg.data_sge_offset);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->ctl_cmds.status, mpi_request,
+		    karg.data_sge_offset, issue_reset);
 		goto issue_host_reset;
 	}
 
@@ -1325,7 +1331,8 @@ _ctl_do_reset(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 				 __func__));
 
 	retval = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
-	ioc_info(ioc, "host reset: %s\n", ((!retval) ? "SUCCESS" : "FAILED"));
+	ioc_info(ioc,
+	    "Ioctl: host reset: %s\n", ((!retval) ? "SUCCESS" : "FAILED"));
 	return 0;
 }
 
@@ -1733,10 +1740,9 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->ctl_cmds.status, mpi_request,
-				sizeof(Mpi2DiagBufferPostRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->ctl_cmds.status, mpi_request,
+		    sizeof(Mpi2DiagBufferPostRequest_t)/4, issue_reset);
 		goto issue_host_reset;
 	}
 
@@ -2108,12 +2114,14 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	u16 ioc_status;
 	u32 ioc_state;
 	int rc;
+	u8 reset_needed = 0;
 
 	dctlprintk(ioc, ioc_info(ioc, "%s\n",
 				 __func__));
 
 	rc = 0;
 	*issue_reset = 0;
+
 
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
@@ -2157,9 +2165,10 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		*issue_reset = mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->ctl_cmds.status, mpi_request,
-				sizeof(Mpi2DiagReleaseRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->ctl_cmds.status, mpi_request,
+		    sizeof(Mpi2DiagReleaseRequest_t)/4, reset_needed);
+		 *issue_reset = reset_needed;
 		rc = -EFAULT;
 		goto out;
 	}
@@ -2417,10 +2426,9 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->ctl_cmds.status, mpi_request,
-				sizeof(Mpi2DiagBufferPostRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->ctl_cmds.status, mpi_request,
+		    sizeof(Mpi2DiagBufferPostRequest_t)/4, issue_reset);
 		goto issue_host_reset;
 	}
 

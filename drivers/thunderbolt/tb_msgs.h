@@ -67,8 +67,12 @@ struct cfg_error_pkg {
 	u32 zero1:4;
 	u32 port:6;
 	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:16;
+	u32 zero3:14;
+	u32 pg:2;
 } __packed;
+
+#define TB_CFG_ERROR_PG_HOT_PLUG	0x2
+#define TB_CFG_ERROR_PG_HOT_UNPLUG	0x3
 
 /* TB_CFG_PKG_EVENT */
 struct cfg_event_pkg {

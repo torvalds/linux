@@ -1569,7 +1569,7 @@ static int amd8111e_enable_link_change(struct amd8111e_priv *lp)
  * failed or the interface is locked up. This function will reinitialize
  * the hardware.
  */
-static void amd8111e_tx_timeout(struct net_device *dev)
+static void amd8111e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int err;

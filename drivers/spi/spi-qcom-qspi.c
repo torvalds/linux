@@ -137,7 +137,7 @@ enum qspi_clocks {
 struct qcom_qspi {
 	void __iomem *base;
 	struct device *dev;
-	struct clk_bulk_data clks[QSPI_NUM_CLKS];
+	struct clk_bulk_data *clks;
 	struct qspi_xfer xfer;
 	/* Lock to protect xfer and IRQ accessed registers */
 	spinlock_t lock;
@@ -442,6 +442,13 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	ctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctrl->base)) {
 		ret = PTR_ERR(ctrl->base);
+		goto exit_probe_master_put;
+	}
+
+	ctrl->clks = devm_kcalloc(dev, QSPI_NUM_CLKS,
+				  sizeof(*ctrl->clks), GFP_KERNEL);
+	if (!ctrl->clks) {
+		ret = -ENOMEM;
 		goto exit_probe_master_put;
 	}
 

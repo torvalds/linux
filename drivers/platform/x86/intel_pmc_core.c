@@ -49,7 +49,7 @@ static const struct pmc_bit_map spt_pll_map[] = {
 	{"GEN2 USB2PCIE2 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE1},
 	{"DMIPCIE3 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE2},
 	{"SATA PLL",			SPT_PMC_BIT_MPHY_CMN_LANE3},
-	{},
+	{}
 };
 
 static const struct pmc_bit_map spt_mphy_map[] = {
@@ -69,7 +69,7 @@ static const struct pmc_bit_map spt_mphy_map[] = {
 	{"MPHY CORE LANE 13",          SPT_PMC_BIT_MPHY_LANE13},
 	{"MPHY CORE LANE 14",          SPT_PMC_BIT_MPHY_LANE14},
 	{"MPHY CORE LANE 15",          SPT_PMC_BIT_MPHY_LANE15},
-	{},
+	{}
 };
 
 static const struct pmc_bit_map spt_pfear_map[] = {
@@ -113,7 +113,12 @@ static const struct pmc_bit_map spt_pfear_map[] = {
 	{"CSME_SMS1",			SPT_PMC_BIT_CSME_SMS1},
 	{"CSME_RTC",			SPT_PMC_BIT_CSME_RTC},
 	{"CSME_PSF",			SPT_PMC_BIT_CSME_PSF},
-	{},
+	{}
+};
+
+static const struct pmc_bit_map *ext_spt_pfear_map[] = {
+	spt_pfear_map,
+	NULL
 };
 
 static const struct pmc_bit_map spt_ltr_show_map[] = {
@@ -142,7 +147,7 @@ static const struct pmc_bit_map spt_ltr_show_map[] = {
 };
 
 static const struct pmc_reg_map spt_reg_map = {
-	.pfear_sts = spt_pfear_map,
+	.pfear_sts = ext_spt_pfear_map,
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,
 	.ltr_show_sts = spt_ltr_show_map,
@@ -186,7 +191,10 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"SDX",                 BIT(4)},
 	{"SPE",                 BIT(5)},
 	{"Fuse",                BIT(6)},
-	/* Reserved for Cannon Lake but valid for Ice Lake and Comet Lake */
+	/*
+	 * Reserved for Cannon Lake but valid for Ice Lake, Comet Lake,
+	 * Tiger Lake and Elkhart Lake.
+	 */
 	{"SBR8",		BIT(7)},
 
 	{"CSME_FSC",            BIT(0)},
@@ -230,11 +238,22 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"HDA_PGD4",            BIT(2)},
 	{"HDA_PGD5",            BIT(3)},
 	{"HDA_PGD6",            BIT(4)},
-	/* Reserved for Cannon Lake but valid for Ice Lake and Comet Lake */
+	/*
+	 * Reserved for Cannon Lake but valid for Ice Lake, Comet Lake,
+	 * Tiger Lake and ELkhart Lake.
+	 */
 	{"PSF6",		BIT(5)},
 	{"PSF7",		BIT(6)},
 	{"PSF8",		BIT(7)},
+	{}
+};
 
+static const struct pmc_bit_map *ext_cnp_pfear_map[] = {
+	cnp_pfear_map,
+	NULL
+};
+
+static const struct pmc_bit_map icl_pfear_map[] = {
 	/* Ice Lake generation onwards only */
 	{"RES_65",		BIT(0)},
 	{"RES_66",		BIT(1)},
@@ -245,6 +264,30 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"RES_71",		BIT(6)},
 	{"RES_72",		BIT(7)},
 	{}
+};
+
+static const struct pmc_bit_map *ext_icl_pfear_map[] = {
+	cnp_pfear_map,
+	icl_pfear_map,
+	NULL
+};
+
+static const struct pmc_bit_map tgl_pfear_map[] = {
+	/* Tiger Lake and Elkhart Lake generation onwards only */
+	{"PSF9",		BIT(0)},
+	{"RES_66",		BIT(1)},
+	{"RES_67",		BIT(2)},
+	{"RES_68",		BIT(3)},
+	{"RES_69",		BIT(4)},
+	{"RES_70",		BIT(5)},
+	{"TBTLSX",		BIT(6)},
+	{}
+};
+
+static const struct pmc_bit_map *ext_tgl_pfear_map[] = {
+	cnp_pfear_map,
+	tgl_pfear_map,
+	NULL
 };
 
 static const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
@@ -300,7 +343,7 @@ static const struct pmc_bit_map *cnp_slps0_dbg_maps[] = {
 	cnp_slps0_dbg0_map,
 	cnp_slps0_dbg1_map,
 	cnp_slps0_dbg2_map,
-	NULL,
+	NULL
 };
 
 static const struct pmc_bit_map cnp_ltr_show_map[] = {
@@ -334,7 +377,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 };
 
 static const struct pmc_reg_map cnp_reg_map = {
-	.pfear_sts = cnp_pfear_map,
+	.pfear_sts = ext_cnp_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
@@ -350,7 +393,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 };
 
 static const struct pmc_reg_map icl_reg_map = {
-	.pfear_sts = cnp_pfear_map,
+	.pfear_sts = ext_icl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
@@ -365,18 +408,29 @@ static const struct pmc_reg_map icl_reg_map = {
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
-static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
-{
-	return readb(pmcdev->regbase + offset);
-}
+static const struct pmc_reg_map tgl_reg_map = {
+	.pfear_sts = ext_tgl_pfear_map,
+	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slps0_dbg_maps = cnp_slps0_dbg_maps,
+	.ltr_show_sts = cnp_ltr_show_map,
+	.msr_sts = msr_map,
+	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
+	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.regmap_length = CNP_PMC_MMIO_REG_LEN,
+	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
+	.ppfear_buckets = ICL_PPFEAR_NUM_ENTRIES,
+	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
+	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
+};
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 {
 	return readl(pmcdev->regbase + reg_offset);
 }
 
-static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int
-							reg_offset, u32 val)
+static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int reg_offset,
+				      u32 val)
 {
 	writel(val, pmcdev->regbase + reg_offset);
 }
@@ -412,20 +466,25 @@ static int pmc_core_check_read_lock_bit(void)
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 static bool slps0_dbg_latch;
 
-static void pmc_core_display_map(struct seq_file *s, int index,
-				 u8 pf_reg, const struct pmc_bit_map *pf_map)
+static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
+{
+	return readb(pmcdev->regbase + offset);
+}
+
+static void pmc_core_display_map(struct seq_file *s, int index, int idx, int ip,
+				 u8 pf_reg, const struct pmc_bit_map **pf_map)
 {
 	seq_printf(s, "PCH IP: %-2d - %-32s\tState: %s\n",
-		   index, pf_map[index].name,
-		   pf_map[index].bit_mask & pf_reg ? "Off" : "On");
+		   ip, pf_map[idx][index].name,
+		   pf_map[idx][index].bit_mask & pf_reg ? "Off" : "On");
 }
 
 static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	const struct pmc_bit_map *map = pmcdev->map->pfear_sts;
+	const struct pmc_bit_map **maps = pmcdev->map->pfear_sts;
 	u8 pf_regs[PPFEAR_MAX_NUM_ENTRIES];
-	int index, iter;
+	int index, iter, idx, ip = 0;
 
 	iter = pmcdev->map->ppfear0_offset;
 
@@ -433,9 +492,12 @@ static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 	     index < PPFEAR_MAX_NUM_ENTRIES; index++, iter++)
 		pf_regs[index] = pmc_core_reg_read_byte(pmcdev, iter);
 
-	for (index = 0; map[index].name &&
-	     index < pmcdev->map->ppfear_buckets * 8; index++)
-		pmc_core_display_map(s, index, pf_regs[index / 8], map);
+	for (idx = 0; maps[idx]; idx++) {
+		for (index = 0; maps[idx][index].name &&
+		     index < pmcdev->map->ppfear_buckets * 8; ip++, index++)
+			pmc_core_display_map(s, index, idx, ip,
+					     pf_regs[index / 8], maps);
+	}
 
 	return 0;
 }
@@ -561,21 +623,22 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
-*userbuf, size_t count, loff_t *ppos)
+static ssize_t pmc_core_ltr_ignore_write(struct file *file,
+					 const char __user *userbuf,
+					 size_t count, loff_t *ppos)
 {
 	struct pmc_dev *pmcdev = &pmc;
 	const struct pmc_reg_map *map = pmcdev->map;
 	u32 val, buf_size, fd;
-	int err = 0;
+	int err;
 
 	buf_size = count < 64 ? count : 64;
-	mutex_lock(&pmcdev->lock);
 
-	if (kstrtou32_from_user(userbuf, buf_size, 10, &val)) {
-		err = -EFAULT;
-		goto out_unlock;
-	}
+	err = kstrtou32_from_user(userbuf, buf_size, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&pmcdev->lock);
 
 	if (val > map->ltr_ignore_max) {
 		err = -EINVAL;
@@ -767,8 +830,9 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
 			    &pmc_core_dev_state);
 
-	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
-			    &pmc_core_ppfear_fops);
+	if (pmcdev->map->pfear_sts)
+		debugfs_create_file("pch_ip_power_gating_status", 0444, dir,
+				    pmcdev, &pmc_core_ppfear_fops);
 
 	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
 			    &pmc_core_ltr_ignore_ops);
@@ -816,19 +880,22 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	INTEL_CPU_FAM6(ICELAKE_NNPI, icl_reg_map),
 	INTEL_CPU_FAM6(COMETLAKE, cnp_reg_map),
 	INTEL_CPU_FAM6(COMETLAKE_L, cnp_reg_map),
+	INTEL_CPU_FAM6(TIGERLAKE_L, tgl_reg_map),
+	INTEL_CPU_FAM6(TIGERLAKE, tgl_reg_map),
+	INTEL_CPU_FAM6(ATOM_TREMONT, tgl_reg_map),
 	{}
 };
 
 MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
 
 static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID), 0},
-	{ 0, },
+	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID) },
+	{ }
 };
 
 /*
  * This quirk can be used on those platforms where
- * the platform BIOS enforces 24Mhx Crystal to shutdown
+ * the platform BIOS enforces 24Mhz crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
 static int quirk_xtal_ignore(const struct dmi_system_id *id)

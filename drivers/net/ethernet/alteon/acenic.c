@@ -437,7 +437,7 @@ static const struct ethtool_ops ace_ethtool_ops = {
 	.set_link_ksettings = ace_set_link_ksettings,
 };
 
-static void ace_watchdog(struct net_device *dev);
+static void ace_watchdog(struct net_device *dev, unsigned int txqueue);
 
 static const struct net_device_ops ace_netdev_ops = {
 	.ndo_open		= ace_open,
@@ -1542,7 +1542,7 @@ static void ace_set_rxtx_parms(struct net_device *dev, int jumbo)
 }
 
 
-static void ace_watchdog(struct net_device *data)
+static void ace_watchdog(struct net_device *data, unsigned int txqueue)
 {
 	struct net_device *dev = data;
 	struct ace_private *ap = netdev_priv(dev);

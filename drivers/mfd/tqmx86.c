@@ -158,7 +158,7 @@ static int tqmx86_board_id_to_clk_rate(u8 board_id)
 
 static int tqmx86_probe(struct platform_device *pdev)
 {
-	u8 board_id, rev, i2c_det, i2c_ien, io_ext_int_val;
+	u8 board_id, rev, i2c_det, io_ext_int_val;
 	struct device *dev = &pdev->dev;
 	u8 gpio_irq_cfg, readback;
 	const char *board_name;
@@ -196,7 +196,6 @@ static int tqmx86_probe(struct platform_device *pdev)
 		 board_name, board_id, rev >> 4, rev & 0xf);
 
 	i2c_det = ioread8(io_base + TQMX86_REG_I2C_DETECT);
-	i2c_ien = ioread8(io_base + TQMX86_REG_I2C_INT_EN);
 
 	if (gpio_irq_cfg) {
 		io_ext_int_val =

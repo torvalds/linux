@@ -114,8 +114,6 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 	err |= fpu__restore_sig(buf, 1);
 
-	force_iret();
-
 	return err;
 }
 

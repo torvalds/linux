@@ -941,6 +941,13 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
+		/*
+		 * Indicate we handle monitor hotplug events ourselves so we do
+		 * not need ACPI notifications for them. Disabling these avoids
+		 * triggering the AML code doing the notifation, which may be
+		 * broken as Windows also seems to disable these.
+		 */
+		opregion->acpi->chpd = 1;
 	}
 
 	if (mboxes & MBOX_SWSCI) {

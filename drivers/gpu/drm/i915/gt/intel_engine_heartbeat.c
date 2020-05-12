@@ -63,14 +63,14 @@ static void heartbeat(struct work_struct *wrk)
 	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
 
-	if (!intel_engine_pm_get_if_awake(engine))
-		return;
-
 	rq = engine->heartbeat.systole;
 	if (rq && i915_request_completed(rq)) {
 		i915_request_put(rq);
 		engine->heartbeat.systole = NULL;
 	}
+
+	if (!intel_engine_pm_get_if_awake(engine))
+		return;
 
 	if (intel_gt_is_wedged(engine->gt))
 		goto out;
@@ -199,7 +199,7 @@ int intel_engine_pulse(struct intel_engine_cs *engine)
 		goto out_unlock;
 	}
 
-	rq->flags |= I915_REQUEST_SENTINEL;
+	__set_bit(I915_FENCE_FLAG_SENTINEL, &rq->fence.flags);
 	idle_pulse(engine, rq);
 
 	__i915_request_commit(rq);
@@ -215,18 +215,26 @@ out_rpm:
 int intel_engine_flush_barriers(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
+	int err = 0;
 
 	if (llist_empty(&engine->barrier_tasks))
 		return 0;
 
+	if (!intel_engine_pm_get_if_awake(engine))
+		return 0;
+
 	rq = i915_request_create(engine->kernel_context);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_rpm;
+	}
 
 	idle_pulse(engine, rq);
 	i915_request_add(rq);
 
-	return 0;
+out_rpm:
+	intel_engine_pm_put(engine);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

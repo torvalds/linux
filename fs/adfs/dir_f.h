@@ -13,9 +13,9 @@
  * Directory header
  */
 struct adfs_dirheader {
-	unsigned char startmasseq;
-	unsigned char startname[4];
-};
+	__u8 startmasseq;
+	__u8 startname[4];
+} __attribute__((packed));
 
 #define ADFS_NEWDIR_SIZE	2048
 #define ADFS_NUM_DIR_ENTRIES	77
@@ -31,32 +31,36 @@ struct adfs_direntry {
 	__u8 dirlen[4];
 	__u8 dirinddiscadd[3];
 	__u8 newdiratts;
-};
+} __attribute__((packed));
 
 /*
  * Directory tail
  */
+struct adfs_olddirtail {
+	__u8 dirlastmask;
+	char dirname[10];
+	__u8 dirparent[3];
+	char dirtitle[19];
+	__u8 reserved[14];
+	__u8 endmasseq;
+	__u8 endname[4];
+	__u8 dircheckbyte;
+} __attribute__((packed));
+
+struct adfs_newdirtail {
+	__u8 dirlastmask;
+	__u8 reserved[2];
+	__u8 dirparent[3];
+	char dirtitle[19];
+	char dirname[10];
+	__u8 endmasseq;
+	__u8 endname[4];
+	__u8 dircheckbyte;
+} __attribute__((packed));
+
 union adfs_dirtail {
-	struct {
-		unsigned char dirlastmask;
-		char dirname[10];
-		unsigned char dirparent[3];
-		char dirtitle[19];
-		unsigned char reserved[14];
-		unsigned char endmasseq;
-		unsigned char endname[4];
-		unsigned char dircheckbyte;
-	} old;
-	struct {
-		unsigned char dirlastmask;
-		unsigned char reserved[2];
-		unsigned char dirparent[3];
-		char dirtitle[19];
-		char dirname[10];
-		unsigned char endmasseq;
-		unsigned char endname[4];
-		unsigned char dircheckbyte;
-	} new;
+	struct adfs_olddirtail old;
+	struct adfs_newdirtail new;
 };
 
 #endif

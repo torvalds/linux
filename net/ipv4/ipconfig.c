@@ -1334,7 +1334,7 @@ static int __init ipconfig_proc_net_init(void)
 
 /* Create a new file under /proc/net/ipconfig */
 static int ipconfig_proc_net_create(const char *name,
-				    const struct file_operations *fops)
+				    const struct proc_ops *proc_ops)
 {
 	char *pname;
 	struct proc_dir_entry *p;
@@ -1346,7 +1346,7 @@ static int ipconfig_proc_net_create(const char *name,
 	if (!pname)
 		return -ENOMEM;
 
-	p = proc_create(pname, 0444, init_net.proc_net, fops);
+	p = proc_create(pname, 0444, init_net.proc_net, proc_ops);
 	kfree(pname);
 	if (!p)
 		return -ENOMEM;
@@ -1355,7 +1355,7 @@ static int ipconfig_proc_net_create(const char *name,
 }
 
 /* Write NTP server IP addresses to /proc/net/ipconfig/ntp_servers */
-static int ntp_servers_seq_show(struct seq_file *seq, void *v)
+static int ntp_servers_show(struct seq_file *seq, void *v)
 {
 	int i;
 
@@ -1365,7 +1365,7 @@ static int ntp_servers_seq_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(ntp_servers_seq);
+DEFINE_PROC_SHOW_ATTRIBUTE(ntp_servers);
 #endif /* CONFIG_PROC_FS */
 
 /*
@@ -1456,7 +1456,7 @@ static int __init ip_auto_config(void)
 	proc_create_single("pnp", 0444, init_net.proc_net, pnp_seq_show);
 
 	if (ipconfig_proc_net_init() == 0)
-		ipconfig_proc_net_create("ntp_servers", &ntp_servers_seq_fops);
+		ipconfig_proc_net_create("ntp_servers", &ntp_servers_proc_ops);
 #endif /* CONFIG_PROC_FS */
 
 	if (!ic_enable)

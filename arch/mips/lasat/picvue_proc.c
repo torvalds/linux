@@ -89,13 +89,12 @@ static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations pvc_line_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pvc_line_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= pvc_line_proc_write,
+static const struct proc_ops pvc_line_proc_ops = {
+	.proc_open	= pvc_line_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= pvc_line_proc_write,
 };
 
 static ssize_t pvc_scroll_proc_write(struct file *file, const char __user *buf,
@@ -148,13 +147,12 @@ static int pvc_scroll_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, pvc_scroll_proc_show, NULL);
 }
 
-static const struct file_operations pvc_scroll_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pvc_scroll_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= pvc_scroll_proc_write,
+static const struct proc_ops pvc_scroll_proc_ops = {
+	.proc_open	= pvc_scroll_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= pvc_scroll_proc_write,
 };
 
 void pvc_proc_timerfunc(struct timer_list *unused)
@@ -189,12 +187,11 @@ static int __init pvc_proc_init(void)
 	}
 	for (i = 0; i < PVC_NLINES; i++) {
 		proc_entry = proc_create_data(pvc_linename[i], 0644, dir,
-					&pvc_line_proc_fops, &pvc_linedata[i]);
+					&pvc_line_proc_ops, &pvc_linedata[i]);
 		if (proc_entry == NULL)
 			goto error;
 	}
-	proc_entry = proc_create("scroll", 0644, dir,
-				 &pvc_scroll_proc_fops);
+	proc_entry = proc_create("scroll", 0644, dir, &pvc_scroll_proc_ops);
 	if (proc_entry == NULL)
 		goto error;
 

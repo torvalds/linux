@@ -761,7 +761,7 @@ static void hostap_set_multicast_list(struct net_device *dev)
 }
 
 
-static void prism2_tx_timeout(struct net_device *dev)
+static void prism2_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;

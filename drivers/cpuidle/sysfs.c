@@ -142,6 +142,7 @@ static struct attribute_group cpuidle_attr_group = {
 
 /**
  * cpuidle_add_interface - add CPU global sysfs attributes
+ * @dev: the target device
  */
 int cpuidle_add_interface(struct device *dev)
 {
@@ -153,6 +154,7 @@ int cpuidle_add_interface(struct device *dev)
 
 /**
  * cpuidle_remove_interface - remove CPU global sysfs attributes
+ * @dev: the target device
  */
 void cpuidle_remove_interface(struct device *dev)
 {
@@ -327,6 +329,14 @@ static ssize_t store_state_disable(struct cpuidle_state *state,
 	return size;
 }
 
+static ssize_t show_state_default_status(struct cpuidle_state *state,
+					  struct cpuidle_state_usage *state_usage,
+					  char *buf)
+{
+	return sprintf(buf, "%s\n",
+		       state->flags & CPUIDLE_FLAG_OFF ? "disabled" : "enabled");
+}
+
 define_one_state_ro(name, show_state_name);
 define_one_state_ro(desc, show_state_desc);
 define_one_state_ro(latency, show_state_exit_latency);
@@ -337,6 +347,7 @@ define_one_state_ro(time, show_state_time);
 define_one_state_rw(disable, show_state_disable, store_state_disable);
 define_one_state_ro(above, show_state_above);
 define_one_state_ro(below, show_state_below);
+define_one_state_ro(default_status, show_state_default_status);
 
 static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_name.attr,
@@ -349,6 +360,7 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_disable.attr,
 	&attr_above.attr,
 	&attr_below.attr,
+	&attr_default_status.attr,
 	NULL
 };
 
@@ -615,7 +627,7 @@ static struct kobj_type ktype_driver_cpuidle = {
 
 /**
  * cpuidle_add_driver_sysfs - adds the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 {
@@ -646,7 +658,7 @@ static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 
 /**
  * cpuidle_remove_driver_sysfs - removes the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static void cpuidle_remove_driver_sysfs(struct cpuidle_device *dev)
 {

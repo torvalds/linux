@@ -501,7 +501,6 @@ struct omap_hwmod_omap4_prcm {
  * @sysc: device SYSCONFIG/SYSSTATUS register data
  * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
  * @reset: ptr to fn to be executed in place of the standard hwmod reset fn
- * @enable_preprogram:  ptr to fn to be executed during device enable
  * @lock: ptr to fn to be executed to lock IP registers
  * @unlock: ptr to fn to be executed to unlock IP registers
  *
@@ -526,7 +525,6 @@ struct omap_hwmod_class {
 	struct omap_hwmod_class_sysconfig	*sysc;
 	int					(*pre_shutdown)(struct omap_hwmod *oh);
 	int					(*reset)(struct omap_hwmod *oh);
-	int					(*enable_preprogram)(struct omap_hwmod *oh);
 	void					(*lock)(struct omap_hwmod *oh);
 	void					(*unlock)(struct omap_hwmod *oh);
 };
@@ -662,7 +660,6 @@ const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
  *
  */
 
-extern int omap_hwmod_aess_preprogram(struct omap_hwmod *oh);
 void omap_hwmod_rtc_unlock(struct omap_hwmod *oh);
 void omap_hwmod_rtc_lock(struct omap_hwmod *oh);
 

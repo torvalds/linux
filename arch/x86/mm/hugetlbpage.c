@@ -19,7 +19,6 @@
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
 #include <asm/elf.h>
-#include <asm/mpx.h>
 
 #if 0	/* This is just for testing */
 struct page *
@@ -150,10 +149,6 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
-
-	addr = mpx_unmapped_area_check(addr, len, flags);
-	if (IS_ERR_VALUE(addr))
-		return addr;
 
 	if (len > TASK_SIZE)
 		return -ENOMEM;

@@ -8,3 +8,6 @@ config TEST_ASYNC_DRIVER_PROBE
 	  The module name will be test_async_driver_probe.ko
 
 	  If unsure say N.
+config KUNIT_DRIVER_PE_TEST
+	bool "KUnit Tests for property entry API"
+	depends on KUNIT=y

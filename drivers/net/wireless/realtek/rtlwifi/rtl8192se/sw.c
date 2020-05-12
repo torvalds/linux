@@ -11,7 +11,6 @@
 #include "dm.h"
 #include "fw.h"
 #include "hw.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 

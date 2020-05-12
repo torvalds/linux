@@ -10,11 +10,11 @@
 
 #include <linux/completion.h>
 #include <linux/dma-direction.h>
+#include <linux/iova.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
-#include <linux/iova.h>
 
 struct clk;
 struct dma_buf;

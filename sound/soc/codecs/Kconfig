@@ -101,6 +101,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_JZ4725B_CODEC
+	select SND_SOC_JZ4770_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
 	select SND_SOC_LOCHNAGAR_SC if MFD_LOCHNAGAR
@@ -124,6 +125,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_MT6351 if MTK_PMIC_WRAP
 	select SND_SOC_MT6358 if MTK_PMIC_WRAP
+	select SND_SOC_MT6660 if I2C
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
 	select SND_SOC_NAU8822 if I2C
@@ -149,6 +151,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
 	select SND_SOC_RT1011 if I2C
+	select SND_SOC_RT1015 if I2C
 	select SND_SOC_RT1305 if I2C
 	select SND_SOC_RT1308 if I2C
 	select SND_SOC_RT5514 if I2C
@@ -165,6 +168,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_RT5682 if I2C
+	select SND_SOC_RT700_SDW if SOUNDWIRE
+	select SND_SOC_RT711_SDW if SOUNDWIRE
+	select SND_SOC_RT715_SDW if SOUNDWIRE
+	select SND_SOC_RT1308_SDW if SOUNDWIRE
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIMPLE_AMPLIFIER
@@ -207,6 +214,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WCD9335 if SLIMBUS
+	select SND_SOC_WCD934X if MFD_WCD934X && COMMON_CLK
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM0010 if SPI_MASTER
 	select SND_SOC_WM1250_EV1 if I2C
@@ -261,6 +269,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9705 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
 	select SND_SOC_WM9712 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
 	select SND_SOC_WM9713 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
+	select SND_SOC_WSA881X if SOUNDWIRE
 	help
 	  Normally ASoC codec drivers are only built if a machine driver which
 	  uses them is also built since they are only usable with a machine
@@ -672,6 +681,17 @@ config SND_SOC_JZ4725B_CODEC
 	  This driver can also be built as a module. If so, the module
 	  will be called snd-soc-jz4725b-codec.
 
+config SND_SOC_JZ4770_CODEC
+	depends on MIPS || COMPILE_TEST
+	select REGMAP
+	tristate "Ingenic JZ4770 internal CODEC"
+	help
+	  Enable support for the internal CODEC found in the JZ4770 SoC
+	  from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called snd-soc-jz4770-codec.
+
 config SND_SOC_L3
        tristate
 
@@ -951,6 +971,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5677=y
 	default y if SND_SOC_RT5682=y
 	default y if SND_SOC_RT1011=y
+	default y if SND_SOC_RT1015=y
 	default y if SND_SOC_RT1305=y
 	default y if SND_SOC_RT1308=y
 	default m if SND_SOC_RT5514=m
@@ -967,6 +988,7 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5677=m
 	default m if SND_SOC_RT5682=m
 	default m if SND_SOC_RT1011=m
+	default m if SND_SOC_RT1015=m
 	default m if SND_SOC_RT1305=m
 	default m if SND_SOC_RT1308=m
 
@@ -994,11 +1016,19 @@ config SND_SOC_RT298
 config SND_SOC_RT1011
 	tristate
 
+config SND_SOC_RT1015
+	tristate
+
 config SND_SOC_RT1305
 	tristate
 
 config SND_SOC_RT1308
 	tristate
+
+config SND_SOC_RT1308_SDW
+	tristate "Realtek RT1308 Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT5514
 	tristate
@@ -1056,6 +1086,33 @@ config SND_SOC_RT5677_SPI
 
 config SND_SOC_RT5682
 	tristate
+
+config SND_SOC_RT700
+	tristate
+
+config SND_SOC_RT700_SDW
+	tristate "Realtek RT700 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT700
+	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT711
+	tristate
+
+config SND_SOC_RT711_SDW
+	tristate "Realtek RT711 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT711
+	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT715
+	tristate
+
+config SND_SOC_RT715_SDW
+	tristate "Realtek RT715 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT715
+	select REGMAP_SOUNDWIRE
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
@@ -1275,6 +1332,14 @@ config SND_SOC_WCD9335
 	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
 	  including the MSM8996, MSM8976, and MSM8956 chipsets.
 
+config SND_SOC_WCD934X
+	tristate "WCD9340/WCD9341 Codec"
+	depends on COMMON_CLK
+	depends on MFD_WCD934X
+	help
+	  The WCD9340/9341 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SDM845.
+
 config SND_SOC_WL1273
 	tristate
 
@@ -1341,7 +1406,7 @@ config SND_SOC_WM8737
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8741
-	tristate "Wolfson Microelectronics WM8737 DAC"
+	tristate "Wolfson Microelectronics WM8741 DAC"
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8750
@@ -1473,6 +1538,15 @@ config SND_SOC_WM9713
 	select REGMAP_AC97
 	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
+config SND_SOC_WSA881X
+	tristate "WSA881X Codec"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	tristate
+	help
+	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
+	  Smart Speaker Amplifier.
+
 config SND_SOC_ZX_AUD96P22
 	tristate "ZTE ZX AUD96P22 CODEC"
 	depends on I2C
@@ -1506,6 +1580,15 @@ config SND_SOC_MT6358
 	help
 	  Enable support for the platform which uses MT6358 as
 	  external codec device.
+
+config SND_SOC_MT6660
+	tristate "Mediatek MT6660 Speaker Amplifier"
+	depends on I2C
+	help
+	  MediaTek MT6660 is a smart power amplifier which contain
+	  speaker protection, multi-band DRC, equalizer functions.
+	  Select N if you don't have MT6660 on board.
+	  Select M to build this as module.
 
 config SND_SOC_NAU8540
        tristate "Nuvoton Technology Corporation NAU85L40 CODEC"

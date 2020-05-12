@@ -156,6 +156,13 @@ static void rds_ib_add_one(struct ib_device *device)
 	has_fmr = (device->ops.alloc_fmr && device->ops.dealloc_fmr &&
 		   device->ops.map_phys_fmr && device->ops.unmap_fmr);
 	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
+	rds_ibdev->odp_capable =
+		!!(device->attrs.device_cap_flags &
+		   IB_DEVICE_ON_DEMAND_PAGING) &&
+		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &
+		   IB_ODP_SUPPORT_WRITE) &&
+		!!(device->attrs.odp_caps.per_transport_caps.rc_odp_caps &
+		   IB_ODP_SUPPORT_READ);
 
 	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
 	rds_ibdev->max_1m_mrs = device->attrs.max_mr ?

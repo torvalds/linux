@@ -1056,7 +1056,8 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	ret = qtnf_cmd_reg_notify(mac, req, qtnf_mac_slave_radar_get(wiphy));
+	ret = qtnf_cmd_reg_notify(mac, req, qtnf_slave_radar_get(),
+				  qtnf_dfs_offload_get());
 	if (ret) {
 		pr_err("MAC%u: failed to update region to %c%c: %d\n",
 		       mac->macid, req->alpha2[0], req->alpha2[1], ret);
@@ -1078,7 +1079,8 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 {
 	struct wiphy *wiphy;
 
-	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+	if (qtnf_dfs_offload_get() &&
+	    (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD))
 		qtn_cfg80211_ops.start_radar_detection = NULL;
 
 	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_PWR_MGMT))
@@ -1163,7 +1165,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_NETNS_OK;
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+	if (qtnf_dfs_offload_get() &&
+	    (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD))
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_DWELL)

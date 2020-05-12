@@ -72,9 +72,6 @@ static int ni_find_device_routes(const char *device_family,
 		}
 	}
 
-	if (!rv)
-		return -ENODATA;
-
 	/* Second, find the set of routes valid for this device. */
 	for (i = 0; ni_device_routes_list[i]; ++i) {
 		if (memcmp(ni_device_routes_list[i]->device, board_name,
@@ -84,11 +81,11 @@ static int ni_find_device_routes(const char *device_family,
 		}
 	}
 
-	if (!dr)
-		return -ENODATA;
-
 	tables->route_values = rv;
 	tables->valid_routes = dr;
+
+	if (!rv || !dr)
+		return -ENODATA;
 
 	return 0;
 }
@@ -486,6 +483,9 @@ int ni_find_route_source(const u8 src_sel_reg_value, int dest,
 			 const struct ni_route_tables *tables)
 {
 	int src;
+
+	if (!tables->route_values)
+		return -EINVAL;
 
 	dest = B(dest); /* subtract NI names offset */
 	/* ensure we are not going to under/over run the route value table */

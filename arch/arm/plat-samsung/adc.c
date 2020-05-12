@@ -40,7 +40,7 @@ enum s3c_cpu_type {
 	TYPE_ADCV11, /* S3C2443 */
 	TYPE_ADCV12, /* S3C2416, S3C2450 */
 	TYPE_ADCV2, /* S3C64XX */
-	TYPE_ADCV3, /* S5PV210, S5PC110, EXYNOS4210 */
+	TYPE_ADCV3, /* S5PV210, S5PC110, Exynos4210 */
 };
 
 struct s3c_adc_client {

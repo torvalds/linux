@@ -81,6 +81,7 @@ struct scmi_msg {
 /**
  * struct scmi_xfer - Structure representing a message flow
  *
+ * @transfer_id: Unique ID for debug & profiling purpose
  * @hdr: Transmit message header
  * @tx: Transmit message
  * @rx: Receive message, the buffer should be pre-allocated to store
@@ -90,6 +91,7 @@ struct scmi_msg {
  * @async: pointer to delayed response message received event completion
  */
 struct scmi_xfer {
+	int transfer_id;
 	struct scmi_msg_hdr hdr;
 	struct scmi_msg tx;
 	struct scmi_msg rx;

@@ -17,11 +17,14 @@ description: |+
                     "aspeed,ast2400-scu", "syscon", "simple-mfd"
 
   Refer to the the bindings described in
-  Documentation/devicetree/bindings/mfd/syscon.txt
+  Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
   compatible:
     const: aspeed,ast2400-pinctrl
+  reg:
+    description: |
+      A hint for the memory regions associated with the pin-controller
 
 patternProperties:
   '^.*$':

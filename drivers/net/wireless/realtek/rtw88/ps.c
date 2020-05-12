@@ -91,11 +91,11 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 			return;
 
 		/* check confirm power mode has left power save state */
-		for (polling_cnt = 0; polling_cnt < 3; polling_cnt++) {
+		for (polling_cnt = 0; polling_cnt < 50; polling_cnt++) {
 			polling = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
 			if ((polling ^ confirm) & BIT_RPWM_TOGGLE)
 				return;
-			mdelay(20);
+			udelay(100);
 		}
 
 		/* in case of fw/hw missed the request, retry */

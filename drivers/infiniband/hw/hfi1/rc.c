@@ -2599,7 +2599,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 	 * to be sent before sending this one.
 	 */
 	e = NULL;
-	old_req = 1;
+	old_req = true;
 	ibp->rvp.n_rc_dupreq++;
 
 	spin_lock_irqsave(&qp->s_lock, flags);

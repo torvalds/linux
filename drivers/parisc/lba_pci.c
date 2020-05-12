@@ -1134,7 +1134,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			** Postable I/O port space is per PCI host adapter.
 			** base of 64MB PIOP region
 			*/
-			lba_dev->iop_base = ioremap_nocache(p->start, 64 * 1024 * 1024);
+			lba_dev->iop_base = ioremap(p->start, 64 * 1024 * 1024);
 
 			sprintf(lba_dev->hba.io_name, "PCI%02x Ports",
 					(int)lba_dev->hba.bus_num.start);
@@ -1476,7 +1476,7 @@ lba_driver_probe(struct parisc_device *dev)
 	u32 func_class;
 	void *tmp_obj;
 	char *version;
-	void __iomem *addr = ioremap_nocache(dev->hpa.start, 4096);
+	void __iomem *addr = ioremap(dev->hpa.start, 4096);
 	int max;
 
 	/* Read HW Rev First */
@@ -1575,7 +1575,7 @@ lba_driver_probe(struct parisc_device *dev)
 	} else {
 		if (!astro_iop_base) {
 			/* Sprockets PDC uses NPIOP region */
-			astro_iop_base = ioremap_nocache(LBA_PORT_BASE, 64 * 1024);
+			astro_iop_base = ioremap(LBA_PORT_BASE, 64 * 1024);
 			pci_port = &lba_astro_port_ops;
 		}
 
@@ -1693,7 +1693,7 @@ void __init lba_init(void)
 */
 void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask)
 {
-	void __iomem * base_addr = ioremap_nocache(lba->hpa.start, 4096);
+	void __iomem * base_addr = ioremap(lba->hpa.start, 4096);
 
 	imask <<= 2;	/* adjust for hints - 2 more bits */
 

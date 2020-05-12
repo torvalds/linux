@@ -12,8 +12,9 @@ static int cxgb4_mqprio_validate(struct net_device *dev,
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 	u32 speed, qcount = 0, qoffset = 0;
+	u32 start_a, start_b, end_a, end_b;
 	int ret;
-	u8 i;
+	u8 i, j;
 
 	if (!mqprio->qopt.num_tc)
 		return 0;
@@ -46,6 +47,31 @@ static int cxgb4_mqprio_validate(struct net_device *dev,
 	for (i = 0; i < mqprio->qopt.num_tc; i++) {
 		qoffset = max_t(u16, mqprio->qopt.offset[i], qoffset);
 		qcount += mqprio->qopt.count[i];
+
+		start_a = mqprio->qopt.offset[i];
+		end_a = start_a + mqprio->qopt.count[i] - 1;
+		for (j = i + 1; j < mqprio->qopt.num_tc; j++) {
+			start_b = mqprio->qopt.offset[j];
+			end_b = start_b + mqprio->qopt.count[j] - 1;
+
+			/* If queue count is 0, then the traffic
+			 * belonging to this class will not use
+			 * ETHOFLD queues. So, no need to validate
+			 * further.
+			 */
+			if (!mqprio->qopt.count[i])
+				break;
+
+			if (!mqprio->qopt.count[j])
+				continue;
+
+			if (max_t(u32, start_a, start_b) <=
+			    min_t(u32, end_a, end_b)) {
+				netdev_err(dev,
+					   "Queues can't overlap across tc\n");
+				return -EINVAL;
+			}
+		}
 
 		/* Convert byte per second to bits per second */
 		min_rate += (mqprio->min_rate[i] * 8);

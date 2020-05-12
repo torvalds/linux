@@ -179,11 +179,6 @@ static int camelot_hw_params(struct snd_soc_component *component,
 	int recv = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 0:1;
 	int ret;
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0)
-		return ret;
-
 	if (recv) {
 		cam->rx_period_size = params_period_bytes(hw_params);
 		cam->rx_period = 0;
@@ -192,12 +187,6 @@ static int camelot_hw_params(struct snd_soc_component *component,
 		cam->tx_period = 0;
 	}
 	return 0;
-}
-
-static int camelot_hw_free(struct snd_soc_component *component,
-			   struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int camelot_prepare(struct snd_soc_component *component,
@@ -307,7 +296,7 @@ static int camelot_pcm_new(struct snd_soc_component *component,
 	/* dont use SNDRV_DMA_TYPE_DEV, since it will oops the SH kernel
 	 * in MMAP mode (i.e. aplay -M)
 	 */
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 		SNDRV_DMA_TYPE_CONTINUOUS,
 		NULL,
 		DMABRG_PREALLOC_BUFFER,	DMABRG_PREALLOC_BUFFER_MAX);
@@ -318,9 +307,7 @@ static int camelot_pcm_new(struct snd_soc_component *component,
 static const struct snd_soc_component_driver sh7760_soc_component = {
 	.open		= camelot_pcm_open,
 	.close		= camelot_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= camelot_hw_params,
-	.hw_free	= camelot_hw_free,
 	.prepare	= camelot_prepare,
 	.trigger	= camelot_trigger,
 	.pointer	= camelot_pos,

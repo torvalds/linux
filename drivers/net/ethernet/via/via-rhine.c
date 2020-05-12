@@ -506,7 +506,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int  rhine_open(struct net_device *dev);
 static void rhine_reset_task(struct work_struct *work);
 static void rhine_slow_event_task(struct work_struct *work);
-static void rhine_tx_timeout(struct net_device *dev);
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 				  struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
@@ -1761,7 +1761,7 @@ out_unlock:
 	mutex_unlock(&rp->task_lock);
 }
 
-static void rhine_tx_timeout(struct net_device *dev)
+static void rhine_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;

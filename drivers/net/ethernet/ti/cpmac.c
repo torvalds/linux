@@ -797,7 +797,7 @@ static irqreturn_t cpmac_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void cpmac_tx_timeout(struct net_device *dev)
+static void cpmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -814,16 +814,6 @@ static void cpmac_tx_timeout(struct net_device *dev)
 	atomic_dec(&priv->reset_pending);
 
 	netif_tx_wake_all_queues(priv->dev);
-}
-
-static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	if (!(netif_running(dev)))
-		return -EINVAL;
-	if (!dev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
 static void cpmac_get_ringparam(struct net_device *dev,
@@ -1054,7 +1044,7 @@ static const struct net_device_ops cpmac_netdev_ops = {
 	.ndo_start_xmit		= cpmac_start_xmit,
 	.ndo_tx_timeout		= cpmac_tx_timeout,
 	.ndo_set_rx_mode	= cpmac_set_multicast_list,
-	.ndo_do_ioctl		= cpmac_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };

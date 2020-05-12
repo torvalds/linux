@@ -17,7 +17,8 @@ Required properties:
 	"renesas,i2c-r8a7793" if the device is a part of a R8A7793 SoC.
 	"renesas,i2c-r8a7794" if the device is a part of a R8A7794 SoC.
 	"renesas,i2c-r8a7795" if the device is a part of a R8A7795 SoC.
-	"renesas,i2c-r8a7796" if the device is a part of a R8A7796 SoC.
+	"renesas,i2c-r8a7796" if the device is a part of a R8A77960 SoC.
+	"renesas,i2c-r8a77961" if the device is a part of a R8A77961 SoC.
 	"renesas,i2c-r8a77965" if the device is a part of a R8A77965 SoC.
 	"renesas,i2c-r8a77970" if the device is a part of a R8A77970 SoC.
 	"renesas,i2c-r8a77980" if the device is a part of a R8A77980 SoC.

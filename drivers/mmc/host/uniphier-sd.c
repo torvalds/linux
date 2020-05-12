@@ -59,7 +59,6 @@
 struct uniphier_sd_priv {
 	struct tmio_mmc_data tmio_data;
 	struct pinctrl *pinctrl;
-	struct pinctrl_state *pinstate_default;
 	struct pinctrl_state *pinstate_uhs;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -500,13 +499,12 @@ static int uniphier_sd_start_signal_voltage_switch(struct mmc_host *mmc,
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
-	struct pinctrl_state *pinstate;
+	struct pinctrl_state *pinstate = NULL;
 	u32 val, tmp;
 
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
 		val = UNIPHIER_SD_VOLT_330;
-		pinstate = priv->pinstate_default;
 		break;
 	case MMC_SIGNAL_VOLTAGE_180:
 		val = UNIPHIER_SD_VOLT_180;
@@ -521,7 +519,10 @@ static int uniphier_sd_start_signal_voltage_switch(struct mmc_host *mmc,
 	tmp |= FIELD_PREP(UNIPHIER_SD_VOLT_MASK, val);
 	writel(tmp, host->ctl + UNIPHIER_SD_VOLT);
 
-	pinctrl_select_state(priv->pinctrl, pinstate);
+	if (pinstate)
+		pinctrl_select_state(priv->pinctrl, pinstate);
+	else
+		pinctrl_select_default_state(mmc_dev(mmc));
 
 	return 0;
 }
@@ -532,11 +533,6 @@ static int uniphier_sd_uhs_init(struct tmio_mmc_host *host,
 	priv->pinctrl = devm_pinctrl_get(mmc_dev(host->mmc));
 	if (IS_ERR(priv->pinctrl))
 		return PTR_ERR(priv->pinctrl);
-
-	priv->pinstate_default = pinctrl_lookup_state(priv->pinctrl,
-						      PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(priv->pinstate_default))
-		return PTR_ERR(priv->pinstate_default);
 
 	priv->pinstate_uhs = pinctrl_lookup_state(priv->pinctrl, "uhs");
 	if (IS_ERR(priv->pinstate_uhs))

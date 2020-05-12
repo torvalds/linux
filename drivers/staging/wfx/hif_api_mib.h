@@ -181,19 +181,13 @@ struct hif_mib_ipv6_addr_data_frame_condition {
 	u8    i_pv6_address[HIF_API_IPV6_ADDRESS_SIZE];
 } __packed;
 
-union hif_addr_type {
-	u8 value;
-	struct {
-		u8    type_unicast:1;
-		u8    type_multicast:1;
-		u8    type_broadcast:1;
-		u8    reserved:5;
-	} bits;
-};
+#define HIF_FILTER_UNICAST   0x1
+#define HIF_FILTER_MULTICAST 0x2
+#define HIF_FILTER_BROADCAST 0x4
 
 struct hif_mib_uc_mc_bc_data_frame_condition {
 	u8    condition_idx;
-	union hif_addr_type param;
+	u8    allowed_frames;
 	u8    reserved[2];
 } __packed;
 
@@ -212,9 +206,11 @@ struct hif_mib_config_data_filter {
 } __packed;
 
 struct hif_mib_set_data_filtering {
-	u8    default_filter;
-	u8    enable;
-	u8    reserved[2];
+	u8    invert_matching:1;
+	u8    reserved1:7;
+	u8    enable:1;
+	u8    reserved2:7;
+	u8    reserved3[2];
 } __packed;
 
 enum hif_arp_ns_frame_treatment {
@@ -395,11 +391,6 @@ struct hif_mib_non_erp_protection {
 	u8   reserved2[3];
 } __packed;
 
-enum hif_tx_mode {
-	HIF_TX_MODE_MIXED                        = 0x0,
-	HIF_TX_MODE_GREENFIELD                   = 0x1
-};
-
 enum hif_tmplt {
 	HIF_TMPLT_PRBREQ                           = 0x0,
 	HIF_TMPLT_BCN                              = 0x1,
@@ -471,9 +462,11 @@ struct hif_mib_set_association_mode {
 	u8    mode:1;
 	u8    rateset:1;
 	u8    spacing:1;
-	u8    reserved:4;
-	u8    preamble_type;
-	u8    mixed_or_greenfield_type;
+	u8    reserved1:4;
+	u8    short_preamble:1;
+	u8    reserved2:7;
+	u8    greenfield:1;
+	u8    reserved3:7;
 	u8    mpdu_start_spacing;
 	u32   basic_rate_set;
 } __packed;

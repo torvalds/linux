@@ -79,7 +79,7 @@ static netdev_tx_t	ether3_sendpacket(struct sk_buff *skb,
 static irqreturn_t ether3_interrupt (int irq, void *dev_id);
 static int	ether3_close (struct net_device *dev);
 static void	ether3_setmulticastlist (struct net_device *dev);
-static void	ether3_timeout(struct net_device *dev);
+static void	ether3_timeout(struct net_device *dev, unsigned int txqueue);
 
 #define BUS_16		2
 #define BUS_8		1
@@ -450,7 +450,7 @@ static void ether3_setmulticastlist(struct net_device *dev)
 	ether3_outw(priv(dev)->regs.config1 | CFG1_LOCBUFMEM, REG_CONFIG1);
 }
 
-static void ether3_timeout(struct net_device *dev)
+static void ether3_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	unsigned long flags;
 

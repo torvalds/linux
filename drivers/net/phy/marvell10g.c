@@ -214,9 +214,9 @@ static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	phy_interface_t iface;
 
 	sfp_parse_support(phydev->sfp_bus, id, support);
-	iface = sfp_select_interface(phydev->sfp_bus, id, support);
+	iface = sfp_select_interface(phydev->sfp_bus, support);
 
-	if (iface != PHY_INTERFACE_MODE_10GKR) {
+	if (iface != PHY_INTERFACE_MODE_10GBASER) {
 		dev_err(&phydev->mdio.dev, "incompatible SFP module inserted\n");
 		return -EINVAL;
 	}
@@ -304,7 +304,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI &&
-	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
+	    phydev->interface != PHY_INTERFACE_MODE_10GBASER)
 		return -ENODEV;
 
 	return 0;
@@ -386,16 +386,17 @@ static void mv3310_update_interface(struct phy_device *phydev)
 {
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
 	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
-	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
+	     phydev->interface == PHY_INTERFACE_MODE_10GBASER) &&
+	    phydev->link) {
 		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII, 10GBase-KR and
+		 * active PHYXS instance) between Cisco SGMII, 10GBase-R and
 		 * 2500BaseX modes according to the speed.  Florian suggests
 		 * setting phydev->interface to communicate this to the MAC.
 		 * Only do this if we are already in one of the above modes.
 		 */
 		switch (phydev->speed) {
 		case SPEED_10000:
-			phydev->interface = PHY_INTERFACE_MODE_10GKR;
+			phydev->interface = PHY_INTERFACE_MODE_10GBASER;
 			break;
 		case SPEED_2500:
 			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;

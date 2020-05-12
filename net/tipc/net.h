@@ -47,5 +47,6 @@ void tipc_net_stop(struct net *net);
 int tipc_nl_net_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info);
 int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_net_addr_legacy_get(struct sk_buff *skb, struct genl_info *info);
 
 #endif

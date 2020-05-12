@@ -389,4 +389,6 @@ static struct kunit_suite sysctl_test_suite = {
 	.test_cases = sysctl_test_cases,
 };
 
-kunit_test_suite(sysctl_test_suite);
+kunit_test_suites(&sysctl_test_suite);
+
+MODULE_LICENSE("GPL v2");

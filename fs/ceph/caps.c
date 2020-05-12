@@ -908,7 +908,8 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 						       ci_node);
 					if (!__cap_is_valid(cap))
 						continue;
-					__touch_cap(cap);
+					if (cap->issued & mask)
+						__touch_cap(cap);
 				}
 			}
 			return 1;

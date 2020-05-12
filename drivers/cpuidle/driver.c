@@ -155,8 +155,6 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 {
 	int i;
 
-	drv->refcnt = 0;
-
 	/*
 	 * Use all possible CPUs as the default, because if the kernel boots
 	 * with some CPUs offline and then we online one of them, the CPU
@@ -240,9 +238,6 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
  */
 static void __cpuidle_unregister_driver(struct cpuidle_driver *drv)
 {
-	if (WARN_ON(drv->refcnt > 0))
-		return;
-
 	if (drv->bctimer) {
 		drv->bctimer = 0;
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
@@ -348,47 +343,6 @@ struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev)
 	return __cpuidle_get_cpu_driver(dev->cpu);
 }
 EXPORT_SYMBOL_GPL(cpuidle_get_cpu_driver);
-
-/**
- * cpuidle_driver_ref - get a reference to the driver.
- *
- * Increment the reference counter of the cpuidle driver associated with
- * the current CPU.
- *
- * Returns a pointer to the driver, or NULL if the current CPU has no driver.
- */
-struct cpuidle_driver *cpuidle_driver_ref(void)
-{
-	struct cpuidle_driver *drv;
-
-	spin_lock(&cpuidle_driver_lock);
-
-	drv = cpuidle_get_driver();
-	if (drv)
-		drv->refcnt++;
-
-	spin_unlock(&cpuidle_driver_lock);
-	return drv;
-}
-
-/**
- * cpuidle_driver_unref - puts down the refcount for the driver
- *
- * Decrement the reference counter of the cpuidle driver associated with
- * the current CPU.
- */
-void cpuidle_driver_unref(void)
-{
-	struct cpuidle_driver *drv;
-
-	spin_lock(&cpuidle_driver_lock);
-
-	drv = cpuidle_get_driver();
-	if (drv && !WARN_ON(drv->refcnt <= 0))
-		drv->refcnt--;
-
-	spin_unlock(&cpuidle_driver_lock);
-}
 
 /**
  * cpuidle_driver_state_disabled - Disable or enable an idle state

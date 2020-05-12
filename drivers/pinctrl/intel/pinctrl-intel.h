@@ -10,7 +10,10 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/gpio/driver.h>
+#include <linux/irq.h>
 #include <linux/pm.h>
+#include <linux/spinlock_types.h>
 
 struct pinctrl_pin_desc;
 struct platform_device;
@@ -172,6 +175,47 @@ struct intel_pinctrl_soc_data {
 	size_t nfunctions;
 	const struct intel_community *communities;
 	size_t ncommunities;
+};
+
+struct intel_pad_context;
+struct intel_community_context;
+
+/**
+ * struct intel_pinctrl_context - context to be saved during suspend-resume
+ * @pads: Opaque context per pad (driver dependent)
+ * @communities: Opaque context per community (driver dependent)
+ */
+struct intel_pinctrl_context {
+	struct intel_pad_context *pads;
+	struct intel_community_context *communities;
+};
+
+/**
+ * struct intel_pinctrl - Intel pinctrl private structure
+ * @dev: Pointer to the device structure
+ * @lock: Lock to serialize register access
+ * @pctldesc: Pin controller description
+ * @pctldev: Pointer to the pin controller device
+ * @chip: GPIO chip in this pin controller
+ * @irqchip: IRQ chip in this pin controller
+ * @soc: SoC/PCH specific pin configuration data
+ * @communities: All communities in this pin controller
+ * @ncommunities: Number of communities in this pin controller
+ * @context: Configuration saved over system sleep
+ * @irq: pinctrl/GPIO chip irq number
+ */
+struct intel_pinctrl {
+	struct device *dev;
+	raw_spinlock_t lock;
+	struct pinctrl_desc pctldesc;
+	struct pinctrl_dev *pctldev;
+	struct gpio_chip chip;
+	struct irq_chip irqchip;
+	const struct intel_pinctrl_soc_data *soc;
+	struct intel_community *communities;
+	size_t ncommunities;
+	struct intel_pinctrl_context context;
+	int irq;
 };
 
 int intel_pinctrl_probe_by_hid(struct platform_device *pdev);

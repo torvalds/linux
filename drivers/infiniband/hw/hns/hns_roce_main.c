@@ -90,7 +90,7 @@ static int hns_roce_add_gid(const struct ib_gid_attr *attr, void **context)
 static int hns_roce_del_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
-	struct ib_gid_attr zattr = { };
+	struct ib_gid_attr zattr = {};
 	u8 port = attr->port_num - 1;
 	int ret;
 
@@ -210,7 +210,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
-		props->max_srq = hr_dev->caps.max_srqs;
+		props->max_srq = hr_dev->caps.num_srqs;
 		props->max_srq_wr = hr_dev->caps.max_srq_wrs;
 		props->max_srq_sge = hr_dev->caps.max_srq_sges;
 	}
@@ -259,11 +259,12 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 
 	mtu = iboe_get_mtu(net_dev->mtu);
 	props->active_mtu = mtu ? min(props->max_mtu, mtu) : IB_MTU_256;
-	props->state = (netif_running(net_dev) && netif_carrier_ok(net_dev)) ?
-			IB_PORT_ACTIVE : IB_PORT_DOWN;
-	props->phys_state = (props->state == IB_PORT_ACTIVE) ?
-			     IB_PORT_PHYS_STATE_LINK_UP :
-			     IB_PORT_PHYS_STATE_DISABLED;
+	props->state = netif_running(net_dev) && netif_carrier_ok(net_dev) ?
+			       IB_PORT_ACTIVE :
+			       IB_PORT_DOWN;
+	props->phys_state = props->state == IB_PORT_ACTIVE ?
+				    IB_PORT_PHYS_STATE_LINK_UP :
+				    IB_PORT_PHYS_STATE_DISABLED;
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
@@ -481,13 +482,13 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev = &hr_dev->ib_dev;
 
-	ib_dev->node_type		= RDMA_NODE_IB_CA;
-	ib_dev->dev.parent		= dev;
+	ib_dev->node_type = RDMA_NODE_IB_CA;
+	ib_dev->dev.parent = dev;
 
-	ib_dev->phys_port_cnt		= hr_dev->caps.num_ports;
-	ib_dev->local_dma_lkey		= hr_dev->caps.reserved_lkey;
-	ib_dev->num_comp_vectors	= hr_dev->caps.num_comp_vectors;
-	ib_dev->uverbs_cmd_mask		=
+	ib_dev->phys_port_cnt = hr_dev->caps.num_ports;
+	ib_dev->local_dma_lkey = hr_dev->caps.reserved_lkey;
+	ib_dev->num_comp_vectors = hr_dev->caps.num_comp_vectors;
+	ib_dev->uverbs_cmd_mask =
 		(1ULL << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_DEVICE) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_PORT) |
@@ -503,8 +504,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP);
 
-	ib_dev->uverbs_ex_cmd_mask |=
-		(1ULL << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
+	ib_dev->uverbs_ex_cmd_mask |= (1ULL << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR) {
 		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
@@ -589,11 +589,13 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE)) {
 		ret = hns_roce_init_hem_table(hr_dev,
-				      &hr_dev->mr_table.mtt_cqe_table,
-				      HEM_TYPE_CQE, hr_dev->caps.mtt_entry_sz,
-				      hr_dev->caps.num_cqe_segs, 1);
+					      &hr_dev->mr_table.mtt_cqe_table,
+					      HEM_TYPE_CQE,
+					      hr_dev->caps.mtt_entry_sz,
+					      hr_dev->caps.num_cqe_segs, 1);
 		if (ret) {
-			dev_err(dev, "Failed to init MTT CQE context memory, aborting.\n");
+			dev_err(dev,
+				"Failed to init CQE context memory, aborting.\n");
 			goto err_unmap_cqe;
 		}
 	}
@@ -633,7 +635,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_qps, 1);
 		if (ret) {
 			dev_err(dev,
-			       "Failed to init trrl_table memory, aborting.\n");
+				"Failed to init trrl_table memory, aborting.\n");
 			goto err_unmap_irrl;
 		}
 	}
@@ -653,7 +655,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_srqs, 1);
 		if (ret) {
 			dev_err(dev,
-			      "Failed to init SRQ context memory, aborting.\n");
+				"Failed to init SRQ context memory, aborting.\n");
 			goto err_unmap_cq;
 		}
 	}
@@ -692,33 +694,31 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_qps, 1);
 		if (ret) {
 			dev_err(dev,
-			      "Failed to init SCC context memory, aborting.\n");
+				"Failed to init SCC context memory, aborting.\n");
 			goto err_unmap_idx;
 		}
 	}
 
 	if (hr_dev->caps.qpc_timer_entry_sz) {
-		ret = hns_roce_init_hem_table(hr_dev,
-					      &hr_dev->qpc_timer_table,
+		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qpc_timer_table,
 					      HEM_TYPE_QPC_TIMER,
 					      hr_dev->caps.qpc_timer_entry_sz,
 					      hr_dev->caps.num_qpc_timer, 1);
 		if (ret) {
 			dev_err(dev,
-			      "Failed to init QPC timer memory, aborting.\n");
+				"Failed to init QPC timer memory, aborting.\n");
 			goto err_unmap_ctx;
 		}
 	}
 
 	if (hr_dev->caps.cqc_timer_entry_sz) {
-		ret = hns_roce_init_hem_table(hr_dev,
-					      &hr_dev->cqc_timer_table,
+		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cqc_timer_table,
 					      HEM_TYPE_CQC_TIMER,
 					      hr_dev->caps.cqc_timer_entry_sz,
 					      hr_dev->caps.num_cqc_timer, 1);
 		if (ret) {
 			dev_err(dev,
-			      "Failed to init CQC timer memory, aborting.\n");
+				"Failed to init CQC timer memory, aborting.\n");
 			goto err_unmap_qpc_timer;
 		}
 	}
@@ -727,8 +727,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 err_unmap_qpc_timer:
 	if (hr_dev->caps.qpc_timer_entry_sz)
-		hns_roce_cleanup_hem_table(hr_dev,
-					   &hr_dev->qpc_timer_table);
+		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qpc_timer_table);
 
 err_unmap_ctx:
 	if (hr_dev->caps.sccc_entry_sz)
@@ -863,6 +862,50 @@ err_uar_table_free:
 	return ret;
 }
 
+static void check_and_get_armed_cq(struct list_head *cq_list, struct ib_cq *cq)
+{
+	struct hns_roce_cq *hr_cq = to_hr_cq(cq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&hr_cq->lock, flags);
+	if (cq->comp_handler) {
+		if (!hr_cq->is_armed) {
+			hr_cq->is_armed = 1;
+			list_add_tail(&hr_cq->node, cq_list);
+		}
+	}
+	spin_unlock_irqrestore(&hr_cq->lock, flags);
+}
+
+void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_qp *hr_qp;
+	struct hns_roce_cq *hr_cq;
+	struct list_head cq_list;
+	unsigned long flags_qp;
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&cq_list);
+
+	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
+	list_for_each_entry(hr_qp, &hr_dev->qp_list, node) {
+		spin_lock_irqsave(&hr_qp->sq.lock, flags_qp);
+		if (hr_qp->sq.tail != hr_qp->sq.head)
+			check_and_get_armed_cq(&cq_list, hr_qp->ibqp.send_cq);
+		spin_unlock_irqrestore(&hr_qp->sq.lock, flags_qp);
+
+		spin_lock_irqsave(&hr_qp->rq.lock, flags_qp);
+		if ((!hr_qp->ibqp.srq) && (hr_qp->rq.tail != hr_qp->rq.head))
+			check_and_get_armed_cq(&cq_list, hr_qp->ibqp.recv_cq);
+		spin_unlock_irqrestore(&hr_qp->rq.lock, flags_qp);
+	}
+
+	list_for_each_entry(hr_cq, &cq_list, node)
+		hns_roce_cq_completion(hr_dev, hr_cq->cqn);
+
+	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
+}
+
 int hns_roce_init(struct hns_roce_dev *hr_dev)
 {
 	int ret;
@@ -932,6 +975,9 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 			goto error_failed_engine_init;
 		}
 	}
+
+	INIT_LIST_HEAD(&hr_dev->qp_list);
+	spin_lock_init(&hr_dev->qp_list_lock);
 
 	ret = hns_roce_register_device(hr_dev);
 	if (ret)

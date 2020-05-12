@@ -183,10 +183,8 @@ static inline int extent_compress_type(unsigned long bio_flags)
 struct extent_map_tree;
 
 typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
-					  struct page *page,
-					  size_t pg_offset,
-					  u64 start, u64 len,
-					  int create);
+					  struct page *page, size_t pg_offset,
+					  u64 start, u64 len);
 
 int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);

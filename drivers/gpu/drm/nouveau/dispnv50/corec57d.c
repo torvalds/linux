@@ -27,20 +27,18 @@ corec57d_init(struct nv50_core *core)
 {
 	const u32 windows = 8; /*XXX*/
 	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 + 6 * windows + 2))) {
+	if ((push = evo_wait(&core->chan, 2 + 5 * windows))) {
 		evo_mthd(push, 0x0208, 1);
 		evo_data(push, core->chan.sync.handle);
 		for (i = 0; i < windows; i++) {
-			evo_mthd(push, 0x1000 + (i * 0x080), 3);
-			evo_data(push, i >> 1);
+			evo_mthd(push, 0x1004 + (i * 0x080), 2);
 			evo_data(push, 0x0000000f);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x1010 + (i * 0x080), 1);
 			evo_data(push, 0x00117fff);
 		}
-		evo_mthd(push, 0x0200, 1);
-		evo_data(push, 0x00000001);
 		evo_kick(push, &core->chan);
+		core->assign_windows = true;
 	}
 }
 
@@ -50,6 +48,7 @@ corec57d = {
 	.ntfy_init = corec37d_ntfy_init,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
+	.wndw.owner = corec37d_wndw_owner,
 	.head = &headc57d,
 	.sor = &sorc37d,
 };

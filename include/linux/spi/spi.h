@@ -423,6 +423,12 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	GPIO descriptors rather than using global GPIO numbers grabbed by the
  *	driver. This will fill in @cs_gpiods and @cs_gpios should not be used,
  *	and SPI devices will have the cs_gpiod assigned rather than cs_gpio.
+ * @unused_native_cs: When cs_gpiods is used, spi_register_controller() will
+ *	fill in this field with the first unused native CS, to be used by SPI
+ *	controller drivers that need to drive a native CS when using GPIO CS.
+ * @max_native_cs: When cs_gpiods is used, and this field is filled in,
+ *	spi_register_controller() will validate all native CS (including the
+ *	unused native CS) against this value.
  * @statistics: statistics for the spi_controller
  * @dma_tx: DMA transmit channel
  * @dma_rx: DMA receive channel
@@ -624,6 +630,8 @@ struct spi_controller {
 	int			*cs_gpios;
 	struct gpio_desc	**cs_gpiods;
 	bool			use_gpio_descriptors;
+	u8			unused_native_cs;
+	u8			max_native_cs;
 
 	/* statistics */
 	struct spi_statistics	statistics;
@@ -689,10 +697,10 @@ extern void spi_finalize_current_transfer(struct spi_controller *ctlr);
 /* Helper calls for driver to timestamp transfer */
 void spi_take_timestamp_pre(struct spi_controller *ctlr,
 			    struct spi_transfer *xfer,
-			    const void *tx, bool irqs_off);
+			    size_t progress, bool irqs_off);
 void spi_take_timestamp_post(struct spi_controller *ctlr,
 			     struct spi_transfer *xfer,
-			     const void *tx, bool irqs_off);
+			     size_t progress, bool irqs_off);
 
 /* the spi driver core manages memory for the spi_controller classdev */
 extern struct spi_controller *__spi_alloc_controller(struct device *host,

@@ -229,7 +229,7 @@ static int sp_probe(struct platform_device *pdev)
 				     resource_size(res_mem), DRV_NAME))
 		return -EBUSY;
 
-	addr = devm_ioremap_nocache(&pdev->dev, res_mem->start,
+	addr = devm_ioremap(&pdev->dev, res_mem->start,
 				    resource_size(res_mem));
 	if (!addr)
 		return -ENOMEM;

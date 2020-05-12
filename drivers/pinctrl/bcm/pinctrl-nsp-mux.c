@@ -578,7 +578,7 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -EINVAL;
-	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
+	pinctrl->base1 = devm_ioremap(&pdev->dev, res->start,
 					      resource_size(res));
 	if (!pinctrl->base1) {
 		dev_err(&pdev->dev, "unable to map I/O space\n");

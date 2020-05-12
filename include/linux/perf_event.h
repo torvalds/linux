@@ -582,7 +582,7 @@ struct swevent_hlist {
 #define PERF_ATTACH_ITRACE	0x10
 
 struct perf_cgroup;
-struct ring_buffer;
+struct perf_buffer;
 
 struct pmu_event_list {
 	raw_spinlock_t		lock;
@@ -694,7 +694,7 @@ struct perf_event {
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;
 
-	struct ring_buffer		*rb;
+	struct perf_buffer		*rb;
 	struct list_head		rb_entry;
 	unsigned long			rcu_batches;
 	int				rcu_pending;
@@ -854,7 +854,7 @@ struct perf_cpu_context {
 
 struct perf_output_handle {
 	struct perf_event		*event;
-	struct ring_buffer		*rb;
+	struct perf_buffer		*rb;
 	unsigned long			wakeup;
 	unsigned long			size;
 	u64				aux_flags;
@@ -1543,5 +1543,9 @@ int perf_event_exit_cpu(unsigned int cpu);
 #define perf_event_init_cpu	NULL
 #define perf_event_exit_cpu	NULL
 #endif
+
+extern void __weak arch_perf_update_userpage(struct perf_event *event,
+					     struct perf_event_mmap_page *userpg,
+					     u64 now);
 
 #endif /* _LINUX_PERF_EVENT_H */
