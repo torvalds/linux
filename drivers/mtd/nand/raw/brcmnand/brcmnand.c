@@ -1099,32 +1099,29 @@ static int brcmnand_hamming_ooblayout_free(struct mtd_info *mtd, int section,
 	struct brcmnand_cfg *cfg = &host->hwcfg;
 	int sas = cfg->spare_area_size << cfg->sector_size_1k;
 	int sectors = cfg->page_size / (512 << cfg->sector_size_1k);
+	u32 next;
 
-	if (section >= sectors * 2)
+	if (section > sectors)
 		return -ERANGE;
 
-	oobregion->offset = (section / 2) * sas;
+	next = (section * sas);
+	if (section < sectors)
+		next += 6;
 
-	if (section & 1) {
-		oobregion->offset += 9;
-		oobregion->length = 7;
+	if (section) {
+		oobregion->offset = ((section - 1) * sas) + 9;
 	} else {
-		oobregion->length = 6;
-
-		/* First sector of each page may have BBI */
-		if (!section) {
-			/*
-			 * Small-page NAND use byte 6 for BBI while large-page
-			 * NAND use bytes 0 and 1.
-			 */
-			if (cfg->page_size > 512) {
-				oobregion->offset += 2;
-				oobregion->length -= 2;
-			} else {
-				oobregion->length--;
-			}
+		if (cfg->page_size > 512) {
+			/* Large page NAND uses first 2 bytes for BBI */
+			oobregion->offset = 2;
+		} else {
+			/* Small page NAND uses last byte before ECC for BBI */
+			oobregion->offset = 0;
+			next--;
 		}
 	}
+
+	oobregion->length = next - oobregion->offset;
 
 	return 0;
 }
