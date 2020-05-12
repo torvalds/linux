@@ -365,6 +365,34 @@ DEFINE_RPC_REPLY_EVENT(stale_creds);
 DEFINE_RPC_REPLY_EVENT(bad_creds);
 DEFINE_RPC_REPLY_EVENT(auth_tooweak);
 
+TRACE_EVENT(rpc_call_rpcerror,
+	TP_PROTO(
+		const struct rpc_task *task,
+		int tk_status,
+		int rpc_status
+	),
+
+	TP_ARGS(task, tk_status, rpc_status),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, tk_status)
+		__field(int, rpc_status)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->task_id = task->tk_pid;
+		__entry->tk_status = tk_status;
+		__entry->rpc_status = rpc_status;
+	),
+
+	TP_printk("task:%u@%u tk_status=%d rpc_status=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->tk_status, __entry->rpc_status)
+);
+
 TRACE_EVENT(rpc_stats_latency,
 
 	TP_PROTO(
