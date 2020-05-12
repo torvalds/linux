@@ -650,6 +650,9 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		return ICE_ERR_PARAM;
 	}
 
+	if (input->flex_fltr)
+		ice_pkt_insert_u16(loc, input->flex_offset, input->flex_word);
+
 	return 0;
 }
 

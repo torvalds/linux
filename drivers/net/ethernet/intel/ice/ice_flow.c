@@ -193,6 +193,40 @@ ice_flow_val_hdrs(struct ice_flow_seg_info *segs, u8 segs_cnt)
 	return 0;
 }
 
+/* Sizes of fixed known protocol headers without header options */
+#define ICE_FLOW_PROT_HDR_SZ_MAC	14
+#define ICE_FLOW_PROT_HDR_SZ_IPV4	20
+#define ICE_FLOW_PROT_HDR_SZ_IPV6	40
+#define ICE_FLOW_PROT_HDR_SZ_TCP	20
+#define ICE_FLOW_PROT_HDR_SZ_UDP	8
+#define ICE_FLOW_PROT_HDR_SZ_SCTP	12
+
+/**
+ * ice_flow_calc_seg_sz - calculates size of a packet segment based on headers
+ * @params: information about the flow to be processed
+ * @seg: index of packet segment whose header size is to be determined
+ */
+static u16 ice_flow_calc_seg_sz(struct ice_flow_prof_params *params, u8 seg)
+{
+	u16 sz = ICE_FLOW_PROT_HDR_SZ_MAC;
+
+	/* L3 headers */
+	if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_IPV4)
+		sz += ICE_FLOW_PROT_HDR_SZ_IPV4;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_IPV6)
+		sz += ICE_FLOW_PROT_HDR_SZ_IPV6;
+
+	/* L4 headers */
+	if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_TCP)
+		sz += ICE_FLOW_PROT_HDR_SZ_TCP;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_UDP)
+		sz += ICE_FLOW_PROT_HDR_SZ_UDP;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_SCTP)
+		sz += ICE_FLOW_PROT_HDR_SZ_SCTP;
+
+	return sz;
+}
+
 /**
  * ice_flow_proc_seg_hdrs - process protocol headers present in pkt segments
  * @params: information about the flow to be processed
@@ -348,6 +382,81 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 }
 
 /**
+ * ice_flow_xtract_raws - Create extract sequence entries for raw bytes
+ * @hw: pointer to the HW struct
+ * @params: information about the flow to be processed
+ * @seg: index of packet segment whose raw fields are to be be extracted
+ */
+static enum ice_status
+ice_flow_xtract_raws(struct ice_hw *hw, struct ice_flow_prof_params *params,
+		     u8 seg)
+{
+	u16 fv_words;
+	u16 hdrs_sz;
+	u8 i;
+
+	if (!params->prof->segs[seg].raws_cnt)
+		return 0;
+
+	if (params->prof->segs[seg].raws_cnt >
+	    ARRAY_SIZE(params->prof->segs[seg].raws))
+		return ICE_ERR_MAX_LIMIT;
+
+	/* Offsets within the segment headers are not supported */
+	hdrs_sz = ice_flow_calc_seg_sz(params, seg);
+	if (!hdrs_sz)
+		return ICE_ERR_PARAM;
+
+	fv_words = hw->blk[params->blk].es.fvw;
+
+	for (i = 0; i < params->prof->segs[seg].raws_cnt; i++) {
+		struct ice_flow_seg_fld_raw *raw;
+		u16 off, cnt, j;
+
+		raw = &params->prof->segs[seg].raws[i];
+
+		/* Storing extraction information */
+		raw->info.xtrct.prot_id = ICE_PROT_MAC_OF_OR_S;
+		raw->info.xtrct.off = (raw->off / ICE_FLOW_FV_EXTRACT_SZ) *
+			ICE_FLOW_FV_EXTRACT_SZ;
+		raw->info.xtrct.disp = (raw->off % ICE_FLOW_FV_EXTRACT_SZ) *
+			BITS_PER_BYTE;
+		raw->info.xtrct.idx = params->es_cnt;
+
+		/* Determine the number of field vector entries this raw field
+		 * consumes.
+		 */
+		cnt = DIV_ROUND_UP(raw->info.xtrct.disp +
+				   (raw->info.src.last * BITS_PER_BYTE),
+				   (ICE_FLOW_FV_EXTRACT_SZ * BITS_PER_BYTE));
+		off = raw->info.xtrct.off;
+		for (j = 0; j < cnt; j++) {
+			u16 idx;
+
+			/* Make sure the number of extraction sequence required
+			 * does not exceed the block's capability
+			 */
+			if (params->es_cnt >= hw->blk[params->blk].es.count ||
+			    params->es_cnt >= ICE_MAX_FV_WORDS)
+				return ICE_ERR_MAX_LIMIT;
+
+			/* some blocks require a reversed field vector layout */
+			if (hw->blk[params->blk].es.reverse)
+				idx = fv_words - params->es_cnt - 1;
+			else
+				idx = params->es_cnt;
+
+			params->es[idx].prot_id = raw->info.xtrct.prot_id;
+			params->es[idx].off = off;
+			params->es_cnt++;
+			off += ICE_FLOW_FV_EXTRACT_SZ;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * ice_flow_create_xtrct_seq - Create an extraction sequence for given segments
  * @hw: pointer to the HW struct
  * @params: information about the flow to be processed
@@ -373,6 +482,11 @@ ice_flow_create_xtrct_seq(struct ice_hw *hw,
 			if (status)
 				return status;
 		}
+
+		/* Process raw matching bytes */
+		status = ice_flow_xtract_raws(hw, params, i);
+		if (status)
+			return status;
 	}
 
 	return status;
@@ -941,6 +1055,42 @@ ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		ICE_FLOW_FLD_TYPE_RANGE : ICE_FLOW_FLD_TYPE_REG;
 
 	ice_flow_set_fld_ext(seg, fld, t, val_loc, mask_loc, last_loc);
+}
+
+/**
+ * ice_flow_add_fld_raw - sets locations of a raw field from entry's input buf
+ * @seg: packet segment the field being set belongs to
+ * @off: offset of the raw field from the beginning of the segment in bytes
+ * @len: length of the raw pattern to be matched
+ * @val_loc: location of the value to match from entry's input buffer
+ * @mask_loc: location of mask value from entry's input buffer
+ *
+ * This function specifies the offset of the raw field to be match from the
+ * beginning of the specified packet segment, and the locations, in the form of
+ * byte offsets from the start of the input buffer for a flow entry, from where
+ * the value to match and the mask value to be extracted. These locations are
+ * then stored in the flow profile. When adding flow entries to the associated
+ * flow profile, these locations can be used to quickly extract the values to
+ * create the content of a match entry. This function should only be used for
+ * fixed-size data structures.
+ */
+void
+ice_flow_add_fld_raw(struct ice_flow_seg_info *seg, u16 off, u8 len,
+		     u16 val_loc, u16 mask_loc)
+{
+	if (seg->raws_cnt < ICE_FLOW_SEG_RAW_FLD_MAX) {
+		seg->raws[seg->raws_cnt].off = off;
+		seg->raws[seg->raws_cnt].info.type = ICE_FLOW_FLD_TYPE_SIZE;
+		seg->raws[seg->raws_cnt].info.src.val = val_loc;
+		seg->raws[seg->raws_cnt].info.src.mask = mask_loc;
+		/* The "last" field is used to store the length of the field */
+		seg->raws[seg->raws_cnt].info.src.last = len;
+	}
+
+	/* Overflows of "raws" will be handled as an error condition later in
+	 * the flow when this information is processed.
+	 */
+	seg->raws_cnt++;
 }
 
 #define ICE_FLOW_RSS_SEG_HDR_L3_MASKS \

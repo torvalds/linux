@@ -68,6 +68,14 @@ struct ice_fd_fltr_desc_ctx {
 	u8 fdid_mdid;
 };
 
+#define ICE_FLTR_PRGM_FLEX_WORD_SIZE	sizeof(__be16)
+
+struct ice_rx_flow_userdef {
+	u16 flex_word;
+	u16 flex_offset;
+	u16 flex_fltr;
+};
+
 struct ice_fdir_v4 {
 	__be32 dst_ip;
 	__be32 src_ip;
@@ -111,6 +119,11 @@ struct ice_fdir_fltr {
 
 	struct ice_fdir_extra ext_data;
 	struct ice_fdir_extra ext_mask;
+
+	/* flex byte filter data */
+	__be16 flex_word;
+	u16 flex_offset;
+	u16 flex_fltr;
 
 	/* filter control */
 	u16 q_index;

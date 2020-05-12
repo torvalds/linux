@@ -12,6 +12,7 @@
  */
 enum ice_prot_id {
 	ICE_PROT_ID_INVAL	= 0,
+	ICE_PROT_MAC_OF_OR_S	= 1,
 	ICE_PROT_IPV4_OF_OR_S	= 32,
 	ICE_PROT_IPV4_IL	= 33,
 	ICE_PROT_IPV6_OF_OR_S	= 40,

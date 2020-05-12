@@ -93,6 +93,19 @@ static enum ice_fltr_ptype ice_ethtool_flow_to_fltr(int eth)
 }
 
 /**
+ * ice_is_mask_valid - check mask field set
+ * @mask: full mask to check
+ * @field: field for which mask should be valid
+ *
+ * If the mask is fully set return true. If it is not valid for field return
+ * false.
+ */
+static bool ice_is_mask_valid(u64 mask, u64 field)
+{
+	return (mask & field) == field;
+}
+
+/**
  * ice_get_ethtool_fdir_entry - fill ethtool structure with fdir filter data
  * @hw: hardware structure that contains filter list
  * @cmd: ethtool command data structure to receive the filter data
@@ -333,6 +346,53 @@ void ice_fdir_release_flows(struct ice_hw *hw)
 	/* release Flow Director HW table entries */
 	for (flow = 0; flow < ICE_FLTR_PTYPE_MAX; flow++)
 		ice_fdir_erase_flow_from_hw(hw, ICE_BLK_FD, flow);
+}
+
+/**
+ * ice_parse_rx_flow_user_data - deconstruct user-defined data
+ * @fsp: pointer to ethtool Rx flow specification
+ * @data: pointer to userdef data structure for storage
+ *
+ * Returns 0 on success, negative error value on failure
+ */
+static int
+ice_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
+			    struct ice_rx_flow_userdef *data)
+{
+	u64 value, mask;
+
+	memset(data, 0, sizeof(*data));
+	if (!(fsp->flow_type & FLOW_EXT))
+		return 0;
+
+	value = be64_to_cpu(*((__force __be64 *)fsp->h_ext.data));
+	mask = be64_to_cpu(*((__force __be64 *)fsp->m_ext.data));
+	if (!mask)
+		return 0;
+
+#define ICE_USERDEF_FLEX_WORD_M	GENMASK_ULL(15, 0)
+#define ICE_USERDEF_FLEX_OFFS_S	16
+#define ICE_USERDEF_FLEX_OFFS_M	GENMASK_ULL(31, ICE_USERDEF_FLEX_OFFS_S)
+#define ICE_USERDEF_FLEX_FLTR_M	GENMASK_ULL(31, 0)
+
+	/* 0x1fe is the maximum value for offsets stored in the internal
+	 * filtering tables.
+	 */
+#define ICE_USERDEF_FLEX_MAX_OFFS_VAL 0x1fe
+
+	if (!ice_is_mask_valid(mask, ICE_USERDEF_FLEX_FLTR_M) ||
+	    value > ICE_USERDEF_FLEX_FLTR_M)
+		return -EINVAL;
+
+	data->flex_word = value & ICE_USERDEF_FLEX_WORD_M;
+	data->flex_offset = (value & ICE_USERDEF_FLEX_OFFS_M) >>
+			     ICE_USERDEF_FLEX_OFFS_S;
+	if (data->flex_offset > ICE_USERDEF_FLEX_MAX_OFFS_VAL)
+		return -EINVAL;
+
+	data->flex_fltr = true;
+
+	return 0;
 }
 
 /**
@@ -936,11 +996,13 @@ ice_set_fdir_ip6_usr_seg(struct ice_flow_seg_info *seg,
  * ice_cfg_fdir_xtrct_seq - Configure extraction sequence for the given filter
  * @pf: PF structure
  * @fsp: pointer to ethtool Rx flow specification
+ * @user: user defined data from flow specification
  *
  * Returns 0 on success.
  */
 static int
-ice_cfg_fdir_xtrct_seq(struct ice_pf *pf, struct ethtool_rx_flow_spec *fsp)
+ice_cfg_fdir_xtrct_seq(struct ice_pf *pf, struct ethtool_rx_flow_spec *fsp,
+		       struct ice_rx_flow_userdef *user)
 {
 	struct ice_flow_seg_info *seg, *tun_seg;
 	struct device *dev = ice_pf_to_dev(pf);
@@ -1007,6 +1069,18 @@ ice_cfg_fdir_xtrct_seq(struct ice_pf *pf, struct ethtool_rx_flow_spec *fsp)
 
 	/* tunnel segments are shifted up one. */
 	memcpy(&tun_seg[1], seg, sizeof(*seg));
+
+	if (user && user->flex_fltr) {
+		perfect_filter = false;
+		ice_flow_add_fld_raw(seg, user->flex_offset,
+				     ICE_FLTR_PRGM_FLEX_WORD_SIZE,
+				     ICE_FLOW_FLD_OFF_INVAL,
+				     ICE_FLOW_FLD_OFF_INVAL);
+		ice_flow_add_fld_raw(&tun_seg[1], user->flex_offset,
+				     ICE_FLTR_PRGM_FLEX_WORD_SIZE,
+				     ICE_FLOW_FLD_OFF_INVAL,
+				     ICE_FLOW_FLD_OFF_INVAL);
+	}
 
 	/* add filter for outer headers */
 	fltr_idx = ice_ethtool_flow_to_fltr(fsp->flow_type & ~FLOW_EXT);
@@ -1433,6 +1507,7 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
  */
 int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 {
+	struct ice_rx_flow_userdef userdata;
 	struct ethtool_rx_flow_spec *fsp;
 	struct ice_fdir_fltr *input;
 	struct device *dev;
@@ -1460,10 +1535,13 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
+	if (ice_parse_rx_flow_user_data(fsp, &userdata))
+		return -EINVAL;
+
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
 
-	ret = ice_cfg_fdir_xtrct_seq(pf, fsp);
+	ret = ice_cfg_fdir_xtrct_seq(pf, fsp, &userdata);
 	if (ret)
 		return ret;
 
@@ -1493,6 +1571,12 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 	if (ice_fdir_is_dup_fltr(hw, input)) {
 		ret = -EINVAL;
 		goto release_lock;
+	}
+
+	if (userdata.flex_fltr) {
+		input->flex_fltr = true;
+		input->flex_word = cpu_to_be16(userdata.flex_word);
+		input->flex_offset = userdata.flex_offset;
 	}
 
 	/* input struct is added to the HW filter list */

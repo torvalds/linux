@@ -128,6 +128,7 @@ enum ice_flow_priority {
 };
 
 #define ICE_FLOW_SEG_MAX		2
+#define ICE_FLOW_SEG_RAW_FLD_MAX	2
 #define ICE_FLOW_FV_EXTRACT_SZ		2
 
 #define ICE_FLOW_SET_HDRS(seg, val)	((seg)->hdrs |= (u32)(val))
@@ -164,12 +165,20 @@ struct ice_flow_fld_info {
 	struct ice_flow_seg_xtrct xtrct;
 };
 
+struct ice_flow_seg_fld_raw {
+	struct ice_flow_fld_info info;
+	u16 off;	/* Offset from the start of the segment */
+};
+
 struct ice_flow_seg_info {
 	u32 hdrs;	/* Bitmask indicating protocol headers present */
 	u64 match;	/* Bitmask indicating header fields to be matched */
 	u64 range;	/* Bitmask indicating header fields matched as ranges */
 
 	struct ice_flow_fld_info fields[ICE_FLOW_FIELD_IDX_MAX];
+
+	u8 raws_cnt;	/* Number of raw fields to be matched */
+	struct ice_flow_seg_fld_raw raws[ICE_FLOW_SEG_RAW_FLD_MAX];
 };
 
 /* This structure describes a flow entry, and is tracked only in this file */
@@ -228,6 +237,9 @@ ice_flow_rem_entry(struct ice_hw *hw, enum ice_block blk, u64 entry_h);
 void
 ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		 u16 val_loc, u16 mask_loc, u16 last_loc, bool range);
+void
+ice_flow_add_fld_raw(struct ice_flow_seg_info *seg, u16 off, u8 len,
+		     u16 val_loc, u16 mask_loc);
 void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
