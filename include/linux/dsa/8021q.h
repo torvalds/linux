@@ -50,6 +50,8 @@ int dsa_8021q_rx_switch_id(u16 vid);
 
 int dsa_8021q_rx_source_port(u16 vid);
 
+bool vid_is_dsa_8021q(u16 vid);
+
 #else
 
 int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int index,
@@ -105,6 +107,11 @@ int dsa_8021q_rx_switch_id(u16 vid)
 int dsa_8021q_rx_source_port(u16 vid)
 {
 	return 0;
+}
+
+bool vid_is_dsa_8021q(u16 vid)
+{
+	return false;
 }
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_TAG_8021Q) */
