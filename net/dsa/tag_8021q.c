@@ -17,7 +17,7 @@
  *
  * | 11  | 10  |  9  |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
  * +-----------+-----+-----------------+-----------+-----------------------+
- * |    DIR    | RSV |    SWITCH_ID    |    RSV    |          PORT         |
+ * |    DIR    | SVL |    SWITCH_ID    |  SUBVLAN  |          PORT         |
  * +-----------+-----+-----------------+-----------+-----------------------+
  *
  * DIR - VID[11:10]:
@@ -27,16 +27,23 @@
  *	These values make the special VIDs of 0, 1 and 4095 to be left
  *	unused by this coding scheme.
  *
- * RSV - VID[9]:
- *	To be used for further expansion of SWITCH_ID or for other purposes.
- *	Must be transmitted as zero and ignored on receive.
+ * SVL/SUBVLAN - { VID[9], VID[5:4] }:
+ *	Sub-VLAN encoding. Valid only when DIR indicates an RX VLAN.
+ *	* 0 (0b000): Field does not encode a sub-VLAN, either because
+ *	received traffic is untagged, PVID-tagged or because a second
+ *	VLAN tag is present after this tag and not inside of it.
+ *	* 1 (0b001): Received traffic is tagged with a VID value private
+ *	to the host. This field encodes the index in the host's lookup
+ *	table through which the value of the ingress VLAN ID can be
+ *	recovered.
+ *	* 2 (0b010): Field encodes a sub-VLAN.
+ *	...
+ *	* 7 (0b111): Field encodes a sub-VLAN.
+ *	When DIR indicates a TX VLAN, SUBVLAN must be transmitted as zero
+ *	(by the host) and ignored on receive (by the switch).
  *
  * SWITCH_ID - VID[8:6]:
  *	Index of switch within DSA tree. Must be between 0 and 7.
- *
- * RSV - VID[5:4]:
- *	To be used for further expansion of PORT or for other purposes.
- *	Must be transmitted as zero and ignored on receive.
  *
  * PORT - VID[3:0]:
  *	Index of switch port. Must be between 0 and 15.
@@ -53,6 +60,18 @@
 #define DSA_8021Q_SWITCH_ID_MASK	GENMASK(8, 6)
 #define DSA_8021Q_SWITCH_ID(x)		(((x) << DSA_8021Q_SWITCH_ID_SHIFT) & \
 						 DSA_8021Q_SWITCH_ID_MASK)
+
+#define DSA_8021Q_SUBVLAN_HI_SHIFT	9
+#define DSA_8021Q_SUBVLAN_HI_MASK	GENMASK(9, 9)
+#define DSA_8021Q_SUBVLAN_LO_SHIFT	4
+#define DSA_8021Q_SUBVLAN_LO_MASK	GENMASK(4, 3)
+#define DSA_8021Q_SUBVLAN_HI(x)		(((x) & GENMASK(2, 2)) >> 2)
+#define DSA_8021Q_SUBVLAN_LO(x)		((x) & GENMASK(1, 0))
+#define DSA_8021Q_SUBVLAN(x)		\
+		(((DSA_8021Q_SUBVLAN_LO(x) << DSA_8021Q_SUBVLAN_LO_SHIFT) & \
+		  DSA_8021Q_SUBVLAN_LO_MASK) | \
+		 ((DSA_8021Q_SUBVLAN_HI(x) << DSA_8021Q_SUBVLAN_HI_SHIFT) & \
+		  DSA_8021Q_SUBVLAN_HI_MASK))
 
 #define DSA_8021Q_PORT_SHIFT		0
 #define DSA_8021Q_PORT_MASK		GENMASK(3, 0)
@@ -79,6 +98,13 @@ u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_rx_vid);
 
+u16 dsa_8021q_rx_vid_subvlan(struct dsa_switch *ds, int port, u16 subvlan)
+{
+	return DSA_8021Q_DIR_RX | DSA_8021Q_SWITCH_ID(ds->index) |
+	       DSA_8021Q_PORT(port) | DSA_8021Q_SUBVLAN(subvlan);
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_rx_vid_subvlan);
+
 /* Returns the decoded switch ID from the RX VID. */
 int dsa_8021q_rx_switch_id(u16 vid)
 {
@@ -92,6 +118,20 @@ int dsa_8021q_rx_source_port(u16 vid)
 	return (vid & DSA_8021Q_PORT_MASK) >> DSA_8021Q_PORT_SHIFT;
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_rx_source_port);
+
+/* Returns the decoded subvlan from the RX VID. */
+u16 dsa_8021q_rx_subvlan(u16 vid)
+{
+	u16 svl_hi, svl_lo;
+
+	svl_hi = (vid & DSA_8021Q_SUBVLAN_HI_MASK) >>
+		 DSA_8021Q_SUBVLAN_HI_SHIFT;
+	svl_lo = (vid & DSA_8021Q_SUBVLAN_LO_MASK) >>
+		 DSA_8021Q_SUBVLAN_LO_SHIFT;
+
+	return (svl_hi << 2) | svl_lo;
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_rx_subvlan);
 
 bool vid_is_dsa_8021q(u16 vid)
 {
