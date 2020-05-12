@@ -173,6 +173,9 @@ void dealloc_mod_hdr_actions(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 struct mlx5e_tc_flow;
 u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 
+int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+			    void *cb_priv);
+
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
@@ -181,6 +184,10 @@ static inline int  mlx5e_tc_num_filters(struct mlx5e_priv *priv,
 {
 	return 0;
 }
+
+static inline int
+mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+{ return -EOPNOTSUPP; }
 #endif
 
 #endif /* __MLX5_EN_TC_H__ */
