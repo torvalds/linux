@@ -2158,6 +2158,9 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	else
 		state = SJA1105_VLAN_FILTERING_FULL;
 
+	if (priv->vlan_state == state)
+		return 0;
+
 	priv->vlan_state = state;
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
