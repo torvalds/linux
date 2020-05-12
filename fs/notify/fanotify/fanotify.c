@@ -70,7 +70,7 @@ static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 	return !memcmp(fne1->name, fne2->name, fne1->name_len);
 }
 
-static bool should_merge(struct fsnotify_event *old_fsn,
+static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
 			 struct fsnotify_event *new_fsn)
 {
 	struct fanotify_event *old, *new;
@@ -129,7 +129,7 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 		return 0;
 
 	list_for_each_entry_reverse(test_event, list, list) {
-		if (should_merge(test_event, event)) {
+		if (fanotify_should_merge(test_event, event)) {
 			FANOTIFY_E(test_event)->mask |= new->mask;
 			return 1;
 		}
