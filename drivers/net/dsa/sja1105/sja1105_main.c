@@ -432,6 +432,41 @@ static int sja1105_init_l2_forwarding_params(struct sja1105_private *priv)
 	return 0;
 }
 
+void sja1105_frame_memory_partitioning(struct sja1105_private *priv)
+{
+	struct sja1105_l2_forwarding_params_entry *l2_fwd_params;
+	struct sja1105_vl_forwarding_params_entry *vl_fwd_params;
+	struct sja1105_table *table;
+	int max_mem;
+
+	/* VLAN retagging is implemented using a loopback port that consumes
+	 * frame buffers. That leaves less for us.
+	 */
+	if (priv->vlan_state == SJA1105_VLAN_BEST_EFFORT)
+		max_mem = SJA1105_MAX_FRAME_MEMORY_RETAGGING;
+	else
+		max_mem = SJA1105_MAX_FRAME_MEMORY;
+
+	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING_PARAMS];
+	l2_fwd_params = table->entries;
+	l2_fwd_params->part_spc[0] = max_mem;
+
+	/* If we have any critical-traffic virtual links, we need to reserve
+	 * some frame buffer memory for them. At the moment, hardcode the value
+	 * at 100 blocks of 128 bytes of memory each. This leaves 829 blocks
+	 * remaining for best-effort traffic. TODO: figure out a more flexible
+	 * way to perform the frame buffer partitioning.
+	 */
+	if (!priv->static_config.tables[BLK_IDX_VL_FORWARDING].entry_count)
+		return;
+
+	table = &priv->static_config.tables[BLK_IDX_VL_FORWARDING_PARAMS];
+	vl_fwd_params = table->entries;
+
+	l2_fwd_params->part_spc[0] -= SJA1105_VL_FRAME_MEMORY;
+	vl_fwd_params->partspc[0] = SJA1105_VL_FRAME_MEMORY;
+}
+
 static int sja1105_init_general_params(struct sja1105_private *priv)
 {
 	struct sja1105_general_params_entry default_general_params = {
@@ -2212,6 +2247,8 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
 	l2_lookup_params = table->entries;
 	l2_lookup_params->shared_learn = want_tagging;
+
+	sja1105_frame_memory_partitioning(priv);
 
 	rc = sja1105_static_config_reload(priv, SJA1105_VLAN_FILTERING);
 	if (rc)

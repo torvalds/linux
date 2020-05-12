@@ -5,7 +5,6 @@
 #include <linux/dsa/8021q.h>
 #include "sja1105.h"
 
-#define SJA1105_VL_FRAME_MEMORY			100
 #define SJA1105_SIZE_VL_STATUS			8
 
 /* The switch flow classification core implements TTEthernet, which 'thinks' in
@@ -141,8 +140,6 @@ static bool sja1105_vl_key_lower(struct sja1105_vl_lookup_entry *a,
 static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				      struct netlink_ext_ack *extack)
 {
-	struct sja1105_l2_forwarding_params_entry *l2_fwd_params;
-	struct sja1105_vl_forwarding_params_entry *vl_fwd_params;
 	struct sja1105_vl_policing_entry *vl_policing;
 	struct sja1105_vl_forwarding_entry *vl_fwd;
 	struct sja1105_vl_lookup_entry *vl_lookup;
@@ -152,10 +149,6 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 	int num_virtual_links = 0;
 	int max_sharindx = 0;
 	int i, j, k;
-
-	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING_PARAMS];
-	l2_fwd_params = table->entries;
-	l2_fwd_params->part_spc[0] = SJA1105_MAX_FRAME_MEMORY;
 
 	/* Figure out the dimensioning of the problem */
 	list_for_each_entry(rule, &priv->flow_block.rules, list) {
@@ -308,17 +301,6 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 	if (!table->entries)
 		return -ENOMEM;
 	table->entry_count = 1;
-	vl_fwd_params = table->entries;
-
-	/* Reserve some frame buffer memory for the critical-traffic virtual
-	 * links (this needs to be done). At the moment, hardcode the value
-	 * at 100 blocks of 128 bytes of memory each. This leaves 829 blocks
-	 * remaining for best-effort traffic. TODO: figure out a more flexible
-	 * way to perform the frame buffer partitioning.
-	 */
-	l2_fwd_params->part_spc[0] = SJA1105_MAX_FRAME_MEMORY -
-				     SJA1105_VL_FRAME_MEMORY;
-	vl_fwd_params->partspc[0] = SJA1105_VL_FRAME_MEMORY;
 
 	for (i = 0; i < num_virtual_links; i++) {
 		unsigned long cookie = vl_lookup[i].flow_cookie;
@@ -341,6 +323,8 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 			vl_fwd[sharindx].destports = rule->vl.destports;
 		}
 	}
+
+	sja1105_frame_memory_partitioning(priv);
 
 	return 0;
 }
