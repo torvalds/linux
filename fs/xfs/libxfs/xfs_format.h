@@ -1681,7 +1681,7 @@ struct xfs_acl_entry {
 
 struct xfs_acl {
 	__be32			acl_cnt;
-	struct xfs_acl_entry	acl_entry[0];
+	struct xfs_acl_entry	acl_entry[];
 };
 
 /*
