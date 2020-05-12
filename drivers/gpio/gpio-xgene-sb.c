@@ -290,10 +290,8 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "X-Gene GPIO Standby driver registered\n");
 
-	if (priv->nirq > 0) {
-		/* Register interrupt handlers for gpio signaled acpi events */
-		acpi_gpiochip_request_interrupts(&priv->gc);
-	}
+	/* Register interrupt handlers for GPIO signaled ACPI Events */
+	acpi_gpiochip_request_interrupts(&priv->gc);
 
 	return ret;
 }
@@ -302,9 +300,7 @@ static int xgene_gpio_sb_remove(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv = platform_get_drvdata(pdev);
 
-	if (priv->nirq > 0) {
-		acpi_gpiochip_free_interrupts(&priv->gc);
-	}
+	acpi_gpiochip_free_interrupts(&priv->gc);
 
 	irq_domain_remove(priv->irq_domain);
 
