@@ -2790,8 +2790,13 @@ static void ftrace_remove_trampoline_from_kallsyms(struct ftrace_ops *ops)
 static void ftrace_trampoline_free(struct ftrace_ops *ops)
 {
 	if (ops && (ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP) &&
-	    ops->trampoline)
+	    ops->trampoline) {
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   ops->trampoline, ops->trampoline_size,
+				   true, FTRACE_TRAMPOLINE_SYM);
+		/* Remove from kallsyms after the perf events */
 		ftrace_remove_trampoline_from_kallsyms(ops);
+	}
 
 	arch_ftrace_trampoline_free(ops);
 }
@@ -6805,8 +6810,13 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops)
 
 	arch_ftrace_update_trampoline(ops);
 	if (ops->trampoline && ops->trampoline != trampoline &&
-	    (ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
+	    (ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP)) {
+		/* Add to kallsyms before the perf events */
 		ftrace_add_trampoline_to_kallsyms(ops);
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   ops->trampoline, ops->trampoline_size, false,
+				   FTRACE_TRAMPOLINE_SYM);
+	}
 }
 
 void ftrace_init_trace_array(struct trace_array *tr)
