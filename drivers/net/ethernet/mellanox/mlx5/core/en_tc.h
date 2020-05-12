@@ -80,9 +80,6 @@ enum {
 
 #define MLX5_TC_FLAG(flag) BIT(MLX5E_TC_FLAG_##flag##_BIT)
 
-int mlx5e_tc_nic_init(struct mlx5e_priv *priv);
-void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv);
-
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
 void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
 
@@ -173,8 +170,21 @@ void dealloc_mod_hdr_actions(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 struct mlx5e_tc_flow;
 u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+
+int mlx5e_tc_nic_init(struct mlx5e_priv *priv);
+void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv);
+
 int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			    void *cb_priv);
+
+#else /* CONFIG_MLX5_CLS_ACT */
+static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
+static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
+static inline int
+mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+{ return -EOPNOTSUPP; }
+#endif /* CONFIG_MLX5_CLS_ACT */
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }

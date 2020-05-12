@@ -1727,7 +1727,9 @@ static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
 
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 {
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 	mlx5e_tc_clean_fdb_peer_flows(esw);
+#endif
 	esw_del_fdb_peer_miss_rules(esw);
 }
 

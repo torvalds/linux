@@ -7,6 +7,8 @@
 #include "en.h"
 #include "en_rep.h"
 
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+
 int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv);
 void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv);
 
@@ -19,5 +21,14 @@ int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe);
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
+
+#else /* CONFIG_MLX5_CLS_ACT */
+
+static inline int
+mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv) { return 0; }
+static inline void
+mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv) {}
+
+#endif /* CONFIG_MLX5_CLS_ACT */
 
 #endif /* __MLX5_EN_REP_NEIGH__ */
