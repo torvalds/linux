@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include "tc.h"
+#include "neigh.h"
 #include "en_rep.h"
 #include "eswitch.h"
 #include "esw/chains.h"

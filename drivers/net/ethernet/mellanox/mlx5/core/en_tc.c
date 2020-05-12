@@ -4777,9 +4777,3 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
 	}
 	mutex_unlock(&rpriv->unready_flows_lock);
 }
-
-void mlx5_tc_rep_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv)
-{
-	if (tc_priv->tun_dev)
-		dev_put(tc_priv->tun_dev);
-}

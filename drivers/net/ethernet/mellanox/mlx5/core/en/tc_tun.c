@@ -7,6 +7,7 @@
 #include "en/tc_tun.h"
 #include "en_tc.h"
 #include "rep/tc.h"
+#include "rep/neigh.h"
 
 struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 {
