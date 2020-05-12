@@ -167,7 +167,6 @@ extern bool lookup_user_key_possessed(const struct key *key,
 				      const struct key_match_data *match_data);
 #define KEY_LOOKUP_CREATE	0x01
 #define KEY_LOOKUP_PARTIAL	0x02
-#define KEY_LOOKUP_FOR_UNLINK	0x04
 
 extern long join_session_keyring(const char *name);
 extern void key_change_session_keyring(struct callback_head *twork);
@@ -183,7 +182,7 @@ extern void key_gc_keytype(struct key_type *ktype);
 
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
-			       key_perm_t perm);
+			       enum key_need_perm need_perm);
 
 static inline void notify_key(struct key *key,
 			      enum key_notification_subtype subtype, u32 aux)
@@ -205,9 +204,10 @@ static inline void notify_key(struct key *key,
 /*
  * Check to see whether permission is granted to use a key in the desired way.
  */
-static inline int key_permission(const key_ref_t key_ref, unsigned perm)
+static inline int key_permission(const key_ref_t key_ref,
+				 enum key_need_perm need_perm)
 {
-	return key_task_permission(key_ref, current_cred(), perm);
+	return key_task_permission(key_ref, current_cred(), need_perm);
 }
 
 extern struct key_type key_type_request_key_auth;

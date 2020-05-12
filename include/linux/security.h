@@ -1767,8 +1767,8 @@ static inline int security_path_chroot(const struct path *path)
 
 int security_key_alloc(struct key *key, const struct cred *cred, unsigned long flags);
 void security_key_free(struct key *key);
-int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, unsigned perm);
+int security_key_permission(key_ref_t key_ref, const struct cred *cred,
+			    enum key_need_perm need_perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
 
 #else
@@ -1786,7 +1786,7 @@ static inline void security_key_free(struct key *key)
 
 static inline int security_key_permission(key_ref_t key_ref,
 					  const struct cred *cred,
-					  unsigned perm)
+					  enum key_need_perm need_perm)
 {
 	return 0;
 }

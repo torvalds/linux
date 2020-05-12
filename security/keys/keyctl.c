@@ -434,7 +434,7 @@ long keyctl_invalidate_key(key_serial_t id)
 
 		/* Root is permitted to invalidate certain special keys */
 		if (capable(CAP_SYS_ADMIN)) {
-			key_ref = lookup_user_key(id, 0, 0);
+			key_ref = lookup_user_key(id, 0, KEY_SYSADMIN_OVERRIDE);
 			if (IS_ERR(key_ref))
 				goto error;
 			if (test_bit(KEY_FLAG_ROOT_CAN_INVAL,
@@ -479,7 +479,8 @@ long keyctl_keyring_clear(key_serial_t ringid)
 
 		/* Root is permitted to invalidate certain special keyrings */
 		if (capable(CAP_SYS_ADMIN)) {
-			keyring_ref = lookup_user_key(ringid, 0, 0);
+			keyring_ref = lookup_user_key(ringid, 0,
+						      KEY_SYSADMIN_OVERRIDE);
 			if (IS_ERR(keyring_ref))
 				goto error;
 			if (test_bit(KEY_FLAG_ROOT_CAN_CLEAR,
@@ -563,7 +564,7 @@ long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 		goto error;
 	}
 
-	key_ref = lookup_user_key(id, KEY_LOOKUP_FOR_UNLINK, 0);
+	key_ref = lookup_user_key(id, KEY_LOOKUP_PARTIAL, KEY_NEED_UNLINK);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error2;
@@ -663,7 +664,7 @@ long keyctl_describe_key(key_serial_t keyid,
 				key_put(instkey);
 				key_ref = lookup_user_key(keyid,
 							  KEY_LOOKUP_PARTIAL,
-							  0);
+							  KEY_AUTHTOKEN_OVERRIDE);
 				if (!IS_ERR(key_ref))
 					goto okay;
 			}
@@ -833,7 +834,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	size_t key_data_len;
 
 	/* find the key first */
-	key_ref = lookup_user_key(keyid, 0, 0);
+	key_ref = lookup_user_key(keyid, 0, KEY_DEFER_PERM_CHECK);
 	if (IS_ERR(key_ref)) {
 		ret = -ENOKEY;
 		goto out;
@@ -1471,7 +1472,7 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 				key_put(instkey);
 				key_ref = lookup_user_key(id,
 							  KEY_LOOKUP_PARTIAL,
-							  0);
+							  KEY_AUTHTOKEN_OVERRIDE);
 				if (!IS_ERR(key_ref))
 					goto okay;
 			}
@@ -1579,7 +1580,8 @@ long keyctl_get_security(key_serial_t keyid,
 			return PTR_ERR(instkey);
 		key_put(instkey);
 
-		key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL, 0);
+		key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL,
+					  KEY_AUTHTOKEN_OVERRIDE);
 		if (IS_ERR(key_ref))
 			return PTR_ERR(key_ref);
 	}
