@@ -2153,6 +2153,15 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 		tpid2 = ETH_P_SJA1105;
 	}
 
+	for (port = 0; port < ds->num_ports; port++) {
+		struct sja1105_port *sp = &priv->ports[port];
+
+		if (enabled)
+			sp->xmit_tpid = priv->info->qinq_tpid;
+		else
+			sp->xmit_tpid = ETH_P_SJA1105;
+	}
+
 	if (!enabled)
 		state = SJA1105_VLAN_UNAWARE;
 	else
@@ -2866,6 +2875,7 @@ static int sja1105_probe(struct spi_device *spi)
 			goto out;
 		}
 		skb_queue_head_init(&sp->xmit_queue);
+		sp->xmit_tpid = ETH_P_SJA1105;
 	}
 
 	return 0;

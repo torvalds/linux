@@ -59,6 +59,7 @@ struct sja1105_port {
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
 	bool hwts_tx_en;
+	u16 xmit_tpid;
 };
 
 #endif /* _NET_DSA_SJA1105_H */
