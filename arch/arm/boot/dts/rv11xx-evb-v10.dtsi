@@ -219,12 +219,11 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		power-supply = <&vcc18_lcd_n>;
-		prepare-delay-ms = <2>;
+		prepare-delay-ms = <5>;
 		reset-delay-ms = <1>;
-		init-delay-ms = <20>;
-		enable-delay-ms = <120>;
-		disable-delay-ms = <50>;
-		unprepare-delay-ms = <20>;
+		init-delay-ms = <10>;
+		disable-delay-ms = <10>;
+		unprepare-delay-ms = <5>;
 
 		width-mm = <68>;
 		height-mm = <121>;
@@ -428,8 +427,8 @@
 			15 00 02 d2 32
 			15 00 02 d3 00
 			39 00 04 ff 98 81 00
-			05 78 01 11
-			05 14 01 29
+			05 00 01 11
+			05 01 01 29
 		];
 
 		display-timings {
