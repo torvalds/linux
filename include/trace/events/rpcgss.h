@@ -291,6 +291,40 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__entry->ret ? "" : "un")
 );
 
+TRACE_EVENT(rpcgss_update_slack,
+	TP_PROTO(
+		const struct rpc_task *task,
+		const struct rpc_auth *auth
+	),
+
+	TP_ARGS(task, auth),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__field(const void *, auth)
+		__field(unsigned int, rslack)
+		__field(unsigned int, ralign)
+		__field(unsigned int, verfsize)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
+		__entry->auth = auth;
+		__entry->rslack = auth->au_rslack;
+		__entry->ralign = auth->au_ralign;
+		__entry->verfsize = auth->au_verfsize;
+	),
+
+	TP_printk("task:%u@%u xid=0x%08x auth=%p rslack=%u ralign=%u verfsize=%u\n",
+		__entry->task_id, __entry->client_id, __entry->xid,
+		__entry->auth, __entry->rslack, __entry->ralign,
+		__entry->verfsize)
+);
+
 DECLARE_EVENT_CLASS(rpcgss_svc_seqno_class,
 	TP_PROTO(
 		__be32 xid,
