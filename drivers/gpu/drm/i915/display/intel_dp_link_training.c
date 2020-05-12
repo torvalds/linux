@@ -67,8 +67,9 @@ void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 	if (p >= preemph_max)
 		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-	voltage_max = min(intel_dp->voltage_max(intel_dp),
-			  dp_voltage_max(p));
+	v = min(v, dp_voltage_max(p));
+
+	voltage_max = intel_dp->voltage_max(intel_dp);
 	if (v >= voltage_max)
 		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
 
