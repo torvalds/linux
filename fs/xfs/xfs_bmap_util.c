@@ -1211,6 +1211,13 @@ xfs_swap_extents_check_format(
 	struct xfs_inode	*tip)	/* tmp inode */
 {
 
+	/* User/group/project quota ids must match if quotas are enforced. */
+	if (XFS_IS_QUOTA_ON(ip->i_mount) &&
+	    (!uid_eq(VFS_I(ip)->i_uid, VFS_I(tip)->i_uid) ||
+	     !gid_eq(VFS_I(ip)->i_gid, VFS_I(tip)->i_gid) ||
+	     ip->i_d.di_projid != tip->i_d.di_projid))
+		return -EINVAL;
+
 	/* Should never get a local format */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL ||
 	    tip->i_d.di_format == XFS_DINODE_FMT_LOCAL)
