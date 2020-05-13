@@ -237,6 +237,10 @@ static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 
 	if (felix->info->pcs_init)
 		felix->info->pcs_init(ocelot, port, link_an_mode, state);
+
+	if (felix->info->port_sched_speed_set)
+		felix->info->port_sched_speed_set(ocelot, port,
+						  state->speed);
 }
 
 static void felix_phylink_mac_an_restart(struct dsa_switch *ds, int port)
@@ -730,6 +734,19 @@ static void felix_port_policer_del(struct dsa_switch *ds, int port)
 	ocelot_port_policer_del(ocelot, port);
 }
 
+static int felix_port_setup_tc(struct dsa_switch *ds, int port,
+			       enum tc_setup_type type,
+			       void *type_data)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->info->port_setup_tc)
+		return felix->info->port_setup_tc(ds, port, type, type_data);
+	else
+		return -EOPNOTSUPP;
+}
+
 static const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol	= felix_get_tag_protocol,
 	.setup			= felix_setup,
@@ -768,6 +785,7 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.cls_flower_add		= felix_cls_flower_add,
 	.cls_flower_del		= felix_cls_flower_del,
 	.cls_flower_stats	= felix_cls_flower_stats,
+	.port_setup_tc          = felix_port_setup_tc,
 };
 
 static struct felix_info *felix_instance_tbl[] = {
@@ -856,6 +874,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	ds->dev = &pdev->dev;
 	ds->num_ports = felix->info->num_ports;
+	ds->num_tx_queues = felix->info->num_tx_queues;
 	ds->ops = &felix_switch_ops;
 	ds->priv = ocelot;
 	felix->ds = ds;
