@@ -82,38 +82,6 @@ static inline void davinci_nand_writel(struct davinci_nand_info *info,
 /*----------------------------------------------------------------------*/
 
 /*
- * Access to hardware control lines:  ALE, CLE, secondary chipselect.
- */
-
-static void nand_davinci_hwcontrol(struct nand_chip *nand, int cmd,
-				   unsigned int ctrl)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
-	void __iomem			*addr = info->current_cs;
-
-	if (ctrl & NAND_CTRL_CLE)
-		addr += info->mask_cle;
-	else if (ctrl & NAND_CTRL_ALE)
-		addr += info->mask_ale;
-
-	if (cmd != NAND_CMD_NONE)
-		iowrite8(cmd, addr);
-}
-
-static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
-
-	info->current_cs = info->vaddr;
-
-	/* maybe kick in a second chipselect */
-	if (chip > 0)
-		info->current_cs += info->mask_chipsel;
-}
-
-/*----------------------------------------------------------------------*/
-
-/*
  * 1-bit hardware ECC ... context maintained for each core chipselect
  */
 
@@ -401,54 +369,6 @@ correct:
 	}
 
 	return corrected;
-}
-
-/*----------------------------------------------------------------------*/
-
-/*
- * NOTE:  NAND boot requires ALE == EM_A[1], CLE == EM_A[2], so that's
- * how these chips are normally wired.  This translates to both 8 and 16
- * bit busses using ALE == BIT(3) in byte addresses, and CLE == BIT(4).
- *
- * For now we assume that configuration, or any other one which ignores
- * the two LSBs for NAND access ... so we can issue 32-bit reads/writes
- * and have that transparently morphed into multiple NAND operations.
- */
-static void nand_davinci_read_buf(struct nand_chip *chip, uint8_t *buf,
-				  int len)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
-
-	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		ioread32_rep(info->current_cs, buf, len >> 2);
-	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		ioread16_rep(info->current_cs, buf, len >> 1);
-	else
-		ioread8_rep(info->current_cs, buf, len);
-}
-
-static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
-				   int len)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
-
-	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		iowrite32_rep(info->current_cs, buf, len >> 2);
-	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		iowrite16_rep(info->current_cs, buf, len >> 1);
-	else
-		iowrite8_rep(info->current_cs, buf, len);
-}
-
-/*
- * Check hardware register for wait status. Returns 1 if device is ready,
- * 0 if it is still busy.
- */
-static int nand_davinci_dev_ready(struct nand_chip *chip)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
-
-	return davinci_nand_readl(info, NANDFSR_OFFSET) & BIT(0);
 }
 
 /*----------------------------------------------------------------------*/
@@ -843,9 +763,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	mtd->dev.parent		= &pdev->dev;
 	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 
-	info->chip.legacy.chip_delay	= 0;
-	info->chip.legacy.select_chip	= nand_davinci_select_chip;
-
 	/* options such as NAND_BBT_USE_FLASH */
 	info->chip.bbt_options	= pdata->bbt_options;
 	/* options such as 16-bit widths */
@@ -861,14 +778,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	/* use nandboot-capable ALE/CLE masks by default */
 	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
-
-	/* Set address of hardware control function */
-	info->chip.legacy.cmd_ctrl	= nand_davinci_hwcontrol;
-	info->chip.legacy.dev_ready	= nand_davinci_dev_ready;
-
-	/* Speed up buffer I/O */
-	info->chip.legacy.read_buf     = nand_davinci_read_buf;
-	info->chip.legacy.write_buf    = nand_davinci_write_buf;
 
 	/* Use board-specific ECC config */
 	info->chip.ecc.mode	= pdata->ecc_mode;
