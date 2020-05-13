@@ -31,8 +31,8 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-#define MPP_TIMEOUT_DELAY		(2000)
-#define MPP_SESSION_MAX_DONE_TASK	(20)
+#define MPP_WORK_TIMEOUT_DELAY		(200)
+#define MPP_WAIT_TIMEOUT_DELAY		(2000)
 
 /* Use 'v' as magic number */
 #define MPP_IOC_MAGIC		'v'
@@ -56,16 +56,44 @@ struct mpp_msg_v1 {
 	__u64 data_ptr;
 };
 
-static void mpp_task_try_run(struct work_struct *work_s);
+static void mpp_free_task(struct kref *ref);
+static int mpp_dev_reset(struct mpp_dev *mpp);
 
 /* task queue schedule */
 static int
 mpp_taskqueue_push_pending(struct mpp_taskqueue *queue,
 			   struct mpp_task *task)
 {
+	struct mpp_dev *mpp;
+
+	if (!task->session || !task->session->mpp)
+		return -EINVAL;
+	mpp = task->session->mpp;
+
+	kref_get(&task->ref);
+	atomic_inc(&mpp->task_count);
 	mutex_lock(&queue->pending_lock);
-	list_add_tail(&task->pending_link, &queue->pending_list);
+	list_add_tail(&task->queue_link, &queue->pending_list);
 	mutex_unlock(&queue->pending_lock);
+
+	return 0;
+}
+
+static int
+mpp_taskqueue_pop_pending(struct mpp_taskqueue *queue,
+			  struct mpp_task *task)
+{
+	struct mpp_dev *mpp;
+
+	if (!task->session || !task->session->mpp)
+		return -EINVAL;
+	mpp = task->session->mpp;
+
+	mutex_lock(&queue->pending_lock);
+	list_del_init(&task->queue_link);
+	mutex_unlock(&queue->pending_lock);
+	atomic_dec(&mpp->task_count);
+	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
 }
@@ -78,7 +106,7 @@ mpp_taskqueue_get_pending_task(struct mpp_taskqueue *queue)
 	mutex_lock(&queue->pending_lock);
 	task = list_first_entry_or_null(&queue->pending_list,
 					struct mpp_task,
-					pending_link);
+					queue_link);
 	mutex_unlock(&queue->pending_lock);
 
 	return task;
@@ -100,12 +128,10 @@ static int
 mpp_taskqueue_pending_to_run(struct mpp_taskqueue *queue,
 			     struct mpp_task *task)
 {
-	mutex_lock(&queue->running_lock);
-	list_add_tail(&task->running_link, &queue->running_list);
-	mutex_unlock(&queue->running_lock);
-
 	mutex_lock(&queue->pending_lock);
-	list_del_init(&task->pending_link);
+	mutex_lock(&queue->running_lock);
+	list_move_tail(&task->queue_link, &queue->running_list);
+	mutex_unlock(&queue->running_lock);
 	mutex_unlock(&queue->pending_lock);
 
 	return 0;
@@ -119,19 +145,27 @@ mpp_taskqueue_get_running_task(struct mpp_taskqueue *queue)
 	mutex_lock(&queue->running_lock);
 	task = list_first_entry_or_null(&queue->running_list,
 					struct mpp_task,
-					running_link);
+					queue_link);
 	mutex_unlock(&queue->running_lock);
 
 	return task;
 }
 
 static int
-mpp_taskqueue_done(struct mpp_taskqueue *queue,
-		   struct mpp_task *task)
+mpp_taskqueue_pop_running(struct mpp_taskqueue *queue,
+			  struct mpp_task *task)
 {
+	struct mpp_dev *mpp;
+
+	if (!task->session || !task->session->mpp)
+		return -EINVAL;
+	mpp = task->session->mpp;
+
 	mutex_lock(&queue->running_lock);
-	list_del_init(&task->running_link);
+	list_del_init(&task->queue_link);
 	mutex_unlock(&queue->running_lock);
+	atomic_dec(&mpp->task_count);
+	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
 }
@@ -174,45 +208,121 @@ static int
 mpp_session_push_pending(struct mpp_session *session,
 			 struct mpp_task *task)
 {
+	kref_get(&task->ref);
+	atomic_inc(&session->task_count);
 	mutex_lock(&session->pending_lock);
-	list_add_tail(&task->session_link, &session->pending_list);
+	list_add_tail(&task->pending_link, &session->pending_list);
 	mutex_unlock(&session->pending_lock);
 
 	return 0;
 }
 
-static int mpp_session_push_done(struct mpp_task *task)
+static int
+mpp_session_pop_pending(struct mpp_session *session,
+			struct mpp_task *task)
 {
-	struct mpp_session *session = NULL;
-
-	session = task->session;
-
 	mutex_lock(&session->pending_lock);
-	list_del_init(&task->session_link);
+	list_del_init(&task->pending_link);
 	mutex_unlock(&session->pending_lock);
-
-	mutex_lock(&session->done_lock);
-	kfifo_in(&session->done_fifo, &task, 1);
-	mutex_unlock(&session->done_lock);
-
-	wake_up(&session->wait);
+	atomic_dec(&session->task_count);
+	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
 }
 
 static struct mpp_task *
-mpp_session_pull_done(struct mpp_session *session)
+mpp_session_get_pending_task(struct mpp_session *session)
 {
-	int ret;
 	struct mpp_task *task = NULL;
 
-	mutex_lock(&session->done_lock);
-	ret = kfifo_out(&session->done_fifo, &task, 1);
-	mutex_unlock(&session->done_lock);
-	if (!ret)
-		task = NULL;
+	mutex_lock(&session->pending_lock);
+	task = list_first_entry_or_null(&session->pending_list,
+					struct mpp_task,
+					pending_link);
+	mutex_unlock(&session->pending_lock);
 
 	return task;
+}
+
+static int mpp_session_push_done(struct mpp_session *session,
+				 struct mpp_task *task)
+{
+	kref_get(&task->ref);
+	mutex_lock(&session->done_lock);
+	list_add_tail(&task->done_link, &session->done_list);
+	mutex_unlock(&session->done_lock);
+
+	return 0;
+}
+
+static int mpp_session_pop_done(struct mpp_session *session,
+				struct mpp_task *task)
+{
+	mutex_lock(&session->done_lock);
+	list_del_init(&task->done_link);
+	mutex_unlock(&session->done_lock);
+	kref_put(&task->ref, mpp_free_task);
+
+	return 0;
+}
+
+static void mpp_free_task(struct kref *ref)
+{
+	struct mpp_dev *mpp;
+	struct mpp_session *session;
+	struct mpp_task *task = container_of(ref, struct mpp_task, ref);
+
+	if (!task->session) {
+		mpp_err("task %p, task->session is null.\n", task);
+		return;
+	}
+	session = task->session;
+
+	mpp_debug_func(DEBUG_TASK_INFO,
+		       "session=%p, task=%p, state=%08x, abort_request=%d\n",
+		       session, task, task->state,
+		       atomic_read(&task->abort_request));
+
+	if (!session->mpp) {
+		mpp_err("session %p, session->mpp is null.\n", session);
+		return;
+	}
+	mpp = session->mpp;
+
+	if (mpp->dev_ops->free_task)
+		mpp->dev_ops->free_task(session, task);
+}
+
+static void mpp_task_timeout_work(struct work_struct *work_s)
+{
+	struct mpp_dev *mpp;
+	struct mpp_session *session;
+	struct mpp_task *task = container_of(to_delayed_work(work_s),
+					     struct mpp_task,
+					     timeout_work);
+
+	mpp_err("task %p processing timed out!\n", task);
+
+	if (!task->session) {
+		mpp_err("task %p, task->session is null.\n", task);
+		return;
+	}
+	session = task->session;
+
+	if (!session->mpp) {
+		mpp_err("session %p, session->mpp is null.\n", session);
+		return;
+	}
+	mpp = session->mpp;
+
+	/* hardware maybe dead, reset it */
+	up_read(&mpp->reset_group->rw_sem);
+	mpp_dev_reset(mpp);
+	mpp_power_off(mpp);
+
+	/* remove task from taskqueue running list */
+	task->state = TASK_STATE_TIMEOUT;
+	mpp_taskqueue_pop_running(mpp->queue, task);
 }
 
 static int mpp_process_task(struct mpp_session *session,
@@ -233,6 +343,9 @@ static int mpp_process_task(struct mpp_session *session,
 		mpp_err("alloc_task failed.\n");
 		return -ENOMEM;
 	}
+	kref_init(&task->ref);
+	atomic_set(&task->abort_request, 0);
+	INIT_DELAYED_WORK(&task->timeout_work, mpp_task_timeout_work);
 
 	if (mpp->hw_ops->get_freq)
 		mpp->hw_ops->get_freq(mpp, task);
@@ -246,22 +359,11 @@ static int mpp_process_task(struct mpp_session *session,
 	mpp_session_push_pending(session, task);
 	/* push current task to queue */
 	mpp_taskqueue_push_pending(mpp->queue, task);
-	atomic_inc(&session->task_count);
-	atomic_inc(&mpp->task_count);
+	task->state = TASK_STATE_PENDING;
 	/* trigger current queue to run task */
 	mpp_taskqueue_trigger_work(mpp->queue, mpp->workq);
+	kref_put(&task->ref, mpp_free_task);
 
-	return 0;
-}
-
-static int
-mpp_free_task(struct mpp_session *session,
-	      struct mpp_task *task)
-{
-	struct mpp_dev *mpp = session->mpp;
-
-	if (mpp->dev_ops->free_task)
-		mpp->dev_ops->free_task(session, task);
 	return 0;
 }
 
@@ -403,33 +505,6 @@ static int mpp_dev_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int mpp_dev_abort(struct mpp_dev *mpp)
-{
-	struct mpp_task *task = NULL;
-
-	mpp_debug_enter();
-
-	up_read(&mpp->reset_group->rw_sem);
-
-	mpp_dev_reset(mpp);
-	/* destroy the current task after hardware reset */
-	task = mpp_taskqueue_get_running_task(mpp->queue);
-	if (task) {
-		mutex_lock(&task->session->pending_lock);
-		list_del_init(&task->session_link);
-		mutex_unlock(&task->session->pending_lock);
-		mpp_taskqueue_done(mpp->queue, task);
-		atomic_dec(&task->session->task_count);
-		mpp_free_task(task->session, task);
-	} else {
-		mpp_err("error: task is null!\n");
-	}
-
-	mpp_debug_leave();
-
-	return 0;
-}
-
 static int mpp_task_run(struct mpp_dev *mpp,
 			struct mpp_task *task)
 {
@@ -471,9 +546,11 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 * TODO: Lock the reader locker of the device resource lock here,
 	 * release at the finish operation
 	 */
-
 	down_read(&mpp->reset_group->rw_sem);
 
+	task->state = TASK_STATE_START;
+	schedule_delayed_work(&task->timeout_work,
+			      msecs_to_jiffies(MPP_WORK_TIMEOUT_DELAY));
 	if (mpp->dev_ops->run)
 		mpp->dev_ops->run(mpp, task);
 
@@ -495,6 +572,12 @@ static void mpp_task_try_run(struct work_struct *work_s)
 	task = mpp_taskqueue_get_pending_task(queue);
 	if (!task)
 		goto done;
+
+	/* if task timeout and aborted, remove it */
+	if (atomic_read(&task->abort_request) > 0) {
+		mpp_taskqueue_pop_pending(queue, task);
+		goto done;
+	}
 
 	/* get device for current task */
 	mpp = task->session->mpp;
@@ -519,7 +602,9 @@ static void mpp_task_try_run(struct work_struct *work_s)
 	/* Push a pending task to running queue */
 	if (task) {
 		mpp_taskqueue_pending_to_run(queue, task);
-		mpp_task_run(mpp, task);
+		task->state = TASK_STATE_RUNNING;
+		if (mpp_task_run(mpp, task))
+			mpp_taskqueue_pop_running(mpp->queue, task);
 	}
 
 done:
@@ -529,42 +614,29 @@ done:
 static int mpp_session_clear(struct mpp_dev *mpp,
 			     struct mpp_session *session)
 {
-	struct mpp_task *task, *n, *task_done;
+	struct mpp_task *task = NULL, *n;
 
-	/* clear task which have done */
+	/* clear session done list */
 	mutex_lock(&session->done_lock);
-	while (kfifo_out(&session->done_fifo, &task_done, 1))
-		mpp_free_task(session, task_done);
+	list_for_each_entry_safe(task, n,
+				 &session->done_list,
+				 done_link) {
+		list_del_init(&task->done_link);
+		kref_put(&task->ref, mpp_free_task);
+	}
 	mutex_unlock(&session->done_lock);
 
-	/* clear task which have not start */
+	/* clear session pending list */
 	mutex_lock(&session->pending_lock);
 	list_for_each_entry_safe(task, n,
 				 &session->pending_list,
-				 session_link) {
-		list_del_init(&task->session_link);
-		mpp_free_task(session, task);
+				 pending_link) {
+		/* abort task in taskqueue */
+		atomic_inc(&task->abort_request);
+		list_del_init(&task->pending_link);
+		kref_put(&task->ref, mpp_free_task);
 	}
 	mutex_unlock(&session->pending_lock);
-
-	return 0;
-}
-
-static int mpp_task_result(struct mpp_dev *mpp,
-			   struct mpp_task *task,
-			   struct mpp_task_msgs *msgs)
-{
-	mpp_debug_enter();
-
-	if (!mpp || !task)
-		return -EINVAL;
-
-	if (mpp->dev_ops->result)
-		mpp->dev_ops->result(mpp, task, msgs);
-
-	mpp_free_task(task->session, task);
-
-	mpp_debug_leave();
 
 	return 0;
 }
@@ -583,19 +655,57 @@ static int mpp_wait_result(struct mpp_session *session,
 	}
 
 	ret = wait_event_timeout(session->wait,
-				 !kfifo_is_empty(&session->done_fifo),
-				 msecs_to_jiffies(MPP_TIMEOUT_DELAY));
-	if (ret > 0) {
-		task = mpp_session_pull_done(session);
-		ret = mpp_task_result(mpp, task, msgs);
-	} else {
-		mpp_err("pid %d wait %d task done timeout.\n",
-			session->pid, atomic_read(&session->task_count));
-		mpp_dev_abort(mpp);
-		ret = -ETIMEDOUT;
+				 !list_empty(&session->done_list),
+				 msecs_to_jiffies(MPP_WAIT_TIMEOUT_DELAY));
+
+	task = mpp_session_get_pending_task(session);
+	if (!task) {
+		mpp_err("session %p pending list is empty!\n", session);
+		return -EIO;
 	}
-	atomic_dec(&mpp->task_count);
-	mpp_power_off(mpp);
+
+	if (ret > 0) {
+		u32 task_found = 0;
+		struct mpp_task *loop = NULL, *n;
+
+		/* find task in session done list */
+		mutex_lock(&session->done_lock);
+		list_for_each_entry_safe(loop, n,
+					 &session->done_list,
+					 done_link) {
+			if (loop == task) {
+				task_found = 1;
+				break;
+			}
+		}
+		mutex_unlock(&session->done_lock);
+		if (task_found) {
+			if (mpp->dev_ops->result)
+				ret = mpp->dev_ops->result(mpp, task, msgs);
+			mpp_session_pop_done(session, task);
+		} else {
+			mpp_err("session %p task %p, not found in done list!\n",
+				session, task);
+			ret = -EIO;
+		}
+	} else {
+		atomic_inc(&task->abort_request);
+		mpp_err("timeout, pid %d session %p count %d cur_task %p.\n",
+			session->pid, session,
+			atomic_read(&session->task_count), task);
+		/* if twice and return timeout, otherwise, re-wait */
+		if (atomic_read(&task->abort_request) > 1) {
+			mpp_err("session %p, task %p abort wait twice!\n",
+				session, task);
+			ret = -ETIMEDOUT;
+		} else {
+			ret = mpp_wait_result(session, msgs);
+		}
+	}
+
+	mpp_debug_func(DEBUG_TASK_INFO,
+		       "kref_read=%d, ret=%d\n", kref_read(&task->ref), ret);
+	mpp_session_pop_pending(session, task);
 
 	return ret;
 }
@@ -1027,7 +1137,6 @@ static long mpp_dev_ioctl(struct file *filp,
 
 static int mpp_dev_open(struct inode *inode, struct file *filp)
 {
-	int ret;
 	struct mpp_session *session = NULL;
 	struct mpp_service *srv = container_of(inode->i_cdev,
 					       struct mpp_service,
@@ -1041,30 +1150,21 @@ static int mpp_dev_open(struct inode *inode, struct file *filp)
 	session->srv = srv;
 	session->pid = current->pid;
 
-	mutex_init(&session->pending_lock);
 	mutex_init(&session->reg_lock);
+	mutex_init(&session->pending_lock);
 	mutex_init(&session->done_lock);
 	INIT_LIST_HEAD(&session->pending_list);
-	init_waitqueue_head(&session->wait);
-	ret = kfifo_alloc(&session->done_fifo,
-			  MPP_SESSION_MAX_DONE_TASK,
-			  GFP_KERNEL);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto failed_kfifo;
-	}
+	INIT_LIST_HEAD(&session->done_list);
 
+	init_waitqueue_head(&session->wait);
 	atomic_set(&session->task_count, 0);
 	atomic_set(&session->release_request, 0);
+
 	filp->private_data = (void *)session;
 
 	mpp_debug_leave();
 
 	return nonseekable_open(inode, filp);
-
-failed_kfifo:
-	kfree(session);
-	return ret;
 }
 
 static int mpp_dev_release(struct inode *inode, struct file *filp)
@@ -1087,7 +1187,8 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 				 &session->task_count,
 				 val, val == 0, 1000, 50000);
 	if (ret == -ETIMEDOUT)
-		mpp_err("wait total running time out\n");
+		mpp_err("session %p, wait task count %d time out\n",
+			session, atomic_read(&session->task_count));
 	wake_up(&session->wait);
 
 	/* release device resource */
@@ -1104,7 +1205,6 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 		up_read(&mpp->iommu_info->rw_sem);
 	}
 
-	kfifo_free(&session->done_fifo);
 	kfree(session);
 	filp->private_data = NULL;
 
@@ -1120,7 +1220,7 @@ mpp_dev_poll(struct file *filp, poll_table *wait)
 		(struct mpp_session *)filp->private_data;
 
 	poll_wait(filp, &session->wait, wait);
-	if (kfifo_len(&session->done_fifo))
+	if (!list_empty(&session->done_list))
 		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
@@ -1298,9 +1398,8 @@ int mpp_translate_reg_offset_info(struct mpp_task *task,
 int mpp_task_init(struct mpp_session *session,
 		  struct mpp_task *task)
 {
-	INIT_LIST_HEAD(&task->session_link);
 	INIT_LIST_HEAD(&task->pending_link);
-	INIT_LIST_HEAD(&task->running_link);
+	INIT_LIST_HEAD(&task->queue_link);
 	INIT_LIST_HEAD(&task->mem_region_list);
 
 	task->session = session;
@@ -1315,16 +1414,19 @@ int mpp_task_finish(struct mpp_session *session,
 
 	if (mpp->dev_ops->finish)
 		mpp->dev_ops->finish(mpp, task);
-	atomic_dec(&session->task_count);
 
 	up_read(&mpp->reset_group->rw_sem);
-
 	if (atomic_read(&mpp->reset_request) > 0)
 		mpp_dev_reset(mpp);
+	mpp_power_off(mpp);
 
-	/* Wake up the GET thread */
-	mpp_session_push_done(task);
-	mpp_taskqueue_done(mpp->queue, task);
+	if (!atomic_read(&task->abort_request)) {
+		mpp_session_push_done(session, task);
+		/* Wake up the GET thread */
+		wake_up(&session->wait);
+	}
+	task->state = TASK_STATE_DONE;
+	mpp_taskqueue_pop_running(mpp->queue, task);
 
 	return 0;
 }
@@ -1574,6 +1676,10 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 	    list_empty(&mpp->queue->pending_list))
 		mpp->hw_ops->reduce_freq(mpp);
 
+	if (mpp->cur_task) {
+		mpp->cur_task->state = TASK_STATE_IRQ;
+		cancel_delayed_work(&mpp->cur_task->timeout_work);
+	}
 	if (mpp->dev_ops->isr)
 		ret = mpp->dev_ops->isr(mpp);
 

@@ -213,17 +213,18 @@ struct mpp_session {
 	struct mpp_dev *mpp;
 	struct mpp_dma_session *dma;
 
-	/* lock for session task pending list */
-	struct mutex pending_lock;
 	/* lock for session task register list */
 	struct mutex reg_lock;
-	/* lock for session task done list */
-	struct mutex done_lock;
+	/* lock for session task pending list */
+	struct mutex pending_lock;
 	/* task pending list in session */
 	struct list_head pending_list;
+	/* lock for session task done list */
+	struct mutex done_lock;
+	/* task done list in session */
+	struct list_head done_list;
 
-	DECLARE_KFIFO_PTR(done_fifo, struct mpp_task *);
-
+	/* event for session wait thread */
 	wait_queue_head_t wait;
 	pid_t pid;
 	atomic_t task_count;
@@ -233,19 +234,36 @@ struct mpp_session {
 	u16 trans_table[MPP_MAX_REG_TRANS_NUM];
 };
 
+/* task state in work thread */
+enum mpp_task_state {
+	TASK_STATE_PENDING	= BIT(0),
+	TASK_STATE_RUNNING	= BIT(1),
+	TASK_STATE_START	= BIT(2),
+	TASK_STATE_IRQ		= BIT(3),
+	TASK_STATE_DONE		= BIT(4),
+	TASK_STATE_TIMEOUT	= BIT(5),
+};
+
 /* The context for the a task */
 struct mpp_task {
 	/* context belong to */
 	struct mpp_session *session;
 
-	/* link to session pending_list */
-	struct list_head session_link;
-	/* link to taskqueue node pending_list */
+	/* link to pending list in session */
 	struct list_head pending_link;
-	/* link to taskqueue node running_list */
-	struct list_head running_link;
+	/* link to done list in session */
+	struct list_head done_link;
+	/* link to list in taskqueue */
+	struct list_head queue_link;
 	/* The DMA buffer used in this task */
 	struct list_head mem_region_list;
+
+	/* state in the taskqueue */
+	enum mpp_task_state state;
+	atomic_t abort_request;
+	/* delayed work for hardware timeout */
+	struct delayed_work timeout_work;
+	struct kref ref;
 
 	/* record context running start time */
 	struct timeval start;
