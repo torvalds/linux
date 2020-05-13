@@ -169,16 +169,16 @@ static int query_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 
 	MLX5_SET(query_srq_in, in, opcode, MLX5_CMD_OP_QUERY_SRQ);
 	MLX5_SET(query_srq_in, in, srqn, srq->srqn);
-	err = mlx5_cmd_exec_inout(dev->mdev, query_srq, in, out);
+	err = mlx5_cmd_exec_inout(dev->mdev, query_srq, in, srq_out);
 	if (err)
 		goto out;
 
-	srqc = MLX5_ADDR_OF(query_srq_out, out, srq_context_entry);
+	srqc = MLX5_ADDR_OF(query_srq_out, srq_out, srq_context_entry);
 	get_srqc(srqc, out);
 	if (MLX5_GET(srqc, srqc, state) != MLX5_SRQC_STATE_GOOD)
 		out->flags |= MLX5_SRQ_FLAG_ERR;
 out:
-	kvfree(out);
+	kvfree(srq_out);
 	return err;
 }
 
