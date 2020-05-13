@@ -235,9 +235,14 @@ mt7915_mac_decode_he_radiotap(struct sk_buff *skb,
 		.data1 = HE_BITS(DATA1_DATA_MCS_KNOWN) |
 			 HE_BITS(DATA1_DATA_DCM_KNOWN) |
 			 HE_BITS(DATA1_STBC_KNOWN) |
-			 HE_BITS(DATA1_CODING_KNOWN),
+			 HE_BITS(DATA1_CODING_KNOWN) |
+			 HE_BITS(DATA1_LDPC_XSYMSEG_KNOWN) |
+			 HE_BITS(DATA1_DOPPLER_KNOWN) |
+			 HE_BITS(DATA1_BSS_COLOR_KNOWN),
 		.data2 = HE_BITS(DATA2_GI_KNOWN) |
-			 HE_BITS(DATA2_TXBF_KNOWN),
+			 HE_BITS(DATA2_TXBF_KNOWN) |
+			 HE_BITS(DATA2_PE_DISAMBIG_KNOWN) |
+			 HE_BITS(DATA2_TXOP_KNOWN),
 	};
 	struct ieee80211_radiotap_he *he = NULL;
 	__le32 v2 = rxv->v[2];
@@ -247,12 +252,6 @@ mt7915_mac_decode_he_radiotap(struct sk_buff *skb,
 
 	he = skb_push(skb, sizeof(known));
 	memcpy(he, &known, sizeof(known));
-
-	he->data1 = HE_BITS(DATA1_LDPC_XSYMSEG_KNOWN) |
-		    HE_BITS(DATA1_DOPPLER_KNOWN) |
-		    HE_BITS(DATA1_BSS_COLOR_KNOWN);
-	he->data2 = HE_BITS(DATA2_PE_DISAMBIG_KNOWN) |
-		    HE_BITS(DATA2_TXOP_KNOWN);
 
 	he->data3 = HE_PREP(DATA3_BSS_COLOR, BSS_COLOR, v14) |
 		    HE_PREP(DATA3_LDPC_XSYMSEG, LDPC_EXT_SYM, v2);
@@ -296,10 +295,10 @@ mt7915_mac_decode_he_radiotap(struct sk_buff *skb,
 			     HE_BITS(DATA1_SPTL_REUSE3_KNOWN) |
 			     HE_BITS(DATA1_SPTL_REUSE4_KNOWN);
 
-		he->data4 = HE_PREP(DATA4_TB_SPTL_REUSE1, SR_MASK, v11) |
-			    HE_PREP(DATA4_TB_SPTL_REUSE2, SR1_MASK, v11) |
-			    HE_PREP(DATA4_TB_SPTL_REUSE3, SR2_MASK, v11) |
-			    HE_PREP(DATA4_TB_SPTL_REUSE4, SR3_MASK, v11);
+		he->data4 |= HE_PREP(DATA4_TB_SPTL_REUSE1, SR_MASK, v11) |
+			     HE_PREP(DATA4_TB_SPTL_REUSE2, SR1_MASK, v11) |
+			     HE_PREP(DATA4_TB_SPTL_REUSE3, SR2_MASK, v11) |
+			     HE_PREP(DATA4_TB_SPTL_REUSE4, SR3_MASK, v11);
 
 		mt7915_mac_decode_he_radiotap_ru(status, rxv, he);
 		break;
