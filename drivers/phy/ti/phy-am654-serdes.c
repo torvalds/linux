@@ -77,6 +77,7 @@ static struct regmap_config serdes_am654_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.fast_io = true,
+	.max_register = 0x1ffc,
 };
 
 static const struct reg_field cmu_master_cdn_o = REG_FIELD(CMU_R07C, 24, 24);
