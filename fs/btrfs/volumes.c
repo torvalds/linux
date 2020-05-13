@@ -280,10 +280,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  * ============
  *
  * uuid_mutex
- *   volume_mutex
- *     device_list_mutex
- *       chunk_mutex
- *     balance_mutex
+ *   device_list_mutex
+ *     chunk_mutex
+ *   balance_mutex
  *
  *
  * Exclusive operations, BTRFS_FS_EXCL_OP
