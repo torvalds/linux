@@ -110,7 +110,7 @@ enum suspend_tasks {
 enum suspended_state {
 	BT_RUNNING = 0,
 	BT_SUSPEND_DISCONNECT,
-	BT_SUSPEND_COMPLETE,
+	BT_SUSPEND_CONFIGURE_WAKE,
 };
 
 struct hci_conn_hash {
@@ -503,6 +503,7 @@ struct hci_dev {
 	int (*set_diag)(struct hci_dev *hdev, bool enable);
 	int (*set_bdaddr)(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 	void (*cmd_timeout)(struct hci_dev *hdev);
+	bool (*prevent_wake)(struct hci_dev *hdev);
 };
 
 #define HCI_PHY_HANDLE(handle)	(handle & 0xff)
@@ -1554,6 +1555,7 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event);
 #define HCI_MGMT_NO_HDEV	BIT(1)
 #define HCI_MGMT_UNTRUSTED	BIT(2)
 #define HCI_MGMT_UNCONFIGURED	BIT(3)
+#define HCI_MGMT_HDEV_OPTIONAL	BIT(4)
 
 struct hci_mgmt_handler {
 	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,

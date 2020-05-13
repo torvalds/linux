@@ -42,11 +42,26 @@
 
 /* Handle HCI Event packets */
 
-static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb,
+				  u8 *new_status)
 {
 	__u8 status = *((__u8 *) skb->data);
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	/* It is possible that we receive Inquiry Complete event right
+	 * before we receive Inquiry Cancel Command Complete event, in
+	 * which case the latter event should have status of Command
+	 * Disallowed (0x0c). This should not be treated as error, since
+	 * we actually achieve what Inquiry Cancel wants to achieve,
+	 * which is to end the last Inquiry session.
+	 */
+	if (status == 0x0c && !test_bit(HCI_INQUIRY, &hdev->flags)) {
+		bt_dev_warn(hdev, "Ignoring error of Inquiry Cancel command");
+		status = 0x00;
+	}
+
+	*new_status = status;
 
 	if (status)
 		return;
@@ -3233,7 +3248,7 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	switch (*opcode) {
 	case HCI_OP_INQUIRY_CANCEL:
-		hci_cc_inquiry_cancel(hdev, skb);
+		hci_cc_inquiry_cancel(hdev, skb, status);
 		break;
 
 	case HCI_OP_PERIODIC_INQ:
@@ -5288,7 +5303,9 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	/* Most controller will fail if we try to create new connections
 	 * while we have an existing one in slave role.
 	 */
-	if (hdev->conn_hash.le_num_slave > 0)
+	if (hdev->conn_hash.le_num_slave > 0 &&
+	    (!test_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks) ||
+	     !(hdev->le_states[3] & 0x10)))
 		return NULL;
 
 	/* If we're not connectable only connect devices that we have in
