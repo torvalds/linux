@@ -372,7 +372,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	INIT_DELAYED_WORK(&phy->scan_work, mt7615_scan_work);
 	skb_queue_head_init(&phy->scan_event_list);
 
-	INIT_WORK(&dev->phy.ps_work, mt7615_ps_work);
+	INIT_WORK(&phy->ps_work, mt7615_ps_work);
 
 	mt7615_cap_dbdc_enable(dev);
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops);
