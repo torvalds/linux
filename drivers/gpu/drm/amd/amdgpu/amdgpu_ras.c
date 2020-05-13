@@ -811,6 +811,32 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 	return 0;
 }
 
+/* Trigger XGMI/WAFL error */
+int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
+				 struct ta_ras_trigger_error_input *block_info)
+{
+	int ret;
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		dev_warn(adev->dev, "Failed to disallow df cstate");
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
+		dev_warn(adev->dev, "Failed to disallow XGMI power down");
+
+	ret = psp_ras_trigger_error(&adev->psp, block_info);
+
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, true))
+		dev_warn(adev->dev, "Failed to allow XGMI power down");
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		dev_warn(adev->dev, "Failed to allow df cstate");
+
+	return ret;
+}
+
 /* wrapper of psp_ras_trigger_error */
 int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		struct ras_inject_if *info)
@@ -844,9 +870,11 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_RAS_BLOCK__UMC:
 	case AMDGPU_RAS_BLOCK__MMHUB:
-	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
 		ret = psp_ras_trigger_error(&adev->psp, &block_info);
+		break;
+	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
+		ret = amdgpu_ras_error_inject_xgmi(adev, &block_info);
 		break;
 	default:
 		dev_info(adev->dev, "%s error injection is not supported yet\n",
