@@ -68,6 +68,7 @@ enum sbs_capacity_mode {
 	CAPACITY_MODE_AMPS = 0,
 	CAPACITY_MODE_WATTS = BATTERY_MODE_CAPACITY_MASK
 };
+#define BATTERY_MODE_CHARGER_MASK	(1<<14)
 
 /* manufacturer access defines */
 #define MANUFACTURER_ACCESS_STATUS	0x0006
@@ -193,6 +194,7 @@ struct sbs_info {
 	bool				is_present;
 	struct gpio_desc		*gpio_detect;
 	bool				enable_detection;
+	bool				charger_broadcasts;
 	int				last_state;
 	int				poll_time;
 	u32				i2c_retry_count;
@@ -206,6 +208,27 @@ static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
 static char manufacturer[I2C_SMBUS_BLOCK_MAX + 1];
 static char chemistry[I2C_SMBUS_BLOCK_MAX + 1];
 static bool force_load;
+
+static int sbs_read_word_data(struct i2c_client *client, u8 address);
+static int sbs_write_word_data(struct i2c_client *client, u8 address, u16 value);
+
+static void sbs_disable_charger_broadcasts(struct sbs_info *chip)
+{
+	int val = sbs_read_word_data(chip->client, BATTERY_MODE_OFFSET);
+	if (val < 0)
+		goto exit;
+
+	val |= BATTERY_MODE_CHARGER_MASK;
+
+	val = sbs_write_word_data(chip->client, BATTERY_MODE_OFFSET, val);
+
+exit:
+	if (val < 0)
+		dev_err(&chip->client->dev,
+			"Failed to disable charger broadcasting: %d\n", val);
+	else
+		dev_dbg(&chip->client->dev, "%s\n", __func__);
+}
 
 static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 {
@@ -259,6 +282,9 @@ static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 
 	dev_dbg(&client->dev, "PEC: %s\n", (client->flags & I2C_CLIENT_PEC) ?
 		"enabled" : "disabled");
+
+	if (!chip->is_present && is_present && !chip->charger_broadcasts)
+		sbs_disable_charger_broadcasts(chip);
 
 	chip->is_present = true;
 
@@ -1016,6 +1042,9 @@ static int sbs_probe(struct i2c_client *client,
 		chip->i2c_retry_count  = pdata->i2c_retry_count;
 	}
 	chip->i2c_retry_count = chip->i2c_retry_count + 1;
+
+	chip->charger_broadcasts = !of_property_read_bool(client->dev.of_node,
+					"sbs,disable-charger-broadcasts");
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
 			"sbs,battery-detect", GPIOD_IN);

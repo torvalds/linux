@@ -16,6 +16,7 @@ Optional properties :
    after an external change notification.
  - sbs,battery-detect-gpios : The gpio which signals battery detection and
    a flag specifying its polarity.
+ - sbs,disable-charger-broadcasts: for systems without sbs compliant chargers
 
 Example:
 
@@ -25,4 +26,5 @@ Example:
 		sbs,i2c-retry-count = <2>;
 		sbs,poll-retry-count = <10>;
 		sbs,battery-detect-gpios = <&gpio-controller 122 1>;
+		sbs,disable-charger-broadcasts;
 	}
