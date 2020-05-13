@@ -1394,10 +1394,6 @@ static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 		for (i = 0; i < rb->to_free; i++) {
 			struct io_kiocb *req = rb->reqs[i];
 
-			if (req->flags & REQ_F_FIXED_FILE) {
-				req->file = NULL;
-				percpu_ref_put(req->fixed_file_refs);
-			}
 			if (req->flags & REQ_F_INFLIGHT)
 				inflight++;
 			__io_req_aux_free(req);
@@ -1670,7 +1666,7 @@ static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 	if ((req->flags & REQ_F_LINK_HEAD) || io_is_fallback_req(req))
 		return false;
 
-	if (!(req->flags & REQ_F_FIXED_FILE) || req->io)
+	if (req->file || req->io)
 		rb->need_iter++;
 
 	rb->reqs[rb->to_free++] = req;
