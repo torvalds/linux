@@ -1075,6 +1075,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		msg.msg_control = optval;
 		msg.msg_controllen = len;
 		msg.msg_flags = flags;
+		msg.msg_control_is_user = true;
 
 		lock_sock(sk);
 		skb = np->pktoptions;
