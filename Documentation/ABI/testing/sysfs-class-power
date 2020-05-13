@@ -680,3 +680,31 @@ Description:
 		Valid values:
 		- 1: enabled
 		- 0: disabled
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_year
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the year (following Gregorian calendar) when the device has been
+		manufactured.
+
+		Access: Read
+		Valid values: Reported as integer
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_month
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the month when the device has been manufactured.
+
+		Access: Read
+		Valid values: 1-12
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_day
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the day of month when the device has been manufactured.
+
+		Access: Read
+		Valid values: 1-31
