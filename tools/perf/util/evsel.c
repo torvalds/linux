@@ -254,6 +254,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->metric_expr   = NULL;
 	evsel->metric_name   = NULL;
 	evsel->metric_events = NULL;
+	evsel->per_pkg_mask  = NULL;
 	evsel->collect_stat  = false;
 	evsel->pmu_name      = NULL;
 }
