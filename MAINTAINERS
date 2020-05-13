@@ -4089,9 +4089,9 @@ L:	patches@opensource.cirrus.com
 S:	Supported
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 T:	git https://github.com/CirrusLogic/linux-drivers.git
-F:	Documentation/devicetree/bindings/mfd/madera.txt
-F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera-pinctrl.txt
-F:	Documentation/devicetree/bindings/sound/madera.txt
+F:	Documentation/devicetree/bindings/mfd/cirrus,madera.yaml
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera.yaml
+F:	Documentation/devicetree/bindings/sound/cirrus,madera.yaml
 F:	drivers/gpio/gpio-madera*
 F:	drivers/irqchip/irq-madera*
 F:	drivers/mfd/cs47l*
