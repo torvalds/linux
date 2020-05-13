@@ -354,9 +354,9 @@ static int sbs_status_correct(struct i2c_client *client, int *intval)
 
 	ret = (s16)ret;
 
-	/* Not drawing current means full (cannot be not charging) */
-	if (ret == 0)
-		*intval = POWER_SUPPLY_STATUS_FULL;
+	/* Not drawing current -> not charging (i.e. idle) */
+	if (*intval != POWER_SUPPLY_STATUS_FULL && ret == 0)
+		*intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 	if (*intval == POWER_SUPPLY_STATUS_FULL) {
 		/* Drawing or providing current when full */
