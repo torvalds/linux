@@ -106,7 +106,7 @@ static void sysrq_handle_loglevel(int key)
 	pr_info("Loglevel set to %d\n", i);
 	console_loglevel = i;
 }
-static struct sysrq_key_op sysrq_loglevel_op = {
+static const struct sysrq_key_op sysrq_loglevel_op = {
 	.handler	= sysrq_handle_loglevel,
 	.help_msg	= "loglevel(0-9)",
 	.action_msg	= "Changing Loglevel",
@@ -119,14 +119,14 @@ static void sysrq_handle_SAK(int key)
 	struct work_struct *SAK_work = &vc_cons[fg_console].SAK_work;
 	schedule_work(SAK_work);
 }
-static struct sysrq_key_op sysrq_SAK_op = {
+static const struct sysrq_key_op sysrq_SAK_op = {
 	.handler	= sysrq_handle_SAK,
 	.help_msg	= "sak(k)",
 	.action_msg	= "SAK",
 	.enable_mask	= SYSRQ_ENABLE_KEYBOARD,
 };
 #else
-#define sysrq_SAK_op (*(struct sysrq_key_op *)NULL)
+#define sysrq_SAK_op (*(const struct sysrq_key_op *)NULL)
 #endif
 
 #ifdef CONFIG_VT
@@ -135,14 +135,14 @@ static void sysrq_handle_unraw(int key)
 	vt_reset_unicode(fg_console);
 }
 
-static struct sysrq_key_op sysrq_unraw_op = {
+static const struct sysrq_key_op sysrq_unraw_op = {
 	.handler	= sysrq_handle_unraw,
 	.help_msg	= "unraw(r)",
 	.action_msg	= "Keyboard mode set to system default",
 	.enable_mask	= SYSRQ_ENABLE_KEYBOARD,
 };
 #else
-#define sysrq_unraw_op (*(struct sysrq_key_op *)NULL)
+#define sysrq_unraw_op (*(const struct sysrq_key_op *)NULL)
 #endif /* CONFIG_VT */
 
 static void sysrq_handle_crash(int key)
@@ -152,7 +152,7 @@ static void sysrq_handle_crash(int key)
 
 	panic("sysrq triggered crash\n");
 }
-static struct sysrq_key_op sysrq_crash_op = {
+static const struct sysrq_key_op sysrq_crash_op = {
 	.handler	= sysrq_handle_crash,
 	.help_msg	= "crash(c)",
 	.action_msg	= "Trigger a crash",
@@ -165,20 +165,20 @@ static void sysrq_handle_reboot(int key)
 	local_irq_enable();
 	emergency_restart();
 }
-static struct sysrq_key_op sysrq_reboot_op = {
+static const struct sysrq_key_op sysrq_reboot_op = {
 	.handler	= sysrq_handle_reboot,
 	.help_msg	= "reboot(b)",
 	.action_msg	= "Resetting",
 	.enable_mask	= SYSRQ_ENABLE_BOOT,
 };
 
-struct sysrq_key_op *__sysrq_reboot_op = &sysrq_reboot_op;
+const struct sysrq_key_op *__sysrq_reboot_op = &sysrq_reboot_op;
 
 static void sysrq_handle_sync(int key)
 {
 	emergency_sync();
 }
-static struct sysrq_key_op sysrq_sync_op = {
+static const struct sysrq_key_op sysrq_sync_op = {
 	.handler	= sysrq_handle_sync,
 	.help_msg	= "sync(s)",
 	.action_msg	= "Emergency Sync",
@@ -190,7 +190,7 @@ static void sysrq_handle_show_timers(int key)
 	sysrq_timer_list_show();
 }
 
-static struct sysrq_key_op sysrq_show_timers_op = {
+static const struct sysrq_key_op sysrq_show_timers_op = {
 	.handler	= sysrq_handle_show_timers,
 	.help_msg	= "show-all-timers(q)",
 	.action_msg	= "Show clockevent devices & pending hrtimers (no others)",
@@ -200,7 +200,7 @@ static void sysrq_handle_mountro(int key)
 {
 	emergency_remount();
 }
-static struct sysrq_key_op sysrq_mountro_op = {
+static const struct sysrq_key_op sysrq_mountro_op = {
 	.handler	= sysrq_handle_mountro,
 	.help_msg	= "unmount(u)",
 	.action_msg	= "Emergency Remount R/O",
@@ -213,13 +213,13 @@ static void sysrq_handle_showlocks(int key)
 	debug_show_all_locks();
 }
 
-static struct sysrq_key_op sysrq_showlocks_op = {
+static const struct sysrq_key_op sysrq_showlocks_op = {
 	.handler	= sysrq_handle_showlocks,
 	.help_msg	= "show-all-locks(d)",
 	.action_msg	= "Show Locks Held",
 };
 #else
-#define sysrq_showlocks_op (*(struct sysrq_key_op *)NULL)
+#define sysrq_showlocks_op (*(const struct sysrq_key_op *)NULL)
 #endif
 
 #ifdef CONFIG_SMP
@@ -266,7 +266,7 @@ static void sysrq_handle_showallcpus(int key)
 	}
 }
 
-static struct sysrq_key_op sysrq_showallcpus_op = {
+static const struct sysrq_key_op sysrq_showallcpus_op = {
 	.handler	= sysrq_handle_showallcpus,
 	.help_msg	= "show-backtrace-all-active-cpus(l)",
 	.action_msg	= "Show backtrace of all active CPUs",
@@ -284,7 +284,7 @@ static void sysrq_handle_showregs(int key)
 		show_regs(regs);
 	perf_event_print_debug();
 }
-static struct sysrq_key_op sysrq_showregs_op = {
+static const struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,
 	.help_msg	= "show-registers(p)",
 	.action_msg	= "Show Regs",
@@ -296,7 +296,7 @@ static void sysrq_handle_showstate(int key)
 	show_state();
 	show_workqueue_state();
 }
-static struct sysrq_key_op sysrq_showstate_op = {
+static const struct sysrq_key_op sysrq_showstate_op = {
 	.handler	= sysrq_handle_showstate,
 	.help_msg	= "show-task-states(t)",
 	.action_msg	= "Show State",
@@ -307,7 +307,7 @@ static void sysrq_handle_showstate_blocked(int key)
 {
 	show_state_filter(TASK_UNINTERRUPTIBLE);
 }
-static struct sysrq_key_op sysrq_showstate_blocked_op = {
+static const struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,
 	.help_msg	= "show-blocked-tasks(w)",
 	.action_msg	= "Show Blocked State",
@@ -321,21 +321,21 @@ static void sysrq_ftrace_dump(int key)
 {
 	ftrace_dump(DUMP_ALL);
 }
-static struct sysrq_key_op sysrq_ftrace_dump_op = {
+static const struct sysrq_key_op sysrq_ftrace_dump_op = {
 	.handler	= sysrq_ftrace_dump,
 	.help_msg	= "dump-ftrace-buffer(z)",
 	.action_msg	= "Dump ftrace buffer",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 #else
-#define sysrq_ftrace_dump_op (*(struct sysrq_key_op *)NULL)
+#define sysrq_ftrace_dump_op (*(const struct sysrq_key_op *)NULL)
 #endif
 
 static void sysrq_handle_showmem(int key)
 {
 	show_mem(0, NULL);
 }
-static struct sysrq_key_op sysrq_showmem_op = {
+static const struct sysrq_key_op sysrq_showmem_op = {
 	.handler	= sysrq_handle_showmem,
 	.help_msg	= "show-memory-usage(m)",
 	.action_msg	= "Show Memory",
@@ -366,7 +366,7 @@ static void sysrq_handle_term(int key)
 	send_sig_all(SIGTERM);
 	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
 }
-static struct sysrq_key_op sysrq_term_op = {
+static const struct sysrq_key_op sysrq_term_op = {
 	.handler	= sysrq_handle_term,
 	.help_msg	= "terminate-all-tasks(e)",
 	.action_msg	= "Terminate All Tasks",
@@ -396,7 +396,7 @@ static void sysrq_handle_moom(int key)
 {
 	schedule_work(&moom_work);
 }
-static struct sysrq_key_op sysrq_moom_op = {
+static const struct sysrq_key_op sysrq_moom_op = {
 	.handler	= sysrq_handle_moom,
 	.help_msg	= "memory-full-oom-kill(f)",
 	.action_msg	= "Manual OOM execution",
@@ -408,7 +408,7 @@ static void sysrq_handle_thaw(int key)
 {
 	emergency_thaw_all();
 }
-static struct sysrq_key_op sysrq_thaw_op = {
+static const struct sysrq_key_op sysrq_thaw_op = {
 	.handler	= sysrq_handle_thaw,
 	.help_msg	= "thaw-filesystems(j)",
 	.action_msg	= "Emergency Thaw of all frozen filesystems",
@@ -421,7 +421,7 @@ static void sysrq_handle_kill(int key)
 	send_sig_all(SIGKILL);
 	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
 }
-static struct sysrq_key_op sysrq_kill_op = {
+static const struct sysrq_key_op sysrq_kill_op = {
 	.handler	= sysrq_handle_kill,
 	.help_msg	= "kill-all-tasks(i)",
 	.action_msg	= "Kill All Tasks",
@@ -432,7 +432,7 @@ static void sysrq_handle_unrt(int key)
 {
 	normalize_rt_tasks();
 }
-static struct sysrq_key_op sysrq_unrt_op = {
+static const struct sysrq_key_op sysrq_unrt_op = {
 	.handler	= sysrq_handle_unrt,
 	.help_msg	= "nice-all-RT-tasks(n)",
 	.action_msg	= "Nice All RT Tasks",
@@ -442,7 +442,7 @@ static struct sysrq_key_op sysrq_unrt_op = {
 /* Key Operations table and lock */
 static DEFINE_SPINLOCK(sysrq_key_table_lock);
 
-static struct sysrq_key_op *sysrq_key_table[36] = {
+static const struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_loglevel_op,		/* 0 */
 	&sysrq_loglevel_op,		/* 1 */
 	&sysrq_loglevel_op,		/* 2 */

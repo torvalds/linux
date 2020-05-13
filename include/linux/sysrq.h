@@ -47,7 +47,7 @@ void handle_sysrq(int key);
 void __handle_sysrq(int key, bool check_mask);
 int register_sysrq_key(int key, const struct sysrq_key_op *op);
 int unregister_sysrq_key(int key, const struct sysrq_key_op *op);
-extern struct sysrq_key_op *__sysrq_reboot_op;
+extern const struct sysrq_key_op *__sysrq_reboot_op;
 
 int sysrq_toggle_support(int enable_mask);
 int sysrq_mask(void);
