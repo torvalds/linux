@@ -21,7 +21,6 @@
  *
  */
 
-#include "pp_debug.h"
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include "amdgpu.h"
@@ -36,8 +35,9 @@
 #include "sienna_cichlid_ppt.h"
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_7_ppsmc.h"
-
+#include "nbio/nbio_2_3_offset.h"
 #include "nbio/nbio_2_3_sh_mask.h"
+
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
 #define FEATURE_MASK(feature) (1ULL << feature)
@@ -516,6 +516,10 @@ static int sienna_cichlid_tables_init(struct smu_context *smu, struct smu_table 
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
+	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	if (!smu_table->watermarks_table)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -867,40 +871,6 @@ static int sienna_cichlid_populate_umd_state_clk(struct smu_context *smu)
 	return ret;
 }
 
-static int sienna_cichlid_get_clock_by_type_with_latency(struct smu_context *smu,
-						 enum smu_clk_type clk_type,
-						 struct pp_clock_levels_with_latency *clocks)
-{
-	int ret = 0, i = 0;
-	uint32_t level_count = 0, freq = 0;
-
-	switch (clk_type) {
-	case SMU_GFXCLK:
-	case SMU_DCEFCLK:
-	case SMU_SOCCLK:
-		ret = smu_get_dpm_level_count(smu, clk_type, &level_count);
-		if (ret)
-			return ret;
-
-		level_count = min(level_count, (uint32_t)MAX_NUM_CLOCKS);
-		clocks->num_levels = level_count;
-
-		for (i = 0; i < level_count; i++) {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &freq);
-			if (ret)
-				return ret;
-
-			clocks->data[i].clocks_in_khz = freq * 1000;
-			clocks->data[i].latency_in_us = 0;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static int sienna_cichlid_pre_display_config_changed(struct smu_context *smu)
 {
 	int ret = 0;
@@ -931,22 +901,12 @@ static int sienna_cichlid_display_config_changed(struct smu_context *smu)
 	int ret = 0;
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
-		if (ret)
-			return ret;
-
-		smu->watermarks_bitmap |= WATERMARKS_LOADED;
-	}
-
-	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-		/* Sienna_Cichlid do not support to change display num currently */
-		ret = 0;
 #if 0
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays,
-						  smu->display_config->num_display, NULL);
+						  smu->display_config->num_display,
+						  NULL);
 #endif
 		if (ret)
 			return ret;
@@ -1211,8 +1171,6 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 	}
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 0)
-			return -EINVAL;
 
 		ret = smu_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
@@ -1338,8 +1296,14 @@ static int sienna_cichlid_notify_smc_display_config(struct smu_context *smu)
 		ret = smu_v11_0_display_clock_voltage_request(smu, &clock_req);
 		if (!ret) {
 			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
-				pr_err("Attempt to set divider for DCEFCLK Failed as it not support currently!");
-				return ret;
+				ret = smu_send_smc_msg_with_param(smu,
+								  SMU_MSG_SetMinDeepSleepDcefclk,
+								  min_clocks.dcef_clock_in_sr/100,
+								  NULL);
+				if (ret) {
+					pr_err("Attempt to set divider for DCEFCLK Failed!");
+					return ret;
+				}
 			}
 		} else {
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
@@ -1363,6 +1327,7 @@ static int sienna_cichlid_set_watermarks_table(struct smu_context *smu,
 				       *clock_ranges)
 {
 	int i;
+	int ret = 0;
 	Watermarks_t *table = watermarks;
 
 	if (!table || !clock_ranges)
@@ -1413,6 +1378,17 @@ static int sienna_cichlid_set_watermarks_table(struct smu_context *smu,
 		table->WatermarkRow[0][i].WmSetting = (uint8_t)
 				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
         }
+
+	smu->watermarks_bitmap |= WATERMARKS_EXIST;
+
+	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu_write_watermarks_table(smu);
+		if (ret) {
+			pr_err("Failed to update WMTABLE!");
+			return ret;
+		}
+		smu->watermarks_bitmap |= WATERMARKS_LOADED;
+	}
 
 	return 0;
 }
@@ -1705,8 +1681,10 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 					pcie_width_cap);
 
 		ret = smu_send_smc_msg_with_param(smu,
-						  SMU_MSG_OverridePcieParameters,
-						  smu_pcie_arg, NULL);
+					  SMU_MSG_OverridePcieParameters,
+					  smu_pcie_arg,
+					  NULL);
+
 		if (ret)
 			return ret;
 
@@ -1749,6 +1727,18 @@ int sienna_cichlid_set_soft_freq_limited_range(struct smu_context *smu,
 		amdgpu_gfx_off_ctrl(adev, true);
 
 	return ret;
+}
+
+static bool sienna_cichlid_is_baco_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val;
+
+	if (!smu_v11_0_baco_is_support(smu))
+		return false;
+
+	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
 }
 
 static void sienna_cichlid_dump_pptable(struct smu_context *smu)
@@ -2438,7 +2428,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.print_clk_levels = sienna_cichlid_print_clk_levels,
 	.force_clk_levels = sienna_cichlid_force_clk_levels,
 	.populate_umd_state_clk = sienna_cichlid_populate_umd_state_clk,
-	.get_clock_by_type_with_latency = sienna_cichlid_get_clock_by_type_with_latency,
 	.pre_display_config_changed = sienna_cichlid_pre_display_config_changed,
 	.display_config_changed = sienna_cichlid_display_config_changed,
 	.notify_smc_display_config = sienna_cichlid_notify_smc_display_config,
@@ -2500,7 +2489,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= smu_v11_0_baco_is_support,
+	.baco_is_support= sienna_cichlid_is_baco_supported,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_enter = smu_v11_0_baco_enter,
