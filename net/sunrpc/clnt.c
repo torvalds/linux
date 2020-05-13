@@ -889,6 +889,7 @@ static void rpc_free_client_work(struct work_struct *work)
 	 * here.
 	 */
 	rpc_clnt_debugfs_unregister(clnt);
+	rpc_free_clid(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 
@@ -910,7 +911,6 @@ rpc_free_client(struct rpc_clnt *clnt)
 	clnt->cl_metrics = NULL;
 	xprt_iter_destroy(&clnt->cl_xpi);
 	put_cred(clnt->cl_cred);
-	rpc_free_clid(clnt);
 
 	INIT_WORK(&clnt->cl_work, rpc_free_client_work);
 	schedule_work(&clnt->cl_work);
