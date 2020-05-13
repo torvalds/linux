@@ -339,7 +339,9 @@ settings from init_net and for IPv6 we reset all settings to default.
 
 If set to 1, both IPv4 and IPv6 settings are forced to inherit from
 current ones in init_net. If set to 2, both IPv4 and IPv6 settings are
-forced to reset to their default values.
+forced to reset to their default values. If set to 3, both IPv4 and IPv6
+settings are forced to inherit from current ones in the netns where this
+new netns has been created.
 
 Default : 0  (for compatibility reasons)
 

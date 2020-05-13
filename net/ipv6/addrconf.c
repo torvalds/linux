@@ -6991,9 +6991,26 @@ static int __net_init addrconf_init_net(struct net *net)
 		goto err_alloc_dflt;
 
 	if (IS_ENABLED(CONFIG_SYSCTL) &&
-	    sysctl_devconf_inherit_init_net == 1 && !net_eq(net, &init_net)) {
-		memcpy(all, init_net.ipv6.devconf_all, sizeof(ipv6_devconf));
-		memcpy(dflt, init_net.ipv6.devconf_dflt, sizeof(ipv6_devconf_dflt));
+	    !net_eq(net, &init_net)) {
+		switch (sysctl_devconf_inherit_init_net) {
+		case 1:  /* copy from init_net */
+			memcpy(all, init_net.ipv6.devconf_all,
+			       sizeof(ipv6_devconf));
+			memcpy(dflt, init_net.ipv6.devconf_dflt,
+			       sizeof(ipv6_devconf_dflt));
+			break;
+		case 3: /* copy from the current netns */
+			memcpy(all, current->nsproxy->net_ns->ipv6.devconf_all,
+			       sizeof(ipv6_devconf));
+			memcpy(dflt,
+			       current->nsproxy->net_ns->ipv6.devconf_dflt,
+			       sizeof(ipv6_devconf_dflt));
+			break;
+		case 0:
+		case 2:
+			/* use compiled values */
+			break;
+		}
 	}
 
 	/* these will be inherited by all namespaces */
