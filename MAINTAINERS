@@ -18260,11 +18260,11 @@ L:	patches@opensource.cirrus.com
 S:	Supported
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 T:	git https://github.com/CirrusLogic/linux-drivers.git
-F:	Documentation/devicetree/bindings/extcon/extcon-arizona.txt
-F:	Documentation/devicetree/bindings/mfd/arizona.txt
+F:	Documentation/devicetree/bindings/extcon/wlf,arizona.yaml
+F:	Documentation/devicetree/bindings/mfd/wlf,arizona.yaml
 F:	Documentation/devicetree/bindings/mfd/wm831x.txt
-F:	Documentation/devicetree/bindings/regulator/arizona-regulator.txt
-F:	Documentation/devicetree/bindings/sound/wlf,arizona.txt
+F:	Documentation/devicetree/bindings/regulator/wlf,arizona.yaml
+F:	Documentation/devicetree/bindings/sound/wlf,arizona.yaml
 F:	Documentation/hwmon/wm83??.rst
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
