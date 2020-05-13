@@ -803,8 +803,9 @@ static int dmz_fixup_devices(struct dm_target *ti)
 
 	if (reg_dev) {
 		reg_dev->zone_nr_sectors = zoned_dev->zone_nr_sectors;
-		reg_dev->nr_zones = DIV_ROUND_UP(reg_dev->capacity,
-						 reg_dev->zone_nr_sectors);
+		reg_dev->nr_zones =
+			DIV_ROUND_UP_SECTOR_T(reg_dev->capacity,
+					      reg_dev->zone_nr_sectors);
 		zoned_dev->zone_offset = reg_dev->nr_zones;
 	}
 	return 0;
