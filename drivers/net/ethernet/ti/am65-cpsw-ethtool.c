@@ -730,9 +730,17 @@ static u32 am65_cpsw_get_ethtool_priv_flags(struct net_device *ndev)
 static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	int rrobin;
 
-	common->pf_p0_rx_ptype_rrobin =
-			!!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
+	rrobin = !!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
+
+	if (common->est_enabled && rrobin) {
+		netdev_err(ndev,
+			   "p0-rx-ptype-rrobin flag conflicts with QOS\n");
+		return -EINVAL;
+	}
+
+	common->pf_p0_rx_ptype_rrobin = rrobin;
 	am65_cpsw_nuss_set_p0_ptype(common);
 
 	return 0;
