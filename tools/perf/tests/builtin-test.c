@@ -75,6 +75,13 @@ static struct test generic_tests[] = {
 	{
 		.desc = "PMU events",
 		.func = test__pmu_events,
+		.subtest = {
+			.skip_if_fail	= false,
+			.get_nr		= test__pmu_events_subtest_get_nr,
+			.get_desc	= test__pmu_events_subtest_get_desc,
+			.skip_reason	= test__pmu_events_subtest_skip_reason,
+		},
+
 	},
 	{
 		.desc = "DSO data read",
