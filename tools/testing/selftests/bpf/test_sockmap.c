@@ -341,14 +341,18 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 
 	clock_gettime(CLOCK_MONOTONIC, &s->start);
 	for (i = 0; i < cnt; i++) {
-		int sent = sendfile(fd, fp, NULL, iov_length);
+		int sent;
+
+		errno = 0;
+		sent = sendfile(fd, fp, NULL, iov_length);
 
 		if (!drop && sent < 0) {
-			perror("send loop error");
+			perror("sendpage loop error");
 			fclose(file);
 			return sent;
 		} else if (drop && sent >= 0) {
-			printf("sendpage loop error expected: %i\n", sent);
+			printf("sendpage loop error expected: %i errno %i\n",
+			       sent, errno);
 			fclose(file);
 			return -EIO;
 		}
@@ -460,13 +464,18 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 	if (tx) {
 		clock_gettime(CLOCK_MONOTONIC, &s->start);
 		for (i = 0; i < cnt; i++) {
-			int sent = sendmsg(fd, &msg, flags);
+			int sent;
+
+			errno = 0;
+			sent = sendmsg(fd, &msg, flags);
 
 			if (!drop && sent < 0) {
-				perror("send loop error");
+				perror("sendmsg loop error");
 				goto out_errno;
 			} else if (drop && sent >= 0) {
-				printf("send loop error expected: %i\n", sent);
+				fprintf(stderr,
+					"sendmsg loop error expected: %i errno %i\n",
+					sent, errno);
 				errno = -EIO;
 				goto out_errno;
 			}
@@ -690,14 +699,14 @@ static int sendmsg_test(struct sockmap_options *opt)
 	if (WIFEXITED(rx_status)) {
 		err = WEXITSTATUS(rx_status);
 		if (err) {
-			fprintf(stderr, "rx thread exited with err %d. ", err);
+			fprintf(stderr, "rx thread exited with err %d.\n", err);
 			goto out;
 		}
 	}
 	if (WIFEXITED(tx_status)) {
 		err = WEXITSTATUS(tx_status);
 		if (err)
-			fprintf(stderr, "tx thread exited with err %d. ", err);
+			fprintf(stderr, "tx thread exited with err %d.\n", err);
 	}
 out:
 	return err;
