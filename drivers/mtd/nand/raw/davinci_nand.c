@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
@@ -678,8 +678,108 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 	return ret;
 }
 
+static void nand_davinci_data_in(struct davinci_nand_info *info, void *buf,
+				 unsigned int len, bool force_8bit)
+{
+	u32 alignment = ((uintptr_t)buf | len) & 3;
+
+	if (force_8bit || (alignment & 1))
+		ioread8_rep(info->current_cs, buf, len);
+	else if (alignment & 3)
+		ioread16_rep(info->current_cs, buf, len >> 1);
+	else
+		ioread32_rep(info->current_cs, buf, len >> 2);
+}
+
+static void nand_davinci_data_out(struct davinci_nand_info *info,
+				  const void *buf, unsigned int len,
+				  bool force_8bit)
+{
+	u32 alignment = ((uintptr_t)buf | len) & 3;
+
+	if (force_8bit || (alignment & 1))
+		iowrite8_rep(info->current_cs, buf, len);
+	else if (alignment & 3)
+		iowrite16_rep(info->current_cs, buf, len >> 1);
+	else
+		iowrite32_rep(info->current_cs, buf, len >> 2);
+}
+
+static int davinci_nand_exec_instr(struct davinci_nand_info *info,
+				   const struct nand_op_instr *instr)
+{
+	unsigned int i, timeout_us;
+	u32 status;
+	int ret;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		iowrite8(instr->ctx.cmd.opcode,
+			 info->current_cs + info->mask_cle);
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			iowrite8(instr->ctx.addr.addrs[i],
+				 info->current_cs + info->mask_ale);
+		}
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		nand_davinci_data_in(info, instr->ctx.data.buf.in,
+				     instr->ctx.data.len,
+				     instr->ctx.data.force_8bit);
+		break;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		nand_davinci_data_out(info, instr->ctx.data.buf.out,
+				      instr->ctx.data.len,
+				      instr->ctx.data.force_8bit);
+		break;
+
+	case NAND_OP_WAITRDY_INSTR:
+		timeout_us = instr->ctx.waitrdy.timeout_ms * 1000;
+		ret = readl_relaxed_poll_timeout(info->base + NANDFSR_OFFSET,
+						 status, status & BIT(0), 100,
+						 timeout_us);
+		if (ret)
+			return ret;
+
+		break;
+	}
+
+	if (instr->delay_ns)
+		ndelay(instr->delay_ns);
+
+	return 0;
+}
+
+static int davinci_nand_exec_op(struct nand_chip *chip,
+				const struct nand_operation *op,
+				bool check_only)
+{
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
+	unsigned int i;
+
+	if (check_only)
+		return 0;
+
+	info->current_cs = info->vaddr + (op->cs * info->mask_chipsel);
+
+	for (i = 0; i < op->ninstrs; i++) {
+		int ret;
+
+		ret = davinci_nand_exec_instr(info, &op->instrs[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct nand_controller_ops davinci_nand_controller_ops = {
 	.attach_chip = davinci_nand_attach_chip,
+	.exec_op = davinci_nand_exec_op,
 };
 
 static int nand_davinci_probe(struct platform_device *pdev)
