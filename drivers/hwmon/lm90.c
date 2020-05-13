@@ -35,6 +35,14 @@
  * explicitly as max6659, or if its address is not 0x4c.
  * These chips lack the remote temperature offset feature.
  *
+ * This driver also supports the MAX6654 chip made by Maxim. This chip can
+ * be at 9 different addresses, similar to MAX6680/MAX6681. The MAX6654 is
+ * otherwise similar to MAX6657/MAX6658/MAX6659. Extended range is available
+ * by setting the configuration register accordingly, and is done during
+ * initialization. Extended precision is only available at conversion rates
+ * of 1 Hz and slower. Note that extended precision is not enabled by
+ * default, as this driver initializes all chips to 2 Hz by design.
+ *
  * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
  * MAX6692 chips made by Maxim.  These are again similar to the LM86,
  * but they use unsigned temperature values and can report temperatures
@@ -94,8 +102,8 @@
  * have address 0x4d.
  * MAX6647 has address 0x4e.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
- * MAX6680 and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
- * 0x4c, 0x4d or 0x4e.
+ * MAX6654, MAX6680, and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29,
+ * 0x2a, 0x2b, 0x4c, 0x4d or 0x4e.
  * SA56004 can have address 0x48 through 0x4F.
  */
 
@@ -104,7 +112,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004, g781, tmp451 };
+	max6646, w83l771, max6696, sa56004, g781, tmp451, max6654 };
 
 /*
  * The LM90 registers
@@ -145,7 +153,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_REG_R_TCRIT_HYST		0x21
 #define LM90_REG_W_TCRIT_HYST		0x21
 
-/* MAX6646/6647/6649/6657/6658/6659/6695/6696 registers */
+/* MAX6646/6647/6649/6654/6657/6658/6659/6695/6696 registers */
 
 #define MAX6657_REG_R_LOCAL_TEMPL	0x11
 #define MAX6696_REG_R_STATUS2		0x12
@@ -209,6 +217,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6646", max6646 },
 	{ "max6647", max6646 },
 	{ "max6649", max6646 },
+	{ "max6654", max6654 },
 	{ "max6657", max6657 },
 	{ "max6658", max6657 },
 	{ "max6659", max6659 },
@@ -268,6 +277,10 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "dallas,max6649",
 		.data = (void *)max6646
+	},
+	{
+		.compatible = "dallas,max6654",
+		.data = (void *)max6654
 	},
 	{
 		.compatible = "dallas,max6657",
@@ -365,6 +378,11 @@ static const struct lm90_params lm90_params[] = {
 	[max6646] = {
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
+	},
+	[max6654] = {
+		.alert_alarms = 0x7c,
+		.max_convrate = 7,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6657] = {
@@ -1557,6 +1575,16 @@ static int lm90_detect(struct i2c_client *client,
 		 && (config1 & 0x3f) == 0x00
 		 && convrate <= 0x07) {
 			name = "max6646";
+		} else
+		/*
+		 * The chip_id of the MAX6654 holds the revision of the chip.
+		 * The lowest 3 bits of the config1 register are unused and
+		 * should return zero when read.
+		 */
+		if (chip_id == 0x08
+		 && (config1 & 0x07) == 0x00
+		 && convrate <= 0x07) {
+			name = "max6654";
 		}
 	} else
 	if (address == 0x4C
@@ -1659,6 +1687,15 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	 */
 	if (data->kind == max6680)
 		config |= 0x18;
+
+	/*
+	 * Put MAX6654 into extended range (0x20, extend minimum range from
+	 * 0 degrees to -64 degrees). Note that extended resolution is not
+	 * possible on the MAX6654 unless conversion rate is set to 1 Hz or
+	 * slower, which is intentionally not done by default.
+	 */
+	if (data->kind == max6654)
+		config |= 0x20;
 
 	/*
 	 * Select external channel 0 for max6695/96
