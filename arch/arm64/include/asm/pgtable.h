@@ -867,6 +867,38 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 
 extern int kern_addr_valid(unsigned long addr);
 
+#ifdef CONFIG_ARM64_MTE
+
+#define __HAVE_ARCH_PREPARE_TO_SWAP
+static inline int arch_prepare_to_swap(struct page *page)
+{
+	if (system_supports_mte())
+		return mte_save_tags(page);
+	return 0;
+}
+
+#define __HAVE_ARCH_SWAP_INVALIDATE
+static inline void arch_swap_invalidate_page(int type, pgoff_t offset)
+{
+	if (system_supports_mte())
+		mte_invalidate_tags(type, offset);
+}
+
+static inline void arch_swap_invalidate_area(int type)
+{
+	if (system_supports_mte())
+		mte_invalidate_tags_area(type);
+}
+
+#define __HAVE_ARCH_SWAP_RESTORE
+static inline void arch_swap_restore(swp_entry_t entry, struct page *page)
+{
+	if (system_supports_mte() && mte_restore_tags(entry, page))
+		set_bit(PG_mte_tagged, &page->flags);
+}
+
+#endif /* CONFIG_ARM64_MTE */
+
 /*
  * On AArch64, the cache coherency is handled via the set_pte_at() function.
  */

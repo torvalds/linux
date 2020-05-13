@@ -104,3 +104,48 @@ SYM_FUNC_START(mte_copy_tags_to_user)
 2:	sub	x0, x0, x3		// update the number of tags copied
 	ret
 SYM_FUNC_END(mte_copy_tags_to_user)
+
+/*
+ * Save the tags in a page
+ *   x0 - page address
+ *   x1 - tag storage
+ */
+SYM_FUNC_START(mte_save_page_tags)
+	multitag_transfer_size x7, x5
+1:
+	mov	x2, #0
+2:
+	ldgm	x5, [x0]
+	orr	x2, x2, x5
+	add	x0, x0, x7
+	tst	x0, #0xFF		// 16 tag values fit in a register,
+	b.ne	2b			// which is 16*16=256 bytes
+
+	str	x2, [x1], #8
+
+	tst	x0, #(PAGE_SIZE - 1)
+	b.ne	1b
+
+	ret
+SYM_FUNC_END(mte_save_page_tags)
+
+/*
+ * Restore the tags in a page
+ *   x0 - page address
+ *   x1 - tag storage
+ */
+SYM_FUNC_START(mte_restore_page_tags)
+	multitag_transfer_size x7, x5
+1:
+	ldr	x2, [x1], #8
+2:
+	stgm	x2, [x0]
+	add	x0, x0, x7
+	tst	x0, #0xFF
+	b.ne	2b
+
+	tst	x0, #(PAGE_SIZE - 1)
+	b.ne	1b
+
+	ret
+SYM_FUNC_END(mte_restore_page_tags)

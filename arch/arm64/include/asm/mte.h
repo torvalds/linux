@@ -21,6 +21,14 @@ unsigned long mte_copy_tags_from_user(void *to, const void __user *from,
 				      unsigned long n);
 unsigned long mte_copy_tags_to_user(void __user *to, void *from,
 				    unsigned long n);
+int mte_save_tags(struct page *page);
+void mte_save_page_tags(const void *page_addr, void *tag_storage);
+bool mte_restore_tags(swp_entry_t entry, struct page *page);
+void mte_restore_page_tags(void *page_addr, const void *tag_storage);
+void mte_invalidate_tags(int type, pgoff_t offset);
+void mte_invalidate_tags_area(int type);
+void *mte_allocate_tag_storage(void);
+void mte_free_tag_storage(char *storage);
 
 #ifdef CONFIG_ARM64_MTE
 

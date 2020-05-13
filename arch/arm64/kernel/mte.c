@@ -10,6 +10,8 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/string.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/thread_info.h>
 #include <linux/uio.h>
 
@@ -18,15 +20,30 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
+static void mte_sync_page_tags(struct page *page, pte_t *ptep, bool check_swap)
+{
+	pte_t old_pte = READ_ONCE(*ptep);
+
+	if (check_swap && is_swap_pte(old_pte)) {
+		swp_entry_t entry = pte_to_swp_entry(old_pte);
+
+		if (!non_swap_entry(entry) && mte_restore_tags(entry, page))
+			return;
+	}
+
+	mte_clear_page_tags(page_address(page));
+}
+
 void mte_sync_tags(pte_t *ptep, pte_t pte)
 {
 	struct page *page = pte_page(pte);
 	long i, nr_pages = compound_nr(page);
+	bool check_swap = nr_pages == 1;
 
 	/* if PG_mte_tagged is set, tags have already been initialised */
 	for (i = 0; i < nr_pages; i++, page++) {
 		if (!test_and_set_bit(PG_mte_tagged, &page->flags))
-			mte_clear_page_tags(page_address(page));
+			mte_sync_page_tags(page, ptep, check_swap);
 	}
 }
 
