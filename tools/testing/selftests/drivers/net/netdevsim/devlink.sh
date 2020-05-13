@@ -146,6 +146,21 @@ regions_test()
 
 	check_region_snapshot_count dummy post-first-request 3
 
+	devlink region dump $DL_HANDLE/dummy snapshot 25 >> /dev/null
+	check_err $? "Failed to dump snapshot with id 25"
+
+	devlink region read $DL_HANDLE/dummy snapshot 25 addr 0 len 1 >> /dev/null
+	check_err $? "Failed to read snapshot with id 25 (1 byte)"
+
+	devlink region read $DL_HANDLE/dummy snapshot 25 addr 128 len 128 >> /dev/null
+	check_err $? "Failed to read snapshot with id 25 (128 bytes)"
+
+	devlink region read $DL_HANDLE/dummy snapshot 25 addr 128 len $((1<<32)) >> /dev/null
+	check_err $? "Failed to read snapshot with id 25 (oversized)"
+
+	devlink region read $DL_HANDLE/dummy snapshot 25 addr $((1<<32)) len 128 >> /dev/null 2>&1
+	check_fail $? "Bad read of snapshot with id 25 did not fail"
+
 	devlink region del $DL_HANDLE/dummy snapshot 25
 	check_err $? "Failed to delete snapshot with id 25"
 

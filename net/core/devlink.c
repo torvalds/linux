@@ -4215,7 +4215,6 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 						struct nlattr **attrs,
 						u64 start_offset,
 						u64 end_offset,
-						bool dump,
 						u64 *new_offset)
 {
 	struct devlink_snapshot *snapshot;
@@ -4229,9 +4228,6 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
 	if (!snapshot)
 		return -EINVAL;
-
-	if (end_offset > region->size || dump)
-		end_offset = region->size;
 
 	while (curr_offset < end_offset) {
 		u32 data_size;
@@ -4260,13 +4256,12 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 					     struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	u64 ret_offset, start_offset, end_offset = 0;
+	u64 ret_offset, start_offset, end_offset = U64_MAX;
 	struct nlattr **attrs = info->attrs;
 	struct devlink_region *region;
 	struct nlattr *chunks_attr;
 	const char *region_name;
 	struct devlink *devlink;
-	bool dump = true;
 	void *hdr;
 	int err;
 
@@ -4294,8 +4289,21 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto out_unlock;
 	}
 
+	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
+	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
+		if (!start_offset)
+			start_offset =
+				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+
+		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
+	}
+
+	if (end_offset > region->size)
+		end_offset = region->size;
+
 	/* return 0 if there is no further data to read */
-	if (start_offset >= region->size) {
+	if (start_offset == end_offset) {
 		err = 0;
 		goto out_unlock;
 	}
@@ -4322,27 +4330,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
-	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
-		if (!start_offset)
-			start_offset =
-				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
-
-		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
-		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
-		dump = false;
-
-		if (start_offset == end_offset) {
-			err = 0;
-			goto nla_put_failure;
-		}
-	}
-
 	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
 						   region, attrs,
 						   start_offset,
-						   end_offset, dump,
-						   &ret_offset);
+						   end_offset, &ret_offset);
 
 	if (err && err != -EMSGSIZE)
 		goto nla_put_failure;
