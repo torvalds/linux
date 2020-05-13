@@ -677,8 +677,6 @@ static void blk_account_io_merge(struct request *req)
 		part_stat_lock();
 		part = req->part;
 
-		part_dec_in_flight(req->q, part, rq_data_dir(req));
-
 		hd_struct_put(part);
 		part_stat_unlock();
 	}
