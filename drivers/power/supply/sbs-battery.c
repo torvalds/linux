@@ -202,66 +202,32 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 				char *values)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
-	s32 ret = 0, block_length = 0;
-	int retries_length, retries_block;
-	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
+	int retries = chip->i2c_retry_count;
+	s32 ret = 0;
 
-	retries_length = chip->i2c_retry_count;
-	retries_block = chip->i2c_retry_count;
-
-	/* Adapter needs to support these two functions */
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_I2C_BLOCK)){
+				     I2C_FUNC_SMBUS_READ_BLOCK_DATA)) {
 		return -ENODEV;
 	}
 
-	/* Get the length of block data */
-	while (retries_length > 0) {
-		ret = i2c_smbus_read_byte_data(client, address);
-		if (ret >= 0)
-			break;
-		retries_length--;
-	}
-
-	if (ret < 0) {
-		dev_dbg(&client->dev,
-			"%s: i2c read at address 0x%x failed\n",
-			__func__, address);
-		return ret;
-	}
-
-	/* block_length does not include NULL terminator */
-	block_length = ret;
-	if (block_length > I2C_SMBUS_BLOCK_MAX) {
-		dev_err(&client->dev,
-			"%s: Returned block_length is longer than 0x%x\n",
-			__func__, I2C_SMBUS_BLOCK_MAX);
-		return -EINVAL;
-	}
-
 	/* Get the block data */
-	while (retries_block > 0) {
-		ret = i2c_smbus_read_i2c_block_data(
-				client, address,
-				block_length + 1, block_buffer);
+	while (retries > 0) {
+		ret = i2c_smbus_read_block_data(client, address, values);
 		if (ret >= 0)
 			break;
-		retries_block--;
+		retries--;
 	}
 
 	if (ret < 0) {
-		dev_dbg(&client->dev,
-			"%s: i2c read at address 0x%x failed\n",
-			__func__, address);
+		dev_dbg(&client->dev, "%s: failed to read block 0x%x: %d\n",
+			__func__, address, ret);
 		return ret;
 	}
 
-	/* block_buffer[0] == block_length */
-	memcpy(values, block_buffer + 1, block_length);
-	values[block_length] = '\0';
+	/* add string termination */
+	values[ret] = '\0';
 
-	return ret;
+	return 0;
 }
 
 static int sbs_write_word_data(struct i2c_client *client, u8 address,
@@ -465,14 +431,7 @@ static int sbs_get_battery_property(struct i2c_client *client,
 static int sbs_get_battery_string_property(struct i2c_client *client,
 	int reg_offset, enum power_supply_property psp, char *val)
 {
-	s32 ret;
-
-	ret = sbs_read_string_data(client, sbs_data[reg_offset].addr, val);
-
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return sbs_read_string_data(client, sbs_data[reg_offset].addr, val);
 }
 
 static void  sbs_unit_adjustment(struct i2c_client *client,
