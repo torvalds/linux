@@ -204,7 +204,8 @@ void parse_events__handle_error(struct parse_events_error *err, int idx,
 		err->help = help;
 		break;
 	default:
-		WARN_ONCE(1, "WARNING: multiple event parsing errors\n");
+		pr_debug("Multiple errors dropping message: %s (%s)\n",
+			err->str, err->help);
 		free(err->str);
 		err->str = str;
 		free(err->help);
@@ -1422,6 +1423,19 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
+	if (verbose > 1) {
+		fprintf(stderr, "Attempting to add event pmu '%s' with '",
+			name);
+		if (head_config) {
+			struct parse_events_term *term;
+
+			list_for_each_entry(term, head_config, list) {
+				fprintf(stderr, "%s,", term->config);
+			}
+		}
+		fprintf(stderr, "' that may result in non-fatal errors\n");
+	}
+
 	pmu = perf_pmu__find(name);
 	if (!pmu) {
 		char *err_str;
@@ -1457,6 +1471,19 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (perf_pmu__check_alias(pmu, head_config, &info))
 		return -EINVAL;
+
+	if (verbose > 1) {
+		fprintf(stderr, "After aliases, add event pmu '%s' with '",
+			name);
+		if (head_config) {
+			struct parse_events_term *term;
+
+			list_for_each_entry(term, head_config, list) {
+				fprintf(stderr, "%s,", term->config);
+			}
+		}
+		fprintf(stderr, "' that may result in non-fatal errors\n");
+	}
 
 	/*
 	 * Configure hardcoded terms first, no need to check
