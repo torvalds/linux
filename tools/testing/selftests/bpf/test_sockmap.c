@@ -115,6 +115,7 @@ static const struct option long_options[] = {
 struct test_env {
 	const char *type;
 	const char *subtest;
+	const char *prepend;
 
 	int test_num;
 	int subtest_num;
@@ -125,6 +126,26 @@ struct test_env {
 };
 
 struct test_env env;
+
+struct sockmap_options {
+	int verbose;
+	bool base;
+	bool sendpage;
+	bool data_test;
+	bool drop_expected;
+	int iov_count;
+	int iov_length;
+	int rate;
+	char *map;
+	char *whitelist;
+	char *blacklist;
+	char *prepend;
+};
+
+struct _test {
+	char *title;
+	void (*tester)(int cg_fd, struct sockmap_options *opt);
+};
 
 static void test_start(void)
 {
@@ -151,10 +172,11 @@ static void test_reset(void)
 	txmsg_ingress = txmsg_skb = 0;
 }
 
-static int test_start_subtest(const char *name, const char *type)
+static int test_start_subtest(const struct _test *t, struct sockmap_options *o)
 {
-	env.type = type;
-	env.subtest = name;
+	env.type = o->map;
+	env.subtest = t->title;
+	env.prepend = o->prepend;
 	env.test_num++;
 	env.subtest_num = 0;
 	env.fail_last = env.fail_cnt;
@@ -170,9 +192,10 @@ static void test_end_subtest(void)
 	if (!error)
 		test_pass();
 
-	fprintf(stdout, "#%2d/%2d %8s:%s:%s\n",
+	fprintf(stdout, "#%2d/%2d %8s:%s:%s:%s\n",
 		env.test_num, env.subtest_num,
 		!type ? "sockmap" : "sockhash",
+		env.prepend ? : "",
 		env.subtest, error ? "FAIL" : "OK");
 }
 
@@ -377,20 +400,6 @@ struct msg_stats {
 	size_t bytes_recvd;
 	struct timespec start;
 	struct timespec end;
-};
-
-struct sockmap_options {
-	int verbose;
-	bool base;
-	bool sendpage;
-	bool data_test;
-	bool drop_expected;
-	int iov_count;
-	int iov_length;
-	int rate;
-	char *map;
-	char *whitelist;
-	char *blacklist;
 };
 
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
@@ -1606,11 +1615,6 @@ static int populate_progs(char *bpf_file)
 	return 0;
 }
 
-struct _test {
-	char *title;
-	void (*tester)(int cg_fd, struct sockmap_options *opt);
-};
-
 struct _test test[] = {
 	{"txmsg test passthrough", test_txmsg_pass},
 	{"txmsg test redirect", test_txmsg_redir},
@@ -1636,7 +1640,9 @@ static int check_whitelist(struct _test *t, struct sockmap_options *opt)
 		return -ENOMEM;
 	entry = strtok(ptr, ",");
 	while (entry) {
-		if (strstr(opt->map, entry) != 0 || strstr(t->title, entry) != 0)
+		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
+		    strstr(opt->map, entry) != 0 ||
+		    strstr(t->title, entry) != 0)
 			return 0;
 		entry = strtok(NULL, ",");
 	}
@@ -1654,7 +1660,9 @@ static int check_blacklist(struct _test *t, struct sockmap_options *opt)
 		return -ENOMEM;
 	entry = strtok(ptr, ",");
 	while (entry) {
-		if (strstr(opt->map, entry) != 0 || strstr(t->title, entry) != 0)
+		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
+		    strstr(opt->map, entry) != 0 ||
+		    strstr(t->title, entry) != 0)
 			return 0;
 		entry = strtok(NULL, ",");
 	}
@@ -1680,7 +1688,7 @@ static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 		if (check_blacklist(&t, opt) == 0)
 			continue;
 
-		test_start_subtest(t.title, opt->map);
+		test_start_subtest(&t, opt);
 		t.tester(cg_fd, opt);
 		test_end_subtest();
 	}
@@ -1700,11 +1708,21 @@ static void test_selftests_sockhash(int cg_fd, struct sockmap_options *opt)
 	__test_selftests(cg_fd, opt);
 }
 
+static void test_selftests_ktls(int cg_fd, struct sockmap_options *opt)
+{
+	opt->map = BPF_SOCKHASH_FILENAME;
+	opt->prepend = "ktls";
+	ktls = 1;
+	__test_selftests(cg_fd, opt);
+	ktls = 0;
+}
+
 static int test_selftest(int cg_fd, struct sockmap_options *opt)
 {
 
 	test_selftests_sockmap(cg_fd, opt);
 	test_selftests_sockhash(cg_fd, opt);
+	test_selftests_ktls(cg_fd, opt);
 	test_print_results();
 	return 0;
 }
