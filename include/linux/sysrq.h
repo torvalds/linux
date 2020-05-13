@@ -30,10 +30,10 @@
 #define SYSRQ_ENABLE_RTNICE	0x0100
 
 struct sysrq_key_op {
-	void (*handler)(int);
-	char *help_msg;
-	char *action_msg;
-	int enable_mask;
+	void (* const handler)(int);
+	const char * const help_msg;
+	const char * const action_msg;
+	const int enable_mask;
 };
 
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -45,8 +45,8 @@ struct sysrq_key_op {
 
 void handle_sysrq(int key);
 void __handle_sysrq(int key, bool check_mask);
-int register_sysrq_key(int key, struct sysrq_key_op *op);
-int unregister_sysrq_key(int key, struct sysrq_key_op *op);
+int register_sysrq_key(int key, const struct sysrq_key_op *op);
+int unregister_sysrq_key(int key, const struct sysrq_key_op *op);
 extern struct sysrq_key_op *__sysrq_reboot_op;
 
 int sysrq_toggle_support(int enable_mask);
@@ -62,12 +62,12 @@ static inline void __handle_sysrq(int key, bool check_mask)
 {
 }
 
-static inline int register_sysrq_key(int key, struct sysrq_key_op *op)
+static inline int register_sysrq_key(int key, const struct sysrq_key_op *op)
 {
 	return -EINVAL;
 }
 
-static inline int unregister_sysrq_key(int key, struct sysrq_key_op *op)
+static inline int unregister_sysrq_key(int key, const struct sysrq_key_op *op)
 {
 	return -EINVAL;
 }
