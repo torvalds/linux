@@ -2173,7 +2173,7 @@ static bool check_selective_cr0_intercepted(struct vcpu_svm *svm,
 	bool ret = false;
 	u64 intercept;
 
-	intercept = svm->nested.intercept;
+	intercept = svm->nested.ctl.intercept;
 
 	if (!is_guest_mode(&svm->vcpu) ||
 	    (!(intercept & (1ULL << INTERCEPT_SELECTIVE_CR0))))
@@ -3649,7 +3649,7 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		    info->intercept == x86_intercept_clts)
 			break;
 
-		intercept = svm->nested.intercept;
+		intercept = svm->nested.ctl.intercept;
 
 		if (!(intercept & (1ULL << INTERCEPT_SELECTIVE_CR0)))
 			break;

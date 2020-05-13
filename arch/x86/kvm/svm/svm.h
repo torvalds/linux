@@ -91,22 +91,12 @@ struct nested_state {
 	/* These are the merged vectors */
 	u32 *msrpm;
 
-	/* gpa pointers to the real vectors */
-	u64 vmcb_msrpm;
-	u64 vmcb_iopm;
-
 	/* A VMRUN has started but has not yet been performed, so
 	 * we cannot inject a nested vmexit yet.  */
 	bool nested_run_pending;
 
-	/* cache for intercepts of the guest */
-	u32 intercept_cr;
-	u32 intercept_dr;
-	u32 intercept_exceptions;
-	u64 intercept;
-
-	/* Nested Paging related state */
-	u64 nested_cr3;
+	/* cache for control fields of the guest */
+	struct vmcb_control_area ctl;
 };
 
 struct vcpu_svm {
@@ -381,17 +371,17 @@ static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
 
 static inline bool nested_exit_on_smi(struct vcpu_svm *svm)
 {
-	return (svm->nested.intercept & (1ULL << INTERCEPT_SMI));
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_SMI));
 }
 
 static inline bool nested_exit_on_intr(struct vcpu_svm *svm)
 {
-	return (svm->nested.intercept & (1ULL << INTERCEPT_INTR));
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_INTR));
 }
 
 static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 {
-	return (svm->nested.intercept & (1ULL << INTERCEPT_NMI));
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_NMI));
 }
 
 void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,

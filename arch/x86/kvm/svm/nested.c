@@ -60,7 +60,7 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	u64 cr3 = svm->nested.nested_cr3;
+	u64 cr3 = svm->nested.ctl.nested_cr3;
 	u64 pdpte;
 	int ret;
 
@@ -75,7 +75,7 @@ static unsigned long nested_svm_get_tdp_cr3(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	return svm->nested.nested_cr3;
+	return svm->nested.ctl.nested_cr3;
 }
 
 static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
@@ -100,8 +100,7 @@ static void nested_svm_uninit_mmu_context(struct kvm_vcpu *vcpu)
 
 void recalc_intercepts(struct vcpu_svm *svm)
 {
-	struct vmcb_control_area *c, *h;
-	struct nested_state *g;
+	struct vmcb_control_area *c, *h, *g;
 
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
@@ -110,7 +109,7 @@ void recalc_intercepts(struct vcpu_svm *svm)
 
 	c = &svm->vmcb->control;
 	h = &svm->nested.hsave->control;
-	g = &svm->nested;
+	g = &svm->nested.ctl;
 
 	svm->nested.host_intercept_exceptions = h->intercept_exceptions;
 
@@ -180,7 +179,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	 */
 	int i;
 
-	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
+	if (!(svm->nested.ctl.intercept & (1ULL << INTERCEPT_MSR_PROT)))
 		return true;
 
 	for (i = 0; i < MSRPM_OFFSETS; i++) {
@@ -191,7 +190,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 			break;
 
 		p      = msrpm_offsets[i];
-		offset = svm->nested.vmcb_msrpm + (p * 4);
+		offset = svm->nested.ctl.msrpm_base_pa + (p * 4);
 
 		if (kvm_vcpu_read_guest(&svm->vcpu, offset, &value, 4))
 			return false;
@@ -229,16 +228,10 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 static void load_nested_vmcb_control(struct vcpu_svm *svm,
 				     struct vmcb_control_area *control)
 {
-	svm->nested.nested_cr3 = control->nested_cr3;
+	copy_vmcb_control_area(&svm->nested.ctl, control);
 
-	svm->nested.vmcb_msrpm = control->msrpm_base_pa & ~0x0fffULL;
-	svm->nested.vmcb_iopm  = control->iopm_base_pa  & ~0x0fffULL;
-
-	/* cache intercepts */
-	svm->nested.intercept_cr         = control->intercept_cr;
-	svm->nested.intercept_dr         = control->intercept_dr;
-	svm->nested.intercept_exceptions = control->intercept_exceptions;
-	svm->nested.intercept            = control->intercept;
+	svm->nested.ctl.msrpm_base_pa &= ~0x0fffULL;
+	svm->nested.ctl.iopm_base_pa  &= ~0x0fffULL;
 }
 
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
@@ -270,34 +263,32 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_v
 	svm->vmcb->save.cpl = nested_vmcb->save.cpl;
 }
 
-static void nested_prepare_vmcb_control(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
+static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 {
-	if (nested_vmcb->control.nested_ctl & SVM_NESTED_CTL_NP_ENABLE)
+	if (svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE)
 		nested_svm_init_mmu_context(&svm->vcpu);
 
 	/* Guest paging mode is active - reset mmu */
 	kvm_mmu_reset_context(&svm->vcpu);
 
 	svm_flush_tlb(&svm->vcpu);
-	if (nested_vmcb->control.int_ctl & V_INTR_MASKING_MASK)
+	if (svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK)
 		svm->vcpu.arch.hflags |= HF_VINTR_MASK;
 	else
 		svm->vcpu.arch.hflags &= ~HF_VINTR_MASK;
 
 	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
-		svm->vcpu.arch.l1_tsc_offset + nested_vmcb->control.tsc_offset;
+		svm->vcpu.arch.l1_tsc_offset + svm->nested.ctl.tsc_offset;
 
-	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
-	svm->vmcb->control.virt_ext = nested_vmcb->control.virt_ext;
-	svm->vmcb->control.int_vector = nested_vmcb->control.int_vector;
-	svm->vmcb->control.int_state = nested_vmcb->control.int_state;
-	svm->vmcb->control.event_inj = nested_vmcb->control.event_inj;
-	svm->vmcb->control.event_inj_err = nested_vmcb->control.event_inj_err;
+	svm->vmcb->control.int_ctl             = svm->nested.ctl.int_ctl | V_INTR_MASKING_MASK;
+	svm->vmcb->control.virt_ext            = svm->nested.ctl.virt_ext;
+	svm->vmcb->control.int_vector          = svm->nested.ctl.int_vector;
+	svm->vmcb->control.int_state           = svm->nested.ctl.int_state;
+	svm->vmcb->control.event_inj           = svm->nested.ctl.event_inj;
+	svm->vmcb->control.event_inj_err       = svm->nested.ctl.event_inj_err;
 
-	svm->vmcb->control.pause_filter_count =
-		nested_vmcb->control.pause_filter_count;
-	svm->vmcb->control.pause_filter_thresh =
-		nested_vmcb->control.pause_filter_thresh;
+	svm->vmcb->control.pause_filter_count  = svm->nested.ctl.pause_filter_count;
+	svm->vmcb->control.pause_filter_thresh = svm->nested.ctl.pause_filter_thresh;
 
 	/* Enter Guest-Mode */
 	enter_guest_mode(&svm->vcpu);
@@ -326,7 +317,7 @@ void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 
 	load_nested_vmcb_control(svm, &nested_vmcb->control);
 	nested_prepare_vmcb_save(svm, nested_vmcb);
-	nested_prepare_vmcb_control(svm, nested_vmcb);
+	nested_prepare_vmcb_control(svm);
 
 	/*
 	 * If L1 had a pending IRQ/NMI before executing VMRUN,
@@ -556,7 +547,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	kvm_clear_exception_queue(&svm->vcpu);
 	kvm_clear_interrupt_queue(&svm->vcpu);
 
-	svm->nested.nested_cr3 = 0;
+	svm->nested.ctl.nested_cr3 = 0;
 
 	/* Restore selected save entries */
 	svm->vmcb->save.es = hsave->save.es;
@@ -606,7 +597,7 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	u32 offset, msr, value;
 	int write, mask;
 
-	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
+	if (!(svm->nested.ctl.intercept & (1ULL << INTERCEPT_MSR_PROT)))
 		return NESTED_EXIT_HOST;
 
 	msr    = svm->vcpu.arch.regs[VCPU_REGS_RCX];
@@ -620,7 +611,7 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	/* Offset is in 32 bit units but need in 8 bit units */
 	offset *= 4;
 
-	if (kvm_vcpu_read_guest(&svm->vcpu, svm->nested.vmcb_msrpm + offset, &value, 4))
+	if (kvm_vcpu_read_guest(&svm->vcpu, svm->nested.ctl.msrpm_base_pa + offset, &value, 4))
 		return NESTED_EXIT_DONE;
 
 	return (value & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
@@ -633,13 +624,13 @@ static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
 	u8 start_bit;
 	u64 gpa;
 
-	if (!(svm->nested.intercept & (1ULL << INTERCEPT_IOIO_PROT)))
+	if (!(svm->nested.ctl.intercept & (1ULL << INTERCEPT_IOIO_PROT)))
 		return NESTED_EXIT_HOST;
 
 	port = svm->vmcb->control.exit_info_1 >> 16;
 	size = (svm->vmcb->control.exit_info_1 & SVM_IOIO_SIZE_MASK) >>
 		SVM_IOIO_SIZE_SHIFT;
-	gpa  = svm->nested.vmcb_iopm + (port / 8);
+	gpa  = svm->nested.ctl.iopm_base_pa + (port / 8);
 	start_bit = port % 8;
 	iopm_len = (start_bit + size > 8) ? 2 : 1;
 	mask = (0xf >> (4 - size)) << start_bit;
@@ -665,13 +656,13 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 		break;
 	case SVM_EXIT_READ_CR0 ... SVM_EXIT_WRITE_CR8: {
 		u32 bit = 1U << (exit_code - SVM_EXIT_READ_CR0);
-		if (svm->nested.intercept_cr & bit)
+		if (svm->nested.ctl.intercept_cr & bit)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
 	case SVM_EXIT_READ_DR0 ... SVM_EXIT_WRITE_DR7: {
 		u32 bit = 1U << (exit_code - SVM_EXIT_READ_DR0);
-		if (svm->nested.intercept_dr & bit)
+		if (svm->nested.ctl.intercept_dr & bit)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
@@ -690,7 +681,7 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 	}
 	default: {
 		u64 exit_bits = 1ULL << (exit_code - SVM_EXIT_INTR);
-		if (svm->nested.intercept & exit_bits)
+		if (svm->nested.ctl.intercept & exit_bits)
 			vmexit = NESTED_EXIT_DONE;
 	}
 	}
@@ -730,7 +721,7 @@ static bool nested_exit_on_exception(struct vcpu_svm *svm)
 {
 	unsigned int nr = svm->vcpu.arch.exception.nr;
 
-	return (svm->nested.intercept_exceptions & (1 << nr));
+	return (svm->nested.ctl.intercept_exceptions & (1 << nr));
 }
 
 static void nested_svm_inject_exception_vmexit(struct vcpu_svm *svm)
@@ -798,7 +789,7 @@ static void nested_svm_intr(struct vcpu_svm *svm)
 
 static inline bool nested_exit_on_init(struct vcpu_svm *svm)
 {
-	return (svm->nested.intercept & (1ULL << INTERCEPT_INIT));
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_INIT));
 }
 
 static void nested_svm_init(struct vcpu_svm *svm)
