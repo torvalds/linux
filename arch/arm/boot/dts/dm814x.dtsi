@@ -693,7 +693,7 @@
 
 					davinci_mdio: mdio@800 {
 						compatible = "ti,cpsw-mdio", "ti,davinci_mdio";
-						clocks = <&alwon_ethernet_clkctrl DM814_ETHERNET_CPGMAC0_CLKCTRL 0>;
+						clocks = <&cpsw_125mhz_gclk>;
 						clock-names = "fck";
 						#address-cells = <1>;
 						#size-cells = <0>;
