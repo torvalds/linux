@@ -438,16 +438,8 @@ void blk_insert_flush(struct request *rq)
  */
 int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask)
 {
-	struct request_queue *q;
 	struct bio *bio;
 	int ret = 0;
-
-	if (bdev->bd_disk == NULL)
-		return -ENXIO;
-
-	q = bdev_get_queue(bdev);
-	if (!q)
-		return -ENXIO;
 
 	bio = bio_alloc(gfp_mask, 0);
 	bio_set_dev(bio, bdev);
