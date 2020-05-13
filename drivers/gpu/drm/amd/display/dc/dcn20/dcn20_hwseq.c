@@ -291,12 +291,20 @@ void dcn20_init_blank(
 
 	/* get the OPTC source */
 	tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
-	ASSERT(opp_id_src0 < dc->res_pool->res_cap->num_opp);
+
+	if (opp_id_src0 >= dc->res_pool->res_cap->num_opp) {
+		ASSERT(false);
+		return;
+	}
 	opp = dc->res_pool->opps[opp_id_src0];
 
 	if (num_opps == 2) {
 		otg_active_width = otg_active_width / 2;
-		ASSERT(opp_id_src1 < dc->res_pool->res_cap->num_opp);
+
+		if (opp_id_src1 >= dc->res_pool->res_cap->num_opp) {
+			ASSERT(false);
+			return;
+		}
 		bottom_opp = dc->res_pool->opps[opp_id_src1];
 	}
 
