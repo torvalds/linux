@@ -142,7 +142,10 @@ static void free_page_table(struct isp_mmu *mmu, phys_addr_t page)
 	set_memory_wb((unsigned long)virt, 1);
 #endif
 
-	kmem_cache_free(mmu->tbl_cache, virt);
+	if (totalram_pages() > (unsigned long)NR_PAGES_2GB)
+		free_page((unsigned long)virt);
+	else
+		kmem_cache_free(mmu->tbl_cache, virt);
 }
 
 static void mmu_remap_error(struct isp_mmu *mmu,
