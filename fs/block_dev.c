@@ -672,7 +672,7 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	 * i_mutex and doing so causes performance issues with concurrent
 	 * O_SYNC writers to a block device.
 	 */
-	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL);
+	error = blkdev_issue_flush(bdev, GFP_KERNEL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
 
