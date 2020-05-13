@@ -56,6 +56,9 @@
 #include <unistd.h>
 #include <sched.h>
 #include <signal.h>
+#ifdef HAVE_EVENTFD_SUPPORT
+#include <sys/eventfd.h>
+#endif
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -538,6 +541,9 @@ static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 
 static volatile int signr = -1;
 static volatile int child_finished;
+#ifdef HAVE_EVENTFD_SUPPORT
+static int done_fd = -1;
+#endif
 
 static void sig_handler(int sig)
 {
@@ -547,6 +553,21 @@ static void sig_handler(int sig)
 		signr = sig;
 
 	done = 1;
+#ifdef HAVE_EVENTFD_SUPPORT
+{
+	u64 tmp = 1;
+	/*
+	 * It is possible for this signal handler to run after done is checked
+	 * in the main loop, but before the perf counter fds are polled. If this
+	 * happens, the poll() will continue to wait even though done is set,
+	 * and will only break out if either another signal is received, or the
+	 * counters are ready for read. To ensure the poll() doesn't sleep when
+	 * done is set, use an eventfd (done_fd) to wake up the poll().
+	 */
+	if (write(done_fd, &tmp, sizeof(tmp)) < 0)
+		pr_err("failed to signal wakeup fd, error: %m\n");
+}
+#endif // HAVE_EVENTFD_SUPPORT
 }
 
 static void sigsegv_handler(int sig)
@@ -1547,6 +1568,20 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		pr_err("Compression initialization failed.\n");
 		return -1;
 	}
+#ifdef HAVE_EVENTFD_SUPPORT
+	done_fd = eventfd(0, EFD_NONBLOCK);
+	if (done_fd < 0) {
+		pr_err("Failed to create wakeup eventfd, error: %m\n");
+		status = -1;
+		goto out_delete_session;
+	}
+	err = evlist__add_pollfd(rec->evlist, done_fd);
+	if (err < 0) {
+		pr_err("Failed to add wakeup eventfd to poll list\n");
+		status = err;
+		goto out_delete_session;
+	}
+#endif // HAVE_EVENTFD_SUPPORT
 
 	session->header.env.comp_type  = PERF_COMP_ZSTD;
 	session->header.env.comp_level = rec->opts.comp_level;
@@ -1905,6 +1940,10 @@ out_child:
 	}
 
 out_delete_session:
+#ifdef HAVE_EVENTFD_SUPPORT
+	if (done_fd >= 0)
+		close(done_fd);
+#endif
 	zstd_fini(&session->zstd_data);
 	perf_session__delete(session);
 
