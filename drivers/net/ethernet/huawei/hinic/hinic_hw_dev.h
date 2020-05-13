@@ -347,7 +347,7 @@ int hinic_hilink_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_hilink_cmd cmd,
 			 void *buf_in, u16 in_size, void *buf_out,
 			 u16 *out_size);
 
-int hinic_hwdev_ifup(struct hinic_hwdev *hwdev);
+int hinic_hwdev_ifup(struct hinic_hwdev *hwdev, u16 sq_depth, u16 rq_depth);
 
 void hinic_hwdev_ifdown(struct hinic_hwdev *hwdev);
 

@@ -282,7 +282,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	err = hinic_wq_allocate(&func_to_io->wqs, &func_to_io->sq_wq[q_id],
 				HINIC_SQ_WQEBB_SIZE, HINIC_SQ_PAGE_SIZE,
-				HINIC_SQ_DEPTH, HINIC_SQ_WQE_MAX_SIZE);
+				func_to_io->sq_depth, HINIC_SQ_WQE_MAX_SIZE);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate WQ for SQ\n");
 		return err;
@@ -290,7 +290,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	err = hinic_wq_allocate(&func_to_io->wqs, &func_to_io->rq_wq[q_id],
 				HINIC_RQ_WQEBB_SIZE, HINIC_RQ_PAGE_SIZE,
-				HINIC_RQ_DEPTH, HINIC_RQ_WQE_SIZE);
+				func_to_io->rq_depth, HINIC_RQ_WQE_SIZE);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate WQ for RQ\n");
 		goto err_rq_alloc;

@@ -736,4 +736,8 @@ int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
 int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 			    struct hinic_pause_config *pause_info);
 
+int hinic_open(struct net_device *netdev);
+
+int hinic_close(struct net_device *netdev);
+
 #endif

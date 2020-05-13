@@ -60,6 +60,9 @@ struct hinic_func_to_io {
 	struct hinic_qp         *qps;
 	u16                     max_qps;
 
+	u16			sq_depth;
+	u16			rq_depth;
+
 	void __iomem            **sq_db;
 	void __iomem            *db_base;
 

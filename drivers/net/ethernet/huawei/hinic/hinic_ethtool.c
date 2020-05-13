@@ -538,12 +538,81 @@ static void hinic_get_drvinfo(struct net_device *netdev,
 static void hinic_get_ringparam(struct net_device *netdev,
 				struct ethtool_ringparam *ring)
 {
-	ring->rx_max_pending = HINIC_RQ_DEPTH;
-	ring->tx_max_pending = HINIC_SQ_DEPTH;
-	ring->rx_pending = HINIC_RQ_DEPTH;
-	ring->tx_pending = HINIC_SQ_DEPTH;
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	ring->rx_max_pending = HINIC_MAX_QUEUE_DEPTH;
+	ring->tx_max_pending = HINIC_MAX_QUEUE_DEPTH;
+	ring->rx_pending = nic_dev->rq_depth;
+	ring->tx_pending = nic_dev->sq_depth;
 }
 
+static int check_ringparam_valid(struct hinic_dev *nic_dev,
+				 struct ethtool_ringparam *ring)
+{
+	if (ring->rx_jumbo_pending || ring->rx_mini_pending) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Unsupported rx_jumbo_pending/rx_mini_pending\n");
+		return -EINVAL;
+	}
+
+	if (ring->tx_pending > HINIC_MAX_QUEUE_DEPTH ||
+	    ring->tx_pending < HINIC_MIN_QUEUE_DEPTH ||
+	    ring->rx_pending > HINIC_MAX_QUEUE_DEPTH ||
+	    ring->rx_pending < HINIC_MIN_QUEUE_DEPTH) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Queue depth out of range [%d-%d]\n",
+			  HINIC_MIN_QUEUE_DEPTH, HINIC_MAX_QUEUE_DEPTH);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hinic_set_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ring)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 new_sq_depth, new_rq_depth;
+	int err;
+
+	err = check_ringparam_valid(nic_dev, ring);
+	if (err)
+		return err;
+
+	new_sq_depth = (u16)(1U << (u16)ilog2(ring->tx_pending));
+	new_rq_depth = (u16)(1U << (u16)ilog2(ring->rx_pending));
+
+	if (new_sq_depth == nic_dev->sq_depth &&
+	    new_rq_depth == nic_dev->rq_depth)
+		return 0;
+
+	netif_info(nic_dev, drv, netdev,
+		   "Change Tx/Rx ring depth from %d/%d to %d/%d\n",
+		   nic_dev->sq_depth, nic_dev->rq_depth,
+		   new_sq_depth, new_rq_depth);
+
+	nic_dev->sq_depth = new_sq_depth;
+	nic_dev->rq_depth = new_rq_depth;
+
+	if (netif_running(netdev)) {
+		netif_info(nic_dev, drv, netdev, "Restarting netdev\n");
+		err = hinic_close(netdev);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to close netdev\n");
+			return -EFAULT;
+		}
+
+		err = hinic_open(netdev);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to open netdev\n");
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
 static void hinic_get_channels(struct net_device *netdev,
 			       struct ethtool_channels *channels)
 {
@@ -1148,6 +1217,7 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_drvinfo = hinic_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = hinic_get_ringparam,
+	.set_ringparam = hinic_set_ringparam,
 	.get_channels = hinic_get_channels,
 	.get_rxnfc = hinic_get_rxnfc,
 	.set_rxnfc = hinic_set_rxnfc,

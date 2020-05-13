@@ -473,7 +473,7 @@ int hinic_set_max_qnum(struct hinic_dev *nic_dev, u8 num_rqs)
 
 	rq_num.func_id = HINIC_HWIF_FUNC_IDX(hwif);
 	rq_num.num_rqs = num_rqs;
-	rq_num.rq_depth = ilog2(HINIC_SQ_DEPTH);
+	rq_num.rq_depth = ilog2(nic_dev->rq_depth);
 
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_RQ_IQ_MAP,
 				 &rq_num, sizeof(rq_num),

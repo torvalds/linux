@@ -372,14 +372,15 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 		netif_err(nic_dev, drv, netdev, "Failed to init rss\n");
 }
 
-static int hinic_open(struct net_device *netdev)
+int hinic_open(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	enum hinic_port_link_state link_state;
 	int err, ret;
 
 	if (!(nic_dev->flags & HINIC_INTF_UP)) {
-		err = hinic_hwdev_ifup(nic_dev->hwdev);
+		err = hinic_hwdev_ifup(nic_dev->hwdev, nic_dev->sq_depth,
+				       nic_dev->rq_depth);
 		if (err) {
 			netif_err(nic_dev, drv, netdev,
 				  "Failed - HW interface up\n");
@@ -483,7 +484,7 @@ err_create_txqs:
 	return err;
 }
 
-static int hinic_close(struct net_device *netdev)
+int hinic_close(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	unsigned int flags;
@@ -1038,6 +1039,8 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->rxqs = NULL;
 	nic_dev->tx_weight = tx_weight;
 	nic_dev->rx_weight = rx_weight;
+	nic_dev->sq_depth = HINIC_SQ_DEPTH;
+	nic_dev->rq_depth = HINIC_RQ_DEPTH;
 	nic_dev->sriov_info.hwdev = hwdev;
 	nic_dev->sriov_info.pdev = pdev;
 

@@ -643,6 +643,7 @@ void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
 
 	/* increment prod_idx to the next */
 	prod_idx += ALIGN(wqe_size, wq->wqebb_size) / wq->wqebb_size;
+	prod_idx = SQ_MASKED_IDX(sq, prod_idx);
 
 	wmb();  /* Write all before the doorbell */
 
