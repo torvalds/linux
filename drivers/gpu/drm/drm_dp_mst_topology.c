@@ -1197,7 +1197,8 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 
 		/* remove from q */
 		if (txmsg->state == DRM_DP_SIDEBAND_TX_QUEUED ||
-		    txmsg->state == DRM_DP_SIDEBAND_TX_START_SEND)
+		    txmsg->state == DRM_DP_SIDEBAND_TX_START_SEND ||
+		    txmsg->state == DRM_DP_SIDEBAND_TX_SENT)
 			list_del(&txmsg->next);
 	}
 out:
