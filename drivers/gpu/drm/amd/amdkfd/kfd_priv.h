@@ -305,6 +305,10 @@ struct kfd_dev {
 
 	/* Global GWS resource shared between processes */
 	void *gws;
+
+	/* Clients watching SMI events */
+	struct list_head smi_clients;
+	spinlock_t smi_lock;
 };
 
 enum kfd_mempool {

@@ -635,6 +635,11 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 	return ret;
 }
 
+static void kfd_smi_init(struct kfd_dev *dev) {
+	INIT_LIST_HEAD(&dev->smi_clients);
+	spin_lock_init(&dev->smi_lock);
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
@@ -748,6 +753,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;
 	}
+
+	kfd_smi_init(kfd);
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
