@@ -358,7 +358,7 @@
 #define TEGRA210_CLK_PLL_A_OUT0_OUT_ADSP 324
 /* 325 */
 #define TEGRA210_CLK_OSC 326
-/* 327 */
+#define TEGRA210_CLK_CSI_TPG 327
 /* 328 */
 /* 329 */
 /* 330 */
