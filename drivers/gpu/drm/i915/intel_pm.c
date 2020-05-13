@@ -3777,7 +3777,7 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (!intel_can_enable_sagv(new_bw_state))
+	if (!intel_can_enable_sagv(dev_priv, new_bw_state))
 		intel_disable_sagv(dev_priv);
 }
 
@@ -3800,7 +3800,7 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (intel_can_enable_sagv(new_bw_state))
+	if (intel_can_enable_sagv(dev_priv, new_bw_state))
 		intel_enable_sagv(dev_priv);
 }
 
@@ -3858,9 +3858,11 @@ static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state
 	return skl_crtc_can_enable_sagv(crtc_state);
 }
 
-bool intel_can_enable_sagv(const struct intel_bw_state *bw_state)
+bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
+			   const struct intel_bw_state *bw_state)
 {
-	if (bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
+	if (INTEL_GEN(dev_priv) < 11 &&
+	    bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
 		return false;
 
 	return bw_state->pipe_sagv_reject == 0;
@@ -3868,6 +3870,7 @@ bool intel_can_enable_sagv(const struct intel_bw_state *bw_state)
 
 static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	int ret;
 	struct intel_crtc *crtc;
 	const struct intel_crtc_state *new_crtc_state;
@@ -3901,7 +3904,8 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	if (intel_can_enable_sagv(new_bw_state) != intel_can_enable_sagv(old_bw_state)) {
+	if (intel_can_enable_sagv(dev_priv, new_bw_state) !=
+	    intel_can_enable_sagv(dev_priv, old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
 		if (ret)
 			return ret;
