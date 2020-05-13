@@ -80,4 +80,10 @@ void bcm_phy_r_rc_cal_reset(struct phy_device *phydev);
 int bcm_phy_28nm_a0b0_afe_config_init(struct phy_device *phydev);
 int bcm_phy_enable_jumbo(struct phy_device *phydev);
 
+int bcm_phy_cable_test_get_status_rdb(struct phy_device *phydev,
+				      bool *finished);
+int bcm_phy_cable_test_start_rdb(struct phy_device *phydev);
+int bcm_phy_cable_test_start(struct phy_device *phydev);
+int bcm_phy_cable_test_get_status(struct phy_device *phydev, bool *finished);
+
 #endif /* _LINUX_BCM_PHY_LIB_H */
