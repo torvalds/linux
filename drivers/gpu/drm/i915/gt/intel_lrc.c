@@ -1886,7 +1886,7 @@ static void defer_request(struct i915_request *rq, struct list_head * const pl)
 				continue;
 
 			/* No waiter should start before its signaler */
-			GEM_BUG_ON(w->context->timeline->has_initial_breadcrumb &&
+			GEM_BUG_ON(i915_request_has_initial_breadcrumb(w) &&
 				   i915_request_started(w) &&
 				   !i915_request_completed(rq));
 
@@ -3493,6 +3493,7 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 {
 	u32 *cs;
 
+	GEM_BUG_ON(i915_request_has_initial_breadcrumb(rq));
 	if (!i915_request_timeline(rq)->has_initial_breadcrumb)
 		return 0;
 
@@ -3518,6 +3519,8 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 
 	/* Record the updated position of the request's payload */
 	rq->infix = intel_ring_offset(rq, cs);
+
+	__set_bit(I915_FENCE_FLAG_INITIAL_BREADCRUMB, &rq->fence.flags);
 
 	return 0;
 }

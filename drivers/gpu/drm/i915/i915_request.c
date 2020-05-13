@@ -951,6 +951,7 @@ __emit_semaphore_wait(struct i915_request *to,
 	u32 *cs;
 
 	GEM_BUG_ON(INTEL_GEN(to->i915) < 8);
+	GEM_BUG_ON(i915_request_has_initial_breadcrumb(to));
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = intel_timeline_read_hwsp(from, to, &hwsp_offset);
@@ -998,6 +999,9 @@ emit_semaphore_wait(struct i915_request *to,
 	const intel_engine_mask_t mask = READ_ONCE(from->engine)->mask;
 
 	if (!intel_context_use_semaphores(to->context))
+		goto await_fence;
+
+	if (i915_request_has_initial_breadcrumb(to))
 		goto await_fence;
 
 	if (!rcu_access_pointer(from->hwsp_cacheline))
@@ -1256,7 +1260,8 @@ __i915_request_await_execution(struct i915_request *to,
 	 * immediate execution, and so we must wait until it reaches the
 	 * active slot.
 	 */
-	if (intel_engine_has_semaphores(to->engine)) {
+	if (intel_engine_has_semaphores(to->engine) &&
+	    !i915_request_has_initial_breadcrumb(to)) {
 		err = __emit_semaphore_wait(to, from, from->fence.seqno - 1);
 		if (err < 0)
 			return err;
