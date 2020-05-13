@@ -1160,13 +1160,20 @@ void dcn20_pipe_control_lock(
 
 static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx *new_pipe)
 {
+	bool plane_state_update = false;
 	new_pipe->update_flags.raw = 0;
 
 	/* Exit on unchanged, unused pipe */
 	if (!old_pipe->plane_state && !new_pipe->plane_state)
 		return;
+
+	/* Detect plane state update */
+	if (old_pipe->plane_state && new_pipe->plane_state
+			&& (old_pipe->plane_state != new_pipe->plane_state)) {
+		plane_state_update = true;
+	}
 	/* Detect pipe enable/disable */
-	if (!old_pipe->plane_state && new_pipe->plane_state) {
+	if ((!old_pipe->plane_state && new_pipe->plane_state) || plane_state_update) {
 		new_pipe->update_flags.bits.enable = 1;
 		new_pipe->update_flags.bits.mpcc = 1;
 		new_pipe->update_flags.bits.dppclk = 1;
