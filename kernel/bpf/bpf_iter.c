@@ -526,5 +526,11 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 	migrate_enable();
 	rcu_read_unlock();
 
+	/* bpf program can only return 0 or 1:
+	 *  0 : okay
+	 *  1 : retry the same object
+	 * The bpf_iter_run_prog() return value
+	 * will be seq_ops->show() return value.
+	 */
 	return ret == 0 ? 0 : -EAGAIN;
 }
