@@ -43,6 +43,7 @@ enum {
 	REG_DESIGN_CAPACITY_CHARGE,
 	REG_DESIGN_VOLTAGE_MIN,
 	REG_DESIGN_VOLTAGE_MAX,
+	REG_CHEMISTRY,
 	REG_MANUFACTURER,
 	REG_MODEL_NAME,
 };
@@ -133,7 +134,9 @@ static const struct chip_data {
 	[REG_MANUFACTURER] =
 		SBS_DATA(POWER_SUPPLY_PROP_MANUFACTURER, 0x20, 0, 65535),
 	[REG_MODEL_NAME] =
-		SBS_DATA(POWER_SUPPLY_PROP_MODEL_NAME, 0x21, 0, 65535)
+		SBS_DATA(POWER_SUPPLY_PROP_MODEL_NAME, 0x21, 0, 65535),
+	[REG_CHEMISTRY] =
+		SBS_DATA(POWER_SUPPLY_PROP_TECHNOLOGY, 0x22, 0, 65535)
 };
 
 static enum power_supply_property sbs_properties[] = {
@@ -185,6 +188,7 @@ struct sbs_info {
 
 static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
 static char manufacturer[I2C_SMBUS_BLOCK_MAX + 1];
+static char chemistry[I2C_SMBUS_BLOCK_MAX + 1];
 static bool force_load;
 
 static int sbs_update_presence(struct sbs_info *chip, bool is_present)
@@ -636,6 +640,38 @@ static int sbs_get_property_index(struct i2c_client *client,
 	return -EINVAL;
 }
 
+static int sbs_get_chemistry(struct i2c_client *client,
+		union power_supply_propval *val)
+{
+	enum power_supply_property psp = POWER_SUPPLY_PROP_TECHNOLOGY;
+	int ret;
+
+	ret = sbs_get_property_index(client, psp);
+	if (ret < 0)
+		return ret;
+
+	ret = sbs_get_battery_string_property(client, ret, psp,
+					      chemistry);
+	if (ret < 0)
+		return ret;
+
+	if (!strncasecmp(chemistry, "LION", 4))
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	else if (!strncasecmp(chemistry, "LiP", 3))
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
+	else if (!strncasecmp(chemistry, "NiCd", 4))
+		val->intval = POWER_SUPPLY_TECHNOLOGY_NiCd;
+	else if (!strncasecmp(chemistry, "NiMH", 4))
+		val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
+	else
+		val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+
+	if (val->intval == POWER_SUPPLY_TECHNOLOGY_UNKNOWN)
+		dev_warn(&client->dev, "Unknown chemistry: %s\n", chemistry);
+
+	return 0;
+}
+
 static int sbs_get_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -673,7 +709,10 @@ static int sbs_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		ret = sbs_get_chemistry(client, val);
+		if (ret < 0)
+			break;
+
 		goto done; /* don't trigger power_supply_changed()! */
 
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
