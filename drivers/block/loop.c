@@ -228,6 +228,19 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 }
 
 /**
+ * loop_validate_block_size() - validates the passed in block size
+ * @bsize: size to validate
+ */
+static int
+loop_validate_block_size(unsigned short bsize)
+{
+	if (bsize < 512 || bsize > PAGE_SIZE || !is_power_of_2(bsize))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * loop_set_size() - sets device size and notifies userspace
  * @lo: struct loop_device to set the size for
  * @size: new size of the loop device
@@ -1032,22 +1045,23 @@ loop_set_status_from_info(struct loop_device *lo,
 	return 0;
 }
 
-static int loop_set_fd(struct loop_device *lo, fmode_t mode,
-		       struct block_device *bdev, unsigned int arg)
+static int loop_configure(struct loop_device *lo, fmode_t mode,
+			  struct block_device *bdev,
+			  const struct loop_config *config)
 {
 	struct file	*file;
 	struct inode	*inode;
 	struct address_space *mapping;
-	int		lo_flags = 0;
 	int		error;
 	loff_t		size;
 	bool		partscan;
+	unsigned short  bsize;
 
 	/* This is safe, since we have a reference from open(). */
 	__module_get(THIS_MODULE);
 
 	error = -EBADF;
-	file = fget(arg);
+	file = fget(config->fd);
 	if (!file)
 		goto out;
 
@@ -1066,11 +1080,26 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	mapping = file->f_mapping;
 	inode = mapping->host;
 
+	size = get_loop_size(lo, file);
+
+	if ((config->info.lo_flags & ~LOOP_CONFIGURE_SETTABLE_FLAGS) != 0) {
+		error = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (config->block_size) {
+		error = loop_validate_block_size(config->block_size);
+		if (error)
+			goto out_unlock;
+	}
+
+	error = loop_set_status_from_info(lo, &config->info);
+	if (error)
+		goto out_unlock;
+
 	if (!(file->f_mode & FMODE_WRITE) || !(mode & FMODE_WRITE) ||
 	    !file->f_op->write_iter)
-		lo_flags |= LO_FLAGS_READ_ONLY;
-
-	size = get_loop_size(lo, file);
+		lo->lo_flags |= LO_FLAGS_READ_ONLY;
 
 	error = loop_prepare_queue(lo);
 	if (error)
@@ -1078,30 +1107,28 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 
 	error = 0;
 
-	set_device_ro(bdev, (lo_flags & LO_FLAGS_READ_ONLY) != 0);
+	set_device_ro(bdev, (lo->lo_flags & LO_FLAGS_READ_ONLY) != 0);
 
-	lo->use_dio = false;
+	lo->use_dio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 	lo->lo_device = bdev;
-	lo->lo_flags = lo_flags;
 	lo->lo_backing_file = file;
-	lo->transfer = NULL;
-	lo->ioctl = NULL;
-	lo->lo_sizelimit = 0;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 
-	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
+	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
 		blk_queue_write_cache(lo->lo_queue, true, false);
 
-	if (io_is_direct(lo->lo_backing_file) && inode->i_sb->s_bdev) {
+	if (config->block_size)
+		bsize = config->block_size;
+	else if (io_is_direct(lo->lo_backing_file) && inode->i_sb->s_bdev)
 		/* In case of direct I/O, match underlying block size */
-		unsigned short bsize = bdev_logical_block_size(
-			inode->i_sb->s_bdev);
+		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
+	else
+		bsize = 512;
 
-		blk_queue_logical_block_size(lo->lo_queue, bsize);
-		blk_queue_physical_block_size(lo->lo_queue, bsize);
-		blk_queue_io_min(lo->lo_queue, bsize);
-	}
+	blk_queue_logical_block_size(lo->lo_queue, bsize);
+	blk_queue_physical_block_size(lo->lo_queue, bsize);
+	blk_queue_io_min(lo->lo_queue, bsize);
 
 	loop_update_dio(lo);
 	loop_sysfs_init(lo);
@@ -1544,8 +1571,9 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
 
-	if (arg < 512 || arg > PAGE_SIZE || !is_power_of_2(arg))
-		return -EINVAL;
+	err = loop_validate_block_size(arg);
+	if (err)
+		return err;
 
 	if (lo->lo_queue->limits.logical_block_size == arg)
 		return 0;
@@ -1607,8 +1635,27 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	int err;
 
 	switch (cmd) {
-	case LOOP_SET_FD:
-		return loop_set_fd(lo, mode, bdev, arg);
+	case LOOP_SET_FD: {
+		/*
+		 * Legacy case - pass in a zeroed out struct loop_config with
+		 * only the file descriptor set , which corresponds with the
+		 * default parameters we'd have used otherwise.
+		 */
+		struct loop_config config;
+
+		memset(&config, 0, sizeof(config));
+		config.fd = arg;
+
+		return loop_configure(lo, mode, bdev, &config);
+	}
+	case LOOP_CONFIGURE: {
+		struct loop_config config;
+
+		if (copy_from_user(&config, argp, sizeof(config)))
+			return -EFAULT;
+
+		return loop_configure(lo, mode, bdev, &config);
+	}
 	case LOOP_CHANGE_FD:
 		return loop_change_fd(lo, bdev, arg);
 	case LOOP_CLR_FD:
@@ -1780,6 +1827,7 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 	case LOOP_CLR_FD:
 	case LOOP_GET_STATUS64:
 	case LOOP_SET_STATUS64:
+	case LOOP_CONFIGURE:
 		arg = (unsigned long) compat_ptr(arg);
 		/* fall through */
 	case LOOP_SET_FD:
