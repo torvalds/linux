@@ -205,7 +205,7 @@ static struct cdns_reg_pairs cdns_nxp_sequence_pair[] = {
 	{0x0090, TB_ADDR_XCVR_DIAG_LANE_FCM_EN_MGN_TMR},
 };
 
-static int cdns_salvo_phy_power_on(struct phy *phy)
+static int cdns_salvo_phy_init(struct phy *phy)
 {
 	struct cdns_salvo_phy *salvo_phy = phy_get_drvdata(phy);
 	struct cdns_salvo_data *data = salvo_phy->data;
@@ -230,7 +230,16 @@ static int cdns_salvo_phy_power_on(struct phy *phy)
 
 	udelay(10);
 
+	clk_disable_unprepare(salvo_phy->clk);
+
 	return ret;
+}
+
+static int cdns_salvo_phy_power_on(struct phy *phy)
+{
+	struct cdns_salvo_phy *salvo_phy = phy_get_drvdata(phy);
+
+	return clk_prepare_enable(salvo_phy->clk);
 }
 
 static int cdns_salvo_phy_power_off(struct phy *phy)
@@ -243,6 +252,7 @@ static int cdns_salvo_phy_power_off(struct phy *phy)
 }
 
 static struct phy_ops cdns_salvo_phy_ops = {
+	.init		= cdns_salvo_phy_init,
 	.power_on	= cdns_salvo_phy_power_on,
 	.power_off	= cdns_salvo_phy_power_off,
 	.owner		= THIS_MODULE,
