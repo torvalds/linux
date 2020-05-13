@@ -2,8 +2,8 @@ Microsemi Ocelot pin controller Device Tree Bindings
 ----------------------------------------------------
 
 Required properties:
- - compatible		: Should be "mscc,ocelot-pinctrl" or
-				"mscc,jaguar2-pinctrl"
+ - compatible		: Should be "mscc,ocelot-pinctrl",
+			  "mscc,jaguar2-pinctrl" or "microchip,sparx5-pinctrl"
  - reg			: Address and length of the register set for the device
  - gpio-controller	: Indicates this device is a GPIO controller
  - #gpio-cells		: Must be 2.
