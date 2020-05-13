@@ -14,32 +14,56 @@
 #define MII_BCM_CHANNEL_WIDTH     0x2000
 #define BCM_CL45VEN_EEE_ADV       0x3c
 
+int __bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val)
+{
+	int rc;
+
+	rc = __phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
+	if (rc < 0)
+		return rc;
+
+	return __phy_write(phydev, MII_BCM54XX_EXP_DATA, val);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_write_exp);
+
 int bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val)
 {
 	int rc;
 
-	rc = phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
-	if (rc < 0)
-		return rc;
+	phy_lock_mdio_bus(phydev);
+	rc = __bcm_phy_write_exp(phydev, reg, val);
+	phy_unlock_mdio_bus(phydev);
 
-	return phy_write(phydev, MII_BCM54XX_EXP_DATA, val);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_write_exp);
 
-int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
+int __bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
 {
 	int val;
 
-	val = phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
+	val = __phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
 	if (val < 0)
 		return val;
 
-	val = phy_read(phydev, MII_BCM54XX_EXP_DATA);
+	val = __phy_read(phydev, MII_BCM54XX_EXP_DATA);
 
 	/* Restore default value.  It's O.K. if this write fails. */
-	phy_write(phydev, MII_BCM54XX_EXP_SEL, 0);
+	__phy_write(phydev, MII_BCM54XX_EXP_SEL, 0);
 
 	return val;
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_read_exp);
+
+int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
+{
+	int rc;
+
+	phy_lock_mdio_bus(phydev);
+	rc = __bcm_phy_read_exp(phydev, reg);
+	phy_unlock_mdio_bus(phydev);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_read_exp);
 
