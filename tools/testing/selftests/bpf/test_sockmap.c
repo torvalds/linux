@@ -1725,6 +1725,7 @@ int main(int argc, char **argv)
 	int opt, longindex, err, cg_fd = 0;
 	char *bpf_file = BPF_SOCKMAP_FILENAME;
 	int test = PING_PONG;
+	bool cg_created = 0;
 
 	if (argc < 2)
 		return test_suite(-1);
@@ -1805,13 +1806,25 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (argc <= 3 && cg_fd)
-		return test_suite(cg_fd);
-
 	if (!cg_fd) {
-		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
-			argv[0]);
-		return -1;
+		if (setup_cgroup_environment()) {
+			fprintf(stderr, "ERROR: cgroup env failed\n");
+			return -EINVAL;
+		}
+
+		cg_fd = create_and_get_cgroup(CG_PATH);
+		if (cg_fd < 0) {
+			fprintf(stderr,
+				"ERROR: (%i) open cg path failed: %s\n",
+				cg_fd, strerror(errno));
+			return cg_fd;
+		}
+
+		if (join_cgroup(CG_PATH)) {
+			fprintf(stderr, "ERROR: failed to join cgroup\n");
+			return -EINVAL;
+		}
+		cg_created = 1;
 	}
 
 	err = populate_progs(bpf_file);
@@ -1830,6 +1843,9 @@ int main(int argc, char **argv)
 	options.rate = rate;
 
 	err = run_options(&options, cg_fd, test);
+
+	if (cg_created)
+		cleanup_cgroup_environment();
 	close(cg_fd);
 	return err;
 }
