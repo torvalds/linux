@@ -25,10 +25,7 @@
 #define APBT_MIN_FREQ          1000000
 #define APBT_MMAP_SIZE         1024
 
-#define APBT_DEV_USED  1
-
 extern void apbt_time_init(void);
-extern int arch_setup_apbt_irqs(int irq, int trigger, int mask, int cpu);
 extern void apbt_setup_secondary_clock(void);
 
 extern struct sfi_timer_table_entry *sfi_get_mtmr(int hint);
