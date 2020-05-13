@@ -519,6 +519,27 @@
 		wcnss@a21b000 {
 			status = "okay";
 		};
+
+		tpiu@820000 { status = "okay"; };
+		funnel@821000 { status = "okay"; };
+		replicator@824000 { status = "okay"; };
+		etf@825000 { status = "okay"; };
+		etr@826000 { status = "okay"; };
+		funnel@841000 { status = "okay"; };
+		debug@850000 { status = "okay"; };
+		debug@852000 { status = "okay"; };
+		debug@854000 { status = "okay"; };
+		debug@856000 { status = "okay"; };
+		etm@85c000 { status = "okay"; };
+		etm@85d000 { status = "okay"; };
+		etm@85e000 { status = "okay"; };
+		etm@85f000 { status = "okay"; };
+		cti@810000 { status = "okay"; };
+		cti@811000 { status = "okay"; };
+		cti@858000 { status = "okay"; };
+		cti@859000 { status = "okay"; };
+		cti@85a000 { status = "okay"; };
+		cti@85b000 { status = "okay"; };
 	};
 
 	usb2513 {

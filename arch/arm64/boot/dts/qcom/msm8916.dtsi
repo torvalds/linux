@@ -1258,6 +1258,8 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
+			status = "disabled";
+
 			in-ports {
 				port {
 					tpiu_in: endpoint {
@@ -1273,6 +1275,8 @@
 
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
+
+			status = "disabled";
 
 			in-ports {
 				#address-cells = <1>;
@@ -1313,6 +1317,8 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
+			status = "disabled";
+
 			out-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1347,6 +1353,8 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
+			status = "disabled";
+
 			in-ports {
 				port {
 					etf_in: endpoint {
@@ -1371,6 +1379,8 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
+			status = "disabled";
+
 			in-ports {
 				port {
 					etr_in: endpoint {
@@ -1386,6 +1396,8 @@
 
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
+
+			status = "disabled";
 
 			in-ports {
 				#address-cells = <1>;
@@ -1432,6 +1444,7 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU0>;
+			status = "disabled";
 		};
 
 		debug@852000 {
@@ -1440,6 +1453,7 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU1>;
+			status = "disabled";
 		};
 
 		debug@854000 {
@@ -1448,6 +1462,7 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU2>;
+			status = "disabled";
 		};
 
 		debug@856000 {
@@ -1456,6 +1471,7 @@
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU3>;
+			status = "disabled";
 		};
 
 		etm0: etm@85c000 {
@@ -1467,6 +1483,8 @@
 			arm,coresight-loses-context-with-cpu;
 
 			cpu = <&CPU0>;
+
+			status = "disabled";
 
 			out-ports {
 				port {
@@ -1487,6 +1505,8 @@
 
 			cpu = <&CPU1>;
 
+			status = "disabled";
+
 			out-ports {
 				port {
 					etm1_out: endpoint {
@@ -1505,6 +1525,8 @@
 			arm,coresight-loses-context-with-cpu;
 
 			cpu = <&CPU2>;
+
+			status = "disabled";
 
 			out-ports {
 				port {
@@ -1525,6 +1547,8 @@
 
 			cpu = <&CPU3>;
 
+			status = "disabled";
+
 			out-ports {
 				port {
 					etm3_out: endpoint {
@@ -1542,6 +1566,8 @@
 
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
+
+			status = "disabled";
 		};
 
 		/* CTI 1 - TPIU connections */
@@ -1551,6 +1577,8 @@
 
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
+
+			status = "disabled";
 		};
 
 		/* CTIs 2-11 - no information - not instantiated */
@@ -1568,6 +1596,7 @@
 			cpu = <&CPU0>;
 			arm,cs-dev-assoc = <&etm0>;
 
+			status = "disabled";
 		};
 
 		/* CTI - CPU-1 */
@@ -1581,6 +1610,8 @@
 
 			cpu = <&CPU1>;
 			arm,cs-dev-assoc = <&etm1>;
+
+			status = "disabled";
 		};
 
 		/* CTI - CPU-2 */
@@ -1594,6 +1625,8 @@
 
 			cpu = <&CPU2>;
 			arm,cs-dev-assoc = <&etm2>;
+
+			status = "disabled";
 		};
 
 		/* CTI - CPU-3 */
@@ -1607,6 +1640,8 @@
 
 			cpu = <&CPU3>;
 			arm,cs-dev-assoc = <&etm3>;
+
+			status = "disabled";
 		};
 
 
