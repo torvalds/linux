@@ -502,9 +502,10 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		 * paths.
 		 */
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
-		txmsg_pop_total = txmsg_pop;
 		if (txmsg_apply)
-			txmsg_pop_total *= (total_bytes / txmsg_apply);
+			txmsg_pop_total = txmsg_pop * (total_bytes / txmsg_apply);
+		else
+			txmsg_pop_total = txmsg_pop * cnt;
 		total_bytes -= txmsg_pop_total;
 		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
 		if (err < 0)
@@ -638,8 +639,12 @@ static int sendmsg_test(struct sockmap_options *opt)
 
 	rxpid = fork();
 	if (rxpid == 0) {
+		iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
 		if (opt->drop_expected)
-			exit(0);
+			_exit(0);
+
+		if (!iov_buf) /* zero bytes sent case */
+			_exit(0);
 
 		if (opt->sendpage)
 			iov_count = 1;
