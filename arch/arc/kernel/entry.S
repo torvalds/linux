@@ -210,7 +210,6 @@ trap_with_param:
 
 	; Save callee regs in case gdb wants to have a look
 	; SP will grow up by size of CALLEE Reg-File
-	; NOTE: clobbers r12
 	SAVE_CALLEE_SAVED_USER
 
 	; save location of saved Callee Regs @ thread_struct->pc
@@ -318,7 +317,7 @@ resume_user_mode_begin:
 	;      tracer might call PEEKUSR(CALLEE reg)
 	;
 	; NOTE: SP will grow up by size of CALLEE Reg-File
-	SAVE_CALLEE_SAVED_USER		; clobbers r12
+	SAVE_CALLEE_SAVED_USER
 
 	; save location of saved Callee Regs @ thread_struct->callee
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r10

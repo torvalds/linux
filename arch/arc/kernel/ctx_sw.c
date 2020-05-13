@@ -38,11 +38,7 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 		"st.a    r22, [sp, -4]   \n\t"
 		"st.a    r23, [sp, -4]   \n\t"
 		"st.a    r24, [sp, -4]   \n\t"
-#ifndef CONFIG_ARC_CURR_IN_REG
 		"st.a    r25, [sp, -4]   \n\t"
-#else
-		"sub     sp, sp, 4      \n\t"	/* usual r25 placeholder */
-#endif
 
 		/* set ksp of outgoing task in tsk->thread.ksp */
 #if KSP_WORD_OFF <= 255
@@ -58,7 +54,7 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 
 		/*
 		 * setup _current_task with incoming tsk.
-		 * optionally, set r25 to that as well
+		 * optionally, set caching reg to that as well
 		 * For SMP extra work to get to &_current_task[cpu]
 		 * (open coded SET_CURR_TASK_ON_CPU)
 		 */
@@ -72,19 +68,14 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 		"st   %2,  [r24]		\n\t"
 #endif
 #ifdef CONFIG_ARC_CURR_IN_REG
-		"mov r25, %2   \n\t"
+		"mov gp, %2   \n\t"
 #endif
 
 		/* get ksp of incoming task from tsk->thread.ksp */
 		"ld.as  sp, [%2, %1]   \n\t"
 
 		/* start loading it's CALLEE reg file */
-
-#ifndef CONFIG_ARC_CURR_IN_REG
 		"ld.ab   r25, [sp, 4]   \n\t"
-#else
-		"add    sp, sp, 4       \n\t"
-#endif
 		"ld.ab   r24, [sp, 4]   \n\t"
 		"ld.ab   r23, [sp, 4]   \n\t"
 		"ld.ab   r22, [sp, 4]   \n\t"

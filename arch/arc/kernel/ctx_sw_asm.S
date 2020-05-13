@@ -49,7 +49,7 @@ __switch_to:
 	SET_CURR_TASK_ON_CPU  r1, r3
 
 	/* reload SP with kernel mode stack pointer in task->thread.ksp */
-	ld.as  sp, [r1, (TASK_THREAD + THREAD_KSP)/4]
+	ld.as  sp, [r1, KSP_WORD_OFF]
 
 	/* restore the registers */
 	RESTORE_CALLEE_SAVED_KERNEL

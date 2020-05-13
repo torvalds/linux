@@ -52,11 +52,9 @@ struct pt_regs {
 		};
 		unsigned long event;
 	};
-
-	unsigned long user_r25;
 };
 
-#define MAX_REG_OFFSET offsetof(struct pt_regs, user_r25)
+#define MAX_REG_OFFSET offsetof(struct pt_regs, event)
 
 #else
 
@@ -78,8 +76,6 @@ struct pt_regs {
 	};
 
 	unsigned long bta;	/* bta_l1, bta_l2, erbta */
-
-	unsigned long user_r25;
 
 	unsigned long r26;	/* gp */
 	unsigned long fp;
