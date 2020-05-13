@@ -431,7 +431,7 @@ register_cpus(void)
 arch_initcall(register_cpus);
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static struct sysrq_key_op srm_sysrq_reboot_op = {
+static const struct sysrq_key_op srm_sysrq_reboot_op = {
 	.handler	= machine_halt,
 	.help_msg       = "reboot(b)",
 	.action_msg     = "Resetting",
