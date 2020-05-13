@@ -53,7 +53,6 @@ static const s16 c[XNR3_LOOK_UP_TABLE_POINTS] = {
 };
 
 /*
-#endif
  * Default kernel parameters. In general, default is bypass mode or as close
  * to the ineffective values as possible. Due to the chroma down+upsampling,
  * perfect bypass mode is not possible for xnr3 filter itself. Instead, the
