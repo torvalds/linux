@@ -110,7 +110,7 @@ enum suspend_tasks {
 enum suspended_state {
 	BT_RUNNING = 0,
 	BT_SUSPEND_DISCONNECT,
-	BT_SUSPEND_COMPLETE,
+	BT_SUSPEND_CONFIGURE_WAKE,
 };
 
 struct hci_conn_hash {

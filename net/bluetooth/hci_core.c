@@ -3353,7 +3353,7 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		/* Only configure whitelist if disconnect succeeded */
 		if (!ret)
 			ret = hci_change_suspend_state(hdev,
-						       BT_SUSPEND_COMPLETE);
+						BT_SUSPEND_CONFIGURE_WAKE);
 	} else if (action == PM_POST_SUSPEND) {
 		ret = hci_change_suspend_state(hdev, BT_RUNNING);
 	}
