@@ -151,7 +151,7 @@ static const struct chip_data {
 		SBS_DATA(POWER_SUPPLY_PROP_TECHNOLOGY, 0x22, 0, 65535)
 };
 
-static enum power_supply_property sbs_properties[] = {
+static const enum power_supply_property sbs_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_HEALTH,
