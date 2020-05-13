@@ -80,12 +80,11 @@ print_bool_feature(const char *feat_name, const char *plain_name,
 		printf("%s is %savailable\n", plain_name, res ? "" : "NOT ");
 }
 
-static void print_kernel_option(const char *name, const char *value)
+static void print_kernel_option(const char *name, const char *value,
+				const char *define_prefix)
 {
 	char *endptr;
 	int res;
-
-	/* No support for C-style ouptut */
 
 	if (json_output) {
 		if (!value) {
@@ -98,6 +97,12 @@ static void print_kernel_option(const char *name, const char *value)
 			jsonw_int_field(json_wtr, name, res);
 		else
 			jsonw_string_field(json_wtr, name, value);
+	} else if (define_prefix) {
+		if (value)
+			printf("#define %s%s %s\n", define_prefix,
+			       name, value);
+		else
+			printf("/* %s%s is not set */\n", define_prefix, name);
 	} else {
 		if (value)
 			printf("%s is set to %s\n", name, value);
@@ -315,77 +320,84 @@ static bool read_next_kernel_config_option(gzFile file, char *buf, size_t n,
 	return false;
 }
 
-static void probe_kernel_image_config(void)
+static void probe_kernel_image_config(const char *define_prefix)
 {
-	static const char * const options[] = {
+	static const struct {
+		const char * const name;
+		bool macro_dump;
+	} options[] = {
 		/* Enable BPF */
-		"CONFIG_BPF",
+		{ "CONFIG_BPF", },
 		/* Enable bpf() syscall */
-		"CONFIG_BPF_SYSCALL",
+		{ "CONFIG_BPF_SYSCALL", },
 		/* Does selected architecture support eBPF JIT compiler */
-		"CONFIG_HAVE_EBPF_JIT",
+		{ "CONFIG_HAVE_EBPF_JIT", },
 		/* Compile eBPF JIT compiler */
-		"CONFIG_BPF_JIT",
+		{ "CONFIG_BPF_JIT", },
 		/* Avoid compiling eBPF interpreter (use JIT only) */
-		"CONFIG_BPF_JIT_ALWAYS_ON",
+		{ "CONFIG_BPF_JIT_ALWAYS_ON", },
 
 		/* cgroups */
-		"CONFIG_CGROUPS",
+		{ "CONFIG_CGROUPS", },
 		/* BPF programs attached to cgroups */
-		"CONFIG_CGROUP_BPF",
+		{ "CONFIG_CGROUP_BPF", },
 		/* bpf_get_cgroup_classid() helper */
-		"CONFIG_CGROUP_NET_CLASSID",
+		{ "CONFIG_CGROUP_NET_CLASSID", },
 		/* bpf_skb_{,ancestor_}cgroup_id() helpers */
-		"CONFIG_SOCK_CGROUP_DATA",
+		{ "CONFIG_SOCK_CGROUP_DATA", },
 
 		/* Tracing: attach BPF to kprobes, tracepoints, etc. */
-		"CONFIG_BPF_EVENTS",
+		{ "CONFIG_BPF_EVENTS", },
 		/* Kprobes */
-		"CONFIG_KPROBE_EVENTS",
+		{ "CONFIG_KPROBE_EVENTS", },
 		/* Uprobes */
-		"CONFIG_UPROBE_EVENTS",
+		{ "CONFIG_UPROBE_EVENTS", },
 		/* Tracepoints */
-		"CONFIG_TRACING",
+		{ "CONFIG_TRACING", },
 		/* Syscall tracepoints */
-		"CONFIG_FTRACE_SYSCALLS",
+		{ "CONFIG_FTRACE_SYSCALLS", },
 		/* bpf_override_return() helper support for selected arch */
-		"CONFIG_FUNCTION_ERROR_INJECTION",
+		{ "CONFIG_FUNCTION_ERROR_INJECTION", },
 		/* bpf_override_return() helper */
-		"CONFIG_BPF_KPROBE_OVERRIDE",
+		{ "CONFIG_BPF_KPROBE_OVERRIDE", },
 
 		/* Network */
-		"CONFIG_NET",
+		{ "CONFIG_NET", },
 		/* AF_XDP sockets */
-		"CONFIG_XDP_SOCKETS",
+		{ "CONFIG_XDP_SOCKETS", },
 		/* BPF_PROG_TYPE_LWT_* and related helpers */
-		"CONFIG_LWTUNNEL_BPF",
+		{ "CONFIG_LWTUNNEL_BPF", },
 		/* BPF_PROG_TYPE_SCHED_ACT, TC (traffic control) actions */
-		"CONFIG_NET_ACT_BPF",
+		{ "CONFIG_NET_ACT_BPF", },
 		/* BPF_PROG_TYPE_SCHED_CLS, TC filters */
-		"CONFIG_NET_CLS_BPF",
+		{ "CONFIG_NET_CLS_BPF", },
 		/* TC clsact qdisc */
-		"CONFIG_NET_CLS_ACT",
+		{ "CONFIG_NET_CLS_ACT", },
 		/* Ingress filtering with TC */
-		"CONFIG_NET_SCH_INGRESS",
+		{ "CONFIG_NET_SCH_INGRESS", },
 		/* bpf_skb_get_xfrm_state() helper */
-		"CONFIG_XFRM",
+		{ "CONFIG_XFRM", },
 		/* bpf_get_route_realm() helper */
-		"CONFIG_IP_ROUTE_CLASSID",
+		{ "CONFIG_IP_ROUTE_CLASSID", },
 		/* BPF_PROG_TYPE_LWT_SEG6_LOCAL and related helpers */
-		"CONFIG_IPV6_SEG6_BPF",
+		{ "CONFIG_IPV6_SEG6_BPF", },
 		/* BPF_PROG_TYPE_LIRC_MODE2 and related helpers */
-		"CONFIG_BPF_LIRC_MODE2",
+		{ "CONFIG_BPF_LIRC_MODE2", },
 		/* BPF stream parser and BPF socket maps */
-		"CONFIG_BPF_STREAM_PARSER",
+		{ "CONFIG_BPF_STREAM_PARSER", },
 		/* xt_bpf module for passing BPF programs to netfilter  */
-		"CONFIG_NETFILTER_XT_MATCH_BPF",
+		{ "CONFIG_NETFILTER_XT_MATCH_BPF", },
 		/* bpfilter back-end for iptables */
-		"CONFIG_BPFILTER",
+		{ "CONFIG_BPFILTER", },
 		/* bpftilter module with "user mode helper" */
-		"CONFIG_BPFILTER_UMH",
+		{ "CONFIG_BPFILTER_UMH", },
 
 		/* test_bpf module for BPF tests */
-		"CONFIG_TEST_BPF",
+		{ "CONFIG_TEST_BPF", },
+
+		/* Misc configs useful in BPF C programs */
+		/* jiffies <-> sec conversion for bpf_jiffies64() helper */
+		{ "CONFIG_HZ", true, }
 	};
 	char *values[ARRAY_SIZE(options)] = { };
 	struct utsname utsn;
@@ -427,7 +439,8 @@ static void probe_kernel_image_config(void)
 
 	while (read_next_kernel_config_option(file, buf, sizeof(buf), &value)) {
 		for (i = 0; i < ARRAY_SIZE(options); i++) {
-			if (values[i] || strcmp(buf, options[i]))
+			if ((define_prefix && !options[i].macro_dump) ||
+			    values[i] || strcmp(buf, options[i].name))
 				continue;
 
 			values[i] = strdup(value);
@@ -439,7 +452,9 @@ end_parse:
 		gzclose(file);
 
 	for (i = 0; i < ARRAY_SIZE(options); i++) {
-		print_kernel_option(options[i], values[i]);
+		if (define_prefix && !options[i].macro_dump)
+			continue;
+		print_kernel_option(options[i].name, values[i], define_prefix);
 		free(values[i]);
 	}
 }
@@ -632,23 +647,22 @@ section_system_config(enum probe_component target, const char *define_prefix)
 	switch (target) {
 	case COMPONENT_KERNEL:
 	case COMPONENT_UNSPEC:
-		if (define_prefix)
-			break;
-
 		print_start_section("system_config",
 				    "Scanning system configuration...",
-				    NULL, /* define_comment never used here */
-				    NULL); /* define_prefix always NULL here */
-		if (check_procfs()) {
-			probe_unprivileged_disabled();
-			probe_jit_enable();
-			probe_jit_harden();
-			probe_jit_kallsyms();
-			probe_jit_limit();
-		} else {
-			p_info("/* procfs not mounted, skipping related probes */");
+				    "/*** Misc kernel config items ***/",
+				    define_prefix);
+		if (!define_prefix) {
+			if (check_procfs()) {
+				probe_unprivileged_disabled();
+				probe_jit_enable();
+				probe_jit_harden();
+				probe_jit_kallsyms();
+				probe_jit_limit();
+			} else {
+				p_info("/* procfs not mounted, skipping related probes */");
+			}
 		}
-		probe_kernel_image_config();
+		probe_kernel_image_config(define_prefix);
 		print_end_section();
 		break;
 	default:
