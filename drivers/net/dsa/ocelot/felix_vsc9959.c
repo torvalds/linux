@@ -207,7 +207,7 @@ static const u32 vsc9959_qsys_regmap[] = {
 	REG(QSYS_QMAXSDU_CFG_6,			0x00f62c),
 	REG(QSYS_QMAXSDU_CFG_7,			0x00f648),
 	REG(QSYS_PREEMPTION_CFG,		0x00f664),
-	REG_RESERVED(QSYS_CIR_CFG),
+	REG(QSYS_CIR_CFG,			0x000000),
 	REG(QSYS_EIR_CFG,			0x000004),
 	REG(QSYS_SE_CFG,			0x000008),
 	REG(QSYS_SE_DWRR_CFG,			0x00000c),
@@ -1332,6 +1332,52 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	return ret;
 }
 
+static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
+				    struct tc_cbs_qopt_offload *cbs_qopt)
+{
+	struct ocelot *ocelot = ds->priv;
+	int port_ix = port * 8 + cbs_qopt->queue;
+	u32 rate, burst;
+
+	if (cbs_qopt->queue >= ds->num_tx_queues)
+		return -EINVAL;
+
+	if (!cbs_qopt->enable) {
+		ocelot_write_gix(ocelot, QSYS_CIR_CFG_CIR_RATE(0) |
+				 QSYS_CIR_CFG_CIR_BURST(0),
+				 QSYS_CIR_CFG, port_ix);
+
+		ocelot_rmw_gix(ocelot, 0, QSYS_SE_CFG_SE_AVB_ENA,
+			       QSYS_SE_CFG, port_ix);
+
+		return 0;
+	}
+
+	/* Rate unit is 100 kbps */
+	rate = DIV_ROUND_UP(cbs_qopt->idleslope, 100);
+	/* Avoid using zero rate */
+	rate = clamp_t(u32, rate, 1, GENMASK(14, 0));
+	/* Burst unit is 4kB */
+	burst = DIV_ROUND_UP(cbs_qopt->hicredit, 4096);
+	/* Avoid using zero burst size */
+	burst = clamp_t(u32, rate, 1, GENMASK(5, 0));
+	ocelot_write_gix(ocelot,
+			 QSYS_CIR_CFG_CIR_RATE(rate) |
+			 QSYS_CIR_CFG_CIR_BURST(burst),
+			 QSYS_CIR_CFG,
+			 port_ix);
+
+	ocelot_rmw_gix(ocelot,
+		       QSYS_SE_CFG_SE_FRM_MODE(0) |
+		       QSYS_SE_CFG_SE_AVB_ENA,
+		       QSYS_SE_CFG_SE_AVB_ENA |
+		       QSYS_SE_CFG_SE_FRM_MODE_M,
+		       QSYS_SE_CFG,
+		       port_ix);
+
+	return 0;
+}
+
 static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type,
 				 void *type_data)
@@ -1341,6 +1387,8 @@ static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 	switch (type) {
 	case TC_SETUP_QDISC_TAPRIO:
 		return vsc9959_qos_port_tas_set(ocelot, port, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return vsc9959_qos_port_cbs_set(ds, port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
