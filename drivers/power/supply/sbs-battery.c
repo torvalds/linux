@@ -992,8 +992,7 @@ static const struct power_supply_desc sbs_default_desc = {
 	.external_power_changed = sbs_external_power_changed,
 };
 
-static int sbs_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int sbs_probe(struct i2c_client *client)
 {
 	struct sbs_info *chip;
 	struct power_supply_desc *sbs_desc;
@@ -1172,7 +1171,7 @@ static const struct of_device_id sbs_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 
 static struct i2c_driver sbs_battery_driver = {
-	.probe		= sbs_probe,
+	.probe_new	= sbs_probe,
 	.remove		= sbs_remove,
 	.alert		= sbs_alert,
 	.id_table	= sbs_id,
