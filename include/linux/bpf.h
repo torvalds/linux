@@ -1153,7 +1153,7 @@ struct bpf_iter_meta {
 	u64 seq_num;
 };
 
-int bpf_iter_reg_target(struct bpf_iter_reg *reg_info);
+int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info);
 void bpf_iter_unreg_target(const char *target);
 bool bpf_iter_prog_supported(struct bpf_prog *prog);
 int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog);

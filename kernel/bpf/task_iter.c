@@ -306,22 +306,24 @@ static const struct seq_operations task_file_seq_ops = {
 	.show	= task_file_seq_show,
 };
 
+static const struct bpf_iter_reg task_reg_info = {
+	.target			= "task",
+	.seq_ops		= &task_seq_ops,
+	.init_seq_private	= init_seq_pidns,
+	.fini_seq_private	= fini_seq_pidns,
+	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
+};
+
+static const struct bpf_iter_reg task_file_reg_info = {
+	.target			= "task_file",
+	.seq_ops		= &task_file_seq_ops,
+	.init_seq_private	= init_seq_pidns,
+	.fini_seq_private	= fini_seq_pidns,
+	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_file_info),
+};
+
 static int __init task_iter_init(void)
 {
-	struct bpf_iter_reg task_file_reg_info = {
-		.target			= "task_file",
-		.seq_ops		= &task_file_seq_ops,
-		.init_seq_private	= init_seq_pidns,
-		.fini_seq_private	= fini_seq_pidns,
-		.seq_priv_size		= sizeof(struct bpf_iter_seq_task_file_info),
-	};
-	struct bpf_iter_reg task_reg_info = {
-		.target			= "task",
-		.seq_ops		= &task_seq_ops,
-		.init_seq_private	= init_seq_pidns,
-		.fini_seq_private	= fini_seq_pidns,
-		.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
-	};
 	int ret;
 
 	ret = bpf_iter_reg_target(&task_reg_info);
