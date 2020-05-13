@@ -1004,6 +1004,7 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	rockchip,default-sample-phase = <90>;
 	sd-uhs-sdr104;
 	status = "okay";
 };
