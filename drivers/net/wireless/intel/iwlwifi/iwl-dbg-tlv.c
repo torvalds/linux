@@ -165,38 +165,36 @@ static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
 				       struct iwl_ucode_tlv *tlv)
 {
 	struct iwl_fw_ini_allocation_tlv *alloc = (void *)tlv->data;
-	u32 buf_location = le32_to_cpu(alloc->buf_location);
-	u32 alloc_id = le32_to_cpu(alloc->alloc_id);
+	u32 buf_location;
+	u32 alloc_id;
 
-	if (le32_to_cpu(tlv->length) != sizeof(*alloc) ||
-	    (buf_location != IWL_FW_INI_LOCATION_SRAM_PATH &&
-	     buf_location != IWL_FW_INI_LOCATION_DRAM_PATH &&
-	     buf_location != IWL_FW_INI_LOCATION_NPK_PATH)) {
-		IWL_ERR(trans,
-			"WRT: Invalid allocation TLV\n");
+	if (le32_to_cpu(tlv->length) != sizeof(*alloc))
 		return -EINVAL;
-	}
+
+	buf_location = le32_to_cpu(alloc->buf_location);
+	alloc_id = le32_to_cpu(alloc->alloc_id);
+
+	if (buf_location == IWL_FW_INI_LOCATION_INVALID ||
+	    buf_location >= IWL_FW_INI_LOCATION_NUM)
+		goto err;
+
+	if (alloc_id == IWL_FW_INI_ALLOCATION_INVALID ||
+	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM)
+		goto err;
 
 	if ((buf_location == IWL_FW_INI_LOCATION_SRAM_PATH ||
 	     buf_location == IWL_FW_INI_LOCATION_NPK_PATH) &&
-	     alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1) {
-		IWL_ERR(trans,
-			"WRT: Allocation TLV for SMEM/NPK path must have id %u (current: %u)\n",
-			IWL_FW_INI_ALLOCATION_ID_DBGC1, alloc_id);
-		return -EINVAL;
-	}
-
-	if (alloc_id == IWL_FW_INI_ALLOCATION_INVALID ||
-	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM) {
-		IWL_ERR(trans,
-			"WRT: Invalid allocation id %u for allocation TLV\n",
-			alloc_id);
-		return -EINVAL;
-	}
+	     alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1)
+		goto err;
 
 	trans->dbg.fw_mon_cfg[alloc_id] = *alloc;
 
 	return 0;
+err:
+	IWL_ERR(trans,
+		"WRT: Invalid allocation id %u and/or location id %u for allocation TLV\n",
+		alloc_id, buf_location);
+	return -EINVAL;
 }
 
 static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,

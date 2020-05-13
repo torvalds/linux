@@ -87,50 +87,6 @@ struct iwl_mvm_alive_data {
 	u32 scd_base_addr;
 };
 
-/* set device type and latency */
-static int iwl_set_soc_latency(struct iwl_mvm *mvm)
-{
-	struct iwl_soc_configuration_cmd cmd = {};
-	int ret;
-
-	/*
-	 * In VER_1 of this command, the discrete value is considered
-	 * an integer; In VER_2, it's a bitmask.  Since we have only 2
-	 * values in VER_1, this is backwards-compatible with VER_2,
-	 * as long as we don't set any other bits.
-	 */
-	if (!mvm->trans->trans_cfg->integrated)
-		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
-
-	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_NONE !=
-		     SOC_FLAGS_LTR_APPLY_DELAY_NONE);
-	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_200US !=
-		     SOC_FLAGS_LTR_APPLY_DELAY_200);
-	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_2500US !=
-		     SOC_FLAGS_LTR_APPLY_DELAY_2500);
-	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_1820US !=
-		     SOC_FLAGS_LTR_APPLY_DELAY_1820);
-
-	if (mvm->trans->trans_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_NONE &&
-	    !WARN_ON(!mvm->trans->trans_cfg->integrated))
-		cmd.flags |= le32_encode_bits(mvm->trans->trans_cfg->ltr_delay,
-					      SOC_FLAGS_LTR_APPLY_DELAY_MASK);
-
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-				  SCAN_REQ_UMAC) >= 2 &&
-	    mvm->trans->trans_cfg->low_latency_xtal)
-		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
-
-	cmd.latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SOC_CONFIGURATION_CMD,
-						   SYSTEM_GROUP, 0), 0,
-				   sizeof(cmd), &cmd);
-	if (ret)
-		IWL_ERR(mvm, "Failed to set soc latency: %d\n", ret);
-	return ret;
-}
-
 static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_cfg_cmd tx_ant_cmd = {
@@ -787,12 +743,11 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	union {
 		struct iwl_dev_tx_power_cmd v5;
 		struct iwl_dev_tx_power_cmd_v4 v4;
-	} cmd;
-
+	} cmd = {
+		.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+	};
 	int ret;
 	u16 len = 0;
-
-	cmd.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS);
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_REDUCE_TX_POWER))
@@ -1238,7 +1193,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
-		ret = iwl_set_soc_latency(mvm);
+		ret = iwl_set_soc_latency(&mvm->fwrt);
 		if (ret)
 			goto error;
 	}
