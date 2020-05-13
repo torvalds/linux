@@ -68,9 +68,7 @@ struct bpf_map *maps[8];
 int prog_fd[11];
 
 int txmsg_pass;
-int txmsg_noisy;
 int txmsg_redir;
-int txmsg_redir_noisy;
 int txmsg_drop;
 int txmsg_apply;
 int txmsg_cork;
@@ -95,9 +93,7 @@ static const struct option long_options[] = {
 	{"test",	required_argument,	NULL, 't' },
 	{"data_test",   no_argument,		NULL, 'd' },
 	{"txmsg",		no_argument,	&txmsg_pass,  1  },
-	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
 	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
-	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
 	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
@@ -834,19 +830,14 @@ run:
 	/* Attach txmsg program to sockmap */
 	if (txmsg_pass)
 		tx_prog_fd = prog_fd[3];
-	else if (txmsg_noisy)
-		tx_prog_fd = prog_fd[4];
 	else if (txmsg_redir)
+		tx_prog_fd = prog_fd[4];
+	else if (txmsg_apply)
 		tx_prog_fd = prog_fd[5];
-	else if (txmsg_redir_noisy)
+	else if (txmsg_cork)
 		tx_prog_fd = prog_fd[6];
 	else if (txmsg_drop)
-		tx_prog_fd = prog_fd[9];
-	/* apply and cork must be last */
-	else if (txmsg_apply)
 		tx_prog_fd = prog_fd[7];
-	else if (txmsg_cork)
-		tx_prog_fd = prog_fd[8];
 	else
 		tx_prog_fd = 0;
 
@@ -870,7 +861,7 @@ run:
 			goto out;
 		}
 
-		if (txmsg_redir || txmsg_redir_noisy)
+		if (txmsg_redir)
 			redir_fd = c2;
 		else
 			redir_fd = c1;
@@ -1112,12 +1103,8 @@ static void test_options(char *options)
 
 	if (txmsg_pass)
 		strncat(options, "pass,", OPTSTRING);
-	if (txmsg_noisy)
-		strncat(options, "pass_noisy,", OPTSTRING);
 	if (txmsg_redir)
 		strncat(options, "redir,", OPTSTRING);
-	if (txmsg_redir_noisy)
-		strncat(options, "redir_noisy,", OPTSTRING);
 	if (txmsg_drop)
 		strncat(options, "drop,", OPTSTRING);
 	if (txmsg_apply) {
@@ -1228,7 +1215,7 @@ static int test_txmsg(int cgrp)
 {
 	int err;
 
-	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
+	txmsg_pass = txmsg_drop = 0;
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_ingress = txmsg_skb = 0;
 
@@ -1319,7 +1306,7 @@ static int test_mixed(int cgrp)
 	struct sockmap_options opt = {0};
 	int err;
 
-	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
+	txmsg_pass = txmsg_drop = 0;
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_start = txmsg_end = 0;
 	txmsg_start_push = txmsg_end_push = 0;
