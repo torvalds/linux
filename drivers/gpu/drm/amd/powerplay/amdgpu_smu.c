@@ -2100,6 +2100,28 @@ int smu_set_df_cstate(struct smu_context *smu,
 	return ret;
 }
 
+int smu_allow_xgmi_power_down(struct smu_context *smu, bool en)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	if (!adev->pm.dpm_enabled)
+		return -EINVAL;
+
+	if (!smu->ppt_funcs || !smu->ppt_funcs->allow_xgmi_power_down)
+		return 0;
+
+	mutex_lock(&smu->mutex);
+
+	ret = smu->ppt_funcs->allow_xgmi_power_down(smu, en);
+	if (ret)
+		pr_err("[AllowXgmiPowerDown] failed!\n");
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
 int smu_write_watermarks_table(struct smu_context *smu)
 {
 	void *watermarks_table = smu->smu_table.watermarks_table;
