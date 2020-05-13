@@ -389,7 +389,7 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 	return err;
 }
 
-static __always_inline inline void
+static __always_inline void
 write_pte(gen8_pte_t *pte, const gen8_pte_t val)
 {
 	/* Magic delays? Or can we refine these to flush all in one pass? */
