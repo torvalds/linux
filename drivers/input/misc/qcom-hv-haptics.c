@@ -502,8 +502,8 @@ static void __dump_effects(struct haptics_chip *chip)
 			pos = 0;
 			pos += scnprintf(str, size, "%s", "FIFO data: ");
 			for (j = 0; j < effect->fifo->num_s; j++)
-				pos += scnprintf(str + pos, size - pos, "%#x ",
-						effect->fifo->samples[j]);
+				pos += scnprintf(str + pos, size - pos, "%d ",
+						(s8)effect->fifo->samples[j]);
 
 			dev_dbg(chip->dev, "%s\n", str);
 			kfree(str);
@@ -2058,7 +2058,7 @@ static int pattern_play_rate_us_dbgfs_write(void *data, u64 val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(pattern_play_rate_dbgfs_ops,
 		pattern_play_rate_us_dbgfs_read,
-		pattern_play_rate_us_dbgfs_write, "%lld\n");
+		pattern_play_rate_us_dbgfs_write, "%llu\n");
 
 static ssize_t fifo_s_dbgfs_read(struct file *fp,
 		char __user *buf, size_t count, loff_t *ppos)
@@ -2076,7 +2076,7 @@ static ssize_t fifo_s_dbgfs_read(struct file *fp,
 
 	for (i = 0; i < fifo->num_s; i++)
 		pos += scnprintf(kbuf + pos, size - pos,
-				"0x%03x ", fifo->samples[i]);
+				"%d ", (s8)fifo->samples[i]);
 
 	pos += scnprintf(kbuf + pos, size - pos, "%s", "\n");
 	rc = simple_read_from_buffer(buf, count, ppos, kbuf, pos);
@@ -2092,7 +2092,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 	struct fifo_cfg *fifo = effect->fifo;
 	char *kbuf, *token;
 	int rc, i = 0;
-	u32 val;
+	int val;
 	u8 *samples;
 
 	kbuf = kzalloc(count + 1, GFP_KERNEL);
@@ -2115,7 +2115,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 	}
 
 	while ((token = strsep(&kbuf, " ")) != NULL) {
-		rc = kstrtouint(token, 0, &val);
+		rc = kstrtoint(token, 0, &val);
 		if (rc < 0) {
 			rc = -EINVAL;
 			goto exit2;
@@ -2124,7 +2124,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 		if (val > 0xff)
 			val = 0xff;
 
-		samples[i++] = val;
+		samples[i++] = (u8)val;
 		/* only support fifo pattern no longer than before */
 		if (i >= fifo->num_s)
 			break;
@@ -2182,7 +2182,7 @@ static int fifo_period_dbgfs_write(void *data, u64 val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(fifo_period_dbgfs_ops,
 		fifo_period_dbgfs_read,
-		fifo_period_dbgfs_write, "%lld\n");
+		fifo_period_dbgfs_write, "%llu\n");
 
 static ssize_t brake_s_dbgfs_read(struct file *fp,
 		char __user *buf, size_t count, loff_t *ppos)
@@ -2327,6 +2327,50 @@ static const struct file_operations brake_mode_dbgfs_ops = {
 	.open = simple_open,
 };
 
+static int brake_en_dbgfs_read(void *data, u64 *val)
+{
+	struct haptics_effect *effect = data;
+
+	*val = !effect->brake->disabled;
+
+	return 0;
+}
+
+static int brake_en_dbgfs_write(void *data, u64 val)
+{
+	struct haptics_effect *effect = data;
+
+	effect->brake->disabled = !val;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(brake_en_dbgfs_ops,  brake_en_dbgfs_read,
+		brake_en_dbgfs_write, "%llu\n");
+
+static int brake_sine_gain_dbgfs_read(void *data, u64 *val)
+{
+	struct haptics_effect *effect = data;
+
+	*val = effect->brake->sine_gain;
+
+	return 0;
+}
+
+static int brake_sine_gain_dbgfs_write(void *data, u64 val)
+{
+	struct haptics_effect *effect = data;
+
+	if (val > BRAKE_SINE_GAIN_X8)
+		return -EINVAL;
+
+	effect->brake->sine_gain = val;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(brake_sine_gain_dbgfs_ops,
+		brake_sine_gain_dbgfs_read,
+		brake_sine_gain_dbgfs_write, "%llu\n");
+
 static int preload_effect_idx_dbgfs_read(void *data, u64 *val)
 {
 	struct haptics_chip *chip = data;
@@ -2373,7 +2417,7 @@ static int preload_effect_idx_dbgfs_write(void *data, u64 val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(preload_effect_idx_dbgfs_ops,
 		preload_effect_idx_dbgfs_read,
-		preload_effect_idx_dbgfs_write, "%lld\n");
+		preload_effect_idx_dbgfs_write, "%llu\n");
 
 static int haptics_add_effects_debugfs(struct haptics_effect *effect,
 		struct dentry *dir)
@@ -2434,6 +2478,16 @@ static int haptics_add_effects_debugfs(struct haptics_effect *effect,
 
 		file = debugfs_create_file("mode", 0644, brake_dir,
 				effect, &brake_mode_dbgfs_ops);
+		if (IS_ERR(file))
+			return PTR_ERR(file);
+
+		file = debugfs_create_file_unsafe("enable", 0644, brake_dir,
+				effect, &brake_en_dbgfs_ops);
+		if (IS_ERR(file))
+			return PTR_ERR(file);
+
+		file = debugfs_create_file_unsafe("sine_gain", 0644, brake_dir,
+				effect, &brake_sine_gain_dbgfs_ops);
 		if (IS_ERR(file))
 			return PTR_ERR(file);
 	}
