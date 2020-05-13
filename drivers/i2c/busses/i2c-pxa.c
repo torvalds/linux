@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -28,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/slab.h>
@@ -260,6 +262,11 @@ struct pxa_i2c {
 	bool			highmode_enter;
 	u32			fm_mask;
 	u32			hs_mask;
+
+	struct i2c_bus_recovery_info recovery;
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*pinctrl_default;
+	struct pinctrl_state	*pinctrl_recovery;
 };
 
 #define _IBMR(i2c)	((i2c)->reg_ibmr)
@@ -559,13 +566,8 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 #define i2c_pxa_set_slave(i2c, err)	do { } while (0)
 #endif
 
-static void i2c_pxa_reset(struct pxa_i2c *i2c)
+static void i2c_pxa_do_reset(struct pxa_i2c *i2c)
 {
-	pr_debug("Resetting I2C Controller Unit\n");
-
-	/* abort any transfer currently under way */
-	i2c_pxa_abort(i2c);
-
 	/* reset according to 9.8 */
 	writel(ICR_UR, _ICR(i2c));
 	writel(I2C_ISR_INIT, _ISR(i2c));
@@ -584,10 +586,23 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 #endif
 
 	i2c_pxa_set_slave(i2c, 0);
+}
 
+static void i2c_pxa_enable(struct pxa_i2c *i2c)
+{
 	/* enable unit */
 	writel(readl(_ICR(i2c)) | ICR_IUE, _ICR(i2c));
 	udelay(100);
+}
+
+static void i2c_pxa_reset(struct pxa_i2c *i2c)
+{
+	pr_debug("Resetting I2C Controller Unit\n");
+
+	/* abort any transfer currently under way */
+	i2c_pxa_abort(i2c);
+	i2c_pxa_do_reset(i2c);
+	i2c_pxa_enable(i2c);
 }
 
 
@@ -1043,6 +1058,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	ret = i2c_pxa_wait_bus_not_busy(i2c);
 	if (ret) {
 		dev_err(&i2c->adap.dev, "i2c_pxa: timeout waiting for bus free\n");
+		i2c_recover_bus(&i2c->adap);
 		goto out;
 	}
 
@@ -1088,6 +1104,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 
 	if (!timeout && i2c->msg_num) {
 		i2c_pxa_scream_blue_murder(i2c, "timeout with active message");
+		i2c_recover_bus(&i2c->adap);
 		ret = I2C_RETRY;
 	}
 
@@ -1277,6 +1294,129 @@ static int i2c_pxa_probe_pdata(struct platform_device *pdev,
 	return 0;
 }
 
+static void i2c_pxa_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct pxa_i2c *i2c = adap->algo_data;
+	u32 ibmr = readl(_IBMR(i2c));
+
+	/*
+	 * Program the GPIOs to reflect the current I2C bus state while
+	 * we transition to recovery; this avoids glitching the bus.
+	 */
+	gpiod_set_value(i2c->recovery.scl_gpiod, ibmr & IBMR_SCLS);
+	gpiod_set_value(i2c->recovery.sda_gpiod, ibmr & IBMR_SDAS);
+
+	WARN_ON(pinctrl_select_state(i2c->pinctrl, i2c->pinctrl_recovery));
+}
+
+static void i2c_pxa_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct pxa_i2c *i2c = adap->algo_data;
+	u32 isr;
+
+	/*
+	 * The bus should now be free. Clear up the I2C controller before
+	 * handing control of the bus back to avoid the bus changing state.
+	 */
+	isr = readl(_ISR(i2c));
+	if (isr & (ISR_UB | ISR_IBB)) {
+		dev_dbg(&i2c->adap.dev,
+			"recovery: resetting controller, ISR=0x%08x\n", isr);
+		i2c_pxa_do_reset(i2c);
+	}
+
+	WARN_ON(pinctrl_select_state(i2c->pinctrl, i2c->pinctrl_default));
+
+	dev_dbg(&i2c->adap.dev, "recovery: IBMR 0x%08x ISR 0x%08x\n",
+	        readl(_IBMR(i2c)), readl(_ISR(i2c)));
+
+	i2c_pxa_enable(i2c);
+}
+
+static int i2c_pxa_init_recovery(struct pxa_i2c *i2c)
+{
+	struct i2c_bus_recovery_info *bri = &i2c->recovery;
+	struct device *dev = i2c->adap.dev.parent;
+
+	/*
+	 * When slave mode is enabled, we are not the only master on the bus.
+	 * Bus recovery can only be performed when we are the master, which
+	 * we can't be certain of. Therefore, when slave mode is enabled, do
+	 * not configure bus recovery.
+	 */
+	if (IS_ENABLED(CONFIG_I2C_PXA_SLAVE))
+		return 0;
+
+	i2c->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(i2c->pinctrl))
+		return PTR_ERR(i2c->pinctrl);
+
+	if (!i2c->pinctrl)
+		return 0;
+
+	i2c->pinctrl_default = pinctrl_lookup_state(i2c->pinctrl,
+						    PINCTRL_STATE_DEFAULT);
+	i2c->pinctrl_recovery = pinctrl_lookup_state(i2c->pinctrl, "recovery");
+
+	if (IS_ERR(i2c->pinctrl_default) || IS_ERR(i2c->pinctrl_recovery)) {
+		dev_info(dev, "missing pinmux recovery information: %ld %ld\n",
+			 PTR_ERR(i2c->pinctrl_default),
+			 PTR_ERR(i2c->pinctrl_recovery));
+		return 0;
+	}
+
+	/*
+	 * Claiming GPIOs can influence the pinmux state, and may glitch the
+	 * I2C bus. Do this carefully.
+	 */
+	bri->scl_gpiod = devm_gpiod_get(dev, "scl", GPIOD_OUT_HIGH_OPEN_DRAIN);
+	if (bri->scl_gpiod == ERR_PTR(-EPROBE_DEFER))
+		return -EPROBE_DEFER;
+	if (IS_ERR(bri->scl_gpiod)) {
+		dev_info(dev, "missing scl gpio recovery information: %pe\n",
+			 bri->scl_gpiod);
+		return 0;
+	}
+
+	/*
+	 * We have SCL. Pull SCL low and wait a bit so that SDA glitches
+	 * have no effect.
+	 */
+	gpiod_direction_output(bri->scl_gpiod, 0);
+	udelay(10);
+	bri->sda_gpiod = devm_gpiod_get(dev, "sda", GPIOD_OUT_HIGH_OPEN_DRAIN);
+
+	/* Wait a bit in case of a SDA glitch, and then release SCL. */
+	udelay(10);
+	gpiod_direction_output(bri->scl_gpiod, 1);
+
+	if (bri->sda_gpiod == ERR_PTR(-EPROBE_DEFER))
+		return -EPROBE_DEFER;
+
+	if (IS_ERR(bri->sda_gpiod)) {
+		dev_info(dev, "missing sda gpio recovery information: %pe\n",
+			 bri->sda_gpiod);
+		return 0;
+	}
+
+	bri->prepare_recovery = i2c_pxa_prepare_recovery;
+	bri->unprepare_recovery = i2c_pxa_unprepare_recovery;
+	bri->recover_bus = i2c_generic_scl_recovery;
+
+	i2c->adap.bus_recovery_info = bri;
+
+	/*
+	 * Claiming GPIOs can change the pinmux state, which confuses the
+	 * pinctrl since pinctrl's idea of the current setting is unaffected
+	 * by the pinmux change caused by claiming the GPIO. Work around that
+	 * by switching pinctrl to the GPIO state here. We do it this way to
+	 * avoid glitching the I2C bus.
+	 */
+	pinctrl_select_state(i2c->pinctrl, i2c->pinctrl_recovery);
+
+	return pinctrl_select_state(i2c->pinctrl, i2c->pinctrl_default);
+}
+
 static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct i2c_pxa_platform_data *plat = dev_get_platdata(&dev->dev);
@@ -1289,6 +1429,16 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	if (!i2c)
 		return -ENOMEM;
 
+	/* Default adapter num to device id; i2c_pxa_probe_dt can override. */
+	i2c->adap.nr = dev->id;
+	i2c->adap.owner   = THIS_MODULE;
+	i2c->adap.retries = 5;
+	i2c->adap.algo_data = i2c;
+	i2c->adap.dev.parent = &dev->dev;
+#ifdef CONFIG_OF
+	i2c->adap.dev.of_node = dev->dev.of_node;
+#endif
+
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	i2c->reg_base = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(i2c->reg_base))
@@ -1298,17 +1448,15 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	if (irq < 0)
 		return irq;
 
-	/* Default adapter num to device id; i2c_pxa_probe_dt can override. */
-	i2c->adap.nr = dev->id;
+	ret = i2c_pxa_init_recovery(i2c);
+	if (ret)
+		return ret;
 
 	ret = i2c_pxa_probe_dt(dev, i2c, &i2c_type);
 	if (ret > 0)
 		ret = i2c_pxa_probe_pdata(dev, i2c, &i2c_type);
 	if (ret < 0)
 		return ret;
-
-	i2c->adap.owner   = THIS_MODULE;
-	i2c->adap.retries = 5;
 
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
@@ -1374,12 +1522,6 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	}
 
 	i2c_pxa_reset(i2c);
-
-	i2c->adap.algo_data = i2c;
-	i2c->adap.dev.parent = &dev->dev;
-#ifdef CONFIG_OF
-	i2c->adap.dev.of_node = dev->dev.of_node;
-#endif
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0)
