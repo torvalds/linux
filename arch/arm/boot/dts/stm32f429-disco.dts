@@ -72,10 +72,10 @@
 
 	leds {
 		compatible = "gpio-leds";
-		red {
+		led-red {
 			gpios = <&gpiog 14 0>;
 		};
-		green {
+		led-green {
 			gpios = <&gpiog 13 0>;
 			linux,default-trigger = "heartbeat";
 		};
