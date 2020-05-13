@@ -128,6 +128,15 @@ config LEDS_AW2013
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-aw2013.
 
+config LEDS_ATC
+	tristate "Qualcomm PMIC ATC LED Support"
+	depends on LEDS_CLASS
+	depends on SPMI || COMPILE_TEST
+	depends on OF
+	help
+	  This option enabled support for Advanced Tickle Charge (ATC) LEDs
+	  present on some Qualcomm PMICs
+
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
 	depends on LEDS_CLASS

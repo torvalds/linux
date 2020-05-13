@@ -1,0 +1,14 @@
+Driver leds-atc is used to control ATC charging led on a Qualcomm PMIC.
+
+Required properties
+ - compatible	: string should be "qcom,leds-atc"
+ - reg		: The register address + control address. Check PMIC specification.
+ - label	: name of the led that is used in the led framework
+
+Example:
+
+leds@1000 {
+	compatible = "qcom,leds-atc";
+	reg = <0x1243>; //0x1000 + 0x243
+	label = "charging";
+};
