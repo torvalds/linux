@@ -1131,10 +1131,10 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd);
 int bpf_obj_pin_user(u32 ufd, const char __user *pathname);
 int bpf_obj_get_user(const char __user *pathname, int flags);
 
-#define BPF_ITER_FUNC_PREFIX "__bpf_iter__"
+#define BPF_ITER_FUNC_PREFIX "bpf_iter_"
 #define DEFINE_BPF_ITER_FUNC(target, args...)			\
-	extern int __bpf_iter__ ## target(args);		\
-	int __init __bpf_iter__ ## target(args) { return 0; }
+	extern int bpf_iter_ ## target(args);			\
+	int __init bpf_iter_ ## target(args) { return 0; }
 
 typedef int (*bpf_iter_init_seq_priv_t)(void *private_data);
 typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
