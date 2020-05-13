@@ -431,8 +431,6 @@ void __hyp_text __vgic_v3_write_vmcr(u32 vmcr)
 	write_gicreg(vmcr, ICH_VMCR_EL2);
 }
 
-#ifdef CONFIG_ARM64
-
 static int __hyp_text __vgic_v3_bpr_min(void)
 {
 	/* See Pseudocode for VPriorityGroup */
@@ -1126,5 +1124,3 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 
 	return 1;
 }
-
-#endif
