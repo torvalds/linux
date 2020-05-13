@@ -54,17 +54,6 @@ static unsigned int nr_to_order_bottom(unsigned int nr)
 	return fls(nr) - 1;
 }
 
-static struct hmm_buffer_object *__bo_alloc(struct kmem_cache *bo_cache)
-{
-	struct hmm_buffer_object *bo;
-
-	bo = kmem_cache_alloc(bo_cache, GFP_KERNEL);
-	if (!bo)
-		dev_err(atomisp_dev, "%s: failed!\n", __func__);
-
-	return bo;
-}
-
 static int __bo_init(struct hmm_bo_device *bdev, struct hmm_buffer_object *bo,
 		     unsigned int pgnr)
 {
@@ -262,7 +251,7 @@ static struct hmm_buffer_object *__bo_break_up(struct hmm_bo_device *bdev,
 	unsigned long flags;
 	int ret;
 
-	new_bo = __bo_alloc(bdev->bo_cache);
+	new_bo = kmem_cache_alloc(bdev->bo_cache, GFP_KERNEL);
 	if (!new_bo) {
 		dev_err(atomisp_dev, "%s: __bo_alloc failed!\n", __func__);
 		return NULL;
@@ -387,7 +376,7 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 		return -ENOMEM;
 	}
 
-	bo = __bo_alloc(bdev->bo_cache);
+	bo = kmem_cache_alloc(bdev->bo_cache, GFP_KERNEL);
 	if (!bo) {
 		dev_err(atomisp_dev, "%s: __bo_alloc failed!\n", __func__);
 		isp_mmu_exit(&bdev->mmu);
