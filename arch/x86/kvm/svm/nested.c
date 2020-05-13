@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "mmu.h"
 #include "x86.h"
+#include "cpuid.h"
 #include "lapic.h"
 #include "svm.h"
 
@@ -238,6 +239,8 @@ static void load_nested_vmcb_control(struct vcpu_svm *svm,
 {
 	copy_vmcb_control_area(&svm->nested.ctl, control);
 
+	/* Copy it here because nested_svm_check_controls will check it.  */
+	svm->nested.ctl.asid           = control->asid;
 	svm->nested.ctl.msrpm_base_pa &= ~0x0fffULL;
 	svm->nested.ctl.iopm_base_pa  &= ~0x0fffULL;
 }
@@ -930,6 +933,150 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 	return NESTED_EXIT_CONTINUE;
 }
 
+static int svm_get_nested_state(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				u32 user_data_size)
+{
+	struct vcpu_svm *svm;
+	struct kvm_nested_state kvm_state = {
+		.flags = 0,
+		.format = KVM_STATE_NESTED_FORMAT_SVM,
+		.size = sizeof(kvm_state),
+	};
+	struct vmcb __user *user_vmcb = (struct vmcb __user *)
+		&user_kvm_nested_state->data.svm[0];
+
+	if (!vcpu)
+		return kvm_state.size + KVM_STATE_NESTED_SVM_VMCB_SIZE;
+
+	svm = to_svm(vcpu);
+
+	if (user_data_size < kvm_state.size)
+		goto out;
+
+	/* First fill in the header and copy it out.  */
+	if (is_guest_mode(vcpu)) {
+		kvm_state.hdr.svm.vmcb_pa = svm->nested.vmcb;
+		kvm_state.size += KVM_STATE_NESTED_SVM_VMCB_SIZE;
+		kvm_state.flags |= KVM_STATE_NESTED_GUEST_MODE;
+
+		if (svm->nested.nested_run_pending)
+			kvm_state.flags |= KVM_STATE_NESTED_RUN_PENDING;
+	}
+
+	if (gif_set(svm))
+		kvm_state.flags |= KVM_STATE_NESTED_GIF_SET;
+
+	if (copy_to_user(user_kvm_nested_state, &kvm_state, sizeof(kvm_state)))
+		return -EFAULT;
+
+	if (!is_guest_mode(vcpu))
+		goto out;
+
+	/*
+	 * Copy over the full size of the VMCB rather than just the size
+	 * of the structs.
+	 */
+	if (clear_user(user_vmcb, KVM_STATE_NESTED_SVM_VMCB_SIZE))
+		return -EFAULT;
+	if (copy_to_user(&user_vmcb->control, &svm->nested.ctl,
+			 sizeof(user_vmcb->control)))
+		return -EFAULT;
+	if (copy_to_user(&user_vmcb->save, &svm->nested.hsave->save,
+			 sizeof(user_vmcb->save)))
+		return -EFAULT;
+
+out:
+	return kvm_state.size;
+}
+
+static int svm_set_nested_state(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				struct kvm_nested_state *kvm_state)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *hsave = svm->nested.hsave;
+	struct vmcb __user *user_vmcb = (struct vmcb __user *)
+		&user_kvm_nested_state->data.svm[0];
+	struct vmcb_control_area ctl;
+	struct vmcb_save_area save;
+	u32 cr0;
+
+	if (kvm_state->format != KVM_STATE_NESTED_FORMAT_SVM)
+		return -EINVAL;
+
+	if (kvm_state->flags & ~(KVM_STATE_NESTED_GUEST_MODE |
+				 KVM_STATE_NESTED_RUN_PENDING |
+				 KVM_STATE_NESTED_GIF_SET))
+		return -EINVAL;
+
+	/*
+	 * If in guest mode, vcpu->arch.efer actually refers to the L2 guest's
+	 * EFER.SVME, but EFER.SVME still has to be 1 for VMRUN to succeed.
+	 */
+	if (!(vcpu->arch.efer & EFER_SVME)) {
+		/* GIF=1 and no guest mode are required if SVME=0.  */
+		if (kvm_state->flags != KVM_STATE_NESTED_GIF_SET)
+			return -EINVAL;
+	}
+
+	/* SMM temporarily disables SVM, so we cannot be in guest mode.  */
+	if (is_smm(vcpu) && (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
+		return -EINVAL;
+
+	if (!(kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE)) {
+		svm_leave_nested(svm);
+		goto out_set_gif;
+	}
+
+	if (!page_address_valid(vcpu, kvm_state->hdr.svm.vmcb_pa))
+		return -EINVAL;
+	if (kvm_state->size < sizeof(*kvm_state) + KVM_STATE_NESTED_SVM_VMCB_SIZE)
+		return -EINVAL;
+	if (copy_from_user(&ctl, &user_vmcb->control, sizeof(ctl)))
+		return -EFAULT;
+	if (copy_from_user(&save, &user_vmcb->save, sizeof(save)))
+		return -EFAULT;
+
+	if (!nested_vmcb_check_controls(&ctl))
+		return -EINVAL;
+
+	/*
+	 * Processor state contains L2 state.  Check that it is
+	 * valid for guest mode (see nested_vmcb_checks).
+	 */
+	cr0 = kvm_read_cr0(vcpu);
+        if (((cr0 & X86_CR0_CD) == 0) && (cr0 & X86_CR0_NW))
+                return -EINVAL;
+
+	/*
+	 * Validate host state saved from before VMRUN (see
+	 * nested_svm_check_permissions).
+	 * TODO: validate reserved bits for all saved state.
+	 */
+	if (!(save.cr0 & X86_CR0_PG))
+		return -EINVAL;
+
+	/*
+	 * All checks done, we can enter guest mode.  L1 control fields
+	 * come from the nested save state.  Guest state is already
+	 * in the registers, the save area of the nested state instead
+	 * contains saved L1 state.
+	 */
+	copy_vmcb_control_area(&hsave->control, &svm->vmcb->control);
+	hsave->save = save;
+
+	svm->nested.vmcb = kvm_state->hdr.svm.vmcb_pa;
+	load_nested_vmcb_control(svm, &ctl);
+	nested_prepare_vmcb_control(svm);
+
+out_set_gif:
+	svm_set_gif(svm, !!(kvm_state->flags & KVM_STATE_NESTED_GIF_SET));
+	return 0;
+}
+
 struct kvm_x86_nested_ops svm_nested_ops = {
 	.check_events = svm_check_nested_events,
+	.get_state = svm_get_nested_state,
+	.set_state = svm_set_nested_state,
 };

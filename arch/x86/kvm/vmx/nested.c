@@ -437,11 +437,6 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
-{
-	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
-}
-
 static int nested_vmx_check_io_bitmap_controls(struct kvm_vcpu *vcpu,
 					       struct vmcs12 *vmcs12)
 {
