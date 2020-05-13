@@ -3694,7 +3694,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	struct bpf_verifier_log *log = info->log;
 	const struct btf_param *args;
 	u32 nr_args, arg;
-	int ret;
+	int i, ret;
 
 	if (off % 8) {
 		bpf_log(log, "func '%s' offset %d is not multiple of 8\n",
@@ -3790,10 +3790,15 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		return true;
 
 	/* this is a pointer to another type */
-	if (off != 0 && prog->aux->btf_id_or_null_non0_off)
-		info->reg_type = PTR_TO_BTF_ID_OR_NULL;
-	else
-		info->reg_type = PTR_TO_BTF_ID;
+	info->reg_type = PTR_TO_BTF_ID;
+	for (i = 0; i < prog->aux->ctx_arg_info_size; i++) {
+		const struct bpf_ctx_arg_aux *ctx_arg_info = &prog->aux->ctx_arg_info[i];
+
+		if (ctx_arg_info->offset == off) {
+			info->reg_type = ctx_arg_info->reg_type;
+			break;
+		}
+	}
 
 	if (tgt_prog) {
 		ret = btf_translate_to_vmlinux(log, btf, t, tgt_prog->type, arg);

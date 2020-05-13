@@ -8,11 +8,7 @@
 
 struct bpf_iter_target_info {
 	struct list_head list;
-	const char *target;
-	const struct seq_operations *seq_ops;
-	bpf_iter_init_seq_priv_t init_seq_private;
-	bpf_iter_fini_seq_priv_t fini_seq_private;
-	u32 seq_priv_size;
+	const struct bpf_iter_reg *reg_info;
 	u32 btf_id;	/* cached value */
 };
 
@@ -222,8 +218,8 @@ static int iter_release(struct inode *inode, struct file *file)
 	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
 				 target_private);
 
-	if (iter_priv->tinfo->fini_seq_private)
-		iter_priv->tinfo->fini_seq_private(seq->private);
+	if (iter_priv->tinfo->reg_info->fini_seq_private)
+		iter_priv->tinfo->reg_info->fini_seq_private(seq->private);
 
 	bpf_prog_put(iter_priv->prog);
 	seq->private = iter_priv;
@@ -238,7 +234,12 @@ const struct file_operations bpf_iter_fops = {
 	.release	= iter_release,
 };
 
-int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
+/* The argument reg_info will be cached in bpf_iter_target_info.
+ * The common practice is to declare target reg_info as
+ * a const static variable and passed as an argument to
+ * bpf_iter_reg_target().
+ */
+int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 
@@ -246,11 +247,7 @@ int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
 	if (!tinfo)
 		return -ENOMEM;
 
-	tinfo->target = reg_info->target;
-	tinfo->seq_ops = reg_info->seq_ops;
-	tinfo->init_seq_private = reg_info->init_seq_private;
-	tinfo->fini_seq_private = reg_info->fini_seq_private;
-	tinfo->seq_priv_size = reg_info->seq_priv_size;
+	tinfo->reg_info = reg_info;
 	INIT_LIST_HEAD(&tinfo->list);
 
 	mutex_lock(&targets_mutex);
@@ -260,14 +257,14 @@ int bpf_iter_reg_target(struct bpf_iter_reg *reg_info)
 	return 0;
 }
 
-void bpf_iter_unreg_target(const char *target)
+void bpf_iter_unreg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 	bool found = false;
 
 	mutex_lock(&targets_mutex);
 	list_for_each_entry(tinfo, &targets, list) {
-		if (!strcmp(target, tinfo->target)) {
+		if (reg_info == tinfo->reg_info) {
 			list_del(&tinfo->list);
 			kfree(tinfo);
 			found = true;
@@ -303,13 +300,18 @@ bool bpf_iter_prog_supported(struct bpf_prog *prog)
 			supported = true;
 			break;
 		}
-		if (!strcmp(attach_fname + prefix_len, tinfo->target)) {
+		if (!strcmp(attach_fname + prefix_len, tinfo->reg_info->target)) {
 			cache_btf_id(tinfo, prog);
 			supported = true;
 			break;
 		}
 	}
 	mutex_unlock(&targets_mutex);
+
+	if (supported) {
+		prog->aux->ctx_arg_info_size = tinfo->reg_info->ctx_arg_info_size;
+		prog->aux->ctx_arg_info = tinfo->reg_info->ctx_arg_info;
+	}
 
 	return supported;
 }
@@ -431,15 +433,16 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
 
 	tinfo = link->tinfo;
 	total_priv_dsize = offsetof(struct bpf_iter_priv_data, target_private) +
-			   tinfo->seq_priv_size;
-	priv_data = __seq_open_private(file, tinfo->seq_ops, total_priv_dsize);
+			   tinfo->reg_info->seq_priv_size;
+	priv_data = __seq_open_private(file, tinfo->reg_info->seq_ops,
+				       total_priv_dsize);
 	if (!priv_data) {
 		err = -ENOMEM;
 		goto release_prog;
 	}
 
-	if (tinfo->init_seq_private) {
-		err = tinfo->init_seq_private(priv_data->target_private);
+	if (tinfo->reg_info->init_seq_private) {
+		err = tinfo->reg_info->init_seq_private(priv_data->target_private);
 		if (err)
 			goto release_seq_file;
 	}
@@ -526,5 +529,11 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 	migrate_enable();
 	rcu_read_unlock();
 
+	/* bpf program can only return 0 or 1:
+	 *  0 : okay
+	 *  1 : retry the same object
+	 * The bpf_iter_run_prog() return value
+	 * will be seq_ops->show() return value.
+	 */
 	return ret == 0 ? 0 : -EAGAIN;
 }

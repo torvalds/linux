@@ -81,17 +81,22 @@ static const struct seq_operations bpf_map_seq_ops = {
 	.show	= bpf_map_seq_show,
 };
 
+static const struct bpf_iter_reg bpf_map_reg_info = {
+	.target			= "bpf_map",
+	.seq_ops		= &bpf_map_seq_ops,
+	.init_seq_private	= NULL,
+	.fini_seq_private	= NULL,
+	.seq_priv_size		= sizeof(struct bpf_iter_seq_map_info),
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__bpf_map, map),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
+};
+
 static int __init bpf_map_iter_init(void)
 {
-	struct bpf_iter_reg reg_info = {
-		.target			= "bpf_map",
-		.seq_ops		= &bpf_map_seq_ops,
-		.init_seq_private	= NULL,
-		.fini_seq_private	= NULL,
-		.seq_priv_size		= sizeof(struct bpf_iter_seq_map_info),
-	};
-
-	return bpf_iter_reg_target(&reg_info);
+	return bpf_iter_reg_target(&bpf_map_reg_info);
 }
 
 late_initcall(bpf_map_iter_init);

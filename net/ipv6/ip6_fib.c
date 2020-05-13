@@ -2638,11 +2638,6 @@ static void ipv6_route_native_seq_stop(struct seq_file *seq, void *v)
 }
 
 #if IS_BUILTIN(CONFIG_IPV6) && defined(CONFIG_BPF_SYSCALL)
-struct bpf_iter__ipv6_route {
-	__bpf_md_ptr(struct bpf_iter_meta *, meta);
-	__bpf_md_ptr(struct fib6_info *, rt);
-};
-
 static int ipv6_route_prog_seq_show(struct bpf_prog *prog,
 				    struct bpf_iter_meta *meta,
 				    void *v)

@@ -2803,17 +2803,22 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 };
 
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+static const struct bpf_iter_reg netlink_reg_info = {
+	.target			= "netlink",
+	.seq_ops		= &netlink_seq_ops,
+	.init_seq_private	= bpf_iter_init_seq_net,
+	.fini_seq_private	= bpf_iter_fini_seq_net,
+	.seq_priv_size		= sizeof(struct nl_seq_iter),
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__netlink, sk),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
+};
+
 static int __init bpf_iter_register(void)
 {
-	struct bpf_iter_reg reg_info = {
-		.target			= "netlink",
-		.seq_ops		= &netlink_seq_ops,
-		.init_seq_private	= bpf_iter_init_seq_net,
-		.fini_seq_private	= bpf_iter_fini_seq_net,
-		.seq_priv_size		= sizeof(struct nl_seq_iter),
-	};
-
-	return bpf_iter_reg_target(&reg_info);
+	return bpf_iter_reg_target(&netlink_reg_info);
 }
 #endif
 
