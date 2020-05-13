@@ -25,6 +25,12 @@ enum {
 	LO_FLAGS_DIRECT_IO	= 16,
 };
 
+/* LO_FLAGS that can be set using LOOP_SET_STATUS(64) */
+#define LOOP_SET_STATUS_SETTABLE_FLAGS (LO_FLAGS_AUTOCLEAR | LO_FLAGS_PARTSCAN)
+
+/* LO_FLAGS that can be cleared using LOOP_SET_STATUS(64) */
+#define LOOP_SET_STATUS_CLEARABLE_FLAGS (LO_FLAGS_AUTOCLEAR)
+
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
 #include <linux/types.h>	/* for __u64 */
 
@@ -37,7 +43,7 @@ struct loop_info {
 	int		   lo_offset;
 	int		   lo_encrypt_type;
 	int		   lo_encrypt_key_size; 	/* ioctl w/o */
-	int		   lo_flags;			/* ioctl r/o */
+	int		   lo_flags;
 	char		   lo_name[LO_NAME_SIZE];
 	unsigned char	   lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
 	unsigned long	   lo_init[2];
@@ -53,7 +59,7 @@ struct loop_info64 {
 	__u32		   lo_number;			/* ioctl r/o */
 	__u32		   lo_encrypt_type;
 	__u32		   lo_encrypt_key_size;		/* ioctl w/o */
-	__u32		   lo_flags;			/* ioctl r/o */
+	__u32		   lo_flags;
 	__u8		   lo_file_name[LO_NAME_SIZE];
 	__u8		   lo_crypt_name[LO_NAME_SIZE];
 	__u8		   lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
