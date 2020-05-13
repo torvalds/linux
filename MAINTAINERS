@@ -7811,7 +7811,7 @@ F:	Documentation/devicetree/bindings/iio/humidity/hts221.txt
 F:	drivers/iio/humidity/hts221*
 
 HUAWEI ETHERNET DRIVER
-M:	Aviad Krawczyk <aviad.krawczyk@huawei.com>
+M:	Bin Luo <luobin9@huawei.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/hinic.rst
