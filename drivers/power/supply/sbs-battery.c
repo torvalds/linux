@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/of_device.h>
 #include <linux/power/sbs-battery.h>
 #include <linux/power_supply.h>
@@ -1016,7 +1016,7 @@ static int sbs_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
-	chip->flags = (u32)(uintptr_t)of_device_get_match_data(&client->dev);
+	chip->flags = (u32)(uintptr_t)device_get_match_data(&client->dev);
 	chip->client = client;
 	chip->enable_detection = false;
 	psy_cfg.of_node = client->dev.of_node;
@@ -1027,13 +1027,13 @@ static int sbs_probe(struct i2c_client *client,
 	/* use pdata if available, fall back to DT properties,
 	 * or hardcoded defaults if not
 	 */
-	rc = of_property_read_u32(client->dev.of_node, "sbs,i2c-retry-count",
-				  &chip->i2c_retry_count);
+	rc = device_property_read_u32(&client->dev, "sbs,i2c-retry-count",
+				      &chip->i2c_retry_count);
 	if (rc)
 		chip->i2c_retry_count = 0;
 
-	rc = of_property_read_u32(client->dev.of_node, "sbs,poll-retry-count",
-				  &chip->poll_retry_count);
+	rc = device_property_read_u32(&client->dev, "sbs,poll-retry-count",
+				      &chip->poll_retry_count);
 	if (rc)
 		chip->poll_retry_count = 0;
 
@@ -1043,7 +1043,7 @@ static int sbs_probe(struct i2c_client *client,
 	}
 	chip->i2c_retry_count = chip->i2c_retry_count + 1;
 
-	chip->charger_broadcasts = !of_property_read_bool(client->dev.of_node,
+	chip->charger_broadcasts = !device_property_read_bool(&client->dev,
 					"sbs,disable-charger-broadcasts");
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
