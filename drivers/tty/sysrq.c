@@ -172,6 +172,8 @@ static struct sysrq_key_op sysrq_reboot_op = {
 	.enable_mask	= SYSRQ_ENABLE_BOOT,
 };
 
+struct sysrq_key_op *__sysrq_reboot_op = &sysrq_reboot_op;
+
 static void sysrq_handle_sync(int key)
 {
 	emergency_sync();
@@ -516,7 +518,7 @@ static int sysrq_key_table_key2index(int key)
 /*
  * get and put functions for the table, exposed to modules.
  */
-struct sysrq_key_op *__sysrq_get_key_op(int key)
+static struct sysrq_key_op *__sysrq_get_key_op(int key)
 {
         struct sysrq_key_op *op_p = NULL;
         int i;
