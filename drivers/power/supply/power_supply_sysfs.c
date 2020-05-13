@@ -100,6 +100,7 @@ static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
 	[POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE] = "Watchdog timer expire",
 	[POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE]   = "Safety timer expire",
 	[POWER_SUPPLY_HEALTH_OVERCURRENT]	    = "Over current",
+	[POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED]  = "Calibration required",
 };
 
 static const char * const POWER_SUPPLY_TECHNOLOGY_TEXT[] = {
