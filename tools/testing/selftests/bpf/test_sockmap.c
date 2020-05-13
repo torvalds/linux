@@ -107,6 +107,7 @@ static const struct option long_options[] = {
 	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
 	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
+	{"whitelist", required_argument,	NULL, 'n' },
 	{0, 0, NULL, 0 }
 };
 
@@ -387,6 +388,7 @@ struct sockmap_options {
 	int iov_length;
 	int rate;
 	char *map;
+	char *whitelist;
 };
 
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
@@ -1621,6 +1623,24 @@ struct _test test[] = {
 	{"txmsg test push/pop data", test_txmsg_push_pop},
 };
 
+static int check_whitelist(struct _test *t, struct sockmap_options *opt)
+{
+	char *entry, *ptr;
+
+	if (!opt->whitelist)
+		return 0;
+	ptr = strdup(opt->whitelist);
+	if (!ptr)
+		return -ENOMEM;
+	entry = strtok(ptr, ",");
+	while (entry) {
+		if (strstr(opt->map, entry) != 0 || strstr(t->title, entry) != 0)
+			return 0;
+		entry = strtok(NULL, ",");
+	}
+	return -EINVAL;
+}
+
 static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 {
 	int i, err;
@@ -1634,6 +1654,9 @@ static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 	/* Tests basic commands and APIs */
 	for (i = 0; i < sizeof(test)/sizeof(struct _test); i++) {
 		struct _test t = test[i];
+
+		if (check_whitelist(&t, opt) < 0)
+			continue;
 
 		test_start_subtest(t.title, opt->map);
 		t.tester(cg_fd, opt);
@@ -1673,7 +1696,7 @@ int main(int argc, char **argv)
 	int test = SELFTESTS;
 	bool cg_created = 0;
 
-	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:",
+	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:n:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1742,6 +1765,10 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			break;
+		case 'n':
+			options.whitelist = strdup(optarg);
+			if (!options.whitelist)
+				return -ENOMEM;
 		case 0:
 			break;
 		case 'h':
@@ -1794,6 +1821,8 @@ int main(int argc, char **argv)
 
 	err = run_options(&options, cg_fd, test);
 out:
+	if (options.whitelist)
+		free(options.whitelist);
 	if (cg_created)
 		cleanup_cgroup_environment();
 	close(cg_fd);
