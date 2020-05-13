@@ -23,6 +23,7 @@
 
 enum {
 	REG_MANUFACTURER_DATA,
+	REG_BATTERY_MODE,
 	REG_TEMPERATURE,
 	REG_VOLTAGE,
 	REG_CURRENT_NOW,
@@ -94,6 +95,8 @@ static const struct chip_data {
 } sbs_data[] = {
 	[REG_MANUFACTURER_DATA] =
 		SBS_DATA(POWER_SUPPLY_PROP_PRESENT, 0x00, 0, 65535),
+	[REG_BATTERY_MODE] =
+		SBS_DATA(-1, 0x03, 0, 65535),
 	[REG_TEMPERATURE] =
 		SBS_DATA(POWER_SUPPLY_PROP_TEMP, 0x08, 0, 65535),
 	[REG_VOLTAGE] =
@@ -366,6 +369,17 @@ static int sbs_status_correct(struct i2c_client *client, int *intval)
 	return 0;
 }
 
+static bool sbs_bat_needs_calibration(struct i2c_client *client)
+{
+	int ret;
+
+	ret = sbs_read_word_data(client, sbs_data[REG_BATTERY_MODE].addr);
+	if (ret < 0)
+		return false;
+
+	return !!(ret & BIT(7));
+}
+
 static int sbs_get_battery_presence_and_health(
 	struct i2c_client *client, enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -385,9 +399,14 @@ static int sbs_get_battery_presence_and_health(
 
 	if (psp == POWER_SUPPLY_PROP_PRESENT)
 		val->intval = 1; /* battery present */
-	else /* POWER_SUPPLY_PROP_HEALTH */
-		/* SBS spec doesn't have a general health command. */
-		val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+	else { /* POWER_SUPPLY_PROP_HEALTH */
+		if (sbs_bat_needs_calibration(client)) {
+			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+		} else {
+			/* SBS spec doesn't have a general health command. */
+			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+		}
+	}
 
 	return 0;
 }
@@ -441,6 +460,8 @@ static int sbs_get_ti_battery_presence_and_health(
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
 		else if (ret == 0x0C)
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
+		else if (sbs_bat_needs_calibration(client))
+			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 	}
