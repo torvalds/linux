@@ -40,6 +40,7 @@ enum bch_write_flags {
 	/* Internal: */
 	BCH_WRITE_JOURNAL_SEQ_PTR	= (1 << 10),
 	BCH_WRITE_SKIP_CLOSURE_PUT	= (1 << 11),
+	BCH_WRITE_DONE			= (1 << 12),
 };
 
 static inline u64 *op_journal_seq(struct bch_write_op *op)
