@@ -243,11 +243,6 @@ static irqreturn_t dummy_irq2_handler(int _, void *dev)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq2_action = {
-	.handler = dummy_irq2_handler,
-	.name = "cascade",
-};
-
 static void init_eisa_pic(void)
 {
 	unsigned long flags;
@@ -335,7 +330,8 @@ static int __init eisa_probe(struct parisc_device *dev)
 	}
 
 	/* Reserve IRQ2 */
-	setup_irq(2, &irq2_action);
+	if (request_irq(2, dummy_irq2_handler, 0, "cascade", NULL))
+		pr_err("Failed to request irq 2 (cascade)\n");
 	for (i = 0; i < 16; i++) {
 		irq_set_chip_and_handler(i, &eisa_interrupt_type,
 					 handle_simple_irq);

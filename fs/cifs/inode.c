@@ -61,7 +61,7 @@ static void cifs_set_ops(struct inode *inode)
 		}
 
 		/* check if server can support readpages */
-		if (cifs_sb_master_tcon(cifs_sb)->ses->server->maxBuf <
+		if (cifs_sb_master_tcon(cifs_sb)->ses->server->max_read <
 				PAGE_SIZE + MAX_CIFS_HDR_SIZE)
 			inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 		else
@@ -2025,6 +2025,10 @@ cifs_revalidate_mapping(struct inode *inode)
 {
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
+
+	/* swapfiles are not supposed to be shared */
+	if (IS_SWAPFILE(inode))
+		return 0;
 
 	rc = wait_on_bit_lock_action(flags, CIFS_INO_LOCK, cifs_wait_bit_killable,
 				     TASK_KILLABLE);

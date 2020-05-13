@@ -320,7 +320,7 @@ int xen_pcibk_get_interrupt_type(struct pci_dev *dev)
 		if (val & PCI_MSIX_FLAGS_ENABLE)
 			ret |= INTERRUPT_TYPE_MSIX;
 	}
-	return ret;
+	return ret ?: INTERRUPT_TYPE_NONE;
 }
 
 void xen_pcibk_config_free_dyn_fields(struct pci_dev *dev)

@@ -3654,7 +3654,7 @@ static bool __init blogic_parse(char **str, char *keyword)
   selected host adapter.
 
   The BusLogic Driver Probing Options are described in
-  <file:Documentation/scsi/BusLogic.txt>.
+  <file:Documentation/scsi/BusLogic.rst>.
 */
 
 static int __init blogic_parseopts(char *options)

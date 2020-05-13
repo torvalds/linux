@@ -85,6 +85,8 @@ struct trace_iterator {
 	struct mutex		mutex;
 	struct ring_buffer_iter	**buffer_iter;
 	unsigned long		iter_flags;
+	void			*temp;	/* temp holder */
+	unsigned int		temp_size;
 
 	/* trace_seq for __print_flags() and __print_symbolic() etc. */
 	struct trace_seq	tmp_seq;

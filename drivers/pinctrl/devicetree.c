@@ -103,6 +103,7 @@ struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 {
 	return get_pinctrl_dev_from_of_node(np);
 }
+EXPORT_SYMBOL_GPL(of_pinctrl_get);
 
 static int dt_to_map_one_config(struct pinctrl *p,
 				struct pinctrl_dev *hog_pctldev,

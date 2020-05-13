@@ -883,8 +883,8 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
 	/* this prevents anyone from attaching or migrating to this blkcg */
 	wb_blkcg_offline(blkcg);
 
-	/* put the base cgwb reference allowing step 2 to be triggered */
-	blkcg_cgwb_put(blkcg);
+	/* put the base online pin allowing step 2 to be triggered */
+	blkcg_unpin_online(blkcg);
 }
 
 /**
@@ -983,11 +983,11 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	}
 
 	spin_lock_init(&blkcg->lock);
+	refcount_set(&blkcg->online_pin, 1);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT | __GFP_NOWARN);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
-	refcount_set(&blkcg->cgwb_refcnt, 1);
 #endif
 	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
 
@@ -1004,6 +1004,21 @@ free_pd_blkcg:
 unlock:
 	mutex_unlock(&blkcg_pol_mutex);
 	return ret;
+}
+
+static int blkcg_css_online(struct cgroup_subsys_state *css)
+{
+	struct blkcg *blkcg = css_to_blkcg(css);
+	struct blkcg *parent = blkcg_parent(blkcg);
+
+	/*
+	 * blkcg_pin_online() is used to delay blkcg offline so that blkgs
+	 * don't go offline while cgwbs are still active on them.  Pin the
+	 * parent so that offline always happens towards the root.
+	 */
+	if (parent)
+		blkcg_pin_online(parent);
+	return 0;
 }
 
 /**
@@ -1199,6 +1214,7 @@ static void blkcg_exit(struct task_struct *tsk)
 
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
+	.css_online = blkcg_css_online,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,

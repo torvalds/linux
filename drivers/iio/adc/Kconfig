@@ -795,6 +795,16 @@ config RCAR_GYRO_ADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rcar-gyroadc.
 
+config RN5T618_ADC
+	tristate "ADC for the RN5T618/RC5T619 family of chips"
+	depends on MFD_RN5T618
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  RN5T618/619 series PMICs:
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rn5t618-adc.
+
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)

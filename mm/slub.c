@@ -449,6 +449,7 @@ static DEFINE_SPINLOCK(object_map_lock);
  * not vanish from under us.
  */
 static unsigned long *get_map(struct kmem_cache *s, struct page *page)
+	__acquires(&object_map_lock)
 {
 	void *p;
 	void *addr = page_address(page);
@@ -465,7 +466,7 @@ static unsigned long *get_map(struct kmem_cache *s, struct page *page)
 	return object_map;
 }
 
-static void put_map(unsigned long *map)
+static void put_map(unsigned long *map) __releases(&object_map_lock)
 {
 	VM_BUG_ON(map != object_map);
 	lockdep_assert_held(&object_map_lock);

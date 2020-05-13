@@ -4,6 +4,8 @@
  * Copyright (c) 2020, Red Hat, Inc.
  */
 
+#define pr_fmt(fmt) "MPTCP: " fmt
+
 #include <linux/inet.h>
 #include <linux/kernel.h>
 #include <net/tcp.h>

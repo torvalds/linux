@@ -35,6 +35,7 @@
 #include "vega20_ppt.h"
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
+#include "nbio/nbio_7_4_offset.h"
 #include "nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -3174,6 +3175,17 @@ static int vega20_update_pcie_parameters(struct smu_context *smu,
 	return ret;
 }
 
+static bool vega20_is_baco_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val;
+
+	if (!smu_v11_0_baco_is_support(smu))
+		return false;
+
+	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
+}
 
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
@@ -3262,7 +3274,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= smu_v11_0_baco_is_support,
+	.baco_is_support= vega20_is_baco_supported,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_enter = smu_v11_0_baco_enter,

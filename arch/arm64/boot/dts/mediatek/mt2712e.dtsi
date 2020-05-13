@@ -278,7 +278,7 @@
 		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	scpsys: scpsys@10006000 {
+	scpsys: power-controller@10006000 {
 		compatible = "mediatek,mt2712-scpsys", "syscon";
 		#power-domain-cells = <1>;
 		reg = <0 0x10006000 0 0x1000>;
@@ -301,6 +301,12 @@
 		clocks = <&baud_clk>, <&sys_clk>;
 		clock-names = "baud", "bus";
 		status = "disabled";
+	};
+
+	rtc: rtc@10011000 {
+		compatible = "mediatek,mt2712-rtc";
+		reg = <0 0x10011000 0 0x1000>;
+		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	spis1: spi@10013000 {

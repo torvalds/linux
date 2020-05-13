@@ -48,7 +48,7 @@ void ipv6_rpl_srh_decompress(struct ipv6_rpl_sr_hdr *outhdr,
 	outhdr->cmpri = 0;
 	outhdr->cmpre = 0;
 
-	for (i = 0; i <= n; i++)
+	for (i = 0; i < n; i++)
 		ipv6_rpl_addr_decompress(&outhdr->rpl_segaddr[i], daddr,
 					 ipv6_rpl_segdata_pos(inhdr, i),
 					 inhdr->cmpri);
@@ -66,7 +66,7 @@ static unsigned char ipv6_rpl_srh_calc_cmpri(const struct ipv6_rpl_sr_hdr *inhdr
 	int i;
 
 	for (plen = 0; plen < sizeof(*daddr); plen++) {
-		for (i = 0; i <= n; i++) {
+		for (i = 0; i < n; i++) {
 			if (daddr->s6_addr[plen] !=
 			    inhdr->rpl_segaddr[i].s6_addr[plen])
 				return plen;
@@ -114,7 +114,7 @@ void ipv6_rpl_srh_compress(struct ipv6_rpl_sr_hdr *outhdr,
 	outhdr->cmpri = cmpri;
 	outhdr->cmpre = cmpre;
 
-	for (i = 0; i <= n; i++)
+	for (i = 0; i < n; i++)
 		ipv6_rpl_addr_compress(ipv6_rpl_segdata_pos(outhdr, i),
 				       &inhdr->rpl_segaddr[i], cmpri);
 

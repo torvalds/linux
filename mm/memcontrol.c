@@ -2254,7 +2254,8 @@ static void reclaim_high(struct mem_cgroup *memcg,
 			continue;
 		memcg_memory_event(memcg, MEMCG_HIGH);
 		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
-	} while ((memcg = parent_mem_cgroup(memcg)));
+	} while ((memcg = parent_mem_cgroup(memcg)) &&
+		 !mem_cgroup_is_root(memcg));
 }
 
 static void high_work_func(struct work_struct *work)
@@ -2334,6 +2335,9 @@ static unsigned long calculate_high_delay(struct mem_cgroup *memcg,
 
 		usage = page_counter_read(&memcg->memory);
 		high = READ_ONCE(memcg->high);
+
+		if (usage <= high)
+			continue;
 
 		/*
 		 * Prevent division by 0 in overage calculation by acting as if
@@ -5812,7 +5816,7 @@ retry:
 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
 		case MC_TARGET_DEVICE:
 			device = true;
-			/* fall through */
+			fallthrough;
 		case MC_TARGET_PAGE:
 			page = target.page;
 			/*

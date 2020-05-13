@@ -62,6 +62,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   - |
     serial@84c0 {

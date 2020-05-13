@@ -40,7 +40,7 @@ static int token_used __read_mostly;
 
 /**
  * mptcp_token_new_request - create new key/idsn/token for subflow_request
- * @req - the request socket
+ * @req: the request socket
  *
  * This function is called when a new mptcp connection is coming in.
  *
@@ -80,7 +80,7 @@ int mptcp_token_new_request(struct request_sock *req)
 
 /**
  * mptcp_token_new_connect - create new key/idsn/token for subflow
- * @sk - the socket that will initiate a connection
+ * @sk: the socket that will initiate a connection
  *
  * This function is called when a new outgoing mptcp connection is
  * initiated.
@@ -125,6 +125,7 @@ int mptcp_token_new_connect(struct sock *sk)
 /**
  * mptcp_token_new_accept - insert token for later processing
  * @token: the token to insert to the tree
+ * @conn: the just cloned socket linked to the new connection
  *
  * Called when a SYN packet creates a new logical connection, i.e.
  * is not a join request.
@@ -169,7 +170,7 @@ struct mptcp_sock *mptcp_token_get_sock(u32 token)
 
 /**
  * mptcp_token_destroy_request - remove mptcp connection/token
- * @token - token of mptcp connection to remove
+ * @token: token of mptcp connection to remove
  *
  * Remove not-yet-fully-established incoming connection identified
  * by @token.
@@ -183,7 +184,7 @@ void mptcp_token_destroy_request(u32 token)
 
 /**
  * mptcp_token_destroy - remove mptcp connection/token
- * @token - token of mptcp connection to remove
+ * @token: token of mptcp connection to remove
  *
  * Remove the connection identified by @token.
  */

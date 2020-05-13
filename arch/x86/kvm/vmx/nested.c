@@ -5236,7 +5236,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 		roots_to_free = KVM_MMU_ROOTS_ALL;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 

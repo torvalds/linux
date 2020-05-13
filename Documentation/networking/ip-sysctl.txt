@@ -812,7 +812,7 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 100
+	Default: 1000
 
 tcp_rx_skb_cache - BOOLEAN
 	Controls a per TCP socket cache of one skb, that might help

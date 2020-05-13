@@ -56,7 +56,7 @@ properties:
   port:
     type: object
     description:
-      Port as described in Documentation/devictree/bindings/graph.txt.
+      Port as described in Documentation/devicetree/bindings/graph.txt.
       The DSS DPI output port node
 
   max-memory-bandwidth:
@@ -81,7 +81,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    dss: dss@02540000 {
+    dss: dss@2540000 {
             compatible = "ti,k2g-dss";
             reg =   <0x02540000 0x400>,
                     <0x02550000 0x1000>,

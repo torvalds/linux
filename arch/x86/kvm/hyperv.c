@@ -1426,7 +1426,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 	 * analyze it here, flush TLB regardless of the specified address space.
 	 */
 	kvm_make_vcpus_request_mask(kvm, KVM_REQ_HV_TLB_FLUSH,
-				    vcpu_mask, &hv_vcpu->tlb_flush);
+				    NULL, vcpu_mask, &hv_vcpu->tlb_flush);
 
 ret_success:
 	/* We always do full TLB flush, set rep_done = rep_cnt. */

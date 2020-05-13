@@ -38,6 +38,7 @@ TARGETS += net/mptcp
 TARGETS += netfilter
 TARGETS += nsfs
 TARGETS += pidfd
+TARGETS += pid_namespace
 TARGETS += powerpc
 TARGETS += proc
 TARGETS += pstore

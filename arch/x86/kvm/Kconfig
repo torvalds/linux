@@ -107,8 +107,4 @@ config KVM_MMU_AUDIT
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
 
-# OK, it's a little counter-intuitive to do this, but it puts it neatly under
-# the virtualization menu.
-source "drivers/vhost/Kconfig"
-
 endif # VIRTUALIZATION

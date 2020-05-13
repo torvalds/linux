@@ -4,7 +4,7 @@
  * Copyright (C) 2009 Nokia Corporation
  * Author: Juha Yrjola <juha.yrjola@solidboot.com>
  *
- * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2013 Pali Rohár <pali@kernel.org>
  *
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -178,5 +178,5 @@ module_platform_driver(omap3_rom_rng_driver);
 
 MODULE_ALIAS("platform:omap3-rom-rng");
 MODULE_AUTHOR("Juha Yrjola");
-MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
+MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
 MODULE_LICENSE("GPL");

@@ -177,9 +177,7 @@ static int s10_clk_register_c_perip(const struct stratix10_perip_c_clock *clks,
 	int i;
 
 	for (i = 0; i < nums; i++) {
-		clk = s10_register_periph(clks[i].name, clks[i].parent_name,
-					  clks[i].parent_names, clks[i].num_parents,
-					  clks[i].flags, base, clks[i].offset);
+		clk = s10_register_periph(&clks[i], base);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
@@ -198,14 +196,7 @@ static int s10_clk_register_cnt_perip(const struct stratix10_perip_cnt_clock *cl
 	int i;
 
 	for (i = 0; i < nums; i++) {
-		clk = s10_register_cnt_periph(clks[i].name, clks[i].parent_name,
-					      clks[i].parent_names,
-					      clks[i].num_parents,
-					      clks[i].flags, base,
-					      clks[i].offset,
-					      clks[i].fixed_divider,
-					      clks[i].bypass_reg,
-					      clks[i].bypass_shift);
+		clk = s10_register_cnt_periph(&clks[i], base);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
@@ -225,16 +216,7 @@ static int s10_clk_register_gate(const struct stratix10_gate_clock *clks,
 	int i;
 
 	for (i = 0; i < nums; i++) {
-		clk = s10_register_gate(clks[i].name, clks[i].parent_name,
-					clks[i].parent_names,
-					clks[i].num_parents,
-					clks[i].flags, base,
-					clks[i].gate_reg,
-					clks[i].gate_idx, clks[i].div_reg,
-					clks[i].div_offset, clks[i].div_width,
-					clks[i].bypass_reg,
-					clks[i].bypass_shift,
-					clks[i].fixed_div);
+		clk = s10_register_gate(&clks[i], base);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
@@ -254,10 +236,7 @@ static int s10_clk_register_pll(const struct stratix10_pll_clock *clks,
 	int i;
 
 	for (i = 0; i < nums; i++) {
-		clk = s10_register_pll(clks[i].name, clks[i].parent_names,
-				    clks[i].num_parents,
-				    clks[i].flags, base,
-				    clks[i].offset);
+		clk = s10_register_pll(&clks[i], base);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);

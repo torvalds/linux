@@ -54,10 +54,26 @@ extern int sof_core_debug;
 	(IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE) || \
 	 IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST))
 
-/* DSP D0ix sub-state */
-enum sof_d0_substate {
-	SOF_DSP_D0I0 = 0,	/* DSP default D0 substate */
-	SOF_DSP_D0I3,		/* DSP D0i3(low power) substate*/
+/* DSP power state */
+enum sof_dsp_power_states {
+	SOF_DSP_PM_D0,
+	SOF_DSP_PM_D1,
+	SOF_DSP_PM_D2,
+	SOF_DSP_PM_D3_HOT,
+	SOF_DSP_PM_D3,
+	SOF_DSP_PM_D3_COLD,
+};
+
+struct sof_dsp_power_state {
+	u32 state;
+	u32 substate; /* platform-specific */
+};
+
+/* System suspend target state */
+enum sof_system_suspend_state {
+	SOF_SUSPEND_NONE = 0,
+	SOF_SUSPEND_S0IX,
+	SOF_SUSPEND_S3,
 };
 
 struct snd_sof_dev;
@@ -154,6 +170,27 @@ struct snd_sof_dsp_ops {
 	snd_pcm_uframes_t (*pcm_pointer)(struct snd_sof_dev *sdev,
 					 struct snd_pcm_substream *substream); /* optional */
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
+	/* Except for probe_pointer, all probe ops are mandatory */
+	int (*probe_assign)(struct snd_sof_dev *sdev,
+			struct snd_compr_stream *cstream,
+			struct snd_soc_dai *dai); /* mandatory */
+	int (*probe_free)(struct snd_sof_dev *sdev,
+			struct snd_compr_stream *cstream,
+			struct snd_soc_dai *dai); /* mandatory */
+	int (*probe_set_params)(struct snd_sof_dev *sdev,
+			struct snd_compr_stream *cstream,
+			struct snd_compr_params *params,
+			struct snd_soc_dai *dai); /* mandatory */
+	int (*probe_trigger)(struct snd_sof_dev *sdev,
+			struct snd_compr_stream *cstream, int cmd,
+			struct snd_soc_dai *dai); /* mandatory */
+	int (*probe_pointer)(struct snd_sof_dev *sdev,
+			struct snd_compr_stream *cstream,
+			struct snd_compr_tstamp *tstamp,
+			struct snd_soc_dai *dai); /* optional */
+#endif
+
 	/* host read DSP stream data */
 	void (*ipc_msg_data)(struct snd_sof_dev *sdev,
 			     struct snd_pcm_substream *substream,
@@ -169,14 +206,15 @@ struct snd_sof_dsp_ops {
 	int (*post_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP PM */
-	int (*suspend)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*suspend)(struct snd_sof_dev *sof_dev,
+		       u32 target_state); /* optional */
 	int (*resume)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*runtime_suspend)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*runtime_resume)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*runtime_idle)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*set_hw_params_upon_resume)(struct snd_sof_dev *sdev); /* optional */
 	int (*set_power_state)(struct snd_sof_dev *sdev,
-			       enum sof_d0_substate d0_substate); /* optional */
+			       const struct sof_dsp_power_state *target_state); /* optional */
 
 	/* DSP clocking */
 	int (*set_clk)(struct snd_sof_dev *sof_dev, u32 freq); /* optional */
@@ -323,10 +361,11 @@ struct snd_sof_dev {
 	 */
 	struct snd_soc_component_driver plat_drv;
 
-	/* power states related */
-	enum sof_d0_substate d0_substate;
-	/* flag to track if the intended power target of suspend is S0ix */
-	bool s0_suspend;
+	/* current DSP power state */
+	struct sof_dsp_power_state dsp_power_state;
+
+	/* Intended power target of system suspend */
+	enum sof_system_suspend_state system_suspend_target;
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
@@ -376,16 +415,15 @@ struct snd_sof_dev {
 	u32 enabled_cores_mask; /* keep track of enabled cores */
 
 	/* FW configuration */
-	struct sof_ipc_dma_buffer_data *info_buffer;
 	struct sof_ipc_window *info_window;
 
 	/* IPC timeouts in ms */
 	int ipc_timeout;
 	int boot_timeout;
 
-	/* Wait queue for code loading */
-	wait_queue_head_t waitq;
-	int code_loading;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
+	unsigned int extractor_stream_tag;
+#endif
 
 	/* DMA for Trace */
 	struct snd_dma_buffer dmatb;
@@ -417,8 +455,6 @@ int snd_sof_resume(struct device *dev);
 int snd_sof_suspend(struct device *dev);
 int snd_sof_prepare(struct device *dev);
 void snd_sof_complete(struct device *dev);
-int snd_sof_set_d0_substate(struct snd_sof_dev *sdev,
-			    enum sof_d0_substate d0_substate);
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
 
@@ -454,6 +490,9 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev);
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		       void *msg_data, size_t msg_bytes, void *reply_data,
 		       size_t reply_bytes);
+int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
+			     void *msg_data, size_t msg_bytes,
+			     void *reply_data, size_t reply_bytes);
 
 /*
  * Trace/debug

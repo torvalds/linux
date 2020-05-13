@@ -138,6 +138,10 @@ source "drivers/virt/Kconfig"
 
 source "drivers/virtio/Kconfig"
 
+source "drivers/vdpa/Kconfig"
+
+source "drivers/vhost/Kconfig"
+
 source "drivers/hv/Kconfig"
 
 source "drivers/xen/Kconfig"
@@ -199,6 +203,8 @@ source "drivers/ras/Kconfig"
 source "drivers/thunderbolt/Kconfig"
 
 source "drivers/android/Kconfig"
+
+source "drivers/gpu/trace/Kconfig"
 
 source "drivers/nvdimm/Kconfig"
 

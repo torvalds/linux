@@ -525,13 +525,33 @@ static void spitz_bl_kick_battery(void)
 	}
 }
 
+static struct gpiod_lookup_table spitz_lcdcon_gpio_table = {
+	.dev_id = "spi2.1",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_CONT,
+			    "BL_CONT", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_ON,
+			    "BL_ON", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table akita_lcdcon_gpio_table = {
+	.dev_id = "spi2.1",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_CONT,
+			    "BL_CONT", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_ON,
+			    "BL_ON", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct corgi_lcd_platform_data spitz_lcdcon_info = {
 	.init_mode		= CORGI_LCD_MODE_VGA,
 	.max_intensity		= 0x2f,
 	.default_intensity	= 0x1f,
 	.limit_mask		= 0x0b,
-	.gpio_backlight_cont	= SPITZ_GPIO_BACKLIGHT_CONT,
-	.gpio_backlight_on	= SPITZ_GPIO_BACKLIGHT_ON,
 	.kick_battery		= spitz_bl_kick_battery,
 };
 
@@ -574,12 +594,10 @@ static struct pxa2xx_spi_controller spitz_spi_info = {
 
 static void __init spitz_spi_init(void)
 {
-	struct corgi_lcd_platform_data *lcd_data = &spitz_lcdcon_info;
-
-	if (machine_is_akita()) {
-		lcd_data->gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
-		lcd_data->gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
-	}
+	if (machine_is_akita())
+		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
+	else
+		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
 
 	pxa2xx_set_spi_info(2, &spitz_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));

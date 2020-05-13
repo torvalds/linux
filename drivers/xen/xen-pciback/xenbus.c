@@ -105,13 +105,13 @@ static void free_pdev(struct xen_pcibk_device *pdev)
 }
 
 static int xen_pcibk_do_attach(struct xen_pcibk_device *pdev, int gnt_ref,
-			     int remote_evtchn)
+			     evtchn_port_t remote_evtchn)
 {
 	int err = 0;
 	void *vaddr;
 
 	dev_dbg(&pdev->xdev->dev,
-		"Attaching to frontend resources - gnt_ref=%d evtchn=%d\n",
+		"Attaching to frontend resources - gnt_ref=%d evtchn=%u\n",
 		gnt_ref, remote_evtchn);
 
 	err = xenbus_map_ring_valloc(pdev->xdev, &gnt_ref, 1, &vaddr);
@@ -142,7 +142,8 @@ out:
 static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 {
 	int err = 0;
-	int gnt_ref, remote_evtchn;
+	int gnt_ref;
+	evtchn_port_t remote_evtchn;
 	char *magic = NULL;
 
 

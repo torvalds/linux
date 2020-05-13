@@ -248,8 +248,7 @@ int omap_dm_timers_active(void);
 
 /*
  * The below are inlined to optimize code size for system timers. Other code
- * should not need these at all, see
- * include/linux/platform_data/pwm_omap_dmtimer.h
+ * should not need these at all.
  */
 #if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2PLUS)
 static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,
