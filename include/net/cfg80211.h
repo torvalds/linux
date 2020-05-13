@@ -630,6 +630,19 @@ struct cfg80211_chan_def {
 	u16 freq1_offset;
 };
 
+/*
+ * cfg80211_bitrate_mask - masks for bitrate control
+ */
+struct cfg80211_bitrate_mask {
+	struct {
+		u32 legacy;
+		u8 ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
+		u16 vht_mcs[NL80211_VHT_NSS_MAX];
+		enum nl80211_txrate_gi gi;
+	} control[NUM_NL80211_BANDS];
+};
+
+
 /**
  * struct cfg80211_tid_cfg - TID specific configuration
  * @config_override: Flag to notify driver to reset TID configuration
@@ -643,6 +656,8 @@ struct cfg80211_chan_def {
  * @ampdu: Enable/Disable MPDU aggregation
  * @rtscts: Enable/Disable RTS/CTS
  * @amsdu: Enable/Disable MSDU aggregation
+ * @txrate_type: Tx bitrate mask type
+ * @txrate_mask: Tx bitrate to be applied for the TID
  */
 struct cfg80211_tid_cfg {
 	bool config_override;
@@ -653,6 +668,8 @@ struct cfg80211_tid_cfg {
 	enum nl80211_tid_config ampdu;
 	enum nl80211_tid_config rtscts;
 	enum nl80211_tid_config amsdu;
+	enum nl80211_tx_rate_setting txrate_type;
+	struct cfg80211_bitrate_mask txrate_mask;
 };
 
 /**
@@ -1005,18 +1022,6 @@ struct cfg80211_acl_data {
 
 	/* Keep it last */
 	struct mac_address mac_addrs[];
-};
-
-/*
- * cfg80211_bitrate_mask - masks for bitrate control
- */
-struct cfg80211_bitrate_mask {
-	struct {
-		u32 legacy;
-		u8 ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
-		u16 vht_mcs[NL80211_VHT_NSS_MAX];
-		enum nl80211_txrate_gi gi;
-	} control[NUM_NL80211_BANDS];
 };
 
 /**
