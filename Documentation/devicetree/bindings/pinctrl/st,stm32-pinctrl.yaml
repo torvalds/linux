@@ -36,6 +36,9 @@ properties:
   pins-are-numbered: true
   hwlocks: true
 
+  interrupts:
+    maxItems: 1
+
   st,syscfg:
     allOf:
       - $ref: "/schemas/types.yaml#/definitions/phandle-array"
