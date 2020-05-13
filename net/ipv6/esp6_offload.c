@@ -175,24 +175,27 @@ static struct sk_buff *xfrm6_beet_gso_segment(struct xfrm_state *x,
 
 	skb->transport_header += x->props.header_len;
 
-	if (proto == IPPROTO_BEETPH) {
-		struct ip_beet_phdr *ph = (struct ip_beet_phdr *)skb->data;
+	if (x->sel.family != AF_INET6) {
+		skb->transport_header -=
+			(sizeof(struct ipv6hdr) - sizeof(struct iphdr));
 
-		skb->transport_header += ph->hdrlen * 8;
-		proto = ph->nexthdr;
-	}
+		if (proto == IPPROTO_BEETPH) {
+			struct ip_beet_phdr *ph =
+				(struct ip_beet_phdr *)skb->data;
 
-	if (x->sel.family == AF_INET6) {
+			skb->transport_header += ph->hdrlen * 8;
+			proto = ph->nexthdr;
+		} else {
+			skb->transport_header -= IPV4_BEET_PHMAXLEN;
+		}
+
+		if (proto == IPPROTO_TCP)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
+	} else {
 		__be16 frag;
 
 		skb->transport_header +=
 			ipv6_skip_exthdr(skb, 0, &proto, &frag);
-	} else {
-		skb->transport_header -=
-			(sizeof(struct ipv6hdr) - sizeof(struct iphdr));
-
-		if (proto == IPPROTO_TCP)
-			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
 	}
 
 	__skb_pull(skb, skb_transport_offset(skb));
