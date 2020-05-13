@@ -108,6 +108,7 @@ static const struct option long_options[] = {
 	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
 	{"whitelist", required_argument,	NULL, 'n' },
+	{"blacklist", required_argument,	NULL, 'b' },
 	{0, 0, NULL, 0 }
 };
 
@@ -389,6 +390,7 @@ struct sockmap_options {
 	int rate;
 	char *map;
 	char *whitelist;
+	char *blacklist;
 };
 
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
@@ -1641,6 +1643,24 @@ static int check_whitelist(struct _test *t, struct sockmap_options *opt)
 	return -EINVAL;
 }
 
+static int check_blacklist(struct _test *t, struct sockmap_options *opt)
+{
+	char *entry, *ptr;
+
+	if (!opt->blacklist)
+		return -EINVAL;
+	ptr = strdup(opt->blacklist);
+	if (!ptr)
+		return -ENOMEM;
+	entry = strtok(ptr, ",");
+	while (entry) {
+		if (strstr(opt->map, entry) != 0 || strstr(t->title, entry) != 0)
+			return 0;
+		entry = strtok(NULL, ",");
+	}
+	return -EINVAL;
+}
+
 static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 {
 	int i, err;
@@ -1655,7 +1675,9 @@ static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 	for (i = 0; i < sizeof(test)/sizeof(struct _test); i++) {
 		struct _test t = test[i];
 
-		if (check_whitelist(&t, opt) < 0)
+		if (check_whitelist(&t, opt) != 0)
+			continue;
+		if (check_blacklist(&t, opt) == 0)
 			continue;
 
 		test_start_subtest(t.title, opt->map);
@@ -1696,7 +1718,7 @@ int main(int argc, char **argv)
 	int test = SELFTESTS;
 	bool cg_created = 0;
 
-	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:n:",
+	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:n:b:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1769,6 +1791,11 @@ int main(int argc, char **argv)
 			options.whitelist = strdup(optarg);
 			if (!options.whitelist)
 				return -ENOMEM;
+			break;
+		case 'b':
+			options.blacklist = strdup(optarg);
+			if (!options.blacklist)
+				return -ENOMEM;
 		case 0:
 			break;
 		case 'h':
@@ -1823,6 +1850,8 @@ int main(int argc, char **argv)
 out:
 	if (options.whitelist)
 		free(options.whitelist);
+	if (options.blacklist)
+		free(options.blacklist);
 	if (cg_created)
 		cleanup_cgroup_environment();
 	close(cg_fd);
