@@ -149,8 +149,8 @@ static enum power_supply_property sbs_properties[] = {
 	POWER_SUPPLY_PROP_MODEL_NAME
 };
 
-/* Supports special manufacturer commands from TI BQ20Z75 IC. */
-#define SBS_FLAGS_TI_BQ20Z75		BIT(0)
+/* Supports special manufacturer commands from TI BQ20Z65 and BQ20Z75 IC. */
+#define SBS_FLAGS_TI_BQ20ZX5		BIT(0)
 
 struct sbs_info {
 	struct i2c_client		*client;
@@ -626,7 +626,7 @@ static int sbs_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_HEALTH:
-		if (chip->flags & SBS_FLAGS_TI_BQ20Z75)
+		if (chip->flags & SBS_FLAGS_TI_BQ20ZX5)
 			ret = sbs_get_ti_battery_presence_and_health(client,
 								     psp, val);
 		else
@@ -950,7 +950,7 @@ static int sbs_suspend(struct device *dev)
 	if (chip->poll_time > 0)
 		cancel_delayed_work_sync(&chip->work);
 
-	if (chip->flags & SBS_FLAGS_TI_BQ20Z75) {
+	if (chip->flags & SBS_FLAGS_TI_BQ20ZX5) {
 		/* Write to manufacturer access with sleep command. */
 		ret = sbs_write_word_data(client,
 					  sbs_data[REG_MANUFACTURER_DATA].addr,
@@ -970,6 +970,7 @@ static SIMPLE_DEV_PM_OPS(sbs_pm_ops, sbs_suspend, NULL);
 #endif
 
 static const struct i2c_device_id sbs_id[] = {
+	{ "bq20z65", 0 },
 	{ "bq20z75", 0 },
 	{ "sbs-battery", 1 },
 	{}
@@ -979,8 +980,12 @@ MODULE_DEVICE_TABLE(i2c, sbs_id);
 static const struct of_device_id sbs_dt_ids[] = {
 	{ .compatible = "sbs,sbs-battery" },
 	{
+		.compatible = "ti,bq20z65",
+		.data = (void *)SBS_FLAGS_TI_BQ20ZX5,
+	},
+	{
 		.compatible = "ti,bq20z75",
-		.data = (void *)SBS_FLAGS_TI_BQ20Z75,
+		.data = (void *)SBS_FLAGS_TI_BQ20ZX5,
 	},
 	{ }
 };

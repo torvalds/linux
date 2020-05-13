@@ -6,6 +6,7 @@ Required properties :
      part number compatible string might be used in order to take care of
      vendor specific registers.
      Known <vendor>,<part-number>:
+       ti,bq20z65
        ti,bq20z75
 
 Optional properties :
