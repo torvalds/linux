@@ -257,14 +257,14 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 	return 0;
 }
 
-void bpf_iter_unreg_target(const char *target)
+void bpf_iter_unreg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 	bool found = false;
 
 	mutex_lock(&targets_mutex);
 	list_for_each_entry(tinfo, &targets, list) {
-		if (!strcmp(target, tinfo->reg_info->target)) {
+		if (reg_info == tinfo->reg_info) {
 			list_del(&tinfo->list);
 			kfree(tinfo);
 			found = true;
