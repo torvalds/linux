@@ -119,26 +119,6 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 }
 #endif /* CONFIG_SMP */
 
-void part_inc_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
-{
-	if (queue_is_mq(q))
-		return;
-
-	part_stat_local_inc(part, in_flight[rw]);
-	if (part->partno)
-		part_stat_local_inc(&part_to_disk(part)->part0, in_flight[rw]);
-}
-
-void part_dec_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
-{
-	if (queue_is_mq(q))
-		return;
-
-	part_stat_local_dec(part, in_flight[rw]);
-	if (part->partno)
-		part_stat_local_dec(&part_to_disk(part)->part0, in_flight[rw]);
-}
-
 static unsigned int part_in_flight(struct request_queue *q,
 		struct hd_struct *part)
 {
