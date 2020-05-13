@@ -643,7 +643,6 @@ struct mlx5_pps {
 };
 
 struct mlx5_clock {
-	struct mlx5_core_dev      *mdev;
 	struct mlx5_nb             pps_nb;
 	seqlock_t                  lock;
 	struct cyclecounter        cycles;
