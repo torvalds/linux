@@ -42,7 +42,6 @@ extern struct cpuinfo_csky cpu_data[];
 
 struct thread_struct {
 	unsigned long  ksp;       /* kernel stack pointer */
-	unsigned long  sr;        /* saved status register */
 	unsigned long  trap_no;   /* saved status register */
 
 	/* FPU regs */
@@ -51,7 +50,6 @@ struct thread_struct {
 
 #define INIT_THREAD  { \
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack, \
-	.sr = DEFAULT_PSR_VALUE, \
 }
 
 /*
