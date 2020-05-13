@@ -377,6 +377,8 @@ struct intel_engine_cs {
 		spinlock_t irq_lock;
 		struct list_head signalers;
 
+		struct list_head signaled_requests;
+
 		struct irq_work irq_work; /* for use from inside irq_lock */
 
 		unsigned int irq_enabled;
