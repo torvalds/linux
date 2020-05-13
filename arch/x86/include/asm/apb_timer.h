@@ -28,7 +28,6 @@
 #define APBT_DEV_USED  1
 
 extern void apbt_time_init(void);
-extern unsigned long apbt_quick_calibrate(void);
 extern int arch_setup_apbt_irqs(int irq, int trigger, int mask, int cpu);
 extern void apbt_setup_secondary_clock(void);
 
@@ -38,7 +37,6 @@ extern int sfi_mtimer_num;
 
 #else /* CONFIG_APB_TIMER */
 
-static inline unsigned long apbt_quick_calibrate(void) {return 0; }
 static inline void apbt_time_init(void) { }
 
 #endif
