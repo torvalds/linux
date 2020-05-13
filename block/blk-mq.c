@@ -3365,8 +3365,8 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		goto reregister;
 
 	set->nr_hw_queues = nr_hw_queues;
-	blk_mq_update_queue_map(set);
 fallback:
+	blk_mq_update_queue_map(set);
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_realloc_hw_ctxs(set, q);
 		if (q->nr_hw_queues != set->nr_hw_queues) {
