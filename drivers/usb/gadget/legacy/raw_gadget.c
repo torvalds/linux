@@ -867,7 +867,6 @@ static int raw_ioctl_ep_disable(struct raw_dev *dev, unsigned long value)
 	spin_lock_irqsave(&dev->lock, flags);
 	usb_ep_free_request(dev->eps[i].ep, dev->eps[i].req);
 	kfree(dev->eps[i].ep->desc);
-	dev->eps[i].ep = NULL;
 	dev->eps[i].state = STATE_EP_DISABLED;
 	dev->eps[i].disabling = false;
 
