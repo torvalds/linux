@@ -257,7 +257,7 @@
 				};
 			};
 
-			pwm1_pins: pwm-1 {
+			pwm1_pins: pwm1-0 {
 				pins {
 					pinmux = <STM32_PINMUX('A', 8, AF1)>, /* TIM1_CH1 */
 						 <STM32_PINMUX('B', 13, AF1)>, /* TIM1_CH1N */
@@ -265,7 +265,7 @@
 				};
 			};
 
-			pwm3_pins: pwm-3 {
+			pwm3_pins: pwm3-0 {
 				pins {
 					pinmux = <STM32_PINMUX('B', 4, AF2)>, /* TIM3_CH1 */
 						 <STM32_PINMUX('B', 5, AF2)>; /* TIM3_CH2 */
