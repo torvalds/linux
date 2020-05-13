@@ -2716,23 +2716,19 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void vop_update_csc(struct drm_crtc *crtc)
+static void vop_dither_setup(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
 	struct vop *vop = to_vop(crtc);
-	u32 val;
 
-	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
-	    !(vop->data->feature & VOP_FEATURE_OUTPUT_10BIT))
-		s->output_mode = ROCKCHIP_OUT_MODE_P888;
-
-	if (is_uv_swap(s->bus_format, s->output_mode))
-		VOP_CTRL_SET(vop, dsp_data_swap, DSP_RB_SWAP);
-	else
-		VOP_CTRL_SET(vop, dsp_data_swap, 0);
-
-	VOP_CTRL_SET(vop, out_mode, s->output_mode);
+	/*
+	 * VOP MCU interface can't work right when dither enabled.
+	 * (1) the MCU CMD will be treated as data then changed by dither algorithm
+	 * (2) the dither algorithm works wrong in mcu mode
+	 */
+	if (vop->mcu_timing.mcu_pix_total)
+		return;
 
 	switch (s->bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
@@ -2770,7 +2766,27 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, pre_dither_down_en,
 		     s->output_mode == ROCKCHIP_OUT_MODE_AAAA ? 0 : 1);
 	VOP_CTRL_SET(vop, dither_down_sel, DITHER_DOWN_ALLEGRO);
+}
 
+static void vop_update_csc(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+	u32 val;
+
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	    !(vop->data->feature & VOP_FEATURE_OUTPUT_10BIT))
+		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+
+	if (is_uv_swap(s->bus_format, s->output_mode))
+		VOP_CTRL_SET(vop, dsp_data_swap, DSP_RB_SWAP);
+	else
+		VOP_CTRL_SET(vop, dsp_data_swap, 0);
+
+	VOP_CTRL_SET(vop, out_mode, s->output_mode);
+
+	vop_dither_setup(crtc);
 	VOP_CTRL_SET(vop, dclk_ddr,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, hdmi_dclk_out_en,
