@@ -543,8 +543,6 @@ int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs)
 		seqlock_init(&vblank->seqlock);
 	}
 
-	DRM_INFO("Supports vblank timestamp caching Rev 2 (21.10.2013).\n");
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_vblank_init);
