@@ -73,10 +73,10 @@ static bool sja1105_can_use_vlan_as_tags(const struct sk_buff *skb)
 {
 	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 
-	if (hdr->h_vlan_proto == ntohs(ETH_P_SJA1105))
+	if (hdr->h_vlan_proto == htons(ETH_P_SJA1105))
 		return true;
 
-	if (hdr->h_vlan_proto != ntohs(ETH_P_8021Q))
+	if (hdr->h_vlan_proto != htons(ETH_P_8021Q))
 		return false;
 
 	return vid_is_dsa_8021q(ntohs(hdr->h_vlan_TCI) & VLAN_VID_MASK);
