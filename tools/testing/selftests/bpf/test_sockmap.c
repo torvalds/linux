@@ -87,7 +87,7 @@ static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"cgroup",	required_argument,	NULL, 'c' },
 	{"rate",	required_argument,	NULL, 'r' },
-	{"verbose",	no_argument,		NULL, 'v' },
+	{"verbose",	optional_argument,	NULL, 'v' },
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
@@ -362,7 +362,7 @@ static int sockmap_init_sockets(int verbose)
 		return errno;
 	}
 
-	if (verbose) {
+	if (verbose > 1) {
 		printf("connected sockets: c1 <-> p1, c2 <-> p2\n");
 		printf("cgroups binding: c1(%i) <-> s1(%i) - - - c2(%i) <-> s2(%i)\n",
 			c1, s1, c2, s2);
@@ -721,7 +721,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 			iov_count = 1;
 		err = msg_loop(rx_fd, iov_count, iov_buf,
 			       cnt, &s, false, opt);
-		if (opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
@@ -729,7 +729,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
 		}
-		if (opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stdout,
 				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s %s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
@@ -759,7 +759,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
 		}
-		if (opt->verbose)
+		if (opt->verbose > 1)
 			fprintf(stdout,
 				"tx_sendmsg: TX: %zuB %fB/s %f GB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
@@ -864,6 +864,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 }
 
 enum {
+	SELFTESTS,
 	PING_PONG,
 	SENDMSG,
 	BASE,
@@ -1242,14 +1243,14 @@ static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
 
 	if (opt->verbose) {
 		fprintf(stdout,
-			"[TEST %i]: (%i, %i, %i, %s, %s): ",
+			" [TEST %i]: (%i, %i, %i, %s, %s): ",
 			test_cnt, opt->rate, opt->iov_count, opt->iov_length,
 			test_to_str(test), options);
 		fflush(stdout);
 	}
 	err = run_options(opt, cgrp, test);
 	if (opt->verbose)
-		fprintf(stdout, "%s\n", !err ? "PASS" : "FAILED");
+		fprintf(stdout, " %s\n", !err ? "PASS" : "FAILED");
 	test_cnt++;
 	!err ? passed++ : failed++;
 	free(options);
@@ -1322,38 +1323,30 @@ static void test_send(struct sockmap_options *opt, int cgrp)
 	sched_yield();
 }
 
-static void test_txmsg_pass(int cgrp, char *map)
+static void test_txmsg_pass(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	/* Test small and large iov_count values with pass/redir/apply/cork */
 	txmsg_pass = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 }
 
-static void test_txmsg_redir(int cgrp, char *map)
+static void test_txmsg_redir(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_redir = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 }
 
-static void test_txmsg_drop(int cgrp, char *map)
+static void test_txmsg_drop(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_drop = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 }
 
-static void test_txmsg_ingress_redir(int cgrp, char *map)
+static void test_txmsg_ingress_redir(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_pass = txmsg_drop = 0;
 	txmsg_ingress = txmsg_redir = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 }
 
 /* Test cork with hung data. This tests poor usage patterns where
@@ -1363,182 +1356,168 @@ static void test_txmsg_ingress_redir(int cgrp, char *map)
  * apply logic. Use cork size of 4097 with send_large to avoid
  * aligning cork size with send size.
  */
-static void test_txmsg_cork_hangs(int cgrp, char *map)
+static void test_txmsg_cork_hangs(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_pass = 1;
 	txmsg_redir = 0;
 	txmsg_cork = 4097;
 	txmsg_apply = 4097;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	txmsg_pass = 0;
 	txmsg_redir = 1;
 	txmsg_apply = 0;
 	txmsg_cork = 4097;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	txmsg_pass = 0;
 	txmsg_redir = 1;
 	txmsg_apply = 4097;
 	txmsg_cork = 4097;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 }
 
-static void test_txmsg_pull(int cgrp, char *map)
+static void test_txmsg_pull(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	/* Test basic start/end */
 	txmsg_start = 1;
 	txmsg_end = 2;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 
 	/* Test >4k pull */
 	txmsg_start = 4096;
 	txmsg_end = 9182;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	/* Test pull + redirect */
 	txmsg_redir = 0;
 	txmsg_start = 1;
 	txmsg_end = 2;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 
 	/* Test pull + cork */
 	txmsg_redir = 0;
 	txmsg_cork = 512;
 	txmsg_start = 1;
 	txmsg_end = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 
 	/* Test pull + cork + redirect */
 	txmsg_redir = 1;
 	txmsg_cork = 512;
 	txmsg_start = 1;
 	txmsg_end = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 }
 
-static void test_txmsg_pop(int cgrp, char *map)
+static void test_txmsg_pop(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	/* Test basic pop */
 	txmsg_start_pop = 1;
 	txmsg_pop = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 
 	/* Test pop with >4k */
 	txmsg_start_pop = 4096;
 	txmsg_pop = 4096;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	/* Test pop + redirect */
 	txmsg_redir = 1;
 	txmsg_start_pop = 1;
 	txmsg_pop = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 
 	/* Test pop + cork */
 	txmsg_redir = 0;
 	txmsg_cork = 512;
 	txmsg_start_pop = 1;
 	txmsg_pop = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 
 	/* Test pop + redirect + cork */
 	txmsg_redir = 1;
 	txmsg_cork = 4;
 	txmsg_start_pop = 1;
 	txmsg_pop = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 }
 
-static void test_txmsg_push(int cgrp, char *map)
+static void test_txmsg_push(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	/* Test basic push */
 	txmsg_start_push = 1;
 	txmsg_end_push = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 
 	/* Test push 4kB >4k */
 	txmsg_start_push = 4096;
 	txmsg_end_push = 4096;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	/* Test push + redirect */
 	txmsg_redir = 1;
 	txmsg_start_push = 1;
 	txmsg_end_push = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 
 	/* Test push + cork */
 	txmsg_redir = 0;
 	txmsg_cork = 512;
 	txmsg_start_push = 1;
 	txmsg_end_push = 2;
-	test_send_many(&opt, cgrp);
+	test_send_many(opt, cgrp);
 }
 
-static void test_txmsg_push_pop(int cgrp, char *map)
+static void test_txmsg_push_pop(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_start_push = 1;
 	txmsg_end_push = 10;
 	txmsg_start_pop = 5;
 	txmsg_pop = 4;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 }
 
-static void test_txmsg_apply(int cgrp, char *map)
+static void test_txmsg_apply(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_pass = 1;
 	txmsg_redir = 0;
 	txmsg_apply = 1;
 	txmsg_cork = 0;
-	test_send_one(&opt, cgrp);
+	test_send_one(opt, cgrp);
 
 	txmsg_pass = 0;
 	txmsg_redir = 1;
 	txmsg_apply = 1;
 	txmsg_cork = 0;
-	test_send_one(&opt, cgrp);
+	test_send_one(opt, cgrp);
 
 	txmsg_pass = 1;
 	txmsg_redir = 0;
 	txmsg_apply = 1024;
 	txmsg_cork = 0;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 
 	txmsg_pass = 0;
 	txmsg_redir = 1;
 	txmsg_apply = 1024;
 	txmsg_cork = 0;
-	test_send_large(&opt, cgrp);
+	test_send_large(opt, cgrp);
 }
 
-static void test_txmsg_cork(int cgrp, char *map)
+static void test_txmsg_cork(int cgrp, struct sockmap_options *opt)
 {
-	struct sockmap_options opt = {.map = map};
-
 	txmsg_pass = 1;
 	txmsg_redir = 0;
 	txmsg_apply = 0;
 	txmsg_cork = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 
 	txmsg_pass = 1;
 	txmsg_redir = 0;
 	txmsg_apply = 1;
 	txmsg_cork = 1;
-	test_send(&opt, cgrp);
+	test_send(opt, cgrp);
 }
 
 char *map_names[] = {
@@ -1625,7 +1604,7 @@ static int populate_progs(char *bpf_file)
 
 struct _test {
 	char *title;
-	void (*tester)(int cg_fd, char *map);
+	void (*tester)(int cg_fd, struct sockmap_options *opt);
 };
 
 struct _test test[] = {
@@ -1642,11 +1621,11 @@ struct _test test[] = {
 	{"txmsg test push/pop data", test_txmsg_push_pop},
 };
 
-static int __test_selftests(int cg_fd, char *map)
+static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 {
 	int i, err;
 
-	err = populate_progs(map);
+	err = populate_progs(opt->map);
 	if (err < 0) {
 		fprintf(stderr, "ERROR: (%i) load bpf failed\n", err);
 		return err;
@@ -1656,50 +1635,31 @@ static int __test_selftests(int cg_fd, char *map)
 	for (i = 0; i < sizeof(test)/sizeof(struct _test); i++) {
 		struct _test t = test[i];
 
-		test_start_subtest(t.title, map);
-		t.tester(cg_fd, map);
+		test_start_subtest(t.title, opt->map);
+		t.tester(cg_fd, opt);
 		test_end_subtest();
 	}
 
 	return err;
 }
 
-static void test_selftests_sockmap(int cg_fd)
+static void test_selftests_sockmap(int cg_fd, struct sockmap_options *opt)
 {
-	__test_selftests(cg_fd, BPF_SOCKMAP_FILENAME);
+	opt->map = BPF_SOCKMAP_FILENAME;
+	__test_selftests(cg_fd, opt);
 }
 
-static void test_selftests_sockhash(int cg_fd)
+static void test_selftests_sockhash(int cg_fd, struct sockmap_options *opt)
 {
-	__test_selftests(cg_fd, BPF_SOCKHASH_FILENAME);
+	opt->map = BPF_SOCKHASH_FILENAME;
+	__test_selftests(cg_fd, opt);
 }
 
-static int test_selftest(int cg_fd)
+static int test_selftest(int cg_fd, struct sockmap_options *opt)
 {
-	if (cg_fd < 0) {
-		if (setup_cgroup_environment()) {
-			fprintf(stderr, "ERROR: cgroup env failed\n");
-			return -EINVAL;
-		}
 
-		cg_fd = create_and_get_cgroup(CG_PATH);
-		if (cg_fd < 0) {
-			fprintf(stderr,
-				"ERROR: (%i) open cg path failed: %s\n",
-				cg_fd, optarg);
-			return cg_fd;
-		}
-
-		if (join_cgroup(CG_PATH)) {
-			fprintf(stderr, "ERROR: failed to join cgroup\n");
-			return -EINVAL;
-		}
-	}
-
-	test_selftests_sockmap(cg_fd);
-	test_selftests_sockhash(cg_fd);
-	cleanup_cgroup_environment();
-	close(cg_fd);
+	test_selftests_sockmap(cg_fd, opt);
+	test_selftests_sockhash(cg_fd, opt);
 	test_print_results();
 	return 0;
 }
@@ -1710,14 +1670,10 @@ int main(int argc, char **argv)
 	struct sockmap_options options = {0};
 	int opt, longindex, err, cg_fd = 0;
 	char *bpf_file = BPF_SOCKMAP_FILENAME;
-	int test = PING_PONG;
+	int test = SELFTESTS;
 	bool cg_created = 0;
 
-	if (argc < 2) {
-		return test_selftest(-1);
-	}
-
-	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:p:q:",
+	while ((opt = getopt_long(argc, argv, ":dhv:c:r:i:l:t:p:q:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1758,6 +1714,8 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			options.verbose = 1;
+			if (optarg)
+				options.verbose = atoi(optarg);
 			break;
 		case 'i':
 			iov_count = atoi(optarg);
@@ -1814,6 +1772,11 @@ int main(int argc, char **argv)
 		cg_created = 1;
 	}
 
+	if (test == SELFTESTS) {
+		err = test_selftest(cg_fd, &options);
+		goto out;
+	}
+
 	err = populate_progs(bpf_file);
 	if (err) {
 		fprintf(stderr, "populate program: (%s) %s\n",
@@ -1830,7 +1793,7 @@ int main(int argc, char **argv)
 	options.rate = rate;
 
 	err = run_options(&options, cg_fd, test);
-
+out:
 	if (cg_created)
 		cleanup_cgroup_environment();
 	close(cg_fd);
