@@ -429,15 +429,6 @@ static int effective_prio(const struct i915_request *rq)
 	if (i915_request_has_nopreempt(rq))
 		prio = I915_PRIORITY_UNPREEMPTABLE;
 
-	/*
-	 * On unwinding the active request, we give it a priority bump
-	 * if it has completed waiting on any semaphore. If we know that
-	 * the request has already started, we can prevent an unwanted
-	 * preempt-to-idle cycle by taking that into account now.
-	 */
-	if (__i915_request_has_started(rq))
-		prio |= I915_PRIORITY_NOSEMAPHORE;
-
 	return prio;
 }
 

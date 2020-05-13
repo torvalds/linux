@@ -2582,21 +2582,6 @@ static void eb_request_add(struct i915_execbuffer *eb)
 	/* Check that the context wasn't destroyed before submission */
 	if (likely(!intel_context_is_closed(eb->context))) {
 		attr = eb->gem_context->sched;
-
-		/*
-		 * Boost actual workloads past semaphores!
-		 *
-		 * With semaphores we spin on one engine waiting for another,
-		 * simply to reduce the latency of starting our work when
-		 * the signaler completes. However, if there is any other
-		 * work that we could be doing on this engine instead, that
-		 * is better utilisation and will reduce the overall duration
-		 * of the current work. To avoid PI boosting a semaphore
-		 * far in the distance past over useful work, we keep a history
-		 * of any semaphore use along our dependency chain.
-		 */
-		if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
-			attr.priority |= I915_PRIORITY_NOSEMAPHORE;
 	} else {
 		/* Serialise with context_close via the add_to_timeline */
 		i915_request_set_error_once(rq, -ENOENT);
