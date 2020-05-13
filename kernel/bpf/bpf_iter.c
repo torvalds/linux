@@ -308,6 +308,11 @@ bool bpf_iter_prog_supported(struct bpf_prog *prog)
 	}
 	mutex_unlock(&targets_mutex);
 
+	if (supported) {
+		prog->aux->ctx_arg_info_size = tinfo->reg_info->ctx_arg_info_size;
+		prog->aux->ctx_arg_info = tinfo->reg_info->ctx_arg_info;
+	}
+
 	return supported;
 }
 

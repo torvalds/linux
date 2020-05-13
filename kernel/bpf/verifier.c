@@ -10652,7 +10652,6 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		prog->aux->attach_func_proto = t;
 		if (!bpf_iter_prog_supported(prog))
 			return -EINVAL;
-		prog->aux->btf_id_or_null_non0_off = true;
 		ret = btf_distill_func_proto(&env->log, btf, t,
 					     tname, &fmodel);
 		return ret;

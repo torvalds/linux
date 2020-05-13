@@ -312,6 +312,11 @@ static const struct bpf_iter_reg task_reg_info = {
 	.init_seq_private	= init_seq_pidns,
 	.fini_seq_private	= fini_seq_pidns,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__task, task),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
 };
 
 static const struct bpf_iter_reg task_file_reg_info = {
@@ -320,6 +325,13 @@ static const struct bpf_iter_reg task_file_reg_info = {
 	.init_seq_private	= init_seq_pidns,
 	.fini_seq_private	= fini_seq_pidns,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_file_info),
+	.ctx_arg_info_size	= 2,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__task_file, task),
+		  PTR_TO_BTF_ID_OR_NULL },
+		{ offsetof(struct bpf_iter__task_file, file),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
 };
 
 static int __init task_iter_init(void)

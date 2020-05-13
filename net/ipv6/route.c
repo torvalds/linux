@@ -6403,6 +6403,11 @@ static const struct bpf_iter_reg ipv6_route_reg_info = {
 	.init_seq_private	= bpf_iter_init_seq_net,
 	.fini_seq_private	= bpf_iter_fini_seq_net,
 	.seq_priv_size		= sizeof(struct ipv6_route_iter),
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__ipv6_route, rt),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
 };
 
 static int __init bpf_iter_register(void)
