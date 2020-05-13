@@ -40,6 +40,12 @@ struct thread_info {
 #define thread_saved_fp(tsk) \
 	((unsigned long)(((struct switch_stack *)(tsk->thread.ksp))->r8))
 
+#define thread_saved_sp(tsk) \
+	((unsigned long)(tsk->thread.ksp))
+
+#define thread_saved_lr(tsk) \
+	((unsigned long)(((struct switch_stack *)(tsk->thread.ksp))->r15))
+
 static inline struct thread_info *current_thread_info(void)
 {
 	unsigned long sp;
