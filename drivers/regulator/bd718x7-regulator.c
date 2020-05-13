@@ -62,10 +62,13 @@ static int bd718xx_buck1234_set_ramp_delay(struct regulator_dev *rdev,
  * is changed. Hence we return -EBUSY for these if voltage is changed
  * when BUCK/LDO is enabled.
  *
- * The LDO operation for BD71847 and BD71850 is icurrently unknown.
- * It's safer to still assume they can't be changed when enabled.
+ * On BD71847, BD71850, ... The LDO voltage can be changed when LDO is
+ * enabled. But if voltage is increased the LDO power-good monitoring
+ * must be disabled for the duration of changing + 1mS to ensure voltage
+ * has reached the higher level before HW does next under voltage detection
+ * cycle.
  */
-static int bd718xx_set_voltage_sel_restricted(struct regulator_dev *rdev,
+static int bd71837_set_voltage_sel_restricted(struct regulator_dev *rdev,
 						    unsigned int sel)
 {
 	if (regulator_is_enabled_regmap(rdev))
@@ -74,7 +77,122 @@ static int bd718xx_set_voltage_sel_restricted(struct regulator_dev *rdev,
 	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
+static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
+				unsigned int *mask)
+{
+	int ret;
+
+	if (*mask) {
+		/*
+		 * Let's allow scheduling as we use I2C anyways. We just need to
+		 * guarantee minimum of 1ms sleep - it shouldn't matter if we
+		 * exceed it due to the scheduling.
+		 */
+		msleep(1);
+		/*
+		 * Note for next hacker. The PWRGOOD should not be masked on
+		 * BD71847 so we will just unconditionally enable detection
+		 * when voltage is set.
+		 * If someone want's to disable PWRGOOD he must implement
+		 * caching and restoring the old value here. I am not
+		 * aware of such use-cases so for the sake of the simplicity
+		 * we just always enable PWRGOOD here.
+		 */
+		ret = regmap_update_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					 *mask, 0);
+		if (ret)
+			dev_err(&rdev->dev,
+				"Failed to re-enable voltage monitoring (%d)\n",
+				ret);
+	}
+}
+
+static int voltage_change_prepare(struct regulator_dev *rdev, unsigned int sel,
+				  unsigned int *mask)
+{
+	int ret;
+
+	*mask = 0;
+	if (regulator_is_enabled_regmap(rdev)) {
+		int now, new;
+
+		now = rdev->desc->ops->get_voltage_sel(rdev);
+		if (now < 0)
+			return now;
+
+		now = rdev->desc->ops->list_voltage(rdev, now);
+		if (now < 0)
+			return now;
+
+		new = rdev->desc->ops->list_voltage(rdev, sel);
+		if (new < 0)
+			return new;
+
+		/*
+		 * If we increase LDO voltage when LDO is enabled we need to
+		 * disable the power-good detection until voltage has reached
+		 * the new level. According to HW colleagues the maximum time
+		 * it takes is 1000us. I assume that on systems with light load
+		 * this might be less - and we could probably use DT to give
+		 * system specific delay value if performance matters.
+		 *
+		 * Well, knowing we use I2C here and can add scheduling delays
+		 * I don't think it is worth the hassle and I just add fixed
+		 * 1ms sleep here (and allow scheduling). If this turns out to
+		 * be a problem we can change it to delay and make the delay
+		 * time configurable.
+		 */
+		if (new > now) {
+			int ldo_offset = rdev->desc->id - BD718XX_LDO1;
+
+			*mask = BD718XX_LDO1_VRMON80 << ldo_offset;
+			ret = regmap_update_bits(rdev->regmap,
+						 BD718XX_REG_MVRFLTMASK2,
+						 *mask, *mask);
+			if (ret) {
+				dev_err(&rdev->dev,
+					"Failed to stop voltage monitoring\n");
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int bd718xx_set_voltage_sel_restricted(struct regulator_dev *rdev,
+						    unsigned int sel)
+{
+	int ret;
+	int mask;
+
+	ret = voltage_change_prepare(rdev, sel, &mask);
+	if (ret)
+		return ret;
+
+	ret = regulator_set_voltage_sel_regmap(rdev, sel);
+	voltage_change_done(rdev, sel, &mask);
+
+	return ret;
+}
+
 static int bd718xx_set_voltage_sel_pickable_restricted(
+		struct regulator_dev *rdev, unsigned int sel)
+{
+	int ret;
+	int mask;
+
+	ret = voltage_change_prepare(rdev, sel, &mask);
+	if (ret)
+		return ret;
+
+	ret = regulator_set_voltage_sel_pickable_regmap(rdev, sel);
+	voltage_change_done(rdev, sel, &mask);
+
+	return ret;
+}
+
+static int bd71837_set_voltage_sel_pickable_restricted(
 		struct regulator_dev *rdev, unsigned int sel)
 {
 	if (regulator_is_enabled_regmap(rdev))
@@ -89,6 +207,16 @@ static const struct regulator_ops bd718xx_pickable_range_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_pickable_linear_range,
 	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
+	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
+
+};
+
+static const struct regulator_ops bd71837_pickable_range_ldo_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.list_voltage = regulator_list_voltage_pickable_linear_range,
+	.set_voltage_sel = bd71837_set_voltage_sel_pickable_restricted,
 	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 };
 
@@ -107,9 +235,18 @@ static const struct regulator_ops bd71837_pickable_range_buck_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_pickable_linear_range,
-	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
+	.set_voltage_sel = bd71837_set_voltage_sel_pickable_restricted,
 	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+};
+
+static const struct regulator_ops bd71837_ldo_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.set_voltage_sel = bd71837_set_voltage_sel_restricted,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
 static const struct regulator_ops bd718xx_ldo_regulator_ops = {
@@ -118,6 +255,15 @@ static const struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear_range,
 	.set_voltage_sel = bd718xx_set_voltage_sel_restricted,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+};
+
+static const struct regulator_ops bd71837_ldo_regulator_nolinear_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.list_voltage = regulator_list_voltage_table,
+	.set_voltage_sel = bd71837_set_voltage_sel_restricted,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
@@ -145,7 +291,7 @@ static const struct regulator_ops bd71837_buck_regulator_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear_range,
-	.set_voltage_sel = bd718xx_set_voltage_sel_restricted,
+	.set_voltage_sel = bd71837_set_voltage_sel_restricted,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
@@ -938,7 +1084,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO1"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO1,
-			.ops = &bd718xx_pickable_range_ldo_ops,
+			.ops = &bd71837_pickable_range_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_LDO1_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_ldo1_volts,
@@ -964,7 +1110,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO2"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO2,
-			.ops = &bd718xx_ldo_regulator_nolinear_ops,
+			.ops = &bd71837_ldo_regulator_nolinear_ops,
 			.type = REGULATOR_VOLTAGE,
 			.volt_table = &ldo_2_volts[0],
 			.vsel_reg = BD718XX_REG_LDO2_VOLT,
@@ -986,7 +1132,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO3"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO3,
-			.ops = &bd718xx_ldo_regulator_ops,
+			.ops = &bd71837_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_LDO3_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_ldo3_volts,
@@ -1009,7 +1155,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO4"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO4,
-			.ops = &bd718xx_ldo_regulator_ops,
+			.ops = &bd71837_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_LDO4_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_ldo4_volts,
@@ -1032,7 +1178,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO5"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO5,
-			.ops = &bd718xx_ldo_regulator_ops,
+			.ops = &bd71837_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD71837_LDO5_VOLTAGE_NUM,
 			.linear_ranges = bd71837_ldo5_volts,
@@ -1059,7 +1205,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO6"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO6,
-			.ops = &bd718xx_ldo_regulator_ops,
+			.ops = &bd71837_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_LDO6_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_ldo6_volts,
@@ -1086,7 +1232,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.of_match = of_match_ptr("LDO7"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_LDO7,
-			.ops = &bd718xx_ldo_regulator_ops,
+			.ops = &bd71837_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD71837_LDO7_VOLTAGE_NUM,
 			.linear_ranges = bd71837_ldo7_volts,
