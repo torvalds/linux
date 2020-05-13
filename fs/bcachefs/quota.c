@@ -710,13 +710,43 @@ found:
 	return ret;
 }
 
+static int bch2_set_quota_trans(struct btree_trans *trans,
+				struct bkey_i_quota *new_quota,
+				struct qc_dqblk *qdq)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_QUOTAS, new_quota->k.p,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(iter);
+
+	ret = bkey_err(k);
+	if (unlikely(ret))
+		return ret;
+
+	if (k.k->type == KEY_TYPE_quota)
+		new_quota->v = *bkey_s_c_to_quota(k).v;
+
+	if (qdq->d_fieldmask & QC_SPC_SOFT)
+		new_quota->v.c[Q_SPC].softlimit = cpu_to_le64(qdq->d_spc_softlimit >> 9);
+	if (qdq->d_fieldmask & QC_SPC_HARD)
+		new_quota->v.c[Q_SPC].hardlimit = cpu_to_le64(qdq->d_spc_hardlimit >> 9);
+
+	if (qdq->d_fieldmask & QC_INO_SOFT)
+		new_quota->v.c[Q_INO].softlimit = cpu_to_le64(qdq->d_ino_softlimit);
+	if (qdq->d_fieldmask & QC_INO_HARD)
+		new_quota->v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
+
+	return bch2_trans_update(trans, iter, &new_quota->k_i, 0);
+}
+
 static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 			  struct qc_dqblk *qdq)
 {
 	struct bch_fs *c = sb->s_fs_info;
 	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
 	struct bkey_i_quota new_quota;
 	int ret;
 
@@ -728,40 +758,11 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_QUOTAS, new_quota.k.p,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(iter);
-
-	ret = bkey_err(k);
-	if (unlikely(ret))
-		return ret;
-
-	switch (k.k->type) {
-	case KEY_TYPE_quota:
-		new_quota.v = *bkey_s_c_to_quota(k).v;
-		break;
-	}
-
-	if (qdq->d_fieldmask & QC_SPC_SOFT)
-		new_quota.v.c[Q_SPC].softlimit = cpu_to_le64(qdq->d_spc_softlimit >> 9);
-	if (qdq->d_fieldmask & QC_SPC_HARD)
-		new_quota.v.c[Q_SPC].hardlimit = cpu_to_le64(qdq->d_spc_hardlimit >> 9);
-
-	if (qdq->d_fieldmask & QC_INO_SOFT)
-		new_quota.v.c[Q_INO].softlimit = cpu_to_le64(qdq->d_ino_softlimit);
-	if (qdq->d_fieldmask & QC_INO_HARD)
-		new_quota.v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
-
-	bch2_trans_update(&trans, iter, &new_quota.k_i, 0);
-
-	ret = bch2_trans_commit(&trans, NULL, NULL, 0);
+	ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOUNLOCK,
+			    bch2_set_quota_trans(&trans, &new_quota, qdq)) ?:
+		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i));
 
 	bch2_trans_exit(&trans);
-
-	if (ret)
-		return ret;
-
-	ret = __bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i));
 
 	return ret;
 }
