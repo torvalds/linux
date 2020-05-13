@@ -201,9 +201,91 @@ static int serdes_am654_power_off(struct phy *x)
 	return 0;
 }
 
-static int serdes_am654_init(struct phy *x)
+#define SERDES_AM654_CFG(offset, a, b, val) \
+	regmap_update_bits(phy->regmap, (offset),\
+			   GENMASK((a), (b)), (val) << (b))
+
+static int serdes_am654_usb3_init(struct serdes_am654 *phy)
 {
-	struct serdes_am654 *phy = phy_get_drvdata(x);
+	SERDES_AM654_CFG(0x0000, 31, 24, 0x17);
+	SERDES_AM654_CFG(0x0004, 15, 8, 0x02);
+	SERDES_AM654_CFG(0x0004, 7, 0, 0x0e);
+	SERDES_AM654_CFG(0x0008, 23, 16, 0x2e);
+	SERDES_AM654_CFG(0x0008, 31, 24, 0x2e);
+	SERDES_AM654_CFG(0x0060, 7, 0, 0x4b);
+	SERDES_AM654_CFG(0x0060, 15, 8, 0x98);
+	SERDES_AM654_CFG(0x0060, 23, 16, 0x60);
+	SERDES_AM654_CFG(0x00d0, 31, 24, 0x45);
+	SERDES_AM654_CFG(0x00e8, 15, 8, 0x0e);
+	SERDES_AM654_CFG(0x0220, 7, 0, 0x34);
+	SERDES_AM654_CFG(0x0220, 15, 8, 0x34);
+	SERDES_AM654_CFG(0x0220, 31, 24, 0x37);
+	SERDES_AM654_CFG(0x0224, 7, 0, 0x37);
+	SERDES_AM654_CFG(0x0224, 15, 8, 0x37);
+	SERDES_AM654_CFG(0x0228, 23, 16, 0x37);
+	SERDES_AM654_CFG(0x0228, 31, 24, 0x37);
+	SERDES_AM654_CFG(0x022c, 7, 0, 0x37);
+	SERDES_AM654_CFG(0x022c, 15, 8, 0x37);
+	SERDES_AM654_CFG(0x0230, 15, 8, 0x2a);
+	SERDES_AM654_CFG(0x0230, 23, 16, 0x2a);
+	SERDES_AM654_CFG(0x0240, 23, 16, 0x10);
+	SERDES_AM654_CFG(0x0240, 31, 24, 0x34);
+	SERDES_AM654_CFG(0x0244, 7, 0, 0x40);
+	SERDES_AM654_CFG(0x0244, 23, 16, 0x34);
+	SERDES_AM654_CFG(0x0248, 15, 8, 0x0d);
+	SERDES_AM654_CFG(0x0258, 15, 8, 0x16);
+	SERDES_AM654_CFG(0x0258, 23, 16, 0x84);
+	SERDES_AM654_CFG(0x0258, 31, 24, 0xf2);
+	SERDES_AM654_CFG(0x025c, 7, 0, 0x21);
+	SERDES_AM654_CFG(0x0260, 7, 0, 0x27);
+	SERDES_AM654_CFG(0x0260, 15, 8, 0x04);
+	SERDES_AM654_CFG(0x0268, 15, 8, 0x04);
+	SERDES_AM654_CFG(0x0288, 15, 8, 0x2c);
+	SERDES_AM654_CFG(0x0330, 31, 24, 0xa0);
+	SERDES_AM654_CFG(0x0338, 23, 16, 0x03);
+	SERDES_AM654_CFG(0x0338, 31, 24, 0x00);
+	SERDES_AM654_CFG(0x033c, 7, 0, 0x00);
+	SERDES_AM654_CFG(0x0344, 31, 24, 0x18);
+	SERDES_AM654_CFG(0x034c, 7, 0, 0x18);
+	SERDES_AM654_CFG(0x039c, 23, 16, 0x3b);
+	SERDES_AM654_CFG(0x0a04, 7, 0, 0x03);
+	SERDES_AM654_CFG(0x0a14, 31, 24, 0x3c);
+	SERDES_AM654_CFG(0x0a18, 15, 8, 0x3c);
+	SERDES_AM654_CFG(0x0a38, 7, 0, 0x3e);
+	SERDES_AM654_CFG(0x0a38, 15, 8, 0x3e);
+	SERDES_AM654_CFG(0x0ae0, 7, 0, 0x07);
+	SERDES_AM654_CFG(0x0b6c, 23, 16, 0xcd);
+	SERDES_AM654_CFG(0x0b6c, 31, 24, 0x04);
+	SERDES_AM654_CFG(0x0b98, 23, 16, 0x03);
+	SERDES_AM654_CFG(0x1400, 7, 0, 0x3f);
+	SERDES_AM654_CFG(0x1404, 23, 16, 0x6f);
+	SERDES_AM654_CFG(0x1404, 31, 24, 0x6f);
+	SERDES_AM654_CFG(0x140c, 7, 0, 0x6f);
+	SERDES_AM654_CFG(0x140c, 15, 8, 0x6f);
+	SERDES_AM654_CFG(0x1410, 15, 8, 0x27);
+	SERDES_AM654_CFG(0x1414, 7, 0, 0x0c);
+	SERDES_AM654_CFG(0x1414, 23, 16, 0x07);
+	SERDES_AM654_CFG(0x1418, 23, 16, 0x40);
+	SERDES_AM654_CFG(0x141c, 7, 0, 0x00);
+	SERDES_AM654_CFG(0x141c, 15, 8, 0x1f);
+	SERDES_AM654_CFG(0x1428, 31, 24, 0x08);
+	SERDES_AM654_CFG(0x1434, 31, 24, 0x00);
+	SERDES_AM654_CFG(0x1444, 7, 0, 0x94);
+	SERDES_AM654_CFG(0x1460, 31, 24, 0x7f);
+	SERDES_AM654_CFG(0x1464, 7, 0, 0x43);
+	SERDES_AM654_CFG(0x1464, 23, 16, 0x6f);
+	SERDES_AM654_CFG(0x1464, 31, 24, 0x43);
+	SERDES_AM654_CFG(0x1484, 23, 16, 0x8f);
+	SERDES_AM654_CFG(0x1498, 7, 0, 0x4f);
+	SERDES_AM654_CFG(0x1498, 23, 16, 0x4f);
+	SERDES_AM654_CFG(0x007c, 31, 24, 0x0d);
+	SERDES_AM654_CFG(0x0b90, 15, 8, 0x0f);
+
+	return 0;
+}
+
+static int serdes_am654_pcie_init(struct serdes_am654 *phy)
+{
 	int ret;
 
 	ret = regmap_field_write(phy->config_version, VERSION);
@@ -221,10 +303,27 @@ static int serdes_am654_init(struct phy *x)
 	return 0;
 }
 
+static int serdes_am654_init(struct phy *x)
+{
+	struct serdes_am654 *phy = phy_get_drvdata(x);
+
+	switch (phy->type) {
+	case PHY_TYPE_PCIE:
+		return serdes_am654_pcie_init(phy);
+	case PHY_TYPE_USB3:
+		return serdes_am654_usb3_init(phy);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int serdes_am654_reset(struct phy *x)
 {
 	struct serdes_am654 *phy = phy_get_drvdata(x);
 	int ret;
+
+	serdes_am654_disable_pll(phy);
+	serdes_am654_disable_txrx(phy);
 
 	ret = regmap_field_write(phy->por_en, 0x1);
 	if (ret)
