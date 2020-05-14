@@ -691,7 +691,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	enum hclge_opcode_type cmd;
 	struct hclge_desc desc;
 	int queue_id, group_id;
-	u32 qset_maping[32];
+	u32 qset_mapping[32];
 	int tc_id, qset_id;
 	int pri_id, ret;
 	u32 i;
@@ -746,7 +746,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 		if (ret)
 			goto err_tm_map_cmd_send;
 
-		qset_maping[group_id] =
+		qset_mapping[group_id] =
 			le32_to_cpu(bp_to_qs_map_cmd->qs_bit_map);
 	}
 
@@ -756,11 +756,11 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	for (group_id = 0; group_id < 4; group_id++) {
 		dev_info(&hdev->pdev->dev,
 			 "%04d  | %08x:%08x:%08x:%08x:%08x:%08x:%08x:%08x\n",
-			 group_id * 256, qset_maping[(u32)(i + 7)],
-			 qset_maping[(u32)(i + 6)], qset_maping[(u32)(i + 5)],
-			 qset_maping[(u32)(i + 4)], qset_maping[(u32)(i + 3)],
-			 qset_maping[(u32)(i + 2)], qset_maping[(u32)(i + 1)],
-			 qset_maping[i]);
+			 group_id * 256, qset_mapping[(u32)(i + 7)],
+			 qset_mapping[(u32)(i + 6)], qset_mapping[(u32)(i + 5)],
+			 qset_mapping[(u32)(i + 4)], qset_mapping[(u32)(i + 3)],
+			 qset_mapping[(u32)(i + 2)], qset_mapping[(u32)(i + 1)],
+			 qset_mapping[i]);
 		i += 8;
 	}
 
