@@ -33,8 +33,8 @@
  * has not requested planar formats, we should allow 8 pixel
  * alignment.
  */
-#define MIN_W       176
-#define MIN_H       144
+#define MIN_W       32
+#define MIN_H       32
 #define MAX_W      4096
 #define MAX_H      4096
 #define W_ALIGN    1 /* multiple of 2 pixels */
