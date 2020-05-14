@@ -3085,7 +3085,9 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			rc = qed_final_cleanup(p_hwfn, p_hwfn->p_main_ptt,
 					       p_hwfn->rel_pf_id, false);
 			if (rc) {
-				DP_NOTICE(p_hwfn, "Final cleanup failed\n");
+				qed_hw_err_notify(p_hwfn, p_hwfn->p_main_ptt,
+						  QED_HW_ERR_RAMROD_FAIL,
+						  "Final cleanup failed\n");
 				goto load_err;
 			}
 		}
