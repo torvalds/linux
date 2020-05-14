@@ -41,7 +41,7 @@ extern struct cpuinfo_csky cpu_data[];
 #define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
 
 struct thread_struct {
-	unsigned long  ksp;       /* kernel stack pointer */
+	unsigned long  sp;        /* kernel stack pointer */
 	unsigned long  trap_no;   /* saved status register */
 
 	/* FPU regs */
@@ -49,7 +49,7 @@ struct thread_struct {
 };
 
 #define INIT_THREAD  { \
-	.ksp = sizeof(init_stack) + (unsigned long) &init_stack, \
+	.sp = sizeof(init_stack) + (unsigned long) &init_stack, \
 }
 
 /*

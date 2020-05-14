@@ -35,7 +35,7 @@ void flush_thread(void){}
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
+	struct switch_stack *sw = (struct switch_stack *)tsk->thread.sp;
 
 	return sw->r15;
 }
@@ -56,8 +56,8 @@ int copy_thread_tls(unsigned long clone_flags,
 	childstack = ((struct switch_stack *) childregs) - 1;
 	memset(childstack, 0, sizeof(struct switch_stack));
 
-	/* setup ksp for switch_to !!! */
-	p->thread.ksp = (unsigned long)childstack;
+	/* setup thread.sp for switch_to !!! */
+	p->thread.sp = (unsigned long)childstack;
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
