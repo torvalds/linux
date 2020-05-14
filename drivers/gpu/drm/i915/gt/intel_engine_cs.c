@@ -326,6 +326,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	if (INTEL_GEN(i915) == 12 && engine->class == RENDER_CLASS)
 		engine->props.preempt_timeout_ms = 0;
 
+	engine->defaults = engine->props; /* never to change again */
+
 	engine->context_size = intel_engine_context_size(gt, engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;

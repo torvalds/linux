@@ -192,6 +192,17 @@ static struct kobj_attribute max_spin_attr =
 __ATTR(max_busywait_duration_ns, 0644, max_spin_show, max_spin_store);
 
 static ssize_t
+max_spin_default(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->defaults.max_busywait_duration_ns);
+}
+
+static struct kobj_attribute max_spin_def =
+__ATTR(max_busywait_duration_ns, 0444, max_spin_default, NULL);
+
+static ssize_t
 timeslice_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -234,6 +245,17 @@ static struct kobj_attribute timeslice_duration_attr =
 __ATTR(timeslice_duration_ms, 0644, timeslice_show, timeslice_store);
 
 static ssize_t
+timeslice_default(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->defaults.timeslice_duration_ms);
+}
+
+static struct kobj_attribute timeslice_duration_def =
+__ATTR(timeslice_duration_ms, 0444, timeslice_default, NULL);
+
+static ssize_t
 stop_store(struct kobject *kobj, struct kobj_attribute *attr,
 	   const char *buf, size_t count)
 {
@@ -271,6 +293,17 @@ stop_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 
 static struct kobj_attribute stop_timeout_attr =
 __ATTR(stop_timeout_ms, 0644, stop_show, stop_store);
+
+static ssize_t
+stop_default(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->defaults.stop_timeout_ms);
+}
+
+static struct kobj_attribute stop_timeout_def =
+__ATTR(stop_timeout_ms, 0444, stop_default, NULL);
 
 static ssize_t
 preempt_timeout_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -317,6 +350,18 @@ static struct kobj_attribute preempt_timeout_attr =
 __ATTR(preempt_timeout_ms, 0644, preempt_timeout_show, preempt_timeout_store);
 
 static ssize_t
+preempt_timeout_default(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->defaults.preempt_timeout_ms);
+}
+
+static struct kobj_attribute preempt_timeout_def =
+__ATTR(preempt_timeout_ms, 0444, preempt_timeout_default, NULL);
+
+static ssize_t
 heartbeat_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -359,6 +404,17 @@ heartbeat_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 static struct kobj_attribute heartbeat_interval_attr =
 __ATTR(heartbeat_interval_ms, 0644, heartbeat_show, heartbeat_store);
 
+static ssize_t
+heartbeat_default(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->defaults.heartbeat_interval_ms);
+}
+
+static struct kobj_attribute heartbeat_interval_def =
+__ATTR(heartbeat_interval_ms, 0444, heartbeat_default, NULL);
+
 static void kobj_engine_release(struct kobject *kobj)
 {
 	kfree(kobj);
@@ -388,6 +444,42 @@ kobj_engine(struct kobject *dir, struct intel_engine_cs *engine)
 
 	/* xfer ownership to sysfs tree */
 	return &ke->base;
+}
+
+static void add_defaults(struct kobj_engine *parent)
+{
+	static const struct attribute *files[] = {
+		&max_spin_def.attr,
+		&stop_timeout_def.attr,
+#if CONFIG_DRM_I915_HEARTBEAT_INTERVAL
+		&heartbeat_interval_def.attr,
+#endif
+		NULL
+	};
+	struct kobj_engine *ke;
+
+	ke = kzalloc(sizeof(*ke), GFP_KERNEL);
+	if (!ke)
+		return;
+
+	kobject_init(&ke->base, &kobj_engine_type);
+	ke->engine = parent->engine;
+
+	if (kobject_add(&ke->base, &parent->base, "%s", ".defaults")) {
+		kobject_put(&ke->base);
+		return;
+	}
+
+	if (sysfs_create_files(&ke->base, files))
+		return;
+
+	if (intel_engine_has_timeslices(ke->engine) &&
+	    sysfs_create_file(&ke->base, &timeslice_duration_def.attr))
+		return;
+
+	if (intel_engine_has_preempt_reset(ke->engine) &&
+	    sysfs_create_file(&ke->base, &preempt_timeout_def.attr))
+		return;
 }
 
 void intel_engines_add_sysfs(struct drm_i915_private *i915)
@@ -432,6 +524,8 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 		if (intel_engine_has_preempt_reset(engine) &&
 		    sysfs_create_file(kobj, &preempt_timeout_attr.attr))
 			goto err_engine;
+
+		add_defaults(container_of(kobj, struct kobj_engine, base));
 
 		if (0) {
 err_object:
