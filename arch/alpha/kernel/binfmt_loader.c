@@ -35,9 +35,6 @@ static int load_binary(struct linux_binprm *bprm)
 
 	bprm->file = file;
 	bprm->loader = loader;
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
-		return retval;
 	return search_binary_handler(bprm);
 }
 

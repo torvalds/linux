@@ -91,10 +91,6 @@ static int load_em86(struct linux_binprm *bprm)
 
 	bprm->file = file;
 
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
-		return retval;
-
 	return search_binary_handler(bprm);
 }
 

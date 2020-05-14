@@ -143,9 +143,6 @@ static int load_script(struct linux_binprm *bprm)
 		return PTR_ERR(file);
 
 	bprm->file = file;
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
-		return retval;
 	return search_binary_handler(bprm);
 }
 

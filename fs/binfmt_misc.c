@@ -221,10 +221,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (fmt->flags & MISC_FMT_CREDENTIALS)
 		bprm->preserve_creds = 1;
 
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
-		goto error;
-
 	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto error;
