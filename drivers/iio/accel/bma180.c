@@ -7,7 +7,7 @@
  * Support for BMA250 (c) Peter Meerwald <pmeerw@pmeerw.net>
  *
  * SPI is not supported by driver
- * BMA023: 7-bit I2C slave address 0x38
+ * BMA023/BMA150/SMB380: 7-bit I2C slave address 0x38
  * BMA180: 7-bit I2C slave address 0x40 or 0x41
  * BMA250: 7-bit I2C slave address 0x18 or 0x19
  * BMA254: 7-bit I2C slave address 0x18 or 0x19
@@ -35,6 +35,7 @@
 
 enum chip_ids {
 	BMA023,
+	BMA150,
 	BMA180,
 	BMA250,
 	BMA254,
@@ -565,8 +566,12 @@ static int bma180_read_raw(struct iio_dev *indio_dev,
 		iio_device_release_direct_mode(indio_dev);
 		if (ret < 0)
 			return ret;
-		*val = sign_extend32(ret >> chan->scan_type.shift,
-			chan->scan_type.realbits - 1);
+		if (chan->scan_type.sign == 's') {
+			*val = sign_extend32(ret >> chan->scan_type.shift,
+				chan->scan_type.realbits - 1);
+		} else {
+			*val = ret;
+		}
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		*val = data->bw;
@@ -691,6 +696,18 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	.ext_info = bma023_ext_info,					\
 }
 
+#define BMA150_TEMP_CHANNEL {						\
+	.type = IIO_TEMP,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_OFFSET),	\
+	.scan_index = TEMP,						\
+	.scan_type = {							\
+		.sign = 'u',						\
+		.realbits = 8,						\
+		.storagebits = 16,					\
+	},								\
+}
+
 #define BMA180_ACC_CHANNEL(_axis, _bits) {				\
 	.type = IIO_ACCEL,						\
 	.modified = 1,							\
@@ -724,6 +741,14 @@ static const struct iio_chan_spec bma023_channels[] = {
 	BMA023_ACC_CHANNEL(X, 10),
 	BMA023_ACC_CHANNEL(Y, 10),
 	BMA023_ACC_CHANNEL(Z, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
+};
+
+static const struct iio_chan_spec bma150_channels[] = {
+	BMA023_ACC_CHANNEL(X, 10),
+	BMA023_ACC_CHANNEL(Y, 10),
+	BMA023_ACC_CHANNEL(Z, 10),
+	BMA150_TEMP_CHANNEL,
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
@@ -771,6 +796,34 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.scale_reg = BMA023_CTRL_REG2,
 		.scale_mask = BMA023_RANGE_MASK,
 		/* No power mode on bma023 */
+		.power_reg = 0,
+		.power_mask = 0,
+		.lowpower_val = 0,
+		.int_enable_reg = BMA023_CTRL_REG3,
+		.int_enable_mask = BMA023_NEW_DATA_INT,
+		.softreset_reg = BMA023_CTRL_REG0,
+		.softreset_val = BMA023_RESET_VAL,
+		.chip_config = bma023_chip_config,
+		.chip_disable = bma023_chip_disable,
+	},
+	[BMA150] = {
+		.chip_id = BMA023_ID_REG_VAL,
+		.channels = bma150_channels,
+		.num_channels = ARRAY_SIZE(bma150_channels),
+		.scale_table = bma023_scale_table,
+		.num_scales = ARRAY_SIZE(bma023_scale_table),
+		.bw_table = bma023_bw_table,
+		.num_bw = ARRAY_SIZE(bma023_bw_table),
+		.temp_offset = -60, /* 0 LSB @ -30 degree C */
+		.int_reset_reg = BMA023_CTRL_REG0,
+		.int_reset_mask = BMA023_INT_RESET_MASK,
+		.sleep_reg = BMA023_CTRL_REG0,
+		.sleep_mask = BMA023_SLEEP,
+		.bw_reg = BMA023_CTRL_REG2,
+		.bw_mask = BMA023_BW_MASK,
+		.scale_reg = BMA023_CTRL_REG2,
+		.scale_mask = BMA023_RANGE_MASK,
+		/* No power mode on bma150 */
 		.power_reg = 0,
 		.power_mask = 0,
 		.lowpower_val = 0,
@@ -1105,9 +1158,11 @@ static SIMPLE_DEV_PM_OPS(bma180_pm_ops, bma180_suspend, bma180_resume);
 
 static const struct i2c_device_id bma180_ids[] = {
 	{ "bma023", BMA023 },
+	{ "bma150", BMA150 },
 	{ "bma180", BMA180 },
 	{ "bma250", BMA250 },
 	{ "bma254", BMA254 },
+	{ "smb380", BMA150 },
 	{ }
 };
 
@@ -1117,6 +1172,10 @@ static const struct of_device_id bma180_of_match[] = {
 	{
 		.compatible = "bosch,bma023",
 		.data = (void *)BMA023
+	},
+	{
+		.compatible = "bosch,bma150",
+		.data = (void *)BMA150
 	},
 	{
 		.compatible = "bosch,bma180",
@@ -1129,6 +1188,10 @@ static const struct of_device_id bma180_of_match[] = {
 	{
 		.compatible = "bosch,bma254",
 		.data = (void *)BMA254
+	},
+	{
+		.compatible = "bosch,smb380",
+		.data = (void *)BMA150
 	},
 	{ }
 };
@@ -1149,5 +1212,5 @@ module_i2c_driver(bma180_driver);
 
 MODULE_AUTHOR("Kravchenko Oleksandr <x0199363@ti.com>");
 MODULE_AUTHOR("Texas Instruments, Inc.");
-MODULE_DESCRIPTION("Bosch BMA023/BMA180/BMA25x triaxial acceleration sensor");
+MODULE_DESCRIPTION("Bosch BMA023/BMA1x0/BMA25x triaxial acceleration sensor");
 MODULE_LICENSE("GPL");
