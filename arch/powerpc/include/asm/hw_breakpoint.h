@@ -78,14 +78,14 @@ extern void ptrace_triggered(struct perf_event *bp,
 			struct perf_sample_data *data, struct pt_regs *regs);
 static inline void hw_breakpoint_disable(void)
 {
-	struct arch_hw_breakpoint brk;
+	int i;
+	struct arch_hw_breakpoint null_brk = {0};
 
-	brk.address = 0;
-	brk.type = 0;
-	brk.len = 0;
-	brk.hw_len = 0;
-	if (ppc_breakpoint_available())
-		__set_breakpoint(0, &brk);
+	if (!ppc_breakpoint_available())
+		return;
+
+	for (i = 0; i < nr_wp_slots(); i++)
+		__set_breakpoint(i, &null_brk);
 }
 extern void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs);
 int hw_breakpoint_handler(struct die_args *args);
