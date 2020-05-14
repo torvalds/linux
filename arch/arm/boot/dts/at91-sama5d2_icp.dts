@@ -105,6 +105,7 @@
 	status = "okay";
 
 	spi2: spi@400 {
+		dmas = <0>, <0>;
 		cs-gpios = <&pioA PIN_PC0 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mikrobus2_spi &pinctrl_ksz_spi_cs>;

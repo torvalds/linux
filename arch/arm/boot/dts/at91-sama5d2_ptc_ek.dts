@@ -192,7 +192,6 @@
 
 				i2c2: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
 					pinctrl-names = "default", "gpio";
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					pinctrl-1 = <&pinctrl_flx0_gpio>;
