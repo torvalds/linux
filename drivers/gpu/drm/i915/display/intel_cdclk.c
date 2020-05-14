@@ -2705,8 +2705,13 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 	u32 clkcfg;
 
 	/* hrawclock is 1/4 the FSB frequency */
-	clkcfg = intel_de_read(dev_priv, CLKCFG);
-	switch (clkcfg & CLKCFG_FSB_MASK) {
+	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
+
+	/* ELK seems to redefine some of the values */
+	if (IS_G45(dev_priv) && clkcfg == CLKCFG_FSB_1600_ALT)
+		return 400000;
+
+	switch (clkcfg) {
 	case CLKCFG_FSB_400:
 		return 100000;
 	case CLKCFG_FSB_533:
