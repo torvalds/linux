@@ -483,7 +483,6 @@ static u32 *sun50i_dte_get_page_table(struct sun50i_iommu_domain *sun50i_domain,
 				      dma_addr_t iova, gfp_t gfp)
 {
 	struct sun50i_iommu *iommu = sun50i_domain->iommu;
-	unsigned long flags;
 	u32 *page_table;
 	u32 *dte_addr;
 	u32 old_dte;
@@ -556,7 +555,6 @@ static size_t sun50i_iommu_unmap(struct iommu_domain *domain, unsigned long iova
 				 size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct sun50i_iommu_domain *sun50i_domain = to_sun50i_domain(domain);
-	struct sun50i_iommu *iommu = sun50i_domain->iommu;
 	phys_addr_t pt_phys;
 	dma_addr_t pte_dma;
 	u32 *pte_addr;
@@ -746,7 +744,6 @@ static int sun50i_iommu_attach_device(struct iommu_domain *domain,
 static struct iommu_device *sun50i_iommu_probe_device(struct device *dev)
 {
 	struct sun50i_iommu *iommu;
-	struct iommu_group *group;
 
 	iommu = sun50i_iommu_from_dev(dev);
 	if (!iommu)
