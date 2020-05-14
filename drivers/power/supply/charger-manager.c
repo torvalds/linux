@@ -907,7 +907,8 @@ static void charger_extcon_work(struct work_struct *work)
 			cable->min_uA, cable->max_uA);
 	}
 
-	try_charger_enable(cable->cm, cable->attached);
+	cancel_delayed_work(&cm_monitor_work);
+	queue_delayed_work(cm_wq, &cm_monitor_work, 0);
 }
 
 /**
@@ -929,15 +930,6 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	 * If cable is attached, cable->attached is true.
 	 */
 	cable->attached = event;
-
-	/*
-	 * Setup monitoring to check battery state
-	 * when charger cable is attached.
-	 */
-	if (cable->attached && is_polling_required(cable->cm)) {
-		cancel_work_sync(&setup_polling);
-		schedule_work(&setup_polling);
-	}
 
 	/*
 	 * Setup work for controlling charger(regulator)
