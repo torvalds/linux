@@ -27,9 +27,15 @@ static struct task_struct *task_seq_get_next(struct pid_namespace *ns,
 	struct pid *pid;
 
 	rcu_read_lock();
+retry:
 	pid = idr_get_next(&ns->idr, tid);
-	if (pid)
+	if (pid) {
 		task = get_pid_task(pid, PIDTYPE_PID);
+		if (!task) {
+			++*tid;
+			goto retry;
+		}
+	}
 	rcu_read_unlock();
 
 	return task;
