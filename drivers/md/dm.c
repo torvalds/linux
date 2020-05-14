@@ -26,6 +26,7 @@
 #include <linux/pr.h>
 #include <linux/refcount.h>
 #include <linux/part_stat.h>
+#include <linux/blk-crypto.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -1333,6 +1334,8 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 	struct bio *clone = &tio->clone;
 
 	__bio_clone_fast(clone, bio);
+
+	bio_crypt_clone(clone, bio, GFP_NOIO);
 
 	if (bio_integrity(bio)) {
 		int r;
