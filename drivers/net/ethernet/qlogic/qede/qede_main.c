@@ -539,6 +539,51 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
+static void qede_tx_log_print(struct qede_dev *edev, struct qede_tx_queue *txq)
+{
+	DP_NOTICE(edev,
+		  "Txq[%d]: FW cons [host] %04x, SW cons %04x, SW prod %04x [Jiffies %lu]\n",
+		  txq->index, le16_to_cpu(*txq->hw_cons_ptr),
+		  qed_chain_get_cons_idx(&txq->tx_pbl),
+		  qed_chain_get_prod_idx(&txq->tx_pbl),
+		  jiffies);
+}
+
+static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_tx_queue *txq;
+	int cos;
+
+	netif_carrier_off(dev);
+	DP_NOTICE(edev, "TX timeout on queue %u!\n", txqueue);
+
+	if (!(edev->fp_array[txqueue].type & QEDE_FASTPATH_TX))
+		return;
+
+	for_each_cos_in_txq(edev, cos) {
+		txq = &edev->fp_array[txqueue].txq[cos];
+
+		if (qed_chain_get_cons_idx(&txq->tx_pbl) !=
+		    qed_chain_get_prod_idx(&txq->tx_pbl))
+			qede_tx_log_print(edev, txq);
+	}
+
+	if (IS_VF(edev))
+		return;
+
+	if (test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
+	    edev->state == QEDE_STATE_RECOVERY) {
+		DP_INFO(edev,
+			"Avoid handling a Tx timeout while another HW error is being handled\n");
+		return;
+	}
+
+	set_bit(QEDE_ERR_GET_DBG_INFO, &edev->err_flags);
+	set_bit(QEDE_SP_HW_ERR, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+
 static int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
@@ -626,6 +671,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = qede_change_mtu,
 	.ndo_do_ioctl = qede_ioctl,
+	.ndo_tx_timeout = qede_tx_timeout,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_mac = qede_set_vf_mac,
 	.ndo_set_vf_vlan = qede_set_vf_vlan,

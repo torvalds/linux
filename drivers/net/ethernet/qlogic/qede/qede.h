@@ -533,7 +533,6 @@ u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 netdev_features_t qede_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
-void qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp);
 int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy);
 int qede_free_tx_pkt(struct qede_dev *edev,
 		     struct qede_tx_queue *txq, int *len);
