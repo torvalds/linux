@@ -740,12 +740,6 @@ struct qed_dbg_feature {
 	u32 dumped_dwords;
 };
 
-struct qed_dbg_params {
-	struct qed_dbg_feature features[DBG_FEATURE_NUM];
-	u8 engine_for_debug;
-	bool print_data;
-};
-
 struct qed_dev {
 	u32	dp_module;
 	u8	dp_level;
@@ -872,16 +866,17 @@ struct qed_dev {
 	} protocol_ops;
 	void				*ops_cookie;
 
-	struct qed_dbg_params		dbg_params;
-
 #ifdef CONFIG_QED_LL2
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
 	struct qed_dbg_feature dbg_features[DBG_FEATURE_NUM];
+	u8 engine_for_debug;
 	bool disable_ilt_dump;
 	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;
+
+	bool print_dbg_data;
 
 	u32 rdma_max_sge;
 	u32 rdma_max_inline;
