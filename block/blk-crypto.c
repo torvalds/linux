@@ -19,14 +19,17 @@
 
 const struct blk_crypto_mode blk_crypto_modes[] = {
 	[BLK_ENCRYPTION_MODE_AES_256_XTS] = {
+		.cipher_str = "xts(aes)",
 		.keysize = 64,
 		.ivsize = 16,
 	},
 	[BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV] = {
+		.cipher_str = "essiv(cbc(aes),sha256)",
 		.keysize = 16,
 		.ivsize = 16,
 	},
 	[BLK_ENCRYPTION_MODE_ADIANTUM] = {
+		.cipher_str = "adiantum(xchacha12,aes)",
 		.keysize = 32,
 		.ivsize = 32,
 	},
@@ -229,9 +232,16 @@ void __blk_crypto_free_request(struct request *rq)
  *
  * @bio_ptr: pointer to original bio pointer
  *
- * Succeeds if the bio doesn't have inline encryption enabled or if the bio
- * crypt context provided for the bio is supported by the underlying device's
- * inline encryption hardware. Ends the bio with error otherwise.
+ * If the bio crypt context provided for the bio is supported by the underlying
+ * device's inline encryption hardware, do nothing.
+ *
+ * Otherwise, try to perform en/decryption for this bio by falling back to the
+ * kernel crypto API. When the crypto API fallback is used for encryption,
+ * blk-crypto may choose to split the bio into 2 - the first one that will
+ * continue to be processed and the second one that will be resubmitted via
+ * generic_make_request. A bounce bio will be allocated to encrypt the contents
+ * of the aforementioned "first one", and *bio_ptr will be updated to this
+ * bounce bio.
  *
  * Caller must ensure bio has bio_crypt_ctx.
  *
@@ -243,27 +253,29 @@ bool __blk_crypto_bio_prep(struct bio **bio_ptr)
 {
 	struct bio *bio = *bio_ptr;
 	const struct blk_crypto_key *bc_key = bio->bi_crypt_context->bc_key;
-	blk_status_t blk_st = BLK_STS_IOERR;
 
 	/* Error if bio has no data. */
-	if (WARN_ON_ONCE(!bio_has_data(bio)))
-		goto fail;
-
-	if (!bio_crypt_check_alignment(bio))
-		goto fail;
-
-	/*
-	 * Success if device supports the encryption context.
-	 */
-	if (!blk_ksm_crypto_cfg_supported(bio->bi_disk->queue->ksm,
-					  &bc_key->crypto_cfg)) {
-		blk_st = BLK_STS_NOTSUPP;
+	if (WARN_ON_ONCE(!bio_has_data(bio))) {
+		bio->bi_status = BLK_STS_IOERR;
 		goto fail;
 	}
 
-	return true;
+	if (!bio_crypt_check_alignment(bio)) {
+		bio->bi_status = BLK_STS_IOERR;
+		goto fail;
+	}
+
+	/*
+	 * Success if device supports the encryption context, or if we succeeded
+	 * in falling back to the crypto API.
+	 */
+	if (blk_ksm_crypto_cfg_supported(bio->bi_disk->queue->ksm,
+					 &bc_key->crypto_cfg))
+		return true;
+
+	if (blk_crypto_fallback_bio_prep(bio_ptr))
+		return true;
 fail:
-	(*bio_ptr)->bi_status = blk_st;
 	bio_endio(*bio_ptr);
 	return false;
 }
@@ -329,10 +341,16 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
 	return 0;
 }
 
+/*
+ * Check if bios with @cfg can be en/decrypted by blk-crypto (i.e. either the
+ * request queue it's submitted to supports inline crypto, or the
+ * blk-crypto-fallback is enabled and supports the cfg).
+ */
 bool blk_crypto_config_supported(struct request_queue *q,
 				 const struct blk_crypto_config *cfg)
 {
-	return blk_ksm_crypto_cfg_supported(q->ksm, cfg);
+	return IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) ||
+	       blk_ksm_crypto_cfg_supported(q->ksm, cfg);
 }
 
 /**
@@ -340,17 +358,22 @@ bool blk_crypto_config_supported(struct request_queue *q,
  * @key: A key to use on the device
  * @q: the request queue for the device
  *
- * Upper layers must call this function to ensure that the hardware supports
- * the key's crypto settings.
+ * Upper layers must call this function to ensure that either the hardware
+ * supports the key's crypto settings, or the crypto API fallback has transforms
+ * for the needed mode allocated and ready to go. This function may allocate
+ * an skcipher, and *should not* be called from the data path, since that might
+ * cause a deadlock
  *
- * Return: 0 on success; -ENOPKG if the hardware doesn't support the key
+ * Return: 0 on success; -ENOPKG if the hardware doesn't support the key and
+ *	   blk-crypto-fallback is either disabled or the needed algorithm
+ *	   is disabled in the crypto API; or another -errno code.
  */
 int blk_crypto_start_using_key(const struct blk_crypto_key *key,
 			       struct request_queue *q)
 {
 	if (blk_ksm_crypto_cfg_supported(q->ksm, &key->crypto_cfg))
 		return 0;
-	return -ENOPKG;
+	return blk_crypto_fallback_start_using_mode(key->crypto_cfg.crypto_mode);
 }
 
 /**
@@ -372,5 +395,10 @@ int blk_crypto_evict_key(struct request_queue *q,
 	if (blk_ksm_crypto_cfg_supported(q->ksm, &key->crypto_cfg))
 		return blk_ksm_evict_key(q->ksm, key);
 
-	return 0;
+	/*
+	 * If the request queue's associated inline encryption hardware didn't
+	 * have support for the key, then the key might have been programmed
+	 * into the fallback keyslot manager, so try to evict from there.
+	 */
+	return blk_crypto_fallback_evict_key(key);
 }

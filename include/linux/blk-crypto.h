@@ -61,7 +61,7 @@ struct blk_crypto_key {
  *
  * A bio_crypt_ctx specifies that the contents of the bio will be encrypted (for
  * write requests) or decrypted (for read requests) inline by the storage device
- * or controller.
+ * or controller, or by the crypto API fallback.
  */
 struct bio_crypt_ctx {
 	const struct blk_crypto_key	*bc_key;
