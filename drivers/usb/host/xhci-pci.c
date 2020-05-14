@@ -327,10 +327,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int retval;
 	struct xhci_hcd *xhci;
-	struct hc_driver *driver;
 	struct usb_hcd *hcd;
-
-	driver = (struct hc_driver *)id->driver_data;
 
 	/* Prevent runtime suspending between USB-2 and USB-3 initialization */
 	pm_runtime_get_noresume(&dev->dev);
@@ -341,7 +338,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * to say USB 2.0, but I'm not sure what the implications would be in
 	 * the other parts of the HCD code.
 	 */
-	retval = usb_hcd_pci_probe(dev, id);
+	retval = usb_hcd_pci_probe(dev, id, &xhci_pci_hc_driver);
 
 	if (retval)
 		goto put_runtime_pm;
@@ -349,8 +346,8 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* USB 2.0 roothub is stored in the PCI device now. */
 	hcd = dev_get_drvdata(&dev->dev);
 	xhci = hcd_to_xhci(hcd);
-	xhci->shared_hcd = usb_create_shared_hcd(driver, &dev->dev,
-				pci_name(dev), hcd);
+	xhci->shared_hcd = usb_create_shared_hcd(&xhci_pci_hc_driver, &dev->dev,
+						 pci_name(dev), hcd);
 	if (!xhci->shared_hcd) {
 		retval = -ENOMEM;
 		goto dealloc_usb2_hcd;
@@ -544,10 +541,9 @@ static void xhci_pci_shutdown(struct usb_hcd *hcd)
 /*-------------------------------------------------------------------------*/
 
 /* PCI driver selection metadata; PCI hotplugging uses this */
-static const struct pci_device_id pci_ids[] = { {
+static const struct pci_device_id pci_ids[] = {
 	/* handle any USB 3.0 xHCI controller */
-	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_XHCI, ~0),
-	.driver_data =	(unsigned long) &xhci_pci_hc_driver,
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_XHCI, ~0),
 	},
 	{ /* end: all zeroes */ }
 };
