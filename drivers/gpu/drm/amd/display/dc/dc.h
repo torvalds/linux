@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.83.1"
+#define DC_VER "3.2.84"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -277,6 +277,7 @@ struct dc_config {
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
+	bool enable_4to1MPC;
 };
 
 enum visual_confirm {
@@ -476,6 +477,7 @@ struct dc_debug_options {
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
 	bool disable_dsc;
+	bool enable_dram_clock_change_one_display_vactive;
 };
 
 struct dc_debug_data {

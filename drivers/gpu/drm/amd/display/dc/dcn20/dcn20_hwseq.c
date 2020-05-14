@@ -961,9 +961,7 @@ void dcn20_blank_pixel_data(
 	width = width / odm_cnt;
 
 	if (blank) {
-		if (stream_res->abm)
-			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm,
-					stream->link->panel_cntl->inst);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 			test_pattern = CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
@@ -2042,9 +2040,7 @@ static void dcn20_reset_back_end_for_pipe(
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
 
-		if (pipe_ctx->stream_res.abm)
-			pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(pipe_ctx->stream_res.abm,
-					pipe_ctx->stream->link->panel_cntl->inst);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 

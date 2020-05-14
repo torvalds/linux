@@ -65,6 +65,7 @@ struct kgd_mem {
 	struct amdgpu_sync sync;
 
 	bool aql_queue;
+	bool is_imported;
 };
 
 /* KFD Memory Eviction */
@@ -148,6 +149,9 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev);
 
 void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd);
 
+int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
+					int queue_bit);
+
 /* Shared API */
 int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 				void **mem_obj, uint64_t *gpu_addr,
@@ -219,7 +223,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		void *vm, struct kgd_mem **mem,
 		uint64_t *offset, uint32_t flags);
 int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
-		struct kgd_dev *kgd, struct kgd_mem *mem);
+		struct kgd_dev *kgd, struct kgd_mem *mem, uint64_t *size);
 int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 		struct kgd_dev *kgd, struct kgd_mem *mem, void *vm);
 int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(

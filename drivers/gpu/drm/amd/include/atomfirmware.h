@@ -972,11 +972,13 @@ struct atom_ext_display_path
 };
 
 //usCaps
-enum ext_display_path_cap_def
-{
-  EXT_DISPLAY_PATH_CAPS__HBR2_DISABLE               =0x0001,
-  EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN             =0x0002,
-  EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK              =0x007C,           
+enum ext_display_path_cap_def {
+	EXT_DISPLAY_PATH_CAPS__HBR2_DISABLE =           0x0001,
+	EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN =         0x0002,
+	EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK =          0x007C,
+	EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204 =      (0x01 << 2), //PI redriver chip
+	EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT = (0x02 << 2), //TI retimer chip
+	EXT_DISPLAY_PATH_CAPS__HDMI20_PARADE_PS175 =    (0x03 << 2)  //Parade DP->HDMI recoverter chip
 };
 
 struct atom_external_display_connection_info

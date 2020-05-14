@@ -1845,7 +1845,6 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev)
 	uint32_t table_size = 0;
 	struct mmsch_v2_0_cmd_direct_write direct_wt = { {0} };
 	struct mmsch_v2_0_cmd_direct_read_modify_write direct_rd_mod_wt = { {0} };
-	struct mmsch_v2_0_cmd_direct_polling direct_poll = { {0} };
 	struct mmsch_v2_0_cmd_end end = { {0} };
 	struct mmsch_v2_0_init_header *header;
 	uint32_t *init_table = adev->virt.mm_table.cpu_addr;
@@ -1855,8 +1854,6 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev)
 	direct_wt.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_WRITE;
 	direct_rd_mod_wt.cmd_header.command_type =
 		MMSCH_COMMAND__DIRECT_REG_READ_MODIFY_WRITE;
-	direct_poll.cmd_header.command_type =
-		MMSCH_COMMAND__DIRECT_REG_POLLING;
 	end.cmd_header.command_type = MMSCH_COMMAND__END;
 
 	if (header->vcn_table_offset == 0 && header->vcn_table_size == 0) {

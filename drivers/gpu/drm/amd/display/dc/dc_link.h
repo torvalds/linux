@@ -29,7 +29,6 @@
 #include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
-#include "dmub/inc/dmub_cmd_dal.h"
 
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
@@ -72,7 +71,7 @@ struct link_trace {
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
 	bool psr_allow_active;			// PSR is currently active
-	enum psr_version psr_version;		// Internal PSR version, determined based on DPCD
+	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
 
 	/* These parameters are calculated in Driver,
 	 * based on display timing and Sink capabilities.
@@ -219,8 +218,6 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link);
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 int dc_link_get_target_backlight_pwm(const struct dc_link *link);
-
-bool dc_link_set_abm_disable(const struct dc_link *dc_link);
 
 bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable, bool wait);
 

@@ -95,16 +95,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*xgmi_get_node_id)(struct psp_context *psp, uint64_t *node_id);
-	int (*xgmi_get_hive_id)(struct psp_context *psp, uint64_t *hive_id);
-	int (*xgmi_get_topology_info)(struct psp_context *psp, int number_devices,
-				      struct psp_xgmi_topology_info *topology);
-	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
-				      struct psp_xgmi_topology_info *topology);
-	int (*ras_trigger_error)(struct psp_context *psp,
-			struct ta_ras_trigger_error_input *info);
-	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
-	int (*rlc_autoload_start)(struct psp_context *psp);
 	int (*mem_training_init)(struct psp_context *psp);
 	void (*mem_training_fini)(struct psp_context *psp);
 	int (*mem_training)(struct psp_context *psp, uint32_t ops);
@@ -316,31 +306,12 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
-#define psp_xgmi_get_node_id(psp, node_id) \
-		((psp)->funcs->xgmi_get_node_id ? (psp)->funcs->xgmi_get_node_id((psp), (node_id)) : -EINVAL)
-#define psp_xgmi_get_hive_id(psp, hive_id) \
-		((psp)->funcs->xgmi_get_hive_id ? (psp)->funcs->xgmi_get_hive_id((psp), (hive_id)) : -EINVAL)
-#define psp_xgmi_get_topology_info(psp, num_device, topology) \
-		((psp)->funcs->xgmi_get_topology_info ? \
-		(psp)->funcs->xgmi_get_topology_info((psp), (num_device), (topology)) : -EINVAL)
-#define psp_xgmi_set_topology_info(psp, num_device, topology) \
-		((psp)->funcs->xgmi_set_topology_info ?	 \
-		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
-#define psp_rlc_autoload(psp) \
-		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
 #define psp_mem_training_init(psp) \
 	((psp)->funcs->mem_training_init ? (psp)->funcs->mem_training_init((psp)) : 0)
 #define psp_mem_training_fini(psp) \
 	((psp)->funcs->mem_training_fini ? (psp)->funcs->mem_training_fini((psp)) : 0)
 #define psp_mem_training(psp, ops) \
 	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
-
-#define psp_ras_trigger_error(psp, info) \
-	((psp)->funcs->ras_trigger_error ? \
-	(psp)->funcs->ras_trigger_error((psp), (info)) : -EINVAL)
-#define psp_ras_cure_posion(psp, addr) \
-	((psp)->funcs->ras_cure_posion ? \
-	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
 
 #define psp_ring_get_wptr(psp) (psp)->funcs->ring_get_wptr((psp))
 #define psp_ring_set_wptr(psp, value) (psp)->funcs->ring_set_wptr((psp), (value))
@@ -369,10 +340,21 @@ int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 int psp_xgmi_initialize(struct psp_context *psp);
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id);
+int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id);
+int psp_xgmi_get_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology);
+int psp_xgmi_set_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology);
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
+int psp_ras_trigger_error(struct psp_context *psp,
+			  struct ta_ras_trigger_error_input *info);
+
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 

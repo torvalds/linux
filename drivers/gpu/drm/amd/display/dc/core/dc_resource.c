@@ -1547,35 +1547,6 @@ bool dc_add_all_planes_for_stream(
 	return add_all_planes_for_stream(dc, stream, &set, 1, context);
 }
 
-
-static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
-	struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->hdr_static_metadata,
-			&new_stream->hdr_static_metadata,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
-static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
-		struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->vsc_infopacket,
-			&new_stream->vsc_infopacket,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
 {
@@ -1610,13 +1581,7 @@ static bool are_stream_backends_same(
 	if (is_timing_changed(stream_a, stream_b))
 		return false;
 
-	if (is_hdr_static_meta_changed(stream_a, stream_b))
-		return false;
-
 	if (stream_a->dpms_off != stream_b->dpms_off)
-		return false;
-
-	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -1756,21 +1721,6 @@ static struct audio *find_first_free_audio(
 		}
 	}
 	return 0;
-}
-
-bool resource_is_stream_unchanged(
-	struct dc_state *old_context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < old_context->stream_count; i++) {
-		struct dc_stream_state *old_stream = old_context->streams[i];
-
-		if (are_stream_backends_same(old_stream, stream))
-				return true;
-	}
-
-	return false;
 }
 
 /**
@@ -2026,17 +1976,6 @@ enum dc_status resource_map_pool_resources(
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
-
-	/* TODO Check if this is needed */
-	/*if (!resource_is_stream_unchanged(old_context, stream)) {
-			if (stream != NULL && old_context->streams[i] != NULL) {
-				stream->bit_depth_params =
-						old_context->streams[i]->bit_depth_params;
-				stream->clamping = old_context->streams[i]->clamping;
-				continue;
-			}
-		}
-	*/
 
 	calculate_phy_pix_clks(stream);
 
@@ -2720,13 +2659,7 @@ bool pipe_need_reprogram(
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
-	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
-		return true;
-
 	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
-		return true;
-
-	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
 	if (false == pipe_ctx_old->stream->link->link_state_valid &&

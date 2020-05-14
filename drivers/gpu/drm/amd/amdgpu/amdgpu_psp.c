@@ -664,6 +664,121 @@ int psp_xgmi_initialize(struct psp_context *psp)
 	return ret;
 }
 
+int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
+
+	/* Invoke xgmi ta to get hive id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return ret;
+
+	*hive_id = xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+
+	return 0;
+}
+
+int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
+
+	/* Invoke xgmi ta to get the node id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return ret;
+
+	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+
+	return 0;
+}
+
+int psp_xgmi_get_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
+	struct ta_xgmi_cmd_get_topology_info_output *topology_info_output;
+	int i;
+	int ret;
+
+	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+		return -EINVAL;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	/* Fill in the shared memory with topology information as input */
+	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO;
+	topology_info_input->num_nodes = number_devices;
+
+	for (i = 0; i < topology_info_input->num_nodes; i++) {
+		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
+		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
+		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
+		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta to get the topology information */
+	ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO);
+	if (ret)
+		return ret;
+
+	/* Read the output topology information from the shared memory */
+	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
+	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
+	for (i = 0; i < topology->num_nodes; i++) {
+		topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
+		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
+		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
+		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
+	}
+
+	return 0;
+}
+
+int psp_xgmi_set_topology_info(struct psp_context *psp,
+			       int number_devices,
+			       struct psp_xgmi_topology_info *topology)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
+	int i;
+
+	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+		return -EINVAL;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
+	topology_info_input->num_nodes = number_devices;
+
+	for (i = 0; i < topology_info_input->num_nodes; i++) {
+		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
+		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
+		topology_info_input->nodes[i].is_sharing_enabled = 1;
+		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta to set topology information */
+	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
+}
+
 // ras begin
 static int psp_ras_init_shared_buf(struct psp_context *psp)
 {
@@ -746,13 +861,40 @@ static int psp_ras_unload(struct psp_context *psp)
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+
 	/*
 	 * TODO: bypass the loading in sriov for now
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	return psp_ta_invoke(psp, ta_cmd_id, psp->ras.session_id);
+	ret = psp_ta_invoke(psp, ta_cmd_id, psp->ras.session_id);
+
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
+	if (ras_cmd->if_version > RAS_TA_HOST_IF_VER)
+	{
+		DRM_WARN("RAS: Unsupported Interface");
+		return -EINVAL;
+	}
+
+	if (!ret) {
+		if (ras_cmd->ras_out_message.flags.err_inject_switch_disable_flag) {
+			dev_warn(psp->adev->dev, "ECC switch disabled\n");
+
+			ras_cmd->ras_status = TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE;
+		}
+		else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
+			dev_warn(psp->adev->dev,
+				 "RAS internal register access blocked\n");
+	}
+
+	return ret;
 }
 
 int psp_ras_enable_features(struct psp_context *psp,
@@ -835,6 +977,33 @@ static int psp_ras_initialize(struct psp_context *psp)
 		return ret;
 
 	return 0;
+}
+
+int psp_ras_trigger_error(struct psp_context *psp,
+			  struct ta_ras_trigger_error_input *info)
+{
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__TRIGGER_ERROR;
+	ras_cmd->ras_in_message.trigger_error = *info;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	/* If err_event_athub occurs error inject was successful, however
+	   return status from TA is no long reliable */
+	if (amdgpu_ras_intr_triggered())
+		return 0;
+
+	return ras_cmd->ras_status;
 }
 // ras end
 
@@ -1477,7 +1646,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 		/* Start rlc autoload after psp recieved all the gfx firmware */
 		if (psp->autoload_supported && ucode->ucode_id == (amdgpu_sriov_vf(adev) ?
 		    AMDGPU_UCODE_ID_CP_MEC2 : AMDGPU_UCODE_ID_RLC_G)) {
-			ret = psp_rlc_autoload(psp);
+			ret = psp_rlc_autoload_start(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");
 				return ret;

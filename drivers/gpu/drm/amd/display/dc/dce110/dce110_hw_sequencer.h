@@ -88,6 +88,7 @@ void dce110_edp_wait_for_hpd_ready(
 bool dce110_set_backlight_level(struct pipe_ctx *pipe_ctx,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp);
+void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx);
 
 #endif /* __DC_HWSS_DCE110_H__ */
 
