@@ -180,10 +180,43 @@ static int tja11xx_soft_reset(struct phy_device *phydev)
 	return genphy_soft_reset(phydev);
 }
 
+static int tja11xx_config_aneg_cable_test(struct phy_device *phydev)
+{
+	bool finished = false;
+	int ret;
+
+	if (phydev->link)
+		return 0;
+
+	if (!phydev->drv->cable_test_start ||
+	    !phydev->drv->cable_test_get_status)
+		return 0;
+
+	ret = ethnl_cable_test_alloc(phydev);
+	if (ret)
+		return ret;
+
+	ret = phydev->drv->cable_test_start(phydev);
+	if (ret)
+		return ret;
+
+	/* According to the documentation this test takes 100 usec */
+	usleep_range(100, 200);
+
+	ret = phydev->drv->cable_test_get_status(phydev, &finished);
+	if (ret)
+		return ret;
+
+	if (finished)
+		ethnl_cable_test_finished(phydev);
+
+	return 0;
+}
+
 static int tja11xx_config_aneg(struct phy_device *phydev)
 {
+	int ret, changed = 0;
 	u16 ctl = 0;
-	int ret;
 
 	switch (phydev->master_slave_set) {
 	case MASTER_SLAVE_CFG_MASTER_FORCE:
@@ -193,17 +226,22 @@ static int tja11xx_config_aneg(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_UNKNOWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
-		return 0;
+		goto do_test;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
 		return -ENOTSUPP;
 	}
 
-	ret = phy_modify_changed(phydev, MII_CFG1, MII_CFG1_MASTER_SLAVE, ctl);
-	if (ret < 0)
+	changed = phy_modify_changed(phydev, MII_CFG1, MII_CFG1_MASTER_SLAVE, ctl);
+	if (changed < 0)
+		return changed;
+
+do_test:
+	ret = tja11xx_config_aneg_cable_test(phydev);
+	if (ret)
 		return ret;
 
-	return __genphy_config_aneg(phydev, ret);
+	return __genphy_config_aneg(phydev, changed);
 }
 
 static int tja11xx_config_init(struct phy_device *phydev)
