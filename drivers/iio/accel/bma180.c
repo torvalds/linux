@@ -50,7 +50,7 @@ struct bma180_part_info {
 	unsigned int num_scales;
 	const int *bw_table;
 	unsigned int num_bw;
-	int center_temp;
+	int temp_offset;
 
 	u8 int_reset_reg, int_reset_mask;
 	u8 sleep_reg, sleep_mask;
@@ -584,7 +584,7 @@ static int bma180_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_OFFSET:
-		*val = data->part_info->center_temp;
+		*val = data->part_info->temp_offset;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -761,7 +761,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.bw_table = bma023_bw_table,
 		.num_bw = ARRAY_SIZE(bma023_bw_table),
 		/* No temperature channel */
-		.center_temp = 0,
+		.temp_offset = 0,
 		.int_reset_reg = BMA023_CTRL_REG0,
 		.int_reset_mask = BMA023_INT_RESET_MASK,
 		.sleep_reg = BMA023_CTRL_REG0,
@@ -789,7 +789,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.num_scales = ARRAY_SIZE(bma180_scale_table),
 		.bw_table = bma180_bw_table,
 		.num_bw = ARRAY_SIZE(bma180_bw_table),
-		.center_temp = 48, /* 0 LSB @ 24 degree C */
+		.temp_offset = 48, /* 0 LSB @ 24 degree C */
 		.int_reset_reg = BMA180_CTRL_REG0,
 		.int_reset_mask = BMA180_RESET_INT,
 		.sleep_reg = BMA180_CTRL_REG0,
@@ -816,7 +816,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.num_scales = ARRAY_SIZE(bma25x_scale_table),
 		.bw_table = bma25x_bw_table,
 		.num_bw = ARRAY_SIZE(bma25x_bw_table),
-		.center_temp = 48, /* 0 LSB @ 24 degree C */
+		.temp_offset = 48, /* 0 LSB @ 24 degree C */
 		.int_reset_reg = BMA250_INT_RESET_REG,
 		.int_reset_mask = BMA250_INT_RESET_MASK,
 		.sleep_reg = BMA250_POWER_REG,
@@ -845,7 +845,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.num_scales = ARRAY_SIZE(bma25x_scale_table),
 		.bw_table = bma25x_bw_table,
 		.num_bw = ARRAY_SIZE(bma25x_bw_table),
-		.center_temp = 46, /* 0 LSB @ 23 degree C */
+		.temp_offset = 46, /* 0 LSB @ 23 degree C */
 		.int_reset_reg = BMA254_INT_RESET_REG,
 		.int_reset_mask = BMA254_INT_RESET_MASK,
 		.sleep_reg = BMA254_POWER_REG,
