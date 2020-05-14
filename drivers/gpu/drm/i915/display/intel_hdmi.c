@@ -44,7 +44,6 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
-#include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
@@ -1615,10 +1614,10 @@ static int get_hdcp2_msg_timeout(u8 msg_id, bool is_paired)
 	return -EINVAL;
 }
 
-static inline
-int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
-				  u8 msg_id, bool *msg_ready,
-				  ssize_t *msg_sz)
+static int
+hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
+			      u8 msg_id, bool *msg_ready,
+			      ssize_t *msg_sz)
 {
 	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	u8 rx_status[HDCP_2_2_HDMI_RXSTATUS_LEN];
@@ -1749,12 +1748,6 @@ int intel_hdmi_hdcp2_capable(struct intel_digital_port *intel_dig_port,
 		*capable = true;
 
 	return ret;
-}
-
-static inline
-enum hdcp_wired_protocol intel_hdmi_hdcp2_protocol(void)
-{
-	return HDCP_PROTOCOL_HDMI;
 }
 
 static const struct intel_hdcp_shim intel_hdmi_hdcp_shim = {
@@ -2328,32 +2321,27 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	return true;
 }
 
-static bool
-intel_hdmi_ycbcr420_config(struct drm_connector *connector,
-			   struct intel_crtc_state *config)
+static int
+intel_hdmi_ycbcr420_config(struct intel_crtc_state *crtc_state,
+			   const struct drm_connector_state *conn_state)
 {
+	struct drm_connector *connector = conn_state->connector;
 	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(config->uapi.crtc);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!drm_mode_is_420_only(&connector->display_info, adjusted_mode))
+		return 0;
 
 	if (!connector->ycbcr_420_allowed) {
 		drm_err(&i915->drm,
 			"Platform doesn't support YCBCR420 output\n");
-		return false;
+		return -EINVAL;
 	}
 
-	config->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
-	/* YCBCR 420 output conversion needs a scaler */
-	if (skl_update_scaler_crtc(config)) {
-		drm_dbg_kms(&i915->drm,
-			    "Scaler allocation for output failed\n");
-		return false;
-	}
-
-	intel_pch_panel_fitting(intel_crtc, config,
-				DRM_MODE_SCALE_FULLSCREEN);
-
-	return true;
+	return intel_pch_panel_fitting(crtc_state, conn_state);
 }
 
 static int intel_hdmi_port_clock(int clock, int bpc)
@@ -2481,13 +2469,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
 
-	if (drm_mode_is_420_only(&connector->display_info, adjusted_mode)) {
-		if (!intel_hdmi_ycbcr420_config(connector, pipe_config)) {
-			drm_err(&dev_priv->drm,
-				"Can't support YCBCR420 output\n");
-			return -EINVAL;
-		}
-	}
+	ret = intel_hdmi_ycbcr420_config(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	pipe_config->limited_color_range =
 		intel_hdmi_limited_color_range(pipe_config, conn_state);
@@ -2877,8 +2861,6 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 	ret = intel_connector_register(connector);
 	if (ret)
 		return ret;
-
-	intel_connector_debugfs_add(connector);
 
 	intel_hdmi_create_i2c_symlink(connector);
 

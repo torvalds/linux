@@ -267,7 +267,6 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int ret;
@@ -279,11 +278,11 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
 		if (HAS_GMCH(dev_priv))
-			intel_gmch_panel_fitting(crtc, pipe_config,
-						 conn_state->scaling_mode);
+			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
 		else
-			intel_pch_panel_fitting(crtc, pipe_config,
-						conn_state->scaling_mode);
+			ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		if (ret)
+			return ret;
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -864,7 +863,7 @@ static void bxt_dsi_enable(struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	intel_crtc_vblank_on(crtc_state);
 }

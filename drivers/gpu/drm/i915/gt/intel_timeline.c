@@ -337,6 +337,13 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	return 0;
 }
 
+void intel_timeline_reset_seqno(const struct intel_timeline *tl)
+{
+	/* Must be pinned to be writable, and no requests in flight. */
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
+	WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
+}
+
 void intel_timeline_enter(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
@@ -365,8 +372,16 @@ void intel_timeline_enter(struct intel_timeline *tl)
 		return;
 
 	spin_lock(&timelines->lock);
-	if (!atomic_fetch_inc(&tl->active_count))
+	if (!atomic_fetch_inc(&tl->active_count)) {
+		/*
+		 * The HWSP is volatile, and may have been lost while inactive,
+		 * e.g. across suspend/resume. Be paranoid, and ensure that
+		 * the HWSP value matches our seqno so we don't proclaim
+		 * the next request as already complete.
+		 */
+		intel_timeline_reset_seqno(tl);
 		list_add_tail(&tl->link, &timelines->active_list);
+	}
 	spin_unlock(&timelines->lock);
 }
 
@@ -529,6 +544,8 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 	rcu_read_lock();
 	cl = rcu_dereference(from->hwsp_cacheline);
+	if (i915_request_completed(from)) /* confirm cacheline is valid */
+		goto unlock;
 	if (unlikely(!i915_active_acquire_if_busy(&cl->active)))
 		goto unlock; /* seqno wrapped and completed! */
 	if (unlikely(i915_request_completed(from)))

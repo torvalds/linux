@@ -34,6 +34,7 @@ tc_port_load_fia_params(struct drm_i915_private *i915,
 	if (INTEL_INFO(i915)->display.has_modular_fia) {
 		modular_fia = intel_uncore_read(&i915->uncore,
 						PORT_TX_DFLEXDPSP(FIA1));
+		drm_WARN_ON(&i915->drm, modular_fia == 0xffffffff);
 		modular_fia &= MODULAR_FIA_MASK;
 	} else {
 		modular_fia = 0;
@@ -52,6 +53,62 @@ tc_port_load_fia_params(struct drm_i915_private *i915,
 	}
 }
 
+static enum intel_display_power_domain
+tc_cold_get_power_domain(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (INTEL_GEN(i915) == 11)
+		return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
+	else
+		return POWER_DOMAIN_TC_COLD_OFF;
+}
+
+static intel_wakeref_t
+tc_cold_block(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum intel_display_power_domain domain;
+
+	if (INTEL_GEN(i915) == 11 && !dig_port->tc_legacy_port)
+		return 0;
+
+	domain = tc_cold_get_power_domain(dig_port);
+	return intel_display_power_get(i915, domain);
+}
+
+static void
+tc_cold_unblock(struct intel_digital_port *dig_port, intel_wakeref_t wakeref)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum intel_display_power_domain domain;
+
+	/*
+	 * wakeref == -1, means some error happened saving save_depot_stack but
+	 * power should still be put down and 0 is a invalid save_depot_stack
+	 * id so can be used to skip it for non TC legacy ports.
+	 */
+	if (wakeref == 0)
+		return;
+
+	domain = tc_cold_get_power_domain(dig_port);
+	intel_display_power_put_async(i915, domain, wakeref);
+}
+
+static void
+assert_tc_cold_blocked(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	bool enabled;
+
+	if (INTEL_GEN(i915) == 11 && !dig_port->tc_legacy_port)
+		return;
+
+	enabled = intel_display_power_is_enabled(i915,
+						 tc_cold_get_power_domain(dig_port));
+	drm_WARN_ON(&i915->drm, !enabled);
+}
+
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -62,6 +119,7 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 				      PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
 
 	drm_WARN_ON(&i915->drm, lane_mask == 0xffffffff);
+	assert_tc_cold_blocked(dig_port);
 
 	lane_mask &= DP_LANE_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx);
 	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
@@ -77,6 +135,7 @@ u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
 				     PORT_TX_DFLEXPA1(dig_port->tc_phy_fia));
 
 	drm_WARN_ON(&i915->drm, pin_mask == 0xffffffff);
+	assert_tc_cold_blocked(dig_port);
 
 	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx)) >>
 	       DP_PIN_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
@@ -90,6 +149,8 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 
 	if (dig_port->tc_mode != TC_PORT_DP_ALT)
 		return 4;
+
+	assert_tc_cold_blocked(dig_port);
 
 	lane_mask = 0;
 	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
@@ -122,6 +183,8 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 
 	drm_WARN_ON(&i915->drm,
 		    lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
+
+	assert_tc_cold_blocked(dig_port);
 
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia));
@@ -420,9 +483,14 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
 
 	intel_display_power_flush_work(i915);
-	drm_WARN_ON(&i915->drm,
-		    intel_display_power_is_enabled(i915,
-					intel_aux_power_domain(dig_port)));
+	if (INTEL_GEN(i915) != 11 || !dig_port->tc_legacy_port) {
+		enum intel_display_power_domain aux_domain;
+		bool aux_powered;
+
+		aux_domain = intel_aux_power_domain(dig_port);
+		aux_powered = intel_display_power_is_enabled(i915, aux_domain);
+		drm_WARN_ON(&i915->drm, aux_powered);
+	}
 
 	icl_tc_phy_disconnect(dig_port);
 	icl_tc_phy_connect(dig_port, required_lanes);
@@ -445,9 +513,11 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_encoder *encoder = &dig_port->base;
+	intel_wakeref_t tc_cold_wref;
 	int active_links = 0;
 
 	mutex_lock(&dig_port->tc_lock);
+	tc_cold_wref = tc_cold_block(dig_port);
 
 	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	if (dig_port->dp.is_mst)
@@ -473,6 +543,7 @@ out:
 		    dig_port->tc_port_name,
 		    tc_port_mode_name(dig_port->tc_mode));
 
+	tc_cold_unblock(dig_port, tc_cold_wref);
 	mutex_unlock(&dig_port->tc_lock);
 }
 
@@ -494,10 +565,15 @@ static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
 bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 {
 	bool is_connected;
+	intel_wakeref_t tc_cold_wref;
 
 	intel_tc_port_lock(dig_port);
+	tc_cold_wref = tc_cold_block(dig_port);
+
 	is_connected = tc_port_live_status_mask(dig_port) &
 		       BIT(dig_port->tc_mode);
+
+	tc_cold_unblock(dig_port, tc_cold_wref);
 	intel_tc_port_unlock(dig_port);
 
 	return is_connected;
@@ -513,9 +589,16 @@ static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
 
 	mutex_lock(&dig_port->tc_lock);
 
-	if (!dig_port->tc_link_refcount &&
-	    intel_tc_port_needs_reset(dig_port))
-		intel_tc_port_reset_mode(dig_port, required_lanes);
+	if (!dig_port->tc_link_refcount) {
+		intel_wakeref_t tc_cold_wref;
+
+		tc_cold_wref = tc_cold_block(dig_port);
+
+		if (intel_tc_port_needs_reset(dig_port))
+			intel_tc_port_reset_mode(dig_port, required_lanes);
+
+		tc_cold_unblock(dig_port, tc_cold_wref);
+	}
 
 	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
 	dig_port->tc_lock_wakeref = wakeref;

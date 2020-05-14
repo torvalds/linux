@@ -12,6 +12,7 @@
 #include "intel_context.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
+#include "intel_gt_clock_utils.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
 #include "intel_llc.h"
@@ -138,6 +139,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 
+	intel_gt_check_clock_frequency(gt);
+
 	/*
 	 * As we have just resumed the machine and woken the device up from
 	 * deep PCI sleep (presumably D3_cold), assume the HW has been reset
@@ -146,6 +149,10 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	 */
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
+
+	for_each_engine(engine, gt, id)
+		if (engine->sanitize)
+			engine->sanitize(engine);
 
 	intel_uc_sanitize(&gt->uc);
 
@@ -191,11 +198,12 @@ int intel_gt_resume(struct intel_gt *gt)
 	 * Only the kernel contexts should remain pinned over suspend,
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
+	gt_sanitize(gt, true);
+
 	intel_gt_pm_get(gt);
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
-	gt_sanitize(gt, true);
 	if (intel_gt_is_wedged(gt)) {
 		err = -EIO;
 		goto out_fw;

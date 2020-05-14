@@ -36,15 +36,15 @@
 #include "intel_panel.h"
 #include "intel_vdsc.h"
 
-static inline int header_credits_available(struct drm_i915_private *dev_priv,
-					   enum transcoder dsi_trans)
+static int header_credits_available(struct drm_i915_private *dev_priv,
+				    enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_HEADER_CREDIT_MASK)
 		>> FREE_HEADER_CREDIT_SHIFT;
 }
 
-static inline int payload_credits_available(struct drm_i915_private *dev_priv,
-					    enum transcoder dsi_trans)
+static int payload_credits_available(struct drm_i915_private *dev_priv,
+				     enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_PLOAD_CREDIT_MASK)
 		>> FREE_PLOAD_CREDIT_SHIFT;
@@ -1195,7 +1195,7 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
@@ -1525,15 +1525,18 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *fixed_mode =
-					intel_connector->panel.fixed_mode;
+		intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode =
-					&pipe_config->hw.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
+	int ret;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
-	intel_pch_panel_fitting(crtc, pipe_config, conn_state->scaling_mode);
+
+	ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	adjusted_mode->flags = 0;
 

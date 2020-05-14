@@ -403,6 +403,7 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	unsigned int lvds_bpp;
+	int ret;
 
 	/* Should never happen!! */
 	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
@@ -436,16 +437,15 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
-		intel_pch_panel_fitting(intel_crtc, pipe_config,
-					conn_state->scaling_mode);
-	} else {
-		intel_gmch_panel_fitting(intel_crtc, pipe_config,
-					 conn_state->scaling_mode);
-
-	}
+	if (HAS_GMCH(dev_priv))
+		ret = intel_gmch_panel_fitting(pipe_config, conn_state);
+	else
+		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the

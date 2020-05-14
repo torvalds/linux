@@ -583,13 +583,14 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain intel_port_to_power_domain(enum port port);
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);
+enum intel_display_power_domain
+intel_legacy_aux_to_power_domain(enum aux_ch aux_ch);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
 
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
-int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,

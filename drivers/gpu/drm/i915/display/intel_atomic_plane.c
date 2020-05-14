@@ -125,7 +125,7 @@ intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct intel_plane_state *plane_state = to_intel_plane_state(state);
-	WARN_ON(plane_state->vma);
+	drm_WARN_ON(plane->dev, plane_state->vma);
 
 	__drm_atomic_helper_plane_destroy_state(&plane_state->uapi);
 	if (plane_state->hw.fb)
@@ -396,7 +396,7 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	}
 
 	/* should never happen */
-	WARN_ON(1);
+	drm_WARN_ON(state->base.dev, 1);
 
 	return NULL;
 }

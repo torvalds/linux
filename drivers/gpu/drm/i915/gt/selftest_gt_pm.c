@@ -53,7 +53,13 @@ int intel_gt_pm_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_rc6_manual),
+		SUBTEST(live_rps_clock_interval),
+		SUBTEST(live_rps_control),
+		SUBTEST(live_rps_frequency_cs),
+		SUBTEST(live_rps_frequency_srm),
+		SUBTEST(live_rps_power),
 		SUBTEST(live_rps_interrupt),
+		SUBTEST(live_rps_dynamic),
 		SUBTEST(live_gt_resume),
 	};
 

@@ -135,9 +135,7 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		if (vma) {
 			GEM_BUG_ON(vma->obj != obj);
 			GEM_BUG_ON(!atomic_read(&vma->open_count));
-			if (atomic_dec_and_test(&vma->open_count) &&
-			    !i915_vma_is_ggtt(vma))
-				i915_vma_close(vma);
+			i915_vma_close(vma);
 		}
 		mutex_unlock(&ctx->mutex);
 

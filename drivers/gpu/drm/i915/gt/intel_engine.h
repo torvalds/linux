@@ -310,9 +310,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
 
-int intel_enable_engine_stats(struct intel_engine_cs *engine);
-void intel_disable_engine_stats(struct intel_engine_cs *engine);
-
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 
 struct i915_request *

@@ -109,18 +109,16 @@ bool intel_hdcp2_capable(struct intel_connector *connector)
 	return capable;
 }
 
-static inline
-bool intel_hdcp_in_use(struct drm_i915_private *dev_priv,
-		       enum transcoder cpu_transcoder, enum port port)
+static bool intel_hdcp_in_use(struct drm_i915_private *dev_priv,
+			      enum transcoder cpu_transcoder, enum port port)
 {
 	return intel_de_read(dev_priv,
 	                     HDCP_STATUS(dev_priv, cpu_transcoder, port)) &
 	       HDCP_STATUS_ENC;
 }
 
-static inline
-bool intel_hdcp2_in_use(struct drm_i915_private *dev_priv,
-			enum transcoder cpu_transcoder, enum port port)
+static bool intel_hdcp2_in_use(struct drm_i915_private *dev_priv,
+			       enum transcoder cpu_transcoder, enum port port)
 {
 	return intel_de_read(dev_priv,
 	                     HDCP2_STATUS(dev_priv, cpu_transcoder, port)) &
@@ -853,8 +851,7 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 	return ret;
 }
 
-static inline
-struct intel_connector *intel_hdcp_to_connector(struct intel_hdcp *hdcp)
+static struct intel_connector *intel_hdcp_to_connector(struct intel_hdcp *hdcp)
 {
 	return container_of(hdcp, struct intel_connector, hdcp);
 }
@@ -1856,8 +1853,7 @@ static const struct component_ops i915_hdcp_component_ops = {
 	.unbind = i915_hdcp_component_unbind,
 };
 
-static inline
-enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
+static enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -1869,8 +1865,7 @@ enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
 	}
 }
 
-static inline
-enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
+static enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
 {
 	switch (cpu_transcoder) {
 	case TRANSCODER_A ... TRANSCODER_D:
@@ -1880,8 +1875,8 @@ enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
 	}
 }
 
-static inline int initialize_hdcp_port_data(struct intel_connector *connector,
-					    const struct intel_hdcp_shim *shim)
+static int initialize_hdcp_port_data(struct intel_connector *connector,
+				     const struct intel_hdcp_shim *shim)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;

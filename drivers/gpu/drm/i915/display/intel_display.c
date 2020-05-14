@@ -238,9 +238,9 @@ static void intel_update_czclk(struct drm_i915_private *dev_priv)
 		dev_priv->czclk_freq);
 }
 
-static inline u32 /* units of 100MHz */
-intel_fdi_link_freq(struct drm_i915_private *dev_priv,
-		    const struct intel_crtc_state *pipe_config)
+/* units of 100MHz */
+static u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
+			       const struct intel_crtc_state *pipe_config)
 {
 	if (HAS_DDI(dev_priv))
 		return pipe_config->port_clock; /* SPLL */
@@ -1973,16 +1973,16 @@ static bool is_aux_plane(const struct drm_framebuffer *fb, int plane)
 
 static int main_to_ccs_plane(const struct drm_framebuffer *fb, int main_plane)
 {
-	WARN_ON(!is_ccs_modifier(fb->modifier) ||
-		(main_plane && main_plane >= fb->format->num_planes / 2));
+	drm_WARN_ON(fb->dev, !is_ccs_modifier(fb->modifier) ||
+		    (main_plane && main_plane >= fb->format->num_planes / 2));
 
 	return fb->format->num_planes / 2 + main_plane;
 }
 
 static int ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
 {
-	WARN_ON(!is_ccs_modifier(fb->modifier) ||
-		ccs_plane < fb->format->num_planes / 2);
+	drm_WARN_ON(fb->dev, !is_ccs_modifier(fb->modifier) ||
+		    ccs_plane < fb->format->num_planes / 2);
 
 	return ccs_plane - fb->format->num_planes / 2;
 }
@@ -2992,7 +2992,7 @@ setup_fb_rotation(int plane, const struct intel_remapped_plane_info *plane_info,
 	    fb->modifier != I915_FORMAT_MOD_Yf_TILED)
 		return 0;
 
-	if (WARN_ON(plane >= ARRAY_SIZE(rot_info->plane)))
+	if (drm_WARN_ON(fb->dev, plane >= ARRAY_SIZE(rot_info->plane)))
 		return 0;
 
 	rot_info->plane[plane] = *plane_info;
@@ -6089,30 +6089,26 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	return 0;
 }
 
-/**
- * skl_update_scaler_crtc - Stages update to scaler state for a given crtc.
- *
- * @state: crtc's scaler state
- *
- * Return
- *     0 - scaler_usage updated successfully
- *    error - requested scaling cannot be supported or other error condition
- */
-int skl_update_scaler_crtc(struct intel_crtc_state *state)
+static int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state)
 {
-	const struct drm_display_mode *adjusted_mode = &state->hw.adjusted_mode;
-	bool need_scaler = false;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int width, height;
 
-	if (state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
-	    state->pch_pfit.enabled)
-		need_scaler = true;
+	if (crtc_state->pch_pfit.enabled) {
+		width = drm_rect_width(&crtc_state->pch_pfit.dst);
+		height = drm_rect_height(&crtc_state->pch_pfit.dst);
+	} else {
+		width = adjusted_mode->crtc_hdisplay;
+		height = adjusted_mode->crtc_vdisplay;
+	}
 
-	return skl_update_scaler(state, !state->hw.active, SKL_CRTC_INDEX,
-				 &state->scaler_state.scaler_id,
-				 state->pipe_src_w, state->pipe_src_h,
-				 adjusted_mode->crtc_hdisplay,
-				 adjusted_mode->crtc_vdisplay, NULL, 0,
-				 need_scaler);
+	return skl_update_scaler(crtc_state, !crtc_state->hw.active,
+				 SKL_CRTC_INDEX,
+				 &crtc_state->scaler_state.scaler_id,
+				 crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+				 width, height, NULL, 0,
+				 crtc_state->pch_pfit.enabled);
 }
 
 /**
@@ -6221,70 +6217,80 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
 	const struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
+	struct drm_rect src = {
+		.x2 = crtc_state->pipe_src_w << 16,
+		.y2 = crtc_state->pipe_src_h << 16,
+	};
+	const struct drm_rect *dst = &crtc_state->pch_pfit.dst;
+	u16 uv_rgb_hphase, uv_rgb_vphase;
+	enum pipe pipe = crtc->pipe;
+	int width = drm_rect_width(dst);
+	int height = drm_rect_height(dst);
+	int x = dst->x1;
+	int y = dst->y1;
+	int hscale, vscale;
+	unsigned long irqflags;
+	int id;
 
-	if (crtc_state->pch_pfit.enabled) {
-		u16 uv_rgb_hphase, uv_rgb_vphase;
-		int pfit_w, pfit_h, hscale, vscale;
-		unsigned long irqflags;
-		int id;
+	if (!crtc_state->pch_pfit.enabled)
+		return;
 
-		if (drm_WARN_ON(&dev_priv->drm,
-				crtc_state->scaler_state.scaler_id < 0))
-			return;
+	if (drm_WARN_ON(&dev_priv->drm,
+			crtc_state->scaler_state.scaler_id < 0))
+		return;
 
-		pfit_w = (crtc_state->pch_pfit.size >> 16) & 0xFFFF;
-		pfit_h = crtc_state->pch_pfit.size & 0xFFFF;
+	hscale = drm_rect_calc_hscale(&src, dst, 0, INT_MAX);
+	vscale = drm_rect_calc_vscale(&src, dst, 0, INT_MAX);
 
-		hscale = (crtc_state->pipe_src_w << 16) / pfit_w;
-		vscale = (crtc_state->pipe_src_h << 16) / pfit_h;
+	uv_rgb_hphase = skl_scaler_calc_phase(1, hscale, false);
+	uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
 
-		uv_rgb_hphase = skl_scaler_calc_phase(1, hscale, false);
-		uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
+	id = scaler_state->scaler_id;
 
-		id = scaler_state->scaler_id;
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-		spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
+			  PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
+	intel_de_write_fw(dev_priv, SKL_PS_VPHASE(pipe, id),
+			  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_vphase));
+	intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, id),
+			  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_hphase));
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, id),
+			  x << 16 | y);
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, id),
+			  width << 16 | height);
 
-		intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
-				  PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
-		intel_de_write_fw(dev_priv, SKL_PS_VPHASE(pipe, id),
-				  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_vphase));
-		intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, id),
-				  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_hphase));
-		intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, id),
-				  crtc_state->pch_pfit.pos);
-		intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, id),
-				  crtc_state->pch_pfit.size);
-
-		spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-	}
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_rect *dst = &crtc_state->pch_pfit.dst;
 	enum pipe pipe = crtc->pipe;
+	int width = drm_rect_width(dst);
+	int height = drm_rect_height(dst);
+	int x = dst->x1;
+	int y = dst->y1;
 
-	if (crtc_state->pch_pfit.enabled) {
-		/* Force use of hard-coded filter coefficients
-		 * as some pre-programmed values are broken,
-		 * e.g. x201.
-		 */
-		if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
-			intel_de_write(dev_priv, PF_CTL(pipe),
-				       PF_ENABLE | PF_FILTER_MED_3x3 | PF_PIPE_SEL_IVB(pipe));
-		else
-			intel_de_write(dev_priv, PF_CTL(pipe),
-				       PF_ENABLE | PF_FILTER_MED_3x3);
-		intel_de_write(dev_priv, PF_WIN_POS(pipe),
-			       crtc_state->pch_pfit.pos);
-		intel_de_write(dev_priv, PF_WIN_SZ(pipe),
-			       crtc_state->pch_pfit.size);
-	}
+	if (!crtc_state->pch_pfit.enabled)
+		return;
+
+	/* Force use of hard-coded filter coefficients
+	 * as some pre-programmed values are broken,
+	 * e.g. x201.
+	 */
+	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
+		intel_de_write(dev_priv, PF_CTL(pipe), PF_ENABLE |
+			       PF_FILTER_MED_3x3 | PF_PIPE_SEL_IVB(pipe));
+	else
+		intel_de_write(dev_priv, PF_CTL(pipe), PF_ENABLE |
+			       PF_FILTER_MED_3x3);
+	intel_de_write(dev_priv, PF_WIN_POS(pipe), x << 16 | y);
+	intel_de_write(dev_priv, PF_WIN_SZ(pipe), width << 16 | height);
 }
 
 void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
@@ -6626,7 +6632,7 @@ intel_connector_primary_encoder(struct intel_connector *connector)
 		return &dp_to_dig_port(connector->mst_port)->base;
 
 	encoder = intel_attached_encoder(connector);
-	WARN_ON(!encoder);
+	drm_WARN_ON(connector->base.dev, !encoder);
 
 	return encoder;
 }
@@ -7071,9 +7077,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(crtc);
 
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_transcoder_func(new_crtc_state);
-
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
 
@@ -7104,11 +7107,12 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 
 	/* To avoid upsetting the power well on haswell only disable the pfit if
 	 * it's in use. The hw state code will make sure we get this right. */
-	if (old_crtc_state->pch_pfit.enabled) {
-		intel_de_write(dev_priv, PF_CTL(pipe), 0);
-		intel_de_write(dev_priv, PF_WIN_POS(pipe), 0);
-		intel_de_write(dev_priv, PF_WIN_SZ(pipe), 0);
-	}
+	if (!old_crtc_state->pch_pfit.enabled)
+		return;
+
+	intel_de_write(dev_priv, PF_CTL(pipe), 0);
+	intel_de_write(dev_priv, PF_WIN_POS(pipe), 0);
+	intel_de_write(dev_priv, PF_WIN_SZ(pipe), 0);
 }
 
 static void ilk_crtc_disable(struct intel_atomic_state *state,
@@ -7296,7 +7300,17 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 		}
 	}
 
-	switch (dig_port->aux_ch) {
+	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
+}
+
+/*
+ * Converts aux_ch to power_domain without caring about TBT ports for that use
+ * intel_aux_power_domain()
+ */
+enum intel_display_power_domain
+intel_legacy_aux_to_power_domain(enum aux_ch aux_ch)
+{
+	switch (aux_ch) {
 	case AUX_CH_A:
 		return POWER_DOMAIN_AUX_A;
 	case AUX_CH_B:
@@ -7312,7 +7326,7 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 	case AUX_CH_G:
 		return POWER_DOMAIN_AUX_G;
 	default:
-		MISSING_CASE(dig_port->aux_ch);
+		MISSING_CASE(aux_ch);
 		return POWER_DOMAIN_AUX_A;
 	}
 }
@@ -7926,39 +7940,36 @@ static bool intel_crtc_supports_double_wide(const struct intel_crtc *crtc)
 		(crtc->pipe == PIPE_A || IS_I915G(dev_priv));
 }
 
-static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
+static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 {
-	u32 pixel_rate;
-
-	pixel_rate = pipe_config->hw.adjusted_mode.crtc_clock;
+	u32 pixel_rate = crtc_state->hw.adjusted_mode.crtc_clock;
+	unsigned int pipe_w, pipe_h, pfit_w, pfit_h;
 
 	/*
 	 * We only use IF-ID interlacing. If we ever use
 	 * PF-ID we'll need to adjust the pixel_rate here.
 	 */
 
-	if (pipe_config->pch_pfit.enabled) {
-		u64 pipe_w, pipe_h, pfit_w, pfit_h;
-		u32 pfit_size = pipe_config->pch_pfit.size;
+	if (!crtc_state->pch_pfit.enabled)
+		return pixel_rate;
 
-		pipe_w = pipe_config->pipe_src_w;
-		pipe_h = pipe_config->pipe_src_h;
+	pipe_w = crtc_state->pipe_src_w;
+	pipe_h = crtc_state->pipe_src_h;
 
-		pfit_w = (pfit_size >> 16) & 0xFFFF;
-		pfit_h = pfit_size & 0xFFFF;
-		if (pipe_w < pfit_w)
-			pipe_w = pfit_w;
-		if (pipe_h < pfit_h)
-			pipe_h = pfit_h;
+	pfit_w = drm_rect_width(&crtc_state->pch_pfit.dst);
+	pfit_h = drm_rect_height(&crtc_state->pch_pfit.dst);
 
-		if (WARN_ON(!pfit_w || !pfit_h))
-			return pixel_rate;
+	if (pipe_w < pfit_w)
+		pipe_w = pfit_w;
+	if (pipe_h < pfit_h)
+		pipe_h = pfit_h;
 
-		pixel_rate = div_u64(mul_u32_u32(pixel_rate, pipe_w * pipe_h),
-				     pfit_w * pfit_h);
-	}
+	if (drm_WARN_ON(crtc_state->uapi.crtc->dev,
+			!pfit_w || !pfit_h))
+		return pixel_rate;
 
-	return pixel_rate;
+	return div_u64(mul_u32_u32(pixel_rate, pipe_w * pipe_h),
+		       pfit_w * pfit_h);
 }
 
 static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
@@ -8127,7 +8138,7 @@ static void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
 	}
 }
 
-static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
+static bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
 	if (i915_modparams.panel_use_ssc >= 0)
 		return i915_modparams.panel_use_ssc != 0;
@@ -9151,9 +9162,9 @@ static bool i9xx_has_pfit(struct drm_i915_private *dev_priv)
 		IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
 }
 
-static void i9xx_get_pfit_config(struct intel_crtc *crtc,
-				 struct intel_crtc_state *pipe_config)
+static void i9xx_get_pfit_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 tmp;
 
@@ -9173,9 +9184,9 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 			return;
 	}
 
-	pipe_config->gmch_pfit.control = tmp;
-	pipe_config->gmch_pfit.pgm_ratios = intel_de_read(dev_priv,
-							  PFIT_PGM_RATIOS);
+	crtc_state->gmch_pfit.control = tmp;
+	crtc_state->gmch_pfit.pgm_ratios =
+		intel_de_read(dev_priv, PFIT_PGM_RATIOS);
 }
 
 static void vlv_crtc_clock_get(struct intel_crtc *crtc,
@@ -9425,7 +9436,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
 
-	i9xx_get_pfit_config(crtc, pipe_config);
+	i9xx_get_pfit_config(pipe_config);
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* No way to read it out on pipes B and C */
@@ -10395,37 +10406,47 @@ static void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
 				     &pipe_config->fdi_m_n, NULL);
 }
 
-static void skl_get_pfit_config(struct intel_crtc *crtc,
-				struct intel_crtc_state *pipe_config)
+static void ilk_get_pfit_pos_size(struct intel_crtc_state *crtc_state,
+				  u32 pos, u32 size)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_scaler_state *scaler_state = &pipe_config->scaler_state;
-	u32 ps_ctrl = 0;
+	drm_rect_init(&crtc_state->pch_pfit.dst,
+		      pos >> 16, pos & 0xffff,
+		      size >> 16, size & 0xffff);
+}
+
+static void skl_get_pfit_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
 	int id = -1;
 	int i;
 
 	/* find scaler attached to this pipe */
 	for (i = 0; i < crtc->num_scalers; i++) {
-		ps_ctrl = intel_de_read(dev_priv, SKL_PS_CTRL(crtc->pipe, i));
-		if (ps_ctrl & PS_SCALER_EN && !(ps_ctrl & PS_PLANE_SEL_MASK)) {
-			id = i;
-			pipe_config->pch_pfit.enabled = true;
-			pipe_config->pch_pfit.pos = intel_de_read(dev_priv,
-								  SKL_PS_WIN_POS(crtc->pipe, i));
-			pipe_config->pch_pfit.size = intel_de_read(dev_priv,
-								   SKL_PS_WIN_SZ(crtc->pipe, i));
-			scaler_state->scalers[i].in_use = true;
-			break;
-		}
+		u32 ctl, pos, size;
+
+		ctl = intel_de_read(dev_priv, SKL_PS_CTRL(crtc->pipe, i));
+		if ((ctl & (PS_SCALER_EN | PS_PLANE_SEL_MASK)) != PS_SCALER_EN)
+			continue;
+
+		id = i;
+		crtc_state->pch_pfit.enabled = true;
+
+		pos = intel_de_read(dev_priv, SKL_PS_WIN_POS(crtc->pipe, i));
+		size = intel_de_read(dev_priv, SKL_PS_WIN_SZ(crtc->pipe, i));
+
+		ilk_get_pfit_pos_size(crtc_state, pos, size);
+
+		scaler_state->scalers[i].in_use = true;
+		break;
 	}
 
 	scaler_state->scaler_id = id;
-	if (id >= 0) {
+	if (id >= 0)
 		scaler_state->scaler_users |= (1 << SKL_CRTC_INDEX);
-	} else {
+	else
 		scaler_state->scaler_users &= ~(1 << SKL_CRTC_INDEX);
-	}
 }
 
 static void
@@ -10561,30 +10582,30 @@ error:
 	kfree(intel_fb);
 }
 
-static void ilk_get_pfit_config(struct intel_crtc *crtc,
-				struct intel_crtc_state *pipe_config)
+static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 tmp;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 ctl, pos, size;
 
-	tmp = intel_de_read(dev_priv, PF_CTL(crtc->pipe));
+	ctl = intel_de_read(dev_priv, PF_CTL(crtc->pipe));
+	if ((ctl & PF_ENABLE) == 0)
+		return;
 
-	if (tmp & PF_ENABLE) {
-		pipe_config->pch_pfit.enabled = true;
-		pipe_config->pch_pfit.pos = intel_de_read(dev_priv,
-							  PF_WIN_POS(crtc->pipe));
-		pipe_config->pch_pfit.size = intel_de_read(dev_priv,
-							   PF_WIN_SZ(crtc->pipe));
+	crtc_state->pch_pfit.enabled = true;
 
-		/* We currently do not free assignements of panel fitters on
-		 * ivb/hsw (since we don't use the higher upscaling modes which
-		 * differentiates them) so just WARN about this case for now. */
-		if (IS_GEN(dev_priv, 7)) {
-			drm_WARN_ON(dev, (tmp & PF_PIPE_SEL_MASK_IVB) !=
-				    PF_PIPE_SEL_IVB(crtc->pipe));
-		}
-	}
+	pos = intel_de_read(dev_priv, PF_WIN_POS(crtc->pipe));
+	size = intel_de_read(dev_priv, PF_WIN_SZ(crtc->pipe));
+
+	ilk_get_pfit_pos_size(crtc_state, pos, size);
+
+	/*
+	 * We currently do not free assignements of panel fitters on
+	 * ivb/hsw (since we don't use the higher upscaling modes which
+	 * differentiates them) so just WARN about this case for now.
+	 */
+	drm_WARN_ON(&dev_priv->drm, IS_GEN(dev_priv, 7) &&
+		    (ctl & PF_PIPE_SEL_MASK_IVB) != PF_PIPE_SEL_IVB(crtc->pipe));
 }
 
 static bool ilk_get_pipe_config(struct intel_crtc *crtc,
@@ -10695,7 +10716,7 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
 
-	ilk_get_pfit_config(crtc, pipe_config);
+	ilk_get_pfit_config(pipe_config);
 
 	ret = true;
 
@@ -11169,9 +11190,9 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		power_domain_mask |= BIT_ULL(power_domain);
 
 		if (INTEL_GEN(dev_priv) >= 9)
-			skl_get_pfit_config(crtc, pipe_config);
+			skl_get_pfit_config(pipe_config);
 		else
-			ilk_get_pfit_config(crtc, pipe_config);
+			ilk_get_pfit_config(pipe_config);
 	}
 
 	if (hsw_crtc_supports_ips(crtc)) {
@@ -12430,8 +12451,10 @@ static int icl_add_linked_planes(struct intel_atomic_state *state)
 		if (IS_ERR(linked_plane_state))
 			return PTR_ERR(linked_plane_state);
 
-		WARN_ON(linked_plane_state->planar_linked_plane != plane);
-		WARN_ON(linked_plane_state->planar_slave == plane_state->planar_slave);
+		drm_WARN_ON(state->base.dev,
+			    linked_plane_state->planar_linked_plane != plane);
+		drm_WARN_ON(state->base.dev,
+			    linked_plane_state->planar_slave == plane_state->planar_slave);
 	}
 
 	return 0;
@@ -12819,7 +12842,7 @@ static void intel_dump_crtc_timings(struct drm_i915_private *i915,
 		    mode->type, mode->flags);
 }
 
-static inline void
+static void
 intel_dump_m_n_config(const struct intel_crtc_state *pipe_config,
 		      const char *id, unsigned int lane_count,
 		      const struct intel_link_m_n *m_n)
@@ -13030,9 +13053,8 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 			    pipe_config->gmch_pfit.lvds_border_bits);
 	else
 		drm_dbg_kms(&dev_priv->drm,
-			    "pch pfit: pos: 0x%08x, size: 0x%08x, %s, force thru: %s\n",
-			    pipe_config->pch_pfit.pos,
-			    pipe_config->pch_pfit.size,
+			    "pch pfit: " DRM_RECT_FMT ", %s, force thru: %s\n",
+			    DRM_RECT_ARG(&pipe_config->pch_pfit.dst),
 			    enableddisabled(pipe_config->pch_pfit.enabled),
 			    yesno(pipe_config->pch_pfit.force_thru));
 
@@ -13154,7 +13176,8 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 {
 	crtc_state->uapi.enable = crtc_state->hw.enable;
 	crtc_state->uapi.active = crtc_state->hw.active;
-	WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->uapi, &crtc_state->hw.mode) < 0);
+	drm_WARN_ON(crtc_state->uapi.crtc->dev,
+		    drm_atomic_set_mode_for_crtc(&crtc_state->uapi, &crtc_state->hw.mode) < 0);
 
 	crtc_state->uapi.adjusted_mode = crtc_state->hw.adjusted_mode;
 
@@ -13773,8 +13796,10 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 		PIPE_CONF_CHECK_BOOL(pch_pfit.enabled);
 		if (current_config->pch_pfit.enabled) {
-			PIPE_CONF_CHECK_X(pch_pfit.pos);
-			PIPE_CONF_CHECK_X(pch_pfit.size);
+			PIPE_CONF_CHECK_I(pch_pfit.dst.x1);
+			PIPE_CONF_CHECK_I(pch_pfit.dst.y1);
+			PIPE_CONF_CHECK_I(pch_pfit.dst.x2);
+			PIPE_CONF_CHECK_I(pch_pfit.dst.y2);
 		}
 
 		PIPE_CONF_CHECK_I(scaler_state.scaler_id);
@@ -15353,12 +15378,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_set_cdclk_pre_plane_update(state);
 
-		/*
-		 * SKL workaround: bspec recommends we disable the SAGV when we
-		 * have more then one pipe enabled
-		 */
-		if (!intel_can_enable_sagv(state))
-			intel_disable_sagv(dev_priv);
+		intel_sagv_pre_plane_update(state);
 
 		intel_modeset_verify_disabled(dev_priv, state);
 	}
@@ -15455,11 +15475,11 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_check_cpu_fifo_underruns(dev_priv);
 	intel_check_pch_fifo_underruns(dev_priv);
 
-	if (state->modeset)
+	if (state->modeset) {
 		intel_verify_planes(state);
 
-	if (state->modeset && intel_can_enable_sagv(state))
-		intel_enable_sagv(dev_priv);
+		intel_sagv_post_plane_update(state);
+	}
 
 	drm_atomic_helper_commit_hw_done(&state->base);
 

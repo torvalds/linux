@@ -489,7 +489,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	 * here for the following ones.
 	 */
 	if (INTEL_GEN(dev_priv) < 12 || !first_mst_stream)
-		intel_ddi_enable_pipe_clock(pipe_config);
+		intel_ddi_enable_pipe_clock(encoder, pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 
@@ -507,6 +507,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
+
+	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
 	intel_enable_pipe(pipe_config);
 
