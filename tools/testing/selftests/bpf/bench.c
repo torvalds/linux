@@ -242,7 +242,7 @@ static void setup_timer()
 	last_time_ns = get_time_ns();
 	err = sigaction(SIGALRM, &sigalarm_action, NULL);
 	if (err < 0) {
-		fprintf(stderr, "failed to install SIGALARM handler: %d\n", -errno);
+		fprintf(stderr, "failed to install SIGALRM handler: %d\n", -errno);
 		exit(1);
 	}
 	timer_settings.it_interval.tv_sec = 1;
