@@ -758,15 +758,16 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 {
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
 	int sleep_cfg_val = ADCX140_WAKE_DEV;
-	u8 bias_source;
-	u8 vref_source;
+	u32 bias_source;
+	u32 vref_source;
+	u8 bias_cfg;
 	int pdm_count;
 	u32 pdm_edges[ADCX140_NUM_PDM_EDGES];
 	u32 pdm_edge_val = 0;
 	int i;
 	int ret;
 
-	ret = device_property_read_u8(adcx140->dev, "ti,mic-bias-source",
+	ret = device_property_read_u32(adcx140->dev, "ti,mic-bias-source",
 				      &bias_source);
 	if (ret)
 		bias_source = ADCX140_MIC_BIAS_VAL_VREF;
@@ -777,7 +778,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 		return -EINVAL;
 	}
 
-	ret = device_property_read_u8(adcx140->dev, "ti,vref-source",
+	ret = device_property_read_u32(adcx140->dev, "ti,vref-source",
 				      &vref_source);
 	if (ret)
 		vref_source = ADCX140_MIC_BIAS_VREF_275V;
@@ -788,7 +789,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 		return -EINVAL;
 	}
 
-	bias_source |= vref_source;
+	bias_cfg = bias_source << ADCX140_MIC_BIAS_SHIFT | vref_source;
 
 	pdm_count = device_property_count_u32(adcx140->dev,
 					      "ti,pdm-edge-select");
@@ -826,7 +827,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 
 	ret = regmap_update_bits(adcx140->regmap, ADCX140_BIAS_CFG,
 				ADCX140_MIC_BIAS_VAL_MSK |
-				ADCX140_MIC_BIAS_VREF_MSK, bias_source);
+				ADCX140_MIC_BIAS_VREF_MSK, bias_cfg);
 	if (ret)
 		dev_err(adcx140->dev, "setting MIC bias failed %d\n", ret);
 out:
