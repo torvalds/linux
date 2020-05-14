@@ -1919,12 +1919,6 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 		goto out;
 	}
 
-	if (dev->phydev->autoneg == AUTONEG_DISABLE ||
-	    dev->phydev->duplex != DUPLEX_FULL) {
-		ret = -EPROTONOSUPPORT;
-		goto out;
-	}
-
 	ret = phy_ethtool_set_eee(tp->phydev, data);
 
 	if (!ret)
