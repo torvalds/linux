@@ -27,10 +27,10 @@ struct linux_binprm {
 	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
 		/*
-		 * True if most recent call to cap_bprm_set_creds
+		 * True if most recent call to security_bprm_set_creds
 		 * resulted in elevated privileges.
 		 */
-		cap_elevated:1,
+		active_secureexec:1,
 		/*
 		 * Set by bprm_creds_for_exec hook to indicate a
 		 * privilege-gaining exec has happened. Used to set

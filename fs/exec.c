@@ -1366,7 +1366,7 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * the final state of setuid/setgid/fscaps can be merged into the
 	 * secureexec flag.
 	 */
-	bprm->secureexec |= bprm->cap_elevated;
+	bprm->secureexec |= bprm->active_secureexec;
 
 	if (bprm->secureexec) {
 		/* Make sure parent cannot signal privileged process. */
@@ -1634,10 +1634,10 @@ int prepare_binprm(struct linux_binprm *bprm)
 	int retval;
 	loff_t pos = 0;
 
+	/* Recompute parts of bprm->cred based on bprm->file */
+	bprm->active_secureexec = 0;
 	bprm_fill_uid(bprm);
-
-	/* fill in binprm security blob */
-	retval = security_bprm_set_creds(bprm);
+	retval = security_bprm_repopulate_creds(bprm);
 	if (retval)
 		return retval;
 
