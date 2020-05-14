@@ -2704,7 +2704,16 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 {
 	u32 clkcfg;
 
-	/* hrawclock is 1/4 the FSB frequency */
+	/*
+	 * hrawclock is 1/4 the FSB frequency
+	 *
+	 * Note that this only reads the state of the FSB
+	 * straps, not the actual FSB frequency. Some BIOSen
+	 * let you configure each independently. Ideally we'd
+	 * read out the actual FSB frequency but sadly we
+	 * don't know which registers have that information,
+	 * and all the relevant docs have gone to bit heaven :(
+	 */
 	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
 
 	/* ELK seems to redefine some of the values */
