@@ -279,8 +279,8 @@ struct io_ring_ctx {
 
 	const struct cred	*creds;
 
-	/* 0 is for ctx quiesce/reinit/free, 1 is for sqo_thread started */
-	struct completion	*completions;
+	struct completion	ref_comp;
+	struct completion	sq_thread_comp;
 
 	/* if all else fails... */
 	struct io_kiocb		*fallback_req;
@@ -883,7 +883,7 @@ static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
 
-	complete(&ctx->completions[0]);
+	complete(&ctx->ref_comp);
 }
 
 static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
@@ -897,10 +897,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 
 	ctx->fallback_req = kmem_cache_alloc(req_cachep, GFP_KERNEL);
 	if (!ctx->fallback_req)
-		goto err;
-
-	ctx->completions = kmalloc(2 * sizeof(struct completion), GFP_KERNEL);
-	if (!ctx->completions)
 		goto err;
 
 	/*
@@ -925,8 +921,8 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ctx->flags = p->flags;
 	init_waitqueue_head(&ctx->cq_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
-	init_completion(&ctx->completions[0]);
-	init_completion(&ctx->completions[1]);
+	init_completion(&ctx->ref_comp);
+	init_completion(&ctx->sq_thread_comp);
 	idr_init(&ctx->io_buffer_idr);
 	idr_init(&ctx->personality_idr);
 	mutex_init(&ctx->uring_lock);
@@ -942,7 +938,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 err:
 	if (ctx->fallback_req)
 		kmem_cache_free(req_cachep, ctx->fallback_req);
-	kfree(ctx->completions);
 	kfree(ctx->cancel_hash);
 	kfree(ctx);
 	return NULL;
@@ -5933,7 +5928,7 @@ static int io_sq_thread(void *data)
 	unsigned long timeout;
 	int ret = 0;
 
-	complete(&ctx->completions[1]);
+	complete(&ctx->sq_thread_comp);
 
 	old_fs = get_fs();
 	set_fs(USER_DS);
@@ -6212,7 +6207,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 {
 	if (ctx->sqo_thread) {
-		wait_for_completion(&ctx->completions[1]);
+		wait_for_completion(&ctx->sq_thread_comp);
 		/*
 		 * The park is a bit of a work-around, without it we get
 		 * warning spews on shutdown with SQPOLL set and affinity
@@ -7241,7 +7236,6 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 				ring_pages(ctx->sq_entries, ctx->cq_entries));
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
-	kfree(ctx->completions);
 	kfree(ctx->cancel_hash);
 	kmem_cache_free(req_cachep, ctx->fallback_req);
 	kfree(ctx);
@@ -7293,7 +7287,7 @@ static void io_ring_exit_work(struct work_struct *work)
 	if (ctx->rings)
 		io_cqring_overflow_flush(ctx, true);
 
-	wait_for_completion(&ctx->completions[0]);
+	wait_for_completion(&ctx->ref_comp);
 	io_ring_ctx_free(ctx);
 }
 
@@ -7992,7 +7986,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		 * after we've killed the percpu ref.
 		 */
 		mutex_unlock(&ctx->uring_lock);
-		ret = wait_for_completion_interruptible(&ctx->completions[0]);
+		ret = wait_for_completion_interruptible(&ctx->ref_comp);
 		mutex_lock(&ctx->uring_lock);
 		if (ret) {
 			percpu_ref_resurrect(&ctx->refs);
@@ -8069,7 +8063,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		/* bring the ctx back to life */
 		percpu_ref_reinit(&ctx->refs);
 out:
-		reinit_completion(&ctx->completions[0]);
+		reinit_completion(&ctx->ref_comp);
 	}
 	return ret;
 }
