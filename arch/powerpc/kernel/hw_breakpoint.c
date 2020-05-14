@@ -91,6 +91,11 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	hw_breakpoint_disable();
 }
 
+static bool is_ptrace_bp(struct perf_event *bp)
+{
+	return bp->overflow_handler == ptrace_triggered;
+}
+
 /*
  * Perform cleanup of arch-specific counters during unregistration
  * of the perf-event
@@ -325,7 +330,7 @@ int hw_breakpoint_handler(struct die_args *args)
 	 * one-shot mode. The ptrace-ed process will receive the SIGTRAP signal
 	 * generated in do_dabr().
 	 */
-	if (bp->overflow_handler == ptrace_triggered) {
+	if (is_ptrace_bp(bp)) {
 		perf_bp_event(bp, regs);
 		rc = NOTIFY_DONE;
 		goto out;
