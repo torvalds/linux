@@ -11,8 +11,6 @@
 #include <asm/entry.h>       /* For the SAVE_* macros */
 #include <asm/asm-offsets.h>
 
-#define KSP_WORD_OFF 	((TASK_THREAD + THREAD_KSP) / 4)
-
 ; IN
 ;  - r0: prev task (also current)
 ;  - r1: next task
@@ -37,19 +35,19 @@ ENTRY_CFI(__switch_to)
 	/* kernel mode callee regs of @prev */
 	SAVE_CALLEE_SAVED_KERNEL
 
-	/* save final SP to @prev->thread.ksp */
-#if KSP_WORD_OFF  <= 255
-	st.as  sp, [r0, KSP_WORD_OFF]
-#else
-	/* Workaround for NR_CPUS=4k as ST.as can only take s9 offset */
-	add2	r10, r0, KSP_WORD_OFF
-	st	sp, [r10]
-#endif
+	/*
+	 * save final SP to @prev->thread_info.ksp
+	 * @prev is "current" so thread_info derived from SP
+	 */
+	GET_CURR_THR_INFO_FROM_SP  r10
+	st	sp,  [r10, THREAD_INFO_KSP]
+
 	/* update @next in _current_task[] and GP register caching it */
 	SET_CURR_TASK_ON_CPU  r1, r10
 
-	/* load SP from @next->thread.ksp */
-	ld.as	sp, [r1, KSP_WORD_OFF]
+	/* load SP from @next->thread_info.ksp */
+	ld	r10, [r1, TASK_THREAD_INFO]
+	ld	sp,  [r10, THREAD_INFO_KSP]
 
 	/* restore callee regs, stack frame regs of @next */
 	RESTORE_CALLEE_SAVED_KERNEL
