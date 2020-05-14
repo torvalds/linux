@@ -14,6 +14,8 @@ Required properties:
     "bosch,bma254"
     "bosch,smb380"
   - reg : the I2C address of the sensor
+  - vdd-supply : regulator phandle connected to the VDD pin
+  - vddio-supply : regulator phandle connected to the VDDIO pin
 
 Optional properties:
 
