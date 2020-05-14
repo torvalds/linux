@@ -3718,7 +3718,7 @@ xfs_inode_verify_forks(
 	struct xfs_ifork	*ifp;
 	xfs_failaddr_t		fa;
 
-	fa = xfs_ifork_verify_data(ip, &xfs_default_ifork_ops);
+	fa = xfs_ifork_verify_data(ip);
 	if (fa) {
 		ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "data fork",
@@ -3726,7 +3726,7 @@ xfs_inode_verify_forks(
 		return false;
 	}
 
-	fa = xfs_ifork_verify_attr(ip, &xfs_default_ifork_ops);
+	fa = xfs_ifork_verify_attr(ip);
 	if (fa) {
 		ifp = XFS_IFORK_PTR(ip, XFS_ATTR_FORK);
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "attr fork",
