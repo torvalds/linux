@@ -403,7 +403,7 @@ out:
 
 	ret = dmz_flush_metadata(zrc->metadata);
 	if (ret) {
-		DMDEBUG("(%s): Metadata flush for zone %u failed, err %d\n",
+		DMDEBUG("(%s): Metadata flush for zone %u failed, err %d",
 			dmz_metadata_label(zmd), rzone->id, ret);
 		return ret;
 	}
@@ -491,7 +491,7 @@ static void dmz_reclaim_work(struct work_struct *work)
 
 	ret = dmz_do_reclaim(zrc);
 	if (ret) {
-		DMDEBUG("(%s): Reclaim error %d\n",
+		DMDEBUG("(%s): Reclaim error %d",
 			dmz_metadata_label(zmd), ret);
 		if (!dmz_check_dev(zmd))
 			return;

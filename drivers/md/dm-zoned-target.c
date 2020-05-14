@@ -515,7 +515,7 @@ static void dmz_flush_work(struct work_struct *work)
 	/* Flush dirty metadata blocks */
 	ret = dmz_flush_metadata(dmz->metadata);
 	if (ret)
-		DMDEBUG("(%s): Metadata flush failed, rc=%d\n",
+		DMDEBUG("(%s): Metadata flush failed, rc=%d",
 			dmz_metadata_label(dmz->metadata), ret);
 
 	/* Process queued flush requests */
@@ -679,7 +679,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	/* Now ready to handle this BIO */
 	ret = dmz_queue_chunk_work(dmz, bio);
 	if (ret) {
-		DMDEBUG("(%s): BIO op %d, can't process chunk %llu, err %i\n",
+		DMDEBUG("(%s): BIO op %d, can't process chunk %llu, err %i",
 			dmz_metadata_label(zmd),
 			bio_op(bio), (u64)dmz_bio_chunk(zmd, bio),
 			ret);
