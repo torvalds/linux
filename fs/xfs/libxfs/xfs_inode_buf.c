@@ -193,6 +193,17 @@ xfs_inode_from_disk(
 	ASSERT(ip->i_afp == NULL);
 
 	/*
+	 * First get the permanent information that is needed to allocate an
+	 * inode. If the inode is unused, mode is zero and we shouldn't mess
+	 * with the unitialized part of it.
+	 */
+	to->di_flushiter = be16_to_cpu(from->di_flushiter);
+	inode->i_generation = be32_to_cpu(from->di_gen);
+	inode->i_mode = be16_to_cpu(from->di_mode);
+	if (!inode->i_mode)
+		return 0;
+
+	/*
 	 * Convert v1 inodes immediately to v2 inode format as this is the
 	 * minimum inode version format we support in the rest of the code.
 	 * They will also be unconditionally written back to disk as v2 inodes.
@@ -209,7 +220,6 @@ xfs_inode_from_disk(
 	to->di_format = from->di_format;
 	i_uid_write(inode, be32_to_cpu(from->di_uid));
 	i_gid_write(inode, be32_to_cpu(from->di_gid));
-	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 
 	/*
 	 * Time is signed, so need to convert to signed 32 bit before
@@ -223,8 +233,6 @@ xfs_inode_from_disk(
 	inode->i_mtime.tv_nsec = (int)be32_to_cpu(from->di_mtime.t_nsec);
 	inode->i_ctime.tv_sec = (int)be32_to_cpu(from->di_ctime.t_sec);
 	inode->i_ctime.tv_nsec = (int)be32_to_cpu(from->di_ctime.t_nsec);
-	inode->i_generation = be32_to_cpu(from->di_gen);
-	inode->i_mode = be16_to_cpu(from->di_mode);
 
 	to->di_size = be64_to_cpu(from->di_size);
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
@@ -653,39 +661,9 @@ xfs_iread(
 		goto out_brelse;
 	}
 
-	/*
-	 * If the on-disk inode is already linked to a directory
-	 * entry, copy all of the inode into the in-core inode.
-	 * xfs_iformat_fork() handles copying in the inode format
-	 * specific information.
-	 * Otherwise, just get the truly permanent information.
-	 */
-	if (dip->di_mode) {
-		error = xfs_inode_from_disk(ip, dip);
-		if (error)  {
-#ifdef DEBUG
-			xfs_alert(mp, "%s: xfs_iformat() returned error %d",
-				__func__, error);
-#endif /* DEBUG */
-			goto out_brelse;
-		}
-	} else {
-		/*
-		 * Partial initialisation of the in-core inode. Just the bits
-		 * that xfs_ialloc won't overwrite or relies on being correct.
-		 */
-		VFS_I(ip)->i_generation = be32_to_cpu(dip->di_gen);
-		ip->i_d.di_flushiter = be16_to_cpu(dip->di_flushiter);
-
-		/*
-		 * Make sure to pull in the mode here as well in
-		 * case the inode is released without being used.
-		 * This ensures that xfs_inactive() will see that
-		 * the inode is already free and not try to mess
-		 * with the uninitialized part of it.
-		 */
-		VFS_I(ip)->i_mode = 0;
-	}
+	error = xfs_inode_from_disk(ip, dip);
+	if (error)
+		goto out_brelse;
 
 	ip->i_delayed_blks = 0;
 
