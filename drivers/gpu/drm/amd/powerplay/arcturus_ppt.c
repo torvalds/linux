@@ -2298,9 +2298,9 @@ static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
 		return ret;
 	}
 
-	/* PPSMC_MSG_GmiPwrDnControl is supported by 54.20.0 and onwards */
-	if (smu_version < 0x365000) {
-		pr_err("XGMI power down control is only supported by PMFW 54.20.0 and onwards\n");
+	/* PPSMC_MSG_GmiPwrDnControl is supported by 54.23.0 and onwards */
+	if (smu_version < 0x00361700) {
+		pr_err("XGMI power down control is only supported by PMFW 54.23.0 and onwards\n");
 		return -EINVAL;
 	}
 
