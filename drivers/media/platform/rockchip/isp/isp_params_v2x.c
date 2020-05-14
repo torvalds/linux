@@ -71,12 +71,14 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value;
 	int i;
 
-	value = rkisp_ioread32(params_vdev, ISP_DPCC_MODE);
+	value = rkisp_ioread32(params_vdev, ISP_DPCC0_MODE);
 	value &= ISP_DPCC_EN;
 
 	value |= (arg->stage1_enable & 0x01) << 2 |
 		 (arg->grayscale_mode & 0x01) << 1;
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_MODE);
 
 	value = (arg->sw_rk_out_sel & 0x03) << 5 |
 		(arg->sw_dpcc_output_sel & 0x01) << 4 |
@@ -84,13 +86,17 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->stage1_g_3x3 & 0x01) << 2 |
 		(arg->stage1_incl_rb_center & 0x01) << 1 |
 		(arg->stage1_incl_green_center & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_OUTPUT_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_OUTPUT_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_OUTPUT_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_OUTPUT_MODE);
 
 	value = (arg->stage1_use_fix_set & 0x01) << 3 |
 		(arg->stage1_use_set_3 & 0x01) << 2 |
 		(arg->stage1_use_set_2 & 0x01) << 1 |
 		(arg->stage1_use_set_1 & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_SET_USE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_SET_USE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_SET_USE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_SET_USE);
 
 	value = (arg->sw_rk_red_blue1_en & 0x01) << 13 |
 		(arg->rg_red_blue1_enable & 0x01) << 12 |
@@ -104,7 +110,9 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->ro_green1_enable & 0x01) << 2 |
 		(arg->lc_green1_enable & 0x01) << 1 |
 		(arg->pg_green1_enable & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_METHODS_SET_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_METHODS_SET_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_METHODS_SET_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_METHODS_SET_1);
 
 	value = (arg->sw_rk_red_blue2_en & 0x01) << 13 |
 		(arg->rg_red_blue2_enable & 0x01) << 12 |
@@ -118,7 +126,9 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->ro_green2_enable & 0x01) << 2 |
 		(arg->lc_green2_enable & 0x01) << 1 |
 		(arg->pg_green2_enable & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_METHODS_SET_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_METHODS_SET_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_METHODS_SET_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_METHODS_SET_2);
 
 	value = (arg->sw_rk_red_blue3_en & 0x01) << 13 |
 		(arg->rg_red_blue3_enable & 0x01) << 12 |
@@ -132,58 +142,90 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->ro_green3_enable & 0x01) << 2 |
 		(arg->lc_green3_enable & 0x01) << 1 |
 		(arg->pg_green3_enable & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_METHODS_SET_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_METHODS_SET_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_METHODS_SET_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_METHODS_SET_3);
 
 	value = ISP2X_PACK_4BYTE(arg->line_thr_1_g, arg->line_thr_1_rb,
 				 arg->sw_mindis1_g, arg->sw_mindis1_rb);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_THRESH_1);
 
 	value = ISP2X_PACK_4BYTE(arg->line_mad_fac_1_g, arg->line_mad_fac_1_rb,
 				 arg->sw_dis_scale_max1, arg->sw_dis_scale_min1);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_MAD_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_MAD_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_MAD_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_MAD_FAC_1);
 
 	value = ISP2X_PACK_4BYTE(arg->pg_fac_1_g, arg->pg_fac_1_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PG_FAC_1);
 
 	value = ISP2X_PACK_4BYTE(arg->rnd_thr_1_g, arg->rnd_thr_1_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RND_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RND_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RND_THRESH_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RND_THRESH_1);
 
 	value = ISP2X_PACK_4BYTE(arg->rg_fac_1_g, arg->rg_fac_1_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RG_FAC_1);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RG_FAC_1);
 
 	value = ISP2X_PACK_4BYTE(arg->line_thr_2_g, arg->line_thr_2_rb,
 				 arg->sw_mindis2_g, arg->sw_mindis2_rb);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_THRESH_2);
 
 	value = ISP2X_PACK_4BYTE(arg->line_mad_fac_2_g, arg->line_mad_fac_2_rb,
 				 arg->sw_dis_scale_max2, arg->sw_dis_scale_min2);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_MAD_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_MAD_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_MAD_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_MAD_FAC_2);
 
 	value = ISP2X_PACK_4BYTE(arg->pg_fac_2_g, arg->pg_fac_2_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PG_FAC_2);
 
 	value = ISP2X_PACK_4BYTE(arg->rnd_thr_2_g, arg->rnd_thr_2_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RND_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RND_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RND_THRESH_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RND_THRESH_2);
 
 	value = ISP2X_PACK_4BYTE(arg->rg_fac_2_g, arg->rg_fac_2_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RG_FAC_2);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RG_FAC_2);
 
 	value = ISP2X_PACK_4BYTE(arg->line_thr_3_g, arg->line_thr_3_rb,
 				 arg->sw_mindis3_g, arg->sw_mindis3_rb);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_THRESH_3);
 
 	value = ISP2X_PACK_4BYTE(arg->line_mad_fac_3_g, arg->line_mad_fac_3_rb,
 				 arg->sw_dis_scale_max3, arg->sw_dis_scale_min3);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_LINE_MAD_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_LINE_MAD_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_LINE_MAD_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_LINE_MAD_FAC_3);
 
 	value = ISP2X_PACK_4BYTE(arg->pg_fac_3_g, arg->pg_fac_3_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PG_FAC_3);
 
 	value = ISP2X_PACK_4BYTE(arg->rnd_thr_3_g, arg->rnd_thr_3_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RND_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RND_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RND_THRESH_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RND_THRESH_3);
 
 	value = ISP2X_PACK_4BYTE(arg->rg_fac_3_g, arg->rg_fac_3_rb, 0, 0);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RG_FAC_3);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RG_FAC_3);
 
 	value = (arg->ro_lim_3_rb & 0x03) << 10 |
 		(arg->ro_lim_3_g & 0x03) << 8 |
@@ -191,7 +233,9 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->ro_lim_2_g & 0x03) << 4 |
 		(arg->ro_lim_1_rb & 0x03) << 2 |
 		(arg->ro_lim_1_g & 0x03);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RO_LIMITS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RO_LIMITS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RO_LIMITS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RO_LIMITS);
 
 	value = (arg->rnd_offs_3_rb & 0x03) << 10 |
 		(arg->rnd_offs_3_g & 0x03) << 8 |
@@ -199,7 +243,9 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->rnd_offs_2_g & 0x03) << 4 |
 		(arg->rnd_offs_1_rb & 0x03) << 2 |
 		(arg->rnd_offs_1_g & 0x03);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_RND_OFFS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_RND_OFFS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_RND_OFFS);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_RND_OFFS);
 
 	value = (arg->bpt_rb_3x3 & 0x01) << 11 |
 		(arg->bpt_g_3x3 & 0x01) << 10 |
@@ -211,39 +257,63 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->bpt_use_set_1 & 0x01) << 4 |
 		(arg->bpt_cor_en & 0x01) << 1 |
 		(arg->bpt_det_en & 0x01);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_BPT_CTRL);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_BPT_CTRL);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_BPT_CTRL);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_BPT_CTRL);
 
-	rkisp_iowrite32(params_vdev, arg->bp_number, ISP_DPCC_BPT_NUMBER);
-	rkisp_iowrite32(params_vdev, arg->bp_table_addr, ISP_DPCC_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->bp_number, ISP_DPCC0_BPT_NUMBER);
+	rkisp_iowrite32(params_vdev, arg->bp_number, ISP_DPCC1_BPT_NUMBER);
+	rkisp_iowrite32(params_vdev, arg->bp_number, ISP_DPCC2_BPT_NUMBER);
+	rkisp_iowrite32(params_vdev, arg->bp_table_addr, ISP_DPCC0_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->bp_table_addr, ISP_DPCC1_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->bp_table_addr, ISP_DPCC2_BPT_ADDR);
 
 	value = ISP2X_PACK_2SHORT(arg->bpt_h_addr, arg->bpt_v_addr);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_BPT_DATA);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_BPT_DATA);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_BPT_DATA);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_BPT_DATA);
 
-	rkisp_iowrite32(params_vdev, arg->bp_cnt, ISP_DPCC_BP_CNT);
+	rkisp_iowrite32(params_vdev, arg->bp_cnt, ISP_DPCC0_BP_CNT);
+	rkisp_iowrite32(params_vdev, arg->bp_cnt, ISP_DPCC1_BP_CNT);
+	rkisp_iowrite32(params_vdev, arg->bp_cnt, ISP_DPCC2_BP_CNT);
 
-	rkisp_iowrite32(params_vdev, arg->sw_pdaf_en, ISP_DPCC_PDAF_EN);
+	rkisp_iowrite32(params_vdev, arg->sw_pdaf_en, ISP_DPCC0_PDAF_EN);
+	rkisp_iowrite32(params_vdev, arg->sw_pdaf_en, ISP_DPCC1_PDAF_EN);
+	rkisp_iowrite32(params_vdev, arg->sw_pdaf_en, ISP_DPCC2_PDAF_EN);
 
 	value = 0;
 	for (i = 0; i < ISP2X_DPCC_PDAF_POINT_NUM; i++)
 		value |= (arg->pdaf_point_en[i] & 0x01) << i;
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PDAF_POINT_EN);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PDAF_POINT_EN);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PDAF_POINT_EN);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PDAF_POINT_EN);
 
 	value = ISP2X_PACK_2SHORT(arg->pdaf_offsetx, arg->pdaf_offsety);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PDAF_OFFSET);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PDAF_OFFSET);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PDAF_OFFSET);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PDAF_OFFSET);
 
 	value = ISP2X_PACK_2SHORT(arg->pdaf_wrapx, arg->pdaf_wrapy);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PDAF_WRAP);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PDAF_WRAP);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PDAF_WRAP);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PDAF_WRAP);
 
 	value = ISP2X_PACK_2SHORT(arg->pdaf_wrapx_num, arg->pdaf_wrapy_num);
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_PDAF_SCOPE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PDAF_SCOPE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PDAF_SCOPE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PDAF_SCOPE);
 
 	for (i = 0; i < ISP2X_DPCC_PDAF_POINT_NUM / 2; i++) {
 		value = ISP2X_PACK_4BYTE(arg->point[2 * i].x, arg->point[2 * i].y,
 					 arg->point[2 * i + 1].x, arg->point[2 * i + 1].y);
-		rkisp_iowrite32(params_vdev, value, ISP_DPCC_PDAF_POINT_0 + 4 * i);
+		rkisp_iowrite32(params_vdev, value, ISP_DPCC0_PDAF_POINT_0 + 4 * i);
+		rkisp_iowrite32(params_vdev, value, ISP_DPCC1_PDAF_POINT_0 + 4 * i);
+		rkisp_iowrite32(params_vdev, value, ISP_DPCC2_PDAF_POINT_0 + 4 * i);
 	}
 
-	rkisp_iowrite32(params_vdev, arg->pdaf_forward_med, ISP_DPCC_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->pdaf_forward_med, ISP_DPCC0_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->pdaf_forward_med, ISP_DPCC1_BPT_ADDR);
+	rkisp_iowrite32(params_vdev, arg->pdaf_forward_med, ISP_DPCC2_BPT_ADDR);
 }
 
 static void
@@ -252,12 +322,14 @@ isp_dpcc_enable(struct rkisp_isp_params_vdev *params_vdev,
 {
 	u32 value;
 
-	value = rkisp_ioread32(params_vdev, ISP_DPCC_MODE);
+	value = rkisp_ioread32(params_vdev, ISP_DPCC0_MODE);
 	value &= ~ISP_DPCC_EN;
 
 	if (en)
 		value |= ISP_DPCC_EN;
-	rkisp_iowrite32(params_vdev, value, ISP_DPCC_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC0_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC1_MODE);
+	rkisp_iowrite32(params_vdev, value, ISP_DPCC2_MODE);
 }
 
 static void
