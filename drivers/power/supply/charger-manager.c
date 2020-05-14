@@ -1311,8 +1311,8 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	desc->battery_present = battery_stat;
 
 	/* chargers */
-	of_property_read_u32(np, "cm-num-chargers", &num_chgs);
-	if (num_chgs) {
+	num_chgs = of_property_count_strings(np, "cm-chargers");
+	if (num_chgs > 0) {
 		int i;
 
 		/* Allocate empty bin at the tail of array */
