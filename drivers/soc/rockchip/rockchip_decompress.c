@@ -3,6 +3,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd
  */
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/initramfs.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -12,6 +13,8 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
+#include <linux/soc/rockchip/rockchip_decompress.h>
 
 #define DECOM_CTRL		0x0
 #define DECOM_ENR		0x4
@@ -33,6 +36,8 @@
 #define DECOM_DICTID		0x44
 #define DECOM_CSL		0x48
 #define DECOM_CSH		0x4c
+#define DECOM_LMTSL		0x50
+#define DECOM_LMTSH		0x54
 
 #define LZ4_HEAD_CSUM_CHECK_EN	BIT(1)
 #define LZ4_BLOCK_CSUM_CHECK_EN	BIT(2)
@@ -75,12 +80,6 @@
 	DISEIEN | LENEIEN | LITEIEN | SQMEIEN | SLCIEN | \
 	HDEIEN | DSIEN)
 
-enum decom_mod {
-	LZ4_MOD,
-	GZIP_MOD,
-	ZLIB_MOD,
-};
-
 struct rk_decom {
 	struct device *dev;
 	int irq;
@@ -89,7 +88,10 @@ struct rk_decom {
 	void __iomem *regs;
 	phys_addr_t mem_start;
 	size_t mem_size;
+	struct reset_control *reset;
 };
+
+static struct rk_decom *g_decom;
 
 static DECLARE_WAIT_QUEUE_HEAD(initrd_decom_done);
 static bool initrd_continue;
@@ -98,6 +100,64 @@ void __init wait_initrd_hw_decom_done(void)
 {
 	wait_event(initrd_decom_done, initrd_continue);
 }
+
+int rk_decom_start(u32 mode, phys_addr_t mem_start, phys_addr_t mem_dst, u32 dst_max_size)
+{
+	u32 irq_status;
+	u32 decom_enr;
+
+	if (!g_decom)
+		return -EINVAL;
+
+	decom_enr = readl(g_decom->regs + DECOM_ENR);
+	if (decom_enr & 0x1) {
+		pr_err("decompress busy\n");
+		return -EBUSY;
+	}
+
+	if (g_decom->reset) {
+		reset_control_assert(g_decom->reset);
+		udelay(10);
+		reset_control_deassert(g_decom->reset);
+	}
+
+	irq_status = readl(g_decom->regs + DECOM_ISR);
+	/* clear interrupts */
+	if (irq_status)
+		writel(irq_status, g_decom->regs + DECOM_ISR);
+
+	switch (mode) {
+	case LZ4_MOD:
+		writel(LZ4_CONT_CSUM_CHECK_EN |
+		       LZ4_HEAD_CSUM_CHECK_EN |
+		       LZ4_BLOCK_CSUM_CHECK_EN |
+		       LZ4_MOD, g_decom->regs + DECOM_CTRL);
+		break;
+	case GZIP_MOD:
+		writel(DECOM_DEFLATE_MODE | DECOM_GZIP_MODE,
+		       g_decom->regs + DECOM_CTRL);
+		break;
+	case ZLIB_MOD:
+		writel(DECOM_DEFLATE_MODE | DECOM_ZLIB_MODE,
+		       g_decom->regs + DECOM_CTRL);
+		break;
+	default:
+		pr_err("undefined mode : %d\n", mode);
+		return -EINVAL;
+	}
+
+	writel(mem_start, g_decom->regs + DECOM_RADDR);
+	writel(mem_dst, g_decom->regs + DECOM_WADDR);
+
+	writel(dst_max_size, g_decom->regs + DECOM_LMTSL);
+	writel(0x0, g_decom->regs + DECOM_LMTSH);
+
+	writel(DECOM_INT_MASK, g_decom->regs + DECOM_IEN);
+	writel(DECOM_ENABLE, g_decom->regs + DECOM_ENR);
+
+	return 0;
+}
+EXPORT_SYMBOL(rk_decom_start);
 
 static irqreturn_t rk_decom_irq_handler(int irq, void *priv)
 {
@@ -118,6 +178,10 @@ static irqreturn_t rk_decom_irq_handler(int irq, void *priv)
 			dev_info(rk_dec->dev,
 				 "decom failed, irq_status = 0x%x, decom_status = 0x%x, try again !\n",
 				 irq_status, decom_status);
+
+			print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+				       32, 4, rk_dec->regs, 0x128, false);
+
 			writel(DECOM_ENABLE, rk_dec->regs + DECOM_ENR);
 		}
 	}
@@ -201,6 +265,16 @@ static int rockchip_decom_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, rk_dec);
 
+	rk_dec->reset = devm_reset_control_get_exclusive(dev, "dresetn");
+	if (IS_ERR(rk_dec->reset)) {
+		ret = PTR_ERR(rk_dec->reset);
+		if (ret != -ENOENT)
+			return ret;
+
+		dev_dbg(dev, "no reset control found\n");
+		rk_dec->reset = NULL;
+	}
+
 	ret = devm_request_threaded_irq(dev, rk_dec->irq, rk_decom_irq_handler,
 					rk_decom_irq_thread, IRQF_ONESHOT,
 					dev_name(dev), rk_dec);
@@ -208,6 +282,8 @@ static int rockchip_decom_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to attach decompress irq\n");
 		goto disable_clk;
 	}
+
+	g_decom = rk_dec;
 
 	return 0;
 
