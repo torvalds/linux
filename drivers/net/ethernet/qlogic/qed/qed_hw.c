@@ -868,6 +868,9 @@ void qed_hw_err_notify(struct qed_hwfn *p_hwfn,
 	}
 
 	qed_hw_error_occurred(p_hwfn, err_type);
+
+	if (fmt)
+		qed_mcp_send_raw_debug_data(p_hwfn, p_ptt, buf, len);
 }
 
 int qed_dmae_sanity(struct qed_hwfn *p_hwfn,

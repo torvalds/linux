@@ -3821,3 +3821,127 @@ int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 				  DRV_MSG_CODE_SET_NVM_CFG_OPTION,
 				  mb_param, &resp, &param, len, (u32 *)p_buf);
 }
+
+#define QED_MCP_DBG_DATA_MAX_SIZE               MCP_DRV_NVM_BUF_LEN
+#define QED_MCP_DBG_DATA_MAX_HEADER_SIZE        sizeof(u32)
+#define QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE \
+	(QED_MCP_DBG_DATA_MAX_SIZE - QED_MCP_DBG_DATA_MAX_HEADER_SIZE)
+
+static int
+__qed_mcp_send_debug_data(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *p_buf, u8 size)
+{
+	struct qed_mcp_mb_params mb_params;
+	int rc;
+
+	if (size > QED_MCP_DBG_DATA_MAX_SIZE) {
+		DP_ERR(p_hwfn,
+		       "Debug data size is %d while it should not exceed %d\n",
+		       size, QED_MCP_DBG_DATA_MAX_SIZE);
+		return -EINVAL;
+	}
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_DEBUG_DATA_SEND;
+	SET_MFW_FIELD(mb_params.param, DRV_MSG_CODE_DEBUG_DATA_SEND_SIZE, size);
+	mb_params.p_data_src = p_buf;
+	mb_params.data_src_size = size;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The DEBUG_DATA_SEND command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	} else if (mb_params.mcp_resp == (u32)FW_MSG_CODE_DEBUG_NOT_ENABLED) {
+		DP_INFO(p_hwfn, "The DEBUG_DATA_SEND command is not enabled\n");
+		return -EBUSY;
+	} else if (mb_params.mcp_resp != (u32)FW_MSG_CODE_DEBUG_DATA_SEND_OK) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to send debug data to the MFW [resp 0x%08x]\n",
+			  mb_params.mcp_resp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum qed_mcp_dbg_data_type {
+	QED_MCP_DBG_DATA_TYPE_RAW,
+};
+
+/* Header format: [31:28] PFID, [27:20] flags, [19:12] type, [11:0] S/N */
+#define QED_MCP_DBG_DATA_HDR_SN_OFFSET  0
+#define QED_MCP_DBG_DATA_HDR_SN_MASK            0x00000fff
+#define QED_MCP_DBG_DATA_HDR_TYPE_OFFSET        12
+#define QED_MCP_DBG_DATA_HDR_TYPE_MASK  0x000ff000
+#define QED_MCP_DBG_DATA_HDR_FLAGS_OFFSET       20
+#define QED_MCP_DBG_DATA_HDR_FLAGS_MASK 0x0ff00000
+#define QED_MCP_DBG_DATA_HDR_PF_OFFSET  28
+#define QED_MCP_DBG_DATA_HDR_PF_MASK            0xf0000000
+
+#define QED_MCP_DBG_DATA_HDR_FLAGS_FIRST        0x1
+#define QED_MCP_DBG_DATA_HDR_FLAGS_LAST 0x2
+
+static int
+qed_mcp_send_debug_data(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			enum qed_mcp_dbg_data_type type, u8 *p_buf, u32 size)
+{
+	u8 raw_data[QED_MCP_DBG_DATA_MAX_SIZE], *p_tmp_buf = p_buf;
+	u32 tmp_size = size, *p_header, *p_payload;
+	u8 flags = 0;
+	u16 seq;
+	int rc;
+
+	p_header = (u32 *)raw_data;
+	p_payload = (u32 *)(raw_data + QED_MCP_DBG_DATA_MAX_HEADER_SIZE);
+
+	seq = (u16)atomic_inc_return(&p_hwfn->mcp_info->dbg_data_seq);
+
+	/* First chunk is marked as 'first' */
+	flags |= QED_MCP_DBG_DATA_HDR_FLAGS_FIRST;
+
+	*p_header = 0;
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_SN, seq);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_TYPE, type);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS, flags);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_PF, p_hwfn->abs_pf_id);
+
+	while (tmp_size > QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE) {
+		memcpy(p_payload, p_tmp_buf, QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE);
+		rc = __qed_mcp_send_debug_data(p_hwfn, p_ptt, raw_data,
+					       QED_MCP_DBG_DATA_MAX_SIZE);
+		if (rc)
+			return rc;
+
+		/* Clear the 'first' marking after sending the first chunk */
+		if (p_tmp_buf == p_buf) {
+			flags &= ~QED_MCP_DBG_DATA_HDR_FLAGS_FIRST;
+			SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS,
+				      flags);
+		}
+
+		p_tmp_buf += QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE;
+		tmp_size -= QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE;
+	}
+
+	/* Last chunk is marked as 'last' */
+	flags |= QED_MCP_DBG_DATA_HDR_FLAGS_LAST;
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS, flags);
+	memcpy(p_payload, p_tmp_buf, tmp_size);
+
+	/* Casting the left size to u8 is ok since at this point it is <= 32 */
+	return __qed_mcp_send_debug_data(p_hwfn, p_ptt, raw_data,
+					 (u8)(QED_MCP_DBG_DATA_MAX_HEADER_SIZE +
+					 tmp_size));
+}
+
+int
+qed_mcp_send_raw_debug_data(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt, u8 *p_buf, u32 size)
+{
+	return qed_mcp_send_debug_data(p_hwfn, p_ptt,
+				       QED_MCP_DBG_DATA_TYPE_RAW, p_buf, size);
+}
