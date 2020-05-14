@@ -187,6 +187,10 @@ xfs_inode_from_disk(
 {
 	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
+	int			error;
+
+	ASSERT(ip->i_cowfp == NULL);
+	ASSERT(ip->i_afp == NULL);
 
 	/*
 	 * Convert v1 inodes immediately to v2 inode format as this is the
@@ -242,7 +246,21 @@ xfs_inode_from_disk(
 		to->di_cowextsize = be32_to_cpu(from->di_cowextsize);
 	}
 
-	return xfs_iformat_fork(ip, from);
+	error = xfs_iformat_data_fork(ip, from);
+	if (error)
+		return error;
+	if (XFS_DFORK_Q(from)) {
+		error = xfs_iformat_attr_fork(ip, from);
+		if (error)
+			goto out_destroy_data_fork;
+	}
+	if (xfs_is_reflink_inode(ip))
+		xfs_ifork_init_cow(ip);
+	return 0;
+
+out_destroy_data_fork:
+	xfs_idestroy_fork(ip, XFS_DATA_FORK);
+	return error;
 }
 
 void

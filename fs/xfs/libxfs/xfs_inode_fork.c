@@ -26,110 +26,6 @@
 
 kmem_zone_t *xfs_ifork_zone;
 
-STATIC int xfs_iformat_local(xfs_inode_t *, xfs_dinode_t *, int, int);
-STATIC int xfs_iformat_extents(xfs_inode_t *, xfs_dinode_t *, int);
-STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
-
-/*
- * Copy inode type and data and attr format specific information from the
- * on-disk inode to the in-core inode and fork structures.  For fifos, devices,
- * and sockets this means set i_rdev to the proper value.  For files,
- * directories, and symlinks this means to bring in the in-line data or extent
- * pointers as well as the attribute fork.  For a fork in B-tree format, only
- * the root is immediately brought in-core.  The rest will be read in later when
- * first referenced (see xfs_iread_extents()).
- */
-int
-xfs_iformat_fork(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*dip)
-{
-	struct inode		*inode = VFS_I(ip);
-	struct xfs_attr_shortform *atp;
-	int			size;
-	int			error = 0;
-	xfs_fsize_t             di_size;
-
-	switch (inode->i_mode & S_IFMT) {
-	case S_IFIFO:
-	case S_IFCHR:
-	case S_IFBLK:
-	case S_IFSOCK:
-		ip->i_d.di_size = 0;
-		inode->i_rdev = xfs_to_linux_dev_t(xfs_dinode_get_rdev(dip));
-		break;
-
-	case S_IFREG:
-	case S_IFLNK:
-	case S_IFDIR:
-		switch (dip->di_format) {
-		case XFS_DINODE_FMT_LOCAL:
-			di_size = be64_to_cpu(dip->di_size);
-			size = (int)di_size;
-			error = xfs_iformat_local(ip, dip, XFS_DATA_FORK, size);
-			break;
-		case XFS_DINODE_FMT_EXTENTS:
-			error = xfs_iformat_extents(ip, dip, XFS_DATA_FORK);
-			break;
-		case XFS_DINODE_FMT_BTREE:
-			error = xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
-			break;
-		default:
-			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
-					dip, sizeof(*dip), __this_address);
-			return -EFSCORRUPTED;
-		}
-		break;
-
-	default:
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
-				sizeof(*dip), __this_address);
-		return -EFSCORRUPTED;
-	}
-	if (error)
-		return error;
-
-	if (xfs_is_reflink_inode(ip)) {
-		ASSERT(ip->i_cowfp == NULL);
-		xfs_ifork_init_cow(ip);
-	}
-
-	if (!XFS_DFORK_Q(dip))
-		return 0;
-
-	ASSERT(ip->i_afp == NULL);
-	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_NOFS);
-
-	switch (dip->di_aformat) {
-	case XFS_DINODE_FMT_LOCAL:
-		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
-		size = be16_to_cpu(atp->hdr.totsize);
-
-		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK, size);
-		break;
-	case XFS_DINODE_FMT_EXTENTS:
-		error = xfs_iformat_extents(ip, dip, XFS_ATTR_FORK);
-		break;
-	case XFS_DINODE_FMT_BTREE:
-		error = xfs_iformat_btree(ip, dip, XFS_ATTR_FORK);
-		break;
-	default:
-		xfs_inode_verifier_error(ip, error, __func__, dip,
-				sizeof(*dip), __this_address);
-		error = -EFSCORRUPTED;
-		break;
-	}
-	if (error) {
-		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
-		ip->i_afp = NULL;
-		if (ip->i_cowfp)
-			kmem_cache_free(xfs_ifork_zone, ip->i_cowfp);
-		ip->i_cowfp = NULL;
-		xfs_idestroy_fork(ip, XFS_DATA_FORK);
-	}
-	return error;
-}
-
 void
 xfs_init_local_fork(
 	struct xfs_inode	*ip,
@@ -323,6 +219,88 @@ xfs_iformat_btree(
 	ifp->if_u1.if_root = NULL;
 	ifp->if_height = 0;
 	return 0;
+}
+
+int
+xfs_iformat_data_fork(
+	struct xfs_inode	*ip,
+	struct xfs_dinode	*dip)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFSOCK:
+		ip->i_d.di_size = 0;
+		inode->i_rdev = xfs_to_linux_dev_t(xfs_dinode_get_rdev(dip));
+		return 0;
+	case S_IFREG:
+	case S_IFLNK:
+	case S_IFDIR:
+		switch (dip->di_format) {
+		case XFS_DINODE_FMT_LOCAL:
+			return xfs_iformat_local(ip, dip, XFS_DATA_FORK,
+					be64_to_cpu(dip->di_size));
+		case XFS_DINODE_FMT_EXTENTS:
+			return xfs_iformat_extents(ip, dip, XFS_DATA_FORK);
+		case XFS_DINODE_FMT_BTREE:
+			return xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
+		default:
+			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
+					dip, sizeof(*dip), __this_address);
+			return -EFSCORRUPTED;
+		}
+		break;
+	default:
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
+				sizeof(*dip), __this_address);
+		return -EFSCORRUPTED;
+	}
+}
+
+static uint16_t
+xfs_dfork_attr_shortform_size(
+	struct xfs_dinode		*dip)
+{
+	struct xfs_attr_shortform	*atp =
+		(struct xfs_attr_shortform *)XFS_DFORK_APTR(dip);
+
+	return be16_to_cpu(atp->hdr.totsize);
+}
+
+int
+xfs_iformat_attr_fork(
+	struct xfs_inode	*ip,
+	struct xfs_dinode	*dip)
+{
+	int			error = 0;
+
+	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_NOFS);
+	switch (dip->di_aformat) {
+	case XFS_DINODE_FMT_LOCAL:
+		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK,
+				xfs_dfork_attr_shortform_size(dip));
+		break;
+	case XFS_DINODE_FMT_EXTENTS:
+		error = xfs_iformat_extents(ip, dip, XFS_ATTR_FORK);
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		error = xfs_iformat_btree(ip, dip, XFS_ATTR_FORK);
+		break;
+	default:
+		xfs_inode_verifier_error(ip, error, __func__, dip,
+				sizeof(*dip), __this_address);
+		error = -EFSCORRUPTED;
+		break;
+	}
+
+	if (error) {
+		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
+		ip->i_afp = NULL;
+	}
+	return error;
 }
 
 /*
