@@ -1324,6 +1324,8 @@
 		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>;
 		clock-names = "aclk", "dclk", "pclk";
+		resets = <&cru SRST_DECOM_D>;
+		reset-names = "dresetn";
 		status = "disabled";
 	};
 
