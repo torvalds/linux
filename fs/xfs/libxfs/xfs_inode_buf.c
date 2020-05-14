@@ -188,9 +188,17 @@ xfs_inode_from_disk(
 	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 	int			error;
+	xfs_failaddr_t		fa;
 
 	ASSERT(ip->i_cowfp == NULL);
 	ASSERT(ip->i_afp == NULL);
+
+	fa = xfs_dinode_verify(ip->i_mount, ip->i_ino, from);
+	if (fa) {
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "dinode", from,
+				sizeof(*from), fa);
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * First get the permanent information that is needed to allocate an
@@ -627,7 +635,6 @@ xfs_iread(
 {
 	xfs_buf_t	*bp;
 	xfs_dinode_t	*dip;
-	xfs_failaddr_t	fa;
 	int		error;
 
 	/*
@@ -651,15 +658,6 @@ xfs_iread(
 	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &bp, 0);
 	if (error)
 		return error;
-
-	/* even unallocated inodes are verified */
-	fa = xfs_dinode_verify(mp, ip->i_ino, dip);
-	if (fa) {
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "dinode", dip,
-				sizeof(*dip), fa);
-		error = -EFSCORRUPTED;
-		goto out_brelse;
-	}
 
 	error = xfs_inode_from_disk(ip, dip);
 	if (error)

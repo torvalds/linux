@@ -337,11 +337,11 @@ buffer.
 
 The structure of the verifiers and the identifiers checks is very similar to the
 buffer code described above. The only difference is where they are called. For
-example, inode read verification is done in xfs_iread() when the inode is first
-read out of the buffer and the struct xfs_inode is instantiated. The inode is
-already extensively verified during writeback in xfs_iflush_int, so the only
-addition here is to add the LSN and CRC to the inode as it is copied back into
-the buffer.
+example, inode read verification is done in xfs_inode_from_disk() when the inode
+is first read out of the buffer and the struct xfs_inode is instantiated. The
+inode is already extensively verified during writeback in xfs_iflush_int, so the
+only addition here is to add the LSN and CRC to the inode as it is copied back
+into the buffer.
 
 XXX: inode unlinked list modification doesn't recalculate the inode CRC! None of
 the unlinked list modifications check or update CRCs, neither during unlink nor
