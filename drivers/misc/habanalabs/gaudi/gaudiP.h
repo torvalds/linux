@@ -234,7 +234,6 @@ struct gaudi_internal_qman_info {
  *                      engine.
  * @multi_msi_mode: whether we are working in multi MSI single MSI mode.
  *                  Multi MSI is possible only with IOMMU enabled.
- * @ext_queue_idx: helper index for external queues initialization.
  * @mmu_cache_inv_pi: PI for MMU cache invalidation flow. The H/W expects an
  *                    8-bit value so use u8.
  */
@@ -255,7 +254,6 @@ struct gaudi_device {
 	u32				events_stat_aggregate[GAUDI_EVENT_SIZE];
 	u32				hw_cap_initialized;
 	u8				multi_msi_mode;
-	u8				ext_queue_idx;
 	u8				mmu_cache_inv_pi;
 };
 

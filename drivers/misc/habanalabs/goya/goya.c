@@ -5156,16 +5156,6 @@ u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 	return cq_idx;
 }
 
-static void goya_ext_queue_init(struct hl_device *hdev, u32 q_idx)
-{
-
-}
-
-static void goya_ext_queue_reset(struct hl_device *hdev, u32 q_idx)
-{
-
-}
-
 static u32 goya_get_signal_cb_size(struct hl_device *hdev)
 {
 	return 0;
@@ -5279,8 +5269,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.read_device_fw_version = goya_read_device_fw_version,
 	.load_firmware_to_device = goya_load_firmware_to_device,
 	.load_boot_fit_to_device = goya_load_boot_fit_to_device,
-	.ext_queue_init = goya_ext_queue_init,
-	.ext_queue_reset = goya_ext_queue_reset,
 	.get_signal_cb_size = goya_get_signal_cb_size,
 	.get_wait_cb_size = goya_get_wait_cb_size,
 	.gen_signal_cb = goya_gen_signal_cb,

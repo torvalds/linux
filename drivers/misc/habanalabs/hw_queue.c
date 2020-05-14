@@ -663,9 +663,6 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 	q->ci = 0;
 	q->pi = 0;
 
-	if (!is_cpu_queue)
-		hdev->asic_funcs->ext_queue_init(hdev, q->hw_queue_id);
-
 	return 0;
 
 free_queue:
@@ -732,6 +729,42 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 	return 0;
 }
 
+static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
+{
+	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_hw_sob *hw_sob;
+	int sob, queue_idx = hdev->sync_stream_queue_idx++;
+
+	hw_queue->base_sob_id =
+		prop->sync_stream_first_sob + queue_idx * HL_RSVD_SOBS;
+	hw_queue->base_mon_id =
+		prop->sync_stream_first_mon + queue_idx * HL_RSVD_MONS;
+	hw_queue->next_sob_val = 1;
+	hw_queue->curr_sob_offset = 0;
+
+	for (sob = 0 ; sob < HL_RSVD_SOBS ; sob++) {
+		hw_sob = &hw_queue->hw_sob[sob];
+		hw_sob->hdev = hdev;
+		hw_sob->sob_id = hw_queue->base_sob_id + sob;
+		hw_sob->q_idx = q_idx;
+		kref_init(&hw_sob->kref);
+	}
+}
+
+static void sync_stream_queue_reset(struct hl_device *hdev, u32 q_idx)
+{
+	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+
+	/*
+	 * In case we got here due to a stuck CS, the refcnt might be bigger
+	 * than 1 and therefore we reset it.
+	 */
+	kref_init(&hw_queue->hw_sob[hw_queue->curr_sob_offset].kref);
+	hw_queue->curr_sob_offset = 0;
+	hw_queue->next_sob_val = 1;
+}
+
 /*
  * queue_init - main initialization function for H/W queue object
  *
@@ -773,6 +806,9 @@ static int queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 		rc = -EINVAL;
 		break;
 	}
+
+	if (q->supports_sync_stream)
+		sync_stream_queue_init(hdev, q->hw_queue_id);
 
 	if (rc)
 		return rc;
@@ -848,6 +884,8 @@ int hl_hw_queues_create(struct hl_device *hdev)
 			i < HL_MAX_QUEUES ; i++, q_ready_cnt++, q++) {
 
 		q->queue_type = asic->hw_queues_props[i].type;
+		q->supports_sync_stream =
+				asic->hw_queues_props[i].supports_sync_stream;
 		rc = queue_init(hdev, q, i);
 		if (rc) {
 			dev_err(hdev->dev,
@@ -889,7 +927,7 @@ void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset)
 			continue;
 		q->pi = q->ci = 0;
 
-		if (q->queue_type == QUEUE_TYPE_EXT)
-			hdev->asic_funcs->ext_queue_reset(hdev, q->hw_queue_id);
+		if (q->supports_sync_stream)
+			sync_stream_queue_reset(hdev, q->hw_queue_id);
 	}
 }

@@ -345,10 +345,12 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 			prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
 			prop->hw_queues_props[i].driver_only = 0;
 			prop->hw_queues_props[i].requires_kernel_cb = 1;
+			prop->hw_queues_props[i].supports_sync_stream = 1;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_CPU) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
 			prop->hw_queues_props[i].driver_only = 1;
 			prop->hw_queues_props[i].requires_kernel_cb = 0;
+			prop->hw_queues_props[i].supports_sync_stream = 0;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_INT) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_INT;
 			prop->hw_queues_props[i].driver_only = 0;
@@ -357,6 +359,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 			prop->hw_queues_props[i].type = QUEUE_TYPE_NA;
 			prop->hw_queues_props[i].driver_only = 0;
 			prop->hw_queues_props[i].requires_kernel_cb = 0;
+			prop->hw_queues_props[i].supports_sync_stream = 0;
 		}
 	}
 
@@ -364,7 +367,8 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 		prop->hw_queues_props[i].type = QUEUE_TYPE_NA;
 
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
-
+	prop->sync_stream_first_sob = 0;
+	prop->sync_stream_first_mon = 0;
 	prop->dram_base_address = DRAM_PHYS_BASE;
 	prop->dram_size = GAUDI_HBM_SIZE_32GB;
 	prop->dram_end_address = prop->dram_base_address +
@@ -6296,44 +6300,6 @@ static u32 gaudi_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 	return gaudi_cq_assignment[cq_idx];
 }
 
-static void gaudi_ext_queue_init(struct hl_device *hdev, u32 q_idx)
-{
-	struct gaudi_device *gaudi = hdev->asic_specific;
-	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
-	struct hl_hw_sob *hw_sob;
-	int sob, ext_idx = gaudi->ext_queue_idx++;
-
-	/*
-	 * The external queues might not sit sequentially, hence use the
-	 * real external queue index for the SOB/MON base id.
-	 */
-	hw_queue->base_sob_id = ext_idx * HL_RSVD_SOBS;
-	hw_queue->base_mon_id = ext_idx * HL_RSVD_MONS;
-	hw_queue->next_sob_val = 1;
-	hw_queue->curr_sob_offset = 0;
-
-	for (sob = 0 ; sob < HL_RSVD_SOBS ; sob++) {
-		hw_sob = &hw_queue->hw_sob[sob];
-		hw_sob->hdev = hdev;
-		hw_sob->sob_id = hw_queue->base_sob_id + sob;
-		hw_sob->q_idx = q_idx;
-		kref_init(&hw_sob->kref);
-	}
-}
-
-static void gaudi_ext_queue_reset(struct hl_device *hdev, u32 q_idx)
-{
-	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
-
-	/*
-	 * In case we got here due to a stuck CS, the refcnt might be bigger
-	 * than 1 and therefore we reset it.
-	 */
-	kref_init(&hw_queue->hw_sob[hw_queue->curr_sob_offset].kref);
-	hw_queue->curr_sob_offset = 0;
-	hw_queue->next_sob_val = 1;
-}
-
 static u32 gaudi_get_signal_cb_size(struct hl_device *hdev)
 {
 	return sizeof(struct packet_msg_short) +
@@ -6636,8 +6602,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.read_device_fw_version = gaudi_read_device_fw_version,
 	.load_firmware_to_device = gaudi_load_firmware_to_device,
 	.load_boot_fit_to_device = gaudi_load_boot_fit_to_device,
-	.ext_queue_init = gaudi_ext_queue_init,
-	.ext_queue_reset = gaudi_ext_queue_reset,
 	.get_signal_cb_size = gaudi_get_signal_cb_size,
 	.get_wait_cb_size = gaudi_get_wait_cb_size,
 	.gen_signal_cb = gaudi_gen_signal_cb,

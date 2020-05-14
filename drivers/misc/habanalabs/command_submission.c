@@ -740,6 +740,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
+	enum hl_queue_type q_type;
 	u64 *signal_seq_arr = NULL, signal_seq;
 	u32 size_to_copy, q_idx, signal_seq_arr_len, cb_size;
 	int rc;
@@ -772,9 +773,10 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	chunk = &cs_chunk_array[0];
 	q_idx = chunk->queue_index;
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
+	q_type = hw_queue_prop->type;
 
 	if ((q_idx >= HL_MAX_QUEUES) ||
-			(hw_queue_prop->type != QUEUE_TYPE_EXT)) {
+			(!hw_queue_prop->supports_sync_stream)) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n", q_idx);
 		rc = -EINVAL;
 		goto free_cs_chunk_array;
@@ -871,7 +873,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	*cs_seq = cs->sequence;
 
-	job = hl_cs_allocate_job(hdev, QUEUE_TYPE_EXT, true);
+	job = hl_cs_allocate_job(hdev, q_type, true);
 	if (!job) {
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;

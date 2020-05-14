@@ -50,6 +50,10 @@
 /* MMU */
 #define MMU_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
+/*
+ * HL_RSVD_SOBS 'sync stream' reserved sync objects per QMAN stream
+ * HL_RSVD_MONS 'sync stream' reserved monitors per QMAN stream
+ */
 #define HL_RSVD_SOBS			4
 #define HL_RSVD_MONS			2
 
@@ -141,11 +145,13 @@ struct hl_hw_sob {
  *               false otherwise.
  * @requires_kernel_cb: true if a CB handle must be provided for jobs on this
  *                      queue, false otherwise (a CB address must be provided).
+ * @supports_sync_stream: True if queue supports sync stream
  */
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	u8			driver_only;
 	u8			requires_kernel_cb;
+	u8			supports_sync_stream;
 };
 
 /**
@@ -245,6 +251,9 @@ struct hl_mmu_properties {
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @tpc_enabled_mask: which TPCs are enabled.
+ * @sync_stream_first_sob: first sync object available for sync stream use
+ * @sync_stream_first_mon: first monitor available for sync stream use
+ * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  */
 struct asic_fixed_properties {
@@ -286,6 +295,8 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_cnt;
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
+	u16				sync_stream_first_sob;
+	u16				sync_stream_first_mon;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 };
@@ -423,6 +434,7 @@ struct hl_cs_job;
  *         exist).
  * @curr_sob_offset: the id offset to the currently used SOB from the
  *                   HL_RSVD_SOBS that are being used by this queue.
+ * @supports_sync_stream: True if queue supports sync stream
  */
 struct hl_hw_queue {
 	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
@@ -441,6 +453,7 @@ struct hl_hw_queue {
 	u16			base_mon_id;
 	u8			valid;
 	u8			curr_sob_offset;
+	u8			supports_sync_stream;
 };
 
 /**
@@ -603,8 +616,6 @@ enum hl_pll_frequency {
  *                          contained in registers
  * @load_firmware_to_device: load the firmware to the device's memory
  * @load_boot_fit_to_device: load boot fit to device's memory
- * @ext_queue_init: Initialize the given external queue.
- * @ext_queue_reset: Reset the given external queue.
  * @get_signal_cb_size: Get signal CB size.
  * @get_wait_cb_size: Get wait CB size.
  * @gen_signal_cb: Generate a signal CB.
@@ -707,8 +718,6 @@ struct hl_asic_funcs {
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);
-	void (*ext_queue_init)(struct hl_device *hdev, u32 hw_queue_id);
-	void (*ext_queue_reset)(struct hl_device *hdev, u32 hw_queue_id);
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
 	u32 (*get_wait_cb_size)(struct hl_device *hdev);
 	void (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id);
@@ -1436,6 +1445,7 @@ struct hl_device_idle_busy_ts {
  * @cdev_sysfs_created: were char devices and sysfs nodes created.
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
+ * @sync_stream_queue_idx: helper index for sync stream queues initialization.
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
  */
@@ -1523,6 +1533,7 @@ struct hl_device {
 	u8				cdev_sysfs_created;
 	u8				stop_on_err;
 	u8				supports_sync_stream;
+	u8				sync_stream_queue_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
 
