@@ -562,7 +562,7 @@ static void rtw8723d_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 	ldo_pwr = rtw_read8(rtwdev, REG_LDO_EFUSE_CTRL + 3);
 	if (enable) {
 		ldo_pwr &= ~BIT_MASK_LDO25_VOLTAGE;
-		ldo_pwr = (BIT_LDO25_VOLTAGE_V25 << 4) | BIT_LDO25_EN;
+		ldo_pwr |= (BIT_LDO25_VOLTAGE_V25 << 4) | BIT_LDO25_EN;
 	} else {
 		ldo_pwr &= ~BIT_LDO25_EN;
 	}
