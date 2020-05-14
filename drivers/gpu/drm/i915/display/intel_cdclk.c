@@ -2700,7 +2700,7 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 				      CCK_DISPLAY_REF_CLOCK_CONTROL);
 }
 
-static int g4x_hrawclk(struct drm_i915_private *dev_priv)
+static int i9xx_hrawclk(struct drm_i915_private *dev_priv)
 {
 	u32 clkcfg;
 
@@ -2716,27 +2716,43 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 	 */
 	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
 
-	/* ELK seems to redefine some of the values */
-	if (IS_G45(dev_priv) && clkcfg == CLKCFG_FSB_1600_ALT)
-		return 400000;
-
-	switch (clkcfg) {
-	case CLKCFG_FSB_400:
-		return 100000;
-	case CLKCFG_FSB_533:
-		return 133333;
-	case CLKCFG_FSB_667:
-		return 166667;
-	case CLKCFG_FSB_800:
-		return 200000;
-	case CLKCFG_FSB_1067:
-	case CLKCFG_FSB_1067_ALT:
-		return 266667;
-	case CLKCFG_FSB_1333:
-	case CLKCFG_FSB_1333_ALT:
-		return 333333;
-	default:
-		return 133333;
+	if (IS_MOBILE(dev_priv)) {
+		switch (clkcfg) {
+		case CLKCFG_FSB_400:
+			return 100000;
+		case CLKCFG_FSB_533:
+			return 133333;
+		case CLKCFG_FSB_667:
+			return 166667;
+		case CLKCFG_FSB_800:
+			return 200000;
+		case CLKCFG_FSB_1067:
+			return 266667;
+		case CLKCFG_FSB_1333:
+			return 333333;
+		default:
+			MISSING_CASE(clkcfg);
+			return 133333;
+		}
+	} else {
+		switch (clkcfg) {
+		case CLKCFG_FSB_400_ALT:
+			return 100000;
+		case CLKCFG_FSB_533:
+			return 133333;
+		case CLKCFG_FSB_667:
+			return 166667;
+		case CLKCFG_FSB_800:
+			return 200000;
+		case CLKCFG_FSB_1067_ALT:
+			return 266667;
+		case CLKCFG_FSB_1333_ALT:
+			return 333333;
+		case CLKCFG_FSB_1600_ALT:
+			return 400000;
+		default:
+			return 133333;
+		}
 	}
 }
 
@@ -2757,8 +2773,8 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
 		freq = pch_rawclk(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		freq = vlv_hrawclk(dev_priv);
-	else if (IS_G4X(dev_priv) || IS_PINEVIEW(dev_priv))
-		freq = g4x_hrawclk(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 3)
+		freq = i9xx_hrawclk(dev_priv);
 	else
 		/* no rawclk on other platforms, or no need to know it */
 		return 0;

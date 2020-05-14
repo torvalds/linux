@@ -3768,7 +3768,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* Clocking configuration register */
 #define CLKCFG			_MMIO(MCHBAR_MIRROR_BASE + 0xc00)
-#define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_400					(0 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_400_ALT				(5 << 0)	/* hrawclk 100 */
 #define CLKCFG_FSB_533					(1 << 0)	/* hrawclk 133 */
 #define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
 #define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
