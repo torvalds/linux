@@ -1706,6 +1706,17 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		    &resp, &param);
 }
 
+static void qed_mcp_handle_fan_failure(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt)
+{
+	/* A single notification should be sent to upper driver in CMT mode */
+	if (p_hwfn != QED_LEADING_HWFN(p_hwfn->cdev))
+		return;
+
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_FAN_FAIL,
+			  "Fan failure was detected on the network interface card and it's going to be shut down.\n");
+}
+
 void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct public_func shmem_info;
@@ -1851,6 +1862,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_S_TAG_UPDATE:
 			qed_mcp_update_stag(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_FAILURE_DETECTED:
+			qed_mcp_handle_fan_failure(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_GET_TLV_REQ:
 			qed_mfw_tlv_req(p_hwfn);
