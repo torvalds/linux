@@ -89,6 +89,9 @@ struct read_log {
 
 	/* A queue of waiters who want to be notified about reads */
 	wait_queue_head_t ml_notif_wq;
+
+	/* A work item to wake up those waiters without slowing down readers */
+	struct delayed_work ml_wakeup_work;
 };
 
 struct mount_options {

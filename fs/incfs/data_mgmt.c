@@ -8,6 +8,7 @@
 #include <linux/file.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/workqueue.h>
 #include <linux/pagemap.h>
 #include <linux/lz4.h>
 #include <linux/crc32.h>
@@ -15,6 +16,13 @@
 #include "data_mgmt.h"
 #include "format.h"
 #include "integrity.h"
+
+static void log_wake_up_all(struct work_struct *work)
+{
+	struct delayed_work *dw = container_of(work, struct delayed_work, work);
+	struct read_log *rl = container_of(dw, struct read_log, ml_wakeup_work);
+	wake_up_all(&rl->ml_notif_wq);
+}
 
 struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
@@ -35,6 +43,7 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mutex_init(&mi->mi_pending_reads_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
 	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
+	INIT_DELAYED_WORK(&mi->mi_log.ml_wakeup_work, log_wake_up_all);
 	spin_lock_init(&mi->mi_log.rl_lock);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 
@@ -94,6 +103,8 @@ void incfs_free_mount_info(struct mount_info *mi)
 {
 	if (!mi)
 		return;
+
+	flush_delayed_work(&mi->mi_log.ml_wakeup_work);
 
 	dput(mi->mi_index_dir);
 	path_put(&mi->mi_backing_dir_path);
@@ -297,10 +308,19 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 {
 	struct read_log *log = &mi->mi_log;
 	struct read_log_state *head, *tail;
-	s64 now_us = ktime_to_us(ktime_get());
+	s64 now_us;
 	s64 relative_us;
 	union log_record record;
 	size_t record_size;
+
+	/*
+	 * This may read the old value, but it's OK to delay the logging start
+	 * right after the configuration update.
+	 */
+	if (READ_ONCE(log->rl_size) == 0)
+		return;
+
+	now_us = ktime_to_us(ktime_get());
 
 	spin_lock(&log->rl_lock);
 	if (log->rl_size == 0) {
@@ -320,6 +340,7 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 			.file_id = *id,
 			.absolute_ts_us = now_us,
 		};
+		head->base_record.file_id = *id;
 		record_size = sizeof(struct full_record);
 	} else if (block_index != head->base_record.block_index + 1 ||
 		   relative_us >= 1 << 30) {
@@ -344,7 +365,6 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 		record_size = sizeof(struct same_file_next_block_short);
 	}
 
-	head->base_record.file_id = *id;
 	head->base_record.block_index = block_index;
 	head->base_record.absolute_ts_us = now_us;
 
@@ -363,7 +383,8 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	++head->current_record_no;
 
 	spin_unlock(&log->rl_lock);
-	wake_up_all(&log->ml_notif_wq);
+	if (schedule_delayed_work(&log->ml_wakeup_work, msecs_to_jiffies(16)))
+		pr_debug("incfs: scheduled a log pollers wakeup");
 }
 
 static int validate_hash_tree(struct file *bf, struct data_file *df,
