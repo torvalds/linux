@@ -4,10 +4,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <sys/epoll.h>
+
 #include <linux/err.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 
+#include "bpf_util.h"
 #include "network_helpers.h"
 
 #define clean_errno() (errno == 0 ? "None" : strerror(errno))
@@ -77,9 +81,7 @@ static const size_t timeo_optlen = sizeof(timeo_sec);
 
 int connect_to_fd(int family, int type, int server_fd)
 {
-	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
-	int fd;
+	int fd, save_errno;
 
 	fd = socket(family, type, 0);
 	if (fd < 0) {
@@ -87,24 +89,70 @@ int connect_to_fd(int family, int type, int server_fd)
 		return -1;
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeo_sec, timeo_optlen)) {
+	if (connect_fd_to_fd(fd, server_fd) < 0 && errno != EINPROGRESS) {
+		save_errno = errno;
+		close(fd);
+		errno = save_errno;
+		return -1;
+	}
+
+	return fd;
+}
+
+int connect_fd_to_fd(int client_fd, int server_fd)
+{
+	struct sockaddr_storage addr;
+	socklen_t len = sizeof(addr);
+	int save_errno;
+
+	if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeo_sec,
+		       timeo_optlen)) {
 		log_err("Failed to set SO_RCVTIMEO");
-		goto out;
+		return -1;
 	}
 
 	if (getsockname(server_fd, (struct sockaddr *)&addr, &len)) {
 		log_err("Failed to get server addr");
-		goto out;
+		return -1;
 	}
 
-	if (connect(fd, (const struct sockaddr *)&addr, len) < 0) {
-		log_err("Fail to connect to server with family %d", family);
-		goto out;
+	if (connect(client_fd, (const struct sockaddr *)&addr, len) < 0) {
+		if (errno != EINPROGRESS) {
+			save_errno = errno;
+			log_err("Failed to connect to server");
+			errno = save_errno;
+		}
+		return -1;
 	}
 
-	return fd;
+	return 0;
+}
 
-out:
-	close(fd);
-	return -1;
+int connect_wait(int fd)
+{
+	struct epoll_event ev = {}, events[2];
+	int timeout_ms = 1000;
+	int efd, nfd;
+
+	efd = epoll_create1(EPOLL_CLOEXEC);
+	if (efd < 0) {
+		log_err("Failed to open epoll fd");
+		return -1;
+	}
+
+	ev.events = EPOLLRDHUP | EPOLLOUT;
+	ev.data.fd = fd;
+
+	if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+		log_err("Failed to register fd=%d on epoll fd=%d", fd, efd);
+		close(efd);
+		return -1;
+	}
+
+	nfd = epoll_wait(efd, events, ARRAY_SIZE(events), timeout_ms);
+	if (nfd < 0)
+		log_err("Failed to wait for I/O event on epoll fd=%d", efd);
+
+	close(efd);
+	return nfd;
 }
