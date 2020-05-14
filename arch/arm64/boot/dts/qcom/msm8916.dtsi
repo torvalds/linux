@@ -358,17 +358,6 @@
 		};
 	};
 
-	gpu_opp_table: gpu-opp-table {
-		compatible = "operating-points-v2";
-
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-		};
-		opp-19200000 {
-			opp-hz = /bits/ 64 <19200000>;
-		};
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
@@ -989,6 +978,17 @@
 			power-domains = <&gcc OXILI_GDSC>;
 			operating-points-v2 = <&gpu_opp_table>;
 			iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-400000000 {
+					opp-hz = /bits/ 64 <400000000>;
+				};
+				opp-19200000 {
+					opp-hz = /bits/ 64 <19200000>;
+				};
+			};
 		};
 
 		mdss: mdss@1a00000 {
