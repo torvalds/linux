@@ -176,7 +176,7 @@ extern struct kmem_zone	*xfs_ifork_zone;
 
 extern void xfs_ifork_init_cow(struct xfs_inode *ip);
 
-xfs_failaddr_t xfs_ifork_verify_data(struct xfs_inode *ip);
-xfs_failaddr_t xfs_ifork_verify_attr(struct xfs_inode *ip);
+int xfs_ifork_verify_local_data(struct xfs_inode *ip);
+int xfs_ifork_verify_local_attr(struct xfs_inode *ip);
 
 #endif	/* __XFS_INODE_FORK_H__ */
