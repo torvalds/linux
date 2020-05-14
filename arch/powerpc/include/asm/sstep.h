@@ -49,6 +49,8 @@ enum instruction_type {
 
 #define INSTR_TYPE_MASK	0x1f
 
+#define OP_IS_LOAD(type)	((LOAD <= (type) && (type) <= LOAD_VSX) || (type) == LARX)
+#define OP_IS_STORE(type)	((STORE <= (type) && (type) <= STORE_VSX) || (type) == STCX)
 #define OP_IS_LOAD_STORE(type)	(LOAD <= (type) && (type) <= STCX)
 
 /* Compute flags, ORed in with type */
