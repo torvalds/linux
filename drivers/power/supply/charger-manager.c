@@ -26,6 +26,29 @@
 #include <linux/of.h>
 #include <linux/thermal.h>
 
+static struct {
+	const char *name;
+	u64 extcon_type;
+} extcon_mapping[] = {
+	/* Current textual representations */
+	{ "USB", EXTCON_USB },
+	{ "USB-HOST", EXTCON_USB_HOST },
+	{ "SDP", EXTCON_CHG_USB_SDP },
+	{ "DCP", EXTCON_CHG_USB_DCP },
+	{ "CDP", EXTCON_CHG_USB_CDP },
+	{ "ACA", EXTCON_CHG_USB_ACA },
+	{ "FAST-CHARGER", EXTCON_CHG_USB_FAST },
+	{ "SLOW-CHARGER", EXTCON_CHG_USB_SLOW },
+	{ "WPT", EXTCON_CHG_WPT },
+	{ "PD", EXTCON_CHG_USB_PD },
+	{ "DOCK", EXTCON_DOCK },
+	{ "JIG", EXTCON_JIG },
+	{ "MECHANICAL", EXTCON_MECHANICAL },
+	/* Deprecated textual representations */
+	{ "TA", EXTCON_CHG_USB_SDP },
+	{ "CHARGE-DOWNSTREAM", EXTCON_CHG_USB_CDP },
+};
+
 /*
  * Default temperature threshold for charging.
  * Every temperature units are in tenth of centigrade.
@@ -950,7 +973,8 @@ static int charger_extcon_notifier(struct notifier_block *self,
 static int charger_extcon_init(struct charger_manager *cm,
 		struct charger_cable *cable)
 {
-	int ret;
+	int ret, i;
+	u64 extcon_type = EXTCON_NONE;
 
 	/*
 	 * Charger manager use Extcon framework to identify
@@ -959,14 +983,39 @@ static int charger_extcon_init(struct charger_manager *cm,
 	 */
 	INIT_WORK(&cable->wq, charger_extcon_work);
 	cable->nb.notifier_call = charger_extcon_notifier;
-	ret = extcon_register_interest(&cable->extcon_dev,
-			cable->extcon_name, cable->name, &cable->nb);
-	if (ret < 0) {
-		pr_info("Cannot register extcon_dev for %s(cable: %s)\n",
+
+	cable->extcon_dev = extcon_get_extcon_dev(cable->extcon_name);
+	if (IS_ERR_OR_NULL(cable->extcon_dev)) {
+		pr_err("Cannot find extcon_dev for %s (cable: %s)\n",
 			cable->extcon_name, cable->name);
+		if (cable->extcon_dev == NULL)
+			return -EPROBE_DEFER;
+		else
+			return PTR_ERR(cable->extcon_dev);
 	}
 
-	return ret;
+	for (i = 0; i < ARRAY_SIZE(extcon_mapping); i++) {
+		if (!strcmp(cable->name, extcon_mapping[i].name)) {
+			extcon_type = extcon_mapping[i].extcon_type;
+			break;
+		}
+	}
+	if (extcon_type == EXTCON_NONE) {
+		pr_err("Cannot find cable for type %s", cable->name);
+		return -EINVAL;
+	}
+
+	cable->extcon_type = extcon_type;
+
+	ret = devm_extcon_register_notifier(cm->dev, cable->extcon_dev,
+		cable->extcon_type, &cable->nb);
+	if (ret < 0) {
+		pr_err("Cannot register extcon_dev for %s (cable: %s)\n",
+			cable->extcon_name, cable->name);
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -983,6 +1032,7 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 {
 	struct charger_desc *desc = cm->desc;
 	struct charger_regulator *charger;
+	unsigned long event;
 	int ret;
 	int i;
 	int j;
@@ -1010,6 +1060,11 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 			}
 			cable->charger = charger;
 			cable->cm = cm;
+
+			event = extcon_get_state(cable->extcon_dev,
+				cable->extcon_type);
+			charger_extcon_notifier(&cable->nb,
+				event, NULL);
 		}
 	}
 
@@ -1370,7 +1425,6 @@ static int charger_manager_probe(struct platform_device *pdev)
 	struct charger_desc *desc = cm_get_drv_data(pdev);
 	struct charger_manager *cm;
 	int ret, i = 0;
-	int j = 0;
 	union power_supply_propval val;
 	struct power_supply *fuel_gauge;
 	enum power_supply_property *properties;
@@ -1572,12 +1626,6 @@ err_reg_extcon:
 		struct charger_regulator *charger;
 
 		charger = &desc->charger_regulators[i];
-		for (j = 0; j < charger->num_cables; j++) {
-			struct charger_cable *cable = &charger->cables[j];
-			/* Remove notifier block if only edev exists */
-			if (cable->extcon_dev.edev)
-				extcon_unregister_interest(&cable->extcon_dev);
-		}
 
 		regulator_put(desc->charger_regulators[i].consumer);
 	}
@@ -1592,7 +1640,6 @@ static int charger_manager_remove(struct platform_device *pdev)
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 	struct charger_desc *desc = cm->desc;
 	int i = 0;
-	int j = 0;
 
 	/* Remove from the list */
 	mutex_lock(&cm_list_mtx);
@@ -1601,15 +1648,6 @@ static int charger_manager_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&setup_polling);
 	cancel_delayed_work_sync(&cm_monitor_work);
-
-	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
-		struct charger_regulator *charger
-				= &desc->charger_regulators[i];
-		for (j = 0 ; j < charger->num_cables ; j++) {
-			struct charger_cable *cable = &charger->cables[j];
-			extcon_unregister_interest(&cable->extcon_dev);
-		}
-	}
 
 	for (i = 0 ; i < desc->num_charger_regulators ; i++)
 		regulator_put(desc->charger_regulators[i].consumer);
