@@ -44,7 +44,7 @@ void ppc_gethwdinfo(struct ppc_debug_info *dbginfo)
 	dbginfo->version = 1;
 	dbginfo->num_instruction_bps = 0;
 	if (ppc_breakpoint_available())
-		dbginfo->num_data_bps = 1;
+		dbginfo->num_data_bps = nr_wp_slots();
 	else
 		dbginfo->num_data_bps = 0;
 	dbginfo->num_condition_regs = 0;
