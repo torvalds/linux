@@ -18,6 +18,7 @@
 
 	aliases {
 		serial0 = &uart1;	/* DBGU */
+		i2c2 = &i2c2;		/* XPRO EXT2 */
 	};
 
 	chosen {
@@ -336,6 +337,20 @@
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					status = "okay";
 				};
+
+				i2c2: i2c@600 {
+					dmas = <0>, <0>;
+					pinctrl-names = "default", "gpio";
+					pinctrl-0 = <&pinctrl_flx0_default>;
+					pinctrl-1 = <&pinctrl_i2c2_gpio>;
+					sda-gpios = <&pioA PIN_PB28 GPIO_ACTIVE_HIGH>;
+					scl-gpios = <&pioA PIN_PB29 GPIO_ACTIVE_HIGH>;
+					i2c-sda-hold-time-ns = <350>;
+					i2c-analog-filter;
+					i2c-digital-filter;
+					i2c-digital-filter-width-ns = <35>;
+					status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
+				};
 			};
 
 			shdwc@f8048010 {
@@ -520,6 +535,12 @@
 				pinctrl_i2c1_gpio: i2c1_gpio {
 					pinmux = <PIN_PD4__GPIO>,
 						 <PIN_PD5__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_i2c2_gpio: i2c2_gpio {
+					pinmux = <PIN_PB28__GPIO>,
+						 <PIN_PB29__GPIO>;
 					bias-disable;
 				};
 
