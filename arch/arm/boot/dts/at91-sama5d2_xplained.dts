@@ -327,14 +327,9 @@
 				status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
 
 				uart5: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
-					clock-names = "usart";
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx0_default>;
-					atmel,fifo-size = <32>;
 					status = "okay";
 				};
 			};

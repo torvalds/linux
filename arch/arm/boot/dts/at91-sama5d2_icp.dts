@@ -105,15 +105,9 @@
 	status = "okay";
 
 	spi2: spi@400 {
-		compatible = "atmel,at91rm9200-spi";
-		reg = <0x400 0x200>;
-		interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
-		clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
-		clock-names = "spi_clk";
 		cs-gpios = <&pioA PIN_PC0 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mikrobus2_spi &pinctrl_ksz_spi_cs>;
-		atmel,fifo-size = <16>;
 		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <0>;
